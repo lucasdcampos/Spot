@@ -1,0 +1,5 @@
+# Normalize line endings so the repo behaves the same on Windows, macOS and Linux.
+* text=auto
+
+# Shell scripts break with CRLF, even when checked out on Windows.
+*.sh text eol=lf

@@ -1,0 +1,55 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 25,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "binaryDir": "${sourceDir}/build/${presetName}"
+        },
+        {
+            "name": "msvc",
+            "displayName": "Visual Studio 2026",
+            "description": "Windows build with MSVC (multi-config)",
+            "inherits": "base",
+            "generator": "Visual Studio 18 2026",
+            "architecture": "x64",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "ninja",
+            "displayName": "Ninja Multi-Config",
+            "description": "Build with Ninja and the default compiler (Linux, macOS or Windows)",
+            "inherits": "base",
+            "generator": "Ninja Multi-Config",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            }
+        }
+    ],
+    "buildPresets": [
+        { "name": "msvc-debug", "configurePreset": "msvc", "configuration": "Debug" },
+        { "name": "msvc-release", "configurePreset": "msvc", "configuration": "Release" },
+        { "name": "ninja-debug", "configurePreset": "ninja", "configuration": "Debug" },
+        { "name": "ninja-release", "configurePreset": "ninja", "configuration": "Release" }
+    ],
+    "testPresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "output": { "outputOnFailure": true }
+        },
+        { "name": "msvc-debug", "inherits": "base", "configurePreset": "msvc", "configuration": "Debug" },
+        { "name": "msvc-release", "inherits": "base", "configurePreset": "msvc", "configuration": "Release" },
+        { "name": "ninja-debug", "inherits": "base", "configurePreset": "ninja", "configuration": "Debug" },
+        { "name": "ninja-release", "inherits": "base", "configurePreset": "ninja", "configuration": "Release" }
+    ]
+}

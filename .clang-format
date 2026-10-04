@@ -1,0 +1,9 @@
+BasedOnStyle: LLVM
+Standard: Latest
+IndentWidth: 4
+ColumnLimit: 120
+AccessModifierOffset: -4
+AllowShortFunctionsOnASingleLine: InlineOnly
+PointerAlignment: Left
+BreakTemplateDeclarations: Yes
+InsertNewlineAtEOF: true
