@@ -61,6 +61,14 @@ add_library(spot STATIC
     math/quaternion.cpp
     math/vector.h
     platform/platform.h
+    scene/component.h
+    scene/component.cpp
+    scene/entity.h
+    scene/entity.cpp
+    scene/scene.h
+    scene/scene.cpp
+    scene/transform.h
+    scene/transform.cpp
     window/window.h
 )
 add_library(spot::spot ALIAS spot)
