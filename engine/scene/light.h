@@ -22,12 +22,18 @@ public:
     // Multiplies the color.
     float GetIntensity() const { return m_intensity; }
     void SetIntensity(float intensity) { m_intensity = intensity; }
+    // Whether what the scene draws blocks the light from what is behind it; see LightData::castsShadows. Directional
+    // lights cast shadows unless told not to, and point and spot lights, whose shadows cost more, only when told to.
+    // Ambient lights never do.
+    bool IsCastingShadows() const { return m_castingShadows; }
+    void SetCastingShadows(bool castingShadows) { m_castingShadows = castingShadows; }
 
     // The light as it is now, placed by its entity's world transform.
     virtual LightData GetLightData() const = 0;
 
 protected:
-    Light(Color color, float intensity) : m_color(color), m_intensity(intensity) {}
+    Light(Color color, float intensity, bool castingShadows = false)
+        : m_color(color), m_intensity(intensity), m_castingShadows(castingShadows) {}
 
     void Serialize(Archive& archive) override;
 
@@ -37,6 +43,7 @@ protected:
 private:
     Color m_color;
     float m_intensity;
+    bool m_castingShadows;
 };
 
 // Light that reaches every surface evenly from all directions, so surfaces facing away from the other lights do not
@@ -51,7 +58,7 @@ public:
 // Light that shines down the entity's forward axis from infinitely far away, like the sun.
 class DirectionalLight final : public Light {
 public:
-    explicit DirectionalLight(Color color = Color::White, float intensity = 1.0f) : Light(color, intensity) {}
+    explicit DirectionalLight(Color color = Color::White, float intensity = 1.0f) : Light(color, intensity, true) {}
 
     LightData GetLightData() const override;
 };

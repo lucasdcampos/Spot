@@ -9,7 +9,7 @@ SamplerComparisonState localShadowSampler : register(s2, space2);
 // Must match Renderer3D::MaxLights, Detail::MaxShadowCascades and Renderer3D::MaxShadowTiles.
 #define MAX_LIGHTS 16
 #define MAX_CASCADES 4
-#define MAX_SHADOW_TILES 16
+#define MAX_SHADOW_TILES 32
 
 struct Light {
     // w is the type: 0 for directional, 1 for point and 2 for spot.

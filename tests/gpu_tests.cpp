@@ -1568,11 +1568,11 @@ TEST_CASE("Renderer3D point lights cast shadows in every direction when asked", 
 
 TEST_CASE("Renderer3D lights left without shadow tiles light everything", "[gpu]") {
     RequireGpu();
-    // Two point lights take 12 of the 16 tiles; the third does not fit, but a spot light still does.
+    // Five point lights take 30 of the 32 tiles; a sixth does not fit, but a spot light still does.
     const Spot::LightData point{
         .type = Spot::LightType::Point, .position = {0.0f, 4.0f, 0.0f}, .range = 10.0f, .castsShadows = true};
-    const auto threePoints = RenderShadows({point, point, point}, {{0.0f, 2.0f, 0.0f}});
-    const auto twoPoints = RenderShadows({point, point}, {{0.0f, 2.0f, 0.0f}});
+    const auto sixPoints = RenderShadows({point, point, point, point, point, point}, {{0.0f, 2.0f, 0.0f}});
+    const auto fivePoints = RenderShadows({point, point, point, point, point}, {{0.0f, 2.0f, 0.0f}});
     const Spot::LightData spot{.type = Spot::LightType::Spot,
                                .position = {0.0f, 4.0f, 0.0f},
                                .direction = {0.0f, -1.0f, 0.0f},
@@ -1580,11 +1580,51 @@ TEST_CASE("Renderer3D lights left without shadow tiles light everything", "[gpu]
                                .innerConeAngle = Spot::ToRadians(40.0f),
                                .outerConeAngle = Spot::ToRadians(50.0f),
                                .castsShadows = true};
-    const auto pointsAndSpot = RenderShadows({point, point, spot}, {{0.0f, 2.0f, 0.0f}});
+    const auto pointsAndSpot = RenderShadows({point, point, point, point, point, spot}, {{0.0f, 2.0f, 0.0f}});
 
     const int middle = FloorPixel(0.0f);
     const int shadow = FloorPixel(1.0f);
-    CHECK(twoPoints.At(shadow, middle)[0] < 15);
-    CHECK(threePoints.At(shadow, middle)[0] > 30);
+    CHECK(fivePoints.At(shadow, middle)[0] < 15);
+    CHECK(sixPoints.At(shadow, middle)[0] > 30);
     CHECK(pointsAndSpot.At(shadow, middle)[0] < 15);
+}
+
+TEST_CASE("Renderer3D scenes are shadowed by their sky's sun and by the mesh renderers that cast shadows", "[gpu]") {
+    RequireGpu();
+    const auto render = [](bool cubeCastsShadows) {
+        return TargetRender(
+            64, 64,
+            [=](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+                Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+                const std::shared_ptr<const Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+                const std::shared_ptr<const Spot::Mesh> floor =
+                    Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(40.0f));
+                REQUIRE((cube && floor));
+
+                Spot::Scene scene;
+                scene.CreateEntity("Floor").AddComponent<Spot::MeshRenderer>(floor);
+                auto& box = scene.CreateEntity("Cube");
+                box.GetTransform().SetPosition({-3.0f, 2.0f, 0.0f});
+                box.AddComponent<Spot::MeshRenderer>(cube).SetCastingShadows(cubeCastsShadows);
+                auto& sun = scene.CreateEntity("Sun");
+                sun.GetTransform().SetRotation(Spot::Quaternion::LookRotation({0.3f, -1.0f, 0.0f}));
+                sun.AddComponent<Spot::DirectionalLight>();
+                auto& sky = scene.CreateEntity("Sky").AddComponent<Spot::Sky>();
+                sky.SetAmbientIntensity(0.0f);
+                sky.SetNightColor(Spot::Color::Black);
+
+                Spot::Camera3D camera;
+                camera.position = {0.0f, 10.0f, 0.0f};
+                camera.rotation = Spot::Quaternion::LookRotation({0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, -1.0f});
+                renderer.Begin(context, target, camera);
+                renderer.DrawScene(scene);
+                renderer.End();
+            });
+    };
+
+    const int middle = FloorPixel(0.0f);
+    const auto shadowed = render(true);
+    CHECK(shadowed.At(FloorPixel(-2.1f), middle)[0] < 20);
+    CHECK(shadowed.At(FloorPixel(2.0f), middle)[0] > 150);
+    CHECK(render(false).At(FloorPixel(-2.1f), middle)[0] > 150);
 }

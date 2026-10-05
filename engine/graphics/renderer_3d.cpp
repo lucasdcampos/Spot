@@ -359,7 +359,7 @@ void Renderer3D::DrawSky(const SkyData& sky) {
     m_sky = sky;
 }
 
-void Renderer3D::DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform) {
+void Renderer3D::DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform, bool castsShadows) {
     SPOT_ASSERT(m_context, "Draw calls must come between Begin() and End()");
     const BoundingSphere bounds = mesh.GetBounds();
     const Vector4 center = transform * Vector4{bounds.center.x, bounds.center.y, bounds.center.z, 1.0f};
@@ -376,7 +376,8 @@ void Renderer3D::DrawMesh(const Mesh& mesh, const Material& material, const Matr
                           material.specular,
                           material.shininess,
                           transform,
-                          {{center.x, center.y, center.z}, bounds.radius * scale}});
+                          {{center.x, center.y, center.z}, bounds.radius * scale},
+                          castsShadows});
 }
 
 void Renderer3D::DrawModel(const Model& model, const Matrix4& transform) {
@@ -406,7 +407,7 @@ void Renderer3D::DrawScene(Scene& scene) {
     scene.ForEachComponent<MeshRenderer>([this](const MeshRenderer& renderer) {
         if (renderer.GetMesh()) {
             DrawMesh(*renderer.GetMesh(), renderer.GetMaterial() ? *renderer.GetMaterial() : DefaultMaterial,
-                     renderer.GetEntity().GetTransform().GetWorldMatrix());
+                     renderer.GetEntity().GetTransform().GetWorldMatrix(), renderer.IsCastingShadows());
         }
     });
 }
@@ -576,7 +577,8 @@ void Renderer3D::DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjecti
     pass.PushVertexUniforms(0, viewProjection);
     const Pipeline* boundPipeline = nullptr;
     for (const auto& command : m_commands) {
-        if (!Detail::IsSphereInView(viewProjection, command.bounds.center, command.bounds.radius, ignoreNear)) {
+        if (!command.castsShadows ||
+            !Detail::IsSphereInView(viewProjection, command.bounds.center, command.bounds.radius, ignoreNear)) {
             continue;
         }
         const Pipeline* pipeline = command.doubleSided ? m_doubleSidedShadowPipeline.get() : m_shadowPipeline.get();

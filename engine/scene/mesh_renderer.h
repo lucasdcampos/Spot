@@ -41,12 +41,18 @@ public:
     // A material of the renderer's own, which is not an asset and so is not saved.
     void SetMaterial(Material material) { m_material = std::make_shared<const Material>(std::move(material)); }
 
+    // Whether the mesh blocks lights that cast shadows, which it does unless told not to. It is lit and shadowed
+    // either way.
+    bool IsCastingShadows() const { return m_castingShadows; }
+    void SetCastingShadows(bool castingShadows) { m_castingShadows = castingShadows; }
+
 protected:
     void Serialize(Archive& archive) override;
 
 private:
     AssetRef<Mesh> m_mesh;
     AssetRef<Material> m_material;
+    bool m_castingShadows = true;
 };
 
 // Creates an entity for the model with a child per part, each showing the part's mesh and material with a

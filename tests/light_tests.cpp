@@ -65,8 +65,8 @@ TEST_CASE("Lights are saved with their scene", "[light][serialization]") {
     Scene scene;
     auto& entity = scene.CreateEntity("Lights");
     entity.AddComponent<AmbientLight>(Color::Blue, 0.5f);
-    entity.AddComponent<DirectionalLight>(Color::Green, 2.0f);
-    entity.AddComponent<PointLight>(Color::Red, 3.0f, 4.0f);
+    entity.AddComponent<DirectionalLight>(Color::Green, 2.0f).SetCastingShadows(false);
+    entity.AddComponent<PointLight>(Color::Red, 3.0f, 4.0f).SetCastingShadows(true);
     auto& spot = entity.AddComponent<SpotLight>(Color::White, 5.0f, 6.0f);
     spot.SetInnerConeAngle(0.25f);
     spot.SetOuterConeAngle(0.5f);
@@ -84,15 +84,37 @@ TEST_CASE("Lights are saved with their scene", "[light][serialization]") {
     REQUIRE(directional);
     CHECK(directional->GetColor() == Color::Green);
     CHECK(directional->GetIntensity() == 2.0f);
+    CHECK_FALSE(directional->IsCastingShadows());
     const auto* point = copy->GetComponent<PointLight>();
     REQUIRE(point);
     CHECK(point->GetColor() == Color::Red);
     CHECK(point->GetIntensity() == 3.0f);
     CHECK(point->GetRange() == 4.0f);
+    CHECK(point->IsCastingShadows());
     const auto* loadedSpot = copy->GetComponent<SpotLight>();
     REQUIRE(loadedSpot);
     CHECK(loadedSpot->GetIntensity() == 5.0f);
     CHECK(loadedSpot->GetRange() == 6.0f);
     CHECK(loadedSpot->GetInnerConeAngle() == 0.25f);
     CHECK(loadedSpot->GetOuterConeAngle() == 0.5f);
+    CHECK_FALSE(loadedSpot->IsCastingShadows());
+}
+
+TEST_CASE("Directional lights cast shadows unless told not to, and other lights only when told to", "[light]") {
+    Scene scene;
+    auto& entity = scene.CreateEntity("Lights");
+    auto& directional = entity.AddComponent<DirectionalLight>();
+    CHECK(directional.GetLightData().castsShadows);
+    directional.SetCastingShadows(false);
+    CHECK_FALSE(directional.GetLightData().castsShadows);
+
+    auto& point = entity.AddComponent<PointLight>();
+    CHECK_FALSE(point.GetLightData().castsShadows);
+    point.SetCastingShadows(true);
+    CHECK(point.GetLightData().castsShadows);
+    CHECK_FALSE(entity.AddComponent<SpotLight>().IsCastingShadows());
+
+    auto& ambient = entity.AddComponent<AmbientLight>();
+    ambient.SetCastingShadows(true);
+    CHECK_FALSE(ambient.GetLightData().castsShadows);
 }

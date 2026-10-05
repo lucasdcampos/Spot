@@ -37,6 +37,7 @@ SkyData Sky::GetSkyData() const {
         sky.sunDirection = light.direction;
         sky.sunColor = light.color;
         sky.sunIntensity = light.intensity;
+        sky.sunCastsShadows = light.castsShadows;
     }
     return sky;
 }

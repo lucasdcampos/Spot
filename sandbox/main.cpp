@@ -97,6 +97,11 @@ public:
         }
     }
 
+    void ToggleShadows() {
+        m_shadows = !m_shadows;
+        ForEachComponent<Spot::Light>([this](Spot::Light& light) { light.SetCastingShadows(m_shadows); });
+    }
+
     // From 0 at midnight to 1 at the next one.
     float GetTimeOfDay() const { return m_timeOfDay; }
 
@@ -168,6 +173,7 @@ protected:
         auto& flashlight = player.CreateChild("Flashlight");
         flashlight.GetTransform().SetPosition({0.0f, PlayerController::EyeHeight, 0.0f});
         m_flashlight = &flashlight.AddComponent<Spot::SpotLight>(Spot::Color{1.0f, 0.95f, 0.8f}, 1.5f, 25.0f);
+        m_flashlight->SetCastingShadows(true);
         m_flashlight->SetInnerConeAngle(Spot::ToRadians(12.0f));
         m_flashlight->SetOuterConeAngle(Spot::ToRadians(20.0f));
         m_flashlight->SetEnabled(false);
@@ -228,12 +234,13 @@ private:
     void AddLamp(Spot::Vector3 position, Spot::Color color) {
         auto& lamp = CreateEntity("Lamp");
         lamp.GetTransform().SetPosition(position);
-        lamp.AddComponent<Spot::PointLight>(color, 1.5f, 8.0f);
+        lamp.AddComponent<Spot::PointLight>(color, 1.5f, 8.0f).SetCastingShadows(true);
     }
 
     PlayerController* m_player = nullptr;
     Spot::SpotLight* m_flashlight = nullptr;
     Spot::DirectionalLight* m_sun = nullptr;
+    bool m_shadows = true;
     // Mid-morning.
     float m_timeOfDay = 0.375f;
 };
@@ -294,6 +301,9 @@ protected:
         if (scene && Input::IsKeyPressed(Key::F)) {
             scene->ToggleFlashlight();
         }
+        if (scene && Input::IsKeyPressed(Key::G)) {
+            scene->ToggleShadows();
+        }
         if (scene && scene->GetPlayer() && window.IsMouseCaptured()) {
             scene->GetPlayer()->Look(Input::GetMouseDelta());
         }
@@ -302,8 +312,9 @@ protected:
         m_elapsed += deltaTime;
         if (m_elapsed >= 1.0f) {
             const int minutes = scene ? static_cast<int>(scene->GetTimeOfDay() * 24.0f * 60.0f) : 0;
-            m_status = std::format("{:02}:{:02} | {} FPS, {} bodies, {} draw calls", minutes / 60, minutes % 60,
-                                   m_frames, scene ? scene->GetPhysics().GetBodyCount() : 0, m_stats3D.drawCalls);
+            m_status = std::format("{:02}:{:02} | {} FPS, {} bodies, {} + {} shadow draw calls", minutes / 60,
+                                   minutes % 60, m_frames, scene ? scene->GetPhysics().GetBodyCount() : 0,
+                                   m_stats3D.drawCalls, m_stats3D.shadowDrawCalls);
             m_frames = 0;
             m_elapsed -= 1.0f;
         }
@@ -380,11 +391,12 @@ private:
         m_renderer2D->Begin(pass, screen, view);
         m_renderer2D->DrawQuad(center, {14.0f, 2.0f}, crosshair);
         m_renderer2D->DrawQuad(center, {2.0f, 14.0f}, crosshair);
-        m_renderer2D->DrawQuad({230.0f, -40.0f}, {460.0f, 80.0f}, Spot::Color{0.0f, 0.0f, 0.0f, 0.6f});
+        m_renderer2D->DrawQuad({240.0f, -40.0f}, {480.0f, 80.0f}, Spot::Color{0.0f, 0.0f, 0.0f, 0.6f});
         m_renderer2D->DrawString(*m_font, m_status, {12.0f, -10.0f}, Spot::Color::FromSrgb(0.7f, 0.9f, 0.7f));
         m_renderer2D->DrawString(*m_font, "WASD: move | Shift: run | Space: jump | Click: shoot | R: reset",
                                  {12.0f, -10.0f - line}, Spot::Color::FromSrgb(0.8f, 0.8f, 0.8f), 0.8f);
-        m_renderer2D->DrawString(*m_font, "F: flashlight | T: speed up time | Esc: free the mouse, then quit",
+        m_renderer2D->DrawString(*m_font,
+                                 "F: flashlight | G: shadows | T: speed up time | Esc: free the mouse, then quit",
                                  {12.0f, -10.0f - 1.8f * line}, Spot::Color::FromSrgb(0.8f, 0.8f, 0.8f), 0.8f);
         m_renderer2D->End();
     }

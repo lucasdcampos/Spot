@@ -83,7 +83,7 @@ class Renderer3D {
 public:
     static constexpr std::size_t MaxLights = 16;
     // Shared by the shadows of point and spot lights.
-    static constexpr std::size_t MaxShadowTiles = 16;
+    static constexpr std::size_t MaxShadowTiles = 32;
 
     explicit Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config = {});
     ~Renderer3D();
@@ -105,7 +105,8 @@ public:
     // of the sky adds ambient light. So the sun is drawn with the sky, not with DrawLight(). A later call replaces it.
     // Without one, the pass's clear color shows.
     void DrawSky(const SkyData& sky);
-    void DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform = {});
+    // Meshes that do not cast shadows are still shadowed by the others.
+    void DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform = {}, bool castsShadows = true);
     void DrawModel(const Model& model, const Matrix4& transform = {});
     // Draws every MeshRenderer and Light of the scene that is enabled on an active entity, at its entity's world
     // transform, and the first such Sky.
@@ -127,6 +128,7 @@ private:
         Matrix4 transform;
         // Around the mesh, in world space.
         BoundingSphere bounds;
+        bool castsShadows;
     };
 
     void DrawShadows(Detail::SelectedLights& lights, Detail::ShadowUniforms& shadows);

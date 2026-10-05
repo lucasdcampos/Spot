@@ -17,10 +17,13 @@ Vector3 GetForward(const Entity& entity) {
 void Light::Serialize(Archive& archive) {
     archive.Field("color", m_color);
     archive.Field("intensity", m_intensity);
+    archive.Field("castsShadows", m_castingShadows);
 }
 
 LightData Light::GetBaseLightData(LightType type) const {
-    return {.type = type, .color = m_color, .intensity = m_intensity};
+    LightData light{.type = type, .color = m_color, .intensity = m_intensity};
+    light.castsShadows = m_castingShadows && type != LightType::Ambient;
+    return light;
 }
 
 LightData AmbientLight::GetLightData() const {
