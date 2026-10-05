@@ -103,6 +103,13 @@ add_library(spot STATIC
     math/quaternion.h
     math/quaternion.cpp
     math/vector.h
+    physics/collider.h
+    physics/collider.cpp
+    physics/physics_simulation.h
+    physics/physics_world.h
+    physics/physics_world.cpp
+    physics/rigidbody.h
+    physics/rigidbody.cpp
     platform/platform.h
     scene/archive.h
     scene/archive.cpp
@@ -248,6 +255,45 @@ if(SPOT_AUDIO STREQUAL "SDL3")
     )
 else()
     message(FATAL_ERROR "Unknown SPOT_AUDIO '${SPOT_AUDIO}'")
+endif()
+
+# Like the audio backend, the physics backend never reaches the public headers. It only simulates the bodies the
+# engine's physics world asks for.
+set(SPOT_PHYSICS "JOLT" CACHE STRING "Physics backend")
+set_property(CACHE SPOT_PHYSICS PROPERTY STRINGS JOLT)
+
+if(SPOT_PHYSICS STREQUAL "JOLT")
+    # Only the library itself: no samples, tools, GPU compute, debug renderer or profiler, and the same runtime
+    # library and compiler flags as the engine.
+    set(USE_STATIC_MSVC_RUNTIME_LIBRARY OFF)
+    set(OVERRIDE_CXX_FLAGS OFF)
+    set(ENABLE_ALL_WARNINGS OFF)
+    set(INTERPROCEDURAL_OPTIMIZATION OFF)
+    set(FLOATING_POINT_EXCEPTIONS_ENABLED OFF)
+    set(DEBUG_RENDERER_IN_DEBUG_AND_RELEASE OFF)
+    set(PROFILER_IN_DEBUG_AND_RELEASE OFF)
+    set(ENABLE_OBJECT_STREAM OFF)
+    set(ENABLE_INSTALL OFF)
+    set(JPH_USE_DX12 OFF)
+    set(JPH_USE_VK OFF)
+    set(JPH_USE_MTL OFF)
+    set(JPH_USE_CPU_COMPUTE OFF)
+
+    FetchContent_Declare(JoltPhysics
+        GIT_REPOSITORY https://github.com/jrouwe/JoltPhysics.git
+        GIT_TAG v5.6.0
+        GIT_SHALLOW TRUE
+        SOURCE_SUBDIR Build
+        SYSTEM
+    )
+    FetchContent_MakeAvailable(JoltPhysics)
+
+    target_sources(spot PRIVATE
+        physics/jolt/jolt_physics_simulation.cpp
+    )
+    target_link_libraries(spot PRIVATE Jolt)
+else()
+    message(FATAL_ERROR "Unknown SPOT_PHYSICS '${SPOT_PHYSICS}'")
 endif()
 
 target_include_directories(spot PUBLIC

@@ -32,9 +32,10 @@ Both accept `release` as an argument.
 - Everything in the repository is in English: code, comments, docs and commit messages.
 - Code must build on Windows, macOS and Linux. Keep platform-specific code isolated.
 - Backends are only used in their own folders: windowing (SDL3, `SPOT_PLATFORM`) under `engine/platform/<backend>/`,
-  graphics (SDL_GPU, `SPOT_GRAPHICS`) under `engine/graphics/<backend>/` and audio (SDL3, `SPOT_AUDIO`) under
-  `engine/audio/<backend>/`. Public headers never expose backend types, so a backend can be replaced without
-  changing the engine API. Audio backends only deliver what the engine's mixer produces.
+  graphics (SDL_GPU, `SPOT_GRAPHICS`) under `engine/graphics/<backend>/`, audio (SDL3, `SPOT_AUDIO`) under
+  `engine/audio/<backend>/` and physics (Jolt, `SPOT_PHYSICS`) under `engine/physics/<backend>/`. Public headers never
+  expose backend types, so a backend can be replaced without changing the engine API. Audio backends only deliver what
+  the engine's mixer produces, and physics backends only simulate the bodies the engine's physics world asks for.
 - Engine features built on top of the graphics API (such as the 2D renderer) only use its public interface, so
   users can always do anything the engine does.
 - GPU tests go in `tests/gpu_tests.cpp` (the `spot_gpu_tests` executable) and are skipped where no GPU is available.

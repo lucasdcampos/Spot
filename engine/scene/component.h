@@ -24,6 +24,9 @@ struct SceneSerializer;
 // - OnStart() once, in the first Scene::Update() where the component is active, followed by OnEnable().
 // - OnEnable() and OnDisable() each time a started component becomes active or stops being active. They run at once,
 //   from the call that changed it, such as SetEnabled(), Entity::SetActive() or Entity::Destroy().
+// - OnFixedUpdate() before each physics step while active, which Scene::Update() runs at a fixed rate, before
+//   OnUpdate(): none, once or several times per update. Code that acts on rigidbodies, like applying forces, goes
+//   there, so it behaves the same at any frame rate.
 // - OnUpdate() and then OnLateUpdate() on every Scene::Update() while active. Every OnUpdate() of the scene runs
 //   before the first OnLateUpdate(), so OnLateUpdate() suits work that follows others, like a camera that tracks
 //   something.
@@ -55,6 +58,7 @@ protected:
     virtual void OnStart() {}
     virtual void OnEnable() {}
     virtual void OnDisable() {}
+    virtual void OnFixedUpdate(float /*fixedDeltaTime*/) {}
     virtual void OnUpdate(float /*deltaTime*/) {}
     virtual void OnLateUpdate(float /*deltaTime*/) {}
     virtual void OnDestroy() {}

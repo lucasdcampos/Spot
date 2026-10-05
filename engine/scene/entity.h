@@ -208,6 +208,7 @@ private:
     // Brings OnEnable() and OnDisable() up to date for the components of this entity and its descendants.
     void RefreshActivity();
     void StartComponents();
+    void FixedUpdateComponents(float fixedDeltaTime);
     void UpdateComponents(float deltaTime);
     void LateUpdateComponents(float deltaTime);
     // Calls OnDestroy() on the started components being removed, or on all of them once the entity is destroyed, and

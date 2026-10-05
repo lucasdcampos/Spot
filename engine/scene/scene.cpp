@@ -1,6 +1,7 @@
 #include "scene/scene.h"
 
 #include "core/assert.h"
+#include "physics/physics_world.h"
 
 #include <algorithm>
 #include <atomic>
@@ -14,6 +15,10 @@ namespace {
 std::atomic<std::uint64_t> s_nextEntityId = 1;
 
 } // namespace
+
+// PhysicsWorld's constructor is private, so make_unique cannot reach it.
+Scene::Scene() : m_physics(new PhysicsWorld(*this)) {
+}
 
 Scene::~Scene() {
     Clear();
@@ -107,6 +112,15 @@ void Scene::Update(float deltaTime) {
         if (m_entities[i]) {
             m_entities[i]->StartComponents();
         }
+    }
+    const int steps = m_physics->Advance(deltaTime);
+    for (int step = 0; step < steps; ++step) {
+        for (std::size_t i = 0; i < m_entities.size(); ++i) {
+            if (m_entities[i]) {
+                m_entities[i]->FixedUpdateComponents(m_physics->GetFixedTimeStep());
+            }
+        }
+        m_physics->Step();
     }
     OnUpdate(deltaTime);
     for (std::size_t i = 0; i < m_entities.size(); ++i) {

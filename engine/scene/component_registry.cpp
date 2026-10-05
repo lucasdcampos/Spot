@@ -1,5 +1,7 @@
 #include "scene/component_registry.h"
 
+#include "physics/collider.h"
+#include "physics/rigidbody.h"
 #include "scene/mesh_renderer.h"
 
 #include <mutex>
@@ -17,8 +19,12 @@ struct Registry {
     std::unordered_map<std::string, std::type_index> types;
 };
 
-std::unique_ptr<Component> CreateMeshRenderer() {
-    return std::make_unique<MeshRenderer>();
+template <typename T>
+void RegisterBuiltIn(Registry& registry, const std::string& name) {
+    const std::type_index type = typeid(T);
+    registry.names.insert_or_assign(type, name);
+    registry.factories.insert_or_assign(name, []() -> std::unique_ptr<Component> { return std::make_unique<T>(); });
+    registry.types.insert_or_assign(name, type);
 }
 
 // Built on first use, so components can register from static initializers in any order. The engine's own components
@@ -26,10 +32,11 @@ std::unique_ptr<Component> CreateMeshRenderer() {
 Registry& GetRegistry() {
     static Registry registry;
     static const bool builtInRegistered = [] {
-        const std::type_index type = typeid(MeshRenderer);
-        registry.names.insert_or_assign(type, "MeshRenderer");
-        registry.factories.insert_or_assign("MeshRenderer", &CreateMeshRenderer);
-        registry.types.insert_or_assign("MeshRenderer", type);
+        RegisterBuiltIn<MeshRenderer>(registry, "MeshRenderer");
+        RegisterBuiltIn<Rigidbody>(registry, "Rigidbody");
+        RegisterBuiltIn<BoxCollider>(registry, "BoxCollider");
+        RegisterBuiltIn<SphereCollider>(registry, "SphereCollider");
+        RegisterBuiltIn<CapsuleCollider>(registry, "CapsuleCollider");
         return true;
     }();
     static_cast<void>(builtInRegistered);

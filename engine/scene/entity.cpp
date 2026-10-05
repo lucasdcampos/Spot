@@ -1,6 +1,7 @@
 #include "scene/entity.h"
 
 #include "core/assert.h"
+#include "physics/physics_world.h"
 #include "scene/scene.h"
 
 #include <algorithm>
@@ -126,6 +127,9 @@ void Entity::MoveToScene(Scene& scene) {
 }
 
 void Entity::MoveSubtree(Scene& scene) {
+    // Its body, if any, moves along with it.
+    m_scene->GetPhysics().MarkChanged(m_id);
+    scene.GetPhysics().MarkChanged(m_id);
     scene.Adopt(m_scene->Release(*this));
     for (Entity* child : m_children) {
         child->MoveSubtree(scene);
@@ -177,6 +181,14 @@ void Entity::StartComponents() {
             component.m_started = true;
             component.OnStart();
             component.RefreshActivity();
+        }
+    }
+}
+
+void Entity::FixedUpdateComponents(float fixedDeltaTime) {
+    for (std::size_t i = 0; i < m_components.size(); ++i) {
+        if (Component& component = *m_components[i]; component.m_active) {
+            component.OnFixedUpdate(fixedDeltaTime);
         }
     }
 }

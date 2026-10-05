@@ -16,6 +16,7 @@ namespace Spot {
 class Application;
 class AssetManager;
 class Event;
+class PhysicsWorld;
 class RenderContext;
 
 // Owns a hierarchy of entities and drives their components. A game usually derives a scene per level or screen, and
@@ -36,7 +37,7 @@ class RenderContext;
 // at once.
 class Scene {
 public:
-    Scene() = default;
+    Scene();
     // Clears the scene. The application clears its scenes before destroying them, so derived scenes are still whole
     // while their components get OnDestroy().
     virtual ~Scene();
@@ -55,6 +56,9 @@ public:
     void DestroyEntity(Entity& entity);
     // Destroys every entity.
     void Clear();
+
+    // Simulates the scene's colliders and rigidbodies.
+    PhysicsWorld& GetPhysics() const { return *m_physics; }
 
     // Null when the entity was destroyed, or never belonged to this scene.
     Entity* GetEntity(EntityId id) const;
@@ -92,8 +96,10 @@ public:
 
     // Runs one frame of the scene:
     // 1. OnStart() for the active components that have not started yet, followed by OnEnable().
-    // 2. The scene's own OnUpdate().
-    // 3. OnUpdate() for every active component, then OnLateUpdate() for every active component.
+    // 2. The physics steps due since the last update, each after OnFixedUpdate() for every active component; see
+    //    PhysicsWorld.
+    // 3. The scene's own OnUpdate().
+    // 4. OnUpdate() for every active component, then OnLateUpdate() for every active component.
     // Entities go in the order they were created, and components in the order they were added. Components added
     // while it runs may have to wait for the next Update() to start.
     void Update(float deltaTime);
@@ -151,6 +157,8 @@ private:
     void Adopt(std::unique_ptr<Entity> entity);
     void ProcessRemovals();
 
+    // First, so it is destroyed last and components can reach it until the end.
+    std::unique_ptr<PhysicsWorld> m_physics;
     std::vector<std::unique_ptr<Entity>> m_entities;
     std::unordered_map<EntityId, Entity*> m_entitiesById;
     Application* m_application = nullptr;
