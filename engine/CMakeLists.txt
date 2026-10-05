@@ -2,6 +2,8 @@ add_library(spot STATIC
     spot.h
     version.h
     version.cpp
+    core/application.h
+    core/application.cpp
     core/assert.h
     core/assert.cpp
     core/log.h

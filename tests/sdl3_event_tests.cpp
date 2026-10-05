@@ -5,6 +5,7 @@
 #include <SDL3/SDL.h>
 #include <catch2/catch_test_macros.hpp>
 
+#include <cstdlib>
 #include <vector>
 
 namespace {
@@ -147,4 +148,47 @@ TEST_CASE("SDL window and quit events become window events", "[platform][sdl3]")
     CHECK(focusGained->focused);
     CHECK(events[3].Is<Spot::WindowCloseEvent>());
     CHECK(events[4].Is<Spot::WindowCloseEvent>());
+}
+
+TEST_CASE("Application feeds native events to OnEvent and Input, and stops when the window closes",
+          "[platform][sdl3]") {
+    struct Observed {
+        int updates = 0;
+        bool keyPressedInFirstUpdate = false;
+        bool closeSeen = false;
+    };
+
+    class ClosingApplication final : public Spot::Application {
+    public:
+        explicit ClosingApplication(Observed& observed) : m_observed(observed) {}
+
+    protected:
+        void OnStart() override { Push(MakeKeyEvent(SDL_EVENT_KEY_DOWN, SDL_SCANCODE_W, false)); }
+
+        void OnEvent(const Spot::Event& event) override {
+            m_observed.closeSeen = m_observed.closeSeen || event.Is<Spot::WindowCloseEvent>();
+        }
+
+        void OnUpdate(float) override {
+            if (++m_observed.updates == 1) {
+                m_observed.keyPressedInFirstUpdate = Spot::Input::IsKeyPressed(Spot::Key::W);
+                Push(MakeWindowEvent(SDL_EVENT_WINDOW_CLOSE_REQUESTED));
+            } else {
+                Quit();
+            }
+        }
+
+    private:
+        Observed& m_observed;
+    };
+
+    Observed observed;
+    ClosingApplication application(observed);
+
+    CHECK(application.Run() == EXIT_SUCCESS);
+
+    CHECK(observed.keyPressedInFirstUpdate);
+    CHECK(observed.closeSeen);
+    CHECK(observed.updates == 1);
+    CHECK_FALSE(Spot::Input::IsKeyDown(Spot::Key::W));
 }

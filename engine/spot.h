@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/application.h"
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/log_sinks.h"
