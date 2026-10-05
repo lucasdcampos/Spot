@@ -38,9 +38,14 @@ add_library(spot STATIC
     graphics/graphics_device.h
     graphics/image.h
     graphics/image.cpp
+    graphics/material.h
+    graphics/mesh.h
+    graphics/mesh.cpp
     graphics/mesh_data.h
     graphics/mesh_data.cpp
     graphics/model_data.h
+    graphics/model.h
+    graphics/model.cpp
     graphics/model_data.cpp
     graphics/pipeline.h
     graphics/pipeline.cpp
@@ -49,6 +54,8 @@ add_library(spot STATIC
     graphics/render_context.h
     graphics/renderer_2d.h
     graphics/renderer_2d.cpp
+    graphics/renderer_3d.h
+    graphics/renderer_3d.cpp
     graphics/shader.h
     graphics/text_layout.h
     graphics/text_layout.cpp
@@ -86,6 +93,8 @@ add_library(spot STATIC
 add_library(spot::spot ALIAS spot)
 
 spot_add_shaders(spot NAMESPACE Spot::Detail::Shaders
+    graphics/shaders/mesh.frag.hlsl
+    graphics/shaders/mesh.vert.hlsl
     graphics/shaders/sprite.frag.hlsl
     graphics/shaders/sprite.vert.hlsl
 )

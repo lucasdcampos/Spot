@@ -553,3 +553,151 @@ TEST_CASE("Renderer2D draws text inside its measured box", "[gpu]") {
     CHECK(static_cast<float>(right) <= measured.x + 1.0f);
     CHECK(static_cast<float>(bottom) <= measured.y + 1.0f);
 }
+
+namespace {
+
+using Pixel = std::array<std::uint8_t, 4>;
+
+// Renders one frame into a color and depth target of the given size and reads it back.
+class TargetRender {
+public:
+    using Draw = std::function<void(Spot::GraphicsDevice&, Spot::RenderPass&, Spot::Vector2 viewSize)>;
+
+    TargetRender(int width, int height, Draw draw) : m_width(width), m_height(height) {
+        int frame = 0;
+        std::unique_ptr<Spot::Texture> target;
+        RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
+            auto& device = app.GetGraphicsDevice();
+            if (++frame == 2) {
+                m_pixels = device.DownloadTexture(*target);
+                return;
+            }
+            if (frame != 1) {
+                return;
+            }
+
+            const auto w = static_cast<std::uint32_t>(width);
+            const auto h = static_cast<std::uint32_t>(height);
+            target = device.CreateTexture({.width = w, .height = h, .renderTarget = true});
+            const auto depth = device.CreateTexture(
+                {.width = w, .height = h, .format = Spot::TextureFormat::Depth32Float, .renderTarget = true});
+            REQUIRE((target && depth));
+            auto pass = context.BeginRenderPass({.target = target.get(),
+                                                 .clearColor = Spot::Color::Black,
+                                                 .depthTarget = depth.get(),
+                                                 .clearDepth = 1.0f});
+            draw(device, pass, {static_cast<float>(width), static_cast<float>(height)});
+        });
+        REQUIRE(application.Run() == EXIT_SUCCESS);
+        REQUIRE(m_pixels.size() == static_cast<std::size_t>(width * height * 4));
+    }
+
+    Pixel At(int x, int y) const {
+        const auto* pixel = &m_pixels[static_cast<std::size_t>((y * m_width + x) * 4)];
+        return {pixel[0], pixel[1], pixel[2], pixel[3]};
+    }
+
+private:
+    int m_width;
+    int m_height;
+    std::vector<std::uint8_t> m_pixels;
+};
+
+bool IsNear(Pixel a, Pixel b) {
+    return std::ranges::all_of(std::array{0, 1, 2, 3}, [&](int i) { return std::abs(a[i] - b[i]) <= 2; });
+}
+
+// A camera three units in front of the origin, with a light shining straight away from it and no ambient light, so
+// surfaces facing the camera show their exact base color.
+Spot::Camera3D MakeFrontCamera() {
+    Spot::Camera3D camera;
+    camera.position = {0.0f, 0.0f, 3.0f};
+    camera.LookAt({0.0f, 0.0f, 0.0f});
+    return camera;
+}
+
+constexpr Spot::Lighting FrontLight{
+    .direction = {0.0f, 0.0f, -1.0f}, .color = Spot::Color::White, .ambient = Spot::Color::Black};
+
+} // namespace
+
+TEST_CASE("Renderer3D draws lit meshes with depth testing", "[gpu]") {
+    RequireGpu();
+    Spot::Renderer3DStats stats;
+
+    const TargetRender render(32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
+        Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+        REQUIRE(renderer.IsValid());
+        const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+        REQUIRE(cube != nullptr);
+
+        // The large far cube is drawn last but stays behind the small near one.
+        renderer.Begin(pass, MakeFrontCamera(), view, FrontLight);
+        renderer.DrawMesh(*cube, {.baseColor = Spot::Color::Green});
+        renderer.DrawMesh(*cube, {.baseColor = Spot::Color::Red},
+                          Spot::Matrix4::Translation({0.0f, 0.0f, -2.0f}) * Spot::Matrix4::Scale({3.0f, 3.0f, 3.0f}));
+        renderer.End();
+        stats = renderer.GetStats();
+    });
+
+    CHECK(stats.drawCalls == 2);
+    CHECK(stats.triangleCount == 24);
+    CHECK(IsNear(render.At(16, 16), {0, 255, 0, 255}));
+    CHECK(IsNear(render.At(16, 6), {255, 0, 0, 255}));
+    CHECK(IsNear(render.At(0, 0), {0, 0, 0, 255}));
+}
+
+TEST_CASE("Renderer3D hides back faces unless the material is double-sided", "[gpu]") {
+    RequireGpu();
+
+    for (const bool doubleSided : {false, true}) {
+        const TargetRender render(
+            16, 16, [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
+                Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+                const auto plane = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(2.0f));
+                REQUIRE(plane != nullptr);
+
+                // The plane faces +Y; a quarter turn around X makes it face away from the camera.
+                renderer.Begin(pass, MakeFrontCamera(), view, FrontLight);
+                renderer.DrawMesh(
+                    *plane, {.baseColor = Spot::Color::Blue, .doubleSided = doubleSided},
+                    Spot::Matrix4::Rotation(Spot::Quaternion::FromAxisAngle({1, 0, 0}, -Spot::Pi / 2.0f)));
+                renderer.End();
+            });
+
+        const Pixel expected = doubleSided ? Pixel{0, 0, 255, 255} : Pixel{0, 0, 0, 255};
+        CHECK(IsNear(render.At(8, 8), expected));
+    }
+}
+
+TEST_CASE("Models load with their materials and draw textured", "[gpu]") {
+    RequireGpu();
+    const auto modelPath = std::filesystem::path(SPOT_TEST_ASSETS_DIR) / "models" / "textured_quad.gltf";
+    std::size_t parts = 0;
+    std::uint32_t mipLevels = 0;
+
+    // The quad spans [-2, 2] at z = -2, which covers pixels 5 to 26 from z = 3. Its texture's red, green and blue
+    // texels land in its top-left, top-right and bottom-left quarters.
+    const TargetRender render(32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
+        auto model = Spot::Model::Load(device, modelPath);
+        REQUIRE(model != nullptr);
+        parts = model->GetParts().size();
+        REQUIRE(model->GetMaterials().size() == 1);
+        REQUIRE(model->GetMaterials()[0].baseColorTexture != nullptr);
+        mipLevels = model->GetMaterials()[0].baseColorTexture->GetMipLevelCount();
+        // Replaces the file's tint, so the texels come out unchanged.
+        model->GetMaterials()[0].baseColor = Spot::Color::White;
+
+        Spot::Renderer3D renderer(device,
+                                  {.filter = Spot::TextureFilter::Nearest, .targetFormat = Spot::TextureFormat::Rgba8});
+        renderer.Begin(pass, MakeFrontCamera(), view, FrontLight);
+        renderer.DrawModel(*model);
+        renderer.End();
+    });
+
+    CHECK(parts == 1);
+    CHECK(mipLevels == 2);
+    CHECK(IsNear(render.At(8, 8), {255, 0, 0, 255}));
+    CHECK(IsNear(render.At(23, 8), {0, 255, 0, 255}));
+    CHECK(IsNear(render.At(8, 23), {0, 0, 255, 255}));
+}
