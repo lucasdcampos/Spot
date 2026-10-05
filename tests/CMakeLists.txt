@@ -46,3 +46,18 @@ include(Catch)
 # The dummy video driver lets window tests run on machines without a display, such as CI servers.
 # The timeout turns a main loop that never quits into a failure instead of a hang.
 catch_discover_tests(spot_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
+
+# GPU tests need a real display and GPU, so they live in their own executable without the dummy video driver.
+# They are skipped on machines without a usable GPU.
+add_executable(spot_gpu_tests
+    gpu_tests.cpp
+)
+
+target_link_libraries(spot_gpu_tests PRIVATE
+    spot::spot
+    Catch2::Catch2WithMain
+)
+
+spot_set_warnings(spot_gpu_tests)
+
+catch_discover_tests(spot_gpu_tests PROPERTIES TIMEOUT 60)

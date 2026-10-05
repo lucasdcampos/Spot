@@ -38,6 +38,14 @@ int Application::Run() {
         return EXIT_FAILURE;
     }
 
+    if (m_config.graphics.enabled) {
+        m_graphics = GraphicsDevice::Create(*m_window, m_config.graphics);
+        if (!m_graphics) {
+            m_window.reset();
+            return EXIT_FAILURE;
+        }
+    }
+
     Input::SetState(&m_input);
     Time::SetClock(&m_clock);
     FrameLimiter limiter(m_config.maxFrameRate);
@@ -56,11 +64,19 @@ int Application::Run() {
         }
 
         OnUpdate(m_clock.GetDeltaTime());
+
+        if (m_graphics) {
+            if (RenderContext* context = m_graphics->BeginFrame()) {
+                OnRender(*context);
+                m_graphics->EndFrame();
+            }
+        }
     }
 
     OnStop();
     Time::SetClock(nullptr);
     Input::SetState(nullptr);
+    m_graphics.reset();
     m_window.reset();
     return EXIT_SUCCESS;
 }
@@ -72,6 +88,11 @@ void Application::Quit() {
 Window& Application::GetWindow() {
     SPOT_ASSERT(m_window, "The window only exists while Run() is running");
     return *m_window;
+}
+
+GraphicsDevice& Application::GetGraphicsDevice() {
+    SPOT_ASSERT(m_graphics, "The graphics device only exists while Run() is running with graphics enabled");
+    return *m_graphics;
 }
 
 void Application::HandleEvent(const Event& event) {

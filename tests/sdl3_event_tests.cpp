@@ -158,7 +158,8 @@ TEST_CASE("Application feeds native events to OnEvent and Input, and stops when 
 
     class ClosingApplication final : public Spot::Application {
     public:
-        explicit ClosingApplication(Observed& observed) : m_observed(observed) {}
+        explicit ClosingApplication(Observed& observed)
+            : Application({.graphics = {.enabled = false}}), m_observed(observed) {}
 
     protected:
         void OnStart() override { Push(MakeKeyEvent(SDL_EVENT_KEY_DOWN, SDL_SCANCODE_W, false)); }

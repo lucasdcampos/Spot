@@ -27,8 +27,12 @@ Both accept `release` as an argument.
 
 - Everything in the repository is in English: code, comments, docs and commit messages.
 - Code must build on Windows, macOS and Linux. Keep platform-specific code isolated.
-- The windowing backend (SDL3, chosen with `SPOT_PLATFORM`) is only used under `engine/platform/<backend>/`.
-  Public headers never expose backend types, so the backend can be replaced without changing the engine API.
+- Backends are only used in their own folders: windowing (SDL3, `SPOT_PLATFORM`) under `engine/platform/<backend>/`
+  and graphics (SDL_GPU, `SPOT_GRAPHICS`) under `engine/graphics/<backend>/`. Public headers never expose backend
+  types, so a backend can be replaced without changing the engine API.
+- Engine features built on top of the graphics API (such as the 2D renderer) only use its public interface, so
+  users can always do anything the engine does.
+- GPU tests go in `tests/gpu_tests.cpp` (the `spot_gpu_tests` executable) and are skipped where no GPU is available.
 - The build must have no warnings.
 - New engine features come with tests in `tests/`.
 

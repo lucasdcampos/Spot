@@ -56,7 +56,7 @@ private:
 };
 
 Spot::ApplicationConfig MakeConfig() {
-    return {.window = {.title = "Application Tests", .width = 320, .height = 240}};
+    return {.window = {.title = "Application Tests", .width = 320, .height = 240}, .graphics = {.enabled = false}};
 }
 
 } // namespace

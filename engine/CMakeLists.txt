@@ -13,6 +13,9 @@ add_library(spot STATIC
     core/time.h
     core/time.cpp
     events/event.h
+    graphics/color.h
+    graphics/graphics_device.h
+    graphics/render_context.h
     input/input.h
     input/input.cpp
     input/input_state.h
@@ -72,6 +75,24 @@ if(SPOT_PLATFORM STREQUAL "SDL3")
     target_link_libraries(spot PRIVATE SDL3::SDL3-static)
 else()
     message(FATAL_ERROR "Unknown SPOT_PLATFORM '${SPOT_PLATFORM}'")
+endif()
+
+# Like the platform backend, the graphics backend never reaches the public headers.
+set(SPOT_GRAPHICS "SDL_GPU" CACHE STRING "Graphics backend")
+set_property(CACHE SPOT_GRAPHICS PROPERTY STRINGS SDL_GPU)
+
+if(SPOT_GRAPHICS STREQUAL "SDL_GPU")
+    if(NOT SPOT_PLATFORM STREQUAL "SDL3")
+        message(FATAL_ERROR "The SDL_GPU graphics backend requires the SDL3 platform")
+    endif()
+
+    target_sources(spot PRIVATE
+        graphics/sdl_gpu/sdl_gpu_context.h
+        graphics/sdl_gpu/sdl_gpu_device.cpp
+        graphics/sdl_gpu/sdl_gpu_render_context.cpp
+    )
+else()
+    message(FATAL_ERROR "Unknown SPOT_GRAPHICS '${SPOT_GRAPHICS}'")
 endif()
 
 target_include_directories(spot PUBLIC

@@ -95,7 +95,8 @@ TEST_CASE("Time reads the clock it points at, and zero without one", "[time]") {
 TEST_CASE("Application limits its frame rate and exposes its clock through Time", "[time][application]") {
     class LimitedApplication final : public Spot::Application {
     public:
-        LimitedApplication() : Application({.window = {.title = "Time Tests"}, .maxFrameRate = 100}) {}
+        LimitedApplication()
+            : Application({.window = {.title = "Time Tests"}, .graphics = {.enabled = false}, .maxFrameRate = 100}) {}
 
         std::uint64_t GetLastFrameCount() const { return m_lastFrameCount; }
 

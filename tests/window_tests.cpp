@@ -9,6 +9,9 @@ TEST_CASE("Window is created with the requested title and size", "[window]") {
     CHECK(window->GetTitle() == "Spot Tests");
     CHECK(window->GetWidth() == 320);
     CHECK(window->GetHeight() == 240);
+    CHECK(window->GetPixelWidth() >= 320);
+    CHECK(window->GetPixelHeight() >= 240);
+    CHECK(window->GetNativeHandle() != nullptr);
 }
 
 TEST_CASE("Window title can be changed", "[window]") {

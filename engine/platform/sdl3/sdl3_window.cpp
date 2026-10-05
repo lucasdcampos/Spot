@@ -29,7 +29,7 @@ std::unique_ptr<Window> Window::Create(const WindowConfig& config) {
         return nullptr;
     }
 
-    const SDL_WindowFlags flags = config.resizable ? SDL_WINDOW_RESIZABLE : 0;
+    const SDL_WindowFlags flags = SDL_WINDOW_HIGH_PIXEL_DENSITY | (config.resizable ? SDL_WINDOW_RESIZABLE : 0);
     SDL_Window* handle = SDL_CreateWindow(config.title.c_str(), config.width, config.height, flags);
     if (!handle) {
         Log::GetEngineLogger().Error("Failed to create window: {}", SDL_GetError());
@@ -57,6 +57,18 @@ int Window::GetHeight() const {
     return height;
 }
 
+int Window::GetPixelWidth() const {
+    int width = 0;
+    SDL_GetWindowSizeInPixels(m_impl->handle, &width, nullptr);
+    return width;
+}
+
+int Window::GetPixelHeight() const {
+    int height = 0;
+    SDL_GetWindowSizeInPixels(m_impl->handle, nullptr, &height);
+    return height;
+}
+
 const std::string& Window::GetTitle() const {
     return m_impl->title;
 }
@@ -64,6 +76,10 @@ const std::string& Window::GetTitle() const {
 void Window::SetTitle(std::string_view title) {
     m_impl->title = title;
     SDL_SetWindowTitle(m_impl->handle, m_impl->title.c_str());
+}
+
+void* Window::GetNativeHandle() const {
+    return m_impl->handle;
 }
 
 } // namespace Spot

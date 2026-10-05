@@ -26,9 +26,15 @@ public:
     // Sizes are in screen coordinates, which differ from pixels on high-DPI displays.
     int GetWidth() const;
     int GetHeight() const;
+    // The size of the drawable area in pixels, which is what rendering uses.
+    int GetPixelWidth() const;
+    int GetPixelHeight() const;
 
     const std::string& GetTitle() const;
     void SetTitle(std::string_view title);
+
+    // The backend's window (an SDL_Window* with SDL3), for code that needs the backend directly.
+    void* GetNativeHandle() const;
 
 private:
     // Defined by the platform backend, which keeps its types out of this header.

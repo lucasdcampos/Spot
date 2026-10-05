@@ -2,6 +2,7 @@
 
 #include "core/time.h"
 #include "events/event.h"
+#include "graphics/graphics_device.h"
 #include "input/input_state.h"
 #include "window/window.h"
 
@@ -13,7 +14,8 @@ namespace Spot {
 class LogSink;
 
 struct ApplicationConfig {
-    WindowConfig window;
+    WindowConfig window = {};
+    GraphicsConfig graphics = {};
     // When set, the log is also written to this file.
     std::filesystem::path logFile = {};
     // Caps how many frames run per second; 0 means unlimited.
@@ -37,11 +39,15 @@ public:
 
     // Only available while Run() is running.
     Window& GetWindow();
+    // Only available while Run() is running, and only when graphics are enabled.
+    GraphicsDevice& GetGraphicsDevice();
 
 protected:
     virtual void OnStart() {}
     virtual void OnEvent(const Event&) {}
     virtual void OnUpdate(float /*deltaTime*/) {}
+    // Called after OnUpdate() on frames that can be drawn; all GPU commands of the frame are recorded here.
+    virtual void OnRender(RenderContext&) {}
     virtual void OnStop() {}
 
 private:
@@ -50,6 +56,7 @@ private:
     ApplicationConfig m_config;
     std::shared_ptr<LogSink> m_logFile;
     std::unique_ptr<Window> m_window;
+    std::unique_ptr<GraphicsDevice> m_graphics;
     InputState m_input;
     FrameClock m_clock;
     bool m_running = false;

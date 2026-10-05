@@ -1,5 +1,6 @@
 #include <spot.h>
 
+#include <cmath>
 #include <format>
 
 class Sandbox final : public Spot::Application {
@@ -35,6 +36,14 @@ protected:
             m_frames = 0;
             m_elapsed -= 1.0f;
         }
+    }
+
+    void OnRender(Spot::RenderContext& context) override {
+        // Slowly cycles the background color to show that frames are being drawn.
+        const auto time = static_cast<float>(Spot::Time::GetTime());
+        const Spot::Color color{0.5f + 0.5f * std::sin(time), 0.5f + 0.5f * std::sin(time + 2.0f),
+                                0.5f + 0.5f * std::sin(time + 4.0f)};
+        context.BeginRenderPass({.clearColor = color});
     }
 
 private:
