@@ -118,8 +118,8 @@ protected:
     void OnLoad() override {
         m_sun = &CreateEntity("Sun").AddComponent<Spot::DirectionalLight>();
         auto& sky = CreateEntity("Sky");
-        sky.AddComponent<Spot::Sky>();
-        m_skyLight = &sky.AddComponent<Spot::AmbientLight>();
+        // Grassland beyond the walls.
+        sky.AddComponent<Spot::Sky>().SetGroundColor(Spot::Color::FromSrgb(0.3f, 0.36f, 0.22f));
         UpdateSun();
 
         AddLamp({-10.0f, 3.5f, -8.0f}, {1.0f, 0.5f, 0.2f});
@@ -218,27 +218,12 @@ private:
         return ball;
     }
 
-    // The sun rises in the east (+X) at 6:00, peaks at noon and sets in the west at 18:00. The sky follows its light,
-    // and the light and the sky's ambient light weaken and redden as it nears the horizon.
+    // The sun rises in the east (+X) at 6:00, peaks at noon and sets in the west at 18:00. The sky follows it, and
+    // lights the scene through the air, so the light dims and reddens on its own as the sun sets.
     void UpdateSun() {
         const float angle = (m_timeOfDay - 0.25f) * 2.0f * Spot::Pi;
         const Spot::Vector3 toSun = Spot::Normalize(Spot::Vector3{std::cos(angle), std::sin(angle), 0.4f});
         m_sun->GetEntity().GetTransform().SetRotation(Spot::Quaternion::LookRotation(-toSun));
-
-        const auto smoothstep = [](float from, float to, float x) {
-            const float t = std::clamp((x - from) / (to - from), 0.0f, 1.0f);
-            return t * t * (3.0f - 2.0f * t);
-        };
-        const auto mix = [](Spot::Color a, Spot::Color b, float t) {
-            return Spot::Color{Spot::Lerp(a.r, b.r, t), Spot::Lerp(a.g, b.g, t), Spot::Lerp(a.b, b.b, t)};
-        };
-        const float day = smoothstep(0.0f, 0.3f, toSun.y);
-        m_sun->SetColor(mix({1.0f, 0.5f, 0.25f}, {1.0f, 0.95f, 0.85f}, day));
-        // Below the horizon the planet hides the sun, though the sky keeps its glow a little longer.
-        m_sun->SetIntensity(0.8f * smoothstep(-0.1f, 0.0f, toSun.y));
-        const float daylight = smoothstep(-0.15f, 0.2f, toSun.y);
-        m_skyLight->SetColor(mix({0.3f, 0.4f, 0.8f}, {0.8f, 0.85f, 1.0f}, daylight));
-        m_skyLight->SetIntensity(Spot::Lerp(0.08f, 0.3f, daylight));
     }
 
     void AddLamp(Spot::Vector3 position, Spot::Color color) {
@@ -250,7 +235,6 @@ private:
     PlayerController* m_player = nullptr;
     Spot::SpotLight* m_flashlight = nullptr;
     Spot::DirectionalLight* m_sun = nullptr;
-    Spot::AmbientLight* m_skyLight = nullptr;
     // Mid-morning.
     float m_timeOfDay = 0.375f;
 };
