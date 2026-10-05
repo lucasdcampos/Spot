@@ -20,6 +20,10 @@ struct RenderPassDesc {
     Texture* target = nullptr;
     // Clears the target first when set; otherwise the pass draws over its current contents.
     std::optional<Color> clearColor = std::nullopt;
+    // A depth texture created as a render target, the size of the target, for pipelines that test depth.
+    Texture* depthTarget = nullptr;
+    // Clears the depth target to this depth first when set, usually 1, the far plane; otherwise keeps its contents.
+    std::optional<float> clearDepth = std::nullopt;
 };
 
 // Commands that draw into a target. Only one pass can be open at a time; it ends when End() is called or when it

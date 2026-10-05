@@ -34,6 +34,26 @@ enum class CullMode {
     Back,
 };
 
+enum class CompareOp {
+    Never,
+    Less,
+    LessOrEqual,
+    Equal,
+    Greater,
+    GreaterOrEqual,
+    NotEqual,
+    Always,
+};
+
+// How a pipeline uses the depth target of the passes it draws in.
+struct DepthState {
+    TextureFormat format = TextureFormat::Depth32Float;
+    // Drops fragments whose depth fails the comparison with the depth already stored.
+    bool test = true;
+    bool write = true;
+    CompareOp compare = CompareOp::Less;
+};
+
 enum class VertexFormat {
     Float,
     Float2,
@@ -81,6 +101,9 @@ struct PipelineDesc {
     CullMode cullMode = CullMode::None;
     // The format of the texture the pipeline draws into; the window's swapchain when unset.
     std::optional<TextureFormat> targetFormat = std::nullopt;
+    // Set for pipelines that draw in passes with a depth target, and only for those: the backends reject pipelines
+    // whose targets differ from the pass's.
+    std::optional<DepthState> depth = std::nullopt;
 };
 
 class Pipeline {

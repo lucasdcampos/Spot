@@ -2,6 +2,7 @@
 #include "core/log.h"
 #include "graphics/sdl_gpu/sdl_gpu_internal.h"
 
+#include <algorithm>
 #include <cstring>
 #include <span>
 #include <vector>
@@ -97,6 +98,28 @@ SDL_GPUColorTargetBlendState ToSdl(BlendMode mode) {
     return blend;
 }
 
+SDL_GPUCompareOp ToSdl(CompareOp op) {
+    switch (op) {
+    case CompareOp::Never:
+        return SDL_GPU_COMPAREOP_NEVER;
+    case CompareOp::Less:
+        return SDL_GPU_COMPAREOP_LESS;
+    case CompareOp::LessOrEqual:
+        return SDL_GPU_COMPAREOP_LESS_OR_EQUAL;
+    case CompareOp::Equal:
+        return SDL_GPU_COMPAREOP_EQUAL;
+    case CompareOp::Greater:
+        return SDL_GPU_COMPAREOP_GREATER;
+    case CompareOp::GreaterOrEqual:
+        return SDL_GPU_COMPAREOP_GREATER_OR_EQUAL;
+    case CompareOp::NotEqual:
+        return SDL_GPU_COMPAREOP_NOT_EQUAL;
+    case CompareOp::Always:
+        return SDL_GPU_COMPAREOP_ALWAYS;
+    }
+    return SDL_GPU_COMPAREOP_ALWAYS;
+}
+
 SDL_GPUFilter ToSdl(TextureFilter filter) {
     return filter == TextureFilter::Nearest ? SDL_GPU_FILTER_NEAREST : SDL_GPU_FILTER_LINEAR;
 }
@@ -125,6 +148,8 @@ SDL_GPUTextureFormat ToSdl(TextureFormat format) {
         return SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
     case TextureFormat::Bgra8:
         return SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM;
+    case TextureFormat::Depth32Float:
+        return SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
     }
     return SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
 }
@@ -203,6 +228,14 @@ std::unique_ptr<Pipeline> GraphicsDevice::CreatePipeline(const PipelineDesc& des
     info.rasterizer_state.front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
     info.target_info.color_target_descriptions = &colorTarget;
     info.target_info.num_color_targets = 1;
+    if (desc.depth) {
+        SPOT_ASSERT(IsDepthFormat(desc.depth->format), "Depth states need a depth format");
+        info.depth_stencil_state.enable_depth_test = desc.depth->test;
+        info.depth_stencil_state.enable_depth_write = desc.depth->write;
+        info.depth_stencil_state.compare_op = ToSdl(desc.depth->compare);
+        info.target_info.has_depth_stencil_target = true;
+        info.target_info.depth_stencil_format = ToSdl(desc.depth->format);
+    }
 
     SDL_GPUGraphicsPipeline* handle = SDL_CreateGPUGraphicsPipeline(device, &info);
     if (!handle) {
@@ -330,15 +363,34 @@ std::unique_ptr<Texture> GraphicsDevice::CreateTexture(const TextureDesc& desc) 
         Log::GetEngineLogger().Error("Cannot create a {}x{} texture", desc.width, desc.height);
         return nullptr;
     }
+    const bool depth = IsDepthFormat(desc.format);
+    if (depth && desc.mipmaps) {
+        Log::GetEngineLogger().Error("Depth textures cannot have mipmaps");
+        return nullptr;
+    }
+
+    // Each level halves the size of the previous one, down to 1x1.
+    std::uint32_t mipLevels = 1;
+    if (desc.mipmaps) {
+        for (std::uint32_t size = std::max(desc.width, desc.height); size > 1; size /= 2) {
+            ++mipLevels;
+        }
+    }
 
     SDL_GPUTextureCreateInfo info{};
     info.type = SDL_GPU_TEXTURETYPE_2D;
     info.format = ToSdl(desc.format);
-    info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER | (desc.renderTarget ? SDL_GPU_TEXTUREUSAGE_COLOR_TARGET : 0);
+    info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
+    // SDL generates mipmaps by rendering each level from the previous one, so they need a color target.
+    if (depth && desc.renderTarget) {
+        info.usage |= SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET;
+    } else if (desc.renderTarget || mipLevels > 1) {
+        info.usage |= SDL_GPU_TEXTUREUSAGE_COLOR_TARGET;
+    }
     info.width = desc.width;
     info.height = desc.height;
     info.layer_count_or_depth = 1;
-    info.num_levels = 1;
+    info.num_levels = mipLevels;
     info.sample_count = SDL_GPU_SAMPLECOUNT_1;
 
     SDL_GPUTexture* handle = SDL_CreateGPUTexture(m_impl->device->Get(), &info);
@@ -351,11 +403,12 @@ std::unique_ptr<Texture> GraphicsDevice::CreateTexture(const TextureDesc& desc) 
     impl->device = m_impl->device;
     impl->handle = handle;
     impl->desc = desc;
+    impl->mipLevels = mipLevels;
     return std::unique_ptr<Texture>(new Texture(std::move(impl)));
 }
 
-std::unique_ptr<Texture> GraphicsDevice::CreateTexture(const Image& image) {
-    auto texture = CreateTexture({.width = image.GetWidth(), .height = image.GetHeight()});
+std::unique_ptr<Texture> GraphicsDevice::CreateTexture(const Image& image, bool mipmaps) {
+    auto texture = CreateTexture({.width = image.GetWidth(), .height = image.GetHeight(), .mipmaps = mipmaps});
     if (texture) {
         UploadToTexture(*texture, image.GetPixels());
     }
@@ -385,6 +438,7 @@ std::unique_ptr<Sampler> GraphicsDevice::CreateSampler(const SamplerDesc& desc) 
 }
 
 void GraphicsDevice::UploadToTexture(Texture& texture, std::span<const std::byte> pixels) {
+    SPOT_ASSERT(!IsDepthFormat(texture.GetFormat()), "Depth textures cannot be uploaded to");
     SPOT_ASSERT(pixels.size() == GetPixelDataSize(texture), "A {}x{} texture takes {} bytes of pixels, not {}",
                 texture.GetWidth(), texture.GetHeight(), GetPixelDataSize(texture), pixels.size());
 
@@ -418,6 +472,9 @@ void GraphicsDevice::UploadToTexture(Texture& texture, std::span<const std::byte
     SDL_UploadToGPUTexture(copyPass, &source, &destination, true);
 
     SDL_EndGPUCopyPass(copyPass);
+    if (texture.GetMipLevelCount() > 1) {
+        SDL_GenerateMipmapsForGPUTexture(commandBuffer, destination.texture);
+    }
     if (!SDL_SubmitGPUCommandBuffer(commandBuffer)) {
         Log::GetEngineLogger().Error("Failed to submit texture upload: {}", SDL_GetError());
     }
@@ -425,6 +482,7 @@ void GraphicsDevice::UploadToTexture(Texture& texture, std::span<const std::byte
 }
 
 std::vector<std::uint8_t> GraphicsDevice::DownloadTexture(const Texture& texture) {
+    SPOT_ASSERT(!IsDepthFormat(texture.GetFormat()), "Depth textures cannot be downloaded");
     SDL_GPUDevice* device = m_impl->device->Get();
     const std::uint32_t size = GetPixelDataSize(texture);
 
@@ -487,6 +545,10 @@ TextureFormat Texture::GetFormat() const {
 
 bool Texture::IsRenderTarget() const {
     return m_impl->desc.renderTarget;
+}
+
+std::uint32_t Texture::GetMipLevelCount() const {
+    return m_impl->mipLevels;
 }
 
 void* Texture::GetNativeHandle() const {

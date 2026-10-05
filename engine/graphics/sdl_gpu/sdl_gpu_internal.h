@@ -78,6 +78,7 @@ struct Texture::Impl {
     std::shared_ptr<SharedGpuDevice> device;
     SDL_GPUTexture* handle;
     TextureDesc desc;
+    std::uint32_t mipLevels;
 };
 
 struct Sampler::Impl {

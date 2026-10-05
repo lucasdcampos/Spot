@@ -98,6 +98,8 @@ RenderPass RenderContext::BeginRenderPass(const RenderPassDesc& desc) {
     SPOT_ASSERT(!m_impl->passOpen, "Only one render pass can be open at a time");
 
     SPOT_ASSERT(!desc.target || desc.target->IsRenderTarget(), "Render pass targets must be created as render targets");
+    SPOT_ASSERT(!desc.target || !IsDepthFormat(desc.target->GetFormat()),
+                "Depth textures go in RenderPassDesc::depthTarget");
 
     SDL_GPUColorTargetInfo target{};
     target.texture = desc.target ? static_cast<SDL_GPUTexture*>(desc.target->GetNativeHandle()) : m_impl->target;
@@ -109,7 +111,23 @@ RenderPass RenderContext::BeginRenderPass(const RenderPassDesc& desc) {
         target.load_op = SDL_GPU_LOADOP_LOAD;
     }
 
-    SDL_GPURenderPass* pass = SDL_BeginGPURenderPass(m_impl->commandBuffer, &target, 1, nullptr);
+    SDL_GPUDepthStencilTargetInfo depth{};
+    if (desc.depthTarget) {
+        SPOT_ASSERT(desc.depthTarget->IsRenderTarget() && IsDepthFormat(desc.depthTarget->GetFormat()),
+                    "Depth targets must be depth textures created as render targets");
+        SPOT_ASSERT(desc.depthTarget->GetWidth() == (desc.target ? desc.target->GetWidth() : m_impl->width) &&
+                        desc.depthTarget->GetHeight() == (desc.target ? desc.target->GetHeight() : m_impl->height),
+                    "The depth target must be the size of the target");
+        depth.texture = static_cast<SDL_GPUTexture*>(desc.depthTarget->GetNativeHandle());
+        depth.load_op = desc.clearDepth ? SDL_GPU_LOADOP_CLEAR : SDL_GPU_LOADOP_LOAD;
+        depth.clear_depth = desc.clearDepth.value_or(1.0f);
+        depth.store_op = SDL_GPU_STOREOP_STORE;
+        depth.stencil_load_op = SDL_GPU_LOADOP_DONT_CARE;
+        depth.stencil_store_op = SDL_GPU_STOREOP_DONT_CARE;
+    }
+
+    SDL_GPURenderPass* pass =
+        SDL_BeginGPURenderPass(m_impl->commandBuffer, &target, 1, desc.depthTarget ? &depth : nullptr);
     if (!pass) {
         Log::GetEngineLogger().Error("Failed to begin render pass: {}", SDL_GetError());
     }

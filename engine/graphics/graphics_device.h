@@ -77,7 +77,7 @@ public:
 
     std::unique_ptr<Texture> CreateTexture(const TextureDesc& desc);
     // Creates an RGBA texture the size of the image, holding its pixels.
-    std::unique_ptr<Texture> CreateTexture(const Image& image);
+    std::unique_ptr<Texture> CreateTexture(const Image& image, bool mipmaps = false);
     std::unique_ptr<Sampler> CreateSampler(const SamplerDesc& desc = {});
 
     // Replaces all of the texture's pixels: width * height * 4 bytes, rows from top to bottom. Like buffer uploads,

@@ -318,6 +318,122 @@ TEST_CASE("Render passes draw sampled textures into render targets", "[gpu]") {
     CHECK(pixelAt(3, 3) == std::array<std::uint8_t, 4>{255, 255, 255, 0});
 }
 
+TEST_CASE("Mipmapped textures get a level per halving and keep their full-size pixels", "[gpu]") {
+    RequireGpu();
+    std::vector<std::uint8_t> pixels(4 * 4 * 4);
+    for (std::size_t i = 0; i < pixels.size(); ++i) {
+        pixels[i] = static_cast<std::uint8_t>(i);
+    }
+    std::uint32_t levels = 0;
+    std::uint32_t oddLevels = 0;
+    bool depthMipmapsRejected = false;
+    std::vector<std::uint8_t> downloaded;
+
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext&) {
+        if (!downloaded.empty()) {
+            return;
+        }
+        auto& device = app.GetGraphicsDevice();
+        const auto texture = device.CreateTexture({.width = 4, .height = 4, .mipmaps = true});
+        const auto odd = device.CreateTexture({.width = 5, .height = 3, .mipmaps = true});
+        REQUIRE((texture && odd));
+        levels = texture->GetMipLevelCount();
+        oddLevels = odd->GetMipLevelCount();
+        depthMipmapsRejected =
+            device.CreateTexture(
+                {.width = 4, .height = 4, .format = Spot::TextureFormat::Depth32Float, .mipmaps = true}) == nullptr;
+
+        device.UploadToTexture(*texture, pixels);
+        downloaded = device.DownloadTexture(*texture);
+    });
+
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    CHECK(levels == 3);
+    CHECK(oddLevels == 3);
+    CHECK(depthMipmapsRejected);
+    CHECK(downloaded == pixels);
+}
+
+TEST_CASE("Depth targets hide what is drawn behind, whatever the order", "[gpu]") {
+    RequireGpu();
+
+    struct Vertex {
+        Spot::Vector2 position;
+        Spot::Color color;
+    };
+    const std::array<Vertex, 8> vertices{{
+        {{-0.5f, -0.5f}, Spot::Color::Red},
+        {{0.5f, -0.5f}, Spot::Color::Red},
+        {{0.5f, 0.5f}, Spot::Color::Red},
+        {{-0.5f, 0.5f}, Spot::Color::Red},
+        {{-0.5f, -0.5f}, Spot::Color::Green},
+        {{0.5f, -0.5f}, Spot::Color::Green},
+        {{0.5f, 0.5f}, Spot::Color::Green},
+        {{-0.5f, 0.5f}, Spot::Color::Green},
+    }};
+    const std::array<std::uint16_t, 6> indices{0, 1, 2, 2, 3, 0};
+
+    std::unique_ptr<Spot::Texture> target;
+    std::vector<std::uint8_t> result;
+    int frame = 0;
+
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
+        auto& device = app.GetGraphicsDevice();
+        if (++frame == 2) {
+            result = device.DownloadTexture(*target);
+            return;
+        }
+        if (frame != 1) {
+            return;
+        }
+
+        target = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
+        const auto depth = device.CreateTexture(
+            {.width = 4, .height = 4, .format = Spot::TextureFormat::Depth32Float, .renderTarget = true});
+        const auto vertexBuffer = device.CreateBuffer(Spot::BufferUsage::Vertex, vertices);
+        const auto indexBuffer = device.CreateBuffer(Spot::BufferUsage::Index, indices);
+        const auto vertexShader = device.CreateShader(Shaders::QuadVert);
+        const auto fragmentShader = device.CreateShader(Shaders::TriangleFrag);
+        REQUIRE((target && depth && vertexBuffer && indexBuffer && vertexShader && fragmentShader));
+        const auto pipeline = device.CreatePipeline({
+            .vertexShader = vertexShader.get(),
+            .fragmentShader = fragmentShader.get(),
+            .vertexBuffers = {{
+                .stride = sizeof(Vertex),
+                .attributes = {{0, Spot::VertexFormat::Float2, offsetof(Vertex, position)},
+                               {1, Spot::VertexFormat::Float4, offsetof(Vertex, color)}},
+            }},
+            .targetFormat = Spot::TextureFormat::Rgba8,
+            .depth = Spot::DepthState{},
+        });
+        REQUIRE(pipeline != nullptr);
+
+        auto pass = context.BeginRenderPass(
+            {.target = target.get(), .clearColor = Spot::Color::Black, .depthTarget = depth.get(), .clearDepth = 1.0f});
+        pass.BindPipeline(*pipeline);
+        pass.BindVertexBuffer(0, *vertexBuffer);
+        pass.BindIndexBuffer(*indexBuffer, Spot::IndexType::UInt16);
+        // The small red quad is near; the green one covering the target is far, and drawn last.
+        pass.PushVertexUniforms(0, Spot::Matrix4::Translation({0.0f, 0.0f, 0.2f}));
+        pass.DrawIndexed(6);
+        pass.PushVertexUniforms(0, Spot::Matrix4::Translation({0.0f, 0.0f, 0.8f}) *
+                                       Spot::Matrix4::Scale({2.0f, 2.0f, 1.0f}));
+        pass.DrawIndexed(6, 1, 0, 4);
+    });
+
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    REQUIRE(result.size() == 4 * 4 * 4);
+
+    const auto pixelAt = [&](int x, int y) {
+        const auto* pixel = &result[static_cast<std::size_t>((y * 4 + x) * 4)];
+        return std::array<std::uint8_t, 4>{pixel[0], pixel[1], pixel[2], pixel[3]};
+    };
+    CHECK(pixelAt(1, 1) == std::array<std::uint8_t, 4>{255, 0, 0, 255});
+    CHECK(pixelAt(2, 2) == std::array<std::uint8_t, 4>{255, 0, 0, 255});
+    CHECK(pixelAt(0, 0) == std::array<std::uint8_t, 4>{0, 255, 0, 255});
+    CHECK(pixelAt(3, 3) == std::array<std::uint8_t, 4>{0, 255, 0, 255});
+}
+
 TEST_CASE("Renderer2D draws colored and textured quads in order", "[gpu]") {
     RequireGpu();
     const auto image = Spot::Image::Load(std::filesystem::path(SPOT_TEST_ASSETS_DIR) / "pixels.png");
