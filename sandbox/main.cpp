@@ -6,6 +6,7 @@
 #include <format>
 #include <memory>
 #include <optional>
+#include <random>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -88,7 +89,8 @@ protected:
 };
 
 // The 3D view: a house imported from glTF, a tumbling textured cube and spheres circling it on the ground, each shown
-// by a MeshRenderer. Every mesh and material is an asset, so saving the scene (F5) keeps them all.
+// by a MeshRenderer, plus a stack of crates that physics knocks over as balls and crates are dropped on it (B). Every
+// mesh and material is an asset, so saving the scene (F5) keeps them all.
 class ShowroomScene final : public Spot::Scene {
 protected:
     void OnLoad() override {
@@ -101,6 +103,8 @@ protected:
         ground.GetTransform().SetScale({16.0f, 1.0f, 16.0f});
         ground.AddComponent<Spot::MeshRenderer>(Load<Spot::Mesh>(PlaneMesh),
                                                 Load<Spot::Material>("materials/ground.material"));
+        // A slab under the plane, so what falls on it stops with its surface.
+        ground.AddComponent<Spot::BoxCollider>().SetCenter({0.0f, -0.5f, 0.0f});
 
         // Each part of the model becomes a child, so the house moves as one entity.
         if (const auto model = Load<Spot::Model>("models/house.glb")) {
@@ -130,7 +134,50 @@ protected:
             ball.GetTransform().SetScale({0.6f, 0.6f, 0.6f});
             ball.AddComponent<Spot::MeshRenderer>(sphere, colors[static_cast<std::size_t>(i) % colors.size()]);
         }
+
+        constexpr int StackHeight = 4;
+        for (int row = 0; row < StackHeight; ++row) {
+            for (int i = 0; i < StackHeight - row; ++i) {
+                const float x = -4.5f + (static_cast<float>(i) + 0.5f * static_cast<float>(row)) * 0.82f;
+                AddCrate({x, 0.4f + 0.8f * static_cast<float>(row), -1.0f}, {});
+            }
+        }
     }
+
+    void OnUpdate(float /*deltaTime*/) override {
+        if (!Spot::Input::IsKeyPressed(Spot::Key::B)) {
+            return;
+        }
+        std::uniform_real_distribution<float> spread(-1.5f, 1.5f);
+        const Spot::Vector3 position{-3.3f + spread(m_random), 6.0f, -1.0f + spread(m_random)};
+        const auto rotation = Spot::Quaternion::FromEuler({spread(m_random), spread(m_random), spread(m_random)});
+        if (m_dropped++ % 2 == 0) {
+            auto& ball = CreateEntity("Dropped Ball");
+            ball.GetTransform().SetPosition(position);
+            ball.GetTransform().SetScale({0.7f, 0.7f, 0.7f});
+            ball.AddComponent<Spot::MeshRenderer>(Spot::Assets::Load<Spot::Mesh>(Spot::BuiltInAssets::SphereMesh),
+                                                  Spot::Assets::Load<Spot::Material>("materials/pink.material"));
+            ball.AddComponent<Spot::SphereCollider>().SetRestitution(0.5f);
+            ball.AddComponent<Spot::Rigidbody>().SetMass(2.0f);
+        } else {
+            AddCrate(position, rotation);
+        }
+    }
+
+private:
+    void AddCrate(Spot::Vector3 position, const Spot::Quaternion& rotation) {
+        auto& crate = CreateEntity("Crate");
+        crate.GetTransform().SetPosition(position);
+        crate.GetTransform().SetRotation(rotation);
+        crate.GetTransform().SetScale({0.8f, 0.8f, 0.8f});
+        crate.AddComponent<Spot::MeshRenderer>(Spot::Assets::Load<Spot::Mesh>(Spot::BuiltInAssets::CubeMesh),
+                                               Spot::Assets::Load<Spot::Material>("materials/violet.material"));
+        crate.AddComponent<Spot::BoxCollider>();
+        crate.AddComponent<Spot::Rigidbody>();
+    }
+
+    std::minstd_rand m_random;
+    int m_dropped = 0;
 };
 
 class Sandbox final : public Spot::Application {
@@ -396,7 +443,7 @@ private:
         screen.position = {view.x / 2.0f, -view.y / 2.0f};
         const float line = m_font->GetLineHeight();
         const std::string_view controls =
-            m_show3D ? "F1: 2D | WASD or right drag: orbit | wheel: zoom | Space: toggle"
+            m_show3D ? "F1: 2D | WASD or right drag: orbit | wheel: zoom | Space: toggle | B: drop"
                      : "F1: 3D | WASD: move | wheel: zoom | Tab: scene | Space: toggle | F5/F9: save/load";
 
         m_renderer->Begin(pass, screen, view);
