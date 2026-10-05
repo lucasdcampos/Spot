@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 class Sandbox final : public Spot::Application {
 public:
@@ -25,6 +26,15 @@ protected:
         const auto fonts = Spot::GetExecutableDirectory() / "assets" / "fonts";
         m_font = Spot::Font::Load(device, fonts / "FiraSans-Regular.ttf", 20.0f);
         m_largeFont = Spot::Font::Load(device, fonts / "FiraSans-Regular.ttf", 48.0f);
+
+        // A short tone that fades out, made in code so the sandbox needs no sound file.
+        constexpr std::uint32_t SampleRate = 48000;
+        std::vector<float> samples(SampleRate / 8);
+        for (std::size_t i = 0; i < samples.size(); ++i) {
+            const float t = static_cast<float>(i) / static_cast<float>(SampleRate);
+            samples[i] = 0.3f * std::sin(2.0f * Spot::Pi * 660.0f * t) * std::exp(-t * 30.0f);
+        }
+        m_blip = std::make_shared<Spot::Sound>(SampleRate, 1, std::move(samples));
     }
 
     void OnEvent(const Spot::Event& event) override {
@@ -41,6 +51,17 @@ protected:
 
         if (Input::IsKeyPressed(Key::Escape)) {
             Quit();
+        }
+
+        // Clicks play the tone, panned to where the mouse is and higher towards the top of the window.
+        auto& audio = GetAudioDevice();
+        if (Input::IsMouseButtonPressed(Spot::MouseButton::Left)) {
+            const Spot::Vector2 mouse = Input::GetMousePosition();
+            const Spot::Vector2 view = GetWindow().GetSize();
+            audio.Play(m_blip, {.pan = mouse.x / view.x * 2.0f - 1.0f, .pitch = 2.0f - mouse.y / view.y});
+        }
+        if (Input::IsKeyPressed(Key::M)) {
+            audio.SetMasterVolume(audio.GetMasterVolume() > 0.0f ? 0.0f : 1.0f);
         }
 
         // Pans at a constant speed on screen, whatever the zoom.
@@ -132,7 +153,7 @@ protected:
             const float line = m_font->GetLineHeight();
 
             m_renderer->Begin(pass, screen, view);
-            m_renderer->DrawQuad({170.0f, -60.0f}, {340.0f, 120.0f}, Spot::Color{0.0f, 0.0f, 0.0f, 0.6f});
+            m_renderer->DrawQuad({170.0f, -70.0f}, {340.0f, 140.0f}, Spot::Color{0.0f, 0.0f, 0.0f, 0.6f});
             m_renderer->DrawString(*m_font, "Spot Sandbox", {12.0f, -10.0f}, Spot::Color::White);
             m_renderer->DrawString(*m_font, m_status, {12.0f, -10.0f - line}, Spot::Color{0.7f, 0.9f, 0.7f});
             m_renderer->DrawString(*m_font, "WASD or arrows: move  |  wheel: zoom  |  Esc: quit",
@@ -148,6 +169,7 @@ private:
     std::unique_ptr<Spot::Texture> m_spot;
     std::unique_ptr<Spot::Font> m_font;
     std::unique_ptr<Spot::Font> m_largeFont;
+    std::shared_ptr<Spot::Sound> m_blip;
     Spot::Renderer2DStats m_worldStats;
     std::string m_status;
     Spot::Camera2D m_camera;

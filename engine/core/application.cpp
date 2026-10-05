@@ -47,6 +47,8 @@ int Application::Run() {
         }
     }
 
+    m_audio = std::make_unique<AudioDevice>(m_config.audio);
+
     Input::SetState(&m_input);
     Time::SetClock(&m_clock);
     FrameLimiter limiter(m_config.maxFrameRate);
@@ -77,6 +79,7 @@ int Application::Run() {
     OnStop();
     Time::SetClock(nullptr);
     Input::SetState(nullptr);
+    m_audio.reset();
     m_graphics.reset();
     m_window.reset();
     return EXIT_SUCCESS;
@@ -94,6 +97,11 @@ Window& Application::GetWindow() {
 GraphicsDevice& Application::GetGraphicsDevice() {
     SPOT_ASSERT(m_graphics, "The graphics device only exists while Run() is running with graphics enabled");
     return *m_graphics;
+}
+
+AudioDevice& Application::GetAudioDevice() {
+    SPOT_ASSERT(m_audio, "The audio device only exists while Run() is running");
+    return *m_audio;
 }
 
 void Application::HandleEvent(const Event& event) {

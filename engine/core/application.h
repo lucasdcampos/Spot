@@ -1,5 +1,6 @@
 #pragma once
 
+#include "audio/audio_device.h"
 #include "core/time.h"
 #include "events/event.h"
 #include "graphics/graphics_device.h"
@@ -16,6 +17,7 @@ class LogSink;
 struct ApplicationConfig {
     WindowConfig window = {};
     GraphicsConfig graphics = {};
+    AudioConfig audio = {};
     // When set, the log is also written to this file.
     std::filesystem::path logFile = {};
     // Caps how many frames run per second; 0 means unlimited.
@@ -41,6 +43,9 @@ public:
     Window& GetWindow();
     // Only available while Run() is running, and only when graphics are enabled.
     GraphicsDevice& GetGraphicsDevice();
+    // Only available while Run() is running. Without audio output, because it is disabled or the machine has none,
+    // sounds play silently.
+    AudioDevice& GetAudioDevice();
 
 protected:
     virtual void OnStart() {}
@@ -57,6 +62,7 @@ private:
     std::shared_ptr<LogSink> m_logFile;
     std::unique_ptr<Window> m_window;
     std::unique_ptr<GraphicsDevice> m_graphics;
+    std::unique_ptr<AudioDevice> m_audio;
     InputState m_input;
     FrameClock m_clock;
     bool m_running = false;
