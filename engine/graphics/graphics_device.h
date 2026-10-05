@@ -22,6 +22,9 @@ struct GraphicsConfig {
     // Turned off for runs without a display, such as tests or servers; the application then never renders.
     bool enabled = true;
     bool vsync = true;
+    // Shaders write linear colors, which the window encodes as sRGB for display; the engine's renderers need this.
+    // Turned off, the window shows what shaders write as it is, for drawing that blends in sRGB, as most UI does.
+    bool linearWindow = true;
     // Enables the backend's validation layers, when installed. Slow, so only on by default in debug builds.
 #ifdef NDEBUG
     bool debug = false;
@@ -85,7 +88,8 @@ public:
     // Whether render targets of this format can have this many samples; 1 always can.
     bool SupportsSampleCount(TextureFormat format, std::uint32_t sampleCount) const;
     // The format of the window's frames, which textures resolved into the window must have. It is sRGB where the GPU
-    // supports it, as it nearly always does, so shaders write linear colors and the window shows them right.
+    // supports it, as it nearly always does, so shaders write linear colors and the window shows them right, unless
+    // GraphicsConfig::linearWindow is off.
     TextureFormat GetWindowFormat() const;
 
     // Replaces all of the texture's pixels: width * height * 4 bytes, rows from top to bottom. Like buffer uploads,

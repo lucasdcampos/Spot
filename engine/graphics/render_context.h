@@ -45,6 +45,14 @@ struct Viewport {
     float maxDepth = 1.0f;
 };
 
+// A rectangle of the pass's targets, in pixels from the top-left corner.
+struct ScissorRect {
+    std::int32_t x = 0;
+    std::int32_t y = 0;
+    std::int32_t width = 0;
+    std::int32_t height = 0;
+};
+
 // Commands that draw into a target. Only one pass can be open at a time; it ends when End() is called or when it
 // goes out of scope.
 class RenderPass {
@@ -60,6 +68,9 @@ public:
     // Maps later draws of the pass into part of its targets, such as one tile of a texture atlas. Passes start out
     // covering their whole targets. Pixels outside the viewport are not drawn, though they are still cleared.
     void SetViewport(const Viewport& viewport);
+    // Clips later draws of the pass to the rectangle, such as the visible part of a scrolled panel, without changing
+    // where they are mapped. Passes start out drawing into their whole targets.
+    void SetScissor(const ScissorRect& rect);
     void BindVertexBuffer(std::uint32_t slot, const Buffer& buffer, std::uint32_t offset = 0);
     void BindIndexBuffer(const Buffer& buffer, IndexType type, std::uint32_t offset = 0);
     // Binds the texture and sampler read by the fragment shader's texture at register t{slot}.

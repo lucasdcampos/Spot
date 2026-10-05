@@ -96,7 +96,9 @@ std::unique_ptr<GraphicsDevice> GraphicsDevice::Create(Window& window, const Gra
     auto context = std::unique_ptr<RenderContext>(new RenderContext());
     auto impl = std::make_unique<Impl>(std::move(device), sdlWindow, std::move(context));
     // Rendering is linear, so the window's frames encode what shaders write as sRGB for display.
-    if (SDL_WindowSupportsGPUSwapchainComposition(handle, sdlWindow, SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR)) {
+    if (!config.linearWindow) {
+        impl->composition = SDL_GPU_SWAPCHAINCOMPOSITION_SDR;
+    } else if (SDL_WindowSupportsGPUSwapchainComposition(handle, sdlWindow, SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR)) {
         impl->composition = SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR;
     } else {
         Log::GetEngineLogger().Warning("This GPU cannot show linear colors in the window, so they will look too dark");

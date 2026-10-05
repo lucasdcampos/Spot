@@ -29,9 +29,10 @@ namespace {
 class RenderingApplication final : public Spot::Application {
 public:
     explicit RenderingApplication(std::function<void(Spot::Application&, Spot::RenderContext&)> render,
-                                  Spot::AssetConfig assets = {})
-        : Application(
-              {.window = {.title = "Spot GPU Tests", .width = 320, .height = 240}, .assets = std::move(assets)}),
+                                  Spot::AssetConfig assets = {}, Spot::GraphicsConfig graphics = {})
+        : Application({.window = {.title = "Spot GPU Tests", .width = 320, .height = 240},
+                       .graphics = graphics,
+                       .assets = std::move(assets)}),
           m_render(std::move(render)) {}
 
     int GetRenderedFrames() const { return m_renderedFrames; }
@@ -87,6 +88,22 @@ TEST_CASE("Application renders frames sized to the window in pixels", "[gpu]") {
     CHECK(width == pixelWidth);
     // Shaders write linear colors, which the window encodes for display.
     CHECK(linearWindow);
+}
+
+TEST_CASE("Windows can show what shaders write without encoding it", "[gpu]") {
+    RequireGpu();
+    bool linearWindow = true;
+
+    RenderingApplication application(
+        [&](Spot::Application& app, Spot::RenderContext& context) {
+            linearWindow = Spot::IsSrgbFormat(app.GetGraphicsDevice().GetWindowFormat());
+            auto pass = context.BeginRenderPass({.clearColor = Spot::Color::Blue});
+        },
+        {}, {.linearWindow = false});
+
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    CHECK(application.GetRenderedFrames() == 3);
+    CHECK_FALSE(linearWindow);
 }
 
 TEST_CASE("Render passes can clear or keep the target, one after the other", "[gpu]") {
@@ -564,6 +581,75 @@ TEST_CASE("Depth-only passes draw depth into viewports, biased when asked, for c
     CHECK(pixelAt(1, 3) == Failed);
     CHECK(pixelAt(2, 2) == Passed);
     CHECK(pixelAt(3, 3) == Passed);
+}
+
+TEST_CASE("Scissor rectangles clip draws without moving them", "[gpu]") {
+    RequireGpu();
+
+    struct Vertex {
+        Spot::Vector2 position;
+        Spot::Color color;
+    };
+    const std::array<Vertex, 4> quad{{
+        {{-1.0f, -1.0f}, Spot::Color::White},
+        {{1.0f, -1.0f}, Spot::Color::White},
+        {{1.0f, 1.0f}, Spot::Color::White},
+        {{-1.0f, 1.0f}, Spot::Color::White},
+    }};
+    const std::array<std::uint16_t, 6> indices{0, 1, 2, 2, 3, 0};
+
+    std::unique_ptr<Spot::Texture> target;
+    std::vector<std::uint8_t> result;
+    int frame = 0;
+
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
+        auto& device = app.GetGraphicsDevice();
+        if (++frame == 2) {
+            result = device.DownloadTexture(*target);
+            return;
+        }
+        if (frame != 1) {
+            return;
+        }
+
+        target = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
+        const auto quadBuffer = device.CreateBuffer(Spot::BufferUsage::Vertex, quad);
+        const auto indexBuffer = device.CreateBuffer(Spot::BufferUsage::Index, indices);
+        const auto vertexShader = device.CreateShader(Shaders::QuadVert);
+        const auto fragmentShader = device.CreateShader(Shaders::TriangleFrag);
+        REQUIRE((target && quadBuffer && indexBuffer && vertexShader && fragmentShader));
+        const auto pipeline = device.CreatePipeline({
+            .vertexShader = vertexShader.get(),
+            .fragmentShader = fragmentShader.get(),
+            .vertexBuffers = {{
+                .stride = sizeof(Vertex),
+                .attributes = {{0, Spot::VertexFormat::Float2, offsetof(Vertex, position)},
+                               {1, Spot::VertexFormat::Float4, offsetof(Vertex, color)}},
+            }},
+            .targetFormat = Spot::TextureFormat::Rgba8,
+        });
+        REQUIRE(pipeline != nullptr);
+
+        // The quad covers the whole target, so only the scissor rectangle limits what it draws.
+        auto pass = context.BeginRenderPass({.target = target.get(), .clearColor = Spot::Color::Black});
+        pass.BindPipeline(*pipeline);
+        pass.BindVertexBuffer(0, *quadBuffer);
+        pass.BindIndexBuffer(*indexBuffer, Spot::IndexType::UInt16);
+        pass.PushVertexUniforms(0, Spot::Matrix4::Identity());
+        pass.SetScissor({.x = 1, .y = 0, .width = 2, .height = 3});
+        pass.DrawIndexed(6);
+    });
+
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    REQUIRE(result.size() == 4 * 4 * 4);
+
+    const auto isDrawn = [&](int x, int y) { return result[static_cast<std::size_t>((y * 4 + x) * 4)] == 255; };
+    for (int y = 0; y < 4; ++y) {
+        for (int x = 0; x < 4; ++x) {
+            INFO("Pixel " << x << ", " << y);
+            CHECK(isDrawn(x, y) == (x >= 1 && x < 3 && y < 3));
+        }
+    }
 }
 
 TEST_CASE("Renderer2D draws colored and textured quads in order", "[gpu]") {

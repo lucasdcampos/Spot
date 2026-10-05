@@ -37,6 +37,13 @@ void RenderPass::SetViewport(const Viewport& viewport) {
     SDL_SetGPUViewport(static_cast<SDL_GPURenderPass*>(m_native), &native);
 }
 
+void RenderPass::SetScissor(const ScissorRect& rect) {
+    SPOT_ASSERT(m_native, "The render pass has ended");
+    SPOT_ASSERT(rect.width >= 0 && rect.height >= 0, "Scissor rectangles cannot have a negative size");
+    const SDL_Rect native{rect.x, rect.y, rect.width, rect.height};
+    SDL_SetGPUScissor(static_cast<SDL_GPURenderPass*>(m_native), &native);
+}
+
 void RenderPass::BindVertexBuffer(std::uint32_t slot, const Buffer& buffer, std::uint32_t offset) {
     SPOT_ASSERT(m_native, "The render pass has ended");
     SPOT_ASSERT(buffer.GetUsage() == BufferUsage::Vertex, "Only vertex buffers can be bound as vertex buffers");
