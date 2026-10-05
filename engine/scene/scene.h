@@ -4,6 +4,7 @@
 
 #include <concepts>
 #include <cstddef>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -62,6 +63,16 @@ public:
     std::vector<Entity*> FindEntitiesWithTag(std::string_view tag) const;
     std::vector<Entity*> GetRootEntities() const;
     std::size_t GetEntityCount() const;
+
+    // Saves every entity, with its name, tags, activity, transform, place in the hierarchy and registered
+    // components, as JSON.
+    std::string SaveToString() const;
+    bool SaveToFile(const std::filesystem::path& path) const;
+    // Adds the saved entities to the scene, next to the ones it has. Their components start on the next Update().
+    // Returns false, having added nothing, when the text is not a saved scene; components of unknown types are
+    // skipped with a warning.
+    bool LoadFromString(std::string_view text);
+    bool LoadFromFile(const std::filesystem::path& path);
 
     // The first component that is a T on any entity, active or not; null when there is none.
     template <std::derived_from<Component> T>
@@ -127,6 +138,7 @@ private:
     friend class Application;
     friend class Entity;
     friend class Detail::DeferRemovalsScope;
+    friend struct Detail::SceneSerializer;
 
     // Whether the slot holds an entity that is not destroyed. Slots are empty after their entity moved to another
     // scene, until removals are processed.

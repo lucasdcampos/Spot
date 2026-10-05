@@ -2,8 +2,13 @@
 
 namespace Spot {
 
+class Archive;
 class Entity;
 class Scene;
+
+namespace Detail {
+struct SceneSerializer;
+} // namespace Detail
 
 // A piece of behavior attached to an entity. Custom components derive from it and override the hooks they need:
 //
@@ -26,6 +31,9 @@ class Scene;
 //   releases what OnStart() acquired.
 //
 // The entity is not available in the constructor yet; setup that needs it goes in OnStart().
+//
+// To be saved and loaded with its scene, a component type is registered with RegisterComponent() and overrides
+// Serialize() to describe its fields.
 class Component {
 public:
     virtual ~Component() = default;
@@ -51,8 +59,13 @@ protected:
     virtual void OnLateUpdate(float /*deltaTime*/) {}
     virtual void OnDestroy() {}
 
+    // Saves or loads the component's fields. Loading happens on a new component, after it was added to its entity
+    // and before OnStart().
+    virtual void Serialize(Archive& /*archive*/) {}
+
 private:
     friend class Entity;
+    friend struct Detail::SceneSerializer;
 
     // Calls OnEnable() or OnDisable() when the component started and its activity changed since the last call.
     void RefreshActivity();

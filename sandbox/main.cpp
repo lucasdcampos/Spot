@@ -12,15 +12,23 @@
 // A colored quad the sandbox draws at its entity's world position and rotation.
 class Sprite final : public Spot::Component {
 public:
+    Sprite() = default;
     Sprite(Spot::Vector2 initialSize, Spot::Color initialColor) : size(initialSize), color(initialColor) {}
 
-    Spot::Vector2 size;
-    Spot::Color color;
+    Spot::Vector2 size = {32.0f, 32.0f};
+    Spot::Color color = Spot::Color::White;
+
+protected:
+    void Serialize(Spot::Archive& archive) override {
+        archive.Field("size", size);
+        archive.Field("color", color);
+    }
 };
 
 // Turns its entity, and with it all its children.
 class Spin final : public Spot::Component {
 public:
+    Spin() = default;
     explicit Spin(float speed) : m_speed(speed) {}
 
 protected:
@@ -28,8 +36,10 @@ protected:
         GetEntity().GetTransform().Rotate(Spot::Quaternion::FromAxisAngle({0.0f, 0.0f, 1.0f}, m_speed * deltaTime));
     }
 
+    void Serialize(Spot::Archive& archive) override { archive.Field("speed", m_speed); }
+
 private:
-    float m_speed;
+    float m_speed = 1.0f;
 };
 
 // A ring of quads that spins as a whole while each quad spins on its own.
@@ -74,7 +84,10 @@ protected:
 
 class Sandbox final : public Spot::Application {
 public:
-    Sandbox() : Application({.window = {.title = "Spot Sandbox"}, .logFile = "sandbox.log", .maxFrameRate = 60}) {}
+    Sandbox() : Application({.window = {.title = "Spot Sandbox"}, .logFile = "sandbox.log", .maxFrameRate = 60}) {
+        Spot::RegisterComponent<Sprite>("Sprite");
+        Spot::RegisterComponent<Spin>("Spin");
+    }
 
 protected:
     void OnStart() override {
@@ -148,6 +161,19 @@ protected:
         if (Input::IsKeyPressed(Key::Space) && GetScene()) {
             for (Spot::Entity* entity : GetScene()->FindEntitiesWithTag("Toggle")) {
                 entity->SetActive(!entity->IsActiveSelf());
+            }
+        }
+
+        // F5 saves the main scene, in its current state, and F9 replaces it with the saved one.
+        const auto savePath = Spot::GetExecutableDirectory() / "scene.json";
+        if (Input::IsKeyPressed(Key::F5) && GetScene() && GetScene()->SaveToFile(savePath)) {
+            Spot::Log::Info("Scene saved to {}", Spot::PathToUtf8(savePath));
+        }
+        if (Input::IsKeyPressed(Key::F9)) {
+            auto loaded = std::make_unique<Spot::Scene>();
+            if (loaded->LoadFromFile(savePath)) {
+                LoadScene(std::move(loaded));
+                Spot::Log::Info("Scene loaded from {}", Spot::PathToUtf8(savePath));
             }
         }
 
@@ -246,7 +272,7 @@ protected:
             m_renderer->DrawQuad({200.0f, -70.0f}, {400.0f, 140.0f}, Spot::Color{0.0f, 0.0f, 0.0f, 0.6f});
             m_renderer->DrawString(*m_font, "Spot Sandbox", {12.0f, -10.0f}, Spot::Color::White);
             m_renderer->DrawString(*m_font, m_status, {12.0f, -10.0f - line}, Spot::Color{0.7f, 0.9f, 0.7f});
-            m_renderer->DrawString(*m_font, "WASD/arrows: move | wheel: zoom | Tab: scene | Space: toggle",
+            m_renderer->DrawString(*m_font, "WASD: move | wheel: zoom | Tab: scene | Space: toggle | F5/F9: save/load",
                                    {12.0f, -10.0f - 2.0f * line}, Spot::Color{0.8f, 0.8f, 0.8f}, 0.8f);
             m_renderer->DrawString(*m_font, "Accents: caf\u00e9, fa\u00e7ade, na\u00efve, jalape\u00f1o",
                                    {12.0f, -10.0f - 2.8f * line}, Spot::Color{0.8f, 0.8f, 0.8f}, 0.8f);

@@ -1,0 +1,23 @@
+#pragma once
+
+// Engine-internal: the JSON behind an Archive. Public headers never include it, so the JSON library stays private.
+
+#include "scene/entity.h"
+
+#include <nlohmann/json.hpp>
+
+#include <cstdint>
+#include <unordered_map>
+#include <vector>
+
+namespace Spot::Detail {
+
+struct ArchiveState {
+    bool loading = false;
+    // The node fields are read from or written to is the last one.
+    std::vector<nlohmann::json*> nodes;
+    // When loading, maps the saved ids of the entities being loaded to their new ids. Without it, ids load as saved.
+    const std::unordered_map<std::uint64_t, EntityId>* entityIds = nullptr;
+};
+
+} // namespace Spot::Detail

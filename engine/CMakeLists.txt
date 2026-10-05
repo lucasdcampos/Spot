@@ -61,12 +61,18 @@ add_library(spot STATIC
     math/quaternion.cpp
     math/vector.h
     platform/platform.h
+    scene/archive.h
+    scene/archive.cpp
+    scene/archive_state.h
     scene/component.h
     scene/component.cpp
+    scene/component_registry.h
+    scene/component_registry.cpp
     scene/entity.h
     scene/entity.cpp
     scene/scene.h
     scene/scene.cpp
+    scene/scene_serialization.cpp
     scene/transform.h
     scene/transform.cpp
     window/window.h
@@ -92,6 +98,14 @@ FetchContent_Declare(glm
 )
 FetchContent_MakeAvailable(glm)
 target_link_libraries(spot PRIVATE glm::glm-header-only)
+
+# nlohmann/json reads and writes saved scenes; like glm, no public header includes it.
+FetchContent_Declare(nlohmann_json
+    URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz
+    SYSTEM
+)
+FetchContent_MakeAvailable(nlohmann_json)
+target_link_libraries(spot PRIVATE nlohmann_json::nlohmann_json)
 
 # stb_image decodes images and stb_vorbis Ogg Vorbis audio; they are single files without a CMake project.
 FetchContent_Declare(stb

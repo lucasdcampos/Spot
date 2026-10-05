@@ -91,6 +91,10 @@ public:
     // of an update, the moved components may run again in that update.
     void MoveToScene(Scene& scene);
 
+    // Saves the entity and its descendants in the format of Scene::SaveToString(). Loading the text into a scene
+    // creates a copy of them, so it also works as a template for entities made many times.
+    std::string SaveToString() const;
+
     // Destroys the entity and all its descendants; same as Scene::DestroyEntity(*this).
     void Destroy();
     bool IsDestroyed() const { return m_destroyed; }
@@ -194,6 +198,7 @@ private:
     friend class Component;
     friend class Scene;
     friend class Transform;
+    friend struct Detail::SceneSerializer;
 
     Entity(Scene& scene, EntityId id, std::string name);
 
