@@ -60,7 +60,8 @@ Renderer3D::Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config) {
         m_doubleSidedPipeline = device.CreatePipeline(desc);
     }
 
-    m_sampler = device.CreateSampler({.filter = config.filter, .addressMode = TextureAddressMode::Repeat});
+    m_sampler = device.CreateSampler(
+        {.filter = config.filter, .addressMode = TextureAddressMode::Repeat, .maxAnisotropy = config.maxAnisotropy});
 
     // Untextured materials sample this, so one shader serves both kinds.
     m_whiteTexture = device.CreateTexture({.width = 1, .height = 1});

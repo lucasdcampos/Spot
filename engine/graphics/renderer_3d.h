@@ -23,6 +23,8 @@ struct Material;
 
 struct Renderer3DConfig {
     TextureFilter filter = TextureFilter::Linear;
+    // See SamplerDesc::maxAnisotropy; 3D views see most surfaces at an angle.
+    float maxAnisotropy = 16.0f;
     // The format of the textures it draws into; the window's swapchain when unset.
     std::optional<TextureFormat> targetFormat = std::nullopt;
     // The format of the depth target of the passes it draws in.

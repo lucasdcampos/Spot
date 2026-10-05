@@ -97,7 +97,10 @@ std::unique_ptr<GraphicsDevice> GraphicsDevice::Create(Window& window, const Gra
     auto impl = std::make_unique<Impl>(std::move(device), sdlWindow, std::move(context));
     auto graphics = std::unique_ptr<GraphicsDevice>(new GraphicsDevice(std::move(impl)));
     graphics->SetVSync(config.vsync);
-    Log::GetEngineLogger().Info("Graphics device created with the '{}' backend", graphics->GetBackendName());
+    const char* adapter = SDL_GetStringProperty(SDL_GetGPUDeviceProperties(graphics->m_impl->device->Get()),
+                                                SDL_PROP_GPU_DEVICE_NAME_STRING, "an unknown GPU");
+    Log::GetEngineLogger().Info("Graphics device created with the '{}' backend on {}", graphics->GetBackendName(),
+                                adapter);
     return graphics;
 }
 

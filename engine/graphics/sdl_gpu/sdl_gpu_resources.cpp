@@ -424,6 +424,12 @@ std::unique_ptr<Sampler> GraphicsDevice::CreateSampler(const SamplerDesc& desc) 
     info.address_mode_u = ToSdl(desc.addressMode);
     info.address_mode_v = ToSdl(desc.addressMode);
     info.address_mode_w = ToSdl(desc.addressMode);
+    // Left at zero, the highest level of detail would hold every texture to its full size, ignoring its mipmaps.
+    info.max_lod = 1000.0f;
+    if (desc.filter == TextureFilter::Linear && desc.maxAnisotropy > 1.0f) {
+        info.enable_anisotropy = true;
+        info.max_anisotropy = std::min(desc.maxAnisotropy, 16.0f);
+    }
 
     SDL_GPUSampler* handle = SDL_CreateGPUSampler(m_impl->device->Get(), &info);
     if (!handle) {

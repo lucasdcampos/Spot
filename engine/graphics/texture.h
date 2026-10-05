@@ -71,6 +71,9 @@ enum class TextureAddressMode {
 struct SamplerDesc {
     TextureFilter filter = TextureFilter::Linear;
     TextureAddressMode addressMode = TextureAddressMode::ClampToEdge;
+    // Above 1, linear filtering takes up to this many samples, at most 16, along the direction a texture is squeezed
+    // in, which keeps surfaces seen at a grazing angle, like distant floors, sharp instead of blurred or shimmering.
+    float maxAnisotropy = 1.0f;
 };
 
 // How shaders read a texture: filtering and what happens outside [0, 1].

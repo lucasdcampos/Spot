@@ -708,6 +708,56 @@ TEST_CASE("Renderer3D projects textures from world space when asked", "[gpu]") {
     }
 }
 
+TEST_CASE("Renderer3D samples mipmaps, anisotropically when asked", "[gpu]") {
+    RequireGpu();
+
+    // A floor a quarter unit below the camera, with stripes half a unit wide running away from it. Row 34 sees it six
+    // units away, squeezed about twenty times more in depth than across, so mipmapping blurs the stripes to gray
+    // where the full-size texture would alias, while anisotropic filtering can keep them apart.
+    const auto contrastFar = [](float maxAnisotropy) {
+        const TargetRender render(
+            64, 64, [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
+                Spot::Renderer3D renderer(device,
+                                          {.maxAnisotropy = maxAnisotropy, .targetFormat = Spot::TextureFormat::Rgba8});
+                const auto plane = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(100.0f));
+                std::vector<std::uint8_t> pixels(64 * 64 * 4);
+                for (std::size_t i = 0; i < 64 * 64; ++i) {
+                    const auto value = static_cast<std::uint8_t>(i % 16 < 8 ? 255 : 0);
+                    pixels[i * 4] = pixels[i * 4 + 1] = pixels[i * 4 + 2] = value;
+                    pixels[i * 4 + 3] = 255;
+                }
+                const std::shared_ptr<Spot::Texture> texture =
+                    device.CreateTexture(Spot::Image(64, 64, std::move(pixels)), true);
+                REQUIRE((plane && texture));
+
+                Spot::Camera3D camera;
+                camera.position = {0.0f, 0.25f, 0.0f};
+                const Spot::Lighting light{
+                    .direction = {0.0f, -1.0f, 0.0f}, .color = Spot::Color::White, .ambient = Spot::Color::Black};
+                renderer.Begin(pass, camera, view, light);
+                renderer.DrawMesh(
+                    *plane, {.baseColorTexture = Spot::AssetRef<Spot::Texture>(texture), .worldTextureSize = 4.0f});
+                renderer.End();
+            });
+
+        int darkest = 255;
+        int brightest = 0;
+        for (int x = 16; x < 48; ++x) {
+            darkest = std::min<int>(darkest, render.At(x, 34)[0]);
+            brightest = std::max<int>(brightest, render.At(x, 34)[0]);
+        }
+        return brightest - darkest;
+    };
+
+    const int plain = contrastFar(1.0f);
+    const int anisotropic = contrastFar(16.0f);
+    INFO("Contrast " << plain << " without anisotropic filtering and " << anisotropic << " with it");
+    CHECK(plain < 32);
+    // Drivers may ignore or limit anisotropy, as NVIDIA's Direct3D 12 driver did on the machine this was written on,
+    // so it is only required not to make things worse.
+    CHECK(anisotropic >= plain);
+}
+
 TEST_CASE("Models load with their materials and draw textured", "[gpu]") {
     RequireGpu();
     const auto modelPath = std::filesystem::path(SPOT_TEST_ASSETS_DIR) / "models" / "textured_quad.gltf";
