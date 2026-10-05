@@ -8,6 +8,9 @@ add_library(spot STATIC
     core/log.cpp
     core/log_sinks.h
     core/log_sinks.cpp
+    events/event.h
+    input/keys.h
+    input/keys.cpp
 )
 add_library(spot::spot ALIAS spot)
 
