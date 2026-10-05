@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <memory>
 #include <utility>
+#include <vector>
 
 namespace Spot {
 
@@ -50,12 +51,22 @@ public:
     // sounds play silently.
     AudioDevice& GetAudioDevice();
 
-    // Replaces the current scene at the start of the next frame, so the scene that asks for the change is never
-    // destroyed while it runs. The old scene gets OnUnload() and is cleared and destroyed, then the new one gets
-    // OnLoad(). Loading again before then replaces the pending scene, and a null scene unloads the current one.
-    // Each frame, the current scene updates after Application::OnUpdate() and renders before Application::OnRender();
-    // it is unloaded after OnStop(), while the devices still exist.
+    // Scene changes are queued and applied at the start of the next frame, in the order they were asked for, so a
+    // scene that asks for a change is never destroyed while it runs. Unloading a scene calls its OnUnload(), then
+    // clears and destroys it; loading one calls its OnLoad(). Changes asked for from those hooks wait for the frame
+    // after.
+    //
+    // Each frame, the persistent scene and then the loaded scenes, in load order, update after
+    // Application::OnUpdate(), receive events after Application::OnEvent() and render before
+    // Application::OnRender(). They are unloaded after OnStop(), while the devices still exist.
+
+    // Replaces every loaded scene with this one, and cancels the changes still queued. A null scene just unloads
+    // them all.
     void LoadScene(std::unique_ptr<Scene> scene);
+    // Loads the scene next to the ones already loaded.
+    void LoadSceneAdditive(std::unique_ptr<Scene> scene);
+    // Unloads a loaded scene. A scene still waiting to be loaded is dropped without being loaded.
+    void UnloadScene(Scene& scene);
 
     template <std::derived_from<Scene> T, typename... Args>
     T& LoadScene(Args&&... args) {
@@ -65,8 +76,25 @@ public:
         return loaded;
     }
 
-    // Null until a loaded scene takes over.
-    Scene* GetScene() const { return m_scene.get(); }
+    template <std::derived_from<Scene> T, typename... Args>
+    T& LoadSceneAdditive(Args&&... args) {
+        auto scene = std::make_unique<T>(std::forward<Args>(args)...);
+        T& loaded = *scene;
+        LoadSceneAdditive(std::move(scene));
+        return loaded;
+    }
+
+    // The main scene: the first loaded scene, which is the one LoadScene() loaded unless it was unloaded since.
+    // Null when no scene is loaded.
+    Scene* GetScene() const { return m_scenes.empty() ? nullptr : m_scenes.front().get(); }
+    // Every loaded scene, in load order; the persistent scene is not part of them.
+    std::vector<Scene*> GetScenes() const;
+
+    // A scene loaded for the whole of Run(), whatever other scenes come and go. Entities that must survive scene
+    // changes, like the player or the music, move into it. Only available while Run() is running.
+    Scene& GetPersistentScene();
+    // Moves the entity and its descendants to the persistent scene.
+    void MakePersistent(Entity& entity);
 
 protected:
     virtual void OnStart() {}
@@ -77,18 +105,30 @@ protected:
     virtual void OnStop() {}
 
 private:
+    enum class SceneChangeKind { Replace, Add, Remove };
+
+    struct SceneChange {
+        SceneChangeKind kind;
+        // The scene to load, for Replace and Add.
+        std::unique_ptr<Scene> scene;
+        // The scene to unload, for Remove.
+        Scene* target = nullptr;
+    };
+
     void HandleEvent(const Event& event);
-    void SwitchScene();
-    void UnloadScene();
+    void ApplySceneChanges();
+    void AddScene(std::unique_ptr<Scene> scene);
+    void RemoveScene(const Scene* scene);
+    void RemoveAllScenes();
 
     ApplicationConfig m_config;
     std::shared_ptr<LogSink> m_logFile;
     std::unique_ptr<Window> m_window;
     std::unique_ptr<GraphicsDevice> m_graphics;
     std::unique_ptr<AudioDevice> m_audio;
-    std::unique_ptr<Scene> m_scene;
-    std::unique_ptr<Scene> m_pendingScene;
-    bool m_sceneChangePending = false;
+    std::unique_ptr<Scene> m_persistentScene;
+    std::vector<std::unique_ptr<Scene>> m_scenes;
+    std::vector<SceneChange> m_sceneChanges;
     InputState m_input;
     FrameClock m_clock;
     bool m_running = false;

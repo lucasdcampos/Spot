@@ -100,6 +100,13 @@ protected:
         m_blip = std::make_shared<Spot::Sound>(SampleRate, 1, std::move(samples));
 
         LoadScene<RingScene>();
+
+        // A satellite in the persistent scene, so it keeps orbiting whichever scene is loaded.
+        auto& orbit = GetPersistentScene().CreateEntity("Satellite Orbit");
+        orbit.AddComponent<Spin>(-0.8f);
+        auto& satellite = orbit.CreateChild("Satellite");
+        satellite.GetTransform().SetPosition({360.0f, 0.0f, 0.0f});
+        satellite.AddComponent<Sprite>(Spot::Vector2{20.0f, 20.0f}, Spot::Color{1.0f, 0.4f, 0.6f});
     }
 
     void OnEvent(const Spot::Event& event) override {
@@ -191,8 +198,10 @@ protected:
             }
         }
 
-        // The current scene's sprites, placed by their entity's world transform.
-        if (Spot::Scene* scene = GetScene()) {
+        // The sprites of every scene, placed by their entity's world transform.
+        auto scenes = GetScenes();
+        scenes.insert(scenes.begin(), &GetPersistentScene());
+        for (Spot::Scene* scene : scenes) {
             scene->ForEachComponent<Sprite>([this](const Sprite& sprite) {
                 const Spot::Transform& transform = sprite.GetEntity().GetTransform();
                 const Spot::Vector3 position = transform.GetWorldPosition();

@@ -7,6 +7,7 @@
 #include "input/input.h"
 #include "platform/platform.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <utility>
@@ -53,6 +54,8 @@ int Application::Run() {
     Time::SetClock(&m_clock);
     FrameLimiter limiter(m_config.maxFrameRate);
     m_clock.Start(std::chrono::steady_clock::now());
+    m_persistentScene = std::make_unique<Scene>();
+    m_persistentScene->m_application = this;
     m_running = true;
     OnStart();
 
@@ -66,16 +69,18 @@ int Application::Run() {
             break;
         }
 
-        SwitchScene();
+        ApplySceneChanges();
         OnUpdate(m_clock.GetDeltaTime());
-        if (m_scene) {
-            m_scene->Update(m_clock.GetDeltaTime());
+        m_persistentScene->Update(m_clock.GetDeltaTime());
+        for (const auto& scene : m_scenes) {
+            scene->Update(m_clock.GetDeltaTime());
         }
 
         if (m_graphics) {
             if (RenderContext* context = m_graphics->BeginFrame()) {
-                if (m_scene) {
-                    m_scene->OnRender(*context);
+                m_persistentScene->OnRender(*context);
+                for (const auto& scene : m_scenes) {
+                    scene->OnRender(*context);
                 }
                 OnRender(*context);
                 m_graphics->EndFrame();
@@ -84,9 +89,10 @@ int Application::Run() {
     }
 
     OnStop();
-    UnloadScene();
-    m_pendingScene.reset();
-    m_sceneChangePending = false;
+    m_sceneChanges.clear();
+    RemoveAllScenes();
+    m_persistentScene->Clear();
+    m_persistentScene.reset();
     Time::SetClock(nullptr);
     Input::SetState(nullptr);
     m_audio.reset();
@@ -115,15 +121,64 @@ AudioDevice& Application::GetAudioDevice() {
 }
 
 void Application::LoadScene(std::unique_ptr<Scene> scene) {
-    m_pendingScene = std::move(scene);
-    m_sceneChangePending = true;
+    m_sceneChanges.clear();
+    m_sceneChanges.push_back({.kind = SceneChangeKind::Replace, .scene = std::move(scene)});
+}
+
+void Application::LoadSceneAdditive(std::unique_ptr<Scene> scene) {
+    SPOT_ASSERT(scene, "Only a scene can be loaded");
+    m_sceneChanges.push_back({.kind = SceneChangeKind::Add, .scene = std::move(scene)});
+}
+
+void Application::UnloadScene(Scene& scene) {
+    SPOT_ASSERT(&scene != m_persistentScene.get(), "The persistent scene cannot be unloaded");
+    const auto pending = std::ranges::find_if(
+        m_sceneChanges, [&scene](const SceneChange& change) { return change.scene.get() == &scene; });
+    if (pending != m_sceneChanges.end()) {
+        if (pending->kind == SceneChangeKind::Replace) {
+            pending->scene.reset();
+        } else {
+            m_sceneChanges.erase(pending);
+        }
+        return;
+    }
+
+    // The scene is loaded. A queued replacement unloads it anyway, and it may already be queued for unloading.
+    const bool unloading = std::ranges::any_of(m_sceneChanges, [&scene](const SceneChange& change) {
+        return change.kind == SceneChangeKind::Replace ||
+               (change.kind == SceneChangeKind::Remove && change.target == &scene);
+    });
+    if (!unloading) {
+        m_sceneChanges.push_back({.kind = SceneChangeKind::Remove, .target = &scene});
+    }
+}
+
+std::vector<Scene*> Application::GetScenes() const {
+    std::vector<Scene*> scenes;
+    scenes.reserve(m_scenes.size());
+    for (const auto& scene : m_scenes) {
+        scenes.push_back(scene.get());
+    }
+    return scenes;
+}
+
+Scene& Application::GetPersistentScene() {
+    SPOT_ASSERT(m_persistentScene, "The persistent scene only exists while Run() is running");
+    return *m_persistentScene;
+}
+
+void Application::MakePersistent(Entity& entity) {
+    entity.MoveToScene(GetPersistentScene());
 }
 
 void Application::HandleEvent(const Event& event) {
     m_input.OnEvent(event);
     OnEvent(event);
-    if (m_scene) {
-        m_scene->OnEvent(event);
+    if (m_persistentScene) {
+        m_persistentScene->OnEvent(event);
+    }
+    for (const auto& scene : m_scenes) {
+        scene->OnEvent(event);
     }
 
     if (event.Is<WindowCloseEvent>()) {
@@ -131,25 +186,51 @@ void Application::HandleEvent(const Event& event) {
     }
 }
 
-void Application::SwitchScene() {
-    if (!m_sceneChangePending) {
-        return;
-    }
-    m_sceneChangePending = false;
-    UnloadScene();
-    m_scene = std::move(m_pendingScene);
-    if (m_scene) {
-        m_scene->m_application = this;
-        m_scene->OnLoad();
+void Application::ApplySceneChanges() {
+    // Taken out first, so changes asked for by OnLoad() and OnUnload() wait for the next frame.
+    auto changes = std::exchange(m_sceneChanges, {});
+    for (SceneChange& change : changes) {
+        switch (change.kind) {
+        case SceneChangeKind::Replace:
+            RemoveAllScenes();
+            if (change.scene) {
+                AddScene(std::move(change.scene));
+            }
+            break;
+        case SceneChangeKind::Add:
+            AddScene(std::move(change.scene));
+            break;
+        case SceneChangeKind::Remove:
+            RemoveScene(change.target);
+            break;
+        }
     }
 }
 
-void Application::UnloadScene() {
-    if (m_scene) {
-        m_scene->OnUnload();
-        m_scene->Clear();
-        m_scene->m_application = nullptr;
-        m_scene.reset();
+void Application::AddScene(std::unique_ptr<Scene> scene) {
+    Scene& added = *scene;
+    added.m_application = this;
+    m_scenes.push_back(std::move(scene));
+    added.OnLoad();
+}
+
+void Application::RemoveScene(const Scene* scene) {
+    // Only compared until found, since the scene may have been unloaded by an earlier change.
+    const auto found = std::ranges::find_if(m_scenes, [scene](const auto& loaded) { return loaded.get() == scene; });
+    if (found == m_scenes.end()) {
+        return;
+    }
+    Scene& removed = **found;
+    removed.OnUnload();
+    removed.Clear();
+    removed.m_application = nullptr;
+    m_scenes.erase(found);
+}
+
+void Application::RemoveAllScenes() {
+    // The newest first, like destructors, so later scenes can still rely on earlier ones.
+    while (!m_scenes.empty()) {
+        RemoveScene(m_scenes.back().get());
     }
 }
 

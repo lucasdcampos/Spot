@@ -78,7 +78,8 @@ protected:
     void OnLoad() override {
         m_calls.push_back(m_label + ".load");
         CHECK(IsLoaded());
-        CHECK(GetApplication().GetScene() == this);
+        const auto scenes = GetApplication().GetScenes();
+        CHECK(std::ranges::find(scenes, this) != scenes.end());
         CreateEntity().AddComponent<LoggingComponent>(m_calls, m_label);
     }
     void OnUnload() override { m_calls.push_back(m_label + ".unload"); }
@@ -115,6 +116,53 @@ protected:
 
 private:
     std::vector<std::string>& m_calls;
+    int m_frame = 0;
+};
+
+// Runs two scenes side by side, keeps an entity across scene changes and replaces everything on the third frame.
+class MultiSceneApplication final : public Spot::Application {
+public:
+    MultiSceneApplication(Spot::ApplicationConfig config, std::vector<std::string>& calls)
+        : Application(std::move(config)), m_calls(calls) {}
+
+protected:
+    void OnStart() override {
+        m_base = &LoadScene<LoggingScene>(m_calls, "base");
+        m_overlay = &LoadSceneAdditive<LoggingScene>(m_calls, "overlay");
+        // Unloaded before it had a chance to load.
+        UnloadScene(LoadSceneAdditive<LoggingScene>(m_calls, "dropped"));
+    }
+
+    void OnUpdate(float /*deltaTime*/) override {
+        m_calls.push_back("frame");
+        switch (++m_frame) {
+        case 1: {
+            CHECK(GetScenes() == std::vector<Spot::Scene*>{m_base, m_overlay});
+            CHECK(GetScene() == m_base);
+            Spot::Entity& player = m_base->CreateEntity("Player");
+            player.AddComponent<LoggingComponent>(m_calls, "player");
+            MakePersistent(player);
+            UnloadScene(*m_base);
+            break;
+        }
+        case 2:
+            CHECK(GetScene() == m_overlay);
+            LoadScene<LoggingScene>(m_calls, "next");
+            break;
+        default:
+            CHECK(GetPersistentScene().FindEntity("Player") != nullptr);
+            CHECK(GetScenes().size() == 1);
+            Quit();
+            break;
+        }
+    }
+
+    void OnStop() override { m_calls.emplace_back("stop"); }
+
+private:
+    std::vector<std::string>& m_calls;
+    Spot::Scene* m_base = nullptr;
+    Spot::Scene* m_overlay = nullptr;
     int m_frame = 0;
 };
 
@@ -183,4 +231,23 @@ TEST_CASE("Application switches scenes between frames and unloads the last one w
                                             "second.start", "second.update", "stop", "second.unload",
                                             "second.destroy"});
     CHECK(application.GetScene() == nullptr);
+}
+
+TEST_CASE("Application runs scenes side by side and keeps persistent entities", "[application]") {
+    std::vector<std::string> calls;
+    MultiSceneApplication application(MakeConfig(), calls);
+
+    CHECK(application.Run() == EXIT_SUCCESS);
+
+    CHECK(calls == std::vector<std::string>{
+                       // Frame 1: both scenes load and run; the player moves to the persistent scene, which updates
+                       // first.
+                       "base.load", "overlay.load", "frame", "player.start", "base.start", "base.update",
+                       "overlay.start", "overlay.update",
+                       // Frame 2: the base scene unloads, but the player was moved out of it.
+                       "base.unload", "base.destroy", "frame", "overlay.update",
+                       // Frame 3: everything is replaced by the next scene.
+                       "overlay.unload", "overlay.destroy", "next.load", "frame", "next.start", "next.update",
+                       // Stop: loaded scenes unload, then the persistent scene is cleared.
+                       "stop", "next.unload", "next.destroy", "player.destroy"});
 }
