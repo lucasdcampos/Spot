@@ -17,7 +17,8 @@ class GraphicsDevice;
 
 struct ModelPart {
     std::string name;
-    std::unique_ptr<Mesh> mesh;
+    // Shared, so parts can also be shown by MeshRenderer components.
+    std::shared_ptr<const Mesh> mesh;
     // Index into Model::GetMaterials().
     std::size_t material = 0;
 };

@@ -83,6 +83,7 @@ add_library(spot STATIC
     scene/component_registry.cpp
     scene/entity.h
     scene/entity.cpp
+    scene/mesh_renderer.h
     scene/scene.h
     scene/scene.cpp
     scene/scene_serialization.cpp

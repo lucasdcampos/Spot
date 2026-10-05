@@ -701,3 +701,45 @@ TEST_CASE("Models load with their materials and draw textured", "[gpu]") {
     CHECK(IsNear(render.At(23, 8), {0, 255, 0, 255}));
     CHECK(IsNear(render.At(8, 23), {0, 0, 255, 255}));
 }
+
+TEST_CASE("Renderer3D draws the active mesh renderers of a scene at their world transforms", "[gpu]") {
+    RequireGpu();
+    Spot::Renderer3DStats stats;
+
+    const TargetRender render(32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
+        Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+        const std::shared_ptr<const Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+        REQUIRE(cube != nullptr);
+
+        Spot::Scene scene;
+        scene.CreateEntity("Near").AddComponent<Spot::MeshRenderer>(cube,
+                                                                    Spot::Material{.baseColor = Spot::Color::Green});
+
+        // The far cube gets its place and size from its parent.
+        auto& parent = scene.CreateEntity("Parent");
+        parent.GetTransform().SetPosition({0.0f, 0.0f, -2.0f});
+        parent.GetTransform().SetScale({3.0f, 3.0f, 3.0f});
+        parent.CreateChild("Far").AddComponent<Spot::MeshRenderer>(cube, Spot::Material{.baseColor = Spot::Color::Red});
+
+        // None of these would let the green cube show, were they drawn.
+        const Spot::Material blue{.baseColor = Spot::Color::Blue};
+        auto& inactive = scene.CreateEntity("Inactive");
+        inactive.GetTransform().SetPosition({0.0f, 0.0f, 1.0f});
+        inactive.AddComponent<Spot::MeshRenderer>(cube, blue);
+        inactive.SetActive(false);
+        auto& disabled = scene.CreateEntity("Disabled");
+        disabled.GetTransform().SetPosition({0.0f, 0.0f, 1.0f});
+        disabled.AddComponent<Spot::MeshRenderer>(cube, blue).SetEnabled(false);
+        scene.CreateEntity("Empty").AddComponent<Spot::MeshRenderer>();
+
+        renderer.Begin(pass, MakeFrontCamera(), view, FrontLight);
+        renderer.DrawScene(scene);
+        renderer.End();
+        stats = renderer.GetStats();
+    });
+
+    CHECK(stats.drawCalls == 2);
+    CHECK(IsNear(render.At(16, 16), {0, 255, 0, 255}));
+    CHECK(IsNear(render.At(16, 6), {255, 0, 0, 255}));
+    CHECK(IsNear(render.At(0, 0), {0, 0, 0, 255}));
+}

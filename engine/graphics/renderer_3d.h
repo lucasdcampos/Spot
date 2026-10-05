@@ -18,6 +18,7 @@ class Mesh;
 class Model;
 class Pipeline;
 class RenderPass;
+class Scene;
 struct Material;
 
 struct Renderer3DConfig {
@@ -69,6 +70,9 @@ public:
 
     void DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform = {});
     void DrawModel(const Model& model, const Matrix4& transform = {});
+    // Draws every MeshRenderer of the scene that is enabled on an active entity, at its entity's world transform.
+    // The scene must not change until End(), since its components keep the meshes alive.
+    void DrawScene(Scene& scene);
 
     // What the last End() drew.
     Renderer3DStats GetStats() const { return m_stats; }

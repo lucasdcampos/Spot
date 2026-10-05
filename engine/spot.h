@@ -43,6 +43,7 @@
 #include "scene/component.h"
 #include "scene/component_registry.h"
 #include "scene/entity.h"
+#include "scene/mesh_renderer.h"
 #include "scene/scene.h"
 #include "scene/transform.h"
 #include "version.h"

@@ -7,6 +7,8 @@
 #include "graphics/mesh.h"
 #include "graphics/model.h"
 #include "graphics/render_context.h"
+#include "scene/mesh_renderer.h"
+#include "scene/scene.h"
 
 #include "mesh.frag.h"
 #include "mesh.vert.h"
@@ -100,6 +102,14 @@ void Renderer3D::DrawModel(const Model& model, const Matrix4& transform) {
     for (const auto& part : model.GetParts()) {
         DrawMesh(*part.mesh, materials[part.material], transform);
     }
+}
+
+void Renderer3D::DrawScene(Scene& scene) {
+    scene.ForEachComponent<MeshRenderer>([this](const MeshRenderer& renderer) {
+        if (renderer.GetMesh()) {
+            DrawMesh(*renderer.GetMesh(), renderer.GetMaterial(), renderer.GetEntity().GetTransform().GetWorldMatrix());
+        }
+    });
 }
 
 void Renderer3D::Flush() {
