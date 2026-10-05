@@ -25,6 +25,13 @@ Vector3 GetWorldScale(const Transform& transform) {
     return {axisLength(0), axisLength(1), axisLength(2)};
 }
 
+// The scale read back from a world matrix drifts by rounding as the entity turns, which must not rebuild its body.
+bool IsSameScale(Vector3 a, Vector3 b) {
+    constexpr float Tolerance = 1e-4f;
+    const auto same = [](float x, float y) { return std::abs(x - y) <= Tolerance * std::max(std::abs(y), 1.0f); };
+    return same(a.x, b.x) && same(a.y, b.y) && same(a.z, b.z);
+}
+
 } // namespace
 
 PhysicsWorld::PhysicsWorld(Scene& scene) : m_scene(scene) {
@@ -174,7 +181,7 @@ void PhysicsWorld::FollowEntities() {
         }
 
         const Transform& transform = entity->GetTransform();
-        if (GetWorldScale(transform) != body.scale) {
+        if (!IsSameScale(GetWorldScale(transform), body.scale)) {
             outdated.push_back(entityId);
             continue;
         }

@@ -4,6 +4,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cmath>
+#include <vector>
 
 using Catch::Approx;
 using Spot::BoxCollider;
@@ -297,6 +298,31 @@ TEST_CASE("Rigidbodies take velocities, impulses and forces", "[physics]") {
         rigidbody.SetAngularVelocity({0.0f, 1.0f, 0.0f});
         Simulate(scene, 1.0f);
         CHECK(Spot::ToEuler(ball.GetTransform().GetRotation()).y == Approx(1.0f).margin(0.02f));
+    }
+}
+
+TEST_CASE("Bodies spinning as fast as the simulation allows keep spinning", "[physics]") {
+    Scene scene;
+    scene.GetPhysics().SetGravity({});
+    // Rotations do not keep this scale exactly, which must not rebuild the bodies as they turn, and the speed limit
+    // must hold whatever the axis.
+    std::vector<Rigidbody*> rigidbodies;
+    for (int i = 0; i < 32; ++i) {
+        const float angle = static_cast<float>(i) * 0.37f;
+        auto& ball = CreateBall(scene, {static_cast<float>(i) * 2.0f, 0.0f, 0.0f});
+        ball.GetTransform().SetScale({0.4f, 0.4f, 0.4f});
+        auto& rigidbody = *ball.GetComponent<Rigidbody>();
+        rigidbody.SetAngularDamping(0.0f);
+        rigidbody.SetAngularVelocity(Vector3{std::cos(angle), std::sin(angle), 0.5f} * 1000.0f);
+        rigidbodies.push_back(&rigidbody);
+    }
+
+    Simulate(scene, 2.0f);
+
+    for (const Rigidbody* rigidbody : rigidbodies) {
+        const float speed = Spot::Length(rigidbody->GetAngularVelocity());
+        CHECK(speed > 1.0f);
+        CHECK(speed < 1000.0f);
     }
 }
 

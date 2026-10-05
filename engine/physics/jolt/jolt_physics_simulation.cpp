@@ -88,6 +88,16 @@ void TraceToLog(const char* format, ...) {
     Log::GetEngineLogger().Info("Jolt: {}", message);
 }
 
+#ifdef JPH_ENABLE_ASSERTS
+// Without this, a failed Jolt assert stops the program at a breakpoint without saying why.
+bool AssertFailedToLog(const char* expression, const char* message, const char* file, JPH::uint line) {
+    Log::GetEngineLogger().Error("Jolt assert failed at {}:{}: {}{}{}", file, line, expression, message ? ": " : "",
+                                 message ? message : "");
+    Log::Flush();
+    return true;
+}
+#endif
+
 // Jolt's global state, plus the threads and scratch memory every simulation shares. Simulations step one at a time,
 // so they can share them.
 struct Runtime {
@@ -107,6 +117,7 @@ public:
         if (s_runtimeUsers++ == 0) {
             JPH::RegisterDefaultAllocator();
             JPH::Trace = &TraceToLog;
+            JPH_IF_ENABLE_ASSERTS(JPH::AssertFailed = &AssertFailedToLog;)
             JPH::Factory::sInstance = new JPH::Factory();
             JPH::RegisterTypes();
             s_runtime = new Runtime();
@@ -136,6 +147,12 @@ JPH::Vec3 ToJolt(Vector3 v) {
 
 JPH::Quat ToJolt(const Quaternion& q) {
     return {q.x, q.y, q.z, q.w};
+}
+
+JPH::Vec3 ClampLength(JPH::Vec3Arg v, float maxLength) {
+    // Below the limit by a margin, which rounding cannot cross.
+    const float length = v.Length();
+    return length > maxLength ? v * (0.999f * maxLength / length) : v;
 }
 
 Vector3 FromJolt(JPH::Vec3Arg v) {
@@ -256,8 +273,10 @@ PhysicsBodyId PhysicsSimulation::CreateBody(const PhysicsBodyDesc& desc) {
     settings.mGravityFactor = desc.gravityScale;
     settings.mLinearDamping = desc.linearDamping;
     settings.mAngularDamping = desc.angularDamping;
-    settings.mLinearVelocity = ToJolt(desc.linearVelocity);
-    settings.mAngularVelocity = ToJolt(desc.angularVelocity);
+    // Jolt asserts that a new body starts within its speed limits, which a body at its limit can cross by rounding
+    // when rebuilt.
+    settings.mLinearVelocity = ClampLength(ToJolt(desc.linearVelocity), settings.mMaxLinearVelocity);
+    settings.mAngularVelocity = ClampLength(ToJolt(desc.angularVelocity), settings.mMaxAngularVelocity);
     if (desc.motion == PhysicsMotion::Dynamic) {
         const float mass = std::max(desc.mass, MinShapeSize);
         settings.mMassPropertiesOverride.mMass = mass;
