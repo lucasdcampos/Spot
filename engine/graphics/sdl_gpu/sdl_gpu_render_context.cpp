@@ -30,12 +30,47 @@ void RenderPass::BindPipeline(const Pipeline& pipeline) {
     m_pipelineBound = true;
 }
 
+void RenderPass::BindVertexBuffer(std::uint32_t slot, const Buffer& buffer, std::uint32_t offset) {
+    SPOT_ASSERT(m_native, "The render pass has ended");
+    SPOT_ASSERT(buffer.GetUsage() == BufferUsage::Vertex, "Only vertex buffers can be bound as vertex buffers");
+    SDL_GPUBufferBinding binding{};
+    binding.buffer = static_cast<SDL_GPUBuffer*>(buffer.GetNativeHandle());
+    binding.offset = offset;
+    SDL_BindGPUVertexBuffers(static_cast<SDL_GPURenderPass*>(m_native), slot, &binding, 1);
+}
+
+void RenderPass::BindIndexBuffer(const Buffer& buffer, IndexType type, std::uint32_t offset) {
+    SPOT_ASSERT(m_native, "The render pass has ended");
+    SPOT_ASSERT(buffer.GetUsage() == BufferUsage::Index, "Only index buffers can be bound as index buffers");
+    SDL_GPUBufferBinding binding{};
+    binding.buffer = static_cast<SDL_GPUBuffer*>(buffer.GetNativeHandle());
+    binding.offset = offset;
+    SDL_BindGPUIndexBuffer(static_cast<SDL_GPURenderPass*>(m_native), &binding,
+                           type == IndexType::UInt16 ? SDL_GPU_INDEXELEMENTSIZE_16BIT : SDL_GPU_INDEXELEMENTSIZE_32BIT);
+}
+
+void RenderPass::PushVertexUniformData(std::uint32_t slot, const void* data, std::uint32_t size) {
+    SDL_PushGPUVertexUniformData(m_context->m_impl->commandBuffer, slot, data, size);
+}
+
+void RenderPass::PushFragmentUniformData(std::uint32_t slot, const void* data, std::uint32_t size) {
+    SDL_PushGPUFragmentUniformData(m_context->m_impl->commandBuffer, slot, data, size);
+}
+
 void RenderPass::Draw(std::uint32_t vertexCount, std::uint32_t instanceCount, std::uint32_t firstVertex,
                       std::uint32_t firstInstance) {
     SPOT_ASSERT(m_native, "The render pass has ended");
     SPOT_ASSERT(m_pipelineBound, "Bind a pipeline before drawing");
     SDL_DrawGPUPrimitives(static_cast<SDL_GPURenderPass*>(m_native), vertexCount, instanceCount, firstVertex,
                           firstInstance);
+}
+
+void RenderPass::DrawIndexed(std::uint32_t indexCount, std::uint32_t instanceCount, std::uint32_t firstIndex,
+                             std::int32_t vertexOffset, std::uint32_t firstInstance) {
+    SPOT_ASSERT(m_native, "The render pass has ended");
+    SPOT_ASSERT(m_pipelineBound, "Bind a pipeline before drawing");
+    SDL_DrawGPUIndexedPrimitives(static_cast<SDL_GPURenderPass*>(m_native), indexCount, instanceCount, firstIndex,
+                                 vertexOffset, firstInstance);
 }
 
 RenderContext::RenderContext() : m_impl(std::make_unique<Impl>()) {

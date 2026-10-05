@@ -7,8 +7,8 @@ target_link_libraries(sandbox PRIVATE
 )
 
 spot_add_shaders(sandbox
-    shaders/triangle.vert.hlsl
-    shaders/triangle.frag.hlsl
+    shaders/color.frag.hlsl
+    shaders/quad.vert.hlsl
 )
 
 spot_set_warnings(sandbox)

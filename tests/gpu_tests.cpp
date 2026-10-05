@@ -1,3 +1,4 @@
+#include "quad.vert.h"
 #include "triangle.frag.h"
 #include "triangle.vert.h"
 
@@ -5,6 +6,8 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <array>
+#include <cstdint>
 #include <cstdlib>
 #include <functional>
 #include <memory>
@@ -137,6 +140,78 @@ TEST_CASE("Shaders without code for the backend are rejected", "[gpu]") {
 
     RenderingApplication application([&](Spot::Application& app, Spot::RenderContext&) {
         rejected = app.GetGraphicsDevice().CreateShader({.stage = Spot::ShaderStage::Vertex}) == nullptr;
+    });
+
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    CHECK(rejected);
+}
+
+TEST_CASE("Vertex and index buffers draw an indexed quad with uniforms", "[gpu]") {
+    RequireGpu();
+
+    struct Vertex {
+        Spot::Vector2 position;
+        Spot::Color color;
+    };
+    const std::array<Vertex, 4> vertices{{
+        {{-0.5f, -0.5f}, Spot::Color::Red},
+        {{0.5f, -0.5f}, Spot::Color::Green},
+        {{0.5f, 0.5f}, Spot::Color::Blue},
+        {{-0.5f, 0.5f}, Spot::Color::White},
+    }};
+    const std::array<std::uint16_t, 6> indices{0, 1, 2, 2, 3, 0};
+
+    std::unique_ptr<Spot::Buffer> vertexBuffer;
+    std::unique_ptr<Spot::Buffer> indexBuffer;
+    std::unique_ptr<Spot::Pipeline> pipeline;
+
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
+        auto& device = app.GetGraphicsDevice();
+        if (!pipeline) {
+            vertexBuffer = device.CreateBuffer(Spot::BufferUsage::Vertex, vertices);
+            indexBuffer = device.CreateBuffer(Spot::BufferUsage::Index, indices);
+            REQUIRE(vertexBuffer != nullptr);
+            REQUIRE(indexBuffer != nullptr);
+            CHECK(vertexBuffer->GetSize() == sizeof(vertices));
+            CHECK(indexBuffer->GetUsage() == Spot::BufferUsage::Index);
+
+            const auto vertexShader = device.CreateShader(Shaders::QuadVert);
+            const auto fragmentShader = device.CreateShader(Shaders::TriangleFrag);
+            REQUIRE(vertexShader != nullptr);
+            REQUIRE(fragmentShader != nullptr);
+            pipeline = device.CreatePipeline({
+                .vertexShader = vertexShader.get(),
+                .fragmentShader = fragmentShader.get(),
+                .vertexBuffers = {{
+                    .stride = sizeof(Vertex),
+                    .attributes = {{0, Spot::VertexFormat::Float2, offsetof(Vertex, position)},
+                                   {1, Spot::VertexFormat::Float4, offsetof(Vertex, color)}},
+                }},
+            });
+            REQUIRE(pipeline != nullptr);
+        } else {
+            // Partial updates during a frame, while earlier frames may still read the buffer.
+            device.UploadToBuffer(*vertexBuffer, std::span(vertices).subspan(1, 2), sizeof(Vertex));
+        }
+
+        auto pass = context.BeginRenderPass({.clearColor = Spot::Color::Black});
+        pass.BindPipeline(*pipeline);
+        pass.BindVertexBuffer(0, *vertexBuffer);
+        pass.BindIndexBuffer(*indexBuffer, Spot::IndexType::UInt16);
+        pass.PushVertexUniforms(0, Spot::Matrix4::Scale({1.5f, 1.5f, 1.0f}));
+        pass.DrawIndexed(static_cast<std::uint32_t>(indices.size()));
+    });
+
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    CHECK(application.GetRenderedFrames() == 3);
+}
+
+TEST_CASE("Empty buffers are rejected", "[gpu]") {
+    RequireGpu();
+    bool rejected = false;
+
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext&) {
+        rejected = app.GetGraphicsDevice().CreateBuffer({.usage = Spot::BufferUsage::Vertex, .size = 0}) == nullptr;
     });
 
     REQUIRE(application.Run() == EXIT_SUCCESS);

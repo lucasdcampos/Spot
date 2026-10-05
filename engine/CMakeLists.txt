@@ -13,9 +13,11 @@ add_library(spot STATIC
     core/time.h
     core/time.cpp
     events/event.h
+    graphics/buffer.h
     graphics/color.h
     graphics/graphics_device.h
     graphics/pipeline.h
+    graphics/pipeline.cpp
     graphics/render_context.h
     graphics/shader.h
     input/input.h

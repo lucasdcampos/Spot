@@ -2,6 +2,7 @@
 
 // Backend-internal definitions shared by the SDL_GPU sources.
 
+#include "graphics/buffer.h"
 #include "graphics/graphics_device.h"
 #include "graphics/pipeline.h"
 #include "graphics/render_context.h"
@@ -59,6 +60,15 @@ struct Shader::Impl {
     std::shared_ptr<SharedGpuDevice> device;
     SDL_GPUShader* handle;
     ShaderStage stage;
+};
+
+struct Buffer::Impl {
+    ~Impl() { SDL_ReleaseGPUBuffer(device->Get(), handle); }
+
+    std::shared_ptr<SharedGpuDevice> device;
+    SDL_GPUBuffer* handle;
+    BufferUsage usage;
+    std::uint32_t size;
 };
 
 struct Pipeline::Impl {

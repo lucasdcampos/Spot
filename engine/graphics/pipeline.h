@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
+#include <vector>
 
 namespace Spot {
 
@@ -29,11 +31,47 @@ enum class CullMode {
     Back,
 };
 
+enum class VertexFormat {
+    Float,
+    Float2,
+    Float3,
+    Float4,
+    // Four bytes read as floats in [0, 1], a compact way to store colors.
+    UByte4Normalized,
+};
+
+std::uint32_t GetVertexFormatSize(VertexFormat format);
+
+// Attribute N feeds the vertex shader input at location N. In HLSL that is the N-th field of the input struct, and
+// Direct3D 12 also requires its semantic to be TEXCOORD{N}.
+struct VertexAttribute {
+    std::uint32_t location = 0;
+    VertexFormat format = VertexFormat::Float;
+    // In bytes, from the start of the vertex.
+    std::uint32_t offset = 0;
+};
+
+enum class VertexInputRate {
+    Vertex,
+    // Advances once per instance, for per-instance data such as transforms.
+    Instance,
+};
+
+// The layout of the vertex buffer bound to one slot.
+struct VertexBufferLayout {
+    // In bytes, from one vertex to the next.
+    std::uint32_t stride = 0;
+    std::vector<VertexAttribute> attributes = {};
+    VertexInputRate inputRate = VertexInputRate::Vertex;
+};
+
 // The full GPU state for a draw. Pipelines are immutable: create one per combination that is needed, ahead of time,
 // since creating them is slow. They draw into the window's swapchain.
 struct PipelineDesc {
     const Shader* vertexShader = nullptr;
     const Shader* fragmentShader = nullptr;
+    // One layout per vertex buffer slot. Empty when the shader builds its vertices from SV_VertexID.
+    std::vector<VertexBufferLayout> vertexBuffers = {};
     PrimitiveType primitiveType = PrimitiveType::TriangleList;
     BlendMode blendMode = BlendMode::None;
     // Front faces wind counterclockwise.

@@ -11,6 +11,7 @@ FetchContent_MakeAvailable(Catch2)
 add_executable(spot_tests
     application_tests.cpp
     event_tests.cpp
+    graphics_tests.cpp
     input_tests.cpp
     log_capture.h
     log_tests.cpp
@@ -68,8 +69,9 @@ target_link_libraries(spot_gpu_tests PRIVATE
 )
 
 spot_add_shaders(spot_gpu_tests
-    shaders/triangle.vert.hlsl
+    shaders/quad.vert.hlsl
     shaders/triangle.frag.hlsl
+    shaders/triangle.vert.hlsl
 )
 
 spot_set_warnings(spot_gpu_tests)

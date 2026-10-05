@@ -6,6 +6,7 @@
 #include "core/log_sinks.h"
 #include "core/time.h"
 #include "events/event.h"
+#include "graphics/buffer.h"
 #include "graphics/color.h"
 #include "graphics/graphics_device.h"
 #include "graphics/pipeline.h"

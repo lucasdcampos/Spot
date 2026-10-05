@@ -1,10 +1,14 @@
 #pragma once
 
+#include "graphics/buffer.h"
 #include "graphics/pipeline.h"
 #include "graphics/render_context.h"
 #include "graphics/shader.h"
 
+#include <cstddef>
 #include <memory>
+#include <ranges>
+#include <span>
 #include <string_view>
 
 namespace Spot {
@@ -43,6 +47,28 @@ public:
     // Each returns null, after logging why, when the backend rejects the description.
     std::unique_ptr<Shader> CreateShader(const ShaderDesc& desc);
     std::unique_ptr<Pipeline> CreatePipeline(const PipelineDesc& desc);
+    std::unique_ptr<Buffer> CreateBuffer(const BufferDesc& desc);
+
+    // Creates a buffer sized to hold the data, such as a std::array or std::vector of vertices, and uploads it.
+    template <std::ranges::contiguous_range Data>
+    std::unique_ptr<Buffer> CreateBuffer(BufferUsage usage, const Data& data) {
+        const std::span<const std::byte> bytes = std::as_bytes(std::span(data));
+        auto buffer = CreateBuffer({.usage = usage, .size = static_cast<std::uint32_t>(bytes.size())});
+        if (buffer) {
+            UploadToBuffer(*buffer, bytes);
+        }
+        return buffer;
+    }
+
+    // Copies data into the buffer at the given byte offset. It can be called at any time, including during a frame:
+    // the copy reaches the GPU before the frame's draws, and draws recorded earlier in the frame keep the old data.
+    void UploadToBuffer(Buffer& buffer, std::span<const std::byte> data, std::uint32_t offset = 0);
+
+    template <std::ranges::contiguous_range Data>
+    void UploadToBuffer(Buffer& buffer, const Data& data, std::uint32_t offset = 0) {
+        // Converted to a dynamic extent so the byte overload is chosen instead of this template again.
+        UploadToBuffer(buffer, std::span<const std::byte>(std::as_bytes(std::span(data))), offset);
+    }
 
     bool IsVSyncEnabled() const;
     void SetVSync(bool enabled);
