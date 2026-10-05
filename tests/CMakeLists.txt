@@ -10,6 +10,7 @@ FetchContent_MakeAvailable(Catch2)
 
 add_executable(spot_tests
     application_tests.cpp
+    asset_tests.cpp
     audio_tests.cpp
     event_tests.cpp
     graphics_tests.cpp
@@ -25,6 +26,7 @@ add_executable(spot_tests
     scene_serialization_tests.cpp
     scene_tests.cpp
     shader_tests.cpp
+    temp_directory.h
     text_tests.cpp
     time_tests.cpp
     version_tests.cpp

@@ -1,5 +1,9 @@
 #pragma once
 
+#include "assets/asset_database.h"
+#include "assets/asset_id.h"
+#include "assets/asset_meta.h"
+#include "assets/asset_type.h"
 #include "audio/audio_device.h"
 #include "audio/playback.h"
 #include "audio/sound.h"

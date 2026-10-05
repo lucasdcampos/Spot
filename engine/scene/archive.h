@@ -1,5 +1,6 @@
 #pragma once
 
+#include "assets/asset_id.h"
 #include "graphics/color.h"
 #include "math/quaternion.h"
 #include "math/vector.h"
@@ -62,6 +63,8 @@ public:
     // References to other entities. Entities loaded together keep referring to each other through their new ids;
     // references to entities that were not saved along load as EntityId::Invalid.
     void Field(std::string_view name, EntityId& value);
+    // Saved as 32 hexadecimal digits, or null for the null id.
+    void Field(std::string_view name, AssetId& value);
 
     // Enums are saved as their underlying value.
     template <typename T>

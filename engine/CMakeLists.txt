@@ -2,6 +2,14 @@ add_library(spot STATIC
     spot.h
     version.h
     version.cpp
+    assets/asset_database.h
+    assets/asset_database.cpp
+    assets/asset_id.h
+    assets/asset_id.cpp
+    assets/asset_meta.h
+    assets/asset_meta.cpp
+    assets/asset_type.h
+    assets/asset_type.cpp
     audio/audio_device.h
     audio/audio_device.cpp
     audio/audio_output.h

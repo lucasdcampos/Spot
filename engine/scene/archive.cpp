@@ -145,6 +145,27 @@ void Archive::Field(std::string_view name, EntityId& value) {
     value = found != m_state.entityIds->end() ? found->second : EntityId::Invalid;
 }
 
+void Archive::Field(std::string_view name, AssetId& value) {
+    if (!m_state.loading) {
+        AddField(m_state, name) = value.IsValid() ? json(value.ToString()) : json(nullptr);
+        return;
+    }
+    const json* field = FindField(m_state, name);
+    if (!field) {
+        return;
+    }
+    if (field->is_null()) {
+        value = {};
+        return;
+    }
+    const auto id = field->is_string() ? AssetId::Parse(field->get<std::string>()) : std::nullopt;
+    if (!id) {
+        WarnWrongType(name, "an asset id of 32 hexadecimal digits");
+        return;
+    }
+    value = *id;
+}
+
 bool Archive::Enter(std::string_view name, NodeKind kind, std::size_t& size) {
     if (!m_state.loading) {
         json& field = AddField(m_state, name);
