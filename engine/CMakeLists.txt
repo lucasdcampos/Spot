@@ -16,6 +16,7 @@ add_library(spot STATIC
     input/keys.h
     input/keys.cpp
     platform/platform.h
+    window/window.h
 )
 add_library(spot::spot ALIAS spot)
 
@@ -40,7 +41,9 @@ if(SPOT_PLATFORM STREQUAL "SDL3")
     FetchContent_MakeAvailable(SDL3)
 
     target_sources(spot PRIVATE
+        platform/sdl3/sdl3_events.cpp
         platform/sdl3/sdl3_platform.cpp
+        platform/sdl3/sdl3_window.cpp
     )
     target_link_libraries(spot PRIVATE SDL3::SDL3-static)
 else()

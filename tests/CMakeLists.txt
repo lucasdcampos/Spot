@@ -15,12 +15,19 @@ add_executable(spot_tests
     log_tests.cpp
     platform_tests.cpp
     version_tests.cpp
+    window_tests.cpp
 )
 
 target_link_libraries(spot_tests PRIVATE
     spot::spot
     Catch2::Catch2WithMain
 )
+
+# Backend tests feed native events in, so they need the backend's headers; the library comes through spot.
+if(SPOT_PLATFORM STREQUAL "SDL3")
+    target_sources(spot_tests PRIVATE sdl3_event_tests.cpp)
+    target_link_libraries(spot_tests PRIVATE SDL3::Headers)
+endif()
 
 target_compile_definitions(spot_tests PRIVATE
     SPOT_EXPECTED_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}

@@ -41,6 +41,8 @@ void SDLCALL WriteSdlLog(void*, int, SDL_LogPriority priority, const char* messa
 bool Initialize() {
     if (s_initCount == 0) {
         SDL_SetLogOutputFunction(WriteSdlLog, nullptr);
+        // Closing the window already reports a close request; without this SDL would also send a quit event.
+        SDL_SetHint(SDL_HINT_QUIT_ON_LAST_WINDOW_CLOSE, "0");
 
         if (!SDL_InitSubSystem(SDL_INIT_VIDEO)) {
             Log::GetEngineLogger().Error("Failed to initialize SDL: {}", SDL_GetError());
