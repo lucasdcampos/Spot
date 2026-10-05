@@ -116,6 +116,10 @@ TEST_CASE("Quaternions compose, invert and interpolate", "[math]") {
     const float diagonal = std::sqrt(0.5f);
     CHECK(IsNear(halfway * Vector3{1, 0, 0}, Vector3{diagonal, 0, -diagonal}));
 
+    const Vector3 angles{0.3f, -0.5f, 0.7f};
+    CHECK(IsNear(Spot::ToEuler(Quaternion::FromEuler(angles)), angles));
+    CHECK(Spot::ToEuler(Quaternion::FromAxisAngle({0, 0, 1}, 2.0f)).z == Catch::Approx(2.0f));
+
     const Quaternion scaled{0, 0, 0, 2};
     CHECK(Spot::Normalize(scaled) == Quaternion::Identity());
 }

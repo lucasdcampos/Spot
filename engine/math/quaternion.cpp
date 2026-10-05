@@ -23,6 +23,10 @@ Vector3 operator*(const Quaternion& rotation, Vector3 v) {
     return FromGlm(ToGlm(rotation) * ToGlm(v));
 }
 
+Vector3 ToEuler(const Quaternion& q) {
+    return FromGlm(glm::eulerAngles(ToGlm(q)));
+}
+
 Quaternion Normalize(const Quaternion& q) {
     return FromGlm(glm::normalize(ToGlm(q)));
 }

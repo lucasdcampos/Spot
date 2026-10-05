@@ -24,6 +24,10 @@ struct Quaternion {
 Quaternion operator*(const Quaternion& a, const Quaternion& b);
 Vector3 operator*(const Quaternion& rotation, Vector3 v);
 
+// The pitch, yaw and roll that FromEuler() turns back into this rotation. For a rotation around Z alone, as in 2D,
+// z is its angle.
+Vector3 ToEuler(const Quaternion& q);
+
 Quaternion Normalize(const Quaternion& q);
 Quaternion Inverse(const Quaternion& q);
 Quaternion Slerp(const Quaternion& a, const Quaternion& b, float t);
