@@ -1,5 +1,6 @@
 #pragma once
 
+#include "audio/sound.h"
 #include "core/application.h"
 #include "core/assert.h"
 #include "core/log.h"

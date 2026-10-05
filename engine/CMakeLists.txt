@@ -2,6 +2,8 @@ add_library(spot STATIC
     spot.h
     version.h
     version.cpp
+    audio/sound.h
+    audio/sound.cpp
     core/application.h
     core/application.cpp
     core/assert.h
@@ -77,7 +79,7 @@ FetchContent_Declare(glm
 FetchContent_MakeAvailable(glm)
 target_link_libraries(spot PRIVATE glm::glm-header-only)
 
-# stb_image decodes images; it is a single header without a CMake project.
+# stb_image decodes images and stb_vorbis Ogg Vorbis audio; they are single files without a CMake project.
 FetchContent_Declare(stb
     GIT_REPOSITORY https://github.com/nothings/stb.git
     GIT_TAG 2c980bb59875b0d32144a71867fbdebb2f77cd20
@@ -85,6 +87,15 @@ FetchContent_Declare(stb
 )
 FetchContent_MakeAvailable(stb)
 target_include_directories(spot SYSTEM PRIVATE ${stb_SOURCE_DIR})
+
+# dr_wav decodes WAV audio; like stb, it is a single header.
+FetchContent_Declare(dr_libs
+    GIT_REPOSITORY https://github.com/mackron/dr_libs.git
+    GIT_TAG dfe8377631000664666519fdb83da193fd8037f4
+    SYSTEM
+)
+FetchContent_MakeAvailable(dr_libs)
+target_include_directories(spot SYSTEM PRIVATE ${dr_libs_SOURCE_DIR})
 
 # The backend is chosen at build time. Its types never reach the public headers, so swapping it does not
 # change the engine API.
