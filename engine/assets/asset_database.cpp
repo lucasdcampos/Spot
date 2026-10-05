@@ -1,6 +1,7 @@
 #include "assets/asset_database.h"
 
 #include "assets/asset_file.h"
+#include "assets/asset_formats.h"
 #include "assets/asset_manifest.h"
 #include "assets/importers/importer.h"
 #include "core/log.h"
@@ -120,6 +121,48 @@ bool AssetDatabase::Scan() {
         m_sourceIndices[m_sources[i].meta.id] = i;
     }
     return true;
+}
+
+std::optional<AssetId> AssetDatabase::ExtractMaterial(AssetId material, std::string_view path) {
+    const AssetInfo* info = Find(material);
+    AssetMeta* model = info ? GetMeta(info->parent) : nullptr;
+    const auto key =
+        model ? std::ranges::find(model->subAssets, material, &SubAssetId::id) : std::vector<SubAssetId>::iterator();
+    if (!info || info->type != AssetType::Material || !model || key == model->subAssets.end()) {
+        Log::GetEngineLogger().Error("Only the materials of models can be extracted");
+        return std::nullopt;
+    }
+
+    const auto target = m_sourceDirectory / Utf8ToPath(path);
+    std::error_code error;
+    if (GetSourceAssetType(target) != AssetType::Material || std::filesystem::exists(target, error)) {
+        Log::GetEngineLogger().Error("Cannot extract a material to '{}': it must be a new .material file", path);
+        return std::nullopt;
+    }
+    const auto data =
+        Detail::ReadAssetFile(Detail::GetImportedAssetPath(m_importDirectory, material), AssetType::Material);
+    const auto source = data ? Detail::DecodeMaterial(*data) : std::nullopt;
+    if (!source) {
+        Log::GetEngineLogger().Error("The imported material {} is missing or corrupt", material.ToString());
+        return std::nullopt;
+    }
+
+    std::filesystem::create_directories(target.parent_path(), error);
+    AssetMeta meta;
+    meta.id = AssetId::Generate();
+    meta.type = AssetType::Material;
+    if (!source->SaveToFile(target) || !meta.SaveToFile(AssetMeta::GetMetaPath(target))) {
+        return std::nullopt;
+    }
+
+    const std::string keyName = key->key;
+    auto& overrides = model->model.materials;
+    std::erase_if(overrides, [&](const MaterialOverride& entry) { return entry.key == keyName; });
+    overrides.push_back({keyName, meta.id});
+    SaveMeta(info->parent);
+
+    Refresh();
+    return meta.id;
 }
 
 std::size_t AssetDatabase::Import(const AssetId* forced) {

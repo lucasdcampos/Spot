@@ -377,3 +377,71 @@ TEST_CASE("Applications import their sources at startup and expose their assets"
     CHECK(Spot::Assets::GetManager() == nullptr);
     CHECK_FALSE(Spot::Assets::Load<Spot::Material>("pixels.png"));
 }
+
+TEST_CASE("Material files are assets that refer to textures by id", "[assets]") {
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    const auto imported = project.GetPath() / "imported";
+    CreateProject(sources);
+    AssetDatabase database(sources, imported);
+    database.Refresh();
+    const AssetId pixelsId = *database.FindByPath("pixels.png");
+
+    Spot::MaterialSource source{.baseColor = Spot::Color::Red, .baseColorTexture = pixelsId, .doubleSided = true};
+    const auto reloaded = Spot::MaterialSource::LoadFromString(source.SaveToString());
+    REQUIRE(reloaded.has_value());
+    CHECK(reloaded->baseColorTexture == pixelsId);
+    CHECK(reloaded->doubleSided);
+
+    REQUIRE(source.SaveToFile(sources / "red.material"));
+    CHECK(database.Refresh() == 1);
+
+    Spot::AssetManager assets(imported);
+    const auto material = assets.Load<Spot::Material>("red.material");
+    REQUIRE(material);
+    CHECK(material->baseColor == Spot::Color::Red);
+    CHECK(material->doubleSided);
+    // There is no GPU here to load the texture, but the reference knows which one it is.
+    CHECK(material->baseColorTexture.GetId() == pixelsId);
+
+    std::ofstream(sources / "broken.material", std::ios::binary) << "[1, 2";
+    CHECK(database.Refresh() == 0);
+}
+
+TEST_CASE("Materials extracted from a model replace the model's own", "[assets]") {
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    const auto imported = project.GetPath() / "imported";
+    const AssetId plainId = ImportProject(sources, imported);
+    AssetDatabase database(sources, imported);
+    database.Refresh();
+    const AssetId cubeId = *database.FindByPath("models/cube.glb");
+
+    const auto extracted = database.ExtractMaterial(plainId, "materials/plain.material");
+    REQUIRE(extracted.has_value());
+    CHECK(database.FindByPath("materials/plain.material") == extracted);
+    REQUIRE(database.GetMeta(cubeId)->model.materials.size() == 1);
+    CHECK(database.GetMeta(cubeId)->model.materials[0].material == *extracted);
+    CHECK(Spot::MaterialSource::LoadFromFile(sources / "materials" / "plain.material")->baseColor == Spot::Color::Blue);
+
+    // The model's own material is still imported, so it can be extracted again, but the model uses the file.
+    {
+        Spot::AssetManager assets(imported);
+        CHECK(assets.Contains(plainId));
+        const auto model = assets.Load<Spot::Model>(cubeId);
+        REQUIRE(model);
+        CHECK(model->GetParts()[1].material.GetId() == *extracted);
+    }
+
+    // Editing the file changes the model's look.
+    auto edited = *Spot::MaterialSource::LoadFromFile(sources / "materials" / "plain.material");
+    edited.baseColor = Spot::Color::Green;
+    edited.SaveToFile(sources / "materials" / "plain.material");
+    CHECK(database.Refresh() == 1);
+    Spot::AssetManager assets(imported);
+    CHECK(assets.Load<Spot::Model>(cubeId)->GetParts()[1].material->baseColor == Spot::Color::Green);
+
+    CHECK_FALSE(database.ExtractMaterial(plainId, "materials/plain.material").has_value());
+    CHECK_FALSE(database.ExtractMaterial(cubeId, "materials/cube.material").has_value());
+    CHECK_FALSE(database.ExtractMaterial(plainId, "materials/plain.png").has_value());
+}

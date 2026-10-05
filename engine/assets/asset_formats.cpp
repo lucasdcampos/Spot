@@ -82,15 +82,15 @@ std::optional<MeshData> DecodeMesh(std::span<const std::byte> data) {
     return Finish(reader, MeshData{std::move(*vertices), std::move(*indices)});
 }
 
-void Encode(BinaryWriter& writer, const MaterialFile& material) {
+void Encode(BinaryWriter& writer, const MaterialSource& material) {
     writer.Write(material.baseColor);
     writer.Write(static_cast<std::uint8_t>(material.doubleSided));
     writer.Write(material.baseColorTexture);
 }
 
-std::optional<MaterialFile> DecodeMaterial(std::span<const std::byte> data) {
+std::optional<MaterialSource> DecodeMaterial(std::span<const std::byte> data) {
     BinaryReader reader(data);
-    MaterialFile material;
+    MaterialSource material;
     material.baseColor = reader.Read<Color>();
     material.doubleSided = reader.Read<std::uint8_t>() != 0;
     material.baseColorTexture = reader.Read<AssetId>();

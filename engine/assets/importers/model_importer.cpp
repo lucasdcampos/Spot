@@ -101,7 +101,8 @@ bool ImportModel(ImportContext& context) {
     }
 
     const auto writeMaterial = [&](std::string_view key, std::string name, const MaterialData& source) {
-        MaterialFile material{.baseColor = source.baseColor, .doubleSided = source.doubleSided, .baseColorTexture = {}};
+        MaterialSource material{
+            .baseColor = source.baseColor, .baseColorTexture = {}, .doubleSided = source.doubleSided};
         if (source.baseColorImage) {
             material.baseColorTexture = textures[*source.baseColorImage];
         }
@@ -110,14 +111,27 @@ bool ImportModel(ImportContext& context) {
         return context.WriteSubAsset(key, AssetType::Material, std::move(name), data);
     };
 
+    // Materials extracted to .material files replace the model's own, which are still imported so they can be
+    // extracted again.
+    const auto overridden = [&](std::string_view key, AssetId id) {
+        for (const auto& entry : context.GetMeta().model.materials) {
+            if (entry.key == key && entry.material.IsValid()) {
+                return entry.material;
+            }
+        }
+        return id;
+    };
+
     std::vector<AssetId> materials;
     for (std::size_t i = 0; i < model->materials.size(); ++i) {
         const auto& source = model->materials[i];
-        materials.push_back(writeMaterial(std::format("material:{}", i),
-                                          source.name.empty() ? std::format("Material {}", i) : source.name, source));
-        if (!materials.back().IsValid()) {
+        const std::string key = std::format("material:{}", i);
+        const AssetId id =
+            writeMaterial(key, source.name.empty() ? std::format("Material {}", i) : source.name, source);
+        if (!id.IsValid()) {
             return false;
         }
+        materials.push_back(overridden(key, id));
     }
 
     std::optional<AssetId> defaultMaterial;
@@ -138,10 +152,11 @@ bool ImportModel(ImportContext& context) {
 
         // Parts without a material share a plain white one.
         if (!source.material && !defaultMaterial) {
-            defaultMaterial = writeMaterial("material:default", "Default", MaterialData{});
-            if (!defaultMaterial->IsValid()) {
+            const AssetId id = writeMaterial("material:default", "Default", MaterialData{});
+            if (!id.IsValid()) {
                 return false;
             }
+            defaultMaterial = overridden("material:default", id);
         }
         parts.push_back({name, mesh, source.material ? materials[*source.material] : *defaultMaterial});
     }

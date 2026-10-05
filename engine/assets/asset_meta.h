@@ -20,9 +20,19 @@ struct TextureImportSettings {
     void Serialize(Archive& archive);
 };
 
+// A material of a model replaced by a material asset, such as one extracted with AssetDatabase::ExtractMaterial().
+struct MaterialOverride {
+    // The key of the model's material among its sub-assets, such as "material:0".
+    std::string key;
+    AssetId material;
+
+    void Serialize(Archive& archive);
+};
+
 struct ModelImportSettings {
     // Scales the whole model, such as 0.01 for files made in centimeters.
     float scale = 1.0f;
+    std::vector<MaterialOverride> materials;
 
     void Serialize(Archive& archive);
 };

@@ -63,6 +63,11 @@ public:
     const AssetMeta* GetMeta(AssetId id) const;
     bool SaveMeta(AssetId id) const;
 
+    // Writes a material of a model to a new .material file at the path, relative to the source directory, and makes
+    // the model use that file from then on, so the material can be edited. Imports both, and returns the new
+    // material's id; nothing, after logging why, when the id is not a model's material or the file exists.
+    std::optional<AssetId> ExtractMaterial(AssetId material, std::string_view path);
+
 private:
     struct Source {
         std::filesystem::path path;

@@ -31,6 +31,8 @@ ImporterInfo FindImporter(AssetType type) {
         return {&ImportTexture, 1};
     case AssetType::Model:
         return {&ImportModel, 1};
+    case AssetType::Material:
+        return {&ImportMaterial, 1};
     default:
         return {};
     }

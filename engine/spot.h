@@ -7,6 +7,7 @@
 #include "assets/asset_ref.h"
 #include "assets/asset_type.h"
 #include "assets/assets.h"
+#include "assets/material_source.h"
 #include "audio/audio_device.h"
 #include "audio/playback.h"
 #include "audio/sound.h"

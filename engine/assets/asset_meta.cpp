@@ -42,8 +42,14 @@ void TextureImportSettings::Serialize(Archive& archive) {
     archive.Field("mipmaps", mipmaps);
 }
 
+void MaterialOverride::Serialize(Archive& archive) {
+    archive.Field("key", key);
+    archive.Field("material", material);
+}
+
 void ModelImportSettings::Serialize(Archive& archive) {
     archive.Field("scale", scale);
+    archive.Field("materials", materials);
 }
 
 void FontImportSettings::Serialize(Archive& archive) {

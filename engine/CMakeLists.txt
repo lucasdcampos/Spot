@@ -21,10 +21,13 @@ add_library(spot STATIC
     assets/asset_type.cpp
     assets/importers/importer.h
     assets/importers/importer.cpp
+    assets/importers/material_importer.cpp
     assets/importers/model_importer.cpp
     assets/importers/texture_importer.cpp
     assets/assets.h
     assets/assets.cpp
+    assets/material_source.h
+    assets/material_source.cpp
     audio/audio_device.h
     audio/audio_device.cpp
     audio/audio_output.h
