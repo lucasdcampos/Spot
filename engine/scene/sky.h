@@ -6,9 +6,13 @@
 
 namespace Spot {
 
+class DirectionalLight;
+
 // Fills the background of what Renderer3D::DrawScene() draws with an atmosphere lit by the scene's sun: the brightest
 // active DirectionalLight, whose disc shows where its light comes from. Turning that light turns the sky with it, from
-// a blue day through red sunsets to a black night once it is below the horizon:
+// a blue day through red sunsets to night once it is below the horizon. The sky lights the scene the same way: the
+// sun's light crosses the air, so it dims and reddens near the horizon and goes out below it, and the sky adds ambient
+// light of its own:
 //
 //     auto& sun = scene.CreateEntity("Sun");
 //     sun.GetTransform().SetRotation(Spot::Quaternion::LookRotation({-0.4f, -1.0f, -0.6f}));
@@ -19,6 +23,9 @@ namespace Spot {
 // setting does.
 class Sky final : public Component {
 public:
+    // The light that lights the sky, or null when the scene has no active directional light.
+    const DirectionalLight* FindSun() const;
+
     float GetSunSize() const { return m_sunSize; }
     void SetSunSize(float angularRadius) { m_sunSize = angularRadius; }
     float GetAtmosphereThickness() const { return m_atmosphereThickness; }
@@ -31,6 +38,8 @@ public:
     void SetNightColor(Color color) { m_nightColor = color; }
     float GetExposure() const { return m_exposure; }
     void SetExposure(float exposure) { m_exposure = exposure; }
+    float GetAmbientIntensity() const { return m_ambientIntensity; }
+    void SetAmbientIntensity(float intensity) { m_ambientIntensity = intensity; }
 
     // The sky as it is now, lit by the scene's sun, if any.
     SkyData GetSkyData() const;
@@ -45,6 +54,7 @@ private:
     Color m_groundColor = SkyData{}.groundColor;
     Color m_nightColor = SkyData{}.nightColor;
     float m_exposure = SkyData{}.exposure;
+    float m_ambientIntensity = SkyData{}.ambientIntensity;
 };
 
 } // namespace Spot

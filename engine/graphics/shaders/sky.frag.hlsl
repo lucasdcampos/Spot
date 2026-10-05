@@ -5,8 +5,10 @@ cbuffer Sky : register(b0, space3) {
     float4 sunColor;
     float4 skyTint;
     float4 groundColor;
+    // The light that reaches the ground, from the sun through the air and from the sky, like a surface of the scene.
+    float4 groundLight;
     float4 nightColor;
-    // The cosine of the sun's angular radius, the atmosphere's thickness and the exposure.
+    // The sun's angular radius in radians, the atmosphere's thickness and the exposure.
     float4 settings;
 };
 
@@ -15,8 +17,9 @@ struct Input {
     float4 direction : TEXCOORD0;
 };
 
-// Single scattering in an Earth-like atmosphere (Nishita et al. 1993), in kilometers. The viewer stands a little above
-// a planet's surface, so rays that hit it show the ground, hazed by the air in between near the horizon.
+// Single scattering in an Earth-like atmosphere (Nishita et al. 1993, with Bruneton's 2017 coefficients), in
+// kilometers. The viewer stands a little above a planet's surface. graphics/atmosphere.cpp computes the same on the
+// CPU to light the scene, so the constants must match.
 static const float PlanetRadius = 6360.0;
 static const float AtmosphereRadius = 6420.0;
 static const float ViewerHeight = 0.05;
@@ -25,13 +28,17 @@ static const float RayleighHeight = 8.0;
 static const float MieHeight = 1.2;
 // Per kilometer at sea level. Air scatters blue the most, which colors the sky; haze scatters all colors alike,
 // mostly forward, which makes the glow around the sun.
-static const float3 RayleighScattering = float3(5.8e-3, 13.5e-3, 33.1e-3);
-static const float MieScattering = 21e-3;
-static const float MieExtinction = MieScattering * 1.11;
-static const float MieAnisotropy = 0.76;
-// Sunlight is far brighter than what the sky scatters of it, and the disc brighter still.
-static const float SunIrradiance = 40.0;
-static const float SunDiscRadiance = 40.0;
+static const float3 RayleighScattering = float3(5.802e-3, 13.558e-3, 33.1e-3);
+static const float MieScattering = 3.996e-3;
+static const float MieExtinction = 4.44e-3;
+static const float MieAnisotropy = 0.8;
+// How bright the sky is drawn for a sun of intensity 1, before the exposure.
+static const float SkyBrightness = 40.0;
+// How bright the sun's disc is drawn: far brighter than the sky, as the real sun is, so it stands out from its glow,
+// yet low enough that it turns orange once the air near the horizon takes most of its blue and green.
+static const float SunDiscBrightness = 400.0;
+// How far below the horizon, as the cosine of the angle from level, the ground fades in from the haze.
+static const float HorizonFade = 0.02;
 static const float Pi = 3.14159265;
 
 #define VIEW_SAMPLES 16
@@ -76,29 +83,23 @@ bool GetSunOpticalDepth(float r, float muSun, out float2 depth) {
     return true;
 }
 
-float3 GetTransmittance(float2 depth, float3 rayleigh, float mie) {
-    return exp(-(rayleigh * depth.x + mie * MieExtinction / MieScattering * depth.y));
+float3 GetTransmittance(float2 depth) {
+    const float thickness = settings.y;
+    return exp(-(RayleighScattering * depth.x + MieExtinction * depth.y) * thickness);
 }
 
-float4 main(Input input) : SV_Target0 {
-    const float3 direction = normalize(input.direction.xyz / input.direction.w);
-    const float3 toSun = sunDirection.xyz;
-    const float thickness = settings.y;
-    const float3 rayleigh = RayleighScattering * thickness;
-    const float mie = MieScattering * thickness;
-
+// The sunlight the air scatters toward the viewer from a direction at or above the horizon, for a sun of irradiance
+// 1, and how much of what lies beyond the air gets through it.
+float3 GetSkyRadiance(float3 direction, float3 toSun, out float3 transmittance) {
     const float r0 = PlanetRadius + ViewerHeight;
-    const float mu = direction.y;
+    const float mu = max(direction.y, 0.0);
     const float muSun = toSun.y;
     const float nu = dot(direction, toSun);
+    const float thickness = settings.y;
+    const float distance = GetExitDistance(r0, mu, AtmosphereRadius);
 
-    const float groundDistance = GetGroundDistance(r0, mu);
-    const bool hitsGround = groundDistance > 0.0;
-    const float distance = hitsGround ? groundDistance : GetExitDistance(r0, mu, AtmosphereRadius);
-
-    // Sunlight scattered toward the viewer at each point along the ray, dimmed on its way from the sun and then to
-    // the viewer. Rays along the ground cross hundreds of kilometers of dense air, so the steps start short near the
-    // viewer, and each point is dimmed only by the air up to it, not by its whole step.
+    // Rays along the ground cross hundreds of kilometers of dense air, so the steps start short near the viewer, and
+    // each point is dimmed only by the air up to it, not by its whole step.
     float2 viewDepth = 0.0;
     float3 rayleighSum = 0.0;
     float3 mieSum = 0.0;
@@ -110,39 +111,63 @@ float4 main(Input input) : SV_Target0 {
         const float2 density = GetDensity(r) * (end - start);
         float2 sunDepth;
         if (GetSunOpticalDepth(r, (r0 * muSun + t * nu) / r, sunDepth)) {
-            const float3 transmittance = GetTransmittance(viewDepth + density * 0.5 + sunDepth, rayleigh, mie);
-            rayleighSum += density.x * transmittance;
-            mieSum += density.y * transmittance;
+            const float3 pathTransmittance = GetTransmittance(viewDepth + density * 0.5 + sunDepth);
+            rayleighSum += density.x * pathTransmittance;
+            mieSum += density.y * pathTransmittance;
         }
         viewDepth += density;
     }
+    transmittance = GetTransmittance(viewDepth);
 
     const float rayleighPhase = 3.0 / (16.0 * Pi) * (1.0 + nu * nu);
     const float g2 = MieAnisotropy * MieAnisotropy;
     const float miePhase = 3.0 / (8.0 * Pi) * (1.0 - g2) * (1.0 + nu * nu) /
                            ((2.0 + g2) * pow(max(1.0 + g2 - 2.0 * MieAnisotropy * nu, 1e-4), 1.5));
-    const float3 sunlight = sunColor.rgb * SunIrradiance * sunDirection.w;
-    float3 color = sunlight * (rayleighSum * rayleigh * rayleighPhase * skyTint.rgb + mieSum * mie * miePhase) +
-                   nightColor.rgb;
+    return (rayleighSum * RayleighScattering * rayleighPhase * skyTint.rgb + mieSum * MieScattering * miePhase) *
+           thickness;
+}
 
-    const float3 viewTransmittance = GetTransmittance(viewDepth, rayleigh, mie);
-    if (hitsGround) {
-        // The ground reflects the sunlight that reaches it evenly in all directions.
-        float2 sunDepth;
-        if (GetSunOpticalDepth(PlanetRadius, muSun, sunDepth)) {
-            const float3 irradiance = sunlight * GetTransmittance(sunDepth, rayleigh, mie) * max(muSun, 0.0);
-            color += viewTransmittance * groundColor.rgb * irradiance / Pi;
+// The light of the sky toward the direction, as drawn before the exposure.
+float3 GetSkyLight(float3 direction, float3 toSun, out float3 transmittance) {
+    const float3 sunlight = sunColor.rgb * sunDirection.w * SkyBrightness;
+    return GetSkyRadiance(direction, toSun, transmittance) * sunlight + nightColor.rgb;
+}
+
+// Maps unbounded light to what the target can show, keeping bright skies from clipping to white.
+float3 Expose(float3 light) {
+    return 1.0 - exp(-light * settings.z);
+}
+
+float4 main(Input input) : SV_Target0 {
+    const float3 direction = normalize(input.direction.xyz / input.direction.w);
+    const float3 toSun = sunDirection.xyz;
+    float3 transmittance;
+    float3 color;
+    // How many sun radii the direction is from the sun's center. Its rate across the screen, which smooths the disc's
+    // edge, is only defined outside of branches.
+    const float sunRadius = settings.x;
+    const float sunDistance = length(direction - toSun) / max(sunRadius, 1e-6);
+    const float sunEdge = max(fwidth(sunDistance), 1e-4);
+
+    if (direction.y >= 0.0) {
+        float3 light = GetSkyLight(direction, toSun, transmittance);
+
+        // The sun's disc, darker toward its rim as the real sun is, with an edge smoothed over about a pixel.
+        if (sunDirection.w > 0.5 && sunRadius > 0.0) {
+            const float coverage = saturate((1.0 - sunDistance) / sunEdge + 0.5);
+            const float rim = sqrt(saturate(1.0 - sunDistance * sunDistance));
+            light += sunColor.rgb * transmittance * SunDiscBrightness * (0.4 + 0.6 * rim) * coverage;
         }
-        // The ground reflects the night sky's light too, instead of the sky's own glow.
-        color += (groundColor.rgb - 1.0) * nightColor.rgb;
-    } else if (sunDirection.w > 0.5 && settings.x < 1.0) {
-        const float cosRadius = settings.x;
-        const float disc = smoothstep(cosRadius, cosRadius + (1.0 - cosRadius) * 0.3, nu);
-        color += viewTransmittance * sunlight * SunDiscRadiance * disc;
+        color = Expose(light);
+    } else {
+        // The ground fades in below the horizon out of the haze there, so the two meet without a line.
+        const float3 level = float3(direction.x, 0.0, direction.z);
+        const float3 horizon = dot(level, level) > 1e-8 ? normalize(level) : float3(1.0, 0.0, 0.0);
+        const float3 haze = Expose(GetSkyLight(horizon, toSun, transmittance));
+        const float3 ground = groundColor.rgb * groundLight.rgb;
+        color = lerp(haze, ground, 1.0 - exp(direction.y / HorizonFade));
     }
 
-    // Maps the unbounded light to what the target can show, keeping bright skies from clipping to white.
-    color = 1.0 - exp(-color * settings.z);
     // Noise of under a step of an 8-bit display hides the banding of the sky's smooth gradients. Those steps are even
     // in sRGB, not in linear light, so the noise is added there.
     const float noise = frac(52.9829189 * frac(dot(input.position.xy, float2(0.06711056, 0.00583715))));

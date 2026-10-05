@@ -55,6 +55,8 @@ add_library(spot STATIC
     core/utf8.h
     core/utf8.cpp
     events/event.h
+    graphics/atmosphere.h
+    graphics/atmosphere.cpp
     graphics/buffer.h
     graphics/camera_2d.h
     graphics/camera_2d.cpp

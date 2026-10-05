@@ -2,6 +2,7 @@
 
 #include "core/assert.h"
 #include "core/log.h"
+#include "graphics/atmosphere.h"
 #include "graphics/graphics_device.h"
 #include "graphics/material.h"
 #include "graphics/mesh.h"
@@ -56,10 +57,60 @@ struct SkyUniforms {
     Color sunColor;
     Color skyTint;
     Color groundColor;
+    Color groundLight;
     Color nightColor;
-    // The cosine of the sun's angular radius, the atmosphere's thickness and the exposure.
+    // The sun's angular radius, the atmosphere's thickness and the exposure.
     Vector4 settings;
 };
+
+Color operator*(Color color, float scale) {
+    return {color.r * scale, color.g * scale, color.b * scale, color.a};
+}
+
+Color operator*(Color a, Color b) {
+    return {a.r * b.r, a.g * b.g, a.b * b.b, a.a};
+}
+
+Color operator+(Color a, Color b) {
+    return {a.r + b.r, a.g + b.g, a.b + b.b, a.a};
+}
+
+} // namespace
+
+namespace Detail {
+
+// How a sky lights what is under it: the sun through the air, which dims and reddens it near the horizon and hides it
+// below, and the light the rest of the sky scatters down.
+struct SkyLighting {
+    std::optional<LightData> sun;
+    Color ambient;
+};
+
+} // namespace Detail
+
+namespace {
+
+using Detail::SkyLighting;
+
+SkyLighting GetSkyLighting(const SkyData& sky) {
+    const Vector3 toSun = -Normalize(sky.sunDirection);
+    SkyLighting lighting{.ambient = sky.nightColor};
+    if (!sky.hasSun || toSun == Vector3{}) {
+        return lighting;
+    }
+    const Detail::Atmosphere atmosphere{.thickness = std::max(sky.atmosphereThickness, 0.0f), .skyTint = sky.skyTint};
+    const Color sunlight = sky.sunColor * sky.sunIntensity;
+    const Color direct = sunlight * atmosphere.GetSunTransmittance(toSun, sky.sunSize);
+    lighting.sun = LightData{.type = LightType::Directional, .color = direct, .direction = sky.sunDirection};
+
+    // The atmosphere is single scattering, which leaves out the light the air scatters more than once, about as much
+    // again near the ground. Surfaces also face the ground about half as much as the sky, and it reflects the sun.
+    constexpr float MultipleScattering = 2.0f;
+    const Color skylight = sunlight * atmosphere.GetSkyIrradiance(toSun) * MultipleScattering;
+    const Color groundBounce = sky.groundColor * direct * (0.5f * std::max(toSun.y, 0.0f));
+    lighting.ambient = lighting.ambient + (skylight + groundBounce) * sky.ambientIntensity;
+    return lighting;
+}
 
 struct MaterialUniforms {
     Color baseColor;
@@ -219,9 +270,15 @@ void Renderer3D::DrawModel(const Model& model, const Matrix4& transform) {
 
 void Renderer3D::DrawScene(Scene& scene) {
     static const Material DefaultMaterial;
-    scene.ForEachComponent<Light>([this](const Light& light) { DrawLight(light.GetLightData()); });
     const Sky* sky = nullptr;
     scene.ForEachComponent<Sky>([&sky](const Sky& found) { sky = sky ? sky : &found; });
+    // The sky lights the scene with its sun itself, once the air has dimmed it.
+    const DirectionalLight* sun = sky ? sky->FindSun() : nullptr;
+    scene.ForEachComponent<Light>([this, sun](const Light& light) {
+        if (&light != sun) {
+            DrawLight(light.GetLightData());
+        }
+    });
     if (sky) {
         DrawSky(sky->GetSkyData());
     }
@@ -233,12 +290,15 @@ void Renderer3D::DrawScene(Scene& scene) {
     });
 }
 
-void Renderer3D::FlushSky(const SkyData& sky) {
+void Renderer3D::FlushSky(const SkyData& sky, const SkyLighting& lighting) {
     const Vector3 toSun = -Normalize(sky.sunDirection);
     const bool hasSun = sky.hasSun && toSun != Vector3{};
     const float intensity = hasSun ? sky.sunIntensity : 0.0f;
-    // A disc of no size is hidden by a cosine the shader treats as none.
-    const float cosRadius = sky.sunSize > 0.0f ? std::cos(sky.sunSize) : 1.0f;
+    // The ground below the horizon is lit like a surface of the scene facing up.
+    Color groundLight = lighting.ambient;
+    if (lighting.sun) {
+        groundLight = groundLight + lighting.sun->color * std::max(toSun.y, 0.0f);
+    }
 
     m_pass->BindPipeline(*m_skyPipeline);
     m_pass->PushVertexUniforms(0, m_inverseSkyViewProjection);
@@ -248,8 +308,10 @@ void Renderer3D::FlushSky(const SkyData& sky) {
                .sunColor = {sky.sunColor.r * intensity, sky.sunColor.g * intensity, sky.sunColor.b * intensity, 1.0f},
                .skyTint = sky.skyTint,
                .groundColor = sky.groundColor,
+               .groundLight = groundLight,
                .nightColor = sky.nightColor,
-               .settings = {cosRadius, std::max(sky.atmosphereThickness, 0.0f), std::max(sky.exposure, 0.0f), 0.0f},
+               .settings = {std::max(sky.sunSize, 0.0f), std::max(sky.atmosphereThickness, 0.0f),
+                            std::max(sky.exposure, 0.0f), 0.0f},
            });
     m_pass->Draw(3);
     ++m_stats.drawCalls;
@@ -262,7 +324,14 @@ void Renderer3D::Flush() {
         return;
     }
     if (m_sky) {
-        FlushSky(*m_sky);
+        const SkyLighting lighting = GetSkyLighting(*m_sky);
+        FlushSky(*m_sky, lighting);
+        if (m_sky->lightsScene) {
+            if (lighting.sun) {
+                m_lights.push_back(*lighting.sun);
+            }
+            m_lights.push_back({.type = LightType::Ambient, .color = lighting.ambient});
+        }
     }
     if (m_commands.empty()) {
         return;

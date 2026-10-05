@@ -24,6 +24,10 @@ class RenderPass;
 class Scene;
 struct Material;
 
+namespace Detail {
+struct SkyLighting;
+} // namespace Detail
+
 struct Renderer3DConfig {
     TextureFilter filter = TextureFilter::Linear;
     // See SamplerDesc::maxAnisotropy; 3D views see most surfaces at an angle.
@@ -74,8 +78,10 @@ public:
 
     // Lights everything drawn in the frame, whether drawn before or after it.
     void DrawLight(const LightData& light);
-    // Fills the view behind everything drawn in the frame with the sky. A later call replaces it. Without one, the
-    // pass's clear color shows.
+    // Fills the view behind everything drawn in the frame with the sky, which also lights it, unless told not to: its
+    // sun shines through the air, dimming and reddening as it nears the horizon and going out below it, and the rest
+    // of the sky adds ambient light. So the sun is drawn with the sky, not with DrawLight(). A later call replaces it.
+    // Without one, the pass's clear color shows.
     void DrawSky(const SkyData& sky);
     void DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform = {});
     void DrawModel(const Model& model, const Matrix4& transform = {});
@@ -100,7 +106,7 @@ private:
     };
 
     void Flush();
-    void FlushSky(const SkyData& sky);
+    void FlushSky(const SkyData& sky, const Detail::SkyLighting& lighting);
 
     std::unique_ptr<Pipeline> m_pipeline;
     std::unique_ptr<Pipeline> m_doubleSidedPipeline;

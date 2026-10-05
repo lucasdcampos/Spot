@@ -1147,8 +1147,8 @@ TEST_CASE("Renderer3D draws the sky behind meshes", "[gpu]") {
         renderer.Begin(pass, MakeFrontCamera(), view);
         renderer.DrawLight(FrontLight);
         renderer.DrawMesh(*cube, {.baseColor = Spot::Color::Green});
-        // Drawn last, yet behind.
-        renderer.DrawSky({});
+        // Drawn last, yet behind. It does not light the cube, which shows the front light alone.
+        renderer.DrawSky({.lightsScene = false});
         renderer.End();
     });
 
@@ -1173,6 +1173,63 @@ TEST_CASE("Renderer3D skies redden as the sun nears the horizon and darken witho
     for (const Pixel pixel : {night.At(16, 2), night.At(16, 29)}) {
         CHECK(std::max({pixel[0], pixel[1], pixel[2]}) < 50);
     }
+}
+
+TEST_CASE("Renderer3D skies light the scene with a sun that sets on its own", "[gpu]") {
+    RequireGpu();
+
+    // The sun behind the camera lights the wall's front, until it sets. Only the sun lights it here.
+    const auto renderWall = [](Spot::Vector3 sunDirection) {
+        return RenderLitWall([=](Spot::Renderer3D& renderer) {
+            renderer.DrawSky(
+                {.sunDirection = sunDirection, .nightColor = Spot::Color::Black, .ambientIntensity = 0.0f});
+        });
+    };
+    const int high = renderWall({0.0f, -1.0f, -1.0f}).At(16, 16)[0];
+    const int low = renderWall({0.0f, -0.03f, -1.0f}).At(16, 16)[0];
+    const auto set = renderWall({0.0f, 0.1f, -1.0f});
+    INFO("Wall " << high << " with the sun high and " << low << " with it low");
+    CHECK(high > 120);
+    CHECK(low < high);
+    CHECK(IsNear(set.At(16, 16), {0, 0, 0, 255}));
+
+    // The sky's own light reaches what the sun does not.
+    const auto skylit = RenderLitWall([](Spot::Renderer3D& renderer) {
+        renderer.DrawSky({.sunDirection = {0.0f, -1.0f, 1.0f}, .nightColor = Spot::Color::Black});
+    });
+    CHECK(skylit.At(16, 16)[2] > skylit.At(16, 16)[0]);
+    CHECK(skylit.At(16, 16)[2] > 10);
+}
+
+TEST_CASE("Renderer3D lights scenes with the sun of their sky through its air", "[gpu]") {
+    RequireGpu();
+
+    // A sun below the horizon would light the wall's front on its own, but the sky hides it.
+    const auto render = [](float sunHeight) {
+        return TargetRender(32, 32, [=](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            const std::shared_ptr<const Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            REQUIRE(cube != nullptr);
+
+            Spot::Scene scene;
+            auto& wall = scene.CreateEntity("Wall");
+            wall.GetTransform().SetScale({20.0f, 20.0f, 1.0f});
+            wall.AddComponent<Spot::MeshRenderer>(cube);
+            auto& sun = scene.CreateEntity("Sun");
+            sun.GetTransform().SetRotation(Spot::Quaternion::LookRotation({0.0f, -sunHeight, -1.0f}));
+            sun.AddComponent<Spot::DirectionalLight>();
+            auto& sky = scene.CreateEntity("Sky").AddComponent<Spot::Sky>();
+            sky.SetAmbientIntensity(0.0f);
+            sky.SetNightColor(Spot::Color::Black);
+
+            renderer.Begin(pass, MakeFrontCamera(), view);
+            renderer.DrawScene(scene);
+            renderer.End();
+        });
+    };
+
+    CHECK(render(1.0f).At(16, 16)[0] > 120);
+    CHECK(IsNear(render(-0.2f).At(16, 16), {0, 0, 0, 255}));
 }
 
 TEST_CASE("Renderer3D skies show the sun's disc where its light comes from", "[gpu]") {
