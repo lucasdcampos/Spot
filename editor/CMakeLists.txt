@@ -47,12 +47,15 @@ target_compile_options(imgui PRIVATE $<IF:$<CXX_COMPILER_ID:MSVC>,/W0,-w>)
 add_library(spot_editor_core STATIC
     app/editor_application.cpp
     app/editor_application.h
+    app/editor_context.h
     app/editor_layout.cpp
     app/editor_layout.h
     core/console_log.cpp
     core/console_log.h
     core/editor_log.cpp
     core/editor_log.h
+    core/editor_settings.cpp
+    core/editor_settings.h
     imgui/editor_style.cpp
     imgui/editor_style.h
     imgui/icons.h
@@ -62,6 +65,8 @@ add_library(spot_editor_core STATIC
     imgui/imgui_platform.h
     imgui/imgui_renderer.cpp
     imgui/imgui_renderer.h
+    imgui/widgets.cpp
+    imgui/widgets.h
     panels/asset_browser_panel.cpp
     panels/asset_browser_panel.h
     panels/console_panel.cpp
@@ -72,12 +77,24 @@ add_library(spot_editor_core STATIC
     panels/inspector_panel.h
     panels/panel.cpp
     panels/panel.h
+    panels/project_settings_panel.cpp
+    panels/project_settings_panel.h
+    project/editor_project.cpp
+    project/editor_project.h
+    project/new_project_dialog.cpp
+    project/new_project_dialog.h
+    project/project_hub.cpp
+    project/project_hub.h
+    project/project_templates.cpp
+    project/project_templates.h
 )
 target_include_directories(spot_editor_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(spot_editor_core PUBLIC
     spot::spot
     imgui
 )
+# The engine keeps its JSON library to itself; the editor uses it for its own settings files.
+target_link_libraries(spot_editor_core PRIVATE nlohmann_json::nlohmann_json)
 spot_add_shaders(spot_editor_core
     imgui/imgui.frag.hlsl
     imgui/imgui.vert.hlsl

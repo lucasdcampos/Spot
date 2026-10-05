@@ -108,6 +108,9 @@ if(TARGET spot_editor_core)
         editor/editor_layout_tests.cpp
         editor/headless_imgui.h
         editor/imgui_platform_tests.cpp
+        editor/project_tests.cpp
+        editor/project_ui_tests.cpp
+        temp_directory.h
     )
     target_link_libraries(spot_editor_tests PRIVATE
         spot_editor_core

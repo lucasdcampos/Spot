@@ -1,0 +1,25 @@
+#pragma once
+
+#include "app/editor_context.h"
+#include "panels/panel.h"
+
+#include <string>
+
+namespace Spot::Editor {
+
+// The open project's settings: its name, version and startup scene. Changes are saved as soon as they are made.
+class ProjectSettingsPanel final : public Panel {
+public:
+    explicit ProjectSettingsPanel(EditorContext& context);
+
+protected:
+    void SetUpWindow() override;
+    void OnDraw() override;
+
+private:
+    void Save();
+
+    EditorContext& m_context;
+};
+
+} // namespace Spot::Editor

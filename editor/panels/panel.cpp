@@ -14,6 +14,7 @@ void Panel::Draw() {
     if (!m_open) {
         return;
     }
+    SetUpWindow();
     if (ImGui::Begin(m_windowName.c_str(), &m_open, GetWindowFlags())) {
         OnDraw();
     }

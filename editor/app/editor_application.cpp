@@ -8,14 +8,18 @@
 #include "panels/console_panel.h"
 #include "panels/hierarchy_panel.h"
 #include "panels/inspector_panel.h"
+#include "panels/project_settings_panel.h"
 
 #include <imgui_internal.h>
 
 #include <algorithm>
+#include <array>
+#include <cfloat>
 #include <format>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <utility>
 
 namespace Spot::Editor {
@@ -23,8 +27,10 @@ namespace Spot::Editor {
 namespace {
 
 constexpr const char* SceneAreaId = "Scene";
+constexpr const char* ErrorPopupId = "##EditorError";
 // Frames per second while the editor is in the background, so it stays live without using the GPU fully.
 constexpr int BackgroundFrameRate = 20;
+const std::array ProjectFilters{FileFilter{"Spot projects", "spot"}};
 
 std::filesystem::path ResolveSettingsDirectory(const EditorOptions& options) {
     return options.settingsDirectory.empty() ? GetUserDataDirectory("Spot", "Editor") : options.settingsDirectory;
@@ -38,6 +44,20 @@ ApplicationConfig MakeConfig(const EditorOptions& options) {
         .graphics = {.linearWindow = false},
         .logFile = settings.empty() ? std::filesystem::path() : settings / "editor.log",
     };
+}
+
+// A project's folder stands for its project file, so a folder can be opened as easily as the file.
+std::filesystem::path FindProjectFile(const std::filesystem::path& path) {
+    std::error_code error;
+    if (!std::filesystem::is_directory(path, error)) {
+        return path;
+    }
+    for (const auto& entry : std::filesystem::directory_iterator(path, error)) {
+        if (entry.path().extension() == Project::FileExtension) {
+            return entry.path();
+        }
+    }
+    return path;
 }
 
 std::string GetShortcutName(ImGuiKeyChord chord) {
@@ -77,33 +97,76 @@ void ToolbarSeparator() {
 } // namespace
 
 EditorApplication::EditorApplication(EditorOptions options)
-    : Application(MakeConfig(options)), m_options(std::move(options)), m_consoleLog(std::make_shared<ConsoleLog>()) {
+    : Application(MakeConfig(options)), m_options(std::move(options)), m_consoleLog(std::make_shared<ConsoleLog>()),
+      m_self(std::make_shared<EditorApplication*>(this)) {
     m_options.settingsDirectory = ResolveSettingsDirectory(m_options);
+    m_settings = EditorSettings(m_options.settingsDirectory.empty() ? std::filesystem::path()
+                                                                    : m_options.settingsDirectory / "settings.json");
     // Added before Run() so the console also shows how the devices started.
     Log::AddSink(m_consoleLog);
 }
 
 EditorApplication::~EditorApplication() {
+    *m_self = nullptr;
     Log::RemoveSink(m_consoleLog);
 }
 
+void EditorApplication::RequestOpenProject(std::filesystem::path file) {
+    m_projectToOpen = std::move(file);
+}
+
+void EditorApplication::RequestCloseProject() {
+    m_closeProjectRequested = true;
+}
+
 void EditorApplication::OnStart() {
+    m_settings.Load();
     m_imgui = std::make_unique<ImGuiLayer>(GetWindow(), GetGraphicsDevice());
     if (!m_options.settingsDirectory.empty()) {
         m_imgui->SetSettingsFile(m_options.settingsDirectory / "layout.ini");
     }
 
+    m_context = std::make_unique<EditorContext>(GetWindow(), &GetGraphicsDevice(), m_settings);
+    m_newProjectDialog = std::make_unique<NewProjectDialog>(m_settings, GetWindow());
+    m_hub = std::make_unique<ProjectHub>(
+        m_settings, ProjectHubActions{
+                        .openProject = [this](const std::filesystem::path& file) { RequestOpenProject(file); },
+                        .browseForProject = [this] { BrowseForProject(); },
+                        .newProject = [this] { m_newProjectDialog->Open(); },
+                    });
+
     m_panels.push_back(std::make_unique<HierarchyPanel>());
     m_panels.push_back(std::make_unique<InspectorPanel>());
-    m_panels.push_back(std::make_unique<AssetBrowserPanel>());
+    m_panels.push_back(std::make_unique<AssetBrowserPanel>(*m_context));
     m_panels.push_back(std::make_unique<ConsolePanel>(m_consoleLog));
+    m_panels.push_back(std::make_unique<ProjectSettingsPanel>(*m_context));
     GetEditorLogger().Info("Spot Editor {} started", GetVersionString());
+
+    if (!m_options.project.empty()) {
+        RequestOpenProject(m_options.project);
+    }
 }
 
 void EditorApplication::OnEvent(const Event& event) {
     m_imgui->ProcessEvent(event);
     if (const auto* focus = event.GetIf<WindowFocusEvent>()) {
         SetMaxFrameRate(focus->focused ? 0 : BackgroundFrameRate);
+    } else if (const auto* drop = event.GetIf<FileDropEvent>()) {
+        if (FindProjectFile(drop->path).extension() == Project::FileExtension) {
+            RequestOpenProject(drop->path);
+        }
+    }
+}
+
+void EditorApplication::OnUpdate(float) {
+    if (m_closeProjectRequested) {
+        m_closeProjectRequested = false;
+        CloseProject();
+    }
+    if (m_projectToOpen) {
+        const std::filesystem::path file = std::move(*m_projectToOpen);
+        m_projectToOpen.reset();
+        OpenProject(file);
     }
 }
 
@@ -112,12 +175,53 @@ void EditorApplication::OnRender(RenderContext& context) {
     DrawUi();
     m_imgui->EndFrame();
 
-    auto pass = context.BeginRenderPass({.clearColor = Color{0.078f, 0.082f, 0.090f, 1.0f}});
-    m_imgui->Render(pass);
+    {
+        auto pass = context.BeginRenderPass({.clearColor = Color{0.078f, 0.082f, 0.090f, 1.0f}});
+        m_imgui->Render(pass);
+    }
+    ++m_frame;
+    if (!m_options.screenshot.empty()) {
+        UpdateScreenshot(context);
+    }
+}
+
+void EditorApplication::UpdateScreenshot(RenderContext& context) {
+    GraphicsDevice& device = GetGraphicsDevice();
+    if (m_screenshotTarget) {
+        // The frame that drew it has been submitted since, so it can be read back now.
+        std::vector<std::uint8_t> pixels = device.DownloadTexture(*m_screenshotTarget);
+        if (m_screenshotTarget->GetFormat() == TextureFormat::Bgra8 ||
+            m_screenshotTarget->GetFormat() == TextureFormat::Bgra8Srgb) {
+            for (std::size_t i = 0; i + 3 < pixels.size(); i += 4) {
+                std::swap(pixels[i], pixels[i + 2]);
+            }
+        }
+        const Image image(m_screenshotTarget->GetWidth(), m_screenshotTarget->GetHeight(), std::move(pixels));
+        if (image.SavePng(m_options.screenshot)) {
+            GetEditorLogger().Info("Saved a screenshot to '{}'", PathToUtf8(m_options.screenshot));
+        }
+        Quit();
+        return;
+    }
+    if (m_frame >= m_options.screenshotFrame) {
+        m_screenshotTarget = device.CreateTexture({.width = static_cast<std::uint32_t>(context.GetWidth()),
+                                                   .height = static_cast<std::uint32_t>(context.GetHeight()),
+                                                   .format = device.GetWindowFormat(),
+                                                   .renderTarget = true});
+        auto pass = context.BeginRenderPass(
+            {.target = m_screenshotTarget.get(), .clearColor = Color{0.078f, 0.082f, 0.090f, 1.0f}});
+        m_imgui->Render(pass);
+    }
 }
 
 void EditorApplication::OnStop() {
+    CloseProject();
+    m_settings.Save();
     m_panels.clear();
+    m_hub.reset();
+    m_newProjectDialog.reset();
+    m_context.reset();
+    m_screenshotTarget.reset();
     m_imgui.reset();
 }
 
@@ -125,16 +229,88 @@ bool EditorApplication::OnCloseRequested() {
     return true;
 }
 
+void EditorApplication::OpenProject(const std::filesystem::path& path) {
+    const std::filesystem::path file = FindProjectFile(path);
+    auto project = EditorProject::Open(file, &GetGraphicsDevice());
+    if (!project) {
+        ShowError("Could not open the project",
+                  std::format("'{}' is not a Spot project, or it could not be read.", PathToUtf8(file)));
+        m_settings.RemoveRecentProject(file);
+        m_settings.Save();
+        return;
+    }
+
+    CloseProject();
+    Detail::SetAssetManager(&project->GetAssets());
+    m_settings.AddRecentProject(project->GetProject().GetFile(), project->GetProject().GetSettings().name);
+    m_settings.Save();
+    m_context->SetProject(std::move(project));
+    UpdateTitle();
+}
+
+void EditorApplication::CloseProject() {
+    if (!m_context || !m_context->GetProject()) {
+        return;
+    }
+    GetEditorLogger().Info("Closed project '{}'", m_context->GetProject()->GetProject().GetSettings().name);
+    // Assets loaded from now on come from the application again, until another project opens.
+    Detail::SetAssetManager(&GetAssets());
+    m_context->SetProject(nullptr);
+    UpdateTitle();
+}
+
+void EditorApplication::BrowseForProject() {
+    const std::filesystem::path location =
+        m_settings.GetRecentProjects().empty()
+            ? m_settings.GetProjectsLocation()
+            : m_settings.GetRecentProjects().front().file.parent_path().parent_path();
+    FileDialog::OpenFile(
+        &GetWindow(), ProjectFilters,
+        [self = std::weak_ptr(m_self)](std::vector<std::filesystem::path> paths) {
+            const auto editor = self.lock();
+            if (editor && *editor && !paths.empty()) {
+                (*editor)->RequestOpenProject(paths.front());
+            }
+        },
+        false, location);
+}
+
+void EditorApplication::UpdateTitle() {
+    const EditorProject* project = m_context ? m_context->GetProject() : nullptr;
+    GetWindow().SetTitle(project ? project->GetProject().GetSettings().name + " - Spot Editor" : "Spot Editor");
+}
+
+void EditorApplication::ShowError(std::string title, std::string message) {
+    GetEditorLogger().Error("{}: {}", title, message);
+    m_errorTitle = std::move(title);
+    m_errorMessage = std::move(message);
+    m_showError = true;
+}
+
+Panel* EditorApplication::FindPanel(std::string_view id) const {
+    const auto found = std::ranges::find_if(m_panels, [&](const auto& panel) { return panel->GetId() == id; });
+    return found != m_panels.end() ? found->get() : nullptr;
+}
+
 void EditorApplication::DrawUi() {
     DrawMainMenu();
-    DrawToolbar();
-    DrawStatusBar();
-    DrawDockSpace();
-    DrawSceneArea();
-    for (const auto& panel : m_panels) {
-        panel->Draw();
+    if (m_context->GetProject()) {
+        DrawToolbar();
+        DrawStatusBar();
+        DrawDockSpace();
+        DrawSceneArea();
+        for (const auto& panel : m_panels) {
+            panel->Draw();
+        }
+    } else {
+        m_hub->Draw();
+    }
+
+    if (const auto created = m_newProjectDialog->Draw()) {
+        RequestOpenProject(*created);
     }
     DrawAboutWindow();
+    DrawErrorWindow();
     if (m_showImGuiDemo) {
         ImGui::ShowDemoWindow(&m_showImGuiDemo);
     }
@@ -147,28 +323,12 @@ void EditorApplication::DrawMainMenu() {
     if (!ImGui::BeginMainMenuBar()) {
         return;
     }
+    const bool hasProject = m_context->GetProject() != nullptr;
     if (ImGui::BeginMenu("File")) {
-        MenuItem(ICON_FA_FILE_CIRCLE_PLUS "  New Project...", 0, false);
-        MenuItem(ICON_FA_FOLDER_OPEN "  Open Project...", 0, false);
-        if (ImGui::BeginMenu(ICON_FA_CLOCK_ROTATE_LEFT "  Recent Projects", false)) {
-            ImGui::EndMenu();
-        }
-        MenuItem("Close Project", 0, false);
-        ImGui::Separator();
-        MenuItem(ICON_FA_FILE "  New Scene", ImGuiMod_Ctrl | ImGuiKey_N, false);
-        MenuItem(ICON_FA_FILE_IMPORT "  Open Scene...", ImGuiMod_Ctrl | ImGuiKey_O, false);
-        MenuItem(ICON_FA_FLOPPY_DISK "  Save Scene", ImGuiMod_Ctrl | ImGuiKey_S, false);
-        MenuItem("Save Scene As...", ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S, false);
-        MenuItem("Save All", ImGuiMod_Ctrl | ImGuiMod_Alt | ImGuiKey_S, false);
-        ImGui::Separator();
-        MenuItem(ICON_FA_GEAR "  Project Settings...", 0, false);
-        ImGui::Separator();
-        if (MenuItem("Exit", ImGuiMod_Alt | ImGuiKey_F4) && OnCloseRequested()) {
-            Quit();
-        }
+        DrawFileMenu();
         ImGui::EndMenu();
     }
-    if (ImGui::BeginMenu("Edit")) {
+    if (ImGui::BeginMenu("Edit", hasProject)) {
         MenuItem(ICON_FA_ROTATE_LEFT "  Undo", ImGuiMod_Ctrl | ImGuiKey_Z, false);
         MenuItem(ICON_FA_ROTATE_RIGHT "  Redo", ImGuiMod_Ctrl | ImGuiKey_Y, false);
         ImGui::Separator();
@@ -180,14 +340,12 @@ void EditorApplication::DrawMainMenu() {
         MenuItem(ICON_FA_PEN "  Rename", ImGuiKey_F2, false);
         ImGui::Separator();
         MenuItem("Select All", ImGuiMod_Ctrl | ImGuiKey_A, false);
-        ImGui::Separator();
-        MenuItem(ICON_FA_SLIDERS "  Preferences...", 0, false);
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Entity", false)) {
         ImGui::EndMenu();
     }
-    if (ImGui::BeginMenu("Window")) {
+    if (ImGui::BeginMenu("Window", hasProject)) {
         for (const auto& panel : m_panels) {
             bool open = panel->IsOpen();
             if (ImGui::MenuItem(panel->GetTitle().c_str(), nullptr, &open)) {
@@ -200,7 +358,7 @@ void EditorApplication::DrawMainMenu() {
         ImGui::Separator();
         if (ImGui::MenuItem(ICON_FA_TABLE_COLUMNS "  Reset Layout")) {
             for (const auto& panel : m_panels) {
-                panel->SetOpen(true);
+                panel->SetOpen(panel->GetId() != "ProjectSettings");
             }
             m_layoutPending = true;
         }
@@ -218,6 +376,47 @@ void EditorApplication::DrawMainMenu() {
         ImGui::EndMenu();
     }
     ImGui::EndMainMenuBar();
+}
+
+void EditorApplication::DrawFileMenu() {
+    const bool hasProject = m_context->GetProject() != nullptr;
+    if (MenuItem(ICON_FA_FILE_CIRCLE_PLUS "  New Project...")) {
+        m_newProjectDialog->Open();
+    }
+    if (MenuItem(ICON_FA_FOLDER_OPEN "  Open Project...")) {
+        BrowseForProject();
+    }
+    if (ImGui::BeginMenu(ICON_FA_CLOCK_ROTATE_LEFT "  Recent Projects", !m_settings.GetRecentProjects().empty())) {
+        for (const RecentProject& recent : m_settings.GetRecentProjects()) {
+            ImGui::PushID(PathToUtf8(recent.file).c_str());
+            if (ImGui::MenuItem(recent.name.c_str())) {
+                RequestOpenProject(recent.file);
+            }
+            ImGui::SetItemTooltip("%s", PathToUtf8(recent.file).c_str());
+            ImGui::PopID();
+        }
+        ImGui::EndMenu();
+    }
+    if (MenuItem("Close Project", 0, hasProject)) {
+        RequestCloseProject();
+    }
+    ImGui::Separator();
+    MenuItem(ICON_FA_FILE "  New Scene", ImGuiMod_Ctrl | ImGuiKey_N, false);
+    MenuItem(ICON_FA_FILE_IMPORT "  Open Scene...", ImGuiMod_Ctrl | ImGuiKey_O, false);
+    MenuItem(ICON_FA_FLOPPY_DISK "  Save Scene", ImGuiMod_Ctrl | ImGuiKey_S, false);
+    MenuItem("Save Scene As...", ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S, false);
+    MenuItem("Save All", ImGuiMod_Ctrl | ImGuiMod_Alt | ImGuiKey_S, false);
+    ImGui::Separator();
+    if (MenuItem(ICON_FA_GEAR "  Project Settings...", 0, hasProject)) {
+        if (Panel* settings = FindPanel("ProjectSettings")) {
+            settings->SetOpen(true);
+            ImGui::SetWindowFocus(settings->GetWindowName().c_str());
+        }
+    }
+    ImGui::Separator();
+    if (MenuItem("Exit", ImGuiMod_Alt | ImGuiKey_F4) && OnCloseRequested()) {
+        Quit();
+    }
 }
 
 void EditorApplication::DrawToolbar() {
@@ -297,11 +496,9 @@ void EditorApplication::DrawLatestMessage() {
     ImGui::PushStyleColor(ImGuiCol_Text, color);
     // Clicking the message opens the console, where the whole of it is.
     if (ImGui::Selectable(text.c_str(), false, ImGuiSelectableFlags_None, {ImGui::GetWindowWidth() * 0.6f, 0.0f})) {
-        for (const auto& panel : m_panels) {
-            if (panel->GetId() == "Console") {
-                panel->SetOpen(true);
-                ImGui::SetWindowFocus(panel->GetWindowName().c_str());
-            }
+        if (Panel* console = FindPanel("Console")) {
+            console->SetOpen(true);
+            ImGui::SetWindowFocus(console->GetWindowName().c_str());
         }
     }
     ImGui::PopStyleColor();
@@ -315,20 +512,11 @@ void EditorApplication::DrawDockSpace() {
     }
     if (m_layoutPending) {
         m_layoutPending = false;
-        LayoutWindows windows;
-        windows.scenes.emplace_back(SceneAreaId);
-        for (const auto& panel : m_panels) {
-            if (panel->GetId() == "Hierarchy") {
-                windows.hierarchy = panel->GetId();
-            } else if (panel->GetId() == "Inspector") {
-                windows.inspector = panel->GetId();
-            } else if (panel->GetId() == "Assets") {
-                windows.assets = panel->GetId();
-            } else if (panel->GetId() == "Console") {
-                windows.console = panel->GetId();
-            }
-        }
-        BuildDefaultLayout(m_dockSpace, windows);
+        BuildDefaultLayout(m_dockSpace, {.scenes = {SceneAreaId},
+                                         .hierarchy = "Hierarchy",
+                                         .inspector = "Inspector",
+                                         .assets = "Assets",
+                                         .console = "Console"});
     }
     ImGui::DockSpaceOverViewport(m_dockSpace, ImGui::GetMainViewport());
 }
@@ -341,7 +529,7 @@ void EditorApplication::DrawSceneArea() {
     if (ImGui::Begin(name.c_str(), nullptr, ImGuiWindowFlags_NoCollapse)) {
         const ImVec2 available = ImGui::GetContentRegionAvail();
         const char* hint = "No scene is open";
-        const char* detail = "Open a project, then create or open a scene.";
+        const char* detail = "Create or open a scene to edit it here.";
         const float lineHeight = ImGui::GetTextLineHeightWithSpacing();
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() + std::max((available.y - lineHeight * 3.0f) * 0.5f, 0.0f));
         ImGui::PushFont(GetBoldFont(), ImGui::GetStyle().FontSizeBase * 1.3f);
@@ -377,6 +565,36 @@ void EditorApplication::DrawAboutWindow() {
     const float buttonWidth = ImGui::GetFontSize() * 6.0f;
     ImGui::SetCursorPosX(ImGui::GetWindowWidth() - buttonWidth - ImGui::GetStyle().WindowPadding.x);
     if (ImGui::Button("Close", {buttonWidth, 0.0f}) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
+}
+
+void EditorApplication::DrawErrorWindow() {
+    if (m_showError) {
+        ImGui::OpenPopup(ErrorPopupId);
+        m_showError = false;
+    }
+    ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, {0.5f, 0.5f});
+    ImGui::SetNextWindowSizeConstraints({ImGui::GetFontSize() * 22.0f, 0.0f}, {ImGui::GetFontSize() * 40.0f, FLT_MAX});
+    if (!ImGui::BeginPopupModal(ErrorPopupId, nullptr,
+                                ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
+                                    ImGuiWindowFlags_NoTitleBar)) {
+        return;
+    }
+    ImGui::TextColored(EditorColors::Error, ICON_FA_CIRCLE_XMARK);
+    ImGui::SameLine();
+    ImGui::PushFont(GetBoldFont(), 0.0f);
+    ImGui::TextUnformatted(m_errorTitle.c_str());
+    ImGui::PopFont();
+    ImGui::PushTextWrapPos(ImGui::GetFontSize() * 38.0f);
+    ImGui::TextUnformatted(m_errorMessage.c_str());
+    ImGui::PopTextWrapPos();
+    ImGui::Spacing();
+    const float buttonWidth = ImGui::GetFontSize() * 6.0f;
+    ImGui::SetCursorPosX(ImGui::GetWindowWidth() - buttonWidth - ImGui::GetStyle().WindowPadding.x);
+    if (ImGui::Button("OK", {buttonWidth, 0.0f}) || ImGui::IsKeyPressed(ImGuiKey_Escape) ||
+        ImGui::IsKeyPressed(ImGuiKey_Enter)) {
         ImGui::CloseCurrentPopup();
     }
     ImGui::EndPopup();

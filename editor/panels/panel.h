@@ -31,6 +31,8 @@ public:
 
 protected:
     virtual void OnDraw() = 0;
+    // Called before the window begins, for its initial size or position.
+    virtual void SetUpWindow() {}
     virtual ImGuiWindowFlags GetWindowFlags() const { return ImGuiWindowFlags_None; }
 
     // A centered, muted hint for panels with nothing to show, such as "Open a scene to see its entities".

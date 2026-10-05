@@ -1,8 +1,12 @@
 #pragma once
 
+#include "app/editor_context.h"
 #include "core/console_log.h"
+#include "core/editor_settings.h"
 #include "imgui/imgui_layer.h"
 #include "panels/panel.h"
+#include "project/new_project_dialog.h"
+#include "project/project_hub.h"
 
 #include <spot.h>
 
@@ -10,13 +14,21 @@
 
 #include <filesystem>
 #include <memory>
+#include <optional>
+#include <string>
 #include <vector>
 
 namespace Spot::Editor {
 
 struct EditorOptions {
-    // Where the editor keeps its settings and log; the user's data directory when empty.
+    // Where the editor keeps its settings, layout and log; the user's data directory when empty.
     std::filesystem::path settingsDirectory;
+    // A project file, or its folder, to open at start instead of showing the hub.
+    std::filesystem::path project;
+    // When set, the editor saves a PNG of its window here after a number of frames, then quits; for checking the
+    // UI without a person at the screen.
+    std::filesystem::path screenshot;
+    int screenshotFrame = 60;
 };
 
 class EditorApplication final : public Application {
@@ -24,27 +36,57 @@ public:
     explicit EditorApplication(EditorOptions options = {});
     ~EditorApplication() override;
 
+    // Projects open and close between frames, never while windows still draw the current one.
+    void RequestOpenProject(std::filesystem::path file);
+    void RequestCloseProject();
+
 protected:
     void OnStart() override;
     void OnEvent(const Event& event) override;
+    void OnUpdate(float deltaTime) override;
     void OnRender(RenderContext& context) override;
     void OnStop() override;
     bool OnCloseRequested() override;
 
 private:
+    void OpenProject(const std::filesystem::path& file);
+    void CloseProject();
+    void BrowseForProject();
+    void UpdateTitle();
+    void ShowError(std::string title, std::string message);
+    Panel* FindPanel(std::string_view id) const;
+    void UpdateScreenshot(RenderContext& context);
+
     void DrawUi();
     void DrawMainMenu();
+    void DrawFileMenu();
     void DrawToolbar();
     void DrawStatusBar();
     void DrawLatestMessage();
     void DrawDockSpace();
     void DrawSceneArea();
     void DrawAboutWindow();
+    void DrawErrorWindow();
 
     EditorOptions m_options;
+    EditorSettings m_settings;
     std::shared_ptr<ConsoleLog> m_consoleLog;
     std::unique_ptr<ImGuiLayer> m_imgui;
+    std::unique_ptr<EditorContext> m_context;
+    std::unique_ptr<ProjectHub> m_hub;
+    std::unique_ptr<NewProjectDialog> m_newProjectDialog;
     std::vector<std::unique_ptr<Panel>> m_panels;
+    // OS dialogs answer later; they only reach the editor while this is alive.
+    std::shared_ptr<EditorApplication*> m_self;
+    int m_frame = 0;
+    std::unique_ptr<Texture> m_screenshotTarget;
+
+    std::optional<std::filesystem::path> m_projectToOpen;
+    bool m_closeProjectRequested = false;
+    std::string m_errorTitle;
+    std::string m_errorMessage;
+    bool m_showError = false;
+
     ImGuiID m_dockSpace = 0;
     bool m_layoutPending = false;
     bool m_showAbout = false;
