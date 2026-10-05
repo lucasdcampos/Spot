@@ -49,6 +49,10 @@ add_library(spot_editor_core STATIC
     app/editor_application.h
     app/editor_layout.cpp
     app/editor_layout.h
+    core/console_log.cpp
+    core/console_log.h
+    core/editor_log.cpp
+    core/editor_log.h
     imgui/editor_style.cpp
     imgui/editor_style.h
     imgui/icons.h

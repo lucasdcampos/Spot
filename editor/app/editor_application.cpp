@@ -1,6 +1,7 @@
 #include "app/editor_application.h"
 
 #include "app/editor_layout.h"
+#include "core/editor_log.h"
 #include "imgui/editor_style.h"
 #include "imgui/icons.h"
 #include "panels/asset_browser_panel.h"
@@ -12,7 +13,9 @@
 
 #include <algorithm>
 #include <format>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace Spot::Editor {
@@ -74,11 +77,15 @@ void ToolbarSeparator() {
 } // namespace
 
 EditorApplication::EditorApplication(EditorOptions options)
-    : Application(MakeConfig(options)), m_options(std::move(options)) {
+    : Application(MakeConfig(options)), m_options(std::move(options)), m_consoleLog(std::make_shared<ConsoleLog>()) {
     m_options.settingsDirectory = ResolveSettingsDirectory(m_options);
+    // Added before Run() so the console also shows how the devices started.
+    Log::AddSink(m_consoleLog);
 }
 
-EditorApplication::~EditorApplication() = default;
+EditorApplication::~EditorApplication() {
+    Log::RemoveSink(m_consoleLog);
+}
 
 void EditorApplication::OnStart() {
     m_imgui = std::make_unique<ImGuiLayer>(GetWindow(), GetGraphicsDevice());
@@ -89,7 +96,8 @@ void EditorApplication::OnStart() {
     m_panels.push_back(std::make_unique<HierarchyPanel>());
     m_panels.push_back(std::make_unique<InspectorPanel>());
     m_panels.push_back(std::make_unique<AssetBrowserPanel>());
-    m_panels.push_back(std::make_unique<ConsolePanel>());
+    m_panels.push_back(std::make_unique<ConsolePanel>(m_consoleLog));
+    GetEditorLogger().Info("Spot Editor {} started", GetVersionString());
 }
 
 void EditorApplication::OnEvent(const Event& event) {
@@ -259,7 +267,7 @@ void EditorApplication::DrawStatusBar() {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
     if (ImGui::BeginViewportSideBar("##StatusBar", viewport, ImGuiDir_Down, height, flags)) {
         if (ImGui::BeginMenuBar()) {
-            ImGui::TextColored(EditorColors::TextMuted, "Ready");
+            DrawLatestMessage();
             const std::string stats =
                 std::format("{:.0f} FPS  |  {}", ImGui::GetIO().Framerate, GetGraphicsDevice().GetBackendName());
             const float width = ImGui::CalcTextSize(stats.c_str()).x;
@@ -270,6 +278,33 @@ void EditorApplication::DrawStatusBar() {
     }
     ImGui::End();
     ImGui::PopStyleVar();
+}
+
+void EditorApplication::DrawLatestMessage() {
+    const std::optional<ConsoleEntry> latest = m_consoleLog->GetLatest();
+    if (!latest || latest->level < LogLevel::Info) {
+        ImGui::TextColored(EditorColors::TextMuted, "Ready");
+        return;
+    }
+    const ImVec4 color = latest->level == LogLevel::Error     ? EditorColors::Error
+                         : latest->level == LogLevel::Warning ? EditorColors::Warning
+                                                              : EditorColors::TextMuted;
+    const char* icon = latest->level == LogLevel::Error     ? ICON_FA_CIRCLE_XMARK
+                       : latest->level == LogLevel::Warning ? ICON_FA_TRIANGLE_EXCLAMATION
+                                                            : ICON_FA_CIRCLE_INFO;
+    const std::string_view message = std::string_view(latest->message).substr(0, latest->message.find('\n'));
+    const std::string text = std::format("{}  {}", icon, message);
+    ImGui::PushStyleColor(ImGuiCol_Text, color);
+    // Clicking the message opens the console, where the whole of it is.
+    if (ImGui::Selectable(text.c_str(), false, ImGuiSelectableFlags_None, {ImGui::GetWindowWidth() * 0.6f, 0.0f})) {
+        for (const auto& panel : m_panels) {
+            if (panel->GetId() == "Console") {
+                panel->SetOpen(true);
+                ImGui::SetWindowFocus(panel->GetWindowName().c_str());
+            }
+        }
+    }
+    ImGui::PopStyleColor();
 }
 
 void EditorApplication::DrawDockSpace() {

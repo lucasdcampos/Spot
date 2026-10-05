@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/console_log.h"
 #include "imgui/imgui_layer.h"
 #include "panels/panel.h"
 
@@ -35,11 +36,13 @@ private:
     void DrawMainMenu();
     void DrawToolbar();
     void DrawStatusBar();
+    void DrawLatestMessage();
     void DrawDockSpace();
     void DrawSceneArea();
     void DrawAboutWindow();
 
     EditorOptions m_options;
+    std::shared_ptr<ConsoleLog> m_consoleLog;
     std::unique_ptr<ImGuiLayer> m_imgui;
     std::vector<std::unique_ptr<Panel>> m_panels;
     ImGuiID m_dockSpace = 0;
