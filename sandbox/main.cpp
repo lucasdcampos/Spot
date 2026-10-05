@@ -195,7 +195,11 @@ protected:
 
         auto& device = GetGraphicsDevice();
         m_renderer2D = std::make_unique<Spot::Renderer2D>(device);
-        m_renderer3D = std::make_unique<Spot::Renderer3D>(device);
+        // Four samples per pixel smooth the edges of the 3D view, where the GPU supports them.
+        const bool multisampled = device.SupportsSampleCount(device.GetWindowFormat(), 4) &&
+                                  device.SupportsSampleCount(Spot::TextureFormat::Depth32Float, 4);
+        m_sampleCount = multisampled ? 4 : 1;
+        m_renderer3D = std::make_unique<Spot::Renderer3D>(device, Spot::Renderer3DConfig{.sampleCount = m_sampleCount});
         m_font = Load<Spot::Font>("fonts/FiraSans-Regular.ttf");
 
         LoadScene<PlaygroundScene>();
@@ -251,18 +255,35 @@ protected:
 
 private:
     void Render3D(Spot::RenderContext& context, Spot::Vector2 view) {
-        // The depth target must match the frame, whose size changes with the window.
+        // The targets must match the frame, whose size changes with the window. With several samples, the view is
+        // drawn into a multisampled target that the pass resolves into the window.
+        auto& device = GetGraphicsDevice();
         const auto width = static_cast<std::uint32_t>(context.GetWidth());
         const auto height = static_cast<std::uint32_t>(context.GetHeight());
         if (!m_depth || m_depth->GetWidth() != width || m_depth->GetHeight() != height) {
-            m_depth = GetGraphicsDevice().CreateTexture(
-                {.width = width, .height = height, .format = Spot::TextureFormat::Depth32Float, .renderTarget = true});
+            m_depth = device.CreateTexture({.width = width,
+                                            .height = height,
+                                            .format = Spot::TextureFormat::Depth32Float,
+                                            .renderTarget = true,
+                                            .sampleCount = m_sampleCount});
+            m_samples = m_sampleCount > 1 ? device.CreateTexture({.width = width,
+                                                                  .height = height,
+                                                                  .format = device.GetWindowFormat(),
+                                                                  .renderTarget = true,
+                                                                  .sampleCount = m_sampleCount})
+                                          : nullptr;
+        }
+        if (!m_depth || (m_sampleCount > 1 && !m_samples)) {
+            return;
         }
 
-        auto pass = context.BeginRenderPass(
-            {.clearColor = Spot::Color{0.5f, 0.68f, 0.85f}, .depthTarget = m_depth.get(), .clearDepth = 1.0f});
+        auto pass = context.BeginRenderPass({.target = m_samples.get(),
+                                             .clearColor = Spot::Color{0.5f, 0.68f, 0.85f},
+                                             .depthTarget = m_depth.get(),
+                                             .clearDepth = 1.0f,
+                                             .resolveToWindow = m_samples != nullptr});
         const auto* scene = dynamic_cast<PlaygroundScene*>(GetScene());
-        if (!m_depth || !m_renderer3D || !scene || !scene->GetPlayer()) {
+        if (!m_renderer3D || !scene || !scene->GetPlayer()) {
             return;
         }
 
@@ -305,6 +326,8 @@ private:
     std::unique_ptr<Spot::Renderer2D> m_renderer2D;
     std::unique_ptr<Spot::Renderer3D> m_renderer3D;
     std::unique_ptr<Spot::Texture> m_depth;
+    std::unique_ptr<Spot::Texture> m_samples;
+    std::uint32_t m_sampleCount = 1;
     Spot::AssetRef<Spot::Font> m_font;
     Spot::Renderer3DStats m_stats3D;
     std::string m_status;

@@ -562,12 +562,14 @@ namespace {
 
 using Pixel = std::array<std::uint8_t, 4>;
 
-// Renders one frame into a color and depth target of the given size and reads it back.
+// Renders one frame into a color and depth target of the given size and reads it back. With several samples, it draws
+// into multisampled targets resolved into the color target.
 class TargetRender {
 public:
     using Draw = std::function<void(Spot::GraphicsDevice&, Spot::RenderPass&, Spot::Vector2 viewSize)>;
 
-    TargetRender(int width, int height, Draw draw, Spot::AssetConfig assets = {}) : m_width(width), m_height(height) {
+    TargetRender(int width, int height, Draw draw, Spot::AssetConfig assets = {}, std::uint32_t sampleCount = 1)
+        : m_width(width), m_height(height) {
         int frame = 0;
         std::unique_ptr<Spot::Texture> target;
         RenderingApplication application(
@@ -584,13 +586,21 @@ public:
                 const auto w = static_cast<std::uint32_t>(width);
                 const auto h = static_cast<std::uint32_t>(height);
                 target = device.CreateTexture({.width = w, .height = h, .renderTarget = true});
-                const auto depth = device.CreateTexture(
-                    {.width = w, .height = h, .format = Spot::TextureFormat::Depth32Float, .renderTarget = true});
-                REQUIRE((target && depth));
-                auto pass = context.BeginRenderPass({.target = target.get(),
+                const auto samples =
+                    sampleCount > 1 ? device.CreateTexture(
+                                          {.width = w, .height = h, .renderTarget = true, .sampleCount = sampleCount})
+                                    : nullptr;
+                const auto depth = device.CreateTexture({.width = w,
+                                                         .height = h,
+                                                         .format = Spot::TextureFormat::Depth32Float,
+                                                         .renderTarget = true,
+                                                         .sampleCount = sampleCount});
+                REQUIRE((target && depth && (samples || sampleCount == 1)));
+                auto pass = context.BeginRenderPass({.target = samples ? samples.get() : target.get(),
                                                      .clearColor = Spot::Color::Black,
                                                      .depthTarget = depth.get(),
-                                                     .clearDepth = 1.0f});
+                                                     .clearDepth = 1.0f,
+                                                     .resolveTarget = samples ? target.get() : nullptr});
                 draw(device, pass, {static_cast<float>(width), static_cast<float>(height)});
             },
             std::move(assets));
@@ -756,6 +766,97 @@ TEST_CASE("Renderer3D samples mipmaps, anisotropically when asked", "[gpu]") {
     // Drivers may ignore or limit anisotropy, as NVIDIA's Direct3D 12 driver did on the machine this was written on,
     // so it is only required not to make things worse.
     CHECK(anisotropic >= plain);
+}
+
+TEST_CASE("Multisampled targets smooth the edges they resolve", "[gpu]") {
+    RequireGpu();
+
+    // A green square turned a little, whose edges cross pixels: with one sample each pixel is either green or black,
+    // while four samples give the pixels along the edges shades in between.
+    const auto countEdgeShades = [](std::uint32_t sampleCount) {
+        const TargetRender render(
+            32, 32,
+            [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
+                Spot::Renderer3D renderer(device,
+                                          {.targetFormat = Spot::TextureFormat::Rgba8, .sampleCount = sampleCount});
+                REQUIRE(renderer.IsValid());
+                const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+                REQUIRE(cube != nullptr);
+                renderer.Begin(pass, MakeFrontCamera(), view, FrontLight);
+                renderer.DrawMesh(*cube, {.baseColor = Spot::Color::Green},
+                                  Spot::Matrix4::Rotation(Spot::Quaternion::FromAxisAngle({0, 0, 1}, 0.3f)));
+                renderer.End();
+            },
+            {}, sampleCount);
+
+        int shades = 0;
+        for (int y = 0; y < 32; ++y) {
+            for (int x = 0; x < 32; ++x) {
+                const int green = render.At(x, y)[1];
+                shades += green > 16 && green < 240 ? 1 : 0;
+            }
+        }
+        return shades;
+    };
+
+    CHECK(countEdgeShades(1) == 0);
+    CHECK(countEdgeShades(4) > 10);
+}
+
+TEST_CASE("Multisampled targets resolve into the window", "[gpu]") {
+    RequireGpu();
+    bool resolved = false;
+
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
+        auto& device = app.GetGraphicsDevice();
+        const auto format = device.GetWindowFormat();
+        REQUIRE(device.SupportsSampleCount(format, 4));
+        const auto samples = device.CreateTexture({.width = static_cast<std::uint32_t>(context.GetWidth()),
+                                                   .height = static_cast<std::uint32_t>(context.GetHeight()),
+                                                   .format = format,
+                                                   .renderTarget = true,
+                                                   .sampleCount = 4});
+        REQUIRE(samples != nullptr);
+        auto pass = context.BeginRenderPass(
+            {.target = samples.get(), .clearColor = Spot::Color::Blue, .resolveToWindow = true});
+        resolved = pass.GetNativeHandle() != nullptr;
+    });
+
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    CHECK(resolved);
+}
+
+TEST_CASE("Textures and pipelines reject sample counts they cannot have", "[gpu]") {
+    RequireGpu();
+
+    RenderingApplication application([](Spot::Application& app, Spot::RenderContext&) {
+        auto& device = app.GetGraphicsDevice();
+        CHECK(device.SupportsSampleCount(Spot::TextureFormat::Rgba8, 1));
+        CHECK_FALSE(device.SupportsSampleCount(Spot::TextureFormat::Rgba8, 3));
+
+        CHECK_FALSE(device.CreateTexture({.width = 4, .height = 4, .renderTarget = true, .sampleCount = 3}));
+        // Multisampled textures can only be drawn into, then resolved.
+        CHECK_FALSE(device.CreateTexture({.width = 4, .height = 4, .sampleCount = 4}));
+        CHECK_FALSE(
+            device.CreateTexture({.width = 4, .height = 4, .renderTarget = true, .mipmaps = true, .sampleCount = 4}));
+        const auto samples = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true, .sampleCount = 4});
+        REQUIRE(samples != nullptr);
+        CHECK(samples->GetSampleCount() == 4);
+
+        const auto vertexShader = device.CreateShader(Shaders::TriangleVert);
+        const auto fragmentShader = device.CreateShader(Shaders::TriangleFrag);
+        REQUIRE((vertexShader && fragmentShader));
+        CHECK_FALSE(device.CreatePipeline({.vertexShader = vertexShader.get(),
+                                           .fragmentShader = fragmentShader.get(),
+                                           .targetFormat = Spot::TextureFormat::Rgba8,
+                                           .sampleCount = 5}));
+        CHECK(device.CreatePipeline({.vertexShader = vertexShader.get(),
+                                     .fragmentShader = fragmentShader.get(),
+                                     .targetFormat = Spot::TextureFormat::Rgba8,
+                                     .sampleCount = 4}));
+    });
+
+    REQUIRE(application.Run() == EXIT_SUCCESS);
 }
 
 TEST_CASE("Models load with their materials and draw textured", "[gpu]") {

@@ -24,6 +24,11 @@ struct RenderPassDesc {
     Texture* depthTarget = nullptr;
     // Clears the depth target to this depth first when set, usually 1, the far plane; otherwise keeps its contents.
     std::optional<float> clearDepth = std::nullopt;
+    // Multisampled targets only: at the end of the pass their samples are averaged into the resolve target, a
+    // single-sample render target of the same size and format, or into the window when resolveToWindow is set. The
+    // samples themselves are then discarded.
+    Texture* resolveTarget = nullptr;
+    bool resolveToWindow = false;
 };
 
 // Commands that draw into a target. Only one pass can be open at a time; it ends when End() is called or when it

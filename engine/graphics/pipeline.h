@@ -104,6 +104,8 @@ struct PipelineDesc {
     // Set for pipelines that draw in passes with a depth target, and only for those: the backends reject pipelines
     // whose targets differ from the pass's.
     std::optional<DepthState> depth = std::nullopt;
+    // The sample count of the targets of the passes it draws in; see TextureDesc::sampleCount.
+    std::uint32_t sampleCount = 1;
 };
 
 class Pipeline {

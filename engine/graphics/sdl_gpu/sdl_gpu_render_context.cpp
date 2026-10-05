@@ -111,6 +111,27 @@ RenderPass RenderContext::BeginRenderPass(const RenderPassDesc& desc) {
         target.load_op = SDL_GPU_LOADOP_LOAD;
     }
 
+    const bool resolves = desc.resolveTarget || desc.resolveToWindow;
+    SPOT_ASSERT(!(desc.resolveTarget && desc.resolveToWindow), "A pass resolves into one texture or the window");
+    SPOT_ASSERT(resolves == (desc.target && desc.target->GetSampleCount() > 1),
+                "Multisampled targets must be resolved, and only they can be");
+    if (desc.resolveTarget) {
+        SPOT_ASSERT(desc.resolveTarget->IsRenderTarget() && desc.resolveTarget->GetSampleCount() == 1,
+                    "Resolve targets must be single-sample render targets");
+        SPOT_ASSERT(desc.resolveTarget->GetFormat() == desc.target->GetFormat() &&
+                        desc.resolveTarget->GetWidth() == desc.target->GetWidth() &&
+                        desc.resolveTarget->GetHeight() == desc.target->GetHeight(),
+                    "Resolve targets must have the size and format of the target");
+        target.resolve_texture = static_cast<SDL_GPUTexture*>(desc.resolveTarget->GetNativeHandle());
+    } else if (desc.resolveToWindow) {
+        SPOT_ASSERT(desc.target->GetWidth() == m_impl->width && desc.target->GetHeight() == m_impl->height,
+                    "Targets resolved into the window must be the size of its frame");
+        target.resolve_texture = m_impl->target;
+    }
+    if (resolves) {
+        target.store_op = SDL_GPU_STOREOP_RESOLVE;
+    }
+
     SDL_GPUDepthStencilTargetInfo depth{};
     if (desc.depthTarget) {
         SPOT_ASSERT(desc.depthTarget->IsRenderTarget() && IsDepthFormat(desc.depthTarget->GetFormat()),

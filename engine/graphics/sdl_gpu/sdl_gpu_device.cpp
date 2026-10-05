@@ -109,6 +109,19 @@ GraphicsDevice::GraphicsDevice(std::unique_ptr<Impl> impl) : m_impl(std::move(im
 
 GraphicsDevice::~GraphicsDevice() = default;
 
+bool GraphicsDevice::SupportsSampleCount(TextureFormat format, std::uint32_t sampleCount) const {
+    const auto count = ToSdlSampleCount(sampleCount);
+    return count && SDL_GPUTextureSupportsSampleCount(m_impl->device->Get(), ToSdl(format), *count);
+}
+
+TextureFormat GraphicsDevice::GetWindowFormat() const {
+    // The swapchain is SDR, which SDL gives one of these two formats.
+    return SDL_GetGPUSwapchainTextureFormat(m_impl->device->Get(), m_impl->window) ==
+                   SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM
+               ? TextureFormat::Rgba8
+               : TextureFormat::Bgra8;
+}
+
 std::string_view GraphicsDevice::GetBackendName() const {
     return SDL_GetGPUDeviceDriver(m_impl->device->Get());
 }

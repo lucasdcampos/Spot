@@ -154,6 +154,21 @@ SDL_GPUTextureFormat ToSdl(TextureFormat format) {
     return SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
 }
 
+std::optional<SDL_GPUSampleCount> ToSdlSampleCount(std::uint32_t sampleCount) {
+    switch (sampleCount) {
+    case 1:
+        return SDL_GPU_SAMPLECOUNT_1;
+    case 2:
+        return SDL_GPU_SAMPLECOUNT_2;
+    case 4:
+        return SDL_GPU_SAMPLECOUNT_4;
+    case 8:
+        return SDL_GPU_SAMPLECOUNT_8;
+    default:
+        return std::nullopt;
+    }
+}
+
 std::unique_ptr<Shader> GraphicsDevice::CreateShader(const ShaderDesc& desc) {
     SDL_GPUDevice* device = m_impl->device->Get();
     const auto code = ChooseShaderCode(device, desc);
@@ -236,6 +251,13 @@ std::unique_ptr<Pipeline> GraphicsDevice::CreatePipeline(const PipelineDesc& des
         info.target_info.has_depth_stencil_target = true;
         info.target_info.depth_stencil_format = ToSdl(desc.depth->format);
     }
+
+    const auto sampleCount = ToSdlSampleCount(desc.sampleCount);
+    if (!sampleCount) {
+        Log::GetEngineLogger().Error("Pipelines cannot draw with {} samples, only 1, 2, 4 or 8", desc.sampleCount);
+        return nullptr;
+    }
+    info.multisample_state.sample_count = *sampleCount;
 
     SDL_GPUGraphicsPipeline* handle = SDL_CreateGPUGraphicsPipeline(device, &info);
     if (!handle) {
@@ -368,6 +390,20 @@ std::unique_ptr<Texture> GraphicsDevice::CreateTexture(const TextureDesc& desc) 
         Log::GetEngineLogger().Error("Depth textures cannot have mipmaps");
         return nullptr;
     }
+    const auto sampleCount = ToSdlSampleCount(desc.sampleCount);
+    if (!sampleCount) {
+        Log::GetEngineLogger().Error("Textures cannot have {} samples, only 1, 2, 4 or 8", desc.sampleCount);
+        return nullptr;
+    }
+    const bool multisampled = desc.sampleCount > 1;
+    if (multisampled && (!desc.renderTarget || desc.mipmaps)) {
+        Log::GetEngineLogger().Error("Multisampled textures must be render targets without mipmaps");
+        return nullptr;
+    }
+    if (!SupportsSampleCount(desc.format, desc.sampleCount)) {
+        Log::GetEngineLogger().Error("This GPU does not support {} samples for this texture format", desc.sampleCount);
+        return nullptr;
+    }
 
     // Each level halves the size of the previous one, down to 1x1.
     std::uint32_t mipLevels = 1;
@@ -380,7 +416,8 @@ std::unique_ptr<Texture> GraphicsDevice::CreateTexture(const TextureDesc& desc) 
     SDL_GPUTextureCreateInfo info{};
     info.type = SDL_GPU_TEXTURETYPE_2D;
     info.format = ToSdl(desc.format);
-    info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
+    // Multisampled textures are only ever resolved, never sampled.
+    info.usage = multisampled ? 0 : SDL_GPU_TEXTUREUSAGE_SAMPLER;
     // SDL generates mipmaps by rendering each level from the previous one, so they need a color target.
     if (depth && desc.renderTarget) {
         info.usage |= SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET;
@@ -391,7 +428,7 @@ std::unique_ptr<Texture> GraphicsDevice::CreateTexture(const TextureDesc& desc) 
     info.height = desc.height;
     info.layer_count_or_depth = 1;
     info.num_levels = mipLevels;
-    info.sample_count = SDL_GPU_SAMPLECOUNT_1;
+    info.sample_count = *sampleCount;
 
     SDL_GPUTexture* handle = SDL_CreateGPUTexture(m_impl->device->Get(), &info);
     if (!handle) {
@@ -445,6 +482,7 @@ std::unique_ptr<Sampler> GraphicsDevice::CreateSampler(const SamplerDesc& desc) 
 
 void GraphicsDevice::UploadToTexture(Texture& texture, std::span<const std::byte> pixels) {
     SPOT_ASSERT(!IsDepthFormat(texture.GetFormat()), "Depth textures cannot be uploaded to");
+    SPOT_ASSERT(texture.GetSampleCount() == 1, "Multisampled textures cannot be uploaded to");
     SPOT_ASSERT(pixels.size() == GetPixelDataSize(texture), "A {}x{} texture takes {} bytes of pixels, not {}",
                 texture.GetWidth(), texture.GetHeight(), GetPixelDataSize(texture), pixels.size());
 
@@ -489,6 +527,7 @@ void GraphicsDevice::UploadToTexture(Texture& texture, std::span<const std::byte
 
 std::vector<std::uint8_t> GraphicsDevice::DownloadTexture(const Texture& texture) {
     SPOT_ASSERT(!IsDepthFormat(texture.GetFormat()), "Depth textures cannot be downloaded");
+    SPOT_ASSERT(texture.GetSampleCount() == 1, "Multisampled textures cannot be downloaded; resolve them first");
     SDL_GPUDevice* device = m_impl->device->Get();
     const std::uint32_t size = GetPixelDataSize(texture);
 
@@ -555,6 +594,10 @@ bool Texture::IsRenderTarget() const {
 
 std::uint32_t Texture::GetMipLevelCount() const {
     return m_impl->mipLevels;
+}
+
+std::uint32_t Texture::GetSampleCount() const {
+    return m_impl->desc.sampleCount;
 }
 
 void* Texture::GetNativeHandle() const {

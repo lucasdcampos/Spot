@@ -29,6 +29,8 @@ struct Renderer3DConfig {
     std::optional<TextureFormat> targetFormat = std::nullopt;
     // The format of the depth target of the passes it draws in.
     TextureFormat depthFormat = TextureFormat::Depth32Float;
+    // The sample count of the targets of the passes it draws in; above 1 for multisampled antialiasing.
+    std::uint32_t sampleCount = 1;
 };
 
 // A directional light, like the sun, plus ambient light that reaches every surface evenly.

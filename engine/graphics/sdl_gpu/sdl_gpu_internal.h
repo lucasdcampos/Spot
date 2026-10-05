@@ -89,6 +89,8 @@ struct Sampler::Impl {
 };
 
 SDL_GPUTextureFormat ToSdl(TextureFormat format);
+// Nothing for counts SDL_GPU has no value for.
+std::optional<SDL_GPUSampleCount> ToSdlSampleCount(std::uint32_t sampleCount);
 
 struct Pipeline::Impl {
     ~Impl() { SDL_ReleaseGPUGraphicsPipeline(device->Get(), handle); }

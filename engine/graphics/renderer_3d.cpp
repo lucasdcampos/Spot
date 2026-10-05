@@ -54,6 +54,7 @@ Renderer3D::Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config) {
             .cullMode = CullMode::Back,
             .targetFormat = config.targetFormat,
             .depth = DepthState{.format = config.depthFormat},
+            .sampleCount = config.sampleCount,
         };
         m_pipeline = device.CreatePipeline(desc);
         desc.cullMode = CullMode::None;
