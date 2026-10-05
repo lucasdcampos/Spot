@@ -17,8 +17,8 @@ namespace Spot {
 
 class Scene;
 
-// Identifies an entity within its scene. Unlike a pointer, it can be kept after the entity is destroyed:
-// Scene::GetEntity() then returns null. Ids are never reused within a scene.
+// Identifies an entity. Unlike a pointer, it can be kept after the entity is destroyed: Scene::GetEntity() then
+// returns null. Ids are unique across all scenes, never reused, and kept when an entity moves to another scene.
 enum class EntityId : std::uint64_t { Invalid = 0 };
 
 namespace Detail {
@@ -50,7 +50,7 @@ public:
     Entity(const Entity&) = delete;
     Entity& operator=(const Entity&) = delete;
 
-    Scene& GetScene() const { return m_scene; }
+    Scene& GetScene() const { return *m_scene; }
     EntityId GetId() const { return m_id; }
 
     const std::string& GetName() const { return m_name; }
@@ -85,6 +85,11 @@ public:
 
     Transform& GetTransform() { return m_transform; }
     const Transform& GetTransform() const { return m_transform; }
+
+    // Moves the entity and all its descendants to another scene, keeping their ids, components and state. A child is
+    // first detached from its parent, keeping its world position and rotation. When the other scene is in the middle
+    // of an update, the moved components may run again in that update.
+    void MoveToScene(Scene& scene);
 
     // Destroys the entity and all its descendants; same as Scene::DestroyEntity(*this).
     void Destroy();
@@ -173,7 +178,7 @@ public:
     // Calls fn(T&) for each component that is a T, enabled or not. fn may add and remove components.
     template <std::derived_from<Component> T, typename F>
     void ForEachComponent(F&& fn) {
-        const Detail::DeferRemovalsScope defer(m_scene);
+        const Detail::DeferRemovalsScope defer(*m_scene);
         // By index, because fn may add components.
         for (std::size_t i = 0; i < m_components.size(); ++i) {
             Component& component = *m_components[i];
@@ -193,6 +198,7 @@ private:
     Entity(Scene& scene, EntityId id, std::string name);
 
     void Attach(std::unique_ptr<Component> component);
+    void MoveSubtree(Scene& scene);
     void MarkDestroyed();
     // Brings OnEnable() and OnDisable() up to date for the components of this entity and its descendants.
     void RefreshActivity();
@@ -204,7 +210,7 @@ private:
     void ProcessRemovals();
     bool CanBeFreed() const;
 
-    Scene& m_scene;
+    Scene* m_scene;
     EntityId m_id;
     std::string m_name;
     std::vector<std::string> m_tags;

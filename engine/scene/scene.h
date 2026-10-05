@@ -4,7 +4,6 @@
 
 #include <concepts>
 #include <cstddef>
-#include <cstdint>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -68,7 +67,7 @@ public:
     template <std::derived_from<Component> T>
     T* FindComponent() const {
         for (const auto& entity : m_entities) {
-            if (!entity->m_destroyed) {
+            if (IsAlive(entity)) {
                 if (T* found = entity->GetComponent<T>()) {
                     return found;
                 }
@@ -91,8 +90,8 @@ public:
         const Detail::DeferRemovalsScope defer(*this);
         // By index, because fn may create entities.
         for (std::size_t i = 0; i < m_entities.size(); ++i) {
-            if (Entity& entity = *m_entities[i]; !entity.m_destroyed) {
-                fn(entity);
+            if (IsAlive(m_entities[i])) {
+                fn(*m_entities[i]);
             }
         }
     }
@@ -129,11 +128,16 @@ private:
     friend class Entity;
     friend class Detail::DeferRemovalsScope;
 
+    // Whether the slot holds an entity that is not destroyed. Slots are empty after their entity moved to another
+    // scene, until removals are processed.
+    static bool IsAlive(const std::unique_ptr<Entity>& entity);
+    // Takes the entity out of the scene, leaving its slot empty, and gives it to another one.
+    std::unique_ptr<Entity> Release(Entity& entity);
+    void Adopt(std::unique_ptr<Entity> entity);
     void ProcessRemovals();
 
     std::vector<std::unique_ptr<Entity>> m_entities;
     std::unordered_map<EntityId, Entity*> m_entitiesById;
-    std::uint64_t m_nextId = 1;
     Application* m_application = nullptr;
     // Set while the scene walks its entities, so removals asked for meanwhile wait until it is done.
     bool m_deferRemovals = false;

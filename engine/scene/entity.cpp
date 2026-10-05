@@ -7,7 +7,7 @@
 
 namespace Spot {
 
-Entity::Entity(Scene& scene, EntityId id, std::string name) : m_scene(scene), m_id(id), m_name(std::move(name)) {
+Entity::Entity(Scene& scene, EntityId id, std::string name) : m_scene(&scene), m_id(id), m_name(std::move(name)) {
 }
 
 void Entity::AddTag(std::string_view tag) {
@@ -29,7 +29,7 @@ void Entity::SetActive(bool active) {
         return;
     }
     m_activeSelf = active;
-    const Detail::DeferRemovalsScope defer(m_scene);
+    const Detail::DeferRemovalsScope defer(*m_scene);
     RefreshActivity();
 }
 
@@ -45,7 +45,7 @@ bool Entity::IsActiveInHierarchy() const {
 void Entity::SetParent(Entity* parent, bool keepWorldPose) {
     SPOT_ASSERT(!m_destroyed, "A destroyed entity cannot be moved in the hierarchy");
     if (parent) {
-        SPOT_ASSERT(&parent->m_scene == &m_scene, "The parent belongs to another scene");
+        SPOT_ASSERT(parent->m_scene == m_scene, "The parent belongs to another scene");
         SPOT_ASSERT(!parent->m_destroyed, "The parent is destroyed");
         SPOT_ASSERT(parent != this && !parent->IsDescendantOf(*this), "An entity cannot be its own ancestor");
     }
@@ -70,13 +70,13 @@ void Entity::SetParent(Entity* parent, bool keepWorldPose) {
         m_transform.SetWorldRotation(worldRotation);
     }
 
-    const Detail::DeferRemovalsScope defer(m_scene);
+    const Detail::DeferRemovalsScope defer(*m_scene);
     RefreshActivity();
 }
 
 Entity& Entity::CreateChild(std::string name) {
     SPOT_ASSERT(!m_destroyed, "A destroyed entity cannot get children");
-    Entity& child = m_scene.CreateEntity(std::move(name));
+    Entity& child = m_scene->CreateEntity(std::move(name));
     child.SetParent(this);
     return child;
 }
@@ -110,8 +110,30 @@ bool Entity::IsDescendantOf(const Entity& ancestor) const {
     return false;
 }
 
+void Entity::MoveToScene(Scene& scene) {
+    SPOT_ASSERT(!m_destroyed, "A destroyed entity cannot move to another scene");
+    if (&scene == m_scene) {
+        return;
+    }
+    if (m_parent) {
+        SetParent(nullptr, true);
+    }
+    const Detail::DeferRemovalsScope deferSource(*m_scene);
+    const Detail::DeferRemovalsScope deferTarget(scene);
+    MoveSubtree(scene);
+    // Components already removed but not yet destroyed are now the other scene's to process.
+    scene.m_hasPendingRemovals = true;
+}
+
+void Entity::MoveSubtree(Scene& scene) {
+    scene.Adopt(m_scene->Release(*this));
+    for (Entity* child : m_children) {
+        child->MoveSubtree(scene);
+    }
+}
+
 void Entity::Destroy() {
-    m_scene.DestroyEntity(*this);
+    m_scene->DestroyEntity(*this);
 }
 
 void Entity::RemoveComponent(Component& component) {
@@ -119,9 +141,9 @@ void Entity::RemoveComponent(Component& component) {
     if (component.m_removed) {
         return;
     }
-    const Detail::DeferRemovalsScope defer(m_scene);
+    const Detail::DeferRemovalsScope defer(*m_scene);
     component.m_removed = true;
-    m_scene.m_hasPendingRemovals = true;
+    m_scene->m_hasPendingRemovals = true;
     component.RefreshActivity();
 }
 

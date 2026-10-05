@@ -114,6 +114,74 @@ TEST_CASE("Entity ids stay safe after the entity is destroyed", "[scene]") {
     CHECK(scene.CreateEntity().GetId() != id);
 }
 
+TEST_CASE("Entities move to another scene with their descendants", "[scene]") {
+    Calls calls;
+    Scene source;
+    Scene target;
+    Entity& root = source.CreateEntity("Root");
+    Entity& child = root.CreateChild("Child");
+    child.AddComponent<Recorder>(calls, "child");
+    Entity& stays = source.CreateEntity("Stays");
+    source.Update(0.016f);
+    calls.clear();
+
+    const Spot::EntityId id = child.GetId();
+    root.MoveToScene(target);
+
+    CHECK(&root.GetScene() == &target);
+    CHECK(&child.GetScene() == &target);
+    CHECK(child.GetParent() == &root);
+    CHECK(child.GetId() == id);
+    CHECK(target.GetEntity(id) == &child);
+    CHECK(source.GetEntity(id) == nullptr);
+    CHECK(source.GetRootEntities() == std::vector<Entity*>{&stays});
+    CHECK(target.GetEntityCount() == 2);
+
+    // Started components keep running, now in the other scene.
+    source.Update(0.016f);
+    CHECK(calls.empty());
+    target.Update(0.016f);
+    CHECK(calls == Calls{"child.update", "child.late"});
+}
+
+TEST_CASE("A child moved to another scene leaves its parent and keeps its world pose", "[scene]") {
+    Scene source;
+    Scene target;
+    Entity& parent = source.CreateEntity();
+    parent.GetTransform().SetPosition({10.0f, 0.0f, 0.0f});
+    Entity& child = parent.CreateChild();
+    child.GetTransform().SetPosition({5.0f, 0.0f, 0.0f});
+
+    child.MoveToScene(target);
+
+    CHECK(child.GetParent() == nullptr);
+    CHECK(parent.GetChildren().empty());
+    CHECK(IsNear(child.GetTransform().GetWorldPosition(), {15.0f, 0.0f, 0.0f}));
+    CHECK(source.GetEntityCount() == 1);
+}
+
+TEST_CASE("Entities can move to another scene during an update", "[scene]") {
+    Calls calls;
+    Scene source;
+    Scene target;
+    auto& mover = source.CreateEntity("Mover").AddComponent<Recorder>(calls, "mover");
+    source.CreateEntity("After").AddComponent<Recorder>(calls, "after");
+    source.Update(0.016f);
+    calls.clear();
+
+    mover.onUpdate = [&target](Recorder& self) {
+        self.GetEntity().MoveToScene(target);
+        self.onUpdate = nullptr;
+    };
+    source.Update(0.016f);
+
+    // The entity after it in the old scene still updates; the moved one no longer runs there.
+    CHECK(calls == Calls{"mover.update", "after.update", "after.late"});
+    CHECK(source.FindEntity("Mover") == nullptr);
+    CHECK(target.FindEntity("Mover") == &mover.GetEntity());
+    CHECK(source.GetEntityCount() == 1);
+}
+
 TEST_CASE("Entities are found by tag", "[scene]") {
     Scene scene;
     Entity& player = scene.CreateEntity("Player");
