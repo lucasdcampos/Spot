@@ -1,184 +1,183 @@
 #include <spot.h>
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <format>
 #include <memory>
-#include <optional>
-#include <random>
 #include <string>
-#include <string_view>
-#include <vector>
 
-// A colored quad the sandbox draws at its entity's world position and rotation.
-class Sprite final : public Spot::Component {
+namespace {
+
+using Spot::Assets::Load;
+using Spot::BuiltInAssets::CubeMesh;
+using Spot::BuiltInAssets::SphereMesh;
+
+constexpr Spot::Vector3 Up = {0.0f, 1.0f, 0.0f};
+constexpr Spot::Vector3 SpawnPoint = {0.0f, 1.5f, 10.0f};
+
+// Walks a capsule with WASD, Shift to run and Space to jump, and turns its view with the mouse. The body never turns,
+// so it cannot tip over; only the view does.
+class PlayerController final : public Spot::Component {
 public:
-    Sprite() = default;
-    Sprite(Spot::Vector2 initialSize, Spot::Color initialColor) : size(initialSize), color(initialColor) {}
+    static constexpr float EyeHeight = 0.7f;
 
-    Spot::Vector2 size = {32.0f, 32.0f};
-    Spot::Color color = Spot::Color::White;
-
-protected:
-    void Serialize(Spot::Archive& archive) override {
-        archive.Field("size", size);
-        archive.Field("color", color);
-    }
-};
-
-// Turns its entity, and with it all its children, around an axis: Z by default, as 2D needs.
-class Spin final : public Spot::Component {
-public:
-    Spin() = default;
-    explicit Spin(float speed, Spot::Vector3 axis = {0.0f, 0.0f, 1.0f}) : m_speed(speed), m_axis(axis) {}
-
-protected:
-    void OnUpdate(float deltaTime) override {
-        GetEntity().GetTransform().Rotate(Spot::Quaternion::FromAxisAngle(m_axis, m_speed * deltaTime));
+    Spot::Quaternion GetViewRotation() const {
+        return Spot::Quaternion::FromAxisAngle(Up, m_yaw) *
+               Spot::Quaternion::FromAxisAngle({1.0f, 0.0f, 0.0f}, m_pitch);
     }
 
-    void Serialize(Spot::Archive& archive) override {
-        archive.Field("speed", m_speed);
-        archive.Field("axis", m_axis);
+    void Look(Spot::Vector2 mouseDelta) {
+        constexpr float Sensitivity = 0.0025f;
+        m_yaw -= mouseDelta.x * Sensitivity;
+        m_pitch = std::clamp(m_pitch - mouseDelta.y * Sensitivity, -1.5f, 1.5f);
+    }
+
+protected:
+    void OnUpdate(float /*deltaTime*/) override {
+        // Read every frame, since a press can fall between two physics steps.
+        m_jump = m_jump || Spot::Input::IsKeyPressed(Spot::Key::Space);
+    }
+
+    void OnFixedUpdate(float /*fixedDeltaTime*/) override {
+        namespace Input = Spot::Input;
+        using Spot::Key;
+
+        auto* body = GetEntity().GetComponent<Spot::Rigidbody>();
+        if (!body) {
+            return;
+        }
+
+        const auto yaw = Spot::Quaternion::FromAxisAngle(Up, m_yaw);
+        const float forward =
+            static_cast<float>(Input::IsKeyDown(Key::W)) - static_cast<float>(Input::IsKeyDown(Key::S));
+        const float right = static_cast<float>(Input::IsKeyDown(Key::D)) - static_cast<float>(Input::IsKeyDown(Key::A));
+        const Spot::Vector3 direction = Spot::Normalize(yaw * Spot::Vector3{right, 0.0f, -forward});
+        const float speed = Input::IsKeyDown(Key::LeftShift) ? 9.0f : 5.0f;
+
+        // There are no ground queries yet, so the player counts as grounded while not moving up or down.
+        Spot::Vector3 velocity = body->GetLinearVelocity();
+        const bool grounded = std::abs(velocity.y) < 0.1f;
+        velocity.x = direction.x * speed;
+        velocity.z = direction.z * speed;
+        if (m_jump && grounded) {
+            velocity.y = 5.5f;
+        }
+        m_jump = false;
+
+        body->SetLinearVelocity(velocity);
+        body->SetAngularVelocity({});
+        GetEntity().GetTransform().SetRotation({});
     }
 
 private:
-    float m_speed = 1.0f;
-    Spot::Vector3 m_axis = {0.0f, 0.0f, 1.0f};
+    float m_yaw = 0.0f;
+    float m_pitch = -0.15f;
+    bool m_jump = false;
 };
 
-// A ring of quads that spins as a whole while each quad spins on its own.
-class RingScene final : public Spot::Scene {
-protected:
-    void OnLoad() override {
-        auto& ring = CreateEntity("Ring");
-        ring.AddTag("Toggle");
-        ring.AddComponent<Spin>(0.5f);
+// A walled floor with ramps, steps, a pyramid and a tower of crates, and balls to knock them over with.
+class PlaygroundScene final : public Spot::Scene {
+public:
+    PlayerController* GetPlayer() const { return m_player; }
 
-        constexpr int Quads = 12;
-        for (int i = 0; i < Quads; ++i) {
-            const float angle = static_cast<float>(i) * 2.0f * Spot::Pi / Quads;
-            auto& quad = ring.CreateChild(std::format("Quad {}", i));
-            quad.GetTransform().SetPosition({std::cos(angle) * 250.0f, std::sin(angle) * 250.0f, 0.0f});
-            quad.AddComponent<Sprite>(Spot::Vector2{40.0f, 40.0f},
-                                      Spot::Color{0.5f + 0.5f * std::cos(angle), 0.5f + 0.5f * std::sin(angle), 0.9f});
-            quad.AddComponent<Spin>(-1.5f);
+    // Throws a ball from the player's eyes, where they look.
+    void Shoot() {
+        if (!m_player) {
+            return;
         }
+        const auto view = m_player->GetViewRotation();
+        const Spot::Vector3 forward = view * Spot::Vector3{0.0f, 0.0f, -1.0f};
+        const Spot::Vector3 eye = m_player->GetEntity().GetTransform().GetWorldPosition() +
+                                  Spot::Vector3{0.0f, PlayerController::EyeHeight, 0.0f};
+
+        auto& ball = AddBall(eye + forward * 0.9f, 0.4f, "materials/pink.material");
+        ball.GetComponent<Spot::Rigidbody>()->SetLinearVelocity(forward * 25.0f);
     }
-};
 
-// A sun with a planet orbiting it and a moon orbiting the planet, each carried by its parent's rotation.
-class SolarScene final : public Spot::Scene {
 protected:
     void OnLoad() override {
-        auto& sun = CreateEntity("Sun");
-        sun.AddComponent<Sprite>(Spot::Vector2{90.0f, 90.0f}, Spot::Color{1.0f, 0.8f, 0.3f});
-        sun.AddComponent<Spin>(0.4f);
-
-        auto& planet = sun.CreateChild("Planet");
-        planet.AddTag("Toggle");
-        planet.GetTransform().SetPosition({260.0f, 0.0f, 0.0f});
-        planet.AddComponent<Sprite>(Spot::Vector2{40.0f, 40.0f}, Spot::Color{0.3f, 0.6f, 1.0f});
-        planet.AddComponent<Spin>(2.0f);
-
-        auto& moon = planet.CreateChild("Moon");
-        moon.GetTransform().SetPosition({60.0f, 0.0f, 0.0f});
-        moon.AddComponent<Sprite>(Spot::Vector2{14.0f, 14.0f}, Spot::Color{0.8f, 0.8f, 0.8f});
-    }
-};
-
-// The 3D view: a house imported from glTF, a tumbling textured cube and spheres circling it on the ground, each shown
-// by a MeshRenderer, plus a stack of crates that physics knocks over as balls and crates are dropped on it (B). Every
-// mesh and material is an asset, so saving the scene (F5) keeps them all.
-class ShowroomScene final : public Spot::Scene {
-protected:
-    void OnLoad() override {
-        using Spot::Assets::Load;
-        using Spot::BuiltInAssets::CubeMesh;
-        using Spot::BuiltInAssets::PlaneMesh;
-        using Spot::BuiltInAssets::SphereMesh;
-
-        auto& ground = CreateEntity("Ground");
-        ground.GetTransform().SetScale({16.0f, 1.0f, 16.0f});
-        ground.AddComponent<Spot::MeshRenderer>(Load<Spot::Mesh>(PlaneMesh),
-                                                Load<Spot::Material>("materials/ground.material"));
-        // A slab under the plane, so what falls on it stops with its surface.
-        ground.AddComponent<Spot::BoxCollider>().SetCenter({0.0f, -0.5f, 0.0f});
-
-        // Each part of the model becomes a child, so the house moves as one entity.
-        if (const auto model = Load<Spot::Model>("models/house.glb")) {
-            auto& house = Spot::InstantiateModel(*this, *model, "House");
-            house.GetTransform().SetRotation(Spot::Quaternion::FromAxisAngle({0.0f, 1.0f, 0.0f}, 0.6f));
+        AddBlock("Ground", {0.0f, -0.5f, 0.0f}, {40.0f, 1.0f, 40.0f}, "materials/ground.material");
+        for (const float side : {-1.0f, 1.0f}) {
+            AddBlock("Wall", {side * 20.5f, 1.0f, 0.0f}, {1.0f, 2.0f, 42.0f}, "materials/cyan.material");
+            AddBlock("Wall", {0.0f, 1.0f, side * 20.5f}, {40.0f, 2.0f, 1.0f}, "materials/cyan.material");
         }
 
-        auto& cube = CreateEntity("Cube");
-        cube.GetTransform().SetPosition({0.0f, 2.9f, 0.0f});
-        cube.GetTransform().SetScale({0.6f, 0.6f, 0.6f});
-        cube.AddComponent<Spot::MeshRenderer>(Load<Spot::Mesh>(CubeMesh),
-                                              Load<Spot::Material>("materials/spot.material"));
-        cube.AddComponent<Spin>(1.2f, Spot::Vector3{1.0f, 1.0f, 0.0f});
-
-        const auto sphere = Load<Spot::Mesh>(SphereMesh);
-        const std::array colors{Load<Spot::Material>("materials/pink.material"),
-                                Load<Spot::Material>("materials/cyan.material"),
-                                Load<Spot::Material>("materials/violet.material")};
-        auto& orbit = CreateEntity("Orbit");
-        orbit.AddTag("Toggle");
-        orbit.AddComponent<Spin>(0.5f, Spot::Vector3{0.0f, 1.0f, 0.0f});
-        constexpr int Spheres = 6;
-        for (int i = 0; i < Spheres; ++i) {
-            const float angle = static_cast<float>(i) * 2.0f * Spot::Pi / Spheres;
-            auto& ball = orbit.CreateChild(std::format("Sphere {}", i));
-            ball.GetTransform().SetPosition({std::cos(angle) * 2.5f, 0.4f, std::sin(angle) * 2.5f});
-            ball.GetTransform().SetScale({0.6f, 0.6f, 0.6f});
-            ball.AddComponent<Spot::MeshRenderer>(sphere, colors[static_cast<std::size_t>(i) % colors.size()]);
+        // A ramp up to a platform, to roll balls down from.
+        AddBlock("Platform", {-10.0f, 1.0f, -8.0f}, {6.0f, 2.0f, 6.0f}, "materials/cyan.material");
+        AddBlock("Ramp", {-10.0f, 0.9f, -1.9f}, {4.0f, 0.4f, 7.0f}, "materials/cyan.material",
+                 Spot::Quaternion::FromAxisAngle({1.0f, 0.0f, 0.0f}, 0.3f));
+        for (int i = 0; i < 5; ++i) {
+            AddBall({-11.5f + 0.75f * static_cast<float>(i), 2.5f, -9.0f}, 0.6f, "materials/pink.material");
         }
 
-        constexpr int StackHeight = 4;
-        for (int row = 0; row < StackHeight; ++row) {
-            for (int i = 0; i < StackHeight - row; ++i) {
-                const float x = -4.5f + (static_cast<float>(i) + 0.5f * static_cast<float>(row)) * 0.82f;
-                AddCrate({x, 0.4f + 0.8f * static_cast<float>(row), -1.0f}, {});
+        // Steps the capsule can climb.
+        for (int i = 0; i < 4; ++i) {
+            const float height = 0.25f * static_cast<float>(i + 1);
+            AddBlock("Step", {10.0f, height / 2.0f, 2.0f - 1.0f * static_cast<float>(i)}, {3.0f, height, 1.0f},
+                     "materials/cyan.material");
+        }
+
+        constexpr int PyramidBase = 5;
+        for (int row = 0; row < PyramidBase; ++row) {
+            for (int i = 0; i < PyramidBase - row; ++i) {
+                const float x = -2.0f + (static_cast<float>(i) + 0.5f * static_cast<float>(row)) * 1.02f;
+                AddCrate({x, 0.5f + static_cast<float>(row), -6.0f});
             }
         }
+
+        for (int i = 0; i < 8; ++i) {
+            AddCrate({8.0f, 0.5f + static_cast<float>(i), -8.0f});
+        }
+
+        auto& player = CreateEntity("Player");
+        player.GetTransform().SetPosition(SpawnPoint);
+        player.AddComponent<Spot::CapsuleCollider>(0.4f, 1.8f).SetFriction(0.0f);
+        player.AddComponent<Spot::Rigidbody>().SetMass(70.0f);
+        m_player = &player.AddComponent<PlayerController>();
     }
 
     void OnUpdate(float /*deltaTime*/) override {
-        if (!Spot::Input::IsKeyPressed(Spot::Key::B)) {
-            return;
-        }
-        std::uniform_real_distribution<float> spread(-1.5f, 1.5f);
-        const Spot::Vector3 position{-3.3f + spread(m_random), 6.0f, -1.0f + spread(m_random)};
-        const auto rotation = Spot::Quaternion::FromEuler({spread(m_random), spread(m_random), spread(m_random)});
-        if (m_dropped++ % 2 == 0) {
-            auto& ball = CreateEntity("Dropped Ball");
-            ball.GetTransform().SetPosition(position);
-            ball.GetTransform().SetScale({0.7f, 0.7f, 0.7f});
-            ball.AddComponent<Spot::MeshRenderer>(Spot::Assets::Load<Spot::Mesh>(Spot::BuiltInAssets::SphereMesh),
-                                                  Spot::Assets::Load<Spot::Material>("materials/pink.material"));
-            ball.AddComponent<Spot::SphereCollider>().SetRestitution(0.5f);
-            ball.AddComponent<Spot::Rigidbody>().SetMass(2.0f);
-        } else {
-            AddCrate(position, rotation);
+        // Back to the start after falling off the world.
+        if (m_player && m_player->GetEntity().GetTransform().GetWorldPosition().y < -20.0f) {
+            m_player->GetEntity().GetTransform().SetPosition(SpawnPoint);
+            m_player->GetEntity().GetComponent<Spot::Rigidbody>()->SetLinearVelocity({});
         }
     }
 
 private:
-    void AddCrate(Spot::Vector3 position, const Spot::Quaternion& rotation) {
-        auto& crate = CreateEntity("Crate");
-        crate.GetTransform().SetPosition(position);
-        crate.GetTransform().SetRotation(rotation);
-        crate.GetTransform().SetScale({0.8f, 0.8f, 0.8f});
-        crate.AddComponent<Spot::MeshRenderer>(Spot::Assets::Load<Spot::Mesh>(Spot::BuiltInAssets::CubeMesh),
-                                               Spot::Assets::Load<Spot::Material>("materials/violet.material"));
-        crate.AddComponent<Spot::BoxCollider>();
-        crate.AddComponent<Spot::Rigidbody>();
+    void AddBlock(const char* name, Spot::Vector3 position, Spot::Vector3 size, const char* material,
+                  const Spot::Quaternion& rotation = {}) {
+        auto& block = CreateEntity(name);
+        block.GetTransform().SetPosition(position);
+        block.GetTransform().SetRotation(rotation);
+        block.GetTransform().SetScale(size);
+        block.AddComponent<Spot::MeshRenderer>(Load<Spot::Mesh>(CubeMesh), Load<Spot::Material>(material));
+        block.AddComponent<Spot::BoxCollider>();
     }
 
-    std::minstd_rand m_random;
-    int m_dropped = 0;
+    void AddCrate(Spot::Vector3 position) {
+        auto& crate = CreateEntity("Crate");
+        crate.GetTransform().SetPosition(position);
+        crate.AddComponent<Spot::MeshRenderer>(Load<Spot::Mesh>(CubeMesh),
+                                               Load<Spot::Material>("materials/violet.material"));
+        crate.AddComponent<Spot::BoxCollider>();
+        crate.AddComponent<Spot::Rigidbody>().SetMass(5.0f);
+    }
+
+    Spot::Entity& AddBall(Spot::Vector3 position, float diameter, const char* material) {
+        auto& ball = CreateEntity("Ball");
+        ball.GetTransform().SetPosition(position);
+        ball.GetTransform().SetScale({diameter, diameter, diameter});
+        ball.AddComponent<Spot::MeshRenderer>(Load<Spot::Mesh>(SphereMesh), Load<Spot::Material>(material));
+        ball.AddComponent<Spot::SphereCollider>().SetRestitution(0.4f);
+        ball.AddComponent<Spot::Rigidbody>().SetMass(3.0f);
+        return ball;
+    }
+
+    PlayerController* m_player = nullptr;
 };
+
+} // namespace
 
 class Sandbox final : public Spot::Application {
 public:
@@ -188,130 +187,54 @@ public:
         : Application({.window = {.title = "Spot Sandbox"},
                        .assets = {.sourceDirectory = SPOT_SANDBOX_ASSETS_DIR},
                        .logFile = "sandbox.log",
-                       .maxFrameRate = 60}) {
-        Spot::RegisterComponent<Sprite>("Sprite");
-        Spot::RegisterComponent<Spin>("Spin");
-    }
+                       .maxFrameRate = 60}) {}
 
 protected:
     void OnStart() override {
         Spot::Log::Info("Spot {}", Spot::GetVersionString());
 
         auto& device = GetGraphicsDevice();
-        m_renderer = std::make_unique<Spot::Renderer2D>(device);
+        m_renderer2D = std::make_unique<Spot::Renderer2D>(device);
         m_renderer3D = std::make_unique<Spot::Renderer3D>(device);
-        m_spot = Spot::Assets::Load<Spot::Texture>("spot.png");
-        // The font's meta file sets its size to 20 pixels, with 48 as an extra size.
-        m_font = Spot::Assets::Load<Spot::Font>("fonts/FiraSans-Regular.ttf");
-        m_largeFont = Spot::Assets::Load<Spot::Font>("fonts/FiraSans-Regular.ttf#48px");
+        m_font = Load<Spot::Font>("fonts/FiraSans-Regular.ttf");
 
-        // A short tone that fades out, made in code so the sandbox needs no sound file.
-        constexpr std::uint32_t SampleRate = 48000;
-        std::vector<float> samples(SampleRate / 8);
-        for (std::size_t i = 0; i < samples.size(); ++i) {
-            const float t = static_cast<float>(i) / static_cast<float>(SampleRate);
-            samples[i] = 0.3f * std::sin(2.0f * Spot::Pi * 660.0f * t) * std::exp(-t * 30.0f);
-        }
-        m_blip = std::make_shared<Spot::Sound>(SampleRate, 1, std::move(samples));
-
-        LoadScene<RingScene>();
-
-        // A satellite in the persistent scene, so it keeps orbiting whichever scene is loaded.
-        auto& orbit = GetPersistentScene().CreateEntity("Satellite Orbit");
-        orbit.AddComponent<Spin>(-0.8f);
-        auto& satellite = orbit.CreateChild("Satellite");
-        satellite.GetTransform().SetPosition({360.0f, 0.0f, 0.0f});
-        satellite.AddComponent<Sprite>(Spot::Vector2{20.0f, 20.0f}, Spot::Color{1.0f, 0.4f, 0.6f});
-    }
-
-    void OnEvent(const Spot::Event& event) override {
-        if (const auto* pressed = event.GetIf<Spot::KeyPressedEvent>(); pressed && !pressed->repeat) {
-            Spot::Log::Info("Key pressed: {}", Spot::GetKeyName(pressed->key));
-        } else if (const auto* resized = event.GetIf<Spot::WindowResizeEvent>()) {
-            Spot::Log::Info("Window resized to {}x{}", resized->width, resized->height);
-        }
+        LoadScene<PlaygroundScene>();
+        GetWindow().SetMouseCaptured(true);
     }
 
     void OnUpdate(float deltaTime) override {
         namespace Input = Spot::Input;
         using Spot::Key;
 
+        // Escape frees the mouse first, and quits once it is free; a click captures it again.
+        auto& window = GetWindow();
         if (Input::IsKeyPressed(Key::Escape)) {
-            Quit();
+            if (window.IsMouseCaptured()) {
+                window.SetMouseCaptured(false);
+            } else {
+                Quit();
+            }
         }
-
-        // Clicks play the tone, panned to where the mouse is and higher towards the top of the window.
-        auto& audio = GetAudioDevice();
+        auto* scene = dynamic_cast<PlaygroundScene*>(GetScene());
+        if (Input::IsKeyPressed(Key::R)) {
+            scene = &LoadScene<PlaygroundScene>();
+        }
         if (Input::IsMouseButtonPressed(Spot::MouseButton::Left)) {
-            const Spot::Vector2 mouse = Input::GetMousePosition();
-            const Spot::Vector2 view = GetWindow().GetSize();
-            audio.Play(m_blip, {.pan = mouse.x / view.x * 2.0f - 1.0f, .pitch = 2.0f - mouse.y / view.y});
-        }
-        if (Input::IsKeyPressed(Key::M)) {
-            audio.SetMasterVolume(audio.GetMasterVolume() > 0.0f ? 0.0f : 1.0f);
-        }
-
-        // F1 switches between the 2D scenes and the 3D one, Tab between the 2D scenes, and Space shows or hides the
-        // entities tagged "Toggle", children included.
-        if (Input::IsKeyPressed(Key::F1)) {
-            m_show3D = !m_show3D;
-            Load2DOr3DScene();
-        }
-        if (Input::IsKeyPressed(Key::Tab) && !m_show3D) {
-            m_solar = !m_solar;
-            Load2DOr3DScene();
-        }
-        if (Input::IsKeyPressed(Key::Space) && GetScene()) {
-            for (Spot::Entity* entity : GetScene()->FindEntitiesWithTag("Toggle")) {
-                entity->SetActive(!entity->IsActiveSelf());
+            if (!window.IsMouseCaptured()) {
+                window.SetMouseCaptured(true);
+            } else if (scene) {
+                scene->Shoot();
             }
         }
-
-        // F5 saves the main scene, in its current state, and F9 replaces it with the saved one.
-        const auto savePath = Spot::GetExecutableDirectory() / "scene.json";
-        if (Input::IsKeyPressed(Key::F5) && GetScene() && GetScene()->SaveToFile(savePath)) {
-            Spot::Log::Info("Scene saved to {}", Spot::PathToUtf8(savePath));
-        }
-        if (Input::IsKeyPressed(Key::F9)) {
-            auto loaded = std::make_unique<Spot::Scene>();
-            if (loaded->LoadFromFile(savePath)) {
-                LoadScene(std::move(loaded));
-                Spot::Log::Info("Scene loaded from {}", Spot::PathToUtf8(savePath));
-            }
-        }
-
-        Spot::Vector2 direction;
-        direction.x = static_cast<float>(Input::IsKeyDown(Key::D) || Input::IsKeyDown(Key::Right)) -
-                      static_cast<float>(Input::IsKeyDown(Key::A) || Input::IsKeyDown(Key::Left));
-        direction.y = static_cast<float>(Input::IsKeyDown(Key::W) || Input::IsKeyDown(Key::Up)) -
-                      static_cast<float>(Input::IsKeyDown(Key::S) || Input::IsKeyDown(Key::Down));
-        const float scroll = Input::GetScrollDelta().y;
-
-        if (m_show3D) {
-            // The keys and a right-button drag orbit around the house, and the wheel moves closer or farther.
-            Spot::Vector2 orbit = direction * (1.5f * deltaTime);
-            if (Input::IsMouseButtonDown(Spot::MouseButton::Right)) {
-                const Spot::Vector2 drag = Input::GetMouseDelta();
-                orbit += Spot::Vector2{-drag.x, drag.y} * 0.005f;
-            }
-            m_orbitYaw += orbit.x;
-            m_orbitPitch = std::clamp(m_orbitPitch + orbit.y, 0.05f, 1.4f);
-            m_orbitDistance = std::clamp(m_orbitDistance * std::pow(0.9f, scroll), 2.0f, 30.0f);
-        } else {
-            // Pans at a constant speed on screen, whatever the zoom.
-            m_camera.position += Spot::Normalize(direction) * (400.0f / m_camera.zoom * deltaTime);
-            if (scroll != 0.0f) {
-                m_camera.zoom = std::clamp(m_camera.zoom * std::pow(1.1f, scroll), 0.25f, 8.0f);
-            }
+        if (scene && scene->GetPlayer() && window.IsMouseCaptured()) {
+            scene->GetPlayer()->Look(Input::GetMouseDelta());
         }
 
         ++m_frames;
         m_elapsed += deltaTime;
         if (m_elapsed >= 1.0f) {
-            m_status = m_show3D ? std::format("{} FPS, {} triangles, {} draw calls", m_frames, m_stats3D.triangleCount,
-                                              m_stats3D.drawCalls)
-                                : std::format("{} FPS, {} quads, {} draw calls", m_frames, m_worldStats.quadCount,
-                                              m_worldStats.drawCalls);
+            m_status = std::format("{} FPS, {} bodies, {} draw calls", m_frames,
+                                   scene ? scene->GetPhysics().GetBodyCount() : 0, m_stats3D.drawCalls);
             m_frames = 0;
             m_elapsed -= 1.0f;
         }
@@ -319,12 +242,7 @@ protected:
 
     void OnRender(Spot::RenderContext& context) override {
         const Spot::Vector2 view = GetWindow().GetSize();
-        if (m_show3D) {
-            Render3D(context, view);
-        } else {
-            auto pass = context.BeginRenderPass({.clearColor = Spot::Color{0.08f, 0.08f, 0.1f}});
-            Render2D(pass, view);
-        }
+        Render3D(context, view);
 
         // The HUD has its own pass, without the depth target of the 3D view, which Renderer2D does not draw with.
         auto hud = context.BeginRenderPass();
@@ -332,76 +250,6 @@ protected:
     }
 
 private:
-    void Load2DOr3DScene() {
-        if (m_show3D) {
-            LoadScene<ShowroomScene>();
-        } else if (m_solar) {
-            LoadScene<SolarScene>();
-        } else {
-            LoadScene<RingScene>();
-        }
-    }
-
-    void Render2D(Spot::RenderPass& pass, Spot::Vector2 view) {
-        if (!m_renderer) {
-            return;
-        }
-        const auto time = static_cast<float>(Spot::Time::GetTime());
-
-        m_renderer->Begin(pass, m_camera, view);
-
-        // A checkerboard of tiles shaded by their position.
-        constexpr int Tiles = 16;
-        constexpr float TileSize = 48.0f;
-        for (int y = -Tiles; y < Tiles; ++y) {
-            for (int x = -Tiles; x < Tiles; ++x) {
-                const float shade = (x + y) % 2 == 0 ? 0.16f : 0.12f;
-                const Spot::Color color{shade + 0.004f * static_cast<float>(x + Tiles), shade,
-                                        shade + 0.004f * static_cast<float>(y + Tiles)};
-                m_renderer->DrawQuad(
-                    {(static_cast<float>(x) + 0.5f) * TileSize, (static_cast<float>(y) + 0.5f) * TileSize},
-                    {TileSize - 2.0f, TileSize - 2.0f}, color);
-            }
-        }
-
-        // The sprites of every scene, placed by their entity's world transform.
-        auto scenes = GetScenes();
-        scenes.insert(scenes.begin(), &GetPersistentScene());
-        for (Spot::Scene* scene : scenes) {
-            scene->ForEachComponent<Sprite>([this](const Sprite& sprite) {
-                const Spot::Transform& transform = sprite.GetEntity().GetTransform();
-                const Spot::Vector3 position = transform.GetWorldPosition();
-                m_renderer->DrawRotatedQuad({position.x, position.y}, sprite.size, transform.GetWorldRotation2D(),
-                                            sprite.color);
-            });
-        }
-
-        // Textured spots orbiting the center, tinted and pulsing.
-        if (m_spot) {
-            for (int i = 0; i < 5; ++i) {
-                const float angle = -time + static_cast<float>(i) * 2.0f * Spot::Pi / 5.0f;
-                const float size = 80.0f + 16.0f * std::sin(time * 3.0f + static_cast<float>(i));
-                m_renderer->DrawQuad({std::cos(angle) * 120.0f, std::sin(angle) * 120.0f}, {size, size}, *m_spot);
-            }
-            m_renderer->DrawRotatedQuad({0.0f, 0.0f}, {64.0f, 64.0f}, time, *m_spot, Spot::Color{0.6f, 0.9f, 1.0f});
-        }
-
-        // A translucent marker under the mouse cursor.
-        const auto mouse = m_camera.ScreenToWorld(Spot::Input::GetMousePosition(), view);
-        const bool held = Spot::Input::IsMouseButtonDown(Spot::MouseButton::Left);
-        m_renderer->DrawRotatedQuad(mouse, {24.0f, 24.0f}, Spot::Pi / 4.0f,
-                                    held ? Spot::Color{1.0f, 0.3f, 0.3f, 0.8f} : Spot::Color{1.0f, 1.0f, 1.0f, 0.5f});
-
-        if (m_largeFont) {
-            constexpr std::string_view Greeting = "Hello from world space";
-            const auto size = m_largeFont->MeasureText(Greeting);
-            m_renderer->DrawString(*m_largeFont, Greeting, {-size.x / 2.0f, 320.0f}, Spot::Color{1.0f, 0.85f, 0.5f});
-        }
-
-        m_renderer->End();
-        m_worldStats = m_renderer->GetStats();
-    }
-
     void Render3D(Spot::RenderContext& context, Spot::Vector2 view) {
         // The depth target must match the frame, whose size changes with the window.
         const auto width = static_cast<std::uint32_t>(context.GetWidth());
@@ -413,67 +261,53 @@ private:
 
         auto pass = context.BeginRenderPass(
             {.clearColor = Spot::Color{0.5f, 0.68f, 0.85f}, .depthTarget = m_depth.get(), .clearDepth = 1.0f});
-        if (!m_depth || !m_renderer3D) {
+        const auto* scene = dynamic_cast<PlaygroundScene*>(GetScene());
+        if (!m_depth || !m_renderer3D || !scene || !scene->GetPlayer()) {
             return;
         }
 
-        const Spot::Vector3 target{0.0f, 0.8f, 0.0f};
+        const PlayerController& player = *scene->GetPlayer();
         Spot::Camera3D camera;
-        camera.position = target + Spot::Vector3{std::sin(m_orbitYaw) * std::cos(m_orbitPitch), std::sin(m_orbitPitch),
-                                                 std::cos(m_orbitYaw) * std::cos(m_orbitPitch)} *
-                                       m_orbitDistance;
-        camera.LookAt(target);
+        camera.position = player.GetEntity().GetTransform().GetWorldPosition() +
+                          Spot::Vector3{0.0f, PlayerController::EyeHeight, 0.0f};
+        camera.rotation = player.GetViewRotation();
+        camera.fieldOfView = Spot::ToRadians(75.0f);
 
         m_renderer3D->Begin(pass, camera, view);
-        m_renderer3D->DrawScene(GetPersistentScene());
-        for (Spot::Scene* scene : GetScenes()) {
-            m_renderer3D->DrawScene(*scene);
-        }
+        m_renderer3D->DrawScene(*GetScene());
         m_renderer3D->End();
         m_stats3D = m_renderer3D->GetStats();
     }
 
-    // The HUD uses a camera that puts world (0, 0) at the window's top-left corner, so it stays fixed on screen while
-    // the world camera moves.
+    // The HUD uses a camera that puts world (0, 0) at the window's top-left corner, so it stays fixed on screen.
     void RenderHud(Spot::RenderPass& pass, Spot::Vector2 view) {
-        if (!m_renderer || !m_font) {
+        if (!m_renderer2D || !m_font) {
             return;
         }
         Spot::Camera2D screen;
         screen.position = {view.x / 2.0f, -view.y / 2.0f};
         const float line = m_font->GetLineHeight();
-        const std::string_view controls =
-            m_show3D ? "F1: 2D | WASD or right drag: orbit | wheel: zoom | Space: toggle | B: drop"
-                     : "F1: 3D | WASD: move | wheel: zoom | Tab: scene | Space: toggle | F5/F9: save/load";
+        const Spot::Vector2 center = {view.x / 2.0f, -view.y / 2.0f};
+        const Spot::Color crosshair{1.0f, 1.0f, 1.0f, 0.8f};
 
-        m_renderer->Begin(pass, screen, view);
-        m_renderer->DrawQuad({250.0f, -70.0f}, {500.0f, 140.0f}, Spot::Color{0.0f, 0.0f, 0.0f, 0.6f});
-        m_renderer->DrawString(*m_font, "Spot Sandbox", {12.0f, -10.0f}, Spot::Color::White);
-        m_renderer->DrawString(*m_font, m_status, {12.0f, -10.0f - line}, Spot::Color{0.7f, 0.9f, 0.7f});
-        m_renderer->DrawString(*m_font, controls, {12.0f, -10.0f - 2.0f * line}, Spot::Color{0.8f, 0.8f, 0.8f}, 0.8f);
-        m_renderer->DrawString(*m_font, "Accents: caf\u00e9, fa\u00e7ade, na\u00efve, jalape\u00f1o",
-                               {12.0f, -10.0f - 2.8f * line}, Spot::Color{0.8f, 0.8f, 0.8f}, 0.8f);
-        m_renderer->End();
+        m_renderer2D->Begin(pass, screen, view);
+        m_renderer2D->DrawQuad(center, {14.0f, 2.0f}, crosshair);
+        m_renderer2D->DrawQuad(center, {2.0f, 14.0f}, crosshair);
+        m_renderer2D->DrawQuad({230.0f, -40.0f}, {460.0f, 80.0f}, Spot::Color{0.0f, 0.0f, 0.0f, 0.6f});
+        m_renderer2D->DrawString(*m_font, m_status, {12.0f, -10.0f}, Spot::Color{0.7f, 0.9f, 0.7f});
+        m_renderer2D->DrawString(*m_font, "WASD: move | Shift: run | Space: jump | Click: shoot | R: reset",
+                                 {12.0f, -10.0f - line}, Spot::Color{0.8f, 0.8f, 0.8f}, 0.8f);
+        m_renderer2D->DrawString(*m_font, "Esc: free the mouse, then quit", {12.0f, -10.0f - 1.8f * line},
+                                 Spot::Color{0.8f, 0.8f, 0.8f}, 0.8f);
+        m_renderer2D->End();
     }
 
-    std::unique_ptr<Spot::Renderer2D> m_renderer;
-    Spot::AssetRef<Spot::Texture> m_spot;
-    Spot::AssetRef<Spot::Font> m_font;
-    Spot::AssetRef<Spot::Font> m_largeFont;
-    std::shared_ptr<Spot::Sound> m_blip;
-    Spot::Renderer2DStats m_worldStats;
-    std::string m_status;
-    Spot::Camera2D m_camera;
-
+    std::unique_ptr<Spot::Renderer2D> m_renderer2D;
     std::unique_ptr<Spot::Renderer3D> m_renderer3D;
     std::unique_ptr<Spot::Texture> m_depth;
+    Spot::AssetRef<Spot::Font> m_font;
     Spot::Renderer3DStats m_stats3D;
-    float m_orbitYaw = 0.6f;
-    float m_orbitPitch = 0.45f;
-    float m_orbitDistance = 5.0f;
-    bool m_show3D = false;
-
-    bool m_solar = false;
+    std::string m_status;
     int m_frames = 0;
     float m_elapsed = 0.0f;
 };

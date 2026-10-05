@@ -82,6 +82,18 @@ void Window::SetTitle(std::string_view title) {
     SDL_SetWindowTitle(m_impl->handle, m_impl->title.c_str());
 }
 
+bool Window::IsMouseCaptured() const {
+    return SDL_GetWindowRelativeMouseMode(m_impl->handle);
+}
+
+bool Window::SetMouseCaptured(bool captured) {
+    if (!SDL_SetWindowRelativeMouseMode(m_impl->handle, captured)) {
+        Log::GetEngineLogger().Error("Failed to {} the mouse: {}", captured ? "capture" : "release", SDL_GetError());
+        return false;
+    }
+    return true;
+}
+
 void* Window::GetNativeHandle() const {
     return m_impl->handle;
 }

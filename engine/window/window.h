@@ -36,6 +36,11 @@ public:
     const std::string& GetTitle() const;
     void SetTitle(std::string_view title);
 
+    // A captured mouse is hidden and kept inside the window, and still reports how far it moves, as first-person
+    // cameras need. Returns false, after logging why, when the platform cannot capture it.
+    bool IsMouseCaptured() const;
+    bool SetMouseCaptured(bool captured);
+
     // The backend's window (an SDL_Window* with SDL3), for code that needs the backend directly.
     void* GetNativeHandle() const;
 
