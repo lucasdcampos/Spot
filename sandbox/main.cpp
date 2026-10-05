@@ -1,8 +1,9 @@
 #include <spot.h>
 
-#include <iostream>
+#include <memory>
 
 int main() {
-    std::cout << "Spot " << Spot::GetVersionString() << '\n';
+    Spot::Log::AddSink(std::make_shared<Spot::FileSink>("sandbox.log"));
+    Spot::Log::Info("Spot {}", Spot::GetVersionString());
     return 0;
 }

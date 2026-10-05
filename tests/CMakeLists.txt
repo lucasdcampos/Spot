@@ -9,6 +9,7 @@ FetchContent_Declare(Catch2
 FetchContent_MakeAvailable(Catch2)
 
 add_executable(spot_tests
+    log_tests.cpp
     version_tests.cpp
 )
 

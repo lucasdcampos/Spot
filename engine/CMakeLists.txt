@@ -2,6 +2,12 @@ add_library(spot STATIC
     spot.h
     version.h
     version.cpp
+    core/assert.h
+    core/assert.cpp
+    core/log.h
+    core/log.cpp
+    core/log_sinks.h
+    core/log_sinks.cpp
 )
 add_library(spot::spot ALIAS spot)
 
