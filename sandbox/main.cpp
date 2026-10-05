@@ -103,8 +103,7 @@ protected:
             auto& house = CreateEntity("House");
             house.GetTransform().SetRotation(Spot::Quaternion::FromAxisAngle({0.0f, 1.0f, 0.0f}, 0.6f));
             for (const auto& part : model->GetParts()) {
-                house.CreateChild(part.name).AddComponent<Spot::MeshRenderer>(part.mesh,
-                                                                              model->GetMaterials()[part.material]);
+                house.CreateChild(part.name).AddComponent<Spot::MeshRenderer>(part.mesh.GetShared(), *part.material);
             }
         }
 

@@ -12,6 +12,9 @@ add_library(spot STATIC
     assets/asset_id.cpp
     assets/asset_manifest.h
     assets/asset_manifest.cpp
+    assets/asset_manager.h
+    assets/asset_manager.cpp
+    assets/asset_ref.h
     assets/asset_meta.h
     assets/asset_meta.cpp
     assets/asset_type.h
@@ -20,6 +23,8 @@ add_library(spot STATIC
     assets/importers/importer.cpp
     assets/importers/model_importer.cpp
     assets/importers/texture_importer.cpp
+    assets/assets.h
+    assets/assets.cpp
     audio/audio_device.h
     audio/audio_device.cpp
     audio/audio_output.h

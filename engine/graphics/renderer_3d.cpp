@@ -94,13 +94,16 @@ void Renderer3D::End() {
 
 void Renderer3D::DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform) {
     SPOT_ASSERT(m_pass, "Draw calls must come between Begin() and End()");
-    m_commands.push_back({&mesh, material.baseColorTexture.get(), material.baseColor, material.doubleSided, transform});
+    m_commands.push_back({&mesh, material.baseColorTexture.Get(), material.baseColor, material.doubleSided, transform});
 }
 
 void Renderer3D::DrawModel(const Model& model, const Matrix4& transform) {
-    const auto materials = model.GetMaterials();
+    // Parts whose mesh failed to load are skipped; without a material they get the default one.
+    static const Material DefaultMaterial;
     for (const auto& part : model.GetParts()) {
-        DrawMesh(*part.mesh, materials[part.material], transform);
+        if (part.mesh) {
+            DrawMesh(*part.mesh, part.material ? *part.material : DefaultMaterial, transform);
+        }
     }
 }
 

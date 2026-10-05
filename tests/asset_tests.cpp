@@ -5,9 +5,11 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <memory>
 #include <unordered_set>
 #include <vector>
 
@@ -267,4 +269,111 @@ TEST_CASE("The asset database keeps imported assets when its source directory is
     CHECK(missing.GetAssets().empty());
     CHECK(std::filesystem::exists(imported / "manifest.json"));
     CHECK(std::distance(std::filesystem::directory_iterator(imported), std::filesystem::directory_iterator()) == 12);
+}
+
+namespace {
+
+// Imports the test project and returns the id of the cube's untextured material.
+AssetId ImportProject(const std::filesystem::path& sources, const std::filesystem::path& imported) {
+    CreateProject(sources);
+    AssetDatabase database(sources, imported);
+    database.Refresh();
+    for (const auto& asset : GetSubAssets(database, *database.FindByPath("models/cube.glb"))) {
+        if (asset.name == "Plain") {
+            return asset.id;
+        }
+    }
+    return {};
+}
+
+} // namespace
+
+TEST_CASE("The asset manager loads imported assets once and shares them", "[assets]") {
+    const TempDirectory project;
+    const auto imported = project.GetPath() / "imported";
+    const AssetId plainId = ImportProject(project.GetPath() / "assets", imported);
+    REQUIRE(plainId.IsValid());
+
+    Spot::AssetManager assets(imported);
+    CHECK(assets.Contains(plainId));
+    CHECK(assets.GetType(plainId) == AssetType::Material);
+    CHECK(assets.FindByPath("models/cube.glb").has_value());
+    CHECK_FALSE(assets.FindByPath("models/missing.glb").has_value());
+
+    // Materials need no GPU.
+    auto plain = assets.Load<Spot::Material>(plainId);
+    REQUIRE(plain);
+    CHECK(plain.GetId() == plainId);
+    CHECK(plain->baseColor == Spot::Color::Blue);
+    CHECK_FALSE(plain->baseColorTexture);
+    CHECK(assets.Load<Spot::Material>(plainId).Get() == plain.Get());
+
+    // Released assets are freed and loaded again when asked for.
+    std::weak_ptr<const Spot::Material> released = plain.GetShared();
+    plain = {};
+    CHECK(released.expired());
+    CHECK(assets.Load<Spot::Material>(plainId));
+
+    // Without a graphics device, textures fail, but references keep their id.
+    const auto pixelsId = *assets.FindByPath("pixels.png");
+    const auto texture = assets.Load<Spot::Texture>(pixelsId);
+    CHECK_FALSE(texture);
+    CHECK(texture.GetId() == pixelsId);
+
+    // So do models' meshes, while their materials load.
+    const auto model = assets.Load<Spot::Model>("models/cube.glb");
+    REQUIRE(model);
+    REQUIRE(model->GetParts().size() == 2);
+    CHECK_FALSE(model->GetParts()[0].mesh);
+    CHECK(model->GetParts()[1].material.GetId() == plainId);
+
+    CHECK_FALSE(assets.Load<Spot::Model>(plainId));
+    CHECK_FALSE(assets.Load<Spot::Model>("models/missing.glb"));
+    CHECK_FALSE(assets.Load<Spot::Material>(AssetId::Generate()));
+}
+
+TEST_CASE("The asset manager rejects corrupt imported files", "[assets]") {
+    const TempDirectory project;
+    const auto imported = project.GetPath() / "imported";
+    const AssetId plainId = ImportProject(project.GetPath() / "assets", imported);
+
+    std::ofstream(imported / (plainId.ToString() + ".asset"), std::ios::binary) << "SPOT garbage";
+    Spot::AssetManager assets(imported);
+    CHECK_FALSE(assets.Load<Spot::Material>(plainId));
+
+    Spot::AssetManager empty(project.GetPath() / "nowhere");
+    CHECK_FALSE(empty.Contains(plainId));
+}
+
+TEST_CASE("Applications import their sources at startup and expose their assets", "[assets]") {
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    CreateProject(sources);
+
+    class AssetApplication final : public Spot::Application {
+    public:
+        using Application::Application;
+
+        bool hadDatabase = false;
+        Spot::AssetRef<Spot::Model> model;
+
+    protected:
+        void OnStart() override {
+            hadDatabase = GetAssetDatabase() != nullptr;
+            model = Spot::Assets::Load<Spot::Model>("models/cube.glb");
+            Quit();
+        }
+    };
+
+    AssetApplication application(
+        {.window = {.title = "Asset Tests"},
+         .graphics = {.enabled = false},
+         .audio = {.enabled = false},
+         .assets = {.importDirectory = project.GetPath() / "imported", .sourceDirectory = sources}});
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    CHECK(application.hadDatabase);
+    REQUIRE(application.model);
+    CHECK(application.model->GetParts().size() == 2);
+    CHECK(Spot::Assets::GetManager() == nullptr);
+    CHECK_FALSE(Spot::Assets::Load<Spot::Material>("pixels.png"));
 }

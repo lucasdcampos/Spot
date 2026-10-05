@@ -1,0 +1,168 @@
+#include "assets/asset_manager.h"
+
+#include "assets/asset_file.h"
+#include "assets/asset_formats.h"
+#include "assets/asset_manifest.h"
+#include "audio/sound.h"
+#include "core/log.h"
+#include "core/paths.h"
+#include "graphics/font.h"
+#include "graphics/graphics_device.h"
+#include "graphics/material.h"
+#include "graphics/mesh.h"
+#include "graphics/model.h"
+
+#include <utility>
+#include <vector>
+
+namespace Spot {
+
+AssetManager::AssetManager(std::filesystem::path importDirectory, GraphicsDevice* device)
+    : m_importDirectory(std::move(importDirectory)), m_device(device) {
+    RefreshManifest();
+}
+
+AssetManager::~AssetManager() = default;
+
+void AssetManager::RefreshManifest() {
+    const auto manifest = Detail::Manifest::LoadFromFile(Detail::Manifest::GetPath(m_importDirectory));
+    if (!manifest) {
+        Log::GetEngineLogger().Warning("No asset manifest in '{}'; no assets can be loaded",
+                                       PathToUtf8(m_importDirectory));
+    }
+
+    std::unordered_map<AssetId, Entry> entries;
+    m_paths.clear();
+    for (const auto& entry : manifest ? manifest->entries : std::vector<Detail::ManifestEntry>()) {
+        // Assets keep what they already loaded, so references to them stay shared.
+        const auto previous = m_entries.find(entry.id);
+        entries[entry.id] = {entry.type, entry.path,
+                             previous != m_entries.end() ? previous->second.loaded : std::weak_ptr<const void>()};
+        if (!entry.parent.IsValid()) {
+            m_paths[entry.path] = entry.id;
+        }
+    }
+    m_entries = std::move(entries);
+}
+
+std::optional<AssetType> AssetManager::GetType(AssetId id) const {
+    const auto found = m_entries.find(id);
+    return found != m_entries.end() ? std::optional(found->second.type) : std::nullopt;
+}
+
+std::optional<AssetId> AssetManager::FindByPath(std::string_view path) const {
+    const auto found = m_paths.find(std::string(path));
+    return found != m_paths.end() ? std::optional(found->second) : std::nullopt;
+}
+
+void AssetManager::LogUnknownPath(std::string_view path) {
+    Log::GetEngineLogger().Error("No asset at '{}'", path);
+}
+
+std::shared_ptr<const void> AssetManager::LoadAsset(AssetId id, AssetType type) {
+    if (!id.IsValid()) {
+        return nullptr;
+    }
+    const auto found = m_entries.find(id);
+    if (found == m_entries.end()) {
+        Log::GetEngineLogger().Error("No asset has the id {}", id.ToString());
+        return nullptr;
+    }
+    if (found->second.type != type) {
+        Log::GetEngineLogger().Error("Asset {} ('{}') is a {}, not a {}", id.ToString(), found->second.path,
+                                     GetAssetTypeName(found->second.type), GetAssetTypeName(type));
+        return nullptr;
+    }
+    if (auto loaded = found->second.loaded.lock()) {
+        return loaded;
+    }
+
+    auto asset = Create(id, type);
+    if (!asset) {
+        Log::GetEngineLogger().Error("Could not load {} {} from '{}'", GetAssetTypeName(type), id.ToString(),
+                                     found->second.path);
+        return nullptr;
+    }
+    // Looked up again: loading the asset's own references may have added entries to the map.
+    m_entries.at(id).loaded = asset;
+    return asset;
+}
+
+std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
+    const auto data = Detail::ReadAssetFile(Detail::GetImportedAssetPath(m_importDirectory, id), type);
+    if (!data) {
+        return nullptr;
+    }
+
+    const bool needsDevice = type == AssetType::Texture || type == AssetType::Mesh || type == AssetType::Font;
+    if (needsDevice && !m_device) {
+        Log::GetEngineLogger().Error("{} assets need a graphics device", GetAssetTypeName(type));
+        return nullptr;
+    }
+
+    switch (type) {
+    case AssetType::Texture: {
+        const auto texture = Detail::DecodeTexture(*data);
+        if (!texture) {
+            break;
+        }
+        std::shared_ptr<Texture> result = m_device->CreateTexture(texture->image, texture->mipmaps);
+        return result;
+    }
+    case AssetType::Mesh: {
+        const auto mesh = Detail::DecodeMesh(*data);
+        if (!mesh) {
+            break;
+        }
+        std::shared_ptr<const Mesh> result = Mesh::Create(*m_device, *mesh);
+        return result;
+    }
+    case AssetType::Material: {
+        const auto material = Detail::DecodeMaterial(*data);
+        if (!material) {
+            break;
+        }
+        return std::make_shared<const Material>(Material{.baseColor = material->baseColor,
+                                                         .baseColorTexture = Load<Texture>(material->baseColorTexture),
+                                                         .doubleSided = material->doubleSided});
+    }
+    case AssetType::Model: {
+        const auto parts = Detail::DecodeModel(*data);
+        if (!parts) {
+            break;
+        }
+        std::vector<ModelPart> loaded;
+        for (const auto& part : *parts) {
+            loaded.push_back({part.name, Load<Mesh>(part.mesh), Load<Material>(part.material)});
+        }
+        return std::make_shared<const Model>(std::move(loaded));
+    }
+    case AssetType::Sound: {
+        const auto sound = Detail::DecodeSound(*data);
+        if (!sound) {
+            break;
+        }
+        std::vector<float> samples(sound->samples.size());
+        for (std::size_t i = 0; i < samples.size(); ++i) {
+            samples[i] = static_cast<float>(sound->samples[i]) / 32768.0f;
+        }
+        return std::make_shared<const Sound>(sound->sampleRate, sound->channelCount, std::move(samples));
+    }
+    case AssetType::Font: {
+        const auto font = Detail::DecodeFont(*data);
+        if (!font) {
+            break;
+        }
+        std::shared_ptr<const Font> result = Font::LoadFromMemory(*m_device, font->fontData, font->pixelSize);
+        return result;
+    }
+    case AssetType::Scene:
+        Log::GetEngineLogger().Error("Scenes are not loaded as shared assets");
+        return nullptr;
+    }
+
+    Log::GetEngineLogger().Error("Imported asset {} is corrupt; import it again", id.ToString());
+    return nullptr;
+}
+
+} // namespace Spot

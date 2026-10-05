@@ -1,5 +1,6 @@
 #include "core/application.h"
 
+#include "assets/assets.h"
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/log_sinks.h"
@@ -50,6 +51,18 @@ int Application::Run() {
 
     m_audio = std::make_unique<AudioDevice>(m_config.audio);
 
+    const auto executableDirectory = GetExecutableDirectory();
+    const auto importDirectory = executableDirectory / m_config.assets.importDirectory;
+    if (!m_config.assets.sourceDirectory.empty()) {
+        const auto sourceDirectory = executableDirectory / m_config.assets.sourceDirectory;
+        if (std::filesystem::is_directory(sourceDirectory)) {
+            m_assetDatabase = std::make_unique<AssetDatabase>(sourceDirectory, importDirectory);
+            m_assetDatabase->Refresh();
+        }
+    }
+    m_assets = std::make_unique<AssetManager>(importDirectory, m_graphics.get());
+    Detail::SetAssetManager(m_assets.get());
+
     Input::SetState(&m_input);
     Time::SetClock(&m_clock);
     FrameLimiter limiter(m_config.maxFrameRate);
@@ -93,6 +106,9 @@ int Application::Run() {
     RemoveAllScenes();
     m_persistentScene->Clear();
     m_persistentScene.reset();
+    Detail::SetAssetManager(nullptr);
+    m_assets.reset();
+    m_assetDatabase.reset();
     Time::SetClock(nullptr);
     Input::SetState(nullptr);
     m_audio.reset();
@@ -113,6 +129,11 @@ Window& Application::GetWindow() {
 GraphicsDevice& Application::GetGraphicsDevice() {
     SPOT_ASSERT(m_graphics, "The graphics device only exists while Run() is running with graphics enabled");
     return *m_graphics;
+}
+
+AssetManager& Application::GetAssets() {
+    SPOT_ASSERT(m_assets, "The asset manager only exists while Run() is running");
+    return *m_assets;
 }
 
 AudioDevice& Application::GetAudioDevice() {

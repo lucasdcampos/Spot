@@ -2,8 +2,11 @@
 
 #include "assets/asset_database.h"
 #include "assets/asset_id.h"
+#include "assets/asset_manager.h"
 #include "assets/asset_meta.h"
+#include "assets/asset_ref.h"
 #include "assets/asset_type.h"
+#include "assets/assets.h"
 #include "audio/audio_device.h"
 #include "audio/playback.h"
 #include "audio/sound.h"

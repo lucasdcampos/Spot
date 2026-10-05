@@ -1,5 +1,7 @@
 #pragma once
 
+#include "assets/asset_database.h"
+#include "assets/asset_manager.h"
 #include "audio/audio_device.h"
 #include "core/time.h"
 #include "events/event.h"
@@ -18,10 +20,20 @@ namespace Spot {
 
 class LogSink;
 
+struct AssetConfig {
+    // Where imported assets are loaded from. Relative paths are relative to the executable's directory.
+    std::filesystem::path importDirectory = "imported";
+    // When set and the directory exists, its sources are imported into the import directory at startup, as
+    // during development; see AssetDatabase. Shipped games leave it empty and ship the import directory. Relative
+    // paths are relative to the executable's directory.
+    std::filesystem::path sourceDirectory = {};
+};
+
 struct ApplicationConfig {
     WindowConfig window = {};
     GraphicsConfig graphics = {};
     AudioConfig audio = {};
+    AssetConfig assets = {};
     // When set, the log is also written to this file.
     std::filesystem::path logFile = {};
     // Caps how many frames run per second; 0 means unlimited.
@@ -50,6 +62,10 @@ public:
     // Only available while Run() is running. Without audio output, because it is disabled or the machine has none,
     // sounds play silently.
     AudioDevice& GetAudioDevice();
+    // Only available while Run() is running. Also reachable through the Spot::Assets functions.
+    AssetManager& GetAssets();
+    // Null unless the configuration has a source directory that exists.
+    AssetDatabase* GetAssetDatabase() { return m_assetDatabase.get(); }
 
     // Scene changes are queued and applied at the start of the next frame, in the order they were asked for, so a
     // scene that asks for a change is never destroyed while it runs. Unloading a scene calls its OnUnload(), then
@@ -126,6 +142,8 @@ private:
     std::unique_ptr<Window> m_window;
     std::unique_ptr<GraphicsDevice> m_graphics;
     std::unique_ptr<AudioDevice> m_audio;
+    std::unique_ptr<AssetDatabase> m_assetDatabase;
+    std::unique_ptr<AssetManager> m_assets;
     std::unique_ptr<Scene> m_persistentScene;
     std::vector<std::unique_ptr<Scene>> m_scenes;
     std::vector<SceneChange> m_sceneChanges;

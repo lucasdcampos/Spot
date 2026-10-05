@@ -5,7 +5,6 @@
 #include "graphics/graphics_device.h"
 
 #include <optional>
-#include <utility>
 
 namespace Spot {
 
@@ -22,44 +21,40 @@ std::unique_ptr<Model> Model::Load(GraphicsDevice& device, const std::filesystem
 }
 
 std::unique_ptr<Model> Model::Create(GraphicsDevice& device, const ModelData& data) {
-    std::vector<std::shared_ptr<const Texture>> textures;
+    std::vector<AssetRef<Texture>> textures;
     for (const auto& image : data.images) {
-        std::shared_ptr<const Texture> texture = device.CreateTexture(image, true);
+        AssetRef<Texture> texture = device.CreateTexture(image, true);
         if (!texture) {
             return nullptr;
         }
         textures.push_back(std::move(texture));
     }
 
-    auto model = std::unique_ptr<Model>(new Model());
+    std::vector<AssetRef<Material>> materials;
     for (const auto& source : data.materials) {
-        Material material{.baseColor = source.baseColor, .doubleSided = source.doubleSided};
+        Material material{.baseColor = source.baseColor, .baseColorTexture = {}, .doubleSided = source.doubleSided};
         if (source.baseColorImage) {
             material.baseColorTexture = textures[*source.baseColorImage];
         }
-        model->m_materials.push_back(std::move(material));
+        materials.emplace_back(std::make_shared<const Material>(std::move(material)));
     }
 
-    std::optional<std::size_t> defaultMaterial;
+    // Parts without a material share a plain white one.
+    const AssetRef<Material> defaultMaterial = std::make_shared<const Material>();
+    std::vector<ModelPart> parts;
     for (const auto& source : data.meshes) {
         // Parts can be empty, such as when every index was out of range; they have nothing to draw.
         if (source.mesh.indices.empty()) {
             continue;
         }
-        auto mesh = Mesh::Create(device, source.mesh);
+        AssetRef<Mesh> mesh = Mesh::Create(device, source.mesh);
         if (!mesh) {
             return nullptr;
         }
-
-        if (!source.material && !defaultMaterial) {
-            defaultMaterial = model->m_materials.size();
-            model->m_materials.emplace_back();
-        }
-        model->m_parts.push_back({source.name, std::move(mesh), source.material ? *source.material : *defaultMaterial});
+        parts.push_back(
+            {source.name, std::move(mesh), source.material ? materials[*source.material] : defaultMaterial});
     }
-    return model;
+    return std::make_unique<Model>(std::move(parts));
 }
-
-Model::~Model() = default;
 
 } // namespace Spot

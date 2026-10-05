@@ -4,6 +4,8 @@
 #include "triangle.frag.h"
 #include "triangle.vert.h"
 
+#include "temp_directory.h"
+
 #include <spot.h>
 
 #include <catch2/catch_test_macros.hpp>
@@ -25,8 +27,10 @@ namespace {
 // Runs OnRender() for a few frames, giving up after a bounded number of updates in case no frame can be drawn.
 class RenderingApplication final : public Spot::Application {
 public:
-    explicit RenderingApplication(std::function<void(Spot::Application&, Spot::RenderContext&)> render)
-        : Application({.window = {.title = "Spot GPU Tests", .width = 320, .height = 240}}),
+    explicit RenderingApplication(std::function<void(Spot::Application&, Spot::RenderContext&)> render,
+                                  Spot::AssetConfig assets = {})
+        : Application(
+              {.window = {.title = "Spot GPU Tests", .width = 320, .height = 240}, .assets = std::move(assets)}),
           m_render(std::move(render)) {}
 
     int GetRenderedFrames() const { return m_renderedFrames; }
@@ -563,31 +567,33 @@ class TargetRender {
 public:
     using Draw = std::function<void(Spot::GraphicsDevice&, Spot::RenderPass&, Spot::Vector2 viewSize)>;
 
-    TargetRender(int width, int height, Draw draw) : m_width(width), m_height(height) {
+    TargetRender(int width, int height, Draw draw, Spot::AssetConfig assets = {}) : m_width(width), m_height(height) {
         int frame = 0;
         std::unique_ptr<Spot::Texture> target;
-        RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
-            auto& device = app.GetGraphicsDevice();
-            if (++frame == 2) {
-                m_pixels = device.DownloadTexture(*target);
-                return;
-            }
-            if (frame != 1) {
-                return;
-            }
+        RenderingApplication application(
+            [&](Spot::Application& app, Spot::RenderContext& context) {
+                auto& device = app.GetGraphicsDevice();
+                if (++frame == 2) {
+                    m_pixels = device.DownloadTexture(*target);
+                    return;
+                }
+                if (frame != 1) {
+                    return;
+                }
 
-            const auto w = static_cast<std::uint32_t>(width);
-            const auto h = static_cast<std::uint32_t>(height);
-            target = device.CreateTexture({.width = w, .height = h, .renderTarget = true});
-            const auto depth = device.CreateTexture(
-                {.width = w, .height = h, .format = Spot::TextureFormat::Depth32Float, .renderTarget = true});
-            REQUIRE((target && depth));
-            auto pass = context.BeginRenderPass({.target = target.get(),
-                                                 .clearColor = Spot::Color::Black,
-                                                 .depthTarget = depth.get(),
-                                                 .clearDepth = 1.0f});
-            draw(device, pass, {static_cast<float>(width), static_cast<float>(height)});
-        });
+                const auto w = static_cast<std::uint32_t>(width);
+                const auto h = static_cast<std::uint32_t>(height);
+                target = device.CreateTexture({.width = w, .height = h, .renderTarget = true});
+                const auto depth = device.CreateTexture(
+                    {.width = w, .height = h, .format = Spot::TextureFormat::Depth32Float, .renderTarget = true});
+                REQUIRE((target && depth));
+                auto pass = context.BeginRenderPass({.target = target.get(),
+                                                     .clearColor = Spot::Color::Black,
+                                                     .depthTarget = depth.get(),
+                                                     .clearDepth = 1.0f});
+                draw(device, pass, {static_cast<float>(width), static_cast<float>(height)});
+            },
+            std::move(assets));
         REQUIRE(application.Run() == EXIT_SUCCESS);
         REQUIRE(m_pixels.size() == static_cast<std::size_t>(width * height * 4));
     }
@@ -682,11 +688,15 @@ TEST_CASE("Models load with their materials and draw textured", "[gpu]") {
         auto model = Spot::Model::Load(device, modelPath);
         REQUIRE(model != nullptr);
         parts = model->GetParts().size();
-        REQUIRE(model->GetMaterials().size() == 1);
-        REQUIRE(model->GetMaterials()[0].baseColorTexture != nullptr);
-        mipLevels = model->GetMaterials()[0].baseColorTexture->GetMipLevelCount();
+        REQUIRE(model->GetParts().size() == 1);
+        auto& part = model->GetParts()[0];
+        REQUIRE(part.material);
+        REQUIRE(part.material->baseColorTexture);
+        mipLevels = part.material->baseColorTexture->GetMipLevelCount();
         // Replaces the file's tint, so the texels come out unchanged.
-        model->GetMaterials()[0].baseColor = Spot::Color::White;
+        Spot::Material untinted = *part.material;
+        untinted.baseColor = Spot::Color::White;
+        part.material = std::make_shared<const Spot::Material>(untinted);
 
         Spot::Renderer3D renderer(device,
                                   {.filter = Spot::TextureFilter::Nearest, .targetFormat = Spot::TextureFormat::Rgba8});
@@ -742,4 +752,45 @@ TEST_CASE("Renderer3D draws the active mesh renderers of a scene at their world 
     CHECK(IsNear(render.At(16, 16), {0, 255, 0, 255}));
     CHECK(IsNear(render.At(16, 6), {255, 0, 0, 255}));
     CHECK(IsNear(render.At(0, 0), {0, 0, 0, 255}));
+}
+
+TEST_CASE("Models imported as assets load onto the GPU and draw textured", "[gpu]") {
+    RequireGpu();
+    const TempDirectory project;
+    const auto assets = std::filesystem::path(SPOT_TEST_ASSETS_DIR);
+    const auto sources = project.GetPath() / "assets";
+    std::filesystem::create_directories(sources / "models");
+    std::filesystem::copy_file(assets / "pixels.png", sources / "pixels.png");
+    std::filesystem::copy_file(assets / "models" / "textured_quad.gltf", sources / "models" / "textured_quad.gltf");
+    std::filesystem::copy_file(assets / "models" / "textured quad.bin", sources / "models" / "textured quad.bin");
+    std::uint32_t mipLevels = 0;
+    bool shared = false;
+
+    const TargetRender render(32, 32,
+                              [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
+                                  const auto model = Spot::Assets::Load<Spot::Model>("models/textured_quad.gltf");
+                                  REQUIRE(model);
+                                  REQUIRE(model->GetParts().size() == 1);
+                                  const auto& part = model->GetParts()[0];
+                                  REQUIRE((part.mesh && part.material && part.material->baseColorTexture));
+                                  mipLevels = part.material->baseColorTexture->GetMipLevelCount();
+                                  shared = Spot::Assets::Load<Spot::Material>(part.material.GetId()).Get() ==
+                                           part.material.Get();
+
+                                  // The same view as the textured model test, without the file's tint.
+                                  Spot::Material untinted = *part.material;
+                                  untinted.baseColor = Spot::Color::White;
+                                  Spot::Renderer3D renderer(device, {.filter = Spot::TextureFilter::Nearest,
+                                                                     .targetFormat = Spot::TextureFormat::Rgba8});
+                                  renderer.Begin(pass, MakeFrontCamera(), view, FrontLight);
+                                  renderer.DrawMesh(*part.mesh, untinted);
+                                  renderer.End();
+                              },
+                              {.importDirectory = project.GetPath() / "imported", .sourceDirectory = sources});
+
+    CHECK(mipLevels == 2);
+    CHECK(shared);
+    CHECK(IsNear(render.At(8, 8), {255, 0, 0, 255}));
+    CHECK(IsNear(render.At(23, 8), {0, 255, 0, 255}));
+    CHECK(IsNear(render.At(8, 23), {0, 0, 255, 255}));
 }
