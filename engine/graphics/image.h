@@ -28,6 +28,11 @@ public:
     std::uint32_t GetHeight() const { return m_height; }
     std::span<const std::uint8_t> GetPixels() const { return m_pixels; }
 
+    // Encodes the image as PNG, such as for screenshots.
+    std::vector<std::byte> EncodePng() const;
+    // Returns false, after logging why, when the file cannot be written.
+    bool SavePng(const std::filesystem::path& path) const;
+
 private:
     std::uint32_t m_width;
     std::uint32_t m_height;

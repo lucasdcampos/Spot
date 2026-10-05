@@ -15,6 +15,10 @@
 #define STBI_FAILURE_USERMSG
 #include <stb_image.h>
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#define STBI_WRITE_NO_STDIO
+#include <stb_image_write.h>
+
 namespace Spot {
 
 Image::Image(std::uint32_t width, std::uint32_t height, std::vector<std::uint8_t> pixels)
@@ -82,6 +86,30 @@ std::optional<Image> Image::Load(const std::filesystem::path& path) {
         Log::GetEngineLogger().Error("Could not decode image '{}'", PathToUtf8(path));
     }
     return image;
+}
+
+std::vector<std::byte> Image::EncodePng() const {
+    std::vector<std::byte> encoded;
+    const auto append = [](void* context, void* data, int size) {
+        auto& bytes = *static_cast<std::vector<std::byte>*>(context);
+        const auto* begin = static_cast<const std::byte*>(data);
+        bytes.insert(bytes.end(), begin, begin + size);
+    };
+    stbi_write_png_to_func(append, &encoded, static_cast<int>(m_width), static_cast<int>(m_height), 4, m_pixels.data(),
+                           static_cast<int>(m_width * 4));
+    return encoded;
+}
+
+bool Image::SavePng(const std::filesystem::path& path) const {
+    const std::vector<std::byte> encoded = EncodePng();
+    // Written through std::ofstream, like images are read, so non-ASCII paths work on Windows.
+    std::ofstream file(path, std::ios::binary);
+    file.write(reinterpret_cast<const char*>(encoded.data()), static_cast<std::streamsize>(encoded.size()));
+    if (encoded.empty() || !file) {
+        Log::GetEngineLogger().Error("Could not write image '{}'", PathToUtf8(path));
+        return false;
+    }
+    return true;
 }
 
 std::optional<Image> Image::LoadFromMemory(std::span<const std::byte> data) {

@@ -1,9 +1,11 @@
 #include "log_capture.h"
+#include "temp_directory.h"
 
 #include <spot.h>
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -65,6 +67,20 @@ TEST_CASE("Debug images are opaque grays with their patterns", "[image]") {
     CHECK(gray(checker, 7, 7) == gray(checker, 0, 0));
 }
 
+TEST_CASE("Images save as PNG files that load back the same", "[image]") {
+    const TempDirectory temp;
+    const Spot::Image checker = Spot::Image::CreateChecker(16);
+    const auto path = temp.GetPath() / u8"screenshot é.png";
+
+    REQUIRE(checker.SavePng(path));
+
+    const auto loaded = Spot::Image::Load(path);
+    REQUIRE(loaded.has_value());
+    CHECK(loaded->GetWidth() == 16);
+    CHECK(loaded->GetHeight() == 16);
+    CHECK(std::ranges::equal(loaded->GetPixels(), checker.GetPixels()));
+}
+
 TEST_CASE("The executable directory holds the running executable", "[paths]") {
     const auto directory = Spot::GetExecutableDirectory();
 
@@ -78,6 +94,14 @@ TEST_CASE("The user data directory exists and is named after the application", "
     REQUIRE_FALSE(directory.empty());
     CHECK(std::filesystem::is_directory(directory));
     CHECK(directory.filename() == "Spot Tests");
+}
+
+TEST_CASE("The user's home folder exists", "[paths]") {
+    const auto home = Spot::GetUserFolder(Spot::UserFolder::Home);
+
+    REQUIRE_FALSE(home.empty());
+    CHECK(std::filesystem::is_directory(home));
+    CHECK(home.has_filename());
 }
 
 TEST_CASE("Paths convert to UTF-8 text, including non-ASCII names", "[paths]") {
