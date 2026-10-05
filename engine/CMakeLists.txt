@@ -9,6 +9,10 @@ add_library(spot STATIC
     core/log_sinks.h
     core/log_sinks.cpp
     events/event.h
+    input/input.h
+    input/input.cpp
+    input/input_state.h
+    input/input_state.cpp
     input/keys.h
     input/keys.cpp
 )
