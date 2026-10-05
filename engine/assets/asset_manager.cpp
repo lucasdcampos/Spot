@@ -3,6 +3,7 @@
 #include "assets/asset_file.h"
 #include "assets/asset_formats.h"
 #include "assets/asset_manifest.h"
+#include "assets/built_in_assets.h"
 #include "audio/sound.h"
 #include "core/log.h"
 #include "core/paths.h"
@@ -39,9 +40,17 @@ void AssetManager::RefreshManifest() {
         const auto previous = m_entries.find(entry.id);
         entries[entry.id] = {entry.type, entry.path,
                              previous != m_entries.end() ? previous->second.loaded : std::weak_ptr<const void>()};
-        if (!entry.parent.IsValid()) {
-            m_paths[entry.path] = entry.id;
-        }
+        // The first of sub-assets with the same name keeps the path.
+        m_paths.try_emplace(entry.parent.IsValid() ? entry.path + "#" + entry.name : entry.path, entry.id);
+    }
+
+    for (const auto& [id, path] :
+         {std::pair{BuiltInAssets::CubeMesh, "builtin/cube"}, std::pair{BuiltInAssets::SphereMesh, "builtin/sphere"},
+          std::pair{BuiltInAssets::PlaneMesh, "builtin/plane"}}) {
+        const auto previous = m_entries.find(id);
+        entries[id] = {AssetType::Mesh, path,
+                       previous != m_entries.end() ? previous->second.loaded : std::weak_ptr<const void>()};
+        m_paths[path] = id;
     }
     m_entries = std::move(entries);
 }
@@ -114,6 +123,18 @@ std::shared_ptr<const void> AssetManager::LoadAsset(AssetId id, AssetType type) 
 }
 
 std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
+    if (id == BuiltInAssets::CubeMesh || id == BuiltInAssets::SphereMesh || id == BuiltInAssets::PlaneMesh) {
+        if (!m_device) {
+            Log::GetEngineLogger().Error("Mesh assets need a graphics device");
+            return nullptr;
+        }
+        const MeshData mesh = id == BuiltInAssets::CubeMesh     ? MeshData::CreateCube()
+                              : id == BuiltInAssets::SphereMesh ? MeshData::CreateSphere()
+                                                                : MeshData::CreatePlane();
+        std::shared_ptr<const Mesh> result = Mesh::Create(*m_device, mesh);
+        return result;
+    }
+
     const auto data = Detail::ReadAssetFile(Detail::GetImportedAssetPath(m_importDirectory, id), type);
     if (!data) {
         return nullptr;

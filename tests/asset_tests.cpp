@@ -5,6 +5,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -523,4 +524,67 @@ TEST_CASE("Scene files are assets that instantiate into new scenes", "[assets]")
     CHECK_FALSE(assets.InstantiateScene("levels/broken.scene"));
     CHECK_FALSE(assets.InstantiateScene("pixels.png"));
     CHECK_FALSE(Spot::Assets::InstantiateScene("levels/first.scene"));
+}
+
+TEST_CASE("Sounds are imported decoded and load without a decoder", "[assets]") {
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    const auto imported = project.GetPath() / "imported";
+    CopyFile(TestAssets / "sine.ogg", sources / "sine.ogg");
+    AssetDatabase database(sources, imported);
+    CHECK(database.Refresh() == 1);
+
+    const auto original = Spot::Sound::Load(TestAssets / "sine.ogg");
+    REQUIRE(original);
+    Spot::AssetManager assets(imported);
+    const auto sound = assets.Load<Spot::Sound>("sine.ogg");
+    REQUIRE(sound);
+    CHECK(sound->GetSampleRate() == original->GetSampleRate());
+    CHECK(sound->GetChannelCount() == original->GetChannelCount());
+    REQUIRE(sound->GetSamples().size() == original->GetSamples().size());
+    for (std::size_t i = 0; i < original->GetSamples().size(); i += 97) {
+        CHECK(std::abs(sound->GetSamples()[i] - original->GetSamples()[i]) < 1e-4f);
+    }
+}
+
+TEST_CASE("Fonts are imported with extra sizes as sub-assets", "[assets]") {
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    const auto imported = project.GetPath() / "imported";
+    CopyFile(TestAssets / "fonts" / "FiraSans-Regular.ttf", sources / "fonts" / "FiraSans-Regular.ttf");
+    CopyFile(TestAssets / "fonts" / "OFL.txt", sources / "fonts" / "NotAFont.ttf");
+    AssetDatabase database(sources, imported);
+    CHECK(database.Refresh() == 1);
+
+    const AssetId fontId = *database.FindByPath("fonts/FiraSans-Regular.ttf");
+    database.GetMeta(fontId)->font.pixelSize = 20.0f;
+    database.GetMeta(fontId)->font.extraSizes = {48.0f};
+    database.SaveMeta(fontId);
+    CHECK(database.Refresh() == 1);
+
+    const auto large = database.FindByPath("fonts/FiraSans-Regular.ttf#48px");
+    REQUIRE(large.has_value());
+    CHECK(database.Find(*large)->parent == fontId);
+    CHECK_FALSE(database.FindByPath("fonts/FiraSans-Regular.ttf#12px").has_value());
+
+    Spot::AssetManager assets(imported);
+    CHECK(assets.FindByPath("fonts/FiraSans-Regular.ttf#48px") == large);
+    CHECK(assets.GetType(*large) == AssetType::Font);
+}
+
+TEST_CASE("Sub-assets and built-in assets are found by path", "[assets]") {
+    const TempDirectory project;
+    const auto imported = project.GetPath() / "imported";
+    const AssetId plainId = ImportProject(project.GetPath() / "assets", imported);
+    AssetDatabase database(project.GetPath() / "assets", imported);
+    database.Refresh();
+    CHECK(database.FindByPath("models/cube.glb#Plain") == plainId);
+    CHECK_FALSE(database.FindByPath("models/cube.glb#").has_value());
+
+    Spot::AssetManager assets(imported);
+    CHECK(assets.FindByPath("models/cube.glb#Plain") == plainId);
+    CHECK(assets.FindByPath("builtin/cube") == Spot::BuiltInAssets::CubeMesh);
+    CHECK(assets.GetType(Spot::BuiltInAssets::SphereMesh) == AssetType::Mesh);
+    // Built-in meshes need the GPU like any other.
+    CHECK_FALSE(assets.Load<Spot::Mesh>(Spot::BuiltInAssets::PlaneMesh));
 }

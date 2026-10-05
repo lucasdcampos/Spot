@@ -297,9 +297,15 @@ const AssetInfo* AssetDatabase::Find(AssetId id) const {
 }
 
 std::optional<AssetId> AssetDatabase::FindByPath(std::string_view path) const {
-    for (const auto& source : m_sources) {
-        if (source.relativePath == path) {
-            return source.meta.id;
+    const auto separator = path.find('#');
+    const std::string_view file = path.substr(0, separator);
+    const std::string_view name = separator == std::string_view::npos ? std::string_view() : path.substr(separator + 1);
+    if (separator != std::string_view::npos && name.empty()) {
+        return std::nullopt;
+    }
+    for (const auto& asset : m_assets) {
+        if (asset.path == file && asset.name == name && asset.parent.IsValid() == !name.empty()) {
+            return asset.id;
         }
     }
     return std::nullopt;

@@ -19,11 +19,14 @@ add_library(spot STATIC
     assets/asset_meta.cpp
     assets/asset_type.h
     assets/asset_type.cpp
+    assets/built_in_assets.h
+    assets/importers/font_importer.cpp
     assets/importers/importer.h
     assets/importers/importer.cpp
     assets/importers/material_importer.cpp
     assets/importers/model_importer.cpp
     assets/importers/scene_importer.cpp
+    assets/importers/sound_importer.cpp
     assets/importers/texture_importer.cpp
     assets/assets.h
     assets/assets.cpp

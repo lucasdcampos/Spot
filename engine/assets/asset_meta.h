@@ -40,6 +40,8 @@ struct ModelImportSettings {
 struct FontImportSettings {
     // The size glyphs are rasterized at; see Font.
     float pixelSize = 32.0f;
+    // More sizes of the same font, each a sub-asset named after its size, such as "48px".
+    std::vector<float> extraSizes;
 
     void Serialize(Archive& archive);
 };

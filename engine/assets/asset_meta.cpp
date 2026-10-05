@@ -54,6 +54,7 @@ void ModelImportSettings::Serialize(Archive& archive) {
 
 void FontImportSettings::Serialize(Archive& archive) {
     archive.Field("pixelSize", pixelSize);
+    archive.Field("extraSizes", extraSizes);
 }
 
 void SubAssetId::Serialize(Archive& archive) {

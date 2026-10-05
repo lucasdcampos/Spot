@@ -81,7 +81,8 @@ public:
 
     bool Contains(AssetId id) const { return m_entries.contains(id); }
     std::optional<AssetType> GetType(AssetId id) const;
-    // The asset of a source file, by its path relative to the source directory, such as "models/house.glb".
+    // As AssetDatabase::FindByPath(): "models/house.glb" for a file's asset, "models/house.glb#Roof" for one of its
+    // sub-assets. Built-in assets are found too (see BuiltInAssets).
     std::optional<AssetId> FindByPath(std::string_view path) const;
 
     // Returns a reference without an asset, after logging why, when the id is unknown, of another type or fails to
@@ -120,7 +121,6 @@ private:
     std::filesystem::path m_importDirectory;
     GraphicsDevice* m_device;
     std::unordered_map<AssetId, Entry> m_entries;
-    // Only the files' own assets, which are the ones with a path of their own.
     std::unordered_map<std::string, AssetId> m_paths;
 };
 

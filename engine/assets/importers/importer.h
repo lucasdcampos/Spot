@@ -70,5 +70,7 @@ bool ImportTexture(ImportContext& context);
 bool ImportModel(ImportContext& context);
 bool ImportMaterial(ImportContext& context);
 bool ImportScene(ImportContext& context);
+bool ImportSound(ImportContext& context);
+bool ImportFont(ImportContext& context);
 
 } // namespace Spot::Detail

@@ -54,7 +54,9 @@ public:
     std::span<const AssetInfo> GetAssets() const { return m_assets; }
     // Null for ids the database does not know.
     const AssetInfo* Find(AssetId id) const;
-    // The asset of a source file, by its path relative to the source directory, such as "models/house.glb".
+    // The asset of a source file, by its path relative to the source directory, such as "models/house.glb", or one
+    // of its sub-assets, by the file's path and the sub-asset's name, such as "models/house.glb#Roof". When names
+    // repeat within a file, the first one is found.
     std::optional<AssetId> FindByPath(std::string_view path) const;
 
     // The meta of a source file's asset; null for sub-assets and unknown ids. Changes to it are kept by SaveMeta(),

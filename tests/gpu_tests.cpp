@@ -763,8 +763,12 @@ TEST_CASE("Models imported as assets load onto the GPU and draw textured", "[gpu
     std::filesystem::copy_file(assets / "pixels.png", sources / "pixels.png");
     std::filesystem::copy_file(assets / "models" / "textured_quad.gltf", sources / "models" / "textured_quad.gltf");
     std::filesystem::copy_file(assets / "models" / "textured quad.bin", sources / "models" / "textured quad.bin");
+    std::filesystem::create_directories(sources / "fonts");
+    std::filesystem::copy_file(assets / "fonts" / "FiraSans-Regular.ttf", sources / "fonts" / "FiraSans-Regular.ttf");
     std::uint32_t mipLevels = 0;
     bool shared = false;
+    float fontSize = 0.0f;
+    int builtInIndices = 0;
 
     const TargetRender render(32, 32,
                               [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
@@ -776,6 +780,12 @@ TEST_CASE("Models imported as assets load onto the GPU and draw textured", "[gpu
                                   mipLevels = part.material->baseColorTexture->GetMipLevelCount();
                                   shared = Spot::Assets::Load<Spot::Material>(part.material.GetId()).Get() ==
                                            part.material.Get();
+                                  if (const auto font = Spot::Assets::Load<Spot::Font>("fonts/FiraSans-Regular.ttf")) {
+                                      fontSize = font->GetPixelSize();
+                                  }
+                                  if (const auto cube = Spot::Assets::Load<Spot::Mesh>(Spot::BuiltInAssets::CubeMesh)) {
+                                      builtInIndices = static_cast<int>(cube->GetIndexCount());
+                                  }
 
                                   // The same view as the textured model test, without the file's tint.
                                   Spot::Material untinted = *part.material;
@@ -790,6 +800,8 @@ TEST_CASE("Models imported as assets load onto the GPU and draw textured", "[gpu
 
     CHECK(mipLevels == 2);
     CHECK(shared);
+    CHECK(fontSize == 32.0f);
+    CHECK(builtInIndices == 36);
     CHECK(IsNear(render.At(8, 8), {255, 0, 0, 255}));
     CHECK(IsNear(render.At(23, 8), {0, 255, 0, 255}));
     CHECK(IsNear(render.At(8, 23), {0, 0, 255, 255}));
