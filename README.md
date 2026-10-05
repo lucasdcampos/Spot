@@ -32,6 +32,18 @@ Pass `release` to run an optimized build.
 In the sandbox, WASD or the arrow keys move the camera, the mouse wheel zooms, F1 switches between the 2D and 3D
 views and Escape quits. In 3D, dragging with the right mouse button also orbits the camera.
 
+## Assets
+
+Games load assets through `Spot::Assets` (or `Application::GetAssets()`), never from raw files. During development
+the application imports a source folder, set in `ApplicationConfig::assets`, into the engine's own binary formats:
+
+- Every source file gets a `.meta` file beside it with a permanent id and its import settings. Commit both.
+- Imports are cached, and run again only when a source, its settings or a file it depends on change.
+- A shipped game only needs the import folder.
+
+Supported sources: PNG/JPEG/BMP/TGA textures, glTF models (`.gltf`, `.glb`), WAV/Ogg sounds, TrueType/OpenType fonts,
+`.material` files and `.scene` files.
+
 ## Layout
 
 - `engine/` – the engine library

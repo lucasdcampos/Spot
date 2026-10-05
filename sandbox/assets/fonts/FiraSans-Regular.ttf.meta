@@ -1,0 +1,16 @@
+{
+  "id": "b3999c7ba8d944228a80146a8f38a9da",
+  "settings": {
+    "extraSizes": [
+      48.0
+    ],
+    "pixelSize": 20.0
+  },
+  "subAssets": [
+    {
+      "id": "95569275915e3c789637dc7717cca082",
+      "key": "size:48px"
+    }
+  ],
+  "type": "Font"
+}

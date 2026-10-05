@@ -1,6 +1,7 @@
 #include <spot.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <format>
 #include <memory>
@@ -86,39 +87,38 @@ protected:
     }
 };
 
-// The 3D view: a house loaded from glTF, a tumbling textured cube and spheres circling it on the ground, each shown
-// by a MeshRenderer.
+// The 3D view: a house imported from glTF, a tumbling textured cube and spheres circling it on the ground, each shown
+// by a MeshRenderer. Every mesh and material is an asset, so saving the scene (F5) keeps them all.
 class ShowroomScene final : public Spot::Scene {
 protected:
     void OnLoad() override {
-        auto& device = GetApplication().GetGraphicsDevice();
-        const auto assets = Spot::GetExecutableDirectory() / "assets";
+        using Spot::Assets::Load;
+        using Spot::BuiltInAssets::CubeMesh;
+        using Spot::BuiltInAssets::PlaneMesh;
+        using Spot::BuiltInAssets::SphereMesh;
 
-        const std::shared_ptr<const Spot::Mesh> ground = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(16.0f));
-        CreateEntity("Ground").AddComponent<Spot::MeshRenderer>(
-            ground, Spot::Material{.baseColor = Spot::Color{0.35f, 0.55f, 0.3f}});
+        auto& ground = CreateEntity("Ground");
+        ground.GetTransform().SetScale({16.0f, 1.0f, 16.0f});
+        ground.AddComponent<Spot::MeshRenderer>(Load<Spot::Mesh>(PlaneMesh),
+                                                Load<Spot::Material>("materials/ground.material"));
 
         // Each part of the model becomes a child, so the house moves as one entity.
-        if (const auto model = Spot::Model::Load(device, assets / "models" / "house.glb")) {
-            auto& house = CreateEntity("House");
+        if (const auto model = Load<Spot::Model>("models/house.glb")) {
+            auto& house = Spot::InstantiateModel(*this, *model, "House");
             house.GetTransform().SetRotation(Spot::Quaternion::FromAxisAngle({0.0f, 1.0f, 0.0f}, 0.6f));
-            for (const auto& part : model->GetParts()) {
-                house.CreateChild(part.name).AddComponent<Spot::MeshRenderer>(part.mesh.GetShared(), *part.material);
-            }
         }
 
-        Spot::Material spotMaterial;
-        if (const auto image = Spot::Image::Load(assets / "spot.png")) {
-            // Mipmaps keep the texture smooth when seen from afar or at a grazing angle.
-            spotMaterial.baseColorTexture = device.CreateTexture(*image, true);
-        }
         auto& cube = CreateEntity("Cube");
         cube.GetTransform().SetPosition({0.0f, 2.9f, 0.0f});
         cube.GetTransform().SetScale({0.6f, 0.6f, 0.6f});
-        cube.AddComponent<Spot::MeshRenderer>(Spot::Mesh::Create(device, Spot::MeshData::CreateCube()), spotMaterial);
+        cube.AddComponent<Spot::MeshRenderer>(Load<Spot::Mesh>(CubeMesh),
+                                              Load<Spot::Material>("materials/spot.material"));
         cube.AddComponent<Spin>(1.2f, Spot::Vector3{1.0f, 1.0f, 0.0f});
 
-        const std::shared_ptr<const Spot::Mesh> sphere = Spot::Mesh::Create(device, Spot::MeshData::CreateSphere());
+        const auto sphere = Load<Spot::Mesh>(SphereMesh);
+        const std::array colors{Load<Spot::Material>("materials/pink.material"),
+                                Load<Spot::Material>("materials/cyan.material"),
+                                Load<Spot::Material>("materials/violet.material")};
         auto& orbit = CreateEntity("Orbit");
         orbit.AddTag("Toggle");
         orbit.AddComponent<Spin>(0.5f, Spot::Vector3{0.0f, 1.0f, 0.0f});
@@ -128,16 +128,20 @@ protected:
             auto& ball = orbit.CreateChild(std::format("Sphere {}", i));
             ball.GetTransform().SetPosition({std::cos(angle) * 2.5f, 0.4f, std::sin(angle) * 2.5f});
             ball.GetTransform().SetScale({0.6f, 0.6f, 0.6f});
-            ball.AddComponent<Spot::MeshRenderer>(
-                sphere, Spot::Material{.baseColor = Spot::Color{0.5f + 0.5f * std::cos(angle * 2.0f),
-                                                                0.5f + 0.5f * std::sin(angle), 0.9f}});
+            ball.AddComponent<Spot::MeshRenderer>(sphere, colors[static_cast<std::size_t>(i) % colors.size()]);
         }
     }
 };
 
 class Sandbox final : public Spot::Application {
 public:
-    Sandbox() : Application({.window = {.title = "Spot Sandbox"}, .logFile = "sandbox.log", .maxFrameRate = 60}) {
+    // In development the sandbox imports its sources from the repository, into "imported" next to the executable,
+    // which is all a shipped build would need.
+    Sandbox()
+        : Application({.window = {.title = "Spot Sandbox"},
+                       .assets = {.sourceDirectory = SPOT_SANDBOX_ASSETS_DIR},
+                       .logFile = "sandbox.log",
+                       .maxFrameRate = 60}) {
         Spot::RegisterComponent<Sprite>("Sprite");
         Spot::RegisterComponent<Spin>("Spin");
     }
@@ -148,14 +152,11 @@ protected:
 
         auto& device = GetGraphicsDevice();
         m_renderer = std::make_unique<Spot::Renderer2D>(device);
-        if (const auto image = Spot::Image::Load(Spot::GetExecutableDirectory() / "assets" / "spot.png")) {
-            m_spot = device.CreateTexture(*image);
-        }
         m_renderer3D = std::make_unique<Spot::Renderer3D>(device);
-
-        const auto fonts = Spot::GetExecutableDirectory() / "assets" / "fonts";
-        m_font = Spot::Font::Load(device, fonts / "FiraSans-Regular.ttf", 20.0f);
-        m_largeFont = Spot::Font::Load(device, fonts / "FiraSans-Regular.ttf", 48.0f);
+        m_spot = Spot::Assets::Load<Spot::Texture>("spot.png");
+        // The font's meta file sets its size to 20 pixels, with 48 as an extra size.
+        m_font = Spot::Assets::Load<Spot::Font>("fonts/FiraSans-Regular.ttf");
+        m_largeFont = Spot::Assets::Load<Spot::Font>("fonts/FiraSans-Regular.ttf#48px");
 
         // A short tone that fades out, made in code so the sandbox needs no sound file.
         constexpr std::uint32_t SampleRate = 48000;
@@ -409,9 +410,9 @@ private:
     }
 
     std::unique_ptr<Spot::Renderer2D> m_renderer;
-    std::unique_ptr<Spot::Texture> m_spot;
-    std::unique_ptr<Spot::Font> m_font;
-    std::unique_ptr<Spot::Font> m_largeFont;
+    Spot::AssetRef<Spot::Texture> m_spot;
+    Spot::AssetRef<Spot::Font> m_font;
+    Spot::AssetRef<Spot::Font> m_largeFont;
     std::shared_ptr<Spot::Sound> m_blip;
     Spot::Renderer2DStats m_worldStats;
     std::string m_status;

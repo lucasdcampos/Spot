@@ -6,10 +6,9 @@ target_link_libraries(sandbox PRIVATE
     spot::spot
 )
 
-# Assets are found next to the executable, so they are copied there after every build.
-add_custom_command(TARGET sandbox POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/assets" "$<TARGET_FILE_DIR:sandbox>/assets"
-    VERBATIM
+# The sandbox imports its assets from the repository at startup, so editing them needs no rebuild.
+target_compile_definitions(sandbox PRIVATE
+    SPOT_SANDBOX_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets"
 )
 
 spot_set_compile_options(sandbox)

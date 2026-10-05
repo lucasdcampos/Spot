@@ -40,6 +40,9 @@ Both accept `release` as an argument.
 - GPU tests go in `tests/gpu_tests.cpp` (the `spot_gpu_tests` executable) and are skipped where no GPU is available.
 - The build must have no warnings.
 - New engine features come with tests in `tests/`.
+- Assets (`engine/assets/`) are loaded from imported files, not raw sources. Every source asset has a `.meta` file
+  beside it, which is committed with it; never edit ids in them by hand. New source formats get an importer in
+  `engine/assets/importers/`, and a change to any imported format bumps its importer's version.
 
 ## Code style
 
