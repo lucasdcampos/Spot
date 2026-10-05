@@ -3,3 +3,7 @@
 
 # Shell scripts break with CRLF, even when checked out on Windows.
 *.sh text eol=lf
+
+# Binary model data must never have its bytes converted.
+*.bin binary
+*.glb binary

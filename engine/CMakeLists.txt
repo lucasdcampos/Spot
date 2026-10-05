@@ -40,6 +40,8 @@ add_library(spot STATIC
     graphics/image.cpp
     graphics/mesh_data.h
     graphics/mesh_data.cpp
+    graphics/model_data.h
+    graphics/model_data.cpp
     graphics/pipeline.h
     graphics/pipeline.cpp
     graphics/quad_batch.h
@@ -119,6 +121,16 @@ FetchContent_Declare(stb
 )
 FetchContent_MakeAvailable(stb)
 target_include_directories(spot SYSTEM PRIVATE ${stb_SOURCE_DIR})
+
+# cgltf reads glTF models; like stb, it is a single header.
+FetchContent_Declare(cgltf
+    GIT_REPOSITORY https://github.com/jkuhlmann/cgltf.git
+    GIT_TAG v1.15
+    GIT_SHALLOW TRUE
+    SYSTEM
+)
+FetchContent_MakeAvailable(cgltf)
+target_include_directories(spot SYSTEM PRIVATE ${cgltf_SOURCE_DIR})
 
 # dr_wav decodes WAV audio; like stb, it is a single header.
 FetchContent_Declare(dr_libs

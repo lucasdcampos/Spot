@@ -20,6 +20,7 @@
 #include "graphics/graphics_device.h"
 #include "graphics/image.h"
 #include "graphics/mesh_data.h"
+#include "graphics/model_data.h"
 #include "graphics/pipeline.h"
 #include "graphics/quad_batch.h"
 #include "graphics/render_context.h"

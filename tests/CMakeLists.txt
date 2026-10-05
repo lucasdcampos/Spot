@@ -18,6 +18,7 @@ add_executable(spot_tests
     log_capture.h
     log_tests.cpp
     math_tests.cpp
+    model_data_tests.cpp
     platform_tests.cpp
     renderer_2d_tests.cpp
     renderer_3d_tests.cpp
