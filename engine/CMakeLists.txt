@@ -28,6 +28,8 @@ add_library(spot STATIC
     graphics/buffer.h
     graphics/camera_2d.h
     graphics/camera_2d.cpp
+    graphics/camera_3d.h
+    graphics/camera_3d.cpp
     graphics/color.h
     graphics/font.h
     graphics/font.cpp
@@ -36,6 +38,8 @@ add_library(spot STATIC
     graphics/graphics_device.h
     graphics/image.h
     graphics/image.cpp
+    graphics/mesh_data.h
+    graphics/mesh_data.cpp
     graphics/pipeline.h
     graphics/pipeline.cpp
     graphics/quad_batch.h

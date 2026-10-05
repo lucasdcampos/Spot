@@ -2,6 +2,8 @@
 
 #include "math/glm_conversions.h"
 
+#include <cmath>
+
 namespace Spot {
 
 using Detail::FromGlm;
@@ -13,6 +15,17 @@ Quaternion Quaternion::FromAxisAngle(Vector3 axis, float angle) {
 
 Quaternion Quaternion::FromEuler(Vector3 angles) {
     return FromGlm(glm::quat(ToGlm(angles)));
+}
+
+Quaternion Quaternion::LookRotation(Vector3 direction, Vector3 up) {
+    const Vector3 forward = Normalize(direction);
+    if (LengthSquared(forward) == 0.0f) {
+        return {};
+    }
+    if (LengthSquared(Cross(forward, Normalize(up))) < 1e-6f) {
+        up = std::abs(forward.y) < 0.9f ? Vector3{0.0f, 1.0f, 0.0f} : Vector3{0.0f, 0.0f, 1.0f};
+    }
+    return FromGlm(glm::quatLookAtRH(ToGlm(forward), ToGlm(up)));
 }
 
 Quaternion operator*(const Quaternion& a, const Quaternion& b) {

@@ -16,6 +16,9 @@ struct Quaternion {
     static Quaternion FromAxisAngle(Vector3 axis, float angle);
     // Pitch around X, yaw around Y and roll around Z.
     static Quaternion FromEuler(Vector3 angles);
+    // Turns -Z, the way cameras look, toward the direction, keeping up as close to up as it allows. When the two are
+    // parallel, another up is picked.
+    static Quaternion LookRotation(Vector3 direction, Vector3 up = {0.0f, 1.0f, 0.0f});
 
     friend constexpr bool operator==(const Quaternion&, const Quaternion&) = default;
 };
