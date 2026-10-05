@@ -20,6 +20,7 @@ add_executable(spot_tests
     platform_tests.cpp
     renderer_2d_tests.cpp
     shader_tests.cpp
+    text_tests.cpp
     time_tests.cpp
     version_tests.cpp
     window_tests.cpp

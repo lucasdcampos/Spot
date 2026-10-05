@@ -9,10 +9,12 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <string_view>
 
 namespace Spot {
 
 class Buffer;
+class Font;
 class GraphicsDevice;
 class Pipeline;
 class RenderPass;
@@ -53,11 +55,18 @@ public:
 
     // Positions are the quad's center, in world units.
     void DrawQuad(Vector2 position, Vector2 size, Color color);
-    void DrawQuad(Vector2 position, Vector2 size, const Texture& texture, Color tint = Color::White);
+    // The region picks part of the texture, such as one frame of a sprite sheet.
+    void DrawQuad(Vector2 position, Vector2 size, const Texture& texture, Color tint = Color::White,
+                  const TextureRegion& region = {});
     // Rotation is in radians, counterclockwise.
     void DrawRotatedQuad(Vector2 position, Vector2 size, float rotation, Color color);
     void DrawRotatedQuad(Vector2 position, Vector2 size, float rotation, const Texture& texture,
-                         Color tint = Color::White);
+                         Color tint = Color::White, const TextureRegion& region = {});
+
+    // Draws UTF-8 text with its top-left corner at the position. At scale 1 a pixel of the font covers one world
+    // unit, which is one window point with the default camera. Fonts must stay alive until End().
+    void DrawString(const Font& font, std::string_view text, Vector2 position, Color color = Color::White,
+                    float scale = 1.0f);
 
     // What the last End() drew.
     Renderer2DStats GetStats() const { return m_stats; }

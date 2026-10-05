@@ -8,6 +8,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -378,4 +379,61 @@ TEST_CASE("Renderer2D draws colored and textured quads in order", "[gpu]") {
     CHECK(pixelAt(2, 3) == std::array<std::uint8_t, 4>{0, 0, 255, 255});
     // The texture's transparent texel blends to the black background.
     CHECK(pixelAt(3, 3) == std::array<std::uint8_t, 4>{0, 0, 0, 255});
+}
+
+TEST_CASE("Renderer2D draws text inside its measured box", "[gpu]") {
+    RequireGpu();
+    constexpr int Width = 128;
+    constexpr int Height = 48;
+
+    std::unique_ptr<Spot::Texture> target;
+    std::vector<std::uint8_t> result;
+    Spot::Vector2 measured;
+    int frame = 0;
+
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
+        auto& device = app.GetGraphicsDevice();
+        if (++frame == 2) {
+            result = device.DownloadTexture(*target);
+            return;
+        }
+        if (frame != 1) {
+            return;
+        }
+
+        const auto font = Spot::Font::Load(
+            device, std::filesystem::path(SPOT_TEST_ASSETS_DIR) / "fonts" / "FiraSans-Regular.ttf", 32);
+        target = device.CreateTexture({.width = Width, .height = Height, .renderTarget = true});
+        REQUIRE((font && target));
+        measured = font->MeasureText("Spot");
+
+        Spot::Renderer2D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+        // Puts world (0, 0) at the target's top-left corner, so the text starts there.
+        Spot::Camera2D camera;
+        camera.position = {Width / 2.0f, -Height / 2.0f};
+
+        auto pass = context.BeginRenderPass({.target = target.get(), .clearColor = Spot::Color::Black});
+        renderer.Begin(pass, camera, {Width, Height});
+        renderer.DrawString(*font, "Spot", {0.0f, 0.0f}, Spot::Color::White);
+        renderer.End();
+    });
+
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    REQUIRE(result.size() == static_cast<std::size_t>(Width * Height * 4));
+
+    int litPixels = 0;
+    int right = 0;
+    int bottom = 0;
+    for (int y = 0; y < Height; ++y) {
+        for (int x = 0; x < Width; ++x) {
+            if (result[static_cast<std::size_t>((y * Width + x) * 4)] > 64) {
+                ++litPixels;
+                right = std::max(right, x);
+                bottom = std::max(bottom, y);
+            }
+        }
+    }
+    CHECK(litPixels > 50);
+    CHECK(static_cast<float>(right) <= measured.x + 1.0f);
+    CHECK(static_cast<float>(bottom) <= measured.y + 1.0f);
 }

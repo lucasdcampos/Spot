@@ -5,6 +5,8 @@
 #include <format>
 #include <memory>
 #include <optional>
+#include <string>
+#include <string_view>
 
 class Sandbox final : public Spot::Application {
 public:
@@ -19,6 +21,10 @@ protected:
         if (const auto image = Spot::Image::Load(Spot::GetExecutableDirectory() / "assets" / "spot.png")) {
             m_spot = device.CreateTexture(*image);
         }
+
+        const auto fonts = Spot::GetExecutableDirectory() / "assets" / "fonts";
+        m_font = Spot::Font::Load(device, fonts / "FiraSans-Regular.ttf", 20.0f);
+        m_largeFont = Spot::Font::Load(device, fonts / "FiraSans-Regular.ttf", 48.0f);
     }
 
     void OnEvent(const Spot::Event& event) override {
@@ -52,9 +58,8 @@ protected:
         ++m_frames;
         m_elapsed += deltaTime;
         if (m_elapsed >= 1.0f) {
-            const auto stats = m_renderer ? m_renderer->GetStats() : Spot::Renderer2DStats{};
-            GetWindow().SetTitle(std::format("Spot Sandbox - {} FPS, {} quads, {} draw calls", m_frames,
-                                             stats.quadCount, stats.drawCalls));
+            m_status = std::format("{} FPS, {} quads, {} draw calls", m_frames, m_worldStats.quadCount,
+                                   m_worldStats.drawCalls);
             m_frames = 0;
             m_elapsed -= 1.0f;
         }
@@ -110,12 +115,41 @@ protected:
         m_renderer->DrawRotatedQuad(mouse, {24.0f, 24.0f}, Spot::Pi / 4.0f,
                                     held ? Spot::Color{1.0f, 0.3f, 0.3f, 0.8f} : Spot::Color{1.0f, 1.0f, 1.0f, 0.5f});
 
+        if (m_largeFont) {
+            constexpr std::string_view Greeting = "Hello from world space";
+            const auto size = m_largeFont->MeasureText(Greeting);
+            m_renderer->DrawString(*m_largeFont, Greeting, {-size.x / 2.0f, 320.0f}, Spot::Color{1.0f, 0.85f, 0.5f});
+        }
+
         m_renderer->End();
+        m_worldStats = m_renderer->GetStats();
+
+        // The HUD is drawn in a second round with a camera that puts world (0, 0) at the window's top-left corner,
+        // so it stays fixed on screen while the world camera moves.
+        if (m_font) {
+            Spot::Camera2D screen;
+            screen.position = {view.x / 2.0f, -view.y / 2.0f};
+            const float line = m_font->GetLineHeight();
+
+            m_renderer->Begin(pass, screen, view);
+            m_renderer->DrawQuad({170.0f, -60.0f}, {340.0f, 120.0f}, Spot::Color{0.0f, 0.0f, 0.0f, 0.6f});
+            m_renderer->DrawString(*m_font, "Spot Sandbox", {12.0f, -10.0f}, Spot::Color::White);
+            m_renderer->DrawString(*m_font, m_status, {12.0f, -10.0f - line}, Spot::Color{0.7f, 0.9f, 0.7f});
+            m_renderer->DrawString(*m_font, "WASD or arrows: move  |  wheel: zoom  |  Esc: quit",
+                                   {12.0f, -10.0f - 2.0f * line}, Spot::Color{0.8f, 0.8f, 0.8f}, 0.8f);
+            m_renderer->DrawString(*m_font, "Accents: caf\u00e9, fa\u00e7ade, na\u00efve, jalape\u00f1o",
+                                   {12.0f, -10.0f - 2.8f * line}, Spot::Color{0.8f, 0.8f, 0.8f}, 0.8f);
+            m_renderer->End();
+        }
     }
 
 private:
     std::unique_ptr<Spot::Renderer2D> m_renderer;
     std::unique_ptr<Spot::Texture> m_spot;
+    std::unique_ptr<Spot::Font> m_font;
+    std::unique_ptr<Spot::Font> m_largeFont;
+    Spot::Renderer2DStats m_worldStats;
+    std::string m_status;
     Spot::Camera2D m_camera;
     int m_frames = 0;
     float m_elapsed = 0.0f;

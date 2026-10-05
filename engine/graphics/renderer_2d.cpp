@@ -2,8 +2,10 @@
 
 #include "core/assert.h"
 #include "core/log.h"
+#include "graphics/font.h"
 #include "graphics/graphics_device.h"
 #include "graphics/render_context.h"
+#include "graphics/text_layout.h"
 
 #include "sprite.frag.h"
 #include "sprite.vert.h"
@@ -68,8 +70,9 @@ void Renderer2D::DrawQuad(Vector2 position, Vector2 size, Color color) {
     DrawRotatedQuad(position, size, 0.0f, color);
 }
 
-void Renderer2D::DrawQuad(Vector2 position, Vector2 size, const Texture& texture, Color tint) {
-    DrawRotatedQuad(position, size, 0.0f, texture, tint);
+void Renderer2D::DrawQuad(Vector2 position, Vector2 size, const Texture& texture, Color tint,
+                          const TextureRegion& region) {
+    DrawRotatedQuad(position, size, 0.0f, texture, tint, region);
 }
 
 void Renderer2D::DrawRotatedQuad(Vector2 position, Vector2 size, float rotation, Color color) {
@@ -77,9 +80,19 @@ void Renderer2D::DrawRotatedQuad(Vector2 position, Vector2 size, float rotation,
     m_batch.AddQuad(position, size, rotation, nullptr, color);
 }
 
-void Renderer2D::DrawRotatedQuad(Vector2 position, Vector2 size, float rotation, const Texture& texture, Color tint) {
+void Renderer2D::DrawRotatedQuad(Vector2 position, Vector2 size, float rotation, const Texture& texture, Color tint,
+                                 const TextureRegion& region) {
     SPOT_ASSERT(m_pass, "Draw calls must come between Begin() and End()");
-    m_batch.AddQuad(position, size, rotation, &texture, tint);
+    m_batch.AddQuad(position, size, rotation, &texture, tint, region);
+}
+
+void Renderer2D::DrawString(const Font& font, std::string_view text, Vector2 position, Color color, float scale) {
+    SPOT_ASSERT(m_pass, "Draw calls must come between Begin() and End()");
+    for (const auto& glyph : LayoutText(font.GetAtlas(), text)) {
+        const Vector2 center = position + (glyph.min + glyph.max) * (scale / 2.0f);
+        const Vector2 size = (glyph.max - glyph.min) * scale;
+        m_batch.AddQuad(center, size, 0.0f, &font.GetTexture(), color, {glyph.uvMin, glyph.uvMax});
+    }
 }
 
 void Renderer2D::Flush() {

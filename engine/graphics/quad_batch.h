@@ -11,6 +11,16 @@ namespace Spot {
 
 class Texture;
 
+// A rectangle of a texture in UV space, from (0, 0) at its top-left to (1, 1) at its bottom-right. The default
+// covers the whole texture.
+struct TextureRegion {
+    Vector2 min = {0.0f, 0.0f};
+    Vector2 max = {1.0f, 1.0f};
+
+    // The region of a sprite sheet cell or other sub-image, given in pixels from the texture's top-left.
+    static TextureRegion FromPixels(const Texture& texture, float x, float y, float width, float height);
+};
+
 struct QuadVertex {
     Vector2 position;
     Vector2 uv;
@@ -29,14 +39,15 @@ struct QuadDrawCommand {
 // texture. It only builds CPU data, which Renderer2D sends to the GPU; custom renderers can use it as well.
 class QuadBatch {
 public:
-    // Each quad has four vertices: top-left, top-right, bottom-right and bottom-left, with UVs from (0, 0) at the
-    // top-left to (1, 1) at the bottom-right. Drawing them takes indices 0, 1, 2, 2, 3, 0 per quad.
+    // Each quad has four vertices: top-left, top-right, bottom-right and bottom-left, mapped to the matching corners
+    // of the texture region. Drawing them takes indices 0, 1, 2, 2, 3, 0 per quad.
     static constexpr std::uint32_t VerticesPerQuad = 4;
     static constexpr std::uint32_t IndicesPerQuad = 6;
 
     void Clear();
     // Rotation is in radians, counterclockwise around the center.
-    void AddQuad(Vector2 center, Vector2 size, float rotation, const Texture* texture, Color color);
+    void AddQuad(Vector2 center, Vector2 size, float rotation, const Texture* texture, Color color,
+                 const TextureRegion& region = {});
 
     std::span<const QuadVertex> GetVertices() const { return m_vertices; }
     std::span<const QuadDrawCommand> GetCommands() const { return m_commands; }

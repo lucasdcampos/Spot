@@ -14,11 +14,17 @@ add_library(spot STATIC
     core/paths.cpp
     core/time.h
     core/time.cpp
+    core/utf8.h
+    core/utf8.cpp
     events/event.h
     graphics/buffer.h
     graphics/camera_2d.h
     graphics/camera_2d.cpp
     graphics/color.h
+    graphics/font.h
+    graphics/font.cpp
+    graphics/font_atlas.h
+    graphics/font_atlas.cpp
     graphics/graphics_device.h
     graphics/image.h
     graphics/image.cpp
@@ -30,6 +36,8 @@ add_library(spot STATIC
     graphics/renderer_2d.h
     graphics/renderer_2d.cpp
     graphics/shader.h
+    graphics/text_layout.h
+    graphics/text_layout.cpp
     graphics/texture.h
     input/input.h
     input/input.cpp

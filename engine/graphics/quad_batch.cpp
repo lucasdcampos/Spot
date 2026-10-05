@@ -1,19 +1,28 @@
 #include "graphics/quad_batch.h"
 
+#include "graphics/texture.h"
+
 #include <array>
 #include <cmath>
 
 namespace Spot {
+
+TextureRegion TextureRegion::FromPixels(const Texture& texture, float x, float y, float width, float height) {
+    const Vector2 size{static_cast<float>(texture.GetWidth()), static_cast<float>(texture.GetHeight())};
+    return {{x / size.x, y / size.y}, {(x + width) / size.x, (y + height) / size.y}};
+}
 
 void QuadBatch::Clear() {
     m_vertices.clear();
     m_commands.clear();
 }
 
-void QuadBatch::AddQuad(Vector2 center, Vector2 size, float rotation, const Texture* texture, Color color) {
+void QuadBatch::AddQuad(Vector2 center, Vector2 size, float rotation, const Texture* texture, Color color,
+                        const TextureRegion& region) {
     const Vector2 half = size / 2.0f;
     const std::array<Vector2, 4> corners{{{-half.x, half.y}, {half.x, half.y}, {half.x, -half.y}, {-half.x, -half.y}}};
-    const std::array<Vector2, 4> uvs{{{0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}}};
+    const std::array<Vector2, 4> uvs{
+        {region.min, {region.max.x, region.min.y}, region.max, {region.min.x, region.max.y}}};
 
     const float cosine = std::cos(rotation);
     const float sine = std::sin(rotation);
