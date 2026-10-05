@@ -2,6 +2,7 @@
 
 #include "events/event.h"
 #include "input/keys.h"
+#include "math/vector.h"
 
 #include <bitset>
 
@@ -23,12 +24,9 @@ public:
     bool IsMouseButtonPressed(MouseButton button) const;
     bool IsMouseButtonReleased(MouseButton button) const;
 
-    float GetMouseX() const { return m_mouseX; }
-    float GetMouseY() const { return m_mouseY; }
-    float GetMouseDeltaX() const { return m_mouseDeltaX; }
-    float GetMouseDeltaY() const { return m_mouseDeltaY; }
-    float GetScrollDeltaX() const { return m_scrollDeltaX; }
-    float GetScrollDeltaY() const { return m_scrollDeltaY; }
+    Vector2 GetMousePosition() const { return m_mousePosition; }
+    Vector2 GetMouseDelta() const { return m_mouseDelta; }
+    Vector2 GetScrollDelta() const { return m_scrollDelta; }
 
 private:
     void ReleaseAll();
@@ -41,12 +39,9 @@ private:
     std::bitset<8> m_buttonsPressed;
     std::bitset<8> m_buttonsReleased;
 
-    float m_mouseX = 0.0f;
-    float m_mouseY = 0.0f;
-    float m_mouseDeltaX = 0.0f;
-    float m_mouseDeltaY = 0.0f;
-    float m_scrollDeltaX = 0.0f;
-    float m_scrollDeltaY = 0.0f;
+    Vector2 m_mousePosition;
+    Vector2 m_mouseDelta;
+    Vector2 m_scrollDelta;
 };
 
 } // namespace Spot

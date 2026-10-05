@@ -21,10 +21,8 @@ void InputState::BeginFrame() {
     m_keysReleased.reset();
     m_buttonsPressed.reset();
     m_buttonsReleased.reset();
-    m_mouseDeltaX = 0.0f;
-    m_mouseDeltaY = 0.0f;
-    m_scrollDeltaX = 0.0f;
-    m_scrollDeltaY = 0.0f;
+    m_mouseDelta = {};
+    m_scrollDelta = {};
 }
 
 void InputState::OnEvent(const Event& event) {
@@ -46,13 +44,10 @@ void InputState::OnEvent(const Event& event) {
         m_buttonsDown.reset(ToIndex(buttonReleased->button));
         m_buttonsReleased.set(ToIndex(buttonReleased->button));
     } else if (const auto* moved = event.GetIf<MouseMovedEvent>()) {
-        m_mouseX = moved->x;
-        m_mouseY = moved->y;
-        m_mouseDeltaX += moved->deltaX;
-        m_mouseDeltaY += moved->deltaY;
+        m_mousePosition = moved->position;
+        m_mouseDelta += moved->delta;
     } else if (const auto* scrolled = event.GetIf<MouseScrolledEvent>()) {
-        m_scrollDeltaX += scrolled->deltaX;
-        m_scrollDeltaY += scrolled->deltaY;
+        m_scrollDelta += scrolled->delta;
     } else if (const auto* focus = event.GetIf<WindowFocusEvent>(); focus && !focus->focused) {
         // Release events for keys held while focus is lost never arrive, which would leave them stuck down.
         ReleaseAll();

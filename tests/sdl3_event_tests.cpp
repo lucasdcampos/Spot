@@ -110,10 +110,8 @@ TEST_CASE("SDL mouse events become mouse events", "[platform][sdl3]") {
     REQUIRE(events.size() == 4);
     const auto* moved = events[0].GetIf<Spot::MouseMovedEvent>();
     REQUIRE(moved != nullptr);
-    CHECK(moved->x == 10.0f);
-    CHECK(moved->y == 20.0f);
-    CHECK(moved->deltaX == 1.0f);
-    CHECK(moved->deltaY == -2.0f);
+    CHECK(moved->position == Spot::Vector2{10.0f, 20.0f});
+    CHECK(moved->delta == Spot::Vector2{1.0f, -2.0f});
     const auto* pressed = events[1].GetIf<Spot::MouseButtonPressedEvent>();
     REQUIRE(pressed != nullptr);
     CHECK(pressed->button == Spot::MouseButton::Right);
@@ -122,7 +120,7 @@ TEST_CASE("SDL mouse events become mouse events", "[platform][sdl3]") {
     CHECK(released->button == Spot::MouseButton::X2);
     const auto* scrolled = events[3].GetIf<Spot::MouseScrolledEvent>();
     REQUIRE(scrolled != nullptr);
-    CHECK(scrolled->deltaY == -1.0f);
+    CHECK(scrolled->delta.y == -1.0f);
 }
 
 TEST_CASE("SDL window and quit events become window events", "[platform][sdl3]") {

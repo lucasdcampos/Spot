@@ -43,28 +43,16 @@ bool IsMouseButtonReleased(MouseButton button) {
     return GetState().IsMouseButtonReleased(button);
 }
 
-float GetMouseX() {
-    return GetState().GetMouseX();
+Vector2 GetMousePosition() {
+    return GetState().GetMousePosition();
 }
 
-float GetMouseY() {
-    return GetState().GetMouseY();
+Vector2 GetMouseDelta() {
+    return GetState().GetMouseDelta();
 }
 
-float GetMouseDeltaX() {
-    return GetState().GetMouseDeltaX();
-}
-
-float GetMouseDeltaY() {
-    return GetState().GetMouseDeltaY();
-}
-
-float GetScrollDeltaX() {
-    return GetState().GetScrollDeltaX();
-}
-
-float GetScrollDeltaY() {
-    return GetState().GetScrollDeltaY();
+Vector2 GetScrollDelta() {
+    return GetState().GetScrollDelta();
 }
 
 } // namespace Spot::Input

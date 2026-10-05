@@ -74,22 +74,19 @@ TEST_CASE("Mouse motion keeps the last position and sums the deltas of the frame
     Spot::InputState input;
 
     input.BeginFrame();
-    input.OnEvent(Spot::MouseMovedEvent{10.0f, 20.0f, 2.0f, -1.0f});
-    input.OnEvent(Spot::MouseMovedEvent{13.0f, 18.0f, 3.0f, -2.0f});
-    input.OnEvent(Spot::MouseScrolledEvent{0.0f, 1.0f});
-    input.OnEvent(Spot::MouseScrolledEvent{0.5f, 1.0f});
+    input.OnEvent(Spot::MouseMovedEvent{{10.0f, 20.0f}, {2.0f, -1.0f}});
+    input.OnEvent(Spot::MouseMovedEvent{{13.0f, 18.0f}, {3.0f, -2.0f}});
+    input.OnEvent(Spot::MouseScrolledEvent{{0.0f, 1.0f}});
+    input.OnEvent(Spot::MouseScrolledEvent{{0.5f, 1.0f}});
 
-    CHECK(input.GetMouseX() == 13.0f);
-    CHECK(input.GetMouseY() == 18.0f);
-    CHECK(input.GetMouseDeltaX() == 5.0f);
-    CHECK(input.GetMouseDeltaY() == -3.0f);
-    CHECK(input.GetScrollDeltaX() == 0.5f);
-    CHECK(input.GetScrollDeltaY() == 2.0f);
+    CHECK(input.GetMousePosition() == Spot::Vector2{13.0f, 18.0f});
+    CHECK(input.GetMouseDelta() == Spot::Vector2{5.0f, -3.0f});
+    CHECK(input.GetScrollDelta() == Spot::Vector2{0.5f, 2.0f});
 
     input.BeginFrame();
-    CHECK(input.GetMouseX() == 13.0f);
-    CHECK(input.GetMouseDeltaX() == 0.0f);
-    CHECK(input.GetScrollDeltaY() == 0.0f);
+    CHECK(input.GetMousePosition() == Spot::Vector2{13.0f, 18.0f});
+    CHECK(input.GetMouseDelta() == Spot::Vector2{});
+    CHECK(input.GetScrollDelta() == Spot::Vector2{});
 }
 
 TEST_CASE("Losing focus releases everything that was held", "[input]") {
@@ -109,14 +106,14 @@ TEST_CASE("Losing focus releases everything that was held", "[input]") {
 TEST_CASE("Input reads the state it points at, and nothing without one", "[input]") {
     Spot::InputState state;
     state.OnEvent(Spot::KeyPressedEvent{Key::Escape, false});
-    state.OnEvent(Spot::MouseMovedEvent{4.0f, 2.0f, 0.0f, 0.0f});
+    state.OnEvent(Spot::MouseMovedEvent{{4.0f, 2.0f}, {}});
 
     CHECK_FALSE(Spot::Input::IsKeyDown(Key::Escape));
 
     Spot::Input::SetState(&state);
     CHECK(Spot::Input::IsKeyDown(Key::Escape));
     CHECK(Spot::Input::IsKeyPressed(Key::Escape));
-    CHECK(Spot::Input::GetMouseX() == 4.0f);
+    CHECK(Spot::Input::GetMousePosition() == Spot::Vector2{4.0f, 2.0f});
     Spot::Input::SetState(nullptr);
 
     CHECK_FALSE(Spot::Input::IsKeyDown(Key::Escape));

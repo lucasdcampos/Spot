@@ -13,8 +13,9 @@ protected:
         if (const auto* pressed = event.GetIf<Spot::KeyPressedEvent>(); pressed && !pressed->repeat) {
             Spot::Log::Info("Key pressed: {}", Spot::GetKeyName(pressed->key));
         } else if (const auto* button = event.GetIf<Spot::MouseButtonPressedEvent>()) {
+            const auto position = Spot::Input::GetMousePosition();
             Spot::Log::Info("Mouse button pressed: {} at ({}, {})", Spot::GetMouseButtonName(button->button),
-                            Spot::Input::GetMouseX(), Spot::Input::GetMouseY());
+                            position.x, position.y);
         } else if (const auto* resized = event.GetIf<Spot::WindowResizeEvent>()) {
             Spot::Log::Info("Window resized to {}x{}", resized->width, resized->height);
         } else if (const auto* focus = event.GetIf<Spot::WindowFocusEvent>()) {

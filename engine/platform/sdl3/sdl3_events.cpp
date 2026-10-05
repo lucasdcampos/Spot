@@ -263,7 +263,7 @@ std::optional<Event> Translate(const SDL_Event& event) {
     case SDL_EVENT_KEY_UP:
         return KeyReleasedEvent{ToKey(event.key.scancode)};
     case SDL_EVENT_MOUSE_MOTION:
-        return MouseMovedEvent{event.motion.x, event.motion.y, event.motion.xrel, event.motion.yrel};
+        return MouseMovedEvent{{event.motion.x, event.motion.y}, {event.motion.xrel, event.motion.yrel}};
     case SDL_EVENT_MOUSE_BUTTON_DOWN:
         if (const auto button = ToMouseButton(event.button.button)) {
             return MouseButtonPressedEvent{*button};
@@ -277,7 +277,7 @@ std::optional<Event> Translate(const SDL_Event& event) {
     case SDL_EVENT_MOUSE_WHEEL: {
         // Undo the OS "natural scrolling" inversion so positive y always means the wheel moved away from the user.
         const float direction = event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -1.0f : 1.0f;
-        return MouseScrolledEvent{event.wheel.x * direction, event.wheel.y * direction};
+        return MouseScrolledEvent{Vector2{event.wheel.x, event.wheel.y} * direction};
     }
     default:
         return std::nullopt;

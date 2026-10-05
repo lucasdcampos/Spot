@@ -1,6 +1,7 @@
 #pragma once
 
 #include "input/keys.h"
+#include "math/vector.h"
 
 #include <type_traits>
 #include <utility>
@@ -31,10 +32,8 @@ struct KeyReleasedEvent {
 
 // The delta is reported separately because the position stops changing while the cursor is locked.
 struct MouseMovedEvent {
-    float x;
-    float y;
-    float deltaX;
-    float deltaY;
+    Vector2 position;
+    Vector2 delta;
 };
 
 struct MouseButtonPressedEvent {
@@ -46,8 +45,7 @@ struct MouseButtonReleasedEvent {
 };
 
 struct MouseScrolledEvent {
-    float deltaX;
-    float deltaY;
+    Vector2 delta;
 };
 
 class Event {

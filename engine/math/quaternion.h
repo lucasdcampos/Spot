@@ -1,0 +1,31 @@
+#pragma once
+
+#include "math/vector.h"
+
+namespace Spot {
+
+// A rotation. Angles are in radians, and a positive angle turns counterclockwise when the axis points toward the
+// viewer (right-handed).
+struct Quaternion {
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+    float w = 1.0f;
+
+    static constexpr Quaternion Identity() { return {}; }
+    static Quaternion FromAxisAngle(Vector3 axis, float angle);
+    // Pitch around X, yaw around Y and roll around Z.
+    static Quaternion FromEuler(Vector3 angles);
+
+    friend constexpr bool operator==(const Quaternion&, const Quaternion&) = default;
+};
+
+// Applies b first, then a.
+Quaternion operator*(const Quaternion& a, const Quaternion& b);
+Vector3 operator*(const Quaternion& rotation, Vector3 v);
+
+Quaternion Normalize(const Quaternion& q);
+Quaternion Inverse(const Quaternion& q);
+Quaternion Slerp(const Quaternion& a, const Quaternion& b, float t);
+
+} // namespace Spot

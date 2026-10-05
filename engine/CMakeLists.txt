@@ -19,10 +19,32 @@ add_library(spot STATIC
     input/input_state.cpp
     input/keys.h
     input/keys.cpp
+    math/angles.h
+    math/glm_conversions.h
+    math/matrix.h
+    math/matrix.cpp
+    math/quaternion.h
+    math/quaternion.cpp
+    math/vector.h
     platform/platform.h
     window/window.h
 )
 add_library(spot::spot ALIAS spot)
+
+include(FetchContent)
+
+# glm implements the heavier math behind the engine's own math types; no public header includes it.
+set(GLM_BUILD_LIBRARY OFF)
+set(GLM_BUILD_TESTS OFF)
+set(GLM_BUILD_INSTALL OFF)
+FetchContent_Declare(glm
+    GIT_REPOSITORY https://github.com/g-truc/glm.git
+    GIT_TAG 1.0.3
+    GIT_SHALLOW TRUE
+    SYSTEM
+)
+FetchContent_MakeAvailable(glm)
+target_link_libraries(spot PRIVATE glm::glm-header-only)
 
 # The backend is chosen at build time. Its types never reach the public headers, so swapping it does not
 # change the engine API.
@@ -30,8 +52,6 @@ set(SPOT_PLATFORM "SDL3" CACHE STRING "Windowing and input backend")
 set_property(CACHE SPOT_PLATFORM PROPERTY STRINGS SDL3)
 
 if(SPOT_PLATFORM STREQUAL "SDL3")
-    include(FetchContent)
-
     set(SDL_SHARED OFF)
     set(SDL_STATIC ON)
     set(SDL_TEST_LIBRARY OFF)

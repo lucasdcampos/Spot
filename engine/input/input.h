@@ -1,6 +1,7 @@
 #pragma once
 
 #include "input/keys.h"
+#include "math/vector.h"
 
 namespace Spot {
 
@@ -21,12 +22,9 @@ bool IsMouseButtonDown(MouseButton button);
 bool IsMouseButtonPressed(MouseButton button);
 bool IsMouseButtonReleased(MouseButton button);
 
-float GetMouseX();
-float GetMouseY();
-float GetMouseDeltaX();
-float GetMouseDeltaY();
-float GetScrollDeltaX();
-float GetScrollDeltaY();
+Vector2 GetMousePosition();
+Vector2 GetMouseDelta();
+Vector2 GetScrollDelta();
 
 } // namespace Input
 
