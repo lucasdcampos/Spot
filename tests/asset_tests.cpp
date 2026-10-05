@@ -4,8 +4,12 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <unordered_set>
+#include <vector>
 
 using Spot::AssetDatabase;
 using Spot::AssetId;
@@ -96,10 +100,17 @@ TEST_CASE("The asset database gives source files meta files with lasting ids", "
     AssetDatabase database(sources, project.GetPath() / "imported");
     database.Refresh();
 
-    REQUIRE(database.GetAssets().size() == 2);
-    CHECK(database.GetAssets()[0].path == "models/cube.glb");
-    CHECK(database.GetAssets()[0].type == AssetType::Model);
-    CHECK(database.GetAssets()[1].path == "pixels.png");
+    // The model's parts come right after it; the files' own assets come in the order of their paths.
+    std::vector<const Spot::AssetInfo*> files;
+    for (const auto& asset : database.GetAssets()) {
+        if (!asset.parent.IsValid()) {
+            files.push_back(&asset);
+        }
+    }
+    REQUIRE(files.size() == 2);
+    CHECK(files[0]->path == "models/cube.glb");
+    CHECK(files[0]->type == AssetType::Model);
+    CHECK(files[1]->path == "pixels.png");
     CHECK(std::filesystem::exists(sources / "pixels.png.meta"));
     CHECK_FALSE(std::filesystem::exists(sources / "fonts" / "OFL.txt.meta"));
     CHECK_FALSE(std::filesystem::exists(sources / ".hidden" / "skipped.png.meta"));
@@ -137,4 +148,123 @@ TEST_CASE("The asset database gives source files meta files with lasting ids", "
         CHECK(database.SaveMeta(*pixelsId));
         CHECK_FALSE(AssetMeta::LoadFromFile(sources / "pixels.png.meta")->texture.mipmaps);
     }
+}
+
+namespace {
+
+// A project with a texture, a .glb and a .gltf whose buffer and image are separate files.
+void CreateProject(const std::filesystem::path& sources) {
+    CopyFile(TestAssets / "pixels.png", sources / "pixels.png");
+    CopyFile(TestAssets / "models" / "cube.glb", sources / "models" / "cube.glb");
+    CopyFile(TestAssets / "models" / "textured_quad.gltf", sources / "models" / "textured_quad.gltf");
+    CopyFile(TestAssets / "models" / "textured quad.bin", sources / "models" / "textured quad.bin");
+}
+
+// Copies, since refreshing the database replaces its list.
+std::vector<Spot::AssetInfo> GetSubAssets(const AssetDatabase& database, AssetId parent) {
+    std::vector<Spot::AssetInfo> subAssets;
+    for (const auto& asset : database.GetAssets()) {
+        if (asset.parent == parent) {
+            subAssets.push_back(asset);
+        }
+    }
+    return subAssets;
+}
+
+} // namespace
+
+TEST_CASE("The asset database imports sources into the import directory", "[assets]") {
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    const auto imported = project.GetPath() / "imported";
+    CreateProject(sources);
+
+    AssetDatabase database(sources, imported);
+    CHECK(database.Refresh() == 3);
+    CHECK(std::filesystem::exists(imported / "manifest.json"));
+
+    // The .glb becomes a model with its texture, two materials and two meshes as sub-assets.
+    const auto cubeId = database.FindByPath("models/cube.glb");
+    REQUIRE(cubeId.has_value());
+    const auto cubeParts = GetSubAssets(database, *cubeId);
+    REQUIRE(cubeParts.size() == 5);
+    const auto countOf = [&](AssetType type) {
+        return std::ranges::count_if(cubeParts, [&](const Spot::AssetInfo& asset) { return asset.type == type; });
+    };
+    CHECK(countOf(AssetType::Texture) == 1);
+    CHECK(countOf(AssetType::Material) == 2);
+    CHECK(countOf(AssetType::Mesh) == 2);
+    CHECK(GetSubAssets(database, *database.FindByPath("models/textured_quad.gltf")).size() == 3);
+
+    REQUIRE(database.GetAssets().size() == 11);
+    for (const auto& asset : database.GetAssets()) {
+        CHECK(std::filesystem::exists(imported / (asset.id.ToString() + ".asset")));
+        CHECK(database.Find(asset.id) == &asset);
+    }
+    // The meta file keeps the sub-assets' ids.
+    CHECK(AssetMeta::LoadFromFile(sources / "models" / "cube.glb.meta")->subAssets.size() == 5);
+
+    SECTION("Unchanged sources are not imported again, and keep their ids") {
+        AssetDatabase reopened(sources, imported);
+        CHECK(reopened.Refresh() == 0);
+        CHECK(reopened.GetAssets().size() == 11);
+        for (const auto& part : cubeParts) {
+            CHECK(reopened.Find(part.id) != nullptr);
+        }
+    }
+
+    SECTION("Changed settings and dependencies import again, keeping sub-asset ids") {
+        database.GetMeta(*cubeId)->model.scale = 2.0f;
+        database.SaveMeta(*cubeId);
+        CHECK(database.Refresh() == 1);
+        for (const auto& part : GetSubAssets(database, *cubeId)) {
+            CHECK(std::ranges::find(cubeParts, part.id, &Spot::AssetInfo::id) != cubeParts.end());
+        }
+
+        // The buffer may hold more bytes than the model uses, so one more byte keeps it valid.
+        {
+            std::ofstream buffer(sources / "models" / "textured quad.bin", std::ios::binary | std::ios::app);
+            buffer.put('\0');
+        }
+        CHECK(database.Refresh() == 1);
+        CHECK(database.Refresh() == 0);
+    }
+
+    SECTION("Reimporting runs the import even without changes") {
+        CHECK(database.Reimport(*database.FindByPath("pixels.png")));
+        CHECK_FALSE(database.Reimport(cubeParts.front().id));
+        CHECK(database.Refresh() == 0);
+    }
+
+    SECTION("The imported files of removed sources are deleted") {
+        std::filesystem::remove(sources / "models" / "cube.glb");
+        CHECK(database.Refresh() == 0);
+        CHECK(database.GetAssets().size() == 5);
+        for (const auto& part : cubeParts) {
+            CHECK_FALSE(std::filesystem::exists(imported / (part.id.ToString() + ".asset")));
+        }
+    }
+
+    SECTION("Sources that fail to import are still listed") {
+        std::ofstream(sources / "broken.png", std::ios::binary) << "not an image";
+        CHECK(database.Refresh() == 0);
+        const auto brokenId = database.FindByPath("broken.png");
+        REQUIRE(brokenId.has_value());
+        CHECK(database.Find(*brokenId) != nullptr);
+        CHECK_FALSE(std::filesystem::exists(imported / (brokenId->ToString() + ".asset")));
+    }
+}
+
+TEST_CASE("The asset database keeps imported assets when its source directory is missing", "[assets]") {
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    const auto imported = project.GetPath() / "imported";
+    CreateProject(sources);
+    AssetDatabase(sources, imported).Refresh();
+
+    AssetDatabase missing(project.GetPath() / "nowhere", imported);
+    CHECK(missing.Refresh() == 0);
+    CHECK(missing.GetAssets().empty());
+    CHECK(std::filesystem::exists(imported / "manifest.json"));
+    CHECK(std::distance(std::filesystem::directory_iterator(imported), std::filesystem::directory_iterator()) == 12);
 }

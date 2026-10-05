@@ -4,12 +4,22 @@ add_library(spot STATIC
     version.cpp
     assets/asset_database.h
     assets/asset_database.cpp
+    assets/asset_file.h
+    assets/asset_file.cpp
+    assets/asset_formats.h
+    assets/asset_formats.cpp
     assets/asset_id.h
     assets/asset_id.cpp
+    assets/asset_manifest.h
+    assets/asset_manifest.cpp
     assets/asset_meta.h
     assets/asset_meta.cpp
     assets/asset_type.h
     assets/asset_type.cpp
+    assets/importers/importer.h
+    assets/importers/importer.cpp
+    assets/importers/model_importer.cpp
+    assets/importers/texture_importer.cpp
     audio/audio_device.h
     audio/audio_device.cpp
     audio/audio_output.h
