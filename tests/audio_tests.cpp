@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -16,6 +17,7 @@
 #include <initializer_list>
 #include <memory>
 #include <string_view>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -267,4 +269,34 @@ TEST_CASE("The mixer releases sounds that ended on the next play", "[audio][mixe
     CHECK(sound.use_count() == 2);
     mixer.Play(MakeSound(48000, 1, {0.5f}));
     CHECK(sound.use_count() == 1);
+}
+
+TEST_CASE("A disabled audio device plays nothing but stays usable", "[audio]") {
+    Spot::AudioDevice audio({.enabled = false});
+
+    CHECK_FALSE(audio.HasOutput());
+    CHECK(audio.GetBackendName().empty());
+    CHECK(audio.GetSampleRate() == 48000);
+    const auto instance = audio.Play(MakeSound(48000, 1, {0.5f}));
+    CHECK(instance == Spot::SoundInstance{});
+    CHECK_FALSE(audio.IsPlaying(instance));
+    audio.SetMasterVolume(0.5f);
+    CHECK(audio.GetMasterVolume() == 0.5f);
+}
+
+TEST_CASE("The audio device plays sounds through the default output", "[audio]") {
+    Spot::AudioDevice audio;
+    if (!audio.HasOutput()) {
+        SKIP("No audio output is available");
+    }
+    CHECK_FALSE(audio.GetBackendName().empty());
+
+    // A twentieth of a second of silence, so the test is quiet; it only ends if the output pulls it through the mixer.
+    const auto instance = audio.Play(MakeSound(48000, 1, std::vector<float>(2400, 0.0f)));
+    CHECK(audio.IsPlaying(instance));
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (audio.IsPlaying(instance) && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    CHECK_FALSE(audio.IsPlaying(instance));
 }

@@ -2,6 +2,9 @@ add_library(spot STATIC
     spot.h
     version.h
     version.cpp
+    audio/audio_device.h
+    audio/audio_device.cpp
+    audio/audio_output.h
     audio/mixer.h
     audio/mixer.cpp
     audio/playback.h
@@ -149,6 +152,23 @@ if(SPOT_GRAPHICS STREQUAL "SDL_GPU")
     endif()
 else()
     message(FATAL_ERROR "Unknown SPOT_GRAPHICS '${SPOT_GRAPHICS}'")
+endif()
+
+# Like the graphics backend, the audio backend never reaches the public headers. It only plays what the engine's mixer
+# produces.
+set(SPOT_AUDIO "SDL3" CACHE STRING "Audio backend")
+set_property(CACHE SPOT_AUDIO PROPERTY STRINGS SDL3)
+
+if(SPOT_AUDIO STREQUAL "SDL3")
+    if(NOT SPOT_PLATFORM STREQUAL "SDL3")
+        message(FATAL_ERROR "The SDL3 audio backend requires the SDL3 platform")
+    endif()
+
+    target_sources(spot PRIVATE
+        audio/sdl3/sdl3_audio_output.cpp
+    )
+else()
+    message(FATAL_ERROR "Unknown SPOT_AUDIO '${SPOT_AUDIO}'")
 endif()
 
 target_include_directories(spot PUBLIC
