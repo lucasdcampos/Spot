@@ -94,7 +94,7 @@ using Detail::SkyLighting;
 
 SkyLighting GetSkyLighting(const SkyData& sky) {
     const Vector3 toSun = -Normalize(sky.sunDirection);
-    SkyLighting lighting{.ambient = sky.nightColor};
+    SkyLighting lighting{.sun = std::nullopt, .ambient = sky.nightColor};
     if (!sky.hasSun || toSun == Vector3{}) {
         return lighting;
     }
