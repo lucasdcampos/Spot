@@ -1,5 +1,7 @@
 #pragma once
 
+#include "math/vector.h"
+
 #include <memory>
 #include <string>
 #include <string_view>
@@ -26,6 +28,7 @@ public:
     // Sizes are in screen coordinates, which differ from pixels on high-DPI displays.
     int GetWidth() const;
     int GetHeight() const;
+    Vector2 GetSize() const;
     // The size of the drawable area in pixels, which is what rendering uses.
     int GetPixelWidth() const;
     int GetPixelHeight() const;

@@ -316,3 +316,66 @@ TEST_CASE("Render passes draw sampled textures into render targets", "[gpu]") {
     CHECK(pixelAt(0, 3) == std::array<std::uint8_t, 4>{0, 0, 255, 255});
     CHECK(pixelAt(3, 3) == std::array<std::uint8_t, 4>{255, 255, 255, 0});
 }
+
+TEST_CASE("Renderer2D draws colored and textured quads in order", "[gpu]") {
+    RequireGpu();
+    const auto image = Spot::Image::Load(std::filesystem::path(SPOT_TEST_ASSETS_DIR) / "pixels.png");
+    REQUIRE(image.has_value());
+
+    std::unique_ptr<Spot::Texture> target;
+    std::vector<std::uint8_t> result;
+    Spot::Renderer2DStats firstRound;
+    int frame = 0;
+
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
+        auto& device = app.GetGraphicsDevice();
+        if (++frame == 2) {
+            result = device.DownloadTexture(*target);
+            return;
+        }
+        if (frame != 1) {
+            return;
+        }
+
+        target = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
+        const auto texture = device.CreateTexture(*image);
+        REQUIRE((target && texture));
+        Spot::Renderer2D renderer(device,
+                                  {.filter = Spot::TextureFilter::Nearest, .targetFormat = Spot::TextureFormat::Rgba8});
+        REQUIRE(renderer.IsValid());
+
+        // A 4x4 view: world X and Y both span [-2, 2], one unit per pixel.
+        const Spot::Camera2D camera;
+        const Spot::Vector2 view{4.0f, 4.0f};
+        auto pass = context.BeginRenderPass({.target = target.get(), .clearColor = Spot::Color::Black});
+
+        renderer.Begin(pass, camera, view);
+        renderer.DrawQuad({-1.0f, 0.0f}, {2.0f, 4.0f}, Spot::Color::Red);
+        renderer.DrawQuad({1.0f, 0.0f}, {2.0f, 4.0f}, *texture);
+        renderer.End();
+        firstRound = renderer.GetStats();
+
+        // A second round in the same frame reuses the vertex buffer; the first round must keep its own data.
+        renderer.Begin(pass, camera, view);
+        renderer.DrawQuad({-1.5f, 1.5f}, {1.0f, 1.0f}, Spot::Color::Green);
+        renderer.End();
+        CHECK(renderer.GetStats().quadCount == 1);
+    });
+
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    CHECK(firstRound.quadCount == 2);
+    CHECK(firstRound.drawCalls == 2);
+    REQUIRE(result.size() == 4 * 4 * 4);
+
+    const auto pixelAt = [&](int x, int y) {
+        const auto* pixel = &result[static_cast<std::size_t>((y * 4 + x) * 4)];
+        return std::array<std::uint8_t, 4>{pixel[0], pixel[1], pixel[2], pixel[3]};
+    };
+    CHECK(pixelAt(0, 0) == std::array<std::uint8_t, 4>{0, 255, 0, 255});
+    CHECK(pixelAt(1, 3) == std::array<std::uint8_t, 4>{255, 0, 0, 255});
+    CHECK(pixelAt(2, 0) == std::array<std::uint8_t, 4>{255, 0, 0, 255});
+    CHECK(pixelAt(3, 0) == std::array<std::uint8_t, 4>{0, 255, 0, 255});
+    CHECK(pixelAt(2, 3) == std::array<std::uint8_t, 4>{0, 0, 255, 255});
+    // The texture's transparent texel blends to the black background.
+    CHECK(pixelAt(3, 3) == std::array<std::uint8_t, 4>{0, 0, 0, 255});
+}

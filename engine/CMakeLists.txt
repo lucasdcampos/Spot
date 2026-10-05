@@ -16,13 +16,19 @@ add_library(spot STATIC
     core/time.cpp
     events/event.h
     graphics/buffer.h
+    graphics/camera_2d.h
+    graphics/camera_2d.cpp
     graphics/color.h
     graphics/graphics_device.h
     graphics/image.h
     graphics/image.cpp
     graphics/pipeline.h
     graphics/pipeline.cpp
+    graphics/quad_batch.h
+    graphics/quad_batch.cpp
     graphics/render_context.h
+    graphics/renderer_2d.h
+    graphics/renderer_2d.cpp
     graphics/shader.h
     graphics/texture.h
     input/input.h
@@ -42,6 +48,11 @@ add_library(spot STATIC
     window/window.h
 )
 add_library(spot::spot ALIAS spot)
+
+spot_add_shaders(spot NAMESPACE Spot::Detail::Shaders
+    graphics/shaders/sprite.frag.hlsl
+    graphics/shaders/sprite.vert.hlsl
+)
 
 include(FetchContent)
 

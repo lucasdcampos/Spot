@@ -240,7 +240,8 @@ std::unique_ptr<Buffer> GraphicsDevice::CreateBuffer(const BufferDesc& desc) {
     return std::unique_ptr<Buffer>(new Buffer(std::move(impl)));
 }
 
-void GraphicsDevice::UploadToBuffer(Buffer& buffer, std::span<const std::byte> data, std::uint32_t offset) {
+void GraphicsDevice::UploadToBuffer(Buffer& buffer, std::span<const std::byte> data, std::uint32_t offset,
+                                    UploadMode mode) {
     SPOT_ASSERT(offset + data.size() <= buffer.GetSize(), "Upload of {} bytes at offset {} overflows a {}-byte buffer",
                 data.size(), offset, buffer.GetSize());
     if (data.empty()) {
@@ -273,8 +274,9 @@ void GraphicsDevice::UploadToBuffer(Buffer& buffer, std::span<const std::byte> d
     destination.buffer = static_cast<SDL_GPUBuffer*>(buffer.GetNativeHandle());
     destination.offset = offset;
     destination.size = size;
-    // Replacing the whole buffer lets SDL write into fresh memory instead of waiting for draws still reading it.
-    const bool cycle = offset == 0 && size == buffer.GetSize();
+    // Cycling makes SDL write into fresh memory instead of waiting for draws still reading the buffer, at the cost of
+    // the data outside the upload.
+    const bool cycle = mode == UploadMode::Discard || (offset == 0 && size == buffer.GetSize());
     SDL_UploadToGPUBuffer(copyPass, &source, &destination, cycle);
 
     SDL_EndGPUCopyPass(copyPass);

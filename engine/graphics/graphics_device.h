@@ -64,13 +64,15 @@ public:
     }
 
     // Copies data into the buffer at the given byte offset. It can be called at any time, including during a frame:
-    // the copy reaches the GPU before the frame's draws, and draws recorded earlier in the frame keep the old data.
-    void UploadToBuffer(Buffer& buffer, std::span<const std::byte> data, std::uint32_t offset = 0);
+    // the copy reaches the GPU before the frame's draws.
+    void UploadToBuffer(Buffer& buffer, std::span<const std::byte> data, std::uint32_t offset = 0,
+                        UploadMode mode = UploadMode::Preserve);
 
     template <std::ranges::contiguous_range Data>
-    void UploadToBuffer(Buffer& buffer, const Data& data, std::uint32_t offset = 0) {
+    void UploadToBuffer(Buffer& buffer, const Data& data, std::uint32_t offset = 0,
+                        UploadMode mode = UploadMode::Preserve) {
         // Converted to a dynamic extent so the byte overload is chosen instead of this template again.
-        UploadToBuffer(buffer, std::span<const std::byte>(std::as_bytes(std::span(data))), offset);
+        UploadToBuffer(buffer, std::span<const std::byte>(std::as_bytes(std::span(data))), offset, mode);
     }
 
     std::unique_ptr<Texture> CreateTexture(const TextureDesc& desc);

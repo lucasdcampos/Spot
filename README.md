@@ -29,6 +29,8 @@ ctest --preset ninja-debug
 
 Pass `release` to run an optimized build.
 
+In the sandbox, WASD or the arrow keys move the camera, the mouse wheel zooms and Escape quits.
+
 ## Layout
 
 - `engine/` – the engine library

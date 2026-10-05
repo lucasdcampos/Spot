@@ -1,27 +1,10 @@
-#include "color.frag.h"
-#include "quad.vert.h"
-
 #include <spot.h>
 
-#include <array>
-#include <cstddef>
-#include <cstdint>
+#include <algorithm>
+#include <cmath>
 #include <format>
 #include <memory>
-
-struct Vertex {
-    Spot::Vector2 position;
-    Spot::Color color;
-};
-
-constexpr std::array<Vertex, 4> QuadVertices{{
-    {{-0.5f, -0.5f}, Spot::Color::Red},
-    {{0.5f, -0.5f}, Spot::Color::Green},
-    {{0.5f, 0.5f}, Spot::Color::Blue},
-    {{-0.5f, 0.5f}, Spot::Color::White},
-}};
-
-constexpr std::array<std::uint16_t, 6> QuadIndices{0, 1, 2, 2, 3, 0};
+#include <optional>
 
 class Sandbox final : public Spot::Application {
 public:
@@ -32,75 +15,108 @@ protected:
         Spot::Log::Info("Spot {}", Spot::GetVersionString());
 
         auto& device = GetGraphicsDevice();
-        m_vertices = device.CreateBuffer(Spot::BufferUsage::Vertex, QuadVertices);
-        m_indices = device.CreateBuffer(Spot::BufferUsage::Index, QuadIndices);
-
-        const auto vertexShader = device.CreateShader(Shaders::QuadVert);
-        const auto fragmentShader = device.CreateShader(Shaders::ColorFrag);
-        if (vertexShader && fragmentShader) {
-            m_pipeline = device.CreatePipeline({
-                .vertexShader = vertexShader.get(),
-                .fragmentShader = fragmentShader.get(),
-                .vertexBuffers = {{
-                    .stride = sizeof(Vertex),
-                    .attributes = {{0, Spot::VertexFormat::Float2, offsetof(Vertex, position)},
-                                   {1, Spot::VertexFormat::Float4, offsetof(Vertex, color)}},
-                }},
-            });
+        m_renderer = std::make_unique<Spot::Renderer2D>(device);
+        if (const auto image = Spot::Image::Load(Spot::GetExecutableDirectory() / "assets" / "spot.png")) {
+            m_spot = device.CreateTexture(*image);
         }
     }
 
     void OnEvent(const Spot::Event& event) override {
         if (const auto* pressed = event.GetIf<Spot::KeyPressedEvent>(); pressed && !pressed->repeat) {
             Spot::Log::Info("Key pressed: {}", Spot::GetKeyName(pressed->key));
-        } else if (const auto* button = event.GetIf<Spot::MouseButtonPressedEvent>()) {
-            const auto position = Spot::Input::GetMousePosition();
-            Spot::Log::Info("Mouse button pressed: {} at ({}, {})", Spot::GetMouseButtonName(button->button),
-                            position.x, position.y);
         } else if (const auto* resized = event.GetIf<Spot::WindowResizeEvent>()) {
             Spot::Log::Info("Window resized to {}x{}", resized->width, resized->height);
-        } else if (const auto* focus = event.GetIf<Spot::WindowFocusEvent>()) {
-            Spot::Log::Info("Window {} focus", focus->focused ? "gained" : "lost");
         }
     }
 
     void OnUpdate(float deltaTime) override {
-        if (Spot::Input::IsKeyPressed(Spot::Key::Escape)) {
+        namespace Input = Spot::Input;
+        using Spot::Key;
+
+        if (Input::IsKeyPressed(Key::Escape)) {
             Quit();
+        }
+
+        // Pans at a constant speed on screen, whatever the zoom.
+        Spot::Vector2 direction;
+        direction.x = static_cast<float>(Input::IsKeyDown(Key::D) || Input::IsKeyDown(Key::Right)) -
+                      static_cast<float>(Input::IsKeyDown(Key::A) || Input::IsKeyDown(Key::Left));
+        direction.y = static_cast<float>(Input::IsKeyDown(Key::W) || Input::IsKeyDown(Key::Up)) -
+                      static_cast<float>(Input::IsKeyDown(Key::S) || Input::IsKeyDown(Key::Down));
+        m_camera.position += Spot::Normalize(direction) * (400.0f / m_camera.zoom * deltaTime);
+
+        if (const float scroll = Input::GetScrollDelta().y; scroll != 0.0f) {
+            m_camera.zoom = std::clamp(m_camera.zoom * std::pow(1.1f, scroll), 0.25f, 8.0f);
         }
 
         ++m_frames;
         m_elapsed += deltaTime;
         if (m_elapsed >= 1.0f) {
-            GetWindow().SetTitle(std::format("Spot Sandbox - {} FPS", m_frames));
+            const auto stats = m_renderer ? m_renderer->GetStats() : Spot::Renderer2DStats{};
+            GetWindow().SetTitle(std::format("Spot Sandbox - {} FPS, {} quads, {} draw calls", m_frames,
+                                             stats.quadCount, stats.drawCalls));
             m_frames = 0;
             m_elapsed -= 1.0f;
         }
     }
 
     void OnRender(Spot::RenderContext& context) override {
-        auto pass = context.BeginRenderPass({.clearColor = Spot::Color{0.1f, 0.1f, 0.12f}});
-        if (!m_pipeline || !m_vertices || !m_indices) {
+        auto pass = context.BeginRenderPass({.clearColor = Spot::Color{0.08f, 0.08f, 0.1f}});
+        if (!m_renderer) {
             return;
         }
 
-        // Keeps the quad square whatever the window's aspect ratio, and spins it once every four seconds.
-        const float aspect = static_cast<float>(context.GetWidth()) / static_cast<float>(context.GetHeight());
-        const auto projection = Spot::Matrix4::Orthographic(-aspect, aspect, -1.0f, 1.0f, -1.0f, 1.0f);
-        const auto angle = static_cast<float>(Spot::Time::GetTime()) * Spot::Pi / 2.0f;
-        const auto rotation = Spot::Matrix4::Rotation(Spot::Quaternion::FromAxisAngle({0.0f, 0.0f, 1.0f}, angle));
+        const Spot::Vector2 view = GetWindow().GetSize();
+        const auto time = static_cast<float>(Spot::Time::GetTime());
 
-        pass.BindPipeline(*m_pipeline);
-        pass.BindVertexBuffer(0, *m_vertices);
-        pass.BindIndexBuffer(*m_indices, Spot::IndexType::UInt16);
-        pass.PushVertexUniforms(0, projection * rotation);
-        pass.DrawIndexed(static_cast<std::uint32_t>(QuadIndices.size()));
+        m_renderer->Begin(pass, m_camera, view);
+
+        // A checkerboard of tiles shaded by their position.
+        constexpr int Tiles = 16;
+        constexpr float TileSize = 48.0f;
+        for (int y = -Tiles; y < Tiles; ++y) {
+            for (int x = -Tiles; x < Tiles; ++x) {
+                const float shade = (x + y) % 2 == 0 ? 0.16f : 0.12f;
+                const Spot::Color color{shade + 0.004f * static_cast<float>(x + Tiles), shade,
+                                        shade + 0.004f * static_cast<float>(y + Tiles)};
+                m_renderer->DrawQuad(
+                    {(static_cast<float>(x) + 0.5f) * TileSize, (static_cast<float>(y) + 0.5f) * TileSize},
+                    {TileSize - 2.0f, TileSize - 2.0f}, color);
+            }
+        }
+
+        // Spinning colored quads in a ring.
+        constexpr int RingQuads = 12;
+        for (int i = 0; i < RingQuads; ++i) {
+            const float angle = time * 0.5f + static_cast<float>(i) * 2.0f * Spot::Pi / RingQuads;
+            const Spot::Vector2 position{std::cos(angle) * 250.0f, std::sin(angle) * 250.0f};
+            const Spot::Color color{0.5f + 0.5f * std::cos(angle), 0.5f + 0.5f * std::sin(angle), 0.9f};
+            m_renderer->DrawRotatedQuad(position, {40.0f, 40.0f}, -angle * 2.0f, color);
+        }
+
+        // Textured spots orbiting the center, tinted and pulsing.
+        if (m_spot) {
+            for (int i = 0; i < 5; ++i) {
+                const float angle = -time + static_cast<float>(i) * 2.0f * Spot::Pi / 5.0f;
+                const float size = 80.0f + 16.0f * std::sin(time * 3.0f + static_cast<float>(i));
+                m_renderer->DrawQuad({std::cos(angle) * 120.0f, std::sin(angle) * 120.0f}, {size, size}, *m_spot);
+            }
+            m_renderer->DrawRotatedQuad({0.0f, 0.0f}, {64.0f, 64.0f}, time, *m_spot, Spot::Color{0.6f, 0.9f, 1.0f});
+        }
+
+        // A translucent marker under the mouse cursor.
+        const auto mouse = m_camera.ScreenToWorld(Spot::Input::GetMousePosition(), view);
+        const bool held = Spot::Input::IsMouseButtonDown(Spot::MouseButton::Left);
+        m_renderer->DrawRotatedQuad(mouse, {24.0f, 24.0f}, Spot::Pi / 4.0f,
+                                    held ? Spot::Color{1.0f, 0.3f, 0.3f, 0.8f} : Spot::Color{1.0f, 1.0f, 1.0f, 0.5f});
+
+        m_renderer->End();
     }
 
 private:
-    std::unique_ptr<Spot::Buffer> m_vertices;
-    std::unique_ptr<Spot::Buffer> m_indices;
-    std::unique_ptr<Spot::Pipeline> m_pipeline;
+    std::unique_ptr<Spot::Renderer2D> m_renderer;
+    std::unique_ptr<Spot::Texture> m_spot;
+    Spot::Camera2D m_camera;
     int m_frames = 0;
     float m_elapsed = 0.0f;
 };

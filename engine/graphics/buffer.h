@@ -15,6 +15,16 @@ enum class IndexType {
     UInt32,
 };
 
+enum class UploadMode {
+    // Keeps the rest of the buffer. The upload runs before the current frame's draws, so draws already recorded with
+    // this buffer in the frame see the new data.
+    Preserve,
+    // The rest of the buffer may be lost. In exchange the upload never waits: if the GPU still reads the buffer, the
+    // data goes to fresh memory, and draws recorded earlier keep reading what they were recorded with. Meant for data
+    // rewritten every frame. Uploads that cover the whole buffer always work this way.
+    Discard,
+};
+
 struct BufferDesc {
     BufferUsage usage = BufferUsage::Vertex;
     // In bytes.

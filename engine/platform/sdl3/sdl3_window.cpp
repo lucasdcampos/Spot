@@ -57,6 +57,10 @@ int Window::GetHeight() const {
     return height;
 }
 
+Vector2 Window::GetSize() const {
+    return {static_cast<float>(GetWidth()), static_cast<float>(GetHeight())};
+}
+
 int Window::GetPixelWidth() const {
     int width = 0;
     SDL_GetWindowSizeInPixels(m_impl->handle, &width, nullptr);

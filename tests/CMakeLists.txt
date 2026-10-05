@@ -18,6 +18,7 @@ add_executable(spot_tests
     log_tests.cpp
     math_tests.cpp
     platform_tests.cpp
+    renderer_2d_tests.cpp
     shader_tests.cpp
     time_tests.cpp
     version_tests.cpp
