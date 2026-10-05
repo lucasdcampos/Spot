@@ -96,8 +96,15 @@ protected:
         auto& device = GetGraphicsDevice();
         m_renderer = std::make_unique<Spot::Renderer2D>(device);
         if (const auto image = Spot::Image::Load(Spot::GetExecutableDirectory() / "assets" / "spot.png")) {
-            m_spot = device.CreateTexture(*image);
+            // Mipmaps keep it smooth on the 3D cube when seen from afar or at a grazing angle.
+            m_spot = device.CreateTexture(*image, true);
         }
+
+        m_renderer3D = std::make_unique<Spot::Renderer3D>(device);
+        m_house = Spot::Model::Load(device, Spot::GetExecutableDirectory() / "assets" / "models" / "house.glb");
+        m_cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+        m_sphere = Spot::Mesh::Create(device, Spot::MeshData::CreateSphere());
+        m_ground = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(16.0f));
 
         const auto fonts = Spot::GetExecutableDirectory() / "assets" / "fonts";
         m_font = Spot::Font::Load(device, fonts / "FiraSans-Regular.ttf", 20.0f);
@@ -177,35 +184,66 @@ protected:
             }
         }
 
-        // Pans at a constant speed on screen, whatever the zoom.
+        if (Input::IsKeyPressed(Key::F1)) {
+            m_show3D = !m_show3D;
+        }
+
         Spot::Vector2 direction;
         direction.x = static_cast<float>(Input::IsKeyDown(Key::D) || Input::IsKeyDown(Key::Right)) -
                       static_cast<float>(Input::IsKeyDown(Key::A) || Input::IsKeyDown(Key::Left));
         direction.y = static_cast<float>(Input::IsKeyDown(Key::W) || Input::IsKeyDown(Key::Up)) -
                       static_cast<float>(Input::IsKeyDown(Key::S) || Input::IsKeyDown(Key::Down));
-        m_camera.position += Spot::Normalize(direction) * (400.0f / m_camera.zoom * deltaTime);
+        const float scroll = Input::GetScrollDelta().y;
 
-        if (const float scroll = Input::GetScrollDelta().y; scroll != 0.0f) {
-            m_camera.zoom = std::clamp(m_camera.zoom * std::pow(1.1f, scroll), 0.25f, 8.0f);
+        if (m_show3D) {
+            // The keys and a right-button drag orbit around the house, and the wheel moves closer or farther.
+            Spot::Vector2 orbit = direction * (1.5f * deltaTime);
+            if (Input::IsMouseButtonDown(Spot::MouseButton::Right)) {
+                const Spot::Vector2 drag = Input::GetMouseDelta();
+                orbit += Spot::Vector2{-drag.x, drag.y} * 0.005f;
+            }
+            m_orbitYaw += orbit.x;
+            m_orbitPitch = std::clamp(m_orbitPitch + orbit.y, 0.05f, 1.4f);
+            m_orbitDistance = std::clamp(m_orbitDistance * std::pow(0.9f, scroll), 2.0f, 30.0f);
+        } else {
+            // Pans at a constant speed on screen, whatever the zoom.
+            m_camera.position += Spot::Normalize(direction) * (400.0f / m_camera.zoom * deltaTime);
+            if (scroll != 0.0f) {
+                m_camera.zoom = std::clamp(m_camera.zoom * std::pow(1.1f, scroll), 0.25f, 8.0f);
+            }
         }
 
         ++m_frames;
         m_elapsed += deltaTime;
         if (m_elapsed >= 1.0f) {
-            m_status = std::format("{} FPS, {} quads, {} draw calls", m_frames, m_worldStats.quadCount,
-                                   m_worldStats.drawCalls);
+            m_status = m_show3D ? std::format("{} FPS, {} triangles, {} draw calls", m_frames, m_stats3D.triangleCount,
+                                              m_stats3D.drawCalls)
+                                : std::format("{} FPS, {} quads, {} draw calls", m_frames, m_worldStats.quadCount,
+                                              m_worldStats.drawCalls);
             m_frames = 0;
             m_elapsed -= 1.0f;
         }
     }
 
     void OnRender(Spot::RenderContext& context) override {
-        auto pass = context.BeginRenderPass({.clearColor = Spot::Color{0.08f, 0.08f, 0.1f}});
+        const Spot::Vector2 view = GetWindow().GetSize();
+        if (m_show3D) {
+            Render3D(context, view);
+        } else {
+            auto pass = context.BeginRenderPass({.clearColor = Spot::Color{0.08f, 0.08f, 0.1f}});
+            Render2D(pass, view);
+        }
+
+        // The HUD has its own pass, without the depth target of the 3D view, which Renderer2D does not draw with.
+        auto hud = context.BeginRenderPass();
+        RenderHud(hud, view);
+    }
+
+private:
+    void Render2D(Spot::RenderPass& pass, Spot::Vector2 view) {
         if (!m_renderer) {
             return;
         }
-
-        const Spot::Vector2 view = GetWindow().GetSize();
         const auto time = static_cast<float>(Spot::Time::GetTime());
 
         m_renderer->Begin(pass, m_camera, view);
@@ -260,35 +298,105 @@ protected:
 
         m_renderer->End();
         m_worldStats = m_renderer->GetStats();
-
-        // The HUD is drawn in a second round with a camera that puts world (0, 0) at the window's top-left corner,
-        // so it stays fixed on screen while the world camera moves.
-        if (m_font) {
-            Spot::Camera2D screen;
-            screen.position = {view.x / 2.0f, -view.y / 2.0f};
-            const float line = m_font->GetLineHeight();
-
-            m_renderer->Begin(pass, screen, view);
-            m_renderer->DrawQuad({200.0f, -70.0f}, {400.0f, 140.0f}, Spot::Color{0.0f, 0.0f, 0.0f, 0.6f});
-            m_renderer->DrawString(*m_font, "Spot Sandbox", {12.0f, -10.0f}, Spot::Color::White);
-            m_renderer->DrawString(*m_font, m_status, {12.0f, -10.0f - line}, Spot::Color{0.7f, 0.9f, 0.7f});
-            m_renderer->DrawString(*m_font, "WASD: move | wheel: zoom | Tab: scene | Space: toggle | F5/F9: save/load",
-                                   {12.0f, -10.0f - 2.0f * line}, Spot::Color{0.8f, 0.8f, 0.8f}, 0.8f);
-            m_renderer->DrawString(*m_font, "Accents: caf\u00e9, fa\u00e7ade, na\u00efve, jalape\u00f1o",
-                                   {12.0f, -10.0f - 2.8f * line}, Spot::Color{0.8f, 0.8f, 0.8f}, 0.8f);
-            m_renderer->End();
-        }
     }
 
-private:
+    void Render3D(Spot::RenderContext& context, Spot::Vector2 view) {
+        // The depth target must match the frame, whose size changes with the window.
+        const auto width = static_cast<std::uint32_t>(context.GetWidth());
+        const auto height = static_cast<std::uint32_t>(context.GetHeight());
+        if (!m_depth || m_depth->GetWidth() != width || m_depth->GetHeight() != height) {
+            m_depth = GetGraphicsDevice().CreateTexture(
+                {.width = width, .height = height, .format = Spot::TextureFormat::Depth32Float, .renderTarget = true});
+        }
+
+        auto pass = context.BeginRenderPass(
+            {.clearColor = Spot::Color{0.5f, 0.68f, 0.85f}, .depthTarget = m_depth.get(), .clearDepth = 1.0f});
+        if (!m_depth || !m_renderer3D || !m_cube || !m_sphere || !m_ground) {
+            return;
+        }
+
+        const Spot::Vector3 target{0.0f, 0.8f, 0.0f};
+        Spot::Camera3D camera;
+        camera.position = target + Spot::Vector3{std::sin(m_orbitYaw) * std::cos(m_orbitPitch), std::sin(m_orbitPitch),
+                                                 std::cos(m_orbitYaw) * std::cos(m_orbitPitch)} *
+                                       m_orbitDistance;
+        camera.LookAt(target);
+
+        const auto time = static_cast<float>(Spot::Time::GetTime());
+        using Spot::Matrix4;
+        using Spot::Quaternion;
+
+        m_renderer3D->Begin(pass, camera, view);
+        m_renderer3D->DrawMesh(*m_ground, {.baseColor = Spot::Color{0.35f, 0.55f, 0.3f}});
+
+        if (m_house) {
+            m_renderer3D->DrawModel(*m_house, Matrix4::Rotation(Quaternion::FromAxisAngle({0, 1, 0}, 0.6f)));
+        }
+
+        // A textured cube tumbling over the house.
+        m_renderer3D->DrawMesh(*m_cube, {.baseColorTexture = m_spot},
+                               Matrix4::Translation({0.0f, 2.9f + 0.2f * std::sin(time * 2.0f), 0.0f}) *
+                                   Matrix4::Rotation(Quaternion::FromEuler({time * 0.7f, time, 0.0f})) *
+                                   Matrix4::Scale({0.6f, 0.6f, 0.6f}));
+
+        // Spheres circling the house, each in its own color.
+        constexpr int Spheres = 6;
+        for (int i = 0; i < Spheres; ++i) {
+            const float angle = time * 0.5f + static_cast<float>(i) * 2.0f * Spot::Pi / Spheres;
+            const Spot::Color color{0.5f + 0.5f * std::cos(angle * 2.0f), 0.5f + 0.5f * std::sin(angle), 0.9f};
+            m_renderer3D->DrawMesh(*m_sphere, {.baseColor = color},
+                                   Matrix4::Translation({std::cos(angle) * 2.5f, 0.4f, std::sin(angle) * 2.5f}) *
+                                       Matrix4::Scale({0.6f, 0.6f, 0.6f}));
+        }
+
+        m_renderer3D->End();
+        m_stats3D = m_renderer3D->GetStats();
+    }
+
+    // The HUD uses a camera that puts world (0, 0) at the window's top-left corner, so it stays fixed on screen while
+    // the world camera moves.
+    void RenderHud(Spot::RenderPass& pass, Spot::Vector2 view) {
+        if (!m_renderer || !m_font) {
+            return;
+        }
+        Spot::Camera2D screen;
+        screen.position = {view.x / 2.0f, -view.y / 2.0f};
+        const float line = m_font->GetLineHeight();
+        const std::string_view controls =
+            m_show3D ? "F1: 2D | WASD or right drag: orbit | wheel: zoom"
+                     : "F1: 3D | WASD: move | wheel: zoom | Tab: scene | Space: toggle | F5/F9: save/load";
+
+        m_renderer->Begin(pass, screen, view);
+        m_renderer->DrawQuad({250.0f, -70.0f}, {500.0f, 140.0f}, Spot::Color{0.0f, 0.0f, 0.0f, 0.6f});
+        m_renderer->DrawString(*m_font, "Spot Sandbox", {12.0f, -10.0f}, Spot::Color::White);
+        m_renderer->DrawString(*m_font, m_status, {12.0f, -10.0f - line}, Spot::Color{0.7f, 0.9f, 0.7f});
+        m_renderer->DrawString(*m_font, controls, {12.0f, -10.0f - 2.0f * line}, Spot::Color{0.8f, 0.8f, 0.8f}, 0.8f);
+        m_renderer->DrawString(*m_font, "Accents: caf\u00e9, fa\u00e7ade, na\u00efve, jalape\u00f1o",
+                               {12.0f, -10.0f - 2.8f * line}, Spot::Color{0.8f, 0.8f, 0.8f}, 0.8f);
+        m_renderer->End();
+    }
+
     std::unique_ptr<Spot::Renderer2D> m_renderer;
-    std::unique_ptr<Spot::Texture> m_spot;
+    std::shared_ptr<Spot::Texture> m_spot;
     std::unique_ptr<Spot::Font> m_font;
     std::unique_ptr<Spot::Font> m_largeFont;
     std::shared_ptr<Spot::Sound> m_blip;
     Spot::Renderer2DStats m_worldStats;
     std::string m_status;
     Spot::Camera2D m_camera;
+
+    std::unique_ptr<Spot::Renderer3D> m_renderer3D;
+    std::unique_ptr<Spot::Texture> m_depth;
+    std::unique_ptr<Spot::Model> m_house;
+    std::unique_ptr<Spot::Mesh> m_cube;
+    std::unique_ptr<Spot::Mesh> m_sphere;
+    std::unique_ptr<Spot::Mesh> m_ground;
+    Spot::Renderer3DStats m_stats3D;
+    float m_orbitYaw = 0.6f;
+    float m_orbitPitch = 0.45f;
+    float m_orbitDistance = 5.0f;
+    bool m_show3D = false;
+
     bool m_solar = false;
     int m_frames = 0;
     float m_elapsed = 0.0f;
