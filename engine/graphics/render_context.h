@@ -2,6 +2,7 @@
 
 #include "graphics/buffer.h"
 #include "graphics/color.h"
+#include "graphics/texture.h"
 
 #include <cstdint>
 #include <memory>
@@ -15,6 +16,8 @@ class Pipeline;
 class RenderContext;
 
 struct RenderPassDesc {
+    // A texture created as a render target, or null to draw into the window.
+    Texture* target = nullptr;
     // Clears the target first when set; otherwise the pass draws over its current contents.
     std::optional<Color> clearColor = std::nullopt;
 };
@@ -33,6 +36,8 @@ public:
     void BindPipeline(const Pipeline& pipeline);
     void BindVertexBuffer(std::uint32_t slot, const Buffer& buffer, std::uint32_t offset = 0);
     void BindIndexBuffer(const Buffer& buffer, IndexType type, std::uint32_t offset = 0);
+    // Binds the texture and sampler read by the fragment shader's texture at register t{slot}.
+    void BindFragmentTexture(std::uint32_t slot, const Texture& texture, const Sampler& sampler);
 
     // Uniforms set the HLSL constant buffer at register b{slot} of the stage, and stay set for later draws, in this
     // pass and the next ones of the frame. Data follows HLSL constant buffer packing: fields do not cross 16-byte
@@ -81,7 +86,7 @@ public:
     RenderContext(const RenderContext&) = delete;
     RenderContext& operator=(const RenderContext&) = delete;
 
-    // Size of the frame's target in pixels, which differs from the window size on high-DPI displays.
+    // Size of the window's frame in pixels, which differs from the window size on high-DPI displays.
     int GetWidth() const;
     int GetHeight() const;
 

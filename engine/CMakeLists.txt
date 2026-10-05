@@ -10,16 +10,21 @@ add_library(spot STATIC
     core/log.cpp
     core/log_sinks.h
     core/log_sinks.cpp
+    core/paths.h
+    core/paths.cpp
     core/time.h
     core/time.cpp
     events/event.h
     graphics/buffer.h
     graphics/color.h
     graphics/graphics_device.h
+    graphics/image.h
+    graphics/image.cpp
     graphics/pipeline.h
     graphics/pipeline.cpp
     graphics/render_context.h
     graphics/shader.h
+    graphics/texture.h
     input/input.h
     input/input.cpp
     input/input_state.h
@@ -53,6 +58,15 @@ FetchContent_Declare(glm
 FetchContent_MakeAvailable(glm)
 target_link_libraries(spot PRIVATE glm::glm-header-only)
 
+# stb_image decodes images; it is a single header without a CMake project.
+FetchContent_Declare(stb
+    GIT_REPOSITORY https://github.com/nothings/stb.git
+    GIT_TAG 2c980bb59875b0d32144a71867fbdebb2f77cd20
+    SYSTEM
+)
+FetchContent_MakeAvailable(stb)
+target_include_directories(spot SYSTEM PRIVATE ${stb_SOURCE_DIR})
+
 # The backend is chosen at build time. Its types never reach the public headers, so swapping it does not
 # change the engine API.
 set(SPOT_PLATFORM "SDL3" CACHE STRING "Windowing and input backend")
@@ -73,6 +87,7 @@ if(SPOT_PLATFORM STREQUAL "SDL3")
 
     target_sources(spot PRIVATE
         platform/sdl3/sdl3_events.cpp
+        platform/sdl3/sdl3_paths.cpp
         platform/sdl3/sdl3_platform.cpp
         platform/sdl3/sdl3_window.cpp
     )
@@ -116,4 +131,4 @@ target_compile_definitions(spot PRIVATE
     SPOT_VERSION_STRING="${PROJECT_VERSION}"
 )
 
-spot_set_warnings(spot)
+spot_set_compile_options(spot)

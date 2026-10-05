@@ -49,6 +49,14 @@ void RenderPass::BindIndexBuffer(const Buffer& buffer, IndexType type, std::uint
                            type == IndexType::UInt16 ? SDL_GPU_INDEXELEMENTSIZE_16BIT : SDL_GPU_INDEXELEMENTSIZE_32BIT);
 }
 
+void RenderPass::BindFragmentTexture(std::uint32_t slot, const Texture& texture, const Sampler& sampler) {
+    SPOT_ASSERT(m_native, "The render pass has ended");
+    SDL_GPUTextureSamplerBinding binding{};
+    binding.texture = static_cast<SDL_GPUTexture*>(texture.GetNativeHandle());
+    binding.sampler = static_cast<SDL_GPUSampler*>(sampler.GetNativeHandle());
+    SDL_BindGPUFragmentSamplers(static_cast<SDL_GPURenderPass*>(m_native), slot, &binding, 1);
+}
+
 void RenderPass::PushVertexUniformData(std::uint32_t slot, const void* data, std::uint32_t size) {
     SDL_PushGPUVertexUniformData(m_context->m_impl->commandBuffer, slot, data, size);
 }
@@ -89,8 +97,10 @@ int RenderContext::GetHeight() const {
 RenderPass RenderContext::BeginRenderPass(const RenderPassDesc& desc) {
     SPOT_ASSERT(!m_impl->passOpen, "Only one render pass can be open at a time");
 
+    SPOT_ASSERT(!desc.target || desc.target->IsRenderTarget(), "Render pass targets must be created as render targets");
+
     SDL_GPUColorTargetInfo target{};
-    target.texture = m_impl->target;
+    target.texture = desc.target ? static_cast<SDL_GPUTexture*>(desc.target->GetNativeHandle()) : m_impl->target;
     target.store_op = SDL_GPU_STOREOP_STORE;
     if (desc.clearColor) {
         target.load_op = SDL_GPU_LOADOP_CLEAR;

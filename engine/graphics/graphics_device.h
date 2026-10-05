@@ -1,15 +1,18 @@
 #pragma once
 
 #include "graphics/buffer.h"
+#include "graphics/image.h"
 #include "graphics/pipeline.h"
 #include "graphics/render_context.h"
 #include "graphics/shader.h"
+#include "graphics/texture.h"
 
 #include <cstddef>
 #include <memory>
 #include <ranges>
 #include <span>
 #include <string_view>
+#include <vector>
 
 namespace Spot {
 
@@ -69,6 +72,24 @@ public:
         // Converted to a dynamic extent so the byte overload is chosen instead of this template again.
         UploadToBuffer(buffer, std::span<const std::byte>(std::as_bytes(std::span(data))), offset);
     }
+
+    std::unique_ptr<Texture> CreateTexture(const TextureDesc& desc);
+    // Creates an RGBA texture the size of the image, holding its pixels.
+    std::unique_ptr<Texture> CreateTexture(const Image& image);
+    std::unique_ptr<Sampler> CreateSampler(const SamplerDesc& desc = {});
+
+    // Replaces all of the texture's pixels: width * height * 4 bytes, rows from top to bottom. Like buffer uploads,
+    // it can be called at any time.
+    void UploadToTexture(Texture& texture, std::span<const std::byte> pixels);
+
+    template <std::ranges::contiguous_range Data>
+    void UploadToTexture(Texture& texture, const Data& pixels) {
+        UploadToTexture(texture, std::span<const std::byte>(std::as_bytes(std::span(pixels))));
+    }
+
+    // Reads the texture's pixels back, rows from top to bottom. It waits for the GPU, so it is slow and meant for
+    // screenshots, tools and tests. It sees the work of frames already submitted, not of the frame being recorded.
+    std::vector<std::uint8_t> DownloadTexture(const Texture& texture);
 
     bool IsVSyncEnabled() const;
     void SetVSync(bool enabled);

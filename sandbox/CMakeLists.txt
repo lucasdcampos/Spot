@@ -11,4 +11,4 @@ spot_add_shaders(sandbox
     shaders/quad.vert.hlsl
 )
 
-spot_set_warnings(sandbox)
+spot_set_compile_options(sandbox)

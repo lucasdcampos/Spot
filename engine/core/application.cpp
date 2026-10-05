@@ -3,6 +3,7 @@
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/log_sinks.h"
+#include "core/paths.h"
 #include "input/input.h"
 #include "platform/platform.h"
 
@@ -19,7 +20,7 @@ Application::Application(ApplicationConfig config) : m_config(std::move(config))
             m_logFile = std::move(file);
             Log::AddSink(m_logFile);
         } else {
-            Log::GetEngineLogger().Warning("Could not open log file '{}'", m_config.logFile.string());
+            Log::GetEngineLogger().Warning("Could not open log file '{}'", PathToUtf8(m_config.logFile));
         }
     }
 }

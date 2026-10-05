@@ -1,7 +1,10 @@
 #pragma once
 
+#include "graphics/texture.h"
+
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace Spot {
@@ -66,7 +69,7 @@ struct VertexBufferLayout {
 };
 
 // The full GPU state for a draw. Pipelines are immutable: create one per combination that is needed, ahead of time,
-// since creating them is slow. They draw into the window's swapchain.
+// since creating them is slow.
 struct PipelineDesc {
     const Shader* vertexShader = nullptr;
     const Shader* fragmentShader = nullptr;
@@ -76,6 +79,8 @@ struct PipelineDesc {
     BlendMode blendMode = BlendMode::None;
     // Front faces wind counterclockwise.
     CullMode cullMode = CullMode::None;
+    // The format of the texture the pipeline draws into; the window's swapchain when unset.
+    std::optional<TextureFormat> targetFormat = std::nullopt;
 };
 
 class Pipeline {

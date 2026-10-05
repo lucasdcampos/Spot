@@ -7,6 +7,7 @@
 #include "graphics/pipeline.h"
 #include "graphics/render_context.h"
 #include "graphics/shader.h"
+#include "graphics/texture.h"
 
 #include <SDL3/SDL.h>
 
@@ -70,6 +71,23 @@ struct Buffer::Impl {
     BufferUsage usage;
     std::uint32_t size;
 };
+
+struct Texture::Impl {
+    ~Impl() { SDL_ReleaseGPUTexture(device->Get(), handle); }
+
+    std::shared_ptr<SharedGpuDevice> device;
+    SDL_GPUTexture* handle;
+    TextureDesc desc;
+};
+
+struct Sampler::Impl {
+    ~Impl() { SDL_ReleaseGPUSampler(device->Get(), handle); }
+
+    std::shared_ptr<SharedGpuDevice> device;
+    SDL_GPUSampler* handle;
+};
+
+SDL_GPUTextureFormat ToSdl(TextureFormat format);
 
 struct Pipeline::Impl {
     ~Impl() { SDL_ReleaseGPUGraphicsPipeline(device->Get(), handle); }

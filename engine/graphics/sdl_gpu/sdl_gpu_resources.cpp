@@ -97,7 +97,37 @@ SDL_GPUColorTargetBlendState ToSdl(BlendMode mode) {
     return blend;
 }
 
+SDL_GPUFilter ToSdl(TextureFilter filter) {
+    return filter == TextureFilter::Nearest ? SDL_GPU_FILTER_NEAREST : SDL_GPU_FILTER_LINEAR;
+}
+
+SDL_GPUSamplerAddressMode ToSdl(TextureAddressMode mode) {
+    switch (mode) {
+    case TextureAddressMode::ClampToEdge:
+        return SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
+    case TextureAddressMode::Repeat:
+        return SDL_GPU_SAMPLERADDRESSMODE_REPEAT;
+    case TextureAddressMode::MirroredRepeat:
+        return SDL_GPU_SAMPLERADDRESSMODE_MIRRORED_REPEAT;
+    }
+    return SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
+}
+
+std::uint32_t GetPixelDataSize(const Texture& texture) {
+    return texture.GetWidth() * texture.GetHeight() * 4;
+}
+
 } // namespace
+
+SDL_GPUTextureFormat ToSdl(TextureFormat format) {
+    switch (format) {
+    case TextureFormat::Rgba8:
+        return SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+    case TextureFormat::Bgra8:
+        return SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM;
+    }
+    return SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+}
 
 std::unique_ptr<Shader> GraphicsDevice::CreateShader(const ShaderDesc& desc) {
     SDL_GPUDevice* device = m_impl->device->Get();
@@ -140,7 +170,8 @@ std::unique_ptr<Pipeline> GraphicsDevice::CreatePipeline(const PipelineDesc& des
     SDL_GPUDevice* device = m_impl->device->Get();
 
     SDL_GPUColorTargetDescription colorTarget{};
-    colorTarget.format = SDL_GetGPUSwapchainTextureFormat(device, m_impl->window);
+    colorTarget.format =
+        desc.targetFormat ? ToSdl(*desc.targetFormat) : SDL_GetGPUSwapchainTextureFormat(device, m_impl->window);
     colorTarget.blend_state = ToSdl(desc.blendMode);
 
     SDL_GPUGraphicsPipelineCreateInfo info{};
@@ -292,4 +323,180 @@ void* Pipeline::GetNativeHandle() const {
     return m_impl->handle;
 }
 
+std::unique_ptr<Texture> GraphicsDevice::CreateTexture(const TextureDesc& desc) {
+    if (desc.width == 0 || desc.height == 0) {
+        Log::GetEngineLogger().Error("Cannot create a {}x{} texture", desc.width, desc.height);
+        return nullptr;
+    }
+
+    SDL_GPUTextureCreateInfo info{};
+    info.type = SDL_GPU_TEXTURETYPE_2D;
+    info.format = ToSdl(desc.format);
+    info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER | (desc.renderTarget ? SDL_GPU_TEXTUREUSAGE_COLOR_TARGET : 0);
+    info.width = desc.width;
+    info.height = desc.height;
+    info.layer_count_or_depth = 1;
+    info.num_levels = 1;
+    info.sample_count = SDL_GPU_SAMPLECOUNT_1;
+
+    SDL_GPUTexture* handle = SDL_CreateGPUTexture(m_impl->device->Get(), &info);
+    if (!handle) {
+        Log::GetEngineLogger().Error("Failed to create texture: {}", SDL_GetError());
+        return nullptr;
+    }
+
+    auto impl = std::make_unique<Texture::Impl>();
+    impl->device = m_impl->device;
+    impl->handle = handle;
+    impl->desc = desc;
+    return std::unique_ptr<Texture>(new Texture(std::move(impl)));
+}
+
+std::unique_ptr<Texture> GraphicsDevice::CreateTexture(const Image& image) {
+    auto texture = CreateTexture({.width = image.GetWidth(), .height = image.GetHeight()});
+    if (texture) {
+        UploadToTexture(*texture, image.GetPixels());
+    }
+    return texture;
+}
+
+std::unique_ptr<Sampler> GraphicsDevice::CreateSampler(const SamplerDesc& desc) {
+    SDL_GPUSamplerCreateInfo info{};
+    info.min_filter = ToSdl(desc.filter);
+    info.mag_filter = ToSdl(desc.filter);
+    info.mipmap_mode =
+        desc.filter == TextureFilter::Nearest ? SDL_GPU_SAMPLERMIPMAPMODE_NEAREST : SDL_GPU_SAMPLERMIPMAPMODE_LINEAR;
+    info.address_mode_u = ToSdl(desc.addressMode);
+    info.address_mode_v = ToSdl(desc.addressMode);
+    info.address_mode_w = ToSdl(desc.addressMode);
+
+    SDL_GPUSampler* handle = SDL_CreateGPUSampler(m_impl->device->Get(), &info);
+    if (!handle) {
+        Log::GetEngineLogger().Error("Failed to create sampler: {}", SDL_GetError());
+        return nullptr;
+    }
+
+    auto impl = std::make_unique<Sampler::Impl>();
+    impl->device = m_impl->device;
+    impl->handle = handle;
+    return std::unique_ptr<Sampler>(new Sampler(std::move(impl)));
+}
+
+void GraphicsDevice::UploadToTexture(Texture& texture, std::span<const std::byte> pixels) {
+    SPOT_ASSERT(pixels.size() == GetPixelDataSize(texture), "A {}x{} texture takes {} bytes of pixels, not {}",
+                texture.GetWidth(), texture.GetHeight(), GetPixelDataSize(texture), pixels.size());
+
+    SDL_GPUDevice* device = m_impl->device->Get();
+    SDL_GPUTransferBufferCreateInfo transferInfo{};
+    transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
+    transferInfo.size = static_cast<Uint32>(pixels.size());
+    SDL_GPUTransferBuffer* transfer = SDL_CreateGPUTransferBuffer(device, &transferInfo);
+    if (!transfer) {
+        Log::GetEngineLogger().Error("Failed to create transfer buffer: {}", SDL_GetError());
+        return;
+    }
+
+    void* mapped = SDL_MapGPUTransferBuffer(device, transfer, false);
+    std::memcpy(mapped, pixels.data(), pixels.size());
+    SDL_UnmapGPUTransferBuffer(device, transfer);
+
+    SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device);
+    SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
+
+    SDL_GPUTextureTransferInfo source{};
+    source.transfer_buffer = transfer;
+    source.pixels_per_row = texture.GetWidth();
+    source.rows_per_layer = texture.GetHeight();
+    SDL_GPUTextureRegion destination{};
+    destination.texture = static_cast<SDL_GPUTexture*>(texture.GetNativeHandle());
+    destination.w = texture.GetWidth();
+    destination.h = texture.GetHeight();
+    destination.d = 1;
+    // Every pixel is replaced, so draws still reading the old contents can keep them while this writes new memory.
+    SDL_UploadToGPUTexture(copyPass, &source, &destination, true);
+
+    SDL_EndGPUCopyPass(copyPass);
+    if (!SDL_SubmitGPUCommandBuffer(commandBuffer)) {
+        Log::GetEngineLogger().Error("Failed to submit texture upload: {}", SDL_GetError());
+    }
+    SDL_ReleaseGPUTransferBuffer(device, transfer);
+}
+
+std::vector<std::uint8_t> GraphicsDevice::DownloadTexture(const Texture& texture) {
+    SDL_GPUDevice* device = m_impl->device->Get();
+    const std::uint32_t size = GetPixelDataSize(texture);
+
+    SDL_GPUTransferBufferCreateInfo transferInfo{};
+    transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD;
+    transferInfo.size = size;
+    SDL_GPUTransferBuffer* transfer = SDL_CreateGPUTransferBuffer(device, &transferInfo);
+    if (!transfer) {
+        Log::GetEngineLogger().Error("Failed to create transfer buffer: {}", SDL_GetError());
+        return {};
+    }
+
+    SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device);
+    SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
+
+    SDL_GPUTextureRegion source{};
+    source.texture = static_cast<SDL_GPUTexture*>(texture.GetNativeHandle());
+    source.w = texture.GetWidth();
+    source.h = texture.GetHeight();
+    source.d = 1;
+    SDL_GPUTextureTransferInfo destination{};
+    destination.transfer_buffer = transfer;
+    destination.pixels_per_row = texture.GetWidth();
+    destination.rows_per_layer = texture.GetHeight();
+    SDL_DownloadFromGPUTexture(copyPass, &source, &destination);
+
+    SDL_EndGPUCopyPass(copyPass);
+    std::vector<std::uint8_t> pixels;
+    SDL_GPUFence* fence = SDL_SubmitGPUCommandBufferAndAcquireFence(commandBuffer);
+    if (fence && SDL_WaitForGPUFences(device, true, &fence, 1)) {
+        const auto* mapped = static_cast<const std::uint8_t*>(SDL_MapGPUTransferBuffer(device, transfer, false));
+        pixels.assign(mapped, mapped + size);
+        SDL_UnmapGPUTransferBuffer(device, transfer);
+    } else {
+        Log::GetEngineLogger().Error("Failed to download texture: {}", SDL_GetError());
+    }
+    if (fence) {
+        SDL_ReleaseGPUFence(device, fence);
+    }
+    SDL_ReleaseGPUTransferBuffer(device, transfer);
+    return pixels;
+}
+
+Texture::Texture(std::unique_ptr<Impl> impl) : m_impl(std::move(impl)) {
+}
+
+Texture::~Texture() = default;
+
+std::uint32_t Texture::GetWidth() const {
+    return m_impl->desc.width;
+}
+
+std::uint32_t Texture::GetHeight() const {
+    return m_impl->desc.height;
+}
+
+TextureFormat Texture::GetFormat() const {
+    return m_impl->desc.format;
+}
+
+bool Texture::IsRenderTarget() const {
+    return m_impl->desc.renderTarget;
+}
+
+void* Texture::GetNativeHandle() const {
+    return m_impl->handle;
+}
+
+Sampler::Sampler(std::unique_ptr<Impl> impl) : m_impl(std::move(impl)) {
+}
+
+Sampler::~Sampler() = default;
+
+void* Sampler::GetNativeHandle() const {
+    return m_impl->handle;
+}
 } // namespace Spot
