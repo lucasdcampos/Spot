@@ -29,6 +29,20 @@ struct RenderPassDesc {
     // samples themselves are then discarded.
     Texture* resolveTarget = nullptr;
     bool resolveToWindow = false;
+    // Draws only into the depth target, with no color target, as shadow maps are; target, clearColor and the
+    // resolve fields must then be unset. Only pipelines created with PipelineDesc::depthOnly draw in such passes.
+    bool depthOnly = false;
+};
+
+// The rectangle of the pass's targets that draws are mapped into, in pixels from the top-left corner, and the range
+// of depths they are mapped to.
+struct Viewport {
+    float x = 0.0f;
+    float y = 0.0f;
+    float width = 0.0f;
+    float height = 0.0f;
+    float minDepth = 0.0f;
+    float maxDepth = 1.0f;
 };
 
 // Commands that draw into a target. Only one pass can be open at a time; it ends when End() is called or when it
@@ -43,6 +57,9 @@ public:
     void End();
 
     void BindPipeline(const Pipeline& pipeline);
+    // Maps later draws of the pass into part of its targets, such as one tile of a texture atlas. Passes start out
+    // covering their whole targets. Pixels outside the viewport are not drawn, though they are still cleared.
+    void SetViewport(const Viewport& viewport);
     void BindVertexBuffer(std::uint32_t slot, const Buffer& buffer, std::uint32_t offset = 0);
     void BindIndexBuffer(const Buffer& buffer, IndexType type, std::uint32_t offset = 0);
     // Binds the texture and sampler read by the fragment shader's texture at register t{slot}.

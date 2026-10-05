@@ -83,6 +83,7 @@ target_link_libraries(spot_gpu_tests PRIVATE
 )
 
 spot_add_shaders(spot_gpu_tests
+    shaders/depth_compare.frag.hlsl
     shaders/quad.vert.hlsl
     shaders/textured.frag.hlsl
     shaders/textured_quad.vert.hlsl

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 
 namespace Spot {
 
@@ -69,6 +70,18 @@ private:
     std::unique_ptr<Impl> m_impl;
 };
 
+// How a depth test or a comparison sampler compares a value with the one stored.
+enum class CompareOp {
+    Never,
+    Less,
+    LessOrEqual,
+    Equal,
+    Greater,
+    GreaterOrEqual,
+    NotEqual,
+    Always,
+};
+
 enum class TextureFilter {
     Linear,
     // Keeps texels sharp when magnified, as pixel art needs.
@@ -87,6 +100,10 @@ struct SamplerDesc {
     // Above 1, linear filtering takes up to this many samples, at most 16, along the direction a texture is squeezed
     // in, which keeps surfaces seen at a grazing angle, like distant floors, sharp instead of blurred or shimmering.
     float maxAnisotropy = 1.0f;
+    // Makes a comparison sampler for depth textures, as shadow maps need: instead of the depth, HLSL's
+    // SampleCmp() and SampleCmpLevelZero() on a SamplerComparisonState return how much of the footprint passes
+    // `reference <op> stored`, from 0 to 1, blending the nearest texels with linear filtering.
+    std::optional<CompareOp> compare = std::nullopt;
 };
 
 // How shaders read a texture: filtering and what happens outside [0, 1].

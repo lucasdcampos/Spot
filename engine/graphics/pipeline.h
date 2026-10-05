@@ -34,17 +34,6 @@ enum class CullMode {
     Back,
 };
 
-enum class CompareOp {
-    Never,
-    Less,
-    LessOrEqual,
-    Equal,
-    Greater,
-    GreaterOrEqual,
-    NotEqual,
-    Always,
-};
-
 // How a pipeline uses the depth target of the passes it draws in.
 struct DepthState {
     TextureFormat format = TextureFormat::Depth32Float;
@@ -52,6 +41,11 @@ struct DepthState {
     bool test = true;
     bool write = true;
     CompareOp compare = CompareOp::Less;
+    // Pushes the depth written away from the viewer by a constant, in units of the smallest step the depth format
+    // can hold at that depth, plus a factor of how steeply the triangle slopes away. Shadow maps need it so surfaces
+    // do not shadow themselves.
+    float biasConstant = 0.0f;
+    float biasSlope = 0.0f;
 };
 
 enum class VertexFormat {
@@ -101,6 +95,9 @@ struct PipelineDesc {
     CullMode cullMode = CullMode::None;
     // The format of the texture the pipeline draws into; the window's swapchain when unset.
     std::optional<TextureFormat> targetFormat = std::nullopt;
+    // Draws only depth, in passes created with RenderPassDesc::depthOnly, and only in those; targetFormat and
+    // blendMode are then ignored, and what the fragment shader returns is discarded.
+    bool depthOnly = false;
     // Set for pipelines that draw in passes with a depth target, and only for those: the backends reject pipelines
     // whose targets differ from the pass's.
     std::optional<DepthState> depth = std::nullopt;

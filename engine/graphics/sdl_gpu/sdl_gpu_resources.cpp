@@ -245,13 +245,19 @@ std::unique_ptr<Pipeline> GraphicsDevice::CreatePipeline(const PipelineDesc& des
     info.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
     info.rasterizer_state.cull_mode = ToSdl(desc.cullMode);
     info.rasterizer_state.front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
-    info.target_info.color_target_descriptions = &colorTarget;
-    info.target_info.num_color_targets = 1;
+    if (!desc.depthOnly) {
+        info.target_info.color_target_descriptions = &colorTarget;
+        info.target_info.num_color_targets = 1;
+    }
+    SPOT_ASSERT(desc.depth || !desc.depthOnly, "Depth-only pipelines need a depth state");
     if (desc.depth) {
         SPOT_ASSERT(IsDepthFormat(desc.depth->format), "Depth states need a depth format");
         info.depth_stencil_state.enable_depth_test = desc.depth->test;
         info.depth_stencil_state.enable_depth_write = desc.depth->write;
         info.depth_stencil_state.compare_op = ToSdl(desc.depth->compare);
+        info.rasterizer_state.enable_depth_bias = desc.depth->biasConstant != 0.0f || desc.depth->biasSlope != 0.0f;
+        info.rasterizer_state.depth_bias_constant_factor = desc.depth->biasConstant;
+        info.rasterizer_state.depth_bias_slope_factor = desc.depth->biasSlope;
         info.target_info.has_depth_stencil_target = true;
         info.target_info.depth_stencil_format = ToSdl(desc.depth->format);
     }
@@ -471,6 +477,10 @@ std::unique_ptr<Sampler> GraphicsDevice::CreateSampler(const SamplerDesc& desc) 
     if (desc.filter == TextureFilter::Linear && desc.maxAnisotropy > 1.0f) {
         info.enable_anisotropy = true;
         info.max_anisotropy = std::min(desc.maxAnisotropy, 16.0f);
+    }
+    if (desc.compare) {
+        info.enable_compare = true;
+        info.compare_op = ToSdl(*desc.compare);
     }
 
     SDL_GPUSampler* handle = SDL_CreateGPUSampler(m_impl->device->Get(), &info);

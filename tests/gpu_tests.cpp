@@ -1,3 +1,4 @@
+#include "depth_compare.frag.h"
 #include "quad.vert.h"
 #include "textured.frag.h"
 #include "textured_quad.vert.h"
@@ -441,6 +442,128 @@ TEST_CASE("Depth targets hide what is drawn behind, whatever the order", "[gpu]"
     CHECK(pixelAt(2, 2) == std::array<std::uint8_t, 4>{255, 0, 0, 255});
     CHECK(pixelAt(0, 0) == std::array<std::uint8_t, 4>{0, 255, 0, 255});
     CHECK(pixelAt(3, 3) == std::array<std::uint8_t, 4>{0, 255, 0, 255});
+}
+
+TEST_CASE("Depth-only passes draw depth into viewports, biased when asked, for comparison samplers", "[gpu]") {
+    RequireGpu();
+
+    struct Vertex {
+        Spot::Vector2 position;
+        Spot::Color color;
+    };
+    const std::array<Vertex, 4> quad{{
+        {{-1.0f, -1.0f}, Spot::Color::White},
+        {{1.0f, -1.0f}, Spot::Color::White},
+        {{1.0f, 1.0f}, Spot::Color::White},
+        {{-1.0f, 1.0f}, Spot::Color::White},
+    }};
+    struct UvVertex {
+        Spot::Vector2 position;
+        Spot::Vector2 uv;
+    };
+    const std::array<UvVertex, 4> uvQuad{{
+        {{-1.0f, 1.0f}, {0.0f, 0.0f}},
+        {{1.0f, 1.0f}, {1.0f, 0.0f}},
+        {{1.0f, -1.0f}, {1.0f, 1.0f}},
+        {{-1.0f, -1.0f}, {0.0f, 1.0f}},
+    }};
+    const std::array<std::uint16_t, 6> indices{0, 1, 2, 2, 3, 0};
+
+    std::unique_ptr<Spot::Texture> target;
+    std::vector<std::uint8_t> result;
+    int frame = 0;
+
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
+        auto& device = app.GetGraphicsDevice();
+        if (++frame == 2) {
+            result = device.DownloadTexture(*target);
+            return;
+        }
+        if (frame != 1) {
+            return;
+        }
+
+        target = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
+        const auto depth = device.CreateTexture(
+            {.width = 4, .height = 4, .format = Spot::TextureFormat::Depth32Float, .renderTarget = true});
+        const auto quadBuffer = device.CreateBuffer(Spot::BufferUsage::Vertex, quad);
+        const auto uvQuadBuffer = device.CreateBuffer(Spot::BufferUsage::Vertex, uvQuad);
+        const auto indexBuffer = device.CreateBuffer(Spot::BufferUsage::Index, indices);
+        const auto quadShader = device.CreateShader(Shaders::QuadVert);
+        const auto colorShader = device.CreateShader(Shaders::TriangleFrag);
+        const auto uvQuadShader = device.CreateShader(Shaders::TexturedQuadVert);
+        const auto compareShader = device.CreateShader(Shaders::DepthCompareFrag);
+        const auto sampler =
+            device.CreateSampler({.filter = Spot::TextureFilter::Nearest, .compare = Spot::CompareOp::LessOrEqual});
+        REQUIRE((target && depth && quadBuffer && uvQuadBuffer && indexBuffer && quadShader && colorShader &&
+                 uvQuadShader && compareShader && sampler));
+
+        Spot::PipelineDesc depthDesc{
+            .vertexShader = quadShader.get(),
+            .fragmentShader = colorShader.get(),
+            .vertexBuffers = {{
+                .stride = sizeof(Vertex),
+                .attributes = {{0, Spot::VertexFormat::Float2, offsetof(Vertex, position)},
+                               {1, Spot::VertexFormat::Float4, offsetof(Vertex, color)}},
+            }},
+            .depthOnly = true,
+            .depth = Spot::DepthState{.compare = Spot::CompareOp::Always},
+        };
+        const auto depthPipeline = device.CreatePipeline(depthDesc);
+        // At a depth of 0.5, the smallest step of a 32-bit float is 2^-24, so this pushes depth back by about 0.006.
+        depthDesc.depth->biasConstant = 100000.0f;
+        const auto biasedPipeline = device.CreatePipeline(depthDesc);
+        const auto comparePipeline = device.CreatePipeline({
+            .vertexShader = uvQuadShader.get(),
+            .fragmentShader = compareShader.get(),
+            .vertexBuffers = {{
+                .stride = sizeof(UvVertex),
+                .attributes = {{0, Spot::VertexFormat::Float2, offsetof(UvVertex, position)},
+                               {1, Spot::VertexFormat::Float2, offsetof(UvVertex, uv)}},
+            }},
+            .targetFormat = Spot::TextureFormat::Rgba8,
+        });
+        REQUIRE((depthPipeline && biasedPipeline && comparePipeline));
+
+        // The top half is left at the cleared depth; the bottom-left quarter is drawn at 0.5 and the bottom-right one
+        // at 0.5 biased. Drawing always wins the depth test, so a viewport that leaked would cover the whole target.
+        {
+            auto pass = context.BeginRenderPass({.depthTarget = depth.get(), .clearDepth = 1.0f, .depthOnly = true});
+            pass.BindVertexBuffer(0, *quadBuffer);
+            pass.BindIndexBuffer(*indexBuffer, Spot::IndexType::UInt16);
+            pass.PushVertexUniforms(0, Spot::Matrix4::Translation({0.0f, 0.0f, 0.5f}));
+            pass.BindPipeline(*depthPipeline);
+            pass.SetViewport({.x = 0.0f, .y = 2.0f, .width = 2.0f, .height = 2.0f});
+            pass.DrawIndexed(6);
+            pass.BindPipeline(*biasedPipeline);
+            pass.SetViewport({.x = 2.0f, .y = 2.0f, .width = 2.0f, .height = 2.0f});
+            pass.DrawIndexed(6);
+        }
+
+        auto pass = context.BeginRenderPass({.target = target.get(), .clearColor = Spot::Color::Black});
+        pass.BindPipeline(*comparePipeline);
+        pass.BindVertexBuffer(0, *uvQuadBuffer);
+        pass.BindIndexBuffer(*indexBuffer, Spot::IndexType::UInt16);
+        pass.BindFragmentTexture(0, *depth, *sampler);
+        pass.PushFragmentUniforms(0, std::array<float, 4>{0.503f, 0.0f, 0.0f, 0.0f});
+        pass.DrawIndexed(6);
+    });
+
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    REQUIRE(result.size() == 4 * 4 * 4);
+
+    const auto pixelAt = [&](int x, int y) {
+        const auto* pixel = &result[static_cast<std::size_t>((y * 4 + x) * 4)];
+        return std::array<std::uint8_t, 4>{pixel[0], pixel[1], pixel[2], pixel[3]};
+    };
+    constexpr std::array<std::uint8_t, 4> Passed{255, 255, 255, 255};
+    constexpr std::array<std::uint8_t, 4> Failed{0, 0, 0, 255};
+    CHECK(pixelAt(0, 0) == Passed);
+    CHECK(pixelAt(3, 1) == Passed);
+    CHECK(pixelAt(0, 2) == Failed);
+    CHECK(pixelAt(1, 3) == Failed);
+    CHECK(pixelAt(2, 2) == Passed);
+    CHECK(pixelAt(3, 3) == Passed);
 }
 
 TEST_CASE("Renderer2D draws colored and textured quads in order", "[gpu]") {

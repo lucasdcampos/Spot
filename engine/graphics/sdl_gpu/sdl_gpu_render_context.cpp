@@ -30,6 +30,13 @@ void RenderPass::BindPipeline(const Pipeline& pipeline) {
     m_pipelineBound = true;
 }
 
+void RenderPass::SetViewport(const Viewport& viewport) {
+    SPOT_ASSERT(m_native, "The render pass has ended");
+    const SDL_GPUViewport native{viewport.x,      viewport.y,        viewport.width,
+                                 viewport.height, viewport.minDepth, viewport.maxDepth};
+    SDL_SetGPUViewport(static_cast<SDL_GPURenderPass*>(m_native), &native);
+}
+
 void RenderPass::BindVertexBuffer(std::uint32_t slot, const Buffer& buffer, std::uint32_t offset) {
     SPOT_ASSERT(m_native, "The render pass has ended");
     SPOT_ASSERT(buffer.GetUsage() == BufferUsage::Vertex, "Only vertex buffers can be bound as vertex buffers");
@@ -97,6 +104,9 @@ int RenderContext::GetHeight() const {
 RenderPass RenderContext::BeginRenderPass(const RenderPassDesc& desc) {
     SPOT_ASSERT(!m_impl->passOpen, "Only one render pass can be open at a time");
 
+    SPOT_ASSERT(!desc.depthOnly || (desc.depthTarget && !desc.target && !desc.clearColor && !desc.resolveTarget &&
+                                    !desc.resolveToWindow),
+                "Depth-only passes need a depth target and nothing to draw colors into");
     SPOT_ASSERT(!desc.target || desc.target->IsRenderTarget(), "Render pass targets must be created as render targets");
     SPOT_ASSERT(!desc.target || !IsDepthFormat(desc.target->GetFormat()),
                 "Depth textures go in RenderPassDesc::depthTarget");
@@ -136,8 +146,9 @@ RenderPass RenderContext::BeginRenderPass(const RenderPassDesc& desc) {
     if (desc.depthTarget) {
         SPOT_ASSERT(desc.depthTarget->IsRenderTarget() && IsDepthFormat(desc.depthTarget->GetFormat()),
                     "Depth targets must be depth textures created as render targets");
-        SPOT_ASSERT(desc.depthTarget->GetWidth() == (desc.target ? desc.target->GetWidth() : m_impl->width) &&
-                        desc.depthTarget->GetHeight() == (desc.target ? desc.target->GetHeight() : m_impl->height),
+        SPOT_ASSERT(desc.depthOnly ||
+                        (desc.depthTarget->GetWidth() == (desc.target ? desc.target->GetWidth() : m_impl->width) &&
+                         desc.depthTarget->GetHeight() == (desc.target ? desc.target->GetHeight() : m_impl->height)),
                     "The depth target must be the size of the target");
         depth.texture = static_cast<SDL_GPUTexture*>(desc.depthTarget->GetNativeHandle());
         depth.load_op = desc.clearDepth ? SDL_GPU_LOADOP_CLEAR : SDL_GPU_LOADOP_LOAD;
@@ -147,8 +158,8 @@ RenderPass RenderContext::BeginRenderPass(const RenderPassDesc& desc) {
         depth.stencil_store_op = SDL_GPU_STOREOP_DONT_CARE;
     }
 
-    SDL_GPURenderPass* pass =
-        SDL_BeginGPURenderPass(m_impl->commandBuffer, &target, 1, desc.depthTarget ? &depth : nullptr);
+    SDL_GPURenderPass* pass = SDL_BeginGPURenderPass(m_impl->commandBuffer, desc.depthOnly ? nullptr : &target,
+                                                     desc.depthOnly ? 0 : 1, desc.depthTarget ? &depth : nullptr);
     if (!pass) {
         Log::GetEngineLogger().Error("Failed to begin render pass: {}", SDL_GetError());
     }
