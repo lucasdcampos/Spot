@@ -15,6 +15,7 @@ add_executable(spot_tests
     log_capture.h
     log_tests.cpp
     platform_tests.cpp
+    time_tests.cpp
     version_tests.cpp
     window_tests.cpp
 )

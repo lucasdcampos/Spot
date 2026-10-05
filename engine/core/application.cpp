@@ -39,25 +39,27 @@ int Application::Run() {
     }
 
     Input::SetState(&m_input);
+    Time::SetClock(&m_clock);
+    FrameLimiter limiter(m_config.maxFrameRate);
+    m_clock.Start(std::chrono::steady_clock::now());
     m_running = true;
     OnStart();
 
-    auto previousFrame = std::chrono::steady_clock::now();
     while (m_running) {
+        Platform::SleepFor(limiter.GetWaitTime(std::chrono::steady_clock::now()));
+        m_clock.Tick(std::chrono::steady_clock::now());
+
         m_input.BeginFrame();
         Platform::PollEvents([this](const Event& event) { HandleEvent(event); });
         if (!m_running) {
             break;
         }
 
-        const auto now = std::chrono::steady_clock::now();
-        const auto deltaTime = std::chrono::duration<float>(now - previousFrame).count();
-        previousFrame = now;
-
-        OnUpdate(deltaTime);
+        OnUpdate(m_clock.GetDeltaTime());
     }
 
     OnStop();
+    Time::SetClock(nullptr);
     Input::SetState(nullptr);
     m_window.reset();
     return EXIT_SUCCESS;

@@ -4,7 +4,7 @@
 
 class Sandbox final : public Spot::Application {
 public:
-    Sandbox() : Application({.window = {.title = "Spot Sandbox"}, .logFile = "sandbox.log"}) {}
+    Sandbox() : Application({.window = {.title = "Spot Sandbox"}, .logFile = "sandbox.log", .maxFrameRate = 60}) {}
 
 protected:
     void OnStart() override { Spot::Log::Info("Spot {}", Spot::GetVersionString()); }

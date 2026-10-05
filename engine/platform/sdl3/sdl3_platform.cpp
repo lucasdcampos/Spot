@@ -59,6 +59,12 @@ bool Initialize() {
     return true;
 }
 
+void SleepFor(std::chrono::nanoseconds duration) {
+    if (duration > std::chrono::nanoseconds::zero()) {
+        SDL_DelayPrecise(static_cast<Uint64>(duration.count()));
+    }
+}
+
 void Shutdown() {
     SPOT_ASSERT(s_initCount > 0, "Platform::Shutdown() called without a matching Initialize()");
 

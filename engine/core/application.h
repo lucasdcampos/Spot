@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/time.h"
 #include "events/event.h"
 #include "input/input_state.h"
 #include "window/window.h"
@@ -15,6 +16,8 @@ struct ApplicationConfig {
     WindowConfig window;
     // When set, the log is also written to this file.
     std::filesystem::path logFile = {};
+    // Caps how many frames run per second; 0 means unlimited.
+    int maxFrameRate = 0;
 };
 
 class Application {
@@ -48,6 +51,7 @@ private:
     std::shared_ptr<LogSink> m_logFile;
     std::unique_ptr<Window> m_window;
     InputState m_input;
+    FrameClock m_clock;
     bool m_running = false;
 };
 
