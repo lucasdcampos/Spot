@@ -28,6 +28,7 @@
 #include "graphics/font_atlas.h"
 #include "graphics/graphics_device.h"
 #include "graphics/image.h"
+#include "graphics/light_data.h"
 #include "graphics/material.h"
 #include "graphics/mesh.h"
 #include "graphics/mesh_data.h"

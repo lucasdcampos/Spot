@@ -295,6 +295,8 @@ private:
         camera.fieldOfView = Spot::ToRadians(75.0f);
 
         m_renderer3D->Begin(pass, camera, view);
+        m_renderer3D->DrawLight({.type = Spot::LightType::Directional, .direction = {-0.4f, -1.0f, -0.6f}});
+        m_renderer3D->DrawLight({.type = Spot::LightType::Ambient, .color = {0.25f, 0.25f, 0.3f}});
         m_renderer3D->DrawScene(*GetScene());
         m_renderer3D->End();
         m_stats3D = m_renderer3D->GetStats();

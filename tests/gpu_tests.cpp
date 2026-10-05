@@ -632,8 +632,7 @@ Spot::Camera3D MakeFrontCamera() {
     return camera;
 }
 
-constexpr Spot::Lighting FrontLight{
-    .direction = {0.0f, 0.0f, -1.0f}, .color = Spot::Color::White, .ambient = Spot::Color::Black};
+constexpr Spot::LightData FrontLight{.type = Spot::LightType::Directional, .direction = {0.0f, 0.0f, -1.0f}};
 
 } // namespace
 
@@ -648,7 +647,8 @@ TEST_CASE("Renderer3D draws lit meshes with depth testing", "[gpu]") {
         REQUIRE(cube != nullptr);
 
         // The large far cube is drawn last but stays behind the small near one.
-        renderer.Begin(pass, MakeFrontCamera(), view, FrontLight);
+        renderer.Begin(pass, MakeFrontCamera(), view);
+        renderer.DrawLight(FrontLight);
         renderer.DrawMesh(*cube, {.baseColor = Spot::Color::Green});
         renderer.DrawMesh(*cube, {.baseColor = Spot::Color::Red},
                           Spot::Matrix4::Translation({0.0f, 0.0f, -2.0f}) * Spot::Matrix4::Scale({3.0f, 3.0f, 3.0f}));
@@ -674,7 +674,8 @@ TEST_CASE("Renderer3D hides back faces unless the material is double-sided", "[g
                 REQUIRE(plane != nullptr);
 
                 // The plane faces +Y; a quarter turn around X makes it face away from the camera.
-                renderer.Begin(pass, MakeFrontCamera(), view, FrontLight);
+                renderer.Begin(pass, MakeFrontCamera(), view);
+                renderer.DrawLight(FrontLight);
                 renderer.DrawMesh(
                     *plane, {.baseColor = Spot::Color::Blue, .doubleSided = doubleSided},
                     Spot::Matrix4::Rotation(Spot::Quaternion::FromAxisAngle({1, 0, 0}, -Spot::Pi / 2.0f)));
@@ -704,7 +705,8 @@ TEST_CASE("Renderer3D projects textures from world space when asked", "[gpu]") {
 
                 const Spot::Material material{.baseColorTexture = Spot::AssetRef<Spot::Texture>(texture),
                                               .worldTextureSize = projected ? 1.0f : 0.0f};
-                renderer.Begin(pass, MakeFrontCamera(), view, FrontLight);
+                renderer.Begin(pass, MakeFrontCamera(), view);
+                renderer.DrawLight(FrontLight);
                 renderer.DrawMesh(*plane, material,
                                   Spot::Matrix4::Rotation(Spot::Quaternion::FromAxisAngle({1, 0, 0}, Spot::Pi / 2.0f)) *
                                       Spot::Matrix4::Scale({2.0f, 1.0f, 2.0f}));
@@ -742,9 +744,8 @@ TEST_CASE("Renderer3D samples mipmaps, anisotropically when asked", "[gpu]") {
 
                 Spot::Camera3D camera;
                 camera.position = {0.0f, 0.25f, 0.0f};
-                const Spot::Lighting light{
-                    .direction = {0.0f, -1.0f, 0.0f}, .color = Spot::Color::White, .ambient = Spot::Color::Black};
-                renderer.Begin(pass, camera, view, light);
+                renderer.Begin(pass, camera, view);
+                renderer.DrawLight({.type = Spot::LightType::Directional, .direction = {0.0f, -1.0f, 0.0f}});
                 renderer.DrawMesh(
                     *plane, {.baseColorTexture = Spot::AssetRef<Spot::Texture>(texture), .worldTextureSize = 4.0f});
                 renderer.End();
@@ -782,7 +783,8 @@ TEST_CASE("Multisampled targets smooth the edges they resolve", "[gpu]") {
                 REQUIRE(renderer.IsValid());
                 const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
                 REQUIRE(cube != nullptr);
-                renderer.Begin(pass, MakeFrontCamera(), view, FrontLight);
+                renderer.Begin(pass, MakeFrontCamera(), view);
+                renderer.DrawLight(FrontLight);
                 renderer.DrawMesh(*cube, {.baseColor = Spot::Color::Green},
                                   Spot::Matrix4::Rotation(Spot::Quaternion::FromAxisAngle({0, 0, 1}, 0.3f)));
                 renderer.End();
@@ -883,7 +885,8 @@ TEST_CASE("Models load with their materials and draw textured", "[gpu]") {
 
         Spot::Renderer3D renderer(device,
                                   {.filter = Spot::TextureFilter::Nearest, .targetFormat = Spot::TextureFormat::Rgba8});
-        renderer.Begin(pass, MakeFrontCamera(), view, FrontLight);
+        renderer.Begin(pass, MakeFrontCamera(), view);
+        renderer.DrawLight(FrontLight);
         renderer.DrawModel(*model);
         renderer.End();
     });
@@ -925,7 +928,8 @@ TEST_CASE("Renderer3D draws the active mesh renderers of a scene at their world 
         disabled.AddComponent<Spot::MeshRenderer>(cube, blue).SetEnabled(false);
         scene.CreateEntity("Empty").AddComponent<Spot::MeshRenderer>();
 
-        renderer.Begin(pass, MakeFrontCamera(), view, FrontLight);
+        renderer.Begin(pass, MakeFrontCamera(), view);
+        renderer.DrawLight(FrontLight);
         renderer.DrawScene(scene);
         renderer.End();
         stats = renderer.GetStats();
@@ -935,6 +939,102 @@ TEST_CASE("Renderer3D draws the active mesh renderers of a scene at their world 
     CHECK(IsNear(render.At(16, 16), {0, 255, 0, 255}));
     CHECK(IsNear(render.At(16, 6), {255, 0, 0, 255}));
     CHECK(IsNear(render.At(0, 0), {0, 0, 0, 255}));
+}
+
+namespace {
+
+// A white wall facing the front camera, its surface half a unit in front of the origin and wider than the view, lit
+// only by the lights drawn.
+TargetRender RenderLitWall(const std::function<void(Spot::Renderer3D&)>& drawLights) {
+    return TargetRender(32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
+        Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+        const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+        REQUIRE(cube != nullptr);
+        renderer.Begin(pass, MakeFrontCamera(), view);
+        drawLights(renderer);
+        renderer.DrawMesh(*cube, {}, Spot::Matrix4::Scale({20.0f, 20.0f, 1.0f}));
+        renderer.End();
+    });
+}
+
+} // namespace
+
+TEST_CASE("Renderer3D lights surfaces only with the lights drawn", "[gpu]") {
+    RequireGpu();
+
+    SECTION("Without lights, surfaces are black") {
+        const auto render = RenderLitWall([](Spot::Renderer3D&) {});
+        CHECK(IsNear(render.At(16, 16), {0, 0, 0, 255}));
+    }
+
+    SECTION("Ambient lights add up and reach every surface evenly") {
+        const auto render = RenderLitWall([](Spot::Renderer3D& renderer) {
+            renderer.DrawLight({.type = Spot::LightType::Ambient, .color = Spot::Color::Red, .intensity = 0.25f});
+            renderer.DrawLight({.type = Spot::LightType::Ambient, .color = Spot::Color::Red, .intensity = 0.25f});
+        });
+        CHECK(IsNear(render.At(16, 16), {128, 0, 0, 255}));
+        CHECK(IsNear(render.At(0, 0), {128, 0, 0, 255}));
+    }
+
+    SECTION("Directional lights add up") {
+        const auto render = RenderLitWall([](Spot::Renderer3D& renderer) {
+            renderer.DrawLight(
+                {.type = Spot::LightType::Directional, .color = Spot::Color::Red, .direction = {0, 0, -1}});
+            renderer.DrawLight(
+                {.type = Spot::LightType::Directional, .color = Spot::Color::Green, .direction = {0, 0, -1}});
+        });
+        CHECK(IsNear(render.At(16, 16), {255, 255, 0, 255}));
+    }
+}
+
+TEST_CASE("Renderer3D point lights fade out by their range", "[gpu]") {
+    RequireGpu();
+
+    // One unit from the wall, so the edges of the view, over 1.4 units aside, are out of range.
+    const auto render = RenderLitWall([](Spot::Renderer3D& renderer) {
+        renderer.DrawLight({.type = Spot::LightType::Point, .position = {0.0f, 0.0f, 1.5f}, .range = 1.5f});
+    });
+
+    const int center = render.At(16, 16)[0];
+    const int aside = render.At(10, 16)[0];
+    INFO("Center " << center << ", aside " << aside);
+    CHECK(center > 60);
+    CHECK(aside > 0);
+    CHECK(aside < center);
+    CHECK(IsNear(render.At(0, 16), {0, 0, 0, 255}));
+}
+
+TEST_CASE("Renderer3D spot lights light only inside their cone", "[gpu]") {
+    RequireGpu();
+
+    const auto render = RenderLitWall([](Spot::Renderer3D& renderer) {
+        renderer.DrawLight({.type = Spot::LightType::Spot,
+                            .position = {0.0f, 0.0f, 1.5f},
+                            .direction = {0.0f, 0.0f, -1.0f},
+                            .innerConeAngle = Spot::ToRadians(10.0f),
+                            .outerConeAngle = Spot::ToRadians(20.0f)});
+    });
+
+    CHECK(render.At(16, 16)[0] > 240);
+    CHECK(IsNear(render.At(24, 16), {0, 0, 0, 255}));
+}
+
+TEST_CASE("Renderer3D keeps the lights nearest the camera when given too many", "[gpu]") {
+    RequireGpu();
+
+    // Far lights out of reach of the wall come first, but the near one drawn last is the one kept.
+    const auto render = RenderLitWall([](Spot::Renderer3D& renderer) {
+        for (std::size_t i = 0; i < Spot::Renderer3D::MaxLights; ++i) {
+            renderer.DrawLight(
+                {.type = Spot::LightType::Point, .color = Spot::Color::Red, .position = {0.0f, 0.0f, 50.0f}});
+        }
+        renderer.DrawLight({.type = Spot::LightType::Spot,
+                            .color = Spot::Color::Green,
+                            .position = {0.0f, 0.0f, 1.5f},
+                            .direction = {0.0f, 0.0f, -1.0f}});
+    });
+
+    CHECK(render.At(16, 16)[1] > 240);
 }
 
 TEST_CASE("Models imported as assets load onto the GPU and draw textured", "[gpu]") {
@@ -975,7 +1075,8 @@ TEST_CASE("Models imported as assets load onto the GPU and draw textured", "[gpu
                                   untinted.baseColor = Spot::Color::White;
                                   Spot::Renderer3D renderer(device, {.filter = Spot::TextureFilter::Nearest,
                                                                      .targetFormat = Spot::TextureFormat::Rgba8});
-                                  renderer.Begin(pass, MakeFrontCamera(), view, FrontLight);
+                                  renderer.Begin(pass, MakeFrontCamera(), view);
+                                  renderer.DrawLight(FrontLight);
                                   renderer.DrawMesh(*part.mesh, untinted);
                                   renderer.End();
                               },

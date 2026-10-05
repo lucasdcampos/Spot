@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <tuple>
 
 namespace Spot {
@@ -27,10 +28,21 @@ struct ObjectUniforms {
     Matrix4 normalMatrix;
 };
 
-struct LightingUniforms {
-    Vector4 direction;
+struct LightUniforms {
+    // w is the type: 0 for directional, 1 for point and 2 for spot.
+    Vector4 positionAndType;
+    Vector4 directionAndRange;
+    // Premultiplied by the intensity.
     Color color;
+    // The cosine of the outer cone angle, and the inverse of how much greater the inner one's is.
+    Vector4 cone;
+};
+
+struct LightingUniforms {
     Color ambient;
+    // x is the number of lights; a whole row keeps the layout the same in every shader language.
+    std::array<std::uint32_t, 4> lightCount;
+    std::array<LightUniforms, Renderer3D::MaxLights> lights;
 };
 
 struct MaterialUniforms {
@@ -40,6 +52,58 @@ struct MaterialUniforms {
     // Constant buffers are sized in 16-byte rows.
     std::array<float, 2> padding;
 };
+
+// Ambient lights are summed. Past MaxLights, the other lights that matter least to what is near the camera are dropped.
+LightingUniforms GetLightingUniforms(const std::vector<LightData>& allLights, Vector3 cameraPosition,
+                                     bool& warnedAboutLights) {
+    LightingUniforms uniforms{};
+    uniforms.ambient.a = 1.0f;
+
+    const auto rank = [cameraPosition](const LightData& light) {
+        return light.type == LightType::Directional
+                   ? -1.0f
+                   : std::max(Distance(light.position, cameraPosition) - light.range, 0.0f);
+    };
+    std::vector<const LightData*> lights;
+    for (const auto& light : allLights) {
+        if (light.type == LightType::Ambient) {
+            uniforms.ambient.r += light.color.r * light.intensity;
+            uniforms.ambient.g += light.color.g * light.intensity;
+            uniforms.ambient.b += light.color.b * light.intensity;
+        } else {
+            lights.push_back(&light);
+        }
+    }
+    if (lights.size() > Renderer3D::MaxLights) {
+        if (!warnedAboutLights) {
+            Log::GetEngineLogger().Warning(
+                "Renderer3D was given {} lights in a frame, more than the {} it can use; the "
+                "farthest are left out",
+                lights.size(), Renderer3D::MaxLights);
+            warnedAboutLights = true;
+        }
+        std::ranges::stable_sort(lights, {}, [&](const LightData* light) { return rank(*light); });
+        lights.resize(Renderer3D::MaxLights);
+    }
+
+    uniforms.lightCount[0] = static_cast<std::uint32_t>(lights.size());
+    for (std::size_t i = 0; i < lights.size(); ++i) {
+        const LightData& light = *lights[i];
+        const Vector3 direction = Normalize(light.direction);
+        const float outerCos = std::cos(light.outerConeAngle);
+        // An inner angle at or past the outer one gives the cone a hard edge.
+        const float innerCos = std::max(std::cos(light.innerConeAngle), outerCos + 0.0001f);
+        const float type = light.type == LightType::Directional ? 0.0f : light.type == LightType::Point ? 1.0f : 2.0f;
+        uniforms.lights[i] = {
+            .positionAndType = {light.position.x, light.position.y, light.position.z, type},
+            .directionAndRange = {direction.x, direction.y, direction.z, std::max(light.range, 0.0001f)},
+            .color = {light.color.r * light.intensity, light.color.g * light.intensity, light.color.b * light.intensity,
+                      1.0f},
+            .cone = {outerCos, 1.0f / (innerCos - outerCos), 0.0f, 0.0f},
+        };
+    }
+    return uniforms;
+}
 
 } // namespace
 
@@ -81,18 +145,24 @@ bool Renderer3D::IsValid() const {
     return m_pipeline && m_doubleSidedPipeline && m_sampler && m_whiteTexture;
 }
 
-void Renderer3D::Begin(RenderPass& pass, const Camera3D& camera, Vector2 viewSize, const Lighting& lighting) {
+void Renderer3D::Begin(RenderPass& pass, const Camera3D& camera, Vector2 viewSize) {
     SPOT_ASSERT(!m_pass, "Renderer3D::Begin() called twice without End()");
     m_pass = &pass;
     m_viewProjection = camera.GetViewProjection(viewSize);
-    m_lighting = lighting;
+    m_cameraPosition = camera.position;
     m_commands.clear();
+    m_lights.clear();
 }
 
 void Renderer3D::End() {
     SPOT_ASSERT(m_pass, "Renderer3D::End() called without Begin()");
     Flush();
     m_pass = nullptr;
+}
+
+void Renderer3D::DrawLight(const LightData& light) {
+    SPOT_ASSERT(m_pass, "Draw calls must come between Begin() and End()");
+    m_lights.push_back(light);
 }
 
 void Renderer3D::DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform) {
@@ -132,11 +202,8 @@ void Renderer3D::Flush() {
         return std::tie(a.doubleSided, a.texture) < std::tie(b.doubleSided, b.texture);
     });
 
-    const Vector3 direction = Normalize(m_lighting.direction);
     m_pass->PushVertexUniforms(0, m_viewProjection);
-    m_pass->PushFragmentUniforms(0, LightingUniforms{.direction = {direction.x, direction.y, direction.z, 0.0f},
-                                                     .color = m_lighting.color,
-                                                     .ambient = m_lighting.ambient});
+    m_pass->PushFragmentUniforms(0, GetLightingUniforms(m_lights, m_cameraPosition, m_warnedAboutLights));
 
     const Pipeline* boundPipeline = nullptr;
     const Texture* boundTexture = nullptr;

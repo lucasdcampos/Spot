@@ -68,6 +68,7 @@ add_library(spot STATIC
     graphics/graphics_device.h
     graphics/image.h
     graphics/image.cpp
+    graphics/light_data.h
     graphics/material.h
     graphics/mesh.h
     graphics/mesh.cpp

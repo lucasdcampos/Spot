@@ -2,10 +2,12 @@
 
 #include "graphics/camera_3d.h"
 #include "graphics/color.h"
+#include "graphics/light_data.h"
 #include "graphics/texture.h"
 #include "math/matrix.h"
 #include "math/vector.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -33,15 +35,6 @@ struct Renderer3DConfig {
     std::uint32_t sampleCount = 1;
 };
 
-// A directional light, like the sun, plus ambient light that reaches every surface evenly.
-struct Lighting {
-    // The direction the light travels in, from the light toward the scene.
-    Vector3 direction = {-0.4f, -1.0f, -0.6f};
-    Color color = Color::White;
-    // Keeps surfaces facing away from the light from going black.
-    Color ambient = {0.25f, 0.25f, 0.3f};
-};
-
 struct Renderer3DStats {
     std::uint32_t drawCalls = 0;
     std::uint32_t triangleCount = 0;
@@ -53,12 +46,17 @@ struct Renderer3DStats {
 //     auto pass = context.BeginRenderPass({.clearColor = Spot::Color::Black, .depthTarget = depth.get(),
 //                                          .clearDepth = 1.0f});
 //     renderer.Begin(pass, camera, viewSize);
+//     renderer.DrawLight({.type = Spot::LightType::Directional, .direction = {-0.4f, -1.0f, -0.6f}});
 //     renderer.DrawModel(*model, Spot::Matrix4::Translation({0, 0, -5}));
 //     renderer.End();
 //
-// Surfaces are opaque. Meshes, models and textures must stay alive until End().
+// Surfaces are opaque, and lit only by the lights drawn between Begin() and End(), so without any they are black.
+// Ambient lights add up and are free; up to MaxLights others light each frame, and past that the directional ones and
+// then those that reach closest to the camera are kept. Meshes, models and textures must stay alive until End().
 class Renderer3D {
 public:
+    static constexpr std::size_t MaxLights = 16;
+
     explicit Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config = {});
     ~Renderer3D();
 
@@ -69,9 +67,11 @@ public:
     bool IsValid() const;
 
     // The view size only sets the aspect ratio.
-    void Begin(RenderPass& pass, const Camera3D& camera, Vector2 viewSize, const Lighting& lighting = {});
+    void Begin(RenderPass& pass, const Camera3D& camera, Vector2 viewSize);
     void End();
 
+    // Lights everything drawn in the frame, whether drawn before or after it.
+    void DrawLight(const LightData& light);
     void DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform = {});
     void DrawModel(const Model& model, const Matrix4& transform = {});
     // Draws every MeshRenderer of the scene that is enabled on an active entity, at its entity's world transform.
@@ -100,8 +100,10 @@ private:
 
     std::vector<DrawCommand> m_commands;
     RenderPass* m_pass = nullptr;
+    std::vector<LightData> m_lights;
     Matrix4 m_viewProjection;
-    Lighting m_lighting;
+    Vector3 m_cameraPosition;
+    bool m_warnedAboutLights = false;
     Renderer3DStats m_stats;
 };
 
