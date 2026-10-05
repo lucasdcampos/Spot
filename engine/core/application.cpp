@@ -66,10 +66,17 @@ int Application::Run() {
             break;
         }
 
+        SwitchScene();
         OnUpdate(m_clock.GetDeltaTime());
+        if (m_scene) {
+            m_scene->Update(m_clock.GetDeltaTime());
+        }
 
         if (m_graphics) {
             if (RenderContext* context = m_graphics->BeginFrame()) {
+                if (m_scene) {
+                    m_scene->OnRender(*context);
+                }
                 OnRender(*context);
                 m_graphics->EndFrame();
             }
@@ -77,6 +84,9 @@ int Application::Run() {
     }
 
     OnStop();
+    UnloadScene();
+    m_pendingScene.reset();
+    m_sceneChangePending = false;
     Time::SetClock(nullptr);
     Input::SetState(nullptr);
     m_audio.reset();
@@ -104,12 +114,42 @@ AudioDevice& Application::GetAudioDevice() {
     return *m_audio;
 }
 
+void Application::LoadScene(std::unique_ptr<Scene> scene) {
+    m_pendingScene = std::move(scene);
+    m_sceneChangePending = true;
+}
+
 void Application::HandleEvent(const Event& event) {
     m_input.OnEvent(event);
     OnEvent(event);
+    if (m_scene) {
+        m_scene->OnEvent(event);
+    }
 
     if (event.Is<WindowCloseEvent>()) {
         Quit();
+    }
+}
+
+void Application::SwitchScene() {
+    if (!m_sceneChangePending) {
+        return;
+    }
+    m_sceneChangePending = false;
+    UnloadScene();
+    m_scene = std::move(m_pendingScene);
+    if (m_scene) {
+        m_scene->m_application = this;
+        m_scene->OnLoad();
+    }
+}
+
+void Application::UnloadScene() {
+    if (m_scene) {
+        m_scene->OnUnload();
+        m_scene->Clear();
+        m_scene->m_application = nullptr;
+        m_scene.reset();
     }
 }
 

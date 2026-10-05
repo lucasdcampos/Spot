@@ -57,6 +57,67 @@ private:
     int m_framesLeft = 0;
 };
 
+class LoggingComponent final : public Spot::Component {
+public:
+    LoggingComponent(std::vector<std::string>& calls, std::string label) : m_calls(calls), m_label(std::move(label)) {}
+
+protected:
+    void OnStart() override { m_calls.push_back(m_label + ".start"); }
+    void OnDestroy() override { m_calls.push_back(m_label + ".destroy"); }
+
+private:
+    std::vector<std::string>& m_calls;
+    std::string m_label;
+};
+
+class LoggingScene final : public Spot::Scene {
+public:
+    LoggingScene(std::vector<std::string>& calls, std::string label) : m_calls(calls), m_label(std::move(label)) {}
+
+protected:
+    void OnLoad() override {
+        m_calls.push_back(m_label + ".load");
+        CHECK(IsLoaded());
+        CHECK(GetApplication().GetScene() == this);
+        CreateEntity().AddComponent<LoggingComponent>(m_calls, m_label);
+    }
+    void OnUnload() override { m_calls.push_back(m_label + ".unload"); }
+    void OnUpdate(float /*deltaTime*/) override { m_calls.push_back(m_label + ".update"); }
+
+private:
+    std::vector<std::string>& m_calls;
+    std::string m_label;
+};
+
+// Loads a scene on start, switches to another one on the second frame and quits on the third.
+class SceneSwitchingApplication final : public Spot::Application {
+public:
+    SceneSwitchingApplication(Spot::ApplicationConfig config, std::vector<std::string>& calls)
+        : Application(std::move(config)), m_calls(calls) {}
+
+protected:
+    void OnStart() override {
+        LoadScene<LoggingScene>(m_calls, "first");
+        // Scenes take over at the start of the next frame.
+        CHECK(GetScene() == nullptr);
+    }
+
+    void OnUpdate(float /*deltaTime*/) override {
+        m_calls.push_back("frame");
+        if (++m_frame == 2) {
+            LoadScene<LoggingScene>(m_calls, "second");
+        } else if (m_frame == 3) {
+            Quit();
+        }
+    }
+
+    void OnStop() override { m_calls.emplace_back("stop"); }
+
+private:
+    std::vector<std::string>& m_calls;
+    int m_frame = 0;
+};
+
 Spot::ApplicationConfig MakeConfig() {
     return {.window = {.title = "Application Tests", .width = 320, .height = 240},
             .graphics = {.enabled = false},
@@ -109,4 +170,17 @@ TEST_CASE("Application writes the log to the configured file while it exists", "
     CHECK_THAT(contents, Catch::Matchers::EndsWith("[App] started\n"));
 
     std::filesystem::remove_all(directory);
+}
+
+TEST_CASE("Application switches scenes between frames and unloads the last one when it stops", "[application]") {
+    std::vector<std::string> calls;
+    SceneSwitchingApplication application(MakeConfig(), calls);
+
+    CHECK(application.Run() == EXIT_SUCCESS);
+
+    CHECK(calls == std::vector<std::string>{"first.load", "frame", "first.start", "first.update", "frame",
+                                            "first.update", "first.unload", "first.destroy", "second.load", "frame",
+                                            "second.start", "second.update", "stop", "second.unload",
+                                            "second.destroy"});
+    CHECK(application.GetScene() == nullptr);
 }

@@ -9,6 +9,70 @@
 #include <string_view>
 #include <vector>
 
+// A colored quad the sandbox draws at its entity's world position and rotation.
+class Sprite final : public Spot::Component {
+public:
+    Sprite(Spot::Vector2 initialSize, Spot::Color initialColor) : size(initialSize), color(initialColor) {}
+
+    Spot::Vector2 size;
+    Spot::Color color;
+};
+
+// Turns its entity, and with it all its children.
+class Spin final : public Spot::Component {
+public:
+    explicit Spin(float speed) : m_speed(speed) {}
+
+protected:
+    void OnUpdate(float deltaTime) override {
+        auto& transform = GetEntity().GetTransform();
+        transform.SetRotation2D(transform.GetRotation2D() + m_speed * deltaTime);
+    }
+
+private:
+    float m_speed;
+};
+
+// A ring of quads that spins as a whole while each quad spins on its own.
+class RingScene final : public Spot::Scene {
+protected:
+    void OnLoad() override {
+        auto& ring = CreateEntity("Ring");
+        ring.AddTag("Toggle");
+        ring.AddComponent<Spin>(0.5f);
+
+        constexpr int Quads = 12;
+        for (int i = 0; i < Quads; ++i) {
+            const float angle = static_cast<float>(i) * 2.0f * Spot::Pi / Quads;
+            auto& quad = ring.CreateChild(std::format("Quad {}", i));
+            quad.GetTransform().position = {std::cos(angle) * 250.0f, std::sin(angle) * 250.0f, 0.0f};
+            quad.AddComponent<Sprite>(Spot::Vector2{40.0f, 40.0f},
+                                      Spot::Color{0.5f + 0.5f * std::cos(angle), 0.5f + 0.5f * std::sin(angle), 0.9f});
+            quad.AddComponent<Spin>(-1.5f);
+        }
+    }
+};
+
+// A sun with a planet orbiting it and a moon orbiting the planet, each carried by its parent's rotation.
+class SolarScene final : public Spot::Scene {
+protected:
+    void OnLoad() override {
+        auto& sun = CreateEntity("Sun");
+        sun.AddComponent<Sprite>(Spot::Vector2{90.0f, 90.0f}, Spot::Color{1.0f, 0.8f, 0.3f});
+        sun.AddComponent<Spin>(0.4f);
+
+        auto& planet = sun.CreateChild("Planet");
+        planet.AddTag("Toggle");
+        planet.GetTransform().position = {260.0f, 0.0f, 0.0f};
+        planet.AddComponent<Sprite>(Spot::Vector2{40.0f, 40.0f}, Spot::Color{0.3f, 0.6f, 1.0f});
+        planet.AddComponent<Spin>(2.0f);
+
+        auto& moon = planet.CreateChild("Moon");
+        moon.GetTransform().position = {60.0f, 0.0f, 0.0f};
+        moon.AddComponent<Sprite>(Spot::Vector2{14.0f, 14.0f}, Spot::Color{0.8f, 0.8f, 0.8f});
+    }
+};
+
 class Sandbox final : public Spot::Application {
 public:
     Sandbox() : Application({.window = {.title = "Spot Sandbox"}, .logFile = "sandbox.log", .maxFrameRate = 60}) {}
@@ -35,6 +99,8 @@ protected:
             samples[i] = 0.3f * std::sin(2.0f * Spot::Pi * 660.0f * t) * std::exp(-t * 30.0f);
         }
         m_blip = std::make_shared<Spot::Sound>(SampleRate, 1, std::move(samples));
+
+        LoadScene<RingScene>();
     }
 
     void OnEvent(const Spot::Event& event) override {
@@ -62,6 +128,21 @@ protected:
         }
         if (Input::IsKeyPressed(Key::M)) {
             audio.SetMasterVolume(audio.GetMasterVolume() > 0.0f ? 0.0f : 1.0f);
+        }
+
+        // Tab switches scenes, and Space shows or hides the entities tagged "Toggle", children included.
+        if (Input::IsKeyPressed(Key::Tab)) {
+            m_solar = !m_solar;
+            if (m_solar) {
+                LoadScene<SolarScene>();
+            } else {
+                LoadScene<RingScene>();
+            }
+        }
+        if (Input::IsKeyPressed(Key::Space) && GetScene()) {
+            for (Spot::Entity* entity : GetScene()->FindEntitiesWithTag("Toggle")) {
+                entity->SetActive(!entity->IsActiveSelf());
+            }
         }
 
         // Pans at a constant speed on screen, whatever the zoom.
@@ -111,13 +192,14 @@ protected:
             }
         }
 
-        // Spinning colored quads in a ring.
-        constexpr int RingQuads = 12;
-        for (int i = 0; i < RingQuads; ++i) {
-            const float angle = time * 0.5f + static_cast<float>(i) * 2.0f * Spot::Pi / RingQuads;
-            const Spot::Vector2 position{std::cos(angle) * 250.0f, std::sin(angle) * 250.0f};
-            const Spot::Color color{0.5f + 0.5f * std::cos(angle), 0.5f + 0.5f * std::sin(angle), 0.9f};
-            m_renderer->DrawRotatedQuad(position, {40.0f, 40.0f}, -angle * 2.0f, color);
+        // The current scene's sprites, placed by their entity's world transform.
+        if (Spot::Scene* scene = GetScene()) {
+            scene->ForEachComponent<Sprite>([this](const Sprite& sprite) {
+                const Spot::Entity& entity = sprite.GetEntity();
+                const Spot::Vector3 position = entity.GetWorldPosition();
+                const float rotation = Spot::ToEuler(entity.GetWorldRotation()).z;
+                m_renderer->DrawRotatedQuad({position.x, position.y}, sprite.size, rotation, sprite.color);
+            });
         }
 
         // Textured spots orbiting the center, tinted and pulsing.
@@ -153,10 +235,10 @@ protected:
             const float line = m_font->GetLineHeight();
 
             m_renderer->Begin(pass, screen, view);
-            m_renderer->DrawQuad({170.0f, -70.0f}, {340.0f, 140.0f}, Spot::Color{0.0f, 0.0f, 0.0f, 0.6f});
+            m_renderer->DrawQuad({200.0f, -70.0f}, {400.0f, 140.0f}, Spot::Color{0.0f, 0.0f, 0.0f, 0.6f});
             m_renderer->DrawString(*m_font, "Spot Sandbox", {12.0f, -10.0f}, Spot::Color::White);
             m_renderer->DrawString(*m_font, m_status, {12.0f, -10.0f - line}, Spot::Color{0.7f, 0.9f, 0.7f});
-            m_renderer->DrawString(*m_font, "WASD or arrows: move  |  wheel: zoom  |  Esc: quit",
+            m_renderer->DrawString(*m_font, "WASD/arrows: move | wheel: zoom | Tab: scene | Space: toggle",
                                    {12.0f, -10.0f - 2.0f * line}, Spot::Color{0.8f, 0.8f, 0.8f}, 0.8f);
             m_renderer->DrawString(*m_font, "Accents: caf\u00e9, fa\u00e7ade, na\u00efve, jalape\u00f1o",
                                    {12.0f, -10.0f - 2.8f * line}, Spot::Color{0.8f, 0.8f, 0.8f}, 0.8f);
@@ -173,6 +255,7 @@ private:
     Spot::Renderer2DStats m_worldStats;
     std::string m_status;
     Spot::Camera2D m_camera;
+    bool m_solar = false;
     int m_frames = 0;
     float m_elapsed = 0.0f;
 };
