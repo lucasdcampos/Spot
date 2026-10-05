@@ -20,14 +20,14 @@ cmake --build --preset ninja-debug
 ctest --preset ninja-debug
 ```
 
-## Running the sandbox
+## Running the sandbox and the editor
 
 ```sh
 ./run.ps1          # Windows (PowerShell)
 ./run.sh           # Linux / macOS
 ```
 
-Pass `release` to run an optimized build.
+Pass `editor` to run the editor instead of the sandbox, and `release` to run an optimized build.
 
 In the sandbox, WASD or the arrow keys move the camera, the mouse wheel zooms, F1 switches between the 2D and 3D
 views and Escape quits. In 3D, dragging with the right mouse button also orbits the camera.
@@ -48,4 +48,5 @@ Supported sources: PNG/JPEG/BMP/TGA textures, glTF models (`.gltf`, `.glb`), WAV
 
 - `engine/` – the engine library
 - `sandbox/` – application for trying out the engine
+- `editor/` – the editor, built with Dear ImGui
 - `tests/` – unit tests

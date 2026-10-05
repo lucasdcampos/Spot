@@ -7,6 +7,7 @@ project(spot
 )
 
 option(SPOT_BUILD_SANDBOX "Build the sandbox application" ${PROJECT_IS_TOP_LEVEL})
+option(SPOT_BUILD_EDITOR "Build the Spot editor" ${PROJECT_IS_TOP_LEVEL})
 option(SPOT_BUILD_TESTS "Build the Spot test suite" ${PROJECT_IS_TOP_LEVEL})
 
 # Set globally so fetched dependencies are built with the same standard as the engine;
@@ -25,12 +26,17 @@ function(spot_set_compile_options target)
 endfunction()
 
 include(cmake/spot_shaders.cmake)
+include(cmake/spot_embed_files.cmake)
 
 add_subdirectory(engine)
 
 if(SPOT_BUILD_SANDBOX)
     add_subdirectory(sandbox)
     set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT sandbox)
+endif()
+
+if(SPOT_BUILD_EDITOR)
+    add_subdirectory(editor)
 endif()
 
 if(SPOT_BUILD_TESTS)

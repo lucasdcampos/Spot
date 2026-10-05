@@ -1,25 +1,7 @@
 # Writes a header that embeds a compiled shader as a Spot::ShaderDesc. Run by spot_add_shaders() in script mode.
 # Inputs: NAME, NAMESPACE, STAGE, SOURCE_NAME, SPIRV, MSL, REFLECTION, OUTPUT and optionally DXIL.
 
-function(spot_to_identifier name output)
-    string(REGEX REPLACE "[^A-Za-z0-9]+" ";" words "${name}")
-    set(identifier "")
-    foreach(word IN LISTS words)
-        string(SUBSTRING "${word}" 0 1 first)
-        string(SUBSTRING "${word}" 1 -1 rest)
-        string(TOUPPER "${first}" first)
-        string(APPEND identifier "${first}${rest}")
-    endforeach()
-    set(${output} "${identifier}" PARENT_SCOPE)
-endfunction()
-
-function(spot_to_byte_array file output)
-    file(READ "${file}" hex HEX)
-    string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," bytes "${hex}")
-    # Breaks the array into lines so the generated header stays readable in a diff or a debugger.
-    string(REGEX REPLACE "((0x..,){24})" "\\1\n    " bytes "${bytes}")
-    set(${output} "${bytes}" PARENT_SCOPE)
-endfunction()
+include("${CMAKE_CURRENT_LIST_DIR}/spot_embed_common.cmake")
 
 function(spot_count_resources reflection key output)
     string(JSON count ERROR_VARIABLE error LENGTH "${reflection}" ${key})

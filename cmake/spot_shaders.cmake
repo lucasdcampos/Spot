@@ -54,6 +54,7 @@ else()
 endif()
 
 set(SPOT_EMBED_SHADER_SCRIPT "${CMAKE_CURRENT_LIST_DIR}/spot_embed_shader.cmake")
+set(SPOT_EMBED_COMMON_SCRIPT "${CMAKE_CURRENT_LIST_DIR}/spot_embed_common.cmake")
 
 # spot_add_shaders(<target> [NAMESPACE <namespace>] <file.vert.hlsl | file.frag.hlsl>...)
 # Compiles each shader and generates "<file>.h" (e.g. "sprite.vert.h"), which defines a Spot::ShaderDesc named after
@@ -112,7 +113,8 @@ function(spot_add_shaders target)
             COMMAND ${CMAKE_COMMAND} "-DNAME=${base_name}" "-DNAMESPACE=${ARG_NAMESPACE}" "-DSTAGE=${stage}"
                     "-DSOURCE_NAME=${file_name}" "-DSPIRV=${spirv}" "-DMSL=${msl}" "-DREFLECTION=${reflection}"
                     ${dxil_argument} "-DOUTPUT=${header}" -P "${SPOT_EMBED_SHADER_SCRIPT}"
-            DEPENDS "${source}" "${SPOT_EMBED_SHADER_SCRIPT}" glslang-standalone spirv-cross
+            DEPENDS "${source}" "${SPOT_EMBED_SHADER_SCRIPT}" "${SPOT_EMBED_COMMON_SCRIPT}" glslang-standalone
+                    spirv-cross
             COMMENT "Compiling shader ${file_name}"
             VERBATIM
         )

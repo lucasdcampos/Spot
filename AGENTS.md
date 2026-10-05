@@ -10,7 +10,8 @@ Each project lives in its own folder at the repository root, with headers next t
 - `engine/` – the engine, static library target `spot` (`spot::spot`)
 - `sandbox/` – executable that links the engine, used to try it out
 - `tests/` – unit tests using Catch2
-- `editor/` – reserved for the future editor
+- `editor/` – the editor (`spot_editor`), a Dear ImGui application; everything but `main.cpp` is the
+  `spot_editor_core` library its tests link
 
 ## Build and test
 
@@ -24,8 +25,8 @@ Shaders are HLSL files named `*.vert.hlsl` or `*.frag.hlsl`. `spot_add_shaders(<
 `cmake/spot_shaders.cmake`) compiles them to SPIR-V, MSL and, on Windows, DXIL, and generates a header per shader
 with a ready-to-use `Spot::ShaderDesc`.
 
-To build and run the sandbox: `./run.ps1` (PowerShell) or `./run.sh` (Linux, macOS, Git Bash).
-Both accept `release` as an argument.
+To build and run the sandbox: `./run.ps1` (PowerShell) or `./run.sh` (Linux, macOS, Git Bash). Both accept
+`editor` to run the editor instead, and `release` for an optimized build.
 
 ## Rules
 
@@ -39,6 +40,10 @@ Both accept `release` as an argument.
 - Engine features built on top of the graphics API (such as the 2D renderer) only use its public interface, so
   users can always do anything the engine does.
 - GPU tests go in `tests/gpu_tests.cpp` (the `spot_gpu_tests` executable) and are skipped where no GPU is available.
+- Editor tests go in `tests/editor/`: `spot_editor_tests` (headless ImGui, no GPU) and `spot_editor_gpu_tests`.
+- The editor uses only the engine's public API, like any game; it never reaches a backend. ImGui stays in the
+  editor, so the runtime never depends on it. The editor never keeps pointers to entities or components across
+  frames: it refers to them by `EntityId`, so undo history and game code reloads stay valid.
 - The build must have no warnings.
 - New engine features come with tests in `tests/`.
 - Assets (`engine/assets/`) are loaded from imported files, not raw sources. Every source asset has a `.meta` file

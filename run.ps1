@@ -1,7 +1,15 @@
-param(
-    [ValidateSet("debug", "release")]
-    [string]$Config = "debug"
-)
+# Builds and runs the sandbox or the editor: ./run.ps1 [sandbox|editor] [debug|release]
+$target = "sandbox"
+$config = "debug"
+foreach ($arg in $args) {
+    if ($arg -in "sandbox", "editor") { $target = $arg }
+    elseif ($arg -in "debug", "release") { $config = $arg }
+    else {
+        Write-Error "Unknown argument '$arg': expected sandbox, editor, debug or release"
+        exit 1
+    }
+}
+$cmakeTarget = if ($target -eq "editor") { "spot_editor" } else { "sandbox" }
 
 Push-Location $PSScriptRoot
 try {
@@ -11,10 +19,10 @@ try {
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
 
-    cmake --build --preset "msvc-$Config" --target sandbox
+    cmake --build --preset "msvc-$config" --target $cmakeTarget
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-    & "build/msvc/sandbox/$Config/sandbox.exe"
+    & "build/msvc/$target/$config/$cmakeTarget.exe"
     exit $LASTEXITCODE
 }
 finally {

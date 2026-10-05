@@ -75,6 +75,7 @@ catch_discover_tests(spot_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" 
 # They are skipped on machines without a usable GPU.
 add_executable(spot_gpu_tests
     gpu_tests.cpp
+    rendering_application.h
 )
 
 target_link_libraries(spot_gpu_tests PRIVATE
@@ -98,3 +99,31 @@ target_compile_definitions(spot_gpu_tests PRIVATE
 spot_set_compile_options(spot_gpu_tests)
 
 catch_discover_tests(spot_gpu_tests PROPERTIES TIMEOUT 60)
+
+# Editor tests link the editor's code, everything but its main().
+if(TARGET spot_editor_core)
+    add_executable(spot_editor_tests
+        editor/editor_layout_tests.cpp
+        editor/headless_imgui.h
+        editor/imgui_platform_tests.cpp
+    )
+    target_link_libraries(spot_editor_tests PRIVATE
+        spot_editor_core
+        Catch2::Catch2WithMain
+    )
+    target_include_directories(spot_editor_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    spot_set_compile_options(spot_editor_tests)
+    catch_discover_tests(spot_editor_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
+
+    add_executable(spot_editor_gpu_tests
+        editor/editor_gpu_tests.cpp
+        rendering_application.h
+    )
+    target_link_libraries(spot_editor_gpu_tests PRIVATE
+        spot_editor_core
+        Catch2::Catch2WithMain
+    )
+    target_include_directories(spot_editor_gpu_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    spot_set_compile_options(spot_editor_gpu_tests)
+    catch_discover_tests(spot_editor_gpu_tests PROPERTIES TIMEOUT 60)
+endif()

@@ -7,3 +7,5 @@
 # Binary model data must never have its bytes converted.
 *.bin binary
 *.glb binary
+*.ttf binary
+*.otf binary
