@@ -32,10 +32,19 @@ public:
         m_pitch = std::clamp(m_pitch - mouseDelta.y * Sensitivity, -1.5f, 1.5f);
     }
 
+    // A light that follows where the player looks.
+    void SetFlashlight(Spot::Entity* flashlight) { m_flashlight = flashlight; }
+
 protected:
     void OnUpdate(float /*deltaTime*/) override {
         // Read every frame, since a press can fall between two physics steps.
         m_jump = m_jump || Spot::Input::IsKeyPressed(Spot::Key::Space);
+    }
+
+    void OnLateUpdate(float /*deltaTime*/) override {
+        if (m_flashlight) {
+            m_flashlight->GetTransform().SetRotation(GetViewRotation());
+        }
     }
 
     void OnFixedUpdate(float /*fixedDeltaTime*/) override {
@@ -70,15 +79,34 @@ protected:
     }
 
 private:
+    Spot::Entity* m_flashlight = nullptr;
     float m_yaw = 0.0f;
     float m_pitch = -0.15f;
     bool m_jump = false;
 };
 
-// A walled floor with ramps, steps, a pyramid and a tower of crates, and balls to knock them over with.
+// A walled floor with ramps, steps, a pyramid and a tower of crates, and balls to knock them over with, lit by the sun
+// and colored lamps.
 class PlaygroundScene final : public Spot::Scene {
 public:
     PlayerController* GetPlayer() const { return m_player; }
+
+    void ToggleFlashlight() {
+        if (m_flashlight) {
+            m_flashlight->SetEnabled(!m_flashlight->IsEnabled());
+        }
+    }
+
+    bool IsNight() const { return m_sun && !m_sun->IsActiveSelf(); }
+
+    // At night the sun is off and the sky dims, so only the lamps and the flashlight light the playground.
+    void ToggleNight() {
+        if (m_sun && m_sky) {
+            const bool night = m_sun->IsActiveSelf();
+            m_sun->SetActive(!night);
+            m_sky->SetIntensity(night ? 0.05f : 0.3f);
+        }
+    }
 
     // Throws a ball from the player's eyes, where they look.
     void Shoot() {
@@ -96,6 +124,16 @@ public:
 
 protected:
     void OnLoad() override {
+        m_sun = &CreateEntity("Sun");
+        m_sun->GetTransform().SetRotation(Spot::Quaternion::LookRotation({-0.4f, -1.0f, -0.6f}));
+        m_sun->AddComponent<Spot::DirectionalLight>(Spot::Color{1.0f, 0.95f, 0.85f}, 0.8f);
+        m_sky = &CreateEntity("Sky").AddComponent<Spot::AmbientLight>(Spot::Color{0.8f, 0.85f, 1.0f}, 0.3f);
+
+        AddLamp({-10.0f, 3.5f, -8.0f}, {1.0f, 0.5f, 0.2f});
+        AddLamp({0.0f, 2.5f, -3.5f}, {0.3f, 1.0f, 0.4f});
+        AddLamp({8.0f, 4.0f, -6.0f}, {0.9f, 0.3f, 1.0f});
+        AddLamp({10.0f, 2.0f, 4.0f}, {0.3f, 0.6f, 1.0f});
+
         AddBlock("Ground", {0.0f, -0.5f, 0.0f}, {40.0f, 1.0f, 40.0f}, "materials/ground.material");
         for (const float side : {-1.0f, 1.0f}) {
             AddBlock("Wall", {side * 20.5f, 1.0f, 0.0f}, {1.0f, 2.0f, 42.0f}, "materials/cyan.material");
@@ -134,6 +172,14 @@ protected:
         player.AddComponent<Spot::CapsuleCollider>(0.4f, 1.8f).SetFriction(0.0f);
         player.AddComponent<Spot::Rigidbody>().SetMass(70.0f);
         m_player = &player.AddComponent<PlayerController>();
+
+        auto& flashlight = player.CreateChild("Flashlight");
+        flashlight.GetTransform().SetPosition({0.0f, PlayerController::EyeHeight, 0.0f});
+        m_flashlight = &flashlight.AddComponent<Spot::SpotLight>(Spot::Color{1.0f, 0.95f, 0.8f}, 1.5f, 25.0f);
+        m_flashlight->SetInnerConeAngle(Spot::ToRadians(12.0f));
+        m_flashlight->SetOuterConeAngle(Spot::ToRadians(20.0f));
+        m_flashlight->SetEnabled(false);
+        m_player->SetFlashlight(&flashlight);
     }
 
     void OnUpdate(float /*deltaTime*/) override {
@@ -174,7 +220,16 @@ private:
         return ball;
     }
 
+    void AddLamp(Spot::Vector3 position, Spot::Color color) {
+        auto& lamp = CreateEntity("Lamp");
+        lamp.GetTransform().SetPosition(position);
+        lamp.AddComponent<Spot::PointLight>(color, 1.5f, 8.0f);
+    }
+
     PlayerController* m_player = nullptr;
+    Spot::SpotLight* m_flashlight = nullptr;
+    Spot::Entity* m_sun = nullptr;
+    Spot::AmbientLight* m_sky = nullptr;
 };
 
 } // namespace
@@ -230,6 +285,12 @@ protected:
                 scene->Shoot();
             }
         }
+        if (scene && Input::IsKeyPressed(Key::F)) {
+            scene->ToggleFlashlight();
+        }
+        if (scene && Input::IsKeyPressed(Key::N)) {
+            scene->ToggleNight();
+        }
         if (scene && scene->GetPlayer() && window.IsMouseCaptured()) {
             scene->GetPlayer()->Look(Input::GetMouseDelta());
         }
@@ -277,12 +338,14 @@ private:
             return;
         }
 
-        auto pass = context.BeginRenderPass({.target = m_samples.get(),
-                                             .clearColor = Spot::Color{0.5f, 0.68f, 0.85f},
-                                             .depthTarget = m_depth.get(),
-                                             .clearDepth = 1.0f,
-                                             .resolveToWindow = m_samples != nullptr});
         const auto* scene = dynamic_cast<PlaygroundScene*>(GetScene());
+        const bool night = scene && scene->IsNight();
+        auto pass = context.BeginRenderPass(
+            {.target = m_samples.get(),
+             .clearColor = night ? Spot::Color{0.02f, 0.03f, 0.06f} : Spot::Color{0.5f, 0.68f, 0.85f},
+             .depthTarget = m_depth.get(),
+             .clearDepth = 1.0f,
+             .resolveToWindow = m_samples != nullptr});
         if (!m_renderer3D || !scene || !scene->GetPlayer()) {
             return;
         }
@@ -295,8 +358,6 @@ private:
         camera.fieldOfView = Spot::ToRadians(75.0f);
 
         m_renderer3D->Begin(pass, camera, view);
-        m_renderer3D->DrawLight({.type = Spot::LightType::Directional, .direction = {-0.4f, -1.0f, -0.6f}});
-        m_renderer3D->DrawLight({.type = Spot::LightType::Ambient, .color = {0.25f, 0.25f, 0.3f}});
         m_renderer3D->DrawScene(*GetScene());
         m_renderer3D->End();
         m_stats3D = m_renderer3D->GetStats();
@@ -320,8 +381,8 @@ private:
         m_renderer2D->DrawString(*m_font, m_status, {12.0f, -10.0f}, Spot::Color{0.7f, 0.9f, 0.7f});
         m_renderer2D->DrawString(*m_font, "WASD: move | Shift: run | Space: jump | Click: shoot | R: reset",
                                  {12.0f, -10.0f - line}, Spot::Color{0.8f, 0.8f, 0.8f}, 0.8f);
-        m_renderer2D->DrawString(*m_font, "Esc: free the mouse, then quit", {12.0f, -10.0f - 1.8f * line},
-                                 Spot::Color{0.8f, 0.8f, 0.8f}, 0.8f);
+        m_renderer2D->DrawString(*m_font, "F: flashlight | N: day/night | Esc: free the mouse, then quit",
+                                 {12.0f, -10.0f - 1.8f * line}, Spot::Color{0.8f, 0.8f, 0.8f}, 0.8f);
         m_renderer2D->End();
     }
 
