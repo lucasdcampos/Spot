@@ -5,14 +5,55 @@
 
 #include <SDL3/SDL.h>
 
+#include <array>
+#include <cmath>
 #include <utility>
 
 namespace Spot {
+
+namespace {
+
+constexpr std::size_t CursorCount = static_cast<std::size_t>(Cursor::Crosshair) + 1;
+
+SDL_SystemCursor ToSdl(Cursor cursor) {
+    switch (cursor) {
+    case Cursor::Arrow:
+        return SDL_SYSTEM_CURSOR_DEFAULT;
+    case Cursor::Text:
+        return SDL_SYSTEM_CURSOR_TEXT;
+    case Cursor::Hand:
+        return SDL_SYSTEM_CURSOR_POINTER;
+    case Cursor::Move:
+        return SDL_SYSTEM_CURSOR_MOVE;
+    case Cursor::ResizeNs:
+        return SDL_SYSTEM_CURSOR_NS_RESIZE;
+    case Cursor::ResizeEw:
+        return SDL_SYSTEM_CURSOR_EW_RESIZE;
+    case Cursor::ResizeNesw:
+        return SDL_SYSTEM_CURSOR_NESW_RESIZE;
+    case Cursor::ResizeNwse:
+        return SDL_SYSTEM_CURSOR_NWSE_RESIZE;
+    case Cursor::NotAllowed:
+        return SDL_SYSTEM_CURSOR_NOT_ALLOWED;
+    case Cursor::Wait:
+        return SDL_SYSTEM_CURSOR_WAIT;
+    case Cursor::Progress:
+        return SDL_SYSTEM_CURSOR_PROGRESS;
+    case Cursor::Crosshair:
+        return SDL_SYSTEM_CURSOR_CROSSHAIR;
+    }
+    return SDL_SYSTEM_CURSOR_DEFAULT;
+}
+
+} // namespace
 
 struct Window::Impl {
     Impl(SDL_Window* handle, std::string title) : handle(handle), title(std::move(title)) {}
 
     ~Impl() {
+        for (SDL_Cursor* created : cursors) {
+            SDL_DestroyCursor(created);
+        }
         SDL_DestroyWindow(handle);
         Platform::Shutdown();
     }
@@ -22,6 +63,9 @@ struct Window::Impl {
 
     SDL_Window* handle;
     std::string title;
+    // Created on first use, since most applications only ever show the arrow.
+    std::array<SDL_Cursor*, CursorCount> cursors{};
+    Cursor cursor = Cursor::Arrow;
 };
 
 std::unique_ptr<Window> Window::Create(const WindowConfig& config) {
@@ -29,7 +73,13 @@ std::unique_ptr<Window> Window::Create(const WindowConfig& config) {
         return nullptr;
     }
 
-    const SDL_WindowFlags flags = SDL_WINDOW_HIGH_PIXEL_DENSITY | (config.resizable ? SDL_WINDOW_RESIZABLE : 0);
+    SDL_WindowFlags flags = SDL_WINDOW_HIGH_PIXEL_DENSITY;
+    if (config.resizable) {
+        flags |= SDL_WINDOW_RESIZABLE;
+    }
+    if (config.maximized) {
+        flags |= SDL_WINDOW_MAXIMIZED;
+    }
     SDL_Window* handle = SDL_CreateWindow(config.title.c_str(), config.width, config.height, flags);
     if (!handle) {
         Log::GetEngineLogger().Error("Failed to create window: {}", SDL_GetError());
@@ -61,6 +111,12 @@ Vector2 Window::GetSize() const {
     return {static_cast<float>(GetWidth()), static_cast<float>(GetHeight())};
 }
 
+void Window::SetSize(int width, int height) {
+    if (!SDL_SetWindowSize(m_impl->handle, width, height)) {
+        Log::GetEngineLogger().Error("Failed to resize the window: {}", SDL_GetError());
+    }
+}
+
 int Window::GetPixelWidth() const {
     int width = 0;
     SDL_GetWindowSizeInPixels(m_impl->handle, &width, nullptr);
@@ -71,6 +127,32 @@ int Window::GetPixelHeight() const {
     int height = 0;
     SDL_GetWindowSizeInPixels(m_impl->handle, nullptr, &height);
     return height;
+}
+
+float Window::GetContentScale() const {
+    // SDL's display scale also counts the pixels per screen coordinate, which the pixel size already covers.
+    const float displayScale = SDL_GetWindowDisplayScale(m_impl->handle);
+    const float pixelDensity = SDL_GetWindowPixelDensity(m_impl->handle);
+    if (displayScale <= 0.0f || pixelDensity <= 0.0f || !std::isfinite(displayScale / pixelDensity)) {
+        return 1.0f;
+    }
+    return displayScale / pixelDensity;
+}
+
+bool Window::IsMaximized() const {
+    return (SDL_GetWindowFlags(m_impl->handle) & SDL_WINDOW_MAXIMIZED) != 0;
+}
+
+bool Window::IsMinimized() const {
+    return (SDL_GetWindowFlags(m_impl->handle) & SDL_WINDOW_MINIMIZED) != 0;
+}
+
+void Window::Maximize() {
+    SDL_MaximizeWindow(m_impl->handle);
+}
+
+void Window::Restore() {
+    SDL_RestoreWindow(m_impl->handle);
 }
 
 const std::string& Window::GetTitle() const {
@@ -92,6 +174,54 @@ bool Window::SetMouseCaptured(bool captured) {
         return false;
     }
     return true;
+}
+
+Cursor Window::GetCursor() const {
+    return m_impl->cursor;
+}
+
+void Window::SetCursor(Cursor cursor) {
+    m_impl->cursor = cursor;
+    SDL_Cursor*& native = m_impl->cursors[static_cast<std::size_t>(cursor)];
+    if (!native) {
+        native = SDL_CreateSystemCursor(ToSdl(cursor));
+    }
+    // Platforms without system cursors keep whatever they show.
+    if (native) {
+        SDL_SetCursor(native);
+    }
+}
+
+bool Window::IsCursorVisible() const {
+    return SDL_CursorVisible();
+}
+
+void Window::SetCursorVisible(bool visible) {
+    if (visible) {
+        SDL_ShowCursor();
+    } else {
+        SDL_HideCursor();
+    }
+}
+
+bool Window::IsTextInputActive() const {
+    return SDL_TextInputActive(m_impl->handle);
+}
+
+void Window::StartTextInput() {
+    if (!SDL_StartTextInput(m_impl->handle)) {
+        Log::GetEngineLogger().Error("Failed to start text input: {}", SDL_GetError());
+    }
+}
+
+void Window::StopTextInput() {
+    SDL_StopTextInput(m_impl->handle);
+}
+
+void Window::SetTextInputArea(Vector2 position, Vector2 size) {
+    const SDL_Rect area{static_cast<int>(position.x), static_cast<int>(position.y), static_cast<int>(size.x),
+                        static_cast<int>(size.y)};
+    SDL_SetTextInputArea(m_impl->handle, &area, 0);
 }
 
 void* Window::GetNativeHandle() const {

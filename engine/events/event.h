@@ -3,6 +3,8 @@
 #include "input/keys.h"
 #include "math/vector.h"
 
+#include <filesystem>
+#include <string>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -21,6 +23,11 @@ struct WindowFocusEvent {
     bool focused;
 };
 
+// The window moved to a display with another scale, or the display's scale changed; see Window::GetContentScale().
+struct WindowContentScaleEvent {
+    float scale;
+};
+
 struct KeyPressedEvent {
     Key key;
     bool repeat;
@@ -28,6 +35,12 @@ struct KeyPressedEvent {
 
 struct KeyReleasedEvent {
     Key key;
+};
+
+// Text typed while Window::StartTextInput() is on, as UTF-8, composed by the keyboard layout and input method; key
+// events cannot tell which characters a key types on another layout.
+struct TextInputEvent {
+    std::string text;
 };
 
 // The delta is reported separately because the position stops changing while the cursor is locked.
@@ -48,11 +61,22 @@ struct MouseScrolledEvent {
     Vector2 delta;
 };
 
+// The cursor left the window; its position is unknown until it moves over the window again.
+struct MouseLeaveEvent {};
+
+// A file or folder was dropped onto the window from the OS, such as from a file manager. Several dropped together
+// arrive as one event each. The position is where it was dropped, in window coordinates.
+struct FileDropEvent {
+    std::filesystem::path path;
+    Vector2 position;
+};
+
 class Event {
 public:
     using Variant =
-        std::variant<WindowCloseEvent, WindowResizeEvent, WindowFocusEvent, KeyPressedEvent, KeyReleasedEvent,
-                     MouseMovedEvent, MouseButtonPressedEvent, MouseButtonReleasedEvent, MouseScrolledEvent>;
+        std::variant<WindowCloseEvent, WindowResizeEvent, WindowFocusEvent, WindowContentScaleEvent, KeyPressedEvent,
+                     KeyReleasedEvent, TextInputEvent, MouseMovedEvent, MouseButtonPressedEvent,
+                     MouseButtonReleasedEvent, MouseScrolledEvent, MouseLeaveEvent, FileDropEvent>;
 
     // Implicit so any event type can be passed where an Event is expected.
     template <typename T>

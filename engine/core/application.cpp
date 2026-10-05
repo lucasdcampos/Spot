@@ -65,7 +65,7 @@ int Application::Run() {
 
     Input::SetState(&m_input);
     Time::SetClock(&m_clock);
-    FrameLimiter limiter(m_config.maxFrameRate);
+    m_limiter = FrameLimiter(m_config.maxFrameRate);
     m_clock.Start(std::chrono::steady_clock::now());
     m_persistentScene = std::make_unique<Scene>();
     m_persistentScene->m_application = this;
@@ -73,7 +73,7 @@ int Application::Run() {
     OnStart();
 
     while (m_running) {
-        Platform::SleepFor(limiter.GetWaitTime(std::chrono::steady_clock::now()));
+        Platform::SleepFor(m_limiter.GetWaitTime(std::chrono::steady_clock::now()));
         m_clock.Tick(std::chrono::steady_clock::now());
 
         m_input.BeginFrame();
@@ -119,6 +119,11 @@ int Application::Run() {
 
 void Application::Quit() {
     m_running = false;
+}
+
+void Application::SetMaxFrameRate(int maxFrameRate) {
+    m_config.maxFrameRate = maxFrameRate;
+    m_limiter = FrameLimiter(maxFrameRate);
 }
 
 Window& Application::GetWindow() {
@@ -202,7 +207,7 @@ void Application::HandleEvent(const Event& event) {
         scene->OnEvent(event);
     }
 
-    if (event.Is<WindowCloseEvent>()) {
+    if (event.Is<WindowCloseEvent>() && OnCloseRequested()) {
         Quit();
     }
 }

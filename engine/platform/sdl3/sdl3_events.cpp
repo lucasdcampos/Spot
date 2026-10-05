@@ -1,5 +1,7 @@
 #include "platform/platform.h"
 
+#include "core/paths.h"
+
 #include <SDL3/SDL.h>
 
 #include <optional>
@@ -246,6 +248,16 @@ std::optional<MouseButton> ToMouseButton(Uint8 button) {
     }
 }
 
+// Matches Window::GetContentScale(), for windows the event names.
+float GetContentScale(SDL_Window* window) {
+    if (!window) {
+        return 1.0f;
+    }
+    const float displayScale = SDL_GetWindowDisplayScale(window);
+    const float pixelDensity = SDL_GetWindowPixelDensity(window);
+    return displayScale > 0.0f && pixelDensity > 0.0f ? displayScale / pixelDensity : 1.0f;
+}
+
 std::optional<Event> Translate(const SDL_Event& event) {
     switch (event.type) {
     // The engine has a single window, so quitting the application and closing the window are the same request.
@@ -258,10 +270,19 @@ std::optional<Event> Translate(const SDL_Event& event) {
         return WindowFocusEvent{true};
     case SDL_EVENT_WINDOW_FOCUS_LOST:
         return WindowFocusEvent{false};
+    case SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED:
+        return WindowContentScaleEvent{GetContentScale(SDL_GetWindowFromID(event.window.windowID))};
+    case SDL_EVENT_WINDOW_MOUSE_LEAVE:
+        return MouseLeaveEvent{};
     case SDL_EVENT_KEY_DOWN:
         return KeyPressedEvent{ToKey(event.key.scancode), event.key.repeat};
     case SDL_EVENT_KEY_UP:
         return KeyReleasedEvent{ToKey(event.key.scancode)};
+    case SDL_EVENT_TEXT_INPUT:
+        if (!event.text.text || *event.text.text == '\0') {
+            return std::nullopt;
+        }
+        return TextInputEvent{event.text.text};
     case SDL_EVENT_MOUSE_MOTION:
         return MouseMovedEvent{{event.motion.x, event.motion.y}, {event.motion.xrel, event.motion.yrel}};
     case SDL_EVENT_MOUSE_BUTTON_DOWN:
@@ -279,6 +300,11 @@ std::optional<Event> Translate(const SDL_Event& event) {
         const float direction = event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -1.0f : 1.0f;
         return MouseScrolledEvent{Vector2{event.wheel.x, event.wheel.y} * direction};
     }
+    case SDL_EVENT_DROP_FILE:
+        if (!event.drop.data) {
+            return std::nullopt;
+        }
+        return FileDropEvent{Utf8ToPath(event.drop.data), {event.drop.x, event.drop.y}};
     default:
         return std::nullopt;
     }

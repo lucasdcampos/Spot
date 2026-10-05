@@ -137,6 +137,7 @@ add_library(spot STATIC
     scene/sky.cpp
     scene/transform.h
     scene/transform.cpp
+    window/clipboard.h
     window/window.h
 )
 add_library(spot::spot ALIAS spot)
@@ -222,6 +223,7 @@ if(SPOT_PLATFORM STREQUAL "SDL3")
     FetchContent_MakeAvailable(SDL3)
 
     target_sources(spot PRIVATE
+        platform/sdl3/sdl3_clipboard.cpp
         platform/sdl3/sdl3_events.cpp
         platform/sdl3/sdl3_paths.cpp
         platform/sdl3/sdl3_platform.cpp

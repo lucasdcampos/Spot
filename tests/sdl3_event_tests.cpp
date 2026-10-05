@@ -148,6 +148,43 @@ TEST_CASE("SDL window and quit events become window events", "[platform][sdl3]")
     CHECK(events[4].Is<Spot::WindowCloseEvent>());
 }
 
+TEST_CASE("SDL text, drop, mouse leave and scale events become engine events", "[platform][sdl3]") {
+    const ScopedPlatform platform;
+    const auto window = Spot::Window::Create();
+    REQUIRE(window != nullptr);
+    PollEvents();
+
+    SDL_Event text{};
+    text.type = SDL_EVENT_TEXT_INPUT;
+    text.text.text = "ção";
+    Push(text);
+    SDL_Event drop{};
+    drop.type = SDL_EVENT_DROP_FILE;
+    drop.drop.data = "C:/Some Folder/café.png";
+    drop.drop.x = 12.0f;
+    drop.drop.y = 34.0f;
+    Push(drop);
+    Push(MakeWindowEvent(SDL_EVENT_WINDOW_MOUSE_LEAVE));
+    SDL_Event scale = MakeWindowEvent(SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED);
+    scale.window.windowID = SDL_GetWindowID(static_cast<SDL_Window*>(window->GetNativeHandle()));
+    Push(scale);
+
+    const auto events = PollEvents();
+
+    REQUIRE(events.size() == 4);
+    const auto* typed = events[0].GetIf<Spot::TextInputEvent>();
+    REQUIRE(typed != nullptr);
+    CHECK(typed->text == "ção");
+    const auto* dropped = events[1].GetIf<Spot::FileDropEvent>();
+    REQUIRE(dropped != nullptr);
+    CHECK(dropped->path == Spot::Utf8ToPath("C:/Some Folder/café.png"));
+    CHECK(dropped->position == Spot::Vector2{12.0f, 34.0f});
+    CHECK(events[2].Is<Spot::MouseLeaveEvent>());
+    const auto* scaled = events[3].GetIf<Spot::WindowContentScaleEvent>();
+    REQUIRE(scaled != nullptr);
+    CHECK(scaled->scale == window->GetContentScale());
+}
+
 TEST_CASE("Application feeds native events to OnEvent and Input, and stops when the window closes",
           "[platform][sdl3]") {
     struct Observed {
@@ -190,4 +227,41 @@ TEST_CASE("Application feeds native events to OnEvent and Input, and stops when 
     CHECK(observed.closeSeen);
     CHECK(observed.updates == 1);
     CHECK_FALSE(Spot::Input::IsKeyDown(Spot::Key::W));
+}
+
+TEST_CASE("Application keeps running when it turns a close request down", "[platform][sdl3][application]") {
+    class ReluctantApplication final : public Spot::Application {
+    public:
+        ReluctantApplication() : Application({.graphics = {.enabled = false}, .maxFrameRate = 1000}) {}
+
+        int closeRequests = 0;
+        int updatesAfterRefusal = 0;
+
+    protected:
+        void OnStart() override {
+            SetMaxFrameRate(0);
+            CHECK(GetMaxFrameRate() == 0);
+            Push(MakeWindowEvent(SDL_EVENT_WINDOW_CLOSE_REQUESTED));
+        }
+
+        bool OnCloseRequested() override {
+            // The first request is turned down, the second accepted.
+            return ++closeRequests == 2;
+        }
+
+        void OnUpdate(float) override {
+            if (closeRequests == 1 && ++updatesAfterRefusal == 3) {
+                Push(MakeWindowEvent(SDL_EVENT_WINDOW_CLOSE_REQUESTED));
+            } else if (updatesAfterRefusal > 10) {
+                Quit();
+            }
+        }
+    };
+
+    ReluctantApplication application;
+
+    CHECK(application.Run() == EXIT_SUCCESS);
+
+    CHECK(application.closeRequests == 2);
+    CHECK(application.updatesAfterRefusal == 3);
 }

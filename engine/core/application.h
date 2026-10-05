@@ -55,6 +55,10 @@ public:
 
     bool IsRunning() const { return m_running; }
 
+    // Caps how many frames run per second from the next frame on; 0 means unlimited.
+    int GetMaxFrameRate() const { return m_config.maxFrameRate; }
+    void SetMaxFrameRate(int maxFrameRate);
+
     // Only available while Run() is running.
     Window& GetWindow();
     // Only available while Run() is running, and only when graphics are enabled.
@@ -119,6 +123,9 @@ protected:
     // Called after OnUpdate() on frames that can be drawn; all GPU commands of the frame are recorded here.
     virtual void OnRender(RenderContext&) {}
     virtual void OnStop() {}
+    // Called after a WindowCloseEvent has reached OnEvent() and the scenes. Returning false keeps the application
+    // running, such as to ask about unsaved changes first.
+    virtual bool OnCloseRequested() { return true; }
 
 private:
     enum class SceneChangeKind { Replace, Add, Remove };
@@ -149,6 +156,7 @@ private:
     std::vector<SceneChange> m_sceneChanges;
     InputState m_input;
     FrameClock m_clock;
+    FrameLimiter m_limiter;
     bool m_running = false;
 };
 

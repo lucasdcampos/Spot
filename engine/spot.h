@@ -63,4 +63,5 @@
 #include "scene/sky.h"
 #include "scene/transform.h"
 #include "version.h"
+#include "window/clipboard.h"
 #include "window/window.h"
