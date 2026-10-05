@@ -676,6 +676,38 @@ TEST_CASE("Renderer3D hides back faces unless the material is double-sided", "[g
     }
 }
 
+TEST_CASE("Renderer3D projects textures from world space when asked", "[gpu]") {
+    RequireGpu();
+
+    // A plane two units wide facing the camera, with a texture white on its left half and black on its right. Its
+    // UVs stretch the texture across it once, while world projection repeats it every unit, so a quarter unit right of
+    // the center is black with the UVs and white with the projection. A unit is about 18.5 pixels here.
+    for (const bool projected : {false, true}) {
+        const TargetRender render(
+            64, 64, [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
+                Spot::Renderer3D renderer(
+                    device, {.filter = Spot::TextureFilter::Nearest, .targetFormat = Spot::TextureFormat::Rgba8});
+                const auto plane = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane());
+                const std::shared_ptr<Spot::Texture> texture =
+                    device.CreateTexture(Spot::Image(2, 1, {255, 255, 255, 255, 0, 0, 0, 255}));
+                REQUIRE((plane && texture));
+
+                const Spot::Material material{.baseColorTexture = Spot::AssetRef<Spot::Texture>(texture),
+                                              .worldTextureSize = projected ? 1.0f : 0.0f};
+                renderer.Begin(pass, MakeFrontCamera(), view, FrontLight);
+                renderer.DrawMesh(*plane, material,
+                                  Spot::Matrix4::Rotation(Spot::Quaternion::FromAxisAngle({1, 0, 0}, Spot::Pi / 2.0f)) *
+                                      Spot::Matrix4::Scale({2.0f, 1.0f, 2.0f}));
+                renderer.End();
+            });
+
+        const Pixel white{255, 255, 255, 255};
+        const Pixel black{0, 0, 0, 255};
+        CHECK(IsNear(render.At(27, 32), projected ? black : white));
+        CHECK(IsNear(render.At(37, 32), projected ? white : black));
+    }
+}
+
 TEST_CASE("Models load with their materials and draw textured", "[gpu]") {
     RequireGpu();
     const auto modelPath = std::filesystem::path(SPOT_TEST_ASSETS_DIR) / "models" / "textured_quad.gltf";

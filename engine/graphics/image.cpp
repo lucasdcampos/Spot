@@ -4,6 +4,7 @@
 #include "core/log.h"
 #include "core/paths.h"
 
+#include <algorithm>
 #include <fstream>
 #include <iterator>
 #include <limits>
@@ -21,6 +22,50 @@ Image::Image(std::uint32_t width, std::uint32_t height, std::vector<std::uint8_t
     SPOT_ASSERT(m_pixels.size() == static_cast<std::size_t>(width) * height * 4,
                 "A {}x{} RGBA image needs {} bytes, not {}", width, height,
                 static_cast<std::size_t>(width) * height * 4, m_pixels.size());
+}
+
+namespace {
+
+template <typename Shade>
+Image CreateGrayImage(std::uint32_t size, Shade shade) {
+    std::vector<std::uint8_t> pixels(static_cast<std::size_t>(size) * size * 4);
+    for (std::uint32_t y = 0; y < size; ++y) {
+        for (std::uint32_t x = 0; x < size; ++x) {
+            const std::uint8_t value = shade(x, y);
+            auto* pixel = &pixels[(static_cast<std::size_t>(y) * size + x) * 4];
+            pixel[0] = value;
+            pixel[1] = value;
+            pixel[2] = value;
+            pixel[3] = 255;
+        }
+    }
+    return Image(size, size, std::move(pixels));
+}
+
+} // namespace
+
+Image Image::CreateGrid(std::uint32_t size) {
+    SPOT_ASSERT(size >= 8, "A grid needs at least 8 pixels per side, not {}", size);
+    const std::uint32_t line = std::max(size / 128, 1u);
+    const std::uint32_t quarter = size / 4;
+    return CreateGrayImage(size, [=](std::uint32_t x, std::uint32_t y) -> std::uint8_t {
+        // The border runs along two edges only, since the neighboring squares draw the other two.
+        if (x < line || y < line) {
+            return 96;
+        }
+        if (x % quarter < line || y % quarter < line) {
+            return 160;
+        }
+        return 210;
+    });
+}
+
+Image Image::CreateChecker(std::uint32_t size) {
+    SPOT_ASSERT(size >= 8, "A checker needs at least 8 pixels per side, not {}", size);
+    const std::uint32_t square = size / 8;
+    return CreateGrayImage(size, [=](std::uint32_t x, std::uint32_t y) -> std::uint8_t {
+        return (x / square + y / square) % 2 == 0 ? 230 : 120;
+    });
 }
 
 std::optional<Image> Image::Load(const std::filesystem::path& path) {

@@ -38,6 +38,33 @@ TEST_CASE("Images can be built from pixels", "[image]") {
     CHECK(image.GetPixels()[3] == 40);
 }
 
+TEST_CASE("Debug images are opaque grays with their patterns", "[image]") {
+    const auto gray = [](const Spot::Image& image, std::uint32_t x, std::uint32_t y) {
+        const auto* pixel = &image.GetPixels()[(static_cast<std::size_t>(y) * image.GetWidth() + x) * 4];
+        CHECK(pixel[0] == pixel[1]);
+        CHECK(pixel[1] == pixel[2]);
+        CHECK(pixel[3] == 255);
+        return pixel[0];
+    };
+
+    const auto grid = Spot::Image::CreateGrid(64);
+    REQUIRE(grid.GetWidth() == 64);
+    REQUIRE(grid.GetHeight() == 64);
+    const auto border = gray(grid, 0, 30);
+    const auto quarterLine = gray(grid, 16, 30);
+    const auto inside = gray(grid, 30, 30);
+    CHECK(border < quarterLine);
+    CHECK(quarterLine < inside);
+    // Only two edges have a border, so repeated squares do not double it.
+    CHECK(gray(grid, 63, 30) == inside);
+
+    const auto checker = Spot::Image::CreateChecker(64);
+    REQUIRE(checker.GetWidth() == 64);
+    CHECK(gray(checker, 0, 0) != gray(checker, 8, 0));
+    CHECK(gray(checker, 0, 0) == gray(checker, 8, 8));
+    CHECK(gray(checker, 7, 7) == gray(checker, 0, 0));
+}
+
 TEST_CASE("The executable directory holds the running executable", "[paths]") {
     const auto directory = Spot::GetExecutableDirectory();
 

@@ -18,6 +18,12 @@ public:
     static std::optional<Image> Load(const std::filesystem::path& path);
     static std::optional<Image> LoadFromMemory(std::span<const std::byte> data);
 
+    // Debug textures for prototyping, in grays that materials can tint. The grid is one square with a dark border,
+    // split into four by fainter lines, so repeated it marks units and quarters. The checker has 8 by 8 squares, which
+    // shows how UVs stretch.
+    static Image CreateGrid(std::uint32_t size = 256);
+    static Image CreateChecker(std::uint32_t size = 256);
+
     std::uint32_t GetWidth() const { return m_width; }
     std::uint32_t GetHeight() const { return m_height; }
     std::span<const std::uint8_t> GetPixels() const { return m_pixels; }

@@ -83,6 +83,7 @@ private:
         const Texture* texture;
         Color color;
         bool doubleSided;
+        float worldTextureSize;
         Matrix4 transform;
     };
 

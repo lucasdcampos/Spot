@@ -9,15 +9,35 @@
 #include "core/paths.h"
 #include "graphics/font.h"
 #include "graphics/graphics_device.h"
+#include "graphics/image.h"
 #include "graphics/material.h"
 #include "graphics/mesh.h"
 #include "graphics/model.h"
 #include "scene/scene.h"
 
+#include <array>
 #include <utility>
 #include <vector>
 
 namespace Spot {
+
+namespace {
+
+struct BuiltIn {
+    AssetId id;
+    AssetType type;
+    const char* path;
+};
+
+constexpr std::array BuiltIns{
+    BuiltIn{BuiltInAssets::CubeMesh, AssetType::Mesh, "builtin/cube"},
+    BuiltIn{BuiltInAssets::SphereMesh, AssetType::Mesh, "builtin/sphere"},
+    BuiltIn{BuiltInAssets::PlaneMesh, AssetType::Mesh, "builtin/plane"},
+    BuiltIn{BuiltInAssets::GridTexture, AssetType::Texture, "builtin/grid"},
+    BuiltIn{BuiltInAssets::CheckerTexture, AssetType::Texture, "builtin/checker"},
+};
+
+} // namespace
 
 AssetManager::AssetManager(std::filesystem::path importDirectory, GraphicsDevice* device)
     : m_importDirectory(std::move(importDirectory)), m_device(device) {
@@ -44,12 +64,9 @@ void AssetManager::RefreshManifest() {
         m_paths.try_emplace(entry.parent.IsValid() ? entry.path + "#" + entry.name : entry.path, entry.id);
     }
 
-    for (const auto& [id, path] :
-         {std::pair{BuiltInAssets::CubeMesh, "builtin/cube"}, std::pair{BuiltInAssets::SphereMesh, "builtin/sphere"},
-          std::pair{BuiltInAssets::PlaneMesh, "builtin/plane"}}) {
+    for (const auto& [id, type, path] : BuiltIns) {
         const auto previous = m_entries.find(id);
-        entries[id] = {AssetType::Mesh, path,
-                       previous != m_entries.end() ? previous->second.loaded : std::weak_ptr<const void>()};
+        entries[id] = {type, path, previous != m_entries.end() ? previous->second.loaded : std::weak_ptr<const void>()};
         m_paths[path] = id;
     }
     m_entries = std::move(entries);
@@ -134,6 +151,15 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
         std::shared_ptr<const Mesh> result = Mesh::Create(*m_device, mesh);
         return result;
     }
+    if (id == BuiltInAssets::GridTexture || id == BuiltInAssets::CheckerTexture) {
+        if (!m_device) {
+            Log::GetEngineLogger().Error("Texture assets need a graphics device");
+            return nullptr;
+        }
+        const Image image = id == BuiltInAssets::GridTexture ? Image::CreateGrid() : Image::CreateChecker();
+        std::shared_ptr<Texture> result = m_device->CreateTexture(image, true);
+        return result;
+    }
 
     const auto data = Detail::ReadAssetFile(Detail::GetImportedAssetPath(m_importDirectory, id), type);
     if (!data) {
@@ -170,7 +196,8 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
         }
         return std::make_shared<const Material>(Material{.baseColor = material->baseColor,
                                                          .baseColorTexture = Load<Texture>(material->baseColorTexture),
-                                                         .doubleSided = material->doubleSided});
+                                                         .doubleSided = material->doubleSided,
+                                                         .worldTextureSize = material->worldTextureSize});
     }
     case AssetType::Model: {
         const auto parts = Detail::DecodeModel(*data);

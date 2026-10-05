@@ -18,6 +18,7 @@ struct MaterialSource {
     Color baseColor = Color::White;
     AssetId baseColorTexture;
     bool doubleSided = false;
+    float worldTextureSize = 0.0f;
 
     void Serialize(Archive& archive);
 

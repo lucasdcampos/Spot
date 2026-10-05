@@ -1,10 +1,11 @@
 {
   "baseColor": [
-    0.35,
-    0.2,
-    0.95,
+    0.75,
+    0.6,
+    1.0,
     1.0
   ],
-  "baseColorTexture": null,
-  "doubleSided": false
+  "baseColorTexture": "00000000000000000000000000000004",
+  "doubleSided": false,
+  "worldTextureSize": 0.0
 }

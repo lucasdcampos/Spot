@@ -388,11 +388,13 @@ TEST_CASE("Material files are assets that refer to textures by id", "[assets]") 
     database.Refresh();
     const AssetId pixelsId = *database.FindByPath("pixels.png");
 
-    Spot::MaterialSource source{.baseColor = Spot::Color::Red, .baseColorTexture = pixelsId, .doubleSided = true};
+    Spot::MaterialSource source{
+        .baseColor = Spot::Color::Red, .baseColorTexture = pixelsId, .doubleSided = true, .worldTextureSize = 2.0f};
     const auto reloaded = Spot::MaterialSource::LoadFromString(source.SaveToString());
     REQUIRE(reloaded.has_value());
     CHECK(reloaded->baseColorTexture == pixelsId);
     CHECK(reloaded->doubleSided);
+    CHECK(reloaded->worldTextureSize == 2.0f);
 
     REQUIRE(source.SaveToFile(sources / "red.material"));
     CHECK(database.Refresh() == 1);
@@ -402,6 +404,7 @@ TEST_CASE("Material files are assets that refer to textures by id", "[assets]") 
     REQUIRE(material);
     CHECK(material->baseColor == Spot::Color::Red);
     CHECK(material->doubleSided);
+    CHECK(material->worldTextureSize == 2.0f);
     // There is no GPU here to load the texture, but the reference knows which one it is.
     CHECK(material->baseColorTexture.GetId() == pixelsId);
 
@@ -585,6 +588,9 @@ TEST_CASE("Sub-assets and built-in assets are found by path", "[assets]") {
     CHECK(assets.FindByPath("models/cube.glb#Plain") == plainId);
     CHECK(assets.FindByPath("builtin/cube") == Spot::BuiltInAssets::CubeMesh);
     CHECK(assets.GetType(Spot::BuiltInAssets::SphereMesh) == AssetType::Mesh);
-    // Built-in meshes need the GPU like any other.
+    CHECK(assets.FindByPath("builtin/grid") == Spot::BuiltInAssets::GridTexture);
+    CHECK(assets.GetType(Spot::BuiltInAssets::CheckerTexture) == AssetType::Texture);
+    // Built-in meshes and textures need the GPU like any other.
     CHECK_FALSE(assets.Load<Spot::Mesh>(Spot::BuiltInAssets::PlaneMesh));
+    CHECK_FALSE(assets.Load<Spot::Texture>(Spot::BuiltInAssets::GridTexture));
 }

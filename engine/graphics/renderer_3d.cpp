@@ -36,8 +36,9 @@ struct LightingUniforms {
 struct MaterialUniforms {
     Color baseColor;
     float doubleSided;
+    float worldTextureSize;
     // Constant buffers are sized in 16-byte rows.
-    std::array<float, 3> padding;
+    std::array<float, 2> padding;
 };
 
 } // namespace
@@ -94,7 +95,8 @@ void Renderer3D::End() {
 
 void Renderer3D::DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform) {
     SPOT_ASSERT(m_pass, "Draw calls must come between Begin() and End()");
-    m_commands.push_back({&mesh, material.baseColorTexture.Get(), material.baseColor, material.doubleSided, transform});
+    m_commands.push_back({&mesh, material.baseColorTexture.Get(), material.baseColor, material.doubleSided,
+                          material.worldTextureSize, transform});
 }
 
 void Renderer3D::DrawModel(const Model& model, const Matrix4& transform) {
@@ -153,6 +155,7 @@ void Renderer3D::Flush() {
         m_pass->PushVertexUniforms(1, ObjectUniforms{command.transform, Transpose(Inverse(command.transform))});
         m_pass->PushFragmentUniforms(1, MaterialUniforms{.baseColor = command.color,
                                                          .doubleSided = command.doubleSided ? 1.0f : 0.0f,
+                                                         .worldTextureSize = command.worldTextureSize,
                                                          .padding = {}});
         m_pass->DrawIndexed(command.mesh->GetIndexCount());
 

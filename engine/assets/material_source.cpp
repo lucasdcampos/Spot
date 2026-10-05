@@ -16,6 +16,7 @@ void MaterialSource::Serialize(Archive& archive) {
     archive.Field("baseColor", baseColor);
     archive.Field("baseColorTexture", baseColorTexture);
     archive.Field("doubleSided", doubleSided);
+    archive.Field("worldTextureSize", worldTextureSize);
 }
 
 std::string MaterialSource::SaveToString() const {
