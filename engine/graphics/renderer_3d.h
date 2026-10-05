@@ -3,6 +3,7 @@
 #include "graphics/camera_3d.h"
 #include "graphics/color.h"
 #include "graphics/light_data.h"
+#include "graphics/mesh_data.h"
 #include "graphics/render_context.h"
 #include "graphics/sky_data.h"
 #include "graphics/texture.h"
@@ -25,6 +26,8 @@ class Scene;
 struct Material;
 
 namespace Detail {
+struct SelectedLights;
+struct ShadowUniforms;
 struct SkyLighting;
 } // namespace Detail
 
@@ -38,11 +41,25 @@ struct Renderer3DConfig {
     TextureFormat depthFormat = TextureFormat::Depth32Float;
     // The sample count of the targets of the passes it draws in; above 1 for multisampled antialiasing.
     std::uint32_t sampleCount = 1;
+
+    // The size in pixels of each cascade of the shadows of the directional light, which split the view up to the
+    // shadow distance into 1 to 4 ranges, each sharper than the next: the cascades share one shadow map, and their
+    // sizes take memory and time to draw. A size of 0 turns these shadows off.
+    std::uint32_t shadowMapSize = 2048;
+    std::uint32_t shadowCascadeCount = 4;
+    // How far from the camera directional shadows reach; they fade out before it.
+    float shadowDistance = 60.0f;
+    // The size in pixels of each of the MaxShadowTiles tiles that point and spot light shadows are drawn in, which
+    // are created the first time one is needed. 0 turns these shadows off.
+    std::uint32_t localShadowMapSize = 512;
 };
 
 struct Renderer3DStats {
+    // In the view's pass.
     std::uint32_t drawCalls = 0;
     std::uint32_t triangleCount = 0;
+    // In the passes that draw shadow maps.
+    std::uint32_t shadowDrawCalls = 0;
 };
 
 // Draws lit, textured meshes with depth testing. Like Renderer2D, it is built only on the public graphics API. It
@@ -58,11 +75,15 @@ struct Renderer3DStats {
 //
 // Surfaces are opaque, and lit only by the lights drawn between Begin() and End(), so without any they are black.
 // Ambient lights add up and are free; up to MaxLights others light each frame, and past that the directional ones and
-// then those that reach closest to the camera are kept. Meshes, models, textures and the pass's targets must stay alive
-// until End(), and no other pass can be open then.
+// then those that reach closest to the camera are kept. Lights can cast shadows (LightData::castsShadows): the first
+// such directional light, through shadow cascades, and point and spot lights, which take one tile each for a spot
+// light and six for a point light, in the same order, as long as there are tiles left. Meshes, models, textures and the
+// pass's targets must stay alive until End(), and no other pass can be open then.
 class Renderer3D {
 public:
     static constexpr std::size_t MaxLights = 16;
+    // Shared by the shadows of point and spot lights.
+    static constexpr std::size_t MaxShadowTiles = 16;
 
     explicit Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config = {});
     ~Renderer3D();
@@ -104,16 +125,33 @@ private:
         float specular;
         float shininess;
         Matrix4 transform;
+        // Around the mesh, in world space.
+        BoundingSphere bounds;
     };
 
-    void Flush(RenderPass& pass);
+    void DrawShadows(Detail::SelectedLights& lights, Detail::ShadowUniforms& shadows);
+    // Whether the shadow map could be created.
+    bool DrawCascades(const LightData& light, Detail::ShadowUniforms& shadows);
+    void DrawLocalShadows(Detail::SelectedLights& lights, Detail::ShadowUniforms& shadows);
+    void DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjection, bool ignoreNear);
+    void Flush(RenderPass& pass, const Detail::SelectedLights& lights, const Detail::ShadowUniforms& shadows);
     void FlushSky(RenderPass& pass, const SkyData& sky, const Detail::SkyLighting& lighting);
 
     std::unique_ptr<Pipeline> m_pipeline;
     std::unique_ptr<Pipeline> m_doubleSidedPipeline;
     std::unique_ptr<Pipeline> m_skyPipeline;
+    std::unique_ptr<Pipeline> m_shadowPipeline;
+    std::unique_ptr<Pipeline> m_doubleSidedShadowPipeline;
     std::unique_ptr<Sampler> m_sampler;
+    std::unique_ptr<Sampler> m_shadowSampler;
     std::unique_ptr<Texture> m_whiteTexture;
+    // Bound in place of shadow maps that are not drawn.
+    std::unique_ptr<Texture> m_noShadows;
+    bool m_noShadowsCleared = false;
+    std::unique_ptr<Texture> m_cascadeShadows;
+    std::unique_ptr<Texture> m_localShadows;
+    GraphicsDevice* m_device;
+    Renderer3DConfig m_config;
 
     std::vector<DrawCommand> m_commands;
     RenderContext* m_context = nullptr;
@@ -123,7 +161,8 @@ private:
     Matrix4 m_viewProjection;
     // Of the camera's rotation and projection only, which turns clip-space positions into directions.
     Matrix4 m_inverseSkyViewProjection;
-    Vector3 m_cameraPosition;
+    Camera3D m_camera;
+    float m_aspectRatio = 1.0f;
     bool m_warnedAboutLights = false;
     Renderer3DStats m_stats;
 };

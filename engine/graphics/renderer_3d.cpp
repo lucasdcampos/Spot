@@ -8,6 +8,7 @@
 #include "graphics/mesh.h"
 #include "graphics/model.h"
 #include "graphics/render_context.h"
+#include "graphics/shadow_views.h"
 #include "scene/light.h"
 #include "scene/mesh_renderer.h"
 #include "scene/scene.h"
@@ -15,6 +16,8 @@
 
 #include "mesh.frag.h"
 #include "mesh.vert.h"
+#include "shadow.frag.h"
+#include "shadow.vert.h"
 #include "sky.frag.h"
 #include "sky.vert.h"
 
@@ -39,7 +42,8 @@ struct LightUniforms {
     Vector4 directionAndRange;
     // Premultiplied by the intensity.
     Color color;
-    // The cosine of the outer cone angle, and the inverse of how much greater the inner one's is.
+    // The cosine of the outer cone angle, the inverse of how much greater the inner one's is, the first shadow tile
+    // or -1, and the size of the shadow's texels per unit of distance.
     Vector4 cone;
 };
 
@@ -121,28 +125,61 @@ struct MaterialUniforms {
     float shininess;
 };
 
-// Ambient lights are summed. Past MaxLights, the other lights that matter least to what is near the camera are dropped.
-LightingUniforms GetLightingUniforms(const std::vector<LightData>& allLights, Vector3 cameraPosition,
-                                     bool& warnedAboutLights) {
-    LightingUniforms uniforms{};
-    uniforms.ambient.a = 1.0f;
-    uniforms.cameraPosition = {cameraPosition.x, cameraPosition.y, cameraPosition.z, 1.0f};
+// How much a light matters to what is near the camera, lowest first: directional lights reach everything.
+float GetLightRank(const LightData& light, Vector3 cameraPosition) {
+    return light.type == LightType::Directional
+               ? -1.0f
+               : std::max(Distance(light.position, cameraPosition) - light.range, 0.0f);
+}
 
-    const auto rank = [cameraPosition](const LightData& light) {
-        return light.type == LightType::Directional
-                   ? -1.0f
-                   : std::max(Distance(light.position, cameraPosition) - light.range, 0.0f);
-    };
+// Takes world positions to the UVs of a shadow tile, Y down, keeping the depth.
+const Matrix4 TileFromClip = Matrix4::Translation({0.5f, 0.5f, 0.0f}) * Matrix4::Scale({0.5f, -0.5f, 1.0f});
+
+} // namespace
+
+namespace Detail {
+
+struct SelectedLights {
+    Color ambient = Color::Black;
+    // At most MaxLights, none of them ambient.
     std::vector<const LightData*> lights;
+    // Per light: 0 or more when it casts shadows, as LightUniforms::cone holds it.
+    std::array<float, Renderer3D::MaxLights> shadows{};
+    std::array<float, Renderer3D::MaxLights> shadowTexelSizes{};
+};
+
+struct ShadowUniforms {
+    std::array<Matrix4, Detail::MaxShadowCascades> cascadeViews;
+    std::array<Matrix4, Renderer3D::MaxShadowTiles> tileViews;
+    Vector4 cascadeEnds;
+    Vector4 cascadeTexelSizes;
+    // w is the number of cascades.
+    Vector4 cameraForward;
+    // The columns and rows of tiles in each shadow map, and the size of their texels in UVs.
+    Vector4 cascadeLayout;
+    Vector4 tileLayout;
+};
+
+} // namespace Detail
+
+namespace {
+
+// Ambient lights are summed. Past MaxLights, the other lights that matter least to what is near the camera are dropped.
+Detail::SelectedLights SelectLights(const std::vector<LightData>& allLights, Vector3 cameraPosition,
+                                    bool& warnedAboutLights) {
+    Detail::SelectedLights selected;
+    selected.ambient.a = 1.0f;
+    selected.shadows.fill(-1.0f);
     for (const auto& light : allLights) {
         if (light.type == LightType::Ambient) {
-            uniforms.ambient.r += light.color.r * light.intensity;
-            uniforms.ambient.g += light.color.g * light.intensity;
-            uniforms.ambient.b += light.color.b * light.intensity;
+            selected.ambient.r += light.color.r * light.intensity;
+            selected.ambient.g += light.color.g * light.intensity;
+            selected.ambient.b += light.color.b * light.intensity;
         } else {
-            lights.push_back(&light);
+            selected.lights.push_back(&light);
         }
     }
+    auto& lights = selected.lights;
     if (lights.size() > Renderer3D::MaxLights) {
         if (!warnedAboutLights) {
             Log::GetEngineLogger().Warning(
@@ -151,10 +188,18 @@ LightingUniforms GetLightingUniforms(const std::vector<LightData>& allLights, Ve
                 lights.size(), Renderer3D::MaxLights);
             warnedAboutLights = true;
         }
-        std::ranges::stable_sort(lights, {}, [&](const LightData* light) { return rank(*light); });
+        std::ranges::stable_sort(lights, {},
+                                 [&](const LightData* light) { return GetLightRank(*light, cameraPosition); });
         lights.resize(Renderer3D::MaxLights);
     }
+    return selected;
+}
 
+LightingUniforms GetLightingUniforms(const Detail::SelectedLights& selected, Vector3 cameraPosition) {
+    LightingUniforms uniforms{};
+    uniforms.ambient = selected.ambient;
+    uniforms.cameraPosition = {cameraPosition.x, cameraPosition.y, cameraPosition.z, 1.0f};
+    const auto& lights = selected.lights;
     uniforms.lightCount[0] = static_cast<std::uint32_t>(lights.size());
     for (std::size_t i = 0; i < lights.size(); ++i) {
         const LightData& light = *lights[i];
@@ -168,7 +213,7 @@ LightingUniforms GetLightingUniforms(const std::vector<LightData>& allLights, Ve
             .directionAndRange = {direction.x, direction.y, direction.z, std::max(light.range, 0.0001f)},
             .color = {light.color.r * light.intensity, light.color.g * light.intensity, light.color.b * light.intensity,
                       1.0f},
-            .cone = {outerCos, 1.0f / (innerCos - outerCos), 0.0f, 0.0f},
+            .cone = {outerCos, 1.0f / (innerCos - outerCos), selected.shadows[i], selected.shadowTexelSizes[i]},
         };
     }
     return uniforms;
@@ -176,7 +221,7 @@ LightingUniforms GetLightingUniforms(const std::vector<LightData>& allLights, Ve
 
 } // namespace
 
-Renderer3D::Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config) {
+Renderer3D::Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config) : m_device(&device), m_config(config) {
     const auto vertexShader = device.CreateShader(Detail::Shaders::MeshVert);
     const auto fragmentShader = device.CreateShader(Detail::Shaders::MeshFrag);
     if (vertexShader && fragmentShader) {
@@ -206,8 +251,29 @@ Renderer3D::Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config) {
         });
     }
 
+    const auto shadowVertexShader = device.CreateShader(Detail::Shaders::ShadowVert);
+    const auto shadowFragmentShader = device.CreateShader(Detail::Shaders::ShadowFrag);
+    if (shadowVertexShader && shadowFragmentShader) {
+        PipelineDesc desc{
+            .vertexShader = shadowVertexShader.get(),
+            .fragmentShader = shadowFragmentShader.get(),
+            .vertexBuffers = {{.stride = sizeof(MeshVertex),
+                               .attributes = {{0, VertexFormat::Float3, offsetof(MeshVertex, position)}}}},
+            .cullMode = CullMode::Back,
+            .depthOnly = true,
+            // Surfaces sloping away from the light cover the most depth per texel, and so need the most bias.
+            .depth = DepthState{.format = TextureFormat::Depth32Float, .biasSlope = 1.5f},
+        };
+        m_shadowPipeline = device.CreatePipeline(desc);
+        desc.cullMode = CullMode::None;
+        m_doubleSidedShadowPipeline = device.CreatePipeline(desc);
+    }
+
     m_sampler = device.CreateSampler(
         {.filter = config.filter, .addressMode = TextureAddressMode::Repeat, .maxAnisotropy = config.maxAnisotropy});
+    m_shadowSampler = device.CreateSampler({.compare = CompareOp::LessOrEqual});
+    m_noShadows =
+        device.CreateTexture({.width = 1, .height = 1, .format = TextureFormat::Depth32Float, .renderTarget = true});
 
     // Untextured materials sample this, so one shader serves both kinds.
     m_whiteTexture = device.CreateTexture({.width = 1, .height = 1});
@@ -223,7 +289,8 @@ Renderer3D::Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config) {
 Renderer3D::~Renderer3D() = default;
 
 bool Renderer3D::IsValid() const {
-    return m_pipeline && m_doubleSidedPipeline && m_skyPipeline && m_sampler && m_whiteTexture;
+    return m_pipeline && m_doubleSidedPipeline && m_skyPipeline && m_shadowPipeline && m_doubleSidedShadowPipeline &&
+           m_sampler && m_shadowSampler && m_whiteTexture && m_noShadows;
 }
 
 void Renderer3D::Begin(RenderContext& context, const RenderPassDesc& target, const Camera3D& camera) {
@@ -237,7 +304,8 @@ void Renderer3D::Begin(RenderContext& context, const RenderPassDesc& target, con
             : Vector2{static_cast<float>(context.GetWidth()), static_cast<float>(context.GetHeight())};
     m_viewProjection = camera.GetViewProjection(viewSize);
     m_inverseSkyViewProjection = Inverse(camera.GetProjection(viewSize) * Matrix4::Rotation(Inverse(camera.rotation)));
-    m_cameraPosition = camera.position;
+    m_camera = camera;
+    m_aspectRatio = viewSize.y > 0.0f ? viewSize.x / viewSize.y : 1.0f;
     m_commands.clear();
     m_lights.clear();
     m_sky.reset();
@@ -245,8 +313,39 @@ void Renderer3D::Begin(RenderContext& context, const RenderPassDesc& target, con
 
 void Renderer3D::End() {
     SPOT_ASSERT(m_context, "Renderer3D::End() called without Begin()");
+    m_stats = {};
+    if (!IsValid()) {
+        m_context->BeginRenderPass(m_target);
+        m_context = nullptr;
+        return;
+    }
+
+    std::optional<SkyLighting> skyLighting;
+    if (m_sky) {
+        skyLighting = GetSkyLighting(*m_sky);
+        if (m_sky->lightsScene) {
+            if (skyLighting->sun) {
+                LightData sun = *skyLighting->sun;
+                sun.castsShadows = m_sky->sunCastsShadows;
+                m_lights.push_back(sun);
+            }
+            m_lights.push_back({.type = LightType::Ambient, .color = skyLighting->ambient});
+        }
+    }
+    Detail::SelectedLights lights = SelectLights(m_lights, m_camera.position, m_warnedAboutLights);
+
+    // Surfaces are opaque and depth tested, so the order only matters for how often state changes.
+    std::stable_sort(m_commands.begin(), m_commands.end(), [](const DrawCommand& a, const DrawCommand& b) {
+        return std::tie(a.doubleSided, a.texture) < std::tie(b.doubleSided, b.texture);
+    });
+    Detail::ShadowUniforms shadows{};
+    DrawShadows(lights, shadows);
+
     auto pass = m_context->BeginRenderPass(m_target);
-    Flush(pass);
+    if (m_sky) {
+        FlushSky(pass, *m_sky, *skyLighting);
+    }
+    Flush(pass, lights, shadows);
     m_context = nullptr;
 }
 
@@ -262,8 +361,22 @@ void Renderer3D::DrawSky(const SkyData& sky) {
 
 void Renderer3D::DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform) {
     SPOT_ASSERT(m_context, "Draw calls must come between Begin() and End()");
-    m_commands.push_back({&mesh, material.baseColorTexture.Get(), material.baseColor, material.doubleSided,
-                          material.worldTextureSize, material.specular, material.shininess, transform});
+    const BoundingSphere bounds = mesh.GetBounds();
+    const Vector4 center = transform * Vector4{bounds.center.x, bounds.center.y, bounds.center.z, 1.0f};
+    float scale = 0.0f;
+    for (std::size_t i = 0; i < 3; ++i) {
+        const Vector4& axis = transform.columns[i];
+        scale = std::max(scale, Length(Vector3{axis.x, axis.y, axis.z}));
+    }
+    m_commands.push_back({&mesh,
+                          material.baseColorTexture.Get(),
+                          material.baseColor,
+                          material.doubleSided,
+                          material.worldTextureSize,
+                          material.specular,
+                          material.shininess,
+                          transform,
+                          {{center.x, center.y, center.z}, bounds.radius * scale}});
 }
 
 void Renderer3D::DrawModel(const Model& model, const Matrix4& transform) {
@@ -327,32 +440,168 @@ void Renderer3D::FlushSky(RenderPass& pass, const SkyData& sky, const SkyLightin
     ++m_stats.triangleCount;
 }
 
-void Renderer3D::Flush(RenderPass& pass) {
-    m_stats = {};
-    if (!IsValid()) {
-        return;
-    }
-    if (m_sky) {
-        const SkyLighting lighting = GetSkyLighting(*m_sky);
-        FlushSky(pass, *m_sky, lighting);
-        if (m_sky->lightsScene) {
-            if (lighting.sun) {
-                m_lights.push_back(*lighting.sun);
-            }
-            m_lights.push_back({.type = LightType::Ambient, .color = lighting.ambient});
-        }
+void Renderer3D::DrawShadows(Detail::SelectedLights& lights, Detail::ShadowUniforms& shadows) {
+    if (!m_noShadowsCleared) {
+        m_context->BeginRenderPass({.depthTarget = m_noShadows.get(), .clearDepth = 1.0f, .depthOnly = true});
+        m_noShadowsCleared = true;
     }
     if (m_commands.empty()) {
         return;
     }
+    if (m_config.shadowMapSize > 0) {
+        for (std::size_t i = 0; i < lights.lights.size(); ++i) {
+            const LightData& light = *lights.lights[i];
+            if (light.type == LightType::Directional && light.castsShadows && light.direction != Vector3{}) {
+                if (DrawCascades(light, shadows)) {
+                    lights.shadows[i] = 0.0f;
+                }
+                break;
+            }
+        }
+    }
+    if (m_config.localShadowMapSize > 0) {
+        DrawLocalShadows(lights, shadows);
+    }
+}
 
-    // Surfaces are opaque and depth tested, so the order only matters for how often state changes.
-    std::stable_sort(m_commands.begin(), m_commands.end(), [](const DrawCommand& a, const DrawCommand& b) {
-        return std::tie(a.doubleSided, a.texture) < std::tie(b.doubleSided, b.texture);
-    });
+bool Renderer3D::DrawCascades(const LightData& light, Detail::ShadowUniforms& shadows) {
+    const std::uint32_t count = std::clamp(m_config.shadowCascadeCount, 1u, Detail::MaxShadowCascades);
+    const std::uint32_t size = m_config.shadowMapSize;
+    const std::uint32_t columns = count > 1 ? 2 : 1;
+    const std::uint32_t rows = count > 2 ? 2 : 1;
+    if (!m_cascadeShadows || m_cascadeShadows->GetWidth() != columns * size ||
+        m_cascadeShadows->GetHeight() != rows * size) {
+        m_cascadeShadows = m_device->CreateTexture({.width = columns * size,
+                                                    .height = rows * size,
+                                                    .format = TextureFormat::Depth32Float,
+                                                    .renderTarget = true});
+        if (!m_cascadeShadows) {
+            return false;
+        }
+    }
+
+    const float nearPlane = m_camera.nearPlane;
+    const auto ends = Detail::GetCascadeEnds(nearPlane, std::min(m_config.shadowDistance, m_camera.farPlane), count);
+    const Vector3 forward = m_camera.GetForward();
+    shadows.cascadeEnds = {ends[0], ends[1], ends[2], ends[3]};
+    shadows.cameraForward = {forward.x, forward.y, forward.z, static_cast<float>(count)};
+    shadows.cascadeLayout = {static_cast<float>(columns), static_cast<float>(rows),
+                             1.0f / static_cast<float>(columns * size), 1.0f / static_cast<float>(rows * size)};
+
+    auto pass =
+        m_context->BeginRenderPass({.depthTarget = m_cascadeShadows.get(), .clearDepth = 1.0f, .depthOnly = true});
+    std::array<float, Detail::MaxShadowCascades> texelSizes{};
+    for (std::uint32_t cascade = 0; cascade < count; ++cascade) {
+        const float start = cascade == 0 ? nearPlane : ends[cascade - 1];
+        const Detail::ShadowView view =
+            Detail::GetCascadeView(m_camera, m_aspectRatio, start, ends[cascade], light.direction, size);
+        shadows.cascadeViews[cascade] = TileFromClip * view.viewProjection;
+        texelSizes[cascade] = view.texelSize;
+        pass.SetViewport({.x = static_cast<float>(cascade % columns * size),
+                          .y = static_cast<float>(cascade / columns * size),
+                          .width = static_cast<float>(size),
+                          .height = static_cast<float>(size)});
+        DrawShadowCasters(pass, view.viewProjection, true);
+    }
+    shadows.cascadeTexelSizes = {texelSizes[0], texelSizes[1], texelSizes[2], texelSizes[3]};
+    return true;
+}
+
+void Renderer3D::DrawLocalShadows(Detail::SelectedLights& lights, Detail::ShadowUniforms& shadows) {
+    // The lights that matter most to the view get tiles first; a spot light may still fit where a point light does not.
+    std::vector<std::size_t> order;
+    for (std::size_t i = 0; i < lights.lights.size(); ++i) {
+        const LightData& light = *lights.lights[i];
+        if (light.type != LightType::Directional && light.castsShadows && light.range > 0.0f &&
+            Detail::IsSphereInView(m_viewProjection, light.position, light.range)) {
+            order.push_back(i);
+        }
+    }
+    std::ranges::stable_sort(order, {},
+                             [&](std::size_t i) { return GetLightRank(*lights.lights[i], m_camera.position); });
+    std::size_t tileCount = 0;
+    for (const std::size_t i : order) {
+        const std::size_t tiles = lights.lights[i]->type == LightType::Point ? 6 : 1;
+        if (tileCount + tiles <= MaxShadowTiles) {
+            lights.shadows[i] = static_cast<float>(tileCount);
+            tileCount += tiles;
+        }
+    }
+    if (tileCount == 0) {
+        return;
+    }
+
+    constexpr std::uint32_t Columns = 4;
+    constexpr std::uint32_t Rows = MaxShadowTiles / Columns;
+    const std::uint32_t size = m_config.localShadowMapSize;
+    if (!m_localShadows || m_localShadows->GetWidth() != Columns * size) {
+        m_localShadows = m_device->CreateTexture({.width = Columns * size,
+                                                  .height = Rows * size,
+                                                  .format = TextureFormat::Depth32Float,
+                                                  .renderTarget = true});
+        if (!m_localShadows) {
+            lights.shadows.fill(-1.0f);
+            return;
+        }
+    }
+    shadows.tileLayout = {static_cast<float>(Columns), static_cast<float>(Rows),
+                          1.0f / static_cast<float>(Columns * size), 1.0f / static_cast<float>(Rows * size)};
+
+    auto pass =
+        m_context->BeginRenderPass({.depthTarget = m_localShadows.get(), .clearDepth = 1.0f, .depthOnly = true});
+    for (std::size_t i = 0; i < lights.lights.size(); ++i) {
+        if (lights.shadows[i] < 0.0f) {
+            continue;
+        }
+        const LightData& light = *lights.lights[i];
+        const auto first = static_cast<std::uint32_t>(lights.shadows[i]);
+        const std::uint32_t faces = light.type == LightType::Point ? 6 : 1;
+        for (std::uint32_t face = 0; face < faces; ++face) {
+            const Detail::ShadowView view = light.type == LightType::Point
+                                                ? Detail::GetPointShadowView(light, face, size)
+                                                : Detail::GetSpotShadowView(light, size);
+            const std::uint32_t tile = first + face;
+            shadows.tileViews[tile] = TileFromClip * view.viewProjection;
+            lights.shadowTexelSizes[i] = view.texelSize;
+            pass.SetViewport({.x = static_cast<float>(tile % Columns * size),
+                              .y = static_cast<float>(tile / Columns * size),
+                              .width = static_cast<float>(size),
+                              .height = static_cast<float>(size)});
+            DrawShadowCasters(pass, view.viewProjection, false);
+        }
+    }
+}
+
+void Renderer3D::DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjection, bool ignoreNear) {
+    pass.PushVertexUniforms(0, viewProjection);
+    const Pipeline* boundPipeline = nullptr;
+    for (const auto& command : m_commands) {
+        if (!Detail::IsSphereInView(viewProjection, command.bounds.center, command.bounds.radius, ignoreNear)) {
+            continue;
+        }
+        const Pipeline* pipeline = command.doubleSided ? m_doubleSidedShadowPipeline.get() : m_shadowPipeline.get();
+        if (pipeline != boundPipeline) {
+            pass.BindPipeline(*pipeline);
+            boundPipeline = pipeline;
+        }
+        pass.BindVertexBuffer(0, command.mesh->GetVertexBuffer());
+        pass.BindIndexBuffer(command.mesh->GetIndexBuffer(), IndexType::UInt32);
+        pass.PushVertexUniforms(1, command.transform);
+        pass.DrawIndexed(command.mesh->GetIndexCount());
+        ++m_stats.shadowDrawCalls;
+    }
+}
+
+void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, const Detail::ShadowUniforms& shadows) {
+    if (m_commands.empty()) {
+        return;
+    }
 
     pass.PushVertexUniforms(0, m_viewProjection);
-    pass.PushFragmentUniforms(0, GetLightingUniforms(m_lights, m_cameraPosition, m_warnedAboutLights));
+    pass.PushFragmentUniforms(0, GetLightingUniforms(lights, m_camera.position));
+    pass.PushFragmentUniforms(2, shadows);
+    pass.BindFragmentTexture(1, m_cascadeShadows ? *m_cascadeShadows : *m_noShadows, *m_shadowSampler);
+    pass.BindFragmentTexture(2, m_localShadows ? *m_localShadows : *m_noShadows, *m_shadowSampler);
 
     const Pipeline* boundPipeline = nullptr;
     const Texture* boundTexture = nullptr;

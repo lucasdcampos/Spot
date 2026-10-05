@@ -1467,3 +1467,124 @@ TEST_CASE("Models imported as assets load onto the GPU and draw textured", "[gpu
     CHECK(IsNear(render.At(23, 8), {0, 255, 0, 255}));
     CHECK(IsNear(render.At(8, 23), {0, 0, 255, 255}));
 }
+
+namespace {
+
+// A white floor seen from straight above, 10 units up, lit by the lights with no ambient light, with unit cubes
+// hovering 2 units over it. In the 64x64 view, X goes right and Z down, and FloorPixel() gives the pixel column or row
+// of a floor coordinate.
+TargetRender RenderShadows(const std::vector<Spot::LightData>& lights, const std::vector<Spot::Vector3>& cubes,
+                           Spot::Renderer3DStats* stats = nullptr) {
+    return TargetRender(
+        64, 64, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            REQUIRE(renderer.IsValid());
+            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            const auto floor = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(40.0f));
+            REQUIRE((cube && floor));
+
+            Spot::Camera3D camera;
+            camera.position = {0.0f, 10.0f, 0.0f};
+            camera.rotation = Spot::Quaternion::LookRotation({0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, -1.0f});
+            renderer.Begin(context, target, camera);
+            for (const auto& light : lights) {
+                renderer.DrawLight(light);
+            }
+            renderer.DrawMesh(*floor, {});
+            for (const auto& position : cubes) {
+                renderer.DrawMesh(*cube, {}, Spot::Matrix4::Translation(position));
+            }
+            renderer.End();
+            if (stats) {
+                *stats = renderer.GetStats();
+            }
+        });
+}
+
+int FloorPixel(float coordinate) {
+    // The camera's 60 degree view spans tan(30 degrees) * 10 units on each side of the center.
+    return static_cast<int>(std::floor((coordinate / 5.7735f + 1.0f) * 32.0f));
+}
+
+} // namespace
+
+TEST_CASE("Renderer3D directional lights cast shadows when asked", "[gpu]") {
+    RequireGpu();
+    // Slanted toward +X, so the cube at x = -3 shadows the floor up to about x = -1.75, past what the camera sees of
+    // it.
+    Spot::LightData sun{.type = Spot::LightType::Directional, .direction = {0.3f, -1.0f, 0.0f}};
+    const std::vector<Spot::Vector3> cubes{{-3.0f, 2.0f, 0.0f}};
+    Spot::Renderer3DStats stats;
+    const auto unshadowed = RenderShadows({sun}, cubes, &stats);
+    CHECK(stats.shadowDrawCalls == 0);
+    sun.castsShadows = true;
+    const auto shadowed = RenderShadows({sun}, cubes, &stats);
+    CHECK(stats.shadowDrawCalls > 0);
+
+    const int shadow = FloorPixel(-2.1f);
+    const int lit = FloorPixel(2.0f);
+    const int middle = FloorPixel(0.0f);
+    CHECK(unshadowed.At(shadow, middle)[0] > 200);
+    CHECK(shadowed.At(shadow, middle)[0] < 20);
+    CHECK(shadowed.At(lit, middle)[0] > 200);
+    // Beside the shadow along Z.
+    CHECK(shadowed.At(shadow, FloorPixel(1.5f))[0] > 200);
+}
+
+TEST_CASE("Renderer3D spot lights cast shadows when asked", "[gpu]") {
+    RequireGpu();
+    // From 5 units up, the cube's shadow reaches about a unit from the center, past what the camera sees of it.
+    const Spot::LightData spot{.type = Spot::LightType::Spot,
+                               .position = {0.0f, 5.0f, 0.0f},
+                               .direction = {0.0f, -1.0f, 0.0f},
+                               .innerConeAngle = Spot::ToRadians(30.0f),
+                               .outerConeAngle = Spot::ToRadians(40.0f),
+                               .castsShadows = true};
+    Spot::Renderer3DStats stats;
+    const auto render = RenderShadows({spot}, {{0.0f, 2.0f, 0.0f}}, &stats);
+    CHECK(stats.shadowDrawCalls > 0);
+
+    const int middle = FloorPixel(0.0f);
+    CHECK(render.At(FloorPixel(0.85f), middle)[0] < 15);
+    CHECK(render.At(middle, FloorPixel(-0.85f))[0] < 15);
+    CHECK(render.At(FloorPixel(2.0f), middle)[0] > 60);
+}
+
+TEST_CASE("Renderer3D point lights cast shadows in every direction when asked", "[gpu]") {
+    RequireGpu();
+    // From 4 units up, the middle cube's shadow reaches about 1.33 units from the center. The floor past |x| = 4 is
+    // seen from the light's +X and -X faces, and the cube at x = -2.5 shadows it around x = -4.8.
+    const Spot::LightData point{
+        .type = Spot::LightType::Point, .position = {0.0f, 4.0f, 0.0f}, .range = 10.0f, .castsShadows = true};
+    const auto render = RenderShadows({point}, {{0.0f, 2.0f, 0.0f}, {-2.5f, 2.0f, 0.0f}});
+
+    const int middle = FloorPixel(0.0f);
+    CHECK(render.At(FloorPixel(1.0f), middle)[0] < 15);
+    CHECK(render.At(middle, FloorPixel(1.0f))[0] < 15);
+    CHECK(render.At(FloorPixel(-4.8f), middle)[0] < 15);
+    CHECK(render.At(FloorPixel(2.5f), middle)[0] > 60);
+    CHECK(render.At(FloorPixel(4.8f), middle)[0] > 20);
+}
+
+TEST_CASE("Renderer3D lights left without shadow tiles light everything", "[gpu]") {
+    RequireGpu();
+    // Two point lights take 12 of the 16 tiles; the third does not fit, but a spot light still does.
+    const Spot::LightData point{
+        .type = Spot::LightType::Point, .position = {0.0f, 4.0f, 0.0f}, .range = 10.0f, .castsShadows = true};
+    const auto threePoints = RenderShadows({point, point, point}, {{0.0f, 2.0f, 0.0f}});
+    const auto twoPoints = RenderShadows({point, point}, {{0.0f, 2.0f, 0.0f}});
+    const Spot::LightData spot{.type = Spot::LightType::Spot,
+                               .position = {0.0f, 4.0f, 0.0f},
+                               .direction = {0.0f, -1.0f, 0.0f},
+                               .range = 10.0f,
+                               .innerConeAngle = Spot::ToRadians(40.0f),
+                               .outerConeAngle = Spot::ToRadians(50.0f),
+                               .castsShadows = true};
+    const auto pointsAndSpot = RenderShadows({point, point, spot}, {{0.0f, 2.0f, 0.0f}});
+
+    const int middle = FloorPixel(0.0f);
+    const int shadow = FloorPixel(1.0f);
+    CHECK(twoPoints.At(shadow, middle)[0] < 15);
+    CHECK(threePoints.At(shadow, middle)[0] > 30);
+    CHECK(pointsAndSpot.At(shadow, middle)[0] < 15);
+}

@@ -90,6 +90,8 @@ add_library(spot STATIC
     graphics/renderer_3d.h
     graphics/renderer_3d.cpp
     graphics/shader.h
+    graphics/shadow_views.h
+    graphics/shadow_views.cpp
     graphics/sky_data.h
     graphics/text_layout.h
     graphics/text_layout.cpp
@@ -142,6 +144,8 @@ add_library(spot::spot ALIAS spot)
 spot_add_shaders(spot NAMESPACE Spot::Detail::Shaders
     graphics/shaders/mesh.frag.hlsl
     graphics/shaders/mesh.vert.hlsl
+    graphics/shaders/shadow.frag.hlsl
+    graphics/shaders/shadow.vert.hlsl
     graphics/shaders/sky.frag.hlsl
     graphics/shaders/sky.vert.hlsl
     graphics/shaders/sprite.frag.hlsl

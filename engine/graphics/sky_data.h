@@ -35,6 +35,8 @@ struct SkyData {
     bool lightsScene = true;
     // Scales the ambient light the sky casts on the scene; 0 leaves only the sun.
     float ambientIntensity = 1.0f;
+    // Whether the sun casts shadows when it lights the scene; see LightData::castsShadows.
+    bool sunCastsShadows = true;
 };
 
 } // namespace Spot

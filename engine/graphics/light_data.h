@@ -33,6 +33,11 @@ struct LightData {
     // nothing at the outer one.
     float innerConeAngle = ToRadians(20.0f);
     float outerConeAngle = ToRadians(30.0f);
+    // Whether what Renderer3D draws blocks this light from what is behind it, for directional, point and spot
+    // lights. Shadows cost a pass over the scene per directional cascade, spot light and point light face, so
+    // Renderer3D only draws them for its first directional light that casts them and for as many of the other lights
+    // as its shadow tiles hold; the rest light everything as if nothing were in the way.
+    bool castsShadows = false;
 };
 
 } // namespace Spot

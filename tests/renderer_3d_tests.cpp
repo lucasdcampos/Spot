@@ -1,3 +1,5 @@
+#include "graphics/shadow_views.h"
+
 #include <spot.h>
 
 #include <catch2/catch_approx.hpp>
@@ -124,4 +126,98 @@ TEST_CASE("MeshData bounds hold every vertex around the middle of its box", "[re
     const auto bounds = plane.GetBounds();
     CHECK(IsNear(bounds.center, {3.0f, 1.0f, 0.0f}));
     CHECK(bounds.radius == Catch::Approx(std::sqrt(2.0f)));
+}
+
+TEST_CASE("Shadow cascades end further apart away from the camera, the last at the shadow distance", "[renderer3d]") {
+    const auto ends = Spot::Detail::GetCascadeEnds(0.1f, 60.0f, 4);
+    CHECK(ends[0] > 0.1f);
+    CHECK(ends[1] - ends[0] > ends[0] - 0.1f);
+    CHECK(ends[2] - ends[1] > ends[1] - ends[0]);
+    CHECK(ends[3] == 60.0f);
+
+    const auto two = Spot::Detail::GetCascadeEnds(0.1f, 60.0f, 2);
+    CHECK(two[1] == 60.0f);
+    CHECK(two[3] == 60.0f);
+}
+
+TEST_CASE("Shadow cascades see their slice of the view and move in whole texels", "[renderer3d]") {
+    Camera3D camera;
+    camera.position = {1.0f, 2.0f, 3.0f};
+    camera.LookAt({4.0f, 1.0f, -5.0f});
+    const Vector3 light = Spot::Normalize(Vector3{-0.4f, -1.0f, -0.6f});
+    constexpr std::uint32_t Size = 1024;
+    const auto view = Spot::Detail::GetCascadeView(camera, 16.0f / 9.0f, 2.0f, 10.0f, light, Size);
+
+    // The corners of the slice, at both of its ends, fall inside the cascade.
+    const float tanY = std::tan(camera.fieldOfView * 0.5f);
+    const float tanX = tanY * 16.0f / 9.0f;
+    for (const float distance : {2.0f, 10.0f}) {
+        for (const float x : {-1.0f, 1.0f}) {
+            for (const float y : {-1.0f, 1.0f}) {
+                const Vector3 corner = camera.position + camera.GetForward() * distance +
+                                       camera.GetRight() * (x * tanX * distance) +
+                                       camera.GetUp() * (y * tanY * distance);
+                const Vector3 clip = ToClip(view.viewProjection, corner);
+                CHECK(std::abs(clip.x) <= 1.0f);
+                CHECK(std::abs(clip.y) <= 1.0f);
+                CHECK(clip.z >= 0.0f);
+                CHECK(clip.z <= 1.0f);
+            }
+        }
+    }
+
+    // Moving the camera a little moves the cascade by whole texels, so the same world point lands at the same place
+    // within a texel.
+    Camera3D moved = camera;
+    moved.position += Vector3{0.013f, 0.0f, 0.007f};
+    const auto movedView = Spot::Detail::GetCascadeView(moved, 16.0f / 9.0f, 2.0f, 10.0f, light, Size);
+    const Vector3 point{3.0f, 0.0f, -4.0f};
+    const Vector3 before = ToClip(view.viewProjection, point);
+    const Vector3 after = ToClip(movedView.viewProjection, point);
+    const float texels = (after.x - before.x) * Size / 2.0f;
+    CHECK(std::abs(texels - std::round(texels)) < 0.01f);
+    CHECK(view.texelSize == Catch::Approx(movedView.texelSize));
+}
+
+TEST_CASE("Point light shadows see every direction from one of their faces", "[renderer3d]") {
+    const Spot::LightData light{.type = Spot::LightType::Point, .position = {1.0f, 2.0f, 3.0f}, .range = 10.0f};
+    const std::array<Vector3, 6> directions{
+        {{1, 0.9f, -0.9f}, {-1, 0.2f, 0.9f}, {0.5f, 1, 0.5f}, {0, -1, 0}, {-0.9f, 0.9f, 1}, {0.3f, -0.3f, -1}}};
+    for (std::uint32_t face = 0; face < 6; ++face) {
+        const auto view = Spot::Detail::GetPointShadowView(light, face, 256);
+        const Vector3 clip = ToClip(view.viewProjection, light.position + Spot::Normalize(directions[face]) * 5.0f);
+        CHECK(std::abs(clip.x) < 1.0f);
+        CHECK(std::abs(clip.y) < 1.0f);
+        CHECK(clip.z > 0.0f);
+        CHECK(clip.z < 1.0f);
+    }
+}
+
+TEST_CASE("Spot light shadows see their whole cone", "[renderer3d]") {
+    const Spot::LightData light{.type = Spot::LightType::Spot,
+                                .position = {0.0f, 5.0f, 0.0f},
+                                .direction = {0.0f, -1.0f, 0.0f},
+                                .range = 10.0f,
+                                .outerConeAngle = Spot::ToRadians(40.0f)};
+    const auto view = Spot::Detail::GetSpotShadowView(light, 512);
+    const float edge = 5.0f * std::tan(Spot::ToRadians(40.0f));
+    const Vector3 clip = ToClip(view.viewProjection, {edge * 0.999f, 0.0f, 0.0f});
+    CHECK(std::abs(clip.x) < 1.0f);
+    CHECK(std::abs(clip.y) < 1.0f);
+}
+
+TEST_CASE("Spheres are in a view unless wholly outside one of its planes", "[renderer3d]") {
+    Camera3D camera;
+    const auto viewProjection = camera.GetViewProjection({1.0f, 1.0f});
+    CHECK(Spot::Detail::IsSphereInView(viewProjection, {0.0f, 0.0f, -5.0f}, 0.5f));
+    CHECK_FALSE(Spot::Detail::IsSphereInView(viewProjection, {0.0f, 0.0f, 5.0f}, 0.5f));
+    CHECK(Spot::Detail::IsSphereInView(viewProjection, {0.0f, 0.0f, 0.3f}, 0.5f));
+    CHECK_FALSE(Spot::Detail::IsSphereInView(viewProjection, {20.0f, 0.0f, -5.0f}, 0.5f));
+    // Just past the left edge, but reaching into the view.
+    CHECK(Spot::Detail::IsSphereInView(viewProjection, {-3.3f, 0.0f, -5.0f}, 0.5f));
+    CHECK_FALSE(Spot::Detail::IsSphereInView(viewProjection, {0.0f, 0.0f, -2000.0f}, 0.5f));
+
+    const auto ortho = Spot::Matrix4::Orthographic(-1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 10.0f);
+    CHECK_FALSE(Spot::Detail::IsSphereInView(ortho, {0.0f, 0.0f, 5.0f}, 0.5f));
+    CHECK(Spot::Detail::IsSphereInView(ortho, {0.0f, 0.0f, 5.0f}, 0.5f, true));
 }
