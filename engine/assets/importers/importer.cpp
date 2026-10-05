@@ -30,9 +30,9 @@ ImporterInfo FindImporter(AssetType type) {
     case AssetType::Texture:
         return {&ImportTexture, 1};
     case AssetType::Model:
-        return {&ImportModel, 2};
+        return {&ImportModel, 3};
     case AssetType::Material:
-        return {&ImportMaterial, 2};
+        return {&ImportMaterial, 3};
     case AssetType::Scene:
         return {&ImportScene, 1};
     case AssetType::Sound:

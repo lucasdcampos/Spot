@@ -17,6 +17,7 @@ struct Light {
 
 cbuffer Lighting : register(b0, space3) {
     float4 ambientColor;
+    float4 cameraPosition;
     uint4 lightCount;
     Light lights[MAX_LIGHTS];
 };
@@ -27,6 +28,8 @@ cbuffer Material : register(b1, space3) {
     float doubleSided;
     // Positive to project the texture from world space, repeating every this many units, instead of using the UVs.
     float worldTextureSize;
+    float specular;
+    float shininess;
 };
 
 struct Input {
@@ -49,8 +52,14 @@ float2 GetWorldUv(float3 position, float3 normal) {
     return float2(p.x, -p.y);
 }
 
-// The light reaching a surface at the position with the normal.
-float3 GetLight(Light light, float3 position, float3 normal) {
+struct Lit {
+    float3 diffuse;
+    float3 specular;
+};
+
+// The light a surface at the position with the normal scatters, and the light it reflects toward the viewer as
+// highlights (Blinn-Phong).
+Lit GetLight(Light light, float3 position, float3 normal, float3 toViewer) {
     const float type = light.positionAndType.w;
     float3 toLight = -light.directionAndRange.xyz;
     float attenuation = 1.0;
@@ -66,19 +75,33 @@ float3 GetLight(Light light, float3 position, float3 normal) {
             attenuation *= cone * cone;
         }
     }
+    const float3 color = light.color.rgb * attenuation;
     const float facing = dot(normal, toLight);
     // Back faces of double-sided surfaces have normals pointing away from the viewer, so they are lit as if flipped.
     const float diffuse = doubleSided > 0.5 ? abs(facing) : max(facing, 0.0);
-    return light.color.rgb * diffuse * attenuation;
+    // Only the side the viewer sees has highlights, and only from lights in front of it.
+    const float3 seenNormal = dot(normal, toViewer) < 0.0 && doubleSided > 0.5 ? -normal : normal;
+    const float highlight = dot(seenNormal, toLight) > 0.0
+                                ? pow(saturate(dot(seenNormal, normalize(toLight + toViewer))), shininess)
+                                : 0.0;
+    Lit lit;
+    lit.diffuse = color * diffuse;
+    lit.specular = color * highlight * specular;
+    return lit;
 }
 
 float4 main(Input input) : SV_Target0 {
     const float3 normal = normalize(input.normal);
     const float2 uv = worldTextureSize > 0.0 ? GetWorldUv(input.worldPosition, normal) : input.uv;
     const float4 albedo = baseColorTexture.Sample(baseColorSampler, uv) * baseColor;
-    float3 light = ambientColor.rgb;
+    const float3 toViewer = normalize(cameraPosition.xyz - input.worldPosition);
+    float3 diffuse = ambientColor.rgb;
+    float3 highlights = 0.0;
     for (uint i = 0; i < lightCount.x; ++i) {
-        light += GetLight(lights[i], input.worldPosition, normal);
+        const Lit lit = GetLight(lights[i], input.worldPosition, normal, toViewer);
+        diffuse += lit.diffuse;
+        highlights += lit.specular;
     }
-    return float4(albedo.rgb * light, albedo.a);
+    // Highlights take the light's color rather than the surface's, as on plastic or varnish.
+    return float4(albedo.rgb * diffuse + highlights, albedo.a);
 }

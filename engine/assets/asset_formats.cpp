@@ -87,6 +87,8 @@ void Encode(BinaryWriter& writer, const MaterialSource& material) {
     writer.Write(static_cast<std::uint8_t>(material.doubleSided));
     writer.Write(material.baseColorTexture);
     writer.Write(material.worldTextureSize);
+    writer.Write(material.specular);
+    writer.Write(material.shininess);
 }
 
 std::optional<MaterialSource> DecodeMaterial(std::span<const std::byte> data) {
@@ -96,6 +98,8 @@ std::optional<MaterialSource> DecodeMaterial(std::span<const std::byte> data) {
     material.doubleSided = reader.Read<std::uint8_t>() != 0;
     material.baseColorTexture = reader.Read<AssetId>();
     material.worldTextureSize = reader.Read<float>();
+    material.specular = reader.Read<float>();
+    material.shininess = reader.Read<float>();
     return Finish(reader, material);
 }
 

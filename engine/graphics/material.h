@@ -18,6 +18,10 @@ struct Material {
     // repeating every this many units, so it keeps its size however the mesh is scaled. Suits
     // BuiltInAssets::GridTexture on level blocks.
     float worldTextureSize = 0.0f;
+    // How strongly the surface reflects lights as highlights, from 0 for matte surfaces to 1 for glossy ones.
+    float specular = 0.0f;
+    // How small and sharp the highlights are: a few units for rough surfaces, hundreds for polished ones.
+    float shininess = 32.0f;
 };
 
 } // namespace Spot

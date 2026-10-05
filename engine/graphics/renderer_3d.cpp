@@ -41,6 +41,7 @@ struct LightUniforms {
 
 struct LightingUniforms {
     Color ambient;
+    Vector4 cameraPosition;
     // x is the number of lights; a whole row keeps the layout the same in every shader language.
     std::array<std::uint32_t, 4> lightCount;
     std::array<LightUniforms, Renderer3D::MaxLights> lights;
@@ -50,8 +51,8 @@ struct MaterialUniforms {
     Color baseColor;
     float doubleSided;
     float worldTextureSize;
-    // Constant buffers are sized in 16-byte rows.
-    std::array<float, 2> padding;
+    float specular;
+    float shininess;
 };
 
 // Ambient lights are summed. Past MaxLights, the other lights that matter least to what is near the camera are dropped.
@@ -59,6 +60,7 @@ LightingUniforms GetLightingUniforms(const std::vector<LightData>& allLights, Ve
                                      bool& warnedAboutLights) {
     LightingUniforms uniforms{};
     uniforms.ambient.a = 1.0f;
+    uniforms.cameraPosition = {cameraPosition.x, cameraPosition.y, cameraPosition.z, 1.0f};
 
     const auto rank = [cameraPosition](const LightData& light) {
         return light.type == LightType::Directional
@@ -169,7 +171,7 @@ void Renderer3D::DrawLight(const LightData& light) {
 void Renderer3D::DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform) {
     SPOT_ASSERT(m_pass, "Draw calls must come between Begin() and End()");
     m_commands.push_back({&mesh, material.baseColorTexture.Get(), material.baseColor, material.doubleSided,
-                          material.worldTextureSize, transform});
+                          material.worldTextureSize, material.specular, material.shininess, transform});
 }
 
 void Renderer3D::DrawModel(const Model& model, const Matrix4& transform) {
@@ -227,7 +229,8 @@ void Renderer3D::Flush() {
         m_pass->PushFragmentUniforms(1, MaterialUniforms{.baseColor = command.color,
                                                          .doubleSided = command.doubleSided ? 1.0f : 0.0f,
                                                          .worldTextureSize = command.worldTextureSize,
-                                                         .padding = {}});
+                                                         .specular = command.specular,
+                                                         .shininess = command.shininess});
         m_pass->DrawIndexed(command.mesh->GetIndexCount());
 
         ++m_stats.drawCalls;

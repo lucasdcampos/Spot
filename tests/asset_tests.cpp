@@ -388,13 +388,19 @@ TEST_CASE("Material files are assets that refer to textures by id", "[assets]") 
     database.Refresh();
     const AssetId pixelsId = *database.FindByPath("pixels.png");
 
-    Spot::MaterialSource source{
-        .baseColor = Spot::Color::Red, .baseColorTexture = pixelsId, .doubleSided = true, .worldTextureSize = 2.0f};
+    Spot::MaterialSource source{.baseColor = Spot::Color::Red,
+                                .baseColorTexture = pixelsId,
+                                .doubleSided = true,
+                                .worldTextureSize = 2.0f,
+                                .specular = 0.5f,
+                                .shininess = 64.0f};
     const auto reloaded = Spot::MaterialSource::LoadFromString(source.SaveToString());
     REQUIRE(reloaded.has_value());
     CHECK(reloaded->baseColorTexture == pixelsId);
     CHECK(reloaded->doubleSided);
     CHECK(reloaded->worldTextureSize == 2.0f);
+    CHECK(reloaded->specular == 0.5f);
+    CHECK(reloaded->shininess == 64.0f);
 
     REQUIRE(source.SaveToFile(sources / "red.material"));
     CHECK(database.Refresh() == 1);
@@ -405,6 +411,8 @@ TEST_CASE("Material files are assets that refer to textures by id", "[assets]") 
     CHECK(material->baseColor == Spot::Color::Red);
     CHECK(material->doubleSided);
     CHECK(material->worldTextureSize == 2.0f);
+    CHECK(material->specular == 0.5f);
+    CHECK(material->shininess == 64.0f);
     // There is no GPU here to load the texture, but the reference knows which one it is.
     CHECK(material->baseColorTexture.GetId() == pixelsId);
 

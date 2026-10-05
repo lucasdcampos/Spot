@@ -7,5 +7,7 @@
   ],
   "baseColorTexture": "00000000000000000000000000000005",
   "doubleSided": false,
-  "worldTextureSize": 0.0
+  "worldTextureSize": 0.0,
+  "specular": 0.6,
+  "shininess": 64.0
 }

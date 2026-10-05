@@ -89,6 +89,8 @@ private:
         Color color;
         bool doubleSided;
         float worldTextureSize;
+        float specular;
+        float shininess;
         Matrix4 transform;
     };
 

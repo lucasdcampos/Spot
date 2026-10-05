@@ -943,16 +943,17 @@ TEST_CASE("Renderer3D draws the active mesh renderers of a scene at their world 
 
 namespace {
 
-// A white wall facing the front camera, its surface half a unit in front of the origin and wider than the view, lit
-// only by the lights drawn.
-TargetRender RenderLitWall(const std::function<void(Spot::Renderer3D&)>& drawLights) {
+// A wall facing the front camera, its surface half a unit in front of the origin and wider than the view, lit only by
+// the lights drawn.
+TargetRender RenderLitWall(const std::function<void(Spot::Renderer3D&)>& drawLights,
+                           const Spot::Material& material = {}) {
     return TargetRender(32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
         Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
         const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
         REQUIRE(cube != nullptr);
         renderer.Begin(pass, MakeFrontCamera(), view);
         drawLights(renderer);
-        renderer.DrawMesh(*cube, {}, Spot::Matrix4::Scale({20.0f, 20.0f, 1.0f}));
+        renderer.DrawMesh(*cube, material, Spot::Matrix4::Scale({20.0f, 20.0f, 1.0f}));
         renderer.End();
     });
 }
@@ -1017,6 +1018,26 @@ TEST_CASE("Renderer3D spot lights light only inside their cone", "[gpu]") {
 
     CHECK(render.At(16, 16)[0] > 240);
     CHECK(IsNear(render.At(24, 16), {0, 0, 0, 255}));
+}
+
+TEST_CASE("Renderer3D adds highlights where specular materials reflect lights toward the camera", "[gpu]") {
+    RequireGpu();
+
+    // The light comes from behind the camera, so it reflects straight back at the center of the view only.
+    const auto drawLight = [](Spot::Renderer3D& renderer) { renderer.DrawLight(FrontLight); };
+    const auto matte = RenderLitWall(drawLight, {.baseColor = Spot::Color::Red});
+    const auto glossy =
+        RenderLitWall(drawLight, {.baseColor = Spot::Color::Red, .specular = 1.0f, .shininess = 256.0f});
+
+    CHECK(IsNear(matte.At(16, 16), {255, 0, 0, 255}));
+    // Highlights take the light's color, not the surface's. The pixel is a little off the exact center, where the
+    // sharp highlight peaks.
+    const Pixel highlight = glossy.At(16, 16);
+    INFO("Highlight " << int{highlight[0]} << ", " << int{highlight[1]} << ", " << int{highlight[2]});
+    CHECK(highlight[0] == 255);
+    CHECK(highlight[1] > 200);
+    CHECK(highlight[1] == highlight[2]);
+    CHECK(IsNear(glossy.At(0, 16), {255, 0, 0, 255}));
 }
 
 TEST_CASE("Renderer3D keeps the lights nearest the camera when given too many", "[gpu]") {

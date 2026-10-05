@@ -197,7 +197,9 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
         return std::make_shared<const Material>(Material{.baseColor = material->baseColor,
                                                          .baseColorTexture = Load<Texture>(material->baseColorTexture),
                                                          .doubleSided = material->doubleSided,
-                                                         .worldTextureSize = material->worldTextureSize});
+                                                         .worldTextureSize = material->worldTextureSize,
+                                                         .specular = material->specular,
+                                                         .shininess = material->shininess});
     }
     case AssetType::Model: {
         const auto parts = Detail::DecodeModel(*data);
