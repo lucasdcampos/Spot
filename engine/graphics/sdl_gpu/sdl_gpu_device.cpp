@@ -95,6 +95,12 @@ std::unique_ptr<GraphicsDevice> GraphicsDevice::Create(Window& window, const Gra
 
     auto context = std::unique_ptr<RenderContext>(new RenderContext());
     auto impl = std::make_unique<Impl>(std::move(device), sdlWindow, std::move(context));
+    // Rendering is linear, so the window's frames encode what shaders write as sRGB for display.
+    if (SDL_WindowSupportsGPUSwapchainComposition(handle, sdlWindow, SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR)) {
+        impl->composition = SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR;
+    } else {
+        Log::GetEngineLogger().Warning("This GPU cannot show linear colors in the window, so they will look too dark");
+    }
     auto graphics = std::unique_ptr<GraphicsDevice>(new GraphicsDevice(std::move(impl)));
     graphics->SetVSync(config.vsync);
     const char* adapter = SDL_GetStringProperty(SDL_GetGPUDeviceProperties(graphics->m_impl->device->Get()),
@@ -115,11 +121,17 @@ bool GraphicsDevice::SupportsSampleCount(TextureFormat format, std::uint32_t sam
 }
 
 TextureFormat GraphicsDevice::GetWindowFormat() const {
-    // The swapchain is SDR, which SDL gives one of these two formats.
-    return SDL_GetGPUSwapchainTextureFormat(m_impl->device->Get(), m_impl->window) ==
-                   SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM
-               ? TextureFormat::Rgba8
-               : TextureFormat::Bgra8;
+    // The swapchain is SDR, linear or not, which SDL gives one of these formats.
+    switch (SDL_GetGPUSwapchainTextureFormat(m_impl->device->Get(), m_impl->window)) {
+    case SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM:
+        return TextureFormat::Rgba8;
+    case SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM_SRGB:
+        return TextureFormat::Rgba8Srgb;
+    case SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM_SRGB:
+        return TextureFormat::Bgra8Srgb;
+    default:
+        return TextureFormat::Bgra8;
+    }
 }
 
 std::string_view GraphicsDevice::GetBackendName() const {
@@ -138,7 +150,7 @@ void GraphicsDevice::SetVSync(bool enabled) {
     }
 
     const auto mode = ChoosePresentMode(m_impl->device->Get(), m_impl->window, enabled);
-    if (!SDL_SetGPUSwapchainParameters(m_impl->device->Get(), m_impl->window, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, mode)) {
+    if (!SDL_SetGPUSwapchainParameters(m_impl->device->Get(), m_impl->window, m_impl->composition, mode)) {
         Log::GetEngineLogger().Error("Failed to change the present mode: {}", SDL_GetError());
         return;
     }

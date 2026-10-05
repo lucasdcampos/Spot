@@ -76,13 +76,16 @@ public:
     }
 
     std::unique_ptr<Texture> CreateTexture(const TextureDesc& desc);
-    // Creates an RGBA texture the size of the image, holding its pixels.
-    std::unique_ptr<Texture> CreateTexture(const Image& image, bool mipmaps = false);
+    // Creates an RGBA texture the size of the image, holding its pixels. Images hold colors as they are displayed, so
+    // they are sRGB by default; images of other data, such as coverage or normals, need a format that keeps it as is.
+    std::unique_ptr<Texture> CreateTexture(const Image& image, bool mipmaps = false,
+                                           TextureFormat format = TextureFormat::Rgba8Srgb);
     std::unique_ptr<Sampler> CreateSampler(const SamplerDesc& desc = {});
 
     // Whether render targets of this format can have this many samples; 1 always can.
     bool SupportsSampleCount(TextureFormat format, std::uint32_t sampleCount) const;
-    // The format of the window's frames, which textures resolved into the window must have.
+    // The format of the window's frames, which textures resolved into the window must have. It is sRGB where the GPU
+    // supports it, as it nearly always does, so shaders write linear colors and the window shows them right.
     TextureFormat GetWindowFormat() const;
 
     // Replaces all of the texture's pixels: width * height * 4 bytes, rows from top to bottom. Like buffer uploads,

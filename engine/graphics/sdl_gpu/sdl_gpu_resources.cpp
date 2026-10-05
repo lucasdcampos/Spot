@@ -148,6 +148,10 @@ SDL_GPUTextureFormat ToSdl(TextureFormat format) {
         return SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
     case TextureFormat::Bgra8:
         return SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM;
+    case TextureFormat::Rgba8Srgb:
+        return SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM_SRGB;
+    case TextureFormat::Bgra8Srgb:
+        return SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM_SRGB;
     case TextureFormat::Depth32Float:
         return SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
     }
@@ -444,8 +448,9 @@ std::unique_ptr<Texture> GraphicsDevice::CreateTexture(const TextureDesc& desc) 
     return std::unique_ptr<Texture>(new Texture(std::move(impl)));
 }
 
-std::unique_ptr<Texture> GraphicsDevice::CreateTexture(const Image& image, bool mipmaps) {
-    auto texture = CreateTexture({.width = image.GetWidth(), .height = image.GetHeight(), .mipmaps = mipmaps});
+std::unique_ptr<Texture> GraphicsDevice::CreateTexture(const Image& image, bool mipmaps, TextureFormat format) {
+    auto texture =
+        CreateTexture({.width = image.GetWidth(), .height = image.GetHeight(), .format = format, .mipmaps = mipmaps});
     if (texture) {
         UploadToTexture(*texture, image.GetPixels());
     }

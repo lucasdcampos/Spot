@@ -51,6 +51,7 @@ struct GraphicsDevice::Impl {
     SDL_Window* window;
     bool vsync = true;
     std::optional<bool> pendingVSync;
+    SDL_GPUSwapchainComposition composition = SDL_GPU_SWAPCHAINCOMPOSITION_SDR;
     bool frameOpen = false;
     std::unique_ptr<RenderContext> context;
 };

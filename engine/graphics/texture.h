@@ -6,15 +6,23 @@
 namespace Spot {
 
 enum class TextureFormat {
-    // 8 bits per channel, in memory order.
+    // 8 bits per channel, in memory order, holding the values shaders read and write as they are.
     Rgba8,
     Bgra8,
+    // 8 bits per channel, sRGB-encoded: shaders read and write linear values, stored with more precision in the
+    // darks, as colors meant for display are, such as images and the window. Alpha is stored as it is.
+    Rgba8Srgb,
+    Bgra8Srgb,
     // 32-bit float depth, for depth targets. Its pixels cannot be uploaded or downloaded.
     Depth32Float,
 };
 
 constexpr bool IsDepthFormat(TextureFormat format) {
     return format == TextureFormat::Depth32Float;
+}
+
+constexpr bool IsSrgbFormat(TextureFormat format) {
+    return format == TextureFormat::Rgba8Srgb || format == TextureFormat::Bgra8Srgb;
 }
 
 struct TextureDesc {

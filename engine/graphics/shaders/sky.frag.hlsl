@@ -141,11 +141,11 @@ float4 main(Input input) : SV_Target0 {
         color += viewTransmittance * sunlight * SunDiscRadiance * disc;
     }
 
-    // Maps the unbounded light to what the target can show, keeping bright skies from clipping to white, then encodes
-    // it for display, as the colors of the rest of the scene already are.
-    color = pow(1.0 - exp(-color * settings.z), 1.0 / 2.2);
-    // Noise of under a step of the target's color hides the banding of the sky's smooth gradients.
+    // Maps the unbounded light to what the target can show, keeping bright skies from clipping to white.
+    color = 1.0 - exp(-color * settings.z);
+    // Noise of under a step of an 8-bit display hides the banding of the sky's smooth gradients. Those steps are even
+    // in sRGB, not in linear light, so the noise is added there.
     const float noise = frac(52.9829189 * frac(dot(input.position.xy, float2(0.06711056, 0.00583715))));
-    color += (noise - 0.5) / 255.0;
+    color = pow(max(pow(color, 1.0 / 2.2) + (noise - 0.5) / 255.0, 0.0), 2.2);
     return float4(color, 1.0);
 }

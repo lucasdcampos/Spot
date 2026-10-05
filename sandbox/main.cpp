@@ -397,11 +397,11 @@ private:
         m_renderer2D->DrawQuad(center, {14.0f, 2.0f}, crosshair);
         m_renderer2D->DrawQuad(center, {2.0f, 14.0f}, crosshair);
         m_renderer2D->DrawQuad({230.0f, -40.0f}, {460.0f, 80.0f}, Spot::Color{0.0f, 0.0f, 0.0f, 0.6f});
-        m_renderer2D->DrawString(*m_font, m_status, {12.0f, -10.0f}, Spot::Color{0.7f, 0.9f, 0.7f});
+        m_renderer2D->DrawString(*m_font, m_status, {12.0f, -10.0f}, Spot::Color::FromSrgb(0.7f, 0.9f, 0.7f));
         m_renderer2D->DrawString(*m_font, "WASD: move | Shift: run | Space: jump | Click: shoot | R: reset",
-                                 {12.0f, -10.0f - line}, Spot::Color{0.8f, 0.8f, 0.8f}, 0.8f);
+                                 {12.0f, -10.0f - line}, Spot::Color::FromSrgb(0.8f, 0.8f, 0.8f), 0.8f);
         m_renderer2D->DrawString(*m_font, "F: flashlight | T: speed up time | Esc: free the mouse, then quit",
-                                 {12.0f, -10.0f - 1.8f * line}, Spot::Color{0.8f, 0.8f, 0.8f}, 0.8f);
+                                 {12.0f, -10.0f - 1.8f * line}, Spot::Color::FromSrgb(0.8f, 0.8f, 0.8f), 0.8f);
         m_renderer2D->End();
     }
 

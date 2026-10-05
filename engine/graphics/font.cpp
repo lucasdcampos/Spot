@@ -32,7 +32,7 @@ std::unique_ptr<Font> Font::LoadFromMemory(GraphicsDevice& device, std::span<con
     if (!atlas) {
         return nullptr;
     }
-    auto texture = device.CreateTexture(atlas->GetImage());
+    auto texture = device.CreateTexture(atlas->GetImage(), false, TextureFormat::Rgba8);
     if (!texture) {
         return nullptr;
     }

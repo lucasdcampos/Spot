@@ -69,8 +69,11 @@ TEST_CASE("Application renders frames sized to the window in pixels", "[gpu]") {
     int width = 0;
     int pixelWidth = 0;
 
+    bool linearWindow = false;
+
     RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
         backend = app.GetGraphicsDevice().GetBackendName();
+        linearWindow = Spot::IsSrgbFormat(app.GetGraphicsDevice().GetWindowFormat());
         width = context.GetWidth();
         pixelWidth = app.GetWindow().GetPixelWidth();
         auto pass = context.BeginRenderPass({.clearColor = Spot::Color::Blue});
@@ -81,6 +84,8 @@ TEST_CASE("Application renders frames sized to the window in pixels", "[gpu]") {
     CHECK(application.GetRenderedFrames() == 3);
     CHECK_FALSE(backend.empty());
     CHECK(width == pixelWidth);
+    // Shaders write linear colors, which the window encodes for display.
+    CHECK(linearWindow);
 }
 
 TEST_CASE("Render passes can clear or keep the target, one after the other", "[gpu]") {
@@ -1056,6 +1061,27 @@ TEST_CASE("Renderer3D keeps the lights nearest the camera when given too many", 
     });
 
     CHECK(render.At(16, 16)[1] > 240);
+}
+
+TEST_CASE("Images become sRGB textures that shaders read as linear colors", "[gpu]") {
+    RequireGpu();
+
+    // Mid-gray as stored in an image is about a fifth of white's light, so a white light shows it at that value in a
+    // target that stores values as they are.
+    const TargetRender render(32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
+        Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+        const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+        const std::shared_ptr<Spot::Texture> gray =
+            device.CreateTexture(Spot::Image(1, 1, std::vector<std::uint8_t>{128, 128, 128, 255}));
+        REQUIRE((cube && gray));
+        CHECK(gray->GetFormat() == Spot::TextureFormat::Rgba8Srgb);
+        renderer.Begin(pass, MakeFrontCamera(), view);
+        renderer.DrawLight(FrontLight);
+        renderer.DrawMesh(*cube, {.baseColorTexture = Spot::AssetRef<Spot::Texture>(gray)});
+        renderer.End();
+    });
+
+    CHECK(IsNear(render.At(16, 16), {55, 55, 55, 255}));
 }
 
 TEST_CASE("Renderer3D lights scenes with their active lights", "[gpu]") {
