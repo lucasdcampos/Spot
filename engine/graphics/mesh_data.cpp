@@ -2,6 +2,7 @@
 
 #include "math/angles.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
@@ -99,6 +100,25 @@ void MeshData::RecalculateNormals() {
     for (auto& vertex : vertices) {
         vertex.normal = Normalize(vertex.normal);
     }
+}
+
+BoundingSphere MeshData::GetBounds() const {
+    if (vertices.empty()) {
+        return {};
+    }
+    Vector3 low = vertices.front().position;
+    Vector3 high = low;
+    for (const auto& vertex : vertices) {
+        low = {std::min(low.x, vertex.position.x), std::min(low.y, vertex.position.y),
+               std::min(low.z, vertex.position.z)};
+        high = {std::max(high.x, vertex.position.x), std::max(high.y, vertex.position.y),
+                std::max(high.z, vertex.position.z)};
+    }
+    BoundingSphere bounds{.center = (low + high) * 0.5f};
+    for (const auto& vertex : vertices) {
+        bounds.radius = std::max(bounds.radius, Distance(bounds.center, vertex.position));
+    }
+    return bounds;
 }
 
 } // namespace Spot

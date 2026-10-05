@@ -30,13 +30,17 @@ public:
     // Holds IndexType::UInt32 indices.
     const Buffer& GetIndexBuffer() const { return *m_indexBuffer; }
     std::uint32_t GetIndexCount() const { return m_indexCount; }
+    // Around every vertex, in the mesh's own space.
+    BoundingSphere GetBounds() const { return m_bounds; }
 
 private:
-    Mesh(std::unique_ptr<Buffer> vertexBuffer, std::unique_ptr<Buffer> indexBuffer, std::uint32_t indexCount);
+    Mesh(std::unique_ptr<Buffer> vertexBuffer, std::unique_ptr<Buffer> indexBuffer, std::uint32_t indexCount,
+         BoundingSphere bounds);
 
     std::unique_ptr<Buffer> m_vertexBuffer;
     std::unique_ptr<Buffer> m_indexBuffer;
     std::uint32_t m_indexCount;
+    BoundingSphere m_bounds;
 };
 
 } // namespace Spot

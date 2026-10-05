@@ -113,3 +113,15 @@ TEST_CASE("MeshData recalculates normals from its faces", "[renderer3d]") {
         CHECK(IsNear(cube.vertices[i].normal, original[i].normal));
     }
 }
+
+TEST_CASE("MeshData bounds hold every vertex around the middle of its box", "[renderer3d]") {
+    CHECK(MeshData{}.GetBounds().radius == 0.0f);
+
+    auto plane = MeshData::CreatePlane(2.0f);
+    for (auto& vertex : plane.vertices) {
+        vertex.position += Spot::Vector3{3.0f, 1.0f, 0.0f};
+    }
+    const auto bounds = plane.GetBounds();
+    CHECK(IsNear(bounds.center, {3.0f, 1.0f, 0.0f}));
+    CHECK(bounds.radius == Catch::Approx(std::sqrt(2.0f)));
+}
