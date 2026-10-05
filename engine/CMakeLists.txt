@@ -118,6 +118,8 @@ add_library(spot STATIC
     physics/rigidbody.cpp
     platform/platform.h
     scene/archive.h
+    project/project.cpp
+    project/project.h
     scene/archive.cpp
     scene/archive_state.h
     scene/component.h
@@ -138,6 +140,9 @@ add_library(spot STATIC
     scene/transform.h
     scene/transform.cpp
     window/clipboard.h
+    window/file_dialog.h
+    window/shell.cpp
+    window/shell.h
     window/window.h
 )
 add_library(spot::spot ALIAS spot)
@@ -225,8 +230,10 @@ if(SPOT_PLATFORM STREQUAL "SDL3")
     target_sources(spot PRIVATE
         platform/sdl3/sdl3_clipboard.cpp
         platform/sdl3/sdl3_events.cpp
+        platform/sdl3/sdl3_file_dialog.cpp
         platform/sdl3/sdl3_paths.cpp
         platform/sdl3/sdl3_platform.cpp
+        platform/sdl3/sdl3_shell.cpp
         platform/sdl3/sdl3_window.cpp
     )
     target_link_libraries(spot PRIVATE SDL3::SDL3-static)

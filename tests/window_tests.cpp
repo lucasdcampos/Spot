@@ -98,3 +98,11 @@ TEST_CASE("Clipboard text round-trips as UTF-8", "[window]") {
     CHECK(Spot::Clipboard::HasText());
     CHECK(Spot::Clipboard::GetText() == "Spot éditeur");
 }
+
+TEST_CASE("File URLs percent-encode what URLs cannot hold", "[window]") {
+    CHECK(Spot::Shell::ToFileUrl(std::filesystem::path(u8"/home/me/My Games/café")) ==
+          "file:///home/me/My%20Games/caf%C3%A9");
+#ifdef _WIN32
+    CHECK(Spot::Shell::ToFileUrl(std::filesystem::path(u8R"(C:\Games\a#b)")) == "file:///C:/Games/a%23b");
+#endif
+}

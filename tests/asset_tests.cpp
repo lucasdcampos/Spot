@@ -1,3 +1,4 @@
+#include "log_capture.h"
 #include "temp_directory.h"
 
 #include <spot.h>
@@ -344,6 +345,26 @@ TEST_CASE("The asset manager rejects corrupt imported files", "[assets]") {
 
     Spot::AssetManager empty(project.GetPath() / "nowhere");
     CHECK_FALSE(empty.Contains(plainId));
+}
+
+TEST_CASE("Asset managers only warn about a missing manifest when the import folder exists", "[assets]") {
+    const TempDirectory project;
+    const auto sink = std::make_shared<Spot::Tests::CaptureSink>();
+    const Spot::Tests::ScopedSinks sinks({sink});
+    // Release builds hide debug messages by default.
+    Spot::Logger& logger = Spot::Log::GetEngineLogger();
+    const Spot::LogLevel level = logger.GetLevel();
+    logger.SetLevel(Spot::LogLevel::Debug);
+
+    const Spot::AssetManager withoutFolder(project.GetPath() / "nowhere");
+    REQUIRE(sink->GetRecords().size() == 1);
+    CHECK(sink->GetRecords()[0].level == Spot::LogLevel::Debug);
+
+    std::filesystem::create_directories(project.GetPath() / "imported");
+    const Spot::AssetManager withEmptyFolder(project.GetPath() / "imported");
+    REQUIRE(sink->GetRecords().size() == 2);
+    CHECK(sink->GetRecords()[1].level == Spot::LogLevel::Warning);
+    logger.SetLevel(level);
 }
 
 TEST_CASE("Applications import their sources at startup and expose their assets", "[assets]") {

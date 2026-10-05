@@ -23,6 +23,7 @@ add_executable(spot_tests
     physics_tests.cpp
     model_data_tests.cpp
     platform_tests.cpp
+    project_tests.cpp
     renderer_2d_tests.cpp
     renderer_3d_tests.cpp
     scene_serialization_tests.cpp

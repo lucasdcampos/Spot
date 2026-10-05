@@ -49,8 +49,10 @@ AssetManager::~AssetManager() = default;
 void AssetManager::RefreshManifest() {
     const auto manifest = Detail::Manifest::LoadFromFile(Detail::Manifest::GetPath(m_importDirectory));
     if (!manifest) {
-        Log::GetEngineLogger().Warning("No asset manifest in '{}'; no assets can be loaded",
-                                       PathToUtf8(m_importDirectory));
+        // Applications without assets have no import folder at all, which is no cause for concern.
+        const LogLevel level = std::filesystem::exists(m_importDirectory) ? LogLevel::Warning : LogLevel::Debug;
+        Log::GetEngineLogger().Write(level, "No asset manifest in '{}'; no assets can be loaded",
+                                     PathToUtf8(m_importDirectory));
     }
 
     std::unordered_map<AssetId, Entry> entries;
