@@ -85,8 +85,8 @@ private:
     bool m_jump = false;
 };
 
-// A walled floor with ramps, steps, a pyramid and a tower of crates, and balls to knock them over with, lit by the sun
-// and colored lamps.
+// A walled floor with ramps, steps, a pyramid and a tower of crates, and balls to knock them over with, lit by colored
+// lamps and a sun that crosses the sky in a two-minute day.
 class PlaygroundScene final : public Spot::Scene {
 public:
     PlayerController* GetPlayer() const { return m_player; }
@@ -97,16 +97,8 @@ public:
         }
     }
 
-    bool IsNight() const { return m_sun && !m_sun->IsActiveSelf(); }
-
-    // At night the sun is off and the sky dims, so only the lamps and the flashlight light the playground.
-    void ToggleNight() {
-        if (m_sun && m_sky) {
-            const bool night = m_sun->IsActiveSelf();
-            m_sun->SetActive(!night);
-            m_sky->SetIntensity(night ? 0.05f : 0.3f);
-        }
-    }
+    // From 0 at midnight to 1 at the next one.
+    float GetTimeOfDay() const { return m_timeOfDay; }
 
     // Throws a ball from the player's eyes, where they look.
     void Shoot() {
@@ -124,10 +116,11 @@ public:
 
 protected:
     void OnLoad() override {
-        m_sun = &CreateEntity("Sun");
-        m_sun->GetTransform().SetRotation(Spot::Quaternion::LookRotation({-0.4f, -1.0f, -0.6f}));
-        m_sun->AddComponent<Spot::DirectionalLight>(Spot::Color{1.0f, 0.95f, 0.85f}, 0.8f);
-        m_sky = &CreateEntity("Sky").AddComponent<Spot::AmbientLight>(Spot::Color{0.8f, 0.85f, 1.0f}, 0.3f);
+        m_sun = &CreateEntity("Sun").AddComponent<Spot::DirectionalLight>();
+        auto& sky = CreateEntity("Sky");
+        sky.AddComponent<Spot::Sky>();
+        m_skyLight = &sky.AddComponent<Spot::AmbientLight>();
+        UpdateSun();
 
         AddLamp({-10.0f, 3.5f, -8.0f}, {1.0f, 0.5f, 0.2f});
         AddLamp({0.0f, 2.5f, -3.5f}, {0.3f, 1.0f, 0.4f});
@@ -182,7 +175,12 @@ protected:
         m_player->SetFlashlight(&flashlight);
     }
 
-    void OnUpdate(float /*deltaTime*/) override {
+    void OnUpdate(float deltaTime) override {
+        constexpr float DayLength = 120.0f;
+        const float speed = Spot::Input::IsKeyDown(Spot::Key::T) ? 20.0f : 1.0f;
+        m_timeOfDay = std::fmod(m_timeOfDay + deltaTime * speed / DayLength, 1.0f);
+        UpdateSun();
+
         // Back to the start after falling off the world.
         if (m_player && m_player->GetEntity().GetTransform().GetWorldPosition().y < -20.0f) {
             m_player->GetEntity().GetTransform().SetPosition(SpawnPoint);
@@ -220,6 +218,29 @@ private:
         return ball;
     }
 
+    // The sun rises in the east (+X) at 6:00, peaks at noon and sets in the west at 18:00. The sky follows its light,
+    // and the light and the sky's ambient light weaken and redden as it nears the horizon.
+    void UpdateSun() {
+        const float angle = (m_timeOfDay - 0.25f) * 2.0f * Spot::Pi;
+        const Spot::Vector3 toSun = Spot::Normalize(Spot::Vector3{std::cos(angle), std::sin(angle), 0.4f});
+        m_sun->GetEntity().GetTransform().SetRotation(Spot::Quaternion::LookRotation(-toSun));
+
+        const auto smoothstep = [](float from, float to, float x) {
+            const float t = std::clamp((x - from) / (to - from), 0.0f, 1.0f);
+            return t * t * (3.0f - 2.0f * t);
+        };
+        const auto mix = [](Spot::Color a, Spot::Color b, float t) {
+            return Spot::Color{Spot::Lerp(a.r, b.r, t), Spot::Lerp(a.g, b.g, t), Spot::Lerp(a.b, b.b, t)};
+        };
+        const float day = smoothstep(0.0f, 0.3f, toSun.y);
+        m_sun->SetColor(mix({1.0f, 0.5f, 0.25f}, {1.0f, 0.95f, 0.85f}, day));
+        // Below the horizon the planet hides the sun, though the sky keeps its glow a little longer.
+        m_sun->SetIntensity(0.8f * smoothstep(-0.1f, 0.0f, toSun.y));
+        const float daylight = smoothstep(-0.15f, 0.2f, toSun.y);
+        m_skyLight->SetColor(mix({0.3f, 0.4f, 0.8f}, {0.8f, 0.85f, 1.0f}, daylight));
+        m_skyLight->SetIntensity(Spot::Lerp(0.08f, 0.3f, daylight));
+    }
+
     void AddLamp(Spot::Vector3 position, Spot::Color color) {
         auto& lamp = CreateEntity("Lamp");
         lamp.GetTransform().SetPosition(position);
@@ -228,8 +249,10 @@ private:
 
     PlayerController* m_player = nullptr;
     Spot::SpotLight* m_flashlight = nullptr;
-    Spot::Entity* m_sun = nullptr;
-    Spot::AmbientLight* m_sky = nullptr;
+    Spot::DirectionalLight* m_sun = nullptr;
+    Spot::AmbientLight* m_skyLight = nullptr;
+    // Mid-morning.
+    float m_timeOfDay = 0.375f;
 };
 
 } // namespace
@@ -288,9 +311,6 @@ protected:
         if (scene && Input::IsKeyPressed(Key::F)) {
             scene->ToggleFlashlight();
         }
-        if (scene && Input::IsKeyPressed(Key::N)) {
-            scene->ToggleNight();
-        }
         if (scene && scene->GetPlayer() && window.IsMouseCaptured()) {
             scene->GetPlayer()->Look(Input::GetMouseDelta());
         }
@@ -298,8 +318,9 @@ protected:
         ++m_frames;
         m_elapsed += deltaTime;
         if (m_elapsed >= 1.0f) {
-            m_status = std::format("{} FPS, {} bodies, {} draw calls", m_frames,
-                                   scene ? scene->GetPhysics().GetBodyCount() : 0, m_stats3D.drawCalls);
+            const int minutes = scene ? static_cast<int>(scene->GetTimeOfDay() * 24.0f * 60.0f) : 0;
+            m_status = std::format("{:02}:{:02} | {} FPS, {} bodies, {} draw calls", minutes / 60, minutes % 60,
+                                   m_frames, scene ? scene->GetPhysics().GetBodyCount() : 0, m_stats3D.drawCalls);
             m_frames = 0;
             m_elapsed -= 1.0f;
         }
@@ -339,13 +360,11 @@ private:
         }
 
         const auto* scene = dynamic_cast<PlaygroundScene*>(GetScene());
-        const bool night = scene && scene->IsNight();
-        auto pass = context.BeginRenderPass(
-            {.target = m_samples.get(),
-             .clearColor = night ? Spot::Color{0.02f, 0.03f, 0.06f} : Spot::Color{0.5f, 0.68f, 0.85f},
-             .depthTarget = m_depth.get(),
-             .clearDepth = 1.0f,
-             .resolveToWindow = m_samples != nullptr});
+        // The scene's sky covers the whole view, so the clear color never shows.
+        auto pass = context.BeginRenderPass({.target = m_samples.get(),
+                                             .depthTarget = m_depth.get(),
+                                             .clearDepth = 1.0f,
+                                             .resolveToWindow = m_samples != nullptr});
         if (!m_renderer3D || !scene || !scene->GetPlayer()) {
             return;
         }
@@ -381,7 +400,7 @@ private:
         m_renderer2D->DrawString(*m_font, m_status, {12.0f, -10.0f}, Spot::Color{0.7f, 0.9f, 0.7f});
         m_renderer2D->DrawString(*m_font, "WASD: move | Shift: run | Space: jump | Click: shoot | R: reset",
                                  {12.0f, -10.0f - line}, Spot::Color{0.8f, 0.8f, 0.8f}, 0.8f);
-        m_renderer2D->DrawString(*m_font, "F: flashlight | N: day/night | Esc: free the mouse, then quit",
+        m_renderer2D->DrawString(*m_font, "F: flashlight | T: speed up time | Esc: free the mouse, then quit",
                                  {12.0f, -10.0f - 1.8f * line}, Spot::Color{0.8f, 0.8f, 0.8f}, 0.8f);
         m_renderer2D->End();
     }
