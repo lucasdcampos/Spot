@@ -1083,6 +1083,87 @@ TEST_CASE("Renderer3D lights scenes with their active lights", "[gpu]") {
     CHECK(IsNear(render.At(16, 16), {0, 255, 0, 255}));
 }
 
+namespace {
+
+// The sky seen by the front camera, which looks along the horizon: the top rows are sky and the bottom ones ground.
+TargetRender RenderSky(const Spot::SkyData& sky, const Spot::Camera3D& camera = MakeFrontCamera()) {
+    return TargetRender(32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
+        Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+        REQUIRE(renderer.IsValid());
+        renderer.Begin(pass, camera, view);
+        renderer.DrawSky(sky);
+        renderer.End();
+    });
+}
+
+} // namespace
+
+TEST_CASE("Renderer3D draws a blue sky over the ground's color", "[gpu]") {
+    RequireGpu();
+
+    const auto render = RenderSky({.groundColor = Spot::Color::Red});
+    const Pixel sky = render.At(16, 2);
+    const Pixel ground = render.At(16, 29);
+    INFO("Sky " << int{sky[0]} << ", " << int{sky[1]} << ", " << int{sky[2]} << "; ground " << int{ground[0]} << ", "
+                << int{ground[1]} << ", " << int{ground[2]});
+    CHECK(sky[2] > sky[0] + 40);
+    CHECK(sky[2] > 120);
+    CHECK(ground[0] > ground[2] + 40);
+}
+
+TEST_CASE("Renderer3D draws the sky behind meshes", "[gpu]") {
+    RequireGpu();
+
+    const TargetRender render(32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
+        Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+        const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+        REQUIRE(cube != nullptr);
+        renderer.Begin(pass, MakeFrontCamera(), view);
+        renderer.DrawLight(FrontLight);
+        renderer.DrawMesh(*cube, {.baseColor = Spot::Color::Green});
+        // Drawn last, yet behind.
+        renderer.DrawSky({});
+        renderer.End();
+    });
+
+    CHECK(IsNear(render.At(16, 16), {0, 255, 0, 255}));
+    CHECK(render.At(16, 2)[2] > 120);
+}
+
+TEST_CASE("Renderer3D skies redden as the sun nears the horizon and darken without it", "[gpu]") {
+    RequireGpu();
+
+    // The sun straight ahead, high and then low. Sunlight crossing more air loses more of its blue.
+    const auto redness = [](const TargetRender& render) {
+        const Pixel pixel = render.At(16, 14);
+        return static_cast<float>(pixel[0]) / static_cast<float>(std::max<int>(pixel[2], 1));
+    };
+    const auto high = RenderSky({.sunDirection = {0.0f, -1.0f, 1.0f}, .sunSize = 0.0f});
+    const auto low = RenderSky({.sunDirection = {0.0f, -0.03f, 1.0f}, .sunSize = 0.0f});
+    INFO("Redness " << redness(high) << " with the sun high and " << redness(low) << " with it low");
+    CHECK(redness(low) > redness(high) * 1.5f);
+
+    const auto night = RenderSky({.hasSun = false});
+    for (const Pixel pixel : {night.At(16, 2), night.At(16, 29)}) {
+        CHECK(std::max({pixel[0], pixel[1], pixel[2]}) < 50);
+    }
+}
+
+TEST_CASE("Renderer3D skies show the sun's disc where its light comes from", "[gpu]") {
+    RequireGpu();
+
+    // Looking straight at a sun high in the sky, then at the same sky away from it.
+    Spot::Camera3D camera;
+    camera.LookAt({0.0f, 1.0f, -1.0f});
+    const Spot::SkyData sky{.sunDirection = {0.0f, -1.0f, 1.0f}, .sunSize = Spot::ToRadians(5.0f)};
+    const Pixel sun = RenderSky(sky, camera).At(16, 16);
+    camera.LookAt({0.0f, 1.0f, 1.0f});
+    const Pixel away = RenderSky(sky, camera).At(16, 16);
+
+    CHECK(std::min({sun[0], sun[1], sun[2]}) > 240);
+    CHECK(away[0] < 200);
+}
+
 TEST_CASE("Models imported as assets load onto the GPU and draw textured", "[gpu]") {
     RequireGpu();
     const TempDirectory project;

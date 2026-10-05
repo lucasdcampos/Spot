@@ -4,6 +4,7 @@
 #include "physics/rigidbody.h"
 #include "scene/light.h"
 #include "scene/mesh_renderer.h"
+#include "scene/sky.h"
 
 #include <mutex>
 #include <unordered_map>
@@ -42,6 +43,7 @@ Registry& GetRegistry() {
         RegisterBuiltIn<DirectionalLight>(registry, "DirectionalLight");
         RegisterBuiltIn<PointLight>(registry, "PointLight");
         RegisterBuiltIn<SpotLight>(registry, "SpotLight");
+        RegisterBuiltIn<Sky>(registry, "Sky");
         return true;
     }();
     static_cast<void>(builtInRegistered);

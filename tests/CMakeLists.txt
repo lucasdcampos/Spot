@@ -28,6 +28,7 @@ add_executable(spot_tests
     scene_serialization_tests.cpp
     scene_tests.cpp
     shader_tests.cpp
+    sky_tests.cpp
     temp_directory.h
     text_tests.cpp
     time_tests.cpp

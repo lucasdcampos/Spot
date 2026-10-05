@@ -10,9 +10,12 @@
 #include "scene/light.h"
 #include "scene/mesh_renderer.h"
 #include "scene/scene.h"
+#include "scene/sky.h"
 
 #include "mesh.frag.h"
 #include "mesh.vert.h"
+#include "sky.frag.h"
+#include "sky.vert.h"
 
 #include <algorithm>
 #include <array>
@@ -45,6 +48,17 @@ struct LightingUniforms {
     // x is the number of lights; a whole row keeps the layout the same in every shader language.
     std::array<std::uint32_t, 4> lightCount;
     std::array<LightUniforms, Renderer3D::MaxLights> lights;
+};
+
+struct SkyUniforms {
+    // w is 1 when there is a sun.
+    Vector4 sunDirection;
+    Color sunColor;
+    Color skyTint;
+    Color groundColor;
+    Color nightColor;
+    // The cosine of the sun's angular radius, the atmosphere's thickness and the exposure.
+    Vector4 settings;
 };
 
 struct MaterialUniforms {
@@ -128,6 +142,18 @@ Renderer3D::Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config) {
         m_doubleSidedPipeline = device.CreatePipeline(desc);
     }
 
+    const auto skyVertexShader = device.CreateShader(Detail::Shaders::SkyVert);
+    const auto skyFragmentShader = device.CreateShader(Detail::Shaders::SkyFrag);
+    if (skyVertexShader && skyFragmentShader) {
+        m_skyPipeline = device.CreatePipeline({
+            .vertexShader = skyVertexShader.get(),
+            .fragmentShader = skyFragmentShader.get(),
+            .targetFormat = config.targetFormat,
+            .depth = DepthState{.format = config.depthFormat, .test = false, .write = false},
+            .sampleCount = config.sampleCount,
+        });
+    }
+
     m_sampler = device.CreateSampler(
         {.filter = config.filter, .addressMode = TextureAddressMode::Repeat, .maxAnisotropy = config.maxAnisotropy});
 
@@ -145,16 +171,18 @@ Renderer3D::Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config) {
 Renderer3D::~Renderer3D() = default;
 
 bool Renderer3D::IsValid() const {
-    return m_pipeline && m_doubleSidedPipeline && m_sampler && m_whiteTexture;
+    return m_pipeline && m_doubleSidedPipeline && m_skyPipeline && m_sampler && m_whiteTexture;
 }
 
 void Renderer3D::Begin(RenderPass& pass, const Camera3D& camera, Vector2 viewSize) {
     SPOT_ASSERT(!m_pass, "Renderer3D::Begin() called twice without End()");
     m_pass = &pass;
     m_viewProjection = camera.GetViewProjection(viewSize);
+    m_inverseSkyViewProjection = Inverse(camera.GetProjection(viewSize) * Matrix4::Rotation(Inverse(camera.rotation)));
     m_cameraPosition = camera.position;
     m_commands.clear();
     m_lights.clear();
+    m_sky.reset();
 }
 
 void Renderer3D::End() {
@@ -166,6 +194,11 @@ void Renderer3D::End() {
 void Renderer3D::DrawLight(const LightData& light) {
     SPOT_ASSERT(m_pass, "Draw calls must come between Begin() and End()");
     m_lights.push_back(light);
+}
+
+void Renderer3D::DrawSky(const SkyData& sky) {
+    SPOT_ASSERT(m_pass, "Draw calls must come between Begin() and End()");
+    m_sky = sky;
 }
 
 void Renderer3D::DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform) {
@@ -187,6 +220,11 @@ void Renderer3D::DrawModel(const Model& model, const Matrix4& transform) {
 void Renderer3D::DrawScene(Scene& scene) {
     static const Material DefaultMaterial;
     scene.ForEachComponent<Light>([this](const Light& light) { DrawLight(light.GetLightData()); });
+    const Sky* sky = nullptr;
+    scene.ForEachComponent<Sky>([&sky](const Sky& found) { sky = sky ? sky : &found; });
+    if (sky) {
+        DrawSky(sky->GetSkyData());
+    }
     scene.ForEachComponent<MeshRenderer>([this](const MeshRenderer& renderer) {
         if (renderer.GetMesh()) {
             DrawMesh(*renderer.GetMesh(), renderer.GetMaterial() ? *renderer.GetMaterial() : DefaultMaterial,
@@ -195,9 +233,38 @@ void Renderer3D::DrawScene(Scene& scene) {
     });
 }
 
+void Renderer3D::FlushSky(const SkyData& sky) {
+    const Vector3 toSun = -Normalize(sky.sunDirection);
+    const bool hasSun = sky.hasSun && toSun != Vector3{};
+    const float intensity = hasSun ? sky.sunIntensity : 0.0f;
+    // A disc of no size is hidden by a cosine the shader treats as none.
+    const float cosRadius = sky.sunSize > 0.0f ? std::cos(sky.sunSize) : 1.0f;
+
+    m_pass->BindPipeline(*m_skyPipeline);
+    m_pass->PushVertexUniforms(0, m_inverseSkyViewProjection);
+    m_pass->PushFragmentUniforms(
+        0, SkyUniforms{
+               .sunDirection = {toSun.x, toSun.y, toSun.z, hasSun ? 1.0f : 0.0f},
+               .sunColor = {sky.sunColor.r * intensity, sky.sunColor.g * intensity, sky.sunColor.b * intensity, 1.0f},
+               .skyTint = sky.skyTint,
+               .groundColor = sky.groundColor,
+               .nightColor = sky.nightColor,
+               .settings = {cosRadius, std::max(sky.atmosphereThickness, 0.0f), std::max(sky.exposure, 0.0f), 0.0f},
+           });
+    m_pass->Draw(3);
+    ++m_stats.drawCalls;
+    ++m_stats.triangleCount;
+}
+
 void Renderer3D::Flush() {
     m_stats = {};
-    if (m_commands.empty() || !IsValid()) {
+    if (!IsValid()) {
+        return;
+    }
+    if (m_sky) {
+        FlushSky(*m_sky);
+    }
+    if (m_commands.empty()) {
         return;
     }
 

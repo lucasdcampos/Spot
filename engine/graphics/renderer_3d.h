@@ -3,6 +3,7 @@
 #include "graphics/camera_3d.h"
 #include "graphics/color.h"
 #include "graphics/light_data.h"
+#include "graphics/sky_data.h"
 #include "graphics/texture.h"
 #include "math/matrix.h"
 #include "math/vector.h"
@@ -47,6 +48,7 @@ struct Renderer3DStats {
 //                                          .clearDepth = 1.0f});
 //     renderer.Begin(pass, camera, viewSize);
 //     renderer.DrawLight({.type = Spot::LightType::Directional, .direction = {-0.4f, -1.0f, -0.6f}});
+//     renderer.DrawSky({.sunDirection = {-0.4f, -1.0f, -0.6f}});
 //     renderer.DrawModel(*model, Spot::Matrix4::Translation({0, 0, -5}));
 //     renderer.End();
 //
@@ -72,10 +74,13 @@ public:
 
     // Lights everything drawn in the frame, whether drawn before or after it.
     void DrawLight(const LightData& light);
+    // Fills the view behind everything drawn in the frame with the sky. A later call replaces it. Without one, the
+    // pass's clear color shows.
+    void DrawSky(const SkyData& sky);
     void DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform = {});
     void DrawModel(const Model& model, const Matrix4& transform = {});
     // Draws every MeshRenderer and Light of the scene that is enabled on an active entity, at its entity's world
-    // transform.
+    // transform, and the first such Sky.
     // The scene must not change until End(), since its components keep the meshes alive.
     void DrawScene(Scene& scene);
 
@@ -95,16 +100,21 @@ private:
     };
 
     void Flush();
+    void FlushSky(const SkyData& sky);
 
     std::unique_ptr<Pipeline> m_pipeline;
     std::unique_ptr<Pipeline> m_doubleSidedPipeline;
+    std::unique_ptr<Pipeline> m_skyPipeline;
     std::unique_ptr<Sampler> m_sampler;
     std::unique_ptr<Texture> m_whiteTexture;
 
     std::vector<DrawCommand> m_commands;
     RenderPass* m_pass = nullptr;
     std::vector<LightData> m_lights;
+    std::optional<SkyData> m_sky;
     Matrix4 m_viewProjection;
+    // Of the camera's rotation and projection only, which turns clip-space positions into directions.
+    Matrix4 m_inverseSkyViewProjection;
     Vector3 m_cameraPosition;
     bool m_warnedAboutLights = false;
     Renderer3DStats m_stats;
