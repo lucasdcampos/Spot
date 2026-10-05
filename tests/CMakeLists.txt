@@ -11,7 +11,9 @@ FetchContent_MakeAvailable(Catch2)
 add_executable(spot_tests
     event_tests.cpp
     input_tests.cpp
+    log_capture.h
     log_tests.cpp
+    platform_tests.cpp
     version_tests.cpp
 )
 
@@ -31,4 +33,5 @@ spot_set_warnings(spot_tests)
 
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(Catch)
-catch_discover_tests(spot_tests)
+# The dummy video driver lets window tests run on machines without a display, such as CI servers.
+catch_discover_tests(spot_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy")

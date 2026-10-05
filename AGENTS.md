@@ -27,6 +27,8 @@ Both accept `release` as an argument.
 
 - Everything in the repository is in English: code, comments, docs and commit messages.
 - Code must build on Windows, macOS and Linux. Keep platform-specific code isolated.
+- The windowing backend (SDL3, chosen with `SPOT_PLATFORM`) is only used under `engine/platform/<backend>/`.
+  Public headers never expose backend types, so the backend can be replaced without changing the engine API.
 - The build must have no warnings.
 - New engine features come with tests in `tests/`.
 

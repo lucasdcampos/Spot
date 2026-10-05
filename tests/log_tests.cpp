@@ -1,3 +1,5 @@
+#include "log_capture.h"
+
 #include <spot.h>
 
 #include <catch2/catch_test_macros.hpp>
@@ -10,43 +12,11 @@
 #include <iterator>
 #include <memory>
 #include <string>
-#include <vector>
+
+using Spot::Tests::CaptureSink;
+using Spot::Tests::ScopedSinks;
 
 namespace {
-
-struct CapturedRecord {
-    Spot::LogLevel level;
-    std::string loggerName;
-    std::string message;
-};
-
-class CaptureSink final : public Spot::LogSink {
-public:
-    void Write(const Spot::LogRecord& record) override {
-        m_records.push_back({record.level, std::string(record.loggerName), std::string(record.message)});
-    }
-
-    const std::vector<CapturedRecord>& GetRecords() const { return m_records; }
-
-private:
-    std::vector<CapturedRecord> m_records;
-};
-
-// Replaces the global sinks for the duration of a test so tests neither print nor see each other's output.
-class ScopedSinks {
-public:
-    explicit ScopedSinks(std::vector<std::shared_ptr<Spot::LogSink>> sinks) : m_previous(Spot::Log::GetSinks()) {
-        Spot::Log::SetSinks(std::move(sinks));
-    }
-
-    ~ScopedSinks() { Spot::Log::SetSinks(std::move(m_previous)); }
-
-    ScopedSinks(const ScopedSinks&) = delete;
-    ScopedSinks& operator=(const ScopedSinks&) = delete;
-
-private:
-    std::vector<std::shared_ptr<Spot::LogSink>> m_previous;
-};
 
 std::string ReadFile(const std::filesystem::path& path) {
     std::ifstream file(path);

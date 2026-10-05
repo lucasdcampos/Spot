@@ -4,7 +4,9 @@ A cross-platform 2D/3D game engine written in C++20, built as a static library.
 
 ## Building
 
-Requires CMake 3.25+ and a C++20 compiler.
+Requires CMake 3.25+ and a C++20 compiler. Dependencies (SDL3, Catch2) are downloaded and built by CMake.
+On Linux, SDL3 needs the X11 and Wayland development packages; see
+[SDL's Linux notes](https://github.com/libsdl-org/SDL/blob/main/docs/README-linux.md).
 
 ```sh
 # Windows (Visual Studio 2026)
