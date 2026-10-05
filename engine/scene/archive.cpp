@@ -166,6 +166,14 @@ void Archive::Field(std::string_view name, AssetId& value) {
     value = *id;
 }
 
+AssetManager* Archive::GetAssetManager() const {
+    return m_state.assets ? m_state.assets : Assets::GetManager();
+}
+
+void Archive::WarnAssetWithoutId(std::string_view name) {
+    Log::GetEngineLogger().Warning("Field '{}' refers to an asset made in code, which is saved as null", name);
+}
+
 bool Archive::Enter(std::string_view name, NodeKind kind, std::size_t& size) {
     if (!m_state.loading) {
         json& field = AddField(m_state, name);

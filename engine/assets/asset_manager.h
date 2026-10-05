@@ -17,6 +17,7 @@ class Font;
 class GraphicsDevice;
 class Mesh;
 class Model;
+class Scene;
 class Sound;
 class Texture;
 struct Material;
@@ -99,6 +100,11 @@ public:
         }
         return Load<T>(*id);
     }
+
+    // Scenes are not shared: each call makes a new scene from the asset, whose asset references load through this
+    // manager. Null, after logging why, when the asset is missing or not a scene.
+    std::unique_ptr<Scene> InstantiateScene(AssetId id);
+    std::unique_ptr<Scene> InstantiateScene(std::string_view path);
 
 private:
     struct Entry {

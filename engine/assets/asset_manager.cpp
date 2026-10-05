@@ -11,6 +11,7 @@
 #include "graphics/material.h"
 #include "graphics/mesh.h"
 #include "graphics/model.h"
+#include "scene/scene.h"
 
 #include <utility>
 #include <vector>
@@ -53,6 +54,30 @@ std::optional<AssetType> AssetManager::GetType(AssetId id) const {
 std::optional<AssetId> AssetManager::FindByPath(std::string_view path) const {
     const auto found = m_paths.find(std::string(path));
     return found != m_paths.end() ? std::optional(found->second) : std::nullopt;
+}
+
+std::unique_ptr<Scene> AssetManager::InstantiateScene(AssetId id) {
+    if (GetType(id) != AssetType::Scene) {
+        Log::GetEngineLogger().Error("Asset {} is not a scene", id.ToString());
+        return nullptr;
+    }
+    const auto data = Detail::ReadAssetFile(Detail::GetImportedAssetPath(m_importDirectory, id), AssetType::Scene);
+    const auto text = data ? Detail::DecodeScene(*data) : std::nullopt;
+    auto scene = std::make_unique<Scene>();
+    if (!text || !scene->LoadFromString(*text, this)) {
+        Log::GetEngineLogger().Error("Could not instantiate scene {} from '{}'", id.ToString(), m_entries.at(id).path);
+        return nullptr;
+    }
+    return scene;
+}
+
+std::unique_ptr<Scene> AssetManager::InstantiateScene(std::string_view path) {
+    const auto id = FindByPath(path);
+    if (!id) {
+        LogUnknownPath(path);
+        return nullptr;
+    }
+    return InstantiateScene(*id);
 }
 
 void AssetManager::LogUnknownPath(std::string_view path) {

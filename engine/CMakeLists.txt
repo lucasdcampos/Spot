@@ -23,6 +23,7 @@ add_library(spot STATIC
     assets/importers/importer.cpp
     assets/importers/material_importer.cpp
     assets/importers/model_importer.cpp
+    assets/importers/scene_importer.cpp
     assets/importers/texture_importer.cpp
     assets/assets.h
     assets/assets.cpp
@@ -110,6 +111,7 @@ add_library(spot STATIC
     scene/entity.h
     scene/entity.cpp
     scene/mesh_renderer.h
+    scene/mesh_renderer.cpp
     scene/scene.h
     scene/scene.cpp
     scene/scene_serialization.cpp

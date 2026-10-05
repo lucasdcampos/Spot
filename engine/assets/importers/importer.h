@@ -69,5 +69,6 @@ ImporterInfo FindImporter(AssetType type);
 bool ImportTexture(ImportContext& context);
 bool ImportModel(ImportContext& context);
 bool ImportMaterial(ImportContext& context);
+bool ImportScene(ImportContext& context);
 
 } // namespace Spot::Detail

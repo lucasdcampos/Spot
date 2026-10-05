@@ -1,5 +1,7 @@
 #include "scene/component_registry.h"
 
+#include "scene/mesh_renderer.h"
+
 #include <mutex>
 #include <unordered_map>
 #include <utility>
@@ -15,9 +17,22 @@ struct Registry {
     std::unordered_map<std::string, std::type_index> types;
 };
 
-// Built on first use, so components can register from static initializers in any order.
+std::unique_ptr<Component> CreateMeshRenderer() {
+    return std::make_unique<MeshRenderer>();
+}
+
+// Built on first use, so components can register from static initializers in any order. The engine's own components
+// are registered from the start, so scenes save them without any setup.
 Registry& GetRegistry() {
     static Registry registry;
+    static const bool builtInRegistered = [] {
+        const std::type_index type = typeid(MeshRenderer);
+        registry.names.insert_or_assign(type, "MeshRenderer");
+        registry.factories.insert_or_assign("MeshRenderer", &CreateMeshRenderer);
+        registry.types.insert_or_assign("MeshRenderer", type);
+        return true;
+    }();
+    static_cast<void>(builtInRegistered);
     return registry;
 }
 

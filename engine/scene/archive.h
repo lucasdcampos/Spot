@@ -1,6 +1,8 @@
 #pragma once
 
 #include "assets/asset_id.h"
+#include "assets/asset_ref.h"
+#include "assets/assets.h"
 #include "graphics/color.h"
 #include "math/quaternion.h"
 #include "math/vector.h"
@@ -66,6 +68,21 @@ public:
     // Saved as 32 hexadecimal digits, or null for the null id.
     void Field(std::string_view name, AssetId& value);
 
+    // References to assets are saved as their id, and loaded through the asset manager the scene is loaded with,
+    // or the running application's. Assets made in code have no id, so they are saved as null, with a warning.
+    template <LoadableAsset T>
+    void Field(std::string_view name, AssetRef<T>& value) {
+        AssetId id = value.GetId();
+        if (IsSaving() && !id.IsValid() && value) {
+            WarnAssetWithoutId(name);
+        }
+        Field(name, id);
+        if (IsLoading() && id != value.GetId()) {
+            AssetManager* assets = GetAssetManager();
+            value = !id.IsValid() ? AssetRef<T>() : assets ? assets->Load<T>(id) : AssetRef<T>(id, nullptr);
+        }
+    }
+
     // Enums are saved as their underlying value.
     template <typename T>
         requires std::is_enum_v<T>
@@ -104,6 +121,9 @@ public:
 
 private:
     enum class NodeKind { Object, Array };
+
+    AssetManager* GetAssetManager() const;
+    static void WarnAssetWithoutId(std::string_view name);
 
     // Makes the named field the current node, or the current node itself when the name is empty. When loading,
     // returns false if it is missing or of another kind, and gives the size of arrays.

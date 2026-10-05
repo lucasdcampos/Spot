@@ -98,7 +98,7 @@ void Renderer3D::DrawMesh(const Mesh& mesh, const Material& material, const Matr
 }
 
 void Renderer3D::DrawModel(const Model& model, const Matrix4& transform) {
-    // Parts whose mesh failed to load are skipped; without a material they get the default one.
+    // Parts whose mesh failed to load are skipped; without a material they are drawn plain white.
     static const Material DefaultMaterial;
     for (const auto& part : model.GetParts()) {
         if (part.mesh) {
@@ -108,9 +108,11 @@ void Renderer3D::DrawModel(const Model& model, const Matrix4& transform) {
 }
 
 void Renderer3D::DrawScene(Scene& scene) {
+    static const Material DefaultMaterial;
     scene.ForEachComponent<MeshRenderer>([this](const MeshRenderer& renderer) {
         if (renderer.GetMesh()) {
-            DrawMesh(*renderer.GetMesh(), renderer.GetMaterial(), renderer.GetEntity().GetTransform().GetWorldMatrix());
+            DrawMesh(*renderer.GetMesh(), renderer.GetMaterial() ? *renderer.GetMaterial() : DefaultMaterial,
+                     renderer.GetEntity().GetTransform().GetWorldMatrix());
         }
     });
 }

@@ -112,7 +112,7 @@ struct SceneSerializer {
         }
     }
 
-    static bool Load(Scene& scene, std::string_view text) {
+    static bool Load(Scene& scene, std::string_view text, AssetManager* assets) {
         json document = json::parse(text.begin(), text.end(), nullptr, false);
         if (document.is_discarded()) {
             Log::GetEngineLogger().Warning("Could not load the scene: the text is not valid JSON");
@@ -188,14 +188,15 @@ struct SceneSerializer {
             const auto components = entities[i].find("components");
             if (components != entities[i].end() && components->is_array()) {
                 for (json& saved : *components) {
-                    LoadComponent(entity, saved, ids);
+                    LoadComponent(entity, saved, ids, assets);
                 }
             }
         }
         return true;
     }
 
-    static void LoadComponent(Entity& entity, json& saved, const std::unordered_map<std::uint64_t, EntityId>& ids) {
+    static void LoadComponent(Entity& entity, json& saved, const std::unordered_map<std::uint64_t, EntityId>& ids,
+                              AssetManager* assets) {
         if (!saved.is_object()) {
             return;
         }
@@ -213,7 +214,7 @@ struct SceneSerializer {
         entity.Attach(std::move(owned));
 
         if (const auto data = saved.find("data"); data != saved.end() && data->is_object()) {
-            ArchiveState state{.loading = true, .nodes = {&*data}, .entityIds = &ids};
+            ArchiveState state{.loading = true, .nodes = {&*data}, .entityIds = &ids, .assets = assets};
             Archive archive(state);
             component.Serialize(archive);
         }
@@ -241,18 +242,18 @@ bool Scene::SaveToFile(const std::filesystem::path& path) const {
     return true;
 }
 
-bool Scene::LoadFromString(std::string_view text) {
-    return Detail::SceneSerializer::Load(*this, text);
+bool Scene::LoadFromString(std::string_view text, AssetManager* assets) {
+    return Detail::SceneSerializer::Load(*this, text, assets);
 }
 
-bool Scene::LoadFromFile(const std::filesystem::path& path) {
+bool Scene::LoadFromFile(const std::filesystem::path& path, AssetManager* assets) {
     std::ifstream file(path, std::ios::binary);
     if (!file) {
         Log::GetEngineLogger().Warning("Could not open the scene file '{}'", PathToUtf8(path));
         return false;
     }
     const std::string text{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
-    return LoadFromString(text);
+    return LoadFromString(text, assets);
 }
 
 std::string Entity::SaveToString() const {

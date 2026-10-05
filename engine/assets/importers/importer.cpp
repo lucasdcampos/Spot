@@ -33,6 +33,8 @@ ImporterInfo FindImporter(AssetType type) {
         return {&ImportModel, 1};
     case AssetType::Material:
         return {&ImportMaterial, 1};
+    case AssetType::Scene:
+        return {&ImportScene, 1};
     default:
         return {};
     }

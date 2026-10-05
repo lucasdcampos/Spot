@@ -157,4 +157,17 @@ std::optional<FontFile> DecodeFont(std::span<const std::byte> data) {
     return Finish(reader, std::move(font));
 }
 
+void EncodeScene(BinaryWriter& writer, std::string_view text) {
+    WriteArray(writer, std::span<const char>(text));
+}
+
+std::optional<std::string> DecodeScene(std::span<const std::byte> data) {
+    BinaryReader reader(data);
+    auto text = ReadArray<char>(reader);
+    if (!text) {
+        return std::nullopt;
+    }
+    return Finish(reader, std::string(text->begin(), text->end()));
+}
+
 } // namespace Spot::Detail

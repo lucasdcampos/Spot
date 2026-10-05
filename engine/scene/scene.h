@@ -14,6 +14,7 @@
 namespace Spot {
 
 class Application;
+class AssetManager;
 class Event;
 class RenderContext;
 
@@ -71,8 +72,10 @@ public:
     // Adds the saved entities to the scene, next to the ones it has. Their components start on the next Update().
     // Returns false, having added nothing, when the text is not a saved scene; components of unknown types are
     // skipped with a warning.
-    bool LoadFromString(std::string_view text);
-    bool LoadFromFile(const std::filesystem::path& path);
+    //
+    // References to assets load through the given asset manager, or the running application's when null.
+    bool LoadFromString(std::string_view text, AssetManager* assets = nullptr);
+    bool LoadFromFile(const std::filesystem::path& path, AssetManager* assets = nullptr);
 
     // The first component that is a T on any entity, active or not; null when there is none.
     template <std::derived_from<Component> T>

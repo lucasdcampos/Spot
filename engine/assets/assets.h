@@ -2,6 +2,7 @@
 
 #include "assets/asset_manager.h"
 
+#include <memory>
 #include <string_view>
 
 // Static access to the running application's assets, so components and scenes can load them without reaching for
@@ -25,6 +26,9 @@ AssetRef<T> Load(std::string_view path) {
     AssetManager* manager = GetManager();
     return manager ? manager->Load<T>(path) : AssetRef<T>();
 }
+
+// Null, after logging why, when there is no manager or the scene cannot be instantiated.
+std::unique_ptr<Scene> InstantiateScene(std::string_view path);
 
 } // namespace Spot::Assets
 

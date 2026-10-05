@@ -10,6 +10,10 @@
 #include <unordered_map>
 #include <vector>
 
+namespace Spot {
+class AssetManager;
+} // namespace Spot
+
 namespace Spot::Detail {
 
 struct ArchiveState {
@@ -18,6 +22,8 @@ struct ArchiveState {
     std::vector<nlohmann::json*> nodes;
     // When loading, maps the saved ids of the entities being loaded to their new ids. Without it, ids load as saved.
     const std::unordered_map<std::uint64_t, EntityId>* entityIds = nullptr;
+    // Loads asset references; the running application's when null.
+    AssetManager* assets = nullptr;
 };
 
 } // namespace Spot::Detail

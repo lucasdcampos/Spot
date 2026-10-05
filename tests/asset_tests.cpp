@@ -445,3 +445,82 @@ TEST_CASE("Materials extracted from a model replace the model's own", "[assets]"
     CHECK_FALSE(database.ExtractMaterial(cubeId, "materials/cube.material").has_value());
     CHECK_FALSE(database.ExtractMaterial(plainId, "materials/plain.png").has_value());
 }
+
+TEST_CASE("Scenes save mesh renderers by asset id and load them back through the asset manager", "[assets]") {
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    const auto imported = project.GetPath() / "imported";
+    const AssetId plainId = ImportProject(sources, imported);
+    Spot::AssetManager assets(imported);
+
+    // Without a GPU the meshes do not load, but their references keep their ids.
+    const auto model = assets.Load<Spot::Model>("models/cube.glb");
+    REQUIRE(model);
+    const AssetId meshId = model->GetParts()[1].mesh.GetId();
+
+    Spot::Scene scene;
+    Spot::Entity& cube = Spot::InstantiateModel(scene, *model, "Cube");
+    REQUIRE(cube.GetChildren().size() == 2);
+    // A material made in code is saved as null.
+    scene.CreateEntity("Custom").AddComponent<Spot::MeshRenderer>(Spot::AssetRef<Spot::Mesh>(),
+                                                                  Spot::Material{.baseColor = Spot::Color::Red});
+    const std::string text = scene.SaveToString();
+    CHECK(text.find(plainId.ToString()) != std::string::npos);
+    CHECK(text.find(meshId.ToString()) != std::string::npos);
+
+    Spot::Scene loaded;
+    REQUIRE(loaded.LoadFromString(text, &assets));
+    const Spot::Entity* loadedCube = loaded.FindEntity("Cube");
+    REQUIRE(loadedCube);
+    REQUIRE(loadedCube->GetChildren().size() == 2);
+    const auto* renderer = loadedCube->GetChildren()[1]->GetComponent<Spot::MeshRenderer>();
+    REQUIRE(renderer);
+    CHECK(renderer->GetMesh().GetId() == meshId);
+    CHECK(renderer->GetMaterial().GetId() == plainId);
+    // Loaded through the same manager, so shared with the model's.
+    CHECK(renderer->GetMaterial().Get() == model->GetParts()[1].material.Get());
+
+    const auto* custom = loaded.FindEntity("Custom")->GetComponent<Spot::MeshRenderer>();
+    REQUIRE(custom);
+    CHECK_FALSE(custom->GetMaterial());
+
+    // Without an asset manager, the ids are kept so saving again loses nothing.
+    Spot::Scene offline;
+    REQUIRE(offline.LoadFromString(text));
+    const auto* offlineRenderer = offline.FindEntity("Cube")->GetChildren()[1]->GetComponent<Spot::MeshRenderer>();
+    CHECK_FALSE(offlineRenderer->GetMaterial());
+    CHECK(offlineRenderer->GetMaterial().GetId() == plainId);
+    CHECK(offline.SaveToString().find(plainId.ToString()) != std::string::npos);
+}
+
+TEST_CASE("Scene files are assets that instantiate into new scenes", "[assets]") {
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    const auto imported = project.GetPath() / "imported";
+    const AssetId plainId = ImportProject(sources, imported);
+
+    {
+        Spot::AssetManager assets(imported);
+        Spot::Scene level;
+        level.CreateEntity("Floor").AddComponent<Spot::MeshRenderer>(Spot::AssetRef<Spot::Mesh>(),
+                                                                     assets.Load<Spot::Material>(plainId));
+        std::filesystem::create_directories(sources / "levels");
+        REQUIRE(level.SaveToFile(sources / "levels" / "first.scene"));
+    }
+    std::ofstream(sources / "levels" / "broken.scene", std::ios::binary) << "{ nope";
+    AssetDatabase database(sources, imported);
+    CHECK(database.Refresh() == 1);
+
+    Spot::AssetManager assets(imported);
+    const auto first = assets.InstantiateScene("levels/first.scene");
+    const auto second = assets.InstantiateScene("levels/first.scene");
+    REQUIRE((first && second));
+    CHECK(first.get() != second.get());
+    const auto* floor = first->FindEntity("Floor");
+    REQUIRE(floor);
+    CHECK(floor->GetComponent<Spot::MeshRenderer>()->GetMaterial()->baseColor == Spot::Color::Blue);
+
+    CHECK_FALSE(assets.InstantiateScene("levels/broken.scene"));
+    CHECK_FALSE(assets.InstantiateScene("pixels.png"));
+    CHECK_FALSE(Spot::Assets::InstantiateScene("levels/first.scene"));
+}

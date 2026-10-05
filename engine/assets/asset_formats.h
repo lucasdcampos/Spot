@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace Spot::Detail {
@@ -48,6 +49,8 @@ void Encode(BinaryWriter& writer, const MaterialSource& material);
 void Encode(BinaryWriter& writer, const std::vector<ModelFilePart>& parts);
 void Encode(BinaryWriter& writer, const SoundFile& sound);
 void Encode(BinaryWriter& writer, const FontFile& font);
+// Scenes are stored as the text Scene::SaveToString() makes.
+void EncodeScene(BinaryWriter& writer, std::string_view text);
 
 // Each returns nothing when the data is truncated, has extra bytes or is inconsistent.
 std::optional<TextureFile> DecodeTexture(std::span<const std::byte> data);
@@ -56,5 +59,6 @@ std::optional<MaterialSource> DecodeMaterial(std::span<const std::byte> data);
 std::optional<std::vector<ModelFilePart>> DecodeModel(std::span<const std::byte> data);
 std::optional<SoundFile> DecodeSound(std::span<const std::byte> data);
 std::optional<FontFile> DecodeFont(std::span<const std::byte> data);
+std::optional<std::string> DecodeScene(std::span<const std::byte> data);
 
 } // namespace Spot::Detail
