@@ -2,6 +2,9 @@ add_library(spot STATIC
     spot.h
     version.h
     version.cpp
+    audio/mixer.h
+    audio/mixer.cpp
+    audio/playback.h
     audio/sound.h
     audio/sound.cpp
     core/application.h

@@ -1,5 +1,7 @@
 #include "log_capture.h"
 
+#include "audio/mixer.h"
+
 #include <spot.h>
 
 #include <catch2/catch_approx.hpp>
@@ -14,6 +16,7 @@
 #include <initializer_list>
 #include <memory>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -117,4 +120,151 @@ TEST_CASE("Sounds can be built from samples", "[audio]") {
 
     CHECK(sound.GetFrameCount() == 3);
     CHECK(sound.GetDuration() == Catch::Approx(3.0f / 48000.0f));
+}
+
+namespace {
+
+std::shared_ptr<const Spot::Sound> MakeSound(std::uint32_t sampleRate, std::uint32_t channels,
+                                             std::vector<float> samples) {
+    return std::make_shared<Spot::Sound>(sampleRate, channels, std::move(samples));
+}
+
+std::vector<float> Mix(Spot::Detail::Mixer& mixer, std::size_t frameCount) {
+    std::vector<float> output(frameCount * 2, 123.0f);
+    mixer.Mix(output);
+    return output;
+}
+
+} // namespace
+
+TEST_CASE("The mixer plays mono sounds on both channels until they end", "[audio][mixer]") {
+    Spot::Detail::Mixer mixer(48000);
+    const auto instance = mixer.Play(MakeSound(48000, 1, {0.1f, 0.2f, 0.3f}));
+
+    CHECK(mixer.IsPlaying(instance));
+    CHECK(Mix(mixer, 4) == std::vector<float>{0.1f, 0.1f, 0.2f, 0.2f, 0.3f, 0.3f, 0.0f, 0.0f});
+    CHECK_FALSE(mixer.IsPlaying(instance));
+    CHECK(Mix(mixer, 1) == std::vector<float>{0.0f, 0.0f});
+}
+
+TEST_CASE("The mixer keeps the channels of stereo sounds apart", "[audio][mixer]") {
+    Spot::Detail::Mixer mixer(48000);
+    mixer.Play(MakeSound(48000, 2, {0.1f, -0.1f, 0.2f, -0.2f}));
+
+    CHECK(Mix(mixer, 2) == std::vector<float>{0.1f, -0.1f, 0.2f, -0.2f});
+}
+
+TEST_CASE("The mixer adds sounds together and clips the result", "[audio][mixer]") {
+    Spot::Detail::Mixer mixer(48000);
+    const auto sound = MakeSound(48000, 1, {0.25f, 0.75f});
+    mixer.Play(sound);
+    mixer.Play(sound);
+
+    CHECK(Mix(mixer, 2) == std::vector<float>{0.5f, 0.5f, 1.0f, 1.0f});
+}
+
+TEST_CASE("The mixer applies volume, master volume and pan", "[audio][mixer]") {
+    Spot::Detail::Mixer mixer(48000);
+    const auto sound = MakeSound(48000, 1, {0.5f, 0.5f, 0.5f, 0.5f});
+    const auto instance = mixer.Play(sound, {.volume = 0.5f, .pan = -1.0f, .loop = true});
+
+    CHECK(Mix(mixer, 1) == std::vector<float>{0.25f, 0.0f});
+
+    mixer.SetPan(instance, 1.0f);
+    CHECK(Mix(mixer, 1) == std::vector<float>{0.0f, 0.25f});
+
+    mixer.SetPan(instance, 0.5f);
+    mixer.SetVolume(instance, 1.0f);
+    mixer.SetMasterVolume(0.5f);
+    CHECK(mixer.GetMasterVolume() == 0.5f);
+    const auto output = Mix(mixer, 1);
+    CHECK(output[0] == Catch::Approx(0.125f));
+    CHECK(output[1] == Catch::Approx(0.25f));
+}
+
+TEST_CASE("Looping sounds start over until stopped", "[audio][mixer]") {
+    Spot::Detail::Mixer mixer(48000);
+    const auto instance = mixer.Play(MakeSound(48000, 1, {0.1f, 0.2f}), {.loop = true});
+
+    CHECK(Mix(mixer, 3) == std::vector<float>{0.1f, 0.1f, 0.2f, 0.2f, 0.1f, 0.1f});
+    CHECK(Mix(mixer, 1) == std::vector<float>{0.2f, 0.2f});
+    CHECK(mixer.IsPlaying(instance));
+
+    mixer.Stop(instance);
+    CHECK_FALSE(mixer.IsPlaying(instance));
+    CHECK(Mix(mixer, 1) == std::vector<float>{0.0f, 0.0f});
+}
+
+TEST_CASE("The mixer converts sample rates and applies pitch", "[audio][mixer]") {
+    Spot::Detail::Mixer mixer(48000);
+
+    SECTION("A sound at half the rate is stretched with interpolated frames") {
+        mixer.Play(MakeSound(24000, 1, {0.0f, 1.0f, 0.0f}));
+        const auto output = Mix(mixer, 4);
+        CHECK(output[0] == Catch::Approx(0.0f));
+        CHECK(output[2] == Catch::Approx(0.5f));
+        CHECK(output[4] == Catch::Approx(1.0f));
+        CHECK(output[6] == Catch::Approx(0.5f));
+    }
+
+    SECTION("Twice the pitch skips every other frame") {
+        const auto instance = mixer.Play(MakeSound(48000, 1, {0.1f, 0.2f, 0.3f, 0.4f}), {.pitch = 2.0f});
+        CHECK(Mix(mixer, 2) == std::vector<float>{0.1f, 0.1f, 0.3f, 0.3f});
+        CHECK_FALSE(mixer.IsPlaying(instance));
+    }
+
+    SECTION("Pitch can change while playing") {
+        const auto instance = mixer.Play(MakeSound(48000, 1, {0.1f, 0.2f, 0.3f, 0.4f}));
+        CHECK(Mix(mixer, 1) == std::vector<float>{0.1f, 0.1f});
+        mixer.SetPitch(instance, 2.0f);
+        CHECK(Mix(mixer, 2) == std::vector<float>{0.2f, 0.2f, 0.4f, 0.4f});
+    }
+}
+
+TEST_CASE("Paused sounds are silent and resume where they stopped", "[audio][mixer]") {
+    Spot::Detail::Mixer mixer(48000);
+    const auto instance = mixer.Play(MakeSound(48000, 1, {0.1f, 0.2f}));
+
+    CHECK(Mix(mixer, 1) == std::vector<float>{0.1f, 0.1f});
+    mixer.SetPaused(instance, true);
+    CHECK(mixer.IsPaused(instance));
+    CHECK(mixer.IsPlaying(instance));
+    CHECK(Mix(mixer, 1) == std::vector<float>{0.0f, 0.0f});
+    mixer.SetPaused(instance, false);
+    CHECK(Mix(mixer, 1) == std::vector<float>{0.2f, 0.2f});
+}
+
+TEST_CASE("Instances of ended sounds, the default instance and null sounds match nothing", "[audio][mixer]") {
+    Spot::Detail::Mixer mixer(48000);
+    const auto sound = MakeSound(48000, 1, {0.5f});
+
+    CHECK(mixer.Play(nullptr) == Spot::SoundInstance{});
+    CHECK_FALSE(mixer.IsPlaying({}));
+
+    const auto first = mixer.Play(sound);
+    Mix(mixer, 1);
+    const auto second = mixer.Play(sound);
+    CHECK(first != second);
+    CHECK_FALSE(mixer.IsPlaying(first));
+    CHECK(mixer.IsPlaying(second));
+
+    // Calls on an ended instance must not reach the playback that followed it.
+    mixer.Stop(first);
+    mixer.SetVolume(first, 0.0f);
+    CHECK(Mix(mixer, 1) == std::vector<float>{0.5f, 0.5f});
+
+    mixer.Play(sound, {.loop = true});
+    mixer.StopAll();
+    CHECK(Mix(mixer, 1) == std::vector<float>{0.0f, 0.0f});
+}
+
+TEST_CASE("The mixer releases sounds that ended on the next play", "[audio][mixer]") {
+    Spot::Detail::Mixer mixer(48000);
+    const auto sound = MakeSound(48000, 1, {0.5f});
+    mixer.Play(sound);
+    Mix(mixer, 1);
+
+    CHECK(sound.use_count() == 2);
+    mixer.Play(MakeSound(48000, 1, {0.5f}));
+    CHECK(sound.use_count() == 1);
 }
