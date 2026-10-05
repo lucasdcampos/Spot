@@ -3,6 +3,7 @@
 #include "graphics/camera_3d.h"
 #include "graphics/color.h"
 #include "graphics/light_data.h"
+#include "graphics/render_context.h"
 #include "graphics/sky_data.h"
 #include "graphics/texture.h"
 #include "math/matrix.h"
@@ -20,7 +21,6 @@ class GraphicsDevice;
 class Mesh;
 class Model;
 class Pipeline;
-class RenderPass;
 class Scene;
 struct Material;
 
@@ -45,12 +45,12 @@ struct Renderer3DStats {
     std::uint32_t triangleCount = 0;
 };
 
-// Draws lit, textured meshes with depth testing. Like Renderer2D, it is built only on the public graphics API and
-// draws inside a render pass the caller opens, which must have a depth target:
+// Draws lit, textured meshes with depth testing. Like Renderer2D, it is built only on the public graphics API. It
+// queues what is drawn between Begin() and End(), and End() opens the render pass described to Begin(), which must
+// have a depth target, and draws everything in it:
 //
-//     auto pass = context.BeginRenderPass({.clearColor = Spot::Color::Black, .depthTarget = depth.get(),
-//                                          .clearDepth = 1.0f});
-//     renderer.Begin(pass, camera, viewSize);
+//     renderer.Begin(context, {.clearColor = Spot::Color::Black, .depthTarget = depth.get(), .clearDepth = 1.0f},
+//                    camera);
 //     renderer.DrawLight({.type = Spot::LightType::Directional, .direction = {-0.4f, -1.0f, -0.6f}});
 //     renderer.DrawSky({.sunDirection = {-0.4f, -1.0f, -0.6f}});
 //     renderer.DrawModel(*model, Spot::Matrix4::Translation({0, 0, -5}));
@@ -58,7 +58,8 @@ struct Renderer3DStats {
 //
 // Surfaces are opaque, and lit only by the lights drawn between Begin() and End(), so without any they are black.
 // Ambient lights add up and are free; up to MaxLights others light each frame, and past that the directional ones and
-// then those that reach closest to the camera are kept. Meshes, models and textures must stay alive until End().
+// then those that reach closest to the camera are kept. Meshes, models, textures and the pass's targets must stay alive
+// until End(), and no other pass can be open then.
 class Renderer3D {
 public:
     static constexpr std::size_t MaxLights = 16;
@@ -72,8 +73,8 @@ public:
     // Whether its GPU resources were created; when not, drawing does nothing and the reason has been logged.
     bool IsValid() const;
 
-    // The view size only sets the aspect ratio.
-    void Begin(RenderPass& pass, const Camera3D& camera, Vector2 viewSize);
+    // The pass's target, or the window when it has none, sets the camera's aspect ratio.
+    void Begin(RenderContext& context, const RenderPassDesc& target, const Camera3D& camera);
     void End();
 
     // Lights everything drawn in the frame, whether drawn before or after it.
@@ -105,8 +106,8 @@ private:
         Matrix4 transform;
     };
 
-    void Flush();
-    void FlushSky(const SkyData& sky, const Detail::SkyLighting& lighting);
+    void Flush(RenderPass& pass);
+    void FlushSky(RenderPass& pass, const SkyData& sky, const Detail::SkyLighting& lighting);
 
     std::unique_ptr<Pipeline> m_pipeline;
     std::unique_ptr<Pipeline> m_doubleSidedPipeline;
@@ -115,7 +116,8 @@ private:
     std::unique_ptr<Texture> m_whiteTexture;
 
     std::vector<DrawCommand> m_commands;
-    RenderPass* m_pass = nullptr;
+    RenderContext* m_context = nullptr;
+    RenderPassDesc m_target;
     std::vector<LightData> m_lights;
     std::optional<SkyData> m_sky;
     Matrix4 m_viewProjection;

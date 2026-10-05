@@ -311,7 +311,7 @@ protected:
 
     void OnRender(Spot::RenderContext& context) override {
         const Spot::Vector2 view = GetWindow().GetSize();
-        Render3D(context, view);
+        Render3D(context);
 
         // The HUD has its own pass, without the depth target of the 3D view, which Renderer2D does not draw with.
         auto hud = context.BeginRenderPass();
@@ -319,7 +319,7 @@ protected:
     }
 
 private:
-    void Render3D(Spot::RenderContext& context, Spot::Vector2 view) {
+    void Render3D(Spot::RenderContext& context) {
         // The targets must match the frame, whose size changes with the window. With several samples, the view is
         // drawn into a multisampled target that the pass resolves into the window.
         auto& device = GetGraphicsDevice();
@@ -344,11 +344,12 @@ private:
 
         const auto* scene = dynamic_cast<PlaygroundScene*>(GetScene());
         // The scene's sky covers the whole view, so the clear color never shows.
-        auto pass = context.BeginRenderPass({.target = m_samples.get(),
-                                             .depthTarget = m_depth.get(),
-                                             .clearDepth = 1.0f,
-                                             .resolveToWindow = m_samples != nullptr});
+        const Spot::RenderPassDesc target{.target = m_samples.get(),
+                                          .depthTarget = m_depth.get(),
+                                          .clearDepth = 1.0f,
+                                          .resolveToWindow = m_samples != nullptr};
         if (!m_renderer3D || !scene || !scene->GetPlayer()) {
+            context.BeginRenderPass(target);
             return;
         }
 
@@ -359,7 +360,7 @@ private:
         camera.rotation = player.GetViewRotation();
         camera.fieldOfView = Spot::ToRadians(75.0f);
 
-        m_renderer3D->Begin(pass, camera, view);
+        m_renderer3D->Begin(context, target, camera);
         m_renderer3D->DrawScene(*GetScene());
         m_renderer3D->End();
         m_stats3D = m_renderer3D->GetStats();

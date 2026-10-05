@@ -226,9 +226,15 @@ bool Renderer3D::IsValid() const {
     return m_pipeline && m_doubleSidedPipeline && m_skyPipeline && m_sampler && m_whiteTexture;
 }
 
-void Renderer3D::Begin(RenderPass& pass, const Camera3D& camera, Vector2 viewSize) {
-    SPOT_ASSERT(!m_pass, "Renderer3D::Begin() called twice without End()");
-    m_pass = &pass;
+void Renderer3D::Begin(RenderContext& context, const RenderPassDesc& target, const Camera3D& camera) {
+    SPOT_ASSERT(!m_context, "Renderer3D::Begin() called twice without End()");
+    SPOT_ASSERT(target.depthTarget && !target.depthOnly, "Renderer3D draws in passes with a color and a depth target");
+    m_context = &context;
+    m_target = target;
+    const Vector2 viewSize =
+        target.target
+            ? Vector2{static_cast<float>(target.target->GetWidth()), static_cast<float>(target.target->GetHeight())}
+            : Vector2{static_cast<float>(context.GetWidth()), static_cast<float>(context.GetHeight())};
     m_viewProjection = camera.GetViewProjection(viewSize);
     m_inverseSkyViewProjection = Inverse(camera.GetProjection(viewSize) * Matrix4::Rotation(Inverse(camera.rotation)));
     m_cameraPosition = camera.position;
@@ -238,23 +244,24 @@ void Renderer3D::Begin(RenderPass& pass, const Camera3D& camera, Vector2 viewSiz
 }
 
 void Renderer3D::End() {
-    SPOT_ASSERT(m_pass, "Renderer3D::End() called without Begin()");
-    Flush();
-    m_pass = nullptr;
+    SPOT_ASSERT(m_context, "Renderer3D::End() called without Begin()");
+    auto pass = m_context->BeginRenderPass(m_target);
+    Flush(pass);
+    m_context = nullptr;
 }
 
 void Renderer3D::DrawLight(const LightData& light) {
-    SPOT_ASSERT(m_pass, "Draw calls must come between Begin() and End()");
+    SPOT_ASSERT(m_context, "Draw calls must come between Begin() and End()");
     m_lights.push_back(light);
 }
 
 void Renderer3D::DrawSky(const SkyData& sky) {
-    SPOT_ASSERT(m_pass, "Draw calls must come between Begin() and End()");
+    SPOT_ASSERT(m_context, "Draw calls must come between Begin() and End()");
     m_sky = sky;
 }
 
 void Renderer3D::DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform) {
-    SPOT_ASSERT(m_pass, "Draw calls must come between Begin() and End()");
+    SPOT_ASSERT(m_context, "Draw calls must come between Begin() and End()");
     m_commands.push_back({&mesh, material.baseColorTexture.Get(), material.baseColor, material.doubleSided,
                           material.worldTextureSize, material.specular, material.shininess, transform});
 }
@@ -291,7 +298,7 @@ void Renderer3D::DrawScene(Scene& scene) {
     });
 }
 
-void Renderer3D::FlushSky(const SkyData& sky, const SkyLighting& lighting) {
+void Renderer3D::FlushSky(RenderPass& pass, const SkyData& sky, const SkyLighting& lighting) {
     const Vector3 toSun = -Normalize(sky.sunDirection);
     const bool hasSun = sky.hasSun && toSun != Vector3{};
     const float intensity = hasSun ? sky.sunIntensity : 0.0f;
@@ -301,9 +308,9 @@ void Renderer3D::FlushSky(const SkyData& sky, const SkyLighting& lighting) {
         groundLight = groundLight + lighting.sun->color * std::max(toSun.y, 0.0f);
     }
 
-    m_pass->BindPipeline(*m_skyPipeline);
-    m_pass->PushVertexUniforms(0, m_inverseSkyViewProjection);
-    m_pass->PushFragmentUniforms(
+    pass.BindPipeline(*m_skyPipeline);
+    pass.PushVertexUniforms(0, m_inverseSkyViewProjection);
+    pass.PushFragmentUniforms(
         0, SkyUniforms{
                .sunDirection = {toSun.x, toSun.y, toSun.z, hasSun ? 1.0f : 0.0f},
                .sunColor = {sky.sunColor.r * intensity, sky.sunColor.g * intensity, sky.sunColor.b * intensity, 1.0f},
@@ -315,19 +322,19 @@ void Renderer3D::FlushSky(const SkyData& sky, const SkyLighting& lighting) {
                .settings = {std::max(sky.sunSize, 0.0f), std::max(sky.atmosphereThickness, 0.0f),
                             std::max(sky.exposure, 0.0f), 0.0f},
            });
-    m_pass->Draw(3);
+    pass.Draw(3);
     ++m_stats.drawCalls;
     ++m_stats.triangleCount;
 }
 
-void Renderer3D::Flush() {
+void Renderer3D::Flush(RenderPass& pass) {
     m_stats = {};
     if (!IsValid()) {
         return;
     }
     if (m_sky) {
         const SkyLighting lighting = GetSkyLighting(*m_sky);
-        FlushSky(*m_sky, lighting);
+        FlushSky(pass, *m_sky, lighting);
         if (m_sky->lightsScene) {
             if (lighting.sun) {
                 m_lights.push_back(*lighting.sun);
@@ -344,32 +351,32 @@ void Renderer3D::Flush() {
         return std::tie(a.doubleSided, a.texture) < std::tie(b.doubleSided, b.texture);
     });
 
-    m_pass->PushVertexUniforms(0, m_viewProjection);
-    m_pass->PushFragmentUniforms(0, GetLightingUniforms(m_lights, m_cameraPosition, m_warnedAboutLights));
+    pass.PushVertexUniforms(0, m_viewProjection);
+    pass.PushFragmentUniforms(0, GetLightingUniforms(m_lights, m_cameraPosition, m_warnedAboutLights));
 
     const Pipeline* boundPipeline = nullptr;
     const Texture* boundTexture = nullptr;
     for (const auto& command : m_commands) {
         const Pipeline* pipeline = command.doubleSided ? m_doubleSidedPipeline.get() : m_pipeline.get();
         if (pipeline != boundPipeline) {
-            m_pass->BindPipeline(*pipeline);
+            pass.BindPipeline(*pipeline);
             boundPipeline = pipeline;
         }
         const Texture* texture = command.texture ? command.texture : m_whiteTexture.get();
         if (texture != boundTexture) {
-            m_pass->BindFragmentTexture(0, *texture, *m_sampler);
+            pass.BindFragmentTexture(0, *texture, *m_sampler);
             boundTexture = texture;
         }
 
-        m_pass->BindVertexBuffer(0, command.mesh->GetVertexBuffer());
-        m_pass->BindIndexBuffer(command.mesh->GetIndexBuffer(), IndexType::UInt32);
-        m_pass->PushVertexUniforms(1, ObjectUniforms{command.transform, Transpose(Inverse(command.transform))});
-        m_pass->PushFragmentUniforms(1, MaterialUniforms{.baseColor = command.color,
-                                                         .doubleSided = command.doubleSided ? 1.0f : 0.0f,
-                                                         .worldTextureSize = command.worldTextureSize,
-                                                         .specular = command.specular,
-                                                         .shininess = command.shininess});
-        m_pass->DrawIndexed(command.mesh->GetIndexCount());
+        pass.BindVertexBuffer(0, command.mesh->GetVertexBuffer());
+        pass.BindIndexBuffer(command.mesh->GetIndexBuffer(), IndexType::UInt32);
+        pass.PushVertexUniforms(1, ObjectUniforms{command.transform, Transpose(Inverse(command.transform))});
+        pass.PushFragmentUniforms(1, MaterialUniforms{.baseColor = command.color,
+                                                      .doubleSided = command.doubleSided ? 1.0f : 0.0f,
+                                                      .worldTextureSize = command.worldTextureSize,
+                                                      .specular = command.specular,
+                                                      .shininess = command.shininess});
+        pass.DrawIndexed(command.mesh->GetIndexCount());
 
         ++m_stats.drawCalls;
         m_stats.triangleCount += command.mesh->GetIndexCount() / 3;

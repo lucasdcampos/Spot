@@ -691,10 +691,10 @@ namespace {
 using Pixel = std::array<std::uint8_t, 4>;
 
 // Renders one frame into a color and depth target of the given size and reads it back. With several samples, it draws
-// into multisampled targets resolved into the color target.
+// into multisampled targets resolved into the color target. The draw function opens the pass described.
 class TargetRender {
 public:
-    using Draw = std::function<void(Spot::GraphicsDevice&, Spot::RenderPass&, Spot::Vector2 viewSize)>;
+    using Draw = std::function<void(Spot::GraphicsDevice&, Spot::RenderContext&, const Spot::RenderPassDesc& target)>;
 
     TargetRender(int width, int height, Draw draw, Spot::AssetConfig assets = {}, std::uint32_t sampleCount = 1)
         : m_width(width), m_height(height) {
@@ -724,12 +724,12 @@ public:
                                                          .renderTarget = true,
                                                          .sampleCount = sampleCount});
                 REQUIRE((target && depth && (samples || sampleCount == 1)));
-                auto pass = context.BeginRenderPass({.target = samples ? samples.get() : target.get(),
-                                                     .clearColor = Spot::Color::Black,
-                                                     .depthTarget = depth.get(),
-                                                     .clearDepth = 1.0f,
-                                                     .resolveTarget = samples ? target.get() : nullptr});
-                draw(device, pass, {static_cast<float>(width), static_cast<float>(height)});
+                draw(device, context,
+                     {.target = samples ? samples.get() : target.get(),
+                      .clearColor = Spot::Color::Black,
+                      .depthTarget = depth.get(),
+                      .clearDepth = 1.0f,
+                      .resolveTarget = samples ? target.get() : nullptr});
             },
             std::move(assets));
         REQUIRE(application.Run() == EXIT_SUCCESS);
@@ -768,21 +768,23 @@ TEST_CASE("Renderer3D draws lit meshes with depth testing", "[gpu]") {
     RequireGpu();
     Spot::Renderer3DStats stats;
 
-    const TargetRender render(32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
-        Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-        REQUIRE(renderer.IsValid());
-        const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
-        REQUIRE(cube != nullptr);
+    const TargetRender render(
+        32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            REQUIRE(renderer.IsValid());
+            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            REQUIRE(cube != nullptr);
 
-        // The large far cube is drawn last but stays behind the small near one.
-        renderer.Begin(pass, MakeFrontCamera(), view);
-        renderer.DrawLight(FrontLight);
-        renderer.DrawMesh(*cube, {.baseColor = Spot::Color::Green});
-        renderer.DrawMesh(*cube, {.baseColor = Spot::Color::Red},
-                          Spot::Matrix4::Translation({0.0f, 0.0f, -2.0f}) * Spot::Matrix4::Scale({3.0f, 3.0f, 3.0f}));
-        renderer.End();
-        stats = renderer.GetStats();
-    });
+            // The large far cube is drawn last but stays behind the small near one.
+            renderer.Begin(context, target, MakeFrontCamera());
+            renderer.DrawLight(FrontLight);
+            renderer.DrawMesh(*cube, {.baseColor = Spot::Color::Green});
+            renderer.DrawMesh(*cube, {.baseColor = Spot::Color::Red},
+                              Spot::Matrix4::Translation({0.0f, 0.0f, -2.0f}) *
+                                  Spot::Matrix4::Scale({3.0f, 3.0f, 3.0f}));
+            renderer.End();
+            stats = renderer.GetStats();
+        });
 
     CHECK(stats.drawCalls == 2);
     CHECK(stats.triangleCount == 24);
@@ -796,13 +798,14 @@ TEST_CASE("Renderer3D hides back faces unless the material is double-sided", "[g
 
     for (const bool doubleSided : {false, true}) {
         const TargetRender render(
-            16, 16, [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
+            16, 16,
+            [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
                 Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
                 const auto plane = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(2.0f));
                 REQUIRE(plane != nullptr);
 
                 // The plane faces +Y; a quarter turn around X makes it face away from the camera.
-                renderer.Begin(pass, MakeFrontCamera(), view);
+                renderer.Begin(context, target, MakeFrontCamera());
                 renderer.DrawLight(FrontLight);
                 renderer.DrawMesh(
                     *plane, {.baseColor = Spot::Color::Blue, .doubleSided = doubleSided},
@@ -823,7 +826,8 @@ TEST_CASE("Renderer3D projects textures from world space when asked", "[gpu]") {
     // the center is black with the UVs and white with the projection. A unit is about 18.5 pixels here.
     for (const bool projected : {false, true}) {
         const TargetRender render(
-            64, 64, [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
+            64, 64,
+            [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
                 Spot::Renderer3D renderer(
                     device, {.filter = Spot::TextureFilter::Nearest, .targetFormat = Spot::TextureFormat::Rgba8});
                 const auto plane = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane());
@@ -833,7 +837,7 @@ TEST_CASE("Renderer3D projects textures from world space when asked", "[gpu]") {
 
                 const Spot::Material material{.baseColorTexture = Spot::AssetRef<Spot::Texture>(texture),
                                               .worldTextureSize = projected ? 1.0f : 0.0f};
-                renderer.Begin(pass, MakeFrontCamera(), view);
+                renderer.Begin(context, target, MakeFrontCamera());
                 renderer.DrawLight(FrontLight);
                 renderer.DrawMesh(*plane, material,
                                   Spot::Matrix4::Rotation(Spot::Quaternion::FromAxisAngle({1, 0, 0}, Spot::Pi / 2.0f)) *
@@ -856,7 +860,8 @@ TEST_CASE("Renderer3D samples mipmaps, anisotropically when asked", "[gpu]") {
     // where the full-size texture would alias, while anisotropic filtering can keep them apart.
     const auto contrastFar = [](float maxAnisotropy) {
         const TargetRender render(
-            64, 64, [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
+            64, 64,
+            [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
                 Spot::Renderer3D renderer(device,
                                           {.maxAnisotropy = maxAnisotropy, .targetFormat = Spot::TextureFormat::Rgba8});
                 const auto plane = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(100.0f));
@@ -872,7 +877,7 @@ TEST_CASE("Renderer3D samples mipmaps, anisotropically when asked", "[gpu]") {
 
                 Spot::Camera3D camera;
                 camera.position = {0.0f, 0.25f, 0.0f};
-                renderer.Begin(pass, camera, view);
+                renderer.Begin(context, target, camera);
                 renderer.DrawLight({.type = Spot::LightType::Directional, .direction = {0.0f, -1.0f, 0.0f}});
                 renderer.DrawMesh(
                     *plane, {.baseColorTexture = Spot::AssetRef<Spot::Texture>(texture), .worldTextureSize = 4.0f});
@@ -905,13 +910,13 @@ TEST_CASE("Multisampled targets smooth the edges they resolve", "[gpu]") {
     const auto countEdgeShades = [](std::uint32_t sampleCount) {
         const TargetRender render(
             32, 32,
-            [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
+            [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
                 Spot::Renderer3D renderer(device,
                                           {.targetFormat = Spot::TextureFormat::Rgba8, .sampleCount = sampleCount});
                 REQUIRE(renderer.IsValid());
                 const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
                 REQUIRE(cube != nullptr);
-                renderer.Begin(pass, MakeFrontCamera(), view);
+                renderer.Begin(context, target, MakeFrontCamera());
                 renderer.DrawLight(FrontLight);
                 renderer.DrawMesh(*cube, {.baseColor = Spot::Color::Green},
                                   Spot::Matrix4::Rotation(Spot::Quaternion::FromAxisAngle({0, 0, 1}, 0.3f)));
@@ -997,27 +1002,28 @@ TEST_CASE("Models load with their materials and draw textured", "[gpu]") {
 
     // The quad spans [-2, 2] at z = -2, which covers pixels 5 to 26 from z = 3. Its texture's red, green and blue
     // texels land in its top-left, top-right and bottom-left quarters.
-    const TargetRender render(32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
-        auto model = Spot::Model::Load(device, modelPath);
-        REQUIRE(model != nullptr);
-        parts = model->GetParts().size();
-        REQUIRE(model->GetParts().size() == 1);
-        auto& part = model->GetParts()[0];
-        REQUIRE(part.material);
-        REQUIRE(part.material->baseColorTexture);
-        mipLevels = part.material->baseColorTexture->GetMipLevelCount();
-        // Replaces the file's tint, so the texels come out unchanged.
-        Spot::Material untinted = *part.material;
-        untinted.baseColor = Spot::Color::White;
-        part.material = std::make_shared<const Spot::Material>(untinted);
+    const TargetRender render(
+        32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            auto model = Spot::Model::Load(device, modelPath);
+            REQUIRE(model != nullptr);
+            parts = model->GetParts().size();
+            REQUIRE(model->GetParts().size() == 1);
+            auto& part = model->GetParts()[0];
+            REQUIRE(part.material);
+            REQUIRE(part.material->baseColorTexture);
+            mipLevels = part.material->baseColorTexture->GetMipLevelCount();
+            // Replaces the file's tint, so the texels come out unchanged.
+            Spot::Material untinted = *part.material;
+            untinted.baseColor = Spot::Color::White;
+            part.material = std::make_shared<const Spot::Material>(untinted);
 
-        Spot::Renderer3D renderer(device,
-                                  {.filter = Spot::TextureFilter::Nearest, .targetFormat = Spot::TextureFormat::Rgba8});
-        renderer.Begin(pass, MakeFrontCamera(), view);
-        renderer.DrawLight(FrontLight);
-        renderer.DrawModel(*model);
-        renderer.End();
-    });
+            Spot::Renderer3D renderer(
+                device, {.filter = Spot::TextureFilter::Nearest, .targetFormat = Spot::TextureFormat::Rgba8});
+            renderer.Begin(context, target, MakeFrontCamera());
+            renderer.DrawLight(FrontLight);
+            renderer.DrawModel(*model);
+            renderer.End();
+        });
 
     CHECK(parts == 1);
     CHECK(mipLevels == 2);
@@ -1030,38 +1036,40 @@ TEST_CASE("Renderer3D draws the active mesh renderers of a scene at their world 
     RequireGpu();
     Spot::Renderer3DStats stats;
 
-    const TargetRender render(32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
-        Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-        const std::shared_ptr<const Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
-        REQUIRE(cube != nullptr);
+    const TargetRender render(
+        32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            const std::shared_ptr<const Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            REQUIRE(cube != nullptr);
 
-        Spot::Scene scene;
-        scene.CreateEntity("Near").AddComponent<Spot::MeshRenderer>(cube,
-                                                                    Spot::Material{.baseColor = Spot::Color::Green});
+            Spot::Scene scene;
+            scene.CreateEntity("Near").AddComponent<Spot::MeshRenderer>(
+                cube, Spot::Material{.baseColor = Spot::Color::Green});
 
-        // The far cube gets its place and size from its parent.
-        auto& parent = scene.CreateEntity("Parent");
-        parent.GetTransform().SetPosition({0.0f, 0.0f, -2.0f});
-        parent.GetTransform().SetScale({3.0f, 3.0f, 3.0f});
-        parent.CreateChild("Far").AddComponent<Spot::MeshRenderer>(cube, Spot::Material{.baseColor = Spot::Color::Red});
+            // The far cube gets its place and size from its parent.
+            auto& parent = scene.CreateEntity("Parent");
+            parent.GetTransform().SetPosition({0.0f, 0.0f, -2.0f});
+            parent.GetTransform().SetScale({3.0f, 3.0f, 3.0f});
+            parent.CreateChild("Far").AddComponent<Spot::MeshRenderer>(cube,
+                                                                       Spot::Material{.baseColor = Spot::Color::Red});
 
-        // None of these would let the green cube show, were they drawn.
-        const Spot::Material blue{.baseColor = Spot::Color::Blue};
-        auto& inactive = scene.CreateEntity("Inactive");
-        inactive.GetTransform().SetPosition({0.0f, 0.0f, 1.0f});
-        inactive.AddComponent<Spot::MeshRenderer>(cube, blue);
-        inactive.SetActive(false);
-        auto& disabled = scene.CreateEntity("Disabled");
-        disabled.GetTransform().SetPosition({0.0f, 0.0f, 1.0f});
-        disabled.AddComponent<Spot::MeshRenderer>(cube, blue).SetEnabled(false);
-        scene.CreateEntity("Empty").AddComponent<Spot::MeshRenderer>();
+            // None of these would let the green cube show, were they drawn.
+            const Spot::Material blue{.baseColor = Spot::Color::Blue};
+            auto& inactive = scene.CreateEntity("Inactive");
+            inactive.GetTransform().SetPosition({0.0f, 0.0f, 1.0f});
+            inactive.AddComponent<Spot::MeshRenderer>(cube, blue);
+            inactive.SetActive(false);
+            auto& disabled = scene.CreateEntity("Disabled");
+            disabled.GetTransform().SetPosition({0.0f, 0.0f, 1.0f});
+            disabled.AddComponent<Spot::MeshRenderer>(cube, blue).SetEnabled(false);
+            scene.CreateEntity("Empty").AddComponent<Spot::MeshRenderer>();
 
-        renderer.Begin(pass, MakeFrontCamera(), view);
-        renderer.DrawLight(FrontLight);
-        renderer.DrawScene(scene);
-        renderer.End();
-        stats = renderer.GetStats();
-    });
+            renderer.Begin(context, target, MakeFrontCamera());
+            renderer.DrawLight(FrontLight);
+            renderer.DrawScene(scene);
+            renderer.End();
+            stats = renderer.GetStats();
+        });
 
     CHECK(stats.drawCalls == 2);
     CHECK(IsNear(render.At(16, 16), {0, 255, 0, 255}));
@@ -1075,15 +1083,16 @@ namespace {
 // the lights drawn.
 TargetRender RenderLitWall(const std::function<void(Spot::Renderer3D&)>& drawLights,
                            const Spot::Material& material = {}) {
-    return TargetRender(32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
-        Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-        const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
-        REQUIRE(cube != nullptr);
-        renderer.Begin(pass, MakeFrontCamera(), view);
-        drawLights(renderer);
-        renderer.DrawMesh(*cube, material, Spot::Matrix4::Scale({20.0f, 20.0f, 1.0f}));
-        renderer.End();
-    });
+    return TargetRender(
+        32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            REQUIRE(cube != nullptr);
+            renderer.Begin(context, target, MakeFrontCamera());
+            drawLights(renderer);
+            renderer.DrawMesh(*cube, material, Spot::Matrix4::Scale({20.0f, 20.0f, 1.0f}));
+            renderer.End();
+        });
 }
 
 } // namespace
@@ -1191,18 +1200,19 @@ TEST_CASE("Images become sRGB textures that shaders read as linear colors", "[gp
 
     // Mid-gray as stored in an image is about a fifth of white's light, so a white light shows it at that value in a
     // target that stores values as they are.
-    const TargetRender render(32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
-        Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-        const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
-        const std::shared_ptr<Spot::Texture> gray =
-            device.CreateTexture(Spot::Image(1, 1, std::vector<std::uint8_t>{128, 128, 128, 255}));
-        REQUIRE((cube && gray));
-        CHECK(gray->GetFormat() == Spot::TextureFormat::Rgba8Srgb);
-        renderer.Begin(pass, MakeFrontCamera(), view);
-        renderer.DrawLight(FrontLight);
-        renderer.DrawMesh(*cube, {.baseColorTexture = Spot::AssetRef<Spot::Texture>(gray)});
-        renderer.End();
-    });
+    const TargetRender render(
+        32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            const std::shared_ptr<Spot::Texture> gray =
+                device.CreateTexture(Spot::Image(1, 1, std::vector<std::uint8_t>{128, 128, 128, 255}));
+            REQUIRE((cube && gray));
+            CHECK(gray->GetFormat() == Spot::TextureFormat::Rgba8Srgb);
+            renderer.Begin(context, target, MakeFrontCamera());
+            renderer.DrawLight(FrontLight);
+            renderer.DrawMesh(*cube, {.baseColorTexture = Spot::AssetRef<Spot::Texture>(gray)});
+            renderer.End();
+        });
 
     CHECK(IsNear(render.At(16, 16), {55, 55, 55, 255}));
 }
@@ -1210,24 +1220,25 @@ TEST_CASE("Images become sRGB textures that shaders read as linear colors", "[gp
 TEST_CASE("Renderer3D lights scenes with their active lights", "[gpu]") {
     RequireGpu();
 
-    const TargetRender render(32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
-        Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-        const std::shared_ptr<const Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
-        REQUIRE(cube != nullptr);
+    const TargetRender render(
+        32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            const std::shared_ptr<const Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            REQUIRE(cube != nullptr);
 
-        Spot::Scene scene;
-        scene.CreateEntity("Wall").AddComponent<Spot::MeshRenderer>(cube);
-        // With no rotation, it shines down -Z, straight onto the wall's front.
-        scene.CreateEntity("Sun").AddComponent<Spot::DirectionalLight>(Spot::Color::Green);
-        scene.CreateEntity("Disabled").AddComponent<Spot::AmbientLight>(Spot::Color::Red, 1.0f).SetEnabled(false);
-        auto& inactive = scene.CreateEntity("Inactive");
-        inactive.AddComponent<Spot::AmbientLight>(Spot::Color::Blue, 1.0f);
-        inactive.SetActive(false);
+            Spot::Scene scene;
+            scene.CreateEntity("Wall").AddComponent<Spot::MeshRenderer>(cube);
+            // With no rotation, it shines down -Z, straight onto the wall's front.
+            scene.CreateEntity("Sun").AddComponent<Spot::DirectionalLight>(Spot::Color::Green);
+            scene.CreateEntity("Disabled").AddComponent<Spot::AmbientLight>(Spot::Color::Red, 1.0f).SetEnabled(false);
+            auto& inactive = scene.CreateEntity("Inactive");
+            inactive.AddComponent<Spot::AmbientLight>(Spot::Color::Blue, 1.0f);
+            inactive.SetActive(false);
 
-        renderer.Begin(pass, MakeFrontCamera(), view);
-        renderer.DrawScene(scene);
-        renderer.End();
-    });
+            renderer.Begin(context, target, MakeFrontCamera());
+            renderer.DrawScene(scene);
+            renderer.End();
+        });
 
     CHECK(IsNear(render.At(16, 16), {0, 255, 0, 255}));
 }
@@ -1236,13 +1247,14 @@ namespace {
 
 // The sky seen by the front camera, which looks along the horizon: the top rows are sky and the bottom ones ground.
 TargetRender RenderSky(const Spot::SkyData& sky, const Spot::Camera3D& camera = MakeFrontCamera()) {
-    return TargetRender(32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
-        Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-        REQUIRE(renderer.IsValid());
-        renderer.Begin(pass, camera, view);
-        renderer.DrawSky(sky);
-        renderer.End();
-    });
+    return TargetRender(
+        32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            REQUIRE(renderer.IsValid());
+            renderer.Begin(context, target, camera);
+            renderer.DrawSky(sky);
+            renderer.End();
+        });
 }
 
 } // namespace
@@ -1263,17 +1275,18 @@ TEST_CASE("Renderer3D draws a blue sky over the ground's color", "[gpu]") {
 TEST_CASE("Renderer3D draws the sky behind meshes", "[gpu]") {
     RequireGpu();
 
-    const TargetRender render(32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
-        Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-        const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
-        REQUIRE(cube != nullptr);
-        renderer.Begin(pass, MakeFrontCamera(), view);
-        renderer.DrawLight(FrontLight);
-        renderer.DrawMesh(*cube, {.baseColor = Spot::Color::Green});
-        // Drawn last, yet behind. It does not light the cube, which shows the front light alone.
-        renderer.DrawSky({.lightsScene = false});
-        renderer.End();
-    });
+    const TargetRender render(
+        32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            REQUIRE(cube != nullptr);
+            renderer.Begin(context, target, MakeFrontCamera());
+            renderer.DrawLight(FrontLight);
+            renderer.DrawMesh(*cube, {.baseColor = Spot::Color::Green});
+            // Drawn last, yet behind. It does not light the cube, which shows the front light alone.
+            renderer.DrawSky({.lightsScene = false});
+            renderer.End();
+        });
 
     CHECK(IsNear(render.At(16, 16), {0, 255, 0, 255}));
     CHECK(render.At(16, 2)[2] > 120);
@@ -1329,26 +1342,28 @@ TEST_CASE("Renderer3D lights scenes with the sun of their sky through its air", 
 
     // A sun below the horizon would light the wall's front on its own, but the sky hides it.
     const auto render = [](float sunHeight) {
-        return TargetRender(32, 32, [=](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
-            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-            const std::shared_ptr<const Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
-            REQUIRE(cube != nullptr);
+        return TargetRender(
+            32, 32,
+            [=](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+                Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+                const std::shared_ptr<const Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+                REQUIRE(cube != nullptr);
 
-            Spot::Scene scene;
-            auto& wall = scene.CreateEntity("Wall");
-            wall.GetTransform().SetScale({20.0f, 20.0f, 1.0f});
-            wall.AddComponent<Spot::MeshRenderer>(cube);
-            auto& sun = scene.CreateEntity("Sun");
-            sun.GetTransform().SetRotation(Spot::Quaternion::LookRotation({0.0f, -sunHeight, -1.0f}));
-            sun.AddComponent<Spot::DirectionalLight>();
-            auto& sky = scene.CreateEntity("Sky").AddComponent<Spot::Sky>();
-            sky.SetAmbientIntensity(0.0f);
-            sky.SetNightColor(Spot::Color::Black);
+                Spot::Scene scene;
+                auto& wall = scene.CreateEntity("Wall");
+                wall.GetTransform().SetScale({20.0f, 20.0f, 1.0f});
+                wall.AddComponent<Spot::MeshRenderer>(cube);
+                auto& sun = scene.CreateEntity("Sun");
+                sun.GetTransform().SetRotation(Spot::Quaternion::LookRotation({0.0f, -sunHeight, -1.0f}));
+                sun.AddComponent<Spot::DirectionalLight>();
+                auto& sky = scene.CreateEntity("Sky").AddComponent<Spot::Sky>();
+                sky.SetAmbientIntensity(0.0f);
+                sky.SetNightColor(Spot::Color::Black);
 
-            renderer.Begin(pass, MakeFrontCamera(), view);
-            renderer.DrawScene(scene);
-            renderer.End();
-        });
+                renderer.Begin(context, target, MakeFrontCamera());
+                renderer.DrawScene(scene);
+                renderer.End();
+            });
     };
 
     CHECK(render(1.0f).At(16, 16)[0] > 120);
@@ -1415,34 +1430,34 @@ TEST_CASE("Models imported as assets load onto the GPU and draw textured", "[gpu
     float fontSize = 0.0f;
     int builtInIndices = 0;
 
-    const TargetRender render(32, 32,
-                              [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
-                                  const auto model = Spot::Assets::Load<Spot::Model>("models/textured_quad.gltf");
-                                  REQUIRE(model);
-                                  REQUIRE(model->GetParts().size() == 1);
-                                  const auto& part = model->GetParts()[0];
-                                  REQUIRE((part.mesh && part.material && part.material->baseColorTexture));
-                                  mipLevels = part.material->baseColorTexture->GetMipLevelCount();
-                                  shared = Spot::Assets::Load<Spot::Material>(part.material.GetId()).Get() ==
-                                           part.material.Get();
-                                  if (const auto font = Spot::Assets::Load<Spot::Font>("fonts/FiraSans-Regular.ttf")) {
-                                      fontSize = font->GetPixelSize();
-                                  }
-                                  if (const auto cube = Spot::Assets::Load<Spot::Mesh>(Spot::BuiltInAssets::CubeMesh)) {
-                                      builtInIndices = static_cast<int>(cube->GetIndexCount());
-                                  }
+    const TargetRender render(
+        32, 32,
+        [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            const auto model = Spot::Assets::Load<Spot::Model>("models/textured_quad.gltf");
+            REQUIRE(model);
+            REQUIRE(model->GetParts().size() == 1);
+            const auto& part = model->GetParts()[0];
+            REQUIRE((part.mesh && part.material && part.material->baseColorTexture));
+            mipLevels = part.material->baseColorTexture->GetMipLevelCount();
+            shared = Spot::Assets::Load<Spot::Material>(part.material.GetId()).Get() == part.material.Get();
+            if (const auto font = Spot::Assets::Load<Spot::Font>("fonts/FiraSans-Regular.ttf")) {
+                fontSize = font->GetPixelSize();
+            }
+            if (const auto cube = Spot::Assets::Load<Spot::Mesh>(Spot::BuiltInAssets::CubeMesh)) {
+                builtInIndices = static_cast<int>(cube->GetIndexCount());
+            }
 
-                                  // The same view as the textured model test, without the file's tint.
-                                  Spot::Material untinted = *part.material;
-                                  untinted.baseColor = Spot::Color::White;
-                                  Spot::Renderer3D renderer(device, {.filter = Spot::TextureFilter::Nearest,
-                                                                     .targetFormat = Spot::TextureFormat::Rgba8});
-                                  renderer.Begin(pass, MakeFrontCamera(), view);
-                                  renderer.DrawLight(FrontLight);
-                                  renderer.DrawMesh(*part.mesh, untinted);
-                                  renderer.End();
-                              },
-                              {.importDirectory = project.GetPath() / "imported", .sourceDirectory = sources});
+            // The same view as the textured model test, without the file's tint.
+            Spot::Material untinted = *part.material;
+            untinted.baseColor = Spot::Color::White;
+            Spot::Renderer3D renderer(
+                device, {.filter = Spot::TextureFilter::Nearest, .targetFormat = Spot::TextureFormat::Rgba8});
+            renderer.Begin(context, target, MakeFrontCamera());
+            renderer.DrawLight(FrontLight);
+            renderer.DrawMesh(*part.mesh, untinted);
+            renderer.End();
+        },
+        {.importDirectory = project.GetPath() / "imported", .sourceDirectory = sources});
 
     CHECK(mipLevels == 2);
     CHECK(shared);
