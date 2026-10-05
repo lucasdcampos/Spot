@@ -329,45 +329,75 @@ TEST_CASE("World transforms follow the parents", "[scene]") {
     Scene scene;
     Entity& parent = scene.CreateEntity();
     Entity& child = parent.CreateChild();
+    Spot::Transform& parentTransform = parent.GetTransform();
+    Spot::Transform& transform = child.GetTransform();
 
-    parent.GetTransform().position = {10.0f, 0.0f, 0.0f};
-    parent.GetTransform().SetRotation2D(Spot::Pi / 2.0f);
-    parent.GetTransform().scale = {2.0f, 2.0f, 2.0f};
-    child.GetTransform().position = {5.0f, 0.0f, 0.0f};
+    parentTransform.SetPosition({10.0f, 0.0f, 0.0f});
+    parentTransform.SetRotation2D(Spot::Pi / 2.0f);
+    parentTransform.SetScale({2.0f, 2.0f, 2.0f});
+    transform.SetPosition({5.0f, 0.0f, 0.0f});
 
     // Scaled, then turned a quarter counterclockwise, then moved.
-    CHECK(IsNear(child.GetWorldPosition(), {10.0f, 10.0f, 0.0f}));
-    CHECK(child.GetWorldRotation() == parent.GetTransform().rotation);
-    CHECK(Spot::ToEuler(child.GetWorldRotation()).z == Approx(Spot::Pi / 2.0f));
+    CHECK(IsNear(transform.GetWorldPosition(), {10.0f, 10.0f, 0.0f}));
+    CHECK(transform.GetWorldRotation() == parentTransform.GetRotation());
+    CHECK(transform.GetWorldRotation2D() == Approx(Spot::Pi / 2.0f));
 
-    child.SetWorldPosition({0.0f, 0.0f, 0.0f});
-    CHECK(IsNear(child.GetWorldPosition(), {0.0f, 0.0f, 0.0f}));
-    CHECK(IsNear(child.GetTransform().position, {0.0f, 5.0f, 0.0f}));
+    transform.SetWorldPosition({0.0f, 0.0f, 0.0f});
+    CHECK(IsNear(transform.GetWorldPosition(), {0.0f, 0.0f, 0.0f}));
+    CHECK(IsNear(transform.GetPosition(), {0.0f, 5.0f, 0.0f}));
 
-    child.SetWorldRotation(Quaternion::Identity());
-    CHECK(Spot::ToEuler(child.GetWorldRotation()).z == Approx(0.0f).margin(1e-5f));
-    CHECK(child.GetTransform().GetRotation2D() == Approx(-Spot::Pi / 2.0f));
+    transform.SetWorldRotation(Quaternion::Identity());
+    CHECK(transform.GetWorldRotation2D() == Approx(0.0f).margin(1e-5f));
+    CHECK(transform.GetRotation2D() == Approx(-Spot::Pi / 2.0f));
+}
+
+TEST_CASE("Cached world transforms update when an ancestor changes", "[scene]") {
+    Scene scene;
+    Entity& root = scene.CreateEntity();
+    Entity& middle = root.CreateChild();
+    Entity& leaf = middle.CreateChild();
+    leaf.GetTransform().SetPosition({1.0f, 0.0f, 0.0f});
+    CHECK(IsNear(leaf.GetTransform().GetWorldPosition(), {1.0f, 0.0f, 0.0f}));
+
+    root.GetTransform().Translate({10.0f, 0.0f, 0.0f});
+    CHECK(IsNear(leaf.GetTransform().GetWorldPosition(), {11.0f, 0.0f, 0.0f}));
+
+    middle.GetTransform().SetScale({3.0f, 3.0f, 3.0f});
+    CHECK(IsNear(leaf.GetTransform().GetWorldPosition(), {13.0f, 0.0f, 0.0f}));
+
+    root.GetTransform().Rotate(Quaternion::FromAxisAngle({0.0f, 0.0f, 1.0f}, Spot::Pi));
+    CHECK(IsNear(leaf.GetTransform().GetWorldPosition(), {7.0f, 0.0f, 0.0f}));
+
+    // Moving the leaf under another parent changes its world transform as well.
+    Entity& other = scene.CreateEntity();
+    other.GetTransform().SetPosition({0.0f, 50.0f, 0.0f});
+    leaf.SetParent(&other);
+    CHECK(IsNear(leaf.GetTransform().GetWorldPosition(), {1.0f, 50.0f, 0.0f}));
+    // A new child starts from the cached world transform of its parent.
+    Entity& sibling = middle.CreateChild();
+    sibling.GetTransform().SetPosition({1.0f, 0.0f, 0.0f});
+    CHECK(IsNear(sibling.GetTransform().GetWorldPosition(), {7.0f, 0.0f, 0.0f}));
 }
 
 TEST_CASE("Reparenting keeps the local or the world pose", "[scene]") {
     Scene scene;
     Entity& parent = scene.CreateEntity();
-    parent.GetTransform().position = {100.0f, 0.0f, 0.0f};
+    parent.GetTransform().SetPosition({100.0f, 0.0f, 0.0f});
     parent.GetTransform().SetRotation2D(1.0f);
 
     Entity& local = scene.CreateEntity();
-    local.GetTransform().position = {1.0f, 2.0f, 0.0f};
+    local.GetTransform().SetPosition({1.0f, 2.0f, 0.0f});
     local.SetParent(&parent);
-    CHECK(local.GetTransform().position == Vector3{1.0f, 2.0f, 0.0f});
+    CHECK(local.GetTransform().GetPosition() == Vector3{1.0f, 2.0f, 0.0f});
 
     Entity& world = scene.CreateEntity();
-    world.GetTransform().position = {1.0f, 2.0f, 0.0f};
+    world.GetTransform().SetPosition({1.0f, 2.0f, 0.0f});
     world.SetParent(&parent, true);
-    CHECK(IsNear(world.GetWorldPosition(), {1.0f, 2.0f, 0.0f}));
-    CHECK(Spot::ToEuler(world.GetWorldRotation()).z == Approx(0.0f).margin(1e-5f));
+    CHECK(IsNear(world.GetTransform().GetWorldPosition(), {1.0f, 2.0f, 0.0f}));
+    CHECK(world.GetTransform().GetWorldRotation2D() == Approx(0.0f).margin(1e-5f));
 
     world.SetParent(nullptr, true);
-    CHECK(IsNear(world.GetTransform().position, {1.0f, 2.0f, 0.0f}));
+    CHECK(IsNear(world.GetTransform().GetPosition(), {1.0f, 2.0f, 0.0f}));
 }
 
 TEST_CASE("Entities destroyed during an update are freed when it ends", "[scene]") {

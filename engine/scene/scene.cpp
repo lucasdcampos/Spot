@@ -128,6 +128,7 @@ void Scene::ProcessRemovals() {
             }
             for (Entity* child : entity->m_children) {
                 child->m_parent = nullptr;
+                child->m_transform.MarkWorldDirty();
             }
             m_entitiesById.erase(entity->m_id);
         }

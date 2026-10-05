@@ -25,8 +25,7 @@ public:
 
 protected:
     void OnUpdate(float deltaTime) override {
-        auto& transform = GetEntity().GetTransform();
-        transform.SetRotation2D(transform.GetRotation2D() + m_speed * deltaTime);
+        GetEntity().GetTransform().Rotate(Spot::Quaternion::FromAxisAngle({0.0f, 0.0f, 1.0f}, m_speed * deltaTime));
     }
 
 private:
@@ -45,7 +44,7 @@ protected:
         for (int i = 0; i < Quads; ++i) {
             const float angle = static_cast<float>(i) * 2.0f * Spot::Pi / Quads;
             auto& quad = ring.CreateChild(std::format("Quad {}", i));
-            quad.GetTransform().position = {std::cos(angle) * 250.0f, std::sin(angle) * 250.0f, 0.0f};
+            quad.GetTransform().SetPosition({std::cos(angle) * 250.0f, std::sin(angle) * 250.0f, 0.0f});
             quad.AddComponent<Sprite>(Spot::Vector2{40.0f, 40.0f},
                                       Spot::Color{0.5f + 0.5f * std::cos(angle), 0.5f + 0.5f * std::sin(angle), 0.9f});
             quad.AddComponent<Spin>(-1.5f);
@@ -63,12 +62,12 @@ protected:
 
         auto& planet = sun.CreateChild("Planet");
         planet.AddTag("Toggle");
-        planet.GetTransform().position = {260.0f, 0.0f, 0.0f};
+        planet.GetTransform().SetPosition({260.0f, 0.0f, 0.0f});
         planet.AddComponent<Sprite>(Spot::Vector2{40.0f, 40.0f}, Spot::Color{0.3f, 0.6f, 1.0f});
         planet.AddComponent<Spin>(2.0f);
 
         auto& moon = planet.CreateChild("Moon");
-        moon.GetTransform().position = {60.0f, 0.0f, 0.0f};
+        moon.GetTransform().SetPosition({60.0f, 0.0f, 0.0f});
         moon.AddComponent<Sprite>(Spot::Vector2{14.0f, 14.0f}, Spot::Color{0.8f, 0.8f, 0.8f});
     }
 };
@@ -195,10 +194,10 @@ protected:
         // The current scene's sprites, placed by their entity's world transform.
         if (Spot::Scene* scene = GetScene()) {
             scene->ForEachComponent<Sprite>([this](const Sprite& sprite) {
-                const Spot::Entity& entity = sprite.GetEntity();
-                const Spot::Vector3 position = entity.GetWorldPosition();
-                const float rotation = Spot::ToEuler(entity.GetWorldRotation()).z;
-                m_renderer->DrawRotatedQuad({position.x, position.y}, sprite.size, rotation, sprite.color);
+                const Spot::Transform& transform = sprite.GetEntity().GetTransform();
+                const Spot::Vector3 position = transform.GetWorldPosition();
+                m_renderer->DrawRotatedQuad({position.x, position.y}, sprite.size, transform.GetWorldRotation2D(),
+                                            sprite.color);
             });
         }
 

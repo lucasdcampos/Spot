@@ -53,8 +53,8 @@ void Entity::SetParent(Entity* parent, bool keepWorldPose) {
         return;
     }
 
-    const Vector3 worldPosition = GetWorldPosition();
-    const Quaternion worldRotation = GetWorldRotation();
+    const Vector3 worldPosition = m_transform.GetWorldPosition();
+    const Quaternion worldRotation = m_transform.GetWorldRotation();
 
     if (m_parent) {
         std::erase(m_parent->m_children, this);
@@ -64,9 +64,10 @@ void Entity::SetParent(Entity* parent, bool keepWorldPose) {
         m_parent->m_children.push_back(this);
     }
 
+    m_transform.MarkWorldDirty();
     if (keepWorldPose) {
-        SetWorldPosition(worldPosition);
-        SetWorldRotation(worldRotation);
+        m_transform.SetWorldPosition(worldPosition);
+        m_transform.SetWorldRotation(worldRotation);
     }
 
     const Detail::DeferRemovalsScope defer(m_scene);
@@ -107,36 +108,6 @@ bool Entity::IsDescendantOf(const Entity& ancestor) const {
         }
     }
     return false;
-}
-
-Matrix4 Entity::GetWorldMatrix() const {
-    const Matrix4 local = m_transform.GetMatrix();
-    return m_parent ? m_parent->GetWorldMatrix() * local : local;
-}
-
-Vector3 Entity::GetWorldPosition() const {
-    if (!m_parent) {
-        return m_transform.position;
-    }
-    const Vector4 origin = GetWorldMatrix().columns[3];
-    return {origin.x, origin.y, origin.z};
-}
-
-void Entity::SetWorldPosition(Vector3 position) {
-    if (!m_parent) {
-        m_transform.position = position;
-        return;
-    }
-    const Vector4 local = Inverse(m_parent->GetWorldMatrix()) * Vector4{position.x, position.y, position.z, 1.0f};
-    m_transform.position = {local.x, local.y, local.z};
-}
-
-Quaternion Entity::GetWorldRotation() const {
-    return m_parent ? m_parent->GetWorldRotation() * m_transform.rotation : m_transform.rotation;
-}
-
-void Entity::SetWorldRotation(const Quaternion& rotation) {
-    m_transform.rotation = m_parent ? Inverse(m_parent->GetWorldRotation()) * rotation : rotation;
 }
 
 void Entity::Destroy() {

@@ -1,8 +1,5 @@
 #pragma once
 
-#include "math/matrix.h"
-#include "math/quaternion.h"
-#include "math/vector.h"
 #include "scene/component.h"
 #include "scene/transform.h"
 
@@ -86,15 +83,8 @@ public:
     Entity* FindChild(std::string_view name) const;
     bool IsDescendantOf(const Entity& ancestor) const;
 
-    // The transform relative to the parent.
     Transform& GetTransform() { return m_transform; }
     const Transform& GetTransform() const { return m_transform; }
-    Matrix4 GetWorldMatrix() const;
-    Vector3 GetWorldPosition() const;
-    void SetWorldPosition(Vector3 position);
-    // Exact when the ancestors are scaled uniformly.
-    Quaternion GetWorldRotation() const;
-    void SetWorldRotation(const Quaternion& rotation);
 
     // Destroys the entity and all its descendants; same as Scene::DestroyEntity(*this).
     void Destroy();
@@ -198,6 +188,7 @@ public:
 private:
     friend class Component;
     friend class Scene;
+    friend class Transform;
 
     Entity(Scene& scene, EntityId id, std::string name);
 
@@ -217,7 +208,7 @@ private:
     EntityId m_id;
     std::string m_name;
     std::vector<std::string> m_tags;
-    Transform m_transform;
+    Transform m_transform{*this};
     Entity* m_parent = nullptr;
     std::vector<Entity*> m_children;
     std::vector<std::unique_ptr<Component>> m_components;
