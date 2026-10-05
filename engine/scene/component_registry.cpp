@@ -2,6 +2,7 @@
 
 #include "physics/collider.h"
 #include "physics/rigidbody.h"
+#include "scene/light.h"
 #include "scene/mesh_renderer.h"
 
 #include <mutex>
@@ -37,6 +38,10 @@ Registry& GetRegistry() {
         RegisterBuiltIn<BoxCollider>(registry, "BoxCollider");
         RegisterBuiltIn<SphereCollider>(registry, "SphereCollider");
         RegisterBuiltIn<CapsuleCollider>(registry, "CapsuleCollider");
+        RegisterBuiltIn<AmbientLight>(registry, "AmbientLight");
+        RegisterBuiltIn<DirectionalLight>(registry, "DirectionalLight");
+        RegisterBuiltIn<PointLight>(registry, "PointLight");
+        RegisterBuiltIn<SpotLight>(registry, "SpotLight");
         return true;
     }();
     static_cast<void>(builtInRegistered);

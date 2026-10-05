@@ -17,6 +17,7 @@ add_executable(spot_tests
     image_tests.cpp
     input_tests.cpp
     log_capture.h
+    light_tests.cpp
     log_tests.cpp
     math_tests.cpp
     physics_tests.cpp

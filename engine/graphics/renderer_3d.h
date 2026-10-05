@@ -74,7 +74,8 @@ public:
     void DrawLight(const LightData& light);
     void DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform = {});
     void DrawModel(const Model& model, const Matrix4& transform = {});
-    // Draws every MeshRenderer of the scene that is enabled on an active entity, at its entity's world transform.
+    // Draws every MeshRenderer and Light of the scene that is enabled on an active entity, at its entity's world
+    // transform.
     // The scene must not change until End(), since its components keep the meshes alive.
     void DrawScene(Scene& scene);
 

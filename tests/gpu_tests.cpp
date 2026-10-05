@@ -1037,6 +1037,31 @@ TEST_CASE("Renderer3D keeps the lights nearest the camera when given too many", 
     CHECK(render.At(16, 16)[1] > 240);
 }
 
+TEST_CASE("Renderer3D lights scenes with their active lights", "[gpu]") {
+    RequireGpu();
+
+    const TargetRender render(32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderPass& pass, Spot::Vector2 view) {
+        Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+        const std::shared_ptr<const Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+        REQUIRE(cube != nullptr);
+
+        Spot::Scene scene;
+        scene.CreateEntity("Wall").AddComponent<Spot::MeshRenderer>(cube);
+        // With no rotation, it shines down -Z, straight onto the wall's front.
+        scene.CreateEntity("Sun").AddComponent<Spot::DirectionalLight>(Spot::Color::Green);
+        scene.CreateEntity("Disabled").AddComponent<Spot::AmbientLight>(Spot::Color::Red, 1.0f).SetEnabled(false);
+        auto& inactive = scene.CreateEntity("Inactive");
+        inactive.AddComponent<Spot::AmbientLight>(Spot::Color::Blue, 1.0f);
+        inactive.SetActive(false);
+
+        renderer.Begin(pass, MakeFrontCamera(), view);
+        renderer.DrawScene(scene);
+        renderer.End();
+    });
+
+    CHECK(IsNear(render.At(16, 16), {0, 255, 0, 255}));
+}
+
 TEST_CASE("Models imported as assets load onto the GPU and draw textured", "[gpu]") {
     RequireGpu();
     const TempDirectory project;

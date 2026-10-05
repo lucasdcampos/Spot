@@ -7,6 +7,7 @@
 #include "graphics/mesh.h"
 #include "graphics/model.h"
 #include "graphics/render_context.h"
+#include "scene/light.h"
 #include "scene/mesh_renderer.h"
 #include "scene/scene.h"
 
@@ -183,6 +184,7 @@ void Renderer3D::DrawModel(const Model& model, const Matrix4& transform) {
 
 void Renderer3D::DrawScene(Scene& scene) {
     static const Material DefaultMaterial;
+    scene.ForEachComponent<Light>([this](const Light& light) { DrawLight(light.GetLightData()); });
     scene.ForEachComponent<MeshRenderer>([this](const MeshRenderer& renderer) {
         if (renderer.GetMesh()) {
             DrawMesh(*renderer.GetMesh(), renderer.GetMaterial() ? *renderer.GetMaterial() : DefaultMaterial,

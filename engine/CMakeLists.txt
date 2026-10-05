@@ -121,6 +121,8 @@ add_library(spot STATIC
     scene/component_registry.cpp
     scene/entity.h
     scene/entity.cpp
+    scene/light.h
+    scene/light.cpp
     scene/mesh_renderer.h
     scene/mesh_renderer.cpp
     scene/scene.h
