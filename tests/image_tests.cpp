@@ -72,6 +72,14 @@ TEST_CASE("The executable directory holds the running executable", "[paths]") {
     CHECK((std::filesystem::exists(directory / "spot_tests") || std::filesystem::exists(directory / "spot_tests.exe")));
 }
 
+TEST_CASE("The user data directory exists and is named after the application", "[paths]") {
+    const auto directory = Spot::GetUserDataDirectory("Spot", "Spot Tests");
+
+    REQUIRE_FALSE(directory.empty());
+    CHECK(std::filesystem::is_directory(directory));
+    CHECK(directory.filename() == "Spot Tests");
+}
+
 TEST_CASE("Paths convert to UTF-8 text, including non-ASCII names", "[paths]") {
     const std::filesystem::path path(u8"assets/ação.png");
 
