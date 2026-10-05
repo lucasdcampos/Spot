@@ -25,21 +25,25 @@ protected:
     }
 };
 
-// Turns its entity, and with it all its children.
+// Turns its entity, and with it all its children, around an axis: Z by default, as 2D needs.
 class Spin final : public Spot::Component {
 public:
     Spin() = default;
-    explicit Spin(float speed) : m_speed(speed) {}
+    explicit Spin(float speed, Spot::Vector3 axis = {0.0f, 0.0f, 1.0f}) : m_speed(speed), m_axis(axis) {}
 
 protected:
     void OnUpdate(float deltaTime) override {
-        GetEntity().GetTransform().Rotate(Spot::Quaternion::FromAxisAngle({0.0f, 0.0f, 1.0f}, m_speed * deltaTime));
+        GetEntity().GetTransform().Rotate(Spot::Quaternion::FromAxisAngle(m_axis, m_speed * deltaTime));
     }
 
-    void Serialize(Spot::Archive& archive) override { archive.Field("speed", m_speed); }
+    void Serialize(Spot::Archive& archive) override {
+        archive.Field("speed", m_speed);
+        archive.Field("axis", m_axis);
+    }
 
 private:
     float m_speed = 1.0f;
+    Spot::Vector3 m_axis = {0.0f, 0.0f, 1.0f};
 };
 
 // A ring of quads that spins as a whole while each quad spins on its own.
@@ -82,6 +86,56 @@ protected:
     }
 };
 
+// The 3D view: a house loaded from glTF, a tumbling textured cube and spheres circling it on the ground, each shown
+// by a MeshRenderer.
+class ShowroomScene final : public Spot::Scene {
+protected:
+    void OnLoad() override {
+        auto& device = GetApplication().GetGraphicsDevice();
+        const auto assets = Spot::GetExecutableDirectory() / "assets";
+
+        const std::shared_ptr<const Spot::Mesh> ground = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(16.0f));
+        CreateEntity("Ground").AddComponent<Spot::MeshRenderer>(
+            ground, Spot::Material{.baseColor = Spot::Color{0.35f, 0.55f, 0.3f}});
+
+        // Each part of the model becomes a child, so the house moves as one entity.
+        if (const auto model = Spot::Model::Load(device, assets / "models" / "house.glb")) {
+            auto& house = CreateEntity("House");
+            house.GetTransform().SetRotation(Spot::Quaternion::FromAxisAngle({0.0f, 1.0f, 0.0f}, 0.6f));
+            for (const auto& part : model->GetParts()) {
+                house.CreateChild(part.name).AddComponent<Spot::MeshRenderer>(part.mesh,
+                                                                              model->GetMaterials()[part.material]);
+            }
+        }
+
+        Spot::Material spotMaterial;
+        if (const auto image = Spot::Image::Load(assets / "spot.png")) {
+            // Mipmaps keep the texture smooth when seen from afar or at a grazing angle.
+            spotMaterial.baseColorTexture = device.CreateTexture(*image, true);
+        }
+        auto& cube = CreateEntity("Cube");
+        cube.GetTransform().SetPosition({0.0f, 2.9f, 0.0f});
+        cube.GetTransform().SetScale({0.6f, 0.6f, 0.6f});
+        cube.AddComponent<Spot::MeshRenderer>(Spot::Mesh::Create(device, Spot::MeshData::CreateCube()), spotMaterial);
+        cube.AddComponent<Spin>(1.2f, Spot::Vector3{1.0f, 1.0f, 0.0f});
+
+        const std::shared_ptr<const Spot::Mesh> sphere = Spot::Mesh::Create(device, Spot::MeshData::CreateSphere());
+        auto& orbit = CreateEntity("Orbit");
+        orbit.AddTag("Toggle");
+        orbit.AddComponent<Spin>(0.5f, Spot::Vector3{0.0f, 1.0f, 0.0f});
+        constexpr int Spheres = 6;
+        for (int i = 0; i < Spheres; ++i) {
+            const float angle = static_cast<float>(i) * 2.0f * Spot::Pi / Spheres;
+            auto& ball = orbit.CreateChild(std::format("Sphere {}", i));
+            ball.GetTransform().SetPosition({std::cos(angle) * 2.5f, 0.4f, std::sin(angle) * 2.5f});
+            ball.GetTransform().SetScale({0.6f, 0.6f, 0.6f});
+            ball.AddComponent<Spot::MeshRenderer>(
+                sphere, Spot::Material{.baseColor = Spot::Color{0.5f + 0.5f * std::cos(angle * 2.0f),
+                                                                0.5f + 0.5f * std::sin(angle), 0.9f}});
+        }
+    }
+};
+
 class Sandbox final : public Spot::Application {
 public:
     Sandbox() : Application({.window = {.title = "Spot Sandbox"}, .logFile = "sandbox.log", .maxFrameRate = 60}) {
@@ -96,15 +150,9 @@ protected:
         auto& device = GetGraphicsDevice();
         m_renderer = std::make_unique<Spot::Renderer2D>(device);
         if (const auto image = Spot::Image::Load(Spot::GetExecutableDirectory() / "assets" / "spot.png")) {
-            // Mipmaps keep it smooth on the 3D cube when seen from afar or at a grazing angle.
-            m_spot = device.CreateTexture(*image, true);
+            m_spot = device.CreateTexture(*image);
         }
-
         m_renderer3D = std::make_unique<Spot::Renderer3D>(device);
-        m_house = Spot::Model::Load(device, Spot::GetExecutableDirectory() / "assets" / "models" / "house.glb");
-        m_cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
-        m_sphere = Spot::Mesh::Create(device, Spot::MeshData::CreateSphere());
-        m_ground = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(16.0f));
 
         const auto fonts = Spot::GetExecutableDirectory() / "assets" / "fonts";
         m_font = Spot::Font::Load(device, fonts / "FiraSans-Regular.ttf", 20.0f);
@@ -156,14 +204,15 @@ protected:
             audio.SetMasterVolume(audio.GetMasterVolume() > 0.0f ? 0.0f : 1.0f);
         }
 
-        // Tab switches scenes, and Space shows or hides the entities tagged "Toggle", children included.
-        if (Input::IsKeyPressed(Key::Tab)) {
+        // F1 switches between the 2D scenes and the 3D one, Tab between the 2D scenes, and Space shows or hides the
+        // entities tagged "Toggle", children included.
+        if (Input::IsKeyPressed(Key::F1)) {
+            m_show3D = !m_show3D;
+            Load2DOr3DScene();
+        }
+        if (Input::IsKeyPressed(Key::Tab) && !m_show3D) {
             m_solar = !m_solar;
-            if (m_solar) {
-                LoadScene<SolarScene>();
-            } else {
-                LoadScene<RingScene>();
-            }
+            Load2DOr3DScene();
         }
         if (Input::IsKeyPressed(Key::Space) && GetScene()) {
             for (Spot::Entity* entity : GetScene()->FindEntitiesWithTag("Toggle")) {
@@ -182,10 +231,6 @@ protected:
                 LoadScene(std::move(loaded));
                 Spot::Log::Info("Scene loaded from {}", Spot::PathToUtf8(savePath));
             }
-        }
-
-        if (Input::IsKeyPressed(Key::F1)) {
-            m_show3D = !m_show3D;
         }
 
         Spot::Vector2 direction;
@@ -240,6 +285,16 @@ protected:
     }
 
 private:
+    void Load2DOr3DScene() {
+        if (m_show3D) {
+            LoadScene<ShowroomScene>();
+        } else if (m_solar) {
+            LoadScene<SolarScene>();
+        } else {
+            LoadScene<RingScene>();
+        }
+    }
+
     void Render2D(Spot::RenderPass& pass, Spot::Vector2 view) {
         if (!m_renderer) {
             return;
@@ -311,7 +366,7 @@ private:
 
         auto pass = context.BeginRenderPass(
             {.clearColor = Spot::Color{0.5f, 0.68f, 0.85f}, .depthTarget = m_depth.get(), .clearDepth = 1.0f});
-        if (!m_depth || !m_renderer3D || !m_cube || !m_sphere || !m_ground) {
+        if (!m_depth || !m_renderer3D) {
             return;
         }
 
@@ -322,33 +377,11 @@ private:
                                        m_orbitDistance;
         camera.LookAt(target);
 
-        const auto time = static_cast<float>(Spot::Time::GetTime());
-        using Spot::Matrix4;
-        using Spot::Quaternion;
-
         m_renderer3D->Begin(pass, camera, view);
-        m_renderer3D->DrawMesh(*m_ground, {.baseColor = Spot::Color{0.35f, 0.55f, 0.3f}});
-
-        if (m_house) {
-            m_renderer3D->DrawModel(*m_house, Matrix4::Rotation(Quaternion::FromAxisAngle({0, 1, 0}, 0.6f)));
+        m_renderer3D->DrawScene(GetPersistentScene());
+        for (Spot::Scene* scene : GetScenes()) {
+            m_renderer3D->DrawScene(*scene);
         }
-
-        // A textured cube tumbling over the house.
-        m_renderer3D->DrawMesh(*m_cube, {.baseColorTexture = m_spot},
-                               Matrix4::Translation({0.0f, 2.9f + 0.2f * std::sin(time * 2.0f), 0.0f}) *
-                                   Matrix4::Rotation(Quaternion::FromEuler({time * 0.7f, time, 0.0f})) *
-                                   Matrix4::Scale({0.6f, 0.6f, 0.6f}));
-
-        // Spheres circling the house, each in its own color.
-        constexpr int Spheres = 6;
-        for (int i = 0; i < Spheres; ++i) {
-            const float angle = time * 0.5f + static_cast<float>(i) * 2.0f * Spot::Pi / Spheres;
-            const Spot::Color color{0.5f + 0.5f * std::cos(angle * 2.0f), 0.5f + 0.5f * std::sin(angle), 0.9f};
-            m_renderer3D->DrawMesh(*m_sphere, {.baseColor = color},
-                                   Matrix4::Translation({std::cos(angle) * 2.5f, 0.4f, std::sin(angle) * 2.5f}) *
-                                       Matrix4::Scale({0.6f, 0.6f, 0.6f}));
-        }
-
         m_renderer3D->End();
         m_stats3D = m_renderer3D->GetStats();
     }
@@ -363,7 +396,7 @@ private:
         screen.position = {view.x / 2.0f, -view.y / 2.0f};
         const float line = m_font->GetLineHeight();
         const std::string_view controls =
-            m_show3D ? "F1: 2D | WASD or right drag: orbit | wheel: zoom"
+            m_show3D ? "F1: 2D | WASD or right drag: orbit | wheel: zoom | Space: toggle"
                      : "F1: 3D | WASD: move | wheel: zoom | Tab: scene | Space: toggle | F5/F9: save/load";
 
         m_renderer->Begin(pass, screen, view);
@@ -377,7 +410,7 @@ private:
     }
 
     std::unique_ptr<Spot::Renderer2D> m_renderer;
-    std::shared_ptr<Spot::Texture> m_spot;
+    std::unique_ptr<Spot::Texture> m_spot;
     std::unique_ptr<Spot::Font> m_font;
     std::unique_ptr<Spot::Font> m_largeFont;
     std::shared_ptr<Spot::Sound> m_blip;
@@ -387,10 +420,6 @@ private:
 
     std::unique_ptr<Spot::Renderer3D> m_renderer3D;
     std::unique_ptr<Spot::Texture> m_depth;
-    std::unique_ptr<Spot::Model> m_house;
-    std::unique_ptr<Spot::Mesh> m_cube;
-    std::unique_ptr<Spot::Mesh> m_sphere;
-    std::unique_ptr<Spot::Mesh> m_ground;
     Spot::Renderer3DStats m_stats3D;
     float m_orbitYaw = 0.6f;
     float m_orbitPitch = 0.45f;
