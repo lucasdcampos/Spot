@@ -2,7 +2,7 @@
 
 #include "core/assert.h"
 #include "core/log.h"
-#include "graphics/sdl_gpu/sdl_gpu_context.h"
+#include "graphics/sdl_gpu/sdl_gpu_internal.h"
 #include "platform/platform.h"
 #include "window/window.h"
 
@@ -15,9 +15,14 @@ namespace Spot {
 
 namespace {
 
-// The shader formats the engine will ship; SDL picks a backend that accepts one of them.
+// The formats spot_add_shaders() produces; SDL picks a backend that accepts one of them. DXIL is only built where
+// DXC is available, which is what Direct3D 12 needs.
+#ifdef SPOT_SHADERS_DXIL
 constexpr SDL_GPUShaderFormat ShaderFormats =
-    SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_DXIL | SDL_GPU_SHADERFORMAT_MSL;
+    SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_MSL | SDL_GPU_SHADERFORMAT_DXIL;
+#else
+constexpr SDL_GPUShaderFormat ShaderFormats = SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_MSL;
+#endif
 
 SDL_GPUPresentMode ChoosePresentMode(SDL_GPUDevice* device, SDL_Window* window, bool vsync) {
     if (!vsync) {
@@ -43,26 +48,25 @@ SDL_GPUDevice* CreateDevice(bool debug) {
 
 } // namespace
 
-struct GraphicsDevice::Impl {
-    Impl(SDL_GPUDevice* device, SDL_Window* window, std::unique_ptr<RenderContext> context)
-        : device(device), window(window), context(std::move(context)) {}
+SharedGpuDevice::SharedGpuDevice(SDL_GPUDevice* handle) : m_handle(handle) {
+    // The device can outlive the window, so it keeps SDL running until it is destroyed.
+    Platform::Initialize();
+}
 
-    ~Impl() {
-        SDL_WaitForGPUIdle(device);
-        SDL_ReleaseWindowFromGPUDevice(device, window);
-        SDL_DestroyGPUDevice(device);
-    }
+SharedGpuDevice::~SharedGpuDevice() {
+    SDL_DestroyGPUDevice(m_handle);
+    Platform::Shutdown();
+}
 
-    Impl(const Impl&) = delete;
-    Impl& operator=(const Impl&) = delete;
+GraphicsDevice::Impl::Impl(std::shared_ptr<SharedGpuDevice> device, SDL_Window* window,
+                           std::unique_ptr<RenderContext> context)
+    : device(std::move(device)), window(window), context(std::move(context)) {
+}
 
-    SDL_GPUDevice* device;
-    SDL_Window* window;
-    bool vsync = true;
-    std::optional<bool> pendingVSync;
-    bool frameOpen = false;
-    std::unique_ptr<RenderContext> context;
-};
+GraphicsDevice::Impl::~Impl() {
+    SDL_WaitForGPUIdle(device->Get());
+    SDL_ReleaseWindowFromGPUDevice(device->Get(), window);
+}
 
 bool GraphicsDevice::IsSupported() {
     // Probing a backend loads its driver, which needs the video subsystem running.
@@ -77,20 +81,20 @@ bool GraphicsDevice::IsSupported() {
 std::unique_ptr<GraphicsDevice> GraphicsDevice::Create(Window& window, const GraphicsConfig& config) {
     auto* sdlWindow = static_cast<SDL_Window*>(window.GetNativeHandle());
 
-    SDL_GPUDevice* device = CreateDevice(config.debug);
-    if (!device) {
+    SDL_GPUDevice* handle = CreateDevice(config.debug);
+    if (!handle) {
         Log::GetEngineLogger().Error("Failed to create GPU device: {}", SDL_GetError());
         return nullptr;
     }
+    auto device = std::make_shared<SharedGpuDevice>(handle);
 
-    if (!SDL_ClaimWindowForGPUDevice(device, sdlWindow)) {
+    if (!SDL_ClaimWindowForGPUDevice(handle, sdlWindow)) {
         Log::GetEngineLogger().Error("Failed to attach the window to the GPU device: {}", SDL_GetError());
-        SDL_DestroyGPUDevice(device);
         return nullptr;
     }
 
     auto context = std::unique_ptr<RenderContext>(new RenderContext());
-    auto impl = std::make_unique<Impl>(device, sdlWindow, std::move(context));
+    auto impl = std::make_unique<Impl>(std::move(device), sdlWindow, std::move(context));
     auto graphics = std::unique_ptr<GraphicsDevice>(new GraphicsDevice(std::move(impl)));
     graphics->SetVSync(config.vsync);
     Log::GetEngineLogger().Info("Graphics device created with the '{}' backend", graphics->GetBackendName());
@@ -103,7 +107,7 @@ GraphicsDevice::GraphicsDevice(std::unique_ptr<Impl> impl) : m_impl(std::move(im
 GraphicsDevice::~GraphicsDevice() = default;
 
 std::string_view GraphicsDevice::GetBackendName() const {
-    return SDL_GetGPUDeviceDriver(m_impl->device);
+    return SDL_GetGPUDeviceDriver(m_impl->device->Get());
 }
 
 bool GraphicsDevice::IsVSyncEnabled() const {
@@ -117,8 +121,8 @@ void GraphicsDevice::SetVSync(bool enabled) {
         return;
     }
 
-    const auto mode = ChoosePresentMode(m_impl->device, m_impl->window, enabled);
-    if (!SDL_SetGPUSwapchainParameters(m_impl->device, m_impl->window, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, mode)) {
+    const auto mode = ChoosePresentMode(m_impl->device->Get(), m_impl->window, enabled);
+    if (!SDL_SetGPUSwapchainParameters(m_impl->device->Get(), m_impl->window, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, mode)) {
         Log::GetEngineLogger().Error("Failed to change the present mode: {}", SDL_GetError());
         return;
     }
@@ -132,7 +136,7 @@ RenderContext* GraphicsDevice::BeginFrame() {
         SetVSync(*vsync);
     }
 
-    SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(m_impl->device);
+    SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(m_impl->device->Get());
     if (!commandBuffer) {
         Log::GetEngineLogger().Error("Failed to acquire a command buffer: {}", SDL_GetError());
         return nullptr;
@@ -171,7 +175,7 @@ void GraphicsDevice::EndFrame() {
 }
 
 void* GraphicsDevice::GetNativeHandle() const {
-    return m_impl->device;
+    return m_impl->device->Get();
 }
 
 } // namespace Spot

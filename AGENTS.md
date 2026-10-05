@@ -20,6 +20,10 @@ cmake --build --preset msvc-debug    # or: ninja-debug
 ctest --preset msvc-debug            # or: ninja-debug
 ```
 
+Shaders are HLSL files named `*.vert.hlsl` or `*.frag.hlsl`. `spot_add_shaders(<target> ...)` (in
+`cmake/spot_shaders.cmake`) compiles them to SPIR-V, MSL and, on Windows, DXIL, and generates a header per shader
+with a ready-to-use `Spot::ShaderDesc`.
+
 To build and run the sandbox: `./run.ps1` (PowerShell) or `./run.sh` (Linux, macOS, Git Bash).
 Both accept `release` as an argument.
 

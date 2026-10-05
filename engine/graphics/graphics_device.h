@@ -1,6 +1,8 @@
 #pragma once
 
+#include "graphics/pipeline.h"
 #include "graphics/render_context.h"
+#include "graphics/shader.h"
 
 #include <memory>
 #include <string_view>
@@ -36,6 +38,11 @@ public:
 
     // The graphics API in use, such as "vulkan", "direct3d12" or "metal".
     std::string_view GetBackendName() const;
+
+    // Resources may outlive the device; they keep the backend alive until they are destroyed.
+    // Each returns null, after logging why, when the backend rejects the description.
+    std::unique_ptr<Shader> CreateShader(const ShaderDesc& desc);
+    std::unique_ptr<Pipeline> CreatePipeline(const PipelineDesc& desc);
 
     bool IsVSyncEnabled() const;
     void SetVSync(bool enabled);

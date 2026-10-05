@@ -2,12 +2,14 @@
 
 #include "graphics/color.h"
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 
 namespace Spot {
 
 class GraphicsDevice;
+class Pipeline;
 class RenderContext;
 
 struct RenderPassDesc {
@@ -26,6 +28,11 @@ public:
 
     void End();
 
+    void BindPipeline(const Pipeline& pipeline);
+    // Draws with the bound pipeline. Without vertex buffers, shaders can build vertices from SV_VertexID.
+    void Draw(std::uint32_t vertexCount, std::uint32_t instanceCount = 1, std::uint32_t firstVertex = 0,
+              std::uint32_t firstInstance = 0);
+
     // The backend's pass object (an SDL_GPURenderPass* with SDL_GPU), for code that needs the backend directly.
     void* GetNativeHandle() const { return m_native; }
 
@@ -36,6 +43,7 @@ private:
 
     RenderContext* m_context;
     void* m_native;
+    bool m_pipelineBound = false;
 };
 
 // Records the GPU work of one frame. It only exists between GraphicsDevice::BeginFrame() and EndFrame(), which the

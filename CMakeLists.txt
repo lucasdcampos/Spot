@@ -23,6 +23,8 @@ function(spot_set_warnings target)
     endif()
 endfunction()
 
+include(cmake/spot_shaders.cmake)
+
 add_subdirectory(engine)
 
 if(SPOT_BUILD_SANDBOX)

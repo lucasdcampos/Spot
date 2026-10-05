@@ -1,9 +1,13 @@
+#include "triangle.frag.h"
+#include "triangle.vert.h"
+
 #include <spot.h>
 
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdlib>
 #include <functional>
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -95,4 +99,46 @@ TEST_CASE("VSync can be turned off and back on", "[gpu]") {
 
     REQUIRE(application.Run() == EXIT_SUCCESS);
     CHECK(enabledAgain);
+}
+
+TEST_CASE("Shaders and pipelines draw a triangle", "[gpu]") {
+    RequireGpu();
+    std::unique_ptr<Spot::Pipeline> pipeline;
+
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
+        if (!pipeline) {
+            auto& device = app.GetGraphicsDevice();
+            const auto vertexShader = device.CreateShader(Shaders::TriangleVert);
+            const auto fragmentShader = device.CreateShader(Shaders::TriangleFrag);
+            REQUIRE(vertexShader != nullptr);
+            REQUIRE(fragmentShader != nullptr);
+            CHECK(vertexShader->GetStage() == Spot::ShaderStage::Vertex);
+
+            pipeline = device.CreatePipeline({.vertexShader = vertexShader.get(),
+                                              .fragmentShader = fragmentShader.get(),
+                                              .blendMode = Spot::BlendMode::Alpha});
+            REQUIRE(pipeline != nullptr);
+        }
+
+        auto pass = context.BeginRenderPass({.clearColor = Spot::Color::Black});
+        pass.BindPipeline(*pipeline);
+        pass.Draw(3);
+    });
+
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    CHECK(application.GetRenderedFrames() == 3);
+    // Released after the device: the pipeline keeps the backend alive until then.
+    pipeline.reset();
+}
+
+TEST_CASE("Shaders without code for the backend are rejected", "[gpu]") {
+    RequireGpu();
+    bool rejected = false;
+
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext&) {
+        rejected = app.GetGraphicsDevice().CreateShader({.stage = Spot::ShaderStage::Vertex}) == nullptr;
+    });
+
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    CHECK(rejected);
 }

@@ -2,7 +2,7 @@
 
 #include "core/assert.h"
 #include "core/log.h"
-#include "graphics/sdl_gpu/sdl_gpu_context.h"
+#include "graphics/sdl_gpu/sdl_gpu_internal.h"
 
 namespace Spot {
 
@@ -21,6 +21,21 @@ void RenderPass::End() {
     SDL_EndGPURenderPass(static_cast<SDL_GPURenderPass*>(m_native));
     m_native = nullptr;
     m_context->m_impl->passOpen = false;
+}
+
+void RenderPass::BindPipeline(const Pipeline& pipeline) {
+    SPOT_ASSERT(m_native, "The render pass has ended");
+    SDL_BindGPUGraphicsPipeline(static_cast<SDL_GPURenderPass*>(m_native),
+                                static_cast<SDL_GPUGraphicsPipeline*>(pipeline.GetNativeHandle()));
+    m_pipelineBound = true;
+}
+
+void RenderPass::Draw(std::uint32_t vertexCount, std::uint32_t instanceCount, std::uint32_t firstVertex,
+                      std::uint32_t firstInstance) {
+    SPOT_ASSERT(m_native, "The render pass has ended");
+    SPOT_ASSERT(m_pipelineBound, "Bind a pipeline before drawing");
+    SDL_DrawGPUPrimitives(static_cast<SDL_GPURenderPass*>(m_native), vertexCount, instanceCount, firstVertex,
+                          firstInstance);
 }
 
 RenderContext::RenderContext() : m_impl(std::make_unique<Impl>()) {

@@ -16,6 +16,7 @@ add_executable(spot_tests
     log_tests.cpp
     math_tests.cpp
     platform_tests.cpp
+    shader_tests.cpp
     time_tests.cpp
     version_tests.cpp
     window_tests.cpp
@@ -25,6 +26,14 @@ target_link_libraries(spot_tests PRIVATE
     spot::spot
     Catch2::Catch2WithMain
 )
+
+spot_add_shaders(spot_tests
+    shaders/textured.frag.hlsl
+    shaders/triangle.vert.hlsl
+)
+if(SPOT_DXC)
+    target_compile_definitions(spot_tests PRIVATE SPOT_TEST_EXPECT_DXIL)
+endif()
 
 # Backend tests feed native events in, so they need the backend's headers; the library comes through spot.
 if(SPOT_PLATFORM STREQUAL "SDL3")
@@ -56,6 +65,11 @@ add_executable(spot_gpu_tests
 target_link_libraries(spot_gpu_tests PRIVATE
     spot::spot
     Catch2::Catch2WithMain
+)
+
+spot_add_shaders(spot_gpu_tests
+    shaders/triangle.vert.hlsl
+    shaders/triangle.frag.hlsl
 )
 
 spot_set_warnings(spot_gpu_tests)

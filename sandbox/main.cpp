@@ -1,14 +1,27 @@
+#include "triangle.frag.h"
+#include "triangle.vert.h"
+
 #include <spot.h>
 
-#include <cmath>
 #include <format>
+#include <memory>
 
 class Sandbox final : public Spot::Application {
 public:
     Sandbox() : Application({.window = {.title = "Spot Sandbox"}, .logFile = "sandbox.log", .maxFrameRate = 60}) {}
 
 protected:
-    void OnStart() override { Spot::Log::Info("Spot {}", Spot::GetVersionString()); }
+    void OnStart() override {
+        Spot::Log::Info("Spot {}", Spot::GetVersionString());
+
+        auto& device = GetGraphicsDevice();
+        const auto vertexShader = device.CreateShader(Shaders::TriangleVert);
+        const auto fragmentShader = device.CreateShader(Shaders::TriangleFrag);
+        if (vertexShader && fragmentShader) {
+            m_triangle =
+                device.CreatePipeline({.vertexShader = vertexShader.get(), .fragmentShader = fragmentShader.get()});
+        }
+    }
 
     void OnEvent(const Spot::Event& event) override {
         if (const auto* pressed = event.GetIf<Spot::KeyPressedEvent>(); pressed && !pressed->repeat) {
@@ -39,14 +52,15 @@ protected:
     }
 
     void OnRender(Spot::RenderContext& context) override {
-        // Slowly cycles the background color to show that frames are being drawn.
-        const auto time = static_cast<float>(Spot::Time::GetTime());
-        const Spot::Color color{0.5f + 0.5f * std::sin(time), 0.5f + 0.5f * std::sin(time + 2.0f),
-                                0.5f + 0.5f * std::sin(time + 4.0f)};
-        context.BeginRenderPass({.clearColor = color});
+        auto pass = context.BeginRenderPass({.clearColor = Spot::Color{0.1f, 0.1f, 0.12f}});
+        if (m_triangle) {
+            pass.BindPipeline(*m_triangle);
+            pass.Draw(3);
+        }
     }
 
 private:
+    std::unique_ptr<Spot::Pipeline> m_triangle;
     int m_frames = 0;
     float m_elapsed = 0.0f;
 };

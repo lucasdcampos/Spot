@@ -15,7 +15,9 @@ add_library(spot STATIC
     events/event.h
     graphics/color.h
     graphics/graphics_device.h
+    graphics/pipeline.h
     graphics/render_context.h
+    graphics/shader.h
     input/input.h
     input/input.cpp
     input/input_state.h
@@ -87,10 +89,14 @@ if(SPOT_GRAPHICS STREQUAL "SDL_GPU")
     endif()
 
     target_sources(spot PRIVATE
-        graphics/sdl_gpu/sdl_gpu_context.h
+        graphics/sdl_gpu/sdl_gpu_internal.h
         graphics/sdl_gpu/sdl_gpu_device.cpp
         graphics/sdl_gpu/sdl_gpu_render_context.cpp
+        graphics/sdl_gpu/sdl_gpu_resources.cpp
     )
+    if(SPOT_DXC)
+        target_compile_definitions(spot PRIVATE SPOT_SHADERS_DXIL)
+    endif()
 else()
     message(FATAL_ERROR "Unknown SPOT_GRAPHICS '${SPOT_GRAPHICS}'")
 endif()
