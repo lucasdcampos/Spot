@@ -118,8 +118,7 @@ protected:
     void OnLoad() override {
         m_sun = &CreateEntity("Sun").AddComponent<Spot::DirectionalLight>();
         auto& sky = CreateEntity("Sky");
-        // Grassland beyond the walls.
-        sky.AddComponent<Spot::Sky>().SetGroundColor(Spot::Color::FromSrgb(0.3f, 0.36f, 0.22f));
+        sky.AddComponent<Spot::Sky>();
         UpdateSun();
 
         AddLamp({-10.0f, 3.5f, -8.0f}, {1.0f, 0.5f, 0.2f});

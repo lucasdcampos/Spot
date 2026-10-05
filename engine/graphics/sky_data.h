@@ -16,16 +16,16 @@ struct SkyData {
     Vector3 sunDirection = {-0.4f, -1.0f, -0.6f};
     Color sunColor = Color::White;
     float sunIntensity = 1.0f;
-    // The angular radius of the sun's disc, in radians; 0 hides the disc. The real sun's is about a quarter of a
-    // degree, which looks too small on a screen.
-    float sunSize = ToRadians(0.75f);
+    // The angular radius of the sun's bright core, in radians, which its glow spreads well beyond; 0 hides the sun.
+    // The real sun's is about a quarter of a degree, but it is so bright that it looks far larger.
+    float sunSize = ToRadians(2.5f);
     // How much air the light crosses: more makes the sky hazier and paler and its sunsets redder.
     float atmosphereThickness = 1.0f;
     // Multiplies the color the air scatters, the blue of a clear sky.
     Color skyTint = Color::White;
-    // The color of the ground seen below the horizon, which the sun and sky light like a surface of the scene: an
-    // earthy brown by default.
-    Color groundColor = {0.11f, 0.09f, 0.07f};
+    // The color of the ground seen below the horizon, which the sun and sky light like a surface of the scene, seen
+    // through the haze near the horizon: a neutral gray by default.
+    Color groundColor = {0.2f, 0.2f, 0.21f};
     // Faint light the sky keeps where sunlight does not reach it, as from the moon and stars, so nights are not
     // pitch black. It also lights the scene.
     Color nightColor = {0.004f, 0.006f, 0.014f};

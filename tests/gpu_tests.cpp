@@ -1232,6 +1232,35 @@ TEST_CASE("Renderer3D lights scenes with the sun of their sky through its air", 
     CHECK(IsNear(render(-0.2f).At(16, 16), {0, 0, 0, 255}));
 }
 
+TEST_CASE("Renderer3D suns glow well beyond their core and burn orange at sunset", "[gpu]") {
+    RequireGpu();
+
+    // Looking straight at the sun, high and then just above the horizon. The view is 60 degrees tall, so the 5-degree
+    // sun spans a few pixels of radius, and its glow several times that.
+    const auto look = [](Spot::Vector3 toSun) {
+        Spot::Camera3D camera;
+        camera.LookAt(toSun);
+        return RenderSky({.sunDirection = -toSun, .sunSize = Spot::ToRadians(5.0f)}, camera);
+    };
+    const auto high = look({0.0f, 1.0f, -1.0f});
+    const auto low = look({0.0f, 0.06f, -1.0f});
+
+    const Pixel noon = high.At(16, 16);
+    const int glow = high.At(16, 11)[0];
+    const int sky = high.At(16, 1)[0];
+    INFO("Noon sun " << int{noon[0]} << ", " << int{noon[1]} << ", " << int{noon[2]} << "; glow " << glow << "; sky "
+                     << sky);
+    CHECK(std::min({noon[0], noon[1], noon[2]}) > 240);
+    // About two sun radii from its center, the glow still outshines the sky.
+    CHECK(glow > 200);
+    CHECK(sky < glow - 20);
+
+    const Pixel sunset = low.At(16, 16);
+    INFO("Sunset sun " << int{sunset[0]} << ", " << int{sunset[1]} << ", " << int{sunset[2]});
+    CHECK(sunset[0] > 240);
+    CHECK(sunset[2] < sunset[0] - 60);
+}
+
 TEST_CASE("Renderer3D skies show the sun's disc where its light comes from", "[gpu]") {
     RequireGpu();
 

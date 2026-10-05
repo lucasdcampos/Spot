@@ -7,6 +7,8 @@ cbuffer Sky : register(b0, space3) {
     float4 groundColor;
     // The light that reaches the ground, from the sun through the air and from the sky, like a surface of the scene.
     float4 groundLight;
+    // The sunlight that crosses the air to the viewer, which fades out as the sun sets.
+    float4 sunLight;
     float4 nightColor;
     // The sun's angular radius in radians, the atmosphere's thickness and the exposure.
     float4 settings;
@@ -34,11 +36,15 @@ static const float MieExtinction = 4.44e-3;
 static const float MieAnisotropy = 0.8;
 // How bright the sky is drawn for a sun of intensity 1, before the exposure.
 static const float SkyBrightness = 40.0;
-// How bright the sun's disc is drawn: far brighter than the sky, as the real sun is, so it stands out from its glow,
-// yet low enough that it turns orange once the air near the horizon takes most of its blue and green.
-static const float SunDiscBrightness = 400.0;
+// The sun is far brighter than anything else in view, so, as in a camera or the eye, its light spills over what is
+// around it: a blinding core, an intense glow a few radii wide and a faint halo far beyond. All of it is light
+// that crossed the air, so it turns into an orange ball of fire at sunset. The core shows the hue of that light at
+// full brightness, white at noon and orange at sunset, since its brightness alone would burn out to white either way.
+static const float SunCoreBrightness = 8.0;
+static const float SunGlowBrightness = 10.0;
+static const float SunHaloBrightness = 0.5;
 // How far below the horizon, as the cosine of the angle from level, the ground fades in from the haze.
-static const float HorizonFade = 0.02;
+static const float HorizonFade = 0.08;
 static const float Pi = 3.14159265;
 
 #define VIEW_SAMPLES 16
@@ -133,9 +139,18 @@ float3 GetSkyLight(float3 direction, float3 toSun, out float3 transmittance) {
     return GetSkyRadiance(direction, toSun, transmittance) * sunlight + nightColor.rgb;
 }
 
-// Maps unbounded light to what the target can show, keeping bright skies from clipping to white.
+// Maps unbounded light to what the target can show by its brightness alone, keeping its hue: the glow of a sunset
+// stays orange instead of washing out to white as light mapped color by color would.
 float3 Expose(float3 light) {
-    return 1.0 - exp(-light * settings.z);
+    const float luminance = dot(light, float3(0.2126, 0.7152, 0.0722));
+    if (luminance <= 0.0) {
+        return 0.0;
+    }
+    const float3 color = light * ((1.0 - exp(-luminance * settings.z)) / luminance);
+    // Saturated colors can come out above 1 in a channel, so they are scaled back, smoothly, since a hard limit would
+    // draw a visible edge where it starts.
+    const float brightest = max(max(color.r, color.g), color.b);
+    return color / pow(1.0 + pow(brightest, 8.0), 1.0 / 8.0);
 }
 
 float4 main(Input input) : SV_Target0 {
@@ -143,29 +158,38 @@ float4 main(Input input) : SV_Target0 {
     const float3 toSun = sunDirection.xyz;
     float3 transmittance;
     float3 color;
-    // How many sun radii the direction is from the sun's center. Its rate across the screen, which smooths the disc's
-    // edge, is only defined outside of branches.
     const float sunRadius = settings.x;
+    const bool hasSun = sunDirection.w > 0.5 && sunRadius > 0.0;
+
+    // The sun's glow, from light that crossed the air toward it, in sun radii from its center. It spills below the
+    // horizon too, over the haze there.
     const float sunDistance = length(direction - toSun) / max(sunRadius, 1e-6);
-    const float sunEdge = max(fwidth(sunDistance), 1e-4);
+    float3 glow = 0.0;
+    if (hasSun) {
+        glow = sunLight.rgb * (SunGlowBrightness * exp(-sunDistance * sunDistance / 9.0) +
+                               SunHaloBrightness / (1.0 + sunDistance * sunDistance / 16.0));
+    }
 
     if (direction.y >= 0.0) {
-        float3 light = GetSkyLight(direction, toSun, transmittance);
-
-        // The sun's disc, darker toward its rim as the real sun is, with an edge smoothed over about a pixel.
-        if (sunDirection.w > 0.5 && sunRadius > 0.0) {
-            const float coverage = saturate((1.0 - sunDistance) / sunEdge + 0.5);
-            const float rim = sqrt(saturate(1.0 - sunDistance * sunDistance));
-            light += sunColor.rgb * transmittance * SunDiscBrightness * (0.4 + 0.6 * rim) * coverage;
-        }
-        color = Expose(light);
+        color = Expose(GetSkyLight(direction, toSun, transmittance) + glow);
     } else {
         // The ground fades in below the horizon out of the haze there, so the two meet without a line.
         const float3 level = float3(direction.x, 0.0, direction.z);
         const float3 horizon = dot(level, level) > 1e-8 ? normalize(level) : float3(1.0, 0.0, 0.0);
-        const float3 haze = Expose(GetSkyLight(horizon, toSun, transmittance));
+        const float3 haze = Expose(GetSkyLight(horizon, toSun, transmittance) + glow);
         const float3 ground = groundColor.rgb * groundLight.rgb;
         color = lerp(haze, ground, 1.0 - exp(direction.y / HorizonFade));
+    }
+
+    // The core burns out to white wherever the sunlight has all its colors, so it shows the hue of that light at full
+    // brightness, and fades out with the sunlight as the sun sets, compared to the sun's own brightness.
+    const float brightest = max(max(sunLight.r, sunLight.g), sunLight.b);
+    if (hasSun && direction.y >= 0.0 && brightest > 0.0) {
+        // Fading from the center, so it merges into the glow instead of showing as a disc of its own.
+        const float core = 1.0 - smoothstep(0.3, 1.0, sunDistance);
+        const float source = max(max(sunColor.r, sunColor.g), sunColor.b);
+        const float opacity = core * saturate(4.0 * brightest / max(source, 1e-4));
+        color = lerp(color, 1.0 - exp(-sunLight.rgb / brightest * SunCoreBrightness), opacity);
     }
 
     // Noise of under a step of an 8-bit display hides the banding of the sky's smooth gradients. Those steps are even

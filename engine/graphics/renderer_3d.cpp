@@ -58,6 +58,7 @@ struct SkyUniforms {
     Color skyTint;
     Color groundColor;
     Color groundLight;
+    Color sunLight;
     Color nightColor;
     // The sun's angular radius, the atmosphere's thickness and the exposure.
     Vector4 settings;
@@ -309,6 +310,7 @@ void Renderer3D::FlushSky(const SkyData& sky, const SkyLighting& lighting) {
                .skyTint = sky.skyTint,
                .groundColor = sky.groundColor,
                .groundLight = groundLight,
+               .sunLight = lighting.sun ? lighting.sun->color : Color::Black,
                .nightColor = sky.nightColor,
                .settings = {std::max(sky.sunSize, 0.0f), std::max(sky.atmosphereThickness, 0.0f),
                             std::max(sky.exposure, 0.0f), 0.0f},
