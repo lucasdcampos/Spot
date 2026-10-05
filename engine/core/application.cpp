@@ -149,7 +149,7 @@ void Application::UnloadScene(Scene& scene) {
                (change.kind == SceneChangeKind::Remove && change.target == &scene);
     });
     if (!unloading) {
-        m_sceneChanges.push_back({.kind = SceneChangeKind::Remove, .target = &scene});
+        m_sceneChanges.push_back({.kind = SceneChangeKind::Remove, .scene = nullptr, .target = &scene});
     }
 }
 
