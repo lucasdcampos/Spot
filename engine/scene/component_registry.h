@@ -8,6 +8,7 @@
 #include <string_view>
 #include <typeindex>
 #include <typeinfo>
+#include <vector>
 
 namespace Spot {
 
@@ -38,5 +39,19 @@ template <std::derived_from<Component> T>
 bool IsComponentRegistered() {
     return Detail::FindComponentTypeName(typeid(T)) != nullptr;
 }
+
+// Forgets the type registered under the name, such as when the code that defines it is unloaded. Scenes keep
+// components of types that are not registered as MissingComponents.
+void UnregisterComponent(std::string_view name);
+
+// The names component types are registered under, sorted, the engine's own included.
+std::vector<std::string> GetComponentTypeNames();
+
+// A new component of the type registered under the name, not added to any entity yet; null when no type has it.
+std::unique_ptr<Component> CreateComponent(std::string_view name);
+
+// The name the component's type is registered under, or, for a MissingComponent, the name its type was saved under.
+// Empty when it is not registered.
+std::string GetComponentTypeName(const Component& component);
 
 } // namespace Spot

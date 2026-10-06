@@ -361,8 +361,8 @@ TEST_CASE("Entities form a hierarchy", "[scene]") {
 
     hand.SetParent(nullptr);
     CHECK(hand.GetParent() == nullptr);
-    // In creation order.
-    CHECK(scene.GetRootEntities() == std::vector<Entity*>{&root, &hand, &other});
+    // After the roots that were already there.
+    CHECK(scene.GetRootEntities() == std::vector<Entity*>{&root, &other, &hand});
 
     // Children found in the hierarchy.
     auto& health = hand.AddComponent<Health>(1);
@@ -372,6 +372,63 @@ TEST_CASE("Entities form a hierarchy", "[scene]") {
     CHECK(other.GetComponentInChildren<Health>() == nullptr);
     auto& rootHealth = root.AddComponent<Health>(2);
     CHECK(arm.GetComponentInParent<Health>() == &rootHealth);
+}
+
+TEST_CASE("Siblings keep an order that can be changed", "[scene]") {
+    Scene scene;
+    Entity& first = scene.CreateEntity("First");
+    Entity& second = scene.CreateEntity("Second");
+    Entity& third = scene.CreateEntity("Third");
+    Entity& a = first.CreateChild("A");
+    Entity& b = first.CreateChild("B");
+    Entity& c = first.CreateChild("C");
+
+    CHECK(third.GetSiblingIndex() == 2);
+    CHECK(b.GetSiblingIndex() == 1);
+
+    third.SetSiblingIndex(0);
+    CHECK(scene.GetRootEntities() == std::vector<Entity*>{&third, &first, &second});
+    c.SetSiblingIndex(0);
+    CHECK(first.GetChildren() == std::vector<Entity*>{&c, &a, &b});
+    a.SetSiblingIndex(99);
+    CHECK(first.GetChildren() == std::vector<Entity*>{&c, &b, &a});
+
+    // Destroyed siblings do not count, even before they are freed.
+    {
+        const Spot::Detail::DeferRemovalsScope defer(scene);
+        c.Destroy();
+        CHECK(b.GetSiblingIndex() == 0);
+        a.SetSiblingIndex(0);
+        CHECK(first.GetChildren() == std::vector<Entity*>{&a, &b});
+    }
+    CHECK(first.GetChildren() == std::vector<Entity*>{&a, &b});
+
+    // Saved and loaded in that order.
+    Scene loaded;
+    REQUIRE(loaded.LoadFromString(scene.SaveToString()));
+    std::vector<std::string> roots;
+    for (const Entity* root : loaded.GetRootEntities()) {
+        roots.push_back(root->GetName());
+    }
+    CHECK(roots == std::vector<std::string>{"Third", "First", "Second"});
+    CHECK(loaded.FindEntity("First")->GetChildren().front()->GetName() == "A");
+}
+
+TEST_CASE("Components can be added at a place and reordered", "[scene]") {
+    Scene scene;
+    Entity& entity = scene.CreateEntity();
+    auto& health = entity.AddComponent<Health>(1);
+    auto& mover = entity.AddComponent<Mover>();
+
+    Spot::Component& added = entity.AddComponent(std::make_unique<FastMover>(), 1);
+    CHECK(entity.GetComponentIndex(health) == 0);
+    CHECK(entity.GetComponentIndex(added) == 1);
+    CHECK(entity.GetComponentIndex(mover) == 2);
+
+    entity.MoveComponent(health, 2);
+    CHECK(entity.GetComponents<Spot::Component>() == std::vector<Spot::Component*>{&added, &mover, &health});
+    entity.MoveComponent(added, 99);
+    CHECK(entity.GetComponents<Spot::Component>() == std::vector<Spot::Component*>{&mover, &health, &added});
 }
 
 TEST_CASE("Destroying an entity destroys its descendants", "[scene]") {

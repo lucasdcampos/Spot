@@ -28,6 +28,7 @@ protected:
     void OnEnable() override;
     void OnDisable() override;
     void Serialize(Archive& archive) override;
+    void OnValidate() override { MarkChanged(); }
 
     // Rebuilds the entity's body with the collider's new values.
     void MarkChanged();

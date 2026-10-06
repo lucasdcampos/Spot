@@ -64,8 +64,11 @@ protected:
     virtual void OnDestroy() {}
 
     // Saves or loads the component's fields. Loading happens on a new component, after it was added to its entity
-    // and before OnStart().
+    // and before OnStart(), or on an existing one when tools replace its fields.
     virtual void Serialize(Archive& /*archive*/) {}
+    // Called after fields were loaded or changed by tools rather than through the component's own functions, so it
+    // can bring what depends on them up to date.
+    virtual void OnValidate() {}
 
 private:
     friend class Entity;

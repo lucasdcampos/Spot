@@ -36,6 +36,19 @@ Entity& Scene::CreateEntity(std::string name) {
     return *m_entities.back();
 }
 
+Entity& Scene::CreateEntityWithId(EntityId id, std::string name) {
+    if (id == EntityId::Invalid || m_entitiesById.contains(id)) {
+        return CreateEntity(std::move(name));
+    }
+    // New ids must stay above every id given out, including restored ones, so none is ever given twice.
+    const auto value = static_cast<std::uint64_t>(id);
+    std::uint64_t next = s_nextEntityId.load();
+    while (next <= value && !s_nextEntityId.compare_exchange_weak(next, value + 1)) {
+    }
+    Adopt(std::unique_ptr<Entity>(new Entity(*this, id, std::move(name))));
+    return *m_entities.back();
+}
+
 void Scene::DestroyEntity(Entity& entity) {
     SPOT_ASSERT(entity.m_scene == this, "The entity belongs to another scene");
     if (entity.m_destroyed) {
@@ -90,9 +103,9 @@ std::vector<Entity*> Scene::FindEntitiesWithTag(std::string_view tag) const {
 
 std::vector<Entity*> Scene::GetRootEntities() const {
     std::vector<Entity*> roots;
-    for (const auto& entity : m_entities) {
-        if (IsAlive(entity) && !entity->m_parent) {
-            roots.push_back(entity.get());
+    for (Entity* entity : m_roots) {
+        if (!entity->m_destroyed) {
+            roots.push_back(entity);
         }
     }
     return roots;
@@ -145,6 +158,7 @@ std::unique_ptr<Entity> Scene::Release(Entity& entity) {
     // The slot stays empty until removals are processed, so loops in progress keep their place.
     auto released = std::move(*slot);
     m_entitiesById.erase(entity.m_id);
+    std::erase(m_roots, &entity);
     m_hasPendingRemovals = true;
     return released;
 }
@@ -152,6 +166,9 @@ std::unique_ptr<Entity> Scene::Release(Entity& entity) {
 void Scene::Adopt(std::unique_ptr<Entity> entity) {
     entity->m_scene = this;
     m_entitiesById.emplace(entity->m_id, entity.get());
+    if (!entity->m_parent) {
+        m_roots.push_back(entity.get());
+    }
     m_entities.push_back(std::move(entity));
 }
 
@@ -180,6 +197,7 @@ void Scene::ProcessRemovals() {
             }
             m_entitiesById.erase(entity->m_id);
         }
+        std::erase_if(m_roots, [](const Entity* entity) { return entity->CanBeFreed(); });
         std::erase_if(m_entities, [](const auto& entity) { return !entity || entity->CanBeFreed(); });
     }
     m_deferRemovals = deferRemovals;

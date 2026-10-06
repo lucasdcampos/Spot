@@ -5,6 +5,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
 
+#include <algorithm>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
@@ -236,7 +237,11 @@ TEST_CASE("Missing fields keep their defaults and wrong ones are skipped", "[sce
     CHECK(odd->GetTransform().GetPosition() == Spot::Vector3{});
     REQUIRE(odd->GetComponent<Speed>());
     CHECK(odd->GetComponent<Speed>()->value == 1.0f);
-    CHECK(odd->GetComponents<Spot::Component>().size() == 1);
+    // The unknown component is kept, so saving the scene again does not lose it.
+    REQUIRE(odd->GetComponents<Spot::Component>().size() == 2);
+    const auto* missing = odd->GetComponent<Spot::MissingComponent>();
+    REQUIRE(missing);
+    CHECK(missing->GetTypeName() == "Missing");
 
     std::vector<std::string> warnings;
     for (const auto& record : capture->GetRecords()) {
@@ -313,6 +318,161 @@ TEST_CASE("A saved entity loads as many copies as needed", "[scene][serializatio
         REQUIRE(barrel);
         CHECK(barrel->GetComponent<Speed>()->value == 9.0f);
     }
+}
+
+TEST_CASE("Components of unknown types keep their data when saved again", "[scene][serialization]") {
+    const Spot::Tests::ScopedSinks sinks({});
+    Scene scene;
+    REQUIRE(scene.LoadFromString(R"({"format": "spot-scene", "version": 1, "entities": [
+        {"name": "Holder", "components": [{"type": "FromAGame", "enabled": false, "data": {"speed": 4.5}}]}
+    ]})"));
+
+    const std::string saved = scene.SaveToString();
+
+    CHECK_THAT(saved, Catch::Matchers::ContainsSubstring("\"type\": \"FromAGame\""));
+    CHECK_THAT(saved, Catch::Matchers::ContainsSubstring("\"speed\": 4.5"));
+    const auto* missing = scene.FindEntity("Holder")->GetComponent<Spot::MissingComponent>();
+    REQUIRE(missing);
+    CHECK_FALSE(missing->IsEnabled());
+    CHECK(Spot::GetComponentTypeName(*missing) == "FromAGame");
+}
+
+TEST_CASE("Instantiated entities go under a parent at a place among its children", "[scene][serialization]") {
+    RegisterTestComponents();
+    Scene scene;
+    Entity& holder = scene.CreateEntity("Holder");
+    holder.CreateChild("Existing A");
+    holder.CreateChild("Existing B");
+    Entity& template1 = scene.CreateEntity("One");
+    template1.CreateChild("Inner");
+    Entity& template2 = scene.CreateEntity("Two");
+    Entity* const saved[] = {&template1, &template2};
+    const std::string text = scene.SaveEntitiesToString(saved);
+
+    const auto roots = scene.Instantiate(text, {.parent = &holder, .siblingIndex = 1});
+
+    REQUIRE(roots.size() == 2);
+    CHECK(roots[0]->GetName() == "One");
+    CHECK(roots[0]->FindChild("Inner"));
+    CHECK(roots[0]->GetId() != template1.GetId());
+    std::vector<std::string> children;
+    for (const Entity* child : holder.GetChildren()) {
+        children.push_back(child->GetName());
+    }
+    CHECK(children == std::vector<std::string>{"Existing A", "One", "Two", "Existing B"});
+    CHECK(scene.Instantiate("not a scene").empty());
+}
+
+TEST_CASE("Saving several entities saves those below others once", "[scene][serialization]") {
+    Scene scene;
+    Entity& parent = scene.CreateEntity("Parent");
+    Entity& child = parent.CreateChild("Child");
+    Entity* const both[] = {&child, &parent};
+
+    Scene loaded;
+    REQUIRE(loaded.LoadFromString(scene.SaveEntitiesToString(both)));
+
+    CHECK(loaded.GetEntityCount() == 2);
+    REQUIRE(loaded.FindEntity("Child"));
+    CHECK(loaded.FindEntity("Child")->GetParent() == loaded.FindEntity("Parent"));
+}
+
+TEST_CASE("Instantiating can bring entities back with their ids and outside references", "[scene][serialization]") {
+    RegisterTestComponents();
+    Scene scene;
+    Entity& target = scene.CreateEntity("Target");
+    Entity& pointer = scene.CreateEntity("Pointer");
+    pointer.AddComponent<Everything>().target = target.GetId();
+    const EntityId pointerId = pointer.GetId();
+    Entity* const saved[] = {&pointer};
+    const std::string text = scene.SaveEntitiesToString(saved);
+    pointer.Destroy();
+    REQUIRE_FALSE(scene.GetEntity(pointerId));
+
+    const auto restored = scene.Instantiate(text, {.keepIds = true, .keepExternalReferences = true});
+
+    REQUIRE(restored.size() == 1);
+    CHECK(restored[0]->GetId() == pointerId);
+    CHECK(scene.GetEntity(pointerId) == restored[0]);
+    CHECK(restored[0]->GetComponent<Everything>()->target == target.GetId());
+    // Ids already in use get new ones, and new entities never reuse restored ids.
+    const auto copy = scene.Instantiate(text, {.keepIds = true});
+    REQUIRE(copy.size() == 1);
+    CHECK(copy[0]->GetId() != pointerId);
+    CHECK(copy[0]->GetComponent<Everything>()->target == EntityId::Invalid);
+    CHECK(static_cast<std::uint64_t>(scene.CreateEntity().GetId()) > static_cast<std::uint64_t>(pointerId));
+}
+
+TEST_CASE("Components save to text and load back into the same or a new component", "[scene][serialization]") {
+    RegisterTestComponents();
+    Scene scene;
+    Entity& entity = scene.CreateEntity();
+    auto& speed = entity.AddComponent<Speed>();
+    speed.value = 7.0f;
+    speed.SetEnabled(false);
+    const std::string text = Spot::SaveComponentToString(speed);
+    CHECK_THAT(text, Catch::Matchers::ContainsSubstring("\"Speed\""));
+
+    speed.value = 1.0f;
+    speed.SetEnabled(true);
+    REQUIRE(Spot::LoadComponentFromString(speed, text));
+    CHECK(speed.value == 7.0f);
+    CHECK_FALSE(speed.IsEnabled());
+
+    Spot::Component* added = Spot::AddComponentFromString(entity, text, 0);
+    REQUIRE(added);
+    CHECK(entity.GetComponentIndex(*added) == 0);
+    CHECK(dynamic_cast<Speed*>(added)->value == 7.0f);
+
+    const Spot::Tests::ScopedSinks sinks({});
+    auto& other = entity.AddComponent<Everything>();
+    CHECK_FALSE(Spot::LoadComponentFromString(other, text));
+    CHECK_FALSE(Spot::LoadComponentFromString(speed, "{"));
+    CHECK_FALSE(Spot::AddComponentFromString(entity, "[]"));
+    CHECK(Spot::SaveComponentToString(entity.AddComponent<Unregistered>()).empty());
+}
+
+TEST_CASE("The registry lists, creates and forgets component types", "[scene][serialization]") {
+    RegisterTestComponents();
+    Spot::RegisterComponent<Unregistered>("Temporary");
+
+    const auto names = Spot::GetComponentTypeNames();
+    CHECK(std::ranges::is_sorted(names));
+    CHECK(std::ranges::find(names, "MeshRenderer") != names.end());
+    CHECK(std::ranges::find(names, "Temporary") != names.end());
+    const auto created = Spot::CreateComponent("Speed");
+    REQUIRE(created);
+    CHECK(Spot::GetComponentTypeName(*created) == "Speed");
+
+    Spot::UnregisterComponent("Temporary");
+    CHECK_FALSE(Spot::IsComponentRegistered<Unregistered>());
+    CHECK_FALSE(Spot::CreateComponent("Temporary"));
+    CHECK(Spot::GetComponentTypeName(*Spot::CreateComponent("Speed")) == "Speed");
+}
+
+TEST_CASE("Loaded components are told to validate their fields", "[scene][serialization]") {
+    class Validated final : public Spot::Component {
+    public:
+        float value = 0.0f;
+        int validations = 0;
+
+    protected:
+        void Serialize(Spot::Archive& archive) override { archive.Field("value", value); }
+        void OnValidate() override { ++validations; }
+    };
+    Spot::RegisterComponent<Validated>("Validated");
+    Scene scene;
+    Entity& entity = scene.CreateEntity();
+    auto& component = entity.AddComponent<Validated>();
+    component.value = 2.0f;
+    const std::string text = Spot::SaveComponentToString(component);
+
+    REQUIRE(Spot::LoadComponentFromString(component, text));
+    CHECK(component.validations == 1);
+    auto* added = dynamic_cast<Validated*>(Spot::AddComponentFromString(entity, text));
+    REQUIRE(added);
+    CHECK(added->validations == 1);
+    Spot::UnregisterComponent("Validated");
 }
 
 TEST_CASE("Scenes save to and load from files", "[scene][serialization]") {

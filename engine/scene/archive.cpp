@@ -2,6 +2,7 @@
 
 #include "core/log.h"
 #include "scene/archive_state.h"
+#include "scene/scene.h"
 
 #include <algorithm>
 #include <array>
@@ -142,7 +143,13 @@ void Archive::Field(std::string_view name, EntityId& value) {
         return;
     }
     const auto found = m_state.entityIds->find(id);
-    value = found != m_state.entityIds->end() ? found->second : EntityId::Invalid;
+    if (found != m_state.entityIds->end()) {
+        value = found->second;
+    } else if (m_state.scene && m_state.scene->GetEntity(static_cast<EntityId>(id))) {
+        value = static_cast<EntityId>(id);
+    } else {
+        value = EntityId::Invalid;
+    }
 }
 
 void Archive::Field(std::string_view name, AssetId& value) {

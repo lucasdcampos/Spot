@@ -13,11 +13,11 @@ class Archive;
 
 // What a project file holds: everything about a game that is not an asset.
 struct ProjectSettings {
-    std::string name;
+    std::string name = {};
     // The game's own version, such as "1.2.0".
     std::string version = "0.1.0";
     // The scene a game made of assets starts with.
-    AssetId startupScene;
+    AssetId startupScene = {};
     // Where the project's source assets are, relative to the project's folder.
     std::string assetsDirectory = "assets";
 

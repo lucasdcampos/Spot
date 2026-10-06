@@ -55,6 +55,7 @@ protected:
     void OnEnable() override;
     void OnDisable() override;
     void Serialize(Archive& archive) override;
+    void OnValidate() override { MarkChanged(); }
 
 private:
     friend class PhysicsWorld;

@@ -4,8 +4,10 @@
 #include "physics/rigidbody.h"
 #include "scene/light.h"
 #include "scene/mesh_renderer.h"
+#include "scene/missing_component.h"
 #include "scene/sky.h"
 
+#include <algorithm>
 #include <mutex>
 #include <unordered_map>
 #include <utility>
@@ -87,3 +89,44 @@ ComponentFactory FindComponentFactory(std::string_view name) {
 }
 
 } // namespace Spot::Detail
+
+namespace Spot {
+
+void UnregisterComponent(std::string_view name) {
+    Detail::Registry& registry = Detail::GetRegistry();
+    const std::lock_guard lock(registry.mutex);
+    const auto found = registry.types.find(std::string(name));
+    if (found == registry.types.end()) {
+        return;
+    }
+    registry.names.erase(found->second);
+    registry.factories.erase(found->first);
+    registry.types.erase(found);
+}
+
+std::vector<std::string> GetComponentTypeNames() {
+    Detail::Registry& registry = Detail::GetRegistry();
+    const std::lock_guard lock(registry.mutex);
+    std::vector<std::string> names;
+    names.reserve(registry.types.size());
+    for (const auto& [name, type] : registry.types) {
+        names.push_back(name);
+    }
+    std::ranges::sort(names);
+    return names;
+}
+
+std::unique_ptr<Component> CreateComponent(std::string_view name) {
+    const Detail::ComponentFactory factory = Detail::FindComponentFactory(name);
+    return factory ? factory() : nullptr;
+}
+
+std::string GetComponentTypeName(const Component& component) {
+    if (const auto* missing = dynamic_cast<const MissingComponent*>(&component)) {
+        return missing->GetTypeName();
+    }
+    const std::string* name = Detail::FindComponentTypeName(typeid(component));
+    return name ? *name : std::string();
+}
+
+} // namespace Spot

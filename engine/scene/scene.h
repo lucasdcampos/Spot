@@ -6,6 +6,8 @@
 #include <cstddef>
 #include <filesystem>
 #include <memory>
+#include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -18,6 +20,24 @@ class AssetManager;
 class Event;
 class PhysicsWorld;
 class RenderContext;
+
+// How Scene::Instantiate() adds saved entities.
+struct InstantiateOptions {
+    // The saved entities without a parent among them become children of this entity of the scene, or roots when
+    // null.
+    Entity* parent = nullptr;
+    // Where the first of those goes among its siblings, the others following it; after the existing ones when unset.
+    std::optional<std::size_t> siblingIndex = std::nullopt;
+    // Gives the entities their saved ids rather than new ones, such as to bring back deleted entities. Ids in use in
+    // the scene are replaced by new ones.
+    bool keepIds = false;
+    // References to entities that were not saved along keep pointing at the scene's entities with those ids, as
+    // copies of entities of the same scene should. Off, they load as EntityId::Invalid, since ids in text from
+    // elsewhere mean nothing here.
+    bool keepExternalReferences = false;
+    // References to assets load through it, or through the running application's asset manager when null.
+    AssetManager* assets = nullptr;
+};
 
 // Owns a hierarchy of entities and drives their components. A game usually derives a scene per level or screen, and
 // builds its entities in OnLoad():
@@ -66,6 +86,7 @@ public:
     Entity* FindEntity(std::string_view name) const;
     Entity* FindEntityWithTag(std::string_view tag) const;
     std::vector<Entity*> FindEntitiesWithTag(std::string_view tag) const;
+    // The entities without a parent, in their sibling order.
     std::vector<Entity*> GetRootEntities() const;
     std::size_t GetEntityCount() const;
 
@@ -80,6 +101,13 @@ public:
     // References to assets load through the given asset manager, or the running application's when null.
     bool LoadFromString(std::string_view text, AssetManager* assets = nullptr);
     bool LoadFromFile(const std::filesystem::path& path, AssetManager* assets = nullptr);
+
+    // Adds saved entities like LoadFromString(), as the options say, and returns those that had no parent among
+    // them, in order. Returns nothing, having added nothing, when the text is not a saved scene.
+    std::vector<Entity*> Instantiate(std::string_view text, const InstantiateOptions& options = {});
+    // Saves the entities, which must belong to this scene, with their descendants, in the format of SaveToString().
+    // An entity below another of the list is saved once, with that one.
+    std::string SaveEntitiesToString(std::span<Entity* const> entities) const;
 
     // The first component that is a T on any entity, active or not; null when there is none.
     template <std::derived_from<Component> T>
@@ -152,6 +180,8 @@ private:
     // Whether the slot holds an entity that is not destroyed. Slots are empty after their entity moved to another
     // scene, until removals are processed.
     static bool IsAlive(const std::unique_ptr<Entity>& entity);
+    // Creates an entity with that id, or a new one when it is in use.
+    Entity& CreateEntityWithId(EntityId id, std::string name);
     // Takes the entity out of the scene, leaving its slot empty, and gives it to another one.
     std::unique_ptr<Entity> Release(Entity& entity);
     void Adopt(std::unique_ptr<Entity> entity);
@@ -161,6 +191,8 @@ private:
     std::unique_ptr<PhysicsWorld> m_physics;
     std::vector<std::unique_ptr<Entity>> m_entities;
     std::unordered_map<EntityId, Entity*> m_entitiesById;
+    // The entities without a parent, in sibling order, which can differ from m_entities' creation order.
+    std::vector<Entity*> m_roots;
     Application* m_application = nullptr;
     // Set while the scene walks its entities, so removals asked for meanwhile wait until it is done.
     bool m_deferRemovals = false;

@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -70,15 +71,21 @@ public:
     // Whether this entity and all its ancestors are active.
     bool IsActiveInHierarchy() const;
 
-    // Moves the entity under another one of the same scene, or to the root when null. The local transform is kept
-    // by default, so the entity moves along with its new parent; keepWorldPose keeps its world position and
-    // rotation instead.
+    // Moves the entity under another one of the same scene, or to the root when null, after its new siblings. The
+    // local transform is kept by default, so the entity moves along with its new parent; keepWorldPose keeps its
+    // world position and rotation instead.
     void SetParent(Entity* parent, bool keepWorldPose = false);
     Entity* GetParent() const { return m_parent; }
     Entity& CreateChild(std::string name = {});
-    // The children that are not destroyed, in the order they were attached. It is a copy, so the hierarchy may change
-    // while going through it.
+    // The children that are not destroyed, in order. It is a copy, so the hierarchy may change while going through
+    // it.
     std::vector<Entity*> GetChildren() const;
+    // The entity's place among its parent's children, or among the scene's root entities, counting from 0.
+    // Destroyed siblings do not count. The order is the one hierarchies show and scenes save; it does not change the
+    // order entities update in.
+    std::size_t GetSiblingIndex() const;
+    // Moves the entity to that place among its siblings, or after the last one when the index is past them.
+    void SetSiblingIndex(std::size_t index);
     // The first direct child with this name; null when there is none.
     Entity* FindChild(std::string_view name) const;
     bool IsDescendantOf(const Entity& ancestor) const;
@@ -107,6 +114,16 @@ public:
         Attach(std::move(component));
         return added;
     }
+
+    // Adds a component made elsewhere, such as by CreateComponent() from a type's registered name, at that place
+    // among the entity's components, or last.
+    Component& AddComponent(std::unique_ptr<Component> component, std::optional<std::size_t> index = std::nullopt);
+
+    // The component's place among the entity's components that are not being removed, which is the order they update
+    // in and are saved in.
+    std::size_t GetComponentIndex(const Component& component) const;
+    // Moves the component to that place, or last when the index is past the others.
+    void MoveComponent(Component& component, std::size_t index);
 
     // The first component that is a T, including types derived from T, enabled or not; null when there is none.
     template <std::derived_from<Component> T>
@@ -202,7 +219,9 @@ private:
 
     Entity(Scene& scene, EntityId id, std::string name);
 
-    void Attach(std::unique_ptr<Component> component);
+    void Attach(std::unique_ptr<Component> component, std::optional<std::size_t> index = std::nullopt);
+    // The list the entity is ordered in: its parent's children, or the scene's roots.
+    std::vector<Entity*>& GetSiblings() const;
     void MoveSubtree(Scene& scene);
     void MarkDestroyed();
     // Brings OnEnable() and OnDisable() up to date for the components of this entity and its descendants.

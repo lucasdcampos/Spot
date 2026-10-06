@@ -57,13 +57,9 @@ void Entity::SetParent(Entity* parent, bool keepWorldPose) {
     const Vector3 worldPosition = m_transform.GetWorldPosition();
     const Quaternion worldRotation = m_transform.GetWorldRotation();
 
-    if (m_parent) {
-        std::erase(m_parent->m_children, this);
-    }
+    std::erase(GetSiblings(), this);
     m_parent = parent;
-    if (m_parent) {
-        m_parent->m_children.push_back(this);
-    }
+    GetSiblings().push_back(this);
 
     m_transform.MarkWorldDirty();
     if (keepWorldPose) {
@@ -91,6 +87,35 @@ std::vector<Entity*> Entity::GetChildren() const {
         }
     }
     return children;
+}
+
+std::size_t Entity::GetSiblingIndex() const {
+    std::size_t index = 0;
+    for (const Entity* sibling : GetSiblings()) {
+        if (sibling == this) {
+            break;
+        }
+        index += sibling->m_destroyed ? 0 : 1;
+    }
+    return index;
+}
+
+void Entity::SetSiblingIndex(std::size_t index) {
+    SPOT_ASSERT(!m_destroyed, "A destroyed entity cannot be moved in the hierarchy");
+    std::vector<Entity*>& siblings = GetSiblings();
+    std::erase(siblings, this);
+    // Destroyed siblings waiting to be freed still hold slots, so the place is counted among the others.
+    auto place = siblings.begin();
+    for (std::size_t alive = 0; place != siblings.end(); ++place) {
+        if (!(*place)->m_destroyed && alive++ == index) {
+            break;
+        }
+    }
+    siblings.insert(place, this);
+}
+
+std::vector<Entity*>& Entity::GetSiblings() const {
+    return m_parent ? m_parent->m_children : m_scene->m_roots;
 }
 
 Entity* Entity::FindChild(std::string_view name) const {
@@ -151,10 +176,47 @@ void Entity::RemoveComponent(Component& component) {
     component.RefreshActivity();
 }
 
-void Entity::Attach(std::unique_ptr<Component> component) {
+Component& Entity::AddComponent(std::unique_ptr<Component> component, std::optional<std::size_t> index) {
+    SPOT_ASSERT(component && !component->m_entity, "Only components that belong to no entity can be added");
+    Component& added = *component;
+    Attach(std::move(component), index);
+    return added;
+}
+
+std::size_t Entity::GetComponentIndex(const Component& component) const {
+    SPOT_ASSERT(component.m_entity == this, "The component belongs to another entity");
+    std::size_t index = 0;
+    for (const auto& owned : m_components) {
+        if (owned.get() == &component) {
+            break;
+        }
+        index += owned->m_removed ? 0 : 1;
+    }
+    return index;
+}
+
+void Entity::MoveComponent(Component& component, std::size_t index) {
+    SPOT_ASSERT(component.m_entity == this, "The component belongs to another entity");
+    const auto slot = std::ranges::find_if(m_components, [&](const auto& owned) { return owned.get() == &component; });
+    std::unique_ptr<Component> moved = std::move(*slot);
+    m_components.erase(slot);
+    Attach(std::move(moved), index);
+}
+
+void Entity::Attach(std::unique_ptr<Component> component, std::optional<std::size_t> index) {
     SPOT_ASSERT(!m_destroyed, "Components cannot be added to a destroyed entity");
     component->m_entity = this;
-    m_components.push_back(std::move(component));
+    // Removed components waiting to be freed still hold slots, so the place is counted among the others.
+    auto place = m_components.end();
+    if (index) {
+        place = m_components.begin();
+        for (std::size_t kept = 0; place != m_components.end(); ++place) {
+            if (!(*place)->m_removed && kept++ == *index) {
+                break;
+            }
+        }
+    }
+    m_components.insert(place, std::move(component));
 }
 
 void Entity::MarkDestroyed() {
