@@ -104,12 +104,14 @@ catch_discover_tests(spot_gpu_tests PROPERTIES TIMEOUT 60)
 # Editor tests link the editor's code, everything but its main().
 if(TARGET spot_editor_core)
     add_executable(spot_editor_tests
+        editor/command_history_tests.cpp
         editor/console_log_tests.cpp
         editor/editor_layout_tests.cpp
         editor/headless_imgui.h
         editor/imgui_platform_tests.cpp
         editor/project_tests.cpp
         editor/project_ui_tests.cpp
+        editor/scene_commands_tests.cpp
         temp_directory.h
     )
     target_link_libraries(spot_editor_tests PRIVATE

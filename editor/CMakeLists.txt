@@ -50,6 +50,9 @@ add_library(spot_editor_core STATIC
     app/editor_context.h
     app/editor_layout.cpp
     app/editor_layout.h
+    core/command.h
+    core/command_history.cpp
+    core/command_history.h
     core/console_log.cpp
     core/console_log.h
     core/editor_log.cpp
@@ -87,6 +90,12 @@ add_library(spot_editor_core STATIC
     project/project_hub.h
     project/project_templates.cpp
     project/project_templates.h
+    scene/scene_commands.cpp
+    scene/scene_commands.h
+    scene/scene_document.cpp
+    scene/scene_document.h
+    scene/selection.cpp
+    scene/selection.h
 )
 target_include_directories(spot_editor_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(spot_editor_core PUBLIC
