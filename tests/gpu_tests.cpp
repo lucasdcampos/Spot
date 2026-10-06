@@ -986,6 +986,79 @@ TEST_CASE("Multisampled targets smooth the edges they resolve", "[gpu]") {
     CHECK(countEdgeShades(4) > 10);
 }
 
+TEST_CASE("Multisampled targets keep their samples for a later pass when asked", "[gpu]") {
+    RequireGpu();
+    struct Vertex {
+        Spot::Vector2 position;
+        Spot::Color color;
+    };
+    // The right half of the target.
+    const std::array<Vertex, 4> quad{{
+        {{0.0f, -1.0f}, Spot::Color::Green},
+        {{1.0f, -1.0f}, Spot::Color::Green},
+        {{1.0f, 1.0f}, Spot::Color::Green},
+        {{0.0f, 1.0f}, Spot::Color::Green},
+    }};
+    const std::array<std::uint16_t, 6> indices{0, 1, 2, 2, 3, 0};
+    std::unique_ptr<Spot::Texture> resolved;
+    std::vector<std::uint8_t> result;
+    int frame = 0;
+
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
+        auto& device = app.GetGraphicsDevice();
+        if (++frame == 2) {
+            result = device.DownloadTexture(*resolved);
+            return;
+        }
+        if (frame != 1) {
+            return;
+        }
+        REQUIRE(device.SupportsSampleCount(Spot::TextureFormat::Rgba8, 4));
+        resolved = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
+        const auto samples = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true, .sampleCount = 4});
+        const auto quadBuffer = device.CreateBuffer(Spot::BufferUsage::Vertex, quad);
+        const auto indexBuffer = device.CreateBuffer(Spot::BufferUsage::Index, indices);
+        const auto vertexShader = device.CreateShader(Shaders::QuadVert);
+        const auto fragmentShader = device.CreateShader(Shaders::TriangleFrag);
+        REQUIRE((resolved && samples && quadBuffer && indexBuffer && vertexShader && fragmentShader));
+        const auto pipeline = device.CreatePipeline({
+            .vertexShader = vertexShader.get(),
+            .fragmentShader = fragmentShader.get(),
+            .vertexBuffers = {{
+                .stride = sizeof(Vertex),
+                .attributes = {{0, Spot::VertexFormat::Float2, offsetof(Vertex, position)},
+                               {1, Spot::VertexFormat::Float4, offsetof(Vertex, color)}},
+            }},
+            .targetFormat = Spot::TextureFormat::Rgba8,
+            .sampleCount = 4,
+        });
+        REQUIRE(pipeline != nullptr);
+
+        {
+            auto pass = context.BeginRenderPass({.target = samples.get(),
+                                                 .clearColor = Spot::Color::Blue,
+                                                 .resolveTarget = resolved.get(),
+                                                 .keepSamples = true});
+        }
+        auto pass = context.BeginRenderPass({.target = samples.get(), .resolveTarget = resolved.get()});
+        pass.BindPipeline(*pipeline);
+        pass.BindVertexBuffer(0, *quadBuffer);
+        pass.BindIndexBuffer(*indexBuffer, Spot::IndexType::UInt16);
+        pass.PushVertexUniforms(0, Spot::Matrix4::Identity());
+        pass.DrawIndexed(6);
+    });
+
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    REQUIRE(result.size() == 4 * 4 * 4);
+    const auto pixelAt = [&](int x, int y) {
+        const auto* pixel = &result[static_cast<std::size_t>((y * 4 + x) * 4)];
+        return std::array<std::uint8_t, 4>{pixel[0], pixel[1], pixel[2], pixel[3]};
+    };
+    // The first pass's clear survives on the left, under the second pass's draw on the right.
+    CHECK(pixelAt(0, 1) == std::array<std::uint8_t, 4>{0, 0, 255, 255});
+    CHECK(pixelAt(3, 1) == std::array<std::uint8_t, 4>{0, 255, 0, 255});
+}
+
 TEST_CASE("Multisampled targets resolve into the window", "[gpu]") {
     RequireGpu();
     bool resolved = false;

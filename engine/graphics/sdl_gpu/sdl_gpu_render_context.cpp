@@ -146,7 +146,7 @@ RenderPass RenderContext::BeginRenderPass(const RenderPassDesc& desc) {
         target.resolve_texture = m_impl->target;
     }
     if (resolves) {
-        target.store_op = SDL_GPU_STOREOP_RESOLVE;
+        target.store_op = desc.keepSamples ? SDL_GPU_STOREOP_RESOLVE_AND_STORE : SDL_GPU_STOREOP_RESOLVE;
     }
 
     SDL_GPUDepthStencilTargetInfo depth{};

@@ -29,6 +29,9 @@ struct RenderPassDesc {
     // samples themselves are then discarded.
     Texture* resolveTarget = nullptr;
     bool resolveToWindow = false;
+    // Keeps the samples after resolving them, so a later pass can draw more over them and resolve again, as tools
+    // drawing over a rendered scene do.
+    bool keepSamples = false;
     // Draws only into the depth target, with no color target, as shadow maps are; target, clearColor and the
     // resolve fields must then be unset. Only pipelines created with PipelineDesc::depthOnly draw in such passes.
     bool depthOnly = false;
