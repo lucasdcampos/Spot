@@ -1,10 +1,12 @@
 #include "panels/asset_browser_panel.h"
 
 #include "assets/asset_list.h"
+#include "assets/thumbnail_cache.h"
 #include "core/editor_log.h"
 #include "imgui/drag_payloads.h"
 #include "imgui/editor_style.h"
 #include "imgui/icons.h"
+#include "imgui/imgui_renderer.h"
 #include "imgui/widgets.h"
 #include "project/project_templates.h"
 #include "scene/scene_workspace.h"
@@ -487,12 +489,26 @@ void AssetBrowserPanel::DrawTile(EditorProject& project, const BrowserItem& item
         drawList->AddRectFilled({min.x + 2.0f, min.y + 2.0f}, {max.x - 2.0f, min.y + size - 2.0f},
                                 ImGui::GetColorU32(ImGuiCol_FrameBg), style.FrameRounding);
     }
-    const char* icon = GetItemIcon(item);
-    const float iconSize = size * (item.subAsset ? 0.34f : 0.44f);
-    ImFont* font = ImGui::GetFont();
-    const ImVec2 iconExtent = font->CalcTextSizeA(iconSize, FLT_MAX, 0.0f, icon);
-    drawList->AddText(font, iconSize, {min.x + (size - iconExtent.x) * 0.5f, min.y + (size - iconExtent.y) * 0.5f},
-                      ImGui::GetColorU32(item.folder ? FolderColor : GetTypeColor(item.type)), icon);
+    ThumbnailCache* thumbnails = m_context.GetThumbnails();
+    const Texture* picture = thumbnails && !item.folder ? thumbnails->Get(project, item.id, item.type) : nullptr;
+    if (picture) {
+        // Fitted into the square, keeping its proportions.
+        const float inset = size * (item.subAsset ? 0.16f : 0.08f);
+        const float side = size - inset * 2.0f;
+        const float width = static_cast<float>(picture->GetWidth());
+        const float height = static_cast<float>(picture->GetHeight());
+        const float scale = side / std::max(width, height);
+        const ImVec2 extent{width * scale, height * scale};
+        const ImVec2 corner{min.x + (size - extent.x) * 0.5f, min.y + (size - extent.y) * 0.5f};
+        drawList->AddImage(ToImTextureId(*picture), corner, {corner.x + extent.x, corner.y + extent.y});
+    } else {
+        const char* icon = GetItemIcon(item);
+        const float iconSize = size * (item.subAsset ? 0.34f : 0.44f);
+        ImFont* font = ImGui::GetFont();
+        const ImVec2 iconExtent = font->CalcTextSizeA(iconSize, FLT_MAX, 0.0f, icon);
+        drawList->AddText(font, iconSize, {min.x + (size - iconExtent.x) * 0.5f, min.y + (size - iconExtent.y) * 0.5f},
+                          ImGui::GetColorU32(item.folder ? FolderColor : GetTypeColor(item.type)), icon);
+    }
 
     // Files with parts have an arrow that shows them after the file.
     if (item.hasSubAssets && m_search.empty()) {

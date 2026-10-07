@@ -131,6 +131,7 @@ if(TARGET spot_editor_core)
     add_executable(spot_editor_gpu_tests
         editor/editor_gpu_tests.cpp
         rendering_application.h
+        temp_directory.h
     )
     target_link_libraries(spot_editor_gpu_tests PRIVATE
         spot_editor_core

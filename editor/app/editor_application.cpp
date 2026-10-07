@@ -132,6 +132,8 @@ void EditorApplication::OnStart() {
     }
 
     m_context = std::make_unique<EditorContext>(GetWindow(), &GetGraphicsDevice(), m_settings);
+    m_thumbnails = std::make_unique<ThumbnailCache>(GetGraphicsDevice());
+    m_context->SetThumbnails(m_thumbnails.get());
     m_workspace = std::make_unique<SceneWorkspace>(*m_context);
     m_context->SetWorkspace(m_workspace.get());
     m_newProjectDialog = std::make_unique<NewProjectDialog>(m_settings, GetWindow());
@@ -195,8 +197,11 @@ void EditorApplication::OnRender(RenderContext& context) {
     DrawUi();
     m_imgui->EndFrame();
 
-    // The views' scenes are drawn before the window, which shows them.
+    // The views' scenes and the assets' pictures are drawn before the window, which shows them.
     m_workspace->Render(context);
+    if (EditorProject* project = m_context->GetProject()) {
+        m_thumbnails->Render(context, *project);
+    }
 
     {
         auto pass = context.BeginRenderPass({.clearColor = Color{0.078f, 0.082f, 0.090f, 1.0f}});
@@ -248,6 +253,7 @@ void EditorApplication::OnStop() {
     m_context->SetWorkspace(nullptr);
     m_workspace.reset();
     m_context.reset();
+    m_thumbnails.reset();
     m_screenshotTarget.reset();
     m_imgui.reset();
 }
@@ -293,6 +299,7 @@ void EditorApplication::CloseProject() {
     m_workspace->CloseAll();
     // Assets loaded from now on come from the application again, until another project opens.
     Detail::SetAssetManager(&GetAssets());
+    m_thumbnails->Clear();
     m_context->SetProject(nullptr);
     UpdateTitle();
 }

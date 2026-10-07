@@ -11,6 +11,7 @@
 namespace Spot::Editor {
 
 class SceneWorkspace;
+class ThumbnailCache;
 
 // What the editor's windows share: the devices, the user's settings and the open project.
 class EditorContext {
@@ -34,6 +35,10 @@ public:
     // The scene being edited: the one whose view was focused last.
     SceneDocument* GetActiveDocument();
 
+    // Pictures of assets; null without a graphics device, as in tests.
+    ThumbnailCache* GetThumbnails() { return m_thumbnails; }
+    void SetThumbnails(ThumbnailCache* thumbnails) { m_thumbnails = thumbnails; }
+
     // How far the mouse moved since the last frame, in pixels, also while it is captured.
     Vector2 GetMouseDelta() const { return m_mouseDelta; }
     void SetMouseDelta(Vector2 delta) { m_mouseDelta = delta; }
@@ -44,6 +49,7 @@ private:
     EditorSettings& m_settings;
     std::unique_ptr<EditorProject> m_project;
     SceneWorkspace* m_workspace = nullptr;
+    ThumbnailCache* m_thumbnails = nullptr;
     Vector2 m_mouseDelta;
 };
 

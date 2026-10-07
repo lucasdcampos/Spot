@@ -1,6 +1,7 @@
 #pragma once
 
 #include "app/editor_context.h"
+#include "assets/thumbnail_cache.h"
 #include "core/console_log.h"
 #include "core/editor_settings.h"
 #include "imgui/imgui_layer.h"
@@ -79,6 +80,7 @@ private:
     std::unique_ptr<ImGuiLayer> m_imgui;
     std::unique_ptr<EditorContext> m_context;
     std::unique_ptr<SceneWorkspace> m_workspace;
+    std::unique_ptr<ThumbnailCache> m_thumbnails;
     std::unique_ptr<ProjectHub> m_hub;
     std::unique_ptr<NewProjectDialog> m_newProjectDialog;
     std::vector<std::unique_ptr<Panel>> m_panels;

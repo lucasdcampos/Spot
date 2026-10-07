@@ -1,4 +1,9 @@
 #include "rendering_application.h"
+#include "temp_directory.h"
+
+#include "assets/thumbnail_cache.h"
+#include "project/editor_project.h"
+#include "project/project_templates.h"
 
 #include "imgui/imgui_renderer.h"
 #include "viewport/viewport_renderer.h"
@@ -165,4 +170,55 @@ TEST_CASE("Viewports pick the mesh under a pixel and outline the selection", "[e
     CHECK(line[0] > 240);
     CHECK(line[1] < 80);
     CHECK(IsNear(at(52, 32), background));
+}
+
+TEST_CASE("Thumbnails show materials on a sphere over a clear background", "[editor][gpu]") {
+    RequireGpu();
+    const TempDirectory temp;
+    const auto file = Spot::Editor::CreateProject(temp.GetPath(), "Game", Spot::Editor::ProjectTemplate::Empty);
+    REQUIRE(file.has_value());
+    const Spot::MaterialSource red{.baseColor = Spot::Color{1.0f, 0.0f, 0.0f, 1.0f}};
+    REQUIRE(red.SaveToFile(file->parent_path() / "assets" / "Red.material"));
+
+    std::unique_ptr<Spot::Editor::EditorProject> project;
+    std::unique_ptr<Spot::Editor::ThumbnailCache> thumbnails;
+    std::optional<Spot::AssetId> material;
+    const Spot::Texture* picture = nullptr;
+    std::vector<std::uint8_t> pixels;
+    int frame = 0;
+
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
+        auto& device = app.GetGraphicsDevice();
+        ++frame;
+        if (frame == 1) {
+            project = Spot::Editor::EditorProject::Open(*file, &device);
+            REQUIRE(project);
+            material = project->GetAssetDatabase().FindByPath("Red.material");
+            REQUIRE(material.has_value());
+            thumbnails = std::make_unique<Spot::Editor::ThumbnailCache>(device);
+            // Nothing until it is drawn.
+            CHECK(thumbnails->Get(*project, *material, Spot::AssetType::Material) == nullptr);
+            CHECK(thumbnails->Get(*project, *material, Spot::AssetType::Scene) == nullptr);
+            thumbnails->Render(context, *project);
+        } else if (frame == 2) {
+            picture = thumbnails->Get(*project, *material, Spot::AssetType::Material);
+            REQUIRE(picture);
+            pixels = device.DownloadTexture(*picture);
+        }
+    });
+    application.Run();
+    REQUIRE(application.GetRenderedFrames() >= 2);
+
+    constexpr std::uint32_t Size = Spot::Editor::ThumbnailCache::Size;
+    REQUIRE(pixels.size() == Size * Size * 4);
+    const auto at = [&](std::uint32_t x, std::uint32_t y) {
+        const std::size_t offset = (y * Size + x) * 4;
+        return Pixel{pixels[offset], pixels[offset + 1], pixels[offset + 2], pixels[offset + 3]};
+    };
+    const Pixel center = at(Size / 2, Size / 2);
+    CHECK(center[0] > 100);
+    CHECK(center[1] < center[0] / 2);
+    CHECK(center[3] == 255);
+    CHECK(at(1, 1)[3] == 0);
+    thumbnails->Clear();
 }
