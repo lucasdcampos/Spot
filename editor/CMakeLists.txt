@@ -80,6 +80,8 @@ add_library(spot_editor_core STATIC
     imgui/imgui_renderer.h
     imgui/widgets.cpp
     imgui/widgets.h
+    inspector/asset_inspector.cpp
+    inspector/asset_inspector.h
     inspector/entity_inspector.cpp
     inspector/entity_inspector.h
     inspector/inspector_backend.cpp

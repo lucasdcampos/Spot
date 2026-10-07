@@ -5,6 +5,7 @@
 #include "assets/asset_browser_model.h"
 #include "panels/asset_browser_panel.h"
 #include "panels/hierarchy_panel.h"
+#include "panels/inspector_panel.h"
 #include "project/editor_project.h"
 #include "project/project_templates.h"
 #include "scene/entity_actions.h"
@@ -305,4 +306,63 @@ TEST_CASE("Materials dragged from the browser onto the hierarchy go to the entit
     CHECK(cube->GetComponent<Spot::MeshRenderer>()->GetMaterial().GetId() ==
           fixture.Project().GetAssetDatabase().FindByPath("Paint.material"));
     fixture.context->SetWorkspace(nullptr);
+}
+
+TEST_CASE("The inspector edits materials, saving each change as one undoable step", "[editor][assets][ui]") {
+    BrowserFixture fixture;
+    const auto file = fixture.assets / "Paint.material";
+    REQUIRE(Spot::MaterialSource{.specular = 0.25f}.SaveToFile(file));
+    fixture.Project().Refresh();
+    Spot::Editor::InspectorPanel inspector(*fixture.context);
+    fixture.imgui.SetDraw([&] {
+        ImGui::SetNextWindowPos({0.0f, 0.0f});
+        ImGui::SetNextWindowSize({800.0f, 400.0f});
+        fixture.panel->Draw();
+        ImGui::SetNextWindowPos({820.0f, 0.0f});
+        ImGui::SetNextWindowSize({440.0f, 700.0f});
+        inspector.Draw();
+    });
+    fixture.imgui.Frame();
+    fixture.imgui.Frame();
+
+    fixture.imgui.Click(fixture.Tile("Paint.material"));
+    Spot::Editor::AssetInspector& assets = inspector.GetAssetInspector();
+    const ImVec2 field = fixture.Center(assets.GetItemRect("/specular"));
+    fixture.imgui.Drag(field, {field.x + 60.0f, field.y});
+    const auto saved = Spot::MaterialSource::LoadFromFile(file);
+    REQUIRE(saved.has_value());
+    CHECK(saved->specular > 0.25f);
+    REQUIRE(assets.GetHistory());
+    CHECK(assets.GetHistory()->GetUndoCount() == 1);
+
+    assets.GetHistory()->Undo();
+    CHECK(Spot::MaterialSource::LoadFromFile(file)->specular == 0.25f);
+}
+
+TEST_CASE("Import settings apply when asked, and revert", "[editor][assets][ui]") {
+    BrowserFixture fixture;
+    Spot::Editor::InspectorPanel inspector(*fixture.context);
+    fixture.imgui.SetDraw([&] {
+        ImGui::SetNextWindowPos({0.0f, 0.0f});
+        ImGui::SetNextWindowSize({800.0f, 400.0f});
+        fixture.panel->Draw();
+        ImGui::SetNextWindowPos({820.0f, 0.0f});
+        ImGui::SetNextWindowSize({440.0f, 700.0f});
+        inspector.Draw();
+    });
+    fixture.imgui.Frame();
+    fixture.imgui.Click(fixture.Tile("pixels.png"));
+    Spot::Editor::AssetInspector& assets = inspector.GetAssetInspector();
+    const Spot::AssetId texture = *fixture.Project().GetAssetDatabase().FindByPath("pixels.png");
+
+    fixture.imgui.Click(fixture.Center(assets.GetItemRect("/mipmaps")));
+    CHECK(fixture.Project().GetAssetDatabase().GetMeta(texture)->texture.mipmaps);
+    fixture.imgui.Click(fixture.Center(assets.GetItemRect("Revert")));
+    fixture.imgui.Click(fixture.Center(assets.GetItemRect("Apply")));
+    CHECK(fixture.Project().GetAssetDatabase().GetMeta(texture)->texture.mipmaps);
+
+    fixture.imgui.Click(fixture.Center(assets.GetItemRect("/mipmaps")));
+    fixture.imgui.Click(fixture.Center(assets.GetItemRect("Apply")));
+    CHECK_FALSE(fixture.Project().GetAssetDatabase().GetMeta(texture)->texture.mipmaps);
+    CHECK_FALSE(Spot::AssetMeta::LoadFromFile(fixture.assets / "pixels.png.meta")->texture.mipmaps);
 }

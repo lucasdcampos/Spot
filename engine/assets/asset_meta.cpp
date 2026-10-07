@@ -39,22 +39,24 @@ void SerializeSettings(AssetMeta& meta, Archive& archive, std::string_view name)
 } // namespace
 
 void TextureImportSettings::Serialize(Archive& archive) {
-    archive.Field("mipmaps", mipmaps);
+    archive.Field("mipmaps", mipmaps, {.tooltip = "Smaller copies that keep the texture smooth from afar"});
 }
 
 void MaterialOverride::Serialize(Archive& archive) {
-    archive.Field("key", key);
-    archive.Field("material", material);
+    archive.Field("key", key, {.tooltip = "Which of the model's materials, such as material:0"});
+    archive.Field("material", material, {.assetType = AssetType::Material});
 }
 
 void ModelImportSettings::Serialize(Archive& archive) {
-    archive.Field("scale", scale);
-    archive.Field("materials", materials);
+    archive.Field("scale", scale,
+                  {.min = 0.0001f, .max = 10000.0f, .speed = 0.001f, .tooltip = "Such as 0.01 for centimeters"});
+    archive.Field("materials", materials, {.tooltip = "Materials of the model replaced by material assets"});
 }
 
 void FontImportSettings::Serialize(Archive& archive) {
-    archive.Field("pixelSize", pixelSize);
-    archive.Field("extraSizes", extraSizes);
+    archive.Field("pixelSize", pixelSize,
+                  {.min = 4.0f, .max = 512.0f, .speed = 0.5f, .tooltip = "The size glyphs are drawn at, in pixels"});
+    archive.Field("extraSizes", extraSizes, {.tooltip = "More sizes of the font, each a sub-asset"});
 }
 
 void SubAssetId::Serialize(Archive& archive) {

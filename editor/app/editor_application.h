@@ -6,6 +6,7 @@
 #include "core/editor_settings.h"
 #include "imgui/imgui_layer.h"
 #include "panels/asset_browser_panel.h"
+#include "panels/hierarchy_panel.h"
 #include "panels/inspector_panel.h"
 #include "panels/panel.h"
 #include "project/new_project_dialog.h"
@@ -70,6 +71,10 @@ private:
     void DrawLatestMessage();
     void DrawDockSpace();
     void HandleShortcuts();
+    // What Ctrl+Z undoes: the inspected material's edits while the inspector has focus, or else the active scene's.
+    CommandHistory* GetFocusedHistory();
+    void Undo();
+    void Redo();
     void DrawEntityMenu(SceneDocument& document);
     void DrawAboutWindow();
     void DrawErrorWindow();
@@ -85,6 +90,7 @@ private:
     std::unique_ptr<NewProjectDialog> m_newProjectDialog;
     std::vector<std::unique_ptr<Panel>> m_panels;
     InspectorPanel* m_inspector = nullptr;
+    HierarchyPanel* m_hierarchy = nullptr;
     AssetBrowserPanel* m_assetBrowser = nullptr;
     // OS dialogs answer later; they only reach the editor while this is alive.
     std::shared_ptr<EditorApplication*> m_self;

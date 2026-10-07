@@ -284,7 +284,7 @@ void Archive::Field(std::string_view name, EntityId& value, const FieldOptions& 
 }
 
 void Archive::Field(std::string_view name, AssetId& value, const FieldOptions& options) {
-    m_backend->Field(name, value, std::nullopt, options);
+    m_backend->Field(name, value, options.assetType, options);
 }
 
 AssetManager* Archive::GetAssetManager() const {

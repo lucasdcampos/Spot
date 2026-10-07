@@ -782,6 +782,10 @@ void AssetBrowserPanel::AcceptMoves(EditorProject& project, const std::string& f
 void AssetBrowserPanel::Select(const BrowserItem& item) {
     const std::string key = item.GetKey();
     const ImGuiIO& io = ImGui::GetIO();
+    // The inspector shows the asset clicked last.
+    if (!item.folder) {
+        m_context.InspectAsset(item.id);
+    }
     if (io.KeyCtrl) {
         const auto found = std::ranges::find(m_selection, key);
         if (found != m_selection.end()) {

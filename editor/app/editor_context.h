@@ -6,6 +6,7 @@
 
 #include <spot.h>
 
+#include <cstdint>
 #include <memory>
 
 namespace Spot::Editor {
@@ -35,6 +36,12 @@ public:
     // The scene being edited: the one whose view was focused last.
     SceneDocument* GetActiveDocument();
 
+    // Shows the asset in the inspector, until the active scene's selection changes, as when an asset is clicked in
+    // the asset browser; the null id goes back to the selected entities.
+    void InspectAsset(AssetId asset);
+    // The asset the inspector shows instead of the selected entities; the null id when it shows them.
+    AssetId GetInspectedAsset();
+
     // Pictures of assets; null without a graphics device, as in tests.
     ThumbnailCache* GetThumbnails() { return m_thumbnails; }
     void SetThumbnails(ThumbnailCache* thumbnails) { m_thumbnails = thumbnails; }
@@ -50,6 +57,10 @@ private:
     std::unique_ptr<EditorProject> m_project;
     SceneWorkspace* m_workspace = nullptr;
     ThumbnailCache* m_thumbnails = nullptr;
+    AssetId m_inspectedAsset;
+    // The active scene and its selection's version when the asset was inspected.
+    std::uint64_t m_inspectedDocument = 0;
+    std::uint64_t m_inspectedSelection = 0;
     Vector2 m_mouseDelta;
 };
 

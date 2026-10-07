@@ -49,6 +49,9 @@ struct FieldOptions {
     const char* tooltip = nullptr;
     // Tools show the field without letting it be changed.
     bool readOnly = false;
+    // The type of asset an AssetId field refers to, so tools offer only assets of that type. AssetRef fields know
+    // theirs.
+    std::optional<AssetType> assetType = std::nullopt;
 };
 
 // Where an Archive's fields come from and go to. The engine's scene and asset files are one kind; tools add their own,

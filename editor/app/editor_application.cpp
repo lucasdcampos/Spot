@@ -144,7 +144,9 @@ void EditorApplication::OnStart() {
                         .newProject = [this] { m_newProjectDialog->Open(); },
                     });
 
-    m_panels.push_back(std::make_unique<HierarchyPanel>(*m_context));
+    auto hierarchy = std::make_unique<HierarchyPanel>(*m_context);
+    m_hierarchy = hierarchy.get();
+    m_panels.push_back(std::move(hierarchy));
     auto inspector = std::make_unique<InspectorPanel>(*m_context);
     m_inspector = inspector.get();
     m_panels.push_back(std::move(inspector));
@@ -247,6 +249,7 @@ void EditorApplication::OnStop() {
     m_settings.Save();
     m_inspector = nullptr;
     m_assetBrowser = nullptr;
+    m_hierarchy = nullptr;
     m_panels.clear();
     m_hub.reset();
     m_newProjectDialog.reset();
@@ -381,27 +384,43 @@ void EditorApplication::DrawMainMenu() {
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Edit", hasProject)) {
-        SceneDocument* document = m_workspace->GetActiveDocument();
-        CommandHistory* history = document ? &document->GetHistory() : nullptr;
+        CommandHistory* history = GetFocusedHistory();
         const std::string undo = history && history->CanUndo() ? ICON_FA_ROTATE_LEFT "  Undo " + history->GetUndoName()
                                                                : std::string(ICON_FA_ROTATE_LEFT "  Undo");
         const std::string redo = history && history->CanRedo() ? ICON_FA_ROTATE_RIGHT "  Redo " + history->GetRedoName()
                                                                : std::string(ICON_FA_ROTATE_RIGHT "  Redo");
         if (MenuItem(undo.c_str(), ImGuiMod_Ctrl | ImGuiKey_Z, history && history->CanUndo())) {
-            document->Undo();
+            Undo();
         }
         if (MenuItem(redo.c_str(), ImGuiMod_Ctrl | ImGuiKey_Y, history && history->CanRedo())) {
-            document->Redo();
+            Redo();
         }
         ImGui::Separator();
-        MenuItem(ICON_FA_SCISSORS "  Cut", ImGuiMod_Ctrl | ImGuiKey_X, false);
-        MenuItem(ICON_FA_COPY "  Copy", ImGuiMod_Ctrl | ImGuiKey_C, false);
-        MenuItem(ICON_FA_PASTE "  Paste", ImGuiMod_Ctrl | ImGuiKey_V, false);
-        MenuItem(ICON_FA_CLONE "  Duplicate", ImGuiMod_Ctrl | ImGuiKey_D, false);
-        MenuItem(ICON_FA_TRASH_CAN "  Delete", ImGuiKey_Delete, false);
-        MenuItem(ICON_FA_PEN "  Rename", ImGuiKey_F2, false);
+        SceneDocument* document = m_workspace->GetActiveDocument();
+        const bool hasSelection = document && !document->GetSelection().IsEmpty();
+        if (MenuItem(ICON_FA_SCISSORS "  Cut", ImGuiMod_Ctrl | ImGuiKey_X, hasSelection)) {
+            CutSelection(*document);
+        }
+        if (MenuItem(ICON_FA_COPY "  Copy", ImGuiMod_Ctrl | ImGuiKey_C, hasSelection)) {
+            CopySelection(*document);
+        }
+        if (MenuItem(ICON_FA_PASTE "  Paste", ImGuiMod_Ctrl | ImGuiKey_V, document != nullptr)) {
+            PasteClipboard(*document);
+        }
+        if (MenuItem(ICON_FA_CLONE "  Duplicate", ImGuiMod_Ctrl | ImGuiKey_D, hasSelection)) {
+            DuplicateSelection(*document);
+        }
+        if (MenuItem(ICON_FA_TRASH_CAN "  Delete", ImGuiKey_Delete, hasSelection)) {
+            DeleteSelection(*document);
+        }
+        if (MenuItem(ICON_FA_PEN "  Rename", ImGuiKey_F2, hasSelection && m_hierarchy)) {
+            m_hierarchy->SetOpen(true);
+            m_hierarchy->BeginRename(document->GetSelection().GetPrimary());
+        }
         ImGui::Separator();
-        MenuItem("Select All", ImGuiMod_Ctrl | ImGuiKey_A, false);
+        if (MenuItem("Select All", ImGuiMod_Ctrl | ImGuiKey_A, document != nullptr)) {
+            SelectAll(*document);
+        }
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Entity", m_workspace->GetActiveDocument() != nullptr)) {
@@ -673,6 +692,30 @@ void EditorApplication::DrawEntityMenu(SceneDocument& document) {
     }
 }
 
+CommandHistory* EditorApplication::GetFocusedHistory() {
+    if (CommandHistory* history = m_inspector ? m_inspector->GetFocusedHistory() : nullptr) {
+        return history;
+    }
+    SceneDocument* document = m_workspace->GetActiveDocument();
+    return document ? &document->GetHistory() : nullptr;
+}
+
+void EditorApplication::Undo() {
+    if (CommandHistory* history = m_inspector ? m_inspector->GetFocusedHistory() : nullptr) {
+        history->Undo();
+    } else if (SceneDocument* document = m_workspace->GetActiveDocument()) {
+        document->Undo();
+    }
+}
+
+void EditorApplication::Redo() {
+    if (CommandHistory* history = m_inspector ? m_inspector->GetFocusedHistory() : nullptr) {
+        history->Redo();
+    } else if (SceneDocument* document = m_workspace->GetActiveDocument()) {
+        document->Redo();
+    }
+}
+
 void EditorApplication::HandleShortcuts() {
     // Global, so they work from any window; a text field being edited takes the keys it uses first.
     constexpr ImGuiInputFlags Global = ImGuiInputFlags_RouteGlobal;
@@ -701,11 +744,11 @@ void EditorApplication::HandleShortcuts() {
         return;
     }
     if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Z, Global | ImGuiInputFlags_Repeat)) {
-        document->Undo();
+        Undo();
     }
     if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Y, Global | ImGuiInputFlags_Repeat) ||
         ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_Z, Global | ImGuiInputFlags_Repeat)) {
-        document->Redo();
+        Redo();
     }
     if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_S, Global)) {
         m_workspace->Save(*document);
