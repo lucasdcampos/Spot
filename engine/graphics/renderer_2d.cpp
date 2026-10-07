@@ -6,10 +6,14 @@
 #include "graphics/graphics_device.h"
 #include "graphics/render_context.h"
 #include "graphics/text_layout.h"
+#include "scene/entity.h"
+#include "scene/scene.h"
+#include "scene/sprite_renderer.h"
 
 #include "sprite.frag.h"
 #include "sprite.vert.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <vector>
@@ -31,6 +35,7 @@ Renderer2D::Renderer2D(GraphicsDevice& device, const Renderer2DConfig& config) :
             }},
             .blendMode = BlendMode::Alpha,
             .targetFormat = config.targetFormat,
+            .sampleCount = config.sampleCount,
         });
     }
 
@@ -58,6 +63,55 @@ void Renderer2D::Begin(RenderPass& pass, const Camera2D& camera, Vector2 viewSiz
     m_pass = &pass;
     m_viewProjection = camera.GetViewProjection(viewSize);
     m_batch.Clear();
+}
+
+void Renderer2D::Begin(RenderPass& pass, const Matrix4& viewProjection) {
+    SPOT_ASSERT(!m_pass, "Renderer2D::Begin() called twice without End()");
+    m_pass = &pass;
+    m_viewProjection = viewProjection;
+    m_batch.Clear();
+}
+
+void Renderer2D::DrawScene(Scene& scene) {
+    struct Sprite {
+        const SpriteRenderer* renderer;
+        Vector3 position;
+        float rotation;
+        Vector2 size;
+        std::size_t index;
+    };
+    std::vector<Sprite> sprites;
+    scene.ForEachComponent<SpriteRenderer>([&](SpriteRenderer& renderer) {
+        const Transform& transform = renderer.GetEntity().GetTransform();
+        const Vector3 scale = Decompose(transform.GetWorldMatrix()).scale;
+        Vector2 size{renderer.GetSize().x * scale.x, renderer.GetSize().y * scale.y};
+        // A negative size mirrors the quad, and its texture with it.
+        if (renderer.IsFlippedX()) {
+            size.x = -size.x;
+        }
+        if (renderer.IsFlippedY()) {
+            size.y = -size.y;
+        }
+        sprites.push_back(
+            {&renderer, transform.GetWorldPosition(), transform.GetWorldRotation2D(), size, sprites.size()});
+    });
+    std::ranges::sort(sprites, [](const Sprite& a, const Sprite& b) {
+        if (a.renderer->GetOrder() != b.renderer->GetOrder()) {
+            return a.renderer->GetOrder() < b.renderer->GetOrder();
+        }
+        if (a.position.z != b.position.z) {
+            return a.position.z < b.position.z;
+        }
+        return a.index < b.index;
+    });
+    for (const Sprite& sprite : sprites) {
+        const Vector2 position{sprite.position.x, sprite.position.y};
+        if (const Texture* texture = sprite.renderer->GetTexture().Get()) {
+            DrawRotatedQuad(position, sprite.size, sprite.rotation, *texture, sprite.renderer->GetColor());
+        } else {
+            DrawRotatedQuad(position, sprite.size, sprite.rotation, sprite.renderer->GetColor());
+        }
+    }
 }
 
 void Renderer2D::End() {

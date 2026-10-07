@@ -18,12 +18,15 @@ class Font;
 class GraphicsDevice;
 class Pipeline;
 class RenderPass;
+class Scene;
 
 struct Renderer2DConfig {
     // Nearest keeps pixel art sharp; linear smooths scaled textures.
     TextureFilter filter = TextureFilter::Linear;
     // The format of the textures it draws into; the window's swapchain when unset.
     std::optional<TextureFormat> targetFormat = std::nullopt;
+    // The sample count of the targets of the passes it draws in; see TextureDesc::sampleCount.
+    std::uint32_t sampleCount = 1;
 };
 
 struct Renderer2DStats {
@@ -51,6 +54,9 @@ public:
     bool IsValid() const;
 
     void Begin(RenderPass& pass, const Camera2D& camera, Vector2 viewSize);
+    // Draws in the XY plane of the world as the matrix sees it, such as a Camera3D's view projection, so sprites can
+    // show in 3D views too.
+    void Begin(RenderPass& pass, const Matrix4& viewProjection);
     void End();
 
     // Positions are the quad's center, in world units.
@@ -62,6 +68,11 @@ public:
     void DrawRotatedQuad(Vector2 position, Vector2 size, float rotation, Color color);
     void DrawRotatedQuad(Vector2 position, Vector2 size, float rotation, const Texture& texture,
                          Color tint = Color::White, const TextureRegion& region = {});
+
+    // Draws every SpriteRenderer that is enabled on an active entity, at its entity's world position, rotation around
+    // Z and scale, in their order, and of the same order the lower ones along Z first. The scene must not change
+    // until End(), since its sprites keep their textures alive.
+    void DrawScene(Scene& scene);
 
     // Draws UTF-8 text with its top-left corner at the position. At scale 1 a pixel of the font covers one world
     // unit, which is one window point with the default camera. Fonts must stay alive until End().

@@ -7,7 +7,8 @@
 
 namespace Spot {
 
-// A perspective view. With no rotation it looks down -Z with Y up, like the rest of the engine.
+// A perspective view, or an orthographic one. With no rotation it looks down -Z with Y up, like the rest of the
+// engine.
 struct Camera3D {
     Vector3 position = {};
     Quaternion rotation = {};
@@ -15,6 +16,11 @@ struct Camera3D {
     float fieldOfView = ToRadians(60.0f);
     float nearPlane = 0.1f;
     float farPlane = 1000.0f;
+    // Sees along parallel lines, so things keep their size however far they are, as 2D games and technical views
+    // show them; the field of view is then unused.
+    bool orthographic = false;
+    // Half the height of what an orthographic camera sees, in world units.
+    float orthographicSize = 5.0f;
 
     // Turns the camera toward the target, keeping the up direction as close to up as it allows.
     void LookAt(Vector3 target, Vector3 up = {0.0f, 1.0f, 0.0f});

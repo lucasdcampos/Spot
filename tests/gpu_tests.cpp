@@ -677,6 +677,84 @@ TEST_CASE("Renderer2D draws colored and textured quads in order", "[gpu]") {
     CHECK(pixelAt(3, 3) == std::array<std::uint8_t, 4>{0, 0, 0, 255});
 }
 
+TEST_CASE("Renderer2D draws a scene's sprites in their order, through any camera", "[gpu]") {
+    RequireGpu();
+    const auto image = Spot::Image::Load(std::filesystem::path(SPOT_TEST_ASSETS_DIR) / "pixels.png");
+    REQUIRE(image.has_value());
+
+    std::unique_ptr<Spot::Texture> target;
+    std::vector<std::uint8_t> result;
+    Spot::Renderer2DStats stats;
+    Spot::Scene scene;
+    int frame = 0;
+
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
+        auto& device = app.GetGraphicsDevice();
+        if (++frame == 2) {
+            result = device.DownloadTexture(*target);
+            return;
+        }
+        if (frame != 1) {
+            return;
+        }
+        target = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
+        std::shared_ptr<Spot::Texture> texture = device.CreateTexture(*image);
+        REQUIRE((target && texture));
+
+        // Red over everything, a green square under it, and the texture mirrored over the right half.
+        auto& background = scene.CreateEntity("Background").AddComponent<Spot::SpriteRenderer>();
+        background.SetSize({4.0f, 4.0f});
+        background.SetColor(Spot::Color::Red);
+        Spot::Entity& under = scene.CreateEntity("Under");
+        under.GetTransform().SetPosition({-1.5f, 1.5f, 0.0f});
+        auto& hidden = under.AddComponent<Spot::SpriteRenderer>();
+        hidden.SetColor(Spot::Color::Green);
+        hidden.SetOrder(-1);
+        Spot::Entity& textured = scene.CreateEntity("Textured");
+        textured.GetTransform().SetPosition({1.0f, 0.0f, 0.0f});
+        textured.GetTransform().SetScale({2.0f, 4.0f, 1.0f});
+        auto& mirrored = textured.AddComponent<Spot::SpriteRenderer>(Spot::AssetRef<Spot::Texture>(texture));
+        mirrored.SetFlippedX(true);
+        mirrored.SetOrder(1);
+        Spot::Entity& inactive = scene.CreateEntity("Inactive");
+        inactive.AddComponent<Spot::SpriteRenderer>().SetColor(Spot::Color::Blue);
+        inactive.SetActive(false);
+
+        Spot::Renderer2D renderer(device,
+                                  {.filter = Spot::TextureFilter::Nearest, .targetFormat = Spot::TextureFormat::Rgba8});
+        REQUIRE(renderer.IsValid());
+        // A 4x4 view of world X and Y from -2 to 2, through an orthographic Camera3D.
+        Spot::Camera3D camera;
+        camera.position = {0.0f, 0.0f, 10.0f};
+        camera.orthographic = true;
+        camera.orthographicSize = 2.0f;
+        auto pass = context.BeginRenderPass({.target = target.get(), .clearColor = Spot::Color::Black});
+        renderer.Begin(pass, camera.GetViewProjection({4.0f, 4.0f}));
+        renderer.DrawScene(scene);
+        renderer.End();
+        stats = renderer.GetStats();
+    });
+
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    CHECK(stats.quadCount == 3);
+    REQUIRE(result.size() == 4 * 4 * 4);
+    const auto pixelAt = [&](int x, int y) {
+        const auto* pixel = &result[static_cast<std::size_t>((y * 4 + x) * 4)];
+        return std::array<std::uint8_t, 4>{pixel[0], pixel[1], pixel[2], pixel[3]};
+    };
+    constexpr std::array<std::uint8_t, 4> Red{255, 0, 0, 255};
+    constexpr std::array<std::uint8_t, 4> Green{0, 255, 0, 255};
+    constexpr std::array<std::uint8_t, 4> Blue{0, 0, 255, 255};
+    CHECK(pixelAt(0, 0) == Red);
+    CHECK(pixelAt(0, 3) == Red);
+    // Mirrored: the texture's left column, red and blue, is on the right.
+    CHECK(pixelAt(2, 0) == Green);
+    CHECK(pixelAt(3, 0) == Red);
+    CHECK(pixelAt(3, 3) == Blue);
+    // The texture's transparent texel shows the red under it.
+    CHECK(pixelAt(2, 3) == Red);
+}
+
 TEST_CASE("Renderer2D draws text inside its measured box", "[gpu]") {
     RequireGpu();
     constexpr int Width = 128;

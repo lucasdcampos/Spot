@@ -198,6 +198,34 @@ TEST_CASE("Scenes save and load entities, hierarchy and components", "[scene][se
     CHECK(everything->starts == 1);
 }
 
+TEST_CASE("Sprites and cameras save and load", "[scene][serialization]") {
+    Scene scene;
+    auto& sprite = scene.CreateEntity("Sprite").AddComponent<Spot::SpriteRenderer>();
+    sprite.SetColor(Spot::Color{0.5f, 0.25f, 1.0f, 0.75f});
+    sprite.SetSize({3.0f, 2.0f});
+    sprite.SetFlippedX(true);
+    sprite.SetOrder(-4);
+    auto& camera = scene.CreateEntity("Camera").AddComponent<Spot::Camera>();
+    camera.SetProjection(Spot::CameraProjection::Orthographic);
+    camera.SetOrthographicSize(12.0f);
+    camera.SetFarPlane(80.0f);
+
+    Scene loaded;
+    REQUIRE(loaded.LoadFromString(scene.SaveToString()));
+    const auto* loadedSprite = loaded.FindEntity("Sprite")->GetComponent<Spot::SpriteRenderer>();
+    REQUIRE(loadedSprite);
+    CHECK(loadedSprite->GetColor() == sprite.GetColor());
+    CHECK(loadedSprite->GetSize() == Spot::Vector2{3.0f, 2.0f});
+    CHECK(loadedSprite->IsFlippedX());
+    CHECK_FALSE(loadedSprite->IsFlippedY());
+    CHECK(loadedSprite->GetOrder() == -4);
+    const auto* loadedCamera = loaded.FindEntity("Camera")->GetComponent<Spot::Camera>();
+    REQUIRE(loadedCamera);
+    CHECK(loadedCamera->GetProjection() == Spot::CameraProjection::Orthographic);
+    CHECK(loadedCamera->GetOrthographicSize() == 12.0f);
+    CHECK(loadedCamera->GetFarPlane() == 80.0f);
+}
+
 TEST_CASE("Saved scenes are readable JSON", "[scene][serialization]") {
     RegisterTestComponents();
     Scene scene;

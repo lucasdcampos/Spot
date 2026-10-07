@@ -122,6 +122,8 @@ add_library(spot STATIC
     project/project.h
     scene/archive.cpp
     scene/archive_state.h
+    scene/camera.h
+    scene/camera.cpp
     scene/component.h
     scene/component.cpp
     scene/component_registry.h
@@ -139,6 +141,8 @@ add_library(spot STATIC
     scene/scene_serialization.cpp
     scene/sky.h
     scene/sky.cpp
+    scene/sprite_renderer.h
+    scene/sprite_renderer.cpp
     scene/transform.h
     scene/transform.cpp
     window/clipboard.h

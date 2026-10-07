@@ -18,6 +18,31 @@ using Spot::Vector3;
 namespace {
 
 using Calls = std::vector<std::string>;
+
+TEST_CASE("Cameras see from their entity, and the first active one is the main one", "[scene]") {
+    Scene scene;
+    CHECK(Spot::FindMainCamera(scene) == nullptr);
+
+    Entity& disabled = scene.CreateEntity("Disabled");
+    disabled.AddComponent<Spot::Camera>().SetEnabled(false);
+    Entity& inactive = scene.CreateEntity("Inactive");
+    inactive.AddComponent<Spot::Camera>();
+    inactive.SetActive(false);
+    Entity& main = scene.CreateEntity("Main");
+    auto& camera = main.AddComponent<Spot::Camera>();
+    main.AddComponent<Spot::Camera>();
+    CHECK(Spot::FindMainCamera(scene) == &camera);
+
+    main.GetTransform().SetPosition({1.0f, 2.0f, 3.0f});
+    main.GetTransform().SetRotation(Quaternion::FromAxisAngle({0.0f, 1.0f, 0.0f}, 0.5f));
+    camera.SetProjection(Spot::CameraProjection::Orthographic);
+    camera.SetOrthographicSize(8.0f);
+    const Spot::Camera3D view = camera.GetCamera3D();
+    CHECK(view.position == Vector3{1.0f, 2.0f, 3.0f});
+    CHECK(view.rotation == main.GetTransform().GetRotation());
+    CHECK(view.orthographic);
+    CHECK(view.orthographicSize == 8.0f);
+}
 using Action = std::function<void(class Recorder&)>;
 
 // Records its hooks as "<label>.<hook>" and runs optional actions from them.

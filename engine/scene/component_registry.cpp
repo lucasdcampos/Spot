@@ -2,10 +2,12 @@
 
 #include "physics/collider.h"
 #include "physics/rigidbody.h"
+#include "scene/camera.h"
 #include "scene/light.h"
 #include "scene/mesh_renderer.h"
 #include "scene/missing_component.h"
 #include "scene/sky.h"
+#include "scene/sprite_renderer.h"
 
 #include <algorithm>
 #include <mutex>
@@ -46,6 +48,8 @@ Registry& GetRegistry() {
         RegisterBuiltIn<PointLight>(registry, "PointLight");
         RegisterBuiltIn<SpotLight>(registry, "SpotLight");
         RegisterBuiltIn<Sky>(registry, "Sky");
+        RegisterBuiltIn<SpriteRenderer>(registry, "SpriteRenderer");
+        RegisterBuiltIn<Camera>(registry, "Camera");
         return true;
     }();
     static_cast<void>(builtInRegistered);

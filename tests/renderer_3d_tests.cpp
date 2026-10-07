@@ -81,6 +81,24 @@ TEST_CASE("Camera3D maps the near and far planes to depth 0 and 1", "[renderer3d
     CHECK(ToClip(viewProjection, {0.0f, 0.0f, -50.0f}).z == Catch::Approx(1.0f).margin(Tolerance));
 }
 
+TEST_CASE("Orthographic cameras see things the same size however far they are", "[renderer3d]") {
+    Camera3D camera;
+    camera.orthographic = true;
+    camera.orthographicSize = 2.0f;
+    camera.nearPlane = 1.0f;
+    camera.farPlane = 21.0f;
+    // Twice as wide as tall: the view spans 8 units across and 4 up.
+    const auto viewProjection = camera.GetViewProjection({200.0f, 100.0f});
+
+    const Vector3 corner = ToClip(viewProjection, {4.0f, 2.0f, -1.0f});
+    CHECK(corner.x == Catch::Approx(1.0f).margin(Tolerance));
+    CHECK(corner.y == Catch::Approx(1.0f).margin(Tolerance));
+    CHECK(corner.z == Catch::Approx(0.0f).margin(Tolerance));
+    const Vector3 far = ToClip(viewProjection, {4.0f, 2.0f, -21.0f});
+    CHECK(far.x == Catch::Approx(1.0f).margin(Tolerance));
+    CHECK(far.z == Catch::Approx(1.0f).margin(Tolerance));
+}
+
 TEST_CASE("MeshData builds primitives with outward faces", "[renderer3d]") {
     const auto cube = MeshData::CreateCube(2.0f);
     CHECK(cube.vertices.size() == 24);
