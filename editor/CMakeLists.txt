@@ -135,7 +135,7 @@ add_library(spot_editor_core STATIC
 )
 target_include_directories(spot_editor_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(spot_editor_core PUBLIC
-    spot::spot
+    spot::shared
     imgui
 )
 # The engine keeps its JSON library to itself; the editor uses it for its own settings files.
@@ -161,3 +161,4 @@ add_executable(spot_editor
 )
 target_link_libraries(spot_editor PRIVATE spot_editor_core)
 spot_set_compile_options(spot_editor)
+spot_copy_runtime_dlls(spot_editor)

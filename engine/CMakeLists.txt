@@ -1,4 +1,7 @@
-add_library(spot STATIC
+# The engine's code is compiled once, then linked both as a static library, for games made only in code, and as a
+# shared one, for the editor and the game modules it loads, so they share one copy of the engine's state: its
+# registered components, logs, input and assets.
+add_library(spot_objects OBJECT
     spot.h
     version.h
     version.cpp
@@ -151,9 +154,8 @@ add_library(spot STATIC
     window/shell.h
     window/window.h
 )
-add_library(spot::spot ALIAS spot)
 
-spot_add_shaders(spot NAMESPACE Spot::Detail::Shaders
+spot_add_shaders(spot_objects NAMESPACE Spot::Detail::Shaders
     graphics/shaders/mesh.frag.hlsl
     graphics/shaders/mesh.vert.hlsl
     graphics/shaders/shadow.frag.hlsl
@@ -177,7 +179,7 @@ FetchContent_Declare(glm
     SYSTEM
 )
 FetchContent_MakeAvailable(glm)
-target_link_libraries(spot PRIVATE glm::glm-header-only)
+target_link_libraries(spot_objects PRIVATE glm::glm-header-only)
 
 # nlohmann/json reads and writes saved scenes; like glm, no public header includes it.
 FetchContent_Declare(nlohmann_json
@@ -185,7 +187,7 @@ FetchContent_Declare(nlohmann_json
     SYSTEM
 )
 FetchContent_MakeAvailable(nlohmann_json)
-target_link_libraries(spot PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(spot_objects PRIVATE nlohmann_json::nlohmann_json)
 
 # stb_image decodes images and stb_vorbis Ogg Vorbis audio; they are single files without a CMake project.
 FetchContent_Declare(stb
@@ -194,7 +196,7 @@ FetchContent_Declare(stb
     SYSTEM
 )
 FetchContent_MakeAvailable(stb)
-target_include_directories(spot SYSTEM PRIVATE ${stb_SOURCE_DIR})
+target_include_directories(spot_objects SYSTEM PRIVATE ${stb_SOURCE_DIR})
 
 # cgltf reads glTF models; like stb, it is a single header.
 FetchContent_Declare(cgltf
@@ -204,7 +206,7 @@ FetchContent_Declare(cgltf
     SYSTEM
 )
 FetchContent_MakeAvailable(cgltf)
-target_include_directories(spot SYSTEM PRIVATE ${cgltf_SOURCE_DIR})
+target_include_directories(spot_objects SYSTEM PRIVATE ${cgltf_SOURCE_DIR})
 
 # dr_wav decodes WAV audio; like stb, it is a single header.
 FetchContent_Declare(dr_libs
@@ -213,7 +215,7 @@ FetchContent_Declare(dr_libs
     SYSTEM
 )
 FetchContent_MakeAvailable(dr_libs)
-target_include_directories(spot SYSTEM PRIVATE ${dr_libs_SOURCE_DIR})
+target_include_directories(spot_objects SYSTEM PRIVATE ${dr_libs_SOURCE_DIR})
 
 # The backend is chosen at build time. Its types never reach the public headers, so swapping it does not
 # change the engine API.
@@ -233,7 +235,7 @@ if(SPOT_PLATFORM STREQUAL "SDL3")
     )
     FetchContent_MakeAvailable(SDL3)
 
-    target_sources(spot PRIVATE
+    target_sources(spot_objects PRIVATE
         platform/sdl3/sdl3_clipboard.cpp
         platform/sdl3/sdl3_events.cpp
         platform/sdl3/sdl3_file_dialog.cpp
@@ -242,7 +244,7 @@ if(SPOT_PLATFORM STREQUAL "SDL3")
         platform/sdl3/sdl3_shell.cpp
         platform/sdl3/sdl3_window.cpp
     )
-    target_link_libraries(spot PRIVATE SDL3::SDL3-static)
+    target_link_libraries(spot_objects PRIVATE SDL3::SDL3-static)
 else()
     message(FATAL_ERROR "Unknown SPOT_PLATFORM '${SPOT_PLATFORM}'")
 endif()
@@ -256,14 +258,14 @@ if(SPOT_GRAPHICS STREQUAL "SDL_GPU")
         message(FATAL_ERROR "The SDL_GPU graphics backend requires the SDL3 platform")
     endif()
 
-    target_sources(spot PRIVATE
+    target_sources(spot_objects PRIVATE
         graphics/sdl_gpu/sdl_gpu_internal.h
         graphics/sdl_gpu/sdl_gpu_device.cpp
         graphics/sdl_gpu/sdl_gpu_render_context.cpp
         graphics/sdl_gpu/sdl_gpu_resources.cpp
     )
     if(SPOT_DXC)
-        target_compile_definitions(spot PRIVATE SPOT_SHADERS_DXIL)
+        target_compile_definitions(spot_objects PRIVATE SPOT_SHADERS_DXIL)
     endif()
 else()
     message(FATAL_ERROR "Unknown SPOT_GRAPHICS '${SPOT_GRAPHICS}'")
@@ -279,7 +281,7 @@ if(SPOT_AUDIO STREQUAL "SDL3")
         message(FATAL_ERROR "The SDL3 audio backend requires the SDL3 platform")
     endif()
 
-    target_sources(spot PRIVATE
+    target_sources(spot_objects PRIVATE
         audio/sdl3/sdl3_audio_output.cpp
     )
 else()
@@ -317,25 +319,42 @@ if(SPOT_PHYSICS STREQUAL "JOLT")
     )
     FetchContent_MakeAvailable(JoltPhysics)
 
-    target_sources(spot PRIVATE
+    target_sources(spot_objects PRIVATE
         physics/jolt/jolt_physics_simulation.cpp
     )
-    target_link_libraries(spot PRIVATE Jolt)
+    target_link_libraries(spot_objects PRIVATE Jolt)
 else()
     message(FATAL_ERROR "Unknown SPOT_PHYSICS '${SPOT_PHYSICS}'")
 endif()
 
-target_include_directories(spot PUBLIC
+target_include_directories(spot_objects PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 
-target_compile_features(spot PUBLIC cxx_std_20)
+target_compile_features(spot_objects PUBLIC cxx_std_20)
 
-target_compile_definitions(spot PRIVATE
+target_compile_definitions(spot_objects PRIVATE
     SPOT_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
     SPOT_VERSION_MINOR=${PROJECT_VERSION_MINOR}
     SPOT_VERSION_PATCH=${PROJECT_VERSION_PATCH}
     SPOT_VERSION_STRING="${PROJECT_VERSION}"
 )
 
-spot_set_compile_options(spot)
+spot_set_compile_options(spot_objects)
+
+# Shared libraries need code that works at any address.
+set_target_properties(spot_objects PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+add_library(spot STATIC)
+target_link_libraries(spot PUBLIC spot_objects)
+add_library(spot::spot ALIAS spot)
+
+# Exports every function, so whatever links it reaches the whole engine, as with the static library.
+add_library(spot_shared SHARED)
+target_link_libraries(spot_shared PRIVATE spot_objects)
+target_include_directories(spot_shared PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+)
+target_compile_features(spot_shared PUBLIC cxx_std_20)
+set_target_properties(spot_shared PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+add_library(spot::shared ALIAS spot_shared)

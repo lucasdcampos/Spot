@@ -127,6 +127,8 @@ if(TARGET spot_editor_core)
     target_include_directories(spot_editor_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_compile_definitions(spot_editor_tests PRIVATE SPOT_TEST_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets")
     spot_set_compile_options(spot_editor_tests)
+    # Before the tests are listed, which runs them.
+    spot_copy_runtime_dlls(spot_editor_tests)
     catch_discover_tests(spot_editor_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
 
     add_executable(spot_editor_gpu_tests
@@ -142,5 +144,6 @@ if(TARGET spot_editor_core)
     target_compile_definitions(spot_editor_gpu_tests PRIVATE
         SPOT_TEST_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets")
     spot_set_compile_options(spot_editor_gpu_tests)
+    spot_copy_runtime_dlls(spot_editor_gpu_tests)
     catch_discover_tests(spot_editor_gpu_tests PROPERTIES TIMEOUT 60)
 endif()

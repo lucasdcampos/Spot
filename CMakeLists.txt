@@ -25,6 +25,19 @@ function(spot_set_compile_options target)
     endif()
 endfunction()
 
+# The shared engine library links static dependencies, which must then work at any address too.
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+# Programs that link shared libraries built here find them next to themselves, which is where Windows looks.
+function(spot_copy_runtime_dlls target)
+    if(WIN32)
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:${target}> $<TARGET_FILE_DIR:${target}>
+            COMMAND_EXPAND_LISTS
+        )
+    endif()
+endfunction()
+
 include(cmake/spot_shaders.cmake)
 include(cmake/spot_embed_files.cmake)
 

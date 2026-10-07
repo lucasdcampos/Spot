@@ -7,7 +7,8 @@ It targets Windows, macOS and Linux.
 
 Each project lives in its own folder at the repository root, with headers next to their sources.
 
-- `engine/` – the engine, static library target `spot` (`spot::spot`)
+- `engine/` – the engine, static library target `spot` (`spot::spot`), also built as the shared library `spot_shared`
+  (`spot::shared`) that the editor and the game modules it loads share
 - `sandbox/` – executable that links the engine, used to try it out
 - `tests/` – unit tests using Catch2
 - `editor/` – the editor (`spot_editor`), a Dear ImGui application; everything but `main.cpp` is the
