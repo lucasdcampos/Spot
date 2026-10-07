@@ -15,7 +15,9 @@
 #include "graphics/model.h"
 #include "scene/scene.h"
 
+#include <algorithm>
 #include <array>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -82,6 +84,42 @@ std::optional<AssetType> AssetManager::GetType(AssetId id) const {
 std::optional<AssetId> AssetManager::FindByPath(std::string_view path) const {
     const auto found = m_paths.find(std::string(path));
     return found != m_paths.end() ? std::optional(found->second) : std::nullopt;
+}
+
+std::vector<AssetId> AssetManager::Reload(std::span<const AssetId> assets) {
+    std::unordered_set<AssetId> stale(assets.begin(), assets.end());
+    // Loaded materials and models hold on to other assets, so they go out of date with them, as do models with
+    // their materials, until nothing more does.
+    const auto refersToStale = [&](const Entry& entry, const std::shared_ptr<const void>& loaded) {
+        if (entry.type == AssetType::Material) {
+            return stale.contains(static_cast<const Material*>(loaded.get())->baseColorTexture.GetId());
+        }
+        if (entry.type == AssetType::Model) {
+            return std::ranges::any_of(static_cast<const Model*>(loaded.get())->GetParts(), [&](const ModelPart& part) {
+                return stale.contains(part.mesh.GetId()) || stale.contains(part.material.GetId());
+            });
+        }
+        return false;
+    };
+    for (bool grew = true; grew;) {
+        grew = false;
+        for (const auto& [id, entry] : m_entries) {
+            const auto loaded = entry.loaded.lock();
+            if (loaded && !stale.contains(id) && refersToStale(entry, loaded)) {
+                stale.insert(id);
+                grew = true;
+            }
+        }
+    }
+    std::vector<AssetId> reloaded;
+    for (const AssetId id : stale) {
+        if (const auto found = m_entries.find(id); found != m_entries.end()) {
+            found->second.loaded.reset();
+        }
+        reloaded.push_back(id);
+    }
+    std::ranges::sort(reloaded);
+    return reloaded;
 }
 
 std::unique_ptr<Scene> AssetManager::InstantiateScene(AssetId id) {

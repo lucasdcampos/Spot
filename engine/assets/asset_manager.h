@@ -7,9 +7,11 @@
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <vector>
 
 namespace Spot {
 
@@ -101,6 +103,12 @@ public:
         }
         return Load<T>(*id);
     }
+
+    // Makes the next Load() of these assets read their imported files again, as after they were imported again (see
+    // AssetDatabase::GetChanged()), along with the loaded assets that refer to them, such as the materials of a
+    // changed texture. What refers to the old ones keeps them until it lets them go. Returns every asset that will
+    // load anew, for references to them to be loaded again (see ReloadAssetReferences()).
+    std::vector<AssetId> Reload(std::span<const AssetId> assets);
 
     // Scenes are not shared: each call makes a new scene from the asset, whose asset references load through this
     // manager. Null, after logging why, when the asset is missing or not a scene.

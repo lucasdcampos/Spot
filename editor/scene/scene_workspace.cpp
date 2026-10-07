@@ -384,6 +384,17 @@ void SceneWorkspace::SyncWithAssets() {
         return;
     }
     m_assetsVersion = project->GetVersion();
+    // Scenes show the new versions of assets that changed, such as a texture edited in another application.
+    const std::vector<AssetId> reloaded = project->TakeReloadedAssets();
+    if (!reloaded.empty()) {
+        for (const Opened& open : m_scenes) {
+            open.document->GetScene().ForEachEntity([&](Entity& entity) {
+                for (Component* component : entity.GetComponents<Component>()) {
+                    ReloadAssetReferences(*component, reloaded, &project->GetAssets());
+                }
+            });
+        }
+    }
     for (const Opened& open : m_scenes) {
         SceneDocument& document = *open.document;
         if (!document.GetAssetId().IsValid()) {

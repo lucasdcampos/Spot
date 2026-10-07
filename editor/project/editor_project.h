@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <utility>
+#include <vector>
 
 namespace Spot::Editor {
 
@@ -29,6 +31,9 @@ public:
     bool Reimport(AssetId id);
     // Changes with every refresh, so windows can tell when the assets may have changed.
     std::uint64_t GetVersion() const { return m_version; }
+    // The assets whose new versions load since the last call, for open scenes to load their references to them
+    // again.
+    std::vector<AssetId> TakeReloadedAssets() { return std::exchange(m_reloaded, {}); }
 
 private:
     EditorProject(Project project, GraphicsDevice* device);
@@ -37,6 +42,9 @@ private:
     std::unique_ptr<AssetDatabase> m_database;
     std::unique_ptr<AssetManager> m_assets;
     std::uint64_t m_version = 0;
+    std::vector<AssetId> m_reloaded;
+
+    void AfterImport();
 };
 
 } // namespace Spot::Editor

@@ -188,6 +188,7 @@ std::size_t AssetDatabase::Import(const AssetId* forced) {
 
     Detail::Manifest manifest;
     std::size_t importedCount = 0;
+    m_changed.clear();
     for (auto& source : m_sources) {
         const Detail::ImporterInfo importer = Detail::FindImporter(source.meta.type);
         Detail::ManifestEntry sourceEntry;
@@ -224,6 +225,15 @@ std::size_t AssetDatabase::Import(const AssetId* forced) {
             continue;
         }
 
+        // What the source made before goes out of date, whether the import works or not.
+        m_changed.push_back(source.meta.id);
+        if (last) {
+            for (const auto& entry : *last) {
+                if (entry.parent.IsValid()) {
+                    m_changed.push_back(entry.id);
+                }
+            }
+        }
         const std::size_t knownSubAssets = source.meta.subAssets.size();
         Detail::ImportContext context(source.path, source.meta, m_importDirectory);
         const bool imported = importer.import(context);
@@ -246,6 +256,7 @@ std::size_t AssetDatabase::Import(const AssetId* forced) {
         manifest.entries.push_back(std::move(sourceEntry));
         for (const auto& asset : context.GetImportedAssets()) {
             if (asset.parent.IsValid()) {
+                m_changed.push_back(asset.id);
                 Detail::ManifestEntry entry;
                 entry.id = asset.id;
                 entry.type = asset.type;
@@ -264,6 +275,16 @@ std::size_t AssetDatabase::Import(const AssetId* forced) {
     for (const auto& entry : manifest.entries) {
         kept.insert(entry.id);
     }
+    for (const auto& [source, entries] : previous) {
+        for (const auto& entry : entries) {
+            if (!kept.contains(entry.id)) {
+                m_changed.push_back(entry.id);
+            }
+        }
+    }
+    std::ranges::sort(m_changed);
+    const auto [first, last] = std::ranges::unique(m_changed);
+    m_changed.erase(first, last);
     for (const auto& file : std::filesystem::directory_iterator(m_importDirectory, error)) {
         const auto name = file.path().filename();
         const auto id = AssetId::Parse(PathToUtf8(name.stem()));

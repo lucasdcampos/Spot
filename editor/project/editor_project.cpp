@@ -2,6 +2,7 @@
 
 #include "core/editor_log.h"
 
+#include <algorithm>
 #include <utility>
 
 namespace Spot::Editor {
@@ -25,15 +26,24 @@ EditorProject::EditorProject(Project project, GraphicsDevice* device) : m_projec
 void EditorProject::Refresh() {
     // Deleted sources import nothing but still change the manifest, so it is always read again.
     m_database->Refresh();
-    m_assets->RefreshManifest();
-    ++m_version;
+    AfterImport();
 }
 
 bool EditorProject::Reimport(AssetId id) {
     const bool imported = m_database->Reimport(id);
-    m_assets->RefreshManifest();
-    ++m_version;
+    AfterImport();
     return imported;
+}
+
+void EditorProject::AfterImport() {
+    m_assets->RefreshManifest();
+    // What changed loads anew from now on; references to the old versions are for their holders to reload.
+    for (const AssetId id : m_assets->Reload(m_database->GetChanged())) {
+        if (std::ranges::find(m_reloaded, id) == m_reloaded.end()) {
+            m_reloaded.push_back(id);
+        }
+    }
+    ++m_version;
 }
 
 } // namespace Spot::Editor

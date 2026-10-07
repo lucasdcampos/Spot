@@ -340,6 +340,74 @@ TEST_CASE("Sources whose files were only touched are not imported again", "[asse
     CHECK(database.Refresh() == 0);
 }
 
+TEST_CASE("Changed assets load anew, with the loaded assets that refer to them", "[assets]") {
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    CopyFile(TestAssets / "pixels.png", sources / "pixels.png");
+    AssetDatabase database(sources, project.GetPath() / "imported");
+    database.Refresh();
+    const AssetId texture = *database.FindByPath("pixels.png");
+    REQUIRE(Spot::MaterialSource{.baseColorTexture = texture}.SaveToFile(sources / "paint.material"));
+    REQUIRE(Spot::MaterialSource{}.SaveToFile(sources / "plain.material"));
+    database.Refresh();
+    const AssetId paint = *database.FindByPath("paint.material");
+    const AssetId plain = *database.FindByPath("plain.material");
+    CHECK(database.GetChanged().size() == 2);
+
+    // Without a device the texture does not load, but materials still refer to it by id.
+    Spot::AssetManager manager(project.GetPath() / "imported");
+    const auto paintBefore = manager.Load<Spot::Material>(paint);
+    const auto plainBefore = manager.Load<Spot::Material>(plain);
+    REQUIRE((paintBefore && plainBefore));
+
+    REQUIRE(database.Reimport(texture));
+    CHECK(std::vector(database.GetChanged().begin(), database.GetChanged().end()) == std::vector{texture});
+    manager.RefreshManifest();
+    const std::vector<AssetId> reloaded = manager.Reload(database.GetChanged());
+    CHECK(std::ranges::find(reloaded, texture) != reloaded.end());
+    CHECK(std::ranges::find(reloaded, paint) != reloaded.end());
+    CHECK(std::ranges::find(reloaded, plain) == reloaded.end());
+    CHECK(manager.Load<Spot::Material>(paint).Get() != paintBefore.Get());
+    CHECK(manager.Load<Spot::Material>(plain).Get() == plainBefore.Get());
+
+    // Removed sources change too.
+    std::filesystem::remove(sources / "plain.material");
+    database.Refresh();
+    CHECK(std::ranges::find(database.GetChanged(), plain) != database.GetChanged().end());
+}
+
+TEST_CASE("Components load their references to changed assets again", "[assets]") {
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    const auto file = sources / "paint.material";
+    std::filesystem::create_directories(sources);
+    REQUIRE(Spot::MaterialSource{.baseColor = Spot::Color{1.0f, 0.0f, 0.0f, 1.0f}}.SaveToFile(file));
+    AssetDatabase database(sources, project.GetPath() / "imported");
+    database.Refresh();
+    const AssetId paint = *database.FindByPath("paint.material");
+    Spot::AssetManager manager(project.GetPath() / "imported");
+
+    Spot::Scene scene;
+    auto& renderer = scene.CreateEntity().AddComponent<Spot::MeshRenderer>(Spot::AssetRef<Spot::Mesh>(),
+                                                                           manager.Load<Spot::Material>(paint));
+    REQUIRE(renderer.GetMaterial());
+
+    REQUIRE(Spot::MaterialSource{.baseColor = Spot::Color{0.0f, 0.0f, 1.0f, 1.0f}}.SaveToFile(file));
+    // A time of change of its own, as a later edit would have.
+    std::filesystem::last_write_time(file, std::filesystem::last_write_time(file) + std::chrono::hours(1));
+    database.Refresh();
+    manager.RefreshManifest();
+    Spot::ReloadAssetReferences(renderer, manager.Reload(database.GetChanged()), &manager);
+    REQUIRE(renderer.GetMaterial());
+    CHECK(renderer.GetMaterial().GetId() == paint);
+    CHECK(renderer.GetMaterial()->baseColor.b == 1.0f);
+
+    // References to other assets are left as they are.
+    const auto* material = renderer.GetMaterial().Get();
+    Spot::ReloadAssetReferences(renderer, std::vector{AssetId::Generate()}, &manager);
+    CHECK(renderer.GetMaterial().Get() == material);
+}
+
 TEST_CASE("The asset database keeps imported assets when its source directory is missing", "[assets]") {
     const TempDirectory project;
     const auto sources = project.GetPath() / "assets";

@@ -16,7 +16,9 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <chrono>
 #include <cmath>
+#include <filesystem>
 #include <memory>
 
 using Catch::Approx;
@@ -225,6 +227,31 @@ TEST_CASE("Dragging the gizmo moves the selection as one undoable step", "[edito
     CHECK(document.GetHistory().GetUndoName() == "Move");
     document.Undo();
     CHECK(IsNear(sun->GetTransform().GetPosition(), {2.0f, 0.0f, 0.0f}));
+}
+
+TEST_CASE("Open scenes show the new versions of assets that changed", "[editor][workspace]") {
+    WorkspaceFixture fixture;
+    Spot::Editor::EditorProject& project = *fixture.context->GetProject();
+    const auto file = project.GetProject().GetAssetsDirectory() / "paint.material";
+    REQUIRE(Spot::MaterialSource{.baseColor = Spot::Color{1.0f, 0.0f, 0.0f, 1.0f}}.SaveToFile(file));
+    project.Refresh();
+    const Spot::AssetId paint = *project.GetAssetDatabase().FindByPath("paint.material");
+    fixture.workspace->RestoreState();
+    fixture.Frame();
+    Spot::Editor::SceneDocument& document = *fixture.workspace->GetActiveDocument();
+    Spot::Entity* cube = document.GetScene().FindEntity("Cube");
+    REQUIRE(cube);
+    auto& renderer = *cube->GetComponent<Spot::MeshRenderer>();
+    renderer.SetMaterial(project.GetAssets().Load<Spot::Material>(paint));
+
+    // Edited in another application, such as a text editor.
+    REQUIRE(Spot::MaterialSource{.baseColor = Spot::Color{0.0f, 1.0f, 0.0f, 1.0f}}.SaveToFile(file));
+    std::filesystem::last_write_time(file, std::filesystem::last_write_time(file) + std::chrono::hours(1));
+    project.Refresh();
+    fixture.Frame();
+    REQUIRE(renderer.GetMaterial());
+    CHECK(renderer.GetMaterial()->baseColor.g == 1.0f);
+    CHECK_FALSE(document.IsDirty());
 }
 
 TEST_CASE("Closing a changed scene asks first, and Escape keeps it open", "[editor][workspace]") {

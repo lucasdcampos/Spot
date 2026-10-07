@@ -49,6 +49,9 @@ public:
     std::size_t Refresh();
     // Imports the source again, such as after its settings changed, even if nothing else did.
     bool Reimport(AssetId id);
+    // The assets that the last Refresh() or Reimport() imported again or removed, sub-assets included, whose loaded
+    // versions are out of date (see AssetManager::Reload()).
+    std::span<const AssetId> GetChanged() const { return m_changed; }
 
     // Every asset found, in the order of their paths.
     std::span<const AssetInfo> GetAssets() const { return m_assets; }
@@ -118,6 +121,7 @@ private:
     std::vector<AssetInfo> m_assets;
     std::unordered_map<AssetId, std::size_t> m_assetIndices;
     std::unordered_map<AssetId, std::size_t> m_sourceIndices;
+    std::vector<AssetId> m_changed;
 };
 
 } // namespace Spot
