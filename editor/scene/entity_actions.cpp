@@ -1,12 +1,14 @@
 #include "scene/entity_actions.h"
 
 #include "imgui/icons.h"
+#include "project/editor_project.h"
 #include "scene/scene_commands.h"
 
 #include <imgui.h>
 
 #include <algorithm>
 #include <array>
+#include <format>
 #include <memory>
 #include <string>
 #include <utility>
@@ -134,6 +136,61 @@ const char* GetComponentIcon(std::string_view typeName) {
     }};
     const auto found = std::ranges::find(Icons, typeName, &std::pair<std::string_view, const char*>::first);
     return found != Icons.end() ? found->second : ICON_FA_PUZZLE_PIECE;
+}
+
+bool CreateEntityFromAsset(SceneDocument& document, EditorProject& project, AssetId asset, EntityId parent,
+                           Vector3 position) {
+    const AssetInfo* info = project.GetAssetDatabase().Find(asset);
+    if (!info || (info->type != AssetType::Mesh && info->type != AssetType::Model)) {
+        return false;
+    }
+    std::string name = info->parent.IsValid() ? info->name : PathToUtf8(Utf8ToPath(info->path).stem());
+    Scene scratch;
+    Entity& root = scratch.CreateEntity(name);
+    root.GetTransform().SetPosition(position);
+    if (info->type == AssetType::Mesh) {
+        root.AddComponent<MeshRenderer>(AssetRef<Mesh>(asset, nullptr));
+    } else {
+        const AssetRef<Model> model = project.GetAssets().Load<Model>(asset);
+        if (!model || model->GetParts().empty()) {
+            return false;
+        }
+        // References by id alone: the scene loads the assets when it takes the entities.
+        const auto addPart = [](Entity& entity, const ModelPart& part) {
+            entity.AddComponent<MeshRenderer>(AssetRef<Mesh>(part.mesh.GetId(), nullptr),
+                                              AssetRef<Material>(part.material.GetId(), nullptr));
+        };
+        const std::span<const ModelPart> parts = model->GetParts();
+        if (parts.size() == 1) {
+            addPart(root, parts.front());
+        } else {
+            for (std::size_t i = 0; i < parts.size(); ++i) {
+                addPart(root.CreateChild(parts[i].name.empty() ? std::format("Part {}", i + 1) : parts[i].name),
+                        parts[i]);
+            }
+        }
+    }
+    return document.Execute(
+        std::make_unique<CreateEntitiesCommand>(document, "Add " + name, root.SaveToString(), parent));
+}
+
+bool ApplyMaterial(SceneDocument& document, EntityId entity, AssetId material) {
+    Entity* target = document.GetScene().GetEntity(entity);
+    if (!target) {
+        return false;
+    }
+    auto group = std::make_unique<SceneCommandGroup>(document, "Apply Material");
+    for (MeshRenderer* renderer : target->GetComponents<MeshRenderer>()) {
+        // The new state is saved with the material's id; the command loads it.
+        const std::string before = SaveComponentToString(*renderer);
+        const AssetRef<Material> previous = renderer->GetMaterial();
+        renderer->SetMaterial(AssetRef<Material>(material, nullptr));
+        std::string after = SaveComponentToString(*renderer);
+        renderer->SetMaterial(previous);
+        group->Add(std::make_unique<EditComponentCommand>(document, entity, target->GetComponentIndex(*renderer),
+                                                          before, std::move(after)));
+    }
+    return !group->IsEmpty() && document.Execute(std::move(group));
 }
 
 bool CreateEntity(SceneDocument& document, EntityTemplate kind, EntityId parent, Vector3 position) {

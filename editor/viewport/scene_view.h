@@ -9,6 +9,7 @@
 #include <imgui.h>
 
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -63,6 +64,8 @@ private:
         bool toggle = false;
         // Shift adds the entity to the selection.
         bool add = false;
+        // A material dropped on the view, which the entity under the mouse gets instead of being selected.
+        AssetId material = {};
     };
 
     struct Icon {
@@ -77,6 +80,11 @@ private:
     void DrawViewCube(const ImVec2& origin, const ImVec2& size);
     void DrawOverlay(const ImVec2& origin);
     void HandleClick(const ImVec2& origin, const ImVec2& scale);
+    void HandleAssetDrop(EditorContext& context, std::span<const AssetId> assets, const ImVec2& origin,
+                         const ImVec2& size, const ImVec2& scale);
+    // Where the mouse points on the ground, the plane through the origin facing up, or the camera's pivot when it
+    // points at the sky or too far away.
+    Vector3 GetGroundPoint(const ImVec2& origin, const ImVec2& size) const;
     void ApplyPick(const PickRequest& request, EntityId entity);
     int GetGizmoId() const;
 

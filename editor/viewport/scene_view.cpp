@@ -1,11 +1,14 @@
 #include "viewport/scene_view.h"
 
 #include "app/editor_context.h"
+#include "imgui/drag_payloads.h"
 #include "imgui/editor_style.h"
 #include "imgui/icons.h"
 #include "imgui/imgui_renderer.h"
+#include "project/editor_project.h"
 #include "scene/entity_actions.h"
 #include "scene/scene_document.h"
+#include "scene/scene_workspace.h"
 
 #include <imgui_internal.h>
 
@@ -149,6 +152,12 @@ void SceneView::DrawViewport(EditorContext& context, ViewportRenderer* renderer)
     if (ImGui::IsItemClicked(ImGuiMouseButton_Right) || ImGui::IsItemClicked(ImGuiMouseButton_Middle)) {
         ImGui::SetWindowFocus();
     }
+    if (ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(AssetsPayload)) {
+            HandleAssetDrop(context, GetPayloadAssets(*payload), origin, size, scale);
+        }
+        ImGui::EndDragDropTarget();
+    }
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
     if (renderer && m_targets.Resize(renderer->GetDevice(), width, height, renderer->GetSampleCount())) {
@@ -193,7 +202,66 @@ void SceneView::HandleClick(const ImVec2& origin, const ImVec2& scale) {
     m_pick = request;
 }
 
+void SceneView::HandleAssetDrop(EditorContext& context, std::span<const AssetId> assets, const ImVec2& origin,
+                                const ImVec2& size, const ImVec2& scale) {
+    EditorProject* project = context.GetProject();
+    if (!project) {
+        return;
+    }
+    ImGui::SetWindowFocus();
+    const ImVec2 mouse = ImGui::GetIO().MousePos;
+    for (const AssetId asset : assets) {
+        const AssetInfo* info = project->GetAssetDatabase().Find(asset);
+        if (!info) {
+            continue;
+        }
+        switch (info->type) {
+        case AssetType::Scene:
+            if (SceneWorkspace* workspace = context.GetWorkspace()) {
+                workspace->OpenScene(asset);
+            }
+            return;
+        case AssetType::Material:
+            // The mesh under the mouse is found on the GPU, then gets the material.
+            m_pick = PickRequest{.pixel = {(mouse.x - origin.x) * scale.x, (mouse.y - origin.y) * scale.y},
+                                 .material = asset};
+            return;
+        default:
+            CreateEntityFromAsset(m_document, *project, asset, EntityId::Invalid, GetGroundPoint(origin, size));
+            break;
+        }
+    }
+}
+
+Vector3 SceneView::GetGroundPoint(const ImVec2& origin, const ImVec2& size) const {
+    const Camera3D camera = m_camera.GetCamera();
+    const Matrix4 inverse = Inverse(camera.GetViewProjection({size.x, size.y}));
+    const ImVec2 mouse = ImGui::GetIO().MousePos;
+    const float x = (mouse.x - origin.x) / size.x * 2.0f - 1.0f;
+    const float y = 1.0f - (mouse.y - origin.y) / size.y * 2.0f;
+    const auto unproject = [&](float depth) {
+        const Vector4 point = inverse * Vector4{x, y, depth, 1.0f};
+        return Vector3{point.x, point.y, point.z} * (1.0f / point.w);
+    };
+    const Vector3 from = unproject(0.0f);
+    const Vector3 direction = unproject(1.0f) - from;
+    constexpr float MaxDistance = 500.0f;
+    if (direction.y < -1e-6f) {
+        const Vector3 hit = from + direction * (-from.y / direction.y);
+        if (Length(hit - camera.position) < MaxDistance) {
+            return hit;
+        }
+    }
+    return m_camera.GetPivot();
+}
+
 void SceneView::ApplyPick(const PickRequest& request, EntityId entity) {
+    if (request.material.IsValid()) {
+        if (entity != EntityId::Invalid && ApplyMaterial(m_document, entity, request.material)) {
+            m_document.GetSelection().Select(entity);
+        }
+        return;
+    }
     Selection& selection = m_document.GetSelection();
     if (request.toggle) {
         if (entity != EntityId::Invalid) {

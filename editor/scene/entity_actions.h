@@ -11,6 +11,8 @@
 // What can be done to the entities of a scene document from menus, shortcuts and windows, each as one undoable step.
 namespace Spot::Editor {
 
+class EditorProject;
+
 enum class EntityTemplate {
     Empty,
     Cube,
@@ -42,6 +44,14 @@ const char* GetComponentIcon(std::string_view typeName);
 // and selects it. Returns whether it did.
 bool CreateEntity(SceneDocument& document, EntityTemplate kind, EntityId parent = EntityId::Invalid,
                   Vector3 position = {});
+
+// Creates what an asset dropped into the scene makes, under the parent, or at the root when it is invalid, at the
+// local position: an entity that draws a mesh, or one with a child for each part of a model. Selects it. Returns
+// whether the asset makes entities and they were made; a model's parts are read from its loaded asset.
+bool CreateEntityFromAsset(SceneDocument& document, EditorProject& project, AssetId asset,
+                           EntityId parent = EntityId::Invalid, Vector3 position = {});
+// Gives the material to every mesh the entity draws, as one step. Returns whether it draws any.
+bool ApplyMaterial(SceneDocument& document, EntityId entity, AssetId material);
 
 // The selected entities that exist, leaving out those below other selected ones, in hierarchy order.
 std::vector<Entity*> GetSelectedEntities(SceneDocument& document);

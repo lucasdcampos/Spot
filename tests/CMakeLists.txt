@@ -138,6 +138,8 @@ if(TARGET spot_editor_core)
         Catch2::Catch2WithMain
     )
     target_include_directories(spot_editor_gpu_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_compile_definitions(spot_editor_gpu_tests PRIVATE
+        SPOT_TEST_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets")
     spot_set_compile_options(spot_editor_gpu_tests)
     catch_discover_tests(spot_editor_gpu_tests PROPERTIES TIMEOUT 60)
 endif()

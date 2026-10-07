@@ -8,6 +8,7 @@
 #include <imgui.h>
 
 #include <optional>
+#include <span>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -44,6 +45,9 @@ private:
     void DrawContextMenu(SceneDocument& document, Entity* entity);
     void DrawCreateMenu(SceneDocument& document, EntityId parent);
     void HandleDrop(SceneDocument& document, Entity& target);
+    // Assets dropped on an entity, or below the entities when it is null: materials go to its meshes, meshes and
+    // models become entities, and scenes open.
+    void DropAssets(SceneDocument& document, std::span<const AssetId> assets, Entity* target);
     void HandleClick(SceneDocument& document, Entity& entity);
     void HandleKeyboard(SceneDocument& document);
     void Move(SceneDocument& document, EntityId parent, EntityId before);

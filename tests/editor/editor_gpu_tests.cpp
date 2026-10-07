@@ -4,6 +4,8 @@
 #include "assets/thumbnail_cache.h"
 #include "project/editor_project.h"
 #include "project/project_templates.h"
+#include "scene/entity_actions.h"
+#include "scene/scene_document.h"
 
 #include "imgui/imgui_renderer.h"
 #include "viewport/viewport_renderer.h"
@@ -15,6 +17,7 @@
 #include <array>
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -221,4 +224,43 @@ TEST_CASE("Thumbnails show materials on a sphere over a clear background", "[edi
     CHECK(center[3] == 255);
     CHECK(at(1, 1)[3] == 0);
     thumbnails->Clear();
+}
+
+TEST_CASE("Models dropped into scenes become an entity with a child per part", "[editor][gpu]") {
+    RequireGpu();
+    const TempDirectory temp;
+    const auto file = Spot::Editor::CreateProject(temp.GetPath(), "Game", Spot::Editor::ProjectTemplate::Empty);
+    REQUIRE(file.has_value());
+    const auto assets = file->parent_path() / "assets";
+    std::filesystem::copy_file(std::filesystem::path(SPOT_TEST_ASSETS_DIR) / "models" / "cube.glb",
+                               assets / "cube.glb");
+
+    std::unique_ptr<Spot::Editor::EditorProject> project;
+    Spot::Editor::SceneDocument document;
+    bool created = false;
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext&) {
+        if (!project) {
+            project = Spot::Editor::EditorProject::Open(*file, &app.GetGraphicsDevice());
+            REQUIRE(project);
+            // Scenes load assets through the running application's manager, which the editor makes the project's.
+            Spot::Detail::SetAssetManager(&project->GetAssets());
+            created = Spot::Editor::CreateEntityFromAsset(document, *project,
+                                                          *project->GetAssetDatabase().FindByPath("cube.glb"));
+            Spot::Detail::SetAssetManager(&app.GetAssets());
+        }
+    });
+    application.Run();
+
+    REQUIRE(created);
+    const Spot::Entity* root = document.GetScene().GetEntity(document.GetSelection().GetPrimary());
+    REQUIRE(root);
+    CHECK(root->GetName() == "cube");
+    const std::vector<Spot::Entity*> parts = root->GetChildren();
+    REQUIRE(parts.size() == 2);
+    for (const Spot::Entity* part : parts) {
+        const auto* renderer = part->GetComponent<Spot::MeshRenderer>();
+        REQUIRE(renderer);
+        CHECK(project->GetAssetDatabase().Find(renderer->GetMesh().GetId())->type == Spot::AssetType::Mesh);
+        CHECK(renderer->GetMaterial().GetId().IsValid());
+    }
 }

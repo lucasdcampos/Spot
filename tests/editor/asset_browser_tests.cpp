@@ -4,8 +4,11 @@
 #include "app/editor_context.h"
 #include "assets/asset_browser_model.h"
 #include "panels/asset_browser_panel.h"
+#include "panels/hierarchy_panel.h"
 #include "project/editor_project.h"
 #include "project/project_templates.h"
+#include "scene/entity_actions.h"
+#include "scene/scene_workspace.h"
 
 #include <spot.h>
 
@@ -242,4 +245,64 @@ TEST_CASE("Files dropped from the OS are imported into the folder shown", "[edit
     fixture.imgui.Frame();
     REQUIRE(std::filesystem::exists(fixture.assets / "scenes" / "sine.ogg"));
     CHECK(fixture.panel->GetSelection() == std::vector<std::string>{fixture.KeyOf("scenes/sine.ogg")});
+}
+
+TEST_CASE("Meshes dropped into scenes become entities, and materials go to meshes", "[editor][assets]") {
+    BrowserFixture fixture;
+    CopyFile(TestAssets / "models" / "cube.glb", fixture.assets / "models" / "cube.glb");
+    REQUIRE(Spot::MaterialSource{}.SaveToFile(fixture.assets / "Paint.material"));
+    fixture.Project().Refresh();
+    const Spot::AssetDatabase& database = fixture.Project().GetAssetDatabase();
+    const auto material = database.FindByPath("Paint.material");
+    REQUIRE(material.has_value());
+    const auto mesh = std::ranges::find(database.GetAssets(), Spot::AssetType::Mesh, &Spot::AssetInfo::type);
+    REQUIRE(mesh != database.GetAssets().end());
+
+    Spot::Editor::SceneDocument document;
+    REQUIRE(Spot::Editor::CreateEntityFromAsset(document, fixture.Project(), mesh->id, Spot::EntityId::Invalid,
+                                                {1.0f, 0.0f, 2.0f}));
+    Spot::Entity* entity = document.GetScene().GetEntity(document.GetSelection().GetPrimary());
+    REQUIRE(entity);
+    CHECK(entity->GetName() == mesh->name);
+    CHECK(entity->GetTransform().GetPosition() == Spot::Vector3{1.0f, 0.0f, 2.0f});
+    REQUIRE(entity->GetComponent<Spot::MeshRenderer>());
+    CHECK(entity->GetComponent<Spot::MeshRenderer>()->GetMesh().GetId() == mesh->id);
+    // Only meshes and models make entities.
+    CHECK_FALSE(Spot::Editor::CreateEntityFromAsset(document, fixture.Project(), *material));
+
+    REQUIRE(Spot::Editor::ApplyMaterial(document, entity->GetId(), *material));
+    CHECK(entity->GetComponent<Spot::MeshRenderer>()->GetMaterial().GetId() == *material);
+    CHECK(document.GetHistory().GetUndoName() == "Apply Material");
+    document.Undo();
+    CHECK_FALSE(entity->GetComponent<Spot::MeshRenderer>()->GetMaterial().GetId().IsValid());
+}
+
+TEST_CASE("Materials dragged from the browser onto the hierarchy go to the entity's meshes", "[editor][assets][ui]") {
+    BrowserFixture fixture;
+    REQUIRE(Spot::MaterialSource{}.SaveToFile(fixture.assets / "Paint.material"));
+    fixture.Project().Refresh();
+    Spot::Editor::SceneWorkspace workspace(*fixture.context);
+    fixture.context->SetWorkspace(&workspace);
+    workspace.RestoreState();
+    Spot::Editor::SceneDocument& document = *workspace.GetActiveDocument();
+    Spot::Editor::HierarchyPanel hierarchy(*fixture.context);
+    fixture.imgui.SetDraw([&] {
+        ImGui::SetNextWindowPos({0.0f, 0.0f});
+        ImGui::SetNextWindowSize({900.0f, 400.0f});
+        fixture.panel->Draw();
+        ImGui::SetNextWindowPos({0.0f, 420.0f});
+        ImGui::SetNextWindowSize({400.0f, 280.0f});
+        hierarchy.Draw();
+    });
+    fixture.imgui.Frame();
+    fixture.imgui.Frame();
+
+    Spot::Entity* cube = document.GetScene().FindEntity("Cube");
+    REQUIRE(cube);
+    const auto row = hierarchy.GetRowRect(cube->GetId());
+    REQUIRE(row.has_value());
+    fixture.imgui.Drag(fixture.Tile("Paint.material"), {row->first.x + 60.0f, (row->first.y + row->second.y) * 0.5f});
+    CHECK(cube->GetComponent<Spot::MeshRenderer>()->GetMaterial().GetId() ==
+          fixture.Project().GetAssetDatabase().FindByPath("Paint.material"));
+    fixture.context->SetWorkspace(nullptr);
 }

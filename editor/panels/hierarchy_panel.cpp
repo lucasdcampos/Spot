@@ -106,6 +106,9 @@ void HierarchyPanel::OnDraw() {
             document->Execute(std::make_unique<ReparentEntitiesCommand>(
                 *document, std::vector<EntityId>(ids.begin(), ids.end()), EntityId::Invalid));
         }
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(AssetsPayload)) {
+            DropAssets(*document, GetPayloadAssets(*payload), nullptr);
+        }
         ImGui::EndDragDropTarget();
     }
     if (ImGui::BeginPopupContextItem("##BelowMenu")) {
@@ -370,7 +373,36 @@ void HierarchyPanel::HandleDrop(SceneDocument& document, Entity& target) {
             document.Execute(std::move(command));
         }
     }
+    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(AssetsPayload)) {
+        DropAssets(document, GetPayloadAssets(*payload), &target);
+    }
     ImGui::EndDragDropTarget();
+}
+
+void HierarchyPanel::DropAssets(SceneDocument& document, std::span<const AssetId> assets, Entity* target) {
+    EditorProject* project = m_context.GetProject();
+    if (!project) {
+        return;
+    }
+    const EntityId targetId = target ? target->GetId() : EntityId::Invalid;
+    for (const AssetId asset : assets) {
+        const AssetInfo* info = project->GetAssetDatabase().Find(asset);
+        if (!info) {
+            continue;
+        }
+        if (info->type == AssetType::Material) {
+            if (target) {
+                ApplyMaterial(document, targetId, asset);
+            }
+        } else if (info->type == AssetType::Scene) {
+            if (SceneWorkspace* workspace = m_context.GetWorkspace()) {
+                workspace->OpenScene(asset);
+            }
+        } else {
+            // Under the entity dropped on, or at the root.
+            CreateEntityFromAsset(document, *project, asset, targetId);
+        }
+    }
 }
 
 void HierarchyPanel::HandleKeyboard(SceneDocument& document) {
