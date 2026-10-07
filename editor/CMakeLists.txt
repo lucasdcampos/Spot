@@ -51,6 +51,8 @@ add_library(spot_editor_core STATIC
     app/editor_context.h
     app/editor_layout.cpp
     app/editor_layout.h
+    assets/asset_list.cpp
+    assets/asset_list.h
     core/command.h
     core/command_history.cpp
     core/command_history.h
@@ -60,6 +62,9 @@ add_library(spot_editor_core STATIC
     core/editor_log.h
     core/editor_settings.cpp
     core/editor_settings.h
+    core/text.cpp
+    core/text.h
+    imgui/drag_payloads.h
     imgui/editor_style.cpp
     imgui/editor_style.h
     imgui/icons.h
@@ -71,6 +76,16 @@ add_library(spot_editor_core STATIC
     imgui/imgui_renderer.h
     imgui/widgets.cpp
     imgui/widgets.h
+    inspector/entity_inspector.cpp
+    inspector/entity_inspector.h
+    inspector/inspector_backend.cpp
+    inspector/inspector_backend.h
+    inspector/inspector_clipboard.cpp
+    inspector/inspector_clipboard.h
+    inspector/multi_edit.cpp
+    inspector/multi_edit.h
+    inspector/property_widgets.cpp
+    inspector/property_widgets.h
     panels/asset_browser_panel.cpp
     panels/asset_browser_panel.h
     panels/console_panel.cpp

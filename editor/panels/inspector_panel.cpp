@@ -4,11 +4,18 @@
 
 namespace Spot::Editor {
 
-InspectorPanel::InspectorPanel() : Panel("Inspector", ICON_FA_CIRCLE_INFO "  Inspector") {
+InspectorPanel::InspectorPanel(EditorContext& context)
+    : Panel("Inspector", ICON_FA_CIRCLE_INFO "  Inspector"), m_context(context), m_entities(context) {
 }
 
 void InspectorPanel::OnDraw() {
-    DrawEmptyState(ICON_FA_CIRCLE_INFO, "Select an entity or an asset to see its properties.");
+    m_entities.FinishEdit();
+    SceneDocument* document = m_context.GetActiveDocument();
+    if (!document || !document->GetScene().GetEntity(document->GetSelection().GetPrimary())) {
+        DrawEmptyState(ICON_FA_CIRCLE_INFO, "Select an entity to see its components.");
+        return;
+    }
+    m_entities.Draw(*document);
 }
 
 } // namespace Spot::Editor

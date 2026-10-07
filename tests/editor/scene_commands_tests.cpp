@@ -190,6 +190,38 @@ TEST_CASE("Components are added, removed, moved and edited with undo", "[editor]
     CHECK(fixture.child->GetComponent<Pointer>()->target == fixture.other->GetId());
 }
 
+TEST_CASE("Tags are added and removed, and come back in their order", "[editor][commands]") {
+    Fixture fixture;
+    fixture.root->AddTag("First");
+    fixture.root->AddTag("Second");
+    fixture.document.GetHistory().MarkSaved();
+    const std::vector ids{fixture.root->GetId(), fixture.other->GetId()};
+
+    fixture.CheckRoundTrip(
+        std::make_unique<Spot::Editor::SetEntitiesTagCommand>(fixture.document, ids, "First", false));
+    fixture.CheckRoundTrip(std::make_unique<Spot::Editor::SetEntitiesTagCommand>(fixture.document, ids, "New", true));
+    CHECK(fixture.other->HasTag("New"));
+    // Nothing to change: neither entity has the tag.
+    CHECK_FALSE(fixture.document.Execute(
+        std::make_unique<Spot::Editor::SetEntitiesTagCommand>(fixture.document, ids, "Missing", false)));
+}
+
+TEST_CASE("Command groups are one step, keeping only the commands that changed something", "[editor][commands]") {
+    Fixture fixture;
+    auto group = std::make_unique<Spot::Editor::SceneCommandGroup>(fixture.document, "Rename Entities");
+    group->Add(std::make_unique<Spot::Editor::RenameEntityCommand>(fixture.document, fixture.root->GetId(), "A"));
+    group->Add(std::make_unique<Spot::Editor::RenameEntityCommand>(fixture.document, fixture.other->GetId(), "Other"));
+    group->Add(std::make_unique<Spot::Editor::RenameEntityCommand>(fixture.document, fixture.child->GetId(), "B"));
+    fixture.CheckRoundTrip(std::move(group));
+    CHECK(fixture.document.GetHistory().GetUndoName() == "Rename Entities");
+    CHECK(fixture.root->GetName() == "A");
+    CHECK(fixture.child->GetName() == "B");
+
+    auto empty = std::make_unique<Spot::Editor::SceneCommandGroup>(fixture.document, "Nothing");
+    empty->Add(std::make_unique<Spot::Editor::RenameEntityCommand>(fixture.document, fixture.root->GetId(), "A"));
+    CHECK_FALSE(fixture.document.Execute(std::move(empty)));
+}
+
 TEST_CASE("Scene documents save, and remember being saved", "[editor][commands]") {
     Fixture fixture;
     const auto file = std::filesystem::temp_directory_path() / "spot_editor_document_test.scene";

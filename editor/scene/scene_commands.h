@@ -1,15 +1,38 @@
 #pragma once
 
+#include "core/text.h"
 #include "scene/scene_document.h"
 
 #include <spot.h>
 
 #include <cstddef>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
 namespace Spot::Editor {
+
+// Several commands done as one step, such as the same change to each selected entity, and undone in reverse order.
+class SceneCommandGroup final : public SceneCommand {
+public:
+    SceneCommandGroup(SceneDocument& document, std::string name);
+
+    void Add(std::unique_ptr<SceneCommand> command) { m_commands.push_back(std::move(command)); }
+    bool IsEmpty() const { return m_commands.empty(); }
+
+    std::string GetName() const override { return m_name; }
+    // Keeps the commands that changed something, and returns whether any did.
+    bool Execute() override;
+    void Undo() override;
+    // What the last command that says what to select says.
+    std::optional<std::vector<EntityId>> GetSelectionAfter() const override;
+
+private:
+    std::string m_name;
+    std::vector<std::unique_ptr<SceneCommand>> m_commands;
+    bool m_executed = false;
+};
 
 // Adds saved entities, such as pasted, duplicated or new ones, under a parent before one of its children, and
 // selects them. Redoing brings back the same entities, with the same ids.
@@ -122,6 +145,28 @@ private:
     std::vector<EntityId> m_changed;
 };
 
+// Adds a tag to entities, or removes it from them.
+class SetEntitiesTagCommand final : public SceneCommand {
+public:
+    SetEntitiesTagCommand(SceneDocument& document, std::vector<EntityId> entities, std::string tag, bool add);
+
+    std::string GetName() const override { return m_add ? "Add Tag" : "Remove Tag"; }
+    bool Execute() override;
+    void Undo() override;
+
+private:
+    struct Previous {
+        EntityId entity;
+        std::vector<std::string> tags;
+    };
+
+    std::vector<EntityId> m_entities;
+    std::string m_tag;
+    bool m_add;
+    // The tags of the entities that changed, in order, as they were.
+    std::vector<Previous> m_previous;
+};
+
 // A transform's local position, rotation and scale.
 struct Pose {
     Vector3 position = {};
@@ -163,7 +208,7 @@ public:
     AddComponentCommand(SceneDocument& document, EntityId entity, std::string typeName, std::string text = {},
                         std::optional<std::size_t> index = std::nullopt);
 
-    std::string GetName() const override { return "Add " + m_typeName; }
+    std::string GetName() const override { return "Add " + MakeDisplayName(m_typeName); }
     bool Execute() override;
     void Undo() override;
 
@@ -178,7 +223,7 @@ class RemoveComponentCommand final : public SceneCommand {
 public:
     RemoveComponentCommand(SceneDocument& document, EntityId entity, std::size_t index);
 
-    std::string GetName() const override { return "Remove " + m_typeName; }
+    std::string GetName() const override { return "Remove " + MakeDisplayName(m_typeName); }
     bool Execute() override;
     void Undo() override;
 
@@ -210,7 +255,7 @@ public:
     EditComponentCommand(SceneDocument& document, EntityId entity, std::size_t index, std::string before,
                          std::string after);
 
-    std::string GetName() const override { return "Edit " + m_typeName; }
+    std::string GetName() const override { return "Edit " + MakeDisplayName(m_typeName); }
     bool Execute() override;
     void Undo() override;
 

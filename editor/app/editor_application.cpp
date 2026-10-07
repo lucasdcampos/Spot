@@ -140,7 +140,9 @@ void EditorApplication::OnStart() {
                     });
 
     m_panels.push_back(std::make_unique<HierarchyPanel>(*m_context));
-    m_panels.push_back(std::make_unique<InspectorPanel>());
+    auto inspector = std::make_unique<InspectorPanel>(*m_context);
+    m_inspector = inspector.get();
+    m_panels.push_back(std::move(inspector));
     m_panels.push_back(std::make_unique<AssetBrowserPanel>(*m_context));
     m_panels.push_back(std::make_unique<ConsolePanel>(m_consoleLog));
     m_panels.push_back(std::make_unique<ProjectSettingsPanel>(*m_context));
@@ -227,6 +229,7 @@ void EditorApplication::UpdateScreenshot(RenderContext& context) {
 void EditorApplication::OnStop() {
     CloseProject();
     m_settings.Save();
+    m_inspector = nullptr;
     m_panels.clear();
     m_hub.reset();
     m_newProjectDialog.reset();
@@ -316,6 +319,10 @@ Panel* EditorApplication::FindPanel(std::string_view id) const {
 }
 
 void EditorApplication::DrawUi() {
+    // An edit that just ended goes in the history before a menu or a shortcut can undo.
+    if (m_inspector) {
+        m_inspector->FinishEdit();
+    }
     DrawMainMenu();
     if (m_context->GetProject()) {
         DrawToolbar();

@@ -1,5 +1,6 @@
 #include "project/project_hub.h"
 
+#include "core/text.h"
 #include "imgui/editor_style.h"
 #include "imgui/icons.h"
 #include "imgui/widgets.h"
@@ -16,15 +17,6 @@
 #include <utility>
 
 namespace Spot::Editor {
-
-namespace {
-
-bool ContainsIgnoringCase(std::string_view text, std::string_view part) {
-    const auto lower = [](char c) { return static_cast<char>(std::tolower(static_cast<unsigned char>(c))); };
-    return part.empty() || !std::ranges::search(text, part, {}, lower, lower).empty();
-}
-
-} // namespace
 
 ProjectHub::ProjectHub(EditorSettings& settings, ProjectHubActions actions)
     : m_settings(settings), m_actions(std::move(actions)) {

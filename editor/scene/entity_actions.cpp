@@ -119,6 +119,23 @@ const char* GetEntityIcon(const Entity& entity) {
     return ICON_FA_CIRCLE_NODES;
 }
 
+const char* GetComponentIcon(std::string_view typeName) {
+    static constexpr std::array<std::pair<std::string_view, const char*>, 10> Icons{{
+        {"MeshRenderer", ICON_FA_CUBE},
+        {"Rigidbody", ICON_FA_WEIGHT_HANGING},
+        {"BoxCollider", ICON_FA_VECTOR_SQUARE},
+        {"SphereCollider", ICON_FA_CIRCLE_DOT},
+        {"CapsuleCollider", ICON_FA_CAPSULES},
+        {"AmbientLight", ICON_FA_CIRCLE_HALF_STROKE},
+        {"DirectionalLight", ICON_FA_SUN},
+        {"PointLight", ICON_FA_LIGHTBULB},
+        {"SpotLight", ICON_FA_LIGHTBULB},
+        {"Sky", ICON_FA_CLOUD_SUN},
+    }};
+    const auto found = std::ranges::find(Icons, typeName, &std::pair<std::string_view, const char*>::first);
+    return found != Icons.end() ? found->second : ICON_FA_PUZZLE_PIECE;
+}
+
 bool CreateEntity(SceneDocument& document, EntityTemplate kind, EntityId parent, Vector3 position) {
     const auto found = std::ranges::find(Templates, kind, &EntityTemplateInfo::kind);
     return document.Execute(std::make_unique<CreateEntitiesCommand>(document, std::string("Create ") + found->name,

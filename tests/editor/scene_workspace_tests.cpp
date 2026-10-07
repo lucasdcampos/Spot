@@ -131,6 +131,10 @@ TEST_CASE("The workspace opens the project's startup scene and remembers its vie
     CHECK_FALSE(document->IsDirty());
     fixture.Frame();
     fixture.workspace->GetActiveView()->GetCamera().SetView({1.0f, 2.0f, 3.0f}, 0.5f, -0.25f, 7.0f);
+    const std::vector<Spot::Entity*> roots = document->GetScene().GetRootEntities();
+    REQUIRE(roots.size() >= 2);
+    const std::string selected = roots[1]->GetName();
+    document->GetSelection().Select(roots[1]->GetId());
 
     fixture.workspace->SaveState();
     fixture.workspace->CloseAll();
@@ -142,6 +146,11 @@ TEST_CASE("The workspace opens the project's startup scene and remembers its vie
     CHECK(camera.GetPivot() == Spot::Vector3{1.0f, 2.0f, 3.0f});
     CHECK(camera.GetYaw() == Approx(0.5f));
     CHECK(camera.GetDistance() == Approx(7.0f));
+    // Entities get new ids when the scene loads again, and the same ones are selected.
+    document = fixture.workspace->GetActiveDocument();
+    const Spot::Entity* primary = document->GetScene().GetEntity(document->GetSelection().GetPrimary());
+    REQUIRE(primary);
+    CHECK(primary->GetName() == selected);
     // Opening an open scene brings it forward instead of opening it twice.
     fixture.workspace->OpenScene(fixture.workspace->GetActiveDocument()->GetAssetId());
     CHECK(fixture.workspace->GetDocumentCount() == 1);

@@ -32,6 +32,8 @@ public:
 
     std::size_t GetDocumentCount() const { return m_scenes.size(); }
     SceneDocument& GetDocument(std::size_t index) { return *m_scenes[index].document; }
+    // The open document with the id (see SceneDocument::GetId()); null when it was closed.
+    SceneDocument* FindDocument(std::uint64_t id);
     // The document of the view focused last; null when none is open.
     SceneDocument* GetActiveDocument() { return m_active; }
     SceneView* GetActiveView();
@@ -59,7 +61,8 @@ public:
     void ConfirmUnsavedChanges(std::vector<std::uint64_t> documents, std::function<void()> proceed);
     void ConfirmAllUnsavedChanges(std::function<void()> proceed);
 
-    // Opens what was open when the project was last closed, or its startup scene.
+    // Opens what was open when the project was last closed, with the same views and selections, or its startup
+    // scene.
     void RestoreState();
     void SaveState() const;
 

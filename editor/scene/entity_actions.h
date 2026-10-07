@@ -5,6 +5,7 @@
 #include <spot.h>
 
 #include <span>
+#include <string_view>
 #include <vector>
 
 // What can be done to the entities of a scene document from menus, shortcuts and windows, each as one undoable step.
@@ -34,6 +35,8 @@ std::span<const EntityTemplateInfo> GetEntityTemplates();
 
 // The icon that tells what an entity is, from its components.
 const char* GetEntityIcon(const Entity& entity);
+// The icon of a component type, by its registered name.
+const char* GetComponentIcon(std::string_view typeName);
 
 // Creates an entity from the template under the parent, or at the root when it is invalid, at the local position,
 // and selects it. Returns whether it did.

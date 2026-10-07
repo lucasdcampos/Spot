@@ -37,18 +37,17 @@ struct HierarchyFixture {
         document = &workspace->NewScene();
         REQUIRE(Spot::Editor::CreateEntity(*document, Spot::Editor::EntityTemplate::Cube));
         document->GetSelection().Clear();
+        imgui.SetDraw([this] {
+            ImGui::SetNextWindowPos({0.0f, 0.0f});
+            ImGui::SetNextWindowSize({400.0f, 500.0f});
+            panel->Draw();
+        });
         Frame();
     }
 
     ~HierarchyFixture() { context->SetWorkspace(nullptr); }
 
-    void Frame() {
-        imgui.BeginFrame();
-        ImGui::SetNextWindowPos({0.0f, 0.0f});
-        ImGui::SetNextWindowSize({400.0f, 500.0f});
-        panel->Draw();
-        imgui.EndFrame();
-    }
+    void Frame() { imgui.Frame(); }
 
     Entity& Find(const char* name) {
         Entity* entity = document->GetScene().FindEntity(name);
@@ -62,57 +61,9 @@ struct HierarchyFixture {
         return {rect->first.x + 60.0f, rect->first.y + (rect->second.y - rect->first.y) * height};
     }
 
-    void Click(ImVec2 point, ImGuiKeyChord modifiers = 0) {
-        ImGuiIO& io = ImGui::GetIO();
-        const auto setModifiers = [&](bool down) {
-            if (modifiers & ImGuiMod_Ctrl) {
-                io.AddKeyEvent(ImGuiMod_Ctrl, down);
-            }
-            if (modifiers & ImGuiMod_Shift) {
-                io.AddKeyEvent(ImGuiMod_Shift, down);
-            }
-        };
-        setModifiers(true);
-        io.AddMousePosEvent(point.x, point.y);
-        Frame();
-        io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
-        Frame();
-        io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
-        Frame();
-        setModifiers(false);
-        Frame();
-    }
-
-    void Press(ImGuiKeyChord chord) {
-        ImGuiIO& io = ImGui::GetIO();
-        const ImGuiKey key = static_cast<ImGuiKey>(chord & ~ImGuiMod_Mask_);
-        if (chord & ImGuiMod_Ctrl) {
-            io.AddKeyEvent(ImGuiMod_Ctrl, true);
-        }
-        io.AddKeyEvent(key, true);
-        Frame();
-        io.AddKeyEvent(key, false);
-        if (chord & ImGuiMod_Ctrl) {
-            io.AddKeyEvent(ImGuiMod_Ctrl, false);
-        }
-        Frame();
-    }
-
-    void Drag(ImVec2 from, ImVec2 to) {
-        ImGuiIO& io = ImGui::GetIO();
-        io.AddMousePosEvent(from.x, from.y);
-        Frame();
-        io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
-        Frame();
-        for (int step = 1; step <= 6; ++step) {
-            const float t = static_cast<float>(step) / 6.0f;
-            io.AddMousePosEvent(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t);
-            Frame();
-        }
-        io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
-        Frame();
-        Frame();
-    }
+    void Click(ImVec2 point, ImGuiKeyChord modifiers = 0) { imgui.Click(point, modifiers); }
+    void Press(ImGuiKeyChord chord) { imgui.Press(chord); }
+    void Drag(ImVec2 from, ImVec2 to) { imgui.Drag(from, to); }
 
     std::vector<std::string> RootNames() {
         std::vector<std::string> names;

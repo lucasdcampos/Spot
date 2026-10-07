@@ -45,6 +45,37 @@ std::vector<EntityId> GetIds(const std::vector<Entity*>& entities) {
 
 } // namespace
 
+SceneCommandGroup::SceneCommandGroup(SceneDocument& document, std::string name)
+    : SceneCommand(document), m_name(std::move(name)) {
+}
+
+bool SceneCommandGroup::Execute() {
+    if (m_executed) {
+        for (const auto& command : m_commands) {
+            command->Execute();
+        }
+        return true;
+    }
+    std::erase_if(m_commands, [](const auto& command) { return !command->Execute(); });
+    m_executed = true;
+    return !m_commands.empty();
+}
+
+void SceneCommandGroup::Undo() {
+    for (auto command = m_commands.rbegin(); command != m_commands.rend(); ++command) {
+        (*command)->Undo();
+    }
+}
+
+std::optional<std::vector<EntityId>> SceneCommandGroup::GetSelectionAfter() const {
+    for (auto command = m_commands.rbegin(); command != m_commands.rend(); ++command) {
+        if (auto selection = (*command)->GetSelectionAfter()) {
+            return selection;
+        }
+    }
+    return std::nullopt;
+}
+
 CreateEntitiesCommand::CreateEntitiesCommand(SceneDocument& document, std::string name, std::string text,
                                              EntityId parent, EntityId before)
     : CreateEntitiesCommand(document, std::move(name), std::vector<Placement>{{std::move(text), parent, before}}) {
@@ -213,6 +244,42 @@ bool SetEntitiesActiveCommand::Execute() {
 void SetEntitiesActiveCommand::Undo() {
     for (const EntityId id : m_changed) {
         GetEntity(id).SetActive(!m_active);
+    }
+}
+
+SetEntitiesTagCommand::SetEntitiesTagCommand(SceneDocument& document, std::vector<EntityId> entities, std::string tag,
+                                             bool add)
+    : SceneCommand(document), m_entities(std::move(entities)), m_tag(std::move(tag)), m_add(add) {
+}
+
+bool SetEntitiesTagCommand::Execute() {
+    m_previous.clear();
+    for (const EntityId id : m_entities) {
+        Entity* entity = GetScene().GetEntity(id);
+        if (!entity || entity->HasTag(m_tag) == m_add) {
+            continue;
+        }
+        m_previous.push_back({id, {entity->GetTags().begin(), entity->GetTags().end()}});
+        if (m_add) {
+            entity->AddTag(m_tag);
+        } else {
+            entity->RemoveTag(m_tag);
+        }
+    }
+    return !m_previous.empty();
+}
+
+void SetEntitiesTagCommand::Undo() {
+    // Brings back the tags in their order, so the scene saves as it did.
+    for (const Previous& previous : m_previous) {
+        Entity& entity = GetEntity(previous.entity);
+        const std::vector<std::string> current(entity.GetTags().begin(), entity.GetTags().end());
+        for (const std::string& tag : current) {
+            entity.RemoveTag(tag);
+        }
+        for (const std::string& tag : previous.tags) {
+            entity.AddTag(tag);
+        }
     }
 }
 

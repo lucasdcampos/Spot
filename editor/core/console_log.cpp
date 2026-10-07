@@ -1,5 +1,7 @@
 #include "core/console_log.h"
 
+#include "core/text.h"
+
 #include <algorithm>
 #include <cctype>
 #include <ranges>
@@ -11,15 +13,6 @@ namespace {
 
 std::size_t GetLevelIndex(LogLevel level) {
     return static_cast<std::size_t>(level);
-}
-
-bool ContainsIgnoringCase(std::string_view text, std::string_view part) {
-    if (part.empty()) {
-        return true;
-    }
-    const auto lower = [](char c) { return static_cast<char>(std::tolower(static_cast<unsigned char>(c))); };
-    const auto found = std::ranges::search(text, part, {}, lower, lower);
-    return !found.empty();
 }
 
 } // namespace

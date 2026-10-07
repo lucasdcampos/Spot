@@ -36,6 +36,50 @@ Vector3 Vector3FromJson(const json& value) {
     return {value[0].get<float>(), value[1].get<float>(), value[2].get<float>()};
 }
 
+// Entities get new ids each time a scene loads, so the selection is saved as the places of the entities in the
+// hierarchy: their sibling indices from the root down.
+json SaveSelection(const SceneDocument& document) {
+    json selection = json::array();
+    for (const EntityId id : document.GetSelection().GetEntities()) {
+        const Entity* entity = document.GetScene().GetEntity(id);
+        if (!entity) {
+            continue;
+        }
+        json path = json::array();
+        for (; entity; entity = entity->GetParent()) {
+            path.insert(path.begin(), entity->GetSiblingIndex());
+        }
+        selection.push_back(std::move(path));
+    }
+    return selection;
+}
+
+void RestoreSelection(SceneDocument& document, const json& selection) {
+    if (!selection.is_array()) {
+        return;
+    }
+    std::vector<EntityId> ids;
+    for (const json& path : selection) {
+        if (!path.is_array()) {
+            continue;
+        }
+        std::vector<Entity*> siblings = document.GetScene().GetRootEntities();
+        Entity* entity = nullptr;
+        for (const json& index : path) {
+            if (!index.is_number_unsigned() || index.get<std::size_t>() >= siblings.size()) {
+                entity = nullptr;
+                break;
+            }
+            entity = siblings[index.get<std::size_t>()];
+            siblings = entity->GetChildren();
+        }
+        if (entity) {
+            ids.push_back(entity->GetId());
+        }
+    }
+    document.GetSelection().Set(ids);
+}
+
 std::string JoinNames(const std::vector<std::string>& names) {
     std::string joined;
     for (std::size_t i = 0; i < names.size(); ++i) {
@@ -60,6 +104,11 @@ SceneWorkspace::~SceneWorkspace() {
 SceneView* SceneWorkspace::GetActiveView() {
     Opened* open = m_active ? Find(*m_active) : nullptr;
     return open ? open->view.get() : nullptr;
+}
+
+SceneDocument* SceneWorkspace::FindDocument(std::uint64_t id) {
+    const auto found = std::ranges::find_if(m_scenes, [&](const Opened& open) { return open.document->GetId() == id; });
+    return found != m_scenes.end() ? found->document.get() : nullptr;
 }
 
 bool SceneWorkspace::HasUnsavedChanges() const {
@@ -290,6 +339,9 @@ void SceneWorkspace::RestoreState() {
                          camera->value("pitch", view.GetPitch()), camera->value("distance", view.GetDistance()));
             view.SetSpeed(camera->value("speed", view.GetSpeed()));
         }
+        if (const auto selection = saved.find("selection"); selection != saved.end()) {
+            RestoreSelection(*document, *selection);
+        }
         if (saved.value("id", std::string()) == active) {
             m_active = document;
             Find(*document)->view->RequestFocus();
@@ -314,7 +366,8 @@ void SceneWorkspace::SaveState() const {
                             {"yaw", camera.GetYaw()},
                             {"pitch", camera.GetPitch()},
                             {"distance", camera.GetDistance()},
-                            {"speed", camera.GetSpeed()}}}});
+                            {"speed", camera.GetSpeed()}}},
+                          {"selection", SaveSelection(*open.document)}});
     }
     json state = {{"scenes", scenes}};
     if (m_active && m_active->GetAssetId().IsValid()) {

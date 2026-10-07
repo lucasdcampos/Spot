@@ -1,5 +1,7 @@
 #include "panels/hierarchy_panel.h"
 
+#include "core/text.h"
+#include "imgui/drag_payloads.h"
 #include "imgui/editor_style.h"
 #include "imgui/icons.h"
 #include "scene/entity_actions.h"
@@ -23,13 +25,6 @@ namespace Spot::Editor {
 
 namespace {
 
-constexpr const char* EntitiesPayload = "SPOT_ENTITIES";
-
-bool ContainsIgnoringCase(std::string_view text, std::string_view part) {
-    const auto lower = [](char c) { return static_cast<char>(std::tolower(static_cast<unsigned char>(c))); };
-    return part.empty() || !std::ranges::search(text, part, {}, lower, lower).empty();
-}
-
 void* ToImGuiId(EntityId id) {
     return reinterpret_cast<void*>(static_cast<std::uintptr_t>(id));
 }
@@ -44,10 +39,6 @@ std::vector<EntityId> GetDragged(SceneDocument& document, Entity& entity) {
         ids.push_back(selected->GetId());
     }
     return ids;
-}
-
-std::span<const EntityId> GetPayloadIds(const ImGuiPayload& payload) {
-    return {static_cast<const EntityId*>(payload.Data), static_cast<std::size_t>(payload.DataSize) / sizeof(EntityId)};
 }
 
 // The sibling that comes after the entity, or Invalid when it is the last one.
@@ -111,7 +102,7 @@ void HierarchyPanel::OnDraw() {
     }
     if (ImGui::BeginDragDropTarget()) {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(EntitiesPayload)) {
-            const std::span<const EntityId> ids = GetPayloadIds(*payload);
+            const std::span<const EntityId> ids = GetPayloadEntities(*payload);
             document->Execute(std::make_unique<ReparentEntitiesCommand>(
                 *document, std::vector<EntityId>(ids.begin(), ids.end()), EntityId::Invalid));
         }
@@ -361,7 +352,7 @@ void HierarchyPanel::HandleDrop(SceneDocument& document, Entity& target) {
             drawList->AddLine({min.x, lineY}, {max.x, lineY}, color, thickness);
         }
         if (payload->IsDelivery()) {
-            const std::span<const EntityId> ids = GetPayloadIds(*payload);
+            const std::span<const EntityId> ids = GetPayloadEntities(*payload);
             std::vector<EntityId> moved(ids.begin(), ids.end());
             const EntityId parent = target.GetParent() ? target.GetParent()->GetId() : EntityId::Invalid;
             std::unique_ptr<ReparentEntitiesCommand> command;
