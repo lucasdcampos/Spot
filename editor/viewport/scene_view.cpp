@@ -84,10 +84,11 @@ const char* GetLightIcon(const Entity& entity) {
 } // namespace
 
 SceneView::SceneView(SceneDocument& document)
-    : m_document(document), m_shown(&document),
+    : m_document(document),
       // Saved scenes keep their place in the layout from one run to the next.
       m_windowId(document.GetAssetId().IsValid() ? "Scene" + document.GetAssetId().ToString()
-                                                 : std::format("NewScene{}", document.GetId())) {
+                                                 : std::format("NewScene{}", document.GetId())),
+      m_shown(&document) {
 }
 
 SceneView::~SceneView() = default;
