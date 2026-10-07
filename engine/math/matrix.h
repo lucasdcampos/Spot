@@ -34,4 +34,16 @@ Vector4 operator*(const Matrix4& m, Vector4 v);
 Matrix4 Inverse(const Matrix4& m);
 Matrix4 Transpose(const Matrix4& m);
 
+// A translation, a rotation and a scale, which Translation(translation) * Rotation(rotation) * Scale(scale) combines.
+struct TransformComponents {
+    Vector3 translation = {};
+    Quaternion rotation = {};
+    Vector3 scale{1.0f, 1.0f, 1.0f};
+};
+
+// Splits a matrix back into the translation, rotation and scale it combines, as tools do to edit a world transform as
+// a local one. A mirrored matrix gives a negative X scale. Shear, such as a non-uniform scale under a rotated parent
+// makes, cannot be represented and is dropped.
+TransformComponents Decompose(const Matrix4& m);
+
 } // namespace Spot

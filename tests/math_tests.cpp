@@ -159,6 +159,32 @@ TEST_CASE("Matrices invert and transpose", "[math]") {
     CHECK(transposed.columns[2].w == 7.0f);
 }
 
+TEST_CASE("Matrices decompose into translation, rotation and scale", "[math]") {
+    const Quaternion rotation = Quaternion::FromEuler({0.3f, 0.5f, 0.7f});
+    const auto transform = Matrix4::Translation({1, 2, 3}) * Matrix4::Rotation(rotation) * Matrix4::Scale({2, 3, 4});
+
+    const Spot::TransformComponents components = Spot::Decompose(transform);
+    CHECK(IsNear(components.translation, {1, 2, 3}));
+    CHECK(IsNear(components.scale, {2, 3, 4}));
+    // q and -q are the same rotation.
+    const float dot = components.rotation.x * rotation.x + components.rotation.y * rotation.y +
+                      components.rotation.z * rotation.z + components.rotation.w * rotation.w;
+    CHECK(std::abs(dot) == Catch::Approx(1.0f).margin(Tolerance));
+
+    // Mirrored matrices come back as a negative scale that combines into the same matrix.
+    const auto mirrored = Matrix4::Rotation(rotation) * Matrix4::Scale({1, -2, 1});
+    const Spot::TransformComponents flipped = Spot::Decompose(mirrored);
+    CHECK(flipped.scale.x < 0.0f);
+    CHECK(IsNear(Matrix4::Translation(flipped.translation) * Matrix4::Rotation(flipped.rotation) *
+                     Matrix4::Scale(flipped.scale),
+                 mirrored));
+
+    // A flattened axis keeps the scale, without a rotation to tell.
+    const Spot::TransformComponents flat = Spot::Decompose(Matrix4::Scale({1, 0, 1}));
+    CHECK(IsNear(flat.scale, {1, 0, 1}));
+    CHECK(flat.rotation == Quaternion::Identity());
+}
+
 TEST_CASE("Perspective maps the view frustum to zero-to-one depth", "[math]") {
     const auto projection = Matrix4::Perspective(Spot::ToRadians(90.0f), 2.0f, 0.1f, 100.0f);
 
