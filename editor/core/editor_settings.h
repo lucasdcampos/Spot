@@ -8,6 +8,27 @@
 
 namespace Spot::Editor {
 
+// What dragging in a scene view does to the selected entities.
+enum class GizmoTool {
+    Select,
+    Move,
+    Rotate,
+    Scale,
+};
+
+// How the transform gizmo works, as the toolbar sets it.
+struct GizmoSettings {
+    GizmoTool tool = GizmoTool::Move;
+    // Moves and turns along the entity's own axes instead of the world's.
+    bool local = false;
+    // Moves, turns and scales in steps; holding Ctrl while dragging does the opposite.
+    bool snap = false;
+    float moveStep = 0.5f;
+    // In degrees.
+    float rotateStep = 15.0f;
+    float scaleStep = 0.1f;
+};
+
 struct RecentProject {
     std::filesystem::path file;
     std::string name;
@@ -37,10 +58,14 @@ public:
     const std::filesystem::path& GetProjectsLocation() const { return m_projectsLocation; }
     void SetProjectsLocation(std::filesystem::path location) { m_projectsLocation = std::move(location); }
 
+    GizmoSettings& GetGizmo() { return m_gizmo; }
+    const GizmoSettings& GetGizmo() const { return m_gizmo; }
+
 private:
     std::filesystem::path m_file;
     std::vector<RecentProject> m_recentProjects;
     std::filesystem::path m_projectsLocation;
+    GizmoSettings m_gizmo;
 };
 
 // "<documents>/Spot Projects", where projects go until the user picks another place.

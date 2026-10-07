@@ -7,6 +7,10 @@
 #include "scene/entity_actions.h"
 #include "scene/scene_document.h"
 
+#include <imgui_internal.h>
+
+#include <ImGuizmo.h>
+
 #include <algorithm>
 #include <cmath>
 #include <format>
@@ -32,6 +36,32 @@ BoundingSphere GetWorldBounds(const Entity& entity) {
         scale = std::max(scale, Length(Vector3{column.x, column.y, column.z}));
     }
     return {{center.x, center.y, center.z}, local.radius * scale};
+}
+
+// Orange, as sRGB (1.0, 0.55, 0.1) is, in the linear values the renderers take: it stands out from skies and grounds.
+constexpr Color SelectionOutlineColor{1.0f, 0.262f, 0.010f, 1.0f};
+
+// The meshes of the entity and of the entities below it, as the scene draws them.
+void AddMeshes(const Entity& entity, std::vector<MeshInstance>& meshes) {
+    if (!entity.IsActiveInHierarchy()) {
+        return;
+    }
+    for (const MeshRenderer* renderer : entity.GetComponents<MeshRenderer>()) {
+        if (renderer->IsEnabled() && renderer->GetMesh()) {
+            meshes.push_back({renderer->GetMesh().Get(), entity.GetTransform().GetWorldMatrix()});
+        }
+    }
+    for (const Entity* child : entity.GetChildren()) {
+        AddMeshes(*child, meshes);
+    }
+}
+
+// Where the view cube goes: the view's top-right corner.
+ImRect GetViewCubeRect(const ImVec2& origin, const ImVec2& size) {
+    const float side = std::round(ImGui::GetFontSize() * 6.0f);
+    const ImVec2 padding = ImGui::GetStyle().WindowPadding;
+    const ImVec2 min{origin.x + size.x - side - padding.x, origin.y + padding.y};
+    return {min, {min.x + side, min.y + side}};
 }
 
 const char* GetLightIcon(const Entity& entity) {
@@ -92,18 +122,30 @@ void SceneView::DrawViewport(EditorContext& context, ViewportRenderer* renderer)
     if (size.x < 1.0f || size.y < 1.0f) {
         return;
     }
+    const ImGuiIO& io = ImGui::GetIO();
     const ImVec2 origin = ImGui::GetCursorScreenPos();
-    const ImVec2 scale = ImGui::GetIO().DisplayFramebufferScale;
+    const ImVec2 scale = io.DisplayFramebufferScale;
     const auto width = static_cast<std::uint32_t>(std::lround(size.x * scale.x));
     const auto height = static_cast<std::uint32_t>(std::lround(size.y * scale.y));
+    m_outlineWidth = std::clamp(2.0f * ImGui::GetStyle().FontScaleDpi, 1.0f, 3.0f);
 
-    // The whole area takes the mouse, so the camera can be moved anywhere in it; the overlay's buttons go over it.
+    // A click drawn into the picking target last frame is read now that the GPU has drawn it.
+    if (std::optional<PickRequest> picking = std::exchange(m_picking, std::nullopt)) {
+        const std::optional<std::size_t> index = renderer ? renderer->ReadPick() : std::nullopt;
+        ApplyPick(*picking, index && *index < m_pickEntities.size() ? m_pickEntities[*index] : EntityId::Invalid);
+    }
+
+    // The whole area takes the mouse, so the camera can be moved anywhere in it. The view cube and the overlay's
+    // buttons go over it, and the gizmo's handles take the mouse first (see TransformGizmo::Draw()). It is submitted
+    // every frame: an item that lets others overlap it is only hovered after a frame of being under the mouse.
     ImGui::SetNextItemAllowOverlap();
     ImGui::InvisibleButton("##Viewport", size,
                            ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight |
                                ImGuiButtonFlags_MouseButtonMiddle);
+    const ImGuiID areaId = ImGui::GetItemID();
     const bool hovered = ImGui::IsItemHovered();
     const bool active = ImGui::IsItemActive();
+    const bool clicked = ImGui::IsItemClicked(ImGuiMouseButton_Left) && !io.KeyAlt;
     if (ImGui::IsItemClicked(ImGuiMouseButton_Right) || ImGui::IsItemClicked(ImGuiMouseButton_Middle)) {
         ImGui::SetWindowFocus();
     }
@@ -122,7 +164,86 @@ void SceneView::DrawViewport(EditorContext& context, ViewportRenderer* renderer)
         HandleEntityShortcuts(m_document);
     }
     DrawIcons(origin, size);
+    DrawViewCube(origin, size);
+    m_gizmo.Draw(m_document, m_camera.GetCamera(), origin, size, context.GetSettings().GetGizmo(), GetGizmoId(),
+                 areaId);
+    // A click on the gizmo's handles drags them instead of selecting.
+    if (clicked && !TransformGizmo::WantsMouse()) {
+        ImGui::SetWindowFocus();
+        HandleClick(origin, scale);
+    }
     DrawOverlay(origin);
+}
+
+void SceneView::HandleClick(const ImVec2& origin, const ImVec2& scale) {
+    const ImGuiIO& io = ImGui::GetIO();
+    const PickRequest request{
+        .pixel = {(io.MousePos.x - origin.x) * scale.x, (io.MousePos.y - origin.y) * scale.y},
+        .toggle = io.KeyCtrl,
+        .add = io.KeyShift,
+    };
+    // Icons are drawn over the meshes, the last one on top, so they are picked first.
+    for (auto icon = m_icons.rbegin(); icon != m_icons.rend(); ++icon) {
+        if (ImRect(icon->min, icon->max).Contains(io.MousePos)) {
+            ApplyPick(request, icon->entity);
+            return;
+        }
+    }
+    // Meshes are picked on the GPU: drawn this frame, read back in the next.
+    m_pick = request;
+}
+
+void SceneView::ApplyPick(const PickRequest& request, EntityId entity) {
+    Selection& selection = m_document.GetSelection();
+    if (request.toggle) {
+        if (entity != EntityId::Invalid) {
+            selection.Toggle(entity);
+        }
+    } else if (request.add) {
+        if (entity != EntityId::Invalid) {
+            selection.Add(entity);
+        }
+    } else {
+        selection.Select(entity);
+    }
+}
+
+std::optional<std::pair<ImVec2, ImVec2>> SceneView::GetIconRect(EntityId entity) const {
+    const auto found = std::ranges::find(m_icons, entity, &Icon::entity);
+    return found != m_icons.end() ? std::optional(std::pair(found->min, found->max)) : std::nullopt;
+}
+
+int SceneView::GetGizmoId() const {
+    return static_cast<int>(m_document.GetId());
+}
+
+void SceneView::DrawViewCube(const ImVec2& origin, const ImVec2& size) {
+    const ImRect rect = GetViewCubeRect(origin, size);
+    // Small views leave their room to the scene.
+    if (rect.GetWidth() * 2.5f > size.x || rect.GetHeight() * 2.0f > size.y) {
+        return;
+    }
+    // Clicks on the cube turn the view, so they neither select nor move the window.
+    ImGui::SetCursorScreenPos(rect.Min);
+    ImGui::InvisibleButton("##ViewCube", rect.GetSize());
+    ImGui::SetItemTooltip("Click a face, an edge or a corner to look from that side; drag to turn the view");
+
+    const Camera3D camera = m_camera.GetCamera();
+    Matrix4 view = camera.GetView();
+    const Matrix4 projection = camera.GetProjection({size.x, size.y});
+    Matrix4 model;
+    ImGuizmo::PushID(GetGizmoId());
+    ImGuizmo::SetDrawlist(ImGui::GetWindowDrawList());
+    ImGuizmo::SetRect(origin.x, origin.y, size.x, size.y);
+    ImGuizmo::ViewManipulate(&view.columns[0].x, projection.GetData(), ImGuizmo::TRANSLATE, ImGuizmo::WORLD,
+                             &model.columns[0].x, m_camera.GetDistance(), rect.Min, rect.GetSize(), 0);
+    ImGuizmo::PopID();
+    if (view != camera.GetView()) {
+        // The camera looks down its -Z, the third row of the view matrix, negated.
+        const Vector3 forward{-view.columns[0].z, -view.columns[1].z, -view.columns[2].z};
+        m_camera.SetView(m_camera.GetPivot(), std::atan2(-forward.x, -forward.z),
+                         std::asin(std::clamp(forward.y, -1.0f, 1.0f)), m_camera.GetDistance());
+    }
 }
 
 void SceneView::UpdateCamera(EditorContext& context, bool hovered, bool active, float viewHeight) {
@@ -157,6 +278,7 @@ void SceneView::UpdateCamera(EditorContext& context, bool hovered, bool active, 
 }
 
 void SceneView::DrawIcons(const ImVec2& origin, const ImVec2& size) {
+    m_icons.clear();
     const Camera3D camera = m_camera.GetCamera();
     const Matrix4 viewProjection = camera.GetViewProjection({size.x, size.y});
     ImDrawList* drawList = ImGui::GetWindowDrawList();
@@ -178,6 +300,7 @@ void SceneView::DrawIcons(const ImVec2& origin, const ImVec2& size) {
         const ImVec2 textSize = ImGui::GetFont()->CalcTextSizeA(iconSize, FLT_MAX, 0.0f, icon);
         const ImVec2 corner{screen.x - textSize.x * 0.5f, screen.y - textSize.y * 0.5f};
         const bool selected = m_document.GetSelection().Contains(entity.GetId());
+        m_icons.push_back({entity.GetId(), corner, {corner.x + textSize.x, corner.y + textSize.y}});
         drawList->AddText(ImGui::GetFont(), iconSize, {corner.x + 1.0f, corner.y + 1.0f}, IM_COL32(0, 0, 0, 160), icon);
         drawList->AddText(ImGui::GetFont(), iconSize, corner,
                           selected ? selectedColor : IM_COL32(235, 225, 170, entity.IsActiveInHierarchy() ? 230 : 90),
@@ -223,7 +346,29 @@ void SceneView::Render(RenderContext& context, ViewportRenderer& renderer) {
     if (m_width == 0 || m_height == 0 || !m_targets.GetColor()) {
         return;
     }
-    renderer.Render(context, m_targets, m_document.GetScene(), m_camera.GetCamera(), m_options);
+    const Camera3D camera = m_camera.GetCamera();
+    renderer.Render(context, m_targets, m_document.GetScene(), camera, m_options);
+
+    std::vector<MeshInstance> selected;
+    for (const Entity* entity : GetSelectedEntities(m_document)) {
+        AddMeshes(*entity, selected);
+    }
+    renderer.DrawOutline(context, m_targets, camera, selected, SelectionOutlineColor, m_outlineWidth);
+
+    if (m_pick) {
+        std::vector<MeshInstance> meshes;
+        m_pickEntities.clear();
+        m_document.GetScene().ForEachComponent<MeshRenderer>([&](MeshRenderer& meshRenderer) {
+            if (meshRenderer.GetMesh()) {
+                const Entity& entity = meshRenderer.GetEntity();
+                meshes.push_back({meshRenderer.GetMesh().Get(), entity.GetTransform().GetWorldMatrix()});
+                m_pickEntities.push_back(entity.GetId());
+            }
+        });
+        renderer.RenderPick(context, camera, {static_cast<float>(m_width), static_cast<float>(m_height)}, m_pick->pixel,
+                            meshes);
+        m_picking = std::exchange(m_pick, std::nullopt);
+    }
 }
 
 void SceneView::FrameSelection() {

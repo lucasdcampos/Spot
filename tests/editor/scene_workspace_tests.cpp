@@ -7,8 +7,11 @@
 #include "scene/scene_commands.h"
 #include "scene/scene_workspace.h"
 #include "viewport/editor_camera.h"
+#include "viewport/scene_view.h"
 
 #include <spot.h>
+
+#include <ImGuizmo.h>
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -154,6 +157,74 @@ TEST_CASE("The workspace opens the project's startup scene and remembers its vie
     // Opening an open scene brings it forward instead of opening it twice.
     fixture.workspace->OpenScene(fixture.workspace->GetActiveDocument()->GetAssetId());
     CHECK(fixture.workspace->GetDocumentCount() == 1);
+}
+
+TEST_CASE("Clicking an icon in a view selects its entity, and Ctrl adds to the selection", "[editor][workspace][ui]") {
+    WorkspaceFixture fixture;
+    fixture.workspace->RestoreState();
+    Spot::Editor::SceneDocument& document = *fixture.workspace->GetActiveDocument();
+    Spot::Entity* sun = document.GetScene().FindEntity("Sun");
+    Spot::Entity* sky = document.GetScene().FindEntity("Sky");
+    REQUIRE((sun && sky));
+    // Apart, so neither icon covers the other.
+    sun->GetTransform().SetPosition({2.0f, 0.0f, 0.0f});
+    sky->GetTransform().SetPosition({-2.0f, 0.0f, 0.0f});
+    fixture.imgui.SetDraw([&] {
+        ImGuizmo::BeginFrame();
+        ImGui::SetNextWindowPos({0.0f, 0.0f});
+        ImGui::SetNextWindowSize({800.0f, 600.0f});
+        fixture.workspace->Draw(ImGui::GetID("Scenes"));
+    });
+    fixture.imgui.Frame();
+    fixture.imgui.Frame();
+
+    const auto center = [&](const Spot::Entity& entity) {
+        const auto rect = fixture.workspace->GetActiveView()->GetIconRect(entity.GetId());
+        REQUIRE(rect.has_value());
+        return ImVec2{(rect->first.x + rect->second.x) * 0.5f, (rect->first.y + rect->second.y) * 0.5f};
+    };
+    fixture.imgui.Click(center(*sun));
+    CHECK(document.GetSelection().GetPrimary() == sun->GetId());
+    CHECK(document.GetSelection().GetEntities().size() == 1);
+
+    fixture.imgui.Click(center(*sky), ImGuiMod_Ctrl);
+    CHECK(document.GetSelection().Contains(sun->GetId()));
+    CHECK(document.GetSelection().GetPrimary() == sky->GetId());
+}
+
+TEST_CASE("Dragging the gizmo moves the selection as one undoable step", "[editor][workspace][gizmo][ui]") {
+    WorkspaceFixture fixture;
+    fixture.workspace->RestoreState();
+    Spot::Editor::SceneDocument& document = *fixture.workspace->GetActiveDocument();
+    Spot::Entity* sun = document.GetScene().FindEntity("Sun");
+    REQUIRE(sun);
+    sun->GetTransform().SetPosition({2.0f, 0.0f, 0.0f});
+    document.GetSelection().Select(sun->GetId());
+    fixture.settings.GetGizmo().tool = Spot::Editor::GizmoTool::Move;
+    fixture.imgui.SetDraw([&] {
+        ImGuizmo::BeginFrame();
+        ImGui::SetNextWindowPos({0.0f, 0.0f});
+        ImGui::SetNextWindowSize({800.0f, 600.0f});
+        fixture.workspace->Draw(ImGui::GetID("Scenes"));
+    });
+    fixture.imgui.Frame();
+    fixture.imgui.Frame();
+
+    // The gizmo's center, over the sun's icon, moves it in the plane of the view.
+    const auto rect = fixture.workspace->GetActiveView()->GetIconRect(sun->GetId());
+    REQUIRE(rect.has_value());
+    const ImVec2 center{(rect->first.x + rect->second.x) * 0.5f, (rect->first.y + rect->second.y) * 0.5f};
+    const std::size_t steps = document.GetHistory().GetUndoCount();
+    fixture.imgui.Drag(center, {center.x + 80.0f, center.y});
+
+    const Spot::Vector3 moved = sun->GetTransform().GetPosition();
+    CHECK_FALSE(IsNear(moved, {2.0f, 0.0f, 0.0f}));
+    // Still the only entity selected: the click went to the gizmo, not to picking.
+    CHECK(document.GetSelection().GetPrimary() == sun->GetId());
+    CHECK(document.GetHistory().GetUndoCount() == steps + 1);
+    CHECK(document.GetHistory().GetUndoName() == "Move");
+    document.Undo();
+    CHECK(IsNear(sun->GetTransform().GetPosition(), {2.0f, 0.0f, 0.0f}));
 }
 
 TEST_CASE("Closing a changed scene asks first, and Escape keeps it open", "[editor][workspace]") {

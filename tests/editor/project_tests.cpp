@@ -44,6 +44,9 @@ TEST_CASE("Editor settings survive a restart", "[editor][settings]") {
         Spot::Editor::EditorSettings settings(file);
         settings.AddRecentProject(temp.GetPath() / u8"Café" / u8"Café.spot", "Café", opened);
         settings.SetProjectsLocation(temp.GetPath() / "Projects");
+        settings.GetGizmo().tool = Spot::Editor::GizmoTool::Rotate;
+        settings.GetGizmo().local = true;
+        settings.GetGizmo().rotateStep = 5.0f;
         REQUIRE(settings.Save());
     }
 
@@ -55,6 +58,10 @@ TEST_CASE("Editor settings survive a restart", "[editor][settings]") {
     CHECK(loaded.GetRecentProjects()[0].name == "Café");
     CHECK(loaded.GetRecentProjects()[0].lastOpened == opened);
     CHECK(loaded.GetProjectsLocation() == temp.GetPath() / "Projects");
+    CHECK(loaded.GetGizmo().tool == Spot::Editor::GizmoTool::Rotate);
+    CHECK(loaded.GetGizmo().local);
+    CHECK_FALSE(loaded.GetGizmo().snap);
+    CHECK(loaded.GetGizmo().rotateStep == 5.0f);
 }
 
 TEST_CASE("Unreadable editor settings leave the defaults", "[editor][settings]") {

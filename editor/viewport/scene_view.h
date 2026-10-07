@@ -1,20 +1,25 @@
 #pragma once
 
 #include "viewport/editor_camera.h"
+#include "viewport/transform_gizmo.h"
 #include "viewport/viewport_renderer.h"
 
 #include <spot.h>
 
 #include <imgui.h>
 
+#include <optional>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace Spot::Editor {
 
 class EditorContext;
 class SceneDocument;
 
-// A window that shows a scene document through the editor camera, which the mouse and keys move around.
+// A window that shows a scene document through the editor camera, which the mouse and keys move around. Clicking
+// selects what is under the mouse, and the transform gizmo moves the selection.
 class SceneView {
 public:
     explicit SceneView(SceneDocument& document);
@@ -45,11 +50,35 @@ public:
     // Frames the selection, or the whole scene when nothing is selected.
     void FrameSelection();
 
+    // Where the entity's icon, such as a light's, was drawn last frame, in screen coordinates, as {min, max};
+    // nothing when it has none or it was not in view.
+    std::optional<std::pair<ImVec2, ImVec2>> GetIconRect(EntityId entity) const;
+
 private:
+    // A click to select what is under the mouse.
+    struct PickRequest {
+        // In the view's pixels, from its top-left corner.
+        Vector2 pixel;
+        // Ctrl adds the entity to the selection, or takes it out.
+        bool toggle = false;
+        // Shift adds the entity to the selection.
+        bool add = false;
+    };
+
+    struct Icon {
+        EntityId entity;
+        ImVec2 min;
+        ImVec2 max;
+    };
+
     void DrawViewport(EditorContext& context, ViewportRenderer* renderer);
     void UpdateCamera(EditorContext& context, bool hovered, bool active, float viewHeight);
     void DrawIcons(const ImVec2& origin, const ImVec2& size);
+    void DrawViewCube(const ImVec2& origin, const ImVec2& size);
     void DrawOverlay(const ImVec2& origin);
+    void HandleClick(const ImVec2& origin, const ImVec2& scale);
+    void ApplyPick(const PickRequest& request, EntityId entity);
+    int GetGizmoId() const;
 
     SceneDocument& m_document;
     // Kept for the view's life, so saving a new scene does not make it another window.
@@ -62,6 +91,15 @@ private:
     std::uint32_t m_width = 0;
     std::uint32_t m_height = 0;
     bool m_looking = false;
+    TransformGizmo m_gizmo;
+    // The icons drawn last, which clicks select before meshes.
+    std::vector<Icon> m_icons;
+    // A click waiting to be drawn into the picking target, and one drawn, waiting to be read back, with the entity of
+    // each mesh it drew.
+    std::optional<PickRequest> m_pick;
+    std::optional<PickRequest> m_picking;
+    std::vector<EntityId> m_pickEntities;
+    float m_outlineWidth = 2.0f;
 };
 
 } // namespace Spot::Editor

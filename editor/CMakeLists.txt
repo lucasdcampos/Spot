@@ -120,6 +120,8 @@ add_library(spot_editor_core STATIC
     viewport/editor_camera.h
     viewport/scene_view.cpp
     viewport/scene_view.h
+    viewport/transform_gizmo.cpp
+    viewport/transform_gizmo.h
     viewport/viewport_renderer.cpp
     viewport/viewport_renderer.h
 )
@@ -133,8 +135,11 @@ target_link_libraries(spot_editor_core PRIVATE nlohmann_json::nlohmann_json)
 spot_add_shaders(spot_editor_core
     imgui/imgui.frag.hlsl
     imgui/imgui.vert.hlsl
+    viewport/fullscreen.vert.hlsl
     viewport/grid.frag.hlsl
-    viewport/grid.vert.hlsl
+    viewport/outline.frag.hlsl
+    viewport/silhouette.frag.hlsl
+    viewport/silhouette.vert.hlsl
 )
 spot_embed_files(spot_editor_core
     resources/fonts/fa_solid_900.ttf

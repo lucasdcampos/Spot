@@ -63,6 +63,7 @@ private:
     void DrawMainMenu();
     void DrawFileMenu();
     void DrawToolbar();
+    void DrawGizmoTools();
     void DrawStatusBar();
     void DrawLatestMessage();
     void DrawDockSpace();

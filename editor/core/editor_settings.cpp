@@ -7,8 +7,10 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <array>
 #include <fstream>
 #include <iterator>
+#include <string_view>
 #include <utility>
 
 namespace Spot::Editor {
@@ -16,6 +18,8 @@ namespace Spot::Editor {
 using nlohmann::json;
 
 namespace {
+
+constexpr std::array<std::string_view, 4> GizmoToolNames{"Select", "Move", "Rotate", "Scale"};
 
 bool IsSameFile(const std::filesystem::path& a, const std::filesystem::path& b) {
     return a.lexically_normal() == b.lexically_normal();
@@ -56,6 +60,22 @@ void EditorSettings::Load() {
     if (const auto location = document.find("projectsLocation"); location != document.end() && location->is_string()) {
         m_projectsLocation = Utf8ToPath(location->get<std::string>());
     }
+    if (const auto gizmo = document.find("gizmo"); gizmo != document.end() && gizmo->is_object()) {
+        const auto tool = std::ranges::find(GizmoToolNames, gizmo->value("tool", std::string()));
+        if (tool != GizmoToolNames.end()) {
+            m_gizmo.tool = static_cast<GizmoTool>(tool - GizmoToolNames.begin());
+        }
+        m_gizmo.local = gizmo->value("local", m_gizmo.local);
+        m_gizmo.snap = gizmo->value("snap", m_gizmo.snap);
+        // Steps of nothing would never move.
+        const auto step = [&](const char* name, float fallback) {
+            const float value = gizmo->value(name, fallback);
+            return value > 0.0f ? value : fallback;
+        };
+        m_gizmo.moveStep = step("moveStep", m_gizmo.moveStep);
+        m_gizmo.rotateStep = step("rotateStep", m_gizmo.rotateStep);
+        m_gizmo.scaleStep = step("scaleStep", m_gizmo.scaleStep);
+    }
 }
 
 bool EditorSettings::Save() const {
@@ -71,7 +91,19 @@ bool EditorSettings::Save() const {
              std::chrono::duration_cast<std::chrono::seconds>(project.lastOpened.time_since_epoch()).count()},
         });
     }
-    const json document = {{"recentProjects", recent}, {"projectsLocation", PathToUtf8(m_projectsLocation)}};
+    const json gizmo = {
+        {"tool", GizmoToolNames[static_cast<std::size_t>(m_gizmo.tool)]},
+        {"local", m_gizmo.local},
+        {"snap", m_gizmo.snap},
+        {"moveStep", m_gizmo.moveStep},
+        {"rotateStep", m_gizmo.rotateStep},
+        {"scaleStep", m_gizmo.scaleStep},
+    };
+    const json document = {
+        {"recentProjects", recent},
+        {"projectsLocation", PathToUtf8(m_projectsLocation)},
+        {"gizmo", gizmo},
+    };
 
     std::error_code error;
     std::filesystem::create_directories(m_file.parent_path(), error);

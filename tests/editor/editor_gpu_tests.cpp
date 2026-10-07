@@ -1,6 +1,7 @@
 #include "rendering_application.h"
 
 #include "imgui/imgui_renderer.h"
+#include "viewport/viewport_renderer.h"
 
 #include <spot.h>
 
@@ -10,6 +11,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <memory>
+#include <optional>
 #include <vector>
 
 using Spot::Tests::RenderingApplication;
@@ -88,4 +90,79 @@ TEST_CASE("ImGuiRenderer draws frames clipped, and shows sRGB textures as they l
     CHECK(IsNear(at(40, 10), Pixel{128, 128, 128, 255}));
     CHECK(at(40, 40) == Pixel{0, 0, 255, 255});
     CHECK(at(56, 40) == Pixel{0, 0, 0, 255});
+}
+
+TEST_CASE("Viewports pick the mesh under a pixel and outline the selection", "[editor][gpu]") {
+    RequireGpu();
+    constexpr std::uint32_t Size = 64;
+    const Spot::Vector2 viewSize{static_cast<float>(Size), static_cast<float>(Size)};
+    Spot::Camera3D camera;
+    camera.position = {0.0f, 0.0f, 5.0f};
+
+    std::unique_ptr<Spot::Editor::ViewportRenderer> renderer;
+    Spot::Editor::ViewportTargets targets;
+    std::unique_ptr<Spot::Mesh> cube;
+    Spot::Scene scene;
+    std::vector<Spot::Editor::MeshInstance> meshes;
+    std::optional<std::size_t> hit;
+    std::optional<std::size_t> miss;
+    std::vector<std::uint8_t> pixels;
+    int frame = 0;
+
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
+        auto& device = app.GetGraphicsDevice();
+        ++frame;
+        if (frame == 1) {
+            renderer = std::make_unique<Spot::Editor::ViewportRenderer>(device);
+            cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            REQUIRE(cube);
+            REQUIRE(targets.Resize(device, Size, Size, renderer->GetSampleCount()));
+            meshes = {{cube.get(), Spot::Matrix4::Translation({-1.0f, 0.0f, 0.0f})},
+                      {cube.get(), Spot::Matrix4::Translation({1.0f, 0.0f, 0.0f})}};
+
+            // The pixel at the center of the second cube.
+            const Spot::Vector4 clip = camera.GetViewProjection(viewSize) * Spot::Vector4{1.0f, 0.0f, 0.0f, 1.0f};
+            const Spot::Vector2 pixel{(clip.x / clip.w * 0.5f + 0.5f) * viewSize.x,
+                                      (0.5f - clip.y / clip.w * 0.5f) * viewSize.y};
+            renderer->RenderPick(context, camera, viewSize, pixel, meshes);
+
+            // A cube in the middle, outlined over an empty scene.
+            renderer->Render(context, targets, scene, camera, {.showGrid = false});
+            const std::array centered{Spot::Editor::MeshInstance{cube.get(), Spot::Matrix4::Identity()}};
+            renderer->DrawOutline(context, targets, camera, centered, Spot::Color{1.0f, 0.0f, 0.0f, 1.0f}, 2.0f);
+        } else if (frame == 2) {
+            hit = renderer->ReadPick();
+            renderer->RenderPick(context, camera, viewSize, {0.0f, 0.0f}, meshes);
+            pixels = device.DownloadTexture(*targets.GetColor());
+        } else if (frame == 3) {
+            miss = renderer->ReadPick();
+        }
+    });
+    application.Run();
+    REQUIRE(application.GetRenderedFrames() >= 3);
+
+    REQUIRE(hit.has_value());
+    CHECK(*hit == 1);
+    CHECK_FALSE(miss.has_value());
+    // Nothing is picked twice from one drawing.
+    CHECK_FALSE(renderer->ReadPick().has_value());
+
+    REQUIRE(pixels.size() == Size * Size * 4);
+    const auto at = [&](std::uint32_t x, std::uint32_t y) {
+        const std::size_t offset = (y * Size + x) * 4;
+        return Pixel{pixels[offset], pixels[offset + 1], pixels[offset + 2], pixels[offset + 3]};
+    };
+    // The unit cube's front face covers about 12 pixels across the middle; the line is just outside it, solid in
+    // its middle and fading at its edges.
+    const Pixel background = at(2, 2);
+    CHECK(IsNear(at(32, 32), background));
+    Pixel line = background;
+    for (std::uint32_t x = 36; x <= 44; ++x) {
+        if (at(x, 32)[0] > line[0]) {
+            line = at(x, 32);
+        }
+    }
+    CHECK(line[0] > 240);
+    CHECK(line[1] < 80);
+    CHECK(IsNear(at(52, 32), background));
 }

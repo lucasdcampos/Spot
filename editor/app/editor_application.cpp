@@ -4,6 +4,7 @@
 #include "core/editor_log.h"
 #include "imgui/editor_style.h"
 #include "imgui/icons.h"
+#include "imgui/widgets.h"
 #include "panels/asset_browser_panel.h"
 #include "panels/console_panel.h"
 #include "panels/hierarchy_panel.h"
@@ -12,6 +13,8 @@
 #include "scene/entity_actions.h"
 
 #include <imgui_internal.h>
+
+#include <ImGuizmo.h>
 
 #include <algorithm>
 #include <array>
@@ -319,6 +322,7 @@ Panel* EditorApplication::FindPanel(std::string_view id) const {
 }
 
 void EditorApplication::DrawUi() {
+    ImGuizmo::BeginFrame();
     // An edit that just ended goes in the history before a menu or a shortcut can undo.
     if (m_inspector) {
         m_inspector->FinishEdit();
@@ -486,20 +490,10 @@ void EditorApplication::DrawToolbar() {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {4.0f * ImGui::GetStyle().FontScaleDpi, style.ItemSpacing.y});
     if (ImGui::BeginViewportSideBar("##Toolbar", viewport, ImGuiDir_Up, height, flags)) {
-        // Tools and play controls arrive with the scene view; they show where they will be meanwhile.
-        ImGui::BeginDisabled();
-        ToolbarButton(ICON_FA_HAND, "Pan (Q)");
-        ImGui::SameLine();
-        ToolbarButton(ICON_FA_UP_DOWN_LEFT_RIGHT, "Move (W)", true);
-        ImGui::SameLine();
-        ToolbarButton(ICON_FA_ROTATE, "Rotate (E)");
-        ImGui::SameLine();
-        ToolbarButton(ICON_FA_UP_RIGHT_AND_DOWN_LEFT_FROM_CENTER, "Scale (R)");
-        ToolbarSeparator();
-        ToolbarButton(ICON_FA_GLOBE, "World space");
-        ImGui::SameLine();
-        ToolbarButton(ICON_FA_MAGNET, "Snapping");
+        DrawGizmoTools();
 
+        // Play controls arrive with play mode; they show where they will be meanwhile.
+        ImGui::BeginDisabled();
         const float playWidth = ImGui::GetFrameHeight() * 1.2f * 3.0f + ImGui::GetStyle().ItemSpacing.x * 2.0f;
         ImGui::SameLine((ImGui::GetWindowWidth() - playWidth) * 0.5f);
         ToolbarButton(ICON_FA_PLAY, "Play");
@@ -512,6 +506,55 @@ void EditorApplication::DrawToolbar() {
     ImGui::End();
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor();
+}
+
+void EditorApplication::DrawGizmoTools() {
+    GizmoSettings& gizmo = m_settings.GetGizmo();
+    const auto tool = [&](const char* icon, const char* tooltip, GizmoTool value) {
+        if (ToolbarButton(icon, tooltip, gizmo.tool == value)) {
+            gizmo.tool = value;
+        }
+        ImGui::SameLine();
+    };
+    tool(ICON_FA_ARROW_POINTER, "Select (Q)", GizmoTool::Select);
+    tool(ICON_FA_UP_DOWN_LEFT_RIGHT, "Move (W)", GizmoTool::Move);
+    tool(ICON_FA_ROTATE, "Rotate (E)", GizmoTool::Rotate);
+    tool(ICON_FA_UP_RIGHT_AND_DOWN_LEFT_FROM_CENTER, "Scale (R)", GizmoTool::Scale);
+    ToolbarSeparator();
+
+    if (ToolbarButton(gizmo.local ? ICON_FA_CUBE : ICON_FA_GLOBE,
+                      gizmo.local ? "Local: the handles follow the entity's axes (X)"
+                                  : "Global: the handles follow the world's axes (X)")) {
+        gizmo.local = !gizmo.local;
+    }
+    ImGui::SameLine();
+    if (ToolbarButton(ICON_FA_MAGNET,
+                      "Snapping: move, rotate and scale in steps; Ctrl while dragging does the opposite", gizmo.snap)) {
+        gizmo.snap = !gizmo.snap;
+    }
+    // The steps, in a menu beside the button.
+    ImGui::SameLine(0.0f, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,
+                        {2.0f * ImGui::GetStyle().FontScaleDpi, ImGui::GetStyle().FramePadding.y});
+    if (ImGui::Button(ICON_FA_CARET_DOWN "##SnapSteps", {0.0f, ImGui::GetFrameHeight()})) {
+        ImGui::OpenPopup("##SnapSteps");
+    }
+    ImGui::PopStyleVar();
+    ImGui::SetItemTooltip("Snapping steps");
+    if (ImGui::BeginPopup("##SnapSteps")) {
+        ImGui::TextDisabled("Snapping steps");
+        if (Widgets::BeginProperties("##Steps")) {
+            Widgets::PropertyLabel("Move");
+            ImGui::DragFloat("##Move", &gizmo.moveStep, 0.01f, 0.001f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+            Widgets::PropertyLabel("Rotate");
+            ImGui::DragFloat("##Rotate", &gizmo.rotateStep, 0.5f, 0.1f, 180.0f, "%.1f\xC2\xB0",
+                             ImGuiSliderFlags_AlwaysClamp);
+            Widgets::PropertyLabel("Scale");
+            ImGui::DragFloat("##Scale", &gizmo.scaleStep, 0.005f, 0.001f, 100.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+            Widgets::EndProperties();
+        }
+        ImGui::EndPopup();
+    }
 }
 
 void EditorApplication::DrawStatusBar() {
@@ -623,6 +666,20 @@ void EditorApplication::HandleShortcuts() {
     }
     if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_O, Global)) {
         m_workspace->BrowseForScene();
+    }
+    // Single keys pick the gizmo's tool, unless they are typed, or move the camera while flying.
+    if (!ImGui::GetIO().WantTextInput && !ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
+        GizmoSettings& gizmo = m_settings.GetGizmo();
+        constexpr std::array Tools{std::pair{ImGuiKey_Q, GizmoTool::Select}, std::pair{ImGuiKey_W, GizmoTool::Move},
+                                   std::pair{ImGuiKey_E, GizmoTool::Rotate}, std::pair{ImGuiKey_R, GizmoTool::Scale}};
+        for (const auto& [key, tool] : Tools) {
+            if (ImGui::Shortcut(key, Global)) {
+                gizmo.tool = tool;
+            }
+        }
+        if (ImGui::Shortcut(ImGuiKey_X, Global)) {
+            gizmo.local = !gizmo.local;
+        }
     }
     if (!document) {
         return;
