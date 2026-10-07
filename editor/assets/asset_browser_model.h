@@ -14,12 +14,12 @@ namespace Spot::Editor {
 
 struct BrowserItem {
     // The folder's or the source file's; sub-assets share their file's.
-    std::string path;
+    std::string path = {};
     // A folder's or file's name, such as "crate.png", or a sub-asset's, such as "Roof".
-    std::string name;
+    std::string name = {};
     bool folder = false;
     // Null for folders.
-    AssetId id;
+    AssetId id = {};
     AssetType type = AssetType::Texture;
     // Made from part of a file, such as a model's mesh.
     bool subAsset = false;

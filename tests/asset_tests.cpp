@@ -335,9 +335,25 @@ TEST_CASE("Sources whose files were only touched are not imported again", "[asse
 
     // A new time of last change makes the contents be compared, which are the same.
     const auto file = sources / "pixels.png";
-    std::filesystem::last_write_time(file, std::filesystem::last_write_time(file) + std::chrono::hours(1));
+    std::filesystem::last_write_time(file, std::filesystem::last_write_time(file) - std::chrono::hours(1));
     CHECK(database.Refresh() == 0);
     CHECK(database.Refresh() == 0);
+}
+
+TEST_CASE("Sources changed again within a tick of the file system's clock are imported again", "[assets]") {
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    const auto file = sources / "paint.material";
+    std::filesystem::create_directories(sources);
+    REQUIRE(Spot::MaterialSource{.baseColor = Spot::Color::Blue}.SaveToFile(file));
+    const auto time = std::filesystem::last_write_time(file);
+    AssetDatabase database(sources, project.GetPath() / "imported");
+    CHECK(database.Refresh() == 1);
+
+    // The same size, and the same time, as quick edits can have.
+    REQUIRE(Spot::MaterialSource{.baseColor = Spot::Color::Green}.SaveToFile(file));
+    std::filesystem::last_write_time(file, time);
+    CHECK(database.Refresh() == 1);
 }
 
 TEST_CASE("Changed assets load anew, with the loaded assets that refer to them", "[assets]") {

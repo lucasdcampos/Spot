@@ -16,7 +16,7 @@ class Archive;
 // these as Material.
 struct MaterialSource {
     Color baseColor = Color::White;
-    AssetId baseColorTexture;
+    AssetId baseColorTexture = {};
     bool doubleSided = false;
     float worldTextureSize = 0.0f;
     float specular = 0.0f;

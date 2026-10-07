@@ -27,6 +27,8 @@ struct ManifestEntry {
     std::uint64_t hash = 0;
     // The same, from the files' sizes and times of last change instead of their contents; 0 when unknown.
     std::uint64_t stamp = 0;
+    // When the stamp was taken, as a count of std::filesystem::file_time_type's ticks.
+    std::int64_t stampedAt = 0;
     // Relative to the source directory, with '/' separators.
     std::vector<std::string> dependencies;
 };

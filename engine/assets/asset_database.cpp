@@ -8,6 +8,7 @@
 #include "core/paths.h"
 
 #include <algorithm>
+#include <chrono>
 #include <string>
 #include <system_error>
 #include <unordered_set>
@@ -189,6 +190,7 @@ std::size_t AssetDatabase::Import(const AssetId* forced) {
     Detail::Manifest manifest;
     std::size_t importedCount = 0;
     m_changed.clear();
+    const std::int64_t now = std::filesystem::file_time_type::clock::now().time_since_epoch().count();
     for (auto& source : m_sources) {
         const Detail::ImporterInfo importer = Detail::FindImporter(source.meta.type);
         Detail::ManifestEntry sourceEntry;
@@ -204,11 +206,16 @@ std::size_t AssetDatabase::Import(const AssetId* forced) {
         const auto found = previous.find(source.meta.id);
         const std::vector<Detail::ManifestEntry>* last = found != previous.end() ? &found->second : nullptr;
         const Detail::ManifestEntry* lastSource = last && !last->front().parent.IsValid() ? &last->front() : nullptr;
-        // Files whose sizes and times did not change are taken as unchanged without reading them.
-        std::uint64_t stamp = 0;
+        // Files whose sizes and times did not change are taken as unchanged without reading them, unless they changed
+        // so shortly before the last stamp that they could have changed again since within the same tick of the file
+        // system's clock, keeping their time.
+        Stamp stamp;
         const auto unchanged = [&] {
             stamp = StampSource(source, lastSource->dependencies, importer.version);
-            return (lastSource->stamp != 0 && lastSource->stamp == stamp) ||
+            const std::filesystem::file_time_type stampedAt{
+                std::filesystem::file_time_type::duration(lastSource->stampedAt)};
+            const bool settled = stamp.newest + std::chrono::seconds(2) < stampedAt;
+            return (lastSource->stamp != 0 && lastSource->stamp == stamp.value && settled) ||
                    lastSource->hash == HashSource(source, lastSource->dependencies, importer.version);
         };
         if (lastSource && (!forced || *forced != source.meta.id) && lastSource->imported && unchanged() &&
@@ -218,7 +225,8 @@ std::size_t AssetDatabase::Import(const AssetId* forced) {
             for (auto entry : *last) {
                 entry.path = source.relativePath;
                 if (!entry.parent.IsValid()) {
-                    entry.stamp = stamp;
+                    entry.stamp = stamp.value;
+                    entry.stampedAt = now;
                 }
                 manifest.entries.push_back(std::move(entry));
             }
@@ -252,7 +260,8 @@ std::size_t AssetDatabase::Import(const AssetId* forced) {
         }
         sourceEntry.imported = true;
         sourceEntry.hash = HashSource(source, sourceEntry.dependencies, importer.version);
-        sourceEntry.stamp = StampSource(source, sourceEntry.dependencies, importer.version);
+        sourceEntry.stamp = StampSource(source, sourceEntry.dependencies, importer.version).value;
+        sourceEntry.stampedAt = now;
         manifest.entries.push_back(std::move(sourceEntry));
         for (const auto& asset : context.GetImportedAssets()) {
             if (asset.parent.IsValid()) {
@@ -326,15 +335,17 @@ std::uint64_t AssetDatabase::HashSource(const Source& source, const std::vector<
     return hasher.Get();
 }
 
-std::uint64_t AssetDatabase::StampSource(const Source& source, const std::vector<std::string>& dependencies,
-                                         std::uint32_t importerVersion) const {
+AssetDatabase::Stamp AssetDatabase::StampSource(const Source& source, const std::vector<std::string>& dependencies,
+                                                std::uint32_t importerVersion) const {
     Detail::Hasher hasher;
+    Stamp stamp;
     const auto addFile = [&](const std::filesystem::path& path) {
         std::error_code error;
         const auto size = std::filesystem::file_size(path, error);
         const auto time = error ? std::filesystem::file_time_type() : std::filesystem::last_write_time(path, error);
         hasher.Add(error ? std::string("missing")
                          : std::to_string(size) + ":" + std::to_string(time.time_since_epoch().count()));
+        stamp.newest = std::max(stamp.newest, time);
     };
 
     addFile(source.path);
@@ -345,7 +356,8 @@ std::uint64_t AssetDatabase::StampSource(const Source& source, const std::vector
     hasher.Add(GetAssetTypeName(source.meta.type));
     hasher.Add(source.meta.GetSettingsString());
     hasher.Add(std::to_string(importerVersion));
-    return hasher.Get();
+    stamp.value = hasher.Get();
+    return stamp;
 }
 
 std::optional<std::filesystem::path> AssetDatabase::Resolve(std::string_view path) const {

@@ -108,9 +108,13 @@ private:
     std::uint64_t HashSource(const Source& source, const std::vector<std::string>& dependencies,
                              std::uint32_t importerVersion) const;
     // As HashSource(), from the files' sizes and times of last change instead of their contents, which is much
-    // faster to tell that nothing changed.
-    std::uint64_t StampSource(const Source& source, const std::vector<std::string>& dependencies,
-                              std::uint32_t importerVersion) const;
+    // faster to tell that nothing changed, along with the newest of those times.
+    struct Stamp {
+        std::uint64_t value = 0;
+        std::filesystem::file_time_type newest;
+    };
+    Stamp StampSource(const Source& source, const std::vector<std::string>& dependencies,
+                      std::uint32_t importerVersion) const;
     // The absolute path of a path relative to the source directory; nothing, after logging why, when it is empty or
     // outside the source directory.
     std::optional<std::filesystem::path> Resolve(std::string_view path) const;
