@@ -2,11 +2,16 @@
 
 #include <spot.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <span>
 #include <vector>
 
 namespace Spot::Editor {
+
+// A place in a scene's hierarchy: the sibling indices of an entity and its ancestors, from the root down. Entities get
+// new ids when a scene is loaded again or copied, but keep their places.
+using HierarchyPath = std::vector<std::size_t>;
 
 // The entities selected in a scene, in the order they were picked. The last one picked is the primary one, which
 // windows that show a single entity, like the inspector, follow.
@@ -37,5 +42,10 @@ private:
     std::vector<EntityId> m_entities;
     std::uint64_t m_version = 0;
 };
+
+// The places of the selected entities, in the order they were picked.
+std::vector<HierarchyPath> GetSelectedPaths(const Scene& scene, const Selection& selection);
+// Selects the entities at the places, in order, skipping places the scene does not have.
+void SelectPaths(const Scene& scene, Selection& selection, const std::vector<HierarchyPath>& paths);
 
 } // namespace Spot::Editor

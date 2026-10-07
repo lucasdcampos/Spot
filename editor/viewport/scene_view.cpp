@@ -84,7 +84,7 @@ const char* GetLightIcon(const Entity& entity) {
 } // namespace
 
 SceneView::SceneView(SceneDocument& document)
-    : m_document(document),
+    : m_document(document), m_shown(&document),
       // Saved scenes keep their place in the layout from one run to the next.
       m_windowId(document.GetAssetId().IsValid() ? "Scene" + document.GetAssetId().ToString()
                                                  : std::format("NewScene{}", document.GetId())) {
@@ -94,9 +94,18 @@ SceneView::~SceneView() = default;
 
 SceneView::DrawResult SceneView::Draw(EditorContext& context, ViewportRenderer* renderer, ImGuiID dockId) {
     DrawResult result;
+    // While the document plays, the view shows the copy being played, through the game's camera at first.
+    PlaySession* play = context.GetWorkspace() ? context.GetWorkspace()->GetPlaySession() : nullptr;
+    const bool playing = play && &play->GetSource() == &m_document;
+    if (playing && !m_playing) {
+        m_gameView = true;
+    }
+    m_playing = playing;
+    m_shown = playing && play->GetDocument() ? play->GetDocument() : &m_document;
     m_width = 0;
     m_height = 0;
-    const std::string title = std::format("{}  {}###{}", ICON_FA_CUBE, m_document.GetName(), GetWindowId());
+    const std::string title = std::format("{}  {}{}###{}", playing ? ICON_FA_PLAY : ICON_FA_CUBE, m_document.GetName(),
+                                          playing ? " (Playing)" : "", GetWindowId());
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
     if (m_document.IsDirty()) {
         flags |= ImGuiWindowFlags_UnsavedDocument;
@@ -113,6 +122,10 @@ SceneView::DrawResult SceneView::Draw(EditorContext& context, ViewportRenderer* 
         result.focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
         DrawViewport(context, renderer);
     }
+    if (playing) {
+        // The game gets the keyboard and the mouse while its view has focus and shows it.
+        play->SetView(visible && result.focused && m_gameView, {m_viewOrigin.x, m_viewOrigin.y});
+    }
     ImGui::End();
     result.closeRequested = !open;
     return result;
@@ -125,6 +138,8 @@ void SceneView::DrawViewport(EditorContext& context, ViewportRenderer* renderer)
     }
     const ImGuiIO& io = ImGui::GetIO();
     const ImVec2 origin = ImGui::GetCursorScreenPos();
+    m_viewOrigin = {origin.x, origin.y};
+    const bool game = IsShowingGame();
     const ImVec2 scale = io.DisplayFramebufferScale;
     const auto width = static_cast<std::uint32_t>(std::lround(size.x * scale.x));
     const auto height = static_cast<std::uint32_t>(std::lround(size.y * scale.y));
@@ -147,8 +162,10 @@ void SceneView::DrawViewport(EditorContext& context, ViewportRenderer* renderer)
     const ImGuiID areaId = ImGui::GetItemID();
     const bool hovered = ImGui::IsItemHovered();
     const bool active = ImGui::IsItemActive();
-    const bool clicked = ImGui::IsItemClicked(ImGuiMouseButton_Left) && !io.KeyAlt;
-    if (ImGui::IsItemClicked(ImGuiMouseButton_Right) || ImGui::IsItemClicked(ImGuiMouseButton_Middle)) {
+    // The game's view leaves the mouse and the keys to the game.
+    const bool clicked = ImGui::IsItemClicked(ImGuiMouseButton_Left) && !io.KeyAlt && !game;
+    if (ImGui::IsItemClicked() || ImGui::IsItemClicked(ImGuiMouseButton_Right) ||
+        ImGui::IsItemClicked(ImGuiMouseButton_Middle)) {
         ImGui::SetWindowFocus();
     }
     if (ImGui::BeginDragDropTarget()) {
@@ -167,16 +184,20 @@ void SceneView::DrawViewport(EditorContext& context, ViewportRenderer* renderer)
         drawList->AddRectFilled(origin, {origin.x + size.x, origin.y + size.y}, IM_COL32(9, 10, 12, 255));
     }
 
+    if (game) {
+        DrawOverlay(origin);
+        return;
+    }
     UpdateCamera(context, hovered, active, size.y);
     if (!m_looking) {
-        HandleEntityShortcuts(m_document);
+        HandleEntityShortcuts(*m_shown);
     }
     DrawCameraFrustums(origin, size);
     DrawIcons(origin, size);
     if (!m_camera.Is2D()) {
         DrawViewCube(origin, size);
     }
-    m_gizmo.Draw(m_document, m_camera.GetCamera(), origin, size, context.GetSettings().GetGizmo(), GetGizmoId(), areaId,
+    m_gizmo.Draw(*m_shown, m_camera.GetCamera(), origin, size, context.GetSettings().GetGizmo(), GetGizmoId(), areaId,
                  m_camera.Is2D());
     // A click on the gizmo's handles drags them instead of selecting.
     if (clicked && !TransformGizmo::WantsMouse()) {
@@ -229,7 +250,7 @@ void SceneView::HandleAssetDrop(EditorContext& context, std::span<const AssetId>
                                  .material = asset};
             return;
         default:
-            CreateEntityFromAsset(m_document, *project, asset, EntityId::Invalid, GetGroundPoint(origin, size));
+            CreateEntityFromAsset(*m_shown, *project, asset, EntityId::Invalid, GetGroundPoint(origin, size));
             break;
         }
     }
@@ -263,12 +284,12 @@ Vector3 SceneView::GetGroundPoint(const ImVec2& origin, const ImVec2& size) cons
 
 void SceneView::ApplyPick(const PickRequest& request, EntityId entity) {
     if (request.material.IsValid()) {
-        if (entity != EntityId::Invalid && ApplyMaterial(m_document, entity, request.material)) {
-            m_document.GetSelection().Select(entity);
+        if (entity != EntityId::Invalid && ApplyMaterial(*m_shown, entity, request.material)) {
+            m_shown->GetSelection().Select(entity);
         }
         return;
     }
-    Selection& selection = m_document.GetSelection();
+    Selection& selection = m_shown->GetSelection();
     if (request.toggle) {
         if (entity != EntityId::Invalid) {
             selection.Toggle(entity);
@@ -362,7 +383,7 @@ void SceneView::DrawIcons(const ImVec2& origin, const ImVec2& size) {
     drawList->PushClipRect(origin, {origin.x + size.x, origin.y + size.y}, true);
     const float iconSize = ImGui::GetFontSize() * 1.25f;
     const ImU32 selectedColor = ImGui::GetColorU32(EditorColors::Accent);
-    m_document.GetScene().ForEachEntity([&](Entity& entity) {
+    m_shown->GetScene().ForEachEntity([&](Entity& entity) {
         const char* icon = GetLightIcon(entity);
         if (!icon) {
             return;
@@ -376,7 +397,7 @@ void SceneView::DrawIcons(const ImVec2& origin, const ImVec2& size) {
                             origin.y + (0.5f - clip.y / clip.w * 0.5f) * size.y};
         const ImVec2 textSize = ImGui::GetFont()->CalcTextSizeA(iconSize, FLT_MAX, 0.0f, icon);
         const ImVec2 corner{screen.x - textSize.x * 0.5f, screen.y - textSize.y * 0.5f};
-        const bool selected = m_document.GetSelection().Contains(entity.GetId());
+        const bool selected = m_shown->GetSelection().Contains(entity.GetId());
         m_icons.push_back({entity.GetId(), corner, {corner.x + textSize.x, corner.y + textSize.y}});
         drawList->AddText(ImGui::GetFont(), iconSize, {corner.x + 1.0f, corner.y + 1.0f}, IM_COL32(0, 0, 0, 160), icon);
         drawList->AddText(ImGui::GetFont(), iconSize, corner,
@@ -410,7 +431,7 @@ void SceneView::DrawCameraFrustums(const ImVec2& origin, const ImVec2& size) {
     ImDrawList* drawList = ImGui::GetWindowDrawList();
     drawList->PushClipRect(origin, {origin.x + size.x, origin.y + size.y}, true);
     const float thickness = ImGui::GetStyle().FontScaleDpi;
-    m_document.GetScene().ForEachComponent<Camera>([&](Camera& component) {
+    m_shown->GetScene().ForEachComponent<Camera>([&](Camera& component) {
         const Camera3D camera = component.GetCamera3D();
         // Out to a few units, past which the lines would only clutter the view.
         const float depth = std::min(camera.farPlane, camera.orthographic ? camera.orthographicSize * 4.0f : 4.0f);
@@ -435,7 +456,7 @@ void SceneView::DrawCameraFrustums(const ImVec2& origin, const ImVec2& size) {
                       origin.y + (0.5f - clip.y / clip.w * 0.5f) * size.y};
             return true;
         };
-        const bool selected = m_document.GetSelection().Contains(component.GetEntity().GetId());
+        const bool selected = m_shown->GetSelection().Contains(component.GetEntity().GetId());
         const ImU32 color = selected ? ImGui::GetColorU32(EditorColors::Accent) : IM_COL32(200, 200, 210, 140);
         const std::array nearCorners = rectangle(camera.nearPlane);
         const std::array farCorners = rectangle(depth);
@@ -462,6 +483,27 @@ void SceneView::DrawOverlay(const ImVec2& origin) {
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.10f, 0.11f, 0.13f, 0.80f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.21f, 0.24f, 0.90f));
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f * ImGui::GetStyle().FontScaleDpi);
+    if (m_playing) {
+        // Playing views switch between the game's camera and the editor's.
+        if (ImGui::Button(m_gameView ? ICON_FA_GAMEPAD "  Game" : ICON_FA_VIDEO "  Scene")) {
+            m_gameView = !m_gameView;
+        }
+        ImGui::SetItemTooltip(m_gameView ? "Showing the game through its main camera; it gets the keyboard and the "
+                                           "mouse while this view has focus\nClick to look around with the editor's "
+                                           "camera"
+                                         : "Showing the game through the editor's camera\nClick to show it as the "
+                                           "game does");
+        if (m_gameView) {
+            if (!FindMainCamera(m_shown->GetScene())) {
+                ImGui::SameLine();
+                ImGui::TextColored(EditorColors::Warning, ICON_FA_TRIANGLE_EXCLAMATION "  No camera in the scene");
+            }
+            ImGui::PopStyleVar();
+            ImGui::PopStyleColor(2);
+            return;
+        }
+        ImGui::SameLine();
+    }
     const bool view2D = m_camera.Is2D();
     ImGui::PushStyleColor(ImGuiCol_Text, view2D ? EditorColors::Accent : ImGui::GetStyleColorVec4(ImGuiCol_Text));
     if (ImGui::Button(view2D ? "2D" : "3D")) {
@@ -509,14 +551,25 @@ void SceneView::Render(RenderContext& context, ViewportRenderer& renderer) {
     if (m_width == 0 || m_height == 0 || !m_targets.GetColor()) {
         return;
     }
+    // The game's view looks through its main camera, as the game would, without the editor's aids.
+    if (IsShowingGame()) {
+        Scene& scene = m_shown->GetScene();
+        const Camera* main = FindMainCamera(scene);
+        ViewportOptions options{.showGrid = false, .defaultLights = false};
+        if (main) {
+            options.background = main->GetBackground();
+        }
+        renderer.Render(context, m_targets, scene, main ? main->GetCamera3D() : m_camera.GetCamera(), options);
+        return;
+    }
     const Camera3D camera = m_camera.GetCamera();
-    renderer.Render(context, m_targets, m_document.GetScene(), camera, m_options);
+    renderer.Render(context, m_targets, m_shown->GetScene(), camera, m_options);
 
     if (!m_plane) {
         m_plane = Assets::Load<Mesh>(BuiltInAssets::PlaneMesh);
     }
     std::vector<MeshInstance> selected;
-    for (const Entity* entity : GetSelectedEntities(m_document)) {
+    for (const Entity* entity : GetSelectedEntities(*m_shown)) {
         AddMeshes(*entity, selected);
     }
     renderer.DrawOutline(context, m_targets, camera, selected, SelectionOutlineColor, m_outlineWidth);
@@ -524,7 +577,7 @@ void SceneView::Render(RenderContext& context, ViewportRenderer& renderer) {
     if (m_pick) {
         std::vector<MeshInstance> meshes;
         m_pickEntities.clear();
-        m_document.GetScene().ForEachEntity([&](Entity& entity) {
+        m_shown->GetScene().ForEachEntity([&](Entity& entity) {
             if (!entity.IsActiveInHierarchy()) {
                 return;
             }
@@ -547,9 +600,9 @@ void SceneView::Render(RenderContext& context, ViewportRenderer& renderer) {
 }
 
 void SceneView::FrameSelection() {
-    Scene& scene = m_document.GetScene();
+    Scene& scene = m_shown->GetScene();
     std::vector<BoundingSphere> spheres;
-    for (const EntityId id : m_document.GetSelection().GetEntities()) {
+    for (const EntityId id : m_shown->GetSelection().GetEntities()) {
         if (const Entity* entity = scene.GetEntity(id)) {
             spheres.push_back(GetWorldBounds(*entity));
         }

@@ -176,13 +176,13 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
     Texture* samples = targets.GetSamples();
     m_renderer->Begin(context,
                       {.target = samples ? samples : targets.GetColor(),
-                       .clearColor = Background,
+                       .clearColor = options.background.value_or(Background),
                        .depthTarget = targets.GetDepth(),
                        .clearDepth = 1.0f,
                        .resolveTarget = samples ? targets.GetColor() : nullptr,
                        .keepSamples = samples && (drawGrid || drawSprites)},
                       camera);
-    if (!scene.FindComponent<Light>() && !scene.FindComponent<Sky>()) {
+    if (options.defaultLights && !scene.FindComponent<Light>() && !scene.FindComponent<Sky>()) {
         DrawDefaultLights(*m_renderer);
     }
     m_renderer->DrawScene(scene);

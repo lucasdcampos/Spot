@@ -36,20 +36,11 @@ Vector3 Vector3FromJson(const json& value) {
     return {value[0].get<float>(), value[1].get<float>(), value[2].get<float>()};
 }
 
-// Entities get new ids each time a scene loads, so the selection is saved as the places of the entities in the
-// hierarchy: their sibling indices from the root down.
+// Entities get new ids each time a scene loads, so the selection is saved as the places of the entities.
 json SaveSelection(const SceneDocument& document) {
     json selection = json::array();
-    for (const EntityId id : document.GetSelection().GetEntities()) {
-        const Entity* entity = document.GetScene().GetEntity(id);
-        if (!entity) {
-            continue;
-        }
-        json path = json::array();
-        for (; entity; entity = entity->GetParent()) {
-            path.insert(path.begin(), entity->GetSiblingIndex());
-        }
-        selection.push_back(std::move(path));
+    for (const HierarchyPath& path : GetSelectedPaths(document.GetScene(), document.GetSelection())) {
+        selection.push_back(path);
     }
     return selection;
 }
@@ -58,26 +49,13 @@ void RestoreSelection(SceneDocument& document, const json& selection) {
     if (!selection.is_array()) {
         return;
     }
-    std::vector<EntityId> ids;
+    std::vector<HierarchyPath> paths;
     for (const json& path : selection) {
-        if (!path.is_array()) {
-            continue;
-        }
-        std::vector<Entity*> siblings = document.GetScene().GetRootEntities();
-        Entity* entity = nullptr;
-        for (const json& index : path) {
-            if (!index.is_number_unsigned() || index.get<std::size_t>() >= siblings.size()) {
-                entity = nullptr;
-                break;
-            }
-            entity = siblings[index.get<std::size_t>()];
-            siblings = entity->GetChildren();
-        }
-        if (entity) {
-            ids.push_back(entity->GetId());
+        if (path.is_array() && std::ranges::all_of(path, &json::is_number_unsigned)) {
+            paths.push_back(path.get<HierarchyPath>());
         }
     }
-    document.GetSelection().Set(ids);
+    SelectPaths(document.GetScene(), document.GetSelection(), paths);
 }
 
 std::string JoinNames(const std::vector<std::string>& names) {
@@ -104,6 +82,25 @@ SceneWorkspace::~SceneWorkspace() {
 SceneView* SceneWorkspace::GetActiveView() {
     Opened* open = m_active ? Find(*m_active) : nullptr;
     return open ? open->view.get() : nullptr;
+}
+
+SceneDocument* SceneWorkspace::GetActiveDocument() {
+    if (m_play && m_active == &m_play->GetSource() && m_play->GetDocument()) {
+        return m_play->GetDocument();
+    }
+    return m_active;
+}
+
+void SceneWorkspace::Play(Application& application) {
+    EditorProject* project = m_context.GetProject();
+    if (m_play || !m_active || !project) {
+        return;
+    }
+    m_play = std::make_unique<PlaySession>(application, *m_active, project->GetAssets());
+}
+
+void SceneWorkspace::StopPlaying() {
+    m_play.reset();
 }
 
 SceneDocument* SceneWorkspace::FindDocument(std::uint64_t id) {
@@ -169,6 +166,11 @@ void SceneWorkspace::BrowseForScene() {
 }
 
 void SceneWorkspace::Save(SceneDocument& document) {
+    if (m_play && &document == m_play->GetDocument()) {
+        GetEditorLogger().Warning("Stop playing to save '{}'; what changes while playing is undone when it stops",
+                                  document.GetName());
+        return;
+    }
     if (document.GetFile().empty()) {
         SaveAs(document);
         return;
@@ -264,6 +266,7 @@ void SceneWorkspace::Close(SceneDocument& document) {
 }
 
 void SceneWorkspace::CloseAll() {
+    StopPlaying();
     while (!m_scenes.empty()) {
         Remove(*m_scenes.back().document);
     }
@@ -422,6 +425,9 @@ void SceneWorkspace::SyncWithAssets() {
 }
 
 void SceneWorkspace::Draw(ImGuiID dockId) {
+    if (m_play) {
+        m_play->Update();
+    }
     if (const EditorProject* project = m_context.GetProject(); project && project->GetVersion() != m_assetsVersion) {
         SyncWithAssets();
     }
@@ -470,6 +476,9 @@ void SceneWorkspace::Remove(SceneDocument& document) {
         std::ranges::find_if(m_scenes, [&](const Opened& open) { return open.document.get() == &document; });
     if (found == m_scenes.end()) {
         return;
+    }
+    if (m_play && &m_play->GetSource() == &document) {
+        StopPlaying();
     }
     m_scenes.erase(found);
     if (m_active == &document) {

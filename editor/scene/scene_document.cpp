@@ -71,7 +71,13 @@ Entity& SceneCommand::GetEntity(EntityId id) const {
     return *entity;
 }
 
-SceneDocument::SceneDocument(std::string name) : m_name(std::move(name)), m_id(s_nextDocumentId++) {
+SceneDocument::SceneDocument(std::string name)
+    : m_ownedScene(std::make_unique<Scene>()), m_scene(m_ownedScene.get()), m_name(std::move(name)),
+      m_id(s_nextDocumentId++) {
+}
+
+SceneDocument::SceneDocument(std::string name, Scene& scene)
+    : m_scene(&scene), m_name(std::move(name)), m_id(s_nextDocumentId++) {
 }
 
 std::unique_ptr<SceneDocument> SceneDocument::Open(const std::filesystem::path& file, AssetId asset,

@@ -52,6 +52,7 @@ protected:
     void OnRender(RenderContext& context) override;
     void OnStop() override;
     bool OnCloseRequested() override;
+    bool DeliversToScenes(const Event& event) override;
 
 private:
     void OpenProject(const std::filesystem::path& file);
@@ -67,6 +68,9 @@ private:
     void DrawFileMenu();
     void DrawToolbar();
     void DrawGizmoTools();
+    void DrawPlayControls();
+    // Plays the active scene, or stops playing.
+    void TogglePlaying();
     void DrawStatusBar();
     void DrawLatestMessage();
     void DrawDockSpace();

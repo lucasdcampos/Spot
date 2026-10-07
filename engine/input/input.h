@@ -13,6 +13,8 @@ namespace Input {
 // The application points this at the state it updates every frame. Without a state every query reports
 // nothing held and no movement.
 void SetState(const InputState* state);
+// The state queries read; null when there is none.
+const InputState* GetState();
 
 bool IsKeyDown(Key key);
 bool IsKeyPressed(Key key);

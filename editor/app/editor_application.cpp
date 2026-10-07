@@ -164,6 +164,9 @@ void EditorApplication::OnStart() {
 
 void EditorApplication::OnEvent(const Event& event) {
     m_imgui->ProcessEvent(event);
+    if (PlaySession* play = m_workspace ? m_workspace->GetPlaySession() : nullptr) {
+        play->Feed(event);
+    }
     if (const auto* moved = event.GetIf<MouseMovedEvent>()) {
         m_mouseDelta += moved->delta;
     } else if (const auto* focus = event.GetIf<WindowFocusEvent>()) {
@@ -342,6 +345,23 @@ Panel* EditorApplication::FindPanel(std::string_view id) const {
 
 void EditorApplication::DrawUi() {
     ImGuizmo::BeginFrame();
+    // The editor is tinted while a game plays, so changes that will be undone when it stops are not mistaken for
+    // lasting ones.
+    const bool playing = m_workspace && m_workspace->GetPlaySession();
+    if (playing) {
+        const ImGuiStyle& style = ImGui::GetStyle();
+        constexpr std::array Tinted{ImGuiCol_MenuBarBg, ImGuiCol_TitleBg,       ImGuiCol_TitleBgActive,
+                                    ImGuiCol_Tab,       ImGuiCol_TabDimmed,     ImGuiCol_WindowBg,
+                                    ImGuiCol_ChildBg,   ImGuiCol_DockingEmptyBg};
+        for (const ImGuiCol color : Tinted) {
+            const ImVec4 base = style.Colors[color];
+            const ImVec4 tint = EditorColors::Accent;
+            constexpr float Amount = 0.14f;
+            ImGui::PushStyleColor(color,
+                                  ImVec4(base.x + (tint.x - base.x) * Amount, base.y + (tint.y - base.y) * Amount,
+                                         base.z + (tint.z - base.z) * Amount, base.w));
+        }
+    }
     // An edit that just ended goes in the history before a menu or a shortcut can undo.
     if (m_inspector) {
         m_inspector->FinishEdit();
@@ -371,6 +391,9 @@ void EditorApplication::DrawUi() {
     }
     if (m_showImGuiMetrics) {
         ImGui::ShowMetricsWindow(&m_showImGuiMetrics);
+    }
+    if (playing) {
+        ImGui::PopStyleColor(8);
     }
 }
 
@@ -527,20 +550,52 @@ void EditorApplication::DrawToolbar() {
     if (ImGui::BeginViewportSideBar("##Toolbar", viewport, ImGuiDir_Up, height, flags)) {
         DrawGizmoTools();
 
-        // Play controls arrive with play mode; they show where they will be meanwhile.
-        ImGui::BeginDisabled();
-        const float playWidth = ImGui::GetFrameHeight() * 1.2f * 3.0f + ImGui::GetStyle().ItemSpacing.x * 2.0f;
-        ImGui::SameLine((ImGui::GetWindowWidth() - playWidth) * 0.5f);
-        ToolbarButton(ICON_FA_PLAY, "Play");
-        ImGui::SameLine();
-        ToolbarButton(ICON_FA_PAUSE, "Pause");
-        ImGui::SameLine();
-        ToolbarButton(ICON_FA_FORWARD_STEP, "Step");
-        ImGui::EndDisabled();
+        DrawPlayControls();
     }
     ImGui::End();
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor();
+}
+
+void EditorApplication::DrawPlayControls() {
+    PlaySession* play = m_workspace->GetPlaySession();
+    const float playWidth = ImGui::GetFrameHeight() * 1.2f * 3.0f + ImGui::GetStyle().ItemSpacing.x * 2.0f;
+    ImGui::SameLine((ImGui::GetWindowWidth() - playWidth) * 0.5f);
+    ImGui::BeginDisabled(!play && !m_workspace->GetActiveDocument());
+    if (ToolbarButton(play ? ICON_FA_STOP : ICON_FA_PLAY,
+                      play ? "Stop (Ctrl+P): what changed while playing is undone" : "Play the scene (Ctrl+P)",
+                      play != nullptr)) {
+        TogglePlaying();
+    }
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!play);
+    const bool paused = play && play->IsPaused();
+    if (ToolbarButton(ICON_FA_PAUSE, paused ? "Resume (Ctrl+Shift+P)" : "Pause (Ctrl+Shift+P)", paused)) {
+        play->SetPaused(!paused);
+    }
+    ImGui::SameLine();
+    if (ToolbarButton(ICON_FA_FORWARD_STEP, "Run one frame, paused (Ctrl+Alt+P)")) {
+        play->Step();
+    }
+    ImGui::EndDisabled();
+}
+
+void EditorApplication::TogglePlaying() {
+    if (m_workspace->GetPlaySession()) {
+        m_workspace->StopPlaying();
+    } else {
+        m_workspace->Play(*this);
+    }
+}
+
+bool EditorApplication::DeliversToScenes(const Event& event) {
+    // A game playing in a view gets the keyboard and the mouse only while that view has focus.
+    const bool input = event.Is<KeyPressedEvent>() || event.Is<KeyReleasedEvent>() || event.Is<TextInputEvent>() ||
+                       event.Is<MouseMovedEvent>() || event.Is<MouseButtonPressedEvent>() ||
+                       event.Is<MouseButtonReleasedEvent>() || event.Is<MouseScrolledEvent>();
+    const PlaySession* play = m_workspace ? m_workspace->GetPlaySession() : nullptr;
+    return !input || (play && play->HasFocus());
 }
 
 void EditorApplication::DrawGizmoTools() {
@@ -719,6 +774,24 @@ void EditorApplication::Redo() {
 void EditorApplication::HandleShortcuts() {
     // Global, so they work from any window; a text field being edited takes the keys it uses first.
     constexpr ImGuiInputFlags Global = ImGuiInputFlags_RouteGlobal;
+    PlaySession* play = m_workspace->GetPlaySession();
+    if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_P, Global)) {
+        TogglePlaying();
+        play = m_workspace->GetPlaySession();
+    }
+    if (play && ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_P, Global)) {
+        play->SetPaused(!play->IsPaused());
+    }
+    if (play && ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiMod_Alt | ImGuiKey_P, Global)) {
+        play->Step();
+    }
+    // While the game's view has focus, the keys are the game's; Escape hands them back to the editor.
+    if (play && play->HasFocus()) {
+        if (ImGui::Shortcut(ImGuiKey_Escape, Global)) {
+            ImGui::SetWindowFocus(nullptr);
+        }
+        return;
+    }
     SceneDocument* document = m_workspace->GetActiveDocument();
     if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_N, Global)) {
         m_workspace->NewScene();

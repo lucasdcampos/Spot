@@ -113,6 +113,7 @@ if(TARGET spot_editor_core)
         editor/imgui_platform_tests.cpp
         editor/inspector_tests.cpp
         editor/project_tests.cpp
+        editor/play_session_tests.cpp
         editor/project_ui_tests.cpp
         editor/scene_commands_tests.cpp
         editor/scene_workspace_tests.cpp

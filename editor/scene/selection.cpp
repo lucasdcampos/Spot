@@ -62,4 +62,40 @@ void Selection::RemoveMissing(const Scene& scene) {
     }
 }
 
+std::vector<HierarchyPath> GetSelectedPaths(const Scene& scene, const Selection& selection) {
+    std::vector<HierarchyPath> paths;
+    for (const EntityId id : selection.GetEntities()) {
+        const Entity* entity = scene.GetEntity(id);
+        if (!entity) {
+            continue;
+        }
+        HierarchyPath path;
+        for (; entity; entity = entity->GetParent()) {
+            path.insert(path.begin(), entity->GetSiblingIndex());
+        }
+        paths.push_back(std::move(path));
+    }
+    return paths;
+}
+
+void SelectPaths(const Scene& scene, Selection& selection, const std::vector<HierarchyPath>& paths) {
+    std::vector<EntityId> ids;
+    for (const HierarchyPath& path : paths) {
+        std::vector<Entity*> siblings = scene.GetRootEntities();
+        Entity* entity = nullptr;
+        for (const std::size_t index : path) {
+            if (index >= siblings.size()) {
+                entity = nullptr;
+                break;
+            }
+            entity = siblings[index];
+            siblings = entity->GetChildren();
+        }
+        if (entity) {
+            ids.push_back(entity->GetId());
+        }
+    }
+    selection.Set(ids);
+}
+
 } // namespace Spot::Editor

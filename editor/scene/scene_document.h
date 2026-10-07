@@ -39,6 +39,8 @@ class SceneDocument {
 public:
     // A new scene that is not saved anywhere yet.
     explicit SceneDocument(std::string name = "Untitled");
+    // Edits a scene owned elsewhere, such as the copy of a scene a game plays, which must outlive the document.
+    SceneDocument(std::string name, Scene& scene);
 
     // Loads a scene file, whose asset id, when it has one, identifies the document. Returns null, after logging why,
     // when it cannot be read.
@@ -80,7 +82,8 @@ public:
     void Redo();
 
 private:
-    std::unique_ptr<Scene> m_scene = std::make_unique<Scene>();
+    std::unique_ptr<Scene> m_ownedScene;
+    Scene* m_scene;
     CommandHistory m_history;
     Selection m_selection;
     std::string m_name;

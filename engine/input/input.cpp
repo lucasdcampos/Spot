@@ -9,7 +9,7 @@ namespace {
 const InputState EmptyState;
 const InputState* s_state = nullptr;
 
-const InputState& GetState() {
+const InputState& GetCurrent() {
     return s_state ? *s_state : EmptyState;
 }
 
@@ -19,40 +19,44 @@ void SetState(const InputState* state) {
     s_state = state;
 }
 
+const InputState* GetState() {
+    return s_state;
+}
+
 bool IsKeyDown(Key key) {
-    return GetState().IsKeyDown(key);
+    return GetCurrent().IsKeyDown(key);
 }
 
 bool IsKeyPressed(Key key) {
-    return GetState().IsKeyPressed(key);
+    return GetCurrent().IsKeyPressed(key);
 }
 
 bool IsKeyReleased(Key key) {
-    return GetState().IsKeyReleased(key);
+    return GetCurrent().IsKeyReleased(key);
 }
 
 bool IsMouseButtonDown(MouseButton button) {
-    return GetState().IsMouseButtonDown(button);
+    return GetCurrent().IsMouseButtonDown(button);
 }
 
 bool IsMouseButtonPressed(MouseButton button) {
-    return GetState().IsMouseButtonPressed(button);
+    return GetCurrent().IsMouseButtonPressed(button);
 }
 
 bool IsMouseButtonReleased(MouseButton button) {
-    return GetState().IsMouseButtonReleased(button);
+    return GetCurrent().IsMouseButtonReleased(button);
 }
 
 Vector2 GetMousePosition() {
-    return GetState().GetMousePosition();
+    return GetCurrent().GetMousePosition();
 }
 
 Vector2 GetMouseDelta() {
-    return GetState().GetMouseDelta();
+    return GetCurrent().GetMouseDelta();
 }
 
 Vector2 GetScrollDelta() {
-    return GetState().GetScrollDelta();
+    return GetCurrent().GetScrollDelta();
 }
 
 } // namespace Spot::Input

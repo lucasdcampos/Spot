@@ -30,6 +30,11 @@ public:
     SceneView& operator=(const SceneView&) = delete;
 
     SceneDocument& GetDocument() { return m_document; }
+    // What the view shows: its document, or the copy of it being played.
+    SceneDocument& GetShownDocument() { return *m_shown; }
+    // While its document plays, whether the view looks through the game's main camera, as the game would show,
+    // rather than the editor's.
+    bool IsShowingGame() const { return m_playing && m_gameView; }
     EditorCamera& GetCamera() { return m_camera; }
     ViewportOptions& GetOptions() { return m_options; }
     // The id ImGui knows the window by, which stays the same across runs for scenes saved as assets.
@@ -104,6 +109,9 @@ private:
     std::uint32_t m_width = 0;
     std::uint32_t m_height = 0;
     bool m_looking = false;
+    SceneDocument* m_shown;
+    bool m_playing = false;
+    bool m_gameView = true;
     TransformGizmo m_gizmo;
     // The icons drawn last, which clicks select before meshes.
     std::vector<Icon> m_icons;
@@ -115,6 +123,7 @@ private:
     // Sprites are picked and outlined as this plane, turned to face +Z.
     AssetRef<Mesh> m_plane;
     float m_outlineWidth = 2.0f;
+    Vector2 m_viewOrigin;
 };
 
 } // namespace Spot::Editor

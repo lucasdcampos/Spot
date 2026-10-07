@@ -1,5 +1,6 @@
 #pragma once
 
+#include "play/play_session.h"
 #include "scene/scene_document.h"
 #include "viewport/scene_view.h"
 #include "viewport/viewport_renderer.h"
@@ -34,8 +35,9 @@ public:
     SceneDocument& GetDocument(std::size_t index) { return *m_scenes[index].document; }
     // The open document with the id (see SceneDocument::GetId()); null when it was closed.
     SceneDocument* FindDocument(std::uint64_t id);
-    // The document of the view focused last; null when none is open.
-    SceneDocument* GetActiveDocument() { return m_active; }
+    // The document of the view focused last; null when none is open. While that document plays, the copy being
+    // played, which windows edit meanwhile.
+    SceneDocument* GetActiveDocument();
     SceneView* GetActiveView();
     bool HasUnsavedChanges() const;
 
@@ -65,6 +67,13 @@ public:
     // scene.
     void RestoreState();
     void SaveState() const;
+
+    // Plays the active document in the application: a copy of it runs as the game would, in the document's view.
+    // Does nothing without an active document.
+    void Play(Application& application);
+    void StopPlaying();
+    // Null while nothing plays.
+    PlaySession* GetPlaySession() { return m_play.get(); }
 
     // Draws the views, docking new ones into the node, and the prompts.
     void Draw(ImGuiID dockId);
@@ -99,6 +108,8 @@ private:
     std::vector<std::uint64_t> m_prompted;
     std::function<void()> m_afterPrompt;
     bool m_openPrompt = false;
+    // After the documents, so it goes first, as it refers to one of them.
+    std::unique_ptr<PlaySession> m_play;
 };
 
 } // namespace Spot::Editor

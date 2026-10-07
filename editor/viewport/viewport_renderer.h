@@ -46,6 +46,10 @@ struct ViewportOptions {
     bool showGrid = true;
     // The grid lies on the XY plane, as 2D views see it, instead of the ground.
     bool grid2D = false;
+    // What shows where nothing is drawn; the editor's dark gray when unset.
+    std::optional<Color> background = std::nullopt;
+    // Scenes without lights get the editor's, so what is in them shows; games see them dark, as they are.
+    bool defaultLights = true;
 };
 
 // Draws scenes into viewport targets, as they would look in the game, with the editor's grid over them. One is shared
