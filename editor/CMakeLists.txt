@@ -91,6 +91,8 @@ add_library(spot_editor_core STATIC
     project/project_hub.h
     project/project_templates.cpp
     project/project_templates.h
+    scene/entity_actions.cpp
+    scene/entity_actions.h
     scene/scene_commands.cpp
     scene/scene_commands.h
     scene/scene_document.cpp

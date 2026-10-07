@@ -7,7 +7,7 @@ namespace Spot::Editor {
 // What moved the editor camera this frame.
 struct EditorCameraInput {
     // How far the mouse moved, in pixels.
-    Vector2 mouseDelta;
+    Vector2 mouseDelta = {};
     // Wheel notches, positive away from the user.
     float wheel = 0.0f;
     // Right button held: turn the view and fly with the movement keys.
@@ -17,7 +17,7 @@ struct EditorCameraInput {
     // Slide the view sideways and up or down.
     bool pan = false;
     // Movement keys while looking: x right, y up, z forward, each from -1 to 1.
-    Vector3 move;
+    Vector3 move = {};
     bool fast = false;
     float deltaTime = 0.0f;
     // The view's height in pixels, so panning follows the mouse.

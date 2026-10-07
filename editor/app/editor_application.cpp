@@ -9,6 +9,7 @@
 #include "panels/hierarchy_panel.h"
 #include "panels/inspector_panel.h"
 #include "panels/project_settings_panel.h"
+#include "scene/entity_actions.h"
 
 #include <imgui_internal.h>
 
@@ -138,7 +139,7 @@ void EditorApplication::OnStart() {
                         .newProject = [this] { m_newProjectDialog->Open(); },
                     });
 
-    m_panels.push_back(std::make_unique<HierarchyPanel>());
+    m_panels.push_back(std::make_unique<HierarchyPanel>(*m_context));
     m_panels.push_back(std::make_unique<InspectorPanel>());
     m_panels.push_back(std::make_unique<AssetBrowserPanel>(*m_context));
     m_panels.push_back(std::make_unique<ConsolePanel>(m_consoleLog));
@@ -376,7 +377,8 @@ void EditorApplication::DrawMainMenu() {
         MenuItem("Select All", ImGuiMod_Ctrl | ImGuiKey_A, false);
         ImGui::EndMenu();
     }
-    if (ImGui::BeginMenu("Entity", false)) {
+    if (ImGui::BeginMenu("Entity", m_workspace->GetActiveDocument() != nullptr)) {
+        DrawEntityMenu(*m_workspace->GetActiveDocument());
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Window", hasProject)) {
@@ -569,6 +571,42 @@ void EditorApplication::DrawDockSpace() {
     ImGui::DockSpaceOverViewport(m_dockSpace, ImGui::GetMainViewport());
 }
 
+void EditorApplication::DrawEntityMenu(SceneDocument& document) {
+    // New entities appear where the view looks.
+    const SceneView* view = m_workspace->GetActiveView();
+    const Vector3 position = view ? const_cast<SceneView*>(view)->GetCamera().GetPivot() : Vector3{};
+    const auto item = [&](const EntityTemplateInfo& info) {
+        const std::string label = std::format("{}  {}", info.icon, info.name);
+        const bool empty = info.kind == EntityTemplate::Empty;
+        if (MenuItem(label.c_str(), empty ? ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_N : 0)) {
+            CreateEntity(document, info.kind, EntityId::Invalid, position);
+        }
+    };
+    for (const EntityTemplateInfo& info : GetEntityTemplates()) {
+        if (!info.category) {
+            item(info);
+        }
+    }
+    for (const char* category : {"3D Object", "Light"}) {
+        if (ImGui::BeginMenu(category)) {
+            for (const EntityTemplateInfo& info : GetEntityTemplates()) {
+                if (info.category && std::string_view(info.category) == category) {
+                    item(info);
+                }
+            }
+            ImGui::EndMenu();
+        }
+    }
+    ImGui::Separator();
+    const bool hasSelection = !document.GetSelection().IsEmpty();
+    if (MenuItem(ICON_FA_CLONE "  Duplicate", ImGuiMod_Ctrl | ImGuiKey_D, hasSelection)) {
+        DuplicateSelection(document);
+    }
+    if (MenuItem(ICON_FA_TRASH_CAN "  Delete", ImGuiKey_Delete, hasSelection)) {
+        DeleteSelection(document);
+    }
+}
+
 void EditorApplication::HandleShortcuts() {
     // Global, so they work from any window; a text field being edited takes the keys it uses first.
     constexpr ImGuiInputFlags Global = ImGuiInputFlags_RouteGlobal;
@@ -600,6 +638,11 @@ void EditorApplication::HandleShortcuts() {
     }
     if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_W, Global)) {
         m_workspace->Close(*document);
+    }
+    if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_N, Global)) {
+        const SceneView* view = m_workspace->GetActiveView();
+        CreateEntity(*document, EntityTemplate::Empty, EntityId::Invalid,
+                     view ? const_cast<SceneView*>(view)->GetCamera().GetPivot() : Vector3{});
     }
 }
 

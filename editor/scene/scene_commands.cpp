@@ -47,31 +47,38 @@ std::vector<EntityId> GetIds(const std::vector<Entity*>& entities) {
 
 CreateEntitiesCommand::CreateEntitiesCommand(SceneDocument& document, std::string name, std::string text,
                                              EntityId parent, EntityId before)
-    : SceneCommand(document), m_name(std::move(name)), m_text(std::move(text)), m_parent(parent), m_before(before) {
+    : CreateEntitiesCommand(document, std::move(name), std::vector<Placement>{{std::move(text), parent, before}}) {
+}
+
+CreateEntitiesCommand::CreateEntitiesCommand(SceneDocument& document, std::string name,
+                                             std::vector<Placement> placements)
+    : SceneCommand(document), m_name(std::move(name)), m_placements(std::move(placements)) {
 }
 
 bool CreateEntitiesCommand::Execute() {
     Scene& scene = GetScene();
-    Entity* parent = scene.GetEntity(m_parent);
-    if (m_parent != EntityId::Invalid && !parent) {
-        return false;
+    m_created.clear();
+    for (Placement& placement : m_placements) {
+        Entity* parent = scene.GetEntity(placement.parent);
+        if (placement.parent != EntityId::Invalid && !parent) {
+            continue;
+        }
+        std::optional<std::size_t> index;
+        if (const Entity* before = scene.GetEntity(placement.before); before && before->GetParent() == parent) {
+            index = before->GetSiblingIndex();
+        }
+        // The first time they get new ids, as copies of entities still in the scene must; afterwards the same ones.
+        const std::vector<Entity*> roots = scene.Instantiate(
+            placement.text,
+            {.parent = parent, .siblingIndex = index, .keepIds = m_executed, .keepExternalReferences = true});
+        if (!m_executed) {
+            placement.text = scene.SaveEntitiesToString(roots);
+        }
+        const std::vector<EntityId> ids = GetIds(roots);
+        m_created.insert(m_created.end(), ids.begin(), ids.end());
     }
-    std::optional<std::size_t> index;
-    if (const Entity* before = scene.GetEntity(m_before); before && before->GetParent() == parent) {
-        index = before->GetSiblingIndex();
-    }
-    // The first time they get new ids, as copies of entities still in the scene must; afterwards the same ones.
-    const std::vector<Entity*> roots = scene.Instantiate(
-        m_text, {.parent = parent, .siblingIndex = index, .keepIds = m_executed, .keepExternalReferences = true});
-    if (roots.empty()) {
-        return false;
-    }
-    m_created = GetIds(roots);
-    if (!m_executed) {
-        m_text = scene.SaveEntitiesToString(roots);
-        m_executed = true;
-    }
-    return true;
+    m_executed = true;
+    return !m_created.empty();
 }
 
 void CreateEntitiesCommand::Undo() {

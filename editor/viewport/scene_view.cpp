@@ -4,6 +4,7 @@
 #include "imgui/editor_style.h"
 #include "imgui/icons.h"
 #include "imgui/imgui_renderer.h"
+#include "scene/entity_actions.h"
 #include "scene/scene_document.h"
 
 #include <algorithm>
@@ -117,6 +118,9 @@ void SceneView::DrawViewport(EditorContext& context, ViewportRenderer* renderer)
     }
 
     UpdateCamera(context, hovered, active, size.y);
+    if (!m_looking) {
+        HandleEntityShortcuts(m_document);
+    }
     DrawIcons(origin, size);
     DrawOverlay(origin);
 }

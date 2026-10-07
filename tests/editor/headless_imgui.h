@@ -18,6 +18,8 @@ public:
         io.DeltaTime = 1.0f / 60.0f;
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures;
+        // Every event queued before a frame takes effect in it, so tests know where the mouse and keys are.
+        io.ConfigInputTrickleEventQueue = false;
     }
 
     ~HeadlessImGui() {

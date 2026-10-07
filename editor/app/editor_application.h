@@ -66,6 +66,7 @@ private:
     void DrawLatestMessage();
     void DrawDockSpace();
     void HandleShortcuts();
+    void DrawEntityMenu(SceneDocument& document);
     void DrawAboutWindow();
     void DrawErrorWindow();
 

@@ -108,6 +108,7 @@ if(TARGET spot_editor_core)
         editor/console_log_tests.cpp
         editor/editor_layout_tests.cpp
         editor/headless_imgui.h
+        editor/hierarchy_tests.cpp
         editor/imgui_platform_tests.cpp
         editor/project_tests.cpp
         editor/project_ui_tests.cpp

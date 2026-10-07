@@ -15,10 +15,19 @@ namespace Spot::Editor {
 // selects them. Redoing brings back the same entities, with the same ids.
 class CreateEntitiesCommand final : public SceneCommand {
 public:
-    // The text is in the format of Scene::SaveToString(). Without a parent they become roots; without an entity to
-    // go before, they go after the others.
+    // Where saved entities go. The text is in the format of Scene::SaveToString(). Without a parent they become
+    // roots; without an entity to go before, they go after the others.
+    struct Placement {
+        std::string text = {};
+        EntityId parent = EntityId::Invalid;
+        EntityId before = EntityId::Invalid;
+    };
+
     CreateEntitiesCommand(SceneDocument& document, std::string name, std::string text,
                           EntityId parent = EntityId::Invalid, EntityId before = EntityId::Invalid);
+    // Several groups of entities in different places, created as one step, such as duplicates of entities with
+    // different parents.
+    CreateEntitiesCommand(SceneDocument& document, std::string name, std::vector<Placement> placements);
 
     std::string GetName() const override { return m_name; }
     bool Execute() override;
@@ -29,9 +38,7 @@ public:
 
 private:
     std::string m_name;
-    std::string m_text;
-    EntityId m_parent;
-    EntityId m_before;
+    std::vector<Placement> m_placements;
     std::vector<EntityId> m_created;
     bool m_executed = false;
 };
@@ -117,8 +124,8 @@ private:
 
 // A transform's local position, rotation and scale.
 struct Pose {
-    Vector3 position;
-    Quaternion rotation;
+    Vector3 position = {};
+    Quaternion rotation = {};
     Vector3 scale{1.0f, 1.0f, 1.0f};
 
     static Pose Of(const Transform& transform);
