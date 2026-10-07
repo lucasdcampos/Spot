@@ -25,6 +25,8 @@ struct ManifestEntry {
     bool imported = false;
     // Of the source, its dependencies, its settings and its importer's version, as of the last import.
     std::uint64_t hash = 0;
+    // The same, from the files' sizes and times of last change instead of their contents; 0 when unknown.
+    std::uint64_t stamp = 0;
     // Relative to the source directory, with '/' separators.
     std::vector<std::string> dependencies;
 };

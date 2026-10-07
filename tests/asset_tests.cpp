@@ -6,12 +6,16 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
+#include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <memory>
+#include <span>
+#include <string>
 #include <unordered_set>
 #include <vector>
 
@@ -257,6 +261,83 @@ TEST_CASE("The asset database imports sources into the import directory", "[asse
         CHECK(database.Find(*brokenId) != nullptr);
         CHECK_FALSE(std::filesystem::exists(imported / (brokenId->ToString() + ".asset")));
     }
+}
+
+TEST_CASE("Tools move, rename, duplicate and delete sources, keeping their ids", "[assets]") {
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    CreateProject(sources);
+    AssetDatabase database(sources, project.GetPath() / "imported");
+    database.Refresh();
+    const AssetId pixels = *database.FindByPath("pixels.png");
+    const AssetId cube = *database.FindByPath("models/cube.glb");
+    const auto cubeParts = GetSubAssets(database, cube);
+
+    REQUIRE(database.CreateFolder("textures/ui"));
+    CHECK(std::filesystem::is_directory(sources / "textures" / "ui"));
+
+    // Files move with their meta files, and folders with everything in them.
+    REQUIRE(database.Move("pixels.png", "textures/crate.png"));
+    REQUIRE(database.Move("models", "meshes"));
+    database.Refresh();
+    CHECK(database.FindByPath("textures/crate.png") == pixels);
+    CHECK(database.FindByPath("meshes/cube.glb") == cube);
+    CHECK(GetSubAssets(database, cube).size() == cubeParts.size());
+    CHECK_FALSE(std::filesystem::exists(sources / "pixels.png.meta"));
+
+    // Only the case of a name may change, even where names ignore case.
+    REQUIRE(database.Move("textures/crate.png", "textures/Crate.png"));
+    database.Refresh();
+    CHECK(database.FindByPath("textures/Crate.png") == pixels);
+
+    // Nothing is moved over another file, into itself or out of the sources.
+    CHECK_FALSE(database.Move("textures/Crate.png", "meshes/cube.glb"));
+    CHECK_FALSE(database.Move("meshes", "meshes/inner"));
+    CHECK_FALSE(database.Move("textures/Crate.png", "../outside.png"));
+    CHECK_FALSE(database.Move("missing.png", "found.png"));
+
+    // Duplicates are new assets imported the same way.
+    database.GetMeta(pixels)->texture.mipmaps = false;
+    database.SaveMeta(pixels);
+    CHECK(database.GetFreePath("textures/Crate.png") == "textures/Crate 2.png");
+    REQUIRE(database.Duplicate("textures/Crate.png", database.GetFreePath("textures/Crate.png")));
+    database.Refresh();
+    const auto copy = database.FindByPath("textures/Crate 2.png");
+    REQUIRE(copy.has_value());
+    CHECK(*copy != pixels);
+    CHECK_FALSE(database.GetMeta(*copy)->texture.mipmaps);
+    CHECK_FALSE(database.Duplicate("textures/Crate.png", "textures/Crate 2.png"));
+
+    // Files from elsewhere are copied in under free names.
+    const std::array outside{TestAssets / "pixels.png", TestAssets / "fonts"};
+    const std::vector<std::string> copied = database.CopyIn(outside, "textures");
+    CHECK(copied == std::vector<std::string>{"textures/pixels.png", "textures/fonts"});
+    CHECK(database.CopyIn(std::span(outside).first(1), "textures") ==
+          std::vector<std::string>{"textures/pixels 2.png"});
+    database.Refresh();
+    CHECK(database.FindByPath("textures/pixels 2.png").has_value());
+
+    REQUIRE(database.Delete("textures"));
+    REQUIRE(database.Delete("meshes/cube.glb"));
+    database.Refresh();
+    CHECK(database.Find(pixels) == nullptr);
+    CHECK(database.Find(cube) == nullptr);
+    CHECK_FALSE(std::filesystem::exists(sources / "meshes" / "cube.glb.meta"));
+    CHECK_FALSE(database.Delete("textures"));
+}
+
+TEST_CASE("Sources whose files were only touched are not imported again", "[assets]") {
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    CreateProject(sources);
+    AssetDatabase database(sources, project.GetPath() / "imported");
+    CHECK(database.Refresh() == 3);
+
+    // A new time of last change makes the contents be compared, which are the same.
+    const auto file = sources / "pixels.png";
+    std::filesystem::last_write_time(file, std::filesystem::last_write_time(file) + std::chrono::hours(1));
+    CHECK(database.Refresh() == 0);
+    CHECK(database.Refresh() == 0);
 }
 
 TEST_CASE("The asset database keeps imported assets when its source directory is missing", "[assets]") {

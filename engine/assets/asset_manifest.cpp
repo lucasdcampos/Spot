@@ -47,6 +47,7 @@ bool Manifest::SaveToFile(const std::filesystem::path& path) const {
         } else {
             item["imported"] = entry.imported;
             item["hash"] = std::format("{:016x}", entry.hash);
+            item["stamp"] = std::format("{:016x}", entry.stamp);
             item["dependencies"] = entry.dependencies;
         }
         assets.push_back(std::move(item));
@@ -97,6 +98,8 @@ std::optional<Manifest> Manifest::LoadFromFile(const std::filesystem::path& path
         entry.imported = item.value("imported", false);
         const std::string hash = ReadString(item, "hash");
         std::from_chars(hash.data(), hash.data() + hash.size(), entry.hash, 16);
+        const std::string stamp = ReadString(item, "stamp");
+        std::from_chars(stamp.data(), stamp.data() + stamp.size(), entry.stamp, 16);
         if (const auto dependencies = item.find("dependencies");
             dependencies != item.end() && dependencies->is_array()) {
             for (const auto& dependency : *dependencies) {

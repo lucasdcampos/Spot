@@ -22,6 +22,10 @@ bool IsHidden(const std::filesystem::path& path) {
     return !name.empty() && name.front() == u8'.';
 }
 
+std::string ToRelative(const std::filesystem::path& path, const std::filesystem::path& root) {
+    return PathToUtf8(path.lexically_relative(root).generic_u8string());
+}
+
 } // namespace
 
 AssetDatabase::AssetDatabase(std::filesystem::path sourceDirectory, std::filesystem::path importDirectory)
@@ -199,13 +203,22 @@ std::size_t AssetDatabase::Import(const AssetId* forced) {
         const auto found = previous.find(source.meta.id);
         const std::vector<Detail::ManifestEntry>* last = found != previous.end() ? &found->second : nullptr;
         const Detail::ManifestEntry* lastSource = last && !last->front().parent.IsValid() ? &last->front() : nullptr;
-        if (lastSource && (!forced || *forced != source.meta.id) && lastSource->imported &&
-            lastSource->hash == HashSource(source, lastSource->dependencies, importer.version) &&
+        // Files whose sizes and times did not change are taken as unchanged without reading them.
+        std::uint64_t stamp = 0;
+        const auto unchanged = [&] {
+            stamp = StampSource(source, lastSource->dependencies, importer.version);
+            return (lastSource->stamp != 0 && lastSource->stamp == stamp) ||
+                   lastSource->hash == HashSource(source, lastSource->dependencies, importer.version);
+        };
+        if (lastSource && (!forced || *forced != source.meta.id) && lastSource->imported && unchanged() &&
             std::ranges::all_of(*last, [&](const Detail::ManifestEntry& entry) {
                 return std::filesystem::exists(Detail::GetImportedAssetPath(m_importDirectory, entry.id), error);
             })) {
             for (auto entry : *last) {
                 entry.path = source.relativePath;
+                if (!entry.parent.IsValid()) {
+                    entry.stamp = stamp;
+                }
                 manifest.entries.push_back(std::move(entry));
             }
             continue;
@@ -229,6 +242,7 @@ std::size_t AssetDatabase::Import(const AssetId* forced) {
         }
         sourceEntry.imported = true;
         sourceEntry.hash = HashSource(source, sourceEntry.dependencies, importer.version);
+        sourceEntry.stamp = StampSource(source, sourceEntry.dependencies, importer.version);
         manifest.entries.push_back(std::move(sourceEntry));
         for (const auto& asset : context.GetImportedAssets()) {
             if (asset.parent.IsValid()) {
@@ -289,6 +303,181 @@ std::uint64_t AssetDatabase::HashSource(const Source& source, const std::vector<
     hasher.Add(source.meta.GetSettingsString());
     hasher.Add(std::to_string(importerVersion));
     return hasher.Get();
+}
+
+std::uint64_t AssetDatabase::StampSource(const Source& source, const std::vector<std::string>& dependencies,
+                                         std::uint32_t importerVersion) const {
+    Detail::Hasher hasher;
+    const auto addFile = [&](const std::filesystem::path& path) {
+        std::error_code error;
+        const auto size = std::filesystem::file_size(path, error);
+        const auto time = error ? std::filesystem::file_time_type() : std::filesystem::last_write_time(path, error);
+        hasher.Add(error ? std::string("missing")
+                         : std::to_string(size) + ":" + std::to_string(time.time_since_epoch().count()));
+    };
+
+    addFile(source.path);
+    for (const auto& dependency : dependencies) {
+        hasher.Add(dependency);
+        addFile(m_sourceDirectory / Utf8ToPath(dependency));
+    }
+    hasher.Add(GetAssetTypeName(source.meta.type));
+    hasher.Add(source.meta.GetSettingsString());
+    hasher.Add(std::to_string(importerVersion));
+    return hasher.Get();
+}
+
+std::optional<std::filesystem::path> AssetDatabase::Resolve(std::string_view path) const {
+    const std::filesystem::path relative = Utf8ToPath(path).lexically_normal();
+    const auto first = relative.begin();
+    if (relative.empty() || relative.is_absolute() || relative.has_root_name() ||
+        (first != relative.end() && (*first == ".." || *first == "."))) {
+        Log::GetEngineLogger().Error("'{}' is not a path inside the asset sources", path);
+        return std::nullopt;
+    }
+    return m_sourceDirectory / relative;
+}
+
+bool AssetDatabase::CreateFolder(std::string_view path) {
+    const auto folder = Resolve(path);
+    if (!folder) {
+        return false;
+    }
+    std::error_code error;
+    std::filesystem::create_directories(*folder, error);
+    if (error || !std::filesystem::is_directory(*folder, error)) {
+        Log::GetEngineLogger().Error("Could not create the folder '{}': {}", path, error.message());
+        return false;
+    }
+    return true;
+}
+
+bool AssetDatabase::Move(std::string_view from, std::string_view to) {
+    const auto source = Resolve(from);
+    const auto target = Resolve(to);
+    if (!source || !target) {
+        return false;
+    }
+    std::error_code error;
+    if (!std::filesystem::exists(*source, error)) {
+        Log::GetEngineLogger().Error("Cannot move '{}': it does not exist", from);
+        return false;
+    }
+    // Changing only the case of a name finds the source itself on file systems that ignore case.
+    if (std::filesystem::exists(*target, error) && !std::filesystem::equivalent(*source, *target, error)) {
+        Log::GetEngineLogger().Error("Cannot move '{}' to '{}': something is there already", from, to);
+        return false;
+    }
+    const auto [end, rest] = std::ranges::mismatch(*source, *target);
+    if (end == source->end() && rest != target->end()) {
+        Log::GetEngineLogger().Error("Cannot move the folder '{}' into itself", from);
+        return false;
+    }
+
+    std::filesystem::create_directories(target->parent_path(), error);
+    std::filesystem::rename(*source, *target, error);
+    if (error) {
+        Log::GetEngineLogger().Error("Could not move '{}' to '{}': {}", from, to, error.message());
+        return false;
+    }
+    const auto meta = AssetMeta::GetMetaPath(*source);
+    if (std::filesystem::is_regular_file(meta, error)) {
+        std::filesystem::rename(meta, AssetMeta::GetMetaPath(*target), error);
+        if (error) {
+            Log::GetEngineLogger().Error("Could not move the meta file of '{}': {}", from, error.message());
+            return false;
+        }
+    }
+    return true;
+}
+
+bool AssetDatabase::Delete(std::string_view path) {
+    const auto target = Resolve(path);
+    if (!target) {
+        return false;
+    }
+    std::error_code error;
+    if (!std::filesystem::exists(*target, error)) {
+        Log::GetEngineLogger().Error("Cannot delete '{}': it does not exist", path);
+        return false;
+    }
+    std::filesystem::remove_all(*target, error);
+    if (!error) {
+        std::filesystem::remove(AssetMeta::GetMetaPath(*target), error);
+    }
+    if (error) {
+        Log::GetEngineLogger().Error("Could not delete '{}': {}", path, error.message());
+        return false;
+    }
+    return true;
+}
+
+bool AssetDatabase::Duplicate(std::string_view from, std::string_view to) {
+    const auto source = Resolve(from);
+    const auto target = Resolve(to);
+    if (!source || !target) {
+        return false;
+    }
+    std::error_code error;
+    if (!std::filesystem::is_regular_file(*source, error) || std::filesystem::exists(*target, error)) {
+        Log::GetEngineLogger().Error("Cannot duplicate '{}' to '{}': only files go to a path nothing uses", from, to);
+        return false;
+    }
+    std::filesystem::create_directories(target->parent_path(), error);
+    std::filesystem::copy_file(*source, *target, error);
+    if (error) {
+        Log::GetEngineLogger().Error("Could not duplicate '{}': {}", from, error.message());
+        return false;
+    }
+    // The copy is imported the same way, as an asset of its own.
+    if (auto meta = AssetMeta::LoadFromFile(AssetMeta::GetMetaPath(*source))) {
+        meta->id = AssetId::Generate();
+        meta->subAssets.clear();
+        return meta->SaveToFile(AssetMeta::GetMetaPath(*target));
+    }
+    return true;
+}
+
+std::vector<std::string> AssetDatabase::CopyIn(std::span<const std::filesystem::path> files, std::string_view folder) {
+    std::vector<std::string> copied;
+    const auto destination = folder.empty() ? std::optional(m_sourceDirectory) : Resolve(folder);
+    if (!destination) {
+        return copied;
+    }
+    std::error_code error;
+    std::filesystem::create_directories(*destination, error);
+    for (const auto& file : files) {
+        const std::string name = PathToUtf8(file.filename());
+        const std::string path = GetFreePath(folder.empty() ? name : std::string(folder) + "/" + name);
+        const auto target = m_sourceDirectory / Utf8ToPath(path);
+        std::filesystem::copy(file, target,
+                              std::filesystem::copy_options::recursive | std::filesystem::copy_options::copy_symlinks,
+                              error);
+        if (error) {
+            Log::GetEngineLogger().Error("Could not copy '{}' into the assets: {}", PathToUtf8(file), error.message());
+            error.clear();
+            continue;
+        }
+        copied.push_back(path);
+    }
+    return copied;
+}
+
+std::string AssetDatabase::GetFreePath(std::string_view path) const {
+    const std::filesystem::path wanted = Utf8ToPath(path);
+    std::error_code error;
+    if (!std::filesystem::exists(m_sourceDirectory / wanted, error)) {
+        return std::string(path);
+    }
+    const std::filesystem::path folder = wanted.parent_path();
+    const std::string stem = PathToUtf8(wanted.stem());
+    const std::string extension = PathToUtf8(wanted.extension());
+    for (int number = 2;; ++number) {
+        const std::filesystem::path candidate = folder / Utf8ToPath(stem + " " + std::to_string(number) + extension);
+        if (!std::filesystem::exists(m_sourceDirectory / candidate, error)) {
+            return ToRelative(m_sourceDirectory / candidate, m_sourceDirectory);
+        }
+    }
 }
 
 const AssetInfo* AssetDatabase::Find(AssetId id) const {
