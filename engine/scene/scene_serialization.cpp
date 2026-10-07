@@ -59,6 +59,9 @@ namespace Detail {
 struct SceneSerializer {
     using IdMap = std::unordered_map<std::uint64_t, EntityId>;
 
+    static void Serialize(Component& component, Archive& archive) { component.Serialize(archive); }
+    static void Validate(Component& component) { component.OnValidate(); }
+
     // Saves the entity and then its descendants, depth first, so parents always come before their children and
     // children keep their order.
     static void SaveTree(const Entity& entity, json& entities) {
@@ -368,6 +371,14 @@ std::string Entity::SaveToString() const {
     json document = MakeDocument();
     Detail::SceneSerializer::SaveTree(*this, document["entities"]);
     return Dump(document);
+}
+
+void SerializeComponent(Component& component, Archive& archive) {
+    Detail::SceneSerializer::Serialize(component, archive);
+}
+
+void ValidateComponent(Component& component) {
+    Detail::SceneSerializer::Validate(component);
 }
 
 std::string SaveComponentToString(const Component& component) {

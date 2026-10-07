@@ -77,136 +77,223 @@ void Floats(Detail::ArchiveState& state, std::string_view name, std::array<float
     }
 }
 
+// The engine's files: fields as members of JSON objects.
+class JsonBackend final : public ArchiveBackend {
+public:
+    explicit JsonBackend(Detail::ArchiveState& state) : m_state(state) {}
+
+    bool IsLoading() const override { return m_state.loading; }
+
+    void Field(std::string_view name, bool& value, const FieldOptions&) override {
+        Scalar(m_state, name, value, &json::is_boolean, "a boolean");
+    }
+
+    void Field(std::string_view name, int& value, const FieldOptions&) override {
+        Scalar(m_state, name, value, &json::is_number_integer, "an integer");
+    }
+
+    void Field(std::string_view name, std::uint32_t& value, const FieldOptions&) override {
+        Scalar(m_state, name, value, &json::is_number_unsigned, "an unsigned integer");
+    }
+
+    void Field(std::string_view name, std::int64_t& value, const FieldOptions&) override {
+        Scalar(m_state, name, value, &json::is_number_integer, "an integer");
+    }
+
+    void Field(std::string_view name, std::uint64_t& value, const FieldOptions&) override {
+        Scalar(m_state, name, value, &json::is_number_unsigned, "an unsigned integer");
+    }
+
+    void Field(std::string_view name, float& value, const FieldOptions&) override {
+        Scalar(m_state, name, value, &json::is_number, "a number");
+    }
+
+    void Field(std::string_view name, double& value, const FieldOptions&) override {
+        Scalar(m_state, name, value, &json::is_number, "a number");
+    }
+
+    void Field(std::string_view name, std::string& value, const FieldOptions&) override {
+        Scalar(m_state, name, value, &json::is_string, "a string");
+    }
+
+    void Field(std::string_view name, Vector2& value, const FieldOptions&) override {
+        Floats<2>(m_state, name, {&value.x, &value.y});
+    }
+
+    void Field(std::string_view name, Vector3& value, const FieldOptions&) override {
+        Floats<3>(m_state, name, {&value.x, &value.y, &value.z});
+    }
+
+    void Field(std::string_view name, Vector4& value, const FieldOptions&) override {
+        Floats<4>(m_state, name, {&value.x, &value.y, &value.z, &value.w});
+    }
+
+    void Field(std::string_view name, Quaternion& value, const FieldOptions&) override {
+        Floats<4>(m_state, name, {&value.x, &value.y, &value.z, &value.w});
+    }
+
+    void Field(std::string_view name, Color& value, const FieldOptions&) override {
+        Floats<4>(m_state, name, {&value.r, &value.g, &value.b, &value.a});
+    }
+
+    void Field(std::string_view name, EntityId& value, const FieldOptions& options) override {
+        auto id = static_cast<std::uint64_t>(value);
+        Field(name, id, options);
+        if (!m_state.loading || !m_state.entityIds) {
+            value = static_cast<EntityId>(id);
+            return;
+        }
+        const auto found = m_state.entityIds->find(id);
+        if (found != m_state.entityIds->end()) {
+            value = found->second;
+        } else if (m_state.scene && m_state.scene->GetEntity(static_cast<EntityId>(id))) {
+            value = static_cast<EntityId>(id);
+        } else {
+            value = EntityId::Invalid;
+        }
+    }
+
+    void Field(std::string_view name, AssetId& value, std::optional<AssetType>, const FieldOptions&) override {
+        if (!m_state.loading) {
+            AddField(m_state, name) = value.IsValid() ? json(value.ToString()) : json(nullptr);
+            return;
+        }
+        const json* field = FindField(m_state, name);
+        if (!field) {
+            return;
+        }
+        if (field->is_null()) {
+            value = {};
+            return;
+        }
+        const auto id = field->is_string() ? AssetId::Parse(field->get<std::string>()) : std::nullopt;
+        if (!id) {
+            WarnWrongType(name, "an asset id of 32 hexadecimal digits");
+            return;
+        }
+        value = *id;
+    }
+
+    bool BeginObject(std::string_view name, const FieldOptions&) override {
+        std::size_t size = 0;
+        return Enter(name, false, size);
+    }
+
+    void EndObject() override { m_state.nodes.pop_back(); }
+
+    bool BeginArray(std::string_view name, std::size_t& size, const FieldOptions&) override {
+        return Enter(name, true, size);
+    }
+
+    void BeginElement(std::size_t index) override { m_state.nodes.push_back(&(*m_state.nodes.back())[index]); }
+
+    void EndElement() override { m_state.nodes.pop_back(); }
+
+    void EndArray() override { m_state.nodes.pop_back(); }
+
+    AssetManager* GetAssetManager() const override { return m_state.assets; }
+
+private:
+    // Makes the named field the current node, or the current node itself when the name is empty. When loading,
+    // returns false if it is missing or of another kind, and gives the size of arrays.
+    bool Enter(std::string_view name, bool array, std::size_t& size) {
+        if (!m_state.loading) {
+            json& field = AddField(m_state, name);
+            field = array ? json(size, nullptr) : json::object();
+            m_state.nodes.push_back(&field);
+            return true;
+        }
+        json* field = FindField(m_state, name);
+        if (!field) {
+            return false;
+        }
+        if (array ? !field->is_array() : !field->is_object()) {
+            WarnWrongType(name, array ? "an array" : "an object");
+            return false;
+        }
+        size = field->size();
+        m_state.nodes.push_back(field);
+        return true;
+    }
+
+    Detail::ArchiveState& m_state;
+};
+
 } // namespace
 
-bool Archive::IsLoading() const {
-    return m_state.loading;
+Archive::Archive(Detail::ArchiveState& state)
+    : m_ownedBackend(std::make_unique<JsonBackend>(state)), m_backend(m_ownedBackend.get()) {
 }
 
-void Archive::Field(std::string_view name, bool& value) {
-    Scalar(m_state, name, value, &json::is_boolean, "a boolean");
+Archive::~Archive() = default;
+
+void Archive::Field(std::string_view name, bool& value, const FieldOptions& options) {
+    m_backend->Field(name, value, options);
 }
 
-void Archive::Field(std::string_view name, int& value) {
-    Scalar(m_state, name, value, &json::is_number_integer, "an integer");
+void Archive::Field(std::string_view name, int& value, const FieldOptions& options) {
+    m_backend->Field(name, value, options);
 }
 
-void Archive::Field(std::string_view name, std::uint32_t& value) {
-    Scalar(m_state, name, value, &json::is_number_unsigned, "an unsigned integer");
+void Archive::Field(std::string_view name, std::uint32_t& value, const FieldOptions& options) {
+    m_backend->Field(name, value, options);
 }
 
-void Archive::Field(std::string_view name, std::int64_t& value) {
-    Scalar(m_state, name, value, &json::is_number_integer, "an integer");
+void Archive::Field(std::string_view name, std::int64_t& value, const FieldOptions& options) {
+    m_backend->Field(name, value, options);
 }
 
-void Archive::Field(std::string_view name, std::uint64_t& value) {
-    Scalar(m_state, name, value, &json::is_number_unsigned, "an unsigned integer");
+void Archive::Field(std::string_view name, std::uint64_t& value, const FieldOptions& options) {
+    m_backend->Field(name, value, options);
 }
 
-void Archive::Field(std::string_view name, float& value) {
-    Scalar(m_state, name, value, &json::is_number, "a number");
+void Archive::Field(std::string_view name, float& value, const FieldOptions& options) {
+    m_backend->Field(name, value, options);
 }
 
-void Archive::Field(std::string_view name, double& value) {
-    Scalar(m_state, name, value, &json::is_number, "a number");
+void Archive::Field(std::string_view name, double& value, const FieldOptions& options) {
+    m_backend->Field(name, value, options);
 }
 
-void Archive::Field(std::string_view name, std::string& value) {
-    Scalar(m_state, name, value, &json::is_string, "a string");
+void Archive::Field(std::string_view name, std::string& value, const FieldOptions& options) {
+    m_backend->Field(name, value, options);
 }
 
-void Archive::Field(std::string_view name, Vector2& value) {
-    Floats<2>(m_state, name, {&value.x, &value.y});
+void Archive::Field(std::string_view name, Vector2& value, const FieldOptions& options) {
+    m_backend->Field(name, value, options);
 }
 
-void Archive::Field(std::string_view name, Vector3& value) {
-    Floats<3>(m_state, name, {&value.x, &value.y, &value.z});
+void Archive::Field(std::string_view name, Vector3& value, const FieldOptions& options) {
+    m_backend->Field(name, value, options);
 }
 
-void Archive::Field(std::string_view name, Vector4& value) {
-    Floats<4>(m_state, name, {&value.x, &value.y, &value.z, &value.w});
+void Archive::Field(std::string_view name, Vector4& value, const FieldOptions& options) {
+    m_backend->Field(name, value, options);
 }
 
-void Archive::Field(std::string_view name, Quaternion& value) {
-    Floats<4>(m_state, name, {&value.x, &value.y, &value.z, &value.w});
+void Archive::Field(std::string_view name, Quaternion& value, const FieldOptions& options) {
+    m_backend->Field(name, value, options);
 }
 
-void Archive::Field(std::string_view name, Color& value) {
-    Floats<4>(m_state, name, {&value.r, &value.g, &value.b, &value.a});
+void Archive::Field(std::string_view name, Color& value, const FieldOptions& options) {
+    m_backend->Field(name, value, options);
 }
 
-void Archive::Field(std::string_view name, EntityId& value) {
-    auto id = static_cast<std::uint64_t>(value);
-    Field(name, id);
-    if (!IsLoading() || !m_state.entityIds) {
-        value = static_cast<EntityId>(id);
-        return;
-    }
-    const auto found = m_state.entityIds->find(id);
-    if (found != m_state.entityIds->end()) {
-        value = found->second;
-    } else if (m_state.scene && m_state.scene->GetEntity(static_cast<EntityId>(id))) {
-        value = static_cast<EntityId>(id);
-    } else {
-        value = EntityId::Invalid;
-    }
+void Archive::Field(std::string_view name, EntityId& value, const FieldOptions& options) {
+    m_backend->Field(name, value, options);
 }
 
-void Archive::Field(std::string_view name, AssetId& value) {
-    if (!m_state.loading) {
-        AddField(m_state, name) = value.IsValid() ? json(value.ToString()) : json(nullptr);
-        return;
-    }
-    const json* field = FindField(m_state, name);
-    if (!field) {
-        return;
-    }
-    if (field->is_null()) {
-        value = {};
-        return;
-    }
-    const auto id = field->is_string() ? AssetId::Parse(field->get<std::string>()) : std::nullopt;
-    if (!id) {
-        WarnWrongType(name, "an asset id of 32 hexadecimal digits");
-        return;
-    }
-    value = *id;
+void Archive::Field(std::string_view name, AssetId& value, const FieldOptions& options) {
+    m_backend->Field(name, value, std::nullopt, options);
 }
 
 AssetManager* Archive::GetAssetManager() const {
-    return m_state.assets ? m_state.assets : Assets::GetManager();
+    AssetManager* assets = m_backend->GetAssetManager();
+    return assets ? assets : Assets::GetManager();
 }
 
 void Archive::WarnAssetWithoutId(std::string_view name) {
     Log::GetEngineLogger().Warning("Field '{}' refers to an asset made in code, which is saved as null", name);
-}
-
-bool Archive::Enter(std::string_view name, NodeKind kind, std::size_t& size) {
-    if (!m_state.loading) {
-        json& field = AddField(m_state, name);
-        field = kind == NodeKind::Object ? json::object() : json(size, nullptr);
-        m_state.nodes.push_back(&field);
-        return true;
-    }
-    json* field = FindField(m_state, name);
-    if (!field) {
-        return false;
-    }
-    if (kind == NodeKind::Object ? !field->is_object() : !field->is_array()) {
-        WarnWrongType(name, kind == NodeKind::Object ? "an object" : "an array");
-        return false;
-    }
-    size = field->size();
-    m_state.nodes.push_back(field);
-    return true;
-}
-
-void Archive::EnterElement(std::size_t index) {
-    m_state.nodes.push_back(&(*m_state.nodes.back())[index]);
-}
-
-void Archive::Leave() {
-    m_state.nodes.pop_back();
 }
 
 } // namespace Spot

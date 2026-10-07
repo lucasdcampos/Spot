@@ -2,6 +2,7 @@
 
 #include "assets/asset_id.h"
 #include "assets/asset_ref.h"
+#include "assets/asset_type.h"
 #include "assets/assets.h"
 #include "graphics/color.h"
 #include "math/quaternion.h"
@@ -11,6 +12,9 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
+#include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -28,11 +32,74 @@ struct ArchiveState;
 template <typename T>
 concept ArchiveSerializable = requires(T& value, Archive& archive) { value.Serialize(archive); };
 
-// Saves or loads the fields of a component when its scene is saved or loaded. The same function does both, so
-// fields cannot get out of step:
+// What tools need to know about a field to edit it well. Files ignore it.
+struct FieldOptions {
+    // The range numbers stay in when tools change them; none when min is not below max.
+    float min = 0.0f;
+    float max = 0.0f;
+    // How much dragging a number by a pixel changes it; 0 lets tools pick a step from the range or the value.
+    float speed = 0.0f;
+    // The number is an angle in radians, which tools show in degrees.
+    bool angle = false;
+    // Colors may go above 1, as light colors scaled by an intensity do.
+    bool hdr = false;
+    // The names of an enum's values, in the order of their underlying values from 0.
+    std::span<const std::string_view> enumNames = {};
+    // Explains the field in tools.
+    const char* tooltip = nullptr;
+    // Tools show the field without letting it be changed.
+    bool readOnly = false;
+};
+
+// Where an Archive's fields come from and go to. The engine's scene and asset files are one kind; tools add their own,
+// such as an inspector that draws a widget for each field and changes the field when the widget is edited.
+class ArchiveBackend {
+public:
+    virtual ~ArchiveBackend() = default;
+
+    // Whether fields may be given new values, as when loading, rather than only read, as when saving.
+    virtual bool IsLoading() const = 0;
+
+    virtual void Field(std::string_view name, bool& value, const FieldOptions& options) = 0;
+    virtual void Field(std::string_view name, int& value, const FieldOptions& options) = 0;
+    virtual void Field(std::string_view name, std::uint32_t& value, const FieldOptions& options) = 0;
+    virtual void Field(std::string_view name, std::int64_t& value, const FieldOptions& options) = 0;
+    virtual void Field(std::string_view name, std::uint64_t& value, const FieldOptions& options) = 0;
+    virtual void Field(std::string_view name, float& value, const FieldOptions& options) = 0;
+    virtual void Field(std::string_view name, double& value, const FieldOptions& options) = 0;
+    virtual void Field(std::string_view name, std::string& value, const FieldOptions& options) = 0;
+    virtual void Field(std::string_view name, Vector2& value, const FieldOptions& options) = 0;
+    virtual void Field(std::string_view name, Vector3& value, const FieldOptions& options) = 0;
+    virtual void Field(std::string_view name, Vector4& value, const FieldOptions& options) = 0;
+    virtual void Field(std::string_view name, Quaternion& value, const FieldOptions& options) = 0;
+    virtual void Field(std::string_view name, Color& value, const FieldOptions& options) = 0;
+    virtual void Field(std::string_view name, EntityId& value, const FieldOptions& options) = 0;
+    // The type, when known, is the type of asset the id must be.
+    virtual void Field(std::string_view name, AssetId& value, std::optional<AssetType> type,
+                       const FieldOptions& options) = 0;
+    // Enums, as their underlying value; options name their values when they can.
+    virtual void EnumField(std::string_view name, std::int64_t& value, const FieldOptions& options) {
+        Field(name, value, options);
+    }
+
+    // Nested objects and arrays. When Begin...() returns false the field is skipped, and the matching End...() is
+    // not called. Arrays give their size, which a loading backend may change.
+    virtual bool BeginObject(std::string_view name, const FieldOptions& options) = 0;
+    virtual void EndObject() = 0;
+    virtual bool BeginArray(std::string_view name, std::size_t& size, const FieldOptions& options) = 0;
+    virtual void BeginElement(std::size_t index) = 0;
+    virtual void EndElement() = 0;
+    virtual void EndArray() = 0;
+
+    // Loads the assets that fields refer to; the running application's asset manager when null.
+    virtual AssetManager* GetAssetManager() const { return nullptr; }
+};
+
+// Saves or loads the fields of a component when its scene is saved or loaded, and lets tools edit them. The same
+// function does all of it, so fields cannot get out of step:
 //
 //     void Serialize(Spot::Archive& archive) override {
-//         archive.Field("speed", m_speed);
+//         archive.Field("speed", m_speed, {.min = 0.0f, .tooltip = "Units per second"});
 //         archive.Field("target", m_target);
 //     }
 //
@@ -40,43 +107,45 @@ concept ArchiveSerializable = requires(T& value, Archive& archive) { value.Seria
 // later keep their defaults in older files. Field names must be unique within an object.
 class Archive {
 public:
-    // Archives are made by the engine when it saves or loads a scene.
-    explicit Archive(Detail::ArchiveState& state) : m_state(state) {}
+    explicit Archive(ArchiveBackend& backend) : m_backend(&backend) {}
+    // Archives of the engine's files are made by the engine when it saves or loads them.
+    explicit Archive(Detail::ArchiveState& state);
+    ~Archive();
 
     Archive(const Archive&) = delete;
     Archive& operator=(const Archive&) = delete;
 
-    bool IsLoading() const;
+    bool IsLoading() const { return m_backend->IsLoading(); }
     bool IsSaving() const { return !IsLoading(); }
 
-    void Field(std::string_view name, bool& value);
-    void Field(std::string_view name, int& value);
-    void Field(std::string_view name, std::uint32_t& value);
-    void Field(std::string_view name, std::int64_t& value);
-    void Field(std::string_view name, std::uint64_t& value);
-    void Field(std::string_view name, float& value);
-    void Field(std::string_view name, double& value);
-    void Field(std::string_view name, std::string& value);
-    void Field(std::string_view name, Vector2& value);
-    void Field(std::string_view name, Vector3& value);
-    void Field(std::string_view name, Vector4& value);
-    void Field(std::string_view name, Quaternion& value);
-    void Field(std::string_view name, Color& value);
+    void Field(std::string_view name, bool& value, const FieldOptions& options = {});
+    void Field(std::string_view name, int& value, const FieldOptions& options = {});
+    void Field(std::string_view name, std::uint32_t& value, const FieldOptions& options = {});
+    void Field(std::string_view name, std::int64_t& value, const FieldOptions& options = {});
+    void Field(std::string_view name, std::uint64_t& value, const FieldOptions& options = {});
+    void Field(std::string_view name, float& value, const FieldOptions& options = {});
+    void Field(std::string_view name, double& value, const FieldOptions& options = {});
+    void Field(std::string_view name, std::string& value, const FieldOptions& options = {});
+    void Field(std::string_view name, Vector2& value, const FieldOptions& options = {});
+    void Field(std::string_view name, Vector3& value, const FieldOptions& options = {});
+    void Field(std::string_view name, Vector4& value, const FieldOptions& options = {});
+    void Field(std::string_view name, Quaternion& value, const FieldOptions& options = {});
+    void Field(std::string_view name, Color& value, const FieldOptions& options = {});
     // References to other entities. Entities loaded together keep referring to each other through their new ids;
     // references to entities that were not saved along load as EntityId::Invalid.
-    void Field(std::string_view name, EntityId& value);
+    void Field(std::string_view name, EntityId& value, const FieldOptions& options = {});
     // Saved as 32 hexadecimal digits, or null for the null id.
-    void Field(std::string_view name, AssetId& value);
+    void Field(std::string_view name, AssetId& value, const FieldOptions& options = {});
 
     // References to assets are saved as their id, and loaded through the asset manager the scene is loaded with,
     // or the running application's. Assets made in code have no id, so they are saved as null, with a warning.
     template <LoadableAsset T>
-    void Field(std::string_view name, AssetRef<T>& value) {
+    void Field(std::string_view name, AssetRef<T>& value, const FieldOptions& options = {}) {
         AssetId id = value.GetId();
         if (IsSaving() && !id.IsValid() && value) {
             WarnAssetWithoutId(name);
         }
-        Field(name, id);
+        m_backend->Field(name, id, AssetTypeOf<T>::Value, options);
         if (IsLoading() && id != value.GetId()) {
             AssetManager* assets = GetAssetManager();
             value = !id.IsValid() ? AssetRef<T>() : assets ? assets->Load<T>(id) : AssetRef<T>(id, nullptr);
@@ -86,52 +155,44 @@ public:
     // Enums are saved as their underlying value.
     template <typename T>
         requires std::is_enum_v<T>
-    void Field(std::string_view name, T& value) {
+    void Field(std::string_view name, T& value, const FieldOptions& options = {}) {
         auto underlying = static_cast<std::int64_t>(value);
-        Field(name, underlying);
+        m_backend->EnumField(name, underlying, options);
         value = static_cast<T>(underlying);
     }
 
     template <ArchiveSerializable T>
-    void Field(std::string_view name, T& value) {
-        std::size_t size = 0;
-        if (Enter(name, NodeKind::Object, size)) {
+    void Field(std::string_view name, T& value, const FieldOptions& options = {}) {
+        if (m_backend->BeginObject(name, options)) {
             value.Serialize(*this);
-            Leave();
+            m_backend->EndObject();
         }
     }
 
     // When loading, the vector is resized to the saved one, so T must be default-constructible.
     template <typename T>
-    void Field(std::string_view name, std::vector<T>& values) {
+    void Field(std::string_view name, std::vector<T>& values, const FieldOptions& options = {}) {
         std::size_t size = values.size();
-        if (!Enter(name, NodeKind::Array, size)) {
+        if (!m_backend->BeginArray(name, size, options)) {
             return;
         }
         if (IsLoading()) {
             values.resize(size);
         }
-        for (std::size_t i = 0; i < size; ++i) {
-            EnterElement(i);
+        for (std::size_t i = 0; i < values.size(); ++i) {
+            m_backend->BeginElement(i);
             Field({}, values[i]);
-            Leave();
+            m_backend->EndElement();
         }
-        Leave();
+        m_backend->EndArray();
     }
 
 private:
-    enum class NodeKind { Object, Array };
-
     AssetManager* GetAssetManager() const;
     static void WarnAssetWithoutId(std::string_view name);
 
-    // Makes the named field the current node, or the current node itself when the name is empty. When loading,
-    // returns false if it is missing or of another kind, and gives the size of arrays.
-    bool Enter(std::string_view name, NodeKind kind, std::size_t& size);
-    void EnterElement(std::size_t index);
-    void Leave();
-
-    Detail::ArchiveState& m_state;
+    std::unique_ptr<ArchiveBackend> m_ownedBackend;
+    ArchiveBackend* m_backend;
 };
 
 } // namespace Spot

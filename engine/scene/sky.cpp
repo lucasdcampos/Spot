@@ -43,13 +43,16 @@ SkyData Sky::GetSkyData() const {
 }
 
 void Sky::Serialize(Archive& archive) {
-    archive.Field("sunSize", m_sunSize);
-    archive.Field("atmosphereThickness", m_atmosphereThickness);
+    archive.Field("sunSize", m_sunSize,
+                  {.min = 0.0f, .max = ToRadians(10.0f), .angle = true, .tooltip = "The sun's angular radius"});
+    archive.Field("atmosphereThickness", m_atmosphereThickness,
+                  {.min = 0.0f, .max = 5.0f, .speed = 0.01f, .tooltip = "Thicker air scatters more light"});
     archive.Field("skyTint", m_skyTint);
     archive.Field("groundColor", m_groundColor);
-    archive.Field("nightColor", m_nightColor);
-    archive.Field("exposure", m_exposure);
-    archive.Field("ambientIntensity", m_ambientIntensity);
+    archive.Field("nightColor", m_nightColor, {.tooltip = "The light left when the sun is down"});
+    archive.Field("exposure", m_exposure, {.min = 0.0f, .max = 10.0f, .speed = 0.01f});
+    archive.Field("ambientIntensity", m_ambientIntensity,
+                  {.min = 0.0f, .max = 10.0f, .speed = 0.01f, .tooltip = "How much the sky lights the scene"});
 }
 
 } // namespace Spot

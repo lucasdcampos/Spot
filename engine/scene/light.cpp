@@ -15,9 +15,9 @@ Vector3 GetForward(const Entity& entity) {
 } // namespace
 
 void Light::Serialize(Archive& archive) {
-    archive.Field("color", m_color);
-    archive.Field("intensity", m_intensity);
-    archive.Field("castsShadows", m_castingShadows);
+    archive.Field("color", m_color, {.tooltip = "The light's color, before its intensity scales it"});
+    archive.Field("intensity", m_intensity, {.min = 0.0f, .max = 100.0f, .speed = 0.01f});
+    archive.Field("castsShadows", m_castingShadows, {.tooltip = "Whether meshes block the light"});
 }
 
 LightData Light::GetBaseLightData(LightType type) const {
@@ -45,7 +45,8 @@ LightData PointLight::GetLightData() const {
 
 void PointLight::Serialize(Archive& archive) {
     Light::Serialize(archive);
-    archive.Field("range", m_range);
+    archive.Field("range", m_range,
+                  {.min = 0.0f, .max = 1000.0f, .speed = 0.05f, .tooltip = "How far the light reaches"});
 }
 
 LightData SpotLight::GetLightData() const {
@@ -60,9 +61,12 @@ LightData SpotLight::GetLightData() const {
 
 void SpotLight::Serialize(Archive& archive) {
     Light::Serialize(archive);
-    archive.Field("range", m_range);
-    archive.Field("innerConeAngle", m_innerConeAngle);
-    archive.Field("outerConeAngle", m_outerConeAngle);
+    archive.Field("range", m_range,
+                  {.min = 0.0f, .max = 1000.0f, .speed = 0.05f, .tooltip = "How far the light reaches"});
+    archive.Field("innerConeAngle", m_innerConeAngle,
+                  {.min = 0.0f, .max = ToRadians(89.0f), .angle = true, .tooltip = "Where the light starts to fade"});
+    archive.Field("outerConeAngle", m_outerConeAngle,
+                  {.min = 0.0f, .max = ToRadians(89.0f), .angle = true, .tooltip = "Where the light ends"});
 }
 
 } // namespace Spot

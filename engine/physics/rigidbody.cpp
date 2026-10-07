@@ -91,11 +91,12 @@ void Rigidbody::OnDisable() {
 }
 
 void Rigidbody::Serialize(Archive& archive) {
-    archive.Field("mass", m_mass);
-    archive.Field("kinematic", m_kinematic);
-    archive.Field("gravityScale", m_gravityScale);
-    archive.Field("linearDamping", m_linearDamping);
-    archive.Field("angularDamping", m_angularDamping);
+    archive.Field("mass", m_mass, {.min = 0.001f, .max = 100000.0f, .speed = 0.05f, .tooltip = "In kilograms"});
+    archive.Field("kinematic", m_kinematic,
+                  {.tooltip = "Moved by its transform alone, pushing others without being pushed"});
+    archive.Field("gravityScale", m_gravityScale, {.min = -10.0f, .max = 10.0f, .speed = 0.01f});
+    archive.Field("linearDamping", m_linearDamping, {.min = 0.0f, .max = 100.0f, .speed = 0.01f});
+    archive.Field("angularDamping", m_angularDamping, {.min = 0.0f, .max = 100.0f, .speed = 0.01f});
 }
 
 void Rigidbody::MarkChanged() {

@@ -9,7 +9,7 @@ namespace Spot {
 void MeshRenderer::Serialize(Archive& archive) {
     archive.Field("mesh", m_mesh);
     archive.Field("material", m_material);
-    archive.Field("castsShadows", m_castingShadows);
+    archive.Field("castsShadows", m_castingShadows, {.tooltip = "Whether the mesh blocks lights that cast shadows"});
 }
 
 Entity& InstantiateModel(Scene& scene, const Model& model, std::string name) {

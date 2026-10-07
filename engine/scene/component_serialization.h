@@ -8,11 +8,17 @@
 namespace Spot {
 
 class AssetManager;
+class Archive;
 class Component;
 class Entity;
 
 // Single components as JSON, in the form scenes save them: type, enabled state and fields. Tools use them to copy a
 // component's values, or to take snapshots to undo changes. References to entities are kept as they are.
+
+// Runs the component's Serialize() with the archive, such as one whose backend draws an inspector.
+void SerializeComponent(Component& component, Archive& archive);
+// Calls the component's OnValidate(), as tools do after changing its fields.
+void ValidateComponent(Component& component);
 
 // Empty when the component's type is not registered.
 std::string SaveComponentToString(const Component& component);

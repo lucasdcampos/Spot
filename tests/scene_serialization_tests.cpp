@@ -6,10 +6,13 @@
 #include <catch2/matchers/catch_matchers_string.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 using Spot::Entity;
@@ -473,6 +476,126 @@ TEST_CASE("Loaded components are told to validate their fields", "[scene][serial
     REQUIRE(added);
     CHECK(added->validations == 1);
     Spot::UnregisterComponent("Validated");
+}
+
+namespace {
+
+// Lists the fields it sees, as "name:kind", and gives some new values, as an inspector would after edits.
+class RecordingBackend final : public Spot::ArchiveBackend {
+public:
+    std::vector<std::string> fields;
+    std::vector<Spot::FieldOptions> options;
+    std::optional<Spot::AssetType> assetType;
+
+    bool IsLoading() const override { return true; }
+
+    void Field(std::string_view name, bool& value, const Spot::FieldOptions& o) override {
+        Record(name, "bool", o);
+        value = true;
+    }
+    void Field(std::string_view name, int& value, const Spot::FieldOptions& o) override {
+        Record(name, "int", o);
+        value = 42;
+    }
+    void Field(std::string_view name, std::uint32_t&, const Spot::FieldOptions& o) override { Record(name, "u32", o); }
+    void Field(std::string_view name, std::int64_t&, const Spot::FieldOptions& o) override { Record(name, "i64", o); }
+    void Field(std::string_view name, std::uint64_t&, const Spot::FieldOptions& o) override { Record(name, "u64", o); }
+    void Field(std::string_view name, float& value, const Spot::FieldOptions& o) override {
+        Record(name, "float", o);
+        value = 2.5f;
+    }
+    void Field(std::string_view name, double&, const Spot::FieldOptions& o) override { Record(name, "double", o); }
+    void Field(std::string_view name, std::string& value, const Spot::FieldOptions& o) override {
+        Record(name, "string", o);
+        value = "edited";
+    }
+    void Field(std::string_view name, Spot::Vector2&, const Spot::FieldOptions& o) override { Record(name, "vec2", o); }
+    void Field(std::string_view name, Spot::Vector3&, const Spot::FieldOptions& o) override { Record(name, "vec3", o); }
+    void Field(std::string_view name, Spot::Vector4&, const Spot::FieldOptions& o) override { Record(name, "vec4", o); }
+    void Field(std::string_view name, Spot::Quaternion&, const Spot::FieldOptions& o) override {
+        Record(name, "quat", o);
+    }
+    void Field(std::string_view name, Spot::Color&, const Spot::FieldOptions& o) override { Record(name, "color", o); }
+    void Field(std::string_view name, EntityId&, const Spot::FieldOptions& o) override { Record(name, "entity", o); }
+    void Field(std::string_view name, Spot::AssetId&, std::optional<Spot::AssetType> type,
+               const Spot::FieldOptions& o) override {
+        Record(name, "asset", o);
+        assetType = type;
+    }
+    void EnumField(std::string_view name, std::int64_t& value, const Spot::FieldOptions& o) override {
+        Record(name, "enum", o);
+        value = 1;
+    }
+    bool BeginObject(std::string_view name, const Spot::FieldOptions& o) override {
+        Record(name, "{", o);
+        return true;
+    }
+    void EndObject() override { fields.push_back("}"); }
+    bool BeginArray(std::string_view name, std::size_t& size, const Spot::FieldOptions& o) override {
+        Record(name, "[", o);
+        size = 2;
+        return true;
+    }
+    void BeginElement(std::size_t index) override { fields.push_back(std::to_string(index)); }
+    void EndElement() override {}
+    void EndArray() override { fields.push_back("]"); }
+
+private:
+    void Record(std::string_view name, const char* kind, const Spot::FieldOptions& o) {
+        fields.push_back(std::string(name) + ":" + kind);
+        options.push_back(o);
+    }
+};
+
+class Annotated final : public Spot::Component {
+public:
+    float speed = 1.0f;
+    Team team = Team::Red;
+    std::vector<Waypoint> route;
+    std::string label;
+
+protected:
+    void Serialize(Spot::Archive& archive) override {
+        static constexpr std::array<std::string_view, 2> TeamNames{"Red", "Blue"};
+        archive.Field("speed", speed, {.min = 0.0f, .max = 10.0f, .tooltip = "Units per second"});
+        archive.Field("team", team, {.enumNames = TeamNames});
+        archive.Field("route", route);
+        archive.Field("label", label, {.readOnly = true});
+    }
+};
+
+} // namespace
+
+TEST_CASE("Archives hand fields and their options to any backend, which can change them", "[scene][serialization]") {
+    Spot::RegisterComponent<Annotated>("Annotated");
+    Scene scene;
+    auto& component = scene.CreateEntity().AddComponent<Annotated>();
+    RecordingBackend backend;
+    Spot::Archive archive(backend);
+
+    Spot::SerializeComponent(component, archive);
+
+    CHECK(backend.fields == std::vector<std::string>{"speed:float", "team:enum", "route:[", "0", ":{", "position:vec2",
+                                                     "wait:float", "}", "1", ":{", "position:vec2", "wait:float", "}",
+                                                     "]", "label:string"});
+    CHECK(backend.options[0].max == 10.0f);
+    CHECK(std::string(backend.options[0].tooltip) == "Units per second");
+    REQUIRE(backend.options[1].enumNames.size() == 2);
+    CHECK(backend.options[1].enumNames[1] == "Blue");
+    CHECK(backend.options.back().readOnly);
+    CHECK(component.speed == 2.5f);
+    CHECK(component.team == Team::Blue);
+    CHECK(component.route.size() == 2);
+    CHECK(component.label == "edited");
+
+    // Asset references tell the backend which type of asset they take.
+    auto& renderer = scene.CreateEntity().AddComponent<Spot::MeshRenderer>();
+    RecordingBackend rendererBackend;
+    Spot::Archive rendererArchive(rendererBackend);
+    Spot::SerializeComponent(renderer, rendererArchive);
+    REQUIRE(rendererBackend.assetType.has_value());
+    CHECK(*rendererBackend.assetType == Spot::AssetType::Material);
+    Spot::UnregisterComponent("Annotated");
 }
 
 TEST_CASE("Scenes save to and load from files", "[scene][serialization]") {

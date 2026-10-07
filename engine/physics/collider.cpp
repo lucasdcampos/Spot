@@ -33,9 +33,10 @@ void Collider::OnDisable() {
 }
 
 void Collider::Serialize(Archive& archive) {
-    archive.Field("center", m_center);
-    archive.Field("friction", m_friction);
-    archive.Field("restitution", m_restitution);
+    archive.Field("center", m_center, {.speed = 0.01f, .tooltip = "Where the shape is, from the entity"});
+    archive.Field("friction", m_friction, {.min = 0.0f, .max = 1.0f, .speed = 0.005f});
+    archive.Field("restitution", m_restitution,
+                  {.min = 0.0f, .max = 1.0f, .speed = 0.005f, .tooltip = "How much it bounces"});
 }
 
 void Collider::MarkChanged() {
@@ -49,7 +50,7 @@ void BoxCollider::SetSize(Vector3 size) {
 
 void BoxCollider::Serialize(Archive& archive) {
     Collider::Serialize(archive);
-    archive.Field("size", m_size);
+    archive.Field("size", m_size, {.min = 0.0f, .max = 10000.0f, .speed = 0.01f});
 }
 
 Detail::PhysicsShape BoxCollider::GetShape(Vector3 scale) const {
@@ -68,7 +69,7 @@ void SphereCollider::SetRadius(float radius) {
 
 void SphereCollider::Serialize(Archive& archive) {
     Collider::Serialize(archive);
-    archive.Field("radius", m_radius);
+    archive.Field("radius", m_radius, {.min = 0.0f, .max = 10000.0f, .speed = 0.01f});
 }
 
 Detail::PhysicsShape SphereCollider::GetShape(Vector3 scale) const {
@@ -92,8 +93,9 @@ void CapsuleCollider::SetHeight(float height) {
 
 void CapsuleCollider::Serialize(Archive& archive) {
     Collider::Serialize(archive);
-    archive.Field("radius", m_radius);
-    archive.Field("height", m_height);
+    archive.Field("radius", m_radius, {.min = 0.0f, .max = 10000.0f, .speed = 0.01f});
+    archive.Field("height", m_height,
+                  {.min = 0.0f, .max = 10000.0f, .speed = 0.01f, .tooltip = "From end to end, rounded ends included"});
 }
 
 Detail::PhysicsShape CapsuleCollider::GetShape(Vector3 scale) const {
