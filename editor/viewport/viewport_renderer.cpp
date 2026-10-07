@@ -23,6 +23,7 @@ struct GridUniforms {
     Matrix4 inverseViewProjection;
     Matrix4 viewProjection;
     Vector4 camera;
+    Vector4 options;
 };
 
 struct OutlineUniforms {
@@ -109,6 +110,8 @@ ViewportRenderer::ViewportRenderer(GraphicsDevice& device)
       m_sampleCount(device.SupportsSampleCount(ColorFormat, PreferredSampleCount) ? PreferredSampleCount : 1) {
     m_renderer = std::make_unique<Renderer3D>(
         device, Renderer3DConfig{.targetFormat = ColorFormat, .sampleCount = m_sampleCount});
+    m_sprites = std::make_unique<Renderer2D>(
+        device, Renderer2DConfig{.targetFormat = ColorFormat, .sampleCount = m_sampleCount});
 
     const auto fullscreenShader = device.CreateShader(Shaders::FullscreenVert);
     const auto gridShader = device.CreateShader(Shaders::GridFrag);
@@ -169,6 +172,7 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
         return;
     }
     const bool drawGrid = options.showGrid && m_grid;
+    const bool drawSprites = m_sprites->IsValid() && scene.FindComponent<SpriteRenderer>();
     Texture* samples = targets.GetSamples();
     m_renderer->Begin(context,
                       {.target = samples ? samples : targets.GetColor(),
@@ -176,7 +180,7 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
                        .depthTarget = targets.GetDepth(),
                        .clearDepth = 1.0f,
                        .resolveTarget = samples ? targets.GetColor() : nullptr,
-                       .keepSamples = samples && drawGrid},
+                       .keepSamples = samples && (drawGrid || drawSprites)},
                       camera);
     if (!scene.FindComponent<Light>() && !scene.FindComponent<Sky>()) {
         DrawDefaultLights(*m_renderer);
@@ -184,8 +188,19 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
     m_renderer->DrawScene(scene);
     m_renderer->End();
 
+    // Sprites go over the meshes, as 2D games draw them, without a depth target.
+    if (drawSprites) {
+        auto pass = context.BeginRenderPass({.target = samples ? samples : targets.GetColor(),
+                                             .resolveTarget = samples ? targets.GetColor() : nullptr,
+                                             .keepSamples = samples && drawGrid});
+        const Vector2 size{static_cast<float>(targets.GetWidth()), static_cast<float>(targets.GetHeight())};
+        m_sprites->Begin(pass, camera.GetViewProjection(size));
+        m_sprites->DrawScene(scene);
+        m_sprites->End();
+    }
+
     if (drawGrid) {
-        DrawGrid(context, targets, camera);
+        DrawGrid(context, targets, camera, options.grid2D);
     }
 }
 
@@ -251,7 +266,8 @@ std::optional<std::size_t> ViewportRenderer::ReadPick() {
     return value == 0 ? std::nullopt : std::optional<std::size_t>(value - 1);
 }
 
-void ViewportRenderer::DrawGrid(RenderContext& context, const ViewportTargets& targets, const Camera3D& camera) {
+void ViewportRenderer::DrawGrid(RenderContext& context, const ViewportTargets& targets, const Camera3D& camera,
+                                bool plane2D) {
     Texture* samples = targets.GetSamples();
     auto pass = context.BeginRenderPass({.target = samples ? samples : targets.GetColor(),
                                          .depthTarget = targets.GetDepth(),
@@ -259,10 +275,13 @@ void ViewportRenderer::DrawGrid(RenderContext& context, const ViewportTargets& t
     const Vector2 size{static_cast<float>(targets.GetWidth()), static_cast<float>(targets.GetHeight())};
     const Matrix4 viewProjection = camera.GetViewProjection(size);
     pass.BindPipeline(*m_grid);
-    pass.PushFragmentUniforms(
-        0, GridUniforms{.inverseViewProjection = Inverse(viewProjection),
-                        .viewProjection = viewProjection,
-                        .camera = {camera.position.x, camera.position.y, camera.position.z, GridReach}});
+    // In 2D the grid reaches a few views across, however far the view is zoomed out.
+    const float reach = plane2D ? camera.orthographicSize * 8.0f : GridReach;
+    pass.PushFragmentUniforms(0,
+                              GridUniforms{.inverseViewProjection = Inverse(viewProjection),
+                                           .viewProjection = viewProjection,
+                                           .camera = {camera.position.x, camera.position.y, camera.position.z, reach},
+                                           .options = {plane2D ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f}});
     pass.Draw(3);
 }
 

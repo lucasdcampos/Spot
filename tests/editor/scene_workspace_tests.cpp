@@ -111,6 +111,48 @@ TEST_CASE("Flying turns the eye in place and moves it with the keys", "[editor][
     CHECK(camera.GetDistance() == Approx(5.0f));
 }
 
+TEST_CASE("2D views look at the XY plane, slide with the mouse and zoom toward it", "[editor][camera]") {
+    Spot::Editor::EditorCamera camera;
+    camera.SetView({1.0f, 2.0f, 3.0f}, 0.5f, -0.25f, 7.0f);
+    camera.Set2D(true);
+    camera.SetCenter2D({0.0f, 0.0f});
+    camera.SetSize2D(5.0f);
+    const Spot::Camera3D view = camera.GetCamera();
+    CHECK(view.orthographic);
+    CHECK(view.orthographicSize == 5.0f);
+    CHECK(view.rotation == Spot::Quaternion::Identity());
+    CHECK(view.position.x == 0.0f);
+    CHECK(view.position.z > 0.0f);
+    CHECK(camera.GetFocus() == Spot::Vector3{0.0f, 0.0f, 0.0f});
+
+    // The plane follows the mouse: 100 pixels of a 100 pixel tall view are 10 units.
+    camera.Update({.mouseDelta = {100.0f, 0.0f}, .pan = true, .viewHeight = 100.0f});
+    CHECK(camera.GetCenter2D().x == Approx(-10.0f));
+    camera.Update({.mouseDelta = {0.0f, 50.0f}, .look = true, .viewHeight = 100.0f});
+    CHECK(camera.GetCenter2D().y == Approx(5.0f));
+
+    // Zooming keeps the point under the mouse in place.
+    camera.SetCenter2D({0.0f, 0.0f});
+    const Spot::Vector2 cursor{25.0f, -25.0f};
+    const auto under = [&] {
+        const float unitsPerPixel = 2.0f * camera.GetSize2D() / 100.0f;
+        return camera.GetCenter2D() + Spot::Vector2{cursor.x, -cursor.y} * unitsPerPixel;
+    };
+    const Spot::Vector2 before = under();
+    camera.Update({.wheel = 2.0f, .viewHeight = 100.0f, .cursor = cursor});
+    CHECK(camera.GetSize2D() < 5.0f);
+    CHECK(under().x == Approx(before.x));
+    CHECK(under().y == Approx(before.y));
+
+    camera.Frame({3.0f, 4.0f, 9.0f}, 2.0f);
+    CHECK(camera.GetCenter2D() == Spot::Vector2{3.0f, 4.0f});
+    CHECK(camera.GetSize2D() == Approx(2.2f));
+    // The 3D view stays as it was.
+    camera.Set2D(false);
+    CHECK(camera.GetPivot() == Spot::Vector3{1.0f, 2.0f, 3.0f});
+    CHECK(camera.GetDistance() == Approx(7.0f));
+}
+
 TEST_CASE("Panning slides the pivot and framing fits a sphere", "[editor][camera]") {
     Spot::Editor::EditorCamera camera;
     camera.SetView({}, 0.0f, 0.0f, 5.0f);
@@ -136,6 +178,8 @@ TEST_CASE("The workspace opens the project's startup scene and remembers its vie
     CHECK_FALSE(document->IsDirty());
     fixture.Frame();
     fixture.workspace->GetActiveView()->GetCamera().SetView({1.0f, 2.0f, 3.0f}, 0.5f, -0.25f, 7.0f);
+    fixture.workspace->GetActiveView()->GetCamera().Set2D(true);
+    fixture.workspace->GetActiveView()->GetCamera().SetCenter2D({4.0f, 5.0f});
     const std::vector<Spot::Entity*> roots = document->GetScene().GetRootEntities();
     REQUIRE(roots.size() >= 2);
     const std::string selected = roots[1]->GetName();
@@ -151,6 +195,8 @@ TEST_CASE("The workspace opens the project's startup scene and remembers its vie
     CHECK(camera.GetPivot() == Spot::Vector3{1.0f, 2.0f, 3.0f});
     CHECK(camera.GetYaw() == Approx(0.5f));
     CHECK(camera.GetDistance() == Approx(7.0f));
+    CHECK(camera.Is2D());
+    CHECK(camera.GetCenter2D() == Spot::Vector2{4.0f, 5.0f});
     // Entities get new ids when the scene loads again, and the same ones are selected.
     document = fixture.workspace->GetActiveDocument();
     const Spot::Entity* primary = document->GetScene().GetEntity(document->GetSelection().GetPrimary());

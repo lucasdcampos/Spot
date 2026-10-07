@@ -34,8 +34,9 @@ public:
     // Draws the handles for the document's selection over the view's rectangle in the current window, and changes
     // the entities while they are dragged. The id tells the gizmos of different views apart. The area is the item
     // that takes the view's mouse input, under the handles: the gizmo starts a drag over it as if it were not there.
+    // In 2D views the handles only move along X and Y, turn around Z and scale X and Y.
     void Draw(SceneDocument& document, const Camera3D& camera, ImVec2 origin, ImVec2 size,
-              const GizmoSettings& settings, int id, ImGuiID area);
+              const GizmoSettings& settings, int id, ImGuiID area, bool view2D = false);
     bool IsDragging() const { return m_dragging; }
 
     // Whether the mouse was over the handles of a gizmo last frame, or one is being dragged, so views leave the mouse

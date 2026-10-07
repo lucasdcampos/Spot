@@ -44,19 +44,14 @@ BoundingSphere GetWorldBounds(const Entity& entity) {
 // Orange, as sRGB (1.0, 0.55, 0.1) is, in the linear values the renderers take: it stands out from skies and grounds.
 constexpr Color SelectionOutlineColor{1.0f, 0.262f, 0.010f, 1.0f};
 
-// The meshes of the entity and of the entities below it, as the scene draws them.
-void AddMeshes(const Entity& entity, std::vector<MeshInstance>& meshes) {
-    if (!entity.IsActiveInHierarchy()) {
-        return;
-    }
-    for (const MeshRenderer* renderer : entity.GetComponents<MeshRenderer>()) {
-        if (renderer->IsEnabled() && renderer->GetMesh()) {
-            meshes.push_back({renderer->GetMesh().Get(), entity.GetTransform().GetWorldMatrix()});
-        }
-    }
-    for (const Entity* child : entity.GetChildren()) {
-        AddMeshes(*child, meshes);
-    }
+// Cameras' frustums are drawn as wide as most games' views are.
+constexpr float GameAspectRatio = 16.0f / 9.0f;
+
+// Where a sprite's rectangle is: the built-in plane, which lies in XZ, turned to face +Z and sized like the sprite.
+Matrix4 GetSpriteMatrix(const SpriteRenderer& sprite) {
+    const Vector2 size = sprite.GetSize();
+    return sprite.GetEntity().GetTransform().GetWorldMatrix() * Matrix4::Scale({size.x, size.y, 1.0f}) *
+           Matrix4::Rotation(Quaternion::FromAxisAngle({1.0f, 0.0f, 0.0f}, ToRadians(90.0f)));
 }
 
 // Where the view cube goes: the view's top-right corner.
@@ -68,6 +63,9 @@ ImRect GetViewCubeRect(const ImVec2& origin, const ImVec2& size) {
 }
 
 const char* GetLightIcon(const Entity& entity) {
+    if (entity.GetComponent<Camera>()) {
+        return ICON_FA_VIDEO;
+    }
     if (entity.GetComponent<DirectionalLight>()) {
         return ICON_FA_SUN;
     }
@@ -131,6 +129,7 @@ void SceneView::DrawViewport(EditorContext& context, ViewportRenderer* renderer)
     const auto width = static_cast<std::uint32_t>(std::lround(size.x * scale.x));
     const auto height = static_cast<std::uint32_t>(std::lround(size.y * scale.y));
     m_outlineWidth = std::clamp(2.0f * ImGui::GetStyle().FontScaleDpi, 1.0f, 3.0f);
+    m_options.grid2D = m_camera.Is2D();
 
     // A click drawn into the picking target last frame is read now that the GPU has drawn it.
     if (std::optional<PickRequest> picking = std::exchange(m_picking, std::nullopt)) {
@@ -172,10 +171,13 @@ void SceneView::DrawViewport(EditorContext& context, ViewportRenderer* renderer)
     if (!m_looking) {
         HandleEntityShortcuts(m_document);
     }
+    DrawCameraFrustums(origin, size);
     DrawIcons(origin, size);
-    DrawViewCube(origin, size);
-    m_gizmo.Draw(m_document, m_camera.GetCamera(), origin, size, context.GetSettings().GetGizmo(), GetGizmoId(),
-                 areaId);
+    if (!m_camera.Is2D()) {
+        DrawViewCube(origin, size);
+    }
+    m_gizmo.Draw(m_document, m_camera.GetCamera(), origin, size, context.GetSettings().GetGizmo(), GetGizmoId(), areaId,
+                 m_camera.Is2D());
     // A click on the gizmo's handles drags them instead of selecting.
     if (clicked && !TransformGizmo::WantsMouse()) {
         ImGui::SetWindowFocus();
@@ -245,6 +247,10 @@ Vector3 SceneView::GetGroundPoint(const ImVec2& origin, const ImVec2& size) cons
     };
     const Vector3 from = unproject(0.0f);
     const Vector3 direction = unproject(1.0f) - from;
+    // 2D views look at the XY plane, where the mouse always points.
+    if (m_camera.Is2D()) {
+        return {from.x, from.y, 0.0f};
+    }
     constexpr float MaxDistance = 500.0f;
     if (direction.y < -1e-6f) {
         const Vector3 hit = from + direction * (-from.y / direction.y);
@@ -252,7 +258,7 @@ Vector3 SceneView::GetGroundPoint(const ImVec2& origin, const ImVec2& size) cons
             return hit;
         }
     }
-    return m_camera.GetPivot();
+    return m_camera.GetFocus();
 }
 
 void SceneView::ApplyPick(const PickRequest& request, EntityId entity) {
@@ -324,6 +330,9 @@ void SceneView::UpdateCamera(EditorContext& context, bool hovered, bool active, 
     input.pan = active && ImGui::IsMouseDown(ImGuiMouseButton_Middle);
     input.orbit = active && io.KeyAlt && ImGui::IsMouseDown(ImGuiMouseButton_Left);
     input.wheel = hovered || input.look ? io.MouseWheel : 0.0f;
+    const ImVec2 windowCenter{ImGui::GetItemRectMin().x + ImGui::GetItemRectSize().x * 0.5f,
+                              ImGui::GetItemRectMin().y + ImGui::GetItemRectSize().y * 0.5f};
+    input.cursor = {io.MousePos.x - windowCenter.x, io.MousePos.y - windowCenter.y};
     if (input.look) {
         const auto axis = [](ImGuiKey positive, ImGuiKey negative) {
             return (ImGui::IsKeyDown(positive) ? 1.0f : 0.0f) - (ImGui::IsKeyDown(negative) ? 1.0f : 0.0f);
@@ -377,6 +386,75 @@ void SceneView::DrawIcons(const ImVec2& origin, const ImVec2& size) {
     drawList->PopClipRect();
 }
 
+void SceneView::AddMeshes(const Entity& entity, std::vector<MeshInstance>& meshes) const {
+    if (!entity.IsActiveInHierarchy()) {
+        return;
+    }
+    for (const MeshRenderer* renderer : entity.GetComponents<MeshRenderer>()) {
+        if (renderer->IsEnabled() && renderer->GetMesh()) {
+            meshes.push_back({renderer->GetMesh().Get(), entity.GetTransform().GetWorldMatrix()});
+        }
+    }
+    for (const SpriteRenderer* sprite : entity.GetComponents<SpriteRenderer>()) {
+        if (sprite->IsEnabled() && m_plane) {
+            meshes.push_back({m_plane.Get(), GetSpriteMatrix(*sprite)});
+        }
+    }
+    for (const Entity* child : entity.GetChildren()) {
+        AddMeshes(*child, meshes);
+    }
+}
+
+void SceneView::DrawCameraFrustums(const ImVec2& origin, const ImVec2& size) {
+    const Matrix4 viewProjection = m_camera.GetCamera().GetViewProjection({size.x, size.y});
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    drawList->PushClipRect(origin, {origin.x + size.x, origin.y + size.y}, true);
+    const float thickness = ImGui::GetStyle().FontScaleDpi;
+    m_document.GetScene().ForEachComponent<Camera>([&](Camera& component) {
+        const Camera3D camera = component.GetCamera3D();
+        // Out to a few units, past which the lines would only clutter the view.
+        const float depth = std::min(camera.farPlane, camera.orthographic ? camera.orthographicSize * 4.0f : 4.0f);
+        const auto rectangle = [&](float distance) {
+            const float halfHeight =
+                camera.orthographic ? camera.orthographicSize : std::tan(camera.fieldOfView * 0.5f) * distance;
+            const float halfWidth = halfHeight * GameAspectRatio;
+            std::array<Vector3, 4> corners;
+            const std::array<Vector2, 4> signs{{{-1.0f, -1.0f}, {1.0f, -1.0f}, {1.0f, 1.0f}, {-1.0f, 1.0f}}};
+            for (std::size_t i = 0; i < 4; ++i) {
+                corners[i] = camera.position +
+                             camera.rotation * Vector3{signs[i].x * halfWidth, signs[i].y * halfHeight, -distance};
+            }
+            return corners;
+        };
+        const auto toScreen = [&](Vector3 point, ImVec2& screen) {
+            const Vector4 clip = viewProjection * Vector4{point.x, point.y, point.z, 1.0f};
+            if (clip.w <= 1e-4f) {
+                return false;
+            }
+            screen = {origin.x + (clip.x / clip.w * 0.5f + 0.5f) * size.x,
+                      origin.y + (0.5f - clip.y / clip.w * 0.5f) * size.y};
+            return true;
+        };
+        const bool selected = m_document.GetSelection().Contains(component.GetEntity().GetId());
+        const ImU32 color = selected ? ImGui::GetColorU32(EditorColors::Accent) : IM_COL32(200, 200, 210, 140);
+        const std::array nearCorners = rectangle(camera.nearPlane);
+        const std::array farCorners = rectangle(depth);
+        const auto line = [&](Vector3 a, Vector3 b) {
+            ImVec2 from;
+            ImVec2 to;
+            if (toScreen(a, from) && toScreen(b, to)) {
+                drawList->AddLine(from, to, color, thickness);
+            }
+        };
+        for (std::size_t i = 0; i < 4; ++i) {
+            line(nearCorners[i], nearCorners[(i + 1) % 4]);
+            line(farCorners[i], farCorners[(i + 1) % 4]);
+            line(nearCorners[i], farCorners[i]);
+        }
+    });
+    drawList->PopClipRect();
+}
+
 void SceneView::DrawOverlay(const ImVec2& origin) {
     // A small bar over the view's top-left corner, for what changes how the view looks.
     const ImVec2 padding = ImGui::GetStyle().WindowPadding;
@@ -384,6 +462,16 @@ void SceneView::DrawOverlay(const ImVec2& origin) {
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.10f, 0.11f, 0.13f, 0.80f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.21f, 0.24f, 0.90f));
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f * ImGui::GetStyle().FontScaleDpi);
+    const bool view2D = m_camera.Is2D();
+    ImGui::PushStyleColor(ImGuiCol_Text, view2D ? EditorColors::Accent : ImGui::GetStyleColorVec4(ImGuiCol_Text));
+    if (ImGui::Button(view2D ? "2D" : "3D")) {
+        m_camera.Set2D(!view2D);
+    }
+    ImGui::PopStyleColor();
+    ImGui::SetItemTooltip(view2D ? "2D: looking at the XY plane; drag with the right or middle button to move, and "
+                                   "use the wheel to zoom\nClick for 3D"
+                                 : "3D: looking around the scene\nClick for 2D, looking at the XY plane");
+    ImGui::SameLine();
     const bool gridShown = m_options.showGrid;
     ImGui::PushStyleColor(ImGuiCol_Text, gridShown ? EditorColors::Accent : ImGui::GetStyleColorVec4(ImGuiCol_Text));
     if (ImGui::Button(ICON_FA_TABLE_CELLS)) {
@@ -391,7 +479,16 @@ void SceneView::DrawOverlay(const ImVec2& origin) {
     }
     ImGui::PopStyleColor();
     ImGui::SetItemTooltip(gridShown ? "Hide the grid" : "Show the grid");
-    ImGui::SameLine();
+    // Only 3D views fly.
+    if (!view2D) {
+        ImGui::SameLine();
+        DrawSpeedButton();
+    }
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor(2);
+}
+
+void SceneView::DrawSpeedButton() {
     const std::string speed = std::format("{} {:.1f} m/s", ICON_FA_GAUGE_HIGH, m_camera.GetSpeed());
     if (ImGui::Button(speed.c_str())) {
         ImGui::OpenPopup("##CameraSettings");
@@ -406,8 +503,6 @@ void SceneView::DrawOverlay(const ImVec2& origin) {
         }
         ImGui::EndPopup();
     }
-    ImGui::PopStyleVar();
-    ImGui::PopStyleColor(2);
 }
 
 void SceneView::Render(RenderContext& context, ViewportRenderer& renderer) {
@@ -417,6 +512,9 @@ void SceneView::Render(RenderContext& context, ViewportRenderer& renderer) {
     const Camera3D camera = m_camera.GetCamera();
     renderer.Render(context, m_targets, m_document.GetScene(), camera, m_options);
 
+    if (!m_plane) {
+        m_plane = Assets::Load<Mesh>(BuiltInAssets::PlaneMesh);
+    }
     std::vector<MeshInstance> selected;
     for (const Entity* entity : GetSelectedEntities(m_document)) {
         AddMeshes(*entity, selected);
@@ -426,12 +524,21 @@ void SceneView::Render(RenderContext& context, ViewportRenderer& renderer) {
     if (m_pick) {
         std::vector<MeshInstance> meshes;
         m_pickEntities.clear();
-        m_document.GetScene().ForEachComponent<MeshRenderer>([&](MeshRenderer& meshRenderer) {
-            if (meshRenderer.GetMesh()) {
-                const Entity& entity = meshRenderer.GetEntity();
-                meshes.push_back({meshRenderer.GetMesh().Get(), entity.GetTransform().GetWorldMatrix()});
-                m_pickEntities.push_back(entity.GetId());
+        m_document.GetScene().ForEachEntity([&](Entity& entity) {
+            if (!entity.IsActiveInHierarchy()) {
+                return;
             }
+            for (const MeshRenderer* meshRenderer : entity.GetComponents<MeshRenderer>()) {
+                if (meshRenderer->IsEnabled() && meshRenderer->GetMesh()) {
+                    meshes.push_back({meshRenderer->GetMesh().Get(), entity.GetTransform().GetWorldMatrix()});
+                }
+            }
+            for (const SpriteRenderer* sprite : entity.GetComponents<SpriteRenderer>()) {
+                if (sprite->IsEnabled() && m_plane) {
+                    meshes.push_back({m_plane.Get(), GetSpriteMatrix(*sprite)});
+                }
+            }
+            m_pickEntities.resize(meshes.size(), entity.GetId());
         });
         renderer.RenderPick(context, camera, {static_cast<float>(m_width), static_cast<float>(m_height)}, m_pick->pixel,
                             meshes);

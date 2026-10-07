@@ -3,6 +3,8 @@ cbuffer Grid : register(b0, space3) {
     float4x4 viewProjection;
     // xyz: the camera's position; w: how far the grid reaches before it fades out.
     float4 camera;
+    // x: 1 for the XY plane, as 2D views see it, or 0 for the ground, the XZ plane.
+    float4 options;
 };
 
 struct Input {
@@ -37,10 +39,13 @@ float Axis(float coordinate, float width) {
 }
 
 Output main(Input input) {
+    const bool flat = options.x > 0.5;
     const float3 nearPoint = Unproject(input.clip, 0.0);
     const float3 farPoint = Unproject(input.clip, 1.0);
-    const float run = farPoint.y - nearPoint.y;
-    const float along = abs(run) > 1e-6 ? -nearPoint.y / run : -1.0;
+    // How far each point is from the plane, along its normal.
+    const float nearHeight = flat ? nearPoint.z : nearPoint.y;
+    const float run = (flat ? farPoint.z : farPoint.y) - nearHeight;
+    const float along = abs(run) > 1e-6 ? -nearHeight / run : -1.0;
     if (along <= 0.0) {
         discard;
     }
@@ -51,19 +56,20 @@ Output main(Input input) {
         discard;
     }
 
+    const float2 plane = flat ? world.xy : world.xz;
     float3 color = float3(0.32, 0.33, 0.36);
-    float alpha = max(Lines(world.xz, 1.0) * 0.35, Lines(world.xz * 0.1, 1.3) * 0.6);
-    // The X axis runs where z is 0, red; the Z axis where x is 0, blue.
-    const float xAxis = Axis(world.z, 1.6);
-    const float zAxis = Axis(world.x, 1.6);
+    float alpha = max(Lines(plane, 1.0) * 0.35, Lines(plane * 0.1, 1.3) * 0.6);
+    // The X axis is red; the other is green for Y in 2D, or blue for Z on the ground.
+    const float xAxis = Axis(plane.y, 1.6);
+    const float otherAxis = Axis(plane.x, 1.6);
     color = lerp(color, float3(0.80, 0.16, 0.18), xAxis);
-    color = lerp(color, float3(0.16, 0.36, 0.86), zAxis);
-    alpha = max(alpha, max(xAxis, zAxis) * 0.85);
+    color = lerp(color, flat ? float3(0.30, 0.68, 0.24) : float3(0.16, 0.36, 0.86), otherAxis);
+    alpha = max(alpha, max(xAxis, otherAxis) * 0.85);
 
-    // Fades with distance, and where the ground is seen edge-on, where lines crowd together.
-    const float fade = saturate(1.0 - length(world.xz - camera.xz) / camera.w);
+    // Fades with distance, and where the plane is seen edge-on, where lines crowd together.
+    const float fade = saturate(1.0 - length(plane - (flat ? camera.xy : camera.xz)) / camera.w);
     const float3 view = normalize(world - camera.xyz);
-    alpha *= fade * fade * saturate(abs(view.y) * 6.0);
+    alpha *= fade * fade * saturate(abs(flat ? view.z : view.y) * 6.0);
     if (alpha <= 0.002) {
         discard;
     }

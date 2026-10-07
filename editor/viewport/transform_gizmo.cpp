@@ -58,7 +58,7 @@ Pose ApplyGizmoChange(GizmoTool tool, const GizmoTarget& target, const Matrix4& 
 }
 
 void TransformGizmo::Draw(SceneDocument& document, const Camera3D& camera, ImVec2 origin, ImVec2 size,
-                          const GizmoSettings& settings, int id, ImGuiID area) {
+                          const GizmoSettings& settings, int id, ImGuiID area, bool view2D) {
     Scene& scene = document.GetScene();
     const Entity* primary = scene.GetEntity(document.GetSelection().GetPrimary());
     const GizmoTool tool = m_dragging ? m_tool : settings.tool;
@@ -78,9 +78,14 @@ void TransformGizmo::Draw(SceneDocument& document, const Camera3D& camera, ImVec
                        : tool == GizmoTool::Rotate ? settings.rotateStep
                                                    : settings.scaleStep;
     const std::array steps{step, step, step};
-    const ImGuizmo::OPERATION operation = tool == GizmoTool::Move     ? ImGuizmo::TRANSLATE
-                                          : tool == GizmoTool::Rotate ? ImGuizmo::ROTATE
-                                                                      : ImGuizmo::SCALE;
+    ImGuizmo::OPERATION operation = tool == GizmoTool::Move     ? ImGuizmo::TRANSLATE
+                                    : tool == GizmoTool::Rotate ? ImGuizmo::ROTATE
+                                                                : ImGuizmo::SCALE;
+    if (view2D) {
+        operation = tool == GizmoTool::Move     ? ImGuizmo::TRANSLATE_X | ImGuizmo::TRANSLATE_Y
+                    : tool == GizmoTool::Rotate ? ImGuizmo::ROTATE_Z
+                                                : ImGuizmo::SCALE_X | ImGuizmo::SCALE_Y;
+    }
 
     // ImGuizmo only starts a drag while no item is hovered or active, but the view's area always is under the
     // handles; it is hidden from ImGuizmo meanwhile.
@@ -91,7 +96,7 @@ void TransformGizmo::Draw(SceneDocument& document, const Camera3D& camera, ImVec
     const ImGuiID active = hide(imgui.ActiveId);
 
     ImGuizmo::PushID(id);
-    ImGuizmo::SetOrthographic(false);
+    ImGuizmo::SetOrthographic(camera.orthographic);
     ImGuizmo::SetDrawlist(ImGui::GetWindowDrawList());
     ImGuizmo::SetRect(origin.x, origin.y, size.x, size.y);
     const bool changed = ImGuizmo::Manipulate(view.GetData(), projection.GetData(), operation,

@@ -77,8 +77,13 @@ private:
     void DrawViewport(EditorContext& context, ViewportRenderer* renderer);
     void UpdateCamera(EditorContext& context, bool hovered, bool active, float viewHeight);
     void DrawIcons(const ImVec2& origin, const ImVec2& size);
+    // Lines around what cameras see, for placing them.
+    void DrawCameraFrustums(const ImVec2& origin, const ImVec2& size);
+    // The meshes the view draws for an entity and those below it, sprites included, for picking and outlines.
+    void AddMeshes(const Entity& entity, std::vector<MeshInstance>& meshes) const;
     void DrawViewCube(const ImVec2& origin, const ImVec2& size);
     void DrawOverlay(const ImVec2& origin);
+    void DrawSpeedButton();
     void HandleClick(const ImVec2& origin, const ImVec2& scale);
     void HandleAssetDrop(EditorContext& context, std::span<const AssetId> assets, const ImVec2& origin,
                          const ImVec2& size, const ImVec2& scale);
@@ -107,6 +112,8 @@ private:
     std::optional<PickRequest> m_pick;
     std::optional<PickRequest> m_picking;
     std::vector<EntityId> m_pickEntities;
+    // Sprites are picked and outlined as this plane, turned to face +Z.
+    AssetRef<Mesh> m_plane;
     float m_outlineWidth = 2.0f;
 };
 

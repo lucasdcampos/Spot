@@ -338,6 +338,10 @@ void SceneWorkspace::RestoreState() {
             view.SetView(Vector3FromJson(camera->value("pivot", json())), camera->value("yaw", view.GetYaw()),
                          camera->value("pitch", view.GetPitch()), camera->value("distance", view.GetDistance()));
             view.SetSpeed(camera->value("speed", view.GetSpeed()));
+            const Vector3 center2D = Vector3FromJson(camera->value("center2D", json()));
+            view.SetCenter2D({center2D.x, center2D.y});
+            view.SetSize2D(camera->value("size2D", view.GetSize2D()));
+            view.Set2D(camera->value("mode2D", false));
         }
         if (const auto selection = saved.find("selection"); selection != saved.end()) {
             RestoreSelection(*document, *selection);
@@ -366,7 +370,10 @@ void SceneWorkspace::SaveState() const {
                             {"yaw", camera.GetYaw()},
                             {"pitch", camera.GetPitch()},
                             {"distance", camera.GetDistance()},
-                            {"speed", camera.GetSpeed()}}},
+                            {"speed", camera.GetSpeed()},
+                            {"mode2D", camera.Is2D()},
+                            {"center2D", ToJson({camera.GetCenter2D().x, camera.GetCenter2D().y, 0.0f})},
+                            {"size2D", camera.GetSize2D()}}},
                           {"selection", SaveSelection(*open.document)}});
     }
     json state = {{"scenes", scenes}};

@@ -659,7 +659,7 @@ void EditorApplication::DrawDockSpace() {
 void EditorApplication::DrawEntityMenu(SceneDocument& document) {
     // New entities appear where the view looks.
     const SceneView* view = m_workspace->GetActiveView();
-    const Vector3 position = view ? const_cast<SceneView*>(view)->GetCamera().GetPivot() : Vector3{};
+    const Vector3 position = view ? const_cast<SceneView*>(view)->GetCamera().GetFocus() : Vector3{};
     const auto item = [&](const EntityTemplateInfo& info) {
         const std::string label = std::format("{}  {}", info.icon, info.name);
         const bool empty = info.kind == EntityTemplate::Empty;
@@ -765,7 +765,7 @@ void EditorApplication::HandleShortcuts() {
     if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_N, Global)) {
         const SceneView* view = m_workspace->GetActiveView();
         CreateEntity(*document, EntityTemplate::Empty, EntityId::Invalid,
-                     view ? const_cast<SceneView*>(view)->GetCamera().GetPivot() : Vector3{});
+                     view ? const_cast<SceneView*>(view)->GetCamera().GetFocus() : Vector3{});
     }
 }
 

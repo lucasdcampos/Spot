@@ -44,6 +44,8 @@ private:
 
 struct ViewportOptions {
     bool showGrid = true;
+    // The grid lies on the XY plane, as 2D views see it, instead of the ground.
+    bool grid2D = false;
 };
 
 // Draws scenes into viewport targets, as they would look in the game, with the editor's grid over them. One is shared
@@ -79,11 +81,12 @@ public:
     std::optional<std::size_t> ReadPick();
 
 private:
-    void DrawGrid(RenderContext& context, const ViewportTargets& targets, const Camera3D& camera);
+    void DrawGrid(RenderContext& context, const ViewportTargets& targets, const Camera3D& camera, bool plane2D);
 
     GraphicsDevice& m_device;
     std::uint32_t m_sampleCount;
     std::unique_ptr<Renderer3D> m_renderer;
+    std::unique_ptr<Renderer2D> m_sprites;
     std::unique_ptr<Pipeline> m_grid;
     std::unique_ptr<Pipeline> m_mask;
     std::unique_ptr<Pipeline> m_outline;

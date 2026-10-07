@@ -268,8 +268,14 @@ TEST_CASE("Meshes dropped into scenes become entities, and materials go to meshe
     CHECK(entity->GetTransform().GetPosition() == Spot::Vector3{1.0f, 0.0f, 2.0f});
     REQUIRE(entity->GetComponent<Spot::MeshRenderer>());
     CHECK(entity->GetComponent<Spot::MeshRenderer>()->GetMesh().GetId() == mesh->id);
-    // Only meshes and models make entities.
+    // Only meshes, models and textures make entities; textures make sprites.
     CHECK_FALSE(Spot::Editor::CreateEntityFromAsset(document, fixture.Project(), *material));
+    const auto texture = database.FindByPath("pixels.png");
+    REQUIRE(Spot::Editor::CreateEntityFromAsset(document, fixture.Project(), *texture));
+    const Spot::Entity* sprite = document.GetScene().GetEntity(document.GetSelection().GetPrimary());
+    REQUIRE((sprite && sprite->GetComponent<Spot::SpriteRenderer>()));
+    CHECK(sprite->GetName() == "pixels");
+    CHECK(sprite->GetComponent<Spot::SpriteRenderer>()->GetTexture().GetId() == *texture);
 
     REQUIRE(Spot::Editor::ApplyMaterial(document, entity->GetId(), *material));
     CHECK(entity->GetComponent<Spot::MeshRenderer>()->GetMaterial().GetId() == *material);

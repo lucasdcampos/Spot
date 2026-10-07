@@ -27,7 +27,12 @@ constexpr std::array Templates{
     EntityTemplateInfo{EntityTemplate::SpotLight, "Spot Light", ICON_FA_LIGHTBULB, "Light"},
     EntityTemplateInfo{EntityTemplate::AmbientLight, "Ambient Light", ICON_FA_CIRCLE_HALF_STROKE, "Light"},
     EntityTemplateInfo{EntityTemplate::Sky, "Sky", ICON_FA_CLOUD_SUN, nullptr},
+    EntityTemplateInfo{EntityTemplate::Sprite, "Sprite", ICON_FA_IMAGE, "2D Object"},
+    EntityTemplateInfo{EntityTemplate::Camera, "Camera", ICON_FA_VIDEO, nullptr},
 };
+
+// How many of a texture's pixels a sprite made from it shows per world unit.
+constexpr float PixelsPerUnit = 100.0f;
 
 // Builds the template's entity in a scratch scene, saved as text, which the create command adds to the document.
 std::string MakeEntityText(EntityTemplate kind, Vector3 position) {
@@ -63,6 +68,12 @@ std::string MakeEntityText(EntityTemplate kind, Vector3 position) {
         break;
     case EntityTemplate::Sky:
         entity.AddComponent<Sky>();
+        break;
+    case EntityTemplate::Sprite:
+        entity.AddComponent<SpriteRenderer>();
+        break;
+    case EntityTemplate::Camera:
+        entity.AddComponent<Camera>();
         break;
     }
     return scratch.SaveToString();
@@ -100,6 +111,12 @@ std::span<const EntityTemplateInfo> GetEntityTemplates() {
 }
 
 const char* GetEntityIcon(const Entity& entity) {
+    if (entity.GetComponent<Camera>()) {
+        return ICON_FA_VIDEO;
+    }
+    if (entity.GetComponent<SpriteRenderer>()) {
+        return ICON_FA_IMAGE;
+    }
     if (entity.GetComponent<DirectionalLight>()) {
         return ICON_FA_SUN;
     }
@@ -122,7 +139,9 @@ const char* GetEntityIcon(const Entity& entity) {
 }
 
 const char* GetComponentIcon(std::string_view typeName) {
-    static constexpr std::array<std::pair<std::string_view, const char*>, 10> Icons{{
+    static constexpr std::array<std::pair<std::string_view, const char*>, 12> Icons{{
+        {"Camera", ICON_FA_VIDEO},
+        {"SpriteRenderer", ICON_FA_IMAGE},
         {"MeshRenderer", ICON_FA_CUBE},
         {"Rigidbody", ICON_FA_WEIGHT_HANGING},
         {"BoxCollider", ICON_FA_VECTOR_SQUARE},
@@ -141,7 +160,8 @@ const char* GetComponentIcon(std::string_view typeName) {
 bool CreateEntityFromAsset(SceneDocument& document, EditorProject& project, AssetId asset, EntityId parent,
                            Vector3 position) {
     const AssetInfo* info = project.GetAssetDatabase().Find(asset);
-    if (!info || (info->type != AssetType::Mesh && info->type != AssetType::Model)) {
+    if (!info ||
+        (info->type != AssetType::Mesh && info->type != AssetType::Model && info->type != AssetType::Texture)) {
         return false;
     }
     std::string name = info->parent.IsValid() ? info->name : PathToUtf8(Utf8ToPath(info->path).stem());
@@ -150,6 +170,14 @@ bool CreateEntityFromAsset(SceneDocument& document, EditorProject& project, Asse
     root.GetTransform().SetPosition(position);
     if (info->type == AssetType::Mesh) {
         root.AddComponent<MeshRenderer>(AssetRef<Mesh>(asset, nullptr));
+    } else if (info->type == AssetType::Texture) {
+        // As large as the texture's pixels make it, when it loads.
+        Vector2 size{1.0f, 1.0f};
+        if (const AssetRef<Texture> texture = project.GetAssets().Load<Texture>(asset)) {
+            size = {static_cast<float>(texture->GetWidth()) / PixelsPerUnit,
+                    static_cast<float>(texture->GetHeight()) / PixelsPerUnit};
+        }
+        root.AddComponent<SpriteRenderer>(AssetRef<Texture>(asset, nullptr), size);
     } else {
         const AssetRef<Model> model = project.GetAssets().Load<Model>(asset);
         if (!model || model->GetParts().empty()) {

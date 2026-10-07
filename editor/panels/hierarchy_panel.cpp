@@ -432,7 +432,7 @@ void HierarchyPanel::DrawCreateMenu(SceneDocument& document, EntityId parent) {
     // New roots appear where the view looks; new children at their parent.
     Vector3 position;
     if (parent == EntityId::Invalid && m_context.GetWorkspace() && m_context.GetWorkspace()->GetActiveView()) {
-        position = m_context.GetWorkspace()->GetActiveView()->GetCamera().GetPivot();
+        position = m_context.GetWorkspace()->GetActiveView()->GetCamera().GetFocus();
     }
     const auto item = [&](const EntityTemplateInfo& info) {
         if (ImGui::MenuItem(std::format("{}  {}", info.icon, info.name).c_str())) {
