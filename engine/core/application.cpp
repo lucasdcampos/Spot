@@ -77,16 +77,18 @@ int Application::Run() {
         m_clock.Tick(std::chrono::steady_clock::now());
 
         m_input.BeginFrame();
-        Platform::PollEvents([this](const Event& event) { HandleEvent(event); });
+        Platform::PollEvents([this](const Event& event) { DispatchEvent(event); });
         if (!m_running) {
             break;
         }
 
         ApplySceneChanges();
         OnUpdate(m_clock.GetDeltaTime());
-        m_persistentScene->Update(m_clock.GetDeltaTime());
-        for (const auto& scene : m_scenes) {
-            scene->Update(m_clock.GetDeltaTime());
+        if (!m_scenesPaused || std::exchange(m_stepScenes, false)) {
+            m_persistentScene->Update(m_clock.GetDeltaTime());
+            for (const auto& scene : m_scenes) {
+                scene->Update(m_clock.GetDeltaTime());
+            }
         }
 
         if (m_graphics) {
@@ -197,14 +199,16 @@ void Application::MakePersistent(Entity& entity) {
     entity.MoveToScene(GetPersistentScene());
 }
 
-void Application::HandleEvent(const Event& event) {
+void Application::DispatchEvent(const Event& event) {
     m_input.OnEvent(event);
     OnEvent(event);
-    if (m_persistentScene) {
-        m_persistentScene->OnEvent(event);
-    }
-    for (const auto& scene : m_scenes) {
-        scene->OnEvent(event);
+    if (DeliversToScenes(event)) {
+        if (m_persistentScene) {
+            m_persistentScene->OnEvent(event);
+        }
+        for (const auto& scene : m_scenes) {
+            scene->OnEvent(event);
+        }
     }
 
     if (event.Is<WindowCloseEvent>() && OnCloseRequested()) {

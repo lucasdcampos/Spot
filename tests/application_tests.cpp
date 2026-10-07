@@ -233,6 +233,75 @@ TEST_CASE("Application switches scenes between frames and unloads the last one w
     CHECK(application.GetScene() == nullptr);
 }
 
+namespace {
+
+// Counts what a scene gets.
+class CountingScene final : public Spot::Scene {
+public:
+    int updates = 0;
+    int keys = 0;
+    int resizes = 0;
+
+    void OnUpdate(float /*deltaTime*/) override { ++updates; }
+    void OnEvent(const Spot::Event& event) override {
+        keys += event.Is<Spot::KeyPressedEvent>() ? 1 : 0;
+        resizes += event.Is<Spot::WindowResizeEvent>() ? 1 : 0;
+    }
+};
+
+// Pauses its scene, steps it, and keeps key presses from it, recording how many updates the scene had each frame.
+class PausingApplication final : public Spot::Application {
+public:
+    explicit PausingApplication(std::vector<int>& updates) : Application(MakeConfig()), m_updates(updates) {}
+
+    CountingScene* scene = nullptr;
+
+protected:
+    void OnStart() override { scene = &LoadScene<CountingScene>(); }
+
+    void OnUpdate(float /*deltaTime*/) override {
+        ++m_frame;
+        if (m_frame > 1) {
+            m_updates.push_back(scene->updates);
+        }
+        if (m_frame == 2) {
+            SetScenesPaused(true);
+            DispatchEvent(Spot::KeyPressedEvent{.key = Spot::Key::A, .repeat = false});
+            DispatchEvent(Spot::WindowResizeEvent{.width = 10, .height = 10});
+        }
+        if (m_frame == 3) {
+            // Events reach paused scenes, unless kept from them.
+            CHECK(scene->keys == 0);
+            CHECK(scene->resizes == 1);
+        }
+        if (m_frame == 4) {
+            StepScenes();
+        }
+        if (m_frame == 6) {
+            CHECK(AreScenesPaused());
+            Quit();
+        }
+    }
+
+    bool DeliversToScenes(const Spot::Event& event) override { return !event.Is<Spot::KeyPressedEvent>(); }
+
+private:
+    std::vector<int>& m_updates;
+    int m_frame = 0;
+};
+
+} // namespace
+
+TEST_CASE("Application pauses its scenes, steps them, and keeps events from them when told to", "[application]") {
+    std::vector<int> updates;
+    PausingApplication application(updates);
+    CHECK(application.Run() == EXIT_SUCCESS);
+
+    // Updates seen in frames 2 to 6: the scene updated in frame 1, was paused before frame 2's update, and stepped
+    // once in frame 4.
+    CHECK(updates == std::vector<int>{1, 1, 1, 2, 2});
+}
+
 TEST_CASE("Application runs scenes side by side and keeps persistent entities", "[application]") {
     std::vector<std::string> calls;
     MultiSceneApplication application(MakeConfig(), calls);

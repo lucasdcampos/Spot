@@ -110,6 +110,12 @@ public:
     // Every loaded scene, in load order; the persistent scene is not part of them.
     std::vector<Scene*> GetScenes() const;
 
+    // Stops updating the scenes, the persistent one included, which keep receiving events and rendering, as games are
+    // paused in tools. StepScenes() updates them once on the next frame meanwhile.
+    void SetScenesPaused(bool paused) { m_scenesPaused = paused; }
+    bool AreScenesPaused() const { return m_scenesPaused; }
+    void StepScenes() { m_stepScenes = true; }
+
     // A scene loaded for the whole of Run(), whatever other scenes come and go. Entities that must survive scene
     // changes, like the player or the music, move into it. Only available while Run() is running.
     Scene& GetPersistentScene();
@@ -126,6 +132,13 @@ protected:
     // Called after a WindowCloseEvent has reached OnEvent() and the scenes. Returning false keeps the application
     // running, such as to ask about unsaved changes first.
     virtual bool OnCloseRequested() { return true; }
+    // Whether the scenes receive the event, after OnEvent(). Tools that run scenes in a view of their own keep the
+    // events meant for the rest of their window from them.
+    virtual bool DeliversToScenes(const Event& /*event*/) { return true; }
+
+    // Sends the event as the platform's are sent: to the input state, OnEvent() and the scenes; and closes the
+    // application on a WindowCloseEvent that OnCloseRequested() allows.
+    void DispatchEvent(const Event& event);
 
 private:
     enum class SceneChangeKind { Replace, Add, Remove };
@@ -138,7 +151,6 @@ private:
         Scene* target = nullptr;
     };
 
-    void HandleEvent(const Event& event);
     void ApplySceneChanges();
     void AddScene(std::unique_ptr<Scene> scene);
     void RemoveScene(const Scene* scene);
@@ -158,6 +170,8 @@ private:
     FrameClock m_clock;
     FrameLimiter m_limiter;
     bool m_running = false;
+    bool m_scenesPaused = false;
+    bool m_stepScenes = false;
 };
 
 } // namespace Spot
