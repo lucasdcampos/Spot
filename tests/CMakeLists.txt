@@ -101,6 +101,26 @@ spot_set_compile_options(spot_gpu_tests)
 
 catch_discover_tests(spot_gpu_tests PROPERTIES TIMEOUT 60)
 
+# What runs in the shared engine library, as the editor and game modules use it: loading modules, such as this one,
+# built as projects with code build theirs, and running programs.
+add_library(spot_test_module MODULE modules/test_module.cpp)
+target_link_libraries(spot_test_module PRIVATE spot::shared)
+spot_set_compile_options(spot_test_module)
+
+add_executable(spot_module_tests module_tests.cpp)
+target_link_libraries(spot_module_tests PRIVATE
+    spot::shared
+    Catch2::Catch2WithMain
+)
+target_compile_definitions(spot_module_tests PRIVATE
+    SPOT_TEST_MODULE="$<TARGET_FILE:spot_test_module>"
+    SPOT_CMAKE_COMMAND="${CMAKE_COMMAND}"
+)
+add_dependencies(spot_module_tests spot_test_module)
+spot_set_compile_options(spot_module_tests)
+spot_copy_runtime_dlls(spot_module_tests)
+catch_discover_tests(spot_module_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 60)
+
 # Editor tests link the editor's code, everything but its main().
 if(TARGET spot_editor_core)
     add_executable(spot_editor_tests

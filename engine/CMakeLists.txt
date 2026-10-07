@@ -47,12 +47,16 @@ add_library(spot_objects OBJECT
     core/application.cpp
     core/assert.h
     core/assert.cpp
+    core/game_module.h
+    core/game_module.cpp
     core/log.h
     core/log.cpp
     core/log_sinks.h
     core/log_sinks.cpp
     core/paths.h
     core/paths.cpp
+    core/process.h
+    core/shared_library.h
     core/time.h
     core/time.cpp
     core/utf8.h
@@ -241,6 +245,8 @@ if(SPOT_PLATFORM STREQUAL "SDL3")
         platform/sdl3/sdl3_file_dialog.cpp
         platform/sdl3/sdl3_paths.cpp
         platform/sdl3/sdl3_platform.cpp
+        platform/sdl3/sdl3_process.cpp
+        platform/sdl3/sdl3_shared_library.cpp
         platform/sdl3/sdl3_shell.cpp
         platform/sdl3/sdl3_window.cpp
     )
