@@ -112,11 +112,12 @@ EditorApplication::~EditorApplication() {
 }
 
 void EditorApplication::RequestOpenProject(std::filesystem::path file) {
-    m_projectToOpen = std::move(file);
+    // The scenes of the open project are closed first, so unsaved changes are asked about.
+    m_workspace->ConfirmAllUnsavedChanges([this, file = std::move(file)] { m_projectToOpen = file; });
 }
 
 void EditorApplication::RequestCloseProject() {
-    m_closeProjectRequested = true;
+    m_workspace->ConfirmAllUnsavedChanges([this] { m_closeProjectRequested = true; });
 }
 
 void EditorApplication::OnStart() {
@@ -127,6 +128,8 @@ void EditorApplication::OnStart() {
     }
 
     m_context = std::make_unique<EditorContext>(GetWindow(), &GetGraphicsDevice(), m_settings);
+    m_workspace = std::make_unique<SceneWorkspace>(*m_context);
+    m_context->SetWorkspace(m_workspace.get());
     m_newProjectDialog = std::make_unique<NewProjectDialog>(m_settings, GetWindow());
     m_hub = std::make_unique<ProjectHub>(
         m_settings, ProjectHubActions{
@@ -149,7 +152,9 @@ void EditorApplication::OnStart() {
 
 void EditorApplication::OnEvent(const Event& event) {
     m_imgui->ProcessEvent(event);
-    if (const auto* focus = event.GetIf<WindowFocusEvent>()) {
+    if (const auto* moved = event.GetIf<MouseMovedEvent>()) {
+        m_mouseDelta += moved->delta;
+    } else if (const auto* focus = event.GetIf<WindowFocusEvent>()) {
         SetMaxFrameRate(focus->focused ? 0 : BackgroundFrameRate);
     } else if (const auto* drop = event.GetIf<FileDropEvent>()) {
         if (FindProjectFile(drop->path).extension() == Project::FileExtension) {
@@ -171,9 +176,13 @@ void EditorApplication::OnUpdate(float) {
 }
 
 void EditorApplication::OnRender(RenderContext& context) {
+    m_context->SetMouseDelta(std::exchange(m_mouseDelta, Vector2{}));
     m_imgui->BeginFrame(Time::GetDeltaTime());
     DrawUi();
     m_imgui->EndFrame();
+
+    // The views' scenes are drawn before the window, which shows them.
+    m_workspace->Render(context);
 
     {
         auto pass = context.BeginRenderPass({.clearColor = Color{0.078f, 0.082f, 0.090f, 1.0f}});
@@ -220,13 +229,22 @@ void EditorApplication::OnStop() {
     m_panels.clear();
     m_hub.reset();
     m_newProjectDialog.reset();
+    m_context->SetWorkspace(nullptr);
+    m_workspace.reset();
     m_context.reset();
     m_screenshotTarget.reset();
     m_imgui.reset();
 }
 
 bool EditorApplication::OnCloseRequested() {
-    return true;
+    if (m_quitConfirmed || !m_workspace->HasUnsavedChanges()) {
+        return true;
+    }
+    m_workspace->ConfirmAllUnsavedChanges([this] {
+        m_quitConfirmed = true;
+        Quit();
+    });
+    return false;
 }
 
 void EditorApplication::OpenProject(const std::filesystem::path& path) {
@@ -245,6 +263,7 @@ void EditorApplication::OpenProject(const std::filesystem::path& path) {
     m_settings.AddRecentProject(project->GetProject().GetFile(), project->GetProject().GetSettings().name);
     m_settings.Save();
     m_context->SetProject(std::move(project));
+    m_workspace->RestoreState();
     UpdateTitle();
 }
 
@@ -253,6 +272,9 @@ void EditorApplication::CloseProject() {
         return;
     }
     GetEditorLogger().Info("Closed project '{}'", m_context->GetProject()->GetProject().GetSettings().name);
+    // Changes were asked about before, so the scenes close as they are.
+    m_workspace->SaveState();
+    m_workspace->CloseAll();
     // Assets loaded from now on come from the application again, until another project opens.
     Detail::SetAssetManager(&GetAssets());
     m_context->SetProject(nullptr);
@@ -298,10 +320,12 @@ void EditorApplication::DrawUi() {
         DrawToolbar();
         DrawStatusBar();
         DrawDockSpace();
-        DrawSceneArea();
+        const ImGuiDockNode* central = ImGui::DockBuilderGetCentralNode(m_dockSpace);
+        m_workspace->Draw(central ? central->ID : m_dockSpace);
         for (const auto& panel : m_panels) {
             panel->Draw();
         }
+        HandleShortcuts();
     } else {
         m_hub->Draw();
     }
@@ -329,8 +353,18 @@ void EditorApplication::DrawMainMenu() {
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Edit", hasProject)) {
-        MenuItem(ICON_FA_ROTATE_LEFT "  Undo", ImGuiMod_Ctrl | ImGuiKey_Z, false);
-        MenuItem(ICON_FA_ROTATE_RIGHT "  Redo", ImGuiMod_Ctrl | ImGuiKey_Y, false);
+        SceneDocument* document = m_workspace->GetActiveDocument();
+        CommandHistory* history = document ? &document->GetHistory() : nullptr;
+        const std::string undo = history && history->CanUndo() ? ICON_FA_ROTATE_LEFT "  Undo " + history->GetUndoName()
+                                                               : std::string(ICON_FA_ROTATE_LEFT "  Undo");
+        const std::string redo = history && history->CanRedo() ? ICON_FA_ROTATE_RIGHT "  Redo " + history->GetRedoName()
+                                                               : std::string(ICON_FA_ROTATE_RIGHT "  Redo");
+        if (MenuItem(undo.c_str(), ImGuiMod_Ctrl | ImGuiKey_Z, history && history->CanUndo())) {
+            document->Undo();
+        }
+        if (MenuItem(redo.c_str(), ImGuiMod_Ctrl | ImGuiKey_Y, history && history->CanRedo())) {
+            document->Redo();
+        }
         ImGui::Separator();
         MenuItem(ICON_FA_SCISSORS "  Cut", ImGuiMod_Ctrl | ImGuiKey_X, false);
         MenuItem(ICON_FA_COPY "  Copy", ImGuiMod_Ctrl | ImGuiKey_C, false);
@@ -401,11 +435,25 @@ void EditorApplication::DrawFileMenu() {
         RequestCloseProject();
     }
     ImGui::Separator();
-    MenuItem(ICON_FA_FILE "  New Scene", ImGuiMod_Ctrl | ImGuiKey_N, false);
-    MenuItem(ICON_FA_FILE_IMPORT "  Open Scene...", ImGuiMod_Ctrl | ImGuiKey_O, false);
-    MenuItem(ICON_FA_FLOPPY_DISK "  Save Scene", ImGuiMod_Ctrl | ImGuiKey_S, false);
-    MenuItem("Save Scene As...", ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S, false);
-    MenuItem("Save All", ImGuiMod_Ctrl | ImGuiMod_Alt | ImGuiKey_S, false);
+    SceneDocument* document = m_workspace->GetActiveDocument();
+    if (MenuItem(ICON_FA_FILE "  New Scene", ImGuiMod_Ctrl | ImGuiKey_N, hasProject)) {
+        m_workspace->NewScene();
+    }
+    if (MenuItem(ICON_FA_FILE_IMPORT "  Open Scene...", ImGuiMod_Ctrl | ImGuiKey_O, hasProject)) {
+        m_workspace->BrowseForScene();
+    }
+    if (MenuItem(ICON_FA_FLOPPY_DISK "  Save Scene", ImGuiMod_Ctrl | ImGuiKey_S, document != nullptr)) {
+        m_workspace->Save(*document);
+    }
+    if (MenuItem("Save Scene As...", ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S, document != nullptr)) {
+        m_workspace->SaveAs(*document);
+    }
+    if (MenuItem("Save All", ImGuiMod_Ctrl | ImGuiMod_Alt | ImGuiKey_S, m_workspace->GetDocumentCount() > 0)) {
+        m_workspace->SaveAll();
+    }
+    if (MenuItem("Close Scene", ImGuiMod_Ctrl | ImGuiKey_W, document != nullptr)) {
+        m_workspace->Close(*document);
+    }
     ImGui::Separator();
     if (MenuItem(ICON_FA_GEAR "  Project Settings...", 0, hasProject)) {
         if (Panel* settings = FindPanel("ProjectSettings")) {
@@ -521,25 +569,38 @@ void EditorApplication::DrawDockSpace() {
     ImGui::DockSpaceOverViewport(m_dockSpace, ImGui::GetMainViewport());
 }
 
-void EditorApplication::DrawSceneArea() {
-    if (const ImGuiDockNode* central = ImGui::DockBuilderGetCentralNode(m_dockSpace)) {
-        ImGui::SetNextWindowDockID(central->ID, ImGuiCond_FirstUseEver);
+void EditorApplication::HandleShortcuts() {
+    // Global, so they work from any window; a text field being edited takes the keys it uses first.
+    constexpr ImGuiInputFlags Global = ImGuiInputFlags_RouteGlobal;
+    SceneDocument* document = m_workspace->GetActiveDocument();
+    if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_N, Global)) {
+        m_workspace->NewScene();
     }
-    const std::string name = std::string(ICON_FA_CUBE "  Scene###") + SceneAreaId;
-    if (ImGui::Begin(name.c_str(), nullptr, ImGuiWindowFlags_NoCollapse)) {
-        const ImVec2 available = ImGui::GetContentRegionAvail();
-        const char* hint = "No scene is open";
-        const char* detail = "Create or open a scene to edit it here.";
-        const float lineHeight = ImGui::GetTextLineHeightWithSpacing();
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + std::max((available.y - lineHeight * 3.0f) * 0.5f, 0.0f));
-        ImGui::PushFont(GetBoldFont(), ImGui::GetStyle().FontSizeBase * 1.3f);
-        ImGui::SetCursorPosX((ImGui::GetWindowWidth() - ImGui::CalcTextSize(hint).x) * 0.5f);
-        ImGui::TextUnformatted(hint);
-        ImGui::PopFont();
-        ImGui::SetCursorPosX((ImGui::GetWindowWidth() - ImGui::CalcTextSize(detail).x) * 0.5f);
-        ImGui::TextColored(EditorColors::TextMuted, "%s", detail);
+    if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_O, Global)) {
+        m_workspace->BrowseForScene();
     }
-    ImGui::End();
+    if (!document) {
+        return;
+    }
+    if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Z, Global | ImGuiInputFlags_Repeat)) {
+        document->Undo();
+    }
+    if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Y, Global | ImGuiInputFlags_Repeat) ||
+        ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_Z, Global | ImGuiInputFlags_Repeat)) {
+        document->Redo();
+    }
+    if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_S, Global)) {
+        m_workspace->Save(*document);
+    }
+    if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S, Global)) {
+        m_workspace->SaveAs(*document);
+    }
+    if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiMod_Alt | ImGuiKey_S, Global)) {
+        m_workspace->SaveAll();
+    }
+    if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_W, Global)) {
+        m_workspace->Close(*document);
+    }
 }
 
 void EditorApplication::DrawAboutWindow() {

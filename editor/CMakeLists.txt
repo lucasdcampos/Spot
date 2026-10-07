@@ -47,6 +47,7 @@ target_compile_options(imgui PRIVATE $<IF:$<CXX_COMPILER_ID:MSVC>,/W0,-w>)
 add_library(spot_editor_core STATIC
     app/editor_application.cpp
     app/editor_application.h
+    app/editor_context.cpp
     app/editor_context.h
     app/editor_layout.cpp
     app/editor_layout.h
@@ -94,8 +95,16 @@ add_library(spot_editor_core STATIC
     scene/scene_commands.h
     scene/scene_document.cpp
     scene/scene_document.h
+    scene/scene_workspace.cpp
+    scene/scene_workspace.h
     scene/selection.cpp
     scene/selection.h
+    viewport/editor_camera.cpp
+    viewport/editor_camera.h
+    viewport/scene_view.cpp
+    viewport/scene_view.h
+    viewport/viewport_renderer.cpp
+    viewport/viewport_renderer.h
 )
 target_include_directories(spot_editor_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(spot_editor_core PUBLIC
@@ -107,6 +116,8 @@ target_link_libraries(spot_editor_core PRIVATE nlohmann_json::nlohmann_json)
 spot_add_shaders(spot_editor_core
     imgui/imgui.frag.hlsl
     imgui/imgui.vert.hlsl
+    viewport/grid.frag.hlsl
+    viewport/grid.vert.hlsl
 )
 spot_embed_files(spot_editor_core
     resources/fonts/fa_solid_900.ttf

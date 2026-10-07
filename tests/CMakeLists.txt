@@ -112,6 +112,7 @@ if(TARGET spot_editor_core)
         editor/project_tests.cpp
         editor/project_ui_tests.cpp
         editor/scene_commands_tests.cpp
+        editor/scene_workspace_tests.cpp
         temp_directory.h
     )
     target_link_libraries(spot_editor_tests PRIVATE

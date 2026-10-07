@@ -7,6 +7,7 @@
 #include "panels/panel.h"
 #include "project/new_project_dialog.h"
 #include "project/project_hub.h"
+#include "scene/scene_workspace.h"
 
 #include <spot.h>
 
@@ -64,7 +65,7 @@ private:
     void DrawStatusBar();
     void DrawLatestMessage();
     void DrawDockSpace();
-    void DrawSceneArea();
+    void HandleShortcuts();
     void DrawAboutWindow();
     void DrawErrorWindow();
 
@@ -73,6 +74,7 @@ private:
     std::shared_ptr<ConsoleLog> m_consoleLog;
     std::unique_ptr<ImGuiLayer> m_imgui;
     std::unique_ptr<EditorContext> m_context;
+    std::unique_ptr<SceneWorkspace> m_workspace;
     std::unique_ptr<ProjectHub> m_hub;
     std::unique_ptr<NewProjectDialog> m_newProjectDialog;
     std::vector<std::unique_ptr<Panel>> m_panels;
@@ -83,6 +85,10 @@ private:
 
     std::optional<std::filesystem::path> m_projectToOpen;
     bool m_closeProjectRequested = false;
+    // Set once the user agreed to quit, after being asked about unsaved changes.
+    bool m_quitConfirmed = false;
+    // Summed from mouse events until the next frame.
+    Vector2 m_mouseDelta;
     std::string m_errorTitle;
     std::string m_errorMessage;
     bool m_showError = false;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <spot.h>
+
 #include <filesystem>
 #include <optional>
 #include <span>
@@ -22,6 +24,9 @@ struct ProjectTemplateInfo {
 };
 
 std::span<const ProjectTemplateInfo> GetProjectTemplates();
+
+// Fills a new scene with what every scene starts with: a sun and a sky.
+void PopulateNewScene(Scene& scene);
 
 // Why a name cannot be a project's, which is also its folder's and its file's; empty when it can.
 std::string ValidateProjectName(std::string_view name);

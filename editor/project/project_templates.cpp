@@ -21,11 +21,7 @@ constexpr std::array Templates{
 constexpr std::string_view GitIgnore = "# Imported assets and editor state, rebuilt from the sources\n/.spot/\n";
 
 void BuildBasic3DScene(Scene& scene) {
-    Entity& sun = scene.CreateEntity("Sun");
-    sun.AddComponent<DirectionalLight>();
-    sun.GetTransform().SetRotation(Quaternion::LookRotation({-0.4f, -1.0f, -0.6f}));
-
-    scene.CreateEntity("Sky").AddComponent<Sky>();
+    PopulateNewScene(scene);
 
     Entity& ground = scene.CreateEntity("Ground");
     ground.AddComponent<MeshRenderer>(AssetRef<Mesh>(BuiltInAssets::PlaneMesh, nullptr));
@@ -53,6 +49,14 @@ std::optional<AssetId> WriteScene(const Scene& scene, const std::filesystem::pat
 }
 
 } // namespace
+
+void PopulateNewScene(Scene& scene) {
+    Entity& sun = scene.CreateEntity("Sun");
+    sun.AddComponent<DirectionalLight>();
+    sun.GetTransform().SetRotation(Quaternion::LookRotation({-0.4f, -1.0f, -0.6f}));
+
+    scene.CreateEntity("Sky").AddComponent<Sky>();
+}
 
 std::span<const ProjectTemplateInfo> GetProjectTemplates() {
     return Templates;

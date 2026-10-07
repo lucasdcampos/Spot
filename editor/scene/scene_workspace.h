@@ -1,0 +1,97 @@
+#pragma once
+
+#include "scene/scene_document.h"
+#include "viewport/scene_view.h"
+#include "viewport/viewport_renderer.h"
+
+#include <spot.h>
+
+#include <imgui.h>
+
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+namespace Spot::Editor {
+
+class EditorContext;
+
+// The scenes open in the editor, each in its own view: opening, creating, saving and closing them, asking about
+// unsaved changes, and remembering per project which were open and where their cameras were.
+class SceneWorkspace {
+public:
+    explicit SceneWorkspace(EditorContext& context);
+    ~SceneWorkspace();
+
+    SceneWorkspace(const SceneWorkspace&) = delete;
+    SceneWorkspace& operator=(const SceneWorkspace&) = delete;
+
+    std::size_t GetDocumentCount() const { return m_scenes.size(); }
+    SceneDocument& GetDocument(std::size_t index) { return *m_scenes[index].document; }
+    // The document of the view focused last; null when none is open.
+    SceneDocument* GetActiveDocument() { return m_active; }
+    SceneView* GetActiveView();
+    bool HasUnsavedChanges() const;
+
+    // A new scene with a sun and a sky, not saved anywhere yet.
+    SceneDocument& NewScene();
+    // Opens a scene asset of the project, or brings its view forward when it is open already. Null, after logging
+    // why, when it cannot be read.
+    SceneDocument* OpenScene(AssetId scene);
+    // Opens a scene picked with the OS's dialog.
+    void BrowseForScene();
+    // Saves to the document's file, or asks for one when it has none.
+    void Save(SceneDocument& document);
+    // Asks where to save, inside the project's assets. Calls done with whether it saved.
+    void SaveAs(SceneDocument& document, std::function<void(bool saved)> done = {});
+    void SaveAll();
+    // Closes the document, asking first when it has unsaved changes.
+    void Close(SceneDocument& document);
+    // Closes every document without asking.
+    void CloseAll();
+    // Asks whether to save the documents with unsaved changes among these, and runs proceed unless the user cancels.
+    void ConfirmUnsavedChanges(std::vector<SceneDocument*> documents, std::function<void()> proceed);
+    // The same, for documents known by their ids.
+    void ConfirmUnsavedChanges(std::vector<std::uint64_t> documents, std::function<void()> proceed);
+    void ConfirmAllUnsavedChanges(std::function<void()> proceed);
+
+    // Opens what was open when the project was last closed, or its startup scene.
+    void RestoreState();
+    void SaveState() const;
+
+    // Draws the views, docking new ones into the node, and the prompts.
+    void Draw(ImGuiID dockId);
+    // Draws the scenes into the views that showed this frame.
+    void Render(RenderContext& context);
+
+private:
+    struct Opened {
+        std::unique_ptr<SceneDocument> document;
+        std::unique_ptr<SceneView> view;
+    };
+
+    SceneDocument& Add(std::unique_ptr<SceneDocument> document);
+    void Remove(SceneDocument& document);
+    Opened* Find(const SceneDocument& document);
+    std::filesystem::path GetStateFile() const;
+    void DrawEmptyArea(ImGuiID dockId);
+    void DrawSavePrompt();
+
+    EditorContext& m_context;
+    std::vector<Opened> m_scenes;
+    SceneDocument* m_active = nullptr;
+    std::unique_ptr<ViewportRenderer> m_renderer;
+    // OS dialogs answer later; they only reach the workspace while this is alive.
+    std::shared_ptr<SceneWorkspace*> m_self;
+
+    // Documents waiting for the user to say whether to save them, by id, and what to do after.
+    std::vector<std::uint64_t> m_prompted;
+    std::function<void()> m_afterPrompt;
+    bool m_openPrompt = false;
+};
+
+} // namespace Spot::Editor

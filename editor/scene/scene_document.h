@@ -59,10 +59,13 @@ public:
     // Empty until the scene is saved.
     const std::filesystem::path& GetFile() const { return m_file; }
     AssetId GetAssetId() const { return m_asset; }
+    // Set once a scene saved to a new file is imported and so becomes an asset.
+    void SetAssetId(AssetId asset) { m_asset = asset; }
     // Never repeats while the editor runs, so windows can tell documents apart, even with the same name.
     std::uint64_t GetId() const { return m_id; }
 
-    bool IsDirty() const { return m_history.IsDirty(); }
+    // A scene that was never saved counts as changed, so closing it asks whether to keep it.
+    bool IsDirty() const { return m_file.empty() || m_history.IsDirty(); }
     // Saves to the document's file, which it must have.
     bool Save();
     // Saves to another file, which becomes the document's.

@@ -2,12 +2,15 @@
 
 #include "core/editor_settings.h"
 #include "project/editor_project.h"
+#include "scene/scene_document.h"
 
 #include <spot.h>
 
 #include <memory>
 
 namespace Spot::Editor {
+
+class SceneWorkspace;
 
 // What the editor's windows share: the devices, the user's settings and the open project.
 class EditorContext {
@@ -22,13 +25,26 @@ public:
 
     // Null while no project is open.
     EditorProject* GetProject() { return m_project.get(); }
+    const EditorProject* GetProject() const { return m_project.get(); }
     void SetProject(std::unique_ptr<EditorProject> project) { m_project = std::move(project); }
+
+    // The scenes open in the editor; null in tests that have none.
+    SceneWorkspace* GetWorkspace() { return m_workspace; }
+    void SetWorkspace(SceneWorkspace* workspace) { m_workspace = workspace; }
+    // The scene being edited: the one whose view was focused last.
+    SceneDocument* GetActiveDocument();
+
+    // How far the mouse moved since the last frame, in pixels, also while it is captured.
+    Vector2 GetMouseDelta() const { return m_mouseDelta; }
+    void SetMouseDelta(Vector2 delta) { m_mouseDelta = delta; }
 
 private:
     Window& m_window;
     GraphicsDevice* m_device;
     EditorSettings& m_settings;
     std::unique_ptr<EditorProject> m_project;
+    SceneWorkspace* m_workspace = nullptr;
+    Vector2 m_mouseDelta;
 };
 
 } // namespace Spot::Editor
