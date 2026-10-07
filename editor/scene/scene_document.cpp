@@ -86,6 +86,14 @@ std::unique_ptr<SceneDocument> SceneDocument::Open(const std::filesystem::path& 
     return document;
 }
 
+void SceneDocument::SetFile(std::filesystem::path file, AssetId asset) {
+    if (!file.empty()) {
+        m_name = PathToUtf8(file.stem());
+    }
+    m_file = std::move(file);
+    m_asset = asset;
+}
+
 bool SceneDocument::Save() {
     SPOT_ASSERT(!m_file.empty(), "The scene has no file yet; save it with SaveAs()");
     if (!m_scene->SaveToFile(m_file)) {

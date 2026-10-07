@@ -4,6 +4,7 @@
 #include "core/console_log.h"
 #include "core/editor_settings.h"
 #include "imgui/imgui_layer.h"
+#include "panels/asset_browser_panel.h"
 #include "panels/inspector_panel.h"
 #include "panels/panel.h"
 #include "project/new_project_dialog.h"
@@ -82,6 +83,7 @@ private:
     std::unique_ptr<NewProjectDialog> m_newProjectDialog;
     std::vector<std::unique_ptr<Panel>> m_panels;
     InspectorPanel* m_inspector = nullptr;
+    AssetBrowserPanel* m_assetBrowser = nullptr;
     // OS dialogs answer later; they only reach the editor while this is alive.
     std::shared_ptr<EditorApplication*> m_self;
     int m_frame = 0;

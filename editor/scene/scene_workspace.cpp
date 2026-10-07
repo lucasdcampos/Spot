@@ -378,7 +378,35 @@ void SceneWorkspace::SaveState() const {
     std::ofstream(file, std::ios::binary) << state.dump(2) << '\n';
 }
 
+void SceneWorkspace::SyncWithAssets() {
+    EditorProject* project = m_context.GetProject();
+    if (!project) {
+        return;
+    }
+    m_assetsVersion = project->GetVersion();
+    for (const Opened& open : m_scenes) {
+        SceneDocument& document = *open.document;
+        if (!document.GetAssetId().IsValid()) {
+            continue;
+        }
+        const AssetInfo* info = project->GetAssetDatabase().Find(document.GetAssetId());
+        if (!info) {
+            GetEditorLogger().Warning("The file of the open scene '{}' is gone; saving it asks where to",
+                                      document.GetName());
+            document.SetFile({}, {});
+            continue;
+        }
+        const std::filesystem::path file = project->GetProject().GetAssetsDirectory() / Utf8ToPath(info->path);
+        if (file != document.GetFile()) {
+            document.SetFile(file, info->id);
+        }
+    }
+}
+
 void SceneWorkspace::Draw(ImGuiID dockId) {
+    if (const EditorProject* project = m_context.GetProject(); project && project->GetVersion() != m_assetsVersion) {
+        SyncWithAssets();
+    }
     if (m_scenes.empty()) {
         DrawEmptyArea(dockId);
     }

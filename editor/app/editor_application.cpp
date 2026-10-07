@@ -146,7 +146,9 @@ void EditorApplication::OnStart() {
     auto inspector = std::make_unique<InspectorPanel>(*m_context);
     m_inspector = inspector.get();
     m_panels.push_back(std::move(inspector));
-    m_panels.push_back(std::make_unique<AssetBrowserPanel>(*m_context));
+    auto assetBrowser = std::make_unique<AssetBrowserPanel>(*m_context);
+    m_assetBrowser = assetBrowser.get();
+    m_panels.push_back(std::move(assetBrowser));
     m_panels.push_back(std::make_unique<ConsolePanel>(m_consoleLog));
     m_panels.push_back(std::make_unique<ProjectSettingsPanel>(*m_context));
     GetEditorLogger().Info("Spot Editor {} started", GetVersionString());
@@ -162,9 +164,15 @@ void EditorApplication::OnEvent(const Event& event) {
         m_mouseDelta += moved->delta;
     } else if (const auto* focus = event.GetIf<WindowFocusEvent>()) {
         SetMaxFrameRate(focus->focused ? 0 : BackgroundFrameRate);
+        // Files may have changed in other applications meanwhile.
+        if (EditorProject* project = m_context->GetProject(); project && focus->focused) {
+            project->Refresh();
+        }
     } else if (const auto* drop = event.GetIf<FileDropEvent>()) {
         if (FindProjectFile(drop->path).extension() == Project::FileExtension) {
             RequestOpenProject(drop->path);
+        } else if (m_context->GetProject() && m_assetBrowser) {
+            m_assetBrowser->DropFile(drop->path, {drop->position.x, drop->position.y});
         }
     }
 }
@@ -233,6 +241,7 @@ void EditorApplication::OnStop() {
     CloseProject();
     m_settings.Save();
     m_inspector = nullptr;
+    m_assetBrowser = nullptr;
     m_panels.clear();
     m_hub.reset();
     m_newProjectDialog.reset();

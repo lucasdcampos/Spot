@@ -2,6 +2,7 @@
 
 #include <spot.h>
 
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 
@@ -24,6 +25,10 @@ public:
 
     // Imports what changed in the assets, and lets the asset manager see it.
     void Refresh();
+    // Imports the asset's source again, such as after its import settings changed.
+    bool Reimport(AssetId id);
+    // Changes with every refresh, so windows can tell when the assets may have changed.
+    std::uint64_t GetVersion() const { return m_version; }
 
 private:
     EditorProject(Project project, GraphicsDevice* device);
@@ -31,6 +36,7 @@ private:
     Project m_project;
     std::unique_ptr<AssetDatabase> m_database;
     std::unique_ptr<AssetManager> m_assets;
+    std::uint64_t m_version = 0;
 };
 
 } // namespace Spot::Editor

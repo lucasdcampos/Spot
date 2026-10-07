@@ -68,6 +68,9 @@ public:
 
     // Draws the views, docking new ones into the node, and the prompts.
     void Draw(ImGuiID dockId);
+    // Makes documents follow their scene files after the assets changed: moved files give their documents new
+    // files and names, and deleted ones leave them without a file.
+    void SyncWithAssets();
     // Draws the scenes into the views that showed this frame.
     void Render(RenderContext& context);
 
@@ -87,6 +90,7 @@ private:
     EditorContext& m_context;
     std::vector<Opened> m_scenes;
     SceneDocument* m_active = nullptr;
+    std::uint64_t m_assetsVersion = 0;
     std::unique_ptr<ViewportRenderer> m_renderer;
     // OS dialogs answer later; they only reach the workspace while this is alive.
     std::shared_ptr<SceneWorkspace*> m_self;

@@ -26,6 +26,14 @@ void EditorProject::Refresh() {
     // Deleted sources import nothing but still change the manifest, so it is always read again.
     m_database->Refresh();
     m_assets->RefreshManifest();
+    ++m_version;
+}
+
+bool EditorProject::Reimport(AssetId id) {
+    const bool imported = m_database->Reimport(id);
+    m_assets->RefreshManifest();
+    ++m_version;
+    return imported;
 }
 
 } // namespace Spot::Editor

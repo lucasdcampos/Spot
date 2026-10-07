@@ -104,6 +104,7 @@ catch_discover_tests(spot_gpu_tests PROPERTIES TIMEOUT 60)
 # Editor tests link the editor's code, everything but its main().
 if(TARGET spot_editor_core)
     add_executable(spot_editor_tests
+        editor/asset_browser_tests.cpp
         editor/command_history_tests.cpp
         editor/console_log_tests.cpp
         editor/editor_layout_tests.cpp
@@ -123,6 +124,7 @@ if(TARGET spot_editor_core)
         Catch2::Catch2WithMain
     )
     target_include_directories(spot_editor_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_compile_definitions(spot_editor_tests PRIVATE SPOT_TEST_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets")
     spot_set_compile_options(spot_editor_tests)
     catch_discover_tests(spot_editor_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
 

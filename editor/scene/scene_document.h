@@ -61,6 +61,9 @@ public:
     AssetId GetAssetId() const { return m_asset; }
     // Set once a scene saved to a new file is imported and so becomes an asset.
     void SetAssetId(AssetId asset) { m_asset = asset; }
+    // Follows the scene's file when it moves, taking its new name; without a file, as after it was deleted, the
+    // scene is no longer an asset and saving it asks where to.
+    void SetFile(std::filesystem::path file, AssetId asset);
     // Never repeats while the editor runs, so windows can tell documents apart, even with the same name.
     std::uint64_t GetId() const { return m_id; }
 
