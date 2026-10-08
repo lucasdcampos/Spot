@@ -48,10 +48,6 @@ const char* GetItemIcon(const BrowserItem& item) {
     return item.root == BrowserRoot::Code ? ICON_FA_FILE_CODE : GetAssetTypeIcon(item.type);
 }
 
-const char* GetRootLabel(BrowserRoot root) {
-    return root == BrowserRoot::Code ? ICON_FA_CODE "  Code" : ICON_FA_FOLDER_OPEN "  Assets";
-}
-
 std::filesystem::path GetRootDirectory(const EditorProject& project, BrowserRoot root) {
     return root == BrowserRoot::Code ? project.GetProject().GetCodeDirectory()
                                      : project.GetProject().GetAssetsDirectory();
@@ -71,6 +67,12 @@ auto WithFiles(EditorProject& project, BrowserRoot root, Operation&& operation) 
         return operation(files);
     }
     return operation(project.GetAssetDatabase());
+}
+
+// The root's name as on disk, such as "assets", after its icon.
+std::string GetRootLabel(const EditorProject& project, BrowserRoot root) {
+    const std::string name = PathToUtf8(GetRootDirectory(project, root).filename().u8string());
+    return (root == BrowserRoot::Code ? ICON_FA_CODE "  " : ICON_FA_FOLDER_OPEN "  ") + name;
 }
 
 // The path as people know it: code paths start with the code folder.
@@ -331,7 +333,7 @@ void AssetBrowserPanel::DrawBreadcrumbs(EditorProject& project) {
         ImGui::PopID();
     };
     const bool searching = !m_search.empty();
-    crumb(GetRootLabel(m_root), "", m_folder.empty() && !searching);
+    crumb(GetRootLabel(project, m_root).c_str(), "", m_folder.empty() && !searching);
     std::size_t start = 0;
     while (!m_folder.empty() && start <= m_folder.size()) {
         const std::size_t end = std::min(m_folder.find('/', start), m_folder.size());
@@ -364,14 +366,13 @@ void AssetBrowserPanel::DrawRoot(EditorProject& project, BrowserRoot root) {
         flags |= ImGuiTreeNodeFlags_Selected;
     }
     ImGui::PushID(static_cast<int>(root));
-    const bool open = ImGui::TreeNodeEx("##Root", flags, "%s", GetRootLabel(root));
+    const bool open = ImGui::TreeNodeEx("##Root", flags, "%s", GetRootLabel(project, root).c_str());
     if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
         SetFolder(root, {});
     }
     m_rects[root == BrowserRoot::Code ? "Tree/Code" : "Tree/Assets"] = {ImGui::GetItemRectMin(),
                                                                         ImGui::GetItemRectMax()};
-    ImGui::SetItemTooltip(root == BrowserRoot::Code ? "The game's C++ code, in the project's src folder"
-                                                    : "What the game loads, in the project's assets folder");
+    ImGui::SetItemTooltip(root == BrowserRoot::Code ? "The game's C++ code" : "What the game loads");
     AcceptMoves(project, root, {});
     if (open) {
         for (const std::string& folder : GetSubfolders(GetFolders(root), {})) {
@@ -1102,8 +1103,8 @@ void AssetBrowserPanel::Import(EditorProject& project, std::span<const std::file
     if (copied.empty()) {
         return;
     }
-    const std::string where =
-        folder.empty() ? std::string(root == BrowserRoot::Code ? "Code" : "Assets") : GetShownPath(root, folder);
+    const std::string directory = PathToUtf8(GetRootDirectory(project, root).filename().u8string());
+    const std::string where = folder.empty() ? directory : directory + "/" + folder;
     GetEditorLogger().Info(
         "Copied {} into '{}'",
         copied.size() == 1 ? "'" + GetFileName(copied.front()) + "'" : std::format("{} files", copied.size()), where);
