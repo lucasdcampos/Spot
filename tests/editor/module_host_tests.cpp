@@ -34,6 +34,13 @@ void WaitForBuild(Spot::Editor::ModuleHost& host) {
     }
 }
 
+// Make, as some generators build with, tells changed files by their times to the second, so code saved in the
+// second of the last build would look built; people take longer than that between builds.
+void WriteCode(const std::filesystem::path& file, std::string_view code) {
+    std::this_thread::sleep_for(1100ms);
+    std::ofstream(file, std::ios::binary) << code;
+}
+
 std::vector<std::string> GetTypes(const Spot::GameModule& module) {
     return {module.GetComponentTypes().begin(), module.GetComponentTypes().end()};
 }
@@ -123,7 +130,7 @@ TEST_CASE("A project's code builds into a module that loads, and loads again whe
         CHECK_FALSE(host.HasNewModule());
 
         // Changed code builds by itself; the new module replaces the old one while the scene is saved and cleared.
-        std::ofstream(code, std::ios::binary) << TwoComponents;
+        WriteCode(code, TwoComponents);
         host.Update();
         CHECK(host.GetBuild().IsRunning());
         WaitForBuild(host);
@@ -141,7 +148,7 @@ TEST_CASE("A project's code builds into a module that loads, and loads again whe
         CHECK(Spot::CreateComponent("Pulse"));
 
         // Code that does not build leaves the module that was loaded.
-        std::ofstream(code, std::ios::binary) << BrokenCode;
+        WriteCode(code, BrokenCode);
         host.Update();
         WaitForBuild(host);
         CHECK(host.GetBuild().GetState() == ModuleBuildState::Failed);
