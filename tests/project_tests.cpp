@@ -39,7 +39,8 @@ TEST_CASE("Projects save and load their settings", "[project]") {
     CHECK(loaded->GetSettings().name == "Café");
     CHECK(loaded->GetSettings().version == "1.2.3");
     CHECK(loaded->GetSettings().startupScene == scene);
-    CHECK(loaded->GetSettings().assetsDirectory == "assets");
+    CHECK(loaded->GetAssetsDirectory() == temp.GetPath() / "assets");
+    CHECK(loaded->GetCodeDirectory() == temp.GetPath() / "src");
 }
 
 TEST_CASE("Project files are readable JSON with their format and engine version", "[project]") {

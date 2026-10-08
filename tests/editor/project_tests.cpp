@@ -162,10 +162,12 @@ TEST_CASE("The 3D with C++ template adds the game's code, whose component the sc
 
     REQUIRE(file.has_value());
     const auto directory = temp.GetPath() / "My Game";
-    std::ifstream script(directory / "CMakeLists.txt");
+    CHECK_FALSE(std::filesystem::exists(directory / "CMakeLists.txt"));
+    std::ifstream script(directory / "src" / "CMakeLists.txt");
     const std::string text{std::istreambuf_iterator<char>(script), std::istreambuf_iterator<char>()};
     CHECK(text.find("project(My_Game LANGUAGES CXX)") != std::string::npos);
     CHECK(text.find("spot_add_game_module(game ${sources})") != std::string::npos);
+    CHECK(text.find("src/") == std::string::npos);
     CHECK(std::filesystem::is_regular_file(directory / "src" / "game.cpp"));
 
     const auto project = Spot::Editor::EditorProject::Open(*file, nullptr);
@@ -210,4 +212,30 @@ TEST_CASE("Times read as how long ago they were", "[editor][widgets]") {
     CHECK(Spot::Editor::Widgets::FormatRelativeTime(now - 30h, now) == "yesterday");
     CHECK(Spot::Editor::Widgets::FormatRelativeTime(now - std::chrono::days(4), now) == "4 days ago");
     CHECK(Spot::Editor::Widgets::FormatRelativeTime(now - std::chrono::days(60), now) == "2026-08-06");
+}
+
+TEST_CASE("Projects of older editors get the current layout when they open", "[editor][project]") {
+    const TempDirectory temp;
+    auto project = Spot::Project::Create(temp.GetPath(), {.name = "Old"});
+    REQUIRE(project);
+    std::ofstream(temp.GetPath() / "CMakeLists.txt")
+        << "file(GLOB_RECURSE sources CONFIGURE_DEPENDS src/*.cpp src/*.h)\n";
+    std::filesystem::create_directories(temp.GetPath() / "src");
+    std::ofstream(temp.GetPath() / "src" / "game.cpp") << "// The game\n";
+    std::ofstream(temp.GetPath() / ".gitignore") << "/.spot/";
+
+    CHECK(Spot::Editor::UpdateProjectLayout(*project));
+
+    CHECK_FALSE(std::filesystem::exists(temp.GetPath() / "CMakeLists.txt"));
+    std::ifstream script(temp.GetPath() / "src" / "CMakeLists.txt");
+    const std::string text{std::istreambuf_iterator<char>(script), std::istreambuf_iterator<char>()};
+    CHECK(text == "file(GLOB_RECURSE sources CONFIGURE_DEPENDS *.cpp *.h)\n");
+    std::ifstream ignore(temp.GetPath() / ".gitignore", std::ios::binary);
+    const std::string ignored{std::istreambuf_iterator<char>(ignore), std::istreambuf_iterator<char>()};
+    CHECK(ignored == "/.spot/\n# Games exported from the project\n/builds/\n");
+
+    // Once is enough.
+    CHECK_FALSE(Spot::Editor::UpdateProjectLayout(*project));
+    Spot::Editor::ModuleHost host(*project, {});
+    CHECK(host.HasCode());
 }

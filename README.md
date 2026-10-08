@@ -34,8 +34,11 @@ views and Escape quits. In 3D, dragging with the right mouse button also orbits 
 
 ## Game code in the editor
 
-Projects made from the editor's "3D with C++" template have a `CMakeLists.txt` and a `src/` folder with the game's
-own components. The editor builds that code into a game module with CMake and the compiler that built the editor,
+Every project has the same layout: its `<name>.spot` project file, `assets/` with the source assets, `src/` with the
+game's C++ code and its `CMakeLists.txt` when it has code, `builds/` for exported games and `.spot/` for what the
+editor generates; the last two stay out of version control.
+
+Projects made from the editor's "3D with C++" template have a `src/` folder with the game's own components. The editor builds that code into a game module with CMake and the compiler that built the editor,
 whenever it changes or on Ctrl+B, and loads it without closing the open scenes, so their entities, selections and
 undo history stay as they were. Build errors and warnings show in the console. Games made only in code link the
 static engine library and need none of this.

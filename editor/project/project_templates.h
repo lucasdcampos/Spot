@@ -37,5 +37,8 @@ std::string ValidateProjectName(std::string_view name);
 // Returns null, after logging why, when it cannot.
 std::optional<std::filesystem::path> CreateProject(const std::filesystem::path& location, const std::string& name,
                                                    ProjectTemplate kind);
+// Brings a project made by an older editor to the current layout (see Project): moves a CMakeLists.txt from the
+// project's folder into its code folder, and has git ignore exported games. Returns whether anything changed.
+bool UpdateProjectLayout(const Project& project);
 
 } // namespace Spot::Editor

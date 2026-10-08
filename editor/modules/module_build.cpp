@@ -143,7 +143,7 @@ bool ModuleBuild::Update() {
     m_process.reset();
 
     if (*exitCode == 0 && m_step == Step::Configure) {
-        std::ofstream(m_build / ToolchainFile, std::ios::binary) << m_toolchain.GetKey();
+        std::ofstream(m_build / ToolchainFile, std::ios::binary) << GetConfigurationKey();
         StartStep(Step::Build);
         return false;
     }
@@ -167,7 +167,12 @@ void ModuleBuild::Wait() {
 bool ModuleBuild::IsConfigured() const {
     std::error_code error;
     return std::filesystem::exists(m_build / "CMakeCache.txt", error) &&
-           ReadFile(m_build / ToolchainFile) == m_toolchain.GetKey();
+           ReadFile(m_build / ToolchainFile) == GetConfigurationKey();
+}
+
+std::string ModuleBuild::GetConfigurationKey() const {
+    // CMake ties a build directory to its sources too, which move with the project, or out of the project's root.
+    return m_toolchain.GetKey() + PathToUtf8(m_source) + "\n";
 }
 
 std::chrono::duration<float> ModuleBuild::GetDuration() const {

@@ -27,7 +27,6 @@ void ProjectSettings::Serialize(Archive& archive) {
     archive.Field("name", name);
     archive.Field("version", version);
     archive.Field("startupScene", startupScene);
-    archive.Field("assetsDirectory", assetsDirectory);
 }
 
 Project::Project(std::filesystem::path file, ProjectSettings settings)
@@ -113,7 +112,11 @@ bool Project::Save() const {
 }
 
 std::filesystem::path Project::GetAssetsDirectory() const {
-    return GetDirectory() / Utf8ToPath(m_settings.assetsDirectory);
+    return GetDirectory() / "assets";
+}
+
+std::filesystem::path Project::GetCodeDirectory() const {
+    return GetDirectory() / "src";
 }
 
 std::filesystem::path Project::GetCacheDirectory() const {

@@ -64,9 +64,6 @@ void ProjectSettingsPanel::OnDraw() {
         ImGui::EndCombo();
     }
 
-    Widgets::PropertyLabel("Assets Folder");
-    ImGui::TextColored(EditorColors::TextMuted, "%s", settings.assetsDirectory.c_str());
-
     Widgets::PropertyLabel("Project File");
     const std::string file = PathToUtf8(project->GetProject().GetFile());
     ImGui::TextColored(EditorColors::TextMuted, "%s", file.c_str());

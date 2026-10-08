@@ -11,8 +11,8 @@
 
 namespace Spot::Editor {
 
-// The game's code of a project with code, one with a CMakeLists.txt in its folder: builds it in the background when
-// it changes, and loads the module it builds, from a copy, so the next build can replace the file meanwhile.
+// The game's code of a project with code, one with a CMakeLists.txt in its code folder: builds it in the background
+// when it changes, and loads the module it builds, from a copy, so the next build can replace the file meanwhile.
 class ModuleHost {
 public:
     struct Options {

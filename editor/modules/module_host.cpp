@@ -14,7 +14,6 @@ namespace Spot::Editor {
 namespace {
 
 constexpr const char* BuildScript = "CMakeLists.txt";
-constexpr const char* CodeDirectory = "src";
 
 // Files whose changes need a build; others, such as the backups some text editors leave, do not.
 constexpr std::array CodeExtensions{".c",   ".cc",  ".cpp", ".cxx",  ".h",     ".hh", ".hpp",
@@ -42,7 +41,8 @@ void Mix(std::uint64_t& hash, const void* data, std::size_t size) {
 } // namespace
 
 ModuleHost::ModuleHost(const Project& project, Options options)
-    : m_directory(project.GetDirectory()), m_cacheDirectory(project.GetCacheDirectory()), m_options(std::move(options)),
+    : m_directory(project.GetCodeDirectory()), m_cacheDirectory(project.GetCacheDirectory()),
+      m_options(std::move(options)),
       // The module lands in the build directory's module folder, where the project says it is.
       m_build(m_directory, project.GetModuleFile().parent_path().parent_path(), m_options.toolchain) {
     // Copies loaded by earlier runs can go; those another editor still has loaded cannot, and stay.
@@ -82,8 +82,8 @@ bool ModuleHost::LoadBuilt() {
     const bool loaded = m_build.IsConfigured() && std::filesystem::exists(built, error) && SwapModule();
 
     // The code may have changed while the editor was closed.
-    auto newest = GetWriteTime(m_directory / BuildScript);
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(m_directory / CodeDirectory, error)) {
+    auto newest = std::filesystem::file_time_type::min();
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(m_directory, error)) {
         if (entry.is_regular_file(error) && IsCode(entry.path())) {
             newest = std::max(newest, GetWriteTime(entry.path()));
         }
@@ -162,10 +162,7 @@ bool ModuleHost::SwapModule() {
 std::uint64_t ModuleHost::StampCode() const {
     std::vector<std::filesystem::path> files;
     std::error_code error;
-    if (std::filesystem::is_regular_file(m_directory / BuildScript, error)) {
-        files.push_back(m_directory / BuildScript);
-    }
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(m_directory / CodeDirectory, error)) {
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(m_directory, error)) {
         if (entry.is_regular_file(error) && IsCode(entry.path())) {
             files.push_back(entry.path());
         }

@@ -18,14 +18,17 @@ struct ProjectSettings {
     std::string version = "0.1.0";
     // The scene a game made of assets starts with.
     AssetId startupScene = {};
-    // Where the project's source assets are, relative to the project's folder.
-    std::string assetsDirectory = "assets";
 
     void Serialize(Archive& archive);
 };
 
-// A game made with assets: a "<name>.spot" file in the project's folder, beside its source assets and a ".spot"
-// folder for what is generated from them, such as imported assets, which is not meant for version control.
+// A game made with assets. Every project's folder has the same layout:
+//   <name>.spot   the project file, with its settings
+//   assets/       the source assets, each beside its .meta file
+//   src/          the game's C++ code with its CMakeLists.txt, for projects with code
+//   builds/       games exported from the editor
+//   .spot/        what is generated from the rest, such as imported assets, and the editor's state
+// The last two are not meant for version control.
 class Project {
 public:
     static constexpr std::string_view FileExtension = ".spot";
@@ -44,6 +47,8 @@ public:
     const std::filesystem::path& GetFile() const { return m_file; }
     std::filesystem::path GetDirectory() const { return m_file.parent_path(); }
     std::filesystem::path GetAssetsDirectory() const;
+    // The game's code, for projects with code.
+    std::filesystem::path GetCodeDirectory() const;
     // Generated files: imported assets, caches and editor state.
     std::filesystem::path GetCacheDirectory() const;
     std::filesystem::path GetImportDirectory() const;

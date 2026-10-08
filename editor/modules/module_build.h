@@ -61,7 +61,8 @@ public:
     // Waits for the running build to end, following it.
     void Wait();
 
-    // Whether the build directory was configured for this toolchain, so what it built works with this editor.
+    // Whether the build directory was configured for this toolchain and these sources, so what it built works with
+    // this editor.
     bool IsConfigured() const;
 
     ModuleBuildState GetState() const { return m_state; }
@@ -86,6 +87,7 @@ private:
     void Log(const std::vector<std::string>& lines);
     void FlushMessage();
     void Finish(bool succeeded);
+    std::string GetConfigurationKey() const;
 
     std::filesystem::path m_source;
     std::filesystem::path m_build;

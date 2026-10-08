@@ -7,6 +7,8 @@
 #include <array>
 #include <format>
 #include <fstream>
+#include <initializer_list>
+#include <iterator>
 #include <system_error>
 
 namespace Spot::Editor {
@@ -21,8 +23,9 @@ constexpr std::array Templates{
     ProjectTemplateInfo{ProjectTemplate::Empty, "Empty", "Only an empty assets folder."},
 };
 
-// The generated folder is rebuilt from the sources, so it is never committed.
-constexpr std::string_view GitIgnore = "# Imported assets and editor state, rebuilt from the sources\n/.spot/\n";
+// The generated folder is rebuilt from the sources, and exported games from the project, so neither is committed.
+constexpr std::string_view GitIgnore = "# Imported assets and editor state, rebuilt from the sources\n/.spot/\n"
+                                       "# Games exported from the project\n/builds/\n";
 
 // How projects with code build it; the editor tells CMake where the engine is.
 constexpr std::string_view BuildScript =
@@ -33,7 +36,7 @@ project({} LANGUAGES CXX)
 
 find_package(Spot CONFIG REQUIRED)
 
-file(GLOB_RECURSE sources CONFIGURE_DEPENDS src/*.cpp src/*.h)
+file(GLOB_RECURSE sources CONFIGURE_DEPENDS *.cpp *.h)
 spot_add_game_module(game ${{sources}})
 )";
 
@@ -125,6 +128,49 @@ std::optional<AssetId> WriteScene(const Scene& scene, const std::filesystem::pat
 
 } // namespace
 
+bool UpdateProjectLayout(const Project& project) {
+    const std::filesystem::path directory = project.GetDirectory();
+    const std::filesystem::path oldScript = directory / "CMakeLists.txt";
+    const std::filesystem::path newScript = project.GetCodeDirectory() / "CMakeLists.txt";
+    std::error_code error;
+    bool changed = false;
+
+    // The build script went into the code folder, where the paths of the code are relative to it.
+    if (std::filesystem::is_regular_file(oldScript, error) && !std::filesystem::exists(newScript, error)) {
+        std::string text;
+        {
+            std::ifstream file(oldScript, std::ios::binary);
+            text.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+        }
+        for (const std::string_view prefix : {"${CMAKE_CURRENT_SOURCE_DIR}/src/", "src/"}) {
+            for (std::size_t at = text.find(prefix); at != std::string::npos; at = text.find(prefix, at)) {
+                text.erase(at, prefix.size());
+            }
+        }
+        if (!WriteText(newScript, text) || !std::filesystem::remove(oldScript, error)) {
+            GetEditorLogger().Error("Could not move '{}' into '{}'", PathToUtf8(oldScript),
+                                    PathToUtf8(project.GetCodeDirectory()));
+            return false;
+        }
+        GetEditorLogger().Info("Moved the project's CMakeLists.txt into its code folder, 'src'");
+        changed = true;
+    }
+
+    const std::filesystem::path ignore = directory / ".gitignore";
+    if (std::filesystem::is_regular_file(ignore, error)) {
+        std::ifstream file(ignore, std::ios::binary);
+        const std::string text{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+        file.close();
+        if (text.find("/builds/") == std::string::npos) {
+            std::ofstream(ignore, std::ios::binary | std::ios::app)
+                << (text.empty() || text.ends_with('\n') ? "" : "\n")
+                << "# Games exported from the project\n/builds/\n";
+            changed = true;
+        }
+    }
+    return changed;
+}
+
 void PopulateNewScene(Scene& scene) {
     // What the game shows of the scene, looking at the middle of it from a little above.
     Entity& camera = scene.CreateEntity("Camera");
@@ -184,8 +230,9 @@ std::optional<std::filesystem::path> CreateProject(const std::filesystem::path& 
 
     if (kind == ProjectTemplate::Code3D) {
         const std::string identifier = MakeIdentifier(name);
-        if (!WriteText(directory / "CMakeLists.txt", std::vformat(BuildScript, std::make_format_args(identifier))) ||
-            !WriteText(directory / "src" / "game.cpp", GameCode)) {
+        const std::filesystem::path code = project->GetCodeDirectory();
+        if (!WriteText(code / "CMakeLists.txt", std::vformat(BuildScript, std::make_format_args(identifier))) ||
+            !WriteText(code / "game.cpp", GameCode)) {
             GetEditorLogger().Error("Could not write the code of project '{}'", name);
             return std::nullopt;
         }

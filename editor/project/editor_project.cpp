@@ -1,6 +1,7 @@
 #include "project/editor_project.h"
 
 #include "core/editor_log.h"
+#include "project/project_templates.h"
 
 #include <algorithm>
 #include <utility>
@@ -12,6 +13,7 @@ std::unique_ptr<EditorProject> EditorProject::Open(const std::filesystem::path& 
     if (!project) {
         return nullptr;
     }
+    UpdateProjectLayout(*project);
     return std::unique_ptr<EditorProject>(new EditorProject(std::move(*project), device));
 }
 
