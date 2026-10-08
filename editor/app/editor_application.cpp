@@ -626,6 +626,8 @@ void EditorApplication::DrawPlayControls() {
                       play ? "Stop (Ctrl+P): what changed while playing is undone" : "Play the scene (Ctrl+P)",
                       play != nullptr)) {
         TogglePlaying();
+        // Stopping ends the session.
+        play = m_workspace->GetPlaySession();
     }
     ImGui::EndDisabled();
     ImGui::SameLine();
