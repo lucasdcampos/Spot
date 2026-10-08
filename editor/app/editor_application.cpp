@@ -186,7 +186,7 @@ void EditorApplication::OnEvent(const Event& event) {
     }
 }
 
-void EditorApplication::OnUpdate(float) {
+void EditorApplication::OnUpdate(float deltaTime) {
     if (m_closeProjectRequested) {
         m_closeProjectRequested = false;
         CloseProject();
@@ -197,6 +197,13 @@ void EditorApplication::OnUpdate(float) {
         OpenProject(file);
     }
     UpdateModules();
+
+    const int backupMinutes = m_settings.GetPreferences().backupMinutes;
+    m_sinceBackup += deltaTime;
+    if (backupMinutes > 0 && m_sinceBackup >= static_cast<float>(backupMinutes) * 60.0f) {
+        m_sinceBackup = 0.0f;
+        m_workspace->BackUp();
+    }
 }
 
 void EditorApplication::UpdateModules() {
@@ -320,6 +327,8 @@ void EditorApplication::OpenProject(const std::filesystem::path& path) {
     // Before the scenes open, so they find the game's components.
     m_context->GetProject()->GetModules().LoadBuilt();
     m_workspace->RestoreState();
+    m_workspace->OfferRecovery();
+    m_sinceBackup = 0.0f;
     UpdateTitle();
 }
 

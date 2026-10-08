@@ -267,4 +267,21 @@ private:
     std::string m_after;
 };
 
+// Replaces all of the scene with saved entities, as when unsaved changes are recovered; undoing brings back what the
+// scene had.
+class ReplaceSceneCommand final : public SceneCommand {
+public:
+    ReplaceSceneCommand(SceneDocument& document, std::string text, std::string name);
+
+    std::string GetName() const override { return m_name; }
+    bool Execute() override;
+    void Undo() override;
+    std::optional<std::vector<EntityId>> GetSelectionAfter() const override { return std::vector<EntityId>(); }
+
+private:
+    std::string m_text;
+    std::string m_name;
+    std::string m_before;
+};
+
 } // namespace Spot::Editor

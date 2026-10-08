@@ -102,6 +102,8 @@ private:
     std::unique_ptr<GameRunner> m_game;
     // Set while the game waits for its code to build before it runs.
     bool m_runPending = false;
+    // Seconds since the scenes were last backed up.
+    float m_sinceBackup = 0.0f;
     std::unique_ptr<ProjectHub> m_hub;
     std::unique_ptr<NewProjectDialog> m_newProjectDialog;
     std::unique_ptr<PreferencesWindow> m_preferences;

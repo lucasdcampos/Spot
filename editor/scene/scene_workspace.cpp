@@ -4,7 +4,9 @@
 #include "core/editor_log.h"
 #include "imgui/editor_style.h"
 #include "imgui/icons.h"
+#include "imgui/widgets.h"
 #include "project/project_templates.h"
+#include "scene/scene_commands.h"
 
 #include <nlohmann/json.hpp>
 
@@ -23,6 +25,8 @@ using nlohmann::json;
 namespace {
 
 constexpr const char* SavePromptId = "Save Changes?###SaveChanges";
+constexpr const char* RecoveryPromptId = "Recover Unsaved Changes###RecoverChanges";
+constexpr std::string_view BackupFormat = "spot-scene-backup";
 const std::array SceneFilters{FileFilter{"Scenes", "scene"}};
 
 json ToJson(Vector3 v) {
@@ -193,6 +197,7 @@ void SceneWorkspace::Save(SceneDocument& document) {
         return;
     }
     if (document.Save()) {
+        DropBackup(document);
         if (EditorProject* project = m_context.GetProject()) {
             project->Refresh();
         }
@@ -250,6 +255,7 @@ void SceneWorkspace::SaveAs(SceneDocument& document, std::function<void(bool sav
                 finish(false);
                 return;
             }
+            owner->DropBackup(document);
             project->Refresh();
             document.SetAssetId(
                 project->GetAssetDatabase().FindByPath(PathToUtf8(relative.generic_u8string())).value_or(AssetId()));
@@ -257,6 +263,140 @@ void SceneWorkspace::SaveAs(SceneDocument& document, std::function<void(bool sav
             finish(true);
         },
         suggested);
+}
+
+void SceneWorkspace::BackUp() {
+    EditorProject* project = m_context.GetProject();
+    if (!project || !m_recovery.empty()) {
+        return;
+    }
+    for (Opened& open : m_scenes) {
+        const SceneDocument& document = *open.document;
+        if (!document.IsDirty()) {
+            DropBackup(document);
+            continue;
+        }
+        auto backup =
+            std::ranges::find(m_backups, document.GetId(), &std::pair<std::uint64_t, std::filesystem::path>::first);
+        if (backup == m_backups.end()) {
+            m_backups.emplace_back(document.GetId(),
+                                   GetBackupDirectory() / Utf8ToPath(AssetId::Generate().ToString() + ".json"));
+            backup = m_backups.end() - 1;
+        }
+        const auto now = std::chrono::system_clock::now();
+        const json content = {
+            {"format", BackupFormat},
+            {"asset", document.GetAssetId().IsValid() ? document.GetAssetId().ToString() : std::string()},
+            {"name", document.GetName()},
+            {"time", std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count()},
+            {"scene", document.GetScene().SaveToString()},
+        };
+        std::error_code error;
+        std::filesystem::create_directories(backup->second.parent_path(), error);
+        std::ofstream stream(backup->second, std::ios::binary);
+        stream << content.dump(-1, ' ', false, json::error_handler_t::replace);
+        if (!stream) {
+            GetEditorLogger().Warning("Could not back up the scene '{}' to '{}'", document.GetName(),
+                                      PathToUtf8(backup->second));
+        }
+    }
+}
+
+std::vector<SceneBackup> SceneWorkspace::FindBackups() const {
+    std::vector<SceneBackup> backups;
+    EditorProject* project = m_context.GetProject();
+    if (!project) {
+        return backups;
+    }
+    std::error_code error;
+    for (const auto& entry : std::filesystem::directory_iterator(GetBackupDirectory(), error)) {
+        std::ifstream stream(entry.path(), std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
+        const json content = json::parse(text, nullptr, false);
+        if (!content.is_object() || content.value("format", std::string()) != BackupFormat ||
+            !content.contains("scene") || !content["scene"].is_string()) {
+            continue;
+        }
+        SceneBackup backup;
+        backup.file = entry.path();
+        backup.asset = AssetId::Parse(content.value("asset", std::string())).value_or(AssetId());
+        backup.name = content.value("name", std::string("Untitled"));
+        backup.time =
+            std::chrono::system_clock::time_point(std::chrono::milliseconds(content.value("time", std::int64_t{0})));
+        backup.scene = content["scene"].get<std::string>();
+
+        // A scene saved after it was backed up has all the backup had.
+        const AssetInfo* asset = backup.asset.IsValid() ? project->GetAssetDatabase().Find(backup.asset) : nullptr;
+        if (asset) {
+            const std::filesystem::path sceneFile =
+                project->GetProject().GetAssetsDirectory() / Utf8ToPath(asset->path);
+            const auto sceneTime = std::filesystem::last_write_time(sceneFile, error);
+            if (!error && sceneTime > std::filesystem::last_write_time(entry.path(), error)) {
+                continue;
+            }
+        } else {
+            // The scene is gone, so its changes come back as a new scene.
+            backup.asset = AssetId();
+        }
+        backups.push_back(std::move(backup));
+    }
+    std::ranges::sort(backups, {}, &SceneBackup::time);
+    return backups;
+}
+
+void SceneWorkspace::OfferRecovery() {
+    m_recovery = FindBackups();
+    if (m_recovery.empty()) {
+        // Only backups the scenes' files made useless, if any.
+        DiscardBackups();
+        return;
+    }
+    m_openRecovery = true;
+}
+
+void SceneWorkspace::RecoverBackups() {
+    std::vector<SceneBackup> backups = std::exchange(m_recovery, {});
+    if (backups.empty()) {
+        backups = FindBackups();
+    }
+    for (const SceneBackup& backup : backups) {
+        SceneDocument* document = backup.asset.IsValid() ? OpenScene(backup.asset) : nullptr;
+        if (!document) {
+            document = &Add(std::make_unique<SceneDocument>(backup.name));
+        }
+        document->Execute(std::make_unique<ReplaceSceneCommand>(*document, backup.scene, "Recover Unsaved Changes"));
+        GetEditorLogger().Info("Recovered the unsaved changes to the scene '{}'", backup.name);
+    }
+    DiscardBackups();
+}
+
+void SceneWorkspace::DiscardBackups() {
+    m_recovery.clear();
+    std::error_code error;
+    std::vector<std::filesystem::path> files;
+    for (const auto& entry : std::filesystem::directory_iterator(GetBackupDirectory(), error)) {
+        files.push_back(entry.path());
+    }
+    for (const std::filesystem::path& file : files) {
+        std::filesystem::remove(file, error);
+    }
+    m_backups.clear();
+}
+
+std::filesystem::path SceneWorkspace::GetBackupDirectory() const {
+    const EditorProject* project = m_context.GetProject();
+    return project ? project->GetProject().GetCacheDirectory() / "backups" : std::filesystem::path();
+}
+
+void SceneWorkspace::DropBackup(const SceneDocument& document) {
+    const auto backup =
+        std::ranges::find(m_backups, document.GetId(), &std::pair<std::uint64_t, std::filesystem::path>::first);
+    if (backup == m_backups.end()) {
+        return;
+    }
+    std::error_code error;
+    std::filesystem::remove(backup->second, error);
+    m_backups.erase(backup);
 }
 
 void SceneWorkspace::SaveAll() {
@@ -463,6 +603,7 @@ void SceneWorkspace::Draw(ImGuiID dockId) {
         }
     }
     DrawSavePrompt();
+    DrawRecoveryPrompt();
 }
 
 void SceneWorkspace::Render(RenderContext& context) {
@@ -497,6 +638,7 @@ void SceneWorkspace::Remove(SceneDocument& document) {
     if (m_play && &m_play->GetSource() == &document) {
         StopPlaying();
     }
+    DropBackup(document);
     m_scenes.erase(found);
     if (m_active == &document) {
         m_active = m_scenes.empty() ? nullptr : m_scenes.back().document.get();
@@ -605,6 +747,51 @@ void SceneWorkspace::DrawSavePrompt() {
                     }
                 });
             }
+        }
+    }
+    ImGui::EndPopup();
+}
+
+void SceneWorkspace::DrawRecoveryPrompt() {
+    if (m_openRecovery) {
+        ImGui::OpenPopup(RecoveryPromptId);
+        m_openRecovery = false;
+    }
+    ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, {0.5f, 0.5f});
+    if (!ImGui::BeginPopupModal(RecoveryPromptId, nullptr,
+                                ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings)) {
+        return;
+    }
+    ImGui::TextColored(EditorColors::Warning, ICON_FA_TRIANGLE_EXCLAMATION);
+    ImGui::SameLine();
+    ImGui::PushTextWrapPos(ImGui::GetFontSize() * 30.0f);
+    ImGui::TextUnformatted("The editor stopped before these scenes were saved. Do you want to recover their changes?");
+    ImGui::PopTextWrapPos();
+    ImGui::Spacing();
+    for (const SceneBackup& backup : m_recovery) {
+        ImGui::Bullet();
+        ImGui::TextUnformatted(backup.name.c_str());
+        ImGui::SameLine();
+        ImGui::TextColored(EditorColors::TextMuted, "changed %s", Widgets::FormatRelativeTime(backup.time).c_str());
+    }
+    ImGui::Spacing();
+    ImGui::TextColored(EditorColors::TextMuted, "Recovered changes can be undone, and are saved like any other.");
+    ImGui::Spacing();
+
+    const float buttonWidth = ImGui::GetFontSize() * 6.5f;
+    const ImGuiStyle& style = ImGui::GetStyle();
+    ImGui::SetCursorPosX(ImGui::GetWindowWidth() - buttonWidth * 2.0f - style.ItemSpacing.x - style.WindowPadding.x);
+    ImGui::PushStyleColor(ImGuiCol_Button, EditorColors::Accent);
+    const bool recover = ImGui::Button("Recover", {buttonWidth, 0.0f}) || ImGui::IsKeyPressed(ImGuiKey_Enter);
+    ImGui::PopStyleColor();
+    ImGui::SameLine();
+    const bool discard = ImGui::Button("Discard", {buttonWidth, 0.0f});
+    if (recover || discard) {
+        ImGui::CloseCurrentPopup();
+        if (recover) {
+            RecoverBackups();
+        } else {
+            DiscardBackups();
         }
     }
     ImGui::EndPopup();

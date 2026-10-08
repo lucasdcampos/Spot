@@ -384,3 +384,69 @@ TEST_CASE("Reloading the scenes makes their components anew, and keeps ids, sele
     CHECK(document.GetScene().FindEntity("Sun"));
     CHECK_FALSE(document.IsDirty());
 }
+
+TEST_CASE("Scenes with unsaved changes are backed up until they are saved", "[editor][workspace][backup]") {
+    WorkspaceFixture fixture;
+    fixture.workspace->RestoreState();
+    Spot::Editor::SceneDocument& document = *fixture.workspace->GetActiveDocument();
+
+    // Nothing to keep while the scene is as saved.
+    fixture.workspace->BackUp();
+    CHECK(fixture.workspace->FindBackups().empty());
+
+    fixture.Rename(document);
+    fixture.workspace->BackUp();
+    const std::vector<Spot::Editor::SceneBackup> backups = fixture.workspace->FindBackups();
+    REQUIRE(backups.size() == 1);
+    CHECK(backups[0].asset == document.GetAssetId());
+    CHECK(backups[0].name == "Main");
+    CHECK(backups[0].scene == document.GetScene().SaveToString());
+
+    fixture.workspace->Save(document);
+    CHECK(fixture.workspace->FindBackups().empty());
+}
+
+TEST_CASE("Backups left behind bring the changes back as a step to undo", "[editor][workspace][backup]") {
+    WorkspaceFixture fixture;
+    fixture.workspace->RestoreState();
+    Spot::Editor::SceneDocument& document = *fixture.workspace->GetActiveDocument();
+    fixture.Rename(document);
+    Spot::Editor::SceneDocument& untitled = fixture.workspace->NewScene();
+    untitled.GetScene().CreateEntity("Only Here");
+    fixture.workspace->BackUp();
+
+    // Another editor, as after this one stopped without saving, finds what it left.
+    Spot::Editor::SceneWorkspace next(*fixture.context);
+    next.RestoreState();
+    REQUIRE(next.FindBackups().size() == 2);
+    next.RecoverBackups();
+
+    CHECK(next.FindBackups().empty());
+    Spot::Editor::SceneDocument* main = nullptr;
+    Spot::Editor::SceneDocument* recovered = nullptr;
+    for (std::size_t i = 0; i < next.GetDocumentCount(); ++i) {
+        Spot::Editor::SceneDocument& candidate = next.GetDocument(i);
+        (candidate.GetAssetId().IsValid() ? main : recovered) = &candidate;
+    }
+    REQUIRE(main);
+    REQUIRE(recovered);
+    CHECK(main->GetScene().FindEntity("Renamed Sun"));
+    CHECK(main->IsDirty());
+    main->Undo();
+    CHECK(main->GetScene().FindEntity("Sun"));
+    CHECK_FALSE(main->IsDirty());
+    CHECK(recovered->GetName() == "Untitled");
+    CHECK(recovered->GetScene().FindEntity("Only Here"));
+}
+
+TEST_CASE("Closing a scene drops its backup", "[editor][workspace][backup]") {
+    WorkspaceFixture fixture;
+    fixture.workspace->RestoreState();
+    fixture.Rename(*fixture.workspace->GetActiveDocument());
+    fixture.workspace->BackUp();
+    REQUIRE(fixture.workspace->FindBackups().size() == 1);
+
+    fixture.workspace->CloseAll();
+
+    CHECK(fixture.workspace->FindBackups().empty());
+}

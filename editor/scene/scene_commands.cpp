@@ -401,4 +401,24 @@ void EditComponentCommand::Undo() {
     LoadComponentFromString(GetComponentAt(GetEntity(m_entity), m_index), m_before);
 }
 
+ReplaceSceneCommand::ReplaceSceneCommand(SceneDocument& document, std::string text, std::string name)
+    : SceneCommand(document), m_text(std::move(text)), m_name(std::move(name)) {
+}
+
+bool ReplaceSceneCommand::Execute() {
+    Scene& scene = GetScene();
+    if (m_before.empty()) {
+        m_before = scene.SaveToString();
+    }
+    scene.Clear();
+    scene.Instantiate(m_text, {.keepIds = true, .keepExternalReferences = true});
+    return true;
+}
+
+void ReplaceSceneCommand::Undo() {
+    Scene& scene = GetScene();
+    scene.Clear();
+    scene.Instantiate(m_before, {.keepIds = true, .keepExternalReferences = true});
+}
+
 } // namespace Spot::Editor

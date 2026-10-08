@@ -9,17 +9,31 @@
 
 #include <imgui.h>
 
+#include <chrono>
 #include <cstdint>
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace Spot::Editor {
 
 class EditorContext;
+
+// A copy of a scene with unsaved changes, kept in case the editor stops before they are saved.
+struct SceneBackup {
+    std::filesystem::path file;
+    // The scene asset it is a copy of; null for scenes that were never saved.
+    AssetId asset;
+    std::string name;
+    std::chrono::system_clock::time_point time;
+    // In the format of Scene::SaveToString().
+    std::string scene;
+};
 
 // The scenes open in the editor, each in its own view: opening, creating, saving and closing them, asking about
 // unsaved changes, and remembering per project which were open and where their cameras were.
@@ -80,6 +94,19 @@ public:
     // is replaced under them. Nothing may play.
     void ReloadScenes(const std::function<void()>& between);
 
+    // Writes a copy of each scene with unsaved changes into the project, and drops the copies of the others. The
+    // copies are left behind if the editor stops before the scenes are saved, and the next time the project opens,
+    // OfferRecovery() asks whether to bring them back.
+    void BackUp();
+    // The backups left behind, oldest first; those older than their scene's file are left out, as the file has what
+    // they had.
+    std::vector<SceneBackup> FindBackups() const;
+    // Asks whether to open the scenes left behind with their unsaved changes, when there are any.
+    void OfferRecovery();
+    // Opens the scenes left behind with their changes, which can be undone like any change, and drops the backups.
+    void RecoverBackups();
+    void DiscardBackups();
+
     // Draws the views, docking new ones into the node, and the prompts.
     void Draw(ImGuiID dockId);
     // Makes documents follow their scene files after the assets changed: moved files give their documents new
@@ -100,6 +127,9 @@ private:
     std::filesystem::path GetStateFile() const;
     void DrawEmptyArea(ImGuiID dockId);
     void DrawSavePrompt();
+    void DrawRecoveryPrompt();
+    std::filesystem::path GetBackupDirectory() const;
+    void DropBackup(const SceneDocument& document);
 
     EditorContext& m_context;
     std::vector<Opened> m_scenes;
@@ -113,6 +143,11 @@ private:
     std::vector<std::uint64_t> m_prompted;
     std::function<void()> m_afterPrompt;
     bool m_openPrompt = false;
+    // The backup file of each document backed up, by document id.
+    std::vector<std::pair<std::uint64_t, std::filesystem::path>> m_backups;
+    // Backups left behind wait for the user to say what to do with them, and none are made meanwhile.
+    std::vector<SceneBackup> m_recovery;
+    bool m_openRecovery = false;
     // After the documents, so it goes first, as it refers to one of them.
     std::unique_ptr<PlaySession> m_play;
 };
