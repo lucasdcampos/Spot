@@ -47,6 +47,8 @@ public:
     // Generated files: imported assets, caches and editor state.
     std::filesystem::path GetCacheDirectory() const;
     std::filesystem::path GetImportDirectory() const;
+    // The game module built from the project's code, for projects with code, which the editor builds there.
+    std::filesystem::path GetModuleFile() const;
 
     ProjectSettings& GetSettings() { return m_settings; }
     const ProjectSettings& GetSettings() const { return m_settings; }

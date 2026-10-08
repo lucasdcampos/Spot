@@ -49,6 +49,8 @@ if(SPOT_BUILD_SANDBOX)
 endif()
 
 if(SPOT_BUILD_EDITOR)
+    # The player runs what the editor makes, so it comes with it.
+    add_subdirectory(player)
     add_subdirectory(editor)
 endif()
 

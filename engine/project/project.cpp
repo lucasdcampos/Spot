@@ -1,6 +1,7 @@
 #include "project/project.h"
 
 #include "assets/asset_file.h"
+#include "core/game_module.h"
 #include "core/log.h"
 #include "core/paths.h"
 #include "scene/archive.h"
@@ -121,6 +122,10 @@ std::filesystem::path Project::GetCacheDirectory() const {
 
 std::filesystem::path Project::GetImportDirectory() const {
     return GetCacheDirectory() / "imported";
+}
+
+std::filesystem::path Project::GetModuleFile() const {
+    return GetCacheDirectory() / "build" / "module" / ("game" + std::string(GameModule::FileExtension));
 }
 
 } // namespace Spot

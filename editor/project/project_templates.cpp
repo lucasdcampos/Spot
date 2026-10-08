@@ -126,6 +126,13 @@ std::optional<AssetId> WriteScene(const Scene& scene, const std::filesystem::pat
 } // namespace
 
 void PopulateNewScene(Scene& scene) {
+    // What the game shows of the scene, looking at the middle of it from a little above.
+    Entity& camera = scene.CreateEntity("Camera");
+    camera.AddComponent<Camera>();
+    const Vector3 eye{0.0f, 2.0f, 6.0f};
+    camera.GetTransform().SetPosition(eye);
+    camera.GetTransform().SetRotation(Quaternion::LookRotation(Vector3{0.0f, 0.5f, 0.0f} - eye));
+
     Entity& sun = scene.CreateEntity("Sun");
     sun.AddComponent<DirectionalLight>();
     sun.GetTransform().SetRotation(Quaternion::LookRotation({-0.4f, -1.0f, -0.6f}));

@@ -20,6 +20,9 @@ TEST_CASE("Projects are created as a file named after them beside an assets fold
     CHECK(project->GetFile() == std::filesystem::absolute(directory / "My Game.spot"));
     CHECK(project->GetAssetsDirectory() == std::filesystem::absolute(directory / "assets"));
     CHECK(project->GetImportDirectory() == std::filesystem::absolute(directory / ".spot" / "imported"));
+    CHECK(project->GetModuleFile() ==
+          std::filesystem::absolute(directory / ".spot" / "build" / "module" /
+                                    ("game" + std::string(Spot::GameModule::FileExtension))));
 }
 
 TEST_CASE("Projects save and load their settings", "[project]") {

@@ -13,6 +13,7 @@ Each project lives in its own folder at the repository root, with headers next t
 - `tests/` – unit tests using Catch2
 - `editor/` – the editor (`spot_editor`), a Dear ImGui application; everything but `main.cpp` is the
   `spot_editor_core` library its tests link
+- `player/` – `spot_player`, which runs projects made in the editor outside of it, with their game module
 
 ## Build and test
 

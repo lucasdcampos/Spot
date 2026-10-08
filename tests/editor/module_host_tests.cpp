@@ -1,17 +1,22 @@
 // Builds projects' code into game modules with CMake and the compiler that built the editor, which takes a while, so
 // these tests have an executable of their own.
+#include "log_capture.h"
 #include "temp_directory.h"
 
 #include "modules/module_build.h"
 #include "modules/module_host.h"
+#include "play/game_runner.h"
 #include "project/project_templates.h"
 
 #include <spot.h>
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
+#include <array>
 #include <chrono>
 #include <fstream>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -148,4 +153,46 @@ TEST_CASE("A project's code builds into a module that loads, and loads again whe
         scene.Clear();
     }
     CHECK_FALSE(Spot::CreateComponent("Rotator"));
+}
+
+TEST_CASE("The player runs a project's startup scene with the game's code", "[editor][module][player]") {
+    const TempDirectory temp;
+    const auto file = Spot::Editor::CreateProject(temp.GetPath(), "Played", Spot::Editor::ProjectTemplate::Code3D);
+    REQUIRE(file);
+    const auto project = Spot::Project::Load(*file);
+    REQUIRE(project);
+    {
+        Spot::Editor::ModuleHost host(*project, {.watchInterval = 0ms});
+        host.Build();
+        WaitForBuild(host);
+        REQUIRE(host.GetBuild().GetState() == ModuleBuildState::Succeeded);
+    }
+
+    const auto capture = std::make_shared<Spot::Tests::CaptureSink>();
+    const Spot::Tests::ScopedSinks sinks({capture});
+    Spot::Editor::GameRunner game;
+    const std::array options{std::string("--no-graphics"), std::string("--frames"), std::string("5")};
+    REQUIRE(game.Start(*file, options));
+    while (game.IsRunning()) {
+        std::this_thread::sleep_for(20ms);
+        game.Update();
+    }
+    game.Update();
+
+    CHECK(game.GetExitCode() == 0);
+    std::vector<std::string> messages;
+    for (const Spot::Tests::CapturedRecord& record : capture->GetRecords()) {
+        if (record.loggerName == "Game") {
+            messages.push_back(record.message);
+        }
+    }
+    const auto logged = [&](std::string_view text) {
+        return std::ranges::any_of(messages,
+                                   [&](const std::string& message) { return message.find(text) != std::string::npos; });
+    };
+    CHECK(logged("Spot: Loaded the game module"));
+    CHECK(logged("Player: Running 'Played'"));
+    CHECK(logged("The game exited"));
+    // The cube's component comes from the game's code, which the player has.
+    CHECK_FALSE(logged("not registered"));
 }

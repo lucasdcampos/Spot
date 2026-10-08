@@ -169,13 +169,7 @@ std::chrono::duration<float> ModuleBuild::GetDuration() const {
 }
 
 std::filesystem::path ModuleBuild::GetModulePath() const {
-    // CMake names modules .so everywhere but on Windows, macOS included.
-#if defined(_WIN32)
-    constexpr const char* Extension = ".dll";
-#else
-    constexpr const char* Extension = ".so";
-#endif
-    return m_build / "module" / (std::string("game") + Extension);
+    return m_build / "module" / ("game" + std::string(GameModule::FileExtension));
 }
 
 LogLevel ModuleBuild::ClassifyLine(std::string_view line) {

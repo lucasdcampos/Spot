@@ -41,7 +41,7 @@ public:
     SceneView* GetActiveView();
     bool HasUnsavedChanges() const;
 
-    // A new scene with a sun and a sky, not saved anywhere yet.
+    // A new scene with a camera, a sun and a sky, not saved anywhere yet.
     SceneDocument& NewScene();
     // Opens a scene asset of the project, or brings its view forward when it is open already. Null, after logging
     // why, when it cannot be read.

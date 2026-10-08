@@ -9,6 +9,7 @@
 #include "panels/hierarchy_panel.h"
 #include "panels/inspector_panel.h"
 #include "panels/panel.h"
+#include "play/game_runner.h"
 #include "project/new_project_dialog.h"
 #include "project/project_hub.h"
 #include "scene/scene_workspace.h"
@@ -76,6 +77,8 @@ private:
     void UpdateModules();
     // Plays the active scene, or stops playing.
     void TogglePlaying();
+    // Runs the game in its own window, once its scenes are saved and its code is built.
+    void RunGame();
     void DrawStatusBar();
     void DrawLatestMessage();
     void DrawDockSpace();
@@ -95,6 +98,9 @@ private:
     std::unique_ptr<EditorContext> m_context;
     std::unique_ptr<SceneWorkspace> m_workspace;
     std::unique_ptr<ThumbnailCache> m_thumbnails;
+    std::unique_ptr<GameRunner> m_game;
+    // Set while the game waits for its code to build before it runs.
+    bool m_runPending = false;
     std::unique_ptr<ProjectHub> m_hub;
     std::unique_ptr<NewProjectDialog> m_newProjectDialog;
     std::vector<std::unique_ptr<Panel>> m_panels;

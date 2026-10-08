@@ -1,5 +1,6 @@
 // The only file that knows how the editor was built, so a change to that rebuilds nothing else.
 #include "modules/module_build.h"
+#include "play/game_runner.h"
 
 namespace Spot::Editor {
 
@@ -16,6 +17,10 @@ ModuleToolchain ModuleToolchain::GetEditor() {
         .multiConfiguration = SPOT_MODULE_MULTI_CONFIGURATION != 0,
         .package = Utf8ToPath(SPOT_MODULE_PACKAGE),
     };
+}
+
+std::filesystem::path GameRunner::GetBuiltPlayer() {
+    return Utf8ToPath(SPOT_PLAYER);
 }
 
 } // namespace Spot::Editor

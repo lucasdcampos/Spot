@@ -57,6 +57,7 @@ add_library(spot_editor_core STATIC
     assets/asset_list.h
     assets/thumbnail_cache.cpp
     assets/thumbnail_cache.h
+    core/build_info.cpp
     core/command.h
     core/command_history.cpp
     core/command_history.h
@@ -96,7 +97,8 @@ add_library(spot_editor_core STATIC
     modules/module_build.h
     modules/module_host.cpp
     modules/module_host.h
-    modules/module_toolchain.cpp
+    play/game_runner.cpp
+    play/game_runner.h
     play/play_session.cpp
     play/play_session.h
     panels/asset_browser_panel.cpp
@@ -161,9 +163,10 @@ spot_embed_files(spot_editor_core
 )
 spot_set_compile_options(spot_editor_core)
 
-# Game modules are built as the editor was, against its build of the shared engine library, so they work together.
+# Game modules are built as the editor was, against its build of the shared engine library, so they work together,
+# and games run outside of the editor with the player built along with it.
 get_property(spot_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-set_property(SOURCE modules/module_toolchain.cpp APPEND PROPERTY COMPILE_DEFINITIONS
+set_property(SOURCE core/build_info.cpp APPEND PROPERTY COMPILE_DEFINITIONS
     SPOT_MODULE_CMAKE="${CMAKE_COMMAND}"
     SPOT_MODULE_GENERATOR="${CMAKE_GENERATOR}"
     SPOT_MODULE_PLATFORM="${CMAKE_GENERATOR_PLATFORM}"
@@ -174,7 +177,9 @@ set_property(SOURCE modules/module_toolchain.cpp APPEND PROPERTY COMPILE_DEFINIT
     SPOT_MODULE_CONFIGURATION="$<CONFIG>"
     SPOT_MODULE_MULTI_CONFIGURATION=$<BOOL:${spot_multi_config}>
     SPOT_MODULE_PACKAGE="${PROJECT_BINARY_DIR}/package/$<CONFIG>"
+    SPOT_PLAYER="$<TARGET_FILE:spot_player>"
 )
+add_dependencies(spot_editor_core spot_player)
 
 add_executable(spot_editor
     main.cpp

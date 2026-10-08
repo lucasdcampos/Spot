@@ -18,7 +18,7 @@ using Spot::EntityId;
 
 namespace {
 
-// A new scene, with a sun and a sky, open in a workspace whose hierarchy draws headless.
+// A new scene, with a camera, a sun and a sky, open in a workspace whose hierarchy draws headless.
 struct HierarchyFixture {
     std::unique_ptr<Spot::Window> window = Spot::Window::Create();
     Spot::Tests::HeadlessImGui imgui;
@@ -108,7 +108,7 @@ TEST_CASE("Keys in the hierarchy rename, duplicate and delete, all undoable", "[
     CHECK(fixture.document->GetScene().FindEntity("Crate"));
 
     fixture.Press(ImGuiMod_Ctrl | ImGuiKey_D);
-    CHECK(fixture.RootNames() == std::vector<std::string>{"Sun", "Sky", "Crate", "Crate"});
+    CHECK(fixture.RootNames() == std::vector<std::string>{"Camera", "Sun", "Sky", "Crate", "Crate"});
     const EntityId copy = fixture.document->GetSelection().GetPrimary();
     REQUIRE(fixture.document->GetScene().FindEntity("Crate"));
     CHECK(copy != fixture.document->GetScene().FindEntity("Crate")->GetId());
@@ -121,7 +121,7 @@ TEST_CASE("Keys in the hierarchy rename, duplicate and delete, all undoable", "[
     CHECK(fixture.document->GetScene().GetEntity(copy));
     fixture.document->Undo();
     fixture.document->Undo();
-    CHECK(fixture.RootNames() == std::vector<std::string>{"Sun", "Sky", "Cube"});
+    CHECK(fixture.RootNames() == std::vector<std::string>{"Camera", "Sun", "Sky", "Cube"});
 }
 
 TEST_CASE("Dragging rows reparents and reorders entities", "[editor][hierarchy][ui]") {
@@ -132,11 +132,11 @@ TEST_CASE("Dragging rows reparents and reorders entities", "[editor][hierarchy][
 
     fixture.Frame();
     fixture.Drag(fixture.RowPoint("Sky"), fixture.RowPoint("Sun", 0.05f));
-    CHECK(fixture.RootNames() == std::vector<std::string>{"Sky", "Sun"});
+    CHECK(fixture.RootNames() == std::vector<std::string>{"Camera", "Sky", "Sun"});
 
     fixture.document->Undo();
     fixture.document->Undo();
-    CHECK(fixture.RootNames() == std::vector<std::string>{"Sun", "Sky", "Cube"});
+    CHECK(fixture.RootNames() == std::vector<std::string>{"Camera", "Sun", "Sky", "Cube"});
 }
 
 TEST_CASE("Copied entities paste into another scene", "[editor][hierarchy]") {

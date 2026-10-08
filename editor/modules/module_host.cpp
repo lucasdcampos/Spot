@@ -43,7 +43,8 @@ void Mix(std::uint64_t& hash, const void* data, std::size_t size) {
 
 ModuleHost::ModuleHost(const Project& project, Options options)
     : m_directory(project.GetDirectory()), m_cacheDirectory(project.GetCacheDirectory()), m_options(std::move(options)),
-      m_build(m_directory, m_cacheDirectory / "build", m_options.toolchain) {
+      // The module lands in the build directory's module folder, where the project says it is.
+      m_build(m_directory, project.GetModuleFile().parent_path().parent_path(), m_options.toolchain) {
     // Copies loaded by earlier runs can go; those another editor still has loaded cannot, and stay.
     std::error_code error;
     std::vector<std::filesystem::path> copies;

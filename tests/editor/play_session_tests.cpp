@@ -1,3 +1,4 @@
+#include "play/game_runner.h"
 #include "play/play_session.h"
 
 #include <spot.h>
@@ -128,4 +129,21 @@ TEST_CASE("Playing runs a copy of the scene as a game, and stopping leaves the s
     CHECK(climber.GetTransform().GetPosition().y == 0.0f);
     CHECK(source.GetSelection().IsEmpty());
     Spot::UnregisterComponent("Climber");
+}
+
+TEST_CASE("Lines of the game's log keep their level, and say which logger wrote them", "[editor][play]") {
+    using Spot::Editor::GameRunner;
+
+    const GameRunner::Line own = GameRunner::ParseLine("[14:03:12.345] [WARN ] [App] Low on health");
+    CHECK(own.level == Spot::LogLevel::Warning);
+    CHECK(own.message == "Low on health");
+
+    const GameRunner::Line engine = GameRunner::ParseLine("[14:03:12.345] [ERROR] [Spot] Could not open 'a.png'");
+    CHECK(engine.level == Spot::LogLevel::Error);
+    CHECK(engine.message == "Spot: Could not open 'a.png'");
+
+    const GameRunner::Line other = GameRunner::ParseLine("  the second line of a message");
+    CHECK(other.level == Spot::LogLevel::Info);
+    CHECK(other.message == "  the second line of a message");
+    CHECK(GameRunner::ParseLine("[14:03] [INFO ]").message == "[14:03] [INFO ]");
 }

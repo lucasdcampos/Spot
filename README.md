@@ -40,6 +40,9 @@ whenever it changes or on Ctrl+B, and loads it without closing the open scenes, 
 undo history stay as they were. Build errors and warnings show in the console. Games made only in code link the
 static engine library and need none of this.
 
+F5 runs the project's game in its own window with `spot_player`, from its startup scene, as it will ship; what the game
+logs shows in the editor's console. `spot_player <project>` also runs it on its own.
+
 ## Assets
 
 Games load assets through `Spot::Assets` (or `Application::GetAssets()`), never from raw files. During development
@@ -57,4 +60,5 @@ Supported sources: PNG/JPEG/BMP/TGA textures, glTF models (`.gltf`, `.glb`), WAV
 - `engine/` – the engine library
 - `sandbox/` – application for trying out the engine
 - `editor/` – the editor, built with Dear ImGui
+- `player/` – runs projects made in the editor, with their game's code
 - `tests/` – unit tests

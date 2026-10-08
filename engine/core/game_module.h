@@ -6,6 +6,7 @@
 #include <memory>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #if defined(_WIN32)
@@ -34,6 +35,13 @@ namespace Spot {
 // A game module loaded into the program, with the component types it registered.
 class GameModule {
 public:
+    // The extension CMake gives modules: .dll on Windows, and .so everywhere else, macOS included.
+#if defined(_WIN32)
+    static constexpr std::string_view FileExtension = ".dll";
+#else
+    static constexpr std::string_view FileExtension = ".so";
+#endif
+
     // Loads the library and runs its SPOT_GAME_MODULE function. Null, after logging why, when it cannot be loaded or
     // is not a game module.
     static std::unique_ptr<GameModule> Load(const std::filesystem::path& path);

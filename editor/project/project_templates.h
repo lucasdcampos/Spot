@@ -11,7 +11,7 @@
 namespace Spot::Editor {
 
 enum class ProjectTemplate {
-    // A scene with a sun, a sky, a ground and a cube, ready to look around.
+    // A scene with a camera, a sun, a sky, a ground and a cube, ready to look around.
     Basic3D,
     // The same scene, with C++ code for the game's components, which the editor builds into a game module.
     Code3D,
@@ -27,7 +27,7 @@ struct ProjectTemplateInfo {
 
 std::span<const ProjectTemplateInfo> GetProjectTemplates();
 
-// Fills a new scene with what every scene starts with: a sun and a sky.
+// Fills a new scene with what every scene starts with: a camera, a sun and a sky.
 void PopulateNewScene(Scene& scene);
 
 // Why a name cannot be a project's, which is also its folder's and its file's; empty when it can.

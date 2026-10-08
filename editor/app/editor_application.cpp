@@ -133,6 +133,7 @@ void EditorApplication::OnStart() {
 
     m_context = std::make_unique<EditorContext>(GetWindow(), &GetGraphicsDevice(), m_settings);
     m_thumbnails = std::make_unique<ThumbnailCache>(GetGraphicsDevice());
+    m_game = std::make_unique<GameRunner>();
     m_context->SetThumbnails(m_thumbnails.get());
     m_workspace = std::make_unique<SceneWorkspace>(*m_context);
     m_context->SetWorkspace(m_workspace.get());
@@ -198,12 +199,17 @@ void EditorApplication::OnUpdate(float) {
 }
 
 void EditorApplication::UpdateModules() {
+    m_game->Update();
     EditorProject* project = m_context->GetProject();
     if (!project) {
         return;
     }
     ModuleHost& modules = project->GetModules();
     modules.Update();
+    if (m_runPending && !modules.GetBuild().IsRunning()) {
+        m_runPending = false;
+        m_game->Start(project->GetProject().GetFile());
+    }
     // A game that stopped leaves its scenes, with components of the old code, until the frame after.
     if (modules.HasNewModule() && !m_workspace->GetPlaySession() && GetScenes().empty()) {
         m_workspace->ReloadScenes([&modules] { modules.SwapModule(); });
@@ -275,6 +281,7 @@ void EditorApplication::OnStop() {
     m_workspace.reset();
     m_context.reset();
     m_thumbnails.reset();
+    m_game.reset();
     m_screenshotTarget.reset();
     m_imgui.reset();
 }
@@ -317,6 +324,8 @@ void EditorApplication::CloseProject() {
         return;
     }
     GetEditorLogger().Info("Closed project '{}'", m_context->GetProject()->GetProject().GetSettings().name);
+    m_game->Stop();
+    m_runPending = false;
     // Changes were asked about before, so the scenes close as they are.
     m_workspace->SaveState();
     m_workspace->CloseAll();
@@ -580,6 +589,7 @@ void EditorApplication::DrawToolbar() {
 
 void EditorApplication::DrawPlayControls() {
     PlaySession* play = m_workspace->GetPlaySession();
+    // Centered on the play, pause and step buttons; running the game in its own window comes after them.
     const float playWidth = ImGui::GetFrameHeight() * 1.2f * 3.0f + ImGui::GetStyle().ItemSpacing.x * 2.0f;
     ImGui::SameLine((ImGui::GetWindowWidth() - playWidth) * 0.5f);
     ImGui::BeginDisabled(!play && !m_workspace->GetActiveDocument());
@@ -600,6 +610,38 @@ void EditorApplication::DrawPlayControls() {
         play->Step();
     }
     ImGui::EndDisabled();
+
+    ToolbarSeparator();
+    const bool running = m_game->IsRunning() || m_runPending;
+    if (ToolbarButton(ICON_FA_UP_RIGHT_FROM_SQUARE,
+                      running ? "Stop the game running in its own window (Shift+F5)"
+                              : "Run the game in its own window, from its startup scene, as it will ship (F5); its "
+                                "scenes are saved first",
+                      running)) {
+        if (running) {
+            m_runPending = false;
+            m_game->Stop();
+        } else {
+            RunGame();
+        }
+    }
+}
+
+void EditorApplication::RunGame() {
+    const EditorProject* project = m_context->GetProject();
+    if (!project->GetProject().GetSettings().startupScene.IsValid()) {
+        ShowError("Nothing to run", "The project has no startup scene. Choose the scene its game starts with in the "
+                                    "project settings.");
+        return;
+    }
+    // The game runs what is saved.
+    for (std::size_t i = 0; i < m_workspace->GetDocumentCount(); ++i) {
+        SceneDocument& document = m_workspace->GetDocument(i);
+        if (!document.GetFile().empty() && document.IsDirty()) {
+            m_workspace->Save(document);
+        }
+    }
+    m_runPending = true;
 }
 
 void EditorApplication::DrawBuildControls() {
@@ -872,6 +914,13 @@ void EditorApplication::HandleShortcuts() {
     }
     if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_B, Global)) {
         m_context->GetProject()->GetModules().Build();
+    }
+    if (ImGui::Shortcut(ImGuiKey_F5, Global)) {
+        RunGame();
+    }
+    if (ImGui::Shortcut(ImGuiMod_Shift | ImGuiKey_F5, Global)) {
+        m_runPending = false;
+        m_game->Stop();
     }
     SceneDocument* document = m_workspace->GetActiveDocument();
     if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_N, Global)) {
