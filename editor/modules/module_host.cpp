@@ -78,7 +78,8 @@ bool ModuleHost::LoadBuilt() {
     }
     const std::filesystem::path built = m_build.GetModulePath();
     std::error_code error;
-    const bool loaded = std::filesystem::exists(built, error) && SwapModule();
+    // A module built for another editor, such as one of another configuration, would not work with this one.
+    const bool loaded = m_build.IsConfigured() && std::filesystem::exists(built, error) && SwapModule();
 
     // The code may have changed while the editor was closed.
     auto newest = GetWriteTime(m_directory / BuildScript);

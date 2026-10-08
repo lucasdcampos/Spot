@@ -61,6 +61,9 @@ public:
     // Waits for the running build to end, following it.
     void Wait();
 
+    // Whether the build directory was configured for this toolchain, so what it built works with this editor.
+    bool IsConfigured() const;
+
     ModuleBuildState GetState() const { return m_state; }
     bool IsRunning() const { return m_state == ModuleBuildState::Running; }
     std::size_t GetErrorCount() const { return m_errors; }

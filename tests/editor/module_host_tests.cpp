@@ -203,3 +203,27 @@ TEST_CASE("The player runs a project's startup scene with the game's code", "[ed
     // The cube's component comes from the game's code, which the player has.
     CHECK_FALSE(logged("not registered"));
 }
+
+TEST_CASE("Modules built for another editor are not loaded, and are built again", "[editor][module]") {
+    const TempDirectory temp;
+    const auto file = Spot::Editor::CreateProject(temp.GetPath(), "Shared", Spot::Editor::ProjectTemplate::Code3D);
+    REQUIRE(file);
+    const auto project = Spot::Project::Load(*file);
+    REQUIRE(project);
+    {
+        Spot::Editor::ModuleHost host(*project, {.watchInterval = 0ms});
+        host.Build();
+        WaitForBuild(host);
+        REQUIRE(host.GetBuild().GetState() == ModuleBuildState::Succeeded);
+    }
+
+    // As an editor of another configuration finds the module.
+    Spot::Editor::ModuleToolchain other = Spot::Editor::ModuleToolchain::GetEditor();
+    other.configuration = other.configuration == "Debug" ? "Release" : "Debug";
+    Spot::Editor::ModuleHost host(*project, {.toolchain = other, .watchInterval = 0ms});
+    CHECK_FALSE(host.GetBuild().IsConfigured());
+    CHECK_FALSE(host.LoadBuilt());
+    CHECK_FALSE(host.GetModule());
+    CHECK(host.GetBuild().IsRunning());
+    // Stopped here: building for the other configuration needs that configuration of the engine.
+}

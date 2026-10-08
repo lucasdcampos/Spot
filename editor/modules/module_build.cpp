@@ -47,8 +47,10 @@ std::string ReadFile(const std::filesystem::path& path) {
 } // namespace
 
 std::string ModuleToolchain::GetKey() const {
+    // The configuration too, even for generators that build them all in one directory: the module goes to the same
+    // file in each, and one built in another configuration does not work with this editor.
     return std::format("{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n", cmake, generator, platform, toolset, instance, compiler,
-                       makeProgram, multiConfiguration ? std::string() : configuration, PathToUtf8(package));
+                       makeProgram, configuration, PathToUtf8(package));
 }
 
 ModuleBuild::ModuleBuild(std::filesystem::path sourceDirectory, std::filesystem::path buildDirectory,
@@ -72,14 +74,12 @@ void ModuleBuild::Start() {
     m_tail.clear();
     m_started = std::chrono::steady_clock::now();
 
-    std::error_code error;
-    const bool configured = std::filesystem::exists(m_build / "CMakeCache.txt", error) &&
-                            ReadFile(m_build / ToolchainFile) == m_toolchain.GetKey();
-    if (configured) {
+    if (IsConfigured()) {
         StartStep(Step::Build);
         return;
     }
     // A build directory is tied to its generator and compiler, so another toolchain needs a new one.
+    std::error_code error;
     std::filesystem::remove_all(m_build, error);
     std::filesystem::create_directories(m_build, error);
     GetBuildLogger().Info("Configuring the game's code for {}", m_toolchain.generator);
@@ -162,6 +162,12 @@ void ModuleBuild::Wait() {
         }
         Update();
     }
+}
+
+bool ModuleBuild::IsConfigured() const {
+    std::error_code error;
+    return std::filesystem::exists(m_build / "CMakeCache.txt", error) &&
+           ReadFile(m_build / ToolchainFile) == m_toolchain.GetKey();
 }
 
 std::chrono::duration<float> ModuleBuild::GetDuration() const {
