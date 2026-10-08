@@ -21,8 +21,8 @@
 
 namespace Spot::Editor {
 
-// The project's assets, by folder: browsing and searching them, creating, importing, moving, renaming, duplicating
-// and deleting them, and dragging them to scenes and fields.
+// The project's assets and code, by folder: browsing and searching them, creating, importing, moving, renaming,
+// duplicating and deleting them, and dragging assets to scenes and fields.
 class AssetBrowserPanel final : public Panel {
 public:
     explicit AssetBrowserPanel(EditorContext& context);
@@ -32,15 +32,18 @@ public:
     // position, in screen coordinates, or else into the folder shown.
     void DropFile(std::filesystem::path file, ImVec2 position);
 
-    // The folder shown, as a path relative to the assets directory; "" for the assets directory itself.
+    // The folder shown: its root, and its path relative to the root's directory, "" for the directory itself.
+    BrowserRoot GetRoot() const { return m_root; }
     const std::string& GetFolder() const { return m_folder; }
-    void SetFolder(std::string folder);
+    // Shows a folder of the assets.
+    void SetFolder(std::string folder) { SetFolder(BrowserRoot::Assets, std::move(folder)); }
+    void SetFolder(BrowserRoot root, std::string folder);
     // The selected items, by key (see BrowserItem::GetKey()).
     const std::vector<std::string>& GetSelection() const { return m_selection; }
     // Where an item's tile was drawn last frame, in screen coordinates, as {min, max}, by key, for tests to point at.
     std::optional<std::pair<ImVec2, ImVec2>> GetTileRect(std::string_view key) const;
-    // The same for other things drawn last frame: "Create", the items of its menu, as "Create/Folder", and
-    // "DeletePrompt/Delete".
+    // The same for other things drawn last frame: "Create", the items of its menu, as "Create/Folder", the roots of
+    // the folder tree, "Tree/Assets" and "Tree/Code", and "DeletePrompt/Delete".
     std::optional<std::pair<ImVec2, ImVec2>> GetItemRect(std::string_view name) const;
 
 protected:
@@ -53,6 +56,7 @@ private:
 
     struct Tile {
         std::string key;
+        BrowserRoot root;
         std::string folder;
         ImVec2 min;
         ImVec2 max;
@@ -62,16 +66,24 @@ private:
     void DrawToolbar(EditorProject& project);
     void DrawCreateItems(EditorProject& project);
     void DrawBreadcrumbs(EditorProject& project);
+    // A file or folder, in the assets or in the code.
+    struct Location {
+        BrowserRoot root;
+        std::string path;
+    };
+
     void DrawFolderTree(EditorProject& project);
-    void DrawFolderNode(EditorProject& project, const std::string& folder);
+    void DrawRoot(EditorProject& project, BrowserRoot root);
+    void DrawFolderNode(EditorProject& project, BrowserRoot root, const std::string& folder);
     void DrawGrid(EditorProject& project);
     void DrawTile(EditorProject& project, const BrowserItem& item, float size);
     void DrawItemMenu(EditorProject& project);
     void DrawDeletePrompt(EditorProject& project);
     void HandleKeyboard(EditorProject& project);
     void HandleDrops(EditorProject& project);
-    // Takes drags of assets and folders onto a folder, which moves them there.
-    void AcceptMoves(EditorProject& project, const std::string& folder);
+    // Takes drags of files and folders onto a folder of the same root, which moves them there once the panel is
+    // drawn, as moving changes the items drawn.
+    void AcceptMoves(EditorProject& project, BrowserRoot root, const std::string& folder);
 
     void Select(const BrowserItem& item);
     void Open(EditorProject& project, const BrowserItem& item);
@@ -80,24 +92,31 @@ private:
     void Create(EditorProject& project, NewAsset kind);
     void DuplicateSelection(EditorProject& project);
     void DeleteConfirmed(EditorProject& project);
-    void Move(EditorProject& project, const std::vector<std::string>& paths, const std::string& folder);
-    void Import(EditorProject& project, std::span<const std::filesystem::path> files, const std::string& folder);
+    void Move(EditorProject& project, BrowserRoot root, const std::vector<std::string>& paths,
+              const std::string& folder);
+    void Import(EditorProject& project, std::span<const std::filesystem::path> files, BrowserRoot root,
+                const std::string& folder);
     void BrowseForImport();
-    // Imports the changes and selects what is at the paths.
-    void AfterChange(EditorProject& project, const std::vector<std::string>& select);
+    // Imports the changes and selects what is at the locations.
+    void AfterChange(EditorProject& project, const std::vector<Location>& select);
 
     const BrowserItem* FindItem(std::string_view key) const;
     std::vector<const BrowserItem*> GetSelectedItems() const;
-    // The source paths of the selected files and folders, without sub-assets.
-    std::vector<std::string> GetSelectedPaths() const;
+    // The selected files and folders, without sub-assets.
+    std::vector<Location> GetSelectedPaths() const;
+    const std::vector<std::string>& GetFolders(BrowserRoot root) const;
 
     EditorContext& m_context;
+    BrowserRoot m_root = BrowserRoot::Assets;
     std::string m_folder;
     std::string m_search;
     float m_tileSize;
     // What the grid shows, rebuilt when the assets, the folder, the search or the expanded files change.
     std::vector<std::string> m_folders;
+    std::vector<std::string> m_codeFolders;
     std::vector<BrowserItem> m_items;
+    // When the code was listed last, in ImGui's time.
+    double m_codeListed = 0.0;
     std::uint64_t m_builtVersion = 0;
     bool m_dirty = true;
     std::unordered_set<AssetId> m_expanded;
@@ -110,7 +129,13 @@ private:
     std::string m_renameText;
     std::optional<std::string> m_renameError;
     bool m_renameFocus = false;
-    std::vector<std::string> m_toDelete;
+    std::vector<Location> m_toDelete;
+    struct PendingMove {
+        BrowserRoot root;
+        std::vector<std::string> paths;
+        std::string folder;
+    };
+    std::optional<PendingMove> m_pendingMove;
     bool m_openDeletePrompt = false;
     bool m_openItemMenu = false;
     std::vector<std::pair<std::filesystem::path, ImVec2>> m_drops;

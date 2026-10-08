@@ -3,6 +3,7 @@
 
 #include "app/editor_context.h"
 #include "assets/asset_browser_model.h"
+#include "assets/plain_files.h"
 #include "panels/asset_browser_panel.h"
 #include "panels/hierarchy_panel.h"
 #include "panels/inspector_panel.h"
@@ -108,6 +109,65 @@ TEST_CASE("New names must work as file names everywhere", "[editor][assets]") {
     CHECK(Spot::Editor::ValidateFileName("name.").has_value());
     CHECK(Spot::Editor::ValidateFileName("CON.png").has_value());
     CHECK(Spot::Editor::ValidateFileName("..").has_value());
+}
+
+TEST_CASE("Code shows as plain files, by folder, with their kinds", "[editor][assets]") {
+    const TempDirectory temp;
+    const auto code = temp.GetPath() / "src";
+    std::filesystem::create_directories(code / "player");
+    std::filesystem::create_directories(code / "empty");
+    std::filesystem::create_directories(code / ".hidden");
+    std::ofstream(code / "CMakeLists.txt") << "";
+    std::ofstream(code / "game.cpp") << "";
+    std::ofstream(code / "player" / "player.h") << "";
+    std::ofstream(code / ".clang-format") << "";
+
+    const std::vector<std::string> folders = Spot::Editor::ListFolders(code);
+    CHECK(folders == std::vector<std::string>{"empty", "player"});
+    const std::vector<BrowserItem> root = Spot::Editor::ListCodeFolder(code, folders, "");
+    CHECK(GetNames(root) == std::vector<std::string>{"empty", "player", "CMakeLists.txt", "game.cpp"});
+    CHECK(std::ranges::all_of(root,
+                              [](const BrowserItem& item) { return item.root == Spot::Editor::BrowserRoot::Code; }));
+    CHECK_FALSE(root[0].hasContents);
+    CHECK(root[1].hasContents);
+    CHECK(root[1].GetKey() == "code:player");
+    CHECK(root[3].GetKey() == "code:game.cpp");
+    CHECK(root[3].GetDisplayName() == "game");
+    CHECK(Spot::Editor::ListCodeFolder(code, folders, "player")[0].path == "player/player.h");
+
+    CHECK(GetNames(Spot::Editor::SearchCode(code, folders, "PLAY")) == std::vector<std::string>{"player", "player.h"});
+    CHECK(GetNames(Spot::Editor::SearchCode(code, folders, "game")) == std::vector<std::string>{"game.cpp"});
+    CHECK(Spot::Editor::SearchCode(temp.GetPath() / "missing", {}, "game").empty());
+
+    CHECK(Spot::Editor::GetFileTypeName("game.cpp") == "C++ Source");
+    CHECK(Spot::Editor::GetFileTypeName("player.HPP") == "C++ Header");
+    CHECK(Spot::Editor::GetFileTypeName("CMakeLists.txt") == "CMake Script");
+    CHECK(Spot::Editor::GetFileTypeName("tools.cmake") == "CMake Script");
+    CHECK(Spot::Editor::GetFileTypeName("notes.md") == "MD File");
+    CHECK(Spot::Editor::GetFileTypeName("LICENSE") == "File");
+}
+
+TEST_CASE("Plain files move, duplicate, delete and come in like assets, without meta files", "[editor][assets]") {
+    const TempDirectory temp;
+    Spot::Editor::PlainFiles files(temp.GetPath());
+    std::ofstream(temp.GetPath() / "player.cpp") << "// The player\n";
+
+    CHECK(files.GetFreePath("player.cpp") == "player 2.cpp");
+    CHECK(files.GetFreePath("enemy.cpp") == "enemy.cpp");
+    CHECK(files.CreateFolder("actors/heroes"));
+    CHECK(files.Move("player.cpp", "actors/player.cpp"));
+    CHECK(std::filesystem::is_regular_file(temp.GetPath() / "actors" / "player.cpp"));
+    CHECK_FALSE(files.Move("actors", "actors/heroes/actors"));
+    CHECK(files.Duplicate("actors/player.cpp", files.GetFreePath("actors/player.cpp")));
+    CHECK(std::filesystem::is_regular_file(temp.GetPath() / "actors" / "player 2.cpp"));
+    CHECK_FALSE(files.Move("../outside.cpp", "inside.cpp"));
+
+    const std::vector<std::filesystem::path> dropped{temp.GetPath() / "actors" / "player 2.cpp"};
+    CHECK(files.CopyIn(dropped, "") == std::vector<std::string>{"player 2.cpp"});
+    CHECK(files.Delete("actors"));
+    CHECK_FALSE(std::filesystem::exists(temp.GetPath() / "actors"));
+    CHECK(std::filesystem::is_regular_file(temp.GetPath() / "player 2.cpp"));
+    CHECK_FALSE(std::filesystem::exists(temp.GetPath() / "player 2.cpp.meta"));
 }
 
 namespace {
@@ -398,4 +458,54 @@ TEST_CASE("Import settings apply when asked, and revert", "[editor][assets][ui]"
     fixture.imgui.Click(fixture.Center(assets.GetItemRect("Apply")));
     CHECK_FALSE(fixture.Project().GetAssetDatabase().GetMeta(texture)->texture.mipmaps);
     CHECK_FALSE(Spot::AssetMeta::LoadFromFile(fixture.assets / "pixels.png.meta")->texture.mipmaps);
+}
+
+TEST_CASE("The code shows beside the assets, where its files are handled as files", "[editor][assets][ui]") {
+    BrowserFixture fixture;
+    // Projects without code have no code to show.
+    CHECK_FALSE(fixture.panel->GetItemRect("Tree/Code").has_value());
+
+    const auto code = fixture.Project().GetProject().GetCodeDirectory();
+    std::filesystem::create_directories(code / "player");
+    std::ofstream(code / "game.cpp") << "// The game\n";
+    fixture.imgui.Frame();
+    fixture.imgui.Frame();
+    fixture.imgui.Click(fixture.Center(fixture.panel->GetItemRect("Tree/Code")));
+    CHECK(fixture.panel->GetRoot() == Spot::Editor::BrowserRoot::Code);
+    CHECK(fixture.panel->GetFolder().empty());
+    REQUIRE(fixture.panel->GetTileRect("code:game.cpp").has_value());
+
+    // Files move into code folders, and keep their extension when renamed.
+    fixture.imgui.Drag(fixture.Center(fixture.panel->GetTileRect("code:game.cpp")),
+                       fixture.Center(fixture.panel->GetTileRect("code:player")));
+    CHECK(std::filesystem::is_regular_file(code / "player" / "game.cpp"));
+    fixture.DoubleClick(fixture.Center(fixture.panel->GetTileRect("code:player")));
+    CHECK(fixture.panel->GetFolder() == "player");
+    fixture.imgui.Click(fixture.Center(fixture.panel->GetTileRect("code:player/game.cpp")));
+    fixture.imgui.Press(ImGuiKey_F2);
+    fixture.imgui.Press(ImGuiMod_Ctrl | ImGuiKey_A);
+    fixture.imgui.Type("player");
+    fixture.imgui.Press(ImGuiKey_Enter);
+    CHECK(std::filesystem::is_regular_file(code / "player" / "player.cpp"));
+    CHECK_FALSE(std::filesystem::exists(code / "player" / "player.cpp.meta"));
+    CHECK(fixture.panel->GetSelection() == std::vector<std::string>{"code:player/player.cpp"});
+
+    fixture.imgui.Click(fixture.Center(fixture.panel->GetItemRect("Tree/Assets")));
+    CHECK(fixture.panel->GetRoot() == Spot::Editor::BrowserRoot::Assets);
+    CHECK(fixture.panel->GetTileRect(fixture.KeyOf("scenes")).has_value());
+
+    // Code stays out of the assets.
+    std::ofstream(code / "scenery.cpp") << "";
+    fixture.imgui.Click(fixture.Center(fixture.panel->GetItemRect("Tree/Code")));
+    fixture.imgui.Frame();
+    REQUIRE(fixture.panel->GetTileRect("code:scenery.cpp").has_value());
+    fixture.imgui.Drag(fixture.Center(fixture.panel->GetTileRect("code:scenery.cpp")),
+                       fixture.Center(fixture.panel->GetItemRect("Tree/Assets")));
+    CHECK(std::filesystem::is_regular_file(code / "scenery.cpp"));
+    CHECK_FALSE(std::filesystem::exists(fixture.assets / "scenery.cpp"));
+
+    // Code has no assets to create, only folders.
+    fixture.imgui.Click(fixture.Center(fixture.panel->GetItemRect("Create")));
+    CHECK(fixture.panel->GetItemRect("Create/Folder").has_value());
+    CHECK_FALSE(fixture.panel->GetItemRect("Create/Material").has_value());
 }

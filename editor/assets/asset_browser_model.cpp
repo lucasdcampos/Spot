@@ -56,10 +56,22 @@ BrowserItem MakeAssetItem(const AssetInfo& info, const std::unordered_set<AssetI
     return item;
 }
 
+bool HasAnything(const std::filesystem::path& folder) {
+    std::error_code error;
+    return !std::filesystem::is_empty(folder, error) && !error;
+}
+
 } // namespace
 
 std::string BrowserItem::GetKey() const {
-    return folder ? "folder:" + path : id.ToString();
+    if (root == BrowserRoot::Code) {
+        return "code:" + path;
+    }
+    return folder ? GetFolderKey(root, path) : id.ToString();
+}
+
+std::string BrowserItem::GetFolderKey(BrowserRoot root, std::string_view path) {
+    return (root == BrowserRoot::Code ? "code:" : "folder:") + std::string(path);
 }
 
 std::string BrowserItem::GetDisplayName() const {
@@ -149,6 +161,89 @@ std::vector<BrowserItem> SearchAssets(const AssetDatabase& database, const std::
     }
     SortByName(items);
     return items;
+}
+
+std::vector<BrowserItem> ListCodeFolder(const std::filesystem::path& codeDirectory,
+                                        const std::vector<std::string>& folders, std::string_view folder) {
+    std::vector<BrowserItem> items;
+    for (const std::string& path : GetSubfolders(folders, folder)) {
+        BrowserItem item{.root = BrowserRoot::Code, .path = path, .name = GetFileName(path), .folder = true};
+        item.hasContents = HasAnything(codeDirectory / Utf8ToPath(path));
+        items.push_back(std::move(item));
+    }
+    std::error_code error;
+    for (const auto& entry : std::filesystem::directory_iterator(codeDirectory / Utf8ToPath(folder), error)) {
+        const std::string name = PathToUtf8(entry.path().filename().u8string());
+        if (!name.starts_with('.') && entry.is_regular_file(error)) {
+            items.push_back({.root = BrowserRoot::Code, .path = JoinPath(folder, name), .name = name});
+        }
+    }
+    SortByName(items);
+    return items;
+}
+
+std::vector<BrowserItem> SearchCode(const std::filesystem::path& codeDirectory, const std::vector<std::string>& folders,
+                                    std::string_view text) {
+    std::vector<BrowserItem> items;
+    for (const std::string& folder : folders) {
+        for (BrowserItem& item : ListCodeFolder(codeDirectory, folders, folder)) {
+            if (!item.folder && ContainsIgnoringCase(item.name, text)) {
+                items.push_back(std::move(item));
+            }
+        }
+        if (ContainsIgnoringCase(GetFileName(folder), text)) {
+            BrowserItem item{.root = BrowserRoot::Code, .path = folder, .name = GetFileName(folder), .folder = true};
+            item.hasContents = HasAnything(codeDirectory / Utf8ToPath(folder));
+            items.push_back(std::move(item));
+        }
+    }
+    // The files right in the code directory, which is not one of the folders.
+    for (BrowserItem& item : ListCodeFolder(codeDirectory, {}, "")) {
+        if (ContainsIgnoringCase(item.name, text)) {
+            items.push_back(std::move(item));
+        }
+    }
+    SortByName(items);
+    return items;
+}
+
+FileKind GetFileKind(std::string_view name) {
+    const std::string lower = ToLower(name);
+    const std::size_t dot = lower.find_last_of('.');
+    const std::string extension = dot == std::string::npos ? std::string() : lower.substr(dot);
+    if (lower == "cmakelists.txt" || extension == ".cmake") {
+        return FileKind::BuildScript;
+    }
+    static constexpr std::array Sources{".cpp", ".cc", ".cxx", ".c", ".ixx", ".cppm"};
+    static constexpr std::array Headers{".h", ".hpp", ".hh", ".hxx", ".inl"};
+    if (std::ranges::find(Sources, extension) != Sources.end()) {
+        return FileKind::Source;
+    }
+    if (std::ranges::find(Headers, extension) != Headers.end()) {
+        return FileKind::Header;
+    }
+    return FileKind::Other;
+}
+
+std::string GetFileTypeName(std::string_view name) {
+    switch (GetFileKind(name)) {
+    case FileKind::Source:
+        return "C++ Source";
+    case FileKind::Header:
+        return "C++ Header";
+    case FileKind::BuildScript:
+        return "CMake Script";
+    case FileKind::Other:
+        break;
+    }
+    const std::size_t dot = name.find_last_of('.');
+    if (dot == std::string_view::npos || dot == 0 || dot + 1 == name.size()) {
+        return "File";
+    }
+    std::string extension(name.substr(dot + 1));
+    std::ranges::transform(extension, extension.begin(),
+                           [](char c) { return static_cast<char>(std::toupper(static_cast<unsigned char>(c))); });
+    return extension + " File";
 }
 
 std::string GetParentFolder(std::string_view path) {

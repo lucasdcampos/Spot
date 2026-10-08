@@ -4,11 +4,13 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cfloat>
 #include <cmath>
 #include <initializer_list>
 #include <numbers>
 #include <span>
+#include <string>
 
 namespace Spot::Editor::AssetIcons {
 
@@ -61,6 +63,10 @@ constexpr ImVec4 ModelAccent = Rgb(226, 146, 82);
 constexpr ImVec4 SoundAccent = Rgb(214, 102, 152);
 constexpr ImVec4 FontAccent = Rgb(64, 178, 162);
 constexpr ImVec4 SceneAccent = Rgb(92, 146, 230);
+constexpr ImVec4 SourceAccent = Rgb(146, 104, 214);
+constexpr ImVec4 HeaderAccent = Rgb(110, 128, 220);
+constexpr ImVec4 BuildScriptAccent = Rgb(98, 170, 96);
+constexpr ImVec4 FileAccent = Rgb(128, 134, 146);
 
 // Paper for documents and the photo mat: a cool light gray, not white, so it does not glare on the dark panel.
 constexpr ImVec4 PaperTop = Rgb(214, 218, 225);
@@ -218,8 +224,8 @@ Box Page(ImDrawList* drawList, ImVec2 min, float size) {
     return {a, b};
 }
 
-// Short strokes standing in for text.
-void TextLines(ImDrawList* drawList, Box page, float size, int lines = 3) {
+// Short strokes standing in for text; with a keyword color, as code, each line starts with a tinted token.
+void TextLines(ImDrawList* drawList, Box page, float size, int lines = 3, const ImVec4* keyword = nullptr) {
     constexpr std::array Lengths{0.44f, 0.66f, 0.38f, 0.60f, 0.50f};
     const float w = page.max.x - page.min.x;
     const float h = page.max.y - page.min.y;
@@ -227,7 +233,14 @@ void TextLines(ImDrawList* drawList, Box page, float size, int lines = 3) {
     const float x = page.min.x + w * 0.14f;
     for (int i = 0; i < lines && i < static_cast<int>(Lengths.size()); ++i) {
         const float y = page.min.y + h * (0.22f + static_cast<float>(i) * 0.09f);
-        drawList->AddRectFilled({x, y}, {x + w * Lengths[static_cast<std::size_t>(i)], y + thickness},
+        float start = x;
+        if (keyword) {
+            const float split = x + w * (i == 1 ? 0.24f : 0.16f);
+            drawList->AddRectFilled({start, y}, {split, y + thickness}, ToU32(Darken(*keyword, 0.9f)),
+                                    thickness * 0.5f);
+            start = split + w * 0.05f;
+        }
+        drawList->AddRectFilled({start, y}, {x + w * Lengths[static_cast<std::size_t>(i)], y + thickness},
                                 ToU32(WithAlpha(Ink, 0.9f)), thickness * 0.5f);
     }
 }
@@ -421,6 +434,61 @@ void DrawFont(ImDrawList* drawList, ImVec2 min, float size) {
 }
 
 } // namespace
+
+ImVec4 GetFileColor(FileKind kind) {
+    switch (kind) {
+    case FileKind::Source:
+        return SourceAccent;
+    case FileKind::Header:
+        return HeaderAccent;
+    case FileKind::BuildScript:
+        return BuildScriptAccent;
+    case FileKind::Other:
+        break;
+    }
+    return FileAccent;
+}
+
+void DrawFile(ImDrawList* drawList, ImVec2 min, float size, std::string_view name) {
+    const FileKind kind = GetFileKind(name);
+    const ImVec4 accent = GetFileColor(kind);
+    const Box page = Page(drawList, min, size);
+    std::string badge;
+    switch (kind) {
+    case FileKind::Source:
+        badge = "C++";
+        break;
+    case FileKind::Header:
+        badge = "H";
+        break;
+    case FileKind::BuildScript:
+        badge = "CMake";
+        break;
+    case FileKind::Other: {
+        // A short extension, of letters and digits, such as "JSON".
+        const std::size_t dot = name.find_last_of('.');
+        if (dot != std::string_view::npos && dot > 0 && name.size() - dot >= 2 && name.size() - dot <= 5) {
+            for (const char c : name.substr(dot + 1)) {
+                if (!std::isalnum(static_cast<unsigned char>(c))) {
+                    badge.clear();
+                    break;
+                }
+                badge += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+            }
+        }
+        break;
+    }
+    }
+    if (badge.empty()) {
+        TextLines(drawList, page, size, 5);
+        return;
+    }
+    const bool code = kind == FileKind::Source || kind == FileKind::Header;
+    TextLines(drawList, page, size, 3, code ? &accent : nullptr);
+    const auto [center, half] = BadgeBox(page, 0.14f);
+    Badge(drawList, center, half, accent, size);
+    Label(drawList, center, badge.c_str(), half.y * 1.85f, half.x * 1.55f);
+}
 
 ImVec4 GetTypeColor(AssetType type) {
     switch (type) {

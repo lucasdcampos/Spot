@@ -17,6 +17,8 @@ inline constexpr const char* AssetsPayload = "SPOT_ASSETS";
 // Files and folders of the project's assets, as their paths relative to the assets directory, one per line, as the
 // asset browser drags them when folders are among them.
 inline constexpr const char* AssetPathsPayload = "SPOT_ASSET_PATHS";
+// Files and folders of the project's code, as their paths relative to the code directory, one per line.
+inline constexpr const char* CodePathsPayload = "SPOT_CODE_PATHS";
 
 inline std::span<const EntityId> GetPayloadEntities(const ImGuiPayload& payload) {
     return {static_cast<const EntityId*>(payload.Data), static_cast<std::size_t>(payload.DataSize) / sizeof(EntityId)};

@@ -8,17 +8,39 @@
 #include <string_view>
 #include <vector>
 
-// What the asset browser shows of a project's assets: folders, the assets of source files, and their sub-assets.
-// Paths are relative to the assets directory, with '/' separators; the assets directory itself is "".
+// What the asset browser shows of a project: its assets, as folders, the assets of source files and their sub-assets,
+// and its code, as plain folders and files. Paths are relative to their root's directory, with '/' separators; the
+// directory itself is "".
 namespace Spot::Editor {
 
+// The folders the browser shows.
+enum class BrowserRoot {
+    // The assets directory.
+    Assets,
+    // The code directory, for projects with code.
+    Code,
+};
+
+// What kind of file a plain file is, from its name.
+enum class FileKind {
+    Source,
+    Header,
+    BuildScript,
+    Other,
+};
+
+FileKind GetFileKind(std::string_view name);
+// "C++ Source", "C++ Header", "CMake Script", or for other files their extension, as in "TXT File", or "File".
+std::string GetFileTypeName(std::string_view name);
+
 struct BrowserItem {
+    BrowserRoot root = BrowserRoot::Assets;
     // The folder's or the source file's; sub-assets share their file's.
     std::string path = {};
     // A folder's or file's name, such as "crate.png", or a sub-asset's, such as "Roof".
     std::string name = {};
     bool folder = false;
-    // Null for folders.
+    // Null for folders and code.
     AssetId id = {};
     AssetType type = AssetType::Texture;
     // Made from part of a file, such as a model's mesh.
@@ -28,8 +50,10 @@ struct BrowserItem {
     // A folder with folders or assets in it.
     bool hasContents = false;
 
-    // Tells items apart: a folder by its path, an asset by its id.
+    // Tells items apart: a folder by its path, an asset by its id, code by its path (see GetFolderKey()).
     std::string GetKey() const;
+    // The key of the folder: "folder:textures" in the assets, "code:player" in the code.
+    static std::string GetFolderKey(BrowserRoot root, std::string_view path);
     // The name shown: a file's without its extension, such as "crate" for "crate.png", since its type is shown.
     std::string GetDisplayName() const;
 };
@@ -46,6 +70,13 @@ std::vector<BrowserItem> ListSubAssets(const AssetDatabase& database, AssetId fi
 // The folders and assets anywhere whose names contain the text, ignoring case, folders first.
 std::vector<BrowserItem> SearchAssets(const AssetDatabase& database, const std::vector<std::string>& folders,
                                       std::string_view text);
+// What is right in a folder of the code: its folders, then its files, each by name, ignoring case. Hidden ones, whose
+// names start with '.', are left out.
+std::vector<BrowserItem> ListCodeFolder(const std::filesystem::path& codeDirectory,
+                                        const std::vector<std::string>& folders, std::string_view folder);
+// The folders and files anywhere in the code whose names contain the text, ignoring case, folders first.
+std::vector<BrowserItem> SearchCode(const std::filesystem::path& codeDirectory, const std::vector<std::string>& folders,
+                                    std::string_view text);
 
 // "textures/ui" for "textures/ui/button.png", and "" for "button.png".
 std::string GetParentFolder(std::string_view path);

@@ -59,6 +59,8 @@ add_library(spot_editor_core STATIC
     assets/asset_browser_model.h
     assets/asset_list.cpp
     assets/asset_list.h
+    assets/plain_files.cpp
+    assets/plain_files.h
     assets/thumbnail_cache.cpp
     assets/thumbnail_cache.h
     core/build_info.cpp
