@@ -104,6 +104,12 @@ void SceneWorkspace::Play(Application& application) {
 }
 
 void SceneWorkspace::StopPlaying() {
+    if (!m_play) {
+        return;
+    }
+    if (Opened* open = Find(m_play->GetSource())) {
+        open->view->StopShowingPlay();
+    }
     m_play.reset();
 }
 

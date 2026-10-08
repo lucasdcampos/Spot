@@ -477,6 +477,14 @@ void SceneView::DrawCameraFrustums(const ImVec2& origin, const ImVec2& size) {
     drawList->PopClipRect();
 }
 
+void SceneView::StopShowingPlay() {
+    m_playing = false;
+    m_shown = &m_document;
+    // Picks in flight hold the copy's entities.
+    m_pick.reset();
+    m_picking.reset();
+}
+
 void SceneView::DrawOverlay(const ImVec2& origin) {
     // A small bar over the view's top-left corner, for what changes how the view looks.
     const ImVec2 padding = ImGui::GetStyle().WindowPadding;

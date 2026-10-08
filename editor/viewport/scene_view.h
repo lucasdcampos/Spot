@@ -32,6 +32,9 @@ public:
     SceneDocument& GetDocument() { return m_document; }
     // What the view shows: its document, or the copy of it being played.
     SceneDocument& GetShownDocument() { return *m_shown; }
+    // Shows the document again once it stops playing, right away: the copy goes away, maybe after the view was drawn
+    // and before it renders.
+    void StopShowingPlay();
     // While its document plays, whether the view looks through the game's main camera, as the game would show,
     // rather than the editor's.
     bool IsShowingGame() const { return m_playing && m_gameView; }

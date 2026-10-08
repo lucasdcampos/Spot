@@ -19,7 +19,9 @@
 #include <chrono>
 #include <cmath>
 #include <filesystem>
+#include <functional>
 #include <memory>
+#include <utility>
 
 using Catch::Approx;
 
@@ -383,6 +385,47 @@ TEST_CASE("Reloading the scenes makes their components anew, and keeps ids, sele
     document.Undo();
     CHECK(document.GetScene().FindEntity("Sun"));
     CHECK_FALSE(document.IsDirty());
+}
+
+TEST_CASE("Views show their scene again as soon as it stops playing", "[editor][workspace][play]") {
+    WorkspaceFixture fixture;
+    fixture.workspace->RestoreState();
+    fixture.Frame();
+    Spot::Editor::SceneDocument& document = *fixture.workspace->GetActiveDocument();
+    Spot::Editor::SceneView& view = *fixture.workspace->GetActiveView();
+    bool showedCopy = false;
+    bool showedDocument = false;
+
+    // Playing needs the application running.
+    class PlayApplication final : public Spot::Application {
+    public:
+        explicit PlayApplication(std::function<void(Spot::Application&)> frame)
+            : Application({.window = {.title = "Play Tests", .width = 320, .height = 240},
+                           .graphics = {.enabled = false},
+                           .audio = {.enabled = false}}),
+              m_frame(std::move(frame)) {}
+
+    protected:
+        void OnUpdate(float /*deltaTime*/) override {
+            m_frame(*this);
+            Quit();
+        }
+
+    private:
+        std::function<void(Spot::Application&)> m_frame;
+    };
+    PlayApplication application([&](Spot::Application& app) {
+        fixture.workspace->Play(app);
+        fixture.Frame();
+        showedCopy = &view.GetShownDocument() != &document && view.IsShowingGame();
+        // As with Ctrl+P, stopping after the view was drawn: it renders before it is drawn again.
+        fixture.workspace->StopPlaying();
+        showedDocument = &view.GetShownDocument() == &document && !view.IsShowingGame();
+    });
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+
+    CHECK(showedCopy);
+    CHECK(showedDocument);
 }
 
 TEST_CASE("Scenes with unsaved changes are backed up until they are saved", "[editor][workspace][backup]") {
