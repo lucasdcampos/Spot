@@ -51,8 +51,8 @@ void ImGuiLayer::ProcessEvent(const Event& event) {
 
 void ImGuiLayer::BeginFrame(float deltaTime) {
     // Applied on the first frame too, and again when the window moves to a display with another scale.
-    if (const float scale = m_window.GetContentScale(); scale != m_contentScale) {
-        m_contentScale = scale;
+    if (const float scale = m_window.GetContentScale() * m_uiScale; scale != m_appliedScale) {
+        m_appliedScale = scale;
         ApplyEditorStyle(scale);
     }
     m_platform->NewFrame(deltaTime);

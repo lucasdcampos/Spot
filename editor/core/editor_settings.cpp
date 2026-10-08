@@ -76,6 +76,15 @@ void EditorSettings::Load() {
         m_gizmo.rotateStep = step("rotateStep", m_gizmo.rotateStep);
         m_gizmo.scaleStep = step("scaleStep", m_gizmo.scaleStep);
     }
+    if (const auto preferences = document.find("preferences");
+        preferences != document.end() && preferences->is_object()) {
+        m_preferences.uiScale = std::clamp(preferences->value("uiScale", m_preferences.uiScale),
+                                           EditorPreferences::MinUiScale, EditorPreferences::MaxUiScale);
+        m_preferences.clearConsoleOnPlay = preferences->value("clearConsoleOnPlay", m_preferences.clearConsoleOnPlay);
+        m_preferences.buildOnChange = preferences->value("buildOnChange", m_preferences.buildOnChange);
+        m_preferences.backupMinutes = std::clamp(preferences->value("backupMinutes", m_preferences.backupMinutes), 0,
+                                                 EditorPreferences::MaxBackupMinutes);
+    }
 }
 
 bool EditorSettings::Save() const {
@@ -99,10 +108,17 @@ bool EditorSettings::Save() const {
         {"rotateStep", m_gizmo.rotateStep},
         {"scaleStep", m_gizmo.scaleStep},
     };
+    const json preferences = {
+        {"uiScale", m_preferences.uiScale},
+        {"clearConsoleOnPlay", m_preferences.clearConsoleOnPlay},
+        {"buildOnChange", m_preferences.buildOnChange},
+        {"backupMinutes", m_preferences.backupMinutes},
+    };
     const json document = {
         {"recentProjects", recent},
         {"projectsLocation", PathToUtf8(m_projectsLocation)},
         {"gizmo", gizmo},
+        {"preferences", preferences},
     };
 
     std::error_code error;

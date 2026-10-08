@@ -138,6 +138,7 @@ void EditorApplication::OnStart() {
     m_workspace = std::make_unique<SceneWorkspace>(*m_context);
     m_context->SetWorkspace(m_workspace.get());
     m_newProjectDialog = std::make_unique<NewProjectDialog>(m_settings, GetWindow());
+    m_preferences = std::make_unique<PreferencesWindow>(m_settings, GetWindow());
     m_hub = std::make_unique<ProjectHub>(
         m_settings, ProjectHubActions{
                         .openProject = [this](const std::filesystem::path& file) { RequestOpenProject(file); },
@@ -205,6 +206,7 @@ void EditorApplication::UpdateModules() {
         return;
     }
     ModuleHost& modules = project->GetModules();
+    modules.SetBuildOnChange(m_settings.GetPreferences().buildOnChange);
     modules.Update();
     if (m_runPending && !modules.GetBuild().IsRunning()) {
         m_runPending = false;
@@ -219,6 +221,7 @@ void EditorApplication::UpdateModules() {
 
 void EditorApplication::OnRender(RenderContext& context) {
     m_context->SetMouseDelta(std::exchange(m_mouseDelta, Vector2{}));
+    m_imgui->SetUiScale(m_settings.GetPreferences().uiScale);
     m_imgui->BeginFrame(Time::GetDeltaTime());
     DrawUi();
     m_imgui->EndFrame();
@@ -277,6 +280,7 @@ void EditorApplication::OnStop() {
     m_panels.clear();
     m_hub.reset();
     m_newProjectDialog.reset();
+    m_preferences.reset();
     m_context->SetWorkspace(nullptr);
     m_workspace.reset();
     m_context.reset();
@@ -410,6 +414,10 @@ void EditorApplication::DrawUi() {
     if (const auto created = m_newProjectDialog->Draw()) {
         RequestOpenProject(*created);
     }
+    if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Comma, ImGuiInputFlags_RouteGlobal)) {
+        m_preferences->Open();
+    }
+    m_preferences->Draw();
     DrawAboutWindow();
     DrawErrorWindow();
     if (m_showImGuiDemo) {
@@ -432,7 +440,7 @@ void EditorApplication::DrawMainMenu() {
         DrawFileMenu();
         ImGui::EndMenu();
     }
-    if (ImGui::BeginMenu("Edit", hasProject)) {
+    if (ImGui::BeginMenu("Edit")) {
         CommandHistory* history = GetFocusedHistory();
         const std::string undo = history && history->CanUndo() ? ICON_FA_ROTATE_LEFT "  Undo " + history->GetUndoName()
                                                                : std::string(ICON_FA_ROTATE_LEFT "  Undo");
@@ -469,6 +477,10 @@ void EditorApplication::DrawMainMenu() {
         ImGui::Separator();
         if (MenuItem("Select All", ImGuiMod_Ctrl | ImGuiKey_A, document != nullptr)) {
             SelectAll(*document);
+        }
+        ImGui::Separator();
+        if (MenuItem(ICON_FA_SLIDERS "  Preferences...", ImGuiMod_Ctrl | ImGuiKey_Comma)) {
+            m_preferences->Open();
         }
         ImGui::EndMenu();
     }
@@ -663,6 +675,10 @@ void EditorApplication::DrawBuildControls() {
         tooltip = "The game's code is building; the editor keeps the code it has until it is done.";
     } else if (modules.HasNewModule()) {
         status = ICON_FA_CLOCK "  New code loads when the game stops";
+    } else if (modules.HasUnbuiltChanges()) {
+        status = ICON_FA_CODE "  Code changed";
+        tooltip = "The game's code changed since it was built; Ctrl+B builds it. Building as it changes can be "
+                  "turned on in Preferences.";
     } else if (build.GetState() == ModuleBuildState::Failed) {
         status = ICON_FA_CIRCLE_XMARK "  Build failed";
         color = EditorColors::Error;
@@ -706,9 +722,12 @@ void EditorApplication::OpenConsole() {
 void EditorApplication::TogglePlaying() {
     if (m_workspace->GetPlaySession()) {
         m_workspace->StopPlaying();
-    } else {
-        m_workspace->Play(*this);
+        return;
     }
+    if (m_settings.GetPreferences().clearConsoleOnPlay) {
+        m_consoleLog->Clear();
+    }
+    m_workspace->Play(*this);
 }
 
 bool EditorApplication::DeliversToScenes(const Event& event) {

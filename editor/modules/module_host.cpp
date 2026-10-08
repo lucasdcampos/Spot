@@ -95,6 +95,7 @@ bool ModuleHost::LoadBuilt() {
 
 void ModuleHost::Build() {
     if (HasCode()) {
+        m_unbuiltChanges = false;
         m_build.Start();
     }
 }
@@ -104,7 +105,11 @@ void ModuleHost::Update() {
         m_lastWatch = now;
         if (const std::uint64_t stamp = StampCode(); stamp != m_codeStamp) {
             m_codeStamp = stamp;
-            Build();
+            if (m_buildOnChange) {
+                Build();
+            } else {
+                m_unbuiltChanges = HasCode();
+            }
         }
     }
     if (m_build.Update() && m_build.GetState() == ModuleBuildState::Succeeded) {

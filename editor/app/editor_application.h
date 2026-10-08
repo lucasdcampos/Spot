@@ -1,6 +1,7 @@
 #pragma once
 
 #include "app/editor_context.h"
+#include "app/preferences_window.h"
 #include "assets/thumbnail_cache.h"
 #include "core/console_log.h"
 #include "core/editor_settings.h"
@@ -103,6 +104,7 @@ private:
     bool m_runPending = false;
     std::unique_ptr<ProjectHub> m_hub;
     std::unique_ptr<NewProjectDialog> m_newProjectDialog;
+    std::unique_ptr<PreferencesWindow> m_preferences;
     std::vector<std::unique_ptr<Panel>> m_panels;
     InspectorPanel* m_inspector = nullptr;
     HierarchyPanel* m_hierarchy = nullptr;

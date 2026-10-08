@@ -34,8 +34,12 @@ public:
     bool LoadBuilt();
     // Builds the code in the background.
     void Build();
-    // Follows the build, and builds when the code changed.
+    // Follows the build, and builds when the code changed, unless told not to.
     void Update();
+    // Whether changes to the code start a build; when they do not, HasUnbuiltChanges() tells of them.
+    void SetBuildOnChange(bool build) { m_buildOnChange = build; }
+    // Whether the code changed since the last build started.
+    bool HasUnbuiltChanges() const { return m_unbuiltChanges; }
 
     // Whether a module was built since the one loaded, waiting for SwapModule().
     bool HasNewModule() const { return m_newModule; }
@@ -60,6 +64,8 @@ private:
     // The built module's time when it was loaded, to tell new builds from those that changed nothing.
     std::filesystem::file_time_type m_loadedTime;
     bool m_newModule = false;
+    bool m_buildOnChange = true;
+    bool m_unbuiltChanges = false;
     std::uint64_t m_codeStamp = 0;
     std::chrono::steady_clock::time_point m_lastWatch;
 };

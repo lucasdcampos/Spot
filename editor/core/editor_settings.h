@@ -29,6 +29,23 @@ struct GizmoSettings {
     float scaleStep = 0.1f;
 };
 
+// How the editor behaves, as the Preferences window sets it.
+struct EditorPreferences {
+    static constexpr float MinUiScale = 0.5f;
+    static constexpr float MaxUiScale = 3.0f;
+    static constexpr int MaxBackupMinutes = 120;
+
+    // Grows or shrinks text and controls beyond what the display's scale makes them.
+    float uiScale = 1.0f;
+    // Clears the console when a game starts playing, so it shows only what the game logs.
+    bool clearConsoleOnPlay = false;
+    // Builds the game's code as soon as it changes; otherwise only when asked to.
+    bool buildOnChange = true;
+    // Minutes between backups of scenes with unsaved changes, which come back if the editor stops before they are
+    // saved; 0 makes none.
+    int backupMinutes = 5;
+};
+
 struct RecentProject {
     std::filesystem::path file;
     std::string name;
@@ -61,11 +78,15 @@ public:
     GizmoSettings& GetGizmo() { return m_gizmo; }
     const GizmoSettings& GetGizmo() const { return m_gizmo; }
 
+    EditorPreferences& GetPreferences() { return m_preferences; }
+    const EditorPreferences& GetPreferences() const { return m_preferences; }
+
 private:
     std::filesystem::path m_file;
     std::vector<RecentProject> m_recentProjects;
     std::filesystem::path m_projectsLocation;
     GizmoSettings m_gizmo;
+    EditorPreferences m_preferences;
 };
 
 // "<documents>/Spot Projects", where projects go until the user picks another place.

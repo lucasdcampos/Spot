@@ -47,6 +47,8 @@ TEST_CASE("Editor settings survive a restart", "[editor][settings]") {
         settings.GetGizmo().tool = Spot::Editor::GizmoTool::Rotate;
         settings.GetGizmo().local = true;
         settings.GetGizmo().rotateStep = 5.0f;
+        settings.GetPreferences() = {
+            .uiScale = 1.25f, .clearConsoleOnPlay = true, .buildOnChange = false, .backupMinutes = 10};
         REQUIRE(settings.Save());
     }
 
@@ -62,6 +64,41 @@ TEST_CASE("Editor settings survive a restart", "[editor][settings]") {
     CHECK(loaded.GetGizmo().local);
     CHECK_FALSE(loaded.GetGizmo().snap);
     CHECK(loaded.GetGizmo().rotateStep == 5.0f);
+    CHECK(loaded.GetPreferences().uiScale == 1.25f);
+    CHECK(loaded.GetPreferences().clearConsoleOnPlay);
+    CHECK_FALSE(loaded.GetPreferences().buildOnChange);
+    CHECK(loaded.GetPreferences().backupMinutes == 10);
+}
+
+TEST_CASE("Preferences out of range come back within it", "[editor][settings]") {
+    const TempDirectory temp;
+    const auto file = temp.GetPath() / "settings.json";
+    std::ofstream(file) << R"({"preferences":{"uiScale":40.0,"backupMinutes":-3}})";
+
+    Spot::Editor::EditorSettings settings(file);
+    settings.Load();
+
+    CHECK(settings.GetPreferences().uiScale == Spot::Editor::EditorPreferences::MaxUiScale);
+    CHECK(settings.GetPreferences().backupMinutes == 0);
+    CHECK(settings.GetPreferences().buildOnChange);
+}
+
+TEST_CASE("Without building on change, changes to the code are only told of", "[editor][project]") {
+    const TempDirectory temp;
+    const auto file = Spot::Editor::CreateProject(temp.GetPath(), "Coded", Spot::Editor::ProjectTemplate::Code3D);
+    REQUIRE(file);
+    const auto project = Spot::Project::Load(*file);
+    REQUIRE(project);
+    Spot::Editor::ModuleHost host(*project, {.watchInterval = std::chrono::milliseconds(0)});
+    host.SetBuildOnChange(false);
+    host.Update();
+    CHECK_FALSE(host.HasUnbuiltChanges());
+
+    std::ofstream(project->GetDirectory() / "src" / "more.cpp") << "// More of the game\n";
+    host.Update();
+
+    CHECK(host.HasUnbuiltChanges());
+    CHECK_FALSE(host.GetBuild().IsRunning());
 }
 
 TEST_CASE("Unreadable editor settings leave the defaults", "[editor][settings]") {

@@ -26,6 +26,9 @@ public:
     // Where window layouts are saved and loaded from; empty keeps them in memory only.
     void SetSettingsFile(const std::filesystem::path& path);
 
+    // Grows or shrinks the UI beyond the display's scale, from the next frame on.
+    void SetUiScale(float scale) { m_uiScale = scale; }
+
     void ProcessEvent(const Event& event);
     // Starts a frame; UI can be submitted until EndFrame().
     void BeginFrame(float deltaTime);
@@ -39,7 +42,9 @@ private:
     std::unique_ptr<ImGuiPlatform> m_platform;
     std::unique_ptr<ImGuiRenderer> m_renderer;
     std::string m_settingsFile;
-    float m_contentScale = 0.0f;
+    float m_uiScale = 1.0f;
+    // The scale the style was last made for.
+    float m_appliedScale = 0.0f;
 };
 
 } // namespace Spot::Editor
