@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <memory>
 #include <string>
@@ -183,6 +184,26 @@ TEST_CASE("Folders open with a double click, and Backspace goes back up", "[edit
     CHECK(fixture.panel->GetFolder().empty());
     // The folder just left is selected.
     CHECK(fixture.panel->GetSelection() == std::vector<std::string>{"folder:scenes"});
+}
+
+TEST_CASE("Tiles out of view draw nothing", "[editor][assets][ui]") {
+    BrowserFixture fixture;
+    const auto addMaterials = [&](int from, int to) {
+        for (int i = from; i < to; ++i) {
+            REQUIRE(
+                Spot::MaterialSource{}.SaveToFile(fixture.assets / "many" / std::format("Material {:03}.material", i)));
+        }
+        fixture.Project().Refresh();
+        fixture.imgui.Frame();
+        fixture.imgui.Frame();
+        return ImGui::GetDrawData()->TotalVtxCount;
+    };
+    std::filesystem::create_directories(fixture.assets / "many");
+    fixture.panel->SetFolder("many");
+    const int few = addMaterials(0, 100);
+    // Only the first rows fit in the panel, so twice as many materials take about as many vertices.
+    const int many = addMaterials(100, 200);
+    CHECK(many < few + few / 10);
 }
 
 TEST_CASE("New assets are created and named in place", "[editor][assets][ui]") {

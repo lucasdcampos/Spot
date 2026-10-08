@@ -460,6 +460,11 @@ void AssetBrowserPanel::DrawTile(EditorProject& project, const BrowserItem& item
     if (item.folder) {
         AcceptMoves(project, item.path);
     }
+    // Painted icons take many vertices, so tiles scrolled out of view draw nothing; nor do they ask for thumbnails.
+    if (!ImGui::IsItemVisible() && m_renaming != key) {
+        ImGui::PopID();
+        return;
+    }
 
     // Background and icon. Files sit on a faint card; folders have none until hovered or selected.
     ImDrawList* drawList = ImGui::GetWindowDrawList();
