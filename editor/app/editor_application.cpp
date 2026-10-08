@@ -1024,6 +1024,10 @@ void EditorApplication::DrawAboutWindow() {
     ImGui::PopFont();
     ImGui::TextColored(EditorColors::TextMuted, "Engine %s  |  Dear ImGui %s  |  %s", GetVersionString().data(),
                        ImGui::GetVersion(), GetGraphicsDevice().GetBackendName().data());
+    // Game code must be built as the editor was, so this says how.
+    const ModuleToolchain toolchain = ModuleToolchain::GetEditor();
+    ImGui::TextColored(EditorColors::TextMuted, "Game code builds with %s, %s", toolchain.generator.c_str(),
+                       toolchain.configuration.c_str());
     ImGui::Separator();
     ImGui::TextUnformatted("Built with Dear ImGui and ImGuizmo (MIT), the Inter font and Font Awesome Free\n"
                            "(SIL OFL 1.1; icons CC BY 4.0).");
