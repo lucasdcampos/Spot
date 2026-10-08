@@ -5,21 +5,24 @@
 namespace Spot::Editor {
 
 bool Selection::Contains(EntityId id) const {
-    return std::ranges::find(m_entities, id) != m_entities.end();
+    return m_set.contains(id);
 }
 
 void Selection::Select(EntityId id) {
     m_entities.clear();
+    m_set.clear();
     if (id != EntityId::Invalid) {
         m_entities.push_back(id);
+        m_set.insert(id);
     }
     ++m_version;
 }
 
 void Selection::Set(std::span<const EntityId> ids) {
     m_entities.clear();
+    m_set.clear();
     for (const EntityId id : ids) {
-        if (id != EntityId::Invalid && !Contains(id)) {
+        if (id != EntityId::Invalid && m_set.insert(id).second) {
             m_entities.push_back(id);
         }
     }
@@ -30,13 +33,16 @@ void Selection::Add(EntityId id) {
     if (id == EntityId::Invalid) {
         return;
     }
-    std::erase(m_entities, id);
+    if (!m_set.insert(id).second) {
+        std::erase(m_entities, id);
+    }
     m_entities.push_back(id);
     ++m_version;
 }
 
 void Selection::Remove(EntityId id) {
-    if (std::erase(m_entities, id) > 0) {
+    if (m_set.erase(id) > 0) {
+        std::erase(m_entities, id);
         ++m_version;
     }
 }
@@ -52,12 +58,15 @@ void Selection::Toggle(EntityId id) {
 void Selection::Clear() {
     if (!m_entities.empty()) {
         m_entities.clear();
+        m_set.clear();
         ++m_version;
     }
 }
 
 void Selection::RemoveMissing(const Scene& scene) {
-    if (std::erase_if(m_entities, [&](EntityId id) { return !scene.GetEntity(id); }) > 0) {
+    const auto missing = [&](EntityId id) { return !scene.GetEntity(id); };
+    if (std::erase_if(m_entities, missing) > 0) {
+        std::erase_if(m_set, missing);
         ++m_version;
     }
 }

@@ -26,6 +26,10 @@ public:
     std::optional<std::pair<ImVec2, ImVec2>> GetItemRect(std::string_view item) const {
         return m_entities.GetItemRect(item);
     }
+    // See EntityInspector::GetMixedValues().
+    std::vector<std::string> GetMixedValues(const SceneDocument& document, std::string_view card) const {
+        return m_entities.GetMixedValues(document, card);
+    }
 
 protected:
     void OnDraw() override;

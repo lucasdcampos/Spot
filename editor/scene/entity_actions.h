@@ -58,6 +58,8 @@ bool ApplyMaterial(SceneDocument& document, EntityId entity, AssetId material);
 
 // The selected entities that exist, leaving out those below other selected ones, in hierarchy order.
 std::vector<Entity*> GetSelectedEntities(SceneDocument& document);
+// Puts the entities, which must belong to the scene, in the order the hierarchy shows them.
+void SortInHierarchyOrder(Scene& scene, std::vector<Entity*>& entities);
 
 // Puts the selected entities, with their descendants, on the OS clipboard, so they can be pasted into any scene.
 bool CopySelection(SceneDocument& document);

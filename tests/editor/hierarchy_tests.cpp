@@ -151,3 +151,33 @@ TEST_CASE("Copied entities paste into another scene", "[editor][hierarchy]") {
     CHECK(other.GetSelection().GetPrimary() == other.GetScene().FindEntity("Cube")->GetId());
     CHECK(other.GetScene().FindEntity("Cube")->GetComponent<Spot::MeshRenderer>());
 }
+
+TEST_CASE("Selected entities come in hierarchy order, without those below other selected ones", "[editor][hierarchy]") {
+    // Small selections and large ones are put in order differently.
+    for (const int count : {5, 60}) {
+        Spot::Editor::SceneDocument document;
+        Spot::Scene& scene = document.GetScene();
+        std::vector<Spot::EntityId> picked;
+        std::vector<Spot::EntityId> expected;
+        for (int i = 0; i < count; ++i) {
+            Spot::Entity& entity = scene.CreateEntity(std::to_string(i));
+            Spot::Entity& child = scene.CreateEntity(std::to_string(i) + " child");
+            child.SetParent(&entity);
+            expected.push_back(entity.GetId());
+            // Picked from the last to the first, with the children of the even ones, which go with their parents.
+            picked.insert(picked.begin(), entity.GetId());
+            if (i % 2 == 0) {
+                picked.push_back(child.GetId());
+            }
+        }
+        document.GetSelection().Set(picked);
+        CHECK(document.GetSelection().Contains(expected.front()));
+        CHECK(document.GetSelection().GetEntities().size() == picked.size());
+
+        std::vector<Spot::EntityId> ids;
+        for (const Entity* entity : Spot::Editor::GetSelectedEntities(document)) {
+            ids.push_back(entity->GetId());
+        }
+        CHECK(ids == expected);
+    }
+}

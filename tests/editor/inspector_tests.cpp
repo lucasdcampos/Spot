@@ -305,3 +305,30 @@ TEST_CASE("Typing a name renames the entity once the field is left", "[editor][i
     CHECK(fixture.Steps() == steps + 1);
     CHECK(fixture.document->GetHistory().GetUndoName() == "Rename Entity");
 }
+
+TEST_CASE("Values that differ show as such again after changes and their undoing", "[editor][inspector][ui]") {
+    InspectorFixture fixture;
+    Entity& first = fixture.Selected();
+    Entity& second = fixture.AddLight();
+    fixture.Light(first).SetIntensity(2.0f);
+    fixture.Light(second).SetIntensity(5.0f);
+    const std::vector ids{first.GetId(), second.GetId()};
+    fixture.document->GetSelection().Set(ids);
+    fixture.Frame();
+    const auto mixed = [&] { return fixture.panel->GetMixedValues(*fixture.document, "PointLight"); };
+    CHECK(mixed() == std::vector<std::string>{"/data/intensity"});
+
+    const std::string before = Spot::SaveComponentToString(fixture.Light(first));
+    fixture.Light(first).SetIntensity(5.0f);
+    const std::string after = Spot::SaveComponentToString(fixture.Light(first));
+    fixture.Light(first).SetIntensity(2.0f);
+    const std::size_t index = first.GetComponents<Spot::Component>().size() - 1;
+    REQUIRE(fixture.document->Execute(
+        std::make_unique<Spot::Editor::EditComponentCommand>(*fixture.document, first.GetId(), index, before, after)));
+    fixture.Frame();
+    CHECK(mixed().empty());
+
+    fixture.document->Undo();
+    fixture.Frame();
+    CHECK(mixed() == std::vector<std::string>{"/data/intensity"});
+}

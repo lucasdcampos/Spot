@@ -44,6 +44,9 @@ public:
     bool IsDirty() const;
     // Forgets every command; the document counts as saved when it was.
     void Clear();
+    // Tells apart what the commands make of the document: executing, undoing and redoing change it, and states that
+    // are the same are the same document.
+    std::uint64_t GetCurrentState() const { return m_undo.empty() ? m_baseState : m_undo.back().state; }
 
 private:
     struct Entry {
@@ -53,7 +56,6 @@ private:
     };
 
     void Push(std::unique_ptr<Command> command);
-    std::uint64_t GetCurrentState() const { return m_undo.empty() ? m_baseState : m_undo.back().state; }
 
     std::size_t m_limit;
     std::vector<Entry> m_undo;

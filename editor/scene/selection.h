@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <unordered_set>
 #include <vector>
 
 namespace Spot::Editor {
@@ -40,6 +41,8 @@ public:
 
 private:
     std::vector<EntityId> m_entities;
+    // The same entities, to tell quickly whether one is selected, as windows ask for every entity they show.
+    std::unordered_set<EntityId> m_set;
     std::uint64_t m_version = 0;
 };
 

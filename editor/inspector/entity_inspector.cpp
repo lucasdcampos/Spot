@@ -87,6 +87,11 @@ std::optional<std::pair<ImVec2, ImVec2>> EntityInspector::GetItemRect(std::strin
     return found != m_rects.end() ? std::optional(found->second) : std::nullopt;
 }
 
+std::vector<std::string> EntityInspector::GetMixedValues(const SceneDocument& document, std::string_view card) const {
+    const auto found = m_mixed.find(std::format("{}/{}", document.GetId(), card));
+    return found != m_mixed.end() ? found->second.pointers : std::vector<std::string>();
+}
+
 void EntityInspector::Record(std::string item) {
     m_rects[std::move(item)] = {ImGui::GetItemRectMin(), ImGui::GetItemRectMax()};
 }
@@ -461,13 +466,9 @@ void EntityInspector::DrawComponent(SceneDocument& document, const Card& card) {
     Component& component = *components.front();
     const bool missing = dynamic_cast<const MissingComponent*>(&component) != nullptr;
 
-    // Saved before drawing, so an edit knows how the components were before it.
+    // Saved before drawing, so an edit knows how the component was before it.
     std::string text = SaveComponentToString(component);
-    std::vector<std::string> others;
-    for (std::size_t i = 1; i < components.size(); ++i) {
-        others.push_back(SaveComponentToString(*components[i]));
-    }
-    const std::vector<std::string> mixed = FindMixedValues(text, others);
+    const std::vector<std::string> mixed = GetMixedValues(document, card, components, text);
     const bool enabledMixed = std::ranges::find(mixed, "/enabled") != mixed.end();
 
     const std::string title = missing ? card.typeName + " (missing)" : MakeDisplayName(card.typeName);
@@ -479,7 +480,7 @@ void EntityInspector::DrawComponent(SceneDocument& document, const Card& card) {
         const bool enabled = enabledMixed || !component.IsEnabled();
         std::vector<std::unique_ptr<SceneCommand>> commands;
         for (std::size_t i = 0; i < components.size(); ++i) {
-            const std::string before = i == 0 ? text : others[i - 1];
+            const std::string before = i == 0 ? text : SaveComponentToString(*components[i]);
             components[i]->SetEnabled(enabled);
             commands.push_back(std::make_unique<EditComponentCommand>(document, card.components[i].first,
                                                                       card.components[i].second, before,
@@ -525,8 +526,15 @@ void EntityInspector::DrawComponent(SceneDocument& document, const Card& card) {
         return;
     }
 
-    std::vector<std::string> before{text};
-    before.insert(before.end(), others.begin(), others.end());
+    // The others are as they were until they get the values that changed, below.
+    std::vector<std::string> before;
+    const bool continuing = m_edit && m_edit->document == document.GetId() && m_edit->components == card.components;
+    if (!continuing) {
+        before.push_back(text);
+        for (std::size_t i = 1; i < components.size(); ++i) {
+            before.push_back(SaveComponentToString(*components[i]));
+        }
+    }
     BeginComponentEdit(document, card, std::move(before));
     ValidateComponent(component);
     for (const std::string& pointer : backend.GetChanged()) {
@@ -542,6 +550,34 @@ void EntityInspector::DrawComponent(SceneDocument& document, const Card& card) {
                                     CopyValues(edited, SaveComponentToString(*components[i]), m_edit->changed));
         }
     }
+}
+
+const std::vector<std::string>& EntityInspector::GetMixedValues(SceneDocument& document, const Card& card,
+                                                                std::span<Component* const> components,
+                                                                const std::string& text) {
+    MixedValues& cached = m_mixed[std::format("{}/{}", document.GetId(), card.key)];
+    // Values change without a command only while being edited here, or while a game plays.
+    const bool editing = m_edit && m_edit->components == card.components;
+    const bool playing = m_context.GetWorkspace() && m_context.GetWorkspace()->GetPlaySession();
+    constexpr double PlayingRefresh = 0.25;
+    const double now = ImGui::GetTime();
+    const bool current = cached.selection == document.GetSelection().GetVersion() &&
+                         cached.history == document.GetHistory().GetCurrentState() &&
+                         cached.components == components.size() && !editing &&
+                         (!playing || now - cached.time < PlayingRefresh);
+    if (current && cached.time > 0.0) {
+        return cached.pointers;
+    }
+    std::vector<std::string> others;
+    for (std::size_t i = 1; i < components.size(); ++i) {
+        others.push_back(SaveComponentToString(*components[i]));
+    }
+    cached = {.selection = document.GetSelection().GetVersion(),
+              .history = document.GetHistory().GetCurrentState(),
+              .components = components.size(),
+              .time = now,
+              .pointers = FindMixedValues(text, others)};
+    return cached.pointers;
 }
 
 void EntityInspector::DrawComponentMenu(SceneDocument& document, const Card& card, const std::string& text) {

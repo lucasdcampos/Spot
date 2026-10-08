@@ -40,6 +40,9 @@ public:
     // "PointLight/menu", fields by pointer, as "PointLight/data/intensity", and menu items, as
     // "PointLight/menu/Remove".
     std::optional<std::pair<ImVec2, ImVec2>> GetItemRect(std::string_view item) const;
+    // The values of the card's components that differ between the selected entities of the document, as pointers
+    // into their saved form, as the card last showed them; the card is named as for GetItemRect().
+    std::vector<std::string> GetMixedValues(const SceneDocument& document, std::string_view card) const;
 
 private:
     // Components by their entity and their place among its components.
@@ -68,6 +71,16 @@ private:
         std::vector<SetTransformsCommand::Change> transforms;
     };
 
+    // Which values differ between a card's components, kept while nothing could have changed them, since finding out
+    // means saving every selected entity's component.
+    struct MixedValues {
+        std::uint64_t selection = 0;
+        std::uint64_t history = 0;
+        std::size_t components = 0;
+        double time = 0.0;
+        std::vector<std::string> pointers;
+    };
+
     struct CardHeader {
         bool open = false;
         bool toggled = false;
@@ -80,6 +93,8 @@ private:
     void DrawComponents(SceneDocument& document, std::span<Entity* const> entities);
     void DrawComponent(SceneDocument& document, const Card& card);
     void DrawComponentMenu(SceneDocument& document, const Card& card, const std::string& text);
+    const std::vector<std::string>& GetMixedValues(SceneDocument& document, const Card& card,
+                                                   std::span<Component* const> components, const std::string& text);
     void DrawAddComponent(SceneDocument& document, std::span<Entity* const> entities);
     // A card's collapsible header, with an enabled checkbox when enabled is set and a button that opens the
     // "##menu" popup, as right-clicking it does.
@@ -99,6 +114,8 @@ private:
 
     EditorContext& m_context;
     std::optional<Edit> m_edit;
+    // By document and card.
+    std::unordered_map<std::string, MixedValues> m_mixed;
     EulerCache m_transformEulers;
     EulerCache m_fieldEulers;
     std::string m_name;

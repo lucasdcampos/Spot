@@ -11,6 +11,7 @@
 #include <format>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <utility>
 
 namespace Spot::Editor {
@@ -229,18 +230,52 @@ bool CreateEntity(SceneDocument& document, EntityTemplate kind, EntityId parent,
 
 std::vector<Entity*> GetSelectedEntities(SceneDocument& document) {
     Scene& scene = document.GetScene();
+    const Selection& selection = document.GetSelection();
     std::vector<Entity*> entities;
-    for (const EntityId id : document.GetSelection().GetEntities()) {
-        if (Entity* entity = scene.GetEntity(id)) {
+    for (const EntityId id : selection.GetEntities()) {
+        Entity* entity = scene.GetEntity(id);
+        if (!entity) {
+            continue;
+        }
+        // Below another selected entity, it goes along with that one.
+        bool below = false;
+        for (const Entity* parent = entity->GetParent(); parent && !below; parent = parent->GetParent()) {
+            below = selection.Contains(parent->GetId());
+        }
+        if (!below) {
             entities.push_back(entity);
         }
     }
-    std::erase_if(entities, [&](const Entity* entity) {
-        return std::ranges::any_of(
-            entities, [&](const Entity* other) { return other != entity && entity->IsDescendantOf(*other); });
-    });
-    std::ranges::sort(entities, {}, [](const Entity* entity) { return GetHierarchyPath(*entity); });
+    SortInHierarchyOrder(scene, entities);
     return entities;
+}
+
+void SortInHierarchyOrder(Scene& scene, std::vector<Entity*>& entities) {
+    // Finding an entity's place walks its siblings, so a few are sorted by their places, and many by going through
+    // the whole hierarchy once.
+    constexpr std::size_t MaxSortedByPlace = 32;
+    if (entities.size() <= MaxSortedByPlace) {
+        std::vector<std::pair<std::vector<std::size_t>, Entity*>> keyed;
+        for (Entity* entity : entities) {
+            keyed.emplace_back(GetHierarchyPath(*entity), entity);
+        }
+        std::ranges::sort(keyed, {}, &std::pair<std::vector<std::size_t>, Entity*>::first);
+        for (std::size_t i = 0; i < keyed.size(); ++i) {
+            entities[i] = keyed[i].second;
+        }
+        return;
+    }
+    const std::unordered_set<const Entity*> wanted(entities.begin(), entities.end());
+    entities.clear();
+    const auto visit = [&](const auto& self, const std::vector<Entity*>& siblings) -> void {
+        for (Entity* entity : siblings) {
+            if (wanted.contains(entity)) {
+                entities.push_back(entity);
+            }
+            self(self, entity->GetChildren());
+        }
+    };
+    visit(visit, scene.GetRootEntities());
 }
 
 bool CopySelection(SceneDocument& document) {
