@@ -9,6 +9,7 @@
 #include "math/vector.h"
 #include "scene/entity.h"
 
+#include <algorithm>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -198,4 +199,37 @@ private:
     ArchiveBackend* m_backend;
 };
 
+namespace Detail {
+
+// Describes each field to the archive under its name, the names coming as SPOT_FIELDS writes them: "speed, health".
+template <typename... Fields>
+void SerializeFields(Archive& archive, std::string_view names, Fields&... fields) {
+    const auto next = [&names] {
+        const std::size_t comma = names.find(',');
+        std::string_view name = names.substr(0, comma);
+        names = comma == std::string_view::npos ? std::string_view() : names.substr(comma + 1);
+        constexpr std::string_view Space = " \t\r\n";
+        name.remove_prefix(std::min(name.find_first_not_of(Space), name.size()));
+        name.remove_suffix(name.size() - std::min(name.find_last_not_of(Space) + 1, name.size()));
+        return name;
+    };
+    (archive.Field(next(), fields), ...);
+}
+
+} // namespace Detail
+
 } // namespace Spot
+
+// Saves the fields with scenes and shows them in the inspector, each under its own name, so the component needs no
+// Serialize() of its own. Written in the class, after the fields:
+//
+//     float speed = 5.0f;
+//     int health = 100;
+//
+//     SPOT_FIELDS(speed, health)
+//
+// Fields that need options, such as a range or a tooltip, are described in a Serialize() instead (see Archive).
+#define SPOT_FIELDS(...)                                                                                               \
+    void Serialize(::Spot::Archive& archive) override {                                                                \
+        ::Spot::Detail::SerializeFields(archive, #__VA_ARGS__, __VA_ARGS__);                                           \
+    }

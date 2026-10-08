@@ -40,7 +40,8 @@ editor generates; the last two stay out of version control.
 
 Projects made from the editor's "3D with C++" template have a `src/` folder with the game's own components, and the
 asset browser's Create > C++ Component adds one to any project, as a `.h` and a `.cpp`; components register
-themselves with `SPOT_COMPONENT(Type);` in their source file. The editor builds that code into a game module with
+themselves with `SPOT_COMPONENT(Type);` in their source file, and list the fields that scenes save and the inspector
+shows with `SPOT_FIELDS(speed, health)` in their class. The editor builds that code into a game module with
 CMake and the compiler that built the editor, whenever it changes or on Ctrl+B, and loads it without closing the open
 scenes, so their entities, selections and undo history stay as they were. Build errors and warnings show in the
 console. Games made only in code link the static engine library and need none of this.

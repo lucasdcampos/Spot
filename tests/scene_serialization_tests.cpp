@@ -93,9 +93,21 @@ protected:
 
 class Unregistered final : public Spot::Component {};
 
+// Saves its fields without a Serialize() of its own.
+class Listed final : public Spot::Component {
+public:
+    float speed = 5.0f;
+    int health = 100;
+    Spot::Vector3 home = {};
+    std::vector<std::string> tags;
+
+    SPOT_FIELDS(speed, health, home, tags)
+};
+
 void RegisterTestComponents() {
     Spot::RegisterComponent<Everything>("Everything");
     Spot::RegisterComponent<Speed>("Speed");
+    Spot::RegisterComponent<Listed>("Listed");
 }
 
 } // namespace
@@ -643,4 +655,27 @@ TEST_CASE("Scenes save to and load from files", "[scene][serialization]") {
     auto capture = std::make_shared<Spot::Tests::CaptureSink>();
     const Spot::Tests::ScopedSinks sinks({capture});
     CHECK_FALSE(loaded.LoadFromFile(path));
+}
+
+TEST_CASE("Fields listed with SPOT_FIELDS save and load under their names", "[scene][serialization]") {
+    RegisterTestComponents();
+    Scene scene;
+    Listed& listed = scene.CreateEntity("Hero").AddComponent<Listed>();
+    listed.speed = 7.5f;
+    listed.health = 42;
+    listed.home = {1.0f, 2.0f, 3.0f};
+    listed.tags = {"brave", "tall"};
+    const std::string text = scene.SaveToString();
+    CHECK_THAT(text, Catch::Matchers::ContainsSubstring("\"speed\": 7.5"));
+    CHECK_THAT(text, Catch::Matchers::ContainsSubstring("\"health\": 42"));
+    CHECK_THAT(text, Catch::Matchers::ContainsSubstring("\"tags\""));
+
+    Scene loaded;
+    REQUIRE(loaded.LoadFromString(text));
+    const auto* copy = loaded.FindEntity("Hero")->GetComponent<Listed>();
+    REQUIRE(copy != nullptr);
+    CHECK(copy->speed == 7.5f);
+    CHECK(copy->health == 42);
+    CHECK(copy->home == Spot::Vector3{1.0f, 2.0f, 3.0f});
+    CHECK(copy->tags == std::vector<std::string>{"brave", "tall"});
 }

@@ -35,8 +35,8 @@ struct SceneSerializer;
 //
 // The entity is not available in the constructor yet; setup that needs it goes in OnStart().
 //
-// To be saved and loaded with its scene, a component type is registered with RegisterComponent() and overrides
-// Serialize() to describe its fields.
+// To be saved and loaded with its scene, a component type is registered with RegisterComponent() and lists its fields
+// with SPOT_FIELDS(), or overrides Serialize() to describe them.
 class Component {
 public:
     virtual ~Component() = default;
