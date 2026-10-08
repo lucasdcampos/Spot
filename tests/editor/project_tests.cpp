@@ -264,7 +264,8 @@ TEST_CASE("New components need C++ class names that no type or file has", "[edit
     std::ifstream source(code / "actors" / "Player.cpp");
     const std::string text{std::istreambuf_iterator<char>(source), std::istreambuf_iterator<char>()};
     CHECK(text.find("SPOT_COMPONENT(Player);") != std::string::npos);
-    CHECK(text.find("void Player::OnUpdate(") != std::string::npos);
+    CHECK(text.find("void Player::OnUpdate(float deltaTime) {\n    \n}\n") != std::string::npos);
+    CHECK(text.find("maybe_unused") == std::string::npos);
 
     CHECK_FALSE(ValidateComponentName(*project, "actors", "Player").empty());
     CHECK(ValidateComponentName(*project, "", "Player").empty());

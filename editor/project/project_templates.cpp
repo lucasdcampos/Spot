@@ -88,13 +88,9 @@ constexpr std::string_view ComponentHeader = R"(#pragma once
 #include <spot.h>
 
 class {0} final : public Spot::Component {{
-public:
-    // Fields saved with scenes and shown in the inspector, once listed in Serialize().
-
 protected:
     void OnStart() override;
     void OnUpdate(float deltaTime) override;
-    void Serialize(Spot::Archive& archive) override;
 }};
 )";
 
@@ -102,16 +98,12 @@ constexpr std::string_view ComponentSource = R"(#include "{0}.h"
 
 SPOT_COMPONENT({0});
 
-// Runs once, before the first update.
 void {0}::OnStart() {{
+    
 }}
 
-// Runs every frame.
-void {0}::OnUpdate([[maybe_unused]] float deltaTime) {{
-}}
-
-// Saves the fields with scenes and shows them in the inspector, as in archive.Field("speed", speed).
-void {0}::Serialize([[maybe_unused]] Spot::Archive& archive) {{
+void {0}::OnUpdate(float deltaTime) {{
+    
 }}
 )";
 
