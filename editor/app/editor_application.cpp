@@ -194,6 +194,21 @@ void EditorApplication::OnUpdate(float) {
         m_projectToOpen.reset();
         OpenProject(file);
     }
+    UpdateModules();
+}
+
+void EditorApplication::UpdateModules() {
+    EditorProject* project = m_context->GetProject();
+    if (!project) {
+        return;
+    }
+    ModuleHost& modules = project->GetModules();
+    modules.Update();
+    // A game that stopped leaves its scenes, with components of the old code, until the frame after.
+    if (modules.HasNewModule() && !m_workspace->GetPlaySession() && GetScenes().empty()) {
+        m_workspace->ReloadScenes([&modules] { modules.SwapModule(); });
+        GetEditorLogger().Info("Reloaded the game's code");
+    }
 }
 
 void EditorApplication::OnRender(RenderContext& context) {
@@ -291,6 +306,8 @@ void EditorApplication::OpenProject(const std::filesystem::path& path) {
     m_settings.AddRecentProject(project->GetProject().GetFile(), project->GetProject().GetSettings().name);
     m_settings.Save();
     m_context->SetProject(std::move(project));
+    // Before the scenes open, so they find the game's components.
+    m_context->GetProject()->GetModules().LoadBuilt();
     m_workspace->RestoreState();
     UpdateTitle();
 }
@@ -526,6 +543,10 @@ void EditorApplication::DrawFileMenu() {
         m_workspace->Close(*document);
     }
     ImGui::Separator();
+    const bool hasCode = hasProject && m_context->GetProject()->GetModules().HasCode();
+    if (MenuItem(ICON_FA_HAMMER "  Build Game Code", ImGuiMod_Ctrl | ImGuiKey_B, hasCode)) {
+        m_context->GetProject()->GetModules().Build();
+    }
     if (MenuItem(ICON_FA_GEAR "  Project Settings...", 0, hasProject)) {
         if (Panel* settings = FindPanel("ProjectSettings")) {
             settings->SetOpen(true);
@@ -549,8 +570,8 @@ void EditorApplication::DrawToolbar() {
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {4.0f * ImGui::GetStyle().FontScaleDpi, style.ItemSpacing.y});
     if (ImGui::BeginViewportSideBar("##Toolbar", viewport, ImGuiDir_Up, height, flags)) {
         DrawGizmoTools();
-
         DrawPlayControls();
+        DrawBuildControls();
     }
     ImGui::End();
     ImGui::PopStyleVar(2);
@@ -579,6 +600,65 @@ void EditorApplication::DrawPlayControls() {
         play->Step();
     }
     ImGui::EndDisabled();
+}
+
+void EditorApplication::DrawBuildControls() {
+    ModuleHost& modules = m_context->GetProject()->GetModules();
+    if (!modules.HasCode()) {
+        return;
+    }
+    const ModuleBuild& build = modules.GetBuild();
+    std::string status;
+    // As wide as the status gets, so it does not move as it changes.
+    std::string widest;
+    ImVec4 color = EditorColors::TextMuted;
+    const char* tooltip = nullptr;
+    if (build.IsRunning()) {
+        // The dots move so it shows that something happens.
+        const auto dots = static_cast<std::size_t>(ImGui::GetTime() * 3.0) % 4;
+        status = ICON_FA_GEARS "  Building" + std::string(dots, '.');
+        widest = ICON_FA_GEARS "  Building...";
+        tooltip = "The game's code is building; the editor keeps the code it has until it is done.";
+    } else if (modules.HasNewModule()) {
+        status = ICON_FA_CLOCK "  New code loads when the game stops";
+    } else if (build.GetState() == ModuleBuildState::Failed) {
+        status = ICON_FA_CIRCLE_XMARK "  Build failed";
+        color = EditorColors::Error;
+        tooltip = "The game's code did not build; click to see why in the console. The editor keeps the code it had.";
+    }
+    if (widest.empty()) {
+        widest = status;
+    }
+
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float buttonWidth = ImGui::GetFrameHeight() * 1.2f;
+    const float statusWidth = status.empty() ? 0.0f : ImGui::CalcTextSize(widest.c_str()).x + style.ItemSpacing.x;
+    ImGui::SameLine(ImGui::GetWindowWidth() - style.WindowPadding.x - buttonWidth - statusWidth);
+    if (!status.empty()) {
+        ImGui::AlignTextToFramePadding();
+        ImGui::PushStyleColor(ImGuiCol_Text, color);
+        if (ImGui::Selectable(status.c_str(), false, ImGuiSelectableFlags_None,
+                              {statusWidth - style.ItemSpacing.x, ImGui::GetFrameHeight()})) {
+            OpenConsole();
+        }
+        ImGui::PopStyleColor();
+        if (tooltip) {
+            ImGui::SetItemTooltip("%s", tooltip);
+        }
+        ImGui::SameLine();
+    }
+    ImGui::BeginDisabled(build.IsRunning());
+    if (ToolbarButton(ICON_FA_HAMMER, "Build the game's code (Ctrl+B); it also builds by itself when it changes")) {
+        modules.Build();
+    }
+    ImGui::EndDisabled();
+}
+
+void EditorApplication::OpenConsole() {
+    if (Panel* console = FindPanel("Console")) {
+        console->SetOpen(true);
+        ImGui::SetWindowFocus(console->GetWindowName().c_str());
+    }
 }
 
 void EditorApplication::TogglePlaying() {
@@ -670,8 +750,9 @@ void EditorApplication::DrawStatusBar() {
 }
 
 void EditorApplication::DrawLatestMessage() {
-    const std::optional<ConsoleEntry> latest = m_consoleLog->GetLatest();
-    if (!latest || latest->level < LogLevel::Info) {
+    // Details, such as what a build writes, come after the message that matters.
+    const std::optional<ConsoleEntry> latest = m_consoleLog->GetLatest(LogLevel::Info);
+    if (!latest) {
         ImGui::TextColored(EditorColors::TextMuted, "Ready");
         return;
     }
@@ -686,10 +767,7 @@ void EditorApplication::DrawLatestMessage() {
     ImGui::PushStyleColor(ImGuiCol_Text, color);
     // Clicking the message opens the console, where the whole of it is.
     if (ImGui::Selectable(text.c_str(), false, ImGuiSelectableFlags_None, {ImGui::GetWindowWidth() * 0.6f, 0.0f})) {
-        if (Panel* console = FindPanel("Console")) {
-            console->SetOpen(true);
-            ImGui::SetWindowFocus(console->GetWindowName().c_str());
-        }
+        OpenConsole();
     }
     ImGui::PopStyleColor();
 }
@@ -791,6 +869,9 @@ void EditorApplication::HandleShortcuts() {
             ImGui::SetWindowFocus(nullptr);
         }
         return;
+    }
+    if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_B, Global)) {
+        m_context->GetProject()->GetModules().Build();
     }
     SceneDocument* document = m_workspace->GetActiveDocument();
     if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_N, Global)) {

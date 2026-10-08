@@ -364,3 +364,12 @@ target_include_directories(spot_shared PUBLIC
 target_compile_features(spot_shared PUBLIC cxx_std_20)
 set_target_properties(spot_shared PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 add_library(spot::shared ALIAS spot_shared)
+
+# A CMake package for game modules, which link the shared library of this build: find_package(Spot CONFIG) with
+# Spot_DIR set to package/<configuration> in the build directory.
+set(SPOT_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+configure_file("${PROJECT_SOURCE_DIR}/cmake/SpotConfig.cmake.in" "${CMAKE_CURRENT_BINARY_DIR}/SpotConfig.cmake.in" @ONLY)
+file(GENERATE
+    OUTPUT "${PROJECT_BINARY_DIR}/package/$<CONFIG>/SpotConfig.cmake"
+    INPUT "${CMAKE_CURRENT_BINARY_DIR}/SpotConfig.cmake.in"
+)

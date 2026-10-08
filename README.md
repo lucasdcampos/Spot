@@ -32,6 +32,14 @@ Pass `editor` to run the editor instead of the sandbox, and `release` to run an 
 In the sandbox, WASD or the arrow keys move the camera, the mouse wheel zooms, F1 switches between the 2D and 3D
 views and Escape quits. In 3D, dragging with the right mouse button also orbits the camera.
 
+## Game code in the editor
+
+Projects made from the editor's "3D with C++" template have a `CMakeLists.txt` and a `src/` folder with the game's
+own components. The editor builds that code into a game module with CMake and the compiler that built the editor,
+whenever it changes or on Ctrl+B, and loads it without closing the open scenes, so their entities, selections and
+undo history stay as they were. Build errors and warnings show in the console. Games made only in code link the
+static engine library and need none of this.
+
 ## Assets
 
 Games load assets through `Spot::Assets` (or `Application::GetAssets()`), never from raw files. During development

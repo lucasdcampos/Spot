@@ -41,7 +41,8 @@ To build and run the sandbox: `./run.ps1` (PowerShell) or `./run.sh` (Linux, mac
 - Engine features built on top of the graphics API (such as the 2D renderer) only use its public interface, so
   users can always do anything the engine does.
 - GPU tests go in `tests/gpu_tests.cpp` (the `spot_gpu_tests` executable) and are skipped where no GPU is available.
-- Editor tests go in `tests/editor/`: `spot_editor_tests` (headless ImGui, no GPU) and `spot_editor_gpu_tests`.
+- Editor tests go in `tests/editor/`: `spot_editor_tests` (headless ImGui, no GPU), `spot_editor_gpu_tests` and
+  `spot_editor_module_tests` (building projects' code with CMake, which takes a while).
 - The editor uses only the engine's public API, like any game; it never reaches a backend. ImGui stays in the
   editor, so the runtime never depends on it. The editor never keeps pointers to entities or components across
   frames: it refers to them by `EntityId`, so undo history and game code reloads stay valid.

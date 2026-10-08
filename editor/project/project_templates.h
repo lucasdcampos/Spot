@@ -13,6 +13,8 @@ namespace Spot::Editor {
 enum class ProjectTemplate {
     // A scene with a sun, a sky, a ground and a cube, ready to look around.
     Basic3D,
+    // The same scene, with C++ code for the game's components, which the editor builds into a game module.
+    Code3D,
     // Only the project file and an empty assets folder.
     Empty,
 };

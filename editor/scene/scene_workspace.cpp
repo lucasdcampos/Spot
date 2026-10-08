@@ -103,6 +103,23 @@ void SceneWorkspace::StopPlaying() {
     m_play.reset();
 }
 
+void SceneWorkspace::ReloadScenes(const std::function<void()>& between) {
+    SPOT_ASSERT(!m_play, "Scenes cannot be reloaded while one plays");
+    std::vector<std::string> saved;
+    for (Opened& open : m_scenes) {
+        Scene& scene = open.document->GetScene();
+        saved.push_back(scene.SaveToString());
+        scene.Clear();
+    }
+    between();
+    EditorProject* project = m_context.GetProject();
+    for (std::size_t i = 0; i < m_scenes.size(); ++i) {
+        m_scenes[i].document->GetScene().Instantiate(
+            saved[i],
+            {.keepIds = true, .keepExternalReferences = true, .assets = project ? &project->GetAssets() : nullptr});
+    }
+}
+
 SceneDocument* SceneWorkspace::FindDocument(std::uint64_t id) {
     const auto found = std::ranges::find_if(m_scenes, [&](const Opened& open) { return open.document->GetId() == id; });
     return found != m_scenes.end() ? found->document.get() : nullptr;

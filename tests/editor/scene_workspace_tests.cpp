@@ -354,3 +354,33 @@ TEST_CASE("Unchanged scenes close without asking, and new ones count as changed"
     CHECK(fixture.workspace->HasUnsavedChanges());
     fixture.Frame();
 }
+
+TEST_CASE("Reloading the scenes makes their components anew, and keeps ids, selections and histories",
+          "[editor][workspace]") {
+    WorkspaceFixture fixture;
+    fixture.workspace->RestoreState();
+    fixture.Frame();
+    Spot::Editor::SceneDocument& document = *fixture.workspace->GetActiveDocument();
+    Spot::Entity* cube = document.GetScene().FindEntity("Cube");
+    REQUIRE(cube);
+    const Spot::EntityId cubeId = cube->GetId();
+    const std::size_t entityCount = document.GetScene().GetEntityCount();
+    document.GetSelection().Select(cubeId);
+    fixture.Rename(document);
+    const std::string before = document.GetScene().SaveToString();
+
+    bool emptied = false;
+    fixture.workspace->ReloadScenes([&] { emptied = document.GetScene().GetEntityCount() == 0; });
+
+    // Between the two, as when the game's code is replaced, no component is left.
+    CHECK(emptied);
+    CHECK(document.GetScene().GetEntityCount() == entityCount);
+    CHECK(document.GetScene().SaveToString() == before);
+    REQUIRE(document.GetScene().GetEntity(cubeId));
+    CHECK(document.GetScene().GetEntity(cubeId)->GetComponent<Spot::MeshRenderer>());
+    CHECK(document.GetSelection().GetPrimary() == cubeId);
+    CHECK(document.IsDirty());
+    document.Undo();
+    CHECK(document.GetScene().FindEntity("Sun"));
+    CHECK_FALSE(document.IsDirty());
+}

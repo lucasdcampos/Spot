@@ -151,6 +151,20 @@ if(TARGET spot_editor_core)
     spot_copy_runtime_dlls(spot_editor_tests)
     catch_discover_tests(spot_editor_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
 
+    # Building projects' code with CMake takes a while, so those tests run on their own, with more time.
+    add_executable(spot_editor_module_tests
+        editor/module_host_tests.cpp
+        temp_directory.h
+    )
+    target_link_libraries(spot_editor_module_tests PRIVATE
+        spot_editor_core
+        Catch2::Catch2WithMain
+    )
+    target_include_directories(spot_editor_module_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    spot_set_compile_options(spot_editor_module_tests)
+    spot_copy_runtime_dlls(spot_editor_module_tests)
+    catch_discover_tests(spot_editor_module_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 600)
+
     add_executable(spot_editor_gpu_tests
         editor/editor_gpu_tests.cpp
         rendering_application.h

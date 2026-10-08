@@ -75,6 +75,11 @@ public:
     // Null while nothing plays.
     PlaySession* GetPlaySession() { return m_play.get(); }
 
+    // Saves every open scene and clears it, runs between, then loads the scenes back with the same entity ids, so
+    // their components are made anew while selections and histories stay as they were; this is how the game's code
+    // is replaced under them. Nothing may play.
+    void ReloadScenes(const std::function<void()>& between);
+
     // Draws the views, docking new ones into the node, and the prompts.
     void Draw(ImGuiID dockId);
     // Makes documents follow their scene files after the assets changed: moved files give their documents new

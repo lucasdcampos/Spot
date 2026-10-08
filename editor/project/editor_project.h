@@ -1,5 +1,7 @@
 #pragma once
 
+#include "modules/module_host.h"
+
 #include <spot.h>
 
 #include <cstdint>
@@ -24,6 +26,8 @@ public:
     const Project& GetProject() const { return m_project; }
     AssetDatabase& GetAssetDatabase() { return *m_database; }
     AssetManager& GetAssets() { return *m_assets; }
+    // The game's code, for projects that have some.
+    ModuleHost& GetModules() { return *m_modules; }
 
     // Imports what changed in the assets, and lets the asset manager see it.
     void Refresh();
@@ -43,6 +47,7 @@ private:
     std::unique_ptr<AssetManager> m_assets;
     std::uint64_t m_version = 0;
     std::vector<AssetId> m_reloaded;
+    std::unique_ptr<ModuleHost> m_modules;
 
     void AfterImport();
 };

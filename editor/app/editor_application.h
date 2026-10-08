@@ -69,6 +69,11 @@ private:
     void DrawToolbar();
     void DrawGizmoTools();
     void DrawPlayControls();
+    // The game's code: whether it builds, and a button to build it.
+    void DrawBuildControls();
+    void OpenConsole();
+    // Builds the game's code when it changed, and loads it once built and nothing plays.
+    void UpdateModules();
     // Plays the active scene, or stops playing.
     void TogglePlaying();
     void DrawStatusBar();

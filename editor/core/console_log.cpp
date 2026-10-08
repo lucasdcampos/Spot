@@ -42,12 +42,14 @@ std::size_t ConsoleLog::Fetch(std::uint64_t after, std::vector<ConsoleEntry>& en
     return static_cast<std::size_t>(std::distance(first, m_entries.end()));
 }
 
-std::optional<ConsoleEntry> ConsoleLog::GetLatest() const {
+std::optional<ConsoleEntry> ConsoleLog::GetLatest(LogLevel minimum) const {
     const std::scoped_lock lock(m_mutex);
-    if (m_entries.empty()) {
+    const auto found = std::find_if(m_entries.rbegin(), m_entries.rend(),
+                                    [&](const ConsoleEntry& entry) { return entry.level >= minimum; });
+    if (found == m_entries.rend()) {
         return std::nullopt;
     }
-    return m_entries.back();
+    return *found;
 }
 
 std::array<std::size_t, 5> ConsoleLog::GetCounts() const {

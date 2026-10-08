@@ -1,0 +1,43 @@
+# The Spot engine as game modules link it: the shared library of one build of the engine, written by that build.
+# Projects with code find it with find_package(Spot CONFIG), which the editor points here when it builds them.
+
+if(NOT TARGET Spot::Shared)
+    add_library(Spot::Shared SHARED IMPORTED)
+    set_target_properties(Spot::Shared PROPERTIES
+        IMPORTED_LOCATION "$<TARGET_FILE:spot_shared>"
+        INTERFACE_INCLUDE_DIRECTORIES "@SPOT_INCLUDE_DIR@"
+        INTERFACE_COMPILE_FEATURES cxx_std_20
+    )
+    if(WIN32)
+        set_target_properties(Spot::Shared PROPERTIES IMPORTED_IMPLIB "$<TARGET_LINKER_FILE:spot_shared>")
+    endif()
+endif()
+
+# Builds the game's code as a game module named game, in the build directory's module folder, where the editor and
+# the player look for it.
+function(spot_add_game_module name)
+    add_library(${name} MODULE ${ARGN})
+    target_link_libraries(${name} PRIVATE Spot::Shared)
+    set_target_properties(${name} PROPERTIES PREFIX "" OUTPUT_NAME game)
+    # The same folder in every configuration: generators add none to per-configuration directories.
+    set_target_properties(${name} PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/module"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/module"
+    )
+    foreach(config IN LISTS CMAKE_CONFIGURATION_TYPES CMAKE_BUILD_TYPE)
+        string(TOUPPER "${config}" config)
+        set_target_properties(${name} PROPERTIES
+            LIBRARY_OUTPUT_DIRECTORY_${config} "${CMAKE_BINARY_DIR}/module"
+            RUNTIME_OUTPUT_DIRECTORY_${config} "${CMAKE_BINARY_DIR}/module"
+        )
+    endforeach()
+    if(MSVC)
+        target_compile_options(${name} PRIVATE /W4 /permissive- /utf-8)
+    else()
+        target_compile_options(${name} PRIVATE -Wall -Wextra)
+    endif()
+    # dlclose() only unloads libraries without unique symbols, which GCC makes of some static variables.
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        target_compile_options(${name} PRIVATE -fno-gnu-unique)
+    endif()
+endfunction()

@@ -117,6 +117,30 @@ TEST_CASE("The 3D template makes a project that opens on a lit scene", "[editor]
     CHECK(renderer->GetMesh().GetId() == Spot::BuiltInAssets::CubeMesh);
 }
 
+TEST_CASE("The 3D with C++ template adds the game's code, whose component the scene keeps until it is built",
+          "[editor][project]") {
+    const TempDirectory temp;
+
+    const auto file = Spot::Editor::CreateProject(temp.GetPath(), "My Game", Spot::Editor::ProjectTemplate::Code3D);
+
+    REQUIRE(file.has_value());
+    const auto directory = temp.GetPath() / "My Game";
+    std::ifstream script(directory / "CMakeLists.txt");
+    const std::string text{std::istreambuf_iterator<char>(script), std::istreambuf_iterator<char>()};
+    CHECK(text.find("project(My_Game LANGUAGES CXX)") != std::string::npos);
+    CHECK(text.find("spot_add_game_module(game ${sources})") != std::string::npos);
+    CHECK(std::filesystem::is_regular_file(directory / "src" / "game.cpp"));
+
+    const auto project = Spot::Editor::EditorProject::Open(*file, nullptr);
+    REQUIRE(project != nullptr);
+    CHECK(project->GetModules().HasCode());
+    const auto scene = project->GetAssets().InstantiateScene(project->GetProject().GetSettings().startupScene);
+    REQUIRE(scene != nullptr);
+    const auto* rotator = scene->FindEntity("Cube")->GetComponent<Spot::MissingComponent>();
+    REQUIRE(rotator != nullptr);
+    CHECK(rotator->GetTypeName() == "Rotator");
+}
+
 TEST_CASE("Empty projects only have their file and assets folder", "[editor][project]") {
     const TempDirectory temp;
 

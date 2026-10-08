@@ -92,6 +92,11 @@ add_library(spot_editor_core STATIC
     inspector/multi_edit.h
     inspector/property_widgets.cpp
     inspector/property_widgets.h
+    modules/module_build.cpp
+    modules/module_build.h
+    modules/module_host.cpp
+    modules/module_host.h
+    modules/module_toolchain.cpp
     play/play_session.cpp
     play/play_session.h
     panels/asset_browser_panel.cpp
@@ -155,6 +160,21 @@ spot_embed_files(spot_editor_core
     resources/fonts/inter_semibold.ttf
 )
 spot_set_compile_options(spot_editor_core)
+
+# Game modules are built as the editor was, against its build of the shared engine library, so they work together.
+get_property(spot_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+set_property(SOURCE modules/module_toolchain.cpp APPEND PROPERTY COMPILE_DEFINITIONS
+    SPOT_MODULE_CMAKE="${CMAKE_COMMAND}"
+    SPOT_MODULE_GENERATOR="${CMAKE_GENERATOR}"
+    SPOT_MODULE_PLATFORM="${CMAKE_GENERATOR_PLATFORM}"
+    SPOT_MODULE_TOOLSET="${CMAKE_GENERATOR_TOOLSET}"
+    SPOT_MODULE_INSTANCE="${CMAKE_GENERATOR_INSTANCE}"
+    SPOT_MODULE_COMPILER="${CMAKE_CXX_COMPILER}"
+    SPOT_MODULE_MAKE_PROGRAM="${CMAKE_MAKE_PROGRAM}"
+    SPOT_MODULE_CONFIGURATION="$<CONFIG>"
+    SPOT_MODULE_MULTI_CONFIGURATION=$<BOOL:${spot_multi_config}>
+    SPOT_MODULE_PACKAGE="${PROJECT_BINARY_DIR}/package/$<CONFIG>"
+)
 
 add_executable(spot_editor
     main.cpp

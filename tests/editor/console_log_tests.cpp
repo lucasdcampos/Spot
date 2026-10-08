@@ -43,6 +43,10 @@ TEST_CASE("The console log keeps messages in order with their level and source",
     CHECK(counts[static_cast<std::size_t>(Spot::LogLevel::Error)] == 1);
     REQUIRE(log.GetLatest().has_value());
     CHECK(log.GetLatest()->message == "second");
+    Write(log, Spot::LogLevel::Trace, "Build", "detail");
+    CHECK(log.GetLatest()->message == "detail");
+    REQUIRE(log.GetLatest(Spot::LogLevel::Info).has_value());
+    CHECK(log.GetLatest(Spot::LogLevel::Info)->message == "second");
 }
 
 TEST_CASE("The console log gives only the messages after the last one seen", "[editor][console]") {

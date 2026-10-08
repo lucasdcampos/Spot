@@ -38,7 +38,8 @@ public:
 
     // Appends the messages that came after the given sequence, oldest first, and returns how many there were.
     std::size_t Fetch(std::uint64_t after, std::vector<ConsoleEntry>& entries) const;
-    std::optional<ConsoleEntry> GetLatest() const;
+    // The latest message at the level or above, such as for a summary that leaves out the details.
+    std::optional<ConsoleEntry> GetLatest(LogLevel minimum = LogLevel::Trace) const;
     // Messages kept per level, indexed by LogLevel.
     std::array<std::size_t, 5> GetCounts() const;
     std::size_t GetSize() const;
