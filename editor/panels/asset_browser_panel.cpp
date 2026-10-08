@@ -266,6 +266,7 @@ void AssetBrowserPanel::OnDraw() {
 
     HandleKeyboard(*project);
     DrawDeletePrompt(*project);
+    DrawComponentDialog(*project);
     if (auto move = std::exchange(m_pendingMove, std::nullopt)) {
         Move(*project, move->root, move->paths, move->folder);
     }
@@ -319,6 +320,12 @@ void AssetBrowserPanel::DrawCreateItems(EditorProject& project) {
         item(ICON_FA_MOUNTAIN_SUN, "Scene", NewAsset::Scene);
         item(ICON_FA_PALETTE, "Material", NewAsset::Material);
     }
+    ImGui::Separator();
+    if (ImGui::MenuItem(ICON_FA_CODE "  C++ Component")) {
+        m_openComponentDialog = true;
+    }
+    ImGui::SetItemTooltip("A component class of the game's own, in the project's code");
+    m_rects["Create/C++ Component"] = {ImGui::GetItemRectMin(), ImGui::GetItemRectMax()};
 }
 
 void AssetBrowserPanel::DrawBreadcrumbs(EditorProject& project) {
@@ -780,6 +787,69 @@ void AssetBrowserPanel::DrawDeletePrompt(EditorProject& project) {
         ImGui::CloseCurrentPopup();
     }
     ImGui::EndPopup();
+}
+
+void AssetBrowserPanel::DrawComponentDialog(EditorProject& project) {
+    constexpr const char* DialogId = "New C++ Component###NewComponent";
+    if (std::exchange(m_openComponentDialog, false)) {
+        ImGui::OpenPopup(DialogId);
+        m_componentName = "NewComponent";
+        m_componentFocus = true;
+    }
+    ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, {0.5f, 0.5f});
+    if (!ImGui::BeginPopupModal(DialogId, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        return;
+    }
+    // Made in the code folder shown, or else at the root of the code.
+    const std::string folder = m_root == BrowserRoot::Code ? m_folder : std::string();
+    ImGui::TextUnformatted("Name");
+    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 22.0f);
+    if (std::exchange(m_componentFocus, false)) {
+        ImGui::SetKeyboardFocusHere();
+    }
+    const bool entered = ImGui::InputText("##Name", &m_componentName,
+                                          ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
+    m_rects["NewComponent/Name"] = {ImGui::GetItemRectMin(), ImGui::GetItemRectMax()};
+    const std::string problem = ValidateComponentName(project.GetProject(), folder, m_componentName);
+    if (!problem.empty()) {
+        ImGui::TextColored(EditorColors::Error, "%s", problem.c_str());
+    } else {
+        const std::string where =
+            GetShownPath(BrowserRoot::Code, folder.empty() ? m_componentName : folder + "/" + m_componentName);
+        ImGui::TextColored(EditorColors::TextMuted, "Writes %s.h and %s.cpp", where.c_str(), where.c_str());
+    }
+    ImGui::Spacing();
+
+    const float width = ImGui::GetFontSize() * 7.0f;
+    ImGui::BeginDisabled(!problem.empty());
+    const bool create = ImGui::Button("Create", {width, 0.0f});
+    ImGui::EndDisabled();
+    m_rects["NewComponent/Create"] = {ImGui::GetItemRectMin(), ImGui::GetItemRectMax()};
+    ImGui::SameLine();
+    const bool cancel = ImGui::Button("Cancel", {width, 0.0f}) || ImGui::IsKeyPressed(ImGuiKey_Escape);
+    if ((create || entered) && problem.empty()) {
+        CreateComponent(project, folder, m_componentName);
+        ImGui::CloseCurrentPopup();
+    } else if (cancel) {
+        ImGui::CloseCurrentPopup();
+    } else if (entered) {
+        // A name that cannot be keeps the field for fixing it.
+        m_componentFocus = true;
+    }
+    ImGui::EndPopup();
+}
+
+void AssetBrowserPanel::CreateComponent(EditorProject& project, const std::string& folder, const std::string& name) {
+    const auto files = CreateComponentCode(project.GetProject(), folder, name);
+    if (!files) {
+        return;
+    }
+    SetFolder(BrowserRoot::Code, folder);
+    std::vector<Location> select;
+    for (const std::string& file : *files) {
+        select.push_back({BrowserRoot::Code, file});
+    }
+    AfterChange(project, select);
 }
 
 void AssetBrowserPanel::HandleKeyboard(EditorProject& project) {

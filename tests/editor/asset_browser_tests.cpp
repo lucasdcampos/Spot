@@ -509,3 +509,30 @@ TEST_CASE("The code shows beside the assets, where its files are handled as file
     CHECK(fixture.panel->GetItemRect("Create/Folder").has_value());
     CHECK_FALSE(fixture.panel->GetItemRect("Create/Material").has_value());
 }
+
+TEST_CASE("C++ components are created from the browser, named first", "[editor][assets][ui]") {
+    BrowserFixture fixture;
+    fixture.imgui.Click(fixture.Center(fixture.panel->GetItemRect("Create")));
+    fixture.imgui.Click(fixture.Center(fixture.panel->GetItemRect("Create/C++ Component")));
+    fixture.imgui.Frame();
+    REQUIRE(fixture.panel->GetItemRect("NewComponent/Name").has_value());
+
+    // Names that cannot be leave nothing to create.
+    fixture.imgui.Press(ImGuiMod_Ctrl | ImGuiKey_A);
+    fixture.imgui.Type("Camera");
+    fixture.imgui.Press(ImGuiKey_Enter);
+    const auto code = fixture.Project().GetProject().GetCodeDirectory();
+    CHECK_FALSE(std::filesystem::exists(code / "Camera.h"));
+    REQUIRE(fixture.panel->GetItemRect("NewComponent/Name").has_value());
+
+    fixture.imgui.Press(ImGuiMod_Ctrl | ImGuiKey_A);
+    fixture.imgui.Type("Player");
+    fixture.imgui.Press(ImGuiKey_Enter);
+    CHECK(std::filesystem::is_regular_file(code / "Player.h"));
+    CHECK(std::filesystem::is_regular_file(code / "Player.cpp"));
+    CHECK(std::filesystem::is_regular_file(code / "CMakeLists.txt"));
+    // The browser goes to the new code, selected.
+    CHECK(fixture.panel->GetRoot() == Spot::Editor::BrowserRoot::Code);
+    CHECK(fixture.panel->GetSelection() == std::vector<std::string>{"code:Player.h", "code:Player.cpp"});
+    CHECK(fixture.Project().GetModules().HasCode());
+}

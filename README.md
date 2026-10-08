@@ -38,10 +38,12 @@ Every project has the same layout: its `<name>.spot` project file, `assets/` wit
 game's C++ code and its `CMakeLists.txt` when it has code, `builds/` for exported games and `.spot/` for what the
 editor generates; the last two stay out of version control.
 
-Projects made from the editor's "3D with C++" template have a `src/` folder with the game's own components. The editor builds that code into a game module with CMake and the compiler that built the editor,
-whenever it changes or on Ctrl+B, and loads it without closing the open scenes, so their entities, selections and
-undo history stay as they were. Build errors and warnings show in the console. Games made only in code link the
-static engine library and need none of this.
+Projects made from the editor's "3D with C++" template have a `src/` folder with the game's own components, and the
+asset browser's Create > C++ Component adds one to any project, as a `.h` and a `.cpp`; components register
+themselves with `SPOT_COMPONENT(Type);` in their source file. The editor builds that code into a game module with
+CMake and the compiler that built the editor, whenever it changes or on Ctrl+B, and loads it without closing the open
+scenes, so their entities, selections and undo history stay as they were. Build errors and warnings show in the
+console. Games made only in code link the static engine library and need none of this.
 
 F5 runs the project's game in its own window with `spot_player`, from its startup scene, as it will ship; what the game
 logs shows in the editor's console. `spot_player <project>` also runs it on its own.

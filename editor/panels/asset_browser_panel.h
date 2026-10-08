@@ -43,7 +43,8 @@ public:
     // Where an item's tile was drawn last frame, in screen coordinates, as {min, max}, by key, for tests to point at.
     std::optional<std::pair<ImVec2, ImVec2>> GetTileRect(std::string_view key) const;
     // The same for other things drawn last frame: "Create", the items of its menu, as "Create/Folder", the roots of
-    // the folder tree, "Tree/Assets" and "Tree/Code", and "DeletePrompt/Delete".
+    // the folder tree, "Tree/Assets" and "Tree/Code", "DeletePrompt/Delete", and the new component dialog's
+    // "NewComponent/Name" and "NewComponent/Create".
     std::optional<std::pair<ImVec2, ImVec2>> GetItemRect(std::string_view name) const;
 
 protected:
@@ -79,6 +80,9 @@ private:
     void DrawTile(EditorProject& project, const BrowserItem& item, float size);
     void DrawItemMenu(EditorProject& project);
     void DrawDeletePrompt(EditorProject& project);
+    // Asks for the name of a new C++ component, whose code goes in the code folder shown, or the code's root.
+    void DrawComponentDialog(EditorProject& project);
+    void CreateComponent(EditorProject& project, const std::string& folder, const std::string& name);
     void HandleKeyboard(EditorProject& project);
     void HandleDrops(EditorProject& project);
     // Takes drags of files and folders onto a folder of the same root, which moves them there once the panel is
@@ -136,6 +140,9 @@ private:
         std::string folder;
     };
     std::optional<PendingMove> m_pendingMove;
+    bool m_openComponentDialog = false;
+    bool m_componentFocus = false;
+    std::string m_componentName;
     bool m_openDeletePrompt = false;
     bool m_openItemMenu = false;
     std::vector<std::pair<std::filesystem::path, ImVec2>> m_drops;

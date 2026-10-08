@@ -4,12 +4,14 @@
 
 #include <spot.h>
 
+#include <algorithm>
 #include <array>
 #include <format>
 #include <fstream>
 #include <initializer_list>
 #include <iterator>
 #include <system_error>
+#include <vector>
 
 namespace Spot::Editor {
 
@@ -64,15 +66,138 @@ protected:
     }
 };
 
-// Runs when the editor or the player loads the game's code.
-void RegisterGame() {
-    Spot::RegisterComponent<Rotator>("Rotator");
-}
-
 } // namespace
 
-SPOT_GAME_MODULE(RegisterGame)
+// Registers the component when the editor or the player loads the game's code.
+SPOT_COMPONENT(Rotator);
+
+// Makes the game's code a module the editor and the player load.
+SPOT_GAME_MODULE()
 )";
+
+// The module of a project whose code starts with a component made from the editor.
+constexpr std::string_view ModuleCode = R"(#include <spot.h>
+
+// Makes the game's code a module the editor and the player load. Components marked with SPOT_COMPONENT register
+// themselves; anything else to do when it loads goes in a function given here, as in SPOT_GAME_MODULE(RegisterGame).
+SPOT_GAME_MODULE()
+)";
+
+constexpr std::string_view ComponentHeader = R"(#pragma once
+
+#include <spot.h>
+
+class {0} final : public Spot::Component {{
+public:
+    // Fields saved with scenes and shown in the inspector, once listed in Serialize().
+
+protected:
+    void OnStart() override;
+    void OnUpdate(float deltaTime) override;
+    void Serialize(Spot::Archive& archive) override;
+}};
+)";
+
+constexpr std::string_view ComponentSource = R"(#include "{0}.h"
+
+SPOT_COMPONENT({0});
+
+// Runs once, before the first update.
+void {0}::OnStart() {{
+}}
+
+// Runs every frame.
+void {0}::OnUpdate([[maybe_unused]] float deltaTime) {{
+}}
+
+// Saves the fields with scenes and shows them in the inspector, as in archive.Field("speed", speed).
+void {0}::Serialize([[maybe_unused]] Spot::Archive& archive) {{
+}}
+)";
+
+// Words C++ keeps for itself, which cannot name a class.
+constexpr std::array Keywords{
+    "alignas",
+    "alignof",
+    "and",
+    "asm",
+    "auto",
+    "bool",
+    "break",
+    "case",
+    "catch",
+    "char",
+    "class",
+    "concept",
+    "const",
+    "consteval",
+    "constexpr",
+    "constinit",
+    "const_cast",
+    "continue",
+    "co_await",
+    "co_return",
+    "co_yield",
+    "decltype",
+    "default",
+    "delete",
+    "do",
+    "double",
+    "dynamic_cast",
+    "else",
+    "enum",
+    "explicit",
+    "export",
+    "extern",
+    "false",
+    "float",
+    "for",
+    "friend",
+    "goto",
+    "if",
+    "inline",
+    "int",
+    "long",
+    "mutable",
+    "namespace",
+    "new",
+    "noexcept",
+    "not",
+    "nullptr",
+    "operator",
+    "or",
+    "private",
+    "protected",
+    "public",
+    "register",
+    "reinterpret_cast",
+    "requires",
+    "return",
+    "short",
+    "signed",
+    "sizeof",
+    "static",
+    "static_assert",
+    "static_cast",
+    "struct",
+    "switch",
+    "template",
+    "this",
+    "throw",
+    "true",
+    "try",
+    "typedef",
+    "typeid",
+    "typename",
+    "union",
+    "unsigned",
+    "using",
+    "virtual",
+    "void",
+    "volatile",
+    "while",
+    "xor",
+};
 
 // The game's code turns the cube. Until the code is built, the cube keeps its component as it was saved.
 constexpr std::string_view CubeRotator = R"({"type":"Rotator","enabled":true,"data":{"speed":0.5}})";
@@ -127,6 +252,63 @@ std::optional<AssetId> WriteScene(const Scene& scene, const std::filesystem::pat
 }
 
 } // namespace
+
+std::string ValidateComponentName(const Project& project, std::string_view folder, std::string_view name) {
+    if (name.empty()) {
+        return "Enter a name for the component.";
+    }
+    const auto isLetter = [](char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'; };
+    if (!isLetter(name.front()) ||
+        !std::ranges::all_of(name, [&](char c) { return isLetter(c) || (c >= '0' && c <= '9'); })) {
+        return "Names are C++ class names: letters, digits and '_', not starting with a digit.";
+    }
+    if (std::ranges::find(Keywords, name) != Keywords.end()) {
+        return "C++ keeps that word for itself.";
+    }
+    // Scenes save components by name, so two types cannot share one.
+    const std::vector<std::string> types = GetComponentTypeNames();
+    if (std::ranges::find(types, name) != types.end()) {
+        return "A component type already has that name.";
+    }
+    const std::filesystem::path directory = project.GetCodeDirectory() / Utf8ToPath(folder);
+    std::error_code error;
+    for (const char* extension : {".h", ".cpp"}) {
+        if (std::filesystem::exists(directory / Utf8ToPath(std::string(name) + extension), error)) {
+            return std::format("The folder already has {}{}.", name, extension);
+        }
+    }
+    return {};
+}
+
+std::optional<std::vector<std::string>> CreateComponentCode(const Project& project, std::string_view folder,
+                                                            const std::string& name) {
+    if (const std::string problem = ValidateComponentName(project, folder, name); !problem.empty()) {
+        GetEditorLogger().Error("Cannot create the component '{}': {}", name, problem);
+        return std::nullopt;
+    }
+    // Projects without code get what building it takes first.
+    const std::filesystem::path code = project.GetCodeDirectory();
+    std::error_code error;
+    if (!std::filesystem::exists(code / "CMakeLists.txt", error)) {
+        const std::string identifier = MakeIdentifier(project.GetSettings().name);
+        if (!WriteText(code / "CMakeLists.txt", std::vformat(BuildScript, std::make_format_args(identifier))) ||
+            (!std::filesystem::exists(code / "game.cpp", error) && !WriteText(code / "game.cpp", ModuleCode))) {
+            GetEditorLogger().Error("Could not write the build of the project's code in '{}'", PathToUtf8(code));
+            return std::nullopt;
+        }
+        GetEditorLogger().Info("The project has code now, in '{}', which the editor builds as it changes",
+                               PathToUtf8(code));
+    }
+    const std::string header = folder.empty() ? name + ".h" : std::string(folder) + "/" + name + ".h";
+    const std::string source = folder.empty() ? name + ".cpp" : std::string(folder) + "/" + name + ".cpp";
+    if (!WriteText(code / Utf8ToPath(header), std::vformat(ComponentHeader, std::make_format_args(name))) ||
+        !WriteText(code / Utf8ToPath(source), std::vformat(ComponentSource, std::make_format_args(name)))) {
+        GetEditorLogger().Error("Could not write the code of the component '{}'", name);
+        return std::nullopt;
+    }
+    GetEditorLogger().Info("Created the component '{}'; it can be added to entities once the code is built", name);
+    return std::vector{header, source};
+}
 
 bool UpdateProjectLayout(const Project& project) {
     const std::filesystem::path directory = project.GetDirectory();

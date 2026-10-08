@@ -239,3 +239,34 @@ TEST_CASE("Projects of older editors get the current layout when they open", "[e
     Spot::Editor::ModuleHost host(*project, {});
     CHECK(host.HasCode());
 }
+
+TEST_CASE("New components need C++ class names that no type or file has", "[editor][project]") {
+    const TempDirectory temp;
+    const auto project = Spot::Project::Create(temp.GetPath(), {.name = "Names"});
+    REQUIRE(project);
+    using Spot::Editor::ValidateComponentName;
+    CHECK(ValidateComponentName(*project, "", "Player").empty());
+    CHECK(ValidateComponentName(*project, "", "_Player2").empty());
+    CHECK_FALSE(ValidateComponentName(*project, "", "").empty());
+    CHECK_FALSE(ValidateComponentName(*project, "", "2Player").empty());
+    CHECK_FALSE(ValidateComponentName(*project, "", "Big Player").empty());
+    CHECK_FALSE(ValidateComponentName(*project, "", "class").empty());
+    // The engine's own types keep their names.
+    CHECK_FALSE(ValidateComponentName(*project, "", "Camera").empty());
+
+    // A project without code gets what building it takes, beside the component's files.
+    const auto files = Spot::Editor::CreateComponentCode(*project, "actors", "Player");
+    REQUIRE(files);
+    CHECK(*files == std::vector<std::string>{"actors/Player.h", "actors/Player.cpp"});
+    const auto code = project->GetCodeDirectory();
+    CHECK(std::filesystem::is_regular_file(code / "CMakeLists.txt"));
+    CHECK(std::filesystem::is_regular_file(code / "game.cpp"));
+    std::ifstream source(code / "actors" / "Player.cpp");
+    const std::string text{std::istreambuf_iterator<char>(source), std::istreambuf_iterator<char>()};
+    CHECK(text.find("SPOT_COMPONENT(Player);") != std::string::npos);
+    CHECK(text.find("void Player::OnUpdate(") != std::string::npos);
+
+    CHECK_FALSE(ValidateComponentName(*project, "actors", "Player").empty());
+    CHECK(ValidateComponentName(*project, "", "Player").empty());
+    CHECK_FALSE(Spot::Editor::CreateComponentCode(*project, "actors", "Player"));
+}

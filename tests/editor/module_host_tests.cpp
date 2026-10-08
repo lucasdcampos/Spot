@@ -95,6 +95,34 @@ TEST_CASE("Build output is told apart: errors, warnings and the rest", "[editor]
           LogLevel::Trace);
 }
 
+TEST_CASE("Components made from the editor build, without warnings, in projects that had no code", "[editor][module]") {
+    const TempDirectory temp;
+    const auto file = Spot::Editor::CreateProject(temp.GetPath(), "Plain", Spot::Editor::ProjectTemplate::Empty);
+    REQUIRE(file);
+    const auto project = Spot::Project::Load(*file);
+    REQUIRE(project);
+    REQUIRE(Spot::Editor::CreateComponentCode(*project, "actors", "Player"));
+
+    const auto sink = std::make_shared<Spot::Tests::CaptureSink>();
+    const Spot::Tests::ScopedSinks sinks({sink});
+    Spot::Editor::ModuleHost host(*project, {.watchInterval = 0ms});
+    REQUIRE(host.HasCode());
+    CHECK_FALSE(host.LoadBuilt());
+    WaitForBuild(host);
+    REQUIRE(host.GetBuild().GetState() == ModuleBuildState::Succeeded);
+    CHECK(host.GetBuild().GetErrorCount() == 0);
+    // The build tool may warn of the temporary folder the test builds in, but the compiler of nothing in the code.
+    for (const Spot::Tests::CapturedRecord& record : sink->GetRecords()) {
+        if (record.level >= Spot::LogLevel::Warning) {
+            CHECK(record.message.find("Player") == std::string::npos);
+            CHECK(record.message.find("game.cpp") == std::string::npos);
+        }
+    }
+    REQUIRE(host.SwapModule());
+    CHECK(GetTypes(*host.GetModule()) == std::vector<std::string>{"Player"});
+    CHECK(Spot::CreateComponent("Player"));
+}
+
 TEST_CASE("A project's code builds into a module that loads, and loads again when the code changes",
           "[editor][module]") {
     const TempDirectory temp;
