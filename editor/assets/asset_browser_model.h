@@ -25,9 +25,13 @@ struct BrowserItem {
     bool subAsset = false;
     // A file whose parts are sub-assets, which can be shown under it.
     bool hasSubAssets = false;
+    // A folder with folders or assets in it.
+    bool hasContents = false;
 
     // Tells items apart: a folder by its path, an asset by its id.
     std::string GetKey() const;
+    // The name shown: a file's without its extension, such as "crate" for "crate.png", since its type is shown.
+    std::string GetDisplayName() const;
 };
 
 // Every folder below the assets directory, except hidden ones, whose names start with '.', in tree order.

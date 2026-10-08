@@ -64,6 +64,12 @@ TEST_CASE("The asset browser lists folders first, then assets, by name", "[edito
     CHECK(root[0].folder);
     CHECK(root[0].GetKey() == "folder:models");
     CHECK(root[2].GetKey() == root[2].id.ToString());
+    // Files show their names without the extension, since the browser shows their types; folders as they are.
+    CHECK(root[2].GetDisplayName() == "apple");
+    CHECK(root[0].GetDisplayName() == "models");
+    CHECK(root[0].hasContents);
+    CHECK(root[1].hasContents);
+    CHECK_FALSE(Spot::Editor::ListFolder(database, folders, "Textures")[0].hasContents);
 
     const std::vector<BrowserItem> models = Spot::Editor::ListFolder(database, folders, "models");
     REQUIRE(models.size() == 1);

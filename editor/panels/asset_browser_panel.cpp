@@ -3,6 +3,7 @@
 #include "assets/asset_list.h"
 #include "assets/thumbnail_cache.h"
 #include "core/editor_log.h"
+#include "imgui/asset_icons.h"
 #include "imgui/drag_payloads.h"
 #include "imgui/editor_style.h"
 #include "imgui/icons.h"
@@ -27,32 +28,15 @@ namespace {
 
 constexpr float MinTileSize = 56.0f;
 constexpr float MaxTileSize = 160.0f;
-constexpr ImVec4 FolderColor{0.886f, 0.725f, 0.380f, 1.0f};
+// The front of the painted folders.
+constexpr ImVec4 FolderColor{0.839f, 0.706f, 0.478f, 1.0f};
+// The caption under a tile's name, which says what the asset is, relative to the font size.
+constexpr float CaptionScale = 0.85f;
 
 const std::array ImportFilters{
     FileFilter{"Assets", "png;jpg;jpeg;bmp;tga;gltf;glb;bin;wav;ogg;ttf;otf;material;scene"},
     FileFilter{"All files", "*"},
 };
-
-ImVec4 GetTypeColor(AssetType type) {
-    switch (type) {
-    case AssetType::Texture:
-        return {0.475f, 0.765f, 0.490f, 1.0f};
-    case AssetType::Mesh:
-        return {0.553f, 0.733f, 0.886f, 1.0f};
-    case AssetType::Material:
-        return {0.906f, 0.533f, 0.420f, 1.0f};
-    case AssetType::Model:
-        return {0.412f, 0.588f, 0.941f, 1.0f};
-    case AssetType::Sound:
-        return {0.906f, 0.776f, 0.388f, 1.0f};
-    case AssetType::Font:
-        return {0.800f, 0.800f, 0.820f, 1.0f};
-    case AssetType::Scene:
-        return EditorColors::Accent;
-    }
-    return {1.0f, 1.0f, 1.0f, 1.0f};
-}
 
 const char* GetItemIcon(const BrowserItem& item) {
     return item.folder ? ICON_FA_FOLDER : GetAssetTypeIcon(item.type);
@@ -413,7 +397,8 @@ void AssetBrowserPanel::DrawTile(EditorProject& project, const BrowserItem& item
     const std::string key = item.GetKey();
     const ImGuiStyle& style = ImGui::GetStyle();
     const float labelHeight = ImGui::GetTextLineHeight();
-    const ImVec2 tileSize{size, size + labelHeight + style.ItemInnerSpacing.y * 2.0f};
+    const float captionSize = std::round(ImGui::GetFontSize() * CaptionScale);
+    const ImVec2 tileSize{size, size + labelHeight + captionSize + style.ItemInnerSpacing.y * 3.0f};
     const bool selected = std::ranges::find(m_selection, key) != m_selection.end();
 
     ImGui::PushID(key.c_str());
@@ -466,7 +451,7 @@ void AssetBrowserPanel::DrawTile(EditorProject& project, const BrowserItem& item
             ImGui::SetDragDropPayload(AssetPathsPayload, paths.data(), paths.size());
         }
         if (dragged.size() == 1) {
-            ImGui::Text("%s  %s", GetItemIcon(item), item.name.c_str());
+            ImGui::Text("%s  %s", GetItemIcon(item), item.GetDisplayName().c_str());
         } else {
             ImGui::Text(ICON_FA_LAYER_GROUP "  %zu items", dragged.size());
         }
@@ -476,13 +461,18 @@ void AssetBrowserPanel::DrawTile(EditorProject& project, const BrowserItem& item
         AcceptMoves(project, item.path);
     }
 
-    // Background, icon and name.
+    // Background and icon. Files sit on a faint card; folders have none until hovered or selected.
     ImDrawList* drawList = ImGui::GetWindowDrawList();
-    if (selected || hovered) {
-        const ImVec4 color = selected ? ImVec4(EditorColors::Accent.x, EditorColors::Accent.y, EditorColors::Accent.z,
-                                               hovered ? 0.45f : 0.35f)
-                                      : style.Colors[ImGuiCol_FrameBgHovered];
+    const ImVec4 accent = EditorColors::Accent;
+    if (selected || hovered || !item.folder) {
+        const ImVec4 color = selected  ? ImVec4(accent.x, accent.y, accent.z, hovered ? 0.24f : 0.16f)
+                             : hovered ? ImVec4(1.0f, 1.0f, 1.0f, 0.06f)
+                                       : ImVec4(1.0f, 1.0f, 1.0f, 0.03f);
         drawList->AddRectFilled(min, max, ImGui::GetColorU32(color), style.FrameRounding);
+    }
+    if (selected) {
+        drawList->AddRect(min, max, ImGui::GetColorU32(ImVec4(accent.x, accent.y, accent.z, 0.65f)),
+                          style.FrameRounding);
     }
     if (item.subAsset) {
         // Parts of a file sit on a darker card, so they read as belonging to the file before them.
@@ -502,12 +492,13 @@ void AssetBrowserPanel::DrawTile(EditorProject& project, const BrowserItem& item
         const ImVec2 corner{min.x + (size - extent.x) * 0.5f, min.y + (size - extent.y) * 0.5f};
         drawList->AddImage(ToImTextureId(*picture), corner, {corner.x + extent.x, corner.y + extent.y});
     } else {
-        const char* icon = GetItemIcon(item);
-        const float iconSize = size * (item.subAsset ? 0.34f : 0.44f);
-        ImFont* font = ImGui::GetFont();
-        const ImVec2 iconExtent = font->CalcTextSizeA(iconSize, FLT_MAX, 0.0f, icon);
-        drawList->AddText(font, iconSize, {min.x + (size - iconExtent.x) * 0.5f, min.y + (size - iconExtent.y) * 0.5f},
-                          ImGui::GetColorU32(item.folder ? FolderColor : GetTypeColor(item.type)), icon);
+        const float inset = item.subAsset ? size * 0.12f : 0.0f;
+        const ImVec2 corner{min.x + inset, min.y + inset};
+        if (item.folder) {
+            AssetIcons::DrawFolder(drawList, corner, size - inset * 2.0f, item.hasContents);
+        } else {
+            AssetIcons::DrawAsset(drawList, corner, size - inset * 2.0f, item.type);
+        }
     }
 
     // Files with parts have an arrow that shows them after the file.
@@ -530,6 +521,26 @@ void AssetBrowserPanel::DrawTile(EditorProject& project, const BrowserItem& item
 
     const ImVec2 labelMin{min.x + style.ItemInnerSpacing.x, min.y + size + style.ItemInnerSpacing.y};
     const float labelWidth = size - style.ItemInnerSpacing.x * 2.0f;
+    if (!item.folder) {
+        // Under the icon, a line in the type's color, fading out toward the sides, and a caption naming the type
+        // tell assets apart even when their pictures look alike, such as a material and a sphere mesh.
+        const ImVec4 color = AssetIcons::GetTypeColor(item.type);
+        const ImU32 on = ImGui::GetColorU32(ImVec4(color.x, color.y, color.z, 0.9f));
+        const ImU32 off = ImGui::GetColorU32(ImVec4(color.x, color.y, color.z, 0.0f));
+        const float lineTop = min.y + size;
+        const float middle = (min.x + max.x) * 0.5f;
+        drawList->AddRectFilledMultiColor({min.x + 6.0f, lineTop}, {middle, lineTop + 2.0f}, off, on, on, off);
+        drawList->AddRectFilledMultiColor({middle, lineTop}, {max.x - 6.0f, lineTop + 2.0f}, on, off, off, on);
+
+        const std::string type(GetAssetTypeName(item.type));
+        ImGui::PushFont(nullptr, captionSize);
+        const std::string caption = EllipsizeEnd(type, labelWidth);
+        const float width = ImGui::CalcTextSize(caption.c_str()).x;
+        drawList->AddText(
+            {labelMin.x + (labelWidth - width) * 0.5f, labelMin.y + labelHeight + style.ItemInnerSpacing.y},
+            ImGui::GetColorU32(ImGuiCol_TextDisabled), caption.c_str());
+        ImGui::PopFont();
+    }
     if (m_renaming == key) {
         ImGui::SetCursorScreenPos({min.x, labelMin.y - style.FramePadding.y});
         ImGui::SetNextItemWidth(size);
@@ -562,7 +573,7 @@ void AssetBrowserPanel::DrawTile(EditorProject& project, const BrowserItem& item
             }
         }
     } else {
-        const std::string label = EllipsizeEnd(item.name, labelWidth);
+        const std::string label = EllipsizeEnd(item.GetDisplayName(), labelWidth);
         const float width = ImGui::CalcTextSize(label.c_str()).x;
         drawList->AddText(
             {labelMin.x + (labelWidth - width) * 0.5f, labelMin.y},

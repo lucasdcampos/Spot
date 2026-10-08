@@ -28,8 +28,14 @@ void SortByName(std::vector<BrowserItem>& items) {
     });
 }
 
-BrowserItem MakeFolderItem(const std::string& path) {
-    return {.path = path, .name = GetFileName(path), .folder = true};
+BrowserItem MakeFolderItem(const AssetDatabase& database, const std::vector<std::string>& folders,
+                           const std::string& path) {
+    BrowserItem item{.path = path, .name = GetFileName(path), .folder = true};
+    const auto inside = [&](const std::string& other) { return other != path && IsInFolder(other, path); };
+    item.hasContents =
+        std::ranges::any_of(folders, inside) ||
+        std::ranges::any_of(database.GetAssets(), [&](const AssetInfo& info) { return inside(info.path); });
+    return item;
 }
 
 // The files that have sub-assets.
@@ -54,6 +60,14 @@ BrowserItem MakeAssetItem(const AssetInfo& info, const std::unordered_set<AssetI
 
 std::string BrowserItem::GetKey() const {
     return folder ? "folder:" + path : id.ToString();
+}
+
+std::string BrowserItem::GetDisplayName() const {
+    if (folder || subAsset) {
+        return name;
+    }
+    const std::size_t dot = name.find_last_of('.');
+    return dot == std::string::npos || dot == 0 ? name : name.substr(0, dot);
 }
 
 std::vector<std::string> ListFolders(const std::filesystem::path& assetsDirectory) {
@@ -95,7 +109,7 @@ std::vector<BrowserItem> ListFolder(const AssetDatabase& database, const std::ve
                                     std::string_view folder) {
     std::vector<BrowserItem> items;
     for (const std::string& path : GetSubfolders(folders, folder)) {
-        items.push_back(MakeFolderItem(path));
+        items.push_back(MakeFolderItem(database, folders, path));
     }
     const std::unordered_set<AssetId> parents = GetParents(database);
     for (const AssetInfo& info : database.GetAssets()) {
@@ -123,7 +137,7 @@ std::vector<BrowserItem> SearchAssets(const AssetDatabase& database, const std::
     std::vector<BrowserItem> items;
     for (const std::string& path : folders) {
         if (ContainsIgnoringCase(GetFileName(path), text)) {
-            items.push_back(MakeFolderItem(path));
+            items.push_back(MakeFolderItem(database, folders, path));
         }
     }
     const std::unordered_set<AssetId> parents = GetParents(database);

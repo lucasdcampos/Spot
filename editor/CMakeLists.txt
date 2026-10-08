@@ -73,6 +73,8 @@ add_library(spot_editor_core STATIC
     core/editor_settings.h
     core/text.cpp
     core/text.h
+    imgui/asset_icons.cpp
+    imgui/asset_icons.h
     imgui/drag_payloads.h
     imgui/editor_style.cpp
     imgui/editor_style.h
