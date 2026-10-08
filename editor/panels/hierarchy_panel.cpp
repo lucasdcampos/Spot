@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cfloat>
+#include <cmath>
 #include <cstdint>
 #include <format>
 #include <memory>
@@ -88,10 +89,11 @@ void HierarchyPanel::OnDraw() {
     m_rowRects.clear();
     m_treeSeed = ImGui::GetID("##Entities");
     if (m_search.empty()) {
-        DrawTree(*document);
+        CollectTree(*document);
     } else {
-        DrawFiltered(*document);
+        CollectFiltered(*document);
     }
+    DrawRows(*document);
 
     // The space below the entities: clicking it clears the selection, and dropping on it moves to the root's end.
     const ImVec2 rest{ImGui::GetContentRegionAvail().x,
@@ -136,7 +138,7 @@ void HierarchyPanel::DrawToolbar(SceneDocument& document) {
     ImGui::InputTextWithHint("##Search", ICON_FA_MAGNIFYING_GLASS " Search", &m_search);
 }
 
-void HierarchyPanel::DrawTree(SceneDocument& document) {
+void HierarchyPanel::CollectTree(SceneDocument& document) {
     // When the selection changed elsewhere, such as in a view, its entities' parents open and it scrolls into sight.
     m_toOpen.clear();
     if (document.GetSelection().GetVersion() != m_selectionVersion) {
@@ -148,57 +150,114 @@ void HierarchyPanel::DrawTree(SceneDocument& document) {
         }
         m_scrollTo = document.GetSelection().GetPrimary();
     }
-    for (Entity* root : document.GetScene().GetRootEntities()) {
-        DrawEntity(document, *root, 0);
-    }
-}
 
-void HierarchyPanel::DrawEntity(SceneDocument& document, Entity& entity, int depth) {
-    const std::vector<Entity*> children = entity.GetChildren();
-    if (m_toOpen.contains(entity.GetId())) {
-        ImGui::SetNextItemOpen(true);
-    }
-    bool open = false;
-    DrawRow(document, entity, !children.empty(), open);
-    if (open) {
-        for (Entity* child : children) {
-            DrawEntity(document, *child, depth + 1);
+    // Nodes keep whether they are open where ImGui keeps it, so the rows follow what the arrows did.
+    ImGuiStorage* storage = ImGui::GetStateStorage();
+    m_rows.clear();
+    const auto collect = [&](const auto& self, const std::vector<Entity*>& siblings, int depth,
+                             std::uint64_t lines) -> void {
+        for (std::size_t i = 0; i < siblings.size(); ++i) {
+            Entity& entity = *siblings[i];
+            const ImGuiID node = GetNodeId(entity.GetId());
+            if (m_toOpen.contains(entity.GetId())) {
+                storage->SetInt(node, 1);
+            }
+            const std::vector<Entity*> children = entity.GetChildren();
+            const bool last = i + 1 == siblings.size();
+            m_rows.push_back(
+                {.entity = &entity, .depth = depth, .hasChildren = !children.empty(), .last = last, .lines = lines});
+            if (!children.empty() && storage->GetInt(node, 0) != 0) {
+                // The line to this entity's siblings goes on past its children unless it is the last.
+                const std::uint64_t below = depth > 0 && !last && depth <= 64 ? lines | (1ull << (depth - 1)) : lines;
+                self(self, children, depth + 1, below);
+            }
         }
-        ImGui::TreePop();
-    }
+    };
+    collect(collect, document.GetScene().GetRootEntities(), 0, 0);
 }
 
-void HierarchyPanel::DrawFiltered(SceneDocument& document) {
-    std::vector<Entity*> matches;
+void HierarchyPanel::CollectFiltered(SceneDocument& document) {
+    m_rows.clear();
     document.GetScene().ForEachEntity([&](Entity& entity) {
         if (ContainsIgnoringCase(entity.GetName(), m_search)) {
-            matches.push_back(&entity);
+            m_rows.push_back({.entity = &entity});
         }
     });
-    if (matches.empty()) {
+}
+
+void HierarchyPanel::DrawRows(SceneDocument& document) {
+    for (const Row& row : m_rows) {
+        m_drawn.push_back(row.entity->GetId());
+    }
+    if (m_rows.empty() && !m_search.empty()) {
         ImGui::TextColored(EditorColors::TextMuted, "No entity is named like that.");
         return;
     }
-    for (Entity* entity : matches) {
-        bool open = false;
-        DrawRow(document, *entity, false, open);
-        if (open) {
-            ImGui::TreePop();
+
+    ImGuiListClipper clipper;
+    clipper.Begin(static_cast<int>(m_rows.size()));
+    if (m_scrollTo != EntityId::Invalid) {
+        const auto found = std::ranges::find(m_drawn, m_scrollTo);
+        if (found != m_drawn.end()) {
+            clipper.IncludeItemByIndex(static_cast<int>(found - m_drawn.begin()));
+        } else {
+            m_scrollTo = EntityId::Invalid;
+        }
+    }
+    while (clipper.Step()) {
+        for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i) {
+            DrawRow(document, m_rows[static_cast<std::size_t>(i)]);
         }
     }
 }
 
-void HierarchyPanel::DrawRow(SceneDocument& document, Entity& entity, bool hasChildren, bool& open) {
+ImGuiID HierarchyPanel::GetNodeId(EntityId entity) const {
+    return ImHashData(&entity, sizeof(entity), m_treeSeed);
+}
+
+void HierarchyPanel::DrawTreeLines(const Row& row, ImVec2 rowMin, ImVec2 rowMax, float nodeX) const {
+    if (row.depth == 0) {
+        return;
+    }
+    const ImGuiStyle& style = ImGui::GetStyle();
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    const ImU32 color = ImGui::GetColorU32(ImGuiCol_TreeLines);
+    // Where the lines of each depth run: through the middle of the arrows of the nodes above, as ImGui draws them.
+    const auto column = [&](int depth) {
+        return std::trunc(nodeX - static_cast<float>(row.depth - depth) * style.IndentSpacing +
+                          ImGui::GetFontSize() * 0.5f + style.FramePadding.x);
+    };
+    // Each row draws the lines beside it, from the gap above it, so they join those of the rows around.
+    const float top = rowMin.y - style.ItemSpacing.y;
+    const float middle = std::trunc((rowMin.y + rowMax.y) * 0.5f);
+    for (int depth = 0; depth + 1 < row.depth && depth < 64; ++depth) {
+        if (row.lines & (1ull << depth)) {
+            drawList->AddLineV(column(depth), top, rowMax.y, color, style.TreeLinesSize);
+        }
+    }
+    const float parent = column(row.depth - 1);
+    drawList->AddLineV(parent, top, row.last ? middle : rowMax.y, color, style.TreeLinesSize);
+    drawList->AddLineH(parent, std::trunc(nodeX + style.FramePadding.x - style.ItemInnerSpacing.x), middle, color,
+                       style.TreeLinesSize);
+}
+
+void HierarchyPanel::DrawRow(SceneDocument& document, const Row& row) {
+    Entity& entity = *row.entity;
     const EntityId id = entity.GetId();
     const bool selected = document.GetSelection().Contains(id);
     const bool renaming = m_renaming == id;
-    m_drawn.push_back(id);
 
+    // Rows are drawn apart from their parents, so their nodes push nothing to pop, and they indent by themselves.
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth |
-                               ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_DrawLinesToNodes;
-    if (!hasChildren) {
+                               ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+    if (!row.hasChildren) {
         flags |= ImGuiTreeNodeFlags_Leaf;
     }
+    const float indent = static_cast<float>(row.depth) * ImGui::GetStyle().IndentSpacing;
+    if (indent > 0.0f) {
+        ImGui::Indent(indent);
+    }
+    const float nodeX = ImGui::GetCursorScreenPos().x;
     if (selected) {
         flags |= ImGuiTreeNodeFlags_Selected;
     }
@@ -215,15 +274,21 @@ void HierarchyPanel::DrawRow(SceneDocument& document, Entity& entity, bool hasCh
     const std::string label =
         renaming ? std::string(GetEntityIcon(entity)) : std::format("{}  {}", GetEntityIcon(entity), entity.GetName());
     // The node's id comes from the entity's alone, so its open state survives renames and moves.
-    open = ImGui::TreeNodeBehavior(ImHashData(&id, sizeof(id), m_treeSeed), flags, label.c_str());
+    ImGui::TreeNodeBehavior(GetNodeId(id), flags, label.c_str());
     ImGui::PopStyleVar();
     ImGui::PopStyleColor(3);
+    if (indent > 0.0f) {
+        ImGui::Unindent(indent);
+    }
     // After the node, which pushes its own id when open, so the two are popped in order.
     ImGui::PushID(ToImGuiId(id));
 
     const ImVec2 rowMin = ImGui::GetItemRectMin();
     const ImVec2 rowMax = ImGui::GetItemRectMax();
     m_rowRects[id] = {rowMin, rowMax};
+    if (m_search.empty()) {
+        DrawTreeLines(row, rowMin, rowMax, nodeX);
+    }
     if (m_scrollTo == id) {
         ImGui::SetScrollHereY(0.5f);
         m_scrollTo = EntityId::Invalid;

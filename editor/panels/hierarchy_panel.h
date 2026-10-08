@@ -7,6 +7,7 @@
 
 #include <imgui.h>
 
+#include <cstdint>
 #include <optional>
 #include <span>
 #include <string>
@@ -36,11 +37,26 @@ private:
     // Where a dragged entity would go when dropped on another.
     enum class DropPlace { Before, Inside, After };
 
+    // An entity's row in the tree as it shows: those of closed nodes' descendants are left out.
+    struct Row {
+        Entity* entity = nullptr;
+        int depth = 0;
+        bool hasChildren = false;
+        // Whether it is the last of its siblings, where the line to it ends.
+        bool last = false;
+        // The tree's vertical lines that go on past the row, one bit per depth from the root's children's.
+        std::uint64_t lines = 0;
+    };
+
     void DrawToolbar(SceneDocument& document);
-    void DrawTree(SceneDocument& document);
-    void DrawEntity(SceneDocument& document, Entity& entity, int depth);
-    void DrawFiltered(SceneDocument& document);
-    void DrawRow(SceneDocument& document, Entity& entity, bool hasChildren, bool& open);
+    // The rows of the open part of the tree, opening the parents of what should show.
+    void CollectTree(SceneDocument& document);
+    void CollectFiltered(SceneDocument& document);
+    // Draws the rows that are in sight; the others only take their room.
+    void DrawRows(SceneDocument& document);
+    void DrawRow(SceneDocument& document, const Row& row);
+    void DrawTreeLines(const Row& row, ImVec2 rowMin, ImVec2 rowMax, float nodeX) const;
+    ImGuiID GetNodeId(EntityId entity) const;
     void DrawRename(SceneDocument& document, Entity& entity);
     void DrawContextMenu(SceneDocument& document, Entity* entity);
     void DrawCreateMenu(SceneDocument& document, EntityId parent);
@@ -57,6 +73,7 @@ private:
     // The entities in the order the tree showed them last frame, for selecting ranges and moving with the arrows.
     std::vector<EntityId> m_visible;
     std::vector<EntityId> m_drawn;
+    std::vector<Row> m_rows;
     std::unordered_map<EntityId, std::pair<ImVec2, ImVec2>> m_rowRects;
     EntityId m_anchor = EntityId::Invalid;
     EntityId m_renaming = EntityId::Invalid;
