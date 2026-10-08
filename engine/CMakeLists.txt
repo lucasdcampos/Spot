@@ -243,6 +243,7 @@ if(SPOT_PLATFORM STREQUAL "SDL3")
         platform/sdl3/sdl3_clipboard.cpp
         platform/sdl3/sdl3_events.cpp
         platform/sdl3/sdl3_file_dialog.cpp
+        platform/sdl3/sdl3_mouse_capture.h
         platform/sdl3/sdl3_paths.cpp
         platform/sdl3/sdl3_platform.cpp
         platform/sdl3/sdl3_process.cpp

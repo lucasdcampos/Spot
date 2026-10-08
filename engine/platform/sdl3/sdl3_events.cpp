@@ -1,6 +1,7 @@
 #include "platform/platform.h"
 
 #include "core/paths.h"
+#include "platform/sdl3/sdl3_mouse_capture.h"
 
 #include <SDL3/SDL.h>
 
@@ -283,8 +284,16 @@ std::optional<Event> Translate(const SDL_Event& event) {
             return std::nullopt;
         }
         return TextInputEvent{event.text.text};
-    case SDL_EVENT_MOUSE_MOTION:
-        return MouseMovedEvent{{event.motion.x, event.motion.y}, {event.motion.xrel, event.motion.yrel}};
+    case SDL_EVENT_MOUSE_MOTION: {
+        Vector2 position{event.motion.x, event.motion.y};
+        SDL_Window* window = SDL_GetWindowFromID(event.motion.windowID);
+        if (window && SDL_GetWindowRelativeMouseMode(window)) {
+            const SDL_PropertiesID properties = SDL_GetWindowProperties(window);
+            position = {SDL_GetFloatProperty(properties, CapturedMouseXProperty, position.x),
+                        SDL_GetFloatProperty(properties, CapturedMouseYProperty, position.y)};
+        }
+        return MouseMovedEvent{position, {event.motion.xrel, event.motion.yrel}};
+    }
     case SDL_EVENT_MOUSE_BUTTON_DOWN:
         if (const auto button = ToMouseButton(event.button.button)) {
             return MouseButtonPressedEvent{*button};

@@ -2,6 +2,7 @@
 
 #include "core/log.h"
 #include "platform/platform.h"
+#include "platform/sdl3/sdl3_mouse_capture.h"
 
 #include <SDL3/SDL.h>
 
@@ -169,9 +170,24 @@ bool Window::IsMouseCaptured() const {
 }
 
 bool Window::SetMouseCaptured(bool captured) {
+    if (captured == IsMouseCaptured()) {
+        return true;
+    }
+    const SDL_PropertiesID properties = SDL_GetWindowProperties(m_impl->handle);
+    if (captured) {
+        float x = 0.0f;
+        float y = 0.0f;
+        SDL_GetMouseState(&x, &y);
+        SDL_SetFloatProperty(properties, Platform::CapturedMouseXProperty, x);
+        SDL_SetFloatProperty(properties, Platform::CapturedMouseYProperty, y);
+    }
     if (!SDL_SetWindowRelativeMouseMode(m_impl->handle, captured)) {
         Log::GetEngineLogger().Error("Failed to {} the mouse: {}", captured ? "capture" : "release", SDL_GetError());
         return false;
+    }
+    if (!captured) {
+        SDL_WarpMouseInWindow(m_impl->handle, SDL_GetFloatProperty(properties, Platform::CapturedMouseXProperty, 0.0f),
+                              SDL_GetFloatProperty(properties, Platform::CapturedMouseYProperty, 0.0f));
     }
     return true;
 }
