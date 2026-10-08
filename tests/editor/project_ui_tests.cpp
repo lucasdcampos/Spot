@@ -2,6 +2,7 @@
 #include "temp_directory.h"
 
 #include "app/editor_context.h"
+#include "app/shortcuts_window.h"
 #include "core/editor_settings.h"
 #include "panels/project_settings_panel.h"
 #include "project/editor_project.h"
@@ -13,9 +14,13 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <string>
+#include <string_view>
+#include <vector>
 
 TEST_CASE("The new project dialog creates a project from what is typed into it", "[editor][project][ui]") {
     const TempDirectory temp;
@@ -94,4 +99,27 @@ TEST_CASE("The project settings panel shows the open project", "[editor][project
     }
 
     CHECK(panel.IsOpen());
+}
+
+TEST_CASE("The shortcuts list names every shortcut once per place, and finds them by keys or action", "[editor][ui]") {
+    Spot::Tests::HeadlessImGui imgui;
+    imgui.BeginFrame();
+    std::size_t count = 0;
+    for (const Spot::Editor::ShortcutGroup& group : Spot::Editor::GetShortcutGroups()) {
+        std::vector<std::string> inputs;
+        for (const Spot::Editor::ShortcutInfo& shortcut : group.shortcuts) {
+            const std::string input = Spot::Editor::GetShortcutInput(shortcut);
+            CHECK_FALSE(input.empty());
+            CHECK(std::string_view(shortcut.action).size() > 0);
+            // One key does one thing in a place.
+            CHECK(std::ranges::find(inputs, input) == inputs.end());
+            inputs.push_back(input);
+            ++count;
+        }
+    }
+    CHECK(count > 30);
+    CHECK(Spot::Editor::GetShortcutInput({ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S, nullptr, "Save"}) ==
+          "Ctrl+Shift+S");
+    CHECK(Spot::Editor::GetShortcutInput({ImGuiMod_Ctrl | ImGuiKey_Comma, nullptr, "Preferences"}) == "Ctrl+,");
+    imgui.EndFrame();
 }

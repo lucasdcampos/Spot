@@ -65,7 +65,7 @@ std::filesystem::path FindProjectFile(const std::filesystem::path& path) {
 }
 
 std::string GetShortcutName(ImGuiKeyChord chord) {
-    return ImGui::GetKeyChordName(chord);
+    return Widgets::GetKeyChordLabel(chord);
 }
 
 bool MenuItem(const char* label, ImGuiKeyChord shortcut = 0, bool enabled = true) {
@@ -426,7 +426,11 @@ void EditorApplication::DrawUi() {
     if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Comma, ImGuiInputFlags_RouteGlobal)) {
         m_preferences->Open();
     }
+    if (ImGui::Shortcut(ImGuiKey_F1, ImGuiInputFlags_RouteGlobal)) {
+        m_shortcuts.Open();
+    }
     m_preferences->Draw();
+    m_shortcuts.Draw();
     DrawAboutWindow();
     DrawErrorWindow();
     if (m_showImGuiDemo) {
@@ -517,6 +521,10 @@ void EditorApplication::DrawMainMenu() {
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Help")) {
+        if (MenuItem(ICON_FA_KEYBOARD "  Keyboard Shortcuts", ImGuiKey_F1)) {
+            m_shortcuts.Open();
+        }
+        ImGui::Separator();
         if (ImGui::MenuItem(ICON_FA_CIRCLE_INFO "  About Spot Editor")) {
             m_showAbout = true;
         }

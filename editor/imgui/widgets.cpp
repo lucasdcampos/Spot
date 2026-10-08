@@ -2,6 +2,11 @@
 
 #include "imgui/editor_style.h"
 
+#include <imgui_internal.h>
+
+#include <array>
+#include <utility>
+
 #include <cfloat>
 #include <format>
 
@@ -88,6 +93,19 @@ std::string FormatRelativeTime(std::chrono::system_clock::time_point time, std::
         return std::format("{} days ago", duration_cast<days>(elapsed).count());
     }
     return std::format("{:%Y-%m-%d}", floor<days>(time));
+}
+
+std::string GetKeyChordLabel(ImGuiKeyChord chord) {
+    std::string label = ImGui::GetKeyChordName(chord);
+    // ImGui names punctuation keys by words, which read worse in menus than the characters.
+    constexpr std::array Punctuation{std::pair{"Comma", ","}, std::pair{"Period", "."}, std::pair{"Minus", "-"},
+                                     std::pair{"Equal", "="}, std::pair{"Slash", "/"}};
+    for (const auto& [name, character] : Punctuation) {
+        if (label.ends_with(name)) {
+            label.replace(label.size() - std::string_view(name).size(), std::string_view::npos, character);
+        }
+    }
+    return label;
 }
 
 } // namespace Spot::Editor::Widgets

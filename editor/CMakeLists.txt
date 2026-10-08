@@ -53,6 +53,8 @@ add_library(spot_editor_core STATIC
     app/editor_layout.h
     app/preferences_window.cpp
     app/preferences_window.h
+    app/shortcuts_window.cpp
+    app/shortcuts_window.h
     assets/asset_browser_model.cpp
     assets/asset_browser_model.h
     assets/asset_list.cpp

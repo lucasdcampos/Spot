@@ -2,6 +2,7 @@
 
 #include "app/editor_context.h"
 #include "app/preferences_window.h"
+#include "app/shortcuts_window.h"
 #include "assets/thumbnail_cache.h"
 #include "core/console_log.h"
 #include "core/editor_settings.h"
@@ -107,6 +108,7 @@ private:
     std::unique_ptr<ProjectHub> m_hub;
     std::unique_ptr<NewProjectDialog> m_newProjectDialog;
     std::unique_ptr<PreferencesWindow> m_preferences;
+    ShortcutsWindow m_shortcuts;
     std::vector<std::unique_ptr<Panel>> m_panels;
     InspectorPanel* m_inspector = nullptr;
     HierarchyPanel* m_hierarchy = nullptr;
