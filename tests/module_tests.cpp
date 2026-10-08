@@ -30,7 +30,9 @@ TEST_CASE("Game modules register their components while loaded, and can be loade
         const auto module = Spot::GameModule::Load(TestModule);
         REQUIRE(module);
         CHECK(std::vector(module->GetComponentTypes().begin(), module->GetComponentTypes().end()) ==
-              std::vector<std::string>{"TestSpinner"});
+              std::vector<std::string>{"TestPusher", "TestSpinner"});
+        // Components marked with SPOT_COMPONENT register under their own names.
+        CHECK(Spot::CreateComponent("TestPusher"));
 
         Spot::Scene scene;
         Spot::Entity& entity = scene.CreateEntity("Spinner");
@@ -43,6 +45,7 @@ TEST_CASE("Game modules register their components while loaded, and can be loade
         // The scene, with the module's components, goes before the module.
     }
     CHECK_FALSE(Spot::CreateComponent("TestSpinner"));
+    CHECK_FALSE(Spot::CreateComponent("TestPusher"));
 
     // Without the module, its components are kept as they were saved.
     {
@@ -56,6 +59,7 @@ TEST_CASE("Game modules register their components while loaded, and can be loade
     // Loaded again, as after rebuilding it, the module's components come back.
     const auto again = Spot::GameModule::Load(TestModule);
     REQUIRE(again);
+    CHECK(again->GetComponentTypes().size() == 2);
     {
         Spot::Scene scene;
         REQUIRE(scene.LoadFromString(saved));

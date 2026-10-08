@@ -103,7 +103,7 @@ catch_discover_tests(spot_gpu_tests PROPERTIES TIMEOUT 60)
 
 # What runs in the shared engine library, as the editor and game modules use it: loading modules, such as this one,
 # built as projects with code build theirs, and running programs.
-add_library(spot_test_module MODULE modules/test_module.cpp)
+add_library(spot_test_module MODULE modules/test_module.cpp modules/test_component.cpp)
 target_link_libraries(spot_test_module PRIVATE spot::shared)
 spot_set_compile_options(spot_test_module)
 

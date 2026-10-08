@@ -11,26 +11,76 @@
 
 #if defined(_WIN32)
 #define SPOT_MODULE_EXPORT extern "C" __declspec(dllexport)
+#define SPOT_MODULE_LOCAL
 #else
 #define SPOT_MODULE_EXPORT extern "C" __attribute__((visibility("default")))
+// Each module keeps its own, even where shared libraries share the symbols they all define.
+#define SPOT_MODULE_LOCAL __attribute__((visibility("hidden")))
 #endif
 
-// Makes a shared library a game module, which the editor and the player load: the function registers the game's
-// components with RegisterComponent() when the module loads, and the module unregisters them when it unloads.
+#define SPOT_MODULE_CONCAT_INNER(a, b) a##b
+#define SPOT_MODULE_CONCAT(a, b) SPOT_MODULE_CONCAT_INNER(a, b)
+
+// Makes a shared library a game module, which the editor and the player load. When the module loads, it registers
+// the components marked with SPOT_COMPONENT(), then runs the function, if one is given, for anything else, such as
+// components registered under names of their own; it unregisters them all when it unloads.
 //
 //     void RegisterGame() {
-//         Spot::RegisterComponent<Player>("Player");
+//         Spot::RegisterComponent<Player>("Hero");
 //     }
 //     SPOT_GAME_MODULE(RegisterGame)
 //
 // Modules link the shared engine library, spot_shared, that the program loading them links, so they share its
 // state; they must be built against the same build of it.
-#define SPOT_GAME_MODULE(function)                                                                                     \
+#define SPOT_GAME_MODULE(...)                                                                                          \
+    SPOT_MODULE_LOCAL ::Spot::Detail::ModuleRegistration* ::Spot::Detail::moduleRegistrations = nullptr;               \
     SPOT_MODULE_EXPORT void SpotLoadGameModule() {                                                                     \
-        function();                                                                                                    \
+        ::Spot::Detail::RunModuleRegistrations(::Spot::Detail::moduleRegistrations);                                   \
+        ::Spot::Detail::CallIfGiven(__VA_ARGS__);                                                                      \
     }
 
+// Registers the component type, under its name as written, when its game module loads, so it needs no
+// RegisterComponent() call. Written once, in a source file of the module, outside any function:
+//
+//     SPOT_COMPONENT(Player);
+#define SPOT_COMPONENT(type)                                                                                           \
+    static const ::Spot::Detail::ModuleRegistration SPOT_MODULE_CONCAT(spotComponentRegistration, __LINE__)(           \
+        [] { ::Spot::RegisterComponent<type>(#type); })
+
 namespace Spot {
+
+namespace Detail {
+
+// What a game module registers when it loads, in a list of the module's own, which SPOT_GAME_MODULE defines.
+struct ModuleRegistration;
+extern SPOT_MODULE_LOCAL ModuleRegistration* moduleRegistrations;
+
+struct ModuleRegistration {
+    using Function = void (*)();
+
+    // Registrations are made as the module's static objects are, before it loads, so they only join the list then.
+    explicit ModuleRegistration(Function registration) : function(registration), next(moduleRegistrations) {
+        moduleRegistrations = this;
+    }
+
+    Function function;
+    const ModuleRegistration* next;
+};
+
+inline void RunModuleRegistrations(const ModuleRegistration* registration) {
+    for (; registration; registration = registration->next) {
+        registration->function();
+    }
+}
+
+inline void CallIfGiven() {
+}
+
+inline void CallIfGiven(void (*function)()) {
+    function();
+}
+
+} // namespace Detail
 
 // A game module loaded into the program, with the component types it registered.
 class GameModule {
