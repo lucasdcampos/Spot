@@ -38,7 +38,8 @@ struct ApplicationConfig {
     AudioConfig audio = {};
     AssetConfig assets = {};
     // When set, the log is also written to this file. The log of the run before is kept beside it, with ".previous"
-    // before its extension, so what led to a crash is still there after starting again.
+    // before its extension, so what led to a crash is still there after starting again. Applications that run a game
+    // and set none log to game.log beside the executable.
     std::filesystem::path logFile = {};
     // Where crash reports go; see InstallCrashHandler(), which the application calls. When unset, they go in a
     // "crashes" folder beside the log file, if there is one, and only to the log otherwise.

@@ -12,6 +12,7 @@ add_executable(spot_tests
     application_tests.cpp
     asset_tests.cpp
     audio_tests.cpp
+    cli_tests.cpp
     crash_tests.cpp
     event_tests.cpp
     game_code_tests.cpp
@@ -76,6 +77,10 @@ target_link_libraries(spot_crash_app PRIVATE spot::spot)
 spot_set_compile_options(spot_crash_app)
 target_compile_definitions(spot_tests PRIVATE SPOT_CRASH_APP="$<TARGET_FILE:spot_crash_app>")
 add_dependencies(spot_tests spot_crash_app)
+
+# The command line runs as a program of its own.
+target_compile_definitions(spot_tests PRIVATE SPOT_CLI="$<TARGET_FILE:spot_cli>")
+add_dependencies(spot_tests spot_cli)
 
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(Catch)

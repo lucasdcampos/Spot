@@ -32,8 +32,25 @@ Pass `editor` to run the editor instead of the sandbox, and `release` to run an 
 In the sandbox, WASD moves, Shift runs, Space jumps, the mouse looks around and a click throws a ball. F switches the
 flashlight, G the shadows, T speeds up time and R resets the scene; Escape frees the mouse, then quits.
 
-The sandbox is also a project, `sandbox/Sandbox.spot`, which the editor opens and plays the same way: its scene is
-`assets/scenes/playground.scene` and its components are in `src/`, which the sandbox executable builds in as well.
+The sandbox is a project like any other, `sandbox/Sandbox.spot`, which the editor opens and plays the same way: its
+scene is `assets/scenes/playground.scene` and its code is in `src/`. The engine's build also builds that code into the
+`sandbox` executable, with the static engine library, and imports its assets beside it with `spot cook`, so the
+engine is tried out and debugged with a game.
+
+## The command line
+
+`spot` (the `spot_cli` target) does with projects what the editor does, for scripts and builds that run without it:
+
+```sh
+spot new MyGame --path ~/Games    # a project from a template: 3d (the default), component or empty
+spot cook MyGame                  # imports the assets that changed; --out <folder> cooks a game's folder
+spot build MyGame                 # builds the game's executable and the module the editor loads
+spot run MyGame                   # builds, imports and runs the game, showing what it logs
+spot export MyGame                # makes the folder the game ships in: builds/<platform>, or --out <folder>
+```
+
+A project is its `.spot` file or its folder, the current folder by default. Games are built with the compiler and
+the engine library the tools were built with, as the editor builds them.
 
 ## Logs and crashes
 
@@ -86,5 +103,6 @@ Supported sources: PNG/JPEG/BMP/TGA textures, glTF models (`.gltf`, `.glb`), WAV
 - `engine/` – the engine library
 - `sandbox/` – application for trying out the engine
 - `tools/` – the tools that make games out of projects, shared by the editor and the command line
+- `cli/` – `spot`, the tools' command line
 - `editor/` – the editor, built with Dear ImGui
 - `tests/` – unit tests

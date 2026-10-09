@@ -31,6 +31,10 @@ Application::Application(ApplicationConfig config) : m_config(std::move(config))
     if (m_config.game && !m_config.game->name.empty() && m_config.window.title == WindowConfig{}.title) {
         m_config.window.title = m_config.game->name;
     }
+    // A game that crashes where it was shipped leaves what led to it.
+    if (m_config.game && m_config.logFile.empty()) {
+        m_config.logFile = GetExecutableDirectory() / "game.log";
+    }
     if (!m_config.logFile.empty()) {
         std::error_code error;
         if (std::filesystem::exists(m_config.logFile, error)) {

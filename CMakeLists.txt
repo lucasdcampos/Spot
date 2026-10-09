@@ -43,8 +43,10 @@ include(cmake/spot_embed_files.cmake)
 
 add_subdirectory(engine)
 
+# The tools and their command line, which the editor shares and the sandbox imports its assets with.
 if(SPOT_BUILD_SANDBOX OR SPOT_BUILD_EDITOR OR SPOT_BUILD_TESTS)
     add_subdirectory(tools)
+    add_subdirectory(cli)
 endif()
 
 if(SPOT_BUILD_SANDBOX)
