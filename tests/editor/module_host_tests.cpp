@@ -255,3 +255,63 @@ TEST_CASE("Modules built for another editor are not loaded, and are built again"
     CHECK(host.GetBuild().IsRunning());
     // Stopped here: building for the other configuration needs that configuration of the engine.
 }
+
+TEST_CASE("Modules built before the engine changed are built again before they load", "[editor][module]") {
+    const TempDirectory temp;
+    const auto file = Spot::Editor::CreateProject(temp.GetPath(), "Engine", Spot::Editor::ProjectTemplate::Code3D);
+    REQUIRE(file);
+    const auto project = Spot::Project::Load(*file);
+    REQUIRE(project);
+    {
+        Spot::Editor::ModuleHost host(*project, {.watchInterval = 0ms});
+        host.Build();
+        WaitForBuild(host);
+        REQUIRE(host.GetBuild().GetState() == ModuleBuildState::Succeeded);
+    }
+
+    // As the engine is built again after the module, here without a change its headers show, so the build finds
+    // nothing to do.
+    Spot::Editor::ModuleToolchain rebuilt = Spot::Editor::ModuleToolchain::GetEditor();
+    rebuilt.engineLibrary = temp.GetPath() / "engine.dll";
+    std::this_thread::sleep_for(1100ms);
+    std::ofstream(rebuilt.engineLibrary, std::ios::binary) << "engine";
+    {
+        Spot::Editor::ModuleHost host(*project, {.toolchain = rebuilt, .watchInterval = 0ms});
+        CHECK_FALSE(host.LoadBuilt());
+        CHECK_FALSE(host.GetModule());
+        CHECK(host.GetBuild().IsRunning());
+        WaitForBuild(host);
+        REQUIRE(host.GetBuild().GetState() == ModuleBuildState::Succeeded);
+        REQUIRE(host.HasNewModule());
+        CHECK(host.SwapModule());
+    }
+
+    // Built for this engine now, it loads at once.
+    Spot::Editor::ModuleHost host(*project, {.toolchain = rebuilt, .watchInterval = 0ms});
+    CHECK(host.LoadBuilt());
+    CHECK_FALSE(host.GetBuild().IsRunning());
+}
+
+TEST_CASE("New source files are in the first build after they are added", "[editor][module]") {
+    const TempDirectory temp;
+    const auto file = Spot::Editor::CreateProject(temp.GetPath(), "Grown", Spot::Editor::ProjectTemplate::Code3D);
+    REQUIRE(file);
+    const auto project = Spot::Project::Load(*file);
+    REQUIRE(project);
+    Spot::Editor::ModuleHost host(*project, {.watchInterval = 0ms});
+    host.Build();
+    WaitForBuild(host);
+    REQUIRE(host.GetBuild().GetState() == ModuleBuildState::Succeeded);
+
+    WriteCode(project->GetDirectory() / "src" / "pulse.cpp", R"(#include <spot.h>
+
+class Pulse final : public Spot::Component {};
+
+SPOT_COMPONENT(Pulse);
+)");
+    host.Build();
+    WaitForBuild(host);
+    REQUIRE(host.GetBuild().GetState() == ModuleBuildState::Succeeded);
+    REQUIRE(host.SwapModule());
+    CHECK(GetTypes(*host.GetModule()) == std::vector<std::string>{"Pulse", "Rotator"});
+}

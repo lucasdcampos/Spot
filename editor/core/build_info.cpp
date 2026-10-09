@@ -16,6 +16,7 @@ ModuleToolchain ModuleToolchain::GetEditor() {
         .configuration = SPOT_MODULE_CONFIGURATION,
         .multiConfiguration = SPOT_MODULE_MULTI_CONFIGURATION != 0,
         .package = Utf8ToPath(SPOT_MODULE_PACKAGE),
+        .engineLibrary = Utf8ToPath(SPOT_MODULE_ENGINE_LIBRARY),
     };
 }
 

@@ -78,8 +78,15 @@ bool ModuleHost::LoadBuilt() {
     }
     const std::filesystem::path built = m_build.GetModulePath();
     std::error_code error;
-    // A module built for another editor, such as one of another configuration, would not work with this one.
-    const bool loaded = m_build.IsConfigured() && std::filesystem::exists(built, error) && SwapModule();
+    // A module built for another editor, such as one of another configuration, would not work with this one, nor one
+    // built before the engine changed: its components would call the engine's functions where they no longer are.
+    const bool engineChanged =
+        std::filesystem::exists(built, error) && GetWriteTime(m_options.toolchain.engineLibrary) > GetWriteTime(built);
+    if (engineChanged) {
+        GetEditorLogger().Info("The engine changed since the game's code was built; it loads once built again");
+    }
+    const bool loaded =
+        m_build.IsConfigured() && std::filesystem::exists(built, error) && !engineChanged && SwapModule();
 
     // The code may have changed while the editor was closed.
     auto newest = std::filesystem::file_time_type::min();
@@ -114,6 +121,13 @@ void ModuleHost::Update() {
         }
     }
     if (m_build.Update() && m_build.GetState() == ModuleBuildState::Succeeded) {
+        // The build brought the module up to date with the engine, even when it found nothing to do, as when the
+        // engine changed none of its headers, so it is not built again for it next time.
+        const std::filesystem::path built = m_build.GetModulePath();
+        if (GetWriteTime(m_options.toolchain.engineLibrary) > GetWriteTime(built)) {
+            std::error_code error;
+            std::filesystem::last_write_time(built, std::filesystem::file_time_type::clock::now(), error);
+        }
         // Builds that found nothing to do leave the module as it was.
         m_newModule = !m_module || GetWriteTime(m_build.GetModulePath()) != m_loadedTime;
     }

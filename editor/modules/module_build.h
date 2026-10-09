@@ -28,6 +28,9 @@ struct ModuleToolchain {
     bool multiConfiguration = false;
     // Where the engine's CMake package is: Spot_DIR.
     std::filesystem::path package;
+    // The shared engine library modules link, which the editor runs with. Modules built before it last changed may
+    // not match it, and are built again before they load.
+    std::filesystem::path engineLibrary;
 
     // The toolchain that built the editor.
     static ModuleToolchain GetEditor();

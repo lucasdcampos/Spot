@@ -185,6 +185,7 @@ set_property(SOURCE core/build_info.cpp APPEND PROPERTY COMPILE_DEFINITIONS
     SPOT_MODULE_CONFIGURATION="$<CONFIG>"
     SPOT_MODULE_MULTI_CONFIGURATION=$<BOOL:${spot_multi_config}>
     SPOT_MODULE_PACKAGE="${PROJECT_BINARY_DIR}/package/$<CONFIG>"
+    SPOT_MODULE_ENGINE_LIBRARY="$<TARGET_FILE:spot_shared>"
     SPOT_PLAYER="$<TARGET_FILE:spot_player>"
 )
 add_dependencies(spot_editor_core spot_player)
