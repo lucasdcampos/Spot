@@ -8,6 +8,7 @@
 #include "core/log_sinks.h"
 #include "core/paths.h"
 #include "core/profiler.h"
+#include "graphics/debug_draw.h"
 #include "graphics/scene_renderer.h"
 #include "input/input.h"
 #include "platform/platform.h"
@@ -168,9 +169,12 @@ int Application::Run() {
                 m_graphics->EndFrame();
             }
         }
+        // Once every view of the frame drew the shapes.
+        DebugDraw::Update(m_clock.GetDeltaTime());
     }
 
     Profiler::EndFrame();
+    DebugDraw::Clear();
     OnStop();
     m_sceneChanges.clear();
     RemoveAllScenes();

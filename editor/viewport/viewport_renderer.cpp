@@ -112,6 +112,8 @@ ViewportRenderer::ViewportRenderer(GraphicsDevice& device)
         device, Renderer3DConfig{.targetFormat = ColorFormat, .sampleCount = m_sampleCount});
     m_sprites = std::make_unique<Renderer2D>(
         device, Renderer2DConfig{.targetFormat = ColorFormat, .sampleCount = m_sampleCount});
+    m_lines = std::make_unique<LineRenderer>(
+        device, LineRendererConfig{.targetFormat = ColorFormat, .sampleCount = m_sampleCount});
 
     const auto fullscreenShader = device.CreateShader(Shaders::FullscreenVert);
     const auto gridShader = device.CreateShader(Shaders::GridFrag);
@@ -173,6 +175,7 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
     }
     const bool drawGrid = options.showGrid && m_grid;
     const bool drawSprites = m_sprites->IsValid() && scene.FindComponent<SpriteRenderer>();
+    const bool drawLines = m_lines->IsValid() && !DebugDraw::GetLines().empty();
     Texture* samples = targets.GetSamples();
     m_renderer->Begin(context,
                       {.target = samples ? samples : targets.GetColor(),
@@ -180,13 +183,25 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
                        .depthTarget = targets.GetDepth(),
                        .clearDepth = 1.0f,
                        .resolveTarget = samples ? targets.GetColor() : nullptr,
-                       .keepSamples = samples && (drawGrid || drawSprites || options.drawUi)},
+                       .keepSamples = samples && (drawGrid || drawLines || drawSprites || options.drawUi)},
                       camera);
     if (options.defaultLights && !scene.FindComponent<Light>() && !scene.FindComponent<Sky>()) {
         DrawDefaultLights(*m_renderer);
     }
     m_renderer->DrawScene(scene);
     m_renderer->End();
+
+    // DebugDraw's shapes, hidden by the meshes where they test depth.
+    if (drawLines) {
+        auto pass = context.BeginRenderPass({.target = samples ? samples : targets.GetColor(),
+                                             .depthTarget = targets.GetDepth(),
+                                             .resolveTarget = samples ? targets.GetColor() : nullptr,
+                                             .keepSamples = samples && (drawGrid || drawSprites || options.drawUi)});
+        const Vector2 size{static_cast<float>(targets.GetWidth()), static_cast<float>(targets.GetHeight())};
+        m_lines->Begin(pass, camera.GetViewProjection(size));
+        m_lines->DrawDebugLines();
+        m_lines->End();
+    }
 
     // Sprites go over the meshes, as 2D games draw them, without a depth target.
     if (drawSprites) {

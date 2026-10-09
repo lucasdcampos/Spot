@@ -54,7 +54,8 @@ struct ViewportOptions {
     bool drawUi = false;
 };
 
-// Draws scenes into viewport targets, as they would look in the game, with the editor's grid over them. One is shared
+// Draws scenes into viewport targets, as they would look in the game, with the shapes queued with DebugDraw and the
+// editor's grid over them. One is shared
 // by every view.
 class ViewportRenderer {
 public:
@@ -93,6 +94,7 @@ private:
     std::uint32_t m_sampleCount;
     std::unique_ptr<Renderer3D> m_renderer;
     std::unique_ptr<Renderer2D> m_sprites;
+    std::unique_ptr<LineRenderer> m_lines;
     std::unique_ptr<Pipeline> m_grid;
     std::unique_ptr<Pipeline> m_mask;
     std::unique_ptr<Pipeline> m_outline;

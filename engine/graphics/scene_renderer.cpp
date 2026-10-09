@@ -3,7 +3,9 @@
 #include "core/profiler.h"
 
 #include "core/log.h"
+#include "graphics/debug_draw.h"
 #include "graphics/graphics_device.h"
+#include "graphics/line_renderer.h"
 #include "graphics/render_context.h"
 #include "graphics/renderer_2d.h"
 #include "graphics/renderer_3d.h"
@@ -24,12 +26,14 @@ SceneRenderer::SceneRenderer(GraphicsDevice& device, const SceneRendererConfig& 
         device, Renderer3DConfig{.targetFormat = config.targetFormat, .sampleCount = m_sampleCount});
     m_renderer2D = std::make_unique<Renderer2D>(
         device, Renderer2DConfig{.targetFormat = config.targetFormat, .sampleCount = m_sampleCount});
+    m_lines = std::make_unique<LineRenderer>(
+        device, LineRendererConfig{.targetFormat = config.targetFormat, .sampleCount = m_sampleCount});
 }
 
 SceneRenderer::~SceneRenderer() = default;
 
 bool SceneRenderer::IsValid() const {
-    return m_renderer3D->IsValid() && m_renderer2D->IsValid();
+    return m_renderer3D->IsValid() && m_renderer2D->IsValid() && m_lines->IsValid();
 }
 
 void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scenes, Texture* target) {
@@ -73,6 +77,15 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
     m_renderer3D->End();
 
     const Vector2 size{static_cast<float>(width), static_cast<float>(height)};
+    if (!DebugDraw::GetLines().empty()) {
+        // Over the meshes, hidden by them where they test depth.
+        RenderPassDesc lines = pass(true);
+        lines.depthTarget = m_depth.get();
+        auto linePass = context.BeginRenderPass(lines);
+        m_lines->Begin(linePass, view.GetViewProjection(size));
+        m_lines->DrawDebugLines();
+        m_lines->End();
+    }
     // Sprites go over the meshes, as 2D games draw them, without a depth target.
     if (sprites) {
         auto spritePass = context.BeginRenderPass(pass(true));

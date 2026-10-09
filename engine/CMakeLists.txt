@@ -67,6 +67,8 @@ add_library(spot_objects OBJECT
     graphics/camera_3d.h
     graphics/camera_3d.cpp
     graphics/color.h
+    graphics/debug_draw.h
+    graphics/debug_draw.cpp
     graphics/font.h
     graphics/font.cpp
     graphics/font_atlas.h
@@ -75,6 +77,8 @@ add_library(spot_objects OBJECT
     graphics/image.h
     graphics/image.cpp
     graphics/light_data.h
+    graphics/line_renderer.h
+    graphics/line_renderer.cpp
     graphics/material.h
     graphics/mesh.h
     graphics/mesh.cpp
@@ -161,6 +165,8 @@ add_library(spot_objects OBJECT
 )
 
 spot_add_shaders(spot_objects NAMESPACE Spot::Detail::Shaders
+    graphics/shaders/line.frag.hlsl
+    graphics/shaders/line.vert.hlsl
     graphics/shaders/mesh.frag.hlsl
     graphics/shaders/mesh.vert.hlsl
     graphics/shaders/shadow.frag.hlsl

@@ -11,6 +11,7 @@
 namespace Spot {
 
 class GraphicsDevice;
+class LineRenderer;
 class RenderContext;
 class Renderer2D;
 class Renderer3D;
@@ -26,9 +27,9 @@ struct SceneRendererConfig {
 };
 
 // Draws scenes as games show them: through the first main camera among them (see FindMainCamera()), their meshes,
-// then their sprites over the meshes, then their interfaces over everything. Applications draw their scenes with one
-// by default (see ApplicationConfig::renderScenes); it is built only on the public graphics API, so games that draw
-// their own way can use it too, into the window or into a texture.
+// then the shapes queued with DebugDraw, then their sprites over the meshes, then their interfaces over everything.
+// Applications draw their scenes with one by default (see ApplicationConfig::renderScenes); it is built only on the
+// public graphics API, so games that draw their own way can use it too, into the window or into a texture.
 class SceneRenderer {
 public:
     explicit SceneRenderer(GraphicsDevice& device, const SceneRendererConfig& config = {});
@@ -55,6 +56,7 @@ private:
     Color m_background;
     std::unique_ptr<Renderer3D> m_renderer3D;
     std::unique_ptr<Renderer2D> m_renderer2D;
+    std::unique_ptr<LineRenderer> m_lines;
     std::unique_ptr<Texture> m_depth;
     std::unique_ptr<Texture> m_samples;
     bool m_warnedNoCamera = false;

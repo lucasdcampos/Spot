@@ -152,7 +152,7 @@ Cross-cutting pieces that every later milestone builds on.
 - [x] **M0.4 Profiler.** `SPOT_PROFILE_SCOPE("Name")` records nested CPU timings on the game thread into a ring of the
   last frames (`Profiler::GetFrames()`), cheap enough to stay on in Release. The application, scenes, systems,
   renderers and the mixer's game-side calls are instrumented. Tests: nesting, frame boundaries, ring wrap.
-- [ ] **M0.5 Debug drawing.** `DebugDraw` lets any code queue lines, boxes, spheres, capsules, arrows and crosses for
+- [x] **M0.5 Debug drawing.** `DebugDraw` lets any code queue lines, boxes, spheres, capsules, arrows and crosses for
   this frame or for a duration, with or without depth testing. `LineRenderer` draws them on the public graphics API,
   and both `SceneRenderer` and the editor's views draw them. Tests: queue lifetimes (unit) and drawing (GPU).
 - [ ] **M0.6 Documentation.** Create `docs/` with an index and one page per existing system: application and scenes,
@@ -188,6 +188,11 @@ profiler, debug lines show in both the game and the editor, and the generated pr
   or `Profiler::Intern()`ed, so samples hold views without copying; systems are timed under their type's name. A
   frame spans the whole loop iteration, waiting for the frame limiter included (`Application::Wait`). The sandbox's
   HUD shows the average update and render times read from it.
+- M0.5: `DebugDraw` is one process-wide queue of lines, since shapes are world-space and every view draws them;
+  shapes become lines as they are queued. `DebugDraw::Update()` ages them with the frame's real time once the
+  frame was drawn, and the queue is capped so loops that never call it cannot grow it forever. Lines are one pixel
+  wide (`PrimitiveType::LineList`); `LineRenderer` draws depth-tested lines first, then the rest over everything. The
+  sandbox's `PhysicsDebugView` (B) draws every collider with it.
 
 ---
 

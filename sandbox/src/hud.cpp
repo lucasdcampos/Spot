@@ -59,8 +59,9 @@ void Hud::OnDrawUi(Spot::Renderer2D& renderer, Spot::Vector2 viewSize) {
     renderer.DrawString(*font, m_status, {12.0f, top - 10.0f}, Spot::Color::FromSrgb(0.7f, 0.9f, 0.7f));
     renderer.DrawString(*font, "WASD: move | Shift: run | Space: jump | Click: shoot | R: reset",
                         {12.0f, top - 10.0f - line}, help, 0.8f);
-    renderer.DrawString(*font, "F: flashlight | G: shadows | T: speed up time | Esc: free the mouse, then quit",
-                        {12.0f, top - 10.0f - 1.8f * line}, help, 0.8f);
+    renderer.DrawString(
+        *font, "F: flashlight | G: shadows | B: physics shapes | T: speed up time | Esc: free the mouse, then quit",
+        {12.0f, top - 10.0f - 1.8f * line}, help, 0.8f);
 }
 
 void Hud::Serialize(Spot::Archive& archive) {

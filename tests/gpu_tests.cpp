@@ -1947,3 +1947,62 @@ TEST_CASE("SceneRenderer draws scenes through their first camera, with their int
     CHECK(pixelAt(withoutCamera, 0, 3) == Green);
     CHECK(pixelAt(withoutCamera, 3, 0) == Blue);
 }
+
+TEST_CASE("LineRenderer draws lines hidden by meshes, and debug lines over everything when asked", "[gpu]") {
+    RequireGpu();
+    Spot::DebugDraw::Clear();
+    std::uint32_t lineCount = 0;
+    const TargetRender render(
+        32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::Renderer3D meshes(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            Spot::LineRenderer lines(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            REQUIRE(lines.IsValid());
+            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            REQUIRE(cube != nullptr);
+            const Spot::Camera3D camera = MakeFrontCamera();
+            meshes.Begin(context, target, camera);
+            meshes.DrawLight(FrontLight);
+            meshes.DrawMesh(*cube, {.baseColor = Spot::Color::Red});
+            meshes.End();
+
+            // Both lines run behind the cube, across the whole view.
+            Spot::DebugDraw::Line({0.0f, -5.0f, -2.0f}, {0.0f, 5.0f, -2.0f},
+                                  {.color = Spot::Color::Blue, .depthTest = false});
+            Spot::RenderPassDesc over = target;
+            over.clearColor = std::nullopt;
+            over.clearDepth = std::nullopt;
+            auto pass = context.BeginRenderPass(over);
+            lines.Begin(pass, camera.GetViewProjection({32.0f, 32.0f}));
+            lines.DrawLine({-5.0f, 0.0f, -2.0f}, {5.0f, 0.0f, -2.0f}, Spot::Color::Green);
+            lines.DrawDebugLines();
+            lines.End();
+            lineCount = lines.GetLineCount();
+        });
+    Spot::DebugDraw::Clear();
+
+    CHECK(lineCount == 2);
+    const auto rowHas = [&](int y, int fromX, int toX, Pixel color) {
+        for (int x = fromX; x <= toX; ++x) {
+            if (IsNear(render.At(x, y), color)) {
+                return true;
+            }
+        }
+        return false;
+    };
+    const auto columnHas = [&](int x, int fromY, int toY, Pixel color) {
+        for (int y = fromY; y <= toY; ++y) {
+            if (IsNear(render.At(x, y), color)) {
+                return true;
+            }
+        }
+        return false;
+    };
+    constexpr Pixel Green{0, 255, 0, 255};
+    constexpr Pixel Blue{0, 0, 255, 255};
+    // The green line shows beside the cube and is hidden behind it; the blue one shows over it.
+    CHECK(columnHas(1, 12, 19, Green));
+    CHECK_FALSE(columnHas(16, 12, 19, Green));
+    CHECK(rowHas(1, 12, 19, Blue));
+    CHECK(rowHas(16, 12, 19, Blue));
+    CHECK(IsNear(render.At(20, 20), {255, 0, 0, 255}));
+}

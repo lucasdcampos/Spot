@@ -68,6 +68,13 @@
           "data": {},
           "enabled": true,
           "type": "ShadowToggle"
+        },
+        {
+          "data": {
+            "visible": false
+          },
+          "enabled": true,
+          "type": "PhysicsDebugView"
         }
       ],
       "id": 1,
