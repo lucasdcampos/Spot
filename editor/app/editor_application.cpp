@@ -47,6 +47,7 @@ ApplicationConfig MakeConfig(const EditorOptions& options) {
         // ImGui blends colors as they are displayed; scenes are drawn into their own linear targets.
         .graphics = {.linearWindow = false},
         .logFile = settings.empty() ? std::filesystem::path() : settings / "editor.log",
+        .showCrashMessage = options.showCrashMessage,
     };
 }
 

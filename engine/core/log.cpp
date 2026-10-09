@@ -4,6 +4,7 @@
 
 #include <ctime>
 #include <mutex>
+#include <thread>
 
 namespace Spot {
 
@@ -116,6 +117,25 @@ void Flush() {
     const std::scoped_lock lock(registry.mutex);
     for (const auto& sink : registry.sinks) {
         sink->Flush();
+    }
+}
+
+void Detail::WriteDuringCrash(LogLevel level, std::string_view loggerName, std::string_view message) {
+    auto& registry = GetSinkRegistry();
+    bool locked = false;
+    for (int attempt = 0; attempt < 100 && !locked; ++attempt) {
+        locked = registry.mutex.try_lock();
+        if (!locked) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+    }
+    const LogRecord record{std::chrono::system_clock::now(), level, loggerName, message};
+    for (const auto& sink : registry.sinks) {
+        sink->Write(record);
+        sink->Flush();
+    }
+    if (locked) {
+        registry.mutex.unlock();
     }
 }
 

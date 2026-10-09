@@ -34,8 +34,14 @@ struct ApplicationConfig {
     GraphicsConfig graphics = {};
     AudioConfig audio = {};
     AssetConfig assets = {};
-    // When set, the log is also written to this file.
+    // When set, the log is also written to this file. The log of the run before is kept beside it, with ".previous"
+    // before its extension, so what led to a crash is still there after starting again.
     std::filesystem::path logFile = {};
+    // Where crash reports go; see InstallCrashHandler(), which the application calls. When unset, they go in a
+    // "crashes" folder beside the log file, if there is one, and only to the log otherwise.
+    std::filesystem::path crashReportDirectory = {};
+    // Tells the user when the application crashed, and where the report is, as tools do.
+    bool showCrashMessage = false;
     // Caps how many frames run per second; 0 means unlimited.
     int maxFrameRate = 0;
 };

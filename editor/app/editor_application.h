@@ -37,6 +37,8 @@ struct EditorOptions {
     // UI without a person at the screen.
     std::filesystem::path screenshot;
     int screenshotFrame = 60;
+    // Tells the user when the editor crashed, and where the report is; off for runs without a person at the screen.
+    bool showCrashMessage = false;
 };
 
 class EditorApplication final : public Application {

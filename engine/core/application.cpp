@@ -2,6 +2,7 @@
 
 #include "assets/assets.h"
 #include "core/assert.h"
+#include "core/crash_handler.h"
 #include "core/log.h"
 #include "core/log_sinks.h"
 #include "core/paths.h"
@@ -17,6 +18,12 @@ namespace Spot {
 
 Application::Application(ApplicationConfig config) : m_config(std::move(config)) {
     if (!m_config.logFile.empty()) {
+        std::error_code error;
+        if (std::filesystem::exists(m_config.logFile, error)) {
+            std::filesystem::path previous = m_config.logFile;
+            previous.replace_extension(".previous" + PathToUtf8(m_config.logFile.extension()));
+            std::filesystem::rename(m_config.logFile, previous, error);
+        }
         auto file = std::make_shared<FileSink>(m_config.logFile);
         if (file->IsOpen()) {
             m_logFile = std::move(file);
@@ -25,6 +32,13 @@ Application::Application(ApplicationConfig config) : m_config(std::move(config))
             Log::GetEngineLogger().Warning("Could not open log file '{}'", PathToUtf8(m_config.logFile));
         }
     }
+    std::filesystem::path reports = m_config.crashReportDirectory;
+    if (reports.empty() && m_logFile) {
+        reports = std::filesystem::absolute(m_config.logFile).parent_path() / "crashes";
+    }
+    InstallCrashHandler({.applicationName = m_config.window.title,
+                         .reportDirectory = reports,
+                         .showMessage = m_config.showCrashMessage});
 }
 
 Application::~Application() {

@@ -88,12 +88,10 @@ void FileSink::Write(const LogRecord& record) {
         return;
     }
 
+    // Every line reaches the file at once, so what led to a crash is there even when the process dies without a
+    // chance to flush.
     m_file << FormatLogRecord(record) << '\n';
-
-    // Flushed right away so warnings and errors are on disk even if the process crashes.
-    if (record.level >= LogLevel::Warning) {
-        m_file.flush();
-    }
+    m_file.flush();
 }
 
 void FileSink::Flush() {

@@ -35,6 +35,13 @@ flashlight, G the shadows, T speeds up time and R resets the scene; Escape frees
 The sandbox is also a project, `sandbox/Sandbox.spot`, which the editor opens and plays the same way: its scene is
 `assets/scenes/playground.scene` and its components are in `src/`, which the sandbox executable builds in as well.
 
+## Logs and crashes
+
+Applications log to the console and, when `ApplicationConfig::logFile` is set, to that file, line by line, keeping the
+previous run's log beside it as `<name>.previous.log`. The editor's is `editor.log` in its settings folder
+(`%APPDATA%/Spot/Editor` on Windows). When a program crashes, the crash and the stack that led to it go to the log,
+and a report goes to a `crashes` folder beside it, with a minidump on Windows; the editor also says so in a message.
+
 ## Game code in the editor
 
 Every project has the same layout: its `<name>.spot` project file, `assets/` with the source assets, `src/` with the

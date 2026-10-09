@@ -103,6 +103,14 @@ void Flush();
 Logger& GetEngineLogger();
 Logger& GetAppLogger();
 
+namespace Detail {
+
+// Writes to every sink and flushes them, as the process crashes: it waits a moment for the sinks, but writes anyway if
+// they stay locked, as they do when the crash happened while writing to them.
+void WriteDuringCrash(LogLevel level, std::string_view loggerName, std::string_view message);
+
+} // namespace Detail
+
 template <typename... Args>
 void Trace(std::format_string<Args...> format, Args&&... args) {
     GetAppLogger().Trace(format, std::forward<Args>(args)...);

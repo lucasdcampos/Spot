@@ -26,6 +26,7 @@ int main(int argc, char** argv) {
             options.project = std::filesystem::path(argv[i]);
         }
     }
+    options.showCrashMessage = options.screenshot.empty();
     Spot::Editor::EditorApplication editor(std::move(options));
     return editor.Run();
 }

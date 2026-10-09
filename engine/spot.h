@@ -14,6 +14,7 @@
 #include "audio/sound.h"
 #include "core/application.h"
 #include "core/assert.h"
+#include "core/crash_handler.h"
 #include "core/game_module.h"
 #include "core/log.h"
 #include "core/log_sinks.h"

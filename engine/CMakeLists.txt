@@ -47,6 +47,9 @@ add_library(spot_objects OBJECT
     core/application.cpp
     core/assert.h
     core/assert.cpp
+    core/crash_handler.h
+    core/crash_handler.cpp
+    core/crash_handler_internal.h
     core/game_module.h
     core/game_module.cpp
     core/log.h
@@ -337,6 +340,15 @@ endif()
 target_include_directories(spot_objects PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
+
+# Crashes are reported with the system's own tools: DbgHelp on Windows, signals and dladdr() elsewhere.
+if(WIN32)
+    target_sources(spot_objects PRIVATE core/crash_handler_windows.cpp)
+    target_link_libraries(spot_objects PUBLIC dbghelp)
+else()
+    target_sources(spot_objects PRIVATE core/crash_handler_posix.cpp)
+    target_link_libraries(spot_objects PUBLIC ${CMAKE_DL_LIBS})
+endif()
 
 target_compile_features(spot_objects PUBLIC cxx_std_20)
 
