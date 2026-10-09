@@ -463,8 +463,8 @@ TEST_CASE("Import settings apply when asked, and revert", "[editor][assets][ui]"
 
 TEST_CASE("The code shows beside the assets, where its files are handled as files", "[editor][assets][ui]") {
     BrowserFixture fixture;
-    // Projects without code have no code to show.
-    CHECK_FALSE(fixture.panel->GetItemRect("Tree/Code").has_value());
+    // Every project has code, if only what runs its game.
+    CHECK(fixture.panel->GetItemRect("Tree/Code").has_value());
 
     const auto code = fixture.Project().GetProject().GetCodeDirectory();
     std::filesystem::create_directories(code / "player");

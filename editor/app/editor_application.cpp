@@ -1,7 +1,6 @@
 #include "app/editor_application.h"
 
 #include "app/editor_layout.h"
-#include "core/build_info.h"
 #include "core/editor_log.h"
 #include "imgui/editor_style.h"
 #include "imgui/icons.h"
@@ -137,7 +136,7 @@ void EditorApplication::OnStart() {
 
     m_context = std::make_unique<EditorContext>(GetWindow(), &GetGraphicsDevice(), m_settings);
     m_thumbnails = std::make_unique<ThumbnailCache>(GetGraphicsDevice());
-    m_game = std::make_unique<GameRunner>(GetBuiltPlayer());
+    m_game = std::make_unique<GameRunner>();
     m_context->SetThumbnails(m_thumbnails.get());
     m_workspace = std::make_unique<SceneWorkspace>(*m_context);
     m_context->SetWorkspace(m_workspace.get());
@@ -224,7 +223,12 @@ void EditorApplication::UpdateModules() {
     modules.Update();
     if (m_runPending && !modules.GetBuild().IsRunning()) {
         m_runPending = false;
-        m_game->Start(project->GetProject().GetFile());
+        if (modules.GetBuild().GetState() == CodeBuildState::Failed) {
+            ShowError("The game did not build", "The game's code has errors, which the console shows. Run the game "
+                                                "again once they are fixed.");
+        } else if (WriteRunSettings(project->GetProject())) {
+            m_game->Start(project->GetProject().GetGameExecutable());
+        }
     }
     // A game that stopped leaves its scenes, with components of the old code, until the frame after.
     if (modules.HasNewModule() && !m_workspace->GetPlaySession() && GetScenes().empty()) {
@@ -678,6 +682,12 @@ void EditorApplication::RunGame() {
         if (!document.GetFile().empty() && document.IsDirty()) {
             m_workspace->Save(document);
         }
+    }
+    // The game runs the code as it is now, which its executable may not have yet.
+    ModuleHost& modules = m_context->GetProject()->GetModules();
+    std::error_code error;
+    if (modules.HasUnbuiltChanges() || !std::filesystem::exists(project->GetProject().GetGameExecutable(), error)) {
+        modules.Build();
     }
     m_runPending = true;
 }

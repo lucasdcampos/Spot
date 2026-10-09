@@ -123,8 +123,20 @@ std::filesystem::path Project::GetImportDirectory() const {
     return GetCacheDirectory() / "imported";
 }
 
+std::filesystem::path Project::GetBuildDirectory() const {
+    return GetCacheDirectory() / "build";
+}
+
 std::filesystem::path Project::GetModuleFile() const {
-    return GetCacheDirectory() / "build" / "module" / ("game" + std::string(GameModule::FileExtension));
+    return GetBuildDirectory() / "module" / ("game" + std::string(GameModule::FileExtension));
+}
+
+std::filesystem::path Project::GetGameExecutable() const {
+#if defined(_WIN32)
+    return GetBuildDirectory() / "game" / "game.exe";
+#else
+    return GetBuildDirectory() / "game" / "game";
+#endif
 }
 
 GameSettings Project::GetGameSettings() const {

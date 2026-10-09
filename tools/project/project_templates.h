@@ -16,9 +16,9 @@ namespace Spot {
 enum class ProjectTemplate {
     // A scene with a camera, a sun, a sky, a ground and a cube, ready to look around.
     Basic3D,
-    // The same scene, with C++ code for the game's components, which the editor builds into a game module.
+    // The same scene, with a component of the game's code that turns the cube.
     Code3D,
-    // Only the project file and an empty assets folder.
+    // Only the project file, an empty assets folder and the game's code.
     Empty,
 };
 
@@ -44,13 +44,14 @@ std::optional<std::filesystem::path> CreateProject(const std::filesystem::path& 
 // can. Names are C++ class names that no component type has, nor the files of the folder.
 std::string ValidateComponentName(const Project& project, std::string_view folder, std::string_view name);
 // Writes "<name>.h" and "<name>.cpp" for a new component into the folder of the project's code, and, for projects
-// without code, what building it takes. Returns their paths, relative to the code directory; null, after logging
+// made without code, what building it takes. Returns their paths, relative to the code directory; null, after logging
 // why, when it cannot.
 std::optional<std::vector<std::string>> CreateComponentCode(const Project& project, std::string_view folder,
                                                             const std::string& name);
 
 // Brings a project made by an older editor to the current layout (see Project): moves a CMakeLists.txt from the
-// project's folder into its code folder, and has git ignore exported games. Returns whether anything changed.
+// project's folder into its code folder, gives the project the code that builds and runs its executable, and has git
+// ignore exported games. Returns whether anything changed.
 bool UpdateProjectLayout(const Project& project);
 
 } // namespace Spot

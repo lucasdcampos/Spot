@@ -3,7 +3,6 @@
 #include "log_capture.h"
 #include "temp_directory.h"
 
-#include "core/build_info.h"
 #include "modules/module_host.h"
 
 #include <spot.h>
@@ -69,6 +68,64 @@ SPOT_GAME_MODULE(RegisterGame)
 )";
 
 constexpr std::string_view BrokenCode = "#include <spot.h>\n\nint Broken( {\n";
+
+// The game's main() for tests: without graphics, which machines that run them may not have, and only for a few frames.
+constexpr std::string_view TestMain = R"(#include <spot.h>
+
+namespace {
+
+class TestGame final : public Spot::Application {
+public:
+    TestGame() : Application({.graphics = {.enabled = false}, .audio = {.enabled = false}}) {}
+
+protected:
+    void OnUpdate(float) override {
+        if (const Spot::Scene* scene = GetScene(); scene && scene->FindEntity("Cube") && !m_toldOfCube) {
+            m_toldOfCube = true;
+            Spot::Log::Info("The cube is there");
+        }
+        if (++m_frames == 5) {
+            Quit();
+        }
+    }
+
+private:
+    int m_frames = 0;
+    bool m_toldOfCube = false;
+};
+
+} // namespace
+
+int main() {
+    return TestGame().Run();
+}
+)";
+
+// Runs the game until it exits, and returns what it logged.
+std::vector<std::string> RunGame(const std::filesystem::path& executable) {
+    const auto capture = std::make_shared<Spot::Tests::CaptureSink>();
+    const Spot::Tests::ScopedSinks sinks({capture});
+    Spot::GameRunner game;
+    REQUIRE(game.Start(executable));
+    while (game.IsRunning()) {
+        std::this_thread::sleep_for(20ms);
+        game.Update();
+    }
+    game.Update();
+    CHECK(game.GetExitCode() == 0);
+    std::vector<std::string> messages;
+    for (const Spot::Tests::CapturedRecord& record : capture->GetRecords()) {
+        if (record.loggerName == "Game") {
+            messages.push_back(record.message);
+        }
+    }
+    return messages;
+}
+
+bool Contains(const std::vector<std::string>& messages, std::string_view text) {
+    return std::ranges::any_of(messages,
+                               [&](const std::string& message) { return message.find(text) != std::string::npos; });
+}
 
 } // namespace
 
@@ -188,46 +245,42 @@ TEST_CASE("A project's code builds into a module that loads, and loads again whe
     CHECK_FALSE(Spot::CreateComponent("Rotator"));
 }
 
-TEST_CASE("The player runs a project's startup scene with the game's code", "[editor][module][player]") {
+TEST_CASE("Projects build their game's executable, which runs the startup scene with the game's code, and exports",
+          "[editor][module][game]") {
     const TempDirectory temp;
     const auto file = Spot::CreateProject(temp.GetPath(), "Played", Spot::ProjectTemplate::Code3D);
     REQUIRE(file);
     const auto project = Spot::Project::Load(*file);
     REQUIRE(project);
+    std::ofstream(project->GetCodeDirectory() / "main.cpp", std::ios::binary) << TestMain;
     {
         Spot::Editor::ModuleHost host(*project, {.watchInterval = 0ms});
         host.Build();
         WaitForBuild(host);
         REQUIRE(host.GetBuild().GetState() == CodeBuildState::Succeeded);
     }
+    Spot::ImportProjectAssets(*project);
+    REQUIRE(Spot::WriteRunSettings(*project));
 
-    const auto capture = std::make_shared<Spot::Tests::CaptureSink>();
-    const Spot::Tests::ScopedSinks sinks({capture});
-    Spot::GameRunner game(Spot::Editor::GetBuiltPlayer());
-    const std::array options{std::string("--no-graphics"), std::string("--frames"), std::string("5")};
-    REQUIRE(game.Start(*file, options));
-    while (game.IsRunning()) {
-        std::this_thread::sleep_for(20ms);
-        game.Update();
-    }
-    game.Update();
+    const std::vector<std::string> run = RunGame(project->GetGameExecutable());
+    CHECK(Contains(run, "The cube is there"));
+    CHECK(Contains(run, "The game exited"));
+    // The cube's component comes from the game's code, which its executable has.
+    CHECK_FALSE(Contains(run, "not registered"));
 
-    CHECK(game.GetExitCode() == 0);
-    std::vector<std::string> messages;
-    for (const Spot::Tests::CapturedRecord& record : capture->GetRecords()) {
-        if (record.loggerName == "Game") {
-            messages.push_back(record.message);
-        }
-    }
-    const auto logged = [&](std::string_view text) {
-        return std::ranges::any_of(messages,
-                                   [&](const std::string& message) { return message.find(text) != std::string::npos; });
-    };
-    CHECK(logged("Spot: Loaded the game module"));
-    CHECK(logged("Player: Running 'Played'"));
-    CHECK(logged("The game exited"));
-    // The cube's component comes from the game's code, which the player has.
-    CHECK_FALSE(logged("not registered"));
+    // Exported, the game runs from its own folder, named after the project, without the project.
+    const std::filesystem::path exported = temp.GetPath() / "exported";
+    REQUIRE(Spot::ExportGame(*project, exported));
+    std::filesystem::path executable = exported / "Played";
+    executable += project->GetGameExecutable().extension();
+    REQUIRE(std::filesystem::is_regular_file(executable));
+    CHECK(std::filesystem::is_regular_file(exported / Spot::GameSettings::FileName));
+    CHECK(std::filesystem::is_directory(exported / "imported"));
+    std::filesystem::remove_all(project->GetImportDirectory());
+
+    const std::vector<std::string> shipped = RunGame(executable);
+    CHECK(Contains(shipped, "The cube is there"));
+    CHECK_FALSE(Contains(shipped, "not registered"));
 }
 
 TEST_CASE("Modules built for another editor are not loaded, and are built again", "[editor][module]") {

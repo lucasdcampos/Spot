@@ -1,5 +1,4 @@
 #include <spot.h>
 
-// Makes the sandbox's code a module the editor and the player load. The sandbox executable builds the same code in,
-// and runs what this registers itself.
+// Marks the sandbox's code, which its executable runs and the editor loads.
 SPOT_GAME_MODULE()

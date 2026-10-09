@@ -166,9 +166,12 @@ TEST_CASE("The 3D with C++ template adds the game's code, whose component the sc
     std::ifstream script(directory / "src" / "CMakeLists.txt");
     const std::string text{std::istreambuf_iterator<char>(script), std::istreambuf_iterator<char>()};
     CHECK(text.find("project(My_Game LANGUAGES CXX)") != std::string::npos);
-    CHECK(text.find("spot_add_game_module(game ${sources})") != std::string::npos);
+    CHECK(text.find("spot_add_game(${sources})") != std::string::npos);
     CHECK(text.find("src/") == std::string::npos);
     CHECK(std::filesystem::is_regular_file(directory / "src" / "game.cpp"));
+    std::ifstream main(directory / "src" / "main.cpp");
+    const std::string mainText{std::istreambuf_iterator<char>(main), std::istreambuf_iterator<char>()};
+    CHECK(mainText.find("return Spot::Application().Run();") != std::string::npos);
 
     const auto project = Spot::Editor::EditorProject::Open(*file, nullptr);
     REQUIRE(project != nullptr);
@@ -180,13 +183,16 @@ TEST_CASE("The 3D with C++ template adds the game's code, whose component the sc
     CHECK(rotator->GetTypeName() == "Rotator");
 }
 
-TEST_CASE("Empty projects only have their file and assets folder", "[editor][project]") {
+TEST_CASE("Empty projects only have their file, an empty assets folder and the game's code", "[editor][project]") {
     const TempDirectory temp;
 
     const auto file = Spot::CreateProject(temp.GetPath(), "Blank", Spot::ProjectTemplate::Empty);
 
     REQUIRE(file.has_value());
     CHECK(std::filesystem::is_empty(temp.GetPath() / "Blank" / "assets"));
+    for (const char* name : {"CMakeLists.txt", "main.cpp", "game.cpp"}) {
+        CHECK(std::filesystem::is_regular_file(temp.GetPath() / "Blank" / "src" / name));
+    }
     const auto project = Spot::Editor::EditorProject::Open(*file, nullptr);
     REQUIRE(project != nullptr);
     CHECK(project->GetAssetDatabase().GetAssets().empty());
@@ -234,10 +240,46 @@ TEST_CASE("Projects of older editors get the current layout when they open", "[e
     const std::string ignored{std::istreambuf_iterator<char>(ignore), std::istreambuf_iterator<char>()};
     CHECK(ignored == "/.spot/\n# Games exported from the project\n/builds/\n");
 
+    // The game's executable needs a main(), which the code gets beside what it had.
+    CHECK(std::filesystem::is_regular_file(temp.GetPath() / "src" / "main.cpp"));
+    std::ifstream game(temp.GetPath() / "src" / "game.cpp");
+    CHECK(std::string{std::istreambuf_iterator<char>(game), std::istreambuf_iterator<char>()} == "// The game\n");
+
     // Once is enough.
     CHECK_FALSE(Spot::UpdateProjectLayout(*project));
     Spot::Editor::ModuleHost host(*project, {});
     CHECK(host.HasCode());
+}
+
+TEST_CASE("Projects of older editors get code that builds their game's executable", "[editor][project]") {
+    const TempDirectory temp;
+    SECTION("Projects that only built a game module build the executable too") {
+        const auto project = Spot::Project::Create(temp.GetPath(), {.name = "Modular"});
+        REQUIRE(project);
+        std::filesystem::create_directories(project->GetCodeDirectory());
+        std::ofstream(project->GetCodeDirectory() / "CMakeLists.txt")
+            << "find_package(Spot CONFIG REQUIRED)\nspot_add_game_module(game ${sources})\n";
+
+        CHECK(Spot::UpdateProjectLayout(*project));
+
+        std::ifstream script(project->GetCodeDirectory() / "CMakeLists.txt");
+        const std::string text{std::istreambuf_iterator<char>(script), std::istreambuf_iterator<char>()};
+        CHECK(text == "find_package(Spot CONFIG REQUIRED)\nspot_add_game(${sources})\n");
+        CHECK(std::filesystem::is_regular_file(project->GetCodeDirectory() / "main.cpp"));
+        CHECK(std::filesystem::is_regular_file(project->GetCodeDirectory() / "game.cpp"));
+    }
+    SECTION("Projects without code get all of it") {
+        const auto project = Spot::Project::Create(temp.GetPath(), {.name = "Codeless"});
+        REQUIRE(project);
+
+        CHECK(Spot::UpdateProjectLayout(*project));
+
+        std::ifstream script(project->GetCodeDirectory() / "CMakeLists.txt");
+        const std::string text{std::istreambuf_iterator<char>(script), std::istreambuf_iterator<char>()};
+        CHECK(text.find("spot_add_game(${sources})") != std::string::npos);
+        CHECK(std::filesystem::is_regular_file(project->GetCodeDirectory() / "main.cpp"));
+        CHECK_FALSE(Spot::UpdateProjectLayout(*project));
+    }
 }
 
 TEST_CASE("New components need C++ class names that no type or file has", "[editor][project]") {

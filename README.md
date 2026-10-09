@@ -45,23 +45,25 @@ and a report goes to a `crashes` folder beside it, with a minidump on Windows; t
 ## Game code in the editor
 
 Every project has the same layout: its `<name>.spot` project file, `assets/` with the source assets, `src/` with the
-game's C++ code and its `CMakeLists.txt` when it has code, `builds/` for exported games and `.spot/` for what the
-editor generates; the last two stay out of version control.
+game's C++ code and its `CMakeLists.txt`, `builds/` for exported games and `.spot/` for what the tools generate; the
+last two stay out of version control.
 
-Projects made from the editor's "3D with C++" template have a `src/` folder with the game's own components, and the
-asset browser's Create > C++ Component adds one to any project, as a `.h` and a `.cpp`; components register
-themselves with `SPOT_COMPONENT(Type);` in their source file, and list the fields that scenes save and the inspector
-shows with `SPOT_FIELDS(speed, health)` in their class. The editor builds that code into a game module with
-CMake and the compiler that built the editor, whenever it changes or on Ctrl+B, and loads it without closing the open
-scenes, so their entities, selections and undo history stay as they were. Build errors and warnings show in the
-console. Games made only in code link the static engine library and need none of this.
+Every game has code, if only its `main.cpp`, whose `main()` runs `Spot::Application().Run()`: the application reads
+the `game.json` the tools write beside the executable, loads the startup scene it names and draws it. The asset
+browser's Create > C++ Component adds a component, as a `.h` and a `.cpp`; components register themselves with
+`SPOT_COMPONENT(Type);` in their source file, and list the fields that scenes save and the inspector shows with
+`SPOT_FIELDS(speed, health)` in their class. `spot_add_game()` in `src/CMakeLists.txt` builds the code twice from one
+compilation: into the game's executable, and into a game module that the editor loads. The editor builds it with
+CMake and the compiler that built the editor, whenever it changes or on Ctrl+B, and loads the module without closing
+the open scenes, so their entities, selections and undo history stay as they were. Build errors and warnings show in
+the console. Games made only in code link the static engine library and need none of this.
 
 Components draw what goes over the game's view, such as a HUD, in `OnDrawUi()`, and first-person games hide and hold
-the cursor with `Spot::Input::SetCursorLocked(true)`; both work alike in the player and in the editor's Play, where
+the cursor with `Spot::Input::SetCursorLocked(true)`; both work alike in the game and in the editor's Play, where
 Escape hands the mouse and the keys back to the editor, and a click on the view gives them to the game again.
 
-F5 runs the project's game in its own window with `spot_player`, from its startup scene, as it will ship; what the game
-logs shows in the editor's console. `spot_player <project>` also runs it on its own.
+F5 runs the project's game in its own window, its own executable built from its code, from its startup scene, as it
+will ship; what the game logs shows in the editor's console.
 
 ## Assets
 
@@ -85,5 +87,4 @@ Supported sources: PNG/JPEG/BMP/TGA textures, glTF models (`.gltf`, `.glb`), WAV
 - `sandbox/` – application for trying out the engine
 - `tools/` – the tools that make games out of projects, shared by the editor and the command line
 - `editor/` – the editor, built with Dear ImGui
-- `player/` – runs projects made in the editor, with their game's code
 - `tests/` – unit tests

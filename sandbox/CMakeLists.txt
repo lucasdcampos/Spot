@@ -1,6 +1,8 @@
 # The sandbox is also a project the editor opens (Sandbox.spot). Its code in src/ is built into the executable here,
-# and into the game module the editor and the player load by src/CMakeLists.txt.
+# and into the game's own executable and the game module the editor loads by src/CMakeLists.txt.
 file(GLOB_RECURSE sandbox_game_sources CONFIGURE_DEPENDS src/*.cpp src/*.h)
+# The project's own main() runs it as the tools build it; this executable has its own.
+list(FILTER sandbox_game_sources EXCLUDE REGEX "/src/main\\.cpp$")
 
 add_executable(sandbox
     main.cpp

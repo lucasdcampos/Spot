@@ -10,13 +10,12 @@ Each project lives in its own folder at the repository root, with headers next t
 - `engine/` – the engine, static library target `spot` (`spot::spot`), also built as the shared library `spot_shared`
   (`spot::shared`) that the editor and the game modules it loads share
 - `sandbox/` – executable that links the engine, used to try it out; it runs the project `sandbox/Sandbox.spot`,
-  which the editor opens too, and builds that project's code (`sandbox/src/`) in
+  which the editor opens too, and builds that project's code (`sandbox/src/`, but its own `main.cpp`) in
 - `tests/` – unit tests using Catch2
 - `tools/` – `spot_tools` (`spot::tools`), what makes games out of projects (`Project`), shared by the editor and the
   command line; built against the engine's headers only, so whatever links it links one engine library itself
 - `editor/` – the editor (`spot_editor`), a Dear ImGui application; everything but `main.cpp` is the
   `spot_editor_core` library its tests link
-- `player/` – `spot_player`, which runs projects made in the editor outside of it, with their game module
 
 ## Build and test
 

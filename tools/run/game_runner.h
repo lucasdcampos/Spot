@@ -11,20 +11,20 @@
 
 namespace Spot {
 
-// A project's game running outside of the editor, in its own window, as it will once shipped: the player runs it,
-// and what it logs shows in the console as "Game".
+// A game's executable running in its own window, as it will once shipped, from its own folder: what it logs is logged
+// again as "Game", so it shows in the editor's console and the command line's output.
 class GameRunner {
 public:
-    explicit GameRunner(std::filesystem::path player);
+    GameRunner() = default;
     // Stops the game.
     ~GameRunner();
 
     GameRunner(const GameRunner&) = delete;
     GameRunner& operator=(const GameRunner&) = delete;
 
-    // Runs the project's game, with the player's options before it, stopping the game that runs. Returns false,
-    // after logging why, when the player cannot start.
-    bool Start(const std::filesystem::path& projectFile, std::span<const std::string> options = {});
+    // Runs the game's executable with the arguments, stopping the game that runs. Returns false, after logging why,
+    // when it cannot start.
+    bool Start(const std::filesystem::path& executable, std::span<const std::string> arguments = {});
     void Stop();
     bool IsRunning();
     // Its exit code once it exited; nothing while it runs, or before it ran.
@@ -37,12 +37,11 @@ public:
         // Prefixed by its logger's name, but for the game's own messages.
         std::string message;
     };
-    // Reads a line of the player's log, "[14:03:12.345] [INFO ] [Spot] message"; lines that are not, such as those
+    // Reads a line of the game's log, "[14:03:12.345] [INFO ] [Spot] message"; lines that are not, such as those
     // a message spans, come back whole.
     static Line ParseLine(std::string_view line);
 
 private:
-    std::filesystem::path m_player;
     std::unique_ptr<Process> m_process;
     bool m_exitReported = false;
 };

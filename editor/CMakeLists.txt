@@ -63,8 +63,6 @@ add_library(spot_editor_core STATIC
     assets/plain_files.h
     assets/thumbnail_cache.cpp
     assets/thumbnail_cache.h
-    core/build_info.cpp
-    core/build_info.h
     core/command.h
     core/command_history.cpp
     core/command_history.h
@@ -168,11 +166,6 @@ spot_embed_files(spot_editor_core
 )
 spot_set_compile_options(spot_editor_core)
 
-# Games run outside of the editor with the player built along with it.
-set_property(SOURCE core/build_info.cpp APPEND PROPERTY COMPILE_DEFINITIONS
-    SPOT_PLAYER="$<TARGET_FILE:spot_player>"
-)
-add_dependencies(spot_editor_core spot_player)
 
 add_executable(spot_editor
     main.cpp

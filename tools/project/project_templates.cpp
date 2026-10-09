@@ -20,27 +20,39 @@ namespace {
 
 constexpr std::array Templates{
     ProjectTemplateInfo{ProjectTemplate::Basic3D, "3D", "A lit scene with a sky, ready to fill."},
-    ProjectTemplateInfo{ProjectTemplate::Code3D, "3D with C++",
-                        "The same scene, and C++ code for the game's own components, which the editor builds and "
-                        "reloads as it changes."},
-    ProjectTemplateInfo{ProjectTemplate::Empty, "Empty", "Only an empty assets folder."},
+    ProjectTemplateInfo{ProjectTemplate::Code3D, "3D with a component",
+                        "The same scene, with a component of the game's own C++ code that turns the cube, which the "
+                        "editor builds and reloads as it changes."},
+    ProjectTemplateInfo{ProjectTemplate::Empty, "Empty", "An empty assets folder, and the game's code."},
 };
 
 // The generated folder is rebuilt from the sources, and exported games from the project, so neither is committed.
 constexpr std::string_view GitIgnore = "# Imported assets and editor state, rebuilt from the sources\n/.spot/\n"
                                        "# Games exported from the project\n/builds/\n";
 
-// How projects with code build it; the editor tells CMake where the engine is.
+// How projects build their code; the tools tell CMake where the engine is.
 constexpr std::string_view BuildScript =
-    R"(# Builds the game's code into the game module that the editor and the player load. The editor builds it whenever
-# the code changes, pointing Spot_DIR at its own build of the engine.
+    R"(# Builds the game's code into the game's executable, and into the game module that the editor loads. The tools
+# build it, the editor whenever the code changes, pointing Spot_DIR at their own build of the engine.
 cmake_minimum_required(VERSION 3.25)
 project({} LANGUAGES CXX)
 
 find_package(Spot CONFIG REQUIRED)
 
 file(GLOB_RECURSE sources CONFIGURE_DEPENDS *.cpp *.h)
-spot_add_game_module(game ${{sources}})
+spot_add_game(${{sources}})
+)";
+
+// What the build script of projects made before games had their own executable called.
+constexpr std::string_view OldModuleCall = "spot_add_game_module(game ${sources})";
+constexpr std::string_view GameCall = "spot_add_game(${sources})";
+
+constexpr std::string_view MainCode = R"(#include <spot.h>
+
+// Runs the game from its startup scene, as the settings the tools write beside the executable say.
+int main() {
+    return Spot::Application().Run();
+}
 )";
 
 constexpr std::string_view GameCode = R"(#include <spot.h>
@@ -69,18 +81,19 @@ protected:
 
 } // namespace
 
-// Registers the component when the editor or the player loads the game's code.
+// Registers the component when the game runs, and when the editor loads the game's code.
 SPOT_COMPONENT(Rotator);
 
-// Makes the game's code a module the editor and the player load.
+// Marks the game's code, which the game's executable runs and the editor loads.
 SPOT_GAME_MODULE()
 )";
 
-// The module of a project whose code starts with a component made from the editor.
+// The code every project starts with, which components are added to.
 constexpr std::string_view ModuleCode = R"(#include <spot.h>
 
-// Makes the game's code a module the editor and the player load. Components marked with SPOT_COMPONENT register
-// themselves; anything else to do when it loads goes in a function given here, as in SPOT_GAME_MODULE(RegisterGame).
+// Marks the game's code, which the game's executable runs and the editor loads. Components marked with SPOT_COMPONENT
+// register themselves; anything else to do when the code loads goes in a function given here, as in
+// SPOT_GAME_MODULE(RegisterGame).
 SPOT_GAME_MODULE()
 )";
 
@@ -216,6 +229,19 @@ bool WriteText(const std::filesystem::path& path, std::string_view text) {
     return static_cast<bool>(file);
 }
 
+// Writes the build script, main.cpp and the file with SPOT_GAME_MODULE() into the folder of the project's code, each
+// unless it is there already, as for projects made by older editors.
+bool WriteCodeFiles(const Project& project, std::string_view gameCode) {
+    const std::filesystem::path code = project.GetCodeDirectory();
+    const std::string identifier = MakeIdentifier(project.GetSettings().name);
+    std::error_code error;
+    const auto write = [&](const char* name, std::string_view text) {
+        return std::filesystem::exists(code / name, error) || WriteText(code / name, text);
+    };
+    return write("CMakeLists.txt", std::vformat(BuildScript, std::make_format_args(identifier))) &&
+           write("main.cpp", MainCode) && write("game.cpp", gameCode);
+}
+
 void BuildBasic3DScene(Scene& scene) {
     PopulateNewScene(scene);
 
@@ -279,18 +305,11 @@ std::optional<std::vector<std::string>> CreateComponentCode(const Project& proje
         GetToolsLogger().Error("Cannot create the component '{}': {}", name, problem);
         return std::nullopt;
     }
-    // Projects without code get what building it takes first.
+    // Projects made without code by older editors get what building it takes first.
     const std::filesystem::path code = project.GetCodeDirectory();
-    std::error_code error;
-    if (!std::filesystem::exists(code / "CMakeLists.txt", error)) {
-        const std::string identifier = MakeIdentifier(project.GetSettings().name);
-        if (!WriteText(code / "CMakeLists.txt", std::vformat(BuildScript, std::make_format_args(identifier))) ||
-            (!std::filesystem::exists(code / "game.cpp", error) && !WriteText(code / "game.cpp", ModuleCode))) {
-            GetToolsLogger().Error("Could not write the build of the project's code in '{}'", PathToUtf8(code));
-            return std::nullopt;
-        }
-        GetToolsLogger().Info("The project has code now, in '{}', which the editor builds as it changes",
-                              PathToUtf8(code));
+    if (!WriteCodeFiles(project, ModuleCode)) {
+        GetToolsLogger().Error("Could not write the build of the project's code in '{}'", PathToUtf8(code));
+        return std::nullopt;
     }
     const std::string header = folder.empty() ? name + ".h" : std::string(folder) + "/" + name + ".h";
     const std::string source = folder.empty() ? name + ".cpp" : std::string(folder) + "/" + name + ".cpp";
@@ -328,6 +347,37 @@ bool UpdateProjectLayout(const Project& project) {
             return false;
         }
         GetToolsLogger().Info("Moved the project's CMakeLists.txt into its code folder, 'src'");
+        changed = true;
+    }
+
+    // Games have an executable of their own, which projects made before had no code or build for.
+    std::string script;
+    {
+        std::ifstream file(newScript, std::ios::binary);
+        script.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+    }
+    if (const std::size_t at = script.find(OldModuleCall); at != std::string::npos) {
+        script.replace(at, OldModuleCall.size(), GameCall);
+        if (!WriteText(newScript, script)) {
+            GetToolsLogger().Error("Could not update '{}'", PathToUtf8(newScript));
+            return false;
+        }
+        GetToolsLogger().Info("The project's code builds the game's executable now, with spot_add_game()");
+        changed = true;
+    }
+    const bool hadMain = std::filesystem::exists(project.GetCodeDirectory() / "main.cpp", error);
+    const bool hadScript = std::filesystem::exists(newScript, error);
+    if (!hadMain || !hadScript) {
+        if (!WriteCodeFiles(project, ModuleCode)) {
+            GetToolsLogger().Error("Could not write the project's code in '{}'",
+                                   PathToUtf8(project.GetCodeDirectory()));
+            return false;
+        }
+        if (hadScript) {
+            GetToolsLogger().Info("Added the game's main.cpp to the project's code");
+        } else {
+            GetToolsLogger().Info("The project has code now, in 'src', which runs the game");
+        }
         changed = true;
     }
 
@@ -403,14 +453,10 @@ std::optional<std::filesystem::path> CreateProject(const std::filesystem::path& 
     }
     std::ofstream(directory / ".gitignore", std::ios::binary) << GitIgnore;
 
-    if (kind == ProjectTemplate::Code3D) {
-        const std::string identifier = MakeIdentifier(name);
-        const std::filesystem::path code = project->GetCodeDirectory();
-        if (!WriteText(code / "CMakeLists.txt", std::vformat(BuildScript, std::make_format_args(identifier))) ||
-            !WriteText(code / "game.cpp", GameCode)) {
-            GetToolsLogger().Error("Could not write the code of project '{}'", name);
-            return std::nullopt;
-        }
+    // Every game has code, if only to run it.
+    if (!WriteCodeFiles(*project, kind == ProjectTemplate::Code3D ? GameCode : ModuleCode)) {
+        GetToolsLogger().Error("Could not write the code of project '{}'", name);
+        return std::nullopt;
     }
     if (kind == ProjectTemplate::Basic3D || kind == ProjectTemplate::Code3D) {
         Scene scene;

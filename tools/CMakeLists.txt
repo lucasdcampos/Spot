@@ -8,6 +8,8 @@ add_library(spot_tools STATIC
     build/build_info.cpp
     build/code_build.cpp
     build/code_build.h
+    build/game_build.cpp
+    build/game_build.h
     project/project.cpp
     project/project.h
     project/project_templates.cpp

@@ -21,22 +21,18 @@ constexpr std::string_view GameLoggerName = "App";
 
 } // namespace
 
-GameRunner::GameRunner(std::filesystem::path player) : m_player(std::move(player)) {
-}
-
 GameRunner::~GameRunner() {
     Stop();
 }
 
-bool GameRunner::Start(const std::filesystem::path& projectFile, std::span<const std::string> options) {
+bool GameRunner::Start(const std::filesystem::path& executable, std::span<const std::string> arguments) {
     Stop();
-    std::vector<std::string> arguments{PathToUtf8(m_player)};
-    arguments.insert(arguments.end(), options.begin(), options.end());
-    arguments.push_back(PathToUtf8(projectFile));
-    m_process = Process::Start(arguments, projectFile.parent_path());
+    std::vector<std::string> command{PathToUtf8(executable)};
+    command.insert(command.end(), arguments.begin(), arguments.end());
+    m_process = Process::Start(command, executable.parent_path());
     m_exitReported = false;
     if (!m_process) {
-        GetGameLogger().Error("Could not start the player, '{}', to run the game", PathToUtf8(m_player));
+        GetGameLogger().Error("Could not start the game, '{}'", PathToUtf8(executable));
         return false;
     }
     GetGameLogger().Info("Started the game in its own window");
