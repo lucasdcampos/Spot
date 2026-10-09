@@ -9,3 +9,6 @@
 *.glb binary
 *.ttf binary
 *.otf binary
+
+# The sandbox generator compares its output with these byte for byte, so checkouts must not change their line ends.
+sandbox/assets/generated/**/*.gltf -text
