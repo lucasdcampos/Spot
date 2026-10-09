@@ -6,6 +6,9 @@ order, and how each piece is designed. It was written on 2026-10-09 after compar
 that fell back to whole-scene snapshots, half-finished PBR, prefabs without overrides, a renderer stuck on OpenGL.
 The goal is the same breadth, built on the architecture Spot already has.
 
+The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
+[The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
+
 **Current focus:** M0 – Foundations
 
 ## How to use this plan
@@ -50,6 +53,61 @@ Every milestone follows these, on top of the rules in `AGENTS.md`.
 10. **Tested and documented.** Every feature has unit tests, plus GPU or editor tests where it needs them, and a page
     in `docs/`.
 
+## The sandbox game
+
+Milestone by milestone, the sandbox (`sandbox/`) grows into a complete first-person physics sandbox inspired by
+Garry's Mod. It is a game to play and also the engine's integration test: it uses nearly every system, so a
+regression shows up as something broken in the game. Each milestone ends with **Sandbox** steps that add the features
+it makes possible, and [M15](#m15--the-sandbox-game) finishes the game.
+
+When the roadmap ends, the game has:
+
+- **Movement.** First-person walking, running, crouching, jumping and noclip flight, on a playground level with
+  ramps, stairs, platforms, a building to walk into, and a day cycle.
+- **Weapons.** A pistol, an automatic rifle, a shotgun and a rocket launcher, with aiming down the sights, recoil,
+  spread, ammo and reloading. They have view-model animations and muzzle flashes, hits push props, and explosions
+  push everything around them.
+- **Holding objects.** E picks up a light prop, carries it in front of the camera, turns it and throws it.
+- **Physics gun.** It grabs any prop from afar with a beam, and moves it with the mouse. The wheel pulls and pushes
+  the prop, and the gun can also turn it, freeze it in the air and unfreeze everything.
+- **Tool gun.** Weld, rope, remover, a color and material tool, and lamps to place.
+- **Spawn menu.** Q opens a menu of thumbnails of the props and lamps, which spawn where the player looks. Z undoes
+  the last spawn, and a cleanup removes them all.
+- **Generated assets.** Crates, barrels, explosive barrels, planks, beams, balls, cones, ramps and wheels, a target
+  dummy, and a simple rigged robot that walks and falls as a ragdoll when shot. Their PBR textures, the weapon
+  models and the sounds are generated too.
+- **Sound.** 3D weapon sounds, impacts by surface and speed, footsteps, and ambience and music on their own buses.
+- **Interface.** A HUD (crosshair, ammo, weapon) and weapon selection with 1–9 or the wheel. A pause menu holds the
+  settings: sensitivity, field of view, volumes, bindings and graphics quality.
+- **Saving.** Saving and loading the world, with its props, welds, ropes and frozen props.
+- **Console.** `gravity`, `timescale`, `noclip`, `cleanup`, `spawn <prop>`, and a stress test that spawns hundreds of
+  props.
+
+How it is built:
+
+- **Generated assets are source assets.** `sandbox/generator/` is a small C++ program (`sandbox_generator`, built
+  with the engine) that writes glTF models (with cgltf's writer), PNG textures and WAV sounds into
+  `sandbox/assets/generated/`. Fixed seeds keep its output the same from run to run, and it only rewrites files whose
+  content changed. The files are committed and imported like any artist's assets. Their `.meta` files come from the
+  import, and the generator never touches them.
+- **The game's code is the reference for users.** Components each have one job. Weapons, props and tools are
+  described as data (definitions and prefabs), not hard-coded. Only the public API is used. Reading the sandbox shows
+  how to make a game with Spot.
+
+| Feature | Where it is built |
+|---|---|
+| Generated props and textures | M0.7, then M3.6 (sounds), M6.7 (PBR sets, weapons), M9.12 (robot, arms) |
+| Movement and level collision | M1.10, M2.7 |
+| Holding objects and physics gun | M1.11, M5.9 (beam), M13.5 (beam particles) |
+| Weapons and explosions | M1.12, M3.6, M5.9, M9.12, M13.5 |
+| Tool gun: weld, rope, remover | M1.13, M6.7 (color and material), M7.7 (lamps) |
+| Spawning and undo | M1.12, M8.8 (prefabs), M12.7 (spawn menu) |
+| Robot and ragdolls | M9.11, M9.12 |
+| HUD, menus and settings | M12.7 |
+| Saving the world | M10.8 |
+| Console commands and stress test | M11.6 |
+| Finished level, polish, performance, release | M15 |
+
 ## Milestones
 
 | | Milestone | Delivers |
@@ -69,8 +127,7 @@ Every milestone follows these, on top of the rules in `AGENTS.md`.
 | [ ] | [M12 – Runtime UI and text](#m12--runtime-ui-and-text) | World text, SDF fonts, entity-based UI, widgets, layout, navigation |
 | [ ] | [M13 – Particles](#m13--particles) | Particle systems, curves and gradients, particle rendering |
 | [ ] | [M14 – 2D](#m14--2d) | 2D physics, sprite animation, tilemaps |
-
-The sandbox (`sandbox/`) is how each milestone is tried as a game: every milestone ends by using what it added there.
+| [ ] | [M15 – The sandbox game](#m15--the-sandbox-game) | The finished level, polish, performance and a release build of the game |
 
 ---
 
@@ -101,9 +158,13 @@ Cross-cutting pieces that every later milestone builds on.
 - [ ] **M0.6 Documentation.** Create `docs/` with an index and one page per existing system: application and scenes,
   entities and components, assets and importing, rendering, physics, audio, input, editor, tools and the command
   line. Add a rule to `AGENTS.md` that features update their page.
+- [ ] **M0.7 Sandbox: asset generator.** Add `sandbox/generator/` (see [The sandbox game](#the-sandbox-game)), with a
+  glTF writer for `MeshData` and a PNG writer. The first output is the props (crate, barrel, explosive barrel, plank,
+  beam, ball, cone, ramp, wheel) and their base textures, all imported into the sandbox. The playground scene uses
+  them.
 
 **Done when:** a throwing sandbox component is reported and contained, the sandbox's frame timings can be read from the
-profiler, and debug lines show in both the game and the editor.
+profiler, debug lines show in both the game and the editor, and the generated props are in the playground.
 
 **Notes:**
 
@@ -143,13 +204,26 @@ Steps:
   and layers. The sandbox player moves with it. Tests.
 - [ ] **M1.7 Mesh colliders.** A `MeshCollider` from a mesh asset or from runtime `MeshData` (`SetMesh()`): a static
   triangle mesh, or a convex hull for dynamic bodies. Built shapes are cached per mesh. Tests.
-- [ ] **M1.8 Joints.** `FixedJoint`, `HingeJoint` (limits, motor), `DistanceJoint` and `SpringJoint`, each connecting
-  to another entity by `EntityId` or to the world. Tests.
+- [ ] **M1.8 Joints.** `FixedJoint`, `HingeJoint` (limits, motor), `DistanceJoint`, `SpringJoint` and
+  `SwingTwistJoint` (for ragdolls), each connecting to another entity by `EntityId` or to the world. Joints can
+  break past a force. Tests.
 - [ ] **M1.9 Debug view and editor.** Colliders, contacts and queries drawn with `DebugDraw`, a Colliders toggle in the
   editor's views and at runtime, and **Fit to Mesh** for box, sphere and capsule colliders.
+- [ ] **M1.10 Sandbox: movement and level.** A first-person player on the `CharacterController` that walks, runs,
+  crouches, jumps and flies in noclip. The level's geometry uses mesh colliders, with ramps, stairs and platforms.
+- [ ] **M1.11 Sandbox: holding and the physics gun.** E picks up props below a mass limit, carries them in front of
+  the camera, turns them and throws them. The physics gun grabs any prop the player aims at, drives it toward a
+  target in front of the camera with a spring, and changes the distance with the wheel. It turns the prop, freezes
+  it in place (as a kinematic body) and unfreezes all props.
+- [ ] **M1.12 Sandbox: weapons and spawning.** Weapons described as data. Hitscan pistol, rifle and shotgun push
+  props at the hit point with impulses. The rocket launcher fires projectiles that explode with `OverlapSphere` and
+  a radial impulse, and explosive barrels blow up when shot. Keys spawn props where the player looks, with undo (Z)
+  and cleanup.
+- [ ] **M1.13 Sandbox: tool gun.** Weld (`FixedJoint`), rope (`DistanceJoint`, drawn with `DebugDraw` for now) and
+  remover, with undo.
 
-**Done when:** in the sandbox, the player walks on a mesh-collider level with the character controller, a raycast
-weapon pushes crates at the hit point, and a trigger pickup reacts to the player.
+**Done when:** in the sandbox, the player walks the level, carries and throws props, builds something with the
+physics gun and the tool gun, and shoots and blows it apart.
 
 **Notes:**
 
@@ -175,7 +249,8 @@ bindings with processing (dead zone, invert, scale). A player's rebinds are save
 - [ ] **M2.6 Input ownership.** A capture stack, so overlays (console, UI text fields, the editor) can withhold input
   from the game without changing the game's requests: the cursor lock comes back afterwards, and the mouse delta is
   zero on each hand-over. The editor's play view uses it. Tests.
-- [ ] **M2.7 Sandbox.** The sandbox and the templates use actions, and the sandbox plays with a gamepad.
+- [ ] **M2.7 Sandbox: controls.** The sandbox and the templates use actions. Weapons are selected with 1–9 and the
+  wheel, aiming down the sights uses the right button or the left trigger, and the whole game plays with a gamepad.
 
 **Done when:** the sandbox plays the same with keyboard and mouse or a gamepad, and a rebind survives a restart.
 
@@ -202,7 +277,10 @@ defined in the audio settings. Streamed sounds decode on a worker thread into a 
   pan from transforms. A scene's sounds stop when it unloads and pause when scenes are paused. Tests.
 - [ ] **M3.5 Mixer settings and panel.** The audio settings section (buses, default volumes) and an editor Audio Mixer
   panel with faders, meters, mute and solo, which take effect live during Play.
-- [ ] **M3.6 Sandbox.** Music on a Music bus, footsteps, and impact sounds from collision events (M1.3).
+- [ ] **M3.6 Sandbox: sound.** The generator gets a WAV writer and synthesizes the game's sounds: gunshots,
+  explosions, impacts per surface, footsteps, the physics gun's hum, and UI clicks. Weapons and explosions sound
+  from where they are. Impacts come from collision events (M1.3) and scale with speed and surface. Footsteps follow
+  the ground under the player. Ambience and music play on their own buses.
 
 **Done when:** sandbox sounds come from where their entities are, and the mixer panel changes them while playing.
 
@@ -252,8 +330,10 @@ built on the public graphics API. The look comes from a `PostProcessing` compone
 - [ ] **M5.8 Render hooks.** Stages in `SceneRenderer` (before opaque, after opaque, after transparent, before and
   after post-processing, overlay) where games and systems add passes, with a context holding the camera, targets and
   depth. `DebugDraw` moves onto them. Tests.
+- [ ] **M5.9 Sandbox: look.** Muzzle flashes, explosions and emissive props glow through bloom, and the level gets
+  fog and grading that follow the day cycle. The physics gun's beam and the ropes are drawn in a render hook.
 
-**Done when:** the sandbox renders through HDR, bloom, grading and fog, and a game pass draws at a chosen stage.
+**Done when:** the sandbox renders through HDR, bloom, grading and fog, and its beam draws at a chosen stage.
 
 **Notes:**
 
@@ -278,6 +358,9 @@ depth writes). Vertices gain tangents.
 - [ ] **M6.5 Alpha modes.** Cutout and transparent pipelines, sorting, cutout shadows, and glTF `alphaMode` import.
 - [ ] **M6.6 Golden-image tests.** GPU tests render reference scenes and compare them to stored images within a
   tolerance, so rendering changes are seen before they ship.
+- [ ] **M6.7 Sandbox: materials.** The generator makes PBR texture sets (wood, painted metal, rusty metal, concrete,
+  rubber, glass) and low-poly weapon models. Props and the level use them, glass panes are transparent, and the tool
+  gun gets the color and material tool.
 
 **Done when:** glTF sample models (such as DamagedHelmet and a transparent model) look as they do in reference
 viewers, and the golden-image tests cover them.
@@ -299,8 +382,11 @@ viewers, and the golden-image tests cover them.
   culling per cascade.
 - [ ] **M7.6 Benchmark.** A benchmark scene with 10,000 meshes and 200 lights. Record its Release frame times in Notes
   and check them when rendering changes.
+- [ ] **M7.7 Sandbox: lamps.** The tool gun places lamps (point and spot lights, shadowed or not), and many of them
+  light the level at once.
 
-**Done when:** the benchmark holds 60 FPS in Release on the development machine.
+**Done when:** the benchmark holds 60 FPS in Release on the development machine, and so does the sandbox with dozens
+of lamps.
 
 **Notes:**
 
@@ -327,9 +413,11 @@ prefab's current content, so prefab changes reach every instance. Prefabs nest.
   instance, and Unpack.
 - [ ] **M8.6 Nesting and variants.** Prefabs inside prefabs, and variants that override another prefab.
 - [ ] **M8.7 Live updates.** Saving a prefab updates the instances in open scenes, keeping undo valid.
+- [ ] **M8.8 Sandbox: spawnables as prefabs.** Every prop, lamp and weapon is a prefab, and the spawn list is built
+  from them, so a new spawnable is an asset rather than code.
 
-**Done when:** the sandbox's crates and pickups are prefabs, and a change to the prefab reaches every instance while
-each keeps its own overrides.
+**Done when:** the sandbox's spawnables are prefabs, and a change to one reaches every instance while each keeps its
+own overrides.
 
 **Notes:**
 
@@ -359,9 +447,14 @@ Controllers are assets with parameters, transitions with cross-fades, blend tree
 - [ ] **M9.9 Editor.** A clip preview with a timeline in the inspector, a controller graph editor, and live
   parameters during Play.
 - [ ] **M9.10 Bone attachments.** `BoneAttachment` places an entity on a bone, such as a weapon in a hand.
+- [ ] **M9.11 Ragdolls.** A `Ragdoll` component builds bodies and `SwingTwistJoint`s (M1.8) from a skeleton, with
+  limits per bone, and switches a character from animation to physics and back. Tests.
+- [ ] **M9.12 Sandbox: robot and view models.** The generator makes a simple rigged robot with idle, walk and run
+  clips, and first-person arms with fire, reload and switch clips for each weapon. Robots wander through a
+  controller with a blend tree, and turn into ragdolls when shot or blown up. Weapons are held by the animated arms.
 
-**Done when:** a sandbox character walks, runs and jumps through a controller with a blend tree, its feet follow root
-motion, and it holds an attached prop.
+**Done when:** sandbox robots walk through a blend tree, fall as ragdolls when shot, and the weapons fire and reload
+with view-model animations.
 
 **Notes:**
 
@@ -382,8 +475,10 @@ motion, and it holds an attached prop.
 - [ ] **M10.6 Typed references.** `ComponentRef<T>` fields, serialized by entity id and drawn in the inspector with
   drag and drop.
 - [ ] **M10.7 Save data.** Save files in the user data folder written with `Archive`, with versioning. Tests.
+- [ ] **M10.8 Sandbox: saving and feel.** Saving and loading the world (props, frozen state, welds, ropes, lamps).
+  Weapon cooldowns, recoil, camera bob and fuse timers use timers, tweens and coroutines.
 
-**Done when:** the sandbox's timed and animated behaviors use these instead of hand-written timers.
+**Done when:** a sandbox world saved and loaded comes back as it was, and the game has no hand-written timers left.
 
 **Notes:**
 
@@ -401,6 +496,8 @@ motion, and it holds an attached prop.
   pausing. It covers games running in their own process too, through the channel the editor already reads their
   logs from.
 - [ ] **M11.5 Captures.** Screenshot command, and frame captures with RenderDoc when it is present.
+- [ ] **M11.6 Sandbox: commands.** `gravity`, `timescale`, `noclip`, `cleanup`, `spawn <prop>`, `give <weapon>`, and
+  `stress <count>`, which spawns props in a pile to measure physics and rendering.
 
 **Done when:** a frame spike in the sandbox can be found from the profiler panel and toggled away from the console.
 
@@ -426,9 +523,11 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
   the input it handles (M2.6). Tests.
 - [ ] **M12.6 Editor.** Rect handles and anchor presets in the scene view, a widget creation menu, and canvas
   preview.
-- [ ] **M12.7 Sandbox.** The sandbox's HUD and a pause menu are rebuilt with it.
+- [ ] **M12.7 Sandbox: interface.** A HUD (crosshair, ammo, current weapon, the tool's mode), and a spawn menu (Q)
+  with tabs and thumbnails of the spawnable prefabs, rendered into textures. The pause menu holds the settings
+  (sensitivity, field of view, volumes, bindings, graphics quality), and they are saved per user.
 
-**Done when:** the sandbox's pause menu works with mouse, keyboard and gamepad, and is authored in the editor.
+**Done when:** the sandbox's menus work with mouse, keyboard and gamepad, and are authored in the editor.
 
 **Notes:**
 
@@ -443,8 +542,10 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
 - [ ] **M13.3 Rendering.** Instanced billboards that face the camera or stretch with velocity, additive or alpha
   blending, sorting, soft particles from depth, and flipbook textures.
 - [ ] **M13.4 Editor.** Edit-mode simulation of the selected system, and restart and seek controls.
+- [ ] **M13.5 Sandbox: effects.** Muzzle flashes, sparks and dust per surface, explosion fire and smoke, debris, and
+  the physics gun's beam particles.
 
-**Done when:** the sandbox's impacts and the player's actions emit particles.
+**Done when:** weapons, impacts and explosions in the sandbox emit particles.
 
 **Notes:**
 
@@ -464,6 +565,29 @@ Only when a 2D game is planned; it depends on M1 for the shape of its API.
 
 ---
 
+## M15 – The sandbox game
+
+Finishes the game described in [The sandbox game](#the-sandbox-game). It does not wait for M14, which can come
+before or after it.
+
+- [ ] **M15.1 The level.** The playground authored in the editor: open ground, ramps, stairs, platforms, a building
+  with lit interiors and glass, and spawn areas, with the day cycle.
+- [ ] **M15.2 Feature check.** Every item of [The sandbox game](#the-sandbox-game) works together. What is missing or
+  broken becomes a step here.
+- [ ] **M15.3 Polish.** Weapon feel (recoil, spread, view-model sway and bob), physics gun feel, sound mix, HUD
+  readability and menu flow.
+- [ ] **M15.4 Performance.** In Release, 60 FPS with 500 props and 50 lamps on the development machine. Profile, fix
+  and record the numbers in Notes.
+- [ ] **M15.5 Release.** `spot export` builds of the game for Windows, Linux and macOS that run with nothing else
+  installed. `docs/sandbox.md` describes the controls and a play-test checklist covering every system the game uses.
+
+**Done when:** an exported build of the sandbox plays every feature of [The sandbox game](#the-sandbox-game) on the
+three platforms.
+
+**Notes:**
+
+---
+
 ## Backlog
 
 Not scheduled. Each comes in when a game needs it, and gets a milestone of its own then.
@@ -473,7 +597,7 @@ Not scheduled. Each comes in when a game needs it, and gets a milestone of its o
 - SSAO, depth of field, motion blur, TAA, decals, reflection probes, terrain.
 - Custom shaders for materials, with parameters the inspector shows.
 - Audio effects (filters, reverb zones) and HRTF.
-- IK (two-bone, look-at) and ragdolls.
+- IK (two-bone, look-at).
 - Networking (transport, replication, RPCs).
 - A web target, once SDL_GPU supports WebGPU.
 - Localization.
