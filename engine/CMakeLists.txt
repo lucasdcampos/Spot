@@ -116,6 +116,8 @@ add_library(spot_objects OBJECT
     physics/collider.h
     physics/collider.cpp
     physics/physics_simulation.h
+    physics/physics_settings.h
+    physics/physics_settings.cpp
     physics/physics_world.h
     physics/physics_world.cpp
     physics/rigidbody.h

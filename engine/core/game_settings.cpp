@@ -17,8 +17,63 @@ namespace {
 
 constexpr std::string_view Format = "spot-game";
 constexpr int FormatVersion = 1;
+constexpr std::string_view SectionsKey = "sections";
+
+void LoadSections(SettingsSections& sections, const json& object) {
+    sections.ForEach([&object](std::string_view name, auto& section) {
+        const auto found = object.find(name);
+        if (found != object.end() && found->is_object()) {
+            json node = *found;
+            Detail::ArchiveState state{.loading = true, .nodes = {&node}};
+            Archive archive(state);
+            section.Serialize(archive);
+        }
+    });
+    for (const auto& [name, value] : object.items()) {
+        bool known = false;
+        sections.ForEach([&](std::string_view sectionName, auto&) { known = known || sectionName == name; });
+        if (!known) {
+            sections.unknown[name] = value.dump();
+        }
+    }
+}
+
+json SaveSections(const SettingsSections& sections) {
+    json object = json::object();
+    for (const auto& [name, text] : sections.unknown) {
+        json value = json::parse(text, nullptr, false);
+        if (!value.is_discarded()) {
+            object[name] = std::move(value);
+        }
+    }
+    SettingsSections copy = sections;
+    copy.ForEach([&object](std::string_view name, auto& section) {
+        json& node = object[std::string(name)] = json::object();
+        Detail::ArchiveState state{.loading = false, .nodes = {&node}};
+        Archive archive(state);
+        section.Serialize(archive);
+    });
+    return object;
+}
 
 } // namespace
+
+bool SettingsSections::LoadFromString(std::string_view text) {
+    const json object = json::parse(text.begin(), text.end(), nullptr, false);
+    if (!object.is_object()) {
+        return false;
+    }
+    LoadSections(*this, object);
+    return true;
+}
+
+std::string SettingsSections::SaveToString() const {
+    return SaveSections(*this).dump(2, ' ', false, json::error_handler_t::replace);
+}
+
+void SettingsSections::Apply(Scene& scene) const {
+    physics.Apply(scene);
+}
 
 void GameSettings::Serialize(Archive& archive) {
     archive.Field("name", name);
@@ -48,6 +103,9 @@ std::optional<GameSettings> GameSettings::LoadFromString(std::string_view text) 
     Archive archive(state);
     GameSettings settings;
     settings.Serialize(archive);
+    if (const auto sections = document.find(SectionsKey); sections != document.end() && sections->is_object()) {
+        LoadSections(settings.sections, *sections);
+    }
     return settings;
 }
 
@@ -71,6 +129,7 @@ std::string GameSettings::SaveToString() const {
     Archive archive(state);
     GameSettings copy = *this;
     copy.Serialize(archive);
+    document[SectionsKey] = SaveSections(sections);
     return document.dump(2, ' ', false, json::error_handler_t::replace) + "\n";
 }
 

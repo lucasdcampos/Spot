@@ -55,6 +55,7 @@
 #include "math/quaternion.h"
 #include "math/vector.h"
 #include "physics/collider.h"
+#include "physics/physics_settings.h"
 #include "physics/physics_world.h"
 #include "physics/rigidbody.h"
 #include "scene/archive.h"

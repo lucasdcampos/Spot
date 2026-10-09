@@ -16,6 +16,8 @@ struct ProjectSettings {
     std::string version = "0.1.0";
     // The scene the game starts with.
     AssetId startupScene = {};
+    // The settings of the engine's features, which builds give the game.
+    SettingsSections sections = {};
 };
 
 // A game being made: its assets, its code and its settings, which the tools build into the game. Games never see

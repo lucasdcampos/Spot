@@ -1,8 +1,11 @@
 #pragma once
 
 #include "assets/asset_id.h"
+#include "physics/physics_settings.h"
 
 #include <filesystem>
+#include <functional>
+#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -10,6 +13,30 @@
 namespace Spot {
 
 class Archive;
+class Scene;
+
+// The settings of the engine's features, in sections such as physics, which projects store and their games read.
+// Each section is a struct with a SectionName and a Serialize().
+struct SettingsSections {
+    PhysicsSettings physics;
+    // The sections this build of the engine does not know, as JSON text by name, so saving them loses nothing.
+    std::map<std::string, std::string, std::less<>> unknown;
+
+    // Calls fn(name, section) for each section this build knows, in the order tools show them.
+    template <typename F>
+    void ForEach(F&& fn) {
+        fn(PhysicsSettings::SectionName, physics);
+    }
+
+    // Reads the sections of a JSON object that holds them by name. Sections it does not have keep their values.
+    // Returns false, changing nothing, when the text is not a JSON object.
+    bool LoadFromString(std::string_view text);
+    // A JSON object holding every section by name, unknown ones included.
+    std::string SaveToString() const;
+
+    // Applies the sections that concern scenes to one, as the application does to the scenes it loads.
+    void Apply(Scene& scene) const;
+};
 
 // What a game is to the engine that runs it. Games read it from game.json beside their executable, which the tools
 // write from the game's project when they build it; it is never edited by hand.
@@ -25,7 +52,9 @@ struct GameSettings {
     // Where the game's imported assets are, with '/' separators: relative to the executable's folder, as in builds
     // made to ship, or absolute, as when the tools run a game from its project's imports.
     std::string importDirectory = "imported";
+    SettingsSections sections = {};
 
+    // The fields above the sections.
     void Serialize(Archive& archive);
 
     // Null, after logging why, when the file cannot be read or holds no game settings.

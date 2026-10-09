@@ -5,6 +5,7 @@
 #include <spot.h>
 
 #include <memory>
+#include <optional>
 
 namespace Spot::Editor {
 
@@ -13,8 +14,10 @@ namespace Spot::Editor {
 // away when the session ends; the document stays as it was.
 class PlaySession {
 public:
-    // The scene is copied through the asset manager, which loads what it refers to.
-    PlaySession(Application& application, SceneDocument& source, AssetManager& assets);
+    // The scene is copied through the asset manager, which loads what it refers to. The game's settings, such as
+    // its project's, are the application's while it plays.
+    PlaySession(Application& application, SceneDocument& source, AssetManager& assets,
+                std::optional<GameSettings> game = std::nullopt);
     ~PlaySession();
 
     PlaySession(const PlaySession&) = delete;
@@ -48,6 +51,7 @@ private:
     std::unique_ptr<SceneDocument> m_document;
     InputState m_input;
     InputState* m_previousInput = nullptr;
+    std::optional<GameSettings> m_previousGame;
     bool m_focused = false;
     bool m_cursorCaptured = false;
     Vector2 m_viewOrigin;

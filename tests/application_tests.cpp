@@ -1,4 +1,5 @@
 #include "log_capture.h"
+#include "temp_directory.h"
 
 #include <spot.h>
 
@@ -389,4 +390,84 @@ TEST_CASE("Game settings are readable JSON that loads back", "[application]") {
 
     CHECK_FALSE(Spot::GameSettings::LoadFromString("{\"format\": \"spot-project\"}").has_value());
     CHECK_FALSE(Spot::GameSettings::LoadFromString("nope").has_value());
+}
+
+TEST_CASE("Game settings keep their sections, and the ones this build does not know", "[application]") {
+    Spot::GameSettings settings{.name = "Sections"};
+    settings.sections.physics.gravity = {0.0f, -3.0f, 1.0f};
+    settings.sections.physics.fixedTimeStep = 0.02f;
+    settings.sections.unknown["future"] = R"({"answer":42})";
+
+    const auto loaded = Spot::GameSettings::LoadFromString(settings.SaveToString());
+    REQUIRE(loaded.has_value());
+    CHECK(loaded->sections.physics.gravity == Spot::Vector3{0.0f, -3.0f, 1.0f});
+    CHECK(loaded->sections.physics.fixedTimeStep == 0.02f);
+    REQUIRE(loaded->sections.unknown.contains("future"));
+    CHECK(loaded->sections.unknown.at("future") == R"({"answer":42})");
+    CHECK_FALSE(loaded->sections.unknown.contains("physics"));
+
+    // Settings without sections, as older games have, get the defaults.
+    const auto older = Spot::GameSettings::LoadFromString(R"({"format": "spot-game", "formatVersion": 1})");
+    REQUIRE(older.has_value());
+    CHECK(older->sections.physics.gravity == Spot::PhysicsWorld::DefaultGravity);
+
+    // Fields a section does not have keep their values.
+    Spot::SettingsSections sections;
+    CHECK(sections.LoadFromString(R"({"physics": {"fixedTimeStep": 0.5}})"));
+    CHECK(sections.physics.fixedTimeStep == 0.5f);
+    CHECK(sections.physics.gravity == Spot::PhysicsWorld::DefaultGravity);
+    CHECK_FALSE(sections.LoadFromString("[]"));
+}
+
+TEST_CASE("Settings sections apply to scenes, which create physics only when it needs them", "[application]") {
+    Spot::SettingsSections sections;
+    sections.physics.fixedTimeStep = 0.25f;
+    Spot::Scene scene;
+    sections.Apply(scene);
+    CHECK(scene.GetFixedTimeStep() == 0.25f);
+    CHECK(scene.GetSystem<Spot::PhysicsWorld>() == nullptr);
+
+    sections.physics.gravity = {0.0f, -1.0f, 0.0f};
+    sections.Apply(scene);
+    REQUIRE(scene.GetSystem<Spot::PhysicsWorld>() != nullptr);
+    CHECK(scene.GetPhysics().GetGravity() == Spot::Vector3{0.0f, -1.0f, 0.0f});
+}
+
+namespace {
+
+// Records the settings its scenes get, loading a second scene after switching games.
+class SettingsApplication final : public Spot::Application {
+public:
+    using Application::Application;
+
+    std::vector<float> fixedTimeSteps;
+
+protected:
+    void OnStart() override { LoadScene<Spot::Scene>(); }
+
+    void OnUpdate(float /*deltaTime*/) override {
+        fixedTimeSteps.push_back(GetScene()->GetFixedTimeStep());
+        if (fixedTimeSteps.size() == 1) {
+            Spot::GameSettings other = *GetGameSettings();
+            other.sections.physics.fixedTimeStep = 0.5f;
+            SetGameSettings(other);
+            LoadScene<Spot::Scene>();
+        } else {
+            Quit();
+        }
+    }
+};
+
+} // namespace
+
+TEST_CASE("Applications apply their game's sections to the scenes they load", "[application]") {
+    const TempDirectory temp;
+    Spot::ApplicationConfig config = MakeConfig();
+    config.logFile = temp.GetPath() / "game.log";
+    config.game = Spot::GameSettings{.name = "Settings"};
+    config.game->sections.physics.fixedTimeStep = 0.125f;
+
+    SettingsApplication application(std::move(config));
+    CHECK(application.Run() == EXIT_SUCCESS);
+    CHECK(application.fixedTimeSteps == std::vector<float>{0.125f, 0.5f});
 }

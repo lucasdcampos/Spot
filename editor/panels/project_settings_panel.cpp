@@ -1,8 +1,10 @@
 #include "panels/project_settings_panel.h"
 
+#include "core/text.h"
 #include "imgui/editor_style.h"
 #include "imgui/icons.h"
 #include "imgui/widgets.h"
+#include "inspector/inspector_backend.h"
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -17,7 +19,7 @@ ProjectSettingsPanel::ProjectSettingsPanel(EditorContext& context)
 void ProjectSettingsPanel::SetUpWindow() {
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_FirstUseEver, {0.5f, 0.5f});
-    ImGui::SetNextWindowSize({ImGui::GetFontSize() * 34.0f, ImGui::GetFontSize() * 18.0f}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({ImGui::GetFontSize() * 34.0f, ImGui::GetFontSize() * 26.0f}, ImGuiCond_FirstUseEver);
 }
 
 void ProjectSettingsPanel::OnDraw() {
@@ -69,6 +71,25 @@ void ProjectSettingsPanel::OnDraw() {
     ImGui::TextColored(EditorColors::TextMuted, "%s", file.c_str());
     ImGui::SetItemTooltip("%s", file.c_str());
     Widgets::EndProperties();
+
+    settings.sections.ForEach([this, project](std::string_view name, auto& section) {
+        ImGui::Spacing();
+        Widgets::Heading(MakeDisplayName(name).c_str());
+        const std::string id = "##" + std::string(name);
+        if (!Widgets::BeginProperties(id.c_str())) {
+            return;
+        }
+        InspectorBackend backend({.project = project, .root = "/" + std::string(name)});
+        Archive archive(backend);
+        section.Serialize(archive);
+        Widgets::EndProperties();
+        m_sectionsChanged = m_sectionsChanged || backend.WasChanged();
+    });
+    // Once a drag or an edit ends, rather than on every change it makes.
+    if (m_sectionsChanged && !ImGui::IsAnyItemActive()) {
+        m_sectionsChanged = false;
+        Save();
+    }
 
     ImGui::Spacing();
     if (ImGui::Button(ICON_FA_UP_RIGHT_FROM_SQUARE "  Show in File Manager")) {

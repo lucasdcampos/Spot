@@ -72,6 +72,10 @@ public:
     bool IsRunning() const { return m_running; }
     // Null when the application runs no game; see ApplicationConfig::game.
     const GameSettings* GetGameSettings() const { return m_config.game ? &*m_config.game : nullptr; }
+    // Changes the game the application runs, as tools that run games inside them do. Its sections apply to the
+    // scenes loaded from then on; what the application set up when it started, such as its window and where its
+    // assets are, stays.
+    void SetGameSettings(std::optional<GameSettings> game) { m_config.game = std::move(game); }
 
     // Caps how many frames run per second from the next frame on; 0 means unlimited.
     int GetMaxFrameRate() const { return m_config.maxFrameRate; }

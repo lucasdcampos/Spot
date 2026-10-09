@@ -145,7 +145,7 @@ Cross-cutting pieces that every later milestone builds on.
   The engine's systems are created when a scene first needs them, as `PhysicsWorld` is now, and games add their own
   with `Scene::AddSystem<T>()`. `PhysicsWorld` becomes the first system and `Scene::GetPhysics()` stays. Systems run
   under the M0.1 guard. Tests: order, lazy creation, a failing system is skipped.
-- [ ] **M0.3 Game settings sections.** `GameSettings` gets typed sections that later milestones add (physics, input,
+- [x] **M0.3 Game settings sections.** `GameSettings` gets typed sections that later milestones add (physics, input,
   audio, rendering), each with its `Serialize()`. Projects store them, `spot build` and `spot cook` write them to
   `game.json`, and `Application` applies them at start. The editor's project settings panel draws each section with
   the inspector backend. Tests: round trip, and sections that one build does not know are kept.
@@ -177,6 +177,12 @@ profiler, debug lines show in both the game and the editor, and the generated pr
   running on each step after the components'; the "before render" point is `Scene::PrepareToRender()`, which the
   application calls for its scenes on frames it draws. Orders are integers (`SystemOrder::Physics` is -1000), with
   ties kept in the order systems were added, and a scene has one system of each type.
+- M0.3: sections live in `SettingsSections` (`GameSettings::sections` and `ProjectSettings::sections`), saved
+  under `"sections"` in both files; each section is a struct with a `SectionName`, `Serialize()` and `Apply(Scene&)`,
+  listed in `SettingsSections::ForEach()`. Unknown sections are kept as JSON text. The application applies the
+  sections to every scene it loads, rather than once at start, since settings like the fixed step belong to scenes.
+  The first section is physics (gravity and the fixed time step). `Application::SetGameSettings()` lets the editor
+  play scenes with the project's settings.
 
 ---
 

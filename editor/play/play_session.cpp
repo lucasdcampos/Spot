@@ -6,8 +6,16 @@
 
 namespace Spot::Editor {
 
-PlaySession::PlaySession(Application& application, SceneDocument& source, AssetManager& assets)
+PlaySession::PlaySession(Application& application, SceneDocument& source, AssetManager& assets,
+                         std::optional<GameSettings> game)
     : m_application(application), m_source(source) {
+    if (const GameSettings* previous = application.GetGameSettings()) {
+        m_previousGame = *previous;
+    }
+    // Set before the copy loads, so its scene gets the game's settings.
+    if (game) {
+        application.SetGameSettings(std::move(game));
+    }
     auto scene = std::make_unique<Scene>();
     if (!scene->LoadFromString(source.GetScene().SaveToString(), &assets)) {
         GetEditorLogger().Error("Could not copy the scene '{}' to play it", source.GetName());
@@ -37,6 +45,7 @@ PlaySession::~PlaySession() {
         m_application.GetWindow().SetMouseCaptured(false);
     }
     Input::SetState(m_previousInput);
+    m_application.SetGameSettings(std::move(m_previousGame));
     GetEditorLogger().Info("Stopped playing '{}'", m_source.GetName());
 }
 

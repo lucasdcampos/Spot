@@ -7,7 +7,8 @@
 
 namespace Spot::Editor {
 
-// The open project's settings: its name, version and startup scene. Changes are saved as soon as they are made.
+// The open project's settings: its name, version and startup scene, and the sections of the engine's features. Changes
+// are saved as soon as they are made.
 class ProjectSettingsPanel final : public Panel {
 public:
     explicit ProjectSettingsPanel(EditorContext& context);
@@ -20,6 +21,7 @@ private:
     void Save();
 
     EditorContext& m_context;
+    bool m_sectionsChanged = false;
 };
 
 } // namespace Spot::Editor

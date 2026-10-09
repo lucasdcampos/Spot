@@ -101,7 +101,8 @@ void SceneWorkspace::Play(Application& application) {
     if (m_play || !m_active || !project) {
         return;
     }
-    m_play = std::make_unique<PlaySession>(application, *m_active, project->GetAssets());
+    m_play = std::make_unique<PlaySession>(application, *m_active, project->GetAssets(),
+                                           project->GetProject().GetGameSettings());
 }
 
 void SceneWorkspace::StopPlaying() {

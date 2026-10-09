@@ -96,6 +96,9 @@ int Application::Run() {
     m_clock.Start(std::chrono::steady_clock::now());
     m_persistentScene = std::make_unique<Scene>();
     m_persistentScene->m_application = this;
+    if (m_config.game) {
+        m_config.game->sections.Apply(*m_persistentScene);
+    }
     m_running = true;
     m_failed = false;
     // The game's components are known before its scenes load.
@@ -284,6 +287,9 @@ void Application::ApplySceneChanges() {
 void Application::AddScene(std::unique_ptr<Scene> scene) {
     Scene& added = *scene;
     added.m_application = this;
+    if (m_config.game) {
+        m_config.game->sections.Apply(added);
+    }
     m_scenes.push_back(std::move(scene));
     added.OnLoad();
 }

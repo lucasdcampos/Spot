@@ -85,3 +85,21 @@ TEST_CASE("Projects tell their game what it is, and keep a missing startup scene
     CHECK(game.version == "2.0.0");
     CHECK(game.startupScene == project->GetSettings().startupScene);
 }
+
+TEST_CASE("Projects store the settings sections, keep unknown ones, and give them to their game", "[project]") {
+    const TempDirectory temp;
+    auto project = Spot::Project::Create(temp.GetPath(), {.name = "Sections"});
+    REQUIRE(project.has_value());
+    project->GetSettings().sections.physics.gravity = {0.0f, -2.0f, 0.0f};
+    project->GetSettings().sections.unknown["future"] = R"({"value":true})";
+    REQUIRE(project->Save());
+
+    const auto loaded = Spot::Project::Load(project->GetFile());
+    REQUIRE(loaded.has_value());
+    CHECK(loaded->GetSettings().sections.physics.gravity == Spot::Vector3{0.0f, -2.0f, 0.0f});
+    CHECK(loaded->GetSettings().sections.unknown.at("future") == R"({"value":true})");
+
+    const Spot::GameSettings game = loaded->GetGameSettings();
+    CHECK(game.sections.physics.gravity == Spot::Vector3{0.0f, -2.0f, 0.0f});
+    CHECK(game.sections.unknown.contains("future"));
+}

@@ -49,6 +49,9 @@ std::optional<ProjectSettings> Project::LoadSettingsFromString(std::string_view 
     settings.name = GetString(document, "name", settings.name);
     settings.version = GetString(document, "version", settings.version);
     settings.startupScene = AssetId::Parse(GetString(document, "startupScene", {})).value_or(AssetId{});
+    if (const auto sections = document.find("sections"); sections != document.end() && sections->is_object()) {
+        settings.sections.LoadFromString(sections->dump());
+    }
     return settings;
 }
 
@@ -59,7 +62,8 @@ std::string Project::SaveSettingsToString(const ProjectSettings& settings) {
         {"engineVersion", std::string(GetVersionString())},
         {"name", settings.name},
         {"version", settings.version},
-        {"startupScene", settings.startupScene.IsValid() ? json(settings.startupScene.ToString()) : json(nullptr)}};
+        {"startupScene", settings.startupScene.IsValid() ? json(settings.startupScene.ToString()) : json(nullptr)},
+        {"sections", json::parse(settings.sections.SaveToString())}};
     return document.dump(2, ' ', false, json::error_handler_t::replace) + "\n";
 }
 
@@ -140,7 +144,10 @@ std::filesystem::path Project::GetGameExecutable() const {
 }
 
 GameSettings Project::GetGameSettings() const {
-    return {.name = m_settings.name, .version = m_settings.version, .startupScene = m_settings.startupScene};
+    return {.name = m_settings.name,
+            .version = m_settings.version,
+            .startupScene = m_settings.startupScene,
+            .sections = m_settings.sections};
 }
 
 } // namespace Spot
