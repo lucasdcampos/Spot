@@ -4,3 +4,5 @@
 
 #include "project/project.h"
 #include "tools_log.h"
+
+#include <spot_import.h>

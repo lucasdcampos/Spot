@@ -1,5 +1,5 @@
 #include "assets/asset_formats.h"
-#include "assets/importers/importer.h"
+#include "import/importers/importer.h"
 
 namespace Spot::Detail {
 

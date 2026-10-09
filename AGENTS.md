@@ -47,6 +47,8 @@ To build and run the sandbox: `./run.ps1` (PowerShell) or `./run.sh` (Linux, mac
 - GPU tests go in `tests/gpu_tests.cpp` (the `spot_gpu_tests` executable) and are skipped where no GPU is available.
 - Editor tests go in `tests/editor/`: `spot_editor_tests` (headless ImGui, no GPU), `spot_editor_gpu_tests` and
   `spot_editor_module_tests` (building projects' code with CMake, which takes a while).
+- Importing is for tools: the asset database and importers are `spot_import` (`spot::import`, in `engine/import/`),
+  which games never link; they load imported assets, or raw files through `Model::Load()`, `Image::Load()` and the like.
 - Projects are a tools concept: the engine never knows about them. A game runs from the `GameSettings`
   (`game.json`) its build derives from the project, and from its imported assets.
 - The editor uses only the engine's public API, like any game; it never reaches a backend. ImGui stays in the
@@ -56,7 +58,7 @@ To build and run the sandbox: `./run.ps1` (PowerShell) or `./run.sh` (Linux, mac
 - New engine features come with tests in `tests/`.
 - Assets (`engine/assets/`) are loaded from imported files, not raw sources. Every source asset has a `.meta` file
   beside it, which is committed with it; never edit ids in them by hand. New source formats get an importer in
-  `engine/assets/importers/`, and a change to any imported format bumps its importer's version.
+  `engine/import/importers/`, and a change to any imported format bumps its importer's version.
 
 ## Code style
 

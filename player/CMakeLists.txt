@@ -5,6 +5,6 @@ add_executable(spot_player
     player_application.cpp
     player_application.h
 )
-target_link_libraries(spot_player PRIVATE spot::tools spot::shared)
+target_link_libraries(spot_player PRIVATE spot::tools spot::import spot::shared)
 spot_set_compile_options(spot_player)
 spot_copy_runtime_dlls(spot_player)

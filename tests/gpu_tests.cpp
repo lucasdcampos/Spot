@@ -9,6 +9,7 @@
 #include "temp_directory.h"
 
 #include <spot.h>
+#include <spot_import.h>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -1624,6 +1625,7 @@ TEST_CASE("Models imported as assets load onto the GPU and draw textured", "[gpu
     std::filesystem::copy_file(assets / "models" / "textured quad.bin", sources / "models" / "textured quad.bin");
     std::filesystem::create_directories(sources / "fonts");
     std::filesystem::copy_file(assets / "fonts" / "FiraSans-Regular.ttf", sources / "fonts" / "FiraSans-Regular.ttf");
+    Spot::AssetDatabase(sources, project.GetPath() / "imported").Refresh();
     std::uint32_t mipLevels = 0;
     bool shared = false;
     float fontSize = 0.0f;
@@ -1656,7 +1658,7 @@ TEST_CASE("Models imported as assets load onto the GPU and draw textured", "[gpu
             renderer.DrawMesh(*part.mesh, untinted);
             renderer.End();
         },
-        {.importDirectory = project.GetPath() / "imported", .sourceDirectory = sources});
+        {.importDirectory = project.GetPath() / "imported"});
 
     CHECK(mipLevels == 2);
     CHECK(shared);

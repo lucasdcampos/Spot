@@ -65,12 +65,16 @@ logs shows in the editor's console. `spot_player <project>` also runs it on its 
 
 ## Assets
 
-Games load assets through `Spot::Assets` (or `Application::GetAssets()`), never from raw files. During development
-the application imports a source folder, set in `ApplicationConfig::assets`, into the engine's own binary formats:
+Games load assets through `Spot::Assets` (or `Application::GetAssets()`) from an import folder, set in
+`ApplicationConfig::assets`. The tools (`spot_import`, which games never link) import the source folder into the
+engine's own binary formats there:
 
 - Every source file gets a `.meta` file beside it with a permanent id and its import settings. Commit both.
 - Imports are cached, and run again only when a source, its settings or a file it depends on change.
 - A shipped game only needs the import folder.
+
+Games can still load a raw file when they need one, such as a picture the player picks, with `Model::Load()`,
+`Image::Load()` and `GraphicsDevice::CreateTexture()`, `Font::Load()` or `Sound::Load()`.
 
 Supported sources: PNG/JPEG/BMP/TGA textures, glTF models (`.gltf`, `.glb`), WAV/Ogg sounds, TrueType/OpenType fonts,
 `.material` files and `.scene` files.

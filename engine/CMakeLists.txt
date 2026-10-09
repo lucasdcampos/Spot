@@ -5,8 +5,6 @@ add_library(spot_objects OBJECT
     spot.h
     version.h
     version.cpp
-    assets/asset_database.h
-    assets/asset_database.cpp
     assets/asset_file.h
     assets/asset_file.cpp
     assets/asset_formats.h
@@ -18,19 +16,9 @@ add_library(spot_objects OBJECT
     assets/asset_manager.h
     assets/asset_manager.cpp
     assets/asset_ref.h
-    assets/asset_meta.h
-    assets/asset_meta.cpp
     assets/asset_type.h
     assets/asset_type.cpp
     assets/built_in_assets.h
-    assets/importers/font_importer.cpp
-    assets/importers/importer.h
-    assets/importers/importer.cpp
-    assets/importers/material_importer.cpp
-    assets/importers/model_importer.cpp
-    assets/importers/scene_importer.cpp
-    assets/importers/sound_importer.cpp
-    assets/importers/texture_importer.cpp
     assets/assets.h
     assets/assets.cpp
     assets/material_source.h
@@ -388,3 +376,6 @@ file(GENERATE
     OUTPUT "${PROJECT_BINARY_DIR}/package/$<CONFIG>/SpotConfig.cmake"
     INPUT "${CMAKE_CURRENT_BINARY_DIR}/SpotConfig.cmake.in"
 )
+
+# Importing assets is for the tools, never for games, which load what was imported.
+add_subdirectory(import)

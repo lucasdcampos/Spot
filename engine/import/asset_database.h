@@ -1,8 +1,8 @@
 #pragma once
 
 #include "assets/asset_id.h"
-#include "assets/asset_meta.h"
 #include "assets/asset_type.h"
+#include "import/asset_meta.h"
 
 #include <cstdint>
 #include <filesystem>

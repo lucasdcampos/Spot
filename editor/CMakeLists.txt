@@ -151,6 +151,7 @@ add_library(spot_editor_core STATIC
 target_include_directories(spot_editor_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(spot_editor_core PUBLIC
     spot::tools
+    spot::import
     spot::shared
     imgui
 )

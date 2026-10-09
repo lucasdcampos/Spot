@@ -1,11 +1,11 @@
-#include "assets/asset_database.h"
+#include "import/asset_database.h"
 
 #include "assets/asset_file.h"
 #include "assets/asset_formats.h"
 #include "assets/asset_manifest.h"
-#include "assets/importers/importer.h"
 #include "core/log.h"
 #include "core/paths.h"
+#include "import/importers/importer.h"
 
 #include <algorithm>
 #include <chrono>

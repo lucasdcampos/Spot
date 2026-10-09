@@ -13,6 +13,7 @@
 #include "scene/scene_workspace.h"
 
 #include <spot.h>
+#include <spot_import.h>
 
 #include <catch2/catch_test_macros.hpp>
 

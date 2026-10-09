@@ -9,6 +9,7 @@ add_executable(sandbox
 
 target_link_libraries(sandbox PRIVATE
     spot::tools
+    spot::import
     spot::spot
 )
 

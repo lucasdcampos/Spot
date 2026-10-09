@@ -1,6 +1,6 @@
 #include "assets/asset_formats.h"
-#include "assets/importers/importer.h"
 #include "audio/sound.h"
+#include "import/importers/importer.h"
 
 #include <algorithm>
 #include <cmath>

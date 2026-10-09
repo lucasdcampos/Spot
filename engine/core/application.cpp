@@ -78,16 +78,8 @@ int Application::Run() {
 
     m_audio = std::make_unique<AudioDevice>(m_config.audio);
 
-    const auto executableDirectory = GetExecutableDirectory();
-    const auto importDirectory = executableDirectory / m_config.assets.importDirectory;
-    if (!m_config.assets.sourceDirectory.empty()) {
-        const auto sourceDirectory = executableDirectory / m_config.assets.sourceDirectory;
-        if (std::filesystem::is_directory(sourceDirectory)) {
-            m_assetDatabase = std::make_unique<AssetDatabase>(sourceDirectory, importDirectory);
-            m_assetDatabase->Refresh();
-        }
-    }
-    m_assets = std::make_unique<AssetManager>(importDirectory, m_graphics.get());
+    m_assets =
+        std::make_unique<AssetManager>(GetExecutableDirectory() / m_config.assets.importDirectory, m_graphics.get());
     Detail::SetAssetManager(m_assets.get());
 
     Input::SetState(&m_input);
@@ -149,7 +141,6 @@ int Application::Run() {
     m_sceneRenderer.reset();
     Detail::SetAssetManager(nullptr);
     m_assets.reset();
-    m_assetDatabase.reset();
     Time::SetClock(nullptr);
     Input::SetState(nullptr);
     m_audio.reset();

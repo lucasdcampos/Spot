@@ -2,6 +2,7 @@
 #include "temp_directory.h"
 
 #include <spot.h>
+#include <spot_import.h>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -532,33 +533,30 @@ TEST_CASE("Asset managers only warn about a missing manifest when the import fol
     logger.SetLevel(level);
 }
 
-TEST_CASE("Applications import their sources at startup and expose their assets", "[assets]") {
+TEST_CASE("Applications load the assets imported into their import directory", "[assets]") {
     const TempDirectory project;
     const auto sources = project.GetPath() / "assets";
     CreateProject(sources);
+    AssetDatabase(sources, project.GetPath() / "imported").Refresh();
 
     class AssetApplication final : public Spot::Application {
     public:
         using Application::Application;
 
-        bool hadDatabase = false;
         Spot::AssetRef<Spot::Model> model;
 
     protected:
         void OnStart() override {
-            hadDatabase = GetAssetDatabase() != nullptr;
             model = Spot::Assets::Load<Spot::Model>("models/cube.glb");
             Quit();
         }
     };
 
-    AssetApplication application(
-        {.window = {.title = "Asset Tests"},
-         .graphics = {.enabled = false},
-         .audio = {.enabled = false},
-         .assets = {.importDirectory = project.GetPath() / "imported", .sourceDirectory = sources}});
+    AssetApplication application({.window = {.title = "Asset Tests"},
+                                  .graphics = {.enabled = false},
+                                  .audio = {.enabled = false},
+                                  .assets = {.importDirectory = project.GetPath() / "imported"}});
     REQUIRE(application.Run() == EXIT_SUCCESS);
-    CHECK(application.hadDatabase);
     REQUIRE(application.model);
     CHECK(application.model->GetParts().size() == 2);
     CHECK(Spot::Assets::GetManager() == nullptr);

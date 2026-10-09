@@ -1,7 +1,7 @@
 #include "assets/asset_formats.h"
-#include "assets/importers/importer.h"
 #include "core/paths.h"
 #include "graphics/model_data.h"
+#include "import/importers/importer.h"
 
 #include <nlohmann/json.hpp>
 

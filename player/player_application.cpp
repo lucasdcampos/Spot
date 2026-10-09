@@ -10,11 +10,10 @@ Logger& GetPlayerLogger() {
 namespace {
 
 ApplicationConfig MakeConfig(const Project& project, const PlayerOptions& options) {
-    // The sources are imported first, as the editor would, so the game runs what was saved last.
     return {
         .game = project.GetGameSettings(),
         .graphics = {.enabled = options.graphics},
-        .assets = {.importDirectory = project.GetImportDirectory(), .sourceDirectory = project.GetAssetsDirectory()},
+        .assets = {.importDirectory = project.GetImportDirectory()},
     };
 }
 

@@ -40,6 +40,7 @@ add_executable(spot_tests
 
 target_link_libraries(spot_tests PRIVATE
     spot::tools
+    spot::import
     spot::spot
     Catch2::Catch2WithMain
 )
@@ -89,6 +90,7 @@ add_executable(spot_gpu_tests
 )
 
 target_link_libraries(spot_gpu_tests PRIVATE
+    spot::import
     spot::spot
     Catch2::Catch2WithMain
 )

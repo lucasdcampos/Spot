@@ -1,4 +1,4 @@
-#include "assets/asset_meta.h"
+#include "import/asset_meta.h"
 
 #include "core/log.h"
 #include "core/paths.h"

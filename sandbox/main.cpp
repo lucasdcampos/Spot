@@ -15,12 +15,12 @@ int main() {
         return EXIT_FAILURE;
     }
     SpotLoadGameModule();
-    // In development the sandbox imports the project's sources from the repository, into "imported" next to the
-    // executable, which is all a shipped build would need.
+    // The sandbox imports the project's sources from the repository, into "imported" next to the executable, which
+    // is all a shipped build would need.
     Spot::Application sandbox({.game = project->GetGameSettings(),
                                .window = {.title = "Spot Sandbox"},
-                               .assets = {.sourceDirectory = project->GetAssetsDirectory()},
                                .logFile = "sandbox.log",
                                .maxFrameRate = 60});
+    Spot::AssetDatabase(project->GetAssetsDirectory(), Spot::GetExecutableDirectory() / "imported").Refresh();
     return sandbox.Run();
 }

@@ -105,6 +105,8 @@ int main(int argc, char** argv) {
             "'{}' has no startup scene to run; pick one in the editor's project settings", project->GetSettings().name);
         return EXIT_FAILURE;
     }
+    // The sources are imported first, as the editor would, so the game runs what was saved last.
+    Spot::AssetDatabase(project->GetAssetsDirectory(), project->GetImportDirectory()).Refresh();
     const auto module = LoadedModule::Load(*project);
     if (!module) {
         return EXIT_FAILURE;

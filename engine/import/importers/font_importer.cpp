@@ -1,7 +1,7 @@
 #include "assets/asset_formats.h"
-#include "assets/importers/importer.h"
 #include "core/log.h"
 #include "graphics/font_atlas.h"
+#include "import/importers/importer.h"
 
 #include <format>
 #include <utility>

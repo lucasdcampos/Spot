@@ -5,6 +5,7 @@
 #include "inspector/property_widgets.h"
 
 #include <spot.h>
+#include <spot_import.h>
 
 #include <imgui.h>
 
