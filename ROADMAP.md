@@ -9,7 +9,7 @@ The goal is the same breadth, built on the architecture Spot already has.
 The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
 [The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
 
-**Current focus:** M0 – Foundations
+**Current focus:** M1 – Physics for gameplay
 
 ## How to use this plan
 
@@ -112,7 +112,7 @@ How it is built:
 
 | | Milestone | Delivers |
 |---|---|---|
-| [ ] | [M0 – Foundations](#m0--foundations) | Contained failures, scene systems, settings sections, profiler, debug drawing, docs |
+| [x] | [M0 – Foundations](#m0--foundations) | Contained failures, scene systems, settings sections, profiler, debug drawing, docs |
 | [ ] | [M1 – Physics for gameplay](#m1--physics-for-gameplay) | Layers, triggers, collision events, queries, character controller, mesh colliders, joints |
 | [ ] | [M2 – Input actions and gamepads](#m2--input-actions-and-gamepads) | Gamepads, text input, actions, rebinding, input ownership |
 | [ ] | [M3 – Audio in scenes](#m3--audio-in-scenes) | Buses, voice management, streaming, 3D sources and listener, mixer panel |
@@ -205,6 +205,11 @@ profiler, debug lines show in both the game and the editor, and the generated pr
   (M1), barrels and cones collide as boxes, wheels as spheres, and each ramp through a box laid along its slope on a
   child entity. `tests/sandbox_generator_tests.cpp` loads every prop back and checks winding, centering and that a
   second run writes nothing.
+- Done 2026-10-09. Acceptance: faults are reported and contained (`component_fault_tests.cpp`, and the inspector
+  marks them); the profiler records the sandbox's frames, and its HUD shows update and render times from it; debug
+  lines draw through `LineRenderer` in the `SceneRenderer` (GPU test) and in the editor's viewports, and the sandbox
+  draws its colliders with B; the generated props are in the playground. MSVC and GCC Debug build without warnings
+  and pass every test.
 
 ---
 
