@@ -149,7 +149,7 @@ Cross-cutting pieces that every later milestone builds on.
   audio, rendering), each with its `Serialize()`. Projects store them, `spot build` and `spot cook` write them to
   `game.json`, and `Application` applies them at start. The editor's project settings panel draws each section with
   the inspector backend. Tests: round trip, and sections that one build does not know are kept.
-- [ ] **M0.4 Profiler.** `SPOT_PROFILE_SCOPE("Name")` records nested CPU timings on the game thread into a ring of the
+- [x] **M0.4 Profiler.** `SPOT_PROFILE_SCOPE("Name")` records nested CPU timings on the game thread into a ring of the
   last frames (`Profiler::GetFrames()`), cheap enough to stay on in Release. The application, scenes, systems,
   renderers and the mixer's game-side calls are instrumented. Tests: nesting, frame boundaries, ring wrap.
 - [ ] **M0.5 Debug drawing.** `DebugDraw` lets any code queue lines, boxes, spheres, capsules, arrows and crosses for
@@ -183,6 +183,11 @@ profiler, debug lines show in both the game and the editor, and the generated pr
   sections to every scene it loads, rather than once at start, since settings like the fixed step belong to scenes.
   The first section is physics (gravity and the fixed time step). `Application::SetGameSettings()` lets the editor
   play scenes with the project's settings.
+- M0.4: `Profiler` is a namespace of functions over one process-wide ring (`MaxFrames` = 240), since there is one
+  game thread; the thread that calls `Profiler::BeginFrame()` is the one recorded. Scope names are string literals
+  or `Profiler::Intern()`ed, so samples hold views without copying; systems are timed under their type's name. A
+  frame spans the whole loop iteration, waiting for the frame limiter included (`Application::Wait`). The sandbox's
+  HUD shows the average update and render times read from it.
 
 ---
 

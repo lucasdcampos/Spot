@@ -73,6 +73,8 @@ private:
     void Fault(std::string_view hook, const std::exception_ptr& error);
 
     Scene* m_scene = nullptr;
+    // The name of its type, which the profiler times its hooks under.
+    std::string_view m_profileName;
     int m_order;
     bool m_faulted = false;
 };

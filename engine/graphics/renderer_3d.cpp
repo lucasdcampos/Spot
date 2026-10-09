@@ -2,6 +2,7 @@
 
 #include "core/assert.h"
 #include "core/log.h"
+#include "core/profiler.h"
 #include "graphics/atmosphere.h"
 #include "graphics/graphics_device.h"
 #include "graphics/material.h"
@@ -312,6 +313,7 @@ void Renderer3D::Begin(RenderContext& context, const RenderPassDesc& target, con
 }
 
 void Renderer3D::End() {
+    SPOT_PROFILE_SCOPE("Renderer3D::End");
     SPOT_ASSERT(m_context, "Renderer3D::End() called without Begin()");
     m_stats = {};
     if (!IsValid()) {
@@ -391,6 +393,7 @@ void Renderer3D::DrawModel(const Model& model, const Matrix4& transform) {
 }
 
 void Renderer3D::DrawScene(Scene& scene) {
+    SPOT_PROFILE_SCOPE("Renderer3D::DrawScene");
     static const Material DefaultMaterial;
     const Sky* sky = nullptr;
     scene.ForEachComponent<Sky>([&sky](const Sky& found) { sky = sky ? sky : &found; });

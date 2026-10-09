@@ -1,5 +1,7 @@
 #include "graphics/renderer_2d.h"
 
+#include "core/profiler.h"
+
 #include "core/assert.h"
 #include "core/log.h"
 #include "graphics/font.h"
@@ -73,6 +75,7 @@ void Renderer2D::Begin(RenderPass& pass, const Matrix4& viewProjection) {
 }
 
 void Renderer2D::DrawScene(Scene& scene) {
+    SPOT_PROFILE_SCOPE("Renderer2D::DrawScene");
     struct Sprite {
         const SpriteRenderer* renderer;
         Vector3 position;
@@ -115,6 +118,7 @@ void Renderer2D::DrawScene(Scene& scene) {
 }
 
 void Renderer2D::End() {
+    SPOT_PROFILE_SCOPE("Renderer2D::End");
     SPOT_ASSERT(m_pass, "Renderer2D::End() called without Begin()");
     Flush();
     m_pass = nullptr;

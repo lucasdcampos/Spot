@@ -7,6 +7,7 @@
 #include "core/log.h"
 #include "core/log_sinks.h"
 #include "core/paths.h"
+#include "core/profiler.h"
 #include "graphics/scene_renderer.h"
 #include "input/input.h"
 #include "platform/platform.h"
@@ -110,17 +111,31 @@ int Application::Run() {
     }
 
     while (m_running) {
-        Platform::SleepFor(m_limiter.GetWaitTime(std::chrono::steady_clock::now()));
+        // Ends the last frame's profile, so the one profiled spans the whole frame, waiting included.
+        Profiler::BeginFrame();
+        {
+            SPOT_PROFILE_SCOPE("Application::Wait");
+            Platform::SleepFor(m_limiter.GetWaitTime(std::chrono::steady_clock::now()));
+        }
         m_clock.Tick(std::chrono::steady_clock::now());
 
-        m_input.BeginFrame();
-        Platform::PollEvents([this](const Event& event) { DispatchEvent(event); });
+        {
+            SPOT_PROFILE_SCOPE("Application::Events");
+            m_input.BeginFrame();
+            Platform::PollEvents([this](const Event& event) { DispatchEvent(event); });
+        }
         if (!m_running) {
             break;
         }
 
-        ApplySceneChanges();
-        OnUpdate(m_clock.GetDeltaTime());
+        {
+            SPOT_PROFILE_SCOPE("Application::LoadScenes");
+            ApplySceneChanges();
+        }
+        {
+            SPOT_PROFILE_SCOPE("Application::OnUpdate");
+            OnUpdate(m_clock.GetDeltaTime());
+        }
         if (!m_scenesPaused || std::exchange(m_stepScenes, false)) {
             m_persistentScene->Update(m_clock.GetDeltaTime());
             for (const auto& scene : m_scenes) {
@@ -134,6 +149,7 @@ int Application::Run() {
         }
 
         if (m_graphics) {
+            SPOT_PROFILE_SCOPE("Application::Render");
             if (RenderContext* context = m_graphics->BeginFrame()) {
                 m_persistentScene->PrepareToRender();
                 for (const auto& scene : m_scenes) {
@@ -144,12 +160,17 @@ int Application::Run() {
                     scene->OnRender(*context);
                 }
                 RenderScenes(*context);
-                OnRender(*context);
+                {
+                    SPOT_PROFILE_SCOPE("Application::OnRender");
+                    OnRender(*context);
+                }
+                SPOT_PROFILE_SCOPE("GraphicsDevice::EndFrame");
                 m_graphics->EndFrame();
             }
         }
     }
 
+    Profiler::EndFrame();
     OnStop();
     m_sceneChanges.clear();
     RemoveAllScenes();

@@ -1,6 +1,8 @@
 #include "scene/scene.h"
 
 #include "core/assert.h"
+#include "core/diagnostics.h"
+#include "core/profiler.h"
 #include "physics/physics_world.h"
 
 #include <algorithm>
@@ -48,6 +50,7 @@ void Scene::AttachSystem(std::unique_ptr<SceneSystem> system) {
                     "The scene has a system of this type already");
     }
     system->m_scene = this;
+    system->m_profileName = Profiler::Intern(Detail::GetTypeName(type));
     if (m_runningSystems) {
         m_pendingSystems.push_back(std::move(system));
         return;
@@ -59,15 +62,17 @@ void Scene::AttachSystem(std::unique_ptr<SceneSystem> system) {
 }
 
 template <typename F>
-void Scene::RunSystems(std::string_view hook, F&& fn) {
+void Scene::RunSystems(std::string_view hook, std::string_view profileName, F&& fn) {
     for (auto& pending : std::exchange(m_pendingSystems, {})) {
         AttachSystem(std::move(pending));
     }
+    SPOT_PROFILE_SCOPE(profileName);
     const bool running = std::exchange(m_runningSystems, true);
     // By index: systems added meanwhile wait in m_pendingSystems, but a nested run would let them in.
     for (std::size_t i = 0; i < m_systems.size(); ++i) {
         SceneSystem& system = *m_systems[i];
         if (!system.m_faulted) {
+            SPOT_PROFILE_SCOPE(system.m_profileName);
             system.InvokeHook(hook, [&fn, &system] { fn(system); });
         }
     }
@@ -76,7 +81,7 @@ void Scene::RunSystems(std::string_view hook, F&& fn) {
 
 void Scene::PrepareToRender() {
     const Detail::DeferRemovalsScope defer(*this);
-    RunSystems("OnBeforeRender", [](SceneSystem& system) { system.OnBeforeRender(); });
+    RunSystems("OnBeforeRender", "Systems::OnBeforeRender", [](SceneSystem& system) { system.OnBeforeRender(); });
 }
 
 Entity& Scene::CreateEntity(std::string name) {
@@ -168,15 +173,20 @@ std::size_t Scene::GetEntityCount() const {
 void Scene::Update(float deltaTime) {
     SPOT_ASSERT(!m_deferRemovals, "Update() cannot be called while the scene walks its entities");
 
+    SPOT_PROFILE_SCOPE("Scene::Update");
     const Detail::DeferRemovalsScope defer(*this);
-    // By index, because components may create entities, and checking for empty slots left by entities that moved
-    // to another scene.
-    for (std::size_t i = 0; i < m_entities.size(); ++i) {
-        if (m_entities[i]) {
-            m_entities[i]->StartComponents();
+    {
+        SPOT_PROFILE_SCOPE("Components::OnStart");
+        // By index, because components may create entities, and checking for empty slots left by entities that
+        // moved to another scene.
+        for (std::size_t i = 0; i < m_entities.size(); ++i) {
+            if (m_entities[i]) {
+                m_entities[i]->StartComponents();
+            }
         }
     }
-    RunSystems("OnBeforeFixedSteps", [deltaTime](SceneSystem& system) { system.OnBeforeFixedSteps(deltaTime); });
+    RunSystems("OnBeforeFixedSteps", "Systems::OnBeforeFixedSteps",
+               [deltaTime](SceneSystem& system) { system.OnBeforeFixedSteps(deltaTime); });
 
     m_fixedTimeLeft += deltaTime;
     const int due = static_cast<int>(m_fixedTimeLeft / m_fixedTimeStep);
@@ -188,31 +198,48 @@ void Scene::Update(float deltaTime) {
     // Read once, so a hook that changes it does so from the next update.
     const float fixedTimeStep = m_fixedTimeStep;
     for (int step = 0; step < steps; ++step) {
-        for (std::size_t i = 0; i < m_entities.size(); ++i) {
-            if (m_entities[i]) {
-                m_entities[i]->FixedUpdateComponents(fixedTimeStep);
+        SPOT_PROFILE_SCOPE("Scene::FixedStep");
+        {
+            SPOT_PROFILE_SCOPE("Components::OnFixedUpdate");
+            for (std::size_t i = 0; i < m_entities.size(); ++i) {
+                if (m_entities[i]) {
+                    m_entities[i]->FixedUpdateComponents(fixedTimeStep);
+                }
             }
         }
-        RunSystems("OnFixedUpdate", [fixedTimeStep](SceneSystem& system) { system.OnFixedUpdate(fixedTimeStep); });
+        RunSystems("OnFixedUpdate", "Systems::OnFixedUpdate",
+                   [fixedTimeStep](SceneSystem& system) { system.OnFixedUpdate(fixedTimeStep); });
     }
-    RunSystems("OnAfterFixedSteps", [deltaTime](SceneSystem& system) { system.OnAfterFixedSteps(deltaTime); });
+    RunSystems("OnAfterFixedSteps", "Systems::OnAfterFixedSteps",
+               [deltaTime](SceneSystem& system) { system.OnAfterFixedSteps(deltaTime); });
 
-    OnUpdate(deltaTime);
-    for (std::size_t i = 0; i < m_entities.size(); ++i) {
-        if (m_entities[i]) {
-            m_entities[i]->UpdateComponents(deltaTime);
+    {
+        SPOT_PROFILE_SCOPE("Scene::OnUpdate");
+        OnUpdate(deltaTime);
+    }
+    {
+        SPOT_PROFILE_SCOPE("Components::OnUpdate");
+        for (std::size_t i = 0; i < m_entities.size(); ++i) {
+            if (m_entities[i]) {
+                m_entities[i]->UpdateComponents(deltaTime);
+            }
         }
     }
-    RunSystems("OnUpdate", [deltaTime](SceneSystem& system) { system.OnUpdate(deltaTime); });
-    for (std::size_t i = 0; i < m_entities.size(); ++i) {
-        if (m_entities[i]) {
-            m_entities[i]->LateUpdateComponents(deltaTime);
+    RunSystems("OnUpdate", "Systems::OnUpdate", [deltaTime](SceneSystem& system) { system.OnUpdate(deltaTime); });
+    {
+        SPOT_PROFILE_SCOPE("Components::OnLateUpdate");
+        for (std::size_t i = 0; i < m_entities.size(); ++i) {
+            if (m_entities[i]) {
+                m_entities[i]->LateUpdateComponents(deltaTime);
+            }
         }
     }
-    RunSystems("OnLateUpdate", [deltaTime](SceneSystem& system) { system.OnLateUpdate(deltaTime); });
+    RunSystems("OnLateUpdate", "Systems::OnLateUpdate",
+               [deltaTime](SceneSystem& system) { system.OnLateUpdate(deltaTime); });
 }
 
 void Scene::DrawUi(Renderer2D& renderer, Vector2 viewSize) {
+    SPOT_PROFILE_SCOPE("Scene::DrawUi");
     const Detail::DeferRemovalsScope defer(*this);
     for (std::size_t i = 0; i < m_entities.size(); ++i) {
         if (m_entities[i]) {
@@ -250,6 +277,10 @@ void Scene::Adopt(std::unique_ptr<Entity> entity) {
 }
 
 void Scene::ProcessRemovals() {
+    if (!m_hasPendingRemovals) {
+        return;
+    }
+    SPOT_PROFILE_SCOPE("Scene::ProcessRemovals");
     const bool deferRemovals = std::exchange(m_deferRemovals, true);
     // OnDestroy() may ask for more removals, which are handled by another round.
     while (m_hasPendingRemovals) {

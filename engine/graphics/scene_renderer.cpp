@@ -1,5 +1,7 @@
 #include "graphics/scene_renderer.h"
 
+#include "core/profiler.h"
+
 #include "core/log.h"
 #include "graphics/graphics_device.h"
 #include "graphics/render_context.h"
@@ -31,6 +33,7 @@ bool SceneRenderer::IsValid() const {
 }
 
 void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scenes, Texture* target) {
+    SPOT_PROFILE_SCOPE("SceneRenderer::Render");
     const auto width = static_cast<std::uint32_t>(target ? target->GetWidth() : context.GetWidth());
     const auto height = static_cast<std::uint32_t>(target ? target->GetHeight() : context.GetHeight());
     if (!IsValid() || width == 0 || height == 0 || !UpdateTargets(width, height)) {

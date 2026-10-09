@@ -239,9 +239,9 @@ private:
     void Adopt(std::unique_ptr<Entity> entity);
     void ProcessRemovals();
     void AttachSystem(std::unique_ptr<SceneSystem> system);
-    // Calls fn(SceneSystem&) under the guard for each system that is not faulted, by order.
+    // Calls fn(SceneSystem&) under the guard for each system that is not faulted, by order, profiled under the name.
     template <typename F>
-    void RunSystems(std::string_view hook, F&& fn);
+    void RunSystems(std::string_view hook, std::string_view profileName, F&& fn);
 
     // First, so they are destroyed last and components can reach them until the end.
     std::vector<std::unique_ptr<SceneSystem>> m_systems;

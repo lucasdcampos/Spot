@@ -3,6 +3,7 @@
 #include "audio/audio_output.h"
 #include "audio/mixer.h"
 #include "core/log.h"
+#include "core/profiler.h"
 
 #include <utility>
 
@@ -44,6 +45,7 @@ std::uint32_t AudioDevice::GetSampleRate() const {
 }
 
 SoundInstance AudioDevice::Play(std::shared_ptr<const Sound> sound, const PlayParams& params) {
+    SPOT_PROFILE_SCOPE("AudioDevice::Play");
     // Nothing would ever mix the sound, so it would never end; refusing it keeps IsPlaying() truthful.
     if (!m_output) {
         return {};
@@ -52,10 +54,12 @@ SoundInstance AudioDevice::Play(std::shared_ptr<const Sound> sound, const PlayPa
 }
 
 void AudioDevice::Stop(SoundInstance instance) {
+    SPOT_PROFILE_SCOPE("AudioDevice::Stop");
     m_mixer->Stop(instance);
 }
 
 void AudioDevice::StopAll() {
+    SPOT_PROFILE_SCOPE("AudioDevice::StopAll");
     m_mixer->StopAll();
 }
 
@@ -68,18 +72,22 @@ bool AudioDevice::IsPaused(SoundInstance instance) const {
 }
 
 void AudioDevice::SetPaused(SoundInstance instance, bool paused) {
+    SPOT_PROFILE_SCOPE("AudioDevice::SetPaused");
     m_mixer->SetPaused(instance, paused);
 }
 
 void AudioDevice::SetVolume(SoundInstance instance, float volume) {
+    SPOT_PROFILE_SCOPE("AudioDevice::SetVolume");
     m_mixer->SetVolume(instance, volume);
 }
 
 void AudioDevice::SetPan(SoundInstance instance, float pan) {
+    SPOT_PROFILE_SCOPE("AudioDevice::SetPan");
     m_mixer->SetPan(instance, pan);
 }
 
 void AudioDevice::SetPitch(SoundInstance instance, float pitch) {
+    SPOT_PROFILE_SCOPE("AudioDevice::SetPitch");
     m_mixer->SetPitch(instance, pitch);
 }
 
@@ -88,6 +96,7 @@ float AudioDevice::GetMasterVolume() const {
 }
 
 void AudioDevice::SetMasterVolume(float volume) {
+    SPOT_PROFILE_SCOPE("AudioDevice::SetMasterVolume");
     m_mixer->SetMasterVolume(volume);
 }
 
