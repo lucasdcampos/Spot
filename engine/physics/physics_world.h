@@ -2,6 +2,7 @@
 
 #include "math/quaternion.h"
 #include "math/vector.h"
+#include "physics/collision.h"
 #include "physics/physics_simulation.h"
 #include "scene/entity.h"
 #include "scene/scene_system.h"
@@ -9,6 +10,7 @@
 #include "scene/scene.h"
 
 #include <array>
+#include <compare>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -18,6 +20,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 namespace Spot {
 
@@ -29,6 +32,12 @@ namespace Spot {
 // placed, like floors and walls. A Rigidbody makes the body dynamic, moved by gravity, forces and collisions, or
 // kinematic, moved by its entity and pushing dynamic bodies away. Each step, bodies follow the entities that were
 // moved since the last one, then the simulation runs and entities follow their dynamic bodies.
+//
+// After each step, the contacts between bodies become events for the components of both entities, per pair of
+// entities however many shapes touch: OnCollisionEnter(), OnCollisionStay() and OnCollisionExit() between solid
+// bodies, and OnTriggerEnter() and OnTriggerExit() between a trigger and another body. Bodies of the same entity, and
+// two triggers, report nothing. Components may destroy entities and change colliders from these hooks; what changes
+// shows from the next step.
 class PhysicsWorld final : public SceneSystem {
 public:
     static constexpr Vector3 DefaultGravity = {0.0f, -9.81f, 0.0f};
@@ -91,10 +100,42 @@ private:
     void Rebuild(EntityId entity);
     void FollowEntities();
     void FollowBodies();
+    // Turns the contacts after a step into events, against those of the step before.
+    void DispatchContacts();
+    void ForgetBody(Detail::PhysicsBodyId body);
 
     // Created with the first body, so scenes without physics do not pay for it.
     std::unique_ptr<Detail::PhysicsSimulation> m_simulation;
     std::unordered_map<EntityId, Body> m_bodies;
+    // Which entity each body is for, and whether it is the entity's sensor.
+    struct Owner {
+        EntityId entity;
+        bool sensor;
+    };
+    std::unordered_map<Detail::PhysicsBodyId, Owner> m_owners;
+    // A pair of entities touching, the lower id first.
+    struct ContactPair {
+        EntityId first;
+        EntityId second;
+        bool trigger;
+        // Whose trigger it is, for trigger pairs: the first entity's or the second's.
+        bool firstIsTrigger;
+
+        friend auto operator<=>(const ContactPair&, const ContactPair&) = default;
+    };
+    // A pair touching, with its contact as the first entity sees it.
+    struct PairContact {
+        ContactPair pair;
+        Collision collision;
+        bool active;
+    };
+    enum class ContactPhase { Enter, Stay, Exit };
+    void SendContact(const PairContact& contact, ContactPhase phase);
+
+    // The pairs touching after the last step, sorted, and the list the next step fills.
+    std::vector<PairContact> m_previous;
+    std::vector<PairContact> m_current;
+    std::vector<Detail::PhysicsContact> m_contactBuffer;
     std::unordered_set<EntityId> m_changed;
     Vector3 m_gravity = DefaultGravity;
     std::array<std::uint32_t, Entity::LayerCount> m_layerMasks;

@@ -9,6 +9,7 @@
 #include <Jolt/Core/JobSystemThreadPool.h>
 #include <Jolt/Core/TempAllocator.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
+#include <Jolt/Physics/Collision/ContactListener.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/Physics/Collision/Shape/EmptyShape.h>
@@ -24,6 +25,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <mutex>
+#include <unordered_map>
 
 namespace Spot::Detail {
 
@@ -244,6 +246,121 @@ JPH::RefConst<JPH::Shape> CreateBodyShape(const std::vector<PhysicsShape>& shape
     return result.Get();
 }
 
+// The two bodies and shapes of a contact, as Jolt tells them apart.
+struct ContactKey {
+    std::uint32_t first;
+    std::uint32_t firstShape;
+    std::uint32_t second;
+    std::uint32_t secondShape;
+
+    friend bool operator==(const ContactKey&, const ContactKey&) = default;
+};
+
+struct ContactKeyHash {
+    std::size_t operator()(const ContactKey& key) const {
+        std::uint64_t hash = 1469598103934665603ull;
+        for (const std::uint32_t value : {key.first, key.firstShape, key.second, key.secondShape}) {
+            hash = (hash ^ value) * 1099511628211ull;
+        }
+        return static_cast<std::size_t>(hash);
+    }
+};
+
+JPH::Vec3 GetPointVelocity(const JPH::Body& body, JPH::RVec3Arg point) {
+    if (body.IsStatic()) {
+        return JPH::Vec3::sZero();
+    }
+    return body.GetLinearVelocity() +
+           body.GetAngularVelocity().Cross(JPH::Vec3(point - body.GetCenterOfMassPosition()));
+}
+
+float GetInverseMass(const JPH::Body& body) {
+    return body.IsDynamic() ? body.GetMotionProperties()->GetInverseMass() : 0.0f;
+}
+
+// Keeps the contacts the bodies have, as Jolt reports them from its threads during a step. Jolt also reports contacts
+// removed when a body falls asleep, which must not end them, so it decides when they end itself: after a step, a
+// contact Jolt did not find again ends unless one of its bodies sleeps.
+class ContactRecorder final : public JPH::ContactListener {
+public:
+    void OnContactAdded(const JPH::Body& first, const JPH::Body& second, const JPH::ContactManifold& manifold,
+                        JPH::ContactSettings& /*settings*/) override {
+        Record(first, second, manifold);
+    }
+
+    void OnContactPersisted(const JPH::Body& first, const JPH::Body& second, const JPH::ContactManifold& manifold,
+                            JPH::ContactSettings& /*settings*/) override {
+        Record(first, second, manifold);
+    }
+
+    // The contacts kept from now on were not found again.
+    void BeginStep() {
+        for (auto& [key, contact] : m_contacts) {
+            contact.active = false;
+        }
+    }
+
+    void EndStep(const JPH::BodyInterface& bodies) {
+        const auto sleeping = [&bodies](std::uint32_t id) {
+            const JPH::BodyID body(id);
+            return bodies.GetMotionType(body) != JPH::EMotionType::Static && !bodies.IsActive(body);
+        };
+        std::erase_if(m_contacts, [&](const auto& entry) {
+            const ContactKey& key = entry.first;
+            return !entry.second.active && !sleeping(key.first) && !sleeping(key.second);
+        });
+    }
+
+    void ForgetBody(JPH::BodyID body) {
+        const std::uint32_t id = body.GetIndexAndSequenceNumber();
+        std::erase_if(m_contacts,
+                      [id](const auto& entry) { return entry.first.first == id || entry.first.second == id; });
+    }
+
+    void GetContacts(std::vector<PhysicsContact>& contacts) const {
+        contacts.clear();
+        contacts.reserve(m_contacts.size());
+        for (const auto& [key, contact] : m_contacts) {
+            contacts.push_back(contact);
+        }
+    }
+
+private:
+    void Record(const JPH::Body& first, const JPH::Body& second, const JPH::ContactManifold& manifold) {
+        PhysicsContact contact{
+            .first = static_cast<PhysicsBodyId>(first.GetID().GetIndexAndSequenceNumber()),
+            .second = static_cast<PhysicsBodyId>(second.GetID().GetIndexAndSequenceNumber()),
+            .firstShape = manifold.mSubShapeID1.GetValue(),
+            .secondShape = manifold.mSubShapeID2.GetValue(),
+            .normal = FromJolt(manifold.mWorldSpaceNormal),
+            .active = true,
+        };
+        const auto count = static_cast<std::uint32_t>(
+            std::min<std::size_t>(manifold.mRelativeContactPointsOn1.size(), contact.points.size()));
+        for (std::uint32_t i = 0; i < count; ++i) {
+            contact.points[i] = FromJolt(JPH::Vec3(manifold.GetWorldSpaceContactPointOn1(i)));
+        }
+        contact.pointCount = count;
+        if (count > 0) {
+            const JPH::RVec3 point = manifold.GetWorldSpaceContactPointOn1(0);
+            const JPH::Vec3 velocity = GetPointVelocity(second, point) - GetPointVelocity(first, point);
+            contact.relativeVelocity = FromJolt(velocity);
+            // The second body moves along the normal to get out, so it approaches against it.
+            const float approach = -velocity.Dot(manifold.mWorldSpaceNormal);
+            const float inverseMass = GetInverseMass(first) + GetInverseMass(second);
+            contact.impulse = approach > 0.0f && inverseMass > 0.0f ? approach / inverseMass : 0.0f;
+        }
+
+        const ContactKey key{first.GetID().GetIndexAndSequenceNumber(), manifold.mSubShapeID1.GetValue(),
+                             second.GetID().GetIndexAndSequenceNumber(), manifold.mSubShapeID2.GetValue()};
+        const std::scoped_lock lock(m_mutex);
+        m_contacts.insert_or_assign(key, contact);
+    }
+
+    std::mutex m_mutex;
+    std::unordered_map<ContactKey, PhysicsContact, ContactKeyHash> m_contacts;
+};
+
 LayerMasks MakeAllLayers() {
     LayerMasks masks;
     masks.fill(0xffffffffu);
@@ -259,11 +376,13 @@ struct PhysicsSimulation::Impl {
     ObjectVsBroadPhaseFilter objectVsBroadPhaseFilter;
     LayerMasks layerMasks = MakeAllLayers();
     ObjectPairFilter objectPairFilter{layerMasks};
+    ContactRecorder contacts;
     JPH::PhysicsSystem system;
 
     Impl() {
         system.Init(MaxBodies, 0, MaxBodyPairs, MaxContactConstraints, broadPhaseLayers, objectVsBroadPhaseFilter,
                     objectPairFilter);
+        system.SetContactListener(&contacts);
     }
 
     JPH::BodyInterface& GetBodies() { return system.GetBodyInterface(); }
@@ -337,15 +456,22 @@ void PhysicsSimulation::DestroyBody(PhysicsBodyId body) {
     m_impl->WakeBodiesAround(id);
     m_impl->GetBodies().RemoveBody(id);
     m_impl->GetBodies().DestroyBody(id);
+    m_impl->contacts.ForgetBody(id);
 }
 
 void PhysicsSimulation::Step(float deltaTime) {
+    m_impl->contacts.BeginStep();
     Runtime& runtime = m_impl->runtime.Get();
     const JPH::EPhysicsUpdateError error =
         m_impl->system.Update(deltaTime, 1, &runtime.tempAllocator, &runtime.jobSystem);
+    m_impl->contacts.EndStep(m_impl->GetBodies());
     if (error != JPH::EPhysicsUpdateError::None) {
         Log::GetEngineLogger().Warning("The physics step ran out of room for contacts; some collisions were missed");
     }
+}
+
+void PhysicsSimulation::GetContacts(std::vector<PhysicsContact>& contacts) const {
+    m_impl->contacts.GetContacts(contacts);
 }
 
 PhysicsPose PhysicsSimulation::GetPose(PhysicsBodyId body) const {

@@ -45,6 +45,29 @@ scene.GetPhysics().SetLayerCollision(props, props, false);
 The backend turns each layer into two Jolt object layers, for static and moving bodies, so static bodies still never
 test each other. Tags stay for finding entities; layers are what systems filter by.
 
+## Collision and trigger events
+
+After each step, `PhysicsWorld` turns the contacts between bodies into events for the components of both entities,
+once per pair of entities however many of their shapes touch (see `engine/physics/collision.h`):
+
+| Hook | When |
+|---|---|
+| `OnCollisionEnter(const Collision&)` | Two solid bodies start touching |
+| `OnCollisionStay(const Collision&)` | They keep touching, on each step while either is awake |
+| `OnCollisionExit(const Collision&)` | They stop touching, or one of them goes away (destroyed, disabled, its colliders removed) |
+| `OnTriggerEnter(const TriggerContact&)`, `OnTriggerExit()` | A body starts or stops overlapping a trigger, told to both entities |
+
+A `Collision` has the other entity, up to four contact points, the normal pointing toward the entity that receives
+it, its velocity relative to the other's, and an estimate of the impulse of the hit from the bodies' masses and how
+fast they met, which suits impact sounds. A `TriggerContact` has the other entity and whether the receiver's trigger
+is the one overlapped. Bodies of the same entity, and two triggers, report nothing.
+
+The backend records contacts as Jolt reports them from its threads, and ends them itself after each step: Jolt
+reports contacts as removed when a body falls asleep, but resting bodies keep touching, so a contact ends only when
+Jolt no longer finds it and neither body sleeps. Pairs are compared with the step before through sorted lists that
+keep their memory, so events cost no allocation once warmed up. Hooks run under the component guard, and may destroy
+entities or change colliders; changes show from the next step.
+
 ## The physics world
 
 `PhysicsWorld` (`engine/physics/physics_world.h`) is the scene's physics system (see
@@ -66,5 +89,5 @@ editor's Project Settings panel edits.
 
 ## Not there yet
 
-Collision and trigger events, raycasts and other queries, a character controller, mesh colliders and joints come in
+Raycasts and other queries, a character controller, mesh colliders and joints come in
 the rest of the roadmap's milestone M1.

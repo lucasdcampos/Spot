@@ -9,8 +9,11 @@ namespace Spot {
 
 class Archive;
 class Entity;
+class PhysicsWorld;
 class Renderer2D;
 class Scene;
+struct Collision;
+struct TriggerContact;
 
 namespace Detail {
 struct SceneSerializer;
@@ -40,6 +43,10 @@ struct SceneSerializer;
 //   HUD; see Scene::DrawUi().
 // - OnDestroy() once, if OnStart() ran, when the component is removed, its entity destroyed or the scene cleared. It
 //   releases what OnStart() acquired.
+// - The physics events, while active, after the physics step that found them; see PhysicsWorld. OnCollisionEnter()
+//   when a solid body of the entity starts touching another entity's, OnCollisionStay() on each step they keep
+//   touching while either is awake, and OnCollisionExit() once they stop, or one of them goes away.
+//   OnTriggerEnter() and OnTriggerExit() likewise, between a trigger and a body that overlaps it, on both entities.
 //
 // The entity is not available in the constructor yet; setup that needs it goes in OnStart().
 //
@@ -80,6 +87,12 @@ protected:
     virtual void OnDrawUi(Renderer2D& /*renderer*/, Vector2 /*viewSize*/) {}
     virtual void OnDestroy() {}
 
+    virtual void OnCollisionEnter(const Collision& /*collision*/) {}
+    virtual void OnCollisionStay(const Collision& /*collision*/) {}
+    virtual void OnCollisionExit(const Collision& /*collision*/) {}
+    virtual void OnTriggerEnter(const TriggerContact& /*contact*/) {}
+    virtual void OnTriggerExit(const TriggerContact& /*contact*/) {}
+
     // Saves or loads the component's fields. Loading happens on a new component, after it was added to its entity
     // and before OnStart(), or on an existing one when tools replace its fields.
     virtual void Serialize(Archive& /*archive*/) {}
@@ -89,6 +102,7 @@ protected:
 
 private:
     friend class Entity;
+    friend class PhysicsWorld;
     friend struct Detail::SceneSerializer;
 
     // Calls OnEnable() or OnDisable() when the component started and its activity changed since the last call.

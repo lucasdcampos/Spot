@@ -234,7 +234,7 @@ Steps:
   physics settings section, and Jolt object layers and filters in the backend. The editor gets a layer dropdown on
   the entity and a matrix editor in project settings. Layers are serialized. Tests.
 - [x] **M1.2 Triggers.** Add `Collider::SetTrigger()` and sensor bodies, which detect overlaps but never push. Tests.
-- [ ] **M1.3 Collision and trigger events.** Contact buffering in the backend contract, pairing in `PhysicsWorld`, and
+- [x] **M1.3 Collision and trigger events.** Contact buffering in the backend contract, pairing in `PhysicsWorld`, and
   the hooks `OnCollisionEnter/Stay/Exit(const Collision&)` (other entity, contact points, normal, relative velocity,
   impulse) and `OnTriggerEnter/Exit(const TriggerContact&)`. Disabling or destroying a collider sends its exits.
   Tests: event sequences, destroying entities from inside callbacks, disabled colliders.
@@ -278,6 +278,12 @@ physics gun and the tool gun, and shoots and blows it apart.
 - M1.2: `PhysicsWorld` keeps a solid body and a sensor body per entity, either of which may be missing. Sensors of
   entities with a rigidbody are kinematic and follow the entity a step behind its dynamic body; others are static.
   A sensor overlaps its own entity's solid body, which the events of M1.3 must leave out.
+- M1.3: the backend keeps every touching sub-shape pair (`PhysicsSimulation::GetContacts()`), updated by Jolt's
+  added and persisted callbacks. Jolt reports a contact removed when a body falls asleep, so its removal callback is
+  not used: after a step, a contact Jolt did not find again ends unless one of its bodies sleeps, and destroying a
+  body forgets its contacts. Jolt gives no impulse before solving, so `Collision::impulse` is estimated from the
+  approach speed and the bodies' inverse masses. Events go to active components only. There is no
+  `OnTriggerStay()`, as the plan lists none.
 
 ---
 

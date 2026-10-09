@@ -60,6 +60,26 @@ struct PhysicsBodyDesc {
     Vector3 angularVelocity = {};
 };
 
+// Two bodies touching through one shape of each, after the last step. Contacts last from the step the shapes start
+// touching until the step they stop, or until one of the bodies is destroyed, and are kept while the bodies sleep.
+struct PhysicsContact {
+    PhysicsBodyId first = PhysicsBodyId::Invalid;
+    PhysicsBodyId second = PhysicsBodyId::Invalid;
+    // Which shape of each body touches, to tell contacts between the same bodies apart.
+    std::uint32_t firstShape = 0;
+    std::uint32_t secondShape = 0;
+    // From the first body toward the second: the way the second is pushed out.
+    Vector3 normal = {};
+    std::array<Vector3, 4> points = {};
+    std::uint32_t pointCount = 0;
+    // The second body's velocity minus the first's, at the first point.
+    Vector3 relativeVelocity = {};
+    // The impulse that stops the bodies moving into each other, estimated from their masses and how fast they met.
+    float impulse = 0.0f;
+    // Whether the contact was found or kept in the last step, rather than kept while the bodies sleep.
+    bool active = false;
+};
+
 struct PhysicsPose {
     Vector3 position = {};
     Quaternion rotation = {};
@@ -85,6 +105,8 @@ public:
     void DestroyBody(PhysicsBodyId body);
 
     void Step(float deltaTime);
+    // Replaces the vector's contents with every contact after the last step, in no particular order.
+    void GetContacts(std::vector<PhysicsContact>& contacts) const;
 
     PhysicsPose GetPose(PhysicsBodyId body) const;
     // Places the body at once, without moving through the space in between. Bodies around both places wake up.

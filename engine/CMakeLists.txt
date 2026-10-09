@@ -121,6 +121,7 @@ add_library(spot_objects OBJECT
     math/vector.h
     physics/collider.h
     physics/collider.cpp
+    physics/collision.h
     physics/physics_simulation.h
     physics/physics_settings.h
     physics/physics_settings.cpp
