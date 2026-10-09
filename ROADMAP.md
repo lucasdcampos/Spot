@@ -135,7 +135,7 @@ How it is built:
 
 Cross-cutting pieces that every later milestone builds on.
 
-- [ ] **M0.1 Contain component failures.** Every component hook (the lifecycle hooks now, and the physics, animation
+- [x] **M0.1 Contain component failures.** Every component hook (the lifecycle hooks now, and the physics, animation
   and UI callbacks later) runs inside one guard. The guard catches exceptions, logs the entity, component type and
   hook once, and marks the component as faulted, which disables it until its scene is reloaded. `IsFaulted()` tells
   tools, and the inspector shows it. Tests: a throwing component stops, the others keep running, and the error is
@@ -167,6 +167,10 @@ Cross-cutting pieces that every later milestone builds on.
 profiler, debug lines show in both the game and the editor, and the generated props are in the playground.
 
 **Notes:**
+- M0.1: a faulted component still gets OnDisable() (when it was active) and OnDestroy() (when it started), each
+  under the guard, so it can release what it holds, such as subscriptions. Failures in those after the fault are
+  logged too; they run at most once, so nothing repeats every frame. OnValidate() runs under the guard as well, and
+  a component that faults there never starts. The fault is not saved: reloading the scene creates new components.
 
 ---
 

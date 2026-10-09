@@ -13,6 +13,7 @@ add_executable(spot_tests
     asset_tests.cpp
     audio_tests.cpp
     cli_tests.cpp
+    component_fault_tests.cpp
     crash_tests.cpp
     event_tests.cpp
     game_code_tests.cpp

@@ -241,8 +241,9 @@ void Entity::StartComponents() {
         Component& component = *m_components[i];
         if (!component.m_started && component.m_enabled && !component.m_removed) {
             component.m_started = true;
-            component.OnStart();
-            component.RefreshActivity();
+            if (component.InvokeHook("OnStart", [&component] { component.OnStart(); })) {
+                component.RefreshActivity();
+            }
         }
     }
 }
@@ -250,7 +251,7 @@ void Entity::StartComponents() {
 void Entity::FixedUpdateComponents(float fixedDeltaTime) {
     for (std::size_t i = 0; i < m_components.size(); ++i) {
         if (Component& component = *m_components[i]; component.m_active) {
-            component.OnFixedUpdate(fixedDeltaTime);
+            component.InvokeHook("OnFixedUpdate", [&] { component.OnFixedUpdate(fixedDeltaTime); });
         }
     }
 }
@@ -258,7 +259,7 @@ void Entity::FixedUpdateComponents(float fixedDeltaTime) {
 void Entity::UpdateComponents(float deltaTime) {
     for (std::size_t i = 0; i < m_components.size(); ++i) {
         if (Component& component = *m_components[i]; component.m_active) {
-            component.OnUpdate(deltaTime);
+            component.InvokeHook("OnUpdate", [&] { component.OnUpdate(deltaTime); });
         }
     }
 }
@@ -266,7 +267,7 @@ void Entity::UpdateComponents(float deltaTime) {
 void Entity::DrawUiComponents(Renderer2D& renderer, Vector2 viewSize) {
     for (std::size_t i = 0; i < m_components.size(); ++i) {
         if (Component& component = *m_components[i]; component.m_active) {
-            component.OnDrawUi(renderer, viewSize);
+            component.InvokeHook("OnDrawUi", [&] { component.OnDrawUi(renderer, viewSize); });
         }
     }
 }
@@ -274,7 +275,7 @@ void Entity::DrawUiComponents(Renderer2D& renderer, Vector2 viewSize) {
 void Entity::LateUpdateComponents(float deltaTime) {
     for (std::size_t i = 0; i < m_components.size(); ++i) {
         if (Component& component = *m_components[i]; component.m_active) {
-            component.OnLateUpdate(deltaTime);
+            component.InvokeHook("OnLateUpdate", [&] { component.OnLateUpdate(deltaTime); });
         }
     }
 }
@@ -286,7 +287,7 @@ void Entity::ProcessRemovals() {
         if ((m_destroyed || component.m_removed) && component.m_started) {
             component.RefreshActivity();
             component.m_started = false;
-            component.OnDestroy();
+            component.InvokeHook("OnDestroy", [&component] { component.OnDestroy(); });
         }
     }
     std::erase_if(m_components, [](const auto& component) { return component->m_removed && !component->m_started; });

@@ -2,6 +2,9 @@
 
 #include "math/vector.h"
 
+#include <exception>
+#include <string_view>
+
 namespace Spot {
 
 class Archive;
@@ -40,6 +43,10 @@ struct SceneSerializer;
 //
 // The entity is not available in the constructor yet; setup that needs it goes in OnStart().
 //
+// A hook that throws faults its component: the error is logged with the entity, the component's type and the hook,
+// and the component stops being active until its scene is reloaded, so the rest of the scene keeps running. It still
+// gets OnDisable() if it was enabled, and OnDestroy() if it started, so it can release what it holds; see IsFaulted().
+//
 // To be saved and loaded with its scene, a component type is registered with RegisterComponent() and lists its fields
 // with SPOT_FIELDS(), or overrides Serialize() to describe them.
 class Component {
@@ -56,6 +63,8 @@ public:
     void SetEnabled(bool enabled);
     // Whether the component is enabled, on an entity active in the hierarchy, and neither is being removed.
     bool IsActiveAndEnabled() const;
+    // Whether one of its hooks threw, which keeps it inactive for as long as it exists.
+    bool IsFaulted() const { return m_faulted; }
 
 protected:
     Component() = default;
@@ -85,12 +94,26 @@ private:
     // Calls OnEnable() or OnDisable() when the component started and its activity changed since the last call.
     void RefreshActivity();
 
+    // Runs one of the component's hooks, faulting the component when it throws. Returns whether it completed.
+    template <typename F>
+    bool InvokeHook(std::string_view hook, F&& fn) {
+        try {
+            fn();
+            return true;
+        } catch (...) {
+            Fault(hook, std::current_exception());
+            return false;
+        }
+    }
+    void Fault(std::string_view hook, const std::exception_ptr& error);
+
     Entity* m_entity = nullptr;
     bool m_enabled = true;
     bool m_started = false;
     // Whether OnEnable() was the last of OnEnable() and OnDisable() to run.
     bool m_active = false;
     bool m_removed = false;
+    bool m_faulted = false;
 };
 
 } // namespace Spot

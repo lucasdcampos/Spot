@@ -60,7 +60,9 @@ struct SceneSerializer {
     using IdMap = std::unordered_map<std::uint64_t, EntityId>;
 
     static void Serialize(Component& component, Archive& archive) { component.Serialize(archive); }
-    static void Validate(Component& component) { component.OnValidate(); }
+    static void Validate(Component& component) {
+        component.InvokeHook("OnValidate", [&component] { component.OnValidate(); });
+    }
 
     // Saves the entity and then its descendants, depth first, so parents always come before their children and
     // children keep their order.
@@ -275,7 +277,7 @@ struct SceneSerializer {
                 .loading = true, .nodes = {&*data}, .entityIds = &ids, .scene = referenced, .assets = assets};
             Archive archive(state);
             component.Serialize(archive);
-            component.OnValidate();
+            Validate(component);
         }
         return &component;
     }
@@ -306,7 +308,7 @@ struct SceneSerializer {
             ArchiveState state{.loading = true, .nodes = {&*data}, .assets = assets};
             Archive archive(state);
             component.Serialize(archive);
-            component.OnValidate();
+            Validate(component);
         }
         component.SetEnabled(GetBool(saved, "enabled", component.m_enabled));
         return true;

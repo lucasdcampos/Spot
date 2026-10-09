@@ -471,11 +471,14 @@ void EntityInspector::DrawComponent(SceneDocument& document, const Card& card) {
     const std::vector<std::string> mixed = GetMixedValues(document, card, components, text);
     const bool enabledMixed = std::ranges::find(mixed, "/enabled") != mixed.end();
 
-    const std::string title = missing ? card.typeName + " (missing)" : MakeDisplayName(card.typeName);
-    const CardHeader header =
-        DrawCardHeader(card.key, missing ? ICON_FA_TRIANGLE_EXCLAMATION : GetComponentIcon(card.typeName),
-                       missing ? EditorColors::Warning : EditorColors::Accent, title,
-                       missing ? std::nullopt : std::optional(component.IsEnabled()), enabledMixed);
+    const bool faulted = component.IsFaulted();
+    const std::string title = missing   ? card.typeName + " (missing)"
+                              : faulted ? MakeDisplayName(card.typeName) + " (faulted)"
+                                        : MakeDisplayName(card.typeName);
+    const char* icon = missing || faulted ? ICON_FA_TRIANGLE_EXCLAMATION : GetComponentIcon(card.typeName);
+    const ImVec4& iconColor = missing ? EditorColors::Warning : faulted ? EditorColors::Error : EditorColors::Accent;
+    const CardHeader header = DrawCardHeader(
+        card.key, icon, iconColor, title, missing ? std::nullopt : std::optional(component.IsEnabled()), enabledMixed);
     if (header.toggled) {
         const bool enabled = enabledMixed || !component.IsEnabled();
         std::vector<std::unique_ptr<SceneCommand>> commands;
@@ -503,6 +506,13 @@ void EntityInspector::DrawComponent(SceneDocument& document, const Card& card) {
                            "values are kept, and saved with the scene.");
         ImGui::PopTextWrapPos();
         return;
+    }
+    if (faulted) {
+        ImGui::PushTextWrapPos(0.0f);
+        ImGui::TextColored(EditorColors::Error,
+                           "One of its hooks threw, so it stopped running until the scene is reloaded. The console "
+                           "says where.");
+        ImGui::PopTextWrapPos();
     }
     if (!Widgets::BeginProperties("##fields")) {
         return;
