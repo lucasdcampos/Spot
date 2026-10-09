@@ -33,9 +33,11 @@ public:
 
     // Whether the game's view has focus, so the game gets the keyboard and the mouse.
     bool HasFocus() const { return m_focused; }
-    // The view's rectangle in the window, which mouse positions are made relative to.
+    // The view's rectangle in the window, which mouse positions are made relative to. While the view has focus, the
+    // window's mouse is captured whenever the game locks the cursor.
     void SetView(bool focused, Vector2 origin);
-    // Gives the game an input event, with positions relative to its view, while it has focus.
+    // Gives the game an input event, with positions relative to its view, while it has focus. Escape stays the
+    // editor's, which takes the keys and the mouse back with it, so games never see it.
     void Feed(const Event& event);
 
 private:
@@ -45,8 +47,9 @@ private:
     bool m_loaded = false;
     std::unique_ptr<SceneDocument> m_document;
     InputState m_input;
-    const InputState* m_previousInput = nullptr;
+    InputState* m_previousInput = nullptr;
     bool m_focused = false;
+    bool m_cursorCaptured = false;
     Vector2 m_viewOrigin;
 };
 

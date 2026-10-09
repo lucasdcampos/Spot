@@ -196,6 +196,9 @@ void EditorApplication::OnUpdate(float deltaTime) {
         m_projectToOpen.reset();
         OpenProject(file);
     }
+    if (std::exchange(m_stopPlayingRequested, false) && m_workspace->GetPlaySession()) {
+        m_workspace->StopPlaying();
+    }
     UpdateModules();
 
     const int backupMinutes = m_settings.GetPreferences().backupMinutes;

@@ -90,6 +90,11 @@ int Application::Run() {
                 scene->Update(m_clock.GetDeltaTime());
             }
         }
+        // Only changes are applied, so applications can still capture the mouse themselves.
+        if (m_input.IsCursorLocked() != m_cursorLocked) {
+            m_cursorLocked = m_input.IsCursorLocked();
+            m_window->SetMouseCaptured(m_cursorLocked);
+        }
 
         if (m_graphics) {
             if (RenderContext* context = m_graphics->BeginFrame()) {

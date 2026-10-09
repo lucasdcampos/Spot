@@ -5,6 +5,44 @@
       "components": [
         {
           "data": {
+            "restartScene": "72c16925ad8b47f25561eaf729da4319"
+          },
+          "enabled": true,
+          "type": "GameControls"
+        },
+        {
+          "data": {
+            "font": "b3999c7ba8d944228a80146a8f38a9da"
+          },
+          "enabled": true,
+          "type": "Hud"
+        }
+      ],
+      "id": 49,
+      "name": "Game",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
             "castsShadows": true,
             "color": [
               1.0,

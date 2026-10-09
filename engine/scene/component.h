@@ -1,9 +1,12 @@
 #pragma once
 
+#include "math/vector.h"
+
 namespace Spot {
 
 class Archive;
 class Entity;
+class Renderer2D;
 class Scene;
 
 namespace Detail {
@@ -30,6 +33,8 @@ struct SceneSerializer;
 // - OnUpdate() and then OnLateUpdate() on every Scene::Update() while active. Every OnUpdate() of the scene runs
 //   before the first OnLateUpdate(), so OnLateUpdate() suits work that follows others, like a camera that tracks
 //   something.
+// - OnDrawUi() on every frame the scene is shown while active, after it was drawn, for what goes over it, such as a
+//   HUD; see Scene::DrawUi().
 // - OnDestroy() once, if OnStart() ran, when the component is removed, its entity destroyed or the scene cleared. It
 //   releases what OnStart() acquired.
 //
@@ -61,6 +66,9 @@ protected:
     virtual void OnFixedUpdate(float /*fixedDeltaTime*/) {}
     virtual void OnUpdate(float /*deltaTime*/) {}
     virtual void OnLateUpdate(float /*deltaTime*/) {}
+    // Draws over the view of the scene with the renderer, which draws in the view's pixels, from (0, 0) at its
+    // bottom-left corner to the size at its top-right one.
+    virtual void OnDrawUi(Renderer2D& /*renderer*/, Vector2 /*viewSize*/) {}
     virtual void OnDestroy() {}
 
     // Saves or loads the component's fields. Loading happens on a new component, after it was added to its entity

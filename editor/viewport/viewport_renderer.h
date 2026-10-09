@@ -50,6 +50,8 @@ struct ViewportOptions {
     std::optional<Color> background = std::nullopt;
     // Scenes without lights get the editor's, so what is in them shows; games see them dark, as they are.
     bool defaultLights = true;
+    // The scene's components draw their interfaces over it, as in the game; see Scene::DrawUi().
+    bool drawUi = false;
 };
 
 // Draws scenes into viewport targets, as they would look in the game, with the editor's grid over them. One is shared

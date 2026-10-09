@@ -1,5 +1,6 @@
 #pragma once
 
+#include "graphics/camera_2d.h"
 #include "scene/entity.h"
 
 #include <concepts>
@@ -131,6 +132,17 @@ public:
     // Entities go in the order they were created, and components in the order they were added. Components added
     // while it runs may have to wait for the next Update() to start.
     void Update(float deltaTime);
+
+    // Calls OnDrawUi() for every active component, in the order Update() goes, to draw what goes over the view of
+    // the scene, such as a HUD. Whatever shows the scene calls it once the scene is drawn, with the renderer begun
+    // with ScreenCamera() for a view of the size:
+    //
+    //     renderer.Begin(pass, Spot::Scene::ScreenCamera(viewSize), viewSize);
+    //     scene.DrawUi(renderer, viewSize);
+    //     renderer.End();
+    void DrawUi(Renderer2D& renderer, Vector2 viewSize);
+    // The camera that puts (0, 0) at the bottom-left corner of a view of the size, and one unit on each pixel.
+    static Camera2D ScreenCamera(Vector2 viewSize);
 
     // Calls fn(Entity&) for each entity, active or not, in creation order. fn may create and destroy entities.
     template <typename F>

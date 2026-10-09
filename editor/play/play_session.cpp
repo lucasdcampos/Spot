@@ -33,6 +33,9 @@ PlaySession::~PlaySession() {
     m_application.LoadScene(nullptr);
     m_application.GetPersistentScene().Clear();
     m_application.SetScenesPaused(false);
+    if (m_cursorCaptured) {
+        m_application.GetWindow().SetMouseCaptured(false);
+    }
     Input::SetState(m_previousInput);
     GetEditorLogger().Info("Stopped playing '{}'", m_source.GetName());
 }
@@ -73,10 +76,19 @@ void PlaySession::SetView(bool focused, Vector2 origin) {
     }
     m_focused = focused;
     m_viewOrigin = origin;
+    if (const bool capture = focused && m_input.IsCursorLocked(); capture != m_cursorCaptured) {
+        m_cursorCaptured = capture;
+        m_application.GetWindow().SetMouseCaptured(capture);
+    }
 }
 
 void PlaySession::Feed(const Event& event) {
     if (!m_focused) {
+        return;
+    }
+    const auto* pressed = event.GetIf<KeyPressedEvent>();
+    const auto* released = event.GetIf<KeyReleasedEvent>();
+    if ((pressed && pressed->key == Key::Escape) || (released && released->key == Key::Escape)) {
         return;
     }
     if (const auto* moved = event.GetIf<MouseMovedEvent>()) {

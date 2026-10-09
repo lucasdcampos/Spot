@@ -91,23 +91,34 @@ void PlayerApplication::OnRender(RenderContext& context) {
                          .depthTarget = m_depth.get(),
                          .clearDepth = 1.0f,
                          .resolveToWindow = samples != nullptr,
-                         .keepSamples = samples && sprites},
+                         // The scenes' interfaces go over what is drawn.
+                         .keepSamples = samples != nullptr},
                         view);
     for (Scene* scene : scenes) {
         m_renderer3D->DrawScene(*scene);
     }
     m_renderer3D->End();
 
+    if (!m_renderer2D->IsValid()) {
+        return;
+    }
+    const Vector2 size{static_cast<float>(context.GetWidth()), static_cast<float>(context.GetHeight())};
     // Sprites go over the meshes, as 2D games draw them, without a depth target.
-    if (sprites && m_renderer2D->IsValid()) {
-        auto pass = context.BeginRenderPass({.target = samples, .resolveToWindow = samples != nullptr});
-        m_renderer2D->Begin(pass, view.GetViewProjection({static_cast<float>(context.GetWidth()),
-                                                          static_cast<float>(context.GetHeight())}));
+    if (sprites) {
+        auto pass = context.BeginRenderPass(
+            {.target = samples, .resolveToWindow = samples != nullptr, .keepSamples = samples != nullptr});
+        m_renderer2D->Begin(pass, view.GetViewProjection(size));
         for (Scene* scene : scenes) {
             m_renderer2D->DrawScene(*scene);
         }
         m_renderer2D->End();
     }
+    auto pass = context.BeginRenderPass({.target = samples, .resolveToWindow = samples != nullptr});
+    m_renderer2D->Begin(pass, Scene::ScreenCamera(size), size);
+    for (Scene* scene : scenes) {
+        scene->DrawUi(*m_renderer2D, size);
+    }
+    m_renderer2D->End();
 }
 
 bool PlayerApplication::UpdateTargets(RenderContext& context) {

@@ -47,6 +47,9 @@ public:
     // Projects open and close between frames, never while windows still draw the current one.
     void RequestOpenProject(std::filesystem::path file);
     void RequestCloseProject();
+    // Games playing in the editor stop when they quit, on the next frame, so the scenes are not destroyed while they
+    // run.
+    void QuitGame() override { m_stopPlayingRequested = true; }
 
 protected:
     void OnStart() override;
@@ -103,6 +106,7 @@ private:
     std::unique_ptr<GameRunner> m_game;
     // Set while the game waits for its code to build before it runs.
     bool m_runPending = false;
+    bool m_stopPlayingRequested = false;
     // Seconds since the scenes were last backed up.
     float m_sinceBackup = 0.0f;
     std::unique_ptr<ProjectHub> m_hub;

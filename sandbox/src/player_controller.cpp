@@ -48,7 +48,8 @@ void PlayerController::OnStart() {
 void PlayerController::OnUpdate(float /*deltaTime*/) {
     namespace Input = Spot::Input;
 
-    if (m_looking) {
+    // A free cursor belongs to the rest of the screen.
+    if (Input::IsCursorLocked()) {
         const Spot::Vector2 mouseDelta = Input::GetMouseDelta();
         m_yaw -= mouseDelta.x * lookSensitivity;
         m_pitch = std::clamp(m_pitch - mouseDelta.y * lookSensitivity, -1.5f, 1.5f);

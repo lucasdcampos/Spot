@@ -131,6 +131,71 @@ TEST_CASE("Playing runs a copy of the scene as a game, and stopping leaves the s
     Spot::UnregisterComponent("Climber");
 }
 
+namespace {
+
+// Locks the cursor, as first-person games do, and remembers whether it ever saw Escape.
+class CursorLocker final : public Spot::Component {
+public:
+    bool sawEscape = false;
+
+protected:
+    void OnUpdate(float /*deltaTime*/) override {
+        Spot::Input::SetCursorLocked(true);
+        sawEscape = sawEscape || Spot::Input::IsKeyDown(Spot::Key::Escape);
+    }
+
+    void Serialize(Spot::Archive&) override {}
+};
+
+} // namespace
+
+TEST_CASE("The game captures the mouse while its view has focus, and Escape stays the editor's", "[editor][play]") {
+    Spot::RegisterComponent<CursorLocker>("CursorLocker");
+    Spot::Editor::SceneDocument source("Level");
+    source.GetScene().CreateEntity("Player").AddComponent<CursorLocker>();
+
+    std::unique_ptr<Spot::Editor::PlaySession> play;
+    std::vector<bool> captured;
+    bool sawEscape = true;
+
+    FrameApplication application([&](FrameApplication& app, int frame) {
+        switch (frame) {
+        case 1:
+            play = std::make_unique<Spot::Editor::PlaySession>(app, source, app.GetAssets());
+            break;
+        case 3:
+            // The game locked the cursor, which waits for its view to have focus.
+            play->Update();
+            play->SetView(false, {});
+            captured.push_back(app.GetWindow().IsMouseCaptured());
+            play->SetView(true, {});
+            captured.push_back(app.GetWindow().IsMouseCaptured());
+            play->Feed(Spot::KeyPressedEvent{.key = Spot::Key::Escape, .repeat = false});
+            break;
+        case 4: {
+            play->Update();
+            const auto* locker = play->GetDocument()->GetScene().FindComponent<CursorLocker>();
+            REQUIRE(locker);
+            sawEscape = locker->sawEscape;
+            play->SetView(false, {});
+            captured.push_back(app.GetWindow().IsMouseCaptured());
+            play->SetView(true, {});
+            play.reset();
+            captured.push_back(app.GetWindow().IsMouseCaptured());
+            return false;
+        }
+        default:
+            break;
+        }
+        return true;
+    });
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+
+    CHECK(captured == std::vector<bool>{false, true, false, false});
+    CHECK_FALSE(sawEscape);
+    Spot::UnregisterComponent("CursorLocker");
+}
+
 TEST_CASE("Lines of the game's log keep their level, and say which logger wrote them", "[editor][play]") {
     using Spot::Editor::GameRunner;
 

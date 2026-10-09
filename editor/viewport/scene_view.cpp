@@ -567,7 +567,7 @@ void SceneView::Render(RenderContext& context, ViewportRenderer& renderer) {
     if (IsShowingGame()) {
         Scene& scene = m_shown->GetScene();
         const Camera* main = FindMainCamera(scene);
-        ViewportOptions options{.showGrid = false, .defaultLights = false};
+        ViewportOptions options{.showGrid = false, .defaultLights = false, .drawUi = true};
         if (main) {
             options.background = main->GetBackground();
         }

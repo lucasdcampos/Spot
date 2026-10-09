@@ -148,6 +148,19 @@ void Scene::Update(float deltaTime) {
     }
 }
 
+void Scene::DrawUi(Renderer2D& renderer, Vector2 viewSize) {
+    const Detail::DeferRemovalsScope defer(*this);
+    for (std::size_t i = 0; i < m_entities.size(); ++i) {
+        if (m_entities[i]) {
+            m_entities[i]->DrawUiComponents(renderer, viewSize);
+        }
+    }
+}
+
+Camera2D Scene::ScreenCamera(Vector2 viewSize) {
+    return {.position = viewSize * 0.5f};
+}
+
 bool Scene::IsAlive(const std::unique_ptr<Entity>& entity) {
     return entity && !entity->m_destroyed;
 }

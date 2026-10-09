@@ -118,3 +118,22 @@ TEST_CASE("Input reads the state it points at, and nothing without one", "[input
 
     CHECK_FALSE(Spot::Input::IsKeyDown(Key::Escape));
 }
+
+TEST_CASE("The cursor stays locked as the game asked, whatever the events", "[input]") {
+    Spot::InputState state;
+    CHECK_FALSE(state.IsCursorLocked());
+
+    // Without a state, asking does nothing.
+    Spot::Input::SetCursorLocked(true);
+    CHECK_FALSE(Spot::Input::IsCursorLocked());
+
+    Spot::Input::SetState(&state);
+    Spot::Input::SetCursorLocked(true);
+    CHECK(state.IsCursorLocked());
+    state.BeginFrame();
+    state.OnEvent(Spot::WindowFocusEvent{.focused = false});
+    CHECK(Spot::Input::IsCursorLocked());
+    Spot::Input::SetCursorLocked(false);
+    CHECK_FALSE(state.IsCursorLocked());
+    Spot::Input::SetState(nullptr);
+}

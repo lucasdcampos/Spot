@@ -263,6 +263,14 @@ void Entity::UpdateComponents(float deltaTime) {
     }
 }
 
+void Entity::DrawUiComponents(Renderer2D& renderer, Vector2 viewSize) {
+    for (std::size_t i = 0; i < m_components.size(); ++i) {
+        if (Component& component = *m_components[i]; component.m_active) {
+            component.OnDrawUi(renderer, viewSize);
+        }
+    }
+}
+
 void Entity::LateUpdateComponents(float deltaTime) {
     for (std::size_t i = 0; i < m_components.size(); ++i) {
         if (Component& component = *m_components[i]; component.m_active) {

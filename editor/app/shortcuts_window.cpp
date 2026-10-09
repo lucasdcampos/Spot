@@ -62,7 +62,7 @@ constexpr std::array PlayShortcuts{
     ShortcutInfo{ImGuiMod_Ctrl | ImGuiKey_P, nullptr, "Play the scene, or stop"},
     ShortcutInfo{ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_P, nullptr, "Pause, or resume"},
     ShortcutInfo{ImGuiMod_Ctrl | ImGuiMod_Alt | ImGuiKey_P, nullptr, "Run one frame"},
-    ShortcutInfo{ImGuiKey_Escape, nullptr, "Give the keys back to the editor, from the game"},
+    ShortcutInfo{ImGuiKey_Escape, nullptr, "Give the keys and the mouse back to the editor, from the game"},
     ShortcutInfo{ImGuiKey_F5, nullptr, "Run the game in its own window"},
     ShortcutInfo{ImGuiMod_Shift | ImGuiKey_F5, nullptr, "Stop the game running in its own window"},
     ShortcutInfo{ImGuiMod_Ctrl | ImGuiKey_B, nullptr, "Build the game's code"},

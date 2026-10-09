@@ -1827,3 +1827,70 @@ TEST_CASE("Renderer3D scenes are shadowed by their sky's sun and by the mesh ren
     CHECK(shadowed.At(FloorPixel(2.0f), middle)[0] > 150);
     CHECK(render(false).At(FloorPixel(-2.1f), middle)[0] > 150);
 }
+
+namespace {
+
+// Fills a square of the view, from its bottom-left corner.
+class UiSquare final : public Spot::Component {
+public:
+    UiSquare(float side, Spot::Color color) : m_side(side), m_color(color) {}
+
+protected:
+    void OnDrawUi(Spot::Renderer2D& renderer, Spot::Vector2 /*viewSize*/) override {
+        renderer.DrawQuad({m_side / 2.0f, m_side / 2.0f}, {m_side, m_side}, m_color);
+    }
+
+private:
+    float m_side;
+    Spot::Color m_color;
+};
+
+} // namespace
+
+TEST_CASE("Scenes draw their active components' interfaces in pixels from the view's bottom-left corner", "[gpu]") {
+    RequireGpu();
+    std::unique_ptr<Spot::Texture> target;
+    std::vector<std::uint8_t> result;
+    Spot::Scene scene;
+    int frame = 0;
+
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
+        auto& device = app.GetGraphicsDevice();
+        if (++frame == 2) {
+            result = device.DownloadTexture(*target);
+            return;
+        }
+        if (frame != 1) {
+            return;
+        }
+        target = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
+        REQUIRE(target);
+        scene.CreateEntity("Square").AddComponent<UiSquare>(2.0f, Spot::Color::Green);
+        scene.CreateEntity("Disabled").AddComponent<UiSquare>(4.0f, Spot::Color::Blue).SetEnabled(false);
+        // Components draw once they started, as they update.
+        scene.Update(0.0f);
+
+        Spot::Renderer2D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+        REQUIRE(renderer.IsValid());
+        const Spot::Vector2 size{4.0f, 4.0f};
+        auto pass = context.BeginRenderPass({.target = target.get(), .clearColor = Spot::Color::Black});
+        renderer.Begin(pass, Spot::Scene::ScreenCamera(size), size);
+        scene.DrawUi(renderer, size);
+        renderer.End();
+    });
+
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    REQUIRE(result.size() == 4 * 4 * 4);
+    const auto pixelAt = [&](int x, int y) {
+        const auto* pixel = &result[static_cast<std::size_t>((y * 4 + x) * 4)];
+        return std::array<std::uint8_t, 4>{pixel[0], pixel[1], pixel[2], pixel[3]};
+    };
+    constexpr std::array<std::uint8_t, 4> Black{0, 0, 0, 255};
+    constexpr std::array<std::uint8_t, 4> Green{0, 255, 0, 255};
+    // Rows of the texture go down from the top.
+    CHECK(pixelAt(0, 3) == Green);
+    CHECK(pixelAt(1, 2) == Green);
+    CHECK(pixelAt(2, 2) == Black);
+    CHECK(pixelAt(1, 1) == Black);
+    CHECK(pixelAt(3, 0) == Black);
+}

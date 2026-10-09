@@ -52,6 +52,9 @@ public:
     // Returns the process exit code, which is a failure when the window cannot be opened.
     int Run();
     void Quit();
+    // Ends the game, as game code does, such as from a menu's Quit button. Applications quit; tools that run games
+    // inside them, such as the editor, stop the game instead.
+    virtual void QuitGame() { Quit(); }
 
     bool IsRunning() const { return m_running; }
 
@@ -170,6 +173,8 @@ private:
     FrameClock m_clock;
     FrameLimiter m_limiter;
     bool m_running = false;
+    // The cursor lock last applied to the window, which follows the input state's when it changes.
+    bool m_cursorLocked = false;
     bool m_scenesPaused = false;
     bool m_stepScenes = false;
 };

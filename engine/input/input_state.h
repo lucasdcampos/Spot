@@ -28,6 +28,12 @@ public:
     Vector2 GetMouseDelta() const { return m_mouseDelta; }
     Vector2 GetScrollDelta() const { return m_scrollDelta; }
 
+    // Whether the game asked for the cursor to be hidden and kept in place, so the mouse only moves things, as it
+    // turns first-person views. The application applies it to its window; tools running a game in a view of their
+    // own, such as the editor, apply it while that view has focus. Events leave it as it is.
+    bool IsCursorLocked() const { return m_cursorLocked; }
+    void SetCursorLocked(bool locked) { m_cursorLocked = locked; }
+
 private:
     void ReleaseAll();
 
@@ -42,6 +48,7 @@ private:
     Vector2 m_mousePosition;
     Vector2 m_mouseDelta;
     Vector2 m_scrollDelta;
+    bool m_cursorLocked = false;
 };
 
 } // namespace Spot

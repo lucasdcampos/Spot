@@ -7,7 +7,7 @@ namespace Spot::Input {
 namespace {
 
 const InputState EmptyState;
-const InputState* s_state = nullptr;
+InputState* s_state = nullptr;
 
 const InputState& GetCurrent() {
     return s_state ? *s_state : EmptyState;
@@ -15,11 +15,11 @@ const InputState& GetCurrent() {
 
 } // namespace
 
-void SetState(const InputState* state) {
+void SetState(InputState* state) {
     s_state = state;
 }
 
-const InputState* GetState() {
+InputState* GetState() {
     return s_state;
 }
 
@@ -57,6 +57,16 @@ Vector2 GetMouseDelta() {
 
 Vector2 GetScrollDelta() {
     return GetCurrent().GetScrollDelta();
+}
+
+void SetCursorLocked(bool locked) {
+    if (s_state) {
+        s_state->SetCursorLocked(locked);
+    }
+}
+
+bool IsCursorLocked() {
+    return GetCurrent().IsCursorLocked();
 }
 
 } // namespace Spot::Input

@@ -180,7 +180,7 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
                        .depthTarget = targets.GetDepth(),
                        .clearDepth = 1.0f,
                        .resolveTarget = samples ? targets.GetColor() : nullptr,
-                       .keepSamples = samples && (drawGrid || drawSprites)},
+                       .keepSamples = samples && (drawGrid || drawSprites || options.drawUi)},
                       camera);
     if (options.defaultLights && !scene.FindComponent<Light>() && !scene.FindComponent<Sky>()) {
         DrawDefaultLights(*m_renderer);
@@ -192,10 +192,20 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
     if (drawSprites) {
         auto pass = context.BeginRenderPass({.target = samples ? samples : targets.GetColor(),
                                              .resolveTarget = samples ? targets.GetColor() : nullptr,
-                                             .keepSamples = samples && drawGrid});
+                                             .keepSamples = samples && (drawGrid || options.drawUi)});
         const Vector2 size{static_cast<float>(targets.GetWidth()), static_cast<float>(targets.GetHeight())};
         m_sprites->Begin(pass, camera.GetViewProjection(size));
         m_sprites->DrawScene(scene);
+        m_sprites->End();
+    }
+
+    if (options.drawUi && m_sprites->IsValid()) {
+        auto pass = context.BeginRenderPass({.target = samples ? samples : targets.GetColor(),
+                                             .resolveTarget = samples ? targets.GetColor() : nullptr,
+                                             .keepSamples = samples && drawGrid});
+        const Vector2 size{static_cast<float>(targets.GetWidth()), static_cast<float>(targets.GetHeight())};
+        m_sprites->Begin(pass, Scene::ScreenCamera(size), size);
+        scene.DrawUi(*m_sprites, size);
         m_sprites->End();
     }
 

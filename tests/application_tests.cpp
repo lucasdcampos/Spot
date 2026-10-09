@@ -320,3 +320,54 @@ TEST_CASE("Application runs scenes side by side and keeps persistent entities", 
                        // Stop: loaded scenes unload, then the persistent scene is cleared.
                        "stop", "next.unload", "next.destroy", "player.destroy"});
 }
+
+namespace {
+
+// Locks the cursor, as games do, then unlocks it, then captures the mouse itself, recording the window's capture after
+// each, and ends as games do.
+class CursorApplication final : public Spot::Application {
+public:
+    CursorApplication(Spot::ApplicationConfig config, std::vector<bool>& captured)
+        : Application(std::move(config)), m_captured(captured) {}
+
+protected:
+    void OnUpdate(float /*deltaTime*/) override {
+        switch (++m_frame) {
+        case 1:
+            Spot::Input::SetCursorLocked(true);
+            break;
+        case 2:
+            m_captured.push_back(GetWindow().IsMouseCaptured());
+            Spot::Input::SetCursorLocked(false);
+            break;
+        case 3:
+            m_captured.push_back(GetWindow().IsMouseCaptured());
+            m_capturable = GetWindow().SetMouseCaptured(true);
+            break;
+        default:
+            m_captured.push_back(GetWindow().IsMouseCaptured() == m_capturable);
+            QuitGame();
+            break;
+        }
+    }
+
+private:
+    std::vector<bool>& m_captured;
+    int m_frame = 0;
+    bool m_capturable = false;
+};
+
+} // namespace
+
+TEST_CASE("Application captures the mouse while the game locks the cursor, and quits when the game does",
+          "[application]") {
+    std::vector<bool> captured;
+    CursorApplication application(MakeConfig(), captured);
+    CHECK(application.Run() == EXIT_SUCCESS);
+
+    REQUIRE(captured.size() == 3);
+    CHECK(captured[0]);
+    CHECK_FALSE(captured[1]);
+    // The application captured the mouse itself, which the lock left alone since it did not change.
+    CHECK(captured[2]);
+}

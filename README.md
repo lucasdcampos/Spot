@@ -32,7 +32,7 @@ Pass `editor` to run the editor instead of the sandbox, and `release` to run an 
 In the sandbox, WASD moves, Shift runs, Space jumps, the mouse looks around and a click throws a ball. F switches the
 flashlight, G the shadows, T speeds up time and R resets the scene; Escape frees the mouse, then quits.
 
-The sandbox is also a project, `sandbox/Sandbox.spot`, which the editor opens: its scene is
+The sandbox is also a project, `sandbox/Sandbox.spot`, which the editor opens and plays the same way: its scene is
 `assets/scenes/playground.scene` and its components are in `src/`, which the sandbox executable builds in as well.
 
 ## Game code in the editor
@@ -48,6 +48,10 @@ shows with `SPOT_FIELDS(speed, health)` in their class. The editor builds that c
 CMake and the compiler that built the editor, whenever it changes or on Ctrl+B, and loads it without closing the open
 scenes, so their entities, selections and undo history stay as they were. Build errors and warnings show in the
 console. Games made only in code link the static engine library and need none of this.
+
+Components draw what goes over the game's view, such as a HUD, in `OnDrawUi()`, and first-person games hide and hold
+the cursor with `Spot::Input::SetCursorLocked(true)`; both work alike in the player and in the editor's Play, where
+Escape hands the mouse and the keys back to the editor, and a click on the view gives them to the game again.
 
 F5 runs the project's game in its own window with `spot_player`, from its startup scene, as it will ship; what the game
 logs shows in the editor's console. `spot_player <project>` also runs it on its own.
