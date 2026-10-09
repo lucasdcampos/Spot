@@ -120,6 +120,9 @@ SceneView::DrawResult SceneView::Draw(EditorContext& context, ViewportRenderer* 
     const bool visible = ImGui::Begin(title.c_str(), &open, flags);
     ImGui::PopStyleVar();
     if (visible) {
+        // ImGui moves a docked window's name when its title changes, as when the scene plays, but leaves its draw
+        // list pointing to the old one. ImGuizmo finds the window by that name to know whether the mouse is over it.
+        ImGui::GetWindowDrawList()->_OwnerName = ImGui::GetCurrentWindow()->Name;
         result.focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
         DrawViewport(context, renderer);
     }

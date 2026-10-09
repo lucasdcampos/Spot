@@ -277,6 +277,61 @@ TEST_CASE("Dragging the gizmo moves the selection as one undoable step", "[edito
     CHECK(IsNear(sun->GetTransform().GetPosition(), {2.0f, 0.0f, 0.0f}));
 }
 
+TEST_CASE("The gizmo of a docked view still moves the selection after the scene played",
+          "[editor][workspace][gizmo][play][ui]") {
+    WorkspaceFixture fixture;
+    fixture.workspace->RestoreState();
+    Spot::Editor::SceneDocument& document = *fixture.workspace->GetActiveDocument();
+    Spot::Entity* sun = document.GetScene().FindEntity("Sun");
+    REQUIRE(sun);
+    sun->GetTransform().SetPosition({2.0f, 0.0f, 0.0f});
+    document.GetSelection().Select(sun->GetId());
+    fixture.settings.GetGizmo().tool = Spot::Editor::GizmoTool::Move;
+    // Docked, the view's window takes the longer title it has while playing in a new buffer.
+    fixture.imgui.SetDraw([&] {
+        ImGuizmo::BeginFrame();
+        const ImGuiID dockSpace = ImGui::GetID("DockSpace");
+        ImGui::DockSpaceOverViewport(dockSpace, ImGui::GetMainViewport());
+        fixture.workspace->Draw(dockSpace);
+    });
+    fixture.imgui.Frame();
+    fixture.imgui.Frame();
+
+    class PlayApplication final : public Spot::Application {
+    public:
+        explicit PlayApplication(std::function<void(Spot::Application&)> frame)
+            : Application({.window = {.title = "Play Tests", .width = 320, .height = 240},
+                           .graphics = {.enabled = false},
+                           .audio = {.enabled = false}}),
+              m_frame(std::move(frame)) {}
+
+    protected:
+        void OnUpdate(float /*deltaTime*/) override {
+            m_frame(*this);
+            Quit();
+        }
+
+    private:
+        std::function<void(Spot::Application&)> m_frame;
+    };
+    PlayApplication application([&](Spot::Application& app) {
+        fixture.workspace->Play(app);
+        fixture.imgui.Frame();
+        fixture.workspace->StopPlaying();
+    });
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    fixture.imgui.Frame();
+    fixture.imgui.Frame();
+
+    const auto rect = fixture.workspace->GetActiveView()->GetIconRect(sun->GetId());
+    REQUIRE(rect.has_value());
+    const ImVec2 center{(rect->first.x + rect->second.x) * 0.5f, (rect->first.y + rect->second.y) * 0.5f};
+    fixture.imgui.Drag(center, {center.x + 80.0f, center.y});
+
+    CHECK_FALSE(IsNear(sun->GetTransform().GetPosition(), {2.0f, 0.0f, 0.0f}));
+    CHECK(document.GetSelection().GetPrimary() == sun->GetId());
+}
+
 TEST_CASE("Open scenes show the new versions of assets that changed", "[editor][workspace]") {
     WorkspaceFixture fixture;
     Spot::Editor::EditorProject& project = *fixture.context->GetProject();
