@@ -247,6 +247,27 @@ void SetEntitiesActiveCommand::Undo() {
     }
 }
 
+SetEntitiesLayerCommand::SetEntitiesLayerCommand(SceneDocument& document, std::vector<EntityId> entities, int layer)
+    : SceneCommand(document), m_entities(std::move(entities)), m_layer(layer) {
+}
+
+bool SetEntitiesLayerCommand::Execute() {
+    m_previous.clear();
+    for (const EntityId id : m_entities) {
+        if (Entity* entity = GetScene().GetEntity(id); entity && entity->GetLayer() != m_layer) {
+            m_previous.emplace_back(id, entity->GetLayer());
+            entity->SetLayer(m_layer);
+        }
+    }
+    return !m_previous.empty();
+}
+
+void SetEntitiesLayerCommand::Undo() {
+    for (const auto& [id, layer] : m_previous) {
+        GetEntity(id).SetLayer(layer);
+    }
+}
+
 SetEntitiesTagCommand::SetEntitiesTagCommand(SceneDocument& document, std::vector<EntityId> entities, std::string tag,
                                              bool add)
     : SceneCommand(document), m_entities(std::move(entities)), m_tag(std::move(tag)), m_add(add) {

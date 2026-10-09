@@ -91,6 +91,8 @@ struct SceneSerializer {
         }
         std::vector<std::string> tags = entity.m_tags;
         archive.Field("tags", tags);
+        int layer = entity.m_layer;
+        archive.Field("layer", layer);
 
         const Transform& transform = entity.m_transform;
         Vector3 position = transform.GetPosition();
@@ -199,6 +201,9 @@ struct SceneSerializer {
             for (const std::string& tag : tags) {
                 entity.AddTag(tag);
             }
+            int layer = 0;
+            archive.Field("layer", layer);
+            entity.m_layer = static_cast<std::uint8_t>(std::clamp(layer, 0, Entity::LayerCount - 1));
 
             Transform& transform = entity.m_transform;
             Vector3 position = transform.GetPosition();

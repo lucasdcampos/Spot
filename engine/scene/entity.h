@@ -41,11 +41,15 @@ private:
 
 } // namespace Detail
 
-// An object in a scene: a name, tags, a transform, a place in the hierarchy and the components that give it behavior.
-// Entities are created by Scene::CreateEntity() or CreateChild(), and stay at the same address until they are freed
-// after Destroy().
+// An object in a scene: a name, tags, a layer, a transform, a place in the hierarchy and the components that give it
+// behavior. Entities are created by Scene::CreateEntity() or CreateChild(), and stay at the same address until they
+// are freed after Destroy().
 class Entity {
 public:
+    // Layers sort entities for systems that pick what they deal with by layer, such as which bodies physics lets
+    // collide (see PhysicsSettings) and what queries see. Games name them in their settings; 0 is the default one.
+    static constexpr int LayerCount = 32;
+
     ~Entity() = default;
 
     Entity(const Entity&) = delete;
@@ -63,6 +67,10 @@ public:
     bool RemoveTag(std::string_view tag);
     bool HasTag(std::string_view tag) const;
     std::span<const std::string> GetTags() const { return m_tags; }
+
+    // From 0 to LayerCount - 1. The entity's own, which its children do not inherit.
+    int GetLayer() const { return m_layer; }
+    void SetLayer(int layer);
 
     // An inactive entity, and every entity below it, has no active components: they get neither OnStart() nor
     // updates, and Scene::ForEachComponent() skips them.
@@ -240,6 +248,7 @@ private:
     EntityId m_id;
     std::string m_name;
     std::vector<std::string> m_tags;
+    std::uint8_t m_layer = 0;
     Transform m_transform{*this};
     Entity* m_parent = nullptr;
     std::vector<Entity*> m_children;

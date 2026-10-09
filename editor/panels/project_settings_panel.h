@@ -19,6 +19,8 @@ protected:
 
 private:
     void Save();
+    // The names of the entities' layers, and which collide with which.
+    void DrawLayers(PhysicsSettings& physics);
 
     EditorContext& m_context;
     bool m_sectionsChanged = false;

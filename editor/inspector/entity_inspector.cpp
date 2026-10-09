@@ -17,6 +17,7 @@
 #include <array>
 #include <cfloat>
 #include <cmath>
+#include <format>
 #include <set>
 #include <unordered_map>
 
@@ -178,10 +179,50 @@ void EntityInspector::DrawHeader(SceneDocument& document, std::span<Entity* cons
     }
 
     DrawTags(document, entities);
+    DrawLayer(document, entities);
     if (multiple) {
         ImGui::TextDisabled("%zu entities selected", entities.size());
     }
     ImGui::Separator();
+}
+
+void EntityInspector::DrawLayer(SceneDocument& document, std::span<Entity* const> entities) {
+    const Entity& primary = *entities.front();
+    const bool mixed =
+        std::ranges::any_of(entities, [&](const Entity* entity) { return entity->GetLayer() != primary.GetLayer(); });
+    const EditorProject* project = m_context.GetProject();
+    const auto name = [project](int layer) {
+        const std::string& named =
+            project ? project->GetProject().GetSettings().sections.physics.layerNames[static_cast<std::size_t>(layer)]
+                    : std::string();
+        return named.empty() ? std::format("Layer {}", layer) : named;
+    };
+
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("Layer");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    const std::string preview = mixed ? MixedValueText : name(primary.GetLayer());
+    if (ImGui::BeginCombo("##layer", preview.c_str())) {
+        for (int layer = 0; layer < Entity::LayerCount; ++layer) {
+            const bool current = !mixed && layer == primary.GetLayer();
+            // Unnamed layers are unused, so only the one the entity is on shows.
+            const bool named = project && !project->GetProject()
+                                               .GetSettings()
+                                               .sections.physics.layerNames[static_cast<std::size_t>(layer)]
+                                               .empty();
+            if (!named && !current && (project || layer != 0)) {
+                continue;
+            }
+            if (ImGui::Selectable(std::format("{}  {}", layer, name(layer)).c_str(), current)) {
+                document.Execute(std::make_unique<SetEntitiesLayerCommand>(document, GetIds(entities), layer));
+            }
+        }
+        ImGui::EndCombo();
+    }
+    Record("Layer");
+    ImGui::SetItemTooltip("Decides what the entity's colliders collide with, and what physics queries see. Layers "
+                          "are named in the project settings.");
 }
 
 void EntityInspector::DrawTags(SceneDocument& document, std::span<Entity* const> entities) {

@@ -4,6 +4,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cmath>
+#include <string>
 #include <vector>
 
 using Catch::Approx;
@@ -387,4 +388,76 @@ TEST_CASE("Colliders and rigidbodies are saved with their scene", "[physics]") {
     CHECK(loadedRigidbody->GetGravityScale() == 0.5f);
     CHECK(loadedRigidbody->GetLinearDamping() == 0.1f);
     CHECK(loadedRigidbody->GetAngularDamping() == 0.2f);
+}
+
+TEST_CASE("Entities have a layer, saved with their scene", "[physics][layers]") {
+    Scene scene;
+    Entity& entity = scene.CreateEntity("Layered");
+    CHECK(entity.GetLayer() == 0);
+    entity.SetLayer(7);
+    CHECK(entity.GetLayer() == 7);
+
+    Scene loaded;
+    REQUIRE(loaded.LoadFromString(scene.SaveToString()));
+    REQUIRE(loaded.FindEntity("Layered"));
+    CHECK(loaded.FindEntity("Layered")->GetLayer() == 7);
+}
+
+TEST_CASE("Bodies on layers that do not collide pass through each other", "[physics][layers]") {
+    Scene scene;
+    CreateGround(scene);
+    Entity& ghost = CreateBall(scene, {0.0f, 1.0f, 0.0f});
+    ghost.SetLayer(3);
+    Entity& ball = CreateBall(scene, {2.0f, 1.0f, 0.0f});
+    scene.GetPhysics().SetLayerCollision(0, 3, false);
+    CHECK_FALSE(scene.GetPhysics().GetLayerCollision(3, 0));
+    CHECK(scene.GetPhysics().GetLayerCollision(3, 3));
+
+    Simulate(scene, 1.0f);
+    CHECK(GetHeight(ball) == Approx(0.5f).margin(RestMargin));
+    CHECK(GetHeight(ghost) < -1.0f);
+
+    // Moving the ball to the ghost's layer drops it through the ground too.
+    ball.SetLayer(3);
+    Simulate(scene, 1.0f);
+    CHECK(GetHeight(ball) < -1.0f);
+}
+
+TEST_CASE("Physics settings keep layer names and a symmetric collision matrix", "[physics][layers]") {
+    Spot::PhysicsSettings settings;
+    CHECK(settings.FindLayer("Default") == 0);
+    CHECK_FALSE(settings.FindLayer("Props").has_value());
+    CHECK_FALSE(settings.FindLayer("").has_value());
+    settings.layerNames[4] = "Props";
+    settings.SetCollides(4, 0, false);
+    CHECK_FALSE(settings.Collides(0, 4));
+    CHECK(settings.Collides(4, 4));
+
+    // A matrix that is not symmetric, as edited by hand, becomes symmetric: pairs collide only when both say so.
+    Spot::SettingsSections sections;
+    sections.physics = settings;
+    std::string text = sections.SaveToString();
+    Spot::SettingsSections loaded;
+    REQUIRE(loaded.LoadFromString(text));
+    CHECK(loaded.physics.FindLayer("Props") == 4);
+    CHECK_FALSE(loaded.physics.Collides(4, 0));
+    loaded.physics.layerCollisions[1] &= ~(1u << 2);
+    REQUIRE(loaded.LoadFromString(loaded.SaveToString()));
+    CHECK_FALSE(loaded.physics.Collides(2, 1));
+
+    // Applying them gives the scene's physics the names and the matrix.
+    Scene scene;
+    loaded.Apply(scene);
+    REQUIRE(scene.GetSystem<PhysicsWorld>() != nullptr);
+    CHECK(scene.GetPhysics().FindLayer("Props") == 4);
+    CHECK(scene.GetPhysics().GetLayerName(4) == "Props");
+    CHECK_FALSE(scene.GetPhysics().GetLayerCollision(0, 4));
+    CHECK(scene.GetPhysics().GetLayerCollision(4, 4));
+
+    // Default settings leave physics to be created when needed.
+    Scene empty;
+    Spot::SettingsSections{}.Apply(empty);
+    CHECK(empty.GetSystem<PhysicsWorld>() == nullptr);
+    CHECK(Spot::PhysicsSettings{}.gravity == PhysicsWorld::DefaultGravity);
+    CHECK(Spot::PhysicsSettings{}.fixedTimeStep == Scene::DefaultFixedTimeStep);
 }

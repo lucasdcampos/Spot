@@ -230,7 +230,7 @@ Design:
   ignore) and return hits with the `EntityId`, the collider, the point, the normal and the distance.
 
 Steps:
-- [ ] **M1.1 Layers.** Add `Entity::GetLayer()`/`SetLayer()`, layer names and a symmetric collision matrix in the
+- [x] **M1.1 Layers.** Add `Entity::GetLayer()`/`SetLayer()`, layer names and a symmetric collision matrix in the
   physics settings section, and Jolt object layers and filters in the backend. The editor gets a layer dropdown on
   the entity and a matrix editor in project settings. Layers are serialized. Tests.
 - [ ] **M1.2 Triggers.** Add `Collider::SetTrigger()` and sensor bodies, which detect overlaps but never push. Tests.
@@ -269,6 +269,12 @@ Steps:
 physics gun and the tool gun, and shoots and blows it apart.
 
 **Notes:**
+- M1.1: layer names and the matrix are in `PhysicsSettings` (`layerNames`, `layerCollisions`), and `PhysicsWorld`
+  keeps a copy that games can change at run time. The settings mark both fields `FieldOptions::hidden`, a new option
+  that keeps a field out of the inspector, since the Project Settings panel draws them its own way. Applying default
+  settings still leaves physics uncreated. In Jolt, object layer = layer * 2 + 1 for moving bodies, so the static
+  and moving broad phase layers stay as they were. The entity's layer is saved under `"layer"`, read as 0 from older
+  scenes.
 
 ---
 

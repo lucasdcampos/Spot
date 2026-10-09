@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace Spot::Editor {
@@ -165,6 +166,22 @@ private:
     bool m_add;
     // The tags of the entities that changed, in order, as they were.
     std::vector<Previous> m_previous;
+};
+
+// Moves entities to a layer.
+class SetEntitiesLayerCommand final : public SceneCommand {
+public:
+    SetEntitiesLayerCommand(SceneDocument& document, std::vector<EntityId> entities, int layer);
+
+    std::string GetName() const override { return "Set Layer"; }
+    bool Execute() override;
+    void Undo() override;
+
+private:
+    std::vector<EntityId> m_entities;
+    int m_layer;
+    // The entities that changed, with the layers they were on.
+    std::vector<std::pair<EntityId, int>> m_previous;
 };
 
 // A transform's local position, rotation and scale.

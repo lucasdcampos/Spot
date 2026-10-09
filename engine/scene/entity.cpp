@@ -25,6 +25,18 @@ bool Entity::HasTag(std::string_view tag) const {
     return std::ranges::find(m_tags, tag) != m_tags.end();
 }
 
+void Entity::SetLayer(int layer) {
+    SPOT_ASSERT(layer >= 0 && layer < LayerCount, "Layers go from 0 to Entity::LayerCount - 1");
+    if (layer == m_layer) {
+        return;
+    }
+    m_layer = static_cast<std::uint8_t>(layer);
+    // Its body, if any, moves to the layer.
+    if (PhysicsWorld* physics = m_scene->GetSystem<PhysicsWorld>()) {
+        physics->MarkChanged(m_id);
+    }
+}
+
 void Entity::SetActive(bool active) {
     if (m_activeSelf == active) {
         return;

@@ -8,8 +8,14 @@
 
 #include "scene/scene.h"
 
+#include <array>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -38,6 +44,20 @@ public:
 
     // The bodies simulated in the last step.
     std::size_t GetBodyCount() const { return m_bodies.size(); }
+
+    // Which layers' bodies collide with which (see Entity::GetLayer()), as the game's physics settings say. The
+    // matrix stays symmetric: setting whether a collides with b also sets whether b collides with a.
+    bool GetLayerCollision(int a, int b) const;
+    void SetLayerCollision(int a, int b, bool collides);
+    // A bit per layer that bodies of this layer collide with.
+    std::uint32_t GetLayerMask(int layer) const { return m_layerMasks[static_cast<std::size_t>(layer)]; }
+    void SetLayerMask(int layer, std::uint32_t mask);
+
+    // The layers' names, empty for unnamed ones; see PhysicsSettings::layerNames.
+    const std::string& GetLayerName(int layer) const { return m_layerNames[static_cast<std::size_t>(layer)]; }
+    void SetLayerNames(std::span<const std::string> names);
+    // The layer with the name; nothing when no layer has it.
+    std::optional<int> FindLayer(std::string_view name) const;
 
 private:
     friend class Collider;
@@ -74,6 +94,8 @@ private:
     std::unordered_map<EntityId, Body> m_bodies;
     std::unordered_set<EntityId> m_changed;
     Vector3 m_gravity = DefaultGravity;
+    std::array<std::uint32_t, Entity::LayerCount> m_layerMasks;
+    std::array<std::string, Entity::LayerCount> m_layerNames;
     // The seconds the current step simulates.
     float m_stepTime = Scene::DefaultFixedTimeStep;
 };

@@ -23,6 +23,23 @@ ball.AddComponent<Spot::Rigidbody>().SetMass(2.0f);
 The active colliders of an entity form **one body** with the entity's world pose. Without a `Rigidbody`, that body is
 static: it stays where its entity is placed, like floors and walls.
 
+## Layers
+
+Every entity is on one of 32 layers (`Entity::GetLayer()`, `SetLayer()`; 0 by default), saved with its scene. Games
+name the layers they use and decide which collide with which in the physics settings section: `PhysicsSettings`
+holds the names (`layerNames`, "Default" for layer 0) and a symmetric matrix (`layerCollisions`, a bit mask per
+layer), which the editor's Project Settings panel edits as a list of names and a triangle of checkboxes. Applied to
+a scene, they reach its `PhysicsWorld`, which can also change them at run time (`SetLayerCollision()`,
+`SetLayerMask()`) and finds layers by name (`FindLayer()`):
+
+```cpp
+const int props = *scene.GetPhysics().FindLayer("Props");
+scene.GetPhysics().SetLayerCollision(props, props, false);
+```
+
+The backend turns each layer into two Jolt object layers, for static and moving bodies, so static bodies still never
+test each other. Tags stay for finding entities; layers are what systems filter by.
+
 ## The physics world
 
 `PhysicsWorld` (`engine/physics/physics_world.h`) is the scene's physics system (see
@@ -44,5 +61,5 @@ editor's Project Settings panel edits.
 
 ## Not there yet
 
-Layers, triggers, collision events, raycasts and other queries, a character controller, mesh colliders and joints
-come in the roadmap's milestone M1.
+Triggers, collision events, raycasts and other queries, a character controller, mesh colliders and joints come in
+the rest of the roadmap's milestone M1.

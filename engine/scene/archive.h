@@ -50,6 +50,8 @@ struct FieldOptions {
     const char* tooltip = nullptr;
     // Tools show the field without letting it be changed.
     bool readOnly = false;
+    // Tools do not show the field, as when they edit it their own way. Files still save it.
+    bool hidden = false;
     // The type of asset an AssetId field refers to, so tools offer only assets of that type. AssetRef fields know
     // theirs.
     std::optional<AssetType> assetType = std::nullopt;

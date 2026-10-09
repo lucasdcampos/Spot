@@ -135,6 +135,9 @@ void InspectorBackend::MarkChanged(std::string pointer) {
 }
 
 bool InspectorBackend::BeginRow(std::string_view name, const FieldOptions& options, std::string& pointer) {
+    if (options.hidden) {
+        return false;
+    }
     ++m_fieldCount;
     if (m_collapsed > 0) {
         return false;
@@ -475,6 +478,10 @@ void InspectorBackend::EnumField(std::string_view name, std::int64_t& value, con
 }
 
 bool InspectorBackend::BeginContainer(std::string_view name, const FieldOptions& options, std::size_t* size) {
+    // Not opened, so the archive skips what is inside.
+    if (options.hidden) {
+        return false;
+    }
     ++m_fieldCount;
     const std::string pointer = GetPointer(name);
     bool open = false;

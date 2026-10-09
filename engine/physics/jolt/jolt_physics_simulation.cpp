@@ -19,7 +19,9 @@
 #include <Jolt/RegisterTypes.h>
 
 #include <algorithm>
+#include <array>
 #include <cstdarg>
+#include <cstdint>
 #include <cstdio>
 #include <mutex>
 
@@ -34,12 +36,22 @@ constexpr std::size_t TempAllocatorSize = 16 * 1024 * 1024;
 // Smaller shapes make the simulation unstable.
 constexpr float MinShapeSize = 0.001f;
 
-namespace Layers {
+// Jolt's object layers pair the entity's layer with whether the body moves: the layer times two, plus one for moving
+// bodies.
 
-constexpr JPH::ObjectLayer Static = 0;
-constexpr JPH::ObjectLayer Moving = 1;
+JPH::ObjectLayer ToObjectLayer(int layer, bool moving) {
+    return static_cast<JPH::ObjectLayer>(layer * 2 + (moving ? 1 : 0));
+}
 
-} // namespace Layers
+bool IsMoving(JPH::ObjectLayer layer) {
+    return (layer & 1) != 0;
+}
+
+int GetEntityLayer(JPH::ObjectLayer layer) {
+    return layer / 2;
+}
+
+using LayerMasks = std::array<std::uint32_t, 32>;
 
 namespace BroadPhaseLayers {
 
@@ -55,7 +67,7 @@ public:
     JPH::uint GetNumBroadPhaseLayers() const override { return BroadPhaseLayers::Count; }
 
     JPH::BroadPhaseLayer GetBroadPhaseLayer(JPH::ObjectLayer layer) const override {
-        return layer == Layers::Static ? BroadPhaseLayers::Static : BroadPhaseLayers::Moving;
+        return IsMoving(layer) ? BroadPhaseLayers::Moving : BroadPhaseLayers::Static;
     }
 
 #if defined(JPH_EXTERNAL_PROFILE) || defined(JPH_PROFILE_ENABLED)
@@ -68,15 +80,25 @@ public:
 class ObjectVsBroadPhaseFilter final : public JPH::ObjectVsBroadPhaseLayerFilter {
 public:
     bool ShouldCollide(JPH::ObjectLayer layer, JPH::BroadPhaseLayer broadPhaseLayer) const override {
-        return layer == Layers::Moving || broadPhaseLayer == BroadPhaseLayers::Moving;
+        return IsMoving(layer) || broadPhaseLayer == BroadPhaseLayers::Moving;
     }
 };
 
+// Static bodies never collide with each other; other pairs collide when their entities' layers do. The masks change
+// only between steps, while no thread reads them.
 class ObjectPairFilter final : public JPH::ObjectLayerPairFilter {
 public:
+    explicit ObjectPairFilter(const LayerMasks& masks) : m_masks(masks) {}
+
     bool ShouldCollide(JPH::ObjectLayer a, JPH::ObjectLayer b) const override {
-        return a == Layers::Moving || b == Layers::Moving;
+        if (!IsMoving(a) && !IsMoving(b)) {
+            return false;
+        }
+        return ((m_masks[static_cast<std::size_t>(GetEntityLayer(a))] >> GetEntityLayer(b)) & 1u) != 0;
     }
+
+private:
+    const LayerMasks& m_masks;
 };
 
 void TraceToLog(const char* format, ...) {
@@ -222,6 +244,12 @@ JPH::RefConst<JPH::Shape> CreateBodyShape(const std::vector<PhysicsShape>& shape
     return result.Get();
 }
 
+LayerMasks MakeAllLayers() {
+    LayerMasks masks;
+    masks.fill(0xffffffffu);
+    return masks;
+}
+
 } // namespace
 
 struct PhysicsSimulation::Impl {
@@ -229,7 +257,8 @@ struct PhysicsSimulation::Impl {
     RuntimeUser runtime;
     BroadPhaseLayerMap broadPhaseLayers;
     ObjectVsBroadPhaseFilter objectVsBroadPhaseFilter;
-    ObjectPairFilter objectPairFilter;
+    LayerMasks layerMasks = MakeAllLayers();
+    ObjectPairFilter objectPairFilter{layerMasks};
     JPH::PhysicsSystem system;
 
     Impl() {
@@ -256,6 +285,10 @@ PhysicsSimulation::PhysicsSimulation(std::unique_ptr<Impl> impl) : m_impl(std::m
 
 PhysicsSimulation::~PhysicsSimulation() = default;
 
+void PhysicsSimulation::SetLayerMasks(const std::array<std::uint32_t, 32>& masks) {
+    m_impl->layerMasks = masks;
+}
+
 void PhysicsSimulation::SetGravity(Vector3 gravity) {
     m_impl->system.SetGravity(ToJolt(gravity));
     // Resting bodies would otherwise ignore the new gravity until something touches them.
@@ -267,7 +300,7 @@ void PhysicsSimulation::SetGravity(Vector3 gravity) {
 PhysicsBodyId PhysicsSimulation::CreateBody(const PhysicsBodyDesc& desc) {
     const bool isStatic = desc.motion == PhysicsMotion::Static;
     JPH::BodyCreationSettings settings(CreateBodyShape(desc.shapes), ToJolt(desc.position), ToJolt(desc.rotation),
-                                       ToJolt(desc.motion), isStatic ? Layers::Static : Layers::Moving);
+                                       ToJolt(desc.motion), ToObjectLayer(desc.layer, !isStatic));
     settings.mFriction = desc.friction;
     settings.mRestitution = desc.restitution;
     settings.mGravityFactor = desc.gravityScale;

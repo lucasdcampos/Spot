@@ -9,6 +9,10 @@
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
+#include <format>
+#include <string>
+#include <vector>
+
 namespace Spot::Editor {
 
 ProjectSettingsPanel::ProjectSettingsPanel(EditorContext& context)
@@ -85,6 +89,7 @@ void ProjectSettingsPanel::OnDraw() {
         Widgets::EndProperties();
         m_sectionsChanged = m_sectionsChanged || backend.WasChanged();
     });
+    DrawLayers(settings.sections.physics);
     // Once a drag or an edit ends, rather than on every change it makes.
     if (m_sectionsChanged && !ImGui::IsAnyItemActive()) {
         m_sectionsChanged = false;
@@ -95,6 +100,73 @@ void ProjectSettingsPanel::OnDraw() {
     if (ImGui::Button(ICON_FA_UP_RIGHT_FROM_SQUARE "  Show in File Manager")) {
         Shell::Open(project->GetProject().GetDirectory());
     }
+}
+
+void ProjectSettingsPanel::DrawLayers(PhysicsSettings& physics) {
+    ImGui::Spacing();
+    Widgets::Heading("Layers");
+    if (ImGui::TreeNodeEx("Names", ImGuiTreeNodeFlags_SpanAvailWidth)) {
+        if (Widgets::BeginProperties("##layerNames")) {
+            for (int layer = 0; layer < Entity::LayerCount; ++layer) {
+                Widgets::PropertyLabel(std::format("Layer {}", layer).c_str(),
+                                       layer == 0 ? "Entities start on the default layer, which keeps its name"
+                                                  : nullptr);
+                ImGui::PushID(layer);
+                ImGui::BeginDisabled(layer == 0);
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                ImGui::InputTextWithHint("##name", "Unused", &physics.layerNames[static_cast<std::size_t>(layer)]);
+                m_sectionsChanged = m_sectionsChanged || ImGui::IsItemDeactivatedAfterEdit();
+                ImGui::EndDisabled();
+                ImGui::PopID();
+            }
+            Widgets::EndProperties();
+        }
+        ImGui::TreePop();
+    }
+
+    // Only named layers are in use, so only they show, each pair once.
+    std::vector<int> named;
+    for (int layer = 0; layer < Entity::LayerCount; ++layer) {
+        if (!physics.layerNames[static_cast<std::size_t>(layer)].empty()) {
+            named.push_back(layer);
+        }
+    }
+    if (!ImGui::TreeNodeEx("Collisions", ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen)) {
+        return;
+    }
+    ImGui::TextDisabled("Bodies of two layers collide when their box is checked.");
+    const auto columns = static_cast<int>(named.size()) + 1;
+    if (ImGui::BeginTable("##collisions", columns, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg)) {
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_NoHeaderLabel);
+        // Columns go from the last layer to the first, so the checked pairs form a triangle.
+        for (auto layer = named.rbegin(); layer != named.rend(); ++layer) {
+            ImGui::TableSetupColumn(physics.layerNames[static_cast<std::size_t>(*layer)].c_str(),
+                                    ImGuiTableColumnFlags_AngledHeader);
+        }
+        ImGui::TableAngledHeadersRow();
+        for (std::size_t row = 0; row < named.size(); ++row) {
+            const int a = named[row];
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextUnformatted(physics.layerNames[static_cast<std::size_t>(a)].c_str());
+            for (std::size_t column = 0; column + row < named.size(); ++column) {
+                const int b = named[named.size() - 1 - column];
+                ImGui::TableNextColumn();
+                bool collides = physics.Collides(a, b);
+                ImGui::PushID(a * Entity::LayerCount + b);
+                if (ImGui::Checkbox("##collides", &collides)) {
+                    physics.SetCollides(a, b, collides);
+                    m_sectionsChanged = true;
+                }
+                ImGui::SetItemTooltip("%s and %s", physics.layerNames[static_cast<std::size_t>(a)].c_str(),
+                                      physics.layerNames[static_cast<std::size_t>(b)].c_str());
+                ImGui::PopID();
+            }
+        }
+        ImGui::EndTable();
+    }
+    ImGui::TreePop();
 }
 
 void ProjectSettingsPanel::Save() {

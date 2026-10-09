@@ -11,6 +11,7 @@ freed after `Destroy()`. An entity has:
 - a name and tags (`AddTag()`, `Scene::FindEntitiesWithTag()`),
 - a `Transform`: local position, rotation and scale, and world ones computed through its parents,
 - a parent and ordered children (`SetParent()`, `SetSiblingIndex()`),
+- a layer, from 0 to 31, which physics filters by (see [Physics](physics.md)),
 - an active flag: an inactive entity, and everything below it, has no active components.
 
 ### Ids

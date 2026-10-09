@@ -35,6 +35,45 @@ bool IsSameScale(Vector3 a, Vector3 b) {
 } // namespace
 
 PhysicsWorld::PhysicsWorld() : SceneSystem(SystemOrder::Physics) {
+    m_layerMasks.fill(0xffffffffu);
+    m_layerNames[0] = "Default";
+}
+
+bool PhysicsWorld::GetLayerCollision(int a, int b) const {
+    return ((GetLayerMask(a) >> b) & 1u) != 0;
+}
+
+void PhysicsWorld::SetLayerCollision(int a, int b, bool collides) {
+    std::uint32_t mask = GetLayerMask(a);
+    mask = collides ? mask | (1u << b) : mask & ~(1u << b);
+    SetLayerMask(a, mask);
+}
+
+void PhysicsWorld::SetLayerMask(int layer, std::uint32_t mask) {
+    SPOT_ASSERT(layer >= 0 && layer < Entity::LayerCount, "Layers go from 0 to Entity::LayerCount - 1");
+    for (int other = 0; other < Entity::LayerCount; ++other) {
+        const std::uint32_t bit = 1u << layer;
+        std::uint32_t& otherMask = m_layerMasks[static_cast<std::size_t>(other)];
+        otherMask = ((mask >> other) & 1u) != 0 ? otherMask | bit : otherMask & ~bit;
+    }
+    m_layerMasks[static_cast<std::size_t>(layer)] = mask;
+    if (m_simulation) {
+        m_simulation->SetLayerMasks(m_layerMasks);
+    }
+}
+
+void PhysicsWorld::SetLayerNames(std::span<const std::string> names) {
+    for (std::size_t i = 0; i < m_layerNames.size(); ++i) {
+        m_layerNames[i] = i < names.size() ? names[i] : std::string();
+    }
+}
+
+std::optional<int> PhysicsWorld::FindLayer(std::string_view name) const {
+    const auto found = std::ranges::find(m_layerNames, name);
+    if (name.empty() || found == m_layerNames.end()) {
+        return std::nullopt;
+    }
+    return static_cast<int>(found - m_layerNames.begin());
 }
 
 PhysicsWorld::~PhysicsWorld() = default;
@@ -73,6 +112,7 @@ Detail::PhysicsSimulation& PhysicsWorld::GetSimulation() {
     if (!m_simulation) {
         m_simulation = Detail::PhysicsSimulation::Create();
         m_simulation->SetGravity(m_gravity);
+        m_simulation->SetLayerMasks(m_layerMasks);
     }
     return *m_simulation;
 }
@@ -133,6 +173,7 @@ void PhysicsWorld::Rebuild(EntityId entityId) {
 
     desc.position = transform.GetWorldPosition();
     desc.rotation = Normalize(transform.GetWorldRotation());
+    desc.layer = entity->GetLayer();
     if (rigidbody) {
         desc.motion = rigidbody->m_kinematic ? PhysicsMotion::Kinematic : PhysicsMotion::Dynamic;
         desc.mass = rigidbody->m_mass;

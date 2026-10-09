@@ -3,6 +3,7 @@
 #include "math/quaternion.h"
 #include "math/vector.h"
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -44,6 +45,8 @@ struct PhysicsBodyDesc {
     Quaternion rotation = {};
     // A body without shapes collides with nothing, but still moves.
     std::vector<PhysicsShape> shapes;
+    // The layer of its entity, which decides what it collides with; see SetLayerMasks().
+    int layer = 0;
     float friction = 0.5f;
     float restitution = 0.0f;
     // The rest only matters to dynamic and kinematic bodies.
@@ -70,6 +73,9 @@ public:
     PhysicsSimulation& operator=(const PhysicsSimulation&) = delete;
 
     void SetGravity(Vector3 gravity);
+    // For each of the 32 layers, a bit per layer its bodies collide with; the masks are symmetric. Every layer
+    // collides with every layer until this is called.
+    void SetLayerMasks(const std::array<std::uint32_t, 32>& masks);
 
     // Returns PhysicsBodyId::Invalid, after logging why, when the body cannot be created.
     PhysicsBodyId CreateBody(const PhysicsBodyDesc& desc);

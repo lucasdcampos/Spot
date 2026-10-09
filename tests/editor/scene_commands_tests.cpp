@@ -161,6 +161,18 @@ TEST_CASE("Renaming, activating and moving entities undo", "[editor][commands]")
             {fixture.other->GetId(), Spot::Editor::Pose::Of(fixture.other->GetTransform()), moved}}));
 }
 
+TEST_CASE("Moving entities to a layer undoes", "[editor][commands]") {
+    Fixture fixture;
+    fixture.other->SetLayer(2);
+    fixture.CheckRoundTrip(std::make_unique<Spot::Editor::SetEntitiesLayerCommand>(
+        fixture.document, std::vector{fixture.root->GetId(), fixture.other->GetId()}, 5));
+    CHECK(fixture.root->GetLayer() == 5);
+    CHECK(fixture.other->GetLayer() == 5);
+    fixture.document.Undo();
+    CHECK(fixture.root->GetLayer() == 0);
+    CHECK(fixture.other->GetLayer() == 2);
+}
+
 TEST_CASE("Components are added, removed, moved and edited with undo", "[editor][commands]") {
     Fixture fixture;
     const EntityId id = fixture.child->GetId();

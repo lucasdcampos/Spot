@@ -88,6 +88,7 @@ private:
 
     void DrawHeader(SceneDocument& document, std::span<Entity* const> entities);
     void DrawTags(SceneDocument& document, std::span<Entity* const> entities);
+    void DrawLayer(SceneDocument& document, std::span<Entity* const> entities);
     void DrawTransform(SceneDocument& document, std::span<Entity* const> entities);
     void DrawTransformMenu(SceneDocument& document, std::span<Entity* const> entities);
     void DrawComponents(SceneDocument& document, std::span<Entity* const> entities);

@@ -34,10 +34,10 @@ when the game's code is reloaded and every component is recreated. Unsaved scene
 |---|---|
 | Scene views | Show a document through an editor camera, with the grid, the selection's outline, transform gizmos (move, turn, scale), picking by clicking, and the shapes queued with `DebugDraw` |
 | Hierarchy | The entities as a tree: select, rename, reorder and reparent by dragging, create, duplicate and delete |
-| Inspector | The selected entities' name, tags, activity, transform and components; draws each component's fields from its `Serialize()` through the `InspectorBackend`; edits several entities at once; marks missing and faulted components |
+| Inspector | The selected entities' name, tags, layer, activity, transform and components; draws each component's fields from its `Serialize()` through the `InspectorBackend`; edits several entities at once; marks missing and faulted components |
 | Assets | Browses the project's sources with thumbnails; moves, renames, duplicates, deletes and imports files dropped from the OS; inspects import settings |
 | Console | The log, filtered by level and text |
-| Project Settings | The project's name, version and startup scene, and every settings section, drawn through the inspector backend |
+| Project Settings | The project's name, version and startup scene, every settings section, drawn through the inspector backend, and the layers' names and collision matrix |
 
 ## Game code
 
