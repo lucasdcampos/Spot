@@ -238,7 +238,7 @@ Steps:
   the hooks `OnCollisionEnter/Stay/Exit(const Collision&)` (other entity, contact points, normal, relative velocity,
   impulse) and `OnTriggerEnter/Exit(const TriggerContact&)`. Disabling or destroying a collider sends its exits.
   Tests: event sequences, destroying entities from inside callbacks, disabled colliders.
-- [ ] **M1.4 Queries.** `Raycast`, `RaycastAll`, `SphereCast`, `OverlapSphere` and `OverlapBox` with `QueryFilter`.
+- [x] **M1.4 Queries.** `Raycast`, `RaycastAll`, `SphereCast`, `OverlapSphere` and `OverlapBox` with `QueryFilter`.
   Queries see the bodies of the last step plus pending rebuilds. Tests.
 - [ ] **M1.5 More rigidbody control.** `AddForceAtPosition`, `AddImpulseAtPosition`, `AddTorque`, freezing rotation
   axes, continuous collision detection for fast bodies, and sleep control. Tests.
@@ -284,6 +284,10 @@ physics gun and the tool gun, and shoots and blows it apart.
   body forgets its contacts. Jolt gives no impulse before solving, so `Collision::impulse` is estimated from the
   approach speed and the bodies' inverse masses. Events go to active components only. There is no
   `OnTriggerStay()`, as the plan lists none.
+- M1.4: hits name the `Collider` as well as the entity: `PhysicsWorld` keeps, per body, the colliders its shapes came
+  from, and the backend turns Jolt's sub-shape ids back into shape indices. A pointer to a component is not kept by
+  the caller across frames; the entity id is what lasts. Entities moved since the last step are seen where they
+  were, as the plan says; `OverlapBox()` takes a full size, like `BoxCollider` and `DebugDraw::Box()`.
 
 ---
 

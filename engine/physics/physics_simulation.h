@@ -80,6 +80,25 @@ struct PhysicsContact {
     bool active = false;
 };
 
+// Which bodies a query sees.
+struct PhysicsQueryFilter {
+    // A bit per layer whose bodies it sees.
+    std::uint32_t layerMask = 0xffffffffu;
+    bool sensors = false;
+    // Bodies it goes through.
+    std::array<PhysicsBodyId, 2> ignored = {PhysicsBodyId::Invalid, PhysicsBodyId::Invalid};
+};
+
+struct PhysicsQueryHit {
+    PhysicsBodyId body = PhysicsBodyId::Invalid;
+    // The index of the shape in the body's PhysicsBodyDesc::shapes.
+    std::uint32_t shape = 0;
+    // Casts only.
+    Vector3 point = {};
+    Vector3 normal = {};
+    float distance = 0.0f;
+};
+
 struct PhysicsPose {
     Vector3 position = {};
     Quaternion rotation = {};
@@ -107,6 +126,21 @@ public:
     void Step(float deltaTime);
     // Replaces the vector's contents with every contact after the last step, in no particular order.
     void GetContacts(std::vector<PhysicsContact>& contacts) const;
+
+    // Queries see the bodies as they are, and never wake them. Directions are unit vectors. The functions that fill
+    // a vector replace its contents.
+    bool CastRay(Vector3 origin, Vector3 direction, float maxDistance, const PhysicsQueryFilter& filter,
+                 PhysicsQueryHit& hit) const;
+    // Every body the ray meets, nearest first, once per shape.
+    void CastRayAll(Vector3 origin, Vector3 direction, float maxDistance, const PhysicsQueryFilter& filter,
+                    std::vector<PhysicsQueryHit>& hits) const;
+    bool CastSphere(Vector3 origin, float radius, Vector3 direction, float maxDistance,
+                    const PhysicsQueryFilter& filter, PhysicsQueryHit& hit) const;
+    // The shapes overlapping the sphere or box, once each, without points or normals.
+    void OverlapSphere(Vector3 center, float radius, const PhysicsQueryFilter& filter,
+                       std::vector<PhysicsQueryHit>& hits) const;
+    void OverlapBox(Vector3 center, Vector3 halfExtents, const Quaternion& rotation, const PhysicsQueryFilter& filter,
+                    std::vector<PhysicsQueryHit>& hits) const;
 
     PhysicsPose GetPose(PhysicsBodyId body) const;
     // Places the body at once, without moving through the space in between. Bodies around both places wake up.

@@ -98,6 +98,88 @@ void PhysicsWorld::OnFixedUpdate(float fixedDeltaTime) {
     DispatchContacts();
 }
 
+Detail::PhysicsQueryFilter PhysicsWorld::MakeQueryFilter(const QueryFilter& filter) const {
+    Detail::PhysicsQueryFilter query{.layerMask = filter.layerMask, .sensors = filter.includeTriggers};
+    if (const auto ignored = m_bodies.find(filter.ignore); ignored != m_bodies.end()) {
+        query.ignored = {ignored->second.id, ignored->second.sensor};
+    }
+    return query;
+}
+
+bool PhysicsWorld::PrepareQuery() {
+    RebuildChanged();
+    return m_simulation && !m_bodies.empty();
+}
+
+RaycastHit PhysicsWorld::MakeHit(const Detail::PhysicsQueryHit& hit) const {
+    RaycastHit result{.point = hit.point, .normal = hit.normal, .distance = hit.distance};
+    if (const auto owner = m_owners.find(hit.body); owner != m_owners.end()) {
+        result.entity = owner->second.entity;
+        result.collider = hit.shape < owner->second.colliders.size() ? owner->second.colliders[hit.shape] : nullptr;
+    }
+    return result;
+}
+
+std::vector<OverlapHit> PhysicsWorld::MakeOverlapHits() const {
+    std::vector<OverlapHit> hits;
+    hits.reserve(m_queryHits.size());
+    for (const Detail::PhysicsQueryHit& hit : m_queryHits) {
+        const RaycastHit found = MakeHit(hit);
+        hits.push_back({found.entity, found.collider});
+    }
+    return hits;
+}
+
+std::optional<RaycastHit> PhysicsWorld::Raycast(Vector3 origin, Vector3 direction, float maxDistance,
+                                                const QueryFilter& filter) {
+    Detail::PhysicsQueryHit hit;
+    if (!PrepareQuery() || LengthSquared(direction) <= 0.0f || maxDistance <= 0.0f ||
+        !m_simulation->CastRay(origin, Normalize(direction), maxDistance, MakeQueryFilter(filter), hit)) {
+        return std::nullopt;
+    }
+    return MakeHit(hit);
+}
+
+std::vector<RaycastHit> PhysicsWorld::RaycastAll(Vector3 origin, Vector3 direction, float maxDistance,
+                                                 const QueryFilter& filter) {
+    std::vector<RaycastHit> hits;
+    if (!PrepareQuery() || LengthSquared(direction) <= 0.0f || maxDistance <= 0.0f) {
+        return hits;
+    }
+    m_simulation->CastRayAll(origin, Normalize(direction), maxDistance, MakeQueryFilter(filter), m_queryHits);
+    for (const Detail::PhysicsQueryHit& hit : m_queryHits) {
+        hits.push_back(MakeHit(hit));
+    }
+    return hits;
+}
+
+std::optional<RaycastHit> PhysicsWorld::SphereCast(Vector3 origin, float radius, Vector3 direction, float maxDistance,
+                                                   const QueryFilter& filter) {
+    Detail::PhysicsQueryHit hit;
+    if (!PrepareQuery() || LengthSquared(direction) <= 0.0f || maxDistance < 0.0f ||
+        !m_simulation->CastSphere(origin, radius, Normalize(direction), maxDistance, MakeQueryFilter(filter), hit)) {
+        return std::nullopt;
+    }
+    return MakeHit(hit);
+}
+
+std::vector<OverlapHit> PhysicsWorld::OverlapSphere(Vector3 center, float radius, const QueryFilter& filter) {
+    if (!PrepareQuery()) {
+        return {};
+    }
+    m_simulation->OverlapSphere(center, radius, MakeQueryFilter(filter), m_queryHits);
+    return MakeOverlapHits();
+}
+
+std::vector<OverlapHit> PhysicsWorld::OverlapBox(Vector3 center, Vector3 size, const Quaternion& rotation,
+                                                 const QueryFilter& filter) {
+    if (!PrepareQuery()) {
+        return {};
+    }
+    m_simulation->OverlapBox(center, size * 0.5f, Normalize(rotation), MakeQueryFilter(filter), m_queryHits);
+    return MakeOverlapHits();
+}
+
 void PhysicsWorld::ForgetBody(PhysicsBodyId body) {
     m_simulation->DestroyBody(body);
     m_owners.erase(body);
@@ -298,11 +380,14 @@ void PhysicsWorld::Rebuild(EntityId entityId) {
     const Vector3 scale = GetWorldScale(transform);
     Detail::PhysicsBodyDesc desc;
     Detail::PhysicsBodyDesc sensor{.sensor = true};
-    for (const Collider* collider : entity->GetComponents<Collider>()) {
+    std::vector<Collider*> solidColliders;
+    std::vector<Collider*> triggerColliders;
+    for (Collider* collider : entity->GetComponents<Collider>()) {
         if (!collider->IsActiveAndEnabled()) {
             continue;
         }
         Detail::PhysicsBodyDesc& target = collider->IsTrigger() ? sensor : desc;
+        (collider->IsTrigger() ? triggerColliders : solidColliders).push_back(collider);
         if (target.shapes.empty()) {
             target.friction = collider->GetFriction();
             target.restitution = collider->GetRestitution();
@@ -342,7 +427,7 @@ void PhysicsWorld::Rebuild(EntityId entityId) {
     if (solid) {
         body.id = GetSimulation().CreateBody(desc);
         if (body.id != PhysicsBodyId::Invalid) {
-            m_owners.emplace(body.id, Owner{entityId, false});
+            m_owners.emplace(body.id, Owner{entityId, false, std::move(solidColliders)});
         }
     }
     if (!sensor.shapes.empty()) {
@@ -353,7 +438,7 @@ void PhysicsWorld::Rebuild(EntityId entityId) {
         sensor.layer = desc.layer;
         body.sensor = GetSimulation().CreateBody(sensor);
         if (body.sensor != PhysicsBodyId::Invalid) {
-            m_owners.emplace(body.sensor, Owner{entityId, true});
+            m_owners.emplace(body.sensor, Owner{entityId, true, std::move(triggerColliders)});
         }
     }
     if (body.id != PhysicsBodyId::Invalid || body.sensor != PhysicsBodyId::Invalid) {

@@ -68,6 +68,27 @@ Jolt no longer finds it and neither body sleeps. Pairs are compared with the ste
 keep their memory, so events cost no allocation once warmed up. Hooks run under the component guard, and may destroy
 entities or change colliders; changes show from the next step.
 
+## Queries
+
+`PhysicsWorld` answers questions about the bodies (see `engine/physics/physics_query.h`):
+
+| Query | Finds |
+|---|---|
+| `Raycast()` | The first body a ray meets within a distance |
+| `RaycastAll()` | Every collider a ray meets, nearest first |
+| `SphereCast()` | The first body a sphere moving along a direction meets, as a thick ray |
+| `OverlapSphere()`, `OverlapBox()` | The colliders overlapping a sphere, or a box of a size and rotation |
+
+```cpp
+if (auto hit = scene.GetPhysics().Raycast(eye, forward, 100.0f, {.ignore = player.GetId()})) {
+    // hit->entity, hit->collider, hit->point, hit->normal, hit->distance
+}
+```
+
+Each takes a `QueryFilter`: a mask of the layers it sees, whether triggers count (not by default), and an entity to
+go through, such as the one asking. Hits name the entity and the collider. Queries see the bodies of the last step,
+rebuilt first where colliders or rigidbodies changed since, and never wake bodies.
+
 ## The physics world
 
 `PhysicsWorld` (`engine/physics/physics_world.h`) is the scene's physics system (see
@@ -89,5 +110,5 @@ editor's Project Settings panel edits.
 
 ## Not there yet
 
-Raycasts and other queries, a character controller, mesh colliders and joints come in
+More rigidbody control, a character controller, mesh colliders and joints come in
 the rest of the roadmap's milestone M1.

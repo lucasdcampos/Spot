@@ -3,6 +3,7 @@
 #include "math/quaternion.h"
 #include "math/vector.h"
 #include "physics/collision.h"
+#include "physics/physics_query.h"
 #include "physics/physics_simulation.h"
 #include "scene/entity.h"
 #include "scene/scene_system.h"
@@ -62,6 +63,28 @@ public:
     std::uint32_t GetLayerMask(int layer) const { return m_layerMasks[static_cast<std::size_t>(layer)]; }
     void SetLayerMask(int layer, std::uint32_t mask);
 
+    // Queries see the bodies of the last step, rebuilt first where their colliders or rigidbodies changed since; an
+    // entity moved since then is seen where it was. Directions need not be unit vectors. They never wake bodies.
+    //
+    //     if (auto hit = physics.Raycast(eye, forward, 100.0f, {.ignore = player.GetId()})) {
+    //         Spot::DebugDraw::Cross(hit->point, 0.2f);
+    //     }
+
+    // The first body the ray meets within the distance.
+    std::optional<RaycastHit> Raycast(Vector3 origin, Vector3 direction, float maxDistance,
+                                      const QueryFilter& filter = {});
+    // Every collider the ray meets within the distance, nearest first.
+    std::vector<RaycastHit> RaycastAll(Vector3 origin, Vector3 direction, float maxDistance,
+                                       const QueryFilter& filter = {});
+    // The first body a sphere moving along the direction meets, as for a thick ray. Bodies the sphere overlaps where it
+    // starts are met at once, at distance 0.
+    std::optional<RaycastHit> SphereCast(Vector3 origin, float radius, Vector3 direction, float maxDistance,
+                                         const QueryFilter& filter = {});
+    // The colliders overlapping the sphere, or the box of the size centered on the point, once each.
+    std::vector<OverlapHit> OverlapSphere(Vector3 center, float radius, const QueryFilter& filter = {});
+    std::vector<OverlapHit> OverlapBox(Vector3 center, Vector3 size, const Quaternion& rotation = {},
+                                       const QueryFilter& filter = {});
+
     // The layers' names, empty for unnamed ones; see PhysicsSettings::layerNames.
     const std::string& GetLayerName(int layer) const { return m_layerNames[static_cast<std::size_t>(layer)]; }
     void SetLayerNames(std::span<const std::string> names);
@@ -107,11 +130,19 @@ private:
     // Created with the first body, so scenes without physics do not pay for it.
     std::unique_ptr<Detail::PhysicsSimulation> m_simulation;
     std::unordered_map<EntityId, Body> m_bodies;
-    // Which entity each body is for, and whether it is the entity's sensor.
+    // Which entity each body is for, whether it is the entity's sensor, and the colliders its shapes come from, in
+    // order.
     struct Owner {
         EntityId entity;
         bool sensor;
+        std::vector<Collider*> colliders;
     };
+    Detail::PhysicsQueryFilter MakeQueryFilter(const QueryFilter& filter) const;
+    // Brings the bodies up to date for a query; false when there are none.
+    bool PrepareQuery();
+    RaycastHit MakeHit(const Detail::PhysicsQueryHit& hit) const;
+    std::vector<OverlapHit> MakeOverlapHits() const;
+    std::vector<Detail::PhysicsQueryHit> m_queryHits;
     std::unordered_map<Detail::PhysicsBodyId, Owner> m_owners;
     // A pair of entities touching, the lower id first.
     struct ContactPair {
