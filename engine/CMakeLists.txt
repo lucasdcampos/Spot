@@ -338,7 +338,18 @@ if(SPOT_PHYSICS STREQUAL "JOLT")
     FetchContent_MakeAvailable(JoltPhysics)
 
     target_sources(spot_objects PRIVATE
+        physics/jolt/jolt_characters.cpp
+        physics/jolt/jolt_common.h
+        physics/jolt/jolt_contacts.cpp
+        physics/jolt/jolt_contacts.h
+        physics/jolt/jolt_layers.h
         physics/jolt/jolt_physics_simulation.cpp
+        physics/jolt/jolt_queries.cpp
+        physics/jolt/jolt_runtime.cpp
+        physics/jolt/jolt_runtime.h
+        physics/jolt/jolt_shapes.cpp
+        physics/jolt/jolt_shapes.h
+        physics/jolt/jolt_simulation_impl.h
     )
     target_link_libraries(spot_objects PRIVATE Jolt)
 else()
