@@ -58,6 +58,13 @@ struct PhysicsBodyDesc {
     float angularDamping = 0.05f;
     Vector3 linearVelocity = {};
     Vector3 angularVelocity = {};
+    // Rotations around the world's axes the body cannot make, such as all of them for characters.
+    bool lockRotationX = false;
+    bool lockRotationY = false;
+    bool lockRotationZ = false;
+    // Sweeps the body through each step, so a fast one cannot pass through thin ones.
+    bool continuous = false;
+    bool allowSleeping = true;
 };
 
 // Two bodies touching through one shape of each, after the last step. Contacts last from the step the shapes start
@@ -158,6 +165,12 @@ public:
     // at once.
     void AddForce(PhysicsBodyId body, Vector3 force);
     void AddImpulse(PhysicsBodyId body, Vector3 impulse);
+    // At a point in world space, which also turns the body unless the point is its center of mass.
+    void AddForceAtPosition(PhysicsBodyId body, Vector3 force, Vector3 position);
+    void AddImpulseAtPosition(PhysicsBodyId body, Vector3 impulse, Vector3 position);
+    void AddTorque(PhysicsBodyId body, Vector3 torque);
+    void WakeUp(PhysicsBodyId body);
+    void Sleep(PhysicsBodyId body);
 
 private:
     struct Impl;

@@ -12,7 +12,10 @@ and the `PhysicsWorld`.
 - `Rigidbody` makes the entity's body move. **Dynamic** bodies fall with gravity and are pushed by forces and
   collisions; **kinematic** ones (`SetKinematic()`) move with their entity's transform and push dynamic bodies away
   without being pushed back. It has a mass, a gravity scale, linear and angular damping, velocities, forces and
-  impulses.
+  impulses, applied at the center of mass or at a point (`AddForceAtPosition()`, `AddImpulseAtPosition()`), and
+  torques (`AddTorque()`). It can lock rotations around the world's axes (`SetRotationLocks()`), sweep through each
+  step so a fast body cannot pass through thin ones (`SetContinuous()`), and be put to sleep, woken up or kept from
+  ever sleeping (`Sleep()`, `WakeUp()`, `SetCanSleep()`).
 
 ```cpp
 auto& ball = scene.CreateEntity("Ball");
@@ -110,5 +113,5 @@ editor's Project Settings panel edits.
 
 ## Not there yet
 
-More rigidbody control, a character controller, mesh colliders and joints come in
+A character controller, mesh colliders and joints come in
 the rest of the roadmap's milestone M1.

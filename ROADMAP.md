@@ -240,7 +240,7 @@ Steps:
   Tests: event sequences, destroying entities from inside callbacks, disabled colliders.
 - [x] **M1.4 Queries.** `Raycast`, `RaycastAll`, `SphereCast`, `OverlapSphere` and `OverlapBox` with `QueryFilter`.
   Queries see the bodies of the last step plus pending rebuilds. Tests.
-- [ ] **M1.5 More rigidbody control.** `AddForceAtPosition`, `AddImpulseAtPosition`, `AddTorque`, freezing rotation
+- [x] **M1.5 More rigidbody control.** `AddForceAtPosition`, `AddImpulseAtPosition`, `AddTorque`, freezing rotation
   axes, continuous collision detection for fast bodies, and sleep control. Tests.
 - [ ] **M1.6 Character controller.** A `CharacterController` component on Jolt's `CharacterVirtual`: `Move()`,
   `IsGrounded()`, the ground normal and velocity, slope limit, step height, pushing dynamic bodies, collision events,
@@ -288,6 +288,10 @@ physics gun and the tool gun, and shoots and blows it apart.
   from, and the backend turns Jolt's sub-shape ids back into shape indices. A pointer to a component is not kept by
   the caller across frames; the entity id is what lasts. Entities moved since the last step are seen where they
   were, as the plan says; `OverlapBox()` takes a full size, like `BoxCollider` and `DebugDraw::Box()`.
+- M1.5: rotation locks are Jolt's allowed degrees of freedom (`RotationLocks`, saved as `"rotationLocks"`),
+  continuous collision is Jolt's linear cast motion quality, and sleep control maps to activating and deactivating
+  the body. Before the body exists, `AddImpulseAtPosition()` only adds to the starting velocity, and forces and
+  torques are ignored, as `AddForce()` already was.
 
 ---
 

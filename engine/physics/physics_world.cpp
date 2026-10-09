@@ -416,6 +416,11 @@ void PhysicsWorld::Rebuild(EntityId entityId) {
         desc.gravityScale = rigidbody->m_gravityScale;
         desc.linearDamping = rigidbody->m_linearDamping;
         desc.angularDamping = rigidbody->m_angularDamping;
+        desc.lockRotationX = rigidbody->m_rotationLocks.x;
+        desc.lockRotationY = rigidbody->m_rotationLocks.y;
+        desc.lockRotationZ = rigidbody->m_rotationLocks.z;
+        desc.continuous = rigidbody->m_continuous;
+        desc.allowSleeping = rigidbody->m_canSleep;
         desc.linearVelocity = keepVelocity ? linearVelocity : rigidbody->m_linearVelocity;
         desc.angularVelocity = keepVelocity ? angularVelocity : rigidbody->m_angularVelocity;
         rigidbody->m_linearVelocity = {};

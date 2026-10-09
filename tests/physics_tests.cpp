@@ -501,3 +501,93 @@ TEST_CASE("Triggers are saved with their scene", "[physics][triggers]") {
     REQUIRE(trigger);
     CHECK(trigger->IsTrigger());
 }
+
+TEST_CASE("Forces and impulses at a point turn bodies, and torques spin them", "[physics][rigidbody]") {
+    Scene scene;
+    scene.GetPhysics().SetGravity({});
+    const auto create = [&scene](Vector3 position) -> Rigidbody& {
+        auto& entity = scene.CreateEntity();
+        entity.GetTransform().SetPosition(position);
+        entity.AddComponent<BoxCollider>();
+        return entity.AddComponent<Rigidbody>();
+    };
+    Rigidbody& centered = create({0.0f, 0.0f, 0.0f});
+    Rigidbody& offCenter = create({5.0f, 0.0f, 0.0f});
+    Rigidbody& twisted = create({10.0f, 0.0f, 0.0f});
+    Rigidbody& pushed = create({15.0f, 0.0f, 0.0f});
+    scene.Update(Step);
+
+    centered.AddImpulseAtPosition({0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 0.0f});
+    offCenter.AddImpulseAtPosition({0.0f, 0.0f, 1.0f}, {5.5f, 0.0f, 0.0f});
+    twisted.AddTorque({0.0f, 50.0f, 0.0f});
+    pushed.AddForceAtPosition({0.0f, 0.0f, 50.0f}, {15.5f, 0.0f, 0.0f});
+    scene.Update(Step);
+
+    CHECK(centered.GetLinearVelocity().z == Approx(1.0f).margin(0.01f));
+    CHECK(Spot::Length(centered.GetAngularVelocity()) == Approx(0.0f).margin(1e-4f));
+    CHECK(offCenter.GetLinearVelocity().z == Approx(1.0f).margin(0.01f));
+    // Pushed forward at its right side, it turns to the left, around -Y.
+    CHECK(offCenter.GetAngularVelocity().y < -0.5f);
+    CHECK(twisted.GetAngularVelocity().y > 0.1f);
+    CHECK(pushed.GetLinearVelocity().z > 0.0f);
+    CHECK(pushed.GetAngularVelocity().y < 0.0f);
+}
+
+TEST_CASE("Locked rotations keep a body from turning", "[physics][rigidbody]") {
+    Scene scene;
+    scene.GetPhysics().SetGravity({});
+    auto& entity = scene.CreateEntity();
+    entity.AddComponent<BoxCollider>();
+    auto& rigidbody = entity.AddComponent<Rigidbody>();
+    rigidbody.SetRotationLocks({.x = true, .y = true, .z = true});
+    scene.Update(Step);
+    rigidbody.AddImpulseAtPosition({0.0f, 0.0f, 1.0f}, {0.5f, 0.0f, 0.0f});
+    Simulate(scene, 0.5f);
+    CHECK(Spot::Length(rigidbody.GetAngularVelocity()) == Approx(0.0f).margin(1e-4f));
+    CHECK(entity.GetTransform().GetRotation() == Spot::Quaternion{});
+    CHECK(rigidbody.GetLinearVelocity().z == Approx(1.0f).margin(0.01f));
+
+    Scene loaded;
+    REQUIRE(loaded.LoadFromString(scene.SaveToString()));
+    CHECK(loaded.FindComponent<Rigidbody>()->GetRotationLocks() == Spot::RotationLocks{true, true, true});
+}
+
+TEST_CASE("Continuous bodies cannot pass through thin ones however fast they go", "[physics][rigidbody]") {
+    const auto shoot = [](bool continuous) {
+        Scene scene;
+        scene.GetPhysics().SetGravity({});
+        auto& wall = scene.CreateEntity("Wall");
+        wall.GetTransform().SetPosition({0.0f, 0.0f, -5.0f});
+        wall.AddComponent<BoxCollider>(Vector3{4.0f, 4.0f, 0.05f});
+        auto& bullet = scene.CreateEntity("Bullet");
+        bullet.GetTransform().SetScale({0.1f, 0.1f, 0.1f});
+        bullet.AddComponent<SphereCollider>();
+        auto& body = bullet.AddComponent<Rigidbody>();
+        body.SetContinuous(continuous);
+        body.SetLinearVelocity({0.0f, 0.0f, -400.0f});
+        Simulate(scene, 0.2f);
+        return bullet.GetTransform().GetPosition().z;
+    };
+    CHECK(shoot(false) < -10.0f);
+    CHECK(shoot(true) > -5.1f);
+}
+
+TEST_CASE("Rigidbodies sleep when told, wake up when told, and may never sleep", "[physics][rigidbody]") {
+    Scene scene;
+    CreateGround(scene);
+    Entity& ball = CreateBall(scene, {0.0f, 0.5f, 0.0f});
+    Entity& restless = CreateBall(scene, {3.0f, 0.5f, 0.0f});
+    auto& body = *ball.GetComponent<Rigidbody>();
+    restless.GetComponent<Rigidbody>()->SetCanSleep(false);
+    scene.Update(Step);
+    CHECK_FALSE(body.IsSleeping());
+
+    body.Sleep();
+    CHECK(body.IsSleeping());
+    body.WakeUp();
+    CHECK_FALSE(body.IsSleeping());
+
+    Simulate(scene, 3.0f);
+    CHECK(body.IsSleeping());
+    CHECK_FALSE(restless.GetComponent<Rigidbody>()->IsSleeping());
+}

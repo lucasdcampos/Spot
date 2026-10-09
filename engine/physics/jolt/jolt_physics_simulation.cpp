@@ -506,6 +506,15 @@ PhysicsBodyId PhysicsSimulation::CreateBody(const PhysicsBodyDesc& desc) {
     settings.mAngularDamping = desc.angularDamping;
     // Jolt asserts that a new body starts within its speed limits, which a body at its limit can cross by rounding
     // when rebuilt.
+    settings.mMotionQuality = desc.continuous ? JPH::EMotionQuality::LinearCast : JPH::EMotionQuality::Discrete;
+    settings.mAllowSleeping = desc.allowSleeping;
+    if (desc.motion == PhysicsMotion::Dynamic) {
+        auto dofs = static_cast<std::uint8_t>(JPH::EAllowedDOFs::All);
+        dofs &= desc.lockRotationX ? ~static_cast<std::uint8_t>(JPH::EAllowedDOFs::RotationX) : 0xff;
+        dofs &= desc.lockRotationY ? ~static_cast<std::uint8_t>(JPH::EAllowedDOFs::RotationY) : 0xff;
+        dofs &= desc.lockRotationZ ? ~static_cast<std::uint8_t>(JPH::EAllowedDOFs::RotationZ) : 0xff;
+        settings.mAllowedDOFs = static_cast<JPH::EAllowedDOFs>(dofs);
+    }
     settings.mLinearVelocity = ClampLength(ToJolt(desc.linearVelocity), settings.mMaxLinearVelocity);
     settings.mAngularVelocity = ClampLength(ToJolt(desc.angularVelocity), settings.mMaxAngularVelocity);
     if (desc.motion == PhysicsMotion::Dynamic) {
@@ -664,6 +673,26 @@ void PhysicsSimulation::AddForce(PhysicsBodyId body, Vector3 force) {
 
 void PhysicsSimulation::AddImpulse(PhysicsBodyId body, Vector3 impulse) {
     m_impl->GetBodies().AddImpulse(ToJolt(body), ToJolt(impulse));
+}
+
+void PhysicsSimulation::AddForceAtPosition(PhysicsBodyId body, Vector3 force, Vector3 position) {
+    m_impl->GetBodies().AddForce(ToJolt(body), ToJolt(force), ToJolt(position));
+}
+
+void PhysicsSimulation::AddImpulseAtPosition(PhysicsBodyId body, Vector3 impulse, Vector3 position) {
+    m_impl->GetBodies().AddImpulse(ToJolt(body), ToJolt(impulse), ToJolt(position));
+}
+
+void PhysicsSimulation::AddTorque(PhysicsBodyId body, Vector3 torque) {
+    m_impl->GetBodies().AddTorque(ToJolt(body), ToJolt(torque));
+}
+
+void PhysicsSimulation::WakeUp(PhysicsBodyId body) {
+    m_impl->GetBodies().ActivateBody(ToJolt(body));
+}
+
+void PhysicsSimulation::Sleep(PhysicsBodyId body) {
+    m_impl->GetBodies().DeactivateBody(ToJolt(body));
 }
 
 } // namespace Spot::Detail
