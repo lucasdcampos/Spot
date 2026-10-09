@@ -33,6 +33,11 @@ with a ready-to-use `Spot::ShaderDesc`.
 To build and run the sandbox: `./run.ps1` (PowerShell) or `./run.sh` (Linux, macOS, Git Bash). Both accept
 `editor` to run the editor instead, and `release` for an optimized build.
 
+## Roadmap
+
+`ROADMAP.md` plans the engine's next features, a checkbox per step: the next task is the first unchecked step, and
+the commit that finishes a step ticks its box. Follow its architecture principles and its "How to use this plan".
+
 ## Rules
 
 - Everything in the repository is in English: code, comments, docs and commit messages.
