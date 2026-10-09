@@ -788,3 +788,57 @@ TEST_CASE("Sub-assets and built-in assets are found by path", "[assets]") {
     CHECK_FALSE(assets.Load<Spot::Mesh>(Spot::BuiltInAssets::PlaneMesh));
     CHECK_FALSE(assets.Load<Spot::Texture>(Spot::BuiltInAssets::GridTexture));
 }
+
+TEST_CASE("Applications run a game from its startup scene", "[assets]") {
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    const auto imported = project.GetPath() / "imported";
+    {
+        Spot::Scene level;
+        level.CreateEntity("Hero");
+        std::filesystem::create_directories(sources);
+        REQUIRE(level.SaveToFile(sources / "first.scene"));
+    }
+    AssetDatabase database(sources, imported);
+    database.Refresh();
+    const auto startup = database.FindByPath("first.scene");
+    REQUIRE(startup.has_value());
+
+    class GameApplication final : public Spot::Application {
+    public:
+        using Application::Application;
+
+        std::string title;
+        bool loadedHero = false;
+
+    protected:
+        void OnStart() override { title = std::string(GetWindow().GetTitle()); }
+
+        void OnUpdate(float) override {
+            if (const Spot::Scene* scene = GetScene()) {
+                loadedHero = scene->FindEntity("Hero") != nullptr;
+                Quit();
+            } else if (++m_frames > 10) {
+                Quit();
+            }
+        }
+
+    private:
+        int m_frames = 0;
+    };
+
+    const Spot::ApplicationConfig config{
+        .graphics = {.enabled = false}, .audio = {.enabled = false}, .assets = {.importDirectory = imported}};
+    Spot::ApplicationConfig game = config;
+    game.game = Spot::GameSettings{.name = "Heroic", .startupScene = *startup};
+    GameApplication application(game);
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    CHECK(application.loadedHero);
+    CHECK(application.title == "Heroic");
+
+    Spot::ApplicationConfig missing = config;
+    missing.game = Spot::GameSettings{.name = "Lost", .startupScene = Spot::AssetId::Generate()};
+    GameApplication lost(missing);
+    CHECK(lost.Run() == EXIT_FAILURE);
+    CHECK_FALSE(lost.loadedHero);
+}

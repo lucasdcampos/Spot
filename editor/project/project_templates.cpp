@@ -3,6 +3,7 @@
 #include "core/editor_log.h"
 
 #include <spot.h>
+#include <spot_tools.h>
 
 #include <algorithm>
 #include <array>

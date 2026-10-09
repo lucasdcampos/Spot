@@ -3,6 +3,7 @@
 #include "modules/module_host.h"
 
 #include <spot.h>
+#include <spot_tools.h>
 
 #include <cstdint>
 #include <filesystem>

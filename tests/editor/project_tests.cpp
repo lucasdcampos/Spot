@@ -6,6 +6,7 @@
 #include "project/project_templates.h"
 
 #include <spot.h>
+#include <spot_tools.h>
 
 #include <catch2/catch_test_macros.hpp>
 

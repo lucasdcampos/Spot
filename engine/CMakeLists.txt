@@ -52,6 +52,8 @@ add_library(spot_objects OBJECT
     core/crash_handler_internal.h
     core/game_module.h
     core/game_module.cpp
+    core/game_settings.h
+    core/game_settings.cpp
     core/log.h
     core/log.cpp
     core/log_sinks.h
@@ -130,8 +132,6 @@ add_library(spot_objects OBJECT
     physics/rigidbody.cpp
     platform/platform.h
     scene/archive.h
-    project/project.cpp
-    project/project.h
     scene/archive.cpp
     scene/archive_state.h
     scene/camera.h

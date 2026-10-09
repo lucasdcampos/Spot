@@ -1,6 +1,7 @@
 #include "player_application.h"
 
 #include <spot.h>
+#include <spot_tools.h>
 
 #include <algorithm>
 #include <cstdlib>
@@ -97,6 +98,11 @@ int main(int argc, char** argv) {
 
     const auto project = Spot::Project::Load(FindProjectFile(path));
     if (!project) {
+        return EXIT_FAILURE;
+    }
+    if (!project->GetSettings().startupScene.IsValid()) {
+        Spot::Player::GetPlayerLogger().Error(
+            "'{}' has no startup scene to run; pick one in the editor's project settings", project->GetSettings().name);
         return EXIT_FAILURE;
     }
     const auto module = LoadedModule::Load(*project);

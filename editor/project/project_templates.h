@@ -1,6 +1,7 @@
 #pragma once
 
 #include <spot.h>
+#include <spot_tools.h>
 
 #include <filesystem>
 #include <optional>

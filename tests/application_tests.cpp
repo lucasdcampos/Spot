@@ -371,3 +371,18 @@ TEST_CASE("Application captures the mouse while the game locks the cursor, and q
     // The application captured the mouse itself, which the lock left alone since it did not change.
     CHECK(captured[2]);
 }
+
+TEST_CASE("Game settings are readable JSON that loads back", "[application]") {
+    const Spot::GameSettings settings{.name = "Café", .version = "1.2.3", .startupScene = Spot::AssetId::Generate()};
+    const std::string text = settings.SaveToString();
+    CHECK_THAT(text, Catch::Matchers::ContainsSubstring("\"format\": \"spot-game\""));
+
+    const auto loaded = Spot::GameSettings::LoadFromString(text);
+    REQUIRE(loaded.has_value());
+    CHECK(loaded->name == "Café");
+    CHECK(loaded->version == "1.2.3");
+    CHECK(loaded->startupScene == settings.startupScene);
+
+    CHECK_FALSE(Spot::GameSettings::LoadFromString("{\"format\": \"spot-project\"}").has_value());
+    CHECK_FALSE(Spot::GameSettings::LoadFromString("nope").has_value());
+}

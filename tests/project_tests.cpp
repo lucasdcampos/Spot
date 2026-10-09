@@ -1,6 +1,7 @@
 #include "temp_directory.h"
 
 #include <spot.h>
+#include <spot_tools.h>
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
@@ -68,4 +69,19 @@ TEST_CASE("Projects reject files that are not projects", "[project]") {
     CHECK_FALSE(Spot::Project::Load(file).has_value());
 
     CHECK_FALSE(Spot::Project::Create(temp.GetPath(), {}).has_value());
+}
+
+TEST_CASE("Projects tell their game what it is, and keep a missing startup scene missing", "[project]") {
+    const TempDirectory temp;
+    auto project = Spot::Project::Create(temp.GetPath(), {.name = "Game", .version = "2.0.0"});
+    REQUIRE(project.has_value());
+    CHECK_THAT(Spot::Project::SaveSettingsToString(project->GetSettings()),
+               Catch::Matchers::ContainsSubstring("\"startupScene\": null"));
+    CHECK_FALSE(Spot::Project::Load(project->GetFile())->GetSettings().startupScene.IsValid());
+
+    project->GetSettings().startupScene = Spot::AssetId::Generate();
+    const Spot::GameSettings game = project->GetGameSettings();
+    CHECK(game.name == "Game");
+    CHECK(game.version == "2.0.0");
+    CHECK(game.startupScene == project->GetSettings().startupScene);
 }

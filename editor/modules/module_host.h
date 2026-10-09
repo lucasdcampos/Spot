@@ -3,6 +3,7 @@
 #include "modules/module_build.h"
 
 #include <spot.h>
+#include <spot_tools.h>
 
 #include <chrono>
 #include <cstdint>

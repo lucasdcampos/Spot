@@ -39,6 +39,7 @@ add_executable(spot_tests
 )
 
 target_link_libraries(spot_tests PRIVATE
+    spot::tools
     spot::spot
     Catch2::Catch2WithMain
 )

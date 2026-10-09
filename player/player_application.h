@@ -1,6 +1,7 @@
 #pragma once
 
 #include <spot.h>
+#include <spot_tools.h>
 
 namespace Spot::Player {
 
@@ -14,8 +15,8 @@ struct PlayerOptions {
     int frames = 0;
 };
 
-// Runs a project as its game: its startup scene, seen through the scene's main camera. The game module with the
-// project's components must be loaded already.
+// Runs a project as its game, from its startup scene. The game module with the project's components must be loaded
+// already.
 class PlayerApplication final : public Application {
 public:
     PlayerApplication(const Project& project, PlayerOptions options);

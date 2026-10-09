@@ -13,11 +13,23 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
+#include <system_error>
 #include <utility>
 
 namespace Spot {
 
 Application::Application(ApplicationConfig config) : m_config(std::move(config)) {
+    if (!m_config.game) {
+        const auto file = GetExecutableDirectory() / GameSettings::FileName;
+        std::error_code error;
+        if (std::filesystem::is_regular_file(file, error)) {
+            m_config.game = GameSettings::LoadFromFile(file);
+        }
+    }
+    // Only the default title gives way to the game's name, so applications can still name their window.
+    if (m_config.game && !m_config.game->name.empty() && m_config.window.title == WindowConfig{}.title) {
+        m_config.window.title = m_config.game->name;
+    }
     if (!m_config.logFile.empty()) {
         std::error_code error;
         if (std::filesystem::exists(m_config.logFile, error)) {
@@ -85,7 +97,12 @@ int Application::Run() {
     m_persistentScene = std::make_unique<Scene>();
     m_persistentScene->m_application = this;
     m_running = true;
+    m_failed = false;
     OnStart();
+    if (m_running && m_scenes.empty() && m_sceneChanges.empty() && !LoadStartupScene()) {
+        m_failed = true;
+        Quit();
+    }
 
     while (m_running) {
         Platform::SleepFor(m_limiter.GetWaitTime(std::chrono::steady_clock::now()));
@@ -138,7 +155,7 @@ int Application::Run() {
     m_audio.reset();
     m_graphics.reset();
     m_window.reset();
-    return EXIT_SUCCESS;
+    return m_failed ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
 void Application::Quit() {
@@ -289,6 +306,24 @@ void Application::RenderScenes(RenderContext& context) {
     std::vector<Scene*> scenes = GetScenes();
     scenes.insert(scenes.begin(), m_persistentScene.get());
     m_sceneRenderer->Render(context, scenes);
+}
+
+bool Application::LoadStartupScene() {
+    if (!m_config.game) {
+        return true;
+    }
+    const AssetId startup = m_config.game->startupScene;
+    if (!startup.IsValid()) {
+        Log::GetEngineLogger().Error("'{}' has no startup scene to run", m_config.game->name);
+        return false;
+    }
+    auto scene = m_assets->InstantiateScene(startup);
+    if (!scene) {
+        Log::GetEngineLogger().Error("The startup scene of '{}' could not be loaded", m_config.game->name);
+        return false;
+    }
+    LoadScene(std::move(scene));
+    return true;
 }
 
 void Application::RemoveAllScenes() {

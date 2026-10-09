@@ -6,6 +6,7 @@
 #include "imgui/widgets.h"
 
 #include <spot.h>
+#include <spot_tools.h>
 
 #include <imgui.h>
 #include <imgui_stdlib.h>

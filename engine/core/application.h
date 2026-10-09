@@ -3,6 +3,7 @@
 #include "assets/asset_database.h"
 #include "assets/asset_manager.h"
 #include "audio/audio_device.h"
+#include "core/game_settings.h"
 #include "core/time.h"
 #include "events/event.h"
 #include "graphics/graphics_device.h"
@@ -31,6 +32,10 @@ struct AssetConfig {
 };
 
 struct ApplicationConfig {
+    // The game the application runs, whose startup scene it loads after OnStart() unless OnStart() loaded a scene
+    // itself. When unset, it is read from GameSettings::FileName beside the executable, as games built by the tools
+    // have it; without that file, the application starts with no scene.
+    std::optional<GameSettings> game = std::nullopt;
     WindowConfig window = {};
     GraphicsConfig graphics = {};
     AudioConfig audio = {};
@@ -67,6 +72,8 @@ public:
     virtual void QuitGame() { Quit(); }
 
     bool IsRunning() const { return m_running; }
+    // Null when the application runs no game; see ApplicationConfig::game.
+    const GameSettings* GetGameSettings() const { return m_config.game ? &*m_config.game : nullptr; }
 
     // Caps how many frames run per second from the next frame on; 0 means unlimited.
     int GetMaxFrameRate() const { return m_config.maxFrameRate; }
@@ -169,6 +176,8 @@ private:
     void RemoveScene(const Scene* scene);
     void RemoveAllScenes();
     void RenderScenes(RenderContext& context);
+    // Returns false, after logging why, when the game's startup scene cannot be loaded.
+    bool LoadStartupScene();
 
     ApplicationConfig m_config;
     std::shared_ptr<LogSink> m_logFile;
@@ -186,6 +195,7 @@ private:
     FrameClock m_clock;
     FrameLimiter m_limiter;
     bool m_running = false;
+    bool m_failed = false;
     // The cursor lock last applied to the window, which follows the input state's when it changes.
     bool m_cursorLocked = false;
     bool m_scenesPaused = false;

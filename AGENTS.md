@@ -12,6 +12,8 @@ Each project lives in its own folder at the repository root, with headers next t
 - `sandbox/` – executable that links the engine, used to try it out; it runs the project `sandbox/Sandbox.spot`,
   which the editor opens too, and builds that project's code (`sandbox/src/`) in
 - `tests/` – unit tests using Catch2
+- `tools/` – `spot_tools` (`spot::tools`), what makes games out of projects (`Project`), shared by the editor and the
+  command line; built against the engine's headers only, so whatever links it links one engine library itself
 - `editor/` – the editor (`spot_editor`), a Dear ImGui application; everything but `main.cpp` is the
   `spot_editor_core` library its tests link
 - `player/` – `spot_player`, which runs projects made in the editor outside of it, with their game module
@@ -45,6 +47,8 @@ To build and run the sandbox: `./run.ps1` (PowerShell) or `./run.sh` (Linux, mac
 - GPU tests go in `tests/gpu_tests.cpp` (the `spot_gpu_tests` executable) and are skipped where no GPU is available.
 - Editor tests go in `tests/editor/`: `spot_editor_tests` (headless ImGui, no GPU), `spot_editor_gpu_tests` and
   `spot_editor_module_tests` (building projects' code with CMake, which takes a while).
+- Projects are a tools concept: the engine never knows about them. A game runs from the `GameSettings`
+  (`game.json`) its build derives from the project, and from its imported assets.
 - The editor uses only the engine's public API, like any game; it never reaches a backend. ImGui stays in the
   editor, so the runtime never depends on it. The editor never keeps pointers to entities or components across
   frames: it refers to them by `EntityId`, so undo history and game code reloads stay valid.

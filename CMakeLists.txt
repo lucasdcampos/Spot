@@ -43,6 +43,10 @@ include(cmake/spot_embed_files.cmake)
 
 add_subdirectory(engine)
 
+if(SPOT_BUILD_SANDBOX OR SPOT_BUILD_EDITOR OR SPOT_BUILD_TESTS)
+    add_subdirectory(tools)
+endif()
+
 if(SPOT_BUILD_SANDBOX)
     add_subdirectory(sandbox)
     set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT sandbox)

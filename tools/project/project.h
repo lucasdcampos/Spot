@@ -1,6 +1,6 @@
 #pragma once
 
-#include "assets/asset_id.h"
+#include <spot.h>
 
 #include <filesystem>
 #include <optional>
@@ -9,20 +9,17 @@
 
 namespace Spot {
 
-class Archive;
-
 // What a project file holds: everything about a game that is not an asset.
 struct ProjectSettings {
     std::string name = {};
     // The game's own version, such as "1.2.0".
     std::string version = "0.1.0";
-    // The scene a game made of assets starts with.
+    // The scene the game starts with.
     AssetId startupScene = {};
-
-    void Serialize(Archive& archive);
 };
 
-// A game made with assets. Every project's folder has the same layout:
+// A game being made: its assets, its code and its settings, which the tools build into the game. Games never see
+// their project, only the GameSettings their build derives from it. Every project's folder has the same layout:
 //   <name>.spot   the project file, with its settings
 //   assets/       the source assets, each beside its .meta file
 //   src/          the game's C++ code with its CMakeLists.txt, for projects with code
@@ -57,6 +54,8 @@ public:
 
     ProjectSettings& GetSettings() { return m_settings; }
     const ProjectSettings& GetSettings() const { return m_settings; }
+    // What the game is told about itself when it runs.
+    GameSettings GetGameSettings() const;
 
 private:
     Project(std::filesystem::path file, ProjectSettings settings);

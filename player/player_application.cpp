@@ -12,7 +12,7 @@ namespace {
 ApplicationConfig MakeConfig(const Project& project, const PlayerOptions& options) {
     // The sources are imported first, as the editor would, so the game runs what was saved last.
     return {
-        .window = {.title = project.GetSettings().name},
+        .game = project.GetGameSettings(),
         .graphics = {.enabled = options.graphics},
         .assets = {.importDirectory = project.GetImportDirectory(), .sourceDirectory = project.GetAssetsDirectory()},
     };
@@ -25,20 +25,7 @@ PlayerApplication::PlayerApplication(const Project& project, PlayerOptions optio
 }
 
 void PlayerApplication::OnStart() {
-    const AssetId startup = m_project.GetSettings().startupScene;
-    if (!startup.IsValid()) {
-        GetPlayerLogger().Error("'{}' has no startup scene to run; pick one in the editor's project settings",
-                                m_project.GetSettings().name);
-        Quit();
-        return;
-    }
-    auto scene = GetAssets().InstantiateScene(startup);
-    if (!scene) {
-        GetPlayerLogger().Error("The startup scene of '{}' could not be loaded", m_project.GetSettings().name);
-        Quit();
-        return;
-    }
-    LoadScene(std::move(scene));
+    // The application loads the game's startup scene next.
     GetPlayerLogger().Info("Running '{}'", m_project.GetSettings().name);
 }
 

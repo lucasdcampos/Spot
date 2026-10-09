@@ -79,6 +79,7 @@ Supported sources: PNG/JPEG/BMP/TGA textures, glTF models (`.gltf`, `.glb`), WAV
 
 - `engine/` – the engine library
 - `sandbox/` – application for trying out the engine
+- `tools/` – the tools that make games out of projects, shared by the editor and the command line
 - `editor/` – the editor, built with Dear ImGui
 - `player/` – runs projects made in the editor, with their game's code
 - `tests/` – unit tests
