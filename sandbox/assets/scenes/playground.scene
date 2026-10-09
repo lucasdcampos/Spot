@@ -1,0 +1,2692 @@
+{
+  "entities": [
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "intensity": 1.0
+          },
+          "enabled": true,
+          "type": "DirectionalLight"
+        },
+        {
+          "data": {
+            "dayLength": 120.0,
+            "fastForward": 20.0,
+            "timeOfDay": 0.375
+          },
+          "enabled": true,
+          "type": "DayCycle"
+        },
+        {
+          "data": {},
+          "enabled": true,
+          "type": "ShadowToggle"
+        }
+      ],
+      "id": 1,
+      "name": "Sun",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        -0.30276939272880554,
+        0.4718424677848816,
+        0.17658330500125885,
+        0.8090202212333679
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "ambientIntensity": 1.0,
+            "atmosphereThickness": 1.0,
+            "exposure": 1.0,
+            "groundColor": [
+              0.20000000298023224,
+              0.20000000298023224,
+              0.20999999344348907,
+              1.0
+            ],
+            "nightColor": [
+              0.004000000189989805,
+              0.006000000052154064,
+              0.014000000432133675,
+              1.0
+            ],
+            "skyTint": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "sunSize": 0.04363323003053665
+          },
+          "enabled": true,
+          "type": "Sky"
+        }
+      ],
+      "id": 2,
+      "name": "Sky",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "color": [
+              1.0,
+              0.5,
+              0.20000000298023224,
+              1.0
+            ],
+            "intensity": 1.5,
+            "range": 8.0
+          },
+          "enabled": true,
+          "type": "PointLight"
+        }
+      ],
+      "id": 3,
+      "name": "Lamp",
+      "position": [
+        -10.0,
+        3.5,
+        -8.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "color": [
+              0.30000001192092896,
+              1.0,
+              0.4000000059604645,
+              1.0
+            ],
+            "intensity": 1.5,
+            "range": 8.0
+          },
+          "enabled": true,
+          "type": "PointLight"
+        }
+      ],
+      "id": 4,
+      "name": "Lamp",
+      "position": [
+        0.0,
+        2.5,
+        -3.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "color": [
+              0.8999999761581421,
+              0.30000001192092896,
+              1.0,
+              1.0
+            ],
+            "intensity": 1.5,
+            "range": 8.0
+          },
+          "enabled": true,
+          "type": "PointLight"
+        }
+      ],
+      "id": 5,
+      "name": "Lamp",
+      "position": [
+        8.0,
+        4.0,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "color": [
+              0.30000001192092896,
+              0.6000000238418579,
+              1.0,
+              1.0
+            ],
+            "intensity": 1.5,
+            "range": 8.0
+          },
+          "enabled": true,
+          "type": "PointLight"
+        }
+      ],
+      "id": 6,
+      "name": "Lamp",
+      "position": [
+        10.0,
+        2.0,
+        4.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "42aa08a16cec4f8a8de5dcec9ab67268",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 7,
+      "name": "Ground",
+      "position": [
+        0.0,
+        -0.5,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        40.0,
+        1.0,
+        40.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 8,
+      "name": "Wall",
+      "position": [
+        -20.5,
+        1.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        2.0,
+        42.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 9,
+      "name": "Wall",
+      "position": [
+        0.0,
+        1.0,
+        -20.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        40.0,
+        2.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 10,
+      "name": "Wall",
+      "position": [
+        20.5,
+        1.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        2.0,
+        42.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 11,
+      "name": "Wall",
+      "position": [
+        0.0,
+        1.0,
+        20.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        40.0,
+        2.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 12,
+      "name": "Platform",
+      "position": [
+        -10.0,
+        1.0,
+        -8.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        6.0,
+        2.0,
+        6.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 13,
+      "name": "Ramp",
+      "position": [
+        -10.0,
+        0.8999999761581421,
+        -1.899999976158142
+      ],
+      "rotation": [
+        0.14943814277648926,
+        0.0,
+        0.0,
+        0.9887710809707642
+      ],
+      "scale": [
+        4.0,
+        0.4000000059604645,
+        7.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "45e4545ddf4f45009149c1d560d954a0",
+            "mesh": "00000000000000000000000000000002"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "radius": 0.5,
+            "restitution": 0.4000000059604645
+          },
+          "enabled": true,
+          "type": "SphereCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 3.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 14,
+      "name": "Ball",
+      "position": [
+        -11.5,
+        2.5,
+        -9.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.6000000238418579,
+        0.6000000238418579,
+        0.6000000238418579
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "45e4545ddf4f45009149c1d560d954a0",
+            "mesh": "00000000000000000000000000000002"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "radius": 0.5,
+            "restitution": 0.4000000059604645
+          },
+          "enabled": true,
+          "type": "SphereCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 3.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 15,
+      "name": "Ball",
+      "position": [
+        -10.75,
+        2.5,
+        -9.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.6000000238418579,
+        0.6000000238418579,
+        0.6000000238418579
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "45e4545ddf4f45009149c1d560d954a0",
+            "mesh": "00000000000000000000000000000002"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "radius": 0.5,
+            "restitution": 0.4000000059604645
+          },
+          "enabled": true,
+          "type": "SphereCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 3.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 16,
+      "name": "Ball",
+      "position": [
+        -10.0,
+        2.5,
+        -9.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.6000000238418579,
+        0.6000000238418579,
+        0.6000000238418579
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "45e4545ddf4f45009149c1d560d954a0",
+            "mesh": "00000000000000000000000000000002"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "radius": 0.5,
+            "restitution": 0.4000000059604645
+          },
+          "enabled": true,
+          "type": "SphereCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 3.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 17,
+      "name": "Ball",
+      "position": [
+        -9.25,
+        2.5,
+        -9.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.6000000238418579,
+        0.6000000238418579,
+        0.6000000238418579
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "45e4545ddf4f45009149c1d560d954a0",
+            "mesh": "00000000000000000000000000000002"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "radius": 0.5,
+            "restitution": 0.4000000059604645
+          },
+          "enabled": true,
+          "type": "SphereCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 3.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 18,
+      "name": "Ball",
+      "position": [
+        -8.5,
+        2.5,
+        -9.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.6000000238418579,
+        0.6000000238418579,
+        0.6000000238418579
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 19,
+      "name": "Step",
+      "position": [
+        10.0,
+        0.125,
+        2.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        3.0,
+        0.25,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 20,
+      "name": "Step",
+      "position": [
+        10.0,
+        0.25,
+        1.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        3.0,
+        0.5,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 21,
+      "name": "Step",
+      "position": [
+        10.0,
+        0.375,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        3.0,
+        0.75,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 22,
+      "name": "Step",
+      "position": [
+        10.0,
+        0.5,
+        -1.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        3.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "24be3127c6c64a8186100c96c10eeb4c",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 5.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 23,
+      "name": "Crate",
+      "position": [
+        -2.0,
+        0.5,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "24be3127c6c64a8186100c96c10eeb4c",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 5.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 24,
+      "name": "Crate",
+      "position": [
+        -0.9800000190734863,
+        0.5,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "24be3127c6c64a8186100c96c10eeb4c",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 5.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 25,
+      "name": "Crate",
+      "position": [
+        0.039999961853027344,
+        0.5,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "24be3127c6c64a8186100c96c10eeb4c",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 5.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 26,
+      "name": "Crate",
+      "position": [
+        1.059999942779541,
+        0.5,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "24be3127c6c64a8186100c96c10eeb4c",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 5.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 27,
+      "name": "Crate",
+      "position": [
+        2.0799999237060547,
+        0.5,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "24be3127c6c64a8186100c96c10eeb4c",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 5.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 28,
+      "name": "Crate",
+      "position": [
+        -1.4900000095367432,
+        1.5,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "24be3127c6c64a8186100c96c10eeb4c",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 5.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 29,
+      "name": "Crate",
+      "position": [
+        -0.4700000286102295,
+        1.5,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "24be3127c6c64a8186100c96c10eeb4c",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 5.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 30,
+      "name": "Crate",
+      "position": [
+        0.5499999523162842,
+        1.5,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "24be3127c6c64a8186100c96c10eeb4c",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 5.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 31,
+      "name": "Crate",
+      "position": [
+        1.5699999332427979,
+        1.5,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "24be3127c6c64a8186100c96c10eeb4c",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 5.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 32,
+      "name": "Crate",
+      "position": [
+        -0.9800000190734863,
+        2.5,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "24be3127c6c64a8186100c96c10eeb4c",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 5.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 33,
+      "name": "Crate",
+      "position": [
+        0.039999961853027344,
+        2.5,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "24be3127c6c64a8186100c96c10eeb4c",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 5.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 34,
+      "name": "Crate",
+      "position": [
+        1.059999942779541,
+        2.5,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "24be3127c6c64a8186100c96c10eeb4c",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 5.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 35,
+      "name": "Crate",
+      "position": [
+        -0.4700000286102295,
+        3.5,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "24be3127c6c64a8186100c96c10eeb4c",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 5.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 36,
+      "name": "Crate",
+      "position": [
+        0.5499999523162842,
+        3.5,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "24be3127c6c64a8186100c96c10eeb4c",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 5.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 37,
+      "name": "Crate",
+      "position": [
+        0.039999961853027344,
+        4.5,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "24be3127c6c64a8186100c96c10eeb4c",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 5.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 38,
+      "name": "Crate",
+      "position": [
+        8.0,
+        0.5,
+        -8.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "24be3127c6c64a8186100c96c10eeb4c",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 5.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 39,
+      "name": "Crate",
+      "position": [
+        8.0,
+        1.5,
+        -8.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "24be3127c6c64a8186100c96c10eeb4c",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 5.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 40,
+      "name": "Crate",
+      "position": [
+        8.0,
+        2.5,
+        -8.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "24be3127c6c64a8186100c96c10eeb4c",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 5.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 41,
+      "name": "Crate",
+      "position": [
+        8.0,
+        3.5,
+        -8.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "24be3127c6c64a8186100c96c10eeb4c",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 5.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 42,
+      "name": "Crate",
+      "position": [
+        8.0,
+        4.5,
+        -8.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "24be3127c6c64a8186100c96c10eeb4c",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 5.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 43,
+      "name": "Crate",
+      "position": [
+        8.0,
+        5.5,
+        -8.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "24be3127c6c64a8186100c96c10eeb4c",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 5.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 44,
+      "name": "Crate",
+      "position": [
+        8.0,
+        6.5,
+        -8.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "24be3127c6c64a8186100c96c10eeb4c",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 5.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 45,
+      "name": "Crate",
+      "position": [
+        8.0,
+        7.5,
+        -8.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.0,
+            "height": 1.7999999523162842,
+            "radius": 0.4000000059604645,
+            "restitution": 0.0
+          },
+          "enabled": true,
+          "type": "CapsuleCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 70.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "ballMaterial": "45e4545ddf4f45009149c1d560d954a0",
+            "ballSpeed": 25.0,
+            "fallHeight": -20.0,
+            "flashlight": 48,
+            "head": 47,
+            "jumpSpeed": 5.5,
+            "lookSensitivity": 0.0024999999441206455,
+            "runSpeed": 9.0,
+            "walkSpeed": 5.0
+          },
+          "enabled": true,
+          "type": "PlayerController"
+        }
+      ],
+      "id": 46,
+      "name": "Player",
+      "position": [
+        0.0,
+        1.5,
+        10.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "background": [
+              0.11999999731779099,
+              0.12999999523162842,
+              0.15000000596046448,
+              1.0
+            ],
+            "farPlane": 1000.0,
+            "fieldOfView": 1.3089969158172607,
+            "nearPlane": 0.10000000149011612,
+            "orthographicSize": 5.0,
+            "projection": 0
+          },
+          "enabled": true,
+          "type": "Camera"
+        }
+      ],
+      "id": 47,
+      "name": "Head",
+      "parent": 46,
+      "position": [
+        0.0,
+        0.699999988079071,
+        0.0
+      ],
+      "rotation": [
+        -0.07492970675230026,
+        -0.0,
+        -0.0,
+        0.9971888065338135
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "color": [
+              1.0,
+              0.949999988079071,
+              0.800000011920929,
+              1.0
+            ],
+            "innerConeAngle": 0.20943951606750488,
+            "intensity": 1.5,
+            "outerConeAngle": 0.3490658402442932,
+            "range": 25.0
+          },
+          "enabled": false,
+          "type": "SpotLight"
+        }
+      ],
+      "id": 48,
+      "name": "Flashlight",
+      "parent": 47,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    }
+  ],
+  "format": "spot-scene",
+  "version": 1
+}

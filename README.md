@@ -29,8 +29,11 @@ ctest --preset ninja-debug
 
 Pass `editor` to run the editor instead of the sandbox, and `release` to run an optimized build.
 
-In the sandbox, WASD or the arrow keys move the camera, the mouse wheel zooms, F1 switches between the 2D and 3D
-views and Escape quits. In 3D, dragging with the right mouse button also orbits the camera.
+In the sandbox, WASD moves, Shift runs, Space jumps, the mouse looks around and a click throws a ball. F switches the
+flashlight, G the shadows, T speeds up time and R resets the scene; Escape frees the mouse, then quits.
+
+The sandbox is also a project, `sandbox/Sandbox.spot`, which the editor opens: its scene is
+`assets/scenes/playground.scene` and its components are in `src/`, which the sandbox executable builds in as well.
 
 ## Game code in the editor
 
