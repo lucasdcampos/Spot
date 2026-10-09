@@ -2,7 +2,8 @@
 
 #include <spot.h>
 
-// B shows the shapes of every collider in the scene with DebugDraw: green for static bodies, orange for moving ones.
+// B shows the shapes of every collider in the scene with DebugDraw: green for static bodies, orange for moving ones and
+// yellow for triggers.
 class PhysicsDebugView final : public Spot::Component {
 public:
     bool visible = false;

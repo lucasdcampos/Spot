@@ -6,9 +6,12 @@
 
 namespace Spot {
 
-// Gives its entity a solid shape. The active colliders of an entity make up a single body with the entity's world
+// Gives its entity a shape. The active solid colliders of an entity make up a single body with the entity's world
 // pose, which only moves by itself when the entity also has a Rigidbody; see PhysicsWorld. Shapes are scaled with the
 // entity.
+//
+// A trigger collider is not solid: it detects the bodies that overlap it but never pushes them. The trigger colliders
+// of an entity make up a sensor body of their own, which follows the entity, so an entity can have both kinds.
 class Collider : public Component {
 public:
     // Where the shape is centered, relative to the entity and before its scale.
@@ -21,6 +24,9 @@ public:
     void SetFriction(float friction);
     float GetRestitution() const { return m_restitution; }
     void SetRestitution(float restitution);
+
+    bool IsTrigger() const { return m_trigger; }
+    void SetTrigger(bool trigger);
 
 protected:
     Collider() = default;
@@ -42,6 +48,7 @@ private:
     Vector3 m_center = {};
     float m_friction = 0.5f;
     float m_restitution = 0.0f;
+    bool m_trigger = false;
 };
 
 // A box, of size 1 by default like the built-in cube mesh.

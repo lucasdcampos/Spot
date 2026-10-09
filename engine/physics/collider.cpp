@@ -24,6 +24,11 @@ void Collider::SetRestitution(float restitution) {
     MarkChanged();
 }
 
+void Collider::SetTrigger(bool trigger) {
+    m_trigger = trigger;
+    MarkChanged();
+}
+
 void Collider::OnEnable() {
     MarkChanged();
 }
@@ -37,6 +42,7 @@ void Collider::Serialize(Archive& archive) {
     archive.Field("friction", m_friction, {.min = 0.0f, .max = 1.0f, .speed = 0.005f});
     archive.Field("restitution", m_restitution,
                   {.min = 0.0f, .max = 1.0f, .speed = 0.005f, .tooltip = "How much it bounces"});
+    archive.Field("trigger", m_trigger, {.tooltip = "Detects what overlaps it, without pushing it away"});
 }
 
 void Collider::MarkChanged() {

@@ -233,7 +233,7 @@ Steps:
 - [x] **M1.1 Layers.** Add `Entity::GetLayer()`/`SetLayer()`, layer names and a symmetric collision matrix in the
   physics settings section, and Jolt object layers and filters in the backend. The editor gets a layer dropdown on
   the entity and a matrix editor in project settings. Layers are serialized. Tests.
-- [ ] **M1.2 Triggers.** Add `Collider::SetTrigger()` and sensor bodies, which detect overlaps but never push. Tests.
+- [x] **M1.2 Triggers.** Add `Collider::SetTrigger()` and sensor bodies, which detect overlaps but never push. Tests.
 - [ ] **M1.3 Collision and trigger events.** Contact buffering in the backend contract, pairing in `PhysicsWorld`, and
   the hooks `OnCollisionEnter/Stay/Exit(const Collision&)` (other entity, contact points, normal, relative velocity,
   impulse) and `OnTriggerEnter/Exit(const TriggerContact&)`. Disabling or destroying a collider sends its exits.
@@ -275,6 +275,9 @@ physics gun and the tool gun, and shoots and blows it apart.
   settings still leaves physics uncreated. In Jolt, object layer = layer * 2 + 1 for moving bodies, so the static
   and moving broad phase layers stay as they were. The entity's layer is saved under `"layer"`, read as 0 from older
   scenes.
+- M1.2: `PhysicsWorld` keeps a solid body and a sensor body per entity, either of which may be missing. Sensors of
+  entities with a rigidbody are kinematic and follow the entity a step behind its dynamic body; others are static.
+  A sensor overlaps its own entity's solid body, which the events of M1.3 must leave out.
 
 ---
 

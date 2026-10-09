@@ -301,6 +301,7 @@ PhysicsBodyId PhysicsSimulation::CreateBody(const PhysicsBodyDesc& desc) {
     const bool isStatic = desc.motion == PhysicsMotion::Static;
     JPH::BodyCreationSettings settings(CreateBodyShape(desc.shapes), ToJolt(desc.position), ToJolt(desc.rotation),
                                        ToJolt(desc.motion), ToObjectLayer(desc.layer, !isStatic));
+    settings.mIsSensor = desc.sensor;
     settings.mFriction = desc.friction;
     settings.mRestitution = desc.restitution;
     settings.mGravityFactor = desc.gravityScale;

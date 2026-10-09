@@ -461,3 +461,43 @@ TEST_CASE("Physics settings keep layer names and a symmetric collision matrix", 
     CHECK(Spot::PhysicsSettings{}.gravity == PhysicsWorld::DefaultGravity);
     CHECK(Spot::PhysicsSettings{}.fixedTimeStep == Scene::DefaultFixedTimeStep);
 }
+
+TEST_CASE("Triggers let bodies through, as sensor bodies of their own", "[physics][triggers]") {
+    Scene scene;
+    CreateGround(scene);
+    auto& zone = scene.CreateEntity("Zone");
+    zone.GetTransform().SetPosition({0.0f, 2.0f, 0.0f});
+    zone.AddComponent<BoxCollider>(Vector3{4.0f, 1.0f, 4.0f}).SetTrigger(true);
+    Entity& ball = CreateBall(scene, {0.0f, 4.0f, 0.0f});
+
+    Simulate(scene, 2.0f);
+    CHECK(scene.GetPhysics().GetBodyCount() == 3);
+    // It fell through the trigger onto the ground.
+    CHECK(GetHeight(ball) == Approx(0.5f).margin(RestMargin));
+
+    // An entity with solid and trigger colliders has a body of each.
+    auto& both = scene.CreateEntity("Both");
+    both.GetTransform().SetPosition({5.0f, 0.5f, 0.0f});
+    both.AddComponent<BoxCollider>();
+    both.AddComponent<SphereCollider>().SetTrigger(true);
+    both.AddComponent<Rigidbody>();
+    Simulate(scene, 0.5f);
+    CHECK(scene.GetPhysics().GetBodyCount() == 5);
+    CHECK(GetHeight(both) == Approx(0.5f).margin(RestMargin));
+
+    // A trigger becoming solid holds what falls on it.
+    zone.GetComponent<BoxCollider>()->SetTrigger(false);
+    Entity& second = CreateBall(scene, {0.0f, 4.0f, 0.0f});
+    Simulate(scene, 2.0f);
+    CHECK(GetHeight(second) == Approx(3.0f).margin(RestMargin));
+}
+
+TEST_CASE("Triggers are saved with their scene", "[physics][triggers]") {
+    Scene scene;
+    scene.CreateEntity("Zone").AddComponent<SphereCollider>().SetTrigger(true);
+    Scene loaded;
+    REQUIRE(loaded.LoadFromString(scene.SaveToString()));
+    const auto* trigger = loaded.FindComponent<SphereCollider>();
+    REQUIRE(trigger);
+    CHECK(trigger->IsTrigger());
+}

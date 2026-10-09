@@ -100,12 +100,23 @@ void PhysicsWorld::MarkChanged(EntityId entity) {
     m_changed.insert(entity);
 }
 
+std::size_t PhysicsWorld::GetBodyCount() const {
+    std::size_t count = 0;
+    for (const auto& [entity, body] : m_bodies) {
+        count += (body.id != PhysicsBodyId::Invalid ? 1 : 0) + (body.sensor != PhysicsBodyId::Invalid ? 1 : 0);
+    }
+    return count;
+}
+
 const PhysicsWorld::Body* PhysicsWorld::FindMovingBody(EntityId entity) {
     if (m_changed.erase(entity) > 0) {
         Rebuild(entity);
     }
     const auto found = m_bodies.find(entity);
-    return found != m_bodies.end() && found->second.motion != PhysicsMotion::Static ? &found->second : nullptr;
+    return found != m_bodies.end() && found->second.id != PhysicsBodyId::Invalid &&
+                   found->second.motion != PhysicsMotion::Static
+               ? &found->second
+               : nullptr;
 }
 
 Detail::PhysicsSimulation& PhysicsWorld::GetSimulation() {
@@ -132,12 +143,18 @@ void PhysicsWorld::Rebuild(EntityId entityId) {
     Vector3 angularVelocity = {};
     bool keepVelocity = false;
     if (const auto found = m_bodies.find(entityId); found != m_bodies.end()) {
-        if (found->second.motion == PhysicsMotion::Dynamic) {
-            linearVelocity = m_simulation->GetLinearVelocity(found->second.id);
-            angularVelocity = m_simulation->GetAngularVelocity(found->second.id);
-            keepVelocity = true;
+        const Body& old = found->second;
+        if (old.id != PhysicsBodyId::Invalid) {
+            if (old.motion == PhysicsMotion::Dynamic) {
+                linearVelocity = m_simulation->GetLinearVelocity(old.id);
+                angularVelocity = m_simulation->GetAngularVelocity(old.id);
+                keepVelocity = true;
+            }
+            m_simulation->DestroyBody(old.id);
         }
-        m_simulation->DestroyBody(found->second.id);
+        if (old.sensor != PhysicsBodyId::Invalid) {
+            m_simulation->DestroyBody(old.sensor);
+        }
         m_bodies.erase(found);
     }
 
@@ -149,15 +166,17 @@ void PhysicsWorld::Rebuild(EntityId entityId) {
     const Transform& transform = entity->GetTransform();
     const Vector3 scale = GetWorldScale(transform);
     Detail::PhysicsBodyDesc desc;
+    Detail::PhysicsBodyDesc sensor{.sensor = true};
     for (const Collider* collider : entity->GetComponents<Collider>()) {
         if (!collider->IsActiveAndEnabled()) {
             continue;
         }
-        if (desc.shapes.empty()) {
-            desc.friction = collider->GetFriction();
-            desc.restitution = collider->GetRestitution();
+        Detail::PhysicsBodyDesc& target = collider->IsTrigger() ? sensor : desc;
+        if (target.shapes.empty()) {
+            target.friction = collider->GetFriction();
+            target.restitution = collider->GetRestitution();
         }
-        desc.shapes.push_back(collider->GetShape(scale));
+        target.shapes.push_back(collider->GetShape(scale));
     }
 
     Rigidbody* rigidbody = nullptr;
@@ -167,7 +186,8 @@ void PhysicsWorld::Rebuild(EntityId entityId) {
             break;
         }
     }
-    if (desc.shapes.empty() && !rigidbody) {
+    const bool solid = !desc.shapes.empty() || rigidbody;
+    if (!solid && sensor.shapes.empty()) {
         return;
     }
 
@@ -186,15 +206,22 @@ void PhysicsWorld::Rebuild(EntityId entityId) {
         rigidbody->m_angularVelocity = {};
     }
 
-    const PhysicsBodyId id = GetSimulation().CreateBody(desc);
-    if (id == PhysicsBodyId::Invalid) {
-        return;
+    Body body{
+        .motion = desc.motion, .position = desc.position, .rotation = transform.GetWorldRotation(), .scale = scale};
+    if (solid) {
+        body.id = GetSimulation().CreateBody(desc);
     }
-    m_bodies.emplace(entityId, Body{.id = id,
-                                    .motion = desc.motion,
-                                    .position = desc.position,
-                                    .rotation = transform.GetWorldRotation(),
-                                    .scale = scale});
+    if (!sensor.shapes.empty()) {
+        // Triggers of moving entities follow them as kinematic bodies, so they sweep through what they pass.
+        sensor.motion = rigidbody ? PhysicsMotion::Kinematic : PhysicsMotion::Static;
+        sensor.position = desc.position;
+        sensor.rotation = desc.rotation;
+        sensor.layer = desc.layer;
+        body.sensor = GetSimulation().CreateBody(sensor);
+    }
+    if (body.id != PhysicsBodyId::Invalid || body.sensor != PhysicsBodyId::Invalid) {
+        m_bodies.emplace(entityId, body);
+    }
 }
 
 void PhysicsWorld::FollowEntities() {
@@ -214,11 +241,22 @@ void PhysicsWorld::FollowEntities() {
 
         const Vector3 position = transform.GetWorldPosition();
         const Quaternion& rotation = transform.GetWorldRotation();
-        if (body.motion == PhysicsMotion::Kinematic) {
-            // Every step, so the body also stops once its entity does.
-            m_simulation->MoveKinematic(body.id, position, Normalize(rotation), m_stepTime);
-        } else if (position != body.position || rotation != body.rotation) {
-            m_simulation->SetPose(body.id, position, Normalize(rotation));
+        const bool moved = position != body.position || rotation != body.rotation;
+        if (body.id != PhysicsBodyId::Invalid) {
+            if (body.motion == PhysicsMotion::Kinematic) {
+                // Every step, so the body also stops once its entity does.
+                m_simulation->MoveKinematic(body.id, position, Normalize(rotation), m_stepTime);
+            } else if (moved) {
+                m_simulation->SetPose(body.id, position, Normalize(rotation));
+            }
+        }
+        if (body.sensor != PhysicsBodyId::Invalid) {
+            // Sensors of moving entities are kinematic, and catch up with where their dynamic body took the entity.
+            if (body.motion != PhysicsMotion::Static) {
+                m_simulation->MoveKinematic(body.sensor, position, Normalize(rotation), m_stepTime);
+            } else if (moved) {
+                m_simulation->SetPose(body.sensor, position, Normalize(rotation));
+            }
         }
         body.position = position;
         body.rotation = rotation;
@@ -232,7 +270,8 @@ void PhysicsWorld::FollowEntities() {
 
 void PhysicsWorld::FollowBodies() {
     for (auto& [entityId, body] : m_bodies) {
-        if (body.motion != PhysicsMotion::Dynamic || !m_simulation->IsAwake(body.id)) {
+        if (body.id == PhysicsBodyId::Invalid || body.motion != PhysicsMotion::Dynamic ||
+            !m_simulation->IsAwake(body.id)) {
             continue;
         }
         Entity* entity = GetScene().GetEntity(entityId);

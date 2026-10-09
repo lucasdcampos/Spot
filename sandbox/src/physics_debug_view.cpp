@@ -33,8 +33,10 @@ void PhysicsDebugView::OnUpdate(float /*deltaTime*/) {
         const Spot::Quaternion rotation = transform.GetWorldRotation();
         const Spot::Vector3 center = transform.GetWorldPosition() + rotation * (collider.GetCenter() * scale);
         const bool moving = entity.HasComponent<Spot::Rigidbody>();
-        const Spot::DebugDrawOptions options{.color = moving ? Spot::Color{1.0f, 0.5f, 0.0f, 1.0f}
-                                                             : Spot::Color{0.2f, 1.0f, 0.3f, 1.0f}};
+        const Spot::Color color = collider.IsTrigger() ? Spot::Color{1.0f, 0.9f, 0.1f, 1.0f}
+                                  : moving             ? Spot::Color{1.0f, 0.5f, 0.0f, 1.0f}
+                                                       : Spot::Color{0.2f, 1.0f, 0.3f, 1.0f};
+        const Spot::DebugDrawOptions options{.color = color};
         if (const auto* box = dynamic_cast<const Spot::BoxCollider*>(&collider)) {
             Spot::DebugDraw::Box(center, box->GetSize() * scale, rotation, options);
         } else if (const auto* sphere = dynamic_cast<const Spot::SphereCollider*>(&collider)) {

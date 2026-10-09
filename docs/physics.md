@@ -23,6 +23,11 @@ ball.AddComponent<Spot::Rigidbody>().SetMass(2.0f);
 The active colliders of an entity form **one body** with the entity's world pose. Without a `Rigidbody`, that body is
 static: it stays where its entity is placed, like floors and walls.
 
+A collider set as a **trigger** (`SetTrigger()`) is not solid: it detects the bodies that overlap it and never pushes
+them. The trigger colliders of an entity form a sensor body of their own, beside its solid body, so an entity can
+have both. The sensor follows the entity: static when the entity has no rigidbody, kinematic otherwise, moved to the
+entity's pose each step.
+
 ## Layers
 
 Every entity is on one of 32 layers (`Entity::GetLayer()`, `SetLayer()`; 0 by default), saved with its scene. Games
@@ -61,5 +66,5 @@ editor's Project Settings panel edits.
 
 ## Not there yet
 
-Triggers, collision events, raycasts and other queries, a character controller, mesh colliders and joints come in
+Collision and trigger events, raycasts and other queries, a character controller, mesh colliders and joints come in
 the rest of the roadmap's milestone M1.

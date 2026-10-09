@@ -42,8 +42,8 @@ public:
     Vector3 GetGravity() const { return m_gravity; }
     void SetGravity(Vector3 gravity);
 
-    // The bodies simulated in the last step.
-    std::size_t GetBodyCount() const { return m_bodies.size(); }
+    // The bodies simulated in the last step, the sensor bodies of triggers included.
+    std::size_t GetBodyCount() const;
 
     // Which layers' bodies collide with which (see Entity::GetLayer()), as the game's physics settings say. The
     // matrix stays symmetric: setting whether a collides with b also sets whether b collides with a.
@@ -65,8 +65,11 @@ private:
     friend class Rigidbody;
     friend class Scene;
 
+    // An entity's bodies: the one of its solid colliders and rigidbody, and the one of its triggers, either of which
+    // may be missing.
     struct Body {
         Detail::PhysicsBodyId id = Detail::PhysicsBodyId::Invalid;
+        Detail::PhysicsBodyId sensor = Detail::PhysicsBodyId::Invalid;
         Detail::PhysicsMotion motion = Detail::PhysicsMotion::Static;
         // The world pose and scale of the entity when the body last followed it or it last followed the body, to tell
         // when something else moved it.
@@ -81,7 +84,7 @@ private:
 
     // Rebuilds the entity's body in the next step, or before it when its rigidbody needs it.
     void MarkChanged(EntityId entity);
-    // The entity's body when it is dynamic or kinematic, brought up to date first; null otherwise.
+    // The entity's solid body when it is dynamic or kinematic, brought up to date first; null otherwise.
     const Body* FindMovingBody(EntityId entity);
     Detail::PhysicsSimulation& GetSimulation();
     void RebuildChanged();

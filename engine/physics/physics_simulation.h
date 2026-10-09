@@ -47,6 +47,8 @@ struct PhysicsBodyDesc {
     std::vector<PhysicsShape> shapes;
     // The layer of its entity, which decides what it collides with; see SetLayerMasks().
     int layer = 0;
+    // Detects the bodies it overlaps without pushing them, as triggers do.
+    bool sensor = false;
     float friction = 0.5f;
     float restitution = 0.0f;
     // The rest only matters to dynamic and kinematic bodies.
