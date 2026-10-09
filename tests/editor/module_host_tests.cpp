@@ -3,10 +3,8 @@
 #include "log_capture.h"
 #include "temp_directory.h"
 
-#include "modules/module_build.h"
+#include "core/build_info.h"
 #include "modules/module_host.h"
-#include "play/game_runner.h"
-#include "project/project_templates.h"
 
 #include <spot.h>
 #include <spot_tools.h>
@@ -26,7 +24,7 @@
 namespace {
 
 using namespace std::chrono_literals;
-using Spot::Editor::ModuleBuildState;
+using Spot::CodeBuildState;
 
 void WaitForBuild(Spot::Editor::ModuleHost& host) {
     while (host.GetBuild().IsRunning()) {
@@ -75,34 +73,33 @@ constexpr std::string_view BrokenCode = "#include <spot.h>\n\nint Broken( {\n";
 } // namespace
 
 TEST_CASE("Build output is told apart: errors, warnings and the rest", "[editor][module]") {
+    using Spot::CodeBuild;
     using Spot::LogLevel;
-    using Spot::Editor::ModuleBuild;
 
-    CHECK(ModuleBuild::ClassifyLine(R"(C:\game\src\game.cpp(12,5): error C2065: 'x': undeclared identifier)") ==
+    CHECK(CodeBuild::ClassifyLine(R"(C:\game\src\game.cpp(12,5): error C2065: 'x': undeclared identifier)") ==
           LogLevel::Error);
-    CHECK(ModuleBuild::ClassifyLine("src/game.cpp:12:5: error: 'x' was not declared in this scope") == LogLevel::Error);
-    CHECK(ModuleBuild::ClassifyLine("src/game.cpp:3:10: fatal error: missing.h: No such file or directory") ==
+    CHECK(CodeBuild::ClassifyLine("src/game.cpp:12:5: error: 'x' was not declared in this scope") == LogLevel::Error);
+    CHECK(CodeBuild::ClassifyLine("src/game.cpp:3:10: fatal error: missing.h: No such file or directory") ==
           LogLevel::Error);
-    CHECK(ModuleBuild::ClassifyLine("game.obj : error LNK2019: unresolved external symbol Foo") == LogLevel::Error);
-    CHECK(ModuleBuild::ClassifyLine("game.cpp:(.text+0x1f): undefined reference to `Foo()'") == LogLevel::Error);
-    CHECK(ModuleBuild::ClassifyLine("CMake Error at CMakeLists.txt:5 (find_package):") == LogLevel::Error);
-    CHECK(ModuleBuild::ClassifyLine("src/game.cpp:7:9: warning: unused variable 'y' [-Wunused-variable]") ==
+    CHECK(CodeBuild::ClassifyLine("game.obj : error LNK2019: unresolved external symbol Foo") == LogLevel::Error);
+    CHECK(CodeBuild::ClassifyLine("game.cpp:(.text+0x1f): undefined reference to `Foo()'") == LogLevel::Error);
+    CHECK(CodeBuild::ClassifyLine("CMake Error at CMakeLists.txt:5 (find_package):") == LogLevel::Error);
+    CHECK(CodeBuild::ClassifyLine("src/game.cpp:7:9: warning: unused variable 'y' [-Wunused-variable]") ==
           LogLevel::Warning);
-    CHECK(ModuleBuild::ClassifyLine(R"(C:\game\src\game.cpp(7,9): warning C4189: 'y': local variable is unused)") ==
+    CHECK(CodeBuild::ClassifyLine(R"(C:\game\src\game.cpp(7,9): warning C4189: 'y': local variable is unused)") ==
           LogLevel::Warning);
-    CHECK(ModuleBuild::ClassifyLine("  game.cpp") == LogLevel::Trace);
-    CHECK(ModuleBuild::ClassifyLine("-- Configuring done (0.2s)") == LogLevel::Trace);
-    CHECK(ModuleBuild::ClassifyLine("[2/3] Building CXX object CMakeFiles/game.dir/src/game.cpp.obj") ==
-          LogLevel::Trace);
+    CHECK(CodeBuild::ClassifyLine("  game.cpp") == LogLevel::Trace);
+    CHECK(CodeBuild::ClassifyLine("-- Configuring done (0.2s)") == LogLevel::Trace);
+    CHECK(CodeBuild::ClassifyLine("[2/3] Building CXX object CMakeFiles/game.dir/src/game.cpp.obj") == LogLevel::Trace);
 }
 
 TEST_CASE("Components made from the editor build, without warnings, in projects that had no code", "[editor][module]") {
     const TempDirectory temp;
-    const auto file = Spot::Editor::CreateProject(temp.GetPath(), "Plain", Spot::Editor::ProjectTemplate::Empty);
+    const auto file = Spot::CreateProject(temp.GetPath(), "Plain", Spot::ProjectTemplate::Empty);
     REQUIRE(file);
     const auto project = Spot::Project::Load(*file);
     REQUIRE(project);
-    REQUIRE(Spot::Editor::CreateComponentCode(*project, "actors", "Player"));
+    REQUIRE(Spot::CreateComponentCode(*project, "actors", "Player"));
 
     const auto sink = std::make_shared<Spot::Tests::CaptureSink>();
     const Spot::Tests::ScopedSinks sinks({sink});
@@ -110,7 +107,7 @@ TEST_CASE("Components made from the editor build, without warnings, in projects 
     REQUIRE(host.HasCode());
     CHECK_FALSE(host.LoadBuilt());
     WaitForBuild(host);
-    REQUIRE(host.GetBuild().GetState() == ModuleBuildState::Succeeded);
+    REQUIRE(host.GetBuild().GetState() == CodeBuildState::Succeeded);
     CHECK(host.GetBuild().GetErrorCount() == 0);
     // The build tool may warn of the temporary folder the test builds in, but the compiler of nothing in the code.
     for (const Spot::Tests::CapturedRecord& record : sink->GetRecords()) {
@@ -127,7 +124,7 @@ TEST_CASE("Components made from the editor build, without warnings, in projects 
 TEST_CASE("A project's code builds into a module that loads, and loads again when the code changes",
           "[editor][module]") {
     const TempDirectory temp;
-    const auto file = Spot::Editor::CreateProject(temp.GetPath(), "Coded", Spot::Editor::ProjectTemplate::Code3D);
+    const auto file = Spot::CreateProject(temp.GetPath(), "Coded", Spot::ProjectTemplate::Code3D);
     REQUIRE(file);
     const auto project = Spot::Project::Load(*file);
     REQUIRE(project);
@@ -141,7 +138,7 @@ TEST_CASE("A project's code builds into a module that loads, and loads again whe
         CHECK_FALSE(host.LoadBuilt());
         CHECK(host.GetBuild().IsRunning());
         WaitForBuild(host);
-        REQUIRE(host.GetBuild().GetState() == ModuleBuildState::Succeeded);
+        REQUIRE(host.GetBuild().GetState() == CodeBuildState::Succeeded);
         CHECK(host.GetBuild().GetErrorCount() == 0);
         REQUIRE(host.HasNewModule());
         REQUIRE(host.SwapModule());
@@ -155,7 +152,7 @@ TEST_CASE("A project's code builds into a module that loads, and loads again whe
         // A build that changes nothing has nothing new to load.
         host.Build();
         WaitForBuild(host);
-        CHECK(host.GetBuild().GetState() == ModuleBuildState::Succeeded);
+        CHECK(host.GetBuild().GetState() == CodeBuildState::Succeeded);
         CHECK_FALSE(host.HasNewModule());
 
         // Changed code builds by itself; the new module replaces the old one while the scene is saved and cleared.
@@ -163,7 +160,7 @@ TEST_CASE("A project's code builds into a module that loads, and loads again whe
         host.Update();
         CHECK(host.GetBuild().IsRunning());
         WaitForBuild(host);
-        REQUIRE(host.GetBuild().GetState() == ModuleBuildState::Succeeded);
+        REQUIRE(host.GetBuild().GetState() == CodeBuildState::Succeeded);
         REQUIRE(host.HasNewModule());
         const std::string saved = scene.SaveToString();
         scene.Clear();
@@ -180,7 +177,7 @@ TEST_CASE("A project's code builds into a module that loads, and loads again whe
         WriteCode(code, BrokenCode);
         host.Update();
         WaitForBuild(host);
-        CHECK(host.GetBuild().GetState() == ModuleBuildState::Failed);
+        CHECK(host.GetBuild().GetState() == CodeBuildState::Failed);
         CHECK(host.GetBuild().GetErrorCount() > 0);
         CHECK_FALSE(host.HasNewModule());
         CHECK(host.GetModule());
@@ -193,7 +190,7 @@ TEST_CASE("A project's code builds into a module that loads, and loads again whe
 
 TEST_CASE("The player runs a project's startup scene with the game's code", "[editor][module][player]") {
     const TempDirectory temp;
-    const auto file = Spot::Editor::CreateProject(temp.GetPath(), "Played", Spot::Editor::ProjectTemplate::Code3D);
+    const auto file = Spot::CreateProject(temp.GetPath(), "Played", Spot::ProjectTemplate::Code3D);
     REQUIRE(file);
     const auto project = Spot::Project::Load(*file);
     REQUIRE(project);
@@ -201,12 +198,12 @@ TEST_CASE("The player runs a project's startup scene with the game's code", "[ed
         Spot::Editor::ModuleHost host(*project, {.watchInterval = 0ms});
         host.Build();
         WaitForBuild(host);
-        REQUIRE(host.GetBuild().GetState() == ModuleBuildState::Succeeded);
+        REQUIRE(host.GetBuild().GetState() == CodeBuildState::Succeeded);
     }
 
     const auto capture = std::make_shared<Spot::Tests::CaptureSink>();
     const Spot::Tests::ScopedSinks sinks({capture});
-    Spot::Editor::GameRunner game;
+    Spot::GameRunner game(Spot::Editor::GetBuiltPlayer());
     const std::array options{std::string("--no-graphics"), std::string("--frames"), std::string("5")};
     REQUIRE(game.Start(*file, options));
     while (game.IsRunning()) {
@@ -235,7 +232,7 @@ TEST_CASE("The player runs a project's startup scene with the game's code", "[ed
 
 TEST_CASE("Modules built for another editor are not loaded, and are built again", "[editor][module]") {
     const TempDirectory temp;
-    const auto file = Spot::Editor::CreateProject(temp.GetPath(), "Shared", Spot::Editor::ProjectTemplate::Code3D);
+    const auto file = Spot::CreateProject(temp.GetPath(), "Shared", Spot::ProjectTemplate::Code3D);
     REQUIRE(file);
     const auto project = Spot::Project::Load(*file);
     REQUIRE(project);
@@ -243,11 +240,11 @@ TEST_CASE("Modules built for another editor are not loaded, and are built again"
         Spot::Editor::ModuleHost host(*project, {.watchInterval = 0ms});
         host.Build();
         WaitForBuild(host);
-        REQUIRE(host.GetBuild().GetState() == ModuleBuildState::Succeeded);
+        REQUIRE(host.GetBuild().GetState() == CodeBuildState::Succeeded);
     }
 
     // As an editor of another configuration finds the module.
-    Spot::Editor::ModuleToolchain other = Spot::Editor::ModuleToolchain::GetEditor();
+    Spot::Toolchain other = Spot::Toolchain::GetBuilt();
     other.configuration = other.configuration == "Debug" ? "Release" : "Debug";
     Spot::Editor::ModuleHost host(*project, {.toolchain = other, .watchInterval = 0ms});
     CHECK_FALSE(host.GetBuild().IsConfigured());
@@ -259,7 +256,7 @@ TEST_CASE("Modules built for another editor are not loaded, and are built again"
 
 TEST_CASE("Modules built before the engine changed are built again before they load", "[editor][module]") {
     const TempDirectory temp;
-    const auto file = Spot::Editor::CreateProject(temp.GetPath(), "Engine", Spot::Editor::ProjectTemplate::Code3D);
+    const auto file = Spot::CreateProject(temp.GetPath(), "Engine", Spot::ProjectTemplate::Code3D);
     REQUIRE(file);
     const auto project = Spot::Project::Load(*file);
     REQUIRE(project);
@@ -267,12 +264,12 @@ TEST_CASE("Modules built before the engine changed are built again before they l
         Spot::Editor::ModuleHost host(*project, {.watchInterval = 0ms});
         host.Build();
         WaitForBuild(host);
-        REQUIRE(host.GetBuild().GetState() == ModuleBuildState::Succeeded);
+        REQUIRE(host.GetBuild().GetState() == CodeBuildState::Succeeded);
     }
 
     // As the engine is built again after the module, here without a change its headers show, so the build finds
     // nothing to do.
-    Spot::Editor::ModuleToolchain rebuilt = Spot::Editor::ModuleToolchain::GetEditor();
+    Spot::Toolchain rebuilt = Spot::Toolchain::GetBuilt();
     rebuilt.engineLibrary = temp.GetPath() / "engine.dll";
     std::this_thread::sleep_for(1100ms);
     std::ofstream(rebuilt.engineLibrary, std::ios::binary) << "engine";
@@ -282,7 +279,7 @@ TEST_CASE("Modules built before the engine changed are built again before they l
         CHECK_FALSE(host.GetModule());
         CHECK(host.GetBuild().IsRunning());
         WaitForBuild(host);
-        REQUIRE(host.GetBuild().GetState() == ModuleBuildState::Succeeded);
+        REQUIRE(host.GetBuild().GetState() == CodeBuildState::Succeeded);
         REQUIRE(host.HasNewModule());
         CHECK(host.SwapModule());
     }
@@ -295,14 +292,14 @@ TEST_CASE("Modules built before the engine changed are built again before they l
 
 TEST_CASE("New source files are in the first build after they are added", "[editor][module]") {
     const TempDirectory temp;
-    const auto file = Spot::Editor::CreateProject(temp.GetPath(), "Grown", Spot::Editor::ProjectTemplate::Code3D);
+    const auto file = Spot::CreateProject(temp.GetPath(), "Grown", Spot::ProjectTemplate::Code3D);
     REQUIRE(file);
     const auto project = Spot::Project::Load(*file);
     REQUIRE(project);
     Spot::Editor::ModuleHost host(*project, {.watchInterval = 0ms});
     host.Build();
     WaitForBuild(host);
-    REQUIRE(host.GetBuild().GetState() == ModuleBuildState::Succeeded);
+    REQUIRE(host.GetBuild().GetState() == CodeBuildState::Succeeded);
 
     WriteCode(project->GetDirectory() / "src" / "pulse.cpp", R"(#include <spot.h>
 
@@ -312,7 +309,7 @@ SPOT_COMPONENT(Pulse);
 )");
     host.Build();
     WaitForBuild(host);
-    REQUIRE(host.GetBuild().GetState() == ModuleBuildState::Succeeded);
+    REQUIRE(host.GetBuild().GetState() == CodeBuildState::Succeeded);
     REQUIRE(host.SwapModule());
     CHECK(GetTypes(*host.GetModule()) == std::vector<std::string>{"Pulse", "Rotator"});
 }

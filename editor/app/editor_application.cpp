@@ -1,6 +1,7 @@
 #include "app/editor_application.h"
 
 #include "app/editor_layout.h"
+#include "core/build_info.h"
 #include "core/editor_log.h"
 #include "imgui/editor_style.h"
 #include "imgui/icons.h"
@@ -136,7 +137,7 @@ void EditorApplication::OnStart() {
 
     m_context = std::make_unique<EditorContext>(GetWindow(), &GetGraphicsDevice(), m_settings);
     m_thumbnails = std::make_unique<ThumbnailCache>(GetGraphicsDevice());
-    m_game = std::make_unique<GameRunner>();
+    m_game = std::make_unique<GameRunner>(GetBuiltPlayer());
     m_context->SetThumbnails(m_thumbnails.get());
     m_workspace = std::make_unique<SceneWorkspace>(*m_context);
     m_context->SetWorkspace(m_workspace.get());
@@ -686,7 +687,7 @@ void EditorApplication::DrawBuildControls() {
     if (!modules.HasCode()) {
         return;
     }
-    const ModuleBuild& build = modules.GetBuild();
+    const CodeBuild& build = modules.GetBuild();
     std::string status;
     // As wide as the status gets, so it does not move as it changes.
     std::string widest;
@@ -704,7 +705,7 @@ void EditorApplication::DrawBuildControls() {
         status = ICON_FA_CODE "  Code changed";
         tooltip = "The game's code changed since it was built; Ctrl+B builds it. Building as it changes can be "
                   "turned on in Preferences.";
-    } else if (build.GetState() == ModuleBuildState::Failed) {
+    } else if (build.GetState() == CodeBuildState::Failed) {
         status = ICON_FA_CIRCLE_XMARK "  Build failed";
         color = EditorColors::Error;
         tooltip = "The game's code did not build; click to see why in the console. The editor keeps the code it had.";
@@ -1033,7 +1034,7 @@ void EditorApplication::DrawAboutWindow() {
     ImGui::TextColored(EditorColors::TextMuted, "Engine %s  |  Dear ImGui %s  |  %s", GetVersionString().data(),
                        ImGui::GetVersion(), GetGraphicsDevice().GetBackendName().data());
     // Game code must be built as the editor was, so this says how.
-    const ModuleToolchain toolchain = ModuleToolchain::GetEditor();
+    const Toolchain toolchain = Toolchain::GetBuilt();
     ImGui::TextColored(EditorColors::TextMuted, "Game code builds with %s, %s", toolchain.generator.c_str(),
                        toolchain.configuration.c_str());
     ImGui::Separator();

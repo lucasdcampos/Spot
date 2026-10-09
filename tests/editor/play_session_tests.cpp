@@ -1,7 +1,7 @@
-#include "play/game_runner.h"
 #include "play/play_session.h"
 
 #include <spot.h>
+#include <spot_tools.h>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -197,7 +197,7 @@ TEST_CASE("The game captures the mouse while its view has focus, and Escape stay
 }
 
 TEST_CASE("Lines of the game's log keep their level, and say which logger wrote them", "[editor][play]") {
-    using Spot::Editor::GameRunner;
+    using Spot::GameRunner;
 
     const GameRunner::Line own = GameRunner::ParseLine("[14:03:12.345] [WARN ] [App] Low on health");
     CHECK(own.level == Spot::LogLevel::Warning);

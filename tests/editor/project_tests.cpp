@@ -3,7 +3,6 @@
 #include "core/editor_settings.h"
 #include "imgui/widgets.h"
 #include "project/editor_project.h"
-#include "project/project_templates.h"
 
 #include <spot.h>
 #include <spot_tools.h>
@@ -86,7 +85,7 @@ TEST_CASE("Preferences out of range come back within it", "[editor][settings]") 
 
 TEST_CASE("Without building on change, changes to the code are only told of", "[editor][project]") {
     const TempDirectory temp;
-    const auto file = Spot::Editor::CreateProject(temp.GetPath(), "Coded", Spot::Editor::ProjectTemplate::Code3D);
+    const auto file = Spot::CreateProject(temp.GetPath(), "Coded", Spot::ProjectTemplate::Code3D);
     REQUIRE(file);
     const auto project = Spot::Project::Load(*file);
     REQUIRE(project);
@@ -115,19 +114,19 @@ TEST_CASE("Unreadable editor settings leave the defaults", "[editor][settings]")
 }
 
 TEST_CASE("Project names must work as folder and file names", "[editor][project]") {
-    CHECK(Spot::Editor::ValidateProjectName("My Game").empty());
-    CHECK(Spot::Editor::ValidateProjectName("Jogo de Ação 2").empty());
-    CHECK_FALSE(Spot::Editor::ValidateProjectName("").empty());
-    CHECK_FALSE(Spot::Editor::ValidateProjectName("a/b").empty());
-    CHECK_FALSE(Spot::Editor::ValidateProjectName("what?").empty());
-    CHECK_FALSE(Spot::Editor::ValidateProjectName(" padded").empty());
-    CHECK_FALSE(Spot::Editor::ValidateProjectName("dotted.").empty());
+    CHECK(Spot::ValidateProjectName("My Game").empty());
+    CHECK(Spot::ValidateProjectName("Jogo de Ação 2").empty());
+    CHECK_FALSE(Spot::ValidateProjectName("").empty());
+    CHECK_FALSE(Spot::ValidateProjectName("a/b").empty());
+    CHECK_FALSE(Spot::ValidateProjectName("what?").empty());
+    CHECK_FALSE(Spot::ValidateProjectName(" padded").empty());
+    CHECK_FALSE(Spot::ValidateProjectName("dotted.").empty());
 }
 
 TEST_CASE("The 3D template makes a project that opens on a lit scene", "[editor][project]") {
     const TempDirectory temp;
 
-    const auto file = Spot::Editor::CreateProject(temp.GetPath(), "Demo", Spot::Editor::ProjectTemplate::Basic3D);
+    const auto file = Spot::CreateProject(temp.GetPath(), "Demo", Spot::ProjectTemplate::Basic3D);
 
     REQUIRE(file.has_value());
     const auto directory = temp.GetPath() / "Demo";
@@ -159,7 +158,7 @@ TEST_CASE("The 3D with C++ template adds the game's code, whose component the sc
           "[editor][project]") {
     const TempDirectory temp;
 
-    const auto file = Spot::Editor::CreateProject(temp.GetPath(), "My Game", Spot::Editor::ProjectTemplate::Code3D);
+    const auto file = Spot::CreateProject(temp.GetPath(), "My Game", Spot::ProjectTemplate::Code3D);
 
     REQUIRE(file.has_value());
     const auto directory = temp.GetPath() / "My Game";
@@ -184,7 +183,7 @@ TEST_CASE("The 3D with C++ template adds the game's code, whose component the sc
 TEST_CASE("Empty projects only have their file and assets folder", "[editor][project]") {
     const TempDirectory temp;
 
-    const auto file = Spot::Editor::CreateProject(temp.GetPath(), "Blank", Spot::Editor::ProjectTemplate::Empty);
+    const auto file = Spot::CreateProject(temp.GetPath(), "Blank", Spot::ProjectTemplate::Empty);
 
     REQUIRE(file.has_value());
     CHECK(std::filesystem::is_empty(temp.GetPath() / "Blank" / "assets"));
@@ -199,8 +198,8 @@ TEST_CASE("Projects are never created over a folder that has files", "[editor][p
     std::filesystem::create_directories(temp.GetPath() / "Taken");
     std::ofstream(temp.GetPath() / "Taken" / "notes.txt") << "mine";
 
-    CHECK_FALSE(Spot::Editor::CreateProject(temp.GetPath(), "Taken", Spot::Editor::ProjectTemplate::Empty));
-    CHECK_FALSE(Spot::Editor::CreateProject(temp.GetPath(), "bad/name", Spot::Editor::ProjectTemplate::Empty));
+    CHECK_FALSE(Spot::CreateProject(temp.GetPath(), "Taken", Spot::ProjectTemplate::Empty));
+    CHECK_FALSE(Spot::CreateProject(temp.GetPath(), "bad/name", Spot::ProjectTemplate::Empty));
 }
 
 TEST_CASE("Times read as how long ago they were", "[editor][widgets]") {
@@ -225,7 +224,7 @@ TEST_CASE("Projects of older editors get the current layout when they open", "[e
     std::ofstream(temp.GetPath() / "src" / "game.cpp") << "// The game\n";
     std::ofstream(temp.GetPath() / ".gitignore") << "/.spot/";
 
-    CHECK(Spot::Editor::UpdateProjectLayout(*project));
+    CHECK(Spot::UpdateProjectLayout(*project));
 
     CHECK_FALSE(std::filesystem::exists(temp.GetPath() / "CMakeLists.txt"));
     std::ifstream script(temp.GetPath() / "src" / "CMakeLists.txt");
@@ -236,7 +235,7 @@ TEST_CASE("Projects of older editors get the current layout when they open", "[e
     CHECK(ignored == "/.spot/\n# Games exported from the project\n/builds/\n");
 
     // Once is enough.
-    CHECK_FALSE(Spot::Editor::UpdateProjectLayout(*project));
+    CHECK_FALSE(Spot::UpdateProjectLayout(*project));
     Spot::Editor::ModuleHost host(*project, {});
     CHECK(host.HasCode());
 }
@@ -245,7 +244,7 @@ TEST_CASE("New components need C++ class names that no type or file has", "[edit
     const TempDirectory temp;
     const auto project = Spot::Project::Create(temp.GetPath(), {.name = "Names"});
     REQUIRE(project);
-    using Spot::Editor::ValidateComponentName;
+    using Spot::ValidateComponentName;
     CHECK(ValidateComponentName(*project, "", "Player").empty());
     CHECK(ValidateComponentName(*project, "", "_Player2").empty());
     CHECK_FALSE(ValidateComponentName(*project, "", "").empty());
@@ -256,7 +255,7 @@ TEST_CASE("New components need C++ class names that no type or file has", "[edit
     CHECK_FALSE(ValidateComponentName(*project, "", "Camera").empty());
 
     // A project without code gets what building it takes, beside the component's files.
-    const auto files = Spot::Editor::CreateComponentCode(*project, "actors", "Player");
+    const auto files = Spot::CreateComponentCode(*project, "actors", "Player");
     REQUIRE(files);
     CHECK(*files == std::vector<std::string>{"actors/Player.h", "actors/Player.cpp"});
     const auto code = project->GetCodeDirectory();
@@ -270,5 +269,5 @@ TEST_CASE("New components need C++ class names that no type or file has", "[edit
 
     CHECK_FALSE(ValidateComponentName(*project, "actors", "Player").empty());
     CHECK(ValidateComponentName(*project, "", "Player").empty());
-    CHECK_FALSE(Spot::Editor::CreateComponentCode(*project, "actors", "Player"));
+    CHECK_FALSE(Spot::CreateComponentCode(*project, "actors", "Player"));
 }

@@ -9,16 +9,13 @@
 #include <string>
 #include <string_view>
 
-namespace Spot::Editor {
+namespace Spot {
 
 // A project's game running outside of the editor, in its own window, as it will once shipped: the player runs it,
 // and what it logs shows in the console as "Game".
 class GameRunner {
 public:
-    // The player built along with the editor.
-    static std::filesystem::path GetBuiltPlayer();
-
-    explicit GameRunner(std::filesystem::path player = GetBuiltPlayer());
+    explicit GameRunner(std::filesystem::path player);
     // Stops the game.
     ~GameRunner();
 
@@ -50,4 +47,4 @@ private:
     bool m_exitReported = false;
 };
 
-} // namespace Spot::Editor
+} // namespace Spot

@@ -8,12 +8,12 @@
 #include "panels/hierarchy_panel.h"
 #include "panels/inspector_panel.h"
 #include "project/editor_project.h"
-#include "project/project_templates.h"
 #include "scene/entity_actions.h"
 #include "scene/scene_workspace.h"
 
 #include <spot.h>
 #include <spot_import.h>
+#include <spot_tools.h>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -185,7 +185,7 @@ struct BrowserFixture {
 
     BrowserFixture() {
         REQUIRE(window != nullptr);
-        const auto file = Spot::Editor::CreateProject(temp.GetPath(), "Game", Spot::Editor::ProjectTemplate::Basic3D);
+        const auto file = Spot::CreateProject(temp.GetPath(), "Game", Spot::ProjectTemplate::Basic3D);
         REQUIRE(file.has_value());
         context = std::make_unique<Spot::Editor::EditorContext>(*window, nullptr, settings);
         context->SetProject(Spot::Editor::EditorProject::Open(*file, nullptr));

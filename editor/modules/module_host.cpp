@@ -120,7 +120,7 @@ void ModuleHost::Update() {
             }
         }
     }
-    if (m_build.Update() && m_build.GetState() == ModuleBuildState::Succeeded) {
+    if (m_build.Update() && m_build.GetState() == CodeBuildState::Succeeded) {
         // The build brought the module up to date with the engine, even when it found nothing to do, as when the
         // engine changed none of its headers, so it is not built again for it next time.
         const std::filesystem::path built = m_build.GetModulePath();

@@ -11,12 +11,12 @@
 #include "panels/hierarchy_panel.h"
 #include "panels/inspector_panel.h"
 #include "panels/panel.h"
-#include "play/game_runner.h"
 #include "project/new_project_dialog.h"
 #include "project/project_hub.h"
 #include "scene/scene_workspace.h"
 
 #include <spot.h>
+#include <spot_tools.h>
 
 #include <imgui.h>
 

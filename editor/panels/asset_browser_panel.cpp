@@ -1,5 +1,7 @@
 #include "panels/asset_browser_panel.h"
 
+#include <spot_tools.h>
+
 #include "assets/asset_list.h"
 #include "assets/plain_files.h"
 #include "assets/thumbnail_cache.h"
@@ -10,7 +12,6 @@
 #include "imgui/icons.h"
 #include "imgui/imgui_renderer.h"
 #include "imgui/widgets.h"
-#include "project/project_templates.h"
 #include "scene/scene_workspace.h"
 
 #include <imgui_internal.h>

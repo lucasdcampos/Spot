@@ -64,6 +64,7 @@ add_library(spot_editor_core STATIC
     assets/thumbnail_cache.cpp
     assets/thumbnail_cache.h
     core/build_info.cpp
+    core/build_info.h
     core/command.h
     core/command_history.cpp
     core/command_history.h
@@ -101,12 +102,8 @@ add_library(spot_editor_core STATIC
     inspector/multi_edit.h
     inspector/property_widgets.cpp
     inspector/property_widgets.h
-    modules/module_build.cpp
-    modules/module_build.h
     modules/module_host.cpp
     modules/module_host.h
-    play/game_runner.cpp
-    play/game_runner.h
     play/play_session.cpp
     play/play_session.h
     panels/asset_browser_panel.cpp
@@ -127,8 +124,6 @@ add_library(spot_editor_core STATIC
     project/new_project_dialog.h
     project/project_hub.cpp
     project/project_hub.h
-    project/project_templates.cpp
-    project/project_templates.h
     scene/entity_actions.cpp
     scene/entity_actions.h
     scene/scene_commands.cpp
@@ -173,21 +168,8 @@ spot_embed_files(spot_editor_core
 )
 spot_set_compile_options(spot_editor_core)
 
-# Game modules are built as the editor was, against its build of the shared engine library, so they work together,
-# and games run outside of the editor with the player built along with it.
-get_property(spot_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+# Games run outside of the editor with the player built along with it.
 set_property(SOURCE core/build_info.cpp APPEND PROPERTY COMPILE_DEFINITIONS
-    SPOT_MODULE_CMAKE="${CMAKE_COMMAND}"
-    SPOT_MODULE_GENERATOR="${CMAKE_GENERATOR}"
-    SPOT_MODULE_PLATFORM="${CMAKE_GENERATOR_PLATFORM}"
-    SPOT_MODULE_TOOLSET="${CMAKE_GENERATOR_TOOLSET}"
-    SPOT_MODULE_INSTANCE="${CMAKE_GENERATOR_INSTANCE}"
-    SPOT_MODULE_COMPILER="${CMAKE_CXX_COMPILER}"
-    SPOT_MODULE_MAKE_PROGRAM="${CMAKE_MAKE_PROGRAM}"
-    SPOT_MODULE_CONFIGURATION="$<CONFIG>"
-    SPOT_MODULE_MULTI_CONFIGURATION=$<BOOL:${spot_multi_config}>
-    SPOT_MODULE_PACKAGE="${PROJECT_BINARY_DIR}/package/$<CONFIG>"
-    SPOT_MODULE_ENGINE_LIBRARY="$<TARGET_FILE:spot_shared>"
     SPOT_PLAYER="$<TARGET_FILE:spot_player>"
 )
 add_dependencies(spot_editor_core spot_player)

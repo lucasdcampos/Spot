@@ -1,7 +1,8 @@
 #include "project/editor_project.h"
 
+#include <spot_tools.h>
+
 #include "core/editor_log.h"
-#include "project/project_templates.h"
 
 #include <algorithm>
 #include <utility>

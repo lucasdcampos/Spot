@@ -1,4 +1,4 @@
-#include "modules/module_build.h"
+#include "build/code_build.h"
 
 #include <algorithm>
 #include <format>
@@ -6,7 +6,7 @@
 #include <iterator>
 #include <system_error>
 
-namespace Spot::Editor {
+namespace Spot {
 
 namespace {
 
@@ -46,26 +46,25 @@ std::string ReadFile(const std::filesystem::path& path) {
 
 } // namespace
 
-std::string ModuleToolchain::GetKey() const {
+std::string Toolchain::GetKey() const {
     // The configuration too, even for generators that build them all in one directory: the module goes to the same
     // file in each, and one built in another configuration does not work with this editor.
     return std::format("{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n", cmake, generator, platform, toolset, instance, compiler,
                        makeProgram, configuration, PathToUtf8(package));
 }
 
-ModuleBuild::ModuleBuild(std::filesystem::path sourceDirectory, std::filesystem::path buildDirectory,
-                         ModuleToolchain toolchain)
+CodeBuild::CodeBuild(std::filesystem::path sourceDirectory, std::filesystem::path buildDirectory, Toolchain toolchain)
     : m_source(std::move(sourceDirectory)), m_build(std::move(buildDirectory)), m_toolchain(std::move(toolchain)) {
 }
 
-ModuleBuild::~ModuleBuild() = default;
+CodeBuild::~CodeBuild() = default;
 
-void ModuleBuild::Start() {
+void CodeBuild::Start() {
     if (IsRunning()) {
         m_restart = true;
         return;
     }
-    m_state = ModuleBuildState::Running;
+    m_state = CodeBuildState::Running;
     m_restart = false;
     m_errors = 0;
     m_warnings = 0;
@@ -86,7 +85,7 @@ void ModuleBuild::Start() {
     StartStep(Step::Configure);
 }
 
-void ModuleBuild::StartStep(Step step) {
+void CodeBuild::StartStep(Step step) {
     m_step = step;
     std::vector<std::string> arguments{m_toolchain.cmake};
     if (step == Step::Configure) {
@@ -127,7 +126,7 @@ void ModuleBuild::StartStep(Step step) {
     }
 }
 
-bool ModuleBuild::Update() {
+bool CodeBuild::Update() {
     if (!IsRunning() || !m_process) {
         return false;
     }
@@ -155,7 +154,7 @@ bool ModuleBuild::Update() {
     return true;
 }
 
-void ModuleBuild::Wait() {
+void CodeBuild::Wait() {
     while (IsRunning()) {
         if (m_process) {
             m_process->Wait();
@@ -164,26 +163,26 @@ void ModuleBuild::Wait() {
     }
 }
 
-bool ModuleBuild::IsConfigured() const {
+bool CodeBuild::IsConfigured() const {
     std::error_code error;
     return std::filesystem::exists(m_build / "CMakeCache.txt", error) &&
            ReadFile(m_build / ToolchainFile) == GetConfigurationKey();
 }
 
-std::string ModuleBuild::GetConfigurationKey() const {
+std::string CodeBuild::GetConfigurationKey() const {
     // CMake ties a build directory to its sources too, which move with the project, or out of the project's root.
     return m_toolchain.GetKey() + PathToUtf8(m_source) + "\n";
 }
 
-std::chrono::duration<float> ModuleBuild::GetDuration() const {
+std::chrono::duration<float> CodeBuild::GetDuration() const {
     return (IsRunning() ? std::chrono::steady_clock::now() : m_ended) - m_started;
 }
 
-std::filesystem::path ModuleBuild::GetModulePath() const {
+std::filesystem::path CodeBuild::GetModulePath() const {
     return m_build / "module" / ("game" + std::string(GameModule::FileExtension));
 }
 
-LogLevel ModuleBuild::ClassifyLine(std::string_view line) {
+LogLevel CodeBuild::ClassifyLine(std::string_view line) {
     if (line.starts_with("CMake Error") || Contains(line, ": error") || Contains(line, ": fatal error") ||
         Contains(line, "undefined reference to") || line.starts_with("LINK : fatal error")) {
         return LogLevel::Error;
@@ -194,7 +193,7 @@ LogLevel ModuleBuild::ClassifyLine(std::string_view line) {
     return LogLevel::Trace;
 }
 
-void ModuleBuild::Log(const std::vector<std::string>& lines) {
+void CodeBuild::Log(const std::vector<std::string>& lines) {
     for (const std::string& line : lines) {
         // Lines below a CMake message, indented or blank, are part of it.
         if (!m_message.empty() && (line.empty() || line.front() == ' ')) {
@@ -228,7 +227,7 @@ void ModuleBuild::Log(const std::vector<std::string>& lines) {
     }
 }
 
-void ModuleBuild::FlushMessage() {
+void CodeBuild::FlushMessage() {
     if (m_message.empty()) {
         return;
     }
@@ -240,9 +239,9 @@ void ModuleBuild::FlushMessage() {
     m_message.clear();
 }
 
-void ModuleBuild::Finish(bool succeeded) {
+void CodeBuild::Finish(bool succeeded) {
     m_ended = std::chrono::steady_clock::now();
-    m_state = succeeded ? ModuleBuildState::Succeeded : ModuleBuildState::Failed;
+    m_state = succeeded ? CodeBuildState::Succeeded : CodeBuildState::Failed;
     const float seconds = GetDuration().count();
     if (succeeded) {
         if (m_warnings > 0) {
@@ -264,4 +263,4 @@ void ModuleBuild::Finish(bool succeeded) {
     }
 }
 
-} // namespace Spot::Editor
+} // namespace Spot

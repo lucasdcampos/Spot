@@ -1,7 +1,8 @@
 #pragma once
 
+#include "project/project.h"
+
 #include <spot.h>
-#include <spot_tools.h>
 
 #include <filesystem>
 #include <optional>
@@ -10,7 +11,7 @@
 #include <string_view>
 #include <vector>
 
-namespace Spot::Editor {
+namespace Spot {
 
 enum class ProjectTemplate {
     // A scene with a camera, a sun, a sky, a ground and a cube, ready to look around.
@@ -52,4 +53,4 @@ std::optional<std::vector<std::string>> CreateComponentCode(const Project& proje
 // project's folder into its code folder, and has git ignore exported games. Returns whether anything changed.
 bool UpdateProjectLayout(const Project& project);
 
-} // namespace Spot::Editor
+} // namespace Spot

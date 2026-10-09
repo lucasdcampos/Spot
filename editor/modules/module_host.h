@@ -1,7 +1,5 @@
 #pragma once
 
-#include "modules/module_build.h"
-
 #include <spot.h>
 #include <spot_tools.h>
 
@@ -17,7 +15,7 @@ namespace Spot::Editor {
 class ModuleHost {
 public:
     struct Options {
-        ModuleToolchain toolchain = ModuleToolchain::GetEditor();
+        Toolchain toolchain = Toolchain::GetBuilt();
         // How often the code is looked at for changes.
         std::chrono::milliseconds watchInterval = std::chrono::milliseconds(1000);
     };
@@ -48,7 +46,7 @@ public:
     // Returns whether it loaded.
     bool SwapModule();
 
-    const ModuleBuild& GetBuild() const { return m_build; }
+    const CodeBuild& GetBuild() const { return m_build; }
     // Null while none is loaded.
     const GameModule* GetModule() const { return m_module.get(); }
 
@@ -60,7 +58,7 @@ private:
     std::filesystem::path m_directory;
     std::filesystem::path m_cacheDirectory;
     Options m_options;
-    ModuleBuild m_build;
+    CodeBuild m_build;
     std::unique_ptr<GameModule> m_module;
     // The built module's time when it was loaded, to tell new builds from those that changed nothing.
     std::filesystem::file_time_type m_loadedTime;

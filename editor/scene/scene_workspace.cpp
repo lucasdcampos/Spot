@@ -1,11 +1,12 @@
 #include "scene/scene_workspace.h"
 
+#include <spot_tools.h>
+
 #include "app/editor_context.h"
 #include "core/editor_log.h"
 #include "imgui/editor_style.h"
 #include "imgui/icons.h"
 #include "imgui/widgets.h"
-#include "project/project_templates.h"
 #include "scene/scene_commands.h"
 
 #include <nlohmann/json.hpp>

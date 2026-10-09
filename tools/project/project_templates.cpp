@@ -1,9 +1,9 @@
 #include "project/project_templates.h"
 
-#include "core/editor_log.h"
+#include "tools_log.h"
 
 #include <spot.h>
-#include <spot_tools.h>
+#include <spot_import.h>
 
 #include <algorithm>
 #include <array>
@@ -14,7 +14,7 @@
 #include <system_error>
 #include <vector>
 
-namespace Spot::Editor {
+namespace Spot {
 
 namespace {
 
@@ -276,7 +276,7 @@ std::string ValidateComponentName(const Project& project, std::string_view folde
 std::optional<std::vector<std::string>> CreateComponentCode(const Project& project, std::string_view folder,
                                                             const std::string& name) {
     if (const std::string problem = ValidateComponentName(project, folder, name); !problem.empty()) {
-        GetEditorLogger().Error("Cannot create the component '{}': {}", name, problem);
+        GetToolsLogger().Error("Cannot create the component '{}': {}", name, problem);
         return std::nullopt;
     }
     // Projects without code get what building it takes first.
@@ -286,20 +286,20 @@ std::optional<std::vector<std::string>> CreateComponentCode(const Project& proje
         const std::string identifier = MakeIdentifier(project.GetSettings().name);
         if (!WriteText(code / "CMakeLists.txt", std::vformat(BuildScript, std::make_format_args(identifier))) ||
             (!std::filesystem::exists(code / "game.cpp", error) && !WriteText(code / "game.cpp", ModuleCode))) {
-            GetEditorLogger().Error("Could not write the build of the project's code in '{}'", PathToUtf8(code));
+            GetToolsLogger().Error("Could not write the build of the project's code in '{}'", PathToUtf8(code));
             return std::nullopt;
         }
-        GetEditorLogger().Info("The project has code now, in '{}', which the editor builds as it changes",
-                               PathToUtf8(code));
+        GetToolsLogger().Info("The project has code now, in '{}', which the editor builds as it changes",
+                              PathToUtf8(code));
     }
     const std::string header = folder.empty() ? name + ".h" : std::string(folder) + "/" + name + ".h";
     const std::string source = folder.empty() ? name + ".cpp" : std::string(folder) + "/" + name + ".cpp";
     if (!WriteText(code / Utf8ToPath(header), std::vformat(ComponentHeader, std::make_format_args(name))) ||
         !WriteText(code / Utf8ToPath(source), std::vformat(ComponentSource, std::make_format_args(name)))) {
-        GetEditorLogger().Error("Could not write the code of the component '{}'", name);
+        GetToolsLogger().Error("Could not write the code of the component '{}'", name);
         return std::nullopt;
     }
-    GetEditorLogger().Info("Created the component '{}'; it can be added to entities once the code is built", name);
+    GetToolsLogger().Info("Created the component '{}'; it can be added to entities once the code is built", name);
     return std::vector{header, source};
 }
 
@@ -323,11 +323,11 @@ bool UpdateProjectLayout(const Project& project) {
             }
         }
         if (!WriteText(newScript, text) || !std::filesystem::remove(oldScript, error)) {
-            GetEditorLogger().Error("Could not move '{}' into '{}'", PathToUtf8(oldScript),
-                                    PathToUtf8(project.GetCodeDirectory()));
+            GetToolsLogger().Error("Could not move '{}' into '{}'", PathToUtf8(oldScript),
+                                   PathToUtf8(project.GetCodeDirectory()));
             return false;
         }
-        GetEditorLogger().Info("Moved the project's CMakeLists.txt into its code folder, 'src'");
+        GetToolsLogger().Info("Moved the project's CMakeLists.txt into its code folder, 'src'");
         changed = true;
     }
 
@@ -387,13 +387,13 @@ std::string ValidateProjectName(std::string_view name) {
 std::optional<std::filesystem::path> CreateProject(const std::filesystem::path& location, const std::string& name,
                                                    ProjectTemplate kind) {
     if (const std::string problem = ValidateProjectName(name); !problem.empty()) {
-        GetEditorLogger().Error("Cannot create project '{}': {}", name, problem);
+        GetToolsLogger().Error("Cannot create project '{}': {}", name, problem);
         return std::nullopt;
     }
     const std::filesystem::path directory = location / Utf8ToPath(name);
     std::error_code error;
     if (std::filesystem::exists(directory, error) && !std::filesystem::is_empty(directory, error)) {
-        GetEditorLogger().Error("Cannot create project '{}': '{}' is not empty", name, PathToUtf8(directory));
+        GetToolsLogger().Error("Cannot create project '{}': '{}' is not empty", name, PathToUtf8(directory));
         return std::nullopt;
     }
 
@@ -408,7 +408,7 @@ std::optional<std::filesystem::path> CreateProject(const std::filesystem::path& 
         const std::filesystem::path code = project->GetCodeDirectory();
         if (!WriteText(code / "CMakeLists.txt", std::vformat(BuildScript, std::make_format_args(identifier))) ||
             !WriteText(code / "game.cpp", GameCode)) {
-            GetEditorLogger().Error("Could not write the code of project '{}'", name);
+            GetToolsLogger().Error("Could not write the code of project '{}'", name);
             return std::nullopt;
         }
     }
@@ -420,7 +420,7 @@ std::optional<std::filesystem::path> CreateProject(const std::filesystem::path& 
         }
         const auto sceneId = WriteScene(scene, project->GetAssetsDirectory() / "scenes" / "Main.scene");
         if (!sceneId) {
-            GetEditorLogger().Error("Could not write the scene of project '{}'", name);
+            GetToolsLogger().Error("Could not write the scene of project '{}'", name);
             return std::nullopt;
         }
         project->GetSettings().startupScene = *sceneId;
@@ -428,8 +428,8 @@ std::optional<std::filesystem::path> CreateProject(const std::filesystem::path& 
             return std::nullopt;
         }
     }
-    GetEditorLogger().Info("Created project '{}' in '{}'", name, PathToUtf8(directory));
+    GetToolsLogger().Info("Created project '{}' in '{}'", name, PathToUtf8(directory));
     return project->GetFile();
 }
 
-} // namespace Spot::Editor
+} // namespace Spot

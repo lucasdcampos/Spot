@@ -3,13 +3,13 @@
 
 #include "app/editor_context.h"
 #include "project/editor_project.h"
-#include "project/project_templates.h"
 #include "scene/scene_commands.h"
 #include "scene/scene_workspace.h"
 #include "viewport/editor_camera.h"
 #include "viewport/scene_view.h"
 
 #include <spot.h>
+#include <spot_tools.h>
 
 #include <ImGuizmo.h>
 
@@ -42,7 +42,7 @@ struct WorkspaceFixture {
 
     WorkspaceFixture() {
         REQUIRE(window != nullptr);
-        const auto file = Spot::Editor::CreateProject(temp.GetPath(), "Game", Spot::Editor::ProjectTemplate::Basic3D);
+        const auto file = Spot::CreateProject(temp.GetPath(), "Game", Spot::ProjectTemplate::Basic3D);
         REQUIRE(file.has_value());
         context = std::make_unique<Spot::Editor::EditorContext>(*window, nullptr, settings);
         context->SetProject(Spot::Editor::EditorProject::Open(*file, nullptr));

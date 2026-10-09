@@ -1,4 +1,4 @@
-#include "play/game_runner.h"
+#include "run/game_runner.h"
 
 #include <algorithm>
 #include <array>
@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-namespace Spot::Editor {
+namespace Spot {
 
 namespace {
 
@@ -111,4 +111,4 @@ GameRunner::Line GameRunner::ParseLine(std::string_view line) {
     return parsed;
 }
 
-} // namespace Spot::Editor
+} // namespace Spot

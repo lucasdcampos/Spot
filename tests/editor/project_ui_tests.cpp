@@ -8,9 +8,9 @@
 #include "project/editor_project.h"
 #include "project/new_project_dialog.h"
 #include "project/project_hub.h"
-#include "project/project_templates.h"
 
 #include <spot.h>
+#include <spot_tools.h>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -57,7 +57,7 @@ TEST_CASE("The new project dialog creates a project from what is typed into it",
 
 TEST_CASE("The hub lists recent projects, missing ones included", "[editor][project][ui]") {
     const TempDirectory temp;
-    const auto file = Spot::Editor::CreateProject(temp.GetPath(), "Listed", Spot::Editor::ProjectTemplate::Empty);
+    const auto file = Spot::CreateProject(temp.GetPath(), "Listed", Spot::ProjectTemplate::Empty);
     REQUIRE(file.has_value());
     Spot::Tests::HeadlessImGui imgui;
     Spot::Editor::EditorSettings settings;
@@ -82,7 +82,7 @@ TEST_CASE("The project settings panel shows the open project", "[editor][project
     const TempDirectory temp;
     const auto window = Spot::Window::Create();
     REQUIRE(window != nullptr);
-    const auto file = Spot::Editor::CreateProject(temp.GetPath(), "Shown", Spot::Editor::ProjectTemplate::Basic3D);
+    const auto file = Spot::CreateProject(temp.GetPath(), "Shown", Spot::ProjectTemplate::Basic3D);
     REQUIRE(file.has_value());
     Spot::Tests::HeadlessImGui imgui;
     Spot::Editor::EditorSettings settings;

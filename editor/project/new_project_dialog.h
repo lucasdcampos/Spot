@@ -1,9 +1,9 @@
 #pragma once
 
 #include "core/editor_settings.h"
-#include "project/project_templates.h"
 
 #include <spot.h>
+#include <spot_tools.h>
 
 #include <filesystem>
 #include <memory>

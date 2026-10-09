@@ -10,11 +10,11 @@
 #include <string>
 #include <vector>
 
-namespace Spot::Editor {
+namespace Spot {
 
-// How game modules are built so they work with this editor: with the compiler, generator and configuration that
-// built it, against its own build of the shared engine library.
-struct ModuleToolchain {
+// How a game's code is built so it works with these tools, and the editor built with them: with the compiler,
+// generator and configuration that built them, against their own build of the shared engine library.
+struct Toolchain {
     std::string cmake;
     std::string generator;
     // The generator's platform, toolset and instance, as Visual Studio's have; empty for others.
@@ -28,33 +28,33 @@ struct ModuleToolchain {
     bool multiConfiguration = false;
     // Where the engine's CMake package is: Spot_DIR.
     std::filesystem::path package;
-    // The shared engine library modules link, which the editor runs with. Modules built before it last changed may
+    // The shared engine library games link, which the editor runs with. Modules built before it last changed may
     // not match it, and are built again before they load.
     std::filesystem::path engineLibrary;
 
-    // The toolchain that built the editor.
-    static ModuleToolchain GetEditor();
+    // The toolchain that built the tools.
+    static Toolchain GetBuilt();
     // Changes with anything that needs a project's build directory made again.
     std::string GetKey() const;
 };
 
-enum class ModuleBuildState {
+enum class CodeBuildState {
     Idle,
     Running,
     Succeeded,
     Failed,
 };
 
-// Builds a project's code into its game module, with CMake, in the background: its output goes to the console as
-// "Build", with the errors and warnings it recognizes as such.
-class ModuleBuild {
+// Builds a project's code, with CMake, in the background: its output is logged as "Build", with the errors and
+// warnings it recognizes as such.
+class CodeBuild {
 public:
     // The build directory is the project's generated one; the module lands in its "module" folder.
-    ModuleBuild(std::filesystem::path sourceDirectory, std::filesystem::path buildDirectory, ModuleToolchain toolchain);
-    ~ModuleBuild();
+    CodeBuild(std::filesystem::path sourceDirectory, std::filesystem::path buildDirectory, Toolchain toolchain);
+    ~CodeBuild();
 
-    ModuleBuild(const ModuleBuild&) = delete;
-    ModuleBuild& operator=(const ModuleBuild&) = delete;
+    CodeBuild(const CodeBuild&) = delete;
+    CodeBuild& operator=(const CodeBuild&) = delete;
 
     // Starts a build, configuring the build directory first when it was not yet, or for another toolchain. A build
     // running already starts over once it ends.
@@ -65,11 +65,11 @@ public:
     void Wait();
 
     // Whether the build directory was configured for this toolchain and these sources, so what it built works with
-    // this editor.
+    // these tools.
     bool IsConfigured() const;
 
-    ModuleBuildState GetState() const { return m_state; }
-    bool IsRunning() const { return m_state == ModuleBuildState::Running; }
+    CodeBuildState GetState() const { return m_state; }
+    bool IsRunning() const { return m_state == CodeBuildState::Running; }
     std::size_t GetErrorCount() const { return m_errors; }
     std::size_t GetWarningCount() const { return m_warnings; }
     // How long the last build took, or the running one has taken so far.
@@ -94,10 +94,10 @@ private:
 
     std::filesystem::path m_source;
     std::filesystem::path m_build;
-    ModuleToolchain m_toolchain;
+    Toolchain m_toolchain;
     std::unique_ptr<Process> m_process;
     Step m_step = Step::Build;
-    ModuleBuildState m_state = ModuleBuildState::Idle;
+    CodeBuildState m_state = CodeBuildState::Idle;
     bool m_restart = false;
     std::size_t m_errors = 0;
     std::size_t m_warnings = 0;
@@ -112,4 +112,4 @@ private:
     std::deque<std::string> m_tail;
 };
 
-} // namespace Spot::Editor
+} // namespace Spot

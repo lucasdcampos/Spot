@@ -3,7 +3,6 @@
 
 #include "assets/thumbnail_cache.h"
 #include "project/editor_project.h"
-#include "project/project_templates.h"
 #include "scene/entity_actions.h"
 #include "scene/scene_document.h"
 
@@ -11,6 +10,7 @@
 #include "viewport/viewport_renderer.h"
 
 #include <spot.h>
+#include <spot_tools.h>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -178,7 +178,7 @@ TEST_CASE("Viewports pick the mesh under a pixel and outline the selection", "[e
 TEST_CASE("Thumbnails show materials on a sphere over a clear background", "[editor][gpu]") {
     RequireGpu();
     const TempDirectory temp;
-    const auto file = Spot::Editor::CreateProject(temp.GetPath(), "Game", Spot::Editor::ProjectTemplate::Empty);
+    const auto file = Spot::CreateProject(temp.GetPath(), "Game", Spot::ProjectTemplate::Empty);
     REQUIRE(file.has_value());
     const Spot::MaterialSource red{.baseColor = Spot::Color{1.0f, 0.0f, 0.0f, 1.0f}};
     REQUIRE(red.SaveToFile(file->parent_path() / "assets" / "Red.material"));
@@ -229,7 +229,7 @@ TEST_CASE("Thumbnails show materials on a sphere over a clear background", "[edi
 TEST_CASE("Models dropped into scenes become an entity with a child per part", "[editor][gpu]") {
     RequireGpu();
     const TempDirectory temp;
-    const auto file = Spot::Editor::CreateProject(temp.GetPath(), "Game", Spot::Editor::ProjectTemplate::Empty);
+    const auto file = Spot::CreateProject(temp.GetPath(), "Game", Spot::ProjectTemplate::Empty);
     REQUIRE(file.has_value());
     const auto assets = file->parent_path() / "assets";
     std::filesystem::copy_file(std::filesystem::path(SPOT_TEST_ASSETS_DIR) / "models" / "cube.glb",
