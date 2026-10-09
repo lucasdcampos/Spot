@@ -38,6 +38,8 @@ add_library(spot_objects OBJECT
     core/crash_handler.h
     core/crash_handler.cpp
     core/crash_handler_internal.h
+    core/diagnostics.h
+    core/diagnostics.cpp
     core/game_module.h
     core/game_module.cpp
     core/game_settings.h
@@ -139,6 +141,8 @@ add_library(spot_objects OBJECT
     scene/scene.h
     scene/scene.cpp
     scene/scene_serialization.cpp
+    scene/scene_system.h
+    scene/scene_system.cpp
     scene/sky.h
     scene/sky.cpp
     scene/sprite_renderer.h

@@ -5,6 +5,8 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cmath>
+#include <typeinfo>
 #include <utility>
 
 namespace Spot {
@@ -16,9 +18,7 @@ std::atomic<std::uint64_t> s_nextEntityId = 1;
 
 } // namespace
 
-// PhysicsWorld's constructor is private, so make_unique cannot reach it.
-Scene::Scene() : m_physics(new PhysicsWorld(*this)) {
-}
+Scene::Scene() = default;
 
 Scene::~Scene() {
     Clear();
@@ -27,6 +27,56 @@ Scene::~Scene() {
 Application& Scene::GetApplication() const {
     SPOT_ASSERT(m_application, "The application is only available while the scene is loaded");
     return *m_application;
+}
+
+PhysicsWorld& Scene::GetPhysics() {
+    if (!m_physics) {
+        m_physics = &AddSystem<PhysicsWorld>();
+    }
+    return *m_physics;
+}
+
+void Scene::SetFixedTimeStep(float seconds) {
+    SPOT_ASSERT(seconds > 0.0f, "The fixed time step must be positive");
+    m_fixedTimeStep = seconds;
+}
+
+void Scene::AttachSystem(std::unique_ptr<SceneSystem> system) {
+    const std::type_info& type = typeid(*system);
+    for (const auto* systems : {&m_systems, &m_pendingSystems}) {
+        SPOT_ASSERT(std::ranges::none_of(*systems, [&type](const auto& other) { return typeid(*other) == type; }),
+                    "The scene has a system of this type already");
+    }
+    system->m_scene = this;
+    if (m_runningSystems) {
+        m_pendingSystems.push_back(std::move(system));
+        return;
+    }
+    // After the systems of the same order, so those run in the order they were added.
+    const auto place =
+        std::ranges::upper_bound(m_systems, system->m_order, {}, [](const auto& other) { return other->m_order; });
+    m_systems.insert(place, std::move(system));
+}
+
+template <typename F>
+void Scene::RunSystems(std::string_view hook, F&& fn) {
+    for (auto& pending : std::exchange(m_pendingSystems, {})) {
+        AttachSystem(std::move(pending));
+    }
+    const bool running = std::exchange(m_runningSystems, true);
+    // By index: systems added meanwhile wait in m_pendingSystems, but a nested run would let them in.
+    for (std::size_t i = 0; i < m_systems.size(); ++i) {
+        SceneSystem& system = *m_systems[i];
+        if (!system.m_faulted) {
+            system.InvokeHook(hook, [&fn, &system] { fn(system); });
+        }
+    }
+    m_runningSystems = running;
+}
+
+void Scene::PrepareToRender() {
+    const Detail::DeferRemovalsScope defer(*this);
+    RunSystems("OnBeforeRender", [](SceneSystem& system) { system.OnBeforeRender(); });
 }
 
 Entity& Scene::CreateEntity(std::string name) {
@@ -126,26 +176,40 @@ void Scene::Update(float deltaTime) {
             m_entities[i]->StartComponents();
         }
     }
-    const int steps = m_physics->Advance(deltaTime);
+    RunSystems("OnBeforeFixedSteps", [deltaTime](SceneSystem& system) { system.OnBeforeFixedSteps(deltaTime); });
+
+    m_fixedTimeLeft += deltaTime;
+    const int due = static_cast<int>(m_fixedTimeLeft / m_fixedTimeStep);
+    const int steps = std::min(due, MaxFixedStepsPerUpdate);
+    m_fixedTimeLeft -= static_cast<float>(steps) * m_fixedTimeStep;
+    if (due > steps) {
+        m_fixedTimeLeft = std::fmod(m_fixedTimeLeft, m_fixedTimeStep);
+    }
+    // Read once, so a hook that changes it does so from the next update.
+    const float fixedTimeStep = m_fixedTimeStep;
     for (int step = 0; step < steps; ++step) {
         for (std::size_t i = 0; i < m_entities.size(); ++i) {
             if (m_entities[i]) {
-                m_entities[i]->FixedUpdateComponents(m_physics->GetFixedTimeStep());
+                m_entities[i]->FixedUpdateComponents(fixedTimeStep);
             }
         }
-        m_physics->Step();
+        RunSystems("OnFixedUpdate", [fixedTimeStep](SceneSystem& system) { system.OnFixedUpdate(fixedTimeStep); });
     }
+    RunSystems("OnAfterFixedSteps", [deltaTime](SceneSystem& system) { system.OnAfterFixedSteps(deltaTime); });
+
     OnUpdate(deltaTime);
     for (std::size_t i = 0; i < m_entities.size(); ++i) {
         if (m_entities[i]) {
             m_entities[i]->UpdateComponents(deltaTime);
         }
     }
+    RunSystems("OnUpdate", [deltaTime](SceneSystem& system) { system.OnUpdate(deltaTime); });
     for (std::size_t i = 0; i < m_entities.size(); ++i) {
         if (m_entities[i]) {
             m_entities[i]->LateUpdateComponents(deltaTime);
         }
     }
+    RunSystems("OnLateUpdate", [deltaTime](SceneSystem& system) { system.OnLateUpdate(deltaTime); });
 }
 
 void Scene::DrawUi(Renderer2D& renderer, Vector2 viewSize) {

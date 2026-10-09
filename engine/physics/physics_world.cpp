@@ -34,7 +34,7 @@ bool IsSameScale(Vector3 a, Vector3 b) {
 
 } // namespace
 
-PhysicsWorld::PhysicsWorld(Scene& scene) : m_scene(scene) {
+PhysicsWorld::PhysicsWorld() : SceneSystem(SystemOrder::Physics) {
 }
 
 PhysicsWorld::~PhysicsWorld() = default;
@@ -46,29 +46,14 @@ void PhysicsWorld::SetGravity(Vector3 gravity) {
     }
 }
 
-void PhysicsWorld::SetFixedTimeStep(float seconds) {
-    SPOT_ASSERT(seconds > 0.0f, "The fixed time step must be positive");
-    m_fixedTimeStep = seconds;
-}
-
-int PhysicsWorld::Advance(float deltaTime) {
-    m_timeLeft += deltaTime;
-    const int due = static_cast<int>(m_timeLeft / m_fixedTimeStep);
-    const int steps = std::min(due, MaxStepsPerUpdate);
-    m_timeLeft -= static_cast<float>(steps) * m_fixedTimeStep;
-    if (due > steps) {
-        m_timeLeft = std::fmod(m_timeLeft, m_fixedTimeStep);
-    }
-    return steps;
-}
-
-void PhysicsWorld::Step() {
+void PhysicsWorld::OnFixedUpdate(float fixedDeltaTime) {
+    m_stepTime = fixedDeltaTime;
     RebuildChanged();
     if (m_bodies.empty()) {
         return;
     }
     FollowEntities();
-    GetSimulation().Step(m_fixedTimeStep);
+    GetSimulation().Step(fixedDeltaTime);
     FollowBodies();
 }
 
@@ -116,7 +101,7 @@ void PhysicsWorld::Rebuild(EntityId entityId) {
         m_bodies.erase(found);
     }
 
-    Entity* entity = m_scene.GetEntity(entityId);
+    Entity* entity = GetScene().GetEntity(entityId);
     if (!entity || !entity->IsActiveInHierarchy()) {
         return;
     }
@@ -174,7 +159,7 @@ void PhysicsWorld::Rebuild(EntityId entityId) {
 void PhysicsWorld::FollowEntities() {
     std::vector<EntityId> outdated;
     for (auto& [entityId, body] : m_bodies) {
-        const Entity* entity = m_scene.GetEntity(entityId);
+        const Entity* entity = GetScene().GetEntity(entityId);
         if (!entity || !entity->IsActiveInHierarchy()) {
             outdated.push_back(entityId);
             continue;
@@ -190,7 +175,7 @@ void PhysicsWorld::FollowEntities() {
         const Quaternion& rotation = transform.GetWorldRotation();
         if (body.motion == PhysicsMotion::Kinematic) {
             // Every step, so the body also stops once its entity does.
-            m_simulation->MoveKinematic(body.id, position, Normalize(rotation), m_fixedTimeStep);
+            m_simulation->MoveKinematic(body.id, position, Normalize(rotation), m_stepTime);
         } else if (position != body.position || rotation != body.rotation) {
             m_simulation->SetPose(body.id, position, Normalize(rotation));
         }
@@ -209,7 +194,7 @@ void PhysicsWorld::FollowBodies() {
         if (body.motion != PhysicsMotion::Dynamic || !m_simulation->IsAwake(body.id)) {
             continue;
         }
-        Entity* entity = m_scene.GetEntity(entityId);
+        Entity* entity = GetScene().GetEntity(entityId);
         if (!entity) {
             continue;
         }

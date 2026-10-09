@@ -140,7 +140,7 @@ Cross-cutting pieces that every later milestone builds on.
   hook once, and marks the component as faulted, which disables it until its scene is reloaded. `IsFaulted()` tells
   tools, and the inspector shows it. Tests: a throwing component stops, the others keep running, and the error is
   logged once.
-- [ ] **M0.2 Scene systems.** Add `SceneSystem`, logic that runs over a whole scene at fixed points of
+- [x] **M0.2 Scene systems.** Add `SceneSystem`, logic that runs over a whole scene at fixed points of
   `Scene::Update()` (before fixed steps, after fixed steps, update, late update, before render), in a declared order.
   The engine's systems are created when a scene first needs them, as `PhysicsWorld` is now, and games add their own
   with `Scene::AddSystem<T>()`. `PhysicsWorld` becomes the first system and `Scene::GetPhysics()` stays. Systems run
@@ -171,6 +171,12 @@ profiler, debug lines show in both the game and the editor, and the generated pr
   under the guard, so it can release what it holds, such as subscriptions. Failures in those after the fault are
   logged too; they run at most once, so nothing repeats every frame. OnValidate() runs under the guard as well, and
   a component that faults there never starts. The fault is not saved: reloading the scene creates new components.
+- M0.2: the fixed-step clock moved from `PhysicsWorld` to the scene (`Scene::SetFixedTimeStep()`,
+  `Scene::MaxFixedStepsPerUpdate`), since components' `OnFixedUpdate()` runs in scenes without physics too, and
+  physics is now created only when needed. Systems have a hook per point of `Scene::Update()`, `OnFixedUpdate()`
+  running on each step after the components'; the "before render" point is `Scene::PrepareToRender()`, which the
+  application calls for its scenes on frames it draws. Orders are integers (`SystemOrder::Physics` is -1000), with
+  ties kept in the order systems were added, and a scene has one system of each type.
 
 ---
 

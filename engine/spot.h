@@ -67,6 +67,7 @@
 #include "scene/mesh_renderer.h"
 #include "scene/missing_component.h"
 #include "scene/scene.h"
+#include "scene/scene_system.h"
 #include "scene/sky.h"
 #include "scene/sprite_renderer.h"
 #include "scene/transform.h"

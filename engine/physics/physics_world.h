@@ -4,6 +4,9 @@
 #include "math/vector.h"
 #include "physics/physics_simulation.h"
 #include "scene/entity.h"
+#include "scene/scene_system.h"
+
+#include "scene/scene.h"
 
 #include <cstddef>
 #include <memory>
@@ -12,24 +15,19 @@
 
 namespace Spot {
 
-class Scene;
-
-// Simulates the colliders and rigidbodies of a scene. Every scene has its own, reached with Scene::GetPhysics(), and
-// Scene::Update() steps it at a fixed rate, so it behaves the same at any frame rate.
+// Simulates the colliders and rigidbodies of a scene. It is the scene's system for physics, created the first time
+// Scene::GetPhysics() is called, as colliders and rigidbodies do. It steps on each of the scene's fixed steps, so it
+// behaves the same at any frame rate.
 //
 // The active colliders of an entity form one body, which is static without a Rigidbody: it stays where its entity is
 // placed, like floors and walls. A Rigidbody makes the body dynamic, moved by gravity, forces and collisions, or
 // kinematic, moved by its entity and pushing dynamic bodies away. Each step, bodies follow the entities that were
 // moved since the last one, then the simulation runs and entities follow their dynamic bodies.
-class PhysicsWorld {
+class PhysicsWorld final : public SceneSystem {
 public:
     static constexpr Vector3 DefaultGravity = {0.0f, -9.81f, 0.0f};
-    static constexpr float DefaultFixedTimeStep = 1.0f / 60.0f;
-    // Steps per Scene::Update() are capped, so a slow frame does not make the next ones slower still; the time beyond
-    // is dropped and the simulation slows down instead.
-    static constexpr int MaxStepsPerUpdate = 8;
 
-    ~PhysicsWorld();
+    ~PhysicsWorld() override;
 
     PhysicsWorld(const PhysicsWorld&) = delete;
     PhysicsWorld& operator=(const PhysicsWorld&) = delete;
@@ -37,10 +35,6 @@ public:
     // An acceleration, in units per second squared.
     Vector3 GetGravity() const { return m_gravity; }
     void SetGravity(Vector3 gravity);
-
-    // The seconds simulated by each step, after which Component::OnFixedUpdate() runs again.
-    float GetFixedTimeStep() const { return m_fixedTimeStep; }
-    void SetFixedTimeStep(float seconds);
 
     // The bodies simulated in the last step.
     std::size_t GetBodyCount() const { return m_bodies.size(); }
@@ -61,11 +55,9 @@ private:
         Vector3 scale = {};
     };
 
-    explicit PhysicsWorld(Scene& scene);
+    PhysicsWorld();
 
-    // Adds the time to the time left to simulate, and returns how many steps are due.
-    int Advance(float deltaTime);
-    void Step();
+    void OnFixedUpdate(float fixedDeltaTime) override;
 
     // Rebuilds the entity's body in the next step, or before it when its rigidbody needs it.
     void MarkChanged(EntityId entity);
@@ -77,14 +69,13 @@ private:
     void FollowEntities();
     void FollowBodies();
 
-    Scene& m_scene;
     // Created with the first body, so scenes without physics do not pay for it.
     std::unique_ptr<Detail::PhysicsSimulation> m_simulation;
     std::unordered_map<EntityId, Body> m_bodies;
     std::unordered_set<EntityId> m_changed;
     Vector3 m_gravity = DefaultGravity;
-    float m_fixedTimeStep = DefaultFixedTimeStep;
-    float m_timeLeft = 0.0f;
+    // The seconds the current step simulates.
+    float m_stepTime = Scene::DefaultFixedTimeStep;
 };
 
 } // namespace Spot

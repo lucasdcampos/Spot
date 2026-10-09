@@ -31,6 +31,7 @@ add_executable(spot_tests
     renderer_2d_tests.cpp
     renderer_3d_tests.cpp
     scene_serialization_tests.cpp
+    scene_system_tests.cpp
     scene_tests.cpp
     shader_tests.cpp
     sky_tests.cpp

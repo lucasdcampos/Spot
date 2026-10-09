@@ -18,7 +18,7 @@ using Spot::Vector3;
 
 namespace {
 
-constexpr float Step = PhysicsWorld::DefaultFixedTimeStep;
+constexpr float Step = Scene::DefaultFixedTimeStep;
 // Resting bodies sink into what holds them by up to this much.
 constexpr float RestMargin = 0.03f;
 
@@ -328,7 +328,7 @@ TEST_CASE("Bodies spinning as fast as the simulation allows keep spinning", "[ph
 
 TEST_CASE("Fixed updates run at the fixed time step", "[physics]") {
     Scene scene;
-    scene.GetPhysics().SetFixedTimeStep(0.25f);
+    scene.SetFixedTimeStep(0.25f);
     auto& counter = scene.CreateEntity("Counter").AddComponent<FixedUpdateCounter>();
 
     scene.Update(1.0f);
@@ -342,9 +342,9 @@ TEST_CASE("Fixed updates run at the fixed time step", "[physics]") {
 
     // A long frame runs a limited number of steps, and the rest of its time is dropped.
     scene.Update(10.0f);
-    CHECK(counter.count == 5 + PhysicsWorld::MaxStepsPerUpdate);
+    CHECK(counter.count == 5 + Scene::MaxFixedStepsPerUpdate);
     scene.Update(0.125f);
-    CHECK(counter.count == 5 + PhysicsWorld::MaxStepsPerUpdate);
+    CHECK(counter.count == 5 + Scene::MaxFixedStepsPerUpdate);
 }
 
 TEST_CASE("Colliders and rigidbodies are saved with their scene", "[physics]") {

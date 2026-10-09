@@ -2,6 +2,7 @@
 
 #include "graphics/camera_2d.h"
 #include "scene/entity.h"
+#include "scene/scene_system.h"
 
 #include <concepts>
 #include <cstddef>
@@ -78,8 +79,40 @@ public:
     // Destroys every entity.
     void Clear();
 
-    // Simulates the scene's colliders and rigidbodies.
-    PhysicsWorld& GetPhysics() const { return *m_physics; }
+    // Simulates the scene's colliders and rigidbodies; created on the first call.
+    PhysicsWorld& GetPhysics();
+
+    // Adds a system of the type, constructed with the arguments. A scene has one system of each type at most.
+    template <std::derived_from<SceneSystem> T, typename... Args>
+    T& AddSystem(Args&&... args) {
+        // Not make_unique, so the engine's systems can keep their constructors to the scene.
+        auto system = std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+        T& added = *system;
+        AttachSystem(std::move(system));
+        return added;
+    }
+
+    // The system that is a T, including types derived from T; null when there is none.
+    template <std::derived_from<SceneSystem> T>
+    T* GetSystem() const {
+        for (const auto* systems : {&m_systems, &m_pendingSystems}) {
+            for (const auto& system : *systems) {
+                if (auto* found = dynamic_cast<T*>(system.get())) {
+                    return found;
+                }
+            }
+        }
+        return nullptr;
+    }
+
+    // The seconds each fixed step of Update() simulates: Component::OnFixedUpdate() and the physics run once per
+    // step, so they behave the same at any frame rate.
+    static constexpr float DefaultFixedTimeStep = 1.0f / 60.0f;
+    // Fixed steps per Update() are capped, so a slow frame does not make the next ones slower still; the time beyond
+    // is dropped and the simulation slows down instead.
+    static constexpr int MaxFixedStepsPerUpdate = 8;
+    float GetFixedTimeStep() const { return m_fixedTimeStep; }
+    void SetFixedTimeStep(float seconds);
 
     // Null when the entity was destroyed, or never belonged to this scene.
     Entity* GetEntity(EntityId id) const;
@@ -125,13 +158,20 @@ public:
 
     // Runs one frame of the scene:
     // 1. OnStart() for the active components that have not started yet, followed by OnEnable().
-    // 2. The physics steps due since the last update, each after OnFixedUpdate() for every active component; see
-    //    PhysicsWorld.
-    // 3. The scene's own OnUpdate().
-    // 4. OnUpdate() for every active component, then OnLateUpdate() for every active component.
-    // Entities go in the order they were created, and components in the order they were added. Components added
-    // while it runs may have to wait for the next Update() to start.
+    // 2. The systems' OnBeforeFixedSteps().
+    // 3. The fixed steps due since the last update, each running OnFixedUpdate() for every active component and
+    //    then for every system, which steps the physics; see PhysicsWorld.
+    // 4. The systems' OnAfterFixedSteps().
+    // 5. The scene's own OnUpdate().
+    // 6. OnUpdate() for every active component, then for every system.
+    // 7. OnLateUpdate() for every active component, then for every system.
+    // Entities go in the order they were created, components in the order they were added, and systems by their
+    // order. Components added while it runs may have to wait for the next Update() to start.
     void Update(float deltaTime);
+
+    // Calls the systems' OnBeforeRender(). Whatever draws the scene calls it once per frame it is drawn, before
+    // drawing it; the application does for its scenes.
+    void PrepareToRender();
 
     // Calls OnDrawUi() for every active component, in the order Update() goes, to draw what goes over the view of
     // the scene, such as a HUD. Whatever shows the scene calls it once the scene is drawn, with the renderer begun
@@ -198,9 +238,16 @@ private:
     std::unique_ptr<Entity> Release(Entity& entity);
     void Adopt(std::unique_ptr<Entity> entity);
     void ProcessRemovals();
+    void AttachSystem(std::unique_ptr<SceneSystem> system);
+    // Calls fn(SceneSystem&) under the guard for each system that is not faulted, by order.
+    template <typename F>
+    void RunSystems(std::string_view hook, F&& fn);
 
-    // First, so it is destroyed last and components can reach it until the end.
-    std::unique_ptr<PhysicsWorld> m_physics;
+    // First, so they are destroyed last and components can reach them until the end.
+    std::vector<std::unique_ptr<SceneSystem>> m_systems;
+    // Systems added while systems run, which join the others before the next hook.
+    std::vector<std::unique_ptr<SceneSystem>> m_pendingSystems;
+    PhysicsWorld* m_physics = nullptr;
     std::vector<std::unique_ptr<Entity>> m_entities;
     std::unordered_map<EntityId, Entity*> m_entitiesById;
     // The entities without a parent, in sibling order, which can differ from m_entities' creation order.
@@ -209,6 +256,9 @@ private:
     // Set while the scene walks its entities, so removals asked for meanwhile wait until it is done.
     bool m_deferRemovals = false;
     bool m_hasPendingRemovals = false;
+    bool m_runningSystems = false;
+    float m_fixedTimeStep = DefaultFixedTimeStep;
+    float m_fixedTimeLeft = 0.0f;
 };
 
 } // namespace Spot

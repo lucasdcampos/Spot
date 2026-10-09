@@ -152,9 +152,11 @@ void Entity::MoveToScene(Scene& scene) {
 }
 
 void Entity::MoveSubtree(Scene& scene) {
-    // Its body, if any, moves along with it.
-    m_scene->GetPhysics().MarkChanged(m_id);
-    scene.GetPhysics().MarkChanged(m_id);
+    // Its body, if any, moves along with it. Without physics in its scene, it has none.
+    if (PhysicsWorld* physics = m_scene->GetSystem<PhysicsWorld>()) {
+        physics->MarkChanged(m_id);
+        scene.GetPhysics().MarkChanged(m_id);
+    }
     scene.Adopt(m_scene->Release(*this));
     for (Entity* child : m_children) {
         child->MoveSubtree(scene);

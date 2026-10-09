@@ -132,6 +132,10 @@ int Application::Run() {
 
         if (m_graphics) {
             if (RenderContext* context = m_graphics->BeginFrame()) {
+                m_persistentScene->PrepareToRender();
+                for (const auto& scene : m_scenes) {
+                    scene->PrepareToRender();
+                }
                 m_persistentScene->OnRender(*context);
                 for (const auto& scene : m_scenes) {
                     scene->OnRender(*context);
