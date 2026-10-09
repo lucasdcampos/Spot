@@ -242,7 +242,7 @@ Steps:
   Queries see the bodies of the last step plus pending rebuilds. Tests.
 - [x] **M1.5 More rigidbody control.** `AddForceAtPosition`, `AddImpulseAtPosition`, `AddTorque`, freezing rotation
   axes, continuous collision detection for fast bodies, and sleep control. Tests.
-- [ ] **M1.6 Character controller.** A `CharacterController` component on Jolt's `CharacterVirtual`: `Move()`,
+- [x] **M1.6 Character controller.** A `CharacterController` component on Jolt's `CharacterVirtual`: `Move()`,
   `IsGrounded()`, the ground normal and velocity, slope limit, step height, pushing dynamic bodies, collision events,
   and layers. The sandbox player moves with it. Tests.
 - [ ] **M1.7 Mesh colliders.** A `MeshCollider` from a mesh asset or from runtime `MeshData` (`SetMesh()`): a static
@@ -292,6 +292,12 @@ physics gun and the tool gun, and shoots and blows it apart.
   continuous collision is Jolt's linear cast motion quality, and sleep control maps to activating and deactivating
   the body. Before the body exists, `AddImpulseAtPosition()` only adds to the starting velocity, and forces and
   torques are ignored, as `AddForce()` already was.
+- M1.6: `Move()` takes a velocity and a time, which Jolt's `CharacterVirtual::ExtendedUpdate()` needs for stairs and
+  sticking to the floor; the step height is both how high it climbs and how far down it sticks. Gravity is the
+  game's to add, as with Unity's controller. The character's contacts from its last move join the pairs of the next
+  step, and count as active only if it moved since. The inner body has no `Collider`, so hits on it name the entity
+  with a null collider. The sandbox gained `spot_sandbox_tests` (`tests/sandbox/`), which runs its game code on the
+  real playground with simulated keys; it is where each Sandbox step is now tested.
 
 ---
 

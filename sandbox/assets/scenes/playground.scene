@@ -2592,24 +2592,15 @@
               0.0,
               0.0
             ],
-            "friction": 0.0,
-            "height": 1.7999999523162842,
-            "radius": 0.4000000059604645,
-            "restitution": 0.0
+            "height": 1.8,
+            "mass": 70.0,
+            "pushStrength": 200.0,
+            "radius": 0.4,
+            "slopeLimit": 0.785398,
+            "stepHeight": 0.35
           },
           "enabled": true,
-          "type": "CapsuleCollider"
-        },
-        {
-          "data": {
-            "angularDamping": 0.05000000074505806,
-            "gravityScale": 1.0,
-            "kinematic": false,
-            "linearDamping": 0.0,
-            "mass": 70.0
-          },
-          "enabled": true,
-          "type": "Rigidbody"
+          "type": "CharacterController"
         },
         {
           "data": {

@@ -31,6 +31,23 @@ them. The trigger colliders of an entity form a sensor body of their own, beside
 have both. The sensor follows the entity: static when the entity has no rigidbody, kinematic otherwise, moved to the
 entity's pose each step.
 
+## Characters
+
+A `CharacterController` moves its entity as a character walks, under the game's control rather than by forces: a
+capsule standing along Y, which slides along what it hits, climbs steps up to its step height, keeps to the ground
+going down slopes and steps, stands on slopes up to its slope limit and pushes dynamic bodies out of its way. The game
+gives it a velocity each update, gravity included, and asks where it stands:
+
+```cpp
+m_fall = controller.IsGrounded() ? 0.0f : m_fall - 9.81f * deltaTime;
+controller.Move(walk + Spot::Vector3{0.0f, m_fall, 0.0f}, deltaTime);
+```
+
+`IsGrounded()`, `GetGroundNormal()`, `GetGroundVelocity()`, `GetGround()` and `GetVelocity()` describe the last move.
+It is Jolt's `CharacterVirtual`, with a kinematic inner body of the same capsule, so dynamic bodies, triggers and
+queries see the character. It collides with the layers its entity's layer does, gets collision and trigger events
+like a body, and follows its entity when code places it elsewhere. The entity needs no collider or rigidbody.
+
 ## Layers
 
 Every entity is on one of 32 layers (`Entity::GetLayer()`, `SetLayer()`; 0 by default), saved with its scene. Games
@@ -113,5 +130,5 @@ editor's Project Settings panel edits.
 
 ## Not there yet
 
-A character controller, mesh colliders and joints come in
+Mesh colliders and joints come in
 the rest of the roadmap's milestone M1.

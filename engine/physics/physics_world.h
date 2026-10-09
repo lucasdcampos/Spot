@@ -92,6 +92,7 @@ public:
     std::optional<int> FindLayer(std::string_view name) const;
 
 private:
+    friend class CharacterController;
     friend class Collider;
     friend class Entity;
     friend class Rigidbody;
@@ -103,6 +104,13 @@ private:
         Detail::PhysicsBodyId id = Detail::PhysicsBodyId::Invalid;
         Detail::PhysicsBodyId sensor = Detail::PhysicsBodyId::Invalid;
         Detail::PhysicsMotion motion = Detail::PhysicsMotion::Static;
+        // The entity's CharacterController, if any: its character, where the capsule is from the entity, its mass,
+        // and the contacts of its last move, which count as active until the next step.
+        Detail::PhysicsCharacterId character = Detail::PhysicsCharacterId::Invalid;
+        Vector3 characterCenter = {};
+        float characterMass = 0.0f;
+        std::vector<Detail::PhysicsCharacterContact> characterContacts;
+        bool characterMoved = false;
         // The world pose and scale of the entity when the body last followed it or it last followed the body, to tell
         // when something else moved it.
         Vector3 position = {};
@@ -123,6 +131,15 @@ private:
     void Rebuild(EntityId entity);
     void FollowEntities();
     void FollowBodies();
+    // See CharacterController.
+    void MoveCharacter(EntityId entity, Vector3 velocity, float deltaTime);
+    std::optional<Detail::PhysicsCharacterState> GetCharacterState(EntityId entity);
+    EntityId GetCharacterGround(EntityId entity);
+    // The entity's body record with a character, brought up to date first; null when it has none.
+    Body* FindCharacter(EntityId entity);
+    // Adds the contacts of the characters' last moves to the pairs of this step.
+    void AddCharacterContacts();
+
     // Turns the contacts after a step into events, against those of the step before.
     void DispatchContacts();
     void ForgetBody(Detail::PhysicsBodyId body);

@@ -2,9 +2,9 @@
 
 #include <spot.h>
 
-// Walks a capsule with WASD, Shift to run and Space to jump, turns its head with the mouse and throws balls with a
-// click while the cursor is locked, and switches its flashlight with F. The body never turns, so it cannot tip over;
-// only the head does.
+// Walks its entity's CharacterController with WASD, Shift to run and Space to jump, turns its head with the mouse and
+// throws balls with a click while the cursor is locked, and switches its flashlight with F. The body never turns; only
+// the head does.
 class PlayerController final : public Spot::Component {
 public:
     // Meters per second.
@@ -41,4 +41,6 @@ private:
     float m_yaw = 0.0f;
     float m_pitch = -0.15f;
     bool m_jump = false;
+    // Up while jumping, down while falling; gravity changes it while the player is off the ground.
+    float m_verticalSpeed = 0.0f;
 };

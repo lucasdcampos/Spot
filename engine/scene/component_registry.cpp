@@ -1,5 +1,6 @@
 #include "scene/component_registry.h"
 
+#include "physics/character_controller.h"
 #include "physics/collider.h"
 #include "physics/rigidbody.h"
 #include "scene/camera.h"
@@ -43,6 +44,7 @@ Registry& GetRegistry() {
         RegisterBuiltIn<BoxCollider>(registry, "BoxCollider");
         RegisterBuiltIn<SphereCollider>(registry, "SphereCollider");
         RegisterBuiltIn<CapsuleCollider>(registry, "CapsuleCollider");
+        RegisterBuiltIn<CharacterController>(registry, "CharacterController");
         RegisterBuiltIn<AmbientLight>(registry, "AmbientLight");
         RegisterBuiltIn<DirectionalLight>(registry, "DirectionalLight");
         RegisterBuiltIn<PointLight>(registry, "PointLight");

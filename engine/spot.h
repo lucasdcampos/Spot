@@ -57,6 +57,7 @@
 #include "math/matrix.h"
 #include "math/quaternion.h"
 #include "math/vector.h"
+#include "physics/character_controller.h"
 #include "physics/collider.h"
 #include "physics/collision.h"
 #include "physics/physics_query.h"

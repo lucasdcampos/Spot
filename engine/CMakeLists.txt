@@ -119,6 +119,8 @@ add_library(spot_objects OBJECT
     math/quaternion.h
     math/quaternion.cpp
     math/vector.h
+    physics/character_controller.h
+    physics/character_controller.cpp
     physics/collider.h
     physics/collider.cpp
     physics/collision.h

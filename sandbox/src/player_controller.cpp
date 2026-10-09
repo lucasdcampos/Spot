@@ -67,9 +67,7 @@ void PlayerController::OnUpdate(float /*deltaTime*/) {
     Spot::Transform& transform = GetEntity().GetTransform();
     if (transform.GetWorldPosition().y < fallHeight) {
         transform.SetPosition(m_spawnPoint);
-        if (auto* body = GetEntity().GetComponent<Spot::Rigidbody>()) {
-            body->SetLinearVelocity({});
-        }
+        m_verticalSpeed = 0.0f;
     }
 }
 
@@ -79,12 +77,12 @@ void PlayerController::OnLateUpdate(float /*deltaTime*/) {
     }
 }
 
-void PlayerController::OnFixedUpdate(float /*fixedDeltaTime*/) {
+void PlayerController::OnFixedUpdate(float fixedDeltaTime) {
     namespace Input = Spot::Input;
     using Spot::Key;
 
-    auto* body = GetEntity().GetComponent<Spot::Rigidbody>();
-    if (!body) {
+    auto* controller = GetEntity().GetComponent<Spot::CharacterController>();
+    if (!controller) {
         return;
     }
 
@@ -94,19 +92,17 @@ void PlayerController::OnFixedUpdate(float /*fixedDeltaTime*/) {
     const Spot::Vector3 direction = Spot::Normalize(yaw * Spot::Vector3{right, 0.0f, -forward});
     const float speed = Input::IsKeyDown(Key::LeftShift) ? runSpeed : walkSpeed;
 
-    // There are no ground queries yet, so the player counts as grounded while not moving up or down.
-    Spot::Vector3 velocity = body->GetLinearVelocity();
-    const bool grounded = std::abs(velocity.y) < 0.1f;
-    velocity.x = direction.x * speed;
-    velocity.z = direction.z * speed;
-    if (m_jump && grounded) {
-        velocity.y = jumpSpeed;
+    if (controller->IsGrounded()) {
+        // On the ground, the controller keeps the player on it down slopes and steps.
+        m_verticalSpeed = m_jump ? jumpSpeed : 0.0f;
+    } else {
+        m_verticalSpeed += GetScene().GetPhysics().GetGravity().y * fixedDeltaTime;
     }
     m_jump = false;
 
-    body->SetLinearVelocity(velocity);
-    body->SetAngularVelocity({});
-    GetEntity().GetTransform().SetRotation({});
+    controller->Move(direction * speed + Spot::Vector3{0.0f, m_verticalSpeed, 0.0f}, fixedDeltaTime);
+    // A ceiling stops a jump.
+    m_verticalSpeed = std::min(m_verticalSpeed, controller->GetVelocity().y);
 }
 
 void PlayerController::Serialize(Spot::Archive& archive) {

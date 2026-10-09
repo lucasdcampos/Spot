@@ -10,6 +10,7 @@ FetchContent_MakeAvailable(Catch2)
 
 add_executable(spot_tests
     application_tests.cpp
+    character_controller_tests.cpp
     asset_tests.cpp
     audio_tests.cpp
     cli_tests.cpp
@@ -209,4 +210,16 @@ endif()
 if(TARGET sandbox_generator_core)
     target_sources(spot_tests PRIVATE sandbox_generator_tests.cpp)
     target_link_libraries(spot_tests PRIVATE sandbox_generator_core)
+endif()
+
+# The sandbox's game code on its real scenes, when the sandbox is built: the engine's integration test.
+if(TARGET sandbox)
+    file(GLOB sandbox_game_sources CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/sandbox/src/*.cpp)
+    list(FILTER sandbox_game_sources EXCLUDE REGEX "/main[.]cpp$")
+    add_executable(spot_sandbox_tests sandbox/sandbox_tests.cpp ${sandbox_game_sources})
+    target_link_libraries(spot_sandbox_tests PRIVATE spot::spot Catch2::Catch2WithMain)
+    target_include_directories(spot_sandbox_tests PRIVATE ${PROJECT_SOURCE_DIR}/sandbox/src ${CMAKE_CURRENT_SOURCE_DIR})
+    target_compile_definitions(spot_sandbox_tests PRIVATE SANDBOX_ASSETS_DIR="${PROJECT_SOURCE_DIR}/sandbox/assets")
+    spot_set_compile_options(spot_sandbox_tests)
+    catch_discover_tests(spot_sandbox_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 60)
 endif()

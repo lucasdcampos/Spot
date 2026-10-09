@@ -55,6 +55,8 @@ the commit that finishes a step ticks its box. Follow its architecture principle
 - Engine features built on top of the graphics API (such as the 2D renderer) only use its public interface, so
   users can always do anything the engine does.
 - GPU tests go in `tests/gpu_tests.cpp` (the `spot_gpu_tests` executable) and are skipped where no GPU is available.
+- Sandbox tests go in `tests/sandbox/` (`spot_sandbox_tests`): the sandbox's game code on its real scenes, headless,
+  driven by simulated input, so a regression shows as something broken in the game.
 - Editor tests go in `tests/editor/`: `spot_editor_tests` (headless ImGui, no GPU), `spot_editor_gpu_tests` and
   `spot_editor_module_tests` (building projects' code with CMake, which takes a while).
 - Importing is for tools: the asset database and importers are `spot_import` (`spot::import`, in `engine/import/`),

@@ -1,6 +1,7 @@
 #include "physics/physics_world.h"
 
 #include "core/assert.h"
+#include "physics/character_controller.h"
 #include "physics/collider.h"
 #include "physics/rigidbody.h"
 #include "scene/scene.h"
@@ -207,6 +208,79 @@ Collision Flip(const Collision& collision, EntityId other) {
 
 } // namespace
 
+PhysicsWorld::Body* PhysicsWorld::FindCharacter(EntityId entity) {
+    if (m_changed.erase(entity) > 0) {
+        Rebuild(entity);
+    }
+    const auto found = m_bodies.find(entity);
+    return found != m_bodies.end() && found->second.character != Detail::PhysicsCharacterId::Invalid ? &found->second
+                                                                                                     : nullptr;
+}
+
+void PhysicsWorld::MoveCharacter(EntityId entityId, Vector3 velocity, float deltaTime) {
+    Body* body = FindCharacter(entityId);
+    Entity* entity = GetScene().GetEntity(entityId);
+    if (!body || !entity) {
+        return;
+    }
+    Transform& transform = entity->GetTransform();
+    // Code may have placed the entity elsewhere since the last move.
+    if (transform.GetWorldPosition() != body->position) {
+        m_simulation->SetCharacterPosition(body->character, transform.GetWorldPosition() + body->characterCenter);
+    }
+    const auto* controller = entity->GetComponent<CharacterController>();
+    m_simulation->MoveCharacter(body->character, velocity, deltaTime, controller ? controller->m_stepHeight : 0.0f,
+                                body->characterContacts);
+    body->characterMoved = true;
+    transform.SetWorldPosition(m_simulation->GetCharacterState(body->character).position - body->characterCenter);
+    body->position = transform.GetWorldPosition();
+}
+
+std::optional<Detail::PhysicsCharacterState> PhysicsWorld::GetCharacterState(EntityId entity) {
+    const Body* body = FindCharacter(entity);
+    if (!body) {
+        return std::nullopt;
+    }
+    return m_simulation->GetCharacterState(body->character);
+}
+
+EntityId PhysicsWorld::GetCharacterGround(EntityId entity) {
+    const auto state = GetCharacterState(entity);
+    if (!state) {
+        return EntityId::Invalid;
+    }
+    const auto owner = m_owners.find(state->groundBody);
+    return owner != m_owners.end() ? owner->second.entity : EntityId::Invalid;
+}
+
+void PhysicsWorld::AddCharacterContacts() {
+    for (auto& [entity, body] : m_bodies) {
+        if (body.character == Detail::PhysicsCharacterId::Invalid) {
+            continue;
+        }
+        const Vector3 velocity = m_simulation->GetCharacterState(body.character).velocity;
+        for (const Detail::PhysicsCharacterContact& contact : body.characterContacts) {
+            const auto owner = m_owners.find(contact.body);
+            if (owner == m_owners.end() || owner->second.entity == entity) {
+                continue;
+            }
+            const EntityId other = owner->second.entity;
+            const bool trigger = contact.sensor || owner->second.sensor;
+            // As the character sees it.
+            Collision collision{.other = other, .pointCount = 1, .normal = contact.normal};
+            collision.points[0] = contact.point;
+            collision.relativeVelocity = velocity - contact.velocity;
+            collision.impulse = std::max(-Dot(collision.relativeVelocity, contact.normal), 0.0f) * body.characterMass;
+            const bool characterFirst = entity < other;
+            m_current.push_back({.pair = {characterFirst ? entity : other, characterFirst ? other : entity, trigger,
+                                          trigger && !characterFirst},
+                                 .collision = characterFirst ? collision : Flip(collision, entity),
+                                 .active = body.characterMoved});
+        }
+        body.characterMoved = false;
+    }
+}
+
 void PhysicsWorld::DispatchContacts() {
     // The pairs touching now, from every contact between their bodies, sorted so the same pairs come together; the
     // hardest hit describes a pair. The vectors keep their memory from step to step.
@@ -231,6 +305,7 @@ void PhysicsWorld::DispatchContacts() {
                              .collision = MakeCollision(contact, high.entity, !swap),
                              .active = contact.active});
     }
+    AddCharacterContacts();
     std::ranges::sort(m_current, [](const PairContact& a, const PairContact& b) {
         return a.pair != b.pair ? a.pair < b.pair : a.collision.impulse > b.collision.impulse;
     });
@@ -368,6 +443,10 @@ void PhysicsWorld::Rebuild(EntityId entityId) {
         if (old.sensor != PhysicsBodyId::Invalid) {
             ForgetBody(old.sensor);
         }
+        if (old.character != Detail::PhysicsCharacterId::Invalid) {
+            m_owners.erase(m_simulation->GetCharacterBody(old.character));
+            m_simulation->DestroyCharacter(old.character);
+        }
         m_bodies.erase(found);
     }
 
@@ -402,8 +481,15 @@ void PhysicsWorld::Rebuild(EntityId entityId) {
             break;
         }
     }
+    const CharacterController* controller = nullptr;
+    for (const CharacterController* candidate : entity->GetComponents<CharacterController>()) {
+        if (candidate->IsActiveAndEnabled()) {
+            controller = candidate;
+            break;
+        }
+    }
     const bool solid = !desc.shapes.empty() || rigidbody;
-    if (!solid && sensor.shapes.empty()) {
+    if (!solid && sensor.shapes.empty() && !controller) {
         return;
     }
 
@@ -446,8 +532,23 @@ void PhysicsWorld::Rebuild(EntityId entityId) {
             m_owners.emplace(body.sensor, Owner{entityId, true, std::move(triggerColliders)});
         }
     }
-    if (body.id != PhysicsBodyId::Invalid || body.sensor != PhysicsBodyId::Invalid) {
-        m_bodies.emplace(entityId, body);
+    if (controller) {
+        body.character = GetSimulation().CreateCharacter({.position = desc.position + controller->m_center,
+                                                          .radius = controller->m_radius,
+                                                          .height = controller->m_height,
+                                                          .maxSlopeAngle = controller->m_slopeLimit,
+                                                          .mass = controller->m_mass,
+                                                          .maxStrength = controller->m_pushStrength,
+                                                          .layer = desc.layer});
+        if (body.character != Detail::PhysicsCharacterId::Invalid) {
+            body.characterCenter = controller->m_center;
+            body.characterMass = controller->m_mass;
+            m_owners.emplace(m_simulation->GetCharacterBody(body.character), Owner{entityId, false, {}});
+        }
+    }
+    if (body.id != PhysicsBodyId::Invalid || body.sensor != PhysicsBodyId::Invalid ||
+        body.character != Detail::PhysicsCharacterId::Invalid) {
+        m_bodies.emplace(entityId, std::move(body));
     }
 }
 
@@ -476,6 +577,9 @@ void PhysicsWorld::FollowEntities() {
             } else if (moved) {
                 m_simulation->SetPose(body.id, position, Normalize(rotation));
             }
+        }
+        if (body.character != Detail::PhysicsCharacterId::Invalid && moved) {
+            m_simulation->SetCharacterPosition(body.character, position + body.characterCenter);
         }
         if (body.sensor != PhysicsBodyId::Invalid) {
             // Sensors of moving entities are kinematic, and catch up with where their dynamic body took the entity.

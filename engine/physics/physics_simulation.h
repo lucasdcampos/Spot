@@ -14,6 +14,7 @@
 namespace Spot::Detail {
 
 enum class PhysicsBodyId : std::uint32_t { Invalid = 0xffffffff };
+enum class PhysicsCharacterId : std::uint32_t { Invalid = 0xffffffff };
 
 enum class PhysicsMotion {
     // Never moves by itself, and only moves when placed elsewhere.
@@ -106,6 +107,44 @@ struct PhysicsQueryHit {
     float distance = 0.0f;
 };
 
+// A character that walks: a capsule standing along Y, moved by the game rather than by forces, which slides along
+// what it hits, climbs steps and pushes dynamic bodies. It also has a kinematic body of its shape, which bodies,
+// sensors and queries see.
+struct PhysicsCharacterDesc {
+    // The center of the capsule.
+    Vector3 position = {};
+    float radius = 0.4f;
+    // From end to end, the caps included.
+    float height = 1.8f;
+    // The steepest slope, in radians, it stands on; it slides down steeper ones.
+    float maxSlopeAngle = 0.785398f;
+    float mass = 70.0f;
+    // The largest force it pushes dynamic bodies with, in newtons.
+    float maxStrength = 100.0f;
+    int layer = 0;
+};
+
+struct PhysicsCharacterContact {
+    PhysicsBodyId body = PhysicsBodyId::Invalid;
+    std::uint32_t shape = 0;
+    Vector3 point = {};
+    // Pointing toward the character.
+    Vector3 normal = {};
+    // The velocity of the body at the point.
+    Vector3 velocity = {};
+    bool sensor = false;
+};
+
+struct PhysicsCharacterState {
+    Vector3 position = {};
+    Vector3 velocity = {};
+    // Standing on ground no steeper than its slope limit.
+    bool grounded = false;
+    Vector3 groundNormal = {};
+    Vector3 groundVelocity = {};
+    PhysicsBodyId groundBody = PhysicsBodyId::Invalid;
+};
+
 struct PhysicsPose {
     Vector3 position = {};
     Quaternion rotation = {};
@@ -131,6 +170,20 @@ public:
     void DestroyBody(PhysicsBodyId body);
 
     void Step(float deltaTime);
+    // Returns PhysicsCharacterId::Invalid, after logging why, when the character cannot be created.
+    PhysicsCharacterId CreateCharacter(const PhysicsCharacterDesc& desc);
+    void DestroyCharacter(PhysicsCharacterId character);
+    // Places the character at once, as when the game teleports it.
+    void SetCharacterPosition(PhysicsCharacterId character, Vector3 position);
+    // Moves the character with the velocity for the time: it slides along what it hits, climbs steps up to the step
+    // height and keeps to the ground down slopes and steps as high. The contacts it had during the move replace the
+    // vector's contents.
+    void MoveCharacter(PhysicsCharacterId character, Vector3 velocity, float deltaTime, float stepHeight,
+                       std::vector<PhysicsCharacterContact>& contacts);
+    PhysicsCharacterState GetCharacterState(PhysicsCharacterId character) const;
+    // The kinematic body of the character's shape.
+    PhysicsBodyId GetCharacterBody(PhysicsCharacterId character) const;
+
     // Replaces the vector's contents with every contact after the last step, in no particular order.
     void GetContacts(std::vector<PhysicsContact>& contacts) const;
 
