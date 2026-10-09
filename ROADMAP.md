@@ -158,7 +158,7 @@ Cross-cutting pieces that every later milestone builds on.
 - [x] **M0.6 Documentation.** Create `docs/` with an index and one page per existing system: application and scenes,
   entities and components, assets and importing, rendering, physics, audio, input, editor, tools and the command
   line. Add a rule to `AGENTS.md` that features update their page.
-- [ ] **M0.7 Sandbox: asset generator.** Add `sandbox/generator/` (see [The sandbox game](#the-sandbox-game)), with a
+- [x] **M0.7 Sandbox: asset generator.** Add `sandbox/generator/` (see [The sandbox game](#the-sandbox-game)), with a
   glTF writer for `MeshData` and a PNG writer. The first output is the props (crate, barrel, explosive barrel, plank,
   beam, ball, cone, ramp, wheel) and their base textures, all imported into the sandbox. The playground scene uses
   them.
@@ -197,6 +197,14 @@ profiler, debug lines show in both the game and the editor, and the generated pr
   contained failures, the profiler and debug drawing share a page of their own, `docs/diagnostics.md`, which later
   developer tools (M11) extend. Pages end with what is not there yet, pointing at the milestone that adds it, so
   updating them is part of each milestone.
+- M0.7: the PNG writer already existed (`Image::EncodePng()`), so the generator only adds the glTF writer, kept in
+  the generator since only it writes models. Each prop is a `.gltf` with a `.bin` beside it, whose image refers to
+  `../textures/<name>.png`, so the model's import makes its textured material. Round props share a texture layout
+  (side above, ends as discs below). Textures are painted with arithmetic and square roots only, so they come out the
+  same on every machine; meshes use `sin`/`cos`, so their bytes may differ across compilers. Until mesh colliders
+  (M1), barrels and cones collide as boxes, wheels as spheres, and each ramp through a box laid along its slope on a
+  child entity. `tests/sandbox_generator_tests.cpp` loads every prop back and checks winding, centering and that a
+  second run writes nothing.
 
 ---
 

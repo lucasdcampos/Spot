@@ -202,3 +202,9 @@ if(TARGET spot_editor_core)
     spot_copy_runtime_dlls(spot_editor_gpu_tests)
     catch_discover_tests(spot_editor_gpu_tests PROPERTIES TIMEOUT 60)
 endif()
+
+# The sandbox's asset generator, when the sandbox is built.
+if(TARGET sandbox_generator_core)
+    target_sources(spot_tests PRIVATE sandbox_generator_tests.cpp)
+    target_link_libraries(spot_tests PRIVATE sandbox_generator_core)
+endif()

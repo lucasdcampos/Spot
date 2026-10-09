@@ -16,3 +16,6 @@ add_custom_target(sandbox_assets ALL
     VERBATIM
 )
 add_dependencies(sandbox sandbox_assets)
+
+# Writes the sandbox's generated assets, which are committed, so it only runs when asked to.
+add_subdirectory(generator)

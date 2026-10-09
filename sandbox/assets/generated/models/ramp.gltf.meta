@@ -1,0 +1,22 @@
+{
+  "id": "9aee8aaf8a65166ceebd7577d8c638aa",
+  "settings": {
+    "materials": [],
+    "scale": 1.0
+  },
+  "subAssets": [
+    {
+      "id": "1fedee6d2089eef94577d1350a98dd4f",
+      "key": "texture:0"
+    },
+    {
+      "id": "117b456928d658ba20d935ef3e08a522",
+      "key": "material:0"
+    },
+    {
+      "id": "821e7d880344f3d9820e92d162c4c19c",
+      "key": "mesh:0"
+    }
+  ],
+  "type": "Model"
+}

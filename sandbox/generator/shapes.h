@@ -1,0 +1,27 @@
+#pragma once
+
+#include <spot.h>
+
+#include <cstdint>
+
+// Meshes of the props, centered on the box around them, with front faces winding counterclockwise.
+//
+// Round shapes share a texture layout: their sides take the top half of the texture, going around it from left to
+// right, and their flat ends take the bottom half, the top end a disc centered at (0.25, 0.75) and the bottom end one
+// centered at (0.75, 0.75), each of radius 0.24.
+namespace Generator::Shapes {
+
+// The texture repeats every uvRepeat units on each face, starting at a corner, so faces of any size show it at the
+// same scale. Long faces run the texture's X along the box's longest side.
+Spot::MeshData Box(Spot::Vector3 size, float uvRepeat);
+// Standing along Y.
+Spot::MeshData Cylinder(float radius, float height, std::uint32_t segments);
+// A cylinder lying along X, as a wheel turns.
+Spot::MeshData Wheel(float radius, float width, std::uint32_t segments);
+// Standing along Y, with its tip up; its base is the bottom end.
+Spot::MeshData Cone(float radius, float height, std::uint32_t segments);
+// A wedge rising toward -Z: its slope goes from the ground at +Z up to its full height at -Z. The texture repeats
+// every uvRepeat units, as on a box.
+Spot::MeshData Ramp(float width, float height, float length, float uvRepeat);
+
+} // namespace Generator::Shapes

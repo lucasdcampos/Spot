@@ -668,8 +668,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "45e4545ddf4f45009149c1d560d954a0",
-            "mesh": "00000000000000000000000000000002"
+            "material": "580e7bb4c25f0d74e7945838b3a14c6e",
+            "mesh": "2c9aa8d13b48d1bc335727727a248379"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -682,7 +682,7 @@
               0.0
             ],
             "friction": 0.5,
-            "radius": 0.5,
+            "radius": 0.3,
             "restitution": 0.4000000059604645
           },
           "enabled": true,
@@ -714,9 +714,9 @@
         1.0
       ],
       "scale": [
-        0.6000000238418579,
-        0.6000000238418579,
-        0.6000000238418579
+        1.0,
+        1.0,
+        1.0
       ],
       "tags": []
     },
@@ -726,8 +726,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "45e4545ddf4f45009149c1d560d954a0",
-            "mesh": "00000000000000000000000000000002"
+            "material": "580e7bb4c25f0d74e7945838b3a14c6e",
+            "mesh": "2c9aa8d13b48d1bc335727727a248379"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -740,7 +740,7 @@
               0.0
             ],
             "friction": 0.5,
-            "radius": 0.5,
+            "radius": 0.3,
             "restitution": 0.4000000059604645
           },
           "enabled": true,
@@ -772,9 +772,9 @@
         1.0
       ],
       "scale": [
-        0.6000000238418579,
-        0.6000000238418579,
-        0.6000000238418579
+        1.0,
+        1.0,
+        1.0
       ],
       "tags": []
     },
@@ -784,8 +784,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "45e4545ddf4f45009149c1d560d954a0",
-            "mesh": "00000000000000000000000000000002"
+            "material": "580e7bb4c25f0d74e7945838b3a14c6e",
+            "mesh": "2c9aa8d13b48d1bc335727727a248379"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -798,7 +798,7 @@
               0.0
             ],
             "friction": 0.5,
-            "radius": 0.5,
+            "radius": 0.3,
             "restitution": 0.4000000059604645
           },
           "enabled": true,
@@ -830,9 +830,9 @@
         1.0
       ],
       "scale": [
-        0.6000000238418579,
-        0.6000000238418579,
-        0.6000000238418579
+        1.0,
+        1.0,
+        1.0
       ],
       "tags": []
     },
@@ -842,8 +842,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "45e4545ddf4f45009149c1d560d954a0",
-            "mesh": "00000000000000000000000000000002"
+            "material": "580e7bb4c25f0d74e7945838b3a14c6e",
+            "mesh": "2c9aa8d13b48d1bc335727727a248379"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -856,7 +856,7 @@
               0.0
             ],
             "friction": 0.5,
-            "radius": 0.5,
+            "radius": 0.3,
             "restitution": 0.4000000059604645
           },
           "enabled": true,
@@ -888,9 +888,9 @@
         1.0
       ],
       "scale": [
-        0.6000000238418579,
-        0.6000000238418579,
-        0.6000000238418579
+        1.0,
+        1.0,
+        1.0
       ],
       "tags": []
     },
@@ -900,8 +900,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "45e4545ddf4f45009149c1d560d954a0",
-            "mesh": "00000000000000000000000000000002"
+            "material": "580e7bb4c25f0d74e7945838b3a14c6e",
+            "mesh": "2c9aa8d13b48d1bc335727727a248379"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -914,7 +914,7 @@
               0.0
             ],
             "friction": 0.5,
-            "radius": 0.5,
+            "radius": 0.3,
             "restitution": 0.4000000059604645
           },
           "enabled": true,
@@ -946,9 +946,9 @@
         1.0
       ],
       "scale": [
-        0.6000000238418579,
-        0.6000000238418579,
-        0.6000000238418579
+        1.0,
+        1.0,
+        1.0
       ],
       "tags": []
     },
@@ -1162,8 +1162,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "24be3127c6c64a8186100c96c10eeb4c",
-            "mesh": "00000000000000000000000000000001"
+            "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+            "mesh": "d9ec39845e73c804ebc22236243c7477"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -1224,8 +1224,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "24be3127c6c64a8186100c96c10eeb4c",
-            "mesh": "00000000000000000000000000000001"
+            "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+            "mesh": "d9ec39845e73c804ebc22236243c7477"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -1286,8 +1286,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "24be3127c6c64a8186100c96c10eeb4c",
-            "mesh": "00000000000000000000000000000001"
+            "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+            "mesh": "d9ec39845e73c804ebc22236243c7477"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -1348,8 +1348,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "24be3127c6c64a8186100c96c10eeb4c",
-            "mesh": "00000000000000000000000000000001"
+            "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+            "mesh": "d9ec39845e73c804ebc22236243c7477"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -1410,8 +1410,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "24be3127c6c64a8186100c96c10eeb4c",
-            "mesh": "00000000000000000000000000000001"
+            "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+            "mesh": "d9ec39845e73c804ebc22236243c7477"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -1472,8 +1472,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "24be3127c6c64a8186100c96c10eeb4c",
-            "mesh": "00000000000000000000000000000001"
+            "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+            "mesh": "d9ec39845e73c804ebc22236243c7477"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -1534,8 +1534,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "24be3127c6c64a8186100c96c10eeb4c",
-            "mesh": "00000000000000000000000000000001"
+            "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+            "mesh": "d9ec39845e73c804ebc22236243c7477"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -1596,8 +1596,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "24be3127c6c64a8186100c96c10eeb4c",
-            "mesh": "00000000000000000000000000000001"
+            "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+            "mesh": "d9ec39845e73c804ebc22236243c7477"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -1658,8 +1658,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "24be3127c6c64a8186100c96c10eeb4c",
-            "mesh": "00000000000000000000000000000001"
+            "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+            "mesh": "d9ec39845e73c804ebc22236243c7477"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -1720,8 +1720,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "24be3127c6c64a8186100c96c10eeb4c",
-            "mesh": "00000000000000000000000000000001"
+            "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+            "mesh": "d9ec39845e73c804ebc22236243c7477"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -1782,8 +1782,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "24be3127c6c64a8186100c96c10eeb4c",
-            "mesh": "00000000000000000000000000000001"
+            "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+            "mesh": "d9ec39845e73c804ebc22236243c7477"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -1844,8 +1844,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "24be3127c6c64a8186100c96c10eeb4c",
-            "mesh": "00000000000000000000000000000001"
+            "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+            "mesh": "d9ec39845e73c804ebc22236243c7477"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -1906,8 +1906,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "24be3127c6c64a8186100c96c10eeb4c",
-            "mesh": "00000000000000000000000000000001"
+            "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+            "mesh": "d9ec39845e73c804ebc22236243c7477"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -1968,8 +1968,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "24be3127c6c64a8186100c96c10eeb4c",
-            "mesh": "00000000000000000000000000000001"
+            "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+            "mesh": "d9ec39845e73c804ebc22236243c7477"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -2030,8 +2030,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "24be3127c6c64a8186100c96c10eeb4c",
-            "mesh": "00000000000000000000000000000001"
+            "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+            "mesh": "d9ec39845e73c804ebc22236243c7477"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -2092,8 +2092,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "24be3127c6c64a8186100c96c10eeb4c",
-            "mesh": "00000000000000000000000000000001"
+            "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+            "mesh": "d9ec39845e73c804ebc22236243c7477"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -2154,8 +2154,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "24be3127c6c64a8186100c96c10eeb4c",
-            "mesh": "00000000000000000000000000000001"
+            "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+            "mesh": "d9ec39845e73c804ebc22236243c7477"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -2216,8 +2216,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "24be3127c6c64a8186100c96c10eeb4c",
-            "mesh": "00000000000000000000000000000001"
+            "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+            "mesh": "d9ec39845e73c804ebc22236243c7477"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -2278,8 +2278,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "24be3127c6c64a8186100c96c10eeb4c",
-            "mesh": "00000000000000000000000000000001"
+            "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+            "mesh": "d9ec39845e73c804ebc22236243c7477"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -2340,8 +2340,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "24be3127c6c64a8186100c96c10eeb4c",
-            "mesh": "00000000000000000000000000000001"
+            "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+            "mesh": "d9ec39845e73c804ebc22236243c7477"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -2402,8 +2402,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "24be3127c6c64a8186100c96c10eeb4c",
-            "mesh": "00000000000000000000000000000001"
+            "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+            "mesh": "d9ec39845e73c804ebc22236243c7477"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -2464,8 +2464,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "24be3127c6c64a8186100c96c10eeb4c",
-            "mesh": "00000000000000000000000000000001"
+            "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+            "mesh": "d9ec39845e73c804ebc22236243c7477"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -2526,8 +2526,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "24be3127c6c64a8186100c96c10eeb4c",
-            "mesh": "00000000000000000000000000000001"
+            "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+            "mesh": "d9ec39845e73c804ebc22236243c7477"
           },
           "enabled": true,
           "type": "MeshRenderer"
@@ -2723,6 +2723,1142 @@
         0.0,
         0.0,
         1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "fd6837f3e5e154505d12442c86e9e99c",
+            "mesh": "01800d8f779de51198dba13dcdfc46be"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              0.6,
+              0.9,
+              0.6
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 20.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 50,
+      "name": "Barrel",
+      "position": [
+        4.0,
+        0.45,
+        -2.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "fd6837f3e5e154505d12442c86e9e99c",
+            "mesh": "01800d8f779de51198dba13dcdfc46be"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              0.6,
+              0.9,
+              0.6
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 20.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 51,
+      "name": "Barrel",
+      "position": [
+        4.7,
+        0.45,
+        -2.3
+      ],
+      "rotation": [
+        0.0,
+        0.3420201433256687,
+        0.0,
+        0.9396926207859084
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "fd6837f3e5e154505d12442c86e9e99c",
+            "mesh": "01800d8f779de51198dba13dcdfc46be"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              0.6,
+              0.9,
+              0.6
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 20.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 52,
+      "name": "Barrel",
+      "position": [
+        4.3,
+        0.45,
+        -1.4
+      ],
+      "rotation": [
+        0.0,
+        0.6087614290087207,
+        0.0,
+        0.7933533402912352
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "23dfa3345042c820da70691b6c8c9824",
+            "mesh": "62e66a907ce41419366a0e2072b7fb03"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              0.6,
+              0.9,
+              0.6
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 20.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 53,
+      "name": "Explosive Barrel",
+      "position": [
+        6.2,
+        0.45,
+        -2.0
+      ],
+      "rotation": [
+        0.0,
+        0.08715574274765817,
+        0.0,
+        0.9961946980917455
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "23dfa3345042c820da70691b6c8c9824",
+            "mesh": "62e66a907ce41419366a0e2072b7fb03"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              0.6,
+              0.9,
+              0.6
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 20.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 54,
+      "name": "Explosive Barrel",
+      "position": [
+        6.8,
+        0.45,
+        -1.2
+      ],
+      "rotation": [
+        0.0,
+        0.4617486132350339,
+        0.0,
+        0.8870108331782217
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "c7e2954f6b67ea2edeec5d8e5eddee34",
+            "mesh": "01547963d5e7d43064286c4fab2c7f82"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.7,
+            "restitution": 0.0,
+            "size": [
+              2.0,
+              0.06,
+              0.3
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 4.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 55,
+      "name": "Plank",
+      "position": [
+        -4.0,
+        0.03,
+        4.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "c7e2954f6b67ea2edeec5d8e5eddee34",
+            "mesh": "01547963d5e7d43064286c4fab2c7f82"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.7,
+            "restitution": 0.0,
+            "size": [
+              2.0,
+              0.06,
+              0.3
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 4.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 56,
+      "name": "Plank",
+      "position": [
+        -4.0,
+        0.091,
+        4.0
+      ],
+      "rotation": [
+        0.0,
+        0.0697564737441253,
+        0.0,
+        0.9975640502598242
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "c7e2954f6b67ea2edeec5d8e5eddee34",
+            "mesh": "01547963d5e7d43064286c4fab2c7f82"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.7,
+            "restitution": 0.0,
+            "size": [
+              2.0,
+              0.06,
+              0.3
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 4.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 57,
+      "name": "Plank",
+      "position": [
+        -4.0,
+        0.152,
+        4.0
+      ],
+      "rotation": [
+        0.0,
+        -0.052335956242943835,
+        0.0,
+        0.9986295347545738
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "36dbd48ef8ac7dbcdc4af03150d71477",
+            "mesh": "636caab75b1ffcf5dabba3874facfa01"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              3.0,
+              0.2,
+              0.2
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 30.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 58,
+      "name": "Beam",
+      "position": [
+        -4.0,
+        0.1,
+        6.0
+      ],
+      "rotation": [
+        0.0,
+        0.043619387365336,
+        0.0,
+        0.9990482215818578
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "36dbd48ef8ac7dbcdc4af03150d71477",
+            "mesh": "636caab75b1ffcf5dabba3874facfa01"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              3.0,
+              0.2,
+              0.2
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 30.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 59,
+      "name": "Beam",
+      "position": [
+        -4.0,
+        0.301,
+        6.0
+      ],
+      "rotation": [
+        0.0,
+        -0.3007057995042731,
+        0.0,
+        0.9537169507482269
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "66b4ccb18ac1b6e0eb81e0e00038547f",
+            "mesh": "13ed119547d363e2e1330f721fc40694"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.8,
+            "restitution": 0.0,
+            "size": [
+              0.6,
+              0.7,
+              0.6
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 2.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 60,
+      "name": "Cone",
+      "position": [
+        1.5,
+        0.35,
+        6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "66b4ccb18ac1b6e0eb81e0e00038547f",
+            "mesh": "13ed119547d363e2e1330f721fc40694"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.8,
+            "restitution": 0.0,
+            "size": [
+              0.6,
+              0.7,
+              0.6
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 2.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 61,
+      "name": "Cone",
+      "position": [
+        2.7,
+        0.35,
+        6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "66b4ccb18ac1b6e0eb81e0e00038547f",
+            "mesh": "13ed119547d363e2e1330f721fc40694"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.8,
+            "restitution": 0.0,
+            "size": [
+              0.6,
+              0.7,
+              0.6
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 2.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 62,
+      "name": "Cone",
+      "position": [
+        3.9,
+        0.35,
+        6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "66b4ccb18ac1b6e0eb81e0e00038547f",
+            "mesh": "13ed119547d363e2e1330f721fc40694"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.8,
+            "restitution": 0.0,
+            "size": [
+              0.6,
+              0.7,
+              0.6
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 2.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 63,
+      "name": "Cone",
+      "position": [
+        5.1,
+        0.35,
+        6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "40007f35e31a44e598eeebc05109b15b",
+            "mesh": "e00ca99a3838536b91d46990bdf891fb"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.9,
+            "radius": 0.4,
+            "restitution": 0.2
+          },
+          "enabled": true,
+          "type": "SphereCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 10.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 64,
+      "name": "Wheel",
+      "position": [
+        6.0,
+        0.4,
+        4.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "40007f35e31a44e598eeebc05109b15b",
+            "mesh": "e00ca99a3838536b91d46990bdf891fb"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.9,
+            "radius": 0.4,
+            "restitution": 0.2
+          },
+          "enabled": true,
+          "type": "SphereCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 10.0
+          },
+          "enabled": true,
+          "type": "Rigidbody"
+        }
+      ],
+      "id": 65,
+      "name": "Wheel",
+      "position": [
+        6.6,
+        0.4,
+        5.2
+      ],
+      "rotation": [
+        0.0,
+        0.25881904510252074,
+        0.0,
+        0.9659258262890683
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "117b456928d658ba20d935ef3e08a522",
+            "mesh": "821e7d880344f3d9820e92d162c4c19c"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 66,
+      "name": "Ramp",
+      "position": [
+        -3.0,
+        0.5,
+        2.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.8,
+            "restitution": 0.0,
+            "size": [
+              2.0,
+              0.2,
+              3.1622776601683795
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 67,
+      "name": "Slope",
+      "parent": 66,
+      "position": [
+        0.0,
+        -0.09486832980505139,
+        -0.0316227766016838
+      ],
+      "rotation": [
+        0.1601822430069672,
+        0.0,
+        0.0,
+        0.9870874576374967
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "117b456928d658ba20d935ef3e08a522",
+            "mesh": "821e7d880344f3d9820e92d162c4c19c"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 68,
+      "name": "Ramp",
+      "position": [
+        -0.5,
+        0.5,
+        2.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.8,
+            "restitution": 0.0,
+            "size": [
+              2.0,
+              0.2,
+              3.1622776601683795
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 69,
+      "name": "Slope",
+      "parent": 68,
+      "position": [
+        0.0,
+        -0.09486832980505139,
+        -0.0316227766016838
+      ],
+      "rotation": [
+        0.1601822430069672,
+        0.0,
+        0.0,
+        0.9870874576374967
       ],
       "scale": [
         1.0,

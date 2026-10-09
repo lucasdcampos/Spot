@@ -58,3 +58,16 @@ default.
 `sandbox/` is a project like any other (`sandbox/Sandbox.spot`): the editor opens it, and `spot` builds it. The
 engine's own build also builds its code into the `sandbox` executable with the static engine, and cooks its assets
 beside it, so the engine is tried out and debugged with a game: `./run.ps1` or `./run.sh` builds and runs it.
+
+### Generated assets
+
+The sandbox's props are made by code: `sandbox_generator` (`sandbox/generator/`, built with the engine) writes their
+glTF models (with cgltf's writer, from `MeshData`) and PNG textures (painted pixel by pixel, encoded with
+`Image::EncodePng()`) into `sandbox/assets/generated/`. Fixed seeds make every run write the same files, and it only
+rewrites files whose content changed. The files are committed and imported like any artist's assets; their `.meta`
+files come from the import, and the generator never touches them. After changing the generator, run it and let the
+sandbox's build import what changed:
+
+```sh
+./build/msvc/sandbox/generator/Debug/sandbox_generator    # or with a folder to write into
+```
