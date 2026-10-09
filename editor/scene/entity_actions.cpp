@@ -140,7 +140,7 @@ const char* GetEntityIcon(const Entity& entity) {
 }
 
 const char* GetComponentIcon(std::string_view typeName) {
-    static constexpr std::array<std::pair<std::string_view, const char*>, 13> Icons{{
+    static constexpr std::array<std::pair<std::string_view, const char*>, 14> Icons{{
         {"Camera", ICON_FA_VIDEO},
         {"SpriteRenderer", ICON_FA_IMAGE},
         {"MeshRenderer", ICON_FA_CUBE},
@@ -149,6 +149,7 @@ const char* GetComponentIcon(std::string_view typeName) {
         {"SphereCollider", ICON_FA_CIRCLE_DOT},
         {"CapsuleCollider", ICON_FA_CAPSULES},
         {"CharacterController", ICON_FA_PERSON_WALKING},
+        {"MeshCollider", ICON_FA_DRAW_POLYGON},
         {"AmbientLight", ICON_FA_CIRCLE_HALF_STROKE},
         {"DirectionalLight", ICON_FA_SUN},
         {"PointLight", ICON_FA_LIGHTBULB},

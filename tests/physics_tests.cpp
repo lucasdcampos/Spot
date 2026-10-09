@@ -4,6 +4,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cmath>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -590,4 +591,88 @@ TEST_CASE("Rigidbodies sleep when told, wake up when told, and may never sleep",
     Simulate(scene, 3.0f);
     CHECK(body.IsSleeping());
     CHECK_FALSE(restless.GetComponent<Rigidbody>()->IsSleeping());
+}
+
+namespace {
+
+std::shared_ptr<const Spot::MeshData> MakePlaneMesh(float size) {
+    return std::make_shared<const Spot::MeshData>(Spot::MeshData::CreatePlane(size));
+}
+
+} // namespace
+
+TEST_CASE("Mesh colliders hold bodies on their triangles", "[physics][mesh]") {
+    Scene scene;
+    auto& ground = scene.CreateEntity("Ground");
+    auto& collider = ground.AddComponent<Spot::MeshCollider>();
+    collider.SetMesh(MakePlaneMesh(20.0f));
+    Entity& ball = CreateBall(scene, {0.0f, 2.0f, 0.0f});
+    Simulate(scene, 2.0f);
+    CHECK(GetHeight(ball) == Approx(0.5f).margin(RestMargin));
+
+    const auto hit = scene.GetPhysics().Raycast({3.0f, 5.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 10.0f);
+    REQUIRE(hit.has_value());
+    CHECK(hit->collider == &collider);
+    CHECK(hit->normal.y == Approx(1.0f).margin(1e-3f));
+
+    // The shape scales with the entity.
+    CHECK_FALSE(scene.GetPhysics().Raycast({15.0f, 5.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 10.0f).has_value());
+    ground.GetTransform().SetScale({2.0f, 1.0f, 2.0f});
+    Simulate(scene, Step);
+    CHECK(scene.GetPhysics().Raycast({15.0f, 5.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 10.0f).has_value());
+}
+
+TEST_CASE("Mesh colliders of tilted meshes make slopes", "[physics][mesh]") {
+    Scene scene;
+    CreateGround(scene);
+    auto& slope = scene.CreateEntity("Slope");
+    slope.GetTransform().SetPosition({0.0f, 2.0f, 0.0f});
+    slope.GetTransform().SetRotation(Spot::Quaternion::FromAxisAngle({0.0f, 0.0f, 1.0f}, 0.5f));
+    slope.AddComponent<Spot::MeshCollider>().SetMesh(MakePlaneMesh(6.0f));
+    Entity& ball = CreateBall(scene, {0.0f, 4.0f, 0.0f});
+    Simulate(scene, 1.0f);
+    // Turned around Z by a positive angle, the slope goes down toward -X.
+    CHECK(ball.GetTransform().GetPosition().x < -0.5f);
+}
+
+TEST_CASE("Mesh colliders of dynamic bodies take the convex hull", "[physics][mesh]") {
+    Scene scene;
+    CreateGround(scene);
+    auto& crate = scene.CreateEntity("Crate");
+    crate.GetTransform().SetPosition({0.0f, 3.0f, 0.0f});
+    auto& collider = crate.AddComponent<Spot::MeshCollider>();
+    collider.SetMesh(std::make_shared<const Spot::MeshData>(Spot::MeshData::CreateCube()));
+    CHECK_FALSE(collider.IsConvex());
+    crate.AddComponent<Rigidbody>();
+    Simulate(scene, 2.0f);
+    CHECK(GetHeight(crate) == Approx(0.5f).margin(RestMargin));
+
+    // Meshes shared by many colliders, convex or not, are fine.
+    auto mesh = std::make_shared<const Spot::MeshData>(Spot::MeshData::CreateSphere(0.5f));
+    for (int i = 0; i < 20; ++i) {
+        auto& ball = scene.CreateEntity("Ball");
+        ball.GetTransform().SetPosition({static_cast<float>(i) * 1.5f - 15.0f, 2.0f, 4.0f});
+        auto& sphere = ball.AddComponent<Spot::MeshCollider>();
+        sphere.SetMesh(mesh);
+        sphere.SetConvex(true);
+        ball.AddComponent<Rigidbody>();
+    }
+    Simulate(scene, 2.0f);
+    CHECK(scene.GetPhysics().GetBodyCount() == 22);
+}
+
+TEST_CASE("Mesh colliders save their mesh asset, and assets give meshes' triangles without a GPU", "[physics][mesh]") {
+    Scene scene;
+    scene.CreateEntity("Holder").AddComponent<Spot::MeshCollider>().SetMesh(
+        Spot::AssetRef<Spot::MeshData>(Spot::BuiltInAssets::CubeMesh, nullptr));
+    Scene loaded;
+    REQUIRE(loaded.LoadFromString(scene.SaveToString()));
+    REQUIRE(loaded.FindComponent<Spot::MeshCollider>());
+    CHECK(loaded.FindComponent<Spot::MeshCollider>()->GetMesh().GetId() == Spot::BuiltInAssets::CubeMesh);
+
+    Spot::AssetManager assets("missing-imports");
+    const auto cube = assets.LoadMeshData(Spot::BuiltInAssets::CubeMesh);
+    REQUIRE(cube);
+    CHECK(cube->vertices.size() == 24);
+    CHECK(assets.Load<Spot::MeshData>(Spot::BuiltInAssets::CubeMesh).GetShared() == cube);
 }

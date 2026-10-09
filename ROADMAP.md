@@ -245,7 +245,7 @@ Steps:
 - [x] **M1.6 Character controller.** A `CharacterController` component on Jolt's `CharacterVirtual`: `Move()`,
   `IsGrounded()`, the ground normal and velocity, slope limit, step height, pushing dynamic bodies, collision events,
   and layers. The sandbox player moves with it. Tests.
-- [ ] **M1.7 Mesh colliders.** A `MeshCollider` from a mesh asset or from runtime `MeshData` (`SetMesh()`): a static
+- [x] **M1.7 Mesh colliders.** A `MeshCollider` from a mesh asset or from runtime `MeshData` (`SetMesh()`): a static
   triangle mesh, or a convex hull for dynamic bodies. Built shapes are cached per mesh. Tests.
 - [ ] **M1.8 Joints.** `FixedJoint`, `HingeJoint` (limits, motor), `DistanceJoint`, `SpringJoint` and
   `SwingTwistJoint` (for ragdolls), each connecting to another entity by `EntityId` or to the world. Joints can
@@ -298,6 +298,12 @@ physics gun and the tool gun, and shoots and blows it apart.
   step, and count as active only if it moved since. The inner body has no `Collider`, so hits on it name the entity
   with a null collider. The sandbox gained `spot_sandbox_tests` (`tests/sandbox/`), which runs its game code on the
   real playground with simulated keys; it is where each Sandbox step is now tested.
+- M1.7: physics needs a mesh's triangles on the CPU, while `Mesh` assets live on the GPU, so `MeshData` became a
+  loadable asset type of its own (`AssetManager::LoadMeshData()`, cached apart from the GPU mesh of the same asset,
+  and loaded by `Load<MeshData>()`). `MeshCollider` holds an `AssetRef<MeshData>`, so the inspector picks mesh assets
+  for it. The Jolt backend's `MeshShapeCache` keys shapes by mesh and drops them once the mesh is gone; scale goes on
+  through a `ScaledShape`, so one built shape serves every scale. Before M1.7 the Jolt backend was split into files
+  by topic, as it had reached 800 lines.
 
 ---
 

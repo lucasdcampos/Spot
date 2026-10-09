@@ -115,6 +115,7 @@ std::vector<AssetId> AssetManager::Reload(std::span<const AssetId> assets) {
     for (const AssetId id : stale) {
         if (const auto found = m_entries.find(id); found != m_entries.end()) {
             found->second.loaded.reset();
+            found->second.meshData.reset();
         }
         reloaded.push_back(id);
     }
@@ -177,6 +178,40 @@ std::shared_ptr<const void> AssetManager::LoadAsset(AssetId id, AssetType type) 
     // Looked up again: loading the asset's own references may have added entries to the map.
     m_entries.at(id).loaded = asset;
     return asset;
+}
+
+std::shared_ptr<const MeshData> AssetManager::LoadMeshData(AssetId id) {
+    if (!id.IsValid()) {
+        return nullptr;
+    }
+    const auto found = m_entries.find(id);
+    if (found == m_entries.end() || found->second.type != AssetType::Mesh) {
+        Log::GetEngineLogger().Error("No mesh asset has the id {}", id.ToString());
+        return nullptr;
+    }
+    if (auto loaded = found->second.meshData.lock()) {
+        return loaded;
+    }
+    std::shared_ptr<const MeshData> mesh;
+    if (id == BuiltInAssets::CubeMesh) {
+        mesh = std::make_shared<const MeshData>(MeshData::CreateCube());
+    } else if (id == BuiltInAssets::SphereMesh) {
+        mesh = std::make_shared<const MeshData>(MeshData::CreateSphere());
+    } else if (id == BuiltInAssets::PlaneMesh) {
+        mesh = std::make_shared<const MeshData>(MeshData::CreatePlane());
+    } else if (const auto data =
+                   Detail::ReadAssetFile(Detail::GetImportedAssetPath(m_importDirectory, id), AssetType::Mesh)) {
+        if (auto decoded = Detail::DecodeMesh(*data)) {
+            mesh = std::make_shared<const MeshData>(std::move(*decoded));
+        }
+    }
+    if (!mesh) {
+        Log::GetEngineLogger().Error("Could not load the triangles of mesh {} from '{}'", id.ToString(),
+                                     found->second.path);
+        return nullptr;
+    }
+    found->second.meshData = mesh;
+    return mesh;
 }
 
 std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {

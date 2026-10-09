@@ -45,8 +45,9 @@ void PhysicsSimulation::SetGravity(Vector3 gravity) {
 
 PhysicsBodyId PhysicsSimulation::CreateBody(const PhysicsBodyDesc& desc) {
     const bool isStatic = desc.motion == PhysicsMotion::Static;
-    JPH::BodyCreationSettings settings(CreateBodyShape(desc.shapes), ToJolt(desc.position), ToJolt(desc.rotation),
-                                       ToJolt(desc.motion), ToObjectLayer(desc.layer, !isStatic));
+    JPH::BodyCreationSettings settings(CreateBodyShape(desc.shapes, m_impl->meshShapes), ToJolt(desc.position),
+                                       ToJolt(desc.rotation), ToJolt(desc.motion),
+                                       ToObjectLayer(desc.layer, !isStatic));
     settings.mIsSensor = desc.sensor;
     settings.mFriction = desc.friction;
     settings.mRestitution = desc.restitution;

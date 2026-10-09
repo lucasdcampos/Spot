@@ -44,6 +44,7 @@ Registry& GetRegistry() {
         RegisterBuiltIn<BoxCollider>(registry, "BoxCollider");
         RegisterBuiltIn<SphereCollider>(registry, "SphereCollider");
         RegisterBuiltIn<CapsuleCollider>(registry, "CapsuleCollider");
+        RegisterBuiltIn<MeshCollider>(registry, "MeshCollider");
         RegisterBuiltIn<CharacterController>(registry, "CharacterController");
         RegisterBuiltIn<AmbientLight>(registry, "AmbientLight");
         RegisterBuiltIn<DirectionalLight>(registry, "DirectionalLight");

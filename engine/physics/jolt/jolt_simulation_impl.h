@@ -6,6 +6,7 @@
 #include "physics/jolt/jolt_contacts.h"
 #include "physics/jolt/jolt_layers.h"
 #include "physics/jolt/jolt_runtime.h"
+#include "physics/jolt/jolt_shapes.h"
 
 #include <Jolt/Physics/Character/CharacterVirtual.h>
 #include <Jolt/Physics/Collision/RayCast.h>
@@ -29,6 +30,7 @@ struct PhysicsSimulation::Impl {
     LayerMasks layerMasks = MakeAllLayers();
     ObjectPairFilter objectPairFilter{layerMasks};
     ContactRecorder contacts;
+    MeshShapeCache meshShapes;
     JPH::PhysicsSystem system;
     // By id; destroyed characters leave empty slots, which new ones take.
     std::vector<std::unique_ptr<JPH::CharacterVirtual>> characters;

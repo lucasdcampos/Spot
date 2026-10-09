@@ -1,5 +1,6 @@
 #pragma once
 
+#include "graphics/mesh_data.h"
 #include "math/quaternion.h"
 #include "math/vector.h"
 
@@ -25,7 +26,15 @@ enum class PhysicsMotion {
     Dynamic,
 };
 
-enum class PhysicsShapeKind { Box, Sphere, Capsule };
+enum class PhysicsShapeKind {
+    Box,
+    Sphere,
+    Capsule,
+    // The mesh's triangles, which only static and kinematic bodies can have.
+    Mesh,
+    // The smallest convex shape around the mesh's vertices, which any body can have.
+    ConvexHull,
+};
 
 // A shape in the space of its body, already scaled. Backends keep shapes that are too small to simulate at a minimum
 // size.
@@ -38,6 +47,10 @@ struct PhysicsShape {
     float radius = 0.0f;
     // Capsules only: half the height of the cylinder between their caps, along Y.
     float halfHeight = 0.0f;
+    // Meshes and convex hulls only, with the scale to apply to them. Backends build a shape once per mesh and reuse
+    // it while the mesh lives.
+    std::shared_ptr<const MeshData> mesh;
+    Vector3 meshScale = {1.0f, 1.0f, 1.0f};
 };
 
 struct PhysicsBodyDesc {

@@ -496,6 +496,14 @@ void PhysicsWorld::Rebuild(EntityId entityId) {
     desc.position = transform.GetWorldPosition();
     desc.rotation = Normalize(transform.GetWorldRotation());
     desc.layer = entity->GetLayer();
+    // Dynamic bodies cannot be made of triangles, so their mesh colliders take their convex hull.
+    if (rigidbody && !rigidbody->m_kinematic) {
+        for (Detail::PhysicsShape& shape : desc.shapes) {
+            if (shape.kind == Detail::PhysicsShapeKind::Mesh) {
+                shape.kind = Detail::PhysicsShapeKind::ConvexHull;
+            }
+        }
+    }
     if (rigidbody) {
         desc.motion = rigidbody->m_kinematic ? PhysicsMotion::Kinematic : PhysicsMotion::Dynamic;
         desc.mass = rigidbody->m_mass;

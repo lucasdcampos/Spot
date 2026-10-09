@@ -1,5 +1,7 @@
 #pragma once
 
+#include "assets/asset_ref.h"
+#include "graphics/mesh_data.h"
 #include "math/vector.h"
 #include "physics/physics_simulation.h"
 #include "scene/component.h"
@@ -105,6 +107,34 @@ private:
 
     float m_radius;
     float m_height;
+};
+
+// The shape of a mesh: its triangles, for level geometry, or the convex hull around its vertices, for props that
+// move. Triangles only suit static and kinematic bodies, so an entity with a dynamic rigidbody gets the convex hull
+// either way. The mesh comes from a mesh asset, or from code:
+//
+//     collider.SetMesh(Spot::Assets::Load<Spot::MeshData>(meshId));
+//     collider.SetMesh(std::make_shared<Spot::MeshData>(std::move(generated)));
+//
+// Meshes made in code have no asset id, so they are not saved. The shape is built once per mesh, however many
+// colliders use it, and scales with the entity.
+class MeshCollider final : public Collider {
+public:
+    MeshCollider() = default;
+
+    const AssetRef<MeshData>& GetMesh() const { return m_mesh; }
+    void SetMesh(AssetRef<MeshData> mesh);
+    bool IsConvex() const { return m_convex; }
+    void SetConvex(bool convex);
+
+protected:
+    void Serialize(Archive& archive) override;
+
+private:
+    Detail::PhysicsShape GetShape(Vector3 scale) const override;
+
+    AssetRef<MeshData> m_mesh;
+    bool m_convex = false;
 };
 
 } // namespace Spot

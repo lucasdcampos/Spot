@@ -9,6 +9,11 @@ and the `PhysicsWorld`.
 - `BoxCollider`, `SphereCollider` and `CapsuleCollider` give their entity a solid shape, with a center, friction and
   restitution. Shapes scale with the entity: spheres take the largest scale, capsules stand along Y and take the
   largest of the X and Z scales for their radius.
+- `MeshCollider` takes the shape of a mesh: its triangles, for level geometry, or the convex hull around its vertices
+  (`SetConvex()`), for props that move. Dynamic bodies always get the hull, as Jolt cannot simulate triangle meshes
+  that move freely. The mesh is an `AssetRef<MeshData>`: a mesh asset's triangles, which
+  `AssetManager::LoadMeshData()` (or `Load<MeshData>()`) reads without a graphics device, or a `MeshData` made in
+  code. The backend builds each mesh's shape once and shares it while the mesh lives.
 - `Rigidbody` makes the entity's body move. **Dynamic** bodies fall with gravity and are pushed by forces and
   collisions; **kinematic** ones (`SetKinematic()`) move with their entity's transform and push dynamic bodies away
   without being pushed back. It has a mass, a gravity scale, linear and angular damping, velocities, forces and
@@ -130,5 +135,5 @@ editor's Project Settings panel edits.
 
 ## Not there yet
 
-Mesh colliders and joints come in
+Joints come in
 the rest of the roadmap's milestone M1.

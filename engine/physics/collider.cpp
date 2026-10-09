@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace Spot {
 
@@ -111,6 +112,33 @@ Detail::PhysicsShape CapsuleCollider::GetShape(Vector3 scale) const {
         .center = GetCenter() * scale,
         .radius = radius,
         .halfHeight = std::max(m_height * std::abs(scale.y) * 0.5f - radius, 0.0f),
+    };
+}
+
+void MeshCollider::SetMesh(AssetRef<MeshData> mesh) {
+    m_mesh = std::move(mesh);
+    MarkChanged();
+}
+
+void MeshCollider::SetConvex(bool convex) {
+    m_convex = convex;
+    MarkChanged();
+}
+
+void MeshCollider::Serialize(Archive& archive) {
+    Collider::Serialize(archive);
+    archive.Field("mesh", m_mesh, {.tooltip = "The mesh asset whose shape it takes"});
+    archive.Field(
+        "convex", m_convex,
+        {.tooltip = "The convex hull around the mesh, which bodies that move need, rather than its triangles"});
+}
+
+Detail::PhysicsShape MeshCollider::GetShape(Vector3 scale) const {
+    return {
+        .kind = m_convex ? Detail::PhysicsShapeKind::ConvexHull : Detail::PhysicsShapeKind::Mesh,
+        .center = GetCenter() * scale,
+        .mesh = m_mesh.GetShared(),
+        .meshScale = scale,
     };
 }
 

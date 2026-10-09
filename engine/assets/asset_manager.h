@@ -10,6 +10,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
 #include <vector>
 
@@ -18,6 +19,7 @@ namespace Spot {
 class Font;
 class GraphicsDevice;
 class Mesh;
+struct MeshData;
 class Model;
 class Scene;
 class Sound;
@@ -34,6 +36,12 @@ struct AssetTypeOf<Texture> {
 
 template <>
 struct AssetTypeOf<Mesh> {
+    static constexpr AssetType Value = AssetType::Mesh;
+};
+
+// The triangles of a mesh asset in CPU memory, as physics needs them, rather than the GPU mesh renderers draw.
+template <>
+struct AssetTypeOf<MeshData> {
     static constexpr AssetType Value = AssetType::Mesh;
 };
 
@@ -91,8 +99,16 @@ public:
     // load. The reference keeps the id either way.
     template <LoadableAsset T>
     AssetRef<T> Load(AssetId id) {
-        return AssetRef<T>(id, std::static_pointer_cast<const T>(LoadAsset(id, AssetTypeOf<T>::Value)));
+        if constexpr (std::is_same_v<T, MeshData>) {
+            return AssetRef<T>(id, LoadMeshData(id));
+        } else {
+            return AssetRef<T>(id, std::static_pointer_cast<const T>(LoadAsset(id, AssetTypeOf<T>::Value)));
+        }
     }
+
+    // The CPU copy of a mesh asset, as Load<MeshData>() gives it: it loads without a graphics device, and is shared
+    // while something refers to it, apart from the GPU mesh of the same asset.
+    std::shared_ptr<const MeshData> LoadMeshData(AssetId id);
 
     template <LoadableAsset T>
     AssetRef<T> Load(std::string_view path) {
@@ -120,6 +136,8 @@ private:
         AssetType type;
         std::string path;
         std::weak_ptr<const void> loaded;
+        // Mesh assets only: the CPU copy.
+        std::weak_ptr<const MeshData> meshData;
     };
 
     std::shared_ptr<const void> LoadAsset(AssetId id, AssetType type);
