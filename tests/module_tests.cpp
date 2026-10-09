@@ -4,6 +4,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <array>
+#include <cstdlib>
 #include <memory>
 #include <string>
 #include <vector>
@@ -11,6 +12,14 @@
 namespace {
 
 const std::filesystem::path TestModule = SPOT_TEST_MODULE;
+
+class QuittingApplication final : public Spot::Application {
+public:
+    QuittingApplication() : Application({.graphics = {.enabled = false}, .audio = {.enabled = false}}) {}
+
+protected:
+    void OnStart() override { Quit(); }
+};
 
 constexpr const char* SpinnerText = R"({"type":"TestSpinner","enabled":true,"data":{"speed":2.0}})";
 
@@ -46,6 +55,13 @@ TEST_CASE("Game modules register their components while loaded, and can be loade
     }
     CHECK_FALSE(Spot::CreateComponent("TestSpinner"));
     CHECK_FALSE(Spot::CreateComponent("TestPusher"));
+
+    // Applications that run after the module unloaded do not reach for its code.
+    {
+        QuittingApplication application;
+        CHECK(application.Run() == EXIT_SUCCESS);
+        CHECK_FALSE(Spot::CreateComponent("TestSpinner"));
+    }
 
     // Without the module, its components are kept as they were saved.
     {

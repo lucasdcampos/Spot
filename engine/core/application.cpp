@@ -3,6 +3,7 @@
 #include "assets/assets.h"
 #include "core/assert.h"
 #include "core/crash_handler.h"
+#include "core/game_module.h"
 #include "core/log.h"
 #include "core/log_sinks.h"
 #include "core/paths.h"
@@ -78,8 +79,11 @@ int Application::Run() {
 
     m_audio = std::make_unique<AudioDevice>(m_config.audio);
 
-    m_assets =
-        std::make_unique<AssetManager>(GetExecutableDirectory() / m_config.assets.importDirectory, m_graphics.get());
+    std::filesystem::path importDirectory = m_config.assets.importDirectory;
+    if (importDirectory.empty()) {
+        importDirectory = Utf8ToPath(m_config.game ? m_config.game->importDirectory : "imported");
+    }
+    m_assets = std::make_unique<AssetManager>(GetExecutableDirectory() / importDirectory, m_graphics.get());
     Detail::SetAssetManager(m_assets.get());
 
     Input::SetState(&m_input);
@@ -90,6 +94,8 @@ int Application::Run() {
     m_persistentScene->m_application = this;
     m_running = true;
     m_failed = false;
+    // The game's components are known before its scenes load.
+    Detail::GameCode::Load();
     OnStart();
     if (m_running && m_scenes.empty() && m_sceneChanges.empty() && !LoadStartupScene()) {
         m_failed = true;

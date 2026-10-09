@@ -3,10 +3,6 @@
 
 #include <cstdlib>
 
-// Defined by SPOT_GAME_MODULE() in src/game.cpp: it registers the sandbox's components, as it does when the editor
-// loads the same code as a module.
-extern "C" void SpotLoadGameModule();
-
 // Runs the sandbox project, which the editor opens too, from its startup scene. Everything the game does is in the
 // project's components.
 int main() {
@@ -14,7 +10,6 @@ int main() {
     if (!project) {
         return EXIT_FAILURE;
     }
-    SpotLoadGameModule();
     // The sandbox imports the project's sources from the repository, into "imported" next to the executable, which
     // is all a shipped build would need.
     Spot::Application sandbox({.game = project->GetGameSettings(),

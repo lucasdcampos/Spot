@@ -22,6 +22,9 @@ struct GameSettings {
     std::string version = "0.1.0";
     // The scene the game starts with.
     AssetId startupScene = {};
+    // Where the game's imported assets are, with '/' separators: relative to the executable's folder, as in builds
+    // made to ship, or absolute, as when the tools run a game from its project's imports.
+    std::string importDirectory = "imported";
 
     void Serialize(Archive& archive);
 

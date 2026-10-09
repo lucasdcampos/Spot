@@ -21,9 +21,11 @@
 #define SPOT_MODULE_CONCAT_INNER(a, b) a##b
 #define SPOT_MODULE_CONCAT(a, b) SPOT_MODULE_CONCAT_INNER(a, b)
 
-// Makes a shared library a game module, which the editor and the player load. When the module loads, it registers
-// the components marked with SPOT_COMPONENT(), then runs the function, if one is given, for anything else, such as
-// components registered under names of their own; it unregisters them all when it unloads.
+// Marks the game's code, once, in one of its source files. Built into a shared library, it makes it a game module,
+// which the editor loads: when the module loads, it registers the components marked with SPOT_COMPONENT(), then runs
+// the function, if one is given, for anything else, such as components registered under names of their own; it
+// unregisters them all when it unloads. Built into the game's executable, the same happens when Application::Run()
+// starts, so the game's main() needs nothing more than running its application.
 //
 //     void RegisterGame() {
 //         Spot::RegisterComponent<Player>("Hero");
@@ -34,6 +36,8 @@
 // state; they must be built against the same build of it.
 #define SPOT_GAME_MODULE(...)                                                                                          \
     SPOT_MODULE_LOCAL ::Spot::Detail::ModuleRegistration* ::Spot::Detail::moduleRegistrations = nullptr;               \
+    SPOT_MODULE_EXPORT void SpotLoadGameModule();                                                                      \
+    static const ::Spot::Detail::GameCode spotGameCode(&SpotLoadGameModule);                                           \
     SPOT_MODULE_EXPORT void SpotLoadGameModule() {                                                                     \
         ::Spot::Detail::RunModuleRegistrations(::Spot::Detail::moduleRegistrations);                                   \
         ::Spot::Detail::CallIfGiven(__VA_ARGS__);                                                                      \
@@ -72,6 +76,25 @@ inline void RunModuleRegistrations(const ModuleRegistration* registration) {
         registration->function();
     }
 }
+
+// The game's code built into the program, which applications register when they run. Modules have one too, from
+// when they load until they unload, which is harmless: what they register is what their loading did already.
+class GameCode {
+public:
+    using Function = void (*)();
+
+    explicit GameCode(Function load);
+    ~GameCode();
+
+    GameCode(const GameCode&) = delete;
+    GameCode& operator=(const GameCode&) = delete;
+
+    // Registers what the last game code made registers; nothing without one.
+    static void Load();
+
+private:
+    Function m_load;
+};
 
 inline void CallIfGiven() {
 }

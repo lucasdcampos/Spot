@@ -10,6 +10,29 @@
 
 namespace Spot {
 
+namespace {
+
+Detail::GameCode::Function s_gameCode = nullptr;
+
+} // namespace
+
+Detail::GameCode::GameCode(Function load) : m_load(load) {
+    s_gameCode = load;
+}
+
+Detail::GameCode::~GameCode() {
+    // A module that unloads takes its code with it.
+    if (s_gameCode == m_load) {
+        s_gameCode = nullptr;
+    }
+}
+
+void Detail::GameCode::Load() {
+    if (s_gameCode) {
+        s_gameCode();
+    }
+}
+
 std::unique_ptr<GameModule> GameModule::Load(const std::filesystem::path& path) {
     auto library = SharedLibrary::Load(path);
     if (!library) {

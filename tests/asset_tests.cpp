@@ -827,8 +827,11 @@ TEST_CASE("Applications run a game from its startup scene", "[assets]") {
 
     const Spot::ApplicationConfig config{
         .graphics = {.enabled = false}, .audio = {.enabled = false}, .assets = {.importDirectory = imported}};
+    // The game says where its imported assets are, when the application does not.
     Spot::ApplicationConfig game = config;
-    game.game = Spot::GameSettings{.name = "Heroic", .startupScene = *startup};
+    game.assets.importDirectory.clear();
+    game.game =
+        Spot::GameSettings{.name = "Heroic", .startupScene = *startup, .importDirectory = Spot::PathToUtf8(imported)};
     GameApplication application(game);
     REQUIRE(application.Run() == EXIT_SUCCESS);
     CHECK(application.loadedHero);

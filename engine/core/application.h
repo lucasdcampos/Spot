@@ -22,9 +22,10 @@ class LogSink;
 class SceneRenderer;
 
 struct AssetConfig {
-    // Where imported assets are loaded from, which the tools import them into. Relative paths are relative to the
-    // executable's directory.
-    std::filesystem::path importDirectory = "imported";
+    // Where imported assets are loaded from, which the tools import them into; when unset, the game's (see
+    // GameSettings::importDirectory), or "imported" without a game. Relative paths are relative to the executable's
+    // directory.
+    std::filesystem::path importDirectory = {};
 };
 
 struct ApplicationConfig {

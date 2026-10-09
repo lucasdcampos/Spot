@@ -373,7 +373,10 @@ TEST_CASE("Application captures the mouse while the game locks the cursor, and q
 }
 
 TEST_CASE("Game settings are readable JSON that loads back", "[application]") {
-    const Spot::GameSettings settings{.name = "Café", .version = "1.2.3", .startupScene = Spot::AssetId::Generate()};
+    const Spot::GameSettings settings{.name = "Café",
+                                      .version = "1.2.3",
+                                      .startupScene = Spot::AssetId::Generate(),
+                                      .importDirectory = "data/imported"};
     const std::string text = settings.SaveToString();
     CHECK_THAT(text, Catch::Matchers::ContainsSubstring("\"format\": \"spot-game\""));
 
@@ -382,6 +385,7 @@ TEST_CASE("Game settings are readable JSON that loads back", "[application]") {
     CHECK(loaded->name == "Café");
     CHECK(loaded->version == "1.2.3");
     CHECK(loaded->startupScene == settings.startupScene);
+    CHECK(loaded->importDirectory == "data/imported");
 
     CHECK_FALSE(Spot::GameSettings::LoadFromString("{\"format\": \"spot-project\"}").has_value());
     CHECK_FALSE(Spot::GameSettings::LoadFromString("nope").has_value());

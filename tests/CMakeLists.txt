@@ -14,6 +14,7 @@ add_executable(spot_tests
     audio_tests.cpp
     crash_tests.cpp
     event_tests.cpp
+    game_code_tests.cpp
     graphics_tests.cpp
     image_tests.cpp
     input_tests.cpp

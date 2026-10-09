@@ -24,6 +24,7 @@ void GameSettings::Serialize(Archive& archive) {
     archive.Field("name", name);
     archive.Field("version", version);
     archive.Field("startupScene", startupScene);
+    archive.Field("importDirectory", importDirectory);
 }
 
 std::optional<GameSettings> GameSettings::LoadFromString(std::string_view text) {
