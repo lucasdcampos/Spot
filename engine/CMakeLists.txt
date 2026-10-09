@@ -99,6 +99,8 @@ add_library(spot_objects OBJECT
     graphics/renderer_2d.cpp
     graphics/renderer_3d.h
     graphics/renderer_3d.cpp
+    graphics/scene_renderer.h
+    graphics/scene_renderer.cpp
     graphics/shader.h
     graphics/shadow_views.h
     graphics/shadow_views.cpp

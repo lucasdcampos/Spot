@@ -2,9 +2,6 @@
 
 #include <spot.h>
 
-#include <cstdint>
-#include <memory>
-
 namespace Spot::Player {
 
 // The player's own messages, shown as "Player".
@@ -26,21 +23,11 @@ public:
 protected:
     void OnStart() override;
     void OnUpdate(float deltaTime) override;
-    void OnRender(RenderContext& context) override;
 
 private:
-    // Makes the targets the size of the frame, which changes with the window.
-    bool UpdateTargets(RenderContext& context);
-
     const Project& m_project;
     PlayerOptions m_options;
     int m_frame = 0;
-    std::unique_ptr<Renderer3D> m_renderer3D;
-    std::unique_ptr<Renderer2D> m_renderer2D;
-    std::uint32_t m_sampleCount = 1;
-    std::unique_ptr<Texture> m_depth;
-    std::unique_ptr<Texture> m_samples;
-    bool m_warnedNoCamera = false;
 };
 
 } // namespace Spot::Player

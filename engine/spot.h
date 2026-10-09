@@ -43,6 +43,7 @@
 #include "graphics/render_context.h"
 #include "graphics/renderer_2d.h"
 #include "graphics/renderer_3d.h"
+#include "graphics/scene_renderer.h"
 #include "graphics/shader.h"
 #include "graphics/sky_data.h"
 #include "graphics/text_layout.h"

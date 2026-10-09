@@ -1894,3 +1894,54 @@ TEST_CASE("Scenes draw their active components' interfaces in pixels from the vi
     CHECK(pixelAt(1, 1) == Black);
     CHECK(pixelAt(3, 0) == Black);
 }
+
+TEST_CASE("SceneRenderer draws scenes through their first camera, with their interfaces over them", "[gpu]") {
+    RequireGpu();
+    std::unique_ptr<Spot::Texture> target;
+    std::unique_ptr<Spot::SceneRenderer> renderer;
+    std::vector<std::uint8_t> withCamera;
+    std::vector<std::uint8_t> withoutCamera;
+    Spot::Scene world;
+    Spot::Scene interface;
+    int frame = 0;
+
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
+        auto& device = app.GetGraphicsDevice();
+        ++frame;
+        if (frame == 1) {
+            target = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
+            REQUIRE(target);
+            renderer = std::make_unique<Spot::SceneRenderer>(
+                device,
+                Spot::SceneRendererConfig{.targetFormat = Spot::TextureFormat::Rgba8, .background = Spot::Color::Blue});
+            REQUIRE(renderer->IsValid());
+            interface.CreateEntity("Square").AddComponent<UiSquare>(2.0f, Spot::Color::Green);
+            interface.Update(0.0f);
+            world.CreateEntity("Camera").AddComponent<Spot::Camera>().SetBackground(Spot::Color::Red);
+        } else if (frame == 2) {
+            withCamera = device.DownloadTexture(*target);
+            world.Clear();
+        } else {
+            withoutCamera = device.DownloadTexture(*target);
+            return;
+        }
+        const std::array<Spot::Scene*, 2> scenes{&world, &interface};
+        renderer->Render(context, scenes, target.get());
+    });
+
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    REQUIRE(withCamera.size() == 4 * 4 * 4);
+    REQUIRE(withoutCamera.size() == 4 * 4 * 4);
+    const auto pixelAt = [](const std::vector<std::uint8_t>& pixels, int x, int y) {
+        const auto* pixel = &pixels[static_cast<std::size_t>((y * 4 + x) * 4)];
+        return std::array<std::uint8_t, 4>{pixel[0], pixel[1], pixel[2], pixel[3]};
+    };
+    constexpr std::array<std::uint8_t, 4> Red{255, 0, 0, 255};
+    constexpr std::array<std::uint8_t, 4> Green{0, 255, 0, 255};
+    constexpr std::array<std::uint8_t, 4> Blue{0, 0, 255, 255};
+    // Rows of the texture go down from the top, and the interface's square is in the bottom-left corner.
+    CHECK(pixelAt(withCamera, 0, 3) == Green);
+    CHECK(pixelAt(withCamera, 3, 0) == Red);
+    CHECK(pixelAt(withoutCamera, 0, 3) == Green);
+    CHECK(pixelAt(withoutCamera, 3, 0) == Blue);
+}

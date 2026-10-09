@@ -6,6 +6,7 @@
 #include "core/log.h"
 #include "core/log_sinks.h"
 #include "core/paths.h"
+#include "graphics/scene_renderer.h"
 #include "input/input.h"
 #include "platform/platform.h"
 
@@ -116,6 +117,7 @@ int Application::Run() {
                 for (const auto& scene : m_scenes) {
                     scene->OnRender(*context);
                 }
+                RenderScenes(*context);
                 OnRender(*context);
                 m_graphics->EndFrame();
             }
@@ -127,6 +129,7 @@ int Application::Run() {
     RemoveAllScenes();
     m_persistentScene->Clear();
     m_persistentScene.reset();
+    m_sceneRenderer.reset();
     Detail::SetAssetManager(nullptr);
     m_assets.reset();
     m_assetDatabase.reset();
@@ -274,6 +277,18 @@ void Application::RemoveScene(const Scene* scene) {
     removed.Clear();
     removed.m_application = nullptr;
     m_scenes.erase(found);
+}
+
+void Application::RenderScenes(RenderContext& context) {
+    if (!m_config.renderScenes || (m_scenes.empty() && m_persistentScene->GetEntityCount() == 0)) {
+        return;
+    }
+    if (!m_sceneRenderer) {
+        m_sceneRenderer = std::make_unique<SceneRenderer>(*m_graphics);
+    }
+    std::vector<Scene*> scenes = GetScenes();
+    scenes.insert(scenes.begin(), m_persistentScene.get());
+    m_sceneRenderer->Render(context, scenes);
 }
 
 void Application::RemoveAllScenes() {

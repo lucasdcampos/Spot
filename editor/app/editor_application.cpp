@@ -48,6 +48,8 @@ ApplicationConfig MakeConfig(const EditorOptions& options) {
         .graphics = {.linearWindow = false},
         .logFile = settings.empty() ? std::filesystem::path() : settings / "editor.log",
         .showCrashMessage = options.showCrashMessage,
+        // The scenes show in the editor's views, which draw them themselves.
+        .renderScenes = false,
     };
 }
 

@@ -19,6 +19,7 @@
 namespace Spot {
 
 class LogSink;
+class SceneRenderer;
 
 struct AssetConfig {
     // Where imported assets are loaded from. Relative paths are relative to the executable's directory.
@@ -44,6 +45,9 @@ struct ApplicationConfig {
     bool showCrashMessage = false;
     // Caps how many frames run per second; 0 means unlimited.
     int maxFrameRate = 0;
+    // Draws the persistent scene and the loaded ones into the window with a SceneRenderer, before OnRender(), so a
+    // game needs no code to show them. Tools that show scenes their own way, such as the editor, turn it off.
+    bool renderScenes = true;
 };
 
 class Application {
@@ -164,6 +168,7 @@ private:
     void AddScene(std::unique_ptr<Scene> scene);
     void RemoveScene(const Scene* scene);
     void RemoveAllScenes();
+    void RenderScenes(RenderContext& context);
 
     ApplicationConfig m_config;
     std::shared_ptr<LogSink> m_logFile;
@@ -172,6 +177,8 @@ private:
     std::unique_ptr<AudioDevice> m_audio;
     std::unique_ptr<AssetDatabase> m_assetDatabase;
     std::unique_ptr<AssetManager> m_assets;
+    // Created when there is first something to draw, so applications that draw no scene never pay for it.
+    std::unique_ptr<SceneRenderer> m_sceneRenderer;
     std::unique_ptr<Scene> m_persistentScene;
     std::vector<std::unique_ptr<Scene>> m_scenes;
     std::vector<SceneChange> m_sceneChanges;
