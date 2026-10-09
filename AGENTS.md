@@ -33,6 +33,11 @@ with a ready-to-use `Spot::ShaderDesc`.
 To build and run the sandbox: `./run.ps1` (PowerShell) or `./run.sh` (Linux, macOS, Git Bash). Both accept
 `editor` to run the editor instead, and `release` for an optimized build.
 
+## Documentation
+
+`docs/` explains each system of the engine and the tools, starting from `docs/index.md`; the headers stay the
+reference for each function.
+
 ## Roadmap
 
 `ROADMAP.md` plans the engine's next features, a checkbox per step: the next task is the first unchecked step, and
@@ -61,6 +66,8 @@ the commit that finishes a step ticks its box. Follow its architecture principle
   frames: it refers to them by `EntityId`, so undo history and game code reloads stay valid.
 - The build must have no warnings.
 - New engine features come with tests in `tests/`.
+- Features keep their page in `docs/` up to date in the same commit: how the system works, why, and where to start.
+  New systems get a page, linked from `docs/index.md`.
 - Assets (`engine/assets/`) are loaded from imported files, not raw sources. Every source asset has a `.meta` file
   beside it, which is committed with it; never edit ids in them by hand. New source formats get an importer in
   `engine/import/importers/`, and a change to any imported format bumps its importer's version.

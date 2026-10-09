@@ -1,0 +1,101 @@
+# Entities and components
+
+Scenes hold entities; entities hold a transform, a place in the hierarchy and components, which give them behavior.
+The code is in `engine/scene/`.
+
+## Entities
+
+`Scene::CreateEntity()` and `Entity::CreateChild()` create entities, which stay at the same address until they are
+freed after `Destroy()`. An entity has:
+
+- a name and tags (`AddTag()`, `Scene::FindEntitiesWithTag()`),
+- a `Transform`: local position, rotation and scale, and world ones computed through its parents,
+- a parent and ordered children (`SetParent()`, `SetSiblingIndex()`),
+- an active flag: an inactive entity, and everything below it, has no active components.
+
+### Ids
+
+Every entity has an `EntityId`, unique across all scenes and never reused. Unlike a pointer, an id can be kept
+after the entity is destroyed: `Scene::GetEntity()` then returns null. Ids are what lasts across frames, undo,
+saving and code reloads, so tools and long-lived references use them rather than pointers. Components save
+references to entities as ids too (`Archive::Field()` with an `EntityId`).
+
+## Components
+
+Components derive from `Component` and override the hooks they need:
+
+```cpp
+class Spinner final : public Spot::Component {
+public:
+    float speed = 1.0f;
+
+protected:
+    void OnUpdate(float deltaTime) override {
+        GetEntity().GetTransform().Rotate(Spot::Quaternion::FromAxisAngle({0.0f, 1.0f, 0.0f}, speed * deltaTime));
+    }
+};
+
+entity.AddComponent<Spinner>();
+```
+
+A component is **active** while it is enabled, its entity is active in the hierarchy, neither is being removed, and
+it has not faulted. Its hooks run in this order:
+
+| Hook | When |
+|---|---|
+| `OnStart()` | Once, in the first `Scene::Update()` where the component is active, followed by `OnEnable()` |
+| `OnEnable()`, `OnDisable()` | Each time a started component becomes active or stops being active, at once |
+| `OnFixedUpdate()` | On each fixed step, before the systems' (physics) step |
+| `OnUpdate()`, `OnLateUpdate()` | Every update; all `OnUpdate()` of the scene run before the first `OnLateUpdate()` |
+| `OnDrawUi()` | Each frame the scene is shown, after it was drawn, for what goes over it, such as a HUD |
+| `OnDestroy()` | Once, if `OnStart()` ran, when the component is removed or its entity destroyed |
+| `OnValidate()` | After tools changed its fields rather than its own functions |
+
+The entity is not available in the constructor; setup that needs it goes in `OnStart()`. `GetComponent<T>()`,
+`GetComponents<T>()`, `GetComponentInChildren<T>()`, `GetComponentInParent<T>()` and `Scene::FindComponent<T>()` find
+components, including types derived from `T`. `Scene::ForEachComponent<T>()` walks the enabled ones on active
+entities.
+
+### Failures
+
+Every hook runs under one guard. A hook that throws **faults** its component: the error is logged once with the
+entity, the component's type and the hook, the component stops being active (`IsFaulted()`), and the rest of the
+scene keeps running. A faulted component still gets `OnDisable()` and `OnDestroy()`, so it can release what it holds.
+The fault lasts until the scene is reloaded, which creates new components. The editor's inspector marks faulted
+components. See [Diagnostics](diagnostics.md).
+
+## Saving and loading
+
+Scenes save as JSON (`Scene::SaveToString()`, `SaveToFile()`, `Entity::SaveToString()` for a subtree) and load
+with `LoadFromString()`, `LoadFromFile()` or `Instantiate()`. A component is saved when its type is registered and
+it describes its fields:
+
+```cpp
+class Spinner final : public Spot::Component {
+public:
+    float speed = 1.0f;
+    Spot::EntityId target;
+
+    SPOT_FIELDS(speed, target)
+};
+SPOT_COMPONENT(Spinner);
+```
+
+`SPOT_FIELDS()` lists fields by name; overriding `Serialize(Archive&)` instead allows options such as ranges and
+tooltips, which the editor's inspector uses:
+
+```cpp
+void Serialize(Spot::Archive& archive) override {
+    archive.Field("speed", speed, {.min = 0.0f, .tooltip = "Turns per second"});
+}
+```
+
+The same `Archive` drives saving, loading and the inspector, through different backends, so a field described once
+is saved and edited the same way. Fields added later keep their defaults when older files load.
+
+### Registering types
+
+`SPOT_COMPONENT(Type)` registers a type under its name when the game's code loads; `RegisterComponent<T>("Name")`
+does it by hand under another name. The name is written to files, so it must stay the same. Components whose type is
+not registered when a scene loads, as when the game's code is not loaded in the editor, become `MissingComponent`s
+that keep their data and save it back unchanged.
