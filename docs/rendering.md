@@ -87,6 +87,16 @@ level blending a wider glow over the one above it. `BloomSettings` has the thres
 tonemapper adds the glow with; an intensity of 0 turns it off. `SceneRendererConfig::bloom`, `SceneRenderer::SetBloom()`
 and `ViewportOptions::bloom` choose them.
 
+### Grading
+
+`GradingSettings` changes the image's colors in the tonemapper's pass: on light, before the curve, a white balance
+(`temperature` from cooler to warmer, `tint` from greener to more magenta, keeping the brightness), `contrast` around
+middle grey in stops, and `saturation`; on the displayed colors, after it, a `vignette` that darkens the corners from
+`vignetteStart`, and a LUT. LUTs are color cubes laid out as strips of their blue slices (`size * size` by `size`
+pixels, such as 256 by 16) that map displayed (sRGB) colors: grade `MakeNeutralLut()` in an image editor and load it
+as an `Rgba8` texture, which keeps its values as they are. `SceneRendererConfig::grading`,
+`SceneRenderer::SetGrading()` and `ViewportOptions::grading` choose them.
+
 ### Antialiasing
 
 Multisampling smooths the edges of what is drawn into the HDR image, where the GPU allows. `Fxaa` smooths what it

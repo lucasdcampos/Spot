@@ -64,6 +64,7 @@ struct ViewportOptions {
     std::span<const DebugLine> lines = {};
     // How the HDR image of the scene becomes the view's colors.
     TonemapSettings tonemapping = {};
+    GradingSettings grading = {};
     BloomSettings bloom = {};
     bool fxaa = false;
 };

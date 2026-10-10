@@ -576,7 +576,7 @@ built on the public graphics API. The look comes from a `PostProcessing` compone
   exposure) into the output. Sky exposure stays consistent, and the editor's views use the same path.
 - [x] **M5.3 Bloom.** A downsample and upsample chain, with intensity and scatter.
 - [x] **M5.4 FXAA.** Optional FXAA next to MSAA, chosen in the settings.
-- [ ] **M5.5 Grading.** A LUT (strip format), contrast, saturation, white balance and vignette.
+- [x] **M5.5 Grading.** A LUT (strip format), contrast, saturation, white balance and vignette.
 - [ ] **M5.6 Fog.** Distance and height fog in the mesh shader through a `Fog` component (color, start, density,
   height falloff), applied before tonemapping and matched to the sky at the horizon.
 - [ ] **M5.7 Settings and component.** The rendering settings section (defaults, MSAA samples, shadow sizes and
@@ -613,6 +613,12 @@ built on the public graphics API. The look comes from a `PostProcessing` compone
   dropped when it leaves the local range), on perceptual luma (square root of linear). With FXAA on, the tonemapper
   draws into a texture of the target's format, FXAA draws that into the target, and the interfaces go over it. Off by
   default; the rendering settings (M5.7) choose it.
+- M5.5: grading lives in the tonemap pass, no pass of its own. Before the curve: a white balance scaling red and blue
+  (temperature) or green (tint) by up to 30%, renormalized to keep luminance; contrast as a scale of stops around
+  0.18; saturation around Rec. 709 luma. After it: a radial vignette from `vignetteStart` to the corners, and a
+  strip LUT sampled in sRGB with blue interpolated between slices, blended by `lutContribution`. `GradingSettings`
+  takes the LUT as a `const Texture*` until the `PostProcessing` component (M5.7) holds it as an asset.
+  `MakeNeutralLut()` makes the identity strip.
 
 ---
 

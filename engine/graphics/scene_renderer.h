@@ -29,6 +29,7 @@ struct SceneRendererConfig {
     Color background = {0.12f, 0.13f, 0.15f, 1.0f};
     // How the HDR image of the scenes becomes what the target shows.
     TonemapSettings tonemapping = {};
+    GradingSettings grading = {};
     BloomSettings bloom = {};
     // Smooths the steps of edges after tonemapping, next to multisampling or instead of it; see Fxaa.
     bool fxaa = false;
@@ -52,6 +53,8 @@ public:
     std::uint32_t GetSampleCount() const { return m_sampleCount; }
     const TonemapSettings& GetTonemapping() const { return m_tonemapping; }
     void SetTonemapping(const TonemapSettings& tonemapping) { m_tonemapping = tonemapping; }
+    const GradingSettings& GetGrading() const { return m_grading; }
+    void SetGrading(const GradingSettings& grading) { m_grading = grading; }
     const BloomSettings& GetBloom() const { return m_bloomSettings; }
     void SetBloom(const BloomSettings& bloom) { m_bloomSettings = bloom; }
     bool IsFxaaEnabled() const { return m_fxaaEnabled; }
@@ -71,6 +74,7 @@ private:
     std::uint32_t m_sampleCount;
     Color m_background;
     TonemapSettings m_tonemapping;
+    GradingSettings m_grading;
     BloomSettings m_bloomSettings;
     bool m_fxaaEnabled;
     std::unique_ptr<Renderer3D> m_renderer3D;

@@ -2298,3 +2298,100 @@ TEST_CASE("FXAA smooths the steps of an edge and leaves flat areas as they are",
     CHECK(at(15, 0) == 255);
     CHECK(at(0, 15) == 0);
 }
+
+namespace {
+
+std::uint16_t FloatToHalf(float value) {
+    std::uint32_t bits = 0;
+    std::memcpy(&bits, &value, sizeof(bits));
+    const auto sign = static_cast<std::uint16_t>((bits >> 16) & 0x8000u);
+    const int exponent = static_cast<int>((bits >> 23) & 0xffu) - 127 + 15;
+    if (value == 0.0f || exponent <= 0) {
+        return sign;
+    }
+    return static_cast<std::uint16_t>(sign | (std::min(exponent, 30) << 10) | ((bits >> 13) & 0x3ffu));
+}
+
+// An 8x8 image of the color, through the tonemapper with no curve, graded; the pixels of the result.
+std::vector<std::uint8_t> Grade(Spot::Color color, const Spot::GradingSettings& grading,
+                                const Spot::Image* lutImage = nullptr) {
+    std::vector<std::uint16_t> image(8 * 8 * 4);
+    for (std::size_t i = 0; i < image.size(); i += 4) {
+        image[i] = FloatToHalf(color.r);
+        image[i + 1] = FloatToHalf(color.g);
+        image[i + 2] = FloatToHalf(color.b);
+        image[i + 3] = FloatToHalf(1.0f);
+    }
+    std::unique_ptr<Spot::Texture> source;
+    std::unique_ptr<Spot::Texture> target;
+    std::unique_ptr<Spot::Texture> lut;
+    std::unique_ptr<Spot::Tonemapper> tonemapper;
+    return RenderAndDownload([&](Spot::GraphicsDevice& device, Spot::RenderContext& context) {
+        source = device.CreateTexture({.width = 8, .height = 8, .format = Spot::TextureFormat::Rgba16Float});
+        target = device.CreateTexture({.width = 8, .height = 8, .renderTarget = true});
+        tonemapper = Spot::Tonemapper::Create(device, Spot::TextureFormat::Rgba8);
+        REQUIRE((source && target && tonemapper));
+        device.UploadToTexture(*source, image);
+        Spot::GradingSettings settings = grading;
+        if (lutImage) {
+            lut = device.CreateTexture(*lutImage, false, Spot::TextureFormat::Rgba8);
+            settings.lut = lut.get();
+        }
+        auto pass = context.BeginRenderPass({.target = target.get()});
+        tonemapper->Draw(pass, *source, {.op = Spot::TonemapOperator::Linear, .dither = false}, settings);
+        return target.get();
+    });
+}
+
+int Channel(const std::vector<std::uint8_t>& pixels, int x, int y, int channel) {
+    return pixels[static_cast<std::size_t>((y * 8 + x) * 4 + channel)];
+}
+
+} // namespace
+
+TEST_CASE("Grading changes contrast, saturation and white balance before the curve", "[gpu]") {
+    RequireGpu();
+    // Middle grey stays where it is under contrast, while what is brighter gets brighter.
+    const auto grey = Grade({0.18f, 0.18f, 0.18f, 1.0f}, {.contrast = 2.0f});
+    CHECK(std::abs(Channel(grey, 4, 4, 0) - 46) <= 2);
+    const auto plain = Grade({0.3f, 0.3f, 0.3f, 1.0f}, {});
+    const auto contrasty = Grade({0.3f, 0.3f, 0.3f, 1.0f}, {.contrast = 2.0f});
+    CHECK(Channel(contrasty, 4, 4, 0) > Channel(plain, 4, 4, 0) + 20);
+
+    const auto grey2 = Grade({0.5f, 0.1f, 0.1f, 1.0f}, {.saturation = 0.0f});
+    CHECK(std::abs(Channel(grey2, 4, 4, 0) - Channel(grey2, 4, 4, 1)) <= 2);
+    CHECK(std::abs(Channel(grey2, 4, 4, 1) - Channel(grey2, 4, 4, 2)) <= 2);
+
+    const auto warm = Grade({0.4f, 0.4f, 0.4f, 1.0f}, {.temperature = 1.0f});
+    CHECK(Channel(warm, 4, 4, 0) > Channel(warm, 4, 4, 2) + 20);
+    const auto magenta = Grade({0.4f, 0.4f, 0.4f, 1.0f}, {.tint = 1.0f});
+    CHECK(Channel(magenta, 4, 4, 1) < Channel(magenta, 4, 4, 0));
+}
+
+TEST_CASE("Grading darkens the corners with a vignette and maps colors through a LUT", "[gpu]") {
+    RequireGpu();
+    const auto vignette = Grade({0.5f, 0.5f, 0.5f, 1.0f}, {.vignette = 1.0f, .vignetteStart = 0.0f});
+    CHECK(Channel(vignette, 0, 0, 0) < Channel(vignette, 4, 4, 0) - 30);
+
+    // A neutral LUT changes nothing, and one that inverts the displayed colors inverts them.
+    const Spot::Image neutral = Spot::MakeNeutralLut(16);
+    CHECK(neutral.GetWidth() == 256);
+    CHECK(neutral.GetHeight() == 16);
+    const auto same = Grade({0.2f, 0.5f, 0.8f, 1.0f}, {}, &neutral);
+    const auto plain = Grade({0.2f, 0.5f, 0.8f, 1.0f}, {});
+    for (int channel = 0; channel < 3; ++channel) {
+        CHECK(std::abs(Channel(same, 4, 4, channel) - Channel(plain, 4, 4, channel)) <= 3);
+    }
+    std::vector<std::uint8_t> inverted(neutral.GetPixels().begin(), neutral.GetPixels().end());
+    for (std::size_t i = 0; i < inverted.size(); i += 4) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            inverted[i + channel] = static_cast<std::uint8_t>(255 - inverted[i + channel]);
+        }
+    }
+    const Spot::Image invertedLut(256, 16, std::move(inverted));
+    const auto black = Grade({1.0f, 1.0f, 1.0f, 1.0f}, {}, &invertedLut);
+    CHECK(Channel(black, 4, 4, 0) <= 3);
+    const auto halfway = Grade({1.0f, 1.0f, 1.0f, 1.0f}, {.lutContribution = 0.5f}, &invertedLut);
+    CHECK(Channel(halfway, 4, 4, 0) > 100);
+    CHECK(Channel(halfway, 4, 4, 0) < 150);
+}

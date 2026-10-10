@@ -238,13 +238,13 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
     const Texture* glow = m_bloom->Render(context, *hdr, options.bloom);
     if (options.fxaa) {
         auto tonemapped = context.BeginRenderPass({.target = targets.GetTonemapped()});
-        m_tonemapper->Draw(tonemapped, *hdr, options.tonemapping, glow, options.bloom.intensity);
+        m_tonemapper->Draw(tonemapped, *hdr, options.tonemapping, options.grading, glow, options.bloom.intensity);
     }
     auto pass = context.BeginRenderPass({.target = targets.GetColor()});
     if (options.fxaa) {
         m_fxaa->Draw(pass, *targets.GetTonemapped());
     } else {
-        m_tonemapper->Draw(pass, *hdr, options.tonemapping, glow, options.bloom.intensity);
+        m_tonemapper->Draw(pass, *hdr, options.tonemapping, options.grading, glow, options.bloom.intensity);
     }
     if (options.drawUi && m_interface->IsValid()) {
         const Vector2 size{static_cast<float>(targets.GetWidth()), static_cast<float>(targets.GetHeight())};

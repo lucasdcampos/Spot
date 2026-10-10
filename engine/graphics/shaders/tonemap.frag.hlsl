@@ -1,6 +1,13 @@
 cbuffer Tonemap : register(b0, space3) {
     // The exposure, the operator (0 ACES, 1 AgX, 2 linear), whether to dither, and how much of the bloom to add.
     float4 settings;
+    // The white balance's scale of each channel, and the contrast.
+    float4 balanceAndContrast;
+    // The saturation, how dark the vignette makes the corners, where it starts from the middle (0) to the corners
+    // (1), and how much of the LUT applies.
+    float4 grading;
+    // The LUT's size: the side of its cube.
+    float4 lutSize;
 };
 
 Texture2D<float4> hdr : register(t0, space2);
@@ -8,6 +15,9 @@ SamplerState hdrSampler : register(s0, space2);
 // The glow of the image's brightest light, at half its size; black without bloom.
 Texture2D<float4> bloom : register(t1, space2);
 SamplerState bloomSampler : register(s1, space2);
+// A color cube laid out as a strip of its blue slices, side by side, mapping sRGB colors to sRGB colors.
+Texture2D<float4> lut : register(t2, space2);
+SamplerState lutSampler : register(s2, space2);
 
 struct Input {
     float4 position : SV_Position;
@@ -59,11 +69,49 @@ float3 AgX(float3 color) {
     return pow(saturate(color), 2.2);
 }
 
+static const float3 LumaWeights = float3(0.2126, 0.7152, 0.0722);
+static const float MiddleGrey = 0.18;
+
+float3 ToSrgb(float3 color) {
+    return lerp(1.055 * pow(color, 1.0 / 2.4) - 0.055, color * 12.92, step(color, 0.0031308));
+}
+
+float3 FromSrgb(float3 color) {
+    return lerp(pow((color + 0.055) / 1.055, 2.4), color / 12.92, step(color, 0.04045));
+}
+
+// Looks the color up in the strip, between the two blue slices it falls between.
+float3 LookUp(float3 color) {
+    const float size = lutSize.x;
+    const float3 cell = saturate(color) * (size - 1.0);
+    const float slice = floor(cell.b);
+    const float2 inSlice = (cell.rg + 0.5) / float2(size * size, size);
+    const float2 first = inSlice + float2(slice / size, 0.0);
+    const float2 second = first + float2(1.0 / size, 0.0);
+    return lerp(lut.SampleLevel(lutSampler, first, 0.0).rgb, lut.SampleLevel(lutSampler, second, 0.0).rgb,
+                cell.b - slice);
+}
+
 float4 main(Input input) : SV_Target0 {
     const float4 light = hdr.Sample(hdrSampler, input.uv);
     const float3 glow = bloom.Sample(bloomSampler, input.uv).rgb * settings.w;
-    const float3 exposed = max(light.rgb + glow, 0.0) * settings.x;
+    float3 exposed = max(light.rgb + glow, 0.0) * settings.x;
+
+    // Grading on light: white balance, contrast around middle grey in stops, so it keeps what is as bright as it,
+    // then saturation.
+    exposed *= balanceAndContrast.rgb;
+    exposed = exp2((log2(exposed + 1e-6) - log2(MiddleGrey)) * balanceAndContrast.w + log2(MiddleGrey));
+    exposed = max(lerp(dot(exposed, LumaWeights), exposed, grading.x), 0.0);
+
     float3 color = settings.y < 0.5 ? Aces(exposed) : settings.y < 1.5 ? AgX(exposed) : saturate(exposed);
+
+    // The corners darken toward the vignette's strength, from where it starts.
+    const float fromMiddle = length(input.uv - 0.5) * 1.41421356;
+    color *= 1.0 - grading.y * smoothstep(grading.z, 1.0 + 1e-3, fromMiddle);
+    // LUTs are made on displayed colors.
+    if (grading.w > 0.0) {
+        color = lerp(color, FromSrgb(LookUp(ToSrgb(color))), grading.w);
+    }
     if (settings.z > 0.5) {
         // Noise of under a step of an 8-bit display hides the banding of smooth gradients, such as the sky's. Those
         // steps are even in sRGB, not in linear light, so the noise is added there.
