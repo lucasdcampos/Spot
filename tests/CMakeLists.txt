@@ -103,6 +103,7 @@ catch_discover_tests(spot_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" 
 # GPU tests need a real display and GPU, so they live in their own executable without the dummy video driver.
 # They are skipped on machines without a usable GPU.
 add_executable(spot_gpu_tests
+    golden_tests.cpp
     gpu_tests.cpp
     rendering_application.h
 )
@@ -124,8 +125,37 @@ spot_add_shaders(spot_gpu_tests
     shaders/uv.frag.hlsl
 )
 
+# glTF sample models for the golden-image tests, too large to keep in the repository: downloaded once, pinned to a
+# commit and checked by hash. Without them, their tests are skipped.
+option(SPOT_DOWNLOAD_SAMPLE_MODELS "Download glTF sample models for the golden-image tests" ON)
+set(SPOT_SAMPLE_MODELS_DIR "${CMAKE_CURRENT_BINARY_DIR}/sample_models")
+if(SPOT_DOWNLOAD_SAMPLE_MODELS)
+    set(sample_models_url
+        "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/edc7c9e67c639d230715049ee31f9a96a6babbbe/Models")
+    foreach(model IN ITEMS
+            "DamagedHelmet|a1e3b04de97b11de564ce6e53b95f02954a297f0008183ac63a4f5974f6b32d8"
+            "AlphaBlendModeTest|37c3577d143071b42dd46e9d942b157837eb25c6340112171d7faecaa987b14e")
+        string(REPLACE "|" ";" model "${model}")
+        list(GET model 0 name)
+        list(GET model 1 hash)
+        set(path "${SPOT_SAMPLE_MODELS_DIR}/${name}.glb")
+        if(NOT EXISTS "${path}")
+            file(DOWNLOAD "${sample_models_url}/${name}/glTF-Binary/${name}.glb" "${path}"
+                EXPECTED_HASH SHA256=${hash} STATUS status)
+            list(GET status 0 code)
+            if(NOT code EQUAL 0)
+                file(REMOVE "${path}")
+                message(WARNING "Could not download the glTF sample model ${name}; its golden-image test is skipped")
+            endif()
+        endif()
+    endforeach()
+endif()
+
 target_compile_definitions(spot_gpu_tests PRIVATE
     SPOT_TEST_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets"
+    SPOT_GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/golden"
+    SPOT_GOLDEN_OUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}/golden_output"
+    SPOT_SAMPLE_MODELS_DIR="${SPOT_SAMPLE_MODELS_DIR}"
 )
 
 spot_set_compile_options(spot_gpu_tests)

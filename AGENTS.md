@@ -59,6 +59,9 @@ the commit that finishes a step ticks its box. Follow its architecture principle
 - Engine features built on top of the graphics API (such as the 2D renderer) only use its public interface, so
   users can always do anything the engine does.
 - GPU tests go in `tests/gpu_tests.cpp` (the `spot_gpu_tests` executable) and are skipped where no GPU is available.
+  Golden-image tests (`tests/golden_tests.cpp`, same executable) compare reference scenes with the images in
+  `tests/golden/`; when a change to how things look is meant, run them with `SPOT_UPDATE_GOLDEN=1`, look at the new
+  images, and commit them with the change.
 - Sandbox tests go in `tests/sandbox/` (`spot_sandbox_tests`): the sandbox's game code on its real scenes, headless,
   driven by simulated input, so a regression shows as something broken in the game.
 - Editor tests go in `tests/editor/`: `spot_editor_tests` (headless ImGui, no GPU), `spot_editor_gpu_tests` and

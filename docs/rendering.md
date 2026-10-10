@@ -188,6 +188,18 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
   (which may be above 1, as lit fog is) before tonemapping, and so does the sky toward the horizon, so the two meet
   there in the same color. `Renderer3D::DrawFog()` takes a `FogData` directly.
 
+## Golden-image tests
+
+`tests/golden_tests.cpp` renders reference scenes as games show them, through `SceneRenderer` (without
+multisampling, dithering or bloom, which vary the most between GPUs), and compares them with the images stored in
+`tests/golden/`: PBR spheres from dielectric to metal and smooth to rough, cutout and transparent surfaces with
+shadows, a normal-mapped wall, and the glTF sample models DamagedHelmet and AlphaBlendModeTest, which the build
+downloads into the build folder (pinned and checked by hash; `SPOT_DOWNLOAD_SAMPLE_MODELS=OFF` skips them). A render
+may differ from its image by a few steps here and there, as GPUs round differently, but not by more than 12 steps
+in over 0.3% of its pixels, nor by a mean of more than a step. A failure leaves the render and an image of its
+differences in the build's `tests/golden_output/`. When a change to how things look is meant, run the tests with
+`SPOT_UPDATE_GOLDEN=1` to store the new images, look at them, and commit them with the change.
+
 ## Not there yet
 
 Culling and instancing come in the roadmap's rendering milestone M7.

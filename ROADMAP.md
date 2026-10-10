@@ -670,7 +670,7 @@ depth writes). Vertices gain tangents.
 - [x] **M6.4 Sky lighting.** Cube textures and rendering into their faces in the graphics API. Render the sky into a
   cube map when it changes, prefilter it for specular, and take irradiance as spherical harmonics. GPU tests.
 - [x] **M6.5 Alpha modes.** Cutout and transparent pipelines, sorting, cutout shadows, and glTF `alphaMode` import.
-- [ ] **M6.6 Golden-image tests.** GPU tests render reference scenes and compare them to stored images within a
+- [x] **M6.6 Golden-image tests.** GPU tests render reference scenes and compare them to stored images within a
   tolerance, so rendering changes are seen before they ship.
 - [ ] **M6.7 Sandbox: materials.** The generator makes PBR texture sets (wood, painted metal, rusty metal, concrete,
   rubber, glass) and low-poly weapon models. Props and the level use them, glass panes are transparent, and the tool
@@ -715,6 +715,10 @@ viewers, and the golden-image tests cover them.
   shadows go through a shadow pipeline whose fragment shader samples the base color texture by the mesh's UVs (the
   shadow vertex layout gained UVs), even for textures projected from world space. The `.material` importer is at
   version 6 and the model importer at 8.
+- M6.6: Golden-image tests live in `tests/golden_tests.cpp`, in `spot_gpu_tests`, and render 160x120 sRGB images
+  through `SceneRenderer` with one sample, no dithering and no bloom. DamagedHelmet and AlphaBlendModeTest are
+  downloaded at configure time from glTF-Sample-Assets at commit edc7c9e, checked by SHA-256, rather than committed
+  (7 MB); their test is skipped without them. `SPOT_UPDATE_GOLDEN=1` rewrites the images.
 
 ---
 
