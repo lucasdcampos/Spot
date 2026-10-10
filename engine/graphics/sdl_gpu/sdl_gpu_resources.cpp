@@ -136,8 +136,18 @@ SDL_GPUSamplerAddressMode ToSdl(TextureAddressMode mode) {
     return SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
 }
 
-std::uint32_t GetPixelDataSize(const Texture& texture) {
-    return texture.GetWidth() * texture.GetHeight() * GetBytesPerPixel(texture.GetFormat());
+std::uint32_t GetLevelSize(std::uint32_t size, std::uint32_t mipLevel) {
+    return std::max(size >> mipLevel, 1u);
+}
+
+// The bytes of one layer of a mip level.
+std::uint32_t GetLayerDataSize(const Texture& texture, std::uint32_t mipLevel = 0) {
+    return GetLevelSize(texture.GetWidth(), mipLevel) * GetLevelSize(texture.GetHeight(), mipLevel) *
+           GetBytesPerPixel(texture.GetFormat());
+}
+
+std::uint32_t GetPixelDataSize(const Texture& texture, std::uint32_t mipLevel = 0) {
+    return GetLayerDataSize(texture, mipLevel) * texture.GetLayerCount();
 }
 
 } // namespace
@@ -418,6 +428,11 @@ std::unique_ptr<Texture> GraphicsDevice::CreateTexture(const TextureDesc& desc) 
         Log::GetEngineLogger().Error("This GPU does not support {} samples for this texture format", desc.sampleCount);
         return nullptr;
     }
+    const bool cube = desc.type == TextureType::Cube;
+    if (cube && (desc.width != desc.height || depth || multisampled)) {
+        Log::GetEngineLogger().Error("Cube textures must be square, and neither depth textures nor multisampled");
+        return nullptr;
+    }
 
     // Each level halves the size of the previous one, down to 1x1.
     std::uint32_t mipLevels = 1;
@@ -428,7 +443,7 @@ std::unique_ptr<Texture> GraphicsDevice::CreateTexture(const TextureDesc& desc) 
     }
 
     SDL_GPUTextureCreateInfo info{};
-    info.type = SDL_GPU_TEXTURETYPE_2D;
+    info.type = cube ? SDL_GPU_TEXTURETYPE_CUBE : SDL_GPU_TEXTURETYPE_2D;
     info.format = ToSdl(desc.format);
     // Multisampled textures are only ever resolved, never sampled.
     info.usage = multisampled ? 0 : SDL_GPU_TEXTUREUSAGE_SAMPLER;
@@ -440,7 +455,7 @@ std::unique_ptr<Texture> GraphicsDevice::CreateTexture(const TextureDesc& desc) 
     }
     info.width = desc.width;
     info.height = desc.height;
-    info.layer_count_or_depth = 1;
+    info.layer_count_or_depth = cube ? 6 : 1;
     info.num_levels = mipLevels;
     info.sample_count = *sampleCount;
 
@@ -522,17 +537,22 @@ void GraphicsDevice::UploadToTexture(Texture& texture, std::span<const std::byte
     SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device);
     SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
 
-    SDL_GPUTextureTransferInfo source{};
-    source.transfer_buffer = transfer;
-    source.pixels_per_row = texture.GetWidth();
-    source.rows_per_layer = texture.GetHeight();
     SDL_GPUTextureRegion destination{};
     destination.texture = static_cast<SDL_GPUTexture*>(texture.GetNativeHandle());
     destination.w = texture.GetWidth();
     destination.h = texture.GetHeight();
     destination.d = 1;
-    // Every pixel is replaced, so draws still reading the old contents can keep them while this writes new memory.
-    SDL_UploadToGPUTexture(copyPass, &source, &destination, true);
+    for (std::uint32_t layer = 0; layer < texture.GetLayerCount(); ++layer) {
+        SDL_GPUTextureTransferInfo source{};
+        source.transfer_buffer = transfer;
+        source.offset = layer * GetLayerDataSize(texture);
+        source.pixels_per_row = texture.GetWidth();
+        source.rows_per_layer = texture.GetHeight();
+        destination.layer = layer;
+        // Every pixel is replaced, so draws still reading the old contents can keep them while this writes new
+        // memory. Only the first copy may do that, or it would throw away the layers before it.
+        SDL_UploadToGPUTexture(copyPass, &source, &destination, layer == 0);
+    }
 
     SDL_EndGPUCopyPass(copyPass);
     if (texture.GetMipLevelCount() > 1) {
@@ -544,11 +564,12 @@ void GraphicsDevice::UploadToTexture(Texture& texture, std::span<const std::byte
     SDL_ReleaseGPUTransferBuffer(device, transfer);
 }
 
-std::vector<std::uint8_t> GraphicsDevice::DownloadTexture(const Texture& texture) {
+std::vector<std::uint8_t> GraphicsDevice::DownloadTexture(const Texture& texture, std::uint32_t mipLevel) {
     SPOT_ASSERT(!IsDepthFormat(texture.GetFormat()), "Depth textures cannot be downloaded");
     SPOT_ASSERT(texture.GetSampleCount() == 1, "Multisampled textures cannot be downloaded; resolve them first");
+    SPOT_ASSERT(mipLevel < texture.GetMipLevelCount(), "The texture has no mip level {}", mipLevel);
     SDL_GPUDevice* device = m_impl->device->Get();
-    const std::uint32_t size = GetPixelDataSize(texture);
+    const std::uint32_t size = GetPixelDataSize(texture, mipLevel);
 
     SDL_GPUTransferBufferCreateInfo transferInfo{};
     transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD;
@@ -564,14 +585,19 @@ std::vector<std::uint8_t> GraphicsDevice::DownloadTexture(const Texture& texture
 
     SDL_GPUTextureRegion source{};
     source.texture = static_cast<SDL_GPUTexture*>(texture.GetNativeHandle());
-    source.w = texture.GetWidth();
-    source.h = texture.GetHeight();
+    source.mip_level = mipLevel;
+    source.w = GetLevelSize(texture.GetWidth(), mipLevel);
+    source.h = GetLevelSize(texture.GetHeight(), mipLevel);
     source.d = 1;
-    SDL_GPUTextureTransferInfo destination{};
-    destination.transfer_buffer = transfer;
-    destination.pixels_per_row = texture.GetWidth();
-    destination.rows_per_layer = texture.GetHeight();
-    SDL_DownloadFromGPUTexture(copyPass, &source, &destination);
+    for (std::uint32_t layer = 0; layer < texture.GetLayerCount(); ++layer) {
+        source.layer = layer;
+        SDL_GPUTextureTransferInfo destination{};
+        destination.transfer_buffer = transfer;
+        destination.offset = layer * GetLayerDataSize(texture, mipLevel);
+        destination.pixels_per_row = source.w;
+        destination.rows_per_layer = source.h;
+        SDL_DownloadFromGPUTexture(copyPass, &source, &destination);
+    }
 
     SDL_EndGPUCopyPass(copyPass);
     std::vector<std::uint8_t> pixels;
@@ -605,6 +631,14 @@ std::uint32_t Texture::GetHeight() const {
 
 TextureFormat Texture::GetFormat() const {
     return m_impl->desc.format;
+}
+
+TextureType Texture::GetType() const {
+    return m_impl->desc.type;
+}
+
+std::uint32_t Texture::GetLayerCount() const {
+    return m_impl->desc.type == TextureType::Cube ? 6 : 1;
 }
 
 bool Texture::IsRenderTarget() const {

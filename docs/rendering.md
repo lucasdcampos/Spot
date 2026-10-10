@@ -19,7 +19,12 @@ Each frame, `BeginFrame()` returns a `RenderContext` (null when nothing can be d
 - **Pipelines** are immutable: one per combination of shaders, vertex layout, primitive type, blending, culling,
   depth state, target format and sample count, created ahead of time.
 - **Passes** clear or keep their targets, can have a depth target, and with several samples resolve into a single
-  sample target (`keepSamples` lets a later pass draw more over the samples).
+  sample target (`keepSamples` lets a later pass draw more over the samples). They draw into one face and mip level of
+  their target (`targetLayer`, `targetMipLevel`), and `RenderContext::GenerateMipmaps()` makes a render target's
+  levels from its first.
+- **Cube textures** (`TextureType::Cube`) are six square faces that shaders sample by direction (`TextureCube`), laid
+  out as Direct3D, Vulkan and Metal agree (see `TextureType`). Uploads and downloads hold their faces one after the
+  other, and downloads can read any mip level.
 - **Colors** are linear. The window's format is sRGB, so shaders write linear colors and the window encodes them.
 - **Formats**: 8-bit RGBA and BGRA, sRGB or not; `Rgba16Float` and `R11G11B10Float` for HDR render targets, which
   hold values above 1 (`SupportsRenderTarget()` tells whether the GPU draws into the packed one); and
@@ -164,7 +169,13 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
   half of it; a bulb lighting a room a few units across is about 10, the point and spot lights' default. Lights can cast shadows: the first directional light through cascades, and point and spot lights through
   tiles of a shared shadow atlas.
 - `Sky`: an atmosphere lit by the scene's brightest directional light, which turns from day to sunset to night as
-  that light turns, and lights the scene with the sun through the air and ambient light of its own.
+  that light turns, and lights the scene with the sun through the air and with its own light from all around. When
+  the sky changes, `Renderer3D` captures that light into a cube map (without the sun's disc, which the directional
+  light already is), blurs it into the mip levels of a second cube for each roughness (GGX, as split-sum image-based
+  lighting does) and projects its irradiance onto nine spherical harmonics. Surfaces then scatter the irradiance
+  along their normal and reflect the blurred sky along their mirror direction, so the ground's color lights
+  undersides and metals mirror the sky. `GetStats().skyLightingUpdates` tells when a capture happened; a sky that
+  turns all the time, as the sandbox's does, is captured every frame, which costs a few small passes.
 - `Fog`: exponential height fog from its entity's height, thick below it and thinning above it as `heightFalloff`
   says, clear up to `start`; `density` is how much light it takes per unit of distance. Surfaces fade into its color
   (which may be above 1, as lit fog is) before tonemapping, and so does the sky toward the horizon, so the two meet

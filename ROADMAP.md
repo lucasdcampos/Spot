@@ -667,7 +667,7 @@ depth writes). Vertices gain tangents.
   migrate the sandbox's materials.
 - [x] **M6.3 Shading.** Cook-Torrance with GGX, Smith and Schlick, inverse-square falloff windowed by range, and light
   intensities in documented units.
-- [ ] **M6.4 Sky lighting.** Cube textures and rendering into their faces in the graphics API. Render the sky into a
+- [x] **M6.4 Sky lighting.** Cube textures and rendering into their faces in the graphics API. Render the sky into a
   cube map when it changes, prefilter it for specular, and take irradiance as spherical harmonics. GPU tests.
 - [ ] **M6.5 Alpha modes.** Cutout and transparent pipelines, sorting, cutout shadows, and glTF `alphaMode` import.
 - [ ] **M6.6 Golden-image tests.** GPU tests render reference scenes and compare them to stored images within a
@@ -701,6 +701,14 @@ viewers, and the golden-image tests cover them.
   stays Lambert without a (1 - F) factor, as in Filament and Unreal. The sandbox's lamps and flashes were rescaled to
   be as bright as before at 40% of their range (intensity times (0.4 range)^2), and point and spot lights default to
   an intensity of 10.
+- M6.4: The sky's light is captured in surface units (radiance times pi, multiple scattering included, scaled by
+  `ambientIntensity`), so its irradiance matches what `GetSkyLighting()` computed on the CPU before; the ground below
+  the horizon is its color lit by the ground light, and the sun's disc and fog are left out. Cubes are 64 texels, with
+  5 roughness levels prefiltered by 64 GGX samples each that read blurrier levels where the lobe is wide. The
+  irradiance's nine coefficients are computed on the GPU into a 9x1 `Rgba16Float` target, from the 16-texel level of
+  each face, so nothing is read back. The environment's specular uses Karis's analytic fit of the split-sum BRDF
+  instead of a lookup table, and ambient lights now reflect too, as a uniform environment. A capture happens whenever
+  the `SkyData` differs from the last one (`SkyData` gained `operator==`).
 
 ---
 

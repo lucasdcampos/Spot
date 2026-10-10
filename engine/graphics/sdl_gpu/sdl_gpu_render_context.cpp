@@ -4,6 +4,9 @@
 #include "core/log.h"
 #include "graphics/sdl_gpu/sdl_gpu_internal.h"
 
+#include <algorithm>
+#include <cstdint>
+
 namespace Spot {
 
 RenderPass::RenderPass(RenderContext& context, void* native) : m_context(&context), m_native(native) {
@@ -118,8 +121,14 @@ RenderPass RenderContext::BeginRenderPass(const RenderPassDesc& desc) {
     SPOT_ASSERT(!desc.target || !IsDepthFormat(desc.target->GetFormat()),
                 "Depth textures go in RenderPassDesc::depthTarget");
 
+    SPOT_ASSERT((desc.targetLayer == 0 && desc.targetMipLevel == 0) ||
+                    (desc.target && desc.targetLayer < desc.target->GetLayerCount() &&
+                     desc.targetMipLevel < desc.target->GetMipLevelCount()),
+                "The pass's target has no layer {} or mip level {}", desc.targetLayer, desc.targetMipLevel);
     SDL_GPUColorTargetInfo target{};
     target.texture = desc.target ? static_cast<SDL_GPUTexture*>(desc.target->GetNativeHandle()) : m_impl->target;
+    target.layer_or_depth_plane = desc.targetLayer;
+    target.mip_level = desc.targetMipLevel;
     target.store_op = SDL_GPU_STOREOP_STORE;
     if (desc.clearColor) {
         target.load_op = SDL_GPU_LOADOP_CLEAR;
@@ -153,9 +162,12 @@ RenderPass RenderContext::BeginRenderPass(const RenderPassDesc& desc) {
     if (desc.depthTarget) {
         SPOT_ASSERT(desc.depthTarget->IsRenderTarget() && IsDepthFormat(desc.depthTarget->GetFormat()),
                     "Depth targets must be depth textures created as render targets");
-        SPOT_ASSERT(desc.depthOnly ||
-                        (desc.depthTarget->GetWidth() == (desc.target ? desc.target->GetWidth() : m_impl->width) &&
-                         desc.depthTarget->GetHeight() == (desc.target ? desc.target->GetHeight() : m_impl->height)),
+        SPOT_ASSERT(desc.depthOnly || (desc.depthTarget->GetWidth() ==
+                                           (desc.target ? std::max(desc.target->GetWidth() >> desc.targetMipLevel, 1u)
+                                                        : static_cast<std::uint32_t>(m_impl->width)) &&
+                                       desc.depthTarget->GetHeight() ==
+                                           (desc.target ? std::max(desc.target->GetHeight() >> desc.targetMipLevel, 1u)
+                                                        : static_cast<std::uint32_t>(m_impl->height))),
                     "The depth target must be the size of the target");
         depth.texture = static_cast<SDL_GPUTexture*>(desc.depthTarget->GetNativeHandle());
         depth.load_op = desc.clearDepth ? SDL_GPU_LOADOP_CLEAR : SDL_GPU_LOADOP_LOAD;
@@ -172,6 +184,14 @@ RenderPass RenderContext::BeginRenderPass(const RenderPassDesc& desc) {
     }
     m_impl->passOpen = pass != nullptr;
     return RenderPass(*this, pass);
+}
+
+void RenderContext::GenerateMipmaps(Texture& texture) {
+    SPOT_ASSERT(!m_impl->passOpen, "Mipmaps cannot be generated during a render pass");
+    if (texture.GetMipLevelCount() > 1) {
+        SDL_GenerateMipmapsForGPUTexture(m_impl->commandBuffer,
+                                         static_cast<SDL_GPUTexture*>(texture.GetNativeHandle()));
+    }
 }
 
 void* RenderContext::GetNativeHandle() const {

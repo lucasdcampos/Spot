@@ -13,6 +13,8 @@ cbuffer Sky : register(b0, space3) {
     // The sun's angular radius in radians, the atmosphere's thickness, the exposure, and 1 in w when drawing into an
     // HDR target, which a tonemapper brings within the display's range later.
     float4 settings;
+    // 1 in x when capturing the sky's light for the scene's lighting, with the scale of that light in y.
+    float4 capture;
 };
 
 // The fog's color, with 1 in w when there is fog; its density, start, height falloff and base height; and the camera's
@@ -190,9 +192,34 @@ float3 Expose(float3 light) {
     return color / pow(1.0 + pow(brightest, 8.0), 1.0 / 8.0);
 }
 
+// The atmosphere is single scattering, which leaves out the light the air scatters more than once, about as much again
+// near the ground; must match MultipleScattering in renderer_3d.cpp.
+static const float MultipleScattering = 2.0;
+
+// The light from the direction in the units surfaces are shown in, where a white matte surface receiving an
+// irradiance of 1 shows 1, so that the sky lights the scene as GetSkyLighting() says on the CPU: radiance times pi.
+// There is no sun, which the scene's directional light already is, nor fog, which surfaces get on their own.
+float3 GetCapturedLight(float3 direction, float3 toSun) {
+    float3 transmittance;
+    const float3 level = float3(direction.x, 0.0, direction.z);
+    const float3 horizon = dot(level, level) > 1e-8 ? normalize(level) : float3(1.0, 0.0, 0.0);
+    const float3 sunlight = sunColor.rgb * sunDirection.w;
+    const float3 air = Pi * MultipleScattering * sunlight *
+                           GetSkyRadiance(direction.y >= 0.0 ? direction : horizon, toSun, transmittance) +
+                       nightColor.rgb;
+    float3 light = air;
+    if (direction.y < 0.0) {
+        light = lerp(air, groundColor.rgb * groundLight.rgb, 1.0 - exp(direction.y / HorizonFade));
+    }
+    return light * capture.y;
+}
+
 float4 main(Input input) : SV_Target0 {
     const float3 direction = normalize(input.direction.xyz / input.direction.w);
     const float3 toSun = sunDirection.xyz;
+    if (capture.x > 0.5) {
+        return float4(GetCapturedLight(direction, toSun), 1.0);
+    }
     float3 transmittance;
     float3 color;
     const float sunRadius = settings.x;

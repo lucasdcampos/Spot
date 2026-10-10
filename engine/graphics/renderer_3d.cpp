@@ -22,6 +22,8 @@
 #include "shadow.vert.h"
 #include "sky.frag.h"
 #include "sky.vert.h"
+#include "sky_irradiance.frag.h"
+#include "sky_prefilter.frag.h"
 
 #include <algorithm>
 #include <array>
@@ -54,6 +56,8 @@ struct LightingUniforms {
     Vector4 cameraPosition;
     // x is the number of lights; a whole row keeps the layout the same in every shader language.
     std::array<std::uint32_t, 4> lightCount;
+    // 1 when the sky lights the scene, and the mip level of its reflections for a roughness of 1.
+    Vector4 skyLighting;
     std::array<LightUniforms, Renderer3D::MaxLights> lights;
 };
 
@@ -68,7 +72,38 @@ struct SkyUniforms {
     Color nightColor;
     // The sun's angular radius, the atmosphere's thickness and the exposure.
     Vector4 settings;
+    // 1 when capturing the sky's light for lighting, and the scale of that light.
+    Vector4 capture;
 };
+
+struct PrefilterUniforms {
+    Vector4 forward;
+    Vector4 right;
+    Vector4 up;
+    // The roughness, the size of the environment's faces, and its number of mip levels.
+    Vector4 params;
+};
+
+// The sky's light is captured at this size, which is plenty for its smooth gradients, and blurred into this many
+// levels of roughness, from 0 to 1.
+constexpr std::uint32_t SkyCubeSize = 64;
+constexpr std::uint32_t SkyReflectionLevels = 5;
+// The sky's irradiance is projected from its faces at this size.
+constexpr std::uint32_t SkyIrradianceSamples = 16;
+
+// The directions of each face of a cube texture, as TextureType::Cube lays them out: forward, right and up.
+constexpr std::array<std::array<Vector3, 3>, 6> CubeFaces{{
+    {{{1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}}},
+    {{{-1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}}},
+    {{{0.0f, 1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}}},
+    {{{0.0f, -1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}},
+    {{{0.0f, 0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}}},
+    {{{0.0f, 0.0f, -1.0f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}}},
+}};
+
+Vector4 ToVector4(Vector3 v, float w = 0.0f) {
+    return {v.x, v.y, v.z, w};
+}
 
 Color operator*(Color color, float scale) {
     return {color.r * scale, color.g * scale, color.b * scale, color.a};
@@ -272,6 +307,25 @@ Renderer3D::Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config) :
             .depth = DepthState{.format = config.depthFormat, .test = false, .write = false},
             .sampleCount = config.sampleCount,
         });
+        m_skyCapturePipeline = device.CreatePipeline({
+            .vertexShader = skyVertexShader.get(),
+            .fragmentShader = skyFragmentShader.get(),
+            .targetFormat = TextureFormat::Rgba16Float,
+        });
+    }
+    m_skyPrefilter =
+        FullscreenPass::Create(device, Detail::Shaders::SkyPrefilterFrag, {.targetFormat = TextureFormat::Rgba16Float});
+    m_skyIrradiancePass = FullscreenPass::Create(device, Detail::Shaders::SkyIrradianceFrag,
+                                                 {.targetFormat = TextureFormat::Rgba16Float});
+    m_skySampler = device.CreateSampler();
+    m_noSkyReflections = device.CreateTexture(
+        {.width = 1, .height = 1, .format = TextureFormat::Rgba16Float, .type = TextureType::Cube});
+    if (m_noSkyReflections) {
+        device.UploadToTexture(*m_noSkyReflections, std::array<std::uint16_t, 6 * 4>{});
+    }
+    m_noSkyIrradiance = device.CreateTexture({.width = 9, .height = 1, .format = TextureFormat::Rgba16Float});
+    if (m_noSkyIrradiance) {
+        device.UploadToTexture(*m_noSkyIrradiance, std::array<std::uint16_t, 9 * 4>{});
     }
 
     const auto shadowVertexShader = device.CreateShader(Detail::Shaders::ShadowVert);
@@ -313,7 +367,8 @@ Renderer3D::~Renderer3D() = default;
 
 bool Renderer3D::IsValid() const {
     return m_pipeline && m_doubleSidedPipeline && m_skyPipeline && m_shadowPipeline && m_doubleSidedShadowPipeline &&
-           m_sampler && m_shadowSampler && m_whiteTexture && m_noShadows;
+           m_sampler && m_shadowSampler && m_whiteTexture && m_noShadows && m_skyCapturePipeline && m_skyPrefilter &&
+           m_skyIrradiancePass && m_skySampler && m_noSkyReflections && m_noSkyIrradiance;
 }
 
 void Renderer3D::Begin(RenderContext& context, const RenderPassDesc& target, const Camera3D& camera) {
@@ -346,6 +401,7 @@ void Renderer3D::End() {
     }
 
     std::optional<SkyLighting> skyLighting;
+    m_skyLit = false;
     if (m_sky) {
         skyLighting = GetSkyLighting(*m_sky);
         if (m_sky->lightsScene) {
@@ -354,7 +410,11 @@ void Renderer3D::End() {
                 sun.castsShadows = m_sky->sunCastsShadows;
                 m_lights.push_back(sun);
             }
-            m_lights.push_back({.type = LightType::Ambient, .color = skyLighting->ambient});
+            // The sky lights from every direction, through its captured light; should that fail, it lights evenly.
+            m_skyLit = UpdateSkyLighting(*m_sky, *skyLighting);
+            if (!m_skyLit) {
+                m_lights.push_back({.type = LightType::Ambient, .color = skyLighting->ambient});
+            }
         }
     }
     Detail::SelectedLights lights = SelectLights(m_lights, m_camera.position, m_warnedAboutLights);
@@ -453,7 +513,10 @@ void Renderer3D::DrawScene(Scene& scene) {
     });
 }
 
-void Renderer3D::FlushSky(RenderPass& pass, const SkyData& sky, const SkyLighting& lighting) {
+namespace {
+
+// Captures are the sky's light for lighting; draws are the sky as seen, into an HDR target or not.
+SkyUniforms GetSkyUniforms(const SkyData& sky, const SkyLighting& lighting, bool hdr, bool capture) {
     const Vector3 toSun = -Normalize(sky.sunDirection);
     const bool hasSun = sky.hasSun && toSun != Vector3{};
     const float intensity = hasSun ? sky.sunIntensity : 0.0f;
@@ -462,21 +525,93 @@ void Renderer3D::FlushSky(RenderPass& pass, const SkyData& sky, const SkyLightin
     if (lighting.sun) {
         groundLight = groundLight + lighting.sun->color * std::max(toSun.y, 0.0f);
     }
+    return {
+        .sunDirection = {toSun.x, toSun.y, toSun.z, hasSun ? 1.0f : 0.0f},
+        .sunColor = {sky.sunColor.r * intensity, sky.sunColor.g * intensity, sky.sunColor.b * intensity, 1.0f},
+        .skyTint = sky.skyTint,
+        .groundColor = sky.groundColor,
+        .groundLight = groundLight,
+        .sunLight = lighting.sun ? lighting.sun->color : Color::Black,
+        .nightColor = sky.nightColor,
+        .settings = {std::max(sky.sunSize, 0.0f), std::max(sky.atmosphereThickness, 0.0f), std::max(sky.exposure, 0.0f),
+                     hdr ? 1.0f : 0.0f},
+        .capture = {capture ? 1.0f : 0.0f, std::max(sky.ambientIntensity, 0.0f), 0.0f, 0.0f},
+    };
+}
 
+} // namespace
+
+bool Renderer3D::UpdateSkyLighting(const SkyData& sky, const SkyLighting& lighting) {
+    if (m_capturedSky == sky) {
+        return true;
+    }
+    if (!m_skyEnvironment) {
+        m_skyEnvironment = m_device->CreateTexture({.width = SkyCubeSize,
+                                                    .height = SkyCubeSize,
+                                                    .format = TextureFormat::Rgba16Float,
+                                                    .type = TextureType::Cube,
+                                                    .renderTarget = true,
+                                                    .mipmaps = true});
+        m_skyReflections = m_device->CreateTexture({.width = SkyCubeSize,
+                                                    .height = SkyCubeSize,
+                                                    .format = TextureFormat::Rgba16Float,
+                                                    .type = TextureType::Cube,
+                                                    .renderTarget = true,
+                                                    .mipmaps = true});
+        m_skyIrradiance = m_device->CreateTexture(
+            {.width = 9, .height = 1, .format = TextureFormat::Rgba16Float, .renderTarget = true});
+    }
+    if (!m_skyEnvironment || !m_skyReflections || !m_skyIrradiance) {
+        return false;
+    }
+
+    // Each face is drawn with the sky's directions for its texels: clip-space x and y run along its right and up.
+    const SkyUniforms uniforms = GetSkyUniforms(sky, lighting, true, true);
+    for (std::uint32_t face = 0; face < 6; ++face) {
+        const auto& [forward, right, up] = CubeFaces[face];
+        Matrix4 directions;
+        directions.columns = {ToVector4(right), ToVector4(up), Vector4{}, ToVector4(forward, 1.0f)};
+        auto pass = m_context->BeginRenderPass({.target = m_skyEnvironment.get(), .targetLayer = face});
+        pass.BindPipeline(*m_skyCapturePipeline);
+        pass.PushVertexUniforms(0, directions);
+        pass.PushFragmentUniforms(0, uniforms);
+        pass.PushFragmentUniforms(1, GetFogUniforms(std::nullopt, {}));
+        pass.Draw(3);
+    }
+    m_context->GenerateMipmaps(*m_skyEnvironment);
+
+    const FullscreenInput environment{m_skyEnvironment.get(), m_skySampler.get()};
+    const float levels = static_cast<float>(m_skyEnvironment->GetMipLevelCount());
+    for (std::uint32_t level = 0; level < SkyReflectionLevels; ++level) {
+        const float roughness = static_cast<float>(level) / static_cast<float>(SkyReflectionLevels - 1);
+        for (std::uint32_t face = 0; face < 6; ++face) {
+            const auto& [forward, right, up] = CubeFaces[face];
+            auto pass = m_context->BeginRenderPass(
+                {.target = m_skyReflections.get(), .targetLayer = face, .targetMipLevel = level});
+            pass.PushFragmentUniforms(
+                0, PrefilterUniforms{.forward = ToVector4(forward),
+                                     .right = ToVector4(right),
+                                     .up = ToVector4(up),
+                                     .params = {roughness, static_cast<float>(SkyCubeSize), levels, 0.0f}});
+            m_skyPrefilter->Draw(pass, {&environment, 1});
+        }
+    }
+
+    {
+        auto pass = m_context->BeginRenderPass({.target = m_skyIrradiance.get()});
+        const float level = std::log2(static_cast<float>(SkyCubeSize / SkyIrradianceSamples));
+        pass.PushFragmentUniforms(0, Vector4{static_cast<float>(SkyCubeSize), level, 0.0f, 0.0f});
+        m_skyIrradiancePass->Draw(pass, {&environment, 1});
+    }
+    m_capturedSky = sky;
+    ++m_stats.skyLightingUpdates;
+    return true;
+}
+
+void Renderer3D::FlushSky(RenderPass& pass, const SkyData& sky, const SkyLighting& lighting) {
     pass.BindPipeline(*m_skyPipeline);
     pass.PushVertexUniforms(0, m_inverseSkyViewProjection);
-    pass.PushFragmentUniforms(
-        0, SkyUniforms{
-               .sunDirection = {toSun.x, toSun.y, toSun.z, hasSun ? 1.0f : 0.0f},
-               .sunColor = {sky.sunColor.r * intensity, sky.sunColor.g * intensity, sky.sunColor.b * intensity, 1.0f},
-               .skyTint = sky.skyTint,
-               .groundColor = sky.groundColor,
-               .groundLight = groundLight,
-               .sunLight = lighting.sun ? lighting.sun->color : Color::Black,
-               .nightColor = sky.nightColor,
-               .settings = {std::max(sky.sunSize, 0.0f), std::max(sky.atmosphereThickness, 0.0f),
-                            std::max(sky.exposure, 0.0f), m_config.hdr ? 1.0f : 0.0f},
-           });
+    pass.PushFragmentUniforms(0, GetSkyUniforms(sky, lighting, m_config.hdr, false));
     pass.PushFragmentUniforms(1, GetFogUniforms(m_fog, m_camera.position));
     pass.Draw(3);
     ++m_stats.drawCalls;
@@ -642,11 +777,15 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
     }
 
     pass.PushVertexUniforms(0, m_viewProjection);
-    pass.PushFragmentUniforms(0, GetLightingUniforms(lights, m_camera.position));
+    LightingUniforms lighting = GetLightingUniforms(lights, m_camera.position);
+    lighting.skyLighting = {m_skyLit ? 1.0f : 0.0f, static_cast<float>(SkyReflectionLevels - 1), 0.0f, 0.0f};
+    pass.PushFragmentUniforms(0, lighting);
     pass.PushFragmentUniforms(2, shadows);
     pass.PushFragmentUniforms(3, GetFogUniforms(m_fog, m_camera.position));
     pass.BindFragmentTexture(1, m_cascadeShadows ? *m_cascadeShadows : *m_noShadows, *m_shadowSampler);
     pass.BindFragmentTexture(2, m_localShadows ? *m_localShadows : *m_noShadows, *m_shadowSampler);
+    pass.BindFragmentTexture(7, m_skyLit ? *m_skyReflections : *m_noSkyReflections, *m_skySampler);
+    pass.BindFragmentTexture(8, m_skyLit ? *m_skyIrradiance : *m_noSkyIrradiance, *m_skySampler);
 
     const Pipeline* boundPipeline = nullptr;
     MaterialTextures boundTextures{};

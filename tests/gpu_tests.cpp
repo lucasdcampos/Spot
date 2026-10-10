@@ -351,6 +351,94 @@ TEST_CASE("Mipmapped textures get a level per halving and keep their full-size p
     CHECK(downloaded == pixels);
 }
 
+TEST_CASE("Cube textures round-trip their faces at each mip level", "[gpu]") {
+    RequireGpu();
+    // Each face a color of its own.
+    std::vector<std::uint8_t> pixels;
+    for (std::uint8_t face = 0; face < 6; ++face) {
+        for (int texel = 0; texel < 4; ++texel) {
+            pixels.insert(pixels.end(),
+                          {static_cast<std::uint8_t>(40 * face), 7, static_cast<std::uint8_t>(face), 255});
+        }
+    }
+    std::vector<std::uint8_t> level0;
+    std::vector<std::uint8_t> level1;
+    std::uint32_t layers = 0;
+    bool oblongRejected = false;
+
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext&) {
+        if (!level0.empty()) {
+            return;
+        }
+        auto& device = app.GetGraphicsDevice();
+        const auto cube =
+            device.CreateTexture({.width = 2, .height = 2, .type = Spot::TextureType::Cube, .mipmaps = true});
+        REQUIRE(cube != nullptr);
+        layers = cube->GetLayerCount();
+        oblongRejected = device.CreateTexture({.width = 2, .height = 1, .type = Spot::TextureType::Cube}) == nullptr;
+        device.UploadToTexture(*cube, pixels);
+        level0 = device.DownloadTexture(*cube);
+        level1 = device.DownloadTexture(*cube, 1);
+    });
+
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    CHECK(layers == 6);
+    CHECK(oblongRejected);
+    CHECK(level0 == pixels);
+    // The second level is a texel per face, the average of the face's.
+    REQUIRE(level1.size() == 6 * 4);
+    for (std::size_t face = 0; face < 6; ++face) {
+        INFO("Face " << face);
+        CHECK(level1[face * 4] == 40 * face);
+        CHECK(level1[face * 4 + 2] == face);
+    }
+}
+
+TEST_CASE("Render passes draw into a face and mip level of a target, and mipmaps are generated from the first level",
+          "[gpu]") {
+    RequireGpu();
+    std::unique_ptr<Spot::Texture> cube;
+    std::unique_ptr<Spot::Texture> flat;
+    std::vector<std::uint8_t> cubeLevel1;
+    std::vector<std::uint8_t> flatLevel2;
+    int frame = 0;
+
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
+        auto& device = app.GetGraphicsDevice();
+        if (++frame == 2) {
+            cubeLevel1 = device.DownloadTexture(*cube, 1);
+            flatLevel2 = device.DownloadTexture(*flat, 2);
+            return;
+        }
+        if (frame != 1) {
+            return;
+        }
+        cube = device.CreateTexture(
+            {.width = 4, .height = 4, .type = Spot::TextureType::Cube, .renderTarget = true, .mipmaps = true});
+        flat = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true, .mipmaps = true});
+        REQUIRE((cube && flat));
+        for (std::uint32_t face = 0; face < 6; ++face) {
+            context.BeginRenderPass(
+                {.target = cube.get(), .targetLayer = face, .targetMipLevel = 1, .clearColor = Spot::Color::Black});
+        }
+        context.BeginRenderPass(
+            {.target = cube.get(), .targetLayer = 2, .targetMipLevel = 1, .clearColor = Spot::Color::Red});
+        context.BeginRenderPass({.target = flat.get(), .clearColor = Spot::Color::Green});
+        context.GenerateMipmaps(*flat);
+    });
+
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    // Level 1 of the cube is 2x2 per face; only the third face, +Y, is red.
+    REQUIRE(cubeLevel1.size() == 6 * 2 * 2 * 4);
+    for (std::size_t face = 0; face < 6; ++face) {
+        INFO("Face " << face);
+        CHECK(cubeLevel1[face * 16] == (face == 2 ? 255 : 0));
+        CHECK(cubeLevel1[face * 16 + 12] == (face == 2 ? 255 : 0));
+    }
+    REQUIRE(flatLevel2.size() == 4);
+    CHECK(std::vector<std::uint8_t>(flatLevel2.begin(), flatLevel2.end()) == std::vector<std::uint8_t>{0, 255, 0, 255});
+}
+
 TEST_CASE("Depth targets hide what is drawn behind, whatever the order", "[gpu]") {
     RequireGpu();
 
@@ -1554,6 +1642,84 @@ TEST_CASE("Renderer3D draws a blue sky over the ground's color", "[gpu]") {
     CHECK(sky[2] > sky[0] + 40);
     CHECK(sky[2] > 120);
     CHECK(ground[0] > ground[2] + 40);
+}
+
+namespace {
+
+// A sky without a sun, whose light is its night color above the horizon and the ground's color, lit by that, below.
+constexpr Spot::SkyData PlainSky{
+    .hasSun = false, .groundColor = {1.0f, 0.0f, 0.0f}, .nightColor = {0.2f, 0.4f, 1.0f}, .sunCastsShadows = false};
+
+// A white wall lit only by the sky, seen from the camera.
+TargetRender RenderSkyLitWall(const Spot::Camera3D& camera, const Spot::Matrix4& wall,
+                              const Spot::Material& material = {}) {
+    return TargetRender(
+        32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            REQUIRE(cube != nullptr);
+            renderer.Begin(context, target, camera);
+            renderer.DrawSky(PlainSky);
+            renderer.DrawMesh(*cube, material, wall);
+            renderer.End();
+        });
+}
+
+} // namespace
+
+TEST_CASE("Renderer3D lights surfaces with the sky's light from all around", "[gpu]") {
+    RequireGpu();
+
+    // A floor seen from above gets the sky's light; a ceiling seen from below, the ground's.
+    Spot::Camera3D above;
+    above.position = {0.0f, 3.0f, 0.0f};
+    above.rotation = Spot::Quaternion::LookRotation({0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, -1.0f});
+    Spot::Camera3D below;
+    below.position = {0.0f, -3.0f, 0.0f};
+    below.rotation = Spot::Quaternion::LookRotation({0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, -1.0f});
+    const auto slab = Spot::Matrix4::Scale({20.0f, 1.0f, 20.0f});
+    const Pixel floor = RenderSkyLitWall(above, slab).At(16, 16);
+    const Pixel ceiling = RenderSkyLitWall(below, slab).At(16, 16);
+    INFO("Floor " << int{floor[0]} << ", " << int{floor[1]} << ", " << int{floor[2]} << "; ceiling " << int{ceiling[0]}
+                  << ", " << int{ceiling[1]} << ", " << int{ceiling[2]});
+    CHECK(std::abs(floor[0] - 51) < 12);
+    CHECK(std::abs(floor[1] - 102) < 12);
+    CHECK(floor[2] > 235);
+    // The ground is red, lit by the sky: 0.2 of red.
+    CHECK(std::abs(ceiling[0] - 51) < 12);
+    CHECK(ceiling[2] < 25);
+
+    // A mirror floor reflects the sky above, and a rough metal one blurs in some of the ground.
+    const Pixel mirror = RenderSkyLitWall(above, slab, {.metallic = 1.0f, .roughness = 0.0f}).At(16, 16);
+    const Pixel rough = RenderSkyLitWall(above, slab, {.metallic = 1.0f, .roughness = 1.0f}).At(16, 16);
+    INFO("Mirror " << int{mirror[0]} << ", " << int{mirror[1]} << ", " << int{mirror[2]});
+    CHECK(std::abs(mirror[0] - 51) < 8);
+    CHECK(std::abs(mirror[1] - 102) < 8);
+    CHECK(mirror[2] > 240);
+    INFO("Rough " << int{rough[0]} << ", " << int{rough[1]} << ", " << int{rough[2]});
+    CHECK(rough[2] < mirror[2]);
+    CHECK(rough[1] < mirror[1]);
+}
+
+TEST_CASE("Renderer3D captures the sky's light again only when the sky changes", "[gpu]") {
+    RequireGpu();
+    std::vector<std::uint32_t> updates;
+    const TargetRender render(
+        8, 8, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            Spot::SkyData sky = PlainSky;
+            for (int frame = 0; frame < 4; ++frame) {
+                if (frame == 2) {
+                    sky.nightColor = Spot::Color::White;
+                }
+                renderer.Begin(context, target, MakeFrontCamera());
+                // A sky that only is drawn has no light to capture.
+                renderer.DrawSky(frame == 3 ? Spot::SkyData{.lightsScene = false} : sky);
+                renderer.End();
+                updates.push_back(renderer.GetStats().skyLightingUpdates);
+            }
+        });
+    CHECK(updates == std::vector<std::uint32_t>{1, 0, 1, 0});
 }
 
 TEST_CASE("Renderer3D draws the sky behind meshes", "[gpu]") {

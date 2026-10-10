@@ -33,10 +33,12 @@ struct SkyData {
     float exposure = 1.0f;
     // Whether the sky lights the scene, with its sun and its ambient light, or is only drawn.
     bool lightsScene = true;
-    // Scales the ambient light the sky casts on the scene; 0 leaves only the sun.
+    // Scales the light the sky casts on the scene, diffuse and reflected; 0 leaves only the sun.
     float ambientIntensity = 1.0f;
     // Whether the sun casts shadows when it lights the scene; see LightData::castsShadows.
     bool sunCastsShadows = true;
+
+    bool operator==(const SkyData&) const = default;
 };
 
 } // namespace Spot

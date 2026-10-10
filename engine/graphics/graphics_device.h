@@ -94,8 +94,8 @@ public:
     // GraphicsConfig::linearWindow is off.
     TextureFormat GetWindowFormat() const;
 
-    // Replaces all of the texture's pixels: width * height * GetBytesPerPixel() bytes, rows from top to bottom. Like
-    // buffer uploads, it can be called at any time.
+    // Replaces all of the texture's pixels: width * height * GetBytesPerPixel() bytes, rows from top to bottom, for
+    // each of its layers in turn (the six faces of a cube). Like buffer uploads, it can be called at any time.
     void UploadToTexture(Texture& texture, std::span<const std::byte> pixels);
 
     template <std::ranges::contiguous_range Data>
@@ -103,9 +103,10 @@ public:
         UploadToTexture(texture, std::span<const std::byte>(std::as_bytes(std::span(pixels))));
     }
 
-    // Reads the texture's pixels back, rows from top to bottom. It waits for the GPU, so it is slow and meant for
-    // screenshots, tools and tests. It sees the work of frames already submitted, not of the frame being recorded.
-    std::vector<std::uint8_t> DownloadTexture(const Texture& texture);
+    // Reads the pixels of a mip level of the texture back, rows from top to bottom, for each of its layers in turn. It
+    // waits for the GPU, so it is slow and meant for screenshots, tools and tests. It sees the work of frames already
+    // submitted, not of the frame being recorded.
+    std::vector<std::uint8_t> DownloadTexture(const Texture& texture, std::uint32_t mipLevel = 0);
 
     bool IsVSyncEnabled() const;
     void SetVSync(bool enabled);

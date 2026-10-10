@@ -18,6 +18,10 @@ class RenderContext;
 struct RenderPassDesc {
     // A texture created as a render target, or null to draw into the window.
     Texture* target = nullptr;
+    // The face of a cube target to draw into (see TextureType::Cube), and the mip level of the target, which the pass
+    // then covers at its size.
+    std::uint32_t targetLayer = 0;
+    std::uint32_t targetMipLevel = 0;
     // Clears the target first when set; otherwise the pass draws over its current contents.
     std::optional<Color> clearColor = std::nullopt;
     // A depth texture created as a render target, the size of the target, for pipelines that test depth.
@@ -131,6 +135,9 @@ public:
     int GetHeight() const;
 
     RenderPass BeginRenderPass(const RenderPassDesc& desc = {});
+    // Makes every mip level of a texture after the first from the one before it, for render targets drawn at their
+    // first level. Not during a render pass.
+    void GenerateMipmaps(Texture& texture);
 
     // The backend's command buffer (an SDL_GPUCommandBuffer* with SDL_GPU), for code that needs the backend directly.
     void* GetNativeHandle() const;

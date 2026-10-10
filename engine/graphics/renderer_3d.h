@@ -3,6 +3,7 @@
 #include "graphics/camera_3d.h"
 #include "graphics/color.h"
 #include "graphics/fog_data.h"
+#include "graphics/fullscreen_pass.h"
 #include "graphics/light_data.h"
 #include "graphics/mesh_data.h"
 #include "graphics/render_context.h"
@@ -65,6 +66,8 @@ struct Renderer3DStats {
     std::uint32_t triangleCount = 0;
     // In the passes that draw shadow maps.
     std::uint32_t shadowDrawCalls = 0;
+    // 1 when the sky changed and its light was captured again, which takes a few passes.
+    std::uint32_t skyLightingUpdates = 0;
 };
 
 // Draws lit, textured meshes with depth testing. Like Renderer2D, it is built only on the public graphics API. It
@@ -152,6 +155,8 @@ private:
     void DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjection, bool ignoreNear);
     void Flush(RenderPass& pass, const Detail::SelectedLights& lights, const Detail::ShadowUniforms& shadows);
     void FlushSky(RenderPass& pass, const SkyData& sky, const Detail::SkyLighting& lighting);
+    // Captures the sky's light into the reflections and irradiance when it changed; false when it cannot.
+    bool UpdateSkyLighting(const SkyData& sky, const Detail::SkyLighting& lighting);
 
     std::unique_ptr<Pipeline> m_pipeline;
     std::unique_ptr<Pipeline> m_doubleSidedPipeline;
@@ -166,6 +171,20 @@ private:
     bool m_noShadowsCleared = false;
     std::unique_ptr<Texture> m_cascadeShadows;
     std::unique_ptr<Texture> m_localShadows;
+    // The sky's light, as surfaces show it: captured into a cube, then blurred for each roughness down the mip levels
+    // of the reflections, and projected onto spherical harmonics in the irradiance. Black ones stand in without a
+    // sky.
+    std::unique_ptr<Pipeline> m_skyCapturePipeline;
+    std::unique_ptr<FullscreenPass> m_skyPrefilter;
+    std::unique_ptr<FullscreenPass> m_skyIrradiancePass;
+    std::unique_ptr<Sampler> m_skySampler;
+    std::unique_ptr<Texture> m_skyEnvironment;
+    std::unique_ptr<Texture> m_skyReflections;
+    std::unique_ptr<Texture> m_skyIrradiance;
+    std::unique_ptr<Texture> m_noSkyReflections;
+    std::unique_ptr<Texture> m_noSkyIrradiance;
+    std::optional<SkyData> m_capturedSky;
+    bool m_skyLit = false;
     GraphicsDevice* m_device;
     Renderer3DConfig m_config;
 

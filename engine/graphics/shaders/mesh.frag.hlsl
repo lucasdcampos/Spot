@@ -14,6 +14,12 @@ Texture2D<float4> occlusionTexture : register(t5, space2);
 SamplerState occlusionSampler : register(s5, space2);
 Texture2D<float4> emissiveTexture : register(t6, space2);
 SamplerState emissiveSampler : register(s6, space2);
+// The sky's light, blurred for each roughness down its mip levels, and its irradiance as nine spherical harmonics,
+// already convolved with the cosine lobe.
+TextureCube<float4> skyReflections : register(t7, space2);
+SamplerState skyReflectionsSampler : register(s7, space2);
+Texture2D<float4> skyIrradiance : register(t8, space2);
+SamplerState skyIrradianceSampler : register(s8, space2);
 
 // Must match Renderer3D::MaxLights, Detail::MaxShadowCascades and Renderer3D::MaxShadowTiles.
 #define MAX_LIGHTS 16
@@ -37,6 +43,8 @@ cbuffer Lighting : register(b0, space3) {
     float4 ambientColor;
     float4 cameraPosition;
     uint4 lightCount;
+    // 1 in x when the sky lights the scene, and in y the mip level of its reflections for a roughness of 1.
+    float4 skyLighting;
     Light lights[MAX_LIGHTS];
 };
 
@@ -262,6 +270,29 @@ Lit GetLight(Light light, float3 position, float3 normal, float3 toViewer, float
     return lit;
 }
 
+// The light a surface facing the direction receives from the sky.
+float3 GetSkyIrradiance(float3 n) {
+    float3 sh[9];
+    [unroll] for (int i = 0; i < 9; ++i) {
+        sh[i] = skyIrradiance.Load(int3(i, 0, 0)).rgb;
+    }
+    return max(sh[0] * 0.282095 + (sh[1] * n.y + sh[2] * n.z + sh[3] * n.x) * 0.488603 +
+                   (sh[4] * n.x * n.y + sh[5] * n.y * n.z + sh[7] * n.x * n.z) * 1.092548 +
+                   sh[6] * 0.315392 * (3.0 * n.z * n.z - 1.0) + sh[8] * 0.546274 * (n.x * n.x - n.y * n.y),
+               0.0);
+}
+
+// The share of light from all around that a surface reflects toward the viewer: the integral of the GGX lobe over the
+// environment, fitted analytically (Karis 2014) instead of read from a table.
+float3 GetEnvironmentReflectance(float3 reflectance, float perceived, float nv) {
+    const float4 c0 = float4(-1.0, -0.0275, -0.572, 0.022);
+    const float4 c1 = float4(1.0, 0.0425, 1.04, -0.04);
+    const float4 r = perceived * c0 + c1;
+    const float a004 = min(r.x * r.x, exp2(-9.28 * nv)) * r.x + r.y;
+    const float2 ab = float2(-1.04, 1.04) * a004 + r.zw;
+    return reflectance * ab.x + ab.y;
+}
+
 // Tilts the normal as the normal map says, in the tangent space of the surface. Projected textures have no tangents
 // of their own, so they keep the mesh's normals.
 float3 ApplyNormalMap(float3 normal, float4 tangent, float2 uv) {
@@ -300,7 +331,21 @@ float4 main(Input input) : SV_Target0 {
         diffuse += lit.diffuse;
         highlights += lit.specular;
     }
+    // Light from all around: ambient lights, the same from every direction, and the sky's, scattered by the
+    // irradiance and reflected from the blurred sky along the mirror direction. Occlusion darkens both.
+    float3 surroundings = ambientColor.rgb;
+    float3 reflectedSurroundings = ambientColor.rgb;
+    const float3 seenNormal = dot(normal, toViewer) < 0.0 && doubleSided > 0.5 ? -normal : normal;
+    if (skyLighting.x > 0.5) {
+        surroundings += GetSkyIrradiance(seenNormal);
+        const float3 mirrored = reflect(-toViewer, seenNormal);
+        reflectedSurroundings +=
+            skyReflections.SampleLevel(skyReflectionsSampler, mirrored, perceived * skyLighting.y).rgb;
+    }
+    const float nv = saturate(dot(seenNormal, toViewer));
+    const float3 ambient = scattered * surroundings +
+                           reflectedSurroundings * GetEnvironmentReflectance(reflectance, perceived, nv);
     const float3 emitted = emissive.rgb * emissiveTexture.Sample(emissiveSampler, uv).rgb;
-    const float3 color = scattered * (diffuse + ambientColor.rgb * occlusion) + highlights + emitted;
+    const float3 color = scattered * diffuse + ambient * occlusion + highlights + emitted;
     return float4(lerp(color, fogColor.rgb, GetFogAmount(input.worldPosition - fogCamera.xyz)), albedo.a);
 }

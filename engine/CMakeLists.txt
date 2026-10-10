@@ -218,6 +218,8 @@ spot_add_shaders(spot_objects NAMESPACE Spot::Detail::Shaders
     graphics/shaders/shadow.vert.hlsl
     graphics/shaders/sky.frag.hlsl
     graphics/shaders/sky.vert.hlsl
+    graphics/shaders/sky_irradiance.frag.hlsl
+    graphics/shaders/sky_prefilter.frag.hlsl
     graphics/shaders/sprite.frag.hlsl
     graphics/shaders/sprite.vert.hlsl
     graphics/shaders/tonemap.frag.hlsl
