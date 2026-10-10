@@ -355,7 +355,7 @@ physics gun and the tool gun, and shoots and blows it apart.
 Design: actions are data in the input settings, not code. Each action has a type (button, axis, 2D vector) and
 bindings with processing (dead zone, invert, scale). A player's rebinds are saved in the game's user data folder.
 
-- [ ] **M2.1 Gamepads.** SDL3 gamepad events become engine events (connected, disconnected, button, axis), and
+- [x] **M2.1 Gamepads.** SDL3 gamepad events become engine events (connected, disconnected, button, axis), and
   `InputState` tracks each gamepad. Add `Input::IsGamepadButtonDown/Pressed/Released`, `GetGamepadAxis`, rumble, and
   a choice between one gamepad and any gamepad. Tests with synthetic events.
 - [ ] **M2.2 Text input.** A `TextInputEvent` from SDL text events, `Window::StartTextInput()`/`StopTextInput()` with
@@ -376,6 +376,10 @@ bindings with processing (dead zone, invert, scale). A player's rebinds are save
 **Done when:** the sandbox plays the same with keyboard and mouse or a gamepad, and a rebind survives a restart.
 
 **Notes:**
+- M2.1: "one gamepad or any gamepad" is an index argument, `Input::AnyGamepad` (-1) by default; gamepads are
+  numbered in the order they connected, and events from a gamepad not yet said to connect add it. The SDL backend
+  opens gamepads as they are added and flips the sticks' Y so up is positive; axes are raw, as dead zones are the
+  actions' processing (M2.3). Rumble is `Platform::RumbleGamepad()`.
 
 ---
 

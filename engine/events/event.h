@@ -61,6 +61,33 @@ struct MouseScrolledEvent {
     Vector2 delta;
 };
 
+// A gamepad was plugged in, or was already when the application started.
+struct GamepadConnectedEvent {
+    GamepadId gamepad;
+    std::string name;
+};
+
+struct GamepadDisconnectedEvent {
+    GamepadId gamepad;
+};
+
+struct GamepadButtonPressedEvent {
+    GamepadId gamepad;
+    GamepadButton button;
+};
+
+struct GamepadButtonReleasedEvent {
+    GamepadId gamepad;
+    GamepadButton button;
+};
+
+// A stick or a trigger moved to the value; see GamepadAxis.
+struct GamepadAxisEvent {
+    GamepadId gamepad;
+    GamepadAxis axis;
+    float value;
+};
+
 // The cursor left the window; its position is unknown until it moves over the window again.
 struct MouseLeaveEvent {};
 
@@ -73,10 +100,11 @@ struct FileDropEvent {
 
 class Event {
 public:
-    using Variant =
-        std::variant<WindowCloseEvent, WindowResizeEvent, WindowFocusEvent, WindowContentScaleEvent, KeyPressedEvent,
-                     KeyReleasedEvent, TextInputEvent, MouseMovedEvent, MouseButtonPressedEvent,
-                     MouseButtonReleasedEvent, MouseScrolledEvent, MouseLeaveEvent, FileDropEvent>;
+    using Variant = std::variant<WindowCloseEvent, WindowResizeEvent, WindowFocusEvent, WindowContentScaleEvent,
+                                 KeyPressedEvent, KeyReleasedEvent, TextInputEvent, MouseMovedEvent,
+                                 MouseButtonPressedEvent, MouseButtonReleasedEvent, MouseScrolledEvent, MouseLeaveEvent,
+                                 FileDropEvent, GamepadConnectedEvent, GamepadDisconnectedEvent,
+                                 GamepadButtonPressedEvent, GamepadButtonReleasedEvent, GamepadAxisEvent>;
 
     // Implicit so any event type can be passed where an Event is expected.
     template <typename T>

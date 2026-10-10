@@ -137,3 +137,60 @@ TEST_CASE("The cursor stays locked as the game asked, whatever the events", "[in
     CHECK_FALSE(state.IsCursorLocked());
     Spot::Input::SetState(nullptr);
 }
+
+TEST_CASE("Gamepads are tracked one by one, and queried one at a time or all at once", "[input][gamepad]") {
+    Spot::InputState state;
+    constexpr auto First = static_cast<Spot::GamepadId>(7);
+    constexpr auto Second = static_cast<Spot::GamepadId>(9);
+    state.OnEvent(Spot::GamepadConnectedEvent{.gamepad = First, .name = "Pad One"});
+    state.OnEvent(Spot::GamepadConnectedEvent{.gamepad = Second, .name = "Pad Two"});
+    REQUIRE(state.GetGamepadCount() == 2);
+    CHECK(state.GetGamepadId(0) == First);
+    CHECK(state.GetGamepadName(1) == "Pad Two");
+    CHECK(state.GetGamepadId(2) == Spot::GamepadId::Invalid);
+
+    state.OnEvent(Spot::GamepadButtonPressedEvent{.gamepad = Second, .button = Spot::GamepadButton::South});
+    state.OnEvent(Spot::GamepadAxisEvent{.gamepad = First, .axis = Spot::GamepadAxis::LeftY, .value = 0.5f});
+    state.OnEvent(Spot::GamepadAxisEvent{.gamepad = Second, .axis = Spot::GamepadAxis::LeftY, .value = -0.8f});
+    CHECK(state.IsGamepadButtonDown(Spot::GamepadButton::South));
+    CHECK(state.IsGamepadButtonPressed(Spot::GamepadButton::South, 1));
+    CHECK_FALSE(state.IsGamepadButtonDown(Spot::GamepadButton::South, 0));
+    CHECK(state.GetGamepadAxis(Spot::GamepadAxis::LeftY, 0) == 0.5f);
+    // Any gamepad gives the axis farthest from rest.
+    CHECK(state.GetGamepadAxis(Spot::GamepadAxis::LeftY) == -0.8f);
+
+    state.BeginFrame();
+    CHECK(state.IsGamepadButtonDown(Spot::GamepadButton::South));
+    CHECK_FALSE(state.IsGamepadButtonPressed(Spot::GamepadButton::South));
+    state.OnEvent(Spot::GamepadButtonReleasedEvent{.gamepad = Second, .button = Spot::GamepadButton::South});
+    CHECK(state.IsGamepadButtonReleased(Spot::GamepadButton::South, 1));
+
+    // Losing focus lets go of everything, as for keys.
+    state.OnEvent(Spot::GamepadButtonPressedEvent{.gamepad = First, .button = Spot::GamepadButton::Start});
+    state.OnEvent(Spot::WindowFocusEvent{.focused = false});
+    CHECK_FALSE(state.IsGamepadButtonDown(Spot::GamepadButton::Start));
+    CHECK(state.GetGamepadAxis(Spot::GamepadAxis::LeftY) == 0.0f);
+
+    state.OnEvent(Spot::GamepadDisconnectedEvent{.gamepad = First});
+    REQUIRE(state.GetGamepadCount() == 1);
+    CHECK(state.GetGamepadId(0) == Second);
+
+    // A gamepad whose events come before it was said to connect is tracked all the same.
+    state.OnEvent(Spot::GamepadButtonPressedEvent{.gamepad = First, .button = Spot::GamepadButton::North});
+    CHECK(state.GetGamepadCount() == 2);
+    CHECK(state.IsGamepadButtonDown(Spot::GamepadButton::North, 1));
+    CHECK(Spot::GetGamepadButtonName(Spot::GamepadButton::LeftShoulder) == "Left Shoulder");
+    CHECK(Spot::GetGamepadAxisName(Spot::GamepadAxis::RightTrigger) == "Right Trigger");
+}
+
+TEST_CASE("Rumbling needs a connected gamepad", "[input][gamepad]") {
+    Spot::InputState state;
+    Spot::InputState* previous = Spot::Input::GetState();
+    Spot::Input::SetState(&state);
+    CHECK_FALSE(Spot::Input::RumbleGamepad(1.0f, 1.0f, 0.1f));
+    state.OnEvent(Spot::GamepadConnectedEvent{.gamepad = static_cast<Spot::GamepadId>(12345), .name = "Missing"});
+    CHECK(Spot::Input::GetGamepadCount() == 1);
+    // A gamepad the platform never opened has no motors to shake.
+    CHECK_FALSE(Spot::Input::RumbleGamepad(1.0f, 1.0f, 0.1f));
+    Spot::Input::SetState(previous);
+}

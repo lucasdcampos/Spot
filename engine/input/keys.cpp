@@ -222,6 +222,20 @@ std::string_view GetKeyName(Key key) {
     return {};
 }
 
+std::string_view GetGamepadButtonName(GamepadButton button) {
+    constexpr std::string_view Names[] = {"South",          "East",     "West",       "North",       "Back",
+                                          "Guide",          "Start",    "Left Stick", "Right Stick", "Left Shoulder",
+                                          "Right Shoulder", "D-Pad Up", "D-Pad Down", "D-Pad Left",  "D-Pad Right"};
+    const auto index = static_cast<std::size_t>(button);
+    return index < std::size(Names) ? Names[index] : std::string_view();
+}
+
+std::string_view GetGamepadAxisName(GamepadAxis axis) {
+    constexpr std::string_view Names[] = {"Left X", "Left Y", "Right X", "Right Y", "Left Trigger", "Right Trigger"};
+    const auto index = static_cast<std::size_t>(axis);
+    return index < std::size(Names) ? Names[index] : std::string_view();
+}
+
 std::string_view GetMouseButtonName(MouseButton button) {
     switch (button) {
     case MouseButton::Left:

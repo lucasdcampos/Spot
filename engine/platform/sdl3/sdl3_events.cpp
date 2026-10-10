@@ -259,6 +259,17 @@ float GetContentScale(SDL_Window* window) {
     return displayScale > 0.0f && pixelDensity > 0.0f ? displayScale / pixelDensity : 1.0f;
 }
 
+GamepadId ToGamepadId(SDL_JoystickID id) {
+    return static_cast<GamepadId>(id);
+}
+
+// SDL's axes go from -32768 to 32767, with Y down; the engine's sticks go from -1 to 1 with Y up.
+float ToAxisValue(Uint8 axis, Sint16 value) {
+    const float scaled = std::max(static_cast<float>(value) / 32767.0f, -1.0f);
+    const bool vertical = axis == SDL_GAMEPAD_AXIS_LEFTY || axis == SDL_GAMEPAD_AXIS_RIGHTY;
+    return vertical ? -scaled : scaled;
+}
+
 std::optional<Event> Translate(const SDL_Event& event) {
     switch (event.type) {
     // The engine has a single window, so quitting the application and closing the window are the same request.
@@ -309,6 +320,34 @@ std::optional<Event> Translate(const SDL_Event& event) {
         const float direction = event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -1.0f : 1.0f;
         return MouseScrolledEvent{Vector2{event.wheel.x, event.wheel.y} * direction};
     }
+    case SDL_EVENT_GAMEPAD_ADDED: {
+        // Opened, so its events come in; SDL closes it again when it goes away.
+        SDL_OpenGamepad(event.gdevice.which);
+        const char* name = SDL_GetGamepadNameForID(event.gdevice.which);
+        return GamepadConnectedEvent{ToGamepadId(event.gdevice.which), name ? name : "Gamepad"};
+    }
+    case SDL_EVENT_GAMEPAD_REMOVED:
+        if (SDL_Gamepad* gamepad = SDL_GetGamepadFromID(event.gdevice.which)) {
+            SDL_CloseGamepad(gamepad);
+        }
+        return GamepadDisconnectedEvent{ToGamepadId(event.gdevice.which)};
+    case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+    case SDL_EVENT_GAMEPAD_BUTTON_UP: {
+        if (event.gbutton.button >= static_cast<Uint8>(GamepadButton::Count)) {
+            return std::nullopt;
+        }
+        const auto button = static_cast<GamepadButton>(event.gbutton.button);
+        if (event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN) {
+            return GamepadButtonPressedEvent{ToGamepadId(event.gbutton.which), button};
+        }
+        return GamepadButtonReleasedEvent{ToGamepadId(event.gbutton.which), button};
+    }
+    case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+        if (event.gaxis.axis >= static_cast<Uint8>(GamepadAxis::Count)) {
+            return std::nullopt;
+        }
+        return GamepadAxisEvent{ToGamepadId(event.gaxis.which), static_cast<GamepadAxis>(event.gaxis.axis),
+                                ToAxisValue(event.gaxis.axis, event.gaxis.value)};
     case SDL_EVENT_DROP_FILE:
         if (!event.drop.data) {
             return std::nullopt;

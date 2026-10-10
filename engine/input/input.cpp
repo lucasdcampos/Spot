@@ -1,6 +1,9 @@
 #include "input/input.h"
 
 #include "input/input_state.h"
+#include "platform/platform.h"
+
+#include <chrono>
 
 namespace Spot::Input {
 
@@ -57,6 +60,38 @@ Vector2 GetMouseDelta() {
 
 Vector2 GetScrollDelta() {
     return GetCurrent().GetScrollDelta();
+}
+
+int GetGamepadCount() {
+    return GetCurrent().GetGamepadCount();
+}
+
+bool IsGamepadButtonDown(GamepadButton button, int gamepad) {
+    return GetCurrent().IsGamepadButtonDown(button, gamepad);
+}
+
+bool IsGamepadButtonPressed(GamepadButton button, int gamepad) {
+    return GetCurrent().IsGamepadButtonPressed(button, gamepad);
+}
+
+bool IsGamepadButtonReleased(GamepadButton button, int gamepad) {
+    return GetCurrent().IsGamepadButtonReleased(button, gamepad);
+}
+
+float GetGamepadAxis(GamepadAxis axis, int gamepad) {
+    return GetCurrent().GetGamepadAxis(axis, gamepad);
+}
+
+bool RumbleGamepad(float low, float high, float seconds, int gamepad) {
+    const InputState& state = GetCurrent();
+    const auto duration = std::chrono::milliseconds(static_cast<std::int64_t>(seconds * 1000.0f));
+    bool rumbled = false;
+    for (int i = 0; i < state.GetGamepadCount(); ++i) {
+        if (gamepad == AnyGamepad || gamepad == i) {
+            rumbled = Platform::RumbleGamepad(state.GetGamepadId(i), low, high, duration) || rumbled;
+        }
+    }
+    return rumbled;
 }
 
 void SetCursorLocked(bool locked) {

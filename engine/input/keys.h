@@ -136,7 +136,44 @@ enum class MouseButton : std::uint8_t {
     X2,
 };
 
+// The buttons of a gamepad, named by where they are, as on any layout: South is A on an Xbox pad and Cross on a
+// PlayStation one.
+enum class GamepadButton : std::uint8_t {
+    South,
+    East,
+    West,
+    North,
+    Back,
+    Guide,
+    Start,
+    LeftStick,
+    RightStick,
+    LeftShoulder,
+    RightShoulder,
+    DPadUp,
+    DPadDown,
+    DPadLeft,
+    DPadRight,
+    Count,
+};
+
+// The sticks go from -1 to 1, right and up positive; the triggers from 0, released, to 1, pressed all the way.
+enum class GamepadAxis : std::uint8_t {
+    LeftX,
+    LeftY,
+    RightX,
+    RightY,
+    LeftTrigger,
+    RightTrigger,
+    Count,
+};
+
+// Tells a connected gamepad apart from the others while it stays connected.
+enum class GamepadId : std::uint32_t { Invalid = 0 };
+
 std::string_view GetKeyName(Key key);
 std::string_view GetMouseButtonName(MouseButton button);
+std::string_view GetGamepadButtonName(GamepadButton button);
+std::string_view GetGamepadAxisName(GamepadAxis axis);
 
 } // namespace Spot

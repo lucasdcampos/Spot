@@ -35,6 +35,23 @@ const Spot::Vector2 look = Spot::Input::GetMouseDelta();
 Keys (`engine/input/keys.h`) name physical positions on a US layout, so WASD stays in place on other layouts; text
 typed comes through `TextInputEvent` instead.
 
+## Gamepads
+
+Gamepads send their own events (`GamepadConnectedEvent`, `GamepadDisconnectedEvent`, button presses and releases, and
+`GamepadAxisEvent`), and the input state tracks each one. Buttons are named by position (`GamepadButton::South` is A
+on an Xbox pad and Cross on a PlayStation one); sticks go from -1 to 1 with right and up positive, and triggers from
+0 to 1. Gamepads are numbered in the order they connected, so each player can have one, and queries made with
+`Input::AnyGamepad` (the default) look at all of them:
+
+```cpp
+if (Spot::Input::IsGamepadButtonPressed(Spot::GamepadButton::South)) { /* jump */ }
+const float steer = Spot::Input::GetGamepadAxis(Spot::GamepadAxis::LeftX, 0);
+Spot::Input::RumbleGamepad(0.5f, 0.8f, 0.2f);
+```
+
+With every gamepad, an axis query gives the value farthest from rest. `RumbleGamepad()` shakes the low and high
+frequency motors through the platform. Dead zones and other processing belong to input actions.
+
 ## The cursor lock
 
 `Input::SetCursorLocked(true)` hides the cursor and keeps it in place, so the mouse only moves things, as first-person
@@ -43,4 +60,4 @@ game's view has focus, and takes it back with Escape.
 
 ## Not there yet
 
-Gamepads, input actions with bindings and rebinding, and input ownership come in the roadmap's milestone M2.
+Input actions with bindings and rebinding, and input ownership come in the rest of the roadmap's milestone M2.

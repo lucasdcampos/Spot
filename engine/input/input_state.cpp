@@ -1,5 +1,7 @@
 #include "input/input_state.h"
 
+#include <algorithm>
+#include <cmath>
 #include <cstddef>
 
 namespace Spot {
@@ -21,6 +23,10 @@ void InputState::BeginFrame() {
     m_keysReleased.reset();
     m_buttonsPressed.reset();
     m_buttonsReleased.reset();
+    for (Gamepad& gamepad : m_gamepads) {
+        gamepad.pressed.reset();
+        gamepad.released.reset();
+    }
     m_mouseDelta = {};
     m_scrollDelta = {};
 }
@@ -48,10 +54,81 @@ void InputState::OnEvent(const Event& event) {
         m_mouseDelta += moved->delta;
     } else if (const auto* scrolled = event.GetIf<MouseScrolledEvent>()) {
         m_scrollDelta += scrolled->delta;
+    } else if (const auto* connected = event.GetIf<GamepadConnectedEvent>()) {
+        FindOrAddGamepad(connected->gamepad).name = connected->name;
+    } else if (const auto* disconnected = event.GetIf<GamepadDisconnectedEvent>()) {
+        std::erase_if(m_gamepads, [&](const Gamepad& gamepad) { return gamepad.id == disconnected->gamepad; });
+    } else if (const auto* padPressed = event.GetIf<GamepadButtonPressedEvent>()) {
+        Gamepad& gamepad = FindOrAddGamepad(padPressed->gamepad);
+        gamepad.down.set(static_cast<std::size_t>(padPressed->button));
+        gamepad.pressed.set(static_cast<std::size_t>(padPressed->button));
+    } else if (const auto* padReleased = event.GetIf<GamepadButtonReleasedEvent>()) {
+        Gamepad& gamepad = FindOrAddGamepad(padReleased->gamepad);
+        gamepad.down.reset(static_cast<std::size_t>(padReleased->button));
+        gamepad.released.set(static_cast<std::size_t>(padReleased->button));
+    } else if (const auto* axis = event.GetIf<GamepadAxisEvent>()) {
+        FindOrAddGamepad(axis->gamepad).axes[static_cast<std::size_t>(axis->axis)] = axis->value;
     } else if (const auto* focus = event.GetIf<WindowFocusEvent>(); focus && !focus->focused) {
         // Release events for keys held while focus is lost never arrive, which would leave them stuck down.
         ReleaseAll();
     }
+}
+
+GamepadId InputState::GetGamepadId(int gamepad) const {
+    return gamepad >= 0 && gamepad < GetGamepadCount() ? m_gamepads[static_cast<std::size_t>(gamepad)].id
+                                                       : GamepadId::Invalid;
+}
+
+std::string_view InputState::GetGamepadName(int gamepad) const {
+    return gamepad >= 0 && gamepad < GetGamepadCount()
+               ? std::string_view(m_gamepads[static_cast<std::size_t>(gamepad)].name)
+               : std::string_view();
+}
+
+template <typename Test>
+bool InputState::AnyGamepadMatches(int gamepad, Test&& test) const {
+    if (gamepad != AnyGamepad) {
+        return gamepad >= 0 && gamepad < GetGamepadCount() && test(m_gamepads[static_cast<std::size_t>(gamepad)]);
+    }
+    return std::ranges::any_of(m_gamepads, test);
+}
+
+bool InputState::IsGamepadButtonDown(GamepadButton button, int gamepad) const {
+    return AnyGamepadMatches(gamepad,
+                             [button](const Gamepad& pad) { return pad.down.test(static_cast<std::size_t>(button)); });
+}
+
+bool InputState::IsGamepadButtonPressed(GamepadButton button, int gamepad) const {
+    return AnyGamepadMatches(
+        gamepad, [button](const Gamepad& pad) { return pad.pressed.test(static_cast<std::size_t>(button)); });
+}
+
+bool InputState::IsGamepadButtonReleased(GamepadButton button, int gamepad) const {
+    return AnyGamepadMatches(
+        gamepad, [button](const Gamepad& pad) { return pad.released.test(static_cast<std::size_t>(button)); });
+}
+
+float InputState::GetGamepadAxis(GamepadAxis axis, int gamepad) const {
+    const auto index = static_cast<std::size_t>(axis);
+    if (gamepad != AnyGamepad) {
+        return gamepad >= 0 && gamepad < GetGamepadCount() ? m_gamepads[static_cast<std::size_t>(gamepad)].axes[index]
+                                                           : 0.0f;
+    }
+    float value = 0.0f;
+    for (const Gamepad& pad : m_gamepads) {
+        if (std::abs(pad.axes[index]) > std::abs(value)) {
+            value = pad.axes[index];
+        }
+    }
+    return value;
+}
+
+InputState::Gamepad& InputState::FindOrAddGamepad(GamepadId id) {
+    const auto found = std::ranges::find(m_gamepads, id, &Gamepad::id);
+    if (found != m_gamepads.end()) {
+        return *found;
+    }
+    return m_gamepads.emplace_back(Gamepad{.id = id});
 }
 
 bool InputState::IsKeyDown(Key key) const {
@@ -83,6 +160,11 @@ void InputState::ReleaseAll() {
     m_keysDown.reset();
     m_buttonsReleased |= m_buttonsDown;
     m_buttonsDown.reset();
+    for (Gamepad& gamepad : m_gamepads) {
+        gamepad.released |= gamepad.down;
+        gamepad.down.reset();
+        gamepad.axes = {};
+    }
 }
 
 } // namespace Spot

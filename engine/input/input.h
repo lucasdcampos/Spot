@@ -28,6 +28,17 @@ Vector2 GetMousePosition();
 Vector2 GetMouseDelta();
 Vector2 GetScrollDelta();
 
+// Gamepads; see InputState. With AnyGamepad, queries look at every gamepad.
+inline constexpr int AnyGamepad = -1;
+int GetGamepadCount();
+bool IsGamepadButtonDown(GamepadButton button, int gamepad = AnyGamepad);
+bool IsGamepadButtonPressed(GamepadButton button, int gamepad = AnyGamepad);
+bool IsGamepadButtonReleased(GamepadButton button, int gamepad = AnyGamepad);
+float GetGamepadAxis(GamepadAxis axis, int gamepad = AnyGamepad);
+// Shakes the gamepad's low and high frequency motors, each from 0 to 1, for the seconds; with AnyGamepad, every
+// gamepad's. A new call replaces the last. Returns whether a gamepad rumbles.
+bool RumbleGamepad(float low, float high, float seconds, int gamepad = AnyGamepad);
+
 // Hides the cursor and keeps it in place while locked, so the mouse only moves things, as it turns first-person
 // views; see InputState::SetCursorLocked(). Does nothing without a state.
 void SetCursorLocked(bool locked);

@@ -265,3 +265,49 @@ TEST_CASE("Application keeps running when it turns a close request down", "[plat
     CHECK(application.closeRequests == 2);
     CHECK(application.updatesAfterRefusal == 3);
 }
+
+TEST_CASE("SDL gamepad events become gamepad events, with sticks up positive", "[platform][sdl3][gamepad]") {
+    const ScopedPlatform platform;
+    SDL_Event added{};
+    added.type = SDL_EVENT_GAMEPAD_ADDED;
+    added.gdevice.which = 42;
+    Push(added);
+    SDL_Event button{};
+    button.type = SDL_EVENT_GAMEPAD_BUTTON_DOWN;
+    button.gbutton.which = 42;
+    button.gbutton.button = SDL_GAMEPAD_BUTTON_EAST;
+    Push(button);
+    SDL_Event stick{};
+    stick.type = SDL_EVENT_GAMEPAD_AXIS_MOTION;
+    stick.gaxis.which = 42;
+    stick.gaxis.axis = SDL_GAMEPAD_AXIS_LEFTY;
+    stick.gaxis.value = -32768;
+    Push(stick);
+    SDL_Event trigger = stick;
+    trigger.gaxis.axis = SDL_GAMEPAD_AXIS_RIGHT_TRIGGER;
+    trigger.gaxis.value = 32767;
+    Push(trigger);
+    SDL_Event removed{};
+    removed.type = SDL_EVENT_GAMEPAD_REMOVED;
+    removed.gdevice.which = 42;
+    Push(removed);
+
+    const auto events = PollEvents();
+    REQUIRE(events.size() == 5);
+    const auto* connected = events[0].GetIf<Spot::GamepadConnectedEvent>();
+    REQUIRE(connected != nullptr);
+    CHECK(connected->gamepad == static_cast<Spot::GamepadId>(42));
+    CHECK_FALSE(connected->name.empty());
+    const auto* pressed = events[1].GetIf<Spot::GamepadButtonPressedEvent>();
+    REQUIRE(pressed != nullptr);
+    CHECK(pressed->button == Spot::GamepadButton::East);
+    const auto* up = events[2].GetIf<Spot::GamepadAxisEvent>();
+    REQUIRE(up != nullptr);
+    CHECK(up->axis == Spot::GamepadAxis::LeftY);
+    // Pushed all the way up, which SDL reports as negative.
+    CHECK(up->value == 1.0f);
+    const auto* pulled = events[3].GetIf<Spot::GamepadAxisEvent>();
+    REQUIRE(pulled != nullptr);
+    CHECK(pulled->value == 1.0f);
+    CHECK(events[4].Is<Spot::GamepadDisconnectedEvent>());
+}

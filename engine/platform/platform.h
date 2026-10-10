@@ -21,4 +21,8 @@ void PollEvents(const EventCallback& callback);
 // Sleeps more precisely than the OS default timer allows, which frame limiting needs.
 void SleepFor(std::chrono::nanoseconds duration);
 
+// Shakes the gamepad's low and high frequency motors, each from 0 to 1, for the time; a new call replaces the last.
+// Returns false when the gamepad is not connected or has no motors.
+bool RumbleGamepad(GamepadId gamepad, float low, float high, std::chrono::milliseconds duration);
+
 } // namespace Spot::Platform
