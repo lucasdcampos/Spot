@@ -9,7 +9,7 @@ The goal is the same breadth, built on the architecture Spot already has.
 The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
 [The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
 
-**Current focus:** M7 – Rendering: scale
+**Current focus:** M8 – Model hierarchy and prefabs
 
 ## How to use this plan
 
@@ -807,6 +807,12 @@ of lamps.
   remover takes away the lamp nearest where it is clicked, within 0.35 m, before props. Lamps go on the `UndoList`.
   `spot_benchmark --scene` times a scene with lamps spread over it: the playground with 48 lamps (6 shadowed) ran at a
   mean of 3.04 ms (329 FPS) in Release.
+- Done 2026-10-10. Acceptance: in Release on the development machine, the benchmark's 10,000 meshes and 200 lights
+  hold 98 FPS (10.2 ms a frame, 95th percentile 10.8 ms), and the sandbox's playground with 48 lamps 329 FPS. GPU tests
+  cover culling and culling masks, instancing in every pass, clustered lights past the old 16, sorting by pipeline and
+  material, soft shadow edges and casters beyond the cascades; unit tests cover the light clusters and profiler
+  counters, and sandbox tests the lamps. MSVC and GCC Debug build without warnings and pass every test, the module
+  tests included.
 
 ---
 
