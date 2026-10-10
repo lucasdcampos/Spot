@@ -119,7 +119,8 @@ ViewportRenderer::ViewportRenderer(GraphicsDevice& device)
     m_lines = std::make_unique<LineRenderer>(
         device, LineRendererConfig{.targetFormat = HdrFormat, .sampleCount = m_sampleCount});
     m_tonemapper = Tonemapper::Create(device, ColorFormat);
-    if (!m_tonemapper) {
+    m_bloom = Bloom::Create(device, HdrFormat);
+    if (!m_tonemapper || !m_bloom) {
         GetEditorLogger().Error("The views' tonemapper could not be created; views show nothing");
     }
 
@@ -178,7 +179,7 @@ ViewportRenderer::~ViewportRenderer() = default;
 
 void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& targets, Scene& scene,
                               const Camera3D& camera, const ViewportOptions& options) {
-    if (!targets.GetColor() || !m_tonemapper) {
+    if (!targets.GetColor() || !m_tonemapper || !m_bloom) {
         return;
     }
     const bool drawGrid = options.showGrid && m_grid;
@@ -230,8 +231,9 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
     }
 
     // The view's colors, with the interfaces over them as they are.
+    const Texture* glow = m_bloom->Render(context, *hdr, options.bloom);
     auto pass = context.BeginRenderPass({.target = targets.GetColor()});
-    m_tonemapper->Draw(pass, *hdr, options.tonemapping);
+    m_tonemapper->Draw(pass, *hdr, options.tonemapping, glow, options.bloom.intensity);
     if (options.drawUi && m_interface->IsValid()) {
         const Vector2 size{static_cast<float>(targets.GetWidth()), static_cast<float>(targets.GetHeight())};
         m_interface->Begin(pass, Scene::ScreenCamera(size), size);

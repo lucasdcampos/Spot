@@ -37,14 +37,18 @@ public:
     // The format of the targets it draws into. Null, after logging why, when its resources cannot be created.
     static std::unique_ptr<Tonemapper> Create(GraphicsDevice& device, TextureFormat targetFormat);
 
-    // Draws the HDR texture into the pass's target, which it covers.
-    void Draw(RenderPass& pass, const Texture& hdr, const TonemapSettings& settings) const;
+    // Draws the HDR texture into the pass's target, which it covers, with the glow of Bloom added at its intensity.
+    void Draw(RenderPass& pass, const Texture& hdr, const TonemapSettings& settings, const Texture* bloom = nullptr,
+              float bloomIntensity = 0.0f) const;
 
 private:
     Tonemapper() = default;
 
     std::unique_ptr<FullscreenPass> m_pass;
     std::unique_ptr<Sampler> m_sampler;
+    std::unique_ptr<Sampler> m_bloomSampler;
+    // Added when there is no bloom.
+    std::unique_ptr<Texture> m_black;
 };
 
 } // namespace Spot

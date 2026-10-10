@@ -27,6 +27,7 @@
 #include "core/time.h"
 #include "core/utf8.h"
 #include "events/event.h"
+#include "graphics/bloom.h"
 #include "graphics/buffer.h"
 #include "graphics/camera_2d.h"
 #include "graphics/camera_3d.h"

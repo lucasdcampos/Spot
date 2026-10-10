@@ -574,7 +574,7 @@ built on the public graphics API. The look comes from a `PostProcessing` compone
   targets, MSAA resolve into sampled textures, and `FullscreenPass` (one triangle and a fragment shader). GPU tests.
 - [x] **M5.2 HDR and tonemapping.** `SceneRenderer` draws into the HDR target and tonemaps it (ACES or AgX, with
   exposure) into the output. Sky exposure stays consistent, and the editor's views use the same path.
-- [ ] **M5.3 Bloom.** A downsample and upsample chain, with intensity and scatter.
+- [x] **M5.3 Bloom.** A downsample and upsample chain, with intensity and scatter.
 - [ ] **M5.4 FXAA.** Optional FXAA next to MSAA, chosen in the settings.
 - [ ] **M5.5 Grading.** A LUT (strip format), contrast, saturation, white balance and vignette.
 - [ ] **M5.6 Fog.** Distance and height fog in the mesh shader through a `Fog` component (color, start, density,
@@ -604,6 +604,11 @@ built on the public graphics API. The look comes from a `PostProcessing` compone
   it outputs its light times its exposure, the core of the sun unbounded, and the tonemapper dithers. The editor's
   views draw the same way (`ViewportTargets` gained the HDR image; the grid draws into it, the interfaces after the
   tonemapper), with `ViewportOptions::tonemapping`; thumbnails stay direct.
+- M5.3: `Bloom` keeps two chains of up to 7 half-sized `Rgba16Float` levels: down with Jimenez's 13-tap filter, the
+  first level soft-thresholded (knee of half the threshold) and clamped to 64 against fireflies; up with a 3x3 tent,
+  each level lerped toward the spread level below by `scatter`. The tonemapper adds the half-sized result times
+  `intensity` before exposure, or a 1x1 black texture without bloom. Defaults: intensity 0.3, threshold 1, scatter
+  0.7, so only light above white glows.
 
 ---
 

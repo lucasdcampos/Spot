@@ -2206,3 +2206,56 @@ TEST_CASE("SceneRenderer draws light into an HDR image, which its tonemapper bri
     CHECK(agx < 255);
     CHECK(agx != aces);
 }
+
+TEST_CASE("Bloom spreads light brighter than its threshold, and nothing else", "[gpu]") {
+    RequireGpu();
+    // A dim image, below the threshold, with a spot 64 times brighter than white in its middle.
+    constexpr std::uint16_t Bright = 0x5400;
+    constexpr std::uint16_t Dim = 0x3800;
+    std::vector<std::uint16_t> image(32 * 32 * 4);
+    for (std::size_t pixel = 0; pixel < 32 * 32; ++pixel) {
+        const std::size_t x = pixel % 32;
+        const std::size_t y = pixel / 32;
+        const std::uint16_t value = x >= 15 && x <= 16 && y >= 15 && y <= 16 ? Bright : Dim;
+        image[pixel * 4] = image[pixel * 4 + 1] = image[pixel * 4 + 2] = value;
+        image[pixel * 4 + 3] = 0x3C00;
+    }
+
+    const auto glowOf = [&](const Spot::BloomSettings& settings, bool& rendered) {
+        std::unique_ptr<Spot::Texture> source;
+        std::unique_ptr<Spot::Bloom> bloom;
+        const auto pixels = RenderAndDownload([&](Spot::GraphicsDevice& device, Spot::RenderContext& context) {
+            source = device.CreateTexture({.width = 32, .height = 32, .format = Spot::TextureFormat::Rgba16Float});
+            bloom = Spot::Bloom::Create(device);
+            REQUIRE((source && bloom));
+            device.UploadToTexture(*source, image);
+            const Spot::Texture* glow = bloom->Render(context, *source, settings);
+            rendered = glow != nullptr;
+            return glow;
+        });
+        // At half the image's size, in red: the middle, a few pixels from it, and a corner.
+        const auto at = [&](int x, int y) {
+            std::uint16_t half = 0;
+            std::memcpy(&half, &pixels[static_cast<std::size_t>((y * 16 + x) * 8)], sizeof(half));
+            return HalfToFloat(half);
+        };
+        return rendered ? std::array{at(8, 8), at(12, 8), at(0, 0)} : std::array{0.0f, 0.0f, 0.0f};
+    };
+
+    bool rendered = false;
+    const auto glow = glowOf({}, rendered);
+    REQUIRE(rendered);
+    CHECK(glow[0] > 1.0f);
+    CHECK(glow[1] > 0.05f);
+    CHECK(glow[1] < glow[0]);
+    CHECK(glow[2] < glow[1]);
+
+    // A threshold above the spot leaves nothing to glow, and a scatter of 0 keeps the glow tight.
+    const auto none = glowOf({.threshold = 1000.0f}, rendered);
+    CHECK(none[0] == Catch::Approx(0.0f).margin(1e-3f));
+    const auto tight = glowOf({.scatter = 0.0f}, rendered);
+    CHECK(tight[1] < glow[1]);
+
+    glowOf({.intensity = 0.0f}, rendered);
+    CHECK_FALSE(rendered);
+}

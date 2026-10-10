@@ -1,5 +1,6 @@
 #pragma once
 
+#include "graphics/bloom.h"
 #include "graphics/color.h"
 #include "graphics/texture.h"
 #include "graphics/tonemapper.h"
@@ -27,6 +28,7 @@ struct SceneRendererConfig {
     Color background = {0.12f, 0.13f, 0.15f, 1.0f};
     // How the HDR image of the scenes becomes what the target shows.
     TonemapSettings tonemapping = {};
+    BloomSettings bloom = {};
 };
 
 // Draws scenes as games show them: through the first main camera among them (see FindMainCamera()), their meshes,
@@ -47,6 +49,8 @@ public:
     std::uint32_t GetSampleCount() const { return m_sampleCount; }
     const TonemapSettings& GetTonemapping() const { return m_tonemapping; }
     void SetTonemapping(const TonemapSettings& tonemapping) { m_tonemapping = tonemapping; }
+    const BloomSettings& GetBloom() const { return m_bloomSettings; }
+    void SetBloom(const BloomSettings& bloom) { m_bloomSettings = bloom; }
 
     // Draws the scenes, in order, over each other, into the target: a render target in the configured format, or the
     // window when null.
@@ -61,12 +65,14 @@ private:
     std::uint32_t m_sampleCount;
     Color m_background;
     TonemapSettings m_tonemapping;
+    BloomSettings m_bloomSettings;
     std::unique_ptr<Renderer3D> m_renderer3D;
     // Sprites are drawn into the HDR image with the meshes, interfaces into the target after it.
     std::unique_ptr<Renderer2D> m_sprites;
     std::unique_ptr<Renderer2D> m_interface;
     std::unique_ptr<LineRenderer> m_lines;
     std::unique_ptr<Tonemapper> m_tonemapper;
+    std::unique_ptr<Bloom> m_bloom;
     std::unique_ptr<Texture> m_hdr;
     std::unique_ptr<Texture> m_depth;
     std::unique_ptr<Texture> m_samples;

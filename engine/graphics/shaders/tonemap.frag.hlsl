@@ -1,10 +1,13 @@
 cbuffer Tonemap : register(b0, space3) {
-    // The exposure, the operator (0 ACES, 1 AgX, 2 linear) and whether to dither.
+    // The exposure, the operator (0 ACES, 1 AgX, 2 linear), whether to dither, and how much of the bloom to add.
     float4 settings;
 };
 
 Texture2D<float4> hdr : register(t0, space2);
 SamplerState hdrSampler : register(s0, space2);
+// The glow of the image's brightest light, at half its size; black without bloom.
+Texture2D<float4> bloom : register(t1, space2);
+SamplerState bloomSampler : register(s1, space2);
 
 struct Input {
     float4 position : SV_Position;
@@ -58,7 +61,8 @@ float3 AgX(float3 color) {
 
 float4 main(Input input) : SV_Target0 {
     const float4 light = hdr.Sample(hdrSampler, input.uv);
-    const float3 exposed = max(light.rgb, 0.0) * settings.x;
+    const float3 glow = bloom.Sample(bloomSampler, input.uv).rgb * settings.w;
+    const float3 exposed = max(light.rgb + glow, 0.0) * settings.x;
     float3 color = settings.y < 0.5 ? Aces(exposed) : settings.y < 1.5 ? AgX(exposed) : saturate(exposed);
     if (settings.z > 0.5) {
         // Noise of under a step of an 8-bit display hides the banding of smooth gradients, such as the sky's. Those

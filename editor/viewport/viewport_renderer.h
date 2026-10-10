@@ -61,6 +61,7 @@ struct ViewportOptions {
     std::span<const DebugLine> lines = {};
     // How the HDR image of the scene becomes the view's colors.
     TonemapSettings tonemapping = {};
+    BloomSettings bloom = {};
 };
 
 // Draws scenes into viewport targets, as they would look in the game, with the shapes queued with DebugDraw and the
@@ -109,6 +110,7 @@ private:
     std::unique_ptr<Renderer2D> m_interface;
     std::unique_ptr<LineRenderer> m_lines;
     std::unique_ptr<Tonemapper> m_tonemapper;
+    std::unique_ptr<Bloom> m_bloom;
     std::unique_ptr<Pipeline> m_grid;
     std::unique_ptr<Pipeline> m_mask;
     std::unique_ptr<Pipeline> m_outline;

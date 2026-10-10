@@ -72,6 +72,8 @@ add_library(spot_objects OBJECT
     graphics/atmosphere.cpp
     graphics/buffer.h
     graphics/camera_2d.h
+    graphics/bloom.cpp
+    graphics/bloom.h
     graphics/camera_2d.cpp
     graphics/camera_3d.h
     graphics/camera_3d.cpp
@@ -193,6 +195,8 @@ add_library(spot_objects OBJECT
 )
 
 spot_add_shaders(spot_objects NAMESPACE Spot::Detail::Shaders
+    graphics/shaders/bloom_down.frag.hlsl
+    graphics/shaders/bloom_up.frag.hlsl
     graphics/shaders/fullscreen.vert.hlsl
     graphics/shaders/line.frag.hlsl
     graphics/shaders/line.vert.hlsl

@@ -23,7 +23,7 @@ constexpr TextureFormat HdrFormat = TextureFormat::Rgba16Float;
 
 SceneRenderer::SceneRenderer(GraphicsDevice& device, const SceneRendererConfig& config)
     : m_device(device), m_format(config.targetFormat.value_or(device.GetWindowFormat())), m_sampleCount(1),
-      m_background(config.background), m_tonemapping(config.tonemapping) {
+      m_background(config.background), m_tonemapping(config.tonemapping), m_bloomSettings(config.bloom) {
     if (config.sampleCount > 1 && device.SupportsSampleCount(HdrFormat, config.sampleCount) &&
         device.SupportsSampleCount(TextureFormat::Depth32Float, config.sampleCount)) {
         m_sampleCount = config.sampleCount;
@@ -36,13 +36,14 @@ SceneRenderer::SceneRenderer(GraphicsDevice& device, const SceneRendererConfig& 
     m_lines = std::make_unique<LineRenderer>(
         device, LineRendererConfig{.targetFormat = HdrFormat, .sampleCount = m_sampleCount});
     m_tonemapper = Tonemapper::Create(device, m_format);
+    m_bloom = Bloom::Create(device, HdrFormat);
 }
 
 SceneRenderer::~SceneRenderer() = default;
 
 bool SceneRenderer::IsValid() const {
     return m_renderer3D->IsValid() && m_sprites->IsValid() && m_interface->IsValid() && m_lines->IsValid() &&
-           m_tonemapper;
+           m_tonemapper && m_bloom;
 }
 
 void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scenes, Texture* target) {
@@ -105,9 +106,10 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
         m_sprites->End();
     }
 
+    const Texture* glow = m_bloom->Render(context, *m_hdr, m_bloomSettings);
     // The tonemapper covers the whole target, and the interfaces go over it as they are.
     auto output = context.BeginRenderPass({.target = target});
-    m_tonemapper->Draw(output, *m_hdr, m_tonemapping);
+    m_tonemapper->Draw(output, *m_hdr, m_tonemapping, glow, m_bloomSettings.intensity);
     m_interface->Begin(output, Scene::ScreenCamera(size), size);
     for (Scene* scene : scenes) {
         scene->DrawUi(*m_interface, size);

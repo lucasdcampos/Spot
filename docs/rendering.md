@@ -78,6 +78,15 @@ and dithering that hides banding. `SceneRendererConfig::tonemapping` and `SceneR
 them. `Renderer3DConfig::hdr` makes Renderer3D draw the sky's light as it is, for the tonemapper, rather than mapping
 it itself as it does into displayable targets.
 
+### Bloom
+
+`Bloom` spreads light brighter than the display shows, as a lens does: it halves the bright parts of the HDR image
+again and again (a 13-tap filter that keeps small bright details from flickering), then spreads them back up, each
+level blending a wider glow over the one above it. `BloomSettings` has the threshold below which light does not glow
+(fading in over half of it), the scatter, from a tight glow to one over the whole image, and the intensity the
+tonemapper adds the glow with; an intensity of 0 turns it off. `SceneRendererConfig::bloom`, `SceneRenderer::SetBloom()`
+and `ViewportOptions::bloom` choose them.
+
 ## Scene components
 
 - `Camera`: where a scene is seen from, looking down its entity's -Z; perspective or orthographic, with a
