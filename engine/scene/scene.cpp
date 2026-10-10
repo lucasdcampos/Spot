@@ -1,5 +1,6 @@
 #include "scene/scene.h"
 
+#include "audio/audio_system.h"
 #include "core/assert.h"
 #include "core/diagnostics.h"
 #include "core/profiler.h"
@@ -36,6 +37,13 @@ PhysicsWorld& Scene::GetPhysics() {
         m_physics = &AddSystem<PhysicsWorld>();
     }
     return *m_physics;
+}
+
+AudioSystem& Scene::GetAudio() {
+    if (!m_audio) {
+        m_audio = &AddSystem<AudioSystem>();
+    }
+    return *m_audio;
 }
 
 void Scene::SetFixedTimeStep(float seconds) {

@@ -20,6 +20,7 @@ namespace Spot {
 class Application;
 class AssetManager;
 class Event;
+class AudioSystem;
 class PhysicsWorld;
 class RenderContext;
 
@@ -81,6 +82,8 @@ public:
 
     // Simulates the scene's colliders and rigidbodies; created on the first call.
     PhysicsWorld& GetPhysics();
+    // Plays the scene's sounds where they are; created on the first call.
+    AudioSystem& GetAudio();
 
     // Adds a system of the type, constructed with the arguments. A scene has one system of each type at most.
     template <std::derived_from<SceneSystem> T, typename... Args>
@@ -248,6 +251,7 @@ private:
     // Systems added while systems run, which join the others before the next hook.
     std::vector<std::unique_ptr<SceneSystem>> m_pendingSystems;
     PhysicsWorld* m_physics = nullptr;
+    AudioSystem* m_audio = nullptr;
     std::vector<std::unique_ptr<Entity>> m_entities;
     std::unordered_map<EntityId, Entity*> m_entitiesById;
     // The entities without a parent, in sibling order, which can differ from m_entities' creation order.

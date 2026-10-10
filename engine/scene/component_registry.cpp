@@ -1,5 +1,6 @@
 #include "scene/component_registry.h"
 
+#include "audio/audio_source.h"
 #include "physics/character_controller.h"
 #include "physics/collider.h"
 #include "physics/joint.h"
@@ -59,6 +60,8 @@ Registry& GetRegistry() {
         RegisterBuiltIn<Sky>(registry, "Sky");
         RegisterBuiltIn<SpriteRenderer>(registry, "SpriteRenderer");
         RegisterBuiltIn<Camera>(registry, "Camera");
+        RegisterBuiltIn<AudioSource>(registry, "AudioSource");
+        RegisterBuiltIn<AudioListener>(registry, "AudioListener");
         return true;
     }();
     static_cast<void>(builtInRegistered);

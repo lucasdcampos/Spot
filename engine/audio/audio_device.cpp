@@ -16,8 +16,9 @@ constexpr std::uint32_t MixSampleRate = 48000;
 
 } // namespace
 
-AudioDevice::AudioDevice(const AudioConfig& config) : m_mixer(std::make_unique<Detail::Mixer>(MixSampleRate)) {
-    if (!config.enabled) {
+AudioDevice::AudioDevice(const AudioConfig& config)
+    : m_mixer(std::make_unique<Detail::Mixer>(MixSampleRate)), m_manualMix(config.manualMix) {
+    if (!config.enabled || config.manualMix) {
         return;
     }
 
@@ -36,6 +37,12 @@ bool AudioDevice::HasOutput() const {
     return m_output != nullptr;
 }
 
+void AudioDevice::Render(std::span<float> output) {
+    if (m_manualMix) {
+        m_mixer->Mix(output);
+    }
+}
+
 std::string_view AudioDevice::GetBackendName() const {
     return m_output ? m_output->GetBackendName() : std::string_view();
 }
@@ -47,7 +54,7 @@ std::uint32_t AudioDevice::GetSampleRate() const {
 SoundInstance AudioDevice::Play(std::shared_ptr<const Sound> sound, const PlayParams& params) {
     SPOT_PROFILE_SCOPE("AudioDevice::Play");
     // Nothing would ever mix the sound, so it would never end; refusing it keeps IsPlaying() truthful.
-    if (!m_output) {
+    if (!m_output && !m_manualMix) {
         return {};
     }
     return m_mixer->Play(std::move(sound), params);

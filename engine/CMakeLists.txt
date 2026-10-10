@@ -31,6 +31,10 @@ add_library(spot_objects OBJECT
     audio/playback.h
     audio/sound.h
     audio/sound.cpp
+    audio/audio_source.h
+    audio/audio_source.cpp
+    audio/audio_system.h
+    audio/audio_system.cpp
     audio/sound_decoder.h
     audio/sound_stream.h
     audio/sound_stream.cpp

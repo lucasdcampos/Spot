@@ -438,7 +438,7 @@ defined in the audio settings. Streamed sounds decode on a worker thread into a 
   clicks, and ramped volume and pan changes. Tests.
 - [x] **M3.3 Streaming.** Sounds marked "stream" in their import settings stay encoded and decode while they play.
   Bump the sound importer's version. Tests.
-- [ ] **M3.4 Sources and listener.** `AudioListener` and `AudioSource` components. A source has a sound, a bus,
+- [x] **M3.4 Sources and listener.** `AudioListener` and `AudioSource` components. A source has a sound, a bus,
   volume, pitch, loop, play on start, spatial on or off, min and max distance, a rolloff curve, and `Play()`,
   `Stop()` and `Pause()`. Add `Audio::PlayOneShot(sound, position, bus)`. An `AudioSystem` (M0.2) updates gains and
   pan from transforms. A scene's sounds stop when it unloads and pause when scenes are paused. Tests.
@@ -468,6 +468,13 @@ defined in the audio settings. Streamed sounds decode on a worker thread into a 
   mixer's stream thread starts with the first streamed sound and refills every 50 ms; `Mixer(rate, false)` and
   `UpdateStreams()` keep tests deterministic. A dry stream holds its position; a streamed voice reports its end a
   frame after a decoded one would.
+- M3.4: `Audio::PlayOneShot()` takes the scene too, so one-shots belong to a scene's `AudioSystem`, pause and stop with
+  it, and follow its listener. Buses are named by string on sources (resolved with `Audio::FindBus()` on play),
+  since bus ids are the device's. The listener is the scene's first `AudioListener`, else its main camera; without
+  either, spatial sounds play unchanged. Pan is the dot of the direction with the listener's right; no Doppler or
+  occlusion yet. `Application::SetScenesPaused()` pauses every scene's `AudioSystem`; sources paused by the game
+  stay paused on resume. `AudioConfig::manualMix` with `AudioDevice::Render()` lets tests play sounds without an
+  output.
 
 ---
 

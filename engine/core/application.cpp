@@ -1,6 +1,7 @@
 #include "core/application.h"
 
 #include "assets/assets.h"
+#include "audio/audio_system.h"
 #include "core/assert.h"
 #include "core/crash_handler.h"
 #include "core/game_module.h"
@@ -94,6 +95,7 @@ int Application::Run() {
 
     Input::SetState(&m_input);
     Input::SetActionMap(&m_actions);
+    Audio::SetDevice(m_audio.get());
     Time::SetClock(&m_clock);
     m_limiter = FrameLimiter(m_config.maxFrameRate);
     m_clock.Start(std::chrono::steady_clock::now());
@@ -197,10 +199,25 @@ int Application::Run() {
     Time::SetClock(nullptr);
     Input::SetState(nullptr);
     Input::SetActionMap(nullptr);
+    Audio::SetDevice(nullptr);
     m_audio.reset();
     m_graphics.reset();
     m_window.reset();
     return m_failed ? EXIT_FAILURE : EXIT_SUCCESS;
+}
+
+void Application::SetScenesPaused(bool paused) {
+    m_scenesPaused = paused;
+    if (m_persistentScene) {
+        if (auto* audio = m_persistentScene->GetSystem<AudioSystem>()) {
+            audio->SetPaused(paused);
+        }
+    }
+    for (const auto& scene : m_scenes) {
+        if (auto* audio = scene->GetSystem<AudioSystem>()) {
+            audio->SetPaused(paused);
+        }
+    }
 }
 
 void Application::SetGameSettings(std::optional<GameSettings> game) {

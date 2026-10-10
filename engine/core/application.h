@@ -148,7 +148,8 @@ public:
 
     // Stops updating the scenes, the persistent one included, which keep receiving events and rendering, as games are
     // paused in tools. StepScenes() updates them once on the next frame meanwhile.
-    void SetScenesPaused(bool paused) { m_scenesPaused = paused; }
+    // Their sounds pause too.
+    void SetScenesPaused(bool paused);
     bool AreScenesPaused() const { return m_scenesPaused; }
     void StepScenes() { m_stepScenes = true; }
 

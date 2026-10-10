@@ -8,6 +8,8 @@
 #include "assets/built_in_assets.h"
 #include "assets/material_source.h"
 #include "audio/audio_device.h"
+#include "audio/audio_source.h"
+#include "audio/audio_system.h"
 #include "audio/playback.h"
 #include "audio/sound.h"
 #include "core/application.h"

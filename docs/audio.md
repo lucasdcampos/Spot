@@ -36,6 +36,38 @@ changed while they play; `SetMasterVolume()` scales everything.
 Every `AudioDevice` method may be called from any thread. The device never fails: without an output, because audio
 is disabled (`AudioConfig::enabled`) or no device can be opened, it stays usable and plays nothing.
 
+## Sounds in scenes
+
+An `AudioSource` component (`engine/audio/audio_source.h`) plays a sound from its entity: its sound, its bus (by the
+name the mixer gives it; the master bus when empty), volume, pitch, looping, whether it plays on start, and whether
+it is spatial, with the distances and the rolloff of its fading. `Play()` starts it, or resumes it when paused,
+`Pause()` and `Stop()` do what they say. A source with `playOnStart` plays once the component starts, and again each
+time it is enabled; it stops when disabled or removed.
+
+Spatial sounds are heard from the scene's `AudioListener`, or its main camera without one: the scene's
+`AudioSystem` (`Scene::GetAudio()`) works out, once a frame after everything moved, how loud each is at its distance
+and from which side, and gives the playing sounds their volume and pan. Within the min distance a sound plays at full
+volume, past the max distance it is silent, and in between it falls as its rolloff says: `Inverse`, as sound does
+in the open (half as loud at twice the distance), or `Linear`. Sources that are not spatial, such as music, are heard
+as they are anywhere.
+
+```cpp
+auto& source = entity.AddComponent<Spot::AudioSource>();
+source.sound = Spot::Assets::Load<Spot::Sound>("sounds/engine.ogg");
+source.loop = true;
+source.spatialSettings = {.minDistance = 2.0f, .maxDistance = 40.0f};
+
+Spot::Audio::PlayOneShot(GetScene(), explosion.GetShared(), position, "Effects");
+```
+
+`Audio::PlayOneShot()` plays a sound once where something happened, heard like a spatial source. A scene's sounds,
+one-shots included, pause while the application pauses the scenes (as the editor does), except those the game paused
+itself stay paused when they resume, and stop when the scene unloads. Audio components play through
+`Audio::GetDevice()`, the running application's device.
+
+An `AudioDevice` made with `AudioConfig::manualMix` opens no output and plays as if heard, while its owner pulls the
+mix with `Render()`, as tests and offline rendering do.
+
 ## Voices
 
 At most 64 sounds play at once (`SetMaxVoices()`); `GetVoiceCount()` tells how many do. Past the limit, a new sound
@@ -76,4 +108,4 @@ because the mixer holds them.
 
 ## Not there yet
 
-3D sources with a listener and a mixer panel come in the rest of the roadmap's milestone M3.
+The mixer panel and the audio settings come in the rest of the roadmap's milestone M3.

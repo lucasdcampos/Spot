@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -20,6 +21,9 @@ class Mixer;
 struct AudioConfig {
     // Turned off for runs that must stay silent, such as tests or servers.
     bool enabled = true;
+    // Opens no output: sounds play as if heard, and whoever owns the device pulls the mix with Render(), as tests and
+    // offline rendering do.
+    bool manualMix = false;
 };
 
 // Plays sounds on the default output device, mixed by the engine. Every method may be called from any thread.
@@ -34,6 +38,9 @@ public:
     AudioDevice& operator=(const AudioDevice&) = delete;
 
     bool HasOutput() const;
+    // With AudioConfig::manualMix, mixes the next frames into the output, as interleaved stereo at GetSampleRate();
+    // otherwise does nothing, as the output pulls them.
+    void Render(std::span<float> output);
     // The system audio API in use, such as "wasapi", "coreaudio" or "pipewire"; empty without an output.
     std::string_view GetBackendName() const;
     // The rate the engine mixes at; sounds at other rates are converted while they play.
@@ -98,6 +105,7 @@ private:
     // Declared before the output, so the output stops pulling from the mixer before the mixer is destroyed.
     std::unique_ptr<Detail::Mixer> m_mixer;
     std::unique_ptr<Detail::AudioOutput> m_output;
+    bool m_manualMix = false;
 };
 
 } // namespace Spot
