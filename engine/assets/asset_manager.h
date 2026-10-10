@@ -144,6 +144,8 @@ private:
         std::weak_ptr<const void> loaded;
         // Mesh assets only: the CPU copy.
         std::weak_ptr<const MeshData> meshData = {};
+        // Keep dependency edges after a prefab's temporary normalization reference expires.
+        std::vector<AssetId> prefabDependencies = {};
     };
 
     std::shared_ptr<const void> LoadAsset(AssetId id, AssetType type);

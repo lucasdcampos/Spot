@@ -30,7 +30,7 @@ bool Write(const std::filesystem::path& file, std::string_view text) {
 } // namespace
 
 std::optional<AssetId> CreatePrefab(EditorProject& project, const Entity& entity, std::string_view folder) {
-    const auto prefab = Prefab::FromString(entity.SaveToString(true));
+    const auto prefab = Prefab::FromString(entity.SaveToString());
     if (!prefab) {
         return std::nullopt;
     }
@@ -62,7 +62,7 @@ PrefabCommand::PrefabCommand(SceneDocument& document, EditorProject& project, En
     m_before = GetScene().SaveToString();
     if (action == PrefabAction::Unpack) {
         m_after = UnpackPrefabToString(*root).value_or(std::string());
-    } else if (const auto edit = PreparePrefabEdit(*root, scope, action == PrefabAction::Apply)) {
+    } else if (const auto edit = PreparePrefabEdit(*root, scope, action == PrefabAction::Apply, &project.GetAssets())) {
         m_after = edit->sceneText;
         m_sourceAfter = edit->prefabText;
         if (action == PrefabAction::Apply) {

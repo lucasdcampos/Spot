@@ -5,6 +5,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
+#include <charconv>
 #include <cstddef>
 #include <cstdint>
 #include <unordered_map>
@@ -34,7 +36,7 @@ bool ValidateTree(json& entities) {
     std::unordered_map<std::uint64_t, std::size_t> indices;
     for (std::size_t i = 0; i < entities.size(); ++i) {
         const json& entity = entities[i];
-        if (!entity.is_object() || !entity.contains("id") || entity.contains("prefab")) {
+        if (!entity.is_object() || !entity.contains("id")) {
             return false;
         }
         const auto id = ReadId(entity["id"]);
@@ -43,8 +45,40 @@ bool ValidateTree(json& entities) {
         }
     }
 
+    std::unordered_map<std::uint64_t, std::uint64_t> inheritedParents;
+    for (const json& entity : entities) {
+        if (!entity.contains("prefab")) {
+            continue;
+        }
+        const auto asset =
+            entity["prefab"].is_string() ? AssetId::Parse(entity["prefab"].get<std::string>()) : std::nullopt;
+        if (!asset || !asset->IsValid() || !entity.contains("entityIds") || !entity["entityIds"].is_object() ||
+            !entity.contains("overrides") || !entity["overrides"].is_object() || !entity.contains("removedEntities") ||
+            !entity["removedEntities"].is_array()) {
+            return false;
+        }
+        const auto rootId = *ReadId(entity["id"]);
+        std::unordered_set<std::uint64_t> mapped;
+        std::unordered_set<std::uint64_t> locals;
+        for (const auto& [key, value] : entity["entityIds"].items()) {
+            std::uint64_t local = 0;
+            const auto [end, error] = std::from_chars(key.data(), key.data() + key.size(), local);
+            const auto id = ReadId(value);
+            if (error != std::errc() || end != key.data() + key.size() || local == 0 || !id || *id == 0 ||
+                !mapped.insert(*id).second || !locals.insert(local).second) {
+                return false;
+            }
+            if (*id != rootId) {
+                if (!indices.try_emplace(*id, indices.size()).second) {
+                    return false;
+                }
+                inheritedParents[*id] = rootId;
+            }
+        }
+    }
+
     std::optional<std::size_t> root;
-    std::vector<std::vector<std::size_t>> children(entities.size());
+    std::vector<std::vector<std::size_t>> children(indices.size());
     for (std::size_t i = 0; i < entities.size(); ++i) {
         const auto savedParent = entities[i].find("parent");
         const auto parent = savedParent == entities[i].end() ? std::optional<std::uint64_t>(0) : ReadId(*savedParent);
@@ -60,6 +94,9 @@ bool ValidateTree(json& entities) {
             root = i;
         }
     }
+    for (const auto& [id, parent] : inheritedParents) {
+        children[indices.at(parent)].push_back(indices.at(id));
+    }
     if (!root) {
         return false;
     }
@@ -72,7 +109,7 @@ bool ValidateTree(json& entities) {
         ++visited;
         pending.insert(pending.end(), children[index].begin(), children[index].end());
     }
-    if (visited != entities.size()) {
+    if (visited != indices.size()) {
         return false;
     }
     entities[*root].erase("parent");
@@ -115,7 +152,16 @@ std::optional<Prefab> Prefab::FromString(std::string_view text) {
         return std::nullopt;
     }
     document["version"] = 2;
-    return Prefab(document.dump(2, ' ', false, json::error_handler_t::replace));
+    std::vector<AssetId> dependencies;
+    for (const json& entity : document["entities"]) {
+        if (entity.contains("prefab")) {
+            const auto id = *AssetId::Parse(entity["prefab"].get<std::string>());
+            if (std::ranges::find(dependencies, id) == dependencies.end()) {
+                dependencies.push_back(id);
+            }
+        }
+    }
+    return Prefab(document.dump(2, ' ', false, json::error_handler_t::replace), std::move(dependencies));
 }
 
 } // namespace Spot

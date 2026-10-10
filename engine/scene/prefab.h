@@ -1,7 +1,10 @@
 #pragma once
 
+#include "assets/asset_id.h"
+
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -10,6 +13,7 @@
 namespace Spot {
 
 class Entity;
+class AssetManager;
 
 // Zero selects the entire instance; otherwise the source-local entity and its JSON-pointer subtree are selected.
 struct PrefabOverrideScope {
@@ -31,7 +35,7 @@ struct PrefabEdit {
 
 std::vector<PrefabOverride> GetPrefabOverrides(const Entity& root);
 std::optional<PrefabEdit> PreparePrefabEdit(const Entity& root, const PrefabOverrideScope& scope = {},
-                                            bool apply = false);
+                                            bool apply = false, AssetManager* assets = nullptr);
 // Expands just this instance in its scene; other instances keep their links and overrides.
 std::optional<std::string> UnpackPrefabToString(const Entity& root);
 
@@ -40,16 +44,20 @@ std::optional<std::string> UnpackPrefabToString(const Entity& root);
 class Prefab {
 public:
     // Accepts exactly one tree with distinct, nonzero entity ids. An external parent of its root is discarded,
-    // so Entity::SaveToString(true) can be used even when the entity belongs to a larger hierarchy.
+    // so Entity::SaveToString() can be used even when the entity belongs to a larger hierarchy. Nested prefab
+    // records are kept; their dependencies and expanded tree are checked when instantiated.
     // Nothing, after logging why, when the document or hierarchy is invalid.
     static std::optional<Prefab> FromString(std::string_view text);
 
     const std::string& GetEntityText() const { return m_entityText; }
+    std::span<const AssetId> GetDependencies() const { return m_dependencies; }
 
 private:
-    explicit Prefab(std::string entityText) : m_entityText(std::move(entityText)) {}
+    Prefab(std::string entityText, std::vector<AssetId> dependencies)
+        : m_entityText(std::move(entityText)), m_dependencies(std::move(dependencies)) {}
 
     std::string m_entityText;
+    std::vector<AssetId> m_dependencies;
 };
 
 } // namespace Spot

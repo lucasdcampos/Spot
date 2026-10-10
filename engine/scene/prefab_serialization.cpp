@@ -15,6 +15,24 @@ namespace {
 
 using nlohmann::json;
 
+thread_local std::vector<AssetId> s_loadingPrefabs;
+
+class PrefabLoadScope {
+public:
+    explicit PrefabLoadScope(AssetId asset) { s_loadingPrefabs.push_back(asset); }
+    ~PrefabLoadScope() { s_loadingPrefabs.pop_back(); }
+};
+
+std::uint64_t NestedEntityId(std::uint64_t root, std::uint64_t local) {
+    // Fixed integer mixing keeps new inherited identities stable when other source children are inserted.
+    auto mix = [](std::uint64_t value) {
+        value = (value ^ (value >> 30)) * 0xbf58476d1ce4e5b9ULL;
+        value = (value ^ (value >> 27)) * 0x94d049bb133111ebULL;
+        return value ^ (value >> 31);
+    };
+    return (mix(root ^ mix(local)) & ((1ULL << 62) - 1)) | (1ULL << 62);
+}
+
 std::string Escape(std::string_view key) {
     std::string result;
     for (const char c : key) {
@@ -165,11 +183,18 @@ json SceneSerializer::Snapshot(const Entity& entity, const IdMap& prefabIds, boo
 
 Entity* SceneSerializer::InstantiatePrefab(Scene& scene, const AssetRef<Prefab>& prefab,
                                            const InstantiateOptions& options, bool validate) {
+    if (s_loadingPrefabs.size() >= 64 ||
+        (prefab.GetId().IsValid() && std::ranges::find(s_loadingPrefabs, prefab.GetId()) != s_loadingPrefabs.end())) {
+        Log::GetEngineLogger().Warning("Could not instantiate prefab {}: cyclic dependency or nesting deeper than 64",
+                                       prefab.GetId().ToString());
+        return nullptr;
+    }
+    const PrefabLoadScope loading(prefab.GetId());
     InstantiateOptions placement = options;
     placement.keepIds = false;
     placement.keepExternalReferences = false;
     IdMap ids;
-    const auto roots = Load(scene, prefab->GetEntityText(), placement, &ids, validate);
+    const auto roots = Load(scene, prefab->GetEntityText(), placement, &ids, validate, true);
     if (!roots || roots->empty()) {
         return nullptr;
     }
@@ -191,6 +216,7 @@ Entity* SceneSerializer::InstantiatePrefab(Scene& scene, const AssetRef<Prefab>&
         }
         entity->m_prefabRoot = root.m_id;
         entity->m_prefabLocalId = local;
+        entity->m_prefabInstance.reset();
         state->baseline[std::to_string(local)] = Snapshot(*entity, localIds, entity == &root);
     }
     root.m_prefabInstance = std::move(state);
@@ -265,14 +291,6 @@ bool SceneSerializer::ExpandPrefabs(json& document, AssetManager* assets, std::v
             }
         }
     }
-    std::uint64_t nextId = 1;
-    const auto allocate = [&] {
-        while (usedIds.contains(nextId)) {
-            ++nextId;
-        }
-        usedIds.insert(nextId);
-        return nextId++;
-    };
     for (const json& record : document["entities"]) {
         if (!record.contains("prefab")) {
             expanded.push_back(record);
@@ -305,14 +323,22 @@ bool SceneSerializer::ExpandPrefabs(json& document, AssetManager* assets, std::v
             if (!local || !id.is_number_unsigned() || id == 0 || !distinct.insert(id.get<std::uint64_t>()).second) {
                 return false;
             }
-            group.savedIds[*local] = static_cast<EntityId>(id.get<std::uint64_t>());
+            if (!group.savedIds.try_emplace(*local, static_cast<EntityId>(id.get<std::uint64_t>())).second) {
+                return false;
+            }
         }
         const auto localRoot = root->m_prefabLocalId;
         group.savedIds[localRoot] = static_cast<EntityId>(group.root);
         for (const auto& [local, unused] : state->entities) {
             (void)unused;
             if (!group.savedIds.contains(local)) {
-                group.savedIds[local] = static_cast<EntityId>(allocate());
+                const auto saved = NestedEntityId(group.root, local);
+                if (!usedIds.insert(saved).second) {
+                    Log::GetEngineLogger().Warning("Could not load prefab {}: inherited entity ids collide",
+                                                   prefab.GetId().ToString());
+                    return false;
+                }
+                group.savedIds[local] = static_cast<EntityId>(saved);
             }
         }
         for (const json& removed : record["removedEntities"]) {
@@ -347,13 +373,13 @@ bool SceneSerializer::ExpandPrefabs(json& document, AssetManager* assets, std::v
                 }
             }
         }
-        const auto source = json::parse(prefab->GetEntityText());
-        for (const json& sourceNode : source["entities"]) {
-            const auto local = sourceNode["id"].get<std::uint64_t>();
+        for (const auto& [key, canonical] : state->baseline.items()) {
+            (void)canonical;
+            const auto local = *ParseLocalId(key);
             if (state->removedEntities.contains(local)) {
                 continue;
             }
-            json node = nodes[std::to_string(local)];
+            json node = nodes[key];
             node["id"] = static_cast<std::uint64_t>(group.savedIds.at(local));
             const auto parent = node.find("parent");
             if (local == localRoot) {
@@ -484,8 +510,8 @@ std::vector<PrefabOverride> SceneSerializer::GetOverrides(const Entity& root) {
     return result;
 }
 
-std::optional<PrefabEdit> SceneSerializer::EditPrefab(const Entity& root, const PrefabOverrideScope& scope,
-                                                      bool apply) {
+std::optional<PrefabEdit> SceneSerializer::EditPrefab(const Entity& root, const PrefabOverrideScope& scope, bool apply,
+                                                      AssetManager* assets) {
     if (!root.m_prefabInstance || root.m_destroyed) {
         return std::nullopt;
     }
@@ -610,9 +636,48 @@ std::optional<PrefabEdit> SceneSerializer::EditPrefab(const Entity& root, const 
         if (!prefab) {
             return std::nullopt;
         }
-        edit.prefabText = prefab->GetEntityText();
+        if (!root.m_prefabInstance->asset->GetDependencies().empty()) {
+            const auto compact =
+                CompactPrefabSource(root.m_prefabInstance->asset->GetEntityText(), prefab->GetEntityText(), assets);
+            if (!compact) {
+                return std::nullopt;
+            }
+            edit.prefabText = *compact;
+        } else {
+            edit.prefabText = prefab->GetEntityText();
+        }
     }
     return edit;
+}
+
+std::optional<std::string> SceneSerializer::CompactPrefabSource(std::string_view original, std::string_view edited,
+                                                                AssetManager* assets) {
+    assets = assets ? assets : Assets::GetManager();
+    Scene before;
+    Scene after;
+    const InstantiateOptions options{.keepIds = true, .assets = assets};
+    if (!Load(before, original, options, nullptr, false, true) || !Load(after, edited, options, nullptr, false, true)) {
+        return std::nullopt;
+    }
+    for (const auto& member : before.m_entities) {
+        if (!member->m_prefabInstance) {
+            continue;
+        }
+        Entity* root = after.GetEntity(member->m_id);
+        if (!root) {
+            continue;
+        }
+        auto instance = std::make_shared<PrefabInstanceState>(*member->m_prefabInstance);
+        for (const auto& [local, actual] : instance->entities) {
+            if (Entity* entity = after.GetEntity(actual)) {
+                entity->m_prefabRoot = root->m_id;
+                entity->m_prefabLocalId = local;
+            }
+        }
+        root->m_prefabInstance = std::move(instance);
+    }
+    const auto prefab = Prefab::FromString(after.SaveToString());
+    return prefab ? std::optional(prefab->GetEntityText()) : std::nullopt;
 }
 
 std::optional<std::string> SceneSerializer::UnpackPrefab(const Entity& root) {

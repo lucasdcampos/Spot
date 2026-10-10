@@ -23,8 +23,9 @@ std::vector<PrefabOverride> GetPrefabOverrides(const Entity& root) {
     return Detail::SceneSerializer::GetOverrides(root);
 }
 
-std::optional<PrefabEdit> PreparePrefabEdit(const Entity& root, const PrefabOverrideScope& scope, bool apply) {
-    return Detail::SceneSerializer::EditPrefab(root, scope, apply);
+std::optional<PrefabEdit> PreparePrefabEdit(const Entity& root, const PrefabOverrideScope& scope, bool apply,
+                                            AssetManager* assets) {
+    return Detail::SceneSerializer::EditPrefab(root, scope, apply, assets);
 }
 
 std::optional<std::string> UnpackPrefabToString(const Entity& root) {

@@ -92,7 +92,8 @@ std::unique_ptr<SceneDocument> SceneDocument::Open(const std::filesystem::path& 
         const std::string text{std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
         if (const auto prefab = Prefab::FromString(text)) {
             loaded =
-                !document->m_scene->Instantiate(prefab->GetEntityText(), {.keepIds = true, .assets = assets}).empty();
+                !document->m_scene->Instantiate(prefab->GetEntityText(), {.keepIds = true, .assets = assets}).empty() &&
+                document->m_scene->GetRootEntities().size() == 1;
         }
     } else {
         loaded = document->m_scene->LoadFromFile(file, assets);
@@ -120,7 +121,7 @@ bool SceneDocument::Save() {
     SPOT_ASSERT(!m_file.empty(), "The scene has no file yet; save it with SaveAs()");
     bool saved = false;
     if (m_prefabMode) {
-        const auto prefab = Prefab::FromString(m_scene->SaveToString(true));
+        const auto prefab = Prefab::FromString(m_scene->SaveToString());
         if (!prefab) {
             GetEditorLogger().Error("A prefab must contain exactly one entity tree");
             return false;

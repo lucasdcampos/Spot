@@ -175,7 +175,7 @@ std::optional<json> SceneSerializer::ParseDocument(std::string_view text) {
 
 std::optional<std::vector<Entity*>> SceneSerializer::Load(Scene& scene, std::string_view text,
                                                           const InstantiateOptions& options, IdMap* loadedIds,
-                                                          bool validateComponents) {
+                                                          bool validateComponents, bool requireTree) {
     std::optional<json> document = ParseDocument(text);
     if (!document) {
         return std::nullopt;
@@ -183,6 +183,9 @@ std::optional<std::vector<Entity*>> SceneSerializer::Load(Scene& scene, std::str
     std::vector<PrefabLoadGroup> groups;
     if (!ExpandPrefabs(*document, options.assets, groups)) {
         Log::GetEngineLogger().Warning("Could not load the scene: its prefab instances could not be resolved");
+        return std::nullopt;
+    }
+    if (requireTree && !Prefab::FromString(document->dump())) {
         return std::nullopt;
     }
     json& entities = (*document)["entities"];

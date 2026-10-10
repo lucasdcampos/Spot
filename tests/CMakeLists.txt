@@ -39,6 +39,7 @@ add_executable(spot_tests
     profiler_tests.cpp
     prefab_tests.cpp
     prefab_override_tests.cpp
+    prefab_nesting_tests.cpp
     project_tests.cpp
     renderer_2d_tests.cpp
     renderer_3d_tests.cpp

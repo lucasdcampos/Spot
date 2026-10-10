@@ -65,6 +65,9 @@ void AssetManager::RefreshManifest() {
         const auto previous = m_entries.find(entry.id);
         entries[entry.id] = {entry.type, entry.path,
                              previous != m_entries.end() ? previous->second.loaded : std::weak_ptr<const void>()};
+        if (previous != m_entries.end()) {
+            entries[entry.id].prefabDependencies = previous->second.prefabDependencies;
+        }
         // The first of sub-assets with the same name keeps the path.
         m_paths.try_emplace(entry.parent.IsValid() ? entry.path + "#" + entry.name : entry.path, entry.id);
     }
@@ -110,7 +113,9 @@ std::vector<AssetId> AssetManager::Reload(std::span<const AssetId> assets) {
         grew = false;
         for (const auto& [id, entry] : m_entries) {
             const auto loaded = entry.loaded.lock();
-            if (loaded && !stale.contains(id) && refersToStale(entry, loaded)) {
+            const bool prefabChanged = std::ranges::any_of(
+                entry.prefabDependencies, [&](AssetId dependency) { return stale.contains(dependency); });
+            if (!stale.contains(id) && (prefabChanged || (loaded && refersToStale(entry, loaded)))) {
                 stale.insert(id);
                 grew = true;
             }
@@ -182,6 +187,10 @@ std::shared_ptr<const void> AssetManager::LoadAsset(AssetId id, AssetType type) 
     }
     // Looked up again: loading the asset's own references may have added entries to the map.
     m_entries.at(id).loaded = asset;
+    if (type == AssetType::Prefab) {
+        const auto dependencies = static_cast<const Prefab*>(asset.get())->GetDependencies();
+        m_entries.at(id).prefabDependencies.assign(dependencies.begin(), dependencies.end());
+    }
     return asset;
 }
 

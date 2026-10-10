@@ -38,7 +38,7 @@ struct SceneSerializer {
     static std::optional<nlohmann::json> ParseDocument(std::string_view text);
     static std::optional<std::vector<Entity*>> Load(Scene& scene, std::string_view text,
                                                     const InstantiateOptions& options, IdMap* loadedIds = nullptr,
-                                                    bool validateComponents = true);
+                                                    bool validateComponents = true, bool requireTree = false);
     static Component* LoadComponent(Entity& entity, nlohmann::json& saved, std::optional<std::size_t> index,
                                     const IdMap& ids, const Scene* referenced, AssetManager* assets,
                                     const IdMap* externalIds = nullptr, bool validate = true);
@@ -48,7 +48,10 @@ struct SceneSerializer {
     static nlohmann::json Snapshot(const Entity& entity, const IdMap& prefabIds, bool root);
     static nlohmann::json SavePrefab(const Entity& root);
     static std::vector<PrefabOverride> GetOverrides(const Entity& root);
-    static std::optional<PrefabEdit> EditPrefab(const Entity& root, const PrefabOverrideScope& scope, bool apply);
+    static std::optional<PrefabEdit> EditPrefab(const Entity& root, const PrefabOverrideScope& scope, bool apply,
+                                                AssetManager* assets);
+    static std::optional<std::string> CompactPrefabSource(std::string_view original, std::string_view edited,
+                                                          AssetManager* assets);
     static std::optional<std::string> UnpackPrefab(const Entity& root);
     static bool ExpandPrefabs(nlohmann::json& document, AssetManager* assets, std::vector<PrefabLoadGroup>& groups);
     static void RestorePrefabGroups(Scene& scene, std::vector<PrefabLoadGroup>& groups, const IdMap& ids);

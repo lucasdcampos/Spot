@@ -7,14 +7,16 @@ Instantiating it creates independent entities in a scene and resolves their comp
 ## Creating and importing
 
 A `.prefab` source uses the scene JSON format (`spot-scene`, version 2, with version 1 still readable). Save a root with
-`Entity::SaveToString(true)` to capture its descendants, transforms, tags, layers, activity and registered components.
+`Entity::SaveToString()` to capture its descendants, transforms, tags, layers, activity and registered components,
+including linked prefabs. Pass `true` to expand every link into an independent source tree instead.
 The root can belong to a larger hierarchy: its external parent is discarded when the prefab is read.
 
 The prefab importer validates that the document contains exactly one tree with distinct, nonzero entity ids.
 Empty documents, multiple roots, duplicate ids and cycles are rejected before they can add entities to a scene.
 Components of unavailable types remain serialized data; import does not create them or call their hooks.
 The asset database creates the source's `.meta` file and imports its normalized text with an `AssetType::Prefab`
-binary header. Prefab importer version 2 uses the same text payload encoding as scenes and normalizes component ids.
+binary header. Prefab importer version 3 uses the same text payload encoding as scenes, normalizes component ids
+and accepts nested instance records.
 
 For code that already has serialized entities, `Prefab::FromString()` returns a validated prefab or logs a warning
 and returns nothing. Wrap it in an `AssetRef<Prefab>` to instantiate it without the asset pipeline.
@@ -50,7 +52,7 @@ Instantiation works from imported files alone, after source files have been remo
 
 An imported prefab's entity ids become stable local identities within each instance. `Entity::GetPrefabRootId()`
 and `GetPrefabLocalId()` identify inherited entities; `GetPrefabAssetId()` identifies a linked instance root.
-Entities made from a prefab without an asset id remain ordinary trees.
+An ordinary tree made from a prefab without an asset id stays unlinked; links authored inside that source remain.
 
 Scene files store one record per instance: its prefab asset id, a mapping from local entity ids to scene ids,
 removed entity ids, and overrides as JSON pointer patches per local entity. Components have persistent
@@ -86,8 +88,7 @@ entities stay unchanged; drag the resulting asset into a scene to make a linked 
 
 Double-click a prefab to open its document. Its view is marked **Prefab**, and saving requires exactly one tree.
 The document preserves source-local entity and component ids across saves, including older normalized sources.
-Prefab documents are edited without running their components. Sources currently expand instances; nesting and
-variants follow in M8.6.
+Prefab documents are edited without running their components, and saving preserves their nested links.
 
 Select an inherited entity to see its prefab in the inspector. **Apply All** writes the instance's changes to the
 source; **Revert All** rebuilds it from the source; **Unpack** turns it into ordinary entities. Expand **Overrides**
@@ -106,3 +107,29 @@ returns scene text and, for Apply, validated prefab text without changing live e
 `PrefabOverrideScope` selects a source-local entity and JSON-pointer subtree, a component, or the entire instance.
 The editor executes those prepared documents through `PrefabCommand`, using the project's asset manager for
 replay, including in headless tools.
+
+## Nesting and variants
+
+A source can contain ordinary entities and linked prefab instances. Open a prefab document and drop another
+prefab into its hierarchy, then save. Dragging an ordinary root with linked children into the asset browser
+likewise preserves those links. Base changes propagate through every nesting level when a containing instance
+loads; edits made in the containing source override its dependencies, and scene instance edits override that
+result. References are remapped at each level, including references between nested and ordinary members.
+
+Drag a linked instance root into the browser to make a variant. Its source contains the base prefab's id and
+only the instance's overrides and additions. A variant can itself be the base of another variant or be nested
+inside another prefab. Opening it as a document shows the inherited tree; saving preserves the base link.
+Apply to an instance of a variant changes the variant, while Apply from its authoring document changes the base.
+Apply to a containing prefab preserves its nested dependencies, expressing changes as overrides of those links.
+
+At runtime, a containing instance owns one local identity map for its complete expanded tree. Its inherited
+members refer to the containing root, so scene files still store one containing record and its own overrides.
+New children of dependencies receive deterministic sparse 64-bit local ids from the nested root and the child's
+identity; inserting other children cannot redirect their overrides. Collisions are rejected rather than silently
+renumbering entities. Source ids remain stable when the document saves those mappings.
+
+`Prefab::GetDependencies()` exposes direct prefab asset ids without loading them. The asset manager remembers
+those edges even after temporary references expire and invalidates transitive dependents when a base reloads.
+Cycles, missing dependencies and nesting deeper than 64 levels reject instantiation before changing the destination
+scene. Import validates structural metadata without constructing components or requiring dependency assets to be
+loaded; the expanded hierarchy is validated again when it is instantiated.

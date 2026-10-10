@@ -34,6 +34,10 @@ that the source has exactly one entity tree. Drag entities into an asset folder 
 shows instance overrides and offers Apply, Revert and Unpack, including actions per field and component. Apply
 history restores both the source file and the scene. See [Prefabs](prefabs.md) for the workflow and tool APIs.
 
+Prefab documents preserve nested prefab links. Drag an ordinary tree containing instances into the browser to
+save that hierarchy, or drag a linked instance root to create a variant with its base id and overrides. Variants
+open as inherited trees and keep their base links across saves and instance Apply operations.
+
 ## Panels
 
 Dropping a prefab into a scene or the hierarchy adds its saved tree as one undoable action, preserving the root's

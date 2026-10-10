@@ -835,7 +835,7 @@ prefab's current content, so prefab changes reach every instance. Prefabs nest.
 - [x] **M8.5 Prefab editing.** Create a prefab by dragging entities into the asset browser, edit it in prefab mode
   (a `.prefab` opened as a document), see overrides in the inspector, Apply or Revert per field, component or
   instance, and Unpack.
-- [ ] **M8.6 Nesting and variants.** Prefabs inside prefabs, and variants that override another prefab.
+- [x] **M8.6 Nesting and variants.** Prefabs inside prefabs, and variants that override another prefab.
 - [ ] **M8.7 Live updates.** Saving a prefab updates the instances in open scenes, keeping undo valid.
 - [ ] **M8.8 Sandbox: spawnables as prefabs.** Every prop, lamp and weapon is a prefab, and the spawn list is built
   from them, so a new spawnable is an asset rather than code.
@@ -903,6 +903,17 @@ own overrides.
   linked. Sources expand links until M8.6, and updates of other open documents remain M8.7.
   Validation: MSVC and GCC Debug build without warnings and pass all 603 tests, including GPU, golden images,
   editor, module and sandbox tests; headless UI tests drive entity drags, prefab documents and override menus.
+
+- M8.6: Prefab sources retain nested instance records; a linked root saved as a source becomes a variant. Source
+  documents and Apply preserve those links, while runtime instances expose the containing prefab's expanded local
+  identities. Deterministic ids for inherited additions keep overrides and references stable through dependency
+  edits. Prefabs expose direct dependencies, and the asset manager caches their edges for transitive invalidation
+  even after temporary asset references expire. Prefab importer version 3 accepts nested sources. Expansion rejects
+  unavailable dependencies, cycles, depth beyond 64 and disconnected trees before changing the destination scene.
+  Tests cover nested propagation, variant and scene override layers, source edits, stable additions, references,
+  dependency reload, malformed mappings and editor authoring without baking dependencies.
+  Validation: MSVC and GCC Debug build without warnings and pass all 612 tests, including GPU, golden images,
+  editor, module and sandbox tests.
 
 ---
 

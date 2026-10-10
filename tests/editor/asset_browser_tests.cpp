@@ -433,6 +433,51 @@ TEST_CASE("Folders open with a double click, and Backspace goes back up", "[edit
     CHECK(fixture.panel->GetSelection() == std::vector<std::string>{"folder:scenes"});
 }
 
+TEST_CASE("Prefab authoring preserves nested links and creates variants from linked instance roots",
+          "[editor][prefab][nesting][variants]") {
+    BrowserFixture fixture;
+    Spot::Scene source;
+    auto& baseRoot = source.CreateEntity("Lamp");
+    baseRoot.AddComponent<Spot::PointLight>().SetIntensity(2.0f);
+    const auto base = Spot::Editor::CreatePrefab(fixture.Project(), baseRoot, "");
+    REQUIRE(base);
+    Spot::Scene authored;
+    auto& assemblyRoot = authored.CreateEntity("Assembly");
+    auto* lamp = authored.Instantiate(fixture.Project().GetAssets().Load<Spot::Prefab>(*base),
+                                      {.parent = &assemblyRoot, .assets = &fixture.Project().GetAssets()});
+    REQUIRE(lamp);
+    const auto assembly = Spot::Editor::CreatePrefab(fixture.Project(), assemblyRoot, "");
+    REQUIRE(assembly);
+    CHECK(fixture.Project().GetAssets().Load<Spot::Prefab>(*assembly)->GetDependencies().size() == 1);
+    lamp->SetName("Variant");
+    const auto variant = Spot::Editor::CreatePrefab(fixture.Project(), *lamp, "");
+    REQUIRE(variant);
+    CHECK(fixture.Project().GetAssets().Load<Spot::Prefab>(*variant)->GetDependencies()[0] == *base);
+    Spot::Editor::SceneWorkspace workspace(*fixture.context);
+    auto* document = workspace.OpenScene(*variant);
+    REQUIRE(document);
+    REQUIRE(document->IsPrefab());
+    CHECK(document->GetScene().GetRootEntities()[0]->GetPrefabAssetId() == *base);
+    document->GetScene().GetRootEntities()[0]->GetComponent<Spot::PointLight>()->SetIntensity(8.0f);
+    REQUIRE(document->Save());
+    fixture.Project().Refresh();
+    CHECK(fixture.Project().GetAssets().Load<Spot::Prefab>(*variant)->GetDependencies()[0] == *base);
+    Spot::Scene loaded;
+    auto* instance = loaded.Instantiate(fixture.Project().GetAssets().Load<Spot::Prefab>(*variant),
+                                        {.assets = &fixture.Project().GetAssets()});
+    REQUIRE(instance);
+    CHECK(instance->GetName() == "Variant");
+    CHECK(instance->GetComponent<Spot::PointLight>()->GetIntensity() == 8.0f);
+    CHECK(baseRoot.GetComponent<Spot::PointLight>()->GetIntensity() == 2.0f);
+    auto* assemblyDocument = workspace.OpenScene(*assembly);
+    REQUIRE(assemblyDocument);
+    REQUIRE(assemblyDocument->GetScene().GetRootEntities()[0]->FindChild("Lamp"));
+    CHECK(assemblyDocument->GetScene().GetRootEntities()[0]->FindChild("Lamp")->GetPrefabAssetId() == *base);
+    REQUIRE(assemblyDocument->Save());
+    fixture.Project().Refresh();
+    CHECK(fixture.Project().GetAssets().Load<Spot::Prefab>(*assembly)->GetDependencies()[0] == *base);
+}
+
 TEST_CASE("Tiles out of view draw nothing", "[editor][assets][ui]") {
     BrowserFixture fixture;
     const auto addMaterials = [&](int from, int to) {
