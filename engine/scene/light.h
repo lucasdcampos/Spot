@@ -19,7 +19,7 @@ class Light : public Component {
 public:
     Color GetColor() const { return m_color; }
     void SetColor(Color color) { m_color = color; }
-    // Multiplies the color.
+    // Multiplies the color, in the units LightData::intensity describes.
     float GetIntensity() const { return m_intensity; }
     void SetIntensity(float intensity) { m_intensity = intensity; }
     // Whether what the scene draws blocks the light from what is behind it; see LightData::castsShadows. Directional
@@ -63,10 +63,11 @@ public:
     LightData GetLightData() const override;
 };
 
-// Light that shines in every direction from the entity's position, fading out by its range.
+// Light that shines in every direction from the entity's position, falling off with the square of the distance until
+// its range. A bulb lighting a room a few units across has an intensity of about 10.
 class PointLight final : public Light {
 public:
-    explicit PointLight(Color color = Color::White, float intensity = 1.0f, float range = 10.0f)
+    explicit PointLight(Color color = Color::White, float intensity = 10.0f, float range = 10.0f)
         : Light(color, intensity), m_range(range) {}
 
     // The distance at which it stops lighting anything.
@@ -86,7 +87,7 @@ private:
 // range and toward the edge of the cone.
 class SpotLight final : public Light {
 public:
-    explicit SpotLight(Color color = Color::White, float intensity = 1.0f, float range = 10.0f)
+    explicit SpotLight(Color color = Color::White, float intensity = 10.0f, float range = 10.0f)
         : Light(color, intensity), m_range(range) {}
 
     // The distance at which it stops lighting anything.

@@ -157,7 +157,11 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
   two; the `MeshData` builders call it, and so must code that builds meshes itself and uses normal maps.
 - `SpriteRenderer`: a texture or color on a rectangle in its entity's XY plane, for 2D.
 - Lights: `AmbientLight`, `DirectionalLight`, `PointLight` and `SpotLight`. Up to `Renderer3D::MaxLights` light each
-  frame. Lights can cast shadows: the first directional light through cascades, and point and spot lights through
+  frame. Intensities are illuminance, in units where 1 makes a white matte surface facing the light show white
+  before exposure: ambient and directional lights give theirs to every surface, and point and spot lights give
+  theirs at one unit of distance and fall off with the square of the distance (so their intensity is a luminous
+  intensity, like candelas). Their falloff is windowed to reach nothing at their range, which changes little up to
+  half of it; a bulb lighting a room a few units across is about 10, the point and spot lights' default. Lights can cast shadows: the first directional light through cascades, and point and spot lights through
   tiles of a shared shadow atlas.
 - `Sky`: an atmosphere lit by the scene's brightest directional light, which turns from day to sunset to night as
   that light turns, and lights the scene with the sun through the air and ambient light of its own.

@@ -233,11 +233,13 @@ Lit GetLight(Light light, float3 position, float3 normal, float3 toViewer, float
     float attenuation = 1.0;
     if (type > 0.5) {
         const float3 offset = light.positionAndType.xyz - position;
-        const float distance = length(offset);
-        toLight = offset / max(distance, 0.0001);
-        // Fades smoothly to nothing at the range, so a light can be skipped beyond it without a visible edge.
-        const float fade = saturate(1.0 - pow(distance / light.directionAndRange.w, 2.0));
-        attenuation = fade * fade;
+        const float distanceSquared = dot(offset, offset);
+        toLight = offset * rsqrt(max(distanceSquared, 1e-8));
+        // Inverse-square falloff, windowed to reach nothing at the range without a visible edge, so a light can be
+        // skipped beyond it. Surfaces closer than a centimeter are lit as if at a centimeter, not infinitely.
+        const float ratio = distanceSquared / (light.directionAndRange.w * light.directionAndRange.w);
+        const float window = saturate(1.0 - ratio * ratio);
+        attenuation = window * window / max(distanceSquared, 1e-4);
         if (type > 1.5) {
             const float cone = saturate((dot(-toLight, light.directionAndRange.xyz) - light.cone.x) * light.cone.y);
             attenuation *= cone * cone;

@@ -665,7 +665,7 @@ depth writes). Vertices gain tangents.
   emissive color and map. Bump the `.material` format and its importer, which reads the old fields. The glTF importer
   reads every PBR input, and the material inspector and thumbnails follow. Remove specular and shininess, and
   migrate the sandbox's materials.
-- [ ] **M6.3 Shading.** Cook-Torrance with GGX, Smith and Schlick, inverse-square falloff windowed by range, and light
+- [x] **M6.3 Shading.** Cook-Torrance with GGX, Smith and Schlick, inverse-square falloff windowed by range, and light
   intensities in documented units.
 - [ ] **M6.4 Sky lighting.** Cube textures and rendering into their faces in the graphics API. Render the sky into a
   cube map when it changes, prefilter it for specular, and take irradiance as spherical harmonics. GPU tests.
@@ -695,6 +695,12 @@ viewers, and the golden-image tests cover them.
   color tolerance went from 2 to 3. Old `.material` files get a roughness of (2 / (shininess + 2))^1/4, the width of
   their highlights, or 1 without them, and the sandbox's were migrated. Model images are sRGB unless only used as
   data. The `.material` importer is at version 5 and the model importer at 7.
+- M6.3: Light units stay relative to exposure rather than photometric: 1 is the illuminance that makes a white matte
+  surface show white at exposure 0, so the existing sun, sky and exposure settings keep working; point and spot
+  intensities are that at one unit, falling off as 1/d^2 (clamped at a centimeter) times (1 - (d/range)^4)^2. Diffuse
+  stays Lambert without a (1 - F) factor, as in Filament and Unreal. The sandbox's lamps and flashes were rescaled to
+  be as bright as before at 40% of their range (intensity times (0.4 range)^2), and point and spot lights default to
+  an intensity of 10.
 
 ---
 

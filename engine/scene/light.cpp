@@ -16,7 +16,13 @@ Vector3 GetForward(const Entity& entity) {
 
 void Light::Serialize(Archive& archive) {
     archive.Field("color", m_color, {.tooltip = "The light's color, before its intensity scales it"});
-    archive.Field("intensity", m_intensity, {.min = 0.0f, .max = 100.0f, .speed = 0.01f});
+    archive.Field("intensity", m_intensity,
+                  {.min = 0.0f,
+                   .max = 100000.0f,
+                   .speed = 0.05f,
+                   .tooltip = "The illuminance it gives: to every surface facing it for ambient and directional "
+                              "lights, and at one unit of distance for point and spot lights, which fall off with "
+                              "the square of the distance"});
     archive.Field("castsShadows", m_castingShadows, {.tooltip = "Whether meshes block the light"});
 }
 

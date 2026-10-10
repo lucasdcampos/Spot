@@ -1350,6 +1350,29 @@ TEST_CASE("Renderer3D point lights fade out by their range", "[gpu]") {
     CHECK(IsNear(render.At(0, 16), {0, 0, 0, 255}));
 }
 
+TEST_CASE("Renderer3D point lights fall off with the square of the distance", "[gpu]") {
+    RequireGpu();
+
+    // The wall's surface is at z = 0.5, so these lights are one and two units from its center.
+    const auto centerAt = [](float distance, float intensity, float range = 100.0f) {
+        return int{RenderLitWall([&](Spot::Renderer3D& renderer) {
+                       renderer.DrawLight({.type = Spot::LightType::Point,
+                                           .intensity = intensity,
+                                           .position = {0.0f, 0.0f, 0.5f + distance},
+                                           .range = range});
+                   }).At(16, 16)[0]};
+    };
+    const int near = centerAt(1.0f, 0.5f);
+    INFO("Near " << near);
+    CHECK(std::abs(near - 128) <= 3);
+    // Twice as far, four times the intensity gives the same light, and the same intensity a quarter of it.
+    CHECK(std::abs(centerAt(2.0f, 2.0f) - near) <= 3);
+    CHECK(std::abs(centerAt(2.0f, 0.5f) - 32) <= 3);
+    // The window takes little up to half the range, and all of it at the range.
+    CHECK(centerAt(1.0f, 0.5f, 2.0f) > near * 0.85f);
+    CHECK(centerAt(2.0f, 2.0f, 2.0f) == 0);
+}
+
 TEST_CASE("Renderer3D spot lights light only inside their cone", "[gpu]") {
     RequireGpu();
 
@@ -1797,6 +1820,7 @@ TEST_CASE("Renderer3D spot lights cast shadows when asked", "[gpu]") {
     RequireGpu();
     // From 5 units up, the cube's shadow reaches about a unit from the center, past what the camera sees of it.
     const Spot::LightData spot{.type = Spot::LightType::Spot,
+                               .intensity = 25.0f,
                                .position = {0.0f, 5.0f, 0.0f},
                                .direction = {0.0f, -1.0f, 0.0f},
                                .innerConeAngle = Spot::ToRadians(30.0f),
@@ -1816,8 +1840,11 @@ TEST_CASE("Renderer3D point lights cast shadows in every direction when asked", 
     RequireGpu();
     // From 4 units up, the middle cube's shadow reaches about 1.33 units from the center. The floor past |x| = 4 is
     // seen from the light's +X and -X faces, and the cube at x = -2.5 shadows it around x = -4.8.
-    const Spot::LightData point{
-        .type = Spot::LightType::Point, .position = {0.0f, 4.0f, 0.0f}, .range = 10.0f, .castsShadows = true};
+    const Spot::LightData point{.type = Spot::LightType::Point,
+                                .intensity = 16.0f,
+                                .position = {0.0f, 4.0f, 0.0f},
+                                .range = 10.0f,
+                                .castsShadows = true};
     const auto render = RenderShadows({point}, {{0.0f, 2.0f, 0.0f}, {-2.5f, 2.0f, 0.0f}});
 
     const int middle = FloorPixel(0.0f);
@@ -1831,11 +1858,15 @@ TEST_CASE("Renderer3D point lights cast shadows in every direction when asked", 
 TEST_CASE("Renderer3D lights left without shadow tiles light everything", "[gpu]") {
     RequireGpu();
     // Five point lights take 30 of the 32 tiles; a sixth does not fit, but a spot light still does.
-    const Spot::LightData point{
-        .type = Spot::LightType::Point, .position = {0.0f, 4.0f, 0.0f}, .range = 10.0f, .castsShadows = true};
+    const Spot::LightData point{.type = Spot::LightType::Point,
+                                .intensity = 16.0f,
+                                .position = {0.0f, 4.0f, 0.0f},
+                                .range = 10.0f,
+                                .castsShadows = true};
     const auto sixPoints = RenderShadows({point, point, point, point, point, point}, {{0.0f, 2.0f, 0.0f}});
     const auto fivePoints = RenderShadows({point, point, point, point, point}, {{0.0f, 2.0f, 0.0f}});
     const Spot::LightData spot{.type = Spot::LightType::Spot,
+                               .intensity = 16.0f,
                                .position = {0.0f, 4.0f, 0.0f},
                                .direction = {0.0f, -1.0f, 0.0f},
                                .range = 10.0f,

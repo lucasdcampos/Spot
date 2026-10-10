@@ -4,12 +4,21 @@
 
 SPOT_COMPONENT(Flash);
 
+namespace {
+
+// Flashes light what is around them as brightly as they glow at 40% of their range.
+float GetLightIntensity(float glow, float range) {
+    return glow * (0.4f * range) * (0.4f * range);
+}
+
+} // namespace
+
 Spot::Entity& Flash::Spawn(Spot::Scene& scene, Spot::Vector3 position, Spot::Color color, float size, float range,
                            float intensity, float lifetime) {
     Spot::Entity& entity = scene.CreateEntity("Flash");
     entity.GetTransform().SetPosition(position);
     entity.GetTransform().SetScale({size, size, size});
-    entity.AddComponent<Spot::PointLight>(color, intensity, range);
+    entity.AddComponent<Spot::PointLight>(color, GetLightIntensity(intensity, range), range);
     auto& ball =
         entity.AddComponent<Spot::MeshRenderer>(Spot::Assets::Load<Spot::Mesh>(Spot::BuiltInAssets::SphereMesh),
                                                 Spot::Material{.baseColor = Spot::Color::Black});
@@ -30,7 +39,7 @@ void Flash::OnUpdate(float deltaTime) {
     // Bright at once, then fading.
     const float strength = intensity * std::clamp(1.0f - m_age / std::max(lifetime, 1e-4f), 0.0f, 1.0f);
     if (auto* light = GetEntity().GetComponent<Spot::PointLight>()) {
-        light->SetIntensity(strength);
+        light->SetIntensity(GetLightIntensity(strength, light->GetRange()));
     }
     if (auto* ball = GetEntity().GetComponent<Spot::MeshRenderer>()) {
         ball->SetMaterial(

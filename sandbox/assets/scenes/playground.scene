@@ -195,7 +195,7 @@
               0.20000000298023224,
               1.0
             ],
-            "intensity": 1.5,
+            "intensity": 15.36,
             "range": 8.0
           },
           "enabled": true,
@@ -243,7 +243,7 @@
               0.4000000059604645,
               1.0
             ],
-            "intensity": 1.5,
+            "intensity": 15.36,
             "range": 8.0
           },
           "enabled": true,
@@ -291,7 +291,7 @@
               1.0,
               1.0
             ],
-            "intensity": 1.5,
+            "intensity": 15.36,
             "range": 8.0
           },
           "enabled": true,
@@ -339,7 +339,7 @@
               1.0,
               1.0
             ],
-            "intensity": 1.5,
+            "intensity": 15.36,
             "range": 8.0
           },
           "enabled": true,
@@ -3355,7 +3355,7 @@
               1.0
             ],
             "innerConeAngle": 0.20943951606750488,
-            "intensity": 1.5,
+            "intensity": 150.0,
             "outerConeAngle": 0.3490658402442932,
             "range": 25.0
           },
