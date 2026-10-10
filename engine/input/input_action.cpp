@@ -1,0 +1,276 @@
+#include "input/input_action.h"
+
+#include "input/input_state.h"
+#include "scene/archive.h"
+
+#include <algorithm>
+#include <cmath>
+#include <utility>
+
+namespace Spot {
+
+namespace {
+
+// A control's value this frame, and whether a button went down or up during it.
+struct Reading {
+    Vector2 value = {};
+    bool pressed = false;
+    bool released = false;
+};
+
+Reading Read(const InputControl& control, const InputState& state, int gamepad) {
+    Reading reading;
+    switch (control.source) {
+    case InputSource::Key: {
+        const auto key = static_cast<Key>(control.code);
+        reading = {{state.IsKeyDown(key) ? 1.0f : 0.0f, 0.0f}, state.IsKeyPressed(key), state.IsKeyReleased(key)};
+        break;
+    }
+    case InputSource::MouseButton: {
+        const auto button = static_cast<MouseButton>(control.code);
+        reading = {{state.IsMouseButtonDown(button) ? 1.0f : 0.0f, 0.0f},
+                   state.IsMouseButtonPressed(button),
+                   state.IsMouseButtonReleased(button)};
+        break;
+    }
+    case InputSource::GamepadButton: {
+        const auto button = static_cast<GamepadButton>(control.code);
+        reading = {{state.IsGamepadButtonDown(button, gamepad) ? 1.0f : 0.0f, 0.0f},
+                   state.IsGamepadButtonPressed(button, gamepad),
+                   state.IsGamepadButtonReleased(button, gamepad)};
+        break;
+    }
+    case InputSource::MouseMotion: {
+        // Screens count down; actions count up, as sticks do.
+        const Vector2 delta = state.GetMouseDelta();
+        reading.value = {delta.x, -delta.y};
+        break;
+    }
+    case InputSource::Scroll:
+        reading.value = state.GetScrollDelta();
+        break;
+    case InputSource::GamepadAxis:
+        reading.value.x = state.GetGamepadAxis(static_cast<GamepadAxis>(control.code), gamepad);
+        break;
+    case InputSource::GamepadStick: {
+        const bool left = control.code == 0;
+        reading.value = {state.GetGamepadAxis(left ? GamepadAxis::LeftX : GamepadAxis::RightX, gamepad),
+                         state.GetGamepadAxis(left ? GamepadAxis::LeftY : GamepadAxis::RightY, gamepad)};
+        break;
+    }
+    case InputSource::Composite:
+        break;
+    }
+    return reading;
+}
+
+// Values within the dead zone become 0, and the rest is stretched to fill the range again.
+float ApplyDeadZone(float magnitude, float deadZone) {
+    if (magnitude <= deadZone) {
+        return 0.0f;
+    }
+    return deadZone > 0.0f && deadZone < 1.0f ? (magnitude - deadZone) / (1.0f - deadZone) : magnitude;
+}
+
+Reading ReadBinding(const InputBinding& binding, InputActionType type, const InputState& state, int gamepad) {
+    Reading reading;
+    if (binding.control.source == InputSource::Composite) {
+        std::array<Reading, 4> parts;
+        for (std::size_t i = 0; i < parts.size(); ++i) {
+            parts[i] = Read(binding.parts[i], state, gamepad);
+            reading.pressed = reading.pressed || parts[i].pressed;
+            reading.released = reading.released || parts[i].released;
+        }
+        if (type == InputActionType::Vector2) {
+            reading.value = {parts[3].value.x - parts[2].value.x, parts[0].value.x - parts[1].value.x};
+            // Diagonals of four buttons go no faster than a stick pushed all the way.
+            if (LengthSquared(reading.value) > 1.0f) {
+                reading.value = Normalize(reading.value);
+            }
+        } else {
+            reading.value.x = parts[0].value.x - parts[1].value.x;
+        }
+    } else {
+        reading = Read(binding.control, state, gamepad);
+    }
+
+    if (type == InputActionType::Vector2) {
+        const float length = Length(reading.value);
+        reading.value = length > 0.0f ? reading.value * (ApplyDeadZone(length, binding.deadZone) / length) : Vector2{};
+    } else {
+        reading.value.x = std::copysign(ApplyDeadZone(std::abs(reading.value.x), binding.deadZone), reading.value.x);
+        reading.value.y = 0.0f;
+    }
+    reading.value.x *= binding.invertX ? -binding.scale : binding.scale;
+    reading.value.y *= binding.invertY ? -binding.scale : binding.scale;
+    return reading;
+}
+
+float Magnitude(Vector2 value, InputActionType type) {
+    return type == InputActionType::Vector2 ? Length(value) : std::abs(value.x);
+}
+
+} // namespace
+
+std::string InputControl::GetName() const {
+    switch (source) {
+    case InputSource::Key:
+        return std::string(GetKeyName(static_cast<Key>(code)));
+    case InputSource::MouseButton:
+        return "Mouse " + std::string(GetMouseButtonName(static_cast<MouseButton>(code)));
+    case InputSource::MouseMotion:
+        return "Mouse";
+    case InputSource::Scroll:
+        return "Mouse Wheel";
+    case InputSource::GamepadButton:
+        return "Gamepad " + std::string(GetGamepadButtonName(static_cast<GamepadButton>(code)));
+    case InputSource::GamepadAxis:
+        return "Gamepad " + std::string(GetGamepadAxisName(static_cast<GamepadAxis>(code)));
+    case InputSource::GamepadStick:
+        return code == 0 ? "Gamepad Left Stick" : "Gamepad Right Stick";
+    case InputSource::Composite:
+        return "Composite";
+    }
+    return {};
+}
+
+void InputControl::Serialize(Archive& archive) {
+    static constexpr std::array<std::string_view, 8> Sources = {
+        "Key", "MouseButton", "MouseMotion", "Scroll", "GamepadButton", "GamepadAxis", "GamepadStick", "Composite"};
+    archive.Field("source", source, {.enumNames = Sources});
+    archive.Field("code", code);
+}
+
+InputBinding InputBinding::Composite(InputControl up, InputControl down, InputControl left, InputControl right) {
+    return {.control = {InputSource::Composite, 0}, .parts = {up, down, left, right}};
+}
+
+InputBinding InputBinding::Composite(InputControl positive, InputControl negative) {
+    return {.control = {InputSource::Composite, 0}, .parts = {positive, negative, InputControl{}, InputControl{}}};
+}
+
+void InputBinding::Serialize(Archive& archive) {
+    archive.Field("control", control);
+    if (control.source == InputSource::Composite) {
+        std::vector<InputControl> list(parts.begin(), parts.end());
+        archive.Field("parts", list);
+        for (std::size_t i = 0; i < parts.size() && i < list.size(); ++i) {
+            parts[i] = list[i];
+        }
+    }
+    archive.Field("deadZone", deadZone, {.min = 0.0f, .max = 0.99f, .speed = 0.01f});
+    archive.Field("scale", scale, {.speed = 0.01f});
+    archive.Field("invertX", invertX);
+    archive.Field("invertY", invertY);
+}
+
+InputAction& InputAction::Bind(InputBinding binding) {
+    bindings.push_back(binding);
+    return *this;
+}
+
+void InputAction::Serialize(Archive& archive) {
+    static constexpr std::array<std::string_view, 3> Types = {"Button", "Axis", "Vector2"};
+    archive.Field("name", name);
+    archive.Field("type", type, {.enumNames = Types});
+    archive.Field("pressPoint", pressPoint, {.min = 0.01f, .max = 1.0f, .speed = 0.01f});
+    archive.Field("bindings", bindings);
+}
+
+InputAction& InputActionMap::Add(std::string name, InputActionType type) {
+    if (InputAction* found = Find(name)) {
+        found->type = type;
+        return *found;
+    }
+    return m_actions.emplace_back(InputAction{.name = std::move(name), .type = type});
+}
+
+bool InputActionMap::Remove(std::string_view name) {
+    const auto found = std::ranges::find(m_actions, name, &InputAction::name);
+    if (found == m_actions.end()) {
+        return false;
+    }
+    m_actions.erase(found);
+    // The states follow the actions by place, so they start over.
+    m_states.clear();
+    return true;
+}
+
+InputAction* InputActionMap::Find(std::string_view name) {
+    const auto found = std::ranges::find(m_actions, name, &InputAction::name);
+    return found != m_actions.end() ? &*found : nullptr;
+}
+
+const InputAction* InputActionMap::Find(std::string_view name) const {
+    const auto found = std::ranges::find(m_actions, name, &InputAction::name);
+    return found != m_actions.end() ? &*found : nullptr;
+}
+
+void InputActionMap::Update(const InputState& state) {
+    m_states.resize(m_actions.size());
+    for (std::size_t i = 0; i < m_actions.size(); ++i) {
+        const InputAction& action = m_actions[i];
+        State& actionState = m_states[i];
+        Vector2 value = {};
+        bool pressedEvent = false;
+        bool releasedEvent = false;
+        for (const InputBinding& binding : action.bindings) {
+            const Reading reading = ReadBinding(binding, action.type, state, m_gamepad);
+            if (Magnitude(reading.value, action.type) > Magnitude(value, action.type)) {
+                value = reading.value;
+            }
+            pressedEvent = pressedEvent || reading.pressed;
+            releasedEvent = releasedEvent || reading.released;
+        }
+        const bool wasDown = actionState.down;
+        const bool down = Magnitude(value, action.type) >= action.pressPoint;
+        actionState.value = value;
+        actionState.down = down;
+        // A press and a release within the frame are both seen, as the input state sees them.
+        actionState.pressed = !wasDown && (down || pressedEvent);
+        actionState.released = (wasDown && !down) || (!down && pressedEvent && releasedEvent);
+    }
+}
+
+const InputActionMap::State* InputActionMap::FindState(std::string_view action) const {
+    for (std::size_t i = 0; i < m_actions.size() && i < m_states.size(); ++i) {
+        if (m_actions[i].name == action) {
+            return &m_states[i];
+        }
+    }
+    return nullptr;
+}
+
+bool InputActionMap::IsDown(std::string_view action) const {
+    const State* state = FindState(action);
+    return state && state->down;
+}
+
+bool InputActionMap::IsPressed(std::string_view action) const {
+    const State* state = FindState(action);
+    return state && state->pressed;
+}
+
+bool InputActionMap::IsReleased(std::string_view action) const {
+    const State* state = FindState(action);
+    return state && state->released;
+}
+
+float InputActionMap::GetValue(std::string_view action) const {
+    const State* state = FindState(action);
+    return state ? state->value.x : 0.0f;
+}
+
+Vector2 InputActionMap::GetVector2(std::string_view action) const {
+    const State* state = FindState(action);
+    return state ? state->value : Vector2{};
+}
+
+void InputActionMap::Serialize(Archive& archive) {
+    archive.Field("actions", m_actions);
+    if (archive.IsLoading()) {
+        m_states.clear();
+    }
+}
+
+} // namespace Spot

@@ -108,6 +108,8 @@ add_library(spot_objects OBJECT
     graphics/texture.h
     input/input.h
     input/input.cpp
+    input/input_action.h
+    input/input_action.cpp
     input/input_state.h
     input/input_state.cpp
     input/keys.h

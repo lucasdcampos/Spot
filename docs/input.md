@@ -61,6 +61,38 @@ Spot::Input::RumbleGamepad(0.5f, 0.8f, 0.2f);
 With every gamepad, an axis query gives the value farthest from rest. `RumbleGamepad()` shakes the low and high
 frequency motors through the platform. Dead zones and other processing belong to input actions.
 
+## Actions
+
+Games rarely care which key jumps: they ask whether the player jumped. An `InputActionMap`
+(`engine/input/input_action.h`) holds named actions, each with bindings to the controls that drive it:
+
+```cpp
+Spot::InputActionMap& actions = GetInputActions(); // in the Application
+actions.Add("Jump", Spot::InputActionType::Button)
+    .Bind(Spot::InputControl::Of(Spot::Key::Space))
+    .Bind(Spot::InputControl::Of(Spot::GamepadButton::South));
+actions.Add("Move", Spot::InputActionType::Vector2)
+    .Bind(Spot::InputBinding::Composite(Spot::InputControl::Of(Spot::Key::W), Spot::InputControl::Of(Spot::Key::S),
+                                        Spot::InputControl::Of(Spot::Key::A), Spot::InputControl::Of(Spot::Key::D)))
+    .Bind({.control = {Spot::InputSource::GamepadStick, 0}, .deadZone = 0.2f});
+
+if (Spot::Input::IsActionPressed("Jump")) { /* jump */ }
+const Spot::Vector2 move = Spot::Input::GetActionVector2("Move");
+```
+
+An action is a `Button` (on or off), an `Axis` (-1 to 1) or a `Vector2`. Bindings read keys, mouse buttons, the mouse's
+movement (right and up positive), the wheel, gamepad buttons, axes and whole sticks, or composites: four buttons
+making a vector (no longer than 1, so diagonals are no faster) or two making an axis. Each binding has a dead zone
+(values within it count as 0, and the rest is stretched to fill the range again), a scale and inversions. The
+action's value is that of the binding farthest from rest; a button action is down when its value reaches its press
+point (0.5 by default), so triggers and sticks can press buttons. Presses and releases last the frame they happened
+in, and a press and release within one frame are both seen.
+
+The application keeps the game's map (`Application::GetInputActions()`) and updates it after each frame's events;
+`Input::IsActionDown()`, `IsActionPressed()`, `IsActionReleased()`, `GetActionValue()` and `GetActionVector2()` read it,
+and report nothing for actions it does not have. A map can also be made and updated (`InputActionMap::Update()`) from
+code alone, and `SetGamepad()` makes it read one gamepad, one map per local player.
+
 ## The cursor lock
 
 `Input::SetCursorLocked(true)` hides the cursor and keeps it in place, so the mouse only moves things, as first-person
@@ -69,4 +101,4 @@ game's view has focus, and takes it back with Escape.
 
 ## Not there yet
 
-Input actions with bindings and rebinding, and input ownership come in the rest of the roadmap's milestone M2.
+Actions from the game's settings, rebinding, and input ownership come in the rest of the roadmap's milestone M2.

@@ -93,6 +93,7 @@ int Application::Run() {
     Detail::SetAssetManager(m_assets.get());
 
     Input::SetState(&m_input);
+    Input::SetActionMap(&m_actions);
     Time::SetClock(&m_clock);
     m_limiter = FrameLimiter(m_config.maxFrameRate);
     m_clock.Start(std::chrono::steady_clock::now());
@@ -124,6 +125,8 @@ int Application::Run() {
             SPOT_PROFILE_SCOPE("Application::Events");
             m_input.BeginFrame();
             Platform::PollEvents([this](const Event& event) { DispatchEvent(event); });
+            // From whatever state is current, so games played in the editor read the editor's.
+            Input::UpdateActions();
         }
         if (!m_running) {
             break;
@@ -185,6 +188,7 @@ int Application::Run() {
     m_assets.reset();
     Time::SetClock(nullptr);
     Input::SetState(nullptr);
+    Input::SetActionMap(nullptr);
     m_audio.reset();
     m_graphics.reset();
     m_window.reset();

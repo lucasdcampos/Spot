@@ -6,6 +6,7 @@
 #include "core/time.h"
 #include "events/event.h"
 #include "graphics/graphics_device.h"
+#include "input/input_action.h"
 #include "input/input_state.h"
 #include "scene/scene.h"
 #include "window/window.h"
@@ -90,6 +91,8 @@ public:
     AudioDevice& GetAudioDevice();
     // Only available while Run() is running. Also reachable through the Spot::Assets functions.
     AssetManager& GetAssets();
+    // The game's actions, which Spot::Input's action queries read; updated after each frame's events.
+    InputActionMap& GetInputActions() { return m_actions; }
 
     // Scene changes are queued and applied at the start of the next frame, in the order they were asked for, so a
     // scene that asks for a change is never destroyed while it runs. Unloading a scene calls its OnUnload(), then
@@ -191,6 +194,7 @@ private:
     std::vector<std::unique_ptr<Scene>> m_scenes;
     std::vector<SceneChange> m_sceneChanges;
     InputState m_input;
+    InputActionMap m_actions;
     FrameClock m_clock;
     FrameLimiter m_limiter;
     bool m_running = false;

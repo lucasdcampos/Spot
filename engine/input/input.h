@@ -7,6 +7,7 @@
 
 namespace Spot {
 
+class InputActionMap;
 class InputState;
 
 // Global access to the input of the running application, e.g. Spot::Input::IsKeyDown(Spot::Key::W).
@@ -43,6 +44,18 @@ float GetGamepadAxis(GamepadAxis axis, int gamepad = AnyGamepad);
 // Shakes the gamepad's low and high frequency motors, each from 0 to 1, for the seconds; with AnyGamepad, every
 // gamepad's. A new call replaces the last. Returns whether a gamepad rumbles.
 bool RumbleGamepad(float low, float high, float seconds, int gamepad = AnyGamepad);
+
+// Actions; see InputActionMap. The application points this at its map, updated after each frame's events. Without
+// a map every action reports nothing.
+void SetActionMap(InputActionMap* map);
+InputActionMap* GetActionMap();
+// Updates the map from the state; the application calls it once per frame.
+void UpdateActions();
+bool IsActionDown(std::string_view action);
+bool IsActionPressed(std::string_view action);
+bool IsActionReleased(std::string_view action);
+float GetActionValue(std::string_view action);
+Vector2 GetActionVector2(std::string_view action);
 
 // Hides the cursor and keeps it in place while locked, so the mouse only moves things, as it turns first-person
 // views; see InputState::SetCursorLocked(). Does nothing without a state.

@@ -360,7 +360,7 @@ bindings with processing (dead zone, invert, scale). A player's rebinds are save
   a choice between one gamepad and any gamepad. Tests with synthetic events.
 - [x] **M2.2 Text input.** A `TextInputEvent` from SDL text events, `Window::StartTextInput()`/`StopTextInput()` with
   the IME area, and `Input::GetTypedText()`. Tests.
-- [ ] **M2.3 Actions.** An `InputActionMap` of actions and bindings: keys, mouse buttons, mouse delta, scroll, gamepad
+- [x] **M2.3 Actions.** An `InputActionMap` of actions and bindings: keys, mouse buttons, mouse delta, scroll, gamepad
   buttons and axes, and composites (four buttons into a vector). Values and press/release edges per action, each
   frame. Add `Input::IsActionDown/Pressed/Released`, `GetActionValue` and `GetActionVector2`. It also works from code
   alone. Tests.
@@ -383,6 +383,11 @@ bindings with processing (dead zone, invert, scale). A player's rebinds are save
 - M2.2: `TextInputEvent`, `Window::StartTextInput()` and the IME area already existed (from the editor's text
   fields); this step added `Input::GetTypedText()`, input method compositions (`TextCompositionEvent`) and the
   cursor offset in `SetTextInputArea()`.
+- M2.3: a binding's value is a vector processed by its dead zone (radial for vectors), inversions and scale; the
+  action takes the binding farthest from rest, and button actions are down from `pressPoint`. Presses also come
+  from a bound button's press this frame, so taps within a frame are not lost. The application owns the map
+  (`Application::GetInputActions()`) and updates it right after polling events, from whichever state is current, so
+  a game played in the editor reads the play session's input. Maps have a `SetGamepad()` for local multiplayer.
 
 ---
 

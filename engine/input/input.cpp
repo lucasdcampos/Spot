@@ -1,5 +1,6 @@
 #include "input/input.h"
 
+#include "input/input_action.h"
 #include "input/input_state.h"
 #include "platform/platform.h"
 
@@ -11,6 +12,7 @@ namespace {
 
 const InputState EmptyState;
 InputState* s_state = nullptr;
+InputActionMap* s_actions = nullptr;
 
 const InputState& GetCurrent() {
     return s_state ? *s_state : EmptyState;
@@ -24,6 +26,40 @@ void SetState(InputState* state) {
 
 InputState* GetState() {
     return s_state;
+}
+
+void SetActionMap(InputActionMap* map) {
+    s_actions = map;
+}
+
+InputActionMap* GetActionMap() {
+    return s_actions;
+}
+
+void UpdateActions() {
+    if (s_actions) {
+        s_actions->Update(GetCurrent());
+    }
+}
+
+bool IsActionDown(std::string_view action) {
+    return s_actions && s_actions->IsDown(action);
+}
+
+bool IsActionPressed(std::string_view action) {
+    return s_actions && s_actions->IsPressed(action);
+}
+
+bool IsActionReleased(std::string_view action) {
+    return s_actions && s_actions->IsReleased(action);
+}
+
+float GetActionValue(std::string_view action) {
+    return s_actions ? s_actions->GetValue(action) : 0.0f;
+}
+
+Vector2 GetActionVector2(std::string_view action) {
+    return s_actions ? s_actions->GetVector2(action) : Vector2{};
 }
 
 bool IsKeyDown(Key key) {
