@@ -87,8 +87,10 @@ its cluster's lights. Shadows keep their own budget: the first directional light
 
 ### Instancing
 
-`Renderer3D` draws meshes that look the same together. It sorts the frame's meshes so those with the same mesh,
-material values and pipeline sit side by side, puts every mesh's transforms in one storage buffer, and draws each run
+`Renderer3D` draws meshes that look the same together. It sorts the frame's opaque meshes by pipeline, then
+material, then mesh, then from the nearest to the farthest, so state changes as rarely as it can (`GetStats()` counts
+`pipelineChanges` and `materialChanges`) and what is in front hides what is behind before it is shaded; meshes with
+the same mesh, material values and pipeline thus sit side by side. It then puts every mesh's transforms in one storage buffer, and draws each run
 of them in view as instances of one draw, in the view's pass and in each shadow pass. Nothing needs to be marked:
 a level of the same crates is a handful of draws (`GetStats().drawCalls` counts draws, not meshes). Materials batch by
 their values, so copies of a material batch as well as the same asset.

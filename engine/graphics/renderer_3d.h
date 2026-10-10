@@ -74,6 +74,10 @@ struct Renderer3DStats {
     std::uint32_t culledMeshes = 0;
     // That lit the view, ambient ones aside.
     std::uint32_t lights = 0;
+    // How often the view's pass changed pipeline, and material (textures or values), between its draws; sorting keeps
+    // both low.
+    std::uint32_t pipelineChanges = 0;
+    std::uint32_t materialChanges = 0;
     // 1 when the sky changed and its light was captured again, which takes a few passes.
     std::uint32_t skyLightingUpdates = 0;
 };
@@ -158,6 +162,8 @@ private:
         bool castsShadows;
         // Whether it is in the camera's view, which End() decides.
         bool visible = true;
+        // Of its bounds' center along the camera's forward axis.
+        float depth = 0.0f;
     };
 
     void DrawShadows(Detail::SelectedLights& lights, Detail::ShadowUniforms& shadows);

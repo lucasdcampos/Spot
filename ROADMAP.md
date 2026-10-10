@@ -746,7 +746,7 @@ viewers, and the golden-image tests cover them.
   automatically in `Renderer3D`.
 - [x] **M7.3 Clustered lights.** Assign lights to a froxel grid on the CPU and send it in storage buffers, raising
   `MaxLights` from 16 to hundreds. Shadowed lights keep their budget. Tests.
-- [ ] **M7.4 Sorting.** Sort opaque draws by pipeline, material and depth to minimize state changes and overdraw.
+- [x] **M7.4 Sorting.** Sort opaque draws by pipeline, material and depth to minimize state changes and overdraw.
 - [ ] **M7.5 Shadow quality.** Soft PCF, stable cascades (texel snapping), blending between cascades, and caster
   culling per cascade.
 - [ ] **M7.6 Benchmark.** A benchmark scene with 10,000 meshes and 200 lights. Record its Release frame times in Notes
@@ -778,6 +778,11 @@ of lamps.
   buffers (registers t9 to t11, after the nine samplers), uploaded per `End()` like the instances; the camera's
   forward axis and the grid's parameters moved into the lighting constant buffer, which no longer holds the lights.
   Directional lights come first in the light list and every pixel goes through them.
+- M7.4: The opaque sort key is pipeline (sidedness and alpha mode), material (textures, then values), mesh, then
+  depth of the bounds' center along the camera's forward axis, so a batch's instances draw front to back. Batches
+  across materials are not reordered by depth, which would trade state changes for overdraw. The view's pass skips
+  rebinding meshes, textures and material values that did not change, and `Renderer3DStats` counts pipeline and
+  material changes.
 
 ---
 

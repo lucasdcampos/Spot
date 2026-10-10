@@ -1708,6 +1708,40 @@ TEST_CASE("Renderer3D draws meshes that look the same as instances of one draw, 
     CHECK(render.At(3, 11)[1] < 30);
 }
 
+TEST_CASE("Renderer3D sorts what it draws by pipeline and material, changing each as rarely as it can", "[gpu]") {
+    RequireGpu();
+    Spot::Renderer3DStats stats;
+    const TargetRender render(
+        32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            REQUIRE(cube != nullptr);
+            renderer.Begin(context, target, MakeFrontCamera());
+            renderer.DrawLight(FrontLight);
+            // Single- and double-sided materials of three colors, drawn mixed up, in a row across the view.
+            const std::array<Spot::Material, 6> materials{{
+                {.baseColor = Spot::Color::Red},
+                {.baseColor = Spot::Color::Green, .doubleSided = true},
+                {.baseColor = Spot::Color::Red},
+                {.baseColor = Spot::Color::Blue},
+                {.baseColor = Spot::Color::Green, .doubleSided = true},
+                {.baseColor = Spot::Color::Red, .doubleSided = true},
+            }};
+            for (std::size_t i = 0; i < materials.size(); ++i) {
+                renderer.DrawMesh(*cube, materials[i],
+                                  Spot::Matrix4::Translation({-1.25f + 0.5f * static_cast<float>(i), 0.0f, 0.0f}) *
+                                      Spot::Matrix4::Scale({0.3f, 0.3f, 0.3f}));
+            }
+            renderer.End();
+            stats = renderer.GetStats();
+        });
+    // Two pipelines, each with two materials; the two single-sided red cubes are one draw, as are the green ones.
+    CHECK(stats.pipelineChanges == 2);
+    CHECK(stats.materialChanges == 4);
+    CHECK(stats.drawCalls == 4);
+    CHECK(render.At(4, 16)[0] > 200);
+}
+
 TEST_CASE("Renderer3D draws only the meshes on the layers the camera sees", "[gpu]") {
     RequireGpu();
     Spot::Renderer3DStats stats;

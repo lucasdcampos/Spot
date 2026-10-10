@@ -30,6 +30,8 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstring>
+#include <optional>
 #include <tuple>
 
 namespace Spot {
@@ -448,14 +450,20 @@ void Renderer3D::End() {
     const auto transparent = std::stable_partition(m_commands.begin(), m_commands.end(), [](const DrawCommand& c) {
         return c.alphaMode != AlphaMode::Transparent;
     });
-    // Commands that look the same end up side by side, to be drawn as instances of one draw.
-    const auto lookKey = [](const DrawCommand& c) {
-        return std::tie(c.doubleSided, c.alphaMode, c.textures, c.mesh, c.color.r, c.color.g, c.color.b, c.color.a,
-                        c.metallic, c.roughness, c.normalScale, c.occlusionStrength, c.emissive.r, c.emissive.g,
-                        c.emissive.b, c.alphaCutoff, c.worldTextureSize);
+    // Opaque commands go by pipeline, then material, so state changes as rarely as it can, then mesh, so those that
+    // look the same are side by side to be drawn as instances of one draw, and last from the nearest to the farthest,
+    // so what is in front hides what is behind before it is shaded.
+    const Vector3 forward = m_camera.GetForward();
+    for (DrawCommand& command : m_commands) {
+        command.depth = Dot(command.bounds.center - m_camera.position, forward);
+    }
+    const auto sortKey = [](const DrawCommand& c) {
+        return std::tie(c.doubleSided, c.alphaMode, c.textures, c.color.r, c.color.g, c.color.b, c.color.a, c.metallic,
+                        c.roughness, c.normalScale, c.occlusionStrength, c.emissive.r, c.emissive.g, c.emissive.b,
+                        c.alphaCutoff, c.worldTextureSize, c.mesh, c.depth);
     };
     std::stable_sort(m_commands.begin(), transparent,
-                     [&](const DrawCommand& a, const DrawCommand& b) { return lookKey(a) < lookKey(b); });
+                     [&](const DrawCommand& a, const DrawCommand& b) { return sortKey(a) < sortKey(b); });
     const Vector3 eye = m_camera.position;
     std::stable_sort(transparent, m_commands.end(), [eye](const DrawCommand& a, const DrawCommand& b) {
         return LengthSquared(a.bounds.center - eye) > LengthSquared(b.bounds.center - eye);
@@ -962,6 +970,8 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
     pass.BindVertexStorageBuffer(0, *m_instances);
     const Pipeline* boundPipeline = nullptr;
     MaterialTextures boundTextures{};
+    const Mesh* boundMesh = nullptr;
+    std::optional<MaterialUniforms> boundMaterial;
     for (std::size_t first = 0; first < m_commands.size();) {
         const DrawCommand& command = m_commands[first];
         if (!command.visible) {
@@ -981,29 +991,40 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
         if (pipeline != boundPipeline) {
             pass.BindPipeline(*pipeline);
             boundPipeline = pipeline;
+            ++m_stats.pipelineChanges;
         }
         // Missing textures are white, which leaves the values they multiply as they are.
+        bool materialChanged = false;
         for (std::size_t i = 0; i < command.textures.size(); ++i) {
             const Texture* texture = command.textures[i] ? command.textures[i] : m_whiteTexture.get();
             if (texture != boundTextures[i]) {
                 pass.BindFragmentTexture(i == 0 ? 0 : static_cast<std::uint32_t>(i + 2), *texture, *m_sampler);
                 boundTextures[i] = texture;
+                materialChanged = true;
             }
         }
-
-        pass.BindVertexBuffer(0, command.mesh->GetVertexBuffer());
-        pass.BindIndexBuffer(command.mesh->GetIndexBuffer(), IndexType::UInt32);
+        const MaterialUniforms material{.baseColor = command.color,
+                                        .emissive = command.emissive,
+                                        .metallic = command.metallic,
+                                        .roughness = command.roughness,
+                                        .normalScale = command.normalScale,
+                                        .occlusionStrength = command.occlusionStrength,
+                                        .doubleSided = command.doubleSided ? 1.0f : 0.0f,
+                                        .worldTextureSize = command.worldTextureSize,
+                                        .alphaMode = static_cast<float>(command.alphaMode),
+                                        .alphaCutoff = command.alphaCutoff};
+        if (!boundMaterial || std::memcmp(&*boundMaterial, &material, sizeof(MaterialUniforms)) != 0) {
+            pass.PushFragmentUniforms(1, material);
+            boundMaterial = material;
+            materialChanged = true;
+        }
+        m_stats.materialChanges += materialChanged ? 1 : 0;
+        if (command.mesh != boundMesh) {
+            pass.BindVertexBuffer(0, command.mesh->GetVertexBuffer());
+            pass.BindIndexBuffer(command.mesh->GetIndexBuffer(), IndexType::UInt32);
+            boundMesh = command.mesh;
+        }
         pass.PushVertexUniforms(1, BatchUniforms{{static_cast<std::uint32_t>(first), 0, 0, 0}});
-        pass.PushFragmentUniforms(1, MaterialUniforms{.baseColor = command.color,
-                                                      .emissive = command.emissive,
-                                                      .metallic = command.metallic,
-                                                      .roughness = command.roughness,
-                                                      .normalScale = command.normalScale,
-                                                      .occlusionStrength = command.occlusionStrength,
-                                                      .doubleSided = command.doubleSided ? 1.0f : 0.0f,
-                                                      .worldTextureSize = command.worldTextureSize,
-                                                      .alphaMode = static_cast<float>(command.alphaMode),
-                                                      .alphaCutoff = command.alphaCutoff});
         pass.DrawIndexed(command.mesh->GetIndexCount(), instanceCount);
 
         ++m_stats.drawCalls;
