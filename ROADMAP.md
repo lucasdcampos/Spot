@@ -9,7 +9,7 @@ The goal is the same breadth, built on the architecture Spot already has.
 The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
 [The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
 
-**Current focus:** M6 – Rendering: PBR and transparency
+**Current focus:** M7 – Rendering: scale
 
 ## How to use this plan
 
@@ -728,6 +728,13 @@ viewers, and the golden-image tests cover them.
   prop's material with the new color, keeping its alpha, and both new modes go on the `UndoList`. Glass panes stand
   in view of the start and along the platform's edge. The level projects concrete (8 m) underfoot and cyan painted
   metal (4 m) on its blocks.
+- Done 2026-10-10. Acceptance: DamagedHelmet and AlphaBlendModeTest render with every PBR input (normal, ORM,
+  emissive, occlusion) and their opaque, cutout and blended alpha as reference viewers show them, and the golden-image
+  tests cover them with PBR spheres under the sky, cutout and transparent surfaces with shadows and a normal-mapped
+  wall; GPU tests cover tangents, cube textures and their faces and mip levels, the sky's captured light, GGX
+  highlights, inverse-square falloff and the alpha modes. The sandbox's props, level, weapons in hand and glass panes
+  use the generated PBR surfaces, and the tool gun paints and gives materials. MSVC and GCC Debug build without
+  warnings and pass every test, the module tests included.
 
 ---
 
