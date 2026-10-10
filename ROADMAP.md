@@ -247,7 +247,7 @@ Steps:
   and layers. The sandbox player moves with it. Tests.
 - [x] **M1.7 Mesh colliders.** A `MeshCollider` from a mesh asset or from runtime `MeshData` (`SetMesh()`): a static
   triangle mesh, or a convex hull for dynamic bodies. Built shapes are cached per mesh. Tests.
-- [ ] **M1.8 Joints.** `FixedJoint`, `HingeJoint` (limits, motor), `DistanceJoint`, `SpringJoint` and
+- [x] **M1.8 Joints.** `FixedJoint`, `HingeJoint` (limits, motor), `DistanceJoint`, `SpringJoint` and
   `SwingTwistJoint` (for ragdolls), each connecting to another entity by `EntityId` or to the world. Joints can
   break past a force. Tests.
 - [ ] **M1.9 Debug view and editor.** Colliders, contacts and queries drawn with `DebugDraw`, a Colliders toggle in the
@@ -304,6 +304,12 @@ physics gun and the tool gun, and shoots and blows it apart.
   for it. The Jolt backend's `MeshShapeCache` keys shapes by mesh and drops them once the mesh is gone; scale goes on
   through a `ScaledShape`, so one built shape serves every scale. Before M1.7 the Jolt backend was split into files
   by topic, as it had reached 800 lines.
+- M1.8: the entity's own body is Jolt's second body, and what it is joined to (or the world) the first, because
+  Jolt measures hinge angles and drives motors as the second body relative to the first. `SpringJoint` is a distance
+  constraint with min = max = rest length and a spring. A joint is made again whenever it or one of its bodies
+  changes, as Jolt's constraints cannot outlive their bodies, so a hinge counts its angle from where it was last
+  made; motors change in place so they do not reset it. `PhysicsWorld` keeps joints by component pointer, which is
+  safe because a joint leaves the moment it is disabled, before it can be freed.
 
 ---
 

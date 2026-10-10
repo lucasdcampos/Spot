@@ -60,6 +60,9 @@ one save it in scenes (`Archive::Field()` takes `AssetRef` fields). A reference 
 loading failed; saving keeps the id. Assets that need the GPU, such as textures and meshes, only load with a
 graphics device.
 
+A mesh asset can also load as its CPU triangles, `MeshData`, with `AssetManager::LoadMeshData()` or
+`Load<MeshData>()`, as mesh colliders need; it loads without a graphics device, and is cached apart from the GPU mesh.
+
 Built-in assets have fixed ids and need no file (`engine/assets/built_in_assets.h`): the cube, sphere and plane
 meshes and the grid and checker textures.
 

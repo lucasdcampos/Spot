@@ -36,6 +36,25 @@ them. The trigger colliders of an entity form a sensor body of their own, beside
 have both. The sensor follows the entity: static when the entity has no rigidbody, kinematic otherwise, moved to the
 entity's pose each step.
 
+## Joints
+
+A `Joint` joins its entity's body to another entity's (`SetConnectedEntity()`), or to the world, at an anchor
+relative to the entity, as the bodies are when the joint is made:
+
+| Joint | What it does |
+|---|---|
+| `FixedJoint` | Holds the bodies together as they are, as a weld |
+| `HingeJoint` | Lets them turn around an axis, within limits (`SetLimits()`), driven by a motor (`SetMotor()`) |
+| `DistanceJoint` | Keeps two points within a range of distances, as a rope |
+| `SpringJoint` | Pulls two points toward a rest length with a spring of a frequency and damping |
+| `SwingTwistJoint` | Lets the bodies turn around a point, swinging in a cone and twisting within limits, as ragdolls' bones |
+
+Angles and motors are those of the entity turning relative to what it is joined to. A joint with a break force
+(`SetBreakForce()`, in newtons) breaks once holding its bodies takes more: it is disabled, `IsBroken()` turns true and
+the entity's components get `OnJointBreak()`; enabling it mends it. `GetForce()` tells how hard it held in the last
+step. Joints are made again whenever they or one of their bodies change, since Jolt's constraints cannot outlive their
+bodies; a joint whose bodies do not exist yet waits for them.
+
 ## Characters
 
 A `CharacterController` moves its entity as a character walks, under the game's control rather than by forces: a
@@ -135,5 +154,5 @@ editor's Project Settings panel edits.
 
 ## Not there yet
 
-Joints come in
-the rest of the roadmap's milestone M1.
+The debug view of colliders and contacts, and the editor's collider tools, come in the rest of the roadmap's
+milestone M1.
