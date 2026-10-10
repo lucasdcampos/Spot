@@ -67,6 +67,24 @@ components. See [Diagnostics](diagnostics.md).
 
 ## Saving and loading
 
+`Scene::Instantiate(const Model&, name)` creates a named root and the model's node tree below it. Empty nodes and
+duplicate names are kept; each entity receives a new `EntityId`. Each node retains its local transform, so a rotated
+child under a non-uniformly scaled parent keeps the resulting world-space shear. A mesh node has one `MeshRenderer`
+per submesh, with its material; the GPU mesh and material assets are shared between instances. Nodes can then be
+moved, reparented or disabled independently, and the named root moves or destroys the whole instance.
+
+```cpp
+auto model = Spot::Assets::Load<Spot::Model>("models/house.glb");
+if (model) {
+    auto& house = scene.Instantiate(*model, "House");
+    house.GetTransform().SetPosition({10.0f, 0.0f, 0.0f});
+}
+```
+
+Instances are ordinary entity trees: saving retains their hierarchy, transforms, mesh and material asset ids and
+submesh indices. `MeshRenderer::SetSubmesh()` selects one range; `Mesh::AllSubmeshes` (saved as `-1`) draws the whole
+mesh and remains the default for older scene files. `InstantiateModel()` delegates to the same scene API.
+
 Scenes save as JSON (`Scene::SaveToString()`, `SaveToFile()`, `Entity::SaveToString()` for a subtree) and load
 with `LoadFromString()`, `LoadFromFile()` or `Instantiate()`. A component is saved when its type is registered and
 it describes its fields:

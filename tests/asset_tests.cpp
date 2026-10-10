@@ -721,8 +721,11 @@ TEST_CASE("Scenes save mesh renderers by asset id and load them back through the
     const AssetId meshId = model->GetParts()[1].mesh.GetId();
 
     Spot::Scene scene;
-    Spot::Entity& cube = Spot::InstantiateModel(scene, *model, "Cube");
-    REQUIRE(cube.GetChildren().size() == 2);
+    Spot::Entity& cube = scene.Instantiate(*model, "Cube");
+    REQUIRE(cube.GetChildren().size() == 1);
+    REQUIRE(cube.FindChild("Pivot"));
+    REQUIRE(cube.FindChild("Pivot")->FindChild("Cube"));
+    REQUIRE(cube.FindChild("Pivot")->FindChild("Cube")->GetComponents<Spot::MeshRenderer>().size() == 2);
     // A material made in code is saved as null.
     scene.CreateEntity("Custom").AddComponent<Spot::MeshRenderer>(Spot::AssetRef<Spot::Mesh>(),
                                                                   Spot::Material{.baseColor = Spot::Color::Red});
@@ -734,11 +737,14 @@ TEST_CASE("Scenes save mesh renderers by asset id and load them back through the
     REQUIRE(loaded.LoadFromString(text, &assets));
     const Spot::Entity* loadedCube = loaded.FindEntity("Cube");
     REQUIRE(loadedCube);
-    REQUIRE(loadedCube->GetChildren().size() == 2);
-    const auto* renderer = loadedCube->GetChildren()[1]->GetComponent<Spot::MeshRenderer>();
+    REQUIRE(loadedCube->GetChildren().size() == 1);
+    const auto renderers = loadedCube->FindChild("Pivot")->FindChild("Cube")->GetComponents<Spot::MeshRenderer>();
+    REQUIRE(renderers.size() == 2);
+    const auto* renderer = renderers[1];
     REQUIRE(renderer);
     CHECK(renderer->GetMesh().GetId() == meshId);
     CHECK(renderer->GetMaterial().GetId() == plainId);
+    CHECK(renderer->GetSubmesh() == 1);
     // Loaded through the same manager, so shared with the model's.
     CHECK(renderer->GetMaterial().Get() == model->GetParts()[1].material.Get());
 
@@ -749,7 +755,8 @@ TEST_CASE("Scenes save mesh renderers by asset id and load them back through the
     // Without an asset manager, the ids are kept so saving again loses nothing.
     Spot::Scene offline;
     REQUIRE(offline.LoadFromString(text));
-    const auto* offlineRenderer = offline.FindEntity("Cube")->GetChildren()[1]->GetComponent<Spot::MeshRenderer>();
+    const auto* offlineRenderer =
+        offline.FindEntity("Cube")->FindChild("Pivot")->FindChild("Cube")->GetComponents<Spot::MeshRenderer>()[1];
     CHECK_FALSE(offlineRenderer->GetMaterial());
     CHECK(offlineRenderer->GetMaterial().GetId() == plainId);
     CHECK(offline.SaveToString().find(plainId.ToString()) != std::string::npos);

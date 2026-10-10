@@ -14,6 +14,7 @@ namespace Spot::Editor {
 struct MeshInstance {
     const Mesh* mesh = nullptr;
     Matrix4 world = {};
+    std::uint32_t submesh = Mesh::AllSubmeshes;
 };
 
 // The textures one view of a scene is drawn into: the color shown in the window, the HDR image the scene is drawn into

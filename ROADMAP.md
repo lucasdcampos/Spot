@@ -114,12 +114,12 @@ How it is built:
 |---|---|---|
 | [x] | [M0 – Foundations](#m0--foundations) | Contained failures, scene systems, settings sections, profiler, debug drawing, docs |
 | [x] | [M1 – Physics for gameplay](#m1--physics-for-gameplay) | Layers, triggers, collision events, queries, character controller, mesh colliders, joints |
-| [ ] | [M2 – Input actions and gamepads](#m2--input-actions-and-gamepads) | Gamepads, text input, actions, rebinding, input ownership |
-| [ ] | [M3 – Audio in scenes](#m3--audio-in-scenes) | Buses, voice management, streaming, 3D sources and listener, mixer panel |
-| [ ] | [M4 – Fast game-code iteration](#m4--fast-game-code-iteration) | A one-file change in game code reloads in seconds |
-| [ ] | [M5 – Rendering: HDR and post-processing](#m5--rendering-hdr-and-post-processing) | HDR, tonemapping, bloom, AA, grading, fog, render hooks |
-| [ ] | [M6 – Rendering: PBR and transparency](#m6--rendering-pbr-and-transparency) | Metallic-roughness PBR, normal maps, sky lighting, alpha modes, golden-image tests |
-| [ ] | [M7 – Rendering: scale](#m7--rendering-scale) | Culling, instancing, clustered lights, better shadows, benchmarks |
+| [x] | [M2 – Input actions and gamepads](#m2--input-actions-and-gamepads) | Gamepads, text input, actions, rebinding, input ownership |
+| [x] | [M3 – Audio in scenes](#m3--audio-in-scenes) | Buses, voice management, streaming, 3D sources and listener, mixer panel |
+| [x] | [M4 – Fast game-code iteration](#m4--fast-game-code-iteration) | A one-file change in game code reloads in seconds |
+| [x] | [M5 – Rendering: HDR and post-processing](#m5--rendering-hdr-and-post-processing) | HDR, tonemapping, bloom, AA, grading, fog, render hooks |
+| [x] | [M6 – Rendering: PBR and transparency](#m6--rendering-pbr-and-transparency) | Metallic-roughness PBR, normal maps, sky lighting, alpha modes, golden-image tests |
+| [x] | [M7 – Rendering: scale](#m7--rendering-scale) | Culling, instancing, clustered lights, better shadows, benchmarks |
 | [ ] | [M8 – Model hierarchy and prefabs](#m8--model-hierarchy-and-prefabs) | Model node trees, prefab assets, overrides, prefab editing |
 | [ ] | [M9 – Skeletal animation](#m9--skeletal-animation) | Skins, clips, GPU skinning, Animator, controllers, blend trees, events, root motion |
 | [ ] | [M10 – Gameplay toolkit](#m10--gameplay-toolkit) | Timers, time scale, tweens, coroutines, signals, typed references, save data |
@@ -826,7 +826,7 @@ prefab's current content, so prefab changes reach every instance. Prefabs nest.
 - [x] **M8.1 Model nodes.** Model import keeps nodes, with their names and transforms, a mesh per node, and
   primitives as submeshes. `Model` exposes the node tree, and `Renderer3D::DrawModel()` keeps working. Bump the model
   format. Tests.
-- [ ] **M8.2 Model instances.** `Scene::Instantiate()` of a model creates an entity per node, and `MeshRenderer` can
+- [x] **M8.2 Model instances.** `Scene::Instantiate()` of a model creates an entity per node, and `MeshRenderer` can
   draw one submesh. Models dropped in the editor create that hierarchy.
 - [ ] **M8.3 Prefab assets.** A `.prefab` source in the scene format, its importer, `AssetType::Prefab`, and
   `Scene::Instantiate(AssetRef<Prefab>)` at runtime. Tests.
@@ -851,10 +851,24 @@ own overrides.
   version 9 stores the hierarchy and mesh ranges. Import scale applies to vertex positions and node translations.
   Draws, instancing and shadows use submesh ranges, and mirrored transforms reverse culling and tangent handedness.
   Thumbnails, the sandbox's view models and existing flat scene instances now place the parts through their nodes;
-  M8.2 replaces those flat instances with the hierarchy. The serialized `MeshRenderer` submesh selector was added
+  M8.2 replaces scene instances with the hierarchy. The serialized `MeshRenderer` submesh selector was added
   here so these callers can retain separate primitive materials through the format change.
   Validation: MSVC and GCC Debug build without warnings and pass all 573 tests, including GPU, golden images,
   editor, module and sandbox tests.
+- M8.2: `Scene::Instantiate(const Model&, name)` creates a named wrapper root and one entity per node, with a
+  `MeshRenderer` per drawable submesh on that node. Parents are built before children, and only local matrices are
+  decomposed, preserving world-space shear from scaled parents. Shared meshes and materials stay shared, while
+  entities receive independent ids. `InstantiateModel()` delegates to the scene API, and model drops in the editor
+  save that same tree as one undoable addition, including empty nodes. Picking and selection masks now draw each
+  renderer's selected index range. Tests cover node identity and transforms, sharing, serialization without a GPU,
+  material changes, empty models, editor undo and redo, GPU scene drawing and submesh selection.
+  Validation: MSVC and GCC Debug build without warnings and pass all 579 tests, including GPU, golden images,
+  editor, module and sandbox tests.
+- Rendering benchmark after M8.2, 2026-10-10: MSVC Release builds without warnings. On the development machine
+  (Direct3D 12, GTX 1660), the 10,000-mesh and 200-light benchmark at 1600x900, measured over 600 frames after 120
+  warmup frames, ran at a mean of 11.58 ms (86 FPS), median 11.20 ms, 95th percentile 14.22 ms and worst 18.80 ms.
+  It keeps 10 draw calls and 51 shadow draw calls, and remains within the 60 FPS budget on average and at the 95th
+  percentile. M7's recorded mean was 10.17 ms; this run is about 14% slower.
 
 ---
 

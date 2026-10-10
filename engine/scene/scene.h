@@ -22,6 +22,7 @@ class Application;
 class AssetManager;
 class Event;
 class AudioSystem;
+class Model;
 class PhysicsWorld;
 class RenderContext;
 
@@ -151,6 +152,9 @@ public:
     // Adds saved entities like LoadFromString(), as the options say, and returns those that had no parent among
     // them, in order. Returns nothing, having added nothing, when the text is not a saved scene.
     std::vector<Entity*> Instantiate(std::string_view text, const InstantiateOptions& options = {});
+    // Creates a root with the given name and an entity per model node below it, keeping local transforms and the
+    // hierarchy. Each drawable submesh gets a MeshRenderer on its node; meshes and materials remain shared.
+    Entity& Instantiate(const Model& model, std::string name = {});
     // Saves the entities, which must belong to this scene, with their descendants, in the format of SaveToString().
     // An entity below another of the list is saved once, with that one.
     std::string SaveEntitiesToString(std::span<Entity* const> entities) const;

@@ -184,7 +184,7 @@ void AddModel(Spot::GraphicsDevice& device, Spot::Scene& scene, const std::files
             max = {std::max(max.x, p.x), std::max(max.y, p.y), std::max(max.z, p.z)};
         }
     }
-    Spot::InstantiateModel(scene, *model, "Model");
+    scene.Instantiate(*model, "Model");
     // The view is 40 degrees high and a third wider than high.
     const Spot::Vector3 center = (min + max) * 0.5f;
     const float halfHeight = std::max((max.y - min.y) * 0.5f, (max.x - min.x) * 0.5f * 0.75f) * 1.1f;

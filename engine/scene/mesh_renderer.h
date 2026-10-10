@@ -62,8 +62,7 @@ private:
     std::uint32_t m_submesh = Mesh::AllSubmeshes;
 };
 
-// Creates an entity for the model with a child per part, each showing the part's mesh and material with a
-// MeshRenderer, so the parts can be moved, hidden or given other materials one by one.
+// Same as Scene::Instantiate(model, name), preserving the model's node hierarchy.
 Entity& InstantiateModel(Scene& scene, const Model& model, std::string name = {});
 
 } // namespace Spot

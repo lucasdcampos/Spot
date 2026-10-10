@@ -177,8 +177,13 @@ bool CreateEntityFromAsset(SceneDocument& document, EditorProject& project, Asse
         return false;
     }
     std::string name = info->parent.IsValid() ? info->name : PathToUtf8(Utf8ToPath(info->path).stem());
+    const AssetRef<Model> model =
+        info->type == AssetType::Model ? project.GetAssets().Load<Model>(asset) : AssetRef<Model>();
+    if (info->type == AssetType::Model && (!model || model->GetNodes().empty())) {
+        return false;
+    }
     Scene scratch;
-    Entity& root = scratch.CreateEntity(name);
+    Entity& root = model ? scratch.Instantiate(*model, name) : scratch.CreateEntity(name);
     root.GetTransform().SetPosition(position);
     if (info->type == AssetType::Mesh) {
         root.AddComponent<MeshRenderer>(AssetRef<Mesh>(asset, nullptr));
@@ -190,32 +195,6 @@ bool CreateEntityFromAsset(SceneDocument& document, EditorProject& project, Asse
                     static_cast<float>(texture->GetHeight()) / PixelsPerUnit};
         }
         root.AddComponent<SpriteRenderer>(AssetRef<Texture>(asset, nullptr), size);
-    } else {
-        const AssetRef<Model> model = project.GetAssets().Load<Model>(asset);
-        if (!model || model->GetParts().empty()) {
-            return false;
-        }
-        // References by id alone: the scene loads the assets when it takes the entities.
-        const auto addPart = [](Entity& entity, const ModelPart& part) {
-            entity
-                .AddComponent<MeshRenderer>(AssetRef<Mesh>(part.mesh.GetId(), nullptr),
-                                            AssetRef<Material>(part.material.GetId(), nullptr))
-                .SetSubmesh(part.submesh);
-        };
-        const std::span<const ModelPart> parts = model->GetParts();
-        if (parts.size() == 1 && parts.front().transform == Matrix4::Identity()) {
-            addPart(root, parts.front());
-        } else {
-            // Each part where the model puts it, below the entity placed where the model was dropped.
-            for (std::size_t i = 0; i < parts.size(); ++i) {
-                Entity& child = root.CreateChild(parts[i].name.empty() ? std::format("Part {}", i + 1) : parts[i].name);
-                const TransformComponents placed = Decompose(parts[i].transform);
-                child.GetTransform().SetPosition(placed.translation);
-                child.GetTransform().SetRotation(placed.rotation);
-                child.GetTransform().SetScale(placed.scale);
-                addPart(child, parts[i]);
-            }
-        }
     }
     return document.Execute(
         std::make_unique<CreateEntitiesCommand>(document, "Add " + name, root.SaveToString(), parent));

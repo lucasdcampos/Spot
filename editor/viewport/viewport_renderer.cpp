@@ -57,7 +57,12 @@ void DrawSilhouettes(RenderPass& pass, const Matrix4& viewProjection, std::span<
         pass.PushVertexUniforms(0, viewProjection * instance.world);
         pass.BindVertexBuffer(0, instance.mesh->GetVertexBuffer());
         pass.BindIndexBuffer(instance.mesh->GetIndexBuffer(), IndexType::UInt32);
-        pass.DrawIndexed(instance.mesh->GetIndexCount());
+        if (instance.submesh == Mesh::AllSubmeshes) {
+            pass.DrawIndexed(instance.mesh->GetIndexCount());
+        } else if (instance.submesh < instance.mesh->GetSubmeshes().size()) {
+            const SubMesh& submesh = instance.mesh->GetSubmeshes()[instance.submesh];
+            pass.DrawIndexed(submesh.indexCount, 1, submesh.firstIndex);
+        }
     }
 }
 

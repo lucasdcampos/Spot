@@ -419,7 +419,8 @@ void SceneView::AddMeshes(const Entity& entity, std::vector<MeshInstance>& meshe
     }
     for (const MeshRenderer* renderer : entity.GetComponents<MeshRenderer>()) {
         if (renderer->IsEnabled() && renderer->GetMesh()) {
-            meshes.push_back({renderer->GetMesh().Get(), entity.GetTransform().GetWorldMatrix()});
+            meshes.push_back(
+                {renderer->GetMesh().Get(), entity.GetTransform().GetWorldMatrix(), renderer->GetSubmesh()});
         }
     }
     for (const SpriteRenderer* sprite : entity.GetComponents<SpriteRenderer>()) {
@@ -622,7 +623,8 @@ void SceneView::Render(RenderContext& context, ViewportRenderer& renderer) {
             }
             for (const MeshRenderer* meshRenderer : entity.GetComponents<MeshRenderer>()) {
                 if (meshRenderer->IsEnabled() && meshRenderer->GetMesh()) {
-                    meshes.push_back({meshRenderer->GetMesh().Get(), entity.GetTransform().GetWorldMatrix()});
+                    meshes.push_back({meshRenderer->GetMesh().Get(), entity.GetTransform().GetWorldMatrix(),
+                                      meshRenderer->GetSubmesh()});
                 }
             }
             for (const SpriteRenderer* sprite : entity.GetComponents<SpriteRenderer>()) {

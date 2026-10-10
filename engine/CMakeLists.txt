@@ -191,6 +191,7 @@ add_library(spot_objects OBJECT
     scene/mesh_renderer.cpp
     scene/scene.h
     scene/scene.cpp
+    scene/scene_model.cpp
     scene/scene_serialization.cpp
     scene/scene_system.h
     scene/scene_system.cpp

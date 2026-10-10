@@ -175,6 +175,79 @@ TEST_CASE("Viewports pick the mesh under a pixel and outline the selection", "[e
     CHECK(IsNear(at(52, 32), background));
 }
 
+TEST_CASE("Viewport picking and selection masks draw only the selected submesh", "[editor][gpu]") {
+    RequireGpu();
+    constexpr std::uint32_t Size = 64;
+    std::uint32_t selected = 0;
+    SECTION("First submesh") {
+    }
+    SECTION("Second submesh") {
+        selected = 1;
+    }
+    SECTION("Invalid submesh") {
+        selected = 42;
+    }
+    const bool valid = selected < 2;
+    const float chosenX = selected == 0 ? -1.0f : 1.0f;
+    const Spot::Vector2 viewSize{static_cast<float>(Size), static_cast<float>(Size)};
+    Spot::Camera3D camera;
+    camera.position = {0.0f, 0.0f, 5.0f};
+    const auto pixelAt = [&](float x) {
+        const Spot::Vector4 clip = camera.GetViewProjection(viewSize) * Spot::Vector4{x, 0.0f, 0.0f, 1.0f};
+        return Spot::Vector2{(clip.x / clip.w * 0.5f + 0.5f) * viewSize.x, viewSize.y * 0.5f};
+    };
+    std::unique_ptr<Spot::Editor::ViewportRenderer> renderer;
+    Spot::Editor::ViewportTargets targets;
+    std::unique_ptr<Spot::Mesh> mesh;
+    std::vector<Spot::Editor::MeshInstance> instances;
+    std::optional<std::size_t> hit;
+    std::optional<std::size_t> miss;
+    std::vector<std::uint8_t> mask;
+    int frame = 0;
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
+        auto& device = app.GetGraphicsDevice();
+        if (++frame == 1) {
+            Spot::MeshData combined;
+            for (const float x : {-1.0f, 1.0f}) {
+                Spot::MeshData cube = Spot::MeshData::CreateCube();
+                for (auto& vertex : cube.vertices) {
+                    vertex.position.x += x;
+                }
+                combined.AppendSubmesh(cube);
+            }
+            mesh = Spot::Mesh::Create(device, combined);
+            REQUIRE(mesh);
+            renderer = std::make_unique<Spot::Editor::ViewportRenderer>(device);
+            REQUIRE(targets.Resize(device, Size, Size, renderer->GetSampleCount()));
+            instances = {{mesh.get(), Spot::Matrix4::Identity(), selected}};
+            renderer->RenderPick(context, camera, viewSize, pixelAt(chosenX), instances);
+            Spot::Scene empty;
+            renderer->Render(context, targets, empty, camera, {.showGrid = false});
+            renderer->DrawOutline(context, targets, camera, instances, Spot::Color::Red, 2.0f);
+        } else if (frame == 2) {
+            hit = renderer->ReadPick();
+            mask = device.DownloadTexture(*targets.GetSelectionMask());
+            renderer->RenderPick(context, camera, viewSize, pixelAt(-chosenX), instances);
+        } else if (frame == 3) {
+            miss = renderer->ReadPick();
+        }
+    });
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    REQUIRE(application.GetRenderedFrames() >= 3);
+    CHECK(hit.has_value() == valid);
+    if (hit) {
+        CHECK(*hit == 0);
+    }
+    CHECK_FALSE(miss);
+    REQUIRE(mask.size() == Size * Size * 4);
+    const auto at = [&](float x) {
+        const Spot::Vector2 pixel = pixelAt(x);
+        return mask[(static_cast<std::uint32_t>(pixel.y) * Size + static_cast<std::uint32_t>(pixel.x)) * 4];
+    };
+    CHECK(at(chosenX) == (valid ? 255 : 0));
+    CHECK(at(-chosenX) == 0);
+}
+
 TEST_CASE("Thumbnails show materials on a sphere over a clear background", "[editor][gpu]") {
     RequireGpu();
     const TempDirectory temp;
@@ -226,7 +299,7 @@ TEST_CASE("Thumbnails show materials on a sphere over a clear background", "[edi
     thumbnails->Clear();
 }
 
-TEST_CASE("Models dropped into scenes become an entity with a child per part", "[editor][gpu]") {
+TEST_CASE("Models dropped into scenes preserve their nodes and share mesh buffers", "[editor][gpu]") {
     RequireGpu();
     const TempDirectory temp;
     const auto file = Spot::CreateProject(temp.GetPath(), "Game", Spot::ProjectTemplate::Empty);
@@ -255,11 +328,18 @@ TEST_CASE("Models dropped into scenes become an entity with a child per part", "
     const Spot::Entity* root = document.GetScene().GetEntity(document.GetSelection().GetPrimary());
     REQUIRE(root);
     CHECK(root->GetName() == "cube");
-    const std::vector<Spot::Entity*> parts = root->GetChildren();
-    REQUIRE(parts.size() == 2);
-    for (const Spot::Entity* part : parts) {
-        const auto* renderer = part->GetComponent<Spot::MeshRenderer>();
-        REQUIRE(renderer);
+    REQUIRE(root->GetChildren().size() == 1);
+    const Spot::Entity* pivot = root->FindChild("Pivot");
+    REQUIRE(pivot);
+    const Spot::Entity* cube = pivot->FindChild("Cube");
+    REQUIRE(cube);
+    CHECK(Spot::Distance(cube->GetTransform().GetWorldPosition(), {11.0f, 0.0f, 0.0f}) < 1e-4f);
+    const auto renderers = cube->GetComponents<Spot::MeshRenderer>();
+    REQUIRE(renderers.size() == 2);
+    CHECK(renderers[0]->GetMesh().Get() == renderers[1]->GetMesh().Get());
+    for (std::size_t i = 0; i < renderers.size(); ++i) {
+        const auto* renderer = renderers[i];
+        CHECK(renderer->GetSubmesh() == i);
         CHECK(project->GetAssetDatabase().Find(renderer->GetMesh().GetId())->type == Spot::AssetType::Mesh);
         CHECK(renderer->GetMaterial().GetId().IsValid());
     }

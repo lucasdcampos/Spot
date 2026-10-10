@@ -1,10 +1,7 @@
 #include "scene/mesh_renderer.h"
 
-#include "graphics/model.h"
 #include "scene/archive.h"
-#include "scene/entity.h"
 #include "scene/scene.h"
-#include "scene/transform.h"
 
 namespace Spot {
 
@@ -22,16 +19,7 @@ void MeshRenderer::Serialize(Archive& archive) {
 }
 
 Entity& InstantiateModel(Scene& scene, const Model& model, std::string name) {
-    Entity& root = scene.CreateEntity(std::move(name));
-    for (const auto& part : model.GetParts()) {
-        Entity& child = root.CreateChild(part.name);
-        const TransformComponents placed = Decompose(part.transform);
-        child.GetTransform().SetPosition(placed.translation);
-        child.GetTransform().SetRotation(placed.rotation);
-        child.GetTransform().SetScale(placed.scale);
-        child.AddComponent<MeshRenderer>(part.mesh, part.material).SetSubmesh(part.submesh);
-    }
-    return root;
+    return scene.Instantiate(model, std::move(name));
 }
 
 } // namespace Spot

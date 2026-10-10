@@ -34,6 +34,7 @@ add_executable(spot_tests
     physics_query_tests.cpp
     physics_tests.cpp
     model_data_tests.cpp
+    model_instance_tests.cpp
     platform_tests.cpp
     profiler_tests.cpp
     project_tests.cpp

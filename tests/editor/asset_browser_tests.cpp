@@ -372,6 +372,58 @@ TEST_CASE("Meshes dropped into scenes become entities, and materials go to meshe
     CHECK_FALSE(entity->GetComponent<Spot::MeshRenderer>()->GetMaterial().GetId().IsValid());
 }
 
+TEST_CASE("Model drops preserve hierarchy through undo and redo without a GPU", "[editor][assets][model]") {
+    const TempDirectory temp;
+    const auto file = Spot::CreateProject(temp.GetPath(), "Game", Spot::ProjectTemplate::Empty);
+    REQUIRE(file);
+    const auto sources = file->parent_path() / "assets";
+    std::string source;
+    SECTION("Mesh nodes") {
+        source = "cube.glb";
+        CopyFile(TestAssets / "models" / source, sources / source);
+    }
+    SECTION("Empty nodes") {
+        source = "nodes.gltf";
+        std::ofstream(sources / source) << R"({"asset":{"version":"2.0"},"scene":0,"scenes":[{"nodes":[0]}],
+            "nodes":[{"name":"Pivot","translation":[10,0,0],"children":[1]},
+                     {"name":"Cube","translation":[1,0,0]}]})";
+    }
+    const auto project = Spot::Editor::EditorProject::Open(*file, nullptr);
+    REQUIRE(project);
+    Spot::Editor::SceneDocument document;
+    Spot::Entity& parent = document.GetScene().CreateEntity("Parent");
+    parent.GetTransform().SetPosition({-5.0f, 0.0f, 0.0f});
+    const Spot::EntityId parentId = parent.GetId();
+    const std::string before = document.GetScene().SaveToString();
+    const auto asset = project->GetAssetDatabase().FindByPath(source);
+    REQUIRE(asset);
+    REQUIRE(Spot::Editor::CreateEntityFromAsset(document, *project, *asset, parentId, {1.0f, 0.0f, 2.0f}));
+    const Spot::EntityId rootId = document.GetSelection().GetPrimary();
+    const auto* root = document.GetScene().GetEntity(rootId);
+    REQUIRE(root);
+    CHECK(root->GetParent()->GetId() == parentId);
+    REQUIRE(root->FindChild("Pivot"));
+    const auto* cube = root->FindChild("Pivot")->FindChild("Cube");
+    REQUIRE(cube);
+    CHECK(Spot::Distance(cube->GetTransform().GetWorldPosition(), {7.0f, 0.0f, 2.0f}) < 1e-4f);
+    if (source == "cube.glb") {
+        const auto renderers = cube->GetComponents<Spot::MeshRenderer>();
+        REQUIRE(renderers.size() == 2);
+        CHECK(renderers[0]->GetMesh().GetId() == renderers[1]->GetMesh().GetId());
+        CHECK(renderers[0]->GetSubmesh() == 0);
+        CHECK(renderers[1]->GetSubmesh() == 1);
+    } else {
+        CHECK_FALSE(cube->HasComponent<Spot::MeshRenderer>());
+    }
+    const std::string after = document.GetScene().SaveToString();
+    document.Undo();
+    CHECK(document.GetScene().SaveToString() == before);
+    CHECK_FALSE(document.GetScene().GetEntity(rootId));
+    document.Redo();
+    CHECK(document.GetScene().SaveToString() == after);
+    CHECK(document.GetSelection().GetPrimary() == rootId);
+}
+
 TEST_CASE("Materials dragged from the browser onto the hierarchy go to the entity's meshes", "[editor][assets][ui]") {
     BrowserFixture fixture;
     REQUIRE(Spot::MaterialSource{}.SaveToFile(fixture.assets / "Paint.material"));

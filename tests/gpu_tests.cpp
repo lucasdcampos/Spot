@@ -1332,6 +1332,7 @@ TEST_CASE("Models draw their transformed submeshes with separate materials, incl
     RequireGpu();
     bool mirrored = false;
     bool selected = false;
+    bool sceneInstance = false;
     SECTION("Model hierarchy") {
     }
     SECTION("Mirrored model hierarchy") {
@@ -1339,6 +1340,13 @@ TEST_CASE("Models draw their transformed submeshes with separate materials, incl
     }
     SECTION("Only one submesh") {
         selected = true;
+    }
+    SECTION("Scene hierarchy") {
+        sceneInstance = true;
+    }
+    SECTION("Mirrored scene hierarchy") {
+        sceneInstance = true;
+        mirrored = true;
     }
 
     Spot::Renderer3DStats stats;
@@ -1370,7 +1378,11 @@ TEST_CASE("Models draw their transformed submeshes with separate materials, incl
 
             Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
             renderer.Begin(context, target, MakeFrontCamera());
-            if (selected) {
+            if (sceneInstance) {
+                Spot::Scene scene;
+                scene.Instantiate(*model, "Model").GetTransform().SetScale({mirrored ? -1.0f : 1.0f, 1.0f, 1.0f});
+                renderer.DrawScene(scene);
+            } else if (selected) {
                 const auto& part = model->GetParts()[1];
                 renderer.DrawMesh(*part.mesh, *part.material, part.transform, true, part.submesh);
                 // Invalid selections must not fall back to drawing the whole mesh.

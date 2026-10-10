@@ -31,6 +31,11 @@ when the game's code is reloaded and every component is recreated. Unsaved scene
 
 ## Panels
 
+Dropping a model into a scene uses `Scene::Instantiate()` to create its node hierarchy below a named root. The
+drop position places that root, and a hierarchy drop can parent it to another entity. Empty nodes remain editable,
+and each mesh node holds a renderer per submesh. The complete tree is one undoable addition; undo and redo preserve
+its entity ids and selection. Picking and selection outlines respect each renderer's submesh range.
+
 | Panel | What it does |
 |---|---|
 | Scene views | Show a document through an editor camera, with the grid, the colliders as physics sees them, the selection's outline, transform gizmos (move, turn, scale), picking by clicking, and the shapes queued with `DebugDraw` |
