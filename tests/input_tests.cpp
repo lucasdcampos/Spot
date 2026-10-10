@@ -194,3 +194,87 @@ TEST_CASE("Rumbling needs a connected gamepad", "[input][gamepad]") {
     CHECK_FALSE(Spot::Input::RumbleGamepad(1.0f, 1.0f, 0.1f));
     Spot::Input::SetState(previous);
 }
+
+TEST_CASE("A capture withholds input from the game, and releases what was held", "[input][capture]") {
+    Spot::InputState input;
+    input.OnEvent(Spot::KeyPressedEvent{Key::W, false});
+    input.BeginFrame();
+
+    const Spot::InputCaptureId console = input.PushCapture("Console");
+    CHECK(input.IsCaptured());
+    CHECK(input.GetCaptureOwner() == "Console");
+    CHECK_FALSE(input.IsKeyDown(Key::W));
+    CHECK(input.IsKeyReleased(Key::W));
+
+    input.BeginFrame();
+    input.OnEvent(Spot::KeyPressedEvent{Key::A, false});
+    input.OnEvent(Spot::MouseButtonPressedEvent{MouseButton::Left});
+    input.OnEvent(Spot::TextInputEvent{"typed"});
+    input.OnEvent(Spot::MouseMovedEvent{.position = {5.0f, 6.0f}, .delta = {3.0f, 4.0f}});
+    CHECK_FALSE(input.IsKeyDown(Key::A));
+    CHECK_FALSE(input.IsMouseButtonDown(MouseButton::Left));
+    CHECK(input.GetTypedText().empty());
+    CHECK(input.GetMouseDelta() == Spot::Vector2{});
+    // Where the cursor is stays known.
+    CHECK(input.GetMousePosition() == Spot::Vector2{5.0f, 6.0f});
+
+    input.PopCapture(console);
+    CHECK_FALSE(input.IsCaptured());
+    input.BeginFrame();
+    input.OnEvent(Spot::KeyPressedEvent{Key::D, false});
+    CHECK(input.IsKeyDown(Key::D));
+}
+
+TEST_CASE("Captures keep the game's cursor lock, applied again when the last one ends", "[input][capture]") {
+    Spot::InputState input;
+    input.SetCursorLocked(true);
+    CHECK(input.IsCursorLockApplied());
+
+    const Spot::InputCaptureId editor = input.PushCapture("Editor");
+    const Spot::InputCaptureId field = input.PushCapture("Text Field");
+    CHECK(input.IsCursorLocked());
+    CHECK_FALSE(input.IsCursorLockApplied());
+    CHECK(input.GetCaptureOwner() == "Text Field");
+
+    // In any order.
+    input.PopCapture(editor);
+    CHECK_FALSE(input.IsCursorLockApplied());
+    CHECK(input.GetCaptureOwner() == "Text Field");
+    input.PopCapture(editor);
+    input.PopCapture(field);
+    CHECK(input.IsCursorLockApplied());
+    CHECK(input.GetCaptureOwner().empty());
+}
+
+TEST_CASE("The mouse delta is zero on each hand-over, until the frame after", "[input][capture]") {
+    Spot::InputState input;
+    const Spot::InputCaptureId capture = input.PushCapture("Overlay");
+    input.BeginFrame();
+    input.PopCapture(capture);
+    input.OnEvent(Spot::MouseMovedEvent{.position = {}, .delta = {1.0f, 1.0f}});
+    CHECK(input.GetMouseDelta() == Spot::Vector2{});
+
+    // The frame after, when the jump of a cursor locked again arrives.
+    input.BeginFrame();
+    input.OnEvent(Spot::MouseMovedEvent{.position = {}, .delta = {400.0f, 300.0f}});
+    CHECK(input.GetMouseDelta() == Spot::Vector2{});
+
+    input.BeginFrame();
+    input.OnEvent(Spot::MouseMovedEvent{.position = {}, .delta = {2.0f, 0.0f}});
+    CHECK(input.GetMouseDelta() == Spot::Vector2{2.0f, 0.0f});
+
+    // Locking the cursor is a hand-over too.
+    input.SetCursorLocked(true);
+    CHECK(input.GetMouseDelta() == Spot::Vector2{});
+}
+
+TEST_CASE("Input's captures reach the current state", "[input][capture]") {
+    CHECK(Spot::Input::PushCapture("Nobody") == Spot::InputCaptureId::None);
+    Spot::InputState input;
+    Spot::Input::SetState(&input);
+    const Spot::InputCaptureId capture = Spot::Input::PushCapture("Console");
+    CHECK(Spot::Input::IsCaptured());
+    Spot::Input::PopCapture(capture);
+    CHECK_FALSE(Spot::Input::IsCaptured());
+    Spot::Input::SetState(nullptr);
+}

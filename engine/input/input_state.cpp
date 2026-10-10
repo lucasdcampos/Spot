@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <utility>
 
 namespace Spot {
 
@@ -30,9 +31,25 @@ void InputState::BeginFrame() {
     m_typedText.clear();
     m_mouseDelta = {};
     m_scrollDelta = {};
+    m_dropMouseDeltaThisFrame = std::exchange(m_dropMouseDelta, false);
 }
 
 void InputState::OnEvent(const Event& event) {
+    if (const auto* moved = event.GetIf<MouseMovedEvent>()) {
+        // Where the cursor is stays known, for when the game has the input again.
+        m_mousePosition = moved->position;
+        if (m_captures.empty() && !m_dropMouseDelta && !m_dropMouseDeltaThisFrame) {
+            m_mouseDelta += moved->delta;
+        }
+        return;
+    }
+    const bool withheld =
+        event.Is<KeyPressedEvent>() || event.Is<KeyReleasedEvent>() || event.Is<MouseButtonPressedEvent>() ||
+        event.Is<MouseButtonReleasedEvent>() || event.Is<MouseScrolledEvent>() || event.Is<TextInputEvent>() ||
+        event.Is<GamepadButtonPressedEvent>() || event.Is<GamepadButtonReleasedEvent>() || event.Is<GamepadAxisEvent>();
+    if (withheld && !m_captures.empty()) {
+        return;
+    }
     if (const auto* pressed = event.GetIf<KeyPressedEvent>()) {
         // Repeats come from the OS while a key is held; they are not new presses.
         if (pressed->key != Key::Unknown && !pressed->repeat) {
@@ -50,9 +67,6 @@ void InputState::OnEvent(const Event& event) {
     } else if (const auto* buttonReleased = event.GetIf<MouseButtonReleasedEvent>()) {
         m_buttonsDown.reset(ToIndex(buttonReleased->button));
         m_buttonsReleased.set(ToIndex(buttonReleased->button));
-    } else if (const auto* moved = event.GetIf<MouseMovedEvent>()) {
-        m_mousePosition = moved->position;
-        m_mouseDelta += moved->delta;
     } else if (const auto* scrolled = event.GetIf<MouseScrolledEvent>()) {
         m_scrollDelta += scrolled->delta;
     } else if (const auto* typed = event.GetIf<TextInputEvent>()) {
@@ -156,6 +170,42 @@ bool InputState::IsMouseButtonPressed(MouseButton button) const {
 
 bool InputState::IsMouseButtonReleased(MouseButton button) const {
     return m_buttonsReleased.test(ToIndex(button));
+}
+
+void InputState::SetCursorLocked(bool locked) {
+    if (locked != m_cursorLocked) {
+        m_cursorLocked = locked;
+        DropMouseDelta();
+    }
+}
+
+InputCaptureId InputState::PushCapture(std::string_view owner) {
+    if (m_captures.empty()) {
+        ReleaseAll();
+        m_scrollDelta = {};
+        m_typedText.clear();
+        DropMouseDelta();
+    }
+    const auto id = static_cast<InputCaptureId>(m_nextCapture++);
+    m_captures.push_back({id, std::string(owner)});
+    return id;
+}
+
+void InputState::PopCapture(InputCaptureId capture) {
+    const std::size_t count = m_captures.size();
+    std::erase_if(m_captures, [capture](const Capture& held) { return held.id == capture; });
+    if (count > 0 && m_captures.empty()) {
+        DropMouseDelta();
+    }
+}
+
+std::string_view InputState::GetCaptureOwner() const {
+    return m_captures.empty() ? std::string_view() : std::string_view(m_captures.back().owner);
+}
+
+void InputState::DropMouseDelta() {
+    m_mouseDelta = {};
+    m_dropMouseDelta = true;
 }
 
 void InputState::ReleaseAll() {

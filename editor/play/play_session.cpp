@@ -28,6 +28,8 @@ PlaySession::PlaySession(Application& application, SceneDocument& source, AssetM
     m_application.LoadScene(std::move(scene));
     m_previousInput = Input::GetState();
     Input::SetState(&m_input);
+    // The view gets focus once it is clicked, which hands the input over.
+    m_editorCapture = m_input.PushCapture("Editor");
     GetEditorLogger().Info("Playing '{}'", source.GetName());
 }
 
@@ -79,22 +81,22 @@ void PlaySession::Step() {
 }
 
 void PlaySession::SetView(bool focused, Vector2 origin) {
-    if (m_focused && !focused) {
-        // Keys and buttons held when the view loses focus would otherwise stay held, as when the window does.
-        m_input.OnEvent(WindowFocusEvent{.focused = false});
+    if (focused != m_focused) {
+        if (focused) {
+            m_input.PopCapture(std::exchange(m_editorCapture, InputCaptureId::None));
+        } else {
+            m_editorCapture = m_input.PushCapture("Editor");
+        }
     }
     m_focused = focused;
     m_viewOrigin = origin;
-    if (const bool capture = focused && m_input.IsCursorLocked(); capture != m_cursorCaptured) {
+    if (const bool capture = m_input.IsCursorLockApplied(); capture != m_cursorCaptured) {
         m_cursorCaptured = capture;
         m_application.GetWindow().SetMouseCaptured(capture);
     }
 }
 
 void PlaySession::Feed(const Event& event) {
-    if (!m_focused) {
-        return;
-    }
     const auto* pressed = event.GetIf<KeyPressedEvent>();
     const auto* released = event.GetIf<KeyReleasedEvent>();
     if ((pressed && pressed->key == Key::Escape) || (released && released->key == Key::Escape)) {

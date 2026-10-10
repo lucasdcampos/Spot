@@ -367,7 +367,7 @@ bindings with processing (dead zone, invert, scale). A player's rebinds are save
 - [x] **M2.4 Action settings.** The input settings section, its project settings editor (action list, binding capture
   by pressing the input), and default actions in the project templates (Move, Look, Jump, Fire, Pause).
 - [x] **M2.5 Rebinding.** Runtime rebinding, saving and loading per user, and reset to defaults. Tests.
-- [ ] **M2.6 Input ownership.** A capture stack, so overlays (console, UI text fields, the editor) can withhold input
+- [x] **M2.6 Input ownership.** A capture stack, so overlays (console, UI text fields, the editor) can withhold input
   from the game without changing the game's requests: the cursor lock comes back afterwards, and the mouse delta is
   zero on each hand-over. The editor's play view uses it. Tests.
 - [ ] **M2.7 Sandbox: controls.** The sandbox and the templates use actions. Weapons are selected with 1–9 and the
@@ -399,6 +399,11 @@ bindings with processing (dead zone, invert, scale). A player's rebinds are save
   `ApplicationConfig::userDataDirectory`, else the platform's "Spot Games/<game name>" (an organization setting can
   come with save data, M10.7). Only games with actions read rebinds at start, so other applications never create the
   folder; `SetGameSettings()` (tools playing games) uses the project's bindings.
+- M2.6: the capture stack is in `InputState`, the state the game polls: while captured, input events no longer reach
+  it (the cursor position still does), the first capture releases what was held, and the applied lock is
+  `IsCursorLockApplied()`, which the application and the editor give the window. Mouse deltas are dropped for the
+  rest of the frame and the next on each hand-over and on each cursor lock change, when the jump arrives. Events
+  are still delivered, so overlays read them. The play session's "Editor" capture replaced its own focus handling.
 
 ---
 

@@ -155,8 +155,8 @@ int Application::Run() {
             }
         }
         // Only changes are applied, so applications can still capture the mouse themselves.
-        if (m_input.IsCursorLocked() != m_cursorLocked) {
-            m_cursorLocked = m_input.IsCursorLocked();
+        if (m_input.IsCursorLockApplied() != m_cursorLocked) {
+            m_cursorLocked = m_input.IsCursorLockApplied();
             m_window->SetMouseCaptured(m_cursorLocked);
         }
 

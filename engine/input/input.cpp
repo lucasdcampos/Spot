@@ -144,4 +144,18 @@ bool IsCursorLocked() {
     return GetCurrent().IsCursorLocked();
 }
 
+InputCaptureId PushCapture(std::string_view owner) {
+    return s_state ? s_state->PushCapture(owner) : InputCaptureId::None;
+}
+
+void PopCapture(InputCaptureId capture) {
+    if (s_state) {
+        s_state->PopCapture(capture);
+    }
+}
+
+bool IsCaptured() {
+    return GetCurrent().IsCaptured();
+}
+
 } // namespace Spot::Input

@@ -125,8 +125,26 @@ player left alone. Games played in the editor use the project's bindings.
 
 `Input::SetCursorLocked(true)` hides the cursor and keeps it in place, so the mouse only moves things, as first-person
 views need. The application applies the lock to its window when it changes; the editor applies it only while the
-game's view has focus, and takes it back with Escape.
+game's view has focus, and takes it back with Escape. The mouse delta is zero on the frame the lock changes and the
+next, so the cursor's jump is never taken for a movement.
 
-## Not there yet
+## Input ownership
 
-Input ownership comes in the rest of the roadmap's milestone M2.
+Overlays over the game, such as a console, a text field or the editor around a game it plays, take the input from it
+with a capture:
+
+```cpp
+const Spot::InputCaptureId capture = Spot::Input::PushCapture("Console");
+// ... the console reads events while open ...
+Spot::Input::PopCapture(capture);
+```
+
+While any capture is held, keys, mouse buttons, movements, the wheel, typed text and gamepad buttons and axes no longer
+reach the game's input state, so its queries and actions report nothing; what was held when the first capture began
+is released (with release edges), and `IsCursorLockApplied()` is false, so the cursor is free. The game's own
+requests are left alone: `IsCursorLocked()` still tells what it asked for, and the lock comes back when the last
+capture ends. Captures may end in any order, and `GetCaptureOwner()` names the latest. The mouse delta is zero on
+each hand-over. Overlays read events, which are still delivered; games that react to events themselves check
+`Input::IsCaptured()`.
+
+The editor's play view holds a capture named "Editor" whenever it does not have focus.

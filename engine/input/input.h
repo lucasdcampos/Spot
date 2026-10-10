@@ -1,5 +1,6 @@
 #pragma once
 
+#include "input/input_state.h"
 #include "input/keys.h"
 #include "math/vector.h"
 
@@ -8,7 +9,6 @@
 namespace Spot {
 
 class InputActionMap;
-class InputState;
 
 // Global access to the input of the running application, e.g. Spot::Input::IsKeyDown(Spot::Key::W).
 namespace Input {
@@ -61,6 +61,12 @@ Vector2 GetActionVector2(std::string_view action);
 // views; see InputState::SetCursorLocked(). Does nothing without a state.
 void SetCursorLocked(bool locked);
 bool IsCursorLocked();
+
+// Overlays take the input from the game while they need it; see InputState::PushCapture(). Without a state, captures
+// are InputCaptureId::None and do nothing.
+InputCaptureId PushCapture(std::string_view owner);
+void PopCapture(InputCaptureId capture);
+bool IsCaptured();
 
 } // namespace Input
 
