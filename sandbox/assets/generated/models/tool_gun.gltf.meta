@@ -1,0 +1,90 @@
+{
+  "id": "458f3ec25c9dc7bec7941f914ddd512d",
+  "settings": {
+    "materials": [],
+    "scale": 1.0
+  },
+  "subAssets": [
+    {
+      "id": "591688f8af51042390bc66d99a8b059d",
+      "key": "texture:0"
+    },
+    {
+      "id": "2a4cb2bc0803b86a7fd514fdd8a9ffb0",
+      "key": "texture:1"
+    },
+    {
+      "id": "0b1b5fbff47a5e7b55ad14a5e918ef32",
+      "key": "texture:2"
+    },
+    {
+      "id": "ba5a3c209a77fe2e708f9fd659dbd577",
+      "key": "texture:3"
+    },
+    {
+      "id": "bfd3e778b69694509138fa490a602fc3",
+      "key": "texture:4"
+    },
+    {
+      "id": "c0d333e0f9fe1a1bdf7d65514674c7c1",
+      "key": "texture:5"
+    },
+    {
+      "id": "24d3eebd2bd7b8cbf916494b6a282b6e",
+      "key": "texture:6"
+    },
+    {
+      "id": "ca3c93ef5708e2659cf04e5b5c94c18f",
+      "key": "texture:7"
+    },
+    {
+      "id": "454e8a20f1c595d4f2858d2b9da79365",
+      "key": "texture:8"
+    },
+    {
+      "id": "545c98e301d6a787569f5b2cd681076e",
+      "key": "texture:9"
+    },
+    {
+      "id": "837fb63e27fa588d74fa6b60bd3ca9d6",
+      "key": "texture:10"
+    },
+    {
+      "id": "56d38fd1d433a4a7c4cddba4f51eb63e",
+      "key": "texture:11"
+    },
+    {
+      "id": "76f62a7e81d76c769aba50c3636f0521",
+      "key": "material:0"
+    },
+    {
+      "id": "c851c85ea4649d69789d1d7bd09ce519",
+      "key": "material:1"
+    },
+    {
+      "id": "a57d45635bc5165614c1f4114ce946ec",
+      "key": "material:2"
+    },
+    {
+      "id": "1cf4ce2b4cd57fdfa742b1a3d444637a",
+      "key": "material:3"
+    },
+    {
+      "id": "9c7a651e7b3bc51738fd66628f3ebfda",
+      "key": "mesh:0"
+    },
+    {
+      "id": "cf509c3f6bb55f4bd7cf51162dd2e5e2",
+      "key": "mesh:1"
+    },
+    {
+      "id": "223a077c784a13f77b64db83d2a4ab6b",
+      "key": "mesh:2"
+    },
+    {
+      "id": "ae25e020e7a9633f2e2aa8667a4cb95e",
+      "key": "mesh:3"
+    }
+  ],
+  "type": "Model"
+}

@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 #include <string>
 #include <string_view>
 
@@ -24,9 +25,17 @@ TEST_CASE("The sandbox's generated props load back, wound outward and centered",
         REQUIRE(model.has_value());
         REQUIRE(model->meshes.size() == 1);
         REQUIRE(model->materials.size() == 1);
-        REQUIRE(model->images.size() == 1);
+        // Its painted colors, then its surface's normals and occlusion, roughness and metallic.
+        REQUIRE(model->images.size() == 3);
         CHECK(model->images[0].GetWidth() == 256);
-        CHECK(model->materials[0].baseColorImage == 0u);
+        const Spot::MaterialData& material = model->materials[0];
+        CHECK(material.baseColorImage == 0u);
+        CHECK(material.normalImage == 1u);
+        CHECK(material.metallicRoughnessImage == 2u);
+        CHECK(material.occlusionImage == 2u);
+        CHECK(model->IsColorImage(0));
+        CHECK_FALSE(model->IsColorImage(1));
+        CHECK_FALSE(model->IsColorImage(2));
 
         const Spot::MeshData& mesh = model->meshes[0].mesh;
         REQUIRE(!mesh.indices.empty());
@@ -55,6 +64,31 @@ TEST_CASE("The sandbox's generated props load back, wound outward and centered",
             }
         }
         CHECK(inward == 0);
+    }
+
+    // The held items' models are made of parts of several surfaces, around their grips.
+    for (const std::string_view weapon : Generator::GetWeaponModelNames()) {
+        CAPTURE(weapon);
+        const auto model = Spot::ModelData::Load(temp.GetPath() / "models" / (std::string(weapon) + ".gltf"));
+        REQUIRE(model.has_value());
+        CHECK(model->materials.size() >= 2);
+        REQUIRE(model->meshes.size() == model->materials.size());
+        for (const Spot::ModelMeshData& part : model->meshes) {
+            CHECK(!part.mesh.indices.empty());
+            for (const Spot::MeshVertex& vertex : part.mesh.vertices) {
+                CHECK(Spot::Length(vertex.position) < 1.0f);
+            }
+        }
+    }
+    // Each surface's textures tile, the same size as the props'.
+    for (const std::string_view surface : Generator::GetSurfaceNames()) {
+        for (const std::string_view kind : {"color", "normal", "orm"}) {
+            const auto path = temp.GetPath() / "textures" / std::format("{}_{}.png", surface, kind);
+            CAPTURE(path);
+            const auto image = Spot::Image::Load(path);
+            REQUIRE(image.has_value());
+            CHECK(image->GetWidth() == 256);
+        }
     }
 
     // Running again writes nothing, as every file comes out the same.

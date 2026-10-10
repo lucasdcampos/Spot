@@ -27,4 +27,8 @@ Spot::MeshData Stairs(float width, float stepHeight, float stepDepth, int steps,
 // every uvRepeat units, as on a box.
 Spot::MeshData Ramp(float width, float height, float length, float uvRepeat);
 
+// Adds the mesh, moved and turned by the transform, which must not scale, to the end of another, as models made of
+// several shapes are built.
+void Append(Spot::MeshData& to, const Spot::MeshData& from, const Spot::Matrix4& transform);
+
 } // namespace Generator::Shapes

@@ -3269,6 +3269,34 @@
         {
           "data": {
             "mode": 0,
+            "color": 0,
+            "materials": [
+              {
+                "name": "Wood",
+                "material": "fad7c5718b4470d72d58d98ae685c223"
+              },
+              {
+                "name": "Painted Metal",
+                "material": "569419262cf80366b8b60eb87ca66e45"
+              },
+              {
+                "name": "Rusty Metal",
+                "material": "9e2b14460c1d9780c032e808a107689c"
+              },
+              {
+                "name": "Concrete",
+                "material": "bb5005e6ac6dae8dbdf528b91f4dd94c"
+              },
+              {
+                "name": "Rubber",
+                "material": "f9c78ca3ef0cf761f60f83279ae74af3"
+              },
+              {
+                "name": "Glass",
+                "material": "9c7232f7989e087cbed81d3bbeebc74e"
+              }
+            ],
+            "material": 0,
             "range": 100.0
           },
           "enabled": true,
@@ -3278,6 +3306,24 @@
           "data": {},
           "enabled": true,
           "type": "UndoList"
+        },
+        {
+          "data": {
+            "physicsGun": "eb15e057c25f6521cd7ba1c6fc717606",
+            "toolGun": "458f3ec25c9dc7bec7941f914ddd512d",
+            "offset": [
+              0.2,
+              -0.2,
+              -0.45
+            ],
+            "aimOffset": [
+              0.0,
+              -0.12,
+              -0.35
+            ]
+          },
+          "enabled": true,
+          "type": "ViewModel"
         }
       ],
       "id": 46,
@@ -4784,6 +4830,7 @@
             "explosionImpulse": 0.0,
             "explosionRadius": 0.0,
             "fireInterval": 0.2,
+            "model": "55141a3bfbcda3452932a1e5dccfb042",
             "fireSound": "10830339b43ce45f3a140985b7601e5b",
             "impulse": 40.0,
             "kind": 0,
@@ -4832,6 +4879,7 @@
             "explosionImpulse": 0.0,
             "explosionRadius": 0.0,
             "fireInterval": 0.1,
+            "model": "c65ed8a1d3da765335135a76e0e84519",
             "fireSound": "e33934b1d5907db157907a77b9b548fa",
             "impulse": 30.0,
             "kind": 0,
@@ -4880,6 +4928,7 @@
             "explosionImpulse": 0.0,
             "explosionRadius": 0.0,
             "fireInterval": 0.8,
+            "model": "3085bcbeaca8e5c75565e7b9f4bd00b7",
             "fireSound": "51d6dca9ada9968c54c3e40b09eda2d4",
             "impulse": 15.0,
             "kind": 0,
@@ -4928,6 +4977,7 @@
             "explosionImpulse": 500.0,
             "explosionRadius": 5.0,
             "fireInterval": 1.0,
+            "model": "f27b3975595947e82baeaa312a999887",
             "fireSound": "a40bdc5547181232a3f1aca99a2888fa",
             "impulse": 0.0,
             "kind": 1,
@@ -5145,6 +5195,210 @@
         1.0,
         1.0,
         1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "9c7232f7989e087cbed81d3bbeebc74e",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 78,
+      "name": "Glass",
+      "position": [
+        3.5,
+        1.25,
+        4.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        3.0,
+        2.5,
+        0.05
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "9c7232f7989e087cbed81d3bbeebc74e",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 79,
+      "name": "Glass",
+      "position": [
+        6.55,
+        1.25,
+        4.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        3.0,
+        2.5,
+        0.05
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "9c7232f7989e087cbed81d3bbeebc74e",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 80,
+      "name": "Glass",
+      "position": [
+        -7.05,
+        2.5,
+        -9.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.05,
+        1.0,
+        2.9
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "9c7232f7989e087cbed81d3bbeebc74e",
+            "mesh": "00000000000000000000000000000001"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 81,
+      "name": "Glass",
+      "position": [
+        -7.05,
+        2.5,
+        -6.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.05,
+        1.0,
+        2.9
       ],
       "tags": []
     }

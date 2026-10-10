@@ -189,4 +189,19 @@ MeshData Ramp(float width, float height, float length, float uvRepeat) {
     return mesh;
 }
 
+void Append(MeshData& to, const MeshData& from, const Spot::Matrix4& transform) {
+    const auto first = static_cast<std::uint32_t>(to.vertices.size());
+    for (MeshVertex vertex : from.vertices) {
+        const Spot::Vector4 position =
+            transform * Spot::Vector4{vertex.position.x, vertex.position.y, vertex.position.z, 1.0f};
+        const Spot::Vector4 normal = transform * Spot::Vector4{vertex.normal.x, vertex.normal.y, vertex.normal.z, 0.0f};
+        vertex.position = {position.x, position.y, position.z};
+        vertex.normal = Spot::Normalize(Vector3{normal.x, normal.y, normal.z});
+        to.vertices.push_back(vertex);
+    }
+    for (const std::uint32_t index : from.indices) {
+        to.indices.push_back(first + index);
+    }
+}
+
 } // namespace Generator::Shapes

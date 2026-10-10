@@ -61,6 +61,7 @@ void Weapon::Serialize(Spot::Archive& archive) {
     archive.Field("reloadTime", reloadTime, {.min = 0.0f, .max = 10.0f, .speed = 0.01f, .tooltip = "Seconds"});
     archive.Field("aimZoom", aimZoom,
                   {.min = 1.0f, .max = 10.0f, .speed = 0.01f, .tooltip = "How many times aiming magnifies the view"});
+    archive.Field("model", model, {.tooltip = "What the player holds while it is in hand"});
     archive.Field("fireSound", fireSound);
     archive.Field("reloadSound", reloadSound);
     archive.Field("aimSpread", aimSpread,

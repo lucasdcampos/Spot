@@ -52,8 +52,20 @@ std::string Hud::DescribeHand() const {
     }
     if (holder->IsToolGunSelected()) {
         const auto* tool = holder->GetEntity().GetComponent<ToolGun>();
-        constexpr const char* Modes[] = {"Weld", "Rope", "Remover"};
-        return tool ? std::format("Tool Gun: {}", Modes[static_cast<int>(tool->mode)]) : "Tool Gun";
+        if (!tool) {
+            return "Tool Gun";
+        }
+        constexpr const char* Modes[] = {"Weld", "Rope", "Remover", "Color", "Material"};
+        const char* mode = Modes[static_cast<int>(tool->mode)];
+        if (tool->mode == ToolGun::Mode::Color) {
+            const auto& color = ToolGun::Palette[static_cast<std::size_t>(tool->color) % ToolGun::Palette.size()];
+            return std::format("Tool Gun: {} ({})", mode, color.name);
+        }
+        if (tool->mode == ToolGun::Mode::Material && !tool->materials.empty()) {
+            const auto& material = tool->materials[static_cast<std::size_t>(tool->material) % tool->materials.size()];
+            return std::format("Tool Gun: {} ({})", mode, material.name);
+        }
+        return std::format("Tool Gun: {}", mode);
     }
     const Weapon* weapon = holder->GetWeapon();
     if (!weapon) {

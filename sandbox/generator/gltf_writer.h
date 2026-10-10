@@ -12,8 +12,15 @@ namespace Generator {
 struct GltfMaterial {
     std::string name;
     Spot::Color baseColor = Spot::Color::White;
-    // The image's URI, relative to the .gltf file, such as "../textures/crate.png"; none when empty.
+    // Images' URIs, relative to the .gltf file, such as "../textures/crate.png"; none when empty.
     std::string baseColorImage;
+    // Multiplied by the ORM image's blue and green channels when there is one.
+    float metallic = 0.0f;
+    float roughness = 0.8f;
+    std::string normalImage;
+    // Occlusion, roughness and metallic in red, green and blue: both the occlusion and the metallic-roughness texture.
+    std::string ormImage;
+    Spot::Color emissive = Spot::Color::Black;
     bool doubleSided = false;
 };
 

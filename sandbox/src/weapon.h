@@ -30,6 +30,8 @@ public:
     // How many times aiming down the sights magnifies the view, and what share of the spread is left meanwhile.
     float aimZoom = 1.5f;
     float aimSpread = 0.4f;
+    // What the player holds while it is in hand (see ViewModel).
+    Spot::AssetRef<Spot::Model> model;
     Spot::AssetRef<Spot::Sound> fireSound;
     Spot::AssetRef<Spot::Sound> reloadSound;
     // Projectiles only.

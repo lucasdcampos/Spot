@@ -16,6 +16,8 @@ add_library(sandbox_generator_core STATIC
     sounds.h
     textures.cpp
     textures.h
+    weapons.cpp
+    weapons.h
 )
 target_link_libraries(sandbox_generator_core PUBLIC spot::spot)
 target_include_directories(sandbox_generator_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

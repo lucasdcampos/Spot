@@ -46,10 +46,11 @@ GltfFiles EncodeGltf(const GltfModel& model, std::string_view binName) {
     std::vector<cgltf_node> nodes(partCount);
     std::vector<cgltf_node*> sceneNodes(partCount);
     std::vector<cgltf_material> materials(model.materials.size());
+    // Each material has up to three images, which materials share by URI.
     std::vector<cgltf_image> images;
     std::vector<cgltf_texture> textures;
-    images.reserve(model.materials.size());
-    textures.reserve(model.materials.size());
+    images.reserve(model.materials.size() * 3);
+    textures.reserve(model.materials.size() * 3);
     cgltf_sampler sampler{};
     sampler.mag_filter = cgltf_filter_type_linear;
     sampler.min_filter = cgltf_filter_type_linear_mipmap_linear;
@@ -67,17 +68,47 @@ GltfFiles EncodeGltf(const GltfModel& model, std::string_view binName) {
         material.pbr_metallic_roughness.base_color_factor[1] = source.baseColor.g;
         material.pbr_metallic_roughness.base_color_factor[2] = source.baseColor.b;
         material.pbr_metallic_roughness.base_color_factor[3] = source.baseColor.a;
-        material.pbr_metallic_roughness.metallic_factor = 0.0f;
-        material.pbr_metallic_roughness.roughness_factor = 0.8f;
+        material.pbr_metallic_roughness.metallic_factor = source.metallic;
+        material.pbr_metallic_roughness.roughness_factor = source.roughness;
+        // glTF's emissive factor stops at 1; brighter light is that times a strength.
+        const float strength = std::max({source.emissive.r, source.emissive.g, source.emissive.b, 1.0f});
+        material.emissive_factor[0] = source.emissive.r / strength;
+        material.emissive_factor[1] = source.emissive.g / strength;
+        material.emissive_factor[2] = source.emissive.b / strength;
+        if (strength > 1.0f) {
+            material.has_emissive_strength = true;
+            material.emissive_strength.emissive_strength = strength;
+        }
         material.double_sided = source.doubleSided;
-        if (!source.baseColorImage.empty()) {
+        const auto texture = [&](const std::string& uri) -> cgltf_texture* {
+            if (uri.empty()) {
+                return nullptr;
+            }
+            for (cgltf_texture& existing : textures) {
+                if (existing.image->uri == uri) {
+                    return &existing;
+                }
+            }
             cgltf_image& image = images.emplace_back();
-            image.uri = keep(source.baseColorImage);
-            cgltf_texture& texture = textures.emplace_back();
-            texture.image = &image;
-            texture.sampler = &sampler;
-            material.pbr_metallic_roughness.base_color_texture.texture = &texture;
+            image.uri = keep(uri);
+            cgltf_texture& added = textures.emplace_back();
+            added.image = &image;
+            added.sampler = &sampler;
+            return &added;
+        };
+        if (cgltf_texture* color = texture(source.baseColorImage)) {
+            material.pbr_metallic_roughness.base_color_texture.texture = color;
             material.pbr_metallic_roughness.base_color_texture.scale = 1.0f;
+        }
+        if (cgltf_texture* normal = texture(source.normalImage)) {
+            material.normal_texture.texture = normal;
+            material.normal_texture.scale = 1.0f;
+        }
+        if (cgltf_texture* orm = texture(source.ormImage)) {
+            material.pbr_metallic_roughness.metallic_roughness_texture.texture = orm;
+            material.pbr_metallic_roughness.metallic_roughness_texture.scale = 1.0f;
+            material.occlusion_texture.texture = orm;
+            material.occlusion_texture.scale = 1.0f;
         }
     }
 

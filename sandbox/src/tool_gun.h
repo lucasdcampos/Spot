@@ -4,18 +4,47 @@
 
 #include <spot.h>
 
+#include <array>
 #include <optional>
+#include <string>
+#include <string_view>
 #include <vector>
 
 // The last item in hand (see WeaponHolder), whose mode Reload changes. Weld joins two props with a FixedJoint, and
 // rope with a DistanceJoint as long as the gap between the two points clicked; each takes a click (Fire) on each prop,
-// the second of which may be the level. Remover takes the prop clicked away. Everything it does goes on the UndoList.
+// the second of which may be the level. Remover takes the prop clicked away. Color paints the prop clicked in one of
+// the palette's colors, and Material gives it one of the surfaces' materials; Aim picks the next one. Everything it
+// does goes on the UndoList.
 class ToolGun final : public Spot::Component {
 public:
-    enum class Mode { Weld, Rope, Remover };
+    enum class Mode { Weld, Rope, Remover, Color, Material };
+
+    struct PaletteColor {
+        std::string_view name;
+        Spot::Color color;
+    };
+    static constexpr std::array<PaletteColor, 8> Palette = {{{"White", {0.9f, 0.9f, 0.9f, 1.0f}},
+                                                             {"Black", {0.04f, 0.04f, 0.04f, 1.0f}},
+                                                             {"Red", {0.8f, 0.06f, 0.05f, 1.0f}},
+                                                             {"Orange", {0.95f, 0.4f, 0.05f, 1.0f}},
+                                                             {"Yellow", {0.95f, 0.8f, 0.1f, 1.0f}},
+                                                             {"Green", {0.15f, 0.6f, 0.15f, 1.0f}},
+                                                             {"Blue", {0.08f, 0.25f, 0.85f, 1.0f}},
+                                                             {"Purple", {0.45f, 0.12f, 0.7f, 1.0f}}}};
+    // A material Material mode gives, with the name shown for it.
+    struct ToolMaterial {
+        std::string name;
+        Spot::AssetRef<Spot::Material> material;
+
+        void Serialize(Spot::Archive& archive);
+    };
 
     Mode mode = Mode::Weld;
     float range = 100.0f;
+    std::vector<ToolMaterial> materials;
+    // The palette color and the material clicks give.
+    int color = 0;
+    int material = 0;
 
     // The prop and point clicked first, waiting for the second click of a weld or a rope.
     bool HasFirst() const { return m_first.has_value(); }
@@ -29,6 +58,10 @@ public:
                               Spot::Vector3 secondPoint);
     // Takes the prop away, unless it is part of the level, with no rigidbody; false then.
     bool Remove(Spot::Entity& entity);
+    // Each changes the prop's material, keeping the rest of it when painting, unless it is part of the level or has
+    // no MeshRenderer; false then.
+    bool Paint(Spot::Entity& entity, Spot::Color paint);
+    bool ApplyMaterial(Spot::Entity& entity, const Spot::AssetRef<Spot::Material>& newMaterial);
 
 protected:
     void OnUpdate(float deltaTime) override;

@@ -672,7 +672,7 @@ depth writes). Vertices gain tangents.
 - [x] **M6.5 Alpha modes.** Cutout and transparent pipelines, sorting, cutout shadows, and glTF `alphaMode` import.
 - [x] **M6.6 Golden-image tests.** GPU tests render reference scenes and compare them to stored images within a
   tolerance, so rendering changes are seen before they ship.
-- [ ] **M6.7 Sandbox: materials.** The generator makes PBR texture sets (wood, painted metal, rusty metal, concrete,
+- [x] **M6.7 Sandbox: materials.** The generator makes PBR texture sets (wood, painted metal, rusty metal, concrete,
   rubber, glass) and low-poly weapon models. Props and the level use them, glass panes are transparent, and the tool
   gun gets the color and material tool.
 
@@ -719,6 +719,15 @@ viewers, and the golden-image tests cover them.
   through `SceneRenderer` with one sample, no dithering and no bloom. DamagedHelmet and AlphaBlendModeTest are
   downloaded at configure time from glTF-Sample-Assets at commit edc7c9e, checked by SHA-256, rather than committed
   (7 MB); their test is skipped without them. `SPOT_UPDATE_GOLDEN=1` rewrites the images.
+- M6.7: The generator paints each surface from a height field, so its normals match its relief, and packs occlusion,
+  roughness and metallic into one ORM texture. Props keep their painted color textures and gain their surface's normal
+  and ORM maps through their glTF materials. The weapons are glTF models of several parts, one per surface, which a
+  `ViewModel` component on the player shows in front of the eyes as entities of their own, without shadows; each
+  `Weapon` names its model, and the `ViewModel` names the physics and tool guns'. The tool gun's materials are asset
+  references in the scene (`ToolGun::materials`), not paths, so they load with the scene; its Color mode copies the
+  prop's material with the new color, keeping its alpha, and both new modes go on the `UndoList`. Glass panes stand
+  in view of the start and along the platform's edge. The level projects concrete (8 m) underfoot and cyan painted
+  metal (4 m) on its blocks.
 
 ---
 

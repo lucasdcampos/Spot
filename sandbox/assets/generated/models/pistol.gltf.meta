@@ -1,0 +1,50 @@
+{
+  "id": "55141a3bfbcda3452932a1e5dccfb042",
+  "settings": {
+    "materials": [],
+    "scale": 1.0
+  },
+  "subAssets": [
+    {
+      "id": "eac0282fe4e50365deb0f57b833d1172",
+      "key": "texture:0"
+    },
+    {
+      "id": "8778415de45fa08b5c25330d16bbd6f4",
+      "key": "texture:1"
+    },
+    {
+      "id": "f66080d796f6904d7899110d16aa1dfd",
+      "key": "texture:2"
+    },
+    {
+      "id": "a6bf45808a3fecfb6666161475951b80",
+      "key": "texture:3"
+    },
+    {
+      "id": "199a176e61ac85ed82e6c9811308e6d7",
+      "key": "texture:4"
+    },
+    {
+      "id": "07b1c7322c96628a06d9bda4134369e2",
+      "key": "texture:5"
+    },
+    {
+      "id": "06171128b38114938dc8c600742d36f6",
+      "key": "material:0"
+    },
+    {
+      "id": "96758d1599bd5f7d4985ce45d27134af",
+      "key": "material:1"
+    },
+    {
+      "id": "74da3b59d4a328e00fc0f10833470f51",
+      "key": "mesh:0"
+    },
+    {
+      "id": "a5213d376c53429b3c4f8e58f318b749",
+      "key": "mesh:1"
+    }
+  ],
+  "type": "Model"
+}

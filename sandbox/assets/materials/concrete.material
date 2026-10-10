@@ -1,0 +1,27 @@
+{
+  "baseColor": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+  ],
+  "baseColorTexture": "18f26b6093811a9736938833bfecb87a",
+  "metallic": 1.0,
+  "roughness": 1.0,
+  "metallicRoughnessTexture": "118daab672766bd7fb8cf24423b5990a",
+  "normalTexture": "e1f967d9c62f60b68b698bbce968c03f",
+  "normalScale": 1.0,
+  "occlusionTexture": "118daab672766bd7fb8cf24423b5990a",
+  "occlusionStrength": 1.0,
+  "emissive": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+  ],
+  "emissiveTexture": "00000000000000000000000000000000",
+  "alphaMode": 0,
+  "alphaCutoff": 0.5,
+  "doubleSided": false,
+  "worldTextureSize": 0.0
+}

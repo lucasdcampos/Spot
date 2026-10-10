@@ -12,6 +12,7 @@
 #include "sound_bank.h"
 #include "tool_gun.h"
 #include "undo_list.h"
+#include "view_model.h"
 #include "weapon.h"
 #include "weapon_holder.h"
 
@@ -728,4 +729,95 @@ TEST_CASE("The day cycle thickens and darkens the fog at night, and raises the e
     playground.Run(Step);
     CHECK(look.temperature > 0.1f);
     CHECK(fog.color.r > fog.color.b);
+}
+
+TEST_CASE("The player holds the model of what is in hand, in front of the eyes", "[sandbox]") {
+    Playground playground;
+    playground.Run(0.5f);
+    const auto& view = *playground.player->GetComponent<ViewModel>();
+    auto& holder = *playground.player->GetComponent<WeaponHolder>();
+    const auto eye = [&] { return playground.player->GetComponent<PlayerController>()->GetEyePosition(); };
+
+    // The physics gun is in hand first.
+    REQUIRE(holder.IsPhysicsGunSelected());
+    REQUIRE(view.GetShownModel());
+    CHECK(view.GetShownModel().Get() == view.physicsGun.Get());
+    CHECK(view.GetPartEntities().size() == view.physicsGun->GetParts().size());
+    for (const Spot::EntityId id : view.GetPartEntities()) {
+        const Entity* part = playground.scene.GetEntity(id);
+        REQUIRE(part != nullptr);
+        CHECK(Spot::Distance(part->GetTransform().GetPosition(), eye()) < 1.0f);
+    }
+
+    // Each weapon shows its own, and the tool gun its.
+    playground.Press(Key::Digit2);
+    playground.Run(0.05f);
+    playground.Release(Key::Digit2);
+    REQUIRE(holder.GetWeapon() != nullptr);
+    REQUIRE(holder.GetWeapon()->model);
+    CHECK(view.GetShownModel().Get() == holder.GetWeapon()->model.Get());
+    playground.Press(Key::Digit6);
+    playground.Run(0.05f);
+    playground.Release(Key::Digit6);
+    REQUIRE(holder.IsToolGunSelected());
+    CHECK(view.GetShownModel().Get() == view.toolGun.Get());
+}
+
+TEST_CASE("The tool gun paints props and gives them materials, and Z takes it back", "[sandbox]") {
+    Playground playground;
+    playground.Run(1.5f);
+    auto& tool = *playground.player->GetComponent<ToolGun>();
+    playground.Press(Key::Digit6);
+    playground.Run(0.05f);
+    playground.Release(Key::Digit6);
+    const auto tap = [&](auto input) {
+        playground.Press(input);
+        playground.Run(0.05f);
+        playground.Release(input);
+    };
+    for (int i = 0; i < 3; ++i) {
+        tap(Key::R);
+    }
+    REQUIRE(tool.mode == ToolGun::Mode::Color);
+    // Aim picks the next color.
+    tap(Spot::MouseButton::Right);
+    CHECK(tool.color == 1);
+
+    Entity& crate = playground.PlaceCrate(3.0f, 5.0f);
+    REQUIRE(tool.materials.size() == 6);
+    auto& renderer = crate.AddComponent<Spot::MeshRenderer>(
+        playground.assets.Load<Spot::Mesh>(Spot::BuiltInAssets::CubeMesh), tool.materials[0].material);
+    const Spot::AssetRef<Spot::Material> original = renderer.GetMaterial();
+    REQUIRE(original);
+    playground.Run(0.05f);
+    tap(Spot::MouseButton::Left);
+    const Spot::Color black = ToolGun::Palette[1].color;
+    REQUIRE(renderer.GetMaterial());
+    CHECK(renderer.GetMaterial()->baseColor == black);
+    // The rest of the material stays, its textures included.
+    CHECK(renderer.GetMaterial()->baseColorTexture.Get() == original->baseColorTexture.Get());
+
+    tap(Key::R);
+    REQUIRE(tool.mode == ToolGun::Mode::Material);
+    for (int i = 0; i < 3; ++i) {
+        tap(Spot::MouseButton::Right);
+    }
+    REQUIRE(tool.material == 3);
+    tap(Spot::MouseButton::Left);
+    const Spot::AssetRef<Spot::Material> concrete = tool.materials[3].material;
+    REQUIRE(tool.materials[3].name == "Concrete");
+    REQUIRE(concrete);
+    CHECK(renderer.GetMaterial().Get() == concrete.Get());
+
+    // Z takes back the material, then the paint.
+    tap(Key::Z);
+    CHECK(renderer.GetMaterial()->baseColor == black);
+    tap(Key::Z);
+    CHECK(renderer.GetMaterial().Get() == original.Get());
+
+    // The level keeps its look.
+    Entity* ground = playground.scene.FindEntity("Ground");
+    REQUIRE(ground != nullptr);
+    CHECK_FALSE(tool.Paint(*ground, black));
+    CHECK_FALSE(tool.ApplyMaterial(*ground, concrete));
 }

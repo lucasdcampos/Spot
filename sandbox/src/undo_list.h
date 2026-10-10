@@ -6,8 +6,9 @@
 #include <string>
 #include <vector>
 
-// What the player made and took away, so Undo takes back the last of it: props spawned, joints the tool gun added and
-// props it removed, which come back as they were, with their ids, so joints to them work again.
+// What the player made and took away, so Undo takes back the last of it: props spawned, joints the tool gun added,
+// props it removed, which come back as they were, with their ids, so joints to them work again, and materials it
+// changed.
 class UndoList final : public Spot::Component {
 public:
     void PushSpawn(Spot::EntityId entity);
@@ -15,6 +16,8 @@ public:
     void PushJoint(Spot::EntityId entity, std::size_t componentIndex);
     // An entity about to be removed, saved first.
     void PushRemoval(const Spot::Entity& entity);
+    // The material an entity's MeshRenderer had before it was changed.
+    void PushMaterial(Spot::EntityId entity, Spot::AssetRef<Spot::Material> previous);
 
     // Takes back the last thing that can still be taken back; false when there is nothing.
     bool Undo();
@@ -25,10 +28,11 @@ protected:
 
 private:
     struct Action {
-        enum class Kind { Spawn, Joint, Removal } kind;
+        enum class Kind { Spawn, Joint, Removal, Material } kind;
         Spot::EntityId entity = Spot::EntityId::Invalid;
         std::size_t componentIndex = 0;
         std::string saved = {};
+        Spot::AssetRef<Spot::Material> material = {};
     };
 
     bool UndoAction(const Action& action);

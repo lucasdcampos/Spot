@@ -6,6 +6,7 @@
 #include "undo_list.h"
 #include "weapon_holder.h"
 
+#include <algorithm>
 #include <array>
 #include <string_view>
 
@@ -35,6 +36,16 @@ bool IsProp(const Spot::Entity& entity) {
 void ToolGun::Click(Spot::Entity& entity, Spot::Vector3 point) {
     if (mode == Mode::Remover) {
         Remove(entity);
+        return;
+    }
+    if (mode == Mode::Color) {
+        Paint(entity, Palette[static_cast<std::size_t>(color) % Palette.size()].color);
+        return;
+    }
+    if (mode == Mode::Material) {
+        if (!materials.empty()) {
+            ApplyMaterial(entity, materials[static_cast<std::size_t>(material) % materials.size()].material);
+        }
         return;
     }
     if (!m_first) {
@@ -96,6 +107,35 @@ bool ToolGun::Remove(Spot::Entity& entity) {
     return true;
 }
 
+bool ToolGun::Paint(Spot::Entity& entity, Spot::Color paint) {
+    auto* renderer = entity.GetComponent<Spot::MeshRenderer>();
+    if (!IsProp(entity) || !renderer) {
+        return false;
+    }
+    const Spot::AssetRef<Spot::Material> previous = renderer->GetMaterial();
+    Spot::Material painted = previous ? *previous : Spot::Material{};
+    // Glass keeps how much it lets through.
+    painted.baseColor = {paint.r, paint.g, paint.b, painted.baseColor.a};
+    renderer->SetMaterial(std::move(painted));
+    if (auto* undo = GetEntity().GetComponent<UndoList>()) {
+        undo->PushMaterial(entity.GetId(), previous);
+    }
+    return true;
+}
+
+bool ToolGun::ApplyMaterial(Spot::Entity& entity, const Spot::AssetRef<Spot::Material>& newMaterial) {
+    auto* renderer = entity.GetComponent<Spot::MeshRenderer>();
+    if (!IsProp(entity) || !renderer || !newMaterial) {
+        return false;
+    }
+    const Spot::AssetRef<Spot::Material> previous = renderer->GetMaterial();
+    renderer->SetMaterial(newMaterial);
+    if (auto* undo = GetEntity().GetComponent<UndoList>()) {
+        undo->PushMaterial(entity.GetId(), previous);
+    }
+    return true;
+}
+
 bool ToolGun::IsInHand() const {
     const auto* holder = GetEntity().GetComponent<WeaponHolder>();
     return holder && holder->IsToolGunSelected();
@@ -109,8 +149,16 @@ void ToolGun::OnUpdate(float /*deltaTime*/) {
     }
     if (Input::IsActionPressed("Reload")) {
         SoundBank::PlayClick(GetScene());
-        mode = static_cast<Mode>((static_cast<int>(mode) + 1) % 3);
+        mode = static_cast<Mode>((static_cast<int>(mode) + 1) % 5);
         m_first.reset();
+    }
+    if (Input::IsActionPressed("Aim") && (mode == Mode::Color || mode == Mode::Material)) {
+        SoundBank::PlayClick(GetScene());
+        if (mode == Mode::Color) {
+            color = (color + 1) % static_cast<int>(Palette.size());
+        } else {
+            material = (material + 1) % std::max(static_cast<int>(materials.size()), 1);
+        }
     }
     const auto* player = GetEntity().GetComponent<PlayerController>();
     const auto* carrier = GetEntity().GetComponent<PropCarrier>();
@@ -147,8 +195,16 @@ void ToolGun::OnLateUpdate(float /*deltaTime*/) {
     });
 }
 
+void ToolGun::ToolMaterial::Serialize(Spot::Archive& archive) {
+    archive.Field("name", name);
+    archive.Field("material", material);
+}
+
 void ToolGun::Serialize(Spot::Archive& archive) {
-    static constexpr std::array<std::string_view, 3> Modes = {"Weld", "Rope", "Remover"};
+    static constexpr std::array<std::string_view, 5> Modes = {"Weld", "Rope", "Remover", "Color", "Material"};
     archive.Field("mode", mode, {.enumNames = Modes});
+    archive.Field("color", color, {.min = 0.0f, .max = 7.0f, .tooltip = "The palette color Color mode paints in"});
+    archive.Field("materials", materials, {.tooltip = "The materials Material mode gives, which Aim goes through"});
+    archive.Field("material", material, {.min = 0.0f, .max = 64.0f, .tooltip = "The one Material mode gives now"});
     archive.Field("range", range, {.min = 0.0f, .max = 1000.0f, .speed = 0.5f});
 }

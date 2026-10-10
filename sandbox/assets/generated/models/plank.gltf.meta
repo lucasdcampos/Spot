@@ -16,6 +16,14 @@
     {
       "id": "01547963d5e7d43064286c4fab2c7f82",
       "key": "mesh:0"
+    },
+    {
+      "id": "a6651ebeb2b4dc0f68cdeb3abdfb77ca",
+      "key": "texture:1"
+    },
+    {
+      "id": "7b6dbfe7e50dba196dbb7f89df8c9e1c",
+      "key": "texture:2"
     }
   ],
   "type": "Model"

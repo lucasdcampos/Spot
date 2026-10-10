@@ -14,6 +14,10 @@ void UndoList::PushRemoval(const Spot::Entity& entity) {
     m_actions.push_back({.kind = Action::Kind::Removal, .entity = entity.GetId(), .saved = entity.SaveToString()});
 }
 
+void UndoList::PushMaterial(Spot::EntityId entity, Spot::AssetRef<Spot::Material> previous) {
+    m_actions.push_back({.kind = Action::Kind::Material, .entity = entity, .material = std::move(previous)});
+}
+
 bool UndoList::Undo() {
     // What was destroyed or changed meanwhile by other means cannot be taken back, and is skipped.
     while (!m_actions.empty()) {
@@ -50,6 +54,14 @@ bool UndoList::UndoAction(const Action& action) {
     case Action::Kind::Removal:
         // With its id, and its references to the others as they were, since it comes back to the same scene.
         return !scene.Instantiate(action.saved, {.keepIds = true, .keepExternalReferences = true}).empty();
+    case Action::Kind::Material: {
+        Spot::Entity* entity = scene.GetEntity(action.entity);
+        auto* renderer = entity ? entity->GetComponent<Spot::MeshRenderer>() : nullptr;
+        if (renderer) {
+            renderer->SetMaterial(action.material);
+        }
+        return renderer != nullptr;
+    }
     }
     return false;
 }

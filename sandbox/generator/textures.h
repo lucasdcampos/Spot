@@ -2,6 +2,9 @@
 
 #include <spot.h>
 
+#include <array>
+#include <string_view>
+
 // The props' base color textures, painted from code with fixed seeds, so every run paints the same pixels. Round
 // props' textures follow the layout of Generator::Shapes: the side in the top half, the ends as discs below.
 namespace Generator::Textures {
@@ -21,5 +24,25 @@ Spot::Image Cone();
 // Tiles in both directions.
 Spot::Image Concrete();
 Spot::Image Wheel();
+
+// The surfaces props, weapons and the level are made of, each a set of tiling PBR textures.
+enum class Surface { Wood, PaintedMetal, RustyMetal, Concrete, Rubber, Glass };
+
+inline constexpr std::array<Surface, 6> Surfaces = {Surface::Wood,     Surface::PaintedMetal, Surface::RustyMetal,
+                                                    Surface::Concrete, Surface::Rubber,       Surface::Glass};
+
+// Names as in file names, such as "painted_metal".
+std::string_view GetSurfaceName(Surface surface);
+
+// A surface's textures, as glTF materials take them: its color (sRGB), its tangent-space normals (+Y toward the
+// texture's top), and its occlusion, roughness and metallic in red, green and blue, which serves as both the
+// occlusion and the metallic-roughness texture.
+struct SurfaceTextures {
+    Spot::Image color;
+    Spot::Image normal;
+    Spot::Image orm;
+};
+
+SurfaceTextures PaintSurface(Surface surface);
 
 } // namespace Generator::Textures

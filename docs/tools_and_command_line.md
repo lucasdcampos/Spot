@@ -69,9 +69,14 @@ beside it, so the engine is tried out and debugged with a game: `./run.ps1` or `
 
 The sandbox's props are made by code: `sandbox_generator` (`sandbox/generator/`, built with the engine) writes their
 glTF models (with cgltf's writer, from `MeshData`) and PNG textures (painted pixel by pixel, encoded with
-`Image::EncodePng()`) into `sandbox/assets/generated/`. Fixed seeds make every run write the same files, and it only
+`Image::EncodePng()`) into `sandbox/assets/generated/`: the props, each colored by its own texture with the normal and
+ORM maps of its surface; a PBR texture set per surface (wood, painted metal, rusty metal, concrete, rubber, glass),
+whose ORM texture packs occlusion, roughness and metallic as glTF allows; and the low-poly models of what the player
+holds, made of boxes and cylinders of those surfaces. Fixed seeds make every run write the same files, and it only
 rewrites files whose content changed. The files are committed and imported like any artist's assets; their `.meta`
-files come from the import, and the generator never touches them. After changing the generator, run it and let the
+files come from the import, and the generator never touches them. Models import their images as colors or data by
+how their materials use them, but the surfaces' normal and ORM textures are also imported on their own, for the
+level's `.material` files, so their `.meta` files have `srgb` off. After changing the generator, run it and let the
 sandbox's build import what changed:
 
 ```sh
