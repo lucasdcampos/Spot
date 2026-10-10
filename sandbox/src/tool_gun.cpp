@@ -151,32 +151,34 @@ Spot::Color ToolGun::GetLampColor() const {
     return {paint.r / brightest, paint.g / brightest, paint.b / brightest, 1.0f};
 }
 
-Spot::Entity& ToolGun::PlaceLamp(Spot::Entity& surface, Spot::Vector3 point, Spot::Vector3 normal) {
-    const Spot::Vector3 out = Spot::LengthSquared(normal) > 1e-6f ? Spot::Normalize(normal) : Spot::Vector3{0, 1, 0};
-    // On a prop, the lamp moves with it; on the level, it stands on its own.
-    Spot::Entity& placed = IsProp(surface) ? surface.CreateChild("Lamp") : GetScene().CreateEntity("Lamp");
-    placed.AddTag(LampTag);
-    placed.GetTransform().SetWorldPosition(point + out * 0.12f);
-    // Lights shine down their entity's -Z, out of the surface.
-    placed.GetTransform().SetWorldRotation(Spot::Quaternion::LookRotation(out));
-    const Spot::Color light = GetLampColor();
-    if (lamp == LampKind::Spot || lamp == LampKind::ShadowedSpot) {
-        auto& spot = placed.AddComponent<Spot::SpotLight>(light, 25.0f, 12.0f);
-        spot.SetInnerConeAngle(Spot::ToRadians(25.0f));
-        spot.SetOuterConeAngle(Spot::ToRadians(35.0f));
-        spot.SetCastingShadows(lamp == LampKind::ShadowedSpot);
-    } else {
-        placed.AddComponent<Spot::PointLight>(light, 6.0f, 7.0f).SetCastingShadows(lamp == LampKind::ShadowedPoint);
+Spot::Entity* ToolGun::PlaceLamp(Spot::Entity& surface, Spot::Vector3 point, Spot::Vector3 normal) {
+    const bool spot = lamp == LampKind::Spot || lamp == LampKind::ShadowedSpot;
+    Spot::Entity* placed =
+        GetScene().Instantiate(spot ? spotLamp : pointLamp, {.parent = IsProp(surface) ? &surface : nullptr});
+    if (!placed) {
+        return nullptr;
     }
-    // The bulb glows in the light's color, and is lit from within, so it casts no shadow of its own.
-    auto& bulb = placed.AddComponent<Spot::MeshRenderer>(
-        Spot::Assets::Load<Spot::Mesh>(Spot::BuiltInAssets::SphereMesh),
-        Spot::Material{.baseColor = Spot::Color::Black,
-                       .emissive = {light.r * 4.0f, light.g * 4.0f, light.b * 4.0f, 1.0f}});
-    bulb.SetCastingShadows(false);
-    placed.GetTransform().SetScale({0.12f, 0.12f, 0.12f});
+    auto* light = placed->GetComponent<Spot::Light>();
+    if (!light) {
+        placed->Destroy();
+        return nullptr;
+    }
+    const Spot::Vector3 out = Spot::LengthSquared(normal) > 1e-6f ? Spot::Normalize(normal) : Spot::Vector3{0, 1, 0};
+    placed->AddTag(LampTag);
+    placed->GetTransform().SetWorldPosition(point + out * 0.12f);
+    // Lights shine down their entity's -Z, out of the surface.
+    placed->GetTransform().SetWorldRotation(Spot::Quaternion::LookRotation(out));
+    const Spot::Color lampColor = GetLampColor();
+    light->SetColor(lampColor);
+    light->SetCastingShadows(lamp == LampKind::ShadowedPoint || lamp == LampKind::ShadowedSpot);
+    if (auto* bulb = placed->GetComponent<Spot::MeshRenderer>()) {
+        Spot::Material bulbMaterial = bulb->GetMaterial() ? *bulb->GetMaterial() : Spot::Material{};
+        bulbMaterial.emissive = {bulbMaterial.emissive.r * lampColor.r, bulbMaterial.emissive.g * lampColor.g,
+                                 bulbMaterial.emissive.b * lampColor.b, bulbMaterial.emissive.a};
+        bulb->SetMaterial(bulbMaterial);
+    }
     if (auto* undo = GetEntity().GetComponent<UndoList>()) {
-        undo->PushSpawn(placed.GetId());
+        undo->PushSpawn(placed->GetId());
     }
     return placed;
 }
@@ -273,6 +275,8 @@ void ToolGun::Serialize(Spot::Archive& archive) {
     archive.Field("lamp", lamp, {.enumNames = LampNames, .tooltip = "The lamp Lamp mode places"});
     archive.Field("color", color, {.min = 0.0f, .max = 7.0f, .tooltip = "The palette color Color mode paints in"});
     archive.Field("materials", materials, {.tooltip = "The materials Material mode gives, which Aim goes through"});
+    archive.Field("pointLamp", pointLamp);
+    archive.Field("spotLamp", spotLamp);
     archive.Field("material", material, {.min = 0.0f, .max = 64.0f, .tooltip = "The one Material mode gives now"});
     archive.Field("range", range, {.min = 0.0f, .max = 1000.0f, .speed = 0.5f});
 }

@@ -100,6 +100,9 @@ public:
     // As AssetDatabase::FindByPath(): "models/house.glb" for a file's asset, "models/house.glb#Roof" for one of its
     // sub-assets. Built-in assets are found too (see BuiltInAssets).
     std::optional<AssetId> FindByPath(std::string_view path) const;
+    // Manifest assets of the type, sorted by source path, optionally below a relative directory (including its
+    // descendants). Requires neither source files nor loading the assets; built-in assets are not included.
+    std::vector<AssetId> GetAssetIds(AssetType type, std::string_view directory = {}) const;
 
     // Returns a reference without an asset, after logging why, when the id is unknown, of another type or fails to
     // load. The reference keeps the id either way.

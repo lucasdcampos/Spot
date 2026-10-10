@@ -1,0 +1,87 @@
+{
+  "entities": [
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "36dbd48ef8ac7dbcdc4af03150d71477",
+            "mesh": "636caab75b1ffcf5dabba3874facfa01"
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000001",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "size": [
+              3.0,
+              0.2,
+              0.2
+            ]
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000002",
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "mass": 30.0
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000003",
+          "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 2
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000004",
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000005",
+          "type": "ImpactSounds"
+        },
+        {
+          "data": {
+            "category": 0,
+            "clearance": 1.5499999523162842,
+            "order": 5
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000006",
+          "type": "Spawnable"
+        }
+      ],
+      "id": 1,
+      "name": "Beam",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    }
+  ],
+  "format": "spot-scene",
+  "version": 2
+}

@@ -29,8 +29,8 @@ struct SurfaceSounds {
     void Serialize(Spot::Archive& archive);
 };
 
-// The sounds the game's components share, as data, until prefabs (M8) carry their own: those of each surface, by
-// SurfaceKind, explosions and the interface's click. One per scene, found with Find().
+// The sounds shared by the scene: those of each surface, by SurfaceKind, explosions and the interface's click.
+// Spawnable prefabs select their surface; weapons carry their own fire and reload sounds.
 class SoundBank final : public Spot::Component {
 public:
     std::vector<SurfaceSounds> surfaces;

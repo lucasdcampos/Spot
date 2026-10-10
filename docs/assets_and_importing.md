@@ -65,6 +65,11 @@ one save it in scenes (`Archive::Field()` takes `AssetRef` fields). A reference 
 loading failed; saving keeps the id. Assets that need the GPU, such as textures and meshes, only load with a
 graphics device.
 
+`AssetManager::GetAssetIds(type, directory)` lists imported assets of a type below a relative source directory,
+including its descendants, sorted by source path and then id. The directory is optional; built-in assets are
+excluded. It reads the runtime manifest without loading assets or inspecting source files, so shipped games can
+discover content such as spawnable prefabs. `RefreshManifest()` makes newly cooked entries available to queries.
+
 A mesh asset can also load as its CPU triangles, `MeshData`, with `AssetManager::LoadMeshData()` or
 `Load<MeshData>()`, as mesh colliders need; it loads without a graphics device, and is cached apart from the GPU mesh.
 

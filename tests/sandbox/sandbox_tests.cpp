@@ -10,6 +10,7 @@
 #include "prop_carrier.h"
 #include "prop_spawner.h"
 #include "sound_bank.h"
+#include "temp_directory.h"
 #include "tool_gun.h"
 #include "undo_list.h"
 #include "view_model.h"
@@ -17,11 +18,13 @@
 #include "weapon_holder.h"
 
 #include <spot.h>
+#include <spot_import.h>
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <filesystem>
 #include <map>
@@ -58,11 +61,13 @@ struct Playground {
     // The loudest sample of each bus over the last run, by name.
     std::map<std::string, Spot::AudioPeak, std::less<>> peaks;
     Spot::AssetManager assets{SANDBOX_IMPORTED_DIR};
+    Spot::AssetManager* previousAssets = Spot::Assets::GetManager();
     Scene scene;
     Entity* player = nullptr;
 
     explicit Playground(bool withAudio = false) {
         Spot::Detail::GameCode::Load();
+        Spot::Detail::SetAssetManager(&assets);
         const auto game = Spot::GameSettings::LoadFromFile(std::filesystem::path(SANDBOX_IMPORTED_DIR).parent_path() /
                                                            Spot::GameSettings::FileName);
         REQUIRE(game.has_value());
@@ -85,6 +90,7 @@ struct Playground {
         Spot::Input::SetActionMap(previousActions);
         // The scene's sounds stop while the device is still there.
         scene.Clear();
+        Spot::Detail::SetAssetManager(previousAssets);
         Spot::Audio::SetDevice(previousAudio);
         // Components that threw were logged; nothing else in the game should have.
         for (const auto& record : log->GetRecords()) {
@@ -418,11 +424,187 @@ TEST_CASE("Rockets and explosive barrels blow props away", "[sandbox]") {
     CHECK(Spot::Distance(neighbor.GetTransform().GetPosition(), neighborBefore) > 1.0f);
 }
 
+TEST_CASE("The playground uses linked spawnable prefabs with its authored overrides", "[sandbox][prefab]") {
+    Playground playground;
+    std::size_t linked = 0;
+    playground.scene.ForEachComponent<Spawnable>([&](Spawnable& spawnable) {
+        Entity& entity = spawnable.GetEntity();
+        CHECK(entity.GetPrefabAssetId().IsValid());
+        CHECK(entity.GetPrefabRootId() == entity.GetId());
+        ++linked;
+        if (spawnable.category == Spawnable::Category::Weapon) {
+            CHECK(entity.GetParent() == playground.player);
+            CHECK(entity.HasComponent<Weapon>());
+            CHECK_FALSE(entity.HasComponent<Spot::Rigidbody>());
+            CHECK_FALSE(entity.HasComponent<Spot::BoxCollider>());
+            playground.scene.ForEachComponent<Spot::MeshRenderer>(
+                [&](Spot::MeshRenderer& renderer) { CHECK_FALSE(renderer.GetEntity().IsDescendantOf(entity)); });
+        }
+    });
+    CHECK(linked == 56);
+    const Entity* cone = playground.scene.FindEntity("Cone");
+    REQUIRE(cone != nullptr);
+    CHECK(cone->HasComponent<Spot::BoxCollider>());
+    CHECK_FALSE(cone->HasComponent<Spot::MeshCollider>());
+    const Entity* lamp = playground.scene.FindEntity("Lamp");
+    REQUIRE(lamp != nullptr);
+    CHECK(lamp->HasComponent<Spot::PointLight>());
+    CHECK_FALSE(lamp->HasComponent<Spot::Rigidbody>());
+}
+
+TEST_CASE("Every catalog entry spawns its complete prefab and undo removes its tree", "[sandbox][prefab]") {
+    Playground playground;
+    playground.Run(Step);
+    auto& spawner = *playground.player->GetComponent<PropSpawner>();
+    auto& undo = *playground.player->GetComponent<UndoList>();
+    REQUIRE(spawner.GetSpawnables().size() == 15);
+    const std::vector<std::string> shortcuts{"Crate", "Barrel", "Explosive Barrel", "Ball", "Plank", "Beam",
+                                             "Cone",  "Wheel"};
+    for (std::size_t i = 0; i < spawner.GetSpawnables().size(); ++i) {
+        const SpawnableItem& item = spawner.GetSpawnables()[i];
+        if (i < shortcuts.size()) {
+            CHECK(item.name == shortcuts[i]);
+        }
+        Entity* spawned = spawner.Spawn(i);
+        REQUIRE(spawned != nullptr);
+        CHECK(spawned->GetPrefabAssetId() == item.prefab.GetId());
+        CHECK(spawned->HasComponent<Spawnable>());
+        CHECK(spawned->HasComponent<Spot::Rigidbody>());
+        CHECK(spawned->HasComponent<ImpactSounds>());
+        CHECK(spawned->HasComponent<Surface>());
+        if (item.category == Spawnable::Category::Lamp) {
+            CHECK(spawned->HasComponent<Spot::PointLight>());
+        }
+        std::vector<Spot::EntityId> tree{spawned->GetId()};
+        playground.scene.ForEachEntity([&](Entity& entity) {
+            if (entity.IsDescendantOf(*spawned)) {
+                tree.push_back(entity.GetId());
+            }
+        });
+        if (item.category == Spawnable::Category::Weapon) {
+            CHECK(spawned->HasComponent<Weapon>());
+            CHECK(tree.size() > 1);
+            bool drawable = false;
+            playground.scene.ForEachComponent<Spot::MeshRenderer>([&](Spot::MeshRenderer& renderer) {
+                drawable = drawable || renderer.GetEntity().IsDescendantOf(*spawned);
+            });
+            CHECK(drawable);
+        }
+        CHECK(undo.Undo());
+        for (const auto id : tree) {
+            CHECK(playground.scene.GetEntity(id) == nullptr);
+        }
+    }
+    CHECK(spawner.GetSpawnedCount() == 0);
+    CHECK(spawner.Spawn(spawner.GetSpawnables().size()) == nullptr);
+}
+
+TEST_CASE("Adding a marked prefab asset extends the sandbox catalog without code changes", "[sandbox][prefab]") {
+    Playground playground;
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    const auto imported = project.GetPath() / "imported";
+    Spot::AssetManager assets(imported);
+    auto& spawner = *playground.player->GetComponent<PropSpawner>();
+    Scene authored;
+    Entity& root = authored.CreateEntity("Custom Lamp");
+    auto& marker = root.AddComponent<Spawnable>();
+    marker.category = Spawnable::Category::Lamp;
+    marker.clearance = 2.0f;
+    root.AddComponent<Spot::PointLight>();
+    Entity& child = authored.CreateEntity("Attachment");
+    child.SetParent(&root);
+    child.AddComponent<Spot::BoxCollider>();
+    const auto write = [&](const std::filesystem::path& path) {
+        std::filesystem::create_directories((sources / path).parent_path());
+        REQUIRE(authored.SaveToFile(sources / path));
+    };
+    write("prefabs/spawnables/custom.prefab");
+    write("prefabs/spawnables_extra/outside.prefab");
+    root.RemoveComponent(marker);
+    write("prefabs/spawnables/unmarked.prefab");
+    Spot::AssetDatabase database(sources, imported);
+    database.Refresh();
+    assets.RefreshManifest();
+    spawner.RefreshSpawnables(&assets);
+    REQUIRE(spawner.GetSpawnables().size() == 1);
+    CHECK(spawner.GetSpawnables()[0].name == "Custom Lamp");
+    CHECK(spawner.GetSpawnables()[0].category == Spawnable::Category::Lamp);
+    CHECK(spawner.GetSpawnables()[0].clearance == Approx(2.0f));
+    Entity* spawned = spawner.Spawn(0);
+    REQUIRE(spawned != nullptr);
+    CHECK(spawned->GetPrefabAssetId() == database.FindByPath("prefabs/spawnables/custom.prefab"));
+    CHECK(spawned->HasComponent<Spot::PointLight>());
+    REQUIRE(spawned->GetChildren().size() == 1);
+    const auto childId = spawned->GetChildren()[0]->GetId();
+    CHECK(spawned->GetChildren()[0]->HasComponent<Spot::BoxCollider>());
+    spawner.Cleanup();
+    CHECK(playground.scene.GetEntity(childId) == nullptr);
+    spawner.RefreshSpawnables();
+    CHECK(spawner.GetSpawnables().size() == 15);
+}
+
+TEST_CASE("Sandbox prefab edits propagate while instance overrides survive", "[sandbox][prefab]") {
+    Playground playground;
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    const auto imported = project.GetPath() / "imported";
+    std::filesystem::create_directories(sources);
+    const auto sourceFile = sources / "crate.prefab";
+    std::filesystem::copy_file(Assets / "prefabs/spawnables/props/crate.prefab", sourceFile);
+    std::filesystem::copy_file(Assets / "prefabs/spawnables/props/crate.prefab.meta", sources / "crate.prefab.meta");
+    Spot::AssetDatabase database(sources, imported);
+    database.Refresh();
+    Spot::AssetManager assets(imported);
+    const auto id = *database.FindByPath("crate.prefab");
+    Entity* original = playground.scene.FindEntity("Crate");
+    REQUIRE(original != nullptr);
+    Scene instances;
+    auto roots = instances.Instantiate(original->SaveToString(), {.assets = &assets});
+    REQUIRE(roots.size() == 1);
+    Entity* first = roots[0];
+    Entity* second = instances.Instantiate(assets.Load<Spot::Prefab>(id), {.assets = &assets});
+    REQUIRE(second != nullptr);
+    const auto firstId = first->GetId();
+    const auto secondId = second->GetId();
+    const auto firstPosition = first->GetTransform().GetPosition();
+    second->SetName("Personal Crate");
+    second->GetComponent<ImpactSounds>()->minSpeed = 3.0f;
+    const auto saved = instances.SaveToString();
+
+    Scene authored;
+    auto sourceRoots =
+        authored.Instantiate(assets.Load<Spot::Prefab>(id)->GetEntityText(), {.keepIds = true, .assets = &assets});
+    REQUIRE(sourceRoots.size() == 1);
+    sourceRoots[0]->SetName("Updated Crate");
+    sourceRoots[0]->GetComponent<ImpactSounds>()->minSpeed = 2.0f;
+    sourceRoots[0]->AddComponent<Spot::PointLight>();
+    REQUIRE(authored.SaveToFile(sourceFile));
+    REQUIRE(database.Reimport(id));
+    const std::array changed{id};
+    assets.Reload(changed);
+    Scene refreshed;
+    REQUIRE_FALSE(refreshed.Instantiate(saved, {.keepIds = true, .assets = &assets}).empty());
+    first = refreshed.GetEntity(firstId);
+    second = refreshed.GetEntity(secondId);
+    REQUIRE(first != nullptr);
+    REQUIRE(second != nullptr);
+    CHECK(first->GetName() == "Updated Crate");
+    CHECK(first->GetTransform().GetPosition() == firstPosition);
+    CHECK(first->GetComponent<ImpactSounds>()->minSpeed == Approx(2.0f));
+    CHECK(second->GetName() == "Personal Crate");
+    CHECK(second->GetComponent<ImpactSounds>()->minSpeed == Approx(3.0f));
+    CHECK(first->HasComponent<Spot::PointLight>());
+    CHECK(second->HasComponent<Spot::PointLight>());
+    CHECK(first->GetPrefabAssetId() == id);
+    CHECK(second->GetPrefabAssetId() == id);
+}
+
 TEST_CASE("Keys spawn props where the player looks, Z takes them back and X cleans them up", "[sandbox]") {
     Playground playground;
     playground.Run(1.5f);
     auto& spawner = *playground.player->GetComponent<PropSpawner>();
-    REQUIRE(spawner.props.size() == 8);
+    REQUIRE(spawner.GetSpawnables().size() >= 8);
     for (const Key key : {Key::F1, Key::F4, Key::F7}) {
         playground.Press(key);
         playground.Run(0.05f);
@@ -841,9 +1023,10 @@ TEST_CASE("The tool gun places lamps of every kind, many at once, and takes them
     for (int i = 0; i < 40; ++i) {
         tool.lamp = static_cast<ToolGun::LampKind>(i % 4);
         tool.color = i % 8;
-        tool.PlaceLamp(*ground,
-                       {-15.0f + static_cast<float>(i % 8) * 4.0f, 0.0f, -15.0f + static_cast<float>(i / 8) * 4.0f},
-                       {0.0f, 1.0f, 0.0f});
+        REQUIRE(
+            tool.PlaceLamp(*ground,
+                           {-15.0f + static_cast<float>(i % 8) * 4.0f, 0.0f, -15.0f + static_cast<float>(i / 8) * 4.0f},
+                           {0.0f, 1.0f, 0.0f}) != nullptr);
     }
     playground.Run(0.1f);
     CHECK(countLights() == before + 40);
@@ -852,6 +1035,7 @@ TEST_CASE("The tool gun places lamps of every kind, many at once, and takes them
     int spots = 0;
     int shadowed = 0;
     for (Entity* lamp : playground.scene.FindEntitiesWithTag(ToolGun::LampTag)) {
+        CHECK(lamp->GetPrefabAssetId().IsValid());
         if (const auto* spot = lamp->GetComponent<Spot::SpotLight>()) {
             ++spots;
             CHECK(Spot::Distance(spot->GetLightData().direction, Spot::Vector3{0.0f, 1.0f, 0.0f}) < 1e-3f);
@@ -868,9 +1052,10 @@ TEST_CASE("The tool gun places lamps of every kind, many at once, and takes them
 
     // A lamp on a prop moves with it.
     Entity& crate = playground.PlaceCrate(3.0f, 5.0f);
-    Entity& carried = tool.PlaceLamp(crate, crate.GetTransform().GetPosition() + Spot::Vector3{0.0f, 0.25f, 0.0f},
+    Entity* carried = tool.PlaceLamp(crate, crate.GetTransform().GetPosition() + Spot::Vector3{0.0f, 0.25f, 0.0f},
                                      {0.0f, 1.0f, 0.0f});
-    CHECK(carried.GetParent() == &crate);
+    REQUIRE(carried != nullptr);
+    CHECK(carried->GetParent() == &crate);
 
     // Undo takes back the last lamp; the remover takes the one nearest where it is clicked.
     REQUIRE(undo.Undo());
@@ -880,4 +1065,12 @@ TEST_CASE("The tool gun places lamps of every kind, many at once, and takes them
     playground.Run(0.05f);
     CHECK(playground.scene.FindEntitiesWithTag(ToolGun::LampTag).size() == 39);
     CHECK_FALSE(tool.RemoveLampNear({-13.0f, 0.0f, -13.0f}));
+    REQUIRE(undo.Undo());
+    playground.Run(0.05f);
+    CHECK(playground.scene.FindEntitiesWithTag(ToolGun::LampTag).size() == 40);
+
+    tool.pointLamp = {};
+    tool.lamp = ToolGun::LampKind::Point;
+    CHECK(tool.PlaceLamp(*ground, {}, {}) == nullptr);
+    CHECK(countLights() == before + 40);
 }

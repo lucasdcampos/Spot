@@ -90,6 +90,30 @@ std::optional<AssetId> AssetManager::FindByPath(std::string_view path) const {
     return found != m_paths.end() ? std::optional(found->second) : std::nullopt;
 }
 
+std::vector<AssetId> AssetManager::GetAssetIds(AssetType type, std::string_view directory) const {
+    std::string prefix(directory);
+    std::ranges::replace(prefix, '\\', '/');
+    while (prefix.ends_with('/')) {
+        prefix.pop_back();
+    }
+    if (!prefix.empty()) {
+        prefix += '/';
+    }
+    std::vector<AssetId> ids;
+    for (const auto& [id, entry] : m_entries) {
+        const bool builtIn = std::ranges::any_of(BuiltIns, [&](const BuiltIn& asset) { return asset.id == id; });
+        if (entry.type == type && entry.path.starts_with(prefix) && !builtIn) {
+            ids.push_back(id);
+        }
+    }
+    std::ranges::sort(ids, [&](AssetId a, AssetId b) {
+        const auto& first = m_entries.at(a).path;
+        const auto& second = m_entries.at(b).path;
+        return first != second ? first < second : a.ToString() < b.ToString();
+    });
+    return ids;
+}
+
 std::vector<AssetId> AssetManager::Reload(std::span<const AssetId> assets) {
     std::unordered_set<AssetId> stale(assets.begin(), assets.end());
     // Loaded materials and models hold on to other assets, so they go out of date with them, as do models with

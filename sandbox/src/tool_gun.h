@@ -48,6 +48,8 @@ public:
     Mode mode = Mode::Weld;
     float range = 100.0f;
     std::vector<ToolMaterial> materials;
+    Spot::AssetRef<Spot::Prefab> pointLamp;
+    Spot::AssetRef<Spot::Prefab> spotLamp;
     // The palette color, the material and the kind of lamp clicks give.
     int color = 0;
     int material = 0;
@@ -70,8 +72,8 @@ public:
     bool Paint(Spot::Entity& entity, Spot::Color paint);
     bool ApplyMaterial(Spot::Entity& entity, const Spot::AssetRef<Spot::Material>& newMaterial);
     // Places a lamp of the kind on the surface at the point, facing out along the normal, below the entity unless it
-    // is part of the level. Returns the lamp.
-    Spot::Entity& PlaceLamp(Spot::Entity& surface, Spot::Vector3 point, Spot::Vector3 normal);
+    // is part of the level. Returns null if the selected prefab is unavailable or has no light.
+    Spot::Entity* PlaceLamp(Spot::Entity& surface, Spot::Vector3 point, Spot::Vector3 normal);
     // Takes away the lamp nearest the point, within a little of it; false when there is none.
     bool RemoveLampNear(Spot::Vector3 point);
     // The color lamps shine in: the palette's, as bright as a light can be, or white for the darkest.

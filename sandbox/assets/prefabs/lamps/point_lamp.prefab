@@ -1,0 +1,58 @@
+{
+  "format": "spot-scene",
+  "version": 2,
+  "entities": [
+    {
+      "id": 1,
+      "name": "Lamp",
+      "active": true,
+      "tags": [
+        "Lamp"
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        0.12,
+        0.12,
+        0.12
+      ],
+      "components": [
+        {
+          "type": "PointLight",
+          "id": "b8c4f82e3af24a7bb069397015db16fb",
+          "enabled": true,
+          "data": {
+            "color": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "intensity": 6.0,
+            "range": 7.0,
+            "castsShadows": false
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "id": "6332920cd13847e5ac05ccaed2a78fca",
+          "enabled": true,
+          "data": {
+            "mesh": "00000000000000000000000000000002",
+            "castsShadows": false,
+            "material": "d253e59ae9d610490ba12dfb0d268ea9"
+          }
+        }
+      ]
+    }
+  ]
+}

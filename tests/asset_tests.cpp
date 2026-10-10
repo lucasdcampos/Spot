@@ -886,6 +886,51 @@ TEST_CASE("Sub-assets and built-in assets are found by path", "[assets]") {
     CHECK_FALSE(assets.Load<Spot::Texture>(Spot::BuiltInAssets::GridTexture));
 }
 
+TEST_CASE("Runtime asset catalogs query the manifest by type and directory", "[assets][prefab]") {
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    const auto imported = project.GetPath() / "imported";
+    Spot::Scene source;
+    source.CreateEntity("Template");
+    const auto write = [&](const std::filesystem::path& path) {
+        std::filesystem::create_directories((sources / path).parent_path());
+        REQUIRE(source.SaveToFile(sources / path));
+    };
+    write("prefabs/z.prefab");
+    write("prefabs/nested/a.prefab");
+    write("prefabs_extra/outside.prefab");
+    write("prefabs/level.scene");
+    AssetDatabase database(sources, imported);
+    database.Refresh();
+    Spot::AssetManager assets(imported);
+    const AssetId nested = *database.FindByPath("prefabs/nested/a.prefab");
+    const AssetId last = *database.FindByPath("prefabs/z.prefab");
+    const AssetId outside = *database.FindByPath("prefabs_extra/outside.prefab");
+    const std::vector<AssetId> expected{nested, last};
+    CHECK(assets.GetAssetIds(AssetType::Prefab, "prefabs") == expected);
+    CHECK(assets.GetAssetIds(AssetType::Prefab, "prefabs///") == expected);
+    CHECK(assets.GetAssetIds(AssetType::Prefab, "prefabs\\nested\\") == std::vector<AssetId>{nested});
+    CHECK(assets.GetAssetIds(AssetType::Prefab) == std::vector<AssetId>{nested, last, outside});
+    CHECK(assets.GetAssetIds(AssetType::Prefab, "missing").empty());
+    CHECK(assets.GetAssetIds(AssetType::Mesh).empty());
+    CHECK(assets.Contains(Spot::BuiltInAssets::CubeMesh));
+    CHECK(assets.GetAssetIds(AssetType::Scene, "prefabs").size() == 1);
+
+    write("prefabs/b.prefab");
+    database.Refresh();
+    CHECK(assets.GetAssetIds(AssetType::Prefab, "prefabs") == expected);
+    assets.RefreshManifest();
+    const AssetId added = *database.FindByPath("prefabs/b.prefab");
+    const std::vector<AssetId> refreshed{added, nested, last};
+    CHECK(assets.GetAssetIds(AssetType::Prefab, "prefabs") == refreshed);
+
+    // A shipped game has only imported files; catalog queries must not inspect source files.
+    std::filesystem::remove_all(sources);
+    Spot::AssetManager shipped(imported);
+    CHECK(shipped.GetAssetIds(AssetType::Prefab, "prefabs") == refreshed);
+    CHECK(shipped.Load<Spot::Prefab>(added));
+}
+
 TEST_CASE("Applications run a game from its startup scene", "[assets]") {
     const TempDirectory project;
     const auto sources = project.GetPath() / "assets";

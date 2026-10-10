@@ -1,0 +1,84 @@
+{
+  "entities": [
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "66b4ccb18ac1b6e0eb81e0e00038547f",
+            "mesh": "13ed119547d363e2e1330f721fc40694"
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000001",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "convex": true,
+            "mesh": "13ed119547d363e2e1330f721fc40694"
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000002",
+          "type": "MeshCollider"
+        },
+        {
+          "data": {
+            "mass": 2.0
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000003",
+          "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000004",
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000005",
+          "type": "ImpactSounds"
+        },
+        {
+          "data": {
+            "category": 0,
+            "clearance": 0.4000000059604645,
+            "order": 6
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000006",
+          "type": "Spawnable"
+        }
+      ],
+      "id": 1,
+      "name": "Cone",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    }
+  ],
+  "format": "spot-scene",
+  "version": 2
+}

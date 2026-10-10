@@ -1,6 +1,5 @@
 #include "prop_spawner.h"
 
-#include "explosive_barrel.h"
 #include "player_controller.h"
 #include "undo_list.h"
 
@@ -10,64 +9,68 @@
 
 SPOT_COMPONENT(PropSpawner);
 
-void SpawnableProp::Serialize(Spot::Archive& archive) {
-    static constexpr std::array<std::string_view, 4> Shapes = {"Box", "Sphere", "Capsule", "ConvexHull"};
-    archive.Field("name", name);
-    archive.Field("mesh", mesh);
-    archive.Field("material", material);
-    archive.Field("shape", shape, {.enumNames = Shapes});
-    archive.Field("size", size, {.speed = 0.01f});
-    archive.Field("mass", mass, {.min = 0.001f, .max = 100000.0f, .speed = 0.1f, .tooltip = "In kilograms"});
-    archive.Field("explosive", explosive);
-    static constexpr std::array<std::string_view, 3> Surfaces = {"Concrete", "Wood", "Metal"};
-    archive.Field("surface", surface, {.enumNames = Surfaces});
+void PropSpawner::OnStart() {
+    RefreshSpawnables();
+}
+
+void PropSpawner::RefreshSpawnables(Spot::AssetManager* assets) {
+    if (!assets) {
+        assets = Spot::Assets::GetManager();
+    }
+    m_assets = assets;
+    m_spawnables.clear();
+    m_next = 0;
+    if (!assets) {
+        return;
+    }
+    for (const auto id : assets->GetAssetIds(Spot::AssetType::Prefab, folder)) {
+        const auto prefab = assets->Load<Spot::Prefab>(id);
+        if (!prefab) {
+            continue;
+        }
+        Spot::Scene preview;
+        const Spot::Entity* root = preview.Instantiate(prefab, {.assets = assets});
+        const auto* spawnable = root ? root->GetComponent<Spawnable>() : nullptr;
+        if (spawnable) {
+            m_spawnables.push_back(
+                {prefab, root->GetName(), spawnable->category, spawnable->order, std::max(0.0f, spawnable->clearance)});
+        }
+    }
+    std::ranges::sort(m_spawnables, [](const SpawnableItem& a, const SpawnableItem& b) {
+        if (a.order != b.order) {
+            return a.order < b.order;
+        }
+        if (a.name != b.name) {
+            return a.name < b.name;
+        }
+        return a.prefab.GetId().ToString() < b.prefab.GetId().ToString();
+    });
 }
 
 Spot::Entity* PropSpawner::Spawn(std::size_t index) {
     const auto* player = GetEntity().GetComponent<PlayerController>();
-    if (index >= props.size() || !player) {
+    if (index >= m_spawnables.size() || !player) {
         return nullptr;
     }
-    const SpawnableProp& prop = props[index];
+    const SpawnableItem& item = m_spawnables[index];
     // Where the player looks, on what it looks at, lifted so the prop rests on it; or in the air ahead.
     const Spot::Vector3 eye = player->GetEyePosition();
     const Spot::Vector3 aim = player->GetAimDirection();
     const auto hit = GetScene().GetPhysics().Raycast(eye, aim, reach, {.ignore = GetEntity().GetId()});
-    const float lift = std::max({prop.size.x, prop.size.y, prop.size.z}) * 0.5f + 0.05f;
-    const Spot::Vector3 position = hit ? hit->point + hit->normal * lift : eye + aim * reach;
+    const Spot::Vector3 position = hit ? hit->point + hit->normal * item.clearance : eye + aim * reach;
 
-    auto& entity = GetScene().CreateEntity(prop.name);
-    entity.GetTransform().SetPosition(position);
-    entity.GetTransform().SetRotation(Spot::Quaternion::FromAxisAngle({0.0f, 1.0f, 0.0f}, player->GetYaw()));
-    entity.AddComponent<Spot::MeshRenderer>(prop.mesh, prop.material);
-    switch (prop.shape) {
-    case SpawnableProp::Shape::Box:
-        entity.AddComponent<Spot::BoxCollider>(prop.size);
-        break;
-    case SpawnableProp::Shape::Sphere:
-        entity.AddComponent<Spot::SphereCollider>(prop.size.x * 0.5f);
-        break;
-    case SpawnableProp::Shape::Capsule:
-        entity.AddComponent<Spot::CapsuleCollider>(prop.size.x * 0.5f, prop.size.y);
-        break;
-    case SpawnableProp::Shape::ConvexHull: {
-        auto& collider = entity.AddComponent<Spot::MeshCollider>();
-        collider.SetConvex(true);
-        collider.SetMesh(Spot::Assets::Load<Spot::MeshData>(prop.mesh.GetId()));
-        break;
+    Spot::Entity* entity = GetScene().Instantiate(item.prefab, {.assets = m_assets});
+    if (!entity) {
+        return nullptr;
     }
-    }
-    entity.AddComponent<Spot::Rigidbody>().SetMass(prop.mass);
-    entity.AddComponent<Surface>().kind = prop.surface;
-    entity.AddComponent<ImpactSounds>();
-    if (prop.explosive) {
-        entity.AddComponent<ExplosiveBarrel>();
-    }
-    m_spawned.push_back(entity.GetId());
+    entity->GetTransform().SetPosition(position);
+    entity->GetTransform().SetRotation(Spot::Quaternion::FromAxisAngle({0.0f, 1.0f, 0.0f}, player->GetYaw()) *
+                                       entity->GetTransform().GetRotation());
+    m_spawned.push_back(entity->GetId());
     if (auto* undo = GetEntity().GetComponent<UndoList>()) {
-        undo->PushSpawn(entity.GetId());
+        undo->PushSpawn(entity->GetId());
     }
-    return &entity;
+    return entity;
 }
 
 void PropSpawner::Cleanup() {
@@ -94,9 +97,9 @@ void PropSpawner::OnUpdate(float /*deltaTime*/) {
         }
     }
     // One button for every prop, as gamepads have no buttons to spare: each press spawns the next.
-    if (Input::IsActionPressed("Spawn") && !props.empty()) {
+    if (Input::IsActionPressed("Spawn") && !m_spawnables.empty()) {
         Spawn(m_next);
-        m_next = (m_next + 1) % props.size();
+        m_next = (m_next + 1) % m_spawnables.size();
     }
     if (Input::IsActionPressed("Clean Up")) {
         Cleanup();
@@ -104,6 +107,6 @@ void PropSpawner::OnUpdate(float /*deltaTime*/) {
 }
 
 void PropSpawner::Serialize(Spot::Archive& archive) {
-    archive.Field("props", props);
+    archive.Field("folder", folder);
     archive.Field("reach", reach, {.min = 0.0f, .max = 100.0f, .speed = 0.05f});
 }

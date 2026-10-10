@@ -1,0 +1,220 @@
+{
+  "entities": [
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "automatic": false,
+            "displayName": "Shotgun",
+            "explosionImpulse": 0.0,
+            "explosionRadius": 0.0,
+            "fireInterval": 0.8,
+            "fireSound": "51d6dca9ada9968c54c3e40b09eda2d4",
+            "impulse": 15.0,
+            "kind": 0,
+            "magazineSize": 6,
+            "model": "3085bcbeaca8e5c75565e7b9f4bd00b7",
+            "pellets": 10,
+            "projectileSpeed": 0.0,
+            "range": 60.0,
+            "reloadSound": "0c7379df4ea628e65c4ab48d8973707e",
+            "reloadTime": 2.5,
+            "reserveAmmo": 48,
+            "spread": 0.09
+          },
+          "enabled": true,
+          "id": "a1dfab66d97e9a63c4ee8d58e37f29e1",
+          "type": "Weapon"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              -0.02250000089406967,
+              -0.16499997675418854
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              0.05000000074505806,
+              0.10500000417232513,
+              1.0099999904632568
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "ae961c47e79a2b4bf308e148f5fad6ea",
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "canSleep": true,
+            "continuous": false,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 2.0,
+            "rotationLocks": {
+              "x": false,
+              "y": false,
+              "z": false
+            }
+          },
+          "enabled": true,
+          "id": "09ef6d8ce953bee43803eb79b00e7566",
+          "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 2
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000004",
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000005",
+          "type": "ImpactSounds"
+        },
+        {
+          "data": {
+            "category": 2,
+            "clearance": 0.5550000071525574,
+            "order": 13
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000006",
+          "type": "Spawnable"
+        }
+      ],
+      "id": 1,
+      "layer": 0,
+      "name": "Shotgun",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [],
+      "id": 9,
+      "layer": 0,
+      "name": "Visual",
+      "parent": 1,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "66386a3025eca5d219055a7b979398c4",
+            "mesh": "eac8b6174bca31345c36dc8eef06c867",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "34808e791fd7193f84276c4cf1b528f8",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 10,
+      "layer": 0,
+      "name": "Steel",
+      "parent": 9,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "586fb3f3a62a27d1ec1207057ced2467",
+            "mesh": "8f8b68031d13038986d2bc137e7a15cd",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "e6a66a1ea812ffbad9220f2d0d71e1d3",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 11,
+      "layer": 0,
+      "name": "Wood",
+      "parent": 9,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    }
+  ],
+  "format": "spot-scene",
+  "version": 2
+}

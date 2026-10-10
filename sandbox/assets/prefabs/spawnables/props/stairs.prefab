@@ -1,0 +1,93 @@
+{
+  "entities": [
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "23a1444c4715235df041e9c2396bf498",
+            "mesh": "b9b1e729bda3274edd129826ecc24a83"
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000001",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "convex": true,
+            "friction": 0.8,
+            "mesh": "b9b1e729bda3274edd129826ecc24a83",
+            "restitution": 0.0,
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000002",
+          "type": "MeshCollider"
+        },
+        {
+          "data": {
+            "mass": 100.0
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000003",
+          "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 0
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000004",
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000005",
+          "type": "ImpactSounds"
+        },
+        {
+          "data": {
+            "category": 0,
+            "clearance": 1.5499999523162842,
+            "order": 9
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000006",
+          "type": "Spawnable"
+        }
+      ],
+      "id": 1,
+      "layer": 0,
+      "name": "Stairs",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    }
+  ],
+  "format": "spot-scene",
+  "version": 2
+}

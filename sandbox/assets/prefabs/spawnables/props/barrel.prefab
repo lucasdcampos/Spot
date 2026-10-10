@@ -1,0 +1,87 @@
+{
+  "entities": [
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "fd6837f3e5e154505d12442c86e9e99c",
+            "mesh": "01800d8f779de51198dba13dcdfc46be"
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000001",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "size": [
+              0.6,
+              0.9,
+              0.6
+            ]
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000002",
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "mass": 20.0
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000003",
+          "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 2
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000004",
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000005",
+          "type": "ImpactSounds"
+        },
+        {
+          "data": {
+            "category": 0,
+            "clearance": 0.5,
+            "order": 1
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000006",
+          "type": "Spawnable"
+        }
+      ],
+      "id": 1,
+      "name": "Barrel",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    }
+  ],
+  "format": "spot-scene",
+  "version": 2
+}

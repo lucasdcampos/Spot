@@ -1,0 +1,83 @@
+{
+  "entities": [
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "580e7bb4c25f0d74e7945838b3a14c6e",
+            "mesh": "2c9aa8d13b48d1bc335727727a248379"
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000001",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "radius": 0.30000001192092896
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000002",
+          "type": "SphereCollider"
+        },
+        {
+          "data": {
+            "mass": 3.0
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000003",
+          "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000004",
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000005",
+          "type": "ImpactSounds"
+        },
+        {
+          "data": {
+            "category": 0,
+            "clearance": 0.3500000238418579,
+            "order": 3
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000006",
+          "type": "Spawnable"
+        }
+      ],
+      "id": 1,
+      "name": "Ball",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    }
+  ],
+  "format": "spot-scene",
+  "version": 2
+}

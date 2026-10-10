@@ -1,0 +1,257 @@
+{
+  "entities": [
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "automatic": true,
+            "displayName": "Rifle",
+            "explosionImpulse": 0.0,
+            "explosionRadius": 0.0,
+            "fireInterval": 0.1,
+            "fireSound": "e33934b1d5907db157907a77b9b548fa",
+            "impulse": 30.0,
+            "kind": 0,
+            "magazineSize": 30,
+            "model": "c65ed8a1d3da765335135a76e0e84519",
+            "pellets": 1,
+            "projectileSpeed": 0.0,
+            "range": 200.0,
+            "reloadSound": "0c7379df4ea628e65c4ab48d8973707e",
+            "reloadTime": 2.0,
+            "reserveAmmo": 240,
+            "spread": 0.02
+          },
+          "enabled": true,
+          "id": "ee86e41d266e61aff13d0505bb077ffa",
+          "type": "Weapon"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              -0.03814895823597908,
+              -0.17249998450279236
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              0.05000000074505806,
+              0.23229792714118958,
+              0.9949999451637268
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "a6ea5d5c127675e61065dc7c1c61a3a5",
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "canSleep": true,
+            "continuous": false,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 2.0,
+            "rotationLocks": {
+              "x": false,
+              "y": false,
+              "z": false
+            }
+          },
+          "enabled": true,
+          "id": "02845d35dda1322723f7ed5257739469",
+          "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 2
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000004",
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000005",
+          "type": "ImpactSounds"
+        },
+        {
+          "data": {
+            "category": 2,
+            "clearance": 0.54749995470047,
+            "order": 12
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000006",
+          "type": "Spawnable"
+        }
+      ],
+      "id": 1,
+      "layer": 0,
+      "name": "Rifle",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [],
+      "id": 5,
+      "layer": 0,
+      "name": "Visual",
+      "parent": 1,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "af6766e154b9bd3df182b6c71d2fd935",
+            "mesh": "eecd4545013782fb853e4d9f39c2ae01",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "8bb27e67f7b88ee7fa72512c236c4a0c",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 6,
+      "layer": 0,
+      "name": "Steel",
+      "parent": 5,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "ceef571617da4e691b767f78567d9858",
+            "mesh": "eda8b25a15b72cf93ba502f107fd7c29",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "be8864c9b8223ac10bc417776e7c1c53",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 7,
+      "layer": 0,
+      "name": "Stock",
+      "parent": 5,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "599203d6c71e3da6fbc578f125b78bf5",
+            "mesh": "7514e5c2204a516a181fafd9794972a6",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "ee07266e6b4324df5a93231d9617d837",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 8,
+      "layer": 0,
+      "name": "Grip",
+      "parent": 5,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    }
+  ],
+  "format": "spot-scene",
+  "version": 2
+}

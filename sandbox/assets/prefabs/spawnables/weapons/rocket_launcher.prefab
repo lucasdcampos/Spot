@@ -1,0 +1,257 @@
+{
+  "entities": [
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "automatic": false,
+            "displayName": "Rocket Launcher",
+            "explosionImpulse": 500.0,
+            "explosionRadius": 5.0,
+            "fireInterval": 1.0,
+            "fireSound": "a40bdc5547181232a3f1aca99a2888fa",
+            "impulse": 0.0,
+            "kind": 1,
+            "magazineSize": 1,
+            "model": "f27b3975595947e82baeaa312a999887",
+            "pellets": 1,
+            "projectileSpeed": 30.0,
+            "range": 0.0,
+            "reloadSound": "0c7379df4ea628e65c4ab48d8973707e",
+            "reloadTime": 1.5,
+            "reserveAmmo": 20,
+            "spread": 0.0
+          },
+          "enabled": true,
+          "id": "1043ac93cc2af29dd325548ec92584ee",
+          "type": "Weapon"
+        },
+        {
+          "data": {
+            "center": [
+              0.009999999776482582,
+              0.005440138280391693,
+              -0.15000000596046448
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              0.14000000059604645,
+              0.2391197234392166,
+              0.8999999165534973
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "f8297c1324ea461c9110fc4e755fffbc",
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "canSleep": true,
+            "continuous": false,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 2.0,
+            "rotationLocks": {
+              "x": false,
+              "y": false,
+              "z": false
+            }
+          },
+          "enabled": true,
+          "id": "42e05f3b2fa51f90b57e5b05161ae547",
+          "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 2
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000004",
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000005",
+          "type": "ImpactSounds"
+        },
+        {
+          "data": {
+            "category": 2,
+            "clearance": 0.4999999701976776,
+            "order": 14
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000006",
+          "type": "Spawnable"
+        }
+      ],
+      "id": 1,
+      "layer": 0,
+      "name": "Rocket Launcher",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [],
+      "id": 12,
+      "layer": 0,
+      "name": "Visual",
+      "parent": 1,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "00ce40685d87758b3da9b178ef678993",
+            "mesh": "379d6744c3522ebc321919e7f3a46184",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "8a03f0b41c0e359ed358abb40dd4ac32",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 13,
+      "layer": 0,
+      "name": "Tube",
+      "parent": 12,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "f28ced786aee41967fbfb547629626a2",
+            "mesh": "1043ab7e34c7c2aa0377c23020ede7a0",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "530bcff527e54467494cf9516c741475",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 14,
+      "layer": 0,
+      "name": "Steel",
+      "parent": 12,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "7980f5dfbba38a54d0045f503f04f45b",
+            "mesh": "8d0fe4265fc0584f32ee7fb085411c1a",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "e4cc3daedacdf156718576ad123c1846",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 15,
+      "layer": 0,
+      "name": "Grip",
+      "parent": 12,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    }
+  ],
+  "format": "spot-scene",
+  "version": 2
+}

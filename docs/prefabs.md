@@ -155,3 +155,15 @@ instance's compact record against the current source, preserving its link and ne
 `SceneDocument::RefreshPrefabs()` and `ReplaceSceneText()` implement staging through the public engine API.
 `GetSceneRevision()` invalidates inspector caches and completes edits in progress after a replacement, without
 adding synthetic commands to the history.
+
+## Sandbox spawnables
+
+The sandbox's props, lamps and four firearms are authored as prefabs. `PropSpawner` discovers the imported
+prefabs below `prefabs/spawnables` and includes those whose root has a `Spawnable` component. Its category,
+order and placement clearance are data; the remaining components define the spawned object. Adding another
+marked prefab requires no changes to the game's code. See [Sandbox](sandbox.md) for the workflow and controls.
+
+The playground contains linked instances with its original placements and component settings as overrides.
+Held firearm instances remove their world colliders, rigidbodies and renderers; `ViewModel` draws the selected
+weapon's model in the player's hand. Spawned firearms keep their complete model tree and physics components.
+The tool gun uses separate point and spot lamp prefabs, with color, shadow choice and placement as overrides.

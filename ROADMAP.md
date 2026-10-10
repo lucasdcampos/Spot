@@ -9,7 +9,7 @@ The goal is the same breadth, built on the architecture Spot already has.
 The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
 [The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
 
-**Current focus:** M8 – Model hierarchy and prefabs
+**Current focus:** M9 – Skeletal animation
 
 ## How to use this plan
 
@@ -120,7 +120,7 @@ How it is built:
 | [x] | [M5 – Rendering: HDR and post-processing](#m5--rendering-hdr-and-post-processing) | HDR, tonemapping, bloom, AA, grading, fog, render hooks |
 | [x] | [M6 – Rendering: PBR and transparency](#m6--rendering-pbr-and-transparency) | Metallic-roughness PBR, normal maps, sky lighting, alpha modes, golden-image tests |
 | [x] | [M7 – Rendering: scale](#m7--rendering-scale) | Culling, instancing, clustered lights, better shadows, benchmarks |
-| [ ] | [M8 – Model hierarchy and prefabs](#m8--model-hierarchy-and-prefabs) | Model node trees, prefab assets, overrides, prefab editing |
+| [x] | [M8 – Model hierarchy and prefabs](#m8--model-hierarchy-and-prefabs) | Model node trees, prefab assets, overrides, prefab editing |
 | [ ] | [M9 – Skeletal animation](#m9--skeletal-animation) | Skins, clips, GPU skinning, Animator, controllers, blend trees, events, root motion |
 | [ ] | [M10 – Gameplay toolkit](#m10--gameplay-toolkit) | Timers, time scale, tweens, coroutines, signals, typed references, save data |
 | [ ] | [M11 – Developer tools](#m11--developer-tools) | Console commands and cvars, overlays, profiler panel, captures |
@@ -837,7 +837,7 @@ prefab's current content, so prefab changes reach every instance. Prefabs nest.
   instance, and Unpack.
 - [x] **M8.6 Nesting and variants.** Prefabs inside prefabs, and variants that override another prefab.
 - [x] **M8.7 Live updates.** Saving a prefab updates the instances in open scenes, keeping undo valid.
-- [ ] **M8.8 Sandbox: spawnables as prefabs.** Every prop, lamp and weapon is a prefab, and the spawn list is built
+- [x] **M8.8 Sandbox: spawnables as prefabs.** Every prop, lamp and weapon is a prefab, and the spawn list is built
   from them, so a new spawnable is an asset rather than code.
 
 **Done when:** the sandbox's spawnables are prefabs, and a change to one reaches every instance while each keeps its
@@ -927,6 +927,19 @@ own overrides.
   deletion with cross-entity references, missing targets, failed reload recovery and inspector mixed values.
   Validation: MSVC and GCC Debug build without warnings and pass all 622 tests, including GPU, golden images,
   editor, module and sandbox tests.
+
+- M8.8: The sandbox has 15 catalog prefabs for its props, lamps and four firearms, plus point and spot lamp prefabs
+  used by the tool gun. The playground's 56 instances retain the placements and component settings of the original
+  80 entities as overrides, including static lamps, cone colliders and held firearm component removals. Spawned
+  firearms keep their full model hierarchy and physics. `Spawnable` supplies category, order and placement
+  clearance; `PropSpawner` discovers marked roots below its configured folder through the runtime manifest. F1–F8
+  retain their original props, and Spawn cycles through every entry. Adding a marked prefab requires no code.
+  `AssetManager::GetAssetIds()` queries by type and recursive directory without sources or asset loading, excludes
+  built-ins and sorts deterministically. Tests cover shipped catalogs, manifest refresh, asset-only additions,
+  instance links and overrides, every spawned tree, cleanup, undo and real sandbox prefab propagation.
+  Validation and M8 acceptance: MSVC and GCC Debug build without warnings and pass all 627 tests, including GPU,
+  unchanged golden images, editor, module and sandbox tests. All original playground entity properties and
+  component data were checked against the preceding scene. The M9 steps remain unstarted.
 
 ---
 

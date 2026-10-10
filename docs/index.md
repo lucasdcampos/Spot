@@ -20,6 +20,7 @@ that does the same with a window around it.
 | [Diagnostics](diagnostics.md) | Logging, crash reports, contained failures, the profiler and debug drawing |
 | [Editor](editor.md) | The editor's documents, panels, undo, play mode and game code reloading |
 | [Tools and the command line](tools_and_command_line.md) | Projects, cooking, building, running and exporting games with `spot` |
+| [Sandbox](sandbox.md) | Running the playground, prefab spawnables, controls and a play-test checklist |
 
 Building, testing and the code rules are in [`AGENTS.md`](../AGENTS.md); the plan for what comes next is
 [`ROADMAP.md`](../ROADMAP.md).
