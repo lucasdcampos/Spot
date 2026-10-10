@@ -27,6 +27,19 @@ changed while they play; `SetMasterVolume()` scales everything.
 Every `AudioDevice` method may be called from any thread. The device never fails: without an output, because audio
 is disabled (`AudioConfig::enabled`) or no device can be opened, it stays usable and plays nothing.
 
+## Voices
+
+At most 64 sounds play at once (`SetMaxVoices()`); `GetVoiceCount()` tells how many do. Past the limit, a new sound
+takes the voice of the lowest `PlayParams::priority` playing, the oldest of them, and does not play when every sound
+playing ranks above it. `PlayParams::maxInstances` caps the playbacks of one sound, the oldest giving its voice to the
+newest, so sounds that many things make at once, such as impacts, never pile up.
+
+Nothing clicks: stopping, pausing, resuming and stolen voices fade over a few milliseconds
+(`Detail::Mixer::ClickFadeSeconds`), and volume and pan changes, of sounds and of buses, ramp over as long.
+`Stop(instance, fadeOut)` fades out longer, as music ending does, and `PlayParams::fadeIn` fades a sound in; sounds
+start where they were cut to start, so they need none by default. A stopped sound's instance stops matching at once,
+even while it fades.
+
 ## Buses
 
 Buses group sounds, such as music, effects and voices, so each group's volume and muting change at once. They form a
@@ -54,5 +67,4 @@ because the mixer holds them.
 
 ## Not there yet
 
-Voice management, streaming, 3D sources with a listener and a mixer panel come in the rest of the roadmap's
-milestone M3.
+Streaming, 3D sources with a listener and a mixer panel come in the rest of the roadmap's milestone M3.

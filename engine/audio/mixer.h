@@ -33,13 +33,26 @@ public:
 
     std::uint32_t GetSampleRate() const { return m_sampleRate; }
 
-    // A null sound returns the default instance, which never plays. Voices for a bus that does not exist play on the
-    // master bus.
+    // Short enough not to be heard as a fade, long enough to keep a sound that stops from clicking.
+    static constexpr float ClickFadeSeconds = 0.005f;
+    static constexpr int DefaultMaxVoices = 64;
+
+    // A null sound returns the default instance, which never plays, as does a sound that finds no voice (see
+    // PlayParams::priority). Voices for a bus that does not exist play on the master bus.
     SoundInstance Play(std::shared_ptr<const Sound> sound, const PlayParams& params = {});
-    void Stop(SoundInstance instance);
+    // Fades the sound out over the seconds, or ClickFadeSeconds when that is longer. The instance stops matching at
+    // once.
+    void Stop(SoundInstance instance, float fadeOut = 0.0f);
     void StopAll();
 
-    // Paused playbacks still count as playing; ended and stopped ones do not.
+    // How many sounds play at once at most; new ones beyond take voices or do not play (see PlayParams::priority).
+    int GetMaxVoices() const;
+    void SetMaxVoices(int count);
+    // The sounds playing, paused ones included.
+    int GetVoiceCount() const;
+
+    // Paused playbacks still count as playing; ended and stopped ones do not. Pausing and resuming fade, as stopping
+    // does, and volume and pan changes ramp over as long, so none of them click.
     bool IsPlaying(SoundInstance instance) const;
     bool IsPaused(SoundInstance instance) const;
     void SetPaused(SoundInstance instance, bool paused);
@@ -67,6 +80,7 @@ public:
     // False, changing nothing, when either bus does not exist, the bus is the master one, or the parent is the bus or
     // below it.
     bool SetBusParent(AudioBusId bus, AudioBusId parent);
+    // Volume and muting changes ramp, as those of sounds do.
     float GetBusVolume(AudioBusId bus) const;
     void SetBusVolume(AudioBusId bus, float volume);
     bool IsBusMuted(AudioBusId bus) const;
@@ -88,8 +102,17 @@ private:
         PlayParams params;
         // In source frames; fractional because the pitch and the sample rate conversion step through the sound.
         double position = 0.0;
+        // What was asked for; the voice goes silent and stops moving once its fade out ends.
+        bool pauseRequested = false;
         bool paused = false;
+        bool stopping = false;
         bool ended = false;
+        // The gains reached so far, which follow the volume and the pan a step each frame.
+        float leftGain = 0.0f;
+        float rightGain = 0.0f;
+        // From 0, silent, to 1, changed by the step each frame while fading.
+        float fade = 1.0f;
+        float fadeStep = 0.0f;
     };
 
     struct Bus {
@@ -98,11 +121,16 @@ private:
         std::size_t parent = 0;
         float volume = 1.0f;
         bool muted = false;
+        // The gain reached so far, which follows the volume and muting a step each frame.
+        float gain = 1.0f;
     };
 
     Voice* FindVoice(SoundInstance instance);
     const Voice* FindVoice(SoundInstance instance) const;
     void MixVoice(Voice& voice, std::span<float> output) const;
+    void StopVoice(Voice& voice, float fadeOut);
+    float GetFadeStep(float seconds) const;
+    void ApplyBusGain(Bus& bus, std::span<float> samples) const;
     const Bus* FindBusSlot(AudioBusId bus) const;
     Bus* FindBusSlot(AudioBusId bus);
     // Orders the buses so each comes before its parent, as mixing passes them up.
@@ -113,6 +141,7 @@ private:
     mutable std::mutex m_mutex;
     std::vector<Voice> m_voices;
     std::uint32_t m_nextId = 1;
+    int m_maxVoices = DefaultMaxVoices;
     // By slot, which is the bus's id; the master bus is the first.
     std::array<Bus, MaxBuses> m_buses;
     // The buses but the master one, deepest first.

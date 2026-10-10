@@ -10,6 +10,17 @@ namespace Spot::Detail {
 
 namespace {
 
+// The gains the volume and the pan give the left and right channels.
+std::pair<float, float> GetGains(const PlayParams& params) {
+    const float volume = std::max(params.volume, 0.0f);
+    const float pan = std::clamp(params.pan, -1.0f, 1.0f);
+    return {volume * std::min(1.0f - pan, 1.0f), volume * std::min(1.0f + pan, 1.0f)};
+}
+
+float StepToward(float value, float target, float step) {
+    return value < target ? std::min(value + step, target) : std::max(value - step, target);
+}
+
 std::size_t ToSlot(AudioBusId bus) {
     return static_cast<std::size_t>(bus);
 }
@@ -39,26 +50,90 @@ SoundInstance Mixer::Play(std::shared_ptr<const Sound> sound, const PlayParams& 
     std::scoped_lock lock(m_mutex);
     std::erase_if(m_voices, [](const Voice& voice) { return voice.ended; });
 
+    // Voices are in the order they started, so the first found is the oldest.
+    const auto isActive = [](const Voice& voice) { return !voice.stopping && !voice.ended; };
+    if (params.maxInstances > 0) {
+        const auto sameSound = [&](const Voice& voice) { return isActive(voice) && voice.sound == sound; };
+        if (std::ranges::count_if(m_voices, sameSound) >= params.maxInstances) {
+            StopVoice(*std::ranges::find_if(m_voices, sameSound), 0.0f);
+        }
+    }
+    if (std::ranges::count_if(m_voices, isActive) >= m_maxVoices) {
+        Voice* victim = nullptr;
+        for (Voice& voice : m_voices) {
+            if (isActive(voice) && (!victim || voice.params.priority < victim->params.priority)) {
+                victim = &voice;
+            }
+        }
+        if (!victim || victim->params.priority > params.priority) {
+            return {};
+        }
+        StopVoice(*victim, 0.0f);
+    }
+
     const std::uint32_t id = m_nextId++;
     // The default instance must never match, even after the counter wraps around.
     if (m_nextId == 0) {
         m_nextId = 1;
     }
-    m_voices.push_back({.sound = std::move(sound), .id = id, .params = params});
+    const auto [leftGain, rightGain] = GetGains(params);
+    m_voices.push_back({.sound = std::move(sound),
+                        .id = id,
+                        .params = params,
+                        .leftGain = leftGain,
+                        .rightGain = rightGain,
+                        .fade = params.fadeIn > 0.0f ? 0.0f : 1.0f,
+                        .fadeStep = params.fadeIn > 0.0f ? GetFadeStep(params.fadeIn) : 0.0f});
     if (!FindBusSlot(params.bus)) {
         m_voices.back().params.bus = AudioBusId::Master;
     }
     return {id};
 }
 
-void Mixer::Stop(SoundInstance instance) {
+void Mixer::Stop(SoundInstance instance, float fadeOut) {
     std::scoped_lock lock(m_mutex);
-    std::erase_if(m_voices, [&](const Voice& voice) { return voice.id == instance.id; });
+    if (Voice* voice = FindVoice(instance)) {
+        StopVoice(*voice, fadeOut);
+    }
 }
 
 void Mixer::StopAll() {
     std::scoped_lock lock(m_mutex);
-    m_voices.clear();
+    for (Voice& voice : m_voices) {
+        if (!voice.stopping && !voice.ended) {
+            StopVoice(voice, 0.0f);
+        }
+    }
+}
+
+int Mixer::GetMaxVoices() const {
+    std::scoped_lock lock(m_mutex);
+    return m_maxVoices;
+}
+
+void Mixer::SetMaxVoices(int count) {
+    std::scoped_lock lock(m_mutex);
+    m_maxVoices = std::max(count, 1);
+}
+
+int Mixer::GetVoiceCount() const {
+    std::scoped_lock lock(m_mutex);
+    return static_cast<int>(
+        std::ranges::count_if(m_voices, [](const Voice& voice) { return !voice.stopping && !voice.ended; }));
+}
+
+void Mixer::StopVoice(Voice& voice, float fadeOut) {
+    voice.stopping = true;
+    // A paused voice is silent already.
+    if (voice.paused) {
+        voice.ended = true;
+        return;
+    }
+    voice.fadeStep = -GetFadeStep(std::max(fadeOut, ClickFadeSeconds));
+}
+
+float Mixer::GetFadeStep(float seconds) const {
+    return 1.0f / std::max(seconds * static_cast<float>(m_sampleRate), 1.0f);
 }
 
 bool Mixer::IsPlaying(SoundInstance instance) const {
@@ -69,13 +144,20 @@ bool Mixer::IsPlaying(SoundInstance instance) const {
 bool Mixer::IsPaused(SoundInstance instance) const {
     std::scoped_lock lock(m_mutex);
     const Voice* voice = FindVoice(instance);
-    return voice && voice->paused;
+    return voice && voice->pauseRequested;
 }
 
 void Mixer::SetPaused(SoundInstance instance, bool paused) {
     std::scoped_lock lock(m_mutex);
-    if (Voice* voice = FindVoice(instance)) {
-        voice->paused = paused;
+    Voice* voice = FindVoice(instance);
+    if (!voice || voice->pauseRequested == paused) {
+        return;
+    }
+    voice->pauseRequested = paused;
+    const float step = GetFadeStep(ClickFadeSeconds);
+    voice->fadeStep = paused ? -step : step;
+    if (!paused) {
+        voice->paused = false;
     }
 }
 
@@ -267,23 +349,18 @@ void Mixer::Mix(std::span<float> output) {
         }
         // Each bus scales what reached it and passes it up, after the buses below it did.
         for (const std::size_t slot : m_busOrder) {
-            const Bus& bus = m_buses[slot];
-            const float gain = bus.muted ? 0.0f : std::max(bus.volume, 0.0f);
+            Bus& bus = m_buses[slot];
             const std::span<float> samples = GetBusBuffer(slot, count);
+            ApplyBusGain(bus, samples);
             const std::span<float> parent = GetBusBuffer(bus.parent, count);
             for (std::size_t i = 0; i < count; ++i) {
-                samples[i] *= gain;
                 parent[i] += samples[i];
             }
             measure(slot, samples);
         }
         // Clipping keeps loud mixes within the range every output format can hold.
-        const Bus& master = m_buses[0];
-        const float gain = master.muted ? 0.0f : std::max(master.volume, 0.0f);
         const std::span<float> mixed = GetBusBuffer(0, count);
-        for (std::size_t i = 0; i < count; ++i) {
-            mixed[i] *= gain;
-        }
+        ApplyBusGain(m_buses[0], mixed);
         measure(0, mixed);
         for (std::size_t i = 0; i < count; ++i) {
             output[offset + i] = std::clamp(mixed[i], -1.0f, 1.0f);
@@ -293,6 +370,16 @@ void Mixer::Mix(std::span<float> output) {
     for (std::size_t slot = 0; slot < MaxBuses; ++slot) {
         m_peaks[slot * 2].store(peaks[slot].left, std::memory_order_relaxed);
         m_peaks[slot * 2 + 1].store(peaks[slot].right, std::memory_order_relaxed);
+    }
+}
+
+void Mixer::ApplyBusGain(Bus& bus, std::span<float> samples) const {
+    const float target = bus.muted ? 0.0f : std::max(bus.volume, 0.0f);
+    const float step = GetFadeStep(ClickFadeSeconds);
+    for (std::size_t i = 0; i + 1 < samples.size(); i += 2) {
+        bus.gain = StepToward(bus.gain, target, step);
+        samples[i] *= bus.gain;
+        samples[i + 1] *= bus.gain;
     }
 }
 
@@ -329,8 +416,8 @@ Mixer::Voice* Mixer::FindVoice(SoundInstance instance) {
 }
 
 const Mixer::Voice* Mixer::FindVoice(SoundInstance instance) const {
-    const auto it =
-        std::ranges::find_if(m_voices, [&](const Voice& voice) { return voice.id == instance.id && !voice.ended; });
+    const auto it = std::ranges::find_if(
+        m_voices, [&](const Voice& voice) { return voice.id == instance.id && !voice.stopping && !voice.ended; });
     return it != m_voices.end() ? &*it : nullptr;
 }
 
@@ -347,10 +434,9 @@ void Mixer::MixVoice(Voice& voice, std::span<float> output) const {
 
     const double step = static_cast<double>(sound.GetSampleRate()) / static_cast<double>(m_sampleRate) *
                         static_cast<double>(std::max(voice.params.pitch, 0.0f));
-    const float volume = std::max(voice.params.volume, 0.0f);
-    const float pan = std::clamp(voice.params.pan, -1.0f, 1.0f);
-    const float leftGain = volume * std::min(1.0f - pan, 1.0f);
-    const float rightGain = volume * std::min(1.0f + pan, 1.0f);
+    const auto [leftTarget, rightTarget] = GetGains(voice.params);
+    // A change of the whole range takes as long as a fade.
+    const float rampStep = GetFadeStep(ClickFadeSeconds);
 
     // Past the end, a looping sound continues from its start and any other sound is silent.
     const auto sampleAt = [&](std::uint64_t frame, std::uint32_t channel) {
@@ -371,13 +457,32 @@ void Mixer::MixVoice(Voice& voice, std::span<float> output) const {
             voice.position = std::fmod(voice.position, static_cast<double>(frameCount));
         }
 
+        if (voice.fadeStep != 0.0f) {
+            voice.fade = std::clamp(voice.fade + voice.fadeStep, 0.0f, 1.0f);
+            if (voice.fade == 0.0f) {
+                voice.fadeStep = 0.0f;
+                if (voice.stopping) {
+                    voice.ended = true;
+                    return;
+                }
+                if (voice.pauseRequested) {
+                    voice.paused = true;
+                    return;
+                }
+            } else if (voice.fade == 1.0f) {
+                voice.fadeStep = 0.0f;
+            }
+        }
+        voice.leftGain = StepToward(voice.leftGain, leftTarget, rampStep);
+        voice.rightGain = StepToward(voice.rightGain, rightTarget, rampStep);
+
         // Linear interpolation between neighboring frames converts the sample rate and applies the pitch.
         const auto frame = static_cast<std::uint64_t>(voice.position);
         const auto t = static_cast<float>(voice.position - static_cast<double>(frame));
         const float left = std::lerp(sampleAt(frame, 0), sampleAt(frame + 1, 0), t);
         const float right = channelCount == 2 ? std::lerp(sampleAt(frame, 1), sampleAt(frame + 1, 1), t) : left;
-        output[i] += left * leftGain;
-        output[i + 1] += right * rightGain;
+        output[i] += left * voice.leftGain * voice.fade;
+        output[i + 1] += right * voice.rightGain * voice.fade;
         voice.position += step;
     }
 

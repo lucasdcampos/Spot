@@ -434,7 +434,7 @@ defined in the audio settings. Streamed sounds decode on a worker thread into a 
 - [x] **M3.1 Buses.** A bus graph in the mixer (Master plus user buses, each with volume, mute and a parent), voices
   routed to a bus, `AudioDevice` bus control, and peak meters per bus read without locks. Tests on `Mixer`, no device
   needed.
-- [ ] **M3.2 Voice management.** Voice limits, priorities and stealing, short fades on start and stop to avoid
+- [x] **M3.2 Voice management.** Voice limits, priorities and stealing, short fades on start and stop to avoid
   clicks, and ramped volume and pan changes. Tests.
 - [ ] **M3.3 Streaming.** Sounds marked "stream" in their import settings stay encoded and decode while they play.
   Bump the sound importer's version. Tests.
@@ -457,6 +457,11 @@ defined in the audio settings. Streamed sounds decode on a worker thread into a 
   mix call, after the bus's volume. Mixing goes in chunks of 256 frames through per-bus scratch buffers made once,
   deepest buses first. Voices for missing buses play on the master one; removing a bus moves its voices and children
   to its parent. The master volume is the master bus's.
+- M3.2: one global voice limit (64) with `PlayParams::priority` (steal the oldest of the lowest, or refuse when all
+  rank above) and `maxInstances` per sound. Stops, pauses, resumes and steals fade over 5 ms; a fade in on start is
+  only `PlayParams::fadeIn`, since sounds start at their first sample, which is where they were cut. Volume, pan and
+  bus gains step toward their targets a frame at a time, a full-range change taking 5 ms. Stopped voices keep
+  mixing while they fade but no longer match their instance or count as voices.
 
 ---
 

@@ -53,9 +53,21 @@ SoundInstance AudioDevice::Play(std::shared_ptr<const Sound> sound, const PlayPa
     return m_mixer->Play(std::move(sound), params);
 }
 
-void AudioDevice::Stop(SoundInstance instance) {
+void AudioDevice::Stop(SoundInstance instance, float fadeOut) {
     SPOT_PROFILE_SCOPE("AudioDevice::Stop");
-    m_mixer->Stop(instance);
+    m_mixer->Stop(instance, fadeOut);
+}
+
+int AudioDevice::GetMaxVoices() const {
+    return m_mixer->GetMaxVoices();
+}
+
+void AudioDevice::SetMaxVoices(int count) {
+    m_mixer->SetMaxVoices(count);
+}
+
+int AudioDevice::GetVoiceCount() const {
+    return m_mixer->GetVoiceCount();
 }
 
 void AudioDevice::StopAll() {

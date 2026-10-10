@@ -42,8 +42,17 @@ public:
     // The device keeps the sound alive while it plays. Without an output, or with a null sound, it returns the
     // default instance, which never plays.
     SoundInstance Play(std::shared_ptr<const Sound> sound, const PlayParams& params = {});
-    void Stop(SoundInstance instance);
+    // Fades the sound out over the seconds, or a few milliseconds, so it never clicks. The instance stops matching at
+    // once.
+    void Stop(SoundInstance instance, float fadeOut = 0.0f);
     void StopAll();
+
+    // How many sounds play at once at most, 64 by default; new ones beyond take voices or do not play (see
+    // PlayParams::priority).
+    int GetMaxVoices() const;
+    void SetMaxVoices(int count);
+    // The sounds playing, paused ones included.
+    int GetVoiceCount() const;
 
     // Paused playbacks still count as playing; ended and stopped ones do not.
     bool IsPlaying(SoundInstance instance) const;

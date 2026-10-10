@@ -137,6 +137,11 @@ std::vector<float> Mix(Spot::Detail::Mixer& mixer, std::size_t frameCount) {
     return output;
 }
 
+// Mixes long enough for fades and ramps to end.
+void Settle(Spot::Detail::Mixer& mixer) {
+    Mix(mixer, 1000);
+}
+
 } // namespace
 
 TEST_CASE("The mixer plays mono sounds on both channels until they end", "[audio][mixer]") {
@@ -165,20 +170,26 @@ TEST_CASE("The mixer adds sounds together and clips the result", "[audio][mixer]
     CHECK(Mix(mixer, 2) == std::vector<float>{0.5f, 0.5f, 1.0f, 1.0f});
 }
 
-TEST_CASE("The mixer applies volume, master volume and pan", "[audio][mixer]") {
+TEST_CASE("The mixer applies volume, master volume and pan, ramping their changes", "[audio][mixer]") {
     Spot::Detail::Mixer mixer(48000);
     const auto sound = MakeSound(48000, 1, {0.5f, 0.5f, 0.5f, 0.5f});
     const auto instance = mixer.Play(sound, {.volume = 0.5f, .pan = -1.0f, .loop = true});
 
     CHECK(Mix(mixer, 1) == std::vector<float>{0.25f, 0.0f});
 
+    // Changes take a few milliseconds instead of clicking.
     mixer.SetPan(instance, 1.0f);
+    const auto ramp = Mix(mixer, 1);
+    CHECK(ramp[0] > 0.2f);
+    CHECK(ramp[1] < 0.05f);
+    Settle(mixer);
     CHECK(Mix(mixer, 1) == std::vector<float>{0.0f, 0.25f});
 
     mixer.SetPan(instance, 0.5f);
     mixer.SetVolume(instance, 1.0f);
     mixer.SetMasterVolume(0.5f);
     CHECK(mixer.GetMasterVolume() == 0.5f);
+    Settle(mixer);
     const auto output = Mix(mixer, 1);
     CHECK(output[0] == Catch::Approx(0.125f));
     CHECK(output[1] == Catch::Approx(0.25f));
@@ -194,6 +205,11 @@ TEST_CASE("Looping sounds start over until stopped", "[audio][mixer]") {
 
     mixer.Stop(instance);
     CHECK_FALSE(mixer.IsPlaying(instance));
+    // It fades out over a few milliseconds instead of clicking.
+    const auto fading = Mix(mixer, 1);
+    CHECK(fading[0] > 0.0f);
+    CHECK(fading[0] < 0.1f);
+    Settle(mixer);
     CHECK(Mix(mixer, 1) == std::vector<float>{0.0f, 0.0f});
 }
 
@@ -223,17 +239,30 @@ TEST_CASE("The mixer converts sample rates and applies pitch", "[audio][mixer]")
     }
 }
 
-TEST_CASE("Paused sounds are silent and resume where they stopped", "[audio][mixer]") {
+TEST_CASE("Paused sounds fade out, stay silent and resume where they stopped", "[audio][mixer]") {
     Spot::Detail::Mixer mixer(48000);
-    const auto instance = mixer.Play(MakeSound(48000, 1, {0.1f, 0.2f}));
+    // Shorter than the time it stays paused, so it would end if it went on.
+    const auto instance = mixer.Play(MakeSound(48000, 1, std::vector<float>(2000, 0.5f)));
 
-    CHECK(Mix(mixer, 1) == std::vector<float>{0.1f, 0.1f});
+    CHECK(Mix(mixer, 1) == std::vector<float>{0.5f, 0.5f});
     mixer.SetPaused(instance, true);
     CHECK(mixer.IsPaused(instance));
     CHECK(mixer.IsPlaying(instance));
+    CHECK(Mix(mixer, 1)[0] > 0.4f);
+    Settle(mixer);
+    for (int i = 0; i < 3; ++i) {
+        Settle(mixer);
+    }
     CHECK(Mix(mixer, 1) == std::vector<float>{0.0f, 0.0f});
+    CHECK(mixer.IsPlaying(instance));
+
     mixer.SetPaused(instance, false);
-    CHECK(Mix(mixer, 1) == std::vector<float>{0.2f, 0.2f});
+    CHECK_FALSE(mixer.IsPaused(instance));
+    const auto rising = Mix(mixer, 1);
+    CHECK(rising[0] > 0.0f);
+    CHECK(rising[0] < 0.1f);
+    Settle(mixer);
+    CHECK(Mix(mixer, 1) == std::vector<float>{0.5f, 0.5f});
 }
 
 TEST_CASE("Instances of ended sounds, the default instance and null sounds match nothing", "[audio][mixer]") {
@@ -257,6 +286,7 @@ TEST_CASE("Instances of ended sounds, the default instance and null sounds match
 
     mixer.Play(sound, {.loop = true});
     mixer.StopAll();
+    Settle(mixer);
     CHECK(Mix(mixer, 1) == std::vector<float>{0.0f, 0.0f});
 }
 
@@ -290,21 +320,25 @@ TEST_CASE("Buses scale and mute their sounds, and pass them to their parents", "
     mixer.Play(sound, {.loop = true});
     CHECK(Mix(mixer, 1) == std::vector<float>{1.0f, 1.0f});
 
-    // Volumes multiply on the way up.
+    // Volumes multiply on the way up, once their changes have ramped.
     mixer.SetBusVolume(*music, 0.5f);
     mixer.SetBusVolume(*ambience, 0.5f);
+    Settle(mixer);
     CHECK(Mix(mixer, 1) == std::vector<float>{0.625f, 0.625f});
     mixer.SetMasterVolume(0.5f);
+    Settle(mixer);
     CHECK(Mix(mixer, 1) == std::vector<float>{0.3125f, 0.3125f});
     mixer.SetMasterVolume(1.0f);
 
     mixer.SetBusMuted(*music, true);
     CHECK(mixer.IsBusMuted(*music));
+    Settle(mixer);
     CHECK(Mix(mixer, 1) == std::vector<float>{0.5f, 0.5f});
     mixer.SetBusMuted(*music, false);
 
     // Removing a bus hands its sounds and its buses to its parent.
     mixer.SetBusVolume(*ambience, 1.0f);
+    Settle(mixer);
     CHECK(mixer.RemoveBus(*music));
     CHECK_FALSE(mixer.HasBus(*music));
     CHECK(mixer.GetBusParent(*ambience) == AudioBusId::Master);
@@ -313,6 +347,7 @@ TEST_CASE("Buses scale and mute their sounds, and pass them to their parents", "
 
     // Sounds for buses that do not exist play on the master one.
     mixer.StopAll();
+    Settle(mixer);
     mixer.Play(sound, {.bus = static_cast<AudioBusId>(31)});
     CHECK(Mix(mixer, 1) == std::vector<float>{0.5f, 0.5f});
 }
@@ -343,9 +378,10 @@ TEST_CASE("Each bus's peak meter tells the loudest sample that left it", "[audio
     Spot::Detail::Mixer mixer(48000);
     const AudioBusId effects = *mixer.AddBus("Effects");
     mixer.SetBusVolume(effects, 0.5f);
+    // Once the bus's volume has ramped down.
+    Settle(mixer);
     mixer.Play(MakeSound(48000, 2, {0.2f, -0.8f, 0.4f, 0.1f}), {.bus = effects});
     mixer.Play(MakeSound(48000, 1, {0.1f}));
-
     Mix(mixer, 600);
     const Spot::AudioPeak peak = mixer.GetBusPeak(effects);
     CHECK(peak.left == Catch::Approx(0.2f));
@@ -357,6 +393,66 @@ TEST_CASE("Each bus's peak meter tells the loudest sample that left it", "[audio
     Mix(mixer, 10);
     CHECK(mixer.GetBusPeak(effects).right == 0.0f);
     CHECK(mixer.GetBusPeak(static_cast<AudioBusId>(1000)).left == 0.0f);
+}
+
+TEST_CASE("New sounds take the voices of lower priorities, the oldest first, past the limit",
+          "[audio][mixer][voices]") {
+    Spot::Detail::Mixer mixer(48000);
+    mixer.SetMaxVoices(2);
+    const auto sound = MakeSound(48000, 1, {0.1f});
+    const auto music = mixer.Play(sound, {.loop = true, .priority = 10});
+    const auto first = mixer.Play(sound, {.loop = true});
+    CHECK(mixer.GetVoiceCount() == 2);
+
+    // The oldest of the lowest priority gives its voice.
+    const auto second = mixer.Play(sound, {.loop = true});
+    CHECK(mixer.IsPlaying(music));
+    CHECK_FALSE(mixer.IsPlaying(first));
+    CHECK(mixer.IsPlaying(second));
+    CHECK(mixer.GetVoiceCount() == 2);
+
+    // A sound ranked below every one playing does not play.
+    CHECK(mixer.Play(sound, {.priority = -1}) == Spot::SoundInstance{});
+    CHECK(mixer.IsPlaying(second));
+
+    // One ranked above takes the lowest.
+    const auto alarm = mixer.Play(sound, {.loop = true, .priority = 20});
+    CHECK(mixer.IsPlaying(alarm));
+    CHECK(mixer.IsPlaying(music));
+    CHECK_FALSE(mixer.IsPlaying(second));
+}
+
+TEST_CASE("A sound plays at most its instance limit at once", "[audio][mixer][voices]") {
+    Spot::Detail::Mixer mixer(48000);
+    const auto impact = MakeSound(48000, 1, {0.1f});
+    std::vector<Spot::SoundInstance> instances;
+    for (int i = 0; i < 4; ++i) {
+        instances.push_back(mixer.Play(impact, {.loop = true, .maxInstances = 3}));
+    }
+    const auto other = mixer.Play(MakeSound(48000, 1, {0.1f}), {.loop = true, .maxInstances = 1});
+
+    CHECK_FALSE(mixer.IsPlaying(instances[0]));
+    CHECK(mixer.IsPlaying(instances[1]));
+    CHECK(mixer.IsPlaying(instances[3]));
+    CHECK(mixer.IsPlaying(other));
+    CHECK(mixer.GetVoiceCount() == 4);
+}
+
+TEST_CASE("Sounds can fade in, and fade out as long as asked when stopped", "[audio][mixer][voices]") {
+    Spot::Detail::Mixer mixer(48000);
+    const auto instance = mixer.Play(MakeSound(48000, 1, {1.0f}), {.loop = true, .fadeIn = 0.01f});
+    // Half way through its 480 frames of fade.
+    CHECK(Mix(mixer, 240)[478] == Catch::Approx(0.5f).margin(0.01f));
+    Settle(mixer);
+    CHECK(Mix(mixer, 1)[0] == 1.0f);
+
+    mixer.Stop(instance, 0.1f);
+    CHECK_FALSE(mixer.IsPlaying(instance));
+    CHECK(mixer.GetVoiceCount() == 0);
+    // A tenth of a second is 4800 frames.
+    CHECK(Mix(mixer, 2400)[4798] == Catch::Approx(0.5f).margin(0.01f));
+    Mix(mixer, 2400);
+    CHECK(Mix(mixer, 1)[0] == 0.0f);
 }
 
 TEST_CASE("A disabled audio device plays nothing but stays usable", "[audio]") {

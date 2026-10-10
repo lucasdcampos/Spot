@@ -22,6 +22,14 @@ struct PlayParams {
     float pitch = 1.0f;
     bool loop = false;
     AudioBusId bus = AudioBusId::Master;
+    // When every voice is taken, a new sound takes the voice of the lowest priority playing, the oldest of them, unless
+    // all of them rank above it, in which case it does not play.
+    int priority = 0;
+    // When this many playbacks of the same sound already play, the oldest gives its voice to the new one; 0 has no
+    // limit. Keeps sounds made by many things at once, such as impacts, from piling up.
+    int maxInstances = 0;
+    // Seconds over which the sound rises from silence. Sounds start where they were cut to start, so most need none.
+    float fadeIn = 0.0f;
 };
 
 // Refers to one playback of a sound. Once the playback ends, the instance stops matching anything, so keeping it
