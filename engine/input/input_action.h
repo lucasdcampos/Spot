@@ -4,6 +4,7 @@
 #include "math/vector.h"
 
 #include <array>
+#include <filesystem>
 #include <optional>
 #include <span>
 #include <string>
@@ -74,12 +75,15 @@ struct InputBinding {
     static InputBinding Composite(InputControl positive, InputControl negative);
 
     void Serialize(Archive& archive);
+    friend bool operator==(const InputBinding&, const InputBinding&) = default;
 };
 
 struct InputAction {
     std::string name;
     InputActionType type = InputActionType::Button;
     std::vector<InputBinding> bindings;
+    // What ResetBindings() goes back to, and saved rebinds are compared with; see InputActionMap::SetDefaults().
+    std::vector<InputBinding> defaultBindings;
     // How far an axis must go for a button action to count as down.
     float pressPoint = 0.5f;
 
@@ -114,6 +118,25 @@ public:
     void SetGamepad(int gamepad) { m_gamepad = gamepad; }
 
     void Update(const InputState& state);
+
+    // Rebinding, as games let players do. The defaults are each action's bindings when SetDefaults() was last called,
+    // which the application does once it has applied the game's input settings.
+    void SetDefaults();
+    // Replaces a binding's control, or with a part from 0 to 3, that part of a composite. False when the action or
+    // the binding does not exist.
+    bool Rebind(std::string_view action, std::size_t binding, InputControl control, int part = -1);
+    // Whether the action's bindings differ from its defaults.
+    bool IsRebound(std::string_view action) const;
+    void ResetBindings();
+    bool ResetBindings(std::string_view action);
+    // The rebound actions' bindings, as JSON text, so a game update's new defaults reach the actions players left.
+    std::string SaveRebindsToString() const;
+    // Applies saved rebinds to the actions the map has; others are ignored. False, changing nothing, when the text
+    // holds no rebinds.
+    bool LoadRebindsFromString(std::string_view text);
+    bool SaveRebinds(const std::filesystem::path& file) const;
+    // False, after logging why, when the file exists and cannot be read; a missing file loads nothing.
+    bool LoadRebinds(const std::filesystem::path& file);
 
     // False, or 0, for actions the map does not have.
     bool IsDown(std::string_view action) const;

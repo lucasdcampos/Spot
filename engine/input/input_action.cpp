@@ -1,10 +1,15 @@
 #include "input/input_action.h"
 
+#include "assets/asset_file.h"
+#include "core/log.h"
+#include "core/paths.h"
 #include "input/input_state.h"
 #include "scene/archive.h"
+#include "scene/archive_state.h"
 
 #include <algorithm>
 #include <cmath>
+#include <fstream>
 #include <utility>
 
 namespace Spot {
@@ -105,6 +110,20 @@ Reading ReadBinding(const InputBinding& binding, InputActionType type, const Inp
     reading.value.y *= binding.invertY ? -binding.scale : binding.scale;
     return reading;
 }
+
+constexpr std::string_view RebindsFormat = "spot-input-rebinds";
+constexpr int RebindsFormatVersion = 1;
+
+// What a rebinds file holds of an action.
+struct Rebind {
+    std::string action;
+    std::vector<InputBinding> bindings;
+
+    void Serialize(Archive& archive) {
+        archive.Field("action", action);
+        archive.Field("bindings", bindings);
+    }
+};
 
 float Magnitude(Vector2 value, InputActionType type) {
     return type == InputActionType::Vector2 ? Length(value) : std::abs(value.x);
@@ -288,6 +307,100 @@ std::optional<InputControl> FindPressedControl(const InputState& state) {
         }
     }
     return std::nullopt;
+}
+
+void InputActionMap::SetDefaults() {
+    for (InputAction& action : m_actions) {
+        action.defaultBindings = action.bindings;
+    }
+}
+
+bool InputActionMap::Rebind(std::string_view action, std::size_t binding, InputControl control, int part) {
+    InputAction* found = Find(action);
+    if (!found || binding >= found->bindings.size() || part >= 4) {
+        return false;
+    }
+    InputBinding& rebound = found->bindings[binding];
+    (part < 0 ? rebound.control : rebound.parts[static_cast<std::size_t>(part)]) = control;
+    return true;
+}
+
+bool InputActionMap::IsRebound(std::string_view action) const {
+    const InputAction* found = Find(action);
+    return found && found->bindings != found->defaultBindings;
+}
+
+void InputActionMap::ResetBindings() {
+    for (InputAction& action : m_actions) {
+        action.bindings = action.defaultBindings;
+    }
+}
+
+bool InputActionMap::ResetBindings(std::string_view action) {
+    InputAction* found = Find(action);
+    if (!found) {
+        return false;
+    }
+    found->bindings = found->defaultBindings;
+    return true;
+}
+
+std::string InputActionMap::SaveRebindsToString() const {
+    std::vector<Spot::Rebind> rebinds;
+    for (const InputAction& action : m_actions) {
+        if (action.bindings != action.defaultBindings) {
+            rebinds.push_back({action.name, action.bindings});
+        }
+    }
+    nlohmann::json document = {{"format", RebindsFormat}, {"formatVersion", RebindsFormatVersion}};
+    Detail::ArchiveState state{.loading = false, .nodes = {&document}};
+    Archive archive(state);
+    archive.Field("actions", rebinds);
+    return document.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) + "\n";
+}
+
+bool InputActionMap::LoadRebindsFromString(std::string_view text) {
+    nlohmann::json document = nlohmann::json::parse(text.begin(), text.end(), nullptr, false);
+    if (!document.is_object() || document.value("format", "") != RebindsFormat) {
+        return false;
+    }
+    const auto version = document.find("formatVersion");
+    if (version == document.end() || !version->is_number_integer() || version->get<int>() > RebindsFormatVersion) {
+        return false;
+    }
+    std::vector<Spot::Rebind> rebinds;
+    Detail::ArchiveState state{.loading = true, .nodes = {&document}};
+    Archive archive(state);
+    archive.Field("actions", rebinds);
+    for (Spot::Rebind& rebind : rebinds) {
+        if (InputAction* action = Find(rebind.action)) {
+            action->bindings = std::move(rebind.bindings);
+        }
+    }
+    return true;
+}
+
+bool InputActionMap::SaveRebinds(const std::filesystem::path& file) const {
+    std::ofstream stream(file, std::ios::binary);
+    stream << SaveRebindsToString();
+    if (!stream) {
+        Log::GetEngineLogger().Error("Could not write the input rebinds '{}'", PathToUtf8(file));
+        return false;
+    }
+    return true;
+}
+
+bool InputActionMap::LoadRebinds(const std::filesystem::path& file) {
+    std::error_code error;
+    if (!std::filesystem::exists(file, error)) {
+        return true;
+    }
+    const auto bytes = Detail::ReadFileBytes(file);
+    if (!bytes || !LoadRebindsFromString({reinterpret_cast<const char*>(bytes->data()), bytes->size()})) {
+        Log::GetEngineLogger().Error("Could not read the input rebinds '{}'", PathToUtf8(file));
+        return false;
+    }
+    return true;
 }
 
 void InputActionMap::Serialize(Archive& archive) {

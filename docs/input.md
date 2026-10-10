@@ -100,6 +100,27 @@ from code, and updates it after each frame's events;
 and report nothing for actions it does not have. A map can also be made and updated (`InputActionMap::Update()`) from
 code alone, and `SetGamepad()` makes it read one gamepad, one map per local player.
 
+## Rebinding
+
+Players change bindings while the game runs: a controls menu waits for the next control pressed
+(`FindPressedControl(*Input::GetState())`) and gives it to `InputActionMap::Rebind()`, for a binding's control or one
+part of a composite. Each action keeps the bindings it had when `SetDefaults()` was called, which the application does
+once it has applied the game's input settings; `IsRebound()` tells which actions differ, and `ResetBindings()` goes
+back to the defaults, for one action or all.
+
+```cpp
+Spot::InputActionMap& actions = application.GetInputActions();
+if (const auto pressed = Spot::FindPressedControl(*Spot::Input::GetState())) {
+    actions.Rebind("Jump", 0, *pressed);
+    application.SaveInputRebinds();
+}
+```
+
+`Application::SaveInputRebinds()` writes the rebound actions only to `input_rebinds.json` in the game's user data
+folder (`Application::GetUserDataDirectory()`, `ApplicationConfig::userDataDirectory` or the platform's folder for
+the game), and the application loads it when it starts, so a game update's new defaults still reach the actions a
+player left alone. Games played in the editor use the project's bindings.
+
 ## The cursor lock
 
 `Input::SetCursorLocked(true)` hides the cursor and keeps it in place, so the mouse only moves things, as first-person
@@ -108,4 +129,4 @@ game's view has focus, and takes it back with Escape.
 
 ## Not there yet
 
-Rebinding by players, and input ownership come in the rest of the roadmap's milestone M2.
+Input ownership comes in the rest of the roadmap's milestone M2.

@@ -470,10 +470,54 @@ TEST_CASE("Applications apply their game's sections to the scenes they load", "[
     config.game = Spot::GameSettings{.name = "Settings"};
     config.game->sections.physics.fixedTimeStep = 0.125f;
     config.game->sections.input = Spot::InputSettings::MakeDefault();
+    config.userDataDirectory = temp.GetPath() / "user";
 
     SettingsApplication application(std::move(config));
     CHECK(application.Run() == EXIT_SUCCESS);
     CHECK(application.fixedTimeSteps == std::vector<float>{0.125f, 0.5f});
     // The game's actions too, replaced by the other game's.
     CHECK(application.hasJump == std::vector<bool>{true, false});
+}
+
+namespace {
+
+// Rebinds Jump on its first run, and records Jump's binding on each.
+class RebindingApplication final : public Spot::Application {
+public:
+    using Application::Application;
+
+    bool rebind = false;
+    Spot::InputControl jump;
+    bool saved = false;
+
+protected:
+    void OnStart() override {
+        jump = GetInputActions().Find("Jump")->bindings[0].control;
+        if (rebind) {
+            GetInputActions().Rebind("Jump", 0, Spot::InputControl::Of(Spot::Key::J));
+            saved = SaveInputRebinds();
+        }
+        Quit();
+    }
+};
+
+} // namespace
+
+TEST_CASE("Applications load the player's rebinds from the user data folder", "[application][input]") {
+    const TempDirectory temp;
+    const auto run = [&](bool rebind) {
+        Spot::ApplicationConfig config = MakeConfig();
+        config.logFile = temp.GetPath() / "game.log";
+        config.userDataDirectory = temp.GetPath() / "user";
+        config.game = Spot::GameSettings{.name = "Rebinding"};
+        config.game->sections.input = Spot::InputSettings::MakeDefault();
+        RebindingApplication application(std::move(config));
+        application.rebind = rebind;
+        CHECK(application.Run() == EXIT_SUCCESS);
+        return std::pair(application.jump, application.saved);
+    };
+
+    CHECK(run(true) == std::pair(Spot::InputControl::Of(Spot::Key::Space), true));
+    CHECK(std::filesystem::is_regular_file(temp.GetPath() / "user" / Spot::Application::InputRebindsFileName));
+    CHECK(run(false).first == Spot::InputControl::Of(Spot::Key::J));
 }

@@ -45,6 +45,9 @@ struct ApplicationConfig {
     // Where crash reports go; see InstallCrashHandler(), which the application calls. When unset, they go in a
     // "crashes" folder beside the log file, if there is one, and only to the log otherwise.
     std::filesystem::path crashReportDirectory = {};
+    // Where the game keeps what it saves for the player, such as their input rebinds. When unset, the platform's
+    // user data folder for the game (see GetUserDataDirectory()), "Spot Games/<game name>".
+    std::filesystem::path userDataDirectory = {};
     // Tells the user when the application crashed, and where the report is, as tools do.
     bool showCrashMessage = false;
     // Caps how many frames run per second; 0 means unlimited.
@@ -93,6 +96,13 @@ public:
     AssetManager& GetAssets();
     // The game's actions, which Spot::Input's action queries read; updated after each frame's events.
     InputActionMap& GetInputActions() { return m_actions; }
+    // Saves the actions' rebinds (see InputActionMap::Rebind()) in the user data folder, from which the application
+    // loads them when it starts. Returns false, after logging why, when they cannot be saved.
+    bool SaveInputRebinds();
+    // The folder of ApplicationConfig::userDataDirectory, created when first asked for; empty when the application
+    // runs no game and none was set.
+    std::filesystem::path GetUserDataDirectory();
+    static constexpr std::string_view InputRebindsFileName = "input_rebinds.json";
     // The input the application's events build, even while Spot::Input reads another state, as tools running games
     // make it do.
     const InputState& GetInputState() const { return m_input; }
@@ -198,6 +208,7 @@ private:
     std::vector<SceneChange> m_sceneChanges;
     InputState m_input;
     InputActionMap m_actions;
+    std::filesystem::path m_userDataDirectory;
     FrameClock m_clock;
     FrameLimiter m_limiter;
     bool m_running = false;

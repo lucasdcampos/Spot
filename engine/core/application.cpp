@@ -103,6 +103,13 @@ int Application::Run() {
         m_config.game->sections.Apply(*m_persistentScene);
         m_config.game->sections.input.Apply(m_actions);
     }
+    m_actions.SetDefaults();
+    // Only games with actions have rebinds, so other applications never make a user data folder.
+    if (m_config.game && !m_actions.GetActions().empty()) {
+        if (const std::filesystem::path directory = GetUserDataDirectory(); !directory.empty()) {
+            m_actions.LoadRebinds(directory / InputRebindsFileName);
+        }
+    }
     m_running = true;
     m_failed = false;
     // The game's components are known before its scenes load.
@@ -202,6 +209,30 @@ void Application::SetGameSettings(std::optional<GameSettings> game) {
     if (m_config.game) {
         m_config.game->sections.input.Apply(m_actions);
     }
+    // Tools play games with the project's bindings, not a player's.
+    m_actions.SetDefaults();
+}
+
+bool Application::SaveInputRebinds() {
+    const std::filesystem::path directory = GetUserDataDirectory();
+    if (directory.empty()) {
+        Log::GetEngineLogger().Error("Could not save the input rebinds: the game has no user data folder");
+        return false;
+    }
+    return m_actions.SaveRebinds(directory / InputRebindsFileName);
+}
+
+std::filesystem::path Application::GetUserDataDirectory() {
+    if (m_userDataDirectory.empty()) {
+        if (!m_config.userDataDirectory.empty()) {
+            std::error_code error;
+            std::filesystem::create_directories(m_config.userDataDirectory, error);
+            m_userDataDirectory = m_config.userDataDirectory;
+        } else if (m_config.game && !m_config.game->name.empty()) {
+            m_userDataDirectory = Spot::GetUserDataDirectory("Spot Games", m_config.game->name);
+        }
+    }
+    return m_userDataDirectory;
 }
 
 void Application::Quit() {

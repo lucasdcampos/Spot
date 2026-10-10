@@ -320,3 +320,58 @@ TEST_CASE("The control pressed this frame is found, buttons before axes", "[inpu
     state.OnEvent(Spot::GamepadAxisEvent{.gamepad = Pad, .axis = GamepadAxis::LeftTrigger, .value = 0.0f});
     CHECK_FALSE(Spot::FindPressedControl(state).has_value());
 }
+
+TEST_CASE("Players rebind actions, and reset them to their defaults", "[input][actions][rebind]") {
+    Spot::InputActionMap map = MakeMap();
+    map.SetDefaults();
+    CHECK_FALSE(map.IsRebound("Jump"));
+
+    REQUIRE(map.Rebind("Jump", 0, InputControl::Of(Key::J)));
+    REQUIRE(map.Rebind("Move", 0, InputControl::Of(Key::Up), 0));
+    CHECK_FALSE(map.Rebind("Jump", 5, InputControl::Of(Key::J)));
+    CHECK_FALSE(map.Rebind("Crouch", 0, InputControl::Of(Key::J)));
+    CHECK(map.IsRebound("Jump"));
+    CHECK(map.IsRebound("Move"));
+    CHECK_FALSE(map.IsRebound("Fire"));
+
+    Spot::InputState state;
+    state.OnEvent(Spot::KeyPressedEvent{Key::J, false});
+    state.OnEvent(Spot::KeyPressedEvent{Key::Up, false});
+    state.OnEvent(Spot::KeyPressedEvent{Key::Space, false});
+    map.Update(state);
+    CHECK(map.IsDown("Jump"));
+    CHECK(map.GetVector2("Move").y == 1.0f);
+
+    CHECK(map.ResetBindings("Jump"));
+    CHECK_FALSE(map.IsRebound("Jump"));
+    CHECK(map.IsRebound("Move"));
+    map.ResetBindings();
+    CHECK_FALSE(map.IsRebound("Move"));
+    CHECK(map.Find("Move")->bindings[0].parts[0] == InputControl::Of(Key::W));
+}
+
+TEST_CASE("Rebinds are saved for the actions players changed only", "[input][actions][rebind]") {
+    Spot::InputActionMap map = MakeMap();
+    map.SetDefaults();
+    map.Rebind("Jump", 1, InputControl::Of(GamepadButton::North));
+    const std::string saved = map.SaveRebindsToString();
+
+    // A game update changed Fire's defaults, which the player never rebound.
+    Spot::InputActionMap updated = MakeMap();
+    updated.Find("Fire")->bindings[0].control = InputControl::Of(Spot::MouseButton::Middle);
+    updated.SetDefaults();
+    REQUIRE(updated.LoadRebindsFromString(saved));
+    CHECK(updated.Find("Jump")->bindings[1].control == InputControl::Of(GamepadButton::North));
+    CHECK(updated.IsRebound("Jump"));
+    CHECK(updated.Find("Fire")->bindings[0].control == InputControl::Of(Spot::MouseButton::Middle));
+
+    // Rebinds of actions a map does not have are ignored, and text that holds none changes nothing.
+    Spot::InputActionMap other;
+    other.Add("Crouch", InputActionType::Button).Bind(InputControl::Of(Key::C));
+    other.SetDefaults();
+    CHECK(other.LoadRebindsFromString(saved));
+    CHECK_FALSE(other.IsRebound("Crouch"));
+    CHECK_FALSE(updated.LoadRebindsFromString("[]"));
+    CHECK_FALSE(updated.LoadRebindsFromString(R"({"format": "something-else"})"));
+    CHECK(updated.IsRebound("Jump"));
+}

@@ -366,7 +366,7 @@ bindings with processing (dead zone, invert, scale). A player's rebinds are save
   alone. Tests.
 - [x] **M2.4 Action settings.** The input settings section, its project settings editor (action list, binding capture
   by pressing the input), and default actions in the project templates (Move, Look, Jump, Fire, Pause).
-- [ ] **M2.5 Rebinding.** Runtime rebinding, saving and loading per user, and reset to defaults. Tests.
+- [x] **M2.5 Rebinding.** Runtime rebinding, saving and loading per user, and reset to defaults. Tests.
 - [ ] **M2.6 Input ownership.** A capture stack, so overlays (console, UI text fields, the editor) can withhold input
   from the game without changing the game's requests: the cursor lock comes back afterwards, and the mouse delta is
   zero on each hand-over. The editor's play view uses it. Tests.
@@ -394,6 +394,11 @@ bindings with processing (dead zone, invert, scale). A player's rebinds are save
   (`Application::GetInputState()`, through `EditorContext::GetInput()`) with `FindPressedControl()`, starting on the
   mouse press so neither the click nor keyboard navigation is captured; Escape cancels. Look's right stick is
   scaled by 10 to match a mouse's pixels per frame.
+- M2.5: actions keep `defaultBindings` (runtime only, set by `InputActionMap::SetDefaults()`); rebinds files hold
+  only the actions that differ, so new defaults reach the rest. The game's user data folder is new:
+  `ApplicationConfig::userDataDirectory`, else the platform's "Spot Games/<game name>" (an organization setting can
+  come with save data, M10.7). Only games with actions read rebinds at start, so other applications never create the
+  folder; `SetGameSettings()` (tools playing games) uses the project's bindings.
 
 ---
 
