@@ -751,7 +751,7 @@ viewers, and the golden-image tests cover them.
   culling per cascade.
 - [x] **M7.6 Benchmark.** A benchmark scene with 10,000 meshes and 200 lights. Record its Release frame times in Notes
   and check them when rendering changes.
-- [ ] **M7.7 Sandbox: lamps.** The tool gun places lamps (point and spot lights, shadowed or not), and many of them
+- [x] **M7.7 Sandbox: lamps.** The tool gun places lamps (point and spot lights, shadowed or not), and many of them
   light the level at once.
 
 **Done when:** the benchmark holds 60 FPS in Release on the development machine, and so does the sandbox with dozens
@@ -801,6 +801,12 @@ of lamps.
   (`Detail::Frustum`); materials compared through a look id from a hash map instead of field by field; clusters built
   in flat arrays; and normal matrices from cofactors instead of full inverses. The benchmark prints the costliest
   profiler scopes, and `Renderer3D` profiles its stages and counts draw calls.
+- M7.7: The tool gun's sixth mode places lamps: Aim goes through point and spot lamps, shadowed or not, and the
+  palette's color tints them, brightened to full (black gives white). A lamp is a small glowing bulb tagged `Lamp`,
+  facing out of the surface clicked, a child of the prop clicked so it moves with it; it has no collider, so the
+  remover takes away the lamp nearest where it is clicked, within 0.35 m, before props. Lamps go on the `UndoList`.
+  `spot_benchmark --scene` times a scene with lamps spread over it: the playground with 48 lamps (6 shadowed) ran at a
+  mean of 3.04 ms (329 FPS) in Release.
 
 ---
 

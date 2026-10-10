@@ -33,9 +33,15 @@ bool IsProp(const Spot::Entity& entity) {
 
 } // namespace
 
-void ToolGun::Click(Spot::Entity& entity, Spot::Vector3 point) {
+void ToolGun::Click(Spot::Entity& entity, Spot::Vector3 point, Spot::Vector3 normal) {
     if (mode == Mode::Remover) {
-        Remove(entity);
+        if (!RemoveLampNear(point)) {
+            Remove(entity);
+        }
+        return;
+    }
+    if (mode == Mode::Lamp) {
+        PlaceLamp(entity, point, normal);
         return;
     }
     if (mode == Mode::Color) {
@@ -136,6 +142,65 @@ bool ToolGun::ApplyMaterial(Spot::Entity& entity, const Spot::AssetRef<Spot::Mat
     return true;
 }
 
+Spot::Color ToolGun::GetLampColor() const {
+    const Spot::Color paint = Palette[static_cast<std::size_t>(color) % Palette.size()].color;
+    const float brightest = std::max({paint.r, paint.g, paint.b});
+    if (brightest < 0.1f) {
+        return Spot::Color::White;
+    }
+    return {paint.r / brightest, paint.g / brightest, paint.b / brightest, 1.0f};
+}
+
+Spot::Entity& ToolGun::PlaceLamp(Spot::Entity& surface, Spot::Vector3 point, Spot::Vector3 normal) {
+    const Spot::Vector3 out = Spot::LengthSquared(normal) > 1e-6f ? Spot::Normalize(normal) : Spot::Vector3{0, 1, 0};
+    // On a prop, the lamp moves with it; on the level, it stands on its own.
+    Spot::Entity& placed = IsProp(surface) ? surface.CreateChild("Lamp") : GetScene().CreateEntity("Lamp");
+    placed.AddTag(LampTag);
+    placed.GetTransform().SetWorldPosition(point + out * 0.12f);
+    // Lights shine down their entity's -Z, out of the surface.
+    placed.GetTransform().SetWorldRotation(Spot::Quaternion::LookRotation(out));
+    const Spot::Color light = GetLampColor();
+    if (lamp == LampKind::Spot || lamp == LampKind::ShadowedSpot) {
+        auto& spot = placed.AddComponent<Spot::SpotLight>(light, 25.0f, 12.0f);
+        spot.SetInnerConeAngle(Spot::ToRadians(25.0f));
+        spot.SetOuterConeAngle(Spot::ToRadians(35.0f));
+        spot.SetCastingShadows(lamp == LampKind::ShadowedSpot);
+    } else {
+        placed.AddComponent<Spot::PointLight>(light, 6.0f, 7.0f).SetCastingShadows(lamp == LampKind::ShadowedPoint);
+    }
+    // The bulb glows in the light's color, and is lit from within, so it casts no shadow of its own.
+    auto& bulb = placed.AddComponent<Spot::MeshRenderer>(
+        Spot::Assets::Load<Spot::Mesh>(Spot::BuiltInAssets::SphereMesh),
+        Spot::Material{.baseColor = Spot::Color::Black,
+                       .emissive = {light.r * 4.0f, light.g * 4.0f, light.b * 4.0f, 1.0f}});
+    bulb.SetCastingShadows(false);
+    placed.GetTransform().SetScale({0.12f, 0.12f, 0.12f});
+    if (auto* undo = GetEntity().GetComponent<UndoList>()) {
+        undo->PushSpawn(placed.GetId());
+    }
+    return placed;
+}
+
+bool ToolGun::RemoveLampNear(Spot::Vector3 point) {
+    Spot::Entity* nearest = nullptr;
+    float nearestDistance = 0.35f;
+    for (Spot::Entity* candidate : GetScene().FindEntitiesWithTag(LampTag)) {
+        const float distance = Spot::Distance(candidate->GetTransform().GetWorldPosition(), point);
+        if (distance < nearestDistance) {
+            nearest = candidate;
+            nearestDistance = distance;
+        }
+    }
+    if (!nearest) {
+        return false;
+    }
+    if (auto* undo = GetEntity().GetComponent<UndoList>()) {
+        undo->PushRemoval(*nearest);
+    }
+    nearest->Destroy();
+    return true;
+}
+
 bool ToolGun::IsInHand() const {
     const auto* holder = GetEntity().GetComponent<WeaponHolder>();
     return holder && holder->IsToolGunSelected();
@@ -149,13 +214,15 @@ void ToolGun::OnUpdate(float /*deltaTime*/) {
     }
     if (Input::IsActionPressed("Reload")) {
         SoundBank::PlayClick(GetScene());
-        mode = static_cast<Mode>((static_cast<int>(mode) + 1) % 5);
+        mode = static_cast<Mode>((static_cast<int>(mode) + 1) % 6);
         m_first.reset();
     }
-    if (Input::IsActionPressed("Aim") && (mode == Mode::Color || mode == Mode::Material)) {
+    if (Input::IsActionPressed("Aim") && (mode == Mode::Color || mode == Mode::Material || mode == Mode::Lamp)) {
         SoundBank::PlayClick(GetScene());
         if (mode == Mode::Color) {
             color = (color + 1) % static_cast<int>(Palette.size());
+        } else if (mode == Mode::Lamp) {
+            lamp = static_cast<LampKind>((static_cast<int>(lamp) + 1) % static_cast<int>(LampNames.size()));
         } else {
             material = (material + 1) % std::max(static_cast<int>(materials.size()), 1);
         }
@@ -168,7 +235,7 @@ void ToolGun::OnUpdate(float /*deltaTime*/) {
     const auto hit = GetScene().GetPhysics().Raycast(player->GetEyePosition(), player->GetAimDirection(), range,
                                                      {.ignore = GetEntity().GetId()});
     if (Spot::Entity* entity = hit ? GetScene().GetEntity(hit->entity) : nullptr) {
-        Click(*entity, hit->point);
+        Click(*entity, hit->point, hit->normal);
     }
 }
 
@@ -201,8 +268,9 @@ void ToolGun::ToolMaterial::Serialize(Spot::Archive& archive) {
 }
 
 void ToolGun::Serialize(Spot::Archive& archive) {
-    static constexpr std::array<std::string_view, 5> Modes = {"Weld", "Rope", "Remover", "Color", "Material"};
+    static constexpr std::array<std::string_view, 6> Modes = {"Weld", "Rope", "Remover", "Color", "Material", "Lamp"};
     archive.Field("mode", mode, {.enumNames = Modes});
+    archive.Field("lamp", lamp, {.enumNames = LampNames, .tooltip = "The lamp Lamp mode places"});
     archive.Field("color", color, {.min = 0.0f, .max = 7.0f, .tooltip = "The palette color Color mode paints in"});
     archive.Field("materials", materials, {.tooltip = "The materials Material mode gives, which Aim goes through"});
     archive.Field("material", material, {.min = 0.0f, .max = 64.0f, .tooltip = "The one Material mode gives now"});

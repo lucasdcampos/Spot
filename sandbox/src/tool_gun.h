@@ -12,12 +12,18 @@
 
 // The last item in hand (see WeaponHolder), whose mode Reload changes. Weld joins two props with a FixedJoint, and
 // rope with a DistanceJoint as long as the gap between the two points clicked; each takes a click (Fire) on each prop,
-// the second of which may be the level. Remover takes the prop clicked away. Color paints the prop clicked in one of
-// the palette's colors, and Material gives it one of the surfaces' materials; Aim picks the next one. Everything it
-// does goes on the UndoList.
+// the second of which may be the level. Remover takes the prop or the lamp clicked away. Color paints the prop clicked
+// in one of the palette's colors, and Material gives it one of the surfaces' materials. Lamp places a lamp where it
+// is clicked, facing out of the surface, on the prop clicked so it moves with it: a point or a spot light, casting
+// shadows or not, in the palette's color. Aim picks the next color, material or lamp. Everything it does goes on the
+// UndoList.
 class ToolGun final : public Spot::Component {
 public:
-    enum class Mode { Weld, Rope, Remover, Color, Material };
+    enum class Mode { Weld, Rope, Remover, Color, Material, Lamp };
+    enum class LampKind { Point, ShadowedPoint, Spot, ShadowedSpot };
+    static constexpr std::array<std::string_view, 4> LampNames = {"Point", "Point, Shadowed", "Spot", "Spot, Shadowed"};
+    // Lamps carry this tag, which the remover looks for.
+    static constexpr std::string_view LampTag = "Lamp";
 
     struct PaletteColor {
         std::string_view name;
@@ -42,15 +48,16 @@ public:
     Mode mode = Mode::Weld;
     float range = 100.0f;
     std::vector<ToolMaterial> materials;
-    // The palette color and the material clicks give.
+    // The palette color, the material and the kind of lamp clicks give.
     int color = 0;
     int material = 0;
+    LampKind lamp = LampKind::Point;
 
     // The prop and point clicked first, waiting for the second click of a weld or a rope.
     bool HasFirst() const { return m_first.has_value(); }
 
-    // What a click does, on the entity at the point, which may be the level.
-    void Click(Spot::Entity& entity, Spot::Vector3 point);
+    // What a click does, on the entity at the point of its surface with the normal, which may be the level.
+    void Click(Spot::Entity& entity, Spot::Vector3 point, Spot::Vector3 normal = {0.0f, 1.0f, 0.0f});
     // Joins the props, the second of which may be the level; the joint goes on the first, which must have a rigidbody.
     // Each returns the joint, or null when it cannot be made.
     Spot::FixedJoint* Weld(Spot::Entity& first, Spot::Entity& second);
@@ -62,6 +69,13 @@ public:
     // no MeshRenderer; false then.
     bool Paint(Spot::Entity& entity, Spot::Color paint);
     bool ApplyMaterial(Spot::Entity& entity, const Spot::AssetRef<Spot::Material>& newMaterial);
+    // Places a lamp of the kind on the surface at the point, facing out along the normal, below the entity unless it
+    // is part of the level. Returns the lamp.
+    Spot::Entity& PlaceLamp(Spot::Entity& surface, Spot::Vector3 point, Spot::Vector3 normal);
+    // Takes away the lamp nearest the point, within a little of it; false when there is none.
+    bool RemoveLampNear(Spot::Vector3 point);
+    // The color lamps shine in: the palette's, as bright as a light can be, or white for the darkest.
+    Spot::Color GetLampColor() const;
 
 protected:
     void OnUpdate(float deltaTime) override;

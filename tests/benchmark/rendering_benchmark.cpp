@@ -4,13 +4,19 @@
 // ROADMAP.md's M7 notes:
 //
 //     spot_benchmark [--frames <count>] [--warmup <count>]
+//
+// It can time a project's scene instead, from its imported assets, with lamps added over it, as many as asked:
+//
+//     spot_benchmark --scene <scene file> --assets <imported folder> [--lamps <count>]
 #include <spot.h>
 
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <map>
+#include <memory>
 #include <numeric>
 #include <random>
 #include <string>
@@ -24,17 +30,30 @@ constexpr int GridSize = 100;
 constexpr float Spacing = 2.0f;
 constexpr int LightCount = 200;
 
+struct Options {
+    int frames = 600;
+    int warmup = 120;
+    std::filesystem::path scene;
+    std::filesystem::path assets;
+    int lamps = 48;
+};
+
 class Benchmark final : public Spot::Application {
 public:
-    Benchmark(int frames, int warmup)
+    explicit Benchmark(Options options)
         : Application({.window = {.title = "Spot Rendering Benchmark", .width = 1600, .height = 900},
-                       .graphics = {.vsync = false}}),
-          m_frames(frames), m_warmup(warmup) {}
+                       .graphics = {.vsync = false},
+                       .assets = {.importDirectory = options.assets}}),
+          m_frames(options.frames), m_warmup(options.warmup), m_options(std::move(options)) {}
 
     int GetResult() const { return m_result; }
 
 protected:
     void OnStart() override {
+        if (!m_options.scene.empty()) {
+            StartWithScene();
+            return;
+        }
         auto& device = GetGraphicsDevice();
         auto& scene = LoadScene<Spot::Scene>();
         const Spot::AssetRef<Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
@@ -93,6 +112,41 @@ protected:
         m_camera = camera.GetId();
     }
 
+    // The scene, its own cameras off, with lamps spread over the middle of it and a camera circling above.
+    void StartWithScene() {
+        auto scene = std::make_unique<Spot::Scene>();
+        if (!scene->LoadFromFile(m_options.scene, &GetAssets())) {
+            Quit();
+            return;
+        }
+        scene->ForEachComponent<Spot::Camera>([](Spot::Camera& camera) { camera.SetEnabled(false); });
+        std::mt19937 random(7);
+        std::uniform_real_distribution<float> across(-18.0f, 18.0f);
+        std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+        for (int i = 0; i < m_options.lamps; ++i) {
+            auto& lamp = scene->CreateEntity("Lamp");
+            lamp.GetTransform().SetPosition({across(random), 1.5f + unit(random) * 2.0f, across(random)});
+            const Spot::Color color{0.6f + 0.4f * unit(random), 0.6f + 0.4f * unit(random), 0.6f + 0.4f * unit(random),
+                                    1.0f};
+            // A quarter are spots shining down, and every eighth lamp casts shadows, as players mix them.
+            if (i % 4 == 0) {
+                lamp.GetTransform().SetRotation(Spot::Quaternion::LookRotation({0.0f, -1.0f, 0.1f}));
+                lamp.AddComponent<Spot::SpotLight>(color, 25.0f, 12.0f).SetCastingShadows(i % 8 == 0);
+            } else {
+                lamp.AddComponent<Spot::PointLight>(color, 6.0f, 7.0f).SetCastingShadows(i % 8 == 1);
+            }
+        }
+        auto& camera = scene->CreateEntity("Benchmark Camera");
+        camera.AddComponent<Spot::Camera>();
+        m_camera = camera.GetId();
+        m_orbitRadius = 28.0f;
+        m_orbitHeight = 12.0f;
+        m_lightCount = m_options.lamps;
+        m_meshCount = 0;
+        scene->ForEachComponent<Spot::MeshRenderer>([this](const Spot::MeshRenderer&) { ++m_meshCount; });
+        LoadScene(std::move(scene));
+    }
+
     void OnUpdate(float /*deltaTime*/) override {
         Spot::Scene* scene = GetScene();
         Spot::Entity* camera = scene ? scene->GetEntity(m_camera) : nullptr;
@@ -101,7 +155,7 @@ protected:
         }
         // Circling the grid by frame, not by time, so every run sees the same frames.
         const float angle = static_cast<float>(m_frame) * 0.003f;
-        const Spot::Vector3 position{std::sin(angle) * 90.0f, 30.0f, std::cos(angle) * 90.0f};
+        const Spot::Vector3 position{std::sin(angle) * m_orbitRadius, m_orbitHeight, std::cos(angle) * m_orbitRadius};
         camera->GetTransform().SetPosition(position);
         camera->GetTransform().SetRotation(Spot::Quaternion::LookRotation(Spot::Vector3{} - position));
 
@@ -129,8 +183,8 @@ private:
         const auto counter = [&](std::string_view name) {
             return frames.empty() ? 0.0 : Spot::Profiler::GetCounter(*frames.back(), name);
         };
-        std::printf("Rendering benchmark: %d meshes, %d lights, %zu frames at 1600x900 on %s\n", GridSize * GridSize,
-                    LightCount, sorted.size(), std::string(GetGraphicsDevice().GetBackendName()).c_str());
+        std::printf("Rendering benchmark: %d meshes, %d lights, %zu frames at 1600x900 on %s\n", m_meshCount,
+                    m_lightCount, sorted.size(), std::string(GetGraphicsDevice().GetBackendName()).c_str());
         std::printf("  frame time: mean %.2f ms (%.0f FPS), median %.2f ms, 95th percentile %.2f ms, worst %.2f ms\n",
                     mean, 1000.0 / mean, at(0.5), at(0.95), sorted.back());
         std::printf("  last frame: %.0f visible meshes, %.0f culled, %.0f draw calls, %.0f shadow draw calls, %.0f "
@@ -159,6 +213,11 @@ private:
 
     int m_frames;
     int m_warmup;
+    Options m_options;
+    float m_orbitRadius = 90.0f;
+    float m_orbitHeight = 30.0f;
+    int m_meshCount = GridSize * GridSize;
+    int m_lightCount = LightCount;
     int m_frame = 0;
     int m_result = EXIT_FAILURE;
     Spot::EntityId m_camera = Spot::EntityId::Invalid;
@@ -169,17 +228,22 @@ private:
 } // namespace
 
 int main(int argc, char** argv) {
-    int frames = 600;
-    int warmup = 120;
+    Options options;
     for (int i = 1; i + 1 < argc; ++i) {
         const std::string_view argument = argv[i];
         if (argument == "--frames") {
-            frames = std::max(std::atoi(argv[++i]), 1);
+            options.frames = std::max(std::atoi(argv[++i]), 1);
         } else if (argument == "--warmup") {
-            warmup = std::max(std::atoi(argv[++i]), 0);
+            options.warmup = std::max(std::atoi(argv[++i]), 0);
+        } else if (argument == "--scene") {
+            options.scene = argv[++i];
+        } else if (argument == "--assets") {
+            options.assets = argv[++i];
+        } else if (argument == "--lamps") {
+            options.lamps = std::max(std::atoi(argv[++i]), 0);
         }
     }
-    Benchmark benchmark(frames, warmup);
+    Benchmark benchmark(std::move(options));
     if (benchmark.Run() != EXIT_SUCCESS) {
         return EXIT_FAILURE;
     }

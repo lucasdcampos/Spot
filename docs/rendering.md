@@ -244,6 +244,14 @@ cmake --build --preset msvc-release --target spot_benchmark
 ./build/msvc/tests/Release/spot_benchmark      # --frames <count> --warmup <count>
 ```
 
+With `--scene <file> --assets <imported folder>`, it times a project's scene instead, its cameras off, with
+`--lamps <count>` lamps (48 by default) spread over it, a quarter of them spots and an eighth casting shadows; the
+sandbox's playground, from the assets its build imported:
+
+```sh
+./build/msvc/tests/Release/spot_benchmark --scene sandbox/assets/scenes/playground.scene --assets build/msvc/sandbox/Debug/imported
+```
+
 ## Golden-image tests
 
 `tests/golden_tests.cpp` renders reference scenes as games show them, through `SceneRenderer` (without

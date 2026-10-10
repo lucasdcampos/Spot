@@ -821,3 +821,63 @@ TEST_CASE("The tool gun paints props and gives them materials, and Z takes it ba
     CHECK_FALSE(tool.Paint(*ground, black));
     CHECK_FALSE(tool.ApplyMaterial(*ground, concrete));
 }
+
+TEST_CASE("The tool gun places lamps of every kind, many at once, and takes them away", "[sandbox]") {
+    Playground playground;
+    playground.Run(1.0f);
+    auto& tool = *playground.player->GetComponent<ToolGun>();
+    auto& undo = *playground.player->GetComponent<UndoList>();
+    Entity* ground = playground.scene.FindEntity("Ground");
+    REQUIRE(ground != nullptr);
+    const auto countLights = [&] {
+        int count = 0;
+        playground.scene.ForEachComponent<Spot::PointLight>([&count](const Spot::PointLight&) { ++count; });
+        playground.scene.ForEachComponent<Spot::SpotLight>([&count](const Spot::SpotLight&) { ++count; });
+        return count;
+    };
+    const int before = countLights();
+
+    // Forty lamps over the ground, going through the kinds and the palette.
+    for (int i = 0; i < 40; ++i) {
+        tool.lamp = static_cast<ToolGun::LampKind>(i % 4);
+        tool.color = i % 8;
+        tool.PlaceLamp(*ground,
+                       {-15.0f + static_cast<float>(i % 8) * 4.0f, 0.0f, -15.0f + static_cast<float>(i / 8) * 4.0f},
+                       {0.0f, 1.0f, 0.0f});
+    }
+    playground.Run(0.1f);
+    CHECK(countLights() == before + 40);
+    CHECK(playground.scene.FindEntitiesWithTag(ToolGun::LampTag).size() == 40);
+    // Spot lamps shine out of the surface, here straight up; shadowed kinds cast shadows.
+    int spots = 0;
+    int shadowed = 0;
+    for (Entity* lamp : playground.scene.FindEntitiesWithTag(ToolGun::LampTag)) {
+        if (const auto* spot = lamp->GetComponent<Spot::SpotLight>()) {
+            ++spots;
+            CHECK(Spot::Distance(spot->GetLightData().direction, Spot::Vector3{0.0f, 1.0f, 0.0f}) < 1e-3f);
+            shadowed += spot->IsCastingShadows() ? 1 : 0;
+        } else if (lamp->GetComponent<Spot::PointLight>()->IsCastingShadows()) {
+            ++shadowed;
+        }
+    }
+    CHECK(spots == 20);
+    CHECK(shadowed == 20);
+    // Black paint gives white light, not none.
+    tool.color = 1;
+    CHECK(tool.GetLampColor() == Spot::Color::White);
+
+    // A lamp on a prop moves with it.
+    Entity& crate = playground.PlaceCrate(3.0f, 5.0f);
+    Entity& carried = tool.PlaceLamp(crate, crate.GetTransform().GetPosition() + Spot::Vector3{0.0f, 0.25f, 0.0f},
+                                     {0.0f, 1.0f, 0.0f});
+    CHECK(carried.GetParent() == &crate);
+
+    // Undo takes back the last lamp; the remover takes the one nearest where it is clicked.
+    REQUIRE(undo.Undo());
+    playground.Run(0.05f);
+    CHECK(playground.scene.FindEntitiesWithTag(ToolGun::LampTag).size() == 40);
+    CHECK(tool.RemoveLampNear({-15.0f, 0.0f, -15.0f}));
+    playground.Run(0.05f);
+    CHECK(playground.scene.FindEntitiesWithTag(ToolGun::LampTag).size() == 39);
+    CHECK_FALSE(tool.RemoveLampNear({-13.0f, 0.0f, -13.0f}));
+}

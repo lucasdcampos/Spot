@@ -55,7 +55,7 @@ std::string Hud::DescribeHand() const {
         if (!tool) {
             return "Tool Gun";
         }
-        constexpr const char* Modes[] = {"Weld", "Rope", "Remover", "Color", "Material"};
+        constexpr const char* Modes[] = {"Weld", "Rope", "Remover", "Color", "Material", "Lamp"};
         const char* mode = Modes[static_cast<int>(tool->mode)];
         if (tool->mode == ToolGun::Mode::Color) {
             const auto& color = ToolGun::Palette[static_cast<std::size_t>(tool->color) % ToolGun::Palette.size()];
@@ -64,6 +64,9 @@ std::string Hud::DescribeHand() const {
         if (tool->mode == ToolGun::Mode::Material && !tool->materials.empty()) {
             const auto& material = tool->materials[static_cast<std::size_t>(tool->material) % tool->materials.size()];
             return std::format("Tool Gun: {} ({})", mode, material.name);
+        }
+        if (tool->mode == ToolGun::Mode::Lamp) {
+            return std::format("Tool Gun: {} ({})", mode, ToolGun::LampNames[static_cast<std::size_t>(tool->lamp)]);
         }
         return std::format("Tool Gun: {}", mode);
     }
