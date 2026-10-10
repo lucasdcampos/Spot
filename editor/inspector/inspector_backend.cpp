@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <array>
 #include <cstring>
+#include <format>
 #include <type_traits>
 #include <utility>
 
@@ -195,7 +196,49 @@ void InspectorBackend::Field(std::string_view name, int& value, const FieldOptio
 }
 
 void InspectorBackend::Field(std::string_view name, std::uint32_t& value, const FieldOptions& options) {
-    Number(name, value, options);
+    if (!options.layerMask) {
+        Number(name, value, options);
+        return;
+    }
+    std::string pointer;
+    if (!BeginRow(name, options, pointer)) {
+        return;
+    }
+    const auto layerName = [this](int layer) {
+        const std::string named = m_options.project ? m_options.project->GetProject()
+                                                          .GetSettings()
+                                                          .sections.physics.layerNames[static_cast<std::size_t>(layer)]
+                                                    : std::string();
+        return named.empty() ? std::format("Layer {}", layer) : named;
+    };
+    int count = 0;
+    for (int layer = 0; layer < Entity::LayerCount; ++layer) {
+        count += (value >> layer) & 1u ? 1 : 0;
+    }
+    const std::string preview = IsMixed(pointer)              ? std::string(MixedValueText)
+                                : count == Entity::LayerCount ? std::string("Everything")
+                                : count == 0                  ? std::string("Nothing")
+                                                              : std::format("{} layers", count);
+    if (ImGui::BeginCombo("##value", preview.c_str())) {
+        for (int layer = 0; layer < Entity::LayerCount; ++layer) {
+            const std::string label = std::format("{}  {}", layer, layerName(layer));
+            bool on = (value >> layer) & 1u;
+            // Unnamed layers are unused, so only those already in the mask show beside the named ones.
+            const bool named = m_options.project && !m_options.project->GetProject()
+                                                         .GetSettings()
+                                                         .sections.physics.layerNames[static_cast<std::size_t>(layer)]
+                                                         .empty();
+            if (!named && !on && (m_options.project || layer != 0)) {
+                continue;
+            }
+            if (ImGui::Checkbox(label.c_str(), &on)) {
+                value = on ? value | (1u << layer) : value & ~(1u << layer);
+                MarkChanged(pointer);
+            }
+        }
+        ImGui::EndCombo();
+    }
+    EndRow();
 }
 
 void InspectorBackend::Field(std::string_view name, std::int64_t& value, const FieldOptions& options) {

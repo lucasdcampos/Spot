@@ -19,6 +19,13 @@ struct ProfileSample {
     std::chrono::nanoseconds duration{};
 };
 
+// A number a frame counted, such as how many meshes it drew.
+struct ProfileCounter {
+    // A string literal, or a name from Profiler::Intern().
+    std::string_view name;
+    double value = 0.0;
+};
+
 struct ProfileFrame {
     // Counts frames from the first one profiled.
     std::uint64_t number = 0;
@@ -27,6 +34,8 @@ struct ProfileFrame {
     std::vector<ProfileSample> samples;
     // Scopes left out once the frame had Profiler::MaxSamplesPerFrame.
     std::size_t droppedSamples = 0;
+    // In the order they were first counted in the frame.
+    std::vector<ProfileCounter> counters;
 };
 
 // Records how long the scopes marked with SPOT_PROFILE_SCOPE() take on the game thread, the one that begins frames,
@@ -57,6 +66,12 @@ void SetEnabled(bool enabled);
 std::vector<const ProfileFrame*> GetFrames();
 // Forgets every frame.
 void Clear();
+// Adds to the frame's counter of that name, which starts at 0 each frame, so code that runs several times a frame,
+// such as a renderer drawing several views, adds up. Counts outside of frames, or off the profiled thread, are
+// dropped.
+void Count(std::string_view name, double amount = 1.0);
+// The frame's counter of that name; 0 when it counted none.
+double GetCounter(const ProfileFrame& frame, std::string_view name);
 
 // A copy of the name that lasts as long as the process, for scopes named at run time, such as after a type. Each
 // distinct name is kept once.

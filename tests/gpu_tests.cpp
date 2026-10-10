@@ -1641,6 +1641,71 @@ TEST_CASE("Renderer3D drops the shadows of cutout pixels, and transparent surfac
     CHECK_FALSE(shadowed({.baseColor = {1.0f, 1.0f, 1.0f, 0.8f}, .alphaMode = Spot::AlphaMode::Transparent}));
 }
 
+TEST_CASE("Renderer3D leaves meshes out of the view out of its pass, and counts them", "[gpu]") {
+    RequireGpu();
+    Spot::Renderer3DStats stats;
+    double profiled = 0.0;
+    const TargetRender render(
+        32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            REQUIRE(cube != nullptr);
+            Spot::Profiler::BeginFrame();
+            renderer.Begin(context, target, MakeFrontCamera());
+            renderer.DrawLight(FrontLight);
+            renderer.DrawMesh(*cube, {.baseColor = Spot::Color::Red});
+            // Behind the camera, and far to the side.
+            renderer.DrawMesh(*cube, {}, Spot::Matrix4::Translation({0.0f, 0.0f, 6.0f}));
+            renderer.DrawMesh(*cube, {}, Spot::Matrix4::Translation({40.0f, 0.0f, 0.0f}));
+            renderer.End();
+            stats = renderer.GetStats();
+            Spot::Profiler::EndFrame();
+            profiled = Spot::Profiler::GetCounter(*Spot::Profiler::GetFrames().back(), "Culled meshes");
+        });
+    CHECK(stats.visibleMeshes == 1);
+    CHECK(stats.culledMeshes == 2);
+    CHECK(stats.drawCalls == 1);
+    CHECK(profiled == 2.0);
+    CHECK(IsNear(render.At(16, 16), {255, 0, 0, 255}));
+}
+
+TEST_CASE("Renderer3D draws only the meshes on the layers the camera sees", "[gpu]") {
+    RequireGpu();
+    Spot::Renderer3DStats stats;
+    const TargetRender render(
+        32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            const Spot::AssetRef<Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            REQUIRE(cube);
+            Spot::Scene scene;
+            // A red cube on layer 3 in front of a green one on the default layer.
+            auto& hidden = scene.CreateEntity("Hidden");
+            hidden.SetLayer(3);
+            hidden.GetTransform().SetPosition({0.0f, 0.0f, 1.0f});
+            hidden.AddComponent<Spot::MeshRenderer>(cube, Spot::Material{.baseColor = Spot::Color::Red});
+            scene.CreateEntity("Shown").AddComponent<Spot::MeshRenderer>(
+                cube, Spot::Material{.baseColor = Spot::Color::Green});
+            Spot::Camera3D camera = MakeFrontCamera();
+            camera.cullingMask &= ~(1u << 3);
+            renderer.Begin(context, target, camera);
+            renderer.DrawLight(FrontLight);
+            renderer.DrawScene(scene);
+            renderer.End();
+            stats = renderer.GetStats();
+        });
+    CHECK(stats.visibleMeshes == 1);
+    CHECK(stats.culledMeshes == 0);
+    CHECK(IsNear(render.At(16, 16), {0, 255, 0, 255}));
+
+    // The camera component carries its mask into the camera it gives renderers.
+    Spot::Scene scene;
+    auto& camera = scene.CreateEntity("Camera").AddComponent<Spot::Camera>();
+    camera.SetLayerSeen(3, false);
+    CHECK_FALSE(camera.SeesLayer(3));
+    CHECK(camera.SeesLayer(2));
+    CHECK(camera.GetCamera3D().cullingMask == ~(1u << 3));
+}
+
 TEST_CASE("Renderer3D keeps the lights nearest the camera when given too many", "[gpu]") {
     RequireGpu();
 

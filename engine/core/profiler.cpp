@@ -53,6 +53,7 @@ void BeginFrame() {
     frame.duration = {};
     frame.samples.clear();
     frame.droppedSamples = 0;
+    frame.counters.clear();
     if (frame.samples.capacity() == 0) {
         frame.samples.reserve(256);
     }
@@ -113,6 +114,30 @@ void Clear() {
     state.nextNumber = 0;
     state.current = 0;
     state.open.clear();
+}
+
+void Count(std::string_view name, double amount) {
+    ProfilerState& state = GetState();
+    if (!state.recording || state.thread != std::this_thread::get_id()) {
+        return;
+    }
+    std::vector<ProfileCounter>& counters = state.frames[state.current].counters;
+    for (ProfileCounter& counter : counters) {
+        if (counter.name == name) {
+            counter.value += amount;
+            return;
+        }
+    }
+    counters.push_back({name, amount});
+}
+
+double GetCounter(const ProfileFrame& frame, std::string_view name) {
+    for (const ProfileCounter& counter : frame.counters) {
+        if (counter.name == name) {
+            return counter.value;
+        }
+    }
+    return 0.0;
 }
 
 std::string_view Intern(std::string_view name) {

@@ -5,6 +5,8 @@
 #include "math/quaternion.h"
 #include "math/vector.h"
 
+#include <cstdint>
+
 namespace Spot {
 
 // A perspective view, or an orthographic one. With no rotation it looks down -Z with Y up, like the rest of the
@@ -21,6 +23,9 @@ struct Camera3D {
     bool orthographic = false;
     // Half the height of what an orthographic camera sees, in world units.
     float orthographicSize = 5.0f;
+    // The layers whose meshes Renderer3D::DrawScene() draws for this camera, a bit per layer (see Entity::GetLayer()),
+    // as first-person games hide the player's own body from its eyes.
+    std::uint32_t cullingMask = 0xFFFFFFFFu;
 
     // Turns the camera toward the target, keeping the up direction as close to up as it allows.
     void LookAt(Vector3 target, Vector3 up = {0.0f, 1.0f, 0.0f});

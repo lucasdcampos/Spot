@@ -740,7 +740,7 @@ viewers, and the golden-image tests cover them.
 
 ## M7 – Rendering: scale
 
-- [ ] **M7.1 Culling.** Frustum culling in every pass, a per-camera culling mask by entity layer (M1.1), and visible
+- [x] **M7.1 Culling.** Frustum culling in every pass, a per-camera culling mask by entity layer (M1.1), and visible
   and culled counts in the profiler.
 - [ ] **M7.2 Instancing.** Batch draws by mesh, material and pipeline, with per-instance data in a storage buffer,
   automatically in `Renderer3D`.
@@ -758,6 +758,13 @@ viewers, and the golden-image tests cover them.
 of lamps.
 
 **Notes:**
+
+- M7.1: Shadow passes already culled casters by their views; the view's pass now tests each mesh's world bounding
+  sphere against the camera's frustum in `End()`, so meshes drawn with `DrawMesh()` are culled too. The profiler
+  gained per-frame counters (`Profiler::Count()`, `ProfileFrame::counters`) for the counts, since the editor has no
+  profiler panel yet and the HUD and tests read frames directly. The culling mask is a field of `Camera3D`, which
+  `DrawScene()` applies to mesh renderers, shadows included; lights, skies and sprites ignore it. `FieldOptions`
+  gained `layerMask`, which the inspector draws as a combo of the project's named layers to tick.
 
 ---
 

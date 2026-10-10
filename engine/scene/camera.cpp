@@ -17,7 +17,8 @@ Camera3D Camera::GetCamera3D() const {
             .nearPlane = m_nearPlane,
             .farPlane = m_farPlane,
             .orthographic = m_projection == CameraProjection::Orthographic,
-            .orthographicSize = m_orthographicSize};
+            .orthographicSize = m_orthographicSize,
+            .cullingMask = m_cullingMask};
 }
 
 void Camera::Serialize(Archive& archive) {
@@ -30,6 +31,7 @@ void Camera::Serialize(Archive& archive) {
     archive.Field("nearPlane", m_nearPlane, {.min = 0.001f, .max = 100000.0f, .speed = 0.01f});
     archive.Field("farPlane", m_farPlane, {.min = 0.01f, .max = 1000000.0f, .speed = 1.0f});
     archive.Field("background", m_background, {.tooltip = "What shows where nothing is drawn"});
+    archive.Field("cullingMask", m_cullingMask, {.tooltip = "The layers whose meshes it sees", .layerMask = true});
 }
 
 Camera* FindMainCamera(Scene& scene) {

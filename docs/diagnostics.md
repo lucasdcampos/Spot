@@ -55,6 +55,11 @@ Scope names are string literals, or names made at run time and kept with `Profil
 threads and outside of frames are not recorded. Frames reuse their memory, so the profiler stays on in Release;
 `Profiler::SetEnabled(false)` turns it off. The sandbox's HUD shows the average update and render times it measures.
 
+Frames also count things: `Profiler::Count("Name", amount)` adds to the frame's counter of that name, which starts at
+0 each frame, so code that runs several times a frame adds up, and `Profiler::GetCounter()` reads it back. `Renderer3D`
+counts the meshes it drew in its views (`Visible meshes`) and those it left out because they were outside them
+(`Culled meshes`).
+
 ## Debug drawing
 
 `Spot::DebugDraw` (`engine/graphics/debug_draw.h`) lets any code draw lines, arrows, crosses, boxes, circles, spheres

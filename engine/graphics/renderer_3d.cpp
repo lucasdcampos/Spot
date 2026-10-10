@@ -447,6 +447,13 @@ void Renderer3D::End() {
     std::stable_sort(transparent, m_commands.end(), [eye](const DrawCommand& a, const DrawCommand& b) {
         return LengthSquared(a.bounds.center - eye) > LengthSquared(b.bounds.center - eye);
     });
+    // Shadow passes cull against their own views; the view's pass leaves out what the camera cannot see.
+    for (DrawCommand& command : m_commands) {
+        command.visible = Detail::IsSphereInView(m_viewProjection, command.bounds.center, command.bounds.radius);
+        ++(command.visible ? m_stats.visibleMeshes : m_stats.culledMeshes);
+    }
+    Profiler::Count("Visible meshes", m_stats.visibleMeshes);
+    Profiler::Count("Culled meshes", m_stats.culledMeshes);
     Detail::ShadowUniforms shadows{};
     DrawShadows(lights, shadows);
 
@@ -532,7 +539,7 @@ void Renderer3D::DrawScene(Scene& scene) {
         DrawFog(fog->GetFogData());
     }
     scene.ForEachComponent<MeshRenderer>([this](const MeshRenderer& renderer) {
-        if (renderer.GetMesh()) {
+        if (renderer.GetMesh() && ((m_camera.cullingMask >> renderer.GetEntity().GetLayer()) & 1u)) {
             DrawMesh(*renderer.GetMesh(), renderer.GetMaterial() ? *renderer.GetMaterial() : DefaultMaterial,
                      renderer.GetEntity().GetTransform().GetWorldMatrix(), renderer.IsCastingShadows());
         }
@@ -830,6 +837,9 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
     const Pipeline* boundPipeline = nullptr;
     MaterialTextures boundTextures{};
     for (const auto& command : m_commands) {
+        if (!command.visible) {
+            continue;
+        }
         const Pipeline* pipeline =
             command.alphaMode == AlphaMode::Transparent
                 ? (command.doubleSided ? m_doubleSidedTransparentPipeline.get() : m_transparentPipeline.get())

@@ -65,6 +65,14 @@ vertex uniforms at `register(b0, space1)`, fragment textures and samplers at `re
 | `LineRenderer` | One-pixel lines in 3D, depth-tested or over everything, inside a pass the caller opens; `DrawDebugLines()` draws the `DebugDraw` queue |
 | `SceneRenderer` | Whole scenes as games show them, through their main camera |
 
+### Culling
+
+`Renderer3D` draws only what can be seen. Each shadow pass leaves out the meshes outside its light's view, and
+`End()` leaves out of the view's pass the meshes whose bounds are outside the camera's frustum; `GetStats()` and the
+profiler count both (`visibleMeshes` and `culledMeshes`). A camera also sees only the layers in its `cullingMask`
+(`Camera3D::cullingMask`, set on the `Camera` component, which the inspector shows as layers to tick):
+`DrawScene()` skips the meshes of entities on the others, in its shadows too.
+
 ### SceneRenderer
 
 `SceneRenderer::Render()` draws scenes over each other into the window or a texture: their meshes through the first

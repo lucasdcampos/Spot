@@ -160,3 +160,29 @@ TEST_CASE("Scenes profile their update, by stage and by system", "[profiler]") {
     CHECK(has("Systems::OnFixedUpdate"));
     CHECK(has("Spot::PhysicsWorld"));
 }
+
+TEST_CASE("Profiler counters add up within a frame and start over each frame", "[profiler]") {
+    const CleanProfiler clean;
+    // Outside of frames, counts are dropped.
+    Profiler::Count("Draws", 5.0);
+
+    Profiler::BeginFrame();
+    Profiler::Count("Draws", 2.0);
+    Profiler::Count("Lights");
+    Profiler::Count("Draws", 3.0);
+    // Off the profiled thread, they are dropped too.
+    std::thread([] { Profiler::Count("Draws", 100.0); }).join();
+    Profiler::EndFrame();
+    Profiler::BeginFrame();
+    Profiler::Count("Lights");
+    Profiler::EndFrame();
+
+    const auto frames = Profiler::GetFrames();
+    REQUIRE(frames.size() == 2);
+    CHECK(Profiler::GetCounter(*frames[0], "Draws") == 5.0);
+    CHECK(Profiler::GetCounter(*frames[0], "Lights") == 1.0);
+    REQUIRE(frames[0]->counters.size() == 2);
+    CHECK(frames[0]->counters[0].name == "Draws");
+    CHECK(Profiler::GetCounter(*frames[1], "Draws") == 0.0);
+    CHECK(Profiler::GetCounter(*frames[1], "Lights") == 1.0);
+}

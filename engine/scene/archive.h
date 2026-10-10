@@ -54,6 +54,8 @@ struct FieldOptions {
     // The type of asset an AssetId field refers to, so tools offer only assets of that type. AssetRef fields know
     // theirs.
     std::optional<AssetType> assetType = std::nullopt;
+    // A std::uint32_t with a bit per entity layer (see Entity::GetLayer()), which tools show as layers to tick.
+    bool layerMask = false;
 };
 
 // Where an Archive's fields come from and go to. The engine's scene and asset files are one kind; tools add their own,

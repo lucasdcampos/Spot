@@ -67,6 +67,10 @@ struct Renderer3DStats {
     std::uint32_t triangleCount = 0;
     // In the passes that draw shadow maps.
     std::uint32_t shadowDrawCalls = 0;
+    // Meshes drawn in the view's pass, and meshes left out of it because they were outside the view. Meshes on layers
+    // the camera does not see are not counted.
+    std::uint32_t visibleMeshes = 0;
+    std::uint32_t culledMeshes = 0;
     // 1 when the sky changed and its light was captured again, which takes a few passes.
     std::uint32_t skyLightingUpdates = 0;
 };
@@ -149,6 +153,8 @@ private:
         // Around the mesh, in world space.
         BoundingSphere bounds;
         bool castsShadows;
+        // Whether it is in the camera's view, which End() decides.
+        bool visible = true;
     };
 
     void DrawShadows(Detail::SelectedLights& lights, Detail::ShadowUniforms& shadows);

@@ -44,6 +44,13 @@ public:
     // What shows where nothing is drawn, such as in scenes without a sky.
     Color GetBackground() const { return m_background; }
     void SetBackground(Color background) { m_background = background; }
+    // The layers whose meshes it sees; see Camera3D::cullingMask.
+    std::uint32_t GetCullingMask() const { return m_cullingMask; }
+    void SetCullingMask(std::uint32_t mask) { m_cullingMask = mask; }
+    bool SeesLayer(int layer) const { return (m_cullingMask >> layer) & 1u; }
+    void SetLayerSeen(int layer, bool seen) {
+        m_cullingMask = seen ? m_cullingMask | (1u << layer) : m_cullingMask & ~(1u << layer);
+    }
 
     // The camera's view from its entity's world position and rotation, as Renderer3D takes it; Renderer2D takes its
     // GetViewProjection().
@@ -59,6 +66,7 @@ private:
     float m_nearPlane = 0.1f;
     float m_farPlane = 1000.0f;
     Color m_background{0.12f, 0.13f, 0.15f, 1.0f};
+    std::uint32_t m_cullingMask = 0xFFFFFFFFu;
 };
 
 // The first Camera, in creation order, that is enabled on an entity active in the hierarchy; null when the scene
