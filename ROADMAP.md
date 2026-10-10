@@ -9,7 +9,7 @@ The goal is the same breadth, built on the architecture Spot already has.
 The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
 [The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
 
-**Current focus:** M1 – Physics for gameplay
+**Current focus:** M2 – Input actions and gamepads
 
 ## How to use this plan
 
@@ -113,7 +113,7 @@ How it is built:
 | | Milestone | Delivers |
 |---|---|---|
 | [x] | [M0 – Foundations](#m0--foundations) | Contained failures, scene systems, settings sections, profiler, debug drawing, docs |
-| [ ] | [M1 – Physics for gameplay](#m1--physics-for-gameplay) | Layers, triggers, collision events, queries, character controller, mesh colliders, joints |
+| [x] | [M1 – Physics for gameplay](#m1--physics-for-gameplay) | Layers, triggers, collision events, queries, character controller, mesh colliders, joints |
 | [ ] | [M2 – Input actions and gamepads](#m2--input-actions-and-gamepads) | Gamepads, text input, actions, rebinding, input ownership |
 | [ ] | [M3 – Audio in scenes](#m3--audio-in-scenes) | Buses, voice management, streaming, 3D sources and listener, mixer panel |
 | [ ] | [M4 – Fast game-code iteration](#m4--fast-game-code-iteration) | A one-file change in game code reloads in seconds |
@@ -342,6 +342,11 @@ physics gun and the tool gun, and shoots and blows it apart.
   it was added, and undoing a removal re-instantiates the entity saved before it went, with its id
   (`InstantiateOptions::keepIds`), so joints to it are made again. Ropes are `DistanceJoint`s drawn with
   `DebugDraw` lines.
+- Done 2026-10-09. Acceptance: `spot_sandbox_tests` walks the player through the level (stairs and ramps of mesh
+  colliders, crouching, noclip), carries and throws props, grabs, turns and freezes them with the physics gun,
+  welds and ropes them with the tool gun, and shoots and blows them apart, with undo. MSVC and GCC Debug build
+  without warnings (GCC's `-Wmissing-field-initializers` asked for default member initializers in a few structs
+  initialized by designators) and pass every test, the module tests included.
 
 ---
 

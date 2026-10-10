@@ -137,7 +137,7 @@ private:
         std::string path;
         std::weak_ptr<const void> loaded;
         // Mesh assets only: the CPU copy.
-        std::weak_ptr<const MeshData> meshData;
+        std::weak_ptr<const MeshData> meshData = {};
     };
 
     std::shared_ptr<const void> LoadAsset(AssetId id, AssetType type);

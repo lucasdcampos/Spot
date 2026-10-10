@@ -116,7 +116,7 @@ private:
         Detail::PhysicsCharacterId character = Detail::PhysicsCharacterId::Invalid;
         Vector3 characterCenter = {};
         float characterMass = 0.0f;
-        std::vector<Detail::PhysicsCharacterContact> characterContacts;
+        std::vector<Detail::PhysicsCharacterContact> characterContacts = {};
         bool characterMoved = false;
         // The world pose and scale of the entity when the body last followed it or it last followed the body, to tell
         // when something else moved it.
@@ -183,13 +183,13 @@ private:
     std::vector<Detail::PhysicsQueryHit> m_queryHits;
     // The queries asked since the last frame was drawn, kept for the debug view while it shows them.
     struct DebugQuery {
-        enum class Kind { Ray, Sphere, Box } kind;
-        Vector3 origin;
-        Vector3 end;
-        Vector3 size;
-        Quaternion rotation;
-        float radius;
-        std::optional<RaycastHit> hit;
+        enum class Kind { Ray, Sphere, Box } kind = Kind::Ray;
+        Vector3 origin = {};
+        Vector3 end = {};
+        Vector3 size = {};
+        Quaternion rotation = {};
+        float radius = 0.0f;
+        std::optional<RaycastHit> hit = std::nullopt;
     };
     void RecordQuery(DebugQuery query);
     PhysicsDebugFlags m_debugFlags = PhysicsDebugFlags::None;

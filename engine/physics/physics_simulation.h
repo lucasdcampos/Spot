@@ -96,7 +96,7 @@ struct PhysicsShape {
     float halfHeight = 0.0f;
     // Meshes and convex hulls only, with the scale to apply to them. Backends build a shape once per mesh and reuse
     // it while the mesh lives.
-    std::shared_ptr<const MeshData> mesh;
+    std::shared_ptr<const MeshData> mesh = {};
     Vector3 meshScale = {1.0f, 1.0f, 1.0f};
 };
 
@@ -105,7 +105,7 @@ struct PhysicsBodyDesc {
     Vector3 position = {};
     Quaternion rotation = {};
     // A body without shapes collides with nothing, but still moves.
-    std::vector<PhysicsShape> shapes;
+    std::vector<PhysicsShape> shapes = {};
     // The layer of its entity, which decides what it collides with; see SetLayerMasks().
     int layer = 0;
     // Detects the bodies it overlaps without pushing them, as triggers do.

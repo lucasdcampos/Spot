@@ -28,7 +28,7 @@ private:
         enum class Kind { Spawn, Joint, Removal } kind;
         Spot::EntityId entity = Spot::EntityId::Invalid;
         std::size_t componentIndex = 0;
-        std::string saved;
+        std::string saved = {};
     };
 
     bool UndoAction(const Action& action);
