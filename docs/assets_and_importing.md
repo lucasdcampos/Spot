@@ -44,6 +44,10 @@ Each source type has an importer in `engine/import/importers/` that turns the so
 importer has a version; **a change to any imported format bumps its importer's version**, which makes every source
 of that type import again. A new source format gets a new importer there.
 
+Import settings live in each `.meta` file, and the editor's inspector edits them: textures choose mipmaps, models a
+scale and material overrides, fonts their sizes, and sounds whether they stream (see [Audio](audio.md)); sounds that
+do not stream are stored decoded, as 16-bit samples.
+
 ## Loading imported assets
 
 `AssetManager` (`engine/assets/asset_manager.h`) loads imported assets from an import directory, by id or by source

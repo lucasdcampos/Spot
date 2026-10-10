@@ -37,6 +37,13 @@ struct ModelImportSettings {
     void Serialize(Archive& archive);
 };
 
+struct SoundImportSettings {
+    // Keeps the sound encoded and decodes it while it plays, as music and long ambience should; see Sound.
+    bool stream = false;
+
+    void Serialize(Archive& archive);
+};
+
 struct FontImportSettings {
     // The size glyphs are rasterized at; see Font.
     float pixelSize = 32.0f;
@@ -63,6 +70,7 @@ struct AssetMeta {
     TextureImportSettings texture;
     ModelImportSettings model;
     FontImportSettings font;
+    SoundImportSettings sound;
     // Kept across imports, so references to the parts of a file survive reimporting it.
     std::vector<SubAssetId> subAssets;
 

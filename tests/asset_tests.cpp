@@ -742,6 +742,30 @@ TEST_CASE("Sounds are imported decoded and load without a decoder", "[assets]") 
     }
 }
 
+TEST_CASE("Sounds set to stream are imported encoded and stream when they load", "[assets]") {
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    const auto imported = project.GetPath() / "imported";
+    CopyFile(TestAssets / "sine.ogg", sources / "sine.ogg");
+    AssetDatabase database(sources, imported);
+    CHECK(database.Refresh() == 1);
+    const auto id = database.FindByPath("sine.ogg");
+    REQUIRE(id.has_value());
+    database.GetMeta(*id)->sound.stream = true;
+    REQUIRE(database.SaveMeta(*id));
+    CHECK(database.Refresh() == 1);
+    CHECK(AssetMeta::LoadFromFile(sources / "sine.ogg.meta")->sound.stream);
+
+    Spot::AssetManager assets(imported);
+    const auto sound = assets.Load<Spot::Sound>("sine.ogg");
+    REQUIRE(sound);
+    CHECK(sound->IsStreamed());
+    CHECK(sound->GetSampleRate() == 44100);
+    CHECK(sound->GetFrameCount() == 11025);
+    // The imported file holds the source's data as it was.
+    CHECK(sound->GetEncodedData().size() == std::filesystem::file_size(sources / "sine.ogg"));
+}
+
 TEST_CASE("Fonts are imported with extra sizes as sub-assets", "[assets]") {
     const TempDirectory project;
     const auto sources = project.GetPath() / "assets";

@@ -8,6 +8,15 @@ backend (`AudioOutput`) only pulls mixed samples from it on its own thread.
 A `Sound` (`engine/audio/sound.h`) is decoded audio in CPU memory: 32-bit float samples, mono or stereo. Sounds never
 change, so one sound can play many times at once. They load as assets (`.wav` and `.ogg` sources) or from raw files.
 
+## Streaming
+
+Music and long ambience would take megabytes decoded, so they stream instead: a sound whose import settings have
+`stream` on keeps its source's WAV or Ogg Vorbis data in its imported file, and each playback decodes it as it goes
+(`Sound::IsStreamed()`; from raw files, `Sound::LoadStream()` and `Sound::CreateStream()`). Every playback has its own
+decoder and a ring buffer holding half a second, decoded before it starts playing and kept full by a thread of the
+mixer's; the audio thread only reads it, without locks. Looping streams go on from their start seamlessly. Should
+the thread fall behind, the playback waits where it is rather than skip.
+
 ## Playing
 
 `AudioDevice` (`engine/audio/audio_device.h`) plays sounds on the default output device. The application owns one,
@@ -67,4 +76,4 @@ because the mixer holds them.
 
 ## Not there yet
 
-Streaming, 3D sources with a listener and a mixer panel come in the rest of the roadmap's milestone M3.
+3D sources with a listener and a mixer panel come in the rest of the roadmap's milestone M3.

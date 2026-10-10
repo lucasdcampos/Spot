@@ -34,8 +34,11 @@ struct ModelFilePart {
 struct SoundFile {
     std::uint32_t sampleRate = 0;
     std::uint32_t channelCount = 0;
-    // 16-bit samples, half the size of the floats sounds play from.
-    std::vector<std::int16_t> samples;
+    // 16-bit samples, half the size of the floats sounds play from; empty when streamed.
+    std::vector<std::int16_t> samples = {};
+    // Streamed sounds keep their source's WAV or Ogg Vorbis data, which they decode while they play.
+    bool streamed = false;
+    std::vector<std::byte> encoded = {};
 };
 
 struct FontFile {

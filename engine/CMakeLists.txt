@@ -31,6 +31,9 @@ add_library(spot_objects OBJECT
     audio/playback.h
     audio/sound.h
     audio/sound.cpp
+    audio/sound_decoder.h
+    audio/sound_stream.h
+    audio/sound_stream.cpp
     core/application.h
     core/application.cpp
     core/assert.h

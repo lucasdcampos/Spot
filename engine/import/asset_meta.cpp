@@ -31,6 +31,9 @@ void SerializeSettings(AssetMeta& meta, Archive& archive, std::string_view name)
     case AssetType::Font:
         archive.Field(name, meta.font);
         break;
+    case AssetType::Sound:
+        archive.Field(name, meta.sound);
+        break;
     default:
         break;
     }
@@ -57,6 +60,11 @@ void FontImportSettings::Serialize(Archive& archive) {
     archive.Field("pixelSize", pixelSize,
                   {.min = 4.0f, .max = 512.0f, .speed = 0.5f, .tooltip = "The size glyphs are drawn at, in pixels"});
     archive.Field("extraSizes", extraSizes, {.tooltip = "More sizes of the font, each a sub-asset"});
+}
+
+void SoundImportSettings::Serialize(Archive& archive) {
+    archive.Field("stream", stream,
+                  {.tooltip = "Keeps the sound encoded and decodes it while it plays: for music and long ambience"});
 }
 
 void SubAssetId::Serialize(Archive& archive) {

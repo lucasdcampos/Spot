@@ -436,7 +436,7 @@ defined in the audio settings. Streamed sounds decode on a worker thread into a 
   needed.
 - [x] **M3.2 Voice management.** Voice limits, priorities and stealing, short fades on start and stop to avoid
   clicks, and ramped volume and pan changes. Tests.
-- [ ] **M3.3 Streaming.** Sounds marked "stream" in their import settings stay encoded and decode while they play.
+- [x] **M3.3 Streaming.** Sounds marked "stream" in their import settings stay encoded and decode while they play.
   Bump the sound importer's version. Tests.
 - [ ] **M3.4 Sources and listener.** `AudioListener` and `AudioSource` components. A source has a sound, a bus,
   volume, pitch, loop, play on start, spatial on or off, min and max distance, a rolloff curve, and `Play()`,
@@ -462,6 +462,12 @@ defined in the audio settings. Streamed sounds decode on a worker thread into a 
   only `PlayParams::fadeIn`, since sounds start at their first sample, which is where they were cut. Volume, pan and
   bus gains step toward their targets a frame at a time, a full-range change taking 5 ms. Stopped voices keep
   mixing while they fade but no longer match their instance or count as voices.
+- M3.3: streamed sounds keep the source's bytes (WAV or Ogg; the sound importer is at version 2, with a stream flag
+  in its format). Each playback owns a `Detail::SoundStream`: its own `SoundDecoder` (dr_wav or stb_vorbis, which
+  live in sound.cpp) and a single-producer ring of 0.5 s, prefilled in `Play()` outside the mixer's lock. The
+  mixer's stream thread starts with the first streamed sound and refills every 50 ms; `Mixer(rate, false)` and
+  `UpdateStreams()` keep tests deterministic. A dry stream holds its position; a streamed voice reports its end a
+  frame after a decoded one would.
 
 ---
 

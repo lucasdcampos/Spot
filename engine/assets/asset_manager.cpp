@@ -288,9 +288,12 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
         return std::make_shared<const Model>(std::move(loaded));
     }
     case AssetType::Sound: {
-        const auto sound = Detail::DecodeSound(*data);
+        auto sound = Detail::DecodeSound(*data);
         if (!sound) {
             break;
+        }
+        if (sound->streamed) {
+            return Sound::CreateStream(std::move(sound->encoded));
         }
         std::vector<float> samples(sound->samples.size());
         for (std::size_t i = 0; i < samples.size(); ++i) {

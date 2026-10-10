@@ -58,7 +58,8 @@ private:
 };
 
 bool HasImportSettings(AssetType type) {
-    return type == AssetType::Texture || type == AssetType::Model || type == AssetType::Font;
+    return type == AssetType::Texture || type == AssetType::Model || type == AssetType::Font ||
+           type == AssetType::Sound;
 }
 
 } // namespace
@@ -258,6 +259,9 @@ void AssetInspector::DrawImportSettings(EditorProject& project, const AssetInfo&
         case AssetType::Font:
             m_settings->font.Serialize(archive);
             break;
+        case AssetType::Sound:
+            m_settings->sound.Serialize(archive);
+            break;
         default:
             break;
         }
@@ -288,6 +292,7 @@ void AssetInspector::DrawImportSettings(EditorProject& project, const AssetInfo&
         meta->texture = m_settings->texture;
         meta->model = m_settings->model;
         meta->font = m_settings->font;
+        meta->sound = m_settings->sound;
         project.GetAssetDatabase().SaveMeta(info.id);
         project.Reimport(info.id);
     }

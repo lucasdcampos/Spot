@@ -3,6 +3,7 @@
 #include "core/assert.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <utility>
 
@@ -31,7 +32,7 @@ AudioBusId ToBus(std::size_t slot) {
 
 } // namespace
 
-Mixer::Mixer(std::uint32_t sampleRate) : m_sampleRate(sampleRate) {
+Mixer::Mixer(std::uint32_t sampleRate, bool streamThread) : m_sampleRate(sampleRate), m_useStreamThread(streamThread) {
     SPOT_ASSERT(sampleRate > 0, "The mixer needs a sample rate");
     m_voices.reserve(64);
     m_buses[0] = {.used = true, .name = "Master"};
@@ -42,9 +43,62 @@ Mixer::Mixer(std::uint32_t sampleRate) : m_sampleRate(sampleRate) {
     }
 }
 
+Mixer::~Mixer() {
+    {
+        std::scoped_lock lock(m_streamsMutex);
+        m_stopStreams = true;
+    }
+    m_streamsChanged.notify_all();
+    if (m_streamThread.joinable()) {
+        m_streamThread.join();
+    }
+}
+
+void Mixer::UpdateStreams() {
+    std::vector<std::shared_ptr<SoundStream>> streams;
+    {
+        std::scoped_lock lock(m_streamsMutex);
+        std::erase_if(m_streams, [](const std::weak_ptr<SoundStream>& stream) { return stream.expired(); });
+        for (const auto& stream : m_streams) {
+            if (auto locked = stream.lock()) {
+                streams.push_back(std::move(locked));
+            }
+        }
+    }
+    for (const auto& stream : streams) {
+        stream->Fill();
+    }
+}
+
+void Mixer::RunStreamThread() {
+    std::unique_lock lock(m_streamsMutex);
+    while (!m_stopStreams) {
+        lock.unlock();
+        UpdateStreams();
+        lock.lock();
+        // A tenth of the buffer, so streams refill long before they run dry.
+        m_streamsChanged.wait_for(lock, std::chrono::milliseconds(50), [this] { return m_stopStreams; });
+    }
+}
+
 SoundInstance Mixer::Play(std::shared_ptr<const Sound> sound, const PlayParams& params) {
     if (!sound) {
         return {};
+    }
+
+    // Decoded ahead before it plays, outside the lock, so the first mix has frames to play.
+    std::shared_ptr<SoundStream> stream;
+    if (sound->IsStreamed()) {
+        stream = std::make_shared<SoundStream>(sound, params.loop);
+        if (!stream->IsValid()) {
+            return {};
+        }
+        stream->Fill();
+        std::scoped_lock lock(m_streamsMutex);
+        m_streams.push_back(stream);
+        if (m_useStreamThread && !m_streamThread.joinable()) {
+            m_streamThread = std::thread([this] { RunStreamThread(); });
+        }
     }
 
     std::scoped_lock lock(m_mutex);
@@ -84,8 +138,15 @@ SoundInstance Mixer::Play(std::shared_ptr<const Sound> sound, const PlayParams& 
                         .rightGain = rightGain,
                         .fade = params.fadeIn > 0.0f ? 0.0f : 1.0f,
                         .fadeStep = params.fadeIn > 0.0f ? GetFadeStep(params.fadeIn) : 0.0f});
+    Voice& voice = m_voices.back();
     if (!FindBusSlot(params.bus)) {
-        m_voices.back().params.bus = AudioBusId::Master;
+        voice.params.bus = AudioBusId::Master;
+    }
+    if (stream) {
+        voice.stream = std::move(stream);
+        AdvanceStream(voice);
+        AdvanceStream(voice);
+        voice.streamFrame = 0;
     }
     return {id};
 }
@@ -421,6 +482,65 @@ const Mixer::Voice* Mixer::FindVoice(SoundInstance instance) const {
     return it != m_voices.end() ? &*it : nullptr;
 }
 
+bool Mixer::StepEnvelope(Voice& voice, float leftTarget, float rightTarget) const {
+    if (voice.fadeStep != 0.0f) {
+        voice.fade = std::clamp(voice.fade + voice.fadeStep, 0.0f, 1.0f);
+        if (voice.fade == 0.0f) {
+            voice.fadeStep = 0.0f;
+            if (voice.stopping) {
+                voice.ended = true;
+                return false;
+            }
+            if (voice.pauseRequested) {
+                voice.paused = true;
+                return false;
+            }
+        } else if (voice.fade == 1.0f) {
+            voice.fadeStep = 0.0f;
+        }
+    }
+    // A change of the whole range takes as long as a fade.
+    const float rampStep = GetFadeStep(ClickFadeSeconds);
+    voice.leftGain = StepToward(voice.leftGain, leftTarget, rampStep);
+    voice.rightGain = StepToward(voice.rightGain, rightTarget, rampStep);
+    return true;
+}
+
+void Mixer::AdvanceStream(Voice& voice) {
+    std::array<float, 2> next = {};
+    if (!voice.stream->ReadFrame(next)) {
+        // Past the end comes silence, as for sounds in memory; before it, the stream ran dry, and waits.
+        if (!voice.stream->IsFinished()) {
+            return;
+        }
+        ++voice.streamTail;
+    }
+    voice.frame0 = voice.frame1;
+    voice.frame1 = next;
+    ++voice.streamFrame;
+}
+
+bool Mixer::ReadStreamFrame(Voice& voice, std::array<float, 2>& frame) {
+    const auto target = static_cast<std::uint64_t>(voice.position);
+    while (voice.streamFrame < target) {
+        const std::uint64_t before = voice.streamFrame;
+        AdvanceStream(voice);
+        if (voice.streamFrame == before) {
+            // The worker is late: the voice holds its place until frames come.
+            voice.position = static_cast<double>(voice.streamFrame);
+            break;
+        }
+    }
+    // Two silent frames in, the first frame played between is past the end.
+    if (voice.streamTail >= 2) {
+        voice.ended = true;
+        return false;
+    }
+    const auto t = static_cast<float>(voice.position - static_cast<double>(voice.streamFrame));
+    frame = {std::lerp(voice.frame0[0], voice.frame1[0], t), std::lerp(voice.frame0[1], voice.frame1[1], t)};
+    return true;
+}
+
 void Mixer::MixVoice(Voice& voice, std::span<float> output) const {
     const Sound& sound = *voice.sound;
     const std::span<const float> samples = sound.GetSamples();
@@ -435,8 +555,19 @@ void Mixer::MixVoice(Voice& voice, std::span<float> output) const {
     const double step = static_cast<double>(sound.GetSampleRate()) / static_cast<double>(m_sampleRate) *
                         static_cast<double>(std::max(voice.params.pitch, 0.0f));
     const auto [leftTarget, rightTarget] = GetGains(voice.params);
-    // A change of the whole range takes as long as a fade.
-    const float rampStep = GetFadeStep(ClickFadeSeconds);
+
+    if (voice.stream) {
+        for (std::size_t i = 0; i + 1 < output.size(); i += 2) {
+            std::array<float, 2> frame = {};
+            if (!StepEnvelope(voice, leftTarget, rightTarget) || !ReadStreamFrame(voice, frame)) {
+                return;
+            }
+            output[i] += frame[0] * voice.leftGain * voice.fade;
+            output[i + 1] += frame[1] * voice.rightGain * voice.fade;
+            voice.position += step;
+        }
+        return;
+    }
 
     // Past the end, a looping sound continues from its start and any other sound is silent.
     const auto sampleAt = [&](std::uint64_t frame, std::uint32_t channel) {
@@ -457,24 +588,9 @@ void Mixer::MixVoice(Voice& voice, std::span<float> output) const {
             voice.position = std::fmod(voice.position, static_cast<double>(frameCount));
         }
 
-        if (voice.fadeStep != 0.0f) {
-            voice.fade = std::clamp(voice.fade + voice.fadeStep, 0.0f, 1.0f);
-            if (voice.fade == 0.0f) {
-                voice.fadeStep = 0.0f;
-                if (voice.stopping) {
-                    voice.ended = true;
-                    return;
-                }
-                if (voice.pauseRequested) {
-                    voice.paused = true;
-                    return;
-                }
-            } else if (voice.fade == 1.0f) {
-                voice.fadeStep = 0.0f;
-            }
+        if (!StepEnvelope(voice, leftTarget, rightTarget)) {
+            return;
         }
-        voice.leftGain = StepToward(voice.leftGain, leftTarget, rampStep);
-        voice.rightGain = StepToward(voice.rightGain, rightTarget, rampStep);
 
         // Linear interpolation between neighboring frames converts the sample rate and applies the pitch.
         const auto frame = static_cast<std::uint64_t>(voice.position);

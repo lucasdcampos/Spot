@@ -129,7 +129,12 @@ std::optional<std::vector<ModelFilePart>> DecodeModel(std::span<const std::byte>
 void Encode(BinaryWriter& writer, const SoundFile& sound) {
     writer.Write(sound.sampleRate);
     writer.Write(sound.channelCount);
-    WriteArray(writer, std::span<const std::int16_t>(sound.samples));
+    writer.Write(static_cast<std::uint8_t>(sound.streamed));
+    if (sound.streamed) {
+        WriteArray(writer, std::span<const std::byte>(sound.encoded));
+    } else {
+        WriteArray(writer, std::span<const std::int16_t>(sound.samples));
+    }
 }
 
 std::optional<SoundFile> DecodeSound(std::span<const std::byte> data) {
@@ -137,9 +142,20 @@ std::optional<SoundFile> DecodeSound(std::span<const std::byte> data) {
     SoundFile sound;
     sound.sampleRate = reader.Read<std::uint32_t>();
     sound.channelCount = reader.Read<std::uint32_t>();
+    sound.streamed = reader.Read<std::uint8_t>() != 0;
+    if (sound.sampleRate == 0 || (sound.channelCount != 1 && sound.channelCount != 2)) {
+        return std::nullopt;
+    }
+    if (sound.streamed) {
+        auto encoded = ReadArray<std::byte>(reader);
+        if (!encoded || encoded->empty()) {
+            return std::nullopt;
+        }
+        sound.encoded = std::move(*encoded);
+        return Finish(reader, std::move(sound));
+    }
     auto samples = ReadArray<std::int16_t>(reader);
-    if (!samples || sound.sampleRate == 0 || (sound.channelCount != 1 && sound.channelCount != 2) ||
-        samples->size() % sound.channelCount != 0) {
+    if (!samples || samples->size() % sound.channelCount != 0) {
         return std::nullopt;
     }
     sound.samples = std::move(*samples);

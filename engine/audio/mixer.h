@@ -2,9 +2,11 @@
 
 #include "audio/playback.h"
 #include "audio/sound.h"
+#include "audio/sound_stream.h"
 
 #include <array>
 #include <atomic>
+#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -13,6 +15,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 namespace Spot::Detail {
@@ -24,12 +27,19 @@ namespace Spot::Detail {
 // passes it to its parent. Buses live in a fixed number of slots, so mixing never allocates and their peak meters can
 // be read without locks.
 //
+// Streamed sounds decode ahead on a thread of the mixer's, started with the first of them, which tests may do without
+// and update the streams themselves with UpdateStreams().
+//
 // All methods are thread-safe: the game controls playback while the backend's audio thread calls Mix().
 class Mixer {
 public:
     static constexpr std::size_t MaxBuses = 32;
 
-    explicit Mixer(std::uint32_t sampleRate);
+    explicit Mixer(std::uint32_t sampleRate, bool streamThread = true);
+    ~Mixer();
+
+    Mixer(const Mixer&) = delete;
+    Mixer& operator=(const Mixer&) = delete;
 
     std::uint32_t GetSampleRate() const { return m_sampleRate; }
 
@@ -88,6 +98,9 @@ public:
     // The loudest sample of each channel that left the bus in the last mix, after its volume; read without locks.
     AudioPeak GetBusPeak(AudioBusId bus) const;
 
+    // Decodes ahead for every streamed playback, as the mixer's thread does.
+    void UpdateStreams();
+
     // Fills the output with interleaved stereo frames, replacing what it held. Called from the audio thread, so it
     // neither allocates nor frees: sounds that end are released by the next Play() instead.
     void Mix(std::span<float> output);
@@ -107,6 +120,13 @@ private:
         bool paused = false;
         bool stopping = false;
         bool ended = false;
+        // Streamed sounds only: the decoded frames played between, the first of which is the stream's frame of that
+        // index, and how many silent frames followed the end.
+        std::shared_ptr<SoundStream> stream;
+        std::array<float, 2> frame0 = {};
+        std::array<float, 2> frame1 = {};
+        std::uint64_t streamFrame = 0;
+        int streamTail = 0;
         // The gains reached so far, which follow the volume and the pan a step each frame.
         float leftGain = 0.0f;
         float rightGain = 0.0f;
@@ -128,6 +148,12 @@ private:
     Voice* FindVoice(SoundInstance instance);
     const Voice* FindVoice(SoundInstance instance) const;
     void MixVoice(Voice& voice, std::span<float> output) const;
+    // Fades and ramps the voice a frame; false once a fade silenced it.
+    bool StepEnvelope(Voice& voice, float leftTarget, float rightTarget) const;
+    // The streamed voice's frame at its position; false once past the end.
+    static bool ReadStreamFrame(Voice& voice, std::array<float, 2>& frame);
+    static void AdvanceStream(Voice& voice);
+    void RunStreamThread();
     void StopVoice(Voice& voice, float fadeOut);
     float GetFadeStep(float seconds) const;
     void ApplyBusGain(Bus& bus, std::span<float> samples) const;
@@ -148,6 +174,14 @@ private:
     std::vector<std::size_t> m_busOrder;
     std::vector<float> m_busBuffers;
     std::array<std::atomic<float>, MaxBuses * 2> m_peaks;
+
+    // Apart from the mixer's lock, so decoding never holds up mixing.
+    std::mutex m_streamsMutex;
+    std::vector<std::weak_ptr<SoundStream>> m_streams;
+    bool m_useStreamThread;
+    bool m_stopStreams = false;
+    std::condition_variable m_streamsChanged;
+    std::thread m_streamThread;
 };
 
 } // namespace Spot::Detail

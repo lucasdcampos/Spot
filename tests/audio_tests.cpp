@@ -37,7 +37,7 @@ void AppendLittleEndian(std::vector<std::byte>& out, std::uint32_t value, int by
 
 // A 16-bit PCM WAV file holding the given interleaved samples.
 std::vector<std::byte> MakeWav(std::uint32_t sampleRate, std::uint32_t channels,
-                               std::initializer_list<std::int16_t> samples) {
+                               std::span<const std::int16_t> samples) {
     const auto dataSize = static_cast<std::uint32_t>(samples.size() * 2);
     std::vector<std::byte> wav;
     AppendBytes(wav, "RIFF");
@@ -56,6 +56,20 @@ std::vector<std::byte> MakeWav(std::uint32_t sampleRate, std::uint32_t channels,
         AppendLittleEndian(wav, static_cast<std::uint16_t>(sample), 2);
     }
     return wav;
+}
+
+std::vector<std::byte> MakeWav(std::uint32_t sampleRate, std::uint32_t channels,
+                               std::initializer_list<std::int16_t> samples) {
+    return MakeWav(sampleRate, channels, std::span<const std::int16_t>(samples.begin(), samples.size()));
+}
+
+// Mono samples rising a step each frame, so where a stream is in it shows in what it plays.
+std::vector<std::int16_t> MakeRamp(std::size_t frames) {
+    std::vector<std::int16_t> samples(frames);
+    for (std::size_t i = 0; i < frames; ++i) {
+        samples[i] = static_cast<std::int16_t>(i % 30000);
+    }
+    return samples;
 }
 
 } // namespace
@@ -453,6 +467,105 @@ TEST_CASE("Sounds can fade in, and fade out as long as asked when stopped", "[au
     CHECK(Mix(mixer, 2400)[4798] == Catch::Approx(0.5f).margin(0.01f));
     Mix(mixer, 2400);
     CHECK(Mix(mixer, 1)[0] == 0.0f);
+}
+
+TEST_CASE("Streamed sounds keep their data encoded", "[audio][stream]") {
+    const auto wav = Spot::Sound::CreateStream(MakeWav(22050, 2, {0, 16384, -16384, -32768}));
+    REQUIRE(wav);
+    CHECK(wav->IsStreamed());
+    CHECK(wav->GetSamples().empty());
+    CHECK(wav->GetSampleRate() == 22050);
+    CHECK(wav->GetChannelCount() == 2);
+    CHECK(wav->GetFrameCount() == 2);
+    CHECK_FALSE(wav->GetEncodedData().empty());
+
+    const auto ogg = Spot::Sound::LoadStream(std::filesystem::path(SPOT_TEST_ASSETS_DIR) / "sine.ogg");
+    REQUIRE(ogg);
+    CHECK(ogg->GetSampleRate() == 44100);
+    CHECK(ogg->GetFrameCount() == 11025);
+    CHECK_FALSE(Spot::Sound(48000, 1, {0.5f}).IsStreamed());
+
+    const auto capture = std::make_shared<Spot::Tests::CaptureSink>();
+    const Spot::Tests::ScopedSinks sinks({capture});
+    CHECK_FALSE(Spot::Sound::CreateStream(std::vector<std::byte>(16)));
+    CHECK_FALSE(capture->GetRecords().empty());
+}
+
+TEST_CASE("Streamed sounds play as they would decoded, looping included", "[audio][stream]") {
+    Spot::Detail::Mixer mixer(48000, false);
+    const auto ramp = MakeRamp(1000);
+    const auto wav = MakeWav(32000, 1, ramp);
+    const auto decoded = Spot::Sound::LoadFromMemory(wav);
+    const auto streamed = Spot::Sound::CreateStream(wav);
+    REQUIRE(decoded);
+    REQUIRE(streamed);
+
+    // On opposite sides, so each channel shows one of them; the rates differ, so frames are interpolated.
+    const auto a = mixer.Play(decoded, {.pan = -1.0f, .loop = true});
+    const auto b = mixer.Play(streamed, {.pan = 1.0f, .loop = true});
+    for (int block = 0; block < 4; ++block) {
+        const auto output = Mix(mixer, 1000);
+        for (std::size_t i = 0; i < output.size(); i += 2) {
+            CAPTURE(block, i);
+            REQUIRE(output[i + 1] == Catch::Approx(output[i]).margin(1e-6f));
+        }
+    }
+    CHECK(mixer.IsPlaying(a));
+    CHECK(mixer.IsPlaying(b));
+
+    // Without looping, it ends with its last frame.
+    mixer.StopAll();
+    Settle(mixer);
+    const auto once = mixer.Play(streamed, {.pitch = 1.5f});
+    Mix(mixer, 990);
+    CHECK(mixer.IsPlaying(once));
+    Mix(mixer, 20);
+    CHECK_FALSE(mixer.IsPlaying(once));
+}
+
+TEST_CASE("A stream decodes ahead, and waits where it is when it runs dry", "[audio][stream]") {
+    Spot::Detail::Mixer mixer(48000, false);
+    const auto ramp = MakeRamp(48000 * 2);
+    const auto streamed = Spot::Sound::CreateStream(MakeWav(48000, 1, ramp));
+    REQUIRE(streamed);
+    const auto instance = mixer.Play(streamed);
+
+    // Half a second is decoded before it plays; past it, nothing new comes until the streams update.
+    const auto first = Mix(mixer, 24000);
+    CHECK(first[2 * 23990] == Catch::Approx(23990.0f / 32768.0f).margin(1e-4f));
+    const auto dry = Mix(mixer, 100);
+    CHECK(mixer.IsPlaying(instance));
+
+    mixer.UpdateStreams();
+    const auto resumed = Mix(mixer, 100);
+    // It goes on from where the buffer ran out, losing nothing.
+    CHECK(resumed[0] == Catch::Approx(dry[0]).margin(2.0f / 32768.0f));
+    CHECK(resumed[2 * 50] > resumed[0]);
+
+    // Updated as it plays, it reaches its end.
+    for (int i = 0; i < 10; ++i) {
+        mixer.UpdateStreams();
+        Mix(mixer, 12000);
+    }
+    CHECK_FALSE(mixer.IsPlaying(instance));
+}
+
+TEST_CASE("The mixer's own thread keeps streams decoded", "[audio][stream]") {
+    Spot::Detail::Mixer mixer(48000);
+    const auto streamed = Spot::Sound::CreateStream(MakeWav(48000, 1, MakeRamp(48000 * 2)));
+    REQUIRE(streamed);
+    const auto instance = mixer.Play(streamed);
+
+    // Mixed no faster than it plays, the worker keeps ahead of it.
+    float last = 0.0f;
+    for (int i = 0; i < 15; ++i) {
+        const auto output = Mix(mixer, 4800);
+        last = output[output.size() - 2];
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    // A second and a half in, past the first half second decoded before it played.
+    CHECK(last == Catch::Approx(static_cast<float>((48000 * 3 / 2 - 1) % 30000) / 32768.0f).margin(1e-3f));
+    CHECK(mixer.IsPlaying(instance));
 }
 
 TEST_CASE("A disabled audio device plays nothing but stays usable", "[audio]") {
