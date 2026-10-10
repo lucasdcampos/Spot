@@ -88,6 +88,7 @@ public:
     // Every bus, the master one first.
     std::vector<AudioBusId> GetBuses() const;
     std::string GetBusName(AudioBusId bus) const;
+    void SetBusName(AudioBusId bus, std::string_view name);
     // Nothing for the master bus and for buses that do not exist.
     std::optional<AudioBusId> GetBusParent(AudioBusId bus) const;
     // False, changing nothing, when either bus does not exist, the bus is the master one, or the parent is the bus or
@@ -97,6 +98,10 @@ public:
     void SetBusVolume(AudioBusId bus, float volume);
     bool IsBusMuted(AudioBusId bus) const;
     void SetBusMuted(AudioBusId bus, bool muted);
+    // While any bus is soloed, only sounds on soloed buses, or on buses below them, are heard, as when listening to
+    // one group of sounds alone.
+    bool IsBusSolo(AudioBusId bus) const;
+    void SetBusSolo(AudioBusId bus, bool solo);
     // The loudest sample of each channel that left the bus in the last mix, after its volume, for meters. Cheap and
     // never waits for the audio thread.
     AudioPeak GetBusPeak(AudioBusId bus) const;

@@ -320,6 +320,13 @@ std::string Mixer::GetBusName(AudioBusId bus) const {
     return found ? found->name : std::string();
 }
 
+void Mixer::SetBusName(AudioBusId bus, std::string_view name) {
+    std::scoped_lock lock(m_mutex);
+    if (Bus* found = FindBusSlot(bus)) {
+        found->name = name;
+    }
+}
+
 std::optional<AudioBusId> Mixer::GetBusParent(AudioBusId bus) const {
     std::scoped_lock lock(m_mutex);
     const Bus* found = FindBusSlot(bus);
@@ -375,6 +382,20 @@ void Mixer::SetBusMuted(AudioBusId bus, bool muted) {
     }
 }
 
+bool Mixer::IsBusSolo(AudioBusId bus) const {
+    std::scoped_lock lock(m_mutex);
+    const Bus* found = FindBusSlot(bus);
+    return found && found->solo;
+}
+
+void Mixer::SetBusSolo(AudioBusId bus, bool solo) {
+    std::scoped_lock lock(m_mutex);
+    if (Bus* found = FindBusSlot(bus)) {
+        found->solo = solo;
+        UpdateBusOrder();
+    }
+}
+
 AudioPeak Mixer::GetBusPeak(AudioBusId bus) const {
     const std::size_t slot = ToSlot(bus);
     if (slot >= MaxBuses) {
@@ -405,7 +426,8 @@ void Mixer::Mix(std::span<float> output) {
         }
         for (Voice& voice : m_voices) {
             if (!voice.paused && !voice.ended) {
-                MixVoice(voice, GetBusBuffer(ToSlot(voice.params.bus), count));
+                const std::size_t slot = ToSlot(voice.params.bus);
+                MixVoice(voice, GetBusBuffer(slot, count), m_buses[slot].soloSilenced ? 0.0f : 1.0f);
             }
         }
         // Each bus scales what reached it and passes it up, after the buses below it did.
@@ -454,6 +476,18 @@ Mixer::Bus* Mixer::FindBusSlot(AudioBusId bus) {
 }
 
 void Mixer::UpdateBusOrder() {
+    const bool anySolo = std::ranges::any_of(m_buses, [](const Bus& bus) { return bus.used && bus.solo; });
+    for (std::size_t slot = 0; slot < MaxBuses; ++slot) {
+        bool heard = !anySolo;
+        for (std::size_t up = slot; !heard && m_buses[slot].used; up = m_buses[up].parent) {
+            heard = m_buses[up].solo;
+            if (up == 0) {
+                break;
+            }
+        }
+        m_buses[slot].soloSilenced = !heard;
+    }
+
     std::array<int, MaxBuses> depths = {};
     m_busOrder.clear();
     for (std::size_t slot = 1; slot < MaxBuses; ++slot) {
@@ -541,7 +575,7 @@ bool Mixer::ReadStreamFrame(Voice& voice, std::array<float, 2>& frame) {
     return true;
 }
 
-void Mixer::MixVoice(Voice& voice, std::span<float> output) const {
+void Mixer::MixVoice(Voice& voice, std::span<float> output, float gain) const {
     const Sound& sound = *voice.sound;
     const std::span<const float> samples = sound.GetSamples();
     const std::uint64_t frameCount = sound.GetFrameCount();
@@ -554,7 +588,9 @@ void Mixer::MixVoice(Voice& voice, std::span<float> output) const {
 
     const double step = static_cast<double>(sound.GetSampleRate()) / static_cast<double>(m_sampleRate) *
                         static_cast<double>(std::max(voice.params.pitch, 0.0f));
-    const auto [leftTarget, rightTarget] = GetGains(voice.params);
+    auto [leftTarget, rightTarget] = GetGains(voice.params);
+    leftTarget *= gain;
+    rightTarget *= gain;
 
     if (voice.stream) {
         for (std::size_t i = 0; i + 1 < output.size(); i += 2) {

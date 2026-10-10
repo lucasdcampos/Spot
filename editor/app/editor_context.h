@@ -46,6 +46,10 @@ public:
     ThumbnailCache* GetThumbnails() { return m_thumbnails; }
     void SetThumbnails(ThumbnailCache* thumbnails) { m_thumbnails = thumbnails; }
 
+    // The application's audio device, which games played in the editor sound through; null in tests that have none.
+    AudioDevice* GetAudioDevice() const { return m_audio; }
+    void SetAudioDevice(AudioDevice* audio) { m_audio = audio; }
+
     // The editor's own input, also while a game plays in it; null in tests that have none.
     const InputState* GetInput() const { return m_input; }
     void SetInput(const InputState* input) { m_input = input; }
@@ -67,6 +71,7 @@ private:
     std::uint64_t m_inspectedSelection = 0;
     Vector2 m_mouseDelta;
     const InputState* m_input = nullptr;
+    AudioDevice* m_audio = nullptr;
 };
 
 } // namespace Spot::Editor

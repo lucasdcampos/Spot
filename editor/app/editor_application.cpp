@@ -6,6 +6,7 @@
 #include "imgui/icons.h"
 #include "imgui/widgets.h"
 #include "panels/asset_browser_panel.h"
+#include "panels/audio_mixer_panel.h"
 #include "panels/console_panel.h"
 #include "panels/hierarchy_panel.h"
 #include "panels/inspector_panel.h"
@@ -136,6 +137,7 @@ void EditorApplication::OnStart() {
 
     m_context = std::make_unique<EditorContext>(GetWindow(), &GetGraphicsDevice(), m_settings);
     m_context->SetInput(&GetInputState());
+    m_context->SetAudioDevice(&GetAudioDevice());
     m_thumbnails = std::make_unique<ThumbnailCache>(GetGraphicsDevice());
     m_game = std::make_unique<GameRunner>();
     m_context->SetThumbnails(m_thumbnails.get());
@@ -161,6 +163,7 @@ void EditorApplication::OnStart() {
     m_panels.push_back(std::move(assetBrowser));
     m_panels.push_back(std::make_unique<ConsolePanel>(m_consoleLog));
     m_panels.push_back(std::make_unique<ProjectSettingsPanel>(*m_context));
+    m_panels.push_back(std::make_unique<AudioMixerPanel>(*m_context));
     GetEditorLogger().Info("Spot Editor {} started", GetVersionString());
 
     if (!m_options.project.empty()) {
@@ -526,7 +529,8 @@ void EditorApplication::DrawMainMenu() {
         ImGui::Separator();
         if (ImGui::MenuItem(ICON_FA_TABLE_COLUMNS "  Reset Layout")) {
             for (const auto& panel : m_panels) {
-                panel->SetOpen(panel->GetId() != "ProjectSettings");
+                // Windows opened when needed start closed.
+                panel->SetOpen(panel->GetId() != "ProjectSettings" && panel->GetId() != "AudioMixer");
             }
             m_layoutPending = true;
         }
@@ -882,7 +886,8 @@ void EditorApplication::DrawDockSpace() {
                                          .hierarchy = "Hierarchy",
                                          .inspector = "Inspector",
                                          .assets = "Assets",
-                                         .console = "Console"});
+                                         .console = "Console",
+                                         .mixer = "AudioMixer"});
     }
     ImGui::DockSpaceOverViewport(m_dockSpace, ImGui::GetMainViewport());
 }

@@ -33,6 +33,9 @@ ImGuiID BuildDefaultLayout(ImGuiID dockSpace, const LayoutWindows& windows) {
     Dock(windows.inspector, inspector);
     Dock(windows.assets, assets);
     Dock(windows.console, console);
+    if (!windows.mixer.empty()) {
+        Dock(windows.mixer, console);
+    }
     ImGui::DockBuilderFinish(dockSpace);
     return scenes;
 }

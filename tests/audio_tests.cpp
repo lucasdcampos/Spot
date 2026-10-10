@@ -409,6 +409,73 @@ TEST_CASE("Each bus's peak meter tells the loudest sample that left it", "[audio
     CHECK(mixer.GetBusPeak(static_cast<AudioBusId>(1000)).left == 0.0f);
 }
 
+TEST_CASE("Soloed buses are heard alone, with the buses below them", "[audio][mixer][bus]") {
+    using Spot::AudioBusId;
+    Spot::Detail::Mixer mixer(48000);
+    const AudioBusId effects = *mixer.AddBus("Effects");
+    const AudioBusId weapons = *mixer.AddBus("Weapons", effects);
+    const AudioBusId music = *mixer.AddBus("Music");
+    const auto sound = MakeSound(48000, 1, {0.1f});
+    mixer.Play(sound, {.loop = true, .bus = weapons});
+    mixer.Play(sound, {.loop = true, .bus = effects});
+    mixer.Play(sound, {.loop = true, .bus = music});
+    mixer.Play(sound, {.loop = true});
+    CHECK(Mix(mixer, 1)[0] == Catch::Approx(0.4f));
+
+    // Effects and the weapons below it; neither the music nor what plays on the master bus itself.
+    mixer.SetBusSolo(effects, true);
+    CHECK(mixer.IsBusSolo(effects));
+    Settle(mixer);
+    CHECK(Mix(mixer, 1)[0] == Catch::Approx(0.2f));
+
+    mixer.SetBusSolo(music, true);
+    Settle(mixer);
+    CHECK(Mix(mixer, 1)[0] == Catch::Approx(0.3f));
+
+    mixer.SetBusSolo(effects, false);
+    mixer.SetBusSolo(music, false);
+    Settle(mixer);
+    CHECK(Mix(mixer, 1)[0] == Catch::Approx(0.4f));
+}
+
+TEST_CASE("The audio settings give the device their buses, in any order", "[audio][bus][settings]") {
+    Spot::SettingsSections sections;
+    sections.audio.masterVolume = 0.8f;
+    sections.audio.buses = {{.name = "Weapons", .parent = "Effects", .volume = 0.5f},
+                            {.name = "Effects", .muted = true},
+                            {.name = "Music", .parent = "Missing"}};
+    Spot::SettingsSections loaded;
+    REQUIRE(loaded.LoadFromString(sections.SaveToString()));
+    REQUIRE(loaded.audio.buses.size() == 3);
+    CHECK(loaded.audio.masterVolume == 0.8f);
+    CHECK(loaded.audio.buses[0].parent == "Effects");
+    CHECK(loaded.audio.buses[0].volume == 0.5f);
+    CHECK(loaded.audio.buses[1].muted);
+
+    Spot::AudioDevice device({.enabled = false});
+    const Spot::AudioBusId kept = *device.AddBus("Voices");
+    loaded.audio.Apply(device);
+    CHECK(device.GetMasterVolume() == 0.8f);
+    const auto weapons = device.FindBus("Weapons");
+    const auto effects = device.FindBus("Effects");
+    REQUIRE(weapons.has_value());
+    REQUIRE(effects.has_value());
+    CHECK(device.GetBusParent(*weapons) == effects);
+    CHECK(device.GetBusVolume(*weapons) == 0.5f);
+    CHECK(device.IsBusMuted(*effects));
+    CHECK(device.GetBusParent(*device.FindBus("Music")) == Spot::AudioBusId::Master);
+    CHECK(device.HasBus(kept));
+
+    // Applied again, nothing is added twice, and a loop is refused.
+    loaded.audio.buses[1].parent = "Weapons";
+    loaded.audio.Apply(device);
+    CHECK(device.GetBuses().size() == 5);
+    CHECK(device.GetBusParent(*effects) == Spot::AudioBusId::Master);
+
+    CHECK(Spot::AudioSettings::MakeDefault().buses.size() == 4);
+    CHECK(Spot::SettingsSections{}.audio.buses.empty());
+}
+
 TEST_CASE("New sounds take the voices of lower priorities, the oldest first, past the limit",
           "[audio][mixer][voices]") {
     Spot::Detail::Mixer mixer(48000);

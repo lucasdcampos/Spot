@@ -37,6 +37,7 @@ when the game's code is reloaded and every component is recreated. Unsaved scene
 | Inspector | The selected entities' name, tags, layer, activity, transform and components; draws each component's fields from its `Serialize()` through the `InspectorBackend`; edits several entities at once; marks missing and faulted components; fits box, sphere and capsule colliders to the entity's mesh (Fit to Mesh in their menu) |
 | Assets | Browses the project's sources with thumbnails; moves, renames, duplicates, deletes and imports files dropped from the OS; inspects import settings |
 | Console | The log, filtered by level and text |
+| Audio Mixer | The project's audio buses as strips with faders, peak meters, mute and solo, heard at once, also while playing |
 | Project Settings | The project's name, version and startup scene, every settings section, drawn through the inspector backend, the layers' names and collision matrix, and the input actions, whose controls are bound by clicking and pressing them |
 
 ## Game code

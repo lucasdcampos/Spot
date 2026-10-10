@@ -1,6 +1,7 @@
 #pragma once
 
 #include "assets/asset_id.h"
+#include "audio/audio_settings.h"
 #include "input/input_settings.h"
 #include "physics/physics_settings.h"
 
@@ -21,6 +22,7 @@ class Scene;
 struct SettingsSections {
     PhysicsSettings physics = {};
     InputSettings input = {};
+    AudioSettings audio = {};
     // The sections this build of the engine does not know, as JSON text by name, so saving them loses nothing.
     std::map<std::string, std::string, std::less<>> unknown = {};
 
@@ -29,6 +31,7 @@ struct SettingsSections {
     void ForEach(F&& fn) {
         fn(PhysicsSettings::SectionName, physics);
         fn(InputSettings::SectionName, input);
+        fn(AudioSettings::SectionName, audio);
     }
 
     // Reads the sections of a JSON object that holds them by name. Sections it does not have keep their values.

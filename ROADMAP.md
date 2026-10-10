@@ -442,7 +442,7 @@ defined in the audio settings. Streamed sounds decode on a worker thread into a 
   volume, pitch, loop, play on start, spatial on or off, min and max distance, a rolloff curve, and `Play()`,
   `Stop()` and `Pause()`. Add `Audio::PlayOneShot(sound, position, bus)`. An `AudioSystem` (M0.2) updates gains and
   pan from transforms. A scene's sounds stop when it unloads and pause when scenes are paused. Tests.
-- [ ] **M3.5 Mixer settings and panel.** The audio settings section (buses, default volumes) and an editor Audio Mixer
+- [x] **M3.5 Mixer settings and panel.** The audio settings section (buses, default volumes) and an editor Audio Mixer
   panel with faders, meters, mute and solo, which take effect live during Play.
 - [ ] **M3.6 Sandbox: sound.** The generator gets a WAV writer and synthesizes the game's sounds: gunshots,
   explosions, impacts per surface, footsteps, the physics gun's hum, and UI clicks. Weapons and explosions sound
@@ -475,6 +475,12 @@ defined in the audio settings. Streamed sounds decode on a worker thread into a 
   occlusion yet. `Application::SetScenesPaused()` pauses every scene's `AudioSystem`; sources paused by the game
   stay paused on resume. `AudioConfig::manualMix` with `AudioDevice::Render()` lets tests play sounds without an
   output.
+- M3.5: `AudioSettings` ("audio") holds the master volume and buses by name (parents by name too); `Apply()` adds
+  missing buses first, then parents, so order does not matter, and never removes buses code added. Solo is the
+  mixer's (`SetBusSolo()`): a voice is heard while any bus is soloed only if its bus or one above it is; voices on
+  the master bus itself are silenced too. Solo is not saved; mute is. The Audio Mixer panel edits the project's
+  settings, applies them to the editor's device at once (the play session shares it) and saves when an edit ends;
+  it docks with the console and starts closed. New projects get Music, Effects, Ambience and Interface buses.
 
 ---
 

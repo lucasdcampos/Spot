@@ -103,8 +103,8 @@ void ProjectSettingsPanel::OnDraw() {
     Widgets::EndProperties();
 
     settings.sections.ForEach([this, project](std::string_view name, auto& section) {
-        // Drawn by an editor of its own, below.
-        if (name == InputSettings::SectionName) {
+        // Drawn by editors of their own: the input actions below, and the buses in the Audio Mixer.
+        if (name == InputSettings::SectionName || name == AudioSettings::SectionName) {
             return;
         }
         ImGui::Spacing();

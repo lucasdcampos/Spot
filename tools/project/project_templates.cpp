@@ -450,7 +450,9 @@ std::optional<std::filesystem::path> CreateProject(const std::filesystem::path& 
         return std::nullopt;
     }
 
-    auto project = Project::Create(directory, {.name = name, .sections = {.input = InputSettings::MakeDefault()}});
+    auto project = Project::Create(
+        directory,
+        {.name = name, .sections = {.input = InputSettings::MakeDefault(), .audio = AudioSettings::MakeDefault()}});
     if (!project) {
         return std::nullopt;
     }

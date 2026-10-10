@@ -85,6 +85,7 @@ public:
     // Every bus, the master bus first.
     std::vector<AudioBusId> GetBuses() const;
     std::string GetBusName(AudioBusId bus) const;
+    void SetBusName(AudioBusId bus, std::string_view name);
     // Nothing for the master bus, which has no parent, and for buses that do not exist.
     std::optional<AudioBusId> GetBusParent(AudioBusId bus) const;
     // False, changing nothing, when either bus does not exist, the bus is the master one, or the parent is the bus or
@@ -95,6 +96,9 @@ public:
     void SetBusVolume(AudioBusId bus, float volume);
     bool IsBusMuted(AudioBusId bus) const;
     void SetBusMuted(AudioBusId bus, bool muted);
+    // While any bus is soloed, only sounds on soloed buses, or on buses below them, are heard.
+    bool IsBusSolo(AudioBusId bus) const;
+    void SetBusSolo(AudioBusId bus, bool solo);
     // The loudest sample of each channel that left the bus in the last mix, after its volume; read without locks.
     AudioPeak GetBusPeak(AudioBusId bus) const;
 
@@ -141,13 +145,17 @@ private:
         std::size_t parent = 0;
         float volume = 1.0f;
         bool muted = false;
+        bool solo = false;
+        // Silenced by another bus's solo; see UpdateBusOrder().
+        bool soloSilenced = false;
         // The gain reached so far, which follows the volume and muting a step each frame.
         float gain = 1.0f;
     };
 
     Voice* FindVoice(SoundInstance instance);
     const Voice* FindVoice(SoundInstance instance) const;
-    void MixVoice(Voice& voice, std::span<float> output) const;
+    // The gain multiplies the voice's volume, as solo does.
+    void MixVoice(Voice& voice, std::span<float> output, float gain) const;
     // Fades and ramps the voice a frame; false once a fade silenced it.
     bool StepEnvelope(Voice& voice, float leftTarget, float rightTarget) const;
     // The streamed voice's frame at its position; false once past the end.
@@ -159,7 +167,7 @@ private:
     void ApplyBusGain(Bus& bus, std::span<float> samples) const;
     const Bus* FindBusSlot(AudioBusId bus) const;
     Bus* FindBusSlot(AudioBusId bus);
-    // Orders the buses so each comes before its parent, as mixing passes them up.
+    // Orders the buses so each comes before its parent, as mixing passes them up, and works out which solo silences.
     void UpdateBusOrder();
     std::span<float> GetBusBuffer(std::size_t slot, std::size_t samples);
 

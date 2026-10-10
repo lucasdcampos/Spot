@@ -85,6 +85,9 @@ int Application::Run() {
     }
 
     m_audio = std::make_unique<AudioDevice>(m_config.audio);
+    if (m_config.game) {
+        m_config.game->sections.audio.Apply(*m_audio);
+    }
 
     std::filesystem::path importDirectory = m_config.assets.importDirectory;
     if (importDirectory.empty()) {
@@ -225,6 +228,9 @@ void Application::SetGameSettings(std::optional<GameSettings> game) {
     m_actions = {};
     if (m_config.game) {
         m_config.game->sections.input.Apply(m_actions);
+        if (m_audio) {
+            m_config.game->sections.audio.Apply(*m_audio);
+        }
     }
     // Tools play games with the project's bindings, not a player's.
     m_actions.SetDefaults();

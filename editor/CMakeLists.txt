@@ -105,6 +105,8 @@ add_library(spot_editor_core STATIC
     play/play_session.cpp
     play/play_session.h
     panels/asset_browser_panel.cpp
+    panels/audio_mixer_panel.cpp
+    panels/audio_mixer_panel.h
     panels/asset_browser_panel.h
     panels/console_panel.cpp
     panels/console_panel.h

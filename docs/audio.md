@@ -95,9 +95,22 @@ audio.SetBusVolume(effects, 0.5f);
 audio.SetBusMuted(weapons, true);
 ```
 
-There are at most 32 buses, the master one included; `SetMasterVolume()` is the master bus's volume. Removing a bus
+Soloing buses (`SetBusSolo()`) silences every sound but those on soloed buses or below them, to listen to some
+alone. There are at most 32 buses, the master one included; `SetMasterVolume()` is the master bus's volume. Removing a bus
 hands its sounds and its buses to its parent, and `SetBusParent()` refuses to make loops. `GetBusPeak()` tells the
 loudest sample of each channel that left a bus in the last mix, for meters, without waiting for the audio thread.
+
+## Audio settings and the mixer panel
+
+A game's buses come from the audio section of its settings (`AudioSettings`, section "audio"): the master volume,
+and each bus's name, parent (by name), volume and muting. The application gives them to its device when it starts
+(`AudioSettings::Apply()`, which adds missing buses, in any order, and leaves others alone). New projects start with
+Music, Effects, Ambience and Interface buses.
+
+The editor's Audio Mixer panel (Window menu) shows a strip per bus: a fader (double-click for 0 dB), a peak meter,
+mute and solo. A bus's menu renames it, moves it under another or removes it, and the last strip adds one. Changes
+are heard at once, while a game plays in the editor too, and saved to the project; solo only lasts while the editor
+runs.
 
 ## The mixer
 
@@ -108,4 +121,4 @@ because the mixer holds them.
 
 ## Not there yet
 
-The mixer panel and the audio settings come in the rest of the roadmap's milestone M3.
+The sandbox's sounds come with the roadmap's step M3.6.

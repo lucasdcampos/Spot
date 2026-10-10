@@ -143,6 +143,10 @@ std::string AudioDevice::GetBusName(AudioBusId bus) const {
     return m_mixer->GetBusName(bus);
 }
 
+void AudioDevice::SetBusName(AudioBusId bus, std::string_view name) {
+    m_mixer->SetBusName(bus, name);
+}
+
 std::optional<AudioBusId> AudioDevice::GetBusParent(AudioBusId bus) const {
     return m_mixer->GetBusParent(bus);
 }
@@ -165,6 +169,14 @@ bool AudioDevice::IsBusMuted(AudioBusId bus) const {
 
 void AudioDevice::SetBusMuted(AudioBusId bus, bool muted) {
     m_mixer->SetBusMuted(bus, muted);
+}
+
+bool AudioDevice::IsBusSolo(AudioBusId bus) const {
+    return m_mixer->IsBusSolo(bus);
+}
+
+void AudioDevice::SetBusSolo(AudioBusId bus, bool solo) {
+    m_mixer->SetBusSolo(bus, solo);
 }
 
 AudioPeak AudioDevice::GetBusPeak(AudioBusId bus) const {

@@ -4,6 +4,7 @@
 #include "app/editor_context.h"
 #include "app/shortcuts_window.h"
 #include "core/editor_settings.h"
+#include "panels/audio_mixer_panel.h"
 #include "panels/project_settings_panel.h"
 #include "project/editor_project.h"
 #include "project/new_project_dialog.h"
@@ -148,6 +149,33 @@ TEST_CASE("The project settings panel binds the control pressed to an action, an
     CHECK(actions[2].bindings[0].control == Spot::InputControl::Of(Spot::Key::J));
     CHECK(actions[0].bindings[0].parts[2] == Spot::InputControl::Of(Spot::Key::Left));
     CHECK(actions[3].bindings[0].control == Spot::InputControl::Of(Spot::MouseButton::Left));
+}
+
+TEST_CASE("The audio mixer gives the project's buses to the device, and draws a strip for each", "[editor][ui]") {
+    const TempDirectory temp;
+    const auto window = Spot::Window::Create();
+    REQUIRE(window != nullptr);
+    const auto file = Spot::CreateProject(temp.GetPath(), "Mixed", Spot::ProjectTemplate::Empty);
+    REQUIRE(file.has_value());
+    Spot::Tests::HeadlessImGui imgui;
+    Spot::Editor::EditorSettings settings;
+    Spot::AudioDevice audio({.manualMix = true});
+
+    Spot::Editor::EditorContext context(*window, nullptr, settings);
+    context.SetAudioDevice(&audio);
+    context.SetProject(Spot::Editor::EditorProject::Open(*file, nullptr));
+    Spot::Editor::AudioMixerPanel panel(context);
+    panel.SetOpen(true);
+    for (int i = 0; i < 3; ++i) {
+        imgui.BeginFrame();
+        panel.Draw();
+        imgui.EndFrame();
+    }
+
+    for (const char* bus : {"Music", "Effects", "Ambience", "Interface"}) {
+        CHECK(audio.FindBus(bus).has_value());
+    }
+    CHECK(panel.IsOpen());
 }
 
 TEST_CASE("The shortcuts list names every shortcut once per place, and finds them by keys or action", "[editor][ui]") {
