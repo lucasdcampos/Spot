@@ -5,7 +5,10 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
+#include <string>
 #include <string_view>
+#include <vector>
 
 namespace Spot {
 
@@ -51,9 +54,36 @@ public:
     void SetPan(SoundInstance instance, float pan);
     void SetPitch(SoundInstance instance, float pitch);
 
-    // Scales every sound; 1 by default.
+    // Scales every sound: the master bus's volume, 1 by default.
     float GetMasterVolume() const;
     void SetMasterVolume(float volume);
+
+    // Buses group sounds, such as music, effects and voices, so each group's volume and muting can change at once.
+    // They form a tree under the master bus: a sound plays into its bus (PlayParams::bus), each bus scales and mutes
+    // what reaches it, and passes it to its parent. There are at most 32, the master one included.
+    //
+    // A new bus below the parent, or the master bus when the parent does not exist; nothing once there are 32. The ids
+    // of removed buses go to new ones.
+    std::optional<AudioBusId> AddBus(std::string_view name, AudioBusId parent = AudioBusId::Master);
+    // Its sounds and its buses go to its parent. The master bus stays.
+    bool RemoveBus(AudioBusId bus);
+    bool HasBus(AudioBusId bus) const;
+    std::optional<AudioBusId> FindBus(std::string_view name) const;
+    // Every bus, the master one first.
+    std::vector<AudioBusId> GetBuses() const;
+    std::string GetBusName(AudioBusId bus) const;
+    // Nothing for the master bus and for buses that do not exist.
+    std::optional<AudioBusId> GetBusParent(AudioBusId bus) const;
+    // False, changing nothing, when either bus does not exist, the bus is the master one, or the parent is the bus or
+    // below it.
+    bool SetBusParent(AudioBusId bus, AudioBusId parent);
+    float GetBusVolume(AudioBusId bus) const;
+    void SetBusVolume(AudioBusId bus, float volume);
+    bool IsBusMuted(AudioBusId bus) const;
+    void SetBusMuted(AudioBusId bus, bool muted);
+    // The loudest sample of each channel that left the bus in the last mix, after its volume, for meters. Cheap and
+    // never waits for the audio thread.
+    AudioPeak GetBusPeak(AudioBusId bus) const;
 
 private:
     // Declared before the output, so the output stops pulling from the mixer before the mixer is destroyed.

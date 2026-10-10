@@ -27,12 +27,32 @@ changed while they play; `SetMasterVolume()` scales everything.
 Every `AudioDevice` method may be called from any thread. The device never fails: without an output, because audio
 is disabled (`AudioConfig::enabled`) or no device can be opened, it stays usable and plays nothing.
 
+## Buses
+
+Buses group sounds, such as music, effects and voices, so each group's volume and muting change at once. They form a
+tree under the master bus: a sound plays into its bus (`PlayParams::bus`, the master bus by default), and each bus
+scales and mutes what reaches it before passing it to its parent.
+
+```cpp
+const Spot::AudioBusId effects = *audio.AddBus("Effects");
+const Spot::AudioBusId weapons = *audio.AddBus("Weapons", effects);
+audio.Play(shot.GetShared(), {.bus = weapons});
+audio.SetBusVolume(effects, 0.5f);
+audio.SetBusMuted(weapons, true);
+```
+
+There are at most 32 buses, the master one included; `SetMasterVolume()` is the master bus's volume. Removing a bus
+hands its sounds and its buses to its parent, and `SetBusParent()` refuses to make loops. `GetBusPeak()` tells the
+loudest sample of each channel that left a bus in the last mix, for meters, without waiting for the audio thread.
+
 ## The mixer
 
-The mixer (`engine/audio/mixer.h`) mixes every playing voice into the output's buffer, converting sample rates as
-sounds play. The audio thread only mixes: it never touches scenes or assets, and sounds stay alive while they play
+The mixer (`engine/audio/mixer.h`) mixes every playing voice into its bus's buffer, converting sample rates as
+sounds play, then passes the buses up the tree, each before its parent, in chunks of 256 frames. Buses live in fixed
+slots, so mixing never allocates and the peak meters are atomics. The audio thread only mixes: it never touches scenes or assets, and sounds stay alive while they play
 because the mixer holds them.
 
 ## Not there yet
 
-Buses, voice management, streaming, 3D sources with a listener and a mixer panel come in the roadmap's milestone M3.
+Voice management, streaming, 3D sources with a listener and a mixer panel come in the rest of the roadmap's
+milestone M3.

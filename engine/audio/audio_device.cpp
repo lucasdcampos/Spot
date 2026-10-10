@@ -100,4 +100,56 @@ void AudioDevice::SetMasterVolume(float volume) {
     m_mixer->SetMasterVolume(volume);
 }
 
+std::optional<AudioBusId> AudioDevice::AddBus(std::string_view name, AudioBusId parent) {
+    return m_mixer->AddBus(name, parent);
+}
+
+bool AudioDevice::RemoveBus(AudioBusId bus) {
+    return m_mixer->RemoveBus(bus);
+}
+
+bool AudioDevice::HasBus(AudioBusId bus) const {
+    return m_mixer->HasBus(bus);
+}
+
+std::optional<AudioBusId> AudioDevice::FindBus(std::string_view name) const {
+    return m_mixer->FindBus(name);
+}
+
+std::vector<AudioBusId> AudioDevice::GetBuses() const {
+    return m_mixer->GetBuses();
+}
+
+std::string AudioDevice::GetBusName(AudioBusId bus) const {
+    return m_mixer->GetBusName(bus);
+}
+
+std::optional<AudioBusId> AudioDevice::GetBusParent(AudioBusId bus) const {
+    return m_mixer->GetBusParent(bus);
+}
+
+bool AudioDevice::SetBusParent(AudioBusId bus, AudioBusId parent) {
+    return m_mixer->SetBusParent(bus, parent);
+}
+
+float AudioDevice::GetBusVolume(AudioBusId bus) const {
+    return m_mixer->GetBusVolume(bus);
+}
+
+void AudioDevice::SetBusVolume(AudioBusId bus, float volume) {
+    m_mixer->SetBusVolume(bus, volume);
+}
+
+bool AudioDevice::IsBusMuted(AudioBusId bus) const {
+    return m_mixer->IsBusMuted(bus);
+}
+
+void AudioDevice::SetBusMuted(AudioBusId bus, bool muted) {
+    m_mixer->SetBusMuted(bus, muted);
+}
+
+AudioPeak AudioDevice::GetBusPeak(AudioBusId bus) const {
+    return m_mixer->GetBusPeak(bus);
+}
+
 } // namespace Spot

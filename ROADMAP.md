@@ -431,7 +431,7 @@ Design: the mixer stays engine code (`Detail::Mixer`). Spatial audio is computed
 the listener and the sources, and sent to the mixer as per-voice gains and pan. HRTF waits. Buses form a small graph
 defined in the audio settings. Streamed sounds decode on a worker thread into a ring buffer the mixer reads.
 
-- [ ] **M3.1 Buses.** A bus graph in the mixer (Master plus user buses, each with volume, mute and a parent), voices
+- [x] **M3.1 Buses.** A bus graph in the mixer (Master plus user buses, each with volume, mute and a parent), voices
   routed to a bus, `AudioDevice` bus control, and peak meters per bus read without locks. Tests on `Mixer`, no device
   needed.
 - [ ] **M3.2 Voice management.** Voice limits, priorities and stealing, short fades on start and stop to avoid
@@ -452,6 +452,11 @@ defined in the audio settings. Streamed sounds decode on a worker thread into a 
 **Done when:** sandbox sounds come from where their entities are, and the mixer panel changes them while playing.
 
 **Notes:**
+- M3.1: buses are 32 fixed slots whose index is the `AudioBusId` (Master = 0), reused after removal, so the audio
+  thread never allocates and `GetBusPeak()` reads per-slot atomics without the lock; the peak is that of the last
+  mix call, after the bus's volume. Mixing goes in chunks of 256 frames through per-bus scratch buffers made once,
+  deepest buses first. Voices for missing buses play on the master one; removing a bus moves its voices and children
+  to its parent. The master volume is the master bus's.
 
 ---
 

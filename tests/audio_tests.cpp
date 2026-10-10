@@ -271,6 +271,94 @@ TEST_CASE("The mixer releases sounds that ended on the next play", "[audio][mixe
     CHECK(sound.use_count() == 1);
 }
 
+TEST_CASE("Buses scale and mute their sounds, and pass them to their parents", "[audio][mixer][bus]") {
+    using Spot::AudioBusId;
+    Spot::Detail::Mixer mixer(48000);
+    const auto music = mixer.AddBus("Music");
+    REQUIRE(music.has_value());
+    const auto ambience = mixer.AddBus("Ambience", *music);
+    REQUIRE(ambience.has_value());
+    CHECK(mixer.FindBus("Ambience") == ambience);
+    CHECK(mixer.FindBus("Master") == AudioBusId::Master);
+    CHECK_FALSE(mixer.FindBus("Voices").has_value());
+    CHECK(mixer.GetBusParent(*ambience) == music);
+    CHECK_FALSE(mixer.GetBusParent(AudioBusId::Master).has_value());
+    CHECK(mixer.GetBuses() == std::vector<AudioBusId>{AudioBusId::Master, *music, *ambience});
+
+    const auto sound = MakeSound(48000, 1, {0.5f, 0.5f, 0.5f, 0.5f});
+    mixer.Play(sound, {.loop = true, .bus = *ambience});
+    mixer.Play(sound, {.loop = true});
+    CHECK(Mix(mixer, 1) == std::vector<float>{1.0f, 1.0f});
+
+    // Volumes multiply on the way up.
+    mixer.SetBusVolume(*music, 0.5f);
+    mixer.SetBusVolume(*ambience, 0.5f);
+    CHECK(Mix(mixer, 1) == std::vector<float>{0.625f, 0.625f});
+    mixer.SetMasterVolume(0.5f);
+    CHECK(Mix(mixer, 1) == std::vector<float>{0.3125f, 0.3125f});
+    mixer.SetMasterVolume(1.0f);
+
+    mixer.SetBusMuted(*music, true);
+    CHECK(mixer.IsBusMuted(*music));
+    CHECK(Mix(mixer, 1) == std::vector<float>{0.5f, 0.5f});
+    mixer.SetBusMuted(*music, false);
+
+    // Removing a bus hands its sounds and its buses to its parent.
+    mixer.SetBusVolume(*ambience, 1.0f);
+    CHECK(mixer.RemoveBus(*music));
+    CHECK_FALSE(mixer.HasBus(*music));
+    CHECK(mixer.GetBusParent(*ambience) == AudioBusId::Master);
+    CHECK(Mix(mixer, 1) == std::vector<float>{1.0f, 1.0f});
+    CHECK_FALSE(mixer.RemoveBus(AudioBusId::Master));
+
+    // Sounds for buses that do not exist play on the master one.
+    mixer.StopAll();
+    mixer.Play(sound, {.bus = static_cast<AudioBusId>(31)});
+    CHECK(Mix(mixer, 1) == std::vector<float>{0.5f, 0.5f});
+}
+
+TEST_CASE("Buses never form loops, and there are at most 32", "[audio][mixer][bus]") {
+    using Spot::AudioBusId;
+    Spot::Detail::Mixer mixer(48000);
+    const AudioBusId effects = *mixer.AddBus("Effects");
+    const AudioBusId weapons = *mixer.AddBus("Weapons", effects);
+    CHECK_FALSE(mixer.SetBusParent(effects, weapons));
+    CHECK_FALSE(mixer.SetBusParent(effects, effects));
+    CHECK_FALSE(mixer.SetBusParent(AudioBusId::Master, effects));
+    CHECK(mixer.SetBusParent(weapons, AudioBusId::Master));
+    CHECK(mixer.SetBusParent(effects, weapons));
+    CHECK(mixer.GetBusParent(effects) == weapons);
+
+    for (std::size_t i = 3; i < Spot::Detail::Mixer::MaxBuses; ++i) {
+        CHECK(mixer.AddBus("Bus").has_value());
+    }
+    CHECK_FALSE(mixer.AddBus("One Too Many").has_value());
+    // A removed bus's id goes to the next one.
+    CHECK(mixer.RemoveBus(weapons));
+    CHECK(mixer.AddBus("Again") == weapons);
+}
+
+TEST_CASE("Each bus's peak meter tells the loudest sample that left it", "[audio][mixer][bus]") {
+    using Spot::AudioBusId;
+    Spot::Detail::Mixer mixer(48000);
+    const AudioBusId effects = *mixer.AddBus("Effects");
+    mixer.SetBusVolume(effects, 0.5f);
+    mixer.Play(MakeSound(48000, 2, {0.2f, -0.8f, 0.4f, 0.1f}), {.bus = effects});
+    mixer.Play(MakeSound(48000, 1, {0.1f}));
+
+    Mix(mixer, 600);
+    const Spot::AudioPeak peak = mixer.GetBusPeak(effects);
+    CHECK(peak.left == Catch::Approx(0.2f));
+    CHECK(peak.right == Catch::Approx(0.4f));
+    CHECK(mixer.GetBusPeak(AudioBusId::Master).left == Catch::Approx(0.2f));
+    // The mono sound adds 0.1 to the -0.4 of the first frame.
+    CHECK(mixer.GetBusPeak(AudioBusId::Master).right == Catch::Approx(0.3f));
+
+    Mix(mixer, 10);
+    CHECK(mixer.GetBusPeak(effects).right == 0.0f);
+    CHECK(mixer.GetBusPeak(static_cast<AudioBusId>(1000)).left == 0.0f);
+}
+
 TEST_CASE("A disabled audio device plays nothing but stays usable", "[audio]") {
     Spot::AudioDevice audio({.enabled = false});
 
