@@ -2,6 +2,7 @@
 
 #include "graphics/bloom.h"
 #include "graphics/color.h"
+#include "graphics/fxaa.h"
 #include "graphics/texture.h"
 #include "graphics/tonemapper.h"
 
@@ -29,6 +30,8 @@ struct SceneRendererConfig {
     // How the HDR image of the scenes becomes what the target shows.
     TonemapSettings tonemapping = {};
     BloomSettings bloom = {};
+    // Smooths the steps of edges after tonemapping, next to multisampling or instead of it; see Fxaa.
+    bool fxaa = false;
 };
 
 // Draws scenes as games show them: through the first main camera among them (see FindMainCamera()), their meshes,
@@ -51,6 +54,8 @@ public:
     void SetTonemapping(const TonemapSettings& tonemapping) { m_tonemapping = tonemapping; }
     const BloomSettings& GetBloom() const { return m_bloomSettings; }
     void SetBloom(const BloomSettings& bloom) { m_bloomSettings = bloom; }
+    bool IsFxaaEnabled() const { return m_fxaaEnabled; }
+    void SetFxaaEnabled(bool enabled) { m_fxaaEnabled = enabled; }
 
     // Draws the scenes, in order, over each other, into the target: a render target in the configured format, or the
     // window when null.
@@ -59,6 +64,7 @@ public:
 private:
     // The HDR, depth and multisampled targets must match the frame's size, which changes with the window.
     bool UpdateTargets(std::uint32_t width, std::uint32_t height);
+    bool UpdateTonemapped(std::uint32_t width, std::uint32_t height);
 
     GraphicsDevice& m_device;
     TextureFormat m_format;
@@ -66,6 +72,7 @@ private:
     Color m_background;
     TonemapSettings m_tonemapping;
     BloomSettings m_bloomSettings;
+    bool m_fxaaEnabled;
     std::unique_ptr<Renderer3D> m_renderer3D;
     // Sprites are drawn into the HDR image with the meshes, interfaces into the target after it.
     std::unique_ptr<Renderer2D> m_sprites;
@@ -73,6 +80,9 @@ private:
     std::unique_ptr<LineRenderer> m_lines;
     std::unique_ptr<Tonemapper> m_tonemapper;
     std::unique_ptr<Bloom> m_bloom;
+    std::unique_ptr<Fxaa> m_fxaa;
+    // The tonemapped image FXAA reads, in the target's format; made when FXAA is first on.
+    std::unique_ptr<Texture> m_tonemapped;
     std::unique_ptr<Texture> m_hdr;
     std::unique_ptr<Texture> m_depth;
     std::unique_ptr<Texture> m_samples;

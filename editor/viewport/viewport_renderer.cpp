@@ -82,6 +82,8 @@ bool ViewportTargets::Resize(GraphicsDevice& device, std::uint32_t width, std::u
         {.width = width, .height = height, .format = ViewportRenderer::ColorFormat, .renderTarget = true});
     m_hdr = device.CreateTexture(
         {.width = width, .height = height, .format = ViewportRenderer::HdrFormat, .renderTarget = true});
+    m_tonemapped = device.CreateTexture(
+        {.width = width, .height = height, .format = ViewportRenderer::ColorFormat, .renderTarget = true});
     m_samples = sampleCount > 1 ? device.CreateTexture({.width = width,
                                                         .height = height,
                                                         .format = ViewportRenderer::HdrFormat,
@@ -97,10 +99,11 @@ bool ViewportTargets::Resize(GraphicsDevice& device, std::uint32_t width, std::u
     m_width = width;
     m_height = height;
     m_sampleCount = sampleCount;
-    const bool created = m_color && m_hdr && m_depth && m_mask && (sampleCount == 1 || m_samples);
+    const bool created = m_color && m_hdr && m_tonemapped && m_depth && m_mask && (sampleCount == 1 || m_samples);
     if (!created) {
         m_color.reset();
         m_hdr.reset();
+        m_tonemapped.reset();
         m_samples.reset();
         m_depth.reset();
         m_mask.reset();
@@ -120,7 +123,8 @@ ViewportRenderer::ViewportRenderer(GraphicsDevice& device)
         device, LineRendererConfig{.targetFormat = HdrFormat, .sampleCount = m_sampleCount});
     m_tonemapper = Tonemapper::Create(device, ColorFormat);
     m_bloom = Bloom::Create(device, HdrFormat);
-    if (!m_tonemapper || !m_bloom) {
+    m_fxaa = Fxaa::Create(device, ColorFormat);
+    if (!m_tonemapper || !m_bloom || !m_fxaa) {
         GetEditorLogger().Error("The views' tonemapper could not be created; views show nothing");
     }
 
@@ -179,7 +183,7 @@ ViewportRenderer::~ViewportRenderer() = default;
 
 void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& targets, Scene& scene,
                               const Camera3D& camera, const ViewportOptions& options) {
-    if (!targets.GetColor() || !m_tonemapper || !m_bloom) {
+    if (!targets.GetColor() || !m_tonemapper || !m_bloom || !m_fxaa) {
         return;
     }
     const bool drawGrid = options.showGrid && m_grid;
@@ -232,8 +236,16 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
 
     // The view's colors, with the interfaces over them as they are.
     const Texture* glow = m_bloom->Render(context, *hdr, options.bloom);
+    if (options.fxaa) {
+        auto tonemapped = context.BeginRenderPass({.target = targets.GetTonemapped()});
+        m_tonemapper->Draw(tonemapped, *hdr, options.tonemapping, glow, options.bloom.intensity);
+    }
     auto pass = context.BeginRenderPass({.target = targets.GetColor()});
-    m_tonemapper->Draw(pass, *hdr, options.tonemapping, glow, options.bloom.intensity);
+    if (options.fxaa) {
+        m_fxaa->Draw(pass, *targets.GetTonemapped());
+    } else {
+        m_tonemapper->Draw(pass, *hdr, options.tonemapping, glow, options.bloom.intensity);
+    }
     if (options.drawUi && m_interface->IsValid()) {
         const Vector2 size{static_cast<float>(targets.GetWidth()), static_cast<float>(targets.GetHeight())};
         m_interface->Begin(pass, Scene::ScreenCamera(size), size);

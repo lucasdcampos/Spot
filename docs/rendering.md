@@ -87,6 +87,13 @@ level blending a wider glow over the one above it. `BloomSettings` has the thres
 tonemapper adds the glow with; an intensity of 0 turns it off. `SceneRendererConfig::bloom`, `SceneRenderer::SetBloom()`
 and `ViewportOptions::bloom` choose them.
 
+### Antialiasing
+
+Multisampling smooths the edges of what is drawn into the HDR image, where the GPU allows. `Fxaa` smooths what it
+does not reach, such as thin highlights and the edges inside textures, after tonemapping, for little cost and a
+slightly softer image: `SceneRendererConfig::fxaa`, `SceneRenderer::SetFxaaEnabled()` and `ViewportOptions::fxaa`
+turn it on, next to multisampling or instead of it. The interfaces are drawn after it, so text stays sharp.
+
 ## Scene components
 
 - `Camera`: where a scene is seen from, looking down its entity's -Z; perspective or orthographic, with a

@@ -575,7 +575,7 @@ built on the public graphics API. The look comes from a `PostProcessing` compone
 - [x] **M5.2 HDR and tonemapping.** `SceneRenderer` draws into the HDR target and tonemaps it (ACES or AgX, with
   exposure) into the output. Sky exposure stays consistent, and the editor's views use the same path.
 - [x] **M5.3 Bloom.** A downsample and upsample chain, with intensity and scatter.
-- [ ] **M5.4 FXAA.** Optional FXAA next to MSAA, chosen in the settings.
+- [x] **M5.4 FXAA.** Optional FXAA next to MSAA, chosen in the settings.
 - [ ] **M5.5 Grading.** A LUT (strip format), contrast, saturation, white balance and vignette.
 - [ ] **M5.6 Fog.** Distance and height fog in the mesh shader through a `Fog` component (color, start, density,
   height falloff), applied before tonemapping and matched to the sky at the horizon.
@@ -609,6 +609,10 @@ built on the public graphics API. The look comes from a `PostProcessing` compone
   each level lerped toward the spread level below by `scatter`. The tonemapper adds the half-sized result times
   `intensity` before exposure, or a 1x1 black texture without bloom. Defaults: intensity 0.3, threshold 1, scatter
   0.7, so only light above white glows.
+- M5.4: `Fxaa` is Lottes' compact FXAA (edge direction from four diagonal lumas, two blends along it, the wider one
+  dropped when it leaves the local range), on perceptual luma (square root of linear). With FXAA on, the tonemapper
+  draws into a texture of the target's format, FXAA draws that into the target, and the interfaces go over it. Off by
+  default; the rendering settings (M5.7) choose it.
 
 ---
 

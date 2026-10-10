@@ -23,7 +23,8 @@ constexpr TextureFormat HdrFormat = TextureFormat::Rgba16Float;
 
 SceneRenderer::SceneRenderer(GraphicsDevice& device, const SceneRendererConfig& config)
     : m_device(device), m_format(config.targetFormat.value_or(device.GetWindowFormat())), m_sampleCount(1),
-      m_background(config.background), m_tonemapping(config.tonemapping), m_bloomSettings(config.bloom) {
+      m_background(config.background), m_tonemapping(config.tonemapping), m_bloomSettings(config.bloom),
+      m_fxaaEnabled(config.fxaa) {
     if (config.sampleCount > 1 && device.SupportsSampleCount(HdrFormat, config.sampleCount) &&
         device.SupportsSampleCount(TextureFormat::Depth32Float, config.sampleCount)) {
         m_sampleCount = config.sampleCount;
@@ -37,13 +38,14 @@ SceneRenderer::SceneRenderer(GraphicsDevice& device, const SceneRendererConfig& 
         device, LineRendererConfig{.targetFormat = HdrFormat, .sampleCount = m_sampleCount});
     m_tonemapper = Tonemapper::Create(device, m_format);
     m_bloom = Bloom::Create(device, HdrFormat);
+    m_fxaa = Fxaa::Create(device, m_format);
 }
 
 SceneRenderer::~SceneRenderer() = default;
 
 bool SceneRenderer::IsValid() const {
     return m_renderer3D->IsValid() && m_sprites->IsValid() && m_interface->IsValid() && m_lines->IsValid() &&
-           m_tonemapper && m_bloom;
+           m_tonemapper && m_bloom && m_fxaa;
 }
 
 void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scenes, Texture* target) {
@@ -107,14 +109,32 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
     }
 
     const Texture* glow = m_bloom->Render(context, *m_hdr, m_bloomSettings);
-    // The tonemapper covers the whole target, and the interfaces go over it as they are.
+    // FXAA reads the finished image, so it is tonemapped into a texture first.
+    const bool fxaa = m_fxaaEnabled && UpdateTonemapped(width, height);
+    if (fxaa) {
+        auto tonemapped = context.BeginRenderPass({.target = m_tonemapped.get()});
+        m_tonemapper->Draw(tonemapped, *m_hdr, m_tonemapping, glow, m_bloomSettings.intensity);
+    }
+    // The last pass covers the whole target, and the interfaces go over it as they are.
     auto output = context.BeginRenderPass({.target = target});
-    m_tonemapper->Draw(output, *m_hdr, m_tonemapping, glow, m_bloomSettings.intensity);
+    if (fxaa) {
+        m_fxaa->Draw(output, *m_tonemapped);
+    } else {
+        m_tonemapper->Draw(output, *m_hdr, m_tonemapping, glow, m_bloomSettings.intensity);
+    }
     m_interface->Begin(output, Scene::ScreenCamera(size), size);
     for (Scene* scene : scenes) {
         scene->DrawUi(*m_interface, size);
     }
     m_interface->End();
+}
+
+bool SceneRenderer::UpdateTonemapped(std::uint32_t width, std::uint32_t height) {
+    if (!m_tonemapped || m_tonemapped->GetWidth() != width || m_tonemapped->GetHeight() != height) {
+        m_tonemapped =
+            m_device.CreateTexture({.width = width, .height = height, .format = m_format, .renderTarget = true});
+    }
+    return m_tonemapped != nullptr;
 }
 
 bool SceneRenderer::UpdateTargets(std::uint32_t width, std::uint32_t height) {

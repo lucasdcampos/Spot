@@ -2175,7 +2175,7 @@ TEST_CASE("SceneRenderer draws light into an HDR image, which its tonemapper bri
     RequireGpu();
     // A camera whose background is twice as bright as white: a curve keeps it below the target's white, and exposure
     // darkens it before the curve.
-    const auto render = [](const Spot::TonemapSettings& tonemapping) {
+    const auto render = [](const Spot::TonemapSettings& tonemapping, bool fxaa = false) {
         std::unique_ptr<Spot::Texture> target;
         std::unique_ptr<Spot::SceneRenderer> renderer;
         Spot::Scene scene;
@@ -2183,8 +2183,8 @@ TEST_CASE("SceneRenderer draws light into an HDR image, which its tonemapper bri
         const auto pixels = RenderAndDownload([&](Spot::GraphicsDevice& device, Spot::RenderContext& context) {
             target = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
             renderer = std::make_unique<Spot::SceneRenderer>(
-                device,
-                Spot::SceneRendererConfig{.targetFormat = Spot::TextureFormat::Rgba8, .tonemapping = tonemapping});
+                device, Spot::SceneRendererConfig{
+                            .targetFormat = Spot::TextureFormat::Rgba8, .tonemapping = tonemapping, .fxaa = fxaa});
             REQUIRE(renderer->IsValid());
             const std::array<Spot::Scene*, 1> scenes{&scene};
             renderer->Render(context, scenes, target.get());
@@ -2205,6 +2205,8 @@ TEST_CASE("SceneRenderer draws light into an HDR image, which its tonemapper bri
     CHECK(agx > 120);
     CHECK(agx < 255);
     CHECK(agx != aces);
+    // FXAA after the tonemapper leaves a flat image as it is.
+    CHECK(render({.op = Spot::TonemapOperator::Aces, .dither = false}, true) == aces);
 }
 
 TEST_CASE("Bloom spreads light brighter than its threshold, and nothing else", "[gpu]") {
@@ -2258,4 +2260,41 @@ TEST_CASE("Bloom spreads light brighter than its threshold, and nothing else", "
 
     glowOf({.intensity = 0.0f}, rendered);
     CHECK_FALSE(rendered);
+}
+
+TEST_CASE("FXAA smooths the steps of an edge and leaves flat areas as they are", "[gpu]") {
+    RequireGpu();
+    // A diagonal edge, white above it and black below, in steps of whole pixels.
+    std::vector<std::uint8_t> image(16 * 16 * 4);
+    for (std::size_t y = 0; y < 16; ++y) {
+        for (std::size_t x = 0; x < 16; ++x) {
+            const std::uint8_t value = x > y ? 255 : 0;
+            std::uint8_t* pixel = &image[(y * 16 + x) * 4];
+            pixel[0] = pixel[1] = pixel[2] = value;
+            pixel[3] = 255;
+        }
+    }
+    std::unique_ptr<Spot::Texture> source;
+    std::unique_ptr<Spot::Texture> target;
+    std::unique_ptr<Spot::Fxaa> fxaa;
+    const auto pixels = RenderAndDownload([&](Spot::GraphicsDevice& device, Spot::RenderContext& context) {
+        source = device.CreateTexture({.width = 16, .height = 16});
+        target = device.CreateTexture({.width = 16, .height = 16, .renderTarget = true});
+        fxaa = Spot::Fxaa::Create(device, Spot::TextureFormat::Rgba8);
+        REQUIRE((source && target && fxaa));
+        device.UploadToTexture(*source, image);
+        auto pass = context.BeginRenderPass({.target = target.get()});
+        fxaa->Draw(pass, *source);
+        return target.get();
+    });
+
+    REQUIRE(pixels.size() == 16 * 16 * 4);
+    const auto at = [&](int x, int y) { return static_cast<int>(pixels[static_cast<std::size_t>((y * 16 + x) * 4)]); };
+    int shades = 0;
+    for (int i = 1; i < 15; ++i) {
+        shades += at(i, i) > 16 && at(i, i) < 240 ? 1 : 0;
+    }
+    CHECK(shades > 6);
+    CHECK(at(15, 0) == 255);
+    CHECK(at(0, 15) == 0);
 }
