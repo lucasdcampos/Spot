@@ -34,6 +34,7 @@ std::vector<Prop> MakeProps() {
         {{"ball", "ball"}, [] { return Spot::MeshData::CreateSphere(0.3f, 32, 16); }},
         {{"cone", "cone"}, [] { return Shapes::Cone(0.3f, 0.7f, 24); }},
         {{"ramp", "concrete"}, [] { return Shapes::Ramp(2.0f, 1.0f, 3.0f, 1.0f); }},
+        {{"stairs", "concrete"}, [] { return Shapes::Stairs(2.0f, 0.2f, 0.3f, 10, 1.0f); }},
         {{"wheel", "wheel"}, [] { return Shapes::Wheel(0.4f, 0.2f, 32); }},
     };
 }

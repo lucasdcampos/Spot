@@ -8,6 +8,8 @@
 #include <Jolt/Physics/Body/BodyFilter.h>
 #include <Jolt/Physics/Collision/BroadPhase/BroadPhaseLayer.h>
 
+#include <algorithm>
+
 namespace Spot::Detail {
 
 namespace BroadPhaseLayers {
@@ -76,7 +78,7 @@ public:
 
     bool ShouldCollide(const JPH::BodyID& body) const override {
         const PhysicsBodyId id = FromJolt(body);
-        return id != m_filter.ignored[0] && id != m_filter.ignored[1];
+        return std::ranges::find(m_filter.ignored, id) == m_filter.ignored.end();
     }
 
     bool ShouldCollideLocked(const JPH::Body& body) const override { return m_filter.sensors || !body.IsSensor(); }

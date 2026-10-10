@@ -23,15 +23,15 @@ namespace {
 constexpr float Step = Scene::DefaultFixedTimeStep;
 const std::filesystem::path Assets = SANDBOX_ASSETS_DIR;
 
-// The playground, loaded from its source with the sandbox's components, and input the test presses keys on. Assets
-// are not imported, so meshes and fonts are missing, which the game's logic and physics do not need; the log, which
-// says so, is kept from the output.
+// The playground, loaded from its source with the sandbox's components and the assets the build cooks for it, and
+// input the test presses keys on. There is no GPU, so meshes and fonts do not load, which the game's logic and
+// physics do not need; the log, which says so, is kept from the output.
 struct Playground {
     std::shared_ptr<Spot::Tests::CaptureSink> log = std::make_shared<Spot::Tests::CaptureSink>();
     Spot::Tests::ScopedSinks sinks{{log}};
     Spot::InputState input;
     Spot::InputState* previousInput = Spot::Input::GetState();
-    Spot::AssetManager assets{Assets / "missing-imports"};
+    Spot::AssetManager assets{SANDBOX_IMPORTED_DIR};
     Scene scene;
     Entity* player = nullptr;
 
@@ -102,4 +102,74 @@ TEST_CASE("The player lands, walks where it looks and jumps", "[sandbox]") {
     playground.Run(1.5f);
     CHECK(playground.Controller().IsGrounded());
     CHECK(playground.PlayerPosition().y == Approx(start.y).margin(0.05f));
+}
+
+TEST_CASE("The player crouches, slower and lower, and stands only with room above", "[sandbox]") {
+    Playground playground;
+    playground.Run(1.5f);
+    const Spot::Vector3 start = playground.PlayerPosition();
+
+    playground.Press(Key::LeftControl);
+    playground.Press(Key::W);
+    playground.Run(1.0f);
+    playground.Release(Key::W);
+    CHECK(playground.Controller().GetHeight() == Approx(1.0f));
+    // Crouching walks at 2.5 meters per second, with the feet where they were.
+    CHECK(start.z - playground.PlayerPosition().z == Approx(2.5f).margin(0.3f));
+    CHECK(playground.PlayerPosition().y == Approx(start.y).margin(0.05f));
+
+    // A ceiling just above the crouching player keeps it down.
+    auto& ceiling = playground.scene.CreateEntity("Ceiling");
+    ceiling.GetTransform().SetPosition(playground.PlayerPosition() + Spot::Vector3{0.0f, 0.75f, 0.0f});
+    ceiling.AddComponent<Spot::BoxCollider>(Spot::Vector3{3.0f, 0.2f, 3.0f});
+    playground.Run(0.1f);
+    playground.Release(Key::LeftControl);
+    playground.Run(0.5f);
+    CHECK(playground.Controller().GetHeight() == Approx(1.0f));
+
+    ceiling.Destroy();
+    playground.Run(0.5f);
+    CHECK(playground.Controller().GetHeight() == Approx(1.8f));
+}
+
+TEST_CASE("Noclip flies the player through everything, and walking lands it again", "[sandbox]") {
+    Playground playground;
+    playground.Run(1.5f);
+    const float ground = playground.PlayerPosition().y;
+
+    playground.Press(Key::V);
+    playground.Run(0.1f);
+    playground.Release(Key::V);
+    playground.Press(Key::Space);
+    playground.Run(1.0f);
+    playground.Release(Key::Space);
+    // Ten meters per second, straight up, with nothing pulling it down.
+    CHECK(playground.PlayerPosition().y == Approx(ground + 10.0f).margin(1.0f));
+    playground.Run(1.0f);
+    CHECK(playground.PlayerPosition().y == Approx(ground + 10.0f).margin(1.0f));
+
+    playground.Press(Key::V);
+    playground.Run(3.0f);
+    CHECK(playground.Controller().IsGrounded());
+    CHECK(playground.PlayerPosition().y == Approx(ground).margin(0.05f));
+}
+
+TEST_CASE("The player climbs the stairs and the ramps of the level's meshes", "[sandbox]") {
+    Playground playground;
+    // At the foot of the stairs, which rise toward +X onto the platform, whose top is at y = 2.
+    playground.player->GetTransform().SetPosition({-17.0f, 0.95f, -8.0f});
+    playground.Run(0.5f);
+    playground.Press(Key::D);
+    playground.Run(1.5f);
+    playground.Release(Key::D);
+    CHECK(playground.PlayerPosition().x > -12.5f);
+    CHECK(playground.PlayerPosition().y == Approx(2.9f).margin(0.1f));
+
+    // At the foot of a ramp, which rises toward -Z to a height of 1 over three meters.
+    playground.player->GetTransform().SetPosition({-3.0f, 0.95f, 5.0f});
+    playground.Run(0.5f);
+    playground.Press(Key::W);
+    playground.Run(0.7f);
+    CHECK(playground.PlayerPosition().y > 1.3f);
+    CHECK(playground.Controller().IsGrounded());
 }

@@ -2606,16 +2606,26 @@
           "data": {
             "ballMaterial": "45e4545ddf4f45009149c1d560d954a0",
             "ballSpeed": 25.0,
-            "fallHeight": -20.0,
             "flashlight": 48,
             "head": 47,
+            "lookSensitivity": 0.0024999999441206455
+          },
+          "enabled": true,
+          "type": "PlayerController"
+        },
+        {
+          "data": {
+            "crouchHeight": 1.0,
+            "crouchSpeed": 2.5,
+            "fallHeight": -20.0,
+            "fastFlySpeed": 25.0,
+            "flySpeed": 10.0,
             "jumpSpeed": 5.5,
-            "lookSensitivity": 0.0024999999441206455,
             "runSpeed": 9.0,
             "walkSpeed": 5.0
           },
           "enabled": true,
-          "type": "PlayerController"
+          "type": "PlayerMovement"
         }
       ],
       "id": 46,
@@ -3717,6 +3727,22 @@
           },
           "enabled": true,
           "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "convex": false,
+            "friction": 0.8,
+            "mesh": "821e7d880344f3d9820e92d162c4c19c",
+            "restitution": 0.0,
+            "trigger": false
+          },
+          "enabled": true,
+          "type": "MeshCollider"
         }
       ],
       "id": 66,
@@ -3744,55 +3770,28 @@
       "components": [
         {
           "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "friction": 0.8,
-            "restitution": 0.0,
-            "size": [
-              2.0,
-              0.2,
-              3.1622776601683795
-            ]
-          },
-          "enabled": true,
-          "type": "BoxCollider"
-        }
-      ],
-      "id": 67,
-      "name": "Slope",
-      "parent": 66,
-      "position": [
-        0.0,
-        -0.09486832980505139,
-        -0.0316227766016838
-      ],
-      "rotation": [
-        0.1601822430069672,
-        0.0,
-        0.0,
-        0.9870874576374967
-      ],
-      "scale": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "tags": []
-    },
-    {
-      "active": true,
-      "components": [
-        {
-          "data": {
             "castsShadows": true,
             "material": "117b456928d658ba20d935ef3e08a522",
             "mesh": "821e7d880344f3d9820e92d162c4c19c"
           },
           "enabled": true,
           "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "convex": false,
+            "friction": 0.8,
+            "mesh": "821e7d880344f3d9820e92d162c4c19c",
+            "restitution": 0.0,
+            "trigger": false
+          },
+          "enabled": true,
+          "type": "MeshCollider"
         }
       ],
       "id": 68,
@@ -3820,36 +3819,43 @@
       "components": [
         {
           "data": {
+            "castsShadows": true,
+            "material": "23a1444c4715235df041e9c2396bf498",
+            "mesh": "b9b1e729bda3274edd129826ecc24a83"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
             "center": [
               0.0,
               0.0,
               0.0
             ],
+            "convex": false,
             "friction": 0.8,
+            "mesh": "b9b1e729bda3274edd129826ecc24a83",
             "restitution": 0.0,
-            "size": [
-              2.0,
-              0.2,
-              3.1622776601683795
-            ]
+            "trigger": false
           },
           "enabled": true,
-          "type": "BoxCollider"
+          "type": "MeshCollider"
         }
       ],
       "id": 69,
-      "name": "Slope",
-      "parent": 68,
+      "layer": 0,
+      "name": "Stairs",
       "position": [
-        0.0,
-        -0.09486832980505139,
-        -0.0316227766016838
+        -14.5,
+        1.0,
+        -8.0
       ],
       "rotation": [
-        0.1601822430069672,
         0.0,
+        -0.7071067811865476,
         0.0,
-        0.9870874576374967
+        0.7071067811865476
       ],
       "scale": [
         1.0,

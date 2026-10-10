@@ -252,7 +252,7 @@ Steps:
   break past a force. Tests.
 - [x] **M1.9 Debug view and editor.** Colliders, contacts and queries drawn with `DebugDraw`, a Colliders toggle in the
   editor's views and at runtime, and **Fit to Mesh** for box, sphere and capsule colliders.
-- [ ] **M1.10 Sandbox: movement and level.** A first-person player on the `CharacterController` that walks, runs,
+- [x] **M1.10 Sandbox: movement and level.** A first-person player on the `CharacterController` that walks, runs,
   crouches, jumps and flies in noclip. The level's geometry uses mesh colliders, with ramps, stairs and platforms.
 - [ ] **M1.11 Sandbox: holding and the physics gun.** E picks up props below a mass limit, carries them in front of
   the camera, turns them and throws them. The physics gun grabs any prop the player aims at, drives it toward a
@@ -316,6 +316,13 @@ physics gun and the tool gun, and shoots and blows it apart.
   queries come from `PhysicsWorld`, drawn in `OnBeforeRender()`. Queries are recorded only while their flag is on.
   Fit to Mesh is `Collider::FitTo(BoundingBox)` (with `MeshData::GetBoundingBox()`), applied as one undoable edit.
   The sandbox's `PhysicsDebugView` now only switches the engine's view.
+- M1.10: movement moved out of `PlayerController` into `PlayerMovement` (walk, run, crouch, jump, noclip, falling
+  back to the start), leaving looking, shooting and the flashlight. Crouching shrinks the capsule toward the feet
+  and stands up only after a sphere cast finds room. Noclip disables the `CharacterController` and moves the entity
+  directly; enabling the controller again makes the character where flying ended. The generator gained stairs, and
+  the ramps and stairs collide through `MeshCollider`s of their own meshes; the platform, walls and steps stay boxes.
+  Queries that ignore an entity now also ignore its character's inner body. `spot_sandbox_tests` loads the assets
+  the build cooks beside the sandbox, so mesh colliders get their meshes there as in the game.
 
 ---
 

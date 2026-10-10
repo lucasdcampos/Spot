@@ -153,8 +153,8 @@ struct PhysicsQueryFilter {
     // A bit per layer whose bodies it sees.
     std::uint32_t layerMask = 0xffffffffu;
     bool sensors = false;
-    // Bodies it goes through.
-    std::array<PhysicsBodyId, 2> ignored = {PhysicsBodyId::Invalid, PhysicsBodyId::Invalid};
+    // Bodies it goes through, such as all those of an entity: its solid body, its sensor and its character's.
+    std::array<PhysicsBodyId, 3> ignored = {PhysicsBodyId::Invalid, PhysicsBodyId::Invalid, PhysicsBodyId::Invalid};
 };
 
 struct PhysicsQueryHit {

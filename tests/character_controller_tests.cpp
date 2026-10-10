@@ -167,6 +167,11 @@ TEST_CASE("Characters enter triggers, keep to their layer and are seen by querie
         world.scene.GetPhysics().Raycast(world.Position() + Vector3{0.0f, 5.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 10.0f);
     REQUIRE(hit.has_value());
     CHECK(hit->entity == world.character.GetId());
+    // Ignoring the entity goes through its character too.
+    const auto through = world.scene.GetPhysics().Raycast(
+        world.Position() + Vector3{0.0f, 5.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 10.0f, {.ignore = world.character.GetId()});
+    REQUIRE(through.has_value());
+    CHECK(through->entity == world.ground.GetId());
 }
 
 TEST_CASE("Characters are saved with their scene, and follow their entity when it is placed", "[physics][character]") {

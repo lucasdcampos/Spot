@@ -13,7 +13,11 @@ using Detail::PhysicsMotion;
 Detail::PhysicsQueryFilter PhysicsWorld::MakeQueryFilter(const QueryFilter& filter) const {
     Detail::PhysicsQueryFilter query{.layerMask = filter.layerMask, .sensors = filter.includeTriggers};
     if (const auto ignored = m_bodies.find(filter.ignore); ignored != m_bodies.end()) {
-        query.ignored = {ignored->second.id, ignored->second.sensor};
+        const Body& body = ignored->second;
+        const PhysicsBodyId character = body.character != Detail::PhysicsCharacterId::Invalid
+                                            ? m_simulation->GetCharacterBody(body.character)
+                                            : PhysicsBodyId::Invalid;
+        query.ignored = {body.id, body.sensor, character};
     }
     return query;
 }

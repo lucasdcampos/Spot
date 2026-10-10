@@ -20,6 +20,9 @@ Spot::MeshData Cylinder(float radius, float height, std::uint32_t segments);
 Spot::MeshData Wheel(float radius, float width, std::uint32_t segments);
 // Standing along Y, with its tip up; its base is the bottom end.
 Spot::MeshData Cone(float radius, float height, std::uint32_t segments);
+// Steps rising toward -Z, from the ground at +Z, each as high and deep as given and as wide as the stairs. The texture
+// repeats every uvRepeat units, as on a box.
+Spot::MeshData Stairs(float width, float stepHeight, float stepDepth, int steps, float uvRepeat);
 // A wedge rising toward -Z: its slope goes from the ground at +Z up to its full height at -Z. The texture repeats
 // every uvRepeat units, as on a box.
 Spot::MeshData Ramp(float width, float height, float length, float uvRepeat);

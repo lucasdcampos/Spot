@@ -221,7 +221,11 @@ if(TARGET sandbox)
     add_executable(spot_sandbox_tests sandbox/sandbox_tests.cpp ${sandbox_game_sources})
     target_link_libraries(spot_sandbox_tests PRIVATE spot::spot Catch2::Catch2WithMain)
     target_include_directories(spot_sandbox_tests PRIVATE ${PROJECT_SOURCE_DIR}/sandbox/src ${CMAKE_CURRENT_SOURCE_DIR})
-    target_compile_definitions(spot_sandbox_tests PRIVATE SANDBOX_ASSETS_DIR="${PROJECT_SOURCE_DIR}/sandbox/assets")
+    # The assets the build cooks beside the sandbox, which the tests load as the game does.
+    target_compile_definitions(spot_sandbox_tests PRIVATE
+        SANDBOX_ASSETS_DIR="${PROJECT_SOURCE_DIR}/sandbox/assets"
+        SANDBOX_IMPORTED_DIR="$<TARGET_FILE_DIR:sandbox>/imported")
+    add_dependencies(spot_sandbox_tests sandbox_assets)
     spot_set_compile_options(spot_sandbox_tests)
     catch_discover_tests(spot_sandbox_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 60)
 endif()

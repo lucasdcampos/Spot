@@ -134,6 +134,28 @@ MeshData Cone(float radius, float height, std::uint32_t segments) {
     return mesh;
 }
 
+MeshData Stairs(float width, float stepHeight, float stepDepth, int steps, float uvRepeat) {
+    MeshData mesh;
+    const float height = stepHeight * static_cast<float>(steps);
+    const float length = stepDepth * static_cast<float>(steps);
+    // Each step is a block from the ground up to its top, centered on the stairs' bounds like the other shapes.
+    for (int i = 0; i < steps; ++i) {
+        const float top = stepHeight * static_cast<float>(i + 1);
+        MeshData step = Box({width, top, stepDepth}, uvRepeat);
+        const Vector3 offset{0.0f, top * 0.5f - height * 0.5f,
+                             length * 0.5f - stepDepth * (static_cast<float>(i) + 0.5f)};
+        const auto first = static_cast<std::uint32_t>(mesh.vertices.size());
+        for (MeshVertex vertex : step.vertices) {
+            vertex.position = vertex.position + offset;
+            mesh.vertices.push_back(vertex);
+        }
+        for (const std::uint32_t index : step.indices) {
+            mesh.indices.push_back(first + index);
+        }
+    }
+    return mesh;
+}
+
 MeshData Ramp(float width, float height, float length, float uvRepeat) {
     MeshData mesh;
     const float x = width * 0.5f;
