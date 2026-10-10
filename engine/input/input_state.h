@@ -46,6 +46,9 @@ public:
     // With AnyGamepad, the value farthest from rest among the gamepads.
     float GetGamepadAxis(GamepadAxis axis, int gamepad = AnyGamepad) const;
 
+    // The text typed this frame while text input was on, as UTF-8; see Window::StartTextInput().
+    std::string_view GetTypedText() const { return m_typedText; }
+
     Vector2 GetMousePosition() const { return m_mousePosition; }
     Vector2 GetMouseDelta() const { return m_mouseDelta; }
     Vector2 GetScrollDelta() const { return m_scrollDelta; }
@@ -81,6 +84,7 @@ private:
     std::bitset<8> m_buttonsReleased;
 
     std::vector<Gamepad> m_gamepads;
+    std::string m_typedText;
 
     Vector2 m_mousePosition;
     Vector2 m_mouseDelta;

@@ -27,6 +27,7 @@ void InputState::BeginFrame() {
         gamepad.pressed.reset();
         gamepad.released.reset();
     }
+    m_typedText.clear();
     m_mouseDelta = {};
     m_scrollDelta = {};
 }
@@ -54,6 +55,8 @@ void InputState::OnEvent(const Event& event) {
         m_mouseDelta += moved->delta;
     } else if (const auto* scrolled = event.GetIf<MouseScrolledEvent>()) {
         m_scrollDelta += scrolled->delta;
+    } else if (const auto* typed = event.GetIf<TextInputEvent>()) {
+        m_typedText += typed->text;
     } else if (const auto* connected = event.GetIf<GamepadConnectedEvent>()) {
         FindOrAddGamepad(connected->gamepad).name = connected->name;
     } else if (const auto* disconnected = event.GetIf<GamepadDisconnectedEvent>()) {

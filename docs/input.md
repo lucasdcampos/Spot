@@ -35,6 +35,15 @@ const Spot::Vector2 look = Spot::Input::GetMouseDelta();
 Keys (`engine/input/keys.h`) name physical positions on a US layout, so WASD stays in place on other layouts; text
 typed comes through `TextInputEvent` instead.
 
+## Text
+
+Key events tell which keys are pressed, not which characters they type on the player's layout, so text fields use
+text input instead: while `Window::StartTextInput()` is on, typed text arrives as `TextInputEvent`s, and
+`Input::GetTypedText()` gives what was typed this frame. Input methods for languages such as Japanese compose text
+before typing it, which arrives as `TextCompositionEvent`s for fields to show at their cursor;
+`Window::SetTextInputArea()` tells the input method where the field and its cursor are, so its window opens beside
+them.
+
 ## Gamepads
 
 Gamepads send their own events (`GamepadConnectedEvent`, `GamepadDisconnectedEvent`, button presses and releases, and

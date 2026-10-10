@@ -311,3 +311,20 @@ TEST_CASE("SDL gamepad events become gamepad events, with sticks up positive", "
     CHECK(pulled->value == 1.0f);
     CHECK(events[4].Is<Spot::GamepadDisconnectedEvent>());
 }
+
+TEST_CASE("SDL text editing events become text compositions", "[platform][sdl3][text]") {
+    const ScopedPlatform platform;
+    SDL_Event editing{};
+    editing.type = SDL_EVENT_TEXT_EDITING;
+    editing.edit.text = "kan";
+    editing.edit.start = 1;
+    editing.edit.length = 2;
+    Push(editing);
+    const auto events = PollEvents();
+    REQUIRE(events.size() == 1);
+    const auto* composition = events[0].GetIf<Spot::TextCompositionEvent>();
+    REQUIRE(composition != nullptr);
+    CHECK(composition->text == "kan");
+    CHECK(composition->start == 1);
+    CHECK(composition->length == 2);
+}

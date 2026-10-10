@@ -50,6 +50,10 @@ bool IsMouseButtonReleased(MouseButton button) {
     return GetCurrent().IsMouseButtonReleased(button);
 }
 
+std::string_view GetTypedText() {
+    return GetCurrent().GetTypedText();
+}
+
 Vector2 GetMousePosition() {
     return GetCurrent().GetMousePosition();
 }

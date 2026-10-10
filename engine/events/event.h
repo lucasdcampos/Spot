@@ -43,6 +43,14 @@ struct TextInputEvent {
     std::string text;
 };
 
+// The text an input method is composing, before it is typed, as text fields show it where the cursor is: UTF-8, with
+// the part being edited from start, in characters, for length characters. Empty when the composition ended.
+struct TextCompositionEvent {
+    std::string text;
+    int start;
+    int length;
+};
+
 // The delta is reported separately because the position stops changing while the cursor is locked.
 struct MouseMovedEvent {
     Vector2 position;
@@ -101,9 +109,9 @@ struct FileDropEvent {
 class Event {
 public:
     using Variant = std::variant<WindowCloseEvent, WindowResizeEvent, WindowFocusEvent, WindowContentScaleEvent,
-                                 KeyPressedEvent, KeyReleasedEvent, TextInputEvent, MouseMovedEvent,
-                                 MouseButtonPressedEvent, MouseButtonReleasedEvent, MouseScrolledEvent, MouseLeaveEvent,
-                                 FileDropEvent, GamepadConnectedEvent, GamepadDisconnectedEvent,
+                                 KeyPressedEvent, KeyReleasedEvent, TextInputEvent, TextCompositionEvent,
+                                 MouseMovedEvent, MouseButtonPressedEvent, MouseButtonReleasedEvent, MouseScrolledEvent,
+                                 MouseLeaveEvent, FileDropEvent, GamepadConnectedEvent, GamepadDisconnectedEvent,
                                  GamepadButtonPressedEvent, GamepadButtonReleasedEvent, GamepadAxisEvent>;
 
     // Implicit so any event type can be passed where an Event is expected.

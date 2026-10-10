@@ -234,10 +234,10 @@ void Window::StopTextInput() {
     SDL_StopTextInput(m_impl->handle);
 }
 
-void Window::SetTextInputArea(Vector2 position, Vector2 size) {
+void Window::SetTextInputArea(Vector2 position, Vector2 size, float cursor) {
     const SDL_Rect area{static_cast<int>(position.x), static_cast<int>(position.y), static_cast<int>(size.x),
                         static_cast<int>(size.y)};
-    SDL_SetTextInputArea(m_impl->handle, &area, 0);
+    SDL_SetTextInputArea(m_impl->handle, &area, static_cast<int>(cursor));
 }
 
 void* Window::GetNativeHandle() const {

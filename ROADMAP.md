@@ -358,7 +358,7 @@ bindings with processing (dead zone, invert, scale). A player's rebinds are save
 - [x] **M2.1 Gamepads.** SDL3 gamepad events become engine events (connected, disconnected, button, axis), and
   `InputState` tracks each gamepad. Add `Input::IsGamepadButtonDown/Pressed/Released`, `GetGamepadAxis`, rumble, and
   a choice between one gamepad and any gamepad. Tests with synthetic events.
-- [ ] **M2.2 Text input.** A `TextInputEvent` from SDL text events, `Window::StartTextInput()`/`StopTextInput()` with
+- [x] **M2.2 Text input.** A `TextInputEvent` from SDL text events, `Window::StartTextInput()`/`StopTextInput()` with
   the IME area, and `Input::GetTypedText()`. Tests.
 - [ ] **M2.3 Actions.** An `InputActionMap` of actions and bindings: keys, mouse buttons, mouse delta, scroll, gamepad
   buttons and axes, and composites (four buttons into a vector). Values and press/release edges per action, each
@@ -380,6 +380,9 @@ bindings with processing (dead zone, invert, scale). A player's rebinds are save
   numbered in the order they connected, and events from a gamepad not yet said to connect add it. The SDL backend
   opens gamepads as they are added and flips the sticks' Y so up is positive; axes are raw, as dead zones are the
   actions' processing (M2.3). Rumble is `Platform::RumbleGamepad()`.
+- M2.2: `TextInputEvent`, `Window::StartTextInput()` and the IME area already existed (from the editor's text
+  fields); this step added `Input::GetTypedText()`, input method compositions (`TextCompositionEvent`) and the
+  cursor offset in `SetTextInputArea()`.
 
 ---
 

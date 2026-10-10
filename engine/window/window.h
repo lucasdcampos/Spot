@@ -75,13 +75,15 @@ public:
     bool IsCursorVisible() const;
     void SetCursorVisible(bool visible);
 
-    // While text input is on, typed text arrives as TextInputEvents. Turn it on only while a text field has focus:
-    // some platforms show an on-screen keyboard or an input method window meanwhile.
+    // While text input is on, typed text arrives as TextInputEvents, and the text an input method is composing as
+    // TextCompositionEvents. Turn it on only while a text field has focus: some platforms show an on-screen keyboard
+    // or an input method window meanwhile.
     bool IsTextInputActive() const;
     void StartTextInput();
     void StopTextInput();
-    // Where the text being typed is, in screen coordinates, so input method windows open next to it.
-    void SetTextInputArea(Vector2 position, Vector2 size);
+    // Where the text being typed is, in screen coordinates, and how far into it the cursor is, so input method windows
+    // open next to it.
+    void SetTextInputArea(Vector2 position, Vector2 size, float cursor = 0.0f);
 
     // The backend's window (an SDL_Window* with SDL3), for code that needs the backend directly.
     void* GetNativeHandle() const;

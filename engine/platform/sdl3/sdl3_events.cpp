@@ -295,6 +295,8 @@ std::optional<Event> Translate(const SDL_Event& event) {
             return std::nullopt;
         }
         return TextInputEvent{event.text.text};
+    case SDL_EVENT_TEXT_EDITING:
+        return TextCompositionEvent{event.edit.text ? event.edit.text : "", event.edit.start, event.edit.length};
     case SDL_EVENT_MOUSE_MOTION: {
         Vector2 position{event.motion.x, event.motion.y};
         SDL_Window* window = SDL_GetWindowFromID(event.motion.windowID);

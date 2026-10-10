@@ -3,6 +3,8 @@
 #include "input/keys.h"
 #include "math/vector.h"
 
+#include <string_view>
+
 namespace Spot {
 
 class InputState;
@@ -23,6 +25,9 @@ bool IsKeyReleased(Key key);
 bool IsMouseButtonDown(MouseButton button);
 bool IsMouseButtonPressed(MouseButton button);
 bool IsMouseButtonReleased(MouseButton button);
+
+// The text typed this frame while text input was on, as UTF-8; see Window::StartTextInput().
+std::string_view GetTypedText();
 
 Vector2 GetMousePosition();
 Vector2 GetMouseDelta();
