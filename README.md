@@ -20,6 +20,12 @@ cmake --build --preset ninja-debug
 ctest --preset ninja-debug
 ```
 
+The normal test presets run headless tests with at most two processes and open no GPU test windows. GPU tests
+are separate: use `ctest --preset msvc-debug-gpu` (or `ninja-debug-gpu`) when changing rendering, shaders or visual
+editor behavior, optionally selecting cases with `-R <pattern>`. They open real windows and run one at a time.
+Use `ctest --preset msvc-debug-all` (or `ninja-debug-all`) for the complete suite. Release presets offer the same
+`-gpu` and `-all` variants.
+
 ## Running the sandbox and the editor
 
 ```sh

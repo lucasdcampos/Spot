@@ -166,7 +166,8 @@ target_compile_definitions(spot_gpu_tests PRIVATE
 spot_set_compile_options(spot_gpu_tests)
 spot_precompile_engine_header(spot_gpu_tests <catch2/catch_test_macros.hpp>)
 
-catch_discover_tests(spot_gpu_tests PROPERTIES TIMEOUT 60)
+# GPU processes compete for the same device and open windows; run each without other tests alongside it.
+catch_discover_tests(spot_gpu_tests PROPERTIES LABELS gpu RUN_SERIAL TRUE TIMEOUT 60)
 
 # What runs in the shared engine library, as the editor and game modules use it: loading modules, such as this one,
 # built as projects with code build theirs, and running programs.
@@ -249,7 +250,7 @@ if(TARGET spot_editor_core)
     spot_set_compile_options(spot_editor_gpu_tests)
     spot_precompile_engine_header(spot_editor_gpu_tests <catch2/catch_test_macros.hpp>)
     spot_copy_runtime_dlls(spot_editor_gpu_tests)
-    catch_discover_tests(spot_editor_gpu_tests PROPERTIES TIMEOUT 60)
+    catch_discover_tests(spot_editor_gpu_tests PROPERTIES LABELS gpu RUN_SERIAL TRUE TIMEOUT 60)
 endif()
 
 # The rendering benchmark, run by hand in Release when rendering changes; see its source.

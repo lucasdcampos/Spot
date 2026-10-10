@@ -23,8 +23,18 @@ Each project lives in its own folder at the repository root, with headers next t
 ```sh
 cmake --preset msvc                  # or: cmake --preset ninja
 cmake --build --preset msvc-debug    # or: ninja-debug
-ctest --preset msvc-debug            # or: ninja-debug
+ctest --preset msvc-debug            # or: ninja-debug; headless tests, two processes at most
 ```
+
+The normal test presets exclude GPU tests. Use them for routine changes to gameplay, assets, serialization,
+physics, audio, tools and headless editor behavior. Run the relevant GPU tests when changing rendering, shaders,
+graphics backends or visual editor behavior; use `ctest --preset msvc-debug-gpu` (or `ninja-debug-gpu`) for that
+suite, and `-R <pattern>` to select cases. GPU tests open real windows and are marked `RUN_SERIAL`, so only one
+runs at a time even when parallelism is requested. `ctest --preset msvc-debug-all` (or `ninja-debug-all`) explicitly
+runs the complete suite. Release presets have the same `-gpu` and `-all` variants. Avoid repeating graphical
+suites for unrelated changes or running MSVC and GCC GPU suites concurrently.
+For a build directory without presets, use `ctest --test-dir <build> -LE gpu --parallel 2` for routine tests, or
+`-L gpu --parallel 1` for the graphical suite.
 
 With the Ninja or Makefile generators, the build compiles through sccache or ccache when one is installed (see
 `cmake/spot_compiler_cache.cmake`; `-DSPOT_USE_COMPILER_CACHE=OFF` turns it off), and so do games built by the tools.
