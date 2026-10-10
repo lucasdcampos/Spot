@@ -262,7 +262,7 @@ Steps:
   props at the hit point with impulses. The rocket launcher fires projectiles that explode with `OverlapSphere` and
   a radial impulse, and explosive barrels blow up when shot. Keys spawn props where the player looks, with undo (Z)
   and cleanup.
-- [ ] **M1.13 Sandbox: tool gun.** Weld (`FixedJoint`), rope (`DistanceJoint`, drawn with `DebugDraw` for now) and
+- [x] **M1.13 Sandbox: tool gun.** Weld (`FixedJoint`), rope (`DistanceJoint`, drawn with `DebugDraw` for now) and
   remover, with undo.
 
 **Done when:** in the sandbox, the player walks the level, carries and throws props, builds something with the
@@ -337,6 +337,11 @@ physics gun and the tool gun, and shoots and blows it apart.
   fuse so they chain. Tracers and explosion flashes are `DebugDraw` shapes until view models (M9.12) and particles
   (M13). While a prop is carried, the carrier has the click for that frame (`PropCarrier::HasClick()`), which input
   ownership (M2) will replace.
+- M1.13: the tool gun is the last item in hand (6), with R cycling weld, rope and remover. Undo became an
+  `UndoList` on the player that spawning and the tool gun share: undoing a joint removes the component at the place
+  it was added, and undoing a removal re-instantiates the entity saved before it went, with its id
+  (`InstantiateOptions::keepIds`), so joints to it are made again. Ropes are `DistanceJoint`s drawn with
+  `DebugDraw` lines.
 
 ---
 

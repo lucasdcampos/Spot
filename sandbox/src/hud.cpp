@@ -1,6 +1,7 @@
 #include "hud.h"
 
 #include "day_cycle.h"
+#include "tool_gun.h"
 #include "weapon.h"
 #include "weapon_holder.h"
 
@@ -49,6 +50,11 @@ std::string Hud::DescribeHand() const {
     if (!holder) {
         return {};
     }
+    if (holder->IsToolGunSelected()) {
+        const auto* tool = holder->GetEntity().GetComponent<ToolGun>();
+        constexpr const char* Modes[] = {"Weld", "Rope", "Remover"};
+        return tool ? std::format("Tool Gun: {}", Modes[static_cast<int>(tool->mode)]) : "Tool Gun";
+    }
     const Weapon* weapon = holder->GetWeapon();
     if (!weapon) {
         return "Physics Gun";
@@ -81,7 +87,7 @@ void Hud::OnDrawUi(Spot::Renderer2D& renderer, Spot::Vector2 viewSize) {
         {12.0f, top - 10.0f - 1.8f * line}, help, 0.8f);
     renderer.DrawString(*font,
                         "1: physics gun (hold click, wheel, E to turn, right click to freeze, U to unfreeze) | "
-                        "2-5: weapons, R to reload | E: pick up, click to throw",
+                        "2-5: weapons, R to reload | 6: tool gun, R for weld, rope or remover | E: pick up",
                         {12.0f, top - 10.0f - 2.6f * line}, help, 0.8f);
     renderer.DrawString(*font,
                         "F1-F8: spawn a crate, barrel, explosive barrel, ball, plank, beam, cone or wheel | "

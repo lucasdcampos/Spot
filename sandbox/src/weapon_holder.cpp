@@ -13,7 +13,7 @@
 SPOT_COMPONENT(WeaponHolder);
 
 void WeaponHolder::Select(int slot) {
-    const int count = static_cast<int>(GetWeapons().size()) + 1;
+    const int count = static_cast<int>(GetWeapons().size()) + 2;
     m_selected = ((slot % count) + count) % count;
 }
 
@@ -100,7 +100,7 @@ void WeaponHolder::OnUpdate(float deltaTime) {
 
     constexpr Key Slots[] = {Key::Digit1, Key::Digit2, Key::Digit3, Key::Digit4, Key::Digit5,
                              Key::Digit6, Key::Digit7, Key::Digit8, Key::Digit9};
-    for (int slot = 0; slot < 9 && slot <= static_cast<int>(weapons.size()); ++slot) {
+    for (int slot = 0; slot < 9 && slot <= static_cast<int>(weapons.size()) + 1; ++slot) {
         if (Input::IsKeyPressed(Slots[slot])) {
             Select(slot);
         }

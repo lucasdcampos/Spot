@@ -6,15 +6,17 @@
 
 class Weapon;
 
-// What the player has in hand: the physics gun (PhysicsGun), on 1, or one of the weapons on the entities below the
-// player, on the keys after it in their order; the wheel goes through them when the physics gun is not holding
-// anything. A click fires the weapon in hand, holding it fires automatic ones, and R reloads.
+// What the player has in hand: the physics gun (PhysicsGun), on 1, one of the weapons on the entities below the
+// player, on the keys after it in their order, or the tool gun (ToolGun), on the key after them; the wheel goes
+// through them when the physics gun is not holding anything. A click fires the weapon in hand, holding it fires
+// automatic ones, and R reloads.
 class WeaponHolder final : public Spot::Component {
 public:
-    // 0 is the physics gun; the weapons follow.
+    // 0 is the physics gun; the weapons follow, and the tool gun comes last.
     int GetSelected() const { return m_selected; }
     void Select(int slot);
     bool IsPhysicsGunSelected() const { return m_selected == 0; }
+    bool IsToolGunSelected() const { return m_selected == static_cast<int>(GetWeapons().size()) + 1; }
     // The weapon in hand; null with the physics gun.
     Weapon* GetWeapon() const;
     // Every weapon, in the order of their keys.

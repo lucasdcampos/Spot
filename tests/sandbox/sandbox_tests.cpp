@@ -6,6 +6,8 @@
 #include "player_controller.h"
 #include "prop_carrier.h"
 #include "prop_spawner.h"
+#include "tool_gun.h"
+#include "undo_list.h"
 #include "weapon.h"
 #include "weapon_holder.h"
 
@@ -392,4 +394,69 @@ TEST_CASE("Keys spawn props where the player looks, Z takes them back and X clea
     playground.Run(0.05f);
     playground.Release(Key::X);
     CHECK(spawner.GetSpawnedCount() == 0);
+}
+
+TEST_CASE("The tool gun welds, ropes and removes props, and Z takes it all back", "[sandbox]") {
+    Playground playground;
+    playground.Run(1.5f);
+    auto& tool = *playground.player->GetComponent<ToolGun>();
+    auto& undo = *playground.player->GetComponent<UndoList>();
+    playground.Press(Key::Digit6);
+    playground.Run(0.05f);
+    playground.Release(Key::Digit6);
+    REQUIRE(playground.player->GetComponent<WeaponHolder>()->IsToolGunSelected());
+
+    // A crate welded in the air to a frozen one stays there.
+    Entity& anchor = playground.PlaceCrate(4.0f, 5.0f);
+    // High enough for what hangs below it to clear the ground.
+    anchor.GetTransform().SetPosition(anchor.GetTransform().GetPosition() + Spot::Vector3{0.0f, 3.0f, 0.0f});
+    anchor.GetComponent<Spot::Rigidbody>()->SetKinematic(true);
+    Entity& welded = playground.PlaceCrate(4.0f, 5.0f);
+    welded.GetTransform().SetPosition(anchor.GetTransform().GetPosition() + Spot::Vector3{0.5f, 0.0f, 0.0f});
+    welded.GetComponent<Spot::Rigidbody>()->SetGravityScale(1.0f);
+    REQUIRE(tool.Weld(welded, anchor) != nullptr);
+    playground.Run(1.0f);
+    CHECK(Spot::Distance(welded.GetTransform().GetPosition(), anchor.GetTransform().GetPosition()) ==
+          Approx(0.5f).margin(0.02f));
+
+    // Undoing the weld drops the crate.
+    const float heldAt = welded.GetTransform().GetPosition().y;
+    REQUIRE(undo.Undo());
+    playground.Run(0.5f);
+    CHECK(welded.GetTransform().GetPosition().y < heldAt - 0.5f);
+
+    // A rope from the frozen crate hangs a crate a meter below it, at most.
+    Entity& hanging = playground.PlaceCrate(4.0f, 5.0f);
+    hanging.GetTransform().SetPosition(anchor.GetTransform().GetPosition() + Spot::Vector3{0.0f, -1.0f, 0.0f});
+    hanging.GetComponent<Spot::Rigidbody>()->SetGravityScale(1.0f);
+    const Spot::Vector3 top = hanging.GetTransform().GetPosition() + Spot::Vector3{0.0f, 0.25f, 0.0f};
+    const Spot::Vector3 bottom = anchor.GetTransform().GetPosition() - Spot::Vector3{0.0f, 0.25f, 0.0f};
+    REQUIRE(tool.Rope(hanging, top, anchor, bottom) != nullptr);
+    playground.Run(1.0f);
+    CHECK(anchor.GetTransform().GetPosition().y - hanging.GetTransform().GetPosition().y == Approx(1.0f).margin(0.05f));
+
+    // The remover takes a prop away, the click on it as the player aims; the level stays.
+    playground.Press(Key::R);
+    playground.Run(0.05f);
+    playground.Release(Key::R);
+    playground.Press(Key::R);
+    playground.Run(0.05f);
+    playground.Release(Key::R);
+    REQUIRE(tool.mode == ToolGun::Mode::Remover);
+    Entity& doomed = playground.PlaceCrate(3.0f, 5.0f);
+    const Spot::EntityId doomedId = doomed.GetId();
+    playground.Run(0.05f);
+    playground.Press(Spot::MouseButton::Left);
+    playground.Run(0.05f);
+    playground.Release(Spot::MouseButton::Left);
+    CHECK(playground.scene.GetEntity(doomedId) == nullptr);
+    Entity* ground = playground.scene.FindEntity("Ground");
+    REQUIRE(ground != nullptr);
+    CHECK_FALSE(tool.Remove(*ground));
+
+    // Z brings the removed crate back, with its id.
+    playground.Press(Key::Z);
+    playground.Run(0.05f);
+    playground.Release(Key::Z);
+    CHECK(playground.scene.GetEntity(doomedId) != nullptr);
 }

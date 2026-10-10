@@ -2,6 +2,7 @@
 
 #include "explosive_barrel.h"
 #include "player_controller.h"
+#include "undo_list.h"
 
 #include <algorithm>
 #include <array>
@@ -59,19 +60,10 @@ Spot::Entity* PropSpawner::Spawn(std::size_t index) {
         entity.AddComponent<ExplosiveBarrel>();
     }
     m_spawned.push_back(entity.GetId());
-    return &entity;
-}
-
-void PropSpawner::Undo() {
-    // The last one still there; those destroyed meanwhile are skipped.
-    while (!m_spawned.empty()) {
-        Spot::Entity* entity = GetScene().GetEntity(m_spawned.back());
-        m_spawned.pop_back();
-        if (entity) {
-            entity->Destroy();
-            return;
-        }
+    if (auto* undo = GetEntity().GetComponent<UndoList>()) {
+        undo->PushSpawn(entity.GetId());
     }
+    return &entity;
 }
 
 void PropSpawner::Cleanup() {
@@ -96,9 +88,6 @@ void PropSpawner::OnUpdate(float /*deltaTime*/) {
         if (Input::IsKeyPressed(Keys[i])) {
             Spawn(i);
         }
-    }
-    if (Input::IsKeyPressed(Key::Z)) {
-        Undo();
     }
     if (Input::IsKeyPressed(Key::X)) {
         Cleanup();

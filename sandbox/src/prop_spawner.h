@@ -22,8 +22,8 @@ struct SpawnableProp {
     void Serialize(Spot::Archive& archive);
 };
 
-// F1 to F8 spawn the props of the list, in its order, where the player looks; Z takes back the last one spawned and X
-// cleans up every one.
+// F1 to F8 spawn the props of the list, in its order, where the player looks, each of which the UndoList can take
+// back with Z; X cleans up every one.
 class PropSpawner final : public Spot::Component {
 public:
     std::vector<SpawnableProp> props;
@@ -31,7 +31,6 @@ public:
 
     // Spawns the prop of the list where the player looks; null when there is no such prop.
     Spot::Entity* Spawn(std::size_t index);
-    void Undo();
     void Cleanup();
     std::size_t GetSpawnedCount() const;
 

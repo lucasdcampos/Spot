@@ -2764,6 +2764,19 @@
           },
           "enabled": true,
           "type": "PropSpawner"
+        },
+        {
+          "data": {
+            "mode": 0,
+            "range": 100.0
+          },
+          "enabled": true,
+          "type": "ToolGun"
+        },
+        {
+          "data": {},
+          "enabled": true,
+          "type": "UndoList"
         }
       ],
       "id": 46,
