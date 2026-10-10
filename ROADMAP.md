@@ -9,7 +9,7 @@ The goal is the same breadth, built on the architecture Spot already has.
 The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
 [The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
 
-**Current focus:** M4 – Fast game-code iteration
+**Current focus:** M5 – Rendering: HDR and post-processing
 
 ## How to use this plan
 
@@ -557,6 +557,10 @@ budget is a few seconds for a one-file change in Debug.
   budget, in the editor on the sandbox, MSVC Debug: a one-line change to a component reloads 1.0-1.2 s after it is
   seen (build 0.9-1.0 s, module load 21-25 ms, scenes reloaded in 120-140 ms), so at most about 1.5 s after it is
   saved, down from about 5 s at the M4.1 baseline.
+- Done 2026-10-10. Acceptance: in the editor, a one-line change to a sandbox component reloads within the budget,
+  about a second after it is seen (M4.5), and the module tests build, reload and run projects' code with the
+  precompiled header and the new configure and target rules. MSVC and GCC Debug build without warnings and pass
+  every test, the module tests included.
 
 ---
 
