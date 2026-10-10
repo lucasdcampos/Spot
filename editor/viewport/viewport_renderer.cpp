@@ -199,7 +199,8 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
                                  .keepSamples = samples != nullptr};
     const Vector2 size{static_cast<float>(targets.GetWidth()), static_cast<float>(targets.GetHeight())};
     // The scene's render hooks draw at the stages a game's SceneRenderer runs them at.
-    RenderStageContext stage{.context = context,
+    RenderStageContext stage{.device = m_device,
+                             .context = context,
                              .stage = RenderStage::BeforeOpaque,
                              .camera = camera,
                              .viewProjection = camera.GetViewProjection(size),

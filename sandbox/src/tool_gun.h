@@ -1,8 +1,11 @@
 #pragma once
 
+#include "hook_lines.h"
+
 #include <spot.h>
 
 #include <optional>
+#include <vector>
 
 // The last item in hand (see WeaponHolder), whose mode Reload changes. Weld joins two props with a FixedJoint, and
 // rope with a DistanceJoint as long as the gap between the two points clicked; each takes a click (Fire) on each prop,
@@ -29,6 +32,8 @@ public:
 
 protected:
     void OnUpdate(float deltaTime) override;
+    void OnEnable() override;
+    void OnDisable() override;
     void OnLateUpdate(float deltaTime) override;
     void Serialize(Spot::Archive& archive) override;
 
@@ -41,4 +46,8 @@ private:
     bool IsInHand() const;
 
     std::optional<Pick> m_first;
+    // The ropes of the scene, drawn after its surfaces.
+    std::vector<Spot::DebugLine> m_ropes;
+    HookLines m_ropeLines;
+    Spot::RenderHookId m_ropeHook = Spot::RenderHookId::Invalid;
 };

@@ -22,6 +22,9 @@ struct Material {
     float specular = 0.0f;
     // How small and sharp the highlights are: a few units for rough surfaces, hundreds for polished ones.
     float shininess = 32.0f;
+    // Light the surface gives off itself, added to what lights it, as screens and lamps do. Linear; above 1, it glows
+    // through bloom. It lights nothing else.
+    Color emissive = Color::Black;
 };
 
 } // namespace Spot

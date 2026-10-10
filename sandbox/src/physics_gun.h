@@ -1,6 +1,10 @@
 #pragma once
 
+#include "hook_lines.h"
+
 #include <spot.h>
+
+#include <vector>
 
 // The tool on Weapon 1 (see WeaponHolder). Holding Fire grabs the prop the player aims at, anywhere in range, and
 // drives the point it grabbed toward where it was grabbed in front of the camera, as on a spring; Switch Weapon (the
@@ -30,6 +34,8 @@ public:
 protected:
     void OnUpdate(float deltaTime) override;
     void OnFixedUpdate(float fixedDeltaTime) override;
+    void OnEnable() override;
+    void OnDisable() override;
     void OnLateUpdate(float deltaTime) override;
     void Serialize(Spot::Archive& archive) override;
 
@@ -46,4 +52,8 @@ private:
     // The prop's rotation relative to where the player faces, so it turns with the player.
     Spot::Quaternion m_rotation;
     bool m_turning = false;
+    // The beam to the prop held, drawn after the scene's surfaces, bright enough to glow.
+    std::vector<Spot::DebugLine> m_beam;
+    HookLines m_beamLines;
+    Spot::RenderHookId m_beamHook = Spot::RenderHookId::Invalid;
 };

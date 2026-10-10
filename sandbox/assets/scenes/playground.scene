@@ -75,6 +75,40 @@
           },
           "enabled": true,
           "type": "PhysicsDebugView"
+        },
+        {
+          "data": {
+            "color": [
+              0.62,
+              0.68,
+              0.78,
+              1.0
+            ],
+            "density": 0.005,
+            "heightFalloff": 0.06,
+            "start": 5.0
+          },
+          "enabled": true,
+          "type": "Fog"
+        },
+        {
+          "data": {
+            "bloomIntensity": 0.35,
+            "bloomScatter": 0.7,
+            "bloomThreshold": 1.0,
+            "contrast": 1.05,
+            "exposure": 1.0,
+            "lut": "00000000000000000000000000000000",
+            "lutContribution": 1.0,
+            "saturation": 1.0,
+            "temperature": 0.0,
+            "tint": 0.0,
+            "tonemapper": 0,
+            "vignette": 0.2,
+            "vignetteStart": 0.45
+          },
+          "enabled": true,
+          "type": "PostProcessing"
         }
       ],
       "id": 1,
@@ -166,6 +200,15 @@
           },
           "enabled": true,
           "type": "PointLight"
+        },
+        {
+          "data": {
+            "castsShadows": false,
+            "material": "86bb05cdc2e5a8418742cba52f3963df",
+            "mesh": "00000000000000000000000000000002"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
         }
       ],
       "id": 3,
@@ -182,9 +225,9 @@
         1.0
       ],
       "scale": [
-        1.0,
-        1.0,
-        1.0
+        0.3,
+        0.3,
+        0.3
       ],
       "tags": []
     },
@@ -205,6 +248,15 @@
           },
           "enabled": true,
           "type": "PointLight"
+        },
+        {
+          "data": {
+            "castsShadows": false,
+            "material": "5e9529eeaf28dd83c803283bdff738db",
+            "mesh": "00000000000000000000000000000002"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
         }
       ],
       "id": 4,
@@ -221,9 +273,9 @@
         1.0
       ],
       "scale": [
-        1.0,
-        1.0,
-        1.0
+        0.3,
+        0.3,
+        0.3
       ],
       "tags": []
     },
@@ -244,6 +296,15 @@
           },
           "enabled": true,
           "type": "PointLight"
+        },
+        {
+          "data": {
+            "castsShadows": false,
+            "material": "c28791fa1135924a21e9da880f008de9",
+            "mesh": "00000000000000000000000000000002"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
         }
       ],
       "id": 5,
@@ -260,9 +321,9 @@
         1.0
       ],
       "scale": [
-        1.0,
-        1.0,
-        1.0
+        0.3,
+        0.3,
+        0.3
       ],
       "tags": []
     },
@@ -283,6 +344,15 @@
           },
           "enabled": true,
           "type": "PointLight"
+        },
+        {
+          "data": {
+            "castsShadows": false,
+            "material": "fcdf2748e8813e2e9e56005e9d13cd09",
+            "mesh": "00000000000000000000000000000002"
+          },
+          "enabled": true,
+          "type": "MeshRenderer"
         }
       ],
       "id": 6,
@@ -299,9 +369,9 @@
         1.0
       ],
       "scale": [
-        1.0,
-        1.0,
-        1.0
+        0.3,
+        0.3,
+        0.3
       ],
       "tags": []
     },

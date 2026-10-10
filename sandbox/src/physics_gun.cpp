@@ -129,7 +129,19 @@ void PhysicsGun::OnFixedUpdate(float fixedDeltaTime) {
     PropDrive::Toward(*body, ToWorld(transform, m_grabPoint), target, rotation, fixedDeltaTime, maxSpeed);
 }
 
+void PhysicsGun::OnEnable() {
+    m_beamHook =
+        GetScene().AddRenderHook(Spot::RenderStage::AfterOpaque,
+                                 [this](const Spot::RenderStageContext& stage) { m_beamLines.Draw(stage, m_beam); });
+}
+
+void PhysicsGun::OnDisable() {
+    GetScene().RemoveRenderHook(m_beamHook);
+    m_beam.clear();
+}
+
 void PhysicsGun::OnLateUpdate(float /*deltaTime*/) {
+    m_beam.clear();
     const Spot::Rigidbody* body = GetGrabbedBody();
     const auto* player = GetEntity().GetComponent<PlayerController>();
     if (!body || !player) {
@@ -141,11 +153,12 @@ void PhysicsGun::OnLateUpdate(float /*deltaTime*/) {
         }
         source->pitch = 1.0f + std::min(Spot::Length(body->GetLinearVelocity()) / 20.0f, 1.0f);
     }
-    // The beam, until the rendering milestones give it a look of its own.
+    // Brighter than white, so it glows through bloom.
     const Spot::Vector3 muzzle =
         player->GetEyePosition() + player->GetViewRotation() * Spot::Vector3{0.25f, -0.2f, -0.4f};
-    Spot::DebugDraw::Line(muzzle, ToWorld(body->GetEntity().GetTransform(), m_grabPoint),
-                          {.color = {0.3f, 0.7f, 1.0f, 1.0f}});
+    m_beam.push_back({.from = muzzle,
+                      .to = ToWorld(body->GetEntity().GetTransform(), m_grabPoint),
+                      .color = {1.2f, 2.8f, 4.0f, 1.0f}});
 }
 
 void PhysicsGun::Serialize(Spot::Archive& archive) {

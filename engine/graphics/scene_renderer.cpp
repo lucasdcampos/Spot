@@ -93,7 +93,8 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
                                  .resolveTarget = samples ? m_hdr.get() : nullptr,
                                  .keepSamples = samples != nullptr};
     const Vector2 size{static_cast<float>(width), static_cast<float>(height)};
-    RenderStageContext stage{.context = context,
+    RenderStageContext stage{.device = m_device,
+                             .context = context,
                              .stage = RenderStage::BeforeOpaque,
                              .camera = view,
                              .viewProjection = view.GetViewProjection(size),

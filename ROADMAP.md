@@ -584,7 +584,7 @@ built on the public graphics API. The look comes from a `PostProcessing` compone
 - [x] **M5.8 Render hooks.** Stages in `SceneRenderer` (before opaque, after opaque, after transparent, before and
   after post-processing, overlay) where games and systems add passes, with a context holding the camera, targets and
   depth. `DebugDraw` moves onto them. Tests.
-- [ ] **M5.9 Sandbox: look.** Muzzle flashes, explosions and emissive props glow through bloom, and the level gets
+- [x] **M5.9 Sandbox: look.** Muzzle flashes, explosions and emissive props glow through bloom, and the level gets
   fog and grading that follow the day cycle. The physics gun's beam and the ropes are drawn in a render hook.
 
 **Done when:** the sandbox renders through HDR, bloom, grading and fog, and its beam draws at a chosen stage.
@@ -638,6 +638,13 @@ built on the public graphics API. The look comes from a `PostProcessing` compone
   of their own. `DebugDraw` is the renderer's own `AfterOpaque` hook. The editor's views run the scene's hooks at
   the same stages (their own lines and grid stay built in). "Transparent" is the sprites until M6 brings
   transparency.
+- M5.9: materials gained `emissive` (material importer 4, model importer 5); the lamps have bulbs of `bulb_*.material`,
+  six times their light's color. `Flash` entities (a fading point light and an emissive sphere) mark shots (0.05 s)
+  and explosions (0.35 s, replacing the debug sphere); tracers are drawn three times brighter than white. The sun's
+  entity has a `Fog` and a `PostProcessing`, which `DayCycle` sets from the sun's height: pale haze by day, warmer
+  and denser at sunset, dark blue and denser at night with a raised exposure and a cooler white balance. The
+  physics gun's beam and the ropes are drawn by `AfterOpaque` render hooks through `HookLines` (a LineRenderer per
+  stage's format and sample count, which needed `RenderStageContext::device`), the beam bright enough to bloom.
 
 ---
 

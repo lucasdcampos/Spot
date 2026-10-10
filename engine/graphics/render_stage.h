@@ -27,8 +27,11 @@ enum class RenderStage : std::uint8_t {
     Overlay,
 };
 
-// What a render hook draws with: the frame, where it is seen from, and the targets of its stage.
+class GraphicsDevice;
+
+// What a render hook draws with: the device and the frame, where it is seen from, and the targets of its stage.
 struct RenderStageContext {
+    GraphicsDevice& device;
     RenderContext& context;
     RenderStage stage;
     Camera3D camera;

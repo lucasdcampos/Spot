@@ -131,6 +131,7 @@ private:
         float worldTextureSize;
         float specular;
         float shininess;
+        Color emissive;
         Matrix4 transform;
         // Around the mesh, in world space.
         BoundingSphere bounds;

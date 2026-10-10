@@ -124,15 +124,26 @@ void ToolGun::OnUpdate(float /*deltaTime*/) {
     }
 }
 
+void ToolGun::OnEnable() {
+    m_ropeHook =
+        GetScene().AddRenderHook(Spot::RenderStage::AfterOpaque,
+                                 [this](const Spot::RenderStageContext& stage) { m_ropeLines.Draw(stage, m_ropes); });
+}
+
+void ToolGun::OnDisable() {
+    GetScene().RemoveRenderHook(m_ropeHook);
+    m_ropes.clear();
+}
+
 void ToolGun::OnLateUpdate(float /*deltaTime*/) {
     // Ropes, until the rendering milestones draw them as more than lines.
-    const Spot::DebugDrawOptions rope{.color = {0.55f, 0.4f, 0.25f, 1.0f}};
-    GetScene().ForEachComponent<Spot::DistanceJoint>([this, &rope](const Spot::DistanceJoint& joint) {
+    m_ropes.clear();
+    GetScene().ForEachComponent<Spot::DistanceJoint>([this](const Spot::DistanceJoint& joint) {
         const Spot::Entity* connected = GetScene().GetEntity(joint.GetConnectedEntity());
         const Spot::Vector3 from = ToWorld(joint.GetEntity().GetTransform(), joint.GetAnchor());
         const Spot::Vector3 to =
             connected ? ToWorld(connected->GetTransform(), joint.GetConnectedAnchor()) : joint.GetConnectedAnchor();
-        Spot::DebugDraw::Line(from, to, rope);
+        m_ropes.push_back({.from = from, .to = to, .color = {0.55f, 0.4f, 0.25f, 1.0f}});
     });
 }
 

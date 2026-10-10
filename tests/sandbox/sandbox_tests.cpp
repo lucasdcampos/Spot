@@ -1,7 +1,9 @@
 // The sandbox's game code, run headless on its real scenes: the engine's integration test, which shows a regression
 // as something broken in the game.
+#include "day_cycle.h"
 #include "explosion.h"
 #include "explosive_barrel.h"
+#include "flash.h"
 #include "log_capture.h"
 #include "physics_gun.h"
 #include "player_controller.h"
@@ -667,4 +669,63 @@ TEST_CASE("The playground sounds from where things are, on its buses", "[sandbox
     playground.Run(0.1f);
     CHECK_FALSE(hum->GetComponent<Spot::AudioSource>()->IsPlaying());
     static_cast<void>(held);
+}
+
+TEST_CASE("Shots and explosions flash, and the flashes go out", "[sandbox]") {
+    Playground playground;
+    playground.Run(1.5f);
+    const auto flashes = [&] {
+        int count = 0;
+        playground.scene.ForEachComponent<Flash>([&count](const Flash&) { ++count; });
+        return count;
+    };
+    FireSlot(playground, Key::Digit2);
+    // The muzzle flash lasts a few frames; the shot happened in the last of them.
+    playground.Press(Spot::MouseButton::Left);
+    playground.Run(Step);
+    playground.Release(Spot::MouseButton::Left);
+    playground.Run(0.3f);
+    playground.Press(Spot::MouseButton::Left);
+    playground.Run(Step);
+    playground.Release(Spot::MouseButton::Left);
+    CHECK(flashes() == 1);
+    const Entity* flash = playground.scene.FindEntity("Flash");
+    REQUIRE(flash != nullptr);
+    CHECK(flash->GetComponent<Spot::PointLight>() != nullptr);
+    playground.Run(0.2f);
+    CHECK(flashes() == 0);
+
+    Explosion::Explode(playground.scene, playground.PlayerPosition() + Spot::Vector3{0.0f, 0.0f, -10.0f}, 3.0f, 0.0f);
+    CHECK(flashes() == 1);
+    playground.Run(0.5f);
+    CHECK(flashes() == 0);
+}
+
+TEST_CASE("The day cycle thickens and darkens the fog at night, and raises the exposure", "[sandbox]") {
+    Playground playground;
+    Entity* sun = playground.scene.FindEntity("Sun");
+    REQUIRE(sun != nullptr);
+    auto& cycle = *sun->GetComponent<DayCycle>();
+    const auto& fog = *sun->GetComponent<Spot::Fog>();
+    const auto& look = *sun->GetComponent<Spot::PostProcessing>();
+    cycle.dayLength = 0.0f;
+
+    cycle.timeOfDay = 0.5f;
+    playground.Run(Step);
+    const Spot::Color noonColor = fog.color;
+    const float noonDensity = fog.density;
+    const float noonExposure = look.exposure;
+
+    cycle.timeOfDay = 0.0f;
+    playground.Run(Step);
+    CHECK(fog.color.r < noonColor.r * 0.2f);
+    CHECK(fog.density > noonDensity);
+    CHECK(look.exposure > noonExposure);
+    CHECK(look.temperature < 0.0f);
+
+    // At sunset the light is warm.
+    cycle.timeOfDay = 0.75f;
+    playground.Run(Step);
+    CHECK(look.temperature > 0.1f);
+    CHECK(fog.color.r > fog.color.b);
 }

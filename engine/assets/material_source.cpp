@@ -29,6 +29,8 @@ void MaterialSource::Serialize(Archive& archive) {
                   {.min = 0.0f, .max = 1.0f, .speed = 0.005f, .tooltip = "How strongly lights shine off it"});
     archive.Field("shininess", shininess,
                   {.min = 1.0f, .max = 1024.0f, .speed = 0.5f, .tooltip = "How small and sharp highlights are"});
+    archive.Field("emissive", emissive,
+                  {.hdr = true, .tooltip = "Light the surface gives off itself; above 1 it glows through bloom"});
 }
 
 std::string MaterialSource::SaveToString() const {

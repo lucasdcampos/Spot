@@ -1,6 +1,7 @@
 #include "weapon_holder.h"
 
 #include "explosive_barrel.h"
+#include "flash.h"
 #include "physics_gun.h"
 #include "player_controller.h"
 #include "projectile.h"
@@ -72,6 +73,8 @@ void WeaponHolder::Fire() {
     }
     Spot::Input::RumbleGamepad(0.2f, weapon->kind == Weapon::Kind::Projectile ? 0.8f : 0.5f, 0.08f);
     PlayWeaponSound(weapon->fireSound, 1.0f);
+    Flash::Spawn(GetScene(), player->GetEyePosition() + player->GetViewRotation() * Spot::Vector3{0.2f, -0.15f, -0.45f},
+                 {1.0f, 0.75f, 0.4f, 1.0f}, 0.12f, 5.0f, 12.0f, 0.05f);
     const Spot::Vector3 eye = player->GetEyePosition();
     const Spot::Vector3 aim = player->GetAimDirection();
     if (weapon->kind == Weapon::Kind::Projectile) {
@@ -92,9 +95,9 @@ void WeaponHolder::FireHitscan(const Weapon& weapon, Spot::Vector3 eye, Spot::Ve
     for (int pellet = 0; pellet < weapon.pellets; ++pellet) {
         const Spot::Vector3 direction = Scatter(aim, spread);
         const auto hit = GetScene().GetPhysics().Raycast(eye, direction, weapon.range, {.ignore = GetEntity().GetId()});
-        // The tracer, until weapons get muzzle flashes and impacts of their own.
+        // The tracer, bright enough to glow, until weapons get impacts of their own.
         Spot::DebugDraw::Line(muzzle, hit ? hit->point : eye + direction * weapon.range,
-                              {.color = {1.0f, 0.9f, 0.5f, 1.0f}, .duration = 0.05f});
+                              {.color = {3.0f, 2.4f, 1.2f, 1.0f}, .duration = 0.05f});
         if (!hit) {
             continue;
         }

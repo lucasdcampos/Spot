@@ -54,6 +54,8 @@ cbuffer Material : register(b1, space3) {
     float worldTextureSize;
     float specular;
     float shininess;
+    // Light the surface gives off itself.
+    float4 emissive;
 };
 
 // The fog's color, with 1 in w when there is fog; its density, start, height falloff and base height; and the camera's
@@ -240,6 +242,6 @@ float4 main(Input input) : SV_Target0 {
         highlights += lit.specular;
     }
     // Highlights take the light's color rather than the surface's, as on plastic or varnish.
-    const float3 color = albedo.rgb * diffuse + highlights;
+    const float3 color = albedo.rgb * diffuse + highlights + emissive.rgb;
     return float4(lerp(color, fogColor.rgb, GetFogAmount(input.worldPosition - fogCamera.xyz)), albedo.a);
 }

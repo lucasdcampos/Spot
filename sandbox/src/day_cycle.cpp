@@ -1,5 +1,6 @@
 #include "day_cycle.h"
 
+#include <algorithm>
 #include <cmath>
 
 SPOT_COMPONENT(DayCycle);
@@ -32,4 +33,36 @@ void DayCycle::UpdateSun() {
     const float angle = (timeOfDay - 0.25f) * 2.0f * Spot::Pi;
     const Spot::Vector3 toSun = Spot::Normalize(Spot::Vector3{std::cos(angle), std::sin(angle), 0.4f});
     GetEntity().GetTransform().SetRotation(Spot::Quaternion::LookRotation(-toSun));
+    UpdateAtmosphere(toSun.y);
+}
+
+namespace {
+
+float SmoothStep(float from, float to, float value) {
+    const float t = std::clamp((value - from) / (to - from), 0.0f, 1.0f);
+    return t * t * (3.0f - 2.0f * t);
+}
+
+Spot::Color Mix(Spot::Color a, Spot::Color b, float t) {
+    return {a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t, 1.0f};
+}
+
+} // namespace
+
+void DayCycle::UpdateAtmosphere(float sunHeight) {
+    // 0 at night and 1 by day, and how near the horizon the sun is, for sunsets.
+    const float day = SmoothStep(-0.08f, 0.25f, sunHeight);
+    const float sunset = SmoothStep(0.35f, 0.0f, std::abs(sunHeight)) * SmoothStep(-0.2f, 0.0f, sunHeight);
+    if (auto* fog = GetEntity().GetComponent<Spot::Fog>()) {
+        const Spot::Color night{0.015f, 0.022f, 0.05f, 1.0f};
+        const Spot::Color noon{0.62f, 0.68f, 0.78f, 1.0f};
+        const Spot::Color dusk{0.95f, 0.55f, 0.32f, 1.0f};
+        fog->color = Mix(Mix(night, noon, day), dusk, sunset * 0.7f);
+        fog->density = 0.012f + (0.005f - 0.012f) * day + sunset * 0.004f;
+    }
+    if (auto* look = GetEntity().GetComponent<Spot::PostProcessing>()) {
+        look->temperature = sunset * 0.35f - (1.0f - day) * 0.25f;
+        look->exposure = 1.0f + (1.0f - day) * 0.8f;
+        look->saturation = 0.85f + day * 0.2f;
+    }
 }

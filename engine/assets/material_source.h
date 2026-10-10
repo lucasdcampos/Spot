@@ -21,6 +21,7 @@ struct MaterialSource {
     float worldTextureSize = 0.0f;
     float specular = 0.0f;
     float shininess = 32.0f;
+    Color emissive = Color::Black;
 
     void Serialize(Archive& archive);
 

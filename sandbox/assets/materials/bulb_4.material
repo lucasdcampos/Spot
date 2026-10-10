@@ -1,0 +1,19 @@
+{
+  "baseColor": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+  ],
+  "baseColorTexture": "00000000000000000000000000000000",
+  "doubleSided": false,
+  "worldTextureSize": 0.0,
+  "specular": 0.0,
+  "shininess": 32.0,
+  "emissive": [
+    1.8,
+    3.6,
+    6.0,
+    1.0
+  ]
+}

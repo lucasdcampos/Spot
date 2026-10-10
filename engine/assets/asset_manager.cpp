@@ -275,7 +275,8 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
                                                          .doubleSided = material->doubleSided,
                                                          .worldTextureSize = material->worldTextureSize,
                                                          .specular = material->specular,
-                                                         .shininess = material->shininess});
+                                                         .shininess = material->shininess,
+                                                         .emissive = material->emissive});
     }
     case AssetType::Model: {
         const auto parts = Detail::DecodeModel(*data);

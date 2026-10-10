@@ -1,0 +1,46 @@
+#include "flash.h"
+
+#include <algorithm>
+
+SPOT_COMPONENT(Flash);
+
+Spot::Entity& Flash::Spawn(Spot::Scene& scene, Spot::Vector3 position, Spot::Color color, float size, float range,
+                           float intensity, float lifetime) {
+    Spot::Entity& entity = scene.CreateEntity("Flash");
+    entity.GetTransform().SetPosition(position);
+    entity.GetTransform().SetScale({size, size, size});
+    entity.AddComponent<Spot::PointLight>(color, intensity, range);
+    auto& ball =
+        entity.AddComponent<Spot::MeshRenderer>(Spot::Assets::Load<Spot::Mesh>(Spot::BuiltInAssets::SphereMesh),
+                                                Spot::Material{.baseColor = Spot::Color::Black});
+    ball.SetCastingShadows(false);
+    auto& flash = entity.AddComponent<Flash>();
+    flash.color = color;
+    flash.intensity = intensity;
+    flash.lifetime = lifetime;
+    return entity;
+}
+
+void Flash::OnUpdate(float deltaTime) {
+    m_age += deltaTime;
+    if (m_age >= lifetime) {
+        GetEntity().Destroy();
+        return;
+    }
+    // Bright at once, then fading.
+    const float strength = intensity * std::clamp(1.0f - m_age / std::max(lifetime, 1e-4f), 0.0f, 1.0f);
+    if (auto* light = GetEntity().GetComponent<Spot::PointLight>()) {
+        light->SetIntensity(strength);
+    }
+    if (auto* ball = GetEntity().GetComponent<Spot::MeshRenderer>()) {
+        ball->SetMaterial(
+            Spot::Material{.baseColor = Spot::Color::Black,
+                           .emissive = {color.r * strength, color.g * strength, color.b * strength, 1.0f}});
+    }
+}
+
+void Flash::Serialize(Spot::Archive& archive) {
+    archive.Field("lifetime", lifetime, {.min = 0.0f, .max = 10.0f, .speed = 0.01f, .tooltip = "Seconds"});
+    archive.Field("intensity", intensity, {.min = 0.0f, .max = 100.0f, .speed = 0.1f});
+    archive.Field("color", color);
+}

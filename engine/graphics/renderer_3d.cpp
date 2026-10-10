@@ -141,6 +141,7 @@ struct MaterialUniforms {
     float worldTextureSize;
     float specular;
     float shininess;
+    Color emissive;
 };
 
 // How much a light matters to what is near the camera, lowest first: directional lights reach everything.
@@ -400,6 +401,7 @@ void Renderer3D::DrawMesh(const Mesh& mesh, const Material& material, const Matr
                           material.worldTextureSize,
                           material.specular,
                           material.shininess,
+                          material.emissive,
                           transform,
                           {{center.x, center.y, center.z}, bounds.radius * scale},
                           castsShadows});
@@ -659,7 +661,8 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
                                                       .doubleSided = command.doubleSided ? 1.0f : 0.0f,
                                                       .worldTextureSize = command.worldTextureSize,
                                                       .specular = command.specular,
-                                                      .shininess = command.shininess});
+                                                      .shininess = command.shininess,
+                                                      .emissive = command.emissive});
         pass.DrawIndexed(command.mesh->GetIndexCount());
 
         ++m_stats.drawCalls;

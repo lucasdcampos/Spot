@@ -140,7 +140,8 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
 - `Camera`: where a scene is seen from, looking down its entity's -Z; perspective or orthographic, with a
   background color.
 - `MeshRenderer`: a mesh with a material at its entity's world transform; materials (`Material`) have a base color
-  and texture, specular and shininess, double-sidedness and world-space texturing (`worldTextureSize`).
+  and texture, specular and shininess, double-sidedness, world-space texturing (`worldTextureSize`), and an
+  `emissive` color the surface gives off itself, which glows through bloom above 1.
 - `SpriteRenderer`: a texture or color on a rectangle in its entity's XY plane, for 2D.
 - Lights: `AmbientLight`, `DirectionalLight`, `PointLight` and `SpotLight`. Up to `Renderer3D::MaxLights` light each
   frame. Lights can cast shadows: the first directional light through cascades, and point and spot lights through

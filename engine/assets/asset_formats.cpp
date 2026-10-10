@@ -91,6 +91,7 @@ void Encode(BinaryWriter& writer, const MaterialSource& material) {
     writer.Write(material.worldTextureSize);
     writer.Write(material.specular);
     writer.Write(material.shininess);
+    writer.Write(material.emissive);
 }
 
 std::optional<MaterialSource> DecodeMaterial(std::span<const std::byte> data) {
@@ -102,6 +103,7 @@ std::optional<MaterialSource> DecodeMaterial(std::span<const std::byte> data) {
     material.worldTextureSize = reader.Read<float>();
     material.specular = reader.Read<float>();
     material.shininess = reader.Read<float>();
+    material.emissive = reader.Read<Color>();
     return Finish(reader, material);
 }
 
