@@ -5,43 +5,12 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstddef>
-#include <vector>
 
 namespace Spot {
 
 namespace {
 
-// Bounds the queue, as code that never calls Update() would otherwise grow it forever.
-constexpr std::size_t MaxLines = 1 << 18;
 constexpr int CircleSegments = 32;
-
-struct Queue {
-    std::vector<DebugLine> lines;
-    bool warnedFull = false;
-};
-
-Queue& GetQueue() {
-    static Queue queue;
-    return queue;
-}
-
-void Add(Vector3 from, Vector3 to, const DebugDrawOptions& options) {
-    Queue& queue = GetQueue();
-    if (queue.lines.size() >= MaxLines) {
-        if (!queue.warnedFull) {
-            queue.warnedFull = true;
-            Log::GetEngineLogger().Warning("DebugDraw holds {} lines, so it drops more: is DebugDraw::Update() called?",
-                                           MaxLines);
-        }
-        return;
-    }
-    queue.lines.push_back({.from = from,
-                           .to = to,
-                           .color = options.color,
-                           .depthTest = options.depthTest,
-                           .timeLeft = std::max(options.duration, 0.0f)});
-}
 
 // Two unit vectors perpendicular to the direction and to each other.
 void GetPerpendiculars(Vector3 direction, Vector3& u, Vector3& v) {
@@ -51,9 +20,26 @@ void GetPerpendiculars(Vector3 direction, Vector3& u, Vector3& v) {
     v = Cross(n, u);
 }
 
-// Part of a circle in the plane of u and v, from the angle start, turning by sweep.
-void Arc(Vector3 center, Vector3 u, Vector3 v, float radius, float start, float sweep, int segments,
-         const DebugDrawOptions& options) {
+} // namespace
+
+void DebugLines::Line(Vector3 from, Vector3 to, const DebugDrawOptions& options) {
+    if (m_lines.size() >= MaxLines) {
+        if (!m_warnedFull) {
+            m_warnedFull = true;
+            Log::GetEngineLogger().Warning("Debug lines hold {} lines, so they drop more: is Update() called?",
+                                           MaxLines);
+        }
+        return;
+    }
+    m_lines.push_back({.from = from,
+                       .to = to,
+                       .color = options.color,
+                       .depthTest = options.depthTest,
+                       .timeLeft = std::max(options.duration, 0.0f)});
+}
+
+void DebugLines::Arc(Vector3 center, Vector3 u, Vector3 v, float radius, float start, float sweep, int segments,
+                     const DebugDrawOptions& options) {
     const auto point = [&](int i) {
         const float angle = start + sweep * static_cast<float>(i) / static_cast<float>(segments);
         return center + (u * std::cos(angle) + v * std::sin(angle)) * radius;
@@ -61,21 +47,13 @@ void Arc(Vector3 center, Vector3 u, Vector3 v, float radius, float start, float 
     Vector3 previous = point(0);
     for (int i = 1; i <= segments; ++i) {
         const Vector3 next = point(i);
-        Add(previous, next, options);
+        Line(previous, next, options);
         previous = next;
     }
 }
 
-} // namespace
-
-namespace DebugDraw {
-
-void Line(Vector3 from, Vector3 to, const DebugDrawOptions& options) {
-    Add(from, to, options);
-}
-
-void Arrow(Vector3 from, Vector3 to, const DebugDrawOptions& options) {
-    Add(from, to, options);
+void DebugLines::Arrow(Vector3 from, Vector3 to, const DebugDrawOptions& options) {
+    Line(from, to, options);
     const Vector3 direction = to - from;
     const float length = Length(direction);
     if (length <= 0.0f) {
@@ -87,18 +65,18 @@ void Arrow(Vector3 from, Vector3 to, const DebugDrawOptions& options) {
     const float head = length * 0.2f;
     const Vector3 base = to - direction * (head / length);
     for (const Vector3 side : {u, -u, v, -v}) {
-        Add(to, base + side * (head * 0.4f), options);
+        Line(to, base + side * (head * 0.4f), options);
     }
 }
 
-void Cross(Vector3 position, float size, const DebugDrawOptions& options) {
+void DebugLines::Cross(Vector3 position, float size, const DebugDrawOptions& options) {
     const float half = size * 0.5f;
-    Add(position - Vector3{half, 0.0f, 0.0f}, position + Vector3{half, 0.0f, 0.0f}, options);
-    Add(position - Vector3{0.0f, half, 0.0f}, position + Vector3{0.0f, half, 0.0f}, options);
-    Add(position - Vector3{0.0f, 0.0f, half}, position + Vector3{0.0f, 0.0f, half}, options);
+    Line(position - Vector3{half, 0.0f, 0.0f}, position + Vector3{half, 0.0f, 0.0f}, options);
+    Line(position - Vector3{0.0f, half, 0.0f}, position + Vector3{0.0f, half, 0.0f}, options);
+    Line(position - Vector3{0.0f, 0.0f, half}, position + Vector3{0.0f, 0.0f, half}, options);
 }
 
-void Box(Vector3 center, Vector3 size, const Quaternion& rotation, const DebugDrawOptions& options) {
+void DebugLines::Box(Vector3 center, Vector3 size, const Quaternion& rotation, const DebugDrawOptions& options) {
     const Vector3 half = size * 0.5f;
     const auto corner = [&](int i) {
         const Vector3 local{(i & 1) ? half.x : -half.x, (i & 2) ? half.y : -half.y, (i & 4) ? half.z : -half.z};
@@ -108,13 +86,13 @@ void Box(Vector3 center, Vector3 size, const Quaternion& rotation, const DebugDr
     for (int i = 0; i < 8; ++i) {
         for (const int axis : {1, 2, 4}) {
             if ((i & axis) == 0) {
-                Add(corner(i), corner(i | axis), options);
+                Line(corner(i), corner(i | axis), options);
             }
         }
     }
 }
 
-void Sphere(Vector3 center, float radius, const DebugDrawOptions& options) {
+void DebugLines::Sphere(Vector3 center, float radius, const DebugDrawOptions& options) {
     const Vector3 x{1.0f, 0.0f, 0.0f};
     const Vector3 y{0.0f, 1.0f, 0.0f};
     const Vector3 z{0.0f, 0.0f, 1.0f};
@@ -123,7 +101,7 @@ void Sphere(Vector3 center, float radius, const DebugDrawOptions& options) {
     Arc(center, z, x, radius, 0.0f, 2.0f * Pi, CircleSegments, options);
 }
 
-void Capsule(Vector3 start, Vector3 end, float radius, const DebugDrawOptions& options) {
+void DebugLines::Capsule(Vector3 start, Vector3 end, float radius, const DebugDrawOptions& options) {
     const Vector3 axis = end - start;
     if (LengthSquared(axis) <= 0.0f) {
         Sphere(start, radius, options);
@@ -136,7 +114,7 @@ void Capsule(Vector3 start, Vector3 end, float radius, const DebugDrawOptions& o
     Arc(start, u, v, radius, 0.0f, 2.0f * Pi, CircleSegments, options);
     Arc(end, u, v, radius, 0.0f, 2.0f * Pi, CircleSegments, options);
     for (const Vector3 side : {u, -u, v, -v}) {
-        Add(start + side * radius, end + side * radius, options);
+        Line(start + side * radius, end + side * radius, options);
     }
     // The halves of the end spheres that bulge out of the cylinder.
     for (const Vector3 side : {u, v}) {
@@ -145,27 +123,69 @@ void Capsule(Vector3 start, Vector3 end, float radius, const DebugDrawOptions& o
     }
 }
 
-void Circle(Vector3 center, Vector3 normal, float radius, const DebugDrawOptions& options) {
+void DebugLines::Circle(Vector3 center, Vector3 normal, float radius, const DebugDrawOptions& options) {
     Vector3 u;
     Vector3 v;
     GetPerpendiculars(normal, u, v);
     Arc(center, u, v, radius, 0.0f, 2.0f * Pi, CircleSegments, options);
 }
 
-std::span<const DebugLine> GetLines() {
-    return GetQueue().lines;
-}
-
-void Update(float deltaTime) {
-    Queue& queue = GetQueue();
-    std::erase_if(queue.lines, [deltaTime](DebugLine& line) {
+void DebugLines::Update(float deltaTime) {
+    std::erase_if(m_lines, [deltaTime](DebugLine& line) {
         line.timeLeft -= deltaTime;
         return line.timeLeft <= 0.0f;
     });
 }
 
+void DebugLines::Clear() {
+    m_lines.clear();
+}
+
+namespace DebugDraw {
+
+DebugLines& GetQueue() {
+    static DebugLines queue;
+    return queue;
+}
+
+void Line(Vector3 from, Vector3 to, const DebugDrawOptions& options) {
+    GetQueue().Line(from, to, options);
+}
+
+void Arrow(Vector3 from, Vector3 to, const DebugDrawOptions& options) {
+    GetQueue().Arrow(from, to, options);
+}
+
+void Cross(Vector3 position, float size, const DebugDrawOptions& options) {
+    GetQueue().Cross(position, size, options);
+}
+
+void Box(Vector3 center, Vector3 size, const Quaternion& rotation, const DebugDrawOptions& options) {
+    GetQueue().Box(center, size, rotation, options);
+}
+
+void Sphere(Vector3 center, float radius, const DebugDrawOptions& options) {
+    GetQueue().Sphere(center, radius, options);
+}
+
+void Capsule(Vector3 start, Vector3 end, float radius, const DebugDrawOptions& options) {
+    GetQueue().Capsule(start, end, radius, options);
+}
+
+void Circle(Vector3 center, Vector3 normal, float radius, const DebugDrawOptions& options) {
+    GetQueue().Circle(center, normal, radius, options);
+}
+
+std::span<const DebugLine> GetLines() {
+    return GetQueue().GetLines();
+}
+
+void Update(float deltaTime) {
+    GetQueue().Update(deltaTime);
+}
+
 void Clear() {
-    GetQueue().lines.clear();
+    GetQueue().Clear();
 }
 
 } // namespace DebugDraw

@@ -26,6 +26,7 @@ add_executable(spot_tests
     light_tests.cpp
     log_tests.cpp
     math_tests.cpp
+    physics_debug_tests.cpp
     physics_event_tests.cpp
     physics_joint_tests.cpp
     physics_query_tests.cpp

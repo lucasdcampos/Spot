@@ -697,12 +697,52 @@ void EntityInspector::DrawComponentMenu(SceneDocument& document, const Card& car
                                                          place + 1);
         });
     }
+    if (card.typeName == "BoxCollider" || card.typeName == "SphereCollider" || card.typeName == "CapsuleCollider") {
+        DrawFitToMesh(document, card);
+    }
     ImGui::Separator();
     if (MenuItem(card.key, ICON_FA_TRASH_CAN, "Remove")) {
         forEach("Remove " + displayName, [&document](EntityId id, std::size_t place) {
             return std::make_unique<RemoveComponentCommand>(document, id, place);
         });
     }
+}
+
+std::optional<BoundingBox> EntityInspector::FindMeshBounds(const Entity& entity) {
+    const auto* renderer = entity.GetComponent<MeshRenderer>();
+    EditorProject* project = m_context.GetProject();
+    if (!renderer || !project || !renderer->GetMesh().GetId().IsValid()) {
+        return std::nullopt;
+    }
+    const auto mesh = project->GetAssets().LoadMeshData(renderer->GetMesh().GetId());
+    return mesh ? std::optional(mesh->GetBoundingBox()) : std::nullopt;
+}
+
+void EntityInspector::DrawFitToMesh(SceneDocument& document, const Card& card) {
+    Scene* scene = &document.GetScene();
+    const Entity* primary = scene->GetEntity(card.components.front().first);
+    if (!MenuItem(card.key, ICON_FA_EXPAND, "Fit to Mesh", primary && FindMeshBounds(*primary).has_value())) {
+        return;
+    }
+    ImGui::SetItemTooltip("Centers and sizes the collider around the mesh of the entity's MeshRenderer");
+    m_afterDraw = [this, &document, scene, card] {
+        std::vector<std::unique_ptr<SceneCommand>> commands;
+        for (const auto& [id, place] : card.components) {
+            Entity* entity = scene->GetEntity(id);
+            const std::optional<BoundingBox> bounds = entity ? FindMeshBounds(*entity) : std::nullopt;
+            auto* collider = entity ? dynamic_cast<Collider*>(&GetComponentAt(*entity, place)) : nullptr;
+            if (!bounds || !collider) {
+                continue;
+            }
+            // Fitted to learn the values, then put back, so the command makes the change, as one undoable step.
+            const std::string before = SaveComponentToString(*collider);
+            collider->FitTo(*bounds);
+            const std::string after = SaveComponentToString(*collider);
+            LoadComponentFromString(*collider, before);
+            commands.push_back(std::make_unique<EditComponentCommand>(document, id, place, before, after));
+        }
+        Execute(document, "Fit " + MakeDisplayName(card.typeName) + " to Mesh", std::move(commands));
+    };
 }
 
 void EntityInspector::DrawAddComponent(SceneDocument& document, std::span<Entity* const> entities) {

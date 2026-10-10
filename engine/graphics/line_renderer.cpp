@@ -69,10 +69,14 @@ void LineRenderer::DrawLine(Vector3 from, Vector3 to, Color color, bool depthTes
     vertices.push_back({to, color});
 }
 
-void LineRenderer::DrawDebugLines() {
-    for (const DebugLine& line : DebugDraw::GetLines()) {
+void LineRenderer::DrawLines(std::span<const DebugLine> lines) {
+    for (const DebugLine& line : lines) {
         DrawLine(line.from, line.to, line.color, line.depthTest);
     }
+}
+
+void LineRenderer::DrawDebugLines() {
+    DrawLines(DebugDraw::GetLines());
 }
 
 void LineRenderer::End() {

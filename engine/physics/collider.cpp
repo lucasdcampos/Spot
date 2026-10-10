@@ -30,6 +30,10 @@ void Collider::SetTrigger(bool trigger) {
     MarkChanged();
 }
 
+bool Collider::FitTo(const BoundingBox& /*box*/) {
+    return false;
+}
+
 void Collider::OnEnable() {
     MarkChanged();
 }
@@ -55,6 +59,12 @@ void BoxCollider::SetSize(Vector3 size) {
     MarkChanged();
 }
 
+bool BoxCollider::FitTo(const BoundingBox& box) {
+    m_size = box.GetSize();
+    SetCenter(box.GetCenter());
+    return true;
+}
+
 void BoxCollider::Serialize(Archive& archive) {
     Collider::Serialize(archive);
     archive.Field("size", m_size, {.min = 0.0f, .max = 10000.0f, .speed = 0.01f});
@@ -72,6 +82,12 @@ Detail::PhysicsShape BoxCollider::GetShape(Vector3 scale) const {
 void SphereCollider::SetRadius(float radius) {
     m_radius = radius;
     MarkChanged();
+}
+
+bool SphereCollider::FitTo(const BoundingBox& box) {
+    m_radius = Length(box.GetSize()) * 0.5f;
+    SetCenter(box.GetCenter());
+    return true;
 }
 
 void SphereCollider::Serialize(Archive& archive) {
@@ -96,6 +112,14 @@ void CapsuleCollider::SetRadius(float radius) {
 void CapsuleCollider::SetHeight(float height) {
     m_height = height;
     MarkChanged();
+}
+
+bool CapsuleCollider::FitTo(const BoundingBox& box) {
+    const Vector3 size = box.GetSize();
+    m_radius = std::max(size.x, size.z) * 0.5f;
+    m_height = std::max(size.y, m_radius * 2.0f);
+    SetCenter(box.GetCenter());
+    return true;
 }
 
 void CapsuleCollider::Serialize(Archive& archive) {

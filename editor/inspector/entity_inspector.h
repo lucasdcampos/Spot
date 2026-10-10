@@ -89,6 +89,9 @@ private:
     void DrawHeader(SceneDocument& document, std::span<Entity* const> entities);
     void DrawTags(SceneDocument& document, std::span<Entity* const> entities);
     void DrawLayer(SceneDocument& document, std::span<Entity* const> entities);
+    // Box, sphere and capsule colliders fit around the mesh of the entity's MeshRenderer.
+    void DrawFitToMesh(SceneDocument& document, const Card& card);
+    std::optional<BoundingBox> FindMeshBounds(const Entity& entity);
     void DrawTransform(SceneDocument& document, std::span<Entity* const> entities);
     void DrawTransformMenu(SceneDocument& document, std::span<Entity* const> entities);
     void DrawComponents(SceneDocument& document, std::span<Entity* const> entities);

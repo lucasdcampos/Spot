@@ -20,6 +20,15 @@ struct BoundingSphere {
     float radius = 0.0f;
 };
 
+// A box aligned with the axes holding something, such as every vertex of a mesh.
+struct BoundingBox {
+    Vector3 min = {};
+    Vector3 max = {};
+
+    Vector3 GetCenter() const { return (min + max) * 0.5f; }
+    Vector3 GetSize() const { return max - min; }
+};
+
 // Indexed triangles in CPU memory, with front faces winding counterclockwise. Mesh::Create() sends them to the GPU.
 struct MeshData {
     std::vector<MeshVertex> vertices;
@@ -38,6 +47,8 @@ struct MeshData {
 
     // Centered on the box around the vertices, so it fits them closely without being the smallest sphere possible.
     BoundingSphere GetBounds() const;
+    // The smallest box aligned with the axes around the vertices; empty at the origin without any.
+    BoundingBox GetBoundingBox() const;
 };
 
 } // namespace Spot

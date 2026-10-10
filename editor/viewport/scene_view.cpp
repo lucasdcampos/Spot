@@ -533,6 +533,15 @@ void SceneView::DrawOverlay(const ImVec2& origin) {
     }
     ImGui::PopStyleColor();
     ImGui::SetItemTooltip(gridShown ? "Hide the grid" : "Show the grid");
+    ImGui::SameLine();
+    const bool collidersShown = m_options.showColliders;
+    ImGui::PushStyleColor(ImGuiCol_Text,
+                          collidersShown ? EditorColors::Accent : ImGui::GetStyleColorVec4(ImGuiCol_Text));
+    if (ImGui::Button(ICON_FA_SHAPES)) {
+        m_options.showColliders = !collidersShown;
+    }
+    ImGui::PopStyleColor();
+    ImGui::SetItemTooltip(collidersShown ? "Hide the colliders" : "Show the colliders, as physics sees them");
     // Only 3D views fly.
     if (!view2D) {
         ImGui::SameLine();
@@ -575,7 +584,13 @@ void SceneView::Render(RenderContext& context, ViewportRenderer& renderer) {
         return;
     }
     const Camera3D camera = m_camera.GetCamera();
-    renderer.Render(context, m_targets, m_shown->GetScene(), camera, m_options);
+    ViewportOptions options = m_options;
+    m_colliderLines.Clear();
+    if (options.showColliders) {
+        DrawColliders(m_shown->GetScene(), m_colliderLines);
+        options.lines = m_colliderLines.GetLines();
+    }
+    renderer.Render(context, m_targets, m_shown->GetScene(), camera, options);
 
     if (!m_plane) {
         m_plane = Assets::Load<Mesh>(BuiltInAssets::PlaneMesh);

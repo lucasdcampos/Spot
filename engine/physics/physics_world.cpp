@@ -1,6 +1,7 @@
 #include "physics/physics_world.h"
 
 #include "core/assert.h"
+#include "graphics/debug_draw.h"
 #include "physics/character_controller.h"
 #include "physics/collider.h"
 #include "physics/joint.h"
@@ -137,11 +138,17 @@ std::vector<OverlapHit> PhysicsWorld::MakeOverlapHits() const {
 std::optional<RaycastHit> PhysicsWorld::Raycast(Vector3 origin, Vector3 direction, float maxDistance,
                                                 const QueryFilter& filter) {
     Detail::PhysicsQueryHit hit;
-    if (!PrepareQuery() || LengthSquared(direction) <= 0.0f || maxDistance <= 0.0f ||
-        !m_simulation->CastRay(origin, Normalize(direction), maxDistance, MakeQueryFilter(filter), hit)) {
-        return std::nullopt;
+    std::optional<RaycastHit> result;
+    if (PrepareQuery() && LengthSquared(direction) > 0.0f && maxDistance > 0.0f &&
+        m_simulation->CastRay(origin, Normalize(direction), maxDistance, MakeQueryFilter(filter), hit)) {
+        result = MakeHit(hit);
     }
-    return MakeHit(hit);
+    RecordQuery({.kind = DebugQuery::Kind::Ray,
+                 .origin = origin,
+                 .end = origin + Normalize(direction) * maxDistance,
+                 .radius = 0.0f,
+                 .hit = result});
+    return result;
 }
 
 std::vector<RaycastHit> PhysicsWorld::RaycastAll(Vector3 origin, Vector3 direction, float maxDistance,
@@ -154,17 +161,28 @@ std::vector<RaycastHit> PhysicsWorld::RaycastAll(Vector3 origin, Vector3 directi
     for (const Detail::PhysicsQueryHit& hit : m_queryHits) {
         hits.push_back(MakeHit(hit));
     }
+    RecordQuery({.kind = DebugQuery::Kind::Ray,
+                 .origin = origin,
+                 .end = origin + Normalize(direction) * maxDistance,
+                 .radius = 0.0f,
+                 .hit = hits.empty() ? std::nullopt : std::optional(hits.back())});
     return hits;
 }
 
 std::optional<RaycastHit> PhysicsWorld::SphereCast(Vector3 origin, float radius, Vector3 direction, float maxDistance,
                                                    const QueryFilter& filter) {
     Detail::PhysicsQueryHit hit;
-    if (!PrepareQuery() || LengthSquared(direction) <= 0.0f || maxDistance < 0.0f ||
-        !m_simulation->CastSphere(origin, radius, Normalize(direction), maxDistance, MakeQueryFilter(filter), hit)) {
-        return std::nullopt;
+    std::optional<RaycastHit> result;
+    if (PrepareQuery() && LengthSquared(direction) > 0.0f && maxDistance >= 0.0f &&
+        m_simulation->CastSphere(origin, radius, Normalize(direction), maxDistance, MakeQueryFilter(filter), hit)) {
+        result = MakeHit(hit);
     }
-    return MakeHit(hit);
+    RecordQuery({.kind = DebugQuery::Kind::Ray,
+                 .origin = origin,
+                 .end = origin + Normalize(direction) * maxDistance,
+                 .radius = radius,
+                 .hit = result});
+    return result;
 }
 
 std::vector<OverlapHit> PhysicsWorld::OverlapSphere(Vector3 center, float radius, const QueryFilter& filter) {
@@ -172,6 +190,10 @@ std::vector<OverlapHit> PhysicsWorld::OverlapSphere(Vector3 center, float radius
         return {};
     }
     m_simulation->OverlapSphere(center, radius, MakeQueryFilter(filter), m_queryHits);
+    RecordQuery({.kind = DebugQuery::Kind::Sphere,
+                 .origin = center,
+                 .radius = radius,
+                 .hit = m_queryHits.empty() ? std::nullopt : std::optional(RaycastHit{})});
     return MakeOverlapHits();
 }
 
@@ -181,6 +203,12 @@ std::vector<OverlapHit> PhysicsWorld::OverlapBox(Vector3 center, Vector3 size, c
         return {};
     }
     m_simulation->OverlapBox(center, size * 0.5f, Normalize(rotation), MakeQueryFilter(filter), m_queryHits);
+    RecordQuery({.kind = DebugQuery::Kind::Box,
+                 .origin = center,
+                 .size = size,
+                 .rotation = rotation,
+                 .radius = 0.0f,
+                 .hit = m_queryHits.empty() ? std::nullopt : std::optional(RaycastHit{})});
     return MakeOverlapHits();
 }
 
@@ -289,6 +317,68 @@ void PhysicsWorld::BreakJoints() {
                 component.InvokeHook("OnJointBreak", [&] { component.OnJointBreak(*joint); });
             }
         });
+    }
+}
+
+void PhysicsWorld::SetDebugDraw(PhysicsDebugFlags flags) {
+    m_debugFlags = flags;
+    if (!HasFlag(flags, PhysicsDebugFlags::Queries)) {
+        m_debugQueries.clear();
+    }
+}
+
+void PhysicsWorld::RecordQuery(DebugQuery query) {
+    if (HasFlag(m_debugFlags, PhysicsDebugFlags::Queries)) {
+        m_debugQueries.push_back(std::move(query));
+    }
+}
+
+void PhysicsWorld::OnBeforeRender() {
+    if (m_debugFlags == PhysicsDebugFlags::None) {
+        return;
+    }
+    DebugLines& lines = DebugDraw::GetQueue();
+    if (HasFlag(m_debugFlags, PhysicsDebugFlags::Colliders)) {
+        DrawColliders(GetScene(), lines);
+    }
+    if (HasFlag(m_debugFlags, PhysicsDebugFlags::Contacts)) {
+        const DebugDrawOptions options{.color = {1.0f, 0.2f, 0.2f, 1.0f}, .depthTest = false};
+        for (const PairContact& contact : m_previous) {
+            for (const Vector3 point : contact.collision.GetPoints()) {
+                lines.Cross(point, 0.1f, options);
+                // Toward the first entity of the pair, the way it is pushed.
+                lines.Arrow(point, point + contact.collision.normal * 0.3f, options);
+            }
+        }
+    }
+    if (HasFlag(m_debugFlags, PhysicsDebugFlags::Queries)) {
+        const DebugDrawOptions missed{.color = {0.6f, 0.6f, 0.6f, 1.0f}};
+        const DebugDrawOptions found{.color = {1.0f, 0.3f, 0.9f, 1.0f}};
+        for (const DebugQuery& query : m_debugQueries) {
+            const DebugDrawOptions& options = query.hit ? found : missed;
+            switch (query.kind) {
+            case DebugQuery::Kind::Ray:
+                lines.Line(query.origin, query.hit ? query.hit->point : query.end, options);
+                if (query.radius > 0.0f) {
+                    lines.Sphere(query.origin, query.radius, options);
+                    lines.Sphere(query.hit ? query.origin + Normalize(query.end - query.origin) * query.hit->distance
+                                           : query.end,
+                                 query.radius, options);
+                }
+                if (query.hit) {
+                    lines.Cross(query.hit->point, 0.15f, found);
+                    lines.Arrow(query.hit->point, query.hit->point + query.hit->normal * 0.4f, found);
+                }
+                break;
+            case DebugQuery::Kind::Sphere:
+                lines.Sphere(query.origin, query.radius, options);
+                break;
+            case DebugQuery::Kind::Box:
+                lines.Box(query.origin, query.size, query.rotation, options);
+                break;
+            }
+        }
+        m_debugQueries.clear();
     }
 }
 

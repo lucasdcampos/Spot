@@ -65,7 +65,8 @@ Spot::DebugDraw::Line(origin, hit, {.color = Spot::Color::Red});
 Spot::DebugDraw::Sphere(hit, 0.1f, {.duration = 2.0f, .depthTest = false});
 ```
 
-Shapes become lines as they are queued. The `SceneRenderer` and the editor's views draw the queue with a
+Shapes become lines as they are queued, into a `DebugLines` list: `DebugDraw` keeps the one every view draws, and
+tools keep their own for what one view alone shows. The `SceneRenderer` and the editor's views draw the queue with a
 `LineRenderer`, over the meshes, and the application ages it once each frame was drawn
-(`DebugDraw::Update()`); code that runs its own loop calls that itself. The sandbox's `PhysicsDebugView` (B) draws
-every collider this way.
+(`DebugDraw::Update()`); code that runs its own loop calls that itself. Physics draws its debug view this way (see
+[Physics](physics.md)).

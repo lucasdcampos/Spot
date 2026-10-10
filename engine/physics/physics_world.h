@@ -3,6 +3,7 @@
 #include "math/quaternion.h"
 #include "math/vector.h"
 #include "physics/collision.h"
+#include "physics/physics_debug.h"
 #include "physics/physics_query.h"
 #include "physics/physics_simulation.h"
 #include "scene/entity.h"
@@ -85,6 +86,10 @@ public:
     std::vector<OverlapHit> OverlapBox(Vector3 center, Vector3 size, const Quaternion& rotation = {},
                                        const QueryFilter& filter = {});
 
+    // What the world draws with DebugDraw before each frame is drawn, to see what physics does; nothing by default.
+    PhysicsDebugFlags GetDebugDraw() const { return m_debugFlags; }
+    void SetDebugDraw(PhysicsDebugFlags flags);
+
     // The layers' names, empty for unnamed ones; see PhysicsSettings::layerNames.
     const std::string& GetLayerName(int layer) const { return m_layerNames[static_cast<std::size_t>(layer)]; }
     void SetLayerNames(std::span<const std::string> names);
@@ -123,6 +128,7 @@ private:
     PhysicsWorld();
 
     void OnFixedUpdate(float fixedDeltaTime) override;
+    void OnBeforeRender() override;
 
     // Rebuilds the entity's body in the next step, or before it when its rigidbody needs it.
     void MarkChanged(EntityId entity);
@@ -175,6 +181,19 @@ private:
     RaycastHit MakeHit(const Detail::PhysicsQueryHit& hit) const;
     std::vector<OverlapHit> MakeOverlapHits() const;
     std::vector<Detail::PhysicsQueryHit> m_queryHits;
+    // The queries asked since the last frame was drawn, kept for the debug view while it shows them.
+    struct DebugQuery {
+        enum class Kind { Ray, Sphere, Box } kind;
+        Vector3 origin;
+        Vector3 end;
+        Vector3 size;
+        Quaternion rotation;
+        float radius;
+        std::optional<RaycastHit> hit;
+    };
+    void RecordQuery(DebugQuery query);
+    PhysicsDebugFlags m_debugFlags = PhysicsDebugFlags::None;
+    std::vector<DebugQuery> m_debugQueries;
     struct JointRecord {
         Detail::PhysicsJointId id;
         EntityId owner;

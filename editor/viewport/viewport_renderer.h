@@ -52,6 +52,10 @@ struct ViewportOptions {
     bool defaultLights = true;
     // The scene's components draw their interfaces over it, as in the game; see Scene::DrawUi().
     bool drawUi = false;
+    // The colliders, character controllers and joints of the scene, as physics sees them.
+    bool showColliders = false;
+    // Lines only this view draws, besides those queued with DebugDraw.
+    std::span<const DebugLine> lines = {};
 };
 
 // Draws scenes into viewport targets, as they would look in the game, with the shapes queued with DebugDraw and the

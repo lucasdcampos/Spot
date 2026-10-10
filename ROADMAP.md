@@ -250,7 +250,7 @@ Steps:
 - [x] **M1.8 Joints.** `FixedJoint`, `HingeJoint` (limits, motor), `DistanceJoint`, `SpringJoint` and
   `SwingTwistJoint` (for ragdolls), each connecting to another entity by `EntityId` or to the world. Joints can
   break past a force. Tests.
-- [ ] **M1.9 Debug view and editor.** Colliders, contacts and queries drawn with `DebugDraw`, a Colliders toggle in the
+- [x] **M1.9 Debug view and editor.** Colliders, contacts and queries drawn with `DebugDraw`, a Colliders toggle in the
   editor's views and at runtime, and **Fit to Mesh** for box, sphere and capsule colliders.
 - [ ] **M1.10 Sandbox: movement and level.** A first-person player on the `CharacterController` that walks, runs,
   crouches, jumps and flies in noclip. The level's geometry uses mesh colliders, with ramps, stairs and platforms.
@@ -310,6 +310,12 @@ physics gun and the tool gun, and shoots and blows it apart.
   changes, as Jolt's constraints cannot outlive their bodies, so a hinge counts its angle from where it was last
   made; motors change in place so they do not reset it. `PhysicsWorld` keeps joints by component pointer, which is
   safe because a joint leaves the moment it is disabled, before it can be freed.
+- M1.9: `DebugDraw`'s queue became an instance of a new `DebugLines` class, so the editor's scene views draw colliders
+  into lists of their own, seen in that view only, rather than in every view through the shared queue. Colliders
+  are drawn from components (`DrawColliders()`), which works in edit scenes whose physics never ran; contacts and
+  queries come from `PhysicsWorld`, drawn in `OnBeforeRender()`. Queries are recorded only while their flag is on.
+  Fit to Mesh is `Collider::FitTo(BoundingBox)` (with `MeshData::GetBoundingBox()`), applied as one undoable edit.
+  The sandbox's `PhysicsDebugView` now only switches the engine's view.
 
 ---
 

@@ -175,7 +175,7 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
     }
     const bool drawGrid = options.showGrid && m_grid;
     const bool drawSprites = m_sprites->IsValid() && scene.FindComponent<SpriteRenderer>();
-    const bool drawLines = m_lines->IsValid() && !DebugDraw::GetLines().empty();
+    const bool drawLines = m_lines->IsValid() && (!DebugDraw::GetLines().empty() || !options.lines.empty());
     Texture* samples = targets.GetSamples();
     m_renderer->Begin(context,
                       {.target = samples ? samples : targets.GetColor(),
@@ -200,6 +200,7 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
         const Vector2 size{static_cast<float>(targets.GetWidth()), static_cast<float>(targets.GetHeight())};
         m_lines->Begin(pass, camera.GetViewProjection(size));
         m_lines->DrawDebugLines();
+        m_lines->DrawLines(options.lines);
         m_lines->End();
     }
 

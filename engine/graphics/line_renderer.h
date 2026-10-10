@@ -8,12 +8,14 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <vector>
 
 namespace Spot {
 
 class Buffer;
 class GraphicsDevice;
+struct DebugLine;
 class Pipeline;
 class RenderPass;
 
@@ -49,6 +51,7 @@ public:
     void End();
 
     void DrawLine(Vector3 from, Vector3 to, Color color, bool depthTest = true);
+    void DrawLines(std::span<const DebugLine> lines);
     // Draws the lines queued with DebugDraw for this frame.
     void DrawDebugLines();
 

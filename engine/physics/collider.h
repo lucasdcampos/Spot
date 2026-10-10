@@ -30,6 +30,10 @@ public:
     bool IsTrigger() const { return m_trigger; }
     void SetTrigger(bool trigger);
 
+    // Centers and sizes the shape to fill the box, in the entity's space before its scale, such as the bounds of the
+    // mesh its MeshRenderer shows. Returns false for shapes that cannot, such as meshes.
+    virtual bool FitTo(const BoundingBox& box);
+
 protected:
     Collider() = default;
 
@@ -60,6 +64,7 @@ public:
 
     Vector3 GetSize() const { return m_size; }
     void SetSize(Vector3 size);
+    bool FitTo(const BoundingBox& box) override;
 
 protected:
     void Serialize(Archive& archive) override;
@@ -78,6 +83,8 @@ public:
 
     float GetRadius() const { return m_radius; }
     void SetRadius(float radius);
+    // Around the box's corners.
+    bool FitTo(const BoundingBox& box) override;
 
 protected:
     void Serialize(Archive& archive) override;
@@ -98,6 +105,8 @@ public:
     void SetRadius(float radius);
     float GetHeight() const { return m_height; }
     void SetHeight(float height);
+    // Standing along Y, as tall as the box, its radius reaching the farther of its X and Z sides.
+    bool FitTo(const BoundingBox& box) override;
 
 protected:
     void Serialize(Archive& archive) override;

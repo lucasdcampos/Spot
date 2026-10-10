@@ -102,19 +102,25 @@ void MeshData::RecalculateNormals() {
     }
 }
 
+BoundingBox MeshData::GetBoundingBox() const {
+    if (vertices.empty()) {
+        return {};
+    }
+    BoundingBox box{vertices.front().position, vertices.front().position};
+    for (const auto& vertex : vertices) {
+        box.min = {std::min(box.min.x, vertex.position.x), std::min(box.min.y, vertex.position.y),
+                   std::min(box.min.z, vertex.position.z)};
+        box.max = {std::max(box.max.x, vertex.position.x), std::max(box.max.y, vertex.position.y),
+                   std::max(box.max.z, vertex.position.z)};
+    }
+    return box;
+}
+
 BoundingSphere MeshData::GetBounds() const {
     if (vertices.empty()) {
         return {};
     }
-    Vector3 low = vertices.front().position;
-    Vector3 high = low;
-    for (const auto& vertex : vertices) {
-        low = {std::min(low.x, vertex.position.x), std::min(low.y, vertex.position.y),
-               std::min(low.z, vertex.position.z)};
-        high = {std::max(high.x, vertex.position.x), std::max(high.y, vertex.position.y),
-                std::max(high.z, vertex.position.z)};
-    }
-    BoundingSphere bounds{.center = (low + high) * 0.5f};
+    BoundingSphere bounds{.center = GetBoundingBox().GetCenter()};
     for (const auto& vertex : vertices) {
         bounds.radius = std::max(bounds.radius, Distance(bounds.center, vertex.position));
     }

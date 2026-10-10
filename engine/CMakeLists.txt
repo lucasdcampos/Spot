@@ -126,6 +126,8 @@ add_library(spot_objects OBJECT
     physics/collision.h
     physics/joint.h
     physics/joint.cpp
+    physics/physics_debug.h
+    physics/physics_debug.cpp
     physics/physics_query.h
     physics/physics_simulation.h
     physics/physics_settings.h

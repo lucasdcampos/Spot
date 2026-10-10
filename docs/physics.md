@@ -152,7 +152,12 @@ Code that pushes rigidbodies, such as applying forces, goes in `OnFixedUpdate()`
 rate. The fixed time step and gravity come from the game's physics settings section (`PhysicsSettings`), which the
 editor's Project Settings panel edits.
 
-## Not there yet
+## Seeing what physics does
 
-The debug view of colliders and contacts, and the editor's collider tools, come in the rest of the roadmap's
-milestone M1.
+`PhysicsWorld::SetDebugDraw()` makes the world draw, with `DebugDraw`, before each frame: the colliders, character
+controllers and joints (`PhysicsDebugFlags::Colliders`), where bodies touch with the normals pushing them apart
+(`Contacts`), and the rays, casts and overlaps the game asked since the last frame, with what they hit (`Queries`).
+Static bodies are green, dynamic ones orange, or blue while asleep, kinematic ones purple, triggers yellow,
+characters cyan and joints white. `DrawColliders()` adds the same shapes to any `DebugLines` from the components
+alone, which is how the editor's scene views show colliders (the shapes button in their toolbar) in scenes whose
+physics never ran. The sandbox switches the debug view with B.
