@@ -23,6 +23,7 @@ target_include_directories(sandbox_generator_core PUBLIC ${CMAKE_CURRENT_SOURCE_
 FetchContent_GetProperties(cgltf)
 target_include_directories(sandbox_generator_core SYSTEM PRIVATE ${cgltf_SOURCE_DIR})
 spot_set_compile_options(sandbox_generator_core)
+spot_precompile_engine_header(sandbox_generator_core)
 
 add_executable(sandbox_generator main.cpp)
 target_link_libraries(sandbox_generator PRIVATE sandbox_generator_core)

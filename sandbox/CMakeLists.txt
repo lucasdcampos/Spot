@@ -7,6 +7,7 @@ add_executable(sandbox ${sandbox_sources})
 target_link_libraries(sandbox PRIVATE spot::spot)
 target_include_directories(sandbox PRIVATE src)
 spot_set_compile_options(sandbox)
+spot_precompile_engine_header(sandbox)
 
 # The game runs from its imported assets and settings beside the executable, as a shipped game does. The tools
 # import what changed every build, so assets edited in the editor or not need no other step.

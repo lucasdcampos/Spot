@@ -167,6 +167,7 @@ spot_embed_files(spot_editor_core
     resources/fonts/inter_semibold.ttf
 )
 spot_set_compile_options(spot_editor_core)
+spot_precompile_engine_header(spot_editor_core <imgui.h>)
 
 
 add_executable(spot_editor

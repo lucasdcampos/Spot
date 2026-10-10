@@ -25,6 +25,12 @@ function(spot_set_compile_options target)
     endif()
 endfunction()
 
+# Code built on the engine includes its header in every file, which is most of what compiling one costs, so targets
+# made of many such files compile it once, with the other headers given.
+function(spot_precompile_engine_header target)
+    target_precompile_headers(${target} PRIVATE <spot.h> ${ARGN})
+endfunction()
+
 # The shared engine library links static dependencies, which must then work at any address too.
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 

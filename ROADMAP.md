@@ -506,7 +506,7 @@ budget is a few seconds for a one-file change in Debug.
 
 - [x] **M4.1 Measure.** The editor logs how long each module build phase takes (configure, compile, link, load).
   Record the baseline in Notes.
-- [ ] **M4.2 Precompiled headers.** `spot_add_game()` precompiles `<spot.h>` and the standard headers it pulls in.
+- [x] **M4.2 Precompiled headers.** `spot_add_game()` precompiles `<spot.h>` and the standard headers it pulls in.
   The engine's own targets use PCH where it pays off.
 - [ ] **M4.3 Compiler cache.** Use sccache or ccache as the compiler launcher when one is installed, for the engine
   and for games. Document it.
@@ -528,6 +528,13 @@ budget is a few seconds for a one-file change in Debug.
   editor looks for changes once a second, and builds the game's executable it does not need. The first build after
   a source file is added fails once with the Visual Studio generator, as the glob check regenerates the project
   while it builds (for M4.5).
+- M4.2: `spot_add_game()` precompiles `<spot.h>` for `game_code` (not for the executable's single `main.cpp`, whose
+  position-independence differs). The sandbox's clean build went from 51.7 s to 10.3 s (compile 46.7 to 5.4), and a
+  one-line change from 3.6-3.9 s to 1.4-1.5 s (compile 0.8-0.9, link 0.5-0.7). In the engine's build,
+  `spot_precompile_engine_header()` does the same for the sandbox, the generator, the tools, the editor (with
+  ImGui) and the tests (with Catch2); a one-file rebuild there gained 1-2 s at most, as MSBuild's checks of the
+  targets around it dominate. The engine library itself has no PCH: MSVC's export of all symbols from
+  `spot_shared` fails on the PCH's own symbol.
 
 ---
 

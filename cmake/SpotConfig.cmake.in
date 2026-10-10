@@ -45,6 +45,9 @@ function(spot_add_game)
     add_library(game_code OBJECT ${code_sources})
     target_link_libraries(game_code PUBLIC Spot::Shared)
     set_target_properties(game_code PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    # Every file of game code includes the engine's header, which is most of what compiling one costs, so it is
+    # compiled once, with the standard headers it brings.
+    target_precompile_headers(game_code PRIVATE <spot.h>)
     # Game code overrides many functions it ignores the parameters of, such as OnUpdate()'s time, so those are no
     # warning.
     if(MSVC)

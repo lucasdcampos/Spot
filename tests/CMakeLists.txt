@@ -81,6 +81,7 @@ target_compile_definitions(spot_tests PRIVATE
 )
 
 spot_set_compile_options(spot_tests)
+spot_precompile_engine_header(spot_tests <catch2/catch_test_macros.hpp>)
 
 # Crashes the way the crash tests ask, after installing the crash handler.
 add_executable(spot_crash_app crash_app.cpp)
@@ -126,6 +127,7 @@ target_compile_definitions(spot_gpu_tests PRIVATE
 )
 
 spot_set_compile_options(spot_gpu_tests)
+spot_precompile_engine_header(spot_gpu_tests <catch2/catch_test_macros.hpp>)
 
 catch_discover_tests(spot_gpu_tests PROPERTIES TIMEOUT 60)
 
@@ -175,6 +177,7 @@ if(TARGET spot_editor_core)
     target_include_directories(spot_editor_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_compile_definitions(spot_editor_tests PRIVATE SPOT_TEST_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets")
     spot_set_compile_options(spot_editor_tests)
+    spot_precompile_engine_header(spot_editor_tests <catch2/catch_test_macros.hpp>)
     # Before the tests are listed, which runs them.
     spot_copy_runtime_dlls(spot_editor_tests)
     catch_discover_tests(spot_editor_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
@@ -190,6 +193,7 @@ if(TARGET spot_editor_core)
     )
     target_include_directories(spot_editor_module_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     spot_set_compile_options(spot_editor_module_tests)
+    spot_precompile_engine_header(spot_editor_module_tests <catch2/catch_test_macros.hpp>)
     spot_copy_runtime_dlls(spot_editor_module_tests)
     catch_discover_tests(spot_editor_module_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 600)
 
@@ -206,6 +210,7 @@ if(TARGET spot_editor_core)
     target_compile_definitions(spot_editor_gpu_tests PRIVATE
         SPOT_TEST_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets")
     spot_set_compile_options(spot_editor_gpu_tests)
+    spot_precompile_engine_header(spot_editor_gpu_tests <catch2/catch_test_macros.hpp>)
     spot_copy_runtime_dlls(spot_editor_gpu_tests)
     catch_discover_tests(spot_editor_gpu_tests PROPERTIES TIMEOUT 60)
 endif()
@@ -229,5 +234,6 @@ if(TARGET sandbox)
         SANDBOX_IMPORTED_DIR="$<TARGET_FILE_DIR:sandbox>/imported")
     add_dependencies(spot_sandbox_tests sandbox_assets)
     spot_set_compile_options(spot_sandbox_tests)
+    spot_precompile_engine_header(spot_sandbox_tests <catch2/catch_test_macros.hpp>)
     catch_discover_tests(spot_sandbox_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 60)
 endif()

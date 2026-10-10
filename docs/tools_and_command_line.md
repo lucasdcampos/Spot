@@ -29,7 +29,8 @@ templates: a 3D scene, a component to start from, or nothing.
 - **Building**: `CodeBuild` builds the game's code with CMake, in the background, with the compiler, generator and
   configuration that built the tools, against their own build of the shared engine library. The code's
   `CMakeLists.txt` calls `spot_add_game()`, from the engine's CMake package, which builds both the game's executable
-  and the game module the editor loads. Each build logs how long its phases took (`CodeBuild::GetPhases()`):
+  and the game module the editor loads, precompiling `<spot.h>` once for every file of the game's code. Each build
+  logs how long its phases took (`CodeBuild::GetPhases()`):
   configuring, compiling and linking, told apart where the build tool says when it links. The editor also logs how
   long loading the module and reloading the scenes took, and how long after the code changed.
 - **Cooking**: `CookGame()` imports the sources into `imported/` in a folder and writes `game.json` there, so a game's

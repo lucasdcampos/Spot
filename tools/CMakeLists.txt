@@ -30,6 +30,7 @@ target_compile_features(spot_tools PUBLIC cxx_std_20)
 target_link_libraries(spot_tools PUBLIC spot::import PRIVATE nlohmann_json::nlohmann_json)
 
 spot_set_compile_options(spot_tools)
+spot_precompile_engine_header(spot_tools)
 
 # Games are built as the tools were, against their build of the shared engine library, so they work together.
 get_property(spot_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
