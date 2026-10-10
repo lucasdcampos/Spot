@@ -5,6 +5,8 @@
 
 #include <cstdint>
 #include <memory>
+#include <span>
+#include <vector>
 
 namespace Spot {
 
@@ -30,17 +32,22 @@ public:
     // Holds IndexType::UInt32 indices.
     const Buffer& GetIndexBuffer() const { return *m_indexBuffer; }
     std::uint32_t GetIndexCount() const { return m_indexCount; }
+    // Its ranges of indices, at least one; see MeshData::submeshes.
+    std::span<const SubMesh> GetSubmeshes() const { return m_submeshes; }
+    // Draws of a mesh take the index of one of its submeshes, or this for all of it.
+    static constexpr std::uint32_t AllSubmeshes = 0xFFFFFFFFu;
     // Around every vertex, in the mesh's own space.
     BoundingSphere GetBounds() const { return m_bounds; }
 
 private:
     Mesh(std::unique_ptr<Buffer> vertexBuffer, std::unique_ptr<Buffer> indexBuffer, std::uint32_t indexCount,
-         BoundingSphere bounds);
+         BoundingSphere bounds, std::vector<SubMesh> submeshes);
 
     std::unique_ptr<Buffer> m_vertexBuffer;
     std::unique_ptr<Buffer> m_indexBuffer;
     std::uint32_t m_indexCount;
     BoundingSphere m_bounds;
+    std::vector<SubMesh> m_submeshes;
 };
 
 } // namespace Spot

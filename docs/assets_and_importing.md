@@ -73,6 +73,12 @@ meshes and the grid and checker textures.
 Raw files can also be loaded directly, without importing, through `Model::Load()`, `Image::Load()` and the like, for
 code that does not use the asset pipeline.
 
+Models preserve their glTF node hierarchy, including empty nodes and local transforms. Each unique mesh becomes
+one mesh subasset, whose primitives are submeshes with separate material references. A model's hierarchy and
+references load without a graphics device; mesh references keep their ids for serialization. Import scale applies
+to both vertex positions and node translations, so it scales the whole hierarchy. Model importer version 9 stores
+this layout and reimports older models automatically, preserving subasset ids by their keys.
+
 ## Where imports go
 
 - In a project, sources are under `assets/` and imports under `.spot/imported/`, which the editor and `spot run`

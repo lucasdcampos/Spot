@@ -823,7 +823,7 @@ holding an entity tree. An instance stores the prefab's id and only its override
 prefab-local entity id, plus added and removed components and entities. Loading applies the overrides onto the
 prefab's current content, so prefab changes reach every instance. Prefabs nest.
 
-- [ ] **M8.1 Model nodes.** Model import keeps nodes, with their names and transforms, a mesh per node, and
+- [x] **M8.1 Model nodes.** Model import keeps nodes, with their names and transforms, a mesh per node, and
   primitives as submeshes. `Model` exposes the node tree, and `Renderer3D::DrawModel()` keeps working. Bump the model
   format. Tests.
 - [ ] **M8.2 Model instances.** `Scene::Instantiate()` of a model creates an entity per node, and `MeshRenderer` can
@@ -844,6 +844,17 @@ prefab's current content, so prefab changes reach every instance. Prefabs nest.
 own overrides.
 
 **Notes:**
+
+- M8.1: Models keep the default glTF scene's nodes in parent-before-child order, including empty nodes, with local
+  matrices and references to shared meshes. Primitives become index ranges of one mesh, with a material per range;
+  `Model::GetParts()` keeps a flattened draw list with accumulated node transforms for `DrawModel()`. Model importer
+  version 9 stores the hierarchy and mesh ranges. Import scale applies to vertex positions and node translations.
+  Draws, instancing and shadows use submesh ranges, and mirrored transforms reverse culling and tangent handedness.
+  Thumbnails, the sandbox's view models and existing flat scene instances now place the parts through their nodes;
+  M8.2 replaces those flat instances with the hierarchy. The serialized `MeshRenderer` submesh selector was added
+  here so these callers can retain separate primitive materials through the format change.
+  Validation: MSVC and GCC Debug build without warnings and pass all 573 tests, including GPU, golden images,
+  editor, module and sandbox tests.
 
 ---
 

@@ -1328,6 +1328,67 @@ TEST_CASE("Models load with their materials and draw textured", "[gpu]") {
     CHECK(IsNear(render.At(8, 23), {0, 0, 255, 255}));
 }
 
+TEST_CASE("Models draw their transformed submeshes with separate materials, including mirrors", "[gpu][model]") {
+    RequireGpu();
+    bool mirrored = false;
+    bool selected = false;
+    SECTION("Model hierarchy") {
+    }
+    SECTION("Mirrored model hierarchy") {
+        mirrored = true;
+    }
+    SECTION("Only one submesh") {
+        selected = true;
+    }
+
+    Spot::Renderer3DStats stats;
+    const TargetRender render(
+        32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::MeshData mesh;
+            for (int half = 0; half < 2; ++half) {
+                const float left = half == 0 ? -2.0f : 0.0f;
+                const float right = left + 2.0f;
+                Spot::MeshData quad;
+                quad.vertices = {{{left, -2.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {}},
+                                 {{right, -2.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {}},
+                                 {{right, 2.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {}},
+                                 {{left, 2.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {}}};
+                quad.indices = {0, 1, 2, 2, 3, 0};
+                mesh.AppendSubmesh(quad);
+            }
+            Spot::ModelData data;
+            data.materials = {{.name = "Red", .metallic = 0.0f, .emissive = Spot::Color::Red},
+                              {.name = "Green", .metallic = 0.0f, .emissive = Spot::Color::Green}};
+            data.meshes = {{.name = "Quad", .mesh = std::move(mesh), .materials = {0, 1}}};
+            data.nodes = {{.name = "Pivot", .transform = Spot::Matrix4::Translation({0.0f, 0.0f, -2.0f})},
+                          {.name = "Quad", .transform = {}, .mesh = 0, .parent = 0}};
+            const auto model = Spot::Model::Create(device, data);
+            REQUIRE(model);
+            REQUIRE(model->GetNodes().size() == 2);
+            REQUIRE(model->GetParts().size() == 2);
+            CHECK(model->GetParts()[0].mesh.Get() == model->GetParts()[1].mesh.Get());
+
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            renderer.Begin(context, target, MakeFrontCamera());
+            if (selected) {
+                const auto& part = model->GetParts()[1];
+                renderer.DrawMesh(*part.mesh, *part.material, part.transform, true, part.submesh);
+                // Invalid selections must not fall back to drawing the whole mesh.
+                renderer.DrawMesh(*part.mesh, *part.material, part.transform, true, 42);
+            } else {
+                renderer.DrawModel(*model, Spot::Matrix4::Scale({mirrored ? -1.0f : 1.0f, 1.0f, 1.0f}));
+            }
+            renderer.End();
+            stats = renderer.GetStats();
+        });
+    CHECK(stats.drawCalls == (selected ? 1u : 2u));
+    CHECK(stats.triangleCount == (selected ? 2u : 4u));
+    CHECK(IsNear(render.At(8, 16), selected   ? Pixel{0, 0, 0, 255}
+                                   : mirrored ? Pixel{0, 255, 0, 255}
+                                              : Pixel{255, 0, 0, 255}));
+    CHECK(IsNear(render.At(23, 16), mirrored ? Pixel{255, 0, 0, 255} : Pixel{0, 255, 0, 255}));
+}
+
 TEST_CASE("Renderer3D draws the active mesh renderers of a scene at their world transforms", "[gpu]") {
     RequireGpu();
     Spot::Renderer3DStats stats;

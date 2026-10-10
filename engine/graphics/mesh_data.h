@@ -33,10 +33,20 @@ struct BoundingBox {
     Vector3 GetSize() const { return max - min; }
 };
 
+// A range of a mesh's indices, drawn with a material of its own, as a glTF mesh's primitives are.
+struct SubMesh {
+    std::uint32_t firstIndex = 0;
+    std::uint32_t indexCount = 0;
+
+    bool operator==(const SubMesh&) const = default;
+};
+
 // Indexed triangles in CPU memory, with front faces winding counterclockwise. Mesh::Create() sends them to the GPU.
 struct MeshData {
     std::vector<MeshVertex> vertices;
     std::vector<std::uint32_t> indices;
+    // Ranges of the indices, which together cover them all; none means one submesh of every index.
+    std::vector<SubMesh> submeshes = {};
 
     // Centered on the origin, with every face mapping the whole texture.
     static MeshData CreateCube(float size = 1.0f);
@@ -51,6 +61,11 @@ struct MeshData {
     // Fills the tangents from the normals and the texture coordinates, with MikkTSpace, as glTF's normal maps are
     // baked: vertices whose triangles need different tangents, as across a seam of the texture, are split.
     void GenerateTangents();
+
+    // The submeshes, or one of every index when there are none.
+    std::vector<SubMesh> GetSubmeshes() const;
+    // Adds the mesh's vertices and triangles after these, as a submesh of its own.
+    void AppendSubmesh(const MeshData& mesh);
 
     // Centered on the box around the vertices, so it fits them closely without being the smallest sphere possible.
     BoundingSphere GetBounds() const;

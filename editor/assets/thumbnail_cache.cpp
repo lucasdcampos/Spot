@@ -109,11 +109,12 @@ void ThumbnailCache::Render(RenderContext& context, EditorProject& project) {
         case AssetType::Model: {
             static const Material Missing{};
             const AssetRef<Model> model = assets.Load<Model>(id);
-            std::vector<std::pair<const Mesh*, const Material*>> parts;
+            std::vector<Part> parts;
             if (model) {
                 for (const ModelPart& part : model->GetParts()) {
                     if (part.mesh) {
-                        parts.emplace_back(part.mesh.Get(), part.material ? part.material.Get() : &Missing);
+                        parts.push_back({part.mesh.Get(), part.material ? part.material.Get() : &Missing,
+                                         part.transform, part.submesh});
                     }
                 }
             }
@@ -133,8 +134,7 @@ void ThumbnailCache::Clear() {
     m_queue.clear();
 }
 
-void ThumbnailCache::Draw(RenderContext& context, Entry& entry,
-                          const std::vector<std::pair<const Mesh*, const Material*>>& parts) {
+void ThumbnailCache::Draw(RenderContext& context, Entry& entry, const std::vector<Part>& parts) {
     if (!entry.picture) {
         entry.picture =
             m_device.CreateTexture({.width = Size, .height = Size, .format = PictureFormat, .renderTarget = true});
@@ -143,8 +143,16 @@ void ThumbnailCache::Draw(RenderContext& context, Entry& entry,
         }
     }
     std::vector<BoundingSphere> bounds;
-    for (const auto& [mesh, material] : parts) {
-        bounds.push_back(mesh->GetBounds());
+    for (const Part& part : parts) {
+        // The mesh's sphere where the part's transform puts it, as large as its largest scale makes it.
+        const BoundingSphere local = part.mesh->GetBounds();
+        const Vector4 center = part.transform * Vector4{local.center.x, local.center.y, local.center.z, 1.0f};
+        float scale = 0.0f;
+        for (std::size_t i = 0; i < 3; ++i) {
+            const Vector4& axis = part.transform.columns[i];
+            scale = std::max(scale, Length(Vector3{axis.x, axis.y, axis.z}));
+        }
+        bounds.push_back({{center.x, center.y, center.z}, local.radius * scale});
     }
     const BoundingSphere sphere = Enclose(bounds);
 
@@ -170,8 +178,8 @@ void ThumbnailCache::Draw(RenderContext& context, Entry& entry,
     m_renderer->DrawLight(
         {.type = LightType::Directional, .color = Color{0.25f, 0.3f, 0.4f, 1.0f}, .direction = {0.7f, -0.2f, 0.4f}});
     m_renderer->DrawLight({.type = LightType::Ambient, .color = Color{0.3f, 0.32f, 0.36f, 1.0f}});
-    for (const auto& [mesh, material] : parts) {
-        m_renderer->DrawMesh(*mesh, *material, Matrix4::Identity(), false);
+    for (const Part& part : parts) {
+        m_renderer->DrawMesh(*part.mesh, *part.material, part.transform, false, part.submesh);
     }
     m_renderer->End();
 }

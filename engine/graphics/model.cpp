@@ -53,22 +53,59 @@ std::unique_ptr<Model> Model::Create(GraphicsDevice& device, const ModelData& da
                      .doubleSided = source.doubleSided}));
     }
 
-    // Parts without a material share a plain white one.
-    const AssetRef<Material> defaultMaterial = std::make_shared<const Material>();
-    std::vector<ModelPart> parts;
+    std::vector<AssetRef<Mesh>> meshes;
     for (const auto& source : data.meshes) {
-        // Parts can be empty, such as when every index was out of range; they have nothing to draw.
-        if (source.mesh.indices.empty()) {
-            continue;
-        }
         AssetRef<Mesh> mesh = Mesh::Create(device, source.mesh);
         if (!mesh) {
             return nullptr;
         }
-        parts.push_back(
-            {source.name, std::move(mesh), source.material ? materials[*source.material] : defaultMaterial});
+        meshes.push_back(std::move(mesh));
     }
-    return std::make_unique<Model>(std::move(parts));
+
+    // Submeshes without a material share a plain white one.
+    const AssetRef<Material> defaultMaterial = std::make_shared<const Material>();
+    std::vector<ModelNode> nodes;
+    for (const auto& source : data.nodes) {
+        ModelNode node{.name = source.name, .transform = source.transform, .parent = source.parent};
+        if (source.mesh) {
+            node.mesh = meshes[*source.mesh];
+            for (const auto& material : data.meshes[*source.mesh].materials) {
+                node.materials.push_back(material ? materials[*material] : defaultMaterial);
+            }
+        }
+        nodes.push_back(std::move(node));
+    }
+    return std::make_unique<Model>(std::move(nodes));
+}
+
+Model::Model(std::vector<ModelNode> nodes) : m_nodes(std::move(nodes)) {
+    for (std::size_t i = 0; i < m_nodes.size(); ++i) {
+        const ModelNode& node = m_nodes[i];
+        // Meshes not loaded, as without a GPU, still have their parts, as many as their materials.
+        if (!node.mesh && !node.mesh.GetId().IsValid()) {
+            continue;
+        }
+        const Matrix4 transform = GetNodeTransform(i);
+        const auto submeshes =
+            static_cast<std::uint32_t>(node.mesh ? node.mesh->GetSubmeshes().size() : node.materials.size());
+        for (std::uint32_t submesh = 0; submesh < submeshes; ++submesh) {
+            m_parts.push_back(
+                {.name = node.name,
+                 .mesh = node.mesh,
+                 .material = submesh < node.materials.size() ? node.materials[submesh] : AssetRef<Material>(),
+                 .transform = transform,
+                 .submesh = submesh,
+                 .node = i});
+        }
+    }
+}
+
+Matrix4 Model::GetNodeTransform(std::size_t node) const {
+    Matrix4 transform = m_nodes[node].transform;
+    for (std::optional<std::size_t> parent = m_nodes[node].parent; parent; parent = m_nodes[*parent].parent) {
+        transform = m_nodes[*parent].transform * transform;
+    }
+    return transform;
 }
 
 } // namespace Spot

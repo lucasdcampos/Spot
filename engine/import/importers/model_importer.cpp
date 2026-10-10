@@ -73,6 +73,12 @@ bool ImportModel(ImportContext& context) {
 
     const float scale = context.GetMeta().model.scale;
     if (scale != 1.0f) {
+        // Scaling every vertex and every node's offset from its parent scales the whole model, whatever its hierarchy.
+        for (auto& node : model->nodes) {
+            node.transform.columns[3].x *= scale;
+            node.transform.columns[3].y *= scale;
+            node.transform.columns[3].z *= scale;
+        }
         for (auto& part : model->meshes) {
             for (auto& vertex : part.mesh.vertices) {
                 vertex.position *= scale;
@@ -147,35 +153,44 @@ bool ImportModel(ImportContext& context) {
         materials.push_back(overridden(key, id));
     }
 
-    std::optional<AssetId> defaultMaterial;
-    std::vector<ModelFilePart> parts;
+    std::vector<AssetId> meshes;
     for (std::size_t i = 0; i < model->meshes.size(); ++i) {
         const auto& source = model->meshes[i];
-        if (source.mesh.indices.empty()) {
-            continue;
-        }
-
-        const std::string name = source.name.empty() ? std::format("Mesh {}", i) : source.name;
         BinaryWriter data;
         Encode(data, source.mesh);
-        const AssetId mesh = context.WriteSubAsset(std::format("mesh:{}", i), AssetType::Mesh, name, data);
+        const AssetId mesh = context.WriteSubAsset(std::format("mesh:{}", i), AssetType::Mesh,
+                                                   source.name.empty() ? std::format("Mesh {}", i) : source.name, data);
         if (!mesh.IsValid()) {
             return false;
         }
+        meshes.push_back(mesh);
+    }
 
-        // Parts without a material share a plain white one.
-        if (!source.material && !defaultMaterial) {
-            const AssetId id = writeMaterial("material:default", "Default", MaterialData{});
-            if (!id.IsValid()) {
-                return false;
+    // Submeshes without a material share a plain white one.
+    std::optional<AssetId> defaultMaterial;
+    std::vector<ModelFileNode> nodes;
+    for (const auto& source : model->nodes) {
+        ModelFileNode node{.name = source.name,
+                           .transform = source.transform,
+                           .parent = source.parent ? static_cast<std::int32_t>(*source.parent) : -1};
+        if (source.mesh) {
+            node.mesh = meshes[*source.mesh];
+            for (const auto& material : model->meshes[*source.mesh].materials) {
+                if (!material && !defaultMaterial) {
+                    const AssetId id = writeMaterial("material:default", "Default", MaterialData{});
+                    if (!id.IsValid()) {
+                        return false;
+                    }
+                    defaultMaterial = overridden("material:default", id);
+                }
+                node.materials.push_back(material ? materials[*material] : *defaultMaterial);
             }
-            defaultMaterial = overridden("material:default", id);
         }
-        parts.push_back({name, mesh, source.material ? materials[*source.material] : *defaultMaterial});
+        nodes.push_back(std::move(node));
     }
 
     BinaryWriter data;
-    Encode(data, parts);
+    Encode(data, nodes);
     return context.WriteAsset(AssetType::Model, data);
 }
 

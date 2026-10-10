@@ -78,14 +78,16 @@ public:
         ImportImages(model);
         ImportMaterials(model);
 
+        m_meshIndices.assign(m_data.meshes_count, std::nullopt);
+        m_meshesImported.assign(m_data.meshes_count, false);
         if (const cgltf_scene* scene = m_data.scene ? m_data.scene : (m_data.scenes_count ? m_data.scenes : nullptr)) {
             for (cgltf_size i = 0; i < scene->nodes_count; ++i) {
-                ImportNode(*scene->nodes[i], model);
+                ImportNode(*scene->nodes[i], std::nullopt, model);
             }
         } else {
             for (cgltf_size i = 0; i < m_data.nodes_count; ++i) {
                 if (!m_data.nodes[i].parent) {
-                    ImportNode(m_data.nodes[i], model);
+                    ImportNode(m_data.nodes[i], std::nullopt, model);
                 }
             }
         }
@@ -187,30 +189,56 @@ private:
         }
     }
 
-    void ImportNode(const cgltf_node& node, ModelData& model) const {
+    void ImportNode(const cgltf_node& node, std::optional<std::size_t> parent, ModelData& model) {
+        ModelNodeData imported;
+        imported.name = node.name ? node.name : "";
+        cgltf_node_transform_local(&node, &imported.transform.columns[0].x);
+        imported.parent = parent;
         if (node.mesh) {
-            Matrix4 world;
-            cgltf_node_transform_world(&node, &world.columns[0].x);
-            for (cgltf_size i = 0; i < node.mesh->primitives_count; ++i) {
-                ImportPrimitive(node, node.mesh->primitives[i], world, model);
-            }
+            imported.mesh = ImportMesh(static_cast<std::size_t>(cgltf_mesh_index(&m_data, node.mesh)), model);
         }
+        const std::size_t index = model.nodes.size();
+        model.nodes.push_back(std::move(imported));
         for (cgltf_size i = 0; i < node.children_count; ++i) {
-            ImportNode(*node.children[i], model);
+            ImportNode(*node.children[i], index, model);
         }
     }
 
-    void ImportPrimitive(const cgltf_node& node, const cgltf_primitive& primitive, const Matrix4& world,
-                         ModelData& model) const {
-        const char* name = node.mesh->name ? node.mesh->name : (node.name ? node.name : "");
+    // Each of the file's meshes is read once, however many nodes show it.
+    std::optional<std::size_t> ImportMesh(std::size_t index, ModelData& model) {
+        if (m_meshesImported[index]) {
+            return m_meshIndices[index];
+        }
+        m_meshesImported[index] = true;
+        const cgltf_mesh& source = m_data.meshes[index];
+        ModelMeshData mesh;
+        mesh.name = source.name ? source.name : "";
+        for (cgltf_size i = 0; i < source.primitives_count; ++i) {
+            const cgltf_primitive& primitive = source.primitives[i];
+            if (auto part = ImportPrimitive(mesh.name, primitive)) {
+                mesh.mesh.AppendSubmesh(*part);
+                mesh.materials.push_back(
+                    primitive.material ? std::optional<std::size_t>(cgltf_material_index(&m_data, primitive.material))
+                                       : std::nullopt);
+            }
+        }
+        if (mesh.mesh.indices.empty()) {
+            return std::nullopt;
+        }
+        m_meshIndices[index] = model.meshes.size();
+        model.meshes.push_back(std::move(mesh));
+        return m_meshIndices[index];
+    }
+
+    std::optional<MeshData> ImportPrimitive(const std::string& name, const cgltf_primitive& primitive) const {
         const cgltf_accessor* positions = cgltf_find_accessor(&primitive, cgltf_attribute_type_position, 0);
         if (primitive.type != cgltf_primitive_type_triangles || !positions) {
             Log::GetEngineLogger().Warning("Skipped part of mesh '{}': only triangle lists are supported", name);
-            return;
+            return std::nullopt;
         }
         if (primitive.has_draco_mesh_compression || !positions->buffer_view) {
             Log::GetEngineLogger().Warning("Skipped part of mesh '{}': compressed meshes are not supported", name);
-            return;
+            return std::nullopt;
         }
 
         const cgltf_accessor* normals = cgltf_find_accessor(&primitive, cgltf_attribute_type_normal, 0);
@@ -219,81 +247,63 @@ private:
         const bool hasNormals = normals && normals->count == positions->count;
         // Given tangents only mean something along the normals they were made with.
         const bool hasTangents = hasNormals && tangents && tangents->count == positions->count;
-        // A mirroring transform flips which side of the tangent the bitangent is on.
-        const auto axis = [&](int column) {
-            return Vector3{world.columns[column].x, world.columns[column].y, world.columns[column].z};
-        };
-        const bool mirrored = Dot(Cross(axis(0), axis(1)), axis(2)) < 0.0f;
 
-        // Normals need the inverse transpose to stay perpendicular to surfaces under non-uniform scale.
-        const Matrix4 normalMatrix = Transpose(Inverse(world));
-        ModelMeshData part;
-        part.name = name;
-        part.mesh.vertices.resize(positions->count);
+        MeshData part;
+        part.vertices.resize(positions->count);
         for (cgltf_size i = 0; i < positions->count; ++i) {
-            MeshVertex& vertex = part.mesh.vertices[i];
+            MeshVertex& vertex = part.vertices[i];
             cgltf_accessor_read_float(positions, i, &vertex.position.x, 3);
-            const Vector4 position = world * Vector4{vertex.position.x, vertex.position.y, vertex.position.z, 1.0f};
-            vertex.position = {position.x, position.y, position.z};
             if (hasNormals) {
                 cgltf_accessor_read_float(normals, i, &vertex.normal.x, 3);
-                const Vector4 normal = normalMatrix * Vector4{vertex.normal.x, vertex.normal.y, vertex.normal.z, 0.0f};
-                vertex.normal = Normalize(Vector3{normal.x, normal.y, normal.z});
+                vertex.normal = Normalize(vertex.normal);
             }
             if (uvs && i < uvs->count) {
                 cgltf_accessor_read_float(uvs, i, &vertex.uv.x, 2);
             }
             if (hasTangents) {
                 cgltf_accessor_read_float(tangents, i, &vertex.tangent.x, 4);
-                const Vector4 tangent = world * Vector4{vertex.tangent.x, vertex.tangent.y, vertex.tangent.z, 0.0f};
-                const Vector3 direction = Normalize(Vector3{tangent.x, tangent.y, tangent.z});
-                const float side = (vertex.tangent.w < 0.0f ? -1.0f : 1.0f) * (mirrored ? -1.0f : 1.0f);
-                vertex.tangent = {direction.x, direction.y, direction.z, side};
+                const Vector3 direction = Normalize(Vector3{vertex.tangent.x, vertex.tangent.y, vertex.tangent.z});
+                vertex.tangent = {direction.x, direction.y, direction.z, vertex.tangent.w < 0.0f ? -1.0f : 1.0f};
             }
         }
 
         if (primitive.indices) {
-            part.mesh.indices.resize(primitive.indices->count);
+            part.indices.resize(primitive.indices->count);
             for (cgltf_size i = 0; i < primitive.indices->count; ++i) {
                 const cgltf_size index = cgltf_accessor_read_index(primitive.indices, i);
                 if (index >= positions->count) {
                     Log::GetEngineLogger().Warning("Skipped part of mesh '{}': an index is out of range", name);
-                    return;
+                    return std::nullopt;
                 }
-                part.mesh.indices[i] = static_cast<std::uint32_t>(index);
+                part.indices[i] = static_cast<std::uint32_t>(index);
             }
         } else {
-            part.mesh.indices.resize(positions->count);
+            part.indices.resize(positions->count);
             for (std::uint32_t i = 0; i < positions->count; ++i) {
-                part.mesh.indices[i] = i;
+                part.indices[i] = i;
             }
         }
-        part.mesh.indices.resize(part.mesh.indices.size() / 3 * 3);
-
-        // A mirroring transform turns counterclockwise triangles clockwise, so they are wound back.
-        if (mirrored) {
-            for (std::size_t i = 0; i < part.mesh.indices.size(); i += 3) {
-                std::swap(part.mesh.indices[i + 1], part.mesh.indices[i + 2]);
-            }
+        part.indices.resize(part.indices.size() / 3 * 3);
+        if (part.indices.empty()) {
+            return std::nullopt;
         }
         if (!hasNormals) {
-            part.mesh.RecalculateNormals();
+            part.RecalculateNormals();
         }
         // As glTF asks, tangents a file does not give are made with MikkTSpace.
         if (!hasTangents) {
-            part.mesh.GenerateTangents();
+            part.GenerateTangents();
         }
-
-        if (primitive.material) {
-            part.material = cgltf_material_index(&m_data, primitive.material);
-        }
-        model.meshes.push_back(std::move(part));
+        return part;
     }
 
     const cgltf_data& m_data;
     const cgltf_options& m_options;
     const std::filesystem::path* m_directory;
     std::vector<std::optional<std::size_t>> m_imageIndices;
+    // Where each of the file's meshes went in the model, once read.
+    std::vector<std::optional<std::size_t>> m_meshIndices;
+    std::vector<bool> m_meshesImported;
 };
 
 std::optional<ModelData> Import(std::span<const std::byte> bytes, const std::filesystem::path* path) {
@@ -356,6 +366,14 @@ bool ModelData::IsColorImage(std::size_t image) const {
                       material.occlusionImage == image;
     }
     return !usedForData;
+}
+
+Matrix4 ModelData::GetWorldTransform(std::size_t node) const {
+    Matrix4 transform = nodes[node].transform;
+    for (std::optional<std::size_t> parent = nodes[node].parent; parent; parent = nodes[*parent].parent) {
+        transform = nodes[*parent].transform * transform;
+    }
+    return transform;
 }
 
 } // namespace Spot

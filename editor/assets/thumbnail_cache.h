@@ -45,7 +45,14 @@ private:
     };
 
     // Draws the meshes with their materials, framed, into the entry's picture.
-    void Draw(RenderContext& context, Entry& entry, const std::vector<std::pair<const Mesh*, const Material*>>& parts);
+    // A mesh, or a submesh of it, with its material, placed in the picture's space.
+    struct Part {
+        const Mesh* mesh;
+        const Material* material;
+        Matrix4 transform = {};
+        std::uint32_t submesh = Mesh::AllSubmeshes;
+    };
+    void Draw(RenderContext& context, Entry& entry, const std::vector<Part>& parts);
 
     GraphicsDevice& m_device;
     std::unique_ptr<Renderer3D> m_renderer;

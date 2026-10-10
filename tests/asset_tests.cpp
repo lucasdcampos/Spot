@@ -194,31 +194,31 @@ TEST_CASE("The asset database imports sources into the import directory", "[asse
     CHECK(database.Refresh() == 3);
     CHECK(std::filesystem::exists(imported / "manifest.json"));
 
-    // The .glb becomes a model with its texture, two materials and two meshes as sub-assets.
+    // The .glb becomes a model with its texture, two materials and its mesh, of two submeshes, as sub-assets.
     const auto cubeId = database.FindByPath("models/cube.glb");
     REQUIRE(cubeId.has_value());
     const auto cubeParts = GetSubAssets(database, *cubeId);
-    REQUIRE(cubeParts.size() == 5);
+    REQUIRE(cubeParts.size() == 4);
     const auto countOf = [&](AssetType type) {
         return std::ranges::count_if(cubeParts, [&](const Spot::AssetInfo& asset) { return asset.type == type; });
     };
     CHECK(countOf(AssetType::Texture) == 1);
     CHECK(countOf(AssetType::Material) == 2);
-    CHECK(countOf(AssetType::Mesh) == 2);
+    CHECK(countOf(AssetType::Mesh) == 1);
     CHECK(GetSubAssets(database, *database.FindByPath("models/textured_quad.gltf")).size() == 3);
 
-    REQUIRE(database.GetAssets().size() == 11);
+    REQUIRE(database.GetAssets().size() == 10);
     for (const auto& asset : database.GetAssets()) {
         CHECK(std::filesystem::exists(imported / (asset.id.ToString() + ".asset")));
         CHECK(database.Find(asset.id) == &asset);
     }
     // The meta file keeps the sub-assets' ids.
-    CHECK(AssetMeta::LoadFromFile(sources / "models" / "cube.glb.meta")->subAssets.size() == 5);
+    CHECK(AssetMeta::LoadFromFile(sources / "models" / "cube.glb.meta")->subAssets.size() == 4);
 
     SECTION("Unchanged sources are not imported again, and keep their ids") {
         AssetDatabase reopened(sources, imported);
         CHECK(reopened.Refresh() == 0);
-        CHECK(reopened.GetAssets().size() == 11);
+        CHECK(reopened.GetAssets().size() == 10);
         for (const auto& part : cubeParts) {
             CHECK(reopened.Find(part.id) != nullptr);
         }
@@ -231,6 +231,17 @@ TEST_CASE("The asset database imports sources into the import directory", "[asse
         for (const auto& part : GetSubAssets(database, *cubeId)) {
             CHECK(std::ranges::find(cubeParts, part.id, &Spot::AssetInfo::id) != cubeParts.end());
         }
+
+        Spot::AssetManager assets(imported);
+        const auto model = assets.Load<Spot::Model>(*cubeId);
+        REQUIRE(model);
+        REQUIRE(model->GetNodes().size() == 2);
+        CHECK(model->GetNodes()[1].parent == 0);
+        CHECK(Spot::Distance(Spot::Decompose(model->GetNodeTransform(1)).translation, {22.0f, 0.0f, 0.0f}) < 1e-4f);
+        const auto mesh = assets.LoadMeshData(model->GetNodes()[1].mesh.GetId());
+        REQUIRE(mesh);
+        CHECK(mesh->GetSubmeshes() == std::vector<Spot::SubMesh>{{0, 18}, {18, 18}});
+        CHECK(mesh->GetBoundingBox().GetSize() == Spot::Vector3{2.0f, 2.0f, 2.0f});
 
         // The buffer may hold more bytes than the model uses, so one more byte keeps it valid.
         {
@@ -263,6 +274,35 @@ TEST_CASE("The asset database imports sources into the import directory", "[asse
         REQUIRE(brokenId.has_value());
         CHECK(database.Find(*brokenId) != nullptr);
         CHECK_FALSE(std::filesystem::exists(imported / (brokenId->ToString() + ".asset")));
+    }
+}
+
+TEST_CASE("Imported model hierarchies reject invalid parents and truncated data", "[assets][model]") {
+    std::vector<Spot::Detail::ModelFileNode> nodes{
+        {.name = "Root", .transform = Spot::Matrix4::Translation({1.0f, 2.0f, 3.0f})},
+        {.name = "Child",
+         .transform = {},
+         .parent = 0,
+         .mesh = AssetId::Generate(),
+         .materials = {AssetId::Generate()}}};
+    Spot::Detail::BinaryWriter writer;
+    Spot::Detail::Encode(writer, nodes);
+    const auto loaded = Spot::Detail::DecodeModel(writer.GetData());
+    REQUIRE(loaded);
+    REQUIRE(loaded->size() == 2);
+    CHECK((*loaded)[0].name == "Root");
+    CHECK((*loaded)[0].transform == nodes[0].transform);
+    CHECK((*loaded)[1].mesh == nodes[1].mesh);
+    CHECK((*loaded)[1].materials == nodes[1].materials);
+    const auto data = writer.GetData();
+    for (std::size_t size = 0; size < data.size(); ++size) {
+        CHECK_FALSE(Spot::Detail::DecodeModel(data.first(size)));
+    }
+    for (const int parent : {-2, 1, 2}) {
+        nodes[1].parent = parent;
+        Spot::Detail::BinaryWriter invalid;
+        Spot::Detail::Encode(invalid, nodes);
+        CHECK_FALSE(Spot::Detail::DecodeModel(invalid.GetData()));
     }
 }
 
@@ -438,7 +478,7 @@ TEST_CASE("The asset database keeps imported assets when its source directory is
     CHECK(missing.Refresh() == 0);
     CHECK(missing.GetAssets().empty());
     CHECK(std::filesystem::exists(imported / "manifest.json"));
-    CHECK(std::distance(std::filesystem::directory_iterator(imported), std::filesystem::directory_iterator()) == 12);
+    CHECK(std::distance(std::filesystem::directory_iterator(imported), std::filesystem::directory_iterator()) == 11);
 }
 
 namespace {

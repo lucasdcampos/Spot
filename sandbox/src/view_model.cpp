@@ -32,7 +32,9 @@ void ViewModel::Show(const Spot::AssetRef<Spot::Model>& model) {
     for (const Spot::ModelPart& part : model->GetParts()) {
         Spot::Entity& entity = GetScene().CreateEntity("View Model");
         // So close to the eyes, its shadow would darken the view.
-        entity.AddComponent<Spot::MeshRenderer>(part.mesh, part.material).SetCastingShadows(false);
+        auto& renderer = entity.AddComponent<Spot::MeshRenderer>(part.mesh, part.material);
+        renderer.SetCastingShadows(false);
+        renderer.SetSubmesh(part.submesh);
         m_parts.push_back(entity.GetId());
     }
 }
@@ -61,10 +63,15 @@ void ViewModel::OnLateUpdate(float deltaTime) {
     m_aim += std::clamp(target - m_aim, -deltaTime * 8.0f, deltaTime * 8.0f);
     const Spot::Quaternion rotation = player->GetViewRotation();
     const Spot::Vector3 position = player->GetEyePosition() + rotation * (offset + (aimOffset - offset) * m_aim);
-    for (const Spot::EntityId id : m_parts) {
-        if (Spot::Entity* entity = GetScene().GetEntity(id)) {
-            entity->GetTransform().SetPosition(position);
-            entity->GetTransform().SetRotation(rotation);
+    const Spot::Matrix4 hand = Spot::Matrix4::Translation(position) * Spot::Matrix4::Rotation(rotation);
+    const auto parts = m_shown ? m_shown->GetParts() : std::span<const Spot::ModelPart>();
+    for (std::size_t i = 0; i < m_parts.size() && i < parts.size(); ++i) {
+        if (Spot::Entity* entity = GetScene().GetEntity(m_parts[i])) {
+            // Each part where the model puts it, in the hand.
+            const Spot::TransformComponents placed = Spot::Decompose(hand * parts[i].transform);
+            entity->GetTransform().SetPosition(placed.translation);
+            entity->GetTransform().SetRotation(placed.rotation);
+            entity->GetTransform().SetScale(placed.scale);
         }
     }
 }

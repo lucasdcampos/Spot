@@ -78,7 +78,7 @@ TEST_CASE("The asset browser lists folders first, then assets, by name", "[edito
     REQUIRE(models.size() == 1);
     CHECK(models[0].hasSubAssets);
     const std::vector<BrowserItem> parts = Spot::Editor::ListSubAssets(database, models[0].id);
-    CHECK(parts.size() == 5);
+    CHECK(parts.size() == 4);
     CHECK(std::ranges::all_of(parts, &BrowserItem::subAsset));
 
     // Searches look in every folder, at folders and sub-assets too.

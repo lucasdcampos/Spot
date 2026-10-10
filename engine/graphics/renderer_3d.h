@@ -6,6 +6,7 @@
 #include "graphics/fullscreen_pass.h"
 #include "graphics/light_data.h"
 #include "graphics/material.h"
+#include "graphics/mesh.h"
 #include "graphics/mesh_data.h"
 #include "graphics/render_context.h"
 #include "graphics/sky_data.h"
@@ -23,7 +24,6 @@
 namespace Spot {
 
 class GraphicsDevice;
-class Mesh;
 class Model;
 class Pipeline;
 class Scene;
@@ -128,7 +128,11 @@ public:
     // Fogs everything drawn in the frame, the sky included; a later call replaces it.
     void DrawFog(const FogData& fog);
     // Meshes that do not cast shadows are still shadowed by the others.
-    void DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform = {}, bool castsShadows = true);
+    // Draws one of the mesh's submeshes, or all of it. Transforms that mirror, with a negative scale, are drawn the
+    // right way out.
+    void DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform = {}, bool castsShadows = true,
+                  std::uint32_t submesh = Mesh::AllSubmeshes);
+    // Draws each part of the model where its node puts it.
     void DrawModel(const Model& model, const Matrix4& transform = {});
     // Draws every MeshRenderer and Light of the scene that is enabled on an active entity, at its entity's world
     // transform, and the first such Sky and Fog.
@@ -166,6 +170,11 @@ private:
         float depth = 0.0f;
         // The same for commands whose material looks the same, textures and values alike, which End() gives.
         std::uint32_t look = 0;
+        // The range of the mesh's indices it draws.
+        std::uint32_t firstIndex = 0;
+        std::uint32_t indexCount = 0;
+        // Whether its transform turns the mesh inside out, which swaps the faces culled.
+        bool mirrored = false;
     };
 
     void DrawShadows(Detail::SelectedLights& lights, Detail::ShadowUniforms& shadows);
@@ -181,6 +190,8 @@ private:
     // Sends the lights and the view's clusters of them to their buffers.
     bool UploadLights(const Detail::SelectedLights& lights);
     void Flush(RenderPass& pass, const Detail::SelectedLights& lights, const Detail::ShadowUniforms& shadows);
+    const Pipeline* GetPipeline(const DrawCommand& command) const;
+    const Pipeline* GetShadowPipeline(const DrawCommand& command) const;
     void FlushSky(RenderPass& pass, const SkyData& sky, const Detail::SkyLighting& lighting);
     // Captures the sky's light into the reflections and irradiance when it changed; false when it cannot.
     bool UpdateSkyLighting(const SkyData& sky, const Detail::SkyLighting& lighting);
@@ -189,6 +200,11 @@ private:
     std::unique_ptr<Pipeline> m_doubleSidedPipeline;
     std::unique_ptr<Pipeline> m_transparentPipeline;
     std::unique_ptr<Pipeline> m_doubleSidedTransparentPipeline;
+    // Single-sided ones for mirroring transforms, which cull front faces, as the mirror winds them clockwise.
+    std::unique_ptr<Pipeline> m_mirroredPipeline;
+    std::unique_ptr<Pipeline> m_mirroredTransparentPipeline;
+    std::unique_ptr<Pipeline> m_mirroredShadowPipeline;
+    std::unique_ptr<Pipeline> m_mirroredCutoutShadowPipeline;
     std::unique_ptr<Pipeline> m_skyPipeline;
     std::unique_ptr<Pipeline> m_shadowPipeline;
     std::unique_ptr<Pipeline> m_doubleSidedShadowPipeline;

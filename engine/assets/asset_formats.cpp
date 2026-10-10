@@ -67,13 +67,15 @@ std::optional<TextureFile> DecodeTexture(std::span<const std::byte> data) {
 void Encode(BinaryWriter& writer, const MeshData& mesh) {
     WriteArray(writer, std::span<const MeshVertex>(mesh.vertices));
     WriteArray(writer, std::span<const std::uint32_t>(mesh.indices));
+    WriteArray(writer, std::span<const SubMesh>(mesh.submeshes));
 }
 
 std::optional<MeshData> DecodeMesh(std::span<const std::byte> data) {
     BinaryReader reader(data);
     auto vertices = ReadArray<MeshVertex>(reader);
     auto indices = vertices ? ReadArray<std::uint32_t>(reader) : std::nullopt;
-    if (!indices) {
+    auto submeshes = indices ? ReadArray<SubMesh>(reader) : std::nullopt;
+    if (!submeshes) {
         return std::nullopt;
     }
     for (const std::uint32_t index : *indices) {
@@ -81,7 +83,12 @@ std::optional<MeshData> DecodeMesh(std::span<const std::byte> data) {
             return std::nullopt;
         }
     }
-    return Finish(reader, MeshData{std::move(*vertices), std::move(*indices)});
+    for (const SubMesh& submesh : *submeshes) {
+        if (static_cast<std::uint64_t>(submesh.firstIndex) + submesh.indexCount > indices->size()) {
+            return std::nullopt;
+        }
+    }
+    return Finish(reader, MeshData{std::move(*vertices), std::move(*indices), std::move(*submeshes)});
 }
 
 void Encode(BinaryWriter& writer, const MaterialSource& material) {
@@ -127,27 +134,36 @@ std::optional<MaterialSource> DecodeMaterial(std::span<const std::byte> data) {
     return Finish(reader, material);
 }
 
-void Encode(BinaryWriter& writer, const std::vector<ModelFilePart>& parts) {
-    writer.Write(static_cast<std::uint32_t>(parts.size()));
-    for (const auto& part : parts) {
-        writer.WriteString(part.name);
-        writer.Write(part.mesh);
-        writer.Write(part.material);
+void Encode(BinaryWriter& writer, const std::vector<ModelFileNode>& nodes) {
+    writer.Write(static_cast<std::uint32_t>(nodes.size()));
+    for (const auto& node : nodes) {
+        writer.WriteString(node.name);
+        writer.Write(node.transform);
+        writer.Write(node.parent);
+        writer.Write(node.mesh);
+        WriteArray(writer, std::span<const AssetId>(node.materials));
     }
 }
 
-std::optional<std::vector<ModelFilePart>> DecodeModel(std::span<const std::byte> data) {
+std::optional<std::vector<ModelFileNode>> DecodeModel(std::span<const std::byte> data) {
     BinaryReader reader(data);
     const auto count = reader.Read<std::uint32_t>();
-    std::vector<ModelFilePart> parts;
+    std::vector<ModelFileNode> nodes;
     for (std::uint32_t i = 0; i < count && reader.IsValid(); ++i) {
-        ModelFilePart part;
-        part.name = reader.ReadString();
-        part.mesh = reader.Read<AssetId>();
-        part.material = reader.Read<AssetId>();
-        parts.push_back(std::move(part));
+        ModelFileNode node;
+        node.name = reader.ReadString();
+        node.transform = reader.Read<Matrix4>();
+        node.parent = reader.Read<std::int32_t>();
+        node.mesh = reader.Read<AssetId>();
+        auto materials = ReadArray<AssetId>(reader);
+        // Parents come before their children.
+        if (!materials || node.parent >= static_cast<std::int32_t>(i) || node.parent < -1) {
+            return std::nullopt;
+        }
+        node.materials = std::move(*materials);
+        nodes.push_back(std::move(node));
     }
-    return Finish(reader, std::move(parts));
+    return Finish(reader, std::move(nodes));
 }
 
 void Encode(BinaryWriter& writer, const SoundFile& sound) {

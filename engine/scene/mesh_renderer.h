@@ -2,8 +2,10 @@
 
 #include "assets/asset_ref.h"
 #include "graphics/material.h"
+#include "graphics/mesh.h"
 #include "scene/component.h"
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
@@ -41,6 +43,10 @@ public:
     // A material of the renderer's own, which is not an asset and so is not saved.
     void SetMaterial(Material material) { m_material = std::make_shared<const Material>(std::move(material)); }
 
+    // The index of the mesh's submesh it draws, or Mesh::AllSubmeshes for all of it, as models' parts each draw one.
+    std::uint32_t GetSubmesh() const { return m_submesh; }
+    void SetSubmesh(std::uint32_t submesh) { m_submesh = submesh; }
+
     // Whether the mesh blocks lights that cast shadows, which it does unless told not to. It is lit and shadowed
     // either way.
     bool IsCastingShadows() const { return m_castingShadows; }
@@ -53,6 +59,7 @@ private:
     AssetRef<Mesh> m_mesh;
     AssetRef<Material> m_material;
     bool m_castingShadows = true;
+    std::uint32_t m_submesh = Mesh::AllSubmeshes;
 };
 
 // Creates an entity for the model with a child per part, each showing the part's mesh and material with a

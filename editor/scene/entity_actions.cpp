@@ -197,16 +197,23 @@ bool CreateEntityFromAsset(SceneDocument& document, EditorProject& project, Asse
         }
         // References by id alone: the scene loads the assets when it takes the entities.
         const auto addPart = [](Entity& entity, const ModelPart& part) {
-            entity.AddComponent<MeshRenderer>(AssetRef<Mesh>(part.mesh.GetId(), nullptr),
-                                              AssetRef<Material>(part.material.GetId(), nullptr));
+            entity
+                .AddComponent<MeshRenderer>(AssetRef<Mesh>(part.mesh.GetId(), nullptr),
+                                            AssetRef<Material>(part.material.GetId(), nullptr))
+                .SetSubmesh(part.submesh);
         };
         const std::span<const ModelPart> parts = model->GetParts();
-        if (parts.size() == 1) {
+        if (parts.size() == 1 && parts.front().transform == Matrix4::Identity()) {
             addPart(root, parts.front());
         } else {
+            // Each part where the model puts it, below the entity placed where the model was dropped.
             for (std::size_t i = 0; i < parts.size(); ++i) {
-                addPart(root.CreateChild(parts[i].name.empty() ? std::format("Part {}", i + 1) : parts[i].name),
-                        parts[i]);
+                Entity& child = root.CreateChild(parts[i].name.empty() ? std::format("Part {}", i + 1) : parts[i].name);
+                const TransformComponents placed = Decompose(parts[i].transform);
+                child.GetTransform().SetPosition(placed.translation);
+                child.GetTransform().SetRotation(placed.rotation);
+                child.GetTransform().SetScale(placed.scale);
+                addPart(child, parts[i]);
             }
         }
     }

@@ -3,18 +3,15 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
-#include <string_view>
-
-#include <string>
-
-#include <span>
-
 #include <array>
 #include <cmath>
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <span>
+#include <string>
+#include <string_view>
 #include <vector>
 
 using Spot::ModelData;
@@ -55,13 +52,22 @@ TEST_CASE("ModelData loads a .gltf with its separate buffer and image", "[model]
     REQUIRE(model->meshes.size() == 1);
     const auto& part = model->meshes[0];
     CHECK(part.name == "Quad");
-    CHECK(part.material == 0);
+    CHECK(part.materials == std::vector<std::optional<std::size_t>>{0});
     REQUIRE(part.mesh.vertices.size() == 4);
     CHECK(part.mesh.indices == std::vector<std::uint32_t>{0, 1, 2, 2, 3, 0});
 
-    // The node's scale and translation are applied, and the missing normals are computed from the faces.
-    CHECK(IsNear(part.mesh.vertices[0].position, {-2.0f, -2.0f, -2.0f}));
-    CHECK(IsNear(part.mesh.vertices[2].position, {2.0f, 2.0f, -2.0f}));
+    // The mesh stays in its own space, which its node scales and moves; the missing normals are computed from the
+    // faces.
+    REQUIRE(model->nodes.size() == 1);
+    CHECK(model->nodes[0].name == "Quad");
+    CHECK(model->nodes[0].mesh == 0u);
+    const Spot::Matrix4 world = model->GetWorldTransform(0);
+    const auto placed = [&](Vector3 p) {
+        const Spot::Vector4 v = world * Spot::Vector4{p.x, p.y, p.z, 1.0f};
+        return Vector3{v.x, v.y, v.z};
+    };
+    CHECK(IsNear(placed(part.mesh.vertices[0].position), {-2.0f, -2.0f, -2.0f}));
+    CHECK(IsNear(placed(part.mesh.vertices[2].position), {2.0f, 2.0f, -2.0f}));
     CHECK(part.mesh.vertices[0].uv == Spot::Vector2{0.0f, 1.0f});
     for (const auto& vertex : part.mesh.vertices) {
         CHECK(IsNear(vertex.normal, {0.0f, 0.0f, 1.0f}));
@@ -80,22 +86,32 @@ TEST_CASE("ModelData loads a .glb with an embedded image and a node hierarchy", 
     CHECK(model->materials[1].baseColor == Spot::Color::Blue);
     CHECK_FALSE(model->materials[1].doubleSided);
 
-    // One mesh per material, each with three faces of the cube.
-    REQUIRE(model->meshes.size() == 2);
-    CHECK(model->meshes[0].material == 0);
-    CHECK(model->meshes[1].material == 1);
+    // One mesh with a submesh per material, each with three faces of the cube.
+    REQUIRE(model->meshes.size() == 1);
+    const auto& cube = model->meshes[0];
+    CHECK(cube.materials == std::vector<std::optional<std::size_t>>{0, 1});
+    CHECK(cube.mesh.vertices.size() == 24);
+    CHECK(cube.mesh.submeshes == std::vector<Spot::SubMesh>{{0, 18}, {18, 18}});
 
-    // The child sits one unit along +Z of its parent, which is at x = 10 and turned a quarter turn around Y, so the
-    // cube is centered at (11, 0, 0) with its +Z face now facing +X.
+    // The nodes keep their names and hierarchy: the child sits one unit along +Z of its parent, which is at x = 10
+    // and turned a quarter turn around Y, so the cube is centered at (11, 0, 0) with its +Z face now facing +X.
+    REQUIRE(model->nodes.size() == 2);
+    CHECK(model->nodes[0].name == "Pivot");
+    CHECK_FALSE(model->nodes[0].parent.has_value());
+    CHECK_FALSE(model->nodes[0].mesh.has_value());
+    CHECK(model->nodes[1].name == "Cube");
+    CHECK(model->nodes[1].parent == 0u);
+    CHECK(model->nodes[1].mesh == 0u);
+    const Spot::Matrix4 world = model->GetWorldTransform(1);
     const Vector3 center{11.0f, 0.0f, 0.0f};
-    for (const auto& part : model->meshes) {
-        CHECK(part.mesh.vertices.size() == 12);
-        CHECK(part.mesh.indices.size() == 18);
-        for (const auto& vertex : part.mesh.vertices) {
-            CHECK(std::abs(Spot::Dot(vertex.position - center, vertex.normal) - 0.5f) < 1e-4f);
-        }
+    for (const auto& vertex : cube.mesh.vertices) {
+        const Spot::Vector4 p = world * Spot::Vector4{vertex.position.x, vertex.position.y, vertex.position.z, 1.0f};
+        const Spot::Vector4 n = world * Spot::Vector4{vertex.normal.x, vertex.normal.y, vertex.normal.z, 0.0f};
+        CHECK(std::abs(Spot::Dot(Vector3{p.x, p.y, p.z} - center, Vector3{n.x, n.y, n.z}) - 0.5f) < 1e-4f);
     }
-    CHECK(IsNear(model->meshes[0].mesh.vertices[0].normal, {1.0f, 0.0f, 0.0f}));
+    const Spot::Vector4 first = world * Spot::Vector4{cube.mesh.vertices[0].normal.x, cube.mesh.vertices[0].normal.y,
+                                                      cube.mesh.vertices[0].normal.z, 0.0f};
+    CHECK(IsNear({first.x, first.y, first.z}, {1.0f, 0.0f, 0.0f}));
 }
 
 TEST_CASE("ModelData loads a self-contained .gltf from memory", "[model]") {
@@ -110,7 +126,7 @@ TEST_CASE("ModelData loads a self-contained .gltf from memory", "[model]") {
 
     // Without indices, the vertices are drawn in order.
     const auto& part = model->meshes[0];
-    CHECK_FALSE(part.material.has_value());
+    CHECK(part.materials == std::vector<std::optional<std::size_t>>{std::nullopt});
     CHECK(part.mesh.indices == std::vector<std::uint32_t>{0, 1, 2});
     CHECK(IsNear(part.mesh.vertices[1].position, {1.0f, 0.0f, 0.0f}));
     CHECK(IsNear(part.mesh.vertices[1].normal, {0.0f, 0.0f, 1.0f}));
@@ -197,7 +213,7 @@ TEST_CASE("Tangents split vertices whose triangles need different ones", "[mesh]
     CHECK(Spot::Dot(first, second) < -0.99f);
 }
 
-TEST_CASE("Tangents a glTF file gives are used, turned with their node", "[mesh][model]") {
+TEST_CASE("Tangents a glTF file gives stay in mesh space", "[mesh][model]") {
     // One triangle facing +Z, whose tangent points along +Y with its bitangent on the negative side.
     struct Vertex {
         float position[3];
@@ -229,8 +245,10 @@ TEST_CASE("Tangents a glTF file gives are used, turned with their node", "[mesh]
     REQUIRE(model.has_value());
     REQUIRE(model->meshes.size() == 1);
     const Spot::MeshVertex& vertex = model->meshes[0].mesh.vertices[0];
-    // The node turns it a quarter around Z, taking +Y to -X.
-    CHECK(Spot::Distance(Xyz(vertex.tangent), Spot::Vector3{-1.0f, 0.0f, 0.0f}) < 1e-4f);
+    CHECK(IsNear(Xyz(vertex.tangent), {0.0f, 1.0f, 0.0f}));
+    // Rendering turns it with the node, taking +Y to -X.
+    const Spot::Vector4 turned = model->GetWorldTransform(0) * Spot::Vector4{0.0f, 1.0f, 0.0f, 0.0f};
+    CHECK(IsNear(Xyz(turned), {-1.0f, 0.0f, 0.0f}));
     CHECK(vertex.tangent.w == -1.0f);
 }
 
@@ -287,4 +305,48 @@ TEST_CASE("ModelData reads glTF alpha modes", "[model]") {
     CHECK(model->materials[1].alphaMode == Spot::AlphaMode::Transparent);
     CHECK(model->materials[2].alphaMode == Spot::AlphaMode::Opaque);
     CHECK(model->materials[2].alphaCutoff == 0.5f);
+}
+
+TEST_CASE("Model nodes share meshes and keep empty nodes and multiple roots", "[model]") {
+    const std::array<Vector3, 3> positions{{{-0.5f, -0.5f, 0.0f}, {0.5f, -0.5f, 0.0f}, {0.0f, 0.5f, 0.0f}}};
+    const std::string gltf = R"({"asset":{"version":"2.0"}, "scene":0, "scenes":[{"nodes":[0,3]}],
+        "nodes":[{"name":"Pivot", "translation":[2,0,0], "children":[1,2]},
+                 {"name":"First", "mesh":0, "translation":[0,1,0]},
+                 {"name":"Second", "mesh":0, "scale":[-2,1,1]}, {"name":"Empty"}],
+        "meshes":[{"name":"Shared", "primitives":[{"attributes":{"POSITION":0}},
+                                                     {"attributes":{"POSITION":0}}]}],
+        "buffers":[{"byteLength":36, "uri":"data:application/octet-stream;base64,)" +
+                             Base64(std::as_bytes(std::span(positions))) + R"("}],
+        "bufferViews":[{"buffer":0,"byteLength":36}],
+        "accessors":[{"bufferView":0,"componentType":5126,"count":3,"type":"VEC3",
+                      "min":[-0.5,-0.5,0],"max":[0.5,0.5,0]}]})";
+    const auto model = ModelData::LoadFromMemory(std::as_bytes(std::span(gltf)));
+    REQUIRE(model);
+    REQUIRE(model->nodes.size() == 4);
+    REQUIRE(model->meshes.size() == 1);
+    CHECK(model->nodes[0].name == "Pivot");
+    CHECK(model->nodes[1].parent == 0);
+    CHECK(model->nodes[2].parent == 0);
+    CHECK(model->nodes[1].mesh == model->nodes[2].mesh);
+    CHECK_FALSE(model->nodes[3].parent);
+    CHECK_FALSE(model->nodes[3].mesh);
+    CHECK(model->meshes[0].mesh.submeshes == std::vector<Spot::SubMesh>{{0, 3}, {3, 3}});
+    CHECK(IsNear(Xyz(model->GetWorldTransform(1).columns[3]), {2.0f, 1.0f, 0.0f}));
+    CHECK(IsNear(Xyz(model->GetWorldTransform(2).columns[0]), {-2.0f, 0.0f, 0.0f}));
+    CHECK(IsNear(model->meshes[0].mesh.vertices[0].position, positions[0]));
+}
+
+TEST_CASE("Appending submeshes offsets their vertices and keeps existing triangles", "[mesh]") {
+    Spot::MeshData combined = Spot::MeshData::CreateCube();
+    const Spot::MeshData second = Spot::MeshData::CreatePlane();
+    const auto vertexCount = combined.vertices.size();
+    const auto indexCount = combined.indices.size();
+    combined.AppendSubmesh(second);
+    REQUIRE(combined.GetSubmeshes().size() == 2);
+    CHECK(combined.submeshes[0] == Spot::SubMesh{0, static_cast<std::uint32_t>(indexCount)});
+    CHECK(combined.submeshes[1] ==
+          Spot::SubMesh{static_cast<std::uint32_t>(indexCount), static_cast<std::uint32_t>(second.indices.size())});
+    for (std::size_t i = 0; i < second.indices.size(); ++i) {
+        CHECK(combined.indices[indexCount + i] == vertexCount + second.indices[i]);
+    }
 }

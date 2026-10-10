@@ -67,6 +67,21 @@ vertex uniforms at `register(b0, space1)`, fragment textures and samplers at `re
 | `LineRenderer` | One-pixel lines in 3D, depth-tested or over everything, inside a pass the caller opens; `DrawDebugLines()` draws the `DebugDraw` queue |
 | `SceneRenderer` | Whole scenes as games show them, through their main camera |
 
+### Models and submeshes
+
+`ModelData` reads a glTF scene into nodes with names, local matrices, parents and mesh indices. Parents precede
+their children; nodes without meshes remain in the hierarchy. Mesh vertices stay in mesh space, and nodes sharing
+a glTF mesh share its buffers. Each triangle primitive becomes a `SubMesh` index range with its own material.
+`MeshData::AppendSubmesh()` combines geometry into these ranges; meshes without explicit ranges have one range
+covering every index.
+
+`Model::GetNodes()` exposes the loaded hierarchy, and `GetNodeTransform()` gives a node's matrix in model space.
+`GetParts()` exposes its drawable submeshes with their accumulated matrices. `Renderer3D::DrawModel()` multiplies
+those matrices by the caller's transform. `DrawMesh()` can select a submesh, or draw the whole mesh with
+`Mesh::AllSubmeshes` (the default). An invalid submesh is logged and skipped. Batching and shadow passes use the
+same index ranges. Negative scales reverse culling and tangent handedness, so mirrored nodes retain their surfaces
+and normal maps.
+
 ### Culling
 
 `Renderer3D` draws only what can be seen. Each shadow pass leaves out the meshes outside its light's view, and

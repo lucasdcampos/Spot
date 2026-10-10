@@ -51,8 +51,9 @@ Matrix4 GetNormalMatrix(const Matrix4& m) {
     const Vector3 b = Cross(z, x) * sign;
     const Vector3 c = Cross(x, y) * sign;
     Matrix4 normal;
+    // Its last element is the sign, which flips the side of the tangent the bitangent is on in a mirror.
     normal.columns = {Vector4{a.x, a.y, a.z, 0.0f}, Vector4{b.x, b.y, b.z, 0.0f}, Vector4{c.x, c.y, c.z, 0.0f},
-                      Vector4{0.0f, 0.0f, 0.0f, 1.0f}};
+                      Vector4{0.0f, 0.0f, 0.0f, sign}};
     return normal;
 }
 
@@ -330,6 +331,11 @@ Renderer3D::Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config) :
         m_doubleSidedTransparentPipeline = device.CreatePipeline(desc);
         desc.cullMode = CullMode::Back;
         m_transparentPipeline = device.CreatePipeline(desc);
+        desc.cullMode = CullMode::Front;
+        m_mirroredTransparentPipeline = device.CreatePipeline(desc);
+        desc.blendMode = BlendMode::None;
+        desc.depth = DepthState{.format = config.depthFormat};
+        m_mirroredPipeline = device.CreatePipeline(desc);
     }
 
     const auto skyVertexShader = device.CreateShader(Detail::Shaders::SkyVert);
@@ -379,12 +385,16 @@ Renderer3D::Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config) :
             .depth = DepthState{.format = TextureFormat::Depth32Float, .biasSlope = 1.5f, .clamp = true},
         };
         m_shadowPipeline = device.CreatePipeline(desc);
+        desc.cullMode = CullMode::Front;
+        m_mirroredShadowPipeline = device.CreatePipeline(desc);
         desc.cullMode = CullMode::None;
         m_doubleSidedShadowPipeline = device.CreatePipeline(desc);
         desc.fragmentShader = cutoutShadowFragmentShader.get();
         m_doubleSidedCutoutShadowPipeline = device.CreatePipeline(desc);
         desc.cullMode = CullMode::Back;
         m_cutoutShadowPipeline = device.CreatePipeline(desc);
+        desc.cullMode = CullMode::Front;
+        m_mirroredCutoutShadowPipeline = device.CreatePipeline(desc);
     }
 
     m_sampler = device.CreateSampler(
@@ -408,10 +418,11 @@ Renderer3D::~Renderer3D() = default;
 
 bool Renderer3D::IsValid() const {
     return m_pipeline && m_doubleSidedPipeline && m_transparentPipeline && m_doubleSidedTransparentPipeline &&
-           m_skyPipeline && m_shadowPipeline && m_doubleSidedShadowPipeline && m_cutoutShadowPipeline &&
-           m_doubleSidedCutoutShadowPipeline && m_sampler && m_shadowSampler && m_whiteTexture && m_noShadows &&
-           m_skyCapturePipeline && m_skyPrefilter && m_skyIrradiancePass && m_skySampler && m_noSkyReflections &&
-           m_noSkyIrradiance;
+           m_mirroredPipeline && m_mirroredTransparentPipeline && m_mirroredShadowPipeline &&
+           m_mirroredCutoutShadowPipeline && m_skyPipeline && m_shadowPipeline && m_doubleSidedShadowPipeline &&
+           m_cutoutShadowPipeline && m_doubleSidedCutoutShadowPipeline && m_sampler && m_shadowSampler &&
+           m_whiteTexture && m_noShadows && m_skyCapturePipeline && m_skyPrefilter && m_skyIrradiancePass &&
+           m_skySampler && m_noSkyReflections && m_noSkyIrradiance;
 }
 
 void Renderer3D::Begin(RenderContext& context, const RenderPassDesc& target, const Camera3D& camera) {
@@ -489,7 +500,8 @@ void Renderer3D::End() {
             command.depth = Dot(command.bounds.center - m_camera.position, forward);
         }
         const auto sortKey = [](const DrawCommand& c) {
-            return std::make_tuple(!c.visible, c.doubleSided, c.alphaMode, c.look, c.mesh, c.depth);
+            return std::make_tuple(!c.visible, c.doubleSided, c.mirrored, c.alphaMode, c.look, c.mesh, c.firstIndex,
+                                   c.depth);
         };
         std::stable_sort(m_commands.begin(), transparent,
                          [&](const DrawCommand& a, const DrawCommand& b) { return sortKey(a) < sortKey(b); });
@@ -509,7 +521,7 @@ void Renderer3D::End() {
     const auto shadowKey = [this](std::uint32_t index) {
         const DrawCommand& c = m_commands[index];
         const bool cutout = c.alphaMode == AlphaMode::Cutout;
-        return std::make_tuple(c.doubleSided, cutout, cutout ? c.look : 0u, c.mesh);
+        return std::make_tuple(c.doubleSided, c.mirrored, cutout, cutout ? c.look : 0u, c.mesh, c.firstIndex);
     };
     std::ranges::stable_sort(m_shadowOrder,
                              [&](std::uint32_t a, std::uint32_t b) { return shadowKey(a) < shadowKey(b); });
@@ -547,8 +559,14 @@ void Renderer3D::DrawFog(const FogData& fog) {
     m_fog = fog;
 }
 
-void Renderer3D::DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform, bool castsShadows) {
+void Renderer3D::DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform, bool castsShadows,
+                          std::uint32_t submesh) {
     SPOT_ASSERT(m_context, "Draw calls must come between Begin() and End()");
+    if (submesh != Mesh::AllSubmeshes && submesh >= mesh.GetSubmeshes().size()) {
+        Log::GetEngineLogger().Warning("Cannot draw submesh {} of a mesh with {} submeshes", submesh,
+                                       mesh.GetSubmeshes().size());
+        return;
+    }
     const BoundingSphere bounds = mesh.GetBounds();
     const Vector4 center = transform * Vector4{bounds.center.x, bounds.center.y, bounds.center.z, 1.0f};
     float scale = 0.0f;
@@ -573,6 +591,19 @@ void Renderer3D::DrawMesh(const Mesh& mesh, const Material& material, const Matr
          transform,
          {{center.x, center.y, center.z}, bounds.radius * scale},
          castsShadows});
+    DrawCommand& command = m_commands.back();
+    const std::span<const SubMesh> submeshes = mesh.GetSubmeshes();
+    if (submesh < submeshes.size()) {
+        command.firstIndex = submeshes[submesh].firstIndex;
+        command.indexCount = submeshes[submesh].indexCount;
+    } else {
+        command.indexCount = mesh.GetIndexCount();
+    }
+    const auto axis = [&](int column) {
+        const Vector4& c = transform.columns[static_cast<std::size_t>(column)];
+        return Vector3{c.x, c.y, c.z};
+    };
+    command.mirrored = Dot(Cross(axis(0), axis(1)), axis(2)) < 0.0f;
 }
 
 void Renderer3D::DrawModel(const Model& model, const Matrix4& transform) {
@@ -580,7 +611,8 @@ void Renderer3D::DrawModel(const Model& model, const Matrix4& transform) {
     static const Material DefaultMaterial;
     for (const auto& part : model.GetParts()) {
         if (part.mesh) {
-            DrawMesh(*part.mesh, part.material ? *part.material : DefaultMaterial, transform);
+            DrawMesh(*part.mesh, part.material ? *part.material : DefaultMaterial, transform * part.transform, true,
+                     part.submesh);
         }
     }
 }
@@ -608,7 +640,8 @@ void Renderer3D::DrawScene(Scene& scene) {
     scene.ForEachComponent<MeshRenderer>([this](const MeshRenderer& renderer) {
         if (renderer.GetMesh() && ((m_camera.cullingMask >> renderer.GetEntity().GetLayer()) & 1u)) {
             DrawMesh(*renderer.GetMesh(), renderer.GetMaterial() ? *renderer.GetMaterial() : DefaultMaterial,
-                     renderer.GetEntity().GetTransform().GetWorldMatrix(), renderer.IsCastingShadows());
+                     renderer.GetEntity().GetTransform().GetWorldMatrix(), renderer.IsCastingShadows(),
+                     renderer.GetSubmesh());
         }
     });
 }
@@ -877,12 +910,14 @@ namespace {
 
 // Whether the two commands draw the same mesh the same way, so they can be instances of one draw.
 bool HaveSameLook(const auto& a, const auto& b) {
-    return a.mesh == b.mesh && a.look == b.look;
+    return a.mesh == b.mesh && a.firstIndex == b.firstIndex && a.indexCount == b.indexCount && a.look == b.look &&
+           a.mirrored == b.mirrored;
 }
 
 // Whether the two commands cast the same shadow but for their transforms: depth alone, or cut out the same way.
 bool HaveSameShadow(const auto& a, const auto& b) {
-    if (a.mesh != b.mesh || a.doubleSided != b.doubleSided || a.alphaMode != b.alphaMode) {
+    if (a.mesh != b.mesh || a.firstIndex != b.firstIndex || a.indexCount != b.indexCount ||
+        a.doubleSided != b.doubleSided || a.mirrored != b.mirrored || a.alphaMode != b.alphaMode) {
         return false;
     }
     return a.alphaMode != AlphaMode::Cutout || a.look == b.look;
@@ -1016,9 +1051,7 @@ void Renderer3D::DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjecti
             ++end;
         }
         const bool cutout = command.alphaMode == AlphaMode::Cutout;
-        const Pipeline* pipeline =
-            cutout ? (command.doubleSided ? m_doubleSidedCutoutShadowPipeline.get() : m_cutoutShadowPipeline.get())
-                   : (command.doubleSided ? m_doubleSidedShadowPipeline.get() : m_shadowPipeline.get());
+        const Pipeline* pipeline = GetShadowPipeline(command);
         if (pipeline != boundPipeline) {
             pass.BindPipeline(*pipeline);
             boundPipeline = pipeline;
@@ -1035,10 +1068,32 @@ void Renderer3D::DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjecti
         pass.BindVertexBuffer(0, command.mesh->GetVertexBuffer());
         pass.BindIndexBuffer(command.mesh->GetIndexBuffer(), IndexType::UInt32);
         pass.PushVertexUniforms(1, BatchUniforms{{static_cast<std::uint32_t>(viewStart + first), 0, 0, 0}});
-        pass.DrawIndexed(command.mesh->GetIndexCount(), static_cast<std::uint32_t>(end - first));
+        pass.DrawIndexed(command.indexCount, static_cast<std::uint32_t>(end - first), command.firstIndex);
         ++m_stats.shadowDrawCalls;
         first = end;
     }
+}
+
+const Pipeline* Renderer3D::GetPipeline(const DrawCommand& command) const {
+    if (command.alphaMode == AlphaMode::Transparent) {
+        return command.doubleSided ? m_doubleSidedTransparentPipeline.get()
+               : command.mirrored  ? m_mirroredTransparentPipeline.get()
+                                   : m_transparentPipeline.get();
+    }
+    return command.doubleSided ? m_doubleSidedPipeline.get()
+           : command.mirrored  ? m_mirroredPipeline.get()
+                               : m_pipeline.get();
+}
+
+const Pipeline* Renderer3D::GetShadowPipeline(const DrawCommand& command) const {
+    if (command.alphaMode == AlphaMode::Cutout) {
+        return command.doubleSided ? m_doubleSidedCutoutShadowPipeline.get()
+               : command.mirrored  ? m_mirroredCutoutShadowPipeline.get()
+                                   : m_cutoutShadowPipeline.get();
+    }
+    return command.doubleSided ? m_doubleSidedShadowPipeline.get()
+           : command.mirrored  ? m_mirroredShadowPipeline.get()
+                               : m_shadowPipeline.get();
 }
 
 void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, const Detail::ShadowUniforms& shadows) {
@@ -1086,10 +1141,7 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
             ++end;
         }
         const auto instanceCount = static_cast<std::uint32_t>(end - first);
-        const Pipeline* pipeline =
-            command.alphaMode == AlphaMode::Transparent
-                ? (command.doubleSided ? m_doubleSidedTransparentPipeline.get() : m_transparentPipeline.get())
-                : (command.doubleSided ? m_doubleSidedPipeline.get() : m_pipeline.get());
+        const Pipeline* pipeline = GetPipeline(command);
         if (pipeline != boundPipeline) {
             pass.BindPipeline(*pipeline);
             boundPipeline = pipeline;
@@ -1127,10 +1179,10 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
             boundMesh = command.mesh;
         }
         pass.PushVertexUniforms(1, BatchUniforms{{static_cast<std::uint32_t>(first), 0, 0, 0}});
-        pass.DrawIndexed(command.mesh->GetIndexCount(), instanceCount);
+        pass.DrawIndexed(command.indexCount, instanceCount, command.firstIndex);
 
         ++m_stats.drawCalls;
-        m_stats.triangleCount += command.mesh->GetIndexCount() / 3 * instanceCount;
+        m_stats.triangleCount += command.indexCount / 3 * instanceCount;
         first = end;
     }
 }

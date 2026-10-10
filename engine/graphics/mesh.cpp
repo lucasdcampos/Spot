@@ -20,7 +20,8 @@ std::unique_ptr<Mesh> Mesh::Create(GraphicsDevice& device, const MeshData& data)
         return nullptr;
     }
     return std::unique_ptr<Mesh>(new Mesh(std::move(vertexBuffer), std::move(indexBuffer),
-                                          static_cast<std::uint32_t>(data.indices.size()), data.GetBounds()));
+                                          static_cast<std::uint32_t>(data.indices.size()), data.GetBounds(),
+                                          data.GetSubmeshes()));
 }
 
 VertexBufferLayout Mesh::GetVertexLayout() {
@@ -34,9 +35,9 @@ VertexBufferLayout Mesh::GetVertexLayout() {
 }
 
 Mesh::Mesh(std::unique_ptr<Buffer> vertexBuffer, std::unique_ptr<Buffer> indexBuffer, std::uint32_t indexCount,
-           BoundingSphere bounds)
+           BoundingSphere bounds, std::vector<SubMesh> submeshes)
     : m_vertexBuffer(std::move(vertexBuffer)), m_indexBuffer(std::move(indexBuffer)), m_indexCount(indexCount),
-      m_bounds(bounds) {
+      m_bounds(bounds), m_submeshes(std::move(submeshes)) {
 }
 
 Mesh::~Mesh() = default;

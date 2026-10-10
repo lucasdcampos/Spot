@@ -176,6 +176,25 @@ void MeshData::GenerateTangents() {
     }
 }
 
+std::vector<SubMesh> MeshData::GetSubmeshes() const {
+    if (!submeshes.empty()) {
+        return submeshes;
+    }
+    return {{0, static_cast<std::uint32_t>(indices.size())}};
+}
+
+void MeshData::AppendSubmesh(const MeshData& mesh) {
+    if (submeshes.empty() && !indices.empty()) {
+        submeshes.push_back({0, static_cast<std::uint32_t>(indices.size())});
+    }
+    const auto firstVertex = static_cast<std::uint32_t>(vertices.size());
+    submeshes.push_back({static_cast<std::uint32_t>(indices.size()), static_cast<std::uint32_t>(mesh.indices.size())});
+    vertices.insert(vertices.end(), mesh.vertices.begin(), mesh.vertices.end());
+    for (const std::uint32_t index : mesh.indices) {
+        indices.push_back(firstVertex + index);
+    }
+}
+
 void MeshData::RecalculateNormals() {
     for (auto& vertex : vertices) {
         vertex.normal = {};

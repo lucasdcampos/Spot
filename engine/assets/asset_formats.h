@@ -10,6 +10,7 @@
 #include "graphics/color.h"
 #include "graphics/image.h"
 #include "graphics/mesh_data.h"
+#include "math/matrix.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -27,10 +28,14 @@ struct TextureFile {
     bool srgb = true;
 };
 
-struct ModelFilePart {
+// A node of a model file: its transform relative to its parent, and the mesh it shows with a material per submesh.
+struct ModelFileNode {
     std::string name;
-    AssetId mesh;
-    AssetId material;
+    Matrix4 transform;
+    // An index into the nodes before it, or -1 for root nodes.
+    std::int32_t parent = -1;
+    AssetId mesh = {};
+    std::vector<AssetId> materials = {};
 };
 
 struct SoundFile {
@@ -51,7 +56,7 @@ struct FontFile {
 void Encode(BinaryWriter& writer, const TextureFile& texture);
 void Encode(BinaryWriter& writer, const MeshData& mesh);
 void Encode(BinaryWriter& writer, const MaterialSource& material);
-void Encode(BinaryWriter& writer, const std::vector<ModelFilePart>& parts);
+void Encode(BinaryWriter& writer, const std::vector<ModelFileNode>& nodes);
 void Encode(BinaryWriter& writer, const SoundFile& sound);
 void Encode(BinaryWriter& writer, const FontFile& font);
 // Scenes are stored as the text Scene::SaveToString() makes.
@@ -61,7 +66,7 @@ void EncodeScene(BinaryWriter& writer, std::string_view text);
 std::optional<TextureFile> DecodeTexture(std::span<const std::byte> data);
 std::optional<MeshData> DecodeMesh(std::span<const std::byte> data);
 std::optional<MaterialSource> DecodeMaterial(std::span<const std::byte> data);
-std::optional<std::vector<ModelFilePart>> DecodeModel(std::span<const std::byte> data);
+std::optional<std::vector<ModelFileNode>> DecodeModel(std::span<const std::byte> data);
 std::optional<SoundFile> DecodeSound(std::span<const std::byte> data);
 std::optional<FontFile> DecodeFont(std::span<const std::byte> data);
 std::optional<std::string> DecodeScene(std::span<const std::byte> data);

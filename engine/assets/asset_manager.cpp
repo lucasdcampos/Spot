@@ -292,13 +292,23 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
                      .worldTextureSize = material->worldTextureSize});
     }
     case AssetType::Model: {
-        const auto parts = Detail::DecodeModel(*data);
-        if (!parts) {
+        const auto nodes = Detail::DecodeModel(*data);
+        if (!nodes) {
             break;
         }
-        std::vector<ModelPart> loaded;
-        for (const auto& part : *parts) {
-            loaded.push_back({part.name, Load<Mesh>(part.mesh), Load<Material>(part.material)});
+        std::vector<ModelNode> loaded;
+        for (const auto& node : *nodes) {
+            ModelNode& added = loaded.emplace_back(
+                ModelNode{.name = node.name,
+                          .transform = node.transform,
+                          .parent = node.parent >= 0 ? std::optional<std::size_t>(static_cast<std::size_t>(node.parent))
+                                                     : std::nullopt});
+            if (node.mesh.IsValid()) {
+                added.mesh = Load<Mesh>(node.mesh);
+            }
+            for (const AssetId material : node.materials) {
+                added.materials.push_back(Load<Material>(material));
+            }
         }
         return std::make_shared<const Model>(std::move(loaded));
     }

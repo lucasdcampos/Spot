@@ -4,7 +4,8 @@ cbuffer Frame : register(b0, space1) {
 
 struct Instance {
     float4x4 model;
-    // The inverse transpose of the model matrix, which keeps normals perpendicular under non-uniform scale.
+    // The inverse transpose of the model matrix, which keeps normals perpendicular under non-uniform scale; its last
+    // element is -1 for transforms that mirror.
     float4x4 normalMatrix;
 };
 
@@ -43,6 +44,6 @@ Output main(Input input, uint instanceId : SV_InstanceID) {
     output.normal = mul(normalMatrix, float4(input.normal, 0.0)).xyz;
     output.uv = input.uv;
     // Tangents follow the surface, so the model matrix itself turns them.
-    output.tangent = float4(mul(model, float4(input.tangent.xyz, 0.0)).xyz, input.tangent.w);
+    output.tangent = float4(mul(model, float4(input.tangent.xyz, 0.0)).xyz, input.tangent.w * normalMatrix[3][3]);
     return output;
 }

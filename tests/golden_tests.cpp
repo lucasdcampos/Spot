@@ -171,16 +171,20 @@ void AddModel(Spot::GraphicsDevice& device, Spot::Scene& scene, const std::files
     REQUIRE(model);
     Spot::Vector3 min{1e9f, 1e9f, 1e9f};
     Spot::Vector3 max{-1e9f, -1e9f, -1e9f};
-    for (const auto& part : data->meshes) {
-        for (const auto& vertex : part.mesh.vertices) {
-            const Spot::Vector3 p = vertex.position;
+    // Around every vertex where its node puts it.
+    for (std::size_t node = 0; node < data->nodes.size(); ++node) {
+        if (!data->nodes[node].mesh) {
+            continue;
+        }
+        const Spot::Matrix4 world = data->GetWorldTransform(node);
+        for (const auto& vertex : data->meshes[*data->nodes[node].mesh].mesh.vertices) {
+            const Spot::Vector4 p =
+                world * Spot::Vector4{vertex.position.x, vertex.position.y, vertex.position.z, 1.0f};
             min = {std::min(min.x, p.x), std::min(min.y, p.y), std::min(min.z, p.z)};
             max = {std::max(max.x, p.x), std::max(max.y, p.y), std::max(max.z, p.z)};
         }
     }
-    for (const auto& part : model->GetParts()) {
-        scene.CreateEntity(part.name).AddComponent<Spot::MeshRenderer>(part.mesh, part.material);
-    }
+    Spot::InstantiateModel(scene, *model, "Model");
     // The view is 40 degrees high and a third wider than high.
     const Spot::Vector3 center = (min + max) * 0.5f;
     const float halfHeight = std::max((max.y - min.y) * 0.5f, (max.x - min.x) * 0.5f * 0.75f) * 1.1f;
