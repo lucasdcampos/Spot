@@ -28,6 +28,7 @@ void PropCarrier::Throw() {
 
 void PropCarrier::OnUpdate(float /*deltaTime*/) {
     namespace Input = Spot::Input;
+    m_threw = false;
     const auto* player = GetEntity().GetComponent<PlayerController>();
     const auto* gun = GetEntity().GetComponent<PhysicsGun>();
     if (!player || (gun && gun->IsGrabbing())) {
@@ -54,6 +55,7 @@ void PropCarrier::OnUpdate(float /*deltaTime*/) {
     }
     if (Input::IsMouseButtonPressed(Spot::MouseButton::Left)) {
         Throw();
+        m_threw = true;
         return;
     }
     m_turning = Input::IsMouseButtonDown(Spot::MouseButton::Right);

@@ -3,10 +3,10 @@
 #include <spot.h>
 
 // Locks the cursor for the game when it starts. Escape frees it first, and quits once it is free; a click locks it
-// again. R starts the scene over.
+// again. Backspace starts the scene over.
 class GameControls final : public Spot::Component {
 public:
-    // The scene R loads, which is this one.
+    // The scene Backspace loads, which is this one.
     Spot::AssetId restartScene;
 
 protected:

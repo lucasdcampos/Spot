@@ -16,7 +16,7 @@ void GameControls::OnUpdate(float /*deltaTime*/) {
             GetScene().GetApplication().QuitGame();
         }
     }
-    if (Input::IsKeyPressed(Spot::Key::R) && restartScene.IsValid()) {
+    if (Input::IsKeyPressed(Spot::Key::Backspace) && restartScene.IsValid()) {
         if (auto scene = Spot::Assets::GetManager()->InstantiateScene(restartScene)) {
             GetScene().GetApplication().LoadScene(std::move(scene));
         }

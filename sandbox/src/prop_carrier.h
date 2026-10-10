@@ -17,6 +17,8 @@ public:
     Spot::EntityId GetHeld() const { return m_held; }
     // While turning the prop, the mouse turns it rather than the view.
     bool IsTurning() const { return IsHolding() && m_turning; }
+    // Whether the carrier has the click this frame, to throw what it carries, so the tool in hand leaves it alone.
+    bool HasClick() const { return IsHolding() || m_threw; }
 
     void PickUp(Spot::Entity& prop);
     void Drop();
@@ -35,4 +37,5 @@ private:
     // Its rotation relative to where the player faces, so it turns with the player.
     Spot::Quaternion m_rotation;
     bool m_turning = false;
+    bool m_threw = false;
 };

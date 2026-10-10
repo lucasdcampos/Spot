@@ -1,0 +1,111 @@
+#include "prop_spawner.h"
+
+#include "explosive_barrel.h"
+#include "player_controller.h"
+
+#include <algorithm>
+#include <array>
+#include <string_view>
+
+SPOT_COMPONENT(PropSpawner);
+
+void SpawnableProp::Serialize(Spot::Archive& archive) {
+    static constexpr std::array<std::string_view, 4> Shapes = {"Box", "Sphere", "Capsule", "ConvexHull"};
+    archive.Field("name", name);
+    archive.Field("mesh", mesh);
+    archive.Field("material", material);
+    archive.Field("shape", shape, {.enumNames = Shapes});
+    archive.Field("size", size, {.speed = 0.01f});
+    archive.Field("mass", mass, {.min = 0.001f, .max = 100000.0f, .speed = 0.1f, .tooltip = "In kilograms"});
+    archive.Field("explosive", explosive);
+}
+
+Spot::Entity* PropSpawner::Spawn(std::size_t index) {
+    const auto* player = GetEntity().GetComponent<PlayerController>();
+    if (index >= props.size() || !player) {
+        return nullptr;
+    }
+    const SpawnableProp& prop = props[index];
+    // Where the player looks, on what it looks at, lifted so the prop rests on it; or in the air ahead.
+    const Spot::Vector3 eye = player->GetEyePosition();
+    const Spot::Vector3 aim = player->GetAimDirection();
+    const auto hit = GetScene().GetPhysics().Raycast(eye, aim, reach, {.ignore = GetEntity().GetId()});
+    const float lift = std::max({prop.size.x, prop.size.y, prop.size.z}) * 0.5f + 0.05f;
+    const Spot::Vector3 position = hit ? hit->point + hit->normal * lift : eye + aim * reach;
+
+    auto& entity = GetScene().CreateEntity(prop.name);
+    entity.GetTransform().SetPosition(position);
+    entity.GetTransform().SetRotation(Spot::Quaternion::FromAxisAngle({0.0f, 1.0f, 0.0f}, player->GetYaw()));
+    entity.AddComponent<Spot::MeshRenderer>(prop.mesh, prop.material);
+    switch (prop.shape) {
+    case SpawnableProp::Shape::Box:
+        entity.AddComponent<Spot::BoxCollider>(prop.size);
+        break;
+    case SpawnableProp::Shape::Sphere:
+        entity.AddComponent<Spot::SphereCollider>(prop.size.x * 0.5f);
+        break;
+    case SpawnableProp::Shape::Capsule:
+        entity.AddComponent<Spot::CapsuleCollider>(prop.size.x * 0.5f, prop.size.y);
+        break;
+    case SpawnableProp::Shape::ConvexHull: {
+        auto& collider = entity.AddComponent<Spot::MeshCollider>();
+        collider.SetConvex(true);
+        collider.SetMesh(Spot::Assets::Load<Spot::MeshData>(prop.mesh.GetId()));
+        break;
+    }
+    }
+    entity.AddComponent<Spot::Rigidbody>().SetMass(prop.mass);
+    if (prop.explosive) {
+        entity.AddComponent<ExplosiveBarrel>();
+    }
+    m_spawned.push_back(entity.GetId());
+    return &entity;
+}
+
+void PropSpawner::Undo() {
+    // The last one still there; those destroyed meanwhile are skipped.
+    while (!m_spawned.empty()) {
+        Spot::Entity* entity = GetScene().GetEntity(m_spawned.back());
+        m_spawned.pop_back();
+        if (entity) {
+            entity->Destroy();
+            return;
+        }
+    }
+}
+
+void PropSpawner::Cleanup() {
+    for (const Spot::EntityId id : m_spawned) {
+        if (Spot::Entity* entity = GetScene().GetEntity(id)) {
+            entity->Destroy();
+        }
+    }
+    m_spawned.clear();
+}
+
+std::size_t PropSpawner::GetSpawnedCount() const {
+    return static_cast<std::size_t>(
+        std::ranges::count_if(m_spawned, [this](Spot::EntityId id) { return GetScene().GetEntity(id) != nullptr; }));
+}
+
+void PropSpawner::OnUpdate(float /*deltaTime*/) {
+    namespace Input = Spot::Input;
+    using Spot::Key;
+    constexpr Key Keys[] = {Key::F1, Key::F2, Key::F3, Key::F4, Key::F5, Key::F6, Key::F7, Key::F8};
+    for (std::size_t i = 0; i < std::size(Keys); ++i) {
+        if (Input::IsKeyPressed(Keys[i])) {
+            Spawn(i);
+        }
+    }
+    if (Input::IsKeyPressed(Key::Z)) {
+        Undo();
+    }
+    if (Input::IsKeyPressed(Key::X)) {
+        Cleanup();
+    }
+}
+
+void PropSpawner::Serialize(Spot::Archive& archive) {
+    archive.Field("props", props);
+    archive.Field("reach", reach, {.min = 0.0f, .max = 100.0f, .speed = 0.05f});
+}

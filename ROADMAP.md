@@ -258,7 +258,7 @@ Steps:
   the camera, turns them and throws them. The physics gun grabs any prop the player aims at, drives it toward a
   target in front of the camera with a spring, and changes the distance with the wheel. It turns the prop, freezes
   it in place (as a kinematic body) and unfreezes all props.
-- [ ] **M1.12 Sandbox: weapons and spawning.** Weapons described as data. Hitscan pistol, rifle and shotgun push
+- [x] **M1.12 Sandbox: weapons and spawning.** Weapons described as data. Hitscan pistol, rifle and shotgun push
   props at the hit point with impulses. The rocket launcher fires projectiles that explode with `OverlapSphere` and
   a radial impulse, and explosive barrels blow up when shot. Keys spawn props where the player looks, with undo (Z)
   and cleanup.
@@ -329,6 +329,14 @@ physics gun and the tool gun, and shoots and blows it apart.
   kinematic and tags it "Frozen", which U undoes for all. Until weapons are data (M1.12), `PlayerController` picks
   the tool in hand with 1 (the ball launcher) and 2, and yields the mouse while a prop is being turned and the click
   while one is carried. The physics gun's beam is a `DebugDraw` line until M5.9 gives it a look.
+- M1.12: until prefabs (M8), "data" means components in the scene: each weapon is an entity below the player with a
+  `Weapon` component (kind, fire rate, pellets, spread, impulse, magazine, reload, projectile and explosion), and the
+  spawnable props are a list on `PropSpawner`. `WeaponHolder` selects the physics gun (1) or a weapon (2-5, or the
+  wheel), and replaced the ball launcher; R reloads, so restarting the scene moved to Backspace. Explosions are an
+  `OverlapSphere` with impulses falling off to the radius and a little lift, setting off `ExplosiveBarrel`s on a short
+  fuse so they chain. Tracers and explosion flashes are `DebugDraw` shapes until view models (M9.12) and particles
+  (M13). While a prop is carried, the carrier has the click for that frame (`PropCarrier::HasClick()`), which input
+  ownership (M2) will replace.
 
 ---
 

@@ -1,6 +1,8 @@
 #include "hud.h"
 
 #include "day_cycle.h"
+#include "weapon.h"
+#include "weapon_holder.h"
 
 #include <chrono>
 #include <format>
@@ -42,6 +44,21 @@ void Hud::OnUpdate(float deltaTime) {
     m_elapsed -= 1.0f;
 }
 
+std::string Hud::DescribeHand() const {
+    const WeaponHolder* holder = GetScene().FindComponent<WeaponHolder>();
+    if (!holder) {
+        return {};
+    }
+    const Weapon* weapon = holder->GetWeapon();
+    if (!weapon) {
+        return "Physics Gun";
+    }
+    if (weapon->IsReloading()) {
+        return std::format("{}  reloading...", weapon->displayName);
+    }
+    return std::format("{}  {} / {}", weapon->displayName, weapon->GetAmmo(), weapon->GetReserve());
+}
+
 void Hud::OnDrawUi(Spot::Renderer2D& renderer, Spot::Vector2 viewSize) {
     const Spot::Vector2 center = viewSize * 0.5f;
     const Spot::Color crosshair{1.0f, 1.0f, 1.0f, 0.8f};
@@ -55,18 +72,27 @@ void Hud::OnDrawUi(Spot::Renderer2D& renderer, Spot::Vector2 viewSize) {
     const float top = viewSize.y;
     const float line = font->GetLineHeight();
     const Spot::Color help = Spot::Color::FromSrgb(0.8f, 0.8f, 0.8f);
-    renderer.DrawQuad({330.0f, top - 50.0f}, {660.0f, 100.0f}, Spot::Color{0.0f, 0.0f, 0.0f, 0.6f});
+    renderer.DrawQuad({330.0f, top - 60.0f}, {660.0f, 120.0f}, Spot::Color{0.0f, 0.0f, 0.0f, 0.6f});
     renderer.DrawString(*font, m_status, {12.0f, top - 10.0f}, Spot::Color::FromSrgb(0.7f, 0.9f, 0.7f));
-    renderer.DrawString(*font,
-                        "WASD: move | Shift: run | Space: jump | Ctrl: crouch | V: noclip | Click: shoot | R: reset",
+    renderer.DrawString(*font, "WASD: move | Shift: run | Space: jump | Ctrl: crouch | V: noclip | Backspace: restart",
                         {12.0f, top - 10.0f - line}, help, 0.8f);
     renderer.DrawString(
         *font, "F: flashlight | G: shadows | B: physics shapes | T: speed up time | Esc: free the mouse, then quit",
         {12.0f, top - 10.0f - 1.8f * line}, help, 0.8f);
     renderer.DrawString(*font,
-                        "E: pick up, click to throw | 1: launcher | 2: physics gun: hold click, wheel, E to turn, "
-                        "right click to freeze, U to unfreeze",
+                        "1: physics gun (hold click, wheel, E to turn, right click to freeze, U to unfreeze) | "
+                        "2-5: weapons, R to reload | E: pick up, click to throw",
                         {12.0f, top - 10.0f - 2.6f * line}, help, 0.8f);
+    renderer.DrawString(*font,
+                        "F1-F8: spawn a crate, barrel, explosive barrel, ball, plank, beam, cone or wheel | "
+                        "Z: undo | X: clean up",
+                        {12.0f, top - 10.0f - 3.4f * line}, help, 0.8f);
+    // What is in hand, at the bottom right.
+    const std::string hand = DescribeHand();
+    if (!hand.empty()) {
+        renderer.DrawString(*font, hand, {viewSize.x - 12.0f - 10.0f * static_cast<float>(hand.size()), 40.0f},
+                            Spot::Color::FromSrgb(1.0f, 0.95f, 0.7f));
+    }
 }
 
 void Hud::Serialize(Spot::Archive& archive) {

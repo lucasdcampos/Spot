@@ -1,7 +1,9 @@
 #include "physics_gun.h"
 
 #include "player_controller.h"
+#include "prop_carrier.h"
 #include "prop_drive.h"
+#include "weapon_holder.h"
 
 #include <algorithm>
 
@@ -49,8 +51,8 @@ void PhysicsGun::UnfreezeAll() {
 }
 
 bool PhysicsGun::IsActive() const {
-    const auto* player = GetEntity().GetComponent<PlayerController>();
-    return player && player->activeTool == PlayerController::Tool::PhysicsGun;
+    const auto* holder = GetEntity().GetComponent<WeaponHolder>();
+    return holder && holder->IsPhysicsGunSelected();
 }
 
 void PhysicsGun::Grab() {
@@ -88,7 +90,8 @@ void PhysicsGun::OnUpdate(float /*deltaTime*/) {
     if (IsGrabbing() && (!GetGrabbedBody() || !Input::IsMouseButtonDown(Spot::MouseButton::Left))) {
         Release();
     }
-    if (!IsGrabbing() && Input::IsMouseButtonPressed(Spot::MouseButton::Left)) {
+    const auto* carrier = GetEntity().GetComponent<PropCarrier>();
+    if (!IsGrabbing() && Input::IsMouseButtonPressed(Spot::MouseButton::Left) && !(carrier && carrier->HasClick())) {
         Grab();
     }
     if (!IsGrabbing()) {

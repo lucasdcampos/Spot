@@ -2604,8 +2604,6 @@
         },
         {
           "data": {
-            "ballMaterial": "45e4545ddf4f45009149c1d560d954a0",
-            "ballSpeed": 25.0,
             "flashlight": 48,
             "head": 47,
             "lookSensitivity": 0.0024999999441206455
@@ -2646,6 +2644,126 @@
           },
           "enabled": true,
           "type": "PhysicsGun"
+        },
+        {
+          "data": {
+            "selected": 0
+          },
+          "enabled": true,
+          "type": "WeaponHolder"
+        },
+        {
+          "data": {
+            "props": [
+              {
+                "explosive": false,
+                "mass": 5.0,
+                "material": "d07ff98ceaae9d960bb599cacb0c2d97",
+                "mesh": "d9ec39845e73c804ebc22236243c7477",
+                "name": "Crate",
+                "shape": 0,
+                "size": [
+                  1.0,
+                  1.0,
+                  1.0
+                ]
+              },
+              {
+                "explosive": false,
+                "mass": 20.0,
+                "material": "fd6837f3e5e154505d12442c86e9e99c",
+                "mesh": "01800d8f779de51198dba13dcdfc46be",
+                "name": "Barrel",
+                "shape": 0,
+                "size": [
+                  0.6,
+                  0.9,
+                  0.6
+                ]
+              },
+              {
+                "explosive": true,
+                "mass": 20.0,
+                "material": "23dfa3345042c820da70691b6c8c9824",
+                "mesh": "62e66a907ce41419366a0e2072b7fb03",
+                "name": "Explosive Barrel",
+                "shape": 0,
+                "size": [
+                  0.6,
+                  0.9,
+                  0.6
+                ]
+              },
+              {
+                "explosive": false,
+                "mass": 3.0,
+                "material": "580e7bb4c25f0d74e7945838b3a14c6e",
+                "mesh": "2c9aa8d13b48d1bc335727727a248379",
+                "name": "Ball",
+                "shape": 1,
+                "size": [
+                  0.6,
+                  0.6,
+                  0.6
+                ]
+              },
+              {
+                "explosive": false,
+                "mass": 4.0,
+                "material": "c7e2954f6b67ea2edeec5d8e5eddee34",
+                "mesh": "01547963d5e7d43064286c4fab2c7f82",
+                "name": "Plank",
+                "shape": 0,
+                "size": [
+                  2.0,
+                  0.06,
+                  0.3
+                ]
+              },
+              {
+                "explosive": false,
+                "mass": 30.0,
+                "material": "36dbd48ef8ac7dbcdc4af03150d71477",
+                "mesh": "636caab75b1ffcf5dabba3874facfa01",
+                "name": "Beam",
+                "shape": 0,
+                "size": [
+                  3.0,
+                  0.2,
+                  0.2
+                ]
+              },
+              {
+                "explosive": false,
+                "mass": 2.0,
+                "material": "66b4ccb18ac1b6e0eb81e0e00038547f",
+                "mesh": "13ed119547d363e2e1330f721fc40694",
+                "name": "Cone",
+                "shape": 3,
+                "size": [
+                  0.6,
+                  0.7,
+                  0.6
+                ]
+              },
+              {
+                "explosive": false,
+                "mass": 10.0,
+                "material": "40007f35e31a44e598eeebc05109b15b",
+                "mesh": "e00ca99a3838536b91d46990bdf891fb",
+                "name": "Wheel",
+                "shape": 3,
+                "size": [
+                  0.2,
+                  0.8,
+                  0.8
+                ]
+              }
+            ],
+            "reach": 6.0
+          },
+          "enabled": true,
+          "type": "PropSpawner"
         }
       ],
       "id": 46,
@@ -2978,6 +3096,15 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "fuse": 0.15,
+            "impulse": 600.0,
+            "radius": 6.0
+          },
+          "enabled": true,
+          "type": "ExplosiveBarrel"
         }
       ],
       "id": 53,
@@ -3040,6 +3167,15 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "fuse": 0.15,
+            "impulse": 600.0,
+            "radius": 6.0
+          },
+          "enabled": true,
+          "type": "ExplosiveBarrel"
         }
       ],
       "id": 54,
@@ -3876,6 +4012,190 @@
         -0.7071067811865476,
         0.0,
         0.7071067811865476
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "automatic": false,
+            "displayName": "Pistol",
+            "explosionImpulse": 0.0,
+            "explosionRadius": 0.0,
+            "fireInterval": 0.2,
+            "impulse": 40.0,
+            "kind": 0,
+            "magazineSize": 12,
+            "pellets": 1,
+            "projectileSpeed": 0.0,
+            "range": 150.0,
+            "reloadTime": 1.2,
+            "reserveAmmo": 120,
+            "spread": 0.005
+          },
+          "enabled": true,
+          "type": "Weapon"
+        }
+      ],
+      "id": 70,
+      "layer": 0,
+      "name": "Pistol",
+      "parent": 46,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "automatic": true,
+            "displayName": "Rifle",
+            "explosionImpulse": 0.0,
+            "explosionRadius": 0.0,
+            "fireInterval": 0.1,
+            "impulse": 30.0,
+            "kind": 0,
+            "magazineSize": 30,
+            "pellets": 1,
+            "projectileSpeed": 0.0,
+            "range": 200.0,
+            "reloadTime": 2.0,
+            "reserveAmmo": 240,
+            "spread": 0.02
+          },
+          "enabled": true,
+          "type": "Weapon"
+        }
+      ],
+      "id": 71,
+      "layer": 0,
+      "name": "Rifle",
+      "parent": 46,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "automatic": false,
+            "displayName": "Shotgun",
+            "explosionImpulse": 0.0,
+            "explosionRadius": 0.0,
+            "fireInterval": 0.8,
+            "impulse": 15.0,
+            "kind": 0,
+            "magazineSize": 6,
+            "pellets": 10,
+            "projectileSpeed": 0.0,
+            "range": 60.0,
+            "reloadTime": 2.5,
+            "reserveAmmo": 48,
+            "spread": 0.09
+          },
+          "enabled": true,
+          "type": "Weapon"
+        }
+      ],
+      "id": 72,
+      "layer": 0,
+      "name": "Shotgun",
+      "parent": 46,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "automatic": false,
+            "displayName": "Rocket Launcher",
+            "explosionImpulse": 500.0,
+            "explosionRadius": 5.0,
+            "fireInterval": 1.0,
+            "impulse": 0.0,
+            "kind": 1,
+            "magazineSize": 1,
+            "pellets": 1,
+            "projectileSpeed": 30.0,
+            "range": 0.0,
+            "reloadTime": 1.5,
+            "reserveAmmo": 20,
+            "spread": 0.0
+          },
+          "enabled": true,
+          "type": "Weapon"
+        }
+      ],
+      "id": 73,
+      "layer": 0,
+      "name": "Rocket Launcher",
+      "parent": 46,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
       ],
       "scale": [
         1.0,

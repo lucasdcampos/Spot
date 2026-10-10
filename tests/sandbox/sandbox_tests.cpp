@@ -1,9 +1,13 @@
 // The sandbox's game code, run headless on its real scenes: the engine's integration test, which shows a regression
 // as something broken in the game.
+#include "explosive_barrel.h"
 #include "log_capture.h"
 #include "physics_gun.h"
 #include "player_controller.h"
 #include "prop_carrier.h"
+#include "prop_spawner.h"
+#include "weapon.h"
+#include "weapon_holder.h"
 
 #include <spot.h>
 
@@ -229,10 +233,10 @@ TEST_CASE("The physics gun grabs props from afar, pulls and pushes them, and fre
     Playground playground;
     playground.Run(1.5f);
     auto& gun = *playground.player->GetComponent<PhysicsGun>();
-    playground.Press(Key::Digit2);
+    playground.Press(Key::Digit1);
     playground.Run(0.05f);
-    playground.Release(Key::Digit2);
-    CHECK(playground.Player().activeTool == PlayerController::Tool::PhysicsGun);
+    playground.Release(Key::Digit1);
+    CHECK(playground.player->GetComponent<WeaponHolder>()->IsPhysicsGunSelected());
 
     Entity& crate = playground.PlaceCrate(6.0f, 50.0f);
     crate.GetComponent<Spot::Rigidbody>()->SetGravityScale(1.0f);
@@ -267,4 +271,125 @@ TEST_CASE("The physics gun grabs props from afar, pulls and pushes them, and fre
     // It fell to the ground, its half size above it.
     CHECK(crate.GetTransform().GetPosition().y < frozen.y - 0.5f);
     CHECK(crate.GetTransform().GetPosition().y == Approx(0.25f).margin(0.05f));
+}
+
+namespace {
+
+// Selects the weapon of the slot and clicks once.
+void FireSlot(Playground& playground, Key slot) {
+    playground.Press(slot);
+    playground.Run(0.05f);
+    playground.Release(slot);
+    playground.Press(Spot::MouseButton::Left);
+    playground.Run(0.05f);
+    playground.Release(Spot::MouseButton::Left);
+}
+
+} // namespace
+
+TEST_CASE("Hitscan weapons push what they hit, and run out of rounds until reloaded", "[sandbox]") {
+    Playground playground;
+    playground.Run(1.5f);
+    auto& holder = *playground.player->GetComponent<WeaponHolder>();
+    REQUIRE(holder.GetWeapons().size() == 4);
+
+    Entity& crate = playground.PlaceCrate(5.0f, 5.0f);
+    playground.Run(0.05f);
+    FireSlot(playground, Key::Digit2);
+    REQUIRE(holder.GetWeapon() != nullptr);
+    CHECK(holder.GetWeapon()->displayName == "Pistol");
+    const float pistolSpeed =
+        Spot::Dot(crate.GetComponent<Spot::Rigidbody>()->GetLinearVelocity(), playground.Player().GetAimDirection());
+    // Forty newton seconds on five kilograms.
+    CHECK(pistolSpeed == Approx(8.0f).margin(1.0f));
+    CHECK(holder.GetWeapon()->GetAmmo() == 11);
+
+    // The pistol fires once per click, every fifth of a second, until its twelve rounds are gone.
+    for (int i = 0; i < 15; ++i) {
+        playground.Press(Spot::MouseButton::Left);
+        playground.Run(0.05f);
+        playground.Release(Spot::MouseButton::Left);
+        playground.Run(0.2f);
+    }
+    playground.Run(1.5f);
+    // Out of rounds, it reloaded by itself meanwhile.
+    CHECK(holder.GetWeapon()->GetReserve() < 120);
+
+    // The rifle keeps firing while the button is held: ten rounds a second.
+    crate.Destroy();
+    playground.Press(Key::Digit3);
+    playground.Run(0.05f);
+    playground.Release(Key::Digit3);
+    playground.Press(Spot::MouseButton::Left);
+    playground.Run(1.0f);
+    playground.Release(Spot::MouseButton::Left);
+    CHECK(holder.GetWeapon()->GetAmmo() == Approx(20).margin(2));
+
+    // The shotgun's pellets push a crate harder than the pistol did.
+    Entity& target = playground.PlaceCrate(4.0f, 5.0f);
+    playground.Run(0.05f);
+    FireSlot(playground, Key::Digit4);
+    const float shotgunSpeed =
+        Spot::Dot(target.GetComponent<Spot::Rigidbody>()->GetLinearVelocity(), playground.Player().GetAimDirection());
+    CHECK(shotgunSpeed > pistolSpeed * 1.5f);
+}
+
+TEST_CASE("Rockets and explosive barrels blow props away", "[sandbox]") {
+    Playground playground;
+    playground.Run(1.5f);
+    // A crate on the ground some way ahead, and a rocket fired at the ground beside it.
+    Entity& crate = playground.PlaceCrate(8.0f, 5.0f);
+    crate.GetComponent<Spot::Rigidbody>()->SetGravityScale(1.0f);
+    playground.Run(1.0f);
+    const Spot::Vector3 before = crate.GetTransform().GetPosition();
+    FireSlot(playground, Key::Digit5);
+    playground.Run(1.0f);
+    CHECK(playground.scene.FindEntity("Rocket") == nullptr);
+    CHECK(Spot::Distance(crate.GetTransform().GetPosition(), before) > 1.0f);
+
+    // Shooting an explosive barrel sets it off, pushing the props around it.
+    Entity* barrel = playground.scene.FindEntity("Explosive Barrel");
+    REQUIRE(barrel != nullptr);
+    const Spot::EntityId barrelId = barrel->GetId();
+    Entity& neighbor = playground.scene.CreateEntity("Neighbor");
+    neighbor.GetTransform().SetPosition(barrel->GetTransform().GetPosition() + Spot::Vector3{1.5f, 0.0f, 0.0f});
+    neighbor.AddComponent<Spot::BoxCollider>(Spot::Vector3{0.5f, 0.5f, 0.5f});
+    neighbor.AddComponent<Spot::Rigidbody>().SetMass(5.0f);
+    playground.Run(0.5f);
+    const Spot::Vector3 neighborBefore = neighbor.GetTransform().GetPosition();
+    barrel->GetComponent<ExplosiveBarrel>()->Ignite();
+    playground.Run(0.5f);
+    CHECK(playground.scene.GetEntity(barrelId) == nullptr);
+    CHECK(Spot::Distance(neighbor.GetTransform().GetPosition(), neighborBefore) > 1.0f);
+}
+
+TEST_CASE("Keys spawn props where the player looks, Z takes them back and X cleans them up", "[sandbox]") {
+    Playground playground;
+    playground.Run(1.5f);
+    auto& spawner = *playground.player->GetComponent<PropSpawner>();
+    REQUIRE(spawner.props.size() == 8);
+    for (const Key key : {Key::F1, Key::F4, Key::F7}) {
+        playground.Press(key);
+        playground.Run(0.05f);
+        playground.Release(key);
+    }
+    CHECK(spawner.GetSpawnedCount() == 3);
+    Entity* crate = playground.scene.FindEntity("Crate");
+    REQUIRE(crate != nullptr);
+    playground.Run(1.0f);
+    // The spawned cone collides through its mesh's convex hull; the level's own cones have boxes.
+    bool convexCone = false;
+    playground.scene.ForEachComponent<Spot::MeshCollider>([&convexCone](Spot::MeshCollider& collider) {
+        convexCone = convexCone || (collider.GetEntity().GetName() == "Cone" && collider.IsConvex());
+    });
+    CHECK(convexCone);
+
+    playground.Press(Key::Z);
+    playground.Run(0.05f);
+    playground.Release(Key::Z);
+    CHECK(spawner.GetSpawnedCount() == 2);
+    playground.Press(Key::X);
+    playground.Run(0.05f);
+    playground.Release(Key::X);
+    CHECK(spawner.GetSpawnedCount() == 0);
 }

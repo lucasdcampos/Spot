@@ -2,10 +2,10 @@
 
 #include <spot.h>
 
-// The second tool. Holding the left button grabs the prop the player aims at, anywhere in range, and drives the point
-// it grabbed toward where it was grabbed in front of the camera, as on a spring; the wheel pulls it closer or pushes
-// it away, and holding E turns it with the mouse. The right button freezes it where it is, as a kinematic body, and U
-// unfreezes every frozen prop. Frozen props carry the tag "Frozen".
+// The tool on 1 (see WeaponHolder). Holding the left button grabs the prop the player aims at, anywhere in range, and
+// drives the point it grabbed toward where it was grabbed in front of the camera, as on a spring; the wheel pulls it
+// closer or pushes it away, and holding E turns it with the mouse. The right button freezes it where it is, as a
+// kinematic body, and U unfreezes every frozen prop. Frozen props carry the tag "Frozen".
 class PhysicsGun final : public Spot::Component {
 public:
     static constexpr std::string_view FrozenTag = "Frozen";
