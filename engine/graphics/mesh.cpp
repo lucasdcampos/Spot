@@ -28,7 +28,8 @@ VertexBufferLayout Mesh::GetVertexLayout() {
         .stride = sizeof(MeshVertex),
         .attributes = {{0, VertexFormat::Float3, offsetof(MeshVertex, position)},
                        {1, VertexFormat::Float3, offsetof(MeshVertex, normal)},
-                       {2, VertexFormat::Float2, offsetof(MeshVertex, uv)}},
+                       {2, VertexFormat::Float2, offsetof(MeshVertex, uv)},
+                       {3, VertexFormat::Float4, offsetof(MeshVertex, tangent)}},
     };
 }
 

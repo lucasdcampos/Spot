@@ -192,7 +192,15 @@ private:
 
         const cgltf_accessor* normals = cgltf_find_accessor(&primitive, cgltf_attribute_type_normal, 0);
         const cgltf_accessor* uvs = cgltf_find_accessor(&primitive, cgltf_attribute_type_texcoord, 0);
+        const cgltf_accessor* tangents = cgltf_find_accessor(&primitive, cgltf_attribute_type_tangent, 0);
         const bool hasNormals = normals && normals->count == positions->count;
+        // Given tangents only mean something along the normals they were made with.
+        const bool hasTangents = hasNormals && tangents && tangents->count == positions->count;
+        // A mirroring transform flips which side of the tangent the bitangent is on.
+        const auto axis = [&](int column) {
+            return Vector3{world.columns[column].x, world.columns[column].y, world.columns[column].z};
+        };
+        const bool mirrored = Dot(Cross(axis(0), axis(1)), axis(2)) < 0.0f;
 
         // Normals need the inverse transpose to stay perpendicular to surfaces under non-uniform scale.
         const Matrix4 normalMatrix = Transpose(Inverse(world));
@@ -211,6 +219,13 @@ private:
             }
             if (uvs && i < uvs->count) {
                 cgltf_accessor_read_float(uvs, i, &vertex.uv.x, 2);
+            }
+            if (hasTangents) {
+                cgltf_accessor_read_float(tangents, i, &vertex.tangent.x, 4);
+                const Vector4 tangent = world * Vector4{vertex.tangent.x, vertex.tangent.y, vertex.tangent.z, 0.0f};
+                const Vector3 direction = Normalize(Vector3{tangent.x, tangent.y, tangent.z});
+                const float side = (vertex.tangent.w < 0.0f ? -1.0f : 1.0f) * (mirrored ? -1.0f : 1.0f);
+                vertex.tangent = {direction.x, direction.y, direction.z, side};
             }
         }
 
@@ -233,16 +248,17 @@ private:
         part.mesh.indices.resize(part.mesh.indices.size() / 3 * 3);
 
         // A mirroring transform turns counterclockwise triangles clockwise, so they are wound back.
-        const auto axis = [&](int column) {
-            return Vector3{world.columns[column].x, world.columns[column].y, world.columns[column].z};
-        };
-        if (Dot(Cross(axis(0), axis(1)), axis(2)) < 0.0f) {
+        if (mirrored) {
             for (std::size_t i = 0; i < part.mesh.indices.size(); i += 3) {
                 std::swap(part.mesh.indices[i + 1], part.mesh.indices[i + 2]);
             }
         }
         if (!hasNormals) {
             part.mesh.RecalculateNormals();
+        }
+        // As glTF asks, tangents a file does not give are made with MikkTSpace.
+        if (!hasTangents) {
+            part.mesh.GenerateTangents();
         }
 
         if (primitive.material) {

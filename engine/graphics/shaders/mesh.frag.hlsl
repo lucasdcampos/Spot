@@ -95,6 +95,7 @@ struct Input {
     float3 normal : TEXCOORD0;
     float2 uv : TEXCOORD1;
     float3 worldPosition : TEXCOORD2;
+    float4 tangent : TEXCOORD3;
 };
 
 // Projects along the world axis the surface faces most, with texture rows going down on walls like on screen.

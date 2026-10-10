@@ -659,7 +659,7 @@ Design: metallic-roughness PBR, as glTF defines it, with GGX shading. Ambient li
 image-based lighting. Materials are Opaque, Cutout (alpha test) or Transparent (blended, sorted back to front, no
 depth writes). Vertices gain tangents.
 
-- [ ] **M6.1 Tangents.** `MeshVertex` gets tangents, which glTF provides or are generated (MikkTSpace). `MeshData`
+- [x] **M6.1 Tangents.** `MeshVertex` gets tangents, which glTF provides or are generated (MikkTSpace). `MeshData`
   builders generate them. Bump the mesh and model formats and importers. Tests.
 - [ ] **M6.2 PBR materials.** Metallic, roughness, normal map with scale, metallic-roughness map, occlusion map, and
   emissive color and map. Bump the `.material` format and its importer, which reads the old fields. The glTF importer
@@ -680,6 +680,13 @@ depth writes). Vertices gain tangents.
 viewers, and the golden-image tests cover them.
 
 **Notes:**
+
+- M6.1: MikkTSpace is fetched and compiled through `engine/graphics/mikktspace.cpp`, which includes its C source
+  with warnings off. `GenerateTangents()` splits a vertex whose corners need different tangents (across mirrored or
+  cut texture seams), and gives surfaces without usable texture coordinates any tangent perpendicular to the normal.
+  glTF tangents are only used along the file's own normals; they turn with their node, and their sign flips under a
+  mirroring node. The mesh format is the raw vertex array, so the model importer went to version 6 and models
+  reimport.
 
 ---
 

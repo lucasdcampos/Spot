@@ -3,6 +3,12 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <string_view>
+
+#include <string>
+
+#include <span>
+
 #include <array>
 #include <cmath>
 #include <cstddef>
@@ -118,4 +124,112 @@ TEST_CASE("ModelData rejects missing files and invalid data", "[model]") {
 
     // From memory there is no folder to find the separate buffer in.
     CHECK_FALSE(ModelData::LoadFromMemory(ReadBytes(ModelsDir / "textured_quad.gltf")).has_value());
+}
+
+namespace {
+
+Spot::Vector3 Xyz(Spot::Vector4 v) {
+    return {v.x, v.y, v.z};
+}
+
+// The direction the texture's v grows in, from a vertex's normal and tangent.
+Spot::Vector3 Bitangent(const Spot::MeshVertex& vertex) {
+    return Spot::Cross(vertex.normal, Xyz(vertex.tangent)) * vertex.tangent.w;
+}
+
+std::string Base64(std::span<const std::byte> bytes) {
+    constexpr std::string_view Digits = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string text;
+    for (std::size_t i = 0; i < bytes.size(); i += 3) {
+        std::uint32_t chunk = std::to_integer<std::uint32_t>(bytes[i]) << 16;
+        if (i + 1 < bytes.size()) {
+            chunk |= std::to_integer<std::uint32_t>(bytes[i + 1]) << 8;
+        }
+        if (i + 2 < bytes.size()) {
+            chunk |= std::to_integer<std::uint32_t>(bytes[i + 2]);
+        }
+        text += Digits[(chunk >> 18) & 63];
+        text += Digits[(chunk >> 12) & 63];
+        text += i + 1 < bytes.size() ? Digits[(chunk >> 6) & 63] : '=';
+        text += i + 2 < bytes.size() ? Digits[chunk & 63] : '=';
+    }
+    return text;
+}
+
+} // namespace
+
+TEST_CASE("Built meshes get tangents along their texture's u, on the side its v grows", "[mesh]") {
+    const Spot::MeshData plane = Spot::MeshData::CreatePlane(2.0f);
+    for (const Spot::MeshVertex& vertex : plane.vertices) {
+        CHECK(Spot::Distance(Xyz(vertex.tangent), Spot::Vector3{1.0f, 0.0f, 0.0f}) < 1e-4f);
+        // v grows toward +Z, down the texture as it lies on the ground.
+        CHECK(Spot::Distance(Bitangent(vertex), Spot::Vector3{0.0f, 0.0f, 1.0f}) < 1e-4f);
+    }
+
+    for (const Spot::MeshData& mesh : {Spot::MeshData::CreateCube(), Spot::MeshData::CreateSphere(0.5f, 12, 6)}) {
+        for (const Spot::MeshVertex& vertex : mesh.vertices) {
+            CHECK(std::abs(Spot::Length(Xyz(vertex.tangent)) - 1.0f) < 1e-3f);
+            CHECK(std::abs(Spot::Dot(Xyz(vertex.tangent), vertex.normal)) < 1e-3f);
+            CHECK(std::abs(vertex.tangent.w) == 1.0f);
+        }
+    }
+    // The cube's front face maps u to the right.
+    const Spot::MeshData cube = Spot::MeshData::CreateCube();
+    CHECK(Spot::Distance(Xyz(cube.vertices[0].tangent), Spot::Vector3{1.0f, 0.0f, 0.0f}) < 1e-4f);
+}
+
+TEST_CASE("Tangents split vertices whose triangles need different ones", "[mesh]") {
+    // Two triangles sharing an edge, the second with its texture mirrored, as across a mirrored seam.
+    Spot::MeshData mesh;
+    const Spot::Vector3 up{0.0f, 1.0f, 0.0f};
+    mesh.vertices = {{{0.0f, 0.0f, 0.0f}, up, {0.0f, 0.0f}},
+                     {{0.0f, 0.0f, 1.0f}, up, {0.0f, 1.0f}},
+                     {{1.0f, 0.0f, 0.0f}, up, {1.0f, 0.0f}},
+                     {{-1.0f, 0.0f, 0.0f}, up, {1.0f, 0.0f}}};
+    mesh.indices = {0, 1, 2, 0, 3, 1};
+    mesh.GenerateTangents();
+    CHECK(mesh.vertices.size() == 6);
+    CHECK(mesh.indices.size() == 6);
+    // Each triangle's corners agree on their tangent, and the two triangles' tangents point apart.
+    const Spot::Vector3 first = Xyz(mesh.vertices[mesh.indices[0]].tangent);
+    const Spot::Vector3 second = Xyz(mesh.vertices[mesh.indices[3]].tangent);
+    CHECK(Spot::Dot(first, Xyz(mesh.vertices[mesh.indices[2]].tangent)) > 0.99f);
+    CHECK(Spot::Dot(first, second) < -0.99f);
+}
+
+TEST_CASE("Tangents a glTF file gives are used, turned with their node", "[mesh][model]") {
+    // One triangle facing +Z, whose tangent points along +Y with its bitangent on the negative side.
+    struct Vertex {
+        float position[3];
+        float normal[3];
+        float uv[2];
+        float tangent[4];
+    };
+    const std::array<Vertex, 3> vertices{{
+        {{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f, 0.0f, -1.0f}},
+        {{1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 1.0f, 0.0f, -1.0f}},
+        {{0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}, {0.0f, 1.0f, 0.0f, -1.0f}},
+    }};
+    const auto bytes = std::as_bytes(std::span(vertices));
+    const std::string gltf = std::string(R"({"asset": {"version": "2.0"}, "scene": 0, "scenes": [{"nodes": [0]}],
+        "nodes": [{"mesh": 0, "rotation": [0, 0, 0.7071068, 0.7071068]}],
+        "meshes": [{"primitives": [{"attributes": {"POSITION": 0, "NORMAL": 1, "TEXCOORD_0": 2, "TANGENT": 3}}]}],
+        "buffers": [{"byteLength": )") +
+                             std::to_string(bytes.size()) + R"(, "uri": "data:application/octet-stream;base64,)" +
+                             Base64(bytes) + R"("}],
+        "bufferViews": [{"buffer": 0, "byteLength": )" +
+                             std::to_string(bytes.size()) + R"(, "byteStride": 48}],
+        "accessors": [
+            {"bufferView": 0, "byteOffset": 0, "componentType": 5126, "count": 3, "type": "VEC3",
+             "min": [0, 0, 0], "max": [1, 1, 0]},
+            {"bufferView": 0, "byteOffset": 12, "componentType": 5126, "count": 3, "type": "VEC3"},
+            {"bufferView": 0, "byteOffset": 24, "componentType": 5126, "count": 3, "type": "VEC2"},
+            {"bufferView": 0, "byteOffset": 32, "componentType": 5126, "count": 3, "type": "VEC4"}]})";
+    const auto model = Spot::ModelData::LoadFromMemory(std::as_bytes(std::span(gltf)));
+    REQUIRE(model.has_value());
+    REQUIRE(model->meshes.size() == 1);
+    const Spot::MeshVertex& vertex = model->meshes[0].mesh.vertices[0];
+    // The node turns it a quarter around Z, taking +Y to -X.
+    CHECK(Spot::Distance(Xyz(vertex.tangent), Spot::Vector3{-1.0f, 0.0f, 0.0f}) < 1e-4f);
+    CHECK(vertex.tangent.w == -1.0f);
 }

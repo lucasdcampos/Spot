@@ -12,6 +12,9 @@ struct MeshVertex {
     Vector3 normal;
     // From (0, 0) at the texture's top-left to (1, 1) at its bottom-right.
     Vector2 uv;
+    // The direction the texture's u grows along the surface, perpendicular to the normal, and in w, 1 or -1, the side
+    // v grows on: the bitangent is cross(normal, tangent.xyz) * w. Normal maps are read in this space.
+    Vector4 tangent = {};
 };
 
 // A sphere holding something, such as every vertex of a mesh, so renderers can skip it when it is out of view.
@@ -44,6 +47,9 @@ struct MeshData {
     // Replaces the normals by the average of the faces around each vertex, weighted by their area. Vertices are not
     // merged, so split vertices keep hard edges.
     void RecalculateNormals();
+    // Fills the tangents from the normals and the texture coordinates, with MikkTSpace, as glTF's normal maps are
+    // baked: vertices whose triangles need different tangents, as across a seam of the texture, are split.
+    void GenerateTangents();
 
     // Centered on the box around the vertices, so it fits them closely without being the smallest sphere possible.
     BoundingSphere GetBounds() const;

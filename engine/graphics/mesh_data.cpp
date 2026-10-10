@@ -2,10 +2,13 @@
 
 #include "math/angles.h"
 
+#include <mikktspace.h>
+
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <vector>
 
 namespace Spot {
 
@@ -36,6 +39,7 @@ MeshData MeshData::CreateCube(float size) {
         mesh.vertices.push_back({center - (face.right + face.up) * half, face.normal, {0.0f, 1.0f}});
         mesh.indices.insert(mesh.indices.end(), {first, first + 3, first + 2, first + 2, first + 1, first});
     }
+    mesh.GenerateTangents();
     return mesh;
 }
 
@@ -50,6 +54,7 @@ MeshData MeshData::CreatePlane(float size) {
         {{-half, 0.0f, half}, up, {0.0f, 1.0f}},
     };
     mesh.indices = {0, 3, 2, 2, 1, 0};
+    mesh.GenerateTangents();
     return mesh;
 }
 
@@ -80,7 +85,94 @@ MeshData MeshData::CreateSphere(float radius, std::uint32_t segments, std::uint3
                                 {topLeft, bottomLeft, bottomLeft + 1, bottomLeft + 1, topLeft + 1, topLeft});
         }
     }
+    mesh.GenerateTangents();
     return mesh;
+}
+
+namespace {
+
+// MikkTSpace's view of a mesh: its triangles, and the tangent of each of their corners.
+struct TangentMesh {
+    const MeshData& mesh;
+    std::vector<Vector4> cornerTangents;
+
+    const MeshVertex& Corner(int face, int corner) const {
+        return mesh.vertices[mesh.indices[static_cast<std::size_t>(face) * 3 + static_cast<std::size_t>(corner)]];
+    }
+};
+
+TangentMesh& GetTangentMesh(const SMikkTSpaceContext* context) {
+    return *static_cast<TangentMesh*>(context->m_pUserData);
+}
+
+// A tangent perpendicular to the normal, for surfaces whose texture coordinates give none.
+Vector4 MakeAnyTangent(Vector3 normal) {
+    const Vector3 axis = std::abs(normal.x) < 0.9f ? Vector3{1.0f, 0.0f, 0.0f} : Vector3{0.0f, 1.0f, 0.0f};
+    const Vector3 tangent = Normalize(axis - normal * Dot(axis, normal));
+    return {tangent.x, tangent.y, tangent.z, 1.0f};
+}
+
+} // namespace
+
+void MeshData::GenerateTangents() {
+    if (indices.empty()) {
+        return;
+    }
+    TangentMesh tangents{*this, std::vector<Vector4>(indices.size())};
+    SMikkTSpaceInterface callbacks{};
+    callbacks.m_getNumFaces = [](const SMikkTSpaceContext* context) {
+        return static_cast<int>(GetTangentMesh(context).mesh.indices.size() / 3);
+    };
+    callbacks.m_getNumVerticesOfFace = [](const SMikkTSpaceContext*, int) { return 3; };
+    callbacks.m_getPosition = [](const SMikkTSpaceContext* context, float out[], int face, int corner) {
+        const Vector3 position = GetTangentMesh(context).Corner(face, corner).position;
+        out[0] = position.x;
+        out[1] = position.y;
+        out[2] = position.z;
+    };
+    callbacks.m_getNormal = [](const SMikkTSpaceContext* context, float out[], int face, int corner) {
+        const Vector3 normal = GetTangentMesh(context).Corner(face, corner).normal;
+        out[0] = normal.x;
+        out[1] = normal.y;
+        out[2] = normal.z;
+    };
+    callbacks.m_getTexCoord = [](const SMikkTSpaceContext* context, float out[], int face, int corner) {
+        const Vector2 uv = GetTangentMesh(context).Corner(face, corner).uv;
+        out[0] = uv.x;
+        out[1] = uv.y;
+    };
+    callbacks.m_setTSpaceBasic = [](const SMikkTSpaceContext* context, const float tangent[], float sign, int face,
+                                    int corner) {
+        GetTangentMesh(context).cornerTangents[static_cast<std::size_t>(face) * 3 + static_cast<std::size_t>(corner)] =
+            {tangent[0], tangent[1], tangent[2], sign < 0.0f ? -1.0f : 1.0f};
+    };
+    SMikkTSpaceContext context{&callbacks, &tangents};
+    const bool generated = genTangSpaceDefault(&context) != 0;
+
+    // Each corner gives its vertex its tangent; a vertex already given another one is split.
+    std::vector<bool> given(vertices.size(), false);
+    for (std::size_t i = 0; i < indices.size(); ++i) {
+        const std::uint32_t index = indices[i];
+        Vector4 tangent = generated ? tangents.cornerTangents[i] : MakeAnyTangent(vertices[index].normal);
+        if (LengthSquared(Vector3{tangent.x, tangent.y, tangent.z}) < 1e-12f) {
+            tangent = MakeAnyTangent(vertices[index].normal);
+        }
+        if (!given[index]) {
+            vertices[index].tangent = tangent;
+            given[index] = true;
+            continue;
+        }
+        const Vector4& existing = vertices[index].tangent;
+        const bool same = existing.w == tangent.w && Dot(Vector3{existing.x, existing.y, existing.z},
+                                                         Vector3{tangent.x, tangent.y, tangent.z}) > 0.9999f;
+        if (!same) {
+            MeshVertex split = vertices[index];
+            split.tangent = tangent;
+            indices[i] = static_cast<std::uint32_t>(vertices.size());
+            vertices.push_back(split);
+            given.push_back(true);
+        }
+    }
 }
 
 void MeshData::RecalculateNormals() {

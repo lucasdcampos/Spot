@@ -142,6 +142,11 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
 - `MeshRenderer`: a mesh with a material at its entity's world transform; materials (`Material`) have a base color
   and texture, specular and shininess, double-sidedness, world-space texturing (`worldTextureSize`), and an
   `emissive` color the surface gives off itself, which glows through bloom above 1.
+- Meshes (`MeshData`) are vertices with a position, a normal, texture coordinates and a tangent, the direction the
+  texture's u grows along the surface, with in `w` the side its v grows on (the bitangent is
+  `cross(normal, tangent.xyz) * w`), in which normal maps are read. Models use the tangents their glTF files give,
+  and `GenerateTangents()` makes the others with MikkTSpace, as normal maps are baked, splitting vertices that need
+  two; the `MeshData` builders call it, and so must code that builds meshes itself and uses normal maps.
 - `SpriteRenderer`: a texture or color on a rectangle in its entity's XY plane, for 2D.
 - Lights: `AmbientLight`, `DirectionalLight`, `PointLight` and `SpotLight`. Up to `Renderer3D::MaxLights` light each
   frame. Lights can cast shadows: the first directional light through cascades, and point and spot lights through
@@ -155,5 +160,4 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
 
 ## Not there yet
 
-Bloom, grading, fog and the rest of post-processing, PBR, transparency, culling and instancing come in the
-roadmap's rendering milestones (M5 to M7).
+PBR, transparency, culling and instancing come in the roadmap's rendering milestones (M6 and M7).
