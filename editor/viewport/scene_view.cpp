@@ -103,6 +103,8 @@ SceneView::DrawResult SceneView::Draw(EditorContext& context, ViewportRenderer* 
     }
     m_playing = playing;
     m_shown = playing && play->GetDocument() ? play->GetDocument() : &m_document;
+    m_rendering = context.GetProject() ? context.GetProject()->GetProject().GetSettings().sections.rendering
+                                       : RenderingSettings{};
     m_width = 0;
     m_height = 0;
     const std::string title = std::format("{}  {}{}###{}", playing ? ICON_FA_PLAY : ICON_FA_CUBE, m_document.GetName(),
@@ -576,7 +578,13 @@ void SceneView::Render(RenderContext& context, ViewportRenderer& renderer) {
     if (IsShowingGame()) {
         Scene& scene = m_shown->GetScene();
         const Camera* main = FindMainCamera(scene);
-        ViewportOptions options{.showGrid = false, .defaultLights = false, .drawUi = true};
+        ViewportOptions options{.showGrid = false,
+                                .defaultLights = false,
+                                .drawUi = true,
+                                .tonemapping = m_rendering.tonemapping,
+                                .grading = m_rendering.grading,
+                                .bloom = m_rendering.bloom,
+                                .fxaa = m_rendering.fxaa};
         if (main) {
             options.background = main->GetBackground();
         }
@@ -585,6 +593,10 @@ void SceneView::Render(RenderContext& context, ViewportRenderer& renderer) {
     }
     const Camera3D camera = m_camera.GetCamera();
     ViewportOptions options = m_options;
+    options.tonemapping = m_rendering.tonemapping;
+    options.grading = m_rendering.grading;
+    options.bloom = m_rendering.bloom;
+    options.fxaa = m_rendering.fxaa;
     m_colliderLines.Clear();
     if (options.showColliders) {
         DrawColliders(m_shown->GetScene(), m_colliderLines);

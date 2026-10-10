@@ -112,6 +112,8 @@ add_library(spot_objects OBJECT
     graphics/renderer_2d.h
     graphics/renderer_2d.cpp
     graphics/renderer_3d.h
+    graphics/rendering_settings.cpp
+    graphics/rendering_settings.h
     graphics/renderer_3d.cpp
     graphics/scene_renderer.h
     graphics/scene_renderer.cpp
@@ -178,6 +180,8 @@ add_library(spot_objects OBJECT
     scene/fog.cpp
     scene/fog.h
     scene/light.cpp
+    scene/post_processing.cpp
+    scene/post_processing.h
     scene/mesh_renderer.h
     scene/missing_component.h
     scene/mesh_renderer.cpp

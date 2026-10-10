@@ -234,17 +234,22 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
         DrawGrid(context, targets, camera, options.grid2D);
     }
 
-    // The view's colors, with the interfaces over them as they are.
-    const Texture* glow = m_bloom->Render(context, *hdr, options.bloom);
+    // The view's colors, with the interfaces over them as they are, in the scene's look when it has one.
+    Scene* const shown[] = {&scene};
+    const PostProcessing* look = PostProcessing::Find(shown);
+    const TonemapSettings tonemapping = look ? look->GetTonemapping() : options.tonemapping;
+    const GradingSettings grading = look ? look->GetGrading() : options.grading;
+    const BloomSettings bloom = look ? look->GetBloom() : options.bloom;
+    const Texture* glow = m_bloom->Render(context, *hdr, bloom);
     if (options.fxaa) {
         auto tonemapped = context.BeginRenderPass({.target = targets.GetTonemapped()});
-        m_tonemapper->Draw(tonemapped, *hdr, options.tonemapping, options.grading, glow, options.bloom.intensity);
+        m_tonemapper->Draw(tonemapped, *hdr, tonemapping, grading, glow, bloom.intensity);
     }
     auto pass = context.BeginRenderPass({.target = targets.GetColor()});
     if (options.fxaa) {
         m_fxaa->Draw(pass, *targets.GetTonemapped());
     } else {
-        m_tonemapper->Draw(pass, *hdr, options.tonemapping, options.grading, glow, options.bloom.intensity);
+        m_tonemapper->Draw(pass, *hdr, tonemapping, grading, glow, bloom.intensity);
     }
     if (options.drawUi && m_interface->IsValid()) {
         const Vector2 size{static_cast<float>(targets.GetWidth()), static_cast<float>(targets.GetHeight())};

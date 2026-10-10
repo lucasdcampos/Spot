@@ -419,6 +419,31 @@ TEST_CASE("Game settings keep their sections, and the ones this build does not k
     CHECK_FALSE(sections.LoadFromString("[]"));
 }
 
+TEST_CASE("The rendering settings keep the look and quality, and give them to scene renderers", "[application]") {
+    Spot::SettingsSections sections;
+    sections.rendering.tonemapping = {.op = Spot::TonemapOperator::AgX, .exposure = 1.5f};
+    sections.rendering.bloom.intensity = 0.0f;
+    sections.rendering.grading.vignette = 0.5f;
+    sections.rendering.fxaa = true;
+    sections.rendering.msaaSamples = 2;
+    sections.rendering.shadowDistance = 120.0f;
+    Spot::SettingsSections loaded;
+    REQUIRE(loaded.LoadFromString(sections.SaveToString()));
+    CHECK(loaded.rendering.tonemapping.op == Spot::TonemapOperator::AgX);
+    CHECK(loaded.rendering.tonemapping.exposure == 1.5f);
+    CHECK(loaded.rendering.bloom.intensity == 0.0f);
+    CHECK(loaded.rendering.grading.vignette == 0.5f);
+    CHECK(loaded.rendering.fxaa);
+
+    Spot::SceneRendererConfig config;
+    loaded.rendering.Apply(config);
+    CHECK(config.tonemapping.op == Spot::TonemapOperator::AgX);
+    CHECK(config.fxaa);
+    CHECK(config.sampleCount == 2);
+    CHECK(config.shadowDistance == 120.0f);
+    CHECK(config.grading.lut == nullptr);
+}
+
 TEST_CASE("Settings sections apply to scenes, which create physics only when it needs them", "[application]") {
     Spot::SettingsSections sections;
     sections.physics.fixedTimeStep = 0.25f;

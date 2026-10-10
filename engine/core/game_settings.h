@@ -2,6 +2,7 @@
 
 #include "assets/asset_id.h"
 #include "audio/audio_settings.h"
+#include "graphics/rendering_settings.h"
 #include "input/input_settings.h"
 #include "physics/physics_settings.h"
 
@@ -22,6 +23,7 @@ struct SettingsSections {
     PhysicsSettings physics = {};
     InputSettings input = {};
     AudioSettings audio = {};
+    RenderingSettings rendering = {};
     // The sections this build of the engine does not know, as JSON text by name, so saving them loses nothing.
     std::map<std::string, std::string, std::less<>> unknown = {};
 
@@ -31,6 +33,7 @@ struct SettingsSections {
         fn(PhysicsSettings::SectionName, physics);
         fn(InputSettings::SectionName, input);
         fn(AudioSettings::SectionName, audio);
+        fn(RenderingSettings::SectionName, rendering);
     }
 
     // Reads the sections of a JSON object that holds them by name. Sections it does not have keep their values.

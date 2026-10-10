@@ -10,6 +10,7 @@
 #include "graphics/renderer_2d.h"
 #include "graphics/renderer_3d.h"
 #include "scene/camera.h"
+#include "scene/post_processing.h"
 #include "scene/scene.h"
 #include "scene/sprite_renderer.h"
 
@@ -29,8 +30,14 @@ SceneRenderer::SceneRenderer(GraphicsDevice& device, const SceneRendererConfig& 
         device.SupportsSampleCount(TextureFormat::Depth32Float, config.sampleCount)) {
         m_sampleCount = config.sampleCount;
     }
-    m_renderer3D = std::make_unique<Renderer3D>(
-        device, Renderer3DConfig{.targetFormat = HdrFormat, .sampleCount = m_sampleCount, .hdr = true});
+    m_renderer3D =
+        std::make_unique<Renderer3D>(device, Renderer3DConfig{.targetFormat = HdrFormat,
+                                                              .sampleCount = m_sampleCount,
+                                                              .hdr = true,
+                                                              .shadowMapSize = config.shadowMapSize,
+                                                              .shadowCascadeCount = config.shadowCascadeCount,
+                                                              .shadowDistance = config.shadowDistance,
+                                                              .localShadowMapSize = config.localShadowMapSize});
     m_sprites =
         std::make_unique<Renderer2D>(device, Renderer2DConfig{.targetFormat = HdrFormat, .sampleCount = m_sampleCount});
     m_interface = std::make_unique<Renderer2D>(device, Renderer2DConfig{.targetFormat = m_format});
@@ -108,19 +115,23 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
         m_sprites->End();
     }
 
-    const Texture* glow = m_bloom->Render(context, *m_hdr, m_bloomSettings);
+    const PostProcessing* look = PostProcessing::Find(scenes);
+    const TonemapSettings tonemapping = look ? look->GetTonemapping() : m_tonemapping;
+    const BloomSettings bloom = look ? look->GetBloom() : m_bloomSettings;
+    const GradingSettings grading = look ? look->GetGrading() : m_grading;
+    const Texture* glow = m_bloom->Render(context, *m_hdr, bloom);
     // FXAA reads the finished image, so it is tonemapped into a texture first.
     const bool fxaa = m_fxaaEnabled && UpdateTonemapped(width, height);
     if (fxaa) {
         auto tonemapped = context.BeginRenderPass({.target = m_tonemapped.get()});
-        m_tonemapper->Draw(tonemapped, *m_hdr, m_tonemapping, m_grading, glow, m_bloomSettings.intensity);
+        m_tonemapper->Draw(tonemapped, *m_hdr, tonemapping, grading, glow, bloom.intensity);
     }
     // The last pass covers the whole target, and the interfaces go over it as they are.
     auto output = context.BeginRenderPass({.target = target});
     if (fxaa) {
         m_fxaa->Draw(output, *m_tonemapped);
     } else {
-        m_tonemapper->Draw(output, *m_hdr, m_tonemapping, m_grading, glow, m_bloomSettings.intensity);
+        m_tonemapper->Draw(output, *m_hdr, tonemapping, grading, glow, bloom.intensity);
     }
     m_interface->Begin(output, Scene::ScreenCamera(size), size);
     for (Scene* scene : scenes) {

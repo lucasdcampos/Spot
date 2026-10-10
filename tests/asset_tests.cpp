@@ -1,3 +1,4 @@
+#include "assets/asset_formats.h"
 #include "log_capture.h"
 #include "temp_directory.h"
 
@@ -866,4 +867,29 @@ TEST_CASE("Applications run a game from its startup scene", "[assets]") {
     GameApplication lost(missing);
     CHECK(lost.Run() == EXIT_FAILURE);
     CHECK_FALSE(lost.loadedHero);
+}
+
+TEST_CASE("Textures set to hold data import to be read as they are", "[assets]") {
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    const auto imported = project.GetPath() / "imported";
+    CopyFile(TestAssets / "pixels.png", sources / "lut.png");
+    AssetDatabase database(sources, imported);
+    database.Refresh();
+    const auto id = database.FindByPath("lut.png");
+    REQUIRE(id.has_value());
+    const auto read = [&] {
+        const auto data =
+            Spot::Detail::ReadAssetFile(Spot::Detail::GetImportedAssetPath(imported, *id), AssetType::Texture);
+        REQUIRE(data.has_value());
+        const auto texture = Spot::Detail::DecodeTexture(*data);
+        REQUIRE(texture.has_value());
+        return texture->srgb;
+    };
+    CHECK(read());
+
+    database.GetMeta(*id)->texture.srgb = false;
+    REQUIRE(database.SaveMeta(*id));
+    CHECK(database.Refresh() == 1);
+    CHECK_FALSE(read());
 }

@@ -12,7 +12,7 @@ bool ImportTexture(ImportContext& context) {
     }
 
     BinaryWriter data;
-    Encode(data, TextureFile{std::move(*image), context.GetMeta().texture.mipmaps});
+    Encode(data, TextureFile{std::move(*image), context.GetMeta().texture.mipmaps, context.GetMeta().texture.srgb});
     return context.WriteAsset(AssetType::Texture, data);
 }
 

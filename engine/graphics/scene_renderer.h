@@ -33,11 +33,17 @@ struct SceneRendererConfig {
     BloomSettings bloom = {};
     // Smooths the steps of edges after tonemapping, next to multisampling or instead of it; see Fxaa.
     bool fxaa = false;
+    // See Renderer3DConfig.
+    std::uint32_t shadowMapSize = 2048;
+    std::uint32_t shadowCascadeCount = 4;
+    float shadowDistance = 60.0f;
+    std::uint32_t localShadowMapSize = 512;
 };
 
 // Draws scenes as games show them: through the first main camera among them (see FindMainCamera()), their meshes,
 // then the shapes queued with DebugDraw, then their sprites over the meshes, all as light into an HDR image, which a
-// Tonemapper turns into what the target shows; then their interfaces over everything, in the target's colors.
+// Tonemapper turns into what the target shows; then their interfaces over everything, in the target's colors. The
+// look comes from the first active PostProcessing among the scenes, or from the renderer's settings without one.
 // Applications draw their scenes with one by default (see ApplicationConfig::renderScenes); it is built only on the
 // public graphics API, so games that draw their own way can use it too, into the window or into a texture.
 class SceneRenderer {

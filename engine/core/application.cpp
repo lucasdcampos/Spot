@@ -225,6 +225,8 @@ void Application::SetScenesPaused(bool paused) {
 
 void Application::SetGameSettings(std::optional<GameSettings> game) {
     m_config.game = std::move(game);
+    // Made again with the game's rendering settings when next needed.
+    m_sceneRenderer.reset();
     m_actions = {};
     if (m_config.game) {
         m_config.game->sections.input.Apply(m_actions);
@@ -404,7 +406,11 @@ void Application::RenderScenes(RenderContext& context) {
         return;
     }
     if (!m_sceneRenderer) {
-        m_sceneRenderer = std::make_unique<SceneRenderer>(*m_graphics);
+        SceneRendererConfig config;
+        if (m_config.game) {
+            m_config.game->sections.rendering.Apply(config);
+        }
+        m_sceneRenderer = std::make_unique<SceneRenderer>(*m_graphics, config);
     }
     std::vector<Scene*> scenes = GetScenes();
     scenes.insert(scenes.begin(), m_persistentScene.get());

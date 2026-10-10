@@ -62,7 +62,7 @@ struct ViewportOptions {
     bool showColliders = false;
     // Lines only this view draws, besides those queued with DebugDraw.
     std::span<const DebugLine> lines = {};
-    // How the HDR image of the scene becomes the view's colors.
+    // How the HDR image of the scene becomes the view's colors, where the scene has no PostProcessing.
     TonemapSettings tonemapping = {};
     GradingSettings grading = {};
     BloomSettings bloom = {};

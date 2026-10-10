@@ -2467,3 +2467,34 @@ TEST_CASE("Renderer3D fogs scenes with their first active Fog, from its entity's
         });
     CHECK(render.At(4, 4)[0] > 200);
 }
+
+TEST_CASE("SceneRenderer takes its look from the scenes' first active PostProcessing", "[gpu]") {
+    RequireGpu();
+    const auto render = [](bool withLook) {
+        std::unique_ptr<Spot::Texture> target;
+        std::unique_ptr<Spot::SceneRenderer> renderer;
+        Spot::Scene scene;
+        scene.CreateEntity("Camera").AddComponent<Spot::Camera>().SetBackground(Spot::Color{0.5f, 0.5f, 0.5f, 1.0f});
+        if (withLook) {
+            auto& look = scene.CreateEntity("Look").AddComponent<Spot::PostProcessing>();
+            look.tonemapper = Spot::TonemapOperator::Linear;
+            look.exposure = 0.5f;
+            look.bloomIntensity = 0.0f;
+        }
+        const auto pixels = RenderAndDownload([&](Spot::GraphicsDevice& device, Spot::RenderContext& context) {
+            target = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
+            renderer = std::make_unique<Spot::SceneRenderer>(
+                device, Spot::SceneRendererConfig{.targetFormat = Spot::TextureFormat::Rgba8,
+                                                  .tonemapping = {.op = Spot::TonemapOperator::Linear, .dither = false},
+                                                  .bloom = {.intensity = 0.0f}});
+            const std::array<Spot::Scene*, 1> scenes{&scene};
+            renderer->Render(context, scenes, target.get());
+            return target.get();
+        });
+        REQUIRE(pixels.size() == 4 * 4 * 4);
+        return static_cast<int>(pixels[0]);
+    };
+    // Without it the settings show the grey as it is; with it, its exposure halves it.
+    CHECK(std::abs(render(false) - 128) <= 2);
+    CHECK(std::abs(render(true) - 64) <= 3);
+}

@@ -16,6 +16,9 @@ class Archive;
 struct TextureImportSettings {
     // See TextureDesc::mipmaps.
     bool mipmaps = true;
+    // Whether the image holds colors, as most do, which shaders read as linear light; off for data kept as it is,
+    // such as LUTs and normal maps.
+    bool srgb = true;
 
     void Serialize(Archive& archive);
 };

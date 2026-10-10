@@ -579,7 +579,7 @@ built on the public graphics API. The look comes from a `PostProcessing` compone
 - [x] **M5.5 Grading.** A LUT (strip format), contrast, saturation, white balance and vignette.
 - [x] **M5.6 Fog.** Distance and height fog in the mesh shader through a `Fog` component (color, start, density,
   height falloff), applied before tonemapping and matched to the sky at the horizon.
-- [ ] **M5.7 Settings and component.** The rendering settings section (defaults, MSAA samples, shadow sizes and
+- [x] **M5.7 Settings and component.** The rendering settings section (defaults, MSAA samples, shadow sizes and
   distance, which feed `Renderer3DConfig`), the `PostProcessing` component, and their inspectors.
 - [ ] **M5.8 Render hooks.** Stages in `SceneRenderer` (before opaque, after opaque, after transparent, before and
   after post-processing, overlay) where games and systems add passes, with a context holding the camera, targets and
@@ -624,6 +624,13 @@ built on the public graphics API. The look comes from a `PostProcessing` compone
   fogged`. The mesh shader blends the lit color toward the fog color before tonemapping (uniforms at b3), and the
   sky shader applies the same to a ray 100 km long, which meets the fogged ground at the horizon. The base height is
   the `Fog` entity's world Y. Fog in an LDR target blends after the sky's own curve.
+- M5.7: a `PostProcessing` component replaces the defaults whole (no per-field overrides); `SceneRenderer` and the
+  editor's views look for the first active one in the scenes they draw each frame. `RenderingSettings` holds the
+  defaults (without a LUT) and the quality, which `Apply()` puts in a `SceneRendererConfig` (which gained the
+  shadow sizes and distance for its Renderer3D); the application makes its SceneRenderer from them, and again after
+  `SetGameSettings()`. The editor's views take the project's look and FXAA, but keep their own MSAA and shadow
+  quality. Textures gained the `srgb` import setting (texture importer 2, model importer 4, as both write
+  `TextureFile`), so LUTs, and later normal maps, load as `Rgba8`. Inspectors come from the fields' `Serialize()`.
 
 ---
 

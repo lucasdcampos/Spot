@@ -253,7 +253,8 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
         if (!texture) {
             break;
         }
-        std::shared_ptr<Texture> result = m_device->CreateTexture(texture->image, texture->mipmaps);
+        std::shared_ptr<Texture> result = m_device->CreateTexture(
+            texture->image, texture->mipmaps, texture->srgb ? TextureFormat::Rgba8Srgb : TextureFormat::Rgba8);
         return result;
     }
     case AssetType::Mesh: {

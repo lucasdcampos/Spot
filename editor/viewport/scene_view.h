@@ -107,6 +107,8 @@ private:
     bool m_focusRequested = false;
     EditorCamera m_camera;
     ViewportOptions m_options;
+    // The project's look and quality, which views use where their scene has no PostProcessing.
+    RenderingSettings m_rendering;
     // Kept from frame to frame, so drawing the colliders allocates nothing once warmed up.
     DebugLines m_colliderLines;
     ViewportTargets m_targets;

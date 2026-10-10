@@ -23,6 +23,8 @@ namespace Spot::Detail {
 struct TextureFile {
     Image image;
     bool mipmaps = true;
+    // Colors, read as linear light, or data read as it is.
+    bool srgb = true;
 };
 
 struct ModelFilePart {

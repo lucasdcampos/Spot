@@ -47,6 +47,7 @@ void Encode(BinaryWriter& writer, const TextureFile& texture) {
     writer.Write(texture.image.GetWidth());
     writer.Write(texture.image.GetHeight());
     writer.Write(static_cast<std::uint8_t>(texture.mipmaps));
+    writer.Write(static_cast<std::uint8_t>(texture.srgb));
     WriteArray(writer, texture.image.GetPixels());
 }
 
@@ -55,11 +56,12 @@ std::optional<TextureFile> DecodeTexture(std::span<const std::byte> data) {
     const auto width = reader.Read<std::uint32_t>();
     const auto height = reader.Read<std::uint32_t>();
     const bool mipmaps = reader.Read<std::uint8_t>() != 0;
+    const bool srgb = reader.Read<std::uint8_t>() != 0;
     auto pixels = ReadArray<std::uint8_t>(reader);
     if (!pixels || pixels->size() != static_cast<std::size_t>(width) * height * 4) {
         return std::nullopt;
     }
-    return Finish(reader, TextureFile{Image(width, height, std::move(*pixels)), mipmaps});
+    return Finish(reader, TextureFile{Image(width, height, std::move(*pixels)), mipmaps, srgb});
 }
 
 void Encode(BinaryWriter& writer, const MeshData& mesh) {

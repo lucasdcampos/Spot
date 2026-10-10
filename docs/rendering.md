@@ -97,6 +97,15 @@ pixels, such as 256 by 16) that map displayed (sRGB) colors: grade `MakeNeutralL
 as an `Rgba8` texture, which keeps its values as they are. `SceneRendererConfig::grading`,
 `SceneRenderer::SetGrading()` and `ViewportOptions::grading` choose them.
 
+### The look and the rendering settings
+
+The look of a game comes from the first active `PostProcessing` component among the scenes drawn: its tonemapper
+and exposure, bloom and grading, LUT included (a texture asset imported with `srgb` off in its import settings, so
+its values are read as they are). Without one, the rendering settings section of the project (`RenderingSettings`,
+"rendering") gives the defaults, along with the quality the application draws at: FXAA, MSAA samples, and the
+sizes and distance of shadows. The editor's views use the same, and the Project Settings panel and the inspector
+edit both.
+
 ### Antialiasing
 
 Multisampling smooths the edges of what is drawn into the HDR image, where the GPU allows. `Fxaa` smooths what it

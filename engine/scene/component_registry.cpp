@@ -10,6 +10,7 @@
 #include "scene/light.h"
 #include "scene/mesh_renderer.h"
 #include "scene/missing_component.h"
+#include "scene/post_processing.h"
 #include "scene/sky.h"
 #include "scene/sprite_renderer.h"
 
@@ -60,6 +61,7 @@ Registry& GetRegistry() {
         RegisterBuiltIn<SpotLight>(registry, "SpotLight");
         RegisterBuiltIn<Sky>(registry, "Sky");
         RegisterBuiltIn<Fog>(registry, "Fog");
+        RegisterBuiltIn<PostProcessing>(registry, "PostProcessing");
         RegisterBuiltIn<SpriteRenderer>(registry, "SpriteRenderer");
         RegisterBuiltIn<Camera>(registry, "Camera");
         RegisterBuiltIn<AudioSource>(registry, "AudioSource");
