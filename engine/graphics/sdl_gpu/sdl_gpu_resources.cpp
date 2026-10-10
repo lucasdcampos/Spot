@@ -303,7 +303,9 @@ std::unique_ptr<Buffer> GraphicsDevice::CreateBuffer(const BufferDesc& desc) {
     }
 
     SDL_GPUBufferCreateInfo info{};
-    info.usage = desc.usage == BufferUsage::Index ? SDL_GPU_BUFFERUSAGE_INDEX : SDL_GPU_BUFFERUSAGE_VERTEX;
+    info.usage = desc.usage == BufferUsage::Index     ? SDL_GPU_BUFFERUSAGE_INDEX
+                 : desc.usage == BufferUsage::Storage ? SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ
+                                                      : SDL_GPU_BUFFERUSAGE_VERTEX;
     info.size = desc.size;
 
     SDL_GPUBuffer* handle = SDL_CreateGPUBuffer(m_impl->device->Get(), &info);

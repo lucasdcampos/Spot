@@ -82,6 +82,11 @@ public:
     void BindIndexBuffer(const Buffer& buffer, IndexType type, std::uint32_t offset = 0);
     // Binds the texture and sampler read by the fragment shader's texture at register t{slot}.
     void BindFragmentTexture(std::uint32_t slot, const Texture& texture, const Sampler& sampler);
+    // Binds a storage buffer read by the stage's StructuredBuffer. Storage buffers come after the stage's textures in
+    // its registers: in the vertex shader, slot n is register t{n} of space0 when it samples no textures; in the
+    // fragment shader, it is register t{samplers + n} of space2.
+    void BindVertexStorageBuffer(std::uint32_t slot, const Buffer& buffer);
+    void BindFragmentStorageBuffer(std::uint32_t slot, const Buffer& buffer);
 
     // Uniforms set the HLSL constant buffer at register b{slot} of the stage, and stay set for later draws, in this
     // pass and the next ones of the frame. Data follows HLSL constant buffer packing: fields do not cross 16-byte

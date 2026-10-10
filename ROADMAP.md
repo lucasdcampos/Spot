@@ -742,7 +742,7 @@ viewers, and the golden-image tests cover them.
 
 - [x] **M7.1 Culling.** Frustum culling in every pass, a per-camera culling mask by entity layer (M1.1), and visible
   and culled counts in the profiler.
-- [ ] **M7.2 Instancing.** Batch draws by mesh, material and pipeline, with per-instance data in a storage buffer,
+- [x] **M7.2 Instancing.** Batch draws by mesh, material and pipeline, with per-instance data in a storage buffer,
   automatically in `Renderer3D`.
 - [ ] **M7.3 Clustered lights.** Assign lights to a froxel grid on the CPU and send it in storage buffers, raising
   `MaxLights` from 16 to hundreds. Shadowed lights keep their budget. Tests.
@@ -765,6 +765,13 @@ of lamps.
   profiler panel yet and the HUD and tests read frames directly. The culling mask is a field of `Camera3D`, which
   `DrawScene()` applies to mesh renderers, shadows included; lights, skies and sprites ignore it. `FieldOptions`
   gained `layerMask`, which the inspector draws as a combo of the project's named layers to tick.
+- M7.2: The graphics API gained storage buffers (`BufferUsage::Storage`, bound per stage). The instance buffer holds
+  each command's model and normal matrices in the sorted commands' order, uploaded once per `End()` with
+  `UploadMode::Discard` so several views a frame keep their own; a batch is a run of commands in view that look the
+  same (same mesh, textures and material values; for shadows, the same mesh and cutout), drawn with a pushed
+  `firstInstance`, since `SV_InstanceID` does not include the draw's first instance on Direct3D. Material values are
+  in the sort key, so copies of a material batch too. Transparent surfaces batch only when adjacent after their
+  back-to-front sort, which keeps their order.
 
 ---
 

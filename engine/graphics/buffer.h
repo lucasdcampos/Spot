@@ -8,6 +8,10 @@ namespace Spot {
 enum class BufferUsage {
     Vertex,
     Index,
+    // Read by shaders as an HLSL StructuredBuffer, such as data per instance of an instanced draw; see
+    // RenderPass::BindVertexStorageBuffer(). Its elements follow HLSL structured buffer layout, which packs fields as
+    // C++ does, without the 16-byte rows of constant buffers.
+    Storage,
 };
 
 enum class IndexType {
@@ -31,7 +35,7 @@ struct BufferDesc {
     std::uint32_t size = 0;
 };
 
-// GPU memory for vertices or indices. Fill it with GraphicsDevice::UploadToBuffer().
+// GPU memory for vertices, indices or data shaders read. Fill it with GraphicsDevice::UploadToBuffer().
 class Buffer {
 public:
     ~Buffer();

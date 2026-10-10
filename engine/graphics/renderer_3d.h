@@ -62,7 +62,8 @@ struct Renderer3DConfig {
 };
 
 struct Renderer3DStats {
-    // In the view's pass.
+    // In the view's pass. Meshes that share their mesh, material and pipeline are drawn together, as instances of one
+    // draw call.
     std::uint32_t drawCalls = 0;
     std::uint32_t triangleCount = 0;
     // In the passes that draw shadow maps.
@@ -162,6 +163,8 @@ private:
     bool DrawCascades(const LightData& light, Detail::ShadowUniforms& shadows);
     void DrawLocalShadows(Detail::SelectedLights& lights, Detail::ShadowUniforms& shadows);
     void DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjection, bool ignoreNear);
+    // Sends every command's transforms to the instance buffer, in the commands' order.
+    bool UploadInstances();
     void Flush(RenderPass& pass, const Detail::SelectedLights& lights, const Detail::ShadowUniforms& shadows);
     void FlushSky(RenderPass& pass, const SkyData& sky, const Detail::SkyLighting& lighting);
     // Captures the sky's light into the reflections and irradiance when it changed; false when it cannot.
@@ -184,6 +187,8 @@ private:
     bool m_noShadowsCleared = false;
     std::unique_ptr<Texture> m_cascadeShadows;
     std::unique_ptr<Texture> m_localShadows;
+    // The transforms of every command of the frame, which instanced draws read from the first of their batch on.
+    std::unique_ptr<Buffer> m_instances;
     // The sky's light, as surfaces show it: captured into a cube, then blurred for each roughness down the mip levels
     // of the reflections, and projected onto spherical harmonics in the irradiance. Black ones stand in without a
     // sky.

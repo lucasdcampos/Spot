@@ -74,6 +74,20 @@ void RenderPass::BindFragmentTexture(std::uint32_t slot, const Texture& texture,
     SDL_BindGPUFragmentSamplers(static_cast<SDL_GPURenderPass*>(m_native), slot, &binding, 1);
 }
 
+void RenderPass::BindVertexStorageBuffer(std::uint32_t slot, const Buffer& buffer) {
+    SPOT_ASSERT(m_native, "The render pass has ended");
+    SPOT_ASSERT(buffer.GetUsage() == BufferUsage::Storage, "Only storage buffers can be bound as storage buffers");
+    auto* handle = static_cast<SDL_GPUBuffer*>(buffer.GetNativeHandle());
+    SDL_BindGPUVertexStorageBuffers(static_cast<SDL_GPURenderPass*>(m_native), slot, &handle, 1);
+}
+
+void RenderPass::BindFragmentStorageBuffer(std::uint32_t slot, const Buffer& buffer) {
+    SPOT_ASSERT(m_native, "The render pass has ended");
+    SPOT_ASSERT(buffer.GetUsage() == BufferUsage::Storage, "Only storage buffers can be bound as storage buffers");
+    auto* handle = static_cast<SDL_GPUBuffer*>(buffer.GetNativeHandle());
+    SDL_BindGPUFragmentStorageBuffers(static_cast<SDL_GPURenderPass*>(m_native), slot, &handle, 1);
+}
+
 void RenderPass::PushVertexUniformData(std::uint32_t slot, const void* data, std::uint32_t size) {
     SDL_PushGPUVertexUniformData(m_context->m_impl->commandBuffer, slot, data, size);
 }

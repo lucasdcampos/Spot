@@ -12,6 +12,8 @@ own way next to them.
 Each frame, `BeginFrame()` returns a `RenderContext` (null when nothing can be drawn, as while minimized), which opens
 `RenderPass`es into the window or into render target textures; `EndFrame()` submits it.
 
+- **Buffers** hold vertices, indices, or data shaders read as a `StructuredBuffer` (`BufferUsage::Storage`), which
+  `RenderPass::BindVertexStorageBuffer()` and `BindFragmentStorageBuffer()` bind.
 - **Resources**: `CreateBuffer()`, `CreateTexture()`, `CreateSampler()`, `CreateShader()` and `CreatePipeline()`
   return null, after logging why, when the backend rejects them. Uploads (`UploadToBuffer()`, `UploadToTexture()`)
   can happen at any time and reach the GPU before the frame's draws; `UploadMode::Discard` suits data rewritten every
@@ -72,6 +74,14 @@ vertex uniforms at `register(b0, space1)`, fragment textures and samplers at `re
 profiler count both (`visibleMeshes` and `culledMeshes`). A camera also sees only the layers in its `cullingMask`
 (`Camera3D::cullingMask`, set on the `Camera` component, which the inspector shows as layers to tick):
 `DrawScene()` skips the meshes of entities on the others, in its shadows too.
+
+### Instancing
+
+`Renderer3D` draws meshes that look the same together. It sorts the frame's meshes so those with the same mesh,
+material values and pipeline sit side by side, puts every mesh's transforms in one storage buffer, and draws each run
+of them in view as instances of one draw, in the view's pass and in each shadow pass. Nothing needs to be marked:
+a level of the same crates is a handful of draws (`GetStats().drawCalls` counts draws, not meshes). Materials batch by
+their values, so copies of a material batch as well as the same asset.
 
 ### SceneRenderer
 

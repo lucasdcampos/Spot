@@ -1669,6 +1669,45 @@ TEST_CASE("Renderer3D leaves meshes out of the view out of its pass, and counts 
     CHECK(IsNear(render.At(16, 16), {255, 0, 0, 255}));
 }
 
+TEST_CASE("Renderer3D draws meshes that look the same as instances of one draw, in every pass", "[gpu]") {
+    RequireGpu();
+    Spot::Renderer3DStats stats;
+    const TargetRender render(
+        32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            const auto sphere = Spot::Mesh::Create(device, Spot::MeshData::CreateSphere(0.5f));
+            REQUIRE((cube && sphere));
+            renderer.Begin(context, target, MakeFrontCamera());
+            renderer.DrawLight(
+                {.type = Spot::LightType::Directional, .direction = {0.0f, 0.0f, -1.0f}, .castsShadows = true});
+            // A red row of small cubes across the top half, in an order the renderer has to gather, with green and
+            // blue cubes and a sphere between them, and the materials each a copy.
+            for (int i = 0; i < 8; ++i) {
+                const float x = -1.4f + 0.4f * static_cast<float>(i);
+                renderer.DrawMesh(*cube, {.baseColor = Spot::Color::Red},
+                                  Spot::Matrix4::Translation({x, 0.5f, 0.0f}) *
+                                      Spot::Matrix4::Scale({0.3f, 0.3f, 0.3f}));
+                renderer.DrawMesh(*cube, {.baseColor = i % 2 == 0 ? Spot::Color::Green : Spot::Color::Blue},
+                                  Spot::Matrix4::Translation({x, -0.5f, 0.0f}) *
+                                      Spot::Matrix4::Scale({0.3f, 0.3f, 0.3f}));
+            }
+            renderer.DrawMesh(*sphere, {.baseColor = Spot::Color::Red},
+                              Spot::Matrix4::Translation({0.0f, 0.0f, -3.0f}));
+            renderer.End();
+            stats = renderer.GetStats();
+        });
+    // Red cubes, green cubes, blue cubes and the sphere.
+    CHECK(stats.visibleMeshes == 17);
+    CHECK(stats.drawCalls == 4);
+    CHECK(stats.shadowDrawCalls <= 4 * 4);
+    CHECK(stats.triangleCount == 16 * 12 + Spot::MeshData::CreateSphere(0.5f).indices.size() / 3);
+    // Each instance is where its own transform puts it: the cubes of the top row are red at both ends.
+    CHECK(render.At(3, 11)[0] > 200);
+    CHECK(render.At(29, 11)[0] > 200);
+    CHECK(render.At(3, 11)[1] < 30);
+}
+
 TEST_CASE("Renderer3D draws only the meshes on the layers the camera sees", "[gpu]") {
     RequireGpu();
     Spot::Renderer3DStats stats;

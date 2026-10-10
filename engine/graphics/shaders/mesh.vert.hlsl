@@ -2,10 +2,17 @@ cbuffer Frame : register(b0, space1) {
     float4x4 viewProjection;
 };
 
-cbuffer Object : register(b1, space1) {
+struct Instance {
     float4x4 model;
     // The inverse transpose of the model matrix, which keeps normals perpendicular under non-uniform scale.
     float4x4 normalMatrix;
+};
+
+// Every mesh drawn by the frame's passes; an instanced draw reads its instances from the first of its batch on.
+StructuredBuffer<Instance> instances : register(t0, space0);
+
+cbuffer Batch : register(b1, space1) {
+    uint4 firstInstance;
 };
 
 struct Input {
@@ -24,7 +31,11 @@ struct Output {
     float4 tangent : TEXCOORD3;
 };
 
-Output main(Input input) {
+Output main(Input input, uint instanceId : SV_InstanceID) {
+    // SV_InstanceID starts at 0 for each draw on every backend, whatever its first instance.
+    const Instance instance = instances[firstInstance.x + instanceId];
+    const float4x4 model = instance.model;
+    const float4x4 normalMatrix = instance.normalMatrix;
     Output output;
     const float4 worldPosition = mul(model, float4(input.position, 1.0));
     output.position = mul(viewProjection, worldPosition);

@@ -3,8 +3,16 @@ cbuffer View : register(b0, space1) {
     float4x4 viewProjection;
 };
 
-cbuffer Object : register(b1, space1) {
+struct Instance {
     float4x4 model;
+    float4x4 normalMatrix;
+};
+
+// The meshes' transforms, as the mesh shader reads them.
+StructuredBuffer<Instance> instances : register(t0, space0);
+
+cbuffer Batch : register(b1, space1) {
+    uint4 firstInstance;
 };
 
 struct Input {
@@ -18,7 +26,8 @@ struct Output {
     float2 uv : TEXCOORD0;
 };
 
-Output main(Input input) {
+Output main(Input input, uint instanceId : SV_InstanceID) {
+    const float4x4 model = instances[firstInstance.x + instanceId].model;
     Output output;
     output.position = mul(viewProjection, mul(model, float4(input.position, 1.0)));
     output.uv = input.uv;

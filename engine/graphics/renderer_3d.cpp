@@ -35,10 +35,14 @@ namespace Spot {
 
 namespace {
 
-// These mirror the shaders' constant buffers.
-struct ObjectUniforms {
+// These mirror the shaders' buffers.
+struct InstanceData {
     Matrix4 model;
     Matrix4 normalMatrix;
+};
+
+struct BatchUniforms {
+    std::array<std::uint32_t, 4> firstInstance;
 };
 
 struct LightUniforms {
@@ -440,9 +444,14 @@ void Renderer3D::End() {
     const auto transparent = std::stable_partition(m_commands.begin(), m_commands.end(), [](const DrawCommand& c) {
         return c.alphaMode != AlphaMode::Transparent;
     });
-    std::stable_sort(m_commands.begin(), transparent, [](const DrawCommand& a, const DrawCommand& b) {
-        return std::tie(a.doubleSided, a.alphaMode, a.textures) < std::tie(b.doubleSided, b.alphaMode, b.textures);
-    });
+    // Commands that look the same end up side by side, to be drawn as instances of one draw.
+    const auto lookKey = [](const DrawCommand& c) {
+        return std::tie(c.doubleSided, c.alphaMode, c.textures, c.mesh, c.color.r, c.color.g, c.color.b, c.color.a,
+                        c.metallic, c.roughness, c.normalScale, c.occlusionStrength, c.emissive.r, c.emissive.g,
+                        c.emissive.b, c.alphaCutoff, c.worldTextureSize);
+    };
+    std::stable_sort(m_commands.begin(), transparent,
+                     [&](const DrawCommand& a, const DrawCommand& b) { return lookKey(a) < lookKey(b); });
     const Vector3 eye = m_camera.position;
     std::stable_sort(transparent, m_commands.end(), [eye](const DrawCommand& a, const DrawCommand& b) {
         return LengthSquared(a.bounds.center - eye) > LengthSquared(b.bounds.center - eye);
@@ -454,6 +463,9 @@ void Renderer3D::End() {
     }
     Profiler::Count("Visible meshes", m_stats.visibleMeshes);
     Profiler::Count("Culled meshes", m_stats.culledMeshes);
+    if (!UploadInstances()) {
+        m_commands.clear();
+    }
     Detail::ShadowUniforms shadows{};
     DrawShadows(lights, shadows);
 
@@ -783,15 +795,75 @@ void Renderer3D::DrawLocalShadows(Detail::SelectedLights& lights, Detail::Shadow
     }
 }
 
+namespace {
+
+// Whether the two commands draw the same mesh the same way, so they can be instances of one draw.
+bool HaveSameLook(const auto& a, const auto& b) {
+    return a.mesh == b.mesh && a.textures == b.textures && a.color == b.color && a.metallic == b.metallic &&
+           a.roughness == b.roughness && a.normalScale == b.normalScale && a.occlusionStrength == b.occlusionStrength &&
+           a.emissive == b.emissive && a.alphaMode == b.alphaMode && a.alphaCutoff == b.alphaCutoff &&
+           a.doubleSided == b.doubleSided && a.worldTextureSize == b.worldTextureSize;
+}
+
+// Whether the two commands cast the same shadow but for their transforms: depth alone, or cut out the same way.
+bool HaveSameShadow(const auto& a, const auto& b) {
+    if (a.mesh != b.mesh || a.doubleSided != b.doubleSided || a.alphaMode != b.alphaMode) {
+        return false;
+    }
+    return a.alphaMode != AlphaMode::Cutout ||
+           (a.textures[0] == b.textures[0] && a.color.a == b.color.a && a.alphaCutoff == b.alphaCutoff);
+}
+
+} // namespace
+
+bool Renderer3D::UploadInstances() {
+    if (m_commands.empty()) {
+        return true;
+    }
+    std::vector<InstanceData> instances;
+    instances.reserve(m_commands.size());
+    for (const DrawCommand& command : m_commands) {
+        instances.push_back({command.transform, Transpose(Inverse(command.transform))});
+    }
+    const auto size = static_cast<std::uint32_t>(instances.size() * sizeof(InstanceData));
+    if (!m_instances || m_instances->GetSize() < size) {
+        // Grown to the next power of two, so scenes that grow a little at a time do not make a buffer every frame.
+        std::uint32_t capacity = 64 * sizeof(InstanceData);
+        while (capacity < size) {
+            capacity *= 2;
+        }
+        m_instances = m_device->CreateBuffer({.usage = BufferUsage::Storage, .size = capacity});
+        if (!m_instances) {
+            return false;
+        }
+    }
+    // Discarded, so views drawn earlier in the frame keep the instances they were drawn with.
+    m_device->UploadToBuffer(*m_instances, instances, 0, UploadMode::Discard);
+    return true;
+}
+
 void Renderer3D::DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjection, bool ignoreNear) {
+    if (m_commands.empty()) {
+        return;
+    }
     pass.PushVertexUniforms(0, viewProjection);
+    pass.BindVertexStorageBuffer(0, *m_instances);
+    // Transparent surfaces let light through, so they cast no shadow.
+    const auto casts = [&](const DrawCommand& command) {
+        return command.castsShadows && command.alphaMode != AlphaMode::Transparent &&
+               Detail::IsSphereInView(viewProjection, command.bounds.center, command.bounds.radius, ignoreNear);
+    };
     const Pipeline* boundPipeline = nullptr;
     const Texture* boundTexture = nullptr;
-    for (const auto& command : m_commands) {
-        // Transparent surfaces let light through, so they cast no shadow.
-        if (!command.castsShadows || command.alphaMode == AlphaMode::Transparent ||
-            !Detail::IsSphereInView(viewProjection, command.bounds.center, command.bounds.radius, ignoreNear)) {
+    for (std::size_t first = 0; first < m_commands.size();) {
+        const DrawCommand& command = m_commands[first];
+        if (!casts(command)) {
+            ++first;
             continue;
+        }
+        std::size_t end = first + 1;
+        while (end < m_commands.size() && casts(m_commands[end]) && HaveSameShadow(command, m_commands[end])) {
+            ++end;
         }
         const bool cutout = command.alphaMode == AlphaMode::Cutout;
         const Pipeline* pipeline =
@@ -812,9 +884,10 @@ void Renderer3D::DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjecti
         }
         pass.BindVertexBuffer(0, command.mesh->GetVertexBuffer());
         pass.BindIndexBuffer(command.mesh->GetIndexBuffer(), IndexType::UInt32);
-        pass.PushVertexUniforms(1, command.transform);
-        pass.DrawIndexed(command.mesh->GetIndexCount());
+        pass.PushVertexUniforms(1, BatchUniforms{{static_cast<std::uint32_t>(first), 0, 0, 0}});
+        pass.DrawIndexed(command.mesh->GetIndexCount(), static_cast<std::uint32_t>(end - first));
         ++m_stats.shadowDrawCalls;
+        first = end;
     }
 }
 
@@ -834,12 +907,21 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
     pass.BindFragmentTexture(7, m_skyLit ? *m_skyReflections : *m_noSkyReflections, *m_skySampler);
     pass.BindFragmentTexture(8, m_skyLit ? *m_skyIrradiance : *m_noSkyIrradiance, *m_skySampler);
 
+    pass.BindVertexStorageBuffer(0, *m_instances);
     const Pipeline* boundPipeline = nullptr;
     MaterialTextures boundTextures{};
-    for (const auto& command : m_commands) {
+    for (std::size_t first = 0; first < m_commands.size();) {
+        const DrawCommand& command = m_commands[first];
         if (!command.visible) {
+            ++first;
             continue;
         }
+        // Batches are runs of commands that look the same, which sorting gathers, all in view.
+        std::size_t end = first + 1;
+        while (end < m_commands.size() && m_commands[end].visible && HaveSameLook(command, m_commands[end])) {
+            ++end;
+        }
+        const auto instanceCount = static_cast<std::uint32_t>(end - first);
         const Pipeline* pipeline =
             command.alphaMode == AlphaMode::Transparent
                 ? (command.doubleSided ? m_doubleSidedTransparentPipeline.get() : m_transparentPipeline.get())
@@ -859,7 +941,7 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
 
         pass.BindVertexBuffer(0, command.mesh->GetVertexBuffer());
         pass.BindIndexBuffer(command.mesh->GetIndexBuffer(), IndexType::UInt32);
-        pass.PushVertexUniforms(1, ObjectUniforms{command.transform, Transpose(Inverse(command.transform))});
+        pass.PushVertexUniforms(1, BatchUniforms{{static_cast<std::uint32_t>(first), 0, 0, 0}});
         pass.PushFragmentUniforms(1, MaterialUniforms{.baseColor = command.color,
                                                       .emissive = command.emissive,
                                                       .metallic = command.metallic,
@@ -870,10 +952,11 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
                                                       .worldTextureSize = command.worldTextureSize,
                                                       .alphaMode = static_cast<float>(command.alphaMode),
                                                       .alphaCutoff = command.alphaCutoff});
-        pass.DrawIndexed(command.mesh->GetIndexCount());
+        pass.DrawIndexed(command.mesh->GetIndexCount(), instanceCount);
 
         ++m_stats.drawCalls;
-        m_stats.triangleCount += command.mesh->GetIndexCount() / 3;
+        m_stats.triangleCount += command.mesh->GetIndexCount() / 3 * instanceCount;
+        first = end;
     }
 }
 
