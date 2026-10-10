@@ -19,10 +19,10 @@ class Scene;
 // The settings of the engine's features, in sections such as physics, which projects store and their games read.
 // Each section is a struct with a SectionName and a Serialize().
 struct SettingsSections {
-    PhysicsSettings physics;
-    InputSettings input;
+    PhysicsSettings physics = {};
+    InputSettings input = {};
     // The sections this build of the engine does not know, as JSON text by name, so saving them loses nothing.
-    std::map<std::string, std::string, std::less<>> unknown;
+    std::map<std::string, std::string, std::less<>> unknown = {};
 
     // Calls fn(name, section) for each section this build knows, in the order tools show them.
     template <typename F>

@@ -92,9 +92,9 @@ struct InputBinding {
 struct InputAction {
     std::string name;
     InputActionType type = InputActionType::Button;
-    std::vector<InputBinding> bindings;
+    std::vector<InputBinding> bindings = {};
     // What ResetBindings() goes back to, and saved rebinds are compared with; see InputActionMap::SetDefaults().
-    std::vector<InputBinding> defaultBindings;
+    std::vector<InputBinding> defaultBindings = {};
     // How far an axis must go for a button action to count as down.
     float pressPoint = 0.5f;
 

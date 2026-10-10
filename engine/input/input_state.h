@@ -82,10 +82,10 @@ public:
 private:
     struct Gamepad {
         GamepadId id = GamepadId::Invalid;
-        std::string name;
-        std::bitset<static_cast<std::size_t>(GamepadButton::Count)> down;
-        std::bitset<static_cast<std::size_t>(GamepadButton::Count)> pressed;
-        std::bitset<static_cast<std::size_t>(GamepadButton::Count)> released;
+        std::string name = {};
+        std::bitset<static_cast<std::size_t>(GamepadButton::Count)> down = {};
+        std::bitset<static_cast<std::size_t>(GamepadButton::Count)> pressed = {};
+        std::bitset<static_cast<std::size_t>(GamepadButton::Count)> released = {};
         std::array<float, static_cast<std::size_t>(GamepadAxis::Count)> axes = {};
     };
 

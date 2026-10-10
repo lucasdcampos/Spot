@@ -14,7 +14,7 @@ class Archive;
 struct InputSettings {
     static constexpr std::string_view SectionName = "input";
 
-    std::vector<InputAction> actions;
+    std::vector<InputAction> actions = {};
 
     // The actions new projects start with: Move, Look, Jump, Fire and Pause, for keyboard and mouse and for gamepads.
     static InputSettings MakeDefault();

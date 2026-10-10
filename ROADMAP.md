@@ -9,7 +9,7 @@ The goal is the same breadth, built on the architecture Spot already has.
 The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
 [The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
 
-**Current focus:** M2 – Input actions and gamepads
+**Current focus:** M3 – Audio in scenes
 
 ## How to use this plan
 
@@ -416,6 +416,12 @@ bindings with processing (dead zone, invert, scale). A player's rebinds are save
   `InputAxes` for mouse and wheel bindings, and edges for a release and a press of a held control within a frame.
   The Code3D template's Rotator turns faster with Move. `spot_sandbox_tests` reads the cooked `game.json`'s actions
   and plays with a gamepad.
+- Done 2026-10-10. Acceptance: `spot_sandbox_tests` plays the playground through the same actions with keyboard and
+  mouse (every earlier test, unchanged) and with a gamepad (walking, turning, jumping, switching, firing, reloading
+  and aiming), and the application tests save a rebind and load it on the next run, from `input_rebinds.json` in the
+  game's user data folder; the sandbox gets a controls menu to rebind from with the runtime UI (M12). MSVC and GCC
+  Debug build without warnings (GCC's `-Wmissing-field-initializers` asked for a few more default member
+  initializers) and pass every test, the module tests included.
 
 ---
 
