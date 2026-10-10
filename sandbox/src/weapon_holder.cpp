@@ -8,13 +8,20 @@
 #include "weapon.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <string_view>
 
 SPOT_COMPONENT(WeaponHolder);
 
 void WeaponHolder::Select(int slot) {
     const int count = static_cast<int>(GetWeapons().size()) + 2;
     m_selected = ((slot % count) + count) % count;
+}
+
+float WeaponHolder::GetAimZoom() const {
+    const Weapon* weapon = m_aiming ? GetWeapon() : nullptr;
+    return weapon ? weapon->aimZoom : 1.0f;
 }
 
 Weapon* WeaponHolder::GetWeapon() const {
@@ -38,6 +45,7 @@ void WeaponHolder::Fire() {
     if (!weapon || !player || !weapon->TakeShot()) {
         return;
     }
+    Spot::Input::RumbleGamepad(0.2f, weapon->kind == Weapon::Kind::Projectile ? 0.8f : 0.5f, 0.08f);
     const Spot::Vector3 eye = player->GetEyePosition();
     const Spot::Vector3 aim = player->GetAimDirection();
     if (weapon->kind == Weapon::Kind::Projectile) {
@@ -54,8 +62,9 @@ void WeaponHolder::Fire() {
 void WeaponHolder::FireHitscan(const Weapon& weapon, Spot::Vector3 eye, Spot::Vector3 aim) {
     const auto* player = GetEntity().GetComponent<PlayerController>();
     const Spot::Vector3 muzzle = eye + player->GetViewRotation() * Spot::Vector3{0.2f, -0.15f, -0.3f};
+    const float spread = m_aiming ? weapon.spread * weapon.aimSpread : weapon.spread;
     for (int pellet = 0; pellet < weapon.pellets; ++pellet) {
-        const Spot::Vector3 direction = Scatter(aim, weapon.spread);
+        const Spot::Vector3 direction = Scatter(aim, spread);
         const auto hit = GetScene().GetPhysics().Raycast(eye, direction, weapon.range, {.ignore = GetEntity().GetId()});
         // The tracer, until weapons get muzzle flashes and impacts of their own.
         Spot::DebugDraw::Line(muzzle, hit ? hit->point : eye + direction * weapon.range,
@@ -92,36 +101,35 @@ Spot::Vector3 WeaponHolder::Scatter(Spot::Vector3 aim, float spread) {
 
 void WeaponHolder::OnUpdate(float deltaTime) {
     namespace Input = Spot::Input;
-    using Spot::Key;
     const std::vector<Weapon*> weapons = GetWeapons();
     for (Weapon* weapon : weapons) {
         weapon->Tick(deltaTime);
     }
 
-    constexpr Key Slots[] = {Key::Digit1, Key::Digit2, Key::Digit3, Key::Digit4, Key::Digit5,
-                             Key::Digit6, Key::Digit7, Key::Digit8, Key::Digit9};
+    static constexpr std::array<std::string_view, 9> Slots = {
+        "Weapon 1", "Weapon 2", "Weapon 3", "Weapon 4", "Weapon 5", "Weapon 6", "Weapon 7", "Weapon 8", "Weapon 9"};
     for (int slot = 0; slot < 9 && slot <= static_cast<int>(weapons.size()) + 1; ++slot) {
-        if (Input::IsKeyPressed(Slots[slot])) {
+        if (Input::IsActionPressed(Slots[static_cast<std::size_t>(slot)])) {
             Select(slot);
         }
     }
+    // The physics gun takes the wheel while it holds something, to push and pull it.
     const auto* gun = GetEntity().GetComponent<PhysicsGun>();
-    const float scroll = Input::GetScrollDelta().y;
-    if (scroll != 0.0f && !(gun && gun->IsGrabbing())) {
-        Select(m_selected + (scroll > 0.0f ? -1 : 1));
+    if (Input::IsActionPressed("Switch Weapon") && !(gun && gun->IsGrabbing())) {
+        Select(m_selected + (Input::GetActionValue("Switch Weapon") > 0.0f ? 1 : -1));
     }
 
     Weapon* weapon = GetWeapon();
+    // A carried prop takes the buttons, to be turned and thrown.
+    const auto* carrier = GetEntity().GetComponent<PropCarrier>();
+    m_aiming = weapon && Input::IsActionDown("Aim") && !(carrier && carrier->IsHolding());
     if (!weapon) {
         return;
     }
-    if (Input::IsKeyPressed(Key::R)) {
+    if (Input::IsActionPressed("Reload")) {
         weapon->StartReload();
     }
-    // A carried prop takes the click, to be thrown.
-    const auto* carrier = GetEntity().GetComponent<PropCarrier>();
-    const bool firing = weapon->automatic ? Input::IsMouseButtonDown(Spot::MouseButton::Left)
-                                          : Input::IsMouseButtonPressed(Spot::MouseButton::Left);
+    const bool firing = weapon->automatic ? Input::IsActionDown("Fire") : Input::IsActionPressed("Fire");
     if (firing && Input::IsCursorLocked() && !(carrier && carrier->HasClick())) {
         Fire();
     }

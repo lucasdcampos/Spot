@@ -55,7 +55,7 @@ bool UndoList::UndoAction(const Action& action) {
 }
 
 void UndoList::OnUpdate(float /*deltaTime*/) {
-    if (Spot::Input::IsKeyPressed(Spot::Key::Z)) {
+    if (Spot::Input::IsActionPressed("Undo")) {
         Undo();
     }
 }

@@ -7,7 +7,7 @@ void PhysicsDebugView::OnStart() {
 }
 
 void PhysicsDebugView::OnUpdate(float /*deltaTime*/) {
-    if (Spot::Input::IsKeyPressed(Spot::Key::B)) {
+    if (Spot::Input::IsActionPressed("Physics Debug")) {
         visible = !visible;
         Apply();
     }

@@ -4,9 +4,9 @@
 
 #include <optional>
 
-// The last item in hand (see WeaponHolder), whose mode R changes. Weld joins two props with a FixedJoint, and rope
-// with a DistanceJoint as long as the gap between the two points clicked; each takes a click on each prop, the second
-// of which may be the level. Remover takes the prop clicked away. Everything it does goes on the UndoList.
+// The last item in hand (see WeaponHolder), whose mode Reload changes. Weld joins two props with a FixedJoint, and
+// rope with a DistanceJoint as long as the gap between the two points clicked; each takes a click (Fire) on each prop,
+// the second of which may be the level. Remover takes the prop clicked away. Everything it does goes on the UndoList.
 class ToolGun final : public Spot::Component {
 public:
     enum class Mode { Weld, Rope, Remover };

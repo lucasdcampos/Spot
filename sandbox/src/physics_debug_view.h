@@ -2,8 +2,8 @@
 
 #include <spot.h>
 
-// B shows what physics sees, with the physics world's debug view: the colliders, where bodies touch and the queries
-// the game asks.
+// Physics Debug shows what physics sees, with the physics world's debug view: the colliders, where bodies touch and the
+// queries the game asks.
 class PhysicsDebugView final : public Spot::Component {
 public:
     bool visible = false;

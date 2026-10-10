@@ -2,9 +2,10 @@
 
 #include <spot.h>
 
-// Moves the player's CharacterController where its PlayerController looks: WASD to walk, Shift to run, Space to jump
-// and Ctrl to crouch, standing up again only once there is room above. V switches noclip, which flies through
-// everything: Space goes up, Ctrl down and Shift faster. Falling below the world brings the player back to the start.
+// Moves the player's CharacterController where its PlayerController looks, with the actions: Move to walk, Sprint to
+// run, Jump to jump and Crouch to crouch, standing up again only once there is room above. Noclip switches flying
+// through everything: Jump goes up, Crouch down and Sprint faster. Falling below the world brings the player back to
+// the start.
 class PlayerMovement final : public Spot::Component {
 public:
     // Meters per second.

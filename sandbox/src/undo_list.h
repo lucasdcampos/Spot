@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-// What the player made and took away, so Z takes back the last of it: props spawned, joints the tool gun added and
+// What the player made and took away, so Undo takes back the last of it: props spawned, joints the tool gun added and
 // props it removed, which come back as they were, with their ids, so joints to them work again.
 class UndoList final : public Spot::Component {
 public:

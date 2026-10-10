@@ -9,14 +9,14 @@ void GameControls::OnStart() {
 void GameControls::OnUpdate(float /*deltaTime*/) {
     namespace Input = Spot::Input;
 
-    if (Input::IsKeyPressed(Spot::Key::Escape)) {
+    if (Input::IsActionPressed("Pause")) {
         if (Input::IsCursorLocked()) {
             Input::SetCursorLocked(false);
         } else {
             GetScene().GetApplication().QuitGame();
         }
     }
-    if (Input::IsKeyPressed(Spot::Key::Backspace) && restartScene.IsValid()) {
+    if (Input::IsActionPressed("Restart") && restartScene.IsValid()) {
         if (auto scene = Spot::Assets::GetManager()->InstantiateScene(restartScene)) {
             GetScene().GetApplication().LoadScene(std::move(scene));
         }
@@ -24,11 +24,12 @@ void GameControls::OnUpdate(float /*deltaTime*/) {
 }
 
 void GameControls::OnLateUpdate(float /*deltaTime*/) {
-    if (Spot::Input::IsMouseButtonPressed(Spot::MouseButton::Left) && !Spot::Input::IsCursorLocked()) {
+    if (Spot::Input::IsActionPressed("Fire") && !Spot::Input::IsCursorLocked()) {
         Spot::Input::SetCursorLocked(true);
     }
 }
 
 void GameControls::Serialize(Spot::Archive& archive) {
-    archive.Field("restartScene", restartScene, {.tooltip = "The scene R loads", .assetType = Spot::AssetType::Scene});
+    archive.Field("restartScene", restartScene,
+                  {.tooltip = "The scene the Restart action loads", .assetType = Spot::AssetType::Scene});
 }

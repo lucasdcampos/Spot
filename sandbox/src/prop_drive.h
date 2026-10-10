@@ -14,7 +14,8 @@ void Toward(Spot::Rigidbody& body, Spot::Vector3 point, Spot::Vector3 target, co
 // The rotation around Y alone of where the player looks, which held props keep their rotation relative to.
 Spot::Quaternion GetFacing(float yaw);
 
-// Turns the rotation by mouse movement in pixels: sideways around Y, and up and down around the view's right.
-Spot::Quaternion TurnByMouse(const Spot::Quaternion& rotation, Spot::Vector2 mouseDelta, float sensitivity);
+// Turns the rotation by the Look action's movement, in a mouse's pixels with up positive: sideways around Y, and up and
+// down around the view's right.
+Spot::Quaternion TurnByLook(const Spot::Quaternion& rotation, Spot::Vector2 look, float sensitivity);
 
 } // namespace PropDrive

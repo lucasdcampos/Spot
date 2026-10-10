@@ -370,7 +370,7 @@ bindings with processing (dead zone, invert, scale). A player's rebinds are save
 - [x] **M2.6 Input ownership.** A capture stack, so overlays (console, UI text fields, the editor) can withhold input
   from the game without changing the game's requests: the cursor lock comes back afterwards, and the mouse delta is
   zero on each hand-over. The editor's play view uses it. Tests.
-- [ ] **M2.7 Sandbox: controls.** The sandbox and the templates use actions. Weapons are selected with 1–9 and the
+- [x] **M2.7 Sandbox: controls.** The sandbox and the templates use actions. Weapons are selected with 1–9 and the
   wheel, aiming down the sights uses the right button or the left trigger, and the whole game plays with a gamepad.
 
 **Done when:** the sandbox plays the same with keyboard and mouse or a gamepad, and a rebind survives a restart.
@@ -404,6 +404,18 @@ bindings with processing (dead zone, invert, scale). A player's rebinds are save
   `IsCursorLockApplied()`, which the application and the editor give the window. Mouse deltas are dropped for the
   rest of the frame and the next on each hand-over and on each cursor lock change, when the jump arrives. Events
   are still delivered, so overlays read them. The play session's "Editor" capture replaced its own focus handling.
+- M2.7: the sandbox's 38 actions are in `Sandbox.spot`: Move (WASD, left stick), Look (mouse, right stick), Jump
+  (Space, South), Crouch (Ctrl, East), Sprint (Shift, left stick press), Fire (left button, right trigger), Aim
+  (right button, left trigger), Use (E, North), Reload (R, West), Switch Weapon (wheel, shoulders), Weapon 1-9,
+  Flashlight (F, D-pad up), Noclip (V, down), Undo (Z, left), Unfreeze (U, right), Spawn (Q, right stick press: the
+  next prop each time, as gamepads have no buttons to spare), Spawn 1-8 (F1-F8), Clean Up (X), Pause (Escape,
+  Start), Restart (Backspace, Back), and the debug keys. Switch Weapon is an axis with a low press point: a notch is
+  a step and a shoulder a tenth of one each frame, which the physics gun uses to push and pull. Aiming magnifies the
+  head's camera by the weapon's `aimZoom`, slows the look as much and narrows the spread (`aimSpread`); with the
+  physics gun Aim freezes, and with a carried prop it turns it. Firing rumbles the gamepad. Engine changes it took:
+  `InputAxes` for mouse and wheel bindings, and edges for a release and a press of a held control within a frame.
+  The Code3D template's Rotator turns faster with Move. `spot_sandbox_tests` reads the cooked `game.json`'s actions
+  and plays with a gamepad.
 
 ---
 

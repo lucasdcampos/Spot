@@ -23,6 +23,31 @@ struct Reading {
     bool released = false;
 };
 
+// The axes of the mouse or the wheel the control reads.
+Vector2 KeepAxes(Vector2 value, int code) {
+    switch (static_cast<InputAxes>(code)) {
+    case InputAxes::X:
+        return {value.x, 0.0f};
+    case InputAxes::Y:
+        return {0.0f, value.y};
+    case InputAxes::Both:
+        break;
+    }
+    return value;
+}
+
+std::string_view GetAxesSuffix(int code) {
+    switch (static_cast<InputAxes>(code)) {
+    case InputAxes::X:
+        return " X";
+    case InputAxes::Y:
+        return " Y";
+    case InputAxes::Both:
+        break;
+    }
+    return "";
+}
+
 Reading Read(const InputControl& control, const InputState& state, int gamepad) {
     Reading reading;
     switch (control.source) {
@@ -48,11 +73,11 @@ Reading Read(const InputControl& control, const InputState& state, int gamepad) 
     case InputSource::MouseMotion: {
         // Screens count down; actions count up, as sticks do.
         const Vector2 delta = state.GetMouseDelta();
-        reading.value = {delta.x, -delta.y};
+        reading.value = KeepAxes({delta.x, -delta.y}, control.code);
         break;
     }
     case InputSource::Scroll:
-        reading.value = state.GetScrollDelta();
+        reading.value = KeepAxes(state.GetScrollDelta(), control.code);
         break;
     case InputSource::GamepadAxis:
         reading.value.x = state.GetGamepadAxis(static_cast<GamepadAxis>(control.code), gamepad);
@@ -103,8 +128,11 @@ Reading ReadBinding(const InputBinding& binding, InputActionType type, const Inp
         const float length = Length(reading.value);
         reading.value = length > 0.0f ? reading.value * (ApplyDeadZone(length, binding.deadZone) / length) : Vector2{};
     } else {
-        reading.value.x = std::copysign(ApplyDeadZone(std::abs(reading.value.x), binding.deadZone), reading.value.x);
-        reading.value.y = 0.0f;
+        const bool onlyY =
+            (binding.control.source == InputSource::MouseMotion || binding.control.source == InputSource::Scroll) &&
+            static_cast<InputAxes>(binding.control.code) == InputAxes::Y;
+        const float value = onlyY ? reading.value.y : reading.value.x;
+        reading.value = {std::copysign(ApplyDeadZone(std::abs(value), binding.deadZone), value), 0.0f};
     }
     reading.value.x *= binding.invertX ? -binding.scale : binding.scale;
     reading.value.y *= binding.invertY ? -binding.scale : binding.scale;
@@ -138,9 +166,9 @@ std::string InputControl::GetName() const {
     case InputSource::MouseButton:
         return "Mouse " + std::string(GetMouseButtonName(static_cast<MouseButton>(code)));
     case InputSource::MouseMotion:
-        return "Mouse";
+        return "Mouse" + std::string(GetAxesSuffix(code));
     case InputSource::Scroll:
-        return "Mouse Wheel";
+        return "Mouse Wheel" + std::string(GetAxesSuffix(code));
     case InputSource::GamepadButton:
         return "Gamepad " + std::string(GetGamepadButtonName(static_cast<GamepadButton>(code)));
     case InputSource::GamepadAxis:
@@ -245,9 +273,10 @@ void InputActionMap::Update(const InputState& state) {
         const bool down = Magnitude(value, action.type) >= action.pressPoint;
         actionState.value = value;
         actionState.down = down;
-        // A press and a release within the frame are both seen, as the input state sees them.
-        actionState.pressed = !wasDown && (down || pressedEvent);
-        actionState.released = (wasDown && !down) || (!down && pressedEvent && releasedEvent);
+        // A press and a release within the frame are both seen, as the input state sees them, in either order.
+        const bool bounced = pressedEvent && releasedEvent && wasDown == down;
+        actionState.pressed = (!wasDown && down) || bounced;
+        actionState.released = (wasDown && !down) || bounced;
     }
 }
 

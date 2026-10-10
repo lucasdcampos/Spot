@@ -352,6 +352,14 @@ void ProjectSettingsPanel::DrawBinding(InputSettings& input, std::size_t action,
                 Widgets::PropertyLabel("Control", "Click, then press the key, button or axis to bind.");
                 DrawCaptureButton(binding.control, action, index, -1);
             }
+            if (binding.control.source == InputSource::MouseMotion || binding.control.source == InputSource::Scroll) {
+                Widgets::PropertyLabel("Axes", "Actions of one axis read X, or Y when it is the only one.");
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                constexpr std::array<const char*, 3> Axes = {"Both", "X", "Y"};
+                m_sectionsChanged =
+                    ImGui::Combo("##axes", &binding.control.code, Axes.data(), static_cast<int>(Axes.size())) ||
+                    m_sectionsChanged;
+            }
             Widgets::PropertyLabel("Dead Zone", "Values closer to rest count as 0, as sticks rarely rest at 0.");
             ImGui::SetNextItemWidth(-FLT_MIN);
             m_sectionsChanged =

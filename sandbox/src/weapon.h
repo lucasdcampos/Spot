@@ -27,6 +27,9 @@ public:
     int reserveAmmo = 60;
     // Seconds.
     float reloadTime = 1.2f;
+    // How many times aiming down the sights magnifies the view, and what share of the spread is left meanwhile.
+    float aimZoom = 1.5f;
+    float aimSpread = 0.4f;
     // Projectiles only.
     float projectileSpeed = 30.0f;
     float explosionRadius = 5.0f;

@@ -10,8 +10,16 @@ namespace {
 
 constexpr Spot::Vector3 Up = {0.0f, 1.0f, 0.0f};
 
-float GetAxis(Spot::Key positive, Spot::Key negative) {
-    return static_cast<float>(Spot::Input::IsKeyDown(positive)) - static_cast<float>(Spot::Input::IsKeyDown(negative));
+float GetAxis(std::string_view positive, std::string_view negative) {
+    return static_cast<float>(Spot::Input::IsActionDown(positive)) -
+           static_cast<float>(Spot::Input::IsActionDown(negative));
+}
+
+// Where Move goes, in the player's space: -Z is forward. A stick pushed part of the way goes slower.
+Spot::Vector3 GetMove() {
+    const Spot::Vector2 move = Spot::Input::GetActionVector2("Move");
+    const float length = Spot::Length(move);
+    return length > 1.0f ? Spot::Vector3{move.x, 0.0f, -move.y} / length : Spot::Vector3{move.x, 0.0f, -move.y};
 }
 
 } // namespace
@@ -39,9 +47,9 @@ void PlayerMovement::OnStart() {
 void PlayerMovement::OnUpdate(float /*deltaTime*/) {
     namespace Input = Spot::Input;
     // Read every frame, since a press can fall between two physics steps.
-    m_jump = m_jump || Input::IsKeyPressed(Spot::Key::Space);
-    m_crouchHeld = Input::IsKeyDown(Spot::Key::LeftControl);
-    if (Input::IsKeyPressed(Spot::Key::V)) {
+    m_jump = m_jump || Input::IsActionPressed("Jump");
+    m_crouchHeld = Input::IsActionDown("Crouch");
+    if (Input::IsActionPressed("Noclip")) {
         SetFlying(!m_flying);
     }
 
@@ -75,16 +83,14 @@ void PlayerMovement::OnLateUpdate(float deltaTime) {
 }
 
 void PlayerMovement::Walk(Spot::CharacterController& controller, float deltaTime) {
-    using Spot::Key;
     if (m_crouchHeld != m_crouching && (m_crouchHeld || HasRoomToStand(controller))) {
         SetCrouching(controller, m_crouchHeld);
     }
 
     const auto* player = GetEntity().GetComponent<PlayerController>();
     const auto yaw = Spot::Quaternion::FromAxisAngle(Up, player ? player->GetYaw() : 0.0f);
-    const Spot::Vector3 direction =
-        Spot::Normalize(yaw * Spot::Vector3{GetAxis(Key::D, Key::A), 0.0f, -GetAxis(Key::W, Key::S)});
-    const float speed = m_crouching ? crouchSpeed : Spot::Input::IsKeyDown(Key::LeftShift) ? runSpeed : walkSpeed;
+    const Spot::Vector3 direction = yaw * GetMove();
+    const float speed = m_crouching ? crouchSpeed : Spot::Input::IsActionDown("Sprint") ? runSpeed : walkSpeed;
 
     if (controller.IsGrounded()) {
         // On the ground, the controller keeps the player on it down slopes and steps.
@@ -98,14 +104,15 @@ void PlayerMovement::Walk(Spot::CharacterController& controller, float deltaTime
 }
 
 void PlayerMovement::Fly(float deltaTime) {
-    using Spot::Key;
     const auto* player = GetEntity().GetComponent<PlayerController>();
     const Spot::Quaternion view = player ? player->GetViewRotation() : Spot::Quaternion{};
-    const Spot::Vector3 move = view * Spot::Vector3{GetAxis(Key::D, Key::A), 0.0f, -GetAxis(Key::W, Key::S)} +
-                               Up * GetAxis(Key::Space, Key::LeftControl);
-    const float speed = Spot::Input::IsKeyDown(Key::LeftShift) ? fastFlySpeed : flySpeed;
+    Spot::Vector3 move = view * GetMove() + Up * GetAxis("Jump", "Crouch");
+    if (Spot::LengthSquared(move) > 1.0f) {
+        move = Spot::Normalize(move);
+    }
+    const float speed = Spot::Input::IsActionDown("Sprint") ? fastFlySpeed : flySpeed;
     Spot::Transform& transform = GetEntity().GetTransform();
-    transform.SetPosition(transform.GetPosition() + Spot::Normalize(move) * (speed * deltaTime));
+    transform.SetPosition(transform.GetPosition() + move * (speed * deltaTime));
 }
 
 void PlayerMovement::SetCrouching(Spot::CharacterController& controller, bool crouching) {

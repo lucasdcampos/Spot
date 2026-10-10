@@ -81,12 +81,14 @@ const Spot::Vector2 move = Spot::Input::GetActionVector2("Move");
 ```
 
 An action is a `Button` (on or off), an `Axis` (-1 to 1) or a `Vector2`. Bindings read keys, mouse buttons, the mouse's
-movement (right and up positive), the wheel, gamepad buttons, axes and whole sticks, or composites: four buttons
+movement (right and up positive), the wheel, both of their axes or one (`InputAxes`: actions of one axis read X, or
+Y when it is the only one, as a wheel switching weapons does), gamepad buttons, axes and whole sticks, or composites: four buttons
 making a vector (no longer than 1, so diagonals are no faster) or two making an axis. Each binding has a dead zone
 (values within it count as 0, and the rest is stretched to fill the range again), a scale and inversions. The
 action's value is that of the binding farthest from rest; a button action is down when its value reaches its press
-point (0.5 by default), so triggers and sticks can press buttons. Presses and releases last the frame they happened
-in, and a press and release within one frame are both seen.
+point (0.5 by default), so triggers and sticks can press buttons; the press point gives axes and vectors edges too.
+Presses and releases last the frame they happened in, and a press and a release within one frame are both seen, in
+either order.
 
 Games define their actions in the input settings section (`InputSettings`), which the Project Settings panel edits:
 each binding's control is set by clicking it and pressing the key, button or axis (`FindPressedControl()` finds it).

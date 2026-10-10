@@ -86,6 +86,17 @@ TEST_CASE("A press and a release within one frame are both seen", "[input][actio
     CHECK_FALSE(map.IsDown("Jump"));
     CHECK(map.IsPressed("Jump"));
     CHECK(map.IsReleased("Jump"));
+
+    // And a release and a press of a key held.
+    state.OnEvent(Spot::KeyPressedEvent{Key::Space, false});
+    map.Update(state);
+    state.BeginFrame();
+    state.OnEvent(Spot::KeyReleasedEvent{Key::Space});
+    state.OnEvent(Spot::KeyPressedEvent{Key::Space, false});
+    map.Update(state);
+    CHECK(map.IsDown("Jump"));
+    CHECK(map.IsPressed("Jump"));
+    CHECK(map.IsReleased("Jump"));
 }
 
 TEST_CASE("Four buttons make a vector no longer than 1", "[input][actions]") {
@@ -374,4 +385,22 @@ TEST_CASE("Rebinds are saved for the actions players changed only", "[input][act
     CHECK_FALSE(updated.LoadRebindsFromString("[]"));
     CHECK_FALSE(updated.LoadRebindsFromString(R"({"format": "something-else"})"));
     CHECK(updated.IsRebound("Jump"));
+}
+
+TEST_CASE("Mouse and wheel bindings can read one axis", "[input][actions]") {
+    Spot::InputActionMap map;
+    InputBinding wheel = InputBinding::Of(InputControl::Scroll(Spot::InputAxes::Y));
+    wheel.invertX = true;
+    map.Add("Switch", InputActionType::Axis).Bind(wheel);
+    map.Add("Turn", InputActionType::Vector2).Bind(InputControl::MouseMotion(Spot::InputAxes::X));
+    Spot::InputState state;
+
+    state.OnEvent(Spot::MouseScrolledEvent{.delta = {0.5f, 2.0f}});
+    state.OnEvent(Spot::MouseMovedEvent{.position = {}, .delta = {3.0f, 4.0f}});
+    map.Update(state);
+    CHECK(map.GetValue("Switch") == -2.0f);
+    CHECK(map.GetVector2("Turn").x == 3.0f);
+    CHECK(map.GetVector2("Turn").y == 0.0f);
+    CHECK(InputControl::Scroll(Spot::InputAxes::Y).GetName() == "Mouse Wheel Y");
+    CHECK(InputControl::MouseMotion().GetName() == "Mouse");
 }

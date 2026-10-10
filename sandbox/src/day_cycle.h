@@ -4,14 +4,14 @@
 
 // Turns its entity, the sun, across the sky: it rises in the east (+X) at 6:00, peaks at noon and sets in the west at
 // 18:00. The sky follows the sun and lights the scene through the air, so the light dims and reddens on its own as
-// it sets. T speeds time up.
+// it sets. Fast Forward speeds time up.
 class DayCycle final : public Spot::Component {
 public:
     // From 0 at midnight to 1 at the next one.
     float timeOfDay = 0.375f;
     // Seconds a whole day takes.
     float dayLength = 120.0f;
-    // How many times faster time goes while T is held.
+    // How many times faster time goes while Fast Forward is held.
     float fastForward = 20.0f;
 
 protected:

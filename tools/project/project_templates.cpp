@@ -59,8 +59,9 @@ constexpr std::string_view GameCode = R"(#include <spot.h>
 
 namespace {
 
-// Turns its entity around the vertical axis. The game's own components are made like the engine's, and show in the
-// editor's inspector beside them once the editor has built the code.
+// Turns its entity around the vertical axis, faster one way or the other with the Move action. The game's own
+// components are made like the engine's, and show in the editor's inspector beside them once the editor has built the
+// code.
 class Rotator final : public Spot::Component {
 public:
     // Radians per second; the inspector shows degrees.
@@ -68,8 +69,10 @@ public:
 
 protected:
     void OnUpdate(float deltaTime) override {
+        // Actions come from the project's input settings, whatever controls play them: A and D, or the left stick.
+        const float turn = speed * (1.0f + 2.0f * Spot::Input::GetActionVector2("Move").x);
         Spot::Transform& transform = GetEntity().GetTransform();
-        transform.SetRotation(Spot::Quaternion::FromAxisAngle({0.0f, 1.0f, 0.0f}, speed * deltaTime) *
+        transform.SetRotation(Spot::Quaternion::FromAxisAngle({0.0f, 1.0f, 0.0f}, turn * deltaTime) *
                               transform.GetRotation());
     }
 

@@ -38,7 +38,7 @@ void PropCarrier::OnUpdate(float /*deltaTime*/) {
         Drop();
     }
 
-    if (Input::IsKeyPressed(Spot::Key::E)) {
+    if (Input::IsActionPressed("Use")) {
         if (IsHolding()) {
             Drop();
         } else if (const auto hit = GetScene().GetPhysics().Raycast(player->GetEyePosition(), player->GetAimDirection(),
@@ -53,14 +53,14 @@ void PropCarrier::OnUpdate(float /*deltaTime*/) {
     if (!IsHolding()) {
         return;
     }
-    if (Input::IsMouseButtonPressed(Spot::MouseButton::Left)) {
+    if (Input::IsActionPressed("Fire")) {
         Throw();
         m_threw = true;
         return;
     }
-    m_turning = Input::IsMouseButtonDown(Spot::MouseButton::Right);
+    m_turning = Input::IsActionDown("Aim");
     if (m_turning) {
-        m_rotation = PropDrive::TurnByMouse(m_rotation, Input::GetMouseDelta(), player->lookSensitivity);
+        m_rotation = PropDrive::TurnByLook(m_rotation, Input::GetActionVector2("Look"), player->lookSensitivity);
     }
 }
 

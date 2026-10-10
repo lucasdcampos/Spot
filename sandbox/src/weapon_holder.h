@@ -6,10 +6,10 @@
 
 class Weapon;
 
-// What the player has in hand: the physics gun (PhysicsGun), on 1, one of the weapons on the entities below the
-// player, on the keys after it in their order, or the tool gun (ToolGun), on the key after them; the wheel goes
-// through them when the physics gun is not holding anything. A click fires the weapon in hand, holding it fires
-// automatic ones, and R reloads.
+// What the player has in hand: the physics gun (PhysicsGun), on Weapon 1, one of the weapons on the entities below the
+// player, on the slots after it in their order, or the tool gun (ToolGun), on the slot after them; Switch Weapon (the
+// wheel, or the shoulders) goes through them when the physics gun is not holding anything. Fire fires the weapon in
+// hand, holding it fires automatic ones, Aim aims down its sights and Reload reloads.
 class WeaponHolder final : public Spot::Component {
 public:
     // 0 is the physics gun; the weapons follow, and the tool gun comes last.
@@ -24,6 +24,10 @@ public:
 
     // Fires the weapon in hand from the player's eyes, where it looks, when it is ready.
     void Fire();
+    // Whether the player aims down the sights of the weapon in hand.
+    bool IsAiming() const { return m_aiming; }
+    // How many times aiming magnifies the view now; 1 when not aiming.
+    float GetAimZoom() const;
 
 protected:
     void OnUpdate(float deltaTime) override;
@@ -35,6 +39,7 @@ private:
     Spot::Vector3 Scatter(Spot::Vector3 aim, float spread);
 
     int m_selected = 0;
+    bool m_aiming = false;
     // Fixed, so a game's shots scatter the same way every time it runs.
     std::mt19937 m_random{1234};
 };

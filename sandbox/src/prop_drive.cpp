@@ -39,9 +39,9 @@ Spot::Quaternion GetFacing(float yaw) {
     return Spot::Quaternion::FromAxisAngle(Up, yaw);
 }
 
-Spot::Quaternion TurnByMouse(const Spot::Quaternion& rotation, Spot::Vector2 mouseDelta, float sensitivity) {
-    const Spot::Quaternion yaw = Spot::Quaternion::FromAxisAngle(Up, mouseDelta.x * sensitivity);
-    const Spot::Quaternion pitch = Spot::Quaternion::FromAxisAngle({1.0f, 0.0f, 0.0f}, mouseDelta.y * sensitivity);
+Spot::Quaternion TurnByLook(const Spot::Quaternion& rotation, Spot::Vector2 look, float sensitivity) {
+    const Spot::Quaternion yaw = Spot::Quaternion::FromAxisAngle(Up, look.x * sensitivity);
+    const Spot::Quaternion pitch = Spot::Quaternion::FromAxisAngle({1.0f, 0.0f, 0.0f}, -look.y * sensitivity);
     return Spot::Normalize(yaw * pitch * rotation);
 }
 

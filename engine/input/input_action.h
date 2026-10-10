@@ -29,9 +29,9 @@ enum class InputActionType : std::uint8_t {
 enum class InputSource : std::uint8_t {
     Key,
     MouseButton,
-    // The mouse's movement this frame, in pixels, right and up positive.
+    // The mouse's movement this frame, in pixels, right and up positive; the code is its InputAxes.
     MouseMotion,
-    // The wheel's movement this frame, in notches, right and away from the user positive.
+    // The wheel's movement this frame, in notches, right and away from the user positive; the code is its InputAxes.
     Scroll,
     GamepadButton,
     GamepadAxis,
@@ -40,6 +40,9 @@ enum class InputSource : std::uint8_t {
     // Buttons making up an axis or a vector; see InputBinding::parts.
     Composite,
 };
+
+// Which axes of the mouse or the wheel a control reads: actions of one axis read X, or Y when it is the only one.
+enum class InputAxes : std::uint8_t { Both, X, Y };
 
 // One control: a key, a button, an axis, a stick, the mouse or the wheel.
 struct InputControl {
@@ -51,6 +54,14 @@ struct InputControl {
     static InputControl Of(MouseButton button) { return {InputSource::MouseButton, static_cast<int>(button)}; }
     static InputControl Of(GamepadButton button) { return {InputSource::GamepadButton, static_cast<int>(button)}; }
     static InputControl Of(GamepadAxis axis) { return {InputSource::GamepadAxis, static_cast<int>(axis)}; }
+    static InputControl MouseMotion(InputAxes axes = InputAxes::Both) {
+        return {InputSource::MouseMotion, static_cast<int>(axes)};
+    }
+    static InputControl Scroll(InputAxes axes = InputAxes::Both) {
+        return {InputSource::Scroll, static_cast<int>(axes)};
+    }
+    // Code 0 is the left stick, 1 the right one.
+    static InputControl GamepadStick(int stick) { return {InputSource::GamepadStick, stick}; }
 
     // How players see it, such as "W", "Mouse Left" or "Gamepad South".
     std::string GetName() const;

@@ -9,7 +9,7 @@ void DayCycle::OnStart() {
 }
 
 void DayCycle::OnUpdate(float deltaTime) {
-    const float speed = Spot::Input::IsKeyDown(Spot::Key::T) ? fastForward : 1.0f;
+    const float speed = Spot::Input::IsActionDown("Fast Forward") ? fastForward : 1.0f;
     if (dayLength > 0.0f) {
         timeOfDay = std::fmod(timeOfDay + deltaTime * speed / dayLength, 1.0f);
     }

@@ -82,14 +82,19 @@ std::size_t PropSpawner::GetSpawnedCount() const {
 
 void PropSpawner::OnUpdate(float /*deltaTime*/) {
     namespace Input = Spot::Input;
-    using Spot::Key;
-    constexpr Key Keys[] = {Key::F1, Key::F2, Key::F3, Key::F4, Key::F5, Key::F6, Key::F7, Key::F8};
-    for (std::size_t i = 0; i < std::size(Keys); ++i) {
-        if (Input::IsKeyPressed(Keys[i])) {
+    static constexpr std::array<std::string_view, 8> Actions = {"Spawn 1", "Spawn 2", "Spawn 3", "Spawn 4",
+                                                                "Spawn 5", "Spawn 6", "Spawn 7", "Spawn 8"};
+    for (std::size_t i = 0; i < Actions.size(); ++i) {
+        if (Input::IsActionPressed(Actions[i])) {
             Spawn(i);
         }
     }
-    if (Input::IsKeyPressed(Key::X)) {
+    // One button for every prop, as gamepads have no buttons to spare: each press spawns the next.
+    if (Input::IsActionPressed("Spawn") && !props.empty()) {
+        Spawn(m_next);
+        m_next = (m_next + 1) % props.size();
+    }
+    if (Input::IsActionPressed("Clean Up")) {
         Cleanup();
     }
 }

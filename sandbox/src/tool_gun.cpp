@@ -106,14 +106,13 @@ void ToolGun::OnUpdate(float /*deltaTime*/) {
         m_first.reset();
         return;
     }
-    if (Input::IsKeyPressed(Spot::Key::R)) {
+    if (Input::IsActionPressed("Reload")) {
         mode = static_cast<Mode>((static_cast<int>(mode) + 1) % 3);
         m_first.reset();
     }
     const auto* player = GetEntity().GetComponent<PlayerController>();
     const auto* carrier = GetEntity().GetComponent<PropCarrier>();
-    if (!player || !Input::IsCursorLocked() || !Input::IsMouseButtonPressed(Spot::MouseButton::Left) ||
-        (carrier && carrier->HasClick())) {
+    if (!player || !Input::IsCursorLocked() || !Input::IsActionPressed("Fire") || (carrier && carrier->HasClick())) {
         return;
     }
     const auto hit = GetScene().GetPhysics().Raycast(player->GetEyePosition(), player->GetAimDirection(), range,

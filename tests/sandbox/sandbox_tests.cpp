@@ -29,23 +29,33 @@ using Spot::Scene;
 namespace {
 
 constexpr float Step = Scene::DefaultFixedTimeStep;
+constexpr auto Gamepad = static_cast<Spot::GamepadId>(1);
 const std::filesystem::path Assets = SANDBOX_ASSETS_DIR;
 
 // The playground, loaded from its source with the sandbox's components and the assets the build cooks for it, and
-// input the test presses keys on. There is no GPU, so meshes and fonts do not load, which the game's logic and
-// physics do not need; the log, which says so, is kept from the output.
+// input the test presses keys on, read through the actions of the game's settings, which the build writes beside
+// them. There is no GPU, so meshes and fonts do not load, which the game's logic and physics do not need; the log,
+// which says so, is kept from the output.
 struct Playground {
     std::shared_ptr<Spot::Tests::CaptureSink> log = std::make_shared<Spot::Tests::CaptureSink>();
     Spot::Tests::ScopedSinks sinks{{log}};
     Spot::InputState input;
+    Spot::InputActionMap actions;
     Spot::InputState* previousInput = Spot::Input::GetState();
+    Spot::InputActionMap* previousActions = Spot::Input::GetActionMap();
     Spot::AssetManager assets{SANDBOX_IMPORTED_DIR};
     Scene scene;
     Entity* player = nullptr;
 
     Playground() {
         Spot::Detail::GameCode::Load();
+        const auto game = Spot::GameSettings::LoadFromFile(std::filesystem::path(SANDBOX_IMPORTED_DIR).parent_path() /
+                                                           Spot::GameSettings::FileName);
+        REQUIRE(game.has_value());
+        game->sections.input.Apply(actions);
+        REQUIRE(actions.Find("Fire") != nullptr);
         Spot::Input::SetState(&input);
+        Spot::Input::SetActionMap(&actions);
         REQUIRE(scene.LoadFromFile(Assets / "scenes" / "playground.scene", &assets));
         player = scene.FindEntity("Player");
         REQUIRE(player != nullptr);
@@ -53,6 +63,7 @@ struct Playground {
 
     ~Playground() {
         Spot::Input::SetState(previousInput);
+        Spot::Input::SetActionMap(previousActions);
         // Components that threw were logged; nothing else in the game should have.
         for (const auto& record : log->GetRecords()) {
             CHECK(record.message.find(" threw in ") == std::string::npos);
@@ -62,6 +73,7 @@ struct Playground {
     void Run(float seconds) {
         const auto frames = std::lround(seconds / Step);
         for (long i = 0; i < frames; ++i) {
+            actions.Update(input);
             scene.Update(Step);
             input.BeginFrame();
         }
@@ -72,6 +84,15 @@ struct Playground {
     void Press(Spot::MouseButton button) { input.OnEvent(Spot::MouseButtonPressedEvent{.button = button}); }
     void Release(Spot::MouseButton button) { input.OnEvent(Spot::MouseButtonReleasedEvent{.button = button}); }
     void Scroll(float notches) { input.OnEvent(Spot::MouseScrolledEvent{.delta = {0.0f, notches}}); }
+    void Press(Spot::GamepadButton button) {
+        input.OnEvent(Spot::GamepadButtonPressedEvent{.gamepad = Gamepad, .button = button});
+    }
+    void Release(Spot::GamepadButton button) {
+        input.OnEvent(Spot::GamepadButtonReleasedEvent{.gamepad = Gamepad, .button = button});
+    }
+    void Push(Spot::GamepadAxis axis, float value) {
+        input.OnEvent(Spot::GamepadAxisEvent{.gamepad = Gamepad, .axis = axis, .value = value});
+    }
 
     PlayerController& Player() const { return *player->GetComponent<PlayerController>(); }
     // A crate of the mass, the given distance along where the player looks.
@@ -459,4 +480,95 @@ TEST_CASE("The tool gun welds, ropes and removes props, and Z takes it all back"
     playground.Run(0.05f);
     playground.Release(Key::Z);
     CHECK(playground.scene.GetEntity(doomedId) != nullptr);
+}
+
+TEST_CASE("The whole game plays with a gamepad", "[sandbox][gamepad]") {
+    using Spot::GamepadAxis;
+    using Spot::GamepadButton;
+    Playground playground;
+    playground.Run(1.5f);
+    auto& holder = *playground.player->GetComponent<WeaponHolder>();
+    const Spot::Vector3 start = playground.PlayerPosition();
+
+    // The left stick walks.
+    playground.Push(GamepadAxis::LeftY, 1.0f);
+    playground.Run(1.0f);
+    playground.Push(GamepadAxis::LeftY, 0.0f);
+    CHECK(start.z - playground.PlayerPosition().z == Approx(5.0f).margin(0.5f));
+
+    // The right stick turns, as a mouse moving ten pixels a frame would.
+    const float yaw = playground.Player().GetYaw();
+    playground.Push(GamepadAxis::RightX, 1.0f);
+    playground.Run(0.5f);
+    playground.Push(GamepadAxis::RightX, 0.0f);
+    CHECK(playground.Player().GetYaw() == Approx(yaw - 30 * 10.0f * playground.Player().lookSensitivity).margin(0.05f));
+
+    // South jumps.
+    const float ground = playground.PlayerPosition().y;
+    playground.Press(GamepadButton::South);
+    playground.Run(0.3f);
+    playground.Release(GamepadButton::South);
+    CHECK(playground.PlayerPosition().y > ground + 0.5f);
+    playground.Run(1.5f);
+
+    // The right shoulder takes the next weapon, the right trigger fires it and West reloads it.
+    playground.Press(GamepadButton::RightShoulder);
+    playground.Run(0.05f);
+    playground.Release(GamepadButton::RightShoulder);
+    REQUIRE(holder.GetWeapon() != nullptr);
+    CHECK(holder.GetWeapon()->displayName == "Pistol");
+    Entity& crate = playground.PlaceCrate(5.0f, 5.0f);
+    playground.Run(0.05f);
+    playground.Push(GamepadAxis::RightTrigger, 1.0f);
+    playground.Run(0.05f);
+    playground.Push(GamepadAxis::RightTrigger, 0.0f);
+    CHECK(holder.GetWeapon()->GetAmmo() == 11);
+    CHECK(Spot::Length(crate.GetComponent<Spot::Rigidbody>()->GetLinearVelocity()) > 4.0f);
+    playground.Press(GamepadButton::West);
+    playground.Run(0.05f);
+    playground.Release(GamepadButton::West);
+    playground.Run(2.0f);
+    CHECK(holder.GetWeapon()->GetAmmo() == 12);
+
+    // The left shoulder goes back to the physics gun.
+    playground.Press(GamepadButton::LeftShoulder);
+    playground.Run(0.05f);
+    playground.Release(GamepadButton::LeftShoulder);
+    CHECK(holder.IsPhysicsGunSelected());
+}
+
+TEST_CASE("Aiming down the sights zooms in while held, with the right button or the left trigger", "[sandbox]") {
+    Playground playground;
+    playground.Run(1.5f);
+    auto& holder = *playground.player->GetComponent<WeaponHolder>();
+    const Entity* head = playground.scene.GetEntity(playground.Player().head);
+    REQUIRE(head != nullptr);
+    const auto* camera = head->GetComponent<Spot::Camera>();
+    REQUIRE(camera != nullptr);
+    const float fieldOfView = camera->GetFieldOfView();
+
+    // Not with the physics gun, which freezes with it.
+    playground.Press(Spot::MouseButton::Right);
+    playground.Run(0.5f);
+    playground.Release(Spot::MouseButton::Right);
+    CHECK_FALSE(holder.IsAiming());
+    CHECK(playground.Player().GetZoom() == Approx(1.0f));
+
+    playground.Press(Key::Digit3);
+    playground.Run(0.05f);
+    playground.Release(Key::Digit3);
+    playground.Press(Spot::MouseButton::Right);
+    playground.Run(0.5f);
+    CHECK(holder.IsAiming());
+    CHECK(playground.Player().GetZoom() == Approx(holder.GetWeapon()->aimZoom).margin(0.01f));
+    CHECK(camera->GetFieldOfView() < fieldOfView * 0.8f);
+    playground.Release(Spot::MouseButton::Right);
+    playground.Run(0.5f);
+    CHECK_FALSE(holder.IsAiming());
+    CHECK(camera->GetFieldOfView() == Approx(fieldOfView).margin(0.01f));
+
+    playground.Push(Spot::GamepadAxis::LeftTrigger, 1.0f);
+    playground.Run(0.1f);
+    CHECK(holder.IsAiming());
+    playground.Push(Spot::GamepadAxis::LeftTrigger, 0.0f);
 }

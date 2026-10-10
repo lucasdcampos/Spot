@@ -3,7 +3,7 @@
 SPOT_COMPONENT(ShadowToggle);
 
 void ShadowToggle::OnUpdate(float /*deltaTime*/) {
-    if (!Spot::Input::IsKeyPressed(Spot::Key::G)) {
+    if (!Spot::Input::IsActionPressed("Shadows")) {
         return;
     }
     // Lights follow the first one, so the switch never leaves some on and some off.

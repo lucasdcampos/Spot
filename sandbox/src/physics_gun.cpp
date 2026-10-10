@@ -84,27 +84,28 @@ void PhysicsGun::OnUpdate(float /*deltaTime*/) {
         Release();
         return;
     }
-    if (Input::IsKeyPressed(Spot::Key::U)) {
+    if (Input::IsActionPressed("Unfreeze")) {
         UnfreezeAll();
     }
-    if (IsGrabbing() && (!GetGrabbedBody() || !Input::IsMouseButtonDown(Spot::MouseButton::Left))) {
+    if (IsGrabbing() && (!GetGrabbedBody() || !Input::IsActionDown("Fire"))) {
         Release();
     }
     const auto* carrier = GetEntity().GetComponent<PropCarrier>();
-    if (!IsGrabbing() && Input::IsMouseButtonPressed(Spot::MouseButton::Left) && !(carrier && carrier->HasClick())) {
+    if (!IsGrabbing() && Input::IsActionPressed("Fire") && !(carrier && carrier->HasClick())) {
         Grab();
     }
     if (!IsGrabbing()) {
         return;
     }
-    if (Input::IsMouseButtonPressed(Spot::MouseButton::Right)) {
+    if (Input::IsActionPressed("Aim")) {
         Freeze();
         return;
     }
-    m_distance = std::clamp(m_distance + Input::GetScrollDelta().y * scrollStep, minDistance, range);
-    m_turning = Input::IsKeyDown(Spot::Key::E);
+    // Switch Weapon goes to the next weapon as the wheel turns toward the player, which pulls the prop closer.
+    m_distance = std::clamp(m_distance - Input::GetActionValue("Switch Weapon") * scrollStep, minDistance, range);
+    m_turning = Input::IsActionDown("Use");
     if (m_turning) {
-        m_rotation = PropDrive::TurnByMouse(m_rotation, Input::GetMouseDelta(), player->lookSensitivity);
+        m_rotation = PropDrive::TurnByLook(m_rotation, Input::GetActionVector2("Look"), player->lookSensitivity);
     }
 }
 
