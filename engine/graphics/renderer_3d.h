@@ -164,13 +164,18 @@ private:
         bool visible = true;
         // Of its bounds' center along the camera's forward axis.
         float depth = 0.0f;
+        // The same for commands whose material looks the same, textures and values alike, which End() gives.
+        std::uint32_t look = 0;
     };
 
     void DrawShadows(Detail::SelectedLights& lights, Detail::ShadowUniforms& shadows);
+    void DrawShadowViews(Detail::SelectedLights& lights, Detail::ShadowUniforms& shadows);
     // Whether the shadow map could be created.
     bool DrawCascades(const LightData& light, Detail::ShadowUniforms& shadows);
     void DrawLocalShadows(Detail::SelectedLights& lights, Detail::ShadowUniforms& shadows);
     void DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjection, bool ignoreNear);
+    // Gives the commands their looks.
+    void AssignLooks();
     // Sends every command's transforms to the instance buffer, in the commands' order.
     bool UploadInstances();
     // Sends the lights and the view's clusters of them to their buffers.
@@ -199,6 +204,13 @@ private:
     std::unique_ptr<Texture> m_localShadows;
     // The transforms of every command of the frame, which instanced draws read from the first of their batch on.
     std::unique_ptr<Buffer> m_instances;
+    // The commands each shadow view draws, as indices into the instances, uploaded anew for each view.
+    std::unique_ptr<Buffer> m_shadowCasters;
+    // The commands that may cast shadows, in the order that keeps those that cast the same shadow side by side, which
+    // each shadow view keeps those it sees of.
+    std::vector<std::uint32_t> m_shadowOrder;
+    // The casters of every shadow view of the frame, one view after the other, as indices into the instances.
+    std::vector<std::uint32_t> m_frameCasters;
     // The frame's lights, the view's clusters and their lists of lights.
     std::unique_ptr<Buffer> m_lightBuffer;
     std::unique_ptr<Buffer> m_clusterBuffer;

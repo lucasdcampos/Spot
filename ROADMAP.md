@@ -749,7 +749,7 @@ viewers, and the golden-image tests cover them.
 - [x] **M7.4 Sorting.** Sort opaque draws by pipeline, material and depth to minimize state changes and overdraw.
 - [x] **M7.5 Shadow quality.** Soft PCF, stable cascades (texel snapping), blending between cascades, and caster
   culling per cascade.
-- [ ] **M7.6 Benchmark.** A benchmark scene with 10,000 meshes and 200 lights. Record its Release frame times in Notes
+- [x] **M7.6 Benchmark.** A benchmark scene with 10,000 meshes and 200 lights. Record its Release frame times in Notes
   and check them when rendering changes.
 - [ ] **M7.7 Sandbox: lamps.** The tool gun places lamps (point and spot lights, shadowed or not), and many of them
   light the level at once.
@@ -789,6 +789,18 @@ of lamps.
   with and is not rotated per pixel, since rotation trades banding for noise that only temporal antialiasing would
   hide. Pipelines clamped depth only by accident (SDL's rasterizer state left zeroed); `DepthState::clamp` now asks for
   it, shadow pipelines set it, and the others clip.
+- M7.6: `spot_benchmark` (`tests/benchmark/`): 10,000 cubes and spheres in a 100x100 grid with 8 materials, 200 point
+  and spot lights (8 casting shadows), the sun's 4 cascades and the sky, at 1600x900 without vsync, timing 600 frames
+  after 120. Release on the development machine (Direct3D 12), 2026-10-10: mean 10.17 ms (98 FPS), median 10.10 ms,
+  95th percentile 10.84 ms, worst 12.71 ms; 10 draw calls and 51 shadow draw calls for about 7,000 meshes in view.
+  The first run took 20.1 ms, nearly all of it on the CPU in `Renderer3D::End()`, which led to: meshes in view sorted
+  first, so culled ones do not split batches; shadow views reading their casters through a list of indices, kept in
+  one frame-wide order, so batches survive each view's culling; that list uploaded once per `End()` (into a buffer
+  first cycled to fresh memory and sized for every view, then filled without cycling, so the draws recorded meanwhile
+  read it) rather than once per view, which alone cost 6 ms; frustum planes extracted once per view
+  (`Detail::Frustum`); materials compared through a look id from a hash map instead of field by field; clusters built
+  in flat arrays; and normal matrices from cofactors instead of full inverses. The benchmark prints the costliest
+  profiler scopes, and `Renderer3D` profiles its stages and counts draw calls.
 
 ---
 

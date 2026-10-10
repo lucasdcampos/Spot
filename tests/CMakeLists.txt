@@ -247,6 +247,11 @@ if(TARGET spot_editor_core)
     catch_discover_tests(spot_editor_gpu_tests PROPERTIES TIMEOUT 60)
 endif()
 
+# The rendering benchmark, run by hand in Release when rendering changes; see its source.
+add_executable(spot_benchmark benchmark/rendering_benchmark.cpp)
+target_link_libraries(spot_benchmark PRIVATE spot::spot)
+spot_set_compile_options(spot_benchmark)
+
 # The sandbox's asset generator, when the sandbox is built.
 if(TARGET sandbox_generator_core)
     target_sources(spot_tests PRIVATE sandbox_generator_tests.cpp)

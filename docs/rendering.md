@@ -231,6 +231,19 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
   (which may be above 1, as lit fog is) before tonemapping, and so does the sky toward the horizon, so the two meet
   there in the same color. `Renderer3D::DrawFog()` takes a `FogData` directly.
 
+## The rendering benchmark
+
+`spot_benchmark` (`tests/benchmark/`) renders a scene of 10,000 meshes and 200 lights under the sky, its sun and a few
+shadowed point and spot lights, through a camera circling it, as games draw scenes, without vsync. After warming up it
+times 600 frames and prints their mean, median, 95th percentile and worst times, the last frame's counts of meshes,
+draw calls and lights, and the costliest profiler scopes. Run its Release build when rendering changes, and compare
+with the times recorded in the M7 notes of `ROADMAP.md`:
+
+```sh
+cmake --build --preset msvc-release --target spot_benchmark
+./build/msvc/tests/Release/spot_benchmark      # --frames <count> --warmup <count>
+```
+
 ## Golden-image tests
 
 `tests/golden_tests.cpp` renders reference scenes as games show them, through `SceneRenderer` (without

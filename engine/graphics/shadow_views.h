@@ -45,8 +45,20 @@ ShadowView GetPointShadowView(const LightData& light, std::uint32_t face, std::u
 // The near plane of shadow views of local lights, a share of their range.
 float GetLocalShadowNearPlane(float range);
 
-// Whether a sphere may show in what the view projection sees. With ignoreNear, spheres in front of the near plane
-// count, as casters of directional shadows do.
+// The planes around what a view projection sees, normalized once, so many spheres can be tested against them. With
+// ignoreNear, spheres in front of the near plane count, as casters of directional shadows do.
+class Frustum {
+public:
+    explicit Frustum(const Matrix4& viewProjection, bool ignoreNear = false);
+
+    // Whether a sphere may show in the view.
+    bool Contains(Vector3 center, float radius) const;
+
+private:
+    std::array<Vector4, 6> m_planes;
+    std::size_t m_planeCount;
+};
+
 bool IsSphereInView(const Matrix4& viewProjection, Vector3 center, float radius, bool ignoreNear = false);
 
 } // namespace Spot::Detail

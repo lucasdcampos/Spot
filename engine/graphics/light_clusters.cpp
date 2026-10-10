@@ -24,8 +24,14 @@ LightClusters BuildLightClusters(const Camera3D& camera, Vector2 viewSize, std::
     const float farDepth = std::clamp(camera.farPlane, result.nearDepth * 2.0f, MaxClusterDepth);
     result.sliceScale = static_cast<float>(ClusterSlices) / std::log(farDepth / result.nearDepth);
 
-    // Each cluster's lights, gathered first, then laid out one cluster after the other.
-    std::vector<std::vector<std::uint32_t>> lists(ClusterCount);
+    // The clusters each light covers, as ranges of tiles and slices: counted first, then laid out one cluster after
+    // the other.
+    struct Cover {
+        std::uint32_t index;
+        std::uint32_t firstX, lastX, firstY, lastY, firstSlice, lastSlice;
+    };
+    std::vector<Cover> covers;
+    covers.reserve(lights.size());
     const Matrix4 view = camera.GetView();
     const Matrix4 projection = camera.GetProjection(viewSize);
     for (const ClusterLight& light : lights) {
@@ -72,22 +78,36 @@ LightClusters BuildLightClusters(const Camera3D& camera, Vector2 viewSize, std::
             firstY = tile(-maxY, ClusterTilesY);
             lastY = tile(-minY, ClusterTilesY);
         }
-        const std::uint32_t firstSlice = GetClusterSlice(result, std::max(nearest, result.nearDepth));
-        const std::uint32_t lastSlice = GetClusterSlice(result, farthest);
-        for (std::uint32_t slice = firstSlice; slice <= lastSlice; ++slice) {
-            for (std::uint32_t y = firstY; y <= lastY; ++y) {
-                for (std::uint32_t x = firstX; x <= lastX; ++x) {
-                    lists[GetClusterIndex(x, y, slice)].push_back(light.index);
+        covers.push_back({light.index, firstX, lastX, firstY, lastY,
+                          GetClusterSlice(result, std::max(nearest, result.nearDepth)),
+                          GetClusterSlice(result, farthest)});
+    }
+
+    const auto forEachCluster = [&](const Cover& cover, auto&& visit) {
+        for (std::uint32_t slice = cover.firstSlice; slice <= cover.lastSlice; ++slice) {
+            for (std::uint32_t y = cover.firstY; y <= cover.lastY; ++y) {
+                for (std::uint32_t x = cover.firstX; x <= cover.lastX; ++x) {
+                    visit(GetClusterIndex(x, y, slice));
                 }
             }
         }
+    };
+    result.clusters.assign(ClusterCount, {0, 0});
+    for (const Cover& cover : covers) {
+        forEachCluster(cover, [&](std::uint32_t cluster) { ++result.clusters[cluster][1]; });
     }
-
-    result.clusters.resize(ClusterCount);
-    for (std::uint32_t i = 0; i < ClusterCount; ++i) {
-        result.clusters[i] = {static_cast<std::uint32_t>(result.lightIndices.size()),
-                              static_cast<std::uint32_t>(lists[i].size())};
-        result.lightIndices.insert(result.lightIndices.end(), lists[i].begin(), lists[i].end());
+    std::uint32_t offset = 0;
+    for (auto& [first, count] : result.clusters) {
+        first = offset;
+        offset += count;
+        count = 0;
+    }
+    result.lightIndices.resize(offset);
+    for (const Cover& cover : covers) {
+        forEachCluster(cover, [&](std::uint32_t cluster) {
+            auto& [first, count] = result.clusters[cluster];
+            result.lightIndices[first + count++] = cover.index;
+        });
     }
     return result;
 }

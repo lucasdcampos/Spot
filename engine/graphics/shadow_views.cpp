@@ -103,23 +103,32 @@ float GetLocalShadowNearPlane(float range) {
     return std::max(range * 0.005f, 0.01f);
 }
 
-bool IsSphereInView(const Matrix4& viewProjection, Vector3 center, float radius, bool ignoreNear) {
+Frustum::Frustum(const Matrix4& viewProjection, bool ignoreNear) : m_planeCount(ignoreNear ? 5 : 6) {
     // The planes of clip space, from the rows of the matrix (Gribb and Hartmann), for depth in [0, 1].
     const Vector4 x = GetRow(viewProjection, 0);
     const Vector4 y = GetRow(viewProjection, 1);
     const Vector4 z = GetRow(viewProjection, 2);
     const Vector4 w = GetRow(viewProjection, 3);
-    const std::array<Vector4, 6> planes{w + x, w - x, w + y, w - y, w - z, z};
-    const std::size_t count = ignoreNear ? 5 : 6;
-    for (std::size_t i = 0; i < count; ++i) {
-        const Vector4& plane = planes[i];
-        const Vector3 normal{plane.x, plane.y, plane.z};
-        const float length = Length(normal);
-        if (length > 0.0f && Dot(normal, center) + plane.w < -radius * length) {
+    m_planes = {w + x, w - x, w + y, w - y, w - z, z};
+    for (Vector4& plane : m_planes) {
+        const float length = Length(Vector3{plane.x, plane.y, plane.z});
+        // Degenerate planes reject nothing.
+        plane = length > 0.0f ? plane * (1.0f / length) : Vector4{0.0f, 0.0f, 0.0f, 1.0f};
+    }
+}
+
+bool Frustum::Contains(Vector3 center, float radius) const {
+    for (std::size_t i = 0; i < m_planeCount; ++i) {
+        const Vector4& plane = m_planes[i];
+        if (plane.x * center.x + plane.y * center.y + plane.z * center.z + plane.w < -radius) {
             return false;
         }
     }
     return true;
+}
+
+bool IsSphereInView(const Matrix4& viewProjection, Vector3 center, float radius, bool ignoreNear) {
+    return Frustum(viewProjection, ignoreNear).Contains(center, radius);
 }
 
 } // namespace Spot::Detail

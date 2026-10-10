@@ -1,0 +1,187 @@
+// The rendering benchmark: a scene of 10,000 meshes and 200 lights, under the sky and its shadowed sun, seen by a
+// camera circling it, drawn as games draw scenes, without vsync. After warming up it times a fixed number of frames
+// and prints how long they took. Run its Release build when rendering changes, and compare with the times in
+// ROADMAP.md's M7 notes:
+//
+//     spot_benchmark [--frames <count>] [--warmup <count>]
+#include <spot.h>
+
+#include <algorithm>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <map>
+#include <numeric>
+#include <random>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+namespace {
+
+constexpr int GridSize = 100;
+constexpr float Spacing = 2.0f;
+constexpr int LightCount = 200;
+
+class Benchmark final : public Spot::Application {
+public:
+    Benchmark(int frames, int warmup)
+        : Application({.window = {.title = "Spot Rendering Benchmark", .width = 1600, .height = 900},
+                       .graphics = {.vsync = false}}),
+          m_frames(frames), m_warmup(warmup) {}
+
+    int GetResult() const { return m_result; }
+
+protected:
+    void OnStart() override {
+        auto& device = GetGraphicsDevice();
+        auto& scene = LoadScene<Spot::Scene>();
+        const Spot::AssetRef<Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+        const Spot::AssetRef<Spot::Mesh> sphere = Spot::Mesh::Create(device, Spot::MeshData::CreateSphere(0.5f));
+        const Spot::AssetRef<Spot::Mesh> floor = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(1.0f));
+        if (!cube || !sphere || !floor) {
+            Quit();
+            return;
+        }
+        // Eight materials, from rough dielectrics to polished metals, shared as assets are.
+        std::vector<Spot::AssetRef<Spot::Material>> materials;
+        for (int i = 0; i < 8; ++i) {
+            const float hue = static_cast<float>(i) / 8.0f;
+            materials.push_back(std::make_shared<const Spot::Material>(
+                Spot::Material{.baseColor = {0.3f + 0.6f * hue, 0.8f - 0.5f * hue, 0.4f + 0.3f * (i % 2), 1.0f},
+                               .metallic = i >= 6 ? 1.0f : 0.0f,
+                               .roughness = 0.2f + 0.1f * static_cast<float>(i)}));
+        }
+        auto& ground = scene.CreateEntity("Ground");
+        ground.GetTransform().SetScale({GridSize * Spacing * 1.2f, 1.0f, GridSize * Spacing * 1.2f});
+        ground.AddComponent<Spot::MeshRenderer>(floor, Spot::Material{.baseColor = {0.4f, 0.4f, 0.42f, 1.0f}});
+
+        for (int z = 0; z < GridSize; ++z) {
+            for (int x = 0; x < GridSize; ++x) {
+                auto& entity = scene.CreateEntity("Mesh");
+                entity.GetTransform().SetPosition({(static_cast<float>(x) - GridSize * 0.5f) * Spacing, 0.5f,
+                                                   (static_cast<float>(z) - GridSize * 0.5f) * Spacing});
+                entity.AddComponent<Spot::MeshRenderer>((x + z) % 2 == 0 ? cube : sphere,
+                                                        materials[static_cast<std::size_t>((x * 7 + z * 3) % 8)]);
+            }
+        }
+
+        // Lights over the grid, the first few casting shadows, as many as the shadow tiles hold.
+        std::mt19937 random(42);
+        std::uniform_real_distribution<float> across(-GridSize * Spacing * 0.5f, GridSize * Spacing * 0.5f);
+        std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+        for (int i = 0; i < LightCount; ++i) {
+            auto& entity = scene.CreateEntity("Light");
+            entity.GetTransform().SetPosition({across(random), 2.0f + unit(random) * 2.0f, across(random)});
+            const Spot::Color color{0.5f + 0.5f * unit(random), 0.5f + 0.5f * unit(random), 0.5f + 0.5f * unit(random),
+                                    1.0f};
+            if (i % 50 == 0) {
+                entity.GetTransform().SetRotation(Spot::Quaternion::LookRotation({0.0f, -1.0f, 0.2f}));
+                entity.AddComponent<Spot::SpotLight>(color, 60.0f, 14.0f).SetCastingShadows(true);
+            } else {
+                entity.AddComponent<Spot::PointLight>(color, 20.0f, 7.0f).SetCastingShadows(i < 4);
+            }
+        }
+
+        auto& sun = scene.CreateEntity("Sun");
+        sun.GetTransform().SetRotation(Spot::Quaternion::LookRotation({-0.4f, -0.8f, -0.45f}));
+        sun.AddComponent<Spot::DirectionalLight>(Spot::Color::White, 2.0f);
+        scene.CreateEntity("Sky").AddComponent<Spot::Sky>();
+        auto& camera = scene.CreateEntity("Camera");
+        camera.AddComponent<Spot::Camera>().SetFarPlane(400.0f);
+        m_camera = camera.GetId();
+    }
+
+    void OnUpdate(float /*deltaTime*/) override {
+        Spot::Scene* scene = GetScene();
+        Spot::Entity* camera = scene ? scene->GetEntity(m_camera) : nullptr;
+        if (!camera) {
+            return;
+        }
+        // Circling the grid by frame, not by time, so every run sees the same frames.
+        const float angle = static_cast<float>(m_frame) * 0.003f;
+        const Spot::Vector3 position{std::sin(angle) * 90.0f, 30.0f, std::cos(angle) * 90.0f};
+        camera->GetTransform().SetPosition(position);
+        camera->GetTransform().SetRotation(Spot::Quaternion::LookRotation(Spot::Vector3{} - position));
+
+        const auto now = std::chrono::steady_clock::now();
+        if (m_frame > m_warmup) {
+            m_times.push_back(std::chrono::duration<double, std::milli>(now - m_last).count());
+        }
+        m_last = now;
+        if (++m_frame > m_warmup + m_frames) {
+            Report();
+            Quit();
+        }
+    }
+
+private:
+    void Report() {
+        std::vector<double> sorted = m_times;
+        std::ranges::sort(sorted);
+        const double mean = std::accumulate(sorted.begin(), sorted.end(), 0.0) / static_cast<double>(sorted.size());
+        const auto at = [&](double share) {
+            return sorted[std::min(sorted.size() - 1,
+                                   static_cast<std::size_t>(share * static_cast<double>(sorted.size())))];
+        };
+        const auto frames = Spot::Profiler::GetFrames();
+        const auto counter = [&](std::string_view name) {
+            return frames.empty() ? 0.0 : Spot::Profiler::GetCounter(*frames.back(), name);
+        };
+        std::printf("Rendering benchmark: %d meshes, %d lights, %zu frames at 1600x900 on %s\n", GridSize * GridSize,
+                    LightCount, sorted.size(), std::string(GetGraphicsDevice().GetBackendName()).c_str());
+        std::printf("  frame time: mean %.2f ms (%.0f FPS), median %.2f ms, 95th percentile %.2f ms, worst %.2f ms\n",
+                    mean, 1000.0 / mean, at(0.5), at(0.95), sorted.back());
+        std::printf("  last frame: %.0f visible meshes, %.0f culled, %.0f draw calls, %.0f shadow draw calls, %.0f "
+                    "lights\n",
+                    counter("Visible meshes"), counter("Culled meshes"), counter("Draw calls"),
+                    counter("Shadow draw calls"), counter("Lights"));
+        // Where the time goes, from the profiler's scopes over the frames it kept, the costliest first.
+        std::map<std::string_view, double> totals;
+        for (const Spot::ProfileFrame* frame : frames) {
+            for (const Spot::ProfileSample& sample : frame->samples) {
+                {
+                    totals[sample.name] += std::chrono::duration<double, std::milli>(sample.duration).count();
+                }
+            }
+        }
+        std::vector<std::pair<std::string_view, double>> scopes(totals.begin(), totals.end());
+        std::ranges::sort(scopes, [](const auto& a, const auto& b) { return a.second > b.second; });
+        std::printf("  costliest scopes, per frame:\n");
+        const double frameCount = static_cast<double>(std::max<std::size_t>(frames.size(), 1));
+        for (std::size_t i = 0; i < std::min<std::size_t>(scopes.size(), 16); ++i) {
+            const auto& [name, total] = scopes[i];
+            std::printf("    %-40.*s %6.2f ms\n", static_cast<int>(name.size()), name.data(), total / frameCount);
+        }
+        m_result = EXIT_SUCCESS;
+    }
+
+    int m_frames;
+    int m_warmup;
+    int m_frame = 0;
+    int m_result = EXIT_FAILURE;
+    Spot::EntityId m_camera = Spot::EntityId::Invalid;
+    std::chrono::steady_clock::time_point m_last = std::chrono::steady_clock::now();
+    std::vector<double> m_times;
+};
+
+} // namespace
+
+int main(int argc, char** argv) {
+    int frames = 600;
+    int warmup = 120;
+    for (int i = 1; i + 1 < argc; ++i) {
+        const std::string_view argument = argv[i];
+        if (argument == "--frames") {
+            frames = std::max(std::atoi(argv[++i]), 1);
+        } else if (argument == "--warmup") {
+            warmup = std::max(std::atoi(argv[++i]), 0);
+        }
+    }
+    Benchmark benchmark(frames, warmup);
+    if (benchmark.Run() != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
+    return benchmark.GetResult();
+}
