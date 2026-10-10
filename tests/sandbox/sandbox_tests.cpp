@@ -1,7 +1,9 @@
 // The sandbox's game code, run headless on its real scenes: the engine's integration test, which shows a regression
 // as something broken in the game.
 #include "log_capture.h"
+#include "physics_gun.h"
 #include "player_controller.h"
+#include "prop_carrier.h"
 
 #include <spot.h>
 
@@ -61,6 +63,23 @@ struct Playground {
 
     void Press(Key key) { input.OnEvent(Spot::KeyPressedEvent{.key = key, .repeat = false}); }
     void Release(Key key) { input.OnEvent(Spot::KeyReleasedEvent{.key = key}); }
+    void Press(Spot::MouseButton button) { input.OnEvent(Spot::MouseButtonPressedEvent{.button = button}); }
+    void Release(Spot::MouseButton button) { input.OnEvent(Spot::MouseButtonReleasedEvent{.button = button}); }
+    void Scroll(float notches) { input.OnEvent(Spot::MouseScrolledEvent{.delta = {0.0f, notches}}); }
+
+    PlayerController& Player() const { return *player->GetComponent<PlayerController>(); }
+    // A crate of the mass, the given distance along where the player looks.
+    Entity& PlaceCrate(float distance, float mass) {
+        auto& crate = scene.CreateEntity("Test Crate");
+        crate.GetTransform().SetPosition(Player().GetEyePosition() + Player().GetAimDirection() * distance);
+        crate.AddComponent<Spot::BoxCollider>(Spot::Vector3{0.5f, 0.5f, 0.5f});
+        crate.AddComponent<Spot::Rigidbody>().SetMass(mass);
+        crate.GetComponent<Spot::Rigidbody>()->SetGravityScale(0.0f);
+        return crate;
+    }
+    Spot::Vector3 HeldTarget(float distance) const {
+        return Player().GetEyePosition() + Player().GetAimDirection() * distance;
+    }
 
     Spot::Vector3 PlayerPosition() const { return player->GetTransform().GetPosition(); }
     Spot::CharacterController& Controller() const { return *player->GetComponent<Spot::CharacterController>(); }
@@ -172,4 +191,80 @@ TEST_CASE("The player climbs the stairs and the ramps of the level's meshes", "[
     playground.Run(0.7f);
     CHECK(playground.PlayerPosition().y > 1.3f);
     CHECK(playground.Controller().IsGrounded());
+}
+
+TEST_CASE("The player picks up light props, carries them and throws them", "[sandbox]") {
+    Playground playground;
+    playground.Run(1.5f);
+    auto& carrier = *playground.player->GetComponent<PropCarrier>();
+    Entity& heavy = playground.PlaceCrate(1.8f, 200.0f);
+    playground.Run(0.1f);
+    playground.Press(Key::E);
+    playground.Run(0.1f);
+    playground.Release(Key::E);
+    CHECK_FALSE(carrier.IsHolding());
+    heavy.Destroy();
+
+    Entity& crate = playground.PlaceCrate(2.0f, 10.0f);
+    crate.GetComponent<Spot::Rigidbody>()->SetGravityScale(1.0f);
+    playground.Run(0.05f);
+    playground.Press(Key::E);
+    playground.Run(0.05f);
+    playground.Release(Key::E);
+    REQUIRE(carrier.IsHolding());
+    CHECK(carrier.GetHeld() == crate.GetId());
+    playground.Run(1.0f);
+    // Carried in front of the camera, against gravity.
+    CHECK(Spot::Distance(crate.GetTransform().GetPosition(), playground.HeldTarget(carrier.holdDistance)) < 0.15f);
+
+    playground.Press(Spot::MouseButton::Left);
+    playground.Run(0.05f);
+    playground.Release(Spot::MouseButton::Left);
+    CHECK_FALSE(carrier.IsHolding());
+    const Spot::Vector3 velocity = crate.GetComponent<Spot::Rigidbody>()->GetLinearVelocity();
+    CHECK(Spot::Dot(velocity, playground.Player().GetAimDirection()) > 8.0f);
+}
+
+TEST_CASE("The physics gun grabs props from afar, pulls and pushes them, and freezes them", "[sandbox]") {
+    Playground playground;
+    playground.Run(1.5f);
+    auto& gun = *playground.player->GetComponent<PhysicsGun>();
+    playground.Press(Key::Digit2);
+    playground.Run(0.05f);
+    playground.Release(Key::Digit2);
+    CHECK(playground.Player().activeTool == PlayerController::Tool::PhysicsGun);
+
+    Entity& crate = playground.PlaceCrate(6.0f, 50.0f);
+    crate.GetComponent<Spot::Rigidbody>()->SetGravityScale(1.0f);
+    playground.Run(0.05f);
+    playground.Press(Spot::MouseButton::Left);
+    playground.Run(0.05f);
+    REQUIRE(gun.IsGrabbing());
+    // Held up against gravity, where it was grabbed.
+    playground.Run(1.0f);
+    const float distance = Spot::Distance(crate.GetTransform().GetPosition(), playground.Player().GetEyePosition());
+    CHECK(distance == Approx(6.0f).margin(0.5f));
+
+    // The wheel pulls it three meters closer.
+    playground.Scroll(-3.0f);
+    playground.Run(1.0f);
+    CHECK(Spot::Distance(crate.GetTransform().GetPosition(), playground.Player().GetEyePosition()) ==
+          Approx(3.0f).margin(0.5f));
+
+    playground.Press(Spot::MouseButton::Right);
+    playground.Run(0.05f);
+    playground.Release(Spot::MouseButton::Right);
+    playground.Release(Spot::MouseButton::Left);
+    CHECK_FALSE(gun.IsGrabbing());
+    CHECK(crate.HasTag(PhysicsGun::FrozenTag));
+    const Spot::Vector3 frozen = crate.GetTransform().GetPosition();
+    playground.Run(1.0f);
+    CHECK(Spot::Distance(crate.GetTransform().GetPosition(), frozen) < 0.01f);
+
+    playground.Press(Key::U);
+    playground.Run(1.0f);
+    CHECK_FALSE(crate.HasTag(PhysicsGun::FrozenTag));
+    // It fell to the ground, its half size above it.
+    CHECK(crate.GetTransform().GetPosition().y < frozen.y - 0.5f);
+    CHECK(crate.GetTransform().GetPosition().y == Approx(0.25f).margin(0.05f));
 }

@@ -55,7 +55,7 @@ void Hud::OnDrawUi(Spot::Renderer2D& renderer, Spot::Vector2 viewSize) {
     const float top = viewSize.y;
     const float line = font->GetLineHeight();
     const Spot::Color help = Spot::Color::FromSrgb(0.8f, 0.8f, 0.8f);
-    renderer.DrawQuad({280.0f, top - 40.0f}, {560.0f, 80.0f}, Spot::Color{0.0f, 0.0f, 0.0f, 0.6f});
+    renderer.DrawQuad({330.0f, top - 50.0f}, {660.0f, 100.0f}, Spot::Color{0.0f, 0.0f, 0.0f, 0.6f});
     renderer.DrawString(*font, m_status, {12.0f, top - 10.0f}, Spot::Color::FromSrgb(0.7f, 0.9f, 0.7f));
     renderer.DrawString(*font,
                         "WASD: move | Shift: run | Space: jump | Ctrl: crouch | V: noclip | Click: shoot | R: reset",
@@ -63,6 +63,10 @@ void Hud::OnDrawUi(Spot::Renderer2D& renderer, Spot::Vector2 viewSize) {
     renderer.DrawString(
         *font, "F: flashlight | G: shadows | B: physics shapes | T: speed up time | Esc: free the mouse, then quit",
         {12.0f, top - 10.0f - 1.8f * line}, help, 0.8f);
+    renderer.DrawString(*font,
+                        "E: pick up, click to throw | 1: launcher | 2: physics gun: hold click, wheel, E to turn, "
+                        "right click to freeze, U to unfreeze",
+                        {12.0f, top - 10.0f - 2.6f * line}, help, 0.8f);
 }
 
 void Hud::Serialize(Spot::Archive& archive) {

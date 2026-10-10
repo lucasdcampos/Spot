@@ -2626,6 +2626,26 @@
           },
           "enabled": true,
           "type": "PlayerMovement"
+        },
+        {
+          "data": {
+            "holdDistance": 1.6,
+            "maxMass": 35.0,
+            "reach": 2.5,
+            "throwSpeed": 12.0
+          },
+          "enabled": true,
+          "type": "PropCarrier"
+        },
+        {
+          "data": {
+            "maxSpeed": 40.0,
+            "minDistance": 1.5,
+            "range": 60.0,
+            "scrollStep": 1.0
+          },
+          "enabled": true,
+          "type": "PhysicsGun"
         }
       ],
       "id": 46,

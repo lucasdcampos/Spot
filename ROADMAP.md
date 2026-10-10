@@ -254,7 +254,7 @@ Steps:
   editor's views and at runtime, and **Fit to Mesh** for box, sphere and capsule colliders.
 - [x] **M1.10 Sandbox: movement and level.** A first-person player on the `CharacterController` that walks, runs,
   crouches, jumps and flies in noclip. The level's geometry uses mesh colliders, with ramps, stairs and platforms.
-- [ ] **M1.11 Sandbox: holding and the physics gun.** E picks up props below a mass limit, carries them in front of
+- [x] **M1.11 Sandbox: holding and the physics gun.** E picks up props below a mass limit, carries them in front of
   the camera, turns them and throws them. The physics gun grabs any prop the player aims at, drives it toward a
   target in front of the camera with a spring, and changes the distance with the wheel. It turns the prop, freezes
   it in place (as a kinematic body) and unfreezes all props.
@@ -323,6 +323,12 @@ physics gun and the tool gun, and shoots and blows it apart.
   the ramps and stairs collide through `MeshCollider`s of their own meshes; the platform, walls and steps stay boxes.
   Queries that ignore an entity now also ignore its character's inner body. `spot_sandbox_tests` loads the assets
   the build cooks beside the sandbox, so mesh colliders get their meshes there as in the game.
+- M1.11: `PropCarrier` (E) and `PhysicsGun` (tool 2) drive props through their rigidbodies' velocities
+  (`PropDrive::Toward()`), closing a fifth of the gap each step, so they settle without overshooting and still
+  collide on the way; held props keep their rotation relative to where the player faces. Freezing makes the prop
+  kinematic and tags it "Frozen", which U undoes for all. Until weapons are data (M1.12), `PlayerController` picks
+  the tool in hand with 1 (the ball launcher) and 2, and yields the mouse while a prop is being turned and the click
+  while one is carried. The physics gun's beam is a `DebugDraw` line until M5.9 gives it a look.
 
 ---
 

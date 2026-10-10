@@ -1,5 +1,8 @@
 #include "player_controller.h"
 
+#include "physics_gun.h"
+#include "prop_carrier.h"
+
 #include <algorithm>
 
 SPOT_COMPONENT(PlayerController);
@@ -12,6 +15,15 @@ constexpr Spot::Vector3 Up = {0.0f, 1.0f, 0.0f};
 
 Spot::Quaternion PlayerController::GetViewRotation() const {
     return Spot::Quaternion::FromAxisAngle(Up, m_yaw) * Spot::Quaternion::FromAxisAngle({1.0f, 0.0f, 0.0f}, m_pitch);
+}
+
+Spot::Vector3 PlayerController::GetEyePosition() const {
+    const Spot::Entity* eye = GetHead();
+    return (eye ? eye : &GetEntity())->GetTransform().GetWorldPosition();
+}
+
+Spot::Vector3 PlayerController::GetAimDirection() const {
+    return GetViewRotation() * Spot::Vector3{0.0f, 0.0f, -1.0f};
 }
 
 void PlayerController::Shoot() {
@@ -43,14 +55,26 @@ void PlayerController::ToggleFlashlight() {
 void PlayerController::OnUpdate(float /*deltaTime*/) {
     namespace Input = Spot::Input;
 
-    // A free cursor belongs to the rest of the screen.
-    if (Input::IsCursorLocked()) {
+    if (Input::IsKeyPressed(Spot::Key::Digit1)) {
+        activeTool = Tool::Launcher;
+    }
+    if (Input::IsKeyPressed(Spot::Key::Digit2)) {
+        activeTool = Tool::PhysicsGun;
+    }
+    // A free cursor belongs to the rest of the screen, and the carrier and the gun take the mouse while turning props.
+    const auto* carrier = GetEntity().GetComponent<PropCarrier>();
+    const auto* gun = GetEntity().GetComponent<PhysicsGun>();
+    const bool turning = (carrier && carrier->IsTurning()) || (gun && gun->IsTurning());
+    if (Input::IsCursorLocked() && !turning) {
         const Spot::Vector2 mouseDelta = Input::GetMouseDelta();
         m_yaw -= mouseDelta.x * lookSensitivity;
         m_pitch = std::clamp(m_pitch - mouseDelta.y * lookSensitivity, -1.5f, 1.5f);
-        if (Input::IsMouseButtonPressed(Spot::MouseButton::Left)) {
-            Shoot();
-        }
+    }
+    // A carried prop takes the click, to be thrown.
+    const bool carrying = carrier && carrier->IsHolding();
+    if (Input::IsCursorLocked() && activeTool == Tool::Launcher && !carrying &&
+        Input::IsMouseButtonPressed(Spot::MouseButton::Left)) {
+        Shoot();
     }
     if (Input::IsKeyPressed(Spot::Key::F)) {
         ToggleFlashlight();
