@@ -104,13 +104,7 @@ bool PrefabCommand::Restore(std::string_view sceneText, std::string_view sourceT
     if (!WriteSource(sourceText)) {
         return false;
     }
-    Scene prepared;
-    if (!prepared.LoadFromString(sceneText, &m_project.GetAssets())) {
-        return false;
-    }
-    GetScene().Clear();
-    GetScene().Instantiate(sceneText, {.keepIds = true, .assets = &m_project.GetAssets()});
-    return true;
+    return GetDocument().ReplaceSceneText(sceneText);
 }
 
 bool PrefabCommand::Execute() {

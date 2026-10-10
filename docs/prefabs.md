@@ -99,8 +99,7 @@ Arrays remain atomic values, so reverting one displayed axis of an overridden ve
 Apply and Revert preserve entity ids and internal references. Added entities receive new source-local ids when
 applied, and become inherited members of the instance. References to entities outside the prefab are cleared in
 the source. Every action is one undoable step; Apply undo/redo restores both the source file and the scene. Unpack
-preserves values and leaves other instances linked. Actions are disabled while playing. Saving a source currently
-reaches instances when their scenes load; updates of all open documents follow in M8.7.
+preserves values and leaves other instances linked. Actions are disabled while playing.
 
 The engine exposes `GetPrefabOverrides()`, `PreparePrefabEdit()` and `UnpackPrefabToString()` for tools. Preparation
 returns scene text and, for Apply, validated prefab text without changing live entities or writing files. A
@@ -133,3 +132,26 @@ those edges even after temporary references expire and invalidates transitive de
 Cycles, missing dependencies and nesting deeper than 64 levels reject instantiation before changing the destination
 scene. Import validates structural metadata without constructing components or requiring dependency assets to be
 loaded; the expanded hierarchy is validated again when it is instantiated.
+
+## Live updates and history
+
+Saving a prefab refreshes its instances in every open scene and prefab document, including variants and nested
+dependents. Apply and its undo/redo likewise propagate through the project's asset refresh on the next frame.
+The editor saves each affected document's compact instance records, resolves them against the current assets in
+a temporary scene, then replaces its entities only after loading succeeds. Broken dependencies leave the open
+document intact. A later successful import retries the update. Running play copies keep their current instances;
+their editable source documents continue to update.
+
+An open prefab source with no unsaved edits also follows changes to its own file, including Apply from another
+document. Unsaved source edits stay in their document; only their inherited instances refresh.
+
+Updates preserve entity and component identities, selections, local additions, removals and field overrides.
+They leave command histories and saved-state markers unchanged: inherited changes belong to the source, so a
+clean scene remains clean. Commands find components by UUID rather than their previous position, and field undo
+replays only changed fields so newly inherited values elsewhere survive. History entries whose targets were
+removed from the source safely skip those targets. Undoing an inherited entity deletion restores the containing
+instance's compact record against the current source, preserving its link and newly inherited children.
+
+`SceneDocument::RefreshPrefabs()` and `ReplaceSceneText()` implement staging through the public engine API.
+`GetSceneRevision()` invalidates inspector caches and completes edits in progress after a replacement, without
+adding synthetic commands to the history.

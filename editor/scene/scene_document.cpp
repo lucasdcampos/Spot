@@ -2,6 +2,9 @@
 
 #include "core/editor_log.h"
 
+#include <nlohmann/json.hpp>
+
+#include <algorithm>
 #include <atomic>
 #include <fstream>
 #include <iterator>
@@ -166,6 +169,47 @@ void SceneDocument::Undo() {
 void SceneDocument::Redo() {
     m_history.Redo();
     m_selection.RemoveMissing(*m_scene);
+}
+
+bool SceneDocument::RefreshPrefabs(std::span<const AssetId> changed) {
+    if (m_prefabMode && !IsDirty() && m_asset.IsValid() && std::ranges::find(changed, m_asset) != changed.end()) {
+        const auto current = m_assets ? m_assets->Load<Prefab>(m_asset) : AssetRef<Prefab>();
+        if (current) {
+            return ReplaceSceneText(current->GetEntityText());
+        }
+    }
+    bool affected = false;
+    m_scene->ForEachEntity([&](const Entity& entity) {
+        const AssetId asset = entity.GetPrefabAssetId();
+        affected = affected || (asset.IsValid() && std::ranges::find(changed, asset) != changed.end());
+    });
+    if (!affected) {
+        return true;
+    }
+    return ReplaceSceneText(m_scene->SaveToString());
+}
+
+bool SceneDocument::ReplaceSceneText(std::string_view text) {
+    const auto saved = nlohmann::json::parse(text, nullptr, false);
+    if (!saved.is_object() || !saved.contains("format") || saved["format"] != "spot-scene" ||
+        !saved.contains("version") || (saved["version"] != 1 && saved["version"] != 2) || !saved.contains("entities") ||
+        !saved["entities"].is_array()) {
+        return false;
+    }
+    Scene prepared;
+    const auto roots =
+        prepared.Instantiate(text, {.keepIds = true, .keepExternalReferences = true, .assets = m_assets});
+    if ((roots.empty() && !saved["entities"].empty()) || (m_prefabMode && roots.size() != 1)) {
+        GetEditorLogger().Error("Could not update the prefab instances in '{}'; the document was kept", m_name);
+        return false;
+    }
+    m_scene->Clear();
+    for (Entity* root : roots) {
+        root->MoveToScene(*m_scene);
+    }
+    m_selection.RemoveMissing(*m_scene);
+    ++m_sceneRevision;
+    return true;
 }
 
 } // namespace Spot::Editor

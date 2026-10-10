@@ -2,7 +2,9 @@
 #include "temp_directory.h"
 
 #include "app/editor_context.h"
+#include "inspector/entity_inspector.h"
 #include "project/editor_project.h"
+#include "scene/prefab_actions.h"
 #include "scene/scene_commands.h"
 #include "scene/scene_workspace.h"
 #include "viewport/editor_camera.h"
@@ -16,9 +18,11 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <memory>
 #include <utility>
@@ -73,7 +77,341 @@ struct WorkspaceFixture {
     }
 };
 
+struct PrefabWorkspaceFixture : WorkspaceFixture {
+    Spot::AssetId prefab;
+    Spot::Editor::SceneDocument* sourceDocument = nullptr;
+    Spot::Editor::SceneDocument* first = nullptr;
+    Spot::Editor::SceneDocument* second = nullptr;
+    Spot::EntityId firstRoot = Spot::EntityId::Invalid;
+    Spot::EntityId secondRoot = Spot::EntityId::Invalid;
+    Spot::ComponentId lightId;
+
+    PrefabWorkspaceFixture() {
+        Spot::Scene source;
+        auto& root = source.CreateEntity("Lantern");
+        auto& light = root.AddComponent<Spot::PointLight>();
+        light.SetIntensity(2.0f);
+        lightId = light.GetId();
+        root.CreateChild("Bulb");
+        const auto asset = Spot::Editor::CreatePrefab(Project(), root, "prefabs");
+        REQUIRE(asset);
+        prefab = *asset;
+        sourceDocument = workspace->OpenScene(prefab);
+        REQUIRE(sourceDocument);
+        first = &workspace->NewScene();
+        second = &workspace->NewScene();
+        first->GetScene().Clear();
+        second->GetScene().Clear();
+        firstRoot = Instantiate(*first, prefab).GetId();
+        secondRoot = Instantiate(*second, prefab).GetId();
+        workspace->SyncWithAssets();
+    }
+
+    Spot::Editor::EditorProject& Project() { return *context->GetProject(); }
+    Spot::Entity& Source() { return *sourceDocument->GetScene().GetRootEntities().front(); }
+    Spot::Entity& First() { return *first->GetScene().GetEntity(firstRoot); }
+    Spot::Entity& Second() { return *second->GetScene().GetEntity(secondRoot); }
+    Spot::Entity& Instantiate(Spot::Editor::SceneDocument& document, Spot::AssetId asset) {
+        auto* root = document.GetScene().Instantiate(Project().GetAssets().Load<Spot::Prefab>(asset),
+                                                     {.assets = &Project().GetAssets()});
+        REQUIRE(root);
+        return *root;
+    }
+    Spot::PointLight& Light(Spot::Entity& entity) {
+        const auto lights = entity.GetComponents<Spot::PointLight>();
+        const auto found = std::ranges::find(lights, lightId, &Spot::Component::GetId);
+        REQUIRE(found != lights.end());
+        return **found;
+    }
+    void SaveSource() { workspace->Save(*sourceDocument); }
+};
+
+class WorkspaceReference final : public Spot::Component {
+public:
+    Spot::EntityId target = Spot::EntityId::Invalid;
+
+protected:
+    void Serialize(Spot::Archive& archive) override { archive.Field("target", target); }
+};
+
 } // namespace
+
+TEST_CASE("Saving a prefab updates every open scene while retaining instance edits and history",
+          "[editor][workspace][prefab]") {
+    PrefabWorkspaceFixture fixture;
+    const auto bulbId = fixture.First().FindChild("Bulb")->GetId();
+    fixture.first->GetSelection().Select(bulbId);
+    REQUIRE(fixture.first->Execute(
+        std::make_unique<Spot::Editor::RenameEntityCommand>(*fixture.first, bulbId, "Custom Bulb")));
+    const auto history = fixture.first->GetHistory().GetCurrentState();
+    const auto secondHistory = fixture.second->GetHistory().GetCurrentState();
+    fixture.First().CreateChild("Local Addition");
+    fixture.Source().FindChild("Bulb")->SetName("Updated Bulb");
+    fixture.Source().CreateChild("New Inherited Child");
+    fixture.Light(fixture.Source()).SetIntensity(9.0f);
+    fixture.SaveSource();
+
+    CHECK(fixture.Light(fixture.First()).GetIntensity() == 9.0f);
+    CHECK(fixture.Light(fixture.Second()).GetIntensity() == 9.0f);
+    CHECK(fixture.First().FindChild("Custom Bulb"));
+    CHECK(fixture.Second().FindChild("Updated Bulb"));
+    CHECK(fixture.First().FindChild("Local Addition"));
+    CHECK(fixture.First().FindChild("New Inherited Child"));
+    CHECK(fixture.Second().FindChild("New Inherited Child"));
+    CHECK(fixture.first->GetSelection().GetPrimary() == bulbId);
+    CHECK(fixture.first->GetHistory().GetCurrentState() == history);
+    CHECK(fixture.second->GetHistory().GetCurrentState() == secondHistory);
+    CHECK_FALSE(fixture.sourceDocument->IsDirty());
+    fixture.first->Undo();
+    CHECK(fixture.first->GetScene().GetEntity(bulbId)->GetName() == "Bulb");
+    CHECK(fixture.Light(fixture.First()).GetIntensity() == 9.0f);
+    fixture.first->Redo();
+    CHECK(fixture.First().FindChild("Custom Bulb"));
+}
+
+TEST_CASE("Component edit history follows UUIDs after prefab reordering and keeps newly inherited fields",
+          "[editor][workspace][prefab]") {
+    PrefabWorkspaceFixture fixture;
+    auto& light = fixture.Light(fixture.First());
+    const std::string before = Spot::SaveComponentToString(light);
+    light.SetIntensity(8.0f);
+    REQUIRE(fixture.first->Execute(std::make_unique<Spot::Editor::EditComponentCommand>(
+        *fixture.first, fixture.firstRoot, 0, before, Spot::SaveComponentToString(light))));
+    auto& source = fixture.Source();
+    fixture.Light(source).SetRange(13.0f);
+    auto& inserted = source.AddComponent<Spot::PointLight>();
+    inserted.SetIntensity(32.0f);
+    const auto insertedId = inserted.GetId();
+    source.MoveComponent(inserted, 0);
+    fixture.SaveSource();
+    CHECK(fixture.Light(fixture.First()).GetIntensity() == 8.0f);
+    CHECK(fixture.Light(fixture.First()).GetRange() == 13.0f);
+    fixture.first->Undo();
+    CHECK(fixture.Light(fixture.First()).GetIntensity() == 2.0f);
+    CHECK(fixture.Light(fixture.First()).GetRange() == 13.0f);
+    CHECK(fixture.First().GetComponents<Spot::PointLight>().front()->GetId() == insertedId);
+    CHECK(fixture.First().GetComponents<Spot::PointLight>().front()->GetIntensity() == 32.0f);
+    fixture.first->Redo();
+    CHECK(fixture.Light(fixture.First()).GetIntensity() == 8.0f);
+    CHECK(fixture.Light(fixture.First()).GetRange() == 13.0f);
+}
+
+TEST_CASE("Undoing an inherited entity deletion restores the prefab link and current source additions",
+          "[editor][workspace][prefab]") {
+    PrefabWorkspaceFixture fixture;
+    const auto bulbId = fixture.First().FindChild("Bulb")->GetId();
+    Spot::RegisterComponent<WorkspaceReference>("WorkspaceReference");
+    auto& external = fixture.first->GetScene().CreateEntity("External");
+    const auto externalId = external.GetId();
+    external.AddComponent<WorkspaceReference>().target = bulbId;
+    fixture.First().AddComponent<WorkspaceReference>().target = externalId;
+    REQUIRE(fixture.first->Execute(
+        std::make_unique<Spot::Editor::DeleteEntitiesCommand>(*fixture.first, std::vector{bulbId, externalId})));
+    fixture.Source().CreateChild("Later Child");
+    fixture.SaveSource();
+    CHECK_FALSE(fixture.First().FindChild("Bulb"));
+    fixture.first->Undo();
+    auto* bulb = fixture.first->GetScene().GetEntity(bulbId);
+    REQUIRE(bulb);
+    CHECK(bulb->GetPrefabRootId() == fixture.firstRoot);
+    CHECK(fixture.First().FindChild("Later Child"));
+    CHECK(fixture.First().GetComponent<WorkspaceReference>()->target == externalId);
+    REQUIRE(fixture.first->GetScene().GetEntity(externalId));
+    CHECK(fixture.first->GetScene().GetEntity(externalId)->GetComponent<WorkspaceReference>()->target == bulbId);
+    fixture.first->Redo();
+    CHECK_FALSE(fixture.First().FindChild("Bulb"));
+    CHECK(fixture.First().FindChild("Later Child"));
+}
+
+TEST_CASE("Prefab apply undo and redo propagate to other open documents without discarding their overrides",
+          "[editor][workspace][prefab]") {
+    PrefabWorkspaceFixture fixture;
+    fixture.Second().SetName("Local Lantern");
+    fixture.Light(fixture.First()).SetIntensity(8.0f);
+    REQUIRE(fixture.first->Execute(std::make_unique<Spot::Editor::PrefabCommand>(
+        *fixture.first, fixture.Project(), fixture.firstRoot, Spot::Editor::PrefabAction::Apply)));
+    fixture.workspace->SyncWithAssets();
+    CHECK(fixture.Light(fixture.Second()).GetIntensity() == 8.0f);
+    CHECK(fixture.Light(fixture.Source()).GetIntensity() == 8.0f);
+    CHECK(fixture.Second().GetName() == "Local Lantern");
+    fixture.first->Undo();
+    fixture.workspace->SyncWithAssets();
+    CHECK(fixture.Light(fixture.Second()).GetIntensity() == 2.0f);
+    CHECK(fixture.Light(fixture.Source()).GetIntensity() == 2.0f);
+    CHECK(fixture.Light(fixture.First()).GetIntensity() == 8.0f);
+    fixture.first->Redo();
+    fixture.workspace->SyncWithAssets();
+    CHECK(fixture.Light(fixture.Second()).GetIntensity() == 8.0f);
+    CHECK(fixture.Second().GetName() == "Local Lantern");
+}
+
+TEST_CASE("Live updates preserve unsaved prefab authoring edits when another document applies overrides",
+          "[editor][workspace][prefab]") {
+    PrefabWorkspaceFixture fixture;
+    const auto sourceId = fixture.Source().GetId();
+    REQUIRE(fixture.sourceDocument->Execute(
+        std::make_unique<Spot::Editor::RenameEntityCommand>(*fixture.sourceDocument, sourceId, "Unsaved Source Name")));
+    const auto history = fixture.sourceDocument->GetHistory().GetCurrentState();
+    fixture.Light(fixture.First()).SetIntensity(8.0f);
+    REQUIRE(fixture.first->Execute(std::make_unique<Spot::Editor::PrefabCommand>(
+        *fixture.first, fixture.Project(), fixture.firstRoot, Spot::Editor::PrefabAction::Apply)));
+    fixture.workspace->SyncWithAssets();
+    CHECK(fixture.Source().GetName() == "Unsaved Source Name");
+    CHECK(fixture.sourceDocument->IsDirty());
+    CHECK(fixture.sourceDocument->GetHistory().GetCurrentState() == history);
+    fixture.sourceDocument->Undo();
+    CHECK(fixture.Source().GetName() == "Lantern");
+}
+
+TEST_CASE("Invalid prefab dependencies leave open documents and their histories intact until repaired",
+          "[editor][workspace][prefab]") {
+    PrefabWorkspaceFixture fixture;
+    REQUIRE(fixture.first->Execute(
+        std::make_unique<Spot::Editor::RenameEntityCommand>(*fixture.first, fixture.firstRoot, "Custom Lantern")));
+    const auto saved = fixture.first->GetScene().SaveToString();
+    const auto history = fixture.first->GetHistory().GetCurrentState();
+    const auto revision = fixture.first->GetSceneRevision();
+    const std::string original = fixture.Source().SaveToString();
+    // A valid imported source with an invalid dependency graph reaches the runtime's staging check.
+    std::ofstream(fixture.sourceDocument->GetFile(), std::ios::binary) << fixture.First().SaveToString();
+    REQUIRE(fixture.Project().Reimport(fixture.prefab));
+    fixture.workspace->SyncWithAssets();
+    CHECK(fixture.first->GetScene().SaveToString() == saved);
+    CHECK(fixture.first->GetHistory().GetCurrentState() == history);
+    CHECK(fixture.first->GetSceneRevision() == revision);
+    std::ofstream(fixture.sourceDocument->GetFile(), std::ios::binary) << original;
+    REQUIRE(fixture.Project().Reimport(fixture.prefab));
+    fixture.workspace->SyncWithAssets();
+    CHECK(fixture.First().GetName() == "Custom Lantern");
+    fixture.first->Undo();
+    CHECK(fixture.First().GetName() == "Lantern");
+}
+
+TEST_CASE("Undo and redo tolerate prefab entities and components removed from the source",
+          "[editor][workspace][prefab]") {
+    PrefabWorkspaceFixture fixture;
+    const auto bulb = fixture.First().FindChild("Bulb")->GetId();
+    REQUIRE(fixture.first->Execute(std::make_unique<Spot::Editor::RenameEntityCommand>(*fixture.first, bulb, "Local")));
+    REQUIRE(fixture.first->Execute(
+        std::make_unique<Spot::Editor::SetEntitiesActiveCommand>(*fixture.first, std::vector{bulb}, false)));
+    REQUIRE(fixture.first->Execute(
+        std::make_unique<Spot::Editor::SetEntitiesLayerCommand>(*fixture.first, std::vector{bulb}, 3)));
+    REQUIRE(fixture.first->Execute(
+        std::make_unique<Spot::Editor::SetEntitiesTagCommand>(*fixture.first, std::vector{bulb}, "Local", true)));
+    REQUIRE(fixture.first->Execute(
+        std::make_unique<Spot::Editor::AddComponentCommand>(*fixture.first, bulb, "PointLight")));
+    const auto before = Spot::SaveComponentToString(fixture.Light(fixture.First()));
+    fixture.Light(fixture.First()).SetIntensity(8.0f);
+    REQUIRE(fixture.first->Execute(std::make_unique<Spot::Editor::EditComponentCommand>(
+        *fixture.first, fixture.firstRoot, 0, before, Spot::SaveComponentToString(fixture.Light(fixture.First())))));
+    fixture.Source().FindChild("Bulb")->Destroy();
+    fixture.Source().RemoveComponent(fixture.Light(fixture.Source()));
+    fixture.SaveSource();
+    CHECK_FALSE(fixture.first->GetScene().GetEntity(bulb));
+    CHECK(fixture.First().GetComponents<Spot::PointLight>().empty());
+    for (int i = 0; i < 6; ++i) {
+        fixture.first->Undo();
+    }
+    for (int i = 0; i < 6; ++i) {
+        fixture.first->Redo();
+    }
+    CHECK_FALSE(fixture.first->GetScene().GetEntity(bulb));
+    CHECK(fixture.First().GetComponents<Spot::PointLight>().empty());
+    CHECK(fixture.First().GetName() == "Lantern");
+}
+
+TEST_CASE("Live prefab updates reach nested and variant documents and their scene instances",
+          "[editor][workspace][prefab]") {
+    PrefabWorkspaceFixture fixture;
+    fixture.First().SetName("Variant");
+    const auto variant = Spot::Editor::CreatePrefab(fixture.Project(), fixture.First(), "prefabs");
+    REQUIRE(variant);
+    Spot::Scene assembly;
+    auto& wrapper = assembly.CreateEntity("Assembly");
+    auto* nested = assembly.Instantiate(fixture.Project().GetAssets().Load<Spot::Prefab>(*variant),
+                                        {.parent = &wrapper, .assets = &fixture.Project().GetAssets()});
+    REQUIRE(nested);
+    const auto containing = Spot::Editor::CreatePrefab(fixture.Project(), wrapper, "prefabs");
+    REQUIRE(containing);
+    auto* variantDocument = fixture.workspace->OpenScene(*variant);
+    auto* containingDocument = fixture.workspace->OpenScene(*containing);
+    REQUIRE(variantDocument);
+    REQUIRE(containingDocument);
+    const auto instanceId = fixture.Instantiate(*fixture.second, *containing).GetId();
+    fixture.workspace->SyncWithAssets();
+    fixture.Light(fixture.Source()).SetIntensity(17.0f);
+    fixture.Source().CreateChild("Inherited Addition");
+    fixture.SaveSource();
+    auto& variantRoot = *variantDocument->GetScene().GetRootEntities().front();
+    auto* containingRoot = containingDocument->GetScene().FindEntity("Variant");
+    auto* runtime = fixture.second->GetScene().GetEntity(instanceId)->FindChild("Variant");
+    REQUIRE(containingRoot);
+    REQUIRE(runtime);
+    CHECK(variantRoot.GetName() == "Variant");
+    CHECK(fixture.Light(variantRoot).GetIntensity() == 17.0f);
+    CHECK(fixture.Light(*containingRoot).GetIntensity() == 17.0f);
+    CHECK(fixture.Light(*runtime).GetIntensity() == 17.0f);
+    CHECK(runtime->FindChild("Inherited Addition"));
+    CHECK(variantRoot.FindChild("Inherited Addition"));
+    CHECK(containingRoot->FindChild("Inherited Addition"));
+}
+
+TEST_CASE("Component addition and removal history retains identity through live prefab structural changes",
+          "[editor][workspace][prefab]") {
+    PrefabWorkspaceFixture fixture;
+    SECTION("Undoing a local addition removes its UUID after an inherited component disappears") {
+        REQUIRE(fixture.first->Execute(
+            std::make_unique<Spot::Editor::AddComponentCommand>(*fixture.first, fixture.firstRoot, "PointLight")));
+        const auto addedId = fixture.First().GetComponents<Spot::PointLight>().back()->GetId();
+        fixture.Source().RemoveComponent(fixture.Light(fixture.Source()));
+        const auto newSourceId = fixture.Source().AddComponent<Spot::PointLight>().GetId();
+        fixture.SaveSource();
+        fixture.first->Undo();
+        const auto remaining = fixture.First().GetComponents<Spot::PointLight>();
+        REQUIRE(remaining.size() == 1);
+        CHECK(remaining.front()->GetId() == newSourceId);
+        fixture.first->Redo();
+        const auto restored = fixture.First().GetComponents<Spot::PointLight>();
+        CHECK(std::ranges::find(restored, addedId, &Spot::Component::GetId) != restored.end());
+        CHECK(std::ranges::find(restored, newSourceId, &Spot::Component::GetId) != restored.end());
+    }
+    SECTION("Redoing a removal removes the old component and leaves newly inherited ones") {
+        REQUIRE(fixture.first->Execute(
+            std::make_unique<Spot::Editor::RemoveComponentCommand>(*fixture.first, fixture.firstRoot, 0)));
+        const auto newSourceId = fixture.Source().AddComponent<Spot::PointLight>().GetId();
+        fixture.SaveSource();
+        fixture.first->Undo();
+        CHECK(fixture.Light(fixture.First()).GetIntensity() == 2.0f);
+        fixture.first->Redo();
+        const auto remaining = fixture.First().GetComponents<Spot::PointLight>();
+        REQUIRE(remaining.size() == 1);
+        CHECK(remaining.front()->GetId() == newSourceId);
+    }
+}
+
+TEST_CASE("Inspector mixed values refresh after prefab updates without a new history entry",
+          "[editor][workspace][prefab][ui]") {
+    PrefabWorkspaceFixture fixture;
+    const auto otherId = fixture.Instantiate(*fixture.first, fixture.prefab).GetId();
+    fixture.Light(*fixture.first->GetScene().GetEntity(otherId)).SetIntensity(8.0f);
+    fixture.first->GetSelection().Set(std::vector{fixture.firstRoot, otherId});
+    Spot::Editor::EntityInspector inspector(*fixture.context);
+    const auto draw = [&] {
+        fixture.imgui.BeginFrame();
+        ImGui::Begin("Inspector");
+        inspector.Draw(*fixture.first);
+        ImGui::End();
+        fixture.imgui.EndFrame();
+    };
+    draw();
+    CHECK(inspector.GetMixedValues(*fixture.first, "PointLight") == std::vector<std::string>{"/data/intensity"});
+    const auto history = fixture.first->GetHistory().GetCurrentState();
+    fixture.Light(fixture.Source()).SetIntensity(8.0f);
+    fixture.SaveSource();
+    draw();
+    CHECK(fixture.first->GetHistory().GetCurrentState() == history);
+    CHECK(inspector.GetMixedValues(*fixture.first, "PointLight").empty());
+}
 
 TEST_CASE("The editor camera looks at its pivot and turns around it", "[editor][camera]") {
     Spot::Editor::EditorCamera camera;

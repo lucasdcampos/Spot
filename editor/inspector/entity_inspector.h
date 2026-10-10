@@ -61,10 +61,12 @@ private:
     // What an edit in progress changes, as it was before it.
     struct Edit {
         std::uint64_t document = 0;
+        std::uint64_t revision = 0;
         // The widget being edited; the edit ends when another one, or none, is active.
         ImGuiID widget = 0;
         std::string name;
         std::vector<ComponentPlace> components;
+        std::vector<ComponentId> componentIds;
         std::vector<std::string> before;
         // The values changed, as pointers into the components' saved form.
         std::vector<std::string> changed;
@@ -76,6 +78,7 @@ private:
     struct MixedValues {
         std::uint64_t selection = 0;
         std::uint64_t history = 0;
+        std::uint64_t revision = 0;
         std::size_t components = 0;
         double time = 0.0;
         std::vector<std::string> pointers;

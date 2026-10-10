@@ -125,11 +125,8 @@ void SceneWorkspace::ReloadScenes(const std::function<void()>& between) {
         scene.Clear();
     }
     between();
-    EditorProject* project = m_context.GetProject();
     for (std::size_t i = 0; i < m_scenes.size(); ++i) {
-        m_scenes[i].document->GetScene().Instantiate(
-            saved[i],
-            {.keepIds = true, .keepExternalReferences = true, .assets = project ? &project->GetAssets() : nullptr});
+        m_scenes[i].document->ReplaceSceneText(saved[i]);
     }
 }
 
@@ -209,6 +206,7 @@ void SceneWorkspace::Save(SceneDocument& document) {
         DropBackup(document);
         if (EditorProject* project = m_context.GetProject()) {
             project->Refresh();
+            SyncWithAssets();
         }
         GetEditorLogger().Info("Saved scene '{}'", document.GetName());
     }
@@ -224,7 +222,9 @@ void SceneWorkspace::SaveAs(SceneDocument& document, std::function<void(bool sav
     }
     const std::filesystem::path assets = project->GetProject().GetAssetsDirectory();
     const std::filesystem::path suggested =
-        document.GetFile().empty() ? assets / "scenes" / Utf8ToPath(document.GetName() + ".scene") : document.GetFile();
+        document.GetFile().empty() ? assets / (document.IsPrefab() ? "prefabs" : "scenes") /
+                                         Utf8ToPath(document.GetName() + (document.IsPrefab() ? ".prefab" : ".scene"))
+                                   : document.GetFile();
     const std::uint64_t documentId = document.GetId();
     FileDialog::SaveFile(
         &m_context.GetWindow(), document.IsPrefab() ? PrefabFilters : SceneFilters,
@@ -269,6 +269,7 @@ void SceneWorkspace::SaveAs(SceneDocument& document, std::function<void(bool sav
             project->Refresh();
             document.SetAssetId(
                 project->GetAssetDatabase().FindByPath(PathToUtf8(relative.generic_u8string())).value_or(AssetId()));
+            owner->SyncWithAssets();
             GetEditorLogger().Info("Saved scene '{}'", document.GetName());
             finish(true);
         },
@@ -565,6 +566,7 @@ void SceneWorkspace::SyncWithAssets() {
     const std::vector<AssetId> reloaded = project->TakeReloadedAssets();
     if (!reloaded.empty()) {
         for (const Opened& open : m_scenes) {
+            open.document->RefreshPrefabs(reloaded);
             open.document->GetScene().ForEachEntity([&](Entity& entity) {
                 for (Component* component : entity.GetComponents<Component>()) {
                     ReloadAssetReferences(*component, reloaded, &project->GetAssets());

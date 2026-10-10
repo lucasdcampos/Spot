@@ -106,6 +106,9 @@ bool EntityInspector::MenuItem(const std::string& key, const char* icon, const c
 }
 
 void EntityInspector::Draw(SceneDocument& document) {
+    if (m_edit && m_edit->document == document.GetId() && m_edit->revision != document.GetSceneRevision()) {
+        CommitEdit();
+    }
     Scene& scene = document.GetScene();
     Entity* primary = scene.GetEntity(document.GetSelection().GetPrimary());
     if (!primary) {
@@ -731,15 +734,15 @@ const std::vector<std::string>& EntityInspector::GetMixedValues(SceneDocument& d
                                                                 std::span<Component* const> components,
                                                                 const std::string& text) {
     MixedValues& cached = m_mixed[std::format("{}/{}", document.GetId(), card.key)];
-    // Values change without a command only while being edited here, or while a game plays.
+    // Scene revisions also cover prefab reloads that keep the command history unchanged.
     const bool editing = m_edit && m_edit->components == card.components;
     const bool playing = m_context.GetWorkspace() && m_context.GetWorkspace()->GetPlaySession();
     constexpr double PlayingRefresh = 0.25;
     const double now = ImGui::GetTime();
     const bool current = cached.selection == document.GetSelection().GetVersion() &&
                          cached.history == document.GetHistory().GetCurrentState() &&
-                         cached.components == components.size() && !editing &&
-                         (!playing || now - cached.time < PlayingRefresh);
+                         cached.revision == document.GetSceneRevision() && cached.components == components.size() &&
+                         !editing && (!playing || now - cached.time < PlayingRefresh);
     if (current && cached.time > 0.0) {
         return cached.pointers;
     }
@@ -749,6 +752,7 @@ const std::vector<std::string>& EntityInspector::GetMixedValues(SceneDocument& d
     }
     cached = {.selection = document.GetSelection().GetVersion(),
               .history = document.GetHistory().GetCurrentState(),
+              .revision = document.GetSceneRevision(),
               .components = components.size(),
               .time = now,
               .pointers = FindMixedValues(text, others)};
@@ -968,6 +972,7 @@ void EntityInspector::BeginTransformEdit(SceneDocument& document, std::span<Enti
     if (!m_edit) {
         Edit edit;
         edit.document = document.GetId();
+        edit.revision = document.GetSceneRevision();
         edit.name = name;
         for (const Entity* entity : entities) {
             const Pose pose = Pose::Of(entity->GetTransform());
@@ -987,7 +992,11 @@ void EntityInspector::BeginComponentEdit(SceneDocument& document, const Card& ca
         Edit edit;
         edit.document = document.GetId();
         edit.name = "Edit " + MakeDisplayName(card.typeName);
+        edit.revision = document.GetSceneRevision();
         edit.components = card.components;
+        for (const auto& [id, index] : card.components) {
+            edit.componentIds.push_back(GetComponentAt(*document.GetScene().GetEntity(id), index).GetId());
+        }
         edit.before = std::move(before);
         m_edit = std::move(edit);
     }
@@ -1008,17 +1017,19 @@ void EntityInspector::CommitEdit() {
     Scene& scene = document->GetScene();
     std::vector<std::unique_ptr<SceneCommand>> commands;
     for (std::size_t i = 0; i < edit.components.size(); ++i) {
-        const auto [id, index] = edit.components[i];
+        const EntityId id = edit.components[i].first;
         const Entity* entity = scene.GetEntity(id);
         const std::vector<Component*> components =
             entity ? entity->GetComponents<Component>() : std::vector<Component*>();
-        if (index >= components.size()) {
+        const auto found = std::ranges::find(components, edit.componentIds[i], &Component::GetId);
+        if (found == components.end()) {
             continue;
         }
-        std::string after = SaveComponentToString(*components[index]);
-        if (after != edit.before[i]) {
-            commands.push_back(
-                std::make_unique<EditComponentCommand>(*document, id, index, edit.before[i], std::move(after)));
+        const std::size_t index = entity->GetComponentIndex(**found);
+        std::string after = SaveComponentToString(**found);
+        const std::string before = CopyValues(edit.before[i], after, edit.changed);
+        if (after != before) {
+            commands.push_back(std::make_unique<EditComponentCommand>(*document, id, index, before, std::move(after)));
         }
     }
     std::vector<SetTransformsCommand::Change> changes;

@@ -25,7 +25,7 @@ editing transforms and components, and so on. A `CommandHistory` undoes and redo
 document changed since it was saved.
 
 The editor never keeps pointers to entities or components across frames. Commands hold `EntityId`s, component
-indices and saved JSON, so undo history stays valid when entities are deleted and brought back with their ids, or
+UUIDs and saved JSON, so undo history stays valid when entities are deleted and brought back with their ids, or
 when the game's code is reloaded and every component is recreated. Unsaved scenes are backed up under
 `.spot/backups`, and offered back after a crash.
 
@@ -37,6 +37,11 @@ history restores both the source file and the scene. See [Prefabs](prefabs.md) f
 Prefab documents preserve nested prefab links. Drag an ordinary tree containing instances into the browser to
 save that hierarchy, or drag a linked instance root to create a variant with its base id and overrides. Variants
 open as inherited trees and keep their base links across saves and instance Apply operations.
+
+Saving a prefab updates its instances in all open documents, including nested prefabs and variants, while keeping
+their overrides, selections and histories. Updates stage the current compact records before replacing entities;
+a broken dependency keeps the document intact. Component history uses UUIDs and replays only edited fields, and
+missing source targets are skipped safely. Play copies retain their existing instances until play stops.
 
 ## Panels
 

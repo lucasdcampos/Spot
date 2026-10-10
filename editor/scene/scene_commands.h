@@ -88,6 +88,9 @@ private:
     std::vector<EntityId> m_entities;
     // In hierarchy order, so each goes back to a place that already exists.
     std::vector<Deleted> m_deleted;
+    // Deleting inherited members is undone from their containing instance's compact record, so the link and any
+    // later source changes survive. Ordinary entities keep their existing, smaller snapshots.
+    std::vector<std::pair<EntityId, Deleted>> m_prefabs;
 };
 
 // Moves entities under a new parent, or to the root, before one of its children or after them all, keeping where
@@ -234,6 +237,7 @@ private:
     std::string m_typeName;
     std::string m_text;
     std::optional<std::size_t> m_index;
+    ComponentId m_component;
 };
 
 class RemoveComponentCommand final : public SceneCommand {
@@ -249,6 +253,7 @@ private:
     std::size_t m_index;
     std::string m_typeName;
     std::string m_text;
+    ComponentId m_component;
 };
 
 class MoveComponentCommand final : public SceneCommand {
@@ -263,6 +268,7 @@ private:
     EntityId m_entity;
     std::size_t m_from;
     std::size_t m_to;
+    ComponentId m_component;
 };
 
 // Changes a component's fields from one saved state to another; the component may already be in the new one, as
@@ -278,7 +284,7 @@ public:
 
 private:
     EntityId m_entity;
-    std::size_t m_index;
+    ComponentId m_component;
     std::string m_typeName;
     std::string m_before;
     std::string m_after;

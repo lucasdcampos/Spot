@@ -1,5 +1,7 @@
 #include "scene/scene_commands.h"
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
 #include <limits>
 #include <utility>
@@ -41,6 +43,53 @@ std::vector<EntityId> GetIds(const std::vector<Entity*>& entities) {
         ids.push_back(entity->GetId());
     }
     return ids;
+}
+
+Component* FindComponent(Scene& scene, EntityId entityId, ComponentId componentId) {
+    if (const Entity* entity = scene.GetEntity(entityId)) {
+        for (Component* component : entity->GetComponents<Component>()) {
+            if (component->GetId() == componentId) {
+                return component;
+            }
+        }
+    }
+    return nullptr;
+}
+
+// Replays only edited fields: a prefab reload may have changed the component's other fields since the edit.
+void CopyChanges(nlohmann::json& current, const nlohmann::json& before, const nlohmann::json& after) {
+    if (before == after) {
+        return;
+    }
+    if (current.is_object() && before.is_object() && after.is_object()) {
+        for (const auto& [key, value] : before.items()) {
+            if (!after.contains(key)) {
+                current.erase(key);
+            } else if (current.contains(key)) {
+                CopyChanges(current[key], value, after[key]);
+            } else if (value != after[key]) {
+                current[key] = after[key];
+            }
+        }
+        for (const auto& [key, value] : after.items()) {
+            if (!before.contains(key)) {
+                current[key] = value;
+            }
+        }
+    } else {
+        current = after;
+    }
+}
+
+bool ReplayComponentEdit(Component& component, std::string_view before, std::string_view after, AssetManager* assets) {
+    auto current = nlohmann::json::parse(SaveComponentToString(component), nullptr, false);
+    const auto from = nlohmann::json::parse(before, nullptr, false);
+    const auto to = nlohmann::json::parse(after, nullptr, false);
+    if (!current.is_object() || !from.is_object() || !to.is_object()) {
+        return false;
+    }
+    CopyChanges(current, from, to);
+    return LoadComponentFromString(component, current.dump(), assets);
 }
 
 } // namespace
@@ -117,7 +166,9 @@ bool CreateEntitiesCommand::Execute() {
 
 void CreateEntitiesCommand::Undo() {
     for (const EntityId id : m_created) {
-        GetEntity(id).Destroy();
+        if (Entity* entity = GetScene().GetEntity(id)) {
+            entity->Destroy();
+        }
     }
 }
 
@@ -136,13 +187,33 @@ bool DeleteEntitiesCommand::Execute() {
         return false;
     }
     m_deleted.clear();
-    for (const Entity* root : roots) {
-        m_deleted.push_back({.parent = root->GetParent() ? root->GetParent()->GetId() : EntityId::Invalid,
-                             .index = root->GetSiblingIndex(),
-                             .text = {}});
+    m_prefabs.clear();
+    for (Entity* root : roots) {
+        Entity* prefab = scene.GetEntity(root->GetPrefabRootId());
+        if (prefab && prefab != root) {
+            if (std::ranges::none_of(m_prefabs, [&](const auto& saved) { return saved.first == prefab->GetId(); })) {
+                m_prefabs.push_back({prefab->GetId(),
+                                     {.parent = prefab->GetParent() ? prefab->GetParent()->GetId() : EntityId::Invalid,
+                                      .index = prefab->GetSiblingIndex(),
+                                      .text = prefab->SaveToString()}});
+            }
+        }
+    }
+    std::vector<Entity*> ordinary;
+    for (Entity* root : roots) {
+        const bool covered = std::ranges::any_of(
+            m_prefabs, [&](const auto& saved) { return root->IsDescendantOf(*scene.GetEntity(saved.first)); });
+        if (!covered) {
+            ordinary.push_back(root);
+            m_deleted.push_back({.parent = root->GetParent() ? root->GetParent()->GetId() : EntityId::Invalid,
+                                 .index = root->GetSiblingIndex(),
+                                 .text = {}});
+        }
     }
     // Saved together, so references between them come back too.
-    m_deleted.front().text = scene.SaveEntitiesToString(roots);
+    if (!m_deleted.empty()) {
+        m_deleted.front().text = scene.SaveEntitiesToString(ordinary);
+    }
     for (Entity* root : roots) {
         root->Destroy();
     }
@@ -151,13 +222,38 @@ bool DeleteEntitiesCommand::Execute() {
 
 void DeleteEntitiesCommand::Undo() {
     Scene& scene = GetScene();
-    const std::vector<Entity*> roots =
-        scene.Instantiate(m_deleted.front().text,
-                          {.keepIds = true, .keepExternalReferences = true, .assets = GetDocument().GetAssetManager()});
+    nlohmann::json combined = {{"format", "spot-scene"}, {"version", 2}, {"entities", nlohmann::json::array()}};
+    for (const auto& [id, saved] : m_prefabs) {
+        (void)id;
+        const auto document = nlohmann::json::parse(saved.text);
+        for (const auto& entity : document["entities"]) {
+            combined["entities"].push_back(entity);
+        }
+    }
+    if (!m_deleted.empty()) {
+        const auto document = nlohmann::json::parse(m_deleted.front().text);
+        for (const auto& entity : document["entities"]) {
+            combined["entities"].push_back(entity);
+        }
+    }
+    const std::string text = combined.dump();
+    Scene prepared;
+    if (prepared.Instantiate(text, {.assets = GetDocument().GetAssetManager()}).empty()) {
+        return;
+    }
+    for (const auto& [id, saved] : m_prefabs) {
+        (void)saved;
+        if (Entity* instance = scene.GetEntity(id)) {
+            instance->Destroy();
+        }
+    }
+    const auto roots = scene.Instantiate(
+        text, {.keepIds = true, .keepExternalReferences = true, .assets = GetDocument().GetAssetManager()});
     // Back in hierarchy order, so the earlier places exist when the later ones are taken.
-    for (std::size_t i = 0; i < roots.size() && i < m_deleted.size(); ++i) {
-        roots[i]->SetParent(scene.GetEntity(m_deleted[i].parent));
-        roots[i]->SetSiblingIndex(m_deleted[i].index);
+    for (std::size_t i = 0; i < roots.size(); ++i) {
+        const Deleted& saved = i < m_prefabs.size() ? m_prefabs[i].second : m_deleted[i - m_prefabs.size()];
+        roots[i]->SetParent(scene.GetEntity(saved.parent));
+        roots[i]->SetSiblingIndex(saved.index);
     }
 }
 
@@ -205,7 +301,11 @@ bool ReparentEntitiesCommand::Execute() {
 void ReparentEntitiesCommand::Undo() {
     Scene& scene = GetScene();
     for (const Previous& previous : m_previous) {
-        Entity& entity = GetEntity(previous.entity);
+        Entity* restored = scene.GetEntity(previous.entity);
+        if (!restored) {
+            continue;
+        }
+        Entity& entity = *restored;
         entity.SetParent(scene.GetEntity(previous.parent));
         entity.SetSiblingIndex(previous.index);
         Pose{previous.position, previous.rotation, previous.scale}.ApplyTo(entity.GetTransform());
@@ -217,7 +317,11 @@ RenameEntityCommand::RenameEntityCommand(SceneDocument& document, EntityId entit
 }
 
 bool RenameEntityCommand::Execute() {
-    Entity& entity = GetEntity(m_entity);
+    Entity* found = GetScene().GetEntity(m_entity);
+    if (!found) {
+        return false;
+    }
+    Entity& entity = *found;
     if (entity.GetName() == m_name) {
         return false;
     }
@@ -227,7 +331,9 @@ bool RenameEntityCommand::Execute() {
 }
 
 void RenameEntityCommand::Undo() {
-    GetEntity(m_entity).SetName(m_previous);
+    if (Entity* entity = GetScene().GetEntity(m_entity)) {
+        entity->SetName(m_previous);
+    }
 }
 
 SetEntitiesActiveCommand::SetEntitiesActiveCommand(SceneDocument& document, std::vector<EntityId> entities, bool active)
@@ -247,7 +353,9 @@ bool SetEntitiesActiveCommand::Execute() {
 
 void SetEntitiesActiveCommand::Undo() {
     for (const EntityId id : m_changed) {
-        GetEntity(id).SetActive(!m_active);
+        if (Entity* entity = GetScene().GetEntity(id)) {
+            entity->SetActive(!m_active);
+        }
     }
 }
 
@@ -268,7 +376,9 @@ bool SetEntitiesLayerCommand::Execute() {
 
 void SetEntitiesLayerCommand::Undo() {
     for (const auto& [id, layer] : m_previous) {
-        GetEntity(id).SetLayer(layer);
+        if (Entity* entity = GetScene().GetEntity(id)) {
+            entity->SetLayer(layer);
+        }
     }
 }
 
@@ -297,7 +407,11 @@ bool SetEntitiesTagCommand::Execute() {
 void SetEntitiesTagCommand::Undo() {
     // Brings back the tags in their order, so the scene saves as it did.
     for (const Previous& previous : m_previous) {
-        Entity& entity = GetEntity(previous.entity);
+        Entity* found = GetScene().GetEntity(previous.entity);
+        if (!found) {
+            continue;
+        }
+        Entity& entity = *found;
         const std::vector<std::string> current(entity.GetTags().begin(), entity.GetTags().end());
         for (const std::string& tag : current) {
             entity.RemoveTag(tag);
@@ -325,15 +439,19 @@ SetTransformsCommand::SetTransformsCommand(SceneDocument& document, std::string 
 bool SetTransformsCommand::Execute() {
     bool changed = false;
     for (const Change& change : m_changes) {
-        change.after.ApplyTo(GetEntity(change.entity).GetTransform());
-        changed = changed || change.before != change.after;
+        if (Entity* entity = GetScene().GetEntity(change.entity)) {
+            change.after.ApplyTo(entity->GetTransform());
+            changed = changed || change.before != change.after;
+        }
     }
     return changed;
 }
 
 void SetTransformsCommand::Undo() {
     for (const Change& change : m_changes) {
-        change.before.ApplyTo(GetEntity(change.entity).GetTransform());
+        if (Entity* entity = GetScene().GetEntity(change.entity)) {
+            change.before.ApplyTo(entity->GetTransform());
+        }
     }
 }
 
@@ -350,7 +468,11 @@ AddComponentCommand::AddComponentCommand(SceneDocument& document, EntityId entit
 }
 
 bool AddComponentCommand::Execute() {
-    Entity& entity = GetEntity(m_entity);
+    Entity* found = GetScene().GetEntity(m_entity);
+    if (!found) {
+        return false;
+    }
+    Entity& entity = *found;
     Component* added = nullptr;
     if (m_text.empty()) {
         // A new component; its defaults are saved so redoing brings back the same one.
@@ -365,52 +487,67 @@ bool AddComponentCommand::Execute() {
         return false;
     }
     m_index = entity.GetComponentIndex(*added);
+    m_component = added->GetId();
+    m_text = SaveComponentToString(*added);
     return true;
 }
 
 void AddComponentCommand::Undo() {
-    Entity& entity = GetEntity(m_entity);
-    entity.RemoveComponent(GetComponentAt(entity, *m_index));
+    if (Component* component = FindComponent(GetScene(), m_entity, m_component)) {
+        GetScene().GetEntity(m_entity)->RemoveComponent(*component);
+    }
 }
 
 RemoveComponentCommand::RemoveComponentCommand(SceneDocument& document, EntityId entity, std::size_t index)
     : SceneCommand(document), m_entity(entity), m_index(index),
-      m_typeName(GetComponentTypeName(GetComponentAt(GetEntity(entity), index))) {
+      m_typeName(GetComponentTypeName(GetComponentAt(GetEntity(entity), index))),
+      m_component(GetComponentAt(GetEntity(entity), index).GetId()) {
 }
 
 bool RemoveComponentCommand::Execute() {
-    Entity& entity = GetEntity(m_entity);
-    Component& component = GetComponentAt(entity, m_index);
-    m_text = SaveComponentToString(component);
-    entity.RemoveComponent(component);
+    Component* component = FindComponent(GetScene(), m_entity, m_component);
+    if (!component) {
+        return false;
+    }
+    Entity& entity = *GetScene().GetEntity(m_entity);
+    m_index = entity.GetComponentIndex(*component);
+    m_text = SaveComponentToString(*component);
+    entity.RemoveComponent(*component);
     return true;
 }
 
 void RemoveComponentCommand::Undo() {
-    AddComponentFromString(GetEntity(m_entity), m_text, m_index, GetDocument().GetAssetManager());
+    if (Entity* entity = GetScene().GetEntity(m_entity); entity && !FindComponent(GetScene(), m_entity, m_component)) {
+        AddComponentFromString(*entity, m_text, m_index, GetDocument().GetAssetManager());
+    }
 }
 
 MoveComponentCommand::MoveComponentCommand(SceneDocument& document, EntityId entity, std::size_t from, std::size_t to)
-    : SceneCommand(document), m_entity(entity), m_from(from), m_to(to) {
+    : SceneCommand(document), m_entity(entity), m_from(from), m_to(to),
+      m_component(GetComponentAt(GetEntity(entity), from).GetId()) {
 }
 
 bool MoveComponentCommand::Execute() {
     if (m_from == m_to) {
         return false;
     }
-    Entity& entity = GetEntity(m_entity);
-    entity.MoveComponent(GetComponentAt(entity, m_from), m_to);
+    Component* component = FindComponent(GetScene(), m_entity, m_component);
+    if (!component) {
+        return false;
+    }
+    GetScene().GetEntity(m_entity)->MoveComponent(*component, m_to);
     return true;
 }
 
 void MoveComponentCommand::Undo() {
-    Entity& entity = GetEntity(m_entity);
-    entity.MoveComponent(GetComponentAt(entity, m_to), m_from);
+    if (Component* component = FindComponent(GetScene(), m_entity, m_component)) {
+        GetScene().GetEntity(m_entity)->MoveComponent(*component, m_from);
+    }
 }
 
 EditComponentCommand::EditComponentCommand(SceneDocument& document, EntityId entity, std::size_t index,
                                            std::string before, std::string after)
-    : SceneCommand(document), m_entity(entity), m_index(index),
+    : SceneCommand(document), m_entity(entity), m_component(GetComponentAt(GetEntity(entity), index).GetId()),
       m_typeName(GetComponentTypeName(GetComponentAt(GetEntity(entity), index))), m_before(std::move(before)),
       m_after(std::move(after)) {
 }
@@ -419,12 +556,14 @@ bool EditComponentCommand::Execute() {
     if (m_before == m_after) {
         return false;
     }
-    return LoadComponentFromString(GetComponentAt(GetEntity(m_entity), m_index), m_after,
-                                   GetDocument().GetAssetManager());
+    Component* component = FindComponent(GetScene(), m_entity, m_component);
+    return component && ReplayComponentEdit(*component, m_before, m_after, GetDocument().GetAssetManager());
 }
 
 void EditComponentCommand::Undo() {
-    LoadComponentFromString(GetComponentAt(GetEntity(m_entity), m_index), m_before, GetDocument().GetAssetManager());
+    if (Component* component = FindComponent(GetScene(), m_entity, m_component)) {
+        ReplayComponentEdit(*component, m_after, m_before, GetDocument().GetAssetManager());
+    }
 }
 
 ReplaceSceneCommand::ReplaceSceneCommand(SceneDocument& document, std::string text, std::string name)
@@ -436,17 +575,11 @@ bool ReplaceSceneCommand::Execute() {
     if (m_before.empty()) {
         m_before = scene.SaveToString();
     }
-    scene.Clear();
-    scene.Instantiate(m_text,
-                      {.keepIds = true, .keepExternalReferences = true, .assets = GetDocument().GetAssetManager()});
-    return true;
+    return GetDocument().ReplaceSceneText(m_text);
 }
 
 void ReplaceSceneCommand::Undo() {
-    Scene& scene = GetScene();
-    scene.Clear();
-    scene.Instantiate(m_before,
-                      {.keepIds = true, .keepExternalReferences = true, .assets = GetDocument().GetAssetManager()});
+    GetDocument().ReplaceSceneText(m_before);
 }
 
 } // namespace Spot::Editor

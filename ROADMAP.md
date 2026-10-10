@@ -836,7 +836,7 @@ prefab's current content, so prefab changes reach every instance. Prefabs nest.
   (a `.prefab` opened as a document), see overrides in the inspector, Apply or Revert per field, component or
   instance, and Unpack.
 - [x] **M8.6 Nesting and variants.** Prefabs inside prefabs, and variants that override another prefab.
-- [ ] **M8.7 Live updates.** Saving a prefab updates the instances in open scenes, keeping undo valid.
+- [x] **M8.7 Live updates.** Saving a prefab updates the instances in open scenes, keeping undo valid.
 - [ ] **M8.8 Sandbox: spawnables as prefabs.** Every prop, lamp and weapon is a prefab, and the spawn list is built
   from them, so a new spawnable is an asset rather than code.
 
@@ -913,6 +913,19 @@ own overrides.
   Tests cover nested propagation, variant and scene override layers, source edits, stable additions, references,
   dependency reload, malformed mappings and editor authoring without baking dependencies.
   Validation: MSVC and GCC Debug build without warnings and pass all 612 tests, including GPU, golden images,
+  editor, module and sandbox tests.
+
+- M8.7: Asset refresh stages the compact records of affected open documents against current prefabs before
+  replacing entities, keeping instance overrides, ids, selections, history and saved-state markers. Nested and
+  variant dependencies propagate through the same reload graph; broken dependencies retain the document until a
+  repaired import. Clean prefab source documents follow Apply from other scenes, while unsaved authoring edits
+  remain intact. Play copies keep their current instances. Component commands resolve persistent UUIDs, field
+  replay changes only edited values, and missing history targets are skipped safely. Undoing inherited entity
+  deletion restores its containing instance against the current source, preserving links and later additions.
+  Scene revisions invalidate inspector caches and finish in-progress edits by component identity. Tests cover
+  multiple documents, source saves, Apply undo/redo, nested variants, component insertion and removal, inherited
+  deletion with cross-entity references, missing targets, failed reload recovery and inspector mixed values.
+  Validation: MSVC and GCC Debug build without warnings and pass all 622 tests, including GPU, golden images,
   editor, module and sandbox tests.
 
 ---
