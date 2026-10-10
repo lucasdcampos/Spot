@@ -606,7 +606,7 @@ void EditorApplication::DrawFileMenu() {
     ImGui::Separator();
     const bool hasCode = hasProject && m_context->GetProject()->GetModules().HasCode();
     if (MenuItem(ICON_FA_HAMMER "  Build Game Code", ImGuiMod_Ctrl | ImGuiKey_B, hasCode)) {
-        m_context->GetProject()->GetModules().Build();
+        m_context->GetProject()->GetModules().Build(ModuleHost::BuildScope::Game);
     }
     if (MenuItem(ICON_FA_GEAR "  Project Settings...", 0, hasProject)) {
         if (Panel* settings = FindPanel("ProjectSettings")) {
@@ -695,12 +695,9 @@ void EditorApplication::RunGame() {
             m_workspace->Save(document);
         }
     }
-    // The game runs the code as it is now, which its executable may not have yet.
-    ModuleHost& modules = m_context->GetProject()->GetModules();
-    std::error_code error;
-    if (modules.HasUnbuiltChanges() || !std::filesystem::exists(project->GetProject().GetGameExecutable(), error)) {
-        modules.Build();
-    }
+    // The game runs the code as it is now, which its executable may not have yet: builds on change only make the
+    // module. Built already, it takes a moment to find nothing to do.
+    m_context->GetProject()->GetModules().Build(ModuleHost::BuildScope::Game);
     m_runPending = true;
 }
 
@@ -755,7 +752,7 @@ void EditorApplication::DrawBuildControls() {
     }
     ImGui::BeginDisabled(build.IsRunning());
     if (ToolbarButton(ICON_FA_HAMMER, "Build the game's code (Ctrl+B); it also builds by itself when it changes")) {
-        modules.Build();
+        modules.Build(ModuleHost::BuildScope::Game);
     }
     ImGui::EndDisabled();
 }
@@ -981,7 +978,7 @@ void EditorApplication::HandleShortcuts() {
         return;
     }
     if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_B, Global)) {
-        m_context->GetProject()->GetModules().Build();
+        m_context->GetProject()->GetModules().Build(ModuleHost::BuildScope::Game);
     }
     if (ImGui::Shortcut(ImGuiKey_F5, Global)) {
         RunGame();

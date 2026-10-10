@@ -67,9 +67,11 @@ public:
     CodeBuild(const CodeBuild&) = delete;
     CodeBuild& operator=(const CodeBuild&) = delete;
 
-    // Starts a build, configuring the build directory first when it was not yet, or for another toolchain. A build
-    // running already starts over once it ends.
-    void Start();
+    // Starts a build, configuring the build directory first when it was not yet, or for another toolchain, and again
+    // when a CMake file changed or a file of code came or went, as globs of sources need. With a target, such as the
+    // module alone, only it and what it needs are built. A build running already starts over once it ends, building
+    // what both asked for.
+    void Start(std::string_view target = {});
     // Follows the running build. Returns true the call it ends.
     bool Update();
     // Waits for the running build to end, following it.
@@ -78,6 +80,9 @@ public:
     // Whether the build directory was configured for this toolchain and these sources, so what it built works with
     // these tools.
     bool IsConfigured() const;
+    // Whether the sources changed in a way that needs configuring again: a CMake file changed, or a file was added,
+    // removed or renamed.
+    bool NeedsReconfigure() const;
 
     CodeBuildState GetState() const { return m_state; }
     bool IsRunning() const { return m_state == CodeBuildState::Running; }
@@ -104,14 +109,18 @@ private:
     void FlushMessage();
     void Finish(bool succeeded);
     std::string GetConfigurationKey() const;
+    // Changes with the names of the code's files and the CMake files' times.
+    std::string StampSources() const;
 
     std::filesystem::path m_source;
     std::filesystem::path m_build;
     Toolchain m_toolchain;
+    // Empty for everything.
+    std::string m_target;
+    std::optional<std::string> m_restartTarget;
     std::unique_ptr<Process> m_process;
     Step m_step = Step::Build;
     CodeBuildState m_state = CodeBuildState::Idle;
-    bool m_restart = false;
     std::size_t m_errors = 0;
     std::size_t m_warnings = 0;
     std::chrono::steady_clock::time_point m_started;

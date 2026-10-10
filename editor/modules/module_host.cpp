@@ -99,11 +99,12 @@ bool ModuleHost::LoadBuilt() {
     return loaded;
 }
 
-void ModuleHost::Build() {
+void ModuleHost::Build(BuildScope scope) {
     if (HasCode()) {
         m_unbuiltChanges = false;
         m_changeTime = std::chrono::steady_clock::now();
-        m_build.Start();
+        // spot_add_game()'s module target.
+        m_build.Start(scope == BuildScope::Module ? "game_module" : "");
     }
 }
 

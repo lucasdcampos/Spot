@@ -6,13 +6,15 @@
 #include <iterator>
 #include <system_error>
 #include <thread>
+#include <utility>
 
 namespace Spot {
 
 namespace {
 
-// The file in the build directory that says which toolchain configured it.
+// The files in the build directory that say which toolchain configured it, and for which sources.
 constexpr const char* ToolchainFile = "spot_toolchain.txt";
+constexpr const char* SourcesFile = "spot_sources.txt";
 // Lines kept to explain a failed build that reported no error the editor recognizes.
 constexpr std::size_t TailLines = 30;
 
@@ -60,13 +62,15 @@ CodeBuild::CodeBuild(std::filesystem::path sourceDirectory, std::filesystem::pat
 
 CodeBuild::~CodeBuild() = default;
 
-void CodeBuild::Start() {
+void CodeBuild::Start(std::string_view target) {
     if (IsRunning()) {
-        m_restart = true;
+        // Everything covers any target, and two different targets need everything too.
+        m_restartTarget = !m_restartTarget || *m_restartTarget == target ? std::string(target) : std::string();
         return;
     }
     m_state = CodeBuildState::Running;
-    m_restart = false;
+    m_target = target;
+    m_restartTarget.reset();
     m_errors = 0;
     m_warnings = 0;
     m_reported.clear();
@@ -75,7 +79,14 @@ void CodeBuild::Start() {
     m_started = std::chrono::steady_clock::now();
 
     if (IsConfigured()) {
-        StartStep(Step::Build);
+        // CMake would notice a changed CMake file itself, but a source added to a glob only once a build of the
+        // Visual Studio generator already started from the old project, which then fails.
+        if (NeedsReconfigure()) {
+            GetBuildLogger().Info("Configuring the game's code again, as its files changed");
+            StartStep(Step::Configure);
+        } else {
+            StartStep(Step::Build);
+        }
         return;
     }
     // A build directory is tied to its generator and compiler, so another toolchain needs a new one.
@@ -122,6 +133,9 @@ void CodeBuild::StartStep(Step step) {
     } else {
         arguments.insert(arguments.end(),
                          {"--build", PathToUtf8(m_build), "--config", m_toolchain.configuration, "--parallel"});
+        if (!m_target.empty()) {
+            arguments.insert(arguments.end(), {"--target", m_target});
+        }
     }
 
     m_process = Process::Start(arguments, m_source);
@@ -148,12 +162,13 @@ bool CodeBuild::Update() {
 
     if (*exitCode == 0 && m_step == Step::Configure) {
         std::ofstream(m_build / ToolchainFile, std::ios::binary) << GetConfigurationKey();
+        std::ofstream(m_build / SourcesFile, std::ios::binary) << StampSources();
         StartStep(Step::Build);
         return false;
     }
     Finish(*exitCode == 0);
-    if (m_restart) {
-        Start();
+    if (m_restartTarget) {
+        Start(std::exchange(m_restartTarget, std::nullopt).value());
         return false;
     }
     return true;
@@ -172,6 +187,34 @@ bool CodeBuild::IsConfigured() const {
     std::error_code error;
     return std::filesystem::exists(m_build / "CMakeCache.txt", error) &&
            ReadFile(m_build / ToolchainFile) == GetConfigurationKey();
+}
+
+bool CodeBuild::NeedsReconfigure() const {
+    return ReadFile(m_build / SourcesFile) != StampSources();
+}
+
+std::string CodeBuild::StampSources() const {
+    std::vector<std::string> lines;
+    std::error_code error;
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(m_source, error)) {
+        if (!entry.is_regular_file(error)) {
+            continue;
+        }
+        const std::filesystem::path& path = entry.path();
+        std::string line = PathToUtf8(path.lexically_relative(m_source));
+        // CMake files by their time too, as any change to them may change the build.
+        if (path.filename() == "CMakeLists.txt" || path.extension() == ".cmake") {
+            line += std::format(" {}", entry.last_write_time(error).time_since_epoch().count());
+        }
+        lines.push_back(std::move(line));
+    }
+    std::ranges::sort(lines);
+    std::string stamp;
+    for (const std::string& line : lines) {
+        stamp += line;
+        stamp += '\n';
+    }
+    return stamp;
 }
 
 std::string CodeBuild::GetConfigurationKey() const {

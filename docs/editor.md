@@ -1,7 +1,8 @@
 # Editor
 
 The editor (`spot_editor`, `editor/`) is a Dear ImGui application for making games from projects: it edits scenes
-and assets, builds and reloads the game's code, and plays scenes. Everything but `main.cpp` is the
+and assets, builds and reloads the game's code (looking for changes four times a second, building only the module,
+and reloading a one-line change about a second after it), and plays scenes. Everything but `main.cpp` is the
 `spot_editor_core` library, which the editor's tests link.
 
 It follows the rules games do: it uses only the engine's public API and never reaches a backend, and ImGui stays in

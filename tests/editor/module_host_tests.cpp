@@ -68,6 +68,13 @@ void RegisterGame() {
 SPOT_GAME_MODULE(RegisterGame)
 )";
 
+constexpr std::string_view BlinkComponent = R"(#include <spot.h>
+
+class Blink final : public Spot::Component {};
+
+SPOT_COMPONENT(Blink);
+)";
+
 constexpr std::string_view BrokenCode = "#include <spot.h>\n\nint Broken( {\n";
 
 // The game's main() for tests: without graphics, which machines that run them may not have, and only for a few frames.
@@ -237,6 +244,17 @@ TEST_CASE("A project's code builds into a module that loads, and loads again whe
         CHECK(scene.SaveToString() == saved);
         CHECK(Spot::CreateComponent("Pulse"));
 
+        // A file of code added builds on the first try: the build directory is configured again for it.
+        WriteCode(code.parent_path() / "blink.cpp", BlinkComponent);
+        host.Update();
+        WaitForBuild(host);
+        REQUIRE(host.GetBuild().GetState() == CodeBuildState::Succeeded);
+        REQUIRE(host.HasNewModule());
+        scene.Clear();
+        REQUIRE(host.SwapModule());
+        CHECK(GetTypes(*host.GetModule()) == std::vector<std::string>{"Blink", "Pulse", "Rotator"});
+        std::filesystem::remove(code.parent_path() / "blink.cpp");
+
         // Code that does not build leaves the module that was loaded.
         WriteCode(code, BrokenCode);
         host.Update();
@@ -262,7 +280,12 @@ TEST_CASE("Projects build their game's executable, which runs the startup scene 
     std::ofstream(project->GetCodeDirectory() / "main.cpp", std::ios::binary) << TestMain;
     {
         Spot::Editor::ModuleHost host(*project, {.watchInterval = 0ms});
+        // Builds on change make the module alone; running the game builds its executable too.
         host.Build();
+        WaitForBuild(host);
+        REQUIRE(host.GetBuild().GetState() == CodeBuildState::Succeeded);
+        CHECK_FALSE(std::filesystem::exists(project->GetGameExecutable()));
+        host.Build(Spot::Editor::ModuleHost::BuildScope::Game);
         WaitForBuild(host);
         REQUIRE(host.GetBuild().GetState() == CodeBuildState::Succeeded);
     }

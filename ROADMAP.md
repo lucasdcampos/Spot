@@ -512,7 +512,7 @@ budget is a few seconds for a one-file change in Debug.
   and for games. Document it.
 - [x] **M4.4 Header cost.** Profile the include cost of `spot.h` (`-ftime-trace`) and cut the top offenders with
   forward declarations and by moving heavy includes out of widely used headers.
-- [ ] **M4.5 Skip needless work.** Configure only when the CMake files changed, build only what changed, and record
+- [x] **M4.5 Skip needless work.** Configure only when the CMake files changed, build only what changed, and record
   the result against the budget in Notes.
 
 **Done when:** a one-line change in a sandbox component reloads in the editor within the budget.
@@ -549,6 +549,14 @@ budget is a few seconds for a one-file change in Debug.
   instead: `log_sinks.h` keeps its `std::ofstream` behind a pointer (no `<fstream>`), and `asset_id.h`,
   `game_settings.h` and `archive.h` drop `<functional>` and `<algorithm>` they did not need. The total moved
   within noise, as `<filesystem>` brings what they did.
+- M4.5: `CodeBuild` stamps the code folder's file names and its CMake files' times after configuring
+  (`spot_sources.txt`), and configures again first when they change, so an added file builds on the first try
+  (0.2 s of configuring). `CodeBuild::Start(target)` builds one target: the editor's builds on change make
+  `game_module` alone (about 1.0 s for a one-line change, against 1.2-1.3 s with the executable), while running the
+  game and Ctrl+B build everything. The editor looks for changes every 250 ms instead of every second. Against the
+  budget, in the editor on the sandbox, MSVC Debug: a one-line change to a component reloads 1.0-1.2 s after it is
+  seen (build 0.9-1.0 s, module load 21-25 ms, scenes reloaded in 120-140 ms), so at most about 1.5 s after it is
+  saved, down from about 5 s at the M4.1 baseline.
 
 ---
 

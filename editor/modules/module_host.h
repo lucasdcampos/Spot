@@ -10,14 +10,14 @@
 
 namespace Spot::Editor {
 
-// The game's code of a project with code, one with a CMakeLists.txt in its code folder: builds it in the background
-// when it changes, and loads the module it builds, from a copy, so the next build can replace the file meanwhile.
+// The game's code of a project with code, one with a CMakeLists.txt in its code folder: builds its module, alone, in
+// the background when it changes, and loads it, from a copy, so the next build can replace the file meanwhile.
 class ModuleHost {
 public:
     struct Options {
         Toolchain toolchain = Toolchain::GetBuilt();
-        // How often the code is looked at for changes.
-        std::chrono::milliseconds watchInterval = std::chrono::milliseconds(1000);
+        // How often the code is looked at for changes, which delays every reload by half of it on average.
+        std::chrono::milliseconds watchInterval = std::chrono::milliseconds(250);
     };
 
     ModuleHost(const Project& project, Options options);
@@ -31,8 +31,14 @@ public:
     // Loads the module built last, so scenes open with the game's components, and builds the code when it changed
     // since. Returns whether a module loaded.
     bool LoadBuilt();
+    enum class BuildScope {
+        // What reloading needs, as when the code changes.
+        Module,
+        // The game's executable too, as running the game needs.
+        Game,
+    };
     // Builds the code in the background.
-    void Build();
+    void Build(BuildScope scope = BuildScope::Module);
     // Follows the build, and builds when the code changed, unless told not to.
     void Update();
     // Whether changes to the code start a build; when they do not, HasUnbuiltChanges() tells of them.

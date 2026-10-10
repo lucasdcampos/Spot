@@ -31,7 +31,9 @@ templates: a 3D scene, a component to start from, or nothing.
   `CMakeLists.txt` calls `spot_add_game()`, from the engine's CMake package, which builds both the game's executable
   and the game module the editor loads, precompiling `<spot.h>` once for every file of the game's code, and
   compiling through sccache or ccache when one is installed and the generator runs one (Ninja and Makefiles do,
-  Visual Studio does not), as the engine's own build does. Each build logs how long its phases took (`CodeBuild::GetPhases()`):
+  Visual Studio does not), as the engine's own build does. A build configures again by itself when a CMake file
+  changed or a file of code came or went, and builds only the module when that is all it needs, as the editor's
+  builds on change do; running the game builds its executable too. Each build logs how long its phases took (`CodeBuild::GetPhases()`):
   configuring, compiling and linking, told apart where the build tool says when it links. The editor also logs how
   long loading the module and reloading the scenes took, and how long after the code changed.
 - **Cooking**: `CookGame()` imports the sources into `imported/` in a folder and writes `game.json` there, so a game's
