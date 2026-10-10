@@ -358,7 +358,7 @@ Renderer3D::Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config) :
             .cullMode = CullMode::Back,
             .depthOnly = true,
             // Surfaces sloping away from the light cover the most depth per texel, and so need the most bias.
-            .depth = DepthState{.format = TextureFormat::Depth32Float, .biasSlope = 1.5f},
+            .depth = DepthState{.format = TextureFormat::Depth32Float, .biasSlope = 1.5f, .clamp = true},
         };
         m_shadowPipeline = device.CreatePipeline(desc);
         desc.cullMode = CullMode::None;

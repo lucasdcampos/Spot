@@ -747,7 +747,7 @@ viewers, and the golden-image tests cover them.
 - [x] **M7.3 Clustered lights.** Assign lights to a froxel grid on the CPU and send it in storage buffers, raising
   `MaxLights` from 16 to hundreds. Shadowed lights keep their budget. Tests.
 - [x] **M7.4 Sorting.** Sort opaque draws by pipeline, material and depth to minimize state changes and overdraw.
-- [ ] **M7.5 Shadow quality.** Soft PCF, stable cascades (texel snapping), blending between cascades, and caster
+- [x] **M7.5 Shadow quality.** Soft PCF, stable cascades (texel snapping), blending between cascades, and caster
   culling per cascade.
 - [ ] **M7.6 Benchmark.** A benchmark scene with 10,000 meshes and 200 lights. Record its Release frame times in Notes
   and check them when rendering changes.
@@ -783,6 +783,12 @@ of lamps.
   across materials are not reordered by depth, which would trade state changes for overdraw. The view's pass skips
   rebinding meshes, textures and material values that did not change, and `Renderer3DStats` counts pipeline and
   material changes.
+- M7.5: Stable cascades (a sphere around each slice, rounded, its view snapped to whole texels), blending between
+  cascades and culling casters per view came with M4's shadows; this step made the rest explicit. PCF went from a 3x3
+  grid to a fixed 16-tap Poisson disk of 1.5 texels' radius, which stays inside the three-texel margin views draw
+  with and is not rotated per pixel, since rotation trades banding for noise that only temporal antialiasing would
+  hide. Pipelines clamped depth only by accident (SDL's rasterizer state left zeroed); `DepthState::clamp` now asks for
+  it, shadow pipelines set it, and the others clip.
 
 ---
 

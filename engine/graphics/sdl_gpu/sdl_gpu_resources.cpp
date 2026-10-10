@@ -260,6 +260,7 @@ std::unique_ptr<Pipeline> GraphicsDevice::CreatePipeline(const PipelineDesc& des
     info.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
     info.rasterizer_state.cull_mode = ToSdl(desc.cullMode);
     info.rasterizer_state.front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
+    info.rasterizer_state.enable_depth_clip = !(desc.depth && desc.depth->clamp);
     if (!desc.depthOnly) {
         info.target_info.color_target_descriptions = &colorTarget;
         info.target_info.num_color_targets = 1;

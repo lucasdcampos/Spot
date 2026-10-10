@@ -153,8 +153,17 @@ float2 GetWorldUv(float3 position, float3 normal) {
     return float2(p.x, -p.y);
 }
 
-// Shadow edges are filtered over 3x3 comparisons, each blending the four nearest texels, which smooths them over about
-// four texels. Surfaces beyond the tile's view are lit, so nothing outside a shadow map is shadowed by it.
+// Points spread evenly over a disc (a Poisson disk), at which shadow maps are compared around each point.
+static const float2 ShadowTaps[16] = {
+    float2(-0.9420, -0.3991), float2(0.9456, -0.7689), float2(-0.0942, -0.9294), float2(0.3450, 0.2939),
+    float2(-0.9159, 0.4577),  float2(-0.8154, -0.8791), float2(-0.3828, 0.2768), float2(0.9748, 0.7565),
+    float2(0.4432, -0.9751),  float2(0.5374, -0.4737),  float2(-0.2650, -0.4189), float2(0.7920, 0.1909),
+    float2(-0.2419, 0.9971),  float2(-0.8141, 0.9144),  float2(0.1998, 0.7864),   float2(0.1438, -0.1410)};
+
+// Shadow edges are filtered over 16 comparisons on a disc a few texels wide, each blending the four nearest texels,
+// so they fade smoothly over about four texels without the grid of a regular pattern; the disc is the same for every
+// pixel, so edges do not flicker. Surfaces beyond the tile's view are lit, so nothing outside a shadow map is
+// shadowed by it.
 float SampleShadow(Texture2D<float> map, SamplerComparisonState mapSampler, float4x4 view, float4 layout, uint tile,
                    float3 position) {
     const float4 clip = mul(view, float4(position, 1.0));
@@ -162,17 +171,15 @@ float SampleShadow(Texture2D<float> map, SamplerComparisonState mapSampler, floa
     if (clip.w <= 0.0 || any(projected.xy < 0.0) || any(projected.xy > 1.0) || projected.z > 1.0) {
         return 1.0;
     }
-    // Filtering stays inside the tile, which views draw with a margin for it.
-    const float2 margin = 1.5 * layout.zw * layout.xy;
+    // Filtering stays inside the tile, which views draw with a margin of three texels for it.
+    const float2 margin = 3.0 * layout.zw * layout.xy;
     const float2 tileUv = clamp(projected.xy, margin, 1.0 - margin);
     const float2 uv = (float2(tile % (uint)layout.x, tile / (uint)layout.x) + tileUv) / layout.xy;
     float lit = 0.0;
-    [unroll] for (int y = -1; y <= 1; ++y) {
-        [unroll] for (int x = -1; x <= 1; ++x) {
-            lit += map.SampleCmpLevelZero(mapSampler, uv + float2(x, y) * layout.zw, projected.z);
-        }
+    [unroll] for (int i = 0; i < 16; ++i) {
+        lit += map.SampleCmpLevelZero(mapSampler, uv + ShadowTaps[i] * 1.5 * layout.zw, projected.z);
     }
-    return lit / 9.0;
+    return lit / 16.0;
 }
 
 // Surfaces are moved toward the light along their normal by about a texel of the shadow map before they are looked up

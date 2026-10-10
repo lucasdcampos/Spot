@@ -1812,6 +1812,50 @@ TEST_CASE("Renderer3D lights each part of the view with the many lights near it"
     CHECK(lit == 64);
 }
 
+TEST_CASE("Renderer3D softens shadow edges, and shadows what lies between the sun and its cascades", "[gpu]") {
+    RequireGpu();
+    // A floor seen from 6 units above, 3.46 units each side, with a coarse shadow map, and a slab over it.
+    const auto render = [](Spot::Vector3 slab, Spot::Vector3 size, Spot::Vector3 sun) {
+        return TargetRender(
+            64, 64,
+            [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+                Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8,
+                                                   .shadowMapSize = 256,
+                                                   .shadowCascadeCount = 1,
+                                                   .shadowDistance = 20.0f});
+                const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+                const auto floor = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(40.0f));
+                REQUIRE((cube && floor));
+                Spot::Camera3D camera;
+                camera.position = {0.0f, 6.0f, 0.0f};
+                camera.rotation = Spot::Quaternion::LookRotation({0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, -1.0f});
+                renderer.Begin(context, target, camera);
+                renderer.DrawLight({.type = Spot::LightType::Directional, .direction = sun, .castsShadows = true});
+                renderer.DrawMesh(*floor, {});
+                renderer.DrawMesh(*cube, {}, Spot::Matrix4::Translation(slab) * Spot::Matrix4::Scale(size));
+                renderer.End();
+            });
+    };
+
+    // A strip two units up, lit at 45 degrees, shadows the floor from x = -3 to -1, and the light fades over a few
+    // pixels across the edge of its shadow.
+    const auto near =
+        render({-4.0f, 2.0f, 0.0f}, {2.0f, 0.2f, 20.0f}, Spot::Normalize(Spot::Vector3{1.0f, -1.0f, 0.0f}));
+    int fading = 0;
+    for (int x = 16; x < 30; ++x) {
+        const int value = near.At(x, 32)[0];
+        fading += value > 20 && value < 150 ? 1 : 0;
+    }
+    INFO("Fading pixels " << fading);
+    CHECK(fading >= 3);
+    CHECK(near.At(13, 32)[0] < 20);
+    CHECK(near.At(50, 32)[0] > 150);
+
+    // A slab far above the camera, past the cascade's slice, still shadows the floor under it.
+    const auto far = render({0.0f, 150.0f, 0.0f}, {8.0f, 0.2f, 8.0f}, {0.0f, -1.0f, 0.0f});
+    CHECK(far.At(32, 32)[0] < 20);
+}
+
 TEST_CASE("Renderer3D keeps the lights nearest the camera when given too many", "[gpu]") {
     RequireGpu();
 

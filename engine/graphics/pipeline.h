@@ -49,6 +49,10 @@ struct DepthState {
     // do not shadow themselves.
     float biasConstant = 0.0f;
     float biasSlope = 0.0f;
+    // Clamps depths past the near and far planes to them instead of clipping what is there, as shadow maps of
+    // directional lights need: what lies between the light and the slice of the scene they cover still casts its
+    // shadow, flattened onto the near plane.
+    bool clamp = false;
 };
 
 enum class VertexFormat {

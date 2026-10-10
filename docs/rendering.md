@@ -75,6 +75,18 @@ profiler count both (`visibleMeshes` and `culledMeshes`). A camera also sees onl
 (`Camera3D::cullingMask`, set on the `Camera` component, which the inspector shows as layers to tick):
 `DrawScene()` skips the meshes of entities on the others, in its shadows too.
 
+### Shadows
+
+The first directional light that casts shadows draws them into cascades: slices of the view up to
+`shadowDistance`, split more finely near the camera, each seen by the light through an orthographic view around the
+smallest sphere holding its slice. The sphere keeps its size as the camera turns, and its view moves in whole texels,
+so shadows do not shimmer as the camera moves; each cascade blends into the next over its last tenth, and the last
+fades out. Shadow pipelines clamp depth rather than clip it, so what lies between the light and a cascade's slice,
+such as a roof above the camera, still casts its shadow. Point and spot lights draw theirs into tiles of a shared
+atlas, six per point light. Each pass draws only the casters its view sees. Surfaces look shadows up through 16
+comparisons on a small Poisson disk, each blending four texels, so edges fade over about four texels, the same way at
+every pixel, so they do not flicker.
+
 ### Clustered lights
 
 Up to `Renderer3D::MaxLights` (256) lights light each frame, ambient ones aside, without each pixel going through all
@@ -87,13 +99,13 @@ its cluster's lights. Shadows keep their own budget: the first directional light
 
 ### Instancing
 
-`Renderer3D` draws meshes that look the same together. It sorts the frame's opaque meshes by pipeline, then
-material, then mesh, then from the nearest to the farthest, so state changes as rarely as it can (`GetStats()` counts
-`pipelineChanges` and `materialChanges`) and what is in front hides what is behind before it is shaded; meshes with
-the same mesh, material values and pipeline thus sit side by side. It then puts every mesh's transforms in one storage buffer, and draws each run
-of them in view as instances of one draw, in the view's pass and in each shadow pass. Nothing needs to be marked:
-a level of the same crates is a handful of draws (`GetStats().drawCalls` counts draws, not meshes). Materials batch by
-their values, so copies of a material batch as well as the same asset.
+`Renderer3D` draws meshes that look the same together. It sorts the frame's opaque meshes by pipeline, then material,
+then mesh, then from the nearest to the farthest, so state changes as rarely as it can (`GetStats()` counts
+`pipelineChanges` and `materialChanges`) and what is in front hides what is behind before it is shaded; meshes with the
+same mesh, material values and pipeline thus sit side by side. It then puts every mesh's transforms in one storage
+buffer, and draws each run of them in view as instances of one draw, in the view's pass and in each shadow pass. Nothing
+needs to be marked: a level of the same crates is a handful of draws (`GetStats().drawCalls` counts draws, not meshes).
+Materials batch by their values, so copies of a material batch as well as the same asset.
 
 ### SceneRenderer
 
@@ -198,13 +210,14 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
   and `GenerateTangents()` makes the others with MikkTSpace, as normal maps are baked, splitting vertices that need
   two; the `MeshData` builders call it, and so must code that builds meshes itself and uses normal maps.
 - `SpriteRenderer`: a texture or color on a rectangle in its entity's XY plane, for 2D.
-- Lights: `AmbientLight`, `DirectionalLight`, `PointLight` and `SpotLight`. Up to `Renderer3D::MaxLights` (see Clustered lights) light each
-  frame. Intensities are illuminance, in units where 1 makes a white matte surface facing the light show white
-  before exposure: ambient and directional lights give theirs to every surface, and point and spot lights give
-  theirs at one unit of distance and fall off with the square of the distance (so their intensity is a luminous
-  intensity, like candelas). Their falloff is windowed to reach nothing at their range, which changes little up to
-  half of it; a bulb lighting a room a few units across is about 10, the point and spot lights' default. Lights can cast shadows: the first directional light through cascades, and point and spot lights through
-  tiles of a shared shadow atlas.
+- Lights: `AmbientLight`, `DirectionalLight`, `PointLight` and `SpotLight`. Up to `Renderer3D::MaxLights` (see Clustered
+  lights) light each frame. Intensities are illuminance, in units where 1 makes a white matte surface facing the light
+  show white before exposure: ambient and directional lights give theirs to every surface, and point and spot lights
+  give theirs at one unit of distance and fall off with the square of the distance (so their intensity is a luminous
+  intensity, like candelas). Their falloff is windowed to reach nothing at their range, which changes little up to half
+  of it; a bulb lighting a room a few units across is about 10, the point and spot lights' default. Lights can cast
+  shadows: the first directional light through cascades, and point and spot lights through tiles of a shared shadow
+  atlas.
 - `Sky`: an atmosphere lit by the scene's brightest directional light, which turns from day to sunset to night as
   that light turns, and lights the scene with the sun through the air and with its own light from all around. When
   the sky changes, `Renderer3D` captures that light into a cube map (without the sun's disc, which the directional
