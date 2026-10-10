@@ -7,6 +7,7 @@
 #include <deque>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -36,6 +37,16 @@ struct Toolchain {
     static Toolchain GetBuilt();
     // Changes with anything that needs a project's build directory made again.
     std::string GetKey() const;
+};
+
+// How long each phase of a build took. Compiling and linking are told apart when the build tool says when it links,
+// as Ninja, Make and the MSVC linker do; otherwise compile holds both. Link holds whatever the build does after it
+// starts linking, such as building the game's executable.
+struct CodeBuildPhases {
+    std::chrono::duration<float> configure = {};
+    std::chrono::duration<float> compile = {};
+    std::chrono::duration<float> link = {};
+    bool linkMeasured = false;
 };
 
 enum class CodeBuildState {
@@ -74,6 +85,8 @@ public:
     std::size_t GetWarningCount() const { return m_warnings; }
     // How long the last build took, or the running one has taken so far.
     std::chrono::duration<float> GetDuration() const;
+    // The phases of the last build that ended.
+    const CodeBuildPhases& GetPhases() const { return m_phases; }
     // The module the build makes.
     std::filesystem::path GetModulePath() const;
 
@@ -103,6 +116,10 @@ private:
     std::size_t m_warnings = 0;
     std::chrono::steady_clock::time_point m_started;
     std::chrono::steady_clock::time_point m_ended;
+    // When the build step started, and when the build tool said it links.
+    std::chrono::steady_clock::time_point m_buildStarted;
+    std::optional<std::chrono::steady_clock::time_point> m_linkStarted;
+    CodeBuildPhases m_phases;
     // Errors and warnings seen in this build, as builds that report them again at their end would show them twice.
     std::vector<std::string> m_reported;
     // CMake's messages span several lines: the first one and those indented below it.

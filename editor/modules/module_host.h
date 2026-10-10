@@ -47,6 +47,10 @@ public:
     bool SwapModule();
 
     const CodeBuild& GetBuild() const { return m_build; }
+    // When the change the last build is for was seen, which the reload's time is counted from.
+    std::chrono::steady_clock::time_point GetChangeTime() const { return m_changeTime; }
+    // How long the last SwapModule() took to load the module.
+    std::chrono::duration<float> GetLoadDuration() const { return m_loadDuration; }
     // Null while none is loaded.
     const GameModule* GetModule() const { return m_module.get(); }
 
@@ -67,6 +71,8 @@ private:
     bool m_unbuiltChanges = false;
     std::uint64_t m_codeStamp = 0;
     std::chrono::steady_clock::time_point m_lastWatch;
+    std::chrono::steady_clock::time_point m_changeTime;
+    std::chrono::duration<float> m_loadDuration = {};
 };
 
 } // namespace Spot::Editor

@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iterator>
 #include <system_error>
+#include <thread>
 
 namespace Spot {
 
@@ -87,6 +88,10 @@ void CodeBuild::Start() {
 
 void CodeBuild::StartStep(Step step) {
     m_step = step;
+    if (step == Step::Build) {
+        m_buildStarted = std::chrono::steady_clock::now();
+        m_linkStarted.reset();
+    }
     std::vector<std::string> arguments{m_toolchain.cmake};
     if (step == Step::Configure) {
         arguments.insert(arguments.end(),
@@ -155,11 +160,11 @@ bool CodeBuild::Update() {
 }
 
 void CodeBuild::Wait() {
+    // Followed as it goes rather than once it exits, so the phases are timed as the output comes.
     while (IsRunning()) {
-        if (m_process) {
-            m_process->Wait();
+        if (!Update() && IsRunning()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
-        Update();
     }
 }
 
@@ -195,6 +200,12 @@ LogLevel CodeBuild::ClassifyLine(std::string_view line) {
 
 void CodeBuild::Log(const std::vector<std::string>& lines) {
     for (const std::string& line : lines) {
+        // Ninja and Make say when they link, "Linking CXX shared module ...", and the MSVC linker as it makes the
+        // module's import library, "Creating library ...".
+        if (m_step == Step::Build && !m_linkStarted &&
+            (Contains(line, "Linking ") || Contains(line, "Creating library"))) {
+            m_linkStarted = std::chrono::steady_clock::now();
+        }
         // Lines below a CMake message, indented or blank, are part of it.
         if (!m_message.empty() && (line.empty() || line.front() == ' ')) {
             m_message += '\n';
@@ -242,13 +253,28 @@ void CodeBuild::FlushMessage() {
 void CodeBuild::Finish(bool succeeded) {
     m_ended = std::chrono::steady_clock::now();
     m_state = succeeded ? CodeBuildState::Succeeded : CodeBuildState::Failed;
+    const bool built = m_step == Step::Build && m_buildStarted >= m_started;
+    m_phases = {};
+    if (built) {
+        m_phases.configure = m_buildStarted - m_started;
+        const auto compileEnd = m_linkStarted.value_or(m_ended);
+        m_phases.compile = compileEnd - m_buildStarted;
+        m_phases.link = m_ended - compileEnd;
+        m_phases.linkMeasured = m_linkStarted.has_value();
+    }
     const float seconds = GetDuration().count();
     if (succeeded) {
+        const std::string phases =
+            m_phases.linkMeasured
+                ? std::format("configure {:.1f} s, compile {:.1f} s, link {:.1f} s", m_phases.configure.count(),
+                              m_phases.compile.count(), m_phases.link.count())
+                : std::format("configure {:.1f} s, compile and link {:.1f} s", m_phases.configure.count(),
+                              m_phases.compile.count());
         if (m_warnings > 0) {
-            GetBuildLogger().Info("Built the game's code in {:.1f} s, with {} warning{}", seconds, m_warnings,
-                                  m_warnings == 1 ? "" : "s");
+            GetBuildLogger().Info("Built the game's code in {:.1f} s ({}), with {} warning{}", seconds, phases,
+                                  m_warnings, m_warnings == 1 ? "" : "s");
         } else {
-            GetBuildLogger().Info("Built the game's code in {:.1f} s", seconds);
+            GetBuildLogger().Info("Built the game's code in {:.1f} s ({})", seconds, phases);
         }
     } else if (m_errors > 0) {
         GetBuildLogger().Error("The game's code did not build: {} error{}", m_errors, m_errors == 1 ? "" : "s");

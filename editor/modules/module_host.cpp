@@ -102,6 +102,7 @@ bool ModuleHost::LoadBuilt() {
 void ModuleHost::Build() {
     if (HasCode()) {
         m_unbuiltChanges = false;
+        m_changeTime = std::chrono::steady_clock::now();
         m_build.Start();
     }
 }
@@ -133,6 +134,7 @@ void ModuleHost::Update() {
 
 bool ModuleHost::SwapModule() {
     m_newModule = false;
+    const auto started = std::chrono::steady_clock::now();
     const std::filesystem::path built = m_build.GetModulePath();
     std::error_code error;
     const auto time = std::filesystem::last_write_time(built, error);
@@ -164,10 +166,13 @@ bool ModuleHost::SwapModule() {
     }
     m_loadedTime = time;
     m_module = GameModule::Load(copy);
+    m_loadDuration = std::chrono::steady_clock::now() - started;
     if (!m_module) {
         std::filesystem::remove(copy, error);
         return false;
     }
+    GetEditorLogger().Debug("Loaded the game's module in {:.0f} ms",
+                            std::chrono::duration<float, std::milli>(m_loadDuration).count());
     return true;
 }
 

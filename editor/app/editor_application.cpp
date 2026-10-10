@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <array>
 #include <cfloat>
+#include <chrono>
 #include <format>
 #include <optional>
 #include <string>
@@ -236,8 +237,14 @@ void EditorApplication::UpdateModules() {
     }
     // A game that stopped leaves its scenes, with components of the old code, until the frame after.
     if (modules.HasNewModule() && !m_workspace->GetPlaySession() && GetScenes().empty()) {
+        const auto started = std::chrono::steady_clock::now();
         m_workspace->ReloadScenes([&modules] { modules.SwapModule(); });
-        GetEditorLogger().Info("Reloaded the game's code");
+        const auto now = std::chrono::steady_clock::now();
+        // From the change seen to the scenes running the new code: what game code iteration costs.
+        GetEditorLogger().Info("Reloaded the game's code in {:.0f} ms (module {:.0f} ms), {:.1f} s after the change",
+                               std::chrono::duration<float, std::milli>(now - started).count(),
+                               std::chrono::duration<float, std::milli>(modules.GetLoadDuration()).count(),
+                               std::chrono::duration<float>(now - modules.GetChangeTime()).count());
     }
 }
 

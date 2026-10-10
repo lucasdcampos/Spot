@@ -8,6 +8,7 @@
 #include <spot.h>
 #include <spot_tools.h>
 
+#include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
@@ -191,14 +192,20 @@ TEST_CASE("A project's code builds into a module that loads, and loads again whe
         REQUIRE(host.HasCode());
         Spot::Scene scene;
 
-        // Never built, so there is nothing to load, and it builds.
+        // Never built, so there is nothing to load, and it builds, configuring first.
         CHECK_FALSE(host.LoadBuilt());
         CHECK(host.GetBuild().IsRunning());
         WaitForBuild(host);
         REQUIRE(host.GetBuild().GetState() == CodeBuildState::Succeeded);
         CHECK(host.GetBuild().GetErrorCount() == 0);
+        const Spot::CodeBuildPhases& phases = host.GetBuild().GetPhases();
+        CHECK(phases.configure.count() > 0.0f);
+        CHECK(phases.compile.count() > 0.0f);
+        CHECK((phases.configure + phases.compile + phases.link).count() ==
+              Catch::Approx(host.GetBuild().GetDuration().count()).margin(0.01f));
         REQUIRE(host.HasNewModule());
         REQUIRE(host.SwapModule());
+        CHECK(host.GetLoadDuration().count() > 0.0f);
         REQUIRE(host.GetModule());
         CHECK(GetTypes(*host.GetModule()) == std::vector<std::string>{"Rotator"});
 

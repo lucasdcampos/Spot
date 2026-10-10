@@ -504,7 +504,7 @@ defined in the audio settings. Streamed sounds decode on a worker thread into a 
 Game code is C++, so the time from saving a file to seeing it in the editor is the engine's "script reload" time. The
 budget is a few seconds for a one-file change in Debug.
 
-- [ ] **M4.1 Measure.** The editor logs how long each module build phase takes (configure, compile, link, load).
+- [x] **M4.1 Measure.** The editor logs how long each module build phase takes (configure, compile, link, load).
   Record the baseline in Notes.
 - [ ] **M4.2 Precompiled headers.** `spot_add_game()` precompiles `<spot.h>` and the standard headers it pulls in.
   The engine's own targets use PCH where it pays off.
@@ -518,6 +518,16 @@ budget is a few seconds for a one-file change in Debug.
 **Done when:** a one-line change in a sandbox component reloads in the editor within the budget.
 
 **Notes:**
+- M4.1: `CodeBuild::GetPhases()` times configure, compile and link (link starts at Ninja's or Make's "Linking" or
+  the MSVC linker's "Creating library"; whatever follows, such as the executable, counts as link), and
+  `CodeBuild::Wait()` now follows the output as it comes, so the command line times it too. The editor logs the
+  module's load and the scenes' reload, with the time since the change. Baseline on this machine, MSVC Debug with
+  the Visual Studio generator, the sandbox's 21 files of code: a clean build 51.7 s (configure 2.0, compile 46.7,
+  link 3.0); no change 0.7-0.8 s (MSBuild's up-to-date checks); a one-line change to a component 3.6-3.9 s (compile
+  3.0-3.3 for one file, link 0.5-0.6 for the module and the executable); loading the module 25 ms. On top: the
+  editor looks for changes once a second, and builds the game's executable it does not need. The first build after
+  a source file is added fails once with the Visual Studio generator, as the glob check regenerates the project
+  while it builds (for M4.5).
 
 ---
 
