@@ -510,7 +510,7 @@ budget is a few seconds for a one-file change in Debug.
   The engine's own targets use PCH where it pays off.
 - [x] **M4.3 Compiler cache.** Use sccache or ccache as the compiler launcher when one is installed, for the engine
   and for games. Document it.
-- [ ] **M4.4 Header cost.** Profile the include cost of `spot.h` (`-ftime-trace`) and cut the top offenders with
+- [x] **M4.4 Header cost.** Profile the include cost of `spot.h` (`-ftime-trace`) and cut the top offenders with
   forward declarations and by moving heavy includes out of widely used headers.
 - [ ] **M4.5 Skip needless work.** Configure only when the CMake files changed, build only what changed, and record
   the result against the budget in Notes.
@@ -541,6 +541,14 @@ budget is a few seconds for a one-file change in Debug.
   debug information goes in the objects (`/Z7`), as caches need. Neither tool is installed on this machine, and the
   default MSVC preset uses the Visual Studio generator, which runs no launcher, so the gain is unmeasured here; a
   stand-in launcher on PATH showed a game's build through Makefiles calling it for all 21 compilations.
+- M4.4: no Clang here for `-ftime-trace`, so MSVC's `/d1reportTime` profiled a file holding only `#include
+  <spot.h>`: 1.6 s of includes, of which `<filesystem>` takes 0.6 s, as MSVC's brings `<chrono>`, `<format>`,
+  `<algorithm>` and the locale headers with it. Paths are API types in 23 public headers (loading, saving, dropped
+  files), so nearly every engine header costs about 1 s on its own; keeping `<filesystem>` out would mean an engine
+  path type throughout the API, not worth it while precompiled headers (M4.2) pay this once per target. Cut
+  instead: `log_sinks.h` keeps its `std::ofstream` behind a pointer (no `<fstream>`), and `asset_id.h`,
+  `game_settings.h` and `archive.h` drop `<functional>` and `<algorithm>` they did not need. The total moved
+  within noise, as `<filesystem>` brings what they did.
 
 ---
 

@@ -3,7 +3,8 @@
 #include "core/log.h"
 
 #include <filesystem>
-#include <fstream>
+#include <iosfwd>
+#include <memory>
 
 namespace Spot {
 
@@ -26,13 +27,14 @@ public:
     // which produces bogus -Warray-bounds warnings.
     ~FileSink() override;
 
-    bool IsOpen() const { return m_file.is_open(); }
+    bool IsOpen() const;
 
     void Write(const LogRecord& record) override;
     void Flush() override;
 
 private:
-    std::ofstream m_file;
+    // Behind a pointer, so <fstream> stays out of this header, which every game includes.
+    std::unique_ptr<std::ofstream> m_file;
 };
 
 } // namespace Spot

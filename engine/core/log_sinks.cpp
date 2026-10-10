@@ -1,5 +1,7 @@
 #include "core/log_sinks.h"
 
+#include <fstream>
+
 #include <cstdio>
 #include <string_view>
 #include <system_error>
@@ -78,24 +80,28 @@ FileSink::FileSink(const std::filesystem::path& path) {
         std::error_code error;
         std::filesystem::create_directories(path.parent_path(), error);
     }
-    m_file.open(path, std::ios::out | std::ios::trunc);
+    m_file = std::make_unique<std::ofstream>(path, std::ios::out | std::ios::trunc);
 }
 
 FileSink::~FileSink() = default;
 
+bool FileSink::IsOpen() const {
+    return m_file->is_open();
+}
+
 void FileSink::Write(const LogRecord& record) {
-    if (!m_file.is_open()) {
+    if (!m_file->is_open()) {
         return;
     }
 
     // Every line reaches the file at once, so what led to a crash is there even when the process dies without a
     // chance to flush.
-    m_file << FormatLogRecord(record) << '\n';
-    m_file.flush();
+    *m_file << FormatLogRecord(record) << '\n';
+    m_file->flush();
 }
 
 void FileSink::Flush() {
-    m_file.flush();
+    m_file->flush();
 }
 
 } // namespace Spot

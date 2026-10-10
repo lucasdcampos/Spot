@@ -9,7 +9,6 @@
 #include "math/vector.h"
 #include "scene/entity.h"
 
-#include <algorithm>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -211,8 +210,9 @@ void SerializeFields(Archive& archive, std::string_view names, Fields&... fields
         std::string_view name = names.substr(0, comma);
         names = comma == std::string_view::npos ? std::string_view() : names.substr(comma + 1);
         constexpr std::string_view Space = " \t\r\n";
-        name.remove_prefix(std::min(name.find_first_not_of(Space), name.size()));
-        name.remove_suffix(name.size() - std::min(name.find_last_not_of(Space) + 1, name.size()));
+        const std::size_t first = name.find_first_not_of(Space);
+        name.remove_prefix(first == std::string_view::npos ? name.size() : first);
+        name.remove_suffix(name.size() - (name.find_last_not_of(Space) + 1));
         return name;
     };
     (archive.Field(next(), fields), ...);

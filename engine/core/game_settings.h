@@ -6,7 +6,6 @@
 #include "physics/physics_settings.h"
 
 #include <filesystem>
-#include <functional>
 #include <map>
 #include <optional>
 #include <string>
