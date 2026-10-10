@@ -134,6 +134,9 @@ add_library(spot_objects OBJECT
     physics/physics_settings.cpp
     physics/physics_world.h
     physics/physics_world.cpp
+    physics/physics_world_contacts.cpp
+    physics/physics_world_joints.cpp
+    physics/physics_world_queries.cpp
     physics/rigidbody.h
     physics/rigidbody.cpp
     platform/platform.h
