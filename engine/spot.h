@@ -60,6 +60,7 @@
 #include "physics/character_controller.h"
 #include "physics/collider.h"
 #include "physics/collision.h"
+#include "physics/joint.h"
 #include "physics/physics_query.h"
 #include "physics/physics_settings.h"
 #include "physics/physics_world.h"

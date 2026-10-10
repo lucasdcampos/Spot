@@ -2,6 +2,7 @@
 
 #include "physics/character_controller.h"
 #include "physics/collider.h"
+#include "physics/joint.h"
 #include "physics/rigidbody.h"
 #include "scene/camera.h"
 #include "scene/light.h"
@@ -45,6 +46,11 @@ Registry& GetRegistry() {
         RegisterBuiltIn<SphereCollider>(registry, "SphereCollider");
         RegisterBuiltIn<CapsuleCollider>(registry, "CapsuleCollider");
         RegisterBuiltIn<MeshCollider>(registry, "MeshCollider");
+        RegisterBuiltIn<FixedJoint>(registry, "FixedJoint");
+        RegisterBuiltIn<HingeJoint>(registry, "HingeJoint");
+        RegisterBuiltIn<DistanceJoint>(registry, "DistanceJoint");
+        RegisterBuiltIn<SpringJoint>(registry, "SpringJoint");
+        RegisterBuiltIn<SwingTwistJoint>(registry, "SwingTwistJoint");
         RegisterBuiltIn<CharacterController>(registry, "CharacterController");
         RegisterBuiltIn<AmbientLight>(registry, "AmbientLight");
         RegisterBuiltIn<DirectionalLight>(registry, "DirectionalLight");

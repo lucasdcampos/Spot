@@ -95,6 +95,8 @@ private:
     friend class CharacterController;
     friend class Collider;
     friend class Entity;
+    friend class HingeJoint;
+    friend class Joint;
     friend class Rigidbody;
     friend class Scene;
 
@@ -140,6 +142,19 @@ private:
     // Adds the contacts of the characters' last moves to the pairs of this step.
     void AddCharacterContacts();
 
+    // See Joint. Joints wait in a list until both their bodies exist, and go back to it whenever either body is
+    // rebuilt, since a joint cannot outlive its bodies.
+    void MarkJointChanged(Joint& joint);
+    void ForgetJoint(Joint& joint);
+    Detail::PhysicsJointId FindJoint(const Joint& joint) const;
+    float GetJointForce(const Joint& joint) const;
+    float GetHingeAngle(const Joint& joint) const;
+    void SetHingeMotor(const Joint& joint, bool enabled, float speed, float torque);
+    // Takes down the joints of the entity, as one of their bodies, and puts them back in the list.
+    void ReleaseJoints(EntityId entity);
+    void CreatePendingJoints();
+    void BreakJoints();
+
     // Turns the contacts after a step into events, against those of the step before.
     void DispatchContacts();
     void ForgetBody(Detail::PhysicsBodyId body);
@@ -160,6 +175,14 @@ private:
     RaycastHit MakeHit(const Detail::PhysicsQueryHit& hit) const;
     std::vector<OverlapHit> MakeOverlapHits() const;
     std::vector<Detail::PhysicsQueryHit> m_queryHits;
+    struct JointRecord {
+        Detail::PhysicsJointId id;
+        EntityId owner;
+        EntityId connected;
+    };
+    // Joints are referred to by pointer here because they leave the moment they are disabled, before they are freed.
+    std::unordered_map<const Joint*, JointRecord> m_joints;
+    std::vector<Joint*> m_pendingJoints;
     std::unordered_map<Detail::PhysicsBodyId, Owner> m_owners;
     // A pair of entities touching, the lower id first.
     struct ContactPair {

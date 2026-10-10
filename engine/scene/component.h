@@ -9,6 +9,7 @@ namespace Spot {
 
 class Archive;
 class Entity;
+class Joint;
 class PhysicsWorld;
 class Renderer2D;
 class Scene;
@@ -92,6 +93,8 @@ protected:
     virtual void OnCollisionExit(const Collision& /*collision*/) {}
     virtual void OnTriggerEnter(const TriggerContact& /*contact*/) {}
     virtual void OnTriggerExit(const TriggerContact& /*contact*/) {}
+    // A joint of the entity broke, past its break force; see Joint.
+    virtual void OnJointBreak(const Joint& /*joint*/) {}
 
     // Saves or loads the component's fields. Loading happens on a new component, after it was added to its entity
     // and before OnStart(), or on an existing one when tools replace its fields.

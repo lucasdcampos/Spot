@@ -124,6 +124,8 @@ add_library(spot_objects OBJECT
     physics/collider.h
     physics/collider.cpp
     physics/collision.h
+    physics/joint.h
+    physics/joint.cpp
     physics/physics_query.h
     physics/physics_simulation.h
     physics/physics_settings.h
@@ -342,6 +344,7 @@ if(SPOT_PHYSICS STREQUAL "JOLT")
         physics/jolt/jolt_common.h
         physics/jolt/jolt_contacts.cpp
         physics/jolt/jolt_contacts.h
+        physics/jolt/jolt_joints.cpp
         physics/jolt/jolt_layers.h
         physics/jolt/jolt_physics_simulation.cpp
         physics/jolt/jolt_queries.cpp

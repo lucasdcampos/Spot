@@ -10,6 +10,7 @@
 
 #include <Jolt/Physics/Character/CharacterVirtual.h>
 #include <Jolt/Physics/Collision/RayCast.h>
+#include <Jolt/Physics/Constraints/TwoBodyConstraint.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 
 #include <cstddef>
@@ -35,6 +36,8 @@ struct PhysicsSimulation::Impl {
     // By id; destroyed characters leave empty slots, which new ones take.
     std::vector<std::unique_ptr<JPH::CharacterVirtual>> characters;
     std::vector<int> characterLayers;
+    // By id, as characters are.
+    std::vector<JPH::Ref<JPH::TwoBodyConstraint>> joints;
 
     Impl();
 

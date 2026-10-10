@@ -16,6 +16,53 @@ namespace Spot::Detail {
 
 enum class PhysicsBodyId : std::uint32_t { Invalid = 0xffffffff };
 enum class PhysicsCharacterId : std::uint32_t { Invalid = 0xffffffff };
+enum class PhysicsJointId : std::uint32_t { Invalid = 0xffffffff };
+
+enum class PhysicsJointKind {
+    // Holds the bodies together as they are.
+    Fixed,
+    // Lets them turn around an axis through a point, within limits, maybe driven by a motor.
+    Hinge,
+    // Keeps two points of theirs within a range of distances, or at a distance held by a spring.
+    Distance,
+    // Lets them turn around a point, the axis swinging within a cone and twisting within limits, as ragdolls' bones.
+    SwingTwist,
+};
+
+// A joint between two bodies, or a body and the world, described in world space as the bodies are when it is made.
+// Angles and motors are those of the second body turning relative to the first.
+struct PhysicsJointDesc {
+    PhysicsJointKind kind = PhysicsJointKind::Fixed;
+    // PhysicsBodyId::Invalid joins the second body to the world.
+    PhysicsBodyId first = PhysicsBodyId::Invalid;
+    PhysicsBodyId second = PhysicsBodyId::Invalid;
+    // Where the bodies are joined; for distance joints, the first body's point.
+    Vector3 point = {};
+    // Distance joints only: the second body's point.
+    Vector3 secondPoint = {};
+    // The axis hinges turn around and swing-twist joints twist around, and a unit vector perpendicular to it, from
+    // which hinges count their angle.
+    Vector3 axis = {0.0f, 1.0f, 0.0f};
+    Vector3 normal = {1.0f, 0.0f, 0.0f};
+    // Hinges: angles in radians, from -pi to pi, and a motor turning at a speed in radians per second, with up to a
+    // torque in newton meters.
+    bool limits = false;
+    float minAngle = -3.14159265f;
+    float maxAngle = 3.14159265f;
+    bool motor = false;
+    float motorSpeed = 0.0f;
+    float motorTorque = 0.0f;
+    // Distance joints: the range, where a negative bound is the distance when the joint is made, and a spring that
+    // holds them softly when its frequency, in hertz, is positive.
+    float minDistance = -1.0f;
+    float maxDistance = -1.0f;
+    float springFrequency = 0.0f;
+    float springDamping = 0.0f;
+    // Swing-twist joints: the half angle of the cone the axis swings in, and the range of the twist, in radians.
+    float swingLimit = 0.0f;
+    float twistMin = 0.0f;
+    float twistMax = 0.0f;
+};
 
 enum class PhysicsMotion {
     // Never moves by itself, and only moves when placed elsewhere.
@@ -196,6 +243,15 @@ public:
     PhysicsCharacterState GetCharacterState(PhysicsCharacterId character) const;
     // The kinematic body of the character's shape.
     PhysicsBodyId GetCharacterBody(PhysicsCharacterId character) const;
+
+    // Returns PhysicsJointId::Invalid, after logging why, when the joint cannot be made.
+    PhysicsJointId CreateJoint(const PhysicsJointDesc& desc);
+    void DestroyJoint(PhysicsJointId joint);
+    // The force, in newtons, the joint used to hold its points together in the last step of that length.
+    float GetJointForce(PhysicsJointId joint, float stepTime) const;
+    // Hinges only: how far they turned from where they were made, in radians.
+    float GetHingeAngle(PhysicsJointId joint) const;
+    void SetHingeMotor(PhysicsJointId joint, bool enabled, float speed, float torque);
 
     // Replaces the vector's contents with every contact after the last step, in no particular order.
     void GetContacts(std::vector<PhysicsContact>& contacts) const;
