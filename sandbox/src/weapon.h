@@ -30,6 +30,8 @@ public:
     // How many times aiming down the sights magnifies the view, and what share of the spread is left meanwhile.
     float aimZoom = 1.5f;
     float aimSpread = 0.4f;
+    Spot::AssetRef<Spot::Sound> fireSound;
+    Spot::AssetRef<Spot::Sound> reloadSound;
     // Projectiles only.
     float projectileSpeed = 30.0f;
     float explosionRadius = 5.0f;
@@ -42,7 +44,8 @@ public:
     bool IsReady() const;
     // Takes a round, starting the interval; false when it is not ready.
     bool TakeShot();
-    void StartReload();
+    // Returns whether it started now.
+    bool StartReload();
     // Counts down the interval and the reload.
     void Tick(float deltaTime);
 

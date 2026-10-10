@@ -116,9 +116,6 @@ runs.
 
 The mixer (`engine/audio/mixer.h`) mixes every playing voice into its bus's buffer, converting sample rates as
 sounds play, then passes the buses up the tree, each before its parent, in chunks of 256 frames. Buses live in fixed
-slots, so mixing never allocates and the peak meters are atomics. The audio thread only mixes: it never touches scenes or assets, and sounds stay alive while they play
-because the mixer holds them.
+slots, so mixing never allocates and the peak meters are atomics. The audio thread only mixes: it never touches
+scenes or assets, and sounds stay alive while they play because the mixer holds them.
 
-## Not there yet
-
-The sandbox's sounds come with the roadmap's step M3.6.

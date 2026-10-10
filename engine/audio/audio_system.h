@@ -22,6 +22,9 @@ struct OneShotParams {
     // The bus by name; the master bus when empty or missing.
     std::string_view bus = {};
     AudioSpatialSettings spatialSettings = {};
+    // See PlayParams::priority and PlayParams::maxInstances.
+    int priority = 0;
+    int maxInstances = 0;
 };
 
 // Where a scene hears from.

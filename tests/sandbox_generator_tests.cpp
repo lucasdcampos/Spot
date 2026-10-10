@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <string_view>
 
 TEST_CASE("The sandbox's generated props load back, wound outward and centered", "[sandbox]") {
     const TempDirectory temp;
@@ -60,4 +61,23 @@ TEST_CASE("The sandbox's generated props load back, wound outward and centered",
     const Generator::OutputCounts second = Generator::GenerateSandboxAssets(temp.GetPath());
     CHECK(second.written == 0);
     CHECK(second.unchanged == first.written);
+}
+
+TEST_CASE("The sandbox's generated sounds load back, loud enough and never clipping", "[sandbox]") {
+    const TempDirectory temp;
+    CHECK(Generator::GenerateSandboxAssets(temp.GetPath()).failed == 0);
+
+    for (const std::string_view name : Generator::GetSoundNames()) {
+        CAPTURE(name);
+        const auto sound = Spot::Sound::Load(temp.GetPath() / "sounds" / (std::string(name) + ".wav"));
+        REQUIRE(sound);
+        CHECK(sound->GetChannelCount() == 1);
+        CHECK(sound->GetDuration() > 0.02f);
+        float peak = 0.0f;
+        for (const float sample : sound->GetSamples()) {
+            peak = std::max(peak, std::abs(sample));
+        }
+        CHECK(peak > 0.3f);
+        CHECK(peak < 0.99f);
+    }
 }

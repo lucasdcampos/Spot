@@ -19,6 +19,8 @@ void SpawnableProp::Serialize(Spot::Archive& archive) {
     archive.Field("size", size, {.speed = 0.01f});
     archive.Field("mass", mass, {.min = 0.001f, .max = 100000.0f, .speed = 0.1f, .tooltip = "In kilograms"});
     archive.Field("explosive", explosive);
+    static constexpr std::array<std::string_view, 3> Surfaces = {"Concrete", "Wood", "Metal"};
+    archive.Field("surface", surface, {.enumNames = Surfaces});
 }
 
 Spot::Entity* PropSpawner::Spawn(std::size_t index) {
@@ -56,6 +58,8 @@ Spot::Entity* PropSpawner::Spawn(std::size_t index) {
     }
     }
     entity.AddComponent<Spot::Rigidbody>().SetMass(prop.mass);
+    entity.AddComponent<Surface>().kind = prop.surface;
+    entity.AddComponent<ImpactSounds>();
     if (prop.explosive) {
         entity.AddComponent<ExplosiveBarrel>();
     }

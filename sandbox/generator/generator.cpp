@@ -2,6 +2,7 @@
 
 #include "gltf_writer.h"
 #include "shapes.h"
+#include "sounds.h"
 #include "textures.h"
 
 #include <spot.h>
@@ -48,7 +49,45 @@ const std::vector<Texture>& GetTextures() {
     return textures;
 }
 
+struct GeneratedSound {
+    std::string_view name;
+    std::function<Sounds::Samples()> make;
+};
+
+const std::vector<GeneratedSound>& GetSounds() {
+    static const std::vector<GeneratedSound> sounds = {
+        {"pistol_shot", Sounds::PistolShot},
+        {"rifle_shot", Sounds::RifleShot},
+        {"shotgun_shot", Sounds::ShotgunShot},
+        {"rocket_launch", Sounds::RocketLaunch},
+        {"explosion", Sounds::Explosion},
+        {"reload", Sounds::Reload},
+        {"impact_concrete", Sounds::ImpactConcrete},
+        {"impact_wood", Sounds::ImpactWood},
+        {"impact_metal", Sounds::ImpactMetal},
+        {"footstep_concrete_1", [] { return Sounds::FootstepConcrete(0); }},
+        {"footstep_concrete_2", [] { return Sounds::FootstepConcrete(1); }},
+        {"footstep_wood_1", [] { return Sounds::FootstepWood(0); }},
+        {"footstep_wood_2", [] { return Sounds::FootstepWood(1); }},
+        {"footstep_metal_1", [] { return Sounds::FootstepMetal(0); }},
+        {"footstep_metal_2", [] { return Sounds::FootstepMetal(1); }},
+        {"physics_gun_hum", Sounds::PhysicsGunHum},
+        {"wind", Sounds::Wind},
+        {"music", Sounds::Music},
+        {"click", Sounds::Click},
+    };
+    return sounds;
+}
+
 } // namespace
+
+std::vector<std::string_view> GetSoundNames() {
+    std::vector<std::string_view> names;
+    for (const GeneratedSound& sound : GetSounds()) {
+        names.push_back(sound.name);
+    }
+    return names;
+}
 
 std::vector<PropInfo> GetProps() {
     std::vector<PropInfo> props;
@@ -73,6 +112,10 @@ OutputCounts GenerateSandboxAssets(const std::filesystem::path& directory) {
         const GltfFiles files = EncodeGltf(model, name + ".bin");
         WriteIfChanged(directory / "models" / (name + ".gltf"), files.json, counts);
         WriteIfChanged(directory / "models" / (name + ".bin"), files.buffer, counts);
+    }
+    for (const GeneratedSound& sound : GetSounds()) {
+        const std::vector<std::byte> wav = Sounds::EncodeWav(sound.make());
+        WriteIfChanged(directory / "sounds" / (std::string(sound.name) + ".wav"), wav, counts);
     }
     return counts;
 }

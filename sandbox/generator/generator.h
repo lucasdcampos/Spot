@@ -3,6 +3,7 @@
 #include "output.h"
 
 #include <filesystem>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -16,6 +17,8 @@ struct PropInfo {
 
 // Every prop, in the order they are written.
 std::vector<PropInfo> GetProps();
+// The names of the sounds the generator makes, each sounds/<name>.wav.
+std::vector<std::string_view> GetSoundNames();
 
 // Writes every generated asset into the folder, sandbox/assets/generated in the sandbox, rewriting only the files
 // whose content changed.

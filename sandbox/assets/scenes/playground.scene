@@ -698,6 +698,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 14,
@@ -756,6 +771,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 15,
@@ -814,6 +844,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 16,
@@ -872,6 +917,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 17,
@@ -930,6 +990,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 18,
@@ -1196,6 +1271,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 23,
@@ -1258,6 +1348,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 24,
@@ -1320,6 +1425,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 25,
@@ -1382,6 +1502,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 26,
@@ -1444,6 +1579,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 27,
@@ -1506,6 +1656,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 28,
@@ -1568,6 +1733,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 29,
@@ -1630,6 +1810,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 30,
@@ -1692,6 +1887,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 31,
@@ -1754,6 +1964,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 32,
@@ -1816,6 +2041,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 33,
@@ -1878,6 +2118,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 34,
@@ -1940,6 +2195,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 35,
@@ -2002,6 +2272,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 36,
@@ -2064,6 +2349,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 37,
@@ -2126,6 +2426,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 38,
@@ -2188,6 +2503,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 39,
@@ -2250,6 +2580,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 40,
@@ -2312,6 +2657,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 41,
@@ -2374,6 +2734,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 42,
@@ -2436,6 +2811,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 43,
@@ -2498,6 +2888,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 44,
@@ -2560,6 +2965,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 45,
@@ -2618,8 +3038,10 @@
             "fallHeight": -20.0,
             "fastFlySpeed": 25.0,
             "flySpeed": 10.0,
+            "footstepVolume": 0.5,
             "jumpSpeed": 5.5,
             "runSpeed": 9.0,
+            "strideLength": 0.8,
             "walkSpeed": 5.0
           },
           "enabled": true,
@@ -2637,6 +3059,7 @@
         },
         {
           "data": {
+            "hum": 77,
             "maxSpeed": 40.0,
             "minDistance": 1.5,
             "range": 60.0,
@@ -2666,7 +3089,8 @@
                   1.0,
                   1.0,
                   1.0
-                ]
+                ],
+                "surface": 1
               },
               {
                 "explosive": false,
@@ -2679,7 +3103,8 @@
                   0.6,
                   0.9,
                   0.6
-                ]
+                ],
+                "surface": 2
               },
               {
                 "explosive": true,
@@ -2692,7 +3117,8 @@
                   0.6,
                   0.9,
                   0.6
-                ]
+                ],
+                "surface": 2
               },
               {
                 "explosive": false,
@@ -2705,7 +3131,8 @@
                   0.6,
                   0.6,
                   0.6
-                ]
+                ],
+                "surface": 1
               },
               {
                 "explosive": false,
@@ -2718,7 +3145,8 @@
                   2.0,
                   0.06,
                   0.3
-                ]
+                ],
+                "surface": 1
               },
               {
                 "explosive": false,
@@ -2731,7 +3159,8 @@
                   3.0,
                   0.2,
                   0.2
-                ]
+                ],
+                "surface": 2
               },
               {
                 "explosive": false,
@@ -2744,7 +3173,8 @@
                   0.6,
                   0.7,
                   0.6
-                ]
+                ],
+                "surface": 1
               },
               {
                 "explosive": false,
@@ -2757,7 +3187,8 @@
                   0.2,
                   0.8,
                   0.8
-                ]
+                ],
+                "surface": 2
               }
             ],
             "reach": 6.0
@@ -2923,6 +3354,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 2
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 50,
@@ -2985,6 +3431,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 2
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 51,
@@ -3047,6 +3508,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 2
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 52,
@@ -3118,6 +3594,21 @@
           },
           "enabled": true,
           "type": "ExplosiveBarrel"
+        },
+        {
+          "data": {
+            "kind": 2
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 53,
@@ -3189,6 +3680,21 @@
           },
           "enabled": true,
           "type": "ExplosiveBarrel"
+        },
+        {
+          "data": {
+            "kind": 2
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 54,
@@ -3251,6 +3757,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 55,
@@ -3313,6 +3834,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 56,
@@ -3375,6 +3911,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 57,
@@ -3437,6 +3988,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 2
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 58,
@@ -3499,6 +4065,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 2
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 59,
@@ -3561,6 +4142,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 60,
@@ -3623,6 +4219,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 61,
@@ -3685,6 +4296,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 62,
@@ -3747,6 +4373,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 63,
@@ -3805,6 +4446,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 2
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 64,
@@ -3863,6 +4519,21 @@
           },
           "enabled": true,
           "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 2
+          },
+          "enabled": true,
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "type": "ImpactSounds"
         }
       ],
       "id": 65,
@@ -4043,12 +4714,14 @@
             "explosionImpulse": 0.0,
             "explosionRadius": 0.0,
             "fireInterval": 0.2,
+            "fireSound": "10830339b43ce45f3a140985b7601e5b",
             "impulse": 40.0,
             "kind": 0,
             "magazineSize": 12,
             "pellets": 1,
             "projectileSpeed": 0.0,
             "range": 150.0,
+            "reloadSound": "0c7379df4ea628e65c4ab48d8973707e",
             "reloadTime": 1.2,
             "reserveAmmo": 120,
             "spread": 0.005
@@ -4089,12 +4762,14 @@
             "explosionImpulse": 0.0,
             "explosionRadius": 0.0,
             "fireInterval": 0.1,
+            "fireSound": "e33934b1d5907db157907a77b9b548fa",
             "impulse": 30.0,
             "kind": 0,
             "magazineSize": 30,
             "pellets": 1,
             "projectileSpeed": 0.0,
             "range": 200.0,
+            "reloadSound": "0c7379df4ea628e65c4ab48d8973707e",
             "reloadTime": 2.0,
             "reserveAmmo": 240,
             "spread": 0.02
@@ -4135,12 +4810,14 @@
             "explosionImpulse": 0.0,
             "explosionRadius": 0.0,
             "fireInterval": 0.8,
+            "fireSound": "51d6dca9ada9968c54c3e40b09eda2d4",
             "impulse": 15.0,
             "kind": 0,
             "magazineSize": 6,
             "pellets": 10,
             "projectileSpeed": 0.0,
             "range": 60.0,
+            "reloadSound": "0c7379df4ea628e65c4ab48d8973707e",
             "reloadTime": 2.5,
             "reserveAmmo": 48,
             "spread": 0.09
@@ -4181,12 +4858,14 @@
             "explosionImpulse": 500.0,
             "explosionRadius": 5.0,
             "fireInterval": 1.0,
+            "fireSound": "a40bdc5547181232a3f1aca99a2888fa",
             "impulse": 0.0,
             "kind": 1,
             "magazineSize": 1,
             "pellets": 1,
             "projectileSpeed": 30.0,
             "range": 0.0,
+            "reloadSound": "0c7379df4ea628e65c4ab48d8973707e",
             "reloadTime": 1.5,
             "reserveAmmo": 20,
             "spread": 0.0
@@ -4198,6 +4877,188 @@
       "id": 73,
       "layer": 0,
       "name": "Rocket Launcher",
+      "parent": 46,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "click": "740b4adc271ec8e9467bedbd8163a294",
+            "explosion": "b25b62392b7f2f42ea25384ab0a311a7",
+            "surfaces": [
+              {
+                "footsteps": [
+                  "74829e4b62921df30bb2c75f5639a50a",
+                  "f651bc1d618e7ef5fcb04e04178a67a2"
+                ],
+                "impact": "0ba7042e3aacd048ce039ad3848d5cce"
+              },
+              {
+                "footsteps": [
+                  "8d9c4336f119c717fb4dc1ae90b67b47",
+                  "0149c8b2e47c550944eec857f07b7b2b"
+                ],
+                "impact": "8653d1d980a8ca91bc8edbc537eeead4"
+              },
+              {
+                "footsteps": [
+                  "842937a382c8bc132ef59b1cc463a01c",
+                  "af851fbca32fcab07940489530002579"
+                ],
+                "impact": "bc44ab298718ac512b1e6698d607a249"
+              }
+            ]
+          },
+          "enabled": true,
+          "type": "SoundBank"
+        }
+      ],
+      "id": 74,
+      "name": "Sounds",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "bus": "Music",
+            "loop": true,
+            "pitch": 1.0,
+            "playOnStart": true,
+            "sound": "eaa953e83a3001b6ba3d936a559b687b",
+            "spatial": false,
+            "spatialSettings": {
+              "maxDistance": 50.0,
+              "minDistance": 1.0,
+              "rolloff": 0
+            },
+            "volume": 0.35
+          },
+          "enabled": true,
+          "type": "AudioSource"
+        }
+      ],
+      "id": 75,
+      "name": "Music",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "bus": "Ambience",
+            "loop": true,
+            "pitch": 1.0,
+            "playOnStart": true,
+            "sound": "4d9e72324ddf3ce6b9847ef126ab471a",
+            "spatial": false,
+            "spatialSettings": {
+              "maxDistance": 50.0,
+              "minDistance": 1.0,
+              "rolloff": 0
+            },
+            "volume": 0.5
+          },
+          "enabled": true,
+          "type": "AudioSource"
+        }
+      ],
+      "id": 76,
+      "name": "Ambience",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "bus": "Effects",
+            "loop": true,
+            "pitch": 1.0,
+            "playOnStart": false,
+            "sound": "23ffbdc91408f460a849bb6d7277af1e",
+            "spatial": false,
+            "spatialSettings": {
+              "maxDistance": 50.0,
+              "minDistance": 1.0,
+              "rolloff": 0
+            },
+            "volume": 0.25
+          },
+          "enabled": true,
+          "type": "AudioSource"
+        }
+      ],
+      "id": 77,
+      "name": "Physics Gun Hum",
       "parent": 46,
       "position": [
         0.0,

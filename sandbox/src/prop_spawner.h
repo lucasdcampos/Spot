@@ -1,5 +1,7 @@
 #pragma once
 
+#include "sound_bank.h"
+
 #include <spot.h>
 
 #include <string>
@@ -18,6 +20,7 @@ struct SpawnableProp {
     float mass = 10.0f;
     // Blows up when shot; see ExplosiveBarrel.
     bool explosive = false;
+    SurfaceKind surface = SurfaceKind::Wood;
 
     void Serialize(Spot::Archive& archive);
 };

@@ -12,6 +12,8 @@ add_library(sandbox_generator_core STATIC
     output.h
     shapes.cpp
     shapes.h
+    sounds.cpp
+    sounds.h
     textures.cpp
     textures.h
 )

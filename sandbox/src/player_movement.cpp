@@ -1,6 +1,7 @@
 #include "player_movement.h"
 
 #include "player_controller.h"
+#include "sound_bank.h"
 
 #include <algorithm>
 
@@ -99,6 +100,10 @@ void PlayerMovement::Walk(Spot::CharacterController& controller, float deltaTime
         m_verticalSpeed += GetScene().GetPhysics().GetGravity().y * deltaTime;
     }
     controller.Move(direction * speed + Spot::Vector3{0.0f, m_verticalSpeed, 0.0f}, deltaTime);
+    if (controller.IsGrounded()) {
+        const Spot::Vector3 velocity = controller.GetVelocity();
+        Step(controller, Spot::Length(Spot::Vector3{velocity.x, 0.0f, velocity.z}) * deltaTime);
+    }
     // A ceiling stops a jump.
     m_verticalSpeed = std::min(m_verticalSpeed, controller.GetVelocity().y);
 }
@@ -131,6 +136,31 @@ bool PlayerMovement::HasRoomToStand(const Spot::CharacterController& controller)
     return !hit.has_value();
 }
 
+void PlayerMovement::Step(const Spot::CharacterController& controller, float distance) {
+    m_stride += distance;
+    if (m_stride < strideLength) {
+        return;
+    }
+    m_stride = 0.0f;
+    const Spot::Vector3 feet = GetEntity().GetTransform().GetWorldPosition() + controller.GetCenter() -
+                               Spot::Vector3{0.0f, controller.GetHeight() * 0.5f, 0.0f};
+    const auto ground = GetScene().GetPhysics().Raycast(feet + Spot::Vector3{0.0f, 0.2f, 0.0f}, {0.0f, -1.0f, 0.0f},
+                                                        0.6f, {.ignore = GetEntity().GetId()});
+    const SoundBank* bank = SoundBank::Find(GetScene());
+    const SurfaceSounds* sounds =
+        bank ? bank->GetSurface(Surface::Of(ground ? GetScene().GetEntity(ground->entity) : nullptr)) : nullptr;
+    if (!sounds || sounds->footsteps.empty()) {
+        return;
+    }
+    const Spot::AssetRef<Spot::Sound>& sound = sounds->footsteps[m_footstep++ % sounds->footsteps.size()];
+    const float loudness = m_crouching ? 0.4f : Spot::Input::IsActionDown("Sprint") ? 1.2f : 1.0f;
+    GetScene().GetAudio().PlayOneShot(sound.GetShared(), feet,
+                                      {.volume = footstepVolume * loudness,
+                                       .bus = "Effects",
+                                       .spatialSettings = {.minDistance = 2.0f, .maxDistance = 25.0f},
+                                       .maxInstances = 3});
+}
+
 void PlayerMovement::Serialize(Spot::Archive& archive) {
     archive.Field("walkSpeed", walkSpeed, {.min = 0.0f, .max = 100.0f, .speed = 0.05f});
     archive.Field("runSpeed", runSpeed, {.min = 0.0f, .max = 100.0f, .speed = 0.05f});
@@ -140,5 +170,7 @@ void PlayerMovement::Serialize(Spot::Archive& archive) {
     archive.Field("fastFlySpeed", fastFlySpeed, {.min = 0.0f, .max = 1000.0f, .speed = 0.1f});
     archive.Field("crouchHeight", crouchHeight,
                   {.min = 0.1f, .max = 10.0f, .speed = 0.01f, .tooltip = "The capsule's height while crouching"});
+    archive.Field("strideLength", strideLength, {.min = 0.1f, .max = 10.0f, .speed = 0.01f});
+    archive.Field("footstepVolume", footstepVolume, {.min = 0.0f, .max = 4.0f, .speed = 0.01f});
     archive.Field("fallHeight", fallHeight, {.tooltip = "Below this height, the player goes back to the start"});
 }

@@ -3,7 +3,8 @@
 #include <spot.h>
 
 // Moves the player's CharacterController where its PlayerController looks, with the actions: Move to walk, Sprint to
-// run, Jump to jump and Crouch to crouch, standing up again only once there is room above. Noclip switches flying
+// run, Jump to jump and Crouch to crouch, standing up again only once there is room above. Steps sound like the
+// ground they land on, quieter crouching and louder running. Noclip switches flying
 // through everything: Jump goes up, Crouch down and Sprint faster. Falling below the world brings the player back to
 // the start.
 class PlayerMovement final : public Spot::Component {
@@ -18,6 +19,9 @@ public:
     // The capsule's height while crouching, from end to end.
     float crouchHeight = 1.0f;
     float fallHeight = -20.0f;
+    // Meters walked between footsteps, which sound like the ground under the player; see Surface.
+    float strideLength = 0.8f;
+    float footstepVolume = 0.5f;
 
     bool IsCrouching() const { return m_crouching; }
     bool IsFlying() const { return m_flying; }
@@ -36,6 +40,8 @@ private:
     void SetCrouching(Spot::CharacterController& controller, bool crouching);
     // Whether the standing capsule would fit where the crouching one is.
     bool HasRoomToStand(const Spot::CharacterController& controller) const;
+    // Counts the distance walked on the ground, and plays a step each stride.
+    void Step(const Spot::CharacterController& controller, float distance);
 
     Spot::Vector3 m_spawnPoint;
     float m_standHeight = 1.8f;
@@ -48,4 +54,6 @@ private:
     bool m_crouchHeld = false;
     bool m_crouching = false;
     bool m_flying = false;
+    float m_stride = 0.0f;
+    std::size_t m_footstep = 0;
 };

@@ -38,6 +38,14 @@ void PhysicsGun::Freeze() {
 void PhysicsGun::Release() {
     m_grabbed = Spot::EntityId::Invalid;
     m_turning = false;
+    if (Spot::AudioSource* source = GetHum()) {
+        source->Stop();
+    }
+}
+
+Spot::AudioSource* PhysicsGun::GetHum() const {
+    Spot::Entity* entity = GetScene().GetEntity(hum);
+    return entity ? entity->GetComponent<Spot::AudioSource>() : nullptr;
 }
 
 void PhysicsGun::UnfreezeAll() {
@@ -127,6 +135,12 @@ void PhysicsGun::OnLateUpdate(float /*deltaTime*/) {
     if (!body || !player) {
         return;
     }
+    if (Spot::AudioSource* source = GetHum()) {
+        if (!source->IsPlaying()) {
+            source->Play();
+        }
+        source->pitch = 1.0f + std::min(Spot::Length(body->GetLinearVelocity()) / 20.0f, 1.0f);
+    }
     // The beam, until the rendering milestones give it a look of its own.
     const Spot::Vector3 muzzle =
         player->GetEyePosition() + player->GetViewRotation() * Spot::Vector3{0.25f, -0.2f, -0.4f};
@@ -138,6 +152,7 @@ void PhysicsGun::Serialize(Spot::Archive& archive) {
     archive.Field("range", range, {.min = 0.0f, .max = 1000.0f, .speed = 0.5f});
     archive.Field("minDistance", minDistance, {.min = 0.0f, .max = 100.0f, .speed = 0.05f});
     archive.Field("scrollStep", scrollStep, {.min = 0.0f, .max = 10.0f, .speed = 0.05f});
+    archive.Field("hum", hum, {.tooltip = "The entity whose AudioSource hums while holding a prop"});
     archive.Field("maxSpeed", maxSpeed, {.min = 0.0f, .max = 1000.0f, .speed = 0.5f});
 }
 

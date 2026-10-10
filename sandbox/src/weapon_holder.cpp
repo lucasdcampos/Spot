@@ -5,6 +5,7 @@
 #include "player_controller.h"
 #include "projectile.h"
 #include "prop_carrier.h"
+#include "sound_bank.h"
 #include "weapon.h"
 
 #include <algorithm>
@@ -16,7 +17,31 @@ SPOT_COMPONENT(WeaponHolder);
 
 void WeaponHolder::Select(int slot) {
     const int count = static_cast<int>(GetWeapons().size()) + 2;
-    m_selected = ((slot % count) + count) % count;
+    const int selected = ((slot % count) + count) % count;
+    if (selected != m_selected) {
+        m_selected = selected;
+        SoundBank::PlayClick(GetScene());
+    }
+}
+
+void WeaponHolder::PlayWeaponSound(const Spot::AssetRef<Spot::Sound>& sound, float volume) {
+    const auto* player = GetEntity().GetComponent<PlayerController>();
+    if (!sound || !player) {
+        return;
+    }
+    // Close to full volume for the player holding it, and heard far around.
+    GetScene().GetAudio().PlayOneShot(sound.GetShared(), player->GetEyePosition(),
+                                      {.volume = volume,
+                                       .bus = "Effects",
+                                       .spatialSettings = {.minDistance = 3.0f, .maxDistance = 100.0f},
+                                       .priority = 5,
+                                       .maxInstances = 4});
+}
+
+void WeaponHolder::StartReload(Weapon& weapon) {
+    if (weapon.StartReload()) {
+        PlayWeaponSound(weapon.reloadSound, 0.8f);
+    }
 }
 
 float WeaponHolder::GetAimZoom() const {
@@ -46,6 +71,7 @@ void WeaponHolder::Fire() {
         return;
     }
     Spot::Input::RumbleGamepad(0.2f, weapon->kind == Weapon::Kind::Projectile ? 0.8f : 0.5f, 0.08f);
+    PlayWeaponSound(weapon->fireSound, 1.0f);
     const Spot::Vector3 eye = player->GetEyePosition();
     const Spot::Vector3 aim = player->GetAimDirection();
     if (weapon->kind == Weapon::Kind::Projectile) {
@@ -127,7 +153,7 @@ void WeaponHolder::OnUpdate(float deltaTime) {
         return;
     }
     if (Input::IsActionPressed("Reload")) {
-        weapon->StartReload();
+        StartReload(*weapon);
     }
     const bool firing = weapon->automatic ? Input::IsActionDown("Fire") : Input::IsActionPressed("Fire");
     if (firing && Input::IsCursorLocked() && !(carrier && carrier->HasClick())) {
@@ -135,7 +161,7 @@ void WeaponHolder::OnUpdate(float deltaTime) {
     }
     // Out of rounds, it reloads by itself.
     if (weapon->GetAmmo() == 0) {
-        weapon->StartReload();
+        StartReload(*weapon);
     }
 }
 

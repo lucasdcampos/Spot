@@ -19,11 +19,12 @@ bool Weapon::TakeShot() {
     return true;
 }
 
-void Weapon::StartReload() {
+bool Weapon::StartReload() {
     if (m_reloading > 0.0f || m_ammo >= magazineSize || m_reserve <= 0) {
-        return;
+        return false;
     }
     m_reloading = reloadTime;
+    return true;
 }
 
 void Weapon::Tick(float deltaTime) {
@@ -60,6 +61,8 @@ void Weapon::Serialize(Spot::Archive& archive) {
     archive.Field("reloadTime", reloadTime, {.min = 0.0f, .max = 10.0f, .speed = 0.01f, .tooltip = "Seconds"});
     archive.Field("aimZoom", aimZoom,
                   {.min = 1.0f, .max = 10.0f, .speed = 0.01f, .tooltip = "How many times aiming magnifies the view"});
+    archive.Field("fireSound", fireSound);
+    archive.Field("reloadSound", reloadSound);
     archive.Field("aimSpread", aimSpread,
                   {.min = 0.0f, .max = 1.0f, .speed = 0.01f, .tooltip = "The share of the spread left while aiming"});
     archive.Field("projectileSpeed", projectileSpeed, {.min = 0.0f, .max = 1000.0f, .speed = 0.5f});

@@ -1,6 +1,7 @@
 #include "explosion.h"
 
 #include "explosive_barrel.h"
+#include "sound_bank.h"
 
 #include <algorithm>
 
@@ -9,6 +10,15 @@ namespace Explosion {
 void Explode(Spot::Scene& scene, Spot::Vector3 center, float radius, float impulse, Spot::EntityId ignore) {
     // The flash, until particles (M13) give explosions a look of their own.
     Spot::DebugDraw::Sphere(center, radius, {.color = {1.0f, 0.6f, 0.1f, 1.0f}, .duration = 0.3f});
+    if (const SoundBank* bank = SoundBank::Find(scene); bank && bank->explosion) {
+        // Heard from afar, and never the one sound dropped when voices run out.
+        scene.GetAudio().PlayOneShot(bank->explosion.GetShared(), center,
+                                     {.bus = "Effects",
+                                      .spatialSettings = {.minDistance = 6.0f, .maxDistance = 150.0f},
+                                      .priority = 10,
+                                      .maxInstances = 4});
+        Spot::Input::RumbleGamepad(0.8f, 0.6f, 0.3f);
+    }
 
     for (const Spot::OverlapHit& hit : scene.GetPhysics().OverlapSphere(center, radius, {.ignore = ignore})) {
         Spot::Entity* entity = scene.GetEntity(hit.entity);

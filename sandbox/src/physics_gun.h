@@ -15,6 +15,8 @@ public:
     // Meters the wheel moves the prop per notch; a shoulder held moves it a tenth of that each frame.
     float scrollStep = 1.0f;
     float maxSpeed = 40.0f;
+    // An entity whose AudioSource hums while the gun holds something, higher the faster the prop moves.
+    Spot::EntityId hum;
 
     bool IsGrabbing() const { return m_grabbed != Spot::EntityId::Invalid; }
     Spot::EntityId GetGrabbed() const { return m_grabbed; }
@@ -33,6 +35,7 @@ protected:
 
 private:
     bool IsActive() const;
+    Spot::AudioSource* GetHum() const;
     void Grab();
     Spot::Rigidbody* GetGrabbedBody() const;
 

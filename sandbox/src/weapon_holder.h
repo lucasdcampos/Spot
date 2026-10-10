@@ -35,6 +35,9 @@ protected:
 
 private:
     void FireHitscan(const Weapon& weapon, Spot::Vector3 eye, Spot::Vector3 aim);
+    // Plays a sound of the weapon from the player's hands.
+    void PlayWeaponSound(const Spot::AssetRef<Spot::Sound>& sound, float volume);
+    void StartReload(Weapon& weapon);
     // A direction within the cone of the half angle around the aim.
     Spot::Vector3 Scatter(Spot::Vector3 aim, float spread);
 

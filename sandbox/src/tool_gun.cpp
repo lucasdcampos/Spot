@@ -2,6 +2,7 @@
 
 #include "player_controller.h"
 #include "prop_carrier.h"
+#include "sound_bank.h"
 #include "undo_list.h"
 #include "weapon_holder.h"
 
@@ -107,6 +108,7 @@ void ToolGun::OnUpdate(float /*deltaTime*/) {
         return;
     }
     if (Input::IsActionPressed("Reload")) {
+        SoundBank::PlayClick(GetScene());
         mode = static_cast<Mode>((static_cast<int>(mode) + 1) % 3);
         m_first.reset();
     }

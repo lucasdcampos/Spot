@@ -63,9 +63,12 @@ SoundInstance AudioSystem::PlayOneShot(std::shared_ptr<const Sound> sound, Vecto
         return {};
     }
     const auto [gain, pan] = Spatialize(position, params.spatialSettings);
-    const SoundInstance instance = device->Play(
-        std::move(sound),
-        {.volume = params.volume * gain, .pan = pan, .pitch = params.pitch, .bus = Audio::FindBus(params.bus)});
+    const SoundInstance instance = device->Play(std::move(sound), {.volume = params.volume * gain,
+                                                                   .pan = pan,
+                                                                   .pitch = params.pitch,
+                                                                   .bus = Audio::FindBus(params.bus),
+                                                                   .priority = params.priority,
+                                                                   .maxInstances = params.maxInstances});
     if (instance == SoundInstance{}) {
         return instance;
     }

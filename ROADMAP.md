@@ -444,7 +444,7 @@ defined in the audio settings. Streamed sounds decode on a worker thread into a 
   pan from transforms. A scene's sounds stop when it unloads and pause when scenes are paused. Tests.
 - [x] **M3.5 Mixer settings and panel.** The audio settings section (buses, default volumes) and an editor Audio Mixer
   panel with faders, meters, mute and solo, which take effect live during Play.
-- [ ] **M3.6 Sandbox: sound.** The generator gets a WAV writer and synthesizes the game's sounds: gunshots,
+- [x] **M3.6 Sandbox: sound.** The generator gets a WAV writer and synthesizes the game's sounds: gunshots,
   explosions, impacts per surface, footsteps, the physics gun's hum, and UI clicks. Weapons and explosions sound
   from where they are. Impacts come from collision events (M1.3) and scale with speed and surface. Footsteps follow
   the ground under the player. Ambience and music play on their own buses.
@@ -481,6 +481,16 @@ defined in the audio settings. Streamed sounds decode on a worker thread into a 
   the master bus itself are silenced too. Solo is not saved; mute is. The Audio Mixer panel edits the project's
   settings, applies them to the editor's device at once (the play session shares it) and saves when an edit ends;
   it docks with the console and starts closed. New projects get Music, Effects, Ambience and Interface buses.
+- M3.6: the generator synthesizes 19 mono WAVs (`sandbox/generator/sounds.cpp`) with arithmetic only (a polynomial
+  sine, xorshift noise, one-pole filters, multiplicative decays), as the textures do; music and wind are 22 kHz
+  loops whose metas stream them. Sounds are data: a `SoundBank` component (surfaces' impacts and footsteps,
+  explosion, click), `Weapon::fireSound`/`reloadSound`, and a "Physics Gun Hum" child with an `AudioSource` that
+  `PhysicsGun::hum` names. A `Surface` component (Concrete, the default, Wood, Metal) on props; `ImpactSounds` plays
+  the entity's own surface on `OnCollisionEnter()` past 1 m/s, louder to 8 m/s, detuned ±8%, quiet for 0.08 s
+  after each and 0.5 s after start. Footsteps every 0.8 m on the ground, from a raycast below the feet. Interface
+  clicks go straight to the device's Interface bus, so they play while the scenes are paused. `OneShotParams`
+  gained `priority` and `maxInstances` (explosions rank 10, shots 5). `spot_sandbox_tests` plays the playground
+  through a manually mixed device and measures each bus.
 
 ---
 

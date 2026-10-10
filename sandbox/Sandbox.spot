@@ -4,6 +4,35 @@
   "formatVersion": 1,
   "name": "Sandbox",
   "sections": {
+    "audio": {
+      "buses": [
+        {
+          "muted": false,
+          "name": "Music",
+          "parent": "",
+          "volume": 0.7
+        },
+        {
+          "muted": false,
+          "name": "Effects",
+          "parent": "",
+          "volume": 1.0
+        },
+        {
+          "muted": false,
+          "name": "Ambience",
+          "parent": "",
+          "volume": 0.8
+        },
+        {
+          "muted": false,
+          "name": "Interface",
+          "parent": "",
+          "volume": 1.0
+        }
+      ],
+      "masterVolume": 1.0
+    },
     "input": {
       "actions": [
         {

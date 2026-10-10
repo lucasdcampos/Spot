@@ -1,11 +1,13 @@
 // The sandbox's game code, run headless on its real scenes: the engine's integration test, which shows a regression
 // as something broken in the game.
+#include "explosion.h"
 #include "explosive_barrel.h"
 #include "log_capture.h"
 #include "physics_gun.h"
 #include "player_controller.h"
 #include "prop_carrier.h"
 #include "prop_spawner.h"
+#include "sound_bank.h"
 #include "tool_gun.h"
 #include "undo_list.h"
 #include "weapon.h"
@@ -16,10 +18,14 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
+#include <map>
 #include <memory>
 #include <string>
+#include <string_view>
+#include <vector>
 
 using Catch::Approx;
 using Spot::Entity;
@@ -35,7 +41,8 @@ const std::filesystem::path Assets = SANDBOX_ASSETS_DIR;
 // The playground, loaded from its source with the sandbox's components and the assets the build cooks for it, and
 // input the test presses keys on, read through the actions of the game's settings, which the build writes beside
 // them. There is no GPU, so meshes and fonts do not load, which the game's logic and physics do not need; the log,
-// which says so, is kept from the output.
+// which says so, is kept from the output. With audio, the game sounds through a device mixed by hand as it runs, with
+// the game's buses, and each run tells how loud each bus got.
 struct Playground {
     std::shared_ptr<Spot::Tests::CaptureSink> log = std::make_shared<Spot::Tests::CaptureSink>();
     Spot::Tests::ScopedSinks sinks{{log}};
@@ -43,17 +50,26 @@ struct Playground {
     Spot::InputActionMap actions;
     Spot::InputState* previousInput = Spot::Input::GetState();
     Spot::InputActionMap* previousActions = Spot::Input::GetActionMap();
+    std::unique_ptr<Spot::AudioDevice> audio;
+    Spot::AudioDevice* previousAudio = Spot::Audio::GetDevice();
+    // The loudest sample of each bus over the last run, by name.
+    std::map<std::string, Spot::AudioPeak, std::less<>> peaks;
     Spot::AssetManager assets{SANDBOX_IMPORTED_DIR};
     Scene scene;
     Entity* player = nullptr;
 
-    Playground() {
+    explicit Playground(bool withAudio = false) {
         Spot::Detail::GameCode::Load();
         const auto game = Spot::GameSettings::LoadFromFile(std::filesystem::path(SANDBOX_IMPORTED_DIR).parent_path() /
                                                            Spot::GameSettings::FileName);
         REQUIRE(game.has_value());
         game->sections.input.Apply(actions);
         REQUIRE(actions.Find("Fire") != nullptr);
+        if (withAudio) {
+            audio = std::make_unique<Spot::AudioDevice>(Spot::AudioConfig{.manualMix = true});
+            game->sections.audio.Apply(*audio);
+            Spot::Audio::SetDevice(audio.get());
+        }
         Spot::Input::SetState(&input);
         Spot::Input::SetActionMap(&actions);
         REQUIRE(scene.LoadFromFile(Assets / "scenes" / "playground.scene", &assets));
@@ -64,6 +80,9 @@ struct Playground {
     ~Playground() {
         Spot::Input::SetState(previousInput);
         Spot::Input::SetActionMap(previousActions);
+        // The scene's sounds stop while the device is still there.
+        scene.Clear();
+        Spot::Audio::SetDevice(previousAudio);
         // Components that threw were logged; nothing else in the game should have.
         for (const auto& record : log->GetRecords()) {
             CHECK(record.message.find(" threw in ") == std::string::npos);
@@ -72,10 +91,20 @@ struct Playground {
 
     void Run(float seconds) {
         const auto frames = std::lround(seconds / Step);
+        peaks.clear();
+        std::vector<float> mix(static_cast<std::size_t>(Step * 48000.0f) * 2);
         for (long i = 0; i < frames; ++i) {
             actions.Update(input);
             scene.Update(Step);
             input.BeginFrame();
+            if (audio) {
+                audio->Render(mix);
+                for (const Spot::AudioBusId bus : audio->GetBuses()) {
+                    const Spot::AudioPeak peak = audio->GetBusPeak(bus);
+                    Spot::AudioPeak& loudest = peaks[audio->GetBusName(bus)];
+                    loudest = {std::max(loudest.left, peak.left), std::max(loudest.right, peak.right)};
+                }
+            }
         }
     }
 
@@ -571,4 +600,71 @@ TEST_CASE("Aiming down the sights zooms in while held, with the right button or 
     playground.Run(0.1f);
     CHECK(holder.IsAiming());
     playground.Push(Spot::GamepadAxis::LeftTrigger, 0.0f);
+}
+
+TEST_CASE("The playground sounds from where things are, on its buses", "[sandbox][audio]") {
+    Playground playground(true);
+    playground.Run(1.5f);
+    REQUIRE(playground.audio);
+
+    // Music and wind play on their own buses all along, the wind streamed.
+    for (const char* name : {"Music", "Ambience"}) {
+        const Entity* entity = playground.scene.FindEntity(name);
+        REQUIRE(entity != nullptr);
+        CHECK(entity->GetComponent<Spot::AudioSource>()->IsPlaying());
+        CHECK(playground.peaks[name].left > 0.01f);
+    }
+    CHECK(playground.scene.FindEntity("Ambience")->GetComponent<Spot::AudioSource>()->sound->IsStreamed());
+
+    // Standing still, nothing sounds on the effects bus; walking, steps do.
+    playground.Run(0.5f);
+    CHECK(playground.peaks["Effects"].left == 0.0f);
+    playground.Press(Key::W);
+    playground.Run(1.0f);
+    playground.Release(Key::W);
+    CHECK(playground.peaks["Effects"].left > 0.01f);
+    playground.Run(1.0f);
+
+    // A shot is heard from the player's hands, in the middle.
+    FireSlot(playground, Key::Digit2);
+    const Spot::AudioPeak shot = playground.peaks["Effects"];
+    CHECK(shot.left > 0.1f);
+    CHECK(shot.left == Approx(shot.right).epsilon(0.1f));
+    playground.Run(1.0f);
+
+    // An explosion to the right is heard on the right.
+    const Spot::Vector3 right = playground.Player().GetViewRotation() * Spot::Vector3{1.0f, 0.0f, 0.0f};
+    Explosion::Explode(playground.scene, playground.Player().GetEyePosition() + right * 12.0f, 1.0f, 0.0f);
+    playground.Run(0.3f);
+    const Spot::AudioPeak blast = playground.peaks["Effects"];
+    CHECK(blast.right > 0.05f);
+    CHECK(blast.right > blast.left * 4.0f);
+    playground.Run(2.0f);
+
+    // A crate dropped near the player knocks like wood when it lands.
+    Entity& crate = playground.PlaceCrate(4.0f, 5.0f);
+    crate.GetTransform().SetPosition(crate.GetTransform().GetPosition() + Spot::Vector3{0.0f, 3.0f, 0.0f});
+    crate.GetComponent<Spot::Rigidbody>()->SetGravityScale(1.0f);
+    crate.AddComponent<Surface>().kind = SurfaceKind::Wood;
+    crate.AddComponent<ImpactSounds>();
+    playground.Run(1.5f);
+    CHECK(playground.peaks["Effects"].left > 0.01f);
+
+    // The physics gun hums while it holds something.
+    playground.Press(Key::Digit1);
+    playground.Run(0.05f);
+    playground.Release(Key::Digit1);
+    Entity& held = playground.PlaceCrate(5.0f, 5.0f);
+    playground.Run(0.05f);
+    playground.Press(Spot::MouseButton::Left);
+    playground.Run(0.2f);
+    auto& gun = *playground.player->GetComponent<PhysicsGun>();
+    REQUIRE(gun.IsGrabbing());
+    const Entity* hum = playground.scene.GetEntity(gun.hum);
+    REQUIRE(hum != nullptr);
+    CHECK(hum->GetComponent<Spot::AudioSource>()->IsPlaying());
+    playground.Release(Spot::MouseButton::Left);
+    playground.Run(0.1f);
+    CHECK_FALSE(hum->GetComponent<Spot::AudioSource>()->IsPlaying());
+    static_cast<void>(held);
 }

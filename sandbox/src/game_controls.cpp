@@ -1,5 +1,7 @@
 #include "game_controls.h"
 
+#include "sound_bank.h"
+
 SPOT_COMPONENT(GameControls);
 
 void GameControls::OnStart() {
@@ -10,6 +12,7 @@ void GameControls::OnUpdate(float /*deltaTime*/) {
     namespace Input = Spot::Input;
 
     if (Input::IsActionPressed("Pause")) {
+        SoundBank::PlayClick(GetScene());
         if (Input::IsCursorLocked()) {
             Input::SetCursorLocked(false);
         } else {
@@ -25,6 +28,7 @@ void GameControls::OnUpdate(float /*deltaTime*/) {
 
 void GameControls::OnLateUpdate(float /*deltaTime*/) {
     if (Spot::Input::IsActionPressed("Fire") && !Spot::Input::IsCursorLocked()) {
+        SoundBank::PlayClick(GetScene());
         Spot::Input::SetCursorLocked(true);
     }
 }
