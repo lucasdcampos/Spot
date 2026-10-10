@@ -26,6 +26,10 @@ cmake --build --preset msvc-debug    # or: ninja-debug
 ctest --preset msvc-debug            # or: ninja-debug
 ```
 
+With the Ninja or Makefile generators, the build compiles through sccache or ccache when one is installed (see
+`cmake/spot_compiler_cache.cmake`; `-DSPOT_USE_COMPILER_CACHE=OFF` turns it off), and so do games built by the tools.
+The Visual Studio generator runs no compiler cache.
+
 Shaders are HLSL files named `*.vert.hlsl` or `*.frag.hlsl`. `spot_add_shaders(<target> ...)` (in
 `cmake/spot_shaders.cmake`) compiles them to SPIR-V, MSL and, on Windows, DXIL, and generates a header per shader
 with a ready-to-use `Spot::ShaderDesc`.

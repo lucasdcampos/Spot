@@ -508,7 +508,7 @@ budget is a few seconds for a one-file change in Debug.
   Record the baseline in Notes.
 - [x] **M4.2 Precompiled headers.** `spot_add_game()` precompiles `<spot.h>` and the standard headers it pulls in.
   The engine's own targets use PCH where it pays off.
-- [ ] **M4.3 Compiler cache.** Use sccache or ccache as the compiler launcher when one is installed, for the engine
+- [x] **M4.3 Compiler cache.** Use sccache or ccache as the compiler launcher when one is installed, for the engine
   and for games. Document it.
 - [ ] **M4.4 Header cost.** Profile the include cost of `spot.h` (`-ftime-trace`) and cut the top offenders with
   forward declarations and by moving heavy includes out of widely used headers.
@@ -535,6 +535,12 @@ budget is a few seconds for a one-file change in Debug.
   ImGui) and the tests (with Catch2); a one-file rebuild there gained 1-2 s at most, as MSBuild's checks of the
   targets around it dominate. The engine library itself has no PCH: MSVC's export of all symbols from
   `spot_shared` fails on the PCH's own symbol.
+- M4.3: `cmake/spot_compiler_cache.cmake` finds sccache, then ccache, and sets the compiler launchers for the
+  engine's build and, through the package, for `spot_add_game()`. ccache runs with
+  `CCACHE_SLOPPINESS=pch_defines,time_macros`, so files built with the precompiled header are cached; with MSVC,
+  debug information goes in the objects (`/Z7`), as caches need. Neither tool is installed on this machine, and the
+  default MSVC preset uses the Visual Studio generator, which runs no launcher, so the gain is unmeasured here; a
+  stand-in launcher on PATH showed a game's build through Makefiles calling it for all 21 compilations.
 
 ---
 

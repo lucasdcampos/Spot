@@ -33,7 +33,10 @@ endfunction()
 #                 its main() comes from the source named main.cpp, which nothing else has
 #   game_module   the rest as a game module, in the build directory's module folder, which the editor loads so the
 #                 game's components are in it, and reloads as the code changes
+include("@PROJECT_SOURCE_DIR@/cmake/spot_compiler_cache.cmake")
+
 function(spot_add_game)
+    spot_use_compiler_cache()
     set(main_sources ${ARGN})
     list(FILTER main_sources INCLUDE REGEX "(^|/)main\\.cpp$")
     set(code_sources ${ARGN})

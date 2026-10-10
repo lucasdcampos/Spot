@@ -44,6 +44,12 @@ function(spot_copy_runtime_dlls target)
     endif()
 endfunction()
 
+include(cmake/spot_compiler_cache.cmake)
+spot_use_compiler_cache()
+if(SPOT_COMPILER_CACHE AND CMAKE_CXX_COMPILER_LAUNCHER)
+    message(STATUS "Compiling through ${SPOT_COMPILER_CACHE}")
+endif()
+
 include(cmake/spot_shaders.cmake)
 include(cmake/spot_embed_files.cmake)
 
