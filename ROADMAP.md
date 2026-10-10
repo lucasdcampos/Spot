@@ -9,7 +9,7 @@ The goal is the same breadth, built on the architecture Spot already has.
 The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
 [The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
 
-**Current focus:** M5 – Rendering: HDR and post-processing
+**Current focus:** M6 – Rendering: PBR and transparency
 
 ## How to use this plan
 
@@ -645,6 +645,11 @@ built on the public graphics API. The look comes from a `PostProcessing` compone
   and denser at sunset, dark blue and denser at night with a raised exposure and a cooler white balance. The
   physics gun's beam and the ropes are drawn by `AfterOpaque` render hooks through `HookLines` (a LineRenderer per
   stage's format and sample count, which needed `RenderStageContext::device`), the beam bright enough to bloom.
+- Done 2026-10-10. Acceptance: the sandbox renders through an HDR image with bloom, grading, its day cycle's fog and
+  ACES (seen in the editor's view, which takes the same path), and its beam and ropes draw in an `AfterOpaque` hook;
+  GPU tests cover float targets, fullscreen passes, tonemapping, bloom, FXAA, grading, fog, the rendering settings
+  and `PostProcessing`, and the stages of the hooks. MSVC and GCC Debug build without warnings and pass every test,
+  the module tests included.
 
 ---
 
