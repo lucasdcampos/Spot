@@ -81,6 +81,8 @@ add_library(spot_objects OBJECT
     graphics/font.h
     graphics/font.cpp
     graphics/font_atlas.h
+    graphics/fullscreen_pass.cpp
+    graphics/fullscreen_pass.h
     graphics/font_atlas.cpp
     graphics/graphics_device.h
     graphics/image.h
@@ -189,6 +191,7 @@ add_library(spot_objects OBJECT
 )
 
 spot_add_shaders(spot_objects NAMESPACE Spot::Detail::Shaders
+    graphics/shaders/fullscreen.vert.hlsl
     graphics/shaders/line.frag.hlsl
     graphics/shaders/line.vert.hlsl
     graphics/shaders/mesh.frag.hlsl

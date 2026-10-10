@@ -21,6 +21,25 @@ Each frame, `BeginFrame()` returns a `RenderContext` (null when nothing can be d
 - **Passes** clear or keep their targets, can have a depth target, and with several samples resolve into a single
   sample target (`keepSamples` lets a later pass draw more over the samples).
 - **Colors** are linear. The window's format is sRGB, so shaders write linear colors and the window encodes them.
+- **Formats**: 8-bit RGBA and BGRA, sRGB or not; `Rgba16Float` and `R11G11B10Float` for HDR render targets, which
+  hold values above 1 (`SupportsRenderTarget()` tells whether the GPU draws into the packed one); and
+  `Depth32Float`. `GetBytesPerPixel()` gives the size of a pixel as uploads and downloads hold it. Multisampled
+  targets of any color format resolve into single-sample render targets, which later passes sample.
+
+### Fullscreen passes
+
+`FullscreenPass` (`engine/graphics/fullscreen_pass.h`) runs a fragment shader over every pixel of a pass's target,
+as post-processing effects do: one triangle covering the target, built from the vertex index, with texture
+coordinates from (0, 0) at its top-left corner. The fragment shader takes `SV_Position` then `float2 uv :
+TEXCOORD0`; `Draw()` binds its pipeline and the input textures, and uniforms pushed before stay set.
+
+```cpp
+auto tonemap = Spot::FullscreenPass::Create(device, Shaders::TonemapFrag, {.targetFormat = device.GetWindowFormat()});
+auto pass = context.BeginRenderPass();
+pass.PushFragmentUniforms(0, exposure);
+const std::array inputs{Spot::FullscreenInput{hdr.get(), sampler.get()}};
+tonemap->Draw(pass, inputs);
+```
 
 ### Shaders
 

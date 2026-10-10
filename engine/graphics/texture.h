@@ -16,6 +16,12 @@ enum class TextureFormat {
     Bgra8Srgb,
     // 32-bit float depth, for depth targets. Its pixels cannot be uploaded or downloaded.
     Depth32Float,
+    // 16-bit floats per channel, half precision, as HDR render targets need: values above 1 and fine steps in the
+    // darks. Pixels are 8 bytes, each channel an IEEE half float.
+    Rgba16Float,
+    // Unsigned floats packed in 32 bits, 11 bits for red and green and 10 for blue, without alpha: HDR color in half
+    // the memory of Rgba16Float. Not every GPU renders into it; see GraphicsDevice::SupportsRenderTarget().
+    R11G11B10Float,
 };
 
 constexpr bool IsDepthFormat(TextureFormat format) {
@@ -24,6 +30,15 @@ constexpr bool IsDepthFormat(TextureFormat format) {
 
 constexpr bool IsSrgbFormat(TextureFormat format) {
     return format == TextureFormat::Rgba8Srgb || format == TextureFormat::Bgra8Srgb;
+}
+
+constexpr bool IsFloatFormat(TextureFormat format) {
+    return format == TextureFormat::Rgba16Float || format == TextureFormat::R11G11B10Float;
+}
+
+// The bytes of one pixel, as uploads and downloads hold them.
+constexpr std::uint32_t GetBytesPerPixel(TextureFormat format) {
+    return format == TextureFormat::Rgba16Float ? 8 : 4;
 }
 
 struct TextureDesc {

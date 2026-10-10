@@ -34,6 +34,7 @@
 #include "graphics/debug_draw.h"
 #include "graphics/font.h"
 #include "graphics/font_atlas.h"
+#include "graphics/fullscreen_pass.h"
 #include "graphics/graphics_device.h"
 #include "graphics/image.h"
 #include "graphics/light_data.h"

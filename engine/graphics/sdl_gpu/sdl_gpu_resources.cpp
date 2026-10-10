@@ -137,7 +137,7 @@ SDL_GPUSamplerAddressMode ToSdl(TextureAddressMode mode) {
 }
 
 std::uint32_t GetPixelDataSize(const Texture& texture) {
-    return texture.GetWidth() * texture.GetHeight() * 4;
+    return texture.GetWidth() * texture.GetHeight() * GetBytesPerPixel(texture.GetFormat());
 }
 
 } // namespace
@@ -154,6 +154,10 @@ SDL_GPUTextureFormat ToSdl(TextureFormat format) {
         return SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM_SRGB;
     case TextureFormat::Depth32Float:
         return SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
+    case TextureFormat::Rgba16Float:
+        return SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT;
+    case TextureFormat::R11G11B10Float:
+        return SDL_GPU_TEXTUREFORMAT_R11G11B10_UFLOAT;
     }
     return SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
 }

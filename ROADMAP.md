@@ -570,7 +570,7 @@ Design: scenes render into an HDR target, and a post-processing stack turns it i
 built on the public graphics API. The look comes from a `PostProcessing` component (the first active one, as with
 `Sky`) over the defaults in the rendering settings. MSAA resolves before post-processing.
 
-- [ ] **M5.1 Graphics API.** Float color formats (`Rgba16Float`, and `R11G11B10Float` where supported) as render
+- [x] **M5.1 Graphics API.** Float color formats (`Rgba16Float`, and `R11G11B10Float` where supported) as render
   targets, MSAA resolve into sampled textures, and `FullscreenPass` (one triangle and a fragment shader). GPU tests.
 - [ ] **M5.2 HDR and tonemapping.** `SceneRenderer` draws into the HDR target and tonemaps it (ACES or AgX, with
   exposure) into the output. Sky exposure stays consistent, and the editor's views use the same path.
@@ -590,6 +590,12 @@ built on the public graphics API. The look comes from a `PostProcessing` compone
 **Done when:** the sandbox renders through HDR, bloom, grading and fog, and its beam draws at a chosen stage.
 
 **Notes:**
+- M5.1: `TextureFormat::Rgba16Float` (8-byte pixels) and `R11G11B10Float`, with `GetBytesPerPixel()` for uploads and
+  downloads and `GraphicsDevice::SupportsRenderTarget()` (both render and sample on the test machine's Direct3D 12).
+  Resolving MSAA into sampled textures already worked, single-sample render targets being sampled too; a GPU test
+  now resolves a 4x float target with values above 1 and samples it. `FullscreenPass` owns an engine vertex shader
+  (`fullscreen.vert.hlsl`, one triangle from `SV_VertexID`), the caller's fragment shader and the pipeline; its
+  targets have no depth.
 
 ---
 

@@ -122,6 +122,13 @@ bool GraphicsDevice::SupportsSampleCount(TextureFormat format, std::uint32_t sam
     return count && SDL_GPUTextureSupportsSampleCount(m_impl->device->Get(), ToSdl(format), *count);
 }
 
+bool GraphicsDevice::SupportsRenderTarget(TextureFormat format) const {
+    const SDL_GPUTextureUsageFlags usage =
+        (IsDepthFormat(format) ? SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET : SDL_GPU_TEXTUREUSAGE_COLOR_TARGET) |
+        SDL_GPU_TEXTUREUSAGE_SAMPLER;
+    return SDL_GPUTextureSupportsFormat(m_impl->device->Get(), ToSdl(format), SDL_GPU_TEXTURETYPE_2D, usage);
+}
+
 TextureFormat GraphicsDevice::GetWindowFormat() const {
     // The swapchain is SDR, linear or not, which SDL gives one of these formats.
     switch (SDL_GetGPUSwapchainTextureFormat(m_impl->device->Get(), m_impl->window)) {

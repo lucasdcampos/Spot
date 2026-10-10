@@ -87,13 +87,15 @@ public:
 
     // Whether render targets of this format can have this many samples; 1 always can.
     bool SupportsSampleCount(TextureFormat format, std::uint32_t sampleCount) const;
+    // Whether textures of this format can be drawn into and sampled. Every format but R11G11B10Float always can.
+    bool SupportsRenderTarget(TextureFormat format) const;
     // The format of the window's frames, which textures resolved into the window must have. It is sRGB where the GPU
     // supports it, as it nearly always does, so shaders write linear colors and the window shows them right, unless
     // GraphicsConfig::linearWindow is off.
     TextureFormat GetWindowFormat() const;
 
-    // Replaces all of the texture's pixels: width * height * 4 bytes, rows from top to bottom. Like buffer uploads,
-    // it can be called at any time.
+    // Replaces all of the texture's pixels: width * height * GetBytesPerPixel() bytes, rows from top to bottom. Like
+    // buffer uploads, it can be called at any time.
     void UploadToTexture(Texture& texture, std::span<const std::byte> pixels);
 
     template <std::ranges::contiguous_range Data>

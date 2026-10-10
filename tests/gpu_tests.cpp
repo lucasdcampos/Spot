@@ -1,9 +1,11 @@
 #include "depth_compare.frag.h"
 #include "quad.vert.h"
+#include "solid.frag.h"
 #include "textured.frag.h"
 #include "textured_quad.vert.h"
 #include "triangle.frag.h"
 #include "triangle.vert.h"
+#include "uv.frag.h"
 
 #include "rendering_application.h"
 #include "temp_directory.h"
@@ -11,13 +13,16 @@
 #include <spot.h>
 #include <spot_import.h>
 
+#include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <functional>
 #include <memory>
@@ -2005,4 +2010,160 @@ TEST_CASE("LineRenderer draws lines hidden by meshes, and debug lines over every
     CHECK(rowHas(1, 12, 19, Blue));
     CHECK(rowHas(16, 12, 19, Blue));
     CHECK(IsNear(render.At(20, 20), {255, 0, 0, 255}));
+}
+
+namespace {
+
+float HalfToFloat(std::uint16_t half) {
+    const int exponent = (half >> 10) & 0x1f;
+    const int mantissa = half & 0x3ff;
+    const float value = exponent == 0 ? std::ldexp(static_cast<float>(mantissa), -24)
+                                      : std::ldexp(1.0f + static_cast<float>(mantissa) / 1024.0f, exponent - 15);
+    return (half & 0x8000) != 0 ? -value : value;
+}
+
+// Draws into targets on the first frame, and reads back the one the drawing returns on the second.
+std::vector<std::uint8_t>
+RenderAndDownload(const std::function<const Spot::Texture*(Spot::GraphicsDevice&, Spot::RenderContext&)>& draw) {
+    int frame = 0;
+    const Spot::Texture* result = nullptr;
+    std::vector<std::uint8_t> pixels;
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
+        if (++frame == 1) {
+            result = draw(app.GetGraphicsDevice(), context);
+        } else if (frame == 2 && result) {
+            pixels = app.GetGraphicsDevice().DownloadTexture(*result);
+        }
+    });
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    return pixels;
+}
+
+Pixel FirstPixel(const std::vector<std::uint8_t>& pixels) {
+    return {pixels[0], pixels[1], pixels[2], pixels[3]};
+}
+
+} // namespace
+
+TEST_CASE("Float render targets keep values above 1, in half precision", "[gpu]") {
+    RequireGpu();
+    std::unique_ptr<Spot::Texture> target;
+    std::unique_ptr<Spot::FullscreenPass> solid;
+    const auto pixels = RenderAndDownload([&](Spot::GraphicsDevice& device, Spot::RenderContext& context) {
+        CHECK(device.SupportsRenderTarget(Spot::TextureFormat::Rgba16Float));
+        target = device.CreateTexture(
+            {.width = 4, .height = 4, .format = Spot::TextureFormat::Rgba16Float, .renderTarget = true});
+        solid = Spot::FullscreenPass::Create(device, Shaders::SolidFrag,
+                                             {.targetFormat = Spot::TextureFormat::Rgba16Float});
+        REQUIRE((target && solid));
+        auto pass = context.BeginRenderPass({.target = target.get()});
+        pass.PushFragmentUniforms(0, Spot::Color{2.5f, 0.001f, 0.5f, 1.0f});
+        solid->Draw(pass);
+        return target.get();
+    });
+
+    REQUIRE(pixels.size() == 4 * 4 * Spot::GetBytesPerPixel(Spot::TextureFormat::Rgba16Float));
+    std::array<std::uint16_t, 4> halves{};
+    std::memcpy(halves.data(), pixels.data(), sizeof(halves));
+    CHECK(HalfToFloat(halves[0]) == Catch::Approx(2.5f));
+    CHECK(HalfToFloat(halves[1]) == Catch::Approx(0.001f).margin(0.00001f));
+    CHECK(HalfToFloat(halves[2]) == Catch::Approx(0.5f));
+    CHECK(HalfToFloat(halves[3]) == Catch::Approx(1.0f));
+}
+
+TEST_CASE("Fullscreen passes cover the target, with coordinates from its top-left corner", "[gpu]") {
+    RequireGpu();
+    std::unique_ptr<Spot::Texture> target;
+    std::unique_ptr<Spot::FullscreenPass> uv;
+    const auto pixels = RenderAndDownload([&](Spot::GraphicsDevice& device, Spot::RenderContext& context) {
+        target = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
+        uv = Spot::FullscreenPass::Create(device, Shaders::UvFrag);
+        REQUIRE((target && uv));
+        auto pass = context.BeginRenderPass({.target = target.get(), .clearColor = Spot::Color::Black});
+        uv->Draw(pass);
+        return target.get();
+    });
+
+    REQUIRE(pixels.size() == 4 * 4 * 4);
+    const auto at = [&](int x, int y) {
+        const auto* pixel = &pixels[static_cast<std::size_t>((y * 4 + x) * 4)];
+        return Pixel{pixel[0], pixel[1], pixel[2], pixel[3]};
+    };
+    // Pixel centers, an eighth of the target in from its edges.
+    CHECK(IsNear(at(0, 0), {32, 32, 0, 255}));
+    CHECK(IsNear(at(3, 0), {223, 32, 0, 255}));
+    CHECK(IsNear(at(0, 3), {32, 223, 0, 255}));
+    CHECK(IsNear(at(3, 3), {223, 223, 0, 255}));
+}
+
+TEST_CASE("Multisampled float targets resolve into textures that later passes sample", "[gpu]") {
+    RequireGpu();
+    std::unique_ptr<Spot::Texture> samples;
+    std::unique_ptr<Spot::Texture> resolved;
+    std::unique_ptr<Spot::Texture> output;
+    std::unique_ptr<Spot::Sampler> sampler;
+    std::unique_ptr<Spot::FullscreenPass> solid;
+    std::unique_ptr<Spot::FullscreenPass> textured;
+    const auto pixels = RenderAndDownload([&](Spot::GraphicsDevice& device, Spot::RenderContext& context) {
+        constexpr auto Hdr = Spot::TextureFormat::Rgba16Float;
+        REQUIRE(device.SupportsSampleCount(Hdr, 4));
+        samples =
+            device.CreateTexture({.width = 4, .height = 4, .format = Hdr, .renderTarget = true, .sampleCount = 4});
+        resolved = device.CreateTexture({.width = 4, .height = 4, .format = Hdr, .renderTarget = true});
+        output = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
+        sampler = device.CreateSampler({.filter = Spot::TextureFilter::Nearest});
+        solid = Spot::FullscreenPass::Create(device, Shaders::SolidFrag, {.targetFormat = Hdr, .sampleCount = 4});
+        textured = Spot::FullscreenPass::Create(device, Shaders::TexturedFrag);
+        REQUIRE((samples && resolved && output && sampler && solid && textured));
+
+        // Brighter than white, so a quarter of it shows it survived the resolve.
+        {
+            auto pass = context.BeginRenderPass(
+                {.target = samples.get(), .clearColor = Spot::Color::Black, .resolveTarget = resolved.get()});
+            pass.PushFragmentUniforms(0, Spot::Color{2.0f, 1.0f, 0.5f, 1.0f});
+            solid->Draw(pass);
+        }
+        auto pass = context.BeginRenderPass({.target = output.get(), .clearColor = Spot::Color::Black});
+        pass.PushFragmentUniforms(0, Spot::Color{0.25f, 0.25f, 0.25f, 1.0f});
+        const std::array inputs{Spot::FullscreenInput{resolved.get(), sampler.get()}};
+        textured->Draw(pass, inputs);
+        return output.get();
+    });
+
+    REQUIRE(pixels.size() == 4 * 4 * 4);
+    CHECK(IsNear(FirstPixel(pixels), {128, 64, 32, 255}));
+}
+
+TEST_CASE("Packed float targets hold HDR color where the GPU renders into them", "[gpu]") {
+    RequireGpu();
+    std::unique_ptr<Spot::Texture> packed;
+    std::unique_ptr<Spot::Texture> output;
+    std::unique_ptr<Spot::Sampler> sampler;
+    std::unique_ptr<Spot::FullscreenPass> textured;
+    bool supported = false;
+    const auto pixels = RenderAndDownload([&](Spot::GraphicsDevice& device, Spot::RenderContext& context) {
+        supported = device.SupportsRenderTarget(Spot::TextureFormat::R11G11B10Float);
+        if (!supported) {
+            return static_cast<const Spot::Texture*>(nullptr);
+        }
+        packed = device.CreateTexture(
+            {.width = 4, .height = 4, .format = Spot::TextureFormat::R11G11B10Float, .renderTarget = true});
+        output = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
+        sampler = device.CreateSampler();
+        textured = Spot::FullscreenPass::Create(device, Shaders::TexturedFrag);
+        REQUIRE((packed && output && sampler && textured));
+        context.BeginRenderPass({.target = packed.get(), .clearColor = Spot::Color{4.0f, 1.0f, 0.5f, 1.0f}}).End();
+        auto pass = context.BeginRenderPass({.target = output.get(), .clearColor = Spot::Color::Black});
+        pass.PushFragmentUniforms(0, Spot::Color{0.25f, 0.25f, 0.25f, 1.0f});
+        const std::array inputs{Spot::FullscreenInput{packed.get(), sampler.get()}};
+        textured->Draw(pass, inputs);
+        return static_cast<const Spot::Texture*>(output.get());
+    });
+    if (!supported) {
+        WARN("This GPU does not render into R11G11B10Float");
+        return;
+    }
+    REQUIRE(pixels.size() == 4 * 4 * 4);
+    // Packed floats have no alpha, which samples as 1.
+    CHECK(IsNear(FirstPixel(pixels), {255, 64, 32, 255}));
 }
