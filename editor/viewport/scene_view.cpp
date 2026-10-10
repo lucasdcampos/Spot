@@ -108,7 +108,10 @@ SceneView::DrawResult SceneView::Draw(EditorContext& context, ViewportRenderer* 
     m_width = 0;
     m_height = 0;
     const std::string title = std::format("{}  {}{}###{}", playing ? ICON_FA_PLAY : ICON_FA_CUBE, m_document.GetName(),
-                                          playing ? " (Playing)" : "", GetWindowId());
+                                          playing                 ? " (Playing)"
+                                          : m_document.IsPrefab() ? " (Prefab)"
+                                                                  : "",
+                                          GetWindowId());
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
     if (m_document.IsDirty()) {
         flags |= ImGuiWindowFlags_UnsavedDocument;

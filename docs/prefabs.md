@@ -79,6 +79,30 @@ instance root likewise creates an ordinary tree. The default saves preserve inst
 The asset browser recognizes `.prefab` files. Drop one into a viewport or the hierarchy to add its tree at the
 chosen position as one undoable action. The saved root's rotation and scale are preserved.
 
-Drops and undo/redo preserve prefab identity. The document uses the project's asset manager when replaying its
-history, including in headless tools. M8.5 adds prefab authoring, editing and override controls in the editor,
-followed by nesting and live updates.
+Drag entities from the hierarchy onto an asset folder to create `.prefab` sources. A selected descendant is
+included with its selected ancestor, rather than creating a second prefab. Names are valid across platforms,
+existing files receive numbered names, and the asset database creates the `.meta` identities. The original
+entities stay unchanged; drag the resulting asset into a scene to make a linked instance.
+
+Double-click a prefab to open its document. Its view is marked **Prefab**, and saving requires exactly one tree.
+The document preserves source-local entity and component ids across saves, including older normalized sources.
+Prefab documents are edited without running their components. Sources currently expand instances; nesting and
+variants follow in M8.6.
+
+Select an inherited entity to see its prefab in the inspector. **Apply All** writes the instance's changes to the
+source; **Revert All** rebuilds it from the source; **Unpack** turns it into ordinary entities. Expand **Overrides**
+to Apply or Revert individual fields and structural changes, including removed targets. Changed component fields
+have an accent marker and a right-click menu; a component's menu applies or reverts its whole set of overrides.
+Arrays remain atomic values, so reverting one displayed axis of an overridden vector restores that vector.
+
+Apply and Revert preserve entity ids and internal references. Added entities receive new source-local ids when
+applied, and become inherited members of the instance. References to entities outside the prefab are cleared in
+the source. Every action is one undoable step; Apply undo/redo restores both the source file and the scene. Unpack
+preserves values and leaves other instances linked. Actions are disabled while playing. Saving a source currently
+reaches instances when their scenes load; updates of all open documents follow in M8.7.
+
+The engine exposes `GetPrefabOverrides()`, `PreparePrefabEdit()` and `UnpackPrefabToString()` for tools. Preparation
+returns scene text and, for Apply, validated prefab text without changing live entities or writing files. A
+`PrefabOverrideScope` selects a source-local entity and JSON-pointer subtree, a component, or the entire instance.
+The editor executes those prepared documents through `PrefabCommand`, using the project's asset manager for
+replay, including in headless tools.

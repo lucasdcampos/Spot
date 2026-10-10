@@ -29,6 +29,11 @@ indices and saved JSON, so undo history stays valid when entities are deleted an
 when the game's code is reloaded and every component is recreated. Unsaved scenes are backed up under
 `.spot/backups`, and offered back after a crash.
 
+Prefab assets also open as documents, with a **Prefab** view label and stable source-local ids. Saving validates
+that the source has exactly one entity tree. Drag entities into an asset folder to create a prefab; the inspector
+shows instance overrides and offers Apply, Revert and Unpack, including actions per field and component. Apply
+history restores both the source file and the scene. See [Prefabs](prefabs.md) for the workflow and tool APIs.
+
 ## Panels
 
 Dropping a prefab into a scene or the hierarchy adds its saved tree as one undoable action, preserving the root's

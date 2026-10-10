@@ -29,6 +29,7 @@ constexpr const char* SavePromptId = "Save Changes?###SaveChanges";
 constexpr const char* RecoveryPromptId = "Recover Unsaved Changes###RecoverChanges";
 constexpr std::string_view BackupFormat = "spot-scene-backup";
 const std::array SceneFilters{FileFilter{"Scenes", "scene"}};
+const std::array PrefabFilters{FileFilter{"Prefabs", "prefab"}};
 
 json ToJson(Vector3 v) {
     return json::array({v.x, v.y, v.z});
@@ -98,7 +99,7 @@ SceneDocument* SceneWorkspace::GetActiveDocument() {
 
 void SceneWorkspace::Play(Application& application) {
     EditorProject* project = m_context.GetProject();
-    if (m_play || !m_active || !project) {
+    if (m_play || !m_active || m_active->IsPrefab() || !project) {
         return;
     }
     m_play = std::make_unique<PlaySession>(application, *m_active, project->GetAssets(),
@@ -156,7 +157,7 @@ SceneDocument* SceneWorkspace::OpenScene(AssetId scene) {
     }
     EditorProject* project = m_context.GetProject();
     const AssetInfo* asset = project ? project->GetAssetDatabase().Find(scene) : nullptr;
-    if (!asset || asset->type != AssetType::Scene) {
+    if (!asset || (asset->type != AssetType::Scene && asset->type != AssetType::Prefab)) {
         GetEditorLogger().Error("Could not open the scene {}: the project has no such scene", scene.ToString());
         return nullptr;
     }
@@ -226,7 +227,7 @@ void SceneWorkspace::SaveAs(SceneDocument& document, std::function<void(bool sav
         document.GetFile().empty() ? assets / "scenes" / Utf8ToPath(document.GetName() + ".scene") : document.GetFile();
     const std::uint64_t documentId = document.GetId();
     FileDialog::SaveFile(
-        &m_context.GetWindow(), SceneFilters,
+        &m_context.GetWindow(), document.IsPrefab() ? PrefabFilters : SceneFilters,
         [self = std::weak_ptr(m_self), documentId, done = std::move(done)](std::vector<std::filesystem::path> paths) {
             const auto workspace = self.lock();
             SceneWorkspace* owner = workspace ? *workspace : nullptr;
@@ -245,8 +246,9 @@ void SceneWorkspace::SaveAs(SceneDocument& document, std::function<void(bool sav
                 return;
             }
             std::filesystem::path file = paths.front();
-            if (file.extension() != ".scene") {
-                file += ".scene";
+            const auto extension = found->document->IsPrefab() ? ".prefab" : ".scene";
+            if (file.extension() != extension) {
+                file += extension;
             }
             const std::filesystem::path assetsDirectory = project->GetProject().GetAssetsDirectory();
             const std::filesystem::path relative = file.lexically_relative(assetsDirectory);

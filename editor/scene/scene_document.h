@@ -60,6 +60,7 @@ public:
     const std::string& GetName() const { return m_name; }
     // Empty until the scene is saved.
     const std::filesystem::path& GetFile() const { return m_file; }
+    bool IsPrefab() const { return m_prefabMode; }
     AssetId GetAssetId() const { return m_asset; }
     AssetManager* GetAssetManager() const { return m_assets; }
     void SetAssetManager(AssetManager* assets) { m_assets = assets; }
@@ -92,6 +93,7 @@ private:
     std::filesystem::path m_file;
     AssetId m_asset;
     AssetManager* m_assets = nullptr;
+    bool m_prefabMode = false;
     std::uint64_t m_id;
 };
 

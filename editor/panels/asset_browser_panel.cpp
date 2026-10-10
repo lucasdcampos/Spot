@@ -12,6 +12,7 @@
 #include "imgui/icons.h"
 #include "imgui/imgui_renderer.h"
 #include "imgui/widgets.h"
+#include "scene/prefab_actions.h"
 #include "scene/scene_workspace.h"
 
 #include <imgui_internal.h>
@@ -38,7 +39,7 @@ constexpr float CaptionScale = 0.85f;
 constexpr double CodeListInterval = 1.0;
 
 const std::array ImportFilters{
-    FileFilter{"Assets", "png;jpg;jpeg;bmp;tga;gltf;glb;bin;wav;ogg;ttf;otf;material;scene"},
+    FileFilter{"Assets", "png;jpg;jpeg;bmp;tga;gltf;glb;bin;wav;ogg;ttf;otf;material;scene;prefab"},
     FileFilter{"All files", "*"},
 };
 
@@ -925,6 +926,28 @@ void AssetBrowserPanel::HandleKeyboard(EditorProject& project) {
 }
 
 void AssetBrowserPanel::HandleDrops(EditorProject& project) {
+    if (!m_pendingPrefabs.empty()) {
+        SceneWorkspace* workspace = m_context.GetWorkspace();
+        SceneDocument* document = workspace ? workspace->FindDocument(m_prefabDocument) : nullptr;
+        std::vector<Location> created;
+        const auto ids = std::exchange(m_pendingPrefabs, {});
+        for (const EntityId id : ids) {
+            const Entity* entity = document ? document->GetScene().GetEntity(id) : nullptr;
+            if (!entity) {
+                continue;
+            }
+            bool child = false;
+            for (const Entity* parent = entity->GetParent(); parent; parent = parent->GetParent()) {
+                child = child || std::ranges::find(ids, parent->GetId()) != ids.end();
+            }
+            if (!child) {
+                if (const auto asset = CreatePrefab(project, *entity, m_prefabFolder)) {
+                    created.push_back({BrowserRoot::Assets, project.GetAssetDatabase().Find(*asset)->path});
+                }
+            }
+        }
+        AfterChange(project, created);
+    }
     if (m_drops.empty()) {
         return;
     }
@@ -963,6 +986,13 @@ void AssetBrowserPanel::AcceptMoves(EditorProject& project, BrowserRoot root, co
         }
     } else if (const ImGuiPayload* pathsPayload = ImGui::AcceptDragDropPayload(AssetPathsPayload)) {
         paths = GetPayloadPaths(*pathsPayload);
+    } else if (const ImGuiPayload* entityPayload = ImGui::AcceptDragDropPayload(EntitiesPayload)) {
+        const auto ids = GetPayloadEntities(*entityPayload);
+        m_pendingPrefabs.assign(ids.begin(), ids.end());
+        m_prefabFolder = folder;
+        SceneWorkspace* workspace = m_context.GetWorkspace();
+        SceneDocument* document = workspace ? workspace->GetActiveDocument() : nullptr;
+        m_prefabDocument = document ? document->GetId() : 0;
     }
     ImGui::EndDragDropTarget();
     if (!paths.empty()) {
@@ -1013,7 +1043,7 @@ void AssetBrowserPanel::Open(EditorProject& project, const BrowserItem& item) {
         SetFolder(item.root, item.path);
         return;
     }
-    if (item.root == BrowserRoot::Assets && item.type == AssetType::Scene) {
+    if (item.root == BrowserRoot::Assets && (item.type == AssetType::Scene || item.type == AssetType::Prefab)) {
         if (SceneWorkspace* workspace = m_context.GetWorkspace()) {
             workspace->OpenScene(item.id);
         }

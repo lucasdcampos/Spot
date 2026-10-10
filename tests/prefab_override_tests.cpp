@@ -9,6 +9,7 @@
 
 #include <array>
 #include <filesystem>
+#include <fstream>
 #include <memory>
 #include <string>
 
@@ -105,6 +106,167 @@ TEST_CASE("Unchanged prefab instances save only identity and no overrides", "[sc
     CHECK(loaded.GetEntityCount() == 4);
     CHECK(loaded.GetRootEntities()[0]->GetPrefabAssetId() == project.assetId);
     CHECK(json::parse(loaded.SaveToString())["entities"][0]["overrides"].empty());
+}
+
+TEST_CASE("Prefab editing prepares field and component changes without mutating the scene",
+          "[scene][prefab][editing]") {
+    PrefabProject project;
+    Spot::Scene scene;
+    auto& root = project.Instantiate(scene);
+    auto* data = root.GetComponents<PrefabData>()[0];
+    const auto id = data->GetId();
+    data->value = 9.0f;
+    data->label = "Custom";
+    root.SetName("Instance");
+    const auto before = scene.SaveToString();
+    const Spot::PrefabOverrideScope field{root.GetPrefabLocalId(), "/components/" + id.ToString() + "/data/value"};
+    const auto revert = Spot::PreparePrefabEdit(root, field);
+    REQUIRE(revert);
+    CHECK(revert->prefabText.empty());
+    CHECK(scene.SaveToString() == before);
+    Spot::Scene reverted;
+    REQUIRE(reverted.LoadFromString(revert->sceneText, project.assets.get()));
+    auto& revertedRoot = *reverted.GetRootEntities()[0];
+    REQUIRE(FindData(revertedRoot, id));
+    CHECK(FindData(revertedRoot, id)->value == 1.0f);
+    CHECK(FindData(revertedRoot, id)->label == "Custom");
+    CHECK(revertedRoot.GetName() == "Instance");
+
+    const auto apply = Spot::PreparePrefabEdit(root, field, true);
+    REQUIRE(apply);
+    CHECK(scene.SaveToString() == before);
+    std::ofstream(project.GetFile()) << apply->prefabText;
+    REQUIRE(project.database->Refresh() == 1);
+    project.assets->RefreshManifest();
+    project.assets->Reload(std::array{project.assetId});
+    Spot::Scene applied;
+    REQUIRE(applied.LoadFromString(apply->sceneText, project.assets.get()));
+    auto& appliedRoot = *applied.GetRootEntities()[0];
+    CHECK(FindData(appliedRoot, id)->value == 9.0f);
+    CHECK(FindData(appliedRoot, id)->label == "Custom");
+    CHECK(appliedRoot.GetName() == "Instance");
+    Spot::Scene fresh;
+    auto& freshRoot = project.Instantiate(fresh);
+    CHECK(FindData(freshRoot, id)->value == 9.0f);
+    CHECK(FindData(freshRoot, id)->label == "Default");
+    CHECK(freshRoot.GetName() == "Prop");
+    REQUIRE(freshRoot.FindChild("Part"));
+    CHECK(FindData(freshRoot, id)->target == freshRoot.FindChild("Part")->GetId());
+
+    const auto component = Spot::PreparePrefabEdit(root, {root.GetPrefabLocalId(), "/components/" + id.ToString()});
+    REQUIRE(component);
+    Spot::Scene componentReverted;
+    REQUIRE(componentReverted.LoadFromString(component->sceneText, project.assets.get()));
+    CHECK(FindData(*componentReverted.GetRootEntities()[0], id)->label == "Default");
+    CHECK(componentReverted.GetRootEntities()[0]->GetName() == "Instance");
+}
+
+TEST_CASE("Applying structural prefab edits preserves identities and converts added entity references",
+          "[scene][prefab][editing]") {
+    PrefabProject project;
+    Spot::Scene scene;
+    auto& root = project.Instantiate(scene);
+    const auto rootId = root.GetId();
+    const auto firstId = root.GetComponents<PrefabData>()[0]->GetId();
+    root.RemoveComponent(*root.GetComponents<PrefabData>()[1]);
+    scene.DestroyEntity(*root.FindChild("Removed"));
+    auto& added = root.CreateChild("Added");
+    const auto addedId = added.GetId();
+    added.CreateChild("Added Child");
+    root.GetComponents<PrefabData>()[0]->target = addedId;
+    added.AddComponent<PrefabData>().target = rootId;
+    const auto edit = Spot::PreparePrefabEdit(root, {}, true);
+    REQUIRE(edit);
+    std::ofstream(project.GetFile()) << edit->prefabText;
+    REQUIRE(project.database->Refresh() == 1);
+    project.assets->RefreshManifest();
+    project.assets->Reload(std::array{project.assetId});
+    Spot::Scene applied;
+    REQUIRE_FALSE(applied.Instantiate(edit->sceneText, {.keepIds = true, .assets = project.assets.get()}).empty());
+    auto* appliedRoot = applied.GetEntity(rootId);
+    REQUIRE(appliedRoot);
+    CHECK(applied.GetEntity(addedId) == appliedRoot->FindChild("Added"));
+    CHECK(Spot::GetPrefabOverrides(*appliedRoot).empty());
+    CHECK(FindData(*appliedRoot, firstId)->target == addedId);
+    CHECK(appliedRoot->FindChild("Added")->GetComponent<PrefabData>()->target == rootId);
+    CHECK(appliedRoot->GetComponents<PrefabData>().size() == 1);
+    CHECK_FALSE(appliedRoot->FindChild("Removed"));
+    REQUIRE(appliedRoot->FindChild("Added")->FindChild("Added Child"));
+    Spot::Scene fresh;
+    auto& freshRoot = project.Instantiate(fresh);
+    REQUIRE(freshRoot.FindChild("Added"));
+    CHECK(FindData(freshRoot, firstId)->target == freshRoot.FindChild("Added")->GetId());
+    CHECK(freshRoot.FindChild("Added")->GetComponent<PrefabData>()->target == freshRoot.GetId());
+}
+
+TEST_CASE("Reverting an instance removes its additions and restores inherited entities and components",
+          "[scene][prefab][editing]") {
+    PrefabProject project;
+    Spot::Scene scene;
+    auto& root = project.Instantiate(scene);
+    scene.DestroyEntity(*root.FindChild("Removed"));
+    root.CreateChild("Added").CreateChild("Added Child");
+    root.RemoveComponent(*root.GetComponents<PrefabData>()[0]);
+    root.AddComponent<PrefabData>().value = 99.0f;
+    const auto revert = Spot::PreparePrefabEdit(root);
+    REQUIRE(revert);
+    Spot::Scene restored;
+    REQUIRE(restored.LoadFromString(revert->sceneText, project.assets.get()));
+    auto& restoredRoot = *restored.GetRootEntities()[0];
+    CHECK(restored.GetEntityCount() == 4);
+    CHECK_FALSE(restoredRoot.FindChild("Added"));
+    REQUIRE(restoredRoot.FindChild("Removed"));
+    REQUIRE(restoredRoot.FindChild("Removed")->FindChild("Nested"));
+    CHECK(restoredRoot.GetComponents<PrefabData>().size() == 2);
+    CHECK(Spot::GetPrefabOverrides(restoredRoot).empty());
+    CHECK_FALSE(Spot::PreparePrefabEdit(restoredRoot));
+}
+
+TEST_CASE("Unpacking one prefab leaves other instances linked and preserves ids and references",
+          "[scene][prefab][editing]") {
+    PrefabProject project;
+    Spot::Scene scene;
+    auto& first = project.Instantiate(scene);
+    auto& second = project.Instantiate(scene);
+    const auto firstId = first.GetId();
+    const auto secondId = second.GetId();
+    first.CreateChild("Added");
+    first.SetName("Unpacked");
+    const auto unpack = Spot::UnpackPrefabToString(first);
+    REQUIRE(unpack);
+    Spot::Scene loaded;
+    REQUIRE_FALSE(loaded.Instantiate(*unpack, {.keepIds = true, .assets = project.assets.get()}).empty());
+    REQUIRE(loaded.GetEntity(firstId));
+    CHECK_FALSE(loaded.GetEntity(firstId)->GetPrefabAssetId().IsValid());
+    CHECK(loaded.GetEntity(firstId)->FindChild("Part")->GetPrefabRootId() == Spot::EntityId::Invalid);
+    CHECK(loaded.GetEntity(firstId)->GetComponent<PrefabData>()->target ==
+          loaded.GetEntity(firstId)->FindChild("Part")->GetId());
+    CHECK(loaded.GetEntity(firstId)->FindChild("Added"));
+    REQUIRE(loaded.GetEntity(secondId));
+    CHECK(loaded.GetEntity(secondId)->GetPrefabAssetId() == project.assetId);
+    CHECK_FALSE(Spot::UnpackPrefabToString(*loaded.GetEntity(firstId)));
+}
+
+TEST_CASE("Applying one removed prefab parent removes its source subtree without applying other fields",
+          "[scene][prefab][editing]") {
+    PrefabProject project;
+    Spot::Scene scene;
+    auto& root = project.Instantiate(scene);
+    auto* removed = root.FindChild("Removed");
+    REQUIRE(removed);
+    const auto local = removed->GetPrefabLocalId();
+    scene.DestroyEntity(*removed);
+    root.SetName("Custom");
+    const auto edit = Spot::PreparePrefabEdit(root, {local, {}}, true);
+    REQUIRE(edit);
+    const auto prefab = Spot::Prefab::FromString(edit->prefabText);
+    REQUIRE(prefab);
+    Spot::Scene source;
+    REQUIRE_FALSE(source.Instantiate(prefab->GetEntityText()).empty());
+    CHECK(source.GetEntityCount() == 2);
+    CHECK(source.GetRootEntities()[0]->GetName() == "Prop");
+    const json saved = json::parse(edit->sceneText);
+    CHECK(saved["entities"][0]["overrides"].contains(std::to_string(root.GetPrefabLocalId())));
 }
 
 TEST_CASE("Prefab source edits propagate while fields and stable component overrides remain",

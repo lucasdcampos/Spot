@@ -87,6 +87,8 @@ private:
     };
 
     void DrawHeader(SceneDocument& document, std::span<Entity* const> entities);
+    void DrawPrefab(SceneDocument& document, const Entity& entity);
+    void QueuePrefabAction(SceneDocument& document, EntityId root, PrefabOverrideScope scope, bool apply);
     void DrawTags(SceneDocument& document, std::span<Entity* const> entities);
     void DrawLayer(SceneDocument& document, std::span<Entity* const> entities);
     // Box, sphere and capsule colliders fit around the mesh of the entity's MeshRenderer.

@@ -1,5 +1,7 @@
 #include "inspector/entity_inspector.h"
+#include "scene/prefab_actions.h"
 
+#include "assets/asset_browser_model.h"
 #include "core/text.h"
 #include "imgui/editor_style.h"
 #include "imgui/icons.h"
@@ -119,6 +121,7 @@ void EntityInspector::Draw(SceneDocument& document) {
     }
 
     DrawHeader(document, entities);
+    DrawPrefab(document, *primary);
     // The header stays in view while the components scroll.
     if (ImGui::BeginChild("##body", {0.0f, 0.0f}, ImGuiChildFlags_None)) {
         DrawTransform(document, entities);
@@ -140,6 +143,98 @@ void EntityInspector::FinishEdit() {
     if (active == 0 || active != m_edit->widget) {
         CommitEdit();
     }
+}
+
+void EntityInspector::QueuePrefabAction(SceneDocument& document, EntityId root, PrefabOverrideScope scope, bool apply) {
+    if (m_context.GetWorkspace() && m_context.GetWorkspace()->GetPlaySession()) {
+        return;
+    }
+    m_afterDraw = [this, &document, root, scope = std::move(scope), apply] {
+        CommitEdit();
+        if (EditorProject* project = m_context.GetProject()) {
+            document.Execute(std::make_unique<PrefabCommand>(
+                document, *project, root, apply ? PrefabAction::Apply : PrefabAction::Revert, scope));
+        }
+    };
+}
+
+void EntityInspector::DrawPrefab(SceneDocument& document, const Entity& entity) {
+    const Entity* root = document.GetScene().GetEntity(entity.GetPrefabRootId());
+    if (!root || !root->GetPrefabAssetId().IsValid() || !m_context.GetProject()) {
+        return;
+    }
+    EditorProject& project = *m_context.GetProject();
+    const AssetInfo* asset = project.GetAssetDatabase().Find(root->GetPrefabAssetId());
+    const auto changes = GetPrefabOverrides(*root);
+    ImGui::Separator();
+    ImGui::TextColored(EditorColors::Accent, ICON_FA_CUBE "  Prefab");
+    ImGui::SameLine();
+    if (ImGui::SmallButton(asset ? GetFileName(asset->path).c_str() : "Open Prefab")) {
+        if (SceneWorkspace* workspace = m_context.GetWorkspace()) {
+            workspace->OpenScene(root->GetPrefabAssetId());
+        }
+    }
+    Record("Prefab/Open");
+    const bool playing = m_context.GetWorkspace() && m_context.GetWorkspace()->GetPlaySession();
+    ImGui::BeginDisabled(playing);
+    ImGui::BeginDisabled(changes.empty());
+    if (ImGui::SmallButton("Apply All")) {
+        QueuePrefabAction(document, root->GetId(), {}, true);
+    }
+    Record("Prefab/Apply All");
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Revert All")) {
+        QueuePrefabAction(document, root->GetId(), {}, false);
+    }
+    Record("Prefab/Revert All");
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Unpack")) {
+        const EntityId id = root->GetId();
+        m_afterDraw = [this, &document, id] {
+            CommitEdit();
+            if (EditorProject* current = m_context.GetProject()) {
+                document.Execute(std::make_unique<PrefabCommand>(document, *current, id, PrefabAction::Unpack));
+            }
+        };
+    }
+    Record("Prefab/Unpack");
+    if (!changes.empty() && ImGui::TreeNode("Prefab Overrides", "Overrides (%zu)", changes.size())) {
+        for (std::size_t i = 0; i < changes.size(); ++i) {
+            const auto& change = changes[i];
+            ImGui::PushID(static_cast<int>(i));
+            const auto slash = change.scope.pointer.find_last_of('/');
+            std::string label = change.scope.pointer.empty() ? "Removed Entity"
+                                : change.operation == "add entity"
+                                    ? "Added Entity"
+                                    : MakeDisplayName(change.scope.pointer.substr(slash + 1));
+            if (change.scope.pointer.starts_with("/components/") && slash == std::string_view("/components").size()) {
+                label = change.operation == "remove" ? "Removed Component" : "Added Component";
+            }
+            const Entity* target = nullptr;
+            document.GetScene().ForEachEntity([&](Entity& candidate) {
+                if (candidate.GetPrefabRootId() == root->GetId() &&
+                    candidate.GetPrefabLocalId() == change.scope.entity) {
+                    target = &candidate;
+                }
+            });
+            ImGui::TextUnformatted((target ? target->GetName() + ": " + label : label).c_str());
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Apply")) {
+                QueuePrefabAction(document, root->GetId(), change.scope, true);
+            }
+            Record("Prefab/Override/" + std::to_string(i) + "/Apply");
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Revert")) {
+                QueuePrefabAction(document, root->GetId(), change.scope, false);
+            }
+            Record("Prefab/Override/" + std::to_string(i) + "/Revert");
+            ImGui::PopID();
+        }
+        ImGui::TreePop();
+    }
+    ImGui::EndDisabled();
+    ImGui::Separator();
 }
 
 void EntityInspector::DrawHeader(SceneDocument& document, std::span<Entity* const> entities) {
@@ -569,6 +664,35 @@ void EntityInspector::DrawComponent(SceneDocument& document, const Card& card) {
     Widgets::EndProperties();
     for (const InspectorBackend::FieldRect& rect : backend.GetFieldRects()) {
         m_rects[card.key + rect.pointer] = {rect.min, rect.max};
+        if (components.size() == 1) {
+            const Entity& owner = component.GetEntity();
+            const Entity* root = scene.GetEntity(owner.GetPrefabRootId());
+            const std::string pointer = "/components/" + component.GetId().ToString() + rect.pointer;
+            const bool overridden =
+                root && std::ranges::any_of(GetPrefabOverrides(*root), [&](const PrefabOverride& change) {
+                    return change.scope.entity == owner.GetPrefabLocalId() &&
+                           (change.scope.pointer == pointer || change.scope.pointer.starts_with(pointer + "/") ||
+                            pointer.starts_with(change.scope.pointer + "/"));
+                });
+            if (overridden) {
+                ImGui::GetWindowDrawList()->AddLine({rect.min.x - 3.0f, rect.min.y}, {rect.min.x - 3.0f, rect.max.y},
+                                                    ImGui::ColorConvertFloat4ToU32(EditorColors::Accent), 2.0f);
+                const std::string popup = card.key + rect.pointer + "/prefab";
+                if (ImGui::IsMouseHoveringRect(rect.min, rect.max) && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+                    ImGui::OpenPopup(popup.c_str());
+                }
+                if (ImGui::BeginPopup(popup.c_str())) {
+                    const PrefabOverrideScope scope{owner.GetPrefabLocalId(), pointer};
+                    if (MenuItem(card.key + rect.pointer, ICON_FA_CHECK, "Apply to Prefab")) {
+                        QueuePrefabAction(document, root->GetId(), scope, true);
+                    }
+                    if (MenuItem(card.key + rect.pointer, ICON_FA_ROTATE_LEFT, "Revert Override")) {
+                        QueuePrefabAction(document, root->GetId(), scope, false);
+                    }
+                    ImGui::EndPopup();
+                }
+            }
+        }
     }
     if (backend.GetFieldCount() == 0) {
         ImGui::TextDisabled("No properties");
@@ -640,6 +764,20 @@ void EntityInspector::DrawComponentMenu(SceneDocument& document, const Card& car
     const bool missing = dynamic_cast<const MissingComponent*>(&GetComponentAt(*scene.GetEntity(primaryId), index));
     const std::size_t count = scene.GetEntity(primaryId)->GetComponents<Component>().size();
     const std::string displayName = MakeDisplayName(card.typeName);
+    Entity& owner = *scene.GetEntity(primaryId);
+    const Entity* prefabRoot = scene.GetEntity(owner.GetPrefabRootId());
+    if (!multiple && prefabRoot) {
+        const PrefabOverrideScope scope{owner.GetPrefabLocalId(),
+                                        "/components/" + GetComponentAt(owner, index).GetId().ToString()};
+        const auto edits = PreparePrefabEdit(*prefabRoot, scope);
+        if (MenuItem(card.key, ICON_FA_CHECK, "Apply Component to Prefab", edits.has_value())) {
+            QueuePrefabAction(document, prefabRoot->GetId(), scope, true);
+        }
+        if (MenuItem(card.key, ICON_FA_ROTATE_LEFT, "Revert Component Overrides", edits.has_value())) {
+            QueuePrefabAction(document, prefabRoot->GetId(), scope, false);
+        }
+        ImGui::Separator();
+    }
 
     // Runs after the cards are drawn: each command makes one per selected entity, as one step.
     const auto forEach = [&](std::string name, auto make) {
@@ -857,6 +995,9 @@ void EntityInspector::BeginComponentEdit(SceneDocument& document, const Card& ca
 }
 
 void EntityInspector::CommitEdit() {
+    if (!m_edit) {
+        return;
+    }
     Edit edit = std::move(*m_edit);
     m_edit.reset();
     SceneWorkspace* workspace = m_context.GetWorkspace();

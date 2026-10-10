@@ -3,6 +3,8 @@
 #include "core/editor_log.h"
 
 #include <atomic>
+#include <fstream>
+#include <iterator>
 #include <utility>
 
 namespace Spot::Editor {
@@ -83,7 +85,19 @@ SceneDocument::SceneDocument(std::string name, Scene& scene)
 std::unique_ptr<SceneDocument> SceneDocument::Open(const std::filesystem::path& file, AssetId asset,
                                                    AssetManager* assets) {
     auto document = std::make_unique<SceneDocument>(PathToUtf8(file.stem()));
-    if (!document->m_scene->LoadFromFile(file, assets)) {
+    document->m_prefabMode = file.extension() == ".prefab";
+    bool loaded = false;
+    if (document->m_prefabMode) {
+        std::ifstream input(file, std::ios::binary);
+        const std::string text{std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
+        if (const auto prefab = Prefab::FromString(text)) {
+            loaded =
+                !document->m_scene->Instantiate(prefab->GetEntityText(), {.keepIds = true, .assets = assets}).empty();
+        }
+    } else {
+        loaded = document->m_scene->LoadFromFile(file, assets);
+    }
+    if (!loaded) {
         GetEditorLogger().Error("Could not open the scene '{}'", PathToUtf8(file));
         return nullptr;
     }
@@ -96,6 +110,7 @@ std::unique_ptr<SceneDocument> SceneDocument::Open(const std::filesystem::path& 
 void SceneDocument::SetFile(std::filesystem::path file, AssetId asset) {
     if (!file.empty()) {
         m_name = PathToUtf8(file.stem());
+        m_prefabMode = file.extension() == ".prefab";
     }
     m_file = std::move(file);
     m_asset = asset;
@@ -103,7 +118,21 @@ void SceneDocument::SetFile(std::filesystem::path file, AssetId asset) {
 
 bool SceneDocument::Save() {
     SPOT_ASSERT(!m_file.empty(), "The scene has no file yet; save it with SaveAs()");
-    if (!m_scene->SaveToFile(m_file)) {
+    bool saved = false;
+    if (m_prefabMode) {
+        const auto prefab = Prefab::FromString(m_scene->SaveToString(true));
+        if (!prefab) {
+            GetEditorLogger().Error("A prefab must contain exactly one entity tree");
+            return false;
+        }
+        std::ofstream output(m_file, std::ios::binary | std::ios::trunc);
+        output << prefab->GetEntityText();
+        output.close();
+        saved = static_cast<bool>(output);
+    } else {
+        saved = m_scene->SaveToFile(m_file);
+    }
+    if (!saved) {
         GetEditorLogger().Error("Could not save the scene '{}'", PathToUtf8(m_file));
         return false;
     }
@@ -113,8 +142,10 @@ bool SceneDocument::Save() {
 
 bool SceneDocument::SaveAs(const std::filesystem::path& file, AssetId asset) {
     const std::filesystem::path previous = std::exchange(m_file, file);
+    const bool previousMode = std::exchange(m_prefabMode, file.extension() == ".prefab");
     if (!Save()) {
         m_file = previous;
+        m_prefabMode = previousMode;
         return false;
     }
     m_asset = asset;

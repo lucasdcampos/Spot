@@ -411,4 +411,231 @@ void SceneSerializer::RestorePrefabGroups(Scene& scene, std::vector<PrefabLoadGr
     }
 }
 
+namespace {
+
+bool Selects(const PrefabOverrideScope& scope, std::uint64_t entity, std::string_view path) {
+    if (scope.entity != 0 && scope.entity != entity) {
+        return false;
+    }
+    const auto contains = [](std::string_view parent, std::string_view child) {
+        return parent.empty() ||
+               (child.starts_with(parent) && (child.size() == parent.size() || child[parent.size()] == '/'));
+    };
+    return contains(scope.pointer, path) || contains(path, scope.pointer);
+}
+
+bool IsWithin(const Entity& entity, const Entity& root) {
+    for (const Entity* current = &entity; current; current = current->GetParent()) {
+        if (current == &root) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Canonical markers only represent entity references. Source files cannot refer to another scene's entities.
+void SourceReferences(json& value, const SceneSerializer::IdMap& localIds) {
+    if (value.is_object() && value.size() == 1) {
+        if (value.contains("prefabEntity")) {
+            value = value["prefabEntity"];
+            return;
+        }
+        if (value.contains("sceneEntity") && value["sceneEntity"].is_number_unsigned()) {
+            const auto found = localIds.find(value["sceneEntity"].get<std::uint64_t>());
+            value = found != localIds.end() ? static_cast<std::uint64_t>(found->second) : 0;
+            return;
+        }
+    }
+    if (value.is_structured()) {
+        for (json& child : value) {
+            SourceReferences(child, localIds);
+        }
+    }
+}
+
+} // namespace
+
+std::vector<PrefabOverride> SceneSerializer::GetOverrides(const Entity& root) {
+    if (!root.m_prefabInstance || root.m_destroyed) {
+        return {};
+    }
+    std::vector<PrefabOverride> result;
+    const json record = SavePrefab(root);
+    for (const auto& [local, patches] : record["overrides"].items()) {
+        for (const json& patch : patches) {
+            result.push_back(
+                {{*ParseLocalId(local), patch["path"].get<std::string>()}, patch["op"].get<std::string>()});
+        }
+    }
+    for (const json& local : record["removedEntities"]) {
+        result.push_back({{local.get<std::uint64_t>(), {}}, "remove entity"});
+    }
+    for (const auto& stored : root.GetScene().m_entities) {
+        const Entity* entity = stored.get();
+        if (entity->m_destroyed) {
+            continue;
+        }
+        if (entity->m_prefabRoot != root.m_id && IsWithin(*entity, root) && entity->GetParent() &&
+            entity->GetParent()->m_prefabRoot == root.m_id) {
+            result.push_back(
+                {{0, "/addedEntities/" + std::to_string(static_cast<std::uint64_t>(entity->m_id))}, "add entity"});
+        }
+    }
+    return result;
+}
+
+std::optional<PrefabEdit> SceneSerializer::EditPrefab(const Entity& root, const PrefabOverrideScope& scope,
+                                                      bool apply) {
+    if (!root.m_prefabInstance || root.m_destroyed) {
+        return std::nullopt;
+    }
+    const auto changes = GetOverrides(root);
+    if (std::ranges::none_of(changes, [&](const PrefabOverride& change) {
+            return Selects(scope, change.scope.entity, change.scope.pointer);
+        })) {
+        return std::nullopt;
+    }
+    json document = json::parse(root.GetScene().SaveToString());
+    json* record = nullptr;
+    for (json& node : document["entities"]) {
+        if (node["id"] == static_cast<std::uint64_t>(root.m_id)) {
+            record = &node;
+            break;
+        }
+    }
+    if (!record) {
+        return std::nullopt;
+    }
+    json source = root.m_prefabInstance->baseline;
+    for (auto& [key, patches] : (*record)["overrides"].items()) {
+        const auto local = *ParseLocalId(key);
+        json selected = json::array();
+        std::erase_if(patches.get_ref<json::array_t&>(), [&](const json& patch) {
+            if (!Selects(scope, local, patch["path"].get<std::string>())) {
+                return false;
+            }
+            selected.push_back(patch);
+            return true;
+        });
+        if (apply && !selected.empty()) {
+            if (!source.contains(key) ||
+                std::ranges::any_of(selected,
+                                    [&](const json& patch) { return !HasComponentTarget(source[key], patch); }) ||
+                !Apply(source[key], selected, root.GetPrefabAssetId(), local)) {
+                return std::nullopt;
+            }
+        }
+    }
+    auto& overrides = (*record)["overrides"].get_ref<json::object_t&>();
+    std::erase_if(overrides, [](const auto& entry) { return entry.second.empty(); });
+    auto& removed = (*record)["removedEntities"].get_ref<json::array_t&>();
+    std::erase_if(removed, [&](const json& local) {
+        const auto id = local.get<std::uint64_t>();
+        if (!scope.pointer.empty() || !Selects(scope, id, {})) {
+            return false;
+        }
+        if (apply) {
+            source.erase(std::to_string(id));
+        }
+        return true;
+    });
+    if (apply) {
+        for (bool changed = true; changed;) {
+            changed = false;
+            auto& nodes = source.get_ref<json::object_t&>();
+            std::erase_if(nodes, [&](const auto& entry) {
+                const auto parent = entry.second.find("parent");
+                const bool missing =
+                    parent != entry.second.end() && parent->is_object() && parent->contains("prefabEntity") &&
+                    !source.contains(std::to_string((*parent)["prefabEntity"].template get<std::uint64_t>()));
+                changed = missing || changed;
+                return missing;
+            });
+        }
+    }
+
+    IdMap localIds;
+    std::uint64_t nextLocal = 1;
+    for (const auto& [local, actual] : root.m_prefabInstance->entities) {
+        if (actual != EntityId::Invalid) {
+            localIds[static_cast<std::uint64_t>(actual)] = static_cast<EntityId>(local);
+        }
+        nextLocal = std::max(nextLocal, local + 1);
+    }
+    std::unordered_set<EntityId> additions;
+    for (const auto& stored : root.GetScene().m_entities) {
+        const Entity* entity = stored.get();
+        if (entity->m_destroyed) {
+            continue;
+        }
+        if (entity->m_prefabRoot == root.m_id || !IsWithin(*entity, root)) {
+            continue;
+        }
+        const Entity* addition = entity;
+        while (addition->GetParent() && addition->GetParent()->m_prefabRoot != root.m_id) {
+            addition = addition->GetParent();
+        }
+        if (!Selects(scope, 0, "/addedEntities/" + std::to_string(static_cast<std::uint64_t>(addition->m_id)))) {
+            continue;
+        }
+        additions.insert(entity->m_id);
+        if (apply) {
+            const auto local = nextLocal++;
+            localIds[static_cast<std::uint64_t>(entity->m_id)] = static_cast<EntityId>(local);
+            (*record)["entityIds"][std::to_string(local)] = static_cast<std::uint64_t>(entity->m_id);
+        }
+    }
+    if (apply) {
+        for (const EntityId id : additions) {
+            const auto local = static_cast<std::uint64_t>(localIds.at(static_cast<std::uint64_t>(id)));
+            source[std::to_string(local)] = Snapshot(*root.GetScene().GetEntity(id), localIds, false);
+        }
+    }
+    // The record's address becomes invalid when additions are removed from the document.
+    auto& entities = document["entities"].get_ref<json::array_t&>();
+    std::erase_if(entities, [&](const json& node) {
+        return additions.contains(static_cast<EntityId>(node["id"].get<std::uint64_t>()));
+    });
+    PrefabEdit edit{.sceneText = document.dump(2), .prefabText = {}};
+    if (apply) {
+        json authored{{"format", "spot-scene"}, {"version", 2}, {"entities", json::array()}};
+        for (const auto& [key, canonical] : source.items()) {
+            json node = canonical;
+            node["id"] = *ParseLocalId(key);
+            SourceReferences(node, localIds);
+            FlattenComponents(node);
+            authored["entities"].push_back(std::move(node));
+        }
+        const auto prefab = Prefab::FromString(authored.dump());
+        if (!prefab) {
+            return std::nullopt;
+        }
+        edit.prefabText = prefab->GetEntityText();
+    }
+    return edit;
+}
+
+std::optional<std::string> SceneSerializer::UnpackPrefab(const Entity& root) {
+    if (!root.m_prefabInstance || root.m_destroyed) {
+        return std::nullopt;
+    }
+    json document = json::parse(root.GetScene().SaveToString());
+    json expanded = json::parse(root.GetScene().SaveToString(true));
+    json result = json::array();
+    for (const json& node : document["entities"]) {
+        if (node["id"] != static_cast<std::uint64_t>(root.m_id)) {
+            result.push_back(node);
+            continue;
+        }
+        for (const json& member : expanded["entities"]) {
+            const Entity* entity = root.GetScene().GetEntity(static_cast<EntityId>(member["id"].get<std::uint64_t>()));
+            if (entity && entity->m_prefabRoot == root.m_id) {
+                result.push_back(member);
+            }
+        }
+    }
+    document["entities"] = std::move(result);
+    return document.dump(2);
+}
+
 } // namespace Spot::Detail

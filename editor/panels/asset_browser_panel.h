@@ -140,6 +140,9 @@ private:
         std::string folder;
     };
     std::optional<PendingMove> m_pendingMove;
+    std::vector<EntityId> m_pendingPrefabs;
+    std::string m_prefabFolder;
+    std::uint64_t m_prefabDocument = 0;
     bool m_openComponentDialog = false;
     bool m_componentFocus = false;
     std::string m_componentName;

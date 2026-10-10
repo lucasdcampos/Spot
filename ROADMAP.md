@@ -832,7 +832,7 @@ prefab's current content, so prefab changes reach every instance. Prefabs nest.
   `Scene::Instantiate(AssetRef<Prefab>)` at runtime. Tests.
 - [x] **M8.4 Instances and overrides.** Prefab-local entity ids, instances saved as a prefab id plus overrides in
   scene files, and overrides applied on load. Tests: propagation, overrides kept across prefab edits, removed targets.
-- [ ] **M8.5 Prefab editing.** Create a prefab by dragging entities into the asset browser, edit it in prefab mode
+- [x] **M8.5 Prefab editing.** Create a prefab by dragging entities into the asset browser, edit it in prefab mode
   (a `.prefab` opened as a document), see overrides in the inspector, Apply or Revert per field, component or
   instance, and Unpack.
 - [ ] **M8.6 Nesting and variants.** Prefabs inside prefabs, and variants that override another prefab.
@@ -892,6 +892,17 @@ own overrides.
   the document's asset manager, and mixed-property comparisons exclude component identity.
   Validation: MSVC and GCC Debug build without warnings and pass all 594 tests, including GPU, golden images,
   editor, module and sandbox tests.
+
+- M8.5: Hierarchy drags into asset folders create sources, with selected descendants included under their selected
+  ancestor, free file names and database-generated meta ids. Prefab documents preserve source-local identities,
+  show a Prefab view label and require one tree when saved. The inspector lists field and structural overrides,
+  marks changed component fields and offers Apply/Revert per field, component or instance, plus Unpack. Prepared
+  edits use public engine APIs and do not mutate entities; editor commands replay them through the asset manager,
+  restoring both source files and scenes on Apply undo/redo. Applying additions assigns source-local ids and remaps
+  internal references; sources clear external references. Unpack preserves scene ids and leaves other instances
+  linked. Sources expand links until M8.6, and updates of other open documents remain M8.7.
+  Validation: MSVC and GCC Debug build without warnings and pass all 603 tests, including GPU, golden images,
+  editor, module and sandbox tests; headless UI tests drive entity drags, prefab documents and override menus.
 
 ---
 

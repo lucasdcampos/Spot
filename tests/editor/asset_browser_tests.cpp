@@ -9,6 +9,8 @@
 #include "panels/inspector_panel.h"
 #include "project/editor_project.h"
 #include "scene/entity_actions.h"
+#include "scene/prefab_actions.h"
+#include "scene/scene_commands.h"
 #include "scene/scene_workspace.h"
 
 #include <spot.h>
@@ -18,6 +20,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
+#include <array>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -234,6 +237,189 @@ struct BrowserFixture {
 };
 
 } // namespace
+
+TEST_CASE("Prefab documents preserve source identities and refuse invalid trees", "[editor][prefab][editing]") {
+    BrowserFixture fixture;
+    Spot::Scene source;
+    auto& root = source.CreateEntity("Lamp");
+    root.CreateChild("Bulb");
+    const auto componentId = root.AddComponent<Spot::PointLight>().GetId();
+    const auto asset = Spot::Editor::CreatePrefab(fixture.Project(), root, "prefabs");
+    REQUIRE(asset);
+    CHECK(std::filesystem::exists(fixture.assets / "prefabs/Lamp.prefab.meta"));
+    Spot::Editor::SceneWorkspace workspace(*fixture.context);
+    auto* document = workspace.OpenScene(*asset);
+    REQUIRE(document);
+    CHECK(document->IsPrefab());
+    REQUIRE(document->GetScene().GetEntity(root.GetId()));
+    CHECK(document->GetScene().GetEntity(root.GetId())->GetComponent<Spot::PointLight>()->GetId() == componentId);
+    auto& edited = *document->GetScene().GetEntity(root.GetId());
+    edited.SetName("Edited Lamp");
+    REQUIRE(document->Save());
+    fixture.Project().Refresh();
+    Spot::Scene loaded;
+    auto* instance = loaded.Instantiate(fixture.Project().GetAssets().Load<Spot::Prefab>(*asset),
+                                        {.assets = &fixture.Project().GetAssets()});
+    REQUIRE(instance);
+    CHECK(instance->GetName() == "Edited Lamp");
+    CHECK(instance->GetPrefabLocalId() == static_cast<std::uint64_t>(root.GetId()));
+    CHECK(instance->GetComponent<Spot::PointLight>()->GetId() == componentId);
+    const auto before = fixture.Project().GetAssets().Load<Spot::Prefab>(*asset)->GetEntityText();
+    auto& invalid = document->GetScene().CreateEntity("Extra root");
+    CHECK_FALSE(document->Save());
+    document->GetScene().DestroyEntity(invalid);
+    auto reopened = Spot::Editor::SceneDocument::Open(document->GetFile(), *asset, &fixture.Project().GetAssets());
+    REQUIRE(reopened);
+    CHECK(reopened->GetScene().SaveToString(true) == document->GetScene().SaveToString(true));
+    CHECK(fixture.Project().GetAssets().Load<Spot::Prefab>(*asset)->GetEntityText() == before);
+    CHECK_FALSE(Spot::Editor::CreatePrefab(fixture.Project(), root, "../outside"));
+}
+
+TEST_CASE("Prefab Apply Revert and Unpack undo and redo both source and instance changes",
+          "[editor][prefab][editing]") {
+    BrowserFixture fixture;
+    Spot::Scene source;
+    auto& sourceRoot = source.CreateEntity("Lamp");
+    sourceRoot.AddComponent<Spot::PointLight>().SetIntensity(2.0f);
+    const auto asset = Spot::Editor::CreatePrefab(fixture.Project(), sourceRoot, "");
+    REQUIRE(asset);
+    Spot::Editor::SceneDocument document;
+    document.SetAssetManager(&fixture.Project().GetAssets());
+    auto* root = document.GetScene().Instantiate(fixture.Project().GetAssets().Load<Spot::Prefab>(*asset),
+                                                 {.assets = &fixture.Project().GetAssets()});
+    REQUIRE(root);
+    const auto id = root->GetId();
+    const auto component = root->GetComponent<Spot::PointLight>()->GetId();
+    root->GetComponent<Spot::PointLight>()->SetIntensity(8.0f);
+    root->SetName("Custom");
+    const auto before = document.GetScene().SaveToString();
+    const Spot::PrefabOverrideScope scope{root->GetPrefabLocalId(),
+                                          "/components/" + component.ToString() + "/data/intensity"};
+    REQUIRE(document.Execute(std::make_unique<Spot::Editor::PrefabCommand>(document, fixture.Project(), id,
+                                                                           Spot::Editor::PrefabAction::Apply, scope)));
+    const auto get = [&]() -> Spot::Entity& { return *document.GetScene().GetEntity(id); };
+    CHECK(get().GetComponent<Spot::PointLight>()->GetIntensity() == 8.0f);
+    CHECK(get().GetName() == "Custom");
+    const auto intensity = [&] {
+        Spot::Scene fresh;
+        auto* instance = fresh.Instantiate(fixture.Project().GetAssets().Load<Spot::Prefab>(*asset),
+                                           {.assets = &fixture.Project().GetAssets()});
+        REQUIRE(instance);
+        return instance->GetComponent<Spot::PointLight>()->GetIntensity();
+    };
+    CHECK(intensity() == 8.0f);
+    document.Undo();
+    CHECK(intensity() == 2.0f);
+    CHECK(document.GetScene().SaveToString() == before);
+    document.Redo();
+    CHECK(intensity() == 8.0f);
+    REQUIRE(document.Execute(std::make_unique<Spot::Editor::PrefabCommand>(document, fixture.Project(), id,
+                                                                           Spot::Editor::PrefabAction::Revert)));
+    CHECK(get().GetName() == "Lamp");
+    document.Undo();
+    CHECK(get().GetName() == "Custom");
+    document.Redo();
+    REQUIRE(document.Execute(std::make_unique<Spot::Editor::PrefabCommand>(document, fixture.Project(), id,
+                                                                           Spot::Editor::PrefabAction::Unpack)));
+    CHECK_FALSE(get().GetPrefabAssetId().IsValid());
+    document.Undo();
+    CHECK(get().GetPrefabAssetId() == *asset);
+    document.Redo();
+    CHECK_FALSE(get().GetPrefabAssetId().IsValid());
+}
+
+TEST_CASE("Dragging entities into an asset folder creates one prefab per selected root", "[editor][prefab][ui]") {
+    BrowserFixture fixture;
+    REQUIRE(fixture.Project().GetAssetDatabase().CreateFolder("prefabs"));
+    fixture.Project().Refresh();
+    Spot::Editor::SceneWorkspace workspace(*fixture.context);
+    fixture.context->SetWorkspace(&workspace);
+    auto& document = workspace.NewScene();
+    auto& root = document.GetScene().CreateEntity("Spawnable");
+    auto& child = root.CreateChild("Detail");
+    const std::array selected{root.GetId(), child.GetId()};
+    document.GetSelection().Set(selected);
+    Spot::Editor::HierarchyPanel hierarchy(*fixture.context);
+    fixture.imgui.SetDraw([&] {
+        ImGui::SetNextWindowPos({0.0f, 0.0f});
+        ImGui::SetNextWindowSize({800.0f, 400.0f});
+        fixture.panel->Draw();
+        ImGui::SetNextWindowPos({0.0f, 420.0f});
+        ImGui::SetNextWindowSize({800.0f, 280.0f});
+        hierarchy.Draw();
+    });
+    fixture.imgui.Frame();
+    fixture.imgui.Frame();
+    const auto row = hierarchy.GetRowRect(root.GetId());
+    REQUIRE(row);
+    fixture.imgui.Drag({row->first.x + 60.0f, (row->first.y + row->second.y) * 0.5f}, fixture.Tile("prefabs"));
+    const auto id = fixture.Project().GetAssetDatabase().FindByPath("prefabs/Spawnable.prefab");
+    REQUIRE(id);
+    CHECK_FALSE(fixture.Project().GetAssetDatabase().FindByPath("prefabs/Detail.prefab"));
+    CHECK_FALSE(root.GetPrefabAssetId().IsValid());
+    fixture.panel->SetFolder("prefabs");
+    fixture.imgui.Frame();
+    fixture.DoubleClick(fixture.Tile("prefabs/Spawnable.prefab"));
+    REQUIRE(workspace.GetActiveDocument());
+    CHECK(workspace.GetActiveDocument()->IsPrefab());
+    CHECK(workspace.GetActiveDocument()->GetAssetId() == *id);
+    fixture.context->SetWorkspace(nullptr);
+}
+
+TEST_CASE("The prefab inspector applies reverts and unpacks through its instance controls", "[editor][prefab][ui]") {
+    BrowserFixture fixture;
+    Spot::Scene source;
+    auto& sourceRoot = source.CreateEntity("Lamp");
+    sourceRoot.AddComponent<Spot::PointLight>();
+    const auto id = Spot::Editor::CreatePrefab(fixture.Project(), sourceRoot, "");
+    REQUIRE(id);
+    Spot::Editor::SceneWorkspace workspace(*fixture.context);
+    fixture.context->SetWorkspace(&workspace);
+    auto& document = workspace.NewScene();
+    auto* root = document.GetScene().Instantiate(fixture.Project().GetAssets().Load<Spot::Prefab>(*id),
+                                                 {.assets = &fixture.Project().GetAssets()});
+    REQUIRE(root);
+    const auto rootId = root->GetId();
+    root->SetName("Custom");
+    document.GetSelection().Set(std::array{rootId});
+    Spot::Editor::InspectorPanel inspector(*fixture.context);
+    fixture.imgui.SetDraw([&] {
+        ImGui::SetNextWindowPos({0.0f, 0.0f});
+        ImGui::SetNextWindowSize({700.0f, 700.0f});
+        inspector.Draw();
+    });
+    fixture.imgui.Frame();
+    fixture.imgui.Frame();
+    auto& panel = inspector;
+    fixture.imgui.Click(fixture.Center(panel.GetItemRect("Prefab/Revert All")));
+    REQUIRE(document.GetScene().GetEntity(rootId));
+    CHECK(document.GetScene().GetEntity(rootId)->GetName() == "Lamp");
+    document.Undo();
+    fixture.imgui.Frame();
+    const auto light = [&]() -> Spot::PointLight& {
+        return *document.GetScene().GetEntity(rootId)->GetComponent<Spot::PointLight>();
+    };
+    const float original = light().GetIntensity();
+    light().SetIntensity(original + 4.0f);
+    fixture.imgui.Frame();
+    fixture.imgui.Click(fixture.Center(panel.GetItemRect("PointLight/data/intensity")), 0, ImGuiMouseButton_Right);
+    fixture.imgui.Click(fixture.Center(panel.GetItemRect("PointLight/data/intensity/menu/Revert Override")));
+    CHECK(light().GetIntensity() == original);
+    document.Undo();
+    fixture.imgui.Frame();
+    CHECK(light().GetIntensity() == original + 4.0f);
+    fixture.imgui.Click(fixture.Center(panel.GetItemRect("PointLight/menu")));
+    fixture.imgui.Click(fixture.Center(panel.GetItemRect("PointLight/menu/Apply Component to Prefab")));
+    CHECK(light().GetIntensity() == original + 4.0f);
+    CHECK(Spot::GetPrefabOverrides(*document.GetScene().GetEntity(rootId)).size() == 1);
+    fixture.imgui.Click(fixture.Center(panel.GetItemRect("Prefab/Apply All")));
+    CHECK(Spot::GetPrefabOverrides(*document.GetScene().GetEntity(rootId)).empty());
+    fixture.imgui.Click(fixture.Center(panel.GetItemRect("Prefab/Unpack")));
+    CHECK_FALSE(document.GetScene().GetEntity(rootId)->GetPrefabAssetId().IsValid());
+    document.Undo();
+    CHECK(document.GetScene().GetEntity(rootId)->GetPrefabAssetId() == *id);
+    fixture.context->SetWorkspace(nullptr);
+}
 
 TEST_CASE("Folders open with a double click, and Backspace goes back up", "[editor][assets][ui]") {
     BrowserFixture fixture;

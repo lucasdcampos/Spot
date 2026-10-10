@@ -1,6 +1,7 @@
 #pragma once
 
 #include "scene/archive_state.h"
+#include "scene/prefab.h"
 #include "scene/scene.h"
 
 #include <optional>
@@ -46,6 +47,9 @@ struct SceneSerializer {
                                      bool validate = true);
     static nlohmann::json Snapshot(const Entity& entity, const IdMap& prefabIds, bool root);
     static nlohmann::json SavePrefab(const Entity& root);
+    static std::vector<PrefabOverride> GetOverrides(const Entity& root);
+    static std::optional<PrefabEdit> EditPrefab(const Entity& root, const PrefabOverrideScope& scope, bool apply);
+    static std::optional<std::string> UnpackPrefab(const Entity& root);
     static bool ExpandPrefabs(nlohmann::json& document, AssetManager* assets, std::vector<PrefabLoadGroup>& groups);
     static void RestorePrefabGroups(Scene& scene, std::vector<PrefabLoadGroup>& groups, const IdMap& ids);
 };
