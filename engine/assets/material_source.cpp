@@ -8,6 +8,8 @@
 #include "scene/archive.h"
 #include "scene/archive_state.h"
 
+#include <algorithm>
+#include <cmath>
 #include <fstream>
 
 namespace Spot {
@@ -18,19 +20,39 @@ void MaterialSource::Serialize(Archive& archive) {
     archive.Field("baseColor", baseColor, {.tooltip = "The surface's color, which multiplies the texture's"});
     archive.Field("baseColorTexture", baseColorTexture,
                   {.tooltip = "The surface's colors, from the mesh's UVs", .assetType = AssetType::Texture});
+    archive.Field(
+        "metallic", metallic,
+        {.min = 0.0f, .max = 1.0f, .speed = 0.005f, .tooltip = "0 for dielectrics such as wood, 1 for metals"});
+    archive.Field(
+        "roughness", roughness,
+        {.min = 0.0f, .max = 1.0f, .speed = 0.005f, .tooltip = "From 0 for a mirror to 1 for a matte surface"});
+    archive.Field("metallicRoughnessTexture", metallicRoughnessTexture,
+                  {.tooltip = "Roughness in green and metallic in blue, multiplying the values above; import it with "
+                              "sRGB off",
+                   .assetType = AssetType::Texture});
+    archive.Field(
+        "normalTexture", normalTexture,
+        {.tooltip = "A tangent-space normal map, green up; import it with sRGB off", .assetType = AssetType::Texture});
+    archive.Field(
+        "normalScale", normalScale,
+        {.min = 0.0f, .max = 10.0f, .speed = 0.01f, .tooltip = "How strongly the normal map tilts the surface"});
+    archive.Field("occlusionTexture", occlusionTexture,
+                  {.tooltip = "How much ambient light reaches each point, in red; import it with sRGB off",
+                   .assetType = AssetType::Texture});
+    archive.Field("occlusionStrength", occlusionStrength,
+                  {.min = 0.0f, .max = 1.0f, .speed = 0.005f, .tooltip = "How much the occlusion map darkens"});
+    archive.Field("emissive", emissive,
+                  {.hdr = true, .tooltip = "Light the surface gives off itself; above 1 it glows through bloom"});
+    archive.Field("emissiveTexture", emissiveTexture,
+                  {.tooltip = "Where and in which colors the surface glows, multiplying the emissive color",
+                   .assetType = AssetType::Texture});
     archive.Field("doubleSided", doubleSided, {.tooltip = "Draws back faces too, for thin surfaces like leaves"});
     archive.Field("worldTextureSize", worldTextureSize,
                   {.min = 0.0f,
                    .max = 1000.0f,
                    .speed = 0.01f,
-                   .tooltip = "When above 0, the texture repeats every this many units in the world instead of "
-                              "following the UVs, keeping its size however the mesh is scaled"});
-    archive.Field("specular", specular,
-                  {.min = 0.0f, .max = 1.0f, .speed = 0.005f, .tooltip = "How strongly lights shine off it"});
-    archive.Field("shininess", shininess,
-                  {.min = 1.0f, .max = 1024.0f, .speed = 0.5f, .tooltip = "How small and sharp highlights are"});
-    archive.Field("emissive", emissive,
-                  {.hdr = true, .tooltip = "Light the surface gives off itself; above 1 it glows through bloom"});
+                   .tooltip = "When above 0, the textures repeat every this many units in the world instead of "
+                              "following the UVs, keeping their size however the mesh is scaled"});
 }
 
 std::string MaterialSource::SaveToString() const {
@@ -62,6 +84,13 @@ std::optional<MaterialSource> MaterialSource::LoadFromString(std::string_view te
     Archive archive(state);
     MaterialSource material;
     material.Serialize(archive);
+    // Blinn-Phong highlights of exponent n are about as sharp as GGX ones of alpha sqrt(2 / (n + 2)), and alpha is the
+    // square of roughness. Materials without highlights were matte.
+    if (!document.contains("roughness") && (document.contains("specular") || document.contains("shininess"))) {
+        const float specular = document.value("specular", 0.0f);
+        const float shininess = std::max(document.value("shininess", 32.0f), 0.0f);
+        material.roughness = specular > 0.0f ? std::pow(2.0f / (shininess + 2.0f), 0.25f) : 1.0f;
+    }
     return material;
 }
 

@@ -6,14 +6,20 @@
     1.0
   ],
   "baseColorTexture": "00000000000000000000000000000000",
-  "doubleSided": false,
-  "worldTextureSize": 0.0,
-  "specular": 0.0,
-  "shininess": 32.0,
+  "metallic": 0.0,
+  "roughness": 1.0,
+  "metallicRoughnessTexture": "00000000000000000000000000000000",
+  "normalTexture": "00000000000000000000000000000000",
+  "normalScale": 1.0,
+  "occlusionTexture": "00000000000000000000000000000000",
+  "occlusionStrength": 1.0,
   "emissive": [
     1.8,
     6.0,
     2.4,
     1.0
-  ]
+  ],
+  "emissiveTexture": "00000000000000000000000000000000",
+  "doubleSided": false,
+  "worldTextureSize": 0.0
 }

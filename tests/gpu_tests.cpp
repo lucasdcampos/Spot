@@ -881,8 +881,9 @@ private:
     std::vector<std::uint8_t> m_pixels;
 };
 
+// Even matte surfaces reflect about 1% of the light that faces them, which the tolerance allows.
 bool IsNear(Pixel a, Pixel b) {
-    return std::ranges::all_of(std::array{0, 1, 2, 3}, [&](int i) { return std::abs(a[i] - b[i]) <= 2; });
+    return std::ranges::all_of(std::array{0, 1, 2, 3}, [&](int i) { return std::abs(a[i] - b[i]) <= 3; });
 }
 
 // A camera three units in front of the origin, with a light shining straight away from it and no ambient light, so
@@ -1364,24 +1365,77 @@ TEST_CASE("Renderer3D spot lights light only inside their cone", "[gpu]") {
     CHECK(IsNear(render.At(24, 16), {0, 0, 0, 255}));
 }
 
-TEST_CASE("Renderer3D adds highlights where specular materials reflect lights toward the camera", "[gpu]") {
+TEST_CASE("Renderer3D reflects lights as highlights, untinted off dielectrics and in their color off metals", "[gpu]") {
     RequireGpu();
 
     // The light comes from behind the camera, so it reflects straight back at the center of the view only.
     const auto drawLight = [](Spot::Renderer3D& renderer) { renderer.DrawLight(FrontLight); };
-    const auto matte = RenderLitWall(drawLight, {.baseColor = Spot::Color::Red});
-    const auto glossy =
-        RenderLitWall(drawLight, {.baseColor = Spot::Color::Red, .specular = 1.0f, .shininess = 256.0f});
+    const auto plastic =
+        RenderLitWall(drawLight, {.baseColor = Spot::Color{0.1f, 0.0f, 0.0f, 1.0f}, .roughness = 0.5f});
+    const auto matteMetal = RenderLitWall(drawLight, {.baseColor = Spot::Color::Blue, .metallic = 1.0f});
+    const auto matteBlue = RenderLitWall(drawLight, {.baseColor = Spot::Color::Blue});
 
-    CHECK(IsNear(matte.At(16, 16), {255, 0, 0, 255}));
-    // Highlights take the light's color, not the surface's. The pixel is a little off the exact center, where the
-    // sharp highlight peaks.
-    const Pixel highlight = glossy.At(16, 16);
+    // Dielectrics reflect a little of every color; their highlight is gray over their color, and fades aside.
+    const Pixel highlight = plastic.At(16, 16);
     INFO("Highlight " << int{highlight[0]} << ", " << int{highlight[1]} << ", " << int{highlight[2]});
-    CHECK(highlight[0] == 255);
-    CHECK(highlight[1] > 200);
+    CHECK(highlight[1] > 25);
     CHECK(highlight[1] == highlight[2]);
-    CHECK(IsNear(glossy.At(0, 16), {255, 0, 0, 255}));
+    CHECK(highlight[0] > highlight[1] + 20);
+    CHECK(plastic.At(0, 16)[1] < highlight[1] / 2);
+
+    // Metals scatter nothing, so a matte one only shows what it reflects, in its own color, darker than a matte
+    // dielectric scatters.
+    const Pixel metal = matteMetal.At(16, 16);
+    INFO("Metal " << int{metal[0]} << ", " << int{metal[1]} << ", " << int{metal[2]});
+    CHECK(metal[0] == 0);
+    CHECK(metal[2] > 20);
+    CHECK(metal[2] < matteBlue.At(16, 16)[2] / 2);
+}
+
+TEST_CASE("Renderer3D tilts surfaces by their normal maps and darkens ambient light by occlusion", "[gpu]") {
+    RequireGpu();
+
+    // A 1x1 texture of linear data, as normal and occlusion maps are imported.
+    const auto renderWall = [](std::array<std::uint8_t, 4> normal, std::array<std::uint8_t, 4> occlusion,
+                               const Spot::LightData& light) {
+        return TargetRender(
+            32, 32,
+            [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+                const auto makeTexture = [&](std::array<std::uint8_t, 4> texel) {
+                    return Spot::AssetRef<Spot::Texture>(device.CreateTexture(
+                        Spot::Image(1, 1, {texel.begin(), texel.end()}), false, Spot::TextureFormat::Rgba8));
+                };
+                const Spot::Material material{.normalTexture = makeTexture(normal),
+                                              .occlusionTexture = makeTexture(occlusion)};
+                Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+                const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+                REQUIRE(cube != nullptr);
+                renderer.Begin(context, target, MakeFrontCamera());
+                renderer.DrawLight(light);
+                renderer.DrawMesh(*cube, material, Spot::Matrix4::Scale({20.0f, 20.0f, 1.0f}));
+                renderer.End();
+            });
+    };
+    constexpr std::array<std::uint8_t, 4> Flat{128, 128, 255, 255};
+    constexpr std::array<std::uint8_t, 4> Unoccluded{255, 255, 255, 255};
+
+    // Facing the light, the flat map leaves the wall fully lit; tilted 60 degrees along the texture's u, which runs
+    // along +X on the cube's front, it gets half the light.
+    const int flat = renderWall(Flat, Unoccluded, FrontLight).At(16, 16)[0];
+    const int tilted = renderWall({238, 128, 192, 255}, Unoccluded, FrontLight).At(16, 16)[0];
+    INFO("Flat " << flat << ", tilted " << tilted);
+    CHECK(flat > 250);
+    CHECK(std::abs(tilted - 128) < 12);
+    // A light from +X lights the tilted wall more than the flat one.
+    const Spot::LightData side{.type = Spot::LightType::Directional,
+                               .direction = Spot::Normalize(Spot::Vector3{-1.0f, 0.0f, -1.0f})};
+    CHECK(renderWall({238, 128, 192, 255}, Unoccluded, side).At(16, 16)[0] >
+          renderWall(Flat, Unoccluded, side).At(16, 16)[0] + 40);
+
+    // Occlusion takes ambient light only.
+    const Spot::LightData ambient{.type = Spot::LightType::Ambient};
+    CHECK(IsNear(renderWall(Flat, {64, 0, 0, 255}, ambient).At(16, 16), {64, 64, 64, 255}));
+    CHECK(renderWall(Flat, {64, 0, 0, 255}, FrontLight).At(16, 16)[0] > 250);
 }
 
 TEST_CASE("Renderer3D keeps the lights nearest the camera when given too many", "[gpu]") {

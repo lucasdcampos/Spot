@@ -22,21 +22,33 @@ std::unique_ptr<Model> Model::Load(GraphicsDevice& device, const std::filesystem
 
 std::unique_ptr<Model> Model::Create(GraphicsDevice& device, const ModelData& data) {
     std::vector<AssetRef<Texture>> textures;
-    for (const auto& image : data.images) {
-        AssetRef<Texture> texture = device.CreateTexture(image, true);
+    for (std::size_t i = 0; i < data.images.size(); ++i) {
+        AssetRef<Texture> texture = device.CreateTexture(
+            data.images[i], true, data.IsColorImage(i) ? TextureFormat::Rgba8Srgb : TextureFormat::Rgba8);
         if (!texture) {
             return nullptr;
         }
         textures.push_back(std::move(texture));
     }
 
+    const auto texture = [&](std::optional<std::size_t> image) {
+        return image ? textures[*image] : AssetRef<Texture>();
+    };
     std::vector<AssetRef<Material>> materials;
     for (const auto& source : data.materials) {
-        Material material{.baseColor = source.baseColor, .baseColorTexture = {}, .doubleSided = source.doubleSided};
-        if (source.baseColorImage) {
-            material.baseColorTexture = textures[*source.baseColorImage];
-        }
-        materials.emplace_back(std::make_shared<const Material>(std::move(material)));
+        materials.emplace_back(std::make_shared<const Material>(
+            Material{.baseColor = source.baseColor,
+                     .baseColorTexture = texture(source.baseColorImage),
+                     .metallic = source.metallic,
+                     .roughness = source.roughness,
+                     .metallicRoughnessTexture = texture(source.metallicRoughnessImage),
+                     .normalTexture = texture(source.normalImage),
+                     .normalScale = source.normalScale,
+                     .occlusionTexture = texture(source.occlusionImage),
+                     .occlusionStrength = source.occlusionStrength,
+                     .emissive = source.emissive,
+                     .emissiveTexture = texture(source.emissiveImage),
+                     .doubleSided = source.doubleSided}));
     }
 
     // Parts without a material share a plain white one.

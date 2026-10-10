@@ -137,9 +137,10 @@ void MeshData::GenerateTangents() {
         out[2] = normal.z;
     };
     callbacks.m_getTexCoord = [](const SMikkTSpaceContext* context, float out[], int face, int corner) {
+        // Normal maps point +Y toward the texture's top, where v is 0, so the bitangent must point toward lower v.
         const Vector2 uv = GetTangentMesh(context).Corner(face, corner).uv;
         out[0] = uv.x;
-        out[1] = uv.y;
+        out[1] = -uv.y;
     };
     callbacks.m_setTSpaceBasic = [](const SMikkTSpaceContext* context, const float tangent[], float sign, int face,
                                     int corner) {

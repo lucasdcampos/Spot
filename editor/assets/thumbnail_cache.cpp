@@ -100,7 +100,7 @@ void ThumbnailCache::Render(RenderContext& context, EditorProject& project) {
             break;
         }
         case AssetType::Mesh: {
-            static const Material Plain{.baseColor = Color{0.78f, 0.79f, 0.82f, 1.0f}, .specular = 0.2f};
+            static const Material Plain{.baseColor = Color{0.78f, 0.79f, 0.82f, 1.0f}, .roughness = 0.6f};
             if (const AssetRef<Mesh> mesh = assets.Load<Mesh>(id)) {
                 Draw(context, entry, {{mesh.Get(), &Plain}});
             }

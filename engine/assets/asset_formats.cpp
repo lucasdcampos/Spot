@@ -86,24 +86,36 @@ std::optional<MeshData> DecodeMesh(std::span<const std::byte> data) {
 
 void Encode(BinaryWriter& writer, const MaterialSource& material) {
     writer.Write(material.baseColor);
-    writer.Write(static_cast<std::uint8_t>(material.doubleSided));
     writer.Write(material.baseColorTexture);
-    writer.Write(material.worldTextureSize);
-    writer.Write(material.specular);
-    writer.Write(material.shininess);
+    writer.Write(material.metallic);
+    writer.Write(material.roughness);
+    writer.Write(material.metallicRoughnessTexture);
+    writer.Write(material.normalTexture);
+    writer.Write(material.normalScale);
+    writer.Write(material.occlusionTexture);
+    writer.Write(material.occlusionStrength);
     writer.Write(material.emissive);
+    writer.Write(material.emissiveTexture);
+    writer.Write(static_cast<std::uint8_t>(material.doubleSided));
+    writer.Write(material.worldTextureSize);
 }
 
 std::optional<MaterialSource> DecodeMaterial(std::span<const std::byte> data) {
     BinaryReader reader(data);
     MaterialSource material;
     material.baseColor = reader.Read<Color>();
-    material.doubleSided = reader.Read<std::uint8_t>() != 0;
     material.baseColorTexture = reader.Read<AssetId>();
-    material.worldTextureSize = reader.Read<float>();
-    material.specular = reader.Read<float>();
-    material.shininess = reader.Read<float>();
+    material.metallic = reader.Read<float>();
+    material.roughness = reader.Read<float>();
+    material.metallicRoughnessTexture = reader.Read<AssetId>();
+    material.normalTexture = reader.Read<AssetId>();
+    material.normalScale = reader.Read<float>();
+    material.occlusionTexture = reader.Read<AssetId>();
+    material.occlusionStrength = reader.Read<float>();
     material.emissive = reader.Read<Color>();
+    material.emissiveTexture = reader.Read<AssetId>();
+    material.doubleSided = reader.Read<std::uint8_t>() != 0;
+    material.worldTextureSize = reader.Read<float>();
     return Finish(reader, material);
 }
 

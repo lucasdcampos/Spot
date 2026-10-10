@@ -82,8 +82,10 @@ bool ImportModel(ImportContext& context) {
                 for (std::size_t i = 0; i + 2 < part.mesh.indices.size(); i += 3) {
                     std::swap(part.mesh.indices[i + 1], part.mesh.indices[i + 2]);
                 }
+                // Flipping the normals also flips which side of the tangent the bitangent is on.
                 for (auto& vertex : part.mesh.vertices) {
                     vertex.normal = -vertex.normal;
+                    vertex.tangent = {-vertex.tangent.x, -vertex.tangent.y, -vertex.tangent.z, -vertex.tangent.w};
                 }
             }
         }
@@ -92,7 +94,8 @@ bool ImportModel(ImportContext& context) {
     std::vector<AssetId> textures;
     for (std::size_t i = 0; i < model->images.size(); ++i) {
         BinaryWriter data;
-        Encode(data, TextureFile{std::move(model->images[i]), true});
+        const bool color = model->IsColorImage(i);
+        Encode(data, TextureFile{std::move(model->images[i]), true, color});
         textures.push_back(context.WriteSubAsset(std::format("texture:{}", i), AssetType::Texture,
                                                  std::format("Texture {}", i), data));
         if (!textures.back().IsValid()) {
@@ -101,11 +104,19 @@ bool ImportModel(ImportContext& context) {
     }
 
     const auto writeMaterial = [&](std::string_view key, std::string name, const MaterialData& source) {
-        MaterialSource material{
-            .baseColor = source.baseColor, .baseColorTexture = {}, .doubleSided = source.doubleSided};
-        if (source.baseColorImage) {
-            material.baseColorTexture = textures[*source.baseColorImage];
-        }
+        const auto texture = [&](std::optional<std::size_t> image) { return image ? textures[*image] : AssetId(); };
+        const MaterialSource material{.baseColor = source.baseColor,
+                                      .baseColorTexture = texture(source.baseColorImage),
+                                      .metallic = source.metallic,
+                                      .roughness = source.roughness,
+                                      .metallicRoughnessTexture = texture(source.metallicRoughnessImage),
+                                      .normalTexture = texture(source.normalImage),
+                                      .normalScale = source.normalScale,
+                                      .occlusionTexture = texture(source.occlusionImage),
+                                      .occlusionStrength = source.occlusionStrength,
+                                      .emissive = source.emissive,
+                                      .emissiveTexture = texture(source.emissiveImage),
+                                      .doubleSided = source.doubleSided};
         BinaryWriter data;
         Encode(data, material);
         return context.WriteSubAsset(key, AssetType::Material, std::move(name), data);

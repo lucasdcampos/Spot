@@ -5,6 +5,15 @@ Texture2D<float> cascadeShadows : register(t1, space2);
 SamplerComparisonState cascadeShadowSampler : register(s1, space2);
 Texture2D<float> localShadows : register(t2, space2);
 SamplerComparisonState localShadowSampler : register(s2, space2);
+// The material's other textures, white where it has none.
+Texture2D<float4> metallicRoughnessTexture : register(t3, space2);
+SamplerState metallicRoughnessSampler : register(s3, space2);
+Texture2D<float4> normalTexture : register(t4, space2);
+SamplerState normalSampler : register(s4, space2);
+Texture2D<float4> occlusionTexture : register(t5, space2);
+SamplerState occlusionSampler : register(s5, space2);
+Texture2D<float4> emissiveTexture : register(t6, space2);
+SamplerState emissiveSampler : register(s6, space2);
 
 // Must match Renderer3D::MaxLights, Detail::MaxShadowCascades and Renderer3D::MaxShadowTiles.
 #define MAX_LIGHTS 16
@@ -48,14 +57,17 @@ cbuffer Shadows : register(b2, space3) {
 
 cbuffer Material : register(b1, space3) {
     float4 baseColor;
-    // 1 for double-sided materials.
-    float doubleSided;
-    // Positive to project the texture from world space, repeating every this many units, instead of using the UVs.
-    float worldTextureSize;
-    float specular;
-    float shininess;
     // Light the surface gives off itself.
     float4 emissive;
+    float metallic;
+    float roughness;
+    // 0 when there is no normal map.
+    float normalScale;
+    float occlusionStrength;
+    // 1 for double-sided materials.
+    float doubleSided;
+    // Positive to project the textures from world space, repeating every this many units, instead of using the UVs.
+    float worldTextureSize;
 };
 
 // The fog's color, with 1 in w when there is fog; its density, start, height falloff and base height; and the camera's
@@ -192,9 +204,30 @@ struct Lit {
     float3 specular;
 };
 
-// The light a surface at the position with the normal scatters, and the light it reflects toward the viewer as
-// highlights (Blinn-Phong).
-Lit GetLight(Light light, float3 position, float3 normal, float3 toViewer) {
+static const float Pi = 3.14159265;
+
+// The light a surface reflects toward the viewer, as a share of the light reaching it: GGX microfacets, with
+// height-correlated Smith visibility and Schlick's Fresnel. It is scaled by pi, as lights' colors are the light a
+// white surface facing them scatters rather than what reaches it.
+float3 GetHighlight(float3 normal, float3 toLight, float3 toViewer, float alpha, float3 reflectance) {
+    const float nl = saturate(dot(normal, toLight));
+    if (nl <= 0.0) {
+        return 0.0;
+    }
+    const float nv = max(dot(normal, toViewer), 1e-4);
+    const float3 halfway = normalize(toLight + toViewer);
+    const float nh = saturate(dot(normal, halfway));
+    const float a2 = alpha * alpha;
+    const float d = nh * nh * (a2 - 1.0) + 1.0;
+    const float distribution = a2 / (Pi * d * d);
+    const float visibility = 0.5 / (nl * sqrt(nv * nv * (1.0 - a2) + a2) + nv * sqrt(nl * nl * (1.0 - a2) + a2));
+    const float3 fresnel = reflectance + (1.0 - reflectance) * pow(1.0 - saturate(dot(toViewer, halfway)), 5.0);
+    return Pi * distribution * visibility * fresnel * nl;
+}
+
+// The light a surface at the position with the normal scatters, before it takes the surface's color, and the light
+// it reflects toward the viewer as highlights.
+Lit GetLight(Light light, float3 position, float3 normal, float3 toViewer, float alpha, float3 reflectance) {
     const float type = light.positionAndType.w;
     float3 toLight = -light.directionAndRange.xyz;
     float attenuation = 1.0;
@@ -221,28 +254,51 @@ Lit GetLight(Light light, float3 position, float3 normal, float3 toViewer) {
     const float diffuse = doubleSided > 0.5 ? abs(facing) : max(facing, 0.0);
     // Only the side the viewer sees has highlights, and only from lights in front of it.
     const float3 seenNormal = dot(normal, toViewer) < 0.0 && doubleSided > 0.5 ? -normal : normal;
-    const float highlight = dot(seenNormal, toLight) > 0.0
-                                ? pow(saturate(dot(seenNormal, normalize(toLight + toViewer))), shininess)
-                                : 0.0;
     Lit lit;
     lit.diffuse = color * diffuse;
-    lit.specular = color * highlight * specular;
+    lit.specular = color * GetHighlight(seenNormal, toLight, toViewer, alpha, reflectance);
     return lit;
 }
 
+// Tilts the normal as the normal map says, in the tangent space of the surface. Projected textures have no tangents
+// of their own, so they keep the mesh's normals.
+float3 ApplyNormalMap(float3 normal, float4 tangent, float2 uv) {
+    if (normalScale <= 0.0 || worldTextureSize > 0.0 || dot(tangent.xyz, tangent.xyz) < 1e-8) {
+        return normal;
+    }
+    // Interpolation bends the tangent away from the normal, so it is made perpendicular again.
+    const float3 t = normalize(tangent.xyz - normal * dot(normal, tangent.xyz));
+    const float3 b = cross(normal, t) * (tangent.w < 0.0 ? -1.0 : 1.0);
+    float3 mapped = normalTexture.Sample(normalSampler, uv).xyz * 2.0 - 1.0;
+    mapped.xy *= normalScale;
+    return normalize(t * mapped.x + b * mapped.y + normal * mapped.z);
+}
+
 float4 main(Input input) : SV_Target0 {
-    const float3 normal = normalize(input.normal);
-    const float2 uv = worldTextureSize > 0.0 ? GetWorldUv(input.worldPosition, normal) : input.uv;
+    const float3 surfaceNormal = normalize(input.normal);
+    const float2 uv = worldTextureSize > 0.0 ? GetWorldUv(input.worldPosition, surfaceNormal) : input.uv;
+    const float3 normal = ApplyNormalMap(surfaceNormal, input.tangent, uv);
     const float4 albedo = baseColorTexture.Sample(baseColorSampler, uv) * baseColor;
+    const float4 metallicRoughness = metallicRoughnessTexture.Sample(metallicRoughnessSampler, uv);
+    const float metalness = saturate(metallic * metallicRoughness.b);
+    // Roughness is perceptually linear, and its square is GGX's alpha. Perfect mirrors would have highlights a pixel
+    // wide and far too bright, which flicker.
+    const float perceived = max(saturate(roughness * metallicRoughness.g), 0.05);
+    const float alpha = perceived * perceived;
+    const float occlusion = lerp(1.0, occlusionTexture.Sample(occlusionSampler, uv).r, occlusionStrength);
+    // Dielectrics scatter their color and reflect about 4% of the light untinted, as plastic or varnish do; metals
+    // scatter nothing and reflect in their color.
+    const float3 scattered = albedo.rgb * (1.0 - metalness);
+    const float3 reflectance = lerp(float3(0.04, 0.04, 0.04), albedo.rgb, metalness);
     const float3 toViewer = normalize(cameraPosition.xyz - input.worldPosition);
-    float3 diffuse = ambientColor.rgb;
+    float3 diffuse = 0.0;
     float3 highlights = 0.0;
     for (uint i = 0; i < lightCount.x; ++i) {
-        const Lit lit = GetLight(lights[i], input.worldPosition, normal, toViewer);
+        const Lit lit = GetLight(lights[i], input.worldPosition, normal, toViewer, alpha, reflectance);
         diffuse += lit.diffuse;
         highlights += lit.specular;
     }
-    // Highlights take the light's color rather than the surface's, as on plastic or varnish.
-    const float3 color = albedo.rgb * diffuse + highlights + emissive.rgb;
+    const float3 emitted = emissive.rgb * emissiveTexture.Sample(emissiveSampler, uv).rgb;
+    const float3 color = scattered * (diffuse + ambientColor.rgb * occlusion) + highlights + emitted;
     return float4(lerp(color, fogColor.rgb, GetFogAmount(input.worldPosition - fogCamera.xyz)), albedo.a);
 }

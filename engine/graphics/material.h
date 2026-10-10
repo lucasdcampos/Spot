@@ -7,24 +7,40 @@ namespace Spot {
 
 class Texture;
 
-// How Renderer3D shades a mesh.
+// How Renderer3D shades a mesh: metallic-roughness PBR, as glTF defines it. Textures are optional; each multiplies
+// the value it goes with. Color textures (base color and emissive) are sRGB, and the others hold data, so they are
+// imported with their texture's sRGB setting off.
 struct Material {
+    // The color of the surface: what it scatters for dielectrics, and what it reflects for metals.
     Color baseColor = Color::White;
-    // Multiplied by baseColor; without one, the surface is baseColor alone.
     AssetRef<Texture> baseColorTexture = {};
-    // Draws back faces too, for thin surfaces such as leaves or cloth.
-    bool doubleSided = false;
-    // When positive, the texture is projected onto the surface from world space instead of following the mesh's UVs,
-    // repeating every this many units, so it keeps its size however the mesh is scaled. Suits
-    // BuiltInAssets::GridTexture on level blocks.
-    float worldTextureSize = 0.0f;
-    // How strongly the surface reflects lights as highlights, from 0 for matte surfaces to 1 for glossy ones.
-    float specular = 0.0f;
-    // How small and sharp the highlights are: a few units for rough surfaces, hundreds for polished ones.
-    float shininess = 32.0f;
+    // 0 for dielectrics (wood, plastic, stone), 1 for metals; in between only where the two blend, such as at the
+    // edge of rust.
+    float metallic = 0.0f;
+    // From 0 for a mirror to 1 for a matte surface, whose highlights spread over its whole lit side. Matte by default,
+    // as in glTF.
+    float roughness = 1.0f;
+    // Roughness in its green channel and metallic in its blue one, as glTF packs them.
+    AssetRef<Texture> metallicRoughnessTexture = {};
+    // A tangent-space normal map, as glTF and MikkTSpace bake them (+Y toward the texture's top); without one, the
+    // surface follows the mesh's normals.
+    AssetRef<Texture> normalTexture = {};
+    // How strongly the normal map tilts the surface: 0 flattens it, above 1 exaggerates it.
+    float normalScale = 1.0f;
+    // How much ambient light reaches each point, in its red channel, darkening creases.
+    AssetRef<Texture> occlusionTexture = {};
+    // How much the occlusion map darkens, from 0 (not at all) to 1.
+    float occlusionStrength = 1.0f;
     // Light the surface gives off itself, added to what lights it, as screens and lamps do. Linear; above 1, it glows
     // through bloom. It lights nothing else.
     Color emissive = Color::Black;
+    AssetRef<Texture> emissiveTexture = {};
+    // Draws back faces too, for thin surfaces such as leaves or cloth.
+    bool doubleSided = false;
+    // When positive, the textures are projected onto the surface from world space instead of following the mesh's
+    // UVs, repeating every this many units, so they keep their size however the mesh is scaled. Suits
+    // BuiltInAssets::GridTexture on level blocks.
+    float worldTextureSize = 0.0f;
 };
 
 } // namespace Spot

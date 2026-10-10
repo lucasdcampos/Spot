@@ -405,7 +405,7 @@ TEST_CASE("Materials dragged from the browser onto the hierarchy go to the entit
 TEST_CASE("The inspector edits materials, saving each change as one undoable step", "[editor][assets][ui]") {
     BrowserFixture fixture;
     const auto file = fixture.assets / "Paint.material";
-    REQUIRE(Spot::MaterialSource{.specular = 0.25f}.SaveToFile(file));
+    REQUIRE(Spot::MaterialSource{.roughness = 0.25f}.SaveToFile(file));
     fixture.Project().Refresh();
     Spot::Editor::InspectorPanel inspector(*fixture.context);
     fixture.imgui.SetDraw([&] {
@@ -421,16 +421,16 @@ TEST_CASE("The inspector edits materials, saving each change as one undoable ste
 
     fixture.imgui.Click(fixture.Tile("Paint.material"));
     Spot::Editor::AssetInspector& assets = inspector.GetAssetInspector();
-    const ImVec2 field = fixture.Center(assets.GetItemRect("/specular"));
+    const ImVec2 field = fixture.Center(assets.GetItemRect("/roughness"));
     fixture.imgui.Drag(field, {field.x + 60.0f, field.y});
     const auto saved = Spot::MaterialSource::LoadFromFile(file);
     REQUIRE(saved.has_value());
-    CHECK(saved->specular > 0.25f);
+    CHECK(saved->roughness > 0.25f);
     REQUIRE(assets.GetHistory());
     CHECK(assets.GetHistory()->GetUndoCount() == 1);
 
     assets.GetHistory()->Undo();
-    CHECK(Spot::MaterialSource::LoadFromFile(file)->specular == 0.25f);
+    CHECK(Spot::MaterialSource::LoadFromFile(file)->roughness == 0.25f);
 }
 
 TEST_CASE("Import settings apply when asked, and revert", "[editor][assets][ui]") {

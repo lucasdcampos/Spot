@@ -145,6 +145,13 @@ private:
         return Image::Load(*m_directory / Utf8ToPath(path));
     }
 
+    std::optional<std::size_t> GetImage(const cgltf_texture_view& view) const {
+        if (!view.texture || !view.texture->image) {
+            return std::nullopt;
+        }
+        return m_imageIndices[cgltf_image_index(&m_data, view.texture->image)];
+    }
+
     void ImportMaterials(ModelData& model) const {
         for (cgltf_size i = 0; i < m_data.materials_count; ++i) {
             const cgltf_material& source = m_data.materials[i];
@@ -155,11 +162,23 @@ private:
                 const auto& pbr = source.pbr_metallic_roughness;
                 const cgltf_float* factor = pbr.base_color_factor;
                 material.baseColor = {factor[0], factor[1], factor[2], factor[3]};
-                if (pbr.base_color_texture.texture && pbr.base_color_texture.texture->image) {
-                    material.baseColorImage =
-                        m_imageIndices[cgltf_image_index(&m_data, pbr.base_color_texture.texture->image)];
-                }
+                material.baseColorImage = GetImage(pbr.base_color_texture);
+                material.metallic = pbr.metallic_factor;
+                material.roughness = pbr.roughness_factor;
+                material.metallicRoughnessImage = GetImage(pbr.metallic_roughness_texture);
             }
+            material.normalImage = GetImage(source.normal_texture);
+            if (material.normalImage) {
+                material.normalScale = source.normal_texture.scale;
+            }
+            material.occlusionImage = GetImage(source.occlusion_texture);
+            if (material.occlusionImage) {
+                material.occlusionStrength = source.occlusion_texture.scale;
+            }
+            const float strength = source.has_emissive_strength ? source.emissive_strength.emissive_strength : 1.0f;
+            const cgltf_float* emissive = source.emissive_factor;
+            material.emissive = {emissive[0] * strength, emissive[1] * strength, emissive[2] * strength, 1.0f};
+            material.emissiveImage = GetImage(source.emissive_texture);
             model.materials.push_back(std::move(material));
         }
     }
@@ -321,6 +340,18 @@ std::optional<ModelData> ModelData::Load(const std::filesystem::path& path) {
 
 std::optional<ModelData> ModelData::LoadFromMemory(std::span<const std::byte> data) {
     return Import(data, nullptr);
+}
+
+bool ModelData::IsColorImage(std::size_t image) const {
+    bool usedForData = false;
+    for (const MaterialData& material : materials) {
+        if (material.baseColorImage == image || material.emissiveImage == image) {
+            return true;
+        }
+        usedForData = usedForData || material.metallicRoughnessImage == image || material.normalImage == image ||
+                      material.occlusionImage == image;
+    }
+    return !usedForData;
 }
 
 } // namespace Spot

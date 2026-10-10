@@ -92,7 +92,11 @@ std::vector<AssetId> AssetManager::Reload(std::span<const AssetId> assets) {
     // their materials, until nothing more does.
     const auto refersToStale = [&](const Entry& entry, const std::shared_ptr<const void>& loaded) {
         if (entry.type == AssetType::Material) {
-            return stale.contains(static_cast<const Material*>(loaded.get())->baseColorTexture.GetId());
+            const auto& material = *static_cast<const Material*>(loaded.get());
+            return std::ranges::any_of(
+                std::array{&material.baseColorTexture, &material.metallicRoughnessTexture, &material.normalTexture,
+                           &material.occlusionTexture, &material.emissiveTexture},
+                [&](const AssetRef<Texture>* texture) { return stale.contains(texture->GetId()); });
         }
         if (entry.type == AssetType::Model) {
             return std::ranges::any_of(static_cast<const Model*>(loaded.get())->GetParts(), [&](const ModelPart& part) {
@@ -270,13 +274,20 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
         if (!material) {
             break;
         }
-        return std::make_shared<const Material>(Material{.baseColor = material->baseColor,
-                                                         .baseColorTexture = Load<Texture>(material->baseColorTexture),
-                                                         .doubleSided = material->doubleSided,
-                                                         .worldTextureSize = material->worldTextureSize,
-                                                         .specular = material->specular,
-                                                         .shininess = material->shininess,
-                                                         .emissive = material->emissive});
+        return std::make_shared<const Material>(
+            Material{.baseColor = material->baseColor,
+                     .baseColorTexture = Load<Texture>(material->baseColorTexture),
+                     .metallic = material->metallic,
+                     .roughness = material->roughness,
+                     .metallicRoughnessTexture = Load<Texture>(material->metallicRoughnessTexture),
+                     .normalTexture = Load<Texture>(material->normalTexture),
+                     .normalScale = material->normalScale,
+                     .occlusionTexture = Load<Texture>(material->occlusionTexture),
+                     .occlusionStrength = material->occlusionStrength,
+                     .emissive = material->emissive,
+                     .emissiveTexture = Load<Texture>(material->emissiveTexture),
+                     .doubleSided = material->doubleSided,
+                     .worldTextureSize = material->worldTextureSize});
     }
     case AssetType::Model: {
         const auto parts = Detail::DecodeModel(*data);

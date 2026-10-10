@@ -132,7 +132,7 @@ Spot::Vector3 Xyz(Spot::Vector4 v) {
     return {v.x, v.y, v.z};
 }
 
-// The direction the texture's v grows in, from a vertex's normal and tangent.
+// The direction toward the texture's top, from a vertex's normal and tangent.
 Spot::Vector3 Bitangent(const Spot::MeshVertex& vertex) {
     return Spot::Cross(vertex.normal, Xyz(vertex.tangent)) * vertex.tangent.w;
 }
@@ -158,12 +158,12 @@ std::string Base64(std::span<const std::byte> bytes) {
 
 } // namespace
 
-TEST_CASE("Built meshes get tangents along their texture's u, on the side its v grows", "[mesh]") {
+TEST_CASE("Built meshes get tangents along their texture's u, on the side of its top", "[mesh]") {
     const Spot::MeshData plane = Spot::MeshData::CreatePlane(2.0f);
     for (const Spot::MeshVertex& vertex : plane.vertices) {
         CHECK(Spot::Distance(Xyz(vertex.tangent), Spot::Vector3{1.0f, 0.0f, 0.0f}) < 1e-4f);
-        // v grows toward +Z, down the texture as it lies on the ground.
-        CHECK(Spot::Distance(Bitangent(vertex), Spot::Vector3{0.0f, 0.0f, 1.0f}) < 1e-4f);
+        // v grows toward +Z, so the texture's top is toward -Z.
+        CHECK(Spot::Distance(Bitangent(vertex), Spot::Vector3{0.0f, 0.0f, -1.0f}) < 1e-4f);
     }
 
     for (const Spot::MeshData& mesh : {Spot::MeshData::CreateCube(), Spot::MeshData::CreateSphere(0.5f, 12, 6)}) {
@@ -232,4 +232,46 @@ TEST_CASE("Tangents a glTF file gives are used, turned with their node", "[mesh]
     // The node turns it a quarter around Z, taking +Y to -X.
     CHECK(Spot::Distance(Xyz(vertex.tangent), Spot::Vector3{-1.0f, 0.0f, 0.0f}) < 1e-4f);
     CHECK(vertex.tangent.w == -1.0f);
+}
+
+TEST_CASE("ModelData reads every PBR input of glTF materials, and which images hold colors", "[model]") {
+    const auto png = [](std::uint8_t value) {
+        return Base64(Spot::Image(1, 1, {value, value, value, 255}).EncodePng());
+    };
+    const std::string gltf = R"({"asset": {"version": "2.0"}, "extensionsUsed": ["KHR_materials_emissive_strength"],
+        "images": [{"uri": "data:image/png;base64,)" +
+                             png(200) + R"("}, {"uri": "data:image/png;base64,)" + png(100) + R"("}],
+        "textures": [{"source": 0}, {"source": 1}],
+        "materials": [{"pbrMetallicRoughness": {"baseColorTexture": {"index": 0}, "metallicFactor": 0.25,
+                                                "roughnessFactor": 0.75, "metallicRoughnessTexture": {"index": 1}},
+                       "normalTexture": {"index": 1, "scale": 0.5},
+                       "occlusionTexture": {"index": 1, "strength": 0.8},
+                       "emissiveFactor": [1, 0.5, 0], "emissiveTexture": {"index": 0},
+                       "extensions": {"KHR_materials_emissive_strength": {"emissiveStrength": 4}}},
+                      {}]})";
+    const auto model = Spot::ModelData::LoadFromMemory(std::as_bytes(std::span(gltf)));
+    REQUIRE(model.has_value());
+    REQUIRE(model->images.size() == 2);
+    REQUIRE(model->materials.size() == 2);
+    const Spot::MaterialData& material = model->materials[0];
+    CHECK(material.baseColorImage == 0u);
+    CHECK(material.metallic == 0.25f);
+    CHECK(material.roughness == 0.75f);
+    CHECK(material.metallicRoughnessImage == 1u);
+    CHECK(material.normalImage == 1u);
+    CHECK(material.normalScale == 0.5f);
+    CHECK(material.occlusionImage == 1u);
+    CHECK(material.occlusionStrength == Catch::Approx(0.8f));
+    CHECK(material.emissive == Spot::Color{4.0f, 2.0f, 0.0f, 1.0f});
+    CHECK(material.emissiveImage == 0u);
+
+    // glTF's defaults: metallic and matte, with nothing emitted.
+    const Spot::MaterialData& plain = model->materials[1];
+    CHECK(plain.metallic == 1.0f);
+    CHECK(plain.roughness == 1.0f);
+    CHECK(plain.emissive == Spot::Color::Black);
+    CHECK_FALSE(plain.normalImage.has_value());
+
+    CHECK(model->IsColorImage(0));
+    CHECK_FALSE(model->IsColorImage(1));
 }

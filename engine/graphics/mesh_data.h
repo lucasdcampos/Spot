@@ -13,7 +13,8 @@ struct MeshVertex {
     // From (0, 0) at the texture's top-left to (1, 1) at its bottom-right.
     Vector2 uv;
     // The direction the texture's u grows along the surface, perpendicular to the normal, and in w, 1 or -1, the side
-    // v grows on: the bitangent is cross(normal, tangent.xyz) * w. Normal maps are read in this space.
+    // of it the texture's top is on: the bitangent, cross(normal, tangent.xyz) * w, points toward lower v. Normal maps
+    // are read in this space, as glTF defines it.
     Vector4 tangent = {};
 };
 

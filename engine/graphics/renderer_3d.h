@@ -11,6 +11,7 @@
 #include "math/matrix.h"
 #include "math/vector.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -123,15 +124,21 @@ public:
     Renderer3DStats GetStats() const { return m_stats; }
 
 private:
+    // The material's textures, in the order the mesh shader binds them after the shadow maps.
+    using MaterialTextures = std::array<const Texture*, 5>;
+
     struct DrawCommand {
         const Mesh* mesh;
-        const Texture* texture;
+        // Base color, metallic-roughness, normal, occlusion and emissive; null where the material has none.
+        MaterialTextures textures;
         Color color;
+        float metallic;
+        float roughness;
+        float normalScale;
+        float occlusionStrength;
+        Color emissive;
         bool doubleSided;
         float worldTextureSize;
-        float specular;
-        float shininess;
-        Color emissive;
         Matrix4 transform;
         // Around the mesh, in world space.
         BoundingSphere bounds;

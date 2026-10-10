@@ -139,9 +139,17 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
 
 - `Camera`: where a scene is seen from, looking down its entity's -Z; perspective or orthographic, with a
   background color.
-- `MeshRenderer`: a mesh with a material at its entity's world transform; materials (`Material`) have a base color
-  and texture, specular and shininess, double-sidedness, world-space texturing (`worldTextureSize`), and an
-  `emissive` color the surface gives off itself, which glows through bloom above 1.
+- `MeshRenderer`: a mesh with a material at its entity's world transform. Materials (`Material`) are
+  metallic-roughness PBR, as glTF defines it, so models look as their authors made them: a base color, `metallic`
+  (0 for dielectrics, 1 for metals) and `roughness` (0 for a mirror, 1, the default, for a matte surface), each with
+  an optional texture that multiplies it (roughness in green and metallic in blue of one texture, as glTF packs
+  them); a tangent-space normal map with its `normalScale`; an occlusion map, which darkens ambient light by
+  `occlusionStrength`; and an `emissive` color and texture the surface gives off itself, which glow through bloom
+  above 1. Dielectrics scatter their color and reflect about 4% of the light untinted; metals scatter nothing and
+  reflect in their color. Highlights are GGX microfacets, as wide as the roughness says. Materials can also be
+  double-sided, and project their textures from world space (`worldTextureSize`), which keeps the mesh's normals.
+  Normal, metallic-roughness and occlusion textures hold data, so they are imported with `srgb` off; models do this
+  for the images they use only that way.
 - Meshes (`MeshData`) are vertices with a position, a normal, texture coordinates and a tangent, the direction the
   texture's u grows along the surface, with in `w` the side its v grows on (the bitangent is
   `cross(normal, tangent.xyz) * w`), in which normal maps are read. Models use the tangents their glTF files give,

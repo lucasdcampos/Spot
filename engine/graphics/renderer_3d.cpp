@@ -137,11 +137,15 @@ FogUniforms GetFogUniforms(const std::optional<FogData>& fog, Vector3 cameraPosi
 
 struct MaterialUniforms {
     Color baseColor;
+    Color emissive;
+    float metallic;
+    float roughness;
+    // 0 without a normal map, so the white texture bound in its place leaves the normals as they are.
+    float normalScale;
+    float occlusionStrength;
     float doubleSided;
     float worldTextureSize;
-    float specular;
-    float shininess;
-    Color emissive;
+    float padding[2];
 };
 
 // How much a light matters to what is near the camera, lowest first: directional lights reach everything.
@@ -357,7 +361,7 @@ void Renderer3D::End() {
 
     // Surfaces are opaque and depth tested, so the order only matters for how often state changes.
     std::stable_sort(m_commands.begin(), m_commands.end(), [](const DrawCommand& a, const DrawCommand& b) {
-        return std::tie(a.doubleSided, a.texture) < std::tie(b.doubleSided, b.texture);
+        return std::tie(a.doubleSided, a.textures) < std::tie(b.doubleSided, b.textures);
     });
     Detail::ShadowUniforms shadows{};
     DrawShadows(lights, shadows);
@@ -394,17 +398,21 @@ void Renderer3D::DrawMesh(const Mesh& mesh, const Material& material, const Matr
         const Vector4& axis = transform.columns[i];
         scale = std::max(scale, Length(Vector3{axis.x, axis.y, axis.z}));
     }
-    m_commands.push_back({&mesh,
-                          material.baseColorTexture.Get(),
-                          material.baseColor,
-                          material.doubleSided,
-                          material.worldTextureSize,
-                          material.specular,
-                          material.shininess,
-                          material.emissive,
-                          transform,
-                          {{center.x, center.y, center.z}, bounds.radius * scale},
-                          castsShadows});
+    m_commands.push_back(
+        {&mesh,
+         {material.baseColorTexture.Get(), material.metallicRoughnessTexture.Get(), material.normalTexture.Get(),
+          material.occlusionTexture.Get(), material.emissiveTexture.Get()},
+         material.baseColor,
+         material.metallic,
+         material.roughness,
+         material.normalTexture ? material.normalScale : 0.0f,
+         material.occlusionStrength,
+         material.emissive,
+         material.doubleSided,
+         material.worldTextureSize,
+         transform,
+         {{center.x, center.y, center.z}, bounds.radius * scale},
+         castsShadows});
 }
 
 void Renderer3D::DrawModel(const Model& model, const Matrix4& transform) {
@@ -641,28 +649,34 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
     pass.BindFragmentTexture(2, m_localShadows ? *m_localShadows : *m_noShadows, *m_shadowSampler);
 
     const Pipeline* boundPipeline = nullptr;
-    const Texture* boundTexture = nullptr;
+    MaterialTextures boundTextures{};
     for (const auto& command : m_commands) {
         const Pipeline* pipeline = command.doubleSided ? m_doubleSidedPipeline.get() : m_pipeline.get();
         if (pipeline != boundPipeline) {
             pass.BindPipeline(*pipeline);
             boundPipeline = pipeline;
         }
-        const Texture* texture = command.texture ? command.texture : m_whiteTexture.get();
-        if (texture != boundTexture) {
-            pass.BindFragmentTexture(0, *texture, *m_sampler);
-            boundTexture = texture;
+        // Missing textures are white, which leaves the values they multiply as they are.
+        for (std::size_t i = 0; i < command.textures.size(); ++i) {
+            const Texture* texture = command.textures[i] ? command.textures[i] : m_whiteTexture.get();
+            if (texture != boundTextures[i]) {
+                pass.BindFragmentTexture(i == 0 ? 0 : static_cast<std::uint32_t>(i + 2), *texture, *m_sampler);
+                boundTextures[i] = texture;
+            }
         }
 
         pass.BindVertexBuffer(0, command.mesh->GetVertexBuffer());
         pass.BindIndexBuffer(command.mesh->GetIndexBuffer(), IndexType::UInt32);
         pass.PushVertexUniforms(1, ObjectUniforms{command.transform, Transpose(Inverse(command.transform))});
         pass.PushFragmentUniforms(1, MaterialUniforms{.baseColor = command.color,
+                                                      .emissive = command.emissive,
+                                                      .metallic = command.metallic,
+                                                      .roughness = command.roughness,
+                                                      .normalScale = command.normalScale,
+                                                      .occlusionStrength = command.occlusionStrength,
                                                       .doubleSided = command.doubleSided ? 1.0f : 0.0f,
                                                       .worldTextureSize = command.worldTextureSize,
-                                                      .specular = command.specular,
-                                                      .shininess = command.shininess,
-                                                      .emissive = command.emissive});
+                                                      .padding = {}});
         pass.DrawIndexed(command.mesh->GetIndexCount());
 
         ++m_stats.drawCalls;

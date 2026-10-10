@@ -5,6 +5,7 @@
 #include <spot.h>
 #include <spot_import.h>
 
+#include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
@@ -575,17 +576,31 @@ TEST_CASE("Material files are assets that refer to textures by id", "[assets]") 
 
     Spot::MaterialSource source{.baseColor = Spot::Color::Red,
                                 .baseColorTexture = pixelsId,
+                                .metallic = 1.0f,
+                                .roughness = 0.25f,
+                                .metallicRoughnessTexture = pixelsId,
+                                .normalTexture = pixelsId,
+                                .normalScale = 0.5f,
+                                .occlusionTexture = pixelsId,
+                                .occlusionStrength = 0.75f,
+                                .emissive = Spot::Color{2.0f, 1.0f, 0.0f, 1.0f},
+                                .emissiveTexture = pixelsId,
                                 .doubleSided = true,
-                                .worldTextureSize = 2.0f,
-                                .specular = 0.5f,
-                                .shininess = 64.0f};
+                                .worldTextureSize = 2.0f};
     const auto reloaded = Spot::MaterialSource::LoadFromString(source.SaveToString());
     REQUIRE(reloaded.has_value());
     CHECK(reloaded->baseColorTexture == pixelsId);
+    CHECK(reloaded->metallic == 1.0f);
+    CHECK(reloaded->roughness == 0.25f);
+    CHECK(reloaded->metallicRoughnessTexture == pixelsId);
+    CHECK(reloaded->normalTexture == pixelsId);
+    CHECK(reloaded->normalScale == 0.5f);
+    CHECK(reloaded->occlusionTexture == pixelsId);
+    CHECK(reloaded->occlusionStrength == 0.75f);
+    CHECK(reloaded->emissive == Spot::Color{2.0f, 1.0f, 0.0f, 1.0f});
+    CHECK(reloaded->emissiveTexture == pixelsId);
     CHECK(reloaded->doubleSided);
     CHECK(reloaded->worldTextureSize == 2.0f);
-    CHECK(reloaded->specular == 0.5f);
-    CHECK(reloaded->shininess == 64.0f);
 
     REQUIRE(source.SaveToFile(sources / "red.material"));
     CHECK(database.Refresh() == 1);
@@ -596,8 +611,12 @@ TEST_CASE("Material files are assets that refer to textures by id", "[assets]") 
     CHECK(material->baseColor == Spot::Color::Red);
     CHECK(material->doubleSided);
     CHECK(material->worldTextureSize == 2.0f);
-    CHECK(material->specular == 0.5f);
-    CHECK(material->shininess == 64.0f);
+    CHECK(material->metallic == 1.0f);
+    CHECK(material->roughness == 0.25f);
+    CHECK(material->normalScale == 0.5f);
+    CHECK(material->occlusionStrength == 0.75f);
+    CHECK(material->emissive == Spot::Color{2.0f, 1.0f, 0.0f, 1.0f});
+    CHECK(material->normalTexture.GetId() == pixelsId);
     // There is no GPU here to load the texture, but the reference knows which one it is.
     CHECK(material->baseColorTexture.GetId() == pixelsId);
 
@@ -892,4 +911,25 @@ TEST_CASE("Textures set to hold data import to be read as they are", "[assets]")
     REQUIRE(database.SaveMeta(*id));
     CHECK(database.Refresh() == 1);
     CHECK_FALSE(read());
+}
+
+TEST_CASE("Materials saved before PBR get a roughness from their specular and shininess", "[assets]") {
+    const auto glossy = Spot::MaterialSource::LoadFromString(R"({"specular": 0.5, "shininess": 254.0})");
+    REQUIRE(glossy.has_value());
+    CHECK(glossy->roughness == Catch::Approx(std::pow(2.0f / 256.0f, 0.25f)));
+    CHECK(glossy->metallic == 0.0f);
+
+    const auto rough = Spot::MaterialSource::LoadFromString(R"({"specular": 0.15, "shininess": 16.0})");
+    REQUIRE(rough.has_value());
+    CHECK(rough->roughness > glossy->roughness);
+
+    // Without highlights, they were matte.
+    const auto matte = Spot::MaterialSource::LoadFromString(R"({"specular": 0.0, "shininess": 32.0})");
+    REQUIRE(matte.has_value());
+    CHECK(matte->roughness == 1.0f);
+
+    // A roughness, once saved, is kept.
+    const auto saved = Spot::MaterialSource::LoadFromString(R"({"roughness": 0.3, "specular": 0.0})");
+    REQUIRE(saved.has_value());
+    CHECK(saved->roughness == Catch::Approx(0.3f));
 }

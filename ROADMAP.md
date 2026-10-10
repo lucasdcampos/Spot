@@ -661,7 +661,7 @@ depth writes). Vertices gain tangents.
 
 - [x] **M6.1 Tangents.** `MeshVertex` gets tangents, which glTF provides or are generated (MikkTSpace). `MeshData`
   builders generate them. Bump the mesh and model formats and importers. Tests.
-- [ ] **M6.2 PBR materials.** Metallic, roughness, normal map with scale, metallic-roughness map, occlusion map, and
+- [x] **M6.2 PBR materials.** Metallic, roughness, normal map with scale, metallic-roughness map, occlusion map, and
   emissive color and map. Bump the `.material` format and its importer, which reads the old fields. The glTF importer
   reads every PBR input, and the material inspector and thumbnails follow. Remove specular and shininess, and
   migrate the sandbox's materials.
@@ -687,6 +687,14 @@ viewers, and the golden-image tests cover them.
   glTF tangents are only used along the file's own normals; they turn with their node, and their sign flips under a
   mirroring node. The mesh format is the raw vertex array, so the model importer went to version 6 and models
   reimport.
+- M6.2: Generated tangents feed MikkTSpace -v, so the bitangent points toward the texture's top, as glTF's normal maps
+  (+Y up) need. Materials default to metallic 0 and roughness 1, matte as in glTF, so plain materials still show their
+  color. Roughness only means something with a microfacet lobe, so the GGX specular term (height-correlated Smith,
+  Schlick) came here, scaled by pi to match lights whose colors are what a white surface facing them scatters; M6.3
+  adds the falloff and light units. Even matte dielectrics reflect about 1% of a light facing them, so the GPU tests'
+  color tolerance went from 2 to 3. Old `.material` files get a roughness of (2 / (shininess + 2))^1/4, the width of
+  their highlights, or 1 without them, and the sandbox's were migrated. Model images are sRGB unless only used as
+  data. The `.material` importer is at version 5 and the model importer at 7.
 
 ---
 
