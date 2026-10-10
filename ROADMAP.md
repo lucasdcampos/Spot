@@ -577,7 +577,7 @@ built on the public graphics API. The look comes from a `PostProcessing` compone
 - [x] **M5.3 Bloom.** A downsample and upsample chain, with intensity and scatter.
 - [x] **M5.4 FXAA.** Optional FXAA next to MSAA, chosen in the settings.
 - [x] **M5.5 Grading.** A LUT (strip format), contrast, saturation, white balance and vignette.
-- [ ] **M5.6 Fog.** Distance and height fog in the mesh shader through a `Fog` component (color, start, density,
+- [x] **M5.6 Fog.** Distance and height fog in the mesh shader through a `Fog` component (color, start, density,
   height falloff), applied before tonemapping and matched to the sky at the horizon.
 - [ ] **M5.7 Settings and component.** The rendering settings section (defaults, MSAA samples, shadow sizes and
   distance, which feed `Renderer3DConfig`), the `PostProcessing` component, and their inspectors.
@@ -619,6 +619,11 @@ built on the public graphics API. The look comes from a `PostProcessing` compone
   strip LUT sampled in sRGB with blue interpolated between slices, blended by `lutContribution`. `GradingSettings`
   takes the LUT as a `const Texture*` until the `PostProcessing` component (M5.7) holds it as an asset.
   `MakeNeutralLut()` makes the identity strip.
+- M5.6: the fog's optical depth is integrated in closed form along the ray from where it starts:
+  `density * fogged * exp(-falloff * startHeight) * (1 - exp(-rise)) / rise`, with `rise = falloff * dir.y *
+  fogged`. The mesh shader blends the lit color toward the fog color before tonemapping (uniforms at b3), and the
+  sky shader applies the same to a ray 100 km long, which meets the fogged ground at the horizon. The base height is
+  the `Fog` entity's world Y. Fog in an LDR target blends after the sky's own curve.
 
 ---
 

@@ -6,6 +6,7 @@
 #include "physics/joint.h"
 #include "physics/rigidbody.h"
 #include "scene/camera.h"
+#include "scene/fog.h"
 #include "scene/light.h"
 #include "scene/mesh_renderer.h"
 #include "scene/missing_component.h"
@@ -58,6 +59,7 @@ Registry& GetRegistry() {
         RegisterBuiltIn<PointLight>(registry, "PointLight");
         RegisterBuiltIn<SpotLight>(registry, "SpotLight");
         RegisterBuiltIn<Sky>(registry, "Sky");
+        RegisterBuiltIn<Fog>(registry, "Fog");
         RegisterBuiltIn<SpriteRenderer>(registry, "SpriteRenderer");
         RegisterBuiltIn<Camera>(registry, "Camera");
         RegisterBuiltIn<AudioSource>(registry, "AudioSource");

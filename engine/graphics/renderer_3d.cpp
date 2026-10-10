@@ -10,6 +10,7 @@
 #include "graphics/model.h"
 #include "graphics/render_context.h"
 #include "graphics/shadow_views.h"
+#include "scene/fog.h"
 #include "scene/light.h"
 #include "scene/mesh_renderer.h"
 #include "scene/scene.h"
@@ -116,6 +117,22 @@ SkyLighting GetSkyLighting(const SkyData& sky) {
     const Color groundBounce = sky.groundColor * direct * (0.5f * std::max(toSun.y, 0.0f));
     lighting.ambient = lighting.ambient + (skylight + groundBounce) * sky.ambientIntensity;
     return lighting;
+}
+
+struct FogUniforms {
+    Color color;
+    Vector4 params;
+    Vector4 camera;
+};
+
+FogUniforms GetFogUniforms(const std::optional<FogData>& fog, Vector3 cameraPosition) {
+    if (!fog) {
+        return {.color = {0.0f, 0.0f, 0.0f, 0.0f}, .params = {}, .camera = {}};
+    }
+    return {.color = {fog->color.r, fog->color.g, fog->color.b, 1.0f},
+            .params = {std::max(fog->density, 0.0f), std::max(fog->start, 0.0f), std::max(fog->heightFalloff, 0.0f),
+                       fog->baseHeight},
+            .camera = {cameraPosition.x, cameraPosition.y, cameraPosition.z, 1.0f}};
 }
 
 struct MaterialUniforms {
@@ -310,6 +327,7 @@ void Renderer3D::Begin(RenderContext& context, const RenderPassDesc& target, con
     m_commands.clear();
     m_lights.clear();
     m_sky.reset();
+    m_fog.reset();
 }
 
 void Renderer3D::End() {
@@ -361,6 +379,11 @@ void Renderer3D::DrawSky(const SkyData& sky) {
     m_sky = sky;
 }
 
+void Renderer3D::DrawFog(const FogData& fog) {
+    SPOT_ASSERT(m_context, "Draw calls must come between Begin() and End()");
+    m_fog = fog;
+}
+
 void Renderer3D::DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform, bool castsShadows) {
     SPOT_ASSERT(m_context, "Draw calls must come between Begin() and End()");
     const BoundingSphere bounds = mesh.GetBounds();
@@ -407,6 +430,11 @@ void Renderer3D::DrawScene(Scene& scene) {
     if (sky) {
         DrawSky(sky->GetSkyData());
     }
+    const Fog* fog = nullptr;
+    scene.ForEachComponent<Fog>([&fog](const Fog& found) { fog = fog ? fog : &found; });
+    if (fog) {
+        DrawFog(fog->GetFogData());
+    }
     scene.ForEachComponent<MeshRenderer>([this](const MeshRenderer& renderer) {
         if (renderer.GetMesh()) {
             DrawMesh(*renderer.GetMesh(), renderer.GetMaterial() ? *renderer.GetMaterial() : DefaultMaterial,
@@ -439,6 +467,7 @@ void Renderer3D::FlushSky(RenderPass& pass, const SkyData& sky, const SkyLightin
                .settings = {std::max(sky.sunSize, 0.0f), std::max(sky.atmosphereThickness, 0.0f),
                             std::max(sky.exposure, 0.0f), m_config.hdr ? 1.0f : 0.0f},
            });
+    pass.PushFragmentUniforms(1, GetFogUniforms(m_fog, m_camera.position));
     pass.Draw(3);
     ++m_stats.drawCalls;
     ++m_stats.triangleCount;
@@ -605,6 +634,7 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
     pass.PushVertexUniforms(0, m_viewProjection);
     pass.PushFragmentUniforms(0, GetLightingUniforms(lights, m_camera.position));
     pass.PushFragmentUniforms(2, shadows);
+    pass.PushFragmentUniforms(3, GetFogUniforms(m_fog, m_camera.position));
     pass.BindFragmentTexture(1, m_cascadeShadows ? *m_cascadeShadows : *m_noShadows, *m_shadowSampler);
     pass.BindFragmentTexture(2, m_localShadows ? *m_localShadows : *m_noShadows, *m_shadowSampler);
 

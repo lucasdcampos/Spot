@@ -56,6 +56,38 @@ cbuffer Material : register(b1, space3) {
     float shininess;
 };
 
+// The fog's color, with 1 in w when there is fog; its density, start, height falloff and base height; and the camera's
+// position.
+cbuffer Fog : register(b3, space3) {
+    float4 fogColor;
+    float4 fogParams;
+    float4 fogCamera;
+};
+
+// How much of the light from a point the fog takes on its way to the viewer: exponential height fog, integrated in
+// closed form along the ray from where the fog starts.
+float GetFogAmount(float3 toPoint) {
+    if (fogColor.w < 0.5) {
+        return 0.0;
+    }
+    const float distance = length(toPoint);
+    const float fogged = max(distance - fogParams.y, 0.0);
+    if (fogged <= 0.0) {
+        return 0.0;
+    }
+    const float3 direction = toPoint / max(distance, 1e-5);
+    const float startHeight = fogCamera.y + direction.y * (distance - fogged) - fogParams.w;
+    const float falloff = fogParams.z;
+    float depth = fogParams.x * fogged;
+    if (falloff > 1e-5) {
+        const float rise = falloff * direction.y * fogged;
+        // The fog thins along the ray as it climbs; flat rays see it as it is.
+        const float thinning = abs(rise) > 1e-4 ? (1.0 - exp(-rise)) / rise : 1.0;
+        depth *= exp(-falloff * startHeight) * thinning;
+    }
+    return 1.0 - exp(-depth);
+}
+
 struct Input {
     float4 position : SV_Position;
     float3 normal : TEXCOORD0;
@@ -208,5 +240,6 @@ float4 main(Input input) : SV_Target0 {
         highlights += lit.specular;
     }
     // Highlights take the light's color rather than the surface's, as on plastic or varnish.
-    return float4(albedo.rgb * diffuse + highlights, albedo.a);
+    const float3 color = albedo.rgb * diffuse + highlights;
+    return float4(lerp(color, fogColor.rgb, GetFogAmount(input.worldPosition - fogCamera.xyz)), albedo.a);
 }

@@ -81,6 +81,7 @@ add_library(spot_objects OBJECT
     graphics/debug_draw.h
     graphics/debug_draw.cpp
     graphics/font.h
+    graphics/fog_data.h
     graphics/font.cpp
     graphics/font_atlas.h
     graphics/fullscreen_pass.cpp
@@ -174,6 +175,8 @@ add_library(spot_objects OBJECT
     scene/entity.h
     scene/entity.cpp
     scene/light.h
+    scene/fog.cpp
+    scene/fog.h
     scene/light.cpp
     scene/mesh_renderer.h
     scene/missing_component.h

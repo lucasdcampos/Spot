@@ -2,6 +2,7 @@
 
 #include "graphics/camera_3d.h"
 #include "graphics/color.h"
+#include "graphics/fog_data.h"
 #include "graphics/light_data.h"
 #include "graphics/mesh_data.h"
 #include "graphics/render_context.h"
@@ -108,11 +109,13 @@ public:
     // of the sky adds ambient light. So the sun is drawn with the sky, not with DrawLight(). A later call replaces it.
     // Without one, the pass's clear color shows.
     void DrawSky(const SkyData& sky);
+    // Fogs everything drawn in the frame, the sky included; a later call replaces it.
+    void DrawFog(const FogData& fog);
     // Meshes that do not cast shadows are still shadowed by the others.
     void DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform = {}, bool castsShadows = true);
     void DrawModel(const Model& model, const Matrix4& transform = {});
     // Draws every MeshRenderer and Light of the scene that is enabled on an active entity, at its entity's world
-    // transform, and the first such Sky.
+    // transform, and the first such Sky and Fog.
     // The scene must not change until End(), since its components keep the meshes alive.
     void DrawScene(Scene& scene);
 
@@ -163,6 +166,7 @@ private:
     RenderPassDesc m_target;
     std::vector<LightData> m_lights;
     std::optional<SkyData> m_sky;
+    std::optional<FogData> m_fog;
     Matrix4 m_viewProjection;
     // Of the camera's rotation and projection only, which turns clip-space positions into directions.
     Matrix4 m_inverseSkyViewProjection;

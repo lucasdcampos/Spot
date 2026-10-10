@@ -116,6 +116,10 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
   tiles of a shared shadow atlas.
 - `Sky`: an atmosphere lit by the scene's brightest directional light, which turns from day to sunset to night as
   that light turns, and lights the scene with the sun through the air and ambient light of its own.
+- `Fog`: exponential height fog from its entity's height, thick below it and thinning above it as `heightFalloff`
+  says, clear up to `start`; `density` is how much light it takes per unit of distance. Surfaces fade into its color
+  (which may be above 1, as lit fog is) before tonemapping, and so does the sky toward the horizon, so the two meet
+  there in the same color. `Renderer3D::DrawFog()` takes a `FogData` directly.
 
 ## Not there yet
 

@@ -15,6 +15,38 @@ cbuffer Sky : register(b0, space3) {
     float4 settings;
 };
 
+// The fog's color, with 1 in w when there is fog; its density, start, height falloff and base height; and the camera's
+// position.
+cbuffer Fog : register(b1, space3) {
+    float4 fogColor;
+    float4 fogParams;
+    float4 fogCamera;
+};
+
+// How much of the light from a point the fog takes on its way to the viewer: exponential height fog, integrated in
+// closed form along the ray from where the fog starts.
+float GetFogAmount(float3 toPoint) {
+    if (fogColor.w < 0.5) {
+        return 0.0;
+    }
+    const float distance = length(toPoint);
+    const float fogged = max(distance - fogParams.y, 0.0);
+    if (fogged <= 0.0) {
+        return 0.0;
+    }
+    const float3 direction = toPoint / max(distance, 1e-5);
+    const float startHeight = fogCamera.y + direction.y * (distance - fogged) - fogParams.w;
+    const float falloff = fogParams.z;
+    float depth = fogParams.x * fogged;
+    if (falloff > 1e-5) {
+        const float rise = falloff * direction.y * fogged;
+        // The fog thins along the ray as it climbs; flat rays see it as it is.
+        const float thinning = abs(rise) > 1e-4 ? (1.0 - exp(-rise)) / rise : 1.0;
+        depth *= exp(-falloff * startHeight) * thinning;
+    }
+    return 1.0 - exp(-depth);
+}
+
 struct Input {
     float4 position : SV_Position;
     float4 direction : TEXCOORD0;
@@ -197,6 +229,9 @@ float4 main(Input input) : SV_Target0 {
         const float3 coreLight = sunLight.rgb / brightest * SunCoreBrightness;
         color = lerp(color, settings.w > 0.5 ? coreLight * settings.z : 1.0 - exp(-coreLight), opacity);
     }
+    // Fog toward the horizon, as for a surface infinitely far away.
+    color = lerp(color, fogColor.rgb, GetFogAmount(direction * 1e5));
+
     // The tonemapper dithers HDR targets.
     if (settings.w > 0.5) {
         return float4(color, 1.0);

@@ -2395,3 +2395,75 @@ TEST_CASE("Grading darkens the corners with a vignette and maps colors through a
     CHECK(Channel(halfway, 4, 4, 0) > 100);
     CHECK(Channel(halfway, 4, 4, 0) < 150);
 }
+
+TEST_CASE("Renderer3D fogs what is far away in the fog's color, and the sky toward the horizon", "[gpu]") {
+    RequireGpu();
+    // A green cube in front of the camera, three units away, in magenta fog.
+    const auto renderCube = [](const std::optional<Spot::FogData>& fog) {
+        const TargetRender render(
+            8, 8, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+                Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+                const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+                REQUIRE((renderer.IsValid() && cube));
+                renderer.Begin(context, target, MakeFrontCamera());
+                renderer.DrawLight(FrontLight);
+                renderer.DrawMesh(*cube, {.baseColor = Spot::Color::Green});
+                if (fog) {
+                    renderer.DrawFog(*fog);
+                }
+                renderer.End();
+            });
+        return render.At(4, 4);
+    };
+    constexpr Spot::Color Magenta{1.0f, 0.0f, 1.0f, 1.0f};
+    const Pixel clear = renderCube(std::nullopt);
+    const Pixel fogged = renderCube(Spot::FogData{.color = Magenta, .density = 1.0f, .heightFalloff = 0.0f});
+    const Pixel beyond = renderCube(Spot::FogData{.color = Magenta, .density = 1.0f, .start = 10.0f});
+    CHECK(clear[0] < 10);
+    CHECK(fogged[0] > 200);
+    CHECK(fogged[1] < 40);
+    CHECK(IsNear(beyond, clear));
+
+    // Fog that thins with height hides the horizon, not the sky high above it.
+    const TargetRender sky(
+        32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            REQUIRE(renderer.IsValid());
+            Spot::Camera3D camera = MakeFrontCamera();
+            camera.LookAt({0.0f, 1.0f, 0.0f});
+            renderer.Begin(context, target, camera);
+            renderer.DrawSky({});
+            renderer.DrawFog({.color = Magenta, .density = 0.05f, .heightFalloff = 0.2f});
+            renderer.End();
+        });
+    const Pixel horizon = sky.At(16, 31);
+    const Pixel high = sky.At(16, 0);
+    INFO("Horizon " << int{horizon[0]} << ", " << int{horizon[1]} << ", " << int{horizon[2]} << "; high "
+                    << int{high[0]} << ", " << int{high[1]} << ", " << int{high[2]});
+    CHECK(horizon[0] > 200);
+    CHECK(horizon[1] < 60);
+    CHECK(high[1] > horizon[1] + 40);
+}
+
+TEST_CASE("Renderer3D fogs scenes with their first active Fog, from its entity's height", "[gpu]") {
+    RequireGpu();
+    Spot::Scene scene;
+    auto& fog = scene.CreateEntity("Fog").AddComponent<Spot::Fog>();
+    fog.color = Spot::Color{1.0f, 0.0f, 1.0f, 1.0f};
+    fog.density = 1.0f;
+    fog.heightFalloff = 0.0f;
+    fog.GetEntity().GetTransform().SetPosition({0.0f, 7.0f, 0.0f});
+    CHECK(fog.GetFogData().baseHeight == 7.0f);
+    const TargetRender render(
+        8, 8, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            REQUIRE((renderer.IsValid() && cube));
+            renderer.Begin(context, target, MakeFrontCamera());
+            renderer.DrawLight(FrontLight);
+            renderer.DrawMesh(*cube, {.baseColor = Spot::Color::Green});
+            renderer.DrawScene(scene);
+            renderer.End();
+        });
+    CHECK(render.At(4, 4)[0] > 200);
+}
