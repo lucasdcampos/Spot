@@ -828,7 +828,7 @@ prefab's current content, so prefab changes reach every instance. Prefabs nest.
   format. Tests.
 - [x] **M8.2 Model instances.** `Scene::Instantiate()` of a model creates an entity per node, and `MeshRenderer` can
   draw one submesh. Models dropped in the editor create that hierarchy.
-- [ ] **M8.3 Prefab assets.** A `.prefab` source in the scene format, its importer, `AssetType::Prefab`, and
+- [x] **M8.3 Prefab assets.** A `.prefab` source in the scene format, its importer, `AssetType::Prefab`, and
   `Scene::Instantiate(AssetRef<Prefab>)` at runtime. Tests.
 - [ ] **M8.4 Instances and overrides.** Prefab-local entity ids, instances saved as a prefab id plus overrides in
   scene files, and overrides applied on load. Tests: propagation, overrides kept across prefab edits, removed targets.
@@ -869,6 +869,17 @@ own overrides.
   warmup frames, ran at a mean of 11.58 ms (86 FPS), median 11.20 ms, 95th percentile 14.22 ms and worst 18.80 ms.
   It keeps 10 draw calls and 51 shadow draw calls, and remains within the 60 FPS budget on average and at the 95th
   percentile. M7's recorded mean was 10.17 ms; this run is about 14% slower.
+- M8.3: `Prefab` stores validated scene-format text for exactly one entity tree, without constructing components
+  during import or asset loading. Prefab importer version 1 normalizes an external root parent away and rejects
+  empty trees, duplicate or invalid ids, multiple roots and cycles. `AssetType::Prefab` is appended to preserve
+  existing binary type values. Runtime instantiation always creates new ids, remaps internal entity references,
+  clears external ones and accepts parent, sibling index and asset manager options. Assets load and instantiate
+  from imported files alone, without a GPU. The editor recognizes prefab sources and drops their trees as one
+  undoable addition; authoring and prefab mode remain M8.5. Instances still serialize as ordinary trees until M8.4
+  adds identity and overrides. Tests cover independent instances, reference mapping, lifecycle, asset sharing and
+  reload, corrupt payloads, unavailable components and editor undo/redo.
+  Validation: MSVC and GCC Debug build without warnings and pass all 586 tests, including GPU, golden images,
+  editor, module and sandbox tests.
 
 ---
 

@@ -31,6 +31,9 @@ when the game's code is reloaded and every component is recreated. Unsaved scene
 
 ## Panels
 
+Dropping a prefab into a scene or the hierarchy adds its saved tree as one undoable action, preserving the root's
+rotation and scale and placing it at the drop position. See [Prefabs](prefabs.md) for the source format and runtime API.
+
 Dropping a model into a scene uses `Scene::Instantiate()` to create its node hierarchy below a named root. The
 drop position places that root, and a hierarchy drop can parent it to another entity. Empty nodes remain editable,
 and each mesh node holds a renderer per submesh. The complete tree is one undoable addition; undo and redo preserve

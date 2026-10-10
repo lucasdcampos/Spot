@@ -9,7 +9,7 @@ namespace Spot {
 
 namespace {
 
-constexpr std::array<std::pair<AssetType, std::string_view>, 7> TypeNames{{
+constexpr std::array<std::pair<AssetType, std::string_view>, 8> TypeNames{{
     {AssetType::Texture, "Texture"},
     {AssetType::Mesh, "Mesh"},
     {AssetType::Material, "Material"},
@@ -17,9 +17,10 @@ constexpr std::array<std::pair<AssetType, std::string_view>, 7> TypeNames{{
     {AssetType::Sound, "Sound"},
     {AssetType::Font, "Font"},
     {AssetType::Scene, "Scene"},
+    {AssetType::Prefab, "Prefab"},
 }};
 
-constexpr std::array<std::pair<std::string_view, AssetType>, 13> Extensions{{
+constexpr std::array<std::pair<std::string_view, AssetType>, 14> Extensions{{
     {".png", AssetType::Texture},
     {".jpg", AssetType::Texture},
     {".jpeg", AssetType::Texture},
@@ -33,6 +34,7 @@ constexpr std::array<std::pair<std::string_view, AssetType>, 13> Extensions{{
     {".ttf", AssetType::Font},
     {".otf", AssetType::Font},
     {".scene", AssetType::Scene},
+    {".prefab", AssetType::Prefab},
 }};
 
 } // namespace

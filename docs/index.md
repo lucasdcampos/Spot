@@ -12,6 +12,7 @@ that does the same with a window around it.
 | [Application and scenes](application_and_scenes.md) | The application loop, scenes, the update order, scene systems, settings sections, game modules |
 | [Entities and components](entities_and_components.md) | Entities, the hierarchy, components and their hooks, failures, saving and registering components |
 | [Assets and importing](assets_and_importing.md) | Source assets and `.meta` files, the asset database and importers, loading imported assets |
+| [Prefabs](prefabs.md) | Reusable entity tree assets, import validation and runtime instantiation |
 | [Rendering](rendering.md) | The graphics device, shaders, Renderer2D, Renderer3D, SceneRenderer, lights, skies, shadows |
 | [Physics](physics.md) | Colliders, rigidbodies, the physics world and its backend |
 | [Audio](audio.md) | Sounds, the audio device and the mixer |

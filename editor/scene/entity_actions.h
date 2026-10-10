@@ -48,7 +48,7 @@ bool CreateEntity(SceneDocument& document, EntityTemplate kind, EntityId parent 
                   Vector3 position = {});
 
 // Creates what an asset dropped into the scene makes, under the parent, or at the root when it is invalid, at the
-// local position: an entity that draws a mesh, one with a child for each part of a model, or a sprite that shows a
+// local position: a mesh entity, a model's node hierarchy, a prefab's entity tree, or a sprite that shows a
 // texture at a hundred pixels to a unit. Selects it. Returns whether the asset makes entities and they were made; a
 // model's parts and a texture's size are read from the loaded assets.
 bool CreateEntityFromAsset(SceneDocument& document, EditorProject& project, AssetId asset,

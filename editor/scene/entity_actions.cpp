@@ -172,8 +172,8 @@ const char* GetComponentIcon(std::string_view typeName) {
 bool CreateEntityFromAsset(SceneDocument& document, EditorProject& project, AssetId asset, EntityId parent,
                            Vector3 position) {
     const AssetInfo* info = project.GetAssetDatabase().Find(asset);
-    if (!info ||
-        (info->type != AssetType::Mesh && info->type != AssetType::Model && info->type != AssetType::Texture)) {
+    if (!info || (info->type != AssetType::Mesh && info->type != AssetType::Model && info->type != AssetType::Texture &&
+                  info->type != AssetType::Prefab)) {
         return false;
     }
     std::string name = info->parent.IsValid() ? info->name : PathToUtf8(Utf8ToPath(info->path).stem());
@@ -183,6 +183,15 @@ bool CreateEntityFromAsset(SceneDocument& document, EditorProject& project, Asse
         return false;
     }
     Scene scratch;
+    if (info->type == AssetType::Prefab) {
+        Entity* root = scratch.Instantiate(project.GetAssets().Load<Prefab>(asset), {.assets = &project.GetAssets()});
+        if (!root) {
+            return false;
+        }
+        root->GetTransform().SetPosition(position);
+        return document.Execute(
+            std::make_unique<CreateEntitiesCommand>(document, "Add " + name, root->SaveToString(), parent));
+    }
     Entity& root = model ? scratch.Instantiate(*model, name) : scratch.CreateEntity(name);
     root.GetTransform().SetPosition(position);
     if (info->type == AssetType::Mesh) {

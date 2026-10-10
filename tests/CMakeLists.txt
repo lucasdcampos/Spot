@@ -37,6 +37,7 @@ add_executable(spot_tests
     model_instance_tests.cpp
     platform_tests.cpp
     profiler_tests.cpp
+    prefab_tests.cpp
     project_tests.cpp
     renderer_2d_tests.cpp
     renderer_3d_tests.cpp

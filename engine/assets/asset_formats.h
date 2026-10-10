@@ -59,7 +59,7 @@ void Encode(BinaryWriter& writer, const MaterialSource& material);
 void Encode(BinaryWriter& writer, const std::vector<ModelFileNode>& nodes);
 void Encode(BinaryWriter& writer, const SoundFile& sound);
 void Encode(BinaryWriter& writer, const FontFile& font);
-// Scenes are stored as the text Scene::SaveToString() makes.
+// Scenes and prefabs are stored as the text Scene::SaveToString() makes.
 void EncodeScene(BinaryWriter& writer, std::string_view text);
 
 // Each returns nothing when the data is truncated, has extra bytes or is inconsistent.

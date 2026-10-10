@@ -1,5 +1,6 @@
 #pragma once
 
+#include "assets/asset_ref.h"
 #include "graphics/camera_2d.h"
 #include "graphics/render_stage.h"
 #include "scene/entity.h"
@@ -24,6 +25,7 @@ class Event;
 class AudioSystem;
 class Model;
 class PhysicsWorld;
+class Prefab;
 class RenderContext;
 
 // How Scene::Instantiate() adds saved entities.
@@ -155,6 +157,9 @@ public:
     // Creates a root with the given name and an entity per model node below it, keeping local transforms and the
     // hierarchy. Each drawable submesh gets a MeshRenderer on its node; meshes and materials remain shared.
     Entity& Instantiate(const Model& model, std::string name = {});
+    // Creates the prefab's tree with new ids and remaps internal references; external entity references are cleared.
+    // Uses the options' parent, sibling index and asset manager. Null, having added nothing, for an unloaded asset.
+    Entity* Instantiate(const AssetRef<Prefab>& prefab, const InstantiateOptions& options = {});
     // Saves the entities, which must belong to this scene, with their descendants, in the format of SaveToString().
     // An entity below another of the list is saved once, with that one.
     std::string SaveEntitiesToString(std::span<Entity* const> entities) const;

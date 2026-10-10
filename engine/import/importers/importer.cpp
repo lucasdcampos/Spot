@@ -35,6 +35,8 @@ ImporterInfo FindImporter(AssetType type) {
         return {&ImportMaterial, 6};
     case AssetType::Scene:
         return {&ImportScene, 1};
+    case AssetType::Prefab:
+        return {&ImportPrefab, 1};
     case AssetType::Sound:
         return {&ImportSound, 2};
     case AssetType::Font:

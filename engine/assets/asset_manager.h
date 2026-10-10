@@ -21,6 +21,7 @@ class GraphicsDevice;
 class Mesh;
 struct MeshData;
 class Model;
+class Prefab;
 class Scene;
 class Sound;
 class Texture;
@@ -63,6 +64,11 @@ struct AssetTypeOf<Sound> {
 template <>
 struct AssetTypeOf<Font> {
     static constexpr AssetType Value = AssetType::Font;
+};
+
+template <>
+struct AssetTypeOf<Prefab> {
+    static constexpr AssetType Value = AssetType::Prefab;
 };
 
 // The types Load() can load.

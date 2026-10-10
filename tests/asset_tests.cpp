@@ -64,10 +64,12 @@ TEST_CASE("Asset types come from file extensions", "[assets]") {
     CHECK(Spot::GetSourceAssetType("font.ttf") == AssetType::Font);
     CHECK(Spot::GetSourceAssetType("red.material") == AssetType::Material);
     CHECK(Spot::GetSourceAssetType("level.scene") == AssetType::Scene);
+    CHECK(Spot::GetSourceAssetType("props/Crate.PREFAB") == AssetType::Prefab);
     CHECK_FALSE(Spot::GetSourceAssetType("house.glb.meta").has_value());
     CHECK_FALSE(Spot::GetSourceAssetType("buffer.bin").has_value());
 
     CHECK(Spot::ParseAssetType(Spot::GetAssetTypeName(AssetType::Mesh)) == AssetType::Mesh);
+    CHECK(Spot::ParseAssetType(Spot::GetAssetTypeName(AssetType::Prefab)) == AssetType::Prefab);
     CHECK_FALSE(Spot::ParseAssetType("Banana").has_value());
 }
 

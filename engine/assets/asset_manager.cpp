@@ -13,6 +13,7 @@
 #include "graphics/material.h"
 #include "graphics/mesh.h"
 #include "graphics/model.h"
+#include "scene/prefab.h"
 #include "scene/scene.h"
 
 #include <algorithm>
@@ -333,6 +334,11 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
         }
         std::shared_ptr<const Font> result = Font::LoadFromMemory(*m_device, font->fontData, font->pixelSize);
         return result;
+    }
+    case AssetType::Prefab: {
+        const auto text = Detail::DecodeScene(*data);
+        auto prefab = text ? Prefab::FromString(*text) : std::nullopt;
+        return prefab ? std::make_shared<const Prefab>(std::move(*prefab)) : nullptr;
     }
     case AssetType::Scene:
         Log::GetEngineLogger().Error("Scenes are not loaded as shared assets");

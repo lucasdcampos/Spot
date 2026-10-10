@@ -85,6 +85,9 @@ Instances are ordinary entity trees: saving retains their hierarchy, transforms,
 submesh indices. `MeshRenderer::SetSubmesh()` selects one range; `Mesh::AllSubmeshes` (saved as `-1`) draws the whole
 mesh and remains the default for older scene files. `InstantiateModel()` delegates to the same scene API.
 
+`Scene::Instantiate(AssetRef<Prefab>)` creates a saved entity tree with independent ids and remapped internal
+references. Prefabs use the same serialization described below; see [Prefabs](prefabs.md) for importing and placement.
+
 Scenes save as JSON (`Scene::SaveToString()`, `SaveToFile()`, `Entity::SaveToString()` for a subtree) and load
 with `LoadFromString()`, `LoadFromFile()` or `Instantiate()`. A component is saved when its type is registered and
 it describes its fields:

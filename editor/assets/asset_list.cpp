@@ -78,6 +78,8 @@ const char* GetAssetTypeIcon(AssetType type) {
         return ICON_FA_FONT;
     case AssetType::Scene:
         return ICON_FA_MOUNTAIN_SUN;
+    case AssetType::Prefab:
+        return ICON_FA_CUBE;
     }
     return ICON_FA_FILE;
 }

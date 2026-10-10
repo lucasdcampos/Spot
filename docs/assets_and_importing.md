@@ -21,6 +21,7 @@ Files are recognized by extension (`GetSourceAssetType()` in `engine/assets/asse
 | Sound | `.wav` `.ogg` |
 | Font | `.ttf` `.otf` |
 | Scene | `.scene` (JSON) |
+| Prefab | `.prefab` (one entity tree in scene JSON) |
 
 Folders whose name starts with `.` are skipped. A source can make sub-assets, such as a model's meshes and materials,
 which get ids of their own under a key that names the part (`models/house.glb#Roof`).
@@ -72,6 +73,10 @@ meshes and the grid and checker textures.
 
 Raw files can also be loaded directly, without importing, through `Model::Load()`, `Image::Load()` and the like, for
 code that does not use the asset pipeline.
+
+`Prefab` assets share serialized entity trees and load without a graphics device. `Scene::Instantiate(prefab)`
+creates independent entities and remaps internal entity references. See [Prefabs](prefabs.md) for the source
+format, validation, placement options and asset resolution outside an application.
 
 Models preserve their glTF node hierarchy, including empty nodes and local transforms. Each unique mesh becomes
 one mesh subasset, whose primitives are submeshes with separate material references. A model's hierarchy and

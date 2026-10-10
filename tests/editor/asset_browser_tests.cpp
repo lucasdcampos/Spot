@@ -356,7 +356,7 @@ TEST_CASE("Meshes dropped into scenes become entities, and materials go to meshe
     CHECK(entity->GetTransform().GetPosition() == Spot::Vector3{1.0f, 0.0f, 2.0f});
     REQUIRE(entity->GetComponent<Spot::MeshRenderer>());
     CHECK(entity->GetComponent<Spot::MeshRenderer>()->GetMesh().GetId() == mesh->id);
-    // Only meshes, models and textures make entities; textures make sprites.
+    // Materials apply to existing entities; textures make sprites.
     CHECK_FALSE(Spot::Editor::CreateEntityFromAsset(document, fixture.Project(), *material));
     const auto texture = database.FindByPath("pixels.png");
     REQUIRE(Spot::Editor::CreateEntityFromAsset(document, fixture.Project(), *texture));
@@ -416,6 +416,46 @@ TEST_CASE("Model drops preserve hierarchy through undo and redo without a GPU", 
         CHECK_FALSE(cube->HasComponent<Spot::MeshRenderer>());
     }
     const std::string after = document.GetScene().SaveToString();
+    document.Undo();
+    CHECK(document.GetScene().SaveToString() == before);
+    CHECK_FALSE(document.GetScene().GetEntity(rootId));
+    document.Redo();
+    CHECK(document.GetScene().SaveToString() == after);
+    CHECK(document.GetSelection().GetPrimary() == rootId);
+}
+
+TEST_CASE("Prefab drops preserve the tree through undo and redo without a GPU", "[editor][assets][prefab]") {
+    const TempDirectory temp;
+    const auto file = Spot::CreateProject(temp.GetPath(), "Game", Spot::ProjectTemplate::Empty);
+    REQUIRE(file);
+    const auto sources = file->parent_path() / "assets";
+    Spot::Scene source;
+    Spot::Entity& root = source.CreateEntity("Lamp");
+    root.GetTransform().SetScale({2.0f, 2.0f, 2.0f});
+    root.CreateChild("Bulb").AddComponent<Spot::PointLight>();
+    std::ofstream(sources / "Lamp.prefab") << root.SaveToString();
+    const auto project = Spot::Editor::EditorProject::Open(*file, nullptr);
+    REQUIRE(project);
+    const auto asset = project->GetAssetDatabase().FindByPath("Lamp.prefab");
+    REQUIRE(asset);
+    const auto items = Spot::Editor::ListFolder(project->GetAssetDatabase(), {}, "");
+    CHECK(std::ranges::any_of(
+        items, [&](const BrowserItem& item) { return item.id == *asset && item.type == Spot::AssetType::Prefab; }));
+    Spot::Editor::SceneDocument document;
+    const auto parentId = document.GetScene().CreateEntity("Parent").GetId();
+    const auto before = document.GetScene().SaveToString();
+    REQUIRE(Spot::Editor::CreateEntityFromAsset(document, *project, *asset, parentId, {1.0f, 0.0f, 2.0f}));
+    const auto rootId = document.GetSelection().GetPrimary();
+    const auto* instance = document.GetScene().GetEntity(rootId);
+    REQUIRE(instance);
+    CHECK(instance->GetName() == "Lamp");
+    REQUIRE(instance->GetParent());
+    CHECK(instance->GetParent()->GetId() == parentId);
+    CHECK(instance->GetTransform().GetPosition() == Spot::Vector3{1.0f, 0.0f, 2.0f});
+    CHECK(instance->GetTransform().GetScale() == Spot::Vector3{2.0f, 2.0f, 2.0f});
+    REQUIRE(instance->FindChild("Bulb"));
+    CHECK(instance->FindChild("Bulb")->HasComponent<Spot::PointLight>());
+    const auto after = document.GetScene().SaveToString();
     document.Undo();
     CHECK(document.GetScene().SaveToString() == before);
     CHECK_FALSE(document.GetScene().GetEntity(rootId));
