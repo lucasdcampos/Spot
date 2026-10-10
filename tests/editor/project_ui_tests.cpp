@@ -101,6 +101,55 @@ TEST_CASE("The project settings panel shows the open project", "[editor][project
     CHECK(panel.IsOpen());
 }
 
+TEST_CASE("The project settings panel binds the control pressed to an action, and saves it", "[editor][project][ui]") {
+    const TempDirectory temp;
+    const auto window = Spot::Window::Create();
+    REQUIRE(window != nullptr);
+    const auto file = Spot::CreateProject(temp.GetPath(), "Bound", Spot::ProjectTemplate::Empty);
+    REQUIRE(file.has_value());
+    Spot::Tests::HeadlessImGui imgui;
+    Spot::Editor::EditorSettings settings;
+    Spot::InputState input;
+
+    Spot::Editor::EditorContext context(*window, nullptr, settings);
+    context.SetInput(&input);
+    context.SetProject(Spot::Editor::EditorProject::Open(*file, nullptr));
+    Spot::Editor::ProjectSettingsPanel panel(context);
+    panel.SetOpen(true);
+    const auto frame = [&] {
+        imgui.BeginFrame();
+        panel.Draw();
+        imgui.EndFrame();
+        input.BeginFrame();
+    };
+    frame();
+
+    // Jump's first binding, then Move's composite's left part.
+    panel.CaptureBinding(2, 0);
+    frame();
+    CHECK(panel.IsCapturing());
+    input.OnEvent(Spot::KeyPressedEvent{Spot::Key::J, false});
+    frame();
+    CHECK_FALSE(panel.IsCapturing());
+    panel.CaptureBinding(0, 0, 2);
+    input.OnEvent(Spot::KeyPressedEvent{Spot::Key::Left, false});
+    frame();
+    // Escape cancels.
+    panel.CaptureBinding(3, 0);
+    input.OnEvent(Spot::KeyPressedEvent{Spot::Key::Escape, false});
+    frame();
+    CHECK_FALSE(panel.IsCapturing());
+    frame();
+
+    const auto saved = Spot::Project::Load(*file);
+    REQUIRE(saved.has_value());
+    const auto& actions = saved->GetSettings().sections.input.actions;
+    REQUIRE(actions.size() == 5);
+    CHECK(actions[2].bindings[0].control == Spot::InputControl::Of(Spot::Key::J));
+    CHECK(actions[0].bindings[0].parts[2] == Spot::InputControl::Of(Spot::Key::Left));
+    CHECK(actions[3].bindings[0].control == Spot::InputControl::Of(Spot::MouseButton::Left));
+}
+
 TEST_CASE("The shortcuts list names every shortcut once per place, and finds them by keys or action", "[editor][ui]") {
     Spot::Tests::HeadlessImGui imgui;
     imgui.BeginFrame();

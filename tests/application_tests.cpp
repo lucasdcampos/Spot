@@ -441,15 +441,18 @@ public:
     using Application::Application;
 
     std::vector<float> fixedTimeSteps;
+    std::vector<bool> hasJump;
 
 protected:
     void OnStart() override { LoadScene<Spot::Scene>(); }
 
     void OnUpdate(float /*deltaTime*/) override {
         fixedTimeSteps.push_back(GetScene()->GetFixedTimeStep());
+        hasJump.push_back(Spot::Input::GetActionMap() == &GetInputActions() && GetInputActions().Find("Jump"));
         if (fixedTimeSteps.size() == 1) {
             Spot::GameSettings other = *GetGameSettings();
             other.sections.physics.fixedTimeStep = 0.5f;
+            other.sections.input = {};
             SetGameSettings(other);
             LoadScene<Spot::Scene>();
         } else {
@@ -466,8 +469,11 @@ TEST_CASE("Applications apply their game's sections to the scenes they load", "[
     config.logFile = temp.GetPath() / "game.log";
     config.game = Spot::GameSettings{.name = "Settings"};
     config.game->sections.physics.fixedTimeStep = 0.125f;
+    config.game->sections.input = Spot::InputSettings::MakeDefault();
 
     SettingsApplication application(std::move(config));
     CHECK(application.Run() == EXIT_SUCCESS);
     CHECK(application.fixedTimeSteps == std::vector<float>{0.125f, 0.5f});
+    // The game's actions too, replaced by the other game's.
+    CHECK(application.hasJump == std::vector<bool>{true, false});
 }

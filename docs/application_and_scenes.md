@@ -102,13 +102,15 @@ A system whose hook throws is faulted and skipped from then on, as components ar
 ## Settings sections
 
 `GameSettings::sections` (a `SettingsSections`) holds the settings of the engine's features, one typed section each:
-for now `physics` (`PhysicsSettings`: gravity and the fixed time step). Each section has a `SectionName`, a
-`Serialize()` and an `Apply(Scene&)`, and is listed in `SettingsSections::ForEach()`.
+`physics` (`PhysicsSettings`: gravity, the fixed time step and the layers) and `input` (`InputSettings`: the game's
+actions; see [Input](input.md)). Each section has a `SectionName` and a `Serialize()`, is listed in
+`SettingsSections::ForEach()`, and is applied where it matters: physics to every scene, input to the application's
+action map.
 
 - Projects store them in their `.spot` file, under `"sections"`, and the editor's Project Settings panel edits them.
 - `spot cook` and `spot build` write them into `game.json`.
-- The application applies them to every scene it loads, and the editor plays scenes with the project's.
+- The application applies them, and the editor plays scenes with the project's.
 
 Sections a build does not know are kept as they are (`SettingsSections::unknown`), so an older build never loses a
-newer one's settings. A new section is a struct with those three members, a field in `SettingsSections` and a line
-in its `ForEach()`.
+newer one's settings. A new section is a struct with those members, a field in `SettingsSections` and a line in its
+`ForEach()`.

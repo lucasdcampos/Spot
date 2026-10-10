@@ -135,6 +135,7 @@ void EditorApplication::OnStart() {
     }
 
     m_context = std::make_unique<EditorContext>(GetWindow(), &GetGraphicsDevice(), m_settings);
+    m_context->SetInput(&GetInputState());
     m_thumbnails = std::make_unique<ThumbnailCache>(GetGraphicsDevice());
     m_game = std::make_unique<GameRunner>();
     m_context->SetThumbnails(m_thumbnails.get());

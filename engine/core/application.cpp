@@ -101,6 +101,7 @@ int Application::Run() {
     m_persistentScene->m_application = this;
     if (m_config.game) {
         m_config.game->sections.Apply(*m_persistentScene);
+        m_config.game->sections.input.Apply(m_actions);
     }
     m_running = true;
     m_failed = false;
@@ -193,6 +194,14 @@ int Application::Run() {
     m_graphics.reset();
     m_window.reset();
     return m_failed ? EXIT_FAILURE : EXIT_SUCCESS;
+}
+
+void Application::SetGameSettings(std::optional<GameSettings> game) {
+    m_config.game = std::move(game);
+    m_actions = {};
+    if (m_config.game) {
+        m_config.game->sections.input.Apply(m_actions);
+    }
 }
 
 void Application::Quit() {

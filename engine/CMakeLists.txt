@@ -110,6 +110,8 @@ add_library(spot_objects OBJECT
     input/input.cpp
     input/input_action.h
     input/input_action.cpp
+    input/input_settings.h
+    input/input_settings.cpp
     input/input_state.h
     input/input_state.cpp
     input/keys.h

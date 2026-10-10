@@ -4,6 +4,7 @@
 #include "math/vector.h"
 
 #include <array>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -138,5 +139,9 @@ private:
     std::vector<State> m_states;
     int m_gamepad = -1;
 };
+
+// The control the player pressed this frame, as rebinding captures it: a key, a mouse button or a gamepad button that
+// went down, or else a gamepad axis pushed more than half way. Nothing when there is none.
+std::optional<InputControl> FindPressedControl(const InputState& state);
 
 } // namespace Spot

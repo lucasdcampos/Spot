@@ -1,6 +1,7 @@
 #pragma once
 
 #include "assets/asset_id.h"
+#include "input/input_settings.h"
 #include "physics/physics_settings.h"
 
 #include <filesystem>
@@ -19,6 +20,7 @@ class Scene;
 // Each section is a struct with a SectionName and a Serialize().
 struct SettingsSections {
     PhysicsSettings physics;
+    InputSettings input;
     // The sections this build of the engine does not know, as JSON text by name, so saving them loses nothing.
     std::map<std::string, std::string, std::less<>> unknown;
 
@@ -26,6 +28,7 @@ struct SettingsSections {
     template <typename F>
     void ForEach(F&& fn) {
         fn(PhysicsSettings::SectionName, physics);
+        fn(InputSettings::SectionName, input);
     }
 
     // Reads the sections of a JSON object that holds them by name. Sections it does not have keep their values.

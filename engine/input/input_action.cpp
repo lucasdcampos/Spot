@@ -266,6 +266,30 @@ Vector2 InputActionMap::GetVector2(std::string_view action) const {
     return state ? state->value : Vector2{};
 }
 
+std::optional<InputControl> FindPressedControl(const InputState& state) {
+    for (int code = static_cast<int>(Key::Unknown) + 1; code <= static_cast<int>(Key::RightSuper); ++code) {
+        if (state.IsKeyPressed(static_cast<Key>(code))) {
+            return InputControl::Of(static_cast<Key>(code));
+        }
+    }
+    for (int code = 0; code <= static_cast<int>(MouseButton::X2); ++code) {
+        if (state.IsMouseButtonPressed(static_cast<MouseButton>(code))) {
+            return InputControl::Of(static_cast<MouseButton>(code));
+        }
+    }
+    for (int code = 0; code < static_cast<int>(GamepadButton::Count); ++code) {
+        if (state.IsGamepadButtonPressed(static_cast<GamepadButton>(code))) {
+            return InputControl::Of(static_cast<GamepadButton>(code));
+        }
+    }
+    for (int code = 0; code < static_cast<int>(GamepadAxis::Count); ++code) {
+        if (std::abs(state.GetGamepadAxis(static_cast<GamepadAxis>(code))) > 0.5f) {
+            return InputControl::Of(static_cast<GamepadAxis>(code));
+        }
+    }
+    return std::nullopt;
+}
+
 void InputActionMap::Serialize(Archive& archive) {
     archive.Field("actions", m_actions);
     if (archive.IsLoading()) {

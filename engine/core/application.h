@@ -75,8 +75,8 @@ public:
     const GameSettings* GetGameSettings() const { return m_config.game ? &*m_config.game : nullptr; }
     // Changes the game the application runs, as tools that run games inside them do. Its sections apply to the
     // scenes loaded from then on; what the application set up when it started, such as its window and where its
-    // assets are, stays.
-    void SetGameSettings(std::optional<GameSettings> game) { m_config.game = std::move(game); }
+    // assets are, stays. The action map is emptied and given the game's actions.
+    void SetGameSettings(std::optional<GameSettings> game);
 
     // Caps how many frames run per second from the next frame on; 0 means unlimited.
     int GetMaxFrameRate() const { return m_config.maxFrameRate; }
@@ -93,6 +93,9 @@ public:
     AssetManager& GetAssets();
     // The game's actions, which Spot::Input's action queries read; updated after each frame's events.
     InputActionMap& GetInputActions() { return m_actions; }
+    // The input the application's events build, even while Spot::Input reads another state, as tools running games
+    // make it do.
+    const InputState& GetInputState() const { return m_input; }
 
     // Scene changes are queued and applied at the start of the next frame, in the order they were asked for, so a
     // scene that asks for a change is never destroyed while it runs. Unloading a scene calls its OnUnload(), then

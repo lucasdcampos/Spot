@@ -52,6 +52,7 @@
 #include "graphics/texture.h"
 #include "input/input.h"
 #include "input/input_action.h"
+#include "input/input_settings.h"
 #include "input/input_state.h"
 #include "input/keys.h"
 #include "math/angles.h"

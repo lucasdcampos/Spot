@@ -364,7 +364,7 @@ bindings with processing (dead zone, invert, scale). A player's rebinds are save
   buttons and axes, and composites (four buttons into a vector). Values and press/release edges per action, each
   frame. Add `Input::IsActionDown/Pressed/Released`, `GetActionValue` and `GetActionVector2`. It also works from code
   alone. Tests.
-- [ ] **M2.4 Action settings.** The input settings section, its project settings editor (action list, binding capture
+- [x] **M2.4 Action settings.** The input settings section, its project settings editor (action list, binding capture
   by pressing the input), and default actions in the project templates (Move, Look, Jump, Fire, Pause).
 - [ ] **M2.5 Rebinding.** Runtime rebinding, saving and loading per user, and reset to defaults. Tests.
 - [ ] **M2.6 Input ownership.** A capture stack, so overlays (console, UI text fields, the editor) can withhold input
@@ -388,6 +388,12 @@ bindings with processing (dead zone, invert, scale). A player's rebinds are save
   from a bound button's press this frame, so taps within a frame are not lost. The application owns the map
   (`Application::GetInputActions()`) and updates it right after polling events, from whichever state is current, so
   a game played in the editor reads the play session's input. Maps have a `SetGamepad()` for local multiplayer.
+- M2.4: `InputSettings` (section "input") holds the actions; it is empty unless a project sets it, so older games
+  have no actions, and new projects get `InputSettings::MakeDefault()`. The application applies it to its map at
+  start, and `SetGameSettings()` empties the map first. The panel captures from the editor's own input
+  (`Application::GetInputState()`, through `EditorContext::GetInput()`) with `FindPressedControl()`, starting on the
+  mouse press so neither the click nor keyboard navigation is captured; Escape cancels. Look's right stick is
+  scaled by 10 to match a mouse's pixels per frame.
 
 ---
 

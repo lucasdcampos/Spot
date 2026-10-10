@@ -9,11 +9,37 @@
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
+#include <array>
 #include <format>
 #include <string>
 #include <vector>
 
 namespace Spot::Editor {
+
+namespace {
+
+constexpr std::array<const char*, 3> ActionTypeNames = {"Button", "Axis", "Vector 2"};
+constexpr std::array<const char*, 4> CompositePartNames = {"Up", "Down", "Left", "Right"};
+constexpr std::array<const char*, 2> AxisPartNames = {"Positive", "Negative"};
+
+std::string GetControlLabel(const InputControl& control) {
+    return control.source == InputSource::Key && control.code == static_cast<int>(Key::Unknown) ? "None"
+                                                                                                : control.GetName();
+}
+
+std::string GetBindingLabel(const InputBinding& binding, InputActionType type) {
+    if (binding.control.source != InputSource::Composite) {
+        return GetControlLabel(binding.control);
+    }
+    std::string label;
+    const std::size_t parts = type == InputActionType::Vector2 ? 4 : 2;
+    for (std::size_t part = 0; part < parts; ++part) {
+        label += (part > 0 ? " / " : "") + GetControlLabel(binding.parts[part]);
+    }
+    return label;
+}
+
+} // namespace
 
 ProjectSettingsPanel::ProjectSettingsPanel(EditorContext& context)
     : Panel("ProjectSettings", ICON_FA_GEAR "  Project Settings"), m_context(context) {
@@ -77,6 +103,10 @@ void ProjectSettingsPanel::OnDraw() {
     Widgets::EndProperties();
 
     settings.sections.ForEach([this, project](std::string_view name, auto& section) {
+        // Drawn by an editor of its own, below.
+        if (name == InputSettings::SectionName) {
+            return;
+        }
         ImGui::Spacing();
         Widgets::Heading(MakeDisplayName(name).c_str());
         const std::string id = "##" + std::string(name);
@@ -90,6 +120,7 @@ void ProjectSettingsPanel::OnDraw() {
         m_sectionsChanged = m_sectionsChanged || backend.WasChanged();
     });
     DrawLayers(settings.sections.physics);
+    DrawInput(settings.sections.input);
     // Once a drag or an edit ends, rather than on every change it makes.
     if (m_sectionsChanged && !ImGui::IsAnyItemActive()) {
         m_sectionsChanged = false;
@@ -167,6 +198,195 @@ void ProjectSettingsPanel::DrawLayers(PhysicsSettings& physics) {
         ImGui::EndTable();
     }
     ImGui::TreePop();
+}
+
+void ProjectSettingsPanel::CaptureBinding(std::size_t action, std::size_t binding, int part) {
+    m_capture = Capture{action, binding, part};
+}
+
+void ProjectSettingsPanel::UpdateCapture(InputSettings& input) {
+    const InputState* state = m_context.GetInput();
+    if (!m_capture || !state) {
+        return;
+    }
+    const Capture capture = *m_capture;
+    if (capture.action >= input.actions.size() || capture.binding >= input.actions[capture.action].bindings.size() ||
+        capture.part >= 4) {
+        m_capture.reset();
+        return;
+    }
+    if (state->IsKeyPressed(Key::Escape)) {
+        m_capture.reset();
+        return;
+    }
+    const std::optional<InputControl> pressed = FindPressedControl(*state);
+    if (!pressed) {
+        return;
+    }
+    InputBinding& binding = input.actions[capture.action].bindings[capture.binding];
+    (capture.part < 0 ? binding.control : binding.parts[static_cast<std::size_t>(capture.part)]) = *pressed;
+    m_capture.reset();
+    m_sectionsChanged = true;
+}
+
+void ProjectSettingsPanel::DrawInput(InputSettings& input) {
+    // Before anything is drawn, so the click that starts a capture is not what it captures.
+    UpdateCapture(input);
+
+    ImGui::Spacing();
+    Widgets::Heading("Input Actions");
+    ImGui::TextDisabled("Games ask whether an action happened, whichever of its bindings the player used. "
+                        "Right-click an action or a binding to remove it.");
+    std::optional<std::size_t> removed;
+    for (std::size_t index = 0; index < input.actions.size(); ++index) {
+        InputAction& action = input.actions[index];
+        ImGui::PushID(static_cast<int>(index));
+        const std::string label = (action.name.empty() ? std::string("Unnamed") : action.name) + "###action";
+        const bool open = ImGui::TreeNodeEx(label.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth);
+        if (ImGui::BeginPopupContextItem()) {
+            if (ImGui::MenuItem(ICON_FA_TRASH_CAN "  Remove Action")) {
+                removed = index;
+            }
+            ImGui::EndPopup();
+        }
+        if (open) {
+            if (Widgets::BeginProperties("##action")) {
+                Widgets::PropertyLabel("Name", "What games ask for, as in Input::IsActionPressed(\"Jump\").");
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                ImGui::InputText("##name", &action.name);
+                m_sectionsChanged = m_sectionsChanged || ImGui::IsItemDeactivatedAfterEdit();
+
+                Widgets::PropertyLabel("Type", "On or off, a value from -1 to 1, or two of them, as moving takes.");
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                int type = static_cast<int>(action.type);
+                if (ImGui::Combo("##type", &type, ActionTypeNames.data(), static_cast<int>(ActionTypeNames.size()))) {
+                    action.type = static_cast<InputActionType>(type);
+                    m_sectionsChanged = true;
+                }
+                if (action.type == InputActionType::Button) {
+                    Widgets::PropertyLabel("Press Point", "How far an axis must go for the button to be down.");
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    m_sectionsChanged = ImGui::SliderFloat("##pressPoint", &action.pressPoint, 0.05f, 1.0f, "%.2f") ||
+                                        m_sectionsChanged;
+                }
+                Widgets::EndProperties();
+            }
+            for (std::size_t binding = 0; binding < action.bindings.size(); ++binding) {
+                ImGui::PushID(static_cast<int>(binding));
+                DrawBinding(input, index, binding);
+                ImGui::PopID();
+            }
+            if (ImGui::Button(ICON_FA_PLUS "  Add Binding")) {
+                ImGui::OpenPopup("AddBinding");
+            }
+            if (ImGui::BeginPopup("AddBinding")) {
+                const auto add = [&](InputBinding binding) {
+                    action.bindings.push_back(binding);
+                    m_sectionsChanged = true;
+                };
+                if (ImGui::MenuItem(ICON_FA_KEYBOARD "  Key, Button or Axis...")) {
+                    add(InputBinding::Of(InputControl::Of(Key::Unknown)));
+                    CaptureBinding(index, action.bindings.size() - 1);
+                }
+                const InputControl none = InputControl::Of(Key::Unknown);
+                if (ImGui::MenuItem(action.type == InputActionType::Vector2 ? "Four Buttons" : "Two Buttons")) {
+                    add(action.type == InputActionType::Vector2 ? InputBinding::Composite(none, none, none, none)
+                                                                : InputBinding::Composite(none, none));
+                }
+                if (ImGui::MenuItem("Mouse Motion")) {
+                    add(InputBinding::Of({InputSource::MouseMotion, 0}));
+                }
+                if (ImGui::MenuItem("Mouse Wheel")) {
+                    add(InputBinding::Of({InputSource::Scroll, 0}));
+                }
+                if (ImGui::MenuItem(ICON_FA_GAMEPAD "  Left Stick")) {
+                    add({.control = {InputSource::GamepadStick, 0}, .deadZone = 0.2f});
+                }
+                if (ImGui::MenuItem(ICON_FA_GAMEPAD "  Right Stick")) {
+                    add({.control = {InputSource::GamepadStick, 1}, .deadZone = 0.2f});
+                }
+                ImGui::EndPopup();
+            }
+            ImGui::TreePop();
+        }
+        ImGui::PopID();
+    }
+    if (removed) {
+        input.actions.erase(input.actions.begin() + static_cast<std::ptrdiff_t>(*removed));
+        m_capture.reset();
+        m_sectionsChanged = true;
+    }
+    if (ImGui::Button(ICON_FA_PLUS "  Add Action")) {
+        std::string name = "New Action";
+        for (int suffix = 2; std::ranges::any_of(input.actions, [&](const InputAction& a) { return a.name == name; });
+             ++suffix) {
+            name = std::format("New Action {}", suffix);
+        }
+        input.actions.push_back({.name = name});
+        m_sectionsChanged = true;
+    }
+}
+
+void ProjectSettingsPanel::DrawBinding(InputSettings& input, std::size_t action, std::size_t index) {
+    InputAction& owner = input.actions[action];
+    InputBinding& binding = owner.bindings[index];
+    const std::string label = GetBindingLabel(binding, owner.type) + "###binding";
+    const bool open = ImGui::TreeNodeEx(label.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth);
+    bool remove = false;
+    if (ImGui::BeginPopupContextItem()) {
+        remove = ImGui::MenuItem(ICON_FA_TRASH_CAN "  Remove Binding");
+        ImGui::EndPopup();
+    }
+    if (open) {
+        if (Widgets::BeginProperties("##binding")) {
+            if (binding.control.source == InputSource::Composite) {
+                const bool vector = owner.type == InputActionType::Vector2;
+                const std::size_t parts = vector ? CompositePartNames.size() : AxisPartNames.size();
+                for (std::size_t part = 0; part < parts; ++part) {
+                    Widgets::PropertyLabel(vector ? CompositePartNames[part] : AxisPartNames[part]);
+                    ImGui::PushID(static_cast<int>(part));
+                    DrawCaptureButton(binding.parts[part], action, index, static_cast<int>(part));
+                    ImGui::PopID();
+                }
+            } else {
+                Widgets::PropertyLabel("Control", "Click, then press the key, button or axis to bind.");
+                DrawCaptureButton(binding.control, action, index, -1);
+            }
+            Widgets::PropertyLabel("Dead Zone", "Values closer to rest count as 0, as sticks rarely rest at 0.");
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            m_sectionsChanged =
+                ImGui::SliderFloat("##deadZone", &binding.deadZone, 0.0f, 0.95f, "%.2f") || m_sectionsChanged;
+            Widgets::PropertyLabel("Scale");
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            m_sectionsChanged = ImGui::DragFloat("##scale", &binding.scale, 0.01f) || m_sectionsChanged;
+            Widgets::PropertyLabel(owner.type == InputActionType::Vector2 ? "Invert X" : "Invert");
+            m_sectionsChanged = ImGui::Checkbox("##invertX", &binding.invertX) || m_sectionsChanged;
+            if (owner.type == InputActionType::Vector2) {
+                Widgets::PropertyLabel("Invert Y");
+                m_sectionsChanged = ImGui::Checkbox("##invertY", &binding.invertY) || m_sectionsChanged;
+            }
+            Widgets::EndProperties();
+        }
+        ImGui::TreePop();
+    }
+    if (remove) {
+        owner.bindings.erase(owner.bindings.begin() + static_cast<std::ptrdiff_t>(index));
+        m_capture.reset();
+        m_sectionsChanged = true;
+    }
+}
+
+void ProjectSettingsPanel::DrawCaptureButton(const InputControl& control, std::size_t action, std::size_t binding,
+                                             int part) {
+    const bool capturing =
+        m_capture && m_capture->action == action && m_capture->binding == binding && m_capture->part == part;
+    const std::string label =
+        capturing ? std::string(ICON_FA_CIRCLE_DOT "  Press a control (Esc cancels)") : GetControlLabel(control);
+    ImGui::Button((label + "###capture").c_str(), {-FLT_MIN, 0.0f});
+    // On the press, so neither the release nor keyboard navigation reach the capture.
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+        CaptureBinding(action, binding, part);
+    }
 }
 
 void ProjectSettingsPanel::Save() {

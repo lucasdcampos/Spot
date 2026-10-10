@@ -252,3 +252,71 @@ TEST_CASE("Input's action queries read the current map", "[input][actions]") {
     CHECK_FALSE(Spot::Input::IsActionDown("Jump"));
     CHECK(Spot::Input::GetActionValue("Jump") == 0.0f);
 }
+
+TEST_CASE("The input settings section keeps the actions and their bindings", "[input][actions][settings]") {
+    Spot::SettingsSections sections;
+    sections.input = Spot::InputSettings::MakeDefault();
+    sections.input.actions[0].bindings[1].invertY = true;
+    sections.input.actions[2].pressPoint = 0.75f;
+
+    Spot::SettingsSections loaded;
+    REQUIRE(loaded.LoadFromString(sections.SaveToString()));
+    REQUIRE(loaded.input.actions.size() == sections.input.actions.size());
+    for (std::size_t i = 0; i < loaded.input.actions.size(); ++i) {
+        const Spot::InputAction& action = loaded.input.actions[i];
+        const Spot::InputAction& saved = sections.input.actions[i];
+        CHECK(action.name == saved.name);
+        CHECK(action.type == saved.type);
+        CHECK(action.pressPoint == saved.pressPoint);
+        REQUIRE(action.bindings.size() == saved.bindings.size());
+        for (std::size_t j = 0; j < action.bindings.size(); ++j) {
+            CHECK(action.bindings[j].control == saved.bindings[j].control);
+            CHECK(action.bindings[j].parts == saved.bindings[j].parts);
+            CHECK(action.bindings[j].deadZone == saved.bindings[j].deadZone);
+            CHECK(action.bindings[j].scale == saved.bindings[j].scale);
+            CHECK(action.bindings[j].invertX == saved.bindings[j].invertX);
+            CHECK(action.bindings[j].invertY == saved.bindings[j].invertY);
+        }
+    }
+
+    // Games of older projects have no actions.
+    CHECK(Spot::SettingsSections{}.input.actions.empty());
+}
+
+TEST_CASE("The default actions are Move, Look, Jump, Fire and Pause", "[input][actions][settings]") {
+    const Spot::InputSettings settings = Spot::InputSettings::MakeDefault();
+    Spot::InputActionMap map;
+    map.Add("Jump", InputActionType::Axis);
+    map.Add("Custom", InputActionType::Button);
+    settings.Apply(map);
+
+    for (const char* name : {"Move", "Look", "Jump", "Fire", "Pause"}) {
+        CHECK(map.Find(name) != nullptr);
+    }
+    // Actions of the same names are replaced, and others kept.
+    CHECK(map.Find("Jump")->type == InputActionType::Button);
+    CHECK(map.Find("Custom") != nullptr);
+
+    Spot::InputState state;
+    state.OnEvent(Spot::GamepadButtonPressedEvent{.gamepad = Pad, .button = GamepadButton::Start});
+    map.Update(state);
+    CHECK(map.IsPressed("Pause"));
+}
+
+TEST_CASE("The control pressed this frame is found, buttons before axes", "[input][actions]") {
+    Spot::InputState state;
+    state.BeginFrame();
+    CHECK_FALSE(Spot::FindPressedControl(state).has_value());
+
+    state.OnEvent(Spot::GamepadAxisEvent{.gamepad = Pad, .axis = GamepadAxis::LeftTrigger, .value = 0.9f});
+    CHECK(Spot::FindPressedControl(state) == InputControl::Of(GamepadAxis::LeftTrigger));
+    state.OnEvent(Spot::MouseButtonPressedEvent{Spot::MouseButton::Right});
+    CHECK(Spot::FindPressedControl(state) == InputControl::Of(Spot::MouseButton::Right));
+    state.OnEvent(Spot::KeyPressedEvent{Key::F, false});
+    CHECK(Spot::FindPressedControl(state) == InputControl::Of(Key::F));
+
+    // Held keys were pressed before.
+    state.BeginFrame();
+    state.OnEvent(Spot::GamepadAxisEvent{.gamepad = Pad, .axis = GamepadAxis::LeftTrigger, .value = 0.0f});
+    CHECK_FALSE(Spot::FindPressedControl(state).has_value());
+}

@@ -88,7 +88,14 @@ action's value is that of the binding farthest from rest; a button action is dow
 point (0.5 by default), so triggers and sticks can press buttons. Presses and releases last the frame they happened
 in, and a press and release within one frame are both seen.
 
-The application keeps the game's map (`Application::GetInputActions()`) and updates it after each frame's events;
+Games define their actions in the input settings section (`InputSettings`), which the Project Settings panel edits:
+each binding's control is set by clicking it and pressing the key, button or axis (`FindPressedControl()` finds it).
+New projects start with Move, Look, Jump, Fire and Pause (`InputSettings::MakeDefault()`), for keyboard and mouse and
+for gamepads. The mouse moves pixels each frame while sticks hold a rate, so Look's right stick is scaled to turn as
+a mouse moving ten pixels a frame would.
+
+The application puts the settings' actions in its map (`Application::GetInputActions()`), which games may add to
+from code, and updates it after each frame's events;
 `Input::IsActionDown()`, `IsActionPressed()`, `IsActionReleased()`, `GetActionValue()` and `GetActionVector2()` read it,
 and report nothing for actions it does not have. A map can also be made and updated (`InputActionMap::Update()`) from
 code alone, and `SetGamepad()` makes it read one gamepad, one map per local player.
@@ -101,4 +108,4 @@ game's view has focus, and takes it back with Escape.
 
 ## Not there yet
 
-Actions from the game's settings, rebinding, and input ownership come in the rest of the roadmap's milestone M2.
+Rebinding by players, and input ownership come in the rest of the roadmap's milestone M2.

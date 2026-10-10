@@ -46,6 +46,10 @@ public:
     ThumbnailCache* GetThumbnails() { return m_thumbnails; }
     void SetThumbnails(ThumbnailCache* thumbnails) { m_thumbnails = thumbnails; }
 
+    // The editor's own input, also while a game plays in it; null in tests that have none.
+    const InputState* GetInput() const { return m_input; }
+    void SetInput(const InputState* input) { m_input = input; }
+
     // How far the mouse moved since the last frame, in pixels, also while it is captured.
     Vector2 GetMouseDelta() const { return m_mouseDelta; }
     void SetMouseDelta(Vector2 delta) { m_mouseDelta = delta; }
@@ -62,6 +66,7 @@ private:
     std::uint64_t m_inspectedDocument = 0;
     std::uint64_t m_inspectedSelection = 0;
     Vector2 m_mouseDelta;
+    const InputState* m_input = nullptr;
 };
 
 } // namespace Spot::Editor

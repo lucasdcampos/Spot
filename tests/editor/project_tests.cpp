@@ -197,6 +197,9 @@ TEST_CASE("Empty projects only have their file, an empty assets folder and the g
     REQUIRE(project != nullptr);
     CHECK(project->GetAssetDatabase().GetAssets().empty());
     CHECK_FALSE(project->GetProject().GetSettings().startupScene.IsValid());
+    // Every template starts with the default actions.
+    const auto& actions = project->GetProject().GetSettings().sections.input.actions;
+    CHECK(actions.size() == Spot::InputSettings::MakeDefault().actions.size());
 }
 
 TEST_CASE("Projects are never created over a folder that has files", "[editor][project]") {

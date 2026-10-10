@@ -447,7 +447,7 @@ std::optional<std::filesystem::path> CreateProject(const std::filesystem::path& 
         return std::nullopt;
     }
 
-    auto project = Project::Create(directory, {.name = name});
+    auto project = Project::Create(directory, {.name = name, .sections = {.input = InputSettings::MakeDefault()}});
     if (!project) {
         return std::nullopt;
     }
