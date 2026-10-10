@@ -3,12 +3,14 @@
 #include "audio/audio_system.h"
 #include "core/assert.h"
 #include "core/diagnostics.h"
+#include "core/log.h"
 #include "core/profiler.h"
 #include "physics/physics_world.h"
 
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <exception>
 #include <typeinfo>
 #include <utility>
 
@@ -37,6 +39,38 @@ PhysicsWorld& Scene::GetPhysics() {
         m_physics = &AddSystem<PhysicsWorld>();
     }
     return *m_physics;
+}
+
+RenderHookId Scene::AddRenderHook(RenderStage stage, RenderHook hook) {
+    const auto id = static_cast<RenderHookId>(m_nextRenderHook++);
+    m_renderHooks.push_back({id, stage, std::move(hook)});
+    return id;
+}
+
+void Scene::RemoveRenderHook(RenderHookId id) {
+    std::erase_if(m_renderHooks, [id](const RenderHookEntry& entry) { return entry.id == id; });
+}
+
+void Scene::RunRenderHooks(const RenderStageContext& context) {
+    // By index and id, as a hook may add or remove hooks while it runs.
+    for (std::size_t i = 0; i < m_renderHooks.size(); ++i) {
+        if (m_renderHooks[i].stage != context.stage) {
+            continue;
+        }
+        const RenderHookId id = m_renderHooks[i].id;
+        try {
+            const RenderHook hook = m_renderHooks[i].hook;
+            hook(context);
+        } catch (const std::exception& error) {
+            Log::GetEngineLogger().Error("A render hook threw and was removed: {}", error.what());
+            RemoveRenderHook(id);
+            --i;
+        } catch (...) {
+            Log::GetEngineLogger().Error("A render hook threw and was removed");
+            RemoveRenderHook(id);
+            --i;
+        }
+    }
 }
 
 AudioSystem& Scene::GetAudio() {

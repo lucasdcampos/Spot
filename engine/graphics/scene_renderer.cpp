@@ -46,6 +46,16 @@ SceneRenderer::SceneRenderer(GraphicsDevice& device, const SceneRendererConfig& 
     m_tonemapper = Tonemapper::Create(device, m_format);
     m_bloom = Bloom::Create(device, HdrFormat);
     m_fxaa = Fxaa::Create(device, m_format);
+    // The shapes queued with DebugDraw, over the surfaces and hidden by them where they test depth.
+    AddHook(RenderStage::AfterOpaque, [this](const RenderStageContext& stage) {
+        if (DebugDraw::GetLines().empty()) {
+            return;
+        }
+        auto pass = stage.context.BeginRenderPass(stage.pass);
+        m_lines->Begin(pass, stage.viewProjection);
+        m_lines->DrawDebugLines();
+        m_lines->End();
+    });
 }
 
 SceneRenderer::~SceneRenderer() = default;
@@ -78,42 +88,59 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
     // With several samples, each pass draws into the multisampled target and resolves it into the HDR image, keeping
     // the samples for the passes drawn over it.
     Texture* samples = m_samples.get();
-    const bool lines = !DebugDraw::GetLines().empty();
-    const auto pass = [&](bool more) {
-        return RenderPassDesc{.target = samples ? samples : m_hdr.get(),
-                              .resolveTarget = samples ? m_hdr.get() : nullptr,
-                              .keepSamples = samples && more};
+    const RenderPassDesc hdrPass{.target = samples ? samples : m_hdr.get(),
+                                 .depthTarget = m_depth.get(),
+                                 .resolveTarget = samples ? m_hdr.get() : nullptr,
+                                 .keepSamples = samples != nullptr};
+    const Vector2 size{static_cast<float>(width), static_cast<float>(height)};
+    RenderStageContext stage{.context = context,
+                             .stage = RenderStage::BeforeOpaque,
+                             .camera = view,
+                             .viewProjection = view.GetViewProjection(size),
+                             .viewSize = size,
+                             .pass = hdrPass,
+                             .colorFormat = HdrFormat,
+                             .sampleCount = m_sampleCount,
+                             .depth = m_depth.get(),
+                             .sceneColor = m_hdr.get()};
+    const auto runStage = [&](RenderStage at) {
+        stage.stage = at;
+        for (const Hook& hook : m_hooks) {
+            if (hook.stage == at) {
+                hook.hook(stage);
+            }
+        }
+        for (Scene* scene : scenes) {
+            scene->RunRenderHooks(stage);
+        }
     };
 
-    RenderPassDesc meshes = pass(lines || sprites);
-    meshes.clearColor = camera ? camera->GetBackground() : m_background;
-    meshes.depthTarget = m_depth.get();
-    meshes.clearDepth = 1.0f;
-    m_renderer3D->Begin(context, meshes, view);
+    RenderPassDesc clear = hdrPass;
+    clear.clearColor = camera ? camera->GetBackground() : m_background;
+    clear.clearDepth = 1.0f;
+    context.BeginRenderPass(clear).End();
+    runStage(RenderStage::BeforeOpaque);
+
+    m_renderer3D->Begin(context, hdrPass, view);
     for (Scene* scene : scenes) {
         m_renderer3D->DrawScene(*scene);
     }
     m_renderer3D->End();
+    runStage(RenderStage::AfterOpaque);
 
-    const Vector2 size{static_cast<float>(width), static_cast<float>(height)};
-    if (lines) {
-        // Over the meshes, hidden by them where they test depth.
-        RenderPassDesc linesDesc = pass(sprites);
-        linesDesc.depthTarget = m_depth.get();
-        auto linePass = context.BeginRenderPass(linesDesc);
-        m_lines->Begin(linePass, view.GetViewProjection(size));
-        m_lines->DrawDebugLines();
-        m_lines->End();
-    }
     // Sprites go over the meshes, as 2D games draw them, without a depth target.
     if (sprites) {
-        auto spritePass = context.BeginRenderPass(pass(false));
+        RenderPassDesc spriteDesc = hdrPass;
+        spriteDesc.depthTarget = nullptr;
+        auto spritePass = context.BeginRenderPass(spriteDesc);
         m_sprites->Begin(spritePass, view.GetViewProjection(size));
         for (Scene* scene : scenes) {
             m_sprites->DrawScene(*scene);
         }
         m_sprites->End();
     }
+    runStage(RenderStage::AfterTransparent);
+    runStage(RenderStage::BeforePostProcessing);
 
     const PostProcessing* look = PostProcessing::Find(scenes);
     const TonemapSettings tonemapping = look ? look->GetTonemapping() : m_tonemapping;
@@ -126,18 +153,42 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
         auto tonemapped = context.BeginRenderPass({.target = m_tonemapped.get()});
         m_tonemapper->Draw(tonemapped, *m_hdr, tonemapping, grading, glow, bloom.intensity);
     }
-    // The last pass covers the whole target, and the interfaces go over it as they are.
-    auto output = context.BeginRenderPass({.target = target});
-    if (fxaa) {
-        m_fxaa->Draw(output, *m_tonemapped);
-    } else {
-        m_tonemapper->Draw(output, *m_hdr, tonemapping, grading, glow, bloom.intensity);
+    {
+        // It covers the whole target.
+        auto output = context.BeginRenderPass({.target = target});
+        if (fxaa) {
+            m_fxaa->Draw(output, *m_tonemapped);
+        } else {
+            m_tonemapper->Draw(output, *m_hdr, tonemapping, grading, glow, bloom.intensity);
+        }
     }
-    m_interface->Begin(output, Scene::ScreenCamera(size), size);
-    for (Scene* scene : scenes) {
-        scene->DrawUi(*m_interface, size);
+
+    // From here on, into the target in its colors.
+    stage.pass = {.target = target};
+    stage.colorFormat = m_format;
+    stage.sampleCount = 1;
+    stage.depth = nullptr;
+    stage.sceneColor = nullptr;
+    runStage(RenderStage::AfterPostProcessing);
+    {
+        auto interfacePass = context.BeginRenderPass({.target = target});
+        m_interface->Begin(interfacePass, Scene::ScreenCamera(size), size);
+        for (Scene* scene : scenes) {
+            scene->DrawUi(*m_interface, size);
+        }
+        m_interface->End();
     }
-    m_interface->End();
+    runStage(RenderStage::Overlay);
+}
+
+RenderHookId SceneRenderer::AddHook(RenderStage stage, RenderHook hook) {
+    const auto id = static_cast<RenderHookId>(m_nextHook++);
+    m_hooks.push_back({id, stage, std::move(hook)});
+    return id;
+}
+
+void SceneRenderer::RemoveHook(RenderHookId id) {
+    std::erase_if(m_hooks, [id](const Hook& hook) { return hook.id == id; });
 }
 
 bool SceneRenderer::UpdateTonemapped(std::uint32_t width, std::uint32_t height) {

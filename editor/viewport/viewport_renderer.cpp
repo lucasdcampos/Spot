@@ -189,17 +189,38 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
     const bool drawGrid = options.showGrid && m_grid;
     const bool drawSprites = m_sprites->IsValid() && scene.FindComponent<SpriteRenderer>();
     const bool drawLines = m_lines->IsValid() && (!DebugDraw::GetLines().empty() || !options.lines.empty());
-    // Everything but the interfaces is light, drawn into the HDR image, through its samples when there are several.
+    // Everything but the interfaces is light, drawn into the HDR image, through its samples when there are several,
+    // which every pass keeps for the next.
     Texture* samples = targets.GetSamples();
     Texture* hdr = targets.GetHdr();
-    m_renderer->Begin(context,
-                      {.target = samples ? samples : hdr,
-                       .clearColor = options.background.value_or(Background),
-                       .depthTarget = targets.GetDepth(),
-                       .clearDepth = 1.0f,
-                       .resolveTarget = samples ? hdr : nullptr,
-                       .keepSamples = samples && (drawGrid || drawLines || drawSprites)},
-                      camera);
+    const RenderPassDesc hdrPass{.target = samples ? samples : hdr,
+                                 .depthTarget = targets.GetDepth(),
+                                 .resolveTarget = samples ? hdr : nullptr,
+                                 .keepSamples = samples != nullptr};
+    const Vector2 size{static_cast<float>(targets.GetWidth()), static_cast<float>(targets.GetHeight())};
+    // The scene's render hooks draw at the stages a game's SceneRenderer runs them at.
+    RenderStageContext stage{.context = context,
+                             .stage = RenderStage::BeforeOpaque,
+                             .camera = camera,
+                             .viewProjection = camera.GetViewProjection(size),
+                             .viewSize = size,
+                             .pass = hdrPass,
+                             .colorFormat = HdrFormat,
+                             .sampleCount = m_sampleCount,
+                             .depth = targets.GetDepth(),
+                             .sceneColor = hdr};
+    const auto runStage = [&](RenderStage at) {
+        stage.stage = at;
+        scene.RunRenderHooks(stage);
+    };
+
+    RenderPassDesc clear = hdrPass;
+    clear.clearColor = options.background.value_or(Background);
+    clear.clearDepth = 1.0f;
+    context.BeginRenderPass(clear).End();
+    runStage(RenderStage::BeforeOpaque);
+
+    m_renderer->Begin(context, hdrPass, camera);
     if (options.defaultLights && !scene.FindComponent<Light>() && !scene.FindComponent<Sky>()) {
         DrawDefaultLights(*m_renderer);
     }
@@ -208,31 +229,29 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
 
     // DebugDraw's shapes, hidden by the meshes where they test depth.
     if (drawLines) {
-        auto pass = context.BeginRenderPass({.target = samples ? samples : hdr,
-                                             .depthTarget = targets.GetDepth(),
-                                             .resolveTarget = samples ? hdr : nullptr,
-                                             .keepSamples = samples && (drawGrid || drawSprites)});
-        const Vector2 size{static_cast<float>(targets.GetWidth()), static_cast<float>(targets.GetHeight())};
-        m_lines->Begin(pass, camera.GetViewProjection(size));
+        auto pass = context.BeginRenderPass(hdrPass);
+        m_lines->Begin(pass, stage.viewProjection);
         m_lines->DrawDebugLines();
         m_lines->DrawLines(options.lines);
         m_lines->End();
     }
+    runStage(RenderStage::AfterOpaque);
 
     // Sprites go over the meshes, as 2D games draw them, without a depth target.
     if (drawSprites) {
-        auto pass = context.BeginRenderPass({.target = samples ? samples : hdr,
-                                             .resolveTarget = samples ? hdr : nullptr,
-                                             .keepSamples = samples && drawGrid});
-        const Vector2 size{static_cast<float>(targets.GetWidth()), static_cast<float>(targets.GetHeight())};
-        m_sprites->Begin(pass, camera.GetViewProjection(size));
+        RenderPassDesc spriteDesc = hdrPass;
+        spriteDesc.depthTarget = nullptr;
+        auto pass = context.BeginRenderPass(spriteDesc);
+        m_sprites->Begin(pass, stage.viewProjection);
         m_sprites->DrawScene(scene);
         m_sprites->End();
     }
+    runStage(RenderStage::AfterTransparent);
 
     if (drawGrid) {
         DrawGrid(context, targets, camera, options.grid2D);
     }
+    runStage(RenderStage::BeforePostProcessing);
 
     // The view's colors, with the interfaces over them as they are, in the scene's look when it has one.
     Scene* const shown[] = {&scene};
@@ -245,18 +264,28 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
         auto tonemapped = context.BeginRenderPass({.target = targets.GetTonemapped()});
         m_tonemapper->Draw(tonemapped, *hdr, tonemapping, grading, glow, bloom.intensity);
     }
-    auto pass = context.BeginRenderPass({.target = targets.GetColor()});
-    if (options.fxaa) {
-        m_fxaa->Draw(pass, *targets.GetTonemapped());
-    } else {
-        m_tonemapper->Draw(pass, *hdr, tonemapping, grading, glow, bloom.intensity);
+    {
+        auto pass = context.BeginRenderPass({.target = targets.GetColor()});
+        if (options.fxaa) {
+            m_fxaa->Draw(pass, *targets.GetTonemapped());
+        } else {
+            m_tonemapper->Draw(pass, *hdr, tonemapping, grading, glow, bloom.intensity);
+        }
     }
+
+    stage.pass = {.target = targets.GetColor()};
+    stage.colorFormat = ColorFormat;
+    stage.sampleCount = 1;
+    stage.depth = nullptr;
+    stage.sceneColor = nullptr;
+    runStage(RenderStage::AfterPostProcessing);
     if (options.drawUi && m_interface->IsValid()) {
-        const Vector2 size{static_cast<float>(targets.GetWidth()), static_cast<float>(targets.GetHeight())};
+        auto pass = context.BeginRenderPass({.target = targets.GetColor()});
         m_interface->Begin(pass, Scene::ScreenCamera(size), size);
         scene.DrawUi(*m_interface, size);
         m_interface->End();
     }
+    runStage(RenderStage::Overlay);
 }
 
 void ViewportRenderer::DrawOutline(RenderContext& context, const ViewportTargets& targets, const Camera3D& camera,
@@ -326,7 +355,8 @@ void ViewportRenderer::DrawGrid(RenderContext& context, const ViewportTargets& t
     Texture* samples = targets.GetSamples();
     auto pass = context.BeginRenderPass({.target = samples ? samples : targets.GetHdr(),
                                          .depthTarget = targets.GetDepth(),
-                                         .resolveTarget = samples ? targets.GetHdr() : nullptr});
+                                         .resolveTarget = samples ? targets.GetHdr() : nullptr,
+                                         .keepSamples = samples != nullptr});
     const Vector2 size{static_cast<float>(targets.GetWidth()), static_cast<float>(targets.GetHeight())};
     const Matrix4 viewProjection = camera.GetViewProjection(size);
     pass.BindPipeline(*m_grid);

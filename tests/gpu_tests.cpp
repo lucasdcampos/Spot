@@ -7,6 +7,7 @@
 #include "triangle.vert.h"
 #include "uv.frag.h"
 
+#include "log_capture.h"
 #include "rendering_application.h"
 #include "temp_directory.h"
 
@@ -26,6 +27,7 @@
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -2497,4 +2499,86 @@ TEST_CASE("SceneRenderer takes its look from the scenes' first active PostProces
     // Without it the settings show the grey as it is; with it, its exposure halves it.
     CHECK(std::abs(render(false) - 128) <= 2);
     CHECK(std::abs(render(true) - 64) <= 3);
+}
+
+TEST_CASE("SceneRenderer runs render hooks at their stages, its own before the scenes'", "[gpu]") {
+    RequireGpu();
+    const auto capture = std::make_shared<Spot::Tests::CaptureSink>();
+    const Spot::Tests::ScopedSinks sinks({capture});
+    std::unique_ptr<Spot::Texture> target;
+    std::unique_ptr<Spot::SceneRenderer> renderer;
+    std::unique_ptr<Spot::FullscreenPass> hdrSolid;
+    std::unique_ptr<Spot::FullscreenPass> outputSolid;
+    std::vector<std::string> calls;
+    Spot::Scene scene;
+    scene.CreateEntity("Camera").AddComponent<Spot::Camera>().SetBackground(Spot::Color::Black);
+
+    // A fullscreen color, drawn into whatever the stage's targets are.
+    const auto fill = [&](const Spot::RenderStageContext& stage, Spot::Color color) {
+        Spot::FullscreenPass& solid = stage.colorFormat == Spot::TextureFormat::Rgba16Float ? *hdrSolid : *outputSolid;
+        Spot::RenderPassDesc desc = stage.pass;
+        desc.depthTarget = nullptr;
+        auto pass = stage.context.BeginRenderPass(desc);
+        pass.PushFragmentUniforms(0, color);
+        solid.Draw(pass);
+    };
+    for (const auto stage : {Spot::RenderStage::BeforeOpaque, Spot::RenderStage::AfterOpaque,
+                             Spot::RenderStage::AfterTransparent, Spot::RenderStage::BeforePostProcessing,
+                             Spot::RenderStage::AfterPostProcessing, Spot::RenderStage::Overlay}) {
+        scene.AddRenderHook(stage, [&calls, stage](const Spot::RenderStageContext& context) {
+            CHECK(context.stage == stage);
+            CHECK((context.depth != nullptr) == (stage < Spot::RenderStage::AfterPostProcessing));
+            calls.push_back(std::to_string(static_cast<int>(stage)));
+        });
+    }
+    scene.AddRenderHook(Spot::RenderStage::AfterOpaque,
+                        [&](const Spot::RenderStageContext& stage) { fill(stage, Spot::Color::Green); });
+    const auto overlay = scene.AddRenderHook(
+        Spot::RenderStage::Overlay, [&](const Spot::RenderStageContext& stage) { fill(stage, Spot::Color::Blue); });
+    scene.AddRenderHook(Spot::RenderStage::Overlay,
+                        [](const Spot::RenderStageContext&) { throw std::runtime_error("Broken hook"); });
+
+    std::vector<std::uint8_t> first;
+    std::vector<std::uint8_t> second;
+    int frame = 0;
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
+        auto& device = app.GetGraphicsDevice();
+        ++frame;
+        if (frame == 1) {
+            target = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
+            renderer = std::make_unique<Spot::SceneRenderer>(
+                device, Spot::SceneRendererConfig{.targetFormat = Spot::TextureFormat::Rgba8,
+                                                  .tonemapping = {.op = Spot::TonemapOperator::Linear, .dither = false},
+                                                  .bloom = {.intensity = 0.0f}});
+            hdrSolid = Spot::FullscreenPass::Create(
+                device, Shaders::SolidFrag,
+                {.targetFormat = Spot::TextureFormat::Rgba16Float, .sampleCount = renderer->GetSampleCount()});
+            outputSolid = Spot::FullscreenPass::Create(device, Shaders::SolidFrag);
+            REQUIRE((target && renderer->IsValid() && hdrSolid && outputSolid));
+            renderer->AddHook(Spot::RenderStage::AfterOpaque,
+                              [&calls](const Spot::RenderStageContext&) { calls.push_back("renderer"); });
+        } else if (frame == 2) {
+            first = device.DownloadTexture(*target);
+            scene.RemoveRenderHook(overlay);
+            calls.clear();
+        } else {
+            second = device.DownloadTexture(*target);
+            return;
+        }
+        const std::array<Spot::Scene*, 1> scenes{&scene};
+        renderer->Render(context, scenes, target.get());
+    });
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+
+    CHECK(calls == std::vector<std::string>{"0", "renderer", "1", "2", "3", "4", "5"});
+    REQUIRE(first.size() == 4 * 4 * 4);
+    REQUIRE(second.size() == 4 * 4 * 4);
+    // The overlay covers what the hook drew after the opaque stage, until it is removed.
+    CHECK(IsNear(FirstPixel(first), {0, 0, 255, 255}));
+    CHECK(IsNear(FirstPixel(second), {0, 255, 0, 255}));
+    // The hook that threw was logged and removed, once.
+    const auto& records = capture->GetRecords();
+    CHECK(std::ranges::count_if(records, [](const auto& record) {
+              return record.message.find("Broken hook") != std::string::npos;
+          }) == 1);
 }

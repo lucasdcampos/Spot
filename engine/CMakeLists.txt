@@ -109,6 +109,7 @@ add_library(spot_objects OBJECT
     graphics/quad_batch.h
     graphics/quad_batch.cpp
     graphics/render_context.h
+    graphics/render_stage.h
     graphics/renderer_2d.h
     graphics/renderer_2d.cpp
     graphics/renderer_3d.h

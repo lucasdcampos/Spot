@@ -50,6 +50,7 @@
 #include "graphics/pipeline.h"
 #include "graphics/quad_batch.h"
 #include "graphics/render_context.h"
+#include "graphics/render_stage.h"
 #include "graphics/renderer_2d.h"
 #include "graphics/renderer_3d.h"
 #include "graphics/rendering_settings.h"

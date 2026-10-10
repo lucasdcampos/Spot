@@ -68,6 +68,28 @@ the GPU allows), which a tonemapper turns into the target's colors; then their i
 bottom-left corner). The application draws its scenes with one unless `ApplicationConfig::renderScenes` is off, and
 the editor's views draw the same way.
 
+### Render hooks
+
+Games and systems draw passes of their own at fixed points of a frame (`RenderStage`): `BeforeOpaque` (into the
+cleared HDR image; a sky draws over it), `AfterOpaque` (with the surfaces' depth; where `DebugDraw`'s shapes are
+drawn), `AfterTransparent`, `BeforePostProcessing`, `AfterPostProcessing` (into the target, in its colors, before the
+interfaces) and `Overlay` (over everything). A hook gets a `RenderStageContext`: the camera and view-projection, a
+`RenderPassDesc` into the stage's targets that keeps what they hold (depth included before post-processing), the
+format and sample count its pipelines must match, the depth target, and the HDR image so far.
+
+```cpp
+void OnEnable() override {
+    m_hook = GetScene().AddRenderHook(Spot::RenderStage::AfterOpaque, [this](const Spot::RenderStageContext& stage) {
+        auto pass = stage.context.BeginRenderPass(stage.pass);
+        // ... draw with pipelines made for stage.colorFormat and stage.sampleCount ...
+    });
+}
+void OnDisable() override { GetScene().RemoveRenderHook(m_hook); }
+```
+
+`Scene::AddRenderHook()` hooks run wherever the scene is drawn, the editor's views included; `SceneRenderer::AddHook()`
+hooks run first, for every scene that renderer draws. A hook that throws is logged and removed.
+
 ### HDR and tonemapping
 
 Light in a scene is not limited to what a display shows: a lamp, the sun or a glowing surface can be many times

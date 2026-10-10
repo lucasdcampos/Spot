@@ -3,6 +3,7 @@
 #include "graphics/bloom.h"
 #include "graphics/color.h"
 #include "graphics/fxaa.h"
+#include "graphics/render_stage.h"
 #include "graphics/texture.h"
 #include "graphics/tonemapper.h"
 
@@ -10,6 +11,7 @@
 #include <memory>
 #include <optional>
 #include <span>
+#include <vector>
 
 namespace Spot {
 
@@ -67,8 +69,14 @@ public:
     void SetFxaaEnabled(bool enabled) { m_fxaaEnabled = enabled; }
 
     // Draws the scenes, in order, over each other, into the target: a render target in the configured format, or the
-    // window when null.
+    // window when null. At each RenderStage it runs its own hooks, then those of the scenes (see
+    // Scene::AddRenderHook()).
     void Render(RenderContext& context, std::span<Scene* const> scenes, Texture* target = nullptr);
+
+    // Draws at the stage of every frame this renderer draws, whatever the scenes, after the hooks added before it, as
+    // the shapes queued with DebugDraw are drawn after the opaque stage.
+    RenderHookId AddHook(RenderStage stage, RenderHook hook);
+    void RemoveHook(RenderHookId id);
 
 private:
     // The HDR, depth and multisampled targets must match the frame's size, which changes with the window.
@@ -97,6 +105,13 @@ private:
     std::unique_ptr<Texture> m_depth;
     std::unique_ptr<Texture> m_samples;
     bool m_warnedNoCamera = false;
+    struct Hook {
+        RenderHookId id;
+        RenderStage stage;
+        RenderHook hook;
+    };
+    std::vector<Hook> m_hooks;
+    std::uint32_t m_nextHook = 1;
 };
 
 } // namespace Spot

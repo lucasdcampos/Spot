@@ -1,6 +1,7 @@
 #pragma once
 
 #include "graphics/camera_2d.h"
+#include "graphics/render_stage.h"
 #include "scene/entity.h"
 #include "scene/scene_system.h"
 
@@ -79,6 +80,14 @@ public:
     void DestroyEntity(Entity& entity);
     // Destroys every entity.
     void Clear();
+
+    // Draws at the stage of every frame the scene is drawn in, by a SceneRenderer or the editor's views, after the
+    // hooks added before it. Components add theirs in OnEnable() and remove them in OnDisable(). A hook that throws
+    // is logged and removed.
+    RenderHookId AddRenderHook(RenderStage stage, RenderHook hook);
+    void RemoveRenderHook(RenderHookId id);
+    // Runs the hooks of the context's stage, as renderers do.
+    void RunRenderHooks(const RenderStageContext& context);
 
     // Simulates the scene's colliders and rigidbodies; created on the first call.
     PhysicsWorld& GetPhysics();
@@ -251,6 +260,13 @@ private:
     // Systems added while systems run, which join the others before the next hook.
     std::vector<std::unique_ptr<SceneSystem>> m_pendingSystems;
     PhysicsWorld* m_physics = nullptr;
+    struct RenderHookEntry {
+        RenderHookId id;
+        RenderStage stage;
+        RenderHook hook;
+    };
+    std::vector<RenderHookEntry> m_renderHooks;
+    std::uint32_t m_nextRenderHook = 1;
     AudioSystem* m_audio = nullptr;
     std::vector<std::unique_ptr<Entity>> m_entities;
     std::unordered_map<EntityId, Entity*> m_entitiesById;

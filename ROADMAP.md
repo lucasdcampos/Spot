@@ -581,7 +581,7 @@ built on the public graphics API. The look comes from a `PostProcessing` compone
   height falloff), applied before tonemapping and matched to the sky at the horizon.
 - [x] **M5.7 Settings and component.** The rendering settings section (defaults, MSAA samples, shadow sizes and
   distance, which feed `Renderer3DConfig`), the `PostProcessing` component, and their inspectors.
-- [ ] **M5.8 Render hooks.** Stages in `SceneRenderer` (before opaque, after opaque, after transparent, before and
+- [x] **M5.8 Render hooks.** Stages in `SceneRenderer` (before opaque, after opaque, after transparent, before and
   after post-processing, overlay) where games and systems add passes, with a context holding the camera, targets and
   depth. `DebugDraw` moves onto them. Tests.
 - [ ] **M5.9 Sandbox: look.** Muzzle flashes, explosions and emissive props glow through bloom, and the level gets
@@ -631,6 +631,13 @@ built on the public graphics API. The look comes from a `PostProcessing` compone
   `SetGameSettings()`. The editor's views take the project's look and FXAA, but keep their own MSAA and shadow
   quality. Textures gained the `srgb` import setting (texture importer 2, model importer 4, as both write
   `TextureFile`), so LUTs, and later normal maps, load as `Rgba8`. Inspectors come from the fields' `Serialize()`.
+- M5.8: hooks live on scenes (`Scene::AddRenderHook()`, for components and systems, run wherever the scene draws) and
+  on `SceneRenderer` (`AddHook()`, run first). The frame now clears in a pass of its own before `BeforeOpaque`, and
+  every HDR pass keeps its samples and resolves, so a hook at any stage can draw more and the HDR image is always up
+  to date for `BeforePostProcessing`; after post-processing, the target, the interfaces and the overlay get passes
+  of their own. `DebugDraw` is the renderer's own `AfterOpaque` hook. The editor's views run the scene's hooks at
+  the same stages (their own lines and grid stay built in). "Transparent" is the sprites until M6 brings
+  transparency.
 
 ---
 
