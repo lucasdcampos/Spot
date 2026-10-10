@@ -114,9 +114,9 @@ private:
     static constexpr std::size_t ChunkFrames = 256;
 
     struct Voice {
-        std::shared_ptr<const Sound> sound;
-        std::uint32_t id;
-        PlayParams params;
+        std::shared_ptr<const Sound> sound = {};
+        std::uint32_t id = 0;
+        PlayParams params = {};
         // In source frames; fractional because the pitch and the sample rate conversion step through the sound.
         double position = 0.0;
         // What was asked for; the voice goes silent and stops moving once its fade out ends.
@@ -126,7 +126,7 @@ private:
         bool ended = false;
         // Streamed sounds only: the decoded frames played between, the first of which is the stream's frame of that
         // index, and how many silent frames followed the end.
-        std::shared_ptr<SoundStream> stream;
+        std::shared_ptr<SoundStream> stream = {};
         std::array<float, 2> frame0 = {};
         std::array<float, 2> frame1 = {};
         std::uint64_t streamFrame = 0;

@@ -9,7 +9,7 @@ The goal is the same breadth, built on the architecture Spot already has.
 The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
 [The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
 
-**Current focus:** M3 – Audio in scenes
+**Current focus:** M4 – Fast game-code iteration
 
 ## How to use this plan
 
@@ -491,6 +491,11 @@ defined in the audio settings. Streamed sounds decode on a worker thread into a 
   clicks go straight to the device's Interface bus, so they play while the scenes are paused. `OneShotParams`
   gained `priority` and `maxInstances` (explosions rank 10, shots 5). `spot_sandbox_tests` plays the playground
   through a manually mixed device and measures each bus.
+- Done 2026-10-10. Acceptance: `spot_sandbox_tests` plays the playground with sound and checks that music and wind
+  play on their buses, steps, shots, impacts and the physics gun's hum are heard, and an explosion to the player's
+  right is heard on the right; the editor's Audio Mixer changes the buses of the device the play session sounds
+  through, at once. MSVC and GCC Debug build without warnings (GCC asked for default member initializers in the
+  mixer's voices) and pass every test, the module tests included.
 
 ---
 
