@@ -286,6 +286,8 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
                      .occlusionStrength = material->occlusionStrength,
                      .emissive = material->emissive,
                      .emissiveTexture = Load<Texture>(material->emissiveTexture),
+                     .alphaMode = material->alphaMode,
+                     .alphaCutoff = material->alphaCutoff,
                      .doubleSided = material->doubleSided,
                      .worldTextureSize = material->worldTextureSize});
     }

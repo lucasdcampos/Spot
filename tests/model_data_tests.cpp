@@ -275,3 +275,16 @@ TEST_CASE("ModelData reads every PBR input of glTF materials, and which images h
     CHECK(model->IsColorImage(0));
     CHECK_FALSE(model->IsColorImage(1));
 }
+
+TEST_CASE("ModelData reads glTF alpha modes", "[model]") {
+    const std::string gltf = R"({"asset": {"version": "2.0"},
+        "materials": [{"alphaMode": "MASK", "alphaCutoff": 0.25}, {"alphaMode": "BLEND"}, {}]})";
+    const auto model = Spot::ModelData::LoadFromMemory(std::as_bytes(std::span(gltf)));
+    REQUIRE(model.has_value());
+    REQUIRE(model->materials.size() == 3);
+    CHECK(model->materials[0].alphaMode == Spot::AlphaMode::Cutout);
+    CHECK(model->materials[0].alphaCutoff == 0.25f);
+    CHECK(model->materials[1].alphaMode == Spot::AlphaMode::Transparent);
+    CHECK(model->materials[2].alphaMode == Spot::AlphaMode::Opaque);
+    CHECK(model->materials[2].alphaCutoff == 0.5f);
+}

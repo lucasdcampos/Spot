@@ -179,6 +179,10 @@ private:
             const cgltf_float* emissive = source.emissive_factor;
             material.emissive = {emissive[0] * strength, emissive[1] * strength, emissive[2] * strength, 1.0f};
             material.emissiveImage = GetImage(source.emissive_texture);
+            material.alphaMode = source.alpha_mode == cgltf_alpha_mode_mask    ? AlphaMode::Cutout
+                                 : source.alpha_mode == cgltf_alpha_mode_blend ? AlphaMode::Transparent
+                                                                               : AlphaMode::Opaque;
+            material.alphaCutoff = source.alpha_cutoff;
             model.materials.push_back(std::move(material));
         }
     }

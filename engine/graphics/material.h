@@ -7,6 +7,19 @@ namespace Spot {
 
 class Texture;
 
+// How a material's alpha, the base color's times its texture's, covers what is behind it.
+enum class AlphaMode {
+    // Alpha is ignored: the surface hides what is behind it.
+    Opaque,
+    // Pixels whose alpha is below the cutoff are not drawn, nor cast shadows, and the others are opaque: leaves,
+    // fences and grates, with hard edges.
+    Cutout,
+    // The surface covers what is behind it as much as its alpha says, and reflects light at full strength over it, as
+    // glass does. Transparent surfaces are drawn after the opaque ones, from the farthest to the nearest, and do not
+    // hide what is drawn after them or cast shadows.
+    Transparent,
+};
+
 // How Renderer3D shades a mesh: metallic-roughness PBR, as glTF defines it. Textures are optional; each multiplies
 // the value it goes with. Color textures (base color and emissive) are sRGB, and the others hold data, so they are
 // imported with their texture's sRGB setting off.
@@ -35,6 +48,9 @@ struct Material {
     // through bloom. It lights nothing else.
     Color emissive = Color::Black;
     AssetRef<Texture> emissiveTexture = {};
+    AlphaMode alphaMode = AlphaMode::Opaque;
+    // The alpha below which cutout pixels are not drawn.
+    float alphaCutoff = 0.5f;
     // Draws back faces too, for thin surfaces such as leaves or cloth.
     bool doubleSided = false;
     // When positive, the textures are projected onto the surface from world space instead of following the mesh's

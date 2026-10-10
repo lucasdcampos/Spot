@@ -2,6 +2,7 @@
 
 #include "graphics/color.h"
 #include "graphics/image.h"
+#include "graphics/material.h"
 #include "graphics/mesh_data.h"
 
 #include <cstddef>
@@ -29,6 +30,9 @@ struct MaterialData {
     // glTF's emissive factor, times the strength KHR_materials_emissive_strength gives.
     Color emissive = Color::Black;
     std::optional<std::size_t> emissiveImage = std::nullopt;
+    // glTF's alphaMode: OPAQUE, MASK (cutout) or BLEND (transparent).
+    AlphaMode alphaMode = AlphaMode::Opaque;
+    float alphaCutoff = 0.5f;
     // Drawn from both sides instead of hiding back faces, for thin surfaces such as leaves or cloth.
     bool doubleSided = false;
 };

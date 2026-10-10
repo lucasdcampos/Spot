@@ -48,6 +48,8 @@ std::unique_ptr<Model> Model::Create(GraphicsDevice& device, const ModelData& da
                      .occlusionStrength = source.occlusionStrength,
                      .emissive = source.emissive,
                      .emissiveTexture = texture(source.emissiveImage),
+                     .alphaMode = source.alphaMode,
+                     .alphaCutoff = source.alphaCutoff,
                      .doubleSided = source.doubleSided}));
     }
 

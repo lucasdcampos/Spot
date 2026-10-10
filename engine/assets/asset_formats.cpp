@@ -96,6 +96,8 @@ void Encode(BinaryWriter& writer, const MaterialSource& material) {
     writer.Write(material.occlusionStrength);
     writer.Write(material.emissive);
     writer.Write(material.emissiveTexture);
+    writer.Write(static_cast<std::uint8_t>(material.alphaMode));
+    writer.Write(material.alphaCutoff);
     writer.Write(static_cast<std::uint8_t>(material.doubleSided));
     writer.Write(material.worldTextureSize);
 }
@@ -114,6 +116,12 @@ std::optional<MaterialSource> DecodeMaterial(std::span<const std::byte> data) {
     material.occlusionStrength = reader.Read<float>();
     material.emissive = reader.Read<Color>();
     material.emissiveTexture = reader.Read<AssetId>();
+    const auto alphaMode = reader.Read<std::uint8_t>();
+    if (alphaMode > static_cast<std::uint8_t>(AlphaMode::Transparent)) {
+        return std::nullopt;
+    }
+    material.alphaMode = static_cast<AlphaMode>(alphaMode);
+    material.alphaCutoff = reader.Read<float>();
     material.doubleSided = reader.Read<std::uint8_t>() != 0;
     material.worldTextureSize = reader.Read<float>();
     return Finish(reader, material);

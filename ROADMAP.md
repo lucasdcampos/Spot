@@ -669,7 +669,7 @@ depth writes). Vertices gain tangents.
   intensities in documented units.
 - [x] **M6.4 Sky lighting.** Cube textures and rendering into their faces in the graphics API. Render the sky into a
   cube map when it changes, prefilter it for specular, and take irradiance as spherical harmonics. GPU tests.
-- [ ] **M6.5 Alpha modes.** Cutout and transparent pipelines, sorting, cutout shadows, and glTF `alphaMode` import.
+- [x] **M6.5 Alpha modes.** Cutout and transparent pipelines, sorting, cutout shadows, and glTF `alphaMode` import.
 - [ ] **M6.6 Golden-image tests.** GPU tests render reference scenes and compare them to stored images within a
   tolerance, so rendering changes are seen before they ship.
 - [ ] **M6.7 Sandbox: materials.** The generator makes PBR texture sets (wood, painted metal, rusty metal, concrete,
@@ -709,6 +709,12 @@ viewers, and the golden-image tests cover them.
   each face, so nothing is read back. The environment's specular uses Karis's analytic fit of the split-sum BRDF
   instead of a lookup table, and ambient lights now reflect too, as a uniform environment. A capture happens whenever
   the `SkyData` differs from the last one (`SkyData` gained `operator==`).
+- M6.5: Transparent surfaces blend premultiplied (the graphics API gained `BlendMode::Premultiplied`): what they
+  scatter is weighted by alpha, while highlights, reflections and emission are added whole, so glass keeps its
+  shine. They are sorted by the distance from the camera to the center of their bounds and cast no shadows. Cutout
+  shadows go through a shadow pipeline whose fragment shader samples the base color texture by the mesh's UVs (the
+  shadow vertex layout gained UVs), even for textures projected from world space. The `.material` importer is at
+  version 6 and the model importer at 8.
 
 ---
 

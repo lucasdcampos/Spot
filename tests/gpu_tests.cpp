@@ -1549,6 +1549,98 @@ TEST_CASE("Renderer3D tilts surfaces by their normal maps and darkens ambient li
     CHECK(renderWall(Flat, {64, 0, 0, 255}, FrontLight).At(16, 16)[0] > 250);
 }
 
+TEST_CASE("Renderer3D drops cutout pixels below their cutoff and blends transparent surfaces in any order", "[gpu]") {
+    RequireGpu();
+
+    // Walls facing the front camera at the depths given, each 2 units wide: a third of the view's width aside the
+    // center is left of them.
+    struct Wall {
+        Spot::Material material;
+        float z;
+    };
+    const auto render = [](const std::vector<Wall>& walls) {
+        return TargetRender(
+            32, 32,
+            [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+                // Opaque on its right half only: alpha 0 then 255.
+                const Spot::AssetRef<Spot::Texture> halves(device.CreateTexture(
+                    Spot::Image(2, 1, {255, 255, 255, 0, 255, 255, 255, 255}), false, Spot::TextureFormat::Rgba8));
+                Spot::Renderer3D renderer(
+                    device, {.filter = Spot::TextureFilter::Nearest, .targetFormat = Spot::TextureFormat::Rgba8});
+                const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+                REQUIRE(cube != nullptr);
+                renderer.Begin(context, target, MakeFrontCamera());
+                renderer.DrawLight(FrontLight);
+                for (const Wall& wall : walls) {
+                    Spot::Material material = wall.material;
+                    if (material.alphaMode == Spot::AlphaMode::Cutout) {
+                        material.baseColorTexture = halves;
+                    }
+                    renderer.DrawMesh(*cube, material,
+                                      Spot::Matrix4::Translation({0.0f, 0.0f, wall.z}) *
+                                          Spot::Matrix4::Scale({2.0f, 2.0f, 0.1f}));
+                }
+                renderer.End();
+            });
+    };
+
+    const auto cutout = render({{{.alphaMode = Spot::AlphaMode::Cutout}, 0.0f}});
+    CHECK(IsNear(cutout.At(10, 16), {0, 0, 0, 255}));
+    CHECK(IsNear(cutout.At(22, 16), {255, 255, 255, 255}));
+
+    // Half of a red pane over a blue wall, whichever is drawn first.
+    const Wall blue{{.baseColor = Spot::Color::Blue}, 0.0f};
+    const Wall pane{{.baseColor = {1.0f, 0.0f, 0.0f, 0.5f}, .alphaMode = Spot::AlphaMode::Transparent}, 1.0f};
+    for (const auto& walls : {std::vector{blue, pane}, std::vector{pane, blue}}) {
+        const Pixel mixed = render(walls).At(16, 16);
+        INFO("Mixed " << int{mixed[0]} << ", " << int{mixed[1]} << ", " << int{mixed[2]});
+        CHECK(std::abs(mixed[0] - 128) < 10);
+        CHECK(std::abs(mixed[2] - 128) < 10);
+    }
+    // Two panes blend from the farthest, so the nearest shows most, whichever is drawn first.
+    const Wall farPane{{.baseColor = {0.0f, 1.0f, 0.0f, 0.5f}, .alphaMode = Spot::AlphaMode::Transparent}, 0.5f};
+    for (const auto& walls : {std::vector{pane, farPane}, std::vector{farPane, pane}}) {
+        const Pixel panes = render(walls).At(16, 16);
+        INFO("Panes " << int{panes[0]} << ", " << int{panes[1]} << ", " << int{panes[2]});
+        CHECK(std::abs(panes[0] - 128) < 10);
+        CHECK(std::abs(panes[1] - 64) < 10);
+    }
+}
+
+TEST_CASE("Renderer3D drops the shadows of cutout pixels, and transparent surfaces cast none", "[gpu]") {
+    RequireGpu();
+
+    // A slab two units over the floor, lit from 45 degrees, shadows the floor two units aside.
+    const auto shadowed = [](const Spot::Material& material) {
+        const TargetRender render(
+            64, 64,
+            [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+                Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+                const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+                const auto floor = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(40.0f));
+                REQUIRE((cube && floor));
+                Spot::Camera3D camera;
+                camera.position = {0.0f, 10.0f, 0.0f};
+                camera.rotation = Spot::Quaternion::LookRotation({0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, -1.0f});
+                renderer.Begin(context, target, camera);
+                renderer.DrawLight({.type = Spot::LightType::Directional,
+                                    .direction = Spot::Normalize(Spot::Vector3{1.0f, -1.0f, 0.0f}),
+                                    .castsShadows = true});
+                renderer.DrawMesh(*floor, {});
+                renderer.DrawMesh(*cube, material,
+                                  Spot::Matrix4::Translation({0.0f, 2.0f, 0.0f}) *
+                                      Spot::Matrix4::Scale({1.0f, 0.2f, 1.0f}));
+                renderer.End();
+            });
+        // The floor's pixel two units along +X, where the shadow falls.
+        return render.At(static_cast<int>((2.0f / 5.7735f + 1.0f) * 32.0f), 32)[0] < 40;
+    };
+    CHECK(shadowed({}));
+    CHECK_FALSE(shadowed({.baseColor = {1.0f, 1.0f, 1.0f, 0.2f}, .alphaMode = Spot::AlphaMode::Cutout}));
+    CHECK(shadowed({.baseColor = {1.0f, 1.0f, 1.0f, 0.8f}, .alphaMode = Spot::AlphaMode::Cutout}));
+    CHECK_FALSE(shadowed({.baseColor = {1.0f, 1.0f, 1.0f, 0.8f}, .alphaMode = Spot::AlphaMode::Transparent}));
+}
+
 TEST_CASE("Renderer3D keeps the lights nearest the camera when given too many", "[gpu]") {
     RequireGpu();
 

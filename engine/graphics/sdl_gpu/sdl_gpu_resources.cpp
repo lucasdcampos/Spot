@@ -86,9 +86,10 @@ SDL_GPUColorTargetBlendState ToSdl(BlendMode mode) {
     blend.enable_blend = true;
     blend.color_blend_op = SDL_GPU_BLENDOP_ADD;
     blend.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
-    blend.src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
+    blend.src_color_blendfactor =
+        mode == BlendMode::Premultiplied ? SDL_GPU_BLENDFACTOR_ONE : SDL_GPU_BLENDFACTOR_SRC_ALPHA;
     blend.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
-    if (mode == BlendMode::Alpha) {
+    if (mode == BlendMode::Alpha || mode == BlendMode::Premultiplied) {
         blend.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
         blend.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
     } else {

@@ -16,6 +16,8 @@ Each frame, `BeginFrame()` returns a `RenderContext` (null when nothing can be d
   return null, after logging why, when the backend rejects them. Uploads (`UploadToBuffer()`, `UploadToTexture()`)
   can happen at any time and reach the GPU before the frame's draws; `UploadMode::Discard` suits data rewritten every
   frame. `DownloadTexture()` reads pixels back, slowly, for tools and tests.
+- **Blending**: `None`, `Alpha` (straight alpha), `Additive`, and `Premultiplied` for colors already multiplied
+  by their coverage.
 - **Pipelines** are immutable: one per combination of shaders, vertex layout, primitive type, blending, culling,
   depth state, target format and sample count, created ahead of time.
 - **Passes** clear or keep their targets, can have a depth target, and with several samples resolve into a single
@@ -154,7 +156,12 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
   reflect in their color. Highlights are GGX microfacets, as wide as the roughness says. Materials can also be
   double-sided, and project their textures from world space (`worldTextureSize`), which keeps the mesh's normals.
   Normal, metallic-roughness and occlusion textures hold data, so they are imported with `srgb` off; models do this
-  for the images they use only that way.
+  for the images they use only that way. A material's `alphaMode` says what its alpha does: `Opaque` ignores it,
+  `Cutout` drops pixels below `alphaCutoff` (in shadows too) for leaves and grates, and `Transparent` lets what is
+  behind show through as much as alpha says while reflecting at full strength, as glass does. Transparent surfaces
+  are drawn after the others, sorted from the farthest to the nearest by the center of their bounds, without writing
+  depth, and cast no shadows; surfaces that cross each other can still sort wrongly. glTF's `alphaMode` (`OPAQUE`,
+  `MASK`, `BLEND`) and `alphaCutoff` are imported as these.
 - Meshes (`MeshData`) are vertices with a position, a normal, texture coordinates and a tangent, the direction the
   texture's u grows along the surface, with in `w` the side its v grows on (the bitangent is
   `cross(normal, tangent.xyz) * w`), in which normal maps are read. Models use the tangents their glTF files give,
@@ -183,4 +190,4 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
 
 ## Not there yet
 
-PBR, transparency, culling and instancing come in the roadmap's rendering milestones (M6 and M7).
+Culling and instancing come in the roadmap's rendering milestone M7.

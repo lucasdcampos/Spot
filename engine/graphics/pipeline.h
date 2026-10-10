@@ -26,6 +26,9 @@ enum class BlendMode {
     Alpha,
     // Adds the source color weighted by its alpha, for glows and particles.
     Additive,
+    // Adds the source color as it is and keeps what is behind by one minus the source alpha, for colors already
+    // multiplied by their coverage: surfaces that let light through yet reflect at full strength, such as glass.
+    Premultiplied,
 };
 
 enum class CullMode {

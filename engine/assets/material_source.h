@@ -2,6 +2,7 @@
 
 #include "assets/asset_id.h"
 #include "graphics/color.h"
+#include "graphics/material.h"
 
 #include <filesystem>
 #include <optional>
@@ -26,6 +27,8 @@ struct MaterialSource {
     float occlusionStrength = 1.0f;
     Color emissive = Color::Black;
     AssetId emissiveTexture = {};
+    AlphaMode alphaMode = AlphaMode::Opaque;
+    float alphaCutoff = 0.5f;
     bool doubleSided = false;
     float worldTextureSize = 0.0f;
 

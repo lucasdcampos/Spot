@@ -9,6 +9,7 @@
 #include "scene/archive_state.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <fstream>
 
@@ -46,6 +47,14 @@ void MaterialSource::Serialize(Archive& archive) {
     archive.Field("emissiveTexture", emissiveTexture,
                   {.tooltip = "Where and in which colors the surface glows, multiplying the emissive color",
                    .assetType = AssetType::Texture});
+    static constexpr std::array<std::string_view, 3> AlphaModes = {"Opaque", "Cutout", "Transparent"};
+    archive.Field("alphaMode", alphaMode,
+                  {.enumNames = AlphaModes,
+                   .tooltip = "Whether alpha is ignored, cuts out pixels below the cutoff, or lets what is behind "
+                              "show through"});
+    archive.Field(
+        "alphaCutoff", alphaCutoff,
+        {.min = 0.0f, .max = 1.0f, .speed = 0.005f, .tooltip = "Cutout pixels below this alpha are not drawn"});
     archive.Field("doubleSided", doubleSided, {.tooltip = "Draws back faces too, for thin surfaces like leaves"});
     archive.Field("worldTextureSize", worldTextureSize,
                   {.min = 0.0f,

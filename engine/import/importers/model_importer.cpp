@@ -116,6 +116,8 @@ bool ImportModel(ImportContext& context) {
                                       .occlusionStrength = source.occlusionStrength,
                                       .emissive = source.emissive,
                                       .emissiveTexture = texture(source.emissiveImage),
+                                      .alphaMode = source.alphaMode,
+                                      .alphaCutoff = source.alphaCutoff,
                                       .doubleSided = source.doubleSided};
         BinaryWriter data;
         Encode(data, material);

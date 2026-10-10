@@ -216,6 +216,7 @@ spot_add_shaders(spot_objects NAMESPACE Spot::Detail::Shaders
     graphics/shaders/mesh.vert.hlsl
     graphics/shaders/shadow.frag.hlsl
     graphics/shaders/shadow.vert.hlsl
+    graphics/shaders/shadow_cutout.frag.hlsl
     graphics/shaders/sky.frag.hlsl
     graphics/shaders/sky.vert.hlsl
     graphics/shaders/sky_irradiance.frag.hlsl

@@ -20,6 +20,7 @@
 #include "mesh.vert.h"
 #include "shadow.frag.h"
 #include "shadow.vert.h"
+#include "shadow_cutout.frag.h"
 #include "sky.frag.h"
 #include "sky.vert.h"
 #include "sky_irradiance.frag.h"
@@ -180,7 +181,8 @@ struct MaterialUniforms {
     float occlusionStrength;
     float doubleSided;
     float worldTextureSize;
-    float padding[2];
+    float alphaMode;
+    float alphaCutoff;
 };
 
 // How much a light matters to what is near the camera, lowest first: directional lights reach everything.
@@ -295,6 +297,12 @@ Renderer3D::Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config) :
         m_pipeline = device.CreatePipeline(desc);
         desc.cullMode = CullMode::None;
         m_doubleSidedPipeline = device.CreatePipeline(desc);
+        // Transparent surfaces are tested against what is opaque, but do not hide what is drawn after them.
+        desc.blendMode = BlendMode::Premultiplied;
+        desc.depth = DepthState{.format = config.depthFormat, .write = false};
+        m_doubleSidedTransparentPipeline = device.CreatePipeline(desc);
+        desc.cullMode = CullMode::Back;
+        m_transparentPipeline = device.CreatePipeline(desc);
     }
 
     const auto skyVertexShader = device.CreateShader(Detail::Shaders::SkyVert);
@@ -330,12 +338,14 @@ Renderer3D::Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config) :
 
     const auto shadowVertexShader = device.CreateShader(Detail::Shaders::ShadowVert);
     const auto shadowFragmentShader = device.CreateShader(Detail::Shaders::ShadowFrag);
-    if (shadowVertexShader && shadowFragmentShader) {
+    const auto cutoutShadowFragmentShader = device.CreateShader(Detail::Shaders::ShadowCutoutFrag);
+    if (shadowVertexShader && shadowFragmentShader && cutoutShadowFragmentShader) {
         PipelineDesc desc{
             .vertexShader = shadowVertexShader.get(),
             .fragmentShader = shadowFragmentShader.get(),
             .vertexBuffers = {{.stride = sizeof(MeshVertex),
-                               .attributes = {{0, VertexFormat::Float3, offsetof(MeshVertex, position)}}}},
+                               .attributes = {{0, VertexFormat::Float3, offsetof(MeshVertex, position)},
+                                              {1, VertexFormat::Float2, offsetof(MeshVertex, uv)}}}},
             .cullMode = CullMode::Back,
             .depthOnly = true,
             // Surfaces sloping away from the light cover the most depth per texel, and so need the most bias.
@@ -344,6 +354,10 @@ Renderer3D::Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config) :
         m_shadowPipeline = device.CreatePipeline(desc);
         desc.cullMode = CullMode::None;
         m_doubleSidedShadowPipeline = device.CreatePipeline(desc);
+        desc.fragmentShader = cutoutShadowFragmentShader.get();
+        m_doubleSidedCutoutShadowPipeline = device.CreatePipeline(desc);
+        desc.cullMode = CullMode::Back;
+        m_cutoutShadowPipeline = device.CreatePipeline(desc);
     }
 
     m_sampler = device.CreateSampler(
@@ -366,9 +380,11 @@ Renderer3D::Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config) :
 Renderer3D::~Renderer3D() = default;
 
 bool Renderer3D::IsValid() const {
-    return m_pipeline && m_doubleSidedPipeline && m_skyPipeline && m_shadowPipeline && m_doubleSidedShadowPipeline &&
-           m_sampler && m_shadowSampler && m_whiteTexture && m_noShadows && m_skyCapturePipeline && m_skyPrefilter &&
-           m_skyIrradiancePass && m_skySampler && m_noSkyReflections && m_noSkyIrradiance;
+    return m_pipeline && m_doubleSidedPipeline && m_transparentPipeline && m_doubleSidedTransparentPipeline &&
+           m_skyPipeline && m_shadowPipeline && m_doubleSidedShadowPipeline && m_cutoutShadowPipeline &&
+           m_doubleSidedCutoutShadowPipeline && m_sampler && m_shadowSampler && m_whiteTexture && m_noShadows &&
+           m_skyCapturePipeline && m_skyPrefilter && m_skyIrradiancePass && m_skySampler && m_noSkyReflections &&
+           m_noSkyIrradiance;
 }
 
 void Renderer3D::Begin(RenderContext& context, const RenderPassDesc& target, const Camera3D& camera) {
@@ -419,9 +435,17 @@ void Renderer3D::End() {
     }
     Detail::SelectedLights lights = SelectLights(m_lights, m_camera.position, m_warnedAboutLights);
 
-    // Surfaces are opaque and depth tested, so the order only matters for how often state changes.
-    std::stable_sort(m_commands.begin(), m_commands.end(), [](const DrawCommand& a, const DrawCommand& b) {
-        return std::tie(a.doubleSided, a.textures) < std::tie(b.doubleSided, b.textures);
+    // Opaque and cutout surfaces are depth tested, so their order only matters for how often state changes.
+    // Transparent ones come after them, from the farthest to the nearest, so each blends over what is behind it.
+    const auto transparent = std::stable_partition(m_commands.begin(), m_commands.end(), [](const DrawCommand& c) {
+        return c.alphaMode != AlphaMode::Transparent;
+    });
+    std::stable_sort(m_commands.begin(), transparent, [](const DrawCommand& a, const DrawCommand& b) {
+        return std::tie(a.doubleSided, a.alphaMode, a.textures) < std::tie(b.doubleSided, b.alphaMode, b.textures);
+    });
+    const Vector3 eye = m_camera.position;
+    std::stable_sort(transparent, m_commands.end(), [eye](const DrawCommand& a, const DrawCommand& b) {
+        return LengthSquared(a.bounds.center - eye) > LengthSquared(b.bounds.center - eye);
     });
     Detail::ShadowUniforms shadows{};
     DrawShadows(lights, shadows);
@@ -468,6 +492,8 @@ void Renderer3D::DrawMesh(const Mesh& mesh, const Material& material, const Matr
          material.normalTexture ? material.normalScale : 0.0f,
          material.occlusionStrength,
          material.emissive,
+         material.alphaMode,
+         material.alphaCutoff,
          material.doubleSided,
          material.worldTextureSize,
          transform,
@@ -753,15 +779,29 @@ void Renderer3D::DrawLocalShadows(Detail::SelectedLights& lights, Detail::Shadow
 void Renderer3D::DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjection, bool ignoreNear) {
     pass.PushVertexUniforms(0, viewProjection);
     const Pipeline* boundPipeline = nullptr;
+    const Texture* boundTexture = nullptr;
     for (const auto& command : m_commands) {
-        if (!command.castsShadows ||
+        // Transparent surfaces let light through, so they cast no shadow.
+        if (!command.castsShadows || command.alphaMode == AlphaMode::Transparent ||
             !Detail::IsSphereInView(viewProjection, command.bounds.center, command.bounds.radius, ignoreNear)) {
             continue;
         }
-        const Pipeline* pipeline = command.doubleSided ? m_doubleSidedShadowPipeline.get() : m_shadowPipeline.get();
+        const bool cutout = command.alphaMode == AlphaMode::Cutout;
+        const Pipeline* pipeline =
+            cutout ? (command.doubleSided ? m_doubleSidedCutoutShadowPipeline.get() : m_cutoutShadowPipeline.get())
+                   : (command.doubleSided ? m_doubleSidedShadowPipeline.get() : m_shadowPipeline.get());
         if (pipeline != boundPipeline) {
             pass.BindPipeline(*pipeline);
             boundPipeline = pipeline;
+        }
+        // Cutout shadows follow the mesh's UVs, even for textures projected from world space.
+        if (cutout) {
+            const Texture* texture = command.textures[0] ? command.textures[0] : m_whiteTexture.get();
+            if (texture != boundTexture) {
+                pass.BindFragmentTexture(0, *texture, *m_sampler);
+                boundTexture = texture;
+            }
+            pass.PushFragmentUniforms(0, Vector4{command.color.a, command.alphaCutoff, 0.0f, 0.0f});
         }
         pass.BindVertexBuffer(0, command.mesh->GetVertexBuffer());
         pass.BindIndexBuffer(command.mesh->GetIndexBuffer(), IndexType::UInt32);
@@ -790,7 +830,10 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
     const Pipeline* boundPipeline = nullptr;
     MaterialTextures boundTextures{};
     for (const auto& command : m_commands) {
-        const Pipeline* pipeline = command.doubleSided ? m_doubleSidedPipeline.get() : m_pipeline.get();
+        const Pipeline* pipeline =
+            command.alphaMode == AlphaMode::Transparent
+                ? (command.doubleSided ? m_doubleSidedTransparentPipeline.get() : m_transparentPipeline.get())
+                : (command.doubleSided ? m_doubleSidedPipeline.get() : m_pipeline.get());
         if (pipeline != boundPipeline) {
             pass.BindPipeline(*pipeline);
             boundPipeline = pipeline;
@@ -815,7 +858,8 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
                                                       .occlusionStrength = command.occlusionStrength,
                                                       .doubleSided = command.doubleSided ? 1.0f : 0.0f,
                                                       .worldTextureSize = command.worldTextureSize,
-                                                      .padding = {}});
+                                                      .alphaMode = static_cast<float>(command.alphaMode),
+                                                      .alphaCutoff = command.alphaCutoff});
         pass.DrawIndexed(command.mesh->GetIndexCount());
 
         ++m_stats.drawCalls;

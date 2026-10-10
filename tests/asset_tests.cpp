@@ -585,6 +585,8 @@ TEST_CASE("Material files are assets that refer to textures by id", "[assets]") 
                                 .occlusionStrength = 0.75f,
                                 .emissive = Spot::Color{2.0f, 1.0f, 0.0f, 1.0f},
                                 .emissiveTexture = pixelsId,
+                                .alphaMode = Spot::AlphaMode::Cutout,
+                                .alphaCutoff = 0.25f,
                                 .doubleSided = true,
                                 .worldTextureSize = 2.0f};
     const auto reloaded = Spot::MaterialSource::LoadFromString(source.SaveToString());
@@ -599,6 +601,8 @@ TEST_CASE("Material files are assets that refer to textures by id", "[assets]") 
     CHECK(reloaded->occlusionStrength == 0.75f);
     CHECK(reloaded->emissive == Spot::Color{2.0f, 1.0f, 0.0f, 1.0f});
     CHECK(reloaded->emissiveTexture == pixelsId);
+    CHECK(reloaded->alphaMode == Spot::AlphaMode::Cutout);
+    CHECK(reloaded->alphaCutoff == 0.25f);
     CHECK(reloaded->doubleSided);
     CHECK(reloaded->worldTextureSize == 2.0f);
 
@@ -617,6 +621,8 @@ TEST_CASE("Material files are assets that refer to textures by id", "[assets]") 
     CHECK(material->occlusionStrength == 0.75f);
     CHECK(material->emissive == Spot::Color{2.0f, 1.0f, 0.0f, 1.0f});
     CHECK(material->normalTexture.GetId() == pixelsId);
+    CHECK(material->alphaMode == Spot::AlphaMode::Cutout);
+    CHECK(material->alphaCutoff == 0.25f);
     // There is no GPU here to load the texture, but the reference knows which one it is.
     CHECK(material->baseColorTexture.GetId() == pixelsId);
 

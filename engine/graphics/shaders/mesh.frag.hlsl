@@ -76,6 +76,9 @@ cbuffer Material : register(b1, space3) {
     float doubleSided;
     // Positive to project the textures from world space, repeating every this many units, instead of using the UVs.
     float worldTextureSize;
+    // 0 for opaque, 1 for cutout and 2 for transparent surfaces, and the alpha below which cutout pixels are dropped.
+    float alphaMode;
+    float alphaCutoff;
 };
 
 // The fog's color, with 1 in w when there is fog; its density, start, height falloff and base height; and the camera's
@@ -312,6 +315,9 @@ float4 main(Input input) : SV_Target0 {
     const float2 uv = worldTextureSize > 0.0 ? GetWorldUv(input.worldPosition, surfaceNormal) : input.uv;
     const float3 normal = ApplyNormalMap(surfaceNormal, input.tangent, uv);
     const float4 albedo = baseColorTexture.Sample(baseColorSampler, uv) * baseColor;
+    if (alphaMode > 0.5 && alphaMode < 1.5 && albedo.a < alphaCutoff) {
+        discard;
+    }
     const float4 metallicRoughness = metallicRoughnessTexture.Sample(metallicRoughnessSampler, uv);
     const float metalness = saturate(metallic * metallicRoughness.b);
     // Roughness is perceptually linear, and its square is GGX's alpha. Perfect mirrors would have highlights a pixel
@@ -346,6 +352,17 @@ float4 main(Input input) : SV_Target0 {
     const float3 ambient = scattered * surroundings +
                            reflectedSurroundings * GetEnvironmentReflectance(reflectance, perceived, nv);
     const float3 emitted = emissive.rgb * emissiveTexture.Sample(emissiveSampler, uv).rgb;
+    const float fog = GetFogAmount(input.worldPosition - fogCamera.xyz);
+    if (alphaMode > 1.5) {
+        // Premultiplied: what the surface scatters covers what is behind it as much as its alpha says, while what it
+        // reflects and gives off is added at full strength. Fog covers it all, as much as the surface is there.
+        const float3 scatteredLight = scattered * (diffuse + surroundings * occlusion);
+        const float3 reflectedLight =
+            reflectedSurroundings * GetEnvironmentReflectance(reflectance, perceived, nv) * occlusion + highlights +
+            emitted;
+        const float3 premultiplied = scatteredLight * albedo.a + reflectedLight;
+        return float4(lerp(premultiplied, fogColor.rgb * albedo.a, fog), albedo.a);
+    }
     const float3 color = scattered * diffuse + ambient * occlusion + highlights + emitted;
-    return float4(lerp(color, fogColor.rgb, GetFogAmount(input.worldPosition - fogCamera.xyz)), albedo.a);
+    return float4(lerp(color, fogColor.rgb, fog), 1.0);
 }

@@ -5,6 +5,7 @@
 #include "graphics/fog_data.h"
 #include "graphics/fullscreen_pass.h"
 #include "graphics/light_data.h"
+#include "graphics/material.h"
 #include "graphics/mesh_data.h"
 #include "graphics/render_context.h"
 #include "graphics/sky_data.h"
@@ -140,6 +141,8 @@ private:
         float normalScale;
         float occlusionStrength;
         Color emissive;
+        AlphaMode alphaMode;
+        float alphaCutoff;
         bool doubleSided;
         float worldTextureSize;
         Matrix4 transform;
@@ -160,9 +163,13 @@ private:
 
     std::unique_ptr<Pipeline> m_pipeline;
     std::unique_ptr<Pipeline> m_doubleSidedPipeline;
+    std::unique_ptr<Pipeline> m_transparentPipeline;
+    std::unique_ptr<Pipeline> m_doubleSidedTransparentPipeline;
     std::unique_ptr<Pipeline> m_skyPipeline;
     std::unique_ptr<Pipeline> m_shadowPipeline;
     std::unique_ptr<Pipeline> m_doubleSidedShadowPipeline;
+    std::unique_ptr<Pipeline> m_cutoutShadowPipeline;
+    std::unique_ptr<Pipeline> m_doubleSidedCutoutShadowPipeline;
     std::unique_ptr<Sampler> m_sampler;
     std::unique_ptr<Sampler> m_shadowSampler;
     std::unique_ptr<Texture> m_whiteTexture;
