@@ -111,12 +111,12 @@ TEST_CASE("Prefab instances keep the tree and remap references to independent id
 TEST_CASE("Invalid prefab documents are rejected before entities can be created", "[assets][prefab]") {
     const auto sink = std::make_shared<Spot::Tests::CaptureSink>();
     const Spot::Tests::ScopedSinks capture({sink});
-    const std::array<std::string_view, 14> invalid{
+    const std::array<std::string_view, 15> invalid{
         "not json",
         "[]",
         "{}",
         R"({"format":"other","version":1,"entities":[{"id":1}]})",
-        R"({"format":"spot-scene","version":2,"entities":[{"id":1}]})",
+        R"({"format":"spot-scene","version":99,"entities":[{"id":1}]})",
         R"({"format":"spot-scene","version":1.0,"entities":[{"id":1}]})",
         R"({"format":"spot-scene","version":1,"entities":[]})",
         R"({"format":"spot-scene","version":1,"entities":[null]})",
@@ -125,6 +125,7 @@ TEST_CASE("Invalid prefab documents are rejected before entities can be created"
         R"({"format":"spot-scene","version":1,"entities":[{"id":1},{"id":1,"parent":1}]})",
         R"({"format":"spot-scene","version":1,"entities":[{"id":1},{"id":2}]})",
         R"({"format":"spot-scene","version":1,"entities":[{"id":1,"parent":"bad"}]})",
+        R"({"format":"spot-scene","version":2,"entities":[{"id":1,"prefab":"0123456789abcdef0123456789abcdef"}]})",
         R"({"format":"spot-scene","version":1,"entities":[{"id":1},{"id":2,"parent":3},{"id":3,"parent":2}]})"};
     for (const auto text : invalid) {
         CAPTURE(text);

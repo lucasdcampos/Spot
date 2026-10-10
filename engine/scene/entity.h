@@ -24,6 +24,8 @@ enum class EntityId : std::uint64_t { Invalid = 0 };
 
 namespace Detail {
 
+struct PrefabInstanceState;
+
 // While one is alive, removals asked for in the scene wait until the outermost one ends, so loops over entities and
 // components never see them freed under their feet.
 class DeferRemovalsScope {
@@ -57,6 +59,11 @@ public:
 
     Scene& GetScene() const { return *m_scene; }
     EntityId GetId() const { return m_id; }
+    // The root and source-local identity of an inherited prefab entity; invalid/zero for ordinary entities.
+    EntityId GetPrefabRootId() const { return m_prefabRoot; }
+    std::uint64_t GetPrefabLocalId() const { return m_prefabLocalId; }
+    // Valid on the root of a linked prefab instance.
+    AssetId GetPrefabAssetId() const;
 
     const std::string& GetName() const { return m_name; }
     void SetName(std::string name) { m_name = std::move(name); }
@@ -108,7 +115,7 @@ public:
 
     // Saves the entity and its descendants in the format of Scene::SaveToString(). Loading the text into a scene
     // creates a copy of them, so it also works as a template for entities made many times.
-    std::string SaveToString() const;
+    std::string SaveToString(bool expandPrefabs = false) const;
 
     // Destroys the entity and all its descendants; same as Scene::DestroyEntity(*this).
     void Destroy();
@@ -246,6 +253,9 @@ private:
 
     Scene* m_scene;
     EntityId m_id;
+    EntityId m_prefabRoot = EntityId::Invalid;
+    std::uint64_t m_prefabLocalId = 0;
+    std::shared_ptr<Detail::PrefabInstanceState> m_prefabInstance;
     std::string m_name;
     std::vector<std::string> m_tags;
     std::uint8_t m_layer = 0;

@@ -629,6 +629,9 @@ void SceneWorkspace::Render(RenderContext& context) {
 }
 
 SceneDocument& SceneWorkspace::Add(std::unique_ptr<SceneDocument> document) {
+    if (EditorProject* project = m_context.GetProject()) {
+        document->SetAssetManager(&project->GetAssets());
+    }
     SceneDocument& added = *document;
     auto view = std::make_unique<SceneView>(added);
     view->RequestFocus();

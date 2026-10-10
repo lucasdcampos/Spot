@@ -7,6 +7,7 @@
 #include "scene/component_serialization.h"
 #include "scene/missing_component.h"
 #include "scene/scene.h"
+#include "scene/scene_serializer.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -25,7 +26,7 @@ using nlohmann::json;
 namespace {
 
 constexpr std::string_view Format = "spot-scene";
-constexpr int FormatVersion = 1;
+constexpr int FormatVersion = 2;
 
 json MakeDocument() {
     return {{"format", Format}, {"version", FormatVersion}, {"entities", json::array()}};
@@ -56,290 +57,340 @@ std::int64_t GetInteger(const json& object, std::string_view key) {
 
 namespace Detail {
 
-struct SceneSerializer {
-    using IdMap = std::unordered_map<std::uint64_t, EntityId>;
+void SceneSerializer::Serialize(Component& component, Archive& archive) {
+    component.Serialize(archive);
+}
+void SceneSerializer::Validate(Component& component) {
+    component.InvokeHook("OnValidate", [&component] { component.OnValidate(); });
+}
 
-    static void Serialize(Component& component, Archive& archive) { component.Serialize(archive); }
-    static void Validate(Component& component) {
-        component.InvokeHook("OnValidate", [&component] { component.OnValidate(); });
-    }
-
-    // Saves the entity and then its descendants, depth first, so parents always come before their children and
-    // children keep their order.
-    static void SaveTree(const Entity& entity, json& entities) {
-        SaveEntity(entity, entities.emplace_back(json::object()));
-        for (const Entity* child : entity.m_children) {
-            if (!child->m_destroyed) {
-                SaveTree(*child, entities);
-            }
+// Saves the entity and then its descendants, depth first, so parents always come before their children and
+// children keep their order.
+void SceneSerializer::SaveTree(const Entity& entity, json& entities, const PrefabRoots& roots) {
+    if (entity.m_prefabInstance && roots.contains(entity.m_id)) {
+        entities.push_back(SavePrefab(entity));
+    } else if (!roots.contains(entity.m_prefabRoot)) {
+        json& saved = entities.emplace_back(json::object());
+        SaveEntity(entity, saved);
+        if (entity.m_parent && roots.contains(entity.m_parent->m_prefabRoot)) {
+            saved["siblingIndex"] = entity.GetSiblingIndex();
         }
     }
+    for (const Entity* child : entity.m_children) {
+        if (!child->m_destroyed) {
+            SaveTree(*child, entities, roots);
+        }
+    }
+}
 
-    static void SaveEntity(const Entity& entity, json& node) {
-        ArchiveState state{.loading = false, .nodes = {&node}};
+void SceneSerializer::SaveEntity(const Entity& entity, json& node, const IdMap* prefabIds) {
+    ArchiveState state{.loading = false, .nodes = {&node}, .prefabIds = prefabIds};
+    Archive archive(state);
+
+    auto id = static_cast<std::uint64_t>(entity.m_id);
+    archive.Field("id", id);
+    std::string name = entity.m_name;
+    archive.Field("name", name);
+    bool active = entity.m_activeSelf;
+    archive.Field("active", active);
+    if (entity.m_parent) {
+        EntityId parent = entity.m_parent->m_id;
+        archive.Field("parent", parent);
+    }
+    std::vector<std::string> tags = entity.m_tags;
+    archive.Field("tags", tags);
+    int layer = entity.m_layer;
+    archive.Field("layer", layer);
+
+    const Transform& transform = entity.m_transform;
+    Vector3 position = transform.GetPosition();
+    Quaternion rotation = transform.GetRotation();
+    Vector3 scale = transform.GetScale();
+    archive.Field("position", position);
+    archive.Field("rotation", rotation);
+    archive.Field("scale", scale);
+
+    json& components = node["components"] = json::array();
+    for (const auto& component : entity.m_components) {
+        if (component->m_removed) {
+            continue;
+        }
+        if (auto saved = SceneSerializer::SaveComponent(*component, prefabIds)) {
+            components.push_back(std::move(*saved));
+        } else {
+            Log::GetEngineLogger().Warning("A component of entity '{}' is not saved: its type {} is not registered",
+                                           entity.m_name, typeid(*component).name());
+        }
+    }
+}
+
+// The component's type, enabled state and fields; nothing when its type is not registered.
+std::optional<json> SceneSerializer::SaveComponent(const Component& component, const IdMap* prefabIds) {
+    json saved = {{"id", component.m_id.ToString()}};
+    if (const auto* missing = dynamic_cast<const MissingComponent*>(&component)) {
+        // Kept exactly as it was loaded, since nothing here knows its fields.
+        saved["type"] = missing->m_typeName;
+        saved["enabled"] = component.m_enabled;
+        saved["data"] = json::parse(missing->m_data, nullptr, false);
+        if (!saved["data"].is_object()) {
+            saved["data"] = json::object();
+        }
+        return saved;
+    }
+    const std::string* type = FindComponentTypeName(typeid(component));
+    if (!type) {
+        return std::nullopt;
+    }
+    saved["type"] = *type;
+    saved["enabled"] = component.m_enabled;
+    json& data = saved["data"] = json::object();
+    ArchiveState state{.loading = false, .nodes = {&data}, .prefabIds = prefabIds};
+    Archive archive(state);
+    // Serialize() both saves and loads, so it cannot be const.
+    const_cast<Component&>(component).Serialize(archive);
+    return saved;
+}
+
+std::optional<json> SceneSerializer::ParseDocument(std::string_view text) {
+    json document = json::parse(text.begin(), text.end(), nullptr, false);
+    if (document.is_discarded()) {
+        Log::GetEngineLogger().Warning("Could not load the scene: the text is not valid JSON");
+        return std::nullopt;
+    }
+    if (!document.is_object() || GetString(document, "format") != Format) {
+        Log::GetEngineLogger().Warning("Could not load the scene: the text is not a saved scene");
+        return std::nullopt;
+    }
+    if (const std::int64_t version = GetInteger(document, "version"); version != 1 && version != FormatVersion) {
+        Log::GetEngineLogger().Warning("Could not load the scene: version {} of the format is not supported", version);
+        return std::nullopt;
+    }
+    const auto entities = document.find("entities");
+    if (entities == document.end() || !entities->is_array() || !std::ranges::all_of(*entities, &json::is_object)) {
+        Log::GetEngineLogger().Warning("Could not load the scene: its entities are not a list of objects");
+        return std::nullopt;
+    }
+    return document;
+}
+
+std::optional<std::vector<Entity*>> SceneSerializer::Load(Scene& scene, std::string_view text,
+                                                          const InstantiateOptions& options, IdMap* loadedIds,
+                                                          bool validateComponents) {
+    std::optional<json> document = ParseDocument(text);
+    if (!document) {
+        return std::nullopt;
+    }
+    std::vector<PrefabLoadGroup> groups;
+    if (!ExpandPrefabs(*document, options.assets, groups)) {
+        Log::GetEngineLogger().Warning("Could not load the scene: its prefab instances could not be resolved");
+        return std::nullopt;
+    }
+    json& entities = (*document)["entities"];
+
+    const DeferRemovalsScope defer(scene);
+
+    // Every entity is created first, so references between them can be mapped to the new ids.
+    IdMap ids;
+    std::vector<Entity*> created;
+    created.reserve(entities.size());
+    for (json& node : entities) {
+        ArchiveState state{.loading = true, .nodes = {&node}};
         Archive archive(state);
 
-        auto id = static_cast<std::uint64_t>(entity.m_id);
-        archive.Field("id", id);
-        std::string name = entity.m_name;
+        std::string name;
         archive.Field("name", name);
-        bool active = entity.m_activeSelf;
-        archive.Field("active", active);
-        if (entity.m_parent) {
-            EntityId parent = entity.m_parent->m_id;
-            archive.Field("parent", parent);
+        std::uint64_t id = 0;
+        archive.Field("id", id);
+        Entity& entity = options.keepIds ? scene.CreateEntityWithId(static_cast<EntityId>(id), std::move(name))
+                                         : scene.CreateEntity(std::move(name));
+        created.push_back(&entity);
+        if (id != 0) {
+            ids.insert_or_assign(id, entity.m_id);
         }
-        std::vector<std::string> tags = entity.m_tags;
+        // No component is attached yet, so the activity can be set without any hook to call.
+        archive.Field("active", entity.m_activeSelf);
+        std::vector<std::string> tags;
         archive.Field("tags", tags);
-        int layer = entity.m_layer;
+        for (const std::string& tag : tags) {
+            entity.AddTag(tag);
+        }
+        int layer = 0;
         archive.Field("layer", layer);
+        entity.m_layer = static_cast<std::uint8_t>(std::clamp(layer, 0, Entity::LayerCount - 1));
 
-        const Transform& transform = entity.m_transform;
+        Transform& transform = entity.m_transform;
         Vector3 position = transform.GetPosition();
         Quaternion rotation = transform.GetRotation();
         Vector3 scale = transform.GetScale();
         archive.Field("position", position);
         archive.Field("rotation", rotation);
         archive.Field("scale", scale);
+        transform.SetPosition(position);
+        transform.SetRotation(rotation);
+        transform.SetScale(scale);
+    }
 
-        json& components = node["components"] = json::array();
-        for (const auto& component : entity.m_components) {
-            if (component->m_removed) {
-                continue;
-            }
-            if (auto saved = SaveComponent(*component)) {
-                components.push_back(std::move(*saved));
-            } else {
-                Log::GetEngineLogger().Warning("A component of entity '{}' is not saved: its type {} is not registered",
-                                               entity.m_name, typeid(*component).name());
+    if (loadedIds) {
+        *loadedIds = ids;
+    }
+    RestorePrefabGroups(scene, groups, ids);
+    std::unordered_map<EntityId, const IdMap*> prefabMaps;
+    for (const auto& group : groups) {
+        for (const auto& [local, entityId] : group.instance->entities) {
+            (void)local;
+            prefabMaps[entityId] = &group.instance->entities;
+        }
+    }
+    const Scene* referenced = options.keepExternalReferences ? &scene : nullptr;
+    for (std::size_t i = 0; i < created.size(); ++i) {
+        Entity& entity = *created[i];
+        // Parents only come from the saved entities, so a saved subtree loads as a new one wherever it came from.
+        ArchiveState parentState{.loading = true, .nodes = {&entities[i]}, .entityIds = &ids};
+        Archive parentArchive(parentState);
+        EntityId parentId = EntityId::Invalid;
+        parentArchive.Field("parent", parentId);
+        Entity* parent = scene.GetEntity(parentId);
+        if (parent && parent != &entity && !parent->IsDescendantOf(entity)) {
+            entity.SetParent(parent);
+        }
+
+        const auto components = entities[i].find("components");
+        if (components != entities[i].end() && components->is_array()) {
+            for (json& saved : *components) {
+                const auto prefab = prefabMaps.find(entity.GetId());
+                LoadComponent(entity, saved, std::nullopt, prefab != prefabMaps.end() ? *prefab->second : ids,
+                              referenced, options.assets, &ids, validateComponents);
             }
         }
     }
 
-    // The component's type, enabled state and fields; nothing when its type is not registered.
-    static std::optional<json> SaveComponent(const Component& component) {
-        json saved = json::object();
-        if (const auto* missing = dynamic_cast<const MissingComponent*>(&component)) {
-            // Kept exactly as it was loaded, since nothing here knows its fields.
-            saved["type"] = missing->m_typeName;
-            saved["enabled"] = component.m_enabled;
-            saved["data"] = json::parse(missing->m_data, nullptr, false);
-            if (!saved["data"].is_object()) {
-                saved["data"] = json::object();
-            }
-            return saved;
+    for (std::size_t i = 0; i < created.size(); ++i) {
+        const auto sibling = entities[i].find("siblingIndex");
+        if (sibling != entities[i].end() && sibling->is_number_unsigned()) {
+            created[i]->SetSiblingIndex(sibling->get<std::size_t>());
         }
-        const std::string* type = FindComponentTypeName(typeid(component));
-        if (!type) {
-            return std::nullopt;
+    }
+    std::vector<Entity*> roots;
+    for (Entity* entity : created) {
+        if (!entity->m_parent) {
+            roots.push_back(entity);
         }
-        saved["type"] = *type;
-        saved["enabled"] = component.m_enabled;
-        json& data = saved["data"] = json::object();
-        ArchiveState state{.loading = false, .nodes = {&data}};
+    }
+    for (std::size_t i = 0; i < roots.size(); ++i) {
+        if (options.parent) {
+            roots[i]->SetParent(options.parent);
+        }
+        if (options.siblingIndex) {
+            roots[i]->SetSiblingIndex(*options.siblingIndex + i);
+        }
+    }
+    return roots;
+}
+
+Component* SceneSerializer::LoadComponent(Entity& entity, json& saved, std::optional<std::size_t> index,
+                                          const IdMap& ids, const Scene* referenced, AssetManager* assets,
+                                          const IdMap* externalIds, bool validate) {
+    if (!saved.is_object()) {
+        return nullptr;
+    }
+    const std::string type = GetString(saved, "type");
+    const auto data = saved.find("data");
+    const bool hasData = data != saved.end() && data->is_object();
+
+    std::unique_ptr<Component> owned;
+    if (const ComponentFactory factory = FindComponentFactory(type)) {
+        owned = factory();
+    } else {
+        Log::GetEngineLogger().Warning(
+            "A component of entity '{}' is of type '{}', which is not registered; its data is kept as it is",
+            entity.m_name, type);
+        owned = std::make_unique<MissingComponent>(type, hasData ? data->dump() : "{}");
+    }
+    Component& component = *owned;
+    component.m_id = AssetId::Parse(GetString(saved, "id")).value_or(component.m_id);
+    component.m_enabled = GetBool(saved, "enabled", true);
+    entity.Attach(std::move(owned), index);
+
+    if (hasData && !dynamic_cast<MissingComponent*>(&component)) {
+        ArchiveState state{.loading = true,
+                           .nodes = {&*data},
+                           .entityIds = &ids,
+                           .scene = referenced,
+                           .assets = assets,
+                           .externalEntityIds = externalIds};
         Archive archive(state);
-        // Serialize() both saves and loads, so it cannot be const.
-        const_cast<Component&>(component).Serialize(archive);
-        return saved;
-    }
-
-    static std::optional<json> ParseDocument(std::string_view text) {
-        json document = json::parse(text.begin(), text.end(), nullptr, false);
-        if (document.is_discarded()) {
-            Log::GetEngineLogger().Warning("Could not load the scene: the text is not valid JSON");
-            return std::nullopt;
-        }
-        if (!document.is_object() || GetString(document, "format") != Format) {
-            Log::GetEngineLogger().Warning("Could not load the scene: the text is not a saved scene");
-            return std::nullopt;
-        }
-        if (const std::int64_t version = GetInteger(document, "version"); version != FormatVersion) {
-            Log::GetEngineLogger().Warning("Could not load the scene: version {} of the format is not supported",
-                                           version);
-            return std::nullopt;
-        }
-        const auto entities = document.find("entities");
-        if (entities == document.end() || !entities->is_array() || !std::ranges::all_of(*entities, &json::is_object)) {
-            Log::GetEngineLogger().Warning("Could not load the scene: its entities are not a list of objects");
-            return std::nullopt;
-        }
-        return document;
-    }
-
-    static std::optional<std::vector<Entity*>> Load(Scene& scene, std::string_view text,
-                                                    const InstantiateOptions& options) {
-        std::optional<json> document = ParseDocument(text);
-        if (!document) {
-            return std::nullopt;
-        }
-        json& entities = (*document)["entities"];
-
-        const DeferRemovalsScope defer(scene);
-
-        // Every entity is created first, so references between them can be mapped to the new ids.
-        IdMap ids;
-        std::vector<Entity*> created;
-        created.reserve(entities.size());
-        for (json& node : entities) {
-            ArchiveState state{.loading = true, .nodes = {&node}};
-            Archive archive(state);
-
-            std::string name;
-            archive.Field("name", name);
-            std::uint64_t id = 0;
-            archive.Field("id", id);
-            Entity& entity = options.keepIds ? scene.CreateEntityWithId(static_cast<EntityId>(id), std::move(name))
-                                             : scene.CreateEntity(std::move(name));
-            created.push_back(&entity);
-            if (id != 0) {
-                ids.insert_or_assign(id, entity.m_id);
-            }
-            // No component is attached yet, so the activity can be set without any hook to call.
-            archive.Field("active", entity.m_activeSelf);
-            std::vector<std::string> tags;
-            archive.Field("tags", tags);
-            for (const std::string& tag : tags) {
-                entity.AddTag(tag);
-            }
-            int layer = 0;
-            archive.Field("layer", layer);
-            entity.m_layer = static_cast<std::uint8_t>(std::clamp(layer, 0, Entity::LayerCount - 1));
-
-            Transform& transform = entity.m_transform;
-            Vector3 position = transform.GetPosition();
-            Quaternion rotation = transform.GetRotation();
-            Vector3 scale = transform.GetScale();
-            archive.Field("position", position);
-            archive.Field("rotation", rotation);
-            archive.Field("scale", scale);
-            transform.SetPosition(position);
-            transform.SetRotation(rotation);
-            transform.SetScale(scale);
-        }
-
-        const Scene* referenced = options.keepExternalReferences ? &scene : nullptr;
-        for (std::size_t i = 0; i < created.size(); ++i) {
-            Entity& entity = *created[i];
-            // Parents only come from the saved entities, so a saved subtree loads as a new one wherever it came from.
-            ArchiveState parentState{.loading = true, .nodes = {&entities[i]}, .entityIds = &ids};
-            Archive parentArchive(parentState);
-            EntityId parentId = EntityId::Invalid;
-            parentArchive.Field("parent", parentId);
-            Entity* parent = scene.GetEntity(parentId);
-            if (parent && parent != &entity && !parent->IsDescendantOf(entity)) {
-                entity.SetParent(parent);
-            }
-
-            const auto components = entities[i].find("components");
-            if (components != entities[i].end() && components->is_array()) {
-                for (json& saved : *components) {
-                    LoadComponent(entity, saved, std::nullopt, ids, referenced, options.assets);
-                }
-            }
-        }
-
-        std::vector<Entity*> roots;
-        for (Entity* entity : created) {
-            if (!entity->m_parent) {
-                roots.push_back(entity);
-            }
-        }
-        for (std::size_t i = 0; i < roots.size(); ++i) {
-            if (options.parent) {
-                roots[i]->SetParent(options.parent);
-            }
-            if (options.siblingIndex) {
-                roots[i]->SetSiblingIndex(*options.siblingIndex + i);
-            }
-        }
-        return roots;
-    }
-
-    static Component* LoadComponent(Entity& entity, json& saved, std::optional<std::size_t> index, const IdMap& ids,
-                                    const Scene* referenced, AssetManager* assets) {
-        if (!saved.is_object()) {
-            return nullptr;
-        }
-        const std::string type = GetString(saved, "type");
-        const auto data = saved.find("data");
-        const bool hasData = data != saved.end() && data->is_object();
-
-        std::unique_ptr<Component> owned;
-        if (const ComponentFactory factory = FindComponentFactory(type)) {
-            owned = factory();
-        } else {
-            Log::GetEngineLogger().Warning(
-                "A component of entity '{}' is of type '{}', which is not registered; its data is kept as it is",
-                entity.m_name, type);
-            owned = std::make_unique<MissingComponent>(type, hasData ? data->dump() : "{}");
-        }
-        Component& component = *owned;
-        component.m_enabled = GetBool(saved, "enabled", true);
-        entity.Attach(std::move(owned), index);
-
-        if (hasData && !dynamic_cast<MissingComponent*>(&component)) {
-            ArchiveState state{
-                .loading = true, .nodes = {&*data}, .entityIds = &ids, .scene = referenced, .assets = assets};
-            Archive archive(state);
-            component.Serialize(archive);
+        component.Serialize(archive);
+        if (validate) {
             Validate(component);
         }
-        return &component;
+    }
+    return &component;
+}
+
+bool SceneSerializer::ReplaceComponent(Component& component, std::string_view text, AssetManager* assets) {
+    json saved = json::parse(text.begin(), text.end(), nullptr, false);
+    if (!saved.is_object()) {
+        Log::GetEngineLogger().Warning("Could not load the component: the text is not a saved component");
+        return false;
+    }
+    const std::string type = GetString(saved, "type");
+    auto* missing = dynamic_cast<MissingComponent*>(&component);
+    const std::string* registered = FindComponentTypeName(typeid(component));
+    const std::string_view expected = missing      ? std::string_view(missing->m_typeName)
+                                      : registered ? std::string_view(*registered)
+                                                   : std::string_view();
+    if (expected.empty() || type != expected) {
+        Log::GetEngineLogger().Warning("Could not load the component: the text is for a '{}', not a '{}'", type,
+                                       expected);
+        return false;
     }
 
-    static bool ReplaceComponent(Component& component, std::string_view text, AssetManager* assets) {
-        json saved = json::parse(text.begin(), text.end(), nullptr, false);
-        if (!saved.is_object()) {
-            Log::GetEngineLogger().Warning("Could not load the component: the text is not a saved component");
-            return false;
-        }
-        const std::string type = GetString(saved, "type");
-        auto* missing = dynamic_cast<MissingComponent*>(&component);
-        const std::string* registered = FindComponentTypeName(typeid(component));
-        const std::string_view expected = missing      ? std::string_view(missing->m_typeName)
-                                          : registered ? std::string_view(*registered)
-                                                       : std::string_view();
-        if (expected.empty() || type != expected) {
-            Log::GetEngineLogger().Warning("Could not load the component: the text is for a '{}', not a '{}'", type,
-                                           expected);
-            return false;
-        }
-
-        const auto data = saved.find("data");
-        if (missing) {
-            missing->m_data = data != saved.end() && data->is_object() ? data->dump() : "{}";
-        } else if (data != saved.end() && data->is_object()) {
-            // Ids load as saved: the text comes from the same scene, such as an earlier state of the component.
-            ArchiveState state{.loading = true, .nodes = {&*data}, .assets = assets};
-            Archive archive(state);
-            component.Serialize(archive);
-            Validate(component);
-        }
-        component.SetEnabled(GetBool(saved, "enabled", component.m_enabled));
-        return true;
+    const auto data = saved.find("data");
+    if (missing) {
+        missing->m_data = data != saved.end() && data->is_object() ? data->dump() : "{}";
+    } else if (data != saved.end() && data->is_object()) {
+        // Ids load as saved: the text comes from the same scene, such as an earlier state of the component.
+        ArchiveState state{.loading = true, .nodes = {&*data}, .assets = assets};
+        Archive archive(state);
+        component.Serialize(archive);
+        Validate(component);
     }
-};
+    component.SetEnabled(GetBool(saved, "enabled", component.m_enabled));
+    return true;
+}
 
 } // namespace Detail
 
-std::string Scene::SaveToString() const {
+std::string Scene::SaveToString(bool expandPrefabs) const {
     json document = MakeDocument();
+    Detail::SceneSerializer::PrefabRoots prefabs;
+    if (!expandPrefabs) {
+        for (const Entity* root : m_roots) {
+            Detail::SceneSerializer::CollectPrefabRoots(*root, prefabs);
+        }
+    }
     for (const Entity* root : m_roots) {
         if (!root->m_destroyed) {
-            Detail::SceneSerializer::SaveTree(*root, document["entities"]);
+            Detail::SceneSerializer::SaveTree(*root, document["entities"], prefabs);
         }
     }
     return Dump(document);
 }
 
-std::string Scene::SaveEntitiesToString(std::span<Entity* const> entities) const {
+std::string Scene::SaveEntitiesToString(std::span<Entity* const> entities, bool expandPrefabs) const {
     json document = MakeDocument();
+    Detail::SceneSerializer::PrefabRoots prefabs;
+    if (!expandPrefabs) {
+        for (const Entity* entity : entities) {
+            Detail::SceneSerializer::CollectPrefabRoots(*entity, prefabs);
+        }
+    }
     for (const Entity* entity : entities) {
         SPOT_ASSERT(&entity->GetScene() == this, "The entity belongs to another scene");
         const bool savedWithAncestor = std::ranges::any_of(
             entities, [entity](const Entity* other) { return other != entity && entity->IsDescendantOf(*other); });
         if (!entity->m_destroyed && !savedWithAncestor) {
-            Detail::SceneSerializer::SaveTree(*entity, document["entities"]);
+            Detail::SceneSerializer::SaveTree(*entity, document["entities"], prefabs);
         }
     }
     return Dump(document);
@@ -373,10 +424,14 @@ std::vector<Entity*> Scene::Instantiate(std::string_view text, const Instantiate
     return Detail::SceneSerializer::Load(*this, text, options).value_or(std::vector<Entity*>());
 }
 
-std::string Entity::SaveToString() const {
+std::string Entity::SaveToString(bool expandPrefabs) const {
     SPOT_ASSERT(!m_destroyed, "A destroyed entity cannot be saved");
     json document = MakeDocument();
-    Detail::SceneSerializer::SaveTree(*this, document["entities"]);
+    Detail::SceneSerializer::PrefabRoots prefabs;
+    if (!expandPrefabs) {
+        Detail::SceneSerializer::CollectPrefabRoots(*this, prefabs);
+    }
+    Detail::SceneSerializer::SaveTree(*this, document["entities"], prefabs);
     return Dump(document);
 }
 

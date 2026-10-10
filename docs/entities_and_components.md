@@ -86,7 +86,10 @@ submesh indices. `MeshRenderer::SetSubmesh()` selects one range; `Mesh::AllSubme
 mesh and remains the default for older scene files. `InstantiateModel()` delegates to the same scene API.
 
 `Scene::Instantiate(AssetRef<Prefab>)` creates a saved entity tree with independent ids and remapped internal
-references. Prefabs use the same serialization described below; see [Prefabs](prefabs.md) for importing and placement.
+references. Linked instances save their prefab id and overrides, so source edits propagate on load. Components have
+persistent `ComponentId`s within their entities; `Component::GetId()` identifies them across save/load and undo.
+Version 2 scenes save these ids and prefab records while still loading version 1. See [Prefabs](prefabs.md) for the
+format, source-local identity, overrides and expanded snapshots.
 
 Scenes save as JSON (`Scene::SaveToString()`, `SaveToFile()`, `Entity::SaveToString()` for a subtree) and load
 with `LoadFromString()`, `LoadFromFile()` or `Instantiate()`. A component is saved when its type is registered and

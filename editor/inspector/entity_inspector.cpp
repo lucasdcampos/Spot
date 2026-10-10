@@ -628,6 +628,7 @@ const std::vector<std::string>& EntityInspector::GetMixedValues(SceneDocument& d
               .components = components.size(),
               .time = now,
               .pointers = FindMixedValues(text, others)};
+    std::erase(cached.pointers, "/id");
     return cached.pointers;
 }
 

@@ -89,6 +89,7 @@ std::unique_ptr<SceneDocument> SceneDocument::Open(const std::filesystem::path& 
     }
     document->m_file = file;
     document->m_asset = asset;
+    document->m_assets = assets;
     return document;
 }
 

@@ -1,11 +1,16 @@
 #pragma once
 
+#include "assets/asset_id.h"
 #include "math/vector.h"
 
 #include <exception>
 #include <string_view>
 
 namespace Spot {
+
+// A stable serialized component identity, scoped to its entity. It uses the same 128-bit representation as an asset
+// id, but does not identify an asset in the database.
+using ComponentId = AssetId;
 
 class Archive;
 class Entity;
@@ -66,6 +71,7 @@ public:
 
     Entity& GetEntity() const { return *m_entity; }
     Scene& GetScene() const;
+    ComponentId GetId() const { return m_id; }
 
     bool IsEnabled() const { return m_enabled; }
     void SetEnabled(bool enabled);
@@ -125,6 +131,7 @@ private:
     void Fault(std::string_view hook, const std::exception_ptr& error);
 
     Entity* m_entity = nullptr;
+    ComponentId m_id = ComponentId::Generate();
     bool m_enabled = true;
     bool m_started = false;
     // Whether OnEnable() was the last of OnEnable() and OnDisable() to run.

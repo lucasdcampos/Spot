@@ -449,6 +449,7 @@ TEST_CASE("Prefab drops preserve the tree through undo and redo without a GPU", 
     const auto* instance = document.GetScene().GetEntity(rootId);
     REQUIRE(instance);
     CHECK(instance->GetName() == "Lamp");
+    CHECK(instance->GetPrefabAssetId() == *asset);
     REQUIRE(instance->GetParent());
     CHECK(instance->GetParent()->GetId() == parentId);
     CHECK(instance->GetTransform().GetPosition() == Spot::Vector3{1.0f, 0.0f, 2.0f});

@@ -138,6 +138,38 @@ public:
 
     void Field(std::string_view name, EntityId& value, const FieldOptions& options) override {
         auto id = static_cast<std::uint64_t>(value);
+        if (!m_state.loading && m_state.prefabIds) {
+            const auto found = m_state.prefabIds->find(id);
+            AddField(m_state, name) = found != m_state.prefabIds->end()
+                                          ? json{{"prefabEntity", static_cast<std::uint64_t>(found->second)}}
+                                          : json{{"sceneEntity", id}};
+            return;
+        }
+        if (m_state.loading) {
+            const json* field = FindField(m_state, name);
+            if (field && field->is_object()) {
+                const auto local = field->find("prefabEntity");
+                const auto external = field->find("sceneEntity");
+                const json* saved = local != field->end() ? &*local : external != field->end() ? &*external : nullptr;
+                if (!saved || field->size() != 1 || !saved->is_number_unsigned()) {
+                    WarnWrongType(name, "an entity reference");
+                    return;
+                }
+                id = saved->get<std::uint64_t>();
+                const auto* ids = local != field->end() ? m_state.entityIds : m_state.externalEntityIds;
+                if (ids) {
+                    const auto found = ids->find(id);
+                    value = found != ids->end() ? found->second : EntityId::Invalid;
+                } else {
+                    value = static_cast<EntityId>(id);
+                }
+                if (external != field->end() && value == EntityId::Invalid && m_state.scene &&
+                    m_state.scene->GetEntity(static_cast<EntityId>(id))) {
+                    value = static_cast<EntityId>(id);
+                }
+                return;
+            }
+        }
         Field(name, id, options);
         if (!m_state.loading || !m_state.entityIds) {
             value = static_cast<EntityId>(id);

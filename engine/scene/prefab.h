@@ -12,7 +12,7 @@ namespace Spot {
 class Prefab {
 public:
     // Accepts exactly one tree with distinct, nonzero entity ids. An external parent of its root is discarded,
-    // so Entity::SaveToString() can be used even when the entity belongs to a larger hierarchy.
+    // so Entity::SaveToString(true) can be used even when the entity belongs to a larger hierarchy.
     // Nothing, after logging why, when the document or hierarchy is invalid.
     static std::optional<Prefab> FromString(std::string_view text);
 

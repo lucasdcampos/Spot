@@ -184,6 +184,7 @@ bool CreateEntityFromAsset(SceneDocument& document, EditorProject& project, Asse
     }
     Scene scratch;
     if (info->type == AssetType::Prefab) {
+        document.SetAssetManager(&project.GetAssets());
         Entity* root = scratch.Instantiate(project.GetAssets().Load<Prefab>(asset), {.assets = &project.GetAssets()});
         if (!root) {
             return false;

@@ -1,5 +1,6 @@
 #include "scene/prefab.h"
 
+#include "assets/asset_id.h"
 #include "core/log.h"
 
 #include <nlohmann/json.hpp>
@@ -7,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace Spot {
@@ -32,7 +34,7 @@ bool ValidateTree(json& entities) {
     std::unordered_map<std::uint64_t, std::size_t> indices;
     for (std::size_t i = 0; i < entities.size(); ++i) {
         const json& entity = entities[i];
-        if (!entity.is_object() || !entity.contains("id")) {
+        if (!entity.is_object() || !entity.contains("id") || entity.contains("prefab")) {
             return false;
         }
         const auto id = ReadId(entity["id"]);
@@ -74,6 +76,29 @@ bool ValidateTree(json& entities) {
         return false;
     }
     entities[*root].erase("parent");
+    for (json& entity : entities) {
+        const auto components = entity.find("components");
+        if (components == entity.end() || !components->is_array()) {
+            continue;
+        }
+        std::unordered_set<AssetId> ids;
+        for (std::size_t i = 0; i < components->size(); ++i) {
+            json& component = (*components)[i];
+            if (!component.is_object()) {
+                continue;
+            }
+            if (!component.contains("id")) {
+                // Legacy prefabs have no component ids. Deriving them from the source-local entity and slot keeps
+                // their identity stable until the source is saved with persistent ids.
+                component["id"] = AssetId{entity["id"].get<std::uint64_t>(), i + 1}.ToString();
+            }
+            const auto id =
+                component["id"].is_string() ? AssetId::Parse(component["id"].get<std::string>()) : std::nullopt;
+            if (!id || !id->IsValid() || !ids.insert(*id).second) {
+                return false;
+            }
+        }
+    }
     return true;
 }
 
@@ -82,12 +107,14 @@ bool ValidateTree(json& entities) {
 std::optional<Prefab> Prefab::FromString(std::string_view text) {
     json document = json::parse(text.begin(), text.end(), nullptr, false);
     if (!document.is_object() || !document.contains("format") || document["format"] != "spot-scene" ||
-        !document.contains("version") || !document["version"].is_number_integer() || document["version"] != 1 ||
-        !document.contains("entities") || !ValidateTree(document["entities"])) {
+        !document.contains("version") || !document["version"].is_number_integer() ||
+        (document["version"] != 1 && document["version"] != 2) || !document.contains("entities") ||
+        !ValidateTree(document["entities"])) {
         Log::GetEngineLogger().Warning(
             "Could not load the prefab: expected a saved scene containing one entity tree with distinct, nonzero ids");
         return std::nullopt;
     }
+    document["version"] = 2;
     return Prefab(document.dump(2, ' ', false, json::error_handler_t::replace));
 }
 

@@ -141,7 +141,8 @@ public:
 
     // Saves every entity, with its name, tags, activity, transform, place in the hierarchy and registered
     // components, as JSON.
-    std::string SaveToString() const;
+    // expandPrefabs writes their complete trees, such as when authoring a prefab source or exporting a snapshot.
+    std::string SaveToString(bool expandPrefabs = false) const;
     bool SaveToFile(const std::filesystem::path& path) const;
     // Adds the saved entities to the scene, next to the ones it has. Their components start on the next Update().
     // Returns false, having added nothing, when the text is not a saved scene; components of unknown types are
@@ -162,7 +163,7 @@ public:
     Entity* Instantiate(const AssetRef<Prefab>& prefab, const InstantiateOptions& options = {});
     // Saves the entities, which must belong to this scene, with their descendants, in the format of SaveToString().
     // An entity below another of the list is saved once, with that one.
-    std::string SaveEntitiesToString(std::span<Entity* const> entities) const;
+    std::string SaveEntitiesToString(std::span<Entity* const> entities, bool expandPrefabs = false) const;
 
     // The first component that is a T on any entity, active or not; null when there is none.
     template <std::derived_from<Component> T>

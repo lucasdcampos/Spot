@@ -38,6 +38,7 @@ add_executable(spot_tests
     platform_tests.cpp
     profiler_tests.cpp
     prefab_tests.cpp
+    prefab_override_tests.cpp
     project_tests.cpp
     renderer_2d_tests.cpp
     renderer_3d_tests.cpp
@@ -58,6 +59,7 @@ target_link_libraries(spot_tests PRIVATE
     spot::import
     spot::spot
     Catch2::Catch2WithMain
+    nlohmann_json::nlohmann_json
 )
 
 spot_add_shaders(spot_tests

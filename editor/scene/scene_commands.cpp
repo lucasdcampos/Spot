@@ -99,9 +99,12 @@ bool CreateEntitiesCommand::Execute() {
             index = before->GetSiblingIndex();
         }
         // The first time they get new ids, as copies of entities still in the scene must; afterwards the same ones.
-        const std::vector<Entity*> roots = scene.Instantiate(
-            placement.text,
-            {.parent = parent, .siblingIndex = index, .keepIds = m_executed, .keepExternalReferences = true});
+        const std::vector<Entity*> roots =
+            scene.Instantiate(placement.text, {.parent = parent,
+                                               .siblingIndex = index,
+                                               .keepIds = m_executed,
+                                               .keepExternalReferences = true,
+                                               .assets = GetDocument().GetAssetManager()});
         if (!m_executed) {
             placement.text = scene.SaveEntitiesToString(roots);
         }
@@ -149,7 +152,8 @@ bool DeleteEntitiesCommand::Execute() {
 void DeleteEntitiesCommand::Undo() {
     Scene& scene = GetScene();
     const std::vector<Entity*> roots =
-        scene.Instantiate(m_deleted.front().text, {.keepIds = true, .keepExternalReferences = true});
+        scene.Instantiate(m_deleted.front().text,
+                          {.keepIds = true, .keepExternalReferences = true, .assets = GetDocument().GetAssetManager()});
     // Back in hierarchy order, so the earlier places exist when the later ones are taken.
     for (std::size_t i = 0; i < roots.size() && i < m_deleted.size(); ++i) {
         roots[i]->SetParent(scene.GetEntity(m_deleted[i].parent));
@@ -355,7 +359,7 @@ bool AddComponentCommand::Execute() {
             m_text = SaveComponentToString(*added);
         }
     } else {
-        added = AddComponentFromString(entity, m_text, m_index);
+        added = AddComponentFromString(entity, m_text, m_index, GetDocument().GetAssetManager());
     }
     if (!added) {
         return false;
@@ -383,7 +387,7 @@ bool RemoveComponentCommand::Execute() {
 }
 
 void RemoveComponentCommand::Undo() {
-    AddComponentFromString(GetEntity(m_entity), m_text, m_index);
+    AddComponentFromString(GetEntity(m_entity), m_text, m_index, GetDocument().GetAssetManager());
 }
 
 MoveComponentCommand::MoveComponentCommand(SceneDocument& document, EntityId entity, std::size_t from, std::size_t to)
@@ -415,11 +419,12 @@ bool EditComponentCommand::Execute() {
     if (m_before == m_after) {
         return false;
     }
-    return LoadComponentFromString(GetComponentAt(GetEntity(m_entity), m_index), m_after);
+    return LoadComponentFromString(GetComponentAt(GetEntity(m_entity), m_index), m_after,
+                                   GetDocument().GetAssetManager());
 }
 
 void EditComponentCommand::Undo() {
-    LoadComponentFromString(GetComponentAt(GetEntity(m_entity), m_index), m_before);
+    LoadComponentFromString(GetComponentAt(GetEntity(m_entity), m_index), m_before, GetDocument().GetAssetManager());
 }
 
 ReplaceSceneCommand::ReplaceSceneCommand(SceneDocument& document, std::string text, std::string name)
@@ -432,14 +437,16 @@ bool ReplaceSceneCommand::Execute() {
         m_before = scene.SaveToString();
     }
     scene.Clear();
-    scene.Instantiate(m_text, {.keepIds = true, .keepExternalReferences = true});
+    scene.Instantiate(m_text,
+                      {.keepIds = true, .keepExternalReferences = true, .assets = GetDocument().GetAssetManager()});
     return true;
 }
 
 void ReplaceSceneCommand::Undo() {
     Scene& scene = GetScene();
     scene.Clear();
-    scene.Instantiate(m_before, {.keepIds = true, .keepExternalReferences = true});
+    scene.Instantiate(m_before,
+                      {.keepIds = true, .keepExternalReferences = true, .assets = GetDocument().GetAssetManager()});
 }
 
 } // namespace Spot::Editor

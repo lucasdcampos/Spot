@@ -188,6 +188,7 @@ add_library(spot_objects OBJECT
     scene/post_processing.h
     scene/prefab.h
     scene/prefab.cpp
+    scene/prefab_serialization.cpp
     scene/mesh_renderer.h
     scene/missing_component.h
     scene/mesh_renderer.cpp
@@ -196,6 +197,7 @@ add_library(spot_objects OBJECT
     scene/scene_model.cpp
     scene/scene_prefab.cpp
     scene/scene_serialization.cpp
+    scene/scene_serializer.h
     scene/scene_system.h
     scene/scene_system.cpp
     scene/sky.h

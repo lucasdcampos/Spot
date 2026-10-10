@@ -2,6 +2,7 @@
 
 #include "core/log.h"
 #include "scene/prefab.h"
+#include "scene/scene_serializer.h"
 
 namespace Spot {
 
@@ -11,11 +12,11 @@ Entity* Scene::Instantiate(const AssetRef<Prefab>& prefab, const InstantiateOpti
                                        prefab.GetId().ToString());
         return nullptr;
     }
-    InstantiateOptions placement = options;
-    placement.keepIds = false;
-    placement.keepExternalReferences = false;
-    const auto roots = Instantiate(prefab->GetEntityText(), placement);
-    return roots.empty() ? nullptr : roots.front();
+    return Detail::SceneSerializer::InstantiatePrefab(*this, prefab, options);
+}
+
+AssetId Entity::GetPrefabAssetId() const {
+    return m_prefabInstance ? m_prefabInstance->asset.GetId() : AssetId();
 }
 
 } // namespace Spot

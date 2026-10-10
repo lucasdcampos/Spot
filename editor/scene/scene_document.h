@@ -61,6 +61,8 @@ public:
     // Empty until the scene is saved.
     const std::filesystem::path& GetFile() const { return m_file; }
     AssetId GetAssetId() const { return m_asset; }
+    AssetManager* GetAssetManager() const { return m_assets; }
+    void SetAssetManager(AssetManager* assets) { m_assets = assets; }
     // Set once a scene saved to a new file is imported and so becomes an asset.
     void SetAssetId(AssetId asset) { m_asset = asset; }
     // Follows the scene's file when it moves, taking its new name; without a file, as after it was deleted, the
@@ -89,6 +91,7 @@ private:
     std::string m_name;
     std::filesystem::path m_file;
     AssetId m_asset;
+    AssetManager* m_assets = nullptr;
     std::uint64_t m_id;
 };
 

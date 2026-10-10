@@ -830,7 +830,7 @@ prefab's current content, so prefab changes reach every instance. Prefabs nest.
   draw one submesh. Models dropped in the editor create that hierarchy.
 - [x] **M8.3 Prefab assets.** A `.prefab` source in the scene format, its importer, `AssetType::Prefab`, and
   `Scene::Instantiate(AssetRef<Prefab>)` at runtime. Tests.
-- [ ] **M8.4 Instances and overrides.** Prefab-local entity ids, instances saved as a prefab id plus overrides in
+- [x] **M8.4 Instances and overrides.** Prefab-local entity ids, instances saved as a prefab id plus overrides in
   scene files, and overrides applied on load. Tests: propagation, overrides kept across prefab edits, removed targets.
 - [ ] **M8.5 Prefab editing.** Create a prefab by dragging entities into the asset browser, edit it in prefab mode
   (a `.prefab` opened as a document), see overrides in the inspector, Apply or Revert per field, component or
@@ -879,6 +879,18 @@ own overrides.
   adds identity and overrides. Tests cover independent instances, reference mapping, lifecycle, asset sharing and
   reload, corrupt payloads, unavailable components and editor undo/redo.
   Validation: MSVC and GCC Debug build without warnings and pass all 586 tests, including GPU, golden images,
+  editor, module and sandbox tests.
+
+- M8.4: Scene format version 2 saves linked instances as asset ids, prefab-local entity mappings and JSON-pointer
+  patches. Persistent component UUIDs keep overrides attached through reordering, additions and removal; legacy
+  prefab components receive deterministic identities. Arrays are atomic values. Added entities remain scene nodes,
+  while inherited entity removal follows its source subtree. Missing targets retain their patches, so restoring
+  a source identity restores its overrides without affecting replacements. References distinguish prefab-local
+  and scene identities, including references between instances. Expanded snapshots support independent copies and
+  source authoring before nesting. Scene and prefab importer versions are 2; version 1 scenes remain readable.
+  Unavailable assets and invalid instance metadata reject loading before changing the scene. Editor history uses
+  the document's asset manager, and mixed-property comparisons exclude component identity.
+  Validation: MSVC and GCC Debug build without warnings and pass all 594 tests, including GPU, golden images,
   editor, module and sandbox tests.
 
 ---

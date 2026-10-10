@@ -220,6 +220,11 @@ void Entity::MoveComponent(Component& component, std::size_t index) {
 void Entity::Attach(std::unique_ptr<Component> component, std::optional<std::size_t> index) {
     SPOT_ASSERT(!m_destroyed, "Components cannot be added to a destroyed entity");
     component->m_entity = this;
+    while (std::ranges::any_of(m_components, [&](const auto& existing) {
+        return !existing->m_removed && existing->m_id == component->m_id;
+    })) {
+        component->m_id = ComponentId::Generate();
+    }
     // Removed components waiting to be freed still hold slots, so the place is counted among the others.
     auto place = m_components.end();
     if (index) {

@@ -27,6 +27,10 @@ struct ArchiveState {
     const Scene* scene = nullptr;
     // Loads asset references; the running application's when null.
     AssetManager* assets = nullptr;
+    // Saving a prefab's canonical fields: maps runtime ids to source-local ids. Other ids are scene references.
+    const std::unordered_map<std::uint64_t, EntityId>* prefabIds = nullptr;
+    // Loading canonical fields: scene references use the whole document's map, apart from prefab-local references.
+    const std::unordered_map<std::uint64_t, EntityId>* externalEntityIds = nullptr;
 };
 
 } // namespace Spot::Detail
