@@ -72,6 +72,8 @@ struct Renderer3DStats {
     // the camera does not see are not counted.
     std::uint32_t visibleMeshes = 0;
     std::uint32_t culledMeshes = 0;
+    // That lit the view, ambient ones aside.
+    std::uint32_t lights = 0;
     // 1 when the sky changed and its light was captured again, which takes a few passes.
     std::uint32_t skyLightingUpdates = 0;
 };
@@ -95,7 +97,7 @@ struct Renderer3DStats {
 // pass's targets must stay alive until End(), and no other pass can be open then.
 class Renderer3D {
 public:
-    static constexpr std::size_t MaxLights = 16;
+    static constexpr std::size_t MaxLights = 256;
     // Shared by the shadows of point and spot lights.
     static constexpr std::size_t MaxShadowTiles = 32;
 
@@ -165,6 +167,8 @@ private:
     void DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjection, bool ignoreNear);
     // Sends every command's transforms to the instance buffer, in the commands' order.
     bool UploadInstances();
+    // Sends the lights and the view's clusters of them to their buffers.
+    bool UploadLights(const Detail::SelectedLights& lights);
     void Flush(RenderPass& pass, const Detail::SelectedLights& lights, const Detail::ShadowUniforms& shadows);
     void FlushSky(RenderPass& pass, const SkyData& sky, const Detail::SkyLighting& lighting);
     // Captures the sky's light into the reflections and irradiance when it changed; false when it cannot.
@@ -189,6 +193,14 @@ private:
     std::unique_ptr<Texture> m_localShadows;
     // The transforms of every command of the frame, which instanced draws read from the first of their batch on.
     std::unique_ptr<Buffer> m_instances;
+    // The frame's lights, the view's clusters and their lists of lights.
+    std::unique_ptr<Buffer> m_lightBuffer;
+    std::unique_ptr<Buffer> m_clusterBuffer;
+    std::unique_ptr<Buffer> m_lightIndexBuffer;
+    std::uint32_t m_directionalLightCount = 0;
+    float m_clusterNear = 0.1f;
+    float m_clusterScale = 1.0f;
+    Vector2 m_viewSize = {1.0f, 1.0f};
     // The sky's light, as surfaces show it: captured into a cube, then blurred for each roughness down the mip levels
     // of the reflections, and projected onto spherical harmonics in the irradiance. Black ones stand in without a
     // sky.

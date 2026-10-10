@@ -75,6 +75,16 @@ profiler count both (`visibleMeshes` and `culledMeshes`). A camera also sees onl
 (`Camera3D::cullingMask`, set on the `Camera` component, which the inspector shows as layers to tick):
 `DrawScene()` skips the meshes of entities on the others, in its shadows too.
 
+### Clustered lights
+
+Up to `Renderer3D::MaxLights` (256) lights light each frame, ambient ones aside, without each pixel going through all
+of them. The view is cut into clusters, 16 by 9 tiles of the screen by 24 slices of depth, even in the logarithm of
+depth so near slices are thin; each frame the CPU lists, for each cluster, the point and spot lights whose spheres
+may reach it (`Detail::BuildLightClusters()`), and the lights and lists go to the GPU in storage buffers. Each pixel
+finds its cluster from its position and depth and goes through the directional lights, which reach everything, and
+its cluster's lights. Shadows keep their own budget: the first directional light's cascades, and
+`Renderer3D::MaxShadowTiles` tiles for point and spot lights, given to those nearest the camera.
+
 ### Instancing
 
 `Renderer3D` draws meshes that look the same together. It sorts the frame's meshes so those with the same mesh,
@@ -186,7 +196,7 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
   and `GenerateTangents()` makes the others with MikkTSpace, as normal maps are baked, splitting vertices that need
   two; the `MeshData` builders call it, and so must code that builds meshes itself and uses normal maps.
 - `SpriteRenderer`: a texture or color on a rectangle in its entity's XY plane, for 2D.
-- Lights: `AmbientLight`, `DirectionalLight`, `PointLight` and `SpotLight`. Up to `Renderer3D::MaxLights` light each
+- Lights: `AmbientLight`, `DirectionalLight`, `PointLight` and `SpotLight`. Up to `Renderer3D::MaxLights` (see Clustered lights) light each
   frame. Intensities are illuminance, in units where 1 makes a white matte surface facing the light show white
   before exposure: ambient and directional lights give theirs to every surface, and point and spot lights give
   theirs at one unit of distance and fall off with the square of the distance (so their intensity is a luminous

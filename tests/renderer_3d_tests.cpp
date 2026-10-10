@@ -1,3 +1,4 @@
+#include "graphics/light_clusters.h"
 #include "graphics/shadow_views.h"
 
 #include <spot.h>
@@ -5,8 +6,10 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <array>
 #include <cmath>
 #include <cstddef>
+#include <vector>
 
 using Spot::Camera3D;
 using Spot::MeshData;
@@ -238,4 +241,51 @@ TEST_CASE("Spheres are in a view unless wholly outside one of its planes", "[ren
     const auto ortho = Spot::Matrix4::Orthographic(-1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 10.0f);
     CHECK_FALSE(Spot::Detail::IsSphereInView(ortho, {0.0f, 0.0f, 5.0f}, 0.5f));
     CHECK(Spot::Detail::IsSphereInView(ortho, {0.0f, 0.0f, 5.0f}, 0.5f, true));
+}
+
+TEST_CASE("Light clusters list each light where it may reach, and nowhere far from it", "[renderer3d]") {
+    namespace Detail = Spot::Detail;
+    Camera3D camera;
+    camera.position = {0.0f, 0.0f, 0.0f};
+    const Spot::Vector2 view{1600.0f, 900.0f};
+    // In front of the camera at 10 units, at the center; behind the camera; and far to the side.
+    const std::array<Detail::ClusterLight, 3> lights{{
+        {{0.0f, 0.0f, -10.0f}, 1.0f, 0},
+        {{0.0f, 0.0f, 10.0f}, 1.0f, 1},
+        {{500.0f, 0.0f, -10.0f}, 1.0f, 2},
+    }};
+    const Detail::LightClusters clusters = Detail::BuildLightClusters(camera, view, lights);
+    REQUIRE(clusters.clusters.size() == Detail::ClusterCount);
+
+    const auto lightsAt = [&](std::uint32_t x, std::uint32_t y, float depth) {
+        const auto [first, count] =
+            clusters.clusters[Detail::GetClusterIndex(x, y, Detail::GetClusterSlice(clusters, depth))];
+        return std::vector<std::uint32_t>(clusters.lightIndices.begin() + first,
+                                          clusters.lightIndices.begin() + first + count);
+    };
+    // The light in front is in the clusters at the center of the view around its depth, and only there.
+    CHECK(lightsAt(Detail::ClusterTilesX / 2, Detail::ClusterTilesY / 2, 10.0f) == std::vector<std::uint32_t>{0});
+    CHECK(lightsAt(Detail::ClusterTilesX / 2, Detail::ClusterTilesY / 2, 50.0f).empty());
+    CHECK(lightsAt(Detail::ClusterTilesX / 2, Detail::ClusterTilesY / 2, 2.0f).empty());
+    CHECK(lightsAt(0, 0, 10.0f).empty());
+    // The others reach no cluster at all.
+    std::size_t listed = 0;
+    for (const auto& [first, count] : clusters.clusters) {
+        listed += count;
+    }
+    CHECK(listed == clusters.lightIndices.size());
+    for (const std::uint32_t index : clusters.lightIndices) {
+        CHECK(index == 0);
+    }
+
+    // Slices grow with depth, from the near plane, and stop at the last one.
+    CHECK(Detail::GetClusterSlice(clusters, 0.0f) == 0);
+    CHECK(Detail::GetClusterSlice(clusters, 1.0f) < Detail::GetClusterSlice(clusters, 10.0f));
+    CHECK(Detail::GetClusterSlice(clusters, 100000.0f) == Detail::ClusterSlices - 1);
+
+    // A light around the camera covers the whole view at its depths.
+    const std::array<Detail::ClusterLight, 1> around{{{{0.0f, 0.0f, 0.0f}, 3.0f, 7}}};
+    const Detail::LightClusters near = Detail::BuildLightClusters(camera, view, around);
+    const auto [first, count] = near.clusters[Detail::GetClusterIndex(0, Detail::ClusterTilesY - 1, 0)];
+    CHECK(count == 1);
 }

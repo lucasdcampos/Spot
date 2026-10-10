@@ -1745,6 +1745,39 @@ TEST_CASE("Renderer3D draws only the meshes on the layers the camera sees", "[gp
     CHECK(camera.GetCamera3D().cullingMask == ~(1u << 3));
 }
 
+TEST_CASE("Renderer3D lights each part of the view with the many lights near it", "[gpu]") {
+    RequireGpu();
+    // An 8 by 8 grid of small point lights over the wall, each lighting only the patch in front of it, alternately red
+    // and green.
+    Spot::Renderer3DStats stats;
+    const auto render = RenderLitWall([&](Spot::Renderer3D& renderer) {
+        for (int y = 0; y < 8; ++y) {
+            for (int x = 0; x < 8; ++x) {
+                renderer.DrawLight(
+                    {.type = Spot::LightType::Point,
+                     .color = (x + y) % 2 == 0 ? Spot::Color::Red : Spot::Color::Green,
+                     .intensity = 0.04f,
+                     .position = {-1.4f + 0.4f * static_cast<float>(x), 1.4f - 0.4f * static_cast<float>(y), 0.7f},
+                     .range = 0.35f});
+            }
+        }
+    });
+    // Each light lights the pixel in front of it in its own color, more than the 16 lights it once could use.
+    int lit = 0;
+    for (int y = 0; y < 8; ++y) {
+        for (int x = 0; x < 8; ++x) {
+            // The wall is half a unit from the origin, the camera 3 units away, seeing 1.44 units each side at the
+            // wall.
+            const auto pixel = [](float position) { return static_cast<int>((position / 1.443f + 1.0f) * 16.0f); };
+            const Pixel at =
+                render.At(pixel(-1.4f + 0.4f * static_cast<float>(x)), pixel(-1.4f + 0.4f * static_cast<float>(y)));
+            const bool red = (x + y) % 2 == 0;
+            lit += (red ? at[0] > 100 && at[1] < 30 : at[1] > 100 && at[0] < 30) ? 1 : 0;
+        }
+    }
+    CHECK(lit == 64);
+}
+
 TEST_CASE("Renderer3D keeps the lights nearest the camera when given too many", "[gpu]") {
     RequireGpu();
 

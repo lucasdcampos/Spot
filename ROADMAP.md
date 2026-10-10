@@ -744,7 +744,7 @@ viewers, and the golden-image tests cover them.
   and culled counts in the profiler.
 - [x] **M7.2 Instancing.** Batch draws by mesh, material and pipeline, with per-instance data in a storage buffer,
   automatically in `Renderer3D`.
-- [ ] **M7.3 Clustered lights.** Assign lights to a froxel grid on the CPU and send it in storage buffers, raising
+- [x] **M7.3 Clustered lights.** Assign lights to a froxel grid on the CPU and send it in storage buffers, raising
   `MaxLights` from 16 to hundreds. Shadowed lights keep their budget. Tests.
 - [ ] **M7.4 Sorting.** Sort opaque draws by pipeline, material and depth to minimize state changes and overdraw.
 - [ ] **M7.5 Shadow quality.** Soft PCF, stable cascades (texel snapping), blending between cascades, and caster
@@ -772,6 +772,12 @@ of lamps.
   `firstInstance`, since `SV_InstanceID` does not include the draw's first instance on Direct3D. Material values are
   in the sort key, so copies of a material batch too. Transparent surfaces batch only when adjacent after their
   back-to-front sort, which keeps their order.
+- M7.3: `MaxLights` is 256. The froxel grid is 16x9x24, its slices even in log depth from the near plane to the far
+  plane or 500 units; the lights' tiles come from projecting the corners of their spheres' view-space boxes, and a
+  sphere that crosses the near plane covers every tile. Lights, cluster ranges and index lists are fragment storage
+  buffers (registers t9 to t11, after the nine samplers), uploaded per `End()` like the instances; the camera's
+  forward axis and the grid's parameters moved into the lighting constant buffer, which no longer holds the lights.
+  Directional lights come first in the light list and every pixel goes through them.
 
 ---
 

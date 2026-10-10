@@ -5,6 +5,7 @@
 #include "core/profiler.h"
 #include "graphics/atmosphere.h"
 #include "graphics/graphics_device.h"
+#include "graphics/light_clusters.h"
 #include "graphics/material.h"
 #include "graphics/mesh.h"
 #include "graphics/model.h"
@@ -59,11 +60,14 @@ struct LightUniforms {
 struct LightingUniforms {
     Color ambient;
     Vector4 cameraPosition;
-    // x is the number of lights; a whole row keeps the layout the same in every shader language.
+    // x is the number of directional lights; a whole row keeps the layout the same in every shader language.
     std::array<std::uint32_t, 4> lightCount;
     // 1 when the sky lights the scene, and the mip level of its reflections for a roughness of 1.
     Vector4 skyLighting;
-    std::array<LightUniforms, Renderer3D::MaxLights> lights;
+    std::array<std::uint32_t, 4> clusterGrid;
+    // The near plane's depth, the scale of the slices' logarithm, and the view's size in pixels.
+    Vector4 clusterDepth;
+    Vector4 viewForward;
 };
 
 struct SkyUniforms {
@@ -244,6 +248,8 @@ Detail::SelectedLights SelectLights(const std::vector<LightData>& allLights, Vec
         }
     }
     auto& lights = selected.lights;
+    // Directional lights come first, as the shader goes through them for every pixel.
+    std::ranges::stable_partition(lights, [](const LightData* light) { return light->type == LightType::Directional; });
     if (lights.size() > Renderer3D::MaxLights) {
         if (!warnedAboutLights) {
             Log::GetEngineLogger().Warning(
@@ -259,12 +265,9 @@ Detail::SelectedLights SelectLights(const std::vector<LightData>& allLights, Vec
     return selected;
 }
 
-LightingUniforms GetLightingUniforms(const Detail::SelectedLights& selected, Vector3 cameraPosition) {
-    LightingUniforms uniforms{};
-    uniforms.ambient = selected.ambient;
-    uniforms.cameraPosition = {cameraPosition.x, cameraPosition.y, cameraPosition.z, 1.0f};
+std::vector<LightUniforms> GetLightUniforms(const Detail::SelectedLights& selected) {
     const auto& lights = selected.lights;
-    uniforms.lightCount[0] = static_cast<std::uint32_t>(lights.size());
+    std::vector<LightUniforms> uniforms(lights.size());
     for (std::size_t i = 0; i < lights.size(); ++i) {
         const LightData& light = *lights[i];
         const Vector3 direction = Normalize(light.direction);
@@ -272,7 +275,7 @@ LightingUniforms GetLightingUniforms(const Detail::SelectedLights& selected, Vec
         // An inner angle at or past the outer one gives the cone a hard edge.
         const float innerCos = std::max(std::cos(light.innerConeAngle), outerCos + 0.0001f);
         const float type = light.type == LightType::Directional ? 0.0f : light.type == LightType::Point ? 1.0f : 2.0f;
-        uniforms.lights[i] = {
+        uniforms[i] = {
             .positionAndType = {light.position.x, light.position.y, light.position.z, type},
             .directionAndRange = {direction.x, direction.y, direction.z, std::max(light.range, 0.0001f)},
             .color = {light.color.r * light.intensity, light.color.g * light.intensity, light.color.b * light.intensity,
@@ -403,6 +406,7 @@ void Renderer3D::Begin(RenderContext& context, const RenderPassDesc& target, con
     m_viewProjection = camera.GetViewProjection(viewSize);
     m_inverseSkyViewProjection = Inverse(camera.GetProjection(viewSize) * Matrix4::Rotation(Inverse(camera.rotation)));
     m_camera = camera;
+    m_viewSize = viewSize;
     m_aspectRatio = viewSize.y > 0.0f ? viewSize.x / viewSize.y : 1.0f;
     m_commands.clear();
     m_lights.clear();
@@ -469,6 +473,9 @@ void Renderer3D::End() {
     Detail::ShadowUniforms shadows{};
     DrawShadows(lights, shadows);
 
+    if (!UploadLights(lights)) {
+        m_commands.clear();
+    }
     auto pass = m_context->BeginRenderPass(m_target);
     if (m_sky) {
         FlushSky(pass, *m_sky, *skyLighting);
@@ -816,6 +823,54 @@ bool HaveSameShadow(const auto& a, const auto& b) {
 
 } // namespace
 
+namespace {
+
+// Uploads the elements, growing the buffer to the next power of two when they do not fit. Buffers are never empty,
+// so they can be bound when there is nothing to put in them.
+template <typename T>
+bool UploadStorage(GraphicsDevice& device, std::unique_ptr<Buffer>& buffer, const std::vector<T>& elements) {
+    const auto size = static_cast<std::uint32_t>(std::max<std::size_t>(elements.size(), 1) * sizeof(T));
+    if (!buffer || buffer->GetSize() < size) {
+        std::uint32_t capacity = 64 * sizeof(T);
+        while (capacity < size) {
+            capacity *= 2;
+        }
+        buffer = device.CreateBuffer({.usage = BufferUsage::Storage, .size = capacity});
+        if (!buffer) {
+            return false;
+        }
+    }
+    // Discarded, so views drawn earlier in the frame keep what they were drawn with.
+    if (!elements.empty()) {
+        device.UploadToBuffer(*buffer, elements, 0, UploadMode::Discard);
+    }
+    return true;
+}
+
+} // namespace
+
+bool Renderer3D::UploadLights(const Detail::SelectedLights& selected) {
+    const std::vector<LightUniforms> lights = GetLightUniforms(selected);
+    std::vector<Detail::ClusterLight> clustered;
+    m_directionalLightCount = 0;
+    for (std::size_t i = 0; i < selected.lights.size(); ++i) {
+        const LightData& light = *selected.lights[i];
+        if (light.type == LightType::Directional) {
+            ++m_directionalLightCount;
+        } else {
+            clustered.push_back({light.position, std::max(light.range, 0.0001f), static_cast<std::uint32_t>(i)});
+        }
+    }
+    const Detail::LightClusters clusters = Detail::BuildLightClusters(m_camera, m_viewSize, clustered);
+    m_clusterNear = clusters.nearDepth;
+    m_clusterScale = clusters.sliceScale;
+    m_stats.lights = static_cast<std::uint32_t>(lights.size());
+    Profiler::Count("Lights", static_cast<double>(lights.size()));
+    return UploadStorage(*m_device, m_lightBuffer, lights) &&
+           UploadStorage(*m_device, m_clusterBuffer, clusters.clusters) &&
+           UploadStorage(*m_device, m_lightIndexBuffer, clusters.lightIndices);
+}
+
 bool Renderer3D::UploadInstances() {
     if (m_commands.empty()) {
         return true;
@@ -825,21 +880,7 @@ bool Renderer3D::UploadInstances() {
     for (const DrawCommand& command : m_commands) {
         instances.push_back({command.transform, Transpose(Inverse(command.transform))});
     }
-    const auto size = static_cast<std::uint32_t>(instances.size() * sizeof(InstanceData));
-    if (!m_instances || m_instances->GetSize() < size) {
-        // Grown to the next power of two, so scenes that grow a little at a time do not make a buffer every frame.
-        std::uint32_t capacity = 64 * sizeof(InstanceData);
-        while (capacity < size) {
-            capacity *= 2;
-        }
-        m_instances = m_device->CreateBuffer({.usage = BufferUsage::Storage, .size = capacity});
-        if (!m_instances) {
-            return false;
-        }
-    }
-    // Discarded, so views drawn earlier in the frame keep the instances they were drawn with.
-    m_device->UploadToBuffer(*m_instances, instances, 0, UploadMode::Discard);
-    return true;
+    return UploadStorage(*m_device, m_instances, instances);
 }
 
 void Renderer3D::DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjection, bool ignoreNear) {
@@ -897,9 +938,20 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
     }
 
     pass.PushVertexUniforms(0, m_viewProjection);
-    LightingUniforms lighting = GetLightingUniforms(lights, m_camera.position);
-    lighting.skyLighting = {m_skyLit ? 1.0f : 0.0f, static_cast<float>(SkyReflectionLevels - 1), 0.0f, 0.0f};
+    const Vector3 forward = m_camera.GetForward();
+    const LightingUniforms lighting{
+        .ambient = lights.ambient,
+        .cameraPosition = ToVector4(m_camera.position, 1.0f),
+        .lightCount = {m_directionalLightCount, 0, 0, 0},
+        .skyLighting = {m_skyLit ? 1.0f : 0.0f, static_cast<float>(SkyReflectionLevels - 1), 0.0f, 0.0f},
+        .clusterGrid = {Detail::ClusterTilesX, Detail::ClusterTilesY, Detail::ClusterSlices, 0},
+        .clusterDepth = {m_clusterNear, m_clusterScale, m_viewSize.x, m_viewSize.y},
+        .viewForward = ToVector4(forward),
+    };
     pass.PushFragmentUniforms(0, lighting);
+    pass.BindFragmentStorageBuffer(0, *m_lightBuffer);
+    pass.BindFragmentStorageBuffer(1, *m_clusterBuffer);
+    pass.BindFragmentStorageBuffer(2, *m_lightIndexBuffer);
     pass.PushFragmentUniforms(2, shadows);
     pass.PushFragmentUniforms(3, GetFogUniforms(m_fog, m_camera.position));
     pass.BindFragmentTexture(1, m_cascadeShadows ? *m_cascadeShadows : *m_noShadows, *m_shadowSampler);

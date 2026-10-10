@@ -92,6 +92,8 @@ add_library(spot_objects OBJECT
     graphics/graphics_device.h
     graphics/image.h
     graphics/image.cpp
+    graphics/light_clusters.cpp
+    graphics/light_clusters.h
     graphics/light_data.h
     graphics/line_renderer.h
     graphics/line_renderer.cpp

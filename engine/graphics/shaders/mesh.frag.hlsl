@@ -21,8 +21,7 @@ SamplerState skyReflectionsSampler : register(s7, space2);
 Texture2D<float4> skyIrradiance : register(t8, space2);
 SamplerState skyIrradianceSampler : register(s8, space2);
 
-// Must match Renderer3D::MaxLights, Detail::MaxShadowCascades and Renderer3D::MaxShadowTiles.
-#define MAX_LIGHTS 16
+// Must match Detail::MaxShadowCascades and Renderer3D::MaxShadowTiles.
 #define MAX_CASCADES 4
 #define MAX_SHADOW_TILES 32
 
@@ -39,14 +38,34 @@ struct Light {
     float4 cone;
 };
 
+// The frame's lights, directional ones first; the view's clusters, each the first of its lights in lightIndices and
+// how many there are; and those lists of lights, by their index in lights. See Detail::BuildLightClusters().
+StructuredBuffer<Light> lights : register(t9, space2);
+StructuredBuffer<uint2> clusters : register(t10, space2);
+StructuredBuffer<uint> lightIndices : register(t11, space2);
+
 cbuffer Lighting : register(b0, space3) {
     float4 ambientColor;
     float4 cameraPosition;
+    // x is the number of directional lights, which reach every pixel.
     uint4 lightCount;
     // 1 in x when the sky lights the scene, and in y the mip level of its reflections for a roughness of 1.
     float4 skyLighting;
-    Light lights[MAX_LIGHTS];
+    // The clusters across, down and in depth.
+    uint4 clusterGrid;
+    // The near plane's depth and the scale of the slices' logarithm, and the size of the view in pixels.
+    float4 clusterDepth;
+    // The camera's forward axis, along which depth goes.
+    float4 viewForward;
 };
+
+// The list of lights that may reach the pixel at the position, at the depth along the camera's forward axis.
+uint2 GetCluster(float2 pixel, float depth) {
+    const uint2 tile = min(uint2(pixel / clusterDepth.zw * float2(clusterGrid.xy)), clusterGrid.xy - 1);
+    const float slice = depth > clusterDepth.x ? floor(log(depth / clusterDepth.x) * clusterDepth.y) : 0.0;
+    const uint z = (uint)clamp(slice, 0.0, float(clusterGrid.z - 1));
+    return clusters[(z * clusterGrid.y + tile.y) * clusterGrid.x + tile.x];
+}
 
 // Shadow views take world positions to the [0, 1] UVs of their tile, Y down, and to the depth it holds.
 cbuffer Shadows : register(b2, space3) {
@@ -334,6 +353,14 @@ float4 main(Input input) : SV_Target0 {
     float3 highlights = 0.0;
     for (uint i = 0; i < lightCount.x; ++i) {
         const Lit lit = GetLight(lights[i], input.worldPosition, normal, toViewer, alpha, reflectance);
+        diffuse += lit.diffuse;
+        highlights += lit.specular;
+    }
+    const uint2 cluster =
+        GetCluster(input.position.xy, dot(input.worldPosition - cameraPosition.xyz, viewForward.xyz));
+    for (uint j = 0; j < cluster.y; ++j) {
+        const Lit lit =
+            GetLight(lights[lightIndices[cluster.x + j]], input.worldPosition, normal, toViewer, alpha, reflectance);
         diffuse += lit.diffuse;
         highlights += lit.specular;
     }
