@@ -437,7 +437,7 @@ void Renderer3D::FlushSky(RenderPass& pass, const SkyData& sky, const SkyLightin
                .sunLight = lighting.sun ? lighting.sun->color : Color::Black,
                .nightColor = sky.nightColor,
                .settings = {std::max(sky.sunSize, 0.0f), std::max(sky.atmosphereThickness, 0.0f),
-                            std::max(sky.exposure, 0.0f), 0.0f},
+                            std::max(sky.exposure, 0.0f), m_config.hdr ? 1.0f : 0.0f},
            });
     pass.Draw(3);
     ++m_stats.drawCalls;

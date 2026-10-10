@@ -10,7 +10,8 @@ cbuffer Sky : register(b0, space3) {
     // The sunlight that crosses the air to the viewer, which fades out as the sun sets.
     float4 sunLight;
     float4 nightColor;
-    // The sun's angular radius in radians, the atmosphere's thickness and the exposure.
+    // The sun's angular radius in radians, the atmosphere's thickness, the exposure, and 1 in w when drawing into an
+    // HDR target, which a tonemapper brings within the display's range later.
     float4 settings;
 };
 
@@ -142,6 +143,10 @@ float3 GetSkyLight(float3 direction, float3 toSun, out float3 transmittance) {
 // Maps unbounded light to what the target can show by its brightness alone, keeping its hue: the glow of a sunset
 // stays orange instead of washing out to white as light mapped color by color would.
 float3 Expose(float3 light) {
+    // Into an HDR target, light stays as it is, for the tonemapper to map with everything else.
+    if (settings.w > 0.5) {
+        return light * settings.z;
+    }
     const float luminance = dot(light, float3(0.2126, 0.7152, 0.0722));
     if (luminance <= 0.0) {
         return 0.0;
@@ -189,7 +194,12 @@ float4 main(Input input) : SV_Target0 {
         const float core = 1.0 - smoothstep(0.3, 1.0, sunDistance);
         const float source = max(max(sunColor.r, sunColor.g), sunColor.b);
         const float opacity = core * saturate(4.0 * brightest / max(source, 1e-4));
-        color = lerp(color, 1.0 - exp(-sunLight.rgb / brightest * SunCoreBrightness), opacity);
+        const float3 coreLight = sunLight.rgb / brightest * SunCoreBrightness;
+        color = lerp(color, settings.w > 0.5 ? coreLight * settings.z : 1.0 - exp(-coreLight), opacity);
+    }
+    // The tonemapper dithers HDR targets.
+    if (settings.w > 0.5) {
+        return float4(color, 1.0);
     }
 
     // Noise of under a step of an 8-bit display hides the banding of the sky's smooth gradients. Those steps are even

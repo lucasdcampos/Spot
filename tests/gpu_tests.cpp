@@ -1918,9 +1918,12 @@ TEST_CASE("SceneRenderer draws scenes through their first camera, with their int
         if (frame == 1) {
             target = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
             REQUIRE(target);
+            // Without a curve or noise, so colors come out exactly.
             renderer = std::make_unique<Spot::SceneRenderer>(
                 device,
-                Spot::SceneRendererConfig{.targetFormat = Spot::TextureFormat::Rgba8, .background = Spot::Color::Blue});
+                Spot::SceneRendererConfig{.targetFormat = Spot::TextureFormat::Rgba8,
+                                          .background = Spot::Color::Blue,
+                                          .tonemapping = {.op = Spot::TonemapOperator::Linear, .dither = false}});
             REQUIRE(renderer->IsValid());
             interface.CreateEntity("Square").AddComponent<UiSquare>(2.0f, Spot::Color::Green);
             interface.Update(0.0f);
@@ -2166,4 +2169,40 @@ TEST_CASE("Packed float targets hold HDR color where the GPU renders into them",
     REQUIRE(pixels.size() == 4 * 4 * 4);
     // Packed floats have no alpha, which samples as 1.
     CHECK(IsNear(FirstPixel(pixels), {255, 64, 32, 255}));
+}
+
+TEST_CASE("SceneRenderer draws light into an HDR image, which its tonemapper brings within the target", "[gpu]") {
+    RequireGpu();
+    // A camera whose background is twice as bright as white: a curve keeps it below the target's white, and exposure
+    // darkens it before the curve.
+    const auto render = [](const Spot::TonemapSettings& tonemapping) {
+        std::unique_ptr<Spot::Texture> target;
+        std::unique_ptr<Spot::SceneRenderer> renderer;
+        Spot::Scene scene;
+        scene.CreateEntity("Camera").AddComponent<Spot::Camera>().SetBackground(Spot::Color{2.0f, 2.0f, 2.0f, 1.0f});
+        const auto pixels = RenderAndDownload([&](Spot::GraphicsDevice& device, Spot::RenderContext& context) {
+            target = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
+            renderer = std::make_unique<Spot::SceneRenderer>(
+                device,
+                Spot::SceneRendererConfig{.targetFormat = Spot::TextureFormat::Rgba8, .tonemapping = tonemapping});
+            REQUIRE(renderer->IsValid());
+            const std::array<Spot::Scene*, 1> scenes{&scene};
+            renderer->Render(context, scenes, target.get());
+            return target.get();
+        });
+        REQUIRE(pixels.size() == 4 * 4 * 4);
+        return static_cast<int>(pixels[0]);
+    };
+
+    const int linear = render({.op = Spot::TonemapOperator::Linear, .dither = false});
+    const int aces = render({.op = Spot::TonemapOperator::Aces, .dither = false});
+    const int darker = render({.op = Spot::TonemapOperator::Aces, .exposure = 0.25f, .dither = false});
+    const int agx = render({.op = Spot::TonemapOperator::AgX, .dither = false});
+    CHECK(linear == 255);
+    CHECK(aces > 200);
+    CHECK(aces < 255);
+    CHECK(darker < aces - 40);
+    CHECK(agx > 120);
+    CHECK(agx < 255);
+    CHECK(agx != aces);
 }

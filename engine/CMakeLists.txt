@@ -117,6 +117,8 @@ add_library(spot_objects OBJECT
     graphics/text_layout.h
     graphics/text_layout.cpp
     graphics/texture.h
+    graphics/tonemapper.cpp
+    graphics/tonemapper.h
     input/input.h
     input/input.cpp
     input/input_action.h
@@ -202,6 +204,7 @@ spot_add_shaders(spot_objects NAMESPACE Spot::Detail::Shaders
     graphics/shaders/sky.vert.hlsl
     graphics/shaders/sprite.frag.hlsl
     graphics/shaders/sprite.vert.hlsl
+    graphics/shaders/tonemap.frag.hlsl
 )
 
 include(FetchContent)

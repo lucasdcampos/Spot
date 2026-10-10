@@ -80,9 +80,11 @@ bool ViewportTargets::Resize(GraphicsDevice& device, std::uint32_t width, std::u
     }
     m_color = device.CreateTexture(
         {.width = width, .height = height, .format = ViewportRenderer::ColorFormat, .renderTarget = true});
+    m_hdr = device.CreateTexture(
+        {.width = width, .height = height, .format = ViewportRenderer::HdrFormat, .renderTarget = true});
     m_samples = sampleCount > 1 ? device.CreateTexture({.width = width,
                                                         .height = height,
-                                                        .format = ViewportRenderer::ColorFormat,
+                                                        .format = ViewportRenderer::HdrFormat,
                                                         .renderTarget = true,
                                                         .sampleCount = sampleCount})
                                 : nullptr;
@@ -95,9 +97,10 @@ bool ViewportTargets::Resize(GraphicsDevice& device, std::uint32_t width, std::u
     m_width = width;
     m_height = height;
     m_sampleCount = sampleCount;
-    const bool created = m_color && m_depth && m_mask && (sampleCount == 1 || m_samples);
+    const bool created = m_color && m_hdr && m_depth && m_mask && (sampleCount == 1 || m_samples);
     if (!created) {
         m_color.reset();
+        m_hdr.reset();
         m_samples.reset();
         m_depth.reset();
         m_mask.reset();
@@ -107,13 +110,18 @@ bool ViewportTargets::Resize(GraphicsDevice& device, std::uint32_t width, std::u
 
 ViewportRenderer::ViewportRenderer(GraphicsDevice& device)
     : m_device(device),
-      m_sampleCount(device.SupportsSampleCount(ColorFormat, PreferredSampleCount) ? PreferredSampleCount : 1) {
+      m_sampleCount(device.SupportsSampleCount(HdrFormat, PreferredSampleCount) ? PreferredSampleCount : 1) {
     m_renderer = std::make_unique<Renderer3D>(
-        device, Renderer3DConfig{.targetFormat = ColorFormat, .sampleCount = m_sampleCount});
-    m_sprites = std::make_unique<Renderer2D>(
-        device, Renderer2DConfig{.targetFormat = ColorFormat, .sampleCount = m_sampleCount});
+        device, Renderer3DConfig{.targetFormat = HdrFormat, .sampleCount = m_sampleCount, .hdr = true});
+    m_sprites =
+        std::make_unique<Renderer2D>(device, Renderer2DConfig{.targetFormat = HdrFormat, .sampleCount = m_sampleCount});
+    m_interface = std::make_unique<Renderer2D>(device, Renderer2DConfig{.targetFormat = ColorFormat});
     m_lines = std::make_unique<LineRenderer>(
-        device, LineRendererConfig{.targetFormat = ColorFormat, .sampleCount = m_sampleCount});
+        device, LineRendererConfig{.targetFormat = HdrFormat, .sampleCount = m_sampleCount});
+    m_tonemapper = Tonemapper::Create(device, ColorFormat);
+    if (!m_tonemapper) {
+        GetEditorLogger().Error("The views' tonemapper could not be created; views show nothing");
+    }
 
     const auto fullscreenShader = device.CreateShader(Shaders::FullscreenVert);
     const auto gridShader = device.CreateShader(Shaders::GridFrag);
@@ -123,7 +131,7 @@ ViewportRenderer::ViewportRenderer(GraphicsDevice& device)
             .fragmentShader = gridShader.get(),
             .blendMode = BlendMode::Alpha,
             .cullMode = CullMode::None,
-            .targetFormat = ColorFormat,
+            .targetFormat = HdrFormat,
             // Hidden by what stands in front of it, without hiding anything drawn later.
             .depth = DepthState{.test = true, .write = false},
             .sampleCount = m_sampleCount,
@@ -170,20 +178,22 @@ ViewportRenderer::~ViewportRenderer() = default;
 
 void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& targets, Scene& scene,
                               const Camera3D& camera, const ViewportOptions& options) {
-    if (!targets.GetColor()) {
+    if (!targets.GetColor() || !m_tonemapper) {
         return;
     }
     const bool drawGrid = options.showGrid && m_grid;
     const bool drawSprites = m_sprites->IsValid() && scene.FindComponent<SpriteRenderer>();
     const bool drawLines = m_lines->IsValid() && (!DebugDraw::GetLines().empty() || !options.lines.empty());
+    // Everything but the interfaces is light, drawn into the HDR image, through its samples when there are several.
     Texture* samples = targets.GetSamples();
+    Texture* hdr = targets.GetHdr();
     m_renderer->Begin(context,
-                      {.target = samples ? samples : targets.GetColor(),
+                      {.target = samples ? samples : hdr,
                        .clearColor = options.background.value_or(Background),
                        .depthTarget = targets.GetDepth(),
                        .clearDepth = 1.0f,
-                       .resolveTarget = samples ? targets.GetColor() : nullptr,
-                       .keepSamples = samples && (drawGrid || drawLines || drawSprites || options.drawUi)},
+                       .resolveTarget = samples ? hdr : nullptr,
+                       .keepSamples = samples && (drawGrid || drawLines || drawSprites)},
                       camera);
     if (options.defaultLights && !scene.FindComponent<Light>() && !scene.FindComponent<Sky>()) {
         DrawDefaultLights(*m_renderer);
@@ -193,10 +203,10 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
 
     // DebugDraw's shapes, hidden by the meshes where they test depth.
     if (drawLines) {
-        auto pass = context.BeginRenderPass({.target = samples ? samples : targets.GetColor(),
+        auto pass = context.BeginRenderPass({.target = samples ? samples : hdr,
                                              .depthTarget = targets.GetDepth(),
-                                             .resolveTarget = samples ? targets.GetColor() : nullptr,
-                                             .keepSamples = samples && (drawGrid || drawSprites || options.drawUi)});
+                                             .resolveTarget = samples ? hdr : nullptr,
+                                             .keepSamples = samples && (drawGrid || drawSprites)});
         const Vector2 size{static_cast<float>(targets.GetWidth()), static_cast<float>(targets.GetHeight())};
         m_lines->Begin(pass, camera.GetViewProjection(size));
         m_lines->DrawDebugLines();
@@ -206,27 +216,27 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
 
     // Sprites go over the meshes, as 2D games draw them, without a depth target.
     if (drawSprites) {
-        auto pass = context.BeginRenderPass({.target = samples ? samples : targets.GetColor(),
-                                             .resolveTarget = samples ? targets.GetColor() : nullptr,
-                                             .keepSamples = samples && (drawGrid || options.drawUi)});
+        auto pass = context.BeginRenderPass({.target = samples ? samples : hdr,
+                                             .resolveTarget = samples ? hdr : nullptr,
+                                             .keepSamples = samples && drawGrid});
         const Vector2 size{static_cast<float>(targets.GetWidth()), static_cast<float>(targets.GetHeight())};
         m_sprites->Begin(pass, camera.GetViewProjection(size));
         m_sprites->DrawScene(scene);
         m_sprites->End();
     }
 
-    if (options.drawUi && m_sprites->IsValid()) {
-        auto pass = context.BeginRenderPass({.target = samples ? samples : targets.GetColor(),
-                                             .resolveTarget = samples ? targets.GetColor() : nullptr,
-                                             .keepSamples = samples && drawGrid});
-        const Vector2 size{static_cast<float>(targets.GetWidth()), static_cast<float>(targets.GetHeight())};
-        m_sprites->Begin(pass, Scene::ScreenCamera(size), size);
-        scene.DrawUi(*m_sprites, size);
-        m_sprites->End();
-    }
-
     if (drawGrid) {
         DrawGrid(context, targets, camera, options.grid2D);
+    }
+
+    // The view's colors, with the interfaces over them as they are.
+    auto pass = context.BeginRenderPass({.target = targets.GetColor()});
+    m_tonemapper->Draw(pass, *hdr, options.tonemapping);
+    if (options.drawUi && m_interface->IsValid()) {
+        const Vector2 size{static_cast<float>(targets.GetWidth()), static_cast<float>(targets.GetHeight())};
+        m_interface->Begin(pass, Scene::ScreenCamera(size), size);
+        scene.DrawUi(*m_interface, size);
+        m_interface->End();
     }
 }
 
@@ -295,9 +305,9 @@ std::optional<std::size_t> ViewportRenderer::ReadPick() {
 void ViewportRenderer::DrawGrid(RenderContext& context, const ViewportTargets& targets, const Camera3D& camera,
                                 bool plane2D) {
     Texture* samples = targets.GetSamples();
-    auto pass = context.BeginRenderPass({.target = samples ? samples : targets.GetColor(),
+    auto pass = context.BeginRenderPass({.target = samples ? samples : targets.GetHdr(),
                                          .depthTarget = targets.GetDepth(),
-                                         .resolveTarget = samples ? targets.GetColor() : nullptr});
+                                         .resolveTarget = samples ? targets.GetHdr() : nullptr});
     const Vector2 size{static_cast<float>(targets.GetWidth()), static_cast<float>(targets.GetHeight())};
     const Matrix4 viewProjection = camera.GetViewProjection(size);
     pass.BindPipeline(*m_grid);

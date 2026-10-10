@@ -16,8 +16,8 @@ struct MeshInstance {
     Matrix4 world = {};
 };
 
-// The textures one view of a scene is drawn into: the color shown in the window, the depth and the multisampled
-// color it is drawn with, and a mask of where the selection is.
+// The textures one view of a scene is drawn into: the color shown in the window, the HDR image the scene is drawn into
+// first, with its depth and multisampled image, and a mask of where the selection is.
 class ViewportTargets {
 public:
     // Recreates the textures when the size or sample count changed. Returns false, after logging why, when they
@@ -26,6 +26,8 @@ public:
 
     // Null until the first Resize().
     Texture* GetColor() const { return m_color.get(); }
+    Texture* GetHdr() const { return m_hdr.get(); }
+    // The multisampled HDR image; null with one sample.
     Texture* GetSamples() const { return m_samples.get(); }
     Texture* GetDepth() const { return m_depth.get(); }
     Texture* GetSelectionMask() const { return m_mask.get(); }
@@ -34,6 +36,7 @@ public:
 
 private:
     std::unique_ptr<Texture> m_color;
+    std::unique_ptr<Texture> m_hdr;
     std::unique_ptr<Texture> m_samples;
     std::unique_ptr<Texture> m_depth;
     std::unique_ptr<Texture> m_mask;
@@ -56,15 +59,19 @@ struct ViewportOptions {
     bool showColliders = false;
     // Lines only this view draws, besides those queued with DebugDraw.
     std::span<const DebugLine> lines = {};
+    // How the HDR image of the scene becomes the view's colors.
+    TonemapSettings tonemapping = {};
 };
 
 // Draws scenes into viewport targets, as they would look in the game, with the shapes queued with DebugDraw and the
-// editor's grid over them. One is shared
-// by every view.
+// editor's grid over them: as light into an HDR image, which a Tonemapper turns into the view's colors, as games'
+// SceneRenderer does; then the scene's interfaces over it. One is shared by every view.
 class ViewportRenderer {
 public:
     // The format viewport colors are drawn in: sRGB, as the renderers draw linear colors.
     static constexpr TextureFormat ColorFormat = TextureFormat::Rgba8Srgb;
+    // The format scenes are drawn into before the tonemapper.
+    static constexpr TextureFormat HdrFormat = TextureFormat::Rgba16Float;
 
     explicit ViewportRenderer(GraphicsDevice& device);
     ~ViewportRenderer();
@@ -98,7 +105,10 @@ private:
     std::uint32_t m_sampleCount;
     std::unique_ptr<Renderer3D> m_renderer;
     std::unique_ptr<Renderer2D> m_sprites;
+    // Interfaces are drawn after the tonemapper, in the view's colors.
+    std::unique_ptr<Renderer2D> m_interface;
     std::unique_ptr<LineRenderer> m_lines;
+    std::unique_ptr<Tonemapper> m_tonemapper;
     std::unique_ptr<Pipeline> m_grid;
     std::unique_ptr<Pipeline> m_mask;
     std::unique_ptr<Pipeline> m_outline;

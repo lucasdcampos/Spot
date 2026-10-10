@@ -62,9 +62,21 @@ vertex uniforms at `register(b0, space1)`, fragment textures and samplers at `re
 
 `SceneRenderer::Render()` draws scenes over each other into the window or a texture: their meshes through the first
 main camera among them (`FindMainCamera()`), then the shapes queued with `DebugDraw` (see
-[Diagnostics](diagnostics.md)), then their sprites, then their interfaces (`Scene::DrawUi()`, which calls each
-active component's `OnDrawUi()` with a renderer in pixels from the view's bottom-left corner). It multisamples where
-the GPU allows. The application draws its scenes with one unless `ApplicationConfig::renderScenes` is off.
+[Diagnostics](diagnostics.md)), then their sprites, all as light into an HDR image (`Rgba16Float`, multisampled where
+the GPU allows), which a tonemapper turns into the target's colors; then their interfaces over it, as they are
+(`Scene::DrawUi()`, which calls each active component's `OnDrawUi()` with a renderer in pixels from the view's
+bottom-left corner). The application draws its scenes with one unless `ApplicationConfig::renderScenes` is off, and
+the editor's views draw the same way.
+
+### HDR and tonemapping
+
+Light in a scene is not limited to what a display shows: a lamp, the sun or a glowing surface can be many times
+brighter than white. `Tonemapper` brings an HDR image within the display's range with `TonemapSettings`: an operator
+(`Aces`, contrasty with saturated colors, the default; `AgX`, gentler, turning bright saturated light toward white;
+or `Linear`, which clips, for views that must show colors as they are), an exposure that multiplies the light first,
+and dithering that hides banding. `SceneRendererConfig::tonemapping` and `SceneRenderer::SetTonemapping()` choose
+them. `Renderer3DConfig::hdr` makes Renderer3D draw the sky's light as it is, for the tonemapper, rather than mapping
+it itself as it does into displayable targets.
 
 ## Scene components
 
@@ -81,5 +93,5 @@ the GPU allows. The application draws its scenes with one unless `ApplicationCon
 
 ## Not there yet
 
-PBR, HDR and post-processing, transparency, culling and instancing come in the roadmap's rendering milestones (M5 to
-M7).
+Bloom, grading, fog and the rest of post-processing, PBR, transparency, culling and instancing come in the
+roadmap's rendering milestones (M5 to M7).

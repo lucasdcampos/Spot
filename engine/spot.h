@@ -54,6 +54,7 @@
 #include "graphics/sky_data.h"
 #include "graphics/text_layout.h"
 #include "graphics/texture.h"
+#include "graphics/tonemapper.h"
 #include "input/input.h"
 #include "input/input_action.h"
 #include "input/input_settings.h"

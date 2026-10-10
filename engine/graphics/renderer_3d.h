@@ -41,6 +41,9 @@ struct Renderer3DConfig {
     TextureFormat depthFormat = TextureFormat::Depth32Float;
     // The sample count of the targets of the passes it draws in; above 1 for multisampled antialiasing.
     std::uint32_t sampleCount = 1;
+    // Draws light as it is into an HDR target, for a tonemapper to bring within the display's range (see Tonemapper),
+    // rather than mapping the sky's light itself, as it does into displayable targets.
+    bool hdr = false;
 
     // The size in pixels of each cascade of the shadows of the directional light, which split the view up to the
     // shadow distance into 1 to 4 ranges, each sharper than the next: the cascades share one shadow map, and their

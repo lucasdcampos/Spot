@@ -15,25 +15,34 @@
 
 namespace Spot {
 
+namespace {
+
+constexpr TextureFormat HdrFormat = TextureFormat::Rgba16Float;
+
+} // namespace
+
 SceneRenderer::SceneRenderer(GraphicsDevice& device, const SceneRendererConfig& config)
     : m_device(device), m_format(config.targetFormat.value_or(device.GetWindowFormat())), m_sampleCount(1),
-      m_background(config.background) {
-    if (config.sampleCount > 1 && device.SupportsSampleCount(m_format, config.sampleCount) &&
+      m_background(config.background), m_tonemapping(config.tonemapping) {
+    if (config.sampleCount > 1 && device.SupportsSampleCount(HdrFormat, config.sampleCount) &&
         device.SupportsSampleCount(TextureFormat::Depth32Float, config.sampleCount)) {
         m_sampleCount = config.sampleCount;
     }
     m_renderer3D = std::make_unique<Renderer3D>(
-        device, Renderer3DConfig{.targetFormat = config.targetFormat, .sampleCount = m_sampleCount});
-    m_renderer2D = std::make_unique<Renderer2D>(
-        device, Renderer2DConfig{.targetFormat = config.targetFormat, .sampleCount = m_sampleCount});
+        device, Renderer3DConfig{.targetFormat = HdrFormat, .sampleCount = m_sampleCount, .hdr = true});
+    m_sprites =
+        std::make_unique<Renderer2D>(device, Renderer2DConfig{.targetFormat = HdrFormat, .sampleCount = m_sampleCount});
+    m_interface = std::make_unique<Renderer2D>(device, Renderer2DConfig{.targetFormat = m_format});
     m_lines = std::make_unique<LineRenderer>(
-        device, LineRendererConfig{.targetFormat = config.targetFormat, .sampleCount = m_sampleCount});
+        device, LineRendererConfig{.targetFormat = HdrFormat, .sampleCount = m_sampleCount});
+    m_tonemapper = Tonemapper::Create(device, m_format);
 }
 
 SceneRenderer::~SceneRenderer() = default;
 
 bool SceneRenderer::IsValid() const {
-    return m_renderer3D->IsValid() && m_renderer2D->IsValid() && m_lines->IsValid();
+    return m_renderer3D->IsValid() && m_sprites->IsValid() && m_interface->IsValid() && m_lines->IsValid() &&
+           m_tonemapper;
 }
 
 void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scenes, Texture* target) {
@@ -56,17 +65,17 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
     }
     const Camera3D view = camera ? camera->GetCamera3D() : Camera3D{};
 
-    // With several samples, each pass draws into the multisampled target and resolves it into the real one, keeping
+    // With several samples, each pass draws into the multisampled target and resolves it into the HDR image, keeping
     // the samples for the passes drawn over it.
     Texture* samples = m_samples.get();
+    const bool lines = !DebugDraw::GetLines().empty();
     const auto pass = [&](bool more) {
-        return RenderPassDesc{.target = samples ? samples : target,
-                              .resolveTarget = samples ? target : nullptr,
-                              .resolveToWindow = samples && !target,
+        return RenderPassDesc{.target = samples ? samples : m_hdr.get(),
+                              .resolveTarget = samples ? m_hdr.get() : nullptr,
                               .keepSamples = samples && more};
     };
 
-    RenderPassDesc meshes = pass(true);
+    RenderPassDesc meshes = pass(lines || sprites);
     meshes.clearColor = camera ? camera->GetBackground() : m_background;
     meshes.depthTarget = m_depth.get();
     meshes.clearDepth = 1.0f;
@@ -77,35 +86,38 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
     m_renderer3D->End();
 
     const Vector2 size{static_cast<float>(width), static_cast<float>(height)};
-    if (!DebugDraw::GetLines().empty()) {
+    if (lines) {
         // Over the meshes, hidden by them where they test depth.
-        RenderPassDesc lines = pass(true);
-        lines.depthTarget = m_depth.get();
-        auto linePass = context.BeginRenderPass(lines);
+        RenderPassDesc linesDesc = pass(sprites);
+        linesDesc.depthTarget = m_depth.get();
+        auto linePass = context.BeginRenderPass(linesDesc);
         m_lines->Begin(linePass, view.GetViewProjection(size));
         m_lines->DrawDebugLines();
         m_lines->End();
     }
     // Sprites go over the meshes, as 2D games draw them, without a depth target.
     if (sprites) {
-        auto spritePass = context.BeginRenderPass(pass(true));
-        m_renderer2D->Begin(spritePass, view.GetViewProjection(size));
+        auto spritePass = context.BeginRenderPass(pass(false));
+        m_sprites->Begin(spritePass, view.GetViewProjection(size));
         for (Scene* scene : scenes) {
-            m_renderer2D->DrawScene(*scene);
+            m_sprites->DrawScene(*scene);
         }
-        m_renderer2D->End();
+        m_sprites->End();
     }
 
-    auto uiPass = context.BeginRenderPass(pass(false));
-    m_renderer2D->Begin(uiPass, Scene::ScreenCamera(size), size);
+    // The tonemapper covers the whole target, and the interfaces go over it as they are.
+    auto output = context.BeginRenderPass({.target = target});
+    m_tonemapper->Draw(output, *m_hdr, m_tonemapping);
+    m_interface->Begin(output, Scene::ScreenCamera(size), size);
     for (Scene* scene : scenes) {
-        scene->DrawUi(*m_renderer2D, size);
+        scene->DrawUi(*m_interface, size);
     }
-    m_renderer2D->End();
+    m_interface->End();
 }
 
 bool SceneRenderer::UpdateTargets(std::uint32_t width, std::uint32_t height) {
     if (!m_depth || m_depth->GetWidth() != width || m_depth->GetHeight() != height) {
+        m_hdr = m_device.CreateTexture({.width = width, .height = height, .format = HdrFormat, .renderTarget = true});
         m_depth = m_device.CreateTexture({.width = width,
                                           .height = height,
                                           .format = TextureFormat::Depth32Float,
@@ -113,12 +125,12 @@ bool SceneRenderer::UpdateTargets(std::uint32_t width, std::uint32_t height) {
                                           .sampleCount = m_sampleCount});
         m_samples = m_sampleCount > 1 ? m_device.CreateTexture({.width = width,
                                                                 .height = height,
-                                                                .format = m_format,
+                                                                .format = HdrFormat,
                                                                 .renderTarget = true,
                                                                 .sampleCount = m_sampleCount})
                                       : nullptr;
     }
-    return m_depth && (m_sampleCount == 1 || m_samples);
+    return m_hdr && m_depth && (m_sampleCount == 1 || m_samples);
 }
 
 } // namespace Spot

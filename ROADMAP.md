@@ -572,7 +572,7 @@ built on the public graphics API. The look comes from a `PostProcessing` compone
 
 - [x] **M5.1 Graphics API.** Float color formats (`Rgba16Float`, and `R11G11B10Float` where supported) as render
   targets, MSAA resolve into sampled textures, and `FullscreenPass` (one triangle and a fragment shader). GPU tests.
-- [ ] **M5.2 HDR and tonemapping.** `SceneRenderer` draws into the HDR target and tonemaps it (ACES or AgX, with
+- [x] **M5.2 HDR and tonemapping.** `SceneRenderer` draws into the HDR target and tonemaps it (ACES or AgX, with
   exposure) into the output. Sky exposure stays consistent, and the editor's views use the same path.
 - [ ] **M5.3 Bloom.** A downsample and upsample chain, with intensity and scatter.
 - [ ] **M5.4 FXAA.** Optional FXAA next to MSAA, chosen in the settings.
@@ -596,6 +596,14 @@ built on the public graphics API. The look comes from a `PostProcessing` compone
   now resolves a 4x float target with values above 1 and samples it. `FullscreenPass` owns an engine vertex shader
   (`fullscreen.vert.hlsl`, one triangle from `SV_VertexID`), the caller's fragment shader and the pipeline; its
   targets have no depth.
+- M5.2: `Tonemapper` (on `FullscreenPass`) offers ACES (Stephen Hill's fit), AgX (Benjamin Wrensch's minimal fit) and
+  Linear, with exposure and sRGB-space dithering. `SceneRenderer` draws meshes, debug lines and sprites into an
+  `Rgba16Float` image (MSAA when supported, resolved into it), tonemaps it into the target in one pass that the
+  interfaces then draw over in the target's format, with a second Renderer2D. The sky keeps its own curve and
+  dithering into displayable targets (Renderer3D used directly, as in most GPU tests); with `Renderer3DConfig::hdr`
+  it outputs its light times its exposure, the core of the sun unbounded, and the tonemapper dithers. The editor's
+  views draw the same way (`ViewportTargets` gained the HDR image; the grid draws into it, the interfaces after the
+  tonemapper), with `ViewportOptions::tonemapping`; thumbnails stay direct.
 
 ---
 
