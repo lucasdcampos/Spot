@@ -23,6 +23,7 @@
 #include "core/paths.h"
 #include "core/process.h"
 #include "core/profiler.h"
+#include "core/save_data.h"
 #include "core/shared_library.h"
 #include "core/signal.h"
 #include "core/task.h"

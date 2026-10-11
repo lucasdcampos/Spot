@@ -60,6 +60,8 @@ add_library(spot_objects OBJECT
     core/paths.h
     core/paths.cpp
     core/process.h
+    core/save_data.h
+    core/save_data.cpp
     core/profiler.h
     core/profiler.cpp
     core/shared_library.h

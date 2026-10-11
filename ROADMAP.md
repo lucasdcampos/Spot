@@ -994,7 +994,7 @@ with view-model animations.
   and UI callbacks. Tests.
 - [x] **M10.6 Typed references.** `ComponentRef<T>` fields, serialized by entity id and drawn in the inspector with
   drag and drop.
-- [ ] **M10.7 Save data.** Save files in the user data folder written with `Archive`, with versioning. Tests.
+- [x] **M10.7 Save data.** Save files in the user data folder written with `Archive`, with versioning. Tests.
 - [ ] **M10.8 Sandbox: saving and feel.** Saving and loading the world (props, frozen state, welds, ropes, lamps).
   Weapon cooldowns, recoil, camera bob and fuse timers use timers, tweens and coroutines.
 
@@ -1025,6 +1025,10 @@ with view-model animations.
   remain editable. Headless tests cover resolution, replacement, serialization, copied trees and inspector selection.
   The picker now owns delivered payload bytes: ImGui clears them in `EndDragDropTarget()`, so the previous pointer
   result lost entity and asset drops before fields consumed them. Both drop paths have headless regression coverage.
+- M10.7: code-only `SaveData` takes the application's user data directory or an explicit folder and uses Archive
+  callbacks with a file version. It rejects newer versions before loading, exposes older versions for migration,
+  reports structured errors and writes a temporary file before replacing the slot, with a recoverable backup where
+  rename cannot overwrite. Headless tests cover round trips, replacement, migration, corrupt files, names and failures.
 
 ---
 

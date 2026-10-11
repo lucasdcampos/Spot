@@ -139,4 +139,32 @@ matching entities on drag-and-drop. A saved mismatched or missing target remains
 References identify an entity and a type, not a particular component instance; use `ComponentId` where instance
 identity matters. Forward-declared types can be referenced, but must be complete when resolved or serialized.
 
-Versioned save data follows in M10.7.
+## Save data
+
+`SaveData` writes Archive fields as a versioned JSON save. Give it `Application::GetUserDataDirectory()` for a game's
+persistent storage, or an explicit directory for tools and tests. Save names are plain UTF-8 file names, not paths;
+the store creates its directory as needed.
+
+```cpp
+Spot::SaveData saves(GetScene().GetApplication().GetUserDataDirectory());
+const auto serialize = [&](Spot::Archive& archive, std::uint32_t version) {
+    archive.Field("score", score);
+    // When loading an older version, migrate its fields here.
+};
+auto result = saves.Save("progress.json", 2, serialize);
+result = saves.Load("progress.json", 2, serialize);
+```
+
+The callback receives the written version on save or the file's actual version on load. Files newer than the
+supported version are rejected before the callback runs. Older versions can read their original field names and
+migrate them, while missing fields keep their defaults through Archive's usual rules. `SaveDataResult` reports
+success, missing or malformed files, unsupported versions, invalid names, I/O failures and serialization errors,
+with the version and an explanatory message. The store does not log errors automatically, so the game chooses
+how to present them.
+
+Serialization finishes in memory before the file is touched. A temporary file is written and closed before replacing
+the slot. Where standard rename cannot replace a file (Windows), the previous file is moved to a backup and restored
+if replacement fails; a failed rollback reports the backup's location. Successful writes remove the backup and
+temporary files. This is a single-writer store; on Windows, a process interruption during the rename sequence can
+leave a backup for recovery. Loading callbacks should read into temporary game data before applying changes if
+they need transactional changes to live objects.

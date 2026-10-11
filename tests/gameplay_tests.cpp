@@ -1,9 +1,12 @@
 #include <spot.h>
 
+#include "temp_directory.h"
+
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <chrono>
+#include <fstream>
 #include <limits>
 #include <stdexcept>
 #include <vector>
@@ -611,4 +614,95 @@ TEST_CASE("Typed references serialize as entity ids and remap when instantiating
     REQUIRE(copyOwner->target.Get(scene));
     CHECK(copyOwner->target.GetEntityId() != target.GetId());
     CHECK(copyOwner->target.Get(scene)->GetEntity().GetParent() == copies.front());
+}
+
+TEST_CASE("Save data round-trips Archive fields and replaces an existing slot", "[gameplay][save]") {
+    TempDirectory directory;
+    Spot::SaveData saves(directory.GetPath() / "saves");
+    int score = 42;
+    std::string name = "Player";
+    Spot::Vector3 position{1.0f, 2.0f, 3.0f};
+    std::vector<int> inventory{2, 5, 9};
+    const auto serialize = [&](Spot::Archive& archive, std::uint32_t) {
+        archive.Field("score", score);
+        archive.Field("name", name);
+        archive.Field("position", position);
+        archive.Field("inventory", inventory);
+    };
+    REQUIRE(saves.Save("slot_\xC3\xA9.json", 2, serialize));
+    score = 99;
+    REQUIRE(saves.Save("slot_\xC3\xA9.json", 2, serialize));
+    score = 0;
+    name.clear();
+    position = {};
+    inventory.clear();
+    const auto loaded = saves.Load("slot_\xC3\xA9.json", 2, serialize);
+    REQUIRE(loaded);
+    CHECK(loaded.version == 2);
+    CHECK(score == 99);
+    CHECK(name == "Player");
+    CHECK(position == Spot::Vector3{1.0f, 2.0f, 3.0f});
+    CHECK(inventory == std::vector<int>{2, 5, 9});
+    CHECK(std::distance(std::filesystem::directory_iterator(saves.GetDirectory()),
+                        std::filesystem::directory_iterator()) == 1);
+}
+
+TEST_CASE("Save data exposes older versions for migration and rejects newer versions before loading",
+          "[gameplay][save]") {
+    TempDirectory directory;
+    Spot::SaveData saves(directory.GetPath());
+    int oldScore = 5;
+    REQUIRE(
+        saves.Save("old.json", 0, [&](Spot::Archive& archive, std::uint32_t) { archive.Field("points", oldScore); }));
+    int score = 0;
+    const auto migrated = saves.Load("old.json", 1, [&](Spot::Archive& archive, std::uint32_t version) {
+        CHECK(version == 0);
+        archive.Field("points", score);
+        score *= 10;
+    });
+    REQUIRE(migrated);
+    CHECK(score == 50);
+    REQUIRE(
+        saves.Save("future.json", 3, [&](Spot::Archive& archive, std::uint32_t) { archive.Field("score", score); }));
+    const auto future = saves.Load("future.json", 2, [&](Spot::Archive&, std::uint32_t) { score = -1; });
+    CHECK(future.status == Spot::SaveDataStatus::UnsupportedVersion);
+    CHECK(future.version == 3);
+    CHECK(score == 50);
+}
+
+TEST_CASE("Save data rejects malformed files and names without calling the serializer", "[gameplay][save]") {
+    TempDirectory directory;
+    Spot::SaveData saves(directory.GetPath());
+    int calls = 0;
+    const auto serialize = [&](Spot::Archive&, std::uint32_t) { ++calls; };
+    CHECK(saves.Load("missing.json", 1, serialize).status == Spot::SaveDataStatus::NotFound);
+    for (const auto name : {"", ".", "..", "../escape.json", "sub/slot.json", "sub\\slot.json", "C:slot.json"}) {
+        CHECK(saves.Save(name, 1, serialize).status == Spot::SaveDataStatus::InvalidName);
+        CHECK(saves.Load(name, 1, serialize).status == Spot::SaveDataStatus::InvalidName);
+    }
+    for (const auto text : {"broken", "[]", "{}", R"({"format":"spot-save","version":-1,"data":{}})",
+                            R"({"format":"spot-save","version":1,"data":[]})"}) {
+        std::ofstream(directory.GetPath() / "invalid.json") << text;
+        CHECK(saves.Load("invalid.json", 1, serialize).status == Spot::SaveDataStatus::InvalidFile);
+    }
+    CHECK(calls == 0);
+}
+
+TEST_CASE("Failed saves retain the previous file and clean temporary files", "[gameplay][save]") {
+    TempDirectory directory;
+    Spot::SaveData saves(directory.GetPath());
+    int score = 7;
+    const auto serialize = [&](Spot::Archive& archive, std::uint32_t) { archive.Field("score", score); };
+    REQUIRE(saves.Save("slot.json", 1, serialize));
+    const auto fail = [](Spot::Archive&, std::uint32_t) { throw std::runtime_error("save failure"); };
+    CHECK(saves.Save("slot.json", 1, fail).status == Spot::SaveDataStatus::SerializationError);
+    score = 0;
+    REQUIRE(saves.Load("slot.json", 1, serialize));
+    CHECK(score == 7);
+    CHECK(saves.Load("slot.json", 1, fail).status == Spot::SaveDataStatus::SerializationError);
+    std::filesystem::create_directory(directory.GetPath() / "blocked.json");
+    CHECK(saves.Save("blocked.json", 1, serialize).status == Spot::SaveDataStatus::IoError);
+    CHECK(std::filesystem::is_directory(directory.GetPath() / "blocked.json"));
+    CHECK(std::distance(std::filesystem::directory_iterator(saves.GetDirectory()),
+                        std::filesystem::directory_iterator()) == 2);
 }
