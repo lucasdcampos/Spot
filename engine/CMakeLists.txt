@@ -157,6 +157,10 @@ add_library(spot_objects OBJECT
     input/input_state.cpp
     input/keys.h
     input/keys.cpp
+    math/curve.h
+    math/curve.cpp
+    graphics/gradient.h
+    graphics/gradient.cpp
     math/angles.h
     math/glm_conversions.h
     math/matrix.h

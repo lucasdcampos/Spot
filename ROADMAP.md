@@ -9,7 +9,7 @@ The goal is the same breadth, built on the architecture Spot already has.
 The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
 [The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
 
-**Current focus:** M12 – Runtime UI and text (not started; M9 remains deferred by request)
+**Current focus:** M13 - Particles (requested out of order; M9 and M12 remain pending)
 
 ## How to use this plan
 
@@ -1151,7 +1151,7 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
 
 ## M13 – Particles
 
-- [ ] **M13.1 Curves and gradients.** `Curve` and `Gradient` types that are serialized and edited in the inspector.
+- [x] **M13.1 Curves and gradients.** `Curve` and `Gradient` types that are serialized and edited in the inspector.
 - [ ] **M13.2 Simulation.** A `ParticleSystem` component with emission rate and bursts, shapes (point, sphere, cone,
   box), start ranges, values over lifetime, gravity and local or world space, simulated on the CPU by a system.
   Tests.
@@ -1164,6 +1164,11 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
 **Done when:** weapons, impacts and explosions in the sandbox emit particles.
 
 **Notes:**
+- M13.1: Hermite curves and linear HDR gradients use sorted, finite keys, last-key duplicate resolution
+  and clamped endpoints. They share the archive and inspector key-array editing, including undo and
+  prefab overrides. MSVC builds without warnings; three tests pass (20 assertions).
+- M13 is implemented out of order by request; it does not require M9 or M12.
+
 
 ---
 
