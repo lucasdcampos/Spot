@@ -92,4 +92,23 @@ cancels the task; a standalone scheduler propagates it, while a component faults
 `Scene::GetUpdateCount()` identifies scene updates; the scheduler's explicit-frame overloads use that identity to
 avoid resuming tasks created during a hook twice in one frame.
 
-Signals, typed component references and versioned save data follow in M10.5–M10.7.
+## Signals
+
+`Signal<Args...>` delivers synchronous gameplay messages without a scene or global event bus. `Connect(callback)`
+returns a move-only `SignalConnection`; keep it as a member or local for the subscriber's lifetime. Its destructor
+disconnects, and `Disconnect()` can end the subscription earlier. `IsConnected()` also detects signal destruction
+or `DisconnectAll()`. Empty callbacks yield a disconnected connection.
+
+```cpp
+Spot::Signal<int> healthChanged;
+auto connection = healthChanged.Connect([](int health) { UpdateHealthBar(health); });
+healthChanged.Emit(80);
+```
+
+Callbacks run in connection order. Disconnecting another listener skips it even during an emission; newly connected
+listeners wait until the next emission. Destroying the signal stops the current emission and invalidates outstanding
+connections safely. Reference arguments preserve references; value arguments are copied for each listener.
+Exceptions propagate to the emitter, stopping that emission. Signals are intended for the game thread; cross-thread
+messages should be marshalled to it first.
+
+Typed component references and versioned save data follow in M10.6–M10.7.

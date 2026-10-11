@@ -990,7 +990,7 @@ with view-model animations.
   `TweenSystem`. Tests.
 - [x] **M10.4 Coroutines.** A C++20 coroutine `Task` that awaits the next frame, seconds, a condition or another task,
   owned by a component and cancelled with it. Tests.
-- [ ] **M10.5 Signals.** `Signal<Args...>` with scoped connections that disconnect themselves, for gameplay messages
+- [x] **M10.5 Signals.** `Signal<Args...>` with scoped connections that disconnect themselves, for gameplay messages
   and UI callbacks. Tests.
 - [ ] **M10.6 Typed references.** `ComponentRef<T>` fields, serialized by entity id and drawn in the inspector with
   drag and drop.
@@ -1016,6 +1016,9 @@ with view-model animations.
   Frame, seconds, condition and nested-task waits pause with simulation time; scene update ids prevent a task
   started in a hook from consuming that update's delta. Cancellation unwinds all nested frames and defers destruction
   of executing frames until suspension. Child and predicate exceptions enter the awaiting coroutine normally.
+- M10.5: `Signal<Args...>` dispatches synchronously in connection order. Move-only `SignalConnection` subscriptions
+  disconnect at scope exit and use weak ownership, so either side may go away first. Emission snapshots identities,
+  supporting connection changes and signal destruction during a callback without invalidating the dispatch loop.
 
 ---
 

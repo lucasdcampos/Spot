@@ -478,3 +478,79 @@ TEST_CASE("Owner removal during a coroutine condition prevents resumption and fa
     CHECK(calls == 3);
     CHECK_FALSE(healthy.IsCoroutineRunning(running));
 }
+
+TEST_CASE("Signal connections disconnect at scope exit and move without duplicate subscriptions",
+          "[gameplay][signals]") {
+    Spot::Signal<int> signal;
+    int total = 0;
+    {
+        auto connection = signal.Connect([&](int value) { total += value; });
+        CHECK(connection.IsConnected());
+        signal.Emit(2);
+        auto moved = std::move(connection);
+        CHECK_FALSE(connection.IsConnected());
+        CHECK(moved.IsConnected());
+        signal.Emit(3);
+        auto replaced = signal.Connect([&](int value) { total += value * 10; });
+        replaced = std::move(moved);
+        signal.Emit(1);
+        CHECK(total == 6);
+        replaced.Disconnect();
+        CHECK_FALSE(replaced.IsConnected());
+        replaced.Disconnect();
+    }
+    signal.Emit(5);
+    CHECK(total == 6);
+    CHECK_FALSE(signal.Connect({}).IsConnected());
+}
+
+TEST_CASE("Signals defer new listeners and skip listeners disconnected during dispatch", "[gameplay][signals]") {
+    Spot::Signal<int> signal;
+    std::vector<int> calls;
+    Spot::SignalConnection second;
+    Spot::SignalConnection third;
+    auto first = signal.Connect([&](int value) {
+        calls.push_back(value);
+        second.Disconnect();
+        if (!third.IsConnected()) {
+            third = signal.Connect([&](int received) { calls.push_back(received * 3); });
+        }
+    });
+    second = signal.Connect([&](int value) { calls.push_back(value * 2); });
+    signal.Emit(1);
+    CHECK(calls == std::vector<int>{1});
+    signal.Emit(2);
+    CHECK(calls == std::vector<int>{1, 2, 6});
+    signal.DisconnectAll();
+    CHECK_FALSE(first.IsConnected());
+    CHECK_FALSE(third.IsConnected());
+    signal.Emit(3);
+    CHECK(calls.size() == 3);
+}
+
+TEST_CASE("Destroying a signal during dispatch stops remaining listeners and expires connections",
+          "[gameplay][signals]") {
+    auto signal = std::make_unique<Spot::Signal<>>();
+    int calls = 0;
+    auto destroy = signal->Connect([&] { signal.reset(); });
+    auto later = signal->Connect([&] { ++calls; });
+    signal->Emit();
+    CHECK(calls == 0);
+    CHECK_FALSE(destroy.IsConnected());
+    CHECK_FALSE(later.IsConnected());
+    destroy.Disconnect();
+    later.Disconnect();
+}
+
+TEST_CASE("Signals preserve reference arguments and propagate callback failures", "[gameplay][signals]") {
+    Spot::Signal<int&> signal;
+    int value = 0;
+    auto first = signal.Connect([](int& received) { ++received; });
+    auto broken = signal.Connect([](int&) { throw std::runtime_error("signal failure"); });
+    auto last = signal.Connect([](int& received) { received += 10; });
+    CHECK_THROWS_AS(signal.Emit(value), std::runtime_error);
+    CHECK(value == 1);
+    broken.Disconnect();
+    signal.Emit(value);
+    CHECK(value == 12);
+}

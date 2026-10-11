@@ -63,6 +63,7 @@ add_library(spot_objects OBJECT
     core/profiler.h
     core/profiler.cpp
     core/shared_library.h
+    core/signal.h
     core/task.h
     core/task.cpp
     core/time.h
