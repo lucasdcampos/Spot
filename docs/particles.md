@@ -1,7 +1,7 @@
 # Particles
 
 `Curve` evaluates cubic Hermite segments, with independent incoming and outgoing derivatives.
-`Curve::Linear(start, end)` makes a linear ramp over 0–1. `Gradient` interpolates linear HDR RGBA
+`Curve::Linear(start, end)` makes a linear ramp over 0â€“1. `Gradient` interpolates linear HDR RGBA
 colors, including alpha. Both clamp outside the keys and use identity values (1 or white) when empty.
 
 Use `SetKeys()` to author keys. Times are sorted; the last duplicate wins and nonfinite keys are
@@ -70,9 +70,11 @@ adds geometry work; use single-sample views when that cost outweighs MSAA.
 ## Editor preview
 
 Select an entity with a ParticleSystem to simulate that emitter in edit mode. The inspector offers
-Play/Pause, Restart and a bounded 0–60 second seek control, plus the live particle count. A different
+Play/Pause, Restart and a bounded 0â€“60 second seek control, plus the live particle count. A different
 ParticleSystem on the same entity can take the preview with its Preview button. Curves show sampled
-plots and gradients show color strips above their editable key arrays.
+plots and gradients show color strips above their editable key arrays. Confirm key times with Enter
+to reorder them after editing. Curves and gradients are recorded as whole-field changes so reordering
+also preserves multi-selection edits and prefab overrides.
 
 The document owns preview state by entity id, component id and scene revision. Selection changes
 clear the old emitter, removals resolve safely, and reloads restart the preview. Only the selected

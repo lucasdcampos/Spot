@@ -1178,6 +1178,9 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
   headless preview cases pass 17 assertions, inspector interaction passes 15, and a windowless editor
   GPU case passes 10 through the actual viewport/MSAA path. All twelve particle cases still pass 703
   assertions after adding specialized archive hooks; MSVC compiles without warnings.
+  Follow-up: key times commit on Enter before reordering, and curve/gradient edits record the whole
+  field for multi-selection and prefab overrides. Seventeen inspector cases pass 245 assertions,
+  including an interaction regression for both kinds of keys. The particle guide uses UTF-8.
 
 - M13.3: globally sorted alpha and additive billboard instances draw through public graphics APIs in
   both game and editor views. CPU tests cover sorting, transforms, stretch, rotation and flipbooks.

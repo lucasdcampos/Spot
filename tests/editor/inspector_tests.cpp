@@ -476,3 +476,66 @@ TEST_CASE("Particle inspector preview controls do not create authored edits", "[
     fixture.Click("ParticleSystem/preview/play");
     CHECK(preview.IsPlaying());
 }
+
+TEST_CASE("Curve and gradient key times commit before reordering", "[editor][inspector][particles]") {
+    Spot::Tests::HeadlessImGui imgui;
+    Spot::Curve curve = Spot::Curve::Linear(2, 4);
+    Spot::Gradient gradient({{0, {1, 0, 0, 1}}, {1, {0, 0, 3, 1}}});
+    bool editGradient = false;
+    ImVec2 timeField{};
+    std::vector<std::string> changed;
+    imgui.SetDraw([&] {
+        ImGui::SetNextWindowPos({0, 0});
+        ImGui::SetNextWindowSize({600, 650});
+        ImGui::Begin("Key time test");
+        Spot::Editor::InspectorBackend backend({});
+        if (Spot::Editor::Widgets::BeginProperties("Fields")) {
+            const char* name = editGradient ? "gradient" : "curve";
+            const std::string pointer = std::string("/data/") + name;
+            ImGui::PushID(pointer.c_str());
+            ImGui::GetStateStorage()->SetInt(ImGui::GetID((pointer + "/keys").c_str()), 1);
+            ImGui::PopID();
+            Spot::Archive archive(backend);
+            if (editGradient)
+                archive.Field(name, gradient);
+            else
+                archive.Field(name, curve);
+            Spot::Editor::Widgets::EndProperties();
+            for (const auto& rect : backend.GetFieldRects()) {
+                if (rect.pointer == pointer + "/keys/1/time")
+                    timeField = {(rect.min.x + rect.max.x) * 0.5f, (rect.min.y + rect.max.y) * 0.5f};
+            }
+            for (const auto& path : backend.GetChanged())
+                changed.push_back(path);
+        }
+        ImGui::End();
+    });
+    const auto enterTime = [&] {
+        imgui.Frame();
+        imgui.Frame();
+        REQUIRE(timeField.y > 0);
+        imgui.Click(timeField);
+        imgui.Press(ImGuiMod_Ctrl | ImGuiKey_A);
+        imgui.Type("-0.5");
+        CHECK(changed.empty());
+    };
+    enterTime();
+    CHECK(curve.GetKeys()[1].time == 1);
+    imgui.Press(ImGuiKey_Enter);
+    REQUIRE(curve.GetKeys().size() == 2);
+    CHECK(curve.GetKeys()[0].time == -0.5f);
+    CHECK(curve.GetKeys()[0].value == 4);
+    CHECK(curve.GetKeys()[1].value == 2);
+    CHECK(changed == std::vector<std::string>{"/data/curve"});
+    changed.clear();
+    editGradient = true;
+    timeField = {};
+    enterTime();
+    CHECK(gradient.GetKeys()[1].time == 1);
+    imgui.Press(ImGuiKey_Enter);
+    REQUIRE(gradient.GetKeys().size() == 2);
+    CHECK(gradient.GetKeys()[0].time == -0.5f);
+    CHECK(gradient.GetKeys()[0].color.b == 3);
+    CHECK(gradient.GetKeys()[1].color.r == 1);
+    CHECK(changed == std::vector<std::string>{"/data/gradient"});
+}

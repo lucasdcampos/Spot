@@ -171,8 +171,17 @@ void InspectorBackend::Number(std::string_view name, T& value, const FieldOption
     const T max = ToBound<T>(options.max);
     // Integers use ImGui's own format for their type.
     const char* format = IsMixed(pointer) ? MixedValueText : std::is_integral_v<T> ? nullptr : "%.3f";
-    if (ImGui::DragScalar("##value", GetDataType<T>(), &value, GetSpeed(options, std::is_integral_v<T>),
-                          ranged ? &min : nullptr, ranged ? &max : nullptr, format, GetSliderFlags(options))) {
+    if (m_editingKeys && name == "time") {
+        // Sorting keys while text is being entered would move the active field to another key.
+        T entered = value;
+        if (ImGui::InputScalar("##value", GetDataType<T>(), &entered, nullptr, nullptr, format,
+                               ImGuiInputTextFlags_EnterReturnsTrue)) {
+            value = entered;
+            MarkChanged(pointer);
+        }
+        ImGui::SetItemTooltip("Confirm with Enter to reorder the keys");
+    } else if (ImGui::DragScalar("##value", GetDataType<T>(), &value, GetSpeed(options, std::is_integral_v<T>),
+                                 ranged ? &min : nullptr, ranged ? &max : nullptr, format, GetSliderFlags(options))) {
         MarkChanged(pointer);
     }
     EndRow();
@@ -546,7 +555,14 @@ void InspectorBackend::CurveField(std::string_view name, Curve& value, const Fie
                          {0, 48});
         EndRow();
     }
+    const auto changed = m_changed.size();
+    m_editingKeys = true;
     ArchiveBackend::CurveField(name, value, options);
+    m_editingKeys = false;
+    if (m_changed.size() != changed) {
+        m_changed.resize(changed);
+        MarkChanged(GetPointer(name));
+    }
 }
 void InspectorBackend::GradientField(std::string_view name, Gradient& value, const FieldOptions& options) {
     std::string pointer;
@@ -567,7 +583,14 @@ void InspectorBackend::GradientField(std::string_view name, Gradient& value, con
         ImGui::Dummy(size);
         EndRow();
     }
+    const auto changed = m_changed.size();
+    m_editingKeys = true;
     ArchiveBackend::GradientField(name, value, options);
+    m_editingKeys = false;
+    if (m_changed.size() != changed) {
+        m_changed.resize(changed);
+        MarkChanged(GetPointer(name));
+    }
 }
 
 bool InspectorBackend::BeginContainer(std::string_view name, const FieldOptions& options, std::size_t* size) {

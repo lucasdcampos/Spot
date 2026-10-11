@@ -113,6 +113,7 @@ private:
     std::vector<std::string> m_changed;
     std::size_t m_fieldCount = 0;
     std::string m_rowPointer;
+    bool m_editingKeys = false;
     std::vector<FieldRect> m_rects;
 };
 
