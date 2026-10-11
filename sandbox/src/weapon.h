@@ -48,6 +48,8 @@ public:
     bool TakeShot();
     // Returns whether it started now.
     bool StartReload();
+    // Restores authored ammunition and cancels the current cooldown/reload.
+    void Refill();
 
 protected:
     void OnStart() override;

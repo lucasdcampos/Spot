@@ -1,10 +1,22 @@
 #include "game_controls.h"
 
 #include "hud.h"
+#include "sandbox_commands.h"
 #include "sound_bank.h"
 #include "world_save.h"
 
 SPOT_COMPONENT(GameControls);
+
+GameControls::GameControls() = default;
+GameControls::~GameControls() = default;
+
+void GameControls::OnEnable() {
+    m_commands = std::make_unique<SandboxCommands>(Spot::Console::Get(), GetScene());
+}
+
+void GameControls::OnDisable() {
+    m_commands.reset();
+}
 
 void GameControls::OnStart() {
     Spot::Input::SetCursorLocked(true);

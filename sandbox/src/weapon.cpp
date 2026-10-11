@@ -27,6 +27,18 @@ bool Weapon::StartReload() {
     return true;
 }
 
+void Weapon::Refill() {
+    CancelInvoke(m_cooldown);
+    CancelInvoke(m_reload);
+    m_cooldown = Spot::InvokeId::Invalid;
+    m_reload = Spot::InvokeId::Invalid;
+    m_ammo = std::max(0, magazineSize);
+    m_reserve = std::max(0, reserveAmmo);
+    m_savedCooldown = 0.0f;
+    m_savedReload = 0.0f;
+    m_savedReloadPending = false;
+}
+
 void Weapon::ScheduleReload(float seconds) {
     m_reload = Invoke(std::max(0.0f, seconds), [this] {
         const int loaded = std::min(magazineSize - m_ammo, m_reserve);

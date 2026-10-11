@@ -9,7 +9,7 @@ The goal is the same breadth, built on the architecture Spot already has.
 The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
 [The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
 
-**Current focus:** M11 – Developer tools (M9 remains deferred by request)
+**Current focus:** M12 – Runtime UI and text (not started; M9 remains deferred by request)
 
 ## How to use this plan
 
@@ -123,7 +123,7 @@ How it is built:
 | [x] | [M8 – Model hierarchy and prefabs](#m8--model-hierarchy-and-prefabs) | Model node trees, prefab assets, overrides, prefab editing |
 | [ ] | [M9 – Skeletal animation](#m9--skeletal-animation) | Skins, clips, GPU skinning, Animator, controllers, blend trees, events, root motion |
 | [x] | [M10 – Gameplay toolkit](#m10--gameplay-toolkit) | Timers, time scale, tweens, coroutines, signals, typed references, save data |
-| [ ] | [M11 – Developer tools](#m11--developer-tools) | Console commands and cvars, overlays, profiler panel, captures |
+| [x] | [M11 – Developer tools](#m11--developer-tools) | Console commands and cvars, overlays, profiler panel, captures |
 | [ ] | [M12 – Runtime UI and text](#m12--runtime-ui-and-text) | World text, SDF fonts, entity-based UI, widgets, layout, navigation |
 | [ ] | [M13 – Particles](#m13--particles) | Particle systems, curves and gradients, particle rendering |
 | [ ] | [M14 – 2D](#m14--2d) | 2D physics, sprite animation, tilemaps |
@@ -1058,7 +1058,7 @@ with view-model animations.
   pausing. It covers games running in their own process too, through the channel the editor already reads their
   logs from.
 - [x] **M11.5 Captures.** Screenshot command, and frame captures with RenderDoc when it is present.
-- [ ] **M11.6 Sandbox: commands.** `gravity`, `timescale`, `noclip`, `cleanup`, `spawn <prop>`, `give <weapon>`, and
+- [x] **M11.6 Sandbox: commands.** `gravity`, `timescale`, `noclip`, `cleanup`, `spawn <prop>`, `give <weapon>`, and
   `stress <count>`, which spawns props in a pile to measure physics and rendering.
 
 **Done when:** a frame spike in the sandbox can be found from the profiler panel and toggled away from the console.
@@ -1105,6 +1105,19 @@ with view-model animations.
   (175 assertions), including SDK ABI fixture and unavailable capture commands. Two windowless GPU cases pass
   131 assertions across RGBA/BGRA/sRGB targets, pixel presentation, PNG reload and rendering counters. Actual
   RenderDoc hardware capture was not exercised. MSVC compiles without warnings; no visible GPU windows were used.
+- M11.6: seven cheat-gated commands belong to enabled GameControls and resolve scene components on execution.
+  Catalog names accept spaces/quotes, `give` selects/refills existing weapons or strips world components before
+  adding missing held weapons, and `stress` creates a bounded crate pile tracked by normal spawning/undo.
+  `cleanup` removes spawned props and clears their undo entries. Four real-scene sandbox cases pass 4,580
+  assertions, including validation, registration lifetime, inventory reuse and physics scopes/body counts before
+  and after stress cleanup. A regression found that validation/queries can create bodies before OnStart();
+  component removal and entity destruction now invalidate those bodies independently of OnDisable(), covered by
+  eight additional assertions.
+- M11 completed on 2026-10-11: full MSVC and GCC builds have no compiler warnings, and all 606 headless tests pass
+  on each compiler. Acceptance is covered by real sandbox stress/cleanup, profile transport and editor interaction
+  tests. Only the two targeted windowless GPU cases ran (131 assertions); larger interactive stress measurements
+  and actual RenderDoc hardware capture were not exercised. Work stops after M11; M12 is untouched and M9 remains
+  deferred by request.
 
 ---
 

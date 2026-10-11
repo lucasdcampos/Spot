@@ -1,7 +1,10 @@
 #include "scene/entity.h"
 
 #include "core/assert.h"
+#include "physics/character_controller.h"
+#include "physics/collider.h"
 #include "physics/physics_world.h"
+#include "physics/rigidbody.h"
 #include "scene/scene.h"
 
 #include <algorithm>
@@ -187,6 +190,13 @@ void Entity::RemoveComponent(Component& component) {
     const Detail::DeferRemovalsScope defer(*m_scene);
     component.m_removed = true;
     m_scene->m_hasPendingRemovals = true;
+    // Validation and queries can create a body before OnStart(), so removal cannot rely only on OnDisable().
+    if (dynamic_cast<Collider*>(&component) || dynamic_cast<Rigidbody*>(&component) ||
+        dynamic_cast<CharacterController*>(&component)) {
+        if (auto* physics = m_scene->GetSystem<PhysicsWorld>()) {
+            physics->MarkChanged(m_id);
+        }
+    }
     component.RefreshActivity();
 }
 
@@ -240,6 +250,9 @@ void Entity::Attach(std::unique_ptr<Component> component, std::optional<std::siz
 
 void Entity::MarkDestroyed() {
     m_destroyed = true;
+    if (auto* physics = m_scene->GetSystem<PhysicsWorld>()) {
+        physics->MarkChanged(m_id);
+    }
     for (Entity* child : m_children) {
         child->MarkDestroyed();
     }

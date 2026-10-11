@@ -4,6 +4,10 @@
 can resume moving props; loading into an existing body applies changed velocities without waking it for an
 unchanged inspector field. Joint entity references use scene remapping when copying or restoring trees.
 
+Validation and body queries can build physics bodies before components reach `OnStart()`. Removing physical
+components or destroying their entity invalidates those bodies independently of `OnDisable()`, so stripping a
+newly instantiated world prop for use as held equipment leaves no orphan body in the next physics step.
+
 Physics simulates colliders and rigidbodies with Jolt, behind an engine contract
 (`engine/physics/physics_simulation.h`) whose only backend is `engine/physics/jolt/`. Games only see components
 and the `PhysicsWorld`.

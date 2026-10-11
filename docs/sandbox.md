@@ -68,6 +68,33 @@ coroutine. All advance with scaled simulation time and pause at zero time scale.
 Destroying an owner cancels its work. Continuous movement, day-cycle phase and distance-based footsteps retain
 their normal simulation integration.
 
+## Developer commands
+
+Open the console with Grave, then run `console.cheats true` to permit sandbox commands. Registrations belong to
+the active scene's GameControls and disappear when it is disabled, removed or unloaded. Commands resolve the
+current components on execution, so world checkpoint loads do not leave stale entity pointers.
+
+| Command | Effect |
+|---|---|
+| `gravity [Y]` | Query/set scene gravity on Y, preserving X/Z; accepts -1000..1000 |
+| `timescale [value]` | Query/set simulation speed, 0..100; zero pauses |
+| `noclip [true/false]` | Toggle flying through collisions, or set it explicitly |
+| `cleanup` | Remove spawned props and their undo entries |
+| `spawn <prop>` | Spawn a catalog item where the player aims; no arguments lists names |
+| `give <weapon>` | Equip/refill an owned firearm or add a missing one to the player's inventory |
+| `stress <count>` | Spawn 1..2000 crates in a pile in front of the player |
+
+Item names are case-insensitive; spaces, underscores and hyphens are interchangeable. Multiword names work with
+or without quotes, for example `give "Rocket Launcher"`. Giving a weapon removes its world rendering/colliders
+before parenting it to the player; the held view model renders it, and repeated `give` commands refill ammunition
+and cancel cooldown/reload without creating duplicates.
+
+For profiling, enable `stats true`, run `stress 500`, inspect a slow frame in **Window > Profiler**, then run
+`cleanup` and compare bodies/frame times. Select **Game process** for a separately launched game. `render.enabled
+false`, `physics.debug true` and `timescale 0` help isolate drawing, shapes and simulation. See
+[Developer tools](developer_tools.md) for profiler selection, scope averages and capture commands. The automated
+stress regression uses sixteen props headlessly; larger counts are explicit interactive measurements.
+
 ## Play-test checklist
 
 - Walk, jump, climb ramps and stairs, carry and throw a light prop; check collisions and footsteps.
@@ -81,5 +108,7 @@ their normal simulation integration.
 - Check the day cycle, flashlight, reflections, transparency, post-processing and the audio mix together.
 - Save painted, frozen, connected and lit props with F9, edit or remove them, then restore with F10; check cleanup.
 - Walk and fire while changing time scale; check bob, recoil, flash fades, reloads and fuses pause together.
+- Spawn a stress pile, select/pause a slow frame in the profiler, remove it with `cleanup` and compare body counts.
+- Give each firearm twice; check selection, full ammunition, canceled reloads and unchanged inventory size.
 
 The spawn menu, runtime HUD, skeletal view models and other later roadmap features have their own milestones.

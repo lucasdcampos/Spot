@@ -11,6 +11,7 @@
 #include "player_movement.h"
 #include "prop_carrier.h"
 #include "prop_spawner.h"
+#include "sandbox_commands.h"
 #include "sound_bank.h"
 #include "temp_directory.h"
 #include "tool_gun.h"
@@ -1209,4 +1210,147 @@ TEST_CASE("The tool gun places lamps of every kind, many at once, and takes them
     tool.lamp = ToolGun::LampKind::Point;
     CHECK(tool.PlaceLamp(*ground, {}, {}) == nullptr);
     CHECK(countLights() == before + 40);
+}
+
+TEST_CASE("Sandbox commands gate cheats, resolve scene settings and clean spawned catalog props",
+          "[sandbox][console]") {
+    Playground game;
+    game.Run(Step);
+    const auto previousScale = Spot::Time::GetTimeScale();
+    struct RestoreScale {
+        float value;
+        ~RestoreScale() { Spot::Time::SetTimeScale(value); }
+    } restore{previousScale};
+    auto* spawner = game.player->GetComponent<PropSpawner>();
+    auto* movement = game.player->GetComponent<PlayerMovement>();
+    REQUIRE(spawner);
+    REQUIRE(movement);
+    REQUIRE_FALSE(spawner->GetSpawnables().empty());
+    const auto bodies = game.scene.GetPhysics().GetBodyCount();
+    Spot::Console console;
+    {
+        SandboxCommands commands(console, game.scene);
+        CHECK_FALSE(console.Execute("spawn crate"));
+        CHECK(spawner->GetSpawnedCount() == 0);
+        console.SetCheatsEnabled(true);
+        game.scene.GetPhysics().SetGravity({1.0f, -9.81f, 2.0f});
+        REQUIRE(console.Execute("gravity 0"));
+        CHECK(game.scene.GetPhysics().GetGravity() == Spot::Vector3{1.0f, 0.0f, 2.0f});
+        CHECK_FALSE(console.Execute("gravity nan"));
+        CHECK_FALSE(console.Execute("gravity 1001"));
+        REQUIRE(console.Execute("timescale 0.25"));
+        CHECK(Spot::Time::GetTimeScale() == 0.25f);
+        CHECK_FALSE(console.Execute("timescale -1"));
+        CHECK_FALSE(console.Execute("timescale inf"));
+        CHECK(Spot::Time::GetTimeScale() == 0.25f);
+        REQUIRE(console.Execute("noclip true"));
+        CHECK(movement->IsFlying());
+        REQUIRE(console.Execute("noclip"));
+        CHECK_FALSE(movement->IsFlying());
+        CHECK_FALSE(console.Execute("noclip maybe"));
+        REQUIRE(console.Execute("spawn crate"));
+        CHECK(spawner->GetSpawnedCount() == 1);
+        CHECK_FALSE(console.Execute("spawn unknown"));
+        CHECK_FALSE(console.Execute("cleanup extra"));
+        CHECK(spawner->GetSpawnedCount() == 1);
+        REQUIRE(console.Execute("cleanup"));
+        game.Run(Step);
+        CHECK(spawner->GetSpawnedCount() == 0);
+        CHECK(game.scene.GetPhysics().GetBodyCount() == bodies);
+        CHECK_FALSE(console.Execute("give crate"));
+    }
+    CHECK(console.Complete("spawn").empty());
+    CHECK(console.Complete("stress").empty());
+}
+
+TEST_CASE("Giving weapons refills existing inventory and creates missing held weapons without world bodies",
+          "[sandbox][console]") {
+    Playground game;
+    game.Run(Step);
+    auto* holder = game.player->GetComponent<WeaponHolder>();
+    REQUIRE(holder);
+    Spot::Console console;
+    SandboxCommands commands(console, game.scene);
+    console.SetCheatsEnabled(true);
+    const auto original = holder->GetWeapons();
+    REQUIRE_FALSE(original.empty());
+    auto* pistol = original.front();
+    const auto name = pistol->displayName;
+    REQUIRE(pistol->TakeShot());
+    REQUIRE(pistol->StartReload());
+    REQUIRE(console.Execute("give \"" + name + "\""));
+    CHECK(holder->GetWeapon() == pistol);
+    CHECK(holder->GetWeapons().size() == original.size());
+    CHECK(pistol->GetAmmo() == pistol->magazineSize);
+    CHECK(pistol->GetReserve() == pistol->reserveAmmo);
+    CHECK_FALSE(pistol->IsReloading());
+    CHECK(pistol->IsReady());
+    const auto removedId = pistol->GetEntity().GetId();
+    pistol->GetEntity().Destroy();
+    game.Run(Step);
+    const auto bodies = game.scene.GetPhysics().GetBodyCount();
+    REQUIRE(console.Execute("give \"" + name + "\""));
+    auto* given = holder->GetWeapon();
+    REQUIRE(given);
+    CHECK(given->GetEntity().GetId() != removedId);
+    CHECK(given->GetEntity().GetParent() == game.player);
+    CHECK_FALSE(given->GetEntity().HasComponent<Spawnable>());
+    CHECK_FALSE(given->GetEntity().HasComponent<Spot::Rigidbody>());
+    CHECK_FALSE(given->GetEntity().HasComponent<Spot::Collider>());
+    CHECK_FALSE(given->GetEntity().HasComponent<Spot::MeshRenderer>());
+    game.Run(Step);
+    CHECK(holder->GetWeapons().size() == original.size());
+    CHECK(given->GetAmmo() == given->magazineSize);
+    CHECK(game.scene.GetPhysics().GetBodyCount() == bodies);
+}
+
+TEST_CASE("Sandbox stress piles record physics scopes and cleanup removes their live bodies",
+          "[sandbox][console][profiler]") {
+    Playground game;
+    game.Run(Step);
+    auto* spawner = game.player->GetComponent<PropSpawner>();
+    REQUIRE(spawner);
+    Spot::Console console;
+    SandboxCommands commands(console, game.scene);
+    console.SetCheatsEnabled(true);
+    for (const auto* invalid : {"stress", "stress -1", "stress 0", "stress 2001", "stress 1.5", "stress 4 extra"}) {
+        CHECK_FALSE(console.Execute(invalid));
+    }
+    CHECK(spawner->GetSpawnedCount() == 0);
+    const auto bodies = game.scene.GetPhysics().GetBodyCount();
+    REQUIRE(console.Execute("stress 16"));
+    CHECK(spawner->GetSpawnedCount() == 16);
+    Spot::Profiler::Clear();
+    Spot::Profiler::BeginFrame();
+    game.Run(Step * 2.0f);
+    const auto stressed = Spot::RuntimeStats::Sample(std::array<Spot::Scene*, 1>{&game.scene});
+    Spot::Profiler::Count("Bodies", static_cast<double>(stressed.bodies));
+    Spot::Profiler::EndFrame();
+    const auto frames = Spot::Profiler::GetFrames();
+    REQUIRE(frames.size() == 1);
+    CHECK(stressed.bodies == bodies + 16);
+    CHECK(Spot::Profiler::GetCounter(*frames.back(), "Bodies") == static_cast<double>(bodies + 16));
+    CHECK(std::ranges::any_of(frames.back()->samples, [](const auto& sample) {
+        return sample.name.find("Physics") != std::string_view::npos;
+    }));
+    REQUIRE(console.Execute("cleanup"));
+    game.Run(Step);
+    CHECK(spawner->GetSpawnedCount() == 0);
+    CHECK(game.scene.GetPhysics().GetBodyCount() == bodies);
+    Spot::Profiler::Clear();
+}
+
+TEST_CASE("Sandbox console registrations follow GameControls enable and scene lifetime", "[sandbox][console]") {
+    {
+        Playground game;
+        game.Run(Step);
+        auto* controls = game.scene.FindComponent<GameControls>();
+        REQUIRE(controls);
+        CHECK_FALSE(Spot::Console::Get().Complete("stress").empty());
+        controls->SetEnabled(false);
+        CHECK(Spot::Console::Get().Complete("stress").empty());
+        controls->SetEnabled(true);
+        CHECK_FALSE(Spot::Console::Get().Complete("stress").empty());
+    }
+    CHECK(Spot::Console::Get().Complete("stress").empty());
 }
