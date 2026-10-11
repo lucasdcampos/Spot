@@ -36,8 +36,8 @@ controls are:
 |---|---|
 | WASD, mouse | Move and look |
 | Space | Jump |
-| 1–4 | Select a firearm |
-| 5, 6 | Select the physics gun or tool gun |
+| 2–5 | Select a firearm |
+| 1, 6 | Select the physics gun or tool gun |
 | Left mouse, right mouse | Fire/use the tool, aim or turn a held prop |
 | R | Reload; cycle the tool gun's mode |
 | E | Carry or drop a nearby light prop |
@@ -46,9 +46,26 @@ controls are:
 | Q | Spawn the next catalog entry |
 | Z | Undo the last spawn or tool operation |
 | X | Remove props created by the spawner |
+| F9, F10 | Save and load the editable world checkpoint |
 
 Gamepad bindings are in the same settings. Spawn cycles through the catalog rather than requiring a separate
 button per entry. The tool gun's right mouse/Aim action cycles colors, materials or lamp kinds in those modes.
+
+## World checkpoints and weapon feel
+
+F9 writes `world.json` in the application's user data directory. F10 validates and restores the editable root
+props and their children: transforms, body velocities, frozen tags and kinematic state, welds, ropes, painted
+materials, lamps, ammo and any remaining reload, cooldown or explosive fuse. References between saved props are
+remapped; references to the unchanged level remain valid. Spawned props stay owned by cleanup after loading.
+The player, level, ambience and day cycle keep running. Loading releases carried props and clears undo history.
+Transient projectiles, flashes and held view models are excluded. Missing or malformed checkpoints leave the
+current world intact. Checkpoints expand prefab instances so later prefab edits do not rewrite a saved world.
+
+Weapon intervals, reloads, explosive fuses, projectile lifetimes and impact quiet periods use component-owned
+timers. Flash fades, aiming and recoil use owner-bound tweens; walking camera bob sequences tweens from a
+coroutine. All advance with scaled simulation time and pause at zero time scale. The HUD samples unscaled time.
+Destroying an owner cancels its work. Continuous movement, day-cycle phase and distance-based footsteps retain
+their normal simulation integration.
 
 ## Play-test checklist
 
@@ -61,5 +78,7 @@ button per entry. The tool gun's right mouse/Aim action cycles colors, materials
 - Override one prefab instance, edit the source and save; verify inherited changes propagate while overrides stay.
 - Add a marked prefab or variant asset, cook and restart Play; verify it appears without changing C++.
 - Check the day cycle, flashlight, reflections, transparency, post-processing and the audio mix together.
+- Save painted, frozen, connected and lit props with F9, edit or remove them, then restore with F10; check cleanup.
+- Walk and fire while changing time scale; check bob, recoil, flash fades, reloads and fuses pause together.
 
 The spawn menu, runtime HUD, skeletal view models and other later roadmap features have their own milestones.

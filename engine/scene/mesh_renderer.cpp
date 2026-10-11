@@ -7,7 +7,22 @@ namespace Spot {
 
 void MeshRenderer::Serialize(Archive& archive) {
     archive.Field("mesh", m_mesh);
-    archive.Field("material", m_material);
+    AssetRef<Material> assetMaterial = m_material.GetId().IsValid() ? m_material : AssetRef<Material>{};
+    archive.Field("material", assetMaterial);
+    bool inlineMaterial = m_material && !m_material.GetId().IsValid();
+    archive.Field("inlineMaterial", inlineMaterial);
+    if (assetMaterial.GetId().IsValid() && assetMaterial.GetId() != m_material.GetId()) {
+        inlineMaterial = false;
+    }
+    if (inlineMaterial) {
+        Material material = m_material ? *m_material : Material{};
+        archive.Field("materialData", material);
+        if (archive.IsLoading() && (!m_material || m_material.GetId().IsValid() || material != *m_material)) {
+            SetMaterial(std::move(material));
+        }
+    } else if (archive.IsLoading() && assetMaterial != m_material) {
+        SetMaterial(std::move(assetMaterial));
+    }
     archive.Field("castsShadows", m_castingShadows, {.tooltip = "Whether the mesh blocks lights that cast shadows"});
     // Saved as -1 for all of the mesh, which reads better than the largest number.
     int submesh = m_submesh == Mesh::AllSubmeshes ? -1 : static_cast<int>(m_submesh);

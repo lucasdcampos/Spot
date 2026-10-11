@@ -24,7 +24,7 @@ class Scene;
 //                                            Spot::Assets::Load<Spot::Material>("materials/crate.material"));
 //
 // Meshes and materials are shared, so many entities can show the same ones. Scenes save them by asset id; meshes
-// and materials made in code have none, so they are saved as null.
+// made in code have none, so they are saved as null. A renderer's own material is saved inline, with texture asset ids.
 class MeshRenderer final : public Component {
 public:
     MeshRenderer() = default;
@@ -40,7 +40,7 @@ public:
     // Without a material, the mesh is drawn plain white.
     const AssetRef<Material>& GetMaterial() const { return m_material; }
     void SetMaterial(AssetRef<Material> material) { m_material = std::move(material); }
-    // A material of the renderer's own, which is not an asset and so is not saved.
+    // A material of the renderer's own, saved inline rather than as a material asset reference.
     void SetMaterial(Material material) { m_material = std::make_shared<const Material>(std::move(material)); }
 
     // The index of the mesh's submesh it draws, or Mesh::AllSubmeshes for all of it, as models' parts each draw one.

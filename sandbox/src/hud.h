@@ -11,6 +11,7 @@ public:
     Spot::AssetRef<Spot::Font> font;
 
 protected:
+    void OnStart() override;
     void OnUpdate(float deltaTime) override;
     void OnDrawUi(Spot::Renderer2D& renderer, Spot::Vector2 viewSize) override;
     void Serialize(Spot::Archive& archive) override;
@@ -18,8 +19,8 @@ protected:
 private:
     // What the player has in hand, as the HUD says it.
     std::string DescribeHand() const;
+    void UpdateStatus();
 
     std::string m_status;
-    int m_frames = 0;
-    float m_elapsed = 0.0f;
+    float m_frameRate = 0.0f;
 };

@@ -17,9 +17,9 @@ public:
                                float intensity, float lifetime);
 
 protected:
-    void OnUpdate(float deltaTime) override;
+    void OnStart() override;
     void Serialize(Spot::Archive& archive) override;
 
 private:
-    float m_age = 0.0f;
+    void SetStrength(float strength);
 };

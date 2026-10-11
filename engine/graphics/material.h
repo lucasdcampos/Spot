@@ -6,6 +6,7 @@
 namespace Spot {
 
 class Texture;
+class Archive;
 
 // How a material's alpha, the base color's times its texture's, covers what is behind it.
 enum class AlphaMode {
@@ -57,6 +58,9 @@ struct Material {
     // UVs, repeating every this many units, so they keep their size however the mesh is scaled. Suits
     // BuiltInAssets::GridTexture on level blocks.
     float worldTextureSize = 0.0f;
+
+    void Serialize(Archive& archive);
+    friend bool operator==(const Material&, const Material&) = default;
 };
 
 } // namespace Spot

@@ -7,6 +7,7 @@
 #include "projectile.h"
 #include "prop_carrier.h"
 #include "sound_bank.h"
+#include "view_model.h"
 #include "weapon.h"
 
 #include <algorithm>
@@ -71,6 +72,9 @@ void WeaponHolder::Fire() {
     if (!weapon || !player || !weapon->TakeShot()) {
         return;
     }
+    if (auto* view = GetEntity().GetComponent<ViewModel>()) {
+        view->Kick(weapon->kind == Weapon::Kind::Projectile ? 0.12f : 0.05f);
+    }
     Spot::Input::RumbleGamepad(0.2f, weapon->kind == Weapon::Kind::Projectile ? 0.8f : 0.5f, 0.08f);
     PlayWeaponSound(weapon->fireSound, 1.0f);
     Flash::Spawn(GetScene(), player->GetEyePosition() + player->GetViewRotation() * Spot::Vector3{0.2f, -0.15f, -0.45f},
@@ -128,12 +132,9 @@ Spot::Vector3 WeaponHolder::Scatter(Spot::Vector3 aim, float spread) {
     return Spot::Normalize(aim + (side * std::cos(angle) + up * std::sin(angle)) * radius);
 }
 
-void WeaponHolder::OnUpdate(float deltaTime) {
+void WeaponHolder::OnUpdate(float /*deltaTime*/) {
     namespace Input = Spot::Input;
     const std::vector<Weapon*> weapons = GetWeapons();
-    for (Weapon* weapon : weapons) {
-        weapon->Tick(deltaTime);
-    }
 
     static constexpr std::array<std::string_view, 9> Slots = {
         "Weapon 1", "Weapon 2", "Weapon 3", "Weapon 4", "Weapon 5", "Weapon 6", "Weapon 7", "Weapon 8", "Weapon 9"};

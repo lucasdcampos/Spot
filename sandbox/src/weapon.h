@@ -41,23 +41,25 @@ public:
 
     int GetAmmo() const { return m_ammo; }
     int GetReserve() const { return m_reserve; }
-    bool IsReloading() const { return m_reloading > 0.0f; }
+    bool IsReloading() const { return IsInvokePending(m_reload); }
     // Whether it can fire now: loaded, not reloading and past its interval.
     bool IsReady() const;
     // Takes a round, starting the interval; false when it is not ready.
     bool TakeShot();
     // Returns whether it started now.
     bool StartReload();
-    // Counts down the interval and the reload.
-    void Tick(float deltaTime);
 
 protected:
     void OnStart() override;
     void Serialize(Spot::Archive& archive) override;
 
 private:
-    int m_ammo = 0;
-    int m_reserve = 0;
-    float m_cooldown = 0.0f;
-    float m_reloading = 0.0f;
+    int m_ammo = -1;
+    int m_reserve = -1;
+    float m_savedCooldown = 0.0f;
+    float m_savedReload = 0.0f;
+    bool m_savedReloadPending = false;
+    void ScheduleReload(float seconds);
+    Spot::InvokeId m_cooldown = Spot::InvokeId::Invalid;
+    Spot::InvokeId m_reload = Spot::InvokeId::Invalid;
 };

@@ -6,6 +6,7 @@
 #include "weapon_holder.h"
 
 #include <chrono>
+#include <cmath>
 #include <format>
 #include <string_view>
 
@@ -31,18 +32,23 @@ double GetAverageMilliseconds(std::string_view scope) {
 } // namespace
 
 void Hud::OnUpdate(float deltaTime) {
-    ++m_frames;
-    m_elapsed += deltaTime;
-    if (m_elapsed < 1.0f) {
-        return;
+    const float elapsed = Spot::Time::GetUnscaledDeltaTime() > 0.0f ? Spot::Time::GetUnscaledDeltaTime() : deltaTime;
+    if (elapsed > 0.0f) {
+        m_frameRate = m_frameRate > 0.0f ? std::lerp(m_frameRate, 1.0f / elapsed, 0.1f) : 1.0f / elapsed;
     }
+}
+
+void Hud::OnStart() {
+    InvokeRepeating(1.0f, 1.0f, [this] { UpdateStatus(); });
+}
+
+void Hud::UpdateStatus() {
     const DayCycle* day = GetScene().FindComponent<DayCycle>();
     const int minutes = day ? static_cast<int>(day->timeOfDay * 24.0f * 60.0f) : 0;
-    m_status = std::format("{:02}:{:02} | {} FPS, {} bodies | update {:.2f} ms, render {:.2f} ms", minutes / 60,
-                           minutes % 60, m_frames, GetScene().GetPhysics().GetBodyCount(),
-                           GetAverageMilliseconds("Scene::Update"), GetAverageMilliseconds("Application::Render"));
-    m_frames = 0;
-    m_elapsed -= 1.0f;
+    m_status =
+        std::format("{:02}:{:02} | {} FPS, {} bodies | update {:.2f} ms, render {:.2f} ms", minutes / 60, minutes % 60,
+                    static_cast<int>(std::lround(m_frameRate)), GetScene().GetPhysics().GetBodyCount(),
+                    GetAverageMilliseconds("Scene::Update"), GetAverageMilliseconds("Application::Render"));
 }
 
 std::string Hud::DescribeHand() const {
@@ -106,7 +112,7 @@ void Hud::OnDrawUi(Spot::Renderer2D& renderer, Spot::Vector2 viewSize) {
                         {12.0f, top - 10.0f - 2.6f * line}, help, 0.8f);
     renderer.DrawString(*font,
                         "F1-F8: spawn a crate, barrel, explosive barrel, ball, plank, beam, cone or wheel | "
-                        "Z: undo | X: clean up",
+                        "Z: undo | X: clean up | F9: save world | F10: load world",
                         {12.0f, top - 10.0f - 3.4f * line}, help, 0.8f);
     // What is in hand, at the bottom right.
     const std::string hand = DescribeHand();

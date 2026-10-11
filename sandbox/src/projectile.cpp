@@ -2,6 +2,8 @@
 
 #include "explosion.h"
 
+#include <algorithm>
+
 SPOT_COMPONENT(Projectile);
 
 Spot::Entity& Projectile::Launch(Spot::Scene& scene, Spot::Vector3 position, Spot::Vector3 direction, float speed,
@@ -21,11 +23,8 @@ Spot::Entity& Projectile::Launch(Spot::Scene& scene, Spot::Vector3 position, Spo
     return rocket;
 }
 
-void Projectile::OnUpdate(float deltaTime) {
-    lifetime -= deltaTime;
-    if (lifetime <= 0.0f) {
-        Explode(GetEntity().GetTransform().GetWorldPosition());
-    }
+void Projectile::OnStart() {
+    Invoke(std::max(0.0f, lifetime), [this] { Explode(GetEntity().GetTransform().GetWorldPosition()); });
 }
 
 void Projectile::OnCollisionEnter(const Spot::Collision& collision) {

@@ -43,6 +43,31 @@ void PlayerMovement::OnStart() {
     if (const Spot::Entity* head = player ? GetScene().GetEntity(player->head) : nullptr) {
         m_headHeight = head->GetTransform().GetPosition().y;
     }
+    StartCoroutine(BobCamera());
+}
+
+bool PlayerMovement::IsWalking() const {
+    const auto* controller = GetEntity().GetComponent<Spot::CharacterController>();
+    return !m_flying && !m_crouching && controller && controller->IsGrounded() && Spot::Input::IsCursorLocked() &&
+           Spot::LengthSquared(GetMove()) > 0.01f;
+}
+
+Spot::Task PlayerMovement::BobCamera() {
+    while (true) {
+        co_await Spot::WaitUntil{[this] { return IsWalking(); }};
+        auto& tweens = Spot::TweenSystem::Get(GetScene());
+        const float third = std::max(bobPeriod, 0.03f) / 3.0f;
+        const auto set = [this](float value) { m_bob = value; };
+        const auto id = tweens.Play(
+            *this, Spot::Tween::Sequence({Spot::Tween::Value(third, m_bob, bobHeight, set, Spot::Ease::SineInOut),
+                                          Spot::Tween::Value(third, bobHeight, -bobHeight, set, Spot::Ease::SineInOut),
+                                          Spot::Tween::Value(third, -bobHeight, 0.0f, set, Spot::Ease::SineInOut)}));
+        co_await Spot::WaitUntil{
+            [this, id] { return !IsWalking() || !Spot::TweenSystem::Get(GetScene()).IsPlaying(id); }};
+        tweens.Cancel(id);
+        tweens.Play(*this, Spot::Tween::Value(0.1f, m_bob, 0.0f, set, Spot::Ease::QuadOut));
+        co_await Spot::WaitForSeconds{0.1f};
+    }
 }
 
 void PlayerMovement::OnUpdate(float /*deltaTime*/) {
@@ -79,7 +104,7 @@ void PlayerMovement::OnLateUpdate(float deltaTime) {
     const float target = m_crouching ? m_standHeight - crouchHeight : 0.0f;
     m_headDrop += (target - m_headDrop) * std::min(deltaTime * 12.0f, 1.0f);
     Spot::Vector3 position = head->GetTransform().GetPosition();
-    position.y = m_headHeight - m_headDrop;
+    position.y = m_headHeight - m_headDrop + m_bob;
     head->GetTransform().SetPosition(position);
 }
 
@@ -172,5 +197,7 @@ void PlayerMovement::Serialize(Spot::Archive& archive) {
                   {.min = 0.1f, .max = 10.0f, .speed = 0.01f, .tooltip = "The capsule's height while crouching"});
     archive.Field("strideLength", strideLength, {.min = 0.1f, .max = 10.0f, .speed = 0.01f});
     archive.Field("footstepVolume", footstepVolume, {.min = 0.0f, .max = 4.0f, .speed = 0.01f});
+    archive.Field("bobHeight", bobHeight, {.min = 0.0f, .max = 0.2f, .speed = 0.001f});
+    archive.Field("bobPeriod", bobPeriod, {.min = 0.03f, .max = 2.0f, .speed = 0.01f});
     archive.Field("fallHeight", fallHeight, {.tooltip = "Below this height, the player goes back to the start"});
 }

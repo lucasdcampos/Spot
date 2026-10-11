@@ -7,7 +7,7 @@
 SPOT_COMPONENT(Weapon);
 
 bool Weapon::IsReady() const {
-    return m_ammo > 0 && m_reloading <= 0.0f && m_cooldown <= 0.0f;
+    return m_ammo > 0 && !IsReloading() && !IsInvokePending(m_cooldown);
 }
 
 bool Weapon::TakeShot() {
@@ -15,34 +15,36 @@ bool Weapon::TakeShot() {
         return false;
     }
     --m_ammo;
-    m_cooldown = fireInterval;
+    m_cooldown = fireInterval > 0.0f ? Invoke(fireInterval, [] {}) : Spot::InvokeId::Invalid;
     return true;
 }
 
 bool Weapon::StartReload() {
-    if (m_reloading > 0.0f || m_ammo >= magazineSize || m_reserve <= 0) {
+    if (IsReloading() || m_ammo >= magazineSize || m_reserve <= 0) {
         return false;
     }
-    m_reloading = reloadTime;
+    ScheduleReload(reloadTime);
     return true;
 }
 
-void Weapon::Tick(float deltaTime) {
-    m_cooldown = std::max(m_cooldown - deltaTime, 0.0f);
-    if (m_reloading > 0.0f) {
-        m_reloading -= deltaTime;
-        if (m_reloading <= 0.0f) {
-            const int loaded = std::min(magazineSize - m_ammo, m_reserve);
-            m_ammo += loaded;
-            m_reserve -= loaded;
-            m_reloading = 0.0f;
-        }
-    }
+void Weapon::ScheduleReload(float seconds) {
+    m_reload = Invoke(std::max(0.0f, seconds), [this] {
+        const int loaded = std::min(magazineSize - m_ammo, m_reserve);
+        m_ammo += loaded;
+        m_reserve -= loaded;
+    });
 }
 
 void Weapon::OnStart() {
-    m_ammo = magazineSize;
-    m_reserve = reserveAmmo;
+    const int capacity = std::max(0, magazineSize);
+    m_ammo = m_ammo < 0 ? capacity : std::clamp(m_ammo, 0, capacity);
+    m_reserve = std::max(0, m_reserve < 0 ? reserveAmmo : m_reserve);
+    if (m_savedCooldown > 0.0f) {
+        m_cooldown = Invoke(m_savedCooldown, [] {});
+    }
+    if (m_savedReloadPending) {
+        ScheduleReload(m_savedReload);
+    }
 }
 
 void Weapon::Serialize(Spot::Archive& archive) {
@@ -69,4 +71,14 @@ void Weapon::Serialize(Spot::Archive& archive) {
     archive.Field("projectileSpeed", projectileSpeed, {.min = 0.0f, .max = 1000.0f, .speed = 0.5f});
     archive.Field("explosionRadius", explosionRadius, {.min = 0.0f, .max = 100.0f, .speed = 0.05f});
     archive.Field("explosionImpulse", explosionImpulse, {.min = 0.0f, .max = 100000.0f, .speed = 1.0f});
+    if (archive.IsSaving()) {
+        m_savedCooldown = GetInvokeTimeLeft(m_cooldown);
+        m_savedReload = GetInvokeTimeLeft(m_reload);
+        m_savedReloadPending = IsReloading();
+    }
+    archive.Field("ammo", m_ammo, {.hidden = true});
+    archive.Field("reserve", m_reserve, {.hidden = true});
+    archive.Field("cooldownLeft", m_savedCooldown, {.hidden = true});
+    archive.Field("reloadLeft", m_savedReload, {.hidden = true});
+    archive.Field("reloadPending", m_savedReloadPending, {.hidden = true});
 }

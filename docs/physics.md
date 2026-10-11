@@ -1,5 +1,9 @@
 # Physics
 
+`Rigidbody` serializes its current linear and angular velocities together with its settings. A scene snapshot
+can resume moving props; loading into an existing body applies changed velocities without waking it for an
+unchanged inspector field. Joint entity references use scene remapping when copying or restoring trees.
+
 Physics simulates colliders and rigidbodies with Jolt, behind an engine contract
 (`engine/physics/physics_simulation.h`) whose only backend is `engine/physics/jolt/`. Games only see components
 and the `PhysicsWorld`.

@@ -29,6 +29,9 @@ public:
     std::span<const SpawnableItem> GetSpawnables() const { return m_spawnables; }
     // An explicit manager must outlive the spawner; defaults to the running application's manager.
     void RefreshSpawnables(Spot::AssetManager* assets = nullptr);
+    bool IsSpawned(Spot::EntityId id) const;
+    void TrackSpawned(Spot::EntityId id);
+    void ClearTracked() { m_spawned.clear(); }
 
 protected:
     void OnStart() override;

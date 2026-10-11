@@ -53,13 +53,13 @@ void SoundBank::Serialize(Spot::Archive& archive) {
     archive.Field("click", click);
 }
 
-void ImpactSounds::OnUpdate(float deltaTime) {
-    m_quiet = std::max(m_quiet - deltaTime, 0.0f);
+void ImpactSounds::OnStart() {
+    m_quiet = Invoke(0.5f, [] {});
 }
 
 void ImpactSounds::OnCollisionEnter(const Spot::Collision& collision) {
     const float speed = std::abs(Spot::Dot(collision.relativeVelocity, collision.normal));
-    if (m_quiet > 0.0f || speed < minSpeed) {
+    if (IsInvokePending(m_quiet) || speed < minSpeed) {
         return;
     }
     const SoundBank* bank = SoundBank::Find(GetScene());
@@ -67,7 +67,7 @@ void ImpactSounds::OnCollisionEnter(const Spot::Collision& collision) {
     if (!sounds || !sounds->impact) {
         return;
     }
-    m_quiet = 0.08f;
+    m_quiet = Invoke(0.08f, [] {});
     // A little higher or lower each time, so the same prop does not repeat itself exactly.
     m_random = m_random * 1664525u + 1013904223u;
     const float detune = static_cast<float>(m_random >> 8) / 16777216.0f * 0.16f - 0.08f;

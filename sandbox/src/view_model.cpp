@@ -49,20 +49,41 @@ void ViewModel::Clear() {
     m_shown = {};
 }
 
-void ViewModel::OnLateUpdate(float deltaTime) {
+void ViewModel::Kick(float strength) {
+    auto& tweens = Spot::TweenSystem::Get(GetScene());
+    tweens.Cancel(m_recoilTween);
+    const float peak = std::clamp(m_recoil + strength, 0.0f, 0.25f);
+    const auto set = [this](float value) { m_recoil = value; };
+    m_recoilTween =
+        tweens.Play(*this, Spot::Tween::Sequence({Spot::Tween::Value(0.03f, m_recoil, peak, set, Spot::Ease::QuadOut),
+                                                  Spot::Tween::Value(0.16f, peak, 0.0f, set, Spot::Ease::SineInOut)}));
+}
+
+void ViewModel::OnUpdate(float /*deltaTime*/) {
+    const auto* holder = GetEntity().GetComponent<WeaponHolder>();
+    const float target = holder && holder->IsAiming() ? 1.0f : 0.0f;
+    if (target != m_aimTarget) {
+        m_aimTarget = target;
+        auto& tweens = Spot::TweenSystem::Get(GetScene());
+        tweens.Cancel(m_aimTween);
+        m_aimTween = tweens.Play(
+            *this,
+            Spot::Tween::Value(0.125f, m_aim, target, [this](float value) { m_aim = value; }, Spot::Ease::QuadOut));
+    }
+}
+
+void ViewModel::OnLateUpdate(float /*deltaTime*/) {
     const Spot::AssetRef<Spot::Model> held = GetHeldModel();
     if (held.Get() != m_shown.Get()) {
         Show(held);
     }
     const auto* player = GetEntity().GetComponent<PlayerController>();
-    const auto* holder = GetEntity().GetComponent<WeaponHolder>();
     if (!player) {
         return;
     }
-    const float target = holder && holder->IsAiming() ? 1.0f : 0.0f;
-    m_aim += std::clamp(target - m_aim, -deltaTime * 8.0f, deltaTime * 8.0f);
     const Spot::Quaternion rotation = player->GetViewRotation();
-    const Spot::Vector3 position = player->GetEyePosition() + rotation * (offset + (aimOffset - offset) * m_aim);
+    const Spot::Vector3 position = player->GetEyePosition() + rotation * (offset + (aimOffset - offset) * m_aim +
+                                                                          Spot::Vector3{0.0f, 0.0f, m_recoil});
     const Spot::Matrix4 hand = Spot::Matrix4::Translation(position) * Spot::Matrix4::Rotation(rotation);
     const auto parts = m_shown ? m_shown->GetParts() : std::span<const Spot::ModelPart>();
     for (std::size_t i = 0; i < m_parts.size() && i < parts.size(); ++i) {
@@ -77,6 +98,12 @@ void ViewModel::OnLateUpdate(float deltaTime) {
 }
 
 void ViewModel::OnDisable() {
+    if (auto* tweens = GetScene().GetSystem<Spot::TweenSystem>()) {
+        tweens->Cancel(m_aimTween);
+        tweens->Cancel(m_recoilTween);
+    }
+    m_aimTarget = -1.0f;
+    m_recoil = 0.0f;
     Clear();
 }
 

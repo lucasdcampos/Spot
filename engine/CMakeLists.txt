@@ -107,6 +107,7 @@ add_library(spot_objects OBJECT
     graphics/line_renderer.h
     graphics/line_renderer.cpp
     graphics/material.h
+    graphics/material.cpp
     graphics/mesh.h
     graphics/mesh.cpp
     graphics/mesh_data.h

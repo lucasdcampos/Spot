@@ -525,7 +525,7 @@ class RecordingBackend final : public Spot::ArchiveBackend {
 public:
     std::vector<std::string> fields;
     std::vector<Spot::FieldOptions> options;
-    std::optional<Spot::AssetType> assetType;
+    std::vector<std::pair<std::string, Spot::AssetType>> assetTypes;
 
     bool IsLoading() const override { return true; }
 
@@ -560,7 +560,9 @@ public:
     void Field(std::string_view name, Spot::AssetId&, std::optional<Spot::AssetType> type,
                const Spot::FieldOptions& o) override {
         Record(name, "asset", o);
-        assetType = type;
+        if (type) {
+            assetTypes.emplace_back(name, *type);
+        }
     }
     void EnumField(std::string_view name, std::int64_t& value, const Spot::FieldOptions& o) override {
         Record(name, "enum", o);
@@ -633,8 +635,11 @@ TEST_CASE("Archives hand fields and their options to any backend, which can chan
     RecordingBackend rendererBackend;
     Spot::Archive rendererArchive(rendererBackend);
     Spot::SerializeComponent(renderer, rendererArchive);
-    REQUIRE(rendererBackend.assetType.has_value());
-    CHECK(*rendererBackend.assetType == Spot::AssetType::Material);
+    CHECK(std::ranges::find(rendererBackend.assetTypes, std::pair{std::string("mesh"), Spot::AssetType::Mesh}) !=
+          rendererBackend.assetTypes.end());
+    CHECK(
+        std::ranges::find(rendererBackend.assetTypes, std::pair{std::string("material"), Spot::AssetType::Material}) !=
+        rendererBackend.assetTypes.end());
     Spot::UnregisterComponent("Annotated");
 }
 

@@ -1,5 +1,8 @@
 # Gameplay toolkit
 
+The sandbox applies these APIs to component timers, weapon recoil, aiming, flash fades and coroutine-driven
+camera bob. Its F9/F10 checkpoint uses `SaveData` and expanded scene trees; see [the sandbox](sandbox.md).
+
 Small reusable scheduling APIs replace per-component countdowns. They receive simulation seconds from the scene,
 so the application's global `Time::SetTimeScale()` controls their speed and pauses them at zero. Tools and UI can
 use `Time::GetUnscaledDeltaTime()` instead. See [Application and scenes](application_and_scenes.md) for the clock.

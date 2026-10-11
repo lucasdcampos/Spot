@@ -1,5 +1,10 @@
 # Rendering
 
+`MeshRenderer` saves materials with asset IDs as references. A material created or painted in code has no
+material asset ID and is saved inline, including PBR values and texture asset references. Scene copies and
+checkpoints therefore preserve paint and emissive lamp colors. Code-created meshes still need an asset ID to
+survive serialization.
+
 Rendering has two layers. The **graphics API** (`GraphicsDevice`, `RenderContext`, `RenderPass`, buffers, textures,
 shaders and pipelines) is a thin, backend-independent interface over SDL_GPU, whose backend lives in
 `engine/graphics/sdl_gpu/` and never shows in public headers. The **renderers** (`Renderer2D`, `Renderer3D`,

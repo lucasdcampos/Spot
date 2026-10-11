@@ -87,6 +87,16 @@ std::size_t PropSpawner::GetSpawnedCount() const {
         std::ranges::count_if(m_spawned, [this](Spot::EntityId id) { return GetScene().GetEntity(id) != nullptr; }));
 }
 
+bool PropSpawner::IsSpawned(Spot::EntityId id) const {
+    return std::ranges::find(m_spawned, id) != m_spawned.end() && GetScene().GetEntity(id);
+}
+
+void PropSpawner::TrackSpawned(Spot::EntityId id) {
+    if (GetScene().GetEntity(id) && !IsSpawned(id)) {
+        m_spawned.push_back(id);
+    }
+}
+
 void PropSpawner::OnUpdate(float /*deltaTime*/) {
     namespace Input = Spot::Input;
     static constexpr std::array<std::string_view, 8> Actions = {"Spawn 1", "Spawn 2", "Spawn 3", "Spawn 4",

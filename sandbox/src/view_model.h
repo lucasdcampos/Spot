@@ -19,8 +19,11 @@ public:
     const Spot::AssetRef<Spot::Model>& GetShownModel() const { return m_shown; }
     // The entities that draw its parts.
     const std::vector<Spot::EntityId>& GetPartEntities() const { return m_parts; }
+    void Kick(float strength = 0.05f);
+    float GetRecoil() const { return m_recoil; }
 
 protected:
+    void OnUpdate(float deltaTime) override;
     void OnLateUpdate(float deltaTime) override;
     void OnDisable() override;
     void Serialize(Spot::Archive& archive) override;
@@ -35,4 +38,8 @@ private:
     std::vector<Spot::EntityId> m_parts;
     // From 0 at the hip to 1 down the sights.
     float m_aim = 0.0f;
+    float m_aimTarget = -1.0f;
+    float m_recoil = 0.0f;
+    Spot::TweenId m_aimTween = Spot::TweenId::Invalid;
+    Spot::TweenId m_recoilTween = Spot::TweenId::Invalid;
 };

@@ -30,14 +30,16 @@ Spot::Entity& Flash::Spawn(Spot::Scene& scene, Spot::Vector3 position, Spot::Col
     return entity;
 }
 
-void Flash::OnUpdate(float deltaTime) {
-    m_age += deltaTime;
-    if (m_age >= lifetime) {
-        GetEntity().Destroy();
-        return;
-    }
-    // Bright at once, then fading.
-    const float strength = intensity * std::clamp(1.0f - m_age / std::max(lifetime, 1e-4f), 0.0f, 1.0f);
+void Flash::OnStart() {
+    SetStrength(intensity);
+    Spot::TweenSystem::Get(GetScene())
+        .Play(
+            *this,
+            Spot::Tween::Value(std::max(0.0f, lifetime), intensity, 0.0f, [this](float value) { SetStrength(value); }),
+            [this] { GetEntity().Destroy(); });
+}
+
+void Flash::SetStrength(float strength) {
     if (auto* light = GetEntity().GetComponent<Spot::PointLight>()) {
         light->SetIntensity(GetLightIntensity(strength, light->GetRange()));
     }

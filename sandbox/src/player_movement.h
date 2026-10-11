@@ -22,10 +22,13 @@ public:
     // Meters walked between footsteps, which sound like the ground under the player; see Surface.
     float strideLength = 0.8f;
     float footstepVolume = 0.5f;
+    float bobHeight = 0.025f;
+    float bobPeriod = 0.35f;
 
     bool IsCrouching() const { return m_crouching; }
     bool IsFlying() const { return m_flying; }
     void SetFlying(bool flying);
+    float GetCameraBob() const { return m_bob; }
 
 protected:
     void OnStart() override;
@@ -42,12 +45,15 @@ private:
     bool HasRoomToStand(const Spot::CharacterController& controller) const;
     // Counts the distance walked on the ground, and plays a step each stride.
     void Step(const Spot::CharacterController& controller, float distance);
+    bool IsWalking() const;
+    Spot::Task BobCamera();
 
     Spot::Vector3 m_spawnPoint;
     float m_standHeight = 1.8f;
     float m_headHeight = 0.7f;
     // How far the head is lowered, easing toward where crouching puts it.
     float m_headDrop = 0.0f;
+    float m_bob = 0.0f;
     // Up while jumping, down while falling; gravity changes it while the player is off the ground.
     float m_verticalSpeed = 0.0f;
     bool m_jump = false;

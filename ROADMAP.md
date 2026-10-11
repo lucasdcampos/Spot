@@ -9,7 +9,7 @@ The goal is the same breadth, built on the architecture Spot already has.
 The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
 [The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
 
-**Current focus:** M10 – Gameplay toolkit (requested before M9)
+**Current focus:** M11 – Developer tools (M9 remains deferred by request)
 
 ## How to use this plan
 
@@ -122,7 +122,7 @@ How it is built:
 | [x] | [M7 – Rendering: scale](#m7--rendering-scale) | Culling, instancing, clustered lights, better shadows, benchmarks |
 | [x] | [M8 – Model hierarchy and prefabs](#m8--model-hierarchy-and-prefabs) | Model node trees, prefab assets, overrides, prefab editing |
 | [ ] | [M9 – Skeletal animation](#m9--skeletal-animation) | Skins, clips, GPU skinning, Animator, controllers, blend trees, events, root motion |
-| [ ] | [M10 – Gameplay toolkit](#m10--gameplay-toolkit) | Timers, time scale, tweens, coroutines, signals, typed references, save data |
+| [x] | [M10 – Gameplay toolkit](#m10--gameplay-toolkit) | Timers, time scale, tweens, coroutines, signals, typed references, save data |
 | [ ] | [M11 – Developer tools](#m11--developer-tools) | Console commands and cvars, overlays, profiler panel, captures |
 | [ ] | [M12 – Runtime UI and text](#m12--runtime-ui-and-text) | World text, SDF fonts, entity-based UI, widgets, layout, navigation |
 | [ ] | [M13 – Particles](#m13--particles) | Particle systems, curves and gradients, particle rendering |
@@ -995,7 +995,7 @@ with view-model animations.
 - [x] **M10.6 Typed references.** `ComponentRef<T>` fields, serialized by entity id and drawn in the inspector with
   drag and drop.
 - [x] **M10.7 Save data.** Save files in the user data folder written with `Archive`, with versioning. Tests.
-- [ ] **M10.8 Sandbox: saving and feel.** Saving and loading the world (props, frozen state, welds, ropes, lamps).
+- [x] **M10.8 Sandbox: saving and feel.** Saving and loading the world (props, frozen state, welds, ropes, lamps).
   Weapon cooldowns, recoil, camera bob and fuse timers use timers, tweens and coroutines.
 
 **Done when:** a sandbox world saved and loaded comes back as it was, and the game has no hand-written timers left.
@@ -1029,6 +1029,20 @@ with view-model animations.
   callbacks with a file version. It rejects newer versions before loading, exposes older versions for migration,
   reports structured errors and writes a temporary file before replacing the slot, with a recoverable backup where
   rename cannot overwrite. Headless tests cover round trips, replacement, migration, corrupt files, names and failures.
+- M10.8: F9/F10 checkpoint the editable root props and mounted lamps in `world.json`, retaining frozen state,
+  velocities, painted materials, welds, ropes, ammo and remaining timers. Loading validates the checkpoint before
+  replacing props, remaps internal references, preserves references to the level, clears undo and restores spawned
+  ownership for cleanup. The player, level and ambience remain live; transient projectiles, flashes and view models
+  are excluded. Prefabs are expanded intentionally so a checkpoint stays independent of later source edits.
+  Inline materials now serialize their PBR values and texture asset references; the binary scene/prefab containers
+  and importer encodings are unchanged. Timers replace weapon, fuse, projectile and impact countdowns; tweens drive
+  flashes, aiming and recoil, and a coroutine sequences camera bob. Continuous movement, day-cycle phase and
+  distance-based footsteps remain simulation integration. HUD timing is unscaled. Headless sandbox tests cover the
+  bindings, restored world, corrupt-file protection, cleanup ownership, remaining fuses, recoil and bob.
+- Done 2026-10-10. Acceptance: 573 headless tests pass with MSVC and GCC, and both builds have no compiler warnings
+  after the GCC tween-test initializer fixes. The sandbox restores an edited world and resumes its remaining fuses;
+  scaled waits, tweens and coroutines pause together. No GPU tests were needed: this milestone changes simulation,
+  serialization and headless inspector behavior, without changing shaders or rendering pipelines.
 
 ---
 

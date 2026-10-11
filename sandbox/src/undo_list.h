@@ -22,6 +22,7 @@ public:
     // Takes back the last thing that can still be taken back; false when there is nothing.
     bool Undo();
     std::size_t GetCount() const { return m_actions.size(); }
+    void Clear() { m_actions.clear(); }
 
 protected:
     void OnUpdate(float deltaTime) override;

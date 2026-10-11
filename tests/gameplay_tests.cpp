@@ -309,7 +309,9 @@ TEST_CASE("Tween sequences consume overshoot and complete once", "[gameplay][twe
     const auto sequence = Spot::Tween::Sequence({Spot::Tween::Value(0.5f, 0.0f, 1.0f, set), Spot::Tween::Delay(0.25f),
                                                  Spot::Tween::Value(0.5f, 1.0f, 0.0f, set, Spot::Ease::QuadIn)});
     CHECK(sequence.GetDuration() == Approx(1.25));
-    const auto id = player.Play(sequence, {.onComplete = [&] { ++completions; }});
+    Spot::TweenOptions options;
+    options.onComplete = [&] { ++completions; };
+    const auto id = player.Play(sequence, std::move(options));
     player.Update(0.0f);
     CHECK(value == 0.0f);
     player.Update(1.0f);
@@ -337,8 +339,9 @@ TEST_CASE("Tween callbacks safely cancel and schedule while failures stay isolat
         player.Play(Spot::Tween(0.0f, [&](float) { ++calls; }));
         player.Update(1.0f);
     }));
-    player.Play(Spot::Tween(0.0f, [](float) { throw std::runtime_error("tween failure"); }),
-                {.onError = [&](std::exception_ptr) { ++errors; }});
+    Spot::TweenOptions options;
+    options.onError = [&](std::exception_ptr) { ++errors; };
+    player.Play(Spot::Tween(0.0f, [](float) { throw std::runtime_error("tween failure"); }), std::move(options));
     player.Update(0.25f);
     CHECK(calls == 1);
     CHECK(errors == 1);
@@ -614,6 +617,44 @@ TEST_CASE("Typed references serialize as entity ids and remap when instantiating
     REQUIRE(copyOwner->target.Get(scene));
     CHECK(copyOwner->target.GetEntityId() != target.GetId());
     CHECK(copyOwner->target.Get(scene)->GetEntity().GetParent() == copies.front());
+}
+
+TEST_CASE("Scene snapshots retain inline materials and body velocities", "[gameplay][save]") {
+    Spot::Scene scene;
+    auto& entity = scene.CreateEntity("Painted prop");
+    auto& renderer = entity.AddComponent<Spot::MeshRenderer>();
+    Spot::Material material;
+    material.baseColor = {0.2f, 0.3f, 0.4f, 0.5f};
+    material.metallic = 0.6f;
+    material.roughness = 0.2f;
+    material.normalScale = 0.7f;
+    material.occlusionStrength = 0.8f;
+    material.emissive = {2.0f, 1.0f, 0.5f, 1.0f};
+    material.alphaMode = Spot::AlphaMode::Transparent;
+    material.alphaCutoff = 0.1f;
+    material.doubleSided = true;
+    material.worldTextureSize = 3.0f;
+    const Spot::AssetRef<Spot::Texture> texture{Spot::BuiltInAssets::GridTexture, {}};
+    material.baseColorTexture = texture;
+    material.metallicRoughnessTexture = texture;
+    material.normalTexture = texture;
+    material.occlusionTexture = texture;
+    material.emissiveTexture = texture;
+    renderer.SetMaterial(material);
+    entity.AddComponent<Spot::BoxCollider>();
+    auto& body = entity.AddComponent<Spot::Rigidbody>();
+    body.SetLinearVelocity({1.0f, 2.0f, 3.0f});
+    body.SetAngularVelocity({0.1f, 0.2f, 0.3f});
+    Spot::Scene restored;
+    REQUIRE(restored.LoadFromString(scene.SaveToString()));
+    const auto* restoredRenderer = restored.FindComponent<Spot::MeshRenderer>();
+    REQUIRE(restoredRenderer);
+    REQUIRE(restoredRenderer->GetMaterial());
+    CHECK(*restoredRenderer->GetMaterial() == material);
+    const auto* restoredBody = restored.FindComponent<Spot::Rigidbody>();
+    REQUIRE(restoredBody);
+    CHECK(restoredBody->GetLinearVelocity() == Spot::Vector3{1.0f, 2.0f, 3.0f});
+    CHECK(restoredBody->GetAngularVelocity() == Spot::Vector3{0.1f, 0.2f, 0.3f});
 }
 
 TEST_CASE("Save data round-trips Archive fields and replaces an existing slot", "[gameplay][save]") {

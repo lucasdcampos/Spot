@@ -15,7 +15,7 @@ public:
                                 Spot::EntityId shooter);
 
 protected:
-    void OnUpdate(float deltaTime) override;
+    void OnStart() override;
     void OnCollisionEnter(const Spot::Collision& collision) override;
     void Serialize(Spot::Archive& archive) override;
 

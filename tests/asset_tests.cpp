@@ -728,7 +728,7 @@ TEST_CASE("Scenes save mesh renderers by asset id and load them back through the
     REQUIRE(cube.FindChild("Pivot"));
     REQUIRE(cube.FindChild("Pivot")->FindChild("Cube"));
     REQUIRE(cube.FindChild("Pivot")->FindChild("Cube")->GetComponents<Spot::MeshRenderer>().size() == 2);
-    // A material made in code is saved as null.
+    // A material made in code is saved inline, without a material asset id.
     scene.CreateEntity("Custom").AddComponent<Spot::MeshRenderer>(Spot::AssetRef<Spot::Mesh>(),
                                                                   Spot::Material{.baseColor = Spot::Color::Red});
     const std::string text = scene.SaveToString();
@@ -752,7 +752,9 @@ TEST_CASE("Scenes save mesh renderers by asset id and load them back through the
 
     const auto* custom = loaded.FindEntity("Custom")->GetComponent<Spot::MeshRenderer>();
     REQUIRE(custom);
-    CHECK_FALSE(custom->GetMaterial());
+    REQUIRE(custom->GetMaterial());
+    CHECK_FALSE(custom->GetMaterial().GetId().IsValid());
+    CHECK(custom->GetMaterial()->baseColor == Spot::Color::Red);
 
     // Without an asset manager, the ids are kept so saving again loses nothing.
     Spot::Scene offline;

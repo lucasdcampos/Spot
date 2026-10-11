@@ -1,6 +1,7 @@
 #include "game_controls.h"
 
 #include "sound_bank.h"
+#include "world_save.h"
 
 SPOT_COMPONENT(GameControls);
 
@@ -10,6 +11,23 @@ void GameControls::OnStart() {
 
 void GameControls::OnUpdate(float /*deltaTime*/) {
     namespace Input = Spot::Input;
+
+    const bool save = Input::IsActionPressed("Quick Save");
+    const bool load = Input::IsActionPressed("Quick Load");
+    if (save || load) {
+        const auto directory = !m_saveDirectory.empty() ? m_saveDirectory
+                               : GetScene().IsLoaded()  ? GetScene().GetApplication().GetUserDataDirectory()
+                                                        : std::filesystem::path{};
+        if (!directory.empty()) {
+            const auto result = save ? WorldSave::Save(GetScene(), directory / "world.json")
+                                     : WorldSave::Load(GetScene(), directory / "world.json");
+            if (result) {
+                Spot::Log::Info("World {}", save ? "saved" : "loaded");
+            } else {
+                Spot::Log::Warning("World {} failed: {}", save ? "save" : "load", result.message);
+            }
+        }
+    }
 
     if (Input::IsActionPressed("Pause")) {
         SoundBank::PlayClick(GetScene());

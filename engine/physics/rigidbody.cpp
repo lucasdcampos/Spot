@@ -168,6 +168,18 @@ void Rigidbody::Serialize(Archive& archive) {
     archive.Field("rotationLocks", m_rotationLocks, {.tooltip = "Rotations it cannot make, around the world's axes"});
     archive.Field("continuous", m_continuous, {.tooltip = "Keeps a fast body from passing through thin ones"});
     archive.Field("canSleep", m_canSleep, {.tooltip = "Whether it falls asleep once at rest"});
+    Vector3 linearVelocity = GetLinearVelocity();
+    Vector3 angularVelocity = GetAngularVelocity();
+    archive.Field("linearVelocity", linearVelocity);
+    archive.Field("angularVelocity", angularVelocity);
+    if (archive.IsLoading()) {
+        if (linearVelocity != GetLinearVelocity()) {
+            SetLinearVelocity(linearVelocity);
+        }
+        if (angularVelocity != GetAngularVelocity()) {
+            SetAngularVelocity(angularVelocity);
+        }
+    }
 }
 
 void Rigidbody::MarkChanged() {

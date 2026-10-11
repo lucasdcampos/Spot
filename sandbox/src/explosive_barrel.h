@@ -11,13 +11,17 @@ public:
     // Seconds between being set off and exploding.
     float fuse = 0.15f;
 
-    bool IsLit() const { return m_fuseLeft >= 0.0f; }
+    bool IsLit() const { return m_lit; }
     void Ignite();
 
 protected:
-    void OnUpdate(float deltaTime) override;
+    void OnStart() override;
     void Serialize(Spot::Archive& archive) override;
 
 private:
-    float m_fuseLeft = -1.0f;
+    void ScheduleFuse(float seconds);
+    void Explode();
+    Spot::InvokeId m_fuse = Spot::InvokeId::Invalid;
+    float m_savedFuse = -1.0f;
+    bool m_lit = false;
 };

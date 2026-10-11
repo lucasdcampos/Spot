@@ -57,12 +57,11 @@ public:
     float fullSpeed = 8.0f;
 
 protected:
-    void OnUpdate(float deltaTime) override;
+    void OnStart() override;
     void OnCollisionEnter(const Spot::Collision& collision) override;
     void Serialize(Spot::Archive& archive) override;
 
 private:
-    // Seconds until it may sound again; props landing as the scene starts are left quiet.
-    float m_quiet = 0.5f;
+    Spot::InvokeId m_quiet = Spot::InvokeId::Invalid;
     std::uint32_t m_random = 0x2545f491u;
 };

@@ -4,9 +4,11 @@
 #include "explosion.h"
 #include "explosive_barrel.h"
 #include "flash.h"
+#include "game_controls.h"
 #include "log_capture.h"
 #include "physics_gun.h"
 #include "player_controller.h"
+#include "player_movement.h"
 #include "prop_carrier.h"
 #include "prop_spawner.h"
 #include "sound_bank.h"
@@ -16,6 +18,7 @@
 #include "view_model.h"
 #include "weapon.h"
 #include "weapon_holder.h"
+#include "world_save.h"
 
 #include <spot.h>
 #include <spot_import.h>
@@ -151,6 +154,139 @@ struct Playground {
 };
 
 } // namespace
+
+TEST_CASE("World checkpoints retain edited props, joints, lamps and cleanup ownership", "[sandbox][save]") {
+    Playground playground;
+    TempDirectory directory;
+    playground.Run(1.5f);
+    auto& spawner = *playground.player->GetComponent<PropSpawner>();
+    auto& tool = *playground.player->GetComponent<ToolGun>();
+    auto* prop = spawner.Spawn(0);
+    REQUIRE(prop);
+    prop->SetName("Saved prop");
+    prop->AddTag(PhysicsGun::FrozenTag);
+    prop->GetComponent<Spot::Rigidbody>()->SetKinematic(true);
+    const auto position = prop->GetTransform().GetPosition();
+    const Spot::Color paint{0.2f, 0.8f, 0.1f, 1.0f};
+    REQUIRE(tool.Paint(*prop, paint));
+    auto& anchor = playground.PlaceCrate(5.0f, 5.0f);
+    anchor.SetName("Saved anchor");
+    anchor.GetComponent<Spot::Rigidbody>()->SetKinematic(true);
+    REQUIRE(tool.Weld(*prop, anchor));
+    auto& hanging = playground.PlaceCrate(3.0f, 5.0f);
+    hanging.SetName("Saved rope");
+    REQUIRE(tool.Rope(hanging, hanging.GetTransform().GetPosition(), anchor, anchor.GetTransform().GetPosition()));
+    tool.color = 2;
+    tool.lamp = ToolGun::LampKind::ShadowedPoint;
+    auto* lamp = tool.PlaceLamp(*prop, position, {0.0f, 1.0f, 0.0f});
+    REQUIRE(lamp);
+    const auto lampColor = lamp->GetComponent<Spot::PointLight>()->GetColor();
+    const auto playerId = playground.player->GetId();
+    REQUIRE(WorldSave::Save(playground.scene, directory.GetPath() / "world.json"));
+    spawner.Cleanup();
+    anchor.Destroy();
+    hanging.Destroy();
+    REQUIRE(WorldSave::Load(playground.scene, directory.GetPath() / "world.json"));
+    CHECK(playground.scene.GetEntity(playerId) == playground.player);
+    CHECK(playground.player->GetComponent<UndoList>()->GetCount() == 0);
+    auto* restored = playground.scene.FindEntity("Saved prop");
+    auto* restoredAnchor = playground.scene.FindEntity("Saved anchor");
+    auto* restoredRope = playground.scene.FindEntity("Saved rope");
+    REQUIRE(restored);
+    REQUIRE(restoredAnchor);
+    REQUIRE(restoredRope);
+    CHECK(restored->GetTransform().GetPosition() == position);
+    CHECK(restored->HasTag(PhysicsGun::FrozenTag));
+    CHECK(restored->GetComponent<Spot::Rigidbody>()->IsKinematic());
+    CHECK(restored->GetComponent<Spot::MeshRenderer>()->GetMaterial()->baseColor == paint);
+    CHECK(restored->GetComponent<Spot::FixedJoint>()->GetConnectedEntity() == restoredAnchor->GetId());
+    CHECK(restoredRope->GetComponent<Spot::DistanceJoint>()->GetConnectedEntity() == restoredAnchor->GetId());
+    const auto children = restored->GetChildren();
+    const auto child =
+        std::ranges::find_if(children, [](const Entity* entity) { return entity->HasTag(ToolGun::LampTag); });
+    REQUIRE(child != children.end());
+    CHECK((*child)->GetComponent<Spot::PointLight>()->GetColor() == lampColor);
+    CHECK((*child)->GetComponent<Spot::PointLight>()->IsCastingShadows());
+    CHECK(spawner.GetSpawnedCount() == 1);
+    spawner.Cleanup();
+    CHECK_FALSE(playground.scene.FindEntity("Saved prop"));
+    CHECK(playground.scene.FindEntity("Saved anchor"));
+}
+
+TEST_CASE("Quick save and load use the project's bindings and reject invalid checkpoints", "[sandbox][save]") {
+    Playground playground;
+    TempDirectory directory;
+    playground.Run(1.0f);
+    auto* controls = playground.scene.FindComponent<GameControls>();
+    REQUIRE(controls);
+    controls->SetSaveDirectory(directory.GetPath());
+    auto& spawner = *playground.player->GetComponent<PropSpawner>();
+    REQUIRE(spawner.Spawn(0));
+    playground.Press(Key::F9);
+    playground.Run(Step);
+    playground.Release(Key::F9);
+    REQUIRE(std::filesystem::is_regular_file(directory.GetPath() / "world.json"));
+    spawner.Cleanup();
+    CHECK(spawner.GetSpawnedCount() == 0);
+    playground.Press(Key::F10);
+    playground.Run(Step);
+    playground.Release(Key::F10);
+    CHECK(spawner.GetSpawnedCount() == 1);
+    const auto count = playground.scene.GetRootEntities().size();
+    CHECK(WorldSave::Load(playground.scene, directory.GetPath() / "missing.json").status ==
+          Spot::SaveDataStatus::NotFound);
+    Spot::SaveData saves(directory.GetPath());
+    REQUIRE(saves.Save("invalid.json", 1, [](Spot::Archive&, std::uint32_t) {}));
+    CHECK(WorldSave::Load(playground.scene, directory.GetPath() / "invalid.json").status ==
+          Spot::SaveDataStatus::InvalidFile);
+    CHECK(playground.scene.GetRootEntities().size() == count);
+}
+
+TEST_CASE("Saved lit barrels resume their remaining fuse", "[sandbox][save]") {
+    Playground playground;
+    TempDirectory directory;
+    playground.Run(1.0f);
+    auto& barrel = playground.scene.CreateEntity("Saved fuse");
+    barrel.GetTransform().SetPosition({200.0f, 5.0f, 0.0f});
+    barrel.AddComponent<Spot::Rigidbody>();
+    auto& explosive = barrel.AddComponent<ExplosiveBarrel>();
+    explosive.fuse = 1.0f;
+    explosive.Ignite();
+    playground.Run(0.6f);
+    REQUIRE(WorldSave::Save(playground.scene, directory.GetPath() / "world.json"));
+    REQUIRE(WorldSave::Load(playground.scene, directory.GetPath() / "world.json"));
+    REQUIRE(playground.scene.FindEntity("Saved fuse"));
+    CHECK(playground.scene.FindEntity("Saved fuse")->GetComponent<ExplosiveBarrel>()->IsLit());
+    playground.scene.Update(0.0f);
+    playground.Run(0.2f);
+    CHECK(playground.scene.FindEntity("Saved fuse"));
+    playground.Run(0.3f);
+    CHECK_FALSE(playground.scene.FindEntity("Saved fuse"));
+}
+
+TEST_CASE("Sandbox recoil and walking bob use cancellable tweens and scaled waits", "[sandbox][gameplay]") {
+    Playground playground;
+    playground.Run(1.5f);
+    auto& view = *playground.player->GetComponent<ViewModel>();
+    view.Kick();
+    playground.scene.Update(0.0f);
+    CHECK(view.GetRecoil() == 0.0f);
+    playground.Run(0.05f);
+    CHECK(view.GetRecoil() > 0.0f);
+    playground.Run(0.25f);
+    CHECK(view.GetRecoil() == Approx(0.0f));
+    auto& movement = *playground.player->GetComponent<PlayerMovement>();
+    playground.Press(Key::W);
+    float peak = 0.0f;
+    for (int i = 0; i < 30; ++i) {
+        playground.Run(Step);
+        peak = std::max(peak, std::abs(movement.GetCameraBob()));
+    }
+    CHECK(peak > 0.01f);
+    playground.Release(Key::W);
+    playground.Run(0.3f);
+    CHECK(movement.GetCameraBob() == Approx(0.0f));
+}
 
 TEST_CASE("The playground runs without faults", "[sandbox]") {
     Playground playground;

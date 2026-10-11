@@ -886,6 +886,34 @@
           "name": "Fast Forward",
           "pressPoint": 0.5,
           "type": 0
+        },
+        {
+          "bindings": [
+            {
+              "control": { "code": 69, "source": 0 },
+              "deadZone": 0.0,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1.0
+            }
+          ],
+          "name": "Quick Save",
+          "pressPoint": 0.5,
+          "type": 0
+        },
+        {
+          "bindings": [
+            {
+              "control": { "code": 70, "source": 0 },
+              "deadZone": 0.0,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1.0
+            }
+          ],
+          "name": "Quick Load",
+          "pressPoint": 0.5,
+          "type": 0
         }
       ]
     }
