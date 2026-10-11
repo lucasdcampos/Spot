@@ -47,7 +47,12 @@ namespace {
 
 constexpr float Step = Scene::DefaultFixedTimeStep;
 constexpr auto Gamepad = static_cast<Spot::GamepadId>(1);
-const std::filesystem::path Assets = SANDBOX_ASSETS_DIR;
+// An explicit fixture snapshot keeps acceptance runs independent of concurrent editor saves.
+const std::filesystem::path Assets = [] {
+    const auto snapshot = Spot::Process::GetEnvironmentValue("SPOT_SANDBOX_TEST_ASSETS");
+    return snapshot && !snapshot->empty() ? std::filesystem::path(*snapshot)
+                                          : std::filesystem::path(SANDBOX_ASSETS_DIR);
+}();
 
 // The playground, loaded from its source with the sandbox's components and the assets the build cooks for it, and
 // input the test presses keys on, read through the actions of the game's settings, which the build writes beside

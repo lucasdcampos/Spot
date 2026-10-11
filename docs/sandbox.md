@@ -124,3 +124,7 @@ physics, spawning undo or world checkpoints. See [Particles](particles.md).
 Play-test: fire each weapon at wood, metal and the ground; detonate a barrel and a rocket; hold, move
 and release a prop with the physics gun. Check that glow, sparks, dust, fire, smoke and debris appear
 and fade, that the beam stops emitting on release, and that saving/cleanup keeps no transient effects.
+
+Sandbox headless tests normally read the workspace's authored assets. Set `SPOT_SANDBOX_TEST_ASSETS`
+to an absolute directory containing a snapshot of `sandbox/assets` to validate a committed scene
+while preserving concurrent editor changes. Imported assets still come from the test build.

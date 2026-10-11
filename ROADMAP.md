@@ -9,7 +9,7 @@ The goal is the same breadth, built on the architecture Spot already has.
 The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
 [The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
 
-**Current focus:** M13 - Particles (requested out of order; M9 and M12 remain pending)
+**Current focus:** M12 - Runtime UI and text (pending; M9 remains deferred; M13 completed out of order)
 
 ## How to use this plan
 
@@ -125,7 +125,7 @@ How it is built:
 | [x] | [M10 – Gameplay toolkit](#m10--gameplay-toolkit) | Timers, time scale, tweens, coroutines, signals, typed references, save data |
 | [x] | [M11 – Developer tools](#m11--developer-tools) | Console commands and cvars, overlays, profiler panel, captures |
 | [ ] | [M12 – Runtime UI and text](#m12--runtime-ui-and-text) | World text, SDF fonts, entity-based UI, widgets, layout, navigation |
-| [ ] | [M13 – Particles](#m13--particles) | Particle systems, curves and gradients, particle rendering |
+| [x] | [M13 – Particles](#m13--particles) | Particle systems, curves and gradients, particle rendering |
 | [ ] | [M14 – 2D](#m14--2d) | 2D physics, sprite animation, tilemaps |
 | [ ] | [M15 – The sandbox game](#m15--the-sandbox-game) | The finished level, polish, performance and a release build of the game |
 
@@ -1164,13 +1164,20 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
 **Done when:** weapons, impacts and explosions in the sandbox emit particles.
 
 **Notes:**
+- Acceptance (2026-10-11): complete Debug builds with MSVC and GCC produce no compiler warnings.
+  All 628 headless tests pass on each compiler, followed by three targeted windowless GPU tests on
+  each, run serially. Real sandbox shots, surface impacts, collision effects, explosions and the held
+  beam are exercised headlessly; rendering pixels and the editor preview are verified offscreen.
+  Acceptance uses a committed sandbox asset snapshot through `SPOT_SANDBOX_TEST_ASSETS`, preserving
+  concurrent workspace scene saves. macOS and Linux builds and interactive play-testing were not run.
+
 - M13.5: authored scene definitions drive muzzle, surface-specific impacts, explosion fire/smoke/debris
   and beam particles. Props have a separate audio-independent collision effect component. A bounded
   pool reuses entity ids, particle storage and configuration capacity; fractional beam emission is
   independent of update rate. Five sandbox cases pass 4,481 assertions, including real shots, collisions,
   explosions, expiry, pool bounds/reuse and physics-gun release. A configuration/storage regression
   brings engine particle coverage to thirteen cases and 708 assertions. Full MSVC Debug builds have
-  no compiler warnings; milestone-wide MSVC/GCC regression checks are in progress.
+  no compiler warnings; milestone-wide MSVC/GCC regression and acceptance checks are complete.
 
 - M13.4: document-owned previews resolve entity/component ids and scene revisions, with real-time
   selected-emitter simulation, pause, restart and seek. No gameplay, serialized edits or undo entries
