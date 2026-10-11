@@ -1048,7 +1048,7 @@ with view-model animations.
 
 ## M11 – Developer tools
 
-- [ ] **M11.1 Commands and cvars.** A `ConsoleCommand` registry and `CVar<T>` (name, default, description, flags
+- [x] **M11.1 Commands and cvars.** A `ConsoleCommand` registry and `CVar<T>` (name, default, description, flags
   such as cheat or saved), with parsing, completion and history. The engine registers its rendering, physics and
   audio switches. Tests.
 - [ ] **M11.2 In-game console.** An overlay drawn with `Renderer2D` that takes input through M2.6. The editor's console
@@ -1064,6 +1064,14 @@ with view-model animations.
 **Done when:** a frame spike in the sandbox can be found from the profiler panel and toggled away from the console.
 
 **Notes:**
+
+- M11.1: code-only `Console` supports scoped registrations, quoted/escaped arguments, sorted completion, bounded
+  history/output and contained command failures. Typed cvars own values or bind public engine settings, validate
+  complete finite input, gate cheat commands and persist saved values through Archive. Applications register
+  time, gravity, physics visualization, rendering, frame cap, audio gain and profiler switches during `Run()`;
+  saved values round-trip through `console.json`. Scene bindings resolve the current scene on each use. Seven
+  headless tests (72 assertions) cover parsing, lifetime, mutation, flags, validation, history and persistence,
+  including application startup/shutdown. MSVC builds without compiler warnings.
 
 ---
 

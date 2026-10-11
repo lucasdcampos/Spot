@@ -4,11 +4,13 @@
 #include "audio/audio_system.h"
 #include "core/assert.h"
 #include "core/crash_handler.h"
+#include "core/engine_console.h"
 #include "core/game_module.h"
 #include "core/log.h"
 #include "core/log_sinks.h"
 #include "core/paths.h"
 #include "core/profiler.h"
+#include "core/save_data.h"
 #include "graphics/debug_draw.h"
 #include "graphics/scene_renderer.h"
 #include "input/input.h"
@@ -115,6 +117,14 @@ int Application::Run() {
             m_actions.LoadRebinds(directory / InputRebindsFileName);
         }
     }
+    m_engineConsole = std::make_unique<EngineConsole>(Console::Get(), *this);
+    if (const auto directory = GetUserDataDirectory(); !directory.empty()) {
+        const auto result = SaveData(directory).Load(
+            "console.json", 1, [](Archive& archive, std::uint32_t) { Console::Get().Serialize(archive); });
+        if (!result && result.status != SaveDataStatus::NotFound) {
+            Log::GetEngineLogger().Warning("Could not load console settings: {}", result.message);
+        }
+    }
     m_running = true;
     m_failed = false;
     // The game's components are known before its scenes load.
@@ -191,6 +201,13 @@ int Application::Run() {
 
     Profiler::EndFrame();
     DebugDraw::Clear();
+    if (const auto directory = GetUserDataDirectory(); !directory.empty()) {
+        const auto result = SaveData(directory).Save(
+            "console.json", 1, [](Archive& archive, std::uint32_t) { Console::Get().Serialize(archive); });
+        if (!result) {
+            Log::GetEngineLogger().Warning("Could not save console settings: {}", result.message);
+        }
+    }
     OnStop();
     m_sceneChanges.clear();
     RemoveAllScenes();
@@ -198,6 +215,7 @@ int Application::Run() {
     m_persistentScene.reset();
     m_sceneRenderer.reset();
     Detail::SetAssetManager(nullptr);
+    m_engineConsole.reset();
     m_assets.reset();
     Time::SetClock(nullptr);
     Input::SetState(nullptr);

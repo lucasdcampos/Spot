@@ -42,6 +42,8 @@ add_library(spot_objects OBJECT
     audio/sound_stream.cpp
     core/application.h
     core/application.cpp
+    core/console.cpp
+    core/engine_console.cpp
     core/assert.h
     core/assert.cpp
     core/crash_handler.h

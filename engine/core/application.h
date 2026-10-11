@@ -19,6 +19,8 @@
 
 namespace Spot {
 
+class EngineConsole;
+
 class LogSink;
 class SceneRenderer;
 
@@ -84,6 +86,8 @@ public:
     // Caps how many frames run per second from the next frame on; 0 means unlimited.
     int GetMaxFrameRate() const { return m_config.maxFrameRate; }
     void SetMaxFrameRate(int maxFrameRate);
+    bool IsSceneRenderingEnabled() const { return m_config.renderScenes; }
+    void SetSceneRenderingEnabled(bool enabled) { m_config.renderScenes = enabled; }
 
     // Only available while Run() is running.
     Window& GetWindow();
@@ -178,6 +182,7 @@ protected:
     void DispatchEvent(const Event& event);
 
 private:
+    std::unique_ptr<EngineConsole> m_engineConsole;
     enum class SceneChangeKind { Replace, Add, Remove };
 
     struct SceneChange {

@@ -15,6 +15,8 @@
 #include "audio/sound.h"
 #include "core/application.h"
 #include "core/assert.h"
+#include "core/console.h"
+#include "core/engine_console.h"
 #include "core/crash_handler.h"
 #include "core/game_module.h"
 #include "core/game_settings.h"
