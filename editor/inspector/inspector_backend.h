@@ -71,6 +71,8 @@ public:
     void Field(std::string_view name, AssetId& value, std::optional<AssetType> type,
                const FieldOptions& options) override;
     void EnumField(std::string_view name, std::int64_t& value, const FieldOptions& options) override;
+    void CurveField(std::string_view name, Curve& value, const FieldOptions& options) override;
+    void GradientField(std::string_view name, Gradient& value, const FieldOptions& options) override;
     bool BeginObject(std::string_view name, const FieldOptions& options) override;
     void EndObject() override;
     bool BeginArray(std::string_view name, std::size_t& size, const FieldOptions& options) override;

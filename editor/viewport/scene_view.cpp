@@ -101,6 +101,14 @@ SceneView::DrawResult SceneView::Draw(EditorContext& context, ViewportRenderer* 
     if (playing && !m_playing) {
         m_gameView = true;
     }
+    auto& preview = m_document.GetParticlePreview();
+    if (playing)
+        preview.Clear(m_document.GetScene());
+    else {
+        preview.Select(m_document.GetScene(), m_document.GetSelection().GetPrimary(), {},
+                       m_document.GetSceneRevision());
+        preview.Update(m_document.GetScene(), ImGui::GetIO().DeltaTime);
+    }
     m_playing = playing;
     m_shown = playing && play->GetDocument() ? play->GetDocument() : &m_document;
     m_rendering = context.GetProject() ? context.GetProject()->GetProject().GetSettings().sections.rendering

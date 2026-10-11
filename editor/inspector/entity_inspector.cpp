@@ -653,6 +653,32 @@ void EntityInspector::DrawComponent(SceneDocument& document, const Card& card) {
                            "says where.");
         ImGui::PopTextWrapPos();
     }
+    const bool playing = m_context.GetWorkspace() && m_context.GetWorkspace()->GetPlaySession();
+    if (auto* effect = dynamic_cast<ParticleSystem*>(&component); effect && components.size() == 1 && !playing) {
+        auto& preview = document.GetParticlePreview();
+        preview.Select(scene, document.GetSelection().GetPrimary(), {}, document.GetSceneRevision());
+        if (preview.GetComponentId() != effect->GetId()) {
+            if (ImGui::Button("Preview"))
+                preview.Select(scene, effect->GetEntity().GetId(), effect->GetId(), document.GetSceneRevision());
+            Record(card.key + "/preview/select");
+        } else {
+            if (ImGui::Button(preview.IsPlaying() ? "Pause" : "Play"))
+                preview.SetPlaying(!preview.IsPlaying());
+            Record(card.key + "/preview/play");
+            ImGui::SameLine();
+            if (ImGui::Button("Restart"))
+                preview.Restart(scene);
+            Record(card.key + "/preview/restart");
+            float time = preview.GetTime(scene);
+            ImGui::SetNextItemWidth(-1);
+            if (ImGui::DragFloat("##seek", &time, 0.02f, 0, 60, "Seek: %.2f s", ImGuiSliderFlags_AlwaysClamp)) {
+                preview.SetPlaying(false);
+                preview.Seek(scene, time);
+            }
+            Record(card.key + "/preview/seek");
+            ImGui::TextDisabled("%zu live particles", effect->GetParticles().size());
+        }
+    }
     if (!Widgets::BeginProperties("##fields")) {
         return;
     }

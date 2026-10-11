@@ -319,6 +319,27 @@ void Archive::Field(std::string_view name, AssetId& value, const FieldOptions& o
     m_backend->Field(name, value, options.assetType, options);
 }
 
+void ArchiveBackend::CurveField(std::string_view name, Curve& value, const FieldOptions& options) {
+    if (BeginObject(name, options)) {
+        Archive archive(*this);
+        value.Serialize(archive);
+        EndObject();
+    }
+}
+void ArchiveBackend::GradientField(std::string_view name, Gradient& value, const FieldOptions& options) {
+    if (BeginObject(name, options)) {
+        Archive archive(*this);
+        value.Serialize(archive);
+        EndObject();
+    }
+}
+void Archive::Field(std::string_view name, Curve& value, const FieldOptions& options) {
+    m_backend->CurveField(name, value, options);
+}
+void Archive::Field(std::string_view name, Gradient& value, const FieldOptions& options) {
+    m_backend->GradientField(name, value, options);
+}
+
 AssetManager* Archive::GetAssetManager() const {
     AssetManager* assets = m_backend->GetAssetManager();
     return assets ? assets : Assets::GetManager();

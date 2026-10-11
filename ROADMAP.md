@@ -1157,13 +1157,20 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
   Tests.
 - [x] **M13.3 Rendering.** Instanced billboards that face the camera or stretch with velocity, additive or alpha
   blending, sorting, soft particles from depth, and flipbook textures.
-- [ ] **M13.4 Editor.** Edit-mode simulation of the selected system, and restart and seek controls.
+- [x] **M13.4 Editor.** Edit-mode simulation of the selected system, and restart and seek controls.
 - [ ] **M13.5 Sandbox: effects.** Muzzle flashes, sparks and dust per surface, explosion fire and smoke, debris, and
   the physics gun's beam particles.
 
 **Done when:** weapons, impacts and explosions in the sandbox emit particles.
 
 **Notes:**
+- M13.4: document-owned previews resolve entity/component ids and scene revisions, with real-time
+  selected-emitter simulation, pause, restart and seek. No gameplay, serialized edits or undo entries
+  are produced. Inspector curves and gradients have visual previews plus normal key editing. Two
+  headless preview cases pass 17 assertions, inspector interaction passes 15, and a windowless editor
+  GPU case passes 10 through the actual viewport/MSAA path. All twelve particle cases still pass 703
+  assertions after adding specialized archive hooks; MSVC compiles without warnings.
+
 - M13.3: globally sorted alpha and additive billboard instances draw through public graphics APIs in
   both game and editor views. CPU tests cover sorting, transforms, stretch, rotation and flipbooks.
   Two windowless GPU cases pass 46 assertions for pixels, alpha/additive blending, ordering, flipbooks,

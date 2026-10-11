@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cfloat>
 #include <cstring>
 #include <format>
 #include <type_traits>
@@ -530,6 +531,43 @@ void InspectorBackend::EnumField(std::string_view name, std::int64_t& value, con
         ImGui::EndCombo();
     }
     EndRow();
+}
+
+void InspectorBackend::CurveField(std::string_view name, Curve& value, const FieldOptions& options) {
+    std::string pointer;
+    if (BeginRow(name, options, pointer)) {
+        std::array<float, 64> samples{};
+        const auto keys = value.GetKeys();
+        const float start = keys.empty() ? 0 : keys.front().time;
+        const float end = keys.empty() ? 1 : keys.back().time;
+        for (std::size_t i = 0; i < samples.size(); ++i)
+            samples[i] = value.Evaluate(Lerp(start, end, static_cast<float>(i) / 63));
+        ImGui::PlotLines("##curve", samples.data(), static_cast<int>(samples.size()), 0, nullptr, FLT_MAX, FLT_MAX,
+                         {0, 48});
+        EndRow();
+    }
+    ArchiveBackend::CurveField(name, value, options);
+}
+void InspectorBackend::GradientField(std::string_view name, Gradient& value, const FieldOptions& options) {
+    std::string pointer;
+    if (BeginRow(name, options, pointer)) {
+        const ImVec2 at = ImGui::GetCursorScreenPos();
+        const ImVec2 size{ImGui::GetContentRegionAvail().x, 24};
+        auto* draw = ImGui::GetWindowDrawList();
+        const auto keys = value.GetKeys();
+        const float start = keys.empty() ? 0 : keys.front().time;
+        const float end = keys.empty() ? 1 : keys.back().time;
+        for (int i = 0; i < 32; ++i) {
+            const auto c = value.Evaluate(Lerp(start, end, static_cast<float>(i) / 31));
+            const auto color =
+                ImGui::ColorConvertFloat4ToU32({LinearToSrgb(c.r), LinearToSrgb(c.g), LinearToSrgb(c.b), c.a});
+            draw->AddRectFilled({at.x + size.x * static_cast<float>(i) / 32, at.y},
+                                {at.x + size.x * static_cast<float>(i + 1) / 32, at.y + size.y}, color);
+        }
+        ImGui::Dummy(size);
+        EndRow();
+    }
+    ArchiveBackend::GradientField(name, value, options);
 }
 
 bool InspectorBackend::BeginContainer(std::string_view name, const FieldOptions& options, std::size_t* size) {

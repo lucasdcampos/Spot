@@ -87,3 +87,9 @@ a time. Stopping throws the copy away, so the document is as it was.
 Headless tests drive panels with `HeadlessImGui` (`tests/editor/headless_imgui.h`), which runs ImGui frames without a
 GPU and clicks, drags and types at the rectangles panels expose. `spot_editor --screenshot <file> [--frames <n>]`
 saves a picture of the window after some frames and quits, to check the interface.
+
+## Particle authoring
+
+Add a ParticleSystem from the component search. Its selected entity previews in edit mode; the
+inspector provides Play/Pause, Restart and Seek without altering authored data or running gameplay.
+Curve plots and gradient strips accompany editable keys. See [Particles](particles.md).

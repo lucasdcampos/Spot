@@ -134,6 +134,8 @@ add_library(spot_editor_core STATIC
     scene/prefab_actions.h
     scene/scene_commands.cpp
     scene/scene_commands.h
+    scene/particle_preview.h
+    scene/particle_preview.cpp
     scene/scene_document.cpp
     scene/scene_document.h
     scene/scene_workspace.cpp

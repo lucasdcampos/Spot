@@ -5,6 +5,8 @@
 #include "assets/asset_type.h"
 #include "assets/assets.h"
 #include "graphics/color.h"
+#include "graphics/gradient.h"
+#include "math/curve.h"
 #include "math/quaternion.h"
 #include "math/vector.h"
 #include "scene/component_ref.h"
@@ -94,6 +96,10 @@ public:
         Field(name, value, options);
     }
 
+    // Specialized tools may draw previews; the default visits the same portable key fields.
+    virtual void CurveField(std::string_view name, Curve& value, const FieldOptions& options);
+    virtual void GradientField(std::string_view name, Gradient& value, const FieldOptions& options);
+
     // Nested objects and arrays. When Begin...() returns false the field is skipped, and the matching End...() is
     // not called. Arrays give their size, which a loading backend may change.
     virtual bool BeginObject(std::string_view name, const FieldOptions& options) = 0;
@@ -143,6 +149,8 @@ public:
     void Field(std::string_view name, Vector4& value, const FieldOptions& options = {});
     void Field(std::string_view name, Quaternion& value, const FieldOptions& options = {});
     void Field(std::string_view name, Color& value, const FieldOptions& options = {});
+    void Field(std::string_view name, Curve& value, const FieldOptions& options = {});
+    void Field(std::string_view name, Gradient& value, const FieldOptions& options = {});
     // References to other entities. Entities loaded together keep referring to each other through their new ids;
     // references to entities that were not saved along load as EntityId::Invalid.
     void Field(std::string_view name, EntityId& value, const FieldOptions& options = {});

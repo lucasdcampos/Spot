@@ -215,7 +215,7 @@ catch_discover_tests(spot_module_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=
 
 # Editor tests link the editor's code, everything but its main().
 if(TARGET spot_editor_core)
-    add_executable(spot_editor_tools_tests editor/console_command_tests.cpp editor/profiler_model_tests.cpp)
+    add_executable(spot_editor_tools_tests editor/console_command_tests.cpp editor/profiler_model_tests.cpp editor/particle_preview_tests.cpp)
     target_link_libraries(spot_editor_tools_tests PRIVATE spot_editor_core Catch2::Catch2WithMain)
     target_include_directories(spot_editor_tools_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     spot_set_compile_options(spot_editor_tools_tests)

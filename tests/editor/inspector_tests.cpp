@@ -449,3 +449,30 @@ TEST_CASE("Asset fields retain delivered payloads and check the asset type", "[e
     imgui.Drag(source, field);
     CHECK(reference == Spot::BuiltInAssets::CubeMesh);
 }
+
+TEST_CASE("Particle inspector preview controls do not create authored edits", "[editor][inspector][particles]") {
+    InspectorFixture fixture;
+    auto& entity = fixture.Selected();
+    entity.RemoveComponent(fixture.Light(entity));
+    auto& effect = entity.AddComponent<Spot::ParticleSystem>();
+    fixture.Frame();
+    fixture.Frame();
+    auto& preview = fixture.document->GetParticlePreview();
+    preview.Update(fixture.document->GetScene(), 0.5f);
+    const auto authored = Spot::SaveComponentToString(effect);
+    const auto steps = fixture.Steps();
+    fixture.Click("ParticleSystem/preview/play");
+    CHECK_FALSE(preview.IsPlaying());
+    const auto time = preview.GetTime(fixture.document->GetScene());
+    preview.Update(fixture.document->GetScene(), 1);
+    CHECK(preview.GetTime(fixture.document->GetScene()) == time);
+    fixture.Click("ParticleSystem/preview/restart");
+    CHECK(preview.GetTime(fixture.document->GetScene()) == 0);
+    const auto from = fixture.Point("ParticleSystem/preview/seek");
+    fixture.imgui.Drag(from, {from.x + 40, from.y});
+    CHECK(preview.GetTime(fixture.document->GetScene()) > 0);
+    CHECK(fixture.Steps() == steps);
+    CHECK(Spot::SaveComponentToString(effect) == authored);
+    fixture.Click("ParticleSystem/preview/play");
+    CHECK(preview.IsPlaying());
+}

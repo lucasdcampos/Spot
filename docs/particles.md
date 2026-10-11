@@ -66,3 +66,16 @@ can supply their own readable camera depth. Without it, particles render without
 Particles are sorted together across emitters, but form a separate pass after transparent meshes.
 Interleaving particles with transparent mesh surfaces is not supported. Multisampled camera depth
 adds geometry work; use single-sample views when that cost outweighs MSAA.
+
+## Editor preview
+
+Select an entity with a ParticleSystem to simulate that emitter in edit mode. The inspector offers
+Play/Pause, Restart and a bounded 0–60 second seek control, plus the live particle count. A different
+ParticleSystem on the same entity can take the preview with its Preview button. Curves show sampled
+plots and gradients show color strips above their editable key arrays.
+
+The document owns preview state by entity id, component id and scene revision. Selection changes
+clear the old emitter, removals resolve safely, and reloads restart the preview. Only the selected
+emitter advances, with real editor time; the scene's gameplay and physics never run. Starting play
+clears edit-mode preview state. Preview controls change no serialized fields and create no undo
+entries. Configuration edits still use normal undo and prefab overrides.

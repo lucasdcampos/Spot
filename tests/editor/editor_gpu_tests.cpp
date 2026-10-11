@@ -344,3 +344,48 @@ TEST_CASE("Models dropped into scenes preserve their nodes and share mesh buffer
         CHECK(renderer->GetMaterial().GetId().IsValid());
     }
 }
+
+TEST_CASE("Selected particle previews render through the editor viewport offscreen",
+          "[editor][gpu][particles][offscreen]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    Spot::Editor::ViewportRenderer renderer(*device);
+    Spot::Editor::ViewportTargets targets;
+    REQUIRE(targets.Resize(*device, 64, 64, renderer.GetSampleCount()));
+    Spot::Editor::SceneDocument document;
+    auto& entity = document.GetScene().CreateEntity();
+    entity.GetTransform().SetPosition({0, 0, -3});
+    auto& effect = entity.AddComponent<Spot::ParticleSystem>();
+    Spot::ParticleSettings settings;
+    settings.emissionRate = 0;
+    settings.bursts = {{0, 4}};
+    settings.size = {1, 1};
+    settings.speed = {0, 0};
+    settings.gravity = {};
+    settings.startColor = Spot::Color::Red;
+    effect.SetSettings(settings);
+    auto& preview = document.GetParticlePreview();
+    preview.Select(document.GetScene(), entity.GetId());
+    preview.Update(document.GetScene(), 0.1f);
+    auto* context = device->BeginOffscreenFrame(*targets.GetColor());
+    REQUIRE(context);
+    Spot::Camera3D camera;
+    camera.orthographic = true;
+    camera.orthographicSize = 1;
+    Spot::Editor::ViewportOptions options;
+    options.showGrid = false;
+    options.defaultLights = false;
+    options.background = Spot::Color::Black;
+    renderer.Render(*context, targets, document.GetScene(), camera, options);
+    device->EndFrame();
+    const auto pixels = device->DownloadTexture(*targets.GetColor());
+    REQUIRE(pixels.size() == 64 * 64 * 4);
+    const auto center = (32 * 64 + 32) * 4;
+    CHECK(pixels[center] > 150);
+    CHECK(pixels[center + 1] < 10);
+    CHECK(pixels[center + 2] < 10);
+    CHECK(pixels[0] == 0);
+    CHECK(document.GetScene().GetUpdateCount() == 0);
+    CHECK(document.GetHistory().GetUndoCount() == 0);
+}
