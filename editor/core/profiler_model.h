@@ -3,6 +3,7 @@
 #include <spot.h>
 
 #include <deque>
+#include <map>
 
 namespace Spot::Editor {
 
@@ -23,7 +24,13 @@ public:
     void Clear();
 
 private:
+    struct ScopeTotal {
+        double milliseconds = 0.0;
+        std::int64_t calls = 0;
+    };
+    void Accumulate(const ProfileFrame& frame, int direction);
     std::deque<ProfileFrame> m_frames;
+    std::map<std::string_view, ScopeTotal> m_totals;
     bool m_paused = false;
 };
 

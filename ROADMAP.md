@@ -1094,6 +1094,9 @@ with view-model animations.
   rotation/restarts and ImGui mouse selection. Seventeen engine cases, one process case and six editor cases pass
   (199 assertions), without GPU/windows. MSVC builds without warnings; Windows memory header prerequisites are
   preserved across clang-format.
+- M11.4 follow-up: scope totals advance with frames entering/leaving the retained ring, so drawing averages no
+  longer scans every sample of the history during stress profiling. Expired names and totals are removed, and
+  process restarts clear them. All seven headless editor tools cases pass (37 assertions) with MSVC.
 - M11.5: `screenshot [name.png]` queues a complete frame (including custom rendering/UI) into a readable matching
   target and presents it through public frame-target redirection/blitting; no second scene rendering or swapchain
   readback is needed. Submitted textures save as PNG with RGBA/BGRA conversion and sRGB preserved. `capture [name]`

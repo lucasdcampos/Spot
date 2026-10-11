@@ -88,6 +88,9 @@ advances. The timeline shows nested scopes, with inclusive durations on hover. T
 by inclusive milliseconds per recorded frame and shows calls per frame; absent scopes count as zero. Dropped
 samples are reported for each frame so an incomplete recording remains visible.
 
+Scope totals update only when frames enter or leave the retained ring. Drawing averages does not scan every
+sample in the history, so the panel avoids adding a history-sized workload while investigating a stress pile.
+
 The default source is the editor, including games played in its scene view. Select **Game process** for a game
 launched by the editor. `GameRunner` enables `SPOT_PROFILE_STREAM=1` only in that child's environment, reads
 versioned profile records from its existing log pipe and retains the same bounded history. Normal logs still

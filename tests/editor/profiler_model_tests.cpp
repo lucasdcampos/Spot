@@ -68,6 +68,32 @@ TEST_CASE("The profiler panel draws a recorded spike without a GPU", "[editor][p
     CHECK(panel.GetModel().GetAverages().front().name == "Physics spike");
 }
 
+TEST_CASE("Rolling profiler averages discard expired scopes and clear all totals on restart", "[editor][profiler]") {
+    Spot::Editor::ProfilerModel model;
+    Spot::ProfileFrame frame;
+    frame.number = 1;
+    frame.samples = {{"Expired", 0, {}, std::chrono::milliseconds(100)}};
+    const Spot::ProfileFrame* frames[] = {&frame};
+    model.Update(frames);
+    frame.samples = {{"Current", 0, {}, std::chrono::milliseconds(2)}};
+    for (std::uint64_t i = 2; i <= Spot::Profiler::MaxFrames + 1; ++i) {
+        frame.number = i;
+        model.Update(frames);
+    }
+    const auto averages = model.GetAverages();
+    REQUIRE(averages.size() == 1);
+    CHECK(averages.front().name == "Current");
+    CHECK(averages.front().milliseconds == Catch::Approx(2.0));
+    CHECK(averages.front().callsPerFrame == Catch::Approx(1.0));
+    frame.number = 0;
+    frame.samples.clear();
+    model.Update(frames);
+    CHECK(model.GetAverages().empty());
+    model.Clear();
+    CHECK(model.GetFrames().empty());
+    CHECK(model.GetAverages().empty());
+}
+
 TEST_CASE("Clicking a profiler frame pauses collection so a spike can be inspected", "[editor][profiler]") {
     Spot::Tests::HeadlessImGui ui;
     Spot::Profiler::Clear();
