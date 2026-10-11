@@ -138,6 +138,7 @@ public:
     // The entities without a parent, in their sibling order.
     std::vector<Entity*> GetRootEntities() const;
     std::size_t GetEntityCount() const;
+    std::uint64_t GetUpdateCount() const { return m_updateCount; }
 
     // Saves every entity, with its name, tags, activity, transform, place in the hierarchy and registered
     // components, as JSON.
@@ -289,6 +290,7 @@ private:
     bool m_runningSystems = false;
     float m_fixedTimeStep = DefaultFixedTimeStep;
     float m_fixedTimeLeft = 0.0f;
+    std::uint64_t m_updateCount = 0;
 };
 
 } // namespace Spot

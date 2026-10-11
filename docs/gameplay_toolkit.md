@@ -57,4 +57,39 @@ Setters and completion callbacks can cancel or schedule tweens. New playbacks wa
 and reentrant updates do nothing. A throwing callback cancels that playback. Standalone players propagate the
 exception unless given an error handler; scene systems log it and keep other tweens running.
 
-Coroutines, signals, typed component references and versioned save data follow in M10.4–M10.7.
+## Coroutines
+
+`Task` is a lazy, move-only C++20 coroutine. `TaskScheduler::Start()` starts it synchronously up to its first
+suspension; `Update(simulationSeconds)` resumes ready tasks. Inside a task, await `NextFrame{}`,
+`WaitForSeconds{seconds}`, `WaitUntil{predicate}`, or another `Task`. Each suspension resumes at most once per
+update; elapsed time is not carried into a new wait. Zero-second waits still yield a frame. Only these awaiters
+participate in the scheduler.
+
+Components own tasks through `StartCoroutine()`, `CancelCoroutine()`, `CancelCoroutines()` and
+`IsCoroutineRunning()`. Prefer a member coroutine over a temporary capturing coroutine lambda: the lambda's
+closure must outlive its coroutine.
+
+```cpp
+Spot::Task Explosive::Fuse() {
+    co_await Spot::WaitForSeconds{3.0f};
+    Explode();
+}
+
+void Explosive::OnStart() {
+    StartCoroutine(Fuse());
+}
+```
+
+Component tasks advance after timers and before `OnUpdate()` in scaled time. Starting one during a scene update
+never resumes its first wait in that same update. Inactive components pause, and zero simulation time pauses all
+waits, including conditions and next-frame waits. Removal, destruction and faults cancel the owner's tasks at
+once. Cancellation destroys suspended coroutine frames, including nested children, so local RAII objects release
+their resources. Cancelling a currently executing task defers frame destruction until it suspends or finishes;
+ordinary C++ execution between suspension points continues.
+
+Exceptions from a child task or a condition can be caught by the coroutine awaiting it. An uncaught exception
+cancels the task; a standalone scheduler propagates it, while a component faults and cancels its other tasks.
+`Scene::GetUpdateCount()` identifies scene updates; the scheduler's explicit-frame overloads use that identity to
+avoid resuming tasks created during a hook twice in one frame.
+
+Signals, typed component references and versioned save data follow in M10.5–M10.7.

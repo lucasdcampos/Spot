@@ -23,6 +23,88 @@ protected:
 
 class TimerOwner final : public Spot::Component {};
 
+Spot::Task ChildTask(std::vector<int>& calls) {
+    calls.push_back(4);
+    co_await Spot::WaitForSeconds{0.25f};
+    calls.push_back(5);
+}
+
+Spot::Task AwaitAll(std::vector<int>& calls, bool& ready) {
+    calls.push_back(0);
+    co_await Spot::NextFrame{};
+    calls.push_back(1);
+    co_await Spot::WaitForSeconds{0.5f};
+    calls.push_back(2);
+    co_await Spot::WaitUntil{[&] { return ready; }};
+    calls.push_back(3);
+    co_await ChildTask(calls);
+    calls.push_back(6);
+}
+
+struct TaskLifetime {
+    int& destroyed;
+    ~TaskLifetime() { ++destroyed; }
+};
+
+Spot::Task WaitingChild(int& destroyed) {
+    TaskLifetime lifetime{destroyed};
+    co_await Spot::WaitForSeconds{10.0f};
+}
+
+Spot::Task WaitingParent(int& destroyed) {
+    TaskLifetime lifetime{destroyed};
+    co_await WaitingChild(destroyed);
+}
+
+Spot::Task ThrowingCondition() {
+    co_await Spot::WaitUntil{[]() -> bool { throw std::runtime_error("condition failure"); }};
+}
+
+Spot::Task CatchChildError(int& caught) {
+    try {
+        co_await ThrowingCondition();
+    } catch (const std::runtime_error&) {
+        ++caught;
+    }
+}
+
+Spot::Task CountFrames(int& calls) {
+    ++calls;
+    co_await Spot::NextFrame{};
+    ++calls;
+    co_await Spot::NextFrame{};
+    ++calls;
+}
+
+class CoroutineStarter final : public Spot::Component {
+public:
+    int calls = 0;
+
+protected:
+    void OnStart() override { StartCoroutine(CountFrames(calls)); }
+};
+
+Spot::Task CancelSelf(Spot::TaskScheduler& scheduler, Spot::TaskId& id, int& calls) {
+    co_await Spot::NextFrame{};
+    scheduler.Cancel(id);
+    ++calls;
+    co_await Spot::NextFrame{};
+    ++calls;
+}
+
+Spot::Task DestroyOwner(Spot::Entity& entity, int& calls) {
+    co_await Spot::WaitUntil{[&] {
+        entity.Destroy();
+        return true;
+    }};
+    ++calls;
+}
+
+Spot::Task FailTask() {
+    co_await Spot::NextFrame{};
+    throw std::runtime_error("coroutine failure");
+}
+
 } // namespace
 
 TEST_CASE("Scaled time pauses and resumes while unscaled time advances", "[gameplay][time]") {
@@ -294,4 +376,105 @@ TEST_CASE("Scene tweens follow activity and resolve transform targets by identit
     scene.Update(0.25f);
     CHECK_FALSE(tweens.IsPlaying(selfDestruct));
     CHECK(afterDestruction == 0);
+}
+
+TEST_CASE("Coroutines await frames, scaled seconds, conditions and nested tasks", "[gameplay][coroutines]") {
+    Spot::TaskScheduler scheduler;
+    std::vector<int> calls;
+    bool ready = false;
+    const auto id = scheduler.Start(AwaitAll(calls, ready));
+    CHECK(calls == std::vector<int>{0});
+    scheduler.Update(0.0f);
+    CHECK(calls == std::vector<int>{0});
+    scheduler.Update(0.1f);
+    CHECK(calls == std::vector<int>{0, 1});
+    scheduler.Update(0.25f);
+    CHECK(calls == std::vector<int>{0, 1});
+    scheduler.Update(0.25f);
+    CHECK(calls == std::vector<int>{0, 1, 2});
+    scheduler.Update(0.1f);
+    CHECK(calls.size() == 3);
+    ready = true;
+    scheduler.Update(0.1f);
+    CHECK(calls == std::vector<int>{0, 1, 2, 3, 4});
+    scheduler.Update(0.125f);
+    CHECK(scheduler.IsRunning(id));
+    scheduler.Update(0.125f);
+    CHECK(calls == std::vector<int>{0, 1, 2, 3, 4, 5, 6});
+    CHECK_FALSE(scheduler.IsRunning(id));
+}
+
+TEST_CASE("Cancelling a coroutine releases nested frames and supports cancellation during execution",
+          "[gameplay][coroutines]") {
+    Spot::TaskScheduler scheduler;
+    int destroyed = 0;
+    const auto parent = scheduler.Start(WaitingParent(destroyed));
+    CHECK(destroyed == 0);
+    CHECK(scheduler.Cancel(parent));
+    CHECK(destroyed == 2);
+    CHECK_FALSE(scheduler.Cancel(parent));
+    int calls = 0;
+    Spot::TaskId self = Spot::TaskId::Invalid;
+    self = scheduler.Start(CancelSelf(scheduler, self, calls));
+    scheduler.Update(0.1f);
+    CHECK(calls == 1);
+    CHECK_FALSE(scheduler.IsRunning(self));
+    scheduler.Update(0.1f);
+    CHECK(calls == 1);
+    CHECK(scheduler.Start({}) == Spot::TaskId::Invalid);
+}
+
+TEST_CASE("Nested coroutine failures can be caught by their parent", "[gameplay][coroutines]") {
+    Spot::TaskScheduler scheduler;
+    int caught = 0;
+    const auto id = scheduler.Start(CatchChildError(caught));
+    scheduler.Update(0.1f);
+    CHECK(caught == 1);
+    CHECK_FALSE(scheduler.IsRunning(id));
+    const auto broken = scheduler.Start(FailTask());
+    CHECK_THROWS_AS(scheduler.Update(0.1f), std::runtime_error);
+    CHECK_FALSE(scheduler.IsRunning(broken));
+}
+
+TEST_CASE("Component coroutines start synchronously and resume on the next scene update", "[gameplay][coroutines]") {
+    Spot::Scene scene;
+    auto& owner = scene.CreateEntity().AddComponent<CoroutineStarter>();
+    scene.Update(0.1f);
+    CHECK(owner.calls == 1);
+    owner.SetEnabled(false);
+    scene.Update(0.1f);
+    CHECK(owner.calls == 1);
+    owner.SetEnabled(true);
+    scene.Update(0.0f);
+    CHECK(owner.calls == 1);
+    scene.Update(0.1f);
+    CHECK(owner.calls == 2);
+    scene.Update(0.1f);
+    CHECK(owner.calls == 3);
+    int destroyed = 0;
+    owner.StartCoroutine(WaitingParent(destroyed));
+    owner.GetEntity().RemoveComponent(owner);
+    CHECK(destroyed == 2);
+}
+
+TEST_CASE("Owner removal during a coroutine condition prevents resumption and faults stay isolated",
+          "[gameplay][coroutines]") {
+    Spot::Scene scene;
+    int calls = 0;
+    auto& removedEntity = scene.CreateEntity();
+    const auto entityId = removedEntity.GetId();
+    auto& removed = removedEntity.AddComponent<TimerOwner>();
+    removed.StartCoroutine(DestroyOwner(removedEntity, calls));
+    auto& broken = scene.CreateEntity().AddComponent<TimerOwner>();
+    broken.StartCoroutine(FailTask());
+    auto& healthy = scene.CreateEntity().AddComponent<TimerOwner>();
+    const auto running = healthy.StartCoroutine(CountFrames(calls));
+    scene.Update(0.1f);
+    CHECK(scene.GetEntity(entityId) == nullptr);
+    CHECK(broken.IsFaulted());
+    CHECK(calls == 2);
+    CHECK(healthy.IsCoroutineRunning(running));
+    scene.Update(0.1f);
+    CHECK(calls == 3);
+    CHECK_FALSE(healthy.IsCoroutineRunning(running));
 }

@@ -988,7 +988,7 @@ with view-model animations.
   stopped when the component goes. Tests.
 - [x] **M10.3 Tweens.** Tweens of values, transforms and colors with easing functions and sequences, run by a
   `TweenSystem`. Tests.
-- [ ] **M10.4 Coroutines.** A C++20 coroutine `Task` that awaits the next frame, seconds, a condition or another task,
+- [x] **M10.4 Coroutines.** A C++20 coroutine `Task` that awaits the next frame, seconds, a condition or another task,
   owned by a component and cancelled with it. Tests.
 - [ ] **M10.5 Signals.** `Signal<Args...>` with scoped connections that disconnect themselves, for gameplay messages
   and UI callbacks. Tests.
@@ -1012,6 +1012,10 @@ with view-model animations.
 - M10.3: reusable `Tween` descriptions and a code-only `TweenPlayer` support easing, colors, quaternion rotations
   and nested sequences with overshoot. The lazy scene `TweenSystem` resolves transform targets and optional owners
   by entity/component ids. Missing owners cancel, inactive owners pause, and callback failures cancel only one tween.
+- M10.4: lazy move-only C++20 `Task` coroutines run through a code-only `TaskScheduler` or an owning component.
+  Frame, seconds, condition and nested-task waits pause with simulation time; scene update ids prevent a task
+  started in a hook from consuming that update's delta. Cancellation unwinds all nested frames and defers destruction
+  of executing frames until suspension. Child and predicate exceptions enter the awaiting coroutine normally.
 
 ---
 

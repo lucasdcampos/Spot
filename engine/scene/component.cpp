@@ -59,6 +59,37 @@ void Component::UpdateInvokes(float deltaTime) {
     }
 }
 
+TaskId Component::StartCoroutine(Task task) {
+    if (!m_entity || m_removed || m_faulted || m_entity->m_destroyed) {
+        return TaskId::Invalid;
+    }
+    const Detail::DeferRemovalsScope defer(GetScene());
+    if (!m_tasks) {
+        m_tasks = std::make_unique<TaskScheduler>();
+    }
+    TaskId id = TaskId::Invalid;
+    InvokeHook("Coroutine", [&] { id = m_tasks->Start(std::move(task), GetScene().GetUpdateCount()); });
+    return id;
+}
+
+bool Component::CancelCoroutine(TaskId id) {
+    return m_tasks && m_tasks->Cancel(id);
+}
+void Component::CancelCoroutines() {
+    if (m_tasks) {
+        m_tasks->CancelAll();
+    }
+}
+bool Component::IsCoroutineRunning(TaskId id) const {
+    return m_tasks && m_tasks->IsRunning(id);
+}
+void Component::UpdateCoroutines(float deltaTime) {
+    if (m_tasks && m_active) {
+        InvokeHook("Coroutine",
+                   [&] { m_tasks->Update(deltaTime, GetScene().GetUpdateCount(), [this] { return m_active; }); });
+    }
+}
+
 Scene& Component::GetScene() const {
     return m_entity->GetScene();
 }
@@ -80,6 +111,10 @@ bool Component::IsActiveAndEnabled() const {
 }
 
 void Component::RefreshActivity() {
+    if (m_removed || m_faulted || (m_entity && m_entity->m_destroyed)) {
+        CancelInvokes();
+        CancelCoroutines();
+    }
     const bool active = m_started && IsActiveAndEnabled();
     if (active == m_active) {
         return;
@@ -111,6 +146,7 @@ void Component::Fault(std::string_view hook, const std::exception_ptr& error) {
                                  hook, Detail::DescribeException(error));
     m_faulted = true;
     CancelInvokes();
+    CancelCoroutines();
     if (m_entity) {
         const Detail::DeferRemovalsScope defer(m_entity->GetScene());
         RefreshActivity();

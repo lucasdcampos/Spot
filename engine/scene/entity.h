@@ -244,6 +244,7 @@ private:
     void StartComponents();
     void FixedUpdateComponents(float fixedDeltaTime);
     void UpdateInvokes(float deltaTime);
+    void UpdateCoroutines(float deltaTime);
     void UpdateComponents(float deltaTime);
     void LateUpdateComponents(float deltaTime);
     void DrawUiComponents(Renderer2D& renderer, Vector2 viewSize);

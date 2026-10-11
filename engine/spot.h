@@ -24,6 +24,7 @@
 #include "core/process.h"
 #include "core/profiler.h"
 #include "core/shared_library.h"
+#include "core/task.h"
 #include "core/time.h"
 #include "core/timer.h"
 #include "core/tween.h"

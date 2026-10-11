@@ -214,6 +214,7 @@ std::size_t Scene::GetEntityCount() const {
 
 void Scene::Update(float deltaTime) {
     SPOT_ASSERT(!m_deferRemovals, "Update() cannot be called while the scene walks its entities");
+    ++m_updateCount;
     if (!std::isfinite(deltaTime) || deltaTime < 0.0f) {
         deltaTime = 0.0f;
     }
@@ -265,6 +266,14 @@ void Scene::Update(float deltaTime) {
         }
     }
 
+    {
+        SPOT_PROFILE_SCOPE("Components::Coroutine");
+        for (std::size_t i = 0; i < m_entities.size(); ++i) {
+            if (m_entities[i]) {
+                m_entities[i]->UpdateCoroutines(deltaTime);
+            }
+        }
+    }
     {
         SPOT_PROFILE_SCOPE("Scene::OnUpdate");
         OnUpdate(deltaTime);

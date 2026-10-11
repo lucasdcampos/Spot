@@ -1,6 +1,7 @@
 #pragma once
 
 #include "assets/asset_id.h"
+#include "core/task.h"
 #include "core/timer.h"
 #include "math/vector.h"
 
@@ -88,6 +89,10 @@ public:
     void CancelInvokes();
     bool IsInvokePending(InvokeId id) const;
     float GetInvokeTimeLeft(InvokeId id) const;
+    TaskId StartCoroutine(Task task);
+    bool CancelCoroutine(TaskId id);
+    void CancelCoroutines();
+    bool IsCoroutineRunning(TaskId id) const;
 
 protected:
     Component();
@@ -126,6 +131,7 @@ private:
     // Calls OnEnable() or OnDisable() when the component started and its activity changed since the last call.
     void RefreshActivity();
     void UpdateInvokes(float deltaTime);
+    void UpdateCoroutines(float deltaTime);
 
     // Runs one of the component's hooks, faulting the component when it throws. Returns whether it completed.
     template <typename F>
@@ -143,6 +149,7 @@ private:
     Entity* m_entity = nullptr;
     ComponentId m_id = ComponentId::Generate();
     std::unique_ptr<TimerQueue> m_timers;
+    std::unique_ptr<TaskScheduler> m_tasks;
     bool m_enabled = true;
     bool m_started = false;
     // Whether OnEnable() was the last of OnEnable() and OnDisable() to run.
