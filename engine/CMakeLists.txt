@@ -157,6 +157,12 @@ add_library(spot_objects OBJECT
     input/input_state.cpp
     input/keys.h
     input/keys.cpp
+    particles/particle_settings.h
+    particles/particle_settings.cpp
+    particles/particle_simulation.h
+    particles/particle_simulation.cpp
+    particles/particle_system.h
+    particles/particle_system.cpp
     math/curve.h
     math/curve.cpp
     graphics/gradient.h

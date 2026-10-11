@@ -1,6 +1,7 @@
 #include "scene/component_registry.h"
 
 #include "audio/audio_source.h"
+#include "particles/particle_system.h"
 #include "physics/character_controller.h"
 #include "physics/collider.h"
 #include "physics/joint.h"
@@ -43,6 +44,7 @@ void RegisterBuiltIn(Registry& registry, const std::string& name) {
 Registry& GetRegistry() {
     static Registry registry;
     static const bool builtInRegistered = [] {
+        RegisterBuiltIn<ParticleSystem>(registry, "ParticleSystem");
         RegisterBuiltIn<MeshRenderer>(registry, "MeshRenderer");
         RegisterBuiltIn<Rigidbody>(registry, "Rigidbody");
         RegisterBuiltIn<BoxCollider>(registry, "BoxCollider");

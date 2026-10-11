@@ -1152,7 +1152,7 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
 ## M13 – Particles
 
 - [x] **M13.1 Curves and gradients.** `Curve` and `Gradient` types that are serialized and edited in the inspector.
-- [ ] **M13.2 Simulation.** A `ParticleSystem` component with emission rate and bursts, shapes (point, sphere, cone,
+- [x] **M13.2 Simulation.** A `ParticleSystem` component with emission rate and bursts, shapes (point, sphere, cone,
   box), start ranges, values over lifetime, gravity and local or world space, simulated on the CPU by a system.
   Tests.
 - [ ] **M13.3 Rendering.** Instanced billboards that face the camera or stretch with velocity, additive or alpha
@@ -1164,6 +1164,11 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
 **Done when:** weapons, impacts and explosions in the sandbox emit particles.
 
 **Notes:**
+- M13.2: a code-only bounded simulator underlies the component and lazy scene system. Fixed internal
+  steps, seeded sampling and timestamped births make replay deterministic. Configuration edits reset
+  runtime state; disabling freezes it. MSVC compiles without warnings and ten cases pass 693 assertions
+  across curves, emission, loops, shapes, modules, spaces, replay, validation and scene lifecycle.
+
 - M13.1: Hermite curves and linear HDR gradients use sorted, finite keys, last-key duplicate resolution
   and clamped endpoints. They share the archive and inspector key-array editing, including undo and
   prefab overrides. MSVC builds without warnings; three tests pass (20 assertions).
