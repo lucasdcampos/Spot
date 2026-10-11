@@ -188,3 +188,110 @@ TEST_CASE("Destroying or faulting a timer owner stops its remaining callbacks", 
     CHECK_FALSE(broken.IsInvokePending(skipped));
     CHECK(calls == 1);
 }
+
+TEST_CASE("Tween easing has stable endpoints and interpolation supports colors and rotations", "[gameplay][tweens]") {
+    for (const auto ease : {Spot::Ease::Linear, Spot::Ease::QuadIn, Spot::Ease::QuadOut, Spot::Ease::QuadInOut,
+                            Spot::Ease::CubicIn, Spot::Ease::CubicOut, Spot::Ease::CubicInOut, Spot::Ease::SineInOut}) {
+        CHECK(Spot::EvaluateEase(ease, -1.0f) == Approx(0.0f));
+        CHECK(Spot::EvaluateEase(ease, 2.0f) == Approx(1.0f));
+        float previous = 0.0f;
+        for (int step = 1; step <= 10; ++step) {
+            const float value = Spot::EvaluateEase(ease, static_cast<float>(step) / 10.0f);
+            CHECK(value >= previous);
+            previous = value;
+        }
+    }
+    CHECK(Spot::EvaluateEase(Spot::Ease::QuadIn, 0.5f) == Approx(0.25f));
+    CHECK(Spot::Interpolate(Spot::Color::Red, Spot::Color::Blue, 0.5f) == Spot::Color{0.5f, 0.0f, 0.5f, 1.0f});
+    const auto end = Spot::Quaternion::FromAxisAngle({0.0f, 1.0f, 0.0f}, Spot::Pi * 0.5f);
+    const auto half = Spot::Interpolate(Spot::Quaternion::Identity(), end, 0.5f);
+    CHECK((half * Spot::Vector3{1.0f, 0.0f, 0.0f}).x == Approx(std::sqrt(0.5f)));
+}
+
+TEST_CASE("Tween sequences consume overshoot and complete once", "[gameplay][tweens]") {
+    Spot::TweenPlayer player;
+    float value = 0.0f;
+    int completions = 0;
+    const auto set = [&](float sample) { value = sample; };
+    const auto sequence = Spot::Tween::Sequence({Spot::Tween::Value(0.5f, 0.0f, 1.0f, set), Spot::Tween::Delay(0.25f),
+                                                 Spot::Tween::Value(0.5f, 1.0f, 0.0f, set, Spot::Ease::QuadIn)});
+    CHECK(sequence.GetDuration() == Approx(1.25));
+    const auto id = player.Play(sequence, {.onComplete = [&] { ++completions; }});
+    player.Update(0.0f);
+    CHECK(value == 0.0f);
+    player.Update(1.0f);
+    CHECK(value == Approx(0.75f));
+    CHECK(player.IsPlaying(id));
+    player.Update(0.5f);
+    CHECK(value == 0.0f);
+    CHECK(completions == 1);
+    CHECK_FALSE(player.IsPlaying(id));
+    player.Update(1.0f);
+    CHECK(completions == 1);
+    CHECK(player.Play(Spot::Tween(-1.0f)) == Spot::TweenId::Invalid);
+    CHECK(player.Play(Spot::Tween::Sequence({Spot::Tween(std::numeric_limits<float>::infinity())})) ==
+          Spot::TweenId::Invalid);
+}
+
+TEST_CASE("Tween callbacks safely cancel and schedule while failures stay isolated", "[gameplay][tweens]") {
+    Spot::TweenPlayer player;
+    int calls = 0;
+    int errors = 0;
+    Spot::TweenId id = Spot::TweenId::Invalid;
+    id = player.Play(Spot::Tween(1.0f, [&](float) {
+        ++calls;
+        player.Cancel(id);
+        player.Play(Spot::Tween(0.0f, [&](float) { ++calls; }));
+        player.Update(1.0f);
+    }));
+    player.Play(Spot::Tween(0.0f, [](float) { throw std::runtime_error("tween failure"); }),
+                {.onError = [&](std::exception_ptr) { ++errors; }});
+    player.Update(0.25f);
+    CHECK(calls == 1);
+    CHECK(errors == 1);
+    CHECK_FALSE(player.IsPlaying(id));
+    player.Update(0.25f);
+    CHECK(calls == 2);
+}
+
+TEST_CASE("Scene tweens follow activity and resolve transform targets by identity", "[gameplay][tweens]") {
+    Spot::Scene scene;
+    auto& entity = scene.CreateEntity();
+    auto& owner = entity.AddComponent<TimerOwner>();
+    auto& tweens = Spot::TweenSystem::Get(scene);
+    const auto id = tweens.Play(owner, Spot::TweenSystem::MoveTo(entity, {2.0f, 0.0f, 0.0f}, 1.0f));
+    scene.Update(0.25f);
+    CHECK(entity.GetTransform().GetPosition().x == Approx(0.5f));
+    owner.SetEnabled(false);
+    scene.Update(0.5f);
+    CHECK(entity.GetTransform().GetPosition().x == Approx(0.5f));
+    owner.SetEnabled(true);
+    scene.Update(0.25f);
+    CHECK(entity.GetTransform().GetPosition().x == Approx(1.0f));
+    entity.RemoveComponent(owner);
+    scene.Update(0.25f);
+    CHECK_FALSE(tweens.IsPlaying(id));
+    CHECK(entity.GetTransform().GetPosition().x == Approx(1.0f));
+    const auto target = entity.GetId();
+    const auto unowned = tweens.Play(Spot::TweenSystem::ScaleTo(entity, {2.0f, 2.0f, 2.0f}, 0.25f));
+    entity.Destroy();
+    scene.Update(0.25f);
+    CHECK(scene.GetEntity(target) == nullptr);
+    CHECK_FALSE(tweens.IsPlaying(unowned));
+
+    auto& rotating = scene.CreateEntity();
+    auto& rotatingOwner = rotating.AddComponent<TimerOwner>();
+    const auto rotation = Spot::Quaternion::FromAxisAngle({0.0f, 1.0f, 0.0f}, Spot::Pi * 0.5f);
+    tweens.Play(rotatingOwner, Spot::TweenSystem::RotateTo(rotating, rotation, 0.5f));
+    tweens.Play(rotatingOwner, Spot::TweenSystem::ScaleTo(rotating, {2.0f, 2.0f, 2.0f}, 0.5f));
+    scene.Update(0.25f);
+    CHECK(rotating.GetTransform().GetScale().x == Approx(1.5f));
+    CHECK((rotating.GetTransform().GetRotation() * Spot::Vector3{1.0f, 0.0f, 0.0f}).x == Approx(std::sqrt(0.5f)));
+    int afterDestruction = 0;
+    const auto selfDestruct =
+        tweens.Play(rotatingOwner, Spot::Tween::Sequence({Spot::Tween(0.0f, [&](float) { rotating.Destroy(); }),
+                                                          Spot::Tween(0.0f, [&](float) { ++afterDestruction; })}));
+    scene.Update(0.25f);
+    CHECK_FALSE(tweens.IsPlaying(selfDestruct));
+    CHECK(afterDestruction == 0);
+}

@@ -986,7 +986,7 @@ with view-model animations.
   on the frame delta if one is missing. Tests.
 - [x] **M10.2 Timers.** `Invoke(delay, fn)`, repeating invokes and cancellation on components, in scaled time,
   stopped when the component goes. Tests.
-- [ ] **M10.3 Tweens.** Tweens of values, transforms and colors with easing functions and sequences, run by a
+- [x] **M10.3 Tweens.** Tweens of values, transforms and colors with easing functions and sequences, run by a
   `TweenSystem`. Tests.
 - [ ] **M10.4 Coroutines.** A C++20 coroutine `Task` that awaits the next frame, seconds, a condition or another task,
   owned by a component and cancelled with it. Tests.
@@ -1009,6 +1009,9 @@ with view-model animations.
 - M10.2: `TimerQueue` is the code-only scheduler; components allocate a queue only when used. Timers advance in
   scaled time after fixed steps and before component updates. Inactive owners pause, removed owners cancel, and
   throwing callbacks fault only their owner. Repeats preserve phase and coalesce missed ticks to prevent bursts.
+- M10.3: reusable `Tween` descriptions and a code-only `TweenPlayer` support easing, colors, quaternion rotations
+  and nested sequences with overshoot. The lazy scene `TweenSystem` resolves transform targets and optional owners
+  by entity/component ids. Missing owners cancel, inactive owners pause, and callback failures cancel only one tween.
 
 ---
 

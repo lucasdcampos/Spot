@@ -67,6 +67,8 @@ add_library(spot_objects OBJECT
     core/time.cpp
     core/timer.h
     core/timer.cpp
+    core/tween.h
+    core/tween.cpp
     core/utf8.h
     core/utf8.cpp
     events/event.h
@@ -208,6 +210,8 @@ add_library(spot_objects OBJECT
     scene/sprite_renderer.cpp
     scene/transform.h
     scene/transform.cpp
+    scene/tween_system.h
+    scene/tween_system.cpp
     window/clipboard.h
     window/file_dialog.h
     window/shell.cpp
