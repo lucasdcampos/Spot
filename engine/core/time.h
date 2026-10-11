@@ -19,6 +19,11 @@ public:
     void Tick(TimePoint now);
 
     float GetDeltaTime() const { return m_deltaTime; }
+    float GetUnscaledDeltaTime() const { return m_unscaledDeltaTime; }
+    double GetUnscaledTime() const { return m_unscaledTime; }
+    float GetTimeScale() const { return m_timeScale; }
+    // Zero pauses simulation; negative and non-finite scales are rejected.
+    bool SetTimeScale(float scale);
     // Seconds since Start(), as the sum of the clamped deltas.
     double GetTime() const { return m_time; }
     std::uint64_t GetFrameCount() const { return m_frameCount; }
@@ -27,6 +32,9 @@ private:
     Duration m_maxDeltaTime;
     TimePoint m_lastTick;
     float m_deltaTime = 0.0f;
+    float m_unscaledDeltaTime = 0.0f;
+    double m_unscaledTime = 0.0;
+    float m_timeScale = 1.0f;
     double m_time = 0.0;
     std::uint64_t m_frameCount = 0;
 };
@@ -48,10 +56,15 @@ private:
 // Global access to the frame timing of the running application, e.g. Spot::Time::GetDeltaTime().
 namespace Time {
 
-// The application points this at the clock it ticks every frame. Without a clock every query returns 0.
-void SetClock(const FrameClock* clock);
+// The application points this at the clock it ticks every frame. Timing queries return 0 without a clock;
+// the time scale persists between applications.
+void SetClock(FrameClock* clock);
 
 float GetDeltaTime();
+float GetUnscaledDeltaTime();
+double GetUnscaledTime();
+float GetTimeScale();
+bool SetTimeScale(float scale);
 double GetTime();
 std::uint64_t GetFrameCount();
 

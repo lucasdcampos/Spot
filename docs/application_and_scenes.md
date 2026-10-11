@@ -27,6 +27,13 @@ The game's code marks itself once with `SPOT_GAME_MODULE()` and registers its co
 
 ## The frame
 
+`Time::SetTimeScale(scale)` controls simulation time globally: zero pauses time, values below one slow it down,
+and values above one speed it up. Negative and non-finite values are rejected. `Time::GetDeltaTime()` and
+`GetTime()` are scaled; `GetUnscaledDeltaTime()` and `GetUnscaledTime()` keep advancing for tools and UI. The
+frame clock clamps stalls to 250 ms before scaling. Application updates and scene physics receive scaled seconds;
+standalone `Scene::Update(seconds)` already takes simulation seconds and does not scale them again. Fixed physics
+keeps its step size and changes how many steps are due. The editor's UI and backup clock use unscaled time.
+
 Each iteration of `Application::Run()`:
 
 1. Begins a profiler frame and waits for the frame rate cap (`Application::Wait`).

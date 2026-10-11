@@ -194,7 +194,7 @@ void EditorApplication::OnEvent(const Event& event) {
     }
 }
 
-void EditorApplication::OnUpdate(float deltaTime) {
+void EditorApplication::OnUpdate(float /*deltaTime*/) {
     if (m_closeProjectRequested) {
         m_closeProjectRequested = false;
         CloseProject();
@@ -210,7 +210,7 @@ void EditorApplication::OnUpdate(float deltaTime) {
     UpdateModules();
 
     const int backupMinutes = m_settings.GetPreferences().backupMinutes;
-    m_sinceBackup += deltaTime;
+    m_sinceBackup += Time::GetUnscaledDeltaTime();
     if (backupMinutes > 0 && m_sinceBackup >= static_cast<float>(backupMinutes) * 60.0f) {
         m_sinceBackup = 0.0f;
         m_workspace->BackUp();
@@ -251,7 +251,7 @@ void EditorApplication::UpdateModules() {
 void EditorApplication::OnRender(RenderContext& context) {
     m_context->SetMouseDelta(std::exchange(m_mouseDelta, Vector2{}));
     m_imgui->SetUiScale(m_settings.GetPreferences().uiScale);
-    m_imgui->BeginFrame(Time::GetDeltaTime());
+    m_imgui->BeginFrame(Time::GetUnscaledDeltaTime());
     DrawUi();
     m_imgui->EndFrame();
 

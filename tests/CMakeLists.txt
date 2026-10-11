@@ -101,6 +101,10 @@ add_dependencies(spot_tests spot_cli)
 
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(Catch)
+add_executable(spot_gameplay_tests gameplay_tests.cpp)
+target_link_libraries(spot_gameplay_tests PRIVATE spot::spot Catch2::Catch2WithMain)
+spot_set_compile_options(spot_gameplay_tests)
+catch_discover_tests(spot_gameplay_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
 # The dummy video driver lets window tests run on machines without a display, such as CI servers.
 # The timeout turns a main loop that never quits into a failure instead of a hang.
 catch_discover_tests(spot_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)

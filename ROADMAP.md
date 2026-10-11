@@ -9,7 +9,7 @@ The goal is the same breadth, built on the architecture Spot already has.
 The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
 [The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
 
-**Current focus:** M9 – Skeletal animation
+**Current focus:** M10 – Gameplay toolkit (requested before M9)
 
 ## How to use this plan
 
@@ -982,7 +982,7 @@ with view-model animations.
 
 ## M10 – Gameplay toolkit
 
-- [ ] **M10.1 Time.** A global time scale, unscaled time for tools and UI, physics that follows the scale, and a clamp
+- [x] **M10.1 Time.** A global time scale, unscaled time for tools and UI, physics that follows the scale, and a clamp
   on the frame delta if one is missing. Tests.
 - [ ] **M10.2 Timers.** `Invoke(delay, fn)`, repeating invokes and cancellation on components, in scaled time,
   stopped when the component goes. Tests.
@@ -1001,6 +1001,11 @@ with view-model animations.
 **Done when:** a sandbox world saved and loaded comes back as it was, and the game has no hand-written timers left.
 
 **Notes:**
+- M10 and M11 are implemented before M9 at the user's request; skeletal animation remains deferred.
+- M10.1: `Time::SetTimeScale()` changes simulation deltas, including fixed physics, while the editor's UI and
+  backups use unscaled time. The frame clock clamps stalls before applying the scale. Standalone scenes receive
+  simulation seconds directly; fixed stepping limits catch-up without converting an unbounded step count to an int.
+  Headless gameplay tests cover pause/resume, invalid scales, physics and extreme deltas; the editor builds on MSVC.
 
 ---
 

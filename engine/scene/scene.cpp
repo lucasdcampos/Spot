@@ -214,6 +214,9 @@ std::size_t Scene::GetEntityCount() const {
 
 void Scene::Update(float deltaTime) {
     SPOT_ASSERT(!m_deferRemovals, "Update() cannot be called while the scene walks its entities");
+    if (!std::isfinite(deltaTime) || deltaTime < 0.0f) {
+        deltaTime = 0.0f;
+    }
 
     SPOT_PROFILE_SCOPE("Scene::Update");
     const Detail::DeferRemovalsScope defer(*this);
@@ -230,13 +233,11 @@ void Scene::Update(float deltaTime) {
     RunSystems("OnBeforeFixedSteps", "Systems::OnBeforeFixedSteps",
                [deltaTime](SceneSystem& system) { system.OnBeforeFixedSteps(deltaTime); });
 
-    m_fixedTimeLeft += deltaTime;
-    const int due = static_cast<int>(m_fixedTimeLeft / m_fixedTimeStep);
-    const int steps = std::min(due, MaxFixedStepsPerUpdate);
-    m_fixedTimeLeft -= static_cast<float>(steps) * m_fixedTimeStep;
-    if (due > steps) {
-        m_fixedTimeLeft = std::fmod(m_fixedTimeLeft, m_fixedTimeStep);
-    }
+    const double accumulated = static_cast<double>(m_fixedTimeLeft) + deltaTime;
+    const double due = std::floor(accumulated / m_fixedTimeStep);
+    const int steps = static_cast<int>(std::min(due, static_cast<double>(MaxFixedStepsPerUpdate)));
+    const double remainder = accumulated - static_cast<double>(steps) * m_fixedTimeStep;
+    m_fixedTimeLeft = static_cast<float>(due > steps ? std::fmod(remainder, m_fixedTimeStep) : remainder);
     // Read once, so a hook that changes it does so from the next update.
     const float fixedTimeStep = m_fixedTimeStep;
     for (int step = 0; step < steps; ++step) {
