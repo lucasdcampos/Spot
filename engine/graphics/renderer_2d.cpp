@@ -122,6 +122,8 @@ void Renderer2D::End() {
     SPOT_ASSERT(m_pass, "Renderer2D::End() called without Begin()");
     Flush();
     m_pass = nullptr;
+    Profiler::Count("2D draw calls", m_stats.drawCalls);
+    Profiler::Count("2D triangles", static_cast<double>(m_stats.quadCount) * 2.0);
 }
 
 void Renderer2D::DrawQuad(Vector2 position, Vector2 size, Color color) {

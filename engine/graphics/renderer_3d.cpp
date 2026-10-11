@@ -540,6 +540,7 @@ void Renderer3D::End() {
     }
     Flush(pass, lights, shadows);
     Profiler::Count("Draw calls", m_stats.drawCalls);
+    Profiler::Count("Triangles", m_stats.triangleCount);
     Profiler::Count("Shadow draw calls", m_stats.shadowDrawCalls);
     m_context = nullptr;
 }

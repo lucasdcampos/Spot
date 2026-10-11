@@ -118,6 +118,8 @@ TEST_CASE("Engine console bindings change public application, audio and time set
         CHECK_FALSE(application.IsSceneRenderingEnabled());
         REQUIRE(console.Execute("render.max_fps 90"));
         CHECK(application.GetMaxFrameRate() == 90);
+        REQUIRE(console.Execute("stats true"));
+        CHECK(application.IsStatsVisible());
         CHECK_FALSE(console.Execute("render.max_fps -1"));
         CHECK_FALSE(console.Execute("audio.volume -1"));
         CHECK(console.Execute("help render.").message.find("render.max_fps") != std::string::npos);

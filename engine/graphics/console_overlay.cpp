@@ -2,6 +2,7 @@
 
 #include "core/console.h"
 #include "core/console_input.h"
+#include "core/runtime_stats.h"
 #include "graphics/font.h"
 #include "graphics/renderer_2d.h"
 
@@ -58,6 +59,17 @@ void DrawConsoleOverlay(const Console& console, const ConsoleInput& input, const
                             rows[i].second ? Color{0.8f, 0.9f, 0.8f, 1.0f} : Color{1.0f, 0.35f, 0.3f, 1.0f}, Scale);
         y -= line;
     }
+}
+
+void DrawStatsOverlay(const RuntimeStats& stats, const Font& font, Renderer2D& renderer, Vector2 size) {
+    constexpr float Scale = 0.8f;
+    const auto text = stats.Format();
+    const auto measured = font.MeasureText(text) * Scale;
+    const float width = std::min(size.x, measured.x + 24.0f);
+    const float height = measured.y + 20.0f;
+    const float x = std::max(0.0f, size.x - width);
+    renderer.DrawQuad({x + width * 0.5f, size.y - height * 0.5f}, {width, height}, {0.015f, 0.02f, 0.03f, 0.85f});
+    renderer.DrawString(font, text, {x + 12.0f, size.y - 10.0f}, {0.8f, 0.95f, 0.8f, 1.0f}, Scale);
 }
 
 } // namespace Spot

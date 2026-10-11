@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <optional>
@@ -13,6 +14,8 @@ namespace Spot {
 // back as lines, read on a thread of its own, so nothing here waits unless asked to.
 class Process {
 public:
+    // Current process resident memory; zero if the platform cannot query it. Includes CPU-side backend allocations.
+    static std::uint64_t GetResidentMemoryBytes();
     // Runs the program, the first argument, with the others, in the working directory or the current one. Null, after
     // logging why, when it cannot start.
     static std::unique_ptr<Process> Start(std::span<const std::string> arguments,

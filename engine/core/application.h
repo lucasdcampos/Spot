@@ -23,6 +23,7 @@ class EngineConsole;
 class ConsoleInput;
 class Font;
 class Renderer2D;
+struct RuntimeStats;
 
 class LogSink;
 class SceneRenderer;
@@ -96,6 +97,9 @@ public:
     // A game's imported UI font; keep the asset reference so it stays loaded for the developer overlays.
     void SetDeveloperFont(AssetRef<Font> font) { m_developerFont = std::move(font); }
     ConsoleInput* GetConsoleInput() const { return m_consoleInput.get(); }
+    bool IsStatsVisible() const { return m_statsVisible; }
+    void SetStatsVisible(bool visible) { m_statsVisible = visible; }
+    RuntimeStats GetRuntimeStats() const;
 
     // Only available while Run() is running.
     Window& GetWindow();
@@ -235,6 +239,7 @@ private:
     bool m_cursorLocked = false;
     bool m_scenesPaused = false;
     bool m_stepScenes = false;
+    bool m_statsVisible = false;
 };
 
 } // namespace Spot

@@ -42,6 +42,7 @@ their code unloads. The engine registers:
 | `render.max_fps` | Saved frame cap; zero is unlimited |
 | `audio.volume` | Saved master audio gain |
 | `profiler.enabled` | Frame scope/counter recording |
+| `stats` | Saved runtime statistics overlay |
 
 Scene bindings resolve the current scene each time, retaining no component pointers across scene changes.
 Gravity and debug settings apply to the current main scene; its authored settings apply again when it is replaced.
@@ -63,6 +64,18 @@ Its command field executes the shared registry, logs results, completes with Tab
 `ConsoleInput` and `DrawConsoleOverlay()` also work in custom loops. The input model is independent of the GPU;
 feed it events before gameplay and deliver unconsumed events to `InputState`. The draw function expects a
 `Renderer2D` camera spanning `[0, viewSize]` with Y up.
+
+## Runtime statistics
+
+`stats true` displays FPS, measured frame milliseconds, draw calls, triangles, live physics bodies, active audio
+voices and resident process memory. Frame duration is independent of simulation time scale. Rendering counts
+combine 3D, shadow draw calls and Renderer2D; triangle counts include the main 3D view and 2D quads. Memory is CPU
+resident memory, including assets and backend allocations; it does not measure dedicated GPU memory and is zero
+when the platform cannot query it. The setting persists with the other saved cvars.
+
+`RuntimeStats::Sample()` also works without graphics. When recording is disabled, FPS uses the unscaled frame
+clock and rendering counts are zero instead of showing stale recordings. Applications record bodies, voices and
+resident memory as profiler counters so tools can inspect them with the frame that produced them.
 
 ### Testing without windows
 

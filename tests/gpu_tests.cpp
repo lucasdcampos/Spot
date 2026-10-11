@@ -66,6 +66,13 @@ TEST_CASE("The developer console renders and reads back offscreen without creati
         auto pass = context->BeginRenderPass({.clearColor = Spot::Color::Blue});
         renderer.Begin(pass, Spot::Camera2D{.position = {320.0f, 240.0f}}, {640.0f, 480.0f});
         Spot::DrawConsoleOverlay(console, input, *font, renderer, {640.0f, 480.0f});
+        if (!input.IsOpen()) {
+            Spot::RuntimeStats stats;
+            stats.fps = 60.0;
+            stats.frameMilliseconds = 1000.0 / 60.0;
+            stats.bodies = 42;
+            Spot::DrawStatsOverlay(stats, *font, renderer, {640.0f, 480.0f});
+        }
         renderer.End();
         pass.End();
         device->EndFrame();
@@ -82,7 +89,8 @@ TEST_CASE("The developer console renders and reads back offscreen without creati
     CHECK(hasText);
     input.SetOpen(false);
     const auto closed = render();
-    CHECK(closed[2] == 255);
+    CHECK(closed[(640 - 1) * 4 + 2] < 100);
+    CHECK(closed[(640 * 479) * 4 + 2] == 255);
     auto invalid = device->CreateTexture({.width = 8, .height = 8});
     REQUIRE(invalid);
     CHECK_FALSE(device->BeginOffscreenFrame(*invalid));

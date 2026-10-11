@@ -44,6 +44,7 @@ add_library(spot_objects OBJECT
     core/application.cpp
     core/console.cpp
     core/console_input.cpp
+    core/runtime_stats.cpp
     core/engine_console.cpp
     core/assert.h
     core/assert.cpp
@@ -337,6 +338,7 @@ if(SPOT_PLATFORM STREQUAL "SDL3")
         platform/sdl3/sdl3_paths.cpp
         platform/sdl3/sdl3_platform.cpp
         platform/sdl3/sdl3_process.cpp
+        platform/sdl3/sdl3_memory.cpp
         platform/sdl3/sdl3_shared_library.cpp
         platform/sdl3/sdl3_shell.cpp
         platform/sdl3/sdl3_window.cpp
@@ -443,7 +445,7 @@ target_include_directories(spot_objects PUBLIC
 # Crashes are reported with the system's own tools: DbgHelp on Windows, signals and dladdr() elsewhere.
 if(WIN32)
     target_sources(spot_objects PRIVATE core/crash_handler_windows.cpp)
-    target_link_libraries(spot_objects PUBLIC dbghelp)
+    target_link_libraries(spot_objects PUBLIC dbghelp psapi)
 else()
     target_sources(spot_objects PRIVATE core/crash_handler_posix.cpp)
     target_link_libraries(spot_objects PUBLIC ${CMAKE_DL_LIBS})

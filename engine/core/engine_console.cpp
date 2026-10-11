@@ -95,6 +95,10 @@ EngineConsole::EngineConsole(Console& console, Application& app) {
     m_registrations.push_back(Bind<bool>(
         console, "profiler.enabled", true, "Record frame scopes and counters", {}, [] { return Profiler::IsEnabled(); },
         [](bool value) { Profiler::SetEnabled(value); }, [](bool) { return true; }));
+    m_registrations.push_back(Bind<bool>(
+        console, "stats", false, "Show frame, rendering, physics, audio and memory statistics", ConsoleFlags::Saved,
+        [&app] { return app.IsStatsVisible(); }, [&app](bool value) { app.SetStatsVisible(value); },
+        [](bool) { return true; }));
 }
 
 } // namespace Spot

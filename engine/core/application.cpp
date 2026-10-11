@@ -11,6 +11,7 @@
 #include "core/log_sinks.h"
 #include "core/paths.h"
 #include "core/profiler.h"
+#include "core/runtime_stats.h"
 #include "core/save_data.h"
 #include "graphics/console_overlay.h"
 #include "graphics/debug_draw.h"
@@ -175,6 +176,13 @@ int Application::Run() {
             for (const auto& scene : m_scenes) {
                 scene->Update(m_clock.GetDeltaTime());
             }
+        }
+        if (Profiler::IsEnabled()) {
+            SPOT_PROFILE_SCOPE("Developer::Stats");
+            const auto stats = GetRuntimeStats();
+            Profiler::Count("Bodies", static_cast<double>(stats.bodies));
+            Profiler::Count("Voices", static_cast<double>(stats.voices));
+            Profiler::Count("Resident memory", static_cast<double>(stats.memoryBytes));
         }
         // Only changes are applied, so applications can still capture the mouse themselves.
         if (m_input.IsCursorLockApplied() != m_cursorLocked) {
@@ -441,8 +449,17 @@ void Application::RemoveScene(const Scene* scene) {
     m_scenes.erase(found);
 }
 
+RuntimeStats Application::GetRuntimeStats() const {
+    auto scenes = GetScenes();
+    if (m_persistentScene) {
+        scenes.push_back(m_persistentScene.get());
+    }
+    return RuntimeStats::Sample(scenes, m_audio.get());
+}
+
 void Application::RenderDeveloperOverlay(RenderContext& context) {
-    if (!m_consoleInput || !m_consoleInput->IsOpen() || !m_developerFont) {
+    const bool consoleOpen = m_consoleInput && m_consoleInput->IsOpen();
+    if ((!consoleOpen && !m_statsVisible) || !m_developerFont) {
         return;
     }
     if (!m_developerRenderer) {
@@ -455,7 +472,12 @@ void Application::RenderDeveloperOverlay(RenderContext& context) {
     auto pass =
         context.BeginRenderPass({.clearColor = m_config.renderScenes ? std::nullopt : std::optional(Color::Black)});
     m_developerRenderer->Begin(pass, Camera2D{.position = size * 0.5f}, size);
-    DrawConsoleOverlay(Console::Get(), *m_consoleInput, *m_developerFont, *m_developerRenderer, size);
+    if (m_statsVisible) {
+        DrawStatsOverlay(GetRuntimeStats(), *m_developerFont, *m_developerRenderer, size);
+    }
+    if (consoleOpen) {
+        DrawConsoleOverlay(Console::Get(), *m_consoleInput, *m_developerFont, *m_developerRenderer, size);
+    }
     m_developerRenderer->End();
 }
 

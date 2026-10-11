@@ -1053,7 +1053,7 @@ with view-model animations.
   audio switches. Tests.
 - [x] **M11.2 In-game console.** An overlay drawn with `Renderer2D` that takes input through M2.6. The editor's console
   panel gets the command line.
-- [ ] **M11.3 Stats overlay.** FPS, frame time, draw calls, triangles, bodies, voices and memory.
+- [x] **M11.3 Stats overlay.** FPS, frame time, draw calls, triangles, bodies, voices and memory.
 - [ ] **M11.4 Profiler panel.** A timeline of recent frames from M0.4 in the editor, with averages per scope and
   pausing. It covers games running in their own process too, through the channel the editor already reads their
   logs from.
@@ -1080,6 +1080,12 @@ with view-model animations.
   `BeginOffscreenFrame()` were added to validate GPU drawing/readback without creating desktop windows. Eleven
   console/input tests, two headless editor tests and all 27 sandbox cases pass, plus one targeted windowless GPU
   test (19 assertions). No broader GPU suite ran; MSVC builds without compiler warnings.
+- M11.3: saved `stats` toggles the Renderer2D overlay with unscaled FPS/frame duration, combined 3D/shadow/2D draws,
+  main-view and 2D triangles, live bodies and voices, and CPU resident memory. Platform memory queries stay in the
+  platform backend. Counters accompany profiler frames; disabling recording falls back to the unscaled clock
+  instead of displaying stale draws. Fourteen headless console/statistics cases (134 assertions) pass, including
+  paused simulation, live physics and audio; the windowless overlay GPU test passes 20 assertions. MSVC compiles
+  without warnings. No desktop windows or broad GPU suite were used.
 
 ---
 
