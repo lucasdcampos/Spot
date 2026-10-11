@@ -36,6 +36,9 @@ ImGuiID BuildDefaultLayout(ImGuiID dockSpace, const LayoutWindows& windows) {
     if (!windows.mixer.empty()) {
         Dock(windows.mixer, console);
     }
+    if (!windows.profiler.empty()) {
+        Dock(windows.profiler, console);
+    }
     ImGui::DockBuilderFinish(dockSpace);
     return scenes;
 }

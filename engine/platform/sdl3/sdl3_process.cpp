@@ -6,6 +6,7 @@
 #include <SDL3/SDL_iostream.h>
 #include <SDL3/SDL_process.h>
 #include <SDL3/SDL_properties.h>
+#include <SDL3/SDL_stdinc.h>
 #include <SDL3/SDL_timer.h>
 
 #include <mutex>
@@ -67,8 +68,14 @@ struct Process::Impl {
 Process::Process(std::unique_ptr<Impl> impl) : m_impl(std::move(impl)) {
 }
 
+std::optional<std::string> Process::GetEnvironmentValue(const char* name) {
+    const char* value = name ? SDL_GetEnvironmentVariable(SDL_GetEnvironment(), name) : nullptr;
+    return value ? std::optional<std::string>(value) : std::nullopt;
+}
+
 std::unique_ptr<Process> Process::Start(std::span<const std::string> arguments,
-                                        const std::filesystem::path& workingDirectory) {
+                                        const std::filesystem::path& workingDirectory,
+                                        std::span<const ProcessEnvironmentVariable> environment) {
     if (arguments.empty()) {
         Log::GetEngineLogger().Error("A process needs a program to run");
         return nullptr;
@@ -80,8 +87,30 @@ std::unique_ptr<Process> Process::Start(std::span<const std::string> arguments,
     argv.push_back(nullptr);
     const std::string directory = PathToUtf8(workingDirectory);
 
+    std::unique_ptr<SDL_Environment, decltype(&SDL_DestroyEnvironment)> childEnvironment(nullptr,
+                                                                                         SDL_DestroyEnvironment);
+    if (!environment.empty()) {
+        childEnvironment.reset(SDL_CreateEnvironment(true));
+        if (!childEnvironment) {
+            return nullptr;
+        }
+        for (const auto& variable : environment) {
+            if (variable.name.empty() || variable.name.find('=') != std::string::npos ||
+                variable.name.find('\0') != std::string::npos || variable.value.find('\0') != std::string::npos ||
+                !SDL_SetEnvironmentVariable(childEnvironment.get(), variable.name.c_str(), variable.value.c_str(),
+                                            true)) {
+                Log::GetEngineLogger().Error("Invalid child process environment variable '{}': {}", variable.name,
+                                             SDL_GetError());
+                return nullptr;
+            }
+        }
+    }
+
     const SDL_PropertiesID properties = SDL_CreateProperties();
     SDL_SetPointerProperty(properties, SDL_PROP_PROCESS_CREATE_ARGS_POINTER, argv.data());
+    if (childEnvironment) {
+        SDL_SetPointerProperty(properties, SDL_PROP_PROCESS_CREATE_ENVIRONMENT_POINTER, childEnvironment.get());
+    }
     if (!workingDirectory.empty()) {
         SDL_SetStringProperty(properties, SDL_PROP_PROCESS_CREATE_WORKING_DIRECTORY_STRING, directory.c_str());
     }

@@ -2,6 +2,7 @@
 
 #include <spot.h>
 
+#include <deque>
 #include <filesystem>
 #include <memory>
 #include <optional>
@@ -31,6 +32,8 @@ public:
     std::optional<int> GetExitCode();
     // Shows what the game logged since the last call, and tells when it exits.
     void Update();
+    // Bounded completed frames received over the game's log pipe, valid until Update() or Start().
+    std::vector<const ProfileFrame*> GetProfileFrames() const;
 
     struct Line {
         LogLevel level = LogLevel::Info;
@@ -44,6 +47,7 @@ public:
 private:
     std::unique_ptr<Process> m_process;
     bool m_exitReported = false;
+    std::deque<ProfileFrame> m_profileFrames;
 };
 
 } // namespace Spot

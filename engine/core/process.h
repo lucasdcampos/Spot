@@ -10,16 +10,24 @@
 
 namespace Spot {
 
+struct ProcessEnvironmentVariable {
+    std::string name;
+    std::string value;
+};
+
 // Another program running alongside, as tools run compilers. What it writes to its standard output and error comes
 // back as lines, read on a thread of its own, so nothing here waits unless asked to.
 class Process {
 public:
     // Current process resident memory; zero if the platform cannot query it. Includes CPU-side backend allocations.
     static std::uint64_t GetResidentMemoryBytes();
+    // A copy of the current process environment value, or nothing if unset.
+    static std::optional<std::string> GetEnvironmentValue(const char* name);
     // Runs the program, the first argument, with the others, in the working directory or the current one. Null, after
     // logging why, when it cannot start.
     static std::unique_ptr<Process> Start(std::span<const std::string> arguments,
-                                          const std::filesystem::path& workingDirectory = {});
+                                          const std::filesystem::path& workingDirectory = {},
+                                          std::span<const ProcessEnvironmentVariable> environment = {});
     // Kills the program if it still runs.
     ~Process();
 

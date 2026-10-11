@@ -100,6 +100,8 @@ public:
     bool IsStatsVisible() const { return m_statsVisible; }
     void SetStatsVisible(bool visible) { m_statsVisible = visible; }
     RuntimeStats GetRuntimeStats() const;
+    bool IsProfileStreamEnabled() const { return m_profileStreamEnabled; }
+    void SetProfileStreamEnabled(bool enabled) { m_profileStreamEnabled = enabled; }
 
     // Only available while Run() is running.
     Window& GetWindow();
@@ -211,6 +213,7 @@ private:
     void RemoveAllScenes();
     void RenderScenes(RenderContext& context);
     void RenderDeveloperOverlay(RenderContext& context);
+    void StreamProfileFrame();
     // Returns false, after logging why, when the game's startup scene cannot be loaded.
     bool LoadStartupScene();
 
@@ -240,6 +243,8 @@ private:
     bool m_scenesPaused = false;
     bool m_stepScenes = false;
     bool m_statsVisible = false;
+    bool m_profileStreamEnabled = false;
+    std::optional<std::uint64_t> m_lastStreamedFrame;
 };
 
 } // namespace Spot

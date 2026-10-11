@@ -66,6 +66,21 @@ SPOT_NO_INLINE int CrashByOverflow(int depth) {
 } // namespace
 
 int main(int argc, char** argv) {
+    if (argc == 2 && std::string_view(argv[1]) == "--emit-profile") {
+        if (Spot::Process::GetEnvironmentValue("SPOT_PROFILE_STREAM") != "1") {
+            return 3;
+        }
+        for (std::uint64_t i = 1; i <= 250; ++i) {
+            Spot::ProfileFrame frame;
+            frame.number = i;
+            frame.duration = std::chrono::milliseconds(16);
+            frame.samples = {{"Remote physics", 0, {}, std::chrono::milliseconds(12)}};
+            frame.counters = {{"Bodies", static_cast<double>(i)}};
+            Spot::Log::Info("{}", Spot::EncodeProfileFrame(frame));
+        }
+        Spot::Log::Info("Profile fixture finished");
+        return 0;
+    }
     if (argc != 4) {
         std::fputs("Usage: spot_crash_app <access|pure|exception|abort|overflow|assert> <log> <reports>\n", stderr);
         return 2;

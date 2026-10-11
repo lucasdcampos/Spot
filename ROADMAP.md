@@ -1054,7 +1054,7 @@ with view-model animations.
 - [x] **M11.2 In-game console.** An overlay drawn with `Renderer2D` that takes input through M2.6. The editor's console
   panel gets the command line.
 - [x] **M11.3 Stats overlay.** FPS, frame time, draw calls, triangles, bodies, voices and memory.
-- [ ] **M11.4 Profiler panel.** A timeline of recent frames from M0.4 in the editor, with averages per scope and
+- [x] **M11.4 Profiler panel.** A timeline of recent frames from M0.4 in the editor, with averages per scope and
   pausing. It covers games running in their own process too, through the channel the editor already reads their
   logs from.
 - [ ] **M11.5 Captures.** Screenshot command, and frame captures with RenderDoc when it is present.
@@ -1086,6 +1086,14 @@ with view-model animations.
   instead of displaying stale draws. Fourteen headless console/statistics cases (134 assertions) pass, including
   paused simulation, live physics and audio; the windowless overlay GPU test passes 20 assertions. MSVC compiles
   without warnings. No desktop windows or broad GPU suite were used.
+- M11.4: the dockable Profiler shows a 240-frame histogram, click-to-pause selection, nested scope timeline,
+  inclusive per-frame averages and dropped samples. It owns copies, so pausing survives ring rotation. Managed
+  games opt into versioned profile records over the existing log pipe; GameRunner filters those from normal logs
+  and keeps bounded remote history. Child environment overrides never mutate the parent; platform reads return
+  owned values. Validation covers malformed records, first/final application frames, actual child output, ring
+  rotation/restarts and ImGui mouse selection. Seventeen engine cases, one process case and six editor cases pass
+  (199 assertions), without GPU/windows. MSVC builds without warnings; Windows memory header prerequisites are
+  preserved across clang-format.
 
 ---
 

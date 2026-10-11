@@ -42,6 +42,7 @@ their code unloads. The engine registers:
 | `render.max_fps` | Saved frame cap; zero is unlimited |
 | `audio.volume` | Saved master audio gain |
 | `profiler.enabled` | Frame scope/counter recording |
+| `profiler.stream` | Send completed frames over the game's log pipe |
 | `stats` | Saved runtime statistics overlay |
 
 Scene bindings resolve the current scene each time, retaining no component pointers across scene changes.
@@ -76,6 +77,24 @@ when the platform cannot query it. The setting persists with the other saved cva
 `RuntimeStats::Sample()` also works without graphics. When recording is disabled, FPS uses the unscaled frame
 clock and rendering counts are zero instead of showing stale recordings. Applications record bodies, voices and
 resident memory as profiler counters so tools can inspect them with the frame that produced them.
+
+## Editor profiler
+
+Open **Window > Profiler** to inspect the last 240 frames. The histogram shows frame duration; hover a bar to
+read its time or click to select it and pause collection. Pause preserves owned copies even as the engine's ring
+advances. The timeline shows nested scopes, with inclusive durations on hover. The averages table sorts scopes
+by inclusive milliseconds per recorded frame and shows calls per frame; absent scopes count as zero. Dropped
+samples are reported for each frame so an incomplete recording remains visible.
+
+The default source is the editor, including games played in its scene view. Select **Game process** for a game
+launched by the editor. `GameRunner` enables `SPOT_PROFILE_STREAM=1` only in that child's environment, reads
+versioned profile records from its existing log pipe and retains the same bounded history. Normal logs still
+reach the console. Standalone games stream only when this environment variable or `profiler.stream` is enabled.
+Decoding validates records before storing them; restarting the process starts a new history.
+
+Tools can pass `ProcessEnvironmentVariable` overrides as the third argument to `Process::Start()`; they inherit
+the rest of the environment. `Process::GetEnvironmentValue()` returns an owned optional string without exposing
+platform types or environment storage.
 
 ### Testing without windows
 

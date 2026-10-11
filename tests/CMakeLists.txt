@@ -105,10 +105,16 @@ add_executable(spot_gameplay_tests gameplay_tests.cpp)
 target_link_libraries(spot_gameplay_tests PRIVATE spot::spot Catch2::Catch2WithMain)
 spot_set_compile_options(spot_gameplay_tests)
 catch_discover_tests(spot_gameplay_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
-add_executable(spot_console_tests console_tests.cpp console_input_tests.cpp runtime_stats_tests.cpp)
+add_executable(spot_console_tests console_tests.cpp console_input_tests.cpp runtime_stats_tests.cpp profile_stream_tests.cpp)
 target_link_libraries(spot_console_tests PRIVATE spot::spot Catch2::Catch2WithMain)
 spot_set_compile_options(spot_console_tests)
 catch_discover_tests(spot_console_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
+add_executable(spot_profile_process_tests profile_process_tests.cpp)
+target_link_libraries(spot_profile_process_tests PRIVATE spot::tools spot::spot Catch2::Catch2WithMain)
+target_compile_definitions(spot_profile_process_tests PRIVATE SPOT_CRASH_APP="$<TARGET_FILE:spot_crash_app>")
+add_dependencies(spot_profile_process_tests spot_crash_app)
+spot_set_compile_options(spot_profile_process_tests)
+catch_discover_tests(spot_profile_process_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
 # The dummy video driver lets window tests run on machines without a display, such as CI servers.
 # The timeout turns a main loop that never quits into a failure instead of a hang.
 catch_discover_tests(spot_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
@@ -199,7 +205,7 @@ catch_discover_tests(spot_module_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=
 
 # Editor tests link the editor's code, everything but its main().
 if(TARGET spot_editor_core)
-    add_executable(spot_editor_tools_tests editor/console_command_tests.cpp)
+    add_executable(spot_editor_tools_tests editor/console_command_tests.cpp editor/profiler_model_tests.cpp)
     target_link_libraries(spot_editor_tools_tests PRIVATE spot_editor_core Catch2::Catch2WithMain)
     target_include_directories(spot_editor_tools_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     spot_set_compile_options(spot_editor_tools_tests)

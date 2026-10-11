@@ -10,6 +10,8 @@
 #include "core/log.h"
 #include "core/log_sinks.h"
 #include "core/paths.h"
+#include "core/process.h"
+#include "core/profile_stream.h"
 #include "core/profiler.h"
 #include "core/runtime_stats.h"
 #include "core/save_data.h"
@@ -30,6 +32,7 @@
 namespace Spot {
 
 Application::Application(ApplicationConfig config) : m_config(std::move(config)) {
+    m_profileStreamEnabled = Process::GetEnvironmentValue("SPOT_PROFILE_STREAM") == "1";
     if (!m_config.game) {
         const auto file = GetExecutableDirectory() / GameSettings::FileName;
         std::error_code error;
@@ -146,6 +149,7 @@ int Application::Run() {
     while (m_running) {
         // Ends the last frame's profile, so the one profiled spans the whole frame, waiting included.
         Profiler::BeginFrame();
+        StreamProfileFrame();
         {
             SPOT_PROFILE_SCOPE("Application::Wait");
             Platform::SleepFor(m_limiter.GetWaitTime(std::chrono::steady_clock::now()));
@@ -216,6 +220,7 @@ int Application::Run() {
     }
 
     Profiler::EndFrame();
+    StreamProfileFrame();
     DebugDraw::Clear();
     if (const auto directory = GetUserDataDirectory(); !directory.empty()) {
         const auto result = SaveData(directory).Save(
@@ -455,6 +460,17 @@ RuntimeStats Application::GetRuntimeStats() const {
         scenes.push_back(m_persistentScene.get());
     }
     return RuntimeStats::Sample(scenes, m_audio.get());
+}
+
+void Application::StreamProfileFrame() {
+    if (!m_profileStreamEnabled || !Profiler::IsEnabled()) {
+        return;
+    }
+    const auto frames = Profiler::GetFrames();
+    if (!frames.empty() && frames.back()->number != m_lastStreamedFrame) {
+        m_lastStreamedFrame = frames.back()->number;
+        Log::GetEngineLogger().Info("{}", EncodeProfileFrame(*frames.back()));
+    }
 }
 
 void Application::RenderDeveloperOverlay(RenderContext& context) {

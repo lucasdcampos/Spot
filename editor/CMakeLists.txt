@@ -68,6 +68,10 @@ add_library(spot_editor_core STATIC
     core/command_history.h
     core/console_log.cpp
     core/console_log.h
+    core/profiler_model.cpp
+    core/profiler_model.h
+    panels/profiler_panel.cpp
+    panels/profiler_panel.h
     core/editor_log.cpp
     core/editor_log.h
     core/editor_settings.cpp

@@ -96,6 +96,10 @@ EngineConsole::EngineConsole(Console& console, Application& app) {
         console, "profiler.enabled", true, "Record frame scopes and counters", {}, [] { return Profiler::IsEnabled(); },
         [](bool value) { Profiler::SetEnabled(value); }, [](bool) { return true; }));
     m_registrations.push_back(Bind<bool>(
+        console, "profiler.stream", app.IsProfileStreamEnabled(), "Send completed frames over the game log pipe", {},
+        [&app] { return app.IsProfileStreamEnabled(); }, [&app](bool value) { app.SetProfileStreamEnabled(value); },
+        [](bool) { return true; }));
+    m_registrations.push_back(Bind<bool>(
         console, "stats", false, "Show frame, rendering, physics, audio and memory statistics", ConsoleFlags::Saved,
         [&app] { return app.IsStatsVisible(); }, [&app](bool value) { app.SetStatsVisible(value); },
         [](bool) { return true; }));

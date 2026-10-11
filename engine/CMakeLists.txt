@@ -45,6 +45,7 @@ add_library(spot_objects OBJECT
     core/console.cpp
     core/console_input.cpp
     core/runtime_stats.cpp
+    core/profile_stream.cpp
     core/engine_console.cpp
     core/assert.h
     core/assert.cpp

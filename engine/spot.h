@@ -25,6 +25,7 @@
 #include "core/log_sinks.h"
 #include "core/paths.h"
 #include "core/process.h"
+#include "core/profile_stream.h"
 #include "core/profiler.h"
 #include "core/runtime_stats.h"
 #include "core/save_data.h"

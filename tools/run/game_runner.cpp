@@ -1,4 +1,5 @@
 #include "run/game_runner.h"
+#include "core/profile_stream.h"
 
 #include <algorithm>
 #include <array>
@@ -23,13 +24,15 @@ constexpr std::string_view GameLoggerName = "App";
 
 GameRunner::~GameRunner() {
     Stop();
+    m_profileFrames.clear();
 }
 
 bool GameRunner::Start(const std::filesystem::path& executable, std::span<const std::string> arguments) {
     Stop();
     std::vector<std::string> command{PathToUtf8(executable)};
     command.insert(command.end(), arguments.begin(), arguments.end());
-    m_process = Process::Start(command, executable.parent_path());
+    const ProcessEnvironmentVariable environment[] = {{"SPOT_PROFILE_STREAM", "1"}};
+    m_process = Process::Start(command, executable.parent_path(), environment);
     m_exitReported = false;
     if (!m_process) {
         GetGameLogger().Error("Could not start the game, '{}'", PathToUtf8(executable));
@@ -65,6 +68,13 @@ void GameRunner::Update() {
         m_process->Wait();
     }
     for (const std::string& text : m_process->TakeOutput()) {
+        if (auto frame = DecodeProfileFrame(text)) {
+            m_profileFrames.push_back(std::move(*frame));
+            if (m_profileFrames.size() > Profiler::MaxFrames) {
+                m_profileFrames.pop_front();
+            }
+            continue;
+        }
         const Line line = ParseLine(text);
         GetGameLogger().Write(line.level, "{}", line.message);
     }
@@ -76,6 +86,15 @@ void GameRunner::Update() {
             GetGameLogger().Warning("The game exited with code {}", code);
         }
     }
+}
+
+std::vector<const ProfileFrame*> GameRunner::GetProfileFrames() const {
+    std::vector<const ProfileFrame*> frames;
+    frames.reserve(m_profileFrames.size());
+    for (const auto& frame : m_profileFrames) {
+        frames.push_back(&frame);
+    }
+    return frames;
 }
 
 GameRunner::Line GameRunner::ParseLine(std::string_view line) {

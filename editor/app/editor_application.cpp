@@ -10,6 +10,7 @@
 #include "panels/console_panel.h"
 #include "panels/hierarchy_panel.h"
 #include "panels/inspector_panel.h"
+#include "panels/profiler_panel.h"
 #include "panels/project_settings_panel.h"
 #include "scene/entity_actions.h"
 
@@ -164,6 +165,8 @@ void EditorApplication::OnStart() {
     m_assetBrowser = assetBrowser.get();
     m_panels.push_back(std::move(assetBrowser));
     m_panels.push_back(std::make_unique<ConsolePanel>(m_consoleLog));
+    m_panels.push_back(std::make_unique<ProfilerPanel>(
+        [this] { return m_game ? m_game->GetProfileFrames() : std::vector<const ProfileFrame*>{}; }));
     m_panels.push_back(std::make_unique<ProjectSettingsPanel>(*m_context));
     m_panels.push_back(std::make_unique<AudioMixerPanel>(*m_context));
     GetEditorLogger().Info("Spot Editor {} started", GetVersionString());
@@ -892,7 +895,8 @@ void EditorApplication::DrawDockSpace() {
                                          .inspector = "Inspector",
                                          .assets = "Assets",
                                          .console = "Console",
-                                         .mixer = "AudioMixer"});
+                                         .mixer = "AudioMixer",
+                                         .profiler = "Profiler"});
     }
     ImGui::DockSpaceOverViewport(m_dockSpace, ImGui::GetMainViewport());
 }
