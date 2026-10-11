@@ -60,6 +60,8 @@
 #include "graphics/mesh_data.h"
 #include "graphics/model.h"
 #include "graphics/model_data.h"
+#include "graphics/particle_batch.h"
+#include "graphics/particle_renderer.h"
 #include "graphics/pipeline.h"
 #include "graphics/quad_batch.h"
 #include "graphics/render_context.h"

@@ -3336,3 +3336,156 @@ TEST_CASE("SceneRenderer runs render hooks at their stages, its own before the s
               return record.message.find("Broken hook") != std::string::npos;
           }) == 1);
 }
+
+TEST_CASE("Instanced particles blend sort flipbook and fade against camera depth offscreen",
+          "[gpu][particles][offscreen]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    auto target =
+        device->CreateTexture({.width = 64, .height = 64, .format = Spot::TextureFormat::Rgba8, .renderTarget = true});
+    auto depth = device->CreateTexture(
+        {.width = 64, .height = 64, .format = Spot::TextureFormat::Depth32Float, .renderTarget = true});
+    REQUIRE(target);
+    REQUIRE(depth);
+    Spot::ParticleRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8});
+    REQUIRE(renderer.IsValid());
+    Spot::Camera3D camera;
+    camera.orthographic = true;
+    camera.orthographicSize = 1;
+    camera.nearPlane = 0.1f;
+    camera.farPlane = 10.1f;
+    Spot::ParticleSettings settings;
+    settings.gravity = {};
+    Spot::Particle p;
+    p.position = {0, 0, -5.1f};
+    p.size = 1;
+    p.color = Spot::Color::Red;
+    auto render = [&](std::span<const Spot::Particle> particles, float clearDepth,
+                      const Spot::Texture* texture = nullptr) {
+        auto* context = device->BeginOffscreenFrame(*target);
+        REQUIRE(context);
+        context->BeginRenderPass({.depthTarget = depth.get(), .clearDepth = clearDepth, .depthOnly = true}).End();
+        context->BeginRenderPass({.clearColor = Spot::Color::Black}).End();
+        renderer.Begin(*context, {}, camera, {64, 64}, depth.get());
+        renderer.Draw(particles, settings, {}, texture);
+        renderer.End();
+        device->EndFrame();
+        return device->DownloadTexture(*target);
+    };
+    const auto red = render(std::span(&p, 1), 1);
+    const auto center = (32 * 64 + 32) * 4;
+    CHECK(red[center] > 240);
+    CHECK(red[center + 2] == 0);
+    CHECK(red[0] == 0);
+    CHECK(renderer.GetStats().particles == 1);
+    CHECK(renderer.GetStats().drawCalls == 1);
+    const auto hidden = render(std::span(&p, 1), 0.49f);
+    CHECK(hidden[center] == 0);
+    settings.softDistance = 1;
+    const auto soft = render(std::span(&p, 1), 0.55f);
+    CHECK(soft[center] > 115);
+    CHECK(soft[center] < 140);
+    settings.softDistance = 0;
+    Spot::Particle far = p;
+    far.position.z = -7;
+    far.color = {0, 0, 1, 0.5f};
+    p.color.a = 0.5f;
+    const std::array particles{p, far};
+    const auto blended = render(particles, 1);
+    CHECK(blended[center] > 120);
+    CHECK(blended[center] < 135);
+    CHECK(blended[center + 2] > 58);
+    CHECK(blended[center + 2] < 70);
+    CHECK(renderer.GetStats().drawCalls == 1);
+    settings.blend = Spot::ParticleBlend::Additive;
+    const std::array glow{p, p};
+    const auto additive = render(glow, 1);
+    CHECK(additive[center] > 245);
+    auto atlas = device->CreateTexture({.width = 2, .height = 1});
+    REQUIRE(atlas);
+    device->UploadToTexture(*atlas, std::array<std::uint8_t, 8>{255, 0, 0, 255, 0, 0, 255, 255});
+    settings.blend = Spot::ParticleBlend::Alpha;
+    settings.flipbookColumns = 2;
+    p.color = Spot::Color::White;
+    p.age = 0.75f;
+    p.lifetime = 1;
+    const auto flipbook = render(std::span(&p, 1), 1, atlas.get());
+    CHECK(flipbook[center + 2] > 240);
+    CHECK(flipbook[center] < 15);
+}
+
+TEST_CASE("Particles use opaque and cutout camera depth with multisampling offscreen", "[gpu][particles][offscreen]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    const auto samples = device->SupportsSampleCount(Spot::TextureFormat::Rgba8, 4) &&
+                                 device->SupportsSampleCount(Spot::TextureFormat::Depth32Float, 4)
+                             ? 4u
+                             : 1u;
+    auto target =
+        device->CreateTexture({.width = 64, .height = 64, .format = Spot::TextureFormat::Rgba8, .renderTarget = true});
+    auto color = device->CreateTexture({.width = 64,
+                                        .height = 64,
+                                        .format = Spot::TextureFormat::Rgba8,
+                                        .renderTarget = true,
+                                        .sampleCount = samples});
+    auto depth = device->CreateTexture({.width = 64,
+                                        .height = 64,
+                                        .format = Spot::TextureFormat::Depth32Float,
+                                        .renderTarget = true,
+                                        .sampleCount = samples});
+    REQUIRE(target);
+    REQUIRE(color);
+    REQUIRE(depth);
+    auto cube = Spot::Mesh::Create(*device, Spot::MeshData::CreateCube());
+    REQUIRE(cube);
+    Spot::Renderer3D meshes(*device, {.targetFormat = Spot::TextureFormat::Rgba8,
+                                      .sampleCount = samples,
+                                      .shadowMapSize = 0,
+                                      .localShadowMapSize = 0});
+    REQUIRE(meshes.IsValid());
+    Spot::ParticleRenderer particles(*device, {.targetFormat = Spot::TextureFormat::Rgba8, .sampleCount = samples});
+    REQUIRE(particles.IsValid());
+    Spot::Camera3D camera;
+    camera.orthographic = true;
+    camera.orthographicSize = 1;
+    Spot::ParticleSettings settings;
+    Spot::Particle p;
+    p.position = {0, 0, -5};
+    p.size = 1;
+    p.color = Spot::Color::Red;
+    Spot::Material material;
+    material.baseColor = Spot::Color::Black;
+    auto render = [&] {
+        auto* context = device->BeginOffscreenFrame(*target);
+        REQUIRE(context);
+        Spot::RenderPassDesc pass{.target = color.get(),
+                                  .clearColor = Spot::Color::Black,
+                                  .depthTarget = depth.get(),
+                                  .clearDepth = 1.0f,
+                                  .resolveTarget = samples > 1 ? target.get() : nullptr,
+                                  .keepSamples = samples > 1};
+        meshes.Begin(*context, pass, camera);
+        meshes.DrawMesh(*cube, material, Spot::Matrix4::Translation({0, 0, -4}), false);
+        meshes.End();
+        const auto* readable = meshes.RenderCameraDepth(*context);
+        REQUIRE(readable);
+        CHECK(readable->GetSampleCount() == 1);
+        particles.Begin(*context, pass, camera, {64, 64}, readable);
+        particles.Draw(std::span(&p, 1), settings);
+        particles.End();
+        device->EndFrame();
+        return device->DownloadTexture(samples > 1 ? *target : *color);
+    };
+    const auto opaque = render();
+    const auto center = (32 * 64 + 32) * 4;
+    CHECK(opaque[center] == 0);
+    material.alphaMode = Spot::AlphaMode::Cutout;
+    material.baseColor.a = 0;
+    const auto cutout = render();
+    CHECK(cutout[center] > 240);
+    material.alphaMode = Spot::AlphaMode::Transparent;
+    const auto transparent = render();
+    CHECK(transparent[center] > 240);
+}

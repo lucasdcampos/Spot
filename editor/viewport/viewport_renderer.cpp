@@ -123,6 +123,8 @@ ViewportRenderer::ViewportRenderer(GraphicsDevice& device)
         device, Renderer3DConfig{.targetFormat = HdrFormat, .sampleCount = m_sampleCount, .hdr = true});
     m_sprites =
         std::make_unique<Renderer2D>(device, Renderer2DConfig{.targetFormat = HdrFormat, .sampleCount = m_sampleCount});
+    m_particles = std::make_unique<ParticleRenderer>(
+        device, ParticleRendererConfig{.targetFormat = HdrFormat, .sampleCount = m_sampleCount});
     m_interface = std::make_unique<Renderer2D>(device, Renderer2DConfig{.targetFormat = ColorFormat});
     m_lines = std::make_unique<LineRenderer>(
         device, LineRendererConfig{.targetFormat = HdrFormat, .sampleCount = m_sampleCount});
@@ -251,6 +253,16 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
         m_sprites->Begin(pass, stage.viewProjection);
         m_sprites->DrawScene(scene);
         m_sprites->End();
+    }
+    bool hasParticles = false;
+    scene.ForEachComponent<ParticleSystem>([&](ParticleSystem& system) {
+        hasParticles = hasParticles || (system.IsActiveAndEnabled() && !system.GetParticles().empty());
+    });
+    if (hasParticles) {
+        const Texture* particleDepth = m_sampleCount == 1 ? targets.GetDepth() : m_renderer->RenderCameraDepth(context);
+        m_particles->Begin(context, hdrPass, camera, size, particleDepth);
+        m_particles->DrawScene(scene);
+        m_particles->End();
     }
     runStage(RenderStage::AfterTransparent);
 

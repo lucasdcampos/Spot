@@ -111,6 +111,7 @@ private:
     GraphicsDevice& m_device;
     std::uint32_t m_sampleCount;
     std::unique_ptr<Renderer3D> m_renderer;
+    std::unique_ptr<ParticleRenderer> m_particles;
     std::unique_ptr<Renderer2D> m_sprites;
     // Interfaces are drawn after the tonemapper, in the view's colors.
     std::unique_ptr<Renderer2D> m_interface;

@@ -6,9 +6,11 @@
 #include "graphics/debug_draw.h"
 #include "graphics/graphics_device.h"
 #include "graphics/line_renderer.h"
+#include "graphics/particle_renderer.h"
 #include "graphics/render_context.h"
 #include "graphics/renderer_2d.h"
 #include "graphics/renderer_3d.h"
+#include "particles/particle_system.h"
 #include "scene/camera.h"
 #include "scene/post_processing.h"
 #include "scene/scene.h"
@@ -40,6 +42,8 @@ SceneRenderer::SceneRenderer(GraphicsDevice& device, const SceneRendererConfig& 
                                                               .localShadowMapSize = config.localShadowMapSize});
     m_sprites =
         std::make_unique<Renderer2D>(device, Renderer2DConfig{.targetFormat = HdrFormat, .sampleCount = m_sampleCount});
+    m_particles = std::make_unique<ParticleRenderer>(
+        device, ParticleRendererConfig{.targetFormat = HdrFormat, .sampleCount = m_sampleCount});
     m_interface = std::make_unique<Renderer2D>(device, Renderer2DConfig{.targetFormat = m_format});
     m_lines = std::make_unique<LineRenderer>(
         device, LineRendererConfig{.targetFormat = HdrFormat, .sampleCount = m_sampleCount});
@@ -139,6 +143,18 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
             m_sprites->DrawScene(*scene);
         }
         m_sprites->End();
+    }
+    bool hasParticles = false;
+    for (Scene* scene : scenes)
+        scene->ForEachComponent<ParticleSystem>([&](ParticleSystem& system) {
+            hasParticles = hasParticles || (system.IsActiveAndEnabled() && !system.GetParticles().empty());
+        });
+    if (hasParticles) {
+        const Texture* particleDepth = m_sampleCount == 1 ? m_depth.get() : m_renderer3D->RenderCameraDepth(context);
+        m_particles->Begin(context, hdrPass, view, size, particleDepth);
+        for (Scene* scene : scenes)
+            m_particles->DrawScene(*scene);
+        m_particles->End();
     }
     runStage(RenderStage::AfterTransparent);
     runStage(RenderStage::BeforePostProcessing);

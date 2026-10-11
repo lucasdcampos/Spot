@@ -40,3 +40,29 @@ births are counted by `GetDroppedCount()`; each emitter is capped at 100,000 par
 at most one second and drop excess stalled-frame time; seek is bounded to 60 seconds. Settings clamp
 invalid/nonfinite data and bound bursts, flipbooks and ranges. Evaluation and steady simulation
 allocate no memory. Profiling records the simulation scope.
+
+## Rendering
+
+`ParticleBatch` converts particles into billboard instances and sorts alpha particles globally, back
+to front along the camera axis, with stable ties. Additive particles follow. Velocity stretching
+projects velocity onto the camera plane; stationary or head-on particles retain a valid billboard.
+Local particles inherit emitter position and the largest scale axis. Rotation turns normal billboards.
+Flipbooks use row-major cells, normalized lifetime and an optional number of cycles.
+
+`ParticleRenderer` has a code-only `Begin/Draw/End` API and `DrawScene()`. It uploads one instance per
+particle and merges consecutive draws that share texture and blend mode. Buffers and staging vectors
+retain capacity. No texture produces an analytic soft disc; an assigned imported texture provides its
+own coverage. Alpha and additive colors remain linear HDR through bloom and tonemapping.
+
+The game renderer and editor viewport draw particles before post processing. Camera layer masks apply.
+Particles never write depth; the fragment shader compares against readable opaque depth and uses
+`softDistance` in world units to fade intersections. Perspective and orthographic depth are supported.
+Single-sample views reuse camera depth directly. Multisampled views ask `Renderer3D::RenderCameraDepth()`
+for an optional single-sample depth pass only while live particles exist. That pass reuses submitted
+transforms, culling and submeshes, includes cutouts and mirrored/double-sided meshes, and ignores
+transparent surfaces. It includes meshes regardless of whether they cast shadows. Custom renderers
+can supply their own readable camera depth. Without it, particles render without depth occlusion.
+
+Particles are sorted together across emitters, but form a separate pass after transparent meshes.
+Interleaving particles with transparent mesh surfaces is not supported. Multisampled camera depth
+adds geometry work; use single-sample views when that cost outweighs MSAA.

@@ -135,6 +135,11 @@ add_library(spot_objects OBJECT
     graphics/rendering_settings.cpp
     graphics/rendering_settings.h
     graphics/renderer_3d.cpp
+    graphics/renderer_3d_depth.cpp
+    graphics/particle_batch.h
+    graphics/particle_batch.cpp
+    graphics/particle_renderer.h
+    graphics/particle_renderer.cpp
     graphics/scene_renderer.h
     graphics/scene_renderer.cpp
     graphics/screenshot.cpp
@@ -244,6 +249,8 @@ add_library(spot_objects OBJECT
 )
 
 spot_add_shaders(spot_objects NAMESPACE Spot::Detail::Shaders
+    graphics/shaders/particle.vert.hlsl
+    graphics/shaders/particle.frag.hlsl
     graphics/shaders/bloom_down.frag.hlsl
     graphics/shaders/bloom_up.frag.hlsl
     graphics/shaders/fullscreen.vert.hlsl

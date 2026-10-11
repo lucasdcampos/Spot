@@ -20,6 +20,7 @@ class LineRenderer;
 class RenderContext;
 class Renderer2D;
 class Renderer3D;
+class ParticleRenderer;
 class Scene;
 
 struct SceneRendererConfig {
@@ -93,6 +94,7 @@ private:
     bool m_fxaaEnabled;
     std::unique_ptr<Renderer3D> m_renderer3D;
     // Sprites are drawn into the HDR image with the meshes, interfaces into the target after it.
+    std::unique_ptr<ParticleRenderer> m_particles;
     std::unique_ptr<Renderer2D> m_sprites;
     std::unique_ptr<Renderer2D> m_interface;
     std::unique_ptr<LineRenderer> m_lines;

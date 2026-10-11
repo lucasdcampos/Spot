@@ -154,3 +154,52 @@ TEST_CASE("Particle settings contain malformed serialized values", "[particles]"
     CHECK(settings.shape == Spot::ParticleShape::Point);
     CHECK(settings.flipbookRows == 1);
 }
+
+TEST_CASE("Particle batches sort across emitters and preserve alpha order", "[particles][rendering]") {
+    auto settings = Settings();
+    Spot::Particle near, far;
+    near.position = {0, 0, -2};
+    far.position = {0, 0, -5};
+    near.size = far.size = 1;
+    near.color = Spot::Color::Red;
+    far.color = Spot::Color::Blue;
+    Spot::ParticleBatch batch;
+    batch.Add(std::span(&near, 1), settings, {});
+    batch.Add(std::span(&far, 1), settings, {});
+    settings.blend = Spot::ParticleBlend::Additive;
+    batch.Add(std::span(&far, 1), settings, {});
+    batch.Sort();
+    REQUIRE(batch.GetDraws().size() == 3);
+    CHECK(batch.GetDraws()[0].instance.color == Spot::Color::Blue);
+    CHECK(batch.GetDraws()[1].instance.color == Spot::Color::Red);
+    CHECK(batch.GetDraws()[2].blend == Spot::ParticleBlend::Additive);
+}
+TEST_CASE("Particle billboards stretch rotate and address flipbooks", "[particles][rendering]") {
+    auto settings = Settings();
+    settings.space = Spot::ParticleSpace::Local;
+    settings.flipbookColumns = 2;
+    settings.flipbookRows = 2;
+    Spot::Particle p;
+    p.position = {0, 0, -4};
+    p.velocity = {4, 0, 0};
+    p.size = 1;
+    p.age = 0.75f;
+    p.lifetime = 1;
+    p.color = Spot::Color::White;
+    Spot::ParticleBatch batch;
+    const auto emitter = Spot::Matrix4::Translation({2, 0, 0});
+    batch.Add(std::span(&p, 1), settings, {}, emitter);
+    REQUIRE(batch.GetDraws().size() == 1);
+    CHECK(batch.GetDraws()[0].instance.centerAndSize.x == 2);
+    CHECK(batch.GetDraws()[0].instance.uvRect == Spot::Vector4{0.5f, 0.5f, 1, 1});
+    batch.Clear();
+    settings.facing = Spot::ParticleFacing::Stretched;
+    batch.Add(std::span(&p, 1), settings, {}, emitter);
+    CHECK(batch.GetDraws()[0].instance.up.x > 1);
+    CHECK(batch.GetDraws()[0].instance.rightAndSoftDistance.y == Approx(-1));
+    batch.Clear();
+    settings.facing = Spot::ParticleFacing::Billboard;
+    p.rotation = Spot::ToRadians(90);
+    batch.Add(std::span(&p, 1), settings, {}, emitter);
+    CHECK(batch.GetDraws()[0].instance.rightAndSoftDistance.y == Approx(1));
+}

@@ -117,6 +117,9 @@ public:
     // The pass's target, or the window when it has none, sets the camera's aspect ratio.
     void Begin(RenderContext& context, const RenderPassDesc& target, const Camera3D& camera);
     void End();
+    // Renders the last submissions into readable single-sample camera depth, including cutouts.
+    // Call after End(), before the next Begin(); transparent surfaces do not write depth.
+    const Texture* RenderCameraDepth(RenderContext& context);
 
     // Lights everything drawn in the frame, whether drawn before or after it.
     void DrawLight(const LightData& light);
@@ -196,6 +199,10 @@ private:
     // Captures the sky's light into the reflections and irradiance when it changed; false when it cannot.
     bool UpdateSkyLighting(const SkyData& sky, const Detail::SkyLighting& lighting);
 
+    std::array<std::unique_ptr<Pipeline>, 6> m_cameraDepthPipelines;
+    std::unique_ptr<Texture> m_cameraDepth;
+    std::unique_ptr<Buffer> m_cameraDepthIndices;
+    std::vector<std::uint32_t> m_cameraDepthOrder;
     std::unique_ptr<Pipeline> m_pipeline;
     std::unique_ptr<Pipeline> m_doubleSidedPipeline;
     std::unique_ptr<Pipeline> m_transparentPipeline;

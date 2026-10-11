@@ -1155,7 +1155,7 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
 - [x] **M13.2 Simulation.** A `ParticleSystem` component with emission rate and bursts, shapes (point, sphere, cone,
   box), start ranges, values over lifetime, gravity and local or world space, simulated on the CPU by a system.
   Tests.
-- [ ] **M13.3 Rendering.** Instanced billboards that face the camera or stretch with velocity, additive or alpha
+- [x] **M13.3 Rendering.** Instanced billboards that face the camera or stretch with velocity, additive or alpha
   blending, sorting, soft particles from depth, and flipbook textures.
 - [ ] **M13.4 Editor.** Edit-mode simulation of the selected system, and restart and seek controls.
 - [ ] **M13.5 Sandbox: effects.** Muzzle flashes, sparks and dust per surface, explosion fire and smoke, debris, and
@@ -1164,6 +1164,14 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
 **Done when:** weapons, impacts and explosions in the sandbox emit particles.
 
 **Notes:**
+- M13.3: globally sorted alpha and additive billboard instances draw through public graphics APIs in
+  both game and editor views. CPU tests cover sorting, transforms, stretch, rotation and flipbooks.
+  Two windowless GPU cases pass 46 assertions for pixels, alpha/additive blending, ordering, flipbooks,
+  hard/soft depth, MSAA and opaque/cutout/transparent depth. Twelve particle cases pass 703 assertions;
+  fifteen existing inspector cases pass 214 assertions. MSVC builds without compiler warnings after
+  fixing a depth literal conversion. MSAA uses an optional readable camera-depth pass; particles remain
+  a separate pass after transparent meshes.
+
 - M13.2: a code-only bounded simulator underlies the component and lazy scene system. Fixed internal
   steps, seeded sampling and timestamped births make replay deterministic. Configuration edits reset
   runtime state; disabling freezes it. MSVC compiles without warnings and ten cases pass 693 assertions

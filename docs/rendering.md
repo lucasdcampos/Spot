@@ -293,3 +293,10 @@ differences in the build's `tests/golden_output/`. When a change to how things l
 ## Not there yet
 
 Culling and instancing come in the roadmap's rendering milestone M7.
+
+## Particles
+
+SceneRenderer and editor viewports draw instanced HDR particles before post processing.
+See [Particles](particles.md) for the code-only renderer, sorting, flipbooks and readable camera depth.
+`Renderer3D::RenderCameraDepth()` exposes an optional single-sample opaque/cutout depth pass from the
+last frame's submissions, useful when a consumer needs readable depth from a multisampled view.
