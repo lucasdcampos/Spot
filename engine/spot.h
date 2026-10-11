@@ -85,6 +85,7 @@
 #include "scene/archive.h"
 #include "scene/camera.h"
 #include "scene/component.h"
+#include "scene/component_ref.h"
 #include "scene/component_registry.h"
 #include "scene/component_serialization.h"
 #include "scene/entity.h"

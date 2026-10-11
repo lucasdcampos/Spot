@@ -181,6 +181,7 @@ add_library(spot_objects OBJECT
     scene/camera.h
     scene/camera.cpp
     scene/component.h
+    scene/component_ref.h
     scene/component.cpp
     scene/component_registry.h
     scene/component_serialization.h

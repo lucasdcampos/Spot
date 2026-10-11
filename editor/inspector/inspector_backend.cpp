@@ -71,12 +71,14 @@ ImGuiSliderFlags GetSliderFlags(const FieldOptions& options) {
 
 // The entity and its descendants, in hierarchy order, with the names of their parents as details.
 void ListEntities(Entity& entity, const std::string& parents, std::vector<PickerItem>& items,
-                  std::vector<EntityId>& ids) {
-    items.push_back({entity.GetName(), GetEntityIcon(entity), parents});
-    ids.push_back(entity.GetId());
+                  std::vector<EntityId>& ids, bool (*filter)(const Entity&)) {
+    if (!filter || filter(entity)) {
+        items.push_back({entity.GetName(), GetEntityIcon(entity), parents});
+        ids.push_back(entity.GetId());
+    }
     const std::string path = parents.empty() ? entity.GetName() : parents + "/" + entity.GetName();
     for (Entity* child : entity.GetChildren()) {
-        ListEntities(*child, path, items, ids);
+        ListEntities(*child, path, items, ids, filter);
     }
 }
 
@@ -405,10 +407,17 @@ void InspectorBackend::Field(std::string_view name, EntityId& value, const Field
     const Entity* target = scene && value != EntityId::Invalid ? scene->GetEntity(value) : nullptr;
     const char* icon = target ? GetEntityIcon(*target) : ICON_FA_CIRCLE_NODES;
     std::string current = "None";
+    if (!options.componentType.empty()) {
+        current = std::format("None ({})", options.componentType);
+    }
     const ImVec4* color = &EditorColors::TextMuted;
     if (target) {
         current = target->GetName();
         color = nullptr;
+        if (options.entityFilter && !options.entityFilter(*target)) {
+            current += " (wrong component type)";
+            color = &EditorColors::Warning;
+        }
     } else if (value != EntityId::Invalid) {
         current = "Missing entity";
         icon = ICON_FA_TRIANGLE_EXCLAMATION;
@@ -422,7 +431,7 @@ void InspectorBackend::Field(std::string_view name, EntityId& value, const Field
             std::vector<PickerItem> items;
             if (scene) {
                 for (Entity* root : scene->GetRootEntities()) {
-                    ListEntities(*root, {}, items, ids);
+                    ListEntities(*root, {}, items, ids, options.entityFilter);
                 }
             }
             return items;
@@ -431,11 +440,14 @@ void InspectorBackend::Field(std::string_view name, EntityId& value, const Field
     if (result.picked) {
         value = *result.picked < 0 ? EntityId::Invalid : ids[static_cast<std::size_t>(*result.picked)];
         MarkChanged(pointer);
-    } else if (result.dropped) {
-        const std::span<const EntityId> dropped = GetPayloadEntities(*result.dropped);
+    } else if (!result.dropped.empty()) {
+        const auto dropped = result.GetDropped<EntityId>();
         if (!dropped.empty()) {
-            value = dropped.front();
-            MarkChanged(pointer);
+            const Entity* droppedEntity = scene ? scene->GetEntity(dropped.front()) : nullptr;
+            if (droppedEntity && (!options.entityFilter || options.entityFilter(*droppedEntity))) {
+                value = dropped.front();
+                MarkChanged(pointer);
+            }
         }
     }
     EndRow();
@@ -476,9 +488,9 @@ void InspectorBackend::Field(std::string_view name, AssetId& value, std::optiona
     if (result.picked) {
         value = *result.picked < 0 ? AssetId() : ids[static_cast<std::size_t>(*result.picked)];
         MarkChanged(pointer);
-    } else if (result.dropped) {
+    } else if (!result.dropped.empty()) {
         // Only an asset of the field's type can go in it.
-        for (const AssetId dropped : GetPayloadAssets(*result.dropped)) {
+        for (const AssetId dropped : result.GetDropped<AssetId>()) {
             const std::optional<AssetEntry> droppedEntry = FindAsset(project, dropped);
             if (droppedEntry && (!type || droppedEntry->type == *type)) {
                 value = dropped;

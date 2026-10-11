@@ -3,6 +3,9 @@
 #include "app/editor_context.h"
 #include "assets/asset_list.h"
 #include "core/text.h"
+#include "imgui/drag_payloads.h"
+#include "imgui/widgets.h"
+#include "inspector/inspector_backend.h"
 #include "inspector/inspector_clipboard.h"
 #include "inspector/multi_edit.h"
 #include "inspector/property_widgets.h"
@@ -331,4 +334,118 @@ TEST_CASE("Values that differ show as such again after changes and their undoing
     fixture.document->Undo();
     fixture.Frame();
     CHECK(mixed() == std::vector<std::string>{"/data/intensity"});
+}
+
+TEST_CASE("Typed reference pickers filter choices and reject mismatched entity drops",
+          "[editor][inspector][references]") {
+    Spot::Tests::HeadlessImGui imgui;
+    Spot::Scene scene;
+    auto& plain = scene.CreateEntity("Impostor");
+    auto& target = scene.CreateEntity("Lamp");
+    auto& light = target.AddComponent<Spot::PointLight>();
+    Spot::ComponentRef<Spot::PointLight> reference;
+    ImVec2 plainSource{};
+    ImVec2 lightSource{};
+    ImVec2 field{};
+    bool popupOpen = false;
+    int lightDrags = 0;
+    const auto center = [] {
+        const auto min = ImGui::GetItemRectMin();
+        const auto max = ImGui::GetItemRectMax();
+        return ImVec2{(min.x + max.x) * 0.5f, (min.y + max.y) * 0.5f};
+    };
+    imgui.SetDraw([&] {
+        ImGui::SetNextWindowPos({0.0f, 0.0f});
+        ImGui::SetNextWindowSize({420.0f, 500.0f});
+        ImGui::Begin("Reference test");
+        const auto source = [&](Entity& entity, ImVec2& point) {
+            ImGui::Button(entity.GetName().c_str(), {120.0f, 25.0f});
+            point = center();
+            if (ImGui::BeginDragDropSource()) {
+                if (&entity == &target) {
+                    ++lightDrags;
+                }
+                const auto id = entity.GetId();
+                ImGui::SetDragDropPayload(Spot::Editor::EntitiesPayload, &id, sizeof(id));
+                ImGui::TextUnformatted(entity.GetName().c_str());
+                ImGui::EndDragDropSource();
+            }
+        };
+        source(plain, plainSource);
+        source(target, lightSource);
+        Spot::Editor::InspectorBackend backend({.scene = &scene});
+        if (Spot::Editor::Widgets::BeginProperties("Fields")) {
+            Spot::Archive archive(backend);
+            archive.Field("target", reference);
+            Spot::Editor::Widgets::EndProperties();
+        }
+        REQUIRE(backend.GetFieldRects().size() == 1);
+        const auto& rect = backend.GetFieldRects().front();
+        field = {(rect.min.x + rect.max.x) * 0.5f, (rect.min.y + rect.max.y) * 0.5f};
+        popupOpen = ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
+        ImGui::End();
+    });
+    imgui.Frame();
+    imgui.Frame();
+    CAPTURE(field.x, field.y, plainSource.x, plainSource.y, lightSource.x, lightSource.y);
+    const ImVec2 fieldPoint = field;
+    imgui.Click(fieldPoint);
+    CHECK(popupOpen);
+    imgui.Type("Impostor");
+    imgui.Press(ImGuiKey_Enter);
+    CHECK_FALSE(reference.IsValid(scene));
+    imgui.Click({410.0f, 480.0f});
+    CHECK_FALSE(popupOpen);
+    imgui.Click(fieldPoint);
+    CHECK(popupOpen);
+    imgui.Type("Lamp");
+    imgui.Press(ImGuiKey_Enter);
+    CHECK(reference.Get(scene) == &light);
+    reference.Reset();
+    imgui.Frame();
+    imgui.Drag(plainSource, fieldPoint);
+    CHECK_FALSE(reference.IsValid(scene));
+    imgui.Drag(lightSource, fieldPoint);
+    CAPTURE(lightDrags, lightSource.x, lightSource.y, field.x, field.y);
+    CHECK(lightDrags > 0);
+    CHECK(reference.Get(scene) == &light);
+}
+
+TEST_CASE("Asset fields retain delivered payloads and check the asset type", "[editor][inspector][references]") {
+    Spot::Tests::HeadlessImGui imgui;
+    Spot::AssetId reference;
+    Spot::AssetId dragged = Spot::BuiltInAssets::GridTexture;
+    ImVec2 source{};
+    ImVec2 field{};
+    imgui.SetDraw([&] {
+        ImGui::SetNextWindowPos({0.0f, 0.0f});
+        ImGui::SetNextWindowSize({420.0f, 500.0f});
+        ImGui::Begin("Asset drop test");
+        ImGui::Button("Source", {120.0f, 25.0f});
+        const auto min = ImGui::GetItemRectMin();
+        const auto max = ImGui::GetItemRectMax();
+        source = {(min.x + max.x) * 0.5f, (min.y + max.y) * 0.5f};
+        if (ImGui::BeginDragDropSource()) {
+            ImGui::SetDragDropPayload(Spot::Editor::AssetsPayload, &dragged, sizeof(dragged));
+            ImGui::TextUnformatted("Asset");
+            ImGui::EndDragDropSource();
+        }
+        Spot::Editor::InspectorBackend backend({});
+        if (Spot::Editor::Widgets::BeginProperties("Fields")) {
+            Spot::Archive archive(backend);
+            archive.Field("mesh", reference, {.assetType = Spot::AssetType::Mesh});
+            Spot::Editor::Widgets::EndProperties();
+        }
+        REQUIRE(backend.GetFieldRects().size() == 1);
+        const auto& rect = backend.GetFieldRects().front();
+        field = {(rect.min.x + rect.max.x) * 0.5f, (rect.min.y + rect.max.y) * 0.5f};
+        ImGui::End();
+    });
+    imgui.Frame();
+    imgui.Frame();
+    imgui.Drag(source, field);
+    CHECK_FALSE(reference.IsValid());
+    dragged = Spot::BuiltInAssets::CubeMesh;
+    imgui.Drag(source, field);
+    CHECK(reference == Spot::BuiltInAssets::CubeMesh);
 }

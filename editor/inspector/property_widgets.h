@@ -4,11 +4,14 @@
 
 #include <imgui.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
 #include <vector>
 
@@ -56,7 +59,19 @@ struct PickerResult {
     // The index of the item picked from the list, or -1 for "None".
     std::optional<int> picked;
     // A drag of the payload type dropped on the field.
-    const ImGuiPayload* dropped = nullptr;
+    std::vector<std::byte> dropped;
+    template <typename T>
+    std::vector<T> GetDropped() const {
+        static_assert(std::is_trivially_copyable_v<T>);
+        if (dropped.size() % sizeof(T) != 0) {
+            return {};
+        }
+        std::vector<T> values(dropped.size() / sizeof(T));
+        if (!values.empty()) {
+            std::memcpy(values.data(), dropped.data(), dropped.size());
+        }
+        return values;
+    }
 };
 
 // A field that shows what it refers to, opens a searchable list to pick something else, and takes drops of the

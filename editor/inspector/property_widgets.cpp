@@ -136,7 +136,13 @@ PickerResult PickerField(const char* icon, std::string_view current, const char*
         ImGui::SetItemTooltip("%s", tooltip);
     }
     if (ImGui::BeginDragDropTarget()) {
-        result.dropped = ImGui::AcceptDragDropPayload(payloadType);
+        if (const auto* payload = ImGui::AcceptDragDropPayload(payloadType)) {
+            // ImGui clears delivered payloads in EndDragDropTarget(), before the caller can consume the result.
+            result.dropped.resize(static_cast<std::size_t>(payload->DataSize));
+            if (!result.dropped.empty()) {
+                std::memcpy(result.dropped.data(), payload->Data, result.dropped.size());
+            }
+        }
         ImGui::EndDragDropTarget();
     }
 

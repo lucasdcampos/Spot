@@ -992,7 +992,7 @@ with view-model animations.
   owned by a component and cancelled with it. Tests.
 - [x] **M10.5 Signals.** `Signal<Args...>` with scoped connections that disconnect themselves, for gameplay messages
   and UI callbacks. Tests.
-- [ ] **M10.6 Typed references.** `ComponentRef<T>` fields, serialized by entity id and drawn in the inspector with
+- [x] **M10.6 Typed references.** `ComponentRef<T>` fields, serialized by entity id and drawn in the inspector with
   drag and drop.
 - [ ] **M10.7 Save data.** Save files in the user data folder written with `Archive`, with versioning. Tests.
 - [ ] **M10.8 Sandbox: saving and feel.** Saving and loading the world (props, frozen state, welds, ropes, lamps).
@@ -1019,6 +1019,12 @@ with view-model animations.
 - M10.5: `Signal<Args...>` dispatches synchronously in connection order. Move-only `SignalConnection` subscriptions
   disconnect at scope exit and use weak ownership, so either side may go away first. Emission snapshots identities,
   supporting connection changes and signal destruction during a callback without invalidating the dispatch loop.
+- M10.6: `ComponentRef<T>` stores an entity id and resolves the first matching component within a supplied scene.
+  Archive uses its existing entity-id remapping for scene copies and prefabs. Field metadata filters the inspector's
+  picker and drag-and-drop without backend or editor dependencies in the engine; missing or mismatched targets
+  remain editable. Headless tests cover resolution, replacement, serialization, copied trees and inspector selection.
+  The picker now owns delivered payload bytes: ImGui clears them in `EndDragDropTarget()`, so the previous pointer
+  result lost entity and asset drops before fields consumed them. Both drop paths have headless regression coverage.
 
 ---
 

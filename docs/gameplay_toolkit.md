@@ -111,4 +111,32 @@ connections safely. Reference arguments preserve references; value arguments are
 Exceptions propagate to the emitter, stopping that emission. Signals are intended for the game thread; cross-thread
 messages should be marshalled to it first.
 
-Typed component references and versioned save data follow in M10.6–M10.7.
+## Typed component references
+
+`ComponentRef<T>` stores an `EntityId`, and `Get(scene)` resolves the entity's first component of type `T` each time.
+`IsValid(scene)` tests resolution. Construct it from a component pointer or an entity id, assign with `Set()` or
+`SetEntityId()`, and clear it with `Reset()`. Missing entities and missing or removed components resolve to null.
+Replacing a component of the same type on that entity makes the reference resolve to the replacement. The scene
+argument prevents looking up a target in another scene accidentally.
+
+```cpp
+Spot::ComponentRef<Spot::PointLight> lamp;
+
+void Controller::Serialize(Spot::Archive& archive) {
+    archive.Field("lamp", lamp);
+}
+
+void Controller::OnUpdate(float) {
+    if (auto* light = lamp.Get(GetScene())) {
+        light->SetIntensity(2.0f);
+    }
+}
+```
+
+Archive writes the reference as an entity id, so scene copies and prefab instances remap it through the same rules
+as `EntityId` fields. The inspector shows the expected component type, filters its entity picker, and accepts only
+matching entities on drag-and-drop. A saved mismatched or missing target remains editable and resolves to null.
+References identify an entity and a type, not a particular component instance; use `ComponentId` where instance
+identity matters. Forward-declared types can be referenced, but must be complete when resolved or serialized.
+
+Versioned save data follows in M10.7.

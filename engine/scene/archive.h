@@ -7,6 +7,8 @@
 #include "graphics/color.h"
 #include "math/quaternion.h"
 #include "math/vector.h"
+#include "scene/component_ref.h"
+#include "scene/component_registry.h"
 #include "scene/entity.h"
 
 #include <concepts>
@@ -56,6 +58,9 @@ struct FieldOptions {
     std::optional<AssetType> assetType = std::nullopt;
     // A std::uint32_t with a bit per entity layer (see Entity::GetLayer()), which tools show as layers to tick.
     bool layerMask = false;
+    // Tools restrict an entity picker and drag-and-drop to entities accepted by this predicate.
+    bool (*entityFilter)(const Entity&) = nullptr;
+    std::string_view componentType = {};
 };
 
 // Where an Archive's fields come from and go to. The engine's scene and asset files are one kind; tools add their own,
@@ -141,6 +146,19 @@ public:
     // References to other entities. Entities loaded together keep referring to each other through their new ids;
     // references to entities that were not saved along load as EntityId::Invalid.
     void Field(std::string_view name, EntityId& value, const FieldOptions& options = {});
+    template <typename T>
+    void Field(std::string_view name, ComponentRef<T>& value, const FieldOptions& options = {}) {
+        auto referenceOptions = options;
+        referenceOptions.entityFilter = [](const Entity& entity) { return entity.HasComponent<T>(); };
+        if (const auto* type = Detail::FindComponentTypeName(typeid(T))) {
+            referenceOptions.componentType = *type;
+        }
+        EntityId id = value.GetEntityId();
+        Field(name, id, referenceOptions);
+        if (IsLoading()) {
+            value.SetEntityId(id);
+        }
+    }
     // Saved as 32 hexadecimal digits, or null for the null id.
     void Field(std::string_view name, AssetId& value, const FieldOptions& options = {});
 

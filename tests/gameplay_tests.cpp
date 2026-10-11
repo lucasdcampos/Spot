@@ -23,6 +23,14 @@ protected:
 
 class TimerOwner final : public Spot::Component {};
 
+class ReferenceOwner final : public Spot::Component {
+public:
+    Spot::ComponentRef<Spot::PointLight> target;
+
+protected:
+    void Serialize(Spot::Archive& archive) override { archive.Field("target", target); }
+};
+
 Spot::Task ChildTask(std::vector<int>& calls) {
     calls.push_back(4);
     co_await Spot::WaitForSeconds{0.25f};
@@ -553,4 +561,54 @@ TEST_CASE("Signals preserve reference arguments and propagate callback failures"
     broken.Disconnect();
     signal.Emit(value);
     CHECK(value == 12);
+}
+
+TEST_CASE("Typed component references resolve by scene and survive target removal", "[gameplay][references]") {
+    Spot::Scene scene;
+    auto& target = scene.CreateEntity();
+    auto& light = target.AddComponent<Spot::PointLight>();
+    Spot::ComponentRef<Spot::PointLight> reference(&light);
+    CHECK(reference.Get(scene) == &light);
+    CHECK(reference.IsValid(scene));
+    Spot::Scene other;
+    CHECK(reference.Get(other) == nullptr);
+    target.RemoveComponent(light);
+    CHECK_FALSE(reference.IsValid(scene));
+    auto& replacement = target.AddComponent<Spot::PointLight>();
+    CHECK(reference.Get(scene) == &replacement);
+    target.Destroy();
+    CHECK(reference.Get(scene) == nullptr);
+    reference.Reset();
+    CHECK(reference.GetEntityId() == Spot::EntityId::Invalid);
+    auto& wrong = scene.CreateEntity();
+    reference.SetEntityId(wrong.GetId());
+    CHECK_FALSE(reference.IsValid(scene));
+}
+
+TEST_CASE("Typed references serialize as entity ids and remap when instantiating trees", "[gameplay][references]") {
+    Spot::RegisterComponent<ReferenceOwner>("GameplayReferenceOwner");
+    struct Registration {
+        ~Registration() { Spot::UnregisterComponent("GameplayReferenceOwner"); }
+    } registration;
+    Spot::Scene scene;
+    auto& root = scene.CreateEntity("Tree");
+    auto& target = scene.CreateEntity("Target");
+    target.SetParent(&root);
+    auto& light = target.AddComponent<Spot::PointLight>();
+    auto& owner = root.AddComponent<ReferenceOwner>();
+    owner.target.Set(&light);
+    Spot::Scene loaded;
+    REQUIRE(loaded.LoadFromString(scene.SaveToString()));
+    const auto* loadedOwner = loaded.FindComponent<ReferenceOwner>();
+    REQUIRE(loadedOwner);
+    REQUIRE(loadedOwner->target.Get(loaded));
+    CHECK(loadedOwner->target.Get(loaded)->GetEntity().GetName() == "Target");
+    Spot::Entity* roots[] = {&root};
+    const auto copies = scene.Instantiate(scene.SaveEntitiesToString(roots));
+    REQUIRE(copies.size() == 1);
+    const auto* copyOwner = copies.front()->GetComponent<ReferenceOwner>();
+    REQUIRE(copyOwner);
+    REQUIRE(copyOwner->target.Get(scene));
+    CHECK(copyOwner->target.GetEntityId() != target.GetId());
+    CHECK(copyOwner->target.Get(scene)->GetEntity().GetParent() == copies.front());
 }
