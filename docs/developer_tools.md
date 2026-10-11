@@ -44,6 +44,8 @@ their code unloads. The engine registers:
 | `profiler.enabled` | Frame scope/counter recording |
 | `profiler.stream` | Send completed frames over the game's log pipe |
 | `stats` | Saved runtime statistics overlay |
+| `screenshot [name.png]` | Queue a PNG of the next complete frame |
+| `capture [name]` | Request the next RenderDoc frame when its runtime is present |
 
 Scene bindings resolve the current scene each time, retaining no component pointers across scene changes.
 Gravity and debug settings apply to the current main scene; its authored settings apply again when it is replaced.
@@ -96,10 +98,32 @@ Tools can pass `ProcessEnvironmentVariable` overrides as the third argument to `
 the rest of the environment. `Process::GetEnvironmentValue()` returns an owned optional string without exposing
 platform types or environment storage.
 
+## Screenshots and frame captures
+
+`screenshot` saves the next complete frame, including custom application drawing and developer UI, in the user's
+`screenshots` folder. An optional bare `.png` name selects the file; otherwise a timestamp supplies one. Requests
+reject paths and concurrent pending captures. The GPU renders that frame into a matching readable target, then
+blits it into the acquired window target; there is no second scene render. Readback waits for submission only
+when a screenshot was requested. PNG conversion handles RGBA/BGRA and preserves sRGB encoding.
+
+Custom loops can use `RenderContext::SetFrameTarget()` between passes to redirect default targets and window
+resolves, restore the acquired target with null, and `BlitTextureToFrame()` to present the recorded image.
+Targets must match the acquired frame's size/format and be single-sample. Explicit pass targets are unaffected.
+After `EndFrame()`, `SaveScreenshot()` reads the target and writes a PNG, creating its parent directories.
+
+`capture` uses the optional [RenderDoc application API](https://renderdoc.org/docs/in_application_api.html).
+Applications connect before creating graphics. Windows detects injection or the standard RenderDoc installation;
+Linux loads `librenderdoc.so`, and `SPOT_RENDERDOC_LIBRARY` can select a different runtime. No SDK types enter the
+public API and no RenderDoc UI is launched. Connected runtimes remain loaded because their hooks can outlive an
+application's graphics device. Missing installations are normal; the command reports that capture is unavailable.
+Metal/macOS capture is unavailable through RenderDoc. Templates share the screenshots folder; RenderDoc appends
+its frame number and `.rdc` extension. Tools can call `FrameCapture::Connect(path)` and `Request(template)` directly.
+
 ### Testing without windows
 
 `GraphicsDevice::CreateOffscreen()` creates a GPU device without a window. `BeginOffscreenFrame(target)` records
 into a single-sample 2D color render target; default render passes use that target, and `EndFrame()` submits it.
 Read pixels with `DownloadTexture()` after submitting. A window device can record offscreen frames too.
 VSync is irrelevant for an offscreen device. Headless tests validate console editing/captures and the editor
-field; the targeted `[offscreen]` GPU test validates text, overlay pixels and readback without desktop windows.
+field; the targeted `[offscreen]` GPU tests validate overlay text, counters, target redirection, presentation and
+PNG readback in RGBA/BGRA/sRGB formats without desktop windows.

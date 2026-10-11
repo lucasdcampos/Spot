@@ -226,6 +226,8 @@ RenderContext* GraphicsDevice::BeginFrame() {
     }
 
     context.commandBuffer = commandBuffer;
+    context.acquiredTarget = context.target;
+    context.format = GetWindowFormat();
     m_impl->frameOpen = true;
     return m_impl->context.get();
 }
@@ -247,6 +249,8 @@ RenderContext* GraphicsDevice::BeginOffscreenFrame(Texture& target) {
     context.target = static_cast<SDL_GPUTexture*>(target.GetNativeHandle());
     context.width = target.GetWidth();
     context.height = target.GetHeight();
+    context.acquiredTarget = context.target;
+    context.format = target.GetFormat();
     m_impl->frameOpen = true;
     return m_impl->context.get();
 }

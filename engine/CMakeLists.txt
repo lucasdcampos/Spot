@@ -137,6 +137,7 @@ add_library(spot_objects OBJECT
     graphics/renderer_3d.cpp
     graphics/scene_renderer.h
     graphics/scene_renderer.cpp
+    graphics/screenshot.cpp
     graphics/shader.h
     graphics/shadow_views.h
     graphics/shadow_views.cpp
@@ -284,6 +285,7 @@ FetchContent_Declare(stb
 )
 FetchContent_MakeAvailable(stb)
 target_include_directories(spot_objects SYSTEM PRIVATE ${stb_SOURCE_DIR})
+target_include_directories(spot_objects SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/third_party/renderdoc)
 
 # cgltf reads glTF models; like stb, it is a single header.
 FetchContent_Declare(cgltf
@@ -340,6 +342,7 @@ if(SPOT_PLATFORM STREQUAL "SDL3")
         platform/sdl3/sdl3_platform.cpp
         platform/sdl3/sdl3_process.cpp
         platform/sdl3/sdl3_memory.cpp
+        platform/sdl3/sdl3_frame_capture.cpp
         platform/sdl3/sdl3_shared_library.cpp
         platform/sdl3/sdl3_shell.cpp
         platform/sdl3/sdl3_window.cpp

@@ -23,6 +23,7 @@ class EngineConsole;
 class ConsoleInput;
 class Font;
 class Renderer2D;
+class FrameCapture;
 struct RuntimeStats;
 
 class LogSink;
@@ -102,6 +103,10 @@ public:
     RuntimeStats GetRuntimeStats() const;
     bool IsProfileStreamEnabled() const { return m_profileStreamEnabled; }
     void SetProfileStreamEnabled(bool enabled) { m_profileStreamEnabled = enabled; }
+    // Queues the next complete frame as a PNG in the user's screenshots folder; rejects paths and pending requests.
+    bool RequestScreenshot(std::string_view fileName = {});
+    // Requests a RenderDoc frame when its optional runtime connected before graphics creation.
+    bool RequestFrameCapture(std::string_view fileName = {});
 
     // Only available while Run() is running.
     Window& GetWindow();
@@ -214,6 +219,8 @@ private:
     void RenderScenes(RenderContext& context);
     void RenderDeveloperOverlay(RenderContext& context);
     void StreamProfileFrame();
+    bool PrepareScreenshot(RenderContext& context);
+    std::filesystem::path GetCaptureDirectory();
     // Returns false, after logging why, when the game's startup scene cannot be loaded.
     bool LoadStartupScene();
 
@@ -221,6 +228,9 @@ private:
     std::shared_ptr<LogSink> m_logFile;
     std::unique_ptr<Window> m_window;
     std::unique_ptr<GraphicsDevice> m_graphics;
+    std::unique_ptr<FrameCapture> m_frameCapture;
+    std::unique_ptr<Texture> m_screenshotTexture;
+    std::filesystem::path m_screenshotPath;
     std::unique_ptr<AudioDevice> m_audio;
     std::unique_ptr<AssetManager> m_assets;
     // Created when there is first something to draw, so applications that draw no scene never pay for it.

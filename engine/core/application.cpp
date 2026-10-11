@@ -6,6 +6,7 @@
 #include "core/console_input.h"
 #include "core/crash_handler.h"
 #include "core/engine_console.h"
+#include "core/frame_capture.h"
 #include "core/game_module.h"
 #include "core/log.h"
 #include "core/log_sinks.h"
@@ -20,16 +21,34 @@
 #include "graphics/font.h"
 #include "graphics/renderer_2d.h"
 #include "graphics/scene_renderer.h"
+#include "graphics/screenshot.h"
 #include "input/input.h"
 #include "platform/platform.h"
 
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
+#include <format>
 #include <system_error>
 #include <utility>
 
 namespace Spot {
+
+namespace {
+bool IsCaptureName(std::string_view name) {
+    return !name.empty() && name.size() <= 128 && name != "." && name != ".." && name.back() != ' ' &&
+           name.back() != '.' && std::ranges::none_of(name, [](unsigned char c) {
+               return c < 32 || std::string_view("<>:\"/\\|?*").find(static_cast<char>(c)) != std::string_view::npos;
+           });
+}
+
+std::string CaptureName(std::string_view prefix, std::string_view extension) {
+    const auto stamp =
+        std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch())
+            .count();
+    return std::format("{}-{}{}", prefix, stamp, extension);
+}
+} // namespace
 
 Application::Application(ApplicationConfig config) : m_config(std::move(config)) {
     m_profileStreamEnabled = Process::GetEnvironmentValue("SPOT_PROFILE_STREAM") == "1";
@@ -87,6 +106,7 @@ int Application::Run() {
     }
 
     if (m_config.graphics.enabled) {
+        m_frameCapture = FrameCapture::Connect();
         m_graphics = GraphicsDevice::Create(*m_window, m_config.graphics);
         if (!m_graphics) {
             m_window.reset();
@@ -197,6 +217,7 @@ int Application::Run() {
         if (m_graphics) {
             SPOT_PROFILE_SCOPE("Application::Render");
             if (RenderContext* context = m_graphics->BeginFrame()) {
+                const bool screenshot = PrepareScreenshot(*context);
                 m_persistentScene->PrepareToRender();
                 for (const auto& scene : m_scenes) {
                     scene->PrepareToRender();
@@ -211,8 +232,21 @@ int Application::Run() {
                     OnRender(*context);
                 }
                 RenderDeveloperOverlay(*context);
-                SPOT_PROFILE_SCOPE("GraphicsDevice::EndFrame");
-                m_graphics->EndFrame();
+                if (screenshot) {
+                    context->SetFrameTarget(nullptr);
+                    context->BlitTextureToFrame(*m_screenshotTexture);
+                }
+                {
+                    SPOT_PROFILE_SCOPE("GraphicsDevice::EndFrame");
+                    m_graphics->EndFrame();
+                }
+                if (screenshot) {
+                    const bool saved = SaveScreenshot(*m_graphics, *m_screenshotTexture, m_screenshotPath);
+                    Log::GetEngineLogger().Write(saved ? LogLevel::Info : LogLevel::Warning, "Screenshot {}: {}",
+                                                 saved ? "saved" : "failed", PathToUtf8(m_screenshotPath));
+                    m_screenshotPath.clear();
+                    m_screenshotTexture.reset();
+                }
             }
         }
         // Once every view of the frame drew the shapes.
@@ -246,7 +280,10 @@ int Application::Run() {
     Input::SetActionMap(nullptr);
     Audio::SetDevice(nullptr);
     m_audio.reset();
+    m_screenshotTexture.reset();
+    m_screenshotPath.clear();
     m_graphics.reset();
+    m_frameCapture.reset();
     m_window.reset();
     return m_failed ? EXIT_FAILURE : EXIT_SUCCESS;
 }
@@ -460,6 +497,54 @@ RuntimeStats Application::GetRuntimeStats() const {
         scenes.push_back(m_persistentScene.get());
     }
     return RuntimeStats::Sample(scenes, m_audio.get());
+}
+
+std::filesystem::path Application::GetCaptureDirectory() {
+    auto directory = GetUserDataDirectory();
+    if (directory.empty()) {
+        directory = Spot::GetUserDataDirectory("Spot", "Developer");
+    }
+    return directory.empty() ? directory : directory / "screenshots";
+}
+
+bool Application::RequestScreenshot(std::string_view fileName) {
+    const std::string name = fileName.empty() ? CaptureName("screenshot", ".png") : std::string(fileName);
+    if (!IsCaptureName(name) || !name.ends_with(".png") || !m_graphics || !m_screenshotPath.empty()) {
+        return false;
+    }
+    const auto directory = GetCaptureDirectory();
+    if (directory.empty()) {
+        return false;
+    }
+    m_screenshotPath = directory / Utf8ToPath(name);
+    return true;
+}
+
+bool Application::RequestFrameCapture(std::string_view fileName) {
+    const std::string name = fileName.empty() ? CaptureName("frame", "") : std::string(fileName);
+    if (!IsCaptureName(name) || !m_graphics || !m_frameCapture) {
+        return false;
+    }
+    const auto directory = GetCaptureDirectory();
+    return !directory.empty() && m_frameCapture->Request(directory / Utf8ToPath(name));
+}
+
+bool Application::PrepareScreenshot(RenderContext& context) {
+    if (m_screenshotPath.empty()) {
+        return false;
+    }
+    m_screenshotTexture = m_graphics->CreateTexture({.width = static_cast<std::uint32_t>(context.GetWidth()),
+                                                     .height = static_cast<std::uint32_t>(context.GetHeight()),
+                                                     .format = m_graphics->GetWindowFormat(),
+                                                     .renderTarget = true});
+    if (!m_screenshotTexture || !context.SetFrameTarget(m_screenshotTexture.get())) {
+        Log::GetEngineLogger().Warning("Could not create the screenshot target");
+        m_screenshotTexture.reset();
+        m_screenshotPath.clear();
+        return false;
+    }
+    auto clear = context.BeginRenderPass({.clearColor = Color::Black});
+    return true;
 }
 
 void Application::StreamProfileFrame() {

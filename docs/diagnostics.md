@@ -53,12 +53,17 @@ and so on), each system under its type's name (`Spot::PhysicsWorld`), the render
 
 Scope names are string literals, or names made at run time and kept with `Profiler::Intern()`. Scopes on other
 threads and outside of frames are not recorded. Frames reuse their memory, so the profiler stays on in Release;
-`Profiler::SetEnabled(false)` turns it off. The sandbox's HUD shows the average update and render times it measures.
+`Profiler::SetEnabled(false)` turns it off. The sandbox HUD samples unscaled FPS; the `stats` developer overlay
+adds frame time, rendering, physics, audio and resident-memory counters.
 
 Frames also count things: `Profiler::Count("Name", amount)` adds to the frame's counter of that name, which starts at
 0 each frame, so code that runs several times a frame adds up, and `Profiler::GetCounter()` reads it back. `Renderer3D`
 counts the meshes it drew in its views (`Visible meshes`) and those it left out because they were outside them
 (`Culled meshes`).
+
+The editor's **Profiler** panel copies recent frames for paused inspection, plots a scope timeline and computes
+inclusive averages per frame. It can also read managed game processes over their existing log pipe. See
+[Developer tools](developer_tools.md) for the consoles, profiler workflow and screenshot/RenderDoc commands.
 
 ## Debug drawing
 

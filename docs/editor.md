@@ -45,6 +45,10 @@ missing source targets are skipped safely. Play copies retain their existing ins
 
 ## Panels
 
+The **Console** executes the shared engine command registry, with Tab completion and Up/Down history. The
+**Profiler** selects and pauses recorded frames, shows nested scopes and averages, and switches to profiles from
+a game launched in its own process. Both are available from **Window**; see [Developer tools](developer_tools.md).
+
 Dropping a prefab into a scene or the hierarchy adds its saved tree as one undoable action, preserving the root's
 rotation and scale and placing it at the drop position. See [Prefabs](prefabs.md) for the source format and runtime API.
 

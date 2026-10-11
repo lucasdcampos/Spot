@@ -35,6 +35,8 @@ private:
 struct RenderContext::Impl {
     SDL_GPUCommandBuffer* commandBuffer = nullptr;
     SDL_GPUTexture* target = nullptr;
+    SDL_GPUTexture* acquiredTarget = nullptr;
+    TextureFormat format = TextureFormat::Rgba8;
     Uint32 width = 0;
     Uint32 height = 0;
     bool passOpen = false;

@@ -140,6 +140,11 @@ public:
     int GetHeight() const;
 
     RenderPass BeginRenderPass(const RenderPassDesc& desc = {});
+    // Redirects default passes and window resolves into a same-size/format single-sample target; null restores
+    // the acquired frame target. Change it only between passes. Explicit pass targets are unaffected.
+    bool SetFrameTarget(Texture* target);
+    // Presents a same-size/format single-sample texture into the current frame target, outside a render pass.
+    bool BlitTextureToFrame(const Texture& source);
     // Makes every mip level of a texture after the first from the one before it, for render targets drawn at their
     // first level. Not during a render pass.
     void GenerateMipmaps(Texture& texture);

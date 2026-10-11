@@ -1057,7 +1057,7 @@ with view-model animations.
 - [x] **M11.4 Profiler panel.** A timeline of recent frames from M0.4 in the editor, with averages per scope and
   pausing. It covers games running in their own process too, through the channel the editor already reads their
   logs from.
-- [ ] **M11.5 Captures.** Screenshot command, and frame captures with RenderDoc when it is present.
+- [x] **M11.5 Captures.** Screenshot command, and frame captures with RenderDoc when it is present.
 - [ ] **M11.6 Sandbox: commands.** `gravity`, `timescale`, `noclip`, `cleanup`, `spawn <prop>`, `give <weapon>`, and
   `stress <count>`, which spawns props in a pile to measure physics and rendering.
 
@@ -1094,6 +1094,14 @@ with view-model animations.
   rotation/restarts and ImGui mouse selection. Seventeen engine cases, one process case and six editor cases pass
   (199 assertions), without GPU/windows. MSVC builds without warnings; Windows memory header prerequisites are
   preserved across clang-format.
+- M11.5: `screenshot [name.png]` queues a complete frame (including custom rendering/UI) into a readable matching
+  target and presents it through public frame-target redirection/blitting; no second scene rendering or swapchain
+  readback is needed. Submitted textures save as PNG with RGBA/BGRA conversion and sRGB preserved. `capture [name]`
+  uses optional RenderDoc API 1.6, connected before graphics, with backend-private SDK types and no external UI.
+  Missing runtimes are silent; Metal capture is unavailable through RenderDoc. Twenty headless cases pass
+  (175 assertions), including SDK ABI fixture and unavailable capture commands. Two windowless GPU cases pass
+  131 assertions across RGBA/BGRA/sRGB targets, pixel presentation, PNG reload and rendering counters. Actual
+  RenderDoc hardware capture was not exercised. MSVC compiles without warnings; no visible GPU windows were used.
 
 ---
 

@@ -208,6 +208,40 @@ void RenderContext::GenerateMipmaps(Texture& texture) {
     }
 }
 
+bool RenderContext::SetFrameTarget(Texture* target) {
+    if (m_impl->passOpen || !m_impl->commandBuffer || !m_impl->acquiredTarget) {
+        return false;
+    }
+    if (target && (!target->IsRenderTarget() || target->GetSampleCount() != 1 || target->GetLayerCount() != 1 ||
+                   target->GetFormat() != m_impl->format || target->GetWidth() != m_impl->width ||
+                   target->GetHeight() != m_impl->height)) {
+        Log::GetEngineLogger().Warning("Frame targets must match the acquired frame's size and format");
+        return false;
+    }
+    m_impl->target = target ? static_cast<SDL_GPUTexture*>(target->GetNativeHandle()) : m_impl->acquiredTarget;
+    return true;
+}
+
+bool RenderContext::BlitTextureToFrame(const Texture& source) {
+    auto* texture = static_cast<SDL_GPUTexture*>(source.GetNativeHandle());
+    if (m_impl->passOpen || !m_impl->commandBuffer || !m_impl->target || texture == m_impl->target ||
+        source.GetSampleCount() != 1 || source.GetLayerCount() != 1 || source.GetFormat() != m_impl->format ||
+        source.GetWidth() != m_impl->width || source.GetHeight() != m_impl->height) {
+        return false;
+    }
+    SDL_GPUBlitInfo blit{};
+    blit.source.texture = texture;
+    blit.source.w = m_impl->width;
+    blit.source.h = m_impl->height;
+    blit.destination.texture = m_impl->target;
+    blit.destination.w = m_impl->width;
+    blit.destination.h = m_impl->height;
+    blit.load_op = SDL_GPU_LOADOP_DONT_CARE;
+    blit.filter = SDL_GPU_FILTER_NEAREST;
+    SDL_BlitGPUTexture(m_impl->commandBuffer, &blit);
+    return true;
+}
+
 void* RenderContext::GetNativeHandle() const {
     return m_impl->commandBuffer;
 }

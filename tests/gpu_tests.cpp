@@ -96,6 +96,68 @@ TEST_CASE("The developer console renders and reads back offscreen without creati
     CHECK_FALSE(device->BeginOffscreenFrame(*invalid));
 }
 
+TEST_CASE("Complete frames redirect, present and save RGBA and BGRA screenshots without a window",
+          "[gpu][capture][offscreen]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = false});
+    REQUIRE(device);
+    TempDirectory directory;
+    for (const auto format : {Spot::TextureFormat::Rgba8, Spot::TextureFormat::Bgra8, Spot::TextureFormat::Rgba8Srgb,
+                              Spot::TextureFormat::Bgra8Srgb}) {
+        CAPTURE(static_cast<int>(format));
+        auto frame = device->CreateTexture({.width = 64, .height = 48, .format = format, .renderTarget = true});
+        auto screenshot = device->CreateTexture({.width = 64, .height = 48, .format = format, .renderTarget = true});
+        auto wrongSize = device->CreateTexture({.width = 8, .height = 8, .format = format, .renderTarget = true});
+        REQUIRE(frame);
+        REQUIRE(screenshot);
+        REQUIRE(wrongSize);
+        Spot::Renderer2D renderer(*device, {.targetFormat = format});
+        REQUIRE(renderer.IsValid());
+        auto* context = device->BeginOffscreenFrame(*frame);
+        REQUIRE(context);
+        CHECK_FALSE(context->SetFrameTarget(wrongSize.get()));
+        REQUIRE(context->SetFrameTarget(screenshot.get()));
+        Spot::Profiler::Clear();
+        Spot::Profiler::BeginFrame();
+        {
+            auto pass = context->BeginRenderPass({.clearColor = Spot::Color::Red});
+            CHECK_FALSE(context->SetFrameTarget(nullptr));
+            CHECK_FALSE(context->BlitTextureToFrame(*frame));
+            renderer.Begin(pass, Spot::Camera2D{.position = {32.0f, 24.0f}}, {64.0f, 48.0f});
+            renderer.DrawQuad({32.0f, 24.0f}, {20.0f, 14.0f}, Spot::Color::Green);
+            renderer.End();
+        }
+        Spot::Profiler::EndFrame();
+        const auto profiles = Spot::Profiler::GetFrames();
+        REQUIRE(profiles.size() == 1);
+        CHECK(Spot::Profiler::GetCounter(*profiles.back(), "2D draw calls") == 1);
+        CHECK(Spot::Profiler::GetCounter(*profiles.back(), "2D triangles") == 2);
+        REQUIRE(context->SetFrameTarget(nullptr));
+        CHECK_FALSE(context->BlitTextureToFrame(*frame));
+        REQUIRE(context->BlitTextureToFrame(*screenshot));
+        device->EndFrame();
+        CHECK(device->DownloadTexture(*frame) == device->DownloadTexture(*screenshot));
+        const auto path = directory.GetPath() / "nested" / "frame.png";
+        REQUIRE(Spot::SaveScreenshot(*device, *screenshot, path));
+        const auto image = Spot::Image::Load(path);
+        REQUIRE(image);
+        CHECK(image->GetWidth() == 64);
+        CHECK(image->GetHeight() == 48);
+        const auto pixels = image->GetPixels();
+        REQUIRE(pixels.size() == 64 * 48 * 4);
+        CHECK(pixels[0] == 255);
+        CHECK(pixels[1] == 0);
+        CHECK(pixels[2] == 0);
+        const auto center = (24 * 64 + 32) * 4;
+        CHECK(pixels[center] == 0);
+        CHECK(pixels[center + 1] == 255);
+        CHECK(pixels[center + 2] == 0);
+    }
+    auto unsupported = device->CreateTexture({.width = 8, .height = 8, .format = Spot::TextureFormat::Rgba16Float});
+    REQUIRE(unsupported);
+    CHECK_FALSE(Spot::SaveScreenshot(*device, *unsupported, directory.GetPath() / "bad.png"));
+}
+
 TEST_CASE("Application renders frames sized to the window in pixels", "[gpu]") {
     RequireGpu();
     std::string backend;

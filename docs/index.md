@@ -19,7 +19,7 @@ that does the same with a window around it.
 | [Audio](audio.md) | Sounds, the audio device and the mixer |
 | [Input](input.md) | Events, the input state, keys, the mouse and the cursor lock |
 | [Diagnostics](diagnostics.md) | Logging, crash reports, contained failures, the profiler and debug drawing |
-| [Developer tools](developer_tools.md) | Commands, typed cvars, history, completion and engine settings |
+| [Developer tools](developer_tools.md) | Commands, typed cvars, consoles, statistics, profiler timelines and captures |
 | [Editor](editor.md) | The editor's documents, panels, undo, play mode and game code reloading |
 | [Tools and the command line](tools_and_command_line.md) | Projects, cooking, building, running and exporting games with `spot` |
 | [Sandbox](sandbox.md) | Running the playground, prefab spawnables, controls and a play-test checklist |

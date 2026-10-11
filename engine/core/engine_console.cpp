@@ -103,6 +103,33 @@ EngineConsole::EngineConsole(Console& console, Application& app) {
         console, "stats", false, "Show frame, rendering, physics, audio and memory statistics", ConsoleFlags::Saved,
         [&app] { return app.IsStatsVisible(); }, [&app](bool value) { app.SetStatsVisible(value); },
         [](bool) { return true; }));
+    m_registrations.push_back(console.Register(
+        {"screenshot",
+         "Save the next complete frame as PNG",
+         {},
+         [&app](std::span<const std::string> arguments) -> ConsoleResult {
+             if (arguments.size() > 1) {
+                 return {false, "Usage: screenshot [name.png]"};
+             }
+             if (!app.RequestScreenshot(arguments.empty() ? std::string_view{} : arguments[0])) {
+                 return {false, "Screenshot requires running graphics, a bare PNG name and no pending screenshot"};
+             }
+             return {true, "Screenshot queued in the user screenshots folder"};
+         }}));
+    m_registrations.push_back(console.Register(
+        {"capture",
+         "Capture the next frame with optional RenderDoc",
+         {},
+         [&app](std::span<const std::string> arguments) -> ConsoleResult {
+             if (arguments.size() > 1) {
+                 return {false, "Usage: capture [name]"};
+             }
+             if (!app.RequestFrameCapture(arguments.empty() ? std::string_view{} : arguments[0])) {
+                 return {false,
+                         "Frame capture unavailable: connect RenderDoc before graphics and use a bare file name"};
+             }
+             return {true, "RenderDoc frame requested in the user screenshots folder"};
+         }}));
 }
 
 } // namespace Spot
