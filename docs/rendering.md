@@ -5,6 +5,12 @@ material asset ID and is saved inline, including PBR values and texture asset re
 checkpoints therefore preserve paint and emissive lamp colors. Code-created meshes still need an asset ID to
 survive serialization.
 
+For GPU work without a desktop window, use `GraphicsDevice::CreateOffscreen()` and
+`BeginOffscreenFrame(colorTarget)`. Default render passes draw into that target until `EndFrame()` submits the
+commands. The target must be a single-sample 2D color render target and remain alive for the frame; read it back
+after submission. `GetWindowFormat()` supplies the offscreen device's default color format (RGBA, sRGB when
+`linearWindow` is enabled). VSync has no effect. See [developer-tool testing](developer_tools.md#testing-without-windows).
+
 Rendering has two layers. The **graphics API** (`GraphicsDevice`, `RenderContext`, `RenderPass`, buffers, textures,
 shaders and pipelines) is a thin, backend-independent interface over SDL_GPU, whose backend lives in
 `engine/graphics/sdl_gpu/` and never shows in public headers. The **renderers** (`Renderer2D`, `Renderer3D`,

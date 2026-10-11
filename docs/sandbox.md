@@ -47,6 +47,7 @@ controls are:
 | Z | Undo the last spawn or tool operation |
 | X | Remove props created by the spawner |
 | F9, F10 | Save and load the editable world checkpoint |
+| Grave (`) | Open or close the developer console |
 
 Gamepad bindings are in the same settings. Spawn cycles through the catalog rather than requiring a separate
 button per entry. The tool gun's right mouse/Aim action cycles colors, materials or lamp kinds in those modes.

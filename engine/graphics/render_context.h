@@ -16,7 +16,7 @@ class Pipeline;
 class RenderContext;
 
 struct RenderPassDesc {
-    // A texture created as a render target, or null to draw into the window.
+    // A texture created as a render target, or null to draw into the frame target (window or offscreen texture).
     Texture* target = nullptr;
     // The face of a cube target to draw into (see TextureType::Cube), and the mip level of the target, which the pass
     // then covers at its size.
@@ -135,7 +135,7 @@ public:
     RenderContext(const RenderContext&) = delete;
     RenderContext& operator=(const RenderContext&) = delete;
 
-    // Size of the window's frame in pixels, which differs from the window size on high-DPI displays.
+    // Size of the frame target in pixels, which differs from a window's point size on high-DPI displays.
     int GetWidth() const;
     int GetHeight() const;
 

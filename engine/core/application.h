@@ -20,6 +20,9 @@
 namespace Spot {
 
 class EngineConsole;
+class ConsoleInput;
+class Font;
+class Renderer2D;
 
 class LogSink;
 class SceneRenderer;
@@ -57,6 +60,8 @@ struct ApplicationConfig {
     // Draws the persistent scene and the loaded ones into the window with a SceneRenderer, before OnRender(), so a
     // game needs no code to show them. Tools that show scenes their own way, such as the editor, turn it off.
     bool renderScenes = true;
+    // The Grave key opens an event-driven developer console. Tools with their own console turn it off.
+    bool consoleOverlay = true;
 };
 
 class Application {
@@ -88,6 +93,9 @@ public:
     void SetMaxFrameRate(int maxFrameRate);
     bool IsSceneRenderingEnabled() const { return m_config.renderScenes; }
     void SetSceneRenderingEnabled(bool enabled) { m_config.renderScenes = enabled; }
+    // A game's imported UI font; keep the asset reference so it stays loaded for the developer overlays.
+    void SetDeveloperFont(AssetRef<Font> font) { m_developerFont = std::move(font); }
+    ConsoleInput* GetConsoleInput() const { return m_consoleInput.get(); }
 
     // Only available while Run() is running.
     Window& GetWindow();
@@ -198,6 +206,7 @@ private:
     void RemoveScene(const Scene* scene);
     void RemoveAllScenes();
     void RenderScenes(RenderContext& context);
+    void RenderDeveloperOverlay(RenderContext& context);
     // Returns false, after logging why, when the game's startup scene cannot be loaded.
     bool LoadStartupScene();
 
@@ -213,6 +222,9 @@ private:
     std::vector<std::unique_ptr<Scene>> m_scenes;
     std::vector<SceneChange> m_sceneChanges;
     InputState m_input;
+    std::unique_ptr<ConsoleInput> m_consoleInput;
+    AssetRef<Font> m_developerFont;
+    std::unique_ptr<Renderer2D> m_developerRenderer;
     InputActionMap m_actions;
     std::filesystem::path m_userDataDirectory;
     FrameClock m_clock;

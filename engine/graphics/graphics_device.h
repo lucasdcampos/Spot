@@ -40,6 +40,8 @@ public:
 
     // Returns null, after logging why, when no device can be created for the window.
     static std::unique_ptr<GraphicsDevice> Create(Window& window, const GraphicsConfig& config = {});
+    // Creates a device without a window. Rendering and readback tests can use it without taking desktop focus.
+    static std::unique_ptr<GraphicsDevice> CreateOffscreen(const GraphicsConfig& config = {});
 
     ~GraphicsDevice();
 
@@ -114,6 +116,9 @@ public:
     // Returns null when there is nothing to draw into this frame, such as while the window is minimized.
     // Every non-null frame must be finished with EndFrame(), which submits it to the GPU.
     RenderContext* BeginFrame();
+    // Records a frame into this single-sample 2D color render target, which must stay alive until EndFrame().
+    // Works with either kind of device. Default render passes draw into this target instead of the window.
+    RenderContext* BeginOffscreenFrame(Texture& target);
     void EndFrame();
 
     // The backend's device (an SDL_GPUDevice* with SDL_GPU), for code that needs the backend directly.

@@ -3,6 +3,8 @@
 #include "imgui/editor_style.h"
 #include "imgui/icons.h"
 
+#include <imgui_stdlib.h>
+
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <imgui_stdlib.h>
@@ -120,7 +122,44 @@ void ConsolePanel::OnDraw() {
     Sync();
     DrawToolbar();
     ImGui::Separator();
+    DrawCommandLine();
     DrawRows();
+}
+
+void ConsolePanel::ExecuteCommand(std::string_view line) {
+    m_commandInput.SetLine(std::string(line));
+    m_commandInput.Submit();
+    m_commandText.clear();
+    Sync();
+}
+
+int ConsolePanel::OnCommandInput(ImGuiInputTextCallbackData* data) {
+    auto& panel = *static_cast<ConsolePanel*>(data->UserData);
+    if (data->EventFlag == ImGuiInputTextFlags_CallbackEdit) {
+        panel.m_commandInput.SetLine(data->Buf);
+        return 0;
+    }
+    if (data->EventFlag == ImGuiInputTextFlags_CallbackCompletion) {
+        panel.m_commandInput.SetLine(data->Buf);
+        panel.m_commandInput.Complete();
+    } else if (data->EventFlag == ImGuiInputTextFlags_CallbackHistory) {
+        panel.m_commandInput.BrowseHistory(data->EventKey == ImGuiKey_UpArrow ? -1 : 1);
+    }
+    data->DeleteChars(0, data->BufTextLen);
+    data->InsertChars(0, panel.m_commandInput.GetLine().c_str());
+    return 0;
+}
+
+void ConsolePanel::DrawCommandLine() {
+    ImGui::SetNextItemWidth(-1.0f);
+    constexpr ImGuiInputTextFlags flags = ImGuiInputTextFlags_EnterReturnsTrue |
+                                          ImGuiInputTextFlags_CallbackCompletion | ImGuiInputTextFlags_CallbackHistory |
+                                          ImGuiInputTextFlags_CallbackEdit;
+    if (ImGui::InputTextWithHint("##Command", "Command (Tab completes; Up/Down browse history)", &m_commandText, flags,
+                                 &ConsolePanel::OnCommandInput, this)) {
+        ExecuteCommand(m_commandText);
+        ImGui::SetKeyboardFocusHere(-1);
+    }
 }
 
 void ConsolePanel::DrawToolbar() {

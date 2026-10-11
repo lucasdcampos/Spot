@@ -43,6 +43,7 @@ add_library(spot_objects OBJECT
     core/application.h
     core/application.cpp
     core/console.cpp
+    core/console_input.cpp
     core/engine_console.cpp
     core/assert.h
     core/assert.cpp
@@ -127,6 +128,7 @@ add_library(spot_objects OBJECT
     graphics/render_stage.h
     graphics/renderer_2d.h
     graphics/renderer_2d.cpp
+    graphics/console_overlay.cpp
     graphics/renderer_3d.h
     graphics/rendering_settings.cpp
     graphics/rendering_settings.h

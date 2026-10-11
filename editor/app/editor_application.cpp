@@ -52,6 +52,7 @@ ApplicationConfig MakeConfig(const EditorOptions& options) {
         .showCrashMessage = options.showCrashMessage,
         // The scenes show in the editor's views, which draw them themselves.
         .renderScenes = false,
+        .consoleOverlay = false,
     };
 }
 

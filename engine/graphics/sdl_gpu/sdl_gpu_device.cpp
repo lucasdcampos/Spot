@@ -65,7 +65,9 @@ GraphicsDevice::Impl::Impl(std::shared_ptr<SharedGpuDevice> device, SDL_Window* 
 
 GraphicsDevice::Impl::~Impl() {
     SDL_WaitForGPUIdle(device->Get());
-    SDL_ReleaseWindowFromGPUDevice(device->Get(), window);
+    if (window) {
+        SDL_ReleaseWindowFromGPUDevice(device->Get(), window);
+    }
 }
 
 bool GraphicsDevice::IsSupported() {
@@ -112,6 +114,26 @@ std::unique_ptr<GraphicsDevice> GraphicsDevice::Create(Window& window, const Gra
     return graphics;
 }
 
+std::unique_ptr<GraphicsDevice> GraphicsDevice::CreateOffscreen(const GraphicsConfig& config) {
+    if (!Platform::Initialize()) {
+        return nullptr;
+    }
+    SDL_GPUDevice* handle = CreateDevice(config.debug);
+    if (!handle) {
+        Log::GetEngineLogger().Error("Failed to create an offscreen GPU device: {}", SDL_GetError());
+        Platform::Shutdown();
+        return nullptr;
+    }
+    auto device = std::make_shared<SharedGpuDevice>(handle);
+    Platform::Shutdown();
+    auto context = std::unique_ptr<RenderContext>(new RenderContext());
+    auto impl = std::make_unique<Impl>(std::move(device), nullptr, std::move(context));
+    impl->vsync = false;
+    impl->composition =
+        config.linearWindow ? SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR : SDL_GPU_SWAPCHAINCOMPOSITION_SDR;
+    return std::unique_ptr<GraphicsDevice>(new GraphicsDevice(std::move(impl)));
+}
+
 GraphicsDevice::GraphicsDevice(std::unique_ptr<Impl> impl) : m_impl(std::move(impl)) {
 }
 
@@ -130,6 +152,10 @@ bool GraphicsDevice::SupportsRenderTarget(TextureFormat format) const {
 }
 
 TextureFormat GraphicsDevice::GetWindowFormat() const {
+    if (!m_impl->window) {
+        return m_impl->composition == SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR ? TextureFormat::Rgba8Srgb
+                                                                              : TextureFormat::Rgba8;
+    }
     // The swapchain is SDR, linear or not, which SDL gives one of these formats.
     switch (SDL_GetGPUSwapchainTextureFormat(m_impl->device->Get(), m_impl->window)) {
     case SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM:
@@ -152,6 +178,9 @@ bool GraphicsDevice::IsVSyncEnabled() const {
 }
 
 void GraphicsDevice::SetVSync(bool enabled) {
+    if (!m_impl->window) {
+        return;
+    }
     // Changing the present mode recreates the swapchain, whose texture an open frame is still using.
     if (m_impl->frameOpen) {
         m_impl->pendingVSync = enabled;
@@ -168,6 +197,9 @@ void GraphicsDevice::SetVSync(bool enabled) {
 
 RenderContext* GraphicsDevice::BeginFrame() {
     SPOT_ASSERT(!m_impl->frameOpen, "BeginFrame() called while a frame is open");
+    if (!m_impl->window) {
+        return nullptr;
+    }
 
     if (const auto vsync = std::exchange(m_impl->pendingVSync, std::nullopt)) {
         SetVSync(*vsync);
@@ -194,6 +226,27 @@ RenderContext* GraphicsDevice::BeginFrame() {
     }
 
     context.commandBuffer = commandBuffer;
+    m_impl->frameOpen = true;
+    return m_impl->context.get();
+}
+
+RenderContext* GraphicsDevice::BeginOffscreenFrame(Texture& target) {
+    SPOT_ASSERT(!m_impl->frameOpen, "A frame is already open");
+    if (!target.IsRenderTarget() || target.GetSampleCount() != 1 || target.GetLayerCount() != 1 ||
+        IsDepthFormat(target.GetFormat())) {
+        Log::GetEngineLogger().Error("Offscreen frames need a single-sample 2D color render target");
+        return nullptr;
+    }
+    auto* commandBuffer = SDL_AcquireGPUCommandBuffer(m_impl->device->Get());
+    if (!commandBuffer) {
+        Log::GetEngineLogger().Error("Failed to acquire an offscreen command buffer: {}", SDL_GetError());
+        return nullptr;
+    }
+    auto& context = *m_impl->context->m_impl;
+    context.commandBuffer = commandBuffer;
+    context.target = static_cast<SDL_GPUTexture*>(target.GetNativeHandle());
+    context.width = target.GetWidth();
+    context.height = target.GetHeight();
     m_impl->frameOpen = true;
     return m_impl->context.get();
 }

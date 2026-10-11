@@ -45,3 +45,29 @@ their code unloads. The engine registers:
 
 Scene bindings resolve the current scene each time, retaining no component pointers across scene changes.
 Gravity and debug settings apply to the current main scene; its authored settings apply again when it is replaced.
+
+## In-game and editor consoles
+
+The physical Grave key opens the runtime overlay. Enter runs the line, Tab completes the command name, Up/Down
+browse history and Escape closes it. Text comes from UTF-8 text-input events, with code-point-aware Backspace.
+`ConsoleInput` owns an M2.6 input capture: held gameplay controls are released when it opens, mouse/keyboard/gamepad
+events stay with the console, and closing restores the cursor lock the game requested. Escape is consumed while
+closing, so it cannot also activate the game's pause action. Platform text input starts and stops with the overlay.
+The simulation continues while it is open; use `console.cheats true` and `time.scale 0` to pause simulation.
+
+Set the game's imported UI font with `Application::SetDeveloperFont()`. The sandbox uses its HUD font. Applications
+draw `DrawConsoleOverlay()` with the public `Renderer2D` after the game's rendering, including when scene rendering
+is disabled. Tools can set `ApplicationConfig::consoleOverlay = false`; the editor uses its own console panel.
+Its command field executes the shared registry, logs results, completes with Tab and browses with Up/Down.
+
+`ConsoleInput` and `DrawConsoleOverlay()` also work in custom loops. The input model is independent of the GPU;
+feed it events before gameplay and deliver unconsumed events to `InputState`. The draw function expects a
+`Renderer2D` camera spanning `[0, viewSize]` with Y up.
+
+### Testing without windows
+
+`GraphicsDevice::CreateOffscreen()` creates a GPU device without a window. `BeginOffscreenFrame(target)` records
+into a single-sample 2D color render target; default render passes use that target, and `EndFrame()` submits it.
+Read pixels with `DownloadTexture()` after submitting. A window device can record offscreen frames too.
+VSync is irrelevant for an offscreen device. Headless tests validate console editing/captures and the editor
+field; the targeted `[offscreen]` GPU test validates text, overlay pixels and readback without desktop windows.

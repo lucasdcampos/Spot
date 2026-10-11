@@ -1051,7 +1051,7 @@ with view-model animations.
 - [x] **M11.1 Commands and cvars.** A `ConsoleCommand` registry and `CVar<T>` (name, default, description, flags
   such as cheat or saved), with parsing, completion and history. The engine registers its rendering, physics and
   audio switches. Tests.
-- [ ] **M11.2 In-game console.** An overlay drawn with `Renderer2D` that takes input through M2.6. The editor's console
+- [x] **M11.2 In-game console.** An overlay drawn with `Renderer2D` that takes input through M2.6. The editor's console
   panel gets the command line.
 - [ ] **M11.3 Stats overlay.** FPS, frame time, draw calls, triangles, bodies, voices and memory.
 - [ ] **M11.4 Profiler panel.** A timeline of recent frames from M0.4 in the editor, with averages per scope and
@@ -1072,6 +1072,14 @@ with view-model animations.
   saved values round-trip through `console.json`. Scene bindings resolve the current scene on each use. Seven
   headless tests (72 assertions) cover parsing, lifetime, mutation, flags, validation, history and persistence,
   including application startup/shutdown. MSVC builds without compiler warnings.
+- M11.2: `ConsoleInput` consumes events before gameplay through M2.6 captures, releases held controls, restores
+  requested cursor locking, toggles platform text input and edits UTF-8 with completion/history. Escape closes the
+  console without activating gameplay Pause. `DrawConsoleOverlay()` uses public Renderer2D after the game's UI;
+  games supply their imported UI font, and the sandbox supplies its HUD font. The editor has its own command field,
+  tested through actual ImGui typing, Tab, Enter and history navigation. `CreateOffscreen()` and
+  `BeginOffscreenFrame()` were added to validate GPU drawing/readback without creating desktop windows. Eleven
+  console/input tests, two headless editor tests and all 27 sandbox cases pass, plus one targeted windowless GPU
+  test (19 assertions). No broader GPU suite ran; MSVC builds without compiler warnings.
 
 ---
 

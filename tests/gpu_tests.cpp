@@ -35,6 +35,59 @@
 using Spot::Tests::RenderingApplication;
 using Spot::Tests::RequireGpu;
 
+TEST_CASE("The developer console renders and reads back offscreen without creating a window",
+          "[gpu][console][offscreen]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = false});
+    REQUIRE(device);
+    CHECK_FALSE(device->IsVSyncEnabled());
+    device->SetVSync(true);
+    CHECK_FALSE(device->IsVSyncEnabled());
+    auto target = device->CreateTexture(
+        {.width = 640, .height = 480, .format = Spot::TextureFormat::Rgba8, .renderTarget = true});
+    REQUIRE(target);
+    auto font = Spot::Font::Load(*device,
+                                 std::filesystem::path(SPOT_TEST_ASSETS_DIR) / "fonts" / "FiraSans-Regular.ttf", 20.0f);
+    REQUIRE(font);
+    Spot::Renderer2D renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8});
+    REQUIRE(renderer.IsValid());
+    Spot::Console console;
+    Spot::CVar<int> count(console, "count", 1);
+    console.Execute("count 7");
+    Spot::InputState state;
+    Spot::ConsoleInput input(console, state);
+    input.SetOpen(true);
+    input.SetLine("count");
+    auto render = [&] {
+        auto* context = device->BeginOffscreenFrame(*target);
+        REQUIRE(context);
+        CHECK(context->GetWidth() == 640);
+        CHECK(context->GetHeight() == 480);
+        auto pass = context->BeginRenderPass({.clearColor = Spot::Color::Blue});
+        renderer.Begin(pass, Spot::Camera2D{.position = {320.0f, 240.0f}}, {640.0f, 480.0f});
+        Spot::DrawConsoleOverlay(console, input, *font, renderer, {640.0f, 480.0f});
+        renderer.End();
+        pass.End();
+        device->EndFrame();
+        return device->DownloadTexture(*target);
+    };
+    const auto open = render();
+    REQUIRE(open.size() == 640 * 480 * 4);
+    CHECK(open[2] < 80);
+    CHECK(open[(640 * 479) * 4 + 2] == 255);
+    bool hasText = false;
+    for (std::size_t i = 0; i < 640 * 200 * 4; i += 4) {
+        hasText = hasText || open[i] > 100;
+    }
+    CHECK(hasText);
+    input.SetOpen(false);
+    const auto closed = render();
+    CHECK(closed[2] == 255);
+    auto invalid = device->CreateTexture({.width = 8, .height = 8});
+    REQUIRE(invalid);
+    CHECK_FALSE(device->BeginOffscreenFrame(*invalid));
+}
+
 TEST_CASE("Application renders frames sized to the window in pixels", "[gpu]") {
     RequireGpu();
     std::string backend;

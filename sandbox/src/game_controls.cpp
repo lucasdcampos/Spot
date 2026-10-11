@@ -1,5 +1,6 @@
 #include "game_controls.h"
 
+#include "hud.h"
 #include "sound_bank.h"
 #include "world_save.h"
 
@@ -7,6 +8,11 @@ SPOT_COMPONENT(GameControls);
 
 void GameControls::OnStart() {
     Spot::Input::SetCursorLocked(true);
+    if (GetScene().IsLoaded()) {
+        if (const auto* hud = GetScene().FindComponent<Hud>()) {
+            GetScene().GetApplication().SetDeveloperFont(hud->font);
+        }
+    }
 }
 
 void GameControls::OnUpdate(float /*deltaTime*/) {

@@ -3,6 +3,7 @@
 #include "assets/assets.h"
 #include "audio/audio_system.h"
 #include "core/assert.h"
+#include "core/console_input.h"
 #include "core/crash_handler.h"
 #include "core/engine_console.h"
 #include "core/game_module.h"
@@ -11,7 +12,10 @@
 #include "core/paths.h"
 #include "core/profiler.h"
 #include "core/save_data.h"
+#include "graphics/console_overlay.h"
 #include "graphics/debug_draw.h"
+#include "graphics/font.h"
+#include "graphics/renderer_2d.h"
 #include "graphics/scene_renderer.h"
 #include "input/input.h"
 #include "platform/platform.h"
@@ -118,6 +122,9 @@ int Application::Run() {
         }
     }
     m_engineConsole = std::make_unique<EngineConsole>(Console::Get(), *this);
+    if (m_config.consoleOverlay) {
+        m_consoleInput = std::make_unique<ConsoleInput>(Console::Get(), m_input);
+    }
     if (const auto directory = GetUserDataDirectory(); !directory.empty()) {
         const auto result = SaveData(directory).Load(
             "console.json", 1, [](Archive& archive, std::uint32_t) { Console::Get().Serialize(archive); });
@@ -191,6 +198,7 @@ int Application::Run() {
                     SPOT_PROFILE_SCOPE("Application::OnRender");
                     OnRender(*context);
                 }
+                RenderDeveloperOverlay(*context);
                 SPOT_PROFILE_SCOPE("GraphicsDevice::EndFrame");
                 m_graphics->EndFrame();
             }
@@ -209,6 +217,9 @@ int Application::Run() {
         }
     }
     OnStop();
+    m_consoleInput.reset();
+    m_developerRenderer.reset();
+    m_developerFont = {};
     m_sceneChanges.clear();
     RemoveAllScenes();
     m_persistentScene->Clear();
@@ -359,9 +370,20 @@ void Application::MakePersistent(Entity& entity) {
 }
 
 void Application::DispatchEvent(const Event& event) {
-    m_input.OnEvent(event);
+    const bool wasOpen = m_consoleInput && m_consoleInput->IsOpen();
+    const bool consumed = m_consoleInput && m_consoleInput->OnEvent(event);
+    if (m_window && m_consoleInput && wasOpen != m_consoleInput->IsOpen()) {
+        if (m_consoleInput->IsOpen()) {
+            m_window->StartTextInput();
+        } else {
+            m_window->StopTextInput();
+        }
+    }
+    if (!consumed) {
+        m_input.OnEvent(event);
+    }
     OnEvent(event);
-    if (DeliversToScenes(event)) {
+    if (!consumed && DeliversToScenes(event)) {
         if (m_persistentScene) {
             m_persistentScene->OnEvent(event);
         }
@@ -417,6 +439,24 @@ void Application::RemoveScene(const Scene* scene) {
     removed.Clear();
     removed.m_application = nullptr;
     m_scenes.erase(found);
+}
+
+void Application::RenderDeveloperOverlay(RenderContext& context) {
+    if (!m_consoleInput || !m_consoleInput->IsOpen() || !m_developerFont) {
+        return;
+    }
+    if (!m_developerRenderer) {
+        m_developerRenderer = std::make_unique<Renderer2D>(*m_graphics);
+    }
+    if (!m_developerRenderer->IsValid()) {
+        return;
+    }
+    const Vector2 size{static_cast<float>(context.GetWidth()), static_cast<float>(context.GetHeight())};
+    auto pass =
+        context.BeginRenderPass({.clearColor = m_config.renderScenes ? std::nullopt : std::optional(Color::Black)});
+    m_developerRenderer->Begin(pass, Camera2D{.position = size * 0.5f}, size);
+    DrawConsoleOverlay(Console::Get(), *m_consoleInput, *m_developerFont, *m_developerRenderer, size);
+    m_developerRenderer->End();
 }
 
 void Application::RenderScenes(RenderContext& context) {
