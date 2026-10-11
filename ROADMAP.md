@@ -1158,12 +1158,20 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
 - [x] **M13.3 Rendering.** Instanced billboards that face the camera or stretch with velocity, additive or alpha
   blending, sorting, soft particles from depth, and flipbook textures.
 - [x] **M13.4 Editor.** Edit-mode simulation of the selected system, and restart and seek controls.
-- [ ] **M13.5 Sandbox: effects.** Muzzle flashes, sparks and dust per surface, explosion fire and smoke, debris, and
+- [x] **M13.5 Sandbox: effects.** Muzzle flashes, sparks and dust per surface, explosion fire and smoke, debris, and
   the physics gun's beam particles.
 
 **Done when:** weapons, impacts and explosions in the sandbox emit particles.
 
 **Notes:**
+- M13.5: authored scene definitions drive muzzle, surface-specific impacts, explosion fire/smoke/debris
+  and beam particles. Props have a separate audio-independent collision effect component. A bounded
+  pool reuses entity ids, particle storage and configuration capacity; fractional beam emission is
+  independent of update rate. Five sandbox cases pass 4,481 assertions, including real shots, collisions,
+  explosions, expiry, pool bounds/reuse and physics-gun release. A configuration/storage regression
+  brings engine particle coverage to thirteen cases and 708 assertions. Full MSVC Debug builds have
+  no compiler warnings; milestone-wide MSVC/GCC regression checks are in progress.
+
 - M13.4: document-owned previews resolve entity/component ids and scene revisions, with real-time
   selected-emitter simulation, pause, restart and seek. No gameplay, serialized edits or undo entries
   are produced. Inspector curves and gradients have visual previews plus normal key editing. Two

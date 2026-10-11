@@ -112,3 +112,15 @@ stress regression uses sixteen props headlessly; larger counts are explicit inte
 - Give each firearm twice; check selection, full ammunition, canceled reloads and unchanged inventory size.
 
 The spawn menu, runtime HUD, skeletal view models and other later roadmap features have their own milestones.
+
+## Particle effects
+
+Weapons emit muzzle glow and surface impacts: sparks on metal, dust on concrete, and dust/debris on
+wood. Explosions emit fire, smoke and debris, and the held physics gun adds particles along its beam.
+The playground's Game entity owns editable ParticleEffects definitions; props carry ImpactParticles
+separately from their impact audio. Effects reuse a bounded pool and expire without affecting
+physics, spawning undo or world checkpoints. See [Particles](particles.md).
+
+Play-test: fire each weapon at wood, metal and the ground; detonate a barrel and a rocket; hold, move
+and release a prop with the physics gun. Check that glow, sparks, dust, fire, smoke and debris appear
+and fade, that the beam stops emitting on release, and that saving/cleanup keeps no transient effects.

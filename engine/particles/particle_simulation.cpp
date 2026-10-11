@@ -14,9 +14,9 @@ Vector3 Apply(const Matrix4& matrix, Vector3 vector, float w) {
 ParticleSimulation::ParticleSimulation(const ParticleSettings& settings) {
     SetSettings(settings);
 }
-void ParticleSimulation::SetSettings(ParticleSettings settings) {
-    settings.Validate();
-    m_settings = std::move(settings);
+void ParticleSimulation::SetSettings(const ParticleSettings& settings) {
+    m_settings = settings;
+    m_settings.Validate();
     m_particles.clear();
     m_particles.reserve(m_settings.maxParticles);
     Restart();

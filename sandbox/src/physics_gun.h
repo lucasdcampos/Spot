@@ -52,6 +52,7 @@ private:
     // The prop's rotation relative to where the player faces, so it turns with the player.
     Spot::Quaternion m_rotation;
     bool m_turning = false;
+    float m_particleEmission = 0;
     // The beam to the prop held, drawn after the scene's surfaces, bright enough to glow.
     std::vector<Spot::DebugLine> m_beam;
     HookLines m_beamLines;

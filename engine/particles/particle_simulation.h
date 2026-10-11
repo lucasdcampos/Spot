@@ -25,7 +25,7 @@ public:
     static constexpr double TimeStep = 1.0 / 120.0;
     explicit ParticleSimulation(const ParticleSettings& settings = {});
     const ParticleSettings& GetSettings() const { return m_settings; }
-    void SetSettings(ParticleSettings settings);
+    void SetSettings(const ParticleSettings& settings);
     void Restart();
     void Stop(bool clear = false);
     void Play() { m_emitting = true; }

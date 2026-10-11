@@ -6,6 +6,7 @@
 #include "flash.h"
 #include "game_controls.h"
 #include "log_capture.h"
+#include "particle_effects.h"
 #include "physics_gun.h"
 #include "player_controller.h"
 #include "player_movement.h"
@@ -1353,4 +1354,115 @@ TEST_CASE("Sandbox console registrations follow GameControls enable and scene li
         CHECK_FALSE(Spot::Console::Get().Complete("stress").empty());
     }
     CHECK(Spot::Console::Get().Complete("stress").empty());
+}
+
+namespace {
+std::size_t ParticleCount(Spot::Scene& scene, Spot::Color color) {
+    std::size_t count = 0;
+    scene.ForEachComponent<Spot::ParticleSystem>([&](Spot::ParticleSystem& effect) {
+        if (effect.GetSettings().startColor == color)
+            count += effect.GetParticles().size();
+    });
+    return count;
+}
+} // namespace
+TEST_CASE("Sandbox weapons emit muzzle particles and metal impact sparks", "[sandbox][particles]") {
+    Playground playground;
+    playground.Run(1.5f);
+    auto* bank = ParticleEffects::Find(playground.scene);
+    REQUIRE(bank);
+    auto& crate = playground.PlaceCrate(5, 5);
+    crate.AddComponent<Surface>().kind = SurfaceKind::Metal;
+    playground.Run(0.05f);
+    FireSlot(playground, Key::Digit2);
+    CHECK(ParticleCount(playground.scene, bank->muzzle.settings.startColor) > 0);
+    CHECK(ParticleCount(playground.scene, bank->sparks.settings.startColor) > 0);
+    auto* pool = playground.scene.GetSystem<ParticleEffectPool>();
+    REQUIRE(pool);
+    CHECK(pool->GetEmitterCount() <= ParticleEffectPool::MaxEmitters);
+    playground.Run(6);
+    CHECK(ParticleCount(playground.scene, bank->muzzle.settings.startColor) == 0);
+    CHECK(ParticleCount(playground.scene, bank->sparks.settings.startColor) == 0);
+}
+TEST_CASE("Sandbox surface impacts and explosions select authored particle definitions", "[sandbox][particles]") {
+    Playground playground;
+    playground.Run(1.5f);
+    auto* bank = ParticleEffects::Find(playground.scene);
+    REQUIRE(bank);
+    for (auto surface : {SurfaceKind::Concrete, SurfaceKind::Wood, SurfaceKind::Metal})
+        ParticleEffects::Impact(playground.scene, {1000, 1000, 1000}, {0, 1, 0}, surface);
+    CHECK(ParticleCount(playground.scene, bank->concreteDust.settings.startColor) == bank->concreteDust.count);
+    CHECK(ParticleCount(playground.scene, bank->woodDust.settings.startColor) == bank->woodDust.count);
+    CHECK(ParticleCount(playground.scene, bank->sparks.settings.startColor) == bank->sparks.count);
+    Explosion::Explode(playground.scene, {1000, 1000, 1000}, 5, 100);
+    CHECK(ParticleCount(playground.scene, bank->fire.settings.startColor) == bank->fire.count);
+    CHECK(ParticleCount(playground.scene, bank->smoke.settings.startColor) == bank->smoke.count);
+    CHECK(ParticleCount(playground.scene, bank->debris.settings.startColor) >= bank->debris.count);
+    playground.Run(6);
+    CHECK(ParticleCount(playground.scene, bank->fire.settings.startColor) == 0);
+    CHECK(ParticleCount(playground.scene, bank->smoke.settings.startColor) == 0);
+}
+TEST_CASE("Sandbox effect pooling bounds bursts and reuses expired emitters", "[sandbox][particles]") {
+    Spot::Scene scene;
+    auto* bank = &scene.CreateEntity().AddComponent<ParticleEffects>();
+    auto& pool = scene.AddSystem<ParticleEffectPool>();
+    for (std::size_t i = 0; i < ParticleEffectPool::MaxEmitters + 10; ++i)
+        pool.Spawn(bank->muzzle, {1000, 1000, 1000});
+    CHECK(pool.GetEmitterCount() == ParticleEffectPool::MaxEmitters);
+    CHECK(pool.GetDroppedCount() == 10);
+    scene.Update(0.5f);
+    const auto entities = scene.GetEntityCount();
+    REQUIRE(pool.Spawn(bank->muzzle, {1000, 1000, 1000}));
+    CHECK(scene.GetEntityCount() == entities);
+    const auto id = pool.Spawn(bank->muzzle, {1000, 1000, 1000})->GetEntity().GetId();
+    scene.GetEntity(id)->Destroy();
+    REQUIRE(pool.Spawn(bank->muzzle, {1000, 1000, 1000}));
+    CHECK(pool.GetEmitterCount() == ParticleEffectPool::MaxEmitters - 1);
+}
+TEST_CASE("The held physics gun emits beam particles and stops emission on release", "[sandbox][particles]") {
+    Playground playground;
+    playground.Run(1.5f);
+    auto* bank = ParticleEffects::Find(playground.scene);
+    REQUIRE(bank);
+    playground.PlaceCrate(5, 5);
+    playground.Run(0.05f);
+    playground.Press(Key::Digit1);
+    playground.Run(0.05f);
+    playground.Release(Key::Digit1);
+    playground.Press(Spot::MouseButton::Left);
+    playground.Run(0.1f);
+    REQUIRE(playground.player->GetComponent<PhysicsGun>()->IsGrabbing());
+    CHECK(ParticleCount(playground.scene, bank->beam.settings.startColor) > 0);
+    playground.Release(Spot::MouseButton::Left);
+    playground.Run(0.4f);
+    CHECK(ParticleCount(playground.scene, bank->beam.settings.startColor) == 0);
+    float firstRemainder = 0, secondRemainder = 0;
+    // Equal elapsed time produces equal counts at different render update rates.
+    Spot::Scene first, second;
+    auto& firstBank = first.CreateEntity().AddComponent<ParticleEffects>();
+    auto& secondBank = second.CreateEntity().AddComponent<ParticleEffects>();
+    for (int i = 0; i < 10; ++i)
+        ParticleEffects::Beam(first, {0, 0, 0}, {0, 0, -3}, 0.001f, firstRemainder);
+    for (int i = 0; i < 2; ++i)
+        ParticleEffects::Beam(second, {0, 0, 0}, {0, 0, -3}, 0.005f, secondRemainder);
+    CHECK(ParticleCount(first, firstBank.beam.settings.startColor) ==
+          ParticleCount(second, secondBank.beam.settings.startColor));
+}
+
+TEST_CASE("Prop collisions emit surface particles without an audio device", "[sandbox][particles]") {
+    Playground playground;
+    playground.Run(1.5f);
+    auto* bank = ParticleEffects::Find(playground.scene);
+    REQUIRE(bank);
+    auto& ground = playground.scene.CreateEntity("Particle Test Ground");
+    ground.GetTransform().SetPosition({1000, -0.5f, 1000});
+    ground.AddComponent<Spot::BoxCollider>(Spot::Vector3{5, 0.5f, 5});
+    auto& prop = playground.scene.CreateEntity("Particle Test Prop");
+    prop.GetTransform().SetPosition({1000, 3, 1000});
+    prop.AddComponent<Spot::BoxCollider>(Spot::Vector3{0.5f, 0.5f, 0.5f});
+    prop.AddComponent<Spot::Rigidbody>();
+    prop.AddComponent<Surface>().kind = SurfaceKind::Metal;
+    prop.AddComponent<ImpactParticles>();
+    playground.Run(0.85f);
+    CHECK(ParticleCount(playground.scene, bank->sparks.settings.startColor) > 0);
 }

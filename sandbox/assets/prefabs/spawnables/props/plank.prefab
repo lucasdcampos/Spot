@@ -59,6 +59,14 @@
           "enabled": true,
           "id": "00000000000000010000000000000006",
           "type": "Spawnable"
+        },
+        {
+          "type": "ImpactParticles",
+          "enabled": true,
+          "id": "6033c6e6b1ec471d9b9178e945bc086f",
+          "data": {
+            "minSpeed": 1.5
+          }
         }
       ],
       "id": 1,

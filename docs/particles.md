@@ -79,3 +79,22 @@ clear the old emitter, removals resolve safely, and reloads restart the preview.
 emitter advances, with real editor time; the scene's gameplay and physics never run. Starting play
 clears edit-mode preview state. Preview controls change no serialized fields and create no undo
 entries. Configuration edits still use normal undo and prefab overrides.
+
+## Sandbox effects
+
+The playground's ParticleEffects component holds serialized definitions for muzzle glow, metal sparks,
+concrete and wood dust, explosion fire and smoke, debris and the physics-gun beam. Each definition
+contains ParticleSettings, a count and an optional imported texture. Defaults use procedural discs,
+so effects need no GPU-loaded assets to simulate. Tune definitions on the Game entity in the editor.
+
+WeaponHolder emits at the muzzle and raycast hit; surface markers select the impact. Explosions
+emit fire, smoke and debris beside their existing light/sound/impulse. Spawnable props carry a separate
+ImpactParticles component with a startup grace period and contact cooldown; it works without audio.
+The physics gun emits along its full held beam with a fractional, configurable rate accumulator.
+
+ParticleEffectPool owns at most 128 transient emitters by entity id. Each is capped at 512 particles
+and five seconds of lifetime; expired emitters become inactive slots for reuse. Full pools drop new
+effects and expose a counter. Particle storage and per-slot configuration vectors retain capacity
+across resets; reusing configurations avoids recurring copies that allocate on beam updates. A new
+slot or a larger authored key array can still grow capacity. Transient effects have no world-save
+ownership and never enter spawning undo. They do not add physics bodies.

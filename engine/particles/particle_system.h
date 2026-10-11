@@ -11,7 +11,7 @@ class Texture;
 class ParticleSystem final : public Component {
 public:
     const ParticleSettings& GetSettings() const { return m_simulation.GetSettings(); }
-    void SetSettings(ParticleSettings settings) { m_simulation.SetSettings(std::move(settings)); }
+    void SetSettings(const ParticleSettings& settings) { m_simulation.SetSettings(settings); }
     const ParticleSimulation& GetSimulation() const { return m_simulation; }
     std::span<const Particle> GetParticles() const { return m_simulation.GetParticles(); }
     const AssetRef<Texture>& GetTexture() const { return m_texture; }

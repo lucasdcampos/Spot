@@ -1,5 +1,6 @@
 #include "physics_gun.h"
 
+#include "particle_effects.h"
 #include "player_controller.h"
 #include "prop_carrier.h"
 #include "prop_drive.h"
@@ -38,6 +39,7 @@ void PhysicsGun::Freeze() {
 void PhysicsGun::Release() {
     m_grabbed = Spot::EntityId::Invalid;
     m_turning = false;
+    m_particleEmission = 0;
     if (Spot::AudioSource* source = GetHum()) {
         source->Stop();
     }
@@ -138,9 +140,10 @@ void PhysicsGun::OnEnable() {
 void PhysicsGun::OnDisable() {
     GetScene().RemoveRenderHook(m_beamHook);
     m_beam.clear();
+    m_particleEmission = 0;
 }
 
-void PhysicsGun::OnLateUpdate(float /*deltaTime*/) {
+void PhysicsGun::OnLateUpdate(float deltaTime) {
     m_beam.clear();
     const Spot::Rigidbody* body = GetGrabbedBody();
     const auto* player = GetEntity().GetComponent<PlayerController>();
@@ -156,6 +159,8 @@ void PhysicsGun::OnLateUpdate(float /*deltaTime*/) {
     // Brighter than white, so it glows through bloom.
     const Spot::Vector3 muzzle =
         player->GetEyePosition() + player->GetViewRotation() * Spot::Vector3{0.25f, -0.2f, -0.4f};
+    ParticleEffects::Beam(GetScene(), muzzle, ToWorld(body->GetEntity().GetTransform(), m_grabPoint), deltaTime,
+                          m_particleEmission);
     m_beam.push_back({.from = muzzle,
                       .to = ToWorld(body->GetEntity().GetTransform(), m_grabPoint),
                       .color = {1.2f, 2.8f, 4.0f, 1.0f}});

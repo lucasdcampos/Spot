@@ -2,6 +2,7 @@
 
 #include "explosive_barrel.h"
 #include "flash.h"
+#include "particle_effects.h"
 #include "physics_gun.h"
 #include "player_controller.h"
 #include "projectile.h"
@@ -79,6 +80,9 @@ void WeaponHolder::Fire() {
     PlayWeaponSound(weapon->fireSound, 1.0f);
     Flash::Spawn(GetScene(), player->GetEyePosition() + player->GetViewRotation() * Spot::Vector3{0.2f, -0.15f, -0.45f},
                  {1.0f, 0.75f, 0.4f, 1.0f}, 0.12f, 5.0f, 12.0f, 0.05f);
+    ParticleEffects::Muzzle(GetScene(),
+                            player->GetEyePosition() + player->GetViewRotation() * Spot::Vector3{0.2f, -0.15f, -0.45f},
+                            player->GetAimDirection());
     const Spot::Vector3 eye = player->GetEyePosition();
     const Spot::Vector3 aim = player->GetAimDirection();
     if (weapon->kind == Weapon::Kind::Projectile) {
@@ -99,7 +103,7 @@ void WeaponHolder::FireHitscan(const Weapon& weapon, Spot::Vector3 eye, Spot::Ve
     for (int pellet = 0; pellet < weapon.pellets; ++pellet) {
         const Spot::Vector3 direction = Scatter(aim, spread);
         const auto hit = GetScene().GetPhysics().Raycast(eye, direction, weapon.range, {.ignore = GetEntity().GetId()});
-        // The tracer, bright enough to glow, until weapons get impacts of their own.
+        // A brief tracer links the muzzle to the impact.
         Spot::DebugDraw::Line(muzzle, hit ? hit->point : eye + direction * weapon.range,
                               {.color = {3.0f, 2.4f, 1.2f, 1.0f}, .duration = 0.05f});
         if (!hit) {
@@ -109,6 +113,7 @@ void WeaponHolder::FireHitscan(const Weapon& weapon, Spot::Vector3 eye, Spot::Ve
         if (!entity) {
             continue;
         }
+        ParticleEffects::Impact(GetScene(), hit->point, hit->normal, Surface::Of(entity));
         if (auto* barrel = entity->GetComponent<ExplosiveBarrel>()) {
             barrel->Ignite();
         }

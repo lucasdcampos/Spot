@@ -1,5 +1,6 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <chrono>
 #include <limits>
 #include <spot.h>
 
@@ -202,4 +203,30 @@ TEST_CASE("Particle billboards stretch rotate and address flipbooks", "[particle
     p.rotation = Spot::ToRadians(90);
     batch.Add(std::span(&p, 1), settings, {}, emitter);
     CHECK(batch.GetDraws()[0].instance.rightAndSoftDistance.y == Approx(1));
+}
+
+TEST_CASE("Reconfiguring pooled particles retains contiguous storage and does not restart inspection", "[particles]") {
+    auto settings = Settings();
+    settings.maxParticles = 8;
+    Spot::ParticleSimulation simulation(settings);
+    simulation.Emit(1);
+    const auto* storage = simulation.GetParticles().data();
+    settings.seed = 42;
+    simulation.SetSettings(settings);
+    simulation.Emit(1);
+    CHECK(simulation.GetParticles().data() == storage);
+    Spot::Scene scene;
+    auto& effect = scene.CreateEntity().AddComponent<Spot::ParticleSystem>();
+    effect.SetSettings(settings);
+    scene.Update(0.2f);
+    const auto time = effect.GetSimulation().GetTime();
+    const auto saved = Spot::SaveComponentToString(effect);
+    REQUIRE(Spot::LoadComponentFromString(effect, saved));
+    CHECK(effect.GetSimulation().GetTime() == time);
+    Spot::FrameClock clock;
+    clock.Start({});
+    REQUIRE(clock.SetTimeScale(2));
+    clock.Tick(Spot::FrameClock::TimePoint{} + std::chrono::milliseconds(100));
+    scene.Update(clock.GetDeltaTime());
+    CHECK(effect.GetSimulation().GetTime() == Approx(time + 0.2));
 }
