@@ -1,9 +1,11 @@
 #pragma once
 
 #include "assets/asset_id.h"
+#include "core/timer.h"
 #include "math/vector.h"
 
 #include <exception>
+#include <memory>
 #include <string_view>
 
 namespace Spot {
@@ -64,7 +66,7 @@ struct SceneSerializer;
 // with SPOT_FIELDS(), or overrides Serialize() to describe them.
 class Component {
 public:
-    virtual ~Component() = default;
+    virtual ~Component();
 
     Component(const Component&) = delete;
     Component& operator=(const Component&) = delete;
@@ -80,8 +82,15 @@ public:
     // Whether one of its hooks threw, which keeps it inactive for as long as it exists.
     bool IsFaulted() const { return m_faulted; }
 
+    InvokeId Invoke(float delay, std::function<void()> callback);
+    InvokeId InvokeRepeating(float delay, float interval, std::function<void()> callback);
+    bool CancelInvoke(InvokeId id);
+    void CancelInvokes();
+    bool IsInvokePending(InvokeId id) const;
+    float GetInvokeTimeLeft(InvokeId id) const;
+
 protected:
-    Component() = default;
+    Component();
 
     virtual void OnStart() {}
     virtual void OnEnable() {}
@@ -116,6 +125,7 @@ private:
 
     // Calls OnEnable() or OnDisable() when the component started and its activity changed since the last call.
     void RefreshActivity();
+    void UpdateInvokes(float deltaTime);
 
     // Runs one of the component's hooks, faulting the component when it throws. Returns whether it completed.
     template <typename F>
@@ -132,6 +142,7 @@ private:
 
     Entity* m_entity = nullptr;
     ComponentId m_id = ComponentId::Generate();
+    std::unique_ptr<TimerQueue> m_timers;
     bool m_enabled = true;
     bool m_started = false;
     // Whether OnEnable() was the last of OnEnable() and OnDisable() to run.

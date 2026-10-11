@@ -257,6 +257,15 @@ void Scene::Update(float deltaTime) {
                [deltaTime](SceneSystem& system) { system.OnAfterFixedSteps(deltaTime); });
 
     {
+        SPOT_PROFILE_SCOPE("Components::Invoke");
+        for (std::size_t i = 0; i < m_entities.size(); ++i) {
+            if (m_entities[i]) {
+                m_entities[i]->UpdateInvokes(deltaTime);
+            }
+        }
+    }
+
+    {
         SPOT_PROFILE_SCOPE("Scene::OnUpdate");
         OnUpdate(deltaTime);
     }

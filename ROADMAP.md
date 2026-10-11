@@ -984,7 +984,7 @@ with view-model animations.
 
 - [x] **M10.1 Time.** A global time scale, unscaled time for tools and UI, physics that follows the scale, and a clamp
   on the frame delta if one is missing. Tests.
-- [ ] **M10.2 Timers.** `Invoke(delay, fn)`, repeating invokes and cancellation on components, in scaled time,
+- [x] **M10.2 Timers.** `Invoke(delay, fn)`, repeating invokes and cancellation on components, in scaled time,
   stopped when the component goes. Tests.
 - [ ] **M10.3 Tweens.** Tweens of values, transforms and colors with easing functions and sequences, run by a
   `TweenSystem`. Tests.
@@ -1006,6 +1006,9 @@ with view-model animations.
   backups use unscaled time. The frame clock clamps stalls before applying the scale. Standalone scenes receive
   simulation seconds directly; fixed stepping limits catch-up without converting an unbounded step count to an int.
   Headless gameplay tests cover pause/resume, invalid scales, physics and extreme deltas; the editor builds on MSVC.
+- M10.2: `TimerQueue` is the code-only scheduler; components allocate a queue only when used. Timers advance in
+  scaled time after fixed steps and before component updates. Inactive owners pause, removed owners cancel, and
+  throwing callbacks fault only their owner. Repeats preserve phase and coalesce missed ticks to prevent bursts.
 
 ---
 

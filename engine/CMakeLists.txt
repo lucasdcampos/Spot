@@ -65,6 +65,8 @@ add_library(spot_objects OBJECT
     core/shared_library.h
     core/time.h
     core/time.cpp
+    core/timer.h
+    core/timer.cpp
     core/utf8.h
     core/utf8.cpp
     events/event.h

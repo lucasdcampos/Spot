@@ -25,6 +25,7 @@
 #include "core/profiler.h"
 #include "core/shared_library.h"
 #include "core/time.h"
+#include "core/timer.h"
 #include "core/utf8.h"
 #include "events/event.h"
 #include "graphics/bloom.h"

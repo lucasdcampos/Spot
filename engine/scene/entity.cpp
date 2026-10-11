@@ -283,6 +283,12 @@ void Entity::UpdateComponents(float deltaTime) {
     }
 }
 
+void Entity::UpdateInvokes(float deltaTime) {
+    for (std::size_t i = 0; i < m_components.size(); ++i) {
+        m_components[i]->UpdateInvokes(deltaTime);
+    }
+}
+
 void Entity::DrawUiComponents(Renderer2D& renderer, Vector2 viewSize) {
     for (std::size_t i = 0; i < m_components.size(); ++i) {
         if (Component& component = *m_components[i]; component.m_active) {
@@ -304,6 +310,7 @@ void Entity::ProcessRemovals() {
     for (std::size_t i = m_components.size(); i-- > 0;) {
         Component& component = *m_components[i];
         if ((m_destroyed || component.m_removed) && component.m_started) {
+            component.CancelInvokes();
             component.RefreshActivity();
             component.m_started = false;
             component.InvokeHook("OnDestroy", [&component] { component.OnDestroy(); });

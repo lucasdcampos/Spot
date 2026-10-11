@@ -12,6 +12,53 @@
 
 namespace Spot {
 
+Component::Component() = default;
+Component::~Component() = default;
+
+InvokeId Component::Invoke(float delay, std::function<void()> callback) {
+    if (m_removed || m_faulted || (m_entity && m_entity->m_destroyed)) {
+        return InvokeId::Invalid;
+    }
+    if (!m_timers) {
+        m_timers = std::make_unique<TimerQueue>();
+    }
+    return m_timers->Invoke(delay, std::move(callback));
+}
+
+InvokeId Component::InvokeRepeating(float delay, float interval, std::function<void()> callback) {
+    if (m_removed || m_faulted || (m_entity && m_entity->m_destroyed)) {
+        return InvokeId::Invalid;
+    }
+    if (!m_timers) {
+        m_timers = std::make_unique<TimerQueue>();
+    }
+    return m_timers->InvokeRepeating(delay, interval, std::move(callback));
+}
+
+bool Component::CancelInvoke(InvokeId id) {
+    return m_timers && m_timers->Cancel(id);
+}
+
+void Component::CancelInvokes() {
+    if (m_timers) {
+        m_timers->CancelAll();
+    }
+}
+
+bool Component::IsInvokePending(InvokeId id) const {
+    return m_timers && m_timers->IsPending(id);
+}
+
+float Component::GetInvokeTimeLeft(InvokeId id) const {
+    return m_timers ? m_timers->GetTimeLeft(id) : 0.0f;
+}
+
+void Component::UpdateInvokes(float deltaTime) {
+    if (m_timers && m_active) {
+        InvokeHook("Invoke", [&] { m_timers->Update(deltaTime, [this] { return m_active; }); });
+    }
+}
+
 Scene& Component::GetScene() const {
     return m_entity->GetScene();
 }
@@ -63,6 +110,7 @@ void Component::Fault(std::string_view hook, const std::exception_ptr& error) {
     Log::GetEngineLogger().Error("{} on {} threw in {}(): {}. It is disabled until the scene is reloaded.", type, where,
                                  hook, Detail::DescribeException(error));
     m_faulted = true;
+    CancelInvokes();
     if (m_entity) {
         const Detail::DeferRemovalsScope defer(m_entity->GetScene());
         RefreshActivity();
