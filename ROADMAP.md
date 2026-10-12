@@ -960,7 +960,7 @@ Controllers are assets with parameters, transitions with cross-fades, blend tree
 - [x] **M9.5 Controllers.** An `AnimatorController` asset with float, int, bool and trigger parameters, states,
   transitions (conditions, exit time, blend duration, interruption) and any-state transitions. A runtime evaluator,
   and `SetFloat`, `SetBool` and `SetTrigger`. Tests.
-- [ ] **M9.6 Blend trees.** 1D and 2D (freeform directional) blend states.
+- [x] **M9.6 Blend trees.** 1D and 2D (freeform directional) blend states.
 - [ ] **M9.7 Events and root motion.** Clip events delivered to `OnAnimationEvent()`, and root motion applied to the
   transform or to a `CharacterController`.
 - [ ] **M9.8 Layers and masks.** Override and additive layers with bone masks, such as for the upper body.
@@ -977,6 +977,11 @@ Controllers are assets with parameters, transitions with cross-fades, blend tree
 with view-model animations.
 
 **Notes:**
+- M9.6: 1D thresholds and freeform directional angular/radial bands; phase-synchronized
+  motion sampling uses reusable scratch arrays. Controller importer version 2 tracks
+  motion dependencies. MSVC Debug builds without compiler warnings; all 17 animation
+  cases pass 724 assertions, including live controller parameters and unequal durations.
+
 - M9.5: versioned controller assets, typed per-instance parameters and ordered guarded
   transitions. Source -1 is any-state; triggers survive blocked fades and are consumed
   only by the selected transition. MSVC Debug builds without compiler warnings;

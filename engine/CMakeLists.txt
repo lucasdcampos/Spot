@@ -122,6 +122,8 @@ add_library(spot_objects OBJECT
     animation/skinned_mesh_renderer.cpp
     animation/animator_controller.h
     animation/animator_controller.cpp
+    animation/blend_tree.h
+    animation/blend_tree.cpp
     animation/animator.h
     animation/animator.cpp
     animation/pose.h

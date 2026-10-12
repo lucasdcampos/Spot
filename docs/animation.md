@@ -53,3 +53,11 @@ Set a controller with `Animator::SetController()`, then call `SetFloat()`, `SetI
 `SetBool()` or `SetTrigger()` from gameplay. `AnimatorControllerRuntime` can also run
 without scenes. Controllers hold clip references, and reload when those clips change.
 Validation rejects unknown parameters, bad state targets and incompatible clip channels.
+
+Blend states contain a `BlendTree`: unsorted 1D thresholds or 2D freeform directional
+positions, float/int parameter names and clips with speed multipliers. 1D weights clamp
+at endpoints. 2D weights use angular/radial gradient bands, supporting several speeds in
+one direction and an optional idle at the origin. Weights are nonnegative and normalized.
+A weighted duration keeps all clips at the same phase. Scratch poses and weights are
+allocated when the rig/controller changes, and reused each frame. Controller importer
+version 2 includes the trees and tracks their clip dependencies for reload.

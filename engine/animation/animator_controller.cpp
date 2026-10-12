@@ -28,6 +28,7 @@ void AnimatorState::Serialize(Archive& archive) {
     archive.Field("speed", speed);
     archive.Field("loop", loop);
     archive.Field("editorPosition", editorPosition, {.hidden = true});
+    archive.Field("blendTree", blendTree);
 }
 void AnimatorTransition::Serialize(Archive& archive) {
     archive.Field("from", from);
@@ -58,8 +59,21 @@ bool AnimatorController::IsValid() const {
     std::unordered_set<std::string> stateNames;
     for (const auto& state : states) {
         if (state.name.empty() || !stateNames.insert(state.name).second || !std::isfinite(state.speed) ||
-            state.speed < 0 || (!state.clip && !state.clip.GetId().IsValid()) ||
-            (state.clip && !state.clip->IsValid())) {
+            state.speed < 0 || !state.blendTree.IsValid() ||
+            (state.blendTree.type == BlendTreeType::None &&
+             ((!state.clip && !state.clip.GetId().IsValid()) || (state.clip && !state.clip->IsValid())))) {
+            return false;
+        }
+    }
+    const auto numeric = [&](std::string_view name) {
+        return std::ranges::any_of(parameters, [&](const auto& p) {
+            return p.name == name && (p.type == AnimatorParameterType::Float || p.type == AnimatorParameterType::Int);
+        });
+    };
+    for (const auto& state : states) {
+        const auto& tree = state.blendTree;
+        if (tree.type != BlendTreeType::None &&
+            (!numeric(tree.parameterX) || (tree.type == BlendTreeType::Directional2D && !numeric(tree.parameterY)))) {
             return false;
         }
     }

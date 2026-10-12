@@ -28,6 +28,14 @@ void Animator::ResizePose() {
     const auto count = m_skeleton ? m_skeleton->bones.size() : 0;
     m_local.resize(count);
     m_model.resize(count);
+    m_treeScratch.resize(count);
+    std::size_t motions = 0;
+    if (m_controller) {
+        for (const auto& state : m_controller->states) {
+            motions = std::max(motions, state.blendTree.motions.size());
+        }
+    }
+    m_blendWeights.resize(motions);
     m_fadeSource.resize(count);
     m_palette.resize(m_skeleton ? m_skeleton->joints.size() : 0);
 }
@@ -58,6 +66,7 @@ bool Animator::CrossFade(AssetRef<AnimationClip> clip, float duration, bool loop
     if (duration <= 0 || m_local.empty()) {
         return Play(std::move(clip), loop);
     }
+    m_fadeState = -1;
     m_fadeSource = m_local;
     m_fadeClip = m_fadeDuration > 0 ? AssetRef<AnimationClip>{} : m_clip;
     m_fadeClipTime = m_time;
@@ -77,16 +86,22 @@ bool Animator::CrossFade(AssetRef<AnimationClip> clip, float duration, bool loop
 
 bool Animator::SetController(AssetRef<AnimatorController> controller) {
     if (controller &&
-        (!controller->IsValid() || !m_skeleton ||
-         !std::ranges::all_of(controller->states, [&](const auto& state) { return Accepts(state.clip); }))) {
+        (!controller->IsValid() || !m_skeleton || !std::ranges::all_of(controller->states, [&](const auto& state) {
+            return state.blendTree.type == BlendTreeType::None
+                       ? Accepts(state.clip)
+                       : std::ranges::all_of(state.blendTree.motions,
+                                             [&](const auto& motion) { return Accepts(motion.clip); });
+        }))) {
         Log::GetEngineLogger().Warning("Animator rejected incompatible controller");
         return false;
     }
     m_controller = std::move(controller);
     m_controllerRuntime.SetController(m_controller);
+    ResizePose();
     if (m_controller) {
         const auto& state = m_controller->states[static_cast<std::size_t>(m_controller->entryState)];
-        Play(state.clip, state.loop);
+        Play(state.blendTree.type == BlendTreeType::None ? state.clip : state.blendTree.motions.front().clip,
+             state.loop);
     }
     return true;
 }
@@ -107,13 +122,17 @@ void Animator::Simulate(float deltaTime) {
     }
     bool transitioned = false;
     if (m_controllerRuntime.GetController()) {
-        const auto& state = m_controller->states[static_cast<std::size_t>(m_controllerRuntime.GetState())];
+        const int previousState = m_controllerRuntime.GetState();
+        const auto& state = m_controller->states[static_cast<std::size_t>(previousState)];
         m_time += deltaTime * m_speed * state.speed;
+        Evaluate(0);
+        const bool wasFading = m_fadeDuration > 0;
         if (const auto* transition =
-                m_controllerRuntime.Advance(std::max(deltaTime * m_speed, 0.0f), m_clip ? m_clip->duration : 0)) {
-            Evaluate(0);
+                m_controllerRuntime.Advance(std::max(deltaTime * m_speed, 0.0f), m_playbackDuration)) {
             const auto& next = m_controller->states[static_cast<std::size_t>(transition->to)];
-            CrossFade(next.clip, transition->duration, next.loop);
+            CrossFade(next.blendTree.type == BlendTreeType::None ? next.clip : next.blendTree.motions.front().clip,
+                      transition->duration, next.loop);
+            m_fadeState = wasFading ? -1 : previousState;
             m_fadeClipSpeed = state.speed;
             transitioned = true;
         }
@@ -142,14 +161,22 @@ void Animator::Evaluate(float deltaTime) {
     if (m_local.size() != m_skeleton->bones.size()) {
         ResizePose();
     }
-    if (m_clip && Accepts(m_clip)) {
+    if (m_controllerRuntime.GetController()) {
+        SampleState(m_controllerRuntime.GetState(), m_time, m_local);
+    } else if (m_clip && Accepts(m_clip)) {
         Pose::Sample(*m_skeleton, *m_clip, m_time, m_loop, m_local);
+        m_playbackDuration = m_clip->duration;
     } else {
         Pose::Bind(*m_skeleton, m_local);
     }
     if (m_fadeDuration > 0) {
         m_fadeTime += deltaTime;
-        if (m_fadeClip) {
+        if (m_fadeState >= 0 && m_controller) {
+            m_fadeClipTime += deltaTime * m_speed * m_fadeClipSpeed;
+            const float incomingDuration = m_playbackDuration;
+            SampleState(m_fadeState, m_fadeClipTime, m_fadeSource);
+            m_playbackDuration = incomingDuration;
+        } else if (m_fadeClip) {
             m_fadeClipTime += deltaTime * m_speed * m_fadeClipSpeed;
             Pose::Sample(*m_skeleton, *m_fadeClip, m_fadeClipTime, m_fadeLoop, m_fadeSource);
         }
@@ -160,6 +187,21 @@ void Animator::Evaluate(float deltaTime) {
         }
     }
     Pose::ToModel(*m_skeleton, m_local, m_model);
+}
+
+void Animator::SampleState(int index, float time, std::span<TransformComponents> pose) {
+    const auto& state = m_controller->states[static_cast<std::size_t>(index)];
+    if (state.blendTree.type == BlendTreeType::None) {
+        Pose::Sample(*m_skeleton, *state.clip, time, state.loop, pose);
+        m_playbackDuration = state.clip->duration;
+    } else {
+        const auto& tree = state.blendTree;
+        const Vector2 value{static_cast<float>(m_controllerRuntime.GetParameter(tree.parameterX).value_or(0)),
+                            static_cast<float>(m_controllerRuntime.GetParameter(tree.parameterY).value_or(0))};
+        const auto weights = std::span(m_blendWeights).first(tree.motions.size());
+        SampleBlendTree(*m_skeleton, tree, value, time, state.loop, pose, m_treeScratch, weights);
+        m_playbackDuration = GetBlendDuration(tree, weights);
+    }
 }
 
 void Animator::RefreshRenderers() {

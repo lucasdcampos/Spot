@@ -128,8 +128,12 @@ std::vector<AssetId> AssetManager::Reload(std::span<const AssetId> assets) {
                 [&](const AssetRef<Texture>* texture) { return stale.contains(texture->GetId()); });
         }
         if (entry.type == AssetType::AnimatorController) {
-            return std::ranges::any_of(static_cast<const AnimatorController*>(loaded.get())->states,
-                                       [&](const auto& state) { return stale.contains(state.clip.GetId()); });
+            return std::ranges::any_of(
+                static_cast<const AnimatorController*>(loaded.get())->states, [&](const auto& state) {
+                    return stale.contains(state.clip.GetId()) ||
+                           std::ranges::any_of(state.blendTree.motions,
+                                               [&](const auto& motion) { return stale.contains(motion.clip.GetId()); });
+                });
         }
         if (entry.type == AssetType::Model) {
             const auto& model = *static_cast<const Model*>(loaded.get());

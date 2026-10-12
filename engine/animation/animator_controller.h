@@ -1,6 +1,7 @@
 #pragma once
 
 #include "animation/animation_data.h"
+#include "animation/blend_tree.h"
 #include "assets/asset_ref.h"
 
 #include <optional>
@@ -37,6 +38,7 @@ struct AnimatorState {
     float speed = 1;
     bool loop = true;
     Vector2 editorPosition;
+    BlendTree blendTree;
     void Serialize(Archive& archive);
 };
 

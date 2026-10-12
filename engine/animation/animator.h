@@ -31,6 +31,7 @@ public:
     float GetSpeed() const { return m_speed; }
     bool IsLooping() const { return m_loop; }
     void SetLooping(bool loop) { m_loop = loop; }
+    float GetDuration() const { return m_playbackDuration; }
     float GetTime() const { return m_time; }
     const AssetRef<AnimationClip>& GetClip() const { return m_clip; }
     std::span<const TransformComponents> GetLocalPose() const { return m_local; }
@@ -51,9 +52,14 @@ private:
     void Evaluate(float deltaTime);
     bool Accepts(const AssetRef<AnimationClip>& clip) const;
     void ResizePose();
+    void SampleState(int state, float time, std::span<TransformComponents> pose);
     AssetRef<AnimatorController> m_controller;
     AnimatorControllerRuntime m_controllerRuntime;
     float m_fadeClipSpeed = 1;
+    int m_fadeState = -1;
+    float m_playbackDuration = 0;
+    std::vector<TransformComponents> m_treeScratch;
+    std::vector<float> m_blendWeights;
     AssetRef<Skeleton> m_skeleton;
     AssetRef<AnimationClip> m_clip;
     float m_speed = 1;
