@@ -15,6 +15,7 @@
 #include "scene/sky.h"
 #include "scene/sprite_renderer.h"
 #include "scene/text_renderer.h"
+#include "ui/canvas.h"
 
 #include <algorithm>
 #include <mutex>
@@ -65,6 +66,8 @@ Registry& GetRegistry() {
         RegisterBuiltIn<Sky>(registry, "Sky");
         RegisterBuiltIn<Fog>(registry, "Fog");
         RegisterBuiltIn<PostProcessing>(registry, "PostProcessing");
+        RegisterBuiltIn<Canvas>(registry, "Canvas");
+        RegisterBuiltIn<UiRect>(registry, "UiRect");
         RegisterBuiltIn<TextRenderer>(registry, "TextRenderer");
         RegisterBuiltIn<SpriteRenderer>(registry, "SpriteRenderer");
         RegisterBuiltIn<Camera>(registry, "Camera");

@@ -124,3 +124,7 @@
 #include "window/window.h"
 
 #include "scene/text_renderer.h"
+
+#include "ui/canvas.h"
+#include "ui/ui_layout.h"
+#include "ui/ui_system.h"

@@ -1130,7 +1130,7 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
 
 - [x] **M12.1 Text.** SDF or MSDF glyphs, so text stays sharp at any size (bump the font importer), and a
   `TextRenderer` component for text in the world, optionally facing the camera.
-- [ ] **M12.2 Canvas and layout.** `Canvas`, `UiRect`, scaling modes (constant pixel size, or scaling with a
+- [x] **M12.2 Canvas and layout.** `Canvas`, `UiRect`, scaling modes (constant pixel size, or scaling with a
   reference resolution), the layout pass and draw order. Tests.
 - [ ] **M12.3 Widgets.** `UiImage` (nine-slice, tint), `UiText` (alignment, wrapping, overflow), `UiButton` (states,
   an `OnClick` signal), `UiToggle`, `UiSlider`, `UiInputField` (M2.2) and `UiScrollView` with clipping.
@@ -1146,6 +1146,12 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
 **Done when:** the sandbox's menus work with mouse, keyboard and gamepad, and are authored in the editor.
 
 **Notes:**
+- M12.2: UiRect owns screen layout independently of Transform; entity hierarchy and activity still
+  apply. Anchors/pivots use bottom-left coordinates; separated anchors stretch plus size delta.
+  Reference scaling uses the smaller viewport/reference ratio. Nested canvases are independent
+  viewport roots. Canvas order and depth-first sibling order determine drawing. The transient
+  layout stores only entity ids. MSVC builds without compiler warnings; four cases pass 23 assertions
+  for anchoring, scaling, hierarchy, resizing, reparenting, ordering and serialization.
 - M12.1: signed-distance glyphs use six pixels of padding and derivative-based coverage in Renderer2D.
   Font importer version 2 keeps source bytes and kerning; one atlas serves scaled text. World labels
   follow entity transforms or camera rotation, in the sprite overlay pass in both game and editor.

@@ -16,4 +16,26 @@ editor draw world text after sprites in the HDR pass, ordered by `order` and sta
 like sprites, it overlays meshes without depth testing. It still receives post-processing.
 Use `Renderer2D::DrawWorldText()` inside a begun pass for custom rendering.
 
-Screen-space canvases, widgets, layout, input and editor authoring follow in M12.2–M12.7.
+## Canvas and rectangles
+
+Add a `Canvas` to a root entity and `UiRect` to its child elements. `UiRect::layout` describes
+normalized anchor minimum/maximum, pivot, an offset and size delta in logical canvas pixels.
+Coordinates grow right and up. Equal anchors give a fixed-size rectangle; separate anchors stretch
+between points on the parent, with `sizeDelta` added to the stretched size. The offset moves the
+pivot relative to the anchored point. Set anchors to (0,0)–(1,1), pivot to (0.5,0.5), and size delta
+to (-20,-20) for ten-pixel margins on every side.
+
+UI uses entity hierarchy and activity, but does not read or modify entity `Transform`. This keeps
+screen layout independent of a world's transforms and makes prefab placement predictable. Each
+canvas covers the viewport. Constant-pixel scaling uses `settings.scale`; reference-resolution
+scaling multiplies it by the smaller viewport/reference ratio to preserve aspect ratio. All offsets
+and sizes scale together. Nested canvases are independent viewport roots with their own order.
+
+`ComputeUiRect()` and `ComputeUiScale()` are code-only mechanisms, usable without scenes or a GPU.
+`UiSystem::Layout(viewSize)` builds transient screen rectangles keyed by entity id. Layout runs
+before `Scene::DrawUi()`; canvases draw in increasing `settings.order`, ties in creation order, and
+children draw depth-first in sibling order, parents first. Later elements appear over earlier ones.
+Inactive entities and disabled rectangles are excluded. Resize and hierarchy changes are resolved
+on the next pass. Canvas/rect fields serialize normally, including prefab and inspector editing.
+
+Widgets, layout groups, input and editor authoring follow in M12.3–M12.7.

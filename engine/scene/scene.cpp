@@ -6,6 +6,8 @@
 #include "core/log.h"
 #include "core/profiler.h"
 #include "physics/physics_world.h"
+#include "ui/canvas.h"
+#include "ui/ui_system.h"
 
 #include <algorithm>
 #include <atomic>
@@ -302,10 +304,16 @@ void Scene::Update(float deltaTime) {
 void Scene::DrawUi(Renderer2D& renderer, Vector2 viewSize) {
     SPOT_PROFILE_SCOPE("Scene::DrawUi");
     const Detail::DeferRemovalsScope defer(*this);
+    auto& ui = AddSystem<UiSystem>();
+    ui.Layout(viewSize);
     for (std::size_t i = 0; i < m_entities.size(); ++i) {
-        if (m_entities[i]) {
+        if (m_entities[i] && !m_entities[i]->GetComponentInParent<Canvas>()) {
             m_entities[i]->DrawUiComponents(renderer, viewSize);
         }
+    }
+    for (const auto& entry : ui.GetEntries()) {
+        if (auto* entity = GetEntity(entry.entity))
+            entity->DrawUiComponents(renderer, viewSize);
     }
 }
 
