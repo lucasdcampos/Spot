@@ -97,6 +97,46 @@ bool ImportModel(ImportContext& context) {
         }
     }
 
+    for (auto& skeleton : model->skeletons) {
+        for (auto& bone : skeleton.bones) {
+            bone.bindPose.translation *= scale;
+        }
+        const auto scaling = Matrix4::Scale({scale, scale, scale});
+        for (auto& matrix : skeleton.inverseBindMatrices) {
+            matrix = scaling * matrix * Inverse(scaling);
+        }
+    }
+    for (auto& clip : model->animations) {
+        for (auto& channel : clip.channels) {
+            if (channel.path == AnimationPath::Translation) {
+                for (auto& value : channel.values) {
+                    value *= scale;
+                }
+            }
+        }
+    }
+    std::vector<AssetId> skeletons;
+    for (std::size_t i = 0; i < model->skeletons.size(); ++i) {
+        BinaryWriter data;
+        Encode(data, model->skeletons[i]);
+        const auto id =
+            context.WriteSubAsset(std::format("skeleton:{}", i), AssetType::Skeleton, model->skeletons[i].name, data);
+        if (!id.IsValid()) {
+            return false;
+        }
+        skeletons.push_back(id);
+    }
+    std::vector<AssetId> animations;
+    for (std::size_t i = 0; i < model->animations.size(); ++i) {
+        BinaryWriter data;
+        Encode(data, model->animations[i]);
+        const auto id = context.WriteSubAsset(std::format("animation:{}", i), AssetType::AnimationClip,
+                                              model->animations[i].name, data);
+        if (!id.IsValid()) {
+            return false;
+        }
+        animations.push_back(id);
+    }
     std::vector<AssetId> textures;
     for (std::size_t i = 0; i < model->images.size(); ++i) {
         BinaryWriter data;
@@ -173,6 +213,11 @@ bool ImportModel(ImportContext& context) {
         ModelFileNode node{.name = source.name,
                            .transform = source.transform,
                            .parent = source.parent ? static_cast<std::int32_t>(*source.parent) : -1};
+        node.joint = source.joint;
+        node.animations = animations;
+        if (source.skin) {
+            node.skeleton = skeletons[*source.skin];
+        }
         if (source.mesh) {
             node.mesh = meshes[*source.mesh];
             for (const auto& material : model->meshes[*source.mesh].materials) {

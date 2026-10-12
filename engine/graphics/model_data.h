@@ -1,5 +1,6 @@
 #pragma once
 
+#include "animation/animation_data.h"
 #include "graphics/color.h"
 #include "graphics/image.h"
 #include "graphics/material.h"
@@ -55,6 +56,8 @@ struct ModelNodeData {
     std::optional<std::size_t> mesh = std::nullopt;
     // Index into ModelData::nodes, which lists parents before their children; none for root nodes.
     std::optional<std::size_t> parent = std::nullopt;
+    std::optional<std::size_t> skin = std::nullopt;
+    bool joint = false;
 };
 
 // A model read from a file into CPU memory. Model::Create() sends it to the GPU.
@@ -63,6 +66,8 @@ struct ModelData {
     std::vector<MaterialData> materials;
     std::vector<ModelMeshData> meshes;
     std::vector<ModelNodeData> nodes;
+    std::vector<Skeleton> skeletons;
+    std::vector<AnimationClip> animations;
 
     // Reads glTF 2.0, as .gltf with its files next to it or as a single .glb: the nodes of the file's default scene,
     // with their names and transforms, the meshes they show, each with its primitives as submeshes, and the materials

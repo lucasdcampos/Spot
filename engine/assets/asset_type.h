@@ -15,6 +15,8 @@ enum class AssetType {
     Font,
     Scene,
     Prefab,
+    Skeleton,
+    AnimationClip,
 };
 
 // The name used in .meta and manifest files, such as "Texture".

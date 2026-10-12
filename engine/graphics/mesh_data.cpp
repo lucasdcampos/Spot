@@ -171,6 +171,9 @@ void MeshData::GenerateTangents() {
             split.tangent = tangent;
             indices[i] = static_cast<std::uint32_t>(vertices.size());
             vertices.push_back(split);
+            if (!skin.empty()) {
+                skin.push_back(skin[index]);
+            }
             given.push_back(true);
         }
     }
@@ -189,6 +192,14 @@ void MeshData::AppendSubmesh(const MeshData& mesh) {
     }
     const auto firstVertex = static_cast<std::uint32_t>(vertices.size());
     submeshes.push_back({static_cast<std::uint32_t>(indices.size()), static_cast<std::uint32_t>(mesh.indices.size())});
+    if (!skin.empty() || !mesh.skin.empty()) {
+        skin.resize(vertices.size());
+        if (mesh.skin.empty()) {
+            skin.resize(vertices.size() + mesh.vertices.size());
+        } else {
+            skin.insert(skin.end(), mesh.skin.begin(), mesh.skin.end());
+        }
+    }
     vertices.insert(vertices.end(), mesh.vertices.begin(), mesh.vertices.end());
     for (const std::uint32_t index : mesh.indices) {
         indices.push_back(firstVertex + index);

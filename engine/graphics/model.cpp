@@ -64,9 +64,22 @@ std::unique_ptr<Model> Model::Create(GraphicsDevice& device, const ModelData& da
 
     // Submeshes without a material share a plain white one.
     const AssetRef<Material> defaultMaterial = std::make_shared<const Material>();
+    std::vector<AssetRef<Skeleton>> skeletons;
+    for (const auto& skeleton : data.skeletons) {
+        skeletons.emplace_back(std::make_shared<const Skeleton>(skeleton));
+    }
+    std::vector<AssetRef<AnimationClip>> animations;
+    for (const auto& clip : data.animations) {
+        animations.emplace_back(std::make_shared<const AnimationClip>(clip));
+    }
     std::vector<ModelNode> nodes;
     for (const auto& source : data.nodes) {
         ModelNode node{.name = source.name, .transform = source.transform, .parent = source.parent};
+        node.joint = source.joint;
+        node.animations = animations;
+        if (source.skin) {
+            node.skeleton = skeletons[*source.skin];
+        }
         if (source.mesh) {
             node.mesh = meshes[*source.mesh];
             for (const auto& material : data.meshes[*source.mesh].materials) {

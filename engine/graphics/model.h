@@ -29,6 +29,9 @@ struct ModelNode {
     AssetRef<Mesh> mesh = {};
     // Per submesh of the mesh; null ones draw plain white.
     std::vector<AssetRef<Material>> materials = {};
+    AssetRef<Skeleton> skeleton = {};
+    std::vector<AssetRef<AnimationClip>> animations = {};
+    bool joint = false;
 };
 
 // A submesh of a node's mesh with its material, placed in the model: what Renderer3D::DrawModel() draws.

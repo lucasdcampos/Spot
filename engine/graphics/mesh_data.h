@@ -2,10 +2,16 @@
 
 #include "math/vector.h"
 
+#include <array>
 #include <cstdint>
 #include <vector>
 
 namespace Spot {
+
+struct SkinVertex {
+    std::array<std::uint32_t, 4> joints = {};
+    Vector4 weights = {1, 0, 0, 0};
+};
 
 struct MeshVertex {
     Vector3 position;
@@ -47,6 +53,8 @@ struct MeshData {
     std::vector<std::uint32_t> indices;
     // Ranges of the indices, which together cover them all; none means one submesh of every index.
     std::vector<SubMesh> submeshes = {};
+    // Optional second vertex stream; empty for static meshes.
+    std::vector<SkinVertex> skin = {};
 
     // Centered on the origin, with every face mapping the whole texture.
     static MeshData CreateCube(float size = 1.0f);

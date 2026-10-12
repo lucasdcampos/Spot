@@ -127,9 +127,17 @@ std::vector<AssetId> AssetManager::Reload(std::span<const AssetId> assets) {
                 [&](const AssetRef<Texture>* texture) { return stale.contains(texture->GetId()); });
         }
         if (entry.type == AssetType::Model) {
-            return std::ranges::any_of(static_cast<const Model*>(loaded.get())->GetParts(), [&](const ModelPart& part) {
-                return stale.contains(part.mesh.GetId()) || stale.contains(part.material.GetId());
-            });
+            const auto& model = *static_cast<const Model*>(loaded.get());
+            return std::ranges::any_of(model.GetParts(),
+                                       [&](const ModelPart& part) {
+                                           return stale.contains(part.mesh.GetId()) ||
+                                                  stale.contains(part.material.GetId());
+                                       }) ||
+                   std::ranges::any_of(model.GetNodes(), [&](const ModelNode& node) {
+                       return stale.contains(node.skeleton.GetId()) ||
+                              std::ranges::any_of(node.animations,
+                                                  [&](const auto& clip) { return stale.contains(clip.GetId()); });
+                   });
         }
         return false;
     };
@@ -337,6 +345,11 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
                           .transform = node.transform,
                           .parent = node.parent >= 0 ? std::optional<std::size_t>(static_cast<std::size_t>(node.parent))
                                                      : std::nullopt});
+            added.joint = node.joint;
+            added.skeleton = Load<Skeleton>(node.skeleton);
+            for (const auto clip : node.animations) {
+                added.animations.push_back(Load<AnimationClip>(clip));
+            }
             if (node.mesh.IsValid()) {
                 added.mesh = Load<Mesh>(node.mesh);
             }
@@ -372,6 +385,14 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
         const auto text = Detail::DecodeScene(*data);
         auto prefab = text ? Prefab::FromString(*text) : std::nullopt;
         return prefab ? std::make_shared<const Prefab>(std::move(*prefab)) : nullptr;
+    }
+    case AssetType::Skeleton: {
+        auto skeleton = Detail::DecodeSkeleton(*data);
+        return skeleton ? std::make_shared<const Skeleton>(std::move(*skeleton)) : nullptr;
+    }
+    case AssetType::AnimationClip: {
+        auto clip = Detail::DecodeAnimationClip(*data);
+        return clip ? std::make_shared<const AnimationClip>(std::move(*clip)) : nullptr;
     }
     case AssetType::Scene:
         Log::GetEngineLogger().Error("Scenes are not loaded as shared assets");

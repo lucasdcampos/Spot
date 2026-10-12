@@ -9,7 +9,7 @@ The goal is the same breadth, built on the architecture Spot already has.
 The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
 [The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
 
-**Current focus:** M15 - The sandbox game (M9 remains deferred; M14 is conditional on a 2D game)
+**Current focus:** M9 - Skeletal animation (M14 is conditional on a 2D game)
 
 ## How to use this plan
 
@@ -950,7 +950,7 @@ one entity per bone, and only bones that are asked for appear in the scene (`Bon
 (M8.2) create entities for the nodes that are not joints. Skinning runs on the GPU from a second vertex stream.
 Controllers are assets with parameters, transitions with cross-fades, blend trees and events.
 
-- [ ] **M9.1 Import.** Skins (joints, inverse bind matrices), animations (translation, rotation and scale channels;
+- [x] **M9.1 Import.** Skins (joints, inverse bind matrices), animations (translation, rotation and scale channels;
   step, linear and cubic), and vertex joints and weights. `Skeleton` and `AnimationClip` assets, with clips as
   sub-assets of models or from animation-only files. Bump the importers. Tests.
 - [ ] **M9.2 Pose math.** Sampling, blending, local to model space, and skinning palettes. Pure CPU, unit-tested.
@@ -966,10 +966,10 @@ Controllers are assets with parameters, transitions with cross-fades, blend tree
 - [ ] **M9.8 Layers and masks.** Override and additive layers with bone masks, such as for the upper body.
 - [ ] **M9.9 Editor.** A clip preview with a timeline in the inspector, a controller graph editor, and live
   parameters during Play.
-- [ ] **M9.10 Bone attachments.** `BoneAttachment` places an entity on a bone, such as a weapon in a hand.
-- [ ] **M9.11 Ragdolls.** A `Ragdoll` component builds bodies and `SwingTwistJoint`s (M1.8) from a skeleton, with
+- [x] **M9.10 Bone attachments.** `BoneAttachment` places an entity on a bone, such as a weapon in a hand.
+- [x] **M9.11 Ragdolls.** A `Ragdoll` component builds bodies and `SwingTwistJoint`s (M1.8) from a skeleton, with
   limits per bone, and switches a character from animation to physics and back. Tests.
-- [ ] **M9.12 Sandbox: robot and view models.** The generator makes a simple rigged robot with idle, walk and run
+- [x] **M9.12 Sandbox: robot and view models.** The generator makes a simple rigged robot with idle, walk and run
   clips, and first-person arms with fire, reload and switch clips for each weapon. Robots wander through a
   controller with a blend tree, and turn into ragdolls when shot or blown up. Weapons are held by the animated arms.
 
@@ -977,6 +977,11 @@ Controllers are assets with parameters, transitions with cross-fades, blend tree
 with view-model animations.
 
 **Notes:**
+- M9.1: model importer version 10 adds skeleton/clip sub-assets and a separate skin stream.
+  Full node arrays retain intermediary transforms; animation-only files use matching node order.
+  MSVC Debug builds without compiler warnings; 3 animation cases pass 593 assertions and
+  47 model/asset regression cases pass 1,462 assertions.
+
 
 ---
 

@@ -4,6 +4,8 @@
 #include "core/paths.h"
 #include "math/matrix.h"
 
+#include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -78,6 +80,7 @@ public:
         ImportImages(model);
         ImportMaterials(model);
 
+        m_nodeIndices.assign(m_data.nodes_count, std::nullopt);
         m_meshIndices.assign(m_data.meshes_count, std::nullopt);
         m_meshesImported.assign(m_data.meshes_count, false);
         if (const cgltf_scene* scene = m_data.scene ? m_data.scene : (m_data.scenes_count ? m_data.scenes : nullptr)) {
@@ -91,6 +94,13 @@ public:
                 }
             }
         }
+        // Skins may reference joints outside the default scene.
+        if (m_data.skins_count || m_data.animations_count) {
+            for (cgltf_size i = 0; i < m_data.nodes_count; ++i) {
+                ImportNodeWithParents(m_data.nodes[i], model);
+            }
+        }
+        ImportAnimations(model);
         return model;
     }
 
@@ -190,17 +200,100 @@ private:
     }
 
     void ImportNode(const cgltf_node& node, std::optional<std::size_t> parent, ModelData& model) {
+        const auto sourceIndex = cgltf_node_index(&m_data, &node);
+        if (m_nodeIndices[sourceIndex]) {
+            return;
+        }
         ModelNodeData imported;
         imported.name = node.name ? node.name : "";
         cgltf_node_transform_local(&node, &imported.transform.columns[0].x);
         imported.parent = parent;
+        if (node.skin) {
+            imported.skin = cgltf_skin_index(&m_data, node.skin);
+        }
+        for (cgltf_size i = 0; i < m_data.skins_count; ++i) {
+            for (cgltf_size j = 0; j < m_data.skins[i].joints_count; ++j) {
+                imported.joint = imported.joint || m_data.skins[i].joints[j] == &node;
+            }
+        }
         if (node.mesh) {
             imported.mesh = ImportMesh(static_cast<std::size_t>(cgltf_mesh_index(&m_data, node.mesh)), model);
         }
         const std::size_t index = model.nodes.size();
+        m_nodeIndices[sourceIndex] = index;
         model.nodes.push_back(std::move(imported));
         for (cgltf_size i = 0; i < node.children_count; ++i) {
             ImportNode(*node.children[i], index, model);
+        }
+    }
+
+    void ImportNodeWithParents(const cgltf_node& node, ModelData& model) {
+        if (m_nodeIndices[cgltf_node_index(&m_data, &node)]) {
+            return;
+        }
+        if (node.parent) {
+            ImportNodeWithParents(*node.parent, model);
+        }
+        ImportNode(node, node.parent ? m_nodeIndices[cgltf_node_index(&m_data, node.parent)] : std::nullopt, model);
+    }
+
+    void ImportAnimations(ModelData& model) const {
+        for (cgltf_size i = 0; i < m_data.skins_count; ++i) {
+            const auto& source = m_data.skins[i];
+            Skeleton skeleton;
+            skeleton.name = source.name ? source.name : "Skeleton " + std::to_string(i);
+            for (const auto& node : model.nodes) {
+                skeleton.bones.push_back(
+                    {node.name, node.parent ? static_cast<std::int32_t>(*node.parent) : -1, Decompose(node.transform)});
+            }
+            for (cgltf_size j = 0; j < source.joints_count; ++j) {
+                skeleton.joints.push_back(
+                    static_cast<std::uint32_t>(*m_nodeIndices[cgltf_node_index(&m_data, source.joints[j])]));
+                Matrix4 inverseBind;
+                if (source.inverse_bind_matrices) {
+                    cgltf_accessor_read_float(source.inverse_bind_matrices, j, &inverseBind.columns[0].x, 16);
+                }
+                skeleton.inverseBindMatrices.push_back(inverseBind);
+            }
+            model.skeletons.push_back(std::move(skeleton));
+        }
+        for (cgltf_size i = 0; i < m_data.animations_count; ++i) {
+            const auto& source = m_data.animations[i];
+            AnimationClip clip;
+            clip.name = source.name ? source.name : "Animation " + std::to_string(i);
+            for (cgltf_size j = 0; j < source.channels_count; ++j) {
+                const auto& sourceChannel = source.channels[j];
+                if (!sourceChannel.target_node || sourceChannel.target_path == cgltf_animation_path_type_weights) {
+                    Log::GetEngineLogger().Warning("Skipped unsupported animation channel in '{}'", clip.name);
+                    continue;
+                }
+                const auto& sampler = *sourceChannel.sampler;
+                AnimationChannel channel;
+                channel.bone =
+                    static_cast<std::uint32_t>(*m_nodeIndices[cgltf_node_index(&m_data, sourceChannel.target_node)]);
+                channel.path = sourceChannel.target_path == cgltf_animation_path_type_rotation ? AnimationPath::Rotation
+                               : sourceChannel.target_path == cgltf_animation_path_type_scale
+                                   ? AnimationPath::Scale
+                                   : AnimationPath::Translation;
+                channel.interpolation =
+                    sampler.interpolation == cgltf_interpolation_type_step           ? AnimationInterpolation::Step
+                    : sampler.interpolation == cgltf_interpolation_type_cubic_spline ? AnimationInterpolation::Cubic
+                                                                                     : AnimationInterpolation::Linear;
+                for (cgltf_size k = 0; k < sampler.input->count; ++k) {
+                    float time = 0;
+                    cgltf_accessor_read_float(sampler.input, k, &time, 1);
+                    channel.times.push_back(time);
+                    clip.duration = std::max(clip.duration, time);
+                }
+                for (cgltf_size k = 0; k < sampler.output->count; ++k) {
+                    Vector4 value{};
+                    cgltf_accessor_read_float(sampler.output, k, &value.x,
+                                              channel.path == AnimationPath::Rotation ? 4 : 3);
+                    channel.values.push_back(value);
+                }
+                clip.channels.push_back(std::move(channel));
+            }
+            model.animations.push_back(std::move(clip));
         }
     }
 
@@ -248,9 +341,30 @@ private:
         // Given tangents only mean something along the normals they were made with.
         const bool hasTangents = hasNormals && tangents && tangents->count == positions->count;
 
+        const auto* joints = cgltf_find_accessor(&primitive, cgltf_attribute_type_joints, 0);
+        const auto* weights = cgltf_find_accessor(&primitive, cgltf_attribute_type_weights, 0);
+        const bool skinned =
+            joints && weights && joints->count == positions->count && weights->count == positions->count;
         MeshData part;
+        if (skinned) {
+            part.skin.resize(positions->count);
+        }
         part.vertices.resize(positions->count);
         for (cgltf_size i = 0; i < positions->count; ++i) {
+            if (skinned) {
+                cgltf_uint jointIndices[4]{};
+                cgltf_accessor_read_uint(joints, i, jointIndices, 4);
+                std::copy_n(jointIndices, 4, part.skin[i].joints.begin());
+                auto& weight = part.skin[i].weights;
+                cgltf_accessor_read_float(weights, i, &weight.x, 4);
+                if (!std::isfinite(weight.x) || !std::isfinite(weight.y) || !std::isfinite(weight.z) ||
+                    !std::isfinite(weight.w) || weight.x < 0 || weight.y < 0 || weight.z < 0 || weight.w < 0) {
+                    Log::GetEngineLogger().Error("Mesh '{}' contains invalid skin weights", name);
+                    return std::nullopt;
+                }
+                const float sum = weight.x + weight.y + weight.z + weight.w;
+                weight = sum > 0.0f ? weight / sum : Vector4{1, 0, 0, 0};
+            }
             MeshVertex& vertex = part.vertices[i];
             cgltf_accessor_read_float(positions, i, &vertex.position.x, 3);
             if (hasNormals) {
@@ -304,6 +418,7 @@ private:
     // Where each of the file's meshes went in the model, once read.
     std::vector<std::optional<std::size_t>> m_meshIndices;
     std::vector<bool> m_meshesImported;
+    std::vector<std::optional<std::size_t>> m_nodeIndices;
 };
 
 std::optional<ModelData> Import(std::span<const std::byte> bytes, const std::filesystem::path* path) {
@@ -332,7 +447,26 @@ std::optional<ModelData> Import(std::span<const std::byte> bytes, const std::fil
     }
 
     const std::filesystem::path directory = path ? path->parent_path() : std::filesystem::path();
-    return Importer(*data, options, path ? &directory : nullptr).Import();
+    auto model = Importer(*data, options, path ? &directory : nullptr).Import();
+    bool valid = std::ranges::all_of(model.skeletons, [](const Skeleton& skeleton) { return skeleton.IsValid(); }) &&
+                 std::ranges::all_of(model.animations, [](const AnimationClip& clip) { return clip.IsValid(); });
+    for (const auto& node : model.nodes) {
+        if (node.skin && node.mesh) {
+            const auto& skin = model.meshes[*node.mesh].mesh.skin;
+            const auto count = model.skeletons[*node.skin].joints.size();
+            valid = valid && !skin.empty();
+            for (const auto& vertex : skin) {
+                for (const auto joint : vertex.joints) {
+                    valid = valid && joint < count;
+                }
+            }
+        }
+    }
+    if (!valid) {
+        Log::GetEngineLogger().Error("Model has invalid skeleton, weights or animation data");
+        return std::nullopt;
+    }
+    return model;
 }
 
 } // namespace

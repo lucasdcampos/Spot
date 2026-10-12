@@ -101,6 +101,12 @@ add_dependencies(spot_tests spot_cli)
 
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(Catch)
+add_executable(spot_animation_tests animation_import_tests.cpp)
+target_link_libraries(spot_animation_tests PRIVATE spot::import spot::spot Catch2::Catch2WithMain)
+target_compile_definitions(spot_animation_tests PRIVATE SPOT_TEST_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets")
+spot_set_compile_options(spot_animation_tests)
+catch_discover_tests(spot_animation_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
+
 add_executable(spot_ui_tests ui_tests.cpp ui_widget_tests.cpp ui_layout_group_tests.cpp ui_input_tests.cpp ui_application_tests.cpp rendering_settings_tests.cpp ui_signal_tests.cpp)
 target_compile_definitions(spot_ui_tests PRIVATE SPOT_TEST_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets")
 target_link_libraries(spot_ui_tests PRIVATE spot::spot Catch2::Catch2WithMain)

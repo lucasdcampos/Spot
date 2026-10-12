@@ -4,6 +4,7 @@
 // asset manager decodes it; a change to any of these bumps the type's importer version, so assets get imported
 // again.
 
+#include "animation/animation_data.h"
 #include "assets/asset_file.h"
 #include "assets/asset_id.h"
 #include "assets/material_source.h"
@@ -36,6 +37,9 @@ struct ModelFileNode {
     std::int32_t parent = -1;
     AssetId mesh = {};
     std::vector<AssetId> materials = {};
+    AssetId skeleton = {};
+    std::vector<AssetId> animations = {};
+    bool joint = false;
 };
 
 struct SoundFile {
@@ -52,6 +56,11 @@ struct FontFile {
     float pixelSize = 0.0f;
     std::vector<std::byte> fontData;
 };
+
+void Encode(BinaryWriter& writer, const Skeleton& skeleton);
+void Encode(BinaryWriter& writer, const AnimationClip& clip);
+std::optional<Skeleton> DecodeSkeleton(std::span<const std::byte> data);
+std::optional<AnimationClip> DecodeAnimationClip(std::span<const std::byte> data);
 
 void Encode(BinaryWriter& writer, const TextureFile& texture);
 void Encode(BinaryWriter& writer, const MeshData& mesh);

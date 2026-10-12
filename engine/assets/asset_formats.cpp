@@ -68,6 +68,7 @@ void Encode(BinaryWriter& writer, const MeshData& mesh) {
     WriteArray(writer, std::span<const MeshVertex>(mesh.vertices));
     WriteArray(writer, std::span<const std::uint32_t>(mesh.indices));
     WriteArray(writer, std::span<const SubMesh>(mesh.submeshes));
+    WriteArray(writer, std::span<const SkinVertex>(mesh.skin));
 }
 
 std::optional<MeshData> DecodeMesh(std::span<const std::byte> data) {
@@ -75,7 +76,8 @@ std::optional<MeshData> DecodeMesh(std::span<const std::byte> data) {
     auto vertices = ReadArray<MeshVertex>(reader);
     auto indices = vertices ? ReadArray<std::uint32_t>(reader) : std::nullopt;
     auto submeshes = indices ? ReadArray<SubMesh>(reader) : std::nullopt;
-    if (!submeshes) {
+    auto skin = submeshes ? ReadArray<SkinVertex>(reader) : std::nullopt;
+    if (!skin || (!skin->empty() && skin->size() != vertices->size())) {
         return std::nullopt;
     }
     for (const std::uint32_t index : *indices) {
@@ -88,7 +90,7 @@ std::optional<MeshData> DecodeMesh(std::span<const std::byte> data) {
             return std::nullopt;
         }
     }
-    return Finish(reader, MeshData{std::move(*vertices), std::move(*indices), std::move(*submeshes)});
+    return Finish(reader, MeshData{std::move(*vertices), std::move(*indices), std::move(*submeshes), std::move(*skin)});
 }
 
 void Encode(BinaryWriter& writer, const MaterialSource& material) {
@@ -142,6 +144,9 @@ void Encode(BinaryWriter& writer, const std::vector<ModelFileNode>& nodes) {
         writer.Write(node.parent);
         writer.Write(node.mesh);
         WriteArray(writer, std::span<const AssetId>(node.materials));
+        writer.Write(node.skeleton);
+        WriteArray(writer, std::span<const AssetId>(node.animations));
+        writer.Write(static_cast<std::uint8_t>(node.joint));
     }
 }
 
@@ -161,6 +166,13 @@ std::optional<std::vector<ModelFileNode>> DecodeModel(std::span<const std::byte>
             return std::nullopt;
         }
         node.materials = std::move(*materials);
+        node.skeleton = reader.Read<AssetId>();
+        auto animations = ReadArray<AssetId>(reader);
+        if (!animations) {
+            return std::nullopt;
+        }
+        node.animations = std::move(*animations);
+        node.joint = reader.Read<std::uint8_t>() != 0;
         nodes.push_back(std::move(node));
     }
     return Finish(reader, std::move(nodes));
