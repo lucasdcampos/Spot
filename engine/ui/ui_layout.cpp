@@ -60,6 +60,8 @@ void UiCanvasSettings::Serialize(Archive& archive) {
     archive.Field("referenceResolution", referenceResolution);
     archive.Field("scale", scale, {.min = 0.01f, .max = 100.0f});
     archive.Field("order", order);
+    archive.Field("modal", modal);
+    archive.Field("dismissKey", dismissKey);
 }
 void UiRectLayout::Serialize(Archive& archive) {
     archive.Field("anchorMin", anchorMin, {.min = 0.0f, .max = 1.0f});

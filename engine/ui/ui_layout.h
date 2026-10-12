@@ -1,5 +1,6 @@
 #pragma once
 
+#include "input/keys.h"
 #include "math/vector.h"
 
 namespace Spot {
@@ -23,6 +24,8 @@ struct UiCanvasSettings {
     Vector2 referenceResolution = {1280, 720};
     float scale = 1.0f;
     int order = 0;
+    bool modal = false;
+    Key dismissKey = Key::Escape;
     void Serialize(class Archive& archive);
 };
 

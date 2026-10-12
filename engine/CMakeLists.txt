@@ -240,6 +240,7 @@ add_library(spot_objects OBJECT
     ui/ui_text_layout.cpp
     ui/ui_widgets.cpp
     ui/ui_layout_group.cpp
+    ui/ui_input_system.cpp
     ui/ui_layout.cpp
     ui/ui_system.cpp
     scene/text_renderer.cpp

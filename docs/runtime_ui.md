@@ -80,4 +80,26 @@ Inactive children do not contribute. Groups retain their child and geometry buff
 `ArrangeUiLayoutGroup()` expose the mechanism separately; an output-vector overload reuses storage.
 Group and fitter state serializes normally, while generated rectangles remain transient.
 
-Input and editor authoring follow in M12.5–M12.7.
+## Input and navigation
+
+The application routes viewport events to scene UI before gameplay input/action updates. Use
+`Scene::HandleUiEvent(event, viewSize, input)` for custom hosts: pointer coordinates grow down from
+the viewport's top-left, in pixels. The editor converts its played viewport coordinates too.
+`Scene::GetUi()` and `Scene::GetUiInput()` lazily create each service exactly once.
+Handled events clear the matching game control via `InputState::ConsumeEvent()`, avoiding held
+buttons when ownership changes. Owned key/button releases are also consumed after a menu closes. Pointer hit testing follows reverse draw order and inherited clips;
+a click activates only when released on the element that received the press. Sliders support drag.
+
+Tab/Shift-Tab traverse sibling order; arrows and gamepad D-pad navigate spatially. Return/Space and
+South activate. D-pad/arrows adjust sliders and scroll views; shoulder buttons traverse, and left
+stick threshold crossings navigate. Focusing an offscreen scroll child reveals it. Focus is stored
+by entity id and validated after changes. Fields handle text/caret events and request native text
+input; their capture releases the cursor while retaining the game's requested lock.
+
+A canvas with `settings.modal` owns input until disabled or hidden; only its controls can receive
+focus. `dismissKey` defaults to Escape. `UiInputSystem::OnCancel` identifies the modal canvas,
+allowing game code to close it. Escape first releases text focus; gamepad East/Start cancels a modal.
+The code-only input system can bind a state with `SetInputState()`. That state must outlive the
+binding; detach it before destruction. UI input and component callbacks are fault-contained.
+
+Editor authoring and the sandbox interface follow in M12.6–M12.7.

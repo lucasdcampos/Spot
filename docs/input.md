@@ -150,3 +150,5 @@ each hand-over. Overlays read events, which are still delivered; games that reac
 `Input::IsCaptured()`.
 
 The editor's play view holds a capture named "Editor" whenever it does not have focus.
+
+Runtime UI routes and consumes handled events before game input; see [Runtime UI and text](runtime_ui.md). Modal canvases and text focus use the same capture ownership as other overlays.

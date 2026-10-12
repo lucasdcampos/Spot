@@ -27,6 +27,9 @@ class Model;
 class PhysicsWorld;
 class Prefab;
 class RenderContext;
+class InputState;
+class UiSystem;
+class UiInputSystem;
 
 // How Scene::Instantiate() adds saved entities.
 struct InstantiateOptions {
@@ -96,6 +99,8 @@ public:
     PhysicsWorld& GetPhysics();
     // Plays the scene's sounds where they are; created on the first call.
     AudioSystem& GetAudio();
+    UiSystem& GetUi();
+    UiInputSystem& GetUiInput();
 
     // Adds a system of the type, constructed with the arguments. A scene has one system of each type at most.
     template <std::derived_from<SceneSystem> T, typename... Args>
@@ -204,6 +209,8 @@ public:
     //     scene.DrawUi(renderer, viewSize);
     //     renderer.End();
     void DrawUi(Renderer2D& renderer, Vector2 viewSize);
+    // Positions and view size are viewport pixels, with pointer Y growing down.
+    bool HandleUiEvent(const Event& event, Vector2 viewSize, InputState* input = nullptr);
     // The camera that puts (0, 0) at the bottom-left corner of a view of the size, and one unit on each pixel.
     static Camera2D ScreenCamera(Vector2 viewSize);
 

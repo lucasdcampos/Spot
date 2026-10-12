@@ -1,4 +1,5 @@
 #include "core/application.h"
+#include "ui/ui_input_system.h"
 
 #include "assets/assets.h"
 #include "audio/audio_system.h"
@@ -208,6 +209,7 @@ int Application::Run() {
             Profiler::Count("Voices", static_cast<double>(stats.voices));
             Profiler::Count("Resident memory", static_cast<double>(stats.memoryBytes));
         }
+        UpdateUiTextInput();
         // Only changes are applied, so applications can still capture the mouse themselves.
         if (m_input.IsCursorLockApplied() != m_cursorLocked) {
             m_cursorLocked = m_input.IsCursorLockApplied();
@@ -421,7 +423,7 @@ void Application::MakePersistent(Entity& entity) {
 
 void Application::DispatchEvent(const Event& event) {
     const bool wasOpen = m_consoleInput && m_consoleInput->IsOpen();
-    const bool consumed = m_consoleInput && m_consoleInput->OnEvent(event);
+    bool consumed = m_consoleInput && m_consoleInput->OnEvent(event);
     if (m_window && m_consoleInput && wasOpen != m_consoleInput->IsOpen()) {
         if (m_consoleInput->IsOpen()) {
             m_window->StartTextInput();
@@ -429,9 +431,26 @@ void Application::DispatchEvent(const Event& event) {
             m_window->StopTextInput();
         }
     }
+    if (!consumed && DeliversToScenes(event) && m_window) {
+        Event uiEvent = event;
+        if (const auto* moved = event.GetIf<MouseMovedEvent>()) {
+            auto pixel = *moved;
+            pixel.position = pixel.position * m_window->GetContentScale();
+            uiEvent = Event(pixel);
+        }
+        const Vector2 size{static_cast<float>(m_window->GetPixelWidth()),
+                           static_cast<float>(m_window->GetPixelHeight())};
+        for (auto scene = m_scenes.rbegin(); scene != m_scenes.rend() && !consumed; ++scene)
+            consumed = (*scene)->HandleUiEvent(uiEvent, size, &m_input);
+        if (!consumed && m_persistentScene)
+            consumed = m_persistentScene->HandleUiEvent(uiEvent, size, &m_input);
+        if (consumed)
+            m_input.ConsumeEvent(event);
+    }
     if (!consumed) {
         m_input.OnEvent(event);
     }
+    UpdateUiTextInput();
     OnEvent(event);
     if (!consumed && DeliversToScenes(event)) {
         if (m_persistentScene) {
@@ -445,6 +464,17 @@ void Application::DispatchEvent(const Event& event) {
     if (event.Is<WindowCloseEvent>() && OnCloseRequested()) {
         Quit();
     }
+}
+
+void Application::UpdateUiTextInput() {
+    if (!m_window)
+        return;
+    const bool wanted = UiInputSystem::IsTextInputCaptured(m_input);
+    if (wanted && !m_window->IsTextInputActive())
+        m_window->StartTextInput();
+    else if (m_uiTextInput && !wanted && !(m_consoleInput && m_consoleInput->IsOpen()))
+        m_window->StopTextInput();
+    m_uiTextInput = wanted;
 }
 
 void Application::ApplySceneChanges() {

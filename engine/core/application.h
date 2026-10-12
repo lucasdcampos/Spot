@@ -201,6 +201,8 @@ protected:
     void DispatchEvent(const Event& event);
 
 private:
+    void UpdateUiTextInput();
+    bool m_uiTextInput = false;
     std::unique_ptr<EngineConsole> m_engineConsole;
     enum class SceneChangeKind { Replace, Add, Remove };
 

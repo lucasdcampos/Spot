@@ -91,6 +91,50 @@ void InputState::OnEvent(const Event& event) {
     }
 }
 
+void InputState::ConsumeEvent(const Event& event) {
+    auto key = [&](Key value) {
+        const auto index = ToIndex(value);
+        m_keysDown.reset(index);
+        m_keysPressed.reset(index);
+        m_keysReleased.reset(index);
+    };
+    auto button = [&](MouseButton value) {
+        const auto index = ToIndex(value);
+        m_buttonsDown.reset(index);
+        m_buttonsPressed.reset(index);
+        m_buttonsReleased.reset(index);
+    };
+    if (const auto* value = event.GetIf<KeyPressedEvent>())
+        key(value->key);
+    if (const auto* value = event.GetIf<KeyReleasedEvent>())
+        key(value->key);
+    if (const auto* value = event.GetIf<MouseButtonPressedEvent>())
+        button(value->button);
+    if (const auto* value = event.GetIf<MouseButtonReleasedEvent>())
+        button(value->button);
+    if (const auto* value = event.GetIf<MouseMovedEvent>()) {
+        m_mousePosition = value->position;
+        m_mouseDelta = {};
+    }
+    if (event.Is<MouseScrolledEvent>())
+        m_scrollDelta = {};
+    if (event.Is<TextInputEvent>())
+        m_typedText.clear();
+    auto padButton = [&](GamepadId id, GamepadButton value) {
+        auto& pad = FindOrAddGamepad(id);
+        const auto index = static_cast<std::size_t>(value);
+        pad.down.reset(index);
+        pad.pressed.reset(index);
+        pad.released.reset(index);
+    };
+    if (const auto* value = event.GetIf<GamepadButtonPressedEvent>())
+        padButton(value->gamepad, value->button);
+    if (const auto* value = event.GetIf<GamepadButtonReleasedEvent>())
+        padButton(value->gamepad, value->button);
+    if (const auto* value = event.GetIf<GamepadAxisEvent>())
+        FindOrAddGamepad(value->gamepad).axes[static_cast<std::size_t>(value->axis)] = 0;
+}
+
 GamepadId InputState::GetGamepadId(int gamepad) const {
     return gamepad >= 0 && gamepad < GetGamepadCount() ? m_gamepads[static_cast<std::size_t>(gamepad)].id
                                                        : GamepadId::Invalid;

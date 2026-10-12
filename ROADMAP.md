@@ -1135,7 +1135,7 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
 - [x] **M12.3 Widgets.** `UiImage` (nine-slice, tint), `UiText` (alignment, wrapping, overflow), `UiButton` (states,
   an `OnClick` signal), `UiToggle`, `UiSlider`, `UiInputField` (M2.2) and `UiScrollView` with clipping.
 - [x] **M12.4 Layout groups.** Horizontal, vertical and grid layouts, and size fitters.
-- [ ] **M12.5 UI input.** Pointer hit testing, focus and navigation with keyboard and gamepad, and UI that consumes
+- [x] **M12.5 UI input.** Pointer hit testing, focus and navigation with keyboard and gamepad, and UI that consumes
   the input it handles (M2.6). Tests.
 - [ ] **M12.6 Editor.** Rect handles and anchor presets in the scene view, a widget creation menu, and canvas
   preview.
@@ -1146,6 +1146,14 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
 **Done when:** the sandbox's menus work with mouse, keyboard and gamepad, and are authored in the editor.
 
 **Notes:**
+- M12.5: pointer routing, drag cancellation, text focus, spatial keyboard/gamepad navigation and
+  scroll reveal run before gameplay input. Modal canvases and fields use input captures; owned
+  releases remain consumed after closing. Native text input cooperates with editor IME ownership,
+  and play view pointers are converted to framebuffer pixels. Services now use explicit lazy
+  GetUi()/GetUiInput() accessors: repeated-event tests caught the earlier AddSystem() assumption,
+  and teardown tests caught querying entity storage during system destruction. Both are corrected.
+  MSVC builds without compiler warnings; nineteen UI cases pass 151 assertions, ten editor play/IME
+  cases pass 63, and the offscreen UI regression verifies identical rendering on consecutive frames.
 - M12.4: a UiLayoutGroup selects horizontal, vertical or grid policy, with padding, spacing,
   alignment and equal expansion. UiSizeFitter measures text, textures and nested groups bottom-up;
   generated positions override anchors only transiently. Child traversal, sorting and layout buffers

@@ -60,6 +60,7 @@ protected:
 
 private:
     friend class Scene;
+    friend class UiInputSystem;
 
     // Runs one of the system's hooks, faulting the system when it throws.
     template <typename F>

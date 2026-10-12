@@ -141,7 +141,9 @@ SceneView::DrawResult SceneView::Draw(EditorContext& context, ViewportRenderer* 
     }
     if (playing) {
         // The game gets the keyboard and the mouse while its view has focus and shows it.
-        play->SetView(visible && result.focused && m_gameView, {m_viewOrigin.x, m_viewOrigin.y});
+        play->SetView(visible && result.focused && m_gameView, {m_viewOrigin.x, m_viewOrigin.y},
+                      {static_cast<float>(m_width), static_cast<float>(m_height)},
+                      {ImGui::GetIO().DisplayFramebufferScale.x, ImGui::GetIO().DisplayFramebufferScale.y});
     }
     ImGui::End();
     result.closeRequested = !open;

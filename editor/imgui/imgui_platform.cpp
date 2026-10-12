@@ -319,7 +319,9 @@ ImGuiPlatform::ImGuiPlatform(Window& window) : m_window(window) {
     platformIo.Platform_SetClipboardTextFn = [](ImGuiContext*, const char* text) { Clipboard::SetText(text); };
     platformIo.Platform_SetImeDataFn = [](ImGuiContext*, ImGuiViewport*, ImGuiPlatformImeData* data) {
         Window& window = GetPlatform().m_window;
-        const bool wanted = data->WantVisible || data->WantTextInput;
+        const auto* input = Input::GetState();
+        const bool runtime = input && UiInputSystem::IsTextInputCaptured(*input);
+        const bool wanted = data->WantVisible || data->WantTextInput || runtime;
         if (wanted && !window.IsTextInputActive()) {
             window.StartTextInput();
         } else if (!wanted && window.IsTextInputActive()) {

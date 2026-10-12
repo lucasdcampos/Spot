@@ -212,3 +212,38 @@ TEST_CASE("Lines of the game's log keep their level, and say which logger wrote 
     CHECK(other.message == "  the second line of a message");
     CHECK(GameRunner::ParseLine("[14:03] [INFO ]").message == "[14:03] [INFO ]");
 }
+
+TEST_CASE("Played UI routes scaled viewport pointers without firing gameplay input", "[editor][play][ui]") {
+    Spot::Editor::SceneDocument source("Interface");
+    auto& root = source.GetScene().CreateEntity("Canvas");
+    root.AddComponent<Spot::Canvas>();
+    auto& entity = root.CreateChild("Button");
+    auto& rect = entity.AddComponent<Spot::UiRect>();
+    rect.layout.anchorMin = rect.layout.anchorMax = rect.layout.pivot = {};
+    rect.layout.offset = {10, 10};
+    rect.layout.sizeDelta = {100, 40};
+    entity.AddComponent<Spot::UiButton>();
+    std::unique_ptr<Spot::Editor::PlaySession> play;
+    Spot::SignalConnection connection;
+    int clicks = 0;
+    FrameApplication application([&](FrameApplication& app, int frame) {
+        if (frame == 1)
+            play = std::make_unique<Spot::Editor::PlaySession>(app, source, app.GetAssets());
+        if (frame == 3) {
+            play->Update();
+            auto* button = play->GetDocument()->GetScene().FindComponent<Spot::UiButton>();
+            REQUIRE(button);
+            connection = button->OnClick.Connect([&] { ++clicks; });
+            play->SetView(true, {20, 30}, {400, 300}, {2, 2});
+            play->Feed(Spot::MouseMovedEvent{{30, 170}, {}});
+            play->Feed(Spot::MouseButtonPressedEvent{Spot::MouseButton::Left});
+            play->Feed(Spot::MouseButtonReleasedEvent{Spot::MouseButton::Left});
+            CHECK(clicks == 1);
+            CHECK_FALSE(Spot::Input::IsMouseButtonPressed(Spot::MouseButton::Left));
+            play.reset();
+        }
+        return frame < 5;
+    });
+    CHECK(application.Run() == 0);
+    CHECK(source.GetHistory().GetUndoCount() == 0);
+}

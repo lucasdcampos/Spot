@@ -1,6 +1,7 @@
 #include "play/play_session.h"
 
 #include "core/editor_log.h"
+#include <imgui.h>
 
 #include <utility>
 
@@ -39,6 +40,12 @@ PlaySession::~PlaySession() {
         SelectPaths(m_source.GetScene(), m_source.GetSelection(),
                     GetSelectedPaths(m_document->GetScene(), m_document->GetSelection()));
     }
+    for (auto* scene : m_application.GetScenes()) {
+        if (auto* ui = scene->GetSystem<UiInputSystem>())
+            ui->SetInputState(nullptr);
+    }
+    if (m_uiTextInput && !ImGui::GetIO().WantTextInput)
+        m_application.GetWindow().StopTextInput();
     m_document.reset();
     m_application.LoadScene(nullptr);
     m_application.GetPersistentScene().Clear();
@@ -80,7 +87,9 @@ void PlaySession::Step() {
     m_application.StepScenes();
 }
 
-void PlaySession::SetView(bool focused, Vector2 origin) {
+void PlaySession::SetView(bool focused, Vector2 origin, Vector2 viewSize, Vector2 scale) {
+    m_viewSize = viewSize;
+    m_viewScale = scale;
     if (focused != m_focused) {
         if (focused) {
             m_input.PopCapture(std::exchange(m_editorCapture, InputCaptureId::None));
@@ -97,18 +106,37 @@ void PlaySession::SetView(bool focused, Vector2 origin) {
 }
 
 void PlaySession::Feed(const Event& event) {
+    if (!m_focused)
+        return;
+    Event localEvent = event;
+    if (const auto* moved = event.GetIf<MouseMovedEvent>()) {
+        auto local = *moved;
+        local.position = local.position - m_viewOrigin;
+        localEvent = Event(local);
+    }
+    Event uiEvent = localEvent;
+    if (const auto* moved = localEvent.GetIf<MouseMovedEvent>()) {
+        auto pixel = *moved;
+        pixel.position = {pixel.position.x * m_viewScale.x, pixel.position.y * m_viewScale.y};
+        uiEvent = Event(pixel);
+    }
+    const bool consumed =
+        m_application.GetScene() && m_application.GetScene()->HandleUiEvent(uiEvent, m_viewSize, &m_input);
+    const bool text = UiInputSystem::IsTextInputCaptured(m_input);
+    if (text && !m_application.GetWindow().IsTextInputActive())
+        m_application.GetWindow().StartTextInput();
+    else if (m_uiTextInput && !text && !ImGui::GetIO().WantTextInput)
+        m_application.GetWindow().StopTextInput();
+    m_uiTextInput = text;
+    if (consumed) {
+        m_input.ConsumeEvent(localEvent);
+        return;
+    }
     const auto* pressed = event.GetIf<KeyPressedEvent>();
     const auto* released = event.GetIf<KeyReleasedEvent>();
-    if ((pressed && pressed->key == Key::Escape) || (released && released->key == Key::Escape)) {
+    if ((pressed && pressed->key == Key::Escape) || (released && released->key == Key::Escape))
         return;
-    }
-    if (const auto* moved = event.GetIf<MouseMovedEvent>()) {
-        MouseMovedEvent local = *moved;
-        local.position = local.position - m_viewOrigin;
-        m_input.OnEvent(Event(local));
-        return;
-    }
-    m_input.OnEvent(event);
+    m_input.OnEvent(localEvent);
 }
 
 } // namespace Spot::Editor

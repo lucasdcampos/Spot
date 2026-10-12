@@ -37,6 +37,8 @@ public:
     // Ends the previous frame: clears per-frame transitions and accumulated deltas.
     void BeginFrame();
     void OnEvent(const Event& event);
+    // Removes state owned by a handled UI event, including a control held before UI took ownership.
+    void ConsumeEvent(const Event& event);
 
     bool IsKeyDown(Key key) const;
     bool IsKeyPressed(Key key) const;

@@ -6,8 +6,10 @@
 #include "core/log.h"
 #include "core/profiler.h"
 #include "graphics/renderer_2d.h"
+#include "input/input.h"
 #include "physics/physics_world.h"
 #include "ui/canvas.h"
+#include "ui/ui_input_system.h"
 #include "ui/ui_system.h"
 
 #include <algorithm>
@@ -305,7 +307,7 @@ void Scene::Update(float deltaTime) {
 void Scene::DrawUi(Renderer2D& renderer, Vector2 viewSize) {
     SPOT_PROFILE_SCOPE("Scene::DrawUi");
     const Detail::DeferRemovalsScope defer(*this);
-    auto& ui = AddSystem<UiSystem>();
+    auto& ui = GetUi();
     ui.Layout(viewSize);
     for (std::size_t i = 0; i < m_entities.size(); ++i) {
         if (m_entities[i] && !m_entities[i]->GetComponentInParent<Canvas>()) {
@@ -317,6 +319,26 @@ void Scene::DrawUi(Renderer2D& renderer, Vector2 viewSize) {
             entity->DrawUiComponents(renderer, viewSize);
     }
     renderer.SetScissor({0, 0, static_cast<std::int32_t>(viewSize.x), static_cast<std::int32_t>(viewSize.y)});
+}
+
+UiSystem& Scene::GetUi() {
+    auto* ui = GetSystem<UiSystem>();
+    return ui ? *ui : AddSystem<UiSystem>();
+}
+UiInputSystem& Scene::GetUiInput() {
+    auto* ui = GetSystem<UiInputSystem>();
+    return ui ? *ui : AddSystem<UiInputSystem>();
+}
+
+bool Scene::HandleUiEvent(const Event& event, Vector2 viewSize, InputState* input) {
+    if (!FindComponent<Canvas>())
+        return false;
+    auto& ui = GetUiInput();
+    ui.SetInputState(input ? input : Input::GetState());
+    const bool consumed = ui.OnEvent(event, viewSize);
+    if (consumed && input)
+        input->ConsumeEvent(event);
+    return consumed;
 }
 
 Camera2D Scene::ScreenCamera(Vector2 viewSize) {
