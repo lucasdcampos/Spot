@@ -101,7 +101,7 @@ add_dependencies(spot_tests spot_cli)
 
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(Catch)
-add_executable(spot_animation_tests animation_import_tests.cpp animation_pose_tests.cpp animation_runtime_tests.cpp animation_controller_tests.cpp animation_blend_tests.cpp)
+add_executable(spot_animation_tests animation_import_tests.cpp animation_pose_tests.cpp animation_runtime_tests.cpp animation_controller_tests.cpp animation_blend_tests.cpp animation_motion_tests.cpp)
 target_link_libraries(spot_animation_tests PRIVATE spot::import spot::spot Catch2::Catch2WithMain)
 target_compile_definitions(spot_animation_tests PRIVATE SPOT_TEST_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets")
 spot_set_compile_options(spot_animation_tests)

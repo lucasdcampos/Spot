@@ -51,10 +51,16 @@ void MaterialOverride::Serialize(Archive& archive) {
     archive.Field("material", material, {.assetType = AssetType::Material});
 }
 
+void AnimationEventImportSettings::Serialize(Archive& archive) {
+    archive.Field("clip", clip);
+    archive.Field("events", events);
+}
+
 void ModelImportSettings::Serialize(Archive& archive) {
     archive.Field("scale", scale,
                   {.min = 0.0001f, .max = 10000.0f, .speed = 0.001f, .tooltip = "Such as 0.01 for centimeters"});
     archive.Field("materials", materials, {.tooltip = "Materials of the model replaced by material assets"});
+    archive.Field("animations", animations);
 }
 
 void FontImportSettings::Serialize(Archive& archive) {

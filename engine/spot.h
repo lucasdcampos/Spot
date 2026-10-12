@@ -1,6 +1,7 @@
 #pragma once
 
 #include "animation/animation_data.h"
+#include "animation/animation_motion.h"
 #include "animation/animator.h"
 #include "animation/animator_controller.h"
 #include "animation/blend_tree.h"

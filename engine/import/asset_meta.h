@@ -1,5 +1,6 @@
 #pragma once
 
+#include "animation/animation_data.h"
 #include "assets/asset_id.h"
 #include "assets/asset_type.h"
 
@@ -32,10 +33,17 @@ struct MaterialOverride {
     void Serialize(Archive& archive);
 };
 
+struct AnimationEventImportSettings {
+    std::string clip;
+    std::vector<AnimationEvent> events;
+    void Serialize(Archive& archive);
+};
+
 struct ModelImportSettings {
     // Scales the whole model, such as 0.01 for files made in centimeters.
     float scale = 1.0f;
     std::vector<MaterialOverride> materials;
+    std::vector<AnimationEventImportSettings> animations;
 
     void Serialize(Archive& archive);
 };

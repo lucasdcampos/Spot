@@ -10,6 +10,8 @@
 
 namespace Spot {
 
+class Archive;
+
 struct SkeletonBone {
     std::string name;
     std::int32_t parent = -1;
@@ -43,6 +45,7 @@ struct AnimationEvent {
     float time = 0.0f;
     std::string name;
     std::string payload;
+    void Serialize(Archive& archive);
 };
 
 struct AnimationClip {

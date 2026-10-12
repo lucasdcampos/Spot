@@ -5,6 +5,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <charconv>
 #include <format>
 #include <optional>
@@ -113,6 +114,17 @@ bool ImportModel(ImportContext& context) {
                     value *= scale;
                 }
             }
+        }
+    }
+    for (auto& clip : model->animations) {
+        for (const auto& settings : context.GetMeta().model.animations) {
+            if (settings.clip == clip.name) {
+                clip.events = settings.events;
+            }
+        }
+        std::ranges::stable_sort(clip.events, {}, &AnimationEvent::time);
+        if (!clip.IsValid()) {
+            return false;
         }
     }
     std::vector<AssetId> skeletons;

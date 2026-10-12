@@ -21,6 +21,7 @@ class Joint;
 class PhysicsWorld;
 class Renderer2D;
 class Scene;
+struct AnimationEvent;
 struct Collision;
 struct TriggerContact;
 
@@ -108,6 +109,8 @@ protected:
     virtual void OnDrawUi(Renderer2D& /*renderer*/, Vector2 /*viewSize*/) {}
     virtual void OnDestroy() {}
 
+    virtual void OnAnimationEvent(const AnimationEvent& /*event*/) {}
+
     virtual void OnCollisionEnter(const Collision& /*collision*/) {}
     virtual void OnCollisionStay(const Collision& /*collision*/) {}
     virtual void OnCollisionExit(const Collision& /*collision*/) {}
@@ -127,6 +130,7 @@ private:
     friend class Entity;
     friend class PhysicsWorld;
     friend class AnimationSystem;
+    friend class Animator;
     friend class UiWidget;
     friend struct Detail::SceneSerializer;
 

@@ -126,6 +126,9 @@ add_library(spot_objects OBJECT
     animation/blend_tree.cpp
     animation/animator.h
     animation/animator.cpp
+    animation/animation_motion.h
+    animation/animation_motion.cpp
+    animation/animator_motion.cpp
     animation/pose.h
     animation/pose.cpp
     animation/animation_data.h

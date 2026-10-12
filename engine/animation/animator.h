@@ -11,6 +11,8 @@
 
 namespace Spot {
 
+enum class RootMotionMode { None, Transform, CharacterController };
+
 class Animator final : public Component {
 public:
     void SetSkeleton(AssetRef<Skeleton> skeleton);
@@ -25,6 +27,9 @@ public:
     bool SetBool(std::string_view name, bool value) { return m_controllerRuntime.SetBool(name, value); }
     bool SetTrigger(std::string_view name) { return m_controllerRuntime.SetTrigger(name); }
     bool ResetTrigger(std::string_view name) { return m_controllerRuntime.ResetTrigger(name); }
+    void SetRootMotion(RootMotionMode mode);
+    RootMotionMode GetRootMotion() const { return m_rootMotion; }
+    bool SetRootMotionBone(std::string name);
     void Stop() { m_playing = false; }
     bool IsPlaying() const { return m_playing; }
     void SetSpeed(float speed);
@@ -51,8 +56,25 @@ private:
     friend class AnimationSystem;
     void Evaluate(float deltaTime);
     bool Accepts(const AssetRef<AnimationClip>& clip) const;
+    struct MotionStep {
+        int state = -1;
+        AssetRef<AnimationClip> clip;
+        float from = 0, to = 0;
+        bool loop = true, includeStart = false;
+        int fadeState = -1;
+        AssetRef<AnimationClip> fadeClip;
+        float fadeFrom = 0, fadeTo = 0, weight = 1;
+    };
+    void DeliverMotion(const MotionStep& step, float deltaTime);
+    TransformComponents MotionDelta(int state, const AssetRef<AnimationClip>& clip, float from, float to, bool loop);
+    void DispatchEvents(int state, const AssetRef<AnimationClip>& clip, float from, float to, bool loop,
+                        bool includeStart);
     void ResizePose();
     void SampleState(int state, float time, std::span<TransformComponents> pose);
+    RootMotionMode m_rootMotion = RootMotionMode::None;
+    std::string m_rootBoneName;
+    std::size_t m_rootBoneIndex = 0;
+    bool m_emitStart = false;
     AssetRef<AnimatorController> m_controller;
     AnimatorControllerRuntime m_controllerRuntime;
     float m_fadeClipSpeed = 1;

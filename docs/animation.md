@@ -61,3 +61,17 @@ one direction and an optional idle at the origin. Weights are nonnegative and no
 A weighted duration keeps all clips at the same phase. Scratch poses and weights are
 allocated when the rig/controller changes, and reused each frame. Controller importer
 version 2 includes the trees and tracks their clip dependencies for reload.
+
+Clips carry sorted named events with string payloads. glTF animation extras may supply
+an `events` array; model import settings can override events by clip name, also in the
+asset inspector. Model importer version 11 includes those settings. Events crossed by
+the active clip (the dominant blend motion) reach the animator entity's active components
+through guarded `OnAnimationEvent()`. Forward and reverse crossings include looping
+boundaries; delivery is bounded to 256 events per update. Seeking/preview never dispatch.
+
+Root motion can move the entity transform or its CharacterController, respecting collisions.
+The default root is the first skin joint; choose another by name. Whole cycles accumulate
+translation and turning without backwards jumps. Blend trees and crossfades blend deltas;
+root translation/rotation are removed from the visual pose. Preview evaluates the in-place
+pose without moving the entity. Character root motion changes position through `Move()`;
+missing/disabled character controllers receive no positional motion.

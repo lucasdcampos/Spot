@@ -1,5 +1,7 @@
 #include "animation/animation_data.h"
 
+#include "scene/archive.h"
+
 #include <cmath>
 
 namespace Spot {
@@ -9,6 +11,12 @@ bool IsFinite(Vector4 value) {
     return std::isfinite(value.x) && std::isfinite(value.y) && std::isfinite(value.z) && std::isfinite(value.w);
 }
 } // namespace
+
+void AnimationEvent::Serialize(Archive& archive) {
+    archive.Field("time", time);
+    archive.Field("name", name);
+    archive.Field("payload", payload);
+}
 
 bool Skeleton::IsValid() const {
     if (bones.empty() || joints.size() != inverseBindMatrices.size()) {
@@ -71,10 +79,12 @@ bool AnimationClip::IsValid() const {
             }
         }
     }
+    float previousEvent = -1;
     for (const auto& event : events) {
-        if (!std::isfinite(event.time) || event.time < 0.0f || event.time > duration) {
+        if (!std::isfinite(event.time) || event.time < 0.0f || event.time > duration || event.time < previousEvent) {
             return false;
         }
+        previousEvent = event.time;
     }
     return true;
 }

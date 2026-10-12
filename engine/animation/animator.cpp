@@ -8,6 +8,7 @@
 #include "scene/scene.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 namespace Spot {
@@ -26,6 +27,10 @@ void Animator::SetSkeleton(AssetRef<Skeleton> skeleton) {
 
 void Animator::ResizePose() {
     const auto count = m_skeleton ? m_skeleton->bones.size() : 0;
+    m_rootBoneIndex = m_skeleton
+                          ? (m_rootBoneName.empty() ? (m_skeleton->joints.empty() ? 0 : m_skeleton->joints.front())
+                                                    : m_skeleton->FindBone(m_rootBoneName).value_or(count))
+                          : 0;
     m_local.resize(count);
     m_model.resize(count);
     m_treeScratch.resize(count);
@@ -56,6 +61,7 @@ bool Animator::Play(AssetRef<AnimationClip> clip, bool loop) {
     m_playing = true;
     m_fadeDuration = 0;
     Seek(0);
+    m_emitStart = true;
     return true;
 }
 
@@ -81,6 +87,7 @@ bool Animator::CrossFade(AssetRef<AnimationClip> clip, float duration, bool loop
     m_fadeTime = 0;
     m_fadeDuration = duration;
     Evaluate(0);
+    m_emitStart = true;
     return true;
 }
 
@@ -113,12 +120,31 @@ void Animator::SetSpeed(float speed) {
 void Animator::Seek(float time) {
     m_time = std::isfinite(time) ? time : 0;
     m_fadeDuration = 0;
+    m_emitStart = false;
     Evaluate(0);
 }
 
 void Animator::Simulate(float deltaTime) {
     if (!std::isfinite(deltaTime) || deltaTime < 0 || !m_playing) {
         return;
+    }
+    MotionStep motion;
+    motion.state = m_controllerRuntime.GetState();
+    motion.clip = m_clip;
+    motion.from = m_time;
+    const float stateSpeed = motion.state >= 0 ? m_controller->states[static_cast<std::size_t>(motion.state)].speed : 1;
+    motion.to = m_time + deltaTime * m_speed * stateSpeed;
+    motion.loop = m_loop;
+    motion.includeStart = m_emitStart;
+    m_emitStart = false;
+    if (m_fadeDuration > 0) {
+        motion.fadeState = m_fadeState;
+        motion.fadeClip = m_fadeClip;
+        motion.fadeFrom = m_fadeClipTime;
+        motion.fadeTo = m_fadeClipTime + deltaTime * m_speed * m_fadeClipSpeed;
+        motion.weight = (std::clamp(m_fadeTime / m_fadeDuration, 0.0f, 1.0f) +
+                         std::clamp((m_fadeTime + deltaTime) / m_fadeDuration, 0.0f, 1.0f)) *
+                        0.5f;
     }
     bool transitioned = false;
     if (m_controllerRuntime.GetController()) {
@@ -140,6 +166,7 @@ void Animator::Simulate(float deltaTime) {
         m_time += deltaTime * m_speed;
     }
     Evaluate(transitioned ? 0.0f : deltaTime);
+    DeliverMotion(motion, deltaTime);
     if (!m_controller && m_clip && !m_loop && (m_speed >= 0 ? m_time >= m_clip->duration : m_time <= 0)) {
         m_playing = false;
     }
@@ -185,6 +212,10 @@ void Animator::Evaluate(float deltaTime) {
         if (weight >= 1) {
             m_fadeDuration = 0;
         }
+    }
+    if (m_rootMotion != RootMotionMode::None && m_rootBoneIndex < m_local.size()) {
+        m_local[m_rootBoneIndex].translation = m_skeleton->bones[m_rootBoneIndex].bindPose.translation;
+        m_local[m_rootBoneIndex].rotation = m_skeleton->bones[m_rootBoneIndex].bindPose.rotation;
     }
     Pose::ToModel(*m_skeleton, m_local, m_model);
 }
@@ -233,9 +264,14 @@ void Animator::OnValidate() {
     if (m_controller) {
         SetController(m_controller);
     }
+    m_playing = m_autoPlay;
+    m_emitStart = m_autoPlay;
 }
 
 void Animator::Serialize(Archive& archive) {
+    static constexpr std::array<std::string_view, 3> Modes{"None", "Transform", "Character controller"};
+    archive.Field("rootMotion", m_rootMotion, {.enumNames = Modes});
+    archive.Field("rootBone", m_rootBoneName);
     archive.Field("skeleton", m_skeleton);
     archive.Field("controller", m_controller);
     auto clip = m_controller ? AssetRef<AnimationClip>{} : m_clip;

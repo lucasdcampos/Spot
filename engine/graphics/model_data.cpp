@@ -4,6 +4,8 @@
 #include "core/paths.h"
 #include "math/matrix.h"
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
@@ -292,6 +294,20 @@ private:
                     channel.values.push_back(value);
                 }
                 clip.channels.push_back(std::move(channel));
+            }
+            if (source.extras.data) {
+                const auto extras = nlohmann::json::parse(source.extras.data, nullptr, false);
+                if (extras.is_object() && extras.contains("events") && extras["events"].is_array()) {
+                    try {
+                        for (const auto& event : extras["events"]) {
+                            clip.events.push_back({event.at("time").get<float>(), event.at("name").get<std::string>(),
+                                                   event.value("payload", std::string{})});
+                        }
+                        std::ranges::stable_sort(clip.events, {}, &AnimationEvent::time);
+                    } catch (const nlohmann::json::exception&) {
+                        clip.duration = -1;
+                    }
+                }
             }
             model.animations.push_back(std::move(clip));
         }

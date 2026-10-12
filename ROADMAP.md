@@ -961,7 +961,7 @@ Controllers are assets with parameters, transitions with cross-fades, blend tree
   transitions (conditions, exit time, blend duration, interruption) and any-state transitions. A runtime evaluator,
   and `SetFloat`, `SetBool` and `SetTrigger`. Tests.
 - [x] **M9.6 Blend trees.** 1D and 2D (freeform directional) blend states.
-- [ ] **M9.7 Events and root motion.** Clip events delivered to `OnAnimationEvent()`, and root motion applied to the
+- [x] **M9.7 Events and root motion.** Clip events delivered to `OnAnimationEvent()`, and root motion applied to the
   transform or to a `CharacterController`.
 - [ ] **M9.8 Layers and masks.** Override and additive layers with bone masks, such as for the upper body.
 - [ ] **M9.9 Editor.** A clip preview with a timeline in the inspector, a controller graph editor, and live
@@ -977,6 +977,11 @@ Controllers are assets with parameters, transitions with cross-fades, blend tree
 with view-model animations.
 
 **Notes:**
+- M9.7: guarded bounded event delivery, glTF extras/metadata authoring and root motion
+  through transforms or character movement. Whole cycles accumulate turning and translation;
+  previews emit nothing and leave transforms still. Model importer version 11. MSVC
+  Debug builds without compiler warnings; all 22 animation cases pass 764 assertions.
+
 - M9.6: 1D thresholds and freeform directional angular/radial bands; phase-synchronized
   motion sampling uses reusable scratch arrays. Controller importer version 2 tracks
   motion dependencies. MSVC Debug builds without compiler warnings; all 17 animation
