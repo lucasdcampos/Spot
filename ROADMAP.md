@@ -977,6 +977,11 @@ Controllers are assets with parameters, transitions with cross-fades, blend tree
 with view-model animations.
 
 **Notes:**
+- M9.11: configurable bodies and swing/twist limits, physics poses before attachments,
+  character velocity handoff and recovery blends. Proxy ids/mode serialize and restore
+  without duplication; the component owns their cleanup. MSVC Debug builds without compiler
+  warnings; all 31 animation cases pass 850 assertions, including three real-physics cases.
+
 - M9.10: id-based bone attachments, offsets and automatic attachments for model meshes
   below joints. Transient world overrides preserve authored TRS during previews and
   propagate through children. Missing references and descendant cycles restore the authored

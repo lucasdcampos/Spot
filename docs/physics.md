@@ -169,3 +169,6 @@ Static bodies are green, dynamic ones orange, or blue while asleep, kinematic on
 characters cyan and joints white. `DrawColliders()` adds the same shapes to any `DebugLines` from the components
 alone, which is how the editor's scene views show colliders (the shapes button in their toolbar) in scenes whose
 physics never ran. The sandbox switches the debug view with B.
+
+`Ragdoll` builds ordinary rigidbodies and swing/twist joints from a skeleton through the
+public API, and transfers their transforms back to animation. See [animation](animation.md).

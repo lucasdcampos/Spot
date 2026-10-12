@@ -134,6 +134,8 @@ add_library(spot_objects OBJECT
     animation/animator_layers.cpp
     animation/bone_attachment.h
     animation/bone_attachment.cpp
+    animation/ragdoll.h
+    animation/ragdoll.cpp
     animation/pose.h
     animation/pose.cpp
     animation/animation_data.h

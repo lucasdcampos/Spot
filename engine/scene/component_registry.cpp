@@ -2,6 +2,7 @@
 
 #include "animation/animator.h"
 #include "animation/bone_attachment.h"
+#include "animation/ragdoll.h"
 #include "animation/skinned_mesh_renderer.h"
 #include "audio/audio_source.h"
 #include "particles/particle_system.h"
@@ -53,6 +54,7 @@ Registry& GetRegistry() {
     static const bool builtInRegistered = [] {
         RegisterBuiltIn<ParticleSystem>(registry, "ParticleSystem");
         RegisterBuiltIn<BoneAttachment>(registry, "BoneAttachment");
+        RegisterBuiltIn<Ragdoll>(registry, "Ragdoll");
         RegisterBuiltIn<Animator>(registry, "Animator");
         RegisterBuiltIn<SkinnedMeshRenderer>(registry, "SkinnedMeshRenderer");
         RegisterBuiltIn<MeshRenderer>(registry, "MeshRenderer");

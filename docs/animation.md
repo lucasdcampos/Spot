@@ -109,3 +109,12 @@ bone previews visible without changing scene text or undo history.
 
 Model meshes on or below joints receive bone attachments automatically, including meshes
 without skin weights, so accessories follow the evaluated hierarchy.
+
+`Ragdoll` builds box bodies and SwingTwistJoints from named bones, with per-bone dimensions,
+centers, masses, axes and limits. Proxy bodies are scene roots and owned by entity ids, so
+following the pelvis cannot move a body twice. `SetActive(true)` captures the current pose
+and character velocity, pauses animation and disables the character controller. Physics
+updates the contiguous pose before attachments in late update. `AddImpulse()` pushes the
+nearest body. `SetActive(false, duration)` disables proxies, restores character movement
+and blends from the physical pose back to animation. Saved body ids/mode restore without
+creating duplicates; destroying the component releases its proxies.

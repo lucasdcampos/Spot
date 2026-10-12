@@ -35,6 +35,8 @@ public:
     bool SetLayers(std::span<const AnimationLayer> layers);
     std::span<const AnimationLayer> GetLayers() const { return m_layers; }
     bool SetLayerWeight(std::string_view name, float weight);
+    bool SetPose(std::span<const TransformComponents> pose);
+    void BlendFromPose(std::span<const TransformComponents> pose, float duration, bool resume = true);
     void Stop() { m_playing = false; }
     bool IsPlaying() const { return m_playing; }
     void SetSpeed(float speed);

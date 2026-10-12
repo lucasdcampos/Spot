@@ -2,6 +2,7 @@
 
 #include "animation/bone_attachment.h"
 #include "animation/pose.h"
+#include "animation/ragdoll.h"
 #include "animation/skinned_mesh_renderer.h"
 #include "core/log.h"
 #include "core/profiler.h"
@@ -289,6 +290,36 @@ void Animator::RefreshRenderers() {
     });
 }
 
+bool Animator::SetPose(std::span<const TransformComponents> pose) {
+    if (!m_skeleton || pose.size() != m_local.size()) {
+        return false;
+    }
+    for (const auto& bone : pose) {
+        if (!std::isfinite(bone.translation.x) || !std::isfinite(bone.translation.y) ||
+            !std::isfinite(bone.translation.z) || !std::isfinite(bone.rotation.x) || !std::isfinite(bone.rotation.y) ||
+            !std::isfinite(bone.rotation.z) || !std::isfinite(bone.rotation.w) || !std::isfinite(bone.scale.x) ||
+            !std::isfinite(bone.scale.y) || !std::isfinite(bone.scale.z)) {
+            return false;
+        }
+    }
+    std::copy(pose.begin(), pose.end(), m_local.begin());
+    Pose::ToModel(*m_skeleton, m_local, m_model);
+    return true;
+}
+
+void Animator::BlendFromPose(std::span<const TransformComponents> pose, float duration, bool resume) {
+    if (!SetPose(pose) || !std::isfinite(duration) || duration < 0) {
+        return;
+    }
+    m_fadeSource.assign(pose.begin(), pose.end());
+    m_fadeClip = {};
+    m_fadeState = -1;
+    m_fadeTime = 0;
+    m_fadeDuration = duration;
+    m_playing = resume;
+    Evaluate(0);
+}
+
 void Animator::OnEnable() {
     if (!GetScene().GetSystem<AnimationSystem>()) {
         GetScene().AddSystem<AnimationSystem>();
@@ -341,6 +372,11 @@ void AnimationSystem::OnUpdate(float deltaTime) {
 }
 
 void AnimationSystem::OnLateUpdate(float) {
+    GetScene().ForEachComponent<Ragdoll>([](Ragdoll& ragdoll) {
+        if (ragdoll.IsActiveAndEnabled()) {
+            ragdoll.InvokeHook("Ragdoll", [&] { ragdoll.SynchronizePose(); });
+        }
+    });
     GetScene().ForEachComponent<BoneAttachment>([](BoneAttachment& attachment) {
         if (attachment.IsActiveAndEnabled()) {
             attachment.InvokeHook("BoneAttachment", [&] { attachment.Synchronize(); });
