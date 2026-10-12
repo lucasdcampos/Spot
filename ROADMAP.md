@@ -9,7 +9,7 @@ The goal is the same breadth, built on the architecture Spot already has.
 The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
 [The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
 
-**Current focus:** M12 - Runtime UI and text (in progress; M9 remains deferred; M13 completed out of order)
+**Current focus:** M15 - The sandbox game (M9 remains deferred; M14 is conditional on a 2D game)
 
 ## How to use this plan
 
@@ -1139,13 +1139,33 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
   the input it handles (M2.6). Tests.
 - [x] **M12.6 Editor.** Rect handles and anchor presets in the scene view, a widget creation menu, and canvas
   preview.
-- [ ] **M12.7 Sandbox: interface.** A HUD (crosshair, ammo, current weapon, the tool's mode), and a spawn menu (Q)
+- [x] **M12.7 Sandbox: interface.** A HUD (crosshair, ammo, current weapon, the tool's mode), and a spawn menu (Q)
   with tabs and thumbnails of the spawnable prefabs, rendered into textures. The pause menu holds the settings
   (sensitivity, field of view, volumes, bindings, graphics quality), and they are saved per user.
 
 **Done when:** the sandbox's menus work with mouse, keyboard and gamepad, and are authored in the editor.
 
 **Notes:**
+- Acceptance (2026-10-12): complete Debug builds with MSVC and GCC on Windows produce no compiler
+  warnings. All 662 headless cases pass on each compiler, and six relevant GPU cases pass serially
+  on each. Coverage includes repeated frames, real native text-input ownership, editor ImGui rect
+  drags, scaled played-viewport routing, mouse/keyboard/gamepad navigation, actual prefab spawning,
+  undo/cleanup and versioned settings/rebind persistence. Offscreen pixels verify SDF text, clipping,
+  authored canvas/editor previews and cached thumbnails from real prefab meshes. The authored pause
+  menu capture was inspected. Sandbox acceptance reads a committed scene snapshot through
+  SPOT_SANDBOX_TEST_ASSETS, preserving the existing workspace playground.scene changes. macOS/Linux
+  builds, physical gamepad testing and an interactive end-to-end play-through were not run.
+- M12.7: interface.prefab authors HUD, spawn tabs, pause controls and catalog/binding templates using
+  ordinary canvas entities and widget ids. Runtime code fills the templates from imported prefabs
+  and actions; thumbnails use public SceneRenderer, two per frame, with cached textures and no
+  gameplay simulation. Menu events precede simulation and refresh captured action state. Pause
+  restores the previous global time scale and cursor request. Versioned per-user interface.json
+  saves sensitivity, FOV, all bus volumes, quality and rebinds, with unscaled debouncing and a close
+  flush. Runtime rendering settings rebuild on the next render without resetting bindings; editor
+  game views follow the same public rendering path. Signal snapshots reuse storage per dispatch
+  depth; nested dispatch, exception recovery and disconnect behavior are tested. GCC aggregate
+  warnings were resolved with explicit defaults/initialization; window pointer conversion uses
+  pixel density rather than the separate OS content scale.
 - M12.6: the UI creation submenu authors a canvas when needed and label/content children, as one
   undoable command with stable selection on redo. Canvas preview supports picking rectangles,
   moving/resizing handles and anchor/pivot markers. Presets can keep the rectangle or move it to

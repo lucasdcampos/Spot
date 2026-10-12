@@ -1,6 +1,7 @@
 #include "game_controls.h"
 
 #include "hud.h"
+#include "runtime_interface.h"
 #include "sandbox_commands.h"
 #include "sound_bank.h"
 #include "world_save.h"
@@ -49,7 +50,9 @@ void GameControls::OnUpdate(float /*deltaTime*/) {
 
     if (Input::IsActionPressed("Pause")) {
         SoundBank::PlayClick(GetScene());
-        if (Input::IsCursorLocked()) {
+        if (auto* ui = GetScene().FindComponent<RuntimeInterface>()) {
+            ui->OpenPauseMenu();
+        } else if (Input::IsCursorLocked()) {
             Input::SetCursorLocked(false);
         } else {
             GetScene().GetApplication().QuitGame();

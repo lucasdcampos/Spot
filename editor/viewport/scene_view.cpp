@@ -519,6 +519,7 @@ void SceneView::DrawCameraFrustums(const ImVec2& origin, const ImVec2& size) {
 
 void SceneView::StopShowingPlay() {
     m_uiRectGizmo.Cancel(*m_shown);
+    m_gameRenderer.reset();
     m_playing = false;
     m_shown = &m_document;
     // Picks in flight hold the copy's entities.
@@ -624,18 +625,18 @@ void SceneView::Render(RenderContext& context, ViewportRenderer& renderer) {
     // The game's view looks through its main camera, as the game would, without the editor's aids.
     if (IsShowingGame()) {
         Scene& scene = m_shown->GetScene();
-        const Camera* main = FindMainCamera(scene);
-        ViewportOptions options{.showGrid = false,
-                                .defaultLights = false,
-                                .drawUi = true,
-                                .tonemapping = m_rendering.tonemapping,
-                                .grading = m_rendering.grading,
-                                .bloom = m_rendering.bloom,
-                                .fxaa = m_rendering.fxaa};
-        if (main) {
-            options.background = main->GetBackground();
+        const auto revision = scene.IsLoaded() ? scene.GetApplication().GetRenderingRevision() : 0;
+        if (!m_gameRenderer || m_gameRenderingRevision != revision) {
+            SceneRendererConfig config{.targetFormat = ViewportRenderer::ColorFormat};
+            if (scene.IsLoaded())
+                scene.GetApplication().GetRenderingSettings().Apply(config);
+            else
+                m_rendering.Apply(config);
+            m_gameRenderer = std::make_unique<SceneRenderer>(renderer.GetDevice(), config);
+            m_gameRenderingRevision = revision;
         }
-        renderer.Render(context, m_targets, scene, main ? main->GetCamera3D() : m_camera.GetCamera(), options);
+        const std::array scenes{&scene};
+        m_gameRenderer->Render(context, scenes, m_targets.GetColor());
         return;
     }
     const Camera3D camera = m_camera.GetCamera();

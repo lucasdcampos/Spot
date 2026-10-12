@@ -80,7 +80,7 @@ std::optional<FontAtlas> FontAtlas::Create(std::span<const std::byte> fontData, 
         int height = 0;
         int x = 0;
         int y = 0;
-        std::vector<unsigned char> pixels;
+        std::vector<unsigned char> pixels = {};
     };
     std::vector<Raster> rasters;
     for (const auto range : Ranges) {

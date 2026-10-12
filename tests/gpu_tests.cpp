@@ -7,6 +7,10 @@
 #include "triangle.vert.h"
 #include "uv.frag.h"
 
+#ifdef SPOT_SANDBOX_IMPORTED_DIR
+#include "../sandbox/src/menu_thumbnails.h"
+#endif
+
 #include "log_capture.h"
 #include "rendering_application.h"
 #include "temp_directory.h"
@@ -3589,3 +3593,102 @@ TEST_CASE("Authored UI previews and scroll clipping render offscreen", "[gpu][ui
     CHECK(red(20, 56) == 0);
     CHECK(pixels[(60 * 64 + 60) * 4 + 2] > 240);
 }
+
+#ifdef SPOT_SANDBOX_IMPORTED_DIR
+TEST_CASE("Spawn menu thumbnails render real prefab meshes and retain their cached textures",
+          "[gpu][ui][sandbox][offscreen]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    Spot::AssetManager assets(SPOT_SANDBOX_IMPORTED_DIR, device.get());
+    struct AssetScope {
+        Spot::AssetManager* previous = Spot::Assets::GetManager();
+        ~AssetScope() { Spot::Detail::SetAssetManager(previous); }
+    } scope;
+    Spot::Detail::SetAssetManager(&assets);
+    const auto prefab = assets.Load<Spot::Prefab>("prefabs/spawnables/props/crate.prefab");
+    REQUIRE(prefab);
+    Spot::Scene interfaceScene;
+    auto& entity = interfaceScene.CreateEntity("Thumbnail");
+    auto& image = entity.AddComponent<Spot::UiImage>();
+    MenuThumbnails thumbnails;
+    thumbnails.Add(entity.GetId(), prefab);
+    auto target = device->CreateTexture(
+        {.width = 128, .height = 128, .format = Spot::TextureFormat::Rgba8, .renderTarget = true});
+    REQUIRE(target);
+    auto* context = device->BeginOffscreenFrame(*target);
+    REQUIRE(context);
+    Spot::RenderStageContext stage{.device = *device,
+                                   .context = *context,
+                                   .stage = Spot::RenderStage::BeforeOpaque,
+                                   .camera = {},
+                                   .viewProjection = {},
+                                   .viewSize = {128, 128},
+                                   .pass = {},
+                                   .colorFormat = Spot::TextureFormat::Rgba8,
+                                   .sampleCount = 1,
+                                   .depth = nullptr,
+                                   .sceneColor = nullptr};
+    thumbnails.Render(stage, interfaceScene);
+    REQUIRE(image.texture);
+    CHECK(thumbnails.GetCompletedCount() == 1);
+    const auto* cached = image.texture.Get();
+    thumbnails.Render(stage, interfaceScene);
+    CHECK(image.texture.Get() == cached);
+    CHECK(thumbnails.GetCompletedCount() == 1);
+    device->EndFrame();
+    const auto pixels = device->DownloadTexture(*image.texture);
+    REQUIRE(pixels.size() == 128 * 128 * 4);
+    std::size_t different = 0;
+    for (std::size_t index = 0; index < pixels.size(); index += 4) {
+        if (std::abs(static_cast<int>(pixels[index]) - pixels[0]) > 8 ||
+            std::abs(static_cast<int>(pixels[index + 1]) - pixels[1]) > 8)
+            ++different;
+    }
+    CHECK(different > 500);
+}
+
+TEST_CASE("Authored sandbox menus render their labels and controls offscreen", "[gpu][ui][sandbox][offscreen]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    Spot::AssetManager assets(SPOT_SANDBOX_IMPORTED_DIR, device.get());
+    struct AssetScope {
+        Spot::AssetManager* previous = Spot::Assets::GetManager();
+        ~AssetScope() { Spot::Detail::SetAssetManager(previous); }
+    } scope;
+    Spot::Detail::SetAssetManager(&assets);
+    const auto prefab = assets.Load<Spot::Prefab>("prefabs/interface.prefab");
+    REQUIRE(prefab);
+    Spot::Scene scene;
+    REQUIRE(scene.Instantiate(prefab));
+    auto* pause = scene.FindEntity("Pause Menu");
+    REQUIRE(pause);
+    pause->SetActive(true);
+    auto target = device->CreateTexture(
+        {.width = 1280, .height = 720, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
+    REQUIRE(target);
+    Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb,
+                                           .sampleCount = 1,
+                                           .shadowMapSize = 0,
+                                           .localShadowMapSize = 0});
+    auto* context = device->BeginOffscreenFrame(*target);
+    REQUIRE(context);
+    const std::array scenes{&scene};
+    renderer.Render(*context, scenes, target.get());
+    device->EndFrame();
+    const auto pixels = device->DownloadTexture(*target);
+    REQUIRE(pixels.size() == 1280 * 720 * 4);
+    std::size_t bright = 0;
+    for (std::size_t index = 0; index < pixels.size(); index += 4)
+        if (pixels[index] > 180 && pixels[index + 1] > 180 && pixels[index + 2] > 180)
+            ++bright;
+    CHECK(bright > 1500);
+    CHECK(scene.GetUpdateCount() == 0);
+    const auto capture = Spot::Process::GetEnvironmentValue("SPOT_UI_CAPTURE_DIR");
+    if (capture && !capture->empty()) {
+        std::filesystem::create_directories(*capture);
+        CHECK(Spot::Image(1280, 720, pixels).SavePng(std::filesystem::path(*capture) / "pause_menu.png"));
+    }
+}
+#endif

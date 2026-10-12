@@ -306,6 +306,8 @@ void Application::SetScenesPaused(bool paused) {
 
 void Application::SetGameSettings(std::optional<GameSettings> game) {
     m_config.game = std::move(game);
+    m_runtimeRendering.reset();
+    ++m_renderingRevision;
     // Made again with the game's rendering settings when next needed.
     m_sceneRenderer.reset();
     m_actions = {};
@@ -317,6 +319,17 @@ void Application::SetGameSettings(std::optional<GameSettings> game) {
     }
     // Tools play games with the project's bindings, not a player's.
     m_actions.SetDefaults();
+}
+
+RenderingSettings Application::GetRenderingSettings() const {
+    if (m_runtimeRendering)
+        return *m_runtimeRendering;
+    return m_config.game ? m_config.game->sections.rendering : RenderingSettings{};
+}
+void Application::SetRenderingSettings(RenderingSettings rendering) {
+    m_runtimeRendering = std::move(rendering);
+    ++m_renderingRevision;
+    m_renderingDirty = true;
 }
 
 bool Application::SaveInputRebinds() {
@@ -435,7 +448,11 @@ void Application::DispatchEvent(const Event& event) {
         Event uiEvent = event;
         if (const auto* moved = event.GetIf<MouseMovedEvent>()) {
             auto pixel = *moved;
-            pixel.position = pixel.position * m_window->GetContentScale();
+            const float xScale =
+                static_cast<float>(m_window->GetPixelWidth()) / static_cast<float>(std::max(1, m_window->GetWidth()));
+            const float yScale =
+                static_cast<float>(m_window->GetPixelHeight()) / static_cast<float>(std::max(1, m_window->GetHeight()));
+            pixel.position = {pixel.position.x * xScale, pixel.position.y * yScale};
             uiEvent = Event(pixel);
         }
         const Vector2 size{static_cast<float>(m_window->GetPixelWidth()),
@@ -616,11 +633,13 @@ void Application::RenderScenes(RenderContext& context) {
     if (!m_config.renderScenes || (m_scenes.empty() && m_persistentScene->GetEntityCount() == 0)) {
         return;
     }
+    if (m_renderingDirty) {
+        m_sceneRenderer.reset();
+        m_renderingDirty = false;
+    }
     if (!m_sceneRenderer) {
         SceneRendererConfig config;
-        if (m_config.game) {
-            m_config.game->sections.rendering.Apply(config);
-        }
+        GetRenderingSettings().Apply(config);
         m_sceneRenderer = std::make_unique<SceneRenderer>(*m_graphics, config);
     }
     std::vector<Scene*> scenes = GetScenes();

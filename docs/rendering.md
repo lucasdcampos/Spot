@@ -301,3 +301,5 @@ SceneRenderer and editor viewports draw instanced HDR particles before post proc
 See [Particles](particles.md) for the code-only renderer, sorting, flipbooks and readable camera depth.
 `Renderer3D::RenderCameraDepth()` exposes an optional single-sample opaque/cutout depth pass from the
 last frame's submissions, useful when a consumer needs readable depth from a multisampled view.
+
+Games can apply per-user quality with `Application::SetRenderingSettings()` without resetting input bindings or changing project defaults. The renderer is rebuilt at the next scene render; `GetRenderingSettings()` and `GetRenderingRevision()` let custom hosts follow the same runtime configuration. The editor game view uses the public SceneRenderer path and follows these changes too.

@@ -36,6 +36,22 @@ void PlayerController::ToggleFlashlight() {
     }
 }
 
+float PlayerController::GetFieldOfView() const {
+    if (m_fieldOfView > 0)
+        return m_fieldOfView;
+    const auto* entity = GetHead();
+    const auto* camera = entity ? entity->GetComponent<Spot::Camera>() : nullptr;
+    return camera ? camera->GetFieldOfView() : Spot::ToRadians(60.0f);
+}
+void PlayerController::SetFieldOfView(float radians) {
+    m_fieldOfView = std::clamp(std::isfinite(radians) ? radians : Spot::ToRadians(60.0f), Spot::ToRadians(30.0f),
+                               Spot::ToRadians(130.0f));
+    if (auto* entity = GetHead()) {
+        if (auto* camera = entity->GetComponent<Spot::Camera>())
+            camera->SetFieldOfView(2.0f * std::atan(std::tan(m_fieldOfView * 0.5f) / m_zoom));
+    }
+}
+
 void PlayerController::OnStart() {
     if (const Spot::Entity* entity = GetHead()) {
         if (const auto* camera = entity->GetComponent<Spot::Camera>()) {

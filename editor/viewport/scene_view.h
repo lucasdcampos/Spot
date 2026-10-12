@@ -113,6 +113,8 @@ private:
     // Kept from frame to frame, so drawing the colliders allocates nothing once warmed up.
     DebugLines m_colliderLines;
     ViewportTargets m_targets;
+    std::unique_ptr<SceneRenderer> m_gameRenderer;
+    std::uint64_t m_gameRenderingRevision = 0;
     // Pixels of the view this frame; 0 when the window is hidden.
     std::uint32_t m_width = 0;
     std::uint32_t m_height = 0;

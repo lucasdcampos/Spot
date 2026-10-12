@@ -890,7 +890,10 @@
         {
           "bindings": [
             {
-              "control": { "code": 69, "source": 0 },
+              "control": {
+                "code": 69,
+                "source": 0
+              },
               "deadZone": 0.0,
               "invertX": false,
               "invertY": false,
@@ -904,7 +907,10 @@
         {
           "bindings": [
             {
-              "control": { "code": 70, "source": 0 },
+              "control": {
+                "code": 70,
+                "source": 0
+              },
               "deadZone": 0.0,
               "invertX": false,
               "invertY": false,
@@ -914,6 +920,25 @@
           "name": "Quick Load",
           "pressPoint": 0.5,
           "type": 0
+        },
+        {
+          "name": "Spawn Menu",
+          "type": 0,
+          "pressPoint": 0.5,
+          "bindings": [
+            {
+              "control": {
+                "source": 0,
+                "code": 17
+              }
+            },
+            {
+              "control": {
+                "source": 4,
+                "code": 4
+              }
+            }
+          ]
         }
       ]
     }

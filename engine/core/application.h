@@ -89,6 +89,10 @@ public:
     // scenes loaded from then on; what the application set up when it started, such as its window and where its
     // assets are, stays. The action map is emptied and given the game's actions.
     void SetGameSettings(std::optional<GameSettings> game);
+    RenderingSettings GetRenderingSettings() const;
+    // Applies at the next scene render; input bindings and project defaults are retained.
+    void SetRenderingSettings(RenderingSettings rendering);
+    std::uint64_t GetRenderingRevision() const { return m_renderingRevision; }
 
     // Caps how many frames run per second from the next frame on; 0 means unlimited.
     int GetMaxFrameRate() const { return m_config.maxFrameRate; }
@@ -203,6 +207,9 @@ protected:
 private:
     void UpdateUiTextInput();
     bool m_uiTextInput = false;
+    std::optional<RenderingSettings> m_runtimeRendering;
+    std::uint64_t m_renderingRevision = 1;
+    bool m_renderingDirty = false;
     std::unique_ptr<EngineConsole> m_engineConsole;
     enum class SceneChangeKind { Replace, Add, Remove };
 

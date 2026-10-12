@@ -12,8 +12,8 @@ public:
     // How fast the view zooms in and out, as a share of the way each 1/60 of a second.
     float zoomSpeed = 0.25f;
     // The entity looking where the player looks, such as the one with the camera.
-    Spot::EntityId head;
-    Spot::EntityId flashlight;
+    Spot::EntityId head = Spot::EntityId::Invalid;
+    Spot::EntityId flashlight = Spot::EntityId::Invalid;
 
     // Where the player looks: the yaw turns around Y, and the view adds the pitch.
     float GetYaw() const { return m_yaw; }
@@ -25,6 +25,8 @@ public:
     void ToggleFlashlight();
     // How many times the view is magnified now, 1 when not aiming.
     float GetZoom() const { return m_zoom; }
+    float GetFieldOfView() const;
+    void SetFieldOfView(float radians);
 
 protected:
     void OnStart() override;

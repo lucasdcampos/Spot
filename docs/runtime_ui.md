@@ -53,7 +53,9 @@ the returned `SignalConnection` to stay subscribed. Buttons have normal, hovered
 focused and disabled colors; all controls share `UiControlStyle`. Sliders have a range, keyboard
 step and horizontal/vertical orientation. Programmatic setters are silent unless `notify` is true.
 `UiWidget::HandleUiEvent()` permits code-only activation as well as input dispatch; callbacks
-are guarded and a throwing subscriber faults only its widget. Destruction during callbacks is deferred.
+are guarded and a throwing subscriber faults only its widget. Signal dispatch reuses snapshot
+buffers per nesting depth, including after exceptions, so repeated UI events reuse storage.
+Destruction during callbacks is deferred.
 
 `UiInputField` accepts UTF-8, edits complete code points at its caret, limits character count,
 filters single-line control characters, and emits change and submit signals. Its placeholder and
@@ -121,4 +123,24 @@ The **Anchors** popup offers nine fixed positions and full stretching. **Keep re
 the visible rectangle while changing its anchoring; disable it to move to the preset's position.
 Canvas scale, reference resolution, modal input and dismissal key use the ordinary inspector.
 
-The sandbox interface follows in M12.7.
+## Sandbox interface
+
+The sandbox instantiates `sandbox/assets/prefabs/interface.prefab` under its HUD entity. It is a
+normal editable UI tree with bound widget ids, label children and inactive catalog/binding templates.
+Open it as a prefab in the editor, enable a menu canvas to preview it, and use the same rectangle
+handles and inspector. `RuntimeInterface` fills the templates from the spawn manifest and input
+map. The HUD shows crosshair, statistics, ammunition/current weapon and tool mode.
+
+Q or gamepad Back opens the spawn menu; Props/Lamps/Weapons tabs filter its catalog. Clicking a
+thumbnail spawns the actual prefab through PropSpawner; footer buttons undo and clean up.
+`MenuThumbnails` renders the prefab's mesh tree through public SceneRenderer into a cached texture,
+with a two-item budget per frame and no gameplay simulation. Escape/Start opens pause; Resume,
+Escape or gamepad East/Start closes it and restores the previous time scale and cursor request.
+Menu opening is routed before simulation, and captures update game actions immediately.
+
+Pause holds sensitivity, FOV, master/effects/music/ambience/interface volumes, three graphics presets
+and every action binding (including composite parts). Select a binding, then press a key, mouse or
+gamepad control; Escape cancels capture. Settings debounce writes using unscaled time, flush on
+closing, and save in the game's user directory as versioned `interface.json`. Rebinds are stored
+with them. Headless callers can supply an explicit directory. Runtime graphics changes retain
+input bindings and project defaults; both standalone and editor game rendering follow them.

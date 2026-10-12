@@ -111,7 +111,7 @@ stress regression uses sixteen props headlessly; larger counts are explicit inte
 - Spawn a stress pile, select/pause a slow frame in the profiler, remove it with `cleanup` and compare body counts.
 - Give each firearm twice; check selection, full ammunition, canceled reloads and unchanged inventory size.
 
-The spawn menu, runtime HUD, skeletal view models and other later roadmap features have their own milestones.
+Skeletal view models remain deferred to M9.
 
 ## Particle effects
 
@@ -128,3 +128,28 @@ and fade, that the beam stops emitting on release, and that saving/cleanup keeps
 Sandbox headless tests normally read the workspace's authored assets. Set `SPOT_SANDBOX_TEST_ASSETS`
 to an absolute directory containing a snapshot of `sandbox/assets` to validate a committed scene
 while preserving concurrent editor changes. Imported assets still come from the test build.
+
+
+## Runtime interface
+
+Q (gamepad Back) opens the spawn menu with Props, Lamps and Weapons tabs. Select a thumbnail to
+spawn that prefab at the aim point; Undo and Cleanup use the normal gameplay operations. Thumbnails
+are rendered from the real prefab meshes into cached textures, two per frame. Escape (gamepad Start)
+opens pause. Resume, Escape or gamepad East/Start closes it; the previous time scale and requested
+cursor lock return. Tab/Shift-Tab, arrows, D-pad and left-stick threshold crossings navigate; Return,
+Space or South activate. Arrow/D-pad input adjusts sliders; offscreen entries scroll into view.
+
+Pause stores sensitivity, field of view, volumes, input bindings and Low/Medium/High graphics quality
+in the game's per-user `interface.json`. Select any binding row and press its new control; Escape
+cancels. Composite directions have individual rows. Graphics changes rebuild the renderer on the
+next frame, in both the standalone game and the editor's game view, while keeping rebinds.
+
+The layout and style are authored in `assets/prefabs/interface.prefab`, opened in the editor's prefab
+mode. Its RuntimeInterface component refers to widgets by id; its inactive item/row templates are
+filled from the spawn manifest and action map. To preview a menu, enable its canvas and turn on UI
+in the viewport toolbar. The HUD is authored in that same prefab.
+
+Play-test: open/close both menus with keyboard and gamepad; navigate every tab and an offscreen
+binding; spawn, undo and clean up; adjust FOV/sensitivity, each bus and quality; rebind a keyboard
+and gamepad control; restart and confirm the values persist. Check that menu clicks never fire a
+weapon, pause freezes the world, cursor ownership returns and every thumbnail shows its actual prop.

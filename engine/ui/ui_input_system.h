@@ -28,7 +28,7 @@ public:
     bool WantsTextInput() const;
     static bool IsTextInputCaptured(const InputState& input);
     Signal<EntityId> OnCancel;
-    Signal<const Event&> OnRawEvent;
+    Signal<const Event&, bool&> OnRawEvent;
 
 protected:
     void OnBeforeFixedSteps(float deltaTime) override;

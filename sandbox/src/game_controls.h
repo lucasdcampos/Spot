@@ -4,7 +4,7 @@
 
 class SandboxCommands;
 
-// Locks the cursor for the game when it starts. Pause frees it first, and quits once it is free; Fire locks it again.
+// Locks the cursor for the game when it starts. Pause opens the authored interface; without one it frees the cursor.
 // Restart starts the scene over.
 class GameControls final : public Spot::Component {
 public:

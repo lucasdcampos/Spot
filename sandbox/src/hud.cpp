@@ -1,6 +1,7 @@
 #include "hud.h"
 
 #include "day_cycle.h"
+#include "runtime_interface.h"
 #include "tool_gun.h"
 #include "weapon.h"
 #include "weapon_holder.h"
@@ -39,7 +40,32 @@ void Hud::OnUpdate(float deltaTime) {
 }
 
 void Hud::OnStart() {
+    if (auto* existing = GetEntity().GetComponentInChildren<RuntimeInterface>())
+        m_interface = existing->GetEntity().GetId();
+    else if (const auto prefab = Spot::Assets::Load<Spot::Prefab>("prefabs/interface.prefab")) {
+        if (auto* root = GetScene().Instantiate(prefab, {.parent = &GetEntity()}))
+            m_interface = root->GetId();
+    }
+    UpdateStatus();
     InvokeRepeating(1.0f, 1.0f, [this] { UpdateStatus(); });
+}
+
+void Hud::OnEnable() {
+    if (auto* root = GetScene().GetEntity(m_interface))
+        root->SetActive(true);
+}
+void Hud::OnDisable() {
+    if (auto* root = GetScene().GetEntity(m_interface))
+        root->SetActive(false);
+}
+void Hud::OnDestroy() {
+    if (auto* root = GetScene().GetEntity(m_interface))
+        root->Destroy();
+}
+void Hud::OnLateUpdate(float) {
+    auto* root = GetScene().GetEntity(m_interface);
+    if (auto* ui = root ? root->GetComponent<RuntimeInterface>() : nullptr)
+        ui->SetHudText(m_status, DescribeHand());
 }
 
 void Hud::UpdateStatus() {
@@ -87,6 +113,8 @@ std::string Hud::DescribeHand() const {
 }
 
 void Hud::OnDrawUi(Spot::Renderer2D& renderer, Spot::Vector2 viewSize) {
+    if (GetScene().GetEntity(m_interface))
+        return;
     const Spot::Vector2 center = viewSize * 0.5f;
     const Spot::Color crosshair{1.0f, 1.0f, 1.0f, 0.8f};
     renderer.DrawQuad(center, {14.0f, 2.0f}, crosshair);

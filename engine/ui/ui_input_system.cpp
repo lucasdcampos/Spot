@@ -206,8 +206,9 @@ bool UiInputSystem::OnEvent(const Event& event, Vector2 viewSize) {
     bool consumed = ownedRelease;
     InvokeHook("UiInput", [&] {
         Refresh(viewSize);
-        OnRawEvent.Emit(event);
-        consumed = HandleEvent(event) || ownedRelease;
+        bool rawConsumed = false;
+        OnRawEvent.Emit(event, rawConsumed);
+        consumed = rawConsumed || HandleEvent(event) || ownedRelease;
         Refresh(viewSize);
     });
     if (consumed) {

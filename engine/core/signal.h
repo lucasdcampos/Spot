@@ -80,7 +80,16 @@ public:
     void Emit(Args... args) const {
         // A callback may destroy the signal. Its destructor clears the shared state, stopping further dispatch.
         const auto state = m_state;
-        std::vector<std::uint64_t> pending;
+        const auto depth = state->dispatchDepth;
+        if (depth == state->dispatchBuffers.size())
+            state->dispatchBuffers.push_back(std::make_unique<std::vector<std::uint64_t>>());
+        ++state->dispatchDepth;
+        struct DispatchScope {
+            State& state;
+            ~DispatchScope() { --state.dispatchDepth; }
+        } scope{*state};
+        auto& pending = *state->dispatchBuffers[depth];
+        pending.clear();
         pending.reserve(state->slots.size());
         for (const auto& slot : state->slots) {
             pending.push_back(slot.id);
@@ -102,6 +111,8 @@ private:
     struct State final : Detail::SignalConnections {
         std::vector<Slot> slots;
         std::uint64_t nextId = 1;
+        std::size_t dispatchDepth = 0;
+        std::vector<std::unique_ptr<std::vector<std::uint64_t>>> dispatchBuffers;
         void Disconnect(std::uint64_t id) override {
             std::erase_if(slots, [id](const Slot& slot) { return slot.id == id; });
         }

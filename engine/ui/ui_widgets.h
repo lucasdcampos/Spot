@@ -34,9 +34,9 @@ enum class UiEventType {
 };
 struct UiEvent {
     UiEventType type = UiEventType::Activate;
-    Vector2 position;
+    Vector2 position = {};
     float value = 0;
-    std::string_view text;
+    std::string_view text = {};
 };
 
 struct UiControlStyle {
