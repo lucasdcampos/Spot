@@ -69,6 +69,8 @@ SDL_GPUVertexElementFormat ToSdl(VertexFormat format) {
         return SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
     case VertexFormat::Float3:
         return SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
+    case VertexFormat::UInt4:
+        return SDL_GPU_VERTEXELEMENTFORMAT_UINT4;
     case VertexFormat::Float4:
         return SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4;
     case VertexFormat::UByte4Normalized:

@@ -7,6 +7,7 @@ struct Instance {
     // The inverse transpose of the model matrix, which keeps normals perpendicular under non-uniform scale; its last
     // element is -1 for transforms that mirror.
     float4x4 normalMatrix;
+    uint4 skin;
 };
 
 // Every mesh drawn by the frame's passes; an instanced draw reads its instances from the first of its batch on.

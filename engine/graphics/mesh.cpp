@@ -3,6 +3,7 @@
 #include "core/log.h"
 #include "graphics/graphics_device.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <utility>
 
@@ -19,9 +20,24 @@ std::unique_ptr<Mesh> Mesh::Create(GraphicsDevice& device, const MeshData& data)
     if (!vertexBuffer || !indexBuffer) {
         return nullptr;
     }
-    return std::unique_ptr<Mesh>(new Mesh(std::move(vertexBuffer), std::move(indexBuffer),
-                                          static_cast<std::uint32_t>(data.indices.size()), data.GetBounds(),
-                                          data.GetSubmeshes()));
+    auto result = std::unique_ptr<Mesh>(new Mesh(std::move(vertexBuffer), std::move(indexBuffer),
+                                                 static_cast<std::uint32_t>(data.indices.size()), data.GetBounds(),
+                                                 data.GetSubmeshes()));
+    if (!data.skin.empty()) {
+        if (data.skin.size() != data.vertices.size()) {
+            return nullptr;
+        }
+        result->m_skinBuffer = device.CreateBuffer(BufferUsage::Vertex, data.skin);
+        if (!result->m_skinBuffer) {
+            return nullptr;
+        }
+        for (const auto& vertex : data.skin) {
+            for (const auto joint : vertex.joints) {
+                result->m_skinJointCount = std::max(result->m_skinJointCount, joint + 1);
+            }
+        }
+    }
+    return result;
 }
 
 VertexBufferLayout Mesh::GetVertexLayout() {
@@ -32,6 +48,12 @@ VertexBufferLayout Mesh::GetVertexLayout() {
                        {2, VertexFormat::Float2, offsetof(MeshVertex, uv)},
                        {3, VertexFormat::Float4, offsetof(MeshVertex, tangent)}},
     };
+}
+
+VertexBufferLayout Mesh::GetSkinLayout(std::uint32_t firstLocation) {
+    return {.stride = sizeof(SkinVertex),
+            .attributes = {{firstLocation, VertexFormat::UInt4, offsetof(SkinVertex, joints)},
+                           {firstLocation + 1, VertexFormat::Float4, offsetof(SkinVertex, weights)}}};
 }
 
 Mesh::Mesh(std::unique_ptr<Buffer> vertexBuffer, std::unique_ptr<Buffer> indexBuffer, std::uint32_t indexCount,

@@ -6,6 +6,7 @@
 #include "shadow.frag.h"
 #include "shadow.vert.h"
 #include "shadow_cutout.frag.h"
+#include "skinned_shadow.vert.h"
 #include <array>
 #include <cstddef>
 
@@ -24,22 +25,28 @@ const Texture* Renderer3D::RenderCameraDepth(RenderContext& context) {
         return nullptr;
     if (!m_cameraDepthPipelines[0]) {
         const auto vertex = m_device->CreateShader(Detail::Shaders::ShadowVert);
+        const auto skinned = m_device->CreateShader(Detail::Shaders::SkinnedShadowVert);
         const auto opaque = m_device->CreateShader(Detail::Shaders::ShadowFrag);
         const auto cutout = m_device->CreateShader(Detail::Shaders::ShadowCutoutFrag);
-        if (!vertex || !opaque || !cutout)
+        if (!vertex || !skinned || !opaque || !cutout)
             return nullptr;
         for (std::size_t i = 0; i < m_cameraDepthPipelines.size(); ++i) {
-            m_cameraDepthPipelines[i] = m_device->CreatePipeline(
-                {.vertexShader = vertex.get(),
-                 .fragmentShader = i >= 3 ? cutout.get() : opaque.get(),
-                 .vertexBuffers = {{.stride = sizeof(MeshVertex),
-                                    .attributes = {{0, VertexFormat::Float3, offsetof(MeshVertex, position)},
-                                                   {1, VertexFormat::Float2, offsetof(MeshVertex, uv)}}}},
-                 .cullMode = i % 3 == 0   ? CullMode::Back
-                             : i % 3 == 1 ? CullMode::Front
-                                          : CullMode::None,
-                 .depthOnly = true,
-                 .depth = DepthState{}});
+            std::vector<VertexBufferLayout> layouts{
+                {.stride = sizeof(MeshVertex),
+                 .attributes = {{0, VertexFormat::Float3, offsetof(MeshVertex, position)},
+                                {1, VertexFormat::Float2, offsetof(MeshVertex, uv)}}}};
+            if (i >= 6) {
+                layouts.push_back(Mesh::GetSkinLayout(2));
+            }
+            m_cameraDepthPipelines[i] =
+                m_device->CreatePipeline({.vertexShader = i >= 6 ? skinned.get() : vertex.get(),
+                                          .fragmentShader = i % 6 >= 3 ? cutout.get() : opaque.get(),
+                                          .vertexBuffers = layouts,
+                                          .cullMode = i % 3 == 0   ? CullMode::Back
+                                                      : i % 3 == 1 ? CullMode::Front
+                                                                   : CullMode::None,
+                                          .depthOnly = true,
+                                          .depth = DepthState{}});
         }
     }
     for (const auto& pipeline : m_cameraDepthPipelines)
@@ -69,7 +76,11 @@ const Texture* Renderer3D::RenderCameraDepth(RenderContext& context) {
             const auto variant = static_cast<std::size_t>((cutout ? 3 : 0) + (command.doubleSided ? 2
                                                                               : command.mirrored  ? 1
                                                                                                   : 0));
-            pass.BindPipeline(*m_cameraDepthPipelines[variant]);
+            pass.BindPipeline(*m_cameraDepthPipelines[variant + (command.skinCount ? 6 : 0)]);
+            if (command.skinCount) {
+                pass.BindVertexStorageBuffer(2, *m_palettes);
+                pass.BindVertexBuffer(1, *command.mesh->GetSkinBuffer());
+            }
             if (cutout) {
                 pass.BindFragmentTexture(0, command.textures[0] ? *command.textures[0] : *m_whiteTexture, *m_sampler);
                 pass.PushFragmentUniforms(0, Vector4{command.color.a, command.alphaCutoff, 0, 0});

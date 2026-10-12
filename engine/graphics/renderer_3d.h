@@ -136,6 +136,9 @@ public:
     void DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform = {}, bool castsShadows = true,
                   std::uint32_t submesh = Mesh::AllSubmeshes);
     // Draws each part of the model where its node puts it.
+    void DrawSkinnedMesh(const Mesh& mesh, const Material& material, std::span<const Matrix4> palette,
+                         const Matrix4& transform = {}, float boundsPadding = 1.0f, bool castsShadows = true,
+                         std::uint32_t submesh = Mesh::AllSubmeshes);
     void DrawModel(const Model& model, const Matrix4& transform = {});
     // Draws every MeshRenderer and Light of the scene that is enabled on an active entity, at its entity's world
     // transform, and the first such Sky and Fog.
@@ -178,6 +181,8 @@ private:
         std::uint32_t indexCount = 0;
         // Whether its transform turns the mesh inside out, which swaps the faces culled.
         bool mirrored = false;
+        std::uint32_t skinOffset = 0;
+        std::uint32_t skinCount = 0;
     };
 
     void DrawShadows(Detail::SelectedLights& lights, Detail::ShadowUniforms& shadows);
@@ -199,7 +204,11 @@ private:
     // Captures the sky's light into the reflections and irradiance when it changed; false when it cannot.
     bool UpdateSkyLighting(const SkyData& sky, const Detail::SkyLighting& lighting);
 
-    std::array<std::unique_ptr<Pipeline>, 6> m_cameraDepthPipelines;
+    std::array<std::unique_ptr<Pipeline>, 12> m_cameraDepthPipelines;
+    std::array<std::unique_ptr<Pipeline>, 6> m_skinnedPipelines;
+    std::array<std::unique_ptr<Pipeline>, 6> m_skinnedShadowPipelines;
+    std::unique_ptr<Buffer> m_palettes;
+    std::vector<Matrix4> m_paletteData;
     std::unique_ptr<Texture> m_cameraDepth;
     std::unique_ptr<Buffer> m_cameraDepthIndices;
     std::vector<std::uint32_t> m_cameraDepthOrder;

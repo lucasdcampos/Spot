@@ -10,6 +10,7 @@ std::uint32_t GetVertexFormatSize(VertexFormat format) {
         return 8;
     case VertexFormat::Float3:
         return 12;
+    case VertexFormat::UInt4:
     case VertexFormat::Float4:
         return 16;
     case VertexFormat::UByte4Normalized:

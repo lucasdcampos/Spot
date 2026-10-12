@@ -60,6 +60,7 @@ enum class VertexFormat {
     Float2,
     Float3,
     Float4,
+    UInt4,
     // Four bytes read as floats in [0, 1], a compact way to store colors.
     UByte4Normalized,
 };

@@ -6,6 +6,7 @@ cbuffer View : register(b0, space1) {
 struct Instance {
     float4x4 model;
     float4x4 normalMatrix;
+    uint4 skin;
 };
 
 // The meshes' transforms, as the mesh shader reads them, and the view's casters, as indices into them.

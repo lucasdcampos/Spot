@@ -17,11 +17,14 @@
 #include "scene/scene.h"
 #include "scene/sky.h"
 
+#include "animation/skinned_mesh_renderer.h"
 #include "mesh.frag.h"
 #include "mesh.vert.h"
 #include "shadow.frag.h"
 #include "shadow.vert.h"
 #include "shadow_cutout.frag.h"
+#include "skinned_mesh.vert.h"
+#include "skinned_shadow.vert.h"
 #include "sky.frag.h"
 #include "sky.vert.h"
 #include "sky_irradiance.frag.h"
@@ -61,6 +64,7 @@ Matrix4 GetNormalMatrix(const Matrix4& m) {
 struct InstanceData {
     Matrix4 model;
     Matrix4 normalMatrix;
+    std::array<std::uint32_t, 4> skin;
 };
 
 struct BatchUniforms {
@@ -338,6 +342,22 @@ Renderer3D::Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config) :
         m_mirroredPipeline = device.CreatePipeline(desc);
     }
 
+    const auto skinnedVertex = device.CreateShader(Detail::Shaders::SkinnedMeshVert);
+    if (skinnedVertex && fragmentShader) {
+        for (std::size_t i = 0; i < m_skinnedPipelines.size(); ++i) {
+            m_skinnedPipelines[i] =
+                device.CreatePipeline({.vertexShader = skinnedVertex.get(),
+                                       .fragmentShader = fragmentShader.get(),
+                                       .vertexBuffers = {Mesh::GetVertexLayout(), Mesh::GetSkinLayout()},
+                                       .blendMode = i >= 3 ? BlendMode::Premultiplied : BlendMode::None,
+                                       .cullMode = i % 3 == 0   ? CullMode::Back
+                                                   : i % 3 == 1 ? CullMode::Front
+                                                                : CullMode::None,
+                                       .targetFormat = config.targetFormat,
+                                       .depth = DepthState{.format = config.depthFormat, .write = i < 3},
+                                       .sampleCount = config.sampleCount});
+        }
+    }
     const auto skyVertexShader = device.CreateShader(Detail::Shaders::SkyVert);
     const auto skyFragmentShader = device.CreateShader(Detail::Shaders::SkyFrag);
     if (skyVertexShader && skyFragmentShader) {
@@ -397,6 +417,23 @@ Renderer3D::Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config) :
         m_mirroredCutoutShadowPipeline = device.CreatePipeline(desc);
     }
 
+    const auto skinnedShadow = device.CreateShader(Detail::Shaders::SkinnedShadowVert);
+    if (skinnedShadow && shadowFragmentShader && cutoutShadowFragmentShader) {
+        for (std::size_t i = 0; i < m_skinnedShadowPipelines.size(); ++i) {
+            m_skinnedShadowPipelines[i] = device.CreatePipeline(
+                {.vertexShader = skinnedShadow.get(),
+                 .fragmentShader = i >= 3 ? cutoutShadowFragmentShader.get() : shadowFragmentShader.get(),
+                 .vertexBuffers = {{.stride = sizeof(MeshVertex),
+                                    .attributes = {{0, VertexFormat::Float3, offsetof(MeshVertex, position)},
+                                                   {1, VertexFormat::Float2, offsetof(MeshVertex, uv)}}},
+                                   Mesh::GetSkinLayout(2)},
+                 .cullMode = i % 3 == 0   ? CullMode::Back
+                             : i % 3 == 1 ? CullMode::Front
+                                          : CullMode::None,
+                 .depthOnly = true,
+                 .depth = DepthState{.format = TextureFormat::Depth32Float, .biasSlope = 1.5f, .clamp = true}});
+        }
+    }
     m_sampler = device.CreateSampler(
         {.filter = config.filter, .addressMode = TextureAddressMode::Repeat, .maxAnisotropy = config.maxAnisotropy});
     m_shadowSampler = device.CreateSampler({.compare = CompareOp::LessOrEqual});
@@ -417,12 +454,14 @@ Renderer3D::Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config) :
 Renderer3D::~Renderer3D() = default;
 
 bool Renderer3D::IsValid() const {
-    return m_pipeline && m_doubleSidedPipeline && m_transparentPipeline && m_doubleSidedTransparentPipeline &&
-           m_mirroredPipeline && m_mirroredTransparentPipeline && m_mirroredShadowPipeline &&
-           m_mirroredCutoutShadowPipeline && m_skyPipeline && m_shadowPipeline && m_doubleSidedShadowPipeline &&
-           m_cutoutShadowPipeline && m_doubleSidedCutoutShadowPipeline && m_sampler && m_shadowSampler &&
-           m_whiteTexture && m_noShadows && m_skyCapturePipeline && m_skyPrefilter && m_skyIrradiancePass &&
-           m_skySampler && m_noSkyReflections && m_noSkyIrradiance;
+    return std::ranges::all_of(m_skinnedPipelines, [](const auto& p) { return !!p; }) &&
+           std::ranges::all_of(m_skinnedShadowPipelines, [](const auto& p) { return !!p; }) && m_pipeline &&
+           m_doubleSidedPipeline && m_transparentPipeline && m_doubleSidedTransparentPipeline && m_mirroredPipeline &&
+           m_mirroredTransparentPipeline && m_mirroredShadowPipeline && m_mirroredCutoutShadowPipeline &&
+           m_skyPipeline && m_shadowPipeline && m_doubleSidedShadowPipeline && m_cutoutShadowPipeline &&
+           m_doubleSidedCutoutShadowPipeline && m_sampler && m_shadowSampler && m_whiteTexture && m_noShadows &&
+           m_skyCapturePipeline && m_skyPrefilter && m_skyIrradiancePass && m_skySampler && m_noSkyReflections &&
+           m_noSkyIrradiance;
 }
 
 void Renderer3D::Begin(RenderContext& context, const RenderPassDesc& target, const Camera3D& camera) {
@@ -440,6 +479,7 @@ void Renderer3D::Begin(RenderContext& context, const RenderPassDesc& target, con
     m_viewSize = viewSize;
     m_aspectRatio = viewSize.y > 0.0f ? viewSize.x / viewSize.y : 1.0f;
     m_commands.clear();
+    m_paletteData.clear();
     m_lights.clear();
     m_sky.reset();
     m_fog.reset();
@@ -607,6 +647,30 @@ void Renderer3D::DrawMesh(const Mesh& mesh, const Material& material, const Matr
     command.mirrored = Dot(Cross(axis(0), axis(1)), axis(2)) < 0.0f;
 }
 
+void Renderer3D::DrawSkinnedMesh(const Mesh& mesh, const Material& material, std::span<const Matrix4> palette,
+                                 const Matrix4& transform, float boundsPadding, bool castsShadows,
+                                 std::uint32_t submesh) {
+    if (!mesh.GetSkinBuffer() || palette.size() < mesh.GetSkinJointCount()) {
+        Log::GetEngineLogger().Warning("Skinned mesh has no valid palette or skin stream");
+        return;
+    }
+    const auto before = m_commands.size();
+    DrawMesh(mesh, material, transform, castsShadows, submesh);
+    if (m_commands.size() == before) {
+        return;
+    }
+    auto& command = m_commands.back();
+    command.skinOffset = static_cast<std::uint32_t>(m_paletteData.size());
+    command.skinCount = static_cast<std::uint32_t>(palette.size());
+    m_paletteData.insert(m_paletteData.end(), palette.begin(), palette.end());
+    float scale = 0;
+    for (std::size_t i = 0; i < 3; ++i) {
+        const auto& axis = transform.columns[i];
+        scale = std::max(scale, Length(Vector3{axis.x, axis.y, axis.z}));
+    }
+    command.bounds.radius += std::max(boundsPadding, 0.0f) * scale;
+}
+
 void Renderer3D::DrawModel(const Model& model, const Matrix4& transform) {
     // Parts whose mesh failed to load are skipped; without a material they are drawn plain white.
     static const Material DefaultMaterial;
@@ -638,6 +702,14 @@ void Renderer3D::DrawScene(Scene& scene) {
     if (fog) {
         DrawFog(fog->GetFogData());
     }
+    scene.ForEachComponent<SkinnedMeshRenderer>([this](const SkinnedMeshRenderer& renderer) {
+        if (renderer.GetMesh() && !renderer.GetPalette().empty() &&
+            ((m_camera.cullingMask >> renderer.GetEntity().GetLayer()) & 1u)) {
+            DrawSkinnedMesh(*renderer.GetMesh(), renderer.GetMaterial() ? *renderer.GetMaterial() : DefaultMaterial,
+                            renderer.GetPalette(), renderer.GetEntity().GetTransform().GetWorldMatrix(),
+                            renderer.GetBoundsPadding(), renderer.IsCastingShadows(), renderer.GetSubmesh());
+        }
+    });
     scene.ForEachComponent<MeshRenderer>([this](const MeshRenderer& renderer) {
         if (renderer.GetMesh() && ((m_camera.cullingMask >> renderer.GetEntity().GetLayer()) & 1u)) {
             DrawMesh(*renderer.GetMesh(), renderer.GetMaterial() ? *renderer.GetMaterial() : DefaultMaterial,
@@ -912,13 +984,14 @@ namespace {
 // Whether the two commands draw the same mesh the same way, so they can be instances of one draw.
 bool HaveSameLook(const auto& a, const auto& b) {
     return a.mesh == b.mesh && a.firstIndex == b.firstIndex && a.indexCount == b.indexCount && a.look == b.look &&
-           a.mirrored == b.mirrored;
+           a.mirrored == b.mirrored && (a.skinCount != 0) == (b.skinCount != 0);
 }
 
 // Whether the two commands cast the same shadow but for their transforms: depth alone, or cut out the same way.
 bool HaveSameShadow(const auto& a, const auto& b) {
-    if (a.mesh != b.mesh || a.firstIndex != b.firstIndex || a.indexCount != b.indexCount ||
-        a.doubleSided != b.doubleSided || a.mirrored != b.mirrored || a.alphaMode != b.alphaMode) {
+    if ((a.skinCount != 0) != (b.skinCount != 0) || a.mesh != b.mesh || a.firstIndex != b.firstIndex ||
+        a.indexCount != b.indexCount || a.doubleSided != b.doubleSided || a.mirrored != b.mirrored ||
+        a.alphaMode != b.alphaMode) {
         return false;
     }
     return a.alphaMode != AlphaMode::Cutout || a.look == b.look;
@@ -1015,9 +1088,10 @@ bool Renderer3D::UploadInstances() {
     std::vector<InstanceData> instances;
     instances.reserve(m_commands.size());
     for (const DrawCommand& command : m_commands) {
-        instances.push_back({command.transform, GetNormalMatrix(command.transform)});
+        instances.push_back(
+            {command.transform, GetNormalMatrix(command.transform), {command.skinOffset, command.skinCount, 0, 0}});
     }
-    return UploadStorage(*m_device, m_instances, instances);
+    return UploadStorage(*m_device, m_instances, instances) && UploadStorage(*m_device, m_palettes, m_paletteData);
 }
 
 void Renderer3D::DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjection, bool ignoreNear) {
@@ -1066,6 +1140,10 @@ void Renderer3D::DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjecti
             }
             pass.PushFragmentUniforms(0, Vector4{command.color.a, command.alphaCutoff, 0.0f, 0.0f});
         }
+        if (command.skinCount) {
+            pass.BindVertexStorageBuffer(2, *m_palettes);
+            pass.BindVertexBuffer(1, *command.mesh->GetSkinBuffer());
+        }
         pass.BindVertexBuffer(0, command.mesh->GetVertexBuffer());
         pass.BindIndexBuffer(command.mesh->GetIndexBuffer(), IndexType::UInt32);
         pass.PushVertexUniforms(1, BatchUniforms{{static_cast<std::uint32_t>(viewStart + first), 0, 0, 0}});
@@ -1076,6 +1154,12 @@ void Renderer3D::DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjecti
 }
 
 const Pipeline* Renderer3D::GetPipeline(const DrawCommand& command) const {
+    if (command.skinCount) {
+        const auto variant = (command.alphaMode == AlphaMode::Transparent ? 3u : 0u) + (command.doubleSided ? 2u
+                                                                                        : command.mirrored  ? 1u
+                                                                                                            : 0u);
+        return m_skinnedPipelines[variant].get();
+    }
     if (command.alphaMode == AlphaMode::Transparent) {
         return command.doubleSided ? m_doubleSidedTransparentPipeline.get()
                : command.mirrored  ? m_mirroredTransparentPipeline.get()
@@ -1087,6 +1171,12 @@ const Pipeline* Renderer3D::GetPipeline(const DrawCommand& command) const {
 }
 
 const Pipeline* Renderer3D::GetShadowPipeline(const DrawCommand& command) const {
+    if (command.skinCount) {
+        const auto variant = (command.alphaMode == AlphaMode::Cutout ? 3u : 0u) + (command.doubleSided ? 2u
+                                                                                   : command.mirrored  ? 1u
+                                                                                                       : 0u);
+        return m_skinnedShadowPipelines[variant].get();
+    }
     if (command.alphaMode == AlphaMode::Cutout) {
         return command.doubleSided ? m_doubleSidedCutoutShadowPipeline.get()
                : command.mirrored  ? m_mirroredCutoutShadowPipeline.get()
@@ -1148,6 +1238,10 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
             boundPipeline = pipeline;
             ++m_stats.pipelineChanges;
         }
+        if (command.skinCount) {
+            pass.BindVertexStorageBuffer(1, *m_palettes);
+            pass.BindVertexBuffer(1, *command.mesh->GetSkinBuffer());
+        }
         // Missing textures are white, which leaves the values they multiply as they are.
         bool materialChanged = false;
         for (std::size_t i = 0; i < command.textures.size(); ++i) {
@@ -1175,6 +1269,10 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
         }
         m_stats.materialChanges += materialChanged ? 1 : 0;
         if (command.mesh != boundMesh) {
+            if (command.skinCount) {
+                pass.BindVertexStorageBuffer(1, *m_palettes);
+                pass.BindVertexBuffer(1, *command.mesh->GetSkinBuffer());
+            }
             pass.BindVertexBuffer(0, command.mesh->GetVertexBuffer());
             pass.BindIndexBuffer(command.mesh->GetIndexBuffer(), IndexType::UInt32);
             boundMesh = command.mesh;

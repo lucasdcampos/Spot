@@ -3692,3 +3692,86 @@ TEST_CASE("Authored sandbox menus render their labels and controls offscreen", "
     }
 }
 #endif
+
+TEST_CASE("GPU skinning matches transformed meshes in color, shadows and camera depth", "[gpu][animation][offscreen]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = false});
+    REQUIRE(device);
+    auto data = Spot::MeshData::CreateCube(0.8f);
+    data.skin.resize(data.vertices.size());
+    for (auto& skin : data.skin) {
+        skin.joints = {0, 1, 0, 0};
+        skin.weights = {0.25f, 0.75f, 0, 0};
+    }
+    auto mesh = Spot::Mesh::Create(*device, data);
+    auto floor = Spot::Mesh::Create(*device, Spot::MeshData::CreatePlane(8));
+    REQUIRE(mesh);
+    REQUIRE(floor);
+    REQUIRE(mesh->GetSkinBuffer());
+    CHECK(mesh->GetSkinJointCount() == 2);
+    const std::array palette{Spot::Matrix4{}, Spot::Matrix4::Translation({1.2f, 0, 0})};
+    Spot::Camera3D camera{.position = {0, 3, 6}};
+    camera.LookAt({0, 0, 0});
+    for (const auto samples : {1u, 4u}) {
+        auto target = device->CreateTexture(
+            {.width = 96, .height = 96, .format = Spot::TextureFormat::Rgba8, .renderTarget = true});
+        auto color = samples == 1 ? nullptr
+                                  : device->CreateTexture({.width = 96,
+                                                           .height = 96,
+                                                           .format = Spot::TextureFormat::Rgba8,
+                                                           .renderTarget = true,
+                                                           .sampleCount = samples});
+        auto depth = device->CreateTexture({.width = 96,
+                                            .height = 96,
+                                            .format = Spot::TextureFormat::Depth32Float,
+                                            .renderTarget = true,
+                                            .sampleCount = samples});
+        REQUIRE(target);
+        REQUIRE(depth);
+        Spot::Renderer3D renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8,
+                                            .sampleCount = samples,
+                                            .shadowMapSize = 128,
+                                            .shadowCascadeCount = 1,
+                                            .localShadowMapSize = 0});
+        REQUIRE(renderer.IsValid());
+        for (const auto mode : {Spot::AlphaMode::Opaque, Spot::AlphaMode::Cutout, Spot::AlphaMode::Transparent}) {
+            CAPTURE(samples, static_cast<int>(mode));
+            Spot::Material material{
+                .baseColor = {0.8f, 0.2f, 0.1f, 1}, .metallic = 0, .alphaMode = mode, .doubleSided = true};
+            const auto render = [&](bool skinned, bool moved) {
+                auto* context = device->BeginOffscreenFrame(*target);
+                REQUIRE(context);
+                renderer.Begin(*context,
+                               {.target = color ? color.get() : target.get(),
+                                .clearColor = Spot::Color::Black,
+                                .depthTarget = depth.get(),
+                                .clearDepth = 1.0f,
+                                .resolveTarget = color ? target.get() : nullptr},
+                               camera);
+                renderer.DrawLight({.type = Spot::LightType::Ambient, .intensity = 0.15f});
+                renderer.DrawLight(
+                    {.type = Spot::LightType::Directional, .direction = {-0.5f, -1, -0.2f}, .castsShadows = true});
+                renderer.DrawMesh(*floor, Spot::Material{.metallic = 0}, Spot::Matrix4::Translation({0, -0.5f, 0}));
+                if (skinned) {
+                    renderer.DrawSkinnedMesh(*mesh, material, palette);
+                } else {
+                    renderer.DrawMesh(*mesh, material, Spot::Matrix4::Translation({moved ? 0.9f : 0.0f, 0, 0}));
+                }
+                renderer.End();
+                REQUIRE(renderer.RenderCameraDepth(*context));
+                device->EndFrame();
+                return device->DownloadTexture(*target);
+            };
+            const auto reference = render(false, true), animated = render(true, true), bind = render(false, false);
+            REQUIRE(animated.size() == reference.size());
+            std::size_t mismatches = 0, changed = 0;
+            for (std::size_t i = 0; i < animated.size(); ++i) {
+                mismatches += std::abs(static_cast<int>(animated[i]) - reference[i]) > 3 ? 1 : 0;
+                changed += std::abs(static_cast<int>(animated[i]) - bind[i]) > 10 ? 1 : 0;
+            }
+            CHECK(mismatches < animated.size() / 100);
+            CHECK(changed > 80);
+            CHECK(renderer.GetStats().shadowDrawCalls > 0);
+        }
+    }
+}

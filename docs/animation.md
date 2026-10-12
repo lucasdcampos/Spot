@@ -21,3 +21,11 @@ and clamps non-looping time. Rotations use shortest-path spherical interpolation
 normalize the Hermite result. Cubic tangents are multiplied by the segment's duration.
 `Pose::Blend()` interpolates local TRS. `ToModel()` walks parents once; `Palette()` computes
 inverse(mesh model) * bone model * inverse bind for each joint. All outputs are caller-owned spans.
+
+`SkinnedMeshRenderer` holds a mesh, material, palette and a configurable bounds padding.
+`Renderer3D::DrawSkinnedMesh()` is the code-only API. Four weights blend joint matrices
+in a second vertex stream; palettes are uploaded together and indexed per instance.
+Skinned variants cover opaque, cutout, transparent and mirrored surfaces, shadows and
+readable camera depth, including MSAA. Normals use the blended matrix's cofactors and
+tangents follow its linear transform. Increase bounds padding to cover the clip's motion.
+Meshes and palettes must stay valid until submission; too-short palettes are rejected.

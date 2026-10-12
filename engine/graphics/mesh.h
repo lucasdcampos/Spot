@@ -22,6 +22,9 @@ public:
     // The layout of the vertex buffer, for pipelines that draw meshes: position, normal and UV at locations 0, 1
     // and 2.
     static VertexBufferLayout GetVertexLayout();
+    static VertexBufferLayout GetSkinLayout(std::uint32_t firstLocation = 4);
+    const Buffer* GetSkinBuffer() const { return m_skinBuffer.get(); }
+    std::uint32_t GetSkinJointCount() const { return m_skinJointCount; }
 
     ~Mesh();
 
@@ -43,6 +46,8 @@ private:
     Mesh(std::unique_ptr<Buffer> vertexBuffer, std::unique_ptr<Buffer> indexBuffer, std::uint32_t indexCount,
          BoundingSphere bounds, std::vector<SubMesh> submeshes);
 
+    std::unique_ptr<Buffer> m_skinBuffer;
+    std::uint32_t m_skinJointCount = 0;
     std::unique_ptr<Buffer> m_vertexBuffer;
     std::unique_ptr<Buffer> m_indexBuffer;
     std::uint32_t m_indexCount;
