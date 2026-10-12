@@ -15,7 +15,7 @@ class GraphicsDevice;
 class Texture;
 
 // A TrueType or OpenType font at one pixel size, with its glyphs in a GPU texture, ready for Renderer2D::DrawString().
-// Other sizes need their own Font: scaling text far from its size blurs or pixelates it.
+// Signed distance glyphs keep their edges smooth when scaled; one font can serve multiple display sizes.
 class Font {
 public:
     // Return null, after logging why, when the file cannot be read or is not a usable font.

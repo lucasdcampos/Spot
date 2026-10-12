@@ -237,6 +237,8 @@ add_library(spot_objects OBJECT
     scene/sky.cpp
     scene/sprite_renderer.h
     scene/sprite_renderer.cpp
+    scene/text_renderer.cpp
+    scene/text_renderer.h
     scene/transform.h
     scene/transform.cpp
     scene/tween_system.h

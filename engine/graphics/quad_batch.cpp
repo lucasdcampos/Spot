@@ -18,7 +18,7 @@ void QuadBatch::Clear() {
 }
 
 void QuadBatch::AddQuad(Vector2 center, Vector2 size, float rotation, const Texture* texture, Color color,
-                        const TextureRegion& region) {
+                        const TextureRegion& region, bool signedDistance) {
     const Vector2 half = size / 2.0f;
     const std::array<Vector2, 4> corners{{{-half.x, half.y}, {half.x, half.y}, {half.x, -half.y}, {-half.x, -half.y}}};
     const std::array<Vector2, 4> uvs{
@@ -32,10 +32,11 @@ void QuadBatch::AddQuad(Vector2 center, Vector2 size, float rotation, const Text
         m_vertices.push_back({center + rotated, uvs[i], color});
     }
 
-    if (!m_commands.empty() && m_commands.back().texture == texture) {
+    if (!m_commands.empty() && m_commands.back().texture == texture &&
+        m_commands.back().signedDistance == signedDistance) {
         ++m_commands.back().quadCount;
     } else {
-        m_commands.push_back({texture, GetQuadCount() - 1, 1});
+        m_commands.push_back({texture, signedDistance, GetQuadCount() - 1, 1});
     }
 }
 

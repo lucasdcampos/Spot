@@ -31,6 +31,7 @@ struct QuadVertex {
 struct QuadDrawCommand {
     // Null for untextured quads.
     const Texture* texture = nullptr;
+    bool signedDistance = false;
     std::uint32_t firstQuad = 0;
     std::uint32_t quadCount = 0;
 };
@@ -47,7 +48,7 @@ public:
     void Clear();
     // Rotation is in radians, counterclockwise around the center.
     void AddQuad(Vector2 center, Vector2 size, float rotation, const Texture* texture, Color color,
-                 const TextureRegion& region = {});
+                 const TextureRegion& region = {}, bool signedDistance = false);
 
     std::span<const QuadVertex> GetVertices() const { return m_vertices; }
     std::span<const QuadDrawCommand> GetCommands() const { return m_commands; }

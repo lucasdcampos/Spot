@@ -21,7 +21,7 @@ struct Glyph {
     float advance = 0.0f;
 };
 
-// The glyphs of a TrueType font rasterized at one size into a single RGBA image: white, with coverage in alpha, so
+// The glyphs of a TrueType font stored as signed distances in the alpha channel (edge at 128/255), so
 // tinting the image colors the text. It covers ASCII and Latin-1, enough for most Western European languages. It
 // only builds CPU data; Font puts it on the GPU.
 class FontAtlas {

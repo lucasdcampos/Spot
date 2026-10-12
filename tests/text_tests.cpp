@@ -83,7 +83,7 @@ TEST_CASE("Text is laid out left to right, line by line, below its top-left corn
     const auto quads = Spot::LayoutText(*atlas, "ab\ncd");
     REQUIRE(quads.size() == 4);
     CHECK(quads[1].min.x > quads[0].min.x);
-    CHECK(quads[0].max.y <= 0.0f);
+    CHECK(quads[0].max.y <= 6.0f);
     CHECK(quads[2].min.x == Catch::Approx(quads[0].min.x).margin(1.0f));
     CHECK(quads[2].min.y < quads[0].min.y);
 
@@ -113,4 +113,58 @@ TEST_CASE("QuadBatch maps texture regions to the quad corners", "[text]") {
     CHECK(vertices[1].uv == Spot::Vector2{0.75f, 0.5f});
     CHECK(vertices[2].uv == Spot::Vector2{0.75f, 1.0f});
     CHECK(vertices[3].uv == Spot::Vector2{0.25f, 1.0f});
+}
+
+TEST_CASE("SDF fonts encode distances and reject invalid sizes", "[text]") {
+    const auto atlas = LoadTestAtlas(32);
+    REQUIRE(atlas);
+    bool inside = false;
+    bool outside = false;
+    bool edge = false;
+    const auto pixels = atlas->GetImage().GetPixels();
+    for (std::size_t i = 3; i < pixels.size(); i += 4) {
+        inside = inside || pixels[i] > 150;
+        outside = outside || pixels[i] < 100;
+        edge = edge || (pixels[i] >= 120 && pixels[i] <= 135);
+    }
+    CHECK(inside);
+    CHECK(outside);
+    CHECK(edge);
+    CHECK_FALSE(LoadTestAtlas(0));
+    CHECK_FALSE(LoadTestAtlas(10000));
+}
+
+TEST_CASE("World text follows transforms and can face the camera", "[text][scene]") {
+    Spot::Scene scene;
+    auto& entity = scene.CreateEntity("Label");
+    auto& text = entity.AddComponent<Spot::TextRenderer>();
+    entity.GetTransform().SetPosition({2, 3, 4});
+    Spot::Camera3D camera;
+    CHECK(text.GetDrawMatrix(camera) == entity.GetTransform().GetWorldMatrix());
+    text.SetFacingCamera(true);
+    entity.GetTransform().SetRotation(Spot::Quaternion::FromAxisAngle({1, 0, 0}, 0.8f));
+    camera.rotation = Spot::Quaternion::FromAxisAngle({0, 1, 0}, 0.6f);
+    CHECK(text.GetDrawMatrix(camera) ==
+          Spot::Matrix4::Translation({2, 3, 4}) * Spot::Matrix4::Rotation(camera.rotation));
+    CHECK(Spot::Decompose(text.GetDrawMatrix(camera)).translation == Spot::Vector3{2, 3, 4});
+    text.SetPixelScale(-1);
+    CHECK(text.GetPixelScale() == 0);
+    CHECK(Spot::CreateComponent("TextRenderer"));
+}
+
+TEST_CASE("World text fields survive scene serialization", "[text][scene]") {
+    Spot::Scene scene;
+    auto& label = scene.CreateEntity("Label").AddComponent<Spot::TextRenderer>();
+    label.SetText("Hello world");
+    label.SetFacingCamera(true);
+    label.SetPixelScale(0.25f);
+    label.SetOrder(3);
+    Spot::Scene loaded;
+    REQUIRE(loaded.LoadFromString(scene.SaveToString()));
+    const auto* copy = loaded.FindComponent<Spot::TextRenderer>();
+    REQUIRE(copy);
+    CHECK(copy->GetText() == "Hello world");
+    CHECK(copy->IsFacingCamera());
+    CHECK(copy->GetPixelScale() == 0.25f);
+    CHECK(copy->GetOrder() == 3);
 }

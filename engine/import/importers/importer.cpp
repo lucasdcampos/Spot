@@ -40,7 +40,7 @@ ImporterInfo FindImporter(AssetType type) {
     case AssetType::Sound:
         return {&ImportSound, 2};
     case AssetType::Font:
-        return {&ImportFont, 1};
+        return {&ImportFont, 2};
     default:
         return {};
     }

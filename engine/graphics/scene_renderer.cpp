@@ -15,6 +15,7 @@
 #include "scene/post_processing.h"
 #include "scene/scene.h"
 #include "scene/sprite_renderer.h"
+#include "scene/text_renderer.h"
 
 namespace Spot {
 
@@ -81,7 +82,7 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
     bool sprites = false;
     for (Scene* scene : scenes) {
         camera = camera ? camera : FindMainCamera(*scene);
-        sprites = sprites || scene->FindComponent<SpriteRenderer>();
+        sprites = sprites || scene->FindComponent<SpriteRenderer>() || scene->FindComponent<TextRenderer>();
     }
     if (!camera && !scenes.empty() && !m_warnedNoCamera) {
         m_warnedNoCamera = true;
@@ -141,6 +142,9 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
         m_sprites->Begin(spritePass, view.GetViewProjection(size));
         for (Scene* scene : scenes) {
             m_sprites->DrawScene(*scene);
+        }
+        for (Scene* scene : scenes) {
+            m_sprites->DrawWorldText(*scene, view);
         }
         m_sprites->End();
     }

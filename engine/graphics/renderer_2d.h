@@ -13,6 +13,7 @@
 
 namespace Spot {
 
+struct Camera3D;
 class Buffer;
 class Font;
 class GraphicsDevice;
@@ -73,6 +74,8 @@ public:
     // Z and scale, in their order, and of the same order the lower ones along Z first. The scene must not change
     // until End(), since its sprites keep their textures alive.
     void DrawScene(Scene& scene);
+    // Draws world text over sprites, ordered by its order and entity traversal.
+    void DrawWorldText(Scene& scene, const Camera3D& camera);
 
     // Draws UTF-8 text with its top-left corner at the position. At scale 1 a pixel of the font covers one world
     // unit, which is one window point with the default camera. Fonts must stay alive until End().

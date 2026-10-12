@@ -122,3 +122,5 @@
 #include "window/file_dialog.h"
 #include "window/shell.h"
 #include "window/window.h"
+
+#include "scene/text_renderer.h"

@@ -2,7 +2,9 @@
 
 #include "core/log.h"
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <unordered_map>
 #include <utility>
@@ -25,8 +27,9 @@ struct CodePointRange {
 // Printable ASCII and Latin-1, which hold the letters of most Western European languages.
 constexpr std::array<CodePointRange, 2> Ranges{{{0x20, 0x7E}, {0xA0, 0xFF}}};
 
-// Sampling each glyph at twice the resolution keeps text smooth when it lands between pixels.
-constexpr unsigned int Oversampling = 2;
+constexpr int SdfPadding = 6;
+constexpr unsigned char SdfEdge = 128;
+constexpr float SdfDistanceScale = 20.0f;
 
 constexpr int MaxAtlasSize = 4096;
 
@@ -45,6 +48,10 @@ struct FontAtlas::Impl {
 };
 
 std::optional<FontAtlas> FontAtlas::Create(std::span<const std::byte> fontData, float pixelSize) {
+    if (!std::isfinite(pixelSize) || pixelSize < 1.0f || pixelSize > 256.0f) {
+        Log::GetEngineLogger().Error("Font size must be finite and between 1 and 256 pixels");
+        return std::nullopt;
+    }
     auto impl = std::make_unique<Impl>();
     impl->fontData.assign(reinterpret_cast<const unsigned char*>(fontData.data()),
                           reinterpret_cast<const unsigned char*>(fontData.data()) + fontData.size());
@@ -66,66 +73,83 @@ std::optional<FontAtlas> FontAtlas::Create(std::span<const std::byte> fontData, 
     impl->ascent = static_cast<float>(ascent) * impl->scale;
     impl->lineHeight = static_cast<float>(ascent - descent + lineGap) * impl->scale;
 
-    std::vector<std::vector<stbtt_packedchar>> packed(Ranges.size());
-    std::vector<stbtt_pack_range> packRanges(Ranges.size());
-    for (std::size_t i = 0; i < Ranges.size(); ++i) {
-        packed[i].resize(Ranges[i].last - Ranges[i].first + 1);
-        packRanges[i].font_size = pixelSize;
-        packRanges[i].first_unicode_codepoint_in_range = static_cast<int>(Ranges[i].first);
-        packRanges[i].num_chars = static_cast<int>(packed[i].size());
-        packRanges[i].chardata_for_range = packed[i].data();
+    struct Raster {
+        char32_t codePoint;
+        Glyph glyph;
+        int width = 0;
+        int height = 0;
+        int x = 0;
+        int y = 0;
+        std::vector<unsigned char> pixels;
+    };
+    std::vector<Raster> rasters;
+    for (const auto range : Ranges) {
+        for (char32_t codePoint = range.first; codePoint <= range.last; ++codePoint) {
+            Raster raster{codePoint, {}};
+            int advance = 0;
+            int bearing = 0;
+            stbtt_GetCodepointHMetrics(&impl->info, static_cast<int>(codePoint), &advance, &bearing);
+            raster.glyph.advance = static_cast<float>(advance) * impl->scale;
+            int xOffset = 0;
+            int yOffset = 0;
+            auto* sdf =
+                stbtt_GetCodepointSDF(&impl->info, impl->scale, static_cast<int>(codePoint), SdfPadding, SdfEdge,
+                                      SdfDistanceScale, &raster.width, &raster.height, &xOffset, &yOffset);
+            if (sdf) {
+                raster.pixels.assign(sdf, sdf + raster.width * raster.height);
+                raster.glyph.min = {static_cast<float>(xOffset), -static_cast<float>(yOffset + raster.height)};
+                raster.glyph.max = {static_cast<float>(xOffset + raster.width), -static_cast<float>(yOffset)};
+                stbtt_FreeSDF(sdf, nullptr);
+            }
+            rasters.push_back(std::move(raster));
+        }
     }
-
-    // Starts small and doubles until every glyph fits.
     int size = 256;
-    std::vector<unsigned char> coverage;
     for (;; size *= 2) {
         if (size > MaxAtlasSize) {
-            Log::GetEngineLogger().Error("Glyphs at {} pixels do not fit in a {}x{} atlas", pixelSize, MaxAtlasSize,
-                                         MaxAtlasSize);
+            Log::GetEngineLogger().Error("SDF glyphs do not fit in the font atlas");
             return std::nullopt;
         }
-        coverage.assign(static_cast<std::size_t>(size) * size, 0);
-        stbtt_pack_context context;
-        if (!stbtt_PackBegin(&context, coverage.data(), size, size, 0, 1, nullptr)) {
-            return std::nullopt;
-        }
-        stbtt_PackSetOversampling(&context, Oversampling, Oversampling);
-        const bool fits =
-            stbtt_PackFontRanges(&context, data, 0, packRanges.data(), static_cast<int>(packRanges.size()));
-        stbtt_PackEnd(&context);
-        if (fits) {
-            break;
-        }
-    }
-
-    const float atlasSize = static_cast<float>(size);
-    for (std::size_t i = 0; i < Ranges.size(); ++i) {
-        for (std::size_t j = 0; j < packed[i].size(); ++j) {
-            const stbtt_packedchar& c = packed[i][j];
-            const char32_t codePoint = Ranges[i].first + static_cast<char32_t>(j);
-            Glyph glyph;
-            glyph.advance = c.xadvance;
-            // Packing pads every glyph, so blank ones such as the space still get a box; they keep an empty one.
-            if (stbtt_IsGlyphEmpty(&impl->info, stbtt_FindGlyphIndex(&impl->info, static_cast<int>(codePoint)))) {
-                impl->glyphs.emplace(codePoint, glyph);
+        int x = 1;
+        int y = 1;
+        int rowHeight = 0;
+        bool fits = true;
+        for (auto& raster : rasters) {
+            if (raster.pixels.empty())
                 continue;
+            if (x + raster.width + 1 > size) {
+                x = 1;
+                y += rowHeight + 1;
+                rowHeight = 0;
             }
-            // stb_truetype measures Y downward from the baseline.
-            glyph.min = {c.xoff, -c.yoff2};
-            glyph.max = {c.xoff2, -c.yoff};
-            glyph.uvMin = {static_cast<float>(c.x0) / atlasSize, static_cast<float>(c.y0) / atlasSize};
-            glyph.uvMax = {static_cast<float>(c.x1) / atlasSize, static_cast<float>(c.y1) / atlasSize};
-            impl->glyphs.emplace(codePoint, glyph);
+            if (raster.width + 2 > size || y + raster.height + 1 > size) {
+                fits = false;
+                break;
+            }
+            raster.x = x;
+            raster.y = y;
+            x += raster.width + 1;
+            rowHeight = std::max(rowHeight, raster.height);
         }
+        if (fits)
+            break;
     }
-
-    std::vector<std::uint8_t> pixels(coverage.size() * 4);
-    for (std::size_t i = 0; i < coverage.size(); ++i) {
-        pixels[i * 4 + 0] = 255;
-        pixels[i * 4 + 1] = 255;
-        pixels[i * 4 + 2] = 255;
-        pixels[i * 4 + 3] = coverage[i];
+    const float atlasSize = static_cast<float>(size);
+    std::vector<std::uint8_t> pixels(static_cast<std::size_t>(size) * size * 4, 0);
+    for (auto& raster : rasters) {
+        if (!raster.pixels.empty()) {
+            raster.glyph.uvMin = {static_cast<float>(raster.x) / atlasSize, static_cast<float>(raster.y) / atlasSize};
+            raster.glyph.uvMax = {static_cast<float>(raster.x + raster.width) / atlasSize,
+                                  static_cast<float>(raster.y + raster.height) / atlasSize};
+            for (int y = 0; y < raster.height; ++y) {
+                for (int x = 0; x < raster.width; ++x) {
+                    const auto pixel = static_cast<std::size_t>((raster.y + y) * size + raster.x + x) * 4;
+                    pixels[pixel] = pixels[pixel + 1] = pixels[pixel + 2] = 255;
+                    pixels[pixel + 3] = raster.pixels[static_cast<std::size_t>(y * raster.width + x)];
+                }
+            }
+        }
+        impl->glyphs.emplace(raster.codePoint, raster.glyph);
     }
     impl->image.emplace(static_cast<std::uint32_t>(size), static_cast<std::uint32_t>(size), std::move(pixels));
 

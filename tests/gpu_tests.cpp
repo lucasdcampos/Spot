@@ -3489,3 +3489,57 @@ TEST_CASE("Particles use opaque and cutout camera depth with multisampling offsc
     const auto transparent = render();
     CHECK(transparent[center] > 240);
 }
+
+TEST_CASE("SDF text scales and world text renders offscreen", "[gpu][text][offscreen]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    auto target = device->CreateTexture(
+        {.width = 256, .height = 128, .format = Spot::TextureFormat::Rgba8, .renderTarget = true});
+    REQUIRE(target);
+    Spot::AssetRef<Spot::Font> font(
+        Spot::Font::Load(*device, std::filesystem::path(SPOT_TEST_ASSETS_DIR) / "fonts/FiraSans-Regular.ttf", 32));
+    REQUIRE(font);
+    Spot::Renderer2D renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8});
+    REQUIRE(renderer.IsValid());
+    auto draw = [&](float scale, bool world) {
+        auto* context = device->BeginOffscreenFrame(*target);
+        REQUIRE(context);
+        auto pass = context->BeginRenderPass({.clearColor = Spot::Color::Black});
+        renderer.Begin(pass, Spot::Scene::ScreenCamera({256, 128}), {256, 128});
+        renderer.DrawQuad({240, 10}, {8, 8}, Spot::Color::Blue);
+        if (world) {
+            Spot::Scene scene;
+            auto& entity = scene.CreateEntity("Label");
+            entity.GetTransform().SetPosition({20, 110, 0});
+            auto& text = entity.AddComponent<Spot::TextRenderer>();
+            text.SetFont(font);
+            text.SetText("A");
+            text.SetPixelScale(scale);
+            text.SetFacingCamera(true);
+            renderer.DrawWorldText(scene, {});
+        } else {
+            renderer.DrawString(*font, "A", {20, 110}, Spot::Color::White, scale);
+        }
+        renderer.DrawQuad({230, 10}, {8, 8}, Spot::Color::Red);
+        renderer.End();
+        CHECK(renderer.GetStats().quadCount == 3);
+        pass.End();
+        device->EndFrame();
+        return device->DownloadTexture(*target);
+    };
+    const auto small = draw(1, false);
+    const auto large = draw(3, false);
+    const auto world = draw(3, true);
+    auto brightPixels = [](const auto& pixels) {
+        std::size_t count = 0;
+        for (std::size_t i = 0; i < pixels.size(); i += 4) {
+            if (pixels[i] > 200 && pixels[i + 1] > 200 && pixels[i + 2] > 200)
+                ++count;
+        }
+        return count;
+    };
+    CHECK(brightPixels(small) > 20);
+    CHECK(brightPixels(large) > brightPixels(small) * 5);
+    CHECK(world == large);
+}

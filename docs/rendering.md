@@ -235,6 +235,7 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
   `cross(normal, tangent.xyz) * w`), in which normal maps are read. Models use the tangents their glTF files give,
   and `GenerateTangents()` makes the others with MikkTSpace, as normal maps are baked, splitting vertices that need
   two; the `MeshData` builders call it, and so must code that builds meshes itself and uses normal maps.
+- `TextRenderer`: SDF text in its entity XY plane, optionally camera-facing; see [Runtime UI and text](runtime_ui.md).
 - `SpriteRenderer`: a texture or color on a rectangle in its entity's XY plane, for 2D.
 - Lights: `AmbientLight`, `DirectionalLight`, `PointLight` and `SpotLight`. Up to `Renderer3D::MaxLights` (see Clustered
   lights) light each frame. Intensities are illuminance, in units where 1 makes a white matte surface facing the light

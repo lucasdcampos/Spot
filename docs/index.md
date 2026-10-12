@@ -15,6 +15,7 @@ that does the same with a window around it.
 | [Assets and importing](assets_and_importing.md) | Source assets and `.meta` files, the asset database and importers, loading imported assets |
 | [Prefabs](prefabs.md) | Reusable entity tree assets, import validation and runtime instantiation |
 | [Rendering](rendering.md) | The graphics device, shaders, Renderer2D, Renderer3D, SceneRenderer, lights, skies, shadows |
+| [Runtime UI and text](runtime_ui.md) | SDF fonts, world text and runtime interfaces |
 | [Particles](particles.md) | Curves, gradients and particle effects |
 | [Physics](physics.md) | Colliders, rigidbodies, the physics world and its backend |
 | [Audio](audio.md) | Sounds, the audio device and the mixer |

@@ -11,6 +11,7 @@
 #include "scene/entity.h"
 #include "scene/scene.h"
 #include "scene/sprite_renderer.h"
+#include "scene/text_renderer.h"
 
 #include "sprite.frag.h"
 #include "sprite.vert.h"
@@ -65,6 +66,7 @@ void Renderer2D::Begin(RenderPass& pass, const Camera2D& camera, Vector2 viewSiz
     m_pass = &pass;
     m_viewProjection = camera.GetViewProjection(viewSize);
     m_batch.Clear();
+    m_stats = {};
 }
 
 void Renderer2D::Begin(RenderPass& pass, const Matrix4& viewProjection) {
@@ -72,6 +74,7 @@ void Renderer2D::Begin(RenderPass& pass, const Matrix4& viewProjection) {
     m_pass = &pass;
     m_viewProjection = viewProjection;
     m_batch.Clear();
+    m_stats = {};
 }
 
 void Renderer2D::DrawScene(Scene& scene) {
@@ -117,6 +120,26 @@ void Renderer2D::DrawScene(Scene& scene) {
     }
 }
 
+void Renderer2D::DrawWorldText(Scene& scene, const Camera3D& camera) {
+    SPOT_PROFILE_SCOPE("Renderer2D::DrawWorldText");
+    std::vector<TextRenderer*> texts;
+    scene.ForEachComponent<TextRenderer>([&](TextRenderer& text) { texts.push_back(&text); });
+    std::stable_sort(texts.begin(), texts.end(),
+                     [](const auto* a, const auto* b) { return a->GetOrder() < b->GetOrder(); });
+    const auto projection = m_viewProjection;
+    for (const auto* text : texts) {
+        if (!text->GetFont())
+            continue;
+        Flush();
+        m_batch.Clear();
+        m_viewProjection = projection * text->GetDrawMatrix(camera);
+        DrawString(*text->GetFont(), text->GetText(), {}, text->GetColor(), text->GetPixelScale());
+    }
+    Flush();
+    m_batch.Clear();
+    m_viewProjection = projection;
+}
+
 void Renderer2D::End() {
     SPOT_PROFILE_SCOPE("Renderer2D::End");
     SPOT_ASSERT(m_pass, "Renderer2D::End() called without Begin()");
@@ -151,12 +174,11 @@ void Renderer2D::DrawString(const Font& font, std::string_view text, Vector2 pos
     for (const auto& glyph : LayoutText(font.GetAtlas(), text)) {
         const Vector2 center = position + (glyph.min + glyph.max) * (scale / 2.0f);
         const Vector2 size = (glyph.max - glyph.min) * scale;
-        m_batch.AddQuad(center, size, 0.0f, &font.GetTexture(), color, {glyph.uvMin, glyph.uvMax});
+        m_batch.AddQuad(center, size, 0.0f, &font.GetTexture(), color, {glyph.uvMin, glyph.uvMax}, true);
     }
 }
 
 void Renderer2D::Flush() {
-    m_stats = {};
     if (m_batch.IsEmpty() || !IsValid() || !EnsureCapacity(m_batch.GetQuadCount())) {
         return;
     }
@@ -171,13 +193,14 @@ void Renderer2D::Flush() {
     m_pass->PushVertexUniforms(0, m_viewProjection);
 
     for (const auto& command : m_batch.GetCommands()) {
+        m_pass->PushFragmentUniforms(0, Vector4{command.signedDistance ? 1.0f : 0.0f, 0, 0, 0});
         m_pass->BindFragmentTexture(0, command.texture ? *command.texture : *m_whiteTexture, *m_sampler);
         m_pass->DrawIndexed(command.quadCount * QuadBatch::IndicesPerQuad, 1,
                             command.firstQuad * QuadBatch::IndicesPerQuad);
     }
 
-    m_stats.quadCount = m_batch.GetQuadCount();
-    m_stats.drawCalls = static_cast<std::uint32_t>(m_batch.GetCommands().size());
+    m_stats.quadCount += m_batch.GetQuadCount();
+    m_stats.drawCalls += static_cast<std::uint32_t>(m_batch.GetCommands().size());
 }
 
 bool Renderer2D::EnsureCapacity(std::uint32_t quadCount) {

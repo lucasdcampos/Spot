@@ -1128,7 +1128,7 @@ offsets, size) lays out each element, and widgets are components. That way UI ge
 hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRect` relates to the entity's
 `Transform` and records it in Notes. UI draws with `Renderer2D` after post-processing.
 
-- [ ] **M12.1 Text.** SDF or MSDF glyphs, so text stays sharp at any size (bump the font importer), and a
+- [x] **M12.1 Text.** SDF or MSDF glyphs, so text stays sharp at any size (bump the font importer), and a
   `TextRenderer` component for text in the world, optionally facing the camera.
 - [ ] **M12.2 Canvas and layout.** `Canvas`, `UiRect`, scaling modes (constant pixel size, or scaling with a
   reference resolution), the layout pass and draw order. Tests.
@@ -1146,6 +1146,11 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
 **Done when:** the sandbox's menus work with mouse, keyboard and gamepad, and are authored in the editor.
 
 **Notes:**
+- M12.1: signed-distance glyphs use six pixels of padding and derivative-based coverage in Renderer2D.
+  Font importer version 2 keeps source bytes and kerning; one atlas serves scaled text. World labels
+  follow entity transforms or camera rotation, in the sprite overlay pass in both game and editor.
+  MSVC Debug builds without compiler warnings; 51 text/batching/import cases pass 1,334 assertions
+  and two serial offscreen GPU cases verify enlarged world text and the developer console.
 
 ---
 

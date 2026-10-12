@@ -3,6 +3,7 @@
 #include "graphics/font_atlas.h"
 #include "import/importers/importer.h"
 
+#include <cmath>
 #include <format>
 #include <utility>
 
@@ -18,8 +19,8 @@ bool ImportFont(ImportContext& context) {
     }
 
     for (const float size : settings.extraSizes) {
-        if (!(size > 0.0f)) {
-            Log::GetEngineLogger().Error("Font sizes must be positive, not {}", size);
+        if (!std::isfinite(size) || size < 1.0f || size > 256.0f) {
+            Log::GetEngineLogger().Error("Font sizes must be finite and between 1 and 256 pixels, not {}", size);
             return false;
         }
         BinaryWriter data;

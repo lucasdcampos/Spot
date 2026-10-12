@@ -194,7 +194,8 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
         return;
     }
     const bool drawGrid = options.showGrid && m_grid;
-    const bool drawSprites = m_sprites->IsValid() && scene.FindComponent<SpriteRenderer>();
+    const bool drawSprites =
+        m_sprites->IsValid() && (scene.FindComponent<SpriteRenderer>() || scene.FindComponent<TextRenderer>());
     const bool drawLines = m_lines->IsValid() && (!DebugDraw::GetLines().empty() || !options.lines.empty());
     // Everything but the interfaces is light, drawn into the HDR image, through its samples when there are several,
     // which every pass keeps for the next.
@@ -252,6 +253,7 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
         auto pass = context.BeginRenderPass(spriteDesc);
         m_sprites->Begin(pass, stage.viewProjection);
         m_sprites->DrawScene(scene);
+        m_sprites->DrawWorldText(scene, stage.camera);
         m_sprites->End();
     }
     bool hasParticles = false;
