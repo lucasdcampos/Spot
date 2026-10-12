@@ -3543,3 +3543,45 @@ TEST_CASE("SDF text scales and world text renders offscreen", "[gpu][text][offsc
     CHECK(brightPixels(large) > brightPixels(small) * 5);
     CHECK(world == large);
 }
+
+TEST_CASE("Authored UI previews and scroll clipping render offscreen", "[gpu][ui][offscreen]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    auto target =
+        device->CreateTexture({.width = 64, .height = 64, .format = Spot::TextureFormat::Rgba8, .renderTarget = true});
+    REQUIRE(target);
+    Spot::Scene scene;
+    auto& root = scene.CreateEntity("Canvas");
+    root.AddComponent<Spot::Canvas>();
+    auto& panel = root.CreateChild("Scroll");
+    auto& rect = panel.AddComponent<Spot::UiRect>();
+    rect.layout.anchorMin = rect.layout.anchorMax = rect.layout.pivot = {};
+    rect.layout.offset = {8, 8};
+    rect.layout.sizeDelta = {32, 32};
+    panel.AddComponent<Spot::UiScrollView>().contentSize = {64, 64};
+    auto& child = panel.CreateChild("Clipped Image");
+    auto& childRect = child.AddComponent<Spot::UiRect>();
+    childRect.layout.anchorMin = {};
+    childRect.layout.anchorMax = {1, 1};
+    childRect.layout.sizeDelta = {};
+    child.AddComponent<Spot::UiImage>().tint = Spot::Color::Red;
+    Spot::Renderer2D renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8});
+    auto* context = device->BeginOffscreenFrame(*target);
+    REQUIRE(context);
+    auto pass = context->BeginRenderPass({.clearColor = Spot::Color::Black});
+    renderer.Begin(pass, Spot::Scene::ScreenCamera({64, 64}), {64, 64});
+    scene.DrawUi(renderer, {64, 64});
+    renderer.DrawQuad({60, 4}, {4, 4}, Spot::Color::Blue);
+    renderer.End();
+    pass.End();
+    device->EndFrame();
+    const auto pixels = device->DownloadTexture(*target);
+    auto red = [&](int x, int y) { return pixels[static_cast<std::size_t>((y * 64 + x) * 4)]; };
+    CHECK(red(20, 40) > 240);
+    CHECK(red(7, 40) == 0);
+    CHECK(red(40, 40) == 0);
+    CHECK(red(20, 23) == 0);
+    CHECK(red(20, 56) == 0);
+    CHECK(pixels[(60 * 64 + 60) * 4 + 2] > 240);
+}

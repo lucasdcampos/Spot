@@ -4,6 +4,7 @@
 #include "scene/entity.h"
 #include "scene/scene.h"
 #include "ui/canvas.h"
+#include "ui/ui_widgets.h"
 
 #include <algorithm>
 #include <cmath>
@@ -50,7 +51,13 @@ void UiSystem::LayoutChildren(Entity& parent, EntityId canvas, UiBounds bounds, 
             childBounds = {childBounds.min * scale, childBounds.max * scale};
             m_entries.push_back({child->GetId(), canvas, childBounds, clip, scale});
         }
-        LayoutChildren(*child, canvas, childBounds, clip, scale);
+        UiBounds childClip = clip;
+        if (auto* scroll = child->GetComponent<UiScrollView>(); scroll && scroll->IsActiveAndEnabled()) {
+            scroll->SetOffset(scroll->GetOffset());
+            childClip = IntersectUiBounds(clip, childBounds);
+            childBounds = scroll->GetContentBounds(childBounds, scale);
+        }
+        LayoutChildren(*child, canvas, childBounds, childClip, scale);
     }
 }
 

@@ -1,4 +1,5 @@
 #include "scene/entity.h"
+#include "ui/ui_widgets.h"
 
 #include "core/assert.h"
 #include "physics/character_controller.h"
@@ -310,7 +311,8 @@ void Entity::UpdateCoroutines(float deltaTime) {
 
 void Entity::DrawUiComponents(Renderer2D& renderer, Vector2 viewSize) {
     for (std::size_t i = 0; i < m_components.size(); ++i) {
-        if (Component& component = *m_components[i]; component.m_active) {
+        if (Component& component = *m_components[i];
+            component.m_active || (dynamic_cast<UiWidget*>(&component) && component.IsActiveAndEnabled())) {
             component.InvokeHook("OnDrawUi", [&] { component.OnDrawUi(renderer, viewSize); });
         }
     }

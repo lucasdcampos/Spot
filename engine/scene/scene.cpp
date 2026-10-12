@@ -5,6 +5,7 @@
 #include "core/diagnostics.h"
 #include "core/log.h"
 #include "core/profiler.h"
+#include "graphics/renderer_2d.h"
 #include "physics/physics_world.h"
 #include "ui/canvas.h"
 #include "ui/ui_system.h"
@@ -315,6 +316,7 @@ void Scene::DrawUi(Renderer2D& renderer, Vector2 viewSize) {
         if (auto* entity = GetEntity(entry.entity))
             entity->DrawUiComponents(renderer, viewSize);
     }
+    renderer.SetScissor({0, 0, static_cast<std::int32_t>(viewSize.x), static_cast<std::int32_t>(viewSize.y)});
 }
 
 Camera2D Scene::ScreenCamera(Vector2 viewSize) {

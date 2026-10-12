@@ -16,6 +16,7 @@
 #include "scene/sprite_renderer.h"
 #include "scene/text_renderer.h"
 #include "ui/canvas.h"
+#include "ui/ui_widgets.h"
 
 #include <algorithm>
 #include <mutex>
@@ -66,6 +67,13 @@ Registry& GetRegistry() {
         RegisterBuiltIn<Sky>(registry, "Sky");
         RegisterBuiltIn<Fog>(registry, "Fog");
         RegisterBuiltIn<PostProcessing>(registry, "PostProcessing");
+        RegisterBuiltIn<UiImage>(registry, "UiImage");
+        RegisterBuiltIn<UiText>(registry, "UiText");
+        RegisterBuiltIn<UiButton>(registry, "UiButton");
+        RegisterBuiltIn<UiToggle>(registry, "UiToggle");
+        RegisterBuiltIn<UiSlider>(registry, "UiSlider");
+        RegisterBuiltIn<UiInputField>(registry, "UiInputField");
+        RegisterBuiltIn<UiScrollView>(registry, "UiScrollView");
         RegisterBuiltIn<Canvas>(registry, "Canvas");
         RegisterBuiltIn<UiRect>(registry, "UiRect");
         RegisterBuiltIn<TextRenderer>(registry, "TextRenderer");

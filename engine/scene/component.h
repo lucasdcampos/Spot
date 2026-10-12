@@ -126,6 +126,7 @@ protected:
 private:
     friend class Entity;
     friend class PhysicsWorld;
+    friend class UiWidget;
     friend struct Detail::SceneSerializer;
 
     // Calls OnEnable() or OnDisable() when the component started and its activity changed since the last call.

@@ -128,3 +128,6 @@
 #include "ui/canvas.h"
 #include "ui/ui_layout.h"
 #include "ui/ui_system.h"
+
+#include "ui/ui_text_layout.h"
+#include "ui/ui_widgets.h"

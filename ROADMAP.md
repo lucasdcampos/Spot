@@ -1132,7 +1132,7 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
   `TextRenderer` component for text in the world, optionally facing the camera.
 - [x] **M12.2 Canvas and layout.** `Canvas`, `UiRect`, scaling modes (constant pixel size, or scaling with a
   reference resolution), the layout pass and draw order. Tests.
-- [ ] **M12.3 Widgets.** `UiImage` (nine-slice, tint), `UiText` (alignment, wrapping, overflow), `UiButton` (states,
+- [x] **M12.3 Widgets.** `UiImage` (nine-slice, tint), `UiText` (alignment, wrapping, overflow), `UiButton` (states,
   an `OnClick` signal), `UiToggle`, `UiSlider`, `UiInputField` (M2.2) and `UiScrollView` with clipping.
 - [ ] **M12.4 Layout groups.** Horizontal, vertical and grid layouts, and size fitters.
 - [ ] **M12.5 UI input.** Pointer hit testing, focus and navigation with keyboard and gamepad, and UI that consumes
@@ -1146,6 +1146,12 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
 **Done when:** the sandbox's menus work with mouse, keyboard and gamepad, and are authored in the editor.
 
 **Notes:**
+- M12.3: seven serializable widgets share guarded interaction, bounded values and control states.
+  Nine-slice and text layout also have code-only APIs; text wraps words/long words, aligns and
+  clips or ellipsizes. UTF-8 fields edit whole code points. Scroll descendants inherit intersected
+  scissors; widgets preview without starting gameplay. Cached text/image geometry is reused.
+  MSVC builds without compiler warnings; ten UI cases pass 77 assertions and two offscreen GPU
+  cases verify authored preview, scroll clipping, scissor restoration and scaled world text.
 - M12.2: UiRect owns screen layout independently of Transform; entity hierarchy and activity still
   apply. Anchors/pivots use bottom-left coordinates; separated anchors stretch plus size delta.
   Reference scaling uses the smaller viewport/reference ratio. Nested canvases are independent

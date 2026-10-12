@@ -237,6 +237,8 @@ add_library(spot_objects OBJECT
     scene/sky.cpp
     scene/sprite_renderer.h
     scene/sprite_renderer.cpp
+    ui/ui_text_layout.cpp
+    ui/ui_widgets.cpp
     ui/ui_layout.cpp
     ui/ui_system.cpp
     scene/text_renderer.cpp

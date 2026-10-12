@@ -3,6 +3,8 @@
 #include "graphics/camera_2d.h"
 #include "graphics/color.h"
 #include "graphics/quad_batch.h"
+#include "graphics/render_context.h"
+#include "graphics/text_layout.h"
 #include "graphics/texture.h"
 #include "math/vector.h"
 
@@ -82,6 +84,11 @@ public:
     void DrawString(const Font& font, std::string_view text, Vector2 position, Color color = Color::White,
                     float scale = 1.0f);
 
+    void DrawGlyphs(const Font& font, std::span<const GlyphQuad> glyphs, Vector2 position, Color color = Color::White,
+                    float scale = 1);
+    // Flushes pending quads before changing the pass's clip rectangle.
+    void SetScissor(const ScissorRect& rect);
+
     // What the last End() drew.
     Renderer2DStats GetStats() const { return m_stats; }
 
@@ -100,6 +107,7 @@ private:
     QuadBatch m_batch;
     RenderPass* m_pass = nullptr;
     Matrix4 m_viewProjection;
+    std::optional<ScissorRect> m_scissor;
     Renderer2DStats m_stats;
 };
 

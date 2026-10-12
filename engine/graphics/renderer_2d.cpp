@@ -67,6 +67,7 @@ void Renderer2D::Begin(RenderPass& pass, const Camera2D& camera, Vector2 viewSiz
     m_viewProjection = camera.GetViewProjection(viewSize);
     m_batch.Clear();
     m_stats = {};
+    m_scissor.reset();
 }
 
 void Renderer2D::Begin(RenderPass& pass, const Matrix4& viewProjection) {
@@ -75,6 +76,7 @@ void Renderer2D::Begin(RenderPass& pass, const Matrix4& viewProjection) {
     m_viewProjection = viewProjection;
     m_batch.Clear();
     m_stats = {};
+    m_scissor.reset();
 }
 
 void Renderer2D::DrawScene(Scene& scene) {
@@ -171,11 +173,28 @@ void Renderer2D::DrawRotatedQuad(Vector2 position, Vector2 size, float rotation,
 
 void Renderer2D::DrawString(const Font& font, std::string_view text, Vector2 position, Color color, float scale) {
     SPOT_ASSERT(m_pass, "Draw calls must come between Begin() and End()");
-    for (const auto& glyph : LayoutText(font.GetAtlas(), text)) {
+    DrawGlyphs(font, LayoutText(font.GetAtlas(), text), position, color, scale);
+}
+
+void Renderer2D::DrawGlyphs(const Font& font, std::span<const GlyphQuad> glyphs, Vector2 position, Color color,
+                            float scale) {
+    SPOT_ASSERT(m_pass, "Draw calls must come between Begin() and End()");
+    for (const auto& glyph : glyphs) {
         const Vector2 center = position + (glyph.min + glyph.max) * (scale / 2.0f);
         const Vector2 size = (glyph.max - glyph.min) * scale;
         m_batch.AddQuad(center, size, 0.0f, &font.GetTexture(), color, {glyph.uvMin, glyph.uvMax}, true);
     }
+}
+
+void Renderer2D::SetScissor(const ScissorRect& rect) {
+    SPOT_ASSERT(m_pass, "Scissor calls must come between Begin() and End()");
+    if (m_scissor && m_scissor->x == rect.x && m_scissor->y == rect.y && m_scissor->width == rect.width &&
+        m_scissor->height == rect.height)
+        return;
+    Flush();
+    m_batch.Clear();
+    m_pass->SetScissor(rect);
+    m_scissor = rect;
 }
 
 void Renderer2D::Flush() {

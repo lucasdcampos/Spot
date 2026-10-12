@@ -38,4 +38,29 @@ children draw depth-first in sibling order, parents first. Later elements appear
 Inactive entities and disabled rectangles are excluded. Resize and hierarchy changes are resolved
 on the next pass. Canvas/rect fields serialize normally, including prefab and inspector editing.
 
-Widgets, layout groups, input and editor authoring follow in M12.3–M12.7.
+## Widgets
+
+Widgets are components on entities with a `UiRect`. They also draw before scene startup, allowing
+canvas previews without running gameplay. `UiImage` fills with a tint or draws a texture; `borders`
+(left, bottom, right, top) enable nine-slice images with source-pixel borders. Tiny destinations
+shrink the border pairs proportionally. `UiText` has a font asset, UTF-8 text, display size, color,
+left/center/right alignment, word wrapping (long words break), and overflow/clip/ellipsis modes.
+Text and image geometry are cached until their inputs change. `LayoutUiText()` and
+`BuildUiNineSlice()` expose the same mechanisms without scene components.
+
+`UiButton::OnClick`, `UiToggle::OnValueChanged` and `UiSlider::OnValueChanged` are signals. Keep
+the returned `SignalConnection` to stay subscribed. Buttons have normal, hovered, pressed,
+focused and disabled colors; all controls share `UiControlStyle`. Sliders have a range, keyboard
+step and horizontal/vertical orientation. Programmatic setters are silent unless `notify` is true.
+`UiWidget::HandleUiEvent()` permits code-only activation as well as input dispatch; callbacks
+are guarded and a throwing subscriber faults only its widget. Destruction during callbacks is deferred.
+
+`UiInputField` accepts UTF-8, edits complete code points at its caret, limits character count,
+filters single-line control characters, and emits change and submit signals. Its placeholder and
+caret are rendered by the runtime. `UiScrollView` clips all descendants to its rectangle and shifts
+its content according to a bounded offset. Content size is in logical pixels; zero dimensions fit
+the viewport. Nested scroll clips intersect. The renderer flushes when the scissor changes, retaining
+draw order and restoring the full viewport after the UI pass. Focus, pointer routing, keyboard and
+gamepad navigation follow in M12.5.
+
+Layout groups, input and editor authoring follow in M12.4–M12.7.
