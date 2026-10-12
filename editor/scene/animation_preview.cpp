@@ -22,10 +22,21 @@ void AnimationPreview::Select(Scene& scene, EntityId entityId, ComponentId compo
             if ((!componentId.IsValid() && !effect) || candidate.GetId() == componentId)
                 effect = &candidate;
         });
+    if (!effect && entity) {
+        if (auto* skin = entity->GetComponent<SkinnedMeshRenderer>()) {
+            if (auto* owner = scene.GetEntity(skin->GetAnimator())) {
+                effect = owner->GetComponent<Animator>();
+            }
+        }
+        if (!effect) {
+            effect = entity->GetComponentInParent<Animator>();
+        }
+    }
     if (!effect) {
         Clear(scene);
         return;
     }
+    entityId = effect->GetEntity().GetId();
     if (m_entity == entityId && m_component == effect->GetId() && m_revision == revision)
         return;
     Clear(scene);
@@ -41,17 +52,45 @@ void AnimationPreview::Update(Scene& scene, float realDeltaTime) {
         Clear(scene);
         return;
     }
-    if (m_playing && effect->IsActiveAndEnabled())
-        effect->Preview(realDeltaTime);
-    effect->RefreshRenderers();
+    if (effect->IsActiveAndEnabled()) {
+        if (m_clip) {
+            if (m_playing) {
+                m_clipTime = Pose::WrapTime(m_clipTime + realDeltaTime * effect->GetSpeed(), m_clip->duration, true);
+            }
+            if (!effect->PreviewClip(m_clip, m_clipTime)) {
+                m_clip = {};
+            }
+        } else if (m_playing) {
+            effect->Preview(realDeltaTime);
+        }
+        effect->RefreshRenderers();
+    }
+}
+void AnimationPreview::SetClip(AssetRef<AnimationClip> clip) {
+    if (clip != m_clip) {
+        m_clip = std::move(clip);
+        m_clipTime = 0;
+    }
 }
 void AnimationPreview::Restart(Scene& scene) {
+    if (m_clip) {
+        Seek(scene, 0);
+        return;
+    }
     if (auto* effect = Resolve(scene))
         effect->Seek(0);
     if (auto* effect = Resolve(scene))
         effect->RefreshRenderers();
 }
 void AnimationPreview::Seek(Scene& scene, float seconds) {
+    if (m_clip) {
+        m_clipTime = Pose::WrapTime(seconds, m_clip->duration, false);
+        if (auto* animator = Resolve(scene)) {
+            animator->PreviewClip(m_clip, m_clipTime);
+            animator->RefreshRenderers();
+        }
+        return;
+    }
     if (auto* effect = Resolve(scene))
         effect->Seek(seconds);
     if (auto* effect = Resolve(scene))
@@ -62,6 +101,8 @@ void AnimationPreview::Clear(Scene& scene) {
         effect->Seek(0);
     if (auto* effect = Resolve(scene))
         effect->RefreshRenderers();
+    m_clip = {};
+    m_clipTime = 0;
     m_entity = EntityId::Invalid;
     m_component = {};
     m_playing = true;

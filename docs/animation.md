@@ -84,3 +84,14 @@ scale to the current pose. `SetLayers()` validates the whole configuration befor
 it; `SetLayerWeight()` changes influence at runtime. Layer clips deliver their own guarded
 events when weighted above zero. Pose/mask storage is reused, and root motion belongs to
 the base animation. The inspector edits serialized layer settings and masks.
+
+Create controllers from the asset browser after importing clips. The controller inspector
+shows draggable state nodes, entry/any-state links, named transition endpoints, conditions,
+blend settings and parameters. Edits remain a draft until Apply; Revert discards them and
+Apply creates one undoable source edit. Removing a state remaps surviving transitions.
+During Play, the Animator inspector edits live typed parameters and shows its current state.
+
+Selecting a clip sub-asset shows key/event marks and a timeline. Select a rig in an edit-mode
+scene to play or seek that clip; the override affects only transient poses and restores the
+authored animation when cleared. Skinned meshes can be framed, picked and outlined at their
+animated positions. These paths share the GPU palette with normal viewport rendering.

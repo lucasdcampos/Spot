@@ -50,6 +50,7 @@ public:
     void Seek(float time);
     void Simulate(float deltaTime);
     void Preview(float deltaTime);
+    bool PreviewClip(AssetRef<AnimationClip> clip, float time);
     void RefreshRenderers();
 
 protected:

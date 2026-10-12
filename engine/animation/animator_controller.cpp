@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <limits>
 #include <unordered_set>
 
 namespace Spot {
@@ -53,6 +54,18 @@ bool AnimatorController::IsValid() const {
     for (const auto& parameter : parameters) {
         if (parameter.name.empty() || !names.insert(parameter.name).second || !std::isfinite(parameter.defaultValue) ||
             (parameter.type < AnimatorParameterType::Float || parameter.type > AnimatorParameterType::Trigger)) {
+            return false;
+        }
+    }
+    for (const auto& parameter : parameters) {
+        if (parameter.type == AnimatorParameterType::Int &&
+            (parameter.defaultValue < (std::numeric_limits<int>::min)() ||
+             parameter.defaultValue > (std::numeric_limits<int>::max)() ||
+             std::trunc(parameter.defaultValue) != parameter.defaultValue)) {
+            return false;
+        }
+        if (parameter.type == AnimatorParameterType::Float &&
+            std::abs(parameter.defaultValue) > (std::numeric_limits<float>::max)()) {
             return false;
         }
     }
@@ -205,7 +218,8 @@ const AnimatorTransition* AnimatorControllerRuntime::Advance(float deltaTime, fl
         return nullptr;
     }
     for (const auto& transition : m_controller->transitions) {
-        if ((transition.from != -1 && transition.from != m_state) || transition.to == m_state ||
+        if ((transition.from != -1 && transition.from != m_state) ||
+            (transition.from == -1 && transition.to == m_state) ||
             (transition.exitTime >= 0 && (clipDuration > 0 ? m_time / clipDuration : 1) < transition.exitTime) ||
             !std::ranges::all_of(transition.conditions, [&](const auto& condition) { return Matches(condition); })) {
             continue;

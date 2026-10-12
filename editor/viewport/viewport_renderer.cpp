@@ -7,6 +7,10 @@
 #include "outline.frag.h"
 #include "silhouette.frag.h"
 #include "silhouette.vert.h"
+#include "skinned_silhouette.vert.h"
+
+#include <array>
+#include <cstddef>
 
 #include <algorithm>
 
@@ -45,11 +49,26 @@ Color EncodeIndex(std::size_t index) {
 
 // Draws the meshes in the color last pushed, or each in the color of its index when picking.
 void DrawSilhouettes(RenderPass& pass, const Matrix4& viewProjection, std::span<const MeshInstance> meshes,
-                     bool picking) {
+                     bool picking, const Pipeline& plain, const Pipeline& skinned, const Buffer* palettes) {
+    std::uint32_t skinOffset = 0;
     for (std::size_t i = 0; i < meshes.size(); ++i) {
         const MeshInstance& instance = meshes[i];
+        const auto offset = skinOffset;
+        skinOffset += static_cast<std::uint32_t>(instance.palette.size());
         if (!instance.mesh) {
             continue;
+        }
+        if (!instance.palette.empty()) {
+            if (!palettes || !instance.mesh->GetSkinBuffer() ||
+                instance.palette.size() < instance.mesh->GetSkinJointCount()) {
+                continue;
+            }
+            pass.BindPipeline(skinned);
+            pass.BindVertexStorageBuffer(0, *palettes);
+            pass.BindVertexBuffer(1, *instance.mesh->GetSkinBuffer());
+            pass.PushVertexUniforms(1, std::array<std::uint32_t, 4>{offset, 0, 0, 0});
+        } else {
+            pass.BindPipeline(plain);
         }
         if (picking) {
             pass.PushFragmentUniforms(0, EncodeIndex(i));
@@ -154,6 +173,7 @@ ViewportRenderer::ViewportRenderer(GraphicsDevice& device)
     }
 
     const auto silhouetteVertex = device.CreateShader(Shaders::SilhouetteVert);
+    const auto skinnedSilhouette = device.CreateShader(Shaders::SkinnedSilhouetteVert);
     const auto silhouetteFragment = device.CreateShader(Shaders::SilhouetteFrag);
     const auto outlineShader = device.CreateShader(Shaders::OutlineFrag);
     if (silhouetteVertex && silhouetteFragment) {
@@ -168,6 +188,16 @@ ViewportRenderer::ViewportRenderer(GraphicsDevice& device)
         PipelineDesc pick = silhouette;
         pick.depth = DepthState{};
         m_pick = device.CreatePipeline(pick);
+        if (skinnedSilhouette) {
+            auto desc = silhouette;
+            desc.vertexShader = skinnedSilhouette.get();
+            desc.vertexBuffers = {{.stride = sizeof(MeshVertex),
+                                   .attributes = {{0, VertexFormat::Float3, offsetof(MeshVertex, position)}}},
+                                  Mesh::GetSkinLayout(1)};
+            m_skinnedMask = device.CreatePipeline(desc);
+            desc.depth = DepthState{};
+            m_skinnedPick = device.CreatePipeline(desc);
+        }
     }
     if (fullscreenShader && outlineShader) {
         m_outline = device.CreatePipeline({
@@ -178,7 +208,7 @@ ViewportRenderer::ViewportRenderer(GraphicsDevice& device)
         });
     }
     m_maskSampler = device.CreateSampler({.filter = TextureFilter::Nearest});
-    if (!m_mask || !m_outline || !m_maskSampler) {
+    if (!m_mask || !m_outline || !m_maskSampler || !m_skinnedMask) {
         GetEditorLogger().Warning("The selection outline could not be created; views show no outline");
     }
     if (!m_pick) {
@@ -308,10 +338,30 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
     runStage(RenderStage::Overlay);
 }
 
+bool ViewportRenderer::UploadSkinPalettes(std::span<const MeshInstance> meshes) {
+    m_skinPaletteData.clear();
+    for (const auto& mesh : meshes) {
+        m_skinPaletteData.insert(m_skinPaletteData.end(), mesh.palette.begin(), mesh.palette.end());
+    }
+    if (m_skinPaletteData.empty()) {
+        return true;
+    }
+    const auto bytes = static_cast<std::uint32_t>(m_skinPaletteData.size() * sizeof(Matrix4));
+    if (!m_skinPalettes || m_skinPalettes->GetSize() < bytes) {
+        m_skinPalettes = m_device.CreateBuffer({.usage = BufferUsage::Storage, .size = bytes});
+    }
+    if (!m_skinPalettes) {
+        return false;
+    }
+    m_device.UploadToBuffer(*m_skinPalettes, m_skinPaletteData, 0, UploadMode::Discard);
+    return true;
+}
+
 void ViewportRenderer::DrawOutline(RenderContext& context, const ViewportTargets& targets, const Camera3D& camera,
                                    std::span<const MeshInstance> meshes, Color color, float width) {
     Texture* mask = targets.GetSelectionMask();
-    if (meshes.empty() || !mask || !m_mask || !m_outline || !m_maskSampler) {
+    if (meshes.empty() || !mask || !m_mask || !m_outline || !m_maskSampler || !m_skinnedMask ||
+        !UploadSkinPalettes(meshes)) {
         return;
     }
     const Vector2 size{static_cast<float>(targets.GetWidth()), static_cast<float>(targets.GetHeight())};
@@ -319,7 +369,8 @@ void ViewportRenderer::DrawOutline(RenderContext& context, const ViewportTargets
         auto pass = context.BeginRenderPass({.target = mask, .clearColor = Color{0.0f, 0.0f, 0.0f, 0.0f}});
         pass.BindPipeline(*m_mask);
         pass.PushFragmentUniforms(0, Color{1.0f, 1.0f, 1.0f, 1.0f});
-        DrawSilhouettes(pass, camera.GetViewProjection(size), meshes, false);
+        DrawSilhouettes(pass, camera.GetViewProjection(size), meshes, false, *m_mask, *m_skinnedMask,
+                        m_skinPalettes.get());
     }
     auto pass = context.BeginRenderPass({.target = targets.GetColor()});
     pass.BindPipeline(*m_outline);
@@ -332,7 +383,7 @@ void ViewportRenderer::DrawOutline(RenderContext& context, const ViewportTargets
 
 void ViewportRenderer::RenderPick(RenderContext& context, const Camera3D& camera, Vector2 viewSize, Vector2 pixel,
                                   std::span<const MeshInstance> meshes) {
-    if (!m_pick || viewSize.x <= 0.0f || viewSize.y <= 0.0f) {
+    if (!m_pick || !m_skinnedPick || viewSize.x <= 0.0f || viewSize.y <= 0.0f || !UploadSkinPalettes(meshes)) {
         return;
     }
     if (!m_pickColor) {
@@ -354,7 +405,8 @@ void ViewportRenderer::RenderPick(RenderContext& context, const Camera3D& camera
                                          .depthTarget = m_pickDepth.get(),
                                          .clearDepth = 1.0f});
     pass.BindPipeline(*m_pick);
-    DrawSilhouettes(pass, zoom * camera.GetViewProjection(viewSize), meshes, true);
+    DrawSilhouettes(pass, zoom * camera.GetViewProjection(viewSize), meshes, true, *m_pick, *m_skinnedPick,
+                    m_skinPalettes.get());
     m_pickDrawn = true;
 }
 

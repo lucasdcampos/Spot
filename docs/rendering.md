@@ -303,3 +303,8 @@ See [Particles](particles.md) for the code-only renderer, sorting, flipbooks and
 last frame's submissions, useful when a consumer needs readable depth from a multisampled view.
 
 Games can apply per-user quality with `Application::SetRenderingSettings()` without resetting input bindings or changing project defaults. The renderer is rebuilt at the next scene render; `GetRenderingSettings()` and `GetRenderingRevision()` let custom hosts follow the same runtime configuration. The editor game view uses the public SceneRenderer path and follows these changes too.
+
+Skinned meshes use `SkinnedMeshRenderer` or `Renderer3D::DrawSkinnedMesh()` with a second
+vertex stream and per-instance joint palettes. Color, shadows, readable camera depth and
+editor picking use the same deformation. Bounds padding covers animation beyond the bind mesh;
+see [animation](animation.md).

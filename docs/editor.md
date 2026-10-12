@@ -95,3 +95,11 @@ inspector provides Play/Pause, Restart and Seek without altering authored data o
 Curve plots and gradient strips accompany editable keys. See [Particles](particles.md).
 
 Runtime UI has a creation submenu, canvas preview, rectangle handles and anchor presets with normal undo/prefab edits; see [Runtime UI and text](runtime_ui.md#editor-authoring).
+
+## Animation
+
+Import glTF skins/clips, then create an Animator Controller in the asset browser. Its inspector
+contains a draggable graph and transition/parameter editing; Apply and undo update the source
+asset. Clip sub-assets have key/event timelines and can preview on a selected scene rig without
+changing its authored clip. Animator components preview in edit mode and expose live parameters
+in Play. Picking and selection outlines follow the deformed mesh. See [animation](animation.md).

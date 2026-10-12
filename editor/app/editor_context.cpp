@@ -9,6 +9,11 @@ SceneDocument* EditorContext::GetActiveDocument() {
 }
 
 void EditorContext::InspectAsset(AssetId asset) {
+    if (asset != m_inspectedAsset && m_workspace) {
+        if (auto* previous = m_workspace->FindDocument(m_inspectedDocument)) {
+            previous->GetAnimationPreview().Clear(previous->GetScene());
+        }
+    }
     m_inspectedAsset = asset;
     const SceneDocument* document = GetActiveDocument();
     m_inspectedDocument = document ? document->GetId() : 0;
@@ -24,7 +29,7 @@ AssetId EditorContext::GetInspectedAsset() {
     const bool selectionChanged = document && (document->GetId() != m_inspectedDocument ||
                                                document->GetSelection().GetVersion() != m_inspectedSelection);
     if (selectionChanged || !m_project || !m_project->GetAssetDatabase().Find(m_inspectedAsset)) {
-        m_inspectedAsset = {};
+        InspectAsset({});
     }
     return m_inspectedAsset;
 }

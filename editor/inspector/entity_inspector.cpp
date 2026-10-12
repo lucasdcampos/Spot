@@ -654,6 +654,40 @@ void EntityInspector::DrawComponent(SceneDocument& document, const Card& card) {
         ImGui::PopTextWrapPos();
     }
     const bool playing = m_context.GetWorkspace() && m_context.GetWorkspace()->GetPlaySession();
+    if (auto* animator = dynamic_cast<Animator*>(&component);
+        animator && components.size() == 1 && playing && animator->GetController()) {
+        const auto& runtime = animator->GetControllerRuntime();
+        if (runtime.GetState() >= 0) {
+            ImGui::Text("State: %s",
+                        animator->GetController()->states[static_cast<std::size_t>(runtime.GetState())].name.c_str());
+        }
+        for (const auto& parameter : animator->GetController()->parameters) {
+            ImGui::PushID(parameter.name.c_str());
+            const double current = runtime.GetParameter(parameter.name).value_or(0);
+            if (parameter.type == AnimatorParameterType::Float) {
+                float value = static_cast<float>(current);
+                if (ImGui::DragFloat(parameter.name.c_str(), &value, 0.01f)) {
+                    animator->SetFloat(parameter.name, value);
+                }
+            } else if (parameter.type == AnimatorParameterType::Int) {
+                int value = static_cast<int>(current);
+                if (ImGui::InputInt(parameter.name.c_str(), &value)) {
+                    animator->SetInt(parameter.name, value);
+                }
+            } else if (parameter.type == AnimatorParameterType::Bool) {
+                bool value = current != 0;
+                if (ImGui::Checkbox(parameter.name.c_str(), &value)) {
+                    animator->SetBool(parameter.name, value);
+                }
+            } else {
+                if (ImGui::Button(parameter.name.c_str())) {
+                    animator->SetTrigger(parameter.name);
+                }
+            }
+            Record(card.key + "/parameters/" + parameter.name);
+            ImGui::PopID();
+        }
+    }
     if (auto* animator = dynamic_cast<Animator*>(&component); animator && components.size() == 1 && !playing) {
         auto& preview = document.GetAnimationPreview();
         preview.Select(scene, animator->GetEntity().GetId(), animator->GetId(), document.GetSceneRevision());

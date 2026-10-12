@@ -68,7 +68,7 @@ AssetInspector::AssetInspector(EditorContext& context) : m_context(context) {
 }
 
 CommandHistory* AssetInspector::GetHistory() {
-    return m_material ? &m_history : nullptr;
+    return m_material || m_controller ? &m_history : nullptr;
 }
 
 std::optional<std::pair<ImVec2, ImVec2>> AssetInspector::GetItemRect(std::string_view item) const {
@@ -97,6 +97,16 @@ void AssetInspector::Load(EditorProject& project, AssetId asset) {
     if (info && info->type == AssetType::Material && !info->parent.IsValid()) {
         m_material = MaterialSource::LoadFromFile(project.GetProject().GetAssetsDirectory() / Utf8ToPath(info->path));
         m_materialText = m_material ? m_material->SaveToString() : std::string();
+    }
+    const auto loadedController = info && info->type == AssetType::AnimatorController
+                                      ? project.GetAssets().Load<AnimatorController>(asset)
+                                      : AssetRef<AnimatorController>{};
+    const std::string controllerText = loadedController ? loadedController->SaveToString() : std::string{};
+    const bool keepDraft = !other && m_controller && m_controller->SaveToString() != m_controllerText &&
+                           controllerText == m_controllerText;
+    if (!keepDraft) {
+        m_controller = loadedController ? std::optional(*loadedController) : std::nullopt;
+        m_controllerText = controllerText;
     }
     // Settings being changed are kept until applied or reverted, unless they are another asset's.
     const AssetMeta* meta = info ? project.GetAssetDatabase().GetMeta(asset) : nullptr;
@@ -141,19 +151,26 @@ void AssetInspector::Draw(EditorProject& project, AssetId asset) {
         return;
     }
 
-    DrawHeader(project, *info);
+    const AssetInfo shown = *info;
+    DrawHeader(project, shown);
     ImGui::Separator();
     if (ImGui::BeginChild("##Body")) {
-        if (info->parent.IsValid()) {
-            DrawSubAsset(project, *info);
+        if (shown.parent.IsValid()) {
+            DrawSubAsset(project, shown);
         }
-        if (m_material || (info->type == AssetType::Material && !info->parent.IsValid())) {
-            DrawMaterial(project, *info);
+        if (m_material || (shown.type == AssetType::Material && !shown.parent.IsValid())) {
+            DrawMaterial(project, shown);
         }
-        if (HasImportSettings(info->type) && !info->parent.IsValid()) {
-            DrawImportSettings(project, *info);
+        if (HasImportSettings(shown.type) && !shown.parent.IsValid()) {
+            DrawImportSettings(project, shown);
         }
-        DrawPreview(project, *info);
+        if (shown.type == AssetType::AnimatorController) {
+            DrawController(project, shown);
+        }
+        if (shown.type == AssetType::AnimationClip) {
+            DrawClip(project, shown);
+        }
+        DrawPreview(project, shown);
     }
     ImGui::EndChild();
 }

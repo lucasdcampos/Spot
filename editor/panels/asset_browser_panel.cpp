@@ -23,6 +23,7 @@
 #include <cfloat>
 #include <cmath>
 #include <format>
+#include <fstream>
 #include <system_error>
 
 namespace Spot::Editor {
@@ -321,6 +322,9 @@ void AssetBrowserPanel::DrawCreateItems(EditorProject& project) {
         ImGui::Separator();
         item(ICON_FA_MOUNTAIN_SUN, "Scene", NewAsset::Scene);
         item(ICON_FA_PALETTE, "Material", NewAsset::Material);
+        ImGui::BeginDisabled(project.GetAssets().GetAssetIds(AssetType::AnimationClip).empty());
+        item(ICON_FA_CUBES, "Animator Controller", NewAsset::AnimatorController);
+        ImGui::EndDisabled();
     }
     ImGui::Separator();
     if (ImGui::MenuItem(ICON_FA_CODE "  C++ Component")) {
@@ -1128,6 +1132,19 @@ void AssetBrowserPanel::Create(EditorProject& project, NewAsset kind) {
         Scene scene;
         PopulateNewScene(scene);
         created = scene.SaveToFile(assets / Utf8ToPath(path));
+        break;
+    }
+    case NewAsset::AnimatorController: {
+        const auto clips = project.GetAssets().GetAssetIds(AssetType::AnimationClip);
+        if (clips.empty()) {
+            return;
+        }
+        path = project.GetAssetDatabase().GetFreePath(JoinPath(m_folder, "New Controller.controller"));
+        AnimatorController controller;
+        controller.states = {{"Idle", project.GetAssets().Load<AnimationClip>(clips.front())}};
+        std::ofstream file(assets / Utf8ToPath(path), std::ios::binary);
+        file << controller.SaveToString();
+        created = static_cast<bool>(file);
         break;
     }
     case NewAsset::Material:

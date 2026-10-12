@@ -419,3 +419,65 @@ TEST_CASE("Authored canvas widgets preview through the editor viewport offscreen
     CHECK(document.GetScene().GetUpdateCount() == 0);
     CHECK(document.GetHistory().GetUndoCount() == 0);
 }
+
+TEST_CASE("Skinned edit-mode previews, picking and outlines follow the animated pose",
+          "[editor][gpu][animation][offscreen]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    Spot::Editor::ViewportRenderer renderer(*device);
+    Spot::Editor::ViewportTargets targets;
+    REQUIRE(targets.Resize(*device, 96, 96, renderer.GetSampleCount()));
+    auto data = Spot::MeshData::CreateCube(0.5f);
+    data.skin.resize(data.vertices.size());
+    const Spot::AssetRef<Spot::Mesh> mesh = Spot::Mesh::Create(*device, data);
+    REQUIRE(mesh);
+    Spot::Editor::SceneDocument document;
+    auto& entity = document.GetScene().CreateEntity("Animated");
+    entity.GetTransform().SetPosition({0, 0, -3});
+    auto& animator = entity.AddComponent<Spot::Animator>();
+    animator.SetSkeleton(
+        std::make_shared<const Spot::Skeleton>(Spot::Skeleton{"Rig", {{"Root", -1, {}}}, {0}, {Spot::Matrix4{}}}));
+    REQUIRE(animator.Play(std::make_shared<const Spot::AnimationClip>(Spot::AnimationClip{
+        "Move",
+        1,
+        {{0, Spot::AnimationPath::Translation, Spot::AnimationInterpolation::Linear, {0, 1}, {{}, {2, 0, 0, 0}}}}})));
+    auto& skin = entity.AddComponent<Spot::SkinnedMeshRenderer>();
+    skin.SetMesh(mesh);
+    skin.SetAnimator(entity.GetId());
+    skin.SetMaterial(
+        std::make_shared<const Spot::Material>(Spot::Material{.baseColor = Spot::Color::Red, .metallic = 0}));
+    auto& preview = document.GetAnimationPreview();
+    preview.Select(document.GetScene(), entity.GetId());
+    preview.Seek(document.GetScene(), 0.5f);
+    Spot::Camera3D camera;
+    camera.orthographic = true;
+    camera.orthographicSize = 2;
+    Spot::Editor::ViewportOptions options;
+    options.showGrid = false;
+    options.background = Spot::Color::Black;
+    auto* context = device->BeginOffscreenFrame(*targets.GetColor());
+    REQUIRE(context);
+    renderer.Render(*context, targets, document.GetScene(), camera, options);
+    const std::array meshes{Spot::Editor::MeshInstance{mesh.Get(), entity.GetTransform().GetWorldMatrix(),
+                                                       Spot::Mesh::AllSubmeshes, skin.GetPalette()}};
+    renderer.DrawOutline(*context, targets, camera, meshes, Spot::Color::Green, 2);
+    renderer.RenderPick(*context, camera, {96, 96}, {72, 48}, meshes);
+    device->EndFrame();
+    CHECK(renderer.ReadPick() == 0);
+    const auto pixels = device->DownloadTexture(*targets.GetColor());
+    CHECK(pixels[(48 * 96 + 72) * 4] > 100);
+    CHECK(pixels[(48 * 96 + 48) * 4] == 0);
+    std::size_t green = 0;
+    for (std::size_t i = 0; i < pixels.size(); i += 4) {
+        green += pixels[i + 1] > pixels[i] + 20 ? 1 : 0;
+    }
+    CHECK(green > 10);
+    context = device->BeginOffscreenFrame(*targets.GetColor());
+    REQUIRE(context);
+    renderer.RenderPick(*context, camera, {96, 96}, {48, 48}, meshes);
+    device->EndFrame();
+    CHECK_FALSE(renderer.ReadPick());
+    CHECK(document.GetScene().GetUpdateCount() == 0);
+    CHECK(document.GetHistory().GetUndoCount() == 0);
+}

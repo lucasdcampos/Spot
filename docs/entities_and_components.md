@@ -126,3 +126,7 @@ not registered when a scene loads, as when the game's code is not loaded in the 
 that keep their data and save it back unchanged.
 
 `Entity::ForEachChild()` visits live children without copying the child list. Do not reorder the hierarchy during this traversal.
+
+Animation clips send `OnAnimationEvent(const AnimationEvent&)` to the active components on
+the animator entity, with the same failure guard as lifecycle and physics hooks. Seeking and
+editor previews do not send gameplay events; see [animation](animation.md).

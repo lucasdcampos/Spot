@@ -28,10 +28,15 @@ namespace {
 BoundingSphere GetWorldBounds(const Entity& entity) {
     const Matrix4& world = entity.GetTransform().GetWorldMatrix();
     const auto* renderer = entity.GetComponent<MeshRenderer>();
-    if (!renderer || !renderer->GetMesh()) {
+    BoundingSphere local;
+    if (renderer && renderer->GetMesh()) {
+        local = renderer->GetMesh()->GetBounds();
+    } else if (const auto* skin = entity.GetComponent<SkinnedMeshRenderer>(); skin && skin->GetMesh()) {
+        local = skin->GetMesh()->GetBounds();
+        local.radius += skin->GetBoundsPadding();
+    } else {
         return {entity.GetTransform().GetWorldPosition(), 0.5f};
     }
-    const BoundingSphere local = renderer->GetMesh()->GetBounds();
     const Vector4 center = world * Vector4{local.center.x, local.center.y, local.center.z, 1.0f};
     float scale = 0.0f;
     for (int axis = 0; axis < 3; ++axis) {
@@ -465,6 +470,12 @@ void SceneView::AddMeshes(const Entity& entity, std::vector<MeshInstance>& meshe
                 {renderer->GetMesh().Get(), entity.GetTransform().GetWorldMatrix(), renderer->GetSubmesh()});
         }
     }
+    for (const auto* skin : entity.GetComponents<SkinnedMeshRenderer>()) {
+        if (skin->IsActiveAndEnabled() && skin->GetMesh()) {
+            meshes.push_back({skin->GetMesh().Get(), entity.GetTransform().GetWorldMatrix(), skin->GetSubmesh(),
+                              skin->GetPalette()});
+        }
+    }
     for (const SpriteRenderer* sprite : entity.GetComponents<SpriteRenderer>()) {
         if (sprite->IsEnabled() && m_plane) {
             meshes.push_back({m_plane.Get(), GetSpriteMatrix(*sprite)});
@@ -680,6 +691,12 @@ void SceneView::Render(RenderContext& context, ViewportRenderer& renderer) {
                 if (meshRenderer->IsEnabled() && meshRenderer->GetMesh()) {
                     meshes.push_back({meshRenderer->GetMesh().Get(), entity.GetTransform().GetWorldMatrix(),
                                       meshRenderer->GetSubmesh()});
+                }
+            }
+            for (const auto* skin : entity.GetComponents<SkinnedMeshRenderer>()) {
+                if (skin->IsActiveAndEnabled() && skin->GetMesh()) {
+                    meshes.push_back({skin->GetMesh().Get(), entity.GetTransform().GetWorldMatrix(), skin->GetSubmesh(),
+                                      skin->GetPalette()});
                 }
             }
             for (const SpriteRenderer* sprite : entity.GetComponents<SpriteRenderer>()) {

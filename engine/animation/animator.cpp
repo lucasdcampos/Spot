@@ -200,6 +200,20 @@ void Animator::Preview(float deltaTime) {
     Evaluate(deltaTime);
 }
 
+bool Animator::PreviewClip(AssetRef<AnimationClip> clip, float time) {
+    if (!Accepts(clip)) {
+        return false;
+    }
+    m_time = Pose::WrapTime(time, clip->duration, false);
+    Pose::Sample(*m_skeleton, *clip, m_time, false, m_local);
+    if (m_rootMotion != RootMotionMode::None && m_rootBoneIndex < m_local.size()) {
+        m_local[m_rootBoneIndex].translation = m_skeleton->bones[m_rootBoneIndex].bindPose.translation;
+        m_local[m_rootBoneIndex].rotation = m_skeleton->bones[m_rootBoneIndex].bindPose.rotation;
+    }
+    Pose::ToModel(*m_skeleton, m_local, m_model);
+    return true;
+}
+
 void Animator::Evaluate(float deltaTime) {
     SPOT_PROFILE_SCOPE("Animation::Pose");
     if (!m_skeleton || !m_skeleton->IsValid()) {

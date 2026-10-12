@@ -92,6 +92,9 @@ add_library(spot_editor_core STATIC
     imgui/imgui_renderer.h
     imgui/widgets.cpp
     imgui/widgets.h
+    inspector/controller_graph.h
+    inspector/controller_graph.cpp
+    inspector/asset_inspector_animation.cpp
     inspector/asset_inspector.cpp
     inspector/asset_inspector.h
     inspector/entity_inspector.cpp
@@ -171,6 +174,7 @@ spot_add_shaders(spot_editor_core
     viewport/grid.frag.hlsl
     viewport/outline.frag.hlsl
     viewport/silhouette.frag.hlsl
+    viewport/skinned_silhouette.vert.hlsl
     viewport/silhouette.vert.hlsl
 )
 spot_embed_files(spot_editor_core

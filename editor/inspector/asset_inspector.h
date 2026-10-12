@@ -2,6 +2,7 @@
 
 #include "app/editor_context.h"
 #include "core/command_history.h"
+#include "inspector/controller_graph.h"
 #include "inspector/property_widgets.h"
 
 #include <spot.h>
@@ -43,6 +44,8 @@ private:
     void Load(EditorProject& project, AssetId asset);
     void DrawHeader(EditorProject& project, const AssetInfo& info);
     void DrawPreview(EditorProject& project, const AssetInfo& info);
+    void DrawController(EditorProject& project, const AssetInfo& info);
+    void DrawClip(EditorProject& project, const AssetInfo& info);
     void DrawMaterial(EditorProject& project, const AssetInfo& info);
     void DrawImportSettings(EditorProject& project, const AssetInfo& info);
     void DrawSubAsset(EditorProject& project, const AssetInfo& info);
@@ -56,6 +59,9 @@ private:
     std::uint64_t m_version = 0;
     CommandHistory m_history;
     // The material shown, as edited, and as saved.
+    std::optional<AnimatorController> m_controller;
+    std::string m_controllerText;
+    ControllerGraph m_graph;
     std::optional<MaterialSource> m_material;
     std::string m_materialText;
     std::optional<Edit> m_edit;

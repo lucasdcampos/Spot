@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 #include <span>
+#include <vector>
 
 namespace Spot::Editor {
 
@@ -15,6 +16,7 @@ struct MeshInstance {
     const Mesh* mesh = nullptr;
     Matrix4 world = {};
     std::uint32_t submesh = Mesh::AllSubmeshes;
+    std::span<const Matrix4> palette = {};
 };
 
 // The textures one view of a scene is drawn into: the color shown in the window, the HDR image the scene is drawn into
@@ -106,6 +108,7 @@ public:
     std::optional<std::size_t> ReadPick();
 
 private:
+    bool UploadSkinPalettes(std::span<const MeshInstance> meshes);
     void DrawGrid(RenderContext& context, const ViewportTargets& targets, const Camera3D& camera, bool plane2D);
 
     GraphicsDevice& m_device;
@@ -121,6 +124,10 @@ private:
     std::unique_ptr<Fxaa> m_fxaa;
     std::unique_ptr<Pipeline> m_grid;
     std::unique_ptr<Pipeline> m_mask;
+    std::unique_ptr<Pipeline> m_skinnedMask;
+    std::unique_ptr<Pipeline> m_skinnedPick;
+    std::unique_ptr<Buffer> m_skinPalettes;
+    std::vector<Matrix4> m_skinPaletteData;
     std::unique_ptr<Pipeline> m_outline;
     std::unique_ptr<Pipeline> m_pick;
     std::unique_ptr<Sampler> m_maskSampler;
