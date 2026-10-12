@@ -63,4 +63,21 @@ the viewport. Nested scroll clips intersect. The renderer flushes when the sciss
 draw order and restoring the full viewport after the UI pass. Focus, pointer routing, keyboard and
 gamepad navigation follow in M12.5.
 
-Layout groups, input and editor authoring follow in M12.4–M12.7.
+## Automatic layout
+
+Put `UiLayoutGroup` on a panel to arrange its direct active children with enabled rectangles.
+Choose horizontal, vertical or grid direction; set padding (left, bottom, right, top), spacing,
+alignment, and expansion along each axis. Horizontal order runs left to right, vertical order
+top to bottom, and grid order fills rows from the top-left using `columns` and `cellSize`.
+Group layout overrides children's rectangle positions transiently, keeping their authored anchors
+and sizes intact. Expansion splits the available primary dimension equally (after spacing).
+
+`UiSizeFitter` uses the preferred size of a text, texture or group, per enabled axis. Groups measure
+bottom-up before layout resolves top-down, so nested fitted groups can size their parents. Text
+preferred size measures unwrapped text; disable width fitting to retain a wrapping container.
+Inactive children do not contribute. Groups retain their child and geometry buffers across frames;
+`Entity::ForEachChild()` permits allocation-free hierarchy traversal. `MeasureUiLayoutGroup()` and
+`ArrangeUiLayoutGroup()` expose the mechanism separately; an output-vector overload reuses storage.
+Group and fitter state serializes normally, while generated rectangles remain transient.
+
+Input and editor authoring follow in M12.5–M12.7.

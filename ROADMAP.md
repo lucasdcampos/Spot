@@ -1134,7 +1134,7 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
   reference resolution), the layout pass and draw order. Tests.
 - [x] **M12.3 Widgets.** `UiImage` (nine-slice, tint), `UiText` (alignment, wrapping, overflow), `UiButton` (states,
   an `OnClick` signal), `UiToggle`, `UiSlider`, `UiInputField` (M2.2) and `UiScrollView` with clipping.
-- [ ] **M12.4 Layout groups.** Horizontal, vertical and grid layouts, and size fitters.
+- [x] **M12.4 Layout groups.** Horizontal, vertical and grid layouts, and size fitters.
 - [ ] **M12.5 UI input.** Pointer hit testing, focus and navigation with keyboard and gamepad, and UI that consumes
   the input it handles (M2.6). Tests.
 - [ ] **M12.6 Editor.** Rect handles and anchor presets in the scene view, a widget creation menu, and canvas
@@ -1146,6 +1146,11 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
 **Done when:** the sandbox's menus work with mouse, keyboard and gamepad, and are authored in the editor.
 
 **Notes:**
+- M12.4: a UiLayoutGroup selects horizontal, vertical or grid policy, with padding, spacing,
+  alignment and equal expansion. UiSizeFitter measures text, textures and nested groups bottom-up;
+  generated positions override anchors only transiently. Child traversal, sorting and layout buffers
+  retain storage; preferred text sizes are cached. MSVC builds without compiler warnings; twelve
+  UI cases pass 96 assertions, plus the serial authored-UI GPU regression.
 - M12.3: seven serializable widgets share guarded interaction, bounded values and control states.
   Nine-slice and text layout also have code-only APIs; text wraps words/long words, aligns and
   clips or ellipsizes. UTF-8 fields edit whole code points. Scroll descendants inherit intersected

@@ -16,6 +16,7 @@
 #include "scene/sprite_renderer.h"
 #include "scene/text_renderer.h"
 #include "ui/canvas.h"
+#include "ui/ui_layout_group.h"
 #include "ui/ui_widgets.h"
 
 #include <algorithm>
@@ -67,6 +68,8 @@ Registry& GetRegistry() {
         RegisterBuiltIn<Sky>(registry, "Sky");
         RegisterBuiltIn<Fog>(registry, "Fog");
         RegisterBuiltIn<PostProcessing>(registry, "PostProcessing");
+        RegisterBuiltIn<UiLayoutGroup>(registry, "UiLayoutGroup");
+        RegisterBuiltIn<UiSizeFitter>(registry, "UiSizeFitter");
         RegisterBuiltIn<UiImage>(registry, "UiImage");
         RegisterBuiltIn<UiText>(registry, "UiText");
         RegisterBuiltIn<UiButton>(registry, "UiButton");

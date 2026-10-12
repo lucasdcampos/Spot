@@ -101,7 +101,7 @@ add_dependencies(spot_tests spot_cli)
 
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(Catch)
-add_executable(spot_ui_tests ui_tests.cpp ui_widget_tests.cpp)
+add_executable(spot_ui_tests ui_tests.cpp ui_widget_tests.cpp ui_layout_group_tests.cpp)
 target_compile_definitions(spot_ui_tests PRIVATE SPOT_TEST_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets")
 target_link_libraries(spot_ui_tests PRIVATE spot::spot Catch2::Catch2WithMain)
 spot_set_compile_options(spot_ui_tests)

@@ -131,3 +131,5 @@
 
 #include "ui/ui_text_layout.h"
 #include "ui/ui_widgets.h"
+
+#include "ui/ui_layout_group.h"

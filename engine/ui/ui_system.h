@@ -29,10 +29,18 @@ public:
     Vector2 GetViewSize() const { return m_viewSize; }
 
 private:
+    Vector2 Measure(Entity& entity);
+    Vector2 GetPreferredSize(EntityId entity) const;
+    std::vector<std::pair<EntityId, Vector2>> m_preferred;
     void LayoutChildren(Entity& parent, EntityId canvas, UiBounds bounds, UiBounds clip, float scale);
     Vector2 m_viewSize;
     std::vector<UiLayoutEntry> m_entries;
-    std::vector<EntityId> m_canvases;
+    struct CanvasEntry {
+        EntityId id;
+        int order;
+        std::size_t index;
+    };
+    std::vector<CanvasEntry> m_canvases;
 };
 
 } // namespace Spot

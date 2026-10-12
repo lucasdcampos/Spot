@@ -95,6 +95,15 @@ public:
     // The children that are not destroyed, in order. It is a copy, so the hierarchy may change while going through
     // it.
     std::vector<Entity*> GetChildren() const;
+    // Visits live children without allocating a copy; callers must not reorder the hierarchy during traversal.
+    template <typename F>
+    void ForEachChild(F&& fn) const {
+        const Detail::DeferRemovalsScope defer(*m_scene);
+        for (std::size_t i = 0; i < m_children.size(); ++i) {
+            if (!m_children[i]->m_destroyed)
+                fn(*m_children[i]);
+        }
+    }
     // The entity's place among its parent's children, or among the scene's root entities, counting from 0.
     // Destroyed siblings do not count. The order is the one hierarchies show and scenes save; it does not change the
     // order entities update in.

@@ -142,7 +142,13 @@ void UiImage::Serialize(Archive& archive) {
 }
 
 Vector2 UiText::GetPreferredSize() const {
-    return font ? font->MeasureText(text) * (Positive(fontSize, 20) / font->GetPixelSize()) : Vector2{};
+    if (m_preferredFont != font || m_preferredText != text || m_preferredFontSize != fontSize) {
+        m_preferredSize = font ? font->MeasureText(text) * (Positive(fontSize, 20) / font->GetPixelSize()) : Vector2{};
+        m_preferredFont = font;
+        m_preferredText = text;
+        m_preferredFontSize = fontSize;
+    }
+    return m_preferredSize;
 }
 void UiText::DrawWidget(Renderer2D& renderer, const UiLayoutEntry& entry) {
     if (!font)

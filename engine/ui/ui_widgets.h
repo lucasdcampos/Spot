@@ -111,6 +111,10 @@ protected:
     void Serialize(Archive& archive) override;
 
 private:
+    mutable AssetRef<Font> m_preferredFont;
+    mutable std::string m_preferredText;
+    mutable float m_preferredFontSize = 0;
+    mutable Vector2 m_preferredSize;
     AssetRef<Font> m_cachedFont;
     std::string m_cachedText;
     Vector2 m_cachedBox;
