@@ -25,6 +25,16 @@ enum class EntityTemplate {
     Sky,
     Sprite,
     Camera,
+    Canvas,
+    UiImage,
+    UiText,
+    UiButton,
+    UiToggle,
+    UiSlider,
+    UiInputField,
+    UiScrollView,
+    UiLayoutGroup,
+    WorldText,
 };
 
 struct EntityTemplateInfo {

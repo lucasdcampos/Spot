@@ -389,3 +389,33 @@ TEST_CASE("Selected particle previews render through the editor viewport offscre
     CHECK(document.GetScene().GetUpdateCount() == 0);
     CHECK(document.GetHistory().GetUndoCount() == 0);
 }
+
+TEST_CASE("Authored canvas widgets preview through the editor viewport offscreen", "[editor][gpu][ui][offscreen]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    Spot::Editor::ViewportRenderer renderer(*device);
+    Spot::Editor::ViewportTargets targets;
+    REQUIRE(targets.Resize(*device, 64, 64, renderer.GetSampleCount()));
+    Spot::Editor::SceneDocument document;
+    auto& root = document.GetScene().CreateEntity("Canvas");
+    root.AddComponent<Spot::Canvas>();
+    auto& entity = root.CreateChild("Image");
+    entity.AddComponent<Spot::UiRect>().layout.sizeDelta = {32, 32};
+    entity.AddComponent<Spot::UiImage>().tint = Spot::Color::Green;
+    auto* context = device->BeginOffscreenFrame(*targets.GetColor());
+    REQUIRE(context);
+    Spot::Editor::ViewportOptions options;
+    options.showGrid = false;
+    options.defaultLights = false;
+    options.background = Spot::Color::Black;
+    options.drawUi = true;
+    renderer.Render(*context, targets, document.GetScene(), {}, options);
+    device->EndFrame();
+    const auto pixels = device->DownloadTexture(*targets.GetColor());
+    CHECK(pixels[(32 * 64 + 32) * 4 + 1] > 240);
+    CHECK(pixels[(32 * 64 + 32) * 4] == 0);
+    CHECK(pixels[0] == 0);
+    CHECK(document.GetScene().GetUpdateCount() == 0);
+    CHECK(document.GetHistory().GetUndoCount() == 0);
+}

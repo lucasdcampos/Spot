@@ -61,7 +61,13 @@ void UiCanvasSettings::Serialize(Archive& archive) {
     archive.Field("scale", scale, {.min = 0.01f, .max = 100.0f});
     archive.Field("order", order);
     archive.Field("modal", modal);
-    archive.Field("dismissKey", dismissKey);
+    static const auto Keys = [] {
+        std::array<std::string_view, static_cast<std::size_t>(Key::RightSuper) + 1> names{};
+        for (std::size_t index = 0; index < names.size(); ++index)
+            names[index] = GetKeyName(static_cast<Key>(index));
+        return names;
+    }();
+    archive.Field("dismissKey", dismissKey, {.enumNames = Keys});
 }
 void UiRectLayout::Serialize(Archive& archive) {
     archive.Field("anchorMin", anchorMin, {.min = 0.0f, .max = 1.0f});

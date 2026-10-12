@@ -9,7 +9,7 @@ The goal is the same breadth, built on the architecture Spot already has.
 The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
 [The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
 
-**Current focus:** M12 - Runtime UI and text (pending; M9 remains deferred; M13 completed out of order)
+**Current focus:** M12 - Runtime UI and text (in progress; M9 remains deferred; M13 completed out of order)
 
 ## How to use this plan
 
@@ -1137,7 +1137,7 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
 - [x] **M12.4 Layout groups.** Horizontal, vertical and grid layouts, and size fitters.
 - [x] **M12.5 UI input.** Pointer hit testing, focus and navigation with keyboard and gamepad, and UI that consumes
   the input it handles (M2.6). Tests.
-- [ ] **M12.6 Editor.** Rect handles and anchor presets in the scene view, a widget creation menu, and canvas
+- [x] **M12.6 Editor.** Rect handles and anchor presets in the scene view, a widget creation menu, and canvas
   preview.
 - [ ] **M12.7 Sandbox: interface.** A HUD (crosshair, ammo, current weapon, the tool's mode), and a spawn menu (Q)
   with tabs and thumbnails of the spawnable prefabs, rendered into textures. The pause menu holds the settings
@@ -1146,6 +1146,13 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
 **Done when:** the sandbox's menus work with mouse, keyboard and gamepad, and are authored in the editor.
 
 **Notes:**
+- M12.6: the UI creation submenu authors a canvas when needed and label/content children, as one
+  undoable command with stable selection on redo. Canvas preview supports picking rectangles,
+  moving/resizing handles and anchor/pivot markers. Presets can keep the rectangle or move it to
+  their anchors; fixed axes retain their visible size when leaving stretch mode. Drag state stores
+  ids/revisions and records a component edit for undo/prefabs. MSVC builds without compiler warnings;
+  56 editor cases pass 976 assertions, including real headless ImGui drags, and the editor's serial
+  offscreen GPU case verifies authored widgets without running gameplay.
 - M12.5: pointer routing, drag cancellation, text focus, spatial keyboard/gamepad navigation and
   scroll reveal run before gameplay input. Modal canvases and fields use input captures; owned
   releases remain consumed after closing. Native text input cooperates with editor IME ownership,

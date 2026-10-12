@@ -242,6 +242,7 @@ if(TARGET spot_editor_core)
         editor/scene_commands_tests.cpp
         editor/scene_workspace_tests.cpp
         editor/transform_gizmo_tests.cpp
+        editor/ui_editor_tests.cpp
         temp_directory.h
     )
     target_link_libraries(spot_editor_tests PRIVATE

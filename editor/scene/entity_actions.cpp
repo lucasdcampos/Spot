@@ -3,6 +3,7 @@
 #include "imgui/icons.h"
 #include "project/editor_project.h"
 #include "scene/scene_commands.h"
+#include "scene/ui_widget_templates.h"
 
 #include <imgui.h>
 
@@ -30,6 +31,16 @@ constexpr std::array Templates{
     EntityTemplateInfo{EntityTemplate::Sky, "Sky", ICON_FA_CLOUD_SUN, nullptr},
     EntityTemplateInfo{EntityTemplate::Sprite, "Sprite", ICON_FA_IMAGE, "2D Object"},
     EntityTemplateInfo{EntityTemplate::Camera, "Camera", ICON_FA_VIDEO, nullptr},
+    EntityTemplateInfo{EntityTemplate::Canvas, "Canvas", ICON_FA_DESKTOP, "UI"},
+    EntityTemplateInfo{EntityTemplate::UiImage, "Image", ICON_FA_IMAGE, "UI"},
+    EntityTemplateInfo{EntityTemplate::UiText, "Text", ICON_FA_FONT, "UI"},
+    EntityTemplateInfo{EntityTemplate::UiButton, "Button", ICON_FA_HAND_POINTER, "UI"},
+    EntityTemplateInfo{EntityTemplate::UiToggle, "Toggle", ICON_FA_TOGGLE_ON, "UI"},
+    EntityTemplateInfo{EntityTemplate::UiSlider, "Slider", ICON_FA_SLIDERS, "UI"},
+    EntityTemplateInfo{EntityTemplate::UiInputField, "Input Field", ICON_FA_I_CURSOR, "UI"},
+    EntityTemplateInfo{EntityTemplate::UiScrollView, "Scroll View", ICON_FA_BARS, "UI"},
+    EntityTemplateInfo{EntityTemplate::UiLayoutGroup, "Layout Group", ICON_FA_TABLE_CELLS, "UI"},
+    EntityTemplateInfo{EntityTemplate::WorldText, "World Text", ICON_FA_FONT, "3D Object"},
 };
 
 // How many of a texture's pixels a sprite made from it shows per world unit.
@@ -76,6 +87,11 @@ std::string MakeEntityText(EntityTemplate kind, Vector3 position) {
     case EntityTemplate::Camera:
         entity.AddComponent<Camera>();
         break;
+    case EntityTemplate::WorldText:
+        entity.AddComponent<TextRenderer>();
+        break;
+    default:
+        break;
     }
     return scratch.SaveToString();
 }
@@ -112,6 +128,12 @@ std::span<const EntityTemplateInfo> GetEntityTemplates() {
 }
 
 const char* GetEntityIcon(const Entity& entity) {
+    if (entity.GetComponent<Canvas>())
+        return ICON_FA_DESKTOP;
+    if (entity.GetComponent<UiRect>())
+        return ICON_FA_OBJECT_GROUP;
+    if (entity.GetComponent<TextRenderer>())
+        return ICON_FA_FONT;
     if (entity.GetComponent<Camera>()) {
         return ICON_FA_VIDEO;
     }
@@ -140,7 +162,19 @@ const char* GetEntityIcon(const Entity& entity) {
 }
 
 const char* GetComponentIcon(std::string_view typeName) {
-    static constexpr std::array<std::pair<std::string_view, const char*>, 23> Icons{{
+    static constexpr std::array<std::pair<std::string_view, const char*>, 35> Icons{{
+        {"Canvas", ICON_FA_DESKTOP},
+        {"UiRect", ICON_FA_OBJECT_GROUP},
+        {"UiImage", ICON_FA_IMAGE},
+        {"UiText", ICON_FA_FONT},
+        {"UiButton", ICON_FA_HAND_POINTER},
+        {"UiToggle", ICON_FA_TOGGLE_ON},
+        {"UiSlider", ICON_FA_SLIDERS},
+        {"UiInputField", ICON_FA_I_CURSOR},
+        {"UiScrollView", ICON_FA_BARS},
+        {"UiLayoutGroup", ICON_FA_TABLE_CELLS},
+        {"UiSizeFitter", ICON_FA_EXPAND},
+        {"TextRenderer", ICON_FA_FONT},
         {"Camera", ICON_FA_VIDEO},
         {"SpriteRenderer", ICON_FA_IMAGE},
         {"MeshRenderer", ICON_FA_CUBE},
@@ -230,6 +264,8 @@ bool ApplyMaterial(SceneDocument& document, EntityId entity, AssetId material) {
 }
 
 bool CreateEntity(SceneDocument& document, EntityTemplate kind, EntityId parent, Vector3 position) {
+    if (IsUiTemplate(kind))
+        return CreateUiWidget(document, kind, parent);
     const auto found = std::ranges::find(Templates, kind, &EntityTemplateInfo::kind);
     return document.Execute(std::make_unique<CreateEntitiesCommand>(document, std::string("Create ") + found->name,
                                                                     MakeEntityText(kind, position), parent));

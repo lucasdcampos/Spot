@@ -2,6 +2,7 @@
 
 #include "viewport/editor_camera.h"
 #include "viewport/transform_gizmo.h"
+#include "viewport/ui_rect_gizmo.h"
 #include "viewport/viewport_renderer.h"
 
 #include <spot.h>
@@ -120,6 +121,7 @@ private:
     bool m_playing = false;
     bool m_gameView = true;
     TransformGizmo m_gizmo;
+    UiRectGizmo m_uiRectGizmo;
     // The icons drawn last, which clicks select before meshes.
     std::vector<Icon> m_icons;
     // A click waiting to be drawn into the picking target, and one drawn, waiting to be read back, with the entity of

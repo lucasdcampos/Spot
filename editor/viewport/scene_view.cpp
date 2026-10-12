@@ -91,7 +91,9 @@ SceneView::SceneView(SceneDocument& document)
       m_shown(&document) {
 }
 
-SceneView::~SceneView() = default;
+SceneView::~SceneView() {
+    m_uiRectGizmo.Finish(*m_shown);
+}
 
 SceneView::DrawResult SceneView::Draw(EditorContext& context, ViewportRenderer* renderer, ImGuiID dockId) {
     DrawResult result;
@@ -216,10 +218,17 @@ void SceneView::DrawViewport(EditorContext& context, ViewportRenderer* renderer)
     if (!m_camera.Is2D()) {
         DrawViewCube(origin, size);
     }
-    m_gizmo.Draw(*m_shown, m_camera.GetCamera(), origin, size, context.GetSettings().GetGizmo(), GetGizmoId(), areaId,
-                 m_camera.Is2D());
+    const bool uiPointer =
+        m_options.drawUi &&
+        m_uiRectGizmo.Draw(*m_shown, origin, size, {static_cast<float>(width), static_cast<float>(height)});
+    const auto* primary = m_shown->GetScene().GetEntity(m_shown->GetSelection().GetPrimary());
+    const bool uiSelected =
+        m_options.drawUi && primary && (primary->GetComponent<UiRect>() || primary->GetComponent<Canvas>());
+    if (!uiSelected)
+        m_gizmo.Draw(*m_shown, m_camera.GetCamera(), origin, size, context.GetSettings().GetGizmo(), GetGizmoId(),
+                     areaId, m_camera.Is2D());
     // A click on the gizmo's handles drags them instead of selecting.
-    if (clicked && !TransformGizmo::WantsMouse()) {
+    if (clicked && !uiPointer && !TransformGizmo::WantsMouse()) {
         ImGui::SetWindowFocus();
         HandleClick(origin, scale);
     }
@@ -233,6 +242,18 @@ void SceneView::HandleClick(const ImVec2& origin, const ImVec2& scale) {
         .toggle = io.KeyCtrl,
         .add = io.KeyShift,
     };
+    if (m_options.drawUi) {
+        auto& ui = m_shown->GetScene().GetUi();
+        ui.Layout({static_cast<float>(m_width), static_cast<float>(m_height)});
+        const Vector2 point{request.pixel.x, static_cast<float>(m_height) - request.pixel.y};
+        const auto entries = ui.GetEntries();
+        for (auto entry = entries.rbegin(); entry != entries.rend(); ++entry) {
+            if (entry->entity != entry->canvas && entry->bounds.Contains(point) && entry->clip.Contains(point)) {
+                ApplyPick(request, entry->entity);
+                return;
+            }
+        }
+    }
     // Icons are drawn over the meshes, the last one on top, so they are picked first.
     for (auto icon = m_icons.rbegin(); icon != m_icons.rend(); ++icon) {
         if (ImRect(icon->min, icon->max).Contains(io.MousePos)) {
@@ -497,6 +518,7 @@ void SceneView::DrawCameraFrustums(const ImVec2& origin, const ImVec2& size) {
 }
 
 void SceneView::StopShowingPlay() {
+    m_uiRectGizmo.Cancel(*m_shown);
     m_playing = false;
     m_shown = &m_document;
     // Picks in flight hold the copy's entities.
@@ -558,6 +580,17 @@ void SceneView::DrawOverlay(const ImVec2& origin) {
     }
     ImGui::PopStyleColor();
     ImGui::SetItemTooltip(collidersShown ? "Hide the colliders" : "Show the colliders, as physics sees them");
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Text,
+                          m_options.drawUi ? EditorColors::Accent : ImGui::GetStyleColorVec4(ImGuiCol_Text));
+    if (ImGui::Button("UI")) {
+        m_uiRectGizmo.Finish(*m_shown);
+        m_options.drawUi = !m_options.drawUi;
+    }
+    ImGui::PopStyleColor();
+    ImGui::SetItemTooltip("Preview screen-space canvases and edit their rectangles");
+    if (m_options.drawUi)
+        m_uiRectGizmo.DrawAnchorMenu(*m_shown, {static_cast<float>(m_width), static_cast<float>(m_height)});
     // Only 3D views fly.
     if (!view2D) {
         ImGui::SameLine();

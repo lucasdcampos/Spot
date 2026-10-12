@@ -128,6 +128,8 @@ add_library(spot_editor_core STATIC
     project/new_project_dialog.h
     project/project_hub.cpp
     project/project_hub.h
+    scene/ui_widget_templates.cpp
+    viewport/ui_rect_gizmo.cpp
     scene/entity_actions.cpp
     scene/entity_actions.h
     scene/prefab_actions.cpp

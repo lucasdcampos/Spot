@@ -93,3 +93,5 @@ saves a picture of the window after some frames and quits, to check the interfac
 Add a ParticleSystem from the component search. Its selected entity previews in edit mode; the
 inspector provides Play/Pause, Restart and Seek without altering authored data or running gameplay.
 Curve plots and gradient strips accompany editable keys. See [Particles](particles.md).
+
+Runtime UI has a creation submenu, canvas preview, rectangle handles and anchor presets with normal undo/prefab edits; see [Runtime UI and text](runtime_ui.md#editor-authoring).

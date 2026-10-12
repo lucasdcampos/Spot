@@ -102,4 +102,23 @@ allowing game code to close it. Escape first releases text focus; gamepad East/S
 The code-only input system can bind a state with `SetInputState()`. That state must outlive the
 binding; detach it before destruction. UI input and component callbacks are fault-contained.
 
-Editor authoring and the sandbox interface follow in M12.6–M12.7.
+## Editor authoring
+
+The entity creation menu has a UI section for canvases and all widgets/layout groups. Creating a
+widget reuses an existing canvas or creates one when needed, as one undoable command, and selects
+the widget on redo too. Buttons and toggles include label children; scroll views include a content
+rectangle. If the project contains `fonts/FiraSans-Regular.ttf`, labels refer to it automatically;
+otherwise assign a font in the inspector. World Text is available under 3D Object.
+
+Turn on **UI** in the scene viewport toolbar to preview screen-space canvases without starting
+components. Click a rectangle to select it. Drag the selected rect's interior to move it, or its
+four corner handles to resize; yellow circles show anchors and the blue point shows the pivot.
+A drag records one component edit for undo, including prefab overrides. Escape cancels the drag.
+Group-managed positions are edited through the group's settings; fitters retain control of their
+fitted dimensions. Drag state resolves entity/component ids and document revisions each frame.
+
+The **Anchors** popup offers nine fixed positions and full stretching. **Keep rectangle** preserves
+the visible rectangle while changing its anchoring; disable it to move to the preset's position.
+Canvas scale, reference resolution, modal input and dismissal key use the ordinary inspector.
+
+The sandbox interface follows in M12.7.
