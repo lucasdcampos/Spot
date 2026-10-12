@@ -29,3 +29,14 @@ Skinned variants cover opaque, cutout, transparent and mirrored surfaces, shadow
 readable camera depth, including MSAA. Normals use the blended matrix's cofactors and
 tangents follow its linear transform. Increase bounds padding to cover the clip's motion.
 Meshes and palettes must stay valid until submission; too-short palettes are rejected.
+
+`Animator::SetSkeleton()` and `Play()` work before a scene starts. `CrossFade()` advances
+both clips and blends local poses; interrupting a fade starts from the currently blended
+pose. Speed can be negative, loops wrap, and non-looping playback holds its last pose.
+The lazy `AnimationSystem` evaluates active animators after component updates under their
+failure guard, then refreshes renderer palettes. Model instances create non-joint nodes
+and an animator per skin, and use skinned renderers for skin-bearing nodes.
+
+Select an Animator in the editor to preview with real time, pause, restart or seek in the
+inspector. Preview changes only transient arrays, resolves component/entity ids each frame,
+and does not update gameplay or create undo entries. Play mode uses its own scene copy.

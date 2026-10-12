@@ -955,7 +955,7 @@ Controllers are assets with parameters, transitions with cross-fades, blend tree
   sub-assets of models or from animation-only files. Bump the importers. Tests.
 - [x] **M9.2 Pose math.** Sampling, blending, local to model space, and skinning palettes. Pure CPU, unit-tested.
 - [x] **M9.3 GPU skinning.** `SkinnedMeshRenderer`, a skinned pipeline variant and its shadow pass, and padded bounds.
-- [ ] **M9.4 Animator.** An `Animator` component with `Play()`, `CrossFade()`, speed and loop, evaluated by the
+- [x] **M9.4 Animator.** An `Animator` component with `Play()`, `CrossFade()`, speed and loop, evaluated by the
   `AnimationSystem`, and previewed in the editor in edit mode.
 - [ ] **M9.5 Controllers.** An `AnimatorController` asset with float, int, bool and trigger parameters, states,
   transitions (conditions, exit time, blend duration, interruption) and any-state transitions. A runtime evaluator,
@@ -977,6 +977,11 @@ Controllers are assets with parameters, transitions with cross-fades, blend tree
 with view-model animations.
 
 **Notes:**
+- M9.4: guarded lazy animation evaluation, advancing crossfades, reverse playback and
+  non-joint model instances. Editor preview stores ids and transient pose state. MSVC
+  Debug builds without compiler warnings; 9 runtime cases pass 633 assertions and
+  3 animation/particle preview cases pass 25 assertions. Re-enable reuses the scene system.
+
 - M9.3: second-stream GPU skinning has color, shadow and readable-depth variants,
   padded bounds and per-instance palettes. MSVC Debug builds without compiler warnings;
   6 CPU cases pass 608 assertions and an offscreen GPU case passes 71 assertions across

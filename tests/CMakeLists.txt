@@ -101,7 +101,7 @@ add_dependencies(spot_tests spot_cli)
 
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(Catch)
-add_executable(spot_animation_tests animation_import_tests.cpp animation_pose_tests.cpp)
+add_executable(spot_animation_tests animation_import_tests.cpp animation_pose_tests.cpp animation_runtime_tests.cpp)
 target_link_libraries(spot_animation_tests PRIVATE spot::import spot::spot Catch2::Catch2WithMain)
 target_compile_definitions(spot_animation_tests PRIVATE SPOT_TEST_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets")
 spot_set_compile_options(spot_animation_tests)
@@ -227,7 +227,7 @@ catch_discover_tests(spot_module_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=
 
 # Editor tests link the editor's code, everything but its main().
 if(TARGET spot_editor_core)
-    add_executable(spot_editor_tools_tests editor/console_command_tests.cpp editor/profiler_model_tests.cpp editor/particle_preview_tests.cpp)
+    add_executable(spot_editor_tools_tests editor/console_command_tests.cpp editor/profiler_model_tests.cpp editor/particle_preview_tests.cpp editor/animation_preview_tests.cpp)
     target_link_libraries(spot_editor_tools_tests PRIVATE spot_editor_core Catch2::Catch2WithMain)
     target_include_directories(spot_editor_tools_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     spot_set_compile_options(spot_editor_tools_tests)

@@ -126,6 +126,7 @@ protected:
 private:
     friend class Entity;
     friend class PhysicsWorld;
+    friend class AnimationSystem;
     friend class UiWidget;
     friend struct Detail::SceneSerializer;
 

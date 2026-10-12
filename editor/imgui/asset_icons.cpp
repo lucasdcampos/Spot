@@ -506,6 +506,8 @@ ImVec4 GetTypeColor(AssetType type) {
         return FontAccent;
     case AssetType::Scene:
         return SceneAccent;
+    case AssetType::Skeleton:
+    case AssetType::AnimationClip:
     case AssetType::Prefab:
         return ModelAccent;
     }
@@ -577,6 +579,8 @@ void DrawAsset(ImDrawList* drawList, ImVec2 min, float size, AssetType type) {
     case AssetType::Scene:
         DrawScene(drawList, min, size);
         return;
+    case AssetType::Skeleton:
+    case AssetType::AnimationClip:
     case AssetType::Prefab:
         Block(drawList, min, size, ModelAccent);
         return;

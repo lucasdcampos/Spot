@@ -1,6 +1,7 @@
 #pragma once
 
 #include "animation/animation_data.h"
+#include "animation/animator.h"
 #include "animation/pose.h"
 #include "animation/skinned_mesh_renderer.h"
 #include "assets/asset_id.h"

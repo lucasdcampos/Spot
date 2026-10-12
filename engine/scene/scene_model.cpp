@@ -1,9 +1,12 @@
 #include "scene/scene.h"
 
+#include "animation/animator.h"
+#include "animation/skinned_mesh_renderer.h"
 #include "core/profiler.h"
 #include "graphics/model.h"
 #include "scene/mesh_renderer.h"
 
+#include <algorithm>
 #include <utility>
 #include <vector>
 
@@ -13,20 +16,59 @@ Entity& Scene::Instantiate(const Model& model, std::string name) {
     SPOT_PROFILE_SCOPE("Scene::Instantiate(Model)");
     Entity& root = CreateEntity(std::move(name));
     std::vector<Entity*> instances;
+    std::vector<Matrix4> skippedTransforms;
+    std::vector<std::pair<const Skeleton*, EntityId>> animators;
     instances.reserve(model.GetNodes().size());
     for (const ModelNode& node : model.GetNodes()) {
         Entity& parent = node.parent ? *instances[*node.parent] : root;
+        Matrix4 localMatrix = node.transform;
+        if (node.parent) {
+            localMatrix = skippedTransforms[*node.parent] * localMatrix;
+        }
+        if (node.joint && !node.mesh && !node.mesh.GetId().IsValid()) {
+            instances.push_back(&parent);
+            skippedTransforms.push_back(localMatrix);
+            continue;
+        }
         Entity& entity = parent.CreateChild(node.name);
-        // Decomposing local matrices preserves the shear a rotated child under a scaled parent produces in world
-        // space; decomposing the accumulated matrix would lose it.
-        const TransformComponents local = Decompose(node.transform);
+        const TransformComponents local = Decompose(localMatrix);
         entity.GetTransform().SetPosition(local.translation);
         entity.GetTransform().SetRotation(local.rotation);
         entity.GetTransform().SetScale(local.scale);
         instances.push_back(&entity);
+        skippedTransforms.push_back(Matrix4{});
+        if (node.skeleton) {
+            const auto found =
+                std::ranges::find_if(animators, [&](const auto& pair) { return pair.first == node.skeleton.Get(); });
+            if (found == animators.end()) {
+                Entity& owner = animators.empty() ? root : root.CreateChild(node.skeleton->name);
+                auto& animator = owner.AddComponent<Animator>();
+                animator.SetSkeleton(node.skeleton);
+                if (!node.animations.empty()) {
+                    animator.Play(node.animations.front());
+                }
+                animators.emplace_back(node.skeleton.Get(), owner.GetId());
+            }
+        }
     }
     for (const ModelPart& part : model.GetParts()) {
-        instances[part.node]->AddComponent<MeshRenderer>(part.mesh, part.material).SetSubmesh(part.submesh);
+        const auto& node = model.GetNodes()[part.node];
+        if (node.skeleton) {
+            auto& renderer = instances[part.node]->AddComponent<SkinnedMeshRenderer>();
+            renderer.SetMesh(part.mesh);
+            renderer.SetMaterial(part.material);
+            renderer.SetSubmesh(part.submesh);
+            renderer.SetMeshModel(model.GetNodeTransform(part.node));
+            const auto found =
+                std::ranges::find_if(animators, [&](const auto& pair) { return pair.first == node.skeleton.Get(); });
+            renderer.SetAnimator(found->second);
+        } else {
+            instances[part.node]->AddComponent<MeshRenderer>(part.mesh, part.material).SetSubmesh(part.submesh);
+        }
+    }
+    for (const auto& [skeleton, owner] : animators) {
+        static_cast<void>(skeleton);
+        GetEntity(owner)->GetComponent<Animator>()->RefreshRenderers();
     }
     return root;
 }

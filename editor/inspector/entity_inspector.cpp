@@ -654,6 +654,27 @@ void EntityInspector::DrawComponent(SceneDocument& document, const Card& card) {
         ImGui::PopTextWrapPos();
     }
     const bool playing = m_context.GetWorkspace() && m_context.GetWorkspace()->GetPlaySession();
+    if (auto* animator = dynamic_cast<Animator*>(&component); animator && components.size() == 1 && !playing) {
+        auto& preview = document.GetAnimationPreview();
+        preview.Select(scene, animator->GetEntity().GetId(), animator->GetId(), document.GetSceneRevision());
+        if (ImGui::Button(preview.IsPlaying() ? "Pause animation" : "Play animation")) {
+            preview.SetPlaying(!preview.IsPlaying());
+        }
+        Record(card.key + "/animation/play");
+        ImGui::SameLine();
+        if (ImGui::Button("Restart animation")) {
+            preview.Restart(scene);
+        }
+        Record(card.key + "/animation/restart");
+        float time = preview.GetTime(scene);
+        const float duration = animator->GetClip() ? animator->GetClip()->duration : 0;
+        ImGui::SetNextItemWidth(-1);
+        if (ImGui::SliderFloat("##animation_seek", &time, 0, duration, "Time: %.2f s")) {
+            preview.SetPlaying(false);
+            preview.Seek(scene, time);
+        }
+        Record(card.key + "/animation/seek");
+    }
     if (auto* effect = dynamic_cast<ParticleSystem*>(&component); effect && components.size() == 1 && !playing) {
         auto& preview = document.GetParticlePreview();
         preview.Select(scene, document.GetSelection().GetPrimary(), {}, document.GetSceneRevision());

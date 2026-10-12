@@ -120,6 +120,8 @@ add_library(spot_objects OBJECT
     graphics/mesh_data.cpp
     animation/skinned_mesh_renderer.h
     animation/skinned_mesh_renderer.cpp
+    animation/animator.h
+    animation/animator.cpp
     animation/pose.h
     animation/pose.cpp
     animation/animation_data.h

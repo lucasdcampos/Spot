@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/command_history.h"
+#include "scene/animation_preview.h"
 #include "scene/particle_preview.h"
 #include "scene/selection.h"
 
@@ -54,6 +55,7 @@ public:
 
     Scene& GetScene() { return *m_scene; }
     const Scene& GetScene() const { return *m_scene; }
+    AnimationPreview& GetAnimationPreview() { return m_animationPreview; }
     ParticlePreview& GetParticlePreview() { return m_particlePreview; }
     CommandHistory& GetHistory() { return m_history; }
     Selection& GetSelection() { return m_selection; }
@@ -101,6 +103,7 @@ private:
     Scene* m_scene;
     CommandHistory m_history;
     Selection m_selection;
+    AnimationPreview m_animationPreview;
     ParticlePreview m_particlePreview;
     std::string m_name;
     std::filesystem::path m_file;
