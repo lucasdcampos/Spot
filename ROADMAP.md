@@ -957,7 +957,7 @@ Controllers are assets with parameters, transitions with cross-fades, blend tree
 - [x] **M9.3 GPU skinning.** `SkinnedMeshRenderer`, a skinned pipeline variant and its shadow pass, and padded bounds.
 - [x] **M9.4 Animator.** An `Animator` component with `Play()`, `CrossFade()`, speed and loop, evaluated by the
   `AnimationSystem`, and previewed in the editor in edit mode.
-- [ ] **M9.5 Controllers.** An `AnimatorController` asset with float, int, bool and trigger parameters, states,
+- [x] **M9.5 Controllers.** An `AnimatorController` asset with float, int, bool and trigger parameters, states,
   transitions (conditions, exit time, blend duration, interruption) and any-state transitions. A runtime evaluator,
   and `SetFloat`, `SetBool` and `SetTrigger`. Tests.
 - [ ] **M9.6 Blend trees.** 1D and 2D (freeform directional) blend states.
@@ -977,6 +977,11 @@ Controllers are assets with parameters, transitions with cross-fades, blend tree
 with view-model animations.
 
 **Notes:**
+- M9.5: versioned controller assets, typed per-instance parameters and ordered guarded
+  transitions. Source -1 is any-state; triggers survive blocked fades and are consumed
+  only by the selected transition. MSVC Debug builds without compiler warnings;
+  all 13 animation cases pass 673 assertions, including cooking and runtime poses.
+
 - M9.4: guarded lazy animation evaluation, advancing crossfades, reverse playback and
   non-joint model instances. Editor preview stores ids and transient pose state. MSVC
   Debug builds without compiler warnings; 9 runtime cases pass 633 assertions and

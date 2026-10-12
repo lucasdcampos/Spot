@@ -78,6 +78,7 @@ const char* GetAssetTypeIcon(AssetType type) {
         return ICON_FA_FONT;
     case AssetType::Scene:
         return ICON_FA_MOUNTAIN_SUN;
+    case AssetType::AnimatorController:
     case AssetType::Skeleton:
     case AssetType::AnimationClip:
     case AssetType::Prefab:

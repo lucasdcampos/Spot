@@ -1,5 +1,6 @@
 #include "assets/asset_manager.h"
 
+#include "animation/animator_controller.h"
 #include "assets/asset_file.h"
 #include "assets/asset_formats.h"
 #include "assets/asset_manifest.h"
@@ -125,6 +126,10 @@ std::vector<AssetId> AssetManager::Reload(std::span<const AssetId> assets) {
                 std::array{&material.baseColorTexture, &material.metallicRoughnessTexture, &material.normalTexture,
                            &material.occlusionTexture, &material.emissiveTexture},
                 [&](const AssetRef<Texture>* texture) { return stale.contains(texture->GetId()); });
+        }
+        if (entry.type == AssetType::AnimatorController) {
+            return std::ranges::any_of(static_cast<const AnimatorController*>(loaded.get())->states,
+                                       [&](const auto& state) { return stale.contains(state.clip.GetId()); });
         }
         if (entry.type == AssetType::Model) {
             const auto& model = *static_cast<const Model*>(loaded.get());
@@ -385,6 +390,11 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
         const auto text = Detail::DecodeScene(*data);
         auto prefab = text ? Prefab::FromString(*text) : std::nullopt;
         return prefab ? std::make_shared<const Prefab>(std::move(*prefab)) : nullptr;
+    }
+    case AssetType::AnimatorController: {
+        const auto text = Detail::DecodeScene(*data);
+        auto controller = text ? AnimatorController::LoadFromString(*text, this) : std::nullopt;
+        return controller ? std::make_shared<const AnimatorController>(std::move(*controller)) : nullptr;
     }
     case AssetType::Skeleton: {
         auto skeleton = Detail::DecodeSkeleton(*data);

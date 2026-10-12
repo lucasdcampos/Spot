@@ -18,6 +18,7 @@ namespace Spot {
 
 struct Skeleton;
 struct AnimationClip;
+struct AnimatorController;
 class Font;
 class GraphicsDevice;
 class Mesh;
@@ -81,6 +82,11 @@ struct AssetTypeOf<Skeleton> {
 template <>
 struct AssetTypeOf<AnimationClip> {
     static constexpr AssetType Value = AssetType::AnimationClip;
+};
+
+template <>
+struct AssetTypeOf<AnimatorController> {
+    static constexpr AssetType Value = AssetType::AnimatorController;
 };
 
 // The types Load() can load.

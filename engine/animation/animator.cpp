@@ -61,6 +61,9 @@ bool Animator::CrossFade(AssetRef<AnimationClip> clip, float duration, bool loop
     m_fadeSource = m_local;
     m_fadeClip = m_fadeDuration > 0 ? AssetRef<AnimationClip>{} : m_clip;
     m_fadeClipTime = m_time;
+    m_fadeClipSpeed = m_controllerRuntime.GetState() >= 0
+                          ? m_controller->states[static_cast<std::size_t>(m_controllerRuntime.GetState())].speed
+                          : 1;
     m_fadeLoop = m_loop;
     m_clip = std::move(clip);
     m_loop = loop;
@@ -69,6 +72,22 @@ bool Animator::CrossFade(AssetRef<AnimationClip> clip, float duration, bool loop
     m_fadeTime = 0;
     m_fadeDuration = duration;
     Evaluate(0);
+    return true;
+}
+
+bool Animator::SetController(AssetRef<AnimatorController> controller) {
+    if (controller &&
+        (!controller->IsValid() || !m_skeleton ||
+         !std::ranges::all_of(controller->states, [&](const auto& state) { return Accepts(state.clip); }))) {
+        Log::GetEngineLogger().Warning("Animator rejected incompatible controller");
+        return false;
+    }
+    m_controller = std::move(controller);
+    m_controllerRuntime.SetController(m_controller);
+    if (m_controller) {
+        const auto& state = m_controller->states[static_cast<std::size_t>(m_controller->entryState)];
+        Play(state.clip, state.loop);
+    }
     return true;
 }
 
@@ -86,9 +105,23 @@ void Animator::Simulate(float deltaTime) {
     if (!std::isfinite(deltaTime) || deltaTime < 0 || !m_playing) {
         return;
     }
-    m_time += deltaTime * m_speed;
-    Evaluate(deltaTime);
-    if (m_clip && !m_loop && (m_speed >= 0 ? m_time >= m_clip->duration : m_time <= 0)) {
+    bool transitioned = false;
+    if (m_controllerRuntime.GetController()) {
+        const auto& state = m_controller->states[static_cast<std::size_t>(m_controllerRuntime.GetState())];
+        m_time += deltaTime * m_speed * state.speed;
+        if (const auto* transition =
+                m_controllerRuntime.Advance(std::max(deltaTime * m_speed, 0.0f), m_clip ? m_clip->duration : 0)) {
+            Evaluate(0);
+            const auto& next = m_controller->states[static_cast<std::size_t>(transition->to)];
+            CrossFade(next.clip, transition->duration, next.loop);
+            m_fadeClipSpeed = state.speed;
+            transitioned = true;
+        }
+    } else {
+        m_time += deltaTime * m_speed;
+    }
+    Evaluate(transitioned ? 0.0f : deltaTime);
+    if (!m_controller && m_clip && !m_loop && (m_speed >= 0 ? m_time >= m_clip->duration : m_time <= 0)) {
         m_playing = false;
     }
 }
@@ -117,7 +150,7 @@ void Animator::Evaluate(float deltaTime) {
     if (m_fadeDuration > 0) {
         m_fadeTime += deltaTime;
         if (m_fadeClip) {
-            m_fadeClipTime += deltaTime * m_speed;
+            m_fadeClipTime += deltaTime * m_speed * m_fadeClipSpeed;
             Pose::Sample(*m_skeleton, *m_fadeClip, m_fadeClipTime, m_fadeLoop, m_fadeSource);
         }
         const float weight = std::min(m_fadeTime / m_fadeDuration, 1.0f);
@@ -155,11 +188,19 @@ void Animator::OnValidate() {
     m_playing = m_autoPlay;
     ResizePose();
     Seek(0);
+    if (m_controller) {
+        SetController(m_controller);
+    }
 }
 
 void Animator::Serialize(Archive& archive) {
     archive.Field("skeleton", m_skeleton);
-    archive.Field("clip", m_clip);
+    archive.Field("controller", m_controller);
+    auto clip = m_controller ? AssetRef<AnimationClip>{} : m_clip;
+    archive.Field("clip", clip);
+    if (archive.IsLoading() && !m_controller) {
+        m_clip = std::move(clip);
+    }
     archive.Field("speed", m_speed);
     archive.Field("loop", m_loop);
     archive.Field("autoPlay", m_autoPlay);

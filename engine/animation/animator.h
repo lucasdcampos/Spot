@@ -1,6 +1,7 @@
 #pragma once
 
 #include "animation/animation_data.h"
+#include "animation/animator_controller.h"
 #include "assets/asset_ref.h"
 #include "scene/component.h"
 #include "scene/scene_system.h"
@@ -16,6 +17,14 @@ public:
     const AssetRef<Skeleton>& GetSkeleton() const { return m_skeleton; }
     bool Play(AssetRef<AnimationClip> clip, bool loop = true);
     bool CrossFade(AssetRef<AnimationClip> clip, float duration, bool loop = true);
+    bool SetController(AssetRef<AnimatorController> controller);
+    const AssetRef<AnimatorController>& GetController() const { return m_controller; }
+    const AnimatorControllerRuntime& GetControllerRuntime() const { return m_controllerRuntime; }
+    bool SetFloat(std::string_view name, float value) { return m_controllerRuntime.SetFloat(name, value); }
+    bool SetInt(std::string_view name, int value) { return m_controllerRuntime.SetInt(name, value); }
+    bool SetBool(std::string_view name, bool value) { return m_controllerRuntime.SetBool(name, value); }
+    bool SetTrigger(std::string_view name) { return m_controllerRuntime.SetTrigger(name); }
+    bool ResetTrigger(std::string_view name) { return m_controllerRuntime.ResetTrigger(name); }
     void Stop() { m_playing = false; }
     bool IsPlaying() const { return m_playing; }
     void SetSpeed(float speed);
@@ -42,6 +51,9 @@ private:
     void Evaluate(float deltaTime);
     bool Accepts(const AssetRef<AnimationClip>& clip) const;
     void ResizePose();
+    AssetRef<AnimatorController> m_controller;
+    AnimatorControllerRuntime m_controllerRuntime;
+    float m_fadeClipSpeed = 1;
     AssetRef<Skeleton> m_skeleton;
     AssetRef<AnimationClip> m_clip;
     float m_speed = 1;

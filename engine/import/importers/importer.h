@@ -68,6 +68,7 @@ ImporterInfo FindImporter(AssetType type);
 
 bool ImportTexture(ImportContext& context);
 bool ImportModel(ImportContext& context);
+bool ImportAnimatorController(ImportContext& context);
 bool ImportMaterial(ImportContext& context);
 bool ImportScene(ImportContext& context);
 bool ImportPrefab(ImportContext& context);

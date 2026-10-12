@@ -40,3 +40,16 @@ and an animator per skin, and use skinned renderers for skin-bearing nodes.
 Select an Animator in the editor to preview with real time, pause, restart or seek in the
 inspector. Preview changes only transient arrays, resolves component/entity ids each frame,
 and does not update gameplay or create undo entries. Play mode uses its own scene copy.
+
+Animator controllers are versioned `.controller` source assets, imported without linking
+importers into games. A controller contains named typed parameters, states and ordered
+transitions. Float, int, bool and trigger values belong to each runtime instance; integer
+values retain their precision. Any-state transitions use source -1. Conditions combine
+with AND; the first matching transition wins. Exit time is normalized and may exceed one
+to wait multiple cycles. Non-interruptible transitions block new transitions until their
+fade finishes. Triggers are consumed only when a transition actually uses them.
+
+Set a controller with `Animator::SetController()`, then call `SetFloat()`, `SetInt()`,
+`SetBool()` or `SetTrigger()` from gameplay. `AnimatorControllerRuntime` can also run
+without scenes. Controllers hold clip references, and reload when those clips change.
+Validation rejects unknown parameters, bad state targets and incompatible clip channels.

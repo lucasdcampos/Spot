@@ -8,6 +8,7 @@ add_library(spot_import STATIC
     asset_database.h
     asset_meta.cpp
     asset_meta.h
+    importers/animator_controller_importer.cpp
     importers/font_importer.cpp
     importers/importer.cpp
     importers/importer.h

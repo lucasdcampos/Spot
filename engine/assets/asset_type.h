@@ -17,6 +17,7 @@ enum class AssetType {
     Prefab,
     Skeleton,
     AnimationClip,
+    AnimatorController,
 };
 
 // The name used in .meta and manifest files, such as "Texture".
