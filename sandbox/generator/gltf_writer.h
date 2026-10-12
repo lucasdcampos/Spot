@@ -34,6 +34,8 @@ struct GltfPart {
 struct GltfModel {
     std::vector<GltfMaterial> materials;
     std::vector<GltfPart> parts;
+    Spot::Skeleton skeleton;
+    std::vector<Spot::AnimationClip> animations;
 };
 
 // A model as a .gltf file, whose buffer is in a .bin file beside it.

@@ -3,7 +3,10 @@
 #define CGLTF_WRITE_IMPLEMENTATION
 #include <cgltf_write.h>
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <deque>
 #include <limits>
@@ -32,18 +35,25 @@ std::size_t Append(std::vector<std::byte>& buffer, const std::vector<T>& values)
 GltfFiles EncodeGltf(const GltfModel& model, std::string_view binName) {
     GltfFiles files;
     const std::size_t partCount = model.parts.size();
+    const bool rigged = !model.skeleton.bones.empty();
+    const std::size_t streams = rigged ? 6 : 4, attributeCount = rigged ? 5 : 3;
+    std::size_t channelCount = 0;
+    for (const auto& clip : model.animations) {
+        channelCount += clip.channels.size();
+    }
+    const std::size_t extraStreams = (rigged ? 1 : 0) + channelCount * 2;
 
     // Strings and arrays cgltf points into: a deque keeps its strings in place as it grows, and the arrays are sized
     // up front.
     std::deque<std::string> strings;
     const auto keep = [&strings](std::string text) { return Text(strings.emplace_back(std::move(text))); };
 
-    std::vector<cgltf_buffer_view> views(partCount * 4);
-    std::vector<cgltf_accessor> accessors(partCount * 4);
-    std::vector<cgltf_attribute> attributes(partCount * 3);
+    std::vector<cgltf_buffer_view> views(partCount * streams + extraStreams);
+    std::vector<cgltf_accessor> accessors(partCount * streams + extraStreams);
+    std::vector<cgltf_attribute> attributes(partCount * attributeCount);
     std::vector<cgltf_primitive> primitives(partCount);
     std::vector<cgltf_mesh> meshes(partCount);
-    std::vector<cgltf_node> nodes(partCount);
+    std::vector<cgltf_node> nodes(partCount + model.skeleton.bones.size());
     std::vector<cgltf_node*> sceneNodes(partCount);
     std::vector<cgltf_material> materials(model.materials.size());
     // Each material has up to three images, which materials share by URI.
@@ -124,7 +134,7 @@ GltfFiles EncodeGltf(const GltfModel& model, std::string_view binName) {
         }
 
         const auto addView = [&](std::size_t index, std::size_t offset, std::size_t size, cgltf_buffer_view_type type) {
-            cgltf_buffer_view& view = views[i * 4 + index];
+            cgltf_buffer_view& view = views[i * streams + index];
             view.buffer = &buffer;
             view.offset = offset;
             view.size = size;
@@ -133,7 +143,7 @@ GltfFiles EncodeGltf(const GltfModel& model, std::string_view binName) {
         };
         const auto addAccessor = [&](std::size_t index, cgltf_buffer_view* view, cgltf_type type,
                                      cgltf_component_type component, std::size_t count) {
-            cgltf_accessor& accessor = accessors[i * 4 + index];
+            cgltf_accessor& accessor = accessors[i * streams + index];
             accessor.buffer_view = view;
             accessor.type = type;
             accessor.component_type = component;
@@ -174,17 +184,37 @@ GltfFiles EncodeGltf(const GltfModel& model, std::string_view binName) {
                                 cgltf_buffer_view_type_indices),
                         cgltf_type_scalar, cgltf_component_type_r_32u, indexCount);
 
-        cgltf_attribute* partAttributes = &attributes[i * 3];
+        cgltf_attribute* partAttributes = &attributes[i * attributeCount];
         partAttributes[0] = {keep("POSITION"), cgltf_attribute_type_position, 0, position};
         partAttributes[1] = {keep("NORMAL"), cgltf_attribute_type_normal, 0, normal};
         partAttributes[2] = {keep("TEXCOORD_0"), cgltf_attribute_type_texcoord, 0, uv};
 
+        if (rigged) {
+            std::vector<std::array<std::uint16_t, 4>> joints;
+            std::vector<Spot::Vector4> weights;
+            for (const auto& vertex : part.mesh.skin) {
+                joints.push_back(
+                    {static_cast<std::uint16_t>(vertex.joints[0]), static_cast<std::uint16_t>(vertex.joints[1]),
+                     static_cast<std::uint16_t>(vertex.joints[2]), static_cast<std::uint16_t>(vertex.joints[3])});
+                weights.push_back(vertex.weights);
+            }
+            auto* joint = addAccessor(4,
+                                      addView(4, Append(files.buffer, joints), joints.size() * sizeof(joints[0]),
+                                              cgltf_buffer_view_type_vertices),
+                                      cgltf_type_vec4, cgltf_component_type_r_16u, joints.size());
+            auto* weight = addAccessor(5,
+                                       addView(5, Append(files.buffer, weights), weights.size() * sizeof(Spot::Vector4),
+                                               cgltf_buffer_view_type_vertices),
+                                       cgltf_type_vec4, cgltf_component_type_r_32f, weights.size());
+            partAttributes[3] = {keep("JOINTS_0"), cgltf_attribute_type_joints, 0, joint};
+            partAttributes[4] = {keep("WEIGHTS_0"), cgltf_attribute_type_weights, 0, weight};
+        }
         cgltf_primitive& primitive = primitives[i];
         primitive.type = cgltf_primitive_type_triangles;
         primitive.indices = indices;
         primitive.material = materials.empty() ? nullptr : &materials[std::min(part.material, materials.size() - 1)];
         primitive.attributes = partAttributes;
-        primitive.attributes_count = 3;
+        primitive.attributes_count = attributeCount;
 
         meshes[i].name = keep(part.name);
         meshes[i].primitives = &primitive;
@@ -194,16 +224,131 @@ GltfFiles EncodeGltf(const GltfModel& model, std::string_view binName) {
         sceneNodes[i] = &nodes[i];
     }
 
+    std::vector<cgltf_node*> joints;
+    std::vector<std::vector<cgltf_node*>> children(model.skeleton.bones.size());
+    cgltf_skin skin{};
+    std::size_t nextStream = partCount * streams;
+    const auto addRaw = [&](std::size_t offset, std::size_t bytes, cgltf_type type, std::size_t count) {
+        auto& view = views[nextStream];
+        view.buffer = &buffer;
+        view.offset = offset;
+        view.size = bytes;
+        auto& accessor = accessors[nextStream++];
+        accessor.buffer_view = &view;
+        accessor.type = type;
+        accessor.component_type = cgltf_component_type_r_32f;
+        accessor.count = count;
+        return &accessor;
+    };
+    if (rigged) {
+        for (std::size_t i = 0; i < model.skeleton.bones.size(); ++i) {
+            const auto& bone = model.skeleton.bones[i];
+            auto& node = nodes[partCount + i];
+            node.name = keep(bone.name);
+            node.has_translation = true;
+            node.has_rotation = true;
+            node.has_scale = true;
+            node.translation[0] = bone.bindPose.translation.x;
+            node.translation[1] = bone.bindPose.translation.y;
+            node.translation[2] = bone.bindPose.translation.z;
+            node.rotation[0] = bone.bindPose.rotation.x;
+            node.rotation[1] = bone.bindPose.rotation.y;
+            node.rotation[2] = bone.bindPose.rotation.z;
+            node.rotation[3] = bone.bindPose.rotation.w;
+            node.scale[0] = bone.bindPose.scale.x;
+            node.scale[1] = bone.bindPose.scale.y;
+            node.scale[2] = bone.bindPose.scale.z;
+            if (bone.parent >= 0) {
+                node.parent = &nodes[partCount + static_cast<std::size_t>(bone.parent)];
+                children[static_cast<std::size_t>(bone.parent)].push_back(&node);
+            } else {
+                sceneNodes.push_back(&node);
+            }
+        }
+        for (std::size_t i = 0; i < children.size(); ++i) {
+            nodes[partCount + i].children = children[i].data();
+            nodes[partCount + i].children_count = children[i].size();
+        }
+        for (const auto index : model.skeleton.joints) {
+            joints.push_back(&nodes[partCount + index]);
+        }
+        skin.name = keep(model.skeleton.name);
+        skin.joints = joints.data();
+        skin.joints_count = joints.size();
+        skin.inverse_bind_matrices = addRaw(Append(files.buffer, model.skeleton.inverseBindMatrices),
+                                            model.skeleton.inverseBindMatrices.size() * sizeof(Spot::Matrix4),
+                                            cgltf_type_mat4, model.skeleton.inverseBindMatrices.size());
+        for (std::size_t i = 0; i < partCount; ++i) {
+            nodes[i].skin = &skin;
+        }
+    }
+    std::vector<cgltf_animation> animations(model.animations.size());
+    std::vector<cgltf_animation_sampler> samplers(channelCount);
+    std::vector<cgltf_animation_channel> channels(channelCount);
+    std::size_t firstChannel = 0;
+    for (std::size_t i = 0; i < model.animations.size(); ++i) {
+        const auto& source = model.animations[i];
+        auto& animation = animations[i];
+        animation.name = keep(source.name);
+        animation.samplers = samplers.data() + firstChannel;
+        animation.channels = channels.data() + firstChannel;
+        animation.samplers_count = source.channels.size();
+        animation.channels_count = source.channels.size();
+        if (!source.events.empty()) {
+            auto extras = nlohmann::json::object();
+            extras["events"] = nlohmann::json::array();
+            for (const auto& event : source.events) {
+                extras["events"].push_back({{"time", event.time}, {"name", event.name}, {"payload", event.payload}});
+            }
+            animation.extras.data = keep(extras.dump());
+        }
+        for (std::size_t j = 0; j < source.channels.size(); ++j) {
+            const auto& channel = source.channels[j];
+            auto& animationSampler = samplers[firstChannel + j];
+            animationSampler.input = addRaw(Append(files.buffer, channel.times), channel.times.size() * sizeof(float),
+                                            cgltf_type_scalar, channel.times.size());
+            animationSampler.input->has_min = animationSampler.input->has_max = true;
+            animationSampler.input->min[0] = channel.times.front();
+            animationSampler.input->max[0] = channel.times.back();
+            std::vector<float> values;
+            for (const auto& value : channel.values) {
+                values.insert(values.end(), {value.x, value.y, value.z});
+                if (channel.path == Spot::AnimationPath::Rotation) {
+                    values.push_back(value.w);
+                }
+            }
+            animationSampler.output =
+                addRaw(Append(files.buffer, values), values.size() * sizeof(float),
+                       channel.path == Spot::AnimationPath::Rotation ? cgltf_type_vec4 : cgltf_type_vec3,
+                       channel.values.size());
+            animationSampler.interpolation =
+                channel.interpolation == Spot::AnimationInterpolation::Step    ? cgltf_interpolation_type_step
+                : channel.interpolation == Spot::AnimationInterpolation::Cubic ? cgltf_interpolation_type_cubic_spline
+                                                                               : cgltf_interpolation_type_linear;
+            auto& imported = channels[firstChannel + j];
+            imported.sampler = &animationSampler;
+            imported.target_node = &nodes[partCount + channel.bone];
+            imported.target_path = channel.path == Spot::AnimationPath::Rotation ? cgltf_animation_path_type_rotation
+                                   : channel.path == Spot::AnimationPath::Scale ? cgltf_animation_path_type_scale
+                                                                                : cgltf_animation_path_type_translation;
+        }
+        firstChannel += source.channels.size();
+    }
+
     buffer.size = files.buffer.size();
     buffer.uri = keep(std::string(binName));
 
     cgltf_scene scene{};
     scene.nodes = sceneNodes.data();
-    scene.nodes_count = partCount;
+    scene.nodes_count = sceneNodes.size();
 
     cgltf_data data{};
     data.asset.version = keep("2.0");
     data.asset.generator = keep("Spot sandbox generator");
+    data.skins = rigged ? &skin : nullptr;
+    data.skins_count = rigged ? 1 : 0;
+    data.animations = animations.data();
+    data.animations_count = animations.size();
     data.meshes = meshes.data();
     data.meshes_count = meshes.size();
     data.materials = materials.data();

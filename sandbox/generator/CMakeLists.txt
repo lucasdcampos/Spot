@@ -4,6 +4,8 @@
 #
 #     sandbox_generator [<output folder>]
 add_library(sandbox_generator_core STATIC
+    rigs.h
+    rigs.cpp
     generator.cpp
     generator.h
     gltf_writer.cpp
@@ -19,7 +21,7 @@ add_library(sandbox_generator_core STATIC
     weapons.cpp
     weapons.h
 )
-target_link_libraries(sandbox_generator_core PUBLIC spot::spot)
+target_link_libraries(sandbox_generator_core PUBLIC spot::spot PRIVATE nlohmann_json::nlohmann_json)
 target_include_directories(sandbox_generator_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 # cgltf's writer, from the engine's copy of cgltf.
 FetchContent_GetProperties(cgltf)

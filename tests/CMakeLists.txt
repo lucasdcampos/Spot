@@ -304,6 +304,10 @@ spot_set_compile_options(spot_benchmark)
 
 # The sandbox's asset generator, when the sandbox is built.
 if(TARGET sandbox_generator_core)
+    add_executable(spot_animation_generator_tests animation_generator_tests.cpp)
+    target_link_libraries(spot_animation_generator_tests PRIVATE sandbox_generator_core Catch2::Catch2WithMain)
+    spot_set_compile_options(spot_animation_generator_tests)
+    catch_discover_tests(spot_animation_generator_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 60)
     target_sources(spot_tests PRIVATE sandbox_generator_tests.cpp)
     target_link_libraries(spot_tests PRIVATE sandbox_generator_core)
 endif()

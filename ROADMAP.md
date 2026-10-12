@@ -977,6 +977,11 @@ Controllers are assets with parameters, transitions with cross-fades, blend tree
 with view-model animations.
 
 **Notes:**
+- M9.12 assets: the cgltf writer now emits skins, weighted streams, clips and events.
+  Generated robot/arms sources and importer-created metadata are committed. MSVC Debug
+  builds without compiler warnings; generator validation passes 1,000 assertions and
+  repeats without rewriting files. Robot/view-model gameplay and acceptance remain.
+
 - M9.11: configurable bodies and swing/twist limits, physics poses before attachments,
   character velocity handoff and recovery blends. Proxy ids/mode serialize and restore
   without duplication; the component owns their cleanup. MSVC Debug builds without compiler

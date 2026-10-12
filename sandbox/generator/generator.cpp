@@ -1,6 +1,7 @@
 #include "generator.h"
 
 #include "gltf_writer.h"
+#include "rigs.h"
 #include "shapes.h"
 #include "sounds.h"
 #include "textures.h"
@@ -94,6 +95,10 @@ std::vector<std::string_view> GetSoundNames() {
     return names;
 }
 
+std::vector<std::string_view> GetRigModelNames() {
+    return {"robot", "arms"};
+}
+
 std::vector<std::string_view> GetWeaponModelNames() {
     std::vector<std::string_view> names;
     for (const Weapons::WeaponModel& weapon : Weapons::MakeWeaponModels()) {
@@ -152,6 +157,8 @@ OutputCounts GenerateSandboxAssets(const std::filesystem::path& directory) {
     for (const Weapons::WeaponModel& weapon : Weapons::MakeWeaponModels()) {
         writeModel(std::string(weapon.name), weapon.model);
     }
+    writeModel("robot", Rigs::Robot());
+    writeModel("arms", Rigs::Arms());
     for (const GeneratedSound& sound : GetSounds()) {
         const std::vector<std::byte> wav = Sounds::EncodeWav(sound.make());
         WriteIfChanged(directory / "sounds" / (std::string(sound.name) + ".wav"), wav, counts);

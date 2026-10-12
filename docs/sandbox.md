@@ -153,3 +153,10 @@ Play-test: open/close both menus with keyboard and gamepad; navigate every tab a
 binding; spawn, undo and clean up; adjust FOV/sensitivity, each bus and quality; rebind a keyboard
 and gamepad control; restart and confirm the values persist. Check that menu clicks never fire a
 weapon, pause freezes the world, cursor ownership returns and every thumbnail shows its actual prop.
+
+## Animated assets
+
+The generator writes `generated/models/robot.gltf` and `arms.gltf` with skin streams,
+inverse bind matrices, clip channels and events. The robot has Idle/Walk/Run; the arms
+have idle plus fire/reload/switch clips for each held item. These are ordinary imported
+source assets. Run `sandbox_generator` to reproduce them; unchanged bytes are not rewritten.

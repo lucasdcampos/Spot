@@ -21,6 +21,7 @@ struct PropInfo {
 std::vector<PropInfo> GetProps();
 // The names of the held items' models, each models/<name>.gltf.
 std::vector<std::string_view> GetWeaponModelNames();
+std::vector<std::string_view> GetRigModelNames();
 // The names of the surfaces, whose textures are textures/<surface>_color.png, _normal.png and _orm.png.
 std::vector<std::string_view> GetSurfaceNames();
 // The names of the sounds the generator makes, each sounds/<name>.wav.
