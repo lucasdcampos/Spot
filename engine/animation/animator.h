@@ -1,6 +1,7 @@
 #pragma once
 
 #include "animation/animation_data.h"
+#include "animation/animation_layer.h"
 #include "animation/animator_controller.h"
 #include "assets/asset_ref.h"
 #include "scene/component.h"
@@ -30,6 +31,10 @@ public:
     void SetRootMotion(RootMotionMode mode);
     RootMotionMode GetRootMotion() const { return m_rootMotion; }
     bool SetRootMotionBone(std::string name);
+    static constexpr std::size_t MaxLayers = 16;
+    bool SetLayers(std::span<const AnimationLayer> layers);
+    std::span<const AnimationLayer> GetLayers() const { return m_layers; }
+    bool SetLayerWeight(std::string_view name, float weight);
     void Stop() { m_playing = false; }
     bool IsPlaying() const { return m_playing; }
     void SetSpeed(float speed);
@@ -60,7 +65,7 @@ private:
         int state = -1;
         AssetRef<AnimationClip> clip;
         float from = 0, to = 0;
-        bool loop = true, includeStart = false;
+        bool loop = true, includeStart = false, fadeLoop = true;
         int fadeState = -1;
         AssetRef<AnimationClip> fadeClip;
         float fadeFrom = 0, fadeTo = 0, weight = 1;
@@ -71,6 +76,22 @@ private:
                         bool includeStart);
     void ResizePose();
     void SampleState(int state, float time, std::span<TransformComponents> pose);
+    struct LayerRuntime {
+        float time = 0;
+        bool emitStart = true;
+        std::vector<float> mask;
+    };
+    struct LayerEventStep {
+        AssetRef<AnimationClip> clip;
+        float from = 0, to = 0;
+        bool loop = true, includeStart = false;
+    };
+    std::size_t AdvanceLayers(float deltaTime, std::span<LayerEventStep> events);
+    void ApplyLayers();
+    std::vector<AnimationLayer> m_layers;
+    std::vector<LayerRuntime> m_layerRuntime;
+    std::vector<TransformComponents> m_layerPose;
+    std::vector<TransformComponents> m_layerReference;
     RootMotionMode m_rootMotion = RootMotionMode::None;
     std::string m_rootBoneName;
     std::size_t m_rootBoneIndex = 0;

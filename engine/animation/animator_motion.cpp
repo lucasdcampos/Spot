@@ -107,7 +107,7 @@ void Animator::DeliverMotion(const MotionStep& step, float deltaTime) {
     if (m_rootMotion != RootMotionMode::None && m_skeleton) {
         auto delta = MotionDelta(step.state, step.clip, step.from, step.to, step.loop);
         if (step.weight < 1) {
-            const auto outgoing = MotionDelta(step.fadeState, step.fadeClip, step.fadeFrom, step.fadeTo, m_fadeLoop);
+            const auto outgoing = MotionDelta(step.fadeState, step.fadeClip, step.fadeFrom, step.fadeTo, step.fadeLoop);
             delta.translation = Lerp(outgoing.translation, delta.translation, step.weight);
             delta.rotation = Slerp(outgoing.rotation, delta.rotation, step.weight);
         }

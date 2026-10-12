@@ -129,6 +129,9 @@ add_library(spot_objects OBJECT
     animation/animation_motion.h
     animation/animation_motion.cpp
     animation/animator_motion.cpp
+    animation/animation_layer.h
+    animation/animation_layer.cpp
+    animation/animator_layers.cpp
     animation/pose.h
     animation/pose.cpp
     animation/animation_data.h

@@ -963,7 +963,7 @@ Controllers are assets with parameters, transitions with cross-fades, blend tree
 - [x] **M9.6 Blend trees.** 1D and 2D (freeform directional) blend states.
 - [x] **M9.7 Events and root motion.** Clip events delivered to `OnAnimationEvent()`, and root motion applied to the
   transform or to a `CharacterController`.
-- [ ] **M9.8 Layers and masks.** Override and additive layers with bone masks, such as for the upper body.
+- [x] **M9.8 Layers and masks.** Override and additive layers with bone masks, such as for the upper body.
 - [ ] **M9.9 Editor.** A clip preview with a timeline in the inspector, a controller graph editor, and live
   parameters during Play.
 - [x] **M9.10 Bone attachments.** `BoneAttachment` places an entity on a bone, such as a weapon in a hand.
@@ -977,6 +977,11 @@ Controllers are assets with parameters, transitions with cross-fades, blend tree
 with view-model animations.
 
 **Notes:**
+- M9.8: ordered override/additive layers, named masks with descendant weights and
+  independent clocks/events. Configuration changes allocate, evaluation reuses arrays.
+  MSVC Debug builds without compiler warnings; all 25 animation cases pass 785 assertions,
+  including bind-relative scale/rotation and masked locomotion.
+
 - M9.7: guarded bounded event delivery, glTF extras/metadata authoring and root motion
   through transforms or character movement. Whole cycles accumulate turning and translation;
   previews emit nothing and leave transforms still. Model importer version 11. MSVC

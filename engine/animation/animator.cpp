@@ -33,6 +33,14 @@ void Animator::ResizePose() {
                           : 0;
     m_local.resize(count);
     m_model.resize(count);
+    m_layerPose.resize(count);
+    m_layerReference.resize(count);
+    if (m_skeleton) {
+        Pose::Bind(*m_skeleton, m_layerReference);
+    }
+    if (!SetLayers(m_layers)) {
+        m_layerRuntime.clear();
+    }
     m_treeScratch.resize(count);
     std::size_t motions = 0;
     if (m_controller) {
@@ -121,6 +129,10 @@ void Animator::Seek(float time) {
     m_time = std::isfinite(time) ? time : 0;
     m_fadeDuration = 0;
     m_emitStart = false;
+    for (std::size_t i = 0; i < m_layerRuntime.size(); ++i) {
+        m_layerRuntime[i].time = m_time * m_layers[i].speed;
+        m_layerRuntime[i].emitStart = false;
+    }
     Evaluate(0);
 }
 
@@ -128,6 +140,8 @@ void Animator::Simulate(float deltaTime) {
     if (!std::isfinite(deltaTime) || deltaTime < 0 || !m_playing) {
         return;
     }
+    std::array<LayerEventStep, MaxLayers> layerEvents{};
+    const auto layerCount = AdvanceLayers(deltaTime, layerEvents);
     MotionStep motion;
     motion.state = m_controllerRuntime.GetState();
     motion.clip = m_clip;
@@ -138,6 +152,7 @@ void Animator::Simulate(float deltaTime) {
     motion.includeStart = m_emitStart;
     m_emitStart = false;
     if (m_fadeDuration > 0) {
+        motion.fadeLoop = m_fadeLoop;
         motion.fadeState = m_fadeState;
         motion.fadeClip = m_fadeClip;
         motion.fadeFrom = m_fadeClipTime;
@@ -167,6 +182,10 @@ void Animator::Simulate(float deltaTime) {
     }
     Evaluate(transitioned ? 0.0f : deltaTime);
     DeliverMotion(motion, deltaTime);
+    for (std::size_t i = 0; i < layerCount; ++i) {
+        const auto& step = layerEvents[i];
+        DispatchEvents(-1, step.clip, step.from, step.to, step.loop, step.includeStart);
+    }
     if (!m_controller && m_clip && !m_loop && (m_speed >= 0 ? m_time >= m_clip->duration : m_time <= 0)) {
         m_playing = false;
     }
@@ -177,6 +196,7 @@ void Animator::Preview(float deltaTime) {
         return;
     }
     m_time += deltaTime * m_speed;
+    AdvanceLayers(deltaTime, {});
     Evaluate(deltaTime);
 }
 
@@ -213,6 +233,7 @@ void Animator::Evaluate(float deltaTime) {
             m_fadeDuration = 0;
         }
     }
+    ApplyLayers();
     if (m_rootMotion != RootMotionMode::None && m_rootBoneIndex < m_local.size()) {
         m_local[m_rootBoneIndex].translation = m_skeleton->bones[m_rootBoneIndex].bindPose.translation;
         m_local[m_rootBoneIndex].rotation = m_skeleton->bones[m_rootBoneIndex].bindPose.rotation;
@@ -272,6 +293,7 @@ void Animator::Serialize(Archive& archive) {
     static constexpr std::array<std::string_view, 3> Modes{"None", "Transform", "Character controller"};
     archive.Field("rootMotion", m_rootMotion, {.enumNames = Modes});
     archive.Field("rootBone", m_rootBoneName);
+    archive.Field("layers", m_layers);
     archive.Field("skeleton", m_skeleton);
     archive.Field("controller", m_controller);
     auto clip = m_controller ? AssetRef<AnimationClip>{} : m_clip;

@@ -75,3 +75,12 @@ translation and turning without backwards jumps. Blend trees and crossfades blen
 root translation/rotation are removed from the visual pose. Preview evaluates the in-place
 pose without moving the entity. Character root motion changes position through `Move()`;
 missing/disabled character controllers receive no positional motion.
+
+An Animator can apply up to 16 ordered override/additive layers after its base pose.
+Each layer has its own clip, clock, speed, weight and named bone mask. Masks can include
+descendants; later mask entries override earlier weights. Empty masks affect every bone.
+Override interpolates local TRS; additive applies bind-relative translation, rotation and
+scale to the current pose. `SetLayers()` validates the whole configuration before replacing
+it; `SetLayerWeight()` changes influence at runtime. Layer clips deliver their own guarded
+events when weighted above zero. Pose/mask storage is reused, and root motion belongs to
+the base animation. The inspector edits serialized layer settings and masks.
