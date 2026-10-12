@@ -953,7 +953,7 @@ Controllers are assets with parameters, transitions with cross-fades, blend tree
 - [x] **M9.1 Import.** Skins (joints, inverse bind matrices), animations (translation, rotation and scale channels;
   step, linear and cubic), and vertex joints and weights. `Skeleton` and `AnimationClip` assets, with clips as
   sub-assets of models or from animation-only files. Bump the importers. Tests.
-- [ ] **M9.2 Pose math.** Sampling, blending, local to model space, and skinning palettes. Pure CPU, unit-tested.
+- [x] **M9.2 Pose math.** Sampling, blending, local to model space, and skinning palettes. Pure CPU, unit-tested.
 - [ ] **M9.3 GPU skinning.** `SkinnedMeshRenderer`, a skinned pipeline variant and its shadow pass, and padded bounds.
 - [ ] **M9.4 Animator.** An `Animator` component with `Play()`, `CrossFade()`, speed and loop, evaluated by the
   `AnimationSystem`, and previewed in the editor in edit mode.
@@ -977,6 +977,9 @@ Controllers are assets with parameters, transitions with cross-fades, blend tree
 with view-model animations.
 
 **Notes:**
+- M9.2: span-based sampling, local pose blending, model transforms and mesh-relative palettes.
+  MSVC Debug builds without compiler warnings; all 6 animation cases pass 608 assertions.
+
 - M9.1: model importer version 10 adds skeleton/clip sub-assets and a separate skin stream.
   Full node arrays retain intermediary transforms; animation-only files use matching node order.
   MSVC Debug builds without compiler warnings; 3 animation cases pass 593 assertions and

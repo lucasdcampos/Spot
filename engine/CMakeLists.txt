@@ -118,6 +118,8 @@ add_library(spot_objects OBJECT
     graphics/mesh_data.h
     graphics/mikktspace.cpp
     graphics/mesh_data.cpp
+    animation/pose.h
+    animation/pose.cpp
     animation/animation_data.h
     animation/animation_data.cpp
     animation/animation_formats.cpp

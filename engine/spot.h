@@ -1,6 +1,7 @@
 #pragma once
 
 #include "animation/animation_data.h"
+#include "animation/pose.h"
 #include "assets/asset_id.h"
 #include "assets/asset_manager.h"
 #include "assets/asset_ref.h"

@@ -15,3 +15,9 @@ Tangent generation and submesh assembly preserve that stream, including split ve
 Model import scale affects bind translations, animation translations and inverse binds together.
 Imported skeletons and clips load without a graphics device; corrupt formats are rejected.
 Unsupported morph-weight channels are reported and skipped.
+
+`Pose::Sample()` restores bind fields before sampling sparse channels, wraps negative looping time,
+and clamps non-looping time. Rotations use shortest-path spherical interpolation; cubic rotations
+normalize the Hermite result. Cubic tangents are multiplied by the segment's duration.
+`Pose::Blend()` interpolates local TRS. `ToModel()` walks parents once; `Palette()` computes
+inverse(mesh model) * bone model * inverse bind for each joint. All outputs are caller-owned spans.
