@@ -1,6 +1,7 @@
 #include "scene/scene.h"
 
 #include "animation/animator.h"
+#include "animation/bone_attachment.h"
 #include "animation/skinned_mesh_renderer.h"
 #include "core/profiler.h"
 #include "graphics/model.h"
@@ -64,6 +65,16 @@ Entity& Scene::Instantiate(const Model& model, std::string name) {
             renderer.SetAnimator(found->second);
         } else {
             instances[part.node]->AddComponent<MeshRenderer>(part.mesh, part.material).SetSubmesh(part.submesh);
+            bool followsJoint = false;
+            for (std::optional<std::size_t> ancestor = part.node; ancestor;
+                 ancestor = model.GetNodes()[*ancestor].parent) {
+                followsJoint = followsJoint || model.GetNodes()[*ancestor].joint;
+            }
+            if (followsJoint && !animators.empty() && !instances[part.node]->GetComponent<BoneAttachment>()) {
+                auto& attachment = instances[part.node]->AddComponent<BoneAttachment>();
+                attachment.SetAnimator(animators.front().second);
+                attachment.SetBoneIndex(static_cast<int>(part.node));
+            }
         }
     }
     for (const auto& [skeleton, owner] : animators) {

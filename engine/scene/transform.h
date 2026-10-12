@@ -37,6 +37,10 @@ public:
     void SetScale(Vector3 scale);
 
     Matrix4 GetLocalMatrix() const;
+    // System-owned world poses leave the authored local fields unchanged.
+    void SetWorldOverride(const Matrix4& matrix);
+    void ClearWorldOverride();
+    bool HasWorldOverride() const { return m_hasWorldOverride; }
 
     const Matrix4& GetWorldMatrix() const;
     Vector3 GetWorldPosition() const;
@@ -62,6 +66,8 @@ private:
     Quaternion m_rotation = {};
     Vector3 m_scale = {1.0f, 1.0f, 1.0f};
 
+    Matrix4 m_worldOverride;
+    bool m_hasWorldOverride = false;
     mutable Matrix4 m_worldMatrix = {};
     mutable Quaternion m_worldRotation = {};
     mutable bool m_worldDirty = true;

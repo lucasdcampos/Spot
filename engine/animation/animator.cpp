@@ -1,5 +1,6 @@
 #include "animation/animator.h"
 
+#include "animation/bone_attachment.h"
 #include "animation/pose.h"
 #include "animation/skinned_mesh_renderer.h"
 #include "core/log.h"
@@ -280,6 +281,12 @@ void Animator::RefreshRenderers() {
             renderer.SetPalette(m_palette);
         }
     });
+    GetScene().ForEachComponent<BoneAttachment>([&](BoneAttachment& attachment) {
+        if (attachment.IsActiveAndEnabled() &&
+            (attachment.GetAnimator() == GetEntity().GetId() || attachment.GetAnimator() == EntityId::Invalid)) {
+            attachment.InvokeHook("BoneAttachment", [&] { attachment.Synchronize(); });
+        }
+    });
 }
 
 void Animator::OnEnable() {
@@ -330,6 +337,14 @@ void AnimationSystem::OnUpdate(float deltaTime) {
             animator.Simulate(deltaTime);
             animator.RefreshRenderers();
         });
+    });
+}
+
+void AnimationSystem::OnLateUpdate(float) {
+    GetScene().ForEachComponent<BoneAttachment>([](BoneAttachment& attachment) {
+        if (attachment.IsActiveAndEnabled()) {
+            attachment.InvokeHook("BoneAttachment", [&] { attachment.Synchronize(); });
+        }
     });
 }
 

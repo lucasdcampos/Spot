@@ -125,6 +125,7 @@ private:
 class AnimationSystem final : public SceneSystem {
 protected:
     void OnUpdate(float deltaTime) override;
+    void OnLateUpdate(float deltaTime) override;
 };
 
 } // namespace Spot

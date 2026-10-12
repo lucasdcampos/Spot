@@ -95,3 +95,17 @@ Selecting a clip sub-asset shows key/event marks and a timeline. Select a rig in
 scene to play or seek that clip; the override affects only transient poses and restores the
 authored animation when cleared. Skinned meshes can be framed, picked and outlined at their
 animated positions. These paths share the GPU palette with normal viewport rendering.
+
+`BoneAttachment` places an entity at an animator's model-space bone, with a local TRS offset.
+Use an animator entity id and bone name (or an explicit index for unnamed/duplicate bones).
+With no target id it finds an animator in its parents. Attachments update after animation
+and late gameplay, and previews refresh them too. Missing references restore the authored
+pose and log once; targeting a descendant is rejected. Disabling/destroying releases the pose.
+
+`Transform::SetWorldOverride()` is the code-only mechanism for derived poses. World queries
+and descendants see the override; local fields and scene serialization retain authored values.
+Clearing it, or editing a local TRS value, restores normal hierarchy calculation. This keeps
+bone previews visible without changing scene text or undo history.
+
+Model meshes on or below joints receive bone attachments automatically, including meshes
+without skin weights, so accessories follow the evaluated hierarchy.

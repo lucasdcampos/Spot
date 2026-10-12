@@ -977,6 +977,11 @@ Controllers are assets with parameters, transitions with cross-fades, blend tree
 with view-model animations.
 
 **Notes:**
+- M9.10: id-based bone attachments, offsets and automatic attachments for model meshes
+  below joints. Transient world overrides preserve authored TRS during previews and
+  propagate through children. Missing references and descendant cycles restore the authored
+  pose. MSVC Debug builds without compiler warnings; 28 animation cases pass 806 assertions.
+
 - M9.9: controller creation/graph editing with Apply/Revert and source undo, clip key/event
   timelines, transient alternate previews and live Play parameters. Picking and outlines
   skin the mesh too. MSVC Debug builds without compiler warnings; 25 runtime cases pass

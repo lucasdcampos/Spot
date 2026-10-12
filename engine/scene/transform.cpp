@@ -5,11 +5,13 @@
 namespace Spot {
 
 void Transform::SetPosition(Vector3 position) {
+    m_hasWorldOverride = false;
     m_position = position;
     MarkWorldDirty();
 }
 
 void Transform::SetRotation(const Quaternion& rotation) {
+    m_hasWorldOverride = false;
     m_rotation = rotation;
     MarkWorldDirty();
 }
@@ -23,12 +25,25 @@ float Transform::GetRotation2D() const {
 }
 
 void Transform::SetScale(Vector3 scale) {
+    m_hasWorldOverride = false;
     m_scale = scale;
     MarkWorldDirty();
 }
 
 Matrix4 Transform::GetLocalMatrix() const {
     return Matrix4::Translation(m_position) * Matrix4::Rotation(m_rotation) * Matrix4::Scale(m_scale);
+}
+
+void Transform::SetWorldOverride(const Matrix4& matrix) {
+    m_worldOverride = matrix;
+    m_hasWorldOverride = true;
+    MarkWorldDirty();
+}
+void Transform::ClearWorldOverride() {
+    if (m_hasWorldOverride) {
+        m_hasWorldOverride = false;
+        MarkWorldDirty();
+    }
 }
 
 const Matrix4& Transform::GetWorldMatrix() const {
@@ -80,7 +95,10 @@ void Transform::UpdateWorld() const {
     if (!m_worldDirty) {
         return;
     }
-    if (const Entity* parent = m_entity.GetParent()) {
+    if (m_hasWorldOverride) {
+        m_worldMatrix = m_worldOverride;
+        m_worldRotation = Decompose(m_worldOverride).rotation;
+    } else if (const Entity* parent = m_entity.GetParent()) {
         const Transform& parentTransform = parent->GetTransform();
         m_worldMatrix = parentTransform.GetWorldMatrix() * GetLocalMatrix();
         m_worldRotation = parentTransform.GetWorldRotation() * m_rotation;

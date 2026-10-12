@@ -6,6 +6,7 @@
 #include "animation/animator.h"
 #include "animation/animator_controller.h"
 #include "animation/blend_tree.h"
+#include "animation/bone_attachment.h"
 #include "animation/pose.h"
 #include "animation/skinned_mesh_renderer.h"
 #include "assets/asset_id.h"
