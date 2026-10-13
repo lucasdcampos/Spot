@@ -10,6 +10,7 @@
 #include "physics/collider.h"
 #include "physics/joint.h"
 #include "physics/rigidbody.h"
+#include "physics2d/physics_world_2d.h"
 #include "scene/camera.h"
 #include "scene/fog.h"
 #include "scene/light.h"
@@ -59,6 +60,11 @@ Registry& GetRegistry() {
         RegisterBuiltIn<SkinnedMeshRenderer>(registry, "SkinnedMeshRenderer");
         RegisterBuiltIn<MeshRenderer>(registry, "MeshRenderer");
         RegisterBuiltIn<Rigidbody>(registry, "Rigidbody");
+        RegisterBuiltIn<Rigidbody2D>(registry, "Rigidbody2D");
+        RegisterBuiltIn<BoxCollider2D>(registry, "BoxCollider2D");
+        RegisterBuiltIn<CircleCollider2D>(registry, "CircleCollider2D");
+        RegisterBuiltIn<CapsuleCollider2D>(registry, "CapsuleCollider2D");
+        RegisterBuiltIn<PolygonCollider2D>(registry, "PolygonCollider2D");
         RegisterBuiltIn<BoxCollider>(registry, "BoxCollider");
         RegisterBuiltIn<SphereCollider>(registry, "SphereCollider");
         RegisterBuiltIn<CapsuleCollider>(registry, "CapsuleCollider");

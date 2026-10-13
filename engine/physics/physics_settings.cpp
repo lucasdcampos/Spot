@@ -1,6 +1,7 @@
 #include "physics/physics_settings.h"
 
 #include "physics/physics_world.h"
+#include "physics2d/physics_world_2d.h"
 #include "scene/archive.h"
 #include "scene/scene.h"
 
@@ -39,6 +40,7 @@ std::optional<int> PhysicsSettings::FindLayer(std::string_view name) const {
 
 void PhysicsSettings::Serialize(Archive& archive) {
     archive.Field("gravity", gravity, {.speed = 0.05f, .tooltip = "In units per second squared"});
+    archive.Field("gravity2D", gravity2D, {.speed = 0.05f});
     archive.Field("fixedTimeStep", fixedTimeStep,
                   {.min = 0.001f,
                    .max = 0.1f,
@@ -60,6 +62,16 @@ void PhysicsSettings::Serialize(Archive& archive) {
 }
 
 void PhysicsSettings::Apply(Scene& scene) const {
+    const bool defaults2D = gravity2D == PhysicsWorld2D::DefaultGravity &&
+                            std::ranges::all_of(layerCollisions, [](std::uint32_t mask) { return mask == AllLayers; });
+    if (!defaults2D || scene.GetSystem<PhysicsWorld2D>()) {
+        auto& physics = scene.GetPhysics2D();
+        physics.SetGravity(gravity2D);
+        for (int layer = 0; layer < 32; ++layer)
+            physics.SetLayerMask(layer, layer < static_cast<int>(layerCollisions.size())
+                                            ? layerCollisions[static_cast<std::size_t>(layer)]
+                                            : AllLayers);
+    }
     // Files edited elsewhere may hold any number, and a step must be positive.
     scene.SetFixedTimeStep(std::max(fixedTimeStep, 0.0001f));
     // Physics keeps being created only when needed: when it is not, it starts with the defaults.

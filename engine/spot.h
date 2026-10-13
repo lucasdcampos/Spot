@@ -108,6 +108,7 @@
 #include "physics/physics_settings.h"
 #include "physics/physics_world.h"
 #include "physics/rigidbody.h"
+#include "physics2d/physics_world_2d.h"
 #include "scene/archive.h"
 #include "scene/camera.h"
 #include "scene/component.h"

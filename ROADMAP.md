@@ -9,7 +9,7 @@ The goal is the same breadth, built on the architecture Spot already has.
 The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
 [The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
 
-**Current focus:** M15.5 - Release acceptance (macOS and interactive platform checks remain; M14 is conditional)
+**Current focus:** M14.2 - Sprite sheets (M14 implemented by request; M15.5 platform acceptance remains)
 
 ## How to use this plan
 
@@ -1344,15 +1344,22 @@ hierarchy, the inspector and undo without anything new. M12.2 decides how `UiRec
 
 ## M14 – 2D
 
-Only when a 2D game is planned; it depends on M1 for the shape of its API.
+Implemented by request; it depends on M1 for the shape of its API.
 
-- [ ] **M14.1 2D physics.** A Box2D v3 backend with `Rigidbody2D` and box, circle, capsule and polygon colliders,
+- [x] **M14.1 2D physics.** A Box2D v3 backend with `Rigidbody2D` and box, circle, capsule and polygon colliders,
   with the same events and queries as 3D.
 - [ ] **M14.2 Sprite sheets.** A sprite atlas importer and sprite animation.
 - [ ] **M14.3 Tilemaps.** Tilemap component, painting in the editor, and colliders from tiles.
 - [ ] **M14.4 Pixel-perfect camera.** An option for pixel art.
 
 **Notes:**
+- M14.1: Box2D 3.1.1 has an independent build-time backend and code-only simulation API.
+  Scene bodies combine solid and sensor shapes, preserve depth, rebuild on component/scale/layer
+  edits and dispatch guarded 2D entity-pair events after simulation. Queries share the 3D filters.
+  Components and gravity are exposed in the editor/settings. MSVC Debug builds without compiler
+  warnings; seven new cases pass 64 assertions, all 56 selected physics/settings regressions pass,
+  and all 139 headless editor cases pass 5,877 assertions.
+
 
 ---
 

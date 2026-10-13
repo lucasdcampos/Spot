@@ -25,6 +25,7 @@ class Event;
 class AudioSystem;
 class Model;
 class PhysicsWorld;
+class PhysicsWorld2D;
 class Prefab;
 class RenderContext;
 class InputState;
@@ -97,6 +98,7 @@ public:
 
     // Simulates the scene's colliders and rigidbodies; created on the first call.
     PhysicsWorld& GetPhysics();
+    PhysicsWorld2D& GetPhysics2D();
     // Plays the scene's sounds where they are; created on the first call.
     AudioSystem& GetAudio();
     UiSystem& GetUi();

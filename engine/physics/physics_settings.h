@@ -20,6 +20,7 @@ struct PhysicsSettings {
 
     // An acceleration, in units per second squared.
     Vector3 gravity = {0.0f, -9.81f, 0.0f};
+    Vector2 gravity2D = {0.0f, -9.81f};
     // The seconds each fixed step simulates; see Scene::SetFixedTimeStep().
     float fixedTimeStep = 1.0f / 60.0f;
     // The names of the entities' layers (see Entity::GetLayer()), by layer; layers without a name are unused. Always

@@ -24,6 +24,8 @@ class Scene;
 struct AnimationEvent;
 struct Collision;
 struct TriggerContact;
+struct Collision2D;
+struct TriggerContact2D;
 
 namespace Detail {
 struct SceneSerializer;
@@ -116,6 +118,11 @@ protected:
     virtual void OnCollisionExit(const Collision& /*collision*/) {}
     virtual void OnTriggerEnter(const TriggerContact& /*contact*/) {}
     virtual void OnTriggerExit(const TriggerContact& /*contact*/) {}
+    virtual void OnCollisionEnter2D(const Collision2D& /*collision*/) {}
+    virtual void OnCollisionStay2D(const Collision2D& /*collision*/) {}
+    virtual void OnCollisionExit2D(const Collision2D& /*collision*/) {}
+    virtual void OnTriggerEnter2D(const TriggerContact2D& /*contact*/) {}
+    virtual void OnTriggerExit2D(const TriggerContact2D& /*contact*/) {}
     // A joint of the entity broke, past its break force; see Joint.
     virtual void OnJointBreak(const Joint& /*joint*/) {}
 
@@ -129,6 +136,7 @@ protected:
 private:
     friend class Entity;
     friend class PhysicsWorld;
+    friend class PhysicsWorld2D;
     friend class AnimationSystem;
     friend class Animator;
     friend class UiWidget;

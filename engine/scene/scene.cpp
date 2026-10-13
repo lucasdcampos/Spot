@@ -8,6 +8,7 @@
 #include "graphics/renderer_2d.h"
 #include "input/input.h"
 #include "physics/physics_world.h"
+#include "physics2d/physics_world_2d.h"
 #include "ui/canvas.h"
 #include "ui/ui_input_system.h"
 #include "ui/ui_system.h"
@@ -37,6 +38,12 @@ Scene::~Scene() {
 Application& Scene::GetApplication() const {
     SPOT_ASSERT(m_application, "The application is only available while the scene is loaded");
     return *m_application;
+}
+
+PhysicsWorld2D& Scene::GetPhysics2D() {
+    if (auto* world = GetSystem<PhysicsWorld2D>())
+        return *world;
+    return AddSystem<PhysicsWorld2D>();
 }
 
 PhysicsWorld& Scene::GetPhysics() {

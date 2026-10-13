@@ -222,6 +222,10 @@ add_library(spot_objects OBJECT
     physics/physics_world_queries.cpp
     physics/rigidbody.h
     physics/rigidbody.cpp
+    physics2d/physics_2d.h
+    physics2d/physics_world_2d.cpp
+    physics2d/collider_2d.cpp
+    physics2d/rigidbody_2d.cpp
     platform/platform.h
     scene/archive.h
     scene/archive.cpp
@@ -490,6 +494,26 @@ if(SPOT_PHYSICS STREQUAL "JOLT")
     target_link_libraries(spot_objects PRIVATE Jolt)
 else()
     message(FATAL_ERROR "Unknown SPOT_PHYSICS '${SPOT_PHYSICS}'")
+endif()
+
+set(SPOT_PHYSICS_2D "BOX2D" CACHE STRING "2D physics backend")
+set_property(CACHE SPOT_PHYSICS_2D PROPERTY STRINGS BOX2D)
+if(SPOT_PHYSICS_2D STREQUAL "BOX2D")
+    set(BOX2D_SAMPLES OFF CACHE BOOL "" FORCE)
+    set(BOX2D_UNIT_TESTS OFF CACHE BOOL "" FORCE)
+    set(BOX2D_BENCHMARKS OFF CACHE BOOL "" FORCE)
+    set(BOX2D_VALIDATE OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(box2d
+        GIT_REPOSITORY https://github.com/erincatto/box2d.git
+        GIT_TAG v3.1.1
+        GIT_SHALLOW TRUE
+        SYSTEM
+    )
+    FetchContent_MakeAvailable(box2d)
+    target_sources(spot_objects PRIVATE physics/box2d/box2d_simulation.cpp)
+    target_link_libraries(spot_objects PRIVATE box2d)
+else()
+    message(FATAL_ERROR "Unknown SPOT_PHYSICS_2D '${SPOT_PHYSICS_2D}'")
 endif()
 
 target_include_directories(spot_objects PUBLIC
