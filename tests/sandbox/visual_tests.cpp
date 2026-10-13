@@ -126,6 +126,14 @@ TEST_CASE("The cooked sandbox renders held arms, recoil and sights", "[gpu][sand
         step();
     }
     REQUIRE(scene->GetEntity(view->GetArmsEntity())->GetComponent<Spot::Animator>());
+    const auto targetPrefab = assets.Load<Spot::Prefab>("prefabs/spawnables/props/target_dummy.prefab");
+    REQUIRE(targetPrefab);
+    auto* dummy = scene->Instantiate(targetPrefab);
+    REQUIRE(dummy);
+    REQUIRE(dummy->GetComponent<Spot::MeshRenderer>()->GetMesh());
+    const auto* player = scene->FindComponent<PlayerController>();
+    dummy->GetTransform().SetWorldPosition(player->GetEyePosition() + player->GetAimDirection() * 5 -
+                                           Spot::Vector3{0, .19f, 0});
     auto target = device->CreateTexture(
         {.width = 960, .height = 540, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
     REQUIRE(target);

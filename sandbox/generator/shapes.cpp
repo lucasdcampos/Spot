@@ -204,4 +204,15 @@ void Append(MeshData& to, const MeshData& from, const Spot::Matrix4& transform) 
     }
 }
 
+Spot::MeshData TargetDummy() {
+    Spot::MeshData mesh;
+    Append(mesh, Box({.8f, .1f, .6f}, .7f), Spot::Matrix4::Translation({0, -.9f, 0}));
+    Append(mesh, Box({.08f, 1.2f, .08f}, .7f), Spot::Matrix4::Translation({0, -.3f, 0}));
+    Append(mesh, Box({.7f, .72f, .14f}, .7f), Spot::Matrix4::Translation({0, .19f, 0}));
+    Append(mesh, Cylinder(.22f, .14f, 24),
+           Spot::Matrix4::Translation({0, .73f, 0}) *
+               Spot::Matrix4::Rotation(Spot::Quaternion::FromAxisAngle({1, 0, 0}, Spot::Pi * .5f)));
+    return mesh;
+}
+
 } // namespace Generator::Shapes

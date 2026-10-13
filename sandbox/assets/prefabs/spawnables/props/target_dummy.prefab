@@ -1,0 +1,151 @@
+{
+  "entities": [
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "1d353c242de3241e43d6922bb037601f",
+            "mesh": "c0f9cca177cc13a6144c6453cc3d1019"
+          },
+          "enabled": true,
+          "id": "bce4107164924582b30784c065169d88",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "mass": 12.0
+          },
+          "enabled": true,
+          "id": "495d2e05fcc94a98866dd6e8870497e0",
+          "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 1
+          },
+          "enabled": true,
+          "id": "38c6730efd4545dcab12f2fed8069b11",
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "id": "ca311ffa209b4c64b81a49fc5b4bc85c",
+          "type": "ImpactSounds"
+        },
+        {
+          "data": {
+            "category": 0,
+            "clearance": 0.95,
+            "order": 10
+          },
+          "enabled": true,
+          "id": "8e7ad85a6ae64d07bca9222bb0a78a40",
+          "type": "Spawnable"
+        },
+        {
+          "type": "ImpactParticles",
+          "enabled": true,
+          "id": "a54b568c00434b9d9da6b2d68c4c1614",
+          "data": {
+            "minSpeed": 1.5
+          }
+        },
+        {
+          "type": "BoxCollider",
+          "id": "77e8d5aa6a1c46bc8ac12696f14f2226",
+          "enabled": true,
+          "data": {
+            "size": [
+              0.8,
+              0.1,
+              0.6
+            ],
+            "center": [
+              0,
+              -0.9,
+              0
+            ]
+          }
+        },
+        {
+          "type": "BoxCollider",
+          "id": "7d3e7f22ae0d4e8391c204c109ce2e17",
+          "enabled": true,
+          "data": {
+            "size": [
+              0.08,
+              1.2,
+              0.08
+            ],
+            "center": [
+              0,
+              -0.3,
+              0
+            ]
+          }
+        },
+        {
+          "type": "BoxCollider",
+          "id": "30297d9d62ef4f33902c87e48cf3c775",
+          "enabled": true,
+          "data": {
+            "size": [
+              0.7,
+              0.72,
+              0.14
+            ],
+            "center": [
+              0,
+              0.19,
+              0
+            ]
+          }
+        },
+        {
+          "type": "BoxCollider",
+          "id": "4b9ca05c9cba4372accd3e3a002cc1b1",
+          "enabled": true,
+          "data": {
+            "size": [
+              0.44,
+              0.44,
+              0.14
+            ],
+            "center": [
+              0,
+              0.73,
+              0
+            ]
+          }
+        }
+      ],
+      "id": 1,
+      "name": "Target Dummy",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    }
+  ],
+  "format": "spot-scene",
+  "version": 2
+}

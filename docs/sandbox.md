@@ -38,6 +38,11 @@ remove those world components as overrides, while `ViewModel` draws the model re
 
 ## Controls
 
+The Props tab includes Target Dummy after the original eight shortcuts, ramps and stairs. Its
+generated glTF model and bullseye texture use the wood PBR maps; four compound boxes follow its
+base, post, torso and head. Hits push it and emit wood effects. It uses the same spawning, undo,
+cleanup and checkpoint paths as other props. The level's original primitive target remains editable.
+
 Bindings live in the project's Input settings and can be changed in the editor. The default keyboard and mouse
 controls are:
 

@@ -1365,6 +1365,8 @@ before or after it.
   with lit interiors and glass, and spawn areas, with the day cycle.
 - [x] **M15.2 Feature check.** Every item of [The sandbox game](#the-sandbox-game) works together. What is missing or
   broken becomes a step here.
+- [x] **M15.2a Target dummy.** Generate a dedicated target prop, expose its prefab in the spawn menu,
+  and check shooting, undo, cleanup and world checkpoints.
 - [x] **M15.3 Polish.** Weapon feel (recoil, spread, view-model sway and bob), physics gun feel, sound mix, HUD
   readability and menu flow.
 - [x] **M15.4 Performance.** In Release, 60 FPS with 500 props and 50 lamps on the development machine. Profile, fix
@@ -1376,6 +1378,13 @@ before or after it.
 three platforms.
 
 **Notes:**
+- M15.2a: the level already had a primitive target, but no dedicated generated model or spawn-menu
+  entry. Added a centered wooden target with a seeded bullseye texture, wood normal/ORM maps and
+  four compound box colliders. It is a marked prefab, ordered after the original prop shortcuts.
+  Imported metadata comes from the asset database. Five catalog/target cases pass 7,606 assertions;
+  generator coverage checks bounds, winding, PBR and unchanged output (1,895 assertions), and a
+  separate bullseye regression passes eight assertions. The imported target was inspected in the
+  offscreen first-person capture. It can be shot, saved/restored, undone and cleaned up.
 - M15.4 acceptance (2026-10-13): the dedicated Release benchmark runs the real cooked playground,
   gameplay, physics, robots, particles, HUD and lighting with 500 additional imported crate prefabs
   and 50 additional point lamps (seven shadowed), plus the authored population. On an i5-11600K /

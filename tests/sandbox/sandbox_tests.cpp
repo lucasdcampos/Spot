@@ -742,7 +742,7 @@ TEST_CASE("Every catalog entry spawns its complete prefab and undo removes its t
     playground.Run(Step);
     auto& spawner = *playground.player->GetComponent<PropSpawner>();
     auto& undo = *playground.player->GetComponent<UndoList>();
-    REQUIRE(spawner.GetSpawnables().size() == 15);
+    REQUIRE(spawner.GetSpawnables().size() == 16);
     const std::vector<std::string> shortcuts{"Crate", "Barrel", "Explosive Barrel", "Ball", "Plank", "Beam",
                                              "Cone",  "Wheel"};
     for (std::size_t i = 0; i < spawner.GetSpawnables().size(); ++i) {
@@ -826,7 +826,7 @@ TEST_CASE("Adding a marked prefab asset extends the sandbox catalog without code
     spawner.Cleanup();
     CHECK(playground.scene.GetEntity(childId) == nullptr);
     spawner.RefreshSpawnables();
-    CHECK(spawner.GetSpawnables().size() == 15);
+    CHECK(spawner.GetSpawnables().size() == 16);
 }
 
 TEST_CASE("Sandbox prefab edits propagate while instance overrides survive", "[sandbox][prefab]") {

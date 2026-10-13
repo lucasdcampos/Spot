@@ -327,6 +327,7 @@ if(TARGET sandbox)
         sandbox/level_tests.cpp
         sandbox/feature_tests.cpp
         sandbox/polish_tests.cpp
+        sandbox/target_tests.cpp
     )
     target_link_libraries(spot_sandbox_tests PRIVATE spot::import spot::spot Catch2::Catch2WithMain)
     target_include_directories(spot_sandbox_tests PRIVATE ${PROJECT_SOURCE_DIR}/sandbox/src ${CMAKE_CURRENT_SOURCE_DIR})

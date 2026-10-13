@@ -26,6 +26,7 @@ Spot::MeshData Stairs(float width, float stepHeight, float stepDepth, int steps,
 // A wedge rising toward -Z: its slope goes from the ground at +Z up to its full height at -Z. The texture repeats
 // every uvRepeat units, as on a box.
 Spot::MeshData Ramp(float width, float height, float length, float uvRepeat);
+Spot::MeshData TargetDummy();
 
 // Adds the mesh, moved and turned by the transform, which must not scale, to the end of another, as models made of
 // several shapes are built.

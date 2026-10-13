@@ -97,6 +97,22 @@ TEST_CASE("The sandbox's generated props load back, wound outward and centered",
     CHECK(second.unchanged == first.written);
 }
 
+TEST_CASE("The target dummy generator paints a reproducible bullseye", "[sandbox][generator][target]") {
+    const TempDirectory temp;
+    const auto first = Generator::GenerateSandboxAssets(temp.GetPath());
+    REQUIRE(first.failed == 0);
+    const auto image = Spot::Image::Load(temp.GetPath() / "textures/target_dummy.png");
+    REQUIRE(image);
+    const auto pixels = image->GetPixels();
+    const auto center = static_cast<std::size_t>((128 * 256 + 128) * 4);
+    CHECK(pixels[center] > 150);
+    CHECK(pixels[center + 1] < 30);
+    CHECK(pixels[center + 2] < 30);
+    CHECK(pixels[0] > pixels[1]);
+    CHECK(pixels[1] > pixels[2]);
+    CHECK(Generator::GenerateSandboxAssets(temp.GetPath()).written == 0);
+}
+
 TEST_CASE("The sandbox's generated sounds load back, loud enough and never clipping", "[sandbox]") {
     const TempDirectory temp;
     CHECK(Generator::GenerateSandboxAssets(temp.GetPath()).failed == 0);

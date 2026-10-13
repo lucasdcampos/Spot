@@ -24,6 +24,7 @@ Spot::Image Cone();
 // Tiles in both directions.
 Spot::Image Concrete();
 Spot::Image Wheel();
+Spot::Image TargetDummy();
 
 // The surfaces props, weapons and the level are made of, each a set of tiling PBR textures.
 enum class Surface { Wood, PaintedMetal, RustyMetal, Concrete, Rubber, Glass };

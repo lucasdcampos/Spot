@@ -166,6 +166,21 @@ Rgb Lid(int x, int y, Rgb paint, std::uint32_t seed) {
 
 } // namespace
 
+Spot::Image TargetDummy() {
+    return Paint([](int x, int y) {
+        const float radius =
+            Distance(x, y, static_cast<float>(Size) * .5f, static_cast<float>(Size) * .5f) / static_cast<float>(Size);
+        if (radius < .06f) {
+            return Rgb{.8f, .06f, .04f};
+        }
+        if (radius < .43f) {
+            const int ring = static_cast<int>(radius * 16);
+            return ring % 2 == 0 ? Rgb{.12f, .12f, .12f} : Rgb{.9f, .87f, .78f};
+        }
+        return Wood(x, y, {.35f, .19f, .08f}, {.65f, .44f, .22f}, 67);
+    });
+}
+
 Spot::Image Crate() {
     constexpr Rgb Dark{0.45f, 0.30f, 0.16f};
     constexpr Rgb Light{0.72f, 0.53f, 0.30f};

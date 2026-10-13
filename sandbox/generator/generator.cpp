@@ -43,14 +43,22 @@ std::vector<Prop> MakeProps() {
         {{"ramp", "concrete", "concrete"}, [] { return Shapes::Ramp(2.0f, 1.0f, 3.0f, 1.0f); }},
         {{"stairs", "concrete", "concrete"}, [] { return Shapes::Stairs(2.0f, 0.2f, 0.3f, 10, 1.0f); }},
         {{"wheel", "wheel", "rubber"}, [] { return Shapes::Wheel(0.4f, 0.2f, 32); }},
+        {{"target_dummy", "target_dummy", "wood"}, Shapes::TargetDummy, 0.0f, 0.85f},
     };
 }
 
 const std::vector<Texture>& GetTextures() {
     static const std::vector<Texture> textures = {
-        {"crate", Textures::Crate}, {"barrel", Textures::Barrel},     {"explosive_barrel", Textures::ExplosiveBarrel},
-        {"plank", Textures::Plank}, {"beam", Textures::Beam},         {"ball", Textures::Ball},
-        {"cone", Textures::Cone},   {"concrete", Textures::Concrete}, {"wheel", Textures::Wheel},
+        {"crate", Textures::Crate},
+        {"barrel", Textures::Barrel},
+        {"explosive_barrel", Textures::ExplosiveBarrel},
+        {"plank", Textures::Plank},
+        {"beam", Textures::Beam},
+        {"ball", Textures::Ball},
+        {"cone", Textures::Cone},
+        {"concrete", Textures::Concrete},
+        {"wheel", Textures::Wheel},
+        {"target_dummy", Textures::TargetDummy},
     };
     return textures;
 }
