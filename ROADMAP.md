@@ -9,7 +9,7 @@ The goal is the same breadth, built on the architecture Spot already has.
 The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
 [The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
 
-**Current focus:** M14.2 - Sprite sheets (M14 implemented by request; M15.5 platform acceptance remains)
+**Current focus:** M14.3 - Tilemaps (M14 implemented by request; M15.5 platform acceptance remains)
 
 ## How to use this plan
 
@@ -1348,11 +1348,18 @@ Implemented by request; it depends on M1 for the shape of its API.
 
 - [x] **M14.1 2D physics.** A Box2D v3 backend with `Rigidbody2D` and box, circle, capsule and polygon colliders,
   with the same events and queries as 3D.
-- [ ] **M14.2 Sprite sheets.** A sprite atlas importer and sprite animation.
+- [x] **M14.2 Sprite sheets.** A sprite atlas importer and sprite animation.
 - [ ] **M14.3 Tilemaps.** Tilemap component, painting in the editor, and colliders from tiles.
 - [ ] **M14.4 Pixel-perfect camera.** An option for pixel art.
 
 **Notes:**
+- M14.2: versioned .atlas sources reference imported textures, named pixel rectangles and variable-
+  duration animations. SpriteAnimationPlayer is code-only; SpriteAnimator drives SpriteRenderer
+  without changing its size. Texture reloads invalidate dependent atlases. The editor creates atlases
+  from textures and edits/applies/reverts metadata with undo. Four new engine cases pass 48 assertions,
+  the actual editor creation/inspection case passes 17, all 49 selected regressions pass, and the
+  serial offscreen GPU case verifies regions, playback, mirroring and repeated-frame pixels.
+
 - M14.1: Box2D 3.1.1 has an independent build-time backend and code-only simulation API.
   Scene bodies combine solid and sensor shapes, preserve depth, rebuild on component/scale/layer
   edits and dispatch guarded 2D entity-pair events after simulation. Queries share the 3D filters.

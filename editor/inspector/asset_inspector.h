@@ -45,6 +45,7 @@ private:
     void DrawHeader(EditorProject& project, const AssetInfo& info);
     void DrawPreview(EditorProject& project, const AssetInfo& info);
     void DrawController(EditorProject& project, const AssetInfo& info);
+    void DrawAtlas(EditorProject& project, const AssetInfo& info);
     void DrawClip(EditorProject& project, const AssetInfo& info);
     void DrawMaterial(EditorProject& project, const AssetInfo& info);
     void DrawImportSettings(EditorProject& project, const AssetInfo& info);
@@ -60,6 +61,8 @@ private:
     CommandHistory m_history;
     // The material shown, as edited, and as saved.
     std::optional<AnimatorController> m_controller;
+    std::optional<SpriteAtlas> m_atlas;
+    std::string m_atlasText;
     std::string m_controllerText;
     ControllerGraph m_graph;
     std::optional<MaterialSource> m_material;

@@ -44,6 +44,7 @@ add_executable(spot_tests
     prefab_nesting_tests.cpp
     project_tests.cpp
     renderer_2d_tests.cpp
+    sprite_atlas_tests.cpp
     renderer_3d_tests.cpp
     scene_serialization_tests.cpp
     scene_system_tests.cpp

@@ -18,6 +18,7 @@ add_library(spot_import STATIC
     importers/scene_importer.cpp
     importers/sound_importer.cpp
     importers/texture_importer.cpp
+    importers/sprite_atlas_importer.cpp
     ../spot_import.h
 )
 add_library(spot::import ALIAS spot_import)

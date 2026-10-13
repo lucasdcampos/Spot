@@ -325,6 +325,9 @@ void AssetBrowserPanel::DrawCreateItems(EditorProject& project) {
         ImGui::BeginDisabled(project.GetAssets().GetAssetIds(AssetType::AnimationClip).empty());
         item(ICON_FA_CUBES, "Animator Controller", NewAsset::AnimatorController);
         ImGui::EndDisabled();
+        ImGui::BeginDisabled(project.GetAssets().GetAssetIds(AssetType::Texture).empty());
+        item(ICON_FA_IMAGE, "Sprite Atlas", NewAsset::SpriteAtlas);
+        ImGui::EndDisabled();
     }
     ImGui::Separator();
     if (ImGui::MenuItem(ICON_FA_CODE "  C++ Component")) {
@@ -1132,6 +1135,33 @@ void AssetBrowserPanel::Create(EditorProject& project, NewAsset kind) {
         Scene scene;
         PopulateNewScene(scene);
         created = scene.SaveToFile(assets / Utf8ToPath(path));
+        break;
+    }
+    case NewAsset::SpriteAtlas: {
+        const auto textures = project.GetAssets().GetAssetIds(AssetType::Texture);
+        if (textures.empty())
+            return;
+        AssetId texture = textures.front();
+        if (!m_selection.empty()) {
+            const auto* selected = FindItem(m_selection.front());
+            if (selected && selected->type == AssetType::Texture)
+                texture = selected->id;
+        }
+        const auto* info = project.GetAssetDatabase().Find(texture);
+        if (!info)
+            return;
+        const auto image = Image::Load(assets / Utf8ToPath(info->path));
+        if (!image)
+            return;
+        SpriteAtlas atlas;
+        atlas.texture = AssetRef<Texture>(texture, nullptr);
+        atlas.textureSize = {static_cast<float>(image->GetWidth()), static_cast<float>(image->GetHeight())};
+        atlas.sprites = {{"Sprite", {}, atlas.textureSize}};
+        atlas.animations = {{"Idle", true, {{0, 0.1f}}}};
+        path = project.GetAssetDatabase().GetFreePath(JoinPath(m_folder, "New Atlas.atlas"));
+        std::ofstream file(assets / Utf8ToPath(path), std::ios::binary);
+        file << atlas.SaveToString();
+        created = static_cast<bool>(file);
         break;
     }
     case NewAsset::AnimatorController: {

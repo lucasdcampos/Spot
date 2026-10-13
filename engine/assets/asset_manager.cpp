@@ -1,4 +1,5 @@
 #include "assets/asset_manager.h"
+#include "graphics/sprite_atlas.h"
 
 #include "animation/animator_controller.h"
 #include "assets/asset_file.h"
@@ -120,6 +121,9 @@ std::vector<AssetId> AssetManager::Reload(std::span<const AssetId> assets) {
     // Loaded materials and models hold on to other assets, so they go out of date with them, as do models with
     // their materials, until nothing more does.
     const auto refersToStale = [&](const Entry& entry, const std::shared_ptr<const void>& loaded) {
+        if (entry.type == AssetType::SpriteAtlas) {
+            return stale.contains(static_cast<const SpriteAtlas*>(loaded.get())->texture.GetId());
+        }
         if (entry.type == AssetType::Material) {
             const auto& material = *static_cast<const Material*>(loaded.get());
             return std::ranges::any_of(
@@ -399,6 +403,11 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
         const auto text = Detail::DecodeScene(*data);
         auto controller = text ? AnimatorController::LoadFromString(*text, this) : std::nullopt;
         return controller ? std::make_shared<const AnimatorController>(std::move(*controller)) : nullptr;
+    }
+    case AssetType::SpriteAtlas: {
+        const auto text = Detail::DecodeScene(*data);
+        auto atlas = text ? SpriteAtlas::LoadFromString(*text, this) : std::nullopt;
+        return atlas ? std::make_shared<const SpriteAtlas>(std::move(*atlas)) : nullptr;
     }
     case AssetType::Skeleton: {
         auto skeleton = Detail::DecodeSkeleton(*data);

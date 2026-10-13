@@ -18,6 +18,7 @@
 #include "scene/missing_component.h"
 #include "scene/post_processing.h"
 #include "scene/sky.h"
+#include "scene/sprite_animator.h"
 #include "scene/sprite_renderer.h"
 #include "scene/text_renderer.h"
 #include "ui/canvas.h"
@@ -95,6 +96,7 @@ Registry& GetRegistry() {
         RegisterBuiltIn<UiRect>(registry, "UiRect");
         RegisterBuiltIn<TextRenderer>(registry, "TextRenderer");
         RegisterBuiltIn<SpriteRenderer>(registry, "SpriteRenderer");
+        RegisterBuiltIn<SpriteAnimator>(registry, "SpriteAnimator");
         RegisterBuiltIn<Camera>(registry, "Camera");
         RegisterBuiltIn<AudioSource>(registry, "AudioSource");
         RegisterBuiltIn<AudioListener>(registry, "AudioListener");

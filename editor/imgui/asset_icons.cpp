@@ -492,6 +492,7 @@ void DrawFile(ImDrawList* drawList, ImVec2 min, float size, std::string_view nam
 
 ImVec4 GetTypeColor(AssetType type) {
     switch (type) {
+    case AssetType::SpriteAtlas:
     case AssetType::Texture:
         return TextureAccent;
     case AssetType::Mesh:
@@ -559,6 +560,7 @@ void DrawFolder(ImDrawList* drawList, ImVec2 min, float size, bool hasContents) 
 
 void DrawAsset(ImDrawList* drawList, ImVec2 min, float size, AssetType type) {
     switch (type) {
+    case AssetType::SpriteAtlas:
     case AssetType::Texture:
         DrawTexture(drawList, min, size);
         return;

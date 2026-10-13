@@ -39,6 +39,62 @@
 using Spot::Tests::RenderingApplication;
 using Spot::Tests::RequireGpu;
 
+TEST_CASE("Sprite atlas regions and animation render repeated offscreen frames", "[gpu][sprites][offscreen]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = false});
+    REQUIRE(device);
+    auto texture = device->CreateTexture({.width = 4, .height = 1});
+    REQUIRE(texture);
+    device->UploadToTexture(
+        *texture, std::array<std::uint8_t, 16>{255, 0, 0, 255, 0, 0, 255, 255, 0, 255, 0, 255, 255, 255, 0, 255});
+    auto atlas = std::make_shared<Spot::SpriteAtlas>();
+    atlas->texture = std::shared_ptr<const Spot::Texture>(std::move(texture));
+    atlas->textureSize = {4, 1};
+    atlas->sprites = {{"first", {0, 0}, {2, 1}}, {"second", {2, 0}, {2, 1}}};
+    atlas->animations = {{"walk", true, {{0, 0.1f}, {1, 0.2f}}}};
+    REQUIRE(atlas->IsValid());
+    Spot::Scene scene;
+    auto& entity = scene.CreateEntity();
+    entity.GetTransform().SetPosition({32, 16, 0});
+    auto& sprite = entity.AddComponent<Spot::SpriteRenderer>();
+    sprite.SetSize({64, 32});
+    auto& animator = entity.AddComponent<Spot::SpriteAnimator>();
+    animator.SetAtlas(atlas);
+    REQUIRE(animator.Play("walk"));
+    auto target =
+        device->CreateTexture({.width = 64, .height = 32, .format = Spot::TextureFormat::Rgba8, .renderTarget = true});
+    REQUIRE(target);
+    Spot::Renderer2D renderer(*device,
+                              {.filter = Spot::TextureFilter::Nearest, .targetFormat = Spot::TextureFormat::Rgba8});
+    auto render = [&] {
+        auto* context = device->BeginOffscreenFrame(*target);
+        REQUIRE(context);
+        auto pass = context->BeginRenderPass({.clearColor = Spot::Color::Black});
+        renderer.Begin(pass, Spot::Scene::ScreenCamera({64, 32}), {64, 32});
+        renderer.DrawScene(scene);
+        renderer.End();
+        pass.End();
+        device->EndFrame();
+        return device->DownloadTexture(*target);
+    };
+    const auto first = render();
+    REQUIRE(first.size() == 64 * 32 * 4);
+    CHECK(render() == first);
+    const auto pixel = [](int x) { return static_cast<std::size_t>((16 * 64 + x) * 4); };
+    CHECK(first[pixel(8)] == 255);
+    CHECK(first[pixel(56) + 2] == 255);
+    scene.Update(0.11f);
+    const auto second = render();
+    CHECK(second[pixel(8) + 1] == 255);
+    CHECK(second[pixel(56)] == 255);
+    CHECK(second[pixel(56) + 1] == 255);
+    sprite.SetFlippedX(true);
+    const auto flipped = render();
+    CHECK(flipped[pixel(8)] == 255);
+    CHECK(flipped[pixel(56)] == 0);
+    CHECK(flipped[pixel(56) + 1] == 255);
+}
+
 TEST_CASE("The developer console renders and reads back offscreen without creating a window",
           "[gpu][console][offscreen]") {
     RequireGpu();

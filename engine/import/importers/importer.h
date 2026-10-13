@@ -67,6 +67,7 @@ struct ImporterInfo {
 ImporterInfo FindImporter(AssetType type);
 
 bool ImportTexture(ImportContext& context);
+bool ImportSpriteAtlas(ImportContext& context);
 bool ImportModel(ImportContext& context);
 bool ImportAnimatorController(ImportContext& context);
 bool ImportMaterial(ImportContext& context);

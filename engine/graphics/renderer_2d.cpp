@@ -114,8 +114,9 @@ void Renderer2D::DrawScene(Scene& scene) {
     });
     for (const Sprite& sprite : sprites) {
         const Vector2 position{sprite.position.x, sprite.position.y};
-        if (const Texture* texture = sprite.renderer->GetTexture().Get()) {
-            DrawRotatedQuad(position, sprite.size, sprite.rotation, *texture, sprite.renderer->GetColor());
+        if (const Texture* texture = sprite.renderer->GetDrawTexture()) {
+            DrawRotatedQuad(position, sprite.size, sprite.rotation, *texture, sprite.renderer->GetColor(),
+                            sprite.renderer->GetRegion());
         } else {
             DrawRotatedQuad(position, sprite.size, sprite.rotation, sprite.renderer->GetColor());
         }

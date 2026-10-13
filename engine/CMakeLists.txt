@@ -149,6 +149,8 @@ add_library(spot_objects OBJECT
     graphics/pipeline.cpp
     graphics/quad_batch.h
     graphics/quad_batch.cpp
+    graphics/sprite_atlas.cpp
+    scene/sprite_animator.cpp
     graphics/render_context.h
     graphics/render_stage.h
     graphics/renderer_2d.h

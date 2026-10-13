@@ -68,7 +68,7 @@ AssetInspector::AssetInspector(EditorContext& context) : m_context(context) {
 }
 
 CommandHistory* AssetInspector::GetHistory() {
-    return m_material || m_controller ? &m_history : nullptr;
+    return m_material || m_controller || m_atlas ? &m_history : nullptr;
 }
 
 std::optional<std::pair<ImVec2, ImVec2>> AssetInspector::GetItemRect(std::string_view item) const {
@@ -92,6 +92,13 @@ void AssetInspector::Load(EditorProject& project, AssetId asset) {
     }
 
     const AssetInfo* info = project.GetAssetDatabase().Find(asset);
+    const auto loadedAtlas = info && info->type == AssetType::SpriteAtlas ? project.GetAssets().Load<SpriteAtlas>(asset)
+                                                                          : AssetRef<SpriteAtlas>{};
+    const std::string atlasText = loadedAtlas ? loadedAtlas->SaveToString() : std::string{};
+    if (other || !m_atlas || m_atlas->SaveToString() == m_atlasText || atlasText != m_atlasText) {
+        m_atlas = loadedAtlas ? std::optional(*loadedAtlas) : std::nullopt;
+        m_atlasText = atlasText;
+    }
     m_material.reset();
     m_materialText.clear();
     if (info && info->type == AssetType::Material && !info->parent.IsValid()) {
@@ -167,6 +174,8 @@ void AssetInspector::Draw(EditorProject& project, AssetId asset) {
         if (shown.type == AssetType::AnimatorController) {
             DrawController(project, shown);
         }
+        if (shown.type == AssetType::SpriteAtlas)
+            DrawAtlas(project, shown);
         if (shown.type == AssetType::AnimationClip) {
             DrawClip(project, shown);
         }

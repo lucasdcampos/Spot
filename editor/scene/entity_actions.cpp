@@ -162,7 +162,7 @@ const char* GetEntityIcon(const Entity& entity) {
 }
 
 const char* GetComponentIcon(std::string_view typeName) {
-    static constexpr std::array<std::pair<std::string_view, const char*>, 40> Icons{{
+    static constexpr std::array<std::pair<std::string_view, const char*>, 41> Icons{{
         {"Canvas", ICON_FA_DESKTOP},
         {"UiRect", ICON_FA_OBJECT_GROUP},
         {"UiImage", ICON_FA_IMAGE},
@@ -177,6 +177,7 @@ const char* GetComponentIcon(std::string_view typeName) {
         {"TextRenderer", ICON_FA_FONT},
         {"Camera", ICON_FA_VIDEO},
         {"SpriteRenderer", ICON_FA_IMAGE},
+        {"SpriteAnimator", ICON_FA_FILM},
         {"MeshRenderer", ICON_FA_CUBE},
         {"Rigidbody", ICON_FA_WEIGHT_HANGING},
         {"Rigidbody2D", ICON_FA_WEIGHT_HANGING},

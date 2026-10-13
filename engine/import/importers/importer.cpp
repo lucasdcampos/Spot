@@ -29,6 +29,8 @@ ImporterInfo FindImporter(AssetType type) {
     switch (type) {
     case AssetType::Texture:
         return {&ImportTexture, 2};
+    case AssetType::SpriteAtlas:
+        return {&ImportSpriteAtlas, 1};
     case AssetType::Model:
         return {&ImportModel, 11};
     case AssetType::AnimatorController:

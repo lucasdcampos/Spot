@@ -18,6 +18,7 @@ enum class AssetType {
     Skeleton,
     AnimationClip,
     AnimatorController,
+    SpriteAtlas,
 };
 
 // The name used in .meta and manifest files, such as "Texture".

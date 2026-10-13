@@ -126,6 +126,7 @@
 #include "scene/scene_system.h"
 #include "scene/sky.h"
 #include "scene/sprite_renderer.h"
+#include "scene/sprite_animator.h"
 #include "scene/transform.h"
 #include "scene/tween_system.h"
 #include "version.h"

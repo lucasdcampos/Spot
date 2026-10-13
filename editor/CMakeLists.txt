@@ -96,6 +96,7 @@ add_library(spot_editor_core STATIC
     inspector/controller_graph.cpp
     inspector/asset_inspector_animation.cpp
     inspector/asset_inspector.cpp
+    inspector/asset_inspector_atlas.cpp
     inspector/asset_inspector.h
     inspector/entity_inspector.cpp
     inspector/entity_inspector.h

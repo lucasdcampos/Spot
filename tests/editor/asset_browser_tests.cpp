@@ -513,6 +513,35 @@ TEST_CASE("New assets are created and named in place", "[editor][assets][ui]") {
     CHECK(fixture.panel->GetSelection() == std::vector<std::string>{fixture.KeyOf("Bricks.material")});
 }
 
+TEST_CASE("The asset browser creates a sprite atlas from the selected texture", "[editor][sprites][ui]") {
+    BrowserFixture fixture;
+    fixture.imgui.Click(fixture.Tile("pixels.png"));
+    fixture.imgui.Click(fixture.Center(fixture.panel->GetItemRect("Create")));
+    fixture.imgui.Click(fixture.Center(fixture.panel->GetItemRect("Create/Sprite Atlas")));
+    CHECK(std::filesystem::is_regular_file(fixture.assets / "New Atlas.atlas.meta"));
+    const auto id = fixture.Project().GetAssetDatabase().FindByPath("New Atlas.atlas");
+    REQUIRE(id);
+    const auto atlas = fixture.Project().GetAssets().Load<Spot::SpriteAtlas>(*id);
+    REQUIRE(atlas);
+    CHECK(atlas->texture.GetId() == *fixture.Project().GetAssetDatabase().FindByPath("pixels.png"));
+    CHECK(atlas->animations.front().name == "Idle");
+    CHECK(atlas->sprites.front().size == atlas->textureSize);
+    fixture.imgui.Press(ImGuiKey_Enter);
+    Spot::Editor::AssetInspector inspector(*fixture.context);
+    fixture.imgui.SetDraw([&] {
+        ImGui::SetNextWindowSize({900, 700});
+        ImGui::Begin("Atlas");
+        inspector.Draw(fixture.Project(), *id);
+        ImGui::End();
+    });
+    fixture.imgui.Frame();
+    fixture.imgui.Frame();
+    CHECK(inspector.GetItemRect("/texture").has_value());
+    CHECK(inspector.GetItemRect("Atlas/Apply").has_value());
+    REQUIRE(inspector.GetHistory());
+    CHECK(inspector.GetHistory()->GetUndoCount() == 0);
+}
+
 TEST_CASE("F2 renames, keeping the asset's id, and Ctrl+D duplicates", "[editor][assets][ui]") {
     BrowserFixture fixture;
     const std::string key = fixture.KeyOf("pixels.png");
