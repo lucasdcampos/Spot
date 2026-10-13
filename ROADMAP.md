@@ -9,7 +9,7 @@ The goal is the same breadth, built on the architecture Spot already has.
 The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
 [The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
 
-**Current focus:** M9 - Skeletal animation (M14 is conditional on a 2D game)
+**Current focus:** M15 - The sandbox game (M14 is conditional on a 2D game)
 
 ## How to use this plan
 
@@ -121,7 +121,7 @@ How it is built:
 | [x] | [M6 – Rendering: PBR and transparency](#m6--rendering-pbr-and-transparency) | Metallic-roughness PBR, normal maps, sky lighting, alpha modes, golden-image tests |
 | [x] | [M7 – Rendering: scale](#m7--rendering-scale) | Culling, instancing, clustered lights, better shadows, benchmarks |
 | [x] | [M8 – Model hierarchy and prefabs](#m8--model-hierarchy-and-prefabs) | Model node trees, prefab assets, overrides, prefab editing |
-| [ ] | [M9 – Skeletal animation](#m9--skeletal-animation) | Skins, clips, GPU skinning, Animator, controllers, blend trees, events, root motion |
+| [x] | [M9 – Skeletal animation](#m9--skeletal-animation) | Skins, clips, GPU skinning, Animator, controllers, blend trees, events, root motion |
 | [x] | [M10 – Gameplay toolkit](#m10--gameplay-toolkit) | Timers, time scale, tweens, coroutines, signals, typed references, save data |
 | [x] | [M11 – Developer tools](#m11--developer-tools) | Console commands and cvars, overlays, profiler panel, captures |
 | [ ] | [M12 – Runtime UI and text](#m12--runtime-ui-and-text) | World text, SDF fonts, entity-based UI, widgets, layout, navigation |
@@ -977,6 +977,14 @@ Controllers are assets with parameters, transitions with cross-fades, blend tree
 with view-model animations.
 
 **Notes:**
+- Acceptance (Windows, Debug): complete MSVC and GCC builds have no compiler warnings.
+  Both headless suites pass all 702 cases; the complete MSVC GPU suite passes all 100,
+  including golden images, and the three GCC animation GPU cases pass. Inspected
+  captures show the generated robot's idle/run/physics poses and animated arms holding
+  the pistol through idle/fire/reload. Real sandbox input tests cover root-motion patrols,
+  clip events, shots/explosions, recovery, weapon actions and checkpoint ownership.
+  Sandbox acceptance uses a committed scene snapshot, preserving concurrent authored edits.
+
 - M9.12 assets: the cgltf writer now emits skins, weighted streams, clips and events.
   Generated robot/arms sources and importer-created metadata are committed. MSVC Debug
   builds without compiler warnings; generator validation passes 1,000 assertions and
