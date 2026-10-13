@@ -152,6 +152,16 @@ in addition to the requested population. Individual frames can still exceed the 
 - Spawn a stress pile, select/pause a slow frame in the profiler, remove it with `cleanup` and compare body counts.
 - Give each firearm twice; check selection, full ammunition, canceled reloads and unchanged inventory size.
 
+For release acceptance, repeat this checklist from the exported folder on each platform. Also check running,
+crouching under a low ceiling, noclip/returning to walking and falling off the level; rotate a carried prop and
+throw it; rotate and wheel a physics-gun prop, freeze with Aim and unfreeze with U; enter the workshop, collide
+with its glass, climb to its roof and advance T through sunset/night. Spawn and shoot Target Dummy, then undo
+and clean up. Run `gravity`, `timescale`, `noclip`, `spawn`, `give`, `stress` and `cleanup`; capture a screenshot
+and check the file. Play surface impacts and footsteps beside the ambience/music mix. Verify every weapon's
+idle/fire/reload/switch/sights poses and recoil recovery, robot patrol/ragdoll/revival, and wood/metal/concrete
+particles. Complete the runtime-interface checklist below, including a saved rebind and a restart. Export
+instructions, the automated smoke test and the per-platform results are in [Sandbox release](sandbox_release.md).
+
 Watch the robots patrol, shoot one and trigger an explosion nearby; check that the
 animated pose becomes a physical ragdoll. Fire, reload, aim and switch each weapon;
 check that the arms move and that the held model follows the right hand.

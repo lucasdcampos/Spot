@@ -9,7 +9,7 @@ The goal is the same breadth, built on the architecture Spot already has.
 The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
 [The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
 
-**Current focus:** M15 - The sandbox game (M14 is conditional on a 2D game)
+**Current focus:** M15.5 - Release acceptance (macOS and interactive platform checks remain; M14 is conditional)
 
 ## How to use this plan
 
@@ -1373,11 +1373,34 @@ before or after it.
   and record the numbers in Notes.
 - [ ] **M15.5 Release.** `spot export` builds of the game for Windows, Linux and macOS that run with nothing else
   installed. `docs/sandbox.md` describes the controls and a play-test checklist covering every system the game uses.
+  > In progress: standalone runtime bundling, relocation-safe library lookup, native Windows/Linux
+  > exports, a bounded shipped-game smoke test, documentation and a three-platform release workflow
+  > are implemented. Windows/Linux relocated exports pass. A native macOS export and the interactive
+  > checklist on the three platforms remain; the workflow has not been run remotely.
 
 **Done when:** an exported build of the sandbox plays every feature of [The sandbox game](#the-sandbox-game) on the
 three platforms.
 
 **Notes:**
+- Release validation (2026-10-13): full Windows MSVC Debug, MSVC Release and GCC Debug builds have
+  no compiler warnings; all 716 headless cases pass in each build. The two sandbox offscreen GPU
+  cases pass serially with MSVC and GCC Debug, and their day/night/glass/weapon/target captures were
+  inspected. Native GCC Release under Linux/WSL builds and passes all 556 discovered headless cases
+  (one default-output audio case skips because no output device is available); the editor is disabled
+  in this Linux build. The first clean Linux Release dependency build emitted upstream glslang
+  optimization warnings; repository sources and the final incremental build are warning-free.
+- M15.5: `spot export` produced Windows and Linux Release games that pass `Sandbox --smoke-test`
+  after relocation. Windows runs with PATH restricted to the OS directories; its redistributable
+  DLLs are beside the executable. Linux includes libstdc++.so.6/libgcc_s.so.1 and its executable
+  has only $ORIGIN as RUNPATH. The smoke test also rejects an export missing imported assets.
+  Export tests reject destructive input/output overlap and retain versioned Unix runtime libraries.
+  macOS uses @loader_path; its native build remains unverified locally. The manual release workflow
+  builds/tests/exports/relocates on all three OSes and preserves Unix permissions in tar artifacts.
+  It is committed, not triggered. Release fixtures were repaired: pure virtual dispatch stays opaque
+  to optimization, and stack-name assertions account for binaries without PDBs. Added the three tools
+  source files hidden by the broad build/ ignore rule, with an exception for tools/build/, so fresh
+  checkouts can build the exporters. Prior workspace edits remain outside the commits; the added
+  camera regression also received an unstaged explicit event-position initializer/formatting fix.
 - M15.2a: the level already had a primitive target, but no dedicated generated model or spawn-menu
   entry. Added a centered wooden target with a seeded bullseye texture, wood normal/ORM maps and
   four compound box colliders. It is a marked prefab, ordered after the original prop shortcuts.

@@ -68,9 +68,13 @@ TEST_CASE("Crashes are logged with their stack and leave a report", "[crash]") {
     CHECK_THAT(text, Catch::Matchers::ContainsSubstring(Spot::PathToUtf8(texts.front())));
     CHECK_THAT(report, Catch::Matchers::ContainsSubstring("Crash App crashed: "));
 #ifdef _MSC_VER
-    // MSVC's symbols name every function; DbgHelp cannot read GCC's, and dladdr() only knows exported ones.
     CHECK_THAT(report, Catch::Matchers::ContainsSubstring(crash.what));
+#ifndef NDEBUG
+    // Release binaries can omit PDBs and optimized-away frames; Debug keeps names for this fixture.
     CHECK_THAT(report, Catch::Matchers::ContainsSubstring(crash.function));
+#else
+    CHECK_THAT(report, Catch::Matchers::ContainsSubstring("spot_crash_app"));
+#endif
 #endif
 #ifdef _WIN32
     // Crashes that come as exceptions also leave a dump for debuggers.

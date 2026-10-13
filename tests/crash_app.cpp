@@ -39,7 +39,11 @@ public:
     Base() { CallBehavior(); }
     virtual ~Base() = default;
     // Called through a function the constructor calls, when only Base's part exists.
-    void CallBehavior() { Behavior(); }
+    SPOT_NO_INLINE void CallBehavior() {
+        // Keep dispatch opaque: a direct pure call is undefined and Release compilers may remove it.
+        void (Base::* volatile behavior)() = &Base::Behavior;
+        (this->*behavior)();
+    }
     virtual void Behavior() = 0;
 };
 

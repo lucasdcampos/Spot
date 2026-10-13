@@ -1,0 +1,68 @@
+name: Sandbox release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            executable: .exe
+          - os: ubuntu-24.04
+            platform: linux
+            executable: ''
+          - os: macos-latest
+            platform: macos
+            executable: ''
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install build tools
+        run: python -m pip install cmake ninja
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxss-dev libxkbcommon-dev libwayland-dev libasound2-dev libpulse-dev libudev-dev
+      - name: Configure Release
+        run: cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=Release -DSPOT_DOWNLOAD_SAMPLE_MODELS=OFF
+      - name: Build
+        run: cmake --build build/release --parallel 2
+      - name: Headless regression
+        run: ctest --test-dir build/release -LE gpu --parallel 2 --output-on-failure
+      - name: Export and relocate
+        run: |
+          build/release/cli/spot${{ matrix.executable }} export sandbox/Sandbox.spot --out build/export/${{ matrix.platform }}
+          cmake -E make_directory build/relocated
+          cmake -E rename build/export/${{ matrix.platform }} build/relocated/${{ matrix.platform }}
+      - name: Exercise the relocated game
+        env:
+          SDL_VIDEO_DRIVER: dummy
+          SDL_AUDIO_DRIVER: dummy
+        run: |
+          cd build/relocated/${{ matrix.platform }}
+          ./Sandbox${{ matrix.executable }} --smoke-test
+      - name: Preserve exported file permissions
+        working-directory: build/relocated
+        run: cmake -E tar cf ../../sandbox-${{ matrix.platform }}.tar --format=gnutar ${{ matrix.platform }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sandbox-${{ matrix.platform }}
+          path: sandbox-${{ matrix.platform }}.tar
+          if-no-files-found: error

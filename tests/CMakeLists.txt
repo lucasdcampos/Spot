@@ -19,6 +19,7 @@ add_executable(spot_tests
     debug_draw_tests.cpp
     crash_tests.cpp
     event_tests.cpp
+    export_tests.cpp
     game_code_tests.cpp
     graphics_tests.cpp
     image_tests.cpp

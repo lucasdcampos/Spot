@@ -41,7 +41,8 @@ templates: a 3D scene, a component to start from, or nothing.
 - **Running**: `WriteRunSettings()` writes `game.json` beside the built executable, pointing at the project's imports,
   and `GameRunner` runs it in its own window, logging what it logs as "Game".
 - **Exporting**: `ExportGame()` makes the folder the game ships in: its executable named after the project, the
-  engine library, its imported assets and `game.json`.
+  engine library, compiler runtime libraries, its imported assets and `game.json`. Export destinations that overlap
+  the project's source, imports or code build are rejected before any files are replaced.
 
 ## The command line
 
@@ -58,6 +59,14 @@ A project is its `.spot` file or the folder that has one; the current folder by 
 changed, and with `--out` cooks the game into that folder. `build` builds the game's executable and module. `run`
 builds, imports and runs the game. `export` builds the game and makes its shipping folder, `builds/<platform>` by
 default.
+
+Use the Release build of the tools for shipping: it builds the game's code against that same Release engine.
+The generated game CMake package copies the MSVC redistributable runtime or the GCC runtime libraries beside
+the executable. Versioned Unix libraries such as `libstdc++.so.6` are included when exporting. Linux searches
+`$ORIGIN` and macOS searches `@loader_path`, so moving the complete export keeps its engine reachable. The
+operating system and graphics/audio drivers remain platform prerequisites. The shipped shaders are embedded;
+players need no CMake, compiler, shader tools, source assets or project files. See [Sandbox release](sandbox_release.md)
+for export commands, relocation testing and platform acceptance.
 
 ## The sandbox
 

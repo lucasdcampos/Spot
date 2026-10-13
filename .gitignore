@@ -1,5 +1,6 @@
 # Build output
 build/
+!/tools/build/
 out/
 
 # Local CMake settings

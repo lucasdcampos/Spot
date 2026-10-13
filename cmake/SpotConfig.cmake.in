@@ -73,8 +73,21 @@ function(spot_add_game)
     spot_set_game_output(game "${CMAKE_BINARY_DIR}/game")
     # The engine library goes beside the executable, where it is found when the game runs, built or shipped. This
     # file is written by the engine's build, which knows where its library is.
-    set_target_properties(game PROPERTIES BUILD_RPATH "$ORIGIN" INSTALL_RPATH "$ORIGIN")
+    if(APPLE)
+        set(game_rpath "@loader_path")
+    else()
+        set(game_rpath "$ORIGIN")
+    endif()
+    set_target_properties(game PROPERTIES BUILD_RPATH "${game_rpath}" INSTALL_RPATH "${game_rpath}"
+        BUILD_WITH_INSTALL_RPATH TRUE)
     add_custom_command(TARGET game POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:spot_shared>" "${CMAKE_BINARY_DIR}/game"
     )
+    set(runtime_libraries "@SPOT_GAME_RUNTIME_LIBRARIES@")
+    foreach(library IN LISTS runtime_libraries)
+        add_custom_command(TARGET game POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${library}" "${CMAKE_BINARY_DIR}/game"
+            VERBATIM
+        )
+    endforeach()
 endfunction()
