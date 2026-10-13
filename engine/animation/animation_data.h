@@ -52,7 +52,7 @@ struct AnimationClip {
     std::string name;
     float duration = 0.0f;
     std::vector<AnimationChannel> channels;
-    std::vector<AnimationEvent> events;
+    std::vector<AnimationEvent> events = {};
 
     bool IsValid() const;
 };

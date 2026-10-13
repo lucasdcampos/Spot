@@ -23,7 +23,7 @@ class GraphicsDevice;
 // submesh.
 struct ModelNode {
     std::string name;
-    Matrix4 transform;
+    Matrix4 transform = {};
     // An index into the model's nodes, which lists parents before their children; none for root nodes.
     std::optional<std::size_t> parent = std::nullopt;
     AssetRef<Mesh> mesh = {};

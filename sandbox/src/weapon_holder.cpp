@@ -7,6 +7,7 @@
 #include "player_controller.h"
 #include "projectile.h"
 #include "prop_carrier.h"
+#include "robot.h"
 #include "sound_bank.h"
 #include "view_model.h"
 #include "weapon.h"
@@ -44,6 +45,9 @@ void WeaponHolder::PlayWeaponSound(const Spot::AssetRef<Spot::Sound>& sound, flo
 void WeaponHolder::StartReload(Weapon& weapon) {
     if (weapon.StartReload()) {
         PlayWeaponSound(weapon.reloadSound, 0.8f);
+        if (auto* view = GetEntity().GetComponent<ViewModel>()) {
+            view->Animate("reload", weapon.reloadTime);
+        }
     }
 }
 
@@ -114,6 +118,9 @@ void WeaponHolder::FireHitscan(const Weapon& weapon, Spot::Vector3 eye, Spot::Ve
             continue;
         }
         ParticleEffects::Impact(GetScene(), hit->point, hit->normal, Surface::Of(entity));
+        if (Robots::Hit(GetScene(), hit->entity, direction * weapon.impulse, hit->point)) {
+            continue;
+        }
         if (auto* barrel = entity->GetComponent<ExplosiveBarrel>()) {
             barrel->Ignite();
         }

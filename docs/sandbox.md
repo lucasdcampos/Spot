@@ -58,6 +58,7 @@ F9 writes `world.json` in the application's user data directory. F10 validates a
 props and their children: transforms, body velocities, frozen tags and kinematic state, welds, ropes, painted
 materials, lamps, ammo and any remaining reload, cooldown or explosive fuse. References between saved props are
 remapped; references to the unchanged level remain valid. Spawned props stay owned by cleanup after loading.
+Robot populations, patrol state and ragdoll bodies are saved together, including their ownership references.
 The player, level, ambience and day cycle keep running. Loading releases carried props and clears undo history.
 Transient projectiles, flashes and held view models are excluded. Missing or malformed checkpoints leave the
 current world intact. Checkpoints expand prefab instances so later prefab edits do not rewrite a saved world.
@@ -111,7 +112,9 @@ stress regression uses sixteen props headlessly; larger counts are explicit inte
 - Spawn a stress pile, select/pause a slow frame in the profiler, remove it with `cleanup` and compare body counts.
 - Give each firearm twice; check selection, full ammunition, canceled reloads and unchanged inventory size.
 
-Skeletal view models remain deferred to M9.
+Watch the robots patrol, shoot one and trigger an explosion nearby; check that the
+animated pose becomes a physical ragdoll. Fire, reload, aim and switch each weapon;
+check that the arms move and that the held model follows the right hand.
 
 ## Particle effects
 
@@ -160,3 +163,26 @@ The generator writes `generated/models/robot.gltf` and `arms.gltf` with skin str
 inverse bind matrices, clip channels and events. The robot has Idle/Walk/Run; the arms
 have idle plus fire/reload/switch clips for each held item. These are ordinary imported
 source assets. Run `sandbox_generator` to reproduce them; unchanged bytes are not rewritten.
+
+`animation/robot.controller` blends Idle/Walk/Run through its float `speed` parameter.
+The `Robot` component chooses a patrol direction and turns the actor; the Animator
+moves its CharacterController using root motion. Footstep clip events play metal
+steps. Hitscan hits and explosions activate the prefab's eleven-body Ragdoll and
+apply an impulse; `Robot::Revive()` blends back to locomotion.
+
+`prefabs/actors/robot.prefab` contains the controller, skinned renderers and editable
+ragdoll limits. `robot_spawner.prefab` authors patrol starting positions. GameControls
+loads this population when the scene has none, so existing playground scenes work
+without rewriting their authored entities. The spawner preserves instance ids in
+checkpoints. Set GameControls' `robots` reference to use a different population.
+
+ViewModel loads the arms rig and attaches each weapon part to `RightHand` using
+BoneAttachment. Switching, firing and reloading select the held weapon's clip;
+reload playback matches the weapon's reload duration. Completed actions return
+to idle. Aim and recoil position the rig relative to the player's eyes. Model and
+animation references are normal assets and the inspector exposes the arms reference.
+`gripOffset` places the weapon origin above the glove so the hand holds its grip.
+
+The sandbox animation tests run the real controller, shots, explosion and weapon
+input headlessly. The offscreen GPU test renders robot idle/run/ragdoll and arms
+idle/fire/reload poses; set `SPOT_ANIMATION_CAPTURE_DIR` to save its PNG captures.

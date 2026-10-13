@@ -1,6 +1,7 @@
 #include "game_controls.h"
 
 #include "hud.h"
+#include "robot_spawner.h"
 #include "runtime_interface.h"
 #include "sandbox_commands.h"
 #include "sound_bank.h"
@@ -21,6 +22,18 @@ void GameControls::OnDisable() {
 
 void GameControls::OnStart() {
     Spot::Input::SetCursorLocked(true);
+    if (!GetScene().FindComponent<RobotSpawner>()) {
+        auto population = robots;
+        if (!population) {
+            if (auto* assets = Spot::Assets::GetManager();
+                assets && assets->FindByPath("prefabs/actors/robot_spawner.prefab")) {
+                population = assets->Load<Spot::Prefab>("prefabs/actors/robot_spawner.prefab");
+            }
+        }
+        if (population) {
+            GetScene().Instantiate(population);
+        }
+    }
     if (GetScene().IsLoaded()) {
         if (const auto* hud = GetScene().FindComponent<Hud>()) {
             GetScene().GetApplication().SetDeveloperFont(hud->font);
@@ -73,6 +86,8 @@ void GameControls::OnLateUpdate(float /*deltaTime*/) {
 }
 
 void GameControls::Serialize(Spot::Archive& archive) {
+    archive.Field("robots", robots,
+                  {.tooltip = "The robot population prefab; the default population is used when empty"});
     archive.Field("restartScene", restartScene,
                   {.tooltip = "The scene the Restart action loads", .assetType = Spot::AssetType::Scene});
 }

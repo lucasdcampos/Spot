@@ -980,7 +980,15 @@ with view-model animations.
 - M9.12 assets: the cgltf writer now emits skins, weighted streams, clips and events.
   Generated robot/arms sources and importer-created metadata are committed. MSVC Debug
   builds without compiler warnings; generator validation passes 1,000 assertions and
-  repeats without rewriting files. Robot/view-model gameplay and acceptance remain.
+  repeats without rewriting files. The controller/prefabs now drive root-motion patrols,
+  event footsteps and eleven-body ragdolls from shots/explosions. Held weapons attach
+  to animated hands; fire/reload/switch clips return to idle, and a grip offset leaves
+  the weapon visible above the glove. All 43 MSVC sandbox cases pass 58,268 assertions;
+  the two animation GPU cases pass 111 assertions, with inspected pose captures.
+  Checkpoints include populations, robots and owned ragdoll proxies together. The full
+  GCC headless suite passes 702 cases, including checkpoint restoration, and MSVC's
+  complete GPU suite passes 100 cases. Explicit aggregate defaults keep both builds
+  free of compiler warnings.
 
 - M9.11: configurable bodies and swing/twist limits, physics poses before attachments,
   character velocity handoff and recovery blends. Proxy ids/mode serialize and restore

@@ -3595,6 +3595,125 @@ TEST_CASE("Authored UI previews and scroll clipping render offscreen", "[gpu][ui
 }
 
 #ifdef SPOT_SANDBOX_IMPORTED_DIR
+TEST_CASE("Generated robot and first-person arms render animated poses and ragdolls",
+          "[gpu][animation][sandbox][offscreen]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    Spot::AssetManager assets(SPOT_SANDBOX_IMPORTED_DIR, device.get());
+    struct AssetScope {
+        Spot::AssetManager* previous = Spot::Assets::GetManager();
+        ~AssetScope() { Spot::Detail::SetAssetManager(previous); }
+    } scope;
+    Spot::Detail::SetAssetManager(&assets);
+    const auto prefab = assets.Load<Spot::Prefab>("prefabs/actors/robot.prefab");
+    const auto armsModel = assets.Load<Spot::Model>("generated/models/arms.gltf");
+    const auto weapon = assets.Load<Spot::Model>("generated/models/pistol.gltf");
+    REQUIRE(prefab);
+    REQUIRE(armsModel);
+    REQUIRE(weapon);
+    Spot::Scene scene;
+    auto* robot = scene.Instantiate(prefab);
+    REQUIRE(robot);
+    auto& floor = scene.CreateEntity("Floor");
+    floor.GetTransform().SetPosition({0, -0.95f, 0});
+    floor.AddComponent<Spot::BoxCollider>(Spot::Vector3{10, 0.1f, 10});
+    floor.AddComponent<Spot::MeshRenderer>(Spot::Mesh::Create(*device, Spot::MeshData::CreatePlane(10)),
+                                           Spot::Material{.baseColor = {0.3f, 0.3f, 0.3f, 1}});
+    auto& cameraEntity = scene.CreateEntity("Camera");
+    cameraEntity.GetTransform().SetPosition({2.8f, 1.5f, -4});
+    cameraEntity.GetTransform().SetRotation(Spot::Quaternion::LookRotation(-cameraEntity.GetTransform().GetPosition()));
+    cameraEntity.AddComponent<Spot::Camera>().SetBackground({0.08f, 0.09f, 0.12f, 1});
+    auto& light = scene.CreateEntity("Light");
+    light.GetTransform().SetRotation(Spot::Quaternion::LookRotation({-0.5f, -1, 0.5f}));
+    light.AddComponent<Spot::DirectionalLight>();
+    scene.CreateEntity("Ambient").AddComponent<Spot::AmbientLight>();
+    auto target = device->CreateTexture(
+        {.width = 640, .height = 480, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
+    REQUIRE(target);
+    Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb,
+                                           .sampleCount = 1,
+                                           .shadowMapSize = 512,
+                                           .localShadowMapSize = 0});
+    const auto capture = Spot::Process::GetEnvironmentValue("SPOT_ANIMATION_CAPTURE_DIR");
+    const auto render = [&](std::string_view name) {
+        scene.PrepareToRender();
+        auto* context = device->BeginOffscreenFrame(*target);
+        REQUIRE(context);
+        const std::array scenes{&scene};
+        renderer.Render(*context, scenes, target.get());
+        device->EndFrame();
+        auto pixels = device->DownloadTexture(*target);
+        REQUIRE(pixels.size() == 640 * 480 * 4);
+        if (capture && !capture->empty()) {
+            std::filesystem::create_directories(*capture);
+            CHECK(
+                Spot::Image(640, 480, pixels).SavePng(std::filesystem::path(*capture) / (std::string(name) + ".png")));
+        }
+        return pixels;
+    };
+    const auto changed = [](const auto& a, const auto& b) {
+        std::size_t count = 0;
+        for (std::size_t i = 0; i < a.size(); ++i) {
+            count += std::abs(static_cast<int>(a[i]) - b[i]) > 10 ? 1 : 0;
+        }
+        return count;
+    };
+    scene.Update(0);
+    auto* animator = robot->GetComponent<Spot::Animator>();
+    REQUIRE(animator);
+    REQUIRE(animator->SetFloat("speed", 0));
+    animator->Seek(0);
+    animator->RefreshRenderers();
+    const auto idle = render("robot_idle");
+    REQUIRE(animator->SetFloat("speed", 2));
+    animator->Seek(0.15f);
+    animator->RefreshRenderers();
+    const auto run = render("robot_run");
+    CHECK(changed(idle, run) > 500);
+    auto* ragdoll = robot->GetComponent<Spot::Ragdoll>();
+    REQUIRE(ragdoll);
+    REQUIRE(ragdoll->SetActive(true));
+    ragdoll->AddImpulse({10, 0, 10}, {0, 0.5f, 0});
+    for (int i = 0; i < 90; ++i) {
+        scene.Update(1.0f / 60);
+    }
+    const auto fallen = render("robot_ragdoll");
+    CHECK(changed(run, fallen) > 500);
+    robot->SetActive(false);
+    floor.SetActive(false);
+    cameraEntity.GetTransform().SetPosition({});
+    cameraEntity.GetTransform().SetRotation({});
+    cameraEntity.GetComponent<Spot::Camera>()->SetNearPlane(0.01f);
+    auto& arms = scene.Instantiate(*armsModel, "Arms");
+    auto& pistol = scene.Instantiate(*weapon, "Pistol");
+    auto& attachment = pistol.AddComponent<Spot::BoneAttachment>();
+    attachment.SetAnimator(arms.GetId());
+    attachment.SetBone("RightHand");
+    attachment.SetOffset({{0, 0.08f, -0.02f}});
+    auto* armAnimator = arms.GetComponent<Spot::Animator>();
+    REQUIRE(armAnimator);
+    const auto pose = [&](std::string_view name, float time) {
+        Spot::AssetRef<Spot::AnimationClip> clip;
+        for (const auto& node : armsModel->GetNodes()) {
+            for (const auto& candidate : node.animations) {
+                if (candidate && candidate->name == name) {
+                    clip = candidate;
+                }
+            }
+        }
+        REQUIRE(clip);
+        REQUIRE(armAnimator->Play(clip, false));
+        armAnimator->Seek(time);
+        armAnimator->RefreshRenderers();
+        attachment.Synchronize();
+        return render(name);
+    };
+    const auto armsIdle = pose("arms_idle", 0);
+    CHECK(changed(armsIdle, pose("pistol_fire", 0.09f)) > 100);
+    CHECK(changed(armsIdle, pose("pistol_reload", 0.55f)) > 100);
+}
+
 TEST_CASE("Spawn menu thumbnails render real prefab meshes and retain their cached textures",
           "[gpu][ui][sandbox][offscreen]") {
     RequireGpu();

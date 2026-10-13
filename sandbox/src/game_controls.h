@@ -12,6 +12,7 @@ public:
     ~GameControls() override;
     // The scene Restart loads, which is this one.
     Spot::AssetId restartScene;
+    Spot::AssetRef<Spot::Prefab> robots;
     void SetSaveDirectory(std::filesystem::path directory) { m_saveDirectory = std::move(directory); }
 
 protected:

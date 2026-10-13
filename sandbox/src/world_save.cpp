@@ -4,6 +4,8 @@
 #include "projectile.h"
 #include "prop_carrier.h"
 #include "prop_spawner.h"
+#include "robot.h"
+#include "robot_spawner.h"
 #include "spawnable.h"
 #include "tool_gun.h"
 #include "undo_list.h"
@@ -27,8 +29,9 @@ struct Document {
 };
 
 bool IsEditable(const Spot::Entity& entity) {
-    return !entity.HasComponent<Projectile>() && (entity.HasComponent<Spot::Rigidbody>() ||
-                                                  entity.HasComponent<Spawnable>() || entity.HasTag(ToolGun::LampTag));
+    return !entity.HasComponent<Projectile>() &&
+           (entity.HasComponent<Spot::Rigidbody>() || entity.HasComponent<Spawnable>() ||
+            entity.HasComponent<Robot>() || entity.HasComponent<RobotSpawner>() || entity.HasTag(ToolGun::LampTag));
 }
 
 std::vector<Spot::Entity*> GetRoots(Spot::Scene& scene) {

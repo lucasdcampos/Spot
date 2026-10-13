@@ -3,6 +3,7 @@
 #include "explosive_barrel.h"
 #include "flash.h"
 #include "particle_effects.h"
+#include "robot.h"
 #include "sound_bank.h"
 
 #include <algorithm>
@@ -11,6 +12,7 @@ namespace Explosion {
 
 void Explode(Spot::Scene& scene, Spot::Vector3 center, float radius, float impulse, Spot::EntityId ignore) {
     ParticleEffects::Explosion(scene, center, radius);
+    Robots::Explode(scene, center, radius, impulse);
     // The light flash accompanies the fire, smoke and flying debris.
     Flash::Spawn(scene, center, {1.0f, 0.55f, 0.2f, 1.0f}, radius * 0.6f, radius * 4.0f, 20.0f, 0.35f);
     if (const SoundBank* bank = SoundBank::Find(scene); bank && bank->explosion) {

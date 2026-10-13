@@ -34,11 +34,11 @@ struct AnimatorCondition {
 
 struct AnimatorState {
     std::string name;
-    AssetRef<AnimationClip> clip;
+    AssetRef<AnimationClip> clip = {};
     float speed = 1;
     bool loop = true;
-    Vector2 editorPosition;
-    BlendTree blendTree;
+    Vector2 editorPosition = {};
+    BlendTree blendTree = {};
     void Serialize(Archive& archive);
 };
 
@@ -46,7 +46,7 @@ struct AnimatorTransition {
     // -1 means any state. First matching transition wins, in authored order.
     int from = -1;
     int to = 0;
-    std::vector<AnimatorCondition> conditions;
+    std::vector<AnimatorCondition> conditions = {};
     // Negative disables exit time; otherwise a normalized time (can exceed one for loops).
     float exitTime = -1;
     float duration = 0.2f;

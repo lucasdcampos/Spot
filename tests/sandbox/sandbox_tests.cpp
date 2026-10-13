@@ -12,6 +12,8 @@
 #include "player_movement.h"
 #include "prop_carrier.h"
 #include "prop_spawner.h"
+#include "robot.h"
+#include "robot_spawner.h"
 #include "sandbox_commands.h"
 #include "sound_bank.h"
 #include "temp_directory.h"
@@ -161,6 +163,146 @@ struct Playground {
 };
 
 } // namespace
+
+TEST_CASE("Generated robots patrol with blended root motion, footsteps and recoverable ragdolls",
+          "[sandbox][animation]") {
+    Playground playground;
+    playground.Run(0.2f);
+    REQUIRE(playground.scene.FindComponent<RobotSpawner>());
+    auto* robot = playground.scene.FindComponent<Robot>();
+    REQUIRE(robot);
+    auto& entity = robot->GetEntity();
+    auto* animator = entity.GetComponent<Spot::Animator>();
+    REQUIRE(animator);
+    REQUIRE(animator->GetController());
+    CHECK(animator->GetController()->states[0].blendTree.type == Spot::BlendTreeType::OneDimensional);
+    const auto start = entity.GetTransform().GetWorldPosition();
+    playground.Run(1.0f);
+    CHECK(Spot::Length(entity.GetTransform().GetWorldPosition() - start) > 0.3f);
+    CHECK(robot->GetFootsteps() > 0);
+    auto* ragdoll = entity.GetComponent<Spot::Ragdoll>();
+    REQUIRE(ragdoll);
+    const auto hitPosition = entity.GetTransform().GetWorldPosition();
+    Explosion::Explode(playground.scene, hitPosition + Spot::Vector3{0, 0, 0.5f}, 1.5f, 50);
+    REQUIRE(robot->IsDead());
+    REQUIRE(ragdoll->IsActive());
+    REQUIRE(ragdoll->GetBodies().size() == 11);
+    CHECK_FALSE(entity.GetComponent<Spot::CharacterController>()->IsEnabled());
+    playground.Run(1.0f);
+    CHECK(Spot::Length(entity.GetTransform().GetWorldPosition() - hitPosition) > 0.1f);
+    robot->Revive();
+    CHECK_FALSE(robot->IsDead());
+    CHECK_FALSE(ragdoll->IsActive());
+    playground.Run(0.5f);
+    CHECK(animator->IsPlaying());
+}
+
+TEST_CASE("Hitscan shots turn robot capsules into physical skeletons", "[sandbox][animation]") {
+    Playground playground;
+    playground.Run(0.5f);
+    auto prefab = playground.assets.Load<Spot::Prefab>("prefabs/actors/robot.prefab");
+    REQUIRE(prefab);
+    auto* target = playground.scene.Instantiate(prefab);
+    REQUIRE(target);
+    auto* robot = target->GetComponent<Robot>();
+    REQUIRE(robot);
+    robot->patrolDistance = 0;
+    target->GetTransform().SetWorldPosition(playground.HeldTarget(3));
+    playground.Run(Step);
+    auto* holder = playground.player->GetComponent<WeaponHolder>();
+    REQUIRE(holder);
+    holder->Select(1);
+    holder->Fire();
+    CHECK(robot->IsDead());
+    CHECK(target->GetComponent<Spot::Ragdoll>()->IsActive());
+    playground.Run(0.3f);
+}
+
+TEST_CASE("World checkpoints restore robot populations and ragdoll ownership", "[sandbox][animation][save]") {
+    Playground playground;
+    TempDirectory directory;
+    playground.Run(0.5f);
+    auto* robot = playground.scene.FindComponent<Robot>();
+    REQUIRE(robot);
+    robot->GetEntity().SetName("Saved robot");
+    robot->Hit({10, 0, 0}, robot->GetEntity().GetTransform().GetWorldPosition());
+    playground.Run(0.2f);
+    REQUIRE(robot->IsDead());
+    REQUIRE(WorldSave::Save(playground.scene, directory.GetPath() / "robots.json"));
+    robot->Revive();
+    REQUIRE(WorldSave::Load(playground.scene, directory.GetPath() / "robots.json"));
+    playground.Run(0.2f);
+    auto* restored = playground.scene.FindEntity("Saved robot");
+    REQUIRE(restored);
+    CHECK(restored->GetComponent<Robot>()->IsDead());
+    auto* ragdoll = restored->GetComponent<Spot::Ragdoll>();
+    REQUIRE(ragdoll);
+    REQUIRE(ragdoll->IsActive());
+    REQUIRE(ragdoll->GetBodies().size() == 11);
+    for (auto id : ragdoll->GetBodies()) {
+        REQUIRE(playground.scene.GetEntity(id));
+        CHECK(ragdoll->OwnsBody(id));
+    }
+    int robots = 0, populations = 0, bodies = 0;
+    playground.scene.ForEachComponent<Robot>([&](Robot&) { ++robots; });
+    playground.scene.ForEachComponent<RobotSpawner>([&](RobotSpawner&) { ++populations; });
+    playground.scene.ForEachComponent<Spot::Ragdoll>(
+        [&](Spot::Ragdoll& component) { bodies += static_cast<int>(component.GetBodies().size()); });
+    CHECK(robots == 3);
+    CHECK(populations == 1);
+    CHECK(bodies == 11);
+    restored->GetComponent<Robot>()->Revive();
+    playground.Run(0.5f);
+    CHECK(restored->GetComponent<Spot::Animator>()->IsPlaying());
+}
+
+TEST_CASE("Every weapon uses animated arms and a bone attachment", "[sandbox][animation]") {
+    Playground playground;
+    playground.Run(0.5f);
+    auto* view = playground.player->GetComponent<ViewModel>();
+    auto* holder = playground.player->GetComponent<WeaponHolder>();
+    REQUIRE(view);
+    REQUIRE(holder);
+    auto* arms = playground.scene.GetEntity(view->GetArmsEntity());
+    REQUIRE(arms);
+    auto* animator = arms->GetComponent<Spot::Animator>();
+    REQUIRE(animator);
+    constexpr std::array<std::string_view, 6> Names{"physics_gun", "pistol",          "rifle",
+                                                    "shotgun",     "rocket_launcher", "tool_gun"};
+    for (int slot = 0; slot < 6; ++slot) {
+        INFO("Weapon slot " << slot);
+        holder->Select(slot);
+        playground.Run(Step);
+        REQUIRE(view->Animate("switch"));
+        CHECK(animator->GetClip()->name == std::string(Names[slot]) + "_switch");
+        playground.Run(0.4f);
+        REQUIRE(view->Animate("reload", 1.0f));
+        CHECK(animator->GetClip()->name == std::string(Names[slot]) + "_reload");
+        playground.Run(0.2f);
+        REQUIRE(view->Animate("fire"));
+        CHECK(animator->GetClip()->name == std::string(Names[slot]) + "_fire");
+        playground.Run(Step);
+        REQUIRE_FALSE(view->GetPartEntities().empty());
+        for (auto id : view->GetPartEntities()) {
+            auto* part = playground.scene.GetEntity(id);
+            REQUIRE(part);
+            auto* attachment = part->GetComponent<Spot::BoneAttachment>();
+            REQUIRE(attachment);
+            CHECK(attachment->GetAnimator() == arms->GetId());
+            CHECK(part->GetTransform().HasWorldOverride());
+        }
+        playground.Run(0.3f);
+        CHECK(animator->GetClip()->name == "arms_idle");
+    }
+    holder->Select(1);
+    playground.Run(0.5f);
+    holder->Fire();
+    CHECK(animator->GetClip()->name == "pistol_fire");
+    playground.Press(Key::R);
+    playground.Run(Step);
+    CHECK(animator->GetClip()->name == "pistol_reload");
+    playground.Release(Key::R);
+}
 
 TEST_CASE("World checkpoints retain edited props, joints, lamps and cleanup ownership", "[sandbox][save]") {
     Playground playground;
@@ -932,6 +1074,9 @@ TEST_CASE("Aiming down the sights zooms in while held, with the right button or 
 
 TEST_CASE("The playground sounds from where things are, on its buses", "[sandbox][audio]") {
     Playground playground(true);
+    playground.Run(0.1f);
+    // Isolate the player's footsteps from the patrolling robots' animation events.
+    playground.scene.ForEachComponent<Robot>([](Robot& robot) { robot.SetEnabled(false); });
     playground.Run(1.5f);
     REQUIRE(playground.audio);
 
