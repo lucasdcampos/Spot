@@ -20,10 +20,12 @@ struct Playground {
     Spot::InputState* previousInput = Spot::Input::GetState();
     Spot::InputActionMap* previousActions = Spot::Input::GetActionMap();
     Spot::AssetManager* previousAssets = Spot::Assets::GetManager();
+    Spot::AudioDevice* previousAudio = Spot::Audio::GetDevice();
+    std::unique_ptr<Spot::AudioDevice> audio;
     float previousScale = Spot::Time::GetTimeScale();
     Spot::Scene scene;
 
-    Playground() {
+    explicit Playground(bool withAudio = false) {
         Spot::Detail::GameCode::Load();
         Spot::Time::SetTimeScale(1);
         Spot::Input::SetState(&input);
@@ -32,6 +34,11 @@ struct Playground {
         const auto game = Spot::GameSettings::LoadFromFile(std::filesystem::path(SANDBOX_IMPORTED_DIR).parent_path() /
                                                            Spot::GameSettings::FileName);
         REQUIRE(game);
+        if (withAudio) {
+            audio = std::make_unique<Spot::AudioDevice>(Spot::AudioConfig{.manualMix = true});
+            game->sections.audio.Apply(*audio);
+            Spot::Audio::SetDevice(audio.get());
+        }
         game->sections.input.Apply(actions);
         actions.SetDefaults();
         const auto snapshot = Spot::Process::GetEnvironmentValue("SPOT_SANDBOX_TEST_ASSETS");
@@ -50,6 +57,7 @@ struct Playground {
         Spot::Input::SetState(previousInput);
         Spot::Input::SetActionMap(previousActions);
         Spot::Detail::SetAssetManager(previousAssets);
+        Spot::Audio::SetDevice(previousAudio);
         Spot::Time::SetTimeScale(previousScale);
         for (const auto& record : log->GetRecords()) {
             CHECK(record.message.find(" threw in ") == std::string::npos);

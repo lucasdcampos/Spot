@@ -25,6 +25,7 @@ public:
     void Throw();
 
 protected:
+    void OnDisable() override { Drop(); }
     void OnUpdate(float deltaTime) override;
     void OnFixedUpdate(float fixedDeltaTime) override;
     void Serialize(Spot::Archive& archive) override;

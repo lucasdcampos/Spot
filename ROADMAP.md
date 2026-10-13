@@ -1363,7 +1363,7 @@ before or after it.
 
 - [x] **M15.1 The level.** The playground authored in the editor: open ground, ramps, stairs, platforms, a building
   with lit interiors and glass, and spawn areas, with the day cycle.
-- [ ] **M15.2 Feature check.** Every item of [The sandbox game](#the-sandbox-game) works together. What is missing or
+- [x] **M15.2 Feature check.** Every item of [The sandbox game](#the-sandbox-game) works together. What is missing or
   broken becomes a step here.
 - [ ] **M15.3 Polish.** Weapon feel (recoil, spread, view-model sway and bob), physics gun feel, sound mix, HUD
   readability and menu flow.
@@ -1376,6 +1376,12 @@ before or after it.
 three platforms.
 
 **Notes:**
+- M15.2: checked movement, firearms, carrying, tools, spawning, generated assets, audio, menus,
+  checkpoints, robots, particles and console commands against the real-scene regressions. Added
+  an integrated spawn/freeze/save/pause/load/cleanup case preserving the level and permanent lamps.
+  Fixed scaled-prop grab points with the inverse world matrix; disabling the physics gun now
+  releases its prop and hum, and disabling the carrier drops its prop. Three new acceptance cases
+  exercise these behaviors. Weapon motion and performance are handled in the next steps.
 - M15.1: completed the authored playground with a workshop, a three-meter doorway, solid glass,
   permanent interior lamps, a workbench, roof access and three construction/testing pads. No runtime
   level generator is used. Headless acceptance walks through the doorway, raycasts the glass and

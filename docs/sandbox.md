@@ -63,6 +63,12 @@ button per entry. The tool gun's right mouse/Aim action cycles colors, materials
 
 ## World checkpoints and weapon feel
 
+The physics gun grabs the surface point in the prop's local coordinates, including its world scale;
+scaled prefab instances therefore stay at the grabbed point without jumping. Disabling either the
+physics gun or the carrier releases its prop, and disabling the gun stops its hum. Checkpoint loads
+also release both tools before replacing editable entities. Permanent workshop geometry and lights
+survive save/load and cleanup, including when a checkpoint is loaded while the pause menu is open.
+
 F9 writes `world.json` in the application's user data directory. F10 validates and restores the editable root
 props and their children: transforms, body velocities, frozen tags and kinematic state, welds, ropes, painted
 materials, lamps, ammo and any remaining reload, cooldown or explosive fuse. References between saved props are

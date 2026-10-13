@@ -18,10 +18,8 @@ Spot::Vector3 ToWorld(const Spot::Transform& transform, Spot::Vector3 point) {
 }
 
 Spot::Vector3 ToLocal(const Spot::Transform& transform, Spot::Vector3 point) {
-    const Spot::Quaternion rotation = transform.GetWorldRotation();
-    const Spot::Quaternion inverse{-rotation.x, -rotation.y, -rotation.z, rotation.w};
-    // Props are not scaled by the gun, so the scale is left out: the point is a direction and a distance.
-    return inverse * (point - transform.GetWorldPosition());
+    const Spot::Vector4 local = Spot::Inverse(transform.GetWorldMatrix()) * Spot::Vector4{point.x, point.y, point.z, 1};
+    return {local.x, local.y, local.z};
 }
 
 } // namespace
@@ -138,7 +136,9 @@ void PhysicsGun::OnEnable() {
 }
 
 void PhysicsGun::OnDisable() {
+    Release();
     GetScene().RemoveRenderHook(m_beamHook);
+    m_beamHook = Spot::RenderHookId::Invalid;
     m_beam.clear();
     m_particleEmission = 0;
 }
