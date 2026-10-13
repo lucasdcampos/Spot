@@ -1361,7 +1361,7 @@ Only when a 2D game is planned; it depends on M1 for the shape of its API.
 Finishes the game described in [The sandbox game](#the-sandbox-game). It does not wait for M14, which can come
 before or after it.
 
-- [ ] **M15.1 The level.** The playground authored in the editor: open ground, ramps, stairs, platforms, a building
+- [x] **M15.1 The level.** The playground authored in the editor: open ground, ramps, stairs, platforms, a building
   with lit interiors and glass, and spawn areas, with the day cycle.
 - [ ] **M15.2 Feature check.** Every item of [The sandbox game](#the-sandbox-game) works together. What is missing or
   broken becomes a step here.
@@ -1376,6 +1376,13 @@ before or after it.
 three platforms.
 
 **Notes:**
+- M15.1: completed the authored playground with a workshop, a three-meter doorway, solid glass,
+  permanent interior lamps, a workbench, roof access and three construction/testing pads. No runtime
+  level generator is used. Headless acceptance walks through the doorway, raycasts the glass and
+  every roof step, and checks day wrapping and pause. The cooked scene is rendered offscreen by
+  the public SceneRenderer; daylight and night captures were inspected. Existing editor/scene
+  workspace edits are preserved outside the commit. MSVC Debug builds without compiler warnings;
+  34 relevant headless cases and the dedicated GPU acceptance pass.
 
 ---
 

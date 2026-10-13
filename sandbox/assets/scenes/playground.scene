@@ -4491,6 +4491,2259 @@
         2.9000000953674316
       ],
       "tags": []
+    },
+    {
+      "active": true,
+      "components": [],
+      "id": 100000,
+      "layer": 0,
+      "name": "Workshop",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [
+        "Level"
+      ]
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "e290f935d08d4943b9543a4c4baa4e4c",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "e1f7a1d7b2544745931f390d92892107",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100001,
+      "layer": 0,
+      "name": "Workshop Floor",
+      "position": [
+        10.0,
+        0.05,
+        -12.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        12.0,
+        0.1,
+        12.0
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "94d738fa774a427d9c3796e3888e42fe",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "3ac4663c6e41480690bfaf7a99c136f1",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100002,
+      "layer": 0,
+      "name": "Workshop Roof",
+      "position": [
+        10.0,
+        3.6,
+        -12.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        12.4,
+        0.2,
+        12.4
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "055c770b45f34b418cd536845fd6bbaa",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "f0b6936825524aff8a51a78771802ac6",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100003,
+      "layer": 0,
+      "name": "Workshop North Wall",
+      "position": [
+        10.0,
+        1.75,
+        -18.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        12.0,
+        3.5,
+        0.3
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "1f77bc05e4ab463bbd4a92b19adf7a63",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "f35b5ada533b4205bbd647cdef4e6c75",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100004,
+      "layer": 0,
+      "name": "Workshop West Wall",
+      "position": [
+        4.0,
+        1.75,
+        -12.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.3,
+        3.5,
+        12.0
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "a4975bc381fc4cbb97f1e47855566a6c",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "b14eabd36f1147e8b108a8ec5851a25b",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100005,
+      "layer": 0,
+      "name": "Workshop East Sill",
+      "position": [
+        16.0,
+        0.4,
+        -12.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.3,
+        0.8,
+        12.0
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "98ba2e008abd468aaa24c6f88ada7b57",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "22a9c731409a495897920f4932c8c532",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100006,
+      "layer": 0,
+      "name": "Workshop East Lintel",
+      "position": [
+        16.0,
+        3.1,
+        -12.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.3,
+        0.8,
+        12.0
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "9c7232f7989e087cbed81d3bbeebc74e",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "a971ea788fe14390867b6a63f85ab871",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "c67f1bd9c47c40b6bc18584f825f2fd7",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100007,
+      "layer": 0,
+      "name": "Workshop Window",
+      "position": [
+        16.0,
+        1.75,
+        -16.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.06,
+        1.9,
+        3.6
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "9c7232f7989e087cbed81d3bbeebc74e",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "224f75d709964e0fb1a0697549a8a541",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "04607fc9933c448190a9e414a8b41224",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100008,
+      "layer": 0,
+      "name": "Workshop Window",
+      "position": [
+        16.0,
+        1.75,
+        -12.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.06,
+        1.9,
+        3.6
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "9c7232f7989e087cbed81d3bbeebc74e",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "79fc284acb9547bc97b3db50ea248c2c",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "3d1eef3e56104bd6a278940c1900319b",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100009,
+      "layer": 0,
+      "name": "Workshop Window",
+      "position": [
+        16.0,
+        1.75,
+        -8.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.06,
+        1.9,
+        3.6
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "d740a035692f41259c9ad0d89bd55f8b",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "6a528349fb5d4ce6b2142a453b03110e",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100010,
+      "layer": 0,
+      "name": "Workshop Window Post",
+      "position": [
+        16.0,
+        1.75,
+        -18.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.3,
+        3.5,
+        0.25
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "613f658187e6459799604676709b86c3",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "bf32555dd84e485599ce927038c0cf4b",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100011,
+      "layer": 0,
+      "name": "Workshop Window Post",
+      "position": [
+        16.0,
+        1.75,
+        -14.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.3,
+        3.5,
+        0.25
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "3a93c1ebc2c448029dafba4ada31e173",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "3a54762d11ed4894ad4a0cfcb138a7e3",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100012,
+      "layer": 0,
+      "name": "Workshop Window Post",
+      "position": [
+        16.0,
+        1.75,
+        -10.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.3,
+        3.5,
+        0.25
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "02c95452708545d589ef2cf277f20a92",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "e2410aa52edc480c8b5cde1141dad7b7",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100013,
+      "layer": 0,
+      "name": "Workshop Window Post",
+      "position": [
+        16.0,
+        1.75,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.3,
+        3.5,
+        0.25
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "4920b154c072488fa1e22aab529d09d3",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "90c861bec1884becbccb41227377cb84",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100014,
+      "layer": 0,
+      "name": "Workshop Entrance Left",
+      "position": [
+        6.5,
+        1.75,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        5.0,
+        3.5,
+        0.3
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "48dad08793e84165b41893dbc3c84196",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "694b15fa5d9148c986960781224710b4",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100015,
+      "layer": 0,
+      "name": "Workshop Entrance Right",
+      "position": [
+        14.0,
+        1.75,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        4.0,
+        3.5,
+        0.3
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "67c178336baa49d8bbc358dea65a705f",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "e927e256e9c948e88d264be2eedebf34",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100016,
+      "layer": 0,
+      "name": "Workshop Entrance Lintel",
+      "position": [
+        10.5,
+        3.1,
+        -6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        3.0,
+        0.8,
+        0.3
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "c552486b011545d6992c03cb9fa38aed",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "6144b63bc76a40e780d611b9756ea052",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100017,
+      "layer": 0,
+      "name": "Workshop Bench",
+      "position": [
+        5.5,
+        0.85,
+        -14.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        0.15,
+        4.0
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "032baf2a076744a48dde4f2be219f0e0",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "48e89cd218594eca8abb363951dbbc78",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100018,
+      "layer": 0,
+      "name": "Workshop Bench Leg",
+      "position": [
+        5.5,
+        0.4,
+        -15.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.7,
+        0.8,
+        0.2
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "8c1648278795408abdb80dfa29e4f7c5",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "a49984881fb4433a91ed89125474898b",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100019,
+      "layer": 0,
+      "name": "Workshop Bench Leg",
+      "position": [
+        5.5,
+        0.4,
+        -12.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.7,
+        0.8,
+        0.2
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "04209400c4ff4b709db3ad2aabc76250",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "c80014cb2afb4cafafdafed234213f61",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100020,
+      "layer": 0,
+      "name": "Roof Access Step",
+      "position": [
+        18.0,
+        0.125,
+        1.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        2.0,
+        0.25,
+        0.5
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "d400f9312ad5461081a4d71d87599b5f",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "a26e624827674bf2ac67b788a32543ba",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100021,
+      "layer": 0,
+      "name": "Roof Access Step",
+      "position": [
+        18.0,
+        0.25,
+        0.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        2.0,
+        0.5,
+        0.5
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "735b7507704e48238c986ca75009dd30",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "3ea28d7b8e294463ada0f7c22ced3809",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100022,
+      "layer": 0,
+      "name": "Roof Access Step",
+      "position": [
+        18.0,
+        0.375,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        2.0,
+        0.75,
+        0.5
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "e266a86e6b014ec493f07b72b68b486e",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "8009e94fa2904fa2a3fa5e8587d9aefe",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100023,
+      "layer": 0,
+      "name": "Roof Access Step",
+      "position": [
+        18.0,
+        0.5,
+        -0.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        2.0,
+        1.0,
+        0.5
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "cae6d9b708484f1f9f3195fe38c49ac0",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "8c5dcbce85b84fb8b922e7462172cb43",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100024,
+      "layer": 0,
+      "name": "Roof Access Step",
+      "position": [
+        18.0,
+        0.625,
+        -1.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        2.0,
+        1.25,
+        0.5
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "d64630913a164c669923c06c109f2255",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "9de4889c5c5a47e1bcbb83bd0b24681e",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100025,
+      "layer": 0,
+      "name": "Roof Access Step",
+      "position": [
+        18.0,
+        0.75,
+        -1.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        2.0,
+        1.5,
+        0.5
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "2bd6b0cc826a4dcdace2db38508696c6",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "f135c26e50284768aeaeec1cc0a7dedf",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100026,
+      "layer": 0,
+      "name": "Roof Access Step",
+      "position": [
+        18.0,
+        0.875,
+        -2.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        2.0,
+        1.75,
+        0.5
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "33fee84f6ffb46a5b3ab5a855461fe44",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "3ff8b9f76b824793bdcbc19709d1249e",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100027,
+      "layer": 0,
+      "name": "Roof Access Step",
+      "position": [
+        18.0,
+        1.0,
+        -2.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        2.0,
+        2.0,
+        0.5
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "1cf068968624417bb9b8a2de7b4bc769",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "6353fac9a9894a09adae92efe40b4d57",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100028,
+      "layer": 0,
+      "name": "Roof Access Step",
+      "position": [
+        18.0,
+        1.125,
+        -3.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        2.0,
+        2.25,
+        0.5
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "94efc878b9294899be357bea95676878",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "9a4eb9caab5b4f86bd71780d130d37be",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100029,
+      "layer": 0,
+      "name": "Roof Access Step",
+      "position": [
+        18.0,
+        1.25,
+        -3.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        2.0,
+        2.5,
+        0.5
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "daf098c80139476a94a866dfa5550e9b",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "78edcee6e9864839a2439123f2f040ad",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100030,
+      "layer": 0,
+      "name": "Roof Access Step",
+      "position": [
+        18.0,
+        1.375,
+        -4.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        2.0,
+        2.75,
+        0.5
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "44080559717242f9bde589f3cf77fed1",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "751bc138189f411087d20677b9a865a7",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100031,
+      "layer": 0,
+      "name": "Roof Access Step",
+      "position": [
+        18.0,
+        1.5,
+        -4.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        2.0,
+        3.0,
+        0.5
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "78cb1f4e87e24dbdbbe4109f1940b2df",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "464f60d1ad2a4812b3cf6ec65cc26202",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100032,
+      "layer": 0,
+      "name": "Roof Access Step",
+      "position": [
+        18.0,
+        1.625,
+        -5.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        2.0,
+        3.25,
+        0.5
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "53e8172a10774eaabcba74646a0795fd",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "60364b75e9454f089338f24562f7c270",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100033,
+      "layer": 0,
+      "name": "Roof Access Step",
+      "position": [
+        18.0,
+        1.75,
+        -5.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        2.0,
+        3.5,
+        0.5
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "102d5efcb4d245cc8262f4ee82a8452e",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "819fad131e4d43bc83a579a5b9aa6f03",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 100034,
+      "layer": 0,
+      "name": "Roof Access Landing",
+      "position": [
+        17.0,
+        3.5,
+        -6.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        4.0,
+        0.2,
+        1.5
+      ],
+      "tags": [
+        "LevelGeometry"
+      ],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "type": "PointLight",
+          "id": "7e0589b136174990ad4e6447fd876dd7",
+          "enabled": true,
+          "data": {
+            "color": [
+              1.0,
+              0.84,
+              0.64,
+              1.0
+            ],
+            "intensity": 12.0,
+            "range": 9.0,
+            "castsShadows": true
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "id": "355d493ccf124fb0841f88d05af8f03c",
+          "enabled": true,
+          "data": {
+            "mesh": "00000000000000000000000000000002",
+            "castsShadows": false,
+            "material": "d253e59ae9d610490ba12dfb0d268ea9"
+          }
+        }
+      ],
+      "id": 100035,
+      "layer": 0,
+      "name": "Workshop Ceiling Lamp",
+      "position": [
+        7.0,
+        3.2,
+        -12.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.12,
+        0.12,
+        0.12
+      ],
+      "tags": [],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "type": "PointLight",
+          "id": "fb97efa12ae143b9aeabeca0d9ba0544",
+          "enabled": true,
+          "data": {
+            "color": [
+              1.0,
+              0.84,
+              0.64,
+              1.0
+            ],
+            "intensity": 12.0,
+            "range": 9.0,
+            "castsShadows": true
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "id": "d5d362b4706b4fa485de5ffc0ec3c4b9",
+          "enabled": true,
+          "data": {
+            "mesh": "00000000000000000000000000000002",
+            "castsShadows": false,
+            "material": "d253e59ae9d610490ba12dfb0d268ea9"
+          }
+        }
+      ],
+      "id": 100036,
+      "layer": 0,
+      "name": "Workshop Ceiling Lamp",
+      "position": [
+        13.0,
+        3.2,
+        -12.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.12,
+        0.12,
+        0.12
+      ],
+      "tags": [],
+      "parent": 100000
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "ee720ef064714e5794e68bb266492a7b",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 100037,
+      "layer": 0,
+      "name": "Prop Construction Area",
+      "position": [
+        -12.0,
+        0.008,
+        14.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        6.0,
+        0.012,
+        6.0
+      ],
+      "tags": [
+        "SpawnArea",
+        "Level"
+      ]
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "15edf048fc5242c2a45b4b78616a3e60",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 100038,
+      "layer": 0,
+      "name": "Lamp Testing Area",
+      "position": [
+        0.0,
+        0.008,
+        14.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        6.0,
+        0.012,
+        6.0
+      ],
+      "tags": [
+        "SpawnArea",
+        "Level"
+      ]
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5a8379de642942e28ca594a802ae836d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "fc24e18adf7f4774bc68aa713ce340a8",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 100039,
+      "layer": 0,
+      "name": "Weapon Testing Area",
+      "position": [
+        12.0,
+        0.008,
+        14.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        6.0,
+        0.012,
+        6.0
+      ],
+      "tags": [
+        "SpawnArea",
+        "Level"
+      ]
     }
   ],
   "format": "spot-scene",

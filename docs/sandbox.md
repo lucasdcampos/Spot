@@ -7,6 +7,15 @@ exercise gameplay through simulated input.
 
 ## Spawnable prefabs
 
+The playground includes an open construction yard, ramps, a low platform and stairs, and a workshop
+in the northeast corner. Its three-meter entrance opens into a lit interior with a workbench and
+solid glass windows. Fourteen exterior steps reach the roof. Three pads along the south side mark
+prop construction, lamp testing and weapon testing areas. These are ordinary scene entities, editable
+in the hierarchy; the level and permanent ceiling lamps remain outside world checkpoints and cleanup.
+The sun's DayCycle drives daylight, fog and exposure while the ceiling lamps remain on at night.
+Hold T to advance the cycle quickly. GPU acceptance captures of the cooked scene are written to the
+test build's `tests/sandbox_captures/` directory.
+
 The playground's props, lamps and firearms are linked prefab instances. Their authored positions, collider
 choices, masses, colors and weapon settings remain instance overrides. Editing a source updates inherited
 values in every instance; local changes remain. The editor also updates open documents when a source is saved,
