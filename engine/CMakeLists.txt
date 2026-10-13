@@ -89,6 +89,7 @@ add_library(spot_objects OBJECT
     graphics/bloom.cpp
     graphics/bloom.h
     graphics/camera_2d.cpp
+    graphics/pixel_perfect.cpp
     graphics/camera_3d.h
     graphics/camera_3d.cpp
     graphics/color.h

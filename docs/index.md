@@ -19,7 +19,7 @@ that does the same with a window around it.
 | [Animation](animation.md) | Skeletons, clips, poses and animated characters |
 | [Particles](particles.md) | Curves, gradients and particle effects |
 | [Physics](physics.md) | Colliders, rigidbodies, the physics world and its backend |
-| [2D games](2d.md) | 2D physics, sprite atlases, animation and tilemaps |
+| [2D games](2d.md) | 2D physics, sprite atlases, animation, tilemaps and pixel-perfect cameras |
 | [Audio](audio.md) | Sounds, the audio device and the mixer |
 | [Input](input.md) | Events, the input state, keys, the mouse and the cursor lock |
 | [Diagnostics](diagnostics.md) | Logging, crash reports, contained failures, the profiler and debug drawing |

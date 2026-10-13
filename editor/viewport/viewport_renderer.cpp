@@ -237,6 +237,7 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
                                  .resolveTarget = samples ? hdr : nullptr,
                                  .keepSamples = samples != nullptr};
     const Vector2 size{static_cast<float>(targets.GetWidth()), static_cast<float>(targets.GetHeight())};
+    const bool pixelPerfect = camera.orthographic && camera.pixelPerfect.enabled && camera.pixelPerfect.IsValid();
     // The scene's render hooks draw at the stages a game's SceneRenderer runs them at.
     RenderStageContext stage{.device = m_device,
                              .context = context,
@@ -282,7 +283,7 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
         RenderPassDesc spriteDesc = hdrPass;
         spriteDesc.depthTarget = nullptr;
         auto pass = context.BeginRenderPass(spriteDesc);
-        m_sprites->Begin(pass, stage.viewProjection);
+        m_sprites->Begin(pass, camera, size);
         m_sprites->DrawScene(scene);
         m_sprites->DrawWorldText(scene, stage.camera);
         m_sprites->End();
@@ -307,17 +308,20 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
     // The view's colors, with the interfaces over them as they are, in the scene's look when it has one.
     Scene* const shown[] = {&scene};
     const PostProcessing* look = PostProcessing::Find(shown);
-    const TonemapSettings tonemapping = look ? look->GetTonemapping() : options.tonemapping;
+    TonemapSettings tonemapping = look ? look->GetTonemapping() : options.tonemapping;
+    if (pixelPerfect)
+        tonemapping.dither = false;
     const GradingSettings grading = look ? look->GetGrading() : options.grading;
     const BloomSettings bloom = look ? look->GetBloom() : options.bloom;
-    const Texture* glow = m_bloom->Render(context, *hdr, bloom);
-    if (options.fxaa) {
+    const Texture* glow = pixelPerfect ? nullptr : m_bloom->Render(context, *hdr, bloom);
+    const bool fxaa = options.fxaa && !pixelPerfect;
+    if (fxaa) {
         auto tonemapped = context.BeginRenderPass({.target = targets.GetTonemapped()});
         m_tonemapper->Draw(tonemapped, *hdr, tonemapping, grading, glow, bloom.intensity);
     }
     {
         auto pass = context.BeginRenderPass({.target = targets.GetColor()});
-        if (options.fxaa) {
+        if (fxaa) {
             m_fxaa->Draw(pass, *targets.GetTonemapped());
         } else {
             m_tonemapper->Draw(pass, *hdr, tonemapping, grading, glow, bloom.intensity);

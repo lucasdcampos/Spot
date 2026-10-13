@@ -18,12 +18,15 @@ Camera3D Camera::GetCamera3D() const {
             .farPlane = m_farPlane,
             .orthographic = m_projection == CameraProjection::Orthographic,
             .orthographicSize = m_orthographicSize,
-            .cullingMask = m_cullingMask};
+            .cullingMask = m_cullingMask,
+            .pixelPerfect = m_pixelPerfect};
 }
 
 void Camera::Serialize(Archive& archive) {
     static constexpr std::array<std::string_view, 2> Projections{"Perspective", "Orthographic"};
     archive.Field("projection", m_projection, {.enumNames = Projections});
+    archive.Field("pixelPerfect", m_pixelPerfect,
+                  {.tooltip = "Integer scaling and nearest sampling for orthographic pixel art"});
     archive.Field("fieldOfView", m_fieldOfView,
                   {.min = ToRadians(1.0f), .max = ToRadians(179.0f), .angle = true, .tooltip = "Vertical, in degrees"});
     archive.Field("orthographicSize", m_orthographicSize,

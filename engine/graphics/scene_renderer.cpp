@@ -91,6 +91,7 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
         Log::GetEngineLogger().Warning("The scene has no enabled Camera to be seen through; it shows from the origin");
     }
     const Camera3D view = camera ? camera->GetCamera3D() : Camera3D{};
+    const bool pixelPerfect = view.orthographic && view.pixelPerfect.enabled && view.pixelPerfect.IsValid();
 
     // With several samples, each pass draws into the multisampled target and resolves it into the HDR image, keeping
     // the samples for the passes drawn over it.
@@ -141,7 +142,7 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
         RenderPassDesc spriteDesc = hdrPass;
         spriteDesc.depthTarget = nullptr;
         auto spritePass = context.BeginRenderPass(spriteDesc);
-        m_sprites->Begin(spritePass, view.GetViewProjection(size));
+        m_sprites->Begin(spritePass, view, size);
         for (Scene* scene : scenes) {
             m_sprites->DrawScene(*scene);
         }
@@ -166,12 +167,14 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
     runStage(RenderStage::BeforePostProcessing);
 
     const PostProcessing* look = PostProcessing::Find(scenes);
-    const TonemapSettings tonemapping = look ? look->GetTonemapping() : m_tonemapping;
+    TonemapSettings tonemapping = look ? look->GetTonemapping() : m_tonemapping;
+    if (pixelPerfect)
+        tonemapping.dither = false;
     const BloomSettings bloom = look ? look->GetBloom() : m_bloomSettings;
     const GradingSettings grading = look ? look->GetGrading() : m_grading;
-    const Texture* glow = m_bloom->Render(context, *m_hdr, bloom);
+    const Texture* glow = pixelPerfect ? nullptr : m_bloom->Render(context, *m_hdr, bloom);
     // FXAA reads the finished image, so it is tonemapped into a texture first.
-    const bool fxaa = m_fxaaEnabled && UpdateTonemapped(width, height);
+    const bool fxaa = !pixelPerfect && m_fxaaEnabled && UpdateTonemapped(width, height);
     if (fxaa) {
         auto tonemapped = context.BeginRenderPass({.target = m_tonemapped.get()});
         m_tonemapper->Draw(tonemapped, *m_hdr, tonemapping, grading, glow, bloom.intensity);

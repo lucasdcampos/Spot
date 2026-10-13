@@ -39,6 +39,62 @@
 using Spot::Tests::RenderingApplication;
 using Spot::Tests::RequireGpu;
 
+TEST_CASE("Pixel-perfect quads stay sharp and stable across subpixel movement and viewport resizing",
+          "[gpu][pixelperfect][offscreen]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = false});
+    REQUIRE(device);
+    auto texture = device->CreateTexture({.width = 2, .height = 1});
+    REQUIRE(texture);
+    device->UploadToTexture(*texture, std::array<std::uint8_t, 8>{255, 0, 0, 255, 0, 255, 0, 255});
+    Spot::Renderer2D renderer(*device,
+                              {.filter = Spot::TextureFilter::Linear, .targetFormat = Spot::TextureFormat::Rgba8});
+    Spot::Camera2D camera;
+    camera.pixelPerfect = {.enabled = true, .pixelsPerUnit = 1, .referenceResolution = {32, 24}};
+    camera.position = {0.1f, 0.1f};
+    auto render = [&](std::uint32_t width, std::uint32_t height, Spot::Vector2 position) {
+        auto target = device->CreateTexture(
+            {.width = width, .height = height, .format = Spot::TextureFormat::Rgba8, .renderTarget = true});
+        REQUIRE(target);
+        auto* context = device->BeginOffscreenFrame(*target);
+        REQUIRE(context);
+        auto pass = context->BeginRenderPass({.clearColor = Spot::Color::Black});
+        const Spot::Vector2 size{static_cast<float>(width), static_cast<float>(height)};
+        renderer.Begin(pass, camera, size);
+        renderer.DrawQuad(position, {2, 1}, *texture);
+        renderer.End();
+        pass.End();
+        device->EndFrame();
+        return device->DownloadTexture(*target);
+    };
+    for (auto size : {std::pair{64u, 48u}, std::pair{65u, 49u}, std::pair{96u, 72u}}) {
+        camera.position = {0.1f, 0.1f};
+        const auto initial = render(size.first, size.second, {0.1f, 0.5f});
+        camera.position = {0.2f, 0.2f};
+        CHECK(render(size.first, size.second, {0.2f, 0.6f}) == initial);
+        const int scale = static_cast<int>(
+            camera.pixelPerfect.GetZoom({static_cast<float>(size.first), static_cast<float>(size.second)}));
+        int red = 0, green = 0, intermediate = 0;
+        for (std::size_t i = 0; i < initial.size(); i += 4) {
+            if (initial[i] == 255 && initial[i + 1] == 0)
+                ++red;
+            if (initial[i] == 0 && initial[i + 1] == 255)
+                ++green;
+            if ((initial[i] > 0 && initial[i] < 255) || (initial[i + 1] > 0 && initial[i + 1] < 255))
+                ++intermediate;
+        }
+        CHECK(red == scale * scale);
+        CHECK(green == scale * scale);
+        CHECK(intermediate == 0);
+    }
+    const auto capture = Spot::Process::GetEnvironmentValue("SPOT_2D_CAPTURE_DIR");
+    if (capture && !capture->empty()) {
+        std::filesystem::create_directories(*capture);
+        const auto pixels = render(96, 72, {0.1f, 0.5f});
+        CHECK(Spot::Image(96, 72, pixels).SavePng(std::filesystem::path(*capture) / "pixel_perfect.png"));
+    }
+}
+
 TEST_CASE("Tilemaps render atlas cells holes ordering and transforms offscreen", "[gpu][tilemap][offscreen]") {
     RequireGpu();
     auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = false});
@@ -107,6 +163,11 @@ TEST_CASE("Tilemaps render atlas cells holes ordering and transforms offscreen",
     const auto mirrored = render();
     CHECK(mirrored[pixel(40, 40)] == 255);
     CHECK(mirrored[pixel(24, 40) + 1] == 255);
+    const auto capture = Spot::Process::GetEnvironmentValue("SPOT_2D_CAPTURE_DIR");
+    if (capture && !capture->empty()) {
+        std::filesystem::create_directories(*capture);
+        CHECK(Spot::Image(64, 64, image).SavePng(std::filesystem::path(*capture) / "tilemap.png"));
+    }
 }
 
 TEST_CASE("Sprite atlas regions and animation render repeated offscreen frames", "[gpu][sprites][offscreen]") {

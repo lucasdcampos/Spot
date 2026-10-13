@@ -1,5 +1,6 @@
 #pragma once
 
+#include "graphics/pixel_perfect.h"
 #include "math/matrix.h"
 #include "math/vector.h"
 
@@ -14,6 +15,7 @@ struct Camera2D {
     float zoom = 1.0f;
     // Radians, counterclockwise.
     float rotation = 0.0f;
+    PixelPerfectSettings pixelPerfect = {};
 
     Matrix4 GetViewProjection(Vector2 viewSize) const;
 

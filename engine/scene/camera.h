@@ -55,6 +55,12 @@ public:
     // The camera's view from its entity's world position and rotation, as Renderer3D takes it; Renderer2D takes its
     // GetViewProjection().
     Camera3D GetCamera3D() const;
+    bool IsPixelPerfect() const { return m_pixelPerfect.enabled; }
+    void SetPixelPerfect(bool enabled) { m_pixelPerfect.enabled = enabled; }
+    float GetPixelsPerUnit() const { return m_pixelPerfect.pixelsPerUnit; }
+    void SetPixelsPerUnit(float pixels) { m_pixelPerfect.pixelsPerUnit = pixels; }
+    Vector2 GetReferenceResolution() const { return m_pixelPerfect.referenceResolution; }
+    void SetReferenceResolution(Vector2 size) { m_pixelPerfect.referenceResolution = size; }
 
 protected:
     void Serialize(Archive& archive) override;
@@ -67,6 +73,7 @@ private:
     float m_farPlane = 1000.0f;
     Color m_background{0.12f, 0.13f, 0.15f, 1.0f};
     std::uint32_t m_cullingMask = 0xFFFFFFFFu;
+    PixelPerfectSettings m_pixelPerfect;
 };
 
 // The first Camera, in creation order, that is enabled on an entity active in the hierarchy; null when the scene

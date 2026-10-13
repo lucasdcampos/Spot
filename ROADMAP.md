@@ -9,7 +9,7 @@ The goal is the same breadth, built on the architecture Spot already has.
 The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
 [The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
 
-**Current focus:** M14.4 - Pixel-perfect camera (M14 implemented by request; M15.5 platform acceptance remains)
+**Current focus:** M14 - GCC acceptance (M15.5 platform acceptance remains)
 
 ## How to use this plan
 
@@ -1350,9 +1350,18 @@ Implemented by request; it depends on M1 for the shape of its API.
   with the same events and queries as 3D.
 - [x] **M14.2 Sprite sheets.** A sprite atlas importer and sprite animation.
 - [x] **M14.3 Tilemaps.** Tilemap component, painting in the editor, and colliders from tiles.
-- [ ] **M14.4 Pixel-perfect camera.** An option for pixel art.
+- [x] **M14.4 Pixel-perfect camera.** An option for pixel art.
 
 **Notes:**
+- M14.4: scene/code-only orthographic cameras use integer viewport scaling, camera/quad snapping
+  and nearest texture sampling. Odd viewport edges and pointer conversion share the resolved view;
+  authored and simulated transforms stay continuous. Pixel art skips bloom, FXAA and dithering;
+  the chosen tonemapping/grading still applies. Signed XY scale now preserves mirrored collider
+  offsets and sprite axes. MSVC Debug builds without compiler warnings; three camera cases pass
+  51 assertions, all 50 final selected regressions pass, the complete 737-case headless suite passes,
+  and twelve serial rendering cases pass, including existing golden images and both editor/game
+  pixel edges. Pixel-perfect and tilemap captures were inspected. GCC acceptance is in progress.
+
 - M14.3: bounded serialized grids render atlas regions through the shared 2D path, with transform,
   tint, holes and sprite ordering. Solid row runs merge vertically in linear time into compound
   TilemapCollider2D boxes; edits rebuild physics geometry and preserve query collider identities.

@@ -59,6 +59,7 @@ public:
     bool IsValid() const;
 
     void Begin(RenderPass& pass, const Camera2D& camera, Vector2 viewSize);
+    void Begin(RenderPass& pass, const Camera3D& camera, Vector2 viewSize);
     // Draws in the XY plane of the world as the matrix sees it, such as a Camera3D's view projection, so sprites can
     // show in 3D views too.
     void Begin(RenderPass& pass, const Matrix4& viewProjection);
@@ -101,6 +102,7 @@ private:
     GraphicsDevice& m_device;
     std::unique_ptr<Pipeline> m_pipeline;
     std::unique_ptr<Sampler> m_sampler;
+    std::unique_ptr<Sampler> m_pixelSampler;
     std::unique_ptr<Texture> m_whiteTexture;
     std::unique_ptr<Buffer> m_vertexBuffer;
     std::unique_ptr<Buffer> m_indexBuffer;
@@ -110,6 +112,7 @@ private:
     RenderPass* m_pass = nullptr;
     Matrix4 m_viewProjection;
     bool m_worldDepth = false;
+    PixelPerfectSettings m_pixelPerfect;
     std::optional<ScissorRect> m_scissor;
     Renderer2DStats m_stats;
     struct SceneDraw {

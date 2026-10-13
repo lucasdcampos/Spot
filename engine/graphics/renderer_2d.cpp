@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <vector>
 
@@ -44,6 +45,7 @@ Renderer2D::Renderer2D(GraphicsDevice& device, const Renderer2DConfig& config) :
     }
 
     m_sampler = device.CreateSampler({.filter = config.filter});
+    m_pixelSampler = device.CreateSampler({.filter = TextureFilter::Nearest});
 
     // Untextured quads sample this, so one shader and pipeline serve both kinds of quad.
     m_whiteTexture = device.CreateTexture({.width = 1, .height = 1});
@@ -59,7 +61,7 @@ Renderer2D::Renderer2D(GraphicsDevice& device, const Renderer2DConfig& config) :
 Renderer2D::~Renderer2D() = default;
 
 bool Renderer2D::IsValid() const {
-    return m_pipeline && m_sampler && m_whiteTexture;
+    return m_pipeline && m_sampler && m_pixelSampler && m_whiteTexture;
 }
 
 void Renderer2D::Begin(RenderPass& pass, const Camera2D& camera, Vector2 viewSize) {
@@ -67,6 +69,7 @@ void Renderer2D::Begin(RenderPass& pass, const Camera2D& camera, Vector2 viewSiz
     m_pass = &pass;
     m_viewProjection = camera.GetViewProjection(viewSize);
     m_worldDepth = false;
+    m_pixelPerfect = camera.pixelPerfect;
     m_batch.Clear();
     m_stats = {};
     m_scissor.reset();
@@ -77,9 +80,15 @@ void Renderer2D::Begin(RenderPass& pass, const Matrix4& viewProjection) {
     m_pass = &pass;
     m_viewProjection = viewProjection;
     m_worldDepth = true;
+    m_pixelPerfect = {};
     m_batch.Clear();
     m_stats = {};
     m_scissor.reset();
+}
+
+void Renderer2D::Begin(RenderPass& pass, const Camera3D& camera, Vector2 viewSize) {
+    Begin(pass, camera.GetViewProjection(viewSize));
+    m_pixelPerfect = camera.orthographic ? camera.pixelPerfect : PixelPerfectSettings{};
 }
 
 void Renderer2D::DrawScene(Scene& scene) {
@@ -89,7 +98,11 @@ void Renderer2D::DrawScene(Scene& scene) {
         if (!entity.IsActiveInHierarchy())
             return;
         const auto& transform = entity.GetTransform();
-        const auto scale = Decompose(transform.GetWorldMatrix()).scale;
+        const auto angle = transform.GetWorldRotation2D();
+        const auto& matrix = transform.GetWorldMatrix();
+        const Vector2 right{std::cos(angle), std::sin(angle)}, up{-right.y, right.x};
+        const Vector2 scale{Dot(Vector2{matrix.columns[0].x, matrix.columns[0].y}, right),
+                            Dot(Vector2{matrix.columns[1].x, matrix.columns[1].y}, up)};
         entity.ForEachComponent<Component>([&](Component& component) {
             if (!component.IsActiveAndEnabled())
                 return;
@@ -208,12 +221,16 @@ void Renderer2D::DrawQuad(Vector2 position, Vector2 size, const Texture& texture
 
 void Renderer2D::DrawRotatedQuad(Vector2 position, Vector2 size, float rotation, Color color) {
     SPOT_ASSERT(m_pass, "Draw calls must come between Begin() and End()");
+    if (m_pixelPerfect.enabled && m_pixelPerfect.IsValid())
+        position = m_pixelPerfect.SnapQuad(position, size);
     m_batch.AddQuad(position, size, rotation, nullptr, color);
 }
 
 void Renderer2D::DrawRotatedQuad(Vector2 position, Vector2 size, float rotation, const Texture& texture, Color tint,
                                  const TextureRegion& region) {
     SPOT_ASSERT(m_pass, "Draw calls must come between Begin() and End()");
+    if (m_pixelPerfect.enabled && m_pixelPerfect.IsValid())
+        position = m_pixelPerfect.SnapQuad(position, size);
     m_batch.AddQuad(position, size, rotation, &texture, tint, region);
 }
 
@@ -259,7 +276,8 @@ void Renderer2D::Flush() {
 
     for (const auto& command : m_batch.GetCommands()) {
         m_pass->PushFragmentUniforms(0, Vector4{command.signedDistance ? 1.0f : 0.0f, 0, 0, 0});
-        m_pass->BindFragmentTexture(0, command.texture ? *command.texture : *m_whiteTexture, *m_sampler);
+        const auto& sampler = m_pixelPerfect.enabled && m_pixelPerfect.IsValid() ? *m_pixelSampler : *m_sampler;
+        m_pass->BindFragmentTexture(0, command.texture ? *command.texture : *m_whiteTexture, sampler);
         m_pass->DrawIndexed(command.quadCount * QuadBatch::IndicesPerQuad, 1,
                             command.firstQuad * QuadBatch::IndicesPerQuad);
     }

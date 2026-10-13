@@ -75,6 +75,12 @@ TEST_CASE("Tilemap colliders rebuild after painting and follow transforms and ac
     CHECK_FALSE(world.Raycast({0, 4}, {1, 0}, 10));
     map.SetEnabled(true);
     CHECK(world.Raycast({0, 4}, {1, 0}, 10));
+    entity.GetTransform().SetScale({2, -2, 1});
+    scene.Update(Scene::DefaultFixedTimeStep);
+    auto mirrored = world.Raycast({0, 2}, {1, 0}, 10);
+    REQUIRE(mirrored);
+    CHECK(mirrored->distance == Catch::Approx(4));
+    entity.GetTransform().SetScale({2, 2, 1});
     Scene restored;
     REQUIRE(restored.LoadFromString(scene.SaveToString()));
     auto* restoredMap = restored.FindEntity("Map");

@@ -25,6 +25,78 @@
 using Spot::Tests::RenderingApplication;
 using Spot::Tests::RequireGpu;
 
+TEST_CASE("Pixel-perfect scene cameras keep pixel edges in both editor and game views",
+          "[editor][gpu][pixelperfect][offscreen]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = false});
+    REQUIRE(device);
+    auto texture = device->CreateTexture({.width = 2, .height = 1});
+    REQUIRE(texture);
+    device->UploadToTexture(*texture, std::array<std::uint8_t, 8>{255, 0, 0, 255, 0, 255, 0, 255});
+    Spot::Scene scene;
+    auto& sprite = scene.CreateEntity();
+    sprite.GetTransform().SetPosition({0.1f, 0.5f, 0});
+    sprite.AddComponent<Spot::SpriteRenderer>(std::shared_ptr<const Spot::Texture>(std::move(texture)),
+                                              Spot::Vector2{2, 1});
+    auto& cameraEntity = scene.CreateEntity();
+    cameraEntity.GetTransform().SetPosition({0.1f, 0.1f, 3});
+    auto& camera = cameraEntity.AddComponent<Spot::Camera>();
+    camera.SetProjection(Spot::CameraProjection::Orthographic);
+    camera.SetPixelPerfect(true);
+    camera.SetPixelsPerUnit(1);
+    camera.SetReferenceResolution({32, 24});
+    camera.SetBackground(Spot::Color::Black);
+    Spot::Editor::ViewportRenderer viewport(*device);
+    Spot::Editor::ViewportTargets targets;
+    REQUIRE(targets.Resize(*device, 64, 48, viewport.GetSampleCount()));
+    Spot::Editor::ViewportOptions options;
+    options.showGrid = false;
+    options.defaultLights = false;
+    options.background = Spot::Color::Black;
+    options.fxaa = true;
+    options.tonemapping = {.op = Spot::TonemapOperator::Linear, .dither = false};
+    options.bloom.intensity = 1;
+    options.bloom.threshold = 0;
+    auto* context = device->BeginOffscreenFrame(*targets.GetColor());
+    REQUIRE(context);
+    viewport.Render(*context, targets, scene, camera.GetCamera3D(), options);
+    device->EndFrame();
+    const auto editor = device->DownloadTexture(*targets.GetColor());
+    auto target = device->CreateTexture(
+        {.width = 64, .height = 48, .format = Spot::Editor::ViewportRenderer::ColorFormat, .renderTarget = true});
+    REQUIRE(target);
+    Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::Editor::ViewportRenderer::ColorFormat,
+                                           .sampleCount = 1,
+                                           .tonemapping = {.op = Spot::TonemapOperator::Linear, .dither = false},
+                                           .bloom = {.intensity = 1, .threshold = 0},
+                                           .fxaa = true,
+                                           .shadowMapSize = 128,
+                                           .localShadowMapSize = 128});
+    std::array<Spot::Scene*, 1> scenes{&scene};
+    context = device->BeginOffscreenFrame(*target);
+    REQUIRE(context);
+    renderer.Render(*context, scenes, target.get());
+    device->EndFrame();
+    const auto game = device->DownloadTexture(*target);
+    for (const auto* pixels : {&editor, &game}) {
+        REQUIRE(pixels->size() == 64 * 48 * 4);
+        int red = 0, green = 0, other = 0;
+        for (std::size_t i = 0; i < pixels->size(); i += 4) {
+            const int r = (*pixels)[i], g = (*pixels)[i + 1], b = (*pixels)[i + 2];
+            if (r > 150 && g < 10 && b < 10)
+                ++red;
+            else if (g > 150 && r < 10 && b < 10)
+                ++green;
+            else if (r > 0 || g > 0 || b > 0)
+                ++other;
+        }
+        CHECK(red == 4);
+        CHECK(green == 4);
+        CHECK(other == 0);
+    }
+    CHECK(sprite.GetTransform().GetPosition() == Spot::Vector3{0.1f, 0.5f, 0});
+}
+
 TEST_CASE("Tilemap-only scenes render in game and editor views offscreen", "[editor][gpu][tilemap][offscreen]") {
     RequireGpu();
     auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = false});

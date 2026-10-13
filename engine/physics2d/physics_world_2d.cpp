@@ -61,8 +61,11 @@ void PhysicsWorld2D::Synchronize() {
         if (!rigidbody && !hasCollider)
             return;
         auto& transform = entity.GetTransform();
-        const auto worldScale = Decompose(transform.GetWorldMatrix()).scale;
-        const Vector2 scale{worldScale.x, worldScale.y};
+        const auto angle = transform.GetWorldRotation2D();
+        const auto& matrix = transform.GetWorldMatrix();
+        const Vector2 right{std::cos(angle), std::sin(angle)}, up{-right.y, right.x};
+        const Vector2 scale{Dot(Vector2{matrix.columns[0].x, matrix.columns[0].y}, right),
+                            Dot(Vector2{matrix.columns[1].x, matrix.columns[1].y}, up)};
         auto [found, added] = m_bodies.try_emplace(entity.GetId());
         auto& body = found->second;
         body.seen = true;

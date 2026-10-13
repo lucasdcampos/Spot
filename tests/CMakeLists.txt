@@ -46,6 +46,7 @@ add_executable(spot_tests
     renderer_2d_tests.cpp
     sprite_atlas_tests.cpp
     tilemap_tests.cpp
+    pixel_perfect_tests.cpp
     renderer_3d_tests.cpp
     scene_serialization_tests.cpp
     scene_system_tests.cpp
