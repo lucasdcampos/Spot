@@ -1389,6 +1389,9 @@ three platforms.
   (one default-output audio case skips because no output device is available); the editor is disabled
   in this Linux build. The first clean Linux Release dependency build emitted upstream glslang
   optimization warnings; repository sources and the final incremental build are warning-free.
+  The local Linux export was rebuilt with X11 and ALSA enabled (not a console-only SDL build),
+  then all 556 headless cases and the relocated smoke test passed again. Its Vulkan rendering
+  remains untested locally because the WSL environment has no usable Vulkan driver.
 - M15.5: `spot export` produced Windows and Linux Release games that pass `Sandbox --smoke-test`
   after relocation. Windows runs with PATH restricted to the OS directories; its redistributable
   DLLs are beside the executable. Linux includes libstdc++.so.6/libgcc_s.so.1 and its executable

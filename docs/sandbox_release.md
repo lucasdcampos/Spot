@@ -70,7 +70,7 @@ Local validation on 2026-10-13:
 | Platform | Result |
 |---|---|
 | Windows | Native MSVC Release export passes after relocation with PATH limited to OS directories; Debug MSVC/GCC sandbox GPU cases pass. |
-| Linux | Native GCC Release export passes after relocation under WSL, including bundled GCC runtimes and `$ORIGIN`; headless regressions pass, with unavailable default-output audio skipped. |
+| Linux | Native GCC Release export with X11/ALSA passes after relocation under WSL, including bundled GCC runtimes and `$ORIGIN`; headless regressions pass, with unavailable default-output audio skipped. Local Vulkan rendering remains untested. |
 | macOS | Export workflow and `@loader_path` support are ready; a native build and play-through remain pending. |
 
 The interactive checklist remains pending on the three native desktop platforms. Automated smoke and offscreen
