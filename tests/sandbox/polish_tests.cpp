@@ -50,7 +50,7 @@ TEST_CASE("Held weapon motion is bounded, settles and reduces when aiming", "[sa
     auto* view = player->GetComponent<ViewModel>();
     holder->Select(1);
     game.Run(30);
-    game.input.OnEvent(Spot::MouseMovedEvent{.delta = {60, 0}});
+    game.input.OnEvent(Spot::MouseMovedEvent{.position = {}, .delta = {60, 0}});
     game.Step();
     const float hip = Spot::Length(view->GetMotionOffset());
     CHECK(hip > .001f);
@@ -60,7 +60,7 @@ TEST_CASE("Held weapon motion is bounded, settles and reduces when aiming", "[sa
     game.input.OnEvent(Spot::MouseButtonPressedEvent{Spot::MouseButton::Right});
     game.Run(15);
     REQUIRE(holder->IsAiming());
-    game.input.OnEvent(Spot::MouseMovedEvent{.delta = {60, 0}});
+    game.input.OnEvent(Spot::MouseMovedEvent{.position = {}, .delta = {60, 0}});
     game.Step();
     CHECK(Spot::Length(view->GetMotionOffset()) < hip * .5f);
     game.input.OnEvent(Spot::MouseButtonReleasedEvent{Spot::MouseButton::Right});

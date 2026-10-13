@@ -20,7 +20,7 @@
 SPOT_COMPONENT(WeaponHolder);
 
 void WeaponHolder::Select(int slot) {
-    const int count = static_cast<int>(GetWeapons().size()) + 2;
+    const int count = GetWeaponCount() + 2;
     const int selected = ((slot % count) + count) % count;
     if (selected != m_selected) {
         m_selected = selected;
@@ -57,17 +57,29 @@ float WeaponHolder::GetAimZoom() const {
 }
 
 Weapon* WeaponHolder::GetWeapon() const {
-    const std::vector<Weapon*> weapons = GetWeapons();
-    return m_selected > 0 && m_selected <= static_cast<int>(weapons.size()) ? weapons[m_selected - 1] : nullptr;
+    Weapon* selected = nullptr;
+    int slot = 0;
+    GetEntity().ForEachChild([&](const Spot::Entity& child) {
+        if (auto* weapon = child.GetComponent<Weapon>(); weapon && ++slot == m_selected) {
+            selected = weapon;
+        }
+    });
+    return selected;
+}
+
+int WeaponHolder::GetWeaponCount() const {
+    int count = 0;
+    GetEntity().ForEachChild([&](const Spot::Entity& child) { count += child.HasComponent<Weapon>() ? 1 : 0; });
+    return count;
 }
 
 std::vector<Weapon*> WeaponHolder::GetWeapons() const {
     std::vector<Weapon*> weapons;
-    for (const Spot::Entity* child : GetEntity().GetChildren()) {
-        if (Weapon* weapon = child->GetComponent<Weapon>()) {
+    GetEntity().ForEachChild([&](const Spot::Entity& child) {
+        if (Weapon* weapon = child.GetComponent<Weapon>()) {
             weapons.push_back(weapon);
         }
-    }
+    });
     return weapons;
 }
 
@@ -147,11 +159,11 @@ Spot::Vector3 WeaponHolder::Scatter(Spot::Vector3 aim, float spread) {
 
 void WeaponHolder::OnUpdate(float /*deltaTime*/) {
     namespace Input = Spot::Input;
-    const std::vector<Weapon*> weapons = GetWeapons();
+    const int count = GetWeaponCount();
 
     static constexpr std::array<std::string_view, 9> Slots = {
         "Weapon 1", "Weapon 2", "Weapon 3", "Weapon 4", "Weapon 5", "Weapon 6", "Weapon 7", "Weapon 8", "Weapon 9"};
-    for (int slot = 0; slot < 9 && slot <= static_cast<int>(weapons.size()) + 1; ++slot) {
+    for (int slot = 0; slot < 9 && slot <= count + 1; ++slot) {
         if (Input::IsActionPressed(Slots[static_cast<std::size_t>(slot)])) {
             Select(slot);
         }

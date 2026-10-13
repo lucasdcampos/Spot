@@ -123,6 +123,16 @@ stress regression uses sixteen props headlessly; larger counts are explicit inte
 
 ## Play-test checklist
 
+Build `spot_sandbox_benchmark` in Release to measure the complete cooked playground rather than
+isolated rendering. Run it with `--props 500 --lamps 50 --warmup 240 --frames 1200 --quality 2`.
+Quality is 0/1/2 for Low/Medium/High. A camera orbits the level at 1600x900 with vsync and validation
+off; gameplay, physics, robots, particles and the HUD continue. It spawns actual imported crates,
+adds point lamps (every eighth shadowed), excludes loading/warmup, then reports frame mean, median,
+p95, worst, body count, memory and inclusive CPU scopes. Exit status is nonzero if setup fails.
+Run without concurrent builds or tests. The M15 measurement on an i5-11600K / GTX 1660 is 113.3 FPS
+average, 11.28 ms p95 and 37.69 ms worst in High quality; it includes the authored props and lamps
+in addition to the requested population. Individual frames can still exceed the 60 FPS budget.
+
 - Walk, jump, climb ramps and stairs, carry and throw a light prop; check collisions and footsteps.
 - Fire and reload all four firearms, aim, push props and trigger an explosive barrel's fuse and chain reaction.
 - Grab, move, rotate and freeze a prop with the physics gun, then release it.

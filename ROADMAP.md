@@ -1367,7 +1367,7 @@ before or after it.
   broken becomes a step here.
 - [x] **M15.3 Polish.** Weapon feel (recoil, spread, view-model sway and bob), physics gun feel, sound mix, HUD
   readability and menu flow.
-- [ ] **M15.4 Performance.** In Release, 60 FPS with 500 props and 50 lamps on the development machine. Profile, fix
+- [x] **M15.4 Performance.** In Release, 60 FPS with 500 props and 50 lamps on the development machine. Profile, fix
   and record the numbers in Notes.
 - [ ] **M15.5 Release.** `spot export` builds of the game for Windows, Linux and macOS that run with nothing else
   installed. `docs/sandbox.md` describes the controls and a play-test checklist covering every system the game uses.
@@ -1376,6 +1376,17 @@ before or after it.
 three platforms.
 
 **Notes:**
+- M15.4 acceptance (2026-10-13): the dedicated Release benchmark runs the real cooked playground,
+  gameplay, physics, robots, particles, HUD and lighting with 500 additional imported crate prefabs
+  and 50 additional point lamps (seven shadowed), plus the authored population. On an i5-11600K /
+  GTX 1660, Direct3D 12, 1600x900, High quality, vsync/validation off, after 240 warmup frames:
+  1,200 measured frames average **8.824 ms / 113.3 FPS**, median **8.550 ms**, p95 **11.282 ms**,
+  worst **37.688 ms**; **596 bodies**, **138.4 MiB** resident memory. No compilation ran during
+  this acceptance measurement. The target is met for average and p95, with occasional longer frames.
+  Retained-frame scopes: render 6.268 ms, scene update 1.974 ms, UI 2.097 ms, shadow submission
+  0.824 ms. Scopes are inclusive CPU times, not GPU timings. Removed per-frame weapon-list/child
+  vector allocations by traversing live children, preserving immediate inventory edits. The
+  benchmark reports failures through its exit code and validates bounded CLI parameters.
 - M15.3: weapon prefabs tune camera/view recoil and recovery individually. Camera recoil affects
   both visible aim and subsequent shots, returns without changing the player's underlying look,
   and pauses with simulation. Bounded view sway follows angular motion; grounded locomotion adds

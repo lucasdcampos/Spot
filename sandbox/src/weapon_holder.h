@@ -16,11 +16,12 @@ public:
     int GetSelected() const { return m_selected; }
     void Select(int slot);
     bool IsPhysicsGunSelected() const { return m_selected == 0; }
-    bool IsToolGunSelected() const { return m_selected == static_cast<int>(GetWeapons().size()) + 1; }
+    bool IsToolGunSelected() const { return m_selected == GetWeaponCount() + 1; }
     // The weapon in hand; null with the physics gun.
     Weapon* GetWeapon() const;
     // Every weapon, in the order of their keys.
     std::vector<Weapon*> GetWeapons() const;
+    int GetWeaponCount() const;
 
     // Fires the weapon in hand from the player's eyes, where it looks, when it is ready.
     void Fire();
