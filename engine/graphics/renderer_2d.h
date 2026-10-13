@@ -22,6 +22,8 @@ class GraphicsDevice;
 class Pipeline;
 class RenderPass;
 class Scene;
+class SpriteRenderer;
+class Tilemap;
 
 struct Renderer2DConfig {
     // Nearest keeps pixel art sharp; linear smooths scaled textures.
@@ -107,8 +109,19 @@ private:
     QuadBatch m_batch;
     RenderPass* m_pass = nullptr;
     Matrix4 m_viewProjection;
+    bool m_worldDepth = false;
     std::optional<ScissorRect> m_scissor;
     Renderer2DStats m_stats;
+    struct SceneDraw {
+        const SpriteRenderer* sprite = nullptr;
+        const Tilemap* tilemap = nullptr;
+        Vector3 position = {};
+        float rotation = 0;
+        Vector2 size = {};
+        int order = 0;
+        std::size_t index = 0;
+    };
+    std::vector<SceneDraw> m_sceneDraws;
 };
 
 } // namespace Spot

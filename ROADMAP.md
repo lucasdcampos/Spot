@@ -9,7 +9,7 @@ The goal is the same breadth, built on the architecture Spot already has.
 The roadmap ends with a game: the sandbox becomes a first-person physics sandbox inspired by Garry's Mod (see
 [The sandbox game](#the-sandbox-game)), which puts nearly every system of the engine to work.
 
-**Current focus:** M14.3 - Tilemaps (M14 implemented by request; M15.5 platform acceptance remains)
+**Current focus:** M14.4 - Pixel-perfect camera (M14 implemented by request; M15.5 platform acceptance remains)
 
 ## How to use this plan
 
@@ -1349,10 +1349,19 @@ Implemented by request; it depends on M1 for the shape of its API.
 - [x] **M14.1 2D physics.** A Box2D v3 backend with `Rigidbody2D` and box, circle, capsule and polygon colliders,
   with the same events and queries as 3D.
 - [x] **M14.2 Sprite sheets.** A sprite atlas importer and sprite animation.
-- [ ] **M14.3 Tilemaps.** Tilemap component, painting in the editor, and colliders from tiles.
+- [x] **M14.3 Tilemaps.** Tilemap component, painting in the editor, and colliders from tiles.
 - [ ] **M14.4 Pixel-perfect camera.** An option for pixel art.
 
 **Notes:**
+- M14.3: bounded serialized grids render atlas regions through the shared 2D path, with transform,
+  tint, holes and sprite ordering. Solid row runs merge vertically in linear time into compound
+  TilemapCollider2D boxes; edits rebuild physics geometry and preserve query collider identities.
+  The editor creates, frames, picks and paints maps, interpolating drags with one undo per stroke.
+  MSVC Debug compiles without warnings; four engine cases pass 32,804 assertions, two actual
+  brush/undo cases pass 35, all 48 selected regressions pass, and three serial offscreen GPU cases
+  pass for atlases, maps, game views and editor views. The latter caught and fixed the existing
+  sprite path dropping entity Z under a 3D projection; Camera2D still uses depth for ordering only.
+
 - M14.2: versioned .atlas sources reference imported textures, named pixel rectangles and variable-
   duration animations. SpriteAnimationPlayer is code-only; SpriteAnimator drives SpriteRenderer
   without changing its size. Texture reloads invalidate dependent atlases. The editor creates atlases

@@ -25,6 +25,54 @@
 using Spot::Tests::RenderingApplication;
 using Spot::Tests::RequireGpu;
 
+TEST_CASE("Tilemap-only scenes render in game and editor views offscreen", "[editor][gpu][tilemap][offscreen]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = false});
+    REQUIRE(device);
+    Spot::Scene scene;
+    auto& entity = scene.CreateEntity();
+    entity.GetTransform().SetPosition({-0.5f, -0.5f, -3});
+    auto& map = entity.AddComponent<Spot::Tilemap>();
+    map.Resize(1, 1);
+    map.SetCell(0, 0, 0);
+    map.SetColor(Spot::Color::Red);
+    auto& main = scene.CreateEntity().AddComponent<Spot::Camera>();
+    main.SetProjection(Spot::CameraProjection::Orthographic);
+    main.SetOrthographicSize(1);
+    Spot::Editor::ViewportRenderer viewport(*device);
+    Spot::Editor::ViewportTargets targets;
+    REQUIRE(targets.Resize(*device, 64, 64, viewport.GetSampleCount()));
+    Spot::Editor::ViewportOptions options;
+    options.showGrid = false;
+    options.defaultLights = false;
+    options.background = Spot::Color::Black;
+    auto* context = device->BeginOffscreenFrame(*targets.GetColor());
+    REQUIRE(context);
+    viewport.Render(*context, targets, scene, main.GetCamera3D(), options);
+    device->EndFrame();
+    auto pixels = device->DownloadTexture(*targets.GetColor());
+    REQUIRE(pixels.size() == 64 * 64 * 4);
+    const auto center = static_cast<std::size_t>((32 * 64 + 32) * 4);
+    CHECK(pixels[center] > 150);
+    CHECK(pixels[center + 1] < 10);
+    Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::Editor::ViewportRenderer::ColorFormat,
+                                           .sampleCount = 1,
+                                           .shadowMapSize = 128,
+                                           .localShadowMapSize = 128});
+    std::array<Spot::Scene*, 1> scenes{&scene};
+    auto gameTarget = device->CreateTexture(
+        {.width = 64, .height = 64, .format = Spot::Editor::ViewportRenderer::ColorFormat, .renderTarget = true});
+    REQUIRE(gameTarget);
+    REQUIRE(renderer.IsValid());
+    context = device->BeginOffscreenFrame(*gameTarget);
+    REQUIRE(context);
+    renderer.Render(*context, scenes, gameTarget.get());
+    device->EndFrame();
+    pixels = device->DownloadTexture(*gameTarget);
+    CHECK(pixels[center] > 150);
+    CHECK(pixels[center + 1] < 10);
+}
+
 namespace {
 
 using Pixel = std::array<int, 4>;

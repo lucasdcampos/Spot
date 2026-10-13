@@ -24,6 +24,7 @@ enum class EntityTemplate {
     AmbientLight,
     Sky,
     Sprite,
+    Tilemap,
     Camera,
     Canvas,
     UiImage,

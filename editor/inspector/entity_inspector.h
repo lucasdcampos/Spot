@@ -1,4 +1,5 @@
 #pragma once
+#include "inspector/tilemap_painter.h"
 
 #include "app/editor_context.h"
 #include "inspector/property_widgets.h"
@@ -122,6 +123,7 @@ private:
     static void Execute(SceneDocument& document, std::string name, std::vector<std::unique_ptr<SceneCommand>> commands);
 
     EditorContext& m_context;
+    TilemapPainter m_tilemapPainter;
     std::optional<Edit> m_edit;
     // By document and card.
     std::unordered_map<std::string, MixedValues> m_mixed;

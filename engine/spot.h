@@ -127,6 +127,8 @@
 #include "scene/sky.h"
 #include "scene/sprite_renderer.h"
 #include "scene/sprite_animator.h"
+#include "scene/tilemap.h"
+#include "physics2d/tilemap_collider_2d.h"
 #include "scene/transform.h"
 #include "scene/tween_system.h"
 #include "version.h"

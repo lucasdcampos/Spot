@@ -30,6 +30,7 @@ constexpr std::array Templates{
     EntityTemplateInfo{EntityTemplate::AmbientLight, "Ambient Light", ICON_FA_CIRCLE_HALF_STROKE, "Light"},
     EntityTemplateInfo{EntityTemplate::Sky, "Sky", ICON_FA_CLOUD_SUN, nullptr},
     EntityTemplateInfo{EntityTemplate::Sprite, "Sprite", ICON_FA_IMAGE, "2D Object"},
+    EntityTemplateInfo{EntityTemplate::Tilemap, "Tilemap", ICON_FA_TABLE_CELLS, "2D Object"},
     EntityTemplateInfo{EntityTemplate::Camera, "Camera", ICON_FA_VIDEO, nullptr},
     EntityTemplateInfo{EntityTemplate::Canvas, "Canvas", ICON_FA_DESKTOP, "UI"},
     EntityTemplateInfo{EntityTemplate::UiImage, "Image", ICON_FA_IMAGE, "UI"},
@@ -84,6 +85,10 @@ std::string MakeEntityText(EntityTemplate kind, Vector3 position) {
     case EntityTemplate::Sprite:
         entity.AddComponent<SpriteRenderer>();
         break;
+    case EntityTemplate::Tilemap:
+        entity.AddComponent<Tilemap>();
+        entity.AddComponent<TilemapCollider2D>();
+        break;
     case EntityTemplate::Camera:
         entity.AddComponent<Camera>();
         break;
@@ -137,6 +142,8 @@ const char* GetEntityIcon(const Entity& entity) {
     if (entity.GetComponent<Camera>()) {
         return ICON_FA_VIDEO;
     }
+    if (entity.GetComponent<Tilemap>())
+        return ICON_FA_TABLE_CELLS;
     if (entity.GetComponent<SpriteRenderer>()) {
         return ICON_FA_IMAGE;
     }
@@ -162,7 +169,7 @@ const char* GetEntityIcon(const Entity& entity) {
 }
 
 const char* GetComponentIcon(std::string_view typeName) {
-    static constexpr std::array<std::pair<std::string_view, const char*>, 41> Icons{{
+    static constexpr std::array<std::pair<std::string_view, const char*>, 43> Icons{{
         {"Canvas", ICON_FA_DESKTOP},
         {"UiRect", ICON_FA_OBJECT_GROUP},
         {"UiImage", ICON_FA_IMAGE},
@@ -178,6 +185,8 @@ const char* GetComponentIcon(std::string_view typeName) {
         {"Camera", ICON_FA_VIDEO},
         {"SpriteRenderer", ICON_FA_IMAGE},
         {"SpriteAnimator", ICON_FA_FILM},
+        {"Tilemap", ICON_FA_TABLE_CELLS},
+        {"TilemapCollider2D", ICON_FA_TABLE_CELLS},
         {"MeshRenderer", ICON_FA_CUBE},
         {"Rigidbody", ICON_FA_WEIGHT_HANGING},
         {"Rigidbody2D", ICON_FA_WEIGHT_HANGING},

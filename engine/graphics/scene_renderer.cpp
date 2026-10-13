@@ -1,4 +1,5 @@
 #include "graphics/scene_renderer.h"
+#include "scene/tilemap.h"
 
 #include "core/profiler.h"
 
@@ -82,7 +83,8 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
     bool sprites = false;
     for (Scene* scene : scenes) {
         camera = camera ? camera : FindMainCamera(*scene);
-        sprites = sprites || scene->FindComponent<SpriteRenderer>() || scene->FindComponent<TextRenderer>();
+        sprites = sprites || scene->FindComponent<SpriteRenderer>() || scene->FindComponent<TextRenderer>() ||
+                  scene->FindComponent<Tilemap>();
     }
     if (!camera && !scenes.empty() && !m_warnedNoCamera) {
         m_warnedNoCamera = true;

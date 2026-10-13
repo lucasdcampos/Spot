@@ -12,6 +12,7 @@
 #include "scene/scene.h"
 #include "scene/sprite_renderer.h"
 #include "scene/text_renderer.h"
+#include "scene/tilemap.h"
 
 #include "sprite.frag.h"
 #include "sprite.vert.h"
@@ -65,6 +66,7 @@ void Renderer2D::Begin(RenderPass& pass, const Camera2D& camera, Vector2 viewSiz
     SPOT_ASSERT(!m_pass, "Renderer2D::Begin() called twice without End()");
     m_pass = &pass;
     m_viewProjection = camera.GetViewProjection(viewSize);
+    m_worldDepth = false;
     m_batch.Clear();
     m_stats = {};
     m_scissor.reset();
@@ -74,6 +76,7 @@ void Renderer2D::Begin(RenderPass& pass, const Matrix4& viewProjection) {
     SPOT_ASSERT(!m_pass, "Renderer2D::Begin() called twice without End()");
     m_pass = &pass;
     m_viewProjection = viewProjection;
+    m_worldDepth = true;
     m_batch.Clear();
     m_stats = {};
     m_scissor.reset();
@@ -81,46 +84,88 @@ void Renderer2D::Begin(RenderPass& pass, const Matrix4& viewProjection) {
 
 void Renderer2D::DrawScene(Scene& scene) {
     SPOT_PROFILE_SCOPE("Renderer2D::DrawScene");
-    struct Sprite {
-        const SpriteRenderer* renderer;
-        Vector3 position;
-        float rotation;
-        Vector2 size;
-        std::size_t index;
-    };
-    std::vector<Sprite> sprites;
-    scene.ForEachComponent<SpriteRenderer>([&](SpriteRenderer& renderer) {
-        const Transform& transform = renderer.GetEntity().GetTransform();
-        const Vector3 scale = Decompose(transform.GetWorldMatrix()).scale;
-        Vector2 size{renderer.GetSize().x * scale.x, renderer.GetSize().y * scale.y};
-        // A negative size mirrors the quad, and its texture with it.
-        if (renderer.IsFlippedX()) {
-            size.x = -size.x;
-        }
-        if (renderer.IsFlippedY()) {
-            size.y = -size.y;
-        }
-        sprites.push_back(
-            {&renderer, transform.GetWorldPosition(), transform.GetWorldRotation2D(), size, sprites.size()});
+    m_sceneDraws.clear();
+    scene.ForEachEntity([&](Entity& entity) {
+        if (!entity.IsActiveInHierarchy())
+            return;
+        const auto& transform = entity.GetTransform();
+        const auto scale = Decompose(transform.GetWorldMatrix()).scale;
+        entity.ForEachComponent<Component>([&](Component& component) {
+            if (!component.IsActiveAndEnabled())
+                return;
+            if (const auto* sprite = dynamic_cast<SpriteRenderer*>(&component)) {
+                Vector2 size{sprite->GetSize().x * scale.x, sprite->GetSize().y * scale.y};
+                if (sprite->IsFlippedX())
+                    size.x = -size.x;
+                if (sprite->IsFlippedY())
+                    size.y = -size.y;
+                m_sceneDraws.push_back({sprite, nullptr, transform.GetWorldPosition(), transform.GetWorldRotation2D(),
+                                        size, sprite->GetOrder(), m_sceneDraws.size()});
+            } else if (const auto* map = dynamic_cast<Tilemap*>(&component)) {
+                m_sceneDraws.push_back({nullptr,
+                                        map,
+                                        transform.GetWorldPosition(),
+                                        transform.GetWorldRotation2D(),
+                                        {scale.x, scale.y},
+                                        map->GetOrder(),
+                                        m_sceneDraws.size()});
+            }
+        });
     });
-    std::ranges::sort(sprites, [](const Sprite& a, const Sprite& b) {
-        if (a.renderer->GetOrder() != b.renderer->GetOrder()) {
-            return a.renderer->GetOrder() < b.renderer->GetOrder();
-        }
-        if (a.position.z != b.position.z) {
+    std::ranges::sort(m_sceneDraws, [](const SceneDraw& a, const SceneDraw& b) {
+        if (a.order != b.order)
+            return a.order < b.order;
+        if (a.position.z != b.position.z)
             return a.position.z < b.position.z;
-        }
         return a.index < b.index;
     });
-    for (const Sprite& sprite : sprites) {
-        const Vector2 position{sprite.position.x, sprite.position.y};
-        if (const Texture* texture = sprite.renderer->GetDrawTexture()) {
-            DrawRotatedQuad(position, sprite.size, sprite.rotation, *texture, sprite.renderer->GetColor(),
-                            sprite.renderer->GetRegion());
+    const auto projection = m_viewProjection;
+    float depth = 0;
+    for (const auto& item : m_sceneDraws) {
+        const float nextDepth = m_worldDepth ? item.position.z : 0;
+        if (nextDepth != depth) {
+            Flush();
+            m_batch.Clear();
+            depth = nextDepth;
+            m_viewProjection = projection * Matrix4::Translation({0, 0, depth});
+        }
+        if (item.sprite) {
+            const Vector2 position{item.position.x, item.position.y};
+            if (const auto* texture = item.sprite->GetDrawTexture())
+                DrawRotatedQuad(position, item.size, item.rotation, *texture, item.sprite->GetColor(),
+                                item.sprite->GetRegion());
+            else
+                DrawRotatedQuad(position, item.size, item.rotation, item.sprite->GetColor());
         } else {
-            DrawRotatedQuad(position, sprite.size, sprite.rotation, sprite.renderer->GetColor());
+            const auto& data = item.tilemap->GetData();
+            const auto* atlas = item.tilemap->GetAtlas().Get();
+            const auto* texture = atlas ? atlas->texture.Get() : nullptr;
+            const auto& matrix = item.tilemap->GetEntity().GetTransform().GetWorldMatrix();
+            for (int y = 0; y < data.height; ++y)
+                for (int x = 0; x < data.width; ++x) {
+                    const int tile = data.GetCell(x, y);
+                    if (tile < 0 || static_cast<std::size_t>(tile) >= data.definitions.size())
+                        continue;
+                    const int frame = data.definitions[static_cast<std::size_t>(tile)].sprite;
+                    if (atlas && (frame < 0 || static_cast<std::size_t>(frame) >= atlas->sprites.size()))
+                        continue;
+                    const auto world = matrix * Vector4{(static_cast<float>(x) + 0.5f) * data.cellSize.x,
+                                                        (static_cast<float>(y) + 0.5f) * data.cellSize.y, 0, 1};
+                    const Vector2 position{world.x, world.y};
+                    if (texture)
+                        DrawRotatedQuad(position, data.cellSize * item.size, item.rotation, *texture,
+                                        item.tilemap->GetColor(), atlas->GetRegion(frame));
+                    else
+                        DrawRotatedQuad(position, data.cellSize * item.size, item.rotation, item.tilemap->GetColor());
+                }
         }
     }
+    if (depth != 0) {
+        Flush();
+        m_batch.Clear();
+    }
+    m_viewProjection = projection;
+    m_sceneDraws.clear();
 }
 
 void Renderer2D::DrawWorldText(Scene& scene, const Camera3D& camera) {

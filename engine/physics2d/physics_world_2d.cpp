@@ -82,8 +82,9 @@ void PhysicsWorld2D::Synchronize() {
         body.colliders.clear();
         entity.ForEachComponent<Collider2D>([&](Collider2D& collider) {
             if (collider.IsActiveAndEnabled()) {
-                desc.shapes.push_back(collider.GetShape(scale));
-                body.colliders.push_back(collider.GetId());
+                const auto before = desc.shapes.size();
+                collider.AppendShapes(scale, desc.shapes);
+                body.colliders.insert(body.colliders.end(), desc.shapes.size() - before, collider.GetId());
             }
         });
         body.id = m_simulation.CreateBody(desc);

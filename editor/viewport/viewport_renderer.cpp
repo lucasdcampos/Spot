@@ -225,7 +225,8 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
     }
     const bool drawGrid = options.showGrid && m_grid;
     const bool drawSprites =
-        m_sprites->IsValid() && (scene.FindComponent<SpriteRenderer>() || scene.FindComponent<TextRenderer>());
+        m_sprites->IsValid() && (scene.FindComponent<SpriteRenderer>() || scene.FindComponent<TextRenderer>() ||
+                                 scene.FindComponent<Tilemap>());
     const bool drawLines = m_lines->IsValid() && (!DebugDraw::GetLines().empty() || !options.lines.empty());
     // Everything but the interfaces is light, drawn into the HDR image, through its samples when there are several,
     // which every pass keeps for the next.

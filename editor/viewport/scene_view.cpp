@@ -34,6 +34,11 @@ BoundingSphere GetWorldBounds(const Entity& entity) {
     } else if (const auto* skin = entity.GetComponent<SkinnedMeshRenderer>(); skin && skin->GetMesh()) {
         local = skin->GetMesh()->GetBounds();
         local.radius += skin->GetBoundsPadding();
+    } else if (const auto* map = entity.GetComponent<Tilemap>()) {
+        const auto& data = map->GetData();
+        const Vector2 size{static_cast<float>(data.width) * data.cellSize.x,
+                           static_cast<float>(data.height) * data.cellSize.y};
+        local = {{size.x * 0.5f, size.y * 0.5f, 0}, Length(size) * 0.5f};
     } else {
         return {entity.GetTransform().GetWorldPosition(), 0.5f};
     }
@@ -481,6 +486,17 @@ void SceneView::AddMeshes(const Entity& entity, std::vector<MeshInstance>& meshe
             meshes.push_back({m_plane.Get(), GetSpriteMatrix(*sprite)});
         }
     }
+    for (const auto* map : entity.GetComponents<Tilemap>()) {
+        if (!map->IsActiveAndEnabled() || !m_plane)
+            continue;
+        const auto& data = map->GetData();
+        const Vector3 size{static_cast<float>(data.width) * data.cellSize.x,
+                           static_cast<float>(data.height) * data.cellSize.y, 1};
+        const auto matrix = entity.GetTransform().GetWorldMatrix() *
+                            Matrix4::Translation({size.x * 0.5f, size.y * 0.5f, 0}) * Matrix4::Scale(size) *
+                            Matrix4::Rotation(Quaternion::FromAxisAngle({1, 0, 0}, ToRadians(90.0f)));
+        meshes.push_back({m_plane.Get(), matrix});
+    }
     for (const Entity* child : entity.GetChildren()) {
         AddMeshes(*child, meshes);
     }
@@ -703,6 +719,17 @@ void SceneView::Render(RenderContext& context, ViewportRenderer& renderer) {
                 if (sprite->IsEnabled() && m_plane) {
                     meshes.push_back({m_plane.Get(), GetSpriteMatrix(*sprite)});
                 }
+            }
+            for (const auto* map : entity.GetComponents<Tilemap>()) {
+                if (!map->IsActiveAndEnabled() || !m_plane)
+                    continue;
+                const auto& data = map->GetData();
+                const Vector3 size{static_cast<float>(data.width) * data.cellSize.x,
+                                   static_cast<float>(data.height) * data.cellSize.y, 1};
+                meshes.push_back(
+                    {m_plane.Get(), entity.GetTransform().GetWorldMatrix() *
+                                        Matrix4::Translation({size.x * 0.5f, size.y * 0.5f, 0}) * Matrix4::Scale(size) *
+                                        Matrix4::Rotation(Quaternion::FromAxisAngle({1, 0, 0}, ToRadians(90.0f)))});
             }
             m_pickEntities.resize(meshes.size(), entity.GetId());
         });

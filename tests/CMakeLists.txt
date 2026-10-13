@@ -45,6 +45,7 @@ add_executable(spot_tests
     project_tests.cpp
     renderer_2d_tests.cpp
     sprite_atlas_tests.cpp
+    tilemap_tests.cpp
     renderer_3d_tests.cpp
     scene_serialization_tests.cpp
     scene_system_tests.cpp
@@ -239,6 +240,7 @@ if(TARGET spot_editor_core)
     catch_discover_tests(spot_editor_tools_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
     add_executable(spot_editor_tests
         editor/asset_browser_tests.cpp
+        editor/tilemap_editor_tests.cpp
         editor/command_history_tests.cpp
         editor/console_log_tests.cpp
         editor/editor_layout_tests.cpp

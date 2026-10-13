@@ -151,6 +151,8 @@ add_library(spot_objects OBJECT
     graphics/quad_batch.cpp
     graphics/sprite_atlas.cpp
     scene/sprite_animator.cpp
+    scene/tilemap.cpp
+    physics2d/tilemap_collider_2d.cpp
     graphics/render_context.h
     graphics/render_stage.h
     graphics/renderer_2d.h

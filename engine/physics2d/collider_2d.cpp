@@ -19,6 +19,9 @@ Shape2D Collider2D::GetShape(Vector2 scale) const {
     result.height = std::max(result.height * scale.y, 2.0f * result.radius);
     return result;
 }
+void Collider2D::AppendShapes(Vector2 scale, std::vector<Shape2D>& shapes) const {
+    shapes.push_back(GetShape(scale));
+}
 void Collider2D::Serialize(Archive& archive) {
     archive.Field("center", m_shape.center);
     archive.Field("friction", m_shape.friction, {.min = 0.0f, .max = 10.0f});

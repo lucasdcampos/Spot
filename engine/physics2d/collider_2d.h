@@ -27,7 +27,8 @@ public:
         ++m_revision;
     }
     Shape2D GetShape(Vector2 scale) const;
-    std::uint64_t GetRevision() const { return m_revision; }
+    virtual std::uint64_t GetRevision() const { return m_revision; }
+    virtual void AppendShapes(Vector2 scale, std::vector<Shape2D>& shapes) const;
 
 protected:
     explicit Collider2D(ShapeKind2D kind) { m_shape.kind = kind; }

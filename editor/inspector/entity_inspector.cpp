@@ -139,6 +139,10 @@ void EntityInspector::Draw(SceneDocument& document) {
 }
 
 void EntityInspector::FinishEdit() {
+    if (m_tilemapPainter.IsPainting() && !ImGui::IsMouseDown(0) && !ImGui::IsMouseDown(1)) {
+        if (auto* document = m_context.GetActiveDocument())
+            m_tilemapPainter.Finish(*document);
+    }
     if (!m_edit) {
         return;
     }
@@ -733,6 +737,11 @@ void EntityInspector::DrawComponent(SceneDocument& document, const Card& card) {
             Record(card.key + "/preview/seek");
             ImGui::TextDisabled("%zu live particles", effect->GetParticles().size());
         }
+    }
+    if (auto* map = dynamic_cast<Tilemap*>(&component); map && components.size() == 1 && !playing) {
+        m_tilemapPainter.Draw(document, map->GetEntity().GetId());
+        if (const auto grid = m_tilemapPainter.GetGridRect())
+            m_rects[card.key + "/paint/grid"] = *grid;
     }
     if (!Widgets::BeginProperties("##fields")) {
         return;

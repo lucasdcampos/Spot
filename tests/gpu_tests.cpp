@@ -39,6 +39,76 @@
 using Spot::Tests::RenderingApplication;
 using Spot::Tests::RequireGpu;
 
+TEST_CASE("Tilemaps render atlas cells holes ordering and transforms offscreen", "[gpu][tilemap][offscreen]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = false});
+    REQUIRE(device);
+    auto texture = device->CreateTexture({.width = 2, .height = 1});
+    REQUIRE(texture);
+    device->UploadToTexture(*texture, std::array<std::uint8_t, 8>{255, 0, 0, 255, 0, 255, 0, 255});
+    auto atlas = std::make_shared<Spot::SpriteAtlas>();
+    atlas->texture = std::shared_ptr<const Spot::Texture>(std::move(texture));
+    atlas->textureSize = {2, 1};
+    atlas->sprites = {{"red", {0, 0}, {1, 1}}, {"green", {1, 0}, {1, 1}}};
+    Spot::Scene scene;
+    auto& entity = scene.CreateEntity();
+    entity.GetTransform().SetPosition({16, 16, 0});
+    auto& map = entity.AddComponent<Spot::Tilemap>();
+    map.SetAtlas(atlas);
+    Spot::TilemapData data;
+    data.Resize(2, 2);
+    data.cellSize = {16, 16};
+    data.definitions = {{0, true}, {1, false}};
+    data.SetCell(0, 0, 0);
+    data.SetCell(1, 0, 1);
+    data.SetCell(1, 1, 0);
+    REQUIRE(map.SetData(data));
+    auto& overlay = scene.CreateEntity();
+    overlay.GetTransform().SetPosition({40, 40, 0});
+    auto& sprite = overlay.AddComponent<Spot::SpriteRenderer>();
+    sprite.SetSize({8, 8});
+    sprite.SetColor(Spot::Color::Blue);
+    sprite.SetOrder(1);
+    auto target =
+        device->CreateTexture({.width = 64, .height = 64, .format = Spot::TextureFormat::Rgba8, .renderTarget = true});
+    REQUIRE(target);
+    Spot::Renderer2D renderer(*device,
+                              {.filter = Spot::TextureFilter::Nearest, .targetFormat = Spot::TextureFormat::Rgba8});
+    auto render = [&] {
+        auto* context = device->BeginOffscreenFrame(*target);
+        REQUIRE(context);
+        auto pass = context->BeginRenderPass({.clearColor = Spot::Color::Black});
+        renderer.Begin(pass, Spot::Scene::ScreenCamera({64, 64}), {64, 64});
+        renderer.DrawScene(scene);
+        renderer.End();
+        pass.End();
+        device->EndFrame();
+        return device->DownloadTexture(*target);
+    };
+    const auto pixel = [](int x, int y) { return static_cast<std::size_t>((y * 64 + x) * 4); };
+    const auto image = render();
+    REQUIRE(image.size() == 64 * 64 * 4);
+    CHECK(render() == image);
+    CHECK(renderer.GetStats().quadCount == 4);
+    CHECK(image[pixel(24, 40)] == 255);
+    CHECK(image[pixel(40, 40) + 1] == 255);
+    CHECK(image[pixel(24, 24)] == 0);
+    CHECK(image[pixel(40, 24) + 2] == 255);
+    map.SetOrder(2);
+    const auto above = render();
+    CHECK(above[pixel(40, 24)] == 255);
+    CHECK(above[pixel(40, 24) + 2] == 0);
+    map.SetEnabled(false);
+    const auto disabled = render();
+    CHECK(disabled[pixel(24, 40)] == 0);
+    map.SetEnabled(true);
+    entity.GetTransform().SetPosition({48, 16, 0});
+    entity.GetTransform().SetScale({-1, 1, 1});
+    const auto mirrored = render();
+    CHECK(mirrored[pixel(40, 40)] == 255);
+    CHECK(mirrored[pixel(24, 40) + 1] == 255);
+}
+
 TEST_CASE("Sprite atlas regions and animation render repeated offscreen frames", "[gpu][sprites][offscreen]") {
     RequireGpu();
     auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = false});

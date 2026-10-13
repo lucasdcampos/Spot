@@ -11,6 +11,7 @@
 #include "physics/joint.h"
 #include "physics/rigidbody.h"
 #include "physics2d/physics_world_2d.h"
+#include "physics2d/tilemap_collider_2d.h"
 #include "scene/camera.h"
 #include "scene/fog.h"
 #include "scene/light.h"
@@ -21,6 +22,7 @@
 #include "scene/sprite_animator.h"
 #include "scene/sprite_renderer.h"
 #include "scene/text_renderer.h"
+#include "scene/tilemap.h"
 #include "ui/canvas.h"
 #include "ui/ui_layout_group.h"
 #include "ui/ui_widgets.h"
@@ -97,6 +99,8 @@ Registry& GetRegistry() {
         RegisterBuiltIn<TextRenderer>(registry, "TextRenderer");
         RegisterBuiltIn<SpriteRenderer>(registry, "SpriteRenderer");
         RegisterBuiltIn<SpriteAnimator>(registry, "SpriteAnimator");
+        RegisterBuiltIn<Tilemap>(registry, "Tilemap");
+        RegisterBuiltIn<TilemapCollider2D>(registry, "TilemapCollider2D");
         RegisterBuiltIn<Camera>(registry, "Camera");
         RegisterBuiltIn<AudioSource>(registry, "AudioSource");
         RegisterBuiltIn<AudioListener>(registry, "AudioListener");
