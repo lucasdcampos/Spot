@@ -10,7 +10,7 @@
           "muted": false,
           "name": "Music",
           "parent": "",
-          "volume": 0.7
+          "volume": 0.3
         },
         {
           "muted": false,
@@ -22,7 +22,7 @@
           "muted": false,
           "name": "Ambience",
           "parent": "",
-          "volume": 0.8
+          "volume": 0.5
         },
         {
           "muted": false,
@@ -31,7 +31,7 @@
           "volume": 1.0
         }
       ],
-      "masterVolume": 1.0
+      "masterVolume": 0.9
     },
     "input": {
       "actions": [

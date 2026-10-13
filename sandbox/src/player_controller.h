@@ -27,9 +27,12 @@ public:
     float GetZoom() const { return m_zoom; }
     float GetFieldOfView() const;
     void SetFieldOfView(float radians);
+    void Kick(float radians, float recoveryTime = 0.2f);
+    float GetRecoil() const { return m_recoil; }
 
 protected:
     void OnStart() override;
+    void OnDisable() override;
     void OnUpdate(float deltaTime) override;
     void OnLateUpdate(float deltaTime) override;
     void Serialize(Spot::Archive& archive) override;
@@ -42,4 +45,6 @@ private:
     float m_zoom = 1.0f;
     // The head camera's field of view without zoom.
     float m_fieldOfView = 0.0f;
+    float m_recoil = 0;
+    Spot::TweenId m_recoilTween = Spot::TweenId::Invalid;
 };

@@ -1,4 +1,7 @@
 #include "day_cycle.h"
+#include "player_controller.h"
+#include "view_model.h"
+#include "weapon_holder.h"
 
 #include <spot.h>
 
@@ -75,4 +78,79 @@ TEST_CASE("The cooked playground renders the workshop, glass and night lighting"
     renderer.Render(*context, scenes, target.get());
     device->EndFrame();
     CHECK(device->DownloadTexture(*target) != images[2]);
+}
+
+TEST_CASE("The cooked sandbox renders held arms, recoil and sights", "[gpu][sandbox][offscreen]") {
+    if (!Spot::GraphicsDevice::IsSupported()) {
+        SKIP("No usable graphics device");
+    }
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    Spot::AssetManager assets(SANDBOX_IMPORTED_DIR, device.get());
+    Spot::InputState input;
+    Spot::InputActionMap actions;
+    struct Restore {
+        Spot::AssetManager* assets = Spot::Assets::GetManager();
+        Spot::InputState* input = Spot::Input::GetState();
+        Spot::InputActionMap* actions = Spot::Input::GetActionMap();
+        ~Restore() {
+            Spot::Detail::SetAssetManager(assets);
+            Spot::Input::SetState(input);
+            Spot::Input::SetActionMap(actions);
+        }
+    } restore;
+    Spot::Detail::SetAssetManager(&assets);
+    Spot::Input::SetState(&input);
+    Spot::Input::SetActionMap(&actions);
+    Spot::Detail::GameCode::Load();
+    const auto settings = Spot::GameSettings::LoadFromFile(std::filesystem::path(SANDBOX_IMPORTED_DIR).parent_path() /
+                                                           Spot::GameSettings::FileName);
+    REQUIRE(settings);
+    settings->sections.input.Apply(actions);
+    auto scene = assets.InstantiateScene(settings->startupScene);
+    REQUIRE(scene);
+    auto step = [&] {
+        actions.Update(input);
+        scene->Update(Spot::Scene::DefaultFixedTimeStep);
+        input.BeginFrame();
+    };
+    for (int i = 0; i < 90; ++i) {
+        step();
+    }
+    auto* holder = scene->FindComponent<WeaponHolder>();
+    auto* view = scene->FindComponent<ViewModel>();
+    REQUIRE(holder);
+    REQUIRE(view);
+    holder->Select(1);
+    for (int i = 0; i < 30; ++i) {
+        step();
+    }
+    REQUIRE(scene->GetEntity(view->GetArmsEntity())->GetComponent<Spot::Animator>());
+    auto target = device->CreateTexture(
+        {.width = 960, .height = 540, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
+    REQUIRE(target);
+    Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb});
+    REQUIRE(renderer.IsValid());
+    const std::array scenes{scene.get()};
+    auto draw = [&](std::string_view name) {
+        auto* context = device->BeginOffscreenFrame(*target);
+        REQUIRE(context);
+        renderer.Render(*context, scenes, target.get());
+        device->EndFrame();
+        auto pixels = device->DownloadTexture(*target);
+        CHECK(Spot::Image(960, 540, pixels).SavePng(std::filesystem::path(SPOT_SANDBOX_CAPTURE_DIR) / name));
+        return pixels;
+    };
+    std::filesystem::create_directories(SPOT_SANDBOX_CAPTURE_DIR);
+    const auto idle = draw("pistol_idle.png");
+    holder->Fire();
+    step();
+    CHECK(scene->FindComponent<PlayerController>()->GetRecoil() > 0);
+    CHECK(draw("pistol_fire.png") != idle);
+    input.OnEvent(Spot::MouseButtonPressedEvent{Spot::MouseButton::Right});
+    for (int i = 0; i < 30; ++i) {
+        step();
+    }
+    CHECK(holder->IsAiming());
+    CHECK(draw("pistol_sights.png") != idle);
 }

@@ -60,6 +60,10 @@ void Weapon::OnStart() {
 }
 
 void Weapon::Serialize(Spot::Archive& archive) {
+    archive.Field("cameraRecoil", cameraRecoil,
+                  {.min = 0, .max = 0.2f, .speed = 0.001f, .tooltip = "Upward kick in radians"});
+    archive.Field("viewRecoil", viewRecoil, {.min = 0, .max = 0.25f, .speed = 0.005f});
+    archive.Field("recoilRecovery", recoilRecovery, {.min = 0.01f, .max = 2, .speed = 0.01f});
     static constexpr std::array<std::string_view, 2> Kinds = {"Hitscan", "Projectile"};
     archive.Field("displayName", displayName);
     archive.Field("kind", kind, {.enumNames = Kinds});

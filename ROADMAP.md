@@ -1365,7 +1365,7 @@ before or after it.
   with lit interiors and glass, and spawn areas, with the day cycle.
 - [x] **M15.2 Feature check.** Every item of [The sandbox game](#the-sandbox-game) works together. What is missing or
   broken becomes a step here.
-- [ ] **M15.3 Polish.** Weapon feel (recoil, spread, view-model sway and bob), physics gun feel, sound mix, HUD
+- [x] **M15.3 Polish.** Weapon feel (recoil, spread, view-model sway and bob), physics gun feel, sound mix, HUD
   readability and menu flow.
 - [ ] **M15.4 Performance.** In Release, 60 FPS with 500 props and 50 lamps on the development machine. Profile, fix
   and record the numbers in Notes.
@@ -1376,6 +1376,14 @@ before or after it.
 three platforms.
 
 **Notes:**
+- M15.3: weapon prefabs tune camera/view recoil and recovery individually. Camera recoil affects
+  both visible aim and subsequent shots, returns without changing the player's underlying look,
+  and pauses with simulation. Bounded view sway follows angular motion; grounded locomotion adds
+  distance-based bob, both reduced while aiming and shared by the arms and fallback weapon parts.
+  Prop-drive damping now preserves settling time across fixed-step rates. Music/ambience leave
+  room for effects, and the authored crosshair has a dark outline. All 53 sandbox cases pass
+  (80,032 assertions), including three polish regressions, and two serial offscreen GPU cases
+  pass. Idle, fire and sights captures were inspected. MSVC Debug builds without compiler warnings.
 - M15.2: checked movement, firearms, carrying, tools, spawning, generated assets, audio, menus,
   checkpoints, robots, particles and console commands against the real-scene regressions. Added
   an integrated spawn/freeze/save/pause/load/cleanup case preserving the level and permanent lamps.

@@ -1,11 +1,13 @@
 #include "view_model.h"
 
 #include "player_controller.h"
+#include "player_movement.h"
 #include "weapon.h"
 #include "weapon_holder.h"
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <string>
 
 SPOT_COMPONENT(ViewModel);
@@ -135,7 +137,36 @@ void ViewModel::OnUpdate(float /*deltaTime*/) {
     }
 }
 
-void ViewModel::OnLateUpdate(float /*deltaTime*/) {
+void ViewModel::UpdateMotion(float deltaTime, const Spot::Quaternion& view) {
+    if (deltaTime <= 0) {
+        return;
+    }
+    Spot::Vector3 target;
+    if (m_hasPreviousView && Spot::Input::IsCursorLocked()) {
+        auto change = Spot::Inverse(m_previousView) * view;
+        if (change.w < 0) {
+            change = {-change.x, -change.y, -change.z, -change.w};
+        }
+        target.x = std::clamp(2 * change.y * swayAmount / deltaTime, -maxSway, maxSway);
+        target.y = std::clamp(-2 * change.x * swayAmount / deltaTime, -maxSway, maxSway);
+        const auto* controller = GetEntity().GetComponent<Spot::CharacterController>();
+        const auto* movement = GetEntity().GetComponent<PlayerMovement>();
+        if (controller && movement && controller->IsGrounded() && !movement->IsFlying()) {
+            auto velocity = controller->GetVelocity();
+            velocity.y = 0;
+            const float speed = Spot::Length(velocity);
+            m_bobPhase = std::fmod(m_bobPhase + speed * deltaTime * 8, 2 * Spot::Pi);
+            const float amount = bobAmount * std::clamp(speed / std::max(movement->walkSpeed, .1f), 0.0f, 1.5f);
+            target += Spot::Vector3{std::sin(m_bobPhase) * amount * .5f, std::cos(m_bobPhase * 2) * amount, 0};
+        }
+    }
+    m_previousView = view;
+    m_hasPreviousView = true;
+    target = target * (1 - m_aim * .8f);
+    m_motion += (target - m_motion) * (1 - std::exp(-motionResponse * deltaTime));
+}
+
+void ViewModel::OnLateUpdate(float deltaTime) {
     const Spot::AssetRef<Spot::Model> held = GetHeldModel();
     if (held.Get() != m_shown.Get()) {
         Show(held);
@@ -146,11 +177,14 @@ void ViewModel::OnLateUpdate(float /*deltaTime*/) {
         return;
     }
     const Spot::Quaternion rotation = player->GetViewRotation();
-    const Spot::Vector3 position = player->GetEyePosition() + rotation * (offset + (aimOffset - offset) * m_aim +
-                                                                          Spot::Vector3{0.0f, 0.0f, m_recoil});
+    UpdateMotion(deltaTime, rotation);
+    const Spot::Vector3 position =
+        player->GetEyePosition() +
+        rotation * (offset + (aimOffset - offset) * m_aim + Spot::Vector3{0.0f, 0.0f, m_recoil} + m_motion);
     if (auto* root = GetScene().GetEntity(m_armsEntity)) {
         root->GetTransform().SetWorldPosition(
-            player->GetEyePosition() + rotation * ((aimOffset - offset) * m_aim + Spot::Vector3{0, 0, m_recoil}));
+            player->GetEyePosition() +
+            rotation * ((aimOffset - offset) * m_aim + Spot::Vector3{0, 0, m_recoil} + m_motion));
         root->GetTransform().SetWorldRotation(rotation);
     }
     const Spot::Matrix4 hand = Spot::Matrix4::Translation(position) * Spot::Matrix4::Rotation(rotation);
@@ -173,6 +207,9 @@ void ViewModel::OnDisable() {
     }
     m_aimTarget = -1.0f;
     m_recoil = 0.0f;
+    m_motion = {};
+    m_hasPreviousView = false;
+    m_bobPhase = 0;
     Clear();
     if (auto* root = GetScene().GetEntity(m_armsEntity)) {
         root->Destroy();
@@ -181,6 +218,10 @@ void ViewModel::OnDisable() {
 }
 
 void ViewModel::Serialize(Spot::Archive& archive) {
+    archive.Field("swayAmount", swayAmount, {.min = 0, .max = .1f, .speed = .001f});
+    archive.Field("maxSway", maxSway, {.min = 0, .max = .1f, .speed = .001f});
+    archive.Field("bobAmount", bobAmount, {.min = 0, .max = .1f, .speed = .001f});
+    archive.Field("motionResponse", motionResponse, {.min = 0, .max = 100, .speed = .1f});
     archive.Field("arms", arms, {.tooltip = "The rig whose right hand holds the weapon"});
     archive.Field("gripOffset", gripOffset, {.speed = 0.005f, .tooltip = "The weapon origin relative to the hand"});
     archive.Field("physicsGun", physicsGun, {.tooltip = "The physics gun's model"});

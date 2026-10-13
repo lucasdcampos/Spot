@@ -18,8 +18,11 @@ Spot::Vector3 ClampLength(Spot::Vector3 v, float maxLength) {
 
 void Toward(Spot::Rigidbody& body, Spot::Vector3 point, Spot::Vector3 target, const Spot::Quaternion& rotation,
             float deltaTime, float maxSpeed) {
-    // Closing a fifth of the gap each step damps the motion, so the prop settles rather than overshooting.
-    const float rate = 0.2f / deltaTime;
+    if (deltaTime <= 0) {
+        return;
+    }
+    // Preserve the same settling time when projects change their fixed physics step.
+    const float rate = -std::expm1(-13.3886f * deltaTime) / deltaTime;
     body.SetLinearVelocity(ClampLength((target - point) * rate, maxSpeed));
 
     const Spot::Quaternion current = body.GetEntity().GetTransform().GetWorldRotation();

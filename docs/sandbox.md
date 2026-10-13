@@ -44,6 +44,7 @@ controls are:
 | Control | Action |
 |---|---|
 | WASD, mouse | Move and look |
+| Shift, Ctrl, V | Run, crouch, toggle noclip |
 | Space | Jump |
 | 2–5 | Select a firearm |
 | 1, 6 | Select the physics gun or tool gun |
@@ -52,7 +53,7 @@ controls are:
 | E | Carry or drop a nearby light prop |
 | F | Toggle the flashlight |
 | F1–F8 | Spawn crate, barrel, explosive barrel, ball, plank, beam, cone or wheel |
-| Q | Spawn the next catalog entry |
+| Q | Open the spawn menu |
 | Z | Undo the last spawn or tool operation |
 | X | Remove props created by the spawner |
 | F9, F10 | Save and load the editable world checkpoint |
@@ -83,6 +84,15 @@ timers. Flash fades, aiming and recoil use owner-bound tweens; walking camera bo
 coroutine. All advance with scaled simulation time and pause at zero time scale. The HUD samples unscaled time.
 Destroying an owner cancels its work. Continuous movement, day-cycle phase and distance-based footsteps retain
 their normal simulation integration.
+
+Each Weapon prefab exposes `cameraRecoil` (radians), `viewRecoil` (meters) and `recoilRecovery`
+(seconds). The rifle recovers quickly; the shotgun and launcher kick harder. Aiming reduces recoil
+and spread. Camera recoil returns to the player's underlying look without undoing mouse movement.
+ViewModel exposes sway amount/limit, bob amount and response; motion is smoothed by elapsed time,
+follows actual grounded velocity and reduces while aiming. It freezes during pause and settles at
+rest. Physics-gun and carrier damping use the same response time at different fixed physics rates.
+The authored crosshair has a dark outline for bright surfaces. Fresh users start with music at 30%,
+ambience at 50% and master at 90%; saved personal volumes remain authoritative.
 
 ## Developer commands
 

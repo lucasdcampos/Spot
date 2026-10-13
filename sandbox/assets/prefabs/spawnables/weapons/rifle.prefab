@@ -21,7 +21,10 @@
             "reloadSound": "0c7379df4ea628e65c4ab48d8973707e",
             "reloadTime": 2.0,
             "reserveAmmo": 240,
-            "spread": 0.02
+            "spread": 0.02,
+            "cameraRecoil": 0.018,
+            "viewRecoil": 0.035,
+            "recoilRecovery": 0.12
           },
           "enabled": true,
           "id": "ee86e41d266e61aff13d0505bb077ffa",

@@ -219,6 +219,77 @@
       "parent": 2
     },
     {
+      "id": 74,
+      "name": "Crosshair Horizontal Outline",
+      "active": true,
+      "components": [
+        {
+          "id": "5552b2ac5a0f4835b1a3c171f55b5b5d",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              16,
+              4
+            ]
+          }
+        },
+        {
+          "id": "fdb62824fc794aaf8b9a56a5cc2418e7",
+          "type": "UiImage",
+          "enabled": true,
+          "data": {
+            "tint": [
+              0,
+              0,
+              0,
+              0.85
+            ],
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
       "id": 4,
       "name": "Crosshair Horizontal",
       "active": true,
@@ -259,6 +330,77 @@
               1,
               1,
               1,
+              0.85
+            ],
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "id": 75,
+      "name": "Crosshair Vertical Outline",
+      "active": true,
+      "components": [
+        {
+          "id": "f194c5ec8ebf4d7dae29f6cf49045aa4",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              4,
+              16
+            ]
+          }
+        },
+        {
+          "id": "b084d93e7e4644289cf88a8d13710d94",
+          "type": "UiImage",
+          "enabled": true,
+          "data": {
+            "tint": [
+              0,
+              0,
+              0,
               0.85
             ],
             "borders": [

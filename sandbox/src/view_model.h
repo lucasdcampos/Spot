@@ -15,6 +15,10 @@ public:
     // Where it moves to while aiming down the sights, in line with the eyes.
     Spot::Vector3 aimOffset = {0.0f, -0.12f, -0.35f};
     Spot::Vector3 gripOffset = {0.0f, 0.08f, -0.02f};
+    float swayAmount = 0.015f;
+    float maxSway = 0.035f;
+    float bobAmount = 0.018f;
+    float motionResponse = 14.0f;
 
     // The model shown now; empty when nothing is.
     const Spot::AssetRef<Spot::Model>& GetShownModel() const { return m_shown; }
@@ -24,6 +28,7 @@ public:
     bool Animate(std::string_view action, float duration = 0);
     Spot::EntityId GetArmsEntity() const { return m_armsEntity; }
     float GetRecoil() const { return m_recoil; }
+    Spot::Vector3 GetMotionOffset() const { return m_motion; }
 
 protected:
     void OnStart() override;
@@ -39,6 +44,7 @@ private:
     void Clear();
     void EnsureArms();
     Spot::Animator* GetArmsAnimator() const;
+    void UpdateMotion(float deltaTime, const Spot::Quaternion& view);
 
     Spot::EntityId m_armsEntity = Spot::EntityId::Invalid;
     Spot::AssetRef<Spot::Model> m_shown;
@@ -47,6 +53,10 @@ private:
     float m_aim = 0.0f;
     float m_aimTarget = -1.0f;
     float m_recoil = 0.0f;
+    Spot::Quaternion m_previousView;
+    Spot::Vector3 m_motion;
+    float m_bobPhase = 0;
+    bool m_hasPreviousView = false;
     Spot::TweenId m_aimTween = Spot::TweenId::Invalid;
     Spot::TweenId m_recoilTween = Spot::TweenId::Invalid;
 };

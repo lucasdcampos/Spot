@@ -73,12 +73,12 @@ std::vector<Weapon*> WeaponHolder::GetWeapons() const {
 
 void WeaponHolder::Fire() {
     Weapon* weapon = GetWeapon();
-    const auto* player = GetEntity().GetComponent<PlayerController>();
+    auto* player = GetEntity().GetComponent<PlayerController>();
     if (!weapon || !player || !weapon->TakeShot()) {
         return;
     }
     if (auto* view = GetEntity().GetComponent<ViewModel>()) {
-        view->Kick(weapon->kind == Weapon::Kind::Projectile ? 0.12f : 0.05f);
+        view->Kick(weapon->viewRecoil);
     }
     Spot::Input::RumbleGamepad(0.2f, weapon->kind == Weapon::Kind::Projectile ? 0.8f : 0.5f, 0.08f);
     PlayWeaponSound(weapon->fireSound, 1.0f);
@@ -98,6 +98,7 @@ void WeaponHolder::Fire() {
     } else {
         FireHitscan(*weapon, eye, aim);
     }
+    player->Kick(weapon->cameraRecoil * (m_aiming ? 0.65f : 1.0f), weapon->recoilRecovery);
 }
 
 void WeaponHolder::FireHitscan(const Weapon& weapon, Spot::Vector3 eye, Spot::Vector3 aim) {

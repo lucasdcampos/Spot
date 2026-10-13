@@ -321,7 +321,13 @@ if(TARGET sandbox)
     target_include_directories(spot_sandbox_test_code PUBLIC ${PROJECT_SOURCE_DIR}/sandbox/src)
     spot_set_compile_options(spot_sandbox_test_code)
     spot_precompile_engine_header(spot_sandbox_test_code)
-    add_executable(spot_sandbox_tests sandbox/sandbox_tests.cpp sandbox/interface_tests.cpp sandbox/level_tests.cpp sandbox/feature_tests.cpp)
+    add_executable(spot_sandbox_tests
+        sandbox/sandbox_tests.cpp
+        sandbox/interface_tests.cpp
+        sandbox/level_tests.cpp
+        sandbox/feature_tests.cpp
+        sandbox/polish_tests.cpp
+    )
     target_link_libraries(spot_sandbox_tests PRIVATE spot::import spot::spot Catch2::Catch2WithMain)
     target_include_directories(spot_sandbox_tests PRIVATE ${PROJECT_SOURCE_DIR}/sandbox/src ${CMAKE_CURRENT_SOURCE_DIR})
     # The assets the build cooks beside the sandbox, which the tests load as the game does.

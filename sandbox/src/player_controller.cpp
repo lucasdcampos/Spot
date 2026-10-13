@@ -16,7 +16,8 @@ constexpr Spot::Vector3 Up = {0.0f, 1.0f, 0.0f};
 } // namespace
 
 Spot::Quaternion PlayerController::GetViewRotation() const {
-    return Spot::Quaternion::FromAxisAngle(Up, m_yaw) * Spot::Quaternion::FromAxisAngle({1.0f, 0.0f, 0.0f}, m_pitch);
+    return Spot::Quaternion::FromAxisAngle(Up, m_yaw) *
+           Spot::Quaternion::FromAxisAngle({1.0f, 0.0f, 0.0f}, std::clamp(m_pitch + m_recoil, -1.5f, 1.5f));
 }
 
 Spot::Vector3 PlayerController::GetEyePosition() const {
@@ -58,6 +59,22 @@ void PlayerController::OnStart() {
             m_fieldOfView = camera->GetFieldOfView();
         }
     }
+}
+
+void PlayerController::Kick(float radians, float recoveryTime) {
+    auto& tweens = Spot::TweenSystem::Get(GetScene());
+    tweens.Cancel(m_recoilTween);
+    m_recoil = std::clamp(m_recoil + radians, 0.0f, 0.2f);
+    m_recoilTween = tweens.Play(*this, Spot::Tween::Value(
+                                           std::max(recoveryTime, 0.01f), m_recoil, 0.0f,
+                                           [this](float value) { m_recoil = value; }, Spot::Ease::QuadOut));
+}
+
+void PlayerController::OnDisable() {
+    if (auto* tweens = GetScene().GetSystem<Spot::TweenSystem>()) {
+        tweens->Cancel(m_recoilTween);
+    }
+    m_recoil = 0;
 }
 
 void PlayerController::OnUpdate(float deltaTime) {
