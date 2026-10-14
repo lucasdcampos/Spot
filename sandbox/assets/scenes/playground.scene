@@ -20,999 +20,999 @@
           "type": "Hud"
         },
         {
-          "type": "ParticleEffects",
-          "enabled": true,
-          "id": "ae4da88747d74cafb7e36be96c2bd0a0",
           "data": {
-            "beamEmissionRate": 240.0,
-            "muzzle": {
-              "count": 8,
+            "beam": {
+              "count": 1,
               "settings": {
-                "maxParticles": 512,
-                "seed": 1,
-                "duration": 5.0,
-                "loop": false,
-                "playOnStart": false,
-                "emissionRate": 0.0,
-                "bursts": [],
-                "shape": 2,
-                "space": 1,
-                "radius": 0.03,
-                "coneAngle": 0.8,
+                "blend": 1,
                 "boxSize": [
                   1.0,
                   1.0,
                   1.0
                 ],
-                "lifetime": {
-                  "min": 0.03,
-                  "max": 0.08
-                },
-                "speed": {
-                  "min": 0.5,
-                  "max": 2.0
-                },
-                "size": {
-                  "min": 0.08,
-                  "max": 0.18
-                },
-                "rotation": {
-                  "min": 0.0,
-                  "max": 0.0
-                },
-                "startColor": [
-                  6.0,
-                  3.0,
-                  0.6,
-                  1.0
-                ],
-                "sizeOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "value": 1.0,
-                      "inTangent": -1.0,
-                      "outTangent": -1.0
-                    },
-                    {
-                      "time": 1.0,
-                      "value": 0.0,
-                      "inTangent": -1.0,
-                      "outTangent": -1.0
-                    }
-                  ]
-                },
-                "speedOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "value": 1.0,
-                      "inTangent": 0.0,
-                      "outTangent": 0.0
-                    }
-                  ]
-                },
-                "rotationOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "value": 0.0,
-                      "inTangent": 0.0,
-                      "outTangent": 0.0
-                    }
-                  ]
-                },
+                "bursts": [],
                 "colorOverLifetime": {
                   "keys": [
                     {
-                      "time": 0.0,
                       "color": [
                         1.0,
                         1.0,
                         1.0,
                         1.0
-                      ]
+                      ],
+                      "time": 0.0
                     },
                     {
-                      "time": 0.2,
                       "color": [
                         1.0,
                         1.0,
                         1.0,
                         1.0
-                      ]
+                      ],
+                      "time": 0.20000000298023224
                     },
                     {
-                      "time": 1.0,
                       "color": [
                         1.0,
                         1.0,
                         1.0,
                         0.0
-                      ]
+                      ],
+                      "time": 1.0
                     }
                   ]
                 },
-                "gravity": [
-                  0.0,
-                  0.0,
-                  0.0
-                ],
+                "coneAngle": 0.800000011920929,
+                "duration": 5.0,
+                "emissionRate": 0.0,
                 "facing": 0,
-                "blend": 1,
-                "velocityStretch": 0.1,
-                "softDistance": 0.0,
                 "flipbookColumns": 1,
+                "flipbookCycles": 1.0,
                 "flipbookRows": 1,
-                "flipbookCycles": 1.0
-              },
-              "texture": null
-            },
-            "sparks": {
-              "count": 18,
-              "settings": {
-                "maxParticles": 512,
-                "seed": 1,
-                "duration": 5.0,
-                "loop": false,
-                "playOnStart": false,
-                "emissionRate": 0.0,
-                "bursts": [],
-                "shape": 2,
-                "space": 1,
-                "radius": 0.03,
-                "coneAngle": 0.8,
-                "boxSize": [
-                  1.0,
-                  1.0,
-                  1.0
+                "gravity": [
+                  0.0,
+                  0.0,
+                  0.0
                 ],
                 "lifetime": {
-                  "min": 0.1,
-                  "max": 0.5
+                  "max": 0.11999999731779099,
+                  "min": 0.03999999910593033
                 },
-                "speed": {
-                  "min": 2.0,
-                  "max": 6.0
-                },
-                "size": {
-                  "min": 0.025,
-                  "max": 0.055
-                },
+                "loop": false,
+                "maxParticles": 512,
+                "playOnStart": false,
+                "radius": 0.029999999329447746,
                 "rotation": {
-                  "min": 0.0,
-                  "max": 0.0
-                },
-                "startColor": [
-                  5.0,
-                  2.5,
-                  0.4,
-                  1.0
-                ],
-                "sizeOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "value": 1.0,
-                      "inTangent": -1.0,
-                      "outTangent": -1.0
-                    },
-                    {
-                      "time": 1.0,
-                      "value": 0.0,
-                      "inTangent": -1.0,
-                      "outTangent": -1.0
-                    }
-                  ]
-                },
-                "speedOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "value": 1.0,
-                      "inTangent": 0.0,
-                      "outTangent": 0.0
-                    }
-                  ]
+                  "max": 0.0,
+                  "min": 0.0
                 },
                 "rotationOverLifetime": {
                   "keys": [
                     {
-                      "time": 0.0,
-                      "value": 0.0,
                       "inTangent": 0.0,
-                      "outTangent": 0.0
+                      "outTangent": 0.0,
+                      "time": 0.0,
+                      "value": 0.0
                     }
                   ]
                 },
-                "colorOverLifetime": {
+                "seed": 1,
+                "shape": 0,
+                "size": {
+                  "max": 0.05000000074505806,
+                  "min": 0.019999999552965164
+                },
+                "sizeOverLifetime": {
                   "keys": [
                     {
+                      "inTangent": -1.0,
+                      "outTangent": -1.0,
                       "time": 0.0,
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        1.0
-                      ]
+                      "value": 1.0
                     },
                     {
-                      "time": 0.2,
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        1.0
-                      ]
-                    },
-                    {
+                      "inTangent": -1.0,
+                      "outTangent": -1.0,
                       "time": 1.0,
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        0.0
-                      ]
+                      "value": 0.0
                     }
                   ]
                 },
-                "gravity": [
-                  0.0,
-                  -9.81,
-                  0.0
-                ],
-                "facing": 1,
-                "blend": 1,
-                "velocityStretch": 0.1,
                 "softDistance": 0.0,
-                "flipbookColumns": 1,
-                "flipbookRows": 1,
-                "flipbookCycles": 1.0
+                "space": 1,
+                "speed": {
+                  "max": 0.0,
+                  "min": 0.0
+                },
+                "speedOverLifetime": {
+                  "keys": [
+                    {
+                      "inTangent": 0.0,
+                      "outTangent": 0.0,
+                      "time": 0.0,
+                      "value": 1.0
+                    }
+                  ]
+                },
+                "startColor": [
+                  1.2000000476837158,
+                  2.799999952316284,
+                  4.0,
+                  1.0
+                ],
+                "velocityStretch": 0.10000000149011612
               },
               "texture": null
             },
+            "beamEmissionRate": 240.0,
             "concreteDust": {
               "count": 12,
               "settings": {
-                "maxParticles": 512,
-                "seed": 1,
-                "duration": 5.0,
-                "loop": false,
-                "playOnStart": false,
-                "emissionRate": 0.0,
-                "bursts": [],
-                "shape": 2,
-                "space": 1,
-                "radius": 0.03,
-                "coneAngle": 0.8,
+                "blend": 0,
                 "boxSize": [
                   1.0,
                   1.0,
                   1.0
                 ],
+                "bursts": [],
+                "colorOverLifetime": {
+                  "keys": [
+                    {
+                      "color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                      ],
+                      "time": 0.0
+                    },
+                    {
+                      "color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                      ],
+                      "time": 0.20000000298023224
+                    },
+                    {
+                      "color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        0.0
+                      ],
+                      "time": 1.0
+                    }
+                  ]
+                },
+                "coneAngle": 0.800000011920929,
+                "duration": 5.0,
+                "emissionRate": 0.0,
+                "facing": 0,
+                "flipbookColumns": 1,
+                "flipbookCycles": 1.0,
+                "flipbookRows": 1,
+                "gravity": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
                 "lifetime": {
-                  "min": 0.4,
-                  "max": 1.0
+                  "max": 1.0,
+                  "min": 0.4000000059604645
                 },
-                "speed": {
-                  "min": 0.3,
-                  "max": 1.5
-                },
-                "size": {
-                  "min": 0.08,
-                  "max": 0.2
-                },
+                "loop": false,
+                "maxParticles": 512,
+                "playOnStart": false,
+                "radius": 0.029999999329447746,
                 "rotation": {
-                  "min": 0.0,
-                  "max": 0.0
+                  "max": 0.0,
+                  "min": 0.0
+                },
+                "rotationOverLifetime": {
+                  "keys": [
+                    {
+                      "inTangent": 0.0,
+                      "outTangent": 0.0,
+                      "time": 0.0,
+                      "value": 0.0
+                    }
+                  ]
+                },
+                "seed": 1,
+                "shape": 2,
+                "size": {
+                  "max": 0.20000000298023224,
+                  "min": 0.07999999821186066
+                },
+                "sizeOverLifetime": {
+                  "keys": [
+                    {
+                      "inTangent": 1.5,
+                      "outTangent": 1.5,
+                      "time": 0.0,
+                      "value": 1.0
+                    },
+                    {
+                      "inTangent": 1.5,
+                      "outTangent": 1.5,
+                      "time": 1.0,
+                      "value": 2.5
+                    }
+                  ]
+                },
+                "softDistance": 0.30000001192092896,
+                "space": 1,
+                "speed": {
+                  "max": 1.5,
+                  "min": 0.30000001192092896
+                },
+                "speedOverLifetime": {
+                  "keys": [
+                    {
+                      "inTangent": 0.0,
+                      "outTangent": 0.0,
+                      "time": 0.0,
+                      "value": 1.0
+                    }
+                  ]
                 },
                 "startColor": [
-                  0.4,
-                  0.38,
-                  0.34,
+                  0.4000000059604645,
+                  0.3799999952316284,
+                  0.3400000035762787,
                   0.5
                 ],
-                "sizeOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "value": 1.0,
-                      "inTangent": 1.5,
-                      "outTangent": 1.5
-                    },
-                    {
-                      "time": 1.0,
-                      "value": 2.5,
-                      "inTangent": 1.5,
-                      "outTangent": 1.5
-                    }
-                  ]
-                },
-                "speedOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "value": 1.0,
-                      "inTangent": 0.0,
-                      "outTangent": 0.0
-                    }
-                  ]
-                },
-                "rotationOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "value": 0.0,
-                      "inTangent": 0.0,
-                      "outTangent": 0.0
-                    }
-                  ]
-                },
-                "colorOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        1.0
-                      ]
-                    },
-                    {
-                      "time": 0.2,
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        1.0
-                      ]
-                    },
-                    {
-                      "time": 1.0,
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        0.0
-                      ]
-                    }
-                  ]
-                },
-                "gravity": [
-                  0.0,
-                  0.0,
-                  0.0
-                ],
-                "facing": 0,
-                "blend": 0,
-                "velocityStretch": 0.1,
-                "softDistance": 0.3,
-                "flipbookColumns": 1,
-                "flipbookRows": 1,
-                "flipbookCycles": 1.0
-              },
-              "texture": null
-            },
-            "woodDust": {
-              "count": 12,
-              "settings": {
-                "maxParticles": 512,
-                "seed": 1,
-                "duration": 5.0,
-                "loop": false,
-                "playOnStart": false,
-                "emissionRate": 0.0,
-                "bursts": [],
-                "shape": 2,
-                "space": 1,
-                "radius": 0.03,
-                "coneAngle": 0.8,
-                "boxSize": [
-                  1.0,
-                  1.0,
-                  1.0
-                ],
-                "lifetime": {
-                  "min": 0.4,
-                  "max": 0.9
-                },
-                "speed": {
-                  "min": 0.4,
-                  "max": 2.0
-                },
-                "size": {
-                  "min": 0.04,
-                  "max": 0.1
-                },
-                "rotation": {
-                  "min": 0.0,
-                  "max": 0.0
-                },
-                "startColor": [
-                  0.4,
-                  0.2,
-                  0.07,
-                  0.7
-                ],
-                "sizeOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "value": 1.0,
-                      "inTangent": 1.5,
-                      "outTangent": 1.5
-                    },
-                    {
-                      "time": 1.0,
-                      "value": 2.5,
-                      "inTangent": 1.5,
-                      "outTangent": 1.5
-                    }
-                  ]
-                },
-                "speedOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "value": 1.0,
-                      "inTangent": 0.0,
-                      "outTangent": 0.0
-                    }
-                  ]
-                },
-                "rotationOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "value": 0.0,
-                      "inTangent": 0.0,
-                      "outTangent": 0.0
-                    }
-                  ]
-                },
-                "colorOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        1.0
-                      ]
-                    },
-                    {
-                      "time": 0.2,
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        1.0
-                      ]
-                    },
-                    {
-                      "time": 1.0,
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        0.0
-                      ]
-                    }
-                  ]
-                },
-                "gravity": [
-                  0.0,
-                  0.0,
-                  0.0
-                ],
-                "facing": 0,
-                "blend": 0,
-                "velocityStretch": 0.1,
-                "softDistance": 0.3,
-                "flipbookColumns": 1,
-                "flipbookRows": 1,
-                "flipbookCycles": 1.0
-              },
-              "texture": null
-            },
-            "fire": {
-              "count": 48,
-              "settings": {
-                "maxParticles": 512,
-                "seed": 1,
-                "duration": 5.0,
-                "loop": false,
-                "playOnStart": false,
-                "emissionRate": 0.0,
-                "bursts": [],
-                "shape": 1,
-                "space": 1,
-                "radius": 0.03,
-                "coneAngle": 0.8,
-                "boxSize": [
-                  1.0,
-                  1.0,
-                  1.0
-                ],
-                "lifetime": {
-                  "min": 0.15,
-                  "max": 0.6
-                },
-                "speed": {
-                  "min": 2.0,
-                  "max": 6.0
-                },
-                "size": {
-                  "min": 0.2,
-                  "max": 0.8
-                },
-                "rotation": {
-                  "min": 0.0,
-                  "max": 0.0
-                },
-                "startColor": [
-                  8.0,
-                  2.0,
-                  0.2,
-                  1.0
-                ],
-                "sizeOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "value": 1.0,
-                      "inTangent": -1.0,
-                      "outTangent": -1.0
-                    },
-                    {
-                      "time": 1.0,
-                      "value": 0.0,
-                      "inTangent": -1.0,
-                      "outTangent": -1.0
-                    }
-                  ]
-                },
-                "speedOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "value": 1.0,
-                      "inTangent": 0.0,
-                      "outTangent": 0.0
-                    }
-                  ]
-                },
-                "rotationOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "value": 0.0,
-                      "inTangent": 0.0,
-                      "outTangent": 0.0
-                    }
-                  ]
-                },
-                "colorOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        1.0
-                      ]
-                    },
-                    {
-                      "time": 0.2,
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        1.0
-                      ]
-                    },
-                    {
-                      "time": 1.0,
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        0.0
-                      ]
-                    }
-                  ]
-                },
-                "gravity": [
-                  0.0,
-                  0.0,
-                  0.0
-                ],
-                "facing": 0,
-                "blend": 1,
-                "velocityStretch": 0.1,
-                "softDistance": 0.0,
-                "flipbookColumns": 1,
-                "flipbookRows": 1,
-                "flipbookCycles": 1.0
-              },
-              "texture": null
-            },
-            "smoke": {
-              "count": 32,
-              "settings": {
-                "maxParticles": 512,
-                "seed": 1,
-                "duration": 5.0,
-                "loop": false,
-                "playOnStart": false,
-                "emissionRate": 0.0,
-                "bursts": [],
-                "shape": 2,
-                "space": 1,
-                "radius": 0.03,
-                "coneAngle": 0.8,
-                "boxSize": [
-                  1.0,
-                  1.0,
-                  1.0
-                ],
-                "lifetime": {
-                  "min": 1.0,
-                  "max": 3.0
-                },
-                "speed": {
-                  "min": 0.3,
-                  "max": 1.5
-                },
-                "size": {
-                  "min": 0.4,
-                  "max": 1.0
-                },
-                "rotation": {
-                  "min": 0.0,
-                  "max": 0.0
-                },
-                "startColor": [
-                  0.1,
-                  0.09,
-                  0.08,
-                  0.6
-                ],
-                "sizeOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "value": 1.0,
-                      "inTangent": 1.5,
-                      "outTangent": 1.5
-                    },
-                    {
-                      "time": 1.0,
-                      "value": 2.5,
-                      "inTangent": 1.5,
-                      "outTangent": 1.5
-                    }
-                  ]
-                },
-                "speedOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "value": 1.0,
-                      "inTangent": 0.0,
-                      "outTangent": 0.0
-                    }
-                  ]
-                },
-                "rotationOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "value": 0.0,
-                      "inTangent": 0.0,
-                      "outTangent": 0.0
-                    }
-                  ]
-                },
-                "colorOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        1.0
-                      ]
-                    },
-                    {
-                      "time": 0.2,
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        1.0
-                      ]
-                    },
-                    {
-                      "time": 1.0,
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        0.0
-                      ]
-                    }
-                  ]
-                },
-                "gravity": [
-                  0.0,
-                  0.5,
-                  0.0
-                ],
-                "facing": 0,
-                "blend": 0,
-                "velocityStretch": 0.1,
-                "softDistance": 0.3,
-                "flipbookColumns": 1,
-                "flipbookRows": 1,
-                "flipbookCycles": 1.0
+                "velocityStretch": 0.10000000149011612
               },
               "texture": null
             },
             "debris": {
               "count": 24,
               "settings": {
-                "maxParticles": 512,
-                "seed": 1,
-                "duration": 5.0,
-                "loop": false,
-                "playOnStart": false,
-                "emissionRate": 0.0,
-                "bursts": [],
-                "shape": 1,
-                "space": 1,
-                "radius": 0.03,
-                "coneAngle": 0.8,
+                "blend": 0,
                 "boxSize": [
                   1.0,
                   1.0,
                   1.0
                 ],
-                "lifetime": {
-                  "min": 0.3,
-                  "max": 1.2
-                },
-                "speed": {
-                  "min": 3.0,
-                  "max": 9.0
-                },
-                "size": {
-                  "min": 0.03,
-                  "max": 0.1
-                },
-                "rotation": {
-                  "min": 0.0,
-                  "max": 0.0
-                },
-                "startColor": [
-                  0.2,
-                  0.12,
-                  0.05,
-                  1.0
-                ],
-                "sizeOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "value": 1.0,
-                      "inTangent": 1.5,
-                      "outTangent": 1.5
-                    },
-                    {
-                      "time": 1.0,
-                      "value": 2.5,
-                      "inTangent": 1.5,
-                      "outTangent": 1.5
-                    }
-                  ]
-                },
-                "speedOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "value": 1.0,
-                      "inTangent": 0.0,
-                      "outTangent": 0.0
-                    }
-                  ]
-                },
-                "rotationOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "value": 0.0,
-                      "inTangent": 0.0,
-                      "outTangent": 0.0
-                    }
-                  ]
-                },
+                "bursts": [],
                 "colorOverLifetime": {
                   "keys": [
                     {
-                      "time": 0.0,
                       "color": [
                         1.0,
                         1.0,
                         1.0,
                         1.0
-                      ]
+                      ],
+                      "time": 0.0
                     },
                     {
-                      "time": 0.2,
                       "color": [
                         1.0,
                         1.0,
                         1.0,
                         1.0
-                      ]
+                      ],
+                      "time": 0.20000000298023224
                     },
                     {
-                      "time": 1.0,
                       "color": [
                         1.0,
                         1.0,
                         1.0,
                         0.0
-                      ]
+                      ],
+                      "time": 1.0
                     }
                   ]
                 },
+                "coneAngle": 0.800000011920929,
+                "duration": 5.0,
+                "emissionRate": 0.0,
+                "facing": 0,
+                "flipbookColumns": 1,
+                "flipbookCycles": 1.0,
+                "flipbookRows": 1,
                 "gravity": [
                   0.0,
-                  -9.81,
+                  -9.8100004196167,
                   0.0
                 ],
-                "facing": 0,
-                "blend": 0,
-                "velocityStretch": 0.1,
-                "softDistance": 0.3,
-                "flipbookColumns": 1,
-                "flipbookRows": 1,
-                "flipbookCycles": 1.0
+                "lifetime": {
+                  "max": 1.2000000476837158,
+                  "min": 0.30000001192092896
+                },
+                "loop": false,
+                "maxParticles": 512,
+                "playOnStart": false,
+                "radius": 0.029999999329447746,
+                "rotation": {
+                  "max": 0.0,
+                  "min": 0.0
+                },
+                "rotationOverLifetime": {
+                  "keys": [
+                    {
+                      "inTangent": 0.0,
+                      "outTangent": 0.0,
+                      "time": 0.0,
+                      "value": 0.0
+                    }
+                  ]
+                },
+                "seed": 1,
+                "shape": 1,
+                "size": {
+                  "max": 0.10000000149011612,
+                  "min": 0.029999999329447746
+                },
+                "sizeOverLifetime": {
+                  "keys": [
+                    {
+                      "inTangent": 1.5,
+                      "outTangent": 1.5,
+                      "time": 0.0,
+                      "value": 1.0
+                    },
+                    {
+                      "inTangent": 1.5,
+                      "outTangent": 1.5,
+                      "time": 1.0,
+                      "value": 2.5
+                    }
+                  ]
+                },
+                "softDistance": 0.30000001192092896,
+                "space": 1,
+                "speed": {
+                  "max": 9.0,
+                  "min": 3.0
+                },
+                "speedOverLifetime": {
+                  "keys": [
+                    {
+                      "inTangent": 0.0,
+                      "outTangent": 0.0,
+                      "time": 0.0,
+                      "value": 1.0
+                    }
+                  ]
+                },
+                "startColor": [
+                  0.20000000298023224,
+                  0.11999999731779099,
+                  0.05000000074505806,
+                  1.0
+                ],
+                "velocityStretch": 0.10000000149011612
               },
               "texture": null
             },
-            "beam": {
-              "count": 1,
+            "fire": {
+              "count": 48,
               "settings": {
-                "maxParticles": 512,
-                "seed": 1,
-                "duration": 5.0,
-                "loop": false,
-                "playOnStart": false,
-                "emissionRate": 0.0,
-                "bursts": [],
-                "shape": 0,
-                "space": 1,
-                "radius": 0.03,
-                "coneAngle": 0.8,
+                "blend": 1,
                 "boxSize": [
                   1.0,
                   1.0,
                   1.0
                 ],
-                "lifetime": {
-                  "min": 0.04,
-                  "max": 0.12
-                },
-                "speed": {
-                  "min": 0.0,
-                  "max": 0.0
-                },
-                "size": {
-                  "min": 0.02,
-                  "max": 0.05
-                },
-                "rotation": {
-                  "min": 0.0,
-                  "max": 0.0
-                },
-                "startColor": [
-                  1.2,
-                  2.8,
-                  4.0,
-                  1.0
-                ],
-                "sizeOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "value": 1.0,
-                      "inTangent": -1.0,
-                      "outTangent": -1.0
-                    },
-                    {
-                      "time": 1.0,
-                      "value": 0.0,
-                      "inTangent": -1.0,
-                      "outTangent": -1.0
-                    }
-                  ]
-                },
-                "speedOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "value": 1.0,
-                      "inTangent": 0.0,
-                      "outTangent": 0.0
-                    }
-                  ]
-                },
-                "rotationOverLifetime": {
-                  "keys": [
-                    {
-                      "time": 0.0,
-                      "value": 0.0,
-                      "inTangent": 0.0,
-                      "outTangent": 0.0
-                    }
-                  ]
-                },
+                "bursts": [],
                 "colorOverLifetime": {
                   "keys": [
                     {
-                      "time": 0.0,
                       "color": [
                         1.0,
                         1.0,
                         1.0,
                         1.0
-                      ]
+                      ],
+                      "time": 0.0
                     },
                     {
-                      "time": 0.2,
                       "color": [
                         1.0,
                         1.0,
                         1.0,
                         1.0
-                      ]
+                      ],
+                      "time": 0.20000000298023224
                     },
                     {
-                      "time": 1.0,
                       "color": [
                         1.0,
                         1.0,
                         1.0,
                         0.0
-                      ]
+                      ],
+                      "time": 1.0
                     }
                   ]
                 },
+                "coneAngle": 0.800000011920929,
+                "duration": 5.0,
+                "emissionRate": 0.0,
+                "facing": 0,
+                "flipbookColumns": 1,
+                "flipbookCycles": 1.0,
+                "flipbookRows": 1,
                 "gravity": [
                   0.0,
                   0.0,
                   0.0
                 ],
-                "facing": 0,
-                "blend": 1,
-                "velocityStretch": 0.1,
+                "lifetime": {
+                  "max": 0.6000000238418579,
+                  "min": 0.15000000596046448
+                },
+                "loop": false,
+                "maxParticles": 512,
+                "playOnStart": false,
+                "radius": 0.029999999329447746,
+                "rotation": {
+                  "max": 0.0,
+                  "min": 0.0
+                },
+                "rotationOverLifetime": {
+                  "keys": [
+                    {
+                      "inTangent": 0.0,
+                      "outTangent": 0.0,
+                      "time": 0.0,
+                      "value": 0.0
+                    }
+                  ]
+                },
+                "seed": 1,
+                "shape": 1,
+                "size": {
+                  "max": 0.800000011920929,
+                  "min": 0.20000000298023224
+                },
+                "sizeOverLifetime": {
+                  "keys": [
+                    {
+                      "inTangent": -1.0,
+                      "outTangent": -1.0,
+                      "time": 0.0,
+                      "value": 1.0
+                    },
+                    {
+                      "inTangent": -1.0,
+                      "outTangent": -1.0,
+                      "time": 1.0,
+                      "value": 0.0
+                    }
+                  ]
+                },
                 "softDistance": 0.0,
+                "space": 1,
+                "speed": {
+                  "max": 6.0,
+                  "min": 2.0
+                },
+                "speedOverLifetime": {
+                  "keys": [
+                    {
+                      "inTangent": 0.0,
+                      "outTangent": 0.0,
+                      "time": 0.0,
+                      "value": 1.0
+                    }
+                  ]
+                },
+                "startColor": [
+                  8.0,
+                  2.0,
+                  0.20000000298023224,
+                  1.0
+                ],
+                "velocityStretch": 0.10000000149011612
+              },
+              "texture": null
+            },
+            "muzzle": {
+              "count": 8,
+              "settings": {
+                "blend": 1,
+                "boxSize": [
+                  1.0,
+                  1.0,
+                  1.0
+                ],
+                "bursts": [],
+                "colorOverLifetime": {
+                  "keys": [
+                    {
+                      "color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                      ],
+                      "time": 0.0
+                    },
+                    {
+                      "color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                      ],
+                      "time": 0.20000000298023224
+                    },
+                    {
+                      "color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        0.0
+                      ],
+                      "time": 1.0
+                    }
+                  ]
+                },
+                "coneAngle": 0.800000011920929,
+                "duration": 5.0,
+                "emissionRate": 0.0,
+                "facing": 0,
                 "flipbookColumns": 1,
+                "flipbookCycles": 1.0,
                 "flipbookRows": 1,
-                "flipbookCycles": 1.0
+                "gravity": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "lifetime": {
+                  "max": 0.07999999821186066,
+                  "min": 0.029999999329447746
+                },
+                "loop": false,
+                "maxParticles": 512,
+                "playOnStart": false,
+                "radius": 0.029999999329447746,
+                "rotation": {
+                  "max": 0.0,
+                  "min": 0.0
+                },
+                "rotationOverLifetime": {
+                  "keys": [
+                    {
+                      "inTangent": 0.0,
+                      "outTangent": 0.0,
+                      "time": 0.0,
+                      "value": 0.0
+                    }
+                  ]
+                },
+                "seed": 1,
+                "shape": 2,
+                "size": {
+                  "max": 0.18000000715255737,
+                  "min": 0.07999999821186066
+                },
+                "sizeOverLifetime": {
+                  "keys": [
+                    {
+                      "inTangent": -1.0,
+                      "outTangent": -1.0,
+                      "time": 0.0,
+                      "value": 1.0
+                    },
+                    {
+                      "inTangent": -1.0,
+                      "outTangent": -1.0,
+                      "time": 1.0,
+                      "value": 0.0
+                    }
+                  ]
+                },
+                "softDistance": 0.0,
+                "space": 1,
+                "speed": {
+                  "max": 2.0,
+                  "min": 0.5
+                },
+                "speedOverLifetime": {
+                  "keys": [
+                    {
+                      "inTangent": 0.0,
+                      "outTangent": 0.0,
+                      "time": 0.0,
+                      "value": 1.0
+                    }
+                  ]
+                },
+                "startColor": [
+                  6.0,
+                  3.0,
+                  0.6000000238418579,
+                  1.0
+                ],
+                "velocityStretch": 0.10000000149011612
+              },
+              "texture": null
+            },
+            "smoke": {
+              "count": 32,
+              "settings": {
+                "blend": 0,
+                "boxSize": [
+                  1.0,
+                  1.0,
+                  1.0
+                ],
+                "bursts": [],
+                "colorOverLifetime": {
+                  "keys": [
+                    {
+                      "color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                      ],
+                      "time": 0.0
+                    },
+                    {
+                      "color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                      ],
+                      "time": 0.20000000298023224
+                    },
+                    {
+                      "color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        0.0
+                      ],
+                      "time": 1.0
+                    }
+                  ]
+                },
+                "coneAngle": 0.800000011920929,
+                "duration": 5.0,
+                "emissionRate": 0.0,
+                "facing": 0,
+                "flipbookColumns": 1,
+                "flipbookCycles": 1.0,
+                "flipbookRows": 1,
+                "gravity": [
+                  0.0,
+                  0.5,
+                  0.0
+                ],
+                "lifetime": {
+                  "max": 3.0,
+                  "min": 1.0
+                },
+                "loop": false,
+                "maxParticles": 512,
+                "playOnStart": false,
+                "radius": 0.029999999329447746,
+                "rotation": {
+                  "max": 0.0,
+                  "min": 0.0
+                },
+                "rotationOverLifetime": {
+                  "keys": [
+                    {
+                      "inTangent": 0.0,
+                      "outTangent": 0.0,
+                      "time": 0.0,
+                      "value": 0.0
+                    }
+                  ]
+                },
+                "seed": 1,
+                "shape": 2,
+                "size": {
+                  "max": 1.0,
+                  "min": 0.4000000059604645
+                },
+                "sizeOverLifetime": {
+                  "keys": [
+                    {
+                      "inTangent": 1.5,
+                      "outTangent": 1.5,
+                      "time": 0.0,
+                      "value": 1.0
+                    },
+                    {
+                      "inTangent": 1.5,
+                      "outTangent": 1.5,
+                      "time": 1.0,
+                      "value": 2.5
+                    }
+                  ]
+                },
+                "softDistance": 0.30000001192092896,
+                "space": 1,
+                "speed": {
+                  "max": 1.5,
+                  "min": 0.30000001192092896
+                },
+                "speedOverLifetime": {
+                  "keys": [
+                    {
+                      "inTangent": 0.0,
+                      "outTangent": 0.0,
+                      "time": 0.0,
+                      "value": 1.0
+                    }
+                  ]
+                },
+                "startColor": [
+                  0.10000000149011612,
+                  0.09000000357627869,
+                  0.07999999821186066,
+                  0.6000000238418579
+                ],
+                "velocityStretch": 0.10000000149011612
+              },
+              "texture": null
+            },
+            "sparks": {
+              "count": 18,
+              "settings": {
+                "blend": 1,
+                "boxSize": [
+                  1.0,
+                  1.0,
+                  1.0
+                ],
+                "bursts": [],
+                "colorOverLifetime": {
+                  "keys": [
+                    {
+                      "color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                      ],
+                      "time": 0.0
+                    },
+                    {
+                      "color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                      ],
+                      "time": 0.20000000298023224
+                    },
+                    {
+                      "color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        0.0
+                      ],
+                      "time": 1.0
+                    }
+                  ]
+                },
+                "coneAngle": 0.800000011920929,
+                "duration": 5.0,
+                "emissionRate": 0.0,
+                "facing": 1,
+                "flipbookColumns": 1,
+                "flipbookCycles": 1.0,
+                "flipbookRows": 1,
+                "gravity": [
+                  0.0,
+                  -9.8100004196167,
+                  0.0
+                ],
+                "lifetime": {
+                  "max": 0.5,
+                  "min": 0.10000000149011612
+                },
+                "loop": false,
+                "maxParticles": 512,
+                "playOnStart": false,
+                "radius": 0.029999999329447746,
+                "rotation": {
+                  "max": 0.0,
+                  "min": 0.0
+                },
+                "rotationOverLifetime": {
+                  "keys": [
+                    {
+                      "inTangent": 0.0,
+                      "outTangent": 0.0,
+                      "time": 0.0,
+                      "value": 0.0
+                    }
+                  ]
+                },
+                "seed": 1,
+                "shape": 2,
+                "size": {
+                  "max": 0.054999999701976776,
+                  "min": 0.02500000037252903
+                },
+                "sizeOverLifetime": {
+                  "keys": [
+                    {
+                      "inTangent": -1.0,
+                      "outTangent": -1.0,
+                      "time": 0.0,
+                      "value": 1.0
+                    },
+                    {
+                      "inTangent": -1.0,
+                      "outTangent": -1.0,
+                      "time": 1.0,
+                      "value": 0.0
+                    }
+                  ]
+                },
+                "softDistance": 0.0,
+                "space": 1,
+                "speed": {
+                  "max": 6.0,
+                  "min": 2.0
+                },
+                "speedOverLifetime": {
+                  "keys": [
+                    {
+                      "inTangent": 0.0,
+                      "outTangent": 0.0,
+                      "time": 0.0,
+                      "value": 1.0
+                    }
+                  ]
+                },
+                "startColor": [
+                  5.0,
+                  2.5,
+                  0.4000000059604645,
+                  1.0
+                ],
+                "velocityStretch": 0.10000000149011612
+              },
+              "texture": null
+            },
+            "woodDust": {
+              "count": 12,
+              "settings": {
+                "blend": 0,
+                "boxSize": [
+                  1.0,
+                  1.0,
+                  1.0
+                ],
+                "bursts": [],
+                "colorOverLifetime": {
+                  "keys": [
+                    {
+                      "color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                      ],
+                      "time": 0.0
+                    },
+                    {
+                      "color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                      ],
+                      "time": 0.20000000298023224
+                    },
+                    {
+                      "color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        0.0
+                      ],
+                      "time": 1.0
+                    }
+                  ]
+                },
+                "coneAngle": 0.800000011920929,
+                "duration": 5.0,
+                "emissionRate": 0.0,
+                "facing": 0,
+                "flipbookColumns": 1,
+                "flipbookCycles": 1.0,
+                "flipbookRows": 1,
+                "gravity": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "lifetime": {
+                  "max": 0.8999999761581421,
+                  "min": 0.4000000059604645
+                },
+                "loop": false,
+                "maxParticles": 512,
+                "playOnStart": false,
+                "radius": 0.029999999329447746,
+                "rotation": {
+                  "max": 0.0,
+                  "min": 0.0
+                },
+                "rotationOverLifetime": {
+                  "keys": [
+                    {
+                      "inTangent": 0.0,
+                      "outTangent": 0.0,
+                      "time": 0.0,
+                      "value": 0.0
+                    }
+                  ]
+                },
+                "seed": 1,
+                "shape": 2,
+                "size": {
+                  "max": 0.10000000149011612,
+                  "min": 0.03999999910593033
+                },
+                "sizeOverLifetime": {
+                  "keys": [
+                    {
+                      "inTangent": 1.5,
+                      "outTangent": 1.5,
+                      "time": 0.0,
+                      "value": 1.0
+                    },
+                    {
+                      "inTangent": 1.5,
+                      "outTangent": 1.5,
+                      "time": 1.0,
+                      "value": 2.5
+                    }
+                  ]
+                },
+                "softDistance": 0.30000001192092896,
+                "space": 1,
+                "speed": {
+                  "max": 2.0,
+                  "min": 0.4000000059604645
+                },
+                "speedOverLifetime": {
+                  "keys": [
+                    {
+                      "inTangent": 0.0,
+                      "outTangent": 0.0,
+                      "time": 0.0,
+                      "value": 1.0
+                    }
+                  ]
+                },
+                "startColor": [
+                  0.4000000059604645,
+                  0.20000000298023224,
+                  0.07000000029802322,
+                  0.699999988079071
+                ],
+                "velocityStretch": 0.10000000149011612
               },
               "texture": null
             }
-          }
+          },
+          "enabled": true,
+          "id": "ae4da88747d74cafb7e36be96c2bd0a0",
+          "type": "ParticleEffects"
         }
       ],
-      "id": 49,
+      "id": 71,
       "layer": 0,
       "name": "Game",
       "position": [
@@ -1112,7 +1112,7 @@
           "type": "PostProcessing"
         }
       ],
-      "id": 1,
+      "id": 72,
       "layer": 0,
       "name": "Sun",
       "position": [
@@ -1166,7 +1166,7 @@
           "type": "Sky"
         }
       ],
-      "id": 2,
+      "id": 73,
       "layer": 0,
       "name": "Sky",
       "position": [
@@ -1189,9 +1189,9 @@
     },
     {
       "entityIds": {
-        "1": 3
+        "1": 74
       },
-      "id": 3,
+      "id": 74,
       "overrides": {
         "1": [
           {
@@ -1200,7 +1200,8 @@
             "value": [
               "00000000000000010000000000000001",
               "00000000000000010000000000000002",
-              "00000000000000010000000000000007"
+              "00000000000000010000000000000007",
+              "f182369525f74c81b0d2b382b939e62e"
             ]
           },
           {
@@ -1235,9 +1236,9 @@
     },
     {
       "entityIds": {
-        "1": 4
+        "1": 75
       },
-      "id": 4,
+      "id": 75,
       "overrides": {
         "1": [
           {
@@ -1246,7 +1247,8 @@
             "value": [
               "00000000000000010000000000000001",
               "00000000000000010000000000000002",
-              "00000000000000010000000000000007"
+              "00000000000000010000000000000007",
+              "f182369525f74c81b0d2b382b939e62e"
             ]
           },
           {
@@ -1296,9 +1298,9 @@
     },
     {
       "entityIds": {
-        "1": 5
+        "1": 76
       },
-      "id": 5,
+      "id": 76,
       "overrides": {
         "1": [
           {
@@ -1307,7 +1309,8 @@
             "value": [
               "00000000000000010000000000000001",
               "00000000000000010000000000000002",
-              "00000000000000010000000000000007"
+              "00000000000000010000000000000007",
+              "f182369525f74c81b0d2b382b939e62e"
             ]
           },
           {
@@ -1357,9 +1360,9 @@
     },
     {
       "entityIds": {
-        "1": 6
+        "1": 77
       },
-      "id": 6,
+      "id": 77,
       "overrides": {
         "1": [
           {
@@ -1368,7 +1371,8 @@
             "value": [
               "00000000000000010000000000000001",
               "00000000000000010000000000000002",
-              "00000000000000010000000000000007"
+              "00000000000000010000000000000007",
+              "f182369525f74c81b0d2b382b939e62e"
             ]
           },
           {
@@ -1422,6 +1426,7 @@
         {
           "data": {
             "castsShadows": true,
+            "inlineMaterial": false,
             "material": "42aa08a16cec4f8a8de5dcec9ab67268",
             "mesh": "00000000000000000000000000000001",
             "submesh": -1
@@ -1451,7 +1456,7 @@
           "type": "BoxCollider"
         }
       ],
-      "id": 7,
+      "id": 78,
       "layer": 0,
       "name": "Ground",
       "position": [
@@ -1478,6 +1483,7 @@
         {
           "data": {
             "castsShadows": true,
+            "inlineMaterial": false,
             "material": "5a8379de642942e28ca594a802ae836d",
             "mesh": "00000000000000000000000000000001",
             "submesh": -1
@@ -1507,7 +1513,7 @@
           "type": "BoxCollider"
         }
       ],
-      "id": 8,
+      "id": 79,
       "layer": 0,
       "name": "Wall",
       "position": [
@@ -1534,6 +1540,7 @@
         {
           "data": {
             "castsShadows": true,
+            "inlineMaterial": false,
             "material": "5a8379de642942e28ca594a802ae836d",
             "mesh": "00000000000000000000000000000001",
             "submesh": -1
@@ -1563,7 +1570,7 @@
           "type": "BoxCollider"
         }
       ],
-      "id": 9,
+      "id": 80,
       "layer": 0,
       "name": "Wall",
       "position": [
@@ -1590,6 +1597,7 @@
         {
           "data": {
             "castsShadows": true,
+            "inlineMaterial": false,
             "material": "5a8379de642942e28ca594a802ae836d",
             "mesh": "00000000000000000000000000000001",
             "submesh": -1
@@ -1619,7 +1627,7 @@
           "type": "BoxCollider"
         }
       ],
-      "id": 10,
+      "id": 81,
       "layer": 0,
       "name": "Wall",
       "position": [
@@ -1646,6 +1654,7 @@
         {
           "data": {
             "castsShadows": true,
+            "inlineMaterial": false,
             "material": "5a8379de642942e28ca594a802ae836d",
             "mesh": "00000000000000000000000000000001",
             "submesh": -1
@@ -1675,7 +1684,7 @@
           "type": "BoxCollider"
         }
       ],
-      "id": 11,
+      "id": 82,
       "layer": 0,
       "name": "Wall",
       "position": [
@@ -1702,6 +1711,7 @@
         {
           "data": {
             "castsShadows": true,
+            "inlineMaterial": false,
             "material": "5a8379de642942e28ca594a802ae836d",
             "mesh": "00000000000000000000000000000001",
             "submesh": -1
@@ -1731,7 +1741,7 @@
           "type": "BoxCollider"
         }
       ],
-      "id": 12,
+      "id": 83,
       "layer": 0,
       "name": "Platform",
       "position": [
@@ -1754,9 +1764,9 @@
     },
     {
       "entityIds": {
-        "1": 13
+        "1": 84
       },
-      "id": 13,
+      "id": 84,
       "overrides": {
         "1": [
           {
@@ -1765,7 +1775,8 @@
             "value": [
               "00000000000000010000000000000001",
               "00000000000000010000000000000002",
-              "00000000000000010000000000000006"
+              "00000000000000010000000000000006",
+              "d15071416cb44b13a1654501a2bf11c7"
             ]
           },
           {
@@ -1806,9 +1817,9 @@
     },
     {
       "entityIds": {
-        "1": 14
+        "1": 85
       },
-      "id": 14,
+      "id": 85,
       "overrides": {
         "1": [
           {
@@ -1832,9 +1843,9 @@
     },
     {
       "entityIds": {
-        "1": 15
+        "1": 86
       },
-      "id": 15,
+      "id": 86,
       "overrides": {
         "1": [
           {
@@ -1858,9 +1869,9 @@
     },
     {
       "entityIds": {
-        "1": 16
+        "1": 87
       },
-      "id": 16,
+      "id": 87,
       "overrides": {
         "1": [
           {
@@ -1884,9 +1895,9 @@
     },
     {
       "entityIds": {
-        "1": 17
+        "1": 88
       },
-      "id": 17,
+      "id": 88,
       "overrides": {
         "1": [
           {
@@ -1910,9 +1921,9 @@
     },
     {
       "entityIds": {
-        "1": 18
+        "1": 89
       },
-      "id": 18,
+      "id": 89,
       "overrides": {
         "1": [
           {
@@ -1940,6 +1951,7 @@
         {
           "data": {
             "castsShadows": true,
+            "inlineMaterial": false,
             "material": "5a8379de642942e28ca594a802ae836d",
             "mesh": "00000000000000000000000000000001",
             "submesh": -1
@@ -1969,7 +1981,7 @@
           "type": "BoxCollider"
         }
       ],
-      "id": 19,
+      "id": 90,
       "layer": 0,
       "name": "Step",
       "position": [
@@ -1996,6 +2008,7 @@
         {
           "data": {
             "castsShadows": true,
+            "inlineMaterial": false,
             "material": "5a8379de642942e28ca594a802ae836d",
             "mesh": "00000000000000000000000000000001",
             "submesh": -1
@@ -2025,7 +2038,7 @@
           "type": "BoxCollider"
         }
       ],
-      "id": 20,
+      "id": 91,
       "layer": 0,
       "name": "Step",
       "position": [
@@ -2052,6 +2065,7 @@
         {
           "data": {
             "castsShadows": true,
+            "inlineMaterial": false,
             "material": "5a8379de642942e28ca594a802ae836d",
             "mesh": "00000000000000000000000000000001",
             "submesh": -1
@@ -2081,7 +2095,7 @@
           "type": "BoxCollider"
         }
       ],
-      "id": 21,
+      "id": 92,
       "layer": 0,
       "name": "Step",
       "position": [
@@ -2108,6 +2122,7 @@
         {
           "data": {
             "castsShadows": true,
+            "inlineMaterial": false,
             "material": "5a8379de642942e28ca594a802ae836d",
             "mesh": "00000000000000000000000000000001",
             "submesh": -1
@@ -2137,7 +2152,7 @@
           "type": "BoxCollider"
         }
       ],
-      "id": 22,
+      "id": 93,
       "layer": 0,
       "name": "Step",
       "position": [
@@ -2160,9 +2175,9 @@
     },
     {
       "entityIds": {
-        "1": 23
+        "1": 94
       },
-      "id": 23,
+      "id": 94,
       "overrides": {
         "1": [
           {
@@ -2181,9 +2196,9 @@
     },
     {
       "entityIds": {
-        "1": 24
+        "1": 95
       },
-      "id": 24,
+      "id": 95,
       "overrides": {
         "1": [
           {
@@ -2202,9 +2217,9 @@
     },
     {
       "entityIds": {
-        "1": 25
+        "1": 96
       },
-      "id": 25,
+      "id": 96,
       "overrides": {
         "1": [
           {
@@ -2223,9 +2238,9 @@
     },
     {
       "entityIds": {
-        "1": 26
+        "1": 97
       },
-      "id": 26,
+      "id": 97,
       "overrides": {
         "1": [
           {
@@ -2244,9 +2259,9 @@
     },
     {
       "entityIds": {
-        "1": 27
+        "1": 98
       },
-      "id": 27,
+      "id": 98,
       "overrides": {
         "1": [
           {
@@ -2265,9 +2280,9 @@
     },
     {
       "entityIds": {
-        "1": 28
+        "1": 99
       },
-      "id": 28,
+      "id": 99,
       "overrides": {
         "1": [
           {
@@ -2286,9 +2301,9 @@
     },
     {
       "entityIds": {
-        "1": 29
+        "1": 100
       },
-      "id": 29,
+      "id": 100,
       "overrides": {
         "1": [
           {
@@ -2307,9 +2322,9 @@
     },
     {
       "entityIds": {
-        "1": 30
+        "1": 101
       },
-      "id": 30,
+      "id": 101,
       "overrides": {
         "1": [
           {
@@ -2328,9 +2343,9 @@
     },
     {
       "entityIds": {
-        "1": 31
+        "1": 102
       },
-      "id": 31,
+      "id": 102,
       "overrides": {
         "1": [
           {
@@ -2349,9 +2364,9 @@
     },
     {
       "entityIds": {
-        "1": 32
+        "1": 103
       },
-      "id": 32,
+      "id": 103,
       "overrides": {
         "1": [
           {
@@ -2370,9 +2385,9 @@
     },
     {
       "entityIds": {
-        "1": 33
+        "1": 104
       },
-      "id": 33,
+      "id": 104,
       "overrides": {
         "1": [
           {
@@ -2391,9 +2406,9 @@
     },
     {
       "entityIds": {
-        "1": 34
+        "1": 105
       },
-      "id": 34,
+      "id": 105,
       "overrides": {
         "1": [
           {
@@ -2412,9 +2427,9 @@
     },
     {
       "entityIds": {
-        "1": 35
+        "1": 106
       },
-      "id": 35,
+      "id": 106,
       "overrides": {
         "1": [
           {
@@ -2433,9 +2448,9 @@
     },
     {
       "entityIds": {
-        "1": 36
+        "1": 107
       },
-      "id": 36,
+      "id": 107,
       "overrides": {
         "1": [
           {
@@ -2454,9 +2469,9 @@
     },
     {
       "entityIds": {
-        "1": 37
+        "1": 108
       },
-      "id": 37,
+      "id": 108,
       "overrides": {
         "1": [
           {
@@ -2475,9 +2490,9 @@
     },
     {
       "entityIds": {
-        "1": 38
+        "1": 109
       },
-      "id": 38,
+      "id": 109,
       "overrides": {
         "1": [
           {
@@ -2496,9 +2511,9 @@
     },
     {
       "entityIds": {
-        "1": 39
+        "1": 110
       },
-      "id": 39,
+      "id": 110,
       "overrides": {
         "1": [
           {
@@ -2517,9 +2532,9 @@
     },
     {
       "entityIds": {
-        "1": 40
+        "1": 111
       },
-      "id": 40,
+      "id": 111,
       "overrides": {
         "1": [
           {
@@ -2538,9 +2553,9 @@
     },
     {
       "entityIds": {
-        "1": 41
+        "1": 112
       },
-      "id": 41,
+      "id": 112,
       "overrides": {
         "1": [
           {
@@ -2559,9 +2574,9 @@
     },
     {
       "entityIds": {
-        "1": 42
+        "1": 113
       },
-      "id": 42,
+      "id": 113,
       "overrides": {
         "1": [
           {
@@ -2580,9 +2595,9 @@
     },
     {
       "entityIds": {
-        "1": 43
+        "1": 114
       },
-      "id": 43,
+      "id": 114,
       "overrides": {
         "1": [
           {
@@ -2601,9 +2616,9 @@
     },
     {
       "entityIds": {
-        "1": 44
+        "1": 115
       },
-      "id": 44,
+      "id": 115,
       "overrides": {
         "1": [
           {
@@ -2622,9 +2637,9 @@
     },
     {
       "entityIds": {
-        "1": 45
+        "1": 116
       },
-      "id": 45,
+      "id": 116,
       "overrides": {
         "1": [
           {
@@ -2664,9 +2679,10 @@
         },
         {
           "data": {
-            "flashlight": 48,
-            "head": 47,
-            "lookSensitivity": 0.0024999999441206455
+            "flashlight": 119,
+            "head": 118,
+            "lookSensitivity": 0.0024999999441206455,
+            "zoomSpeed": 0.25
           },
           "enabled": true,
           "id": "b4ea76374a3890fe2bbc5befa370ede5",
@@ -2674,6 +2690,8 @@
         },
         {
           "data": {
+            "bobHeight": 0.02500000037252903,
+            "bobPeriod": 0.3499999940395355,
             "crouchHeight": 1.0,
             "crouchSpeed": 2.5,
             "fallHeight": -20.0,
@@ -2682,7 +2700,7 @@
             "footstepVolume": 0.5,
             "jumpSpeed": 5.5,
             "runSpeed": 9.0,
-            "strideLength": 0.8,
+            "strideLength": 0.800000011920929,
             "walkSpeed": 5.0
           },
           "enabled": true,
@@ -2691,7 +2709,7 @@
         },
         {
           "data": {
-            "holdDistance": 1.6,
+            "holdDistance": 1.600000023841858,
             "maxMass": 35.0,
             "reach": 2.5,
             "throwSpeed": 12.0
@@ -2702,7 +2720,7 @@
         },
         {
           "data": {
-            "hum": 77,
+            "hum": 138,
             "maxSpeed": 40.0,
             "minDistance": 1.5,
             "range": 60.0,
@@ -2732,6 +2750,7 @@
         {
           "data": {
             "color": 0,
+            "lamp": 0,
             "material": 0,
             "materials": [
               {
@@ -2760,8 +2779,8 @@
               }
             ],
             "mode": 0,
-            "range": 100.0,
             "pointLamp": "baeef75678adc105d93327979e91d2a9",
+            "range": 100.0,
             "spotLamp": "348e9d87a6af30e8f567f43cc918bc96"
           },
           "enabled": true,
@@ -2778,13 +2797,13 @@
           "data": {
             "aimOffset": [
               0.0,
-              -0.12,
-              -0.35
+              -0.11999999731779099,
+              -0.3499999940395355
             ],
             "offset": [
-              0.2,
-              -0.2,
-              -0.45
+              0.20000000298023224,
+              -0.20000000298023224,
+              -0.44999998807907104
             ],
             "physicsGun": "eb15e057c25f6521cd7ba1c6fc717606",
             "toolGun": "458f3ec25c9dc7bec7941f914ddd512d"
@@ -2794,7 +2813,7 @@
           "type": "ViewModel"
         }
       ],
-      "id": 46,
+      "id": 117,
       "layer": 0,
       "name": "Player",
       "position": [
@@ -2838,10 +2857,10 @@
           "type": "Camera"
         }
       ],
-      "id": 47,
+      "id": 118,
       "layer": 0,
       "name": "Head",
-      "parent": 46,
+      "parent": 117,
       "position": [
         0.0,
         0.699999988079071,
@@ -2882,10 +2901,10 @@
           "type": "SpotLight"
         }
       ],
-      "id": 48,
+      "id": 119,
       "layer": 0,
       "name": "Flashlight",
-      "parent": 47,
+      "parent": 118,
       "position": [
         0.0,
         0.0,
@@ -2906,12 +2925,12 @@
     },
     {
       "entityIds": {
-        "1": 70,
-        "2": 135,
-        "3": 136,
-        "4": 137
+        "1": 120,
+        "2": 121,
+        "3": 122,
+        "4": 123
       },
-      "id": 70,
+      "id": 120,
       "overrides": {
         "1": [
           {
@@ -2919,7 +2938,8 @@
             "path": "/componentOrder",
             "value": [
               "552d23d2bdb7756532df49c2c00f8044",
-              "00000000000000010000000000000006"
+              "00000000000000010000000000000006",
+              "ea0b212a33324600897e9b9fee72a347"
             ]
           },
           {
@@ -2962,19 +2982,19 @@
           }
         ]
       },
-      "parent": 46,
+      "parent": 117,
       "prefab": "a6ff6117d7184fda03b222773c8acb0e",
       "removedEntities": []
     },
     {
       "entityIds": {
-        "1": 71,
-        "5": 139,
-        "6": 140,
-        "7": 141,
-        "8": 142
+        "1": 124,
+        "5": 125,
+        "6": 126,
+        "7": 127,
+        "8": 128
       },
-      "id": 71,
+      "id": 124,
       "overrides": {
         "1": [
           {
@@ -2982,7 +3002,8 @@
             "path": "/componentOrder",
             "value": [
               "ee86e41d266e61aff13d0505bb077ffa",
-              "00000000000000010000000000000006"
+              "00000000000000010000000000000006",
+              "2ba8702b54cb42c5841df16e38b1ac59"
             ]
           },
           {
@@ -3036,18 +3057,18 @@
           }
         ]
       },
-      "parent": 46,
+      "parent": 117,
       "prefab": "5024eac3a04ce008179ee71796d55f15",
       "removedEntities": []
     },
     {
       "entityIds": {
-        "1": 72,
-        "10": 145,
-        "11": 146,
-        "9": 144
+        "1": 129,
+        "10": 130,
+        "11": 131,
+        "9": 132
       },
-      "id": 72,
+      "id": 129,
       "overrides": {
         "1": [
           {
@@ -3055,7 +3076,8 @@
             "path": "/componentOrder",
             "value": [
               "a1dfab66d97e9a63c4ee8d58e37f29e1",
-              "00000000000000010000000000000006"
+              "00000000000000010000000000000006",
+              "8d2a2074277a4ad387b3f8db1b4e6783"
             ]
           },
           {
@@ -3098,19 +3120,19 @@
           }
         ]
       },
-      "parent": 46,
+      "parent": 117,
       "prefab": "fa4b9e83038571e546218ba8dd3aa187",
       "removedEntities": []
     },
     {
       "entityIds": {
-        "1": 73,
-        "12": 148,
-        "13": 149,
-        "14": 150,
-        "15": 151
+        "1": 133,
+        "12": 134,
+        "13": 135,
+        "14": 136,
+        "15": 137
       },
-      "id": 73,
+      "id": 133,
       "overrides": {
         "1": [
           {
@@ -3118,7 +3140,8 @@
             "path": "/componentOrder",
             "value": [
               "1043ac93cc2af29dd325548ec92584ee",
-              "00000000000000010000000000000006"
+              "00000000000000010000000000000006",
+              "45a880d0bfb343b880c504aae9d76774"
             ]
           },
           {
@@ -3172,7 +3195,7 @@
           }
         ]
       },
-      "parent": 46,
+      "parent": 117,
       "prefab": "1b28f91ff84a600b6be91d7768c16b90",
       "removedEntities": []
     },
@@ -3199,10 +3222,10 @@
           "type": "AudioSource"
         }
       ],
-      "id": 77,
+      "id": 138,
       "layer": 0,
       "name": "Physics Gun Hum",
-      "parent": 46,
+      "parent": 117,
       "position": [
         0.0,
         0.0,
@@ -3223,9 +3246,9 @@
     },
     {
       "entityIds": {
-        "1": 50
+        "1": 139
       },
-      "id": 50,
+      "id": 139,
       "overrides": {
         "1": [
           {
@@ -3244,9 +3267,9 @@
     },
     {
       "entityIds": {
-        "1": 51
+        "1": 140
       },
-      "id": 51,
+      "id": 140,
       "overrides": {
         "1": [
           {
@@ -3275,9 +3298,9 @@
     },
     {
       "entityIds": {
-        "1": 52
+        "1": 141
       },
-      "id": 52,
+      "id": 141,
       "overrides": {
         "1": [
           {
@@ -3306,9 +3329,9 @@
     },
     {
       "entityIds": {
-        "1": 53
+        "1": 142
       },
-      "id": 53,
+      "id": 142,
       "overrides": {
         "1": [
           {
@@ -3337,9 +3360,9 @@
     },
     {
       "entityIds": {
-        "1": 54
+        "1": 143
       },
-      "id": 54,
+      "id": 143,
       "overrides": {
         "1": [
           {
@@ -3368,9 +3391,9 @@
     },
     {
       "entityIds": {
-        "1": 55
+        "1": 144
       },
-      "id": 55,
+      "id": 144,
       "overrides": {
         "1": [
           {
@@ -3394,9 +3417,9 @@
     },
     {
       "entityIds": {
-        "1": 56
+        "1": 145
       },
-      "id": 56,
+      "id": 145,
       "overrides": {
         "1": [
           {
@@ -3430,9 +3453,9 @@
     },
     {
       "entityIds": {
-        "1": 57
+        "1": 146
       },
-      "id": 57,
+      "id": 146,
       "overrides": {
         "1": [
           {
@@ -3466,9 +3489,9 @@
     },
     {
       "entityIds": {
-        "1": 58
+        "1": 147
       },
-      "id": 58,
+      "id": 147,
       "overrides": {
         "1": [
           {
@@ -3497,9 +3520,9 @@
     },
     {
       "entityIds": {
-        "1": 59
+        "1": 148
       },
-      "id": 59,
+      "id": 148,
       "overrides": {
         "1": [
           {
@@ -3528,9 +3551,9 @@
     },
     {
       "entityIds": {
-        "1": 60
+        "1": 149
       },
-      "id": 60,
+      "id": 149,
       "overrides": {
         "1": [
           {
@@ -3542,7 +3565,8 @@
               "00000000000000010000000000000004",
               "00000000000000010000000000000005",
               "00000000000000010000000000000006",
-              "f14429c7f76d48666948d33d0b2c0e05"
+              "f14429c7f76d48666948d33d0b2c0e05",
+              "7c2ab817da7b437281659392aaaf35c0"
             ]
           },
           {
@@ -3589,9 +3613,9 @@
     },
     {
       "entityIds": {
-        "1": 61
+        "1": 150
       },
-      "id": 61,
+      "id": 150,
       "overrides": {
         "1": [
           {
@@ -3603,7 +3627,8 @@
               "00000000000000010000000000000004",
               "00000000000000010000000000000005",
               "00000000000000010000000000000006",
-              "6d19b8322a14750f9e76ff140e293a36"
+              "6d19b8322a14750f9e76ff140e293a36",
+              "7c2ab817da7b437281659392aaaf35c0"
             ]
           },
           {
@@ -3650,9 +3675,9 @@
     },
     {
       "entityIds": {
-        "1": 62
+        "1": 151
       },
-      "id": 62,
+      "id": 151,
       "overrides": {
         "1": [
           {
@@ -3664,7 +3689,8 @@
               "00000000000000010000000000000004",
               "00000000000000010000000000000005",
               "00000000000000010000000000000006",
-              "d7f4f66ede63dccdd1e6ccff90394d24"
+              "d7f4f66ede63dccdd1e6ccff90394d24",
+              "7c2ab817da7b437281659392aaaf35c0"
             ]
           },
           {
@@ -3711,9 +3737,9 @@
     },
     {
       "entityIds": {
-        "1": 63
+        "1": 152
       },
-      "id": 63,
+      "id": 152,
       "overrides": {
         "1": [
           {
@@ -3725,7 +3751,8 @@
               "00000000000000010000000000000004",
               "00000000000000010000000000000005",
               "00000000000000010000000000000006",
-              "d6807d0ff2d3710880953496a980abab"
+              "d6807d0ff2d3710880953496a980abab",
+              "7c2ab817da7b437281659392aaaf35c0"
             ]
           },
           {
@@ -3772,9 +3799,9 @@
     },
     {
       "entityIds": {
-        "1": 64
+        "1": 153
       },
-      "id": 64,
+      "id": 153,
       "overrides": {
         "1": [
           {
@@ -3786,7 +3813,8 @@
               "00000000000000010000000000000004",
               "00000000000000010000000000000005",
               "00000000000000010000000000000006",
-              "124cbef6671a15f693b8f65c251d03e3"
+              "124cbef6671a15f693b8f65c251d03e3",
+              "b661920c94a641548e80750095da874f"
             ]
           },
           {
@@ -3829,9 +3857,9 @@
     },
     {
       "entityIds": {
-        "1": 65
+        "1": 154
       },
-      "id": 65,
+      "id": 154,
       "overrides": {
         "1": [
           {
@@ -3843,7 +3871,8 @@
               "00000000000000010000000000000004",
               "00000000000000010000000000000005",
               "00000000000000010000000000000006",
-              "e42ac6022c3b25776b3c83df5813ef52"
+              "e42ac6022c3b25776b3c83df5813ef52",
+              "b661920c94a641548e80750095da874f"
             ]
           },
           {
@@ -3896,9 +3925,9 @@
     },
     {
       "entityIds": {
-        "1": 66
+        "1": 155
       },
-      "id": 66,
+      "id": 155,
       "overrides": {
         "1": [
           {
@@ -3907,7 +3936,8 @@
             "value": [
               "00000000000000010000000000000001",
               "00000000000000010000000000000006",
-              "c7191773a4e9e9cbe69af2a8b1d8a48b"
+              "c7191773a4e9e9cbe69af2a8b1d8a48b",
+              "d15071416cb44b13a1654501a2bf11c7"
             ]
           },
           {
@@ -3982,9 +4012,9 @@
     },
     {
       "entityIds": {
-        "1": 68
+        "1": 156
       },
-      "id": 68,
+      "id": 156,
       "overrides": {
         "1": [
           {
@@ -3993,7 +4023,8 @@
             "value": [
               "00000000000000010000000000000001",
               "00000000000000010000000000000006",
-              "77affa8f640cf4befc9a90c9da5e7101"
+              "77affa8f640cf4befc9a90c9da5e7101",
+              "d15071416cb44b13a1654501a2bf11c7"
             ]
           },
           {
@@ -4068,9 +4099,9 @@
     },
     {
       "entityIds": {
-        "1": 69
+        "1": 157
       },
-      "id": 69,
+      "id": 157,
       "overrides": {
         "1": [
           {
@@ -4079,7 +4110,8 @@
             "value": [
               "00000000000000010000000000000001",
               "00000000000000010000000000000002",
-              "00000000000000010000000000000006"
+              "00000000000000010000000000000006",
+              "5bba660518234866b4b6f5b369daf7d8"
             ]
           },
           {
@@ -4159,7 +4191,7 @@
           "type": "SoundBank"
         }
       ],
-      "id": 74,
+      "id": 158,
       "layer": 0,
       "name": "Sounds",
       "position": [
@@ -4203,7 +4235,7 @@
           "type": "AudioSource"
         }
       ],
-      "id": 75,
+      "id": 159,
       "layer": 0,
       "name": "Music",
       "position": [
@@ -4247,7 +4279,7 @@
           "type": "AudioSource"
         }
       ],
-      "id": 76,
+      "id": 160,
       "layer": 0,
       "name": "Ambience",
       "position": [
@@ -4274,6 +4306,7 @@
         {
           "data": {
             "castsShadows": true,
+            "inlineMaterial": false,
             "material": "9c7232f7989e087cbed81d3bbeebc74e",
             "mesh": "00000000000000000000000000000001",
             "submesh": -1
@@ -4303,7 +4336,7 @@
           "type": "BoxCollider"
         }
       ],
-      "id": 78,
+      "id": 161,
       "layer": 0,
       "name": "Glass",
       "position": [
@@ -4330,6 +4363,7 @@
         {
           "data": {
             "castsShadows": true,
+            "inlineMaterial": false,
             "material": "9c7232f7989e087cbed81d3bbeebc74e",
             "mesh": "00000000000000000000000000000001",
             "submesh": -1
@@ -4359,7 +4393,7 @@
           "type": "BoxCollider"
         }
       ],
-      "id": 79,
+      "id": 162,
       "layer": 0,
       "name": "Glass",
       "position": [
@@ -4386,6 +4420,7 @@
         {
           "data": {
             "castsShadows": true,
+            "inlineMaterial": false,
             "material": "9c7232f7989e087cbed81d3bbeebc74e",
             "mesh": "00000000000000000000000000000001",
             "submesh": -1
@@ -4415,7 +4450,7 @@
           "type": "BoxCollider"
         }
       ],
-      "id": 80,
+      "id": 163,
       "layer": 0,
       "name": "Glass",
       "position": [
@@ -4442,6 +4477,7 @@
         {
           "data": {
             "castsShadows": true,
+            "inlineMaterial": false,
             "material": "9c7232f7989e087cbed81d3bbeebc74e",
             "mesh": "00000000000000000000000000000001",
             "submesh": -1
@@ -4471,7 +4507,7 @@
           "type": "BoxCollider"
         }
       ],
-      "id": 81,
+      "id": 164,
       "layer": 0,
       "name": "Glass",
       "position": [

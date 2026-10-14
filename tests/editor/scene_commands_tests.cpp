@@ -1,10 +1,12 @@
 #include "scene/scene_commands.h"
 #include "scene/scene_document.h"
+#include "temp_directory.h"
 
 #include <spot.h>
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <fstream>
 #include <memory>
 #include <string>
 #include <vector>
@@ -25,6 +27,14 @@ protected:
         archive.Field("target", target);
         archive.Field("value", value);
     }
+};
+
+class DeferredReference final : public Spot::Component {
+public:
+    EntityId target = EntityId::Invalid;
+
+protected:
+    void Serialize(Spot::Archive& archive) override { archive.Field("target", target); }
 };
 
 struct Fixture {
@@ -73,6 +83,41 @@ std::vector<std::string> GetNames(const std::vector<Entity*>& entities) {
 }
 
 } // namespace
+
+TEST_CASE("Opening a scene before game code loads preserves its entity references", "[editor][documents]") {
+    const TempDirectory temp;
+    const auto file = temp.GetPath() / "Game.scene";
+    std::ofstream(file) << R"({"format":"spot-scene","version":2,"entities":[
+        {"id":401,"name":"Player","components":[
+            {"type":"DeferredReference","data":{"target":702}}]},
+        {"id":702,"name":"Head","parent":401,"components":[{"type":"Camera","data":{}}]}
+    ]})";
+    Spot::UnregisterComponent("DeferredReference");
+    auto document = SceneDocument::Open(file);
+    REQUIRE(document);
+    auto* missing = document->GetScene().FindEntity("Player")->GetComponent<Spot::MissingComponent>();
+    REQUIRE(missing);
+    REQUIRE(document->Save());
+
+    Spot::RegisterComponent<DeferredReference>("DeferredReference");
+    REQUIRE(document->ReplaceSceneText(document->GetScene().SaveToString()));
+    auto* player = document->GetScene().FindEntity("Player");
+    auto* head = document->GetScene().FindEntity("Head");
+    REQUIRE(player);
+    REQUIRE(head);
+    REQUIRE(player->GetComponent<DeferredReference>());
+    CHECK(player->GetComponent<DeferredReference>()->target == head->GetId());
+    CHECK(head->GetParent() == player);
+    REQUIRE(document->Save());
+    document.reset();
+
+    document = SceneDocument::Open(file);
+    REQUIRE(document);
+    player = document->GetScene().FindEntity("Player");
+    head = document->GetScene().FindEntity("Head");
+    CHECK(player->GetComponent<DeferredReference>()->target == head->GetId());
+    Spot::UnregisterComponent("DeferredReference");
+}
 
 TEST_CASE("Deleted entities come back where they were, with their ids", "[editor][commands]") {
     Fixture fixture;

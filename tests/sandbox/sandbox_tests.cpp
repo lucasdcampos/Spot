@@ -473,6 +473,66 @@ TEST_CASE("The player lands, walks where it looks and jumps", "[sandbox]") {
     CHECK(playground.PlayerPosition().y == Approx(start.y).margin(0.05f));
 }
 
+TEST_CASE("Mouse look turns the camera and movement follows the visible direction", "[sandbox][camera]") {
+    Playground playground;
+    playground.Run(1.5f);
+    auto* head = playground.player->FindChild("Head");
+    REQUIRE(head);
+    REQUIRE(playground.Player().head == head->GetId());
+    auto* camera = head->GetComponent<Spot::Camera>();
+    REQUIRE(camera);
+    const auto initialForward = camera->GetCamera3D().GetForward();
+    playground.input.OnEvent(Spot::MouseMovedEvent{
+        .position = {}, .delta = {Spot::ToRadians(90.0f) / playground.Player().lookSensitivity, -100.0f}});
+    playground.Run(Step);
+    const auto view = camera->GetCamera3D();
+    CHECK(Spot::Length(view.GetForward() - initialForward) > 1.0f);
+    CHECK(Spot::Length(view.GetForward() - playground.Player().GetAimDirection()) < 0.001f);
+    CHECK(Spot::Length(view.position - playground.Player().GetEyePosition()) < 0.001f);
+
+    Spot::Vector3 direction;
+    Key key = Key::W;
+    SECTION("Forward") {
+        direction = view.GetForward();
+    }
+    SECTION("Backward") {
+        key = Key::S;
+        direction = -view.GetForward();
+    }
+    SECTION("Right") {
+        key = Key::D;
+        direction = view.GetRight();
+    }
+    SECTION("Left") {
+        key = Key::A;
+        direction = -view.GetRight();
+    }
+    direction.y = 0.0f;
+    direction = Spot::Normalize(direction);
+    const auto start = playground.PlayerPosition();
+    playground.Press(key);
+    playground.Run(0.25f);
+    playground.Release(key);
+    const auto displacement = playground.PlayerPosition() - start;
+    CHECK(Spot::Dot(displacement, direction) == Approx(1.25f).margin(0.15f));
+    CHECK(Spot::Length(displacement - direction * Spot::Dot(displacement, direction)) < 0.05f);
+    CHECK(Spot::Length(camera->GetCamera3D().position - playground.Player().GetEyePosition()) < 0.001f);
+
+    playground.player->GetComponent<PlayerMovement>()->SetFlying(true);
+    const auto flightStart = playground.PlayerPosition();
+    playground.Press(Key::W);
+    playground.Run(0.1f);
+    playground.Release(Key::W);
+    CHECK(Spot::Length(playground.PlayerPosition() - flightStart - view.GetForward()) < 0.05f);
+
+    auto* flashlight = playground.scene.GetEntity(playground.Player().flashlight);
+    REQUIRE(flashlight);
+    CHECK(flashlight->GetParent() == head);
+    playground.Press(Key::F);
+    playground.Run(Step);
+    CHECK(flashlight->GetComponent<Spot::Light>()->IsEnabled());
+}
+
 TEST_CASE("The player crouches, slower and lower, and stands only with room above", "[sandbox]") {
     Playground playground;
     playground.Run(1.5f);

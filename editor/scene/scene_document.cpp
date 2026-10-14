@@ -99,7 +99,11 @@ std::unique_ptr<SceneDocument> SceneDocument::Open(const std::filesystem::path& 
                 document->m_scene->GetRootEntities().size() == 1;
         }
     } else {
-        loaded = document->m_scene->LoadFromFile(file, assets);
+        std::ifstream input(file, std::ios::binary);
+        const std::string text{std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
+        // Missing game components cannot remap their references until the module loads.
+        document->m_assets = assets;
+        loaded = document->ReplaceSceneText(text);
     }
     if (!loaded) {
         GetEditorLogger().Error("Could not open the scene '{}'", PathToUtf8(file));

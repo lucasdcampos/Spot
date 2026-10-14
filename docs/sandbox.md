@@ -64,6 +64,10 @@ controls are:
 | F9, F10 | Save and load the editable world checkpoint |
 | Grave (`) | Open or close the developer console |
 
+The player's `PlayerController.head` reference points to its Head child with the active camera; `flashlight` points
+to the light below that head. Mouse look turns the head, walking uses that view's yaw, and noclip also follows its
+pitch. Keep these references assigned in the scene so movement, aiming and the rendered view agree.
+
 Gamepad bindings are in the same settings. Spawn cycles through the catalog rather than requiring a separate
 button per entry. The tool gun's right mouse/Aim action cycles colors, materials or lamp kinds in those modes.
 

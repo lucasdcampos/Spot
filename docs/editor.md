@@ -75,6 +75,10 @@ next build can replace the file meanwhile. Before loading a new module, the open
 components destroyed; after, they load again with the new types. Components whose type the module no longer has stay
 as `MissingComponent`s that keep their data.
 
+Scene documents preserve saved entity ids when first opened, including while the game's module is still building.
+Missing components keep opaque fields, so changing those ids before their types load would leave references such
+as the player's camera pointing at missing entities. Saving and reloading the module keep those references valid.
+
 ## Play mode
 
 Playing a document (`PlaySession`) copies its scene and loads the copy into the application, which updates it every
