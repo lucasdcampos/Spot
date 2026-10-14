@@ -288,7 +288,8 @@ unchanged bytes are not rewritten.
 The `Robot` component chooses a patrol direction and turns the actor; the Animator
 moves its CharacterController using root motion. Footstep clip events play metal
 steps. Hitscan hits and explosions activate the prefab's eleven-body Ragdoll and
-apply an impulse; `Robot::Revive()` blends back to locomotion.
+apply an impulse; `Robot::Revive()` blends back to locomotion. Robots within `animationNear` (12 m) of the
+camera animate every frame, then 30 times a second, and 12 times beyond `animationFar` (30 m).
 
 `prefabs/actors/robot.prefab` contains the controller, skinned renderers and editable
 ragdoll limits. `robot_spawner.prefab` authors patrol starting positions. GameControls

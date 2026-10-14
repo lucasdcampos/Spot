@@ -41,6 +41,24 @@ TEST_CASE("Animator scene playback respects speed, loop, pause and activity", "[
     CHECK(animator.GetLocalPose()[0].translation.x == Catch::Approx(3));
 }
 
+TEST_CASE("Animators with an update interval update less often at the same pace", "[animation][animator]") {
+    Scene scene;
+    auto& animator = scene.CreateEntity().AddComponent<Animator>();
+    animator.SetSkeleton(MakeSkeleton());
+    REQUIRE(animator.Play(MakeClip(4), false));
+    animator.SetUpdateInterval(0.1f);
+    scene.Update(0.06f);
+    // Not due yet: the pose waits.
+    CHECK(animator.GetTime() == 0.0f);
+    scene.Update(0.06f);
+    // Due: the time that passed meanwhile is all there.
+    CHECK(animator.GetTime() == Catch::Approx(0.12f));
+    CHECK(animator.GetLocalPose()[0].translation.x == Catch::Approx(0.48f));
+    animator.SetUpdateInterval(0.0f);
+    scene.Update(0.01f);
+    CHECK(animator.GetTime() == Catch::Approx(0.13f));
+}
+
 TEST_CASE("Animator crossfades advance the outgoing clip and interrupted fades stay continuous",
           "[animation][animator]") {
     Scene scene;

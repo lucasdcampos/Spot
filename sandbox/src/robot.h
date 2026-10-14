@@ -7,6 +7,10 @@ public:
     Spot::Vector3 patrolAxis = {0, 0, 1};
     float patrolDistance = 3;
     float turnSpeed = 4;
+    // Within the near distance of the camera, the pose updates every frame; beyond it 30 times a second, and beyond
+    // the far distance 12 times, which is plenty for a robot that small on screen.
+    float animationNear = 12;
+    float animationFar = 30;
     bool IsDead() const { return m_dead; }
     std::uint32_t GetFootsteps() const { return m_footsteps; }
     void Hit(Spot::Vector3 impulse, Spot::Vector3 point);

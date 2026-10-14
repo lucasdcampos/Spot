@@ -118,3 +118,9 @@ updates the contiguous pose before attachments in late update. `AddImpulse()` pu
 nearest body. `SetActive(false, duration)` disables proxies, restores character movement
 and blends from the physical pose back to animation. Saved body ids/mode restore without
 creating duplicates; destroying the component releases its proxies.
+
+## Update interval
+
+`Animator::SetUpdateInterval()` (the inspector's `updateInterval`) updates the pose only every so many seconds; 0, the
+default, updates it every frame. The time in between accumulates and is simulated at once, so clips, events and root
+motion keep their pace. Characters far from the camera can update a few times a second for a fraction of the cost.

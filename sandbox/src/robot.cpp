@@ -36,6 +36,10 @@ void Robot::OnUpdate(float deltaTime) {
     }
     m_pause = std::max(m_pause - deltaTime, 0.0f);
     animator->SetFloat("speed", m_pause > 0 ? 0.0f : distance > 2 ? 2.0f : 1.0f);
+    if (const auto listener = GetScene().GetAudio().FindListener()) {
+        const float away = Spot::Distance(listener->position, GetEntity().GetTransform().GetWorldPosition());
+        animator->SetUpdateInterval(away < animationNear ? 0.0f : away < animationFar ? 1.0f / 30.0f : 1.0f / 12.0f);
+    }
     if (distance > 0.1f) {
         auto& transform = GetEntity().GetTransform();
         transform.SetWorldRotation(Spot::Slerp(transform.GetWorldRotation(), Spot::Quaternion::LookRotation(direction),
@@ -88,6 +92,10 @@ void Robot::Serialize(Spot::Archive& archive) {
     archive.Field("patrolAxis", patrolAxis);
     archive.Field("patrolDistance", patrolDistance);
     archive.Field("turnSpeed", turnSpeed);
+    archive.Field("animationNear", animationNear,
+                  {.min = 0, .max = 1000, .tooltip = "Animated every frame within this"});
+    archive.Field("animationFar", animationFar,
+                  {.min = 0, .max = 1000, .tooltip = "Animated 12 times a second beyond this"});
     archive.Field("dead", m_dead);
     archive.Field("home", m_home, {.hidden = true});
     archive.Field("hasHome", m_hasHome, {.hidden = true});

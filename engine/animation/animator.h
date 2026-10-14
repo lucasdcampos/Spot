@@ -7,6 +7,7 @@
 #include "scene/component.h"
 #include "scene/scene_system.h"
 
+#include <algorithm>
 #include <span>
 #include <vector>
 
@@ -41,6 +42,10 @@ public:
     bool IsPlaying() const { return m_playing; }
     void SetSpeed(float speed);
     float GetSpeed() const { return m_speed; }
+    // Seconds between updates of the pose, 0 for every frame. The time in between adds up, so the animation keeps its
+    // pace, root motion included; characters far from the camera can be animated less often for less work.
+    void SetUpdateInterval(float seconds) { m_updateInterval = std::max(seconds, 0.0f); }
+    float GetUpdateInterval() const { return m_updateInterval; }
     bool IsLooping() const { return m_loop; }
     void SetLooping(bool loop) { m_loop = loop; }
     float GetDuration() const { return m_playbackDuration; }
@@ -96,6 +101,9 @@ private:
     std::vector<TransformComponents> m_layerPose;
     std::vector<TransformComponents> m_layerReference;
     RootMotionMode m_rootMotion = RootMotionMode::None;
+    float m_updateInterval = 0.0f;
+    // Time since the pose was last updated, waiting for the update interval.
+    float m_pendingTime = 0.0f;
     std::string m_rootBoneName;
     std::size_t m_rootBoneIndex = 0;
     bool m_emitStart = false;

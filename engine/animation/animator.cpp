@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <utility>
 
 namespace Spot {
 
@@ -354,6 +355,9 @@ void Animator::Serialize(Archive& archive) {
         m_clip = std::move(clip);
     }
     archive.Field("speed", m_speed);
+    archive.Field(
+        "updateInterval", m_updateInterval,
+        {.min = 0.0f, .max = 1.0f, .speed = 0.001f, .tooltip = "Seconds between pose updates; 0 updates every frame"});
     archive.Field("loop", m_loop);
     archive.Field("autoPlay", m_autoPlay);
 }
@@ -364,8 +368,13 @@ void AnimationSystem::OnUpdate(float deltaTime) {
         if (!animator.IsActiveAndEnabled()) {
             return;
         }
+        animator.m_pendingTime += deltaTime;
+        if (animator.m_pendingTime < animator.m_updateInterval) {
+            return;
+        }
+        const float elapsed = std::exchange(animator.m_pendingTime, 0.0f);
         animator.InvokeHook("Animation", [&] {
-            animator.Simulate(deltaTime);
+            animator.Simulate(elapsed);
             animator.RefreshRenderers();
         });
     });
