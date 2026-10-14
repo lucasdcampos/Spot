@@ -20,6 +20,8 @@ public:
     // Whether the carrier has Fire this frame, to throw what it carries, so the tool in hand leaves it alone.
     bool HasClick() const { return IsHolding() || m_threw; }
 
+    // The prop the player looks at that Use would pick up, if any.
+    Spot::Entity* FindCarryable() const;
     void PickUp(Spot::Entity& prop);
     void Drop();
     void Throw();

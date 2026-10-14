@@ -164,7 +164,61 @@ Rgb Lid(int x, int y, Rgb paint, std::uint32_t seed) {
     return color;
 }
 
+// White, with the coverage the function gives each pixel, from 0 to 1, as alpha.
+template <typename F>
+Spot::Image PaintCoverage(std::uint32_t size, F&& coverage) {
+    std::vector<std::uint8_t> pixels(static_cast<std::size_t>(size) * size * 4);
+    for (std::uint32_t y = 0; y < size; ++y) {
+        for (std::uint32_t x = 0; x < size; ++x) {
+            std::uint8_t* pixel = &pixels[(static_cast<std::size_t>(y) * size + x) * 4];
+            pixel[0] = pixel[1] = pixel[2] = 255;
+            const float alpha =
+                std::clamp(coverage(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f), 0.0f, 1.0f);
+            pixel[3] = static_cast<std::uint8_t>(alpha * 255.0f + 0.5f);
+        }
+    }
+    return {size, size, std::move(pixels)};
+}
+
+// How much of a pixel lies inside a shape, from its signed distance to the edge in pixels, negative inside.
+float Coverage(float distance) {
+    return std::clamp(0.5f - distance, 0.0f, 1.0f);
+}
+
 } // namespace
+
+Spot::Image UiPanel() {
+    constexpr std::uint32_t PanelSize = 64;
+    constexpr float Radius = 10.0f;
+    const float half = static_cast<float>(PanelSize) * 0.5f;
+    return PaintCoverage(PanelSize, [&](float x, float y) {
+        // A rounded rectangle filling the image, half a pixel in, so its edge is smooth.
+        const float dx = std::max(std::abs(x - half) - (half - 0.5f - Radius), 0.0f);
+        const float dy = std::max(std::abs(y - half) - (half - 0.5f - Radius), 0.0f);
+        return Coverage(std::sqrt(dx * dx + dy * dy) - Radius);
+    });
+}
+
+Spot::Image UiDot() {
+    constexpr std::uint32_t DotSize = 64;
+    const float half = static_cast<float>(DotSize) * 0.5f;
+    return PaintCoverage(DotSize, [&](float x, float y) {
+        return Coverage(std::sqrt((x - half) * (x - half) + (y - half) * (y - half)) - (half - 1.0f));
+    });
+}
+
+Spot::Image UiHitMarker() {
+    constexpr std::uint32_t MarkerSize = 64;
+    const float half = static_cast<float>(MarkerSize) * 0.5f;
+    return PaintCoverage(MarkerSize, [&](float x, float y) {
+        // Four strokes along the diagonals, leaving the middle open.
+        const float u = std::abs(x - half);
+        const float v = std::abs(y - half);
+        const float along = (u + v) / std::sqrt(2.0f);
+        const float across = std::abs(u - v) / std::sqrt(2.0f);
+        return Coverage(std::max({across - 2.5f, half * 0.4f - along, along - (half - 3.0f)}));
+    });
+}
 
 Spot::Image TargetDummy() {
     return Paint([](int x, int y) {

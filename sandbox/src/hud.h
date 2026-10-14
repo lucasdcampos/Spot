@@ -1,14 +1,23 @@
 #pragma once
 
+#include "runtime_interface.h"
+
 #include <spot.h>
 
 #include <string>
 
-// Draws a crosshair, the time of day, the frame rate and the number of bodies, what the player has in hand with its
-// ammunition, and what the keys do.
+// Works out what the HUD shows and gives it to the authored interface: a crosshair that spreads as the aim gets less
+// steady and hides down the sights, a hit marker, what is in hand with its rounds or mode, the controls that matter
+// for it, what Use would do, the slots when switching, the time of day and, on the Statistics action, the frame rate
+// and timings.
 class Hud final : public Spot::Component {
 public:
     Spot::AssetRef<Spot::Font> font;
+    // Seconds the slot bar stays after switching, before it fades.
+    float slotsTime = 2.0f;
+
+    bool IsShowingStatistics() const { return m_showStatistics; }
+    const HudState& GetState() const { return m_state; }
 
 protected:
     void OnStart() override;
@@ -21,11 +30,15 @@ protected:
     void Serialize(Spot::Archive& archive) override;
 
 private:
-    // What the player has in hand, as the HUD says it.
-    std::string DescribeHand() const;
+    // What is in hand, its rounds or mode, and its controls.
+    void DescribeHand();
     void UpdateStatus();
 
     Spot::EntityId m_interface = Spot::EntityId::Invalid;
+    HudState m_state;
     std::string m_status;
     float m_frameRate = 0.0f;
+    bool m_showStatistics = false;
+    int m_lastSlot = -1;
+    float m_slotsLeft = 0.0f;
 };

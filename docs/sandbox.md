@@ -62,6 +62,7 @@ controls are:
 | Z | Undo the last spawn or tool operation |
 | X | Remove props created by the spawner |
 | F9, F10 | Save and load the editable world checkpoint |
+| F11 | Show or hide frame statistics |
 | Grave (`) | Open or close the developer console |
 
 The player's `PlayerController.head` reference points to its Head child with the active camera; `flashlight` points
@@ -228,6 +229,16 @@ Pause stores sensitivity, field of view, volumes, input bindings and Low/Medium/
 in the game's per-user `interface.json`. Select any binding row and press its new control; Escape
 cancels. Composite directions have individual rows. Graphics changes rebuild the renderer on the
 next frame, in both the standalone game and the editor's game view, while keeping rebinds.
+
+The HUD is laid out like a game's rather than a debugging overlay. A small crosshair (a dot and four lines) opens
+up while moving, in the air and under recoil, gives way to the sights while aiming, and flashes a hit marker when a
+shot moves a prop or knocks down a robot. The bottom-right panel names what is in hand with its rounds and reserve,
+which turn red when low, or the tool's mode and option, with a reload bar; the controls that matter for it sit above
+it, and what Use would do appears under the crosshair. Switching shows the six slots along the top for a moment.
+The clock reads the day cycle; key caps at the bottom left list the menus. Frame rate, body count and update and
+render times appear only on the Statistics action (F11). `Hud` works the state out each frame (`HudState`) and
+`RuntimeInterface::UpdateHud()` applies it to the widgets it references by id. Panels use the generated rounded
+`ui_panel` texture as nine-slice images; key caps and their labels size themselves with layout groups and fitters.
 
 The layout and style are authored in `assets/prefabs/interface.prefab`, opened in the editor's prefab
 mode. Its RuntimeInterface component refers to widgets by id; its inactive item/row templates are

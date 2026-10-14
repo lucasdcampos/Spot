@@ -939,6 +939,23 @@
               }
             }
           ]
+        },
+        {
+          "bindings": [
+            {
+              "control": {
+                "code": 71,
+                "source": 0
+              },
+              "deadZone": 0.0,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1.0
+            }
+          ],
+          "name": "Statistics",
+          "pressPoint": 0.5,
+          "type": 0
         }
       ]
     }

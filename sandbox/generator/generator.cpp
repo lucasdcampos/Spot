@@ -59,6 +59,9 @@ const std::vector<Texture>& GetTextures() {
         {"concrete", Textures::Concrete},
         {"wheel", Textures::Wheel},
         {"target_dummy", Textures::TargetDummy},
+        {"ui_panel", Textures::UiPanel},
+        {"ui_dot", Textures::UiDot},
+        {"ui_hit_marker", Textures::UiHitMarker},
     };
     return textures;
 }

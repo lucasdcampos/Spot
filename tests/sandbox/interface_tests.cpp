@@ -1,3 +1,4 @@
+#include "hud.h"
 #include "interface_settings.h"
 #include "log_capture.h"
 #include "player_controller.h"
@@ -5,6 +6,8 @@
 #include "runtime_interface.h"
 #include "temp_directory.h"
 #include "undo_list.h"
+#include "weapon.h"
+#include "weapon_holder.h"
 
 #include <spot.h>
 
@@ -73,7 +76,7 @@ struct InterfaceGame {
 TEST_CASE("Sandbox authored HUD and spawn menu route Q and gamepad tabs", "[sandbox][ui]") {
     InterfaceGame game;
     auto& ui = game.GetUi();
-    CHECK(game.scene.GetEntity(ui.handText)->GetComponent<Spot::UiText>()->text == "Physics Gun");
+    CHECK(game.scene.GetEntity(ui.handText)->GetComponent<Spot::UiText>()->text == "PHYSICS GUN");
     CHECK(game.scene.GetEntity(ui.statusText)->GetComponent<Spot::UiText>()->text.find("bodies") != std::string::npos);
     REQUIRE(ui.GetSpawnButtons().size() == game.scene.FindComponent<PropSpawner>()->GetSpawnables().size());
     CHECK(game.Send(Spot::KeyPressedEvent{Spot::Key::Q, false}));
@@ -94,6 +97,59 @@ TEST_CASE("Sandbox authored HUD and spawn menu route Q and gamepad tabs", "[sand
     CHECK(ui.GetMenu() == RuntimeInterface::Menu::Closed);
     CHECK_FALSE(game.input.IsCaptured());
     CHECK(game.Send(Spot::KeyReleasedEvent{Spot::Key::Q}));
+}
+
+TEST_CASE("The sandbox HUD shows rounds, reloads, sights, slots and statistics like a game", "[sandbox][ui][hud]") {
+    InterfaceGame game;
+    auto& ui = game.GetUi();
+    const auto text = [&](Spot::EntityId id) { return game.scene.GetEntity(id)->GetComponent<Spot::UiText>()->text; };
+    const auto active = [&](Spot::EntityId id) { return game.scene.GetEntity(id)->IsActiveInHierarchy(); };
+    // Debugging statistics wait for their key; the slot bar for a switch.
+    CHECK_FALSE(active(ui.statsPanel));
+    CHECK_FALSE(active(ui.slotBar));
+    CHECK(active(ui.crosshair));
+    CHECK(text(ui.clockText).size() == 5);
+
+    auto& holder = *game.scene.FindComponent<WeaponHolder>();
+    game.input.OnEvent(Spot::KeyPressedEvent{Spot::Key::Digit2, false});
+    game.Step();
+    game.input.OnEvent(Spot::KeyReleasedEvent{Spot::Key::Digit2});
+    game.Step();
+    REQUIRE(holder.GetWeapon());
+    CHECK(active(ui.slotBar));
+    CHECK(text(ui.handText) == "PISTOL");
+    CHECK(text(ui.countText) == std::to_string(holder.GetWeapon()->GetAmmo()));
+    CHECK(text(ui.detailText) == "/ " + std::to_string(holder.GetWeapon()->GetReserve()));
+    for (int i = 0; i < 180; ++i)
+        game.Step();
+    CHECK_FALSE(active(ui.slotBar));
+
+    // Down the sights, the crosshair gives way to them.
+    game.input.OnEvent(Spot::MouseButtonPressedEvent{Spot::MouseButton::Right});
+    game.Step();
+    CHECK_FALSE(active(ui.crosshair));
+    game.input.OnEvent(Spot::MouseButtonReleasedEvent{Spot::MouseButton::Right});
+    game.Step();
+    CHECK(active(ui.crosshair));
+
+    // Reloading fills a bar.
+    holder.Fire();
+    REQUIRE(holder.GetWeapon()->StartReload());
+    for (int i = 0; i < 30; ++i)
+        game.Step();
+    CHECK(active(ui.reloadTrack));
+    CHECK(game.scene.GetEntity(ui.reloadFill)->GetComponent<Spot::UiRect>()->layout.sizeDelta.x > 0.0f);
+    for (int i = 0; i < 120; ++i)
+        game.Step();
+    CHECK_FALSE(active(ui.reloadTrack));
+
+    game.input.OnEvent(Spot::KeyPressedEvent{Spot::Key::F11, false});
+    game.Step();
+    game.input.OnEvent(Spot::KeyReleasedEvent{Spot::Key::F11});
+    game.Step();
+    CHECK(active(ui.statsPanel));
+    CHECK(text(ui.statusText).find("FPS") != std::string::npos);
+    CHECK(game.scene.FindComponent<Hud>()->IsShowingStatistics());
 }
 
 TEST_CASE("Sandbox menu clicks spawn real prefabs and offer undo and cleanup", "[sandbox][ui]") {

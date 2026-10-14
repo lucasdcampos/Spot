@@ -140,12 +140,14 @@ void WeaponHolder::FireHitscan(const Weapon& weapon, Spot::Vector3 eye, Spot::Ve
         }
         ParticleEffects::Impact(GetScene(), hit->point, hit->normal, Surface::Of(entity));
         if (Robots::Hit(GetScene(), hit->entity, direction * weapon.impulse, hit->point)) {
+            m_hitMarker = 1.0f;
             continue;
         }
         if (auto* barrel = entity->GetComponent<ExplosiveBarrel>()) {
             barrel->Ignite();
         }
         if (auto* body = entity->GetComponent<Spot::Rigidbody>(); body && !body->IsKinematic()) {
+            m_hitMarker = 1.0f;
             body->AddImpulseAtPosition(direction * weapon.impulse, hit->point);
         }
     }
@@ -165,8 +167,9 @@ Spot::Vector3 WeaponHolder::Scatter(Spot::Vector3 aim, float spread) {
     return Spot::Normalize(aim + (side * std::cos(angle) + up * std::sin(angle)) * radius);
 }
 
-void WeaponHolder::OnUpdate(float /*deltaTime*/) {
+void WeaponHolder::OnUpdate(float deltaTime) {
     namespace Input = Spot::Input;
+    m_hitMarker = std::max(m_hitMarker - deltaTime * 4.0f, 0.0f);
     const int count = GetWeaponCount();
 
     static constexpr std::array<std::string_view, 9> Slots = {

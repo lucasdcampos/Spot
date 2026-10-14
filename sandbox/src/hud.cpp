@@ -1,11 +1,16 @@
 #include "hud.h"
 
 #include "day_cycle.h"
-#include "runtime_interface.h"
+#include "physics_gun.h"
+#include "player_controller.h"
+#include "player_movement.h"
+#include "prop_carrier.h"
 #include "tool_gun.h"
 #include "weapon.h"
 #include "weapon_holder.h"
 
+#include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <format>
@@ -30,6 +35,14 @@ double GetAverageMilliseconds(std::string_view scope) {
     return std::chrono::duration<double, std::milli>(total).count() / static_cast<double>(frames.size());
 }
 
+std::string Upper(std::string_view text) {
+    std::string upper(text);
+    std::ranges::transform(upper, upper.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+    return upper;
+}
+
+constexpr const char* ToolModes[] = {"Weld", "Rope", "Remover", "Color", "Material", "Lamp"};
+
 } // namespace
 
 void Hud::OnUpdate(float deltaTime) {
@@ -37,6 +50,11 @@ void Hud::OnUpdate(float deltaTime) {
     if (elapsed > 0.0f) {
         m_frameRate = m_frameRate > 0.0f ? std::lerp(m_frameRate, 1.0f / elapsed, 0.1f) : 1.0f / elapsed;
     }
+    if (Spot::Input::IsActionPressed("Statistics")) {
+        m_showStatistics = !m_showStatistics;
+        UpdateStatus();
+    }
+    m_slotsLeft = std::max(m_slotsLeft - elapsed, 0.0f);
 }
 
 void Hud::OnStart() {
@@ -47,7 +65,7 @@ void Hud::OnStart() {
             m_interface = root->GetId();
     }
     UpdateStatus();
-    InvokeRepeating(1.0f, 1.0f, [this] { UpdateStatus(); });
+    InvokeRepeating(0.5f, 0.5f, [this] { UpdateStatus(); });
 }
 
 void Hud::OnEnable() {
@@ -62,89 +80,137 @@ void Hud::OnDestroy() {
     if (auto* root = GetScene().GetEntity(m_interface))
         root->Destroy();
 }
+
 void Hud::OnLateUpdate(float) {
+    m_state.statistics = m_status;
+    m_state.showStatistics = m_showStatistics;
+    const DayCycle* day = GetScene().FindComponent<DayCycle>();
+    const int minutes = day ? static_cast<int>(day->timeOfDay * 24.0f * 60.0f) % (24 * 60) : 0;
+    m_state.clock = std::format("{:02}:{:02}", minutes / 60, minutes % 60);
+    DescribeHand();
     auto* root = GetScene().GetEntity(m_interface);
     if (auto* ui = root ? root->GetComponent<RuntimeInterface>() : nullptr)
-        ui->SetHudText(m_status, DescribeHand());
+        ui->UpdateHud(m_state);
 }
 
 void Hud::UpdateStatus() {
-    const DayCycle* day = GetScene().FindComponent<DayCycle>();
-    const int minutes = day ? static_cast<int>(day->timeOfDay * 24.0f * 60.0f) : 0;
-    m_status =
-        std::format("{:02}:{:02} | {} FPS, {} bodies | update {:.2f} ms, render {:.2f} ms", minutes / 60, minutes % 60,
-                    static_cast<int>(std::lround(m_frameRate)), GetScene().GetPhysics().GetBodyCount(),
-                    GetAverageMilliseconds("Scene::Update"), GetAverageMilliseconds("Application::Render"));
+    m_status = std::format("{} FPS   {} bodies   update {:.2f} ms   render {:.2f} ms",
+                           static_cast<int>(std::lround(m_frameRate)), GetScene().GetPhysics().GetBodyCount(),
+                           GetAverageMilliseconds("Scene::Update"), GetAverageMilliseconds("Application::Render"));
 }
 
-std::string Hud::DescribeHand() const {
+void Hud::DescribeHand() {
+    HudState& state = m_state;
+    state.count.clear();
+    state.detail.clear();
+    state.hints.clear();
+    state.prompt.clear();
+    state.countIsWord = false;
+    state.lowAmmo = false;
+    state.reload = -1.0f;
+    state.crosshair = true;
+    state.hitMarker = 0.0f;
+    state.item.clear();
     const WeaponHolder* holder = GetScene().FindComponent<WeaponHolder>();
     if (!holder) {
-        return {};
+        state.slotsOpacity = 0.0f;
+        return;
     }
+    const Spot::Entity& player = holder->GetEntity();
+    const auto* controller = player.GetComponent<PlayerController>();
+    const auto* movement = player.GetComponent<PlayerMovement>();
+    const auto* body = player.GetComponent<Spot::CharacterController>();
+
+    // The slots, named as briefly as the bar has room for.
+    state.slots.clear();
+    state.slots.emplace_back("Physics Gun");
+    for (const Weapon* weapon : holder->GetWeapons()) {
+        state.slots.push_back(weapon->displayName);
+    }
+    state.slots.emplace_back("Tool Gun");
+    state.selectedSlot = holder->GetSelected();
+    if (state.selectedSlot != m_lastSlot) {
+        // Not when the game starts, only when the player switches.
+        m_slotsLeft = m_lastSlot < 0 ? 0.0f : slotsTime;
+        m_lastSlot = state.selectedSlot;
+    }
+    state.slotsOpacity = std::clamp(m_slotsLeft / 0.4f, 0.0f, 1.0f);
+
+    // The crosshair opens up while moving, in the air and as recoil kicks.
+    float spread = 0.0f;
+    if (body && movement) {
+        const Spot::Vector3 velocity = body->GetVelocity();
+        spread += std::min(Spot::Length(Spot::Vector3{velocity.x, 0.0f, velocity.z}) / movement->runSpeed, 1.0f) * 0.5f;
+        spread += body->IsGrounded() || movement->IsFlying() ? 0.0f : 0.35f;
+    }
+    if (controller) {
+        spread += controller->GetRecoil() * 8.0f;
+    }
+    state.spread += (std::min(spread, 1.0f) - state.spread) * 0.25f;
+    state.hitMarker = holder->GetHitMarker();
+
+    const auto* carrier = player.GetComponent<PropCarrier>();
+    const auto* gun = player.GetComponent<PhysicsGun>();
+    if (carrier && carrier->IsHolding()) {
+        state.prompt = "LMB  Throw      E  Drop      RMB  Rotate";
+    } else if (!(gun && gun->IsGrabbing()) && carrier && carrier->FindCarryable()) {
+        state.prompt = "E  Pick up";
+    }
+
     if (holder->IsToolGunSelected()) {
-        const auto* tool = holder->GetEntity().GetComponent<ToolGun>();
+        const auto* tool = player.GetComponent<ToolGun>();
+        state.item = "TOOL GUN";
+        state.countIsWord = true;
         if (!tool) {
-            return "Tool Gun";
+            return;
         }
-        constexpr const char* Modes[] = {"Weld", "Rope", "Remover", "Color", "Material", "Lamp"};
-        const char* mode = Modes[static_cast<int>(tool->mode)];
+        state.count = ToolModes[static_cast<int>(tool->mode)];
         if (tool->mode == ToolGun::Mode::Color) {
-            const auto& color = ToolGun::Palette[static_cast<std::size_t>(tool->color) % ToolGun::Palette.size()];
-            return std::format("Tool Gun: {} ({})", mode, color.name);
+            state.detail = ToolGun::Palette[static_cast<std::size_t>(tool->color) % ToolGun::Palette.size()].name;
+        } else if (tool->mode == ToolGun::Mode::Material && !tool->materials.empty()) {
+            state.detail = tool->materials[static_cast<std::size_t>(tool->material) % tool->materials.size()].name;
+        } else if (tool->mode == ToolGun::Mode::Lamp) {
+            state.detail = ToolGun::LampNames[static_cast<std::size_t>(tool->lamp)];
         }
-        if (tool->mode == ToolGun::Mode::Material && !tool->materials.empty()) {
-            const auto& material = tool->materials[static_cast<std::size_t>(tool->material) % tool->materials.size()];
-            return std::format("Tool Gun: {} ({})", mode, material.name);
-        }
-        if (tool->mode == ToolGun::Mode::Lamp) {
-            return std::format("Tool Gun: {} ({})", mode, ToolGun::LampNames[static_cast<std::size_t>(tool->lamp)]);
-        }
-        return std::format("Tool Gun: {}", mode);
+        const bool options = tool->mode == ToolGun::Mode::Color || tool->mode == ToolGun::Mode::Material ||
+                             tool->mode == ToolGun::Mode::Lamp;
+        state.hints = options ? "LMB  Use      RMB  Option      R  Mode" : "LMB  Use      R  Mode      Z  Undo";
+        return;
     }
     const Weapon* weapon = holder->GetWeapon();
     if (!weapon) {
-        return "Physics Gun";
+        state.item = "PHYSICS GUN";
+        state.countIsWord = true;
+        state.count = gun && gun->IsGrabbing() ? "Holding" : "Ready";
+        state.hints = gun && gun->IsGrabbing() ? "Wheel  Distance      E  Rotate      RMB  Freeze"
+                                               : "Hold LMB  Grab      U  Unfreeze all";
+        return;
     }
+    state.item = Upper(weapon->displayName);
+    state.count = std::to_string(weapon->GetAmmo());
+    state.detail = std::format("/ {}", weapon->GetReserve());
+    state.lowAmmo = weapon->magazineSize > 3 && weapon->GetAmmo() <= weapon->magazineSize / 4 && !weapon->IsReloading();
+    state.hints = "R  Reload      RMB  Aim";
     if (weapon->IsReloading()) {
-        return std::format("{}  reloading...", weapon->displayName);
+        state.reload = weapon->GetReloadProgress();
+        state.hints = "Reloading...";
+    } else if (weapon->GetAmmo() == 0 && weapon->GetReserve() == 0) {
+        state.hints = "Out of ammunition";
     }
-    return std::format("{}  {} / {}", weapon->displayName, weapon->GetAmmo(), weapon->GetReserve());
+    // Down the sights, the sights are the crosshair.
+    state.crosshair = !holder->IsAiming();
 }
 
 void Hud::OnDrawUi(Spot::Renderer2D& renderer, Spot::Vector2 viewSize) {
     if (GetScene().GetEntity(m_interface))
         return;
+    // Without the authored interface, a plain crosshair and what is in hand.
     const Spot::Vector2 center = viewSize * 0.5f;
     const Spot::Color crosshair{1.0f, 1.0f, 1.0f, 0.8f};
     renderer.DrawQuad(center, {14.0f, 2.0f}, crosshair);
     renderer.DrawQuad(center, {2.0f, 14.0f}, crosshair);
-    if (!font) {
-        return;
-    }
-
-    // Text goes down from the top-left corner.
-    const float top = viewSize.y;
-    const float line = font->GetLineHeight();
-    const Spot::Color help = Spot::Color::FromSrgb(0.8f, 0.8f, 0.8f);
-    renderer.DrawQuad({330.0f, top - 60.0f}, {660.0f, 120.0f}, Spot::Color{0.0f, 0.0f, 0.0f, 0.6f});
-    renderer.DrawString(*font, m_status, {12.0f, top - 10.0f}, Spot::Color::FromSrgb(0.7f, 0.9f, 0.7f));
-    renderer.DrawString(*font, "WASD: move | Shift: run | Space: jump | Ctrl: crouch | V: noclip | Backspace: restart",
-                        {12.0f, top - 10.0f - line}, help, 0.8f);
-    renderer.DrawString(
-        *font, "F: flashlight | G: shadows | B: physics shapes | T: speed up time | Esc: free the mouse, then quit",
-        {12.0f, top - 10.0f - 1.8f * line}, help, 0.8f);
-    renderer.DrawString(*font,
-                        "1: physics gun (hold click, wheel, E to turn, right click to freeze, U to unfreeze) | "
-                        "2-5: weapons, R to reload | 6: tool gun, R for weld, rope or remover | E: pick up",
-                        {12.0f, top - 10.0f - 2.6f * line}, help, 0.8f);
-    renderer.DrawString(*font,
-                        "F1-F8: spawn a crate, barrel, explosive barrel, ball, plank, beam, cone or wheel | "
-                        "Z: undo | X: clean up | F9: save world | F10: load world",
-                        {12.0f, top - 10.0f - 3.4f * line}, help, 0.8f);
-    // What is in hand, at the bottom right.
-    const std::string hand = DescribeHand();
-    if (!hand.empty()) {
+    if (font) {
+        const std::string hand = m_state.item + "  " + m_state.count + " " + m_state.detail;
         renderer.DrawString(*font, hand, {viewSize.x - 12.0f - 10.0f * static_cast<float>(hand.size()), 40.0f},
                             Spot::Color::FromSrgb(1.0f, 0.95f, 0.7f));
     }
@@ -152,4 +218,5 @@ void Hud::OnDrawUi(Spot::Renderer2D& renderer, Spot::Vector2 viewSize) {
 
 void Hud::Serialize(Spot::Archive& archive) {
     archive.Field("font", font);
+    archive.Field("slotsTime", slotsTime, {.min = 0, .max = 10, .speed = .05f});
 }

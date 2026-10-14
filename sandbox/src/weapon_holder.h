@@ -29,6 +29,8 @@ public:
     bool IsAiming() const { return m_aiming; }
     // How many times aiming magnifies the view now; 1 when not aiming.
     float GetAimZoom() const;
+    // From 1 as a shot hits something that reacts, a prop or a robot, fading to 0, for the HUD's hit marker.
+    float GetHitMarker() const { return m_hitMarker; }
 
 protected:
     void OnUpdate(float deltaTime) override;
@@ -44,6 +46,7 @@ private:
 
     int m_selected = 0;
     bool m_aiming = false;
+    float m_hitMarker = 0.0f;
     // Fixed, so a game's shots scatter the same way every time it runs.
     std::mt19937 m_random{1234};
 };

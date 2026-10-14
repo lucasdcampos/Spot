@@ -6,6 +6,16 @@
 
 SPOT_COMPONENT(PropCarrier);
 
+Spot::Entity* PropCarrier::FindCarryable() const {
+    const auto* player = GetEntity().GetComponent<PlayerController>();
+    const auto hit = player ? GetScene().GetPhysics().Raycast(player->GetEyePosition(), player->GetAimDirection(),
+                                                              reach, {.ignore = GetEntity().GetId()})
+                            : std::nullopt;
+    Spot::Entity* prop = hit ? GetScene().GetEntity(hit->entity) : nullptr;
+    const auto* body = prop ? prop->GetComponent<Spot::Rigidbody>() : nullptr;
+    return body && !body->IsKinematic() && body->GetMass() <= maxMass ? prop : nullptr;
+}
+
 void PropCarrier::PickUp(Spot::Entity& prop) {
     const auto* player = GetEntity().GetComponent<PlayerController>();
     m_held = prop.GetId();
@@ -41,13 +51,8 @@ void PropCarrier::OnUpdate(float /*deltaTime*/) {
     if (Input::IsActionPressed("Use")) {
         if (IsHolding()) {
             Drop();
-        } else if (const auto hit = GetScene().GetPhysics().Raycast(player->GetEyePosition(), player->GetAimDirection(),
-                                                                    reach, {.ignore = GetEntity().GetId()})) {
-            Spot::Entity* prop = GetScene().GetEntity(hit->entity);
-            const auto* body = prop ? prop->GetComponent<Spot::Rigidbody>() : nullptr;
-            if (body && !body->IsKinematic() && body->GetMass() <= maxMass) {
-                PickUp(*prop);
-            }
+        } else if (Spot::Entity* prop = FindCarryable()) {
+            PickUp(*prop);
         }
     }
     if (!IsHolding()) {

@@ -26,6 +26,12 @@ Spot::Image Concrete();
 Spot::Image Wheel();
 Spot::Image TargetDummy();
 
+// The interface's images, 64 pixels square, white with smooth edges in their alpha, for tinting: a rounded panel to
+// nine-slice with borders of 12 pixels, a dot, and the cross of a hit marker.
+Spot::Image UiPanel();
+Spot::Image UiDot();
+Spot::Image UiHitMarker();
+
 // The surfaces props, weapons and the level are made of, each a set of tiling PBR textures.
 enum class Surface { Wood, PaintedMetal, RustyMetal, Concrete, Rubber, Glass };
 

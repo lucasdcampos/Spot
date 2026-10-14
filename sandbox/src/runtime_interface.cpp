@@ -152,11 +152,75 @@ void RuntimeInterface::OnDestroy() {
         GetScene().RemoveRenderHook(m_thumbnailHook);
     m_connections.clear();
 }
-void RuntimeInterface::SetHudText(std::string_view status, std::string_view hand) {
-    if (auto* text = Get<Spot::UiText>(statusText); text && text->text != status)
-        text->text.assign(status);
-    if (auto* text = Get<Spot::UiText>(handText); text && text->text != hand)
-        text->text.assign(hand);
+void RuntimeInterface::UpdateHud(const HudState& state) {
+    const auto setText = [this](Spot::EntityId id, std::string_view value) {
+        if (auto* text = Get<Spot::UiText>(id); text && text->text != value)
+            text->text.assign(value);
+    };
+    const auto setActive = [this](Spot::EntityId id, bool active) {
+        if (auto* entity = GetScene().GetEntity(id); entity && entity->IsActiveSelf() != active)
+            entity->SetActive(active);
+    };
+    setText(statusText, state.statistics);
+    setActive(statsPanel, state.showStatistics);
+    setText(clockText, state.clock);
+    setText(handText, state.item);
+    setText(countText, state.count);
+    setText(detailText, state.detail);
+    setText(hintText, state.hints);
+    setText(promptText, state.prompt);
+    if (auto* count = Get<Spot::UiText>(countText)) {
+        count->fontSize = state.countIsWord ? 30.0f : 46.0f;
+        count->color = state.lowAmmo ? Spot::Color{1.0f, 0.36f, 0.24f, 1.0f} : Spot::Color{0.96f, 0.97f, 1.0f, 1.0f};
+    }
+    setActive(reloadTrack, state.reload >= 0.0f);
+    if (auto* fill = Get<Spot::UiRect>(reloadFill); fill && state.reload >= 0.0f)
+        fill->layout.sizeDelta.x = std::clamp(state.reload, 0.0f, 1.0f) * reloadWidth;
+    setActive(crosshair, state.crosshair);
+    if (auto* entity = GetScene().GetEntity(crosshair); entity && state.crosshair) {
+        // The lines move out as the aim gets less steady.
+        const float gap = 7.0f + std::clamp(state.spread, 0.0f, 1.0f) * 14.0f;
+        const std::pair<std::string_view, Spot::Vector2> lines[] = {
+            {"Top", {0, gap}}, {"Bottom", {0, -gap}}, {"Left", {-gap, 0}}, {"Right", {gap, 0}}};
+        for (const auto& [name, position] : lines) {
+            if (auto* line = entity->FindChild(name)) {
+                if (auto* rect = line->GetComponent<Spot::UiRect>())
+                    rect->layout.offset = position;
+            }
+        }
+    }
+    if (auto* marker = Get<Spot::UiImage>(hitMarker))
+        marker->tint.a = std::clamp(state.hitMarker, 0.0f, 1.0f);
+    // The slot bar shows what each number selects, and fades a moment after switching.
+    auto* bar = GetScene().GetEntity(slotBar);
+    setActive(slotBar, state.slotsOpacity > 0.01f);
+    if (!bar || state.slotsOpacity <= 0.01f)
+        return;
+    const float opacity = std::clamp(state.slotsOpacity, 0.0f, 1.0f);
+    constexpr Spot::Color Accent{1.0f, 0.68f, 0.22f, 1.0f};
+    int index = 0;
+    bar->ForEachChild([&](Spot::Entity& slot) {
+        const bool used = index < static_cast<int>(state.slots.size());
+        if (slot.IsActiveSelf() != used)
+            slot.SetActive(used);
+        const bool selected = index == state.selectedSlot;
+        if (auto* image = used ? slot.GetComponent<Spot::UiImage>() : nullptr)
+            image->tint = selected ? Spot::Color{Accent.r, Accent.g, Accent.b, 0.92f * opacity}
+                                   : Spot::Color{0.03f, 0.04f, 0.06f, 0.62f * opacity};
+        const Spot::Entity* name = used ? slot.FindChild("Name") : nullptr;
+        if (auto* text = name ? name->GetComponent<Spot::UiText>() : nullptr) {
+            const std::string& label = state.slots[static_cast<std::size_t>(index)];
+            if (text->text != label)
+                text->text = label;
+            text->color =
+                selected ? Spot::Color{0.06f, 0.05f, 0.03f, opacity} : Spot::Color{0.9f, 0.93f, 1.0f, 0.85f * opacity};
+        }
+        const Spot::Entity* number = used ? slot.FindChild("Number") : nullptr;
+        if (auto* text = number ? number->GetComponent<Spot::UiText>() : nullptr)
+            text->color = selected ? Spot::Color{0.06f, 0.05f, 0.03f, 0.75f * opacity}
+                                   : Spot::Color{Accent.r, Accent.g, Accent.b, 0.9f * opacity};
+        ++index;
+    });
 }
 void RuntimeInterface::Serialize(Spot::Archive& archive) {
     archive.Field("font", font);
@@ -187,4 +251,16 @@ void RuntimeInterface::Serialize(Spot::Archive& archive) {
     archive.Field("interfaceSlider", interfaceSlider);
     archive.Field("statusText", statusText);
     archive.Field("handText", handText);
+    archive.Field("statsPanel", statsPanel);
+    archive.Field("clockText", clockText);
+    archive.Field("countText", countText);
+    archive.Field("detailText", detailText);
+    archive.Field("hintText", hintText);
+    archive.Field("reloadTrack", reloadTrack);
+    archive.Field("reloadFill", reloadFill);
+    archive.Field("reloadWidth", reloadWidth, {.min = 0, .max = 2000, .tooltip = "The reload bar's full width"});
+    archive.Field("crosshair", crosshair);
+    archive.Field("hitMarker", hitMarker);
+    archive.Field("promptText", promptText);
+    archive.Field("slotBar", slotBar);
 }
