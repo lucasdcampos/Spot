@@ -4,6 +4,7 @@
 #include "sound_bank.h"
 
 #include <algorithm>
+#include <cmath>
 
 SPOT_COMPONENT(PlayerMovement);
 
@@ -43,31 +44,6 @@ void PlayerMovement::OnStart() {
     if (const Spot::Entity* head = player ? GetScene().GetEntity(player->head) : nullptr) {
         m_headHeight = head->GetTransform().GetPosition().y;
     }
-    StartCoroutine(BobCamera());
-}
-
-bool PlayerMovement::IsWalking() const {
-    const auto* controller = GetEntity().GetComponent<Spot::CharacterController>();
-    return !m_flying && !m_crouching && controller && controller->IsGrounded() && Spot::Input::IsCursorLocked() &&
-           Spot::LengthSquared(GetMove()) > 0.01f;
-}
-
-Spot::Task PlayerMovement::BobCamera() {
-    while (true) {
-        co_await Spot::WaitUntil{[this] { return IsWalking(); }};
-        auto& tweens = Spot::TweenSystem::Get(GetScene());
-        const float third = std::max(bobPeriod, 0.03f) / 3.0f;
-        const auto set = [this](float value) { m_bob = value; };
-        const auto id = tweens.Play(
-            *this, Spot::Tween::Sequence({Spot::Tween::Value(third, m_bob, bobHeight, set, Spot::Ease::SineInOut),
-                                          Spot::Tween::Value(third, bobHeight, -bobHeight, set, Spot::Ease::SineInOut),
-                                          Spot::Tween::Value(third, -bobHeight, 0.0f, set, Spot::Ease::SineInOut)}));
-        co_await Spot::WaitUntil{
-            [this, id] { return !IsWalking() || !Spot::TweenSystem::Get(GetScene()).IsPlaying(id); }};
-        tweens.Cancel(id);
-        tweens.Play(*this, Spot::Tween::Value(0.1f, m_bob, 0.0f, set, Spot::Ease::QuadOut));
-        co_await Spot::WaitForSeconds{0.1f};
-    }
 }
 
 void PlayerMovement::OnUpdate(float /*deltaTime*/) {
@@ -96,6 +72,7 @@ void PlayerMovement::OnFixedUpdate(float fixedDeltaTime) {
 }
 
 void PlayerMovement::OnLateUpdate(float deltaTime) {
+    Stride(deltaTime);
     const auto* player = GetEntity().GetComponent<PlayerController>();
     Spot::Entity* head = player ? GetScene().GetEntity(player->head) : nullptr;
     if (!head) {
@@ -103,8 +80,18 @@ void PlayerMovement::OnLateUpdate(float deltaTime) {
     }
     const float target = m_crouching ? m_standHeight - crouchHeight : 0.0f;
     m_headDrop += (target - m_headDrop) * std::min(deltaTime * 12.0f, 1.0f);
+    // Landing compresses the legs: the head dips and springs back, damped so it settles without bouncing.
+    constexpr float Stiffness = 120.0f;
+    const float damping = 2.0f * std::sqrt(Stiffness) * 0.85f;
+    for (float left = deltaTime; left > 0.0f; left -= 1.0f / 120.0f) {
+        const float step = std::min(left, 1.0f / 120.0f);
+        m_dipVelocity += (-Stiffness * m_dip - damping * m_dipVelocity) * step;
+        m_dip += m_dipVelocity * step;
+    }
+    // Lowest as each foot lands, highest between steps.
+    m_bob = -bobHeight * m_bobWeight * std::cos(2.0f * Spot::Pi * m_stepPhase);
     Spot::Vector3 position = head->GetTransform().GetPosition();
-    position.y = m_headHeight - m_headDrop + m_bob;
+    position.y = m_headHeight - m_headDrop + m_bob + m_dip;
     head->GetTransform().SetPosition(position);
 }
 
@@ -124,11 +111,12 @@ void PlayerMovement::Walk(Spot::CharacterController& controller, float deltaTime
     } else {
         m_verticalSpeed += GetScene().GetPhysics().GetGravity().y * deltaTime;
     }
+    const float falling = -m_verticalSpeed;
     controller.Move(direction * speed + Spot::Vector3{0.0f, m_verticalSpeed, 0.0f}, deltaTime);
-    if (controller.IsGrounded()) {
-        const Spot::Vector3 velocity = controller.GetVelocity();
-        Step(controller, Spot::Length(Spot::Vector3{velocity.x, 0.0f, velocity.z}) * deltaTime);
+    if (controller.IsGrounded() && !m_wasGrounded && falling > 3.0f) {
+        m_landingSpeed = falling;
     }
+    m_wasGrounded = controller.IsGrounded();
     // A ceiling stops a jump.
     m_verticalSpeed = std::min(m_verticalSpeed, controller.GetVelocity().y);
 }
@@ -161,14 +149,48 @@ bool PlayerMovement::HasRoomToStand(const Spot::CharacterController& controller)
     return !hit.has_value();
 }
 
-void PlayerMovement::Step(const Spot::CharacterController& controller, float distance) {
-    m_stride += distance;
-    if (m_stride < strideLength) {
+void PlayerMovement::Stride(float deltaTime) {
+    const auto* controller = GetEntity().GetComponent<Spot::CharacterController>();
+    const bool grounded = !m_flying && controller && controller->IsEnabled() && controller->IsGrounded();
+    float speed = 0.0f;
+    if (grounded) {
+        const Spot::Vector3 velocity = controller->GetVelocity();
+        speed = Spot::Length(Spot::Vector3{velocity.x, 0.0f, velocity.z});
+    }
+    if (m_landingSpeed > 0.0f) {
+        m_dipVelocity -= std::min(m_landingSpeed * 0.06f, 0.8f);
+        PlayFootstep(std::clamp(m_landingSpeed / 8.0f, 0.6f, 1.6f));
+        m_landingSpeed = 0.0f;
+    }
+    const float weight = speed > 0.3f ? std::min(speed / std::max(walkSpeed, 0.1f), 1.4f) : 0.0f;
+    m_bobWeight += (weight - m_bobWeight) * (1.0f - std::exp(-8.0f * deltaTime));
+    if (speed <= 0.3f) {
+        // Standing still, the next walk starts mid-stride, so its first step lands half a stride away.
+        if (m_bobWeight < 0.01f) {
+            m_stepPhase = std::floor(m_stepPhase) + 0.5f;
+        }
         return;
     }
-    m_stride = 0.0f;
-    const Spot::Vector3 feet = GetEntity().GetTransform().GetWorldPosition() + controller.GetCenter() -
-                               Spot::Vector3{0.0f, controller.GetHeight() * 0.5f, 0.0f};
+    const float stride = strideLength * std::sqrt(speed / std::max(walkSpeed, 0.1f));
+    const float before = m_stepPhase;
+    m_stepPhase += speed * deltaTime / std::max(stride, 0.1f);
+    // Kept small, so it stays precise however long the player walks.
+    if (m_stepPhase > 1024.0f) {
+        m_stepPhase -= 1024.0f;
+        return;
+    }
+    if (std::floor(m_stepPhase) > std::floor(before)) {
+        PlayFootstep(m_crouching ? 0.45f : speed > walkSpeed * 1.2f ? 1.4f : 1.0f);
+    }
+}
+
+void PlayerMovement::PlayFootstep(float loudness) {
+    const auto* controller = GetEntity().GetComponent<Spot::CharacterController>();
+    if (!controller) {
+        return;
+    }
+    const Spot::Vector3 feet = GetEntity().GetTransform().GetWorldPosition() + controller->GetCenter() -
+                               Spot::Vector3{0.0f, controller->GetHeight() * 0.5f, 0.0f};
     const auto ground = GetScene().GetPhysics().Raycast(feet + Spot::Vector3{0.0f, 0.2f, 0.0f}, {0.0f, -1.0f, 0.0f},
                                                         0.6f, {.ignore = GetEntity().GetId()});
     const SoundBank* bank = SoundBank::Find(GetScene());
@@ -177,10 +199,21 @@ void PlayerMovement::Step(const Spot::CharacterController& controller, float dis
     if (!sounds || sounds->footsteps.empty()) {
         return;
     }
-    const Spot::AssetRef<Spot::Sound>& sound = sounds->footsteps[m_footstep++ % sounds->footsteps.size()];
-    const float loudness = m_crouching ? 0.4f : Spot::Input::IsActionDown("Sprint") ? 1.2f : 1.0f;
+    // A different variant each time, never the same twice in a row, at a slightly different pitch and level.
+    const auto next = [this] {
+        m_random ^= m_random << 13;
+        m_random ^= m_random >> 17;
+        m_random ^= m_random << 5;
+        return static_cast<float>(m_random >> 8) / 16777216.0f;
+    };
+    const std::size_t count = sounds->footsteps.size();
+    if (count > 1) {
+        m_footstep += 1 + static_cast<std::size_t>(next() * static_cast<float>(count - 1));
+    }
+    const Spot::AssetRef<Spot::Sound>& sound = sounds->footsteps[m_footstep % count];
     GetScene().GetAudio().PlayOneShot(sound.GetShared(), feet,
-                                      {.volume = footstepVolume * loudness,
+                                      {.volume = footstepVolume * loudness * (0.85f + next() * 0.15f),
+                                       .pitch = 0.93f + next() * 0.14f,
                                        .bus = "Effects",
                                        .spatialSettings = {.minDistance = 2.0f, .maxDistance = 25.0f},
                                        .maxInstances = 3});
@@ -195,9 +228,9 @@ void PlayerMovement::Serialize(Spot::Archive& archive) {
     archive.Field("fastFlySpeed", fastFlySpeed, {.min = 0.0f, .max = 1000.0f, .speed = 0.1f});
     archive.Field("crouchHeight", crouchHeight,
                   {.min = 0.1f, .max = 10.0f, .speed = 0.01f, .tooltip = "The capsule's height while crouching"});
-    archive.Field("strideLength", strideLength, {.min = 0.1f, .max = 10.0f, .speed = 0.01f});
+    archive.Field("strideLength", strideLength,
+                  {.min = 0.1f, .max = 10.0f, .speed = 0.01f, .tooltip = "Meters between footsteps when walking"});
     archive.Field("footstepVolume", footstepVolume, {.min = 0.0f, .max = 4.0f, .speed = 0.01f});
     archive.Field("bobHeight", bobHeight, {.min = 0.0f, .max = 0.2f, .speed = 0.001f});
-    archive.Field("bobPeriod", bobPeriod, {.min = 0.03f, .max = 2.0f, .speed = 0.01f});
     archive.Field("fallHeight", fallHeight, {.tooltip = "Below this height, the player goes back to the start"});
 }

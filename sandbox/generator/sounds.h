@@ -25,7 +25,7 @@ Samples Reload();
 Samples ImpactConcrete();
 Samples ImpactWood();
 Samples ImpactMetal();
-// Two of each, told apart by the variant, so steps do not all sound the same.
+// Four of each, told apart by the variant, so steps do not all sound the same.
 Samples FootstepConcrete(int variant);
 Samples FootstepWood(int variant);
 Samples FootstepMetal(int variant);

@@ -55,13 +55,20 @@ ParticleEffects::ParticleEffects()
       fire(MakeEffect({8, 2, 0.2f, 1}, {0.15f, 0.6f}, {2, 6}, {0.2f, 0.8f}, 48, true)),
       smoke(MakeEffect({0.1f, 0.09f, 0.08f, 0.6f}, {1, 3}, {0.3f, 1.5f}, {0.4f, 1}, 32, false)),
       debris(MakeEffect({0.2f, 0.12f, 0.05f, 1}, {0.3f, 1.2f}, {3, 9}, {0.03f, 0.1f}, 24, false)),
-      beam(MakeEffect({1.2f, 2.8f, 4, 1}, {0.04f, 0.12f}, {0, 0}, {0.02f, 0.05f}, 1, true)) {
+      beam(MakeEffect({1.2f, 2.8f, 4, 1}, {0.04f, 0.12f}, {0, 0}, {0.02f, 0.05f}, 1, true)),
+      tracer(MakeEffect({7, 4.5f, 2, 1}, {0.05f, 0.05f}, {320, 320}, {0.012f, 0.012f}, 1, true)) {
     for (auto* effect : {&muzzle, &concreteDust, &woodDust, &fire, &smoke, &beam})
         effect->settings.gravity = {};
     sparks.settings.facing = Spot::ParticleFacing::Stretched;
     fire.settings.shape = debris.settings.shape = Spot::ParticleShape::Sphere;
     smoke.settings.gravity = {0, 0.5f, 0};
     beam.settings.shape = Spot::ParticleShape::Point;
+    tracer.settings.shape = Spot::ParticleShape::Point;
+    tracer.settings.gravity = {};
+    tracer.settings.facing = Spot::ParticleFacing::Stretched;
+    tracer.settings.velocityStretch = 0.006f;
+    tracer.settings.sizeOverLifetime = Spot::Curve(1);
+    tracer.settings.colorOverLifetime = Spot::Gradient({{0, Spot::Color::White}, {1, Spot::Color::White}});
 }
 void ParticleEffect::Serialize(Spot::Archive& archive) {
     archive.Field("settings", settings);
@@ -79,6 +86,7 @@ void ParticleEffects::Serialize(Spot::Archive& archive) {
     archive.Field("smoke", smoke);
     archive.Field("debris", debris);
     archive.Field("beam", beam);
+    archive.Field("tracer", tracer);
     archive.Field("beamEmissionRate", beamEmissionRate, {.min = 0, .max = 2000});
 }
 ParticleEffects* ParticleEffects::Find(Spot::Scene& scene) {
@@ -92,6 +100,21 @@ ParticleEffects* ParticleEffects::Find(Spot::Scene& scene) {
 void ParticleEffects::Muzzle(Spot::Scene& scene, Spot::Vector3 position, Spot::Vector3 direction) {
     if (auto* bank = Find(scene))
         Pool(scene).Spawn(bank->muzzle, position, direction);
+}
+void ParticleEffects::Tracer(Spot::Scene& scene, Spot::Vector3 from, Spot::Vector3 to) {
+    auto* bank = Find(scene);
+    const float distance = Spot::Distance(from, to);
+    const float speed = bank ? std::max(bank->tracer.settings.speed.max, 1.0f) : 1.0f;
+    // Too close to see it fly.
+    if (!bank || distance < 1.5f) {
+        return;
+    }
+    ParticleEffect effect = bank->tracer;
+    // It travels from where it starts until it reaches the far end, less its streak, which would show past it.
+    const float travel = std::max(distance - speed * effect.settings.velocityStretch * 0.5f, 0.0f);
+    effect.settings.lifetime = {travel / speed, travel / speed};
+    effect.settings.coneAngle = 0.0f;
+    Pool(scene).Spawn(effect, from, to - from);
 }
 void ParticleEffects::Impact(Spot::Scene& scene, Spot::Vector3 position, Spot::Vector3 normal, SurfaceKind surface) {
     if (auto* bank = Find(scene)) {

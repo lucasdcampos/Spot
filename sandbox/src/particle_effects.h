@@ -14,10 +14,12 @@ struct ParticleEffect {
 class ParticleEffects final : public Spot::Component {
 public:
     ParticleEffects();
-    ParticleEffect muzzle, sparks, concreteDust, woodDust, fire, smoke, debris, beam;
+    ParticleEffect muzzle, sparks, concreteDust, woodDust, fire, smoke, debris, beam, tracer;
     float beamEmissionRate = 240;
     static ParticleEffects* Find(Spot::Scene& scene);
     static void Muzzle(Spot::Scene& scene, Spot::Vector3 position, Spot::Vector3 direction);
+    // A streak of light flying from the muzzle to where a shot went, gone as it gets there.
+    static void Tracer(Spot::Scene& scene, Spot::Vector3 from, Spot::Vector3 to);
     static void Impact(Spot::Scene& scene, Spot::Vector3 position, Spot::Vector3 normal, SurfaceKind surface);
     static void Explosion(Spot::Scene& scene, Spot::Vector3 position, float radius);
     static void Beam(Spot::Scene& scene, Spot::Vector3 from, Spot::Vector3 to, float deltaTime,

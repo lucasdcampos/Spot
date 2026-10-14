@@ -89,17 +89,45 @@ Transient projectiles, flashes and held view models are excluded. Missing or mal
 current world intact. Checkpoints expand prefab instances so later prefab edits do not rewrite a saved world.
 
 Weapon intervals, reloads, explosive fuses, projectile lifetimes and impact quiet periods use component-owned
-timers. Flash fades, aiming and recoil use owner-bound tweens; walking camera bob sequences tweens from a
-coroutine. All advance with scaled simulation time and pause at zero time scale. The HUD samples unscaled time.
-Destroying an owner cancels its work. Continuous movement, day-cycle phase and distance-based footsteps retain
-their normal simulation integration.
+timers. Flash fades, aiming, switching and recoil use owner-bound tweens. All advance with scaled simulation time and
+pause at zero time scale. The HUD samples unscaled time. Destroying an owner cancels its work.
 
 Each Weapon prefab exposes `cameraRecoil` (radians), `viewRecoil` (meters) and `recoilRecovery`
 (seconds). The rifle recovers quickly; the shotgun and launcher kick harder. Aiming reduces recoil
-and spread. Camera recoil returns to the player's underlying look without undoing mouse movement.
-ViewModel exposes sway amount/limit, bob amount and response; motion is smoothed by elapsed time,
-follows actual grounded velocity and reduces while aiming. It freezes during pause and settles at
-rest. Physics-gun and carrier damping use the same response time at different fixed physics rates.
+and spread, and is not possible while reloading. Camera recoil returns to the player's underlying look without
+undoing mouse movement.
+
+### Held items
+
+`ViewModel` draws only the item in hand and moves it procedurally; there is no arm rig. Everything is computed from
+state each frame, so it pauses, saves and reloads with the game: the item lags behind turning (`swayAmount`,
+`maxSway`), breathes, bobs along a figure of eight with the walk cycle (`bobAmount`), kicks back and up on each shot
+and recovers, jolts on landing, comes up from below when switched to (`switchTime`), rolls aside while reloading
+(following `Weapon::GetReloadProgress()`) and turns down and aside when a wall in front would swallow it. Aiming
+moves it so its sights line up with the eye and steadies all of that motion.
+
+Models describe how they are held with mesh-less nodes, which the generator writes as markers: `Muzzle`, where shots
+and the physics gun's beam leave; `Eye`, the point aiming puts at the eye, in line with the sights; and optionally
+`Hip`, the point held at `offset` from the eyes (the grip, the model's origin, when absent). Parts move on their own
+by name: a `Slide` cycles as it fires and locks back when empty, a `Pump` is worked after each shot, a `Magazine`
+drops out and is seated again, a `Rocket` disappears when fired and is loaded from the front, and `Prongs` spin,
+faster while the physics gun holds something. Any model following these names gets the same behavior.
+
+Shots aim from the eyes, where the crosshair is, so aiming is exact. Hitscan pellets draw a tracer, a stretched
+particle flying from the muzzle to the impact; rockets leave the muzzle toward the crosshair's target unless a wall
+is closer than the muzzle.
+
+### Footsteps and head bob
+
+`PlayerMovement` keeps a walk cycle (`GetStepPhase()`), advanced by the distance walked on the ground. A footstep
+lands at each whole step: `strideLength` (meters at walking speed) lengthens with the square root of the speed, so
+walking takes a little over two steps a second, running about three and crouching fewer. Steps pick a different
+variant each time, never the same twice in a row, with small random changes of pitch and level; landing from a fall
+plays a louder one and dips the head on a damped spring. The head dips `bobHeight` as each foot lands, scaled by
+`GetBobWeight()`, which eases in and out with speed. The held item bobs from the same cycle, so steps, head and
+hands stay in time. The generator synthesizes four variants per surface: a soft heel thud, the scuff of the sole and
+the toe a few hundredths of a second later, with grit on concrete, hollow boards on wood and a ring on metal.
+
 The authored crosshair has a dark outline for bright surfaces. Fresh users start with music at 30%,
 ambience at 50% and master at 90%; saved personal volumes remain authoritative.
 
@@ -168,7 +196,7 @@ instructions, the automated smoke test and the per-platform results are in [Sand
 
 Watch the robots patrol, shoot one and trigger an explosion nearby; check that the
 animated pose becomes a physical ragdoll. Fire, reload, aim and switch each weapon;
-check that the arms move and that the held model follows the right hand.
+check that tracers leave the muzzle, that the sights line up with the crosshair and that moving parts cycle.
 
 ## Particle effects
 
@@ -213,10 +241,9 @@ weapon, pause freezes the world, cursor ownership returns and every thumbnail sh
 
 ## Animated assets
 
-The generator writes `generated/models/robot.gltf` and `arms.gltf` with skin streams,
-inverse bind matrices, clip channels and events. The robot has Idle/Walk/Run; the arms
-have idle plus fire/reload/switch clips for each held item. These are ordinary imported
-source assets. Run `sandbox_generator` to reproduce them; unchanged bytes are not rewritten.
+The generator writes `generated/models/robot.gltf` with skin streams, inverse bind matrices, clip channels and
+events: Idle, Walk and Run. It is an ordinary imported source asset. Run `sandbox_generator` to reproduce it;
+unchanged bytes are not rewritten.
 
 `animation/robot.controller` blends Idle/Walk/Run through its float `speed` parameter.
 The `Robot` component chooses a patrol direction and turns the actor; the Animator
@@ -230,13 +257,8 @@ loads this population when the scene has none, so existing playground scenes wor
 without rewriting their authored entities. The spawner preserves instance ids in
 checkpoints. Set GameControls' `robots` reference to use a different population.
 
-ViewModel loads the arms rig and attaches each weapon part to `RightHand` using
-BoneAttachment. Switching, firing and reloading select the held weapon's clip;
-reload playback matches the weapon's reload duration. Completed actions return
-to idle. Aim and recoil position the rig relative to the player's eyes. Model and
-animation references are normal assets and the inspector exposes the arms reference.
-`gripOffset` places the weapon origin above the glove so the hand holds its grip.
-
 The sandbox animation tests run the real controller, shots, explosion and weapon
-input headlessly. The offscreen GPU test renders robot idle/run/ragdoll and arms
-idle/fire/reload poses; set `SPOT_ANIMATION_CAPTURE_DIR` to save its PNG captures.
+input headlessly. The offscreen GPU test renders robot idle/run/ragdoll poses with a pistol
+attached to its right hand; set `SPOT_ANIMATION_CAPTURE_DIR` to save its PNG captures. The
+sandbox's GPU acceptance test also captures every held item at the hip and down its sights,
+and a reload, into `tests/sandbox_captures/`.

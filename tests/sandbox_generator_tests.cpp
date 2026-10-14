@@ -78,6 +78,24 @@ TEST_CASE("The sandbox's generated props load back, wound outward and centered",
             for (const Spot::MeshVertex& vertex : part.mesh.vertices) {
                 CHECK(Spot::Length(vertex.position) < 1.0f);
             }
+            int inward = 0;
+            for (std::size_t i = 0; i + 2 < part.mesh.indices.size(); i += 3) {
+                const Spot::MeshVertex& a = part.mesh.vertices[part.mesh.indices[i]];
+                const Spot::MeshVertex& b = part.mesh.vertices[part.mesh.indices[i + 1]];
+                const Spot::MeshVertex& c = part.mesh.vertices[part.mesh.indices[i + 2]];
+                const Spot::Vector3 face = Spot::Cross(b.position - a.position, c.position - a.position);
+                if (Spot::Length(face) > 1e-9f) {
+                    inward += Spot::Dot(face, a.normal + b.normal + c.normal) <= 0.0f ? 1 : 0;
+                }
+            }
+            CHECK(inward == 0);
+        }
+        // The view model fires from the muzzle and aims with the eye where the model says.
+        for (const std::string_view marker : {"Muzzle", "Eye"}) {
+            CAPTURE(marker);
+            const auto node = std::ranges::find(model->nodes, marker, &Spot::ModelNodeData::name);
+            REQUIRE(node != model->nodes.end());
+            CHECK_FALSE(node->mesh.has_value());
         }
     }
     // Each surface's textures tile, the same size as the props'.

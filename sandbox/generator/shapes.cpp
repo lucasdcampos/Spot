@@ -1,5 +1,6 @@
 #include "shapes.h"
 
+#include <algorithm>
 #include <cmath>
 #include <utility>
 
@@ -76,6 +77,61 @@ MeshData Box(Vector3 size, float uvRepeat) {
                 return MeshVertex{position, normal, uv};
             };
             AddQuad(mesh, corner(-1.0f, -1.0f), corner(1.0f, -1.0f), corner(1.0f, 1.0f), corner(-1.0f, 1.0f), normal);
+        }
+    }
+    return mesh;
+}
+
+MeshData BeveledBox(Vector3 size, float bevel, float uvRepeat) {
+    MeshData mesh;
+    const Vector3 outer = size * 0.5f;
+    bevel = std::min({bevel, outer.x * 0.99f, outer.y * 0.99f, outer.z * 0.99f});
+    const Vector3 inner = outer - Vector3{bevel, bevel, bevel};
+    // Projected along the normal's main axis, as a box's faces are.
+    const auto vertex = [&](Vector3 position, Vector3 normal) {
+        const Vector3 a{std::abs(normal.x), std::abs(normal.y), std::abs(normal.z)};
+        Vector2 uv = a.x >= a.y && a.x >= a.z ? Vector2{position.z, -position.y}
+                     : a.y >= a.z             ? Vector2{position.x, position.z}
+                                              : Vector2{position.x, -position.y};
+        return MeshVertex{position, normal, uv / uvRepeat};
+    };
+    const auto point = [](Vector3 extent, Vector3 sign) {
+        return Vector3{extent.x * sign.x, extent.y * sign.y, extent.z * sign.z};
+    };
+    // Every corner of the inner box spreads to three faces, three edges and a corner triangle.
+    for (const float x : {-1.0f, 1.0f}) {
+        for (const float y : {-1.0f, 1.0f}) {
+            for (const float z : {-1.0f, 1.0f}) {
+                const Vector3 sign{x, y, z};
+                const Vector3 onX{outer.x * x, inner.y * y, inner.z * z};
+                const Vector3 onY{inner.x * x, outer.y * y, inner.z * z};
+                const Vector3 onZ{inner.x * x, inner.y * y, outer.z * z};
+                const Vector3 normal = Spot::Normalize(sign);
+                AddTriangle(mesh, vertex(onX, normal), vertex(onY, normal), vertex(onZ, normal), normal);
+            }
+        }
+    }
+    const Vector3 axes[3] = {{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}};
+    for (int axis = 0; axis < 3; ++axis) {
+        const Vector3 u = axes[(axis + 1) % 3];
+        const Vector3 v = axes[(axis + 2) % 3];
+        for (const float side : {-1.0f, 1.0f}) {
+            // The face, inset by the bevel on every side.
+            const Vector3 normal = axes[axis] * side;
+            const auto corner = [&](float du, float dv) {
+                return vertex(point(inner, u * du + v * dv) + point(outer, normal), normal);
+            };
+            AddQuad(mesh, corner(-1, -1), corner(1, -1), corner(1, 1), corner(-1, 1), normal);
+            // The edges between this face and the next axis' faces, once each.
+            for (const float other : {-1.0f, 1.0f}) {
+                const Vector3 edgeNormal = Spot::Normalize(normal + u * other);
+                const auto edge = [&](float dv, bool onFace) {
+                    const Vector3 position = onFace ? point(outer, normal) + point(inner, u * other + v * dv)
+                                                    : point(inner, normal + v * dv) + point(outer, u * other);
+                    return vertex(position, edgeNormal);
+                };
+                AddQuad(mesh, edge(-1, true), edge(1, true), edge(1, false), edge(-1, false), edgeNormal);
+            }
         }
     }
     return mesh;

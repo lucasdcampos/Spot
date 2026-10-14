@@ -1,6 +1,7 @@
 {
   "id": "f27b3975595947e82baeaa312a999887",
   "settings": {
+    "animations": [],
     "materials": [],
     "scale": 1.0
   },
@@ -52,6 +53,30 @@
     {
       "id": "8d0fe4265fc0584f32ee7fb085411c1a",
       "key": "mesh:2"
+    },
+    {
+      "id": "bd71021ad61d6473d53582293e72d702",
+      "key": "material:3"
+    },
+    {
+      "id": "085a68c3d85d94d9891ec30b382d11b9",
+      "key": "material:4"
+    },
+    {
+      "id": "0076f99b56951ff887fb44fea0963c09",
+      "key": "material:5"
+    },
+    {
+      "id": "e3e048e8cdb256ded59e76c3e4f6315e",
+      "key": "mesh:3"
+    },
+    {
+      "id": "d4ce897d50c7f603c85b475563a0c41e",
+      "key": "mesh:4"
+    },
+    {
+      "id": "4e37577f6deadd8d5f8f0c30a98bece0",
+      "key": "mesh:5"
     }
   ],
   "type": "Model"

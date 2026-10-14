@@ -53,7 +53,7 @@ GltfFiles EncodeGltf(const GltfModel& model, std::string_view binName) {
     std::vector<cgltf_attribute> attributes(partCount * attributeCount);
     std::vector<cgltf_primitive> primitives(partCount);
     std::vector<cgltf_mesh> meshes(partCount);
-    std::vector<cgltf_node> nodes(partCount + model.skeleton.bones.size());
+    std::vector<cgltf_node> nodes(partCount + model.skeleton.bones.size() + model.markers.size());
     std::vector<cgltf_node*> sceneNodes(partCount);
     std::vector<cgltf_material> materials(model.materials.size());
     // Each material has up to three images, which materials share by URI.
@@ -90,6 +90,7 @@ GltfFiles EncodeGltf(const GltfModel& model, std::string_view binName) {
             material.emissive_strength.emissive_strength = strength;
         }
         material.double_sided = source.doubleSided;
+        material.alpha_mode = source.transparent ? cgltf_alpha_mode_blend : cgltf_alpha_mode_opaque;
         const auto texture = [&](const std::string& uri) -> cgltf_texture* {
             if (uri.empty()) {
                 return nullptr;
@@ -281,6 +282,15 @@ GltfFiles EncodeGltf(const GltfModel& model, std::string_view binName) {
         for (std::size_t i = 0; i < partCount; ++i) {
             nodes[i].skin = &skin;
         }
+    }
+    for (std::size_t i = 0; i < model.markers.size(); ++i) {
+        auto& node = nodes[partCount + model.skeleton.bones.size() + i];
+        node.name = keep(model.markers[i].name);
+        node.has_translation = true;
+        node.translation[0] = model.markers[i].position.x;
+        node.translation[1] = model.markers[i].position.y;
+        node.translation[2] = model.markers[i].position.z;
+        sceneNodes.push_back(&node);
     }
     std::vector<cgltf_animation> animations(model.animations.size());
     std::vector<cgltf_animation_sampler> samplers(channelCount);

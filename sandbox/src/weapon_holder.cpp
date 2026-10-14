@@ -45,9 +45,6 @@ void WeaponHolder::PlayWeaponSound(const Spot::AssetRef<Spot::Sound>& sound, flo
 void WeaponHolder::StartReload(Weapon& weapon) {
     if (weapon.StartReload()) {
         PlayWeaponSound(weapon.reloadSound, 0.8f);
-        if (auto* view = GetEntity().GetComponent<ViewModel>()) {
-            view->Animate("reload", weapon.reloadTime);
-        }
     }
 }
 
@@ -89,40 +86,51 @@ void WeaponHolder::Fire() {
     if (!weapon || !player || !weapon->TakeShot()) {
         return;
     }
-    if (auto* view = GetEntity().GetComponent<ViewModel>()) {
+    auto* view = GetEntity().GetComponent<ViewModel>();
+    // Shots aim from the eyes, where the crosshair is, and are seen leaving the muzzle as it is drawn.
+    const Spot::Vector3 eye = player->GetEyePosition();
+    const Spot::Vector3 aim = player->GetAimDirection();
+    const Spot::Vector3 muzzle = view ? view->GetMuzzlePosition() : eye;
+    if (view) {
         view->Kick(weapon->viewRecoil);
     }
     Spot::Input::RumbleGamepad(0.2f, weapon->kind == Weapon::Kind::Projectile ? 0.8f : 0.5f, 0.08f);
     PlayWeaponSound(weapon->fireSound, 1.0f);
-    Flash::Spawn(GetScene(), player->GetEyePosition() + player->GetViewRotation() * Spot::Vector3{0.2f, -0.15f, -0.45f},
-                 {1.0f, 0.75f, 0.4f, 1.0f}, 0.12f, 5.0f, 12.0f, 0.05f);
-    ParticleEffects::Muzzle(GetScene(),
-                            player->GetEyePosition() + player->GetViewRotation() * Spot::Vector3{0.2f, -0.15f, -0.45f},
-                            player->GetAimDirection());
-    const Spot::Vector3 eye = player->GetEyePosition();
-    const Spot::Vector3 aim = player->GetAimDirection();
+    Flash::Spawn(GetScene(), muzzle + aim * 0.05f, {1.0f, 0.75f, 0.4f, 1.0f}, 0.12f, 5.0f, 12.0f, 0.05f);
+    ParticleEffects::Muzzle(GetScene(), muzzle, aim);
     if (weapon->kind == Weapon::Kind::Projectile) {
+        // From the muzzle toward what the crosshair is on, unless a wall is closer than the muzzle.
+        const float reach = 200.0f;
+        const auto target = GetScene().GetPhysics().Raycast(eye, aim, reach, {.ignore = GetEntity().GetId()});
+        const Spot::Vector3 point = target ? target->point : eye + aim * reach;
+        const float toMuzzle = Spot::Distance(muzzle, eye);
+        const auto blocked = toMuzzle > 0.01f
+                                 ? GetScene().GetPhysics().Raycast(eye, (muzzle - eye) / toMuzzle, toMuzzle,
+                                                                   {.ignore = GetEntity().GetId()})
+                                 : std::nullopt;
+        const bool clear = toMuzzle > 0.01f && !blocked && (!target || target->distance > 1.5f);
+        const Spot::Vector3 start = clear ? muzzle : eye + aim * 0.5f;
+        const Spot::Vector3 direction = clear ? Spot::Normalize(point - start) : aim;
         Spot::Entity& rocket =
-            Projectile::Launch(GetScene(), eye + aim * 1.0f, aim, weapon->projectileSpeed, GetEntity().GetId());
+            Projectile::Launch(GetScene(), start, direction, weapon->projectileSpeed, GetEntity().GetId());
         auto& projectile = *rocket.GetComponent<Projectile>();
         projectile.explosionRadius = weapon->explosionRadius;
         projectile.explosionImpulse = weapon->explosionImpulse;
     } else {
-        FireHitscan(*weapon, eye, aim);
+        FireHitscan(*weapon, eye, aim, muzzle);
     }
     player->Kick(weapon->cameraRecoil * (m_aiming ? 0.65f : 1.0f), weapon->recoilRecovery);
 }
 
-void WeaponHolder::FireHitscan(const Weapon& weapon, Spot::Vector3 eye, Spot::Vector3 aim) {
-    const auto* player = GetEntity().GetComponent<PlayerController>();
-    const Spot::Vector3 muzzle = eye + player->GetViewRotation() * Spot::Vector3{0.2f, -0.15f, -0.3f};
+void WeaponHolder::FireHitscan(const Weapon& weapon, Spot::Vector3 eye, Spot::Vector3 aim, Spot::Vector3 muzzle) {
     const float spread = m_aiming ? weapon.spread * weapon.aimSpread : weapon.spread;
     for (int pellet = 0; pellet < weapon.pellets; ++pellet) {
         const Spot::Vector3 direction = Scatter(aim, spread);
         const auto hit = GetScene().GetPhysics().Raycast(eye, direction, weapon.range, {.ignore = GetEntity().GetId()});
-        // A brief tracer links the muzzle to the impact.
-        Spot::DebugDraw::Line(muzzle, hit ? hit->point : eye + direction * weapon.range,
-                              {.color = {3.0f, 2.4f, 1.2f, 1.0f}, .duration = 0.05f});
+        // A streak of light from the muzzle to where the pellet went; every other one of a spread is enough.
+        if (pellet % 2 == 0) {
+            ParticleEffects::Tracer(GetScene(), muzzle, hit ? hit->point : eye + direction * weapon.range);
+        }
         if (!hit) {
             continue;
         }
@@ -177,7 +185,8 @@ void WeaponHolder::OnUpdate(float /*deltaTime*/) {
     Weapon* weapon = GetWeapon();
     // A carried prop takes the buttons, to be turned and thrown.
     const auto* carrier = GetEntity().GetComponent<PropCarrier>();
-    m_aiming = weapon && Input::IsActionDown("Aim") && !(carrier && carrier->IsHolding());
+    // Both hands are busy reloading.
+    m_aiming = weapon && Input::IsActionDown("Aim") && !(carrier && carrier->IsHolding()) && !weapon->IsReloading();
     if (!weapon) {
         return;
     }

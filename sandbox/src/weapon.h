@@ -45,6 +45,8 @@ public:
     int GetAmmo() const { return m_ammo; }
     int GetReserve() const { return m_reserve; }
     bool IsReloading() const { return IsInvokePending(m_reload); }
+    // How far the reload has gone, from 0 as it starts to 1 as the rounds go in; 0 when not reloading.
+    float GetReloadProgress() const;
     // Whether it can fire now: loaded, not reloading and past its interval.
     bool IsReady() const;
     // Takes a round, starting the interval; false when it is not ready.

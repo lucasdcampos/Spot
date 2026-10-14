@@ -10,6 +10,13 @@ bool Weapon::IsReady() const {
     return m_ammo > 0 && !IsReloading() && !IsInvokePending(m_cooldown);
 }
 
+float Weapon::GetReloadProgress() const {
+    if (!IsReloading() || reloadTime <= 0.0f) {
+        return 0.0f;
+    }
+    return std::clamp(1.0f - GetInvokeTimeLeft(m_reload) / reloadTime, 0.0f, 1.0f);
+}
+
 bool Weapon::TakeShot() {
     if (!IsReady()) {
         return false;

@@ -35,7 +35,7 @@ protected:
     void Serialize(Spot::Archive& archive) override;
 
 private:
-    void FireHitscan(const Weapon& weapon, Spot::Vector3 eye, Spot::Vector3 aim);
+    void FireHitscan(const Weapon& weapon, Spot::Vector3 eye, Spot::Vector3 aim, Spot::Vector3 muzzle);
     // Plays a sound of the weapon from the player's hands.
     void PlayWeaponSound(const Spot::AssetRef<Spot::Sound>& sound, float volume);
     void StartReload(Weapon& weapon);

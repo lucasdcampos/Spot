@@ -4,5 +4,4 @@
 
 namespace Generator::Rigs {
 GltfModel Robot();
-GltfModel Arms();
 } // namespace Generator::Rigs

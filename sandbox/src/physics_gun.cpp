@@ -4,6 +4,7 @@
 #include "player_controller.h"
 #include "prop_carrier.h"
 #include "prop_drive.h"
+#include "view_model.h"
 #include "weapon_holder.h"
 
 #include <algorithm>
@@ -157,8 +158,10 @@ void PhysicsGun::OnLateUpdate(float deltaTime) {
         source->pitch = 1.0f + std::min(Spot::Length(body->GetLinearVelocity()) / 20.0f, 1.0f);
     }
     // Brighter than white, so it glows through bloom.
+    const auto* view = GetEntity().GetComponent<ViewModel>();
     const Spot::Vector3 muzzle =
-        player->GetEyePosition() + player->GetViewRotation() * Spot::Vector3{0.25f, -0.2f, -0.4f};
+        view ? view->GetMuzzlePosition()
+             : player->GetEyePosition() + player->GetViewRotation() * Spot::Vector3{0.25f, -0.2f, -0.4f};
     ParticleEffects::Beam(GetScene(), muzzle, ToWorld(body->GetEntity().GetTransform(), m_grabPoint), deltaTime,
                           m_particleEmission);
     m_beam.push_back({.from = muzzle,

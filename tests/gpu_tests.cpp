@@ -3782,7 +3782,7 @@ TEST_CASE("Authored UI previews and scroll clipping render offscreen", "[gpu][ui
 }
 
 #ifdef SPOT_SANDBOX_IMPORTED_DIR
-TEST_CASE("Generated robot and first-person arms render animated poses and ragdolls",
+TEST_CASE("The generated robot renders animated poses, a held pistol and ragdolls",
           "[gpu][animation][sandbox][offscreen]") {
     RequireGpu();
     auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
@@ -3794,10 +3794,8 @@ TEST_CASE("Generated robot and first-person arms render animated poses and ragdo
     } scope;
     Spot::Detail::SetAssetManager(&assets);
     const auto prefab = assets.Load<Spot::Prefab>("prefabs/actors/robot.prefab");
-    const auto armsModel = assets.Load<Spot::Model>("generated/models/arms.gltf");
     const auto weapon = assets.Load<Spot::Model>("generated/models/pistol.gltf");
     REQUIRE(prefab);
-    REQUIRE(armsModel);
     REQUIRE(weapon);
     Spot::Scene scene;
     auto* robot = scene.Instantiate(prefab);
@@ -3846,16 +3844,25 @@ TEST_CASE("Generated robot and first-person arms render animated poses and ragdo
         }
         return count;
     };
+    // The pistol in the robot's right hand follows the animated bone.
+    auto& pistol = scene.Instantiate(*weapon, "Pistol");
+    auto& attachment = pistol.AddComponent<Spot::BoneAttachment>();
+    attachment.SetAnimator(robot->GetId());
+    attachment.SetBone("RightHand");
     scene.Update(0);
     auto* animator = robot->GetComponent<Spot::Animator>();
     REQUIRE(animator);
     REQUIRE(animator->SetFloat("speed", 0));
     animator->Seek(0);
     animator->RefreshRenderers();
+    attachment.Synchronize();
+    const auto held = pistol.GetTransform().GetWorldPosition();
     const auto idle = render("robot_idle");
     REQUIRE(animator->SetFloat("speed", 2));
     animator->Seek(0.15f);
     animator->RefreshRenderers();
+    attachment.Synchronize();
+    CHECK(Spot::Distance(pistol.GetTransform().GetWorldPosition(), held) > 0.01f);
     const auto run = render("robot_run");
     CHECK(changed(idle, run) > 500);
     auto* ragdoll = robot->GetComponent<Spot::Ragdoll>();
@@ -3867,38 +3874,6 @@ TEST_CASE("Generated robot and first-person arms render animated poses and ragdo
     }
     const auto fallen = render("robot_ragdoll");
     CHECK(changed(run, fallen) > 500);
-    robot->SetActive(false);
-    floor.SetActive(false);
-    cameraEntity.GetTransform().SetPosition({});
-    cameraEntity.GetTransform().SetRotation({});
-    cameraEntity.GetComponent<Spot::Camera>()->SetNearPlane(0.01f);
-    auto& arms = scene.Instantiate(*armsModel, "Arms");
-    auto& pistol = scene.Instantiate(*weapon, "Pistol");
-    auto& attachment = pistol.AddComponent<Spot::BoneAttachment>();
-    attachment.SetAnimator(arms.GetId());
-    attachment.SetBone("RightHand");
-    attachment.SetOffset({{0, 0.08f, -0.02f}});
-    auto* armAnimator = arms.GetComponent<Spot::Animator>();
-    REQUIRE(armAnimator);
-    const auto pose = [&](std::string_view name, float time) {
-        Spot::AssetRef<Spot::AnimationClip> clip;
-        for (const auto& node : armsModel->GetNodes()) {
-            for (const auto& candidate : node.animations) {
-                if (candidate && candidate->name == name) {
-                    clip = candidate;
-                }
-            }
-        }
-        REQUIRE(clip);
-        REQUIRE(armAnimator->Play(clip, false));
-        armAnimator->Seek(time);
-        armAnimator->RefreshRenderers();
-        attachment.Synchronize();
-        return render(name);
-    };
-    const auto armsIdle = pose("arms_idle", 0);
-    CHECK(changed(armsIdle, pose("pistol_fire", 0.09f)) > 100);
-    CHECK(changed(armsIdle, pose("pistol_reload", 0.55f)) > 100);
 }
 
 TEST_CASE("Spawn menu thumbnails render real prefab meshes and retain their cached textures",

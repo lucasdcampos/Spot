@@ -256,52 +256,90 @@ TEST_CASE("World checkpoints restore robot populations and ragdoll ownership", "
     CHECK(restored->GetComponent<Spot::Animator>()->IsPlaying());
 }
 
-TEST_CASE("Every weapon uses animated arms and a bone attachment", "[sandbox][animation]") {
+TEST_CASE("Held items come up when switched to, fire from their muzzles and move their parts", "[sandbox][view]") {
     Playground playground;
-    playground.Run(0.5f);
+    playground.Run(1.0f);
     auto* view = playground.player->GetComponent<ViewModel>();
     auto* holder = playground.player->GetComponent<WeaponHolder>();
     REQUIRE(view);
     REQUIRE(holder);
-    auto* arms = playground.scene.GetEntity(view->GetArmsEntity());
-    REQUIRE(arms);
-    auto* animator = arms->GetComponent<Spot::Animator>();
-    REQUIRE(animator);
-    constexpr std::array<std::string_view, 6> Names{"physics_gun", "pistol",          "rifle",
-                                                    "shotgun",     "rocket_launcher", "tool_gun"};
-    for (int slot = 0; slot < 6; ++slot) {
-        INFO("Weapon slot " << slot);
+    const auto& player = playground.Player();
+    // Each in turn, the physics gun, in hand first, last.
+    for (int i = 1; i <= 6; ++i) {
+        const int slot = i % 6;
+        INFO("Slot " << slot);
         holder->Select(slot);
         playground.Run(Step);
-        REQUIRE(view->Animate("switch"));
-        CHECK(animator->GetClip()->name == std::string(Names[slot]) + "_switch");
-        playground.Run(0.4f);
-        REQUIRE(view->Animate("reload", 1.0f));
-        CHECK(animator->GetClip()->name == std::string(Names[slot]) + "_reload");
-        playground.Run(0.2f);
-        REQUIRE(view->Animate("fire"));
-        CHECK(animator->GetClip()->name == std::string(Names[slot]) + "_fire");
-        playground.Run(Step);
+        // Switching brings the item up from below.
+        CHECK(view->GetRaise() < 0.5f);
+        playground.Run(0.5f);
+        CHECK(view->GetRaise() == Approx(1.0f));
         REQUIRE_FALSE(view->GetPartEntities().empty());
-        for (auto id : view->GetPartEntities()) {
-            auto* part = playground.scene.GetEntity(id);
-            REQUIRE(part);
-            auto* attachment = part->GetComponent<Spot::BoneAttachment>();
-            REQUIRE(attachment);
-            CHECK(attachment->GetAnimator() == arms->GetId());
-            CHECK(part->GetTransform().HasWorldOverride());
-        }
-        playground.Run(0.3f);
-        CHECK(animator->GetClip()->name == "arms_idle");
+        // The muzzle is in front of the eyes, ahead of every part's origin, and below and right of the crosshair.
+        const auto muzzle = view->GetMuzzlePosition() - player.GetEyePosition();
+        const auto rotation = Spot::Inverse(player.GetViewRotation());
+        const auto local = rotation * muzzle;
+        CHECK(local.z < -0.3f);
+        CHECK(local.y < 0.0f);
+        CHECK(local.x > -0.05f);
     }
+
+    // Down the sights, the sight is on the crosshair and the muzzle under it.
     holder->Select(1);
     playground.Run(0.5f);
-    holder->Fire();
-    CHECK(animator->GetClip()->name == "pistol_fire");
+    playground.Press(Spot::MouseButton::Right);
+    playground.Run(0.4f);
+    REQUIRE(holder->IsAiming());
+    CHECK(view->GetAim() == Approx(1.0f));
+    const auto aimed = Spot::Inverse(player.GetViewRotation()) * (view->GetMuzzlePosition() - player.GetEyePosition());
+    CHECK(std::abs(aimed.x) < 0.01f);
+    CHECK(aimed.y < 0.0f);
+    CHECK(aimed.y > -0.05f);
+    playground.Release(Spot::MouseButton::Right);
+    playground.Run(0.4f);
+
+    // The pistol's slide cycles back as it fires and returns.
+    const auto slide = [&]() -> const Entity* {
+        const auto parts = view->GetShownModel()->GetParts();
+        for (std::size_t i = 0; i < parts.size() && i < view->GetPartEntities().size(); ++i) {
+            if (parts[i].name == "Slide") {
+                return playground.scene.GetEntity(view->GetPartEntities()[i]);
+            }
+        }
+        return nullptr;
+    };
+    const auto local = [&](const Entity& entity) {
+        return Spot::Inverse(player.GetViewRotation()) *
+               (entity.GetTransform().GetWorldPosition() - player.GetEyePosition());
+    };
+    const Entity* part = slide();
+    REQUIRE(part);
+    {
+        const auto rest = local(*part);
+        holder->Fire();
+        playground.Run(0.02f);
+        CHECK(local(*part).z > rest.z + 0.005f);
+        playground.Run(0.5f);
+    }
+
+    // Reloading drops the magazine out and back in, and rounds return when it ends.
+    auto* weapon = holder->GetWeapon();
+    REQUIRE(weapon);
+    const int loaded = weapon->GetAmmo();
     playground.Press(Key::R);
     playground.Run(Step);
-    CHECK(animator->GetClip()->name == "pistol_reload");
     playground.Release(Key::R);
+    REQUIRE(weapon->IsReloading());
+    playground.Run(weapon->reloadTime * 0.45f);
+    CHECK(weapon->GetReloadProgress() > 0.3f);
+    CHECK(weapon->GetReloadProgress() < 0.6f);
+    playground.Press(Spot::MouseButton::Right);
+    playground.Run(0.1f);
+    CHECK_FALSE(holder->IsAiming());
+    playground.Release(Spot::MouseButton::Right);
+    playground.Run(weapon->reloadTime);
+    CHECK_FALSE(weapon->IsReloading());
+    CHECK(weapon->GetAmmo() > loaded);
 }
 
 TEST_CASE("World checkpoints retain edited props, joints, lamps and cleanup ownership", "[sandbox][save]") {
@@ -413,7 +451,8 @@ TEST_CASE("Saved lit barrels resume their remaining fuse", "[sandbox][save]") {
     CHECK_FALSE(playground.scene.FindEntity("Saved fuse"));
 }
 
-TEST_CASE("Sandbox recoil and walking bob use cancellable tweens and scaled waits", "[sandbox][gameplay]") {
+TEST_CASE("Sandbox recoil uses cancellable tweens, and walking steps and bobs at a natural cadence",
+          "[sandbox][gameplay]") {
     Playground playground;
     playground.Run(1.5f);
     auto& view = *playground.player->GetComponent<ViewModel>();
@@ -425,16 +464,22 @@ TEST_CASE("Sandbox recoil and walking bob use cancellable tweens and scaled wait
     playground.Run(0.25f);
     CHECK(view.GetRecoil() == Approx(0.0f));
     auto& movement = *playground.player->GetComponent<PlayerMovement>();
+    const float start = movement.GetStepPhase();
     playground.Press(Key::W);
     float peak = 0.0f;
-    for (int i = 0; i < 30; ++i) {
+    for (int i = 0; i < 120; ++i) {
         playground.Run(Step);
         peak = std::max(peak, std::abs(movement.GetCameraBob()));
     }
-    CHECK(peak > 0.01f);
+    // A gentle dip at each step, about two steps a second at walking speed.
+    CHECK(peak > movement.bobHeight * 0.5f);
+    CHECK(peak < movement.bobHeight * 1.5f);
+    const float steps = movement.GetStepPhase() - start;
+    CHECK(steps > 3.5f);
+    CHECK(steps < 6.0f);
     playground.Release(Key::W);
-    playground.Run(0.3f);
-    CHECK(movement.GetCameraBob() == Approx(0.0f));
+    playground.Run(0.8f);
+    CHECK(movement.GetCameraBob() == Approx(0.0f).margin(0.0005f));
 }
 
 TEST_CASE("The playground runs without faults", "[sandbox]") {

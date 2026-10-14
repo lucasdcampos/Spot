@@ -14,6 +14,9 @@ namespace Generator::Shapes {
 // The texture repeats every uvRepeat units on each face, starting at a corner, so faces of any size show it at the
 // same scale. Long faces run the texture's X along the box's longest side.
 Spot::MeshData Box(Spot::Vector3 size, float uvRepeat);
+// A box whose edges and corners are cut off by the bevel, so its silhouette is softer and its edges catch the light.
+// Every face is flat; the texture is projected along each face's main axis, repeating every uvRepeat units.
+Spot::MeshData BeveledBox(Spot::Vector3 size, float bevel, float uvRepeat);
 // Standing along Y.
 Spot::MeshData Cylinder(float radius, float height, std::uint32_t segments);
 // A cylinder lying along X, as a wheel turns.

@@ -2690,17 +2690,16 @@
         },
         {
           "data": {
-            "bobHeight": 0.02500000037252903,
-            "bobPeriod": 0.3499999940395355,
+            "bobHeight": 0.012,
             "crouchHeight": 1.0,
             "crouchSpeed": 2.5,
             "fallHeight": -20.0,
             "fastFlySpeed": 25.0,
             "flySpeed": 10.0,
-            "footstepVolume": 0.5,
+            "footstepVolume": 0.35,
             "jumpSpeed": 5.5,
             "runSpeed": 9.0,
-            "strideLength": 0.800000011920929,
+            "strideLength": 2.1,
             "walkSpeed": 5.0
           },
           "enabled": true,
@@ -2795,18 +2794,18 @@
         },
         {
           "data": {
-            "aimOffset": [
-              0.0,
-              -0.11999999731779099,
-              -0.3499999940395355
-            ],
             "offset": [
-              0.20000000298023224,
-              -0.20000000298023224,
-              -0.44999998807907104
+              0.15,
+              -0.15,
+              -0.33
             ],
             "physicsGun": "eb15e057c25f6521cd7ba1c6fc717606",
-            "toolGun": "458f3ec25c9dc7bec7941f914ddd512d"
+            "toolGun": "458f3ec25c9dc7bec7941f914ddd512d",
+            "swayAmount": 0.012,
+            "maxSway": 0.03,
+            "bobAmount": 0.008,
+            "motionResponse": 12.0,
+            "switchTime": 0.4
           },
           "enabled": true,
           "id": "ddc6a46d89865f98f41023300ff2d3e4",
@@ -2848,7 +2847,7 @@
             "cullingMask": 4294967295,
             "farPlane": 1000.0,
             "fieldOfView": 1.3089969158172607,
-            "nearPlane": 0.10000000149011612,
+            "nearPlane": 0.03,
             "orthographicSize": 5.0,
             "projection": 0
           },
@@ -2925,10 +2924,7 @@
     },
     {
       "entityIds": {
-        "1": 120,
-        "2": 121,
-        "3": 122,
-        "4": 123
+        "1": 120
       },
       "id": 120,
       "overrides": {
@@ -2958,41 +2954,17 @@
             "op": "remove",
             "path": "/components/963079c259e6a1fd088c00236e8ce8a7"
           }
-        ],
-        "3": [
-          {
-            "op": "replace",
-            "path": "/componentOrder",
-            "value": []
-          },
-          {
-            "op": "remove",
-            "path": "/components/ea6ba047c99b479685773654960af3be"
-          }
-        ],
-        "4": [
-          {
-            "op": "replace",
-            "path": "/componentOrder",
-            "value": []
-          },
-          {
-            "op": "remove",
-            "path": "/components/9fb4ba97a462cbeb1e7d0a86d3e71e01"
-          }
         ]
       },
       "parent": 117,
       "prefab": "a6ff6117d7184fda03b222773c8acb0e",
-      "removedEntities": []
+      "removedEntities": [
+        2
+      ]
     },
     {
       "entityIds": {
-        "1": 124,
-        "5": 125,
-        "6": 126,
-        "7": 127,
-        "8": 128
+        "1": 124
       },
       "id": 124,
       "overrides": {
@@ -3022,51 +2994,17 @@
             "op": "remove",
             "path": "/components/a6ea5d5c127675e61065dc7c1c61a3a5"
           }
-        ],
-        "6": [
-          {
-            "op": "replace",
-            "path": "/componentOrder",
-            "value": []
-          },
-          {
-            "op": "remove",
-            "path": "/components/8bb27e67f7b88ee7fa72512c236c4a0c"
-          }
-        ],
-        "7": [
-          {
-            "op": "replace",
-            "path": "/componentOrder",
-            "value": []
-          },
-          {
-            "op": "remove",
-            "path": "/components/be8864c9b8223ac10bc417776e7c1c53"
-          }
-        ],
-        "8": [
-          {
-            "op": "replace",
-            "path": "/componentOrder",
-            "value": []
-          },
-          {
-            "op": "remove",
-            "path": "/components/ee07266e6b4324df5a93231d9617d837"
-          }
         ]
       },
       "parent": 117,
       "prefab": "5024eac3a04ce008179ee71796d55f15",
-      "removedEntities": []
+      "removedEntities": [
+        5
+      ]
     },
     {
       "entityIds": {
-        "1": 129,
-        "10": 130,
-        "11": 131,
-        "9": 132
+        "1": 129
       },
       "id": 129,
       "overrides": {
@@ -3096,41 +3034,17 @@
             "op": "remove",
             "path": "/components/ae961c47e79a2b4bf308e148f5fad6ea"
           }
-        ],
-        "10": [
-          {
-            "op": "replace",
-            "path": "/componentOrder",
-            "value": []
-          },
-          {
-            "op": "remove",
-            "path": "/components/34808e791fd7193f84276c4cf1b528f8"
-          }
-        ],
-        "11": [
-          {
-            "op": "replace",
-            "path": "/componentOrder",
-            "value": []
-          },
-          {
-            "op": "remove",
-            "path": "/components/e6a66a1ea812ffbad9220f2d0d71e1d3"
-          }
         ]
       },
       "parent": 117,
       "prefab": "fa4b9e83038571e546218ba8dd3aa187",
-      "removedEntities": []
+      "removedEntities": [
+        9
+      ]
     },
     {
       "entityIds": {
-        "1": 133,
-        "12": 134,
-        "13": 135,
-        "14": 136,
-        "15": 137
+        "1": 133
       },
       "id": 133,
       "overrides": {
@@ -3160,44 +3074,13 @@
             "op": "remove",
             "path": "/components/f8297c1324ea461c9110fc4e755fffbc"
           }
-        ],
-        "13": [
-          {
-            "op": "replace",
-            "path": "/componentOrder",
-            "value": []
-          },
-          {
-            "op": "remove",
-            "path": "/components/8a03f0b41c0e359ed358abb40dd4ac32"
-          }
-        ],
-        "14": [
-          {
-            "op": "replace",
-            "path": "/componentOrder",
-            "value": []
-          },
-          {
-            "op": "remove",
-            "path": "/components/530bcff527e54467494cf9516c741475"
-          }
-        ],
-        "15": [
-          {
-            "op": "replace",
-            "path": "/componentOrder",
-            "value": []
-          },
-          {
-            "op": "remove",
-            "path": "/components/e4cc3daedacdf156718576ad123c1846"
-          }
         ]
       },
       "parent": 117,
       "prefab": "1b28f91ff84a600b6be91d7768c16b90",
-      "removedEntities": []
+      "removedEntities": [
+        12
+      ]
     },
     {
       "active": true,
@@ -4166,21 +4049,27 @@
               {
                 "footsteps": [
                   "74829e4b62921df30bb2c75f5639a50a",
-                  "f651bc1d618e7ef5fcb04e04178a67a2"
+                  "f651bc1d618e7ef5fcb04e04178a67a2",
+                  "a9917bb4bddcf28174b23483e4ae876b",
+                  "bddb51251a91d53244d40f87d51105cb"
                 ],
                 "impact": "0ba7042e3aacd048ce039ad3848d5cce"
               },
               {
                 "footsteps": [
                   "8d9c4336f119c717fb4dc1ae90b67b47",
-                  "0149c8b2e47c550944eec857f07b7b2b"
+                  "0149c8b2e47c550944eec857f07b7b2b",
+                  "68b428b43524991eab4088d09d44c22c",
+                  "9258082dcaa1ce4166c46358bb30b5ee"
                 ],
                 "impact": "8653d1d980a8ca91bc8edbc537eeead4"
               },
               {
                 "footsteps": [
                   "842937a382c8bc132ef59b1cc463a01c",
-                  "af851fbca32fcab07940489530002579"
+                  "af851fbca32fcab07940489530002579",
+                  "7d28850564838414096e6f12e292b7a9",
+                  "2f70a176b4a531e324d4651a7faaed7c"
                 ],
                 "impact": "bc44ab298718ac512b1e6698d607a249"
               }

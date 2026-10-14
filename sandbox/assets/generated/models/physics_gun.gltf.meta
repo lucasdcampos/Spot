@@ -1,6 +1,7 @@
 {
   "id": "eb15e057c25f6521cd7ba1c6fc717606",
   "settings": {
+    "animations": [],
     "materials": [],
     "scale": 1.0
   },
@@ -72,6 +73,14 @@
     {
       "id": "92d991dd6d3ca9ae0c0fd8be023174ce",
       "key": "mesh:3"
+    },
+    {
+      "id": "22d0eeb7c358cd5ef80ad5e704a1e872",
+      "key": "material:4"
+    },
+    {
+      "id": "b6e40b7a8c876b64e633a39c07a3e608",
+      "key": "mesh:4"
     }
   ],
   "type": "Model"

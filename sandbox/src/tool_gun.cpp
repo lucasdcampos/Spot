@@ -4,6 +4,7 @@
 #include "prop_carrier.h"
 #include "sound_bank.h"
 #include "undo_list.h"
+#include "view_model.h"
 #include "weapon_holder.h"
 
 #include <algorithm>
@@ -236,6 +237,9 @@ void ToolGun::OnUpdate(float /*deltaTime*/) {
     }
     const auto hit = GetScene().GetPhysics().Raycast(player->GetEyePosition(), player->GetAimDirection(), range,
                                                      {.ignore = GetEntity().GetId()});
+    if (auto* view = GetEntity().GetComponent<ViewModel>()) {
+        view->Kick(0.015f);
+    }
     if (Spot::Entity* entity = hit ? GetScene().GetEntity(hit->entity) : nullptr) {
         Click(*entity, hit->point, hit->normal);
     }

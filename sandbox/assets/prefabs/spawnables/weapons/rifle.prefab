@@ -34,15 +34,15 @@
           "data": {
             "center": [
               0.0,
-              -0.03814895823597908,
-              -0.17249998450279236
+              -0.03706161677837372,
+              -0.17874999344348907
             ],
             "friction": 0.5,
             "restitution": 0.0,
             "size": [
-              0.05000000074505806,
-              0.23229792714118958,
-              0.9949999451637268
+              0.0544000007212162,
+              0.2961232364177704,
+              1.042499989271164
             ],
             "trigger": false
           },
@@ -168,7 +168,7 @@
       ],
       "id": 6,
       "layer": 0,
-      "name": "Steel",
+      "name": "Receiver",
       "parent": 5,
       "position": [
         0.0,
@@ -199,13 +199,13 @@
             "submesh": 0
           },
           "enabled": true,
-          "id": "be8864c9b8223ac10bc417776e7c1c53",
+          "id": "8bb27e67f7b88ee7fa72512c236c4a0c",
           "type": "MeshRenderer"
         }
       ],
       "id": 7,
       "layer": 0,
-      "name": "Stock",
+      "name": "Furniture",
       "parent": 5,
       "position": [
         0.0,
@@ -236,13 +236,161 @@
             "submesh": 0
           },
           "enabled": true,
-          "id": "ee07266e6b4324df5a93231d9617d837",
+          "id": "8bb27e67f7b88ee7fa72512c236c4a0c",
           "type": "MeshRenderer"
         }
       ],
       "id": 8,
       "layer": 0,
-      "name": "Grip",
+      "name": "Barrel",
+      "parent": 5,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "94535846df2c2356f67503063aa09447",
+            "mesh": "32c98f913a4e7f7219d113752cfaf174",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "cfec4569181445f88728e6ff71e4a71b",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 9,
+      "layer": 0,
+      "name": "Optic",
+      "parent": 5,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "f1a67064b0ce9a2e57885046bc8e0ef9",
+            "mesh": "5c35f9f6a0f29f05e59a03324bfe54f8",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "29cc106cde074f86869571fd576f6ce0",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 10,
+      "layer": 0,
+      "name": "Optic Glass",
+      "parent": 5,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "d1f92e767f0a461e13817c4071a76276",
+            "mesh": "ccecb021100fcd7fc90a4b6dd64f2f1f",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "740aea1d0e854da59de19447b0774761",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 11,
+      "layer": 0,
+      "name": "Reticle",
+      "parent": 5,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "4ac11a6caed4d8d9d47193af6a3f3edd",
+            "mesh": "c796534043fae6e8f54e999ae66837dd",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "10a7c597cb264149b01fff3074957ed7",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 12,
+      "layer": 0,
+      "name": "Magazine",
       "parent": 5,
       "position": [
         0.0,

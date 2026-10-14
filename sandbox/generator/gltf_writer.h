@@ -22,6 +22,8 @@ struct GltfMaterial {
     std::string ormImage = {};
     Spot::Color emissive = Spot::Color::Black;
     bool doubleSided = false;
+    // Blends by the base color's alpha, as glass does.
+    bool transparent = false;
 };
 
 // A mesh of the model, drawn with one of its materials.
@@ -31,9 +33,16 @@ struct GltfPart {
     std::size_t material = 0;
 };
 
+// A named point of the model without a mesh, such as where a weapon's muzzle is, which games find among its nodes.
+struct GltfMarker {
+    std::string name;
+    Spot::Vector3 position;
+};
+
 struct GltfModel {
     std::vector<GltfMaterial> materials;
     std::vector<GltfPart> parts;
+    std::vector<GltfMarker> markers = {};
     Spot::Skeleton skeleton;
     std::vector<Spot::AnimationClip> animations;
 };

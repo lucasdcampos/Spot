@@ -34,15 +34,15 @@
           "data": {
             "center": [
               0.0,
-              -0.02250000089406967,
-              -0.16499997675418854
+              -0.03613905981183052,
+              -0.12289120256900787
             ],
             "friction": 0.5,
             "restitution": 0.0,
             "size": [
-              0.05000000074505806,
-              0.10500000417232513,
-              1.0099999904632568
+              0.050999999046325684,
+              0.1392781212925911,
+              1.074217528104782
             ],
             "trigger": false
           },
@@ -168,7 +168,7 @@
       ],
       "id": 10,
       "layer": 0,
-      "name": "Steel",
+      "name": "Receiver",
       "parent": 9,
       "position": [
         0.0,
@@ -199,13 +199,198 @@
             "submesh": 0
           },
           "enabled": true,
-          "id": "e6a66a1ea812ffbad9220f2d0d71e1d3",
+          "id": "34808e791fd7193f84276c4cf1b528f8",
           "type": "MeshRenderer"
         }
       ],
       "id": 11,
       "layer": 0,
-      "name": "Wood",
+      "name": "Barrel",
+      "parent": 9,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "c55fdb2beefac73b5ea0187259a4b258",
+            "mesh": "1a4f8b2b1b70f78d1da0d6fb5055019e",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "b32edb279bf74fcbb6068844d05eda48",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 12,
+      "layer": 0,
+      "name": "Stock",
+      "parent": 9,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "a0748428d558427f8e37383cd614060b",
+            "mesh": "12d821fc0d2e45221457df7fb653f98b",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "4207e399efc745cb9a909370f2e93d44",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 13,
+      "layer": 0,
+      "name": "Pump",
+      "parent": 9,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "ea8044788d9a6696e079398daca55144",
+            "mesh": "058b720f61e692dc2646da5b035abe20",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "8c231c9ee2304d4a965c2a690382979d",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 14,
+      "layer": 0,
+      "name": "Pump Grooves",
+      "parent": 9,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "74bfdf4b83bf9236e9d9355930c26fab",
+            "mesh": "3e4032ed8ba751c49cdf720ebb835e80",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "0753aebd4c9847bdb2824fbe7ae41582",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 15,
+      "layer": 0,
+      "name": "Butt Pad",
+      "parent": 9,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "ce69e9e592a8fbfdbd0e7ab5366815e4",
+            "mesh": "87644a08240598c934eb7108326a4c3a",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "a74bb6cb3e784fa0b1ca1627d9c229ea",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 16,
+      "layer": 0,
+      "name": "Bead",
       "parent": 9,
       "position": [
         0.0,

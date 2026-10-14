@@ -33,16 +33,16 @@
         {
           "data": {
             "center": [
-              0.009999999776482582,
-              0.005440138280391693,
-              -0.15000000596046448
+              -0.0065000019967556,
+              0.014096003025770187,
+              -0.21249999105930328
             ],
             "friction": 0.5,
             "restitution": 0.0,
             "size": [
-              0.14000000059604645,
-              0.2391197234392166,
-              0.8999999165534973
+              0.15300000458955765,
+              0.22280798107385635,
+              1.254999965429306
             ],
             "trigger": false
           },
@@ -168,7 +168,7 @@
       ],
       "id": 13,
       "layer": 0,
-      "name": "Tube",
+      "name": "Launcher Tube",
       "parent": 12,
       "position": [
         0.0,
@@ -199,13 +199,13 @@
             "submesh": 0
           },
           "enabled": true,
-          "id": "530bcff527e54467494cf9516c741475",
+          "id": "8a03f0b41c0e359ed358abb40dd4ac32",
           "type": "MeshRenderer"
         }
       ],
       "id": 14,
       "layer": 0,
-      "name": "Steel",
+      "name": "Launcher Fittings",
       "parent": 12,
       "position": [
         0.0,
@@ -236,13 +236,124 @@
             "submesh": 0
           },
           "enabled": true,
-          "id": "e4cc3daedacdf156718576ad123c1846",
+          "id": "8a03f0b41c0e359ed358abb40dd4ac32",
           "type": "MeshRenderer"
         }
       ],
       "id": 15,
       "layer": 0,
-      "name": "Grip",
+      "name": "Launcher Band",
+      "parent": 12,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "bd71021ad61d6473d53582293e72d702",
+            "mesh": "e3e048e8cdb256ded59e76c3e4f6315e",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "9f4c61fd75854108baae12a21e832149",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 16,
+      "layer": 0,
+      "name": "Launcher Grip",
+      "parent": 12,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "085a68c3d85d94d9891ec30b382d11b9",
+            "mesh": "d4ce897d50c7f603c85b475563a0c41e",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "f58da3ea11a84d408d42d1990634f0ad",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 17,
+      "layer": 0,
+      "name": "Rocket Body",
+      "parent": 12,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "0076f99b56951ff887fb44fea0963c09",
+            "mesh": "4e37577f6deadd8d5f8f0c30a98bece0",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "b4ec8549f44d4897a1cbb90b8664c2d0",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 18,
+      "layer": 0,
+      "name": "Rocket Warhead",
       "parent": 12,
       "position": [
         0.0,

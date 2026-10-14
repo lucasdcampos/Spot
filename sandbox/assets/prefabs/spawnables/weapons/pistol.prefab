@@ -33,16 +33,16 @@
         {
           "data": {
             "center": [
-              0.0,
-              -0.030809860676527023,
-              -0.07250000536441803
+              4.9999915063381195e-05,
+              -0.03225203789770603,
+              -0.06452750228345394
             ],
             "friction": 0.5,
             "restitution": 0.0,
             "size": [
-              0.03500000014901161,
-              0.15661972761154175,
-              0.2150000035762787
+              0.032100001350045204,
+              0.17250407859683037,
+              0.22494499757885933
             ],
             "trigger": false
           },
@@ -168,7 +168,7 @@
       ],
       "id": 3,
       "layer": 0,
-      "name": "Steel",
+      "name": "Slide",
       "parent": 2,
       "position": [
         0.0,
@@ -199,13 +199,161 @@
             "submesh": 0
           },
           "enabled": true,
-          "id": "9fb4ba97a462cbeb1e7d0a86d3e71e01",
+          "id": "ea6ba047c99b479685773654960af3be",
           "type": "MeshRenderer"
         }
       ],
       "id": 4,
       "layer": 0,
-      "name": "Grip",
+      "name": "Slide Details",
+      "parent": 2,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "200b1cc907df763316bb48901fc65605",
+            "mesh": "b9c0d8bb42d50e39d0873c182a4c53ff",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "dc0a23d5834d43c9934d26eb2b284a0f",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 5,
+      "layer": 0,
+      "name": "Slide Dots",
+      "parent": 2,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "703ecd0a596df46d2c0b350ba579fba1",
+            "mesh": "9c953a4ce578f53e761c71dfa71a76f3",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "7279b3e38f704b40b38779f7640d052f",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 6,
+      "layer": 0,
+      "name": "Frame",
+      "parent": 2,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "690d0ffe43f532ddc6e750d444ab70c5",
+            "mesh": "a7f61a2f461c8beb64007c3b42fac715",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "85d295ca163c48a9b8ebe06ccb9e6aa2",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 7,
+      "layer": 0,
+      "name": "Barrel",
+      "parent": 2,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "f6e011c7c3a99c95f22a7f6657310997",
+            "mesh": "dee203490282db827d961056492ea4c0",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "cfc3823e4c9f485e9f4d5d6e5c3b02a3",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 8,
+      "layer": 0,
+      "name": "Magazine",
       "parent": 2,
       "position": [
         0.0,

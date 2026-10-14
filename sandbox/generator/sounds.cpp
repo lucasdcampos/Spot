@@ -1,6 +1,7 @@
 #include "sounds.h"
 
 #include <algorithm>
+#include <span>
 #include <string_view>
 
 namespace Generator::Sounds {
@@ -165,11 +166,85 @@ Samples Loop(Samples samples, float seconds) {
     return samples;
 }
 
-Samples Footstep(std::uint32_t seed, float cutoff, std::span<const Partial> partials, float partialGain) {
-    Samples samples = Make(0.18f);
-    AddNoiseBurst(samples, seed, cutoff, 0.002f, 0.025f, 1.0f);
-    AddPartials(samples, partials, 0, partialGain);
-    return FadeEdges(Normalize(std::move(samples), 0.6f));
+// How a footstep sounds on a surface.
+struct StepSound {
+    // The thud of the heel, which carries the weight, in hertz.
+    float thud;
+    float thudGain;
+    // The scuff of the sole: noise softened above the cutoff, in hertz, falling in the seconds.
+    float scuff;
+    float scuffDecay;
+    // Grains crushed underfoot, as grit on concrete; 0 for none.
+    float grit;
+    // What the surface rings with once struck, as hollow boards and plates do.
+    std::span<const Partial> ring;
+    float ringGain;
+};
+
+// Noise softened above the cutoff by two filters in a row, so it falls off steeply, as muffled sounds do, and without
+// the rumble below 70 hertz, which only muddies a mix.
+void AddSoftNoise(Samples& samples, std::uint32_t seed, float cutoff, float attack, float decay, float gain,
+                  std::size_t start) {
+    Noise noise(seed);
+    LowPass first(cutoff, samples.sampleRate);
+    LowPass second(cutoff, samples.sampleRate);
+    LowPass rumble(70.0f, samples.sampleRate);
+    const auto attackSamples = static_cast<std::size_t>(attack * static_cast<float>(samples.sampleRate)) + 1;
+    const float factor = DecayFactor(decay, samples.sampleRate);
+    float envelope = gain;
+    for (std::size_t i = start; i < samples.data.size(); ++i) {
+        const std::size_t t = i - start;
+        const float rise = t < attackSamples ? static_cast<float>(t) / static_cast<float>(attackSamples) : 1.0f;
+        const float soft = second.Process(first.Process(noise.Next()));
+        samples.data[i] += (soft - rumble.Process(soft)) * envelope * rise;
+        if (t >= attackSamples) {
+            envelope *= factor;
+        }
+    }
+}
+
+// A footstep in two parts: the heel lands with a soft thud and a scuff, and the toe follows a few hundredths of a
+// second later, quieter. Variants change the timing, the pitch and the noise, so steps never repeat exactly.
+Samples Footstep(const StepSound& sound, std::uint32_t seed, int variant) {
+    Samples samples = Make(0.32f);
+    const auto rate = static_cast<float>(samples.sampleRate);
+    const float shift = 1.0f + 0.05f * static_cast<float>(variant % 2 == 0 ? variant : -variant);
+    const auto toe = static_cast<std::size_t>((0.05f + 0.012f * static_cast<float>(variant)) * rate);
+
+    // The heel's thud: a short, low sine that sinks in pitch as the weight settles, with a soft attack.
+    const float factor = DecayFactor(0.03f, samples.sampleRate);
+    const auto attack = static_cast<std::size_t>(0.004f * rate);
+    float frequency = sound.thud * shift * 1.4f;
+    float envelope = sound.thudGain;
+    float phase = 0.0f;
+    for (std::size_t i = 0; i < samples.data.size(); ++i) {
+        const float rise = i < attack ? static_cast<float>(i) / static_cast<float>(attack) : 1.0f;
+        samples.data[i] += Sine(phase) * envelope * rise;
+        phase += frequency / rate;
+        frequency = sound.thud * shift + (frequency - sound.thud * shift) * 0.9995f;
+        envelope *= factor;
+    }
+    AddSoftNoise(samples, seed, sound.scuff * shift, 0.003f, sound.scuffDecay, 1.0f, 0);
+    AddSoftNoise(samples, seed + 1, sound.scuff * shift * 1.15f, 0.006f, sound.scuffDecay * 0.8f, 0.5f, toe);
+    AddPartials(samples, sound.ring, 0, sound.ringGain);
+    AddPartials(samples, sound.ring, toe, sound.ringGain * 0.4f);
+    if (sound.grit > 0.0f) {
+        // Sparse grains, each a tiny click, thinning out as the foot settles.
+        Noise chance(seed + 2);
+        Noise sign(seed + 3);
+        LowPass soften(sound.grit, samples.sampleRate);
+        const float gritFactor = DecayFactor(0.06f, samples.sampleRate);
+        float density = 0.02f;
+        for (std::size_t i = 0; i < samples.data.size(); ++i) {
+            const float grain = chance.Next() * 0.5f + 0.5f < density ? sign.Next() : 0.0f;
+            samples.data[i] += soften.Process(grain) * 0.6f;
+            density *= gritFactor;
+            if (i == toe) {
+                density = 0.012f;
+            }
+        }
+    }
+    return FadeEdges(Normalize(std::move(samples), 0.6f), 0.004f);
 }
 
 } // namespace
@@ -258,22 +333,38 @@ Samples ImpactMetal() {
 }
 
 Samples FootstepConcrete(int variant) {
-    const float shift = variant == 0 ? 1.0f : 1.12f;
-    const Partial body[] = {{80.0f * shift, 0.5f, 0.03f}};
-    return Footstep(101 + static_cast<std::uint32_t>(variant), 1200.0f * shift, body, 1.0f);
+    return Footstep({.thud = 85.0f,
+                     .thudGain = 0.7f,
+                     .scuff = 650.0f,
+                     .scuffDecay = 0.035f,
+                     .grit = 2500.0f,
+                     .ring = {},
+                     .ringGain = 0.0f},
+                    101 + static_cast<std::uint32_t>(variant) * 7, variant);
 }
 
 Samples FootstepWood(int variant) {
-    const float shift = variant == 0 ? 1.0f : 1.1f;
-    const Partial knock[] = {{160.0f * shift, 0.7f, 0.05f}, {270.0f * shift, 0.4f, 0.03f}};
-    return Footstep(111 + static_cast<std::uint32_t>(variant), 1600.0f * shift, knock, 1.0f);
+    static constexpr Partial Boards[] = {{150.0f, 0.5f, 0.06f}, {235.0f, 0.3f, 0.045f}, {390.0f, 0.12f, 0.03f}};
+    return Footstep({.thud = 110.0f,
+                     .thudGain = 0.6f,
+                     .scuff = 800.0f,
+                     .scuffDecay = 0.03f,
+                     .grit = 0.0f,
+                     .ring = Boards,
+                     .ringGain = 0.6f},
+                    211 + static_cast<std::uint32_t>(variant) * 7, variant);
 }
 
 Samples FootstepMetal(int variant) {
-    const float shift = variant == 0 ? 1.0f : 1.08f;
-    const Partial ring[] = {
-        {420.0f * shift, 0.4f, 0.12f}, {1130.0f * shift, 0.3f, 0.08f}, {1870.0f * shift, 0.2f, 0.05f}};
-    return Footstep(121 + static_cast<std::uint32_t>(variant), 2500.0f * shift, ring, 0.8f);
+    static constexpr Partial Plate[] = {{340.0f, 0.3f, 0.14f}, {910.0f, 0.18f, 0.09f}, {1630.0f, 0.1f, 0.05f}};
+    return Footstep({.thud = 95.0f,
+                     .thudGain = 0.6f,
+                     .scuff = 1300.0f,
+                     .scuffDecay = 0.025f,
+                     .grit = 0.0f,
+                     .ring = Plate,
+                     .ringGain = 0.5f},
+                    321 + static_cast<std::uint32_t>(variant) * 7, variant);
 }
 
 Samples PhysicsGunHum() {

@@ -1,6 +1,7 @@
 #include "day_cycle.h"
 #include "player_controller.h"
 #include "view_model.h"
+#include "weapon.h"
 #include "weapon_holder.h"
 
 #include <spot.h>
@@ -80,7 +81,7 @@ TEST_CASE("The cooked playground renders the workshop, glass and night lighting"
     CHECK(device->DownloadTexture(*target) != images[2]);
 }
 
-TEST_CASE("The cooked sandbox renders held arms, recoil and sights", "[gpu][sandbox][offscreen]") {
+TEST_CASE("The cooked sandbox renders held items, recoil, sights and reloads", "[gpu][sandbox][offscreen]") {
     if (!Spot::GraphicsDevice::IsSupported()) {
         SKIP("No usable graphics device");
     }
@@ -125,7 +126,7 @@ TEST_CASE("The cooked sandbox renders held arms, recoil and sights", "[gpu][sand
     for (int i = 0; i < 30; ++i) {
         step();
     }
-    REQUIRE(scene->GetEntity(view->GetArmsEntity())->GetComponent<Spot::Animator>());
+    REQUIRE_FALSE(view->GetPartEntities().empty());
     const auto targetPrefab = assets.Load<Spot::Prefab>("prefabs/spawnables/props/target_dummy.prefab");
     REQUIRE(targetPrefab);
     auto* dummy = scene->Instantiate(targetPrefab);
@@ -161,4 +162,36 @@ TEST_CASE("The cooked sandbox renders held arms, recoil and sights", "[gpu][sand
     }
     CHECK(holder->IsAiming());
     CHECK(draw("pistol_sights.png") != idle);
+    input.OnEvent(Spot::MouseButtonReleasedEvent{Spot::MouseButton::Right});
+
+    // Every held item at the hip and down its sights, and a reload halfway.
+    const std::array names{"physics_gun", "pistol", "rifle", "shotgun", "rocket_launcher", "tool_gun"};
+    for (int slot = 0; slot < 6; ++slot) {
+        holder->Select(slot);
+        for (int i = 0; i < 40; ++i) {
+            step();
+        }
+        const auto hip = draw(std::string(names[static_cast<std::size_t>(slot)]) + "_hip.png");
+        if (holder->GetWeapon()) {
+            input.OnEvent(Spot::MouseButtonPressedEvent{Spot::MouseButton::Right});
+            for (int i = 0; i < 30; ++i) {
+                step();
+            }
+            CHECK(draw(std::string(names[static_cast<std::size_t>(slot)]) + "_sights.png") != hip);
+            input.OnEvent(Spot::MouseButtonReleasedEvent{Spot::MouseButton::Right});
+            for (int i = 0; i < 30; ++i) {
+                step();
+            }
+        }
+    }
+    holder->Select(2);
+    for (int i = 0; i < 40; ++i) {
+        step();
+    }
+    holder->Fire();
+    REQUIRE(holder->GetWeapon()->StartReload());
+    while (holder->GetWeapon()->GetReloadProgress() < 0.45f) {
+        step();
+    }
+    draw("rifle_reload.png");
 }

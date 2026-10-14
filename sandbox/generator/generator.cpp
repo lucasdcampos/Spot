@@ -81,10 +81,16 @@ const std::vector<GeneratedSound>& GetSounds() {
         {"impact_metal", Sounds::ImpactMetal},
         {"footstep_concrete_1", [] { return Sounds::FootstepConcrete(0); }},
         {"footstep_concrete_2", [] { return Sounds::FootstepConcrete(1); }},
+        {"footstep_concrete_3", [] { return Sounds::FootstepConcrete(2); }},
+        {"footstep_concrete_4", [] { return Sounds::FootstepConcrete(3); }},
         {"footstep_wood_1", [] { return Sounds::FootstepWood(0); }},
         {"footstep_wood_2", [] { return Sounds::FootstepWood(1); }},
+        {"footstep_wood_3", [] { return Sounds::FootstepWood(2); }},
+        {"footstep_wood_4", [] { return Sounds::FootstepWood(3); }},
         {"footstep_metal_1", [] { return Sounds::FootstepMetal(0); }},
         {"footstep_metal_2", [] { return Sounds::FootstepMetal(1); }},
+        {"footstep_metal_3", [] { return Sounds::FootstepMetal(2); }},
+        {"footstep_metal_4", [] { return Sounds::FootstepMetal(3); }},
         {"physics_gun_hum", Sounds::PhysicsGunHum},
         {"wind", Sounds::Wind},
         {"music", Sounds::Music},
@@ -104,7 +110,7 @@ std::vector<std::string_view> GetSoundNames() {
 }
 
 std::vector<std::string_view> GetRigModelNames() {
-    return {"robot", "arms"};
+    return {"robot"};
 }
 
 std::vector<std::string_view> GetWeaponModelNames() {
@@ -166,7 +172,6 @@ OutputCounts GenerateSandboxAssets(const std::filesystem::path& directory) {
         writeModel(std::string(weapon.name), weapon.model);
     }
     writeModel("robot", Rigs::Robot());
-    writeModel("arms", Rigs::Arms());
     for (const GeneratedSound& sound : GetSounds()) {
         const std::vector<std::byte> wav = Sounds::EncodeWav(sound.make());
         WriteIfChanged(directory / "sounds" / (std::string(sound.name) + ".wav"), wav, counts);
