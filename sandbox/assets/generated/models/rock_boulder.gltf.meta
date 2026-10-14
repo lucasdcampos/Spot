@@ -1,0 +1,31 @@
+{
+  "id": "a2a177db64d540d67e3f699595c91e41",
+  "settings": {
+    "animations": [],
+    "materials": [],
+    "scale": 1.0
+  },
+  "subAssets": [
+    {
+      "id": "fc0fe45ad952b1afb5c19045feabd34b",
+      "key": "texture:0"
+    },
+    {
+      "id": "12ad61ae5cf29cfbccd97ce2a9aad11d",
+      "key": "texture:1"
+    },
+    {
+      "id": "de5a76d892ebb35b3f20b8452b82320c",
+      "key": "texture:2"
+    },
+    {
+      "id": "1175cb6fdcdded456754c0e4cef49671",
+      "key": "material:0"
+    },
+    {
+      "id": "99179a5a5af3d3167e628f46610d6416",
+      "key": "mesh:0"
+    }
+  ],
+  "type": "Model"
+}

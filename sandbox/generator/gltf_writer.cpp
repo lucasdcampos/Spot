@@ -90,7 +90,10 @@ GltfFiles EncodeGltf(const GltfModel& model, std::string_view binName) {
             material.emissive_strength.emissive_strength = strength;
         }
         material.double_sided = source.doubleSided;
-        material.alpha_mode = source.transparent ? cgltf_alpha_mode_blend : cgltf_alpha_mode_opaque;
+        material.alpha_mode = source.transparent ? cgltf_alpha_mode_blend
+                              : source.cutout    ? cgltf_alpha_mode_mask
+                                                 : cgltf_alpha_mode_opaque;
+        material.alpha_cutoff = 0.5f;
         const auto texture = [&](const std::string& uri) -> cgltf_texture* {
             if (uri.empty()) {
                 return nullptr;

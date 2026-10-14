@@ -53,12 +53,13 @@ void DayCycle::UpdateAtmosphere(float sunHeight) {
     // 0 at night and 1 by day, and how near the horizon the sun is, for sunsets.
     const float day = SmoothStep(-0.08f, 0.25f, sunHeight);
     const float sunset = SmoothStep(0.35f, 0.0f, std::abs(sunHeight)) * SmoothStep(-0.2f, 0.0f, sunHeight);
+    m_daylight = day;
     if (auto* fog = GetEntity().GetComponent<Spot::Fog>()) {
         const Spot::Color night{0.015f, 0.022f, 0.05f, 1.0f};
         const Spot::Color noon{0.62f, 0.68f, 0.78f, 1.0f};
         const Spot::Color dusk{0.95f, 0.55f, 0.32f, 1.0f};
         fog->color = Mix(Mix(night, noon, day), dusk, sunset * 0.7f);
-        fog->density = 0.012f + (0.005f - 0.012f) * day + sunset * 0.004f;
+        fog->density = 0.006f + (0.0025f - 0.006f) * day + sunset * 0.0015f;
     }
     if (auto* look = GetEntity().GetComponent<Spot::PostProcessing>()) {
         look->temperature = sunset * 0.35f - (1.0f - day) * 0.25f;

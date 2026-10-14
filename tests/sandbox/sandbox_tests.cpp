@@ -630,17 +630,17 @@ TEST_CASE("Noclip flies the player through everything, and walking lands it agai
 
 TEST_CASE("The player climbs the stairs and the ramps of the level's meshes", "[sandbox]") {
     Playground playground;
-    // At the foot of the stairs, which rise toward +X onto the platform, whose top is at y = 2.
-    playground.player->GetTransform().SetPosition({-17.0f, 0.95f, -8.0f});
+    // At the foot of the proving yard's steps, which rise toward -X onto the platform, whose top is at y = 2.
+    playground.player->GetTransform().SetPosition({-37.5f, 0.95f, -12.0f});
     playground.Run(0.5f);
-    playground.Press(Key::D);
+    playground.Press(Key::A);
     playground.Run(1.5f);
-    playground.Release(Key::D);
-    CHECK(playground.PlayerPosition().x > -12.5f);
+    playground.Release(Key::A);
+    CHECK(playground.PlayerPosition().x < -43.5f);
     CHECK(playground.PlayerPosition().y == Approx(2.9f).margin(0.1f));
 
-    // At the foot of a ramp, which rises toward -Z to a height of 1 over three meters.
-    playground.player->GetTransform().SetPosition({-3.0f, 0.95f, 5.0f});
+    // At the foot of the jump ramp, which rises toward -Z to a height of 2 over six meters.
+    playground.player->GetTransform().SetPosition({-30.0f, 0.95f, 8.0f});
     playground.Run(0.5f);
     playground.Press(Key::W);
     playground.Run(0.7f);
@@ -831,7 +831,7 @@ TEST_CASE("The playground uses linked spawnable prefabs with its authored overri
                 [&](Spot::MeshRenderer& renderer) { CHECK_FALSE(renderer.GetEntity().IsDescendantOf(entity)); });
         }
     });
-    CHECK(linked == 56);
+    CHECK(linked == 71);
     const Entity* cone = playground.scene.FindEntity("Cone");
     REQUIRE(cone != nullptr);
     CHECK(cone->HasComponent<Spot::BoxCollider>());

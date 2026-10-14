@@ -1,6 +1,7 @@
 #include "generator.h"
 
 #include "gltf_writer.h"
+#include "level_models.h"
 #include "rigs.h"
 #include "shapes.h"
 #include "sounds.h"
@@ -62,6 +63,7 @@ const std::vector<Texture>& GetTextures() {
         {"ui_panel", Textures::UiPanel},
         {"ui_dot", Textures::UiDot},
         {"ui_hit_marker", Textures::UiHitMarker},
+        {"chain_link", Textures::ChainLink},
     };
     return textures;
 }
@@ -108,6 +110,14 @@ std::vector<std::string_view> GetSoundNames() {
     std::vector<std::string_view> names;
     for (const GeneratedSound& sound : GetSounds()) {
         names.push_back(sound.name);
+    }
+    return names;
+}
+
+std::vector<std::string_view> GetLevelModelNames() {
+    std::vector<std::string_view> names;
+    for (const LevelModels::LevelModel& level : LevelModels::MakeLevelModels()) {
+        names.push_back(level.name);
     }
     return names;
 }
@@ -173,6 +183,9 @@ OutputCounts GenerateSandboxAssets(const std::filesystem::path& directory) {
     }
     for (const Weapons::WeaponModel& weapon : Weapons::MakeWeaponModels()) {
         writeModel(std::string(weapon.name), weapon.model);
+    }
+    for (const LevelModels::LevelModel& level : LevelModels::MakeLevelModels()) {
+        writeModel(std::string(level.name), level.model);
     }
     writeModel("robot", Rigs::Robot());
     for (const GeneratedSound& sound : GetSounds()) {

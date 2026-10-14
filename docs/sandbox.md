@@ -5,16 +5,40 @@ on Linux and macOS; add `editor` to open it in the editor, or `release` for an o
 the project's assets beside its executable. Headless tests in `tests/sandbox/` load the real playground and
 exercise gameplay through simulated input.
 
-## Spawnable prefabs
+## The playground
 
-The playground includes an open construction yard, ramps, a low platform and stairs, and a workshop
-in the northeast corner. Its three-meter entrance opens into a lit interior with a workbench and
-solid glass windows. Fourteen exterior steps reach the roof. Three pads along the south side mark
-prop construction, lamp testing and weapon testing areas. These are ordinary scene entities, editable
-in the hierarchy; the level and permanent ceiling lamps remain outside world checkpoints and cleanup.
-The sun's DayCycle drives daylight, fog and exposure while the ceiling lamps remain on at night.
-Hold T to advance the cycle quickly. GPU acceptance captures of the cooked scene are written to the
-test build's `tests/sandbox_captures/` directory.
+The playground is a valley of yards around a central plaza, built to show what the engine draws and simulates. Every
+piece is an ordinary scene entity or a generated model, editable in the hierarchy; the level and its permanent lamps
+remain outside world checkpoints and cleanup.
+
+- **Plaza** (spawn): paved, with benches, planted oaks, street lamps, the build pad and a monument whose neon
+  "SPOT ENGINE" sign glows through bloom under a mirror sphere and gold, copper, plastic and glass samples, for PBR
+  and reflections. The robots patrol here.
+- **Workshop** (north-east): a brick hangar with a ten-meter door, glass windows, four shadowed ceiling lamps, a
+  workbench, shelving, the lamp pad and a neon sign. Steel stairs up the west wall lead onto the parapeted roof.
+- **Proving yard** (west): a quarter pipe, a jump ramp, a platform with steps, a nine-meter drop tower with
+  switchback stairs over a bouncy pad, a wrecking ball on a rope beside a wall of crates, a seesaw on a hinge and a
+  curve of dominoes.
+- **Firing range** (east): a covered booth with a counter, lanes between concrete barriers, target dummies at ten
+  and twenty meters, steel plates on hinges that swing when hit, explosive barrels and a berm.
+- **Container yard** (south-west, across the road): stacked shipping containers in four colors behind a cutout
+  chain-link fence, with steps onto one of them.
+- **Pond** (south-east): transparent water in a hollow of the terrain, with a dock and rocks.
+- Around them, the generated terrain rises into hills with rock on its steep slopes, scattered with pines,
+  oaks and boulders. A road with markings crosses the valley under street lamps.
+
+Street lamps, the booth and the monument's uplights carry `NightLight`, which lights them as the day cycle's
+daylight fades (`DayCycle::GetDaylight()`). The workshop's lamps stay on. The day lasts eight minutes; hold T to
+advance it quickly. Three tagged pads mark where to build, test lamps and test weapons.
+
+The level's surfaces are generated PBR texture sets (grass, gravel, asphalt, paving, concrete slabs, brick,
+corrugated steel, tread plate, rock, bark, leaves and water), used by the materials in `materials/level/`, most
+projected from the world (`worldTextureSize`) so they keep their scale on boxes of any size. Its models
+(`generator/level_models.cpp`) are the terrain, rocks, trees, the container, the street lamp, the barrier, the
+bench, the quarter pipe and the fence panel. GPU acceptance captures of every yard by day, at sunset and at night
+are written to the test build's `tests/sandbox_captures/` directory.
+
+## Spawnable prefabs
 
 The playground's props, lamps and firearms are linked prefab instances. Their authored positions, collider
 choices, masses, colors and weapon settings remain instance overrides. Editing a source updates inherited
@@ -172,6 +196,9 @@ average, 11.28 ms p95 and 37.69 ms worst in High quality; it includes the author
 in addition to the requested population. Individual frames can still exceed the 60 FPS budget.
 
 - Walk, jump, climb ramps and stairs, carry and throw a light prop; check collisions and footsteps.
+- Visit every yard: skate the quarter pipe, climb the drop tower and drop props onto the bouncy pad, push the
+  wrecking ball into the crates, tip the dominoes, ride the seesaw, ring the range's plates, climb the container.
+- Watch dusk fall over the pond: street lamps come on, neon signs glow and the workshop stays lit.
 - Fire and reload all four firearms, aim, push props and trigger an explosive barrel's fuse and chain reaction.
 - Grab, move, rotate and freeze a prop with the physics gun, then release it.
 - Weld and rope props, paint and change their materials, remove them and undo the operations.

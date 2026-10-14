@@ -15,6 +15,9 @@ public:
     // How many times faster time goes while Fast Forward is held.
     float fastForward = 20.0f;
 
+    // How much daylight there is, from 0 at night to 1 once the sun is well up.
+    float GetDaylight() const { return m_daylight; }
+
 protected:
     void OnStart() override;
     void OnUpdate(float deltaTime) override;
@@ -26,4 +29,6 @@ private:
     void UpdateSun();
     // Sets the fog and the look for how high the sun is, from -1 below to 1 above.
     void UpdateAtmosphere(float sunHeight);
+
+    float m_daylight = 1.0f;
 };

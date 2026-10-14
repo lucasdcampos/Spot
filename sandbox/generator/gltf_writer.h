@@ -24,6 +24,8 @@ struct GltfMaterial {
     bool doubleSided = false;
     // Blends by the base color's alpha, as glass does.
     bool transparent = false;
+    // Drops what is less than half covered, as chain link and leaves do.
+    bool cutout = false;
 };
 
 // A mesh of the model, drawn with one of its materials.

@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <utility>
+#include <vector>
 
 namespace Generator::Shapes {
 
@@ -241,6 +243,144 @@ MeshData Ramp(float width, float height, float length, float uvRepeat) {
         AddTriangle(mesh, vertex({side * x, -y, -z}, normal, 0.0f, height / uvRepeat),
                     vertex({side * x, y, -z}, normal, 0.0f, 0.0f),
                     vertex({side * x, -y, z}, normal, length / uvRepeat, height / uvRepeat), normal);
+    }
+    return mesh;
+}
+
+MeshData Icosphere(float radius, int subdivisions, const std::function<float(Vector3)>& displacement) {
+    // The icosahedron: three golden rectangles' corners.
+    const float t = (1.0f + std::sqrt(5.0f)) * 0.5f;
+    std::vector<Vector3> points = {{-1, t, 0},  {1, t, 0},  {-1, -t, 0}, {1, -t, 0}, {0, -1, t},  {0, 1, t},
+                                   {0, -1, -t}, {0, 1, -t}, {t, 0, -1},  {t, 0, 1},  {-t, 0, -1}, {-t, 0, 1}};
+    for (Vector3& point : points) {
+        point = Spot::Normalize(point);
+    }
+    std::vector<std::uint32_t> triangles = {0, 11, 5,  0, 5,  1, 0, 1, 7, 0, 7,  10, 0, 10, 11, 1, 5, 9, 5, 11,
+                                            4, 11, 10, 2, 10, 7, 6, 7, 1, 8, 3,  9,  4, 3,  4,  2, 3, 2, 6, 3,
+                                            6, 8,  3,  8, 9,  4, 9, 5, 2, 4, 11, 6,  2, 10, 8,  6, 7, 9, 8, 1};
+    for (int level = 0; level < subdivisions; ++level) {
+        // Each edge's midpoint is made once, and shared by the two triangles along it.
+        std::map<std::pair<std::uint32_t, std::uint32_t>, std::uint32_t> midpoints;
+        const auto midpoint = [&](std::uint32_t a, std::uint32_t b) {
+            const auto key = std::minmax(a, b);
+            if (const auto found = midpoints.find(key); found != midpoints.end()) {
+                return found->second;
+            }
+            points.push_back(Spot::Normalize(points[a] + points[b]));
+            const auto index = static_cast<std::uint32_t>(points.size() - 1);
+            midpoints.emplace(key, index);
+            return index;
+        };
+        std::vector<std::uint32_t> finer;
+        for (std::size_t i = 0; i < triangles.size(); i += 3) {
+            const std::uint32_t a = triangles[i];
+            const std::uint32_t b = triangles[i + 1];
+            const std::uint32_t c = triangles[i + 2];
+            const std::uint32_t ab = midpoint(a, b);
+            const std::uint32_t bc = midpoint(b, c);
+            const std::uint32_t ca = midpoint(c, a);
+            finer.insert(finer.end(), {a, ab, ca, b, bc, ab, c, ca, bc, ab, bc, ca});
+        }
+        triangles = std::move(finer);
+    }
+    MeshData mesh;
+    for (const Vector3& direction : points) {
+        const float scale = radius * (1.0f + (displacement ? displacement(direction) : 0.0f));
+        // Projected from above; materials on these lumpy shapes usually project from the world instead.
+        mesh.vertices.push_back({direction * scale, direction, {0.5f + direction.x * 0.5f, 0.5f - direction.z * 0.5f}});
+    }
+    // Displaced, the normals are the average of the faces around each vertex, weighted by their area.
+    for (MeshVertex& vertex : mesh.vertices) {
+        vertex.normal = {};
+    }
+    for (std::size_t i = 0; i < triangles.size(); i += 3) {
+        MeshVertex& a = mesh.vertices[triangles[i]];
+        MeshVertex& b = mesh.vertices[triangles[i + 1]];
+        MeshVertex& c = mesh.vertices[triangles[i + 2]];
+        Vector3 face = Spot::Cross(b.position - a.position, c.position - a.position);
+        // Outward, whatever order the table lists the corners in.
+        if (Spot::Dot(face, a.position + b.position + c.position) < 0.0f) {
+            face = -face;
+            std::swap(triangles[i + 1], triangles[i + 2]);
+        }
+        a.normal = a.normal + face;
+        b.normal = b.normal + face;
+        c.normal = c.normal + face;
+    }
+    for (MeshVertex& vertex : mesh.vertices) {
+        vertex.normal = Spot::Normalize(vertex.normal);
+    }
+    mesh.indices = std::move(triangles);
+    return mesh;
+}
+
+MeshData Frustum(float bottomRadius, float topRadius, float height, std::uint32_t segments) {
+    MeshData mesh;
+    const float top = height * 0.5f;
+    // The sides lean in as much as the radius shrinks over the height.
+    const float lean = (bottomRadius - topRadius) / height;
+    for (std::uint32_t i = 0; i < segments; ++i) {
+        const auto side = [&](std::uint32_t j, bool upper) {
+            const float angle = Angle(j, segments);
+            const Vector3 around{std::cos(angle), 0.0f, std::sin(angle)};
+            const Vector3 normal = Spot::Normalize(Vector3{around.x, lean, around.z});
+            const float radius = upper ? topRadius : bottomRadius;
+            const float u = static_cast<float>(j) / static_cast<float>(segments);
+            return MeshVertex{
+                around * radius + Vector3{0.0f, upper ? top : -top, 0.0f}, normal, {u, upper ? 0.0f : 0.5f}};
+        };
+        const float middle = (Angle(i, segments) + Angle(i + 1, segments)) * 0.5f;
+        AddQuad(mesh, side(i, true), side(i + 1, true), side(i + 1, false), side(i, false),
+                {std::cos(middle), 0.0f, std::sin(middle)});
+    }
+    AddCap(mesh, topRadius, top, true, segments);
+    AddCap(mesh, bottomRadius, -top, false, segments);
+    return mesh;
+}
+
+MeshData Extrude(std::span<const ProfilePoint> profile, float length, float uvRepeat) {
+    MeshData mesh;
+    const float half = length * 0.5f;
+    const std::size_t count = profile.size();
+    // Each side's outward normal: counterclockwise seen from +X, outward is to the right of the way around.
+    std::vector<Vector3> normals(count);
+    for (std::size_t i = 0; i < count; ++i) {
+        const ProfilePoint& a = profile[i];
+        const ProfilePoint& b = profile[(i + 1) % count];
+        normals[i] = Spot::Normalize(Vector3{0.0f, -(b.z - a.z), b.y - a.y});
+    }
+    float around = 0.0f;
+    for (std::size_t i = 0; i < count; ++i) {
+        const ProfilePoint& a = profile[i];
+        const ProfilePoint& b = profile[(i + 1) % count];
+        const auto normalAt = [&](std::size_t point, std::size_t sideIndex) {
+            if (!profile[point].smooth) {
+                return normals[sideIndex];
+            }
+            const std::size_t before = (point + count - 1) % count;
+            return Spot::Normalize(normals[before] + normals[point]);
+        };
+        const Vector3 na = normalAt(i, i);
+        const Vector3 nb = normalAt((i + 1) % count, i);
+        const float step = std::sqrt((b.z - a.z) * (b.z - a.z) + (b.y - a.y) * (b.y - a.y));
+        const float v0 = around / uvRepeat;
+        const float v1 = (around + step) / uvRepeat;
+        around += step;
+        const float u = length / uvRepeat;
+        const MeshVertex corners[] = {{{-half, a.y, a.z}, na, {0.0f, v0}},
+                                      {{half, a.y, a.z}, na, {u, v0}},
+                                      {{half, b.y, b.z}, nb, {u, v1}},
+                                      {{-half, b.y, b.z}, nb, {0.0f, v1}}};
+        AddQuad(mesh, corners[0], corners[1], corners[2], corners[3], normals[i]);
+    }
+    for (const float side : {-1.0f, 1.0f}) {
+        const Vector3 normal{side, 0.0f, 0.0f};
+        const auto cap = [&](const ProfilePoint& point) {
+            return MeshVertex{{side * half, point.y, point.z}, normal, {point.z / uvRepeat, -point.y / uvRepeat}};
+        };
+        for (std::size_t i = 1; i + 1 < count; ++i) {
+            AddTriangle(mesh, cap(profile[0]), cap(profile[i]), cap(profile[i + 1]), normal);
+        }
     }
     return mesh;
 }

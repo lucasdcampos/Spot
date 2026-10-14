@@ -98,14 +98,15 @@ TEST_CASE("The sandbox's generated props load back, wound outward and centered",
             CHECK_FALSE(node->mesh.has_value());
         }
     }
-    // Each surface's textures tile, the same size as the props'.
+    // Each surface's textures tile, square, at least as large as the props'.
     for (const std::string_view surface : Generator::GetSurfaceNames()) {
         for (const std::string_view kind : {"color", "normal", "orm"}) {
             const auto path = temp.GetPath() / "textures" / std::format("{}_{}.png", surface, kind);
             CAPTURE(path);
             const auto image = Spot::Image::Load(path);
             REQUIRE(image.has_value());
-            CHECK(image->GetWidth() == 256);
+            CHECK(image->GetWidth() >= 256);
+            CHECK(image->GetWidth() == image->GetHeight());
         }
     }
 

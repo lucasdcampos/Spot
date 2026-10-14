@@ -1,0 +1,27 @@
+{
+  "baseColor": [
+    0.72,
+    0.74,
+    0.76,
+    1.0
+  ],
+  "baseColorTexture": "565aa0742010f761602a6a8ee9669dbf",
+  "metallic": 0.8,
+  "roughness": 0.45,
+  "metallicRoughnessTexture": "00000000000000000000000000000000",
+  "normalTexture": "00000000000000000000000000000000",
+  "normalScale": 1.0,
+  "occlusionTexture": "00000000000000000000000000000000",
+  "occlusionStrength": 1.0,
+  "emissive": [
+    0,
+    0,
+    0,
+    1
+  ],
+  "emissiveTexture": "00000000000000000000000000000000",
+  "alphaMode": 1,
+  "alphaCutoff": 0.5,
+  "doubleSided": true,
+  "worldTextureSize": 0.0
+}

@@ -3,6 +3,8 @@
 #include <spot.h>
 
 #include <cstdint>
+#include <functional>
+#include <span>
 
 // Meshes of the props, centered on the box around them, with front faces winding counterclockwise.
 //
@@ -30,6 +32,21 @@ Spot::MeshData Stairs(float width, float stepHeight, float stepDepth, int steps,
 // every uvRepeat units, as on a box.
 Spot::MeshData Ramp(float width, float height, float length, float uvRepeat);
 Spot::MeshData TargetDummy();
+
+// A sphere of triangles, subdivided from an icosahedron so they are all about the same size; each vertex is moved
+// out by the displacement function of its unit direction, as rocks and canopies are lumpy, and smooth normals follow.
+Spot::MeshData Icosphere(float radius, int subdivisions, const std::function<float(Spot::Vector3)>& displacement = {});
+// A cylinder narrowing from the bottom radius to the top one, standing along Y, centered like the others.
+Spot::MeshData Frustum(float bottomRadius, float topRadius, float height, std::uint32_t segments);
+// A profile in the YZ plane pushed along X for the length, centered on X, with caps at both ends. The profile goes
+// around counterclockwise with Z to the right and Y up; caps fan out from its first point, which must see every other
+// one. Points marked smooth share their two sides' normal, as along a curve.
+struct ProfilePoint {
+    float z;
+    float y;
+    bool smooth = false;
+};
+Spot::MeshData Extrude(std::span<const ProfilePoint> profile, float length, float uvRepeat);
 
 // Adds the mesh, moved and turned by the transform, which must not scale, to the end of another, as models made of
 // several shapes are built.

@@ -1,5 +1,8 @@
 #include "textures.h"
 
+#include "level_textures.h"
+#include "texture_painting.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -9,74 +12,6 @@
 namespace Generator::Textures {
 
 namespace {
-
-// Colors as they are displayed (sRGB), from 0 to 1. Only arithmetic and square roots paint them, which give the same
-// results everywhere, so the textures are the same on every machine.
-struct Rgb {
-    float r = 0.0f;
-    float g = 0.0f;
-    float b = 0.0f;
-};
-
-Rgb operator*(Rgb color, float scale) {
-    return {color.r * scale, color.g * scale, color.b * scale};
-}
-
-Rgb Mix(Rgb a, Rgb b, float t) {
-    return {a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t};
-}
-
-std::uint32_t Hash(std::uint32_t x, std::uint32_t y, std::uint32_t seed) {
-    std::uint32_t h = x * 0x8da6b343u ^ y * 0xd8163841u ^ seed * 0xcb1ab31fu;
-    h ^= h >> 13;
-    h *= 0x85ebca6bu;
-    h ^= h >> 16;
-    h *= 0xc2b2ae35u;
-    h ^= h >> 15;
-    return h;
-}
-
-// From 0 to 1.
-float Random(int x, int y, std::uint32_t seed) {
-    return static_cast<float>(Hash(static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(y), seed) >> 8) /
-           16777216.0f;
-}
-
-int Wrap(int value, int period) {
-    return ((value % period) + period) % period;
-}
-
-// Smooth noise from 0 to 1 over a lattice of the periods, so it tiles every period cells.
-float ValueNoise(float x, float y, int periodX, int periodY, std::uint32_t seed) {
-    const float fx = std::floor(x);
-    const float fy = std::floor(y);
-    const int x0 = static_cast<int>(fx);
-    const int y0 = static_cast<int>(fy);
-    const auto fade = [](float t) { return t * t * (3.0f - 2.0f * t); };
-    const float tx = fade(x - fx);
-    const float ty = fade(y - fy);
-    const auto at = [&](int dx, int dy) { return Random(Wrap(x0 + dx, periodX), Wrap(y0 + dy, periodY), seed); };
-    const float top = at(0, 0) + (at(1, 0) - at(0, 0)) * tx;
-    const float bottom = at(0, 1) + (at(1, 1) - at(0, 1)) * tx;
-    return top + (bottom - top) * ty;
-}
-
-// Noise in octaves, each twice as fine and half as strong, from 0 to 1. The texture is cellsX by cellsY cells of the
-// first octave, so it tiles.
-float Fractal(float u, float v, int cellsX, int cellsY, int octaves, std::uint32_t seed) {
-    float sum = 0.0f;
-    float amplitude = 0.5f;
-    float total = 0.0f;
-    for (int octave = 0; octave < octaves; ++octave) {
-        const int scale = 1 << octave;
-        sum += ValueNoise(u * static_cast<float>(cellsX * scale), v * static_cast<float>(cellsY * scale),
-                          cellsX * scale, cellsY * scale, seed + static_cast<std::uint32_t>(octave)) *
-               amplitude;
-        total += amplitude;
-        amplitude *= 0.5f;
-    }
-    return sum / total;
-}
 
 template <typename F>
 Spot::Image Paint(F&& color) {
@@ -217,6 +152,20 @@ Spot::Image UiHitMarker() {
         const float along = (u + v) / std::sqrt(2.0f);
         const float across = std::abs(u - v) / std::sqrt(2.0f);
         return Coverage(std::max({across - 2.5f, half * 0.4f - along, along - (half - 3.0f)}));
+    });
+}
+
+Spot::Image ChainLink() {
+    constexpr std::uint32_t LinkSize = 64;
+    const float size = static_cast<float>(LinkSize);
+    return PaintCoverage(LinkSize, [&](float x, float y) {
+        // One diamond per tile: wires along the diagonals, wrapping, so the mesh continues across tiles.
+        const float u = x / size;
+        const float v = y / size;
+        const float down = std::abs(u - v);
+        const float up = std::abs(u + v - 1.0f);
+        const float wire = std::min({down, 1.0f - down, up, 1.0f - up}) * size / std::sqrt(2.0f);
+        return Coverage(wire - 1.6f);
     });
 }
 
@@ -407,58 +356,9 @@ Spot::Image Wheel() {
 
 namespace {
 
-// What a surface is at a pixel: its color, its height (in pixels, for its normals), how much light reaches it, and its
-// roughness and metalness.
-struct SurfacePoint {
-    Rgb color;
-    float height = 0.0f;
-    float occlusion = 1.0f;
-    float roughness = 0.5f;
-    float metallic = 0.0f;
-};
-
 template <typename F>
 SurfaceTextures PaintSurfacePoints(F&& surface) {
-    std::vector<SurfacePoint> points(static_cast<std::size_t>(Size) * Size);
-    for (std::uint32_t y = 0; y < Size; ++y) {
-        for (std::uint32_t x = 0; x < Size; ++x) {
-            points[static_cast<std::size_t>(y) * Size + x] = surface(static_cast<int>(x), static_cast<int>(y));
-        }
-    }
-    const auto at = [&](int x, int y) -> const SurfacePoint& {
-        const int size = static_cast<int>(Size);
-        return points[static_cast<std::size_t>(Wrap(y, size)) * Size + static_cast<std::size_t>(Wrap(x, size))];
-    };
-    const auto byte = [](float value) {
-        return static_cast<std::uint8_t>(std::clamp(value, 0.0f, 1.0f) * 255.0f + 0.5f);
-    };
-    std::vector<std::uint8_t> color(points.size() * 4);
-    std::vector<std::uint8_t> normal(points.size() * 4);
-    std::vector<std::uint8_t> orm(points.size() * 4);
-    for (int y = 0; y < static_cast<int>(Size); ++y) {
-        for (int x = 0; x < static_cast<int>(Size); ++x) {
-            const SurfacePoint& point = at(x, y);
-            const std::size_t i = (static_cast<std::size_t>(y) * Size + static_cast<std::size_t>(x)) * 4;
-            color[i] = byte(point.color.r);
-            color[i + 1] = byte(point.color.g);
-            color[i + 2] = byte(point.color.b);
-            color[i + 3] = 255;
-            // Slopes across the pixels around it, wrapping, so the normals tile; up the texture is toward lower y.
-            const float dx = (at(x + 1, y).height - at(x - 1, y).height) * 0.5f;
-            const float dy = (at(x, y - 1).height - at(x, y + 1).height) * 0.5f;
-            const float length = std::sqrt(dx * dx + dy * dy + 1.0f);
-            normal[i] = byte(-dx / length * 0.5f + 0.5f);
-            normal[i + 1] = byte(-dy / length * 0.5f + 0.5f);
-            normal[i + 2] = byte(1.0f / length * 0.5f + 0.5f);
-            normal[i + 3] = 255;
-            orm[i] = byte(point.occlusion);
-            orm[i + 1] = byte(point.roughness);
-            orm[i + 2] = byte(point.metallic);
-            orm[i + 3] = 255;
-        }
-    }
-    return {Spot::Image(Size, Size, std::move(color)), Spot::Image(Size, Size, std::move(normal)),
-            Spot::Image(Size, Size, std::move(orm))};
+    return PaintSurfaceTexels(Size, [&](int x, int y, float) { return surface(x, y); });
 }
 
 // Boards along X, eight across, with gaps between them and grain along them.
@@ -559,8 +459,39 @@ std::string_view GetSurfaceName(Surface surface) {
         return "rubber";
     case Surface::Glass:
         return "glass";
+    case Surface::Grass:
+        return "grass";
+    case Surface::Gravel:
+        return "gravel";
+    case Surface::Asphalt:
+        return "asphalt";
+    case Surface::Paving:
+        return "paving";
+    case Surface::Brick:
+        return "brick";
+    case Surface::Corrugated:
+        return "corrugated";
+    case Surface::TreadPlate:
+        return "tread_plate";
+    case Surface::Rock:
+        return "rock";
+    case Surface::Bark:
+        return "bark";
+    case Surface::Leaves:
+        return "leaves";
+    case Surface::Water:
+        return "water";
+    case Surface::Slab:
+        return "slab";
     }
     return "";
+}
+
+std::uint32_t GetSurfaceSize(Surface surface) {
+    return surface == Surface::Grass || surface == Surface::Rock || surface == Surface::Asphalt ||
+                   surface == Surface::Slab
+               ? 512
+               : Size;
 }
 
 SurfaceTextures PaintSurface(Surface surface) {
@@ -576,9 +507,11 @@ SurfaceTextures PaintSurface(Surface surface) {
     case Surface::Rubber:
         return PaintSurfacePoints(RubberPoint);
     case Surface::Glass:
+        return PaintSurfacePoints(GlassPoint);
+    default:
         break;
     }
-    return PaintSurfacePoints(GlassPoint);
+    return PaintLevelSurface(surface, GetSurfaceSize(surface));
 }
 
 } // namespace Generator::Textures

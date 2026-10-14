@@ -10,8 +10,9 @@
 
 #include <array>
 #include <filesystem>
+#include <vector>
 
-TEST_CASE("The cooked playground renders the workshop, glass and night lighting", "[gpu][sandbox][offscreen]") {
+TEST_CASE("The cooked playground renders its yards by day, at sunset and at night", "[gpu][sandbox][offscreen]") {
     if (!Spot::GraphicsDevice::IsSupported()) {
         SKIP("No usable graphics device");
     }
@@ -32,8 +33,13 @@ TEST_CASE("The cooked playground renders the workshop, glass and night lighting"
     REQUIRE(scene);
     REQUIRE(scene->FindEntity("Workshop"));
     scene->ForEachComponent<Spot::Camera>([](Spot::Camera& camera) { camera.SetEnabled(false); });
+    // The HUD, made as the game starts, would cover the views.
+    scene->Update(0.0f);
+    if (auto* game = scene->FindEntity("Game")) {
+        game->ForEachChild([](Spot::Entity& child) { child.SetActive(false); });
+    }
     auto& camera = scene->CreateEntity("Acceptance Camera");
-    camera.AddComponent<Spot::Camera>();
+    camera.AddComponent<Spot::Camera>().SetFarPlane(600.0f);
     auto* day = scene->FindComponent<DayCycle>();
     REQUIRE(day);
     auto target = device->CreateTexture(
@@ -41,16 +47,32 @@ TEST_CASE("The cooked playground renders the workshop, glass and night lighting"
     REQUIRE(target);
     Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb});
     REQUIRE(renderer.IsValid());
-    const std::array views{Spot::Vector3{0, 8, 16}, Spot::Vector3{12, 1.6f, -8}, Spot::Vector3{19, 1.8f, -12}};
-    std::array<std::vector<std::uint8_t>, 3> images;
-    const std::array names{"playground_day.png", "workshop_night.png", "workshop_glass.png"};
+    struct View {
+        const char* name;
+        Spot::Vector3 position;
+        Spot::Vector3 target;
+        float time;
+    };
+    const std::array views{
+        View{"playground_day.png", {0, 7, 30}, {0, 2, -12}, 0.42f},
+        View{"workshop_exterior.png", {6, 3.5f, -10}, {19, 3.5f, -30}, 0.6f},
+        View{"workshop_night.png", {19, 2, -29}, {21, 1.5f, -42}, 0.0f},
+        View{"proving_yard.png", {-20, 7, 8}, {-38, 3, -10}, 0.45f},
+        View{"firing_range.png", {25.5f, 2.0f, 0}, {46, 1, 0}, 0.5f},
+        View{"container_yard.png", {-26, 4, 27}, {-42, 2, 40}, 0.36f},
+        View{"pond_sunset.png", {19, 3, 27}, {34, 0, 44}, 0.71f},
+        View{"playground_night.png", {0, 9, 34}, {0, 2, -12}, 0.95f},
+    };
     const std::filesystem::path output(SPOT_SANDBOX_CAPTURE_DIR);
     std::filesystem::create_directories(output);
-    for (std::size_t i = 0; i < views.size(); ++i) {
-        camera.GetTransform().SetPosition(views[i]);
-        camera.GetTransform().SetRotation(Spot::Quaternion::LookRotation(Spot::Vector3{10, 1.5f, -12} - views[i]));
-        day->timeOfDay = i == 1 ? 0 : .5f;
-        scene->Update(0);
+    std::vector<std::vector<std::uint8_t>> images;
+    for (const View& view : views) {
+        camera.GetTransform().SetPosition(view.position);
+        camera.GetTransform().SetRotation(Spot::Quaternion::LookRotation(view.target - view.position));
+        day->timeOfDay = view.time;
+        // Long enough for the night lights to come on.
+        scene->Update(0.0f);
+        scene->Update(0.0f);
         std::array scenes{scene.get()};
         for (int frame = 0; frame < 2; ++frame) {
             auto* context = device->BeginOffscreenFrame(*target);
@@ -58,27 +80,51 @@ TEST_CASE("The cooked playground renders the workshop, glass and night lighting"
             renderer.Render(*context, scenes, target.get());
             device->EndFrame();
         }
-        images[i] = device->DownloadTexture(*target);
-        REQUIRE(images[i].size() == 960 * 540 * 4);
+        auto pixels = device->DownloadTexture(*target);
+        REQUIRE(pixels.size() == 960 * 540 * 4);
         std::size_t visible = 0;
-        for (std::size_t pixel = 0; pixel < images[i].size(); pixel += 4) {
-            visible += images[i][pixel] > 30 || images[i][pixel + 1] > 30 || images[i][pixel + 2] > 30;
+        for (std::size_t pixel = 0; pixel < pixels.size(); pixel += 4) {
+            visible += pixels[pixel] > 30 || pixels[pixel + 1] > 30 || pixels[pixel + 2] > 30;
         }
+        CAPTURE(view.name);
         CHECK(visible > 960 * 540 / 8);
-        CHECK(Spot::Image(960, 540, images[i]).SavePng(output / names[i]));
+        CHECK(Spot::Image(960, 540, pixels).SavePng(output / view.name));
+        images.push_back(std::move(pixels));
     }
-    CHECK(images[0] != images[1]);
-    scene->ForEachComponent<Spot::MeshRenderer>([](Spot::MeshRenderer& mesh) {
+    const bool nightDiffers = images[0] != images[7];
+    CHECK(nightDiffers);
+    // The workshop's windows are glass: hiding them changes what is seen through them. Disabled components are
+    // left out of ForEachComponent(), so the windows are kept to enable them again.
+    std::vector<Spot::MeshRenderer*> windows;
+    scene->ForEachComponent<Spot::MeshRenderer>([&](Spot::MeshRenderer& mesh) {
         if (mesh.GetEntity().GetName() == "Workshop Window") {
+            windows.push_back(&mesh);
             mesh.SetEnabled(false);
         }
     });
+    REQUIRE(windows.size() == 5);
+    camera.GetTransform().SetPosition({33, 2.2f, -37});
+    camera.GetTransform().SetRotation(Spot::Quaternion::LookRotation(Spot::Vector3{-1, 0, 0}));
+    day->timeOfDay = 0.5f;
+    scene->Update(0.0f);
+    const std::array scenes{scene.get()};
     auto* context = device->BeginOffscreenFrame(*target);
     REQUIRE(context);
-    const std::array scenes{scene.get()};
     renderer.Render(*context, scenes, target.get());
     device->EndFrame();
-    CHECK(device->DownloadTexture(*target) != images[2]);
+    const auto withoutGlass = device->DownloadTexture(*target);
+    for (auto* window : windows) {
+        window->SetEnabled(true);
+    }
+    scene->Update(0.0f);
+    context = device->BeginOffscreenFrame(*target);
+    REQUIRE(context);
+    renderer.Render(*context, scenes, target.get());
+    device->EndFrame();
+    const auto withGlass = device->DownloadTexture(*target);
+    CHECK(Spot::Image(960, 540, withGlass).SavePng(output / "workshop_glass.png"));
+    const bool glassShows = withGlass != withoutGlass;
+    CHECK(glassShows);
 }
 
 TEST_CASE("The cooked sandbox renders held items, recoil, sights and reloads", "[gpu][sandbox][offscreen]") {
