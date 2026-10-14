@@ -191,9 +191,9 @@ Quality is 0/1/2 for Low/Medium/High. A camera orbits the level at 1600x900 with
 off; gameplay, physics, robots, particles and the HUD continue. It spawns actual imported crates,
 adds point lamps (every eighth shadowed), excludes loading/warmup, then reports frame mean, median,
 p95, worst, body count, memory and inclusive CPU scopes. Exit status is nonzero if setup fails.
-Run without concurrent builds or tests. The M15 measurement on an i5-11600K / GTX 1660 is 113.3 FPS
-average, 11.28 ms p95 and 37.69 ms worst in High quality; it includes the authored props and lamps
-in addition to the requested population. Individual frames can still exceed the 60 FPS budget.
+Run without concurrent builds or tests. On an i5-11600K / GTX 1660 the valley playground measures 99.0 FPS average, 11.83 ms p95 and 19.92 ms
+worst in High quality with that population, and 148.9 FPS (8.45 ms p95) on its own. HUD texts do not clip
+(`overflow` off): each clipped text breaks the 2D batch, which cost the HUD about 3 ms a frame. Individual frames can still exceed the 60 FPS budget.
 
 - Walk, jump, climb ramps and stairs, carry and throw a light prop; check collisions and footsteps.
 - Visit every yard: skate the quarter pipe, climb the drop tower and drop props onto the bouncy pad, push the
