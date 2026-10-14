@@ -8,7 +8,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <span>
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace Generator::LevelModels {
@@ -312,6 +314,170 @@ GltfModel FencePanel() {
     return builder.Build();
 }
 
+// Neon lettering: each character is strokes on a grid two units wide and three high.
+struct Stroke {
+    float x0, y0, x1, y1;
+};
+
+std::span<const Stroke> GetStrokes(char character) {
+    static constexpr Stroke S[] = {{2, 3, 0, 3}, {0, 3, 0, 1.5f}, {0, 1.5f, 2, 1.5f}, {2, 1.5f, 2, 0}, {2, 0, 0, 0}};
+    static constexpr Stroke P[] = {{0, 0, 0, 3}, {0, 3, 2, 3}, {2, 3, 2, 1.5f}, {2, 1.5f, 0, 1.5f}};
+    static constexpr Stroke O[] = {{0, 0, 2, 0}, {2, 0, 2, 3}, {2, 3, 0, 3}, {0, 3, 0, 0}};
+    static constexpr Stroke T[] = {{0, 3, 2, 3}, {1, 3, 1, 0}};
+    static constexpr Stroke E[] = {{2, 3, 0, 3}, {0, 3, 0, 0}, {0, 0, 2, 0}, {0, 1.5f, 1.5f, 1.5f}};
+    static constexpr Stroke N[] = {{0, 0, 0, 3}, {0, 3, 2, 0}, {2, 0, 2, 3}};
+    static constexpr Stroke G[] = {{2, 3, 0, 3}, {0, 3, 0, 0}, {0, 0, 2, 0}, {2, 0, 2, 1.4f}, {2, 1.4f, 1.1f, 1.4f}};
+    static constexpr Stroke I[] = {{1, 0, 1, 3}, {0.4f, 3, 1.6f, 3}, {0.4f, 0, 1.6f, 0}};
+    static constexpr Stroke W[] = {{0, 3, 0.5f, 0}, {0.5f, 0, 1, 1.8f}, {1, 1.8f, 1.5f, 0}, {1.5f, 0, 2, 3}};
+    static constexpr Stroke R[] = {{0, 0, 0, 3}, {0, 3, 2, 3}, {2, 3, 2, 1.5f}, {2, 1.5f, 0, 1.5f}, {0.8f, 1.5f, 2, 0}};
+    static constexpr Stroke K[] = {{0, 0, 0, 3}, {2, 3, 0, 1.3f}, {0.7f, 1.9f, 2, 0}};
+    static constexpr Stroke H[] = {{0, 0, 0, 3}, {2, 0, 2, 3}, {0, 1.5f, 2, 1.5f}};
+    static constexpr Stroke M[] = {{0, 0, 0, 3}, {0, 3, 1, 1.4f}, {1, 1.4f, 2, 3}, {2, 3, 2, 0}};
+    static constexpr Stroke Zero[] = {{0, 0, 2, 0}, {2, 0, 2, 3}, {2, 3, 0, 3}, {0, 3, 0, 0}, {0, 0.4f, 2, 2.6f}};
+    static constexpr Stroke One[] = {{1, 0, 1, 3}, {1, 3, 0.4f, 2.4f}};
+    static constexpr Stroke Two[] = {{0, 3, 2, 3}, {2, 3, 2, 1.5f}, {2, 1.5f, 0, 1.5f}, {0, 1.5f, 0, 0}, {0, 0, 2, 0}};
+    switch (character) {
+    case 'S':
+        return S;
+    case 'P':
+        return P;
+    case 'O':
+        return O;
+    case 'T':
+        return T;
+    case 'E':
+        return E;
+    case 'N':
+        return N;
+    case 'G':
+        return G;
+    case 'I':
+        return I;
+    case 'W':
+        return W;
+    case 'R':
+        return R;
+    case 'K':
+        return K;
+    case 'H':
+        return H;
+    case 'M':
+        return M;
+    case '0':
+        return Zero;
+    case '1':
+        return One;
+    case '2':
+        return Two;
+    default:
+        return {};
+    }
+}
+
+// Text in glowing tubes, centered on the origin in the XY plane and facing +Z, letters as tall as the height.
+GltfModel NeonSign(std::string_view text, float height, float thickness) {
+    Builder builder;
+    const std::size_t tubes = builder.AddMaterial({.name = "Neon",
+                                                   .baseColor = {1.0f, 0.5f, 0.15f, 1.0f},
+                                                   .roughness = 0.3f,
+                                                   .emissive = {8.0f, 3.0f, 0.8f, 1.0f}});
+    const float unit = height / 3.0f;
+    constexpr float Advance = 3.0f;
+    const float width = (static_cast<float>(text.size()) * Advance - 1.0f) * unit;
+    for (std::size_t i = 0; i < text.size(); ++i) {
+        const float left = -width * 0.5f + static_cast<float>(i) * Advance * unit;
+        for (const Stroke& stroke : GetStrokes(text[i])) {
+            const float x0 = left + stroke.x0 * unit;
+            const float x1 = left + stroke.x1 * unit;
+            const float y0 = stroke.y0 * unit - height * 0.5f;
+            const float y1 = stroke.y1 * unit - height * 0.5f;
+            const float length = std::sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0)) + thickness;
+            builder.Add(tubes, Shapes::Box({length, thickness, thickness}, 1.0f),
+                        At({(x0 + x1) * 0.5f, (y0 + y1) * 0.5f, 0.0f},
+                           Quaternion::FromAxisAngle({0, 0, 1}, std::atan2(y1 - y0, x1 - x0))));
+        }
+    }
+    return builder.Build();
+}
+
+// The road's paint, in place: dashes down the middle, a line along each edge and a crossing to the plaza.
+GltfModel RoadMarkings() {
+    Builder builder;
+    const std::size_t paint =
+        builder.AddMaterial({.name = "Road Paint", .baseColor = {0.92f, 0.92f, 0.88f, 1.0f}, .roughness = 0.55f});
+    for (int x = -60; x <= 60; x += 6) {
+        if (std::abs(x) > 4) {
+            builder.Add(paint, Shapes::Box({2.6f, 0.006f, 0.16f}, 1.0f), At({static_cast<float>(x), 0.003f, 26.0f}));
+        }
+    }
+    for (const float z : {22.35f, 29.65f}) {
+        builder.Add(paint, Shapes::Box({123.0f, 0.006f, 0.14f}, 1.0f), At({0.0f, 0.003f, z}));
+    }
+    for (int i = 0; i < 6; ++i) {
+        builder.Add(paint, Shapes::Box({0.5f, 0.006f, 7.0f}, 1.0f),
+                    At({-2.25f + 0.9f * static_cast<float>(i), 0.003f, 26.0f}));
+    }
+    return builder.Build();
+}
+
+// How far a point is outside the level's flat ground, where the hills begin.
+float GetDistanceOutside(float x, float z) {
+    const float dx = std::max(std::abs(x) - 50.0f, 0.0f);
+    const float dz = std::max(std::abs(z) - 46.0f, 0.0f);
+    return std::sqrt(dx * dx + dz * dz) - 12.0f;
+}
+
+// The pines and boulders scattered over the hills, merged into one mesh per material so the whole forest draws as a
+// handful of meshes. Trunks and rocks collide by their triangles.
+GltfModel Forest() {
+    Builder builder;
+    const std::size_t bark = builder.AddMaterial(SurfaceMaterial("Bark", Surface::Bark));
+    const std::size_t needles =
+        builder.AddMaterial(SurfaceMaterial("Needles", Surface::Leaves, {0.62f, 0.78f, 0.7f, 1.0f}));
+    const std::size_t stone = builder.AddMaterial(SurfaceMaterial("Rock", Surface::Rock));
+    const GltfModel pine = Pine();
+    const MeshData rocks[] = {Rock(4001, {1.3f, 0.95f, 1.1f}).parts[0].mesh,
+                              Rock(4002, {2.2f, 0.7f, 1.6f}).parts[0].mesh,
+                              Rock(4003, {0.9f, 1.9f, 1.0f}).parts[0].mesh};
+    const auto random = [](int i, std::uint32_t seed) { return Textures::Random(i, 0, seed); };
+    const auto place = [&](std::size_t part, const MeshData& mesh, Vector3 position, float yaw, float scale) {
+        MeshData scaled = mesh;
+        for (Spot::MeshVertex& vertex : scaled.vertices) {
+            vertex.position = vertex.position * scale;
+        }
+        builder.Add(part, scaled, At(position, Turn({0, 1, 0}, yaw)));
+    };
+    int pines = 0;
+    for (int i = 0; i < 4000 && pines < 70; ++i) {
+        const float x = -120.0f + random(i, 5001) * 240.0f;
+        const float z = -115.0f + random(i, 5002) * 230.0f;
+        const float outside = GetDistanceOutside(x, z);
+        if (outside < 2.0f || outside > 55.0f) {
+            continue;
+        }
+        const float scale = 0.9f + random(i, 5003) * 0.6f;
+        const Vector3 base{x, GetTerrainHeight(x, z) - 0.4f, z};
+        const float yaw = random(i, 5004) * 360.0f;
+        place(bark, pine.parts[0].mesh, base, yaw, scale);
+        place(needles, pine.parts[1].mesh, base, yaw, scale);
+        ++pines;
+    }
+    int boulders = 0;
+    for (int i = 0; i < 4000 && boulders < 26; ++i) {
+        const float x = -110.0f + random(i, 6001) * 220.0f;
+        const float z = -105.0f + random(i, 6002) * 210.0f;
+        const float outside = GetDistanceOutside(x, z);
+        if (outside <= 0.0f || outside >= 45.0f) {
+            continue;
+        }
+        const float scale = 1.0f + random(i, 6003) * 1.6f;
+        const auto kind = static_cast<std::size_t>(random(i, 6004) * 2.999f);
+        place(stone, rocks[kind], {x, GetTerrainHeight(x, z) - 0.3f * scale, z}, random(i, 6005) * 360.0f, scale);
+        ++boulders;
+    }
+    return builder.Build();
+}
+
 } // namespace
 
 float GetTerrainHeight(float x, float z) {
@@ -396,6 +562,12 @@ std::vector<LevelModel> MakeLevelModels() {
     models.push_back({"bench", Bench()});
     models.push_back({"quarter_pipe", QuarterPipe()});
     models.push_back({"fence_panel", FencePanel()});
+    models.push_back({"forest", Forest()});
+    models.push_back({"road_markings", RoadMarkings()});
+    models.push_back({"sign_spot_engine", NeonSign("SPOT ENGINE", 0.62f, 0.05f)});
+    models.push_back({"sign_workshop", NeonSign("WORKSHOP", 0.5f, 0.05f)});
+    models.push_back({"sign_10m", NeonSign("10M", 0.9f, 0.09f)});
+    models.push_back({"sign_20m", NeonSign("20M", 0.9f, 0.09f)});
     return models;
 }
 

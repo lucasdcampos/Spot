@@ -62,6 +62,21 @@ void UiInputSystem::UpdateCapture() {
 void UiInputSystem::Refresh(Vector2 viewSize) {
     SPOT_PROFILE_SCOPE("UiInputSystem::Refresh");
     m_viewSize = viewSize;
+    // A HUD of labels and images, with no menu open, takes no input: laying it out here every event and frame would
+    // only cost time, so input waits until something can be focused, clicked or hold the input as a modal canvas.
+    bool interactive = false;
+    GetScene().ForEachComponent<Canvas>([&](Canvas& canvas) { interactive = interactive || canvas.settings.modal; });
+    GetScene().ForEachComponent<UiWidget>(
+        [&](UiWidget& widget) { interactive = interactive || (widget.IsFocusable() && widget.IsInteractable()); });
+    if (!interactive) {
+        m_modal = EntityId::Invalid;
+        m_focusable.clear();
+        m_focused = EntityId::Invalid;
+        m_pressed = EntityId::Invalid;
+        m_hovered = EntityId::Invalid;
+        UpdateCapture();
+        return;
+    }
     auto& layout = GetScene().GetUi();
     layout.Layout(viewSize);
     m_modal = EntityId::Invalid;

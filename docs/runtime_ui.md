@@ -88,6 +88,8 @@ The application routes viewport events to scene UI before gameplay input/action 
 `Scene::HandleUiEvent(event, viewSize, input)` for custom hosts: pointer coordinates grow down from
 the viewport's top-left, in pixels. The editor converts its played viewport coordinates too.
 `Scene::GetUi()` and `Scene::GetUiInput()` lazily create each service exactly once.
+While no modal canvas is active and no widget can be focused, as with a HUD of labels, input skips laying the
+interface out.
 Handled events clear the matching game control via `InputState::ConsumeEvent()`, avoiding held
 buttons when ownership changes. Owned key/button releases are also consumed after a menu closes. Pointer hit testing follows reverse draw order and inherited clips;
 a click activates only when released on the element that received the press. Sliders support drag.

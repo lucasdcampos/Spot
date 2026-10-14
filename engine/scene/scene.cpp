@@ -356,11 +356,38 @@ bool Scene::IsAlive(const std::unique_ptr<Entity>& entity) {
     return entity && !entity->m_destroyed;
 }
 
+const std::vector<Component*>& Scene::GetCachedComponents(std::type_index type,
+                                                          const std::function<bool(Component&)>& matches) {
+    ComponentCache& cache = m_componentCache[type];
+    if (cache.version != m_componentVersion) {
+        cache.components.clear();
+        for (const auto& entity : m_entities) {
+            if (!entity) {
+                continue;
+            }
+            for (const auto& component : entity->m_components) {
+                if (matches(*component)) {
+                    cache.components.push_back(component.get());
+                }
+            }
+        }
+        cache.version = m_componentVersion;
+    }
+    return cache.components;
+}
+
+bool Scene::IsIncluded(const Component& component) {
+    const Entity* entity = component.m_entity;
+    return !component.m_removed && component.IsEnabled() && entity && !entity->m_destroyed &&
+           entity->IsActiveInHierarchy();
+}
+
 std::unique_ptr<Entity> Scene::Release(Entity& entity) {
     const auto slot = std::ranges::find_if(m_entities, [&entity](const auto& owned) { return owned.get() == &entity; });
     SPOT_ASSERT(slot != m_entities.end(), "The entity belongs to another scene");
     // The slot stays empty until removals are processed, so loops in progress keep their place.
     auto released = std::move(*slot);
+    InvalidateComponentCache();
     m_entitiesById.erase(entity.m_id);
     std::erase(m_roots, &entity);
     m_hasPendingRemovals = true;
@@ -368,6 +395,7 @@ std::unique_ptr<Entity> Scene::Release(Entity& entity) {
 }
 
 void Scene::Adopt(std::unique_ptr<Entity> entity) {
+    InvalidateComponentCache();
     entity->m_scene = this;
     m_entitiesById.emplace(entity->m_id, entity.get());
     if (!entity->m_parent) {
@@ -407,6 +435,8 @@ void Scene::ProcessRemovals() {
         }
         std::erase_if(m_roots, [](const Entity* entity) { return entity->CanBeFreed(); });
         std::erase_if(m_entities, [](const auto& entity) { return !entity || entity->CanBeFreed(); });
+        // OnDestroy() may have found components again while they were still there.
+        InvalidateComponentCache();
     }
     m_deferRemovals = deferRemovals;
 }

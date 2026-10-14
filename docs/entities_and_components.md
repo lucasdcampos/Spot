@@ -55,7 +55,9 @@ it has not faulted. Its hooks run in this order:
 The entity is not available in the constructor; setup that needs it goes in `OnStart()`. `GetComponent<T>()`,
 `GetComponents<T>()`, `GetComponentInChildren<T>()`, `GetComponentInParent<T>()` and `Scene::FindComponent<T>()` find
 components, including types derived from `T`. `Scene::ForEachComponent<T>()` walks the enabled ones on active
-entities.
+entities. It keeps the components found for each type until components or entities are added, moved or freed, so
+systems that go through one type every frame do not scan a large scene each time; components fn adds are found by
+the next call.
 
 ### Failures
 

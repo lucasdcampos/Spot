@@ -21,7 +21,8 @@ GltfModel Terrain();
 float GetTerrainHeight(float x, float z);
 
 // Every model, in the order they are written: the terrain, rocks, trees, a shipping container, a street lamp, a
-// concrete barrier, a bench, a quarter pipe and a fence panel.
+// concrete barrier, a bench, a quarter pipe, a fence panel, the forest on the hills, the road's markings and the neon
+// signs.
 std::vector<LevelModel> MakeLevelModels();
 
 } // namespace Generator::LevelModels

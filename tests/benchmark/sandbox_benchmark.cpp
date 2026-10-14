@@ -27,6 +27,8 @@ struct Options {
     int warmup = 240;
     int frames = 600;
     int quality = 2;
+    // Walks the player through the level, seen through its own eyes with what it holds, as a game plays.
+    int walk = 0;
 };
 
 Spot::ApplicationConfig Config() {
@@ -71,11 +73,11 @@ protected:
             m_times.push_back(std::chrono::duration<double, std::milli>(now - m_last).count());
         }
         m_last = now;
-        auto* camera = scene->GetEntity(m_camera);
-        const float angle = static_cast<float>(m_frame) * .003f;
-        const Spot::Vector3 position{std::sin(angle) * 23, 9, std::cos(angle) * 23};
-        camera->GetTransform().SetWorldPosition(position);
-        camera->GetTransform().SetWorldRotation(Spot::Quaternion::LookRotation(Spot::Vector3{0, 1, 0} - position));
+        if (m_options.walk) {
+            Walk(*scene);
+        } else {
+            Orbit(*scene);
+        }
         if (++m_frame >= m_options.warmup + m_options.frames) {
             Report(*scene);
             Quit();
@@ -83,6 +85,30 @@ protected:
     }
 
 private:
+    void Orbit(Spot::Scene& scene) {
+        auto* camera = scene.GetEntity(m_camera);
+        const float angle = static_cast<float>(m_frame) * .003f;
+        const Spot::Vector3 position{std::sin(angle) * 23, 9, std::cos(angle) * 23};
+        camera->GetTransform().SetWorldPosition(position);
+        camera->GetTransform().SetWorldRotation(Spot::Quaternion::LookRotation(Spot::Vector3{0, 1, 0} - position));
+    }
+
+    // From the plaza's south edge north into the workshop, again and again, holding Forward.
+    void Walk(Spot::Scene& scene) {
+        auto* movement = scene.FindComponent<PlayerMovement>();
+        if (!movement) {
+            return;
+        }
+        if (m_frame % 600 == 0) {
+            movement->GetEntity().GetTransform().SetWorldPosition({19.0f, 1.0f, 16.0f});
+        }
+        if (m_frame == 0) {
+            if (auto* input = Spot::Input::GetState()) {
+                input->OnEvent(Spot::KeyPressedEvent{.key = Spot::Key::W, .repeat = false});
+            }
+        }
+    }
+
     bool Populate(Spot::Scene& scene) {
         auto* spawner = scene.FindComponent<PropSpawner>();
         auto* ui = scene.FindComponent<RuntimeInterface>();
@@ -116,12 +142,14 @@ private:
             lamp.GetTransform().SetWorldPosition({x, 3, z});
             lamp.AddComponent<Spot::PointLight>(Spot::Color{.8f, .9f, 1, 1}, 6.0f, 7.0f).SetCastingShadows(i % 8 == 0);
         }
-        scene.ForEachComponent<Spot::Camera>([](Spot::Camera& camera) { camera.SetEnabled(false); });
-        scene.ForEachComponent<PlayerMovement>([](PlayerMovement& movement) { movement.SetFlying(true); });
-        scene.ForEachComponent<ViewModel>([](ViewModel& view) { view.SetEnabled(false); });
-        auto& camera = scene.CreateEntity("Benchmark Camera");
-        camera.AddComponent<Spot::Camera>();
-        m_camera = camera.GetId();
+        if (!m_options.walk) {
+            scene.ForEachComponent<Spot::Camera>([](Spot::Camera& camera) { camera.SetEnabled(false); });
+            scene.ForEachComponent<PlayerMovement>([](PlayerMovement& movement) { movement.SetFlying(true); });
+            scene.ForEachComponent<ViewModel>([](ViewModel& view) { view.SetEnabled(false); });
+            auto& camera = scene.CreateEntity("Benchmark Camera");
+            camera.AddComponent<Spot::Camera>();
+            m_camera = camera.GetId();
+        }
         Spot::Input::SetCursorLocked(false);
         Spot::Profiler::Clear();
         return true;
@@ -134,9 +162,9 @@ private:
             return m_times[std::min(m_times.size() - 1,
                                     static_cast<std::size_t>(share * static_cast<double>(m_times.size())))];
         };
-        std::printf("Sandbox benchmark: %d spawned props, %d added lamps, %zu frames, quality %d, 1600x900, %s\n",
+        std::printf("Sandbox benchmark: %d spawned props, %d added lamps, %zu frames, quality %d, 1600x900, %s%s\n",
                     m_options.props, m_options.lamps, m_times.size(), m_options.quality,
-                    std::string(GetGraphicsDevice().GetBackendName()).c_str());
+                    std::string(GetGraphicsDevice().GetBackendName()).c_str(), m_options.walk ? ", walking" : "");
         std::printf("Frame: mean %.3f ms (%.1f FPS), median %.3f ms, p95 %.3f ms, worst %.3f ms\n", mean, 1000 / mean,
                     percentile(.5), percentile(.95), m_times.back());
         std::printf("Bodies: %zu, resident memory: %.1f MiB\n", scene.GetPhysics().GetBodyCount(),
@@ -150,7 +178,7 @@ private:
         }
         std::vector<std::pair<std::string_view, double>> scopes(totals.begin(), totals.end());
         std::ranges::sort(scopes, [](const auto& a, const auto& b) { return a.second > b.second; });
-        for (std::size_t i = 0; i < std::min<std::size_t>(scopes.size(), 12); ++i) {
+        for (std::size_t i = 0; i < std::min<std::size_t>(scopes.size(), 40); ++i) {
             const auto& [name, total] = scopes[i];
             std::printf("%-40.*s %.3f ms\n", static_cast<int>(name.size()), name.data(),
                         total / static_cast<double>(std::max<std::size_t>(frames.size(), 1)));
@@ -182,11 +210,15 @@ int main(int argc, char** argv) {
                      : flag == "--warmup"  ? &options.warmup
                      : flag == "--frames"  ? &options.frames
                      : flag == "--quality" ? &options.quality
+                     : flag == "--walk"    ? &options.walk
                                            : nullptr;
         const std::string_view argument(argv[i + 1]);
         int parsed = 0;
         const auto result = std::from_chars(argument.data(), argument.data() + argument.size(), parsed);
-        const int maximum = flag == "--quality" ? 2 : flag == "--props" || flag == "--lamps" ? 2000 : 100000;
+        const int maximum = flag == "--quality"                      ? 2
+                            : flag == "--walk"                       ? 1
+                            : flag == "--props" || flag == "--lamps" ? 2000
+                                                                     : 100000;
         if (!value || result.ec != std::errc{} || result.ptr != argument.data() + argument.size() || parsed < 0 ||
             parsed > maximum || (flag == "--frames" && parsed == 0)) {
             std::fprintf(stderr, "Invalid benchmark option: %s %s\n", argv[i], argv[i + 1]);

@@ -695,3 +695,46 @@ TEST_CASE("ForEachComponent visits enabled components of active entities", "[sce
     });
     CHECK(scene.GetEntityCount() == 4);
 }
+
+TEST_CASE("ForEachComponent follows components and entities as they change between calls", "[scene]") {
+    Scene scene;
+    Entity& first = scene.CreateEntity();
+    auto& a = first.AddComponent<Mover>();
+    const auto visit = [&scene] {
+        std::vector<Mover*> visited;
+        scene.ForEachComponent<Mover>([&visited](Mover& mover) { visited.push_back(&mover); });
+        return visited;
+    };
+    CHECK(visit() == std::vector<Mover*>{&a});
+
+    // Added components, on new entities or existing ones, are found in creation order.
+    auto& b = scene.CreateEntity().AddComponent<FastMover>();
+    auto& c = first.AddComponent<Mover>();
+    CHECK(visit() == std::vector<Mover*>{&a, &c, &b});
+    first.MoveComponent(c, 0);
+    CHECK(visit() == std::vector<Mover*>{&c, &a, &b});
+
+    // Disabled components and inactive entities are left out at once, and come back the same way.
+    a.SetEnabled(false);
+    b.GetEntity().SetActive(false);
+    CHECK(visit() == std::vector<Mover*>{&c});
+    a.SetEnabled(true);
+    b.GetEntity().SetActive(true);
+    CHECK(visit() == std::vector<Mover*>{&c, &a, &b});
+
+    // Removed components and destroyed entities are left out before and after they are freed.
+    first.RemoveComponent(c);
+    b.GetEntity().Destroy();
+    CHECK(visit() == std::vector<Mover*>{&a});
+    scene.Update(0.016f);
+    CHECK(visit() == std::vector<Mover*>{&a});
+
+    // Components added while visiting are found by the next call.
+    int calls = 0;
+    scene.ForEachComponent<Mover>([&](Mover&) {
+        ++calls;
+        scene.CreateEntity().AddComponent<Mover>();
+    });
+    CHECK(calls == 1);
+    CHECK(visit().size() == 2);
+}

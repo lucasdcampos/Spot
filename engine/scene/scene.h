@@ -8,12 +8,15 @@
 
 #include <concepts>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <span>
 #include <string>
 #include <string_view>
+#include <typeindex>
 #include <unordered_map>
 #include <vector>
 
@@ -230,17 +233,21 @@ public:
 
     // Calls fn(T&) for each enabled component that is a T on an entity active in the hierarchy, in creation order.
     // Components that have not started yet are included, so a new entity can be drawn before its first update.
+    // Components that fn adds are left for the next call.
+    //
+    // The components of each type are found once and kept until components or entities are added, moved or freed, so
+    // systems that go through one type every frame do not go through every entity of a large scene each time.
     template <std::derived_from<Component> T, typename F>
     void ForEachComponent(F&& fn) {
-        ForEachEntity([&fn](Entity& entity) {
-            if (entity.IsActiveInHierarchy()) {
-                entity.ForEachComponent<T>([&fn](T& component) {
-                    if (component.IsEnabled()) {
-                        fn(component);
-                    }
-                });
+        const Detail::DeferRemovalsScope defer(*this);
+        // A copy, since fn may change what the cache holds.
+        const std::vector<Component*> components = GetCachedComponents(
+            typeid(T), [](Component& component) { return dynamic_cast<T*>(&component) != nullptr; });
+        for (Component* component : components) {
+            if (IsIncluded(*component)) {
+                fn(static_cast<T&>(*component));
             }
-        });
+        }
     }
 
 protected:
@@ -264,6 +271,14 @@ private:
     // Whether the slot holds an entity that is not destroyed. Slots are empty after their entity moved to another
     // scene, until removals are processed.
     static bool IsAlive(const std::unique_ptr<Entity>& entity);
+    // The components the predicate picks, in creation order, as last found for the type, or found again when
+    // components or entities changed since.
+    const std::vector<Component*>& GetCachedComponents(std::type_index type,
+                                                       const std::function<bool(Component&)>& matches);
+    // Whether ForEachComponent() gives the component: enabled, not removed, on a live entity active in the hierarchy.
+    static bool IsIncluded(const Component& component);
+    // Forgets the components found for each type, as components or entities change.
+    void InvalidateComponentCache() { ++m_componentVersion; }
     // Creates an entity with that id, or a new one when it is in use.
     Entity& CreateEntityWithId(EntityId id, std::string name);
     // Takes the entity out of the scene, leaving its slot empty, and gives it to another one.
@@ -289,6 +304,12 @@ private:
     std::uint32_t m_nextRenderHook = 1;
     AudioSystem* m_audio = nullptr;
     std::vector<std::unique_ptr<Entity>> m_entities;
+    struct ComponentCache {
+        std::uint64_t version = 0;
+        std::vector<Component*> components;
+    };
+    std::unordered_map<std::type_index, ComponentCache> m_componentCache;
+    std::uint64_t m_componentVersion = 1;
     std::unordered_map<EntityId, Entity*> m_entitiesById;
     // The entities without a parent, in sibling order, which can differ from m_entities' creation order.
     std::vector<Entity*> m_roots;

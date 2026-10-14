@@ -135,6 +135,7 @@ protected:
 
 private:
     friend class Entity;
+    friend class Scene;
     friend class PhysicsWorld;
     friend class PhysicsWorld2D;
     friend class AnimationSystem;

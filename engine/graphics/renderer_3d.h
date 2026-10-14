@@ -269,6 +269,23 @@ private:
     Renderer3DConfig m_config;
 
     std::vector<DrawCommand> m_commands;
+    // What End() sorts the commands by, small enough to move around cheaply, and where they go once sorted.
+    struct SortEntry {
+        bool transparent;
+        bool hidden;
+        bool doubleSided;
+        bool mirrored;
+        AlphaMode alphaMode;
+        std::uint32_t look;
+        const Mesh* mesh;
+        std::uint32_t firstIndex;
+        // Along the camera's forward axis for surfaces that hide what is behind; the squared distance from the eye
+        // for transparent ones.
+        float depth;
+        std::uint32_t index;
+    };
+    std::vector<SortEntry> m_sortEntries;
+    std::vector<DrawCommand> m_sortedCommands;
     RenderContext* m_context = nullptr;
     RenderPassDesc m_target;
     std::vector<LightData> m_lights;

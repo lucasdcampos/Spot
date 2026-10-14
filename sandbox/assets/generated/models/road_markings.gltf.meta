@@ -1,0 +1,19 @@
+{
+  "id": "e7809205d6e39b892ebf25f160fd568a",
+  "settings": {
+    "animations": [],
+    "materials": [],
+    "scale": 1.0
+  },
+  "subAssets": [
+    {
+      "id": "90ec81ac209c26f2785904b671ea5536",
+      "key": "material:0"
+    },
+    {
+      "id": "38abaa61986c5dac9457894132f654f9",
+      "key": "mesh:0"
+    }
+  ],
+  "type": "Model"
+}

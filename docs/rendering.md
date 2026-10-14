@@ -125,7 +125,7 @@ its cluster's lights. Shadows keep their own budget: the first directional light
 
 ### Instancing
 
-`Renderer3D` draws meshes that look the same together. It sorts the frame's opaque meshes by pipeline, then material,
+`Renderer3D` draws meshes that look the same together. It sorts small keys, then moves each command once. It sorts the frame's opaque meshes by pipeline, then material,
 then mesh, then from the nearest to the farthest, so state changes as rarely as it can (`GetStats()` counts
 `pipelineChanges` and `materialChanges`) and what is in front hides what is behind before it is shaded; meshes with the
 same mesh, material values and pipeline thus sit side by side. It then puts every mesh's transforms in one storage

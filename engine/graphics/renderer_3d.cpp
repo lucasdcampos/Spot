@@ -528,27 +528,66 @@ void Renderer3D::End() {
         SPOT_PROFILE_SCOPE("Renderer3D::Sort");
         // Opaque and cutout surfaces are depth tested, so their order only matters for how often state changes.
         // Transparent ones come after them, from the farthest to the nearest, so each blends over what is behind it.
-        const auto transparent = std::stable_partition(m_commands.begin(), m_commands.end(), [](const DrawCommand& c) {
-            return c.alphaMode != AlphaMode::Transparent;
-        });
+        // Only small keys move while sorting; the commands, which are large, then move once into their places.
+        const Vector3 forward = m_camera.GetForward();
+        const Vector3 eye = m_camera.position;
+        m_sortEntries.clear();
+        m_sortEntries.reserve(m_commands.size());
+        for (std::size_t i = 0; i < m_commands.size(); ++i) {
+            DrawCommand& c = m_commands[i];
+            c.depth = Dot(c.bounds.center - eye, forward);
+            const bool transparent = c.alphaMode == AlphaMode::Transparent;
+            m_sortEntries.push_back({.transparent = transparent,
+                                     .hidden = !c.visible,
+                                     .doubleSided = c.doubleSided,
+                                     .mirrored = c.mirrored,
+                                     .alphaMode = c.alphaMode,
+                                     .look = c.look,
+                                     .mesh = c.mesh,
+                                     .firstIndex = c.firstIndex,
+                                     .depth = transparent ? LengthSquared(c.bounds.center - eye) : c.depth,
+                                     .index = static_cast<std::uint32_t>(i)});
+        }
         // Opaque commands in view come first, so those out of it do not split runs of instances. Then they go by
         // pipeline, then material, so state changes as rarely as it can, then mesh, so those that look the same are
         // side by side to be drawn as instances of one draw, and last from the nearest to the farthest, so what is in
         // front hides what is behind before it is shaded.
-        const Vector3 forward = m_camera.GetForward();
-        for (DrawCommand& command : m_commands) {
-            command.depth = Dot(command.bounds.center - m_camera.position, forward);
-        }
-        const auto sortKey = [](const DrawCommand& c) {
-            return std::make_tuple(!c.visible, c.doubleSided, c.mirrored, c.alphaMode, c.look, c.mesh, c.firstIndex,
-                                   c.depth);
-        };
-        std::stable_sort(m_commands.begin(), transparent,
-                         [&](const DrawCommand& a, const DrawCommand& b) { return sortKey(a) < sortKey(b); });
-        const Vector3 eye = m_camera.position;
-        std::stable_sort(transparent, m_commands.end(), [eye](const DrawCommand& a, const DrawCommand& b) {
-            return LengthSquared(a.bounds.center - eye) > LengthSquared(b.bounds.center - eye);
+        std::stable_sort(m_sortEntries.begin(), m_sortEntries.end(), [](const SortEntry& a, const SortEntry& b) {
+            if (a.transparent != b.transparent) {
+                return !a.transparent;
+            }
+            if (a.transparent) {
+                return a.depth > b.depth;
+            }
+            if (a.hidden != b.hidden) {
+                return !a.hidden;
+            }
+            if (a.doubleSided != b.doubleSided) {
+                return !a.doubleSided;
+            }
+            if (a.mirrored != b.mirrored) {
+                return !a.mirrored;
+            }
+            if (a.alphaMode != b.alphaMode) {
+                return a.alphaMode < b.alphaMode;
+            }
+            if (a.look != b.look) {
+                return a.look < b.look;
+            }
+            if (a.mesh != b.mesh) {
+                return std::less<const Mesh*>()(a.mesh, b.mesh);
+            }
+            if (a.firstIndex != b.firstIndex) {
+                return a.firstIndex < b.firstIndex;
+            }
+            return a.depth < b.depth;
         });
+        m_sortedCommands.clear();
+        m_sortedCommands.reserve(m_commands.size());
+        for (const SortEntry& entry : m_sortEntries) {
+            m_sortedCommands.push_back(std::move(m_commands[entry.index]));
+        }
+        m_commands.swap(m_sortedCommands);
     }
     // Shadow views go through the casters in one order, kept for the frame.
     m_shadowOrder.clear();

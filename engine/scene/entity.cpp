@@ -247,6 +247,9 @@ void Entity::Attach(std::unique_ptr<Component> component, std::optional<std::siz
         }
     }
     m_components.insert(place, std::move(component));
+    if (m_scene) {
+        m_scene->InvalidateComponentCache();
+    }
 }
 
 void Entity::MarkDestroyed() {
