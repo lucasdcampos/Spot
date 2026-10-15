@@ -23,6 +23,7 @@
 #include "core/console.h"
 #include "core/crash_handler.h"
 #include "core/frame_capture.h"
+#include "core/job_system.h"
 #include "core/log.h"
 #include "core/log_sinks.h"
 #include "core/paths.h"

@@ -9,6 +9,7 @@ that does the same with a window around it.
 
 | Page | What it covers |
 |---|---|
+| [Job system](job_system.md) | Worker threads, jobs, counters and parallel loops, shared by every layer |
 | [Application and scenes](application_and_scenes.md) | The application loop, scenes, the update order, scene systems, settings sections, game modules |
 | [Entities and components](entities_and_components.md) | Entities, the hierarchy, components and their hooks, failures, saving and registering components |
 | [Gameplay toolkit](gameplay_toolkit.md) | Time, timers, tweens, coroutines, signals, typed references and versioned saves |

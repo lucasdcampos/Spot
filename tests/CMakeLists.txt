@@ -28,6 +28,7 @@ add_executable(spot_tests
     game_code_tests.cpp
     graphics_tests.cpp
     image_tests.cpp
+    job_system_tests.cpp
     input_tests.cpp
     input_action_tests.cpp
     log_capture.h
