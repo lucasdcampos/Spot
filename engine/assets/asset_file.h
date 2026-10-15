@@ -5,6 +5,7 @@
 
 #include "assets/asset_type.h"
 #include "core/asset_id.h"
+#include "core/file_io.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -72,8 +73,6 @@ std::filesystem::path GetImportedAssetPath(const std::filesystem::path& importDi
 bool WriteAssetFile(const std::filesystem::path& path, AssetType type, std::span<const std::byte> data);
 // The data after the header; nothing, after logging why, when the file is missing, of another version or type.
 std::optional<std::vector<std::byte>> ReadAssetFile(const std::filesystem::path& path, AssetType type);
-
-std::optional<std::vector<std::byte>> ReadFileBytes(const std::filesystem::path& path);
 
 // 64-bit FNV-1a, to notice when sources and settings change.
 class Hasher {

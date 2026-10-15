@@ -11,6 +11,8 @@ add_library(spot_objects OBJECT
     assets/asset_formats.cpp
     core/asset_id.h
     core/asset_id.cpp
+    core/file_io.h
+    core/file_io.cpp
     assets/asset_manifest.h
     assets/asset_manifest.cpp
     assets/asset_manager.h

@@ -1,8 +1,8 @@
 #include "input/input_action.h"
 
-#include "assets/asset_file.h"
 #include "core/archive.h"
 #include "core/archive_state.h"
+#include "core/file_io.h"
 #include "core/log.h"
 #include "core/paths.h"
 #include "input/input_state.h"
