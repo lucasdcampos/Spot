@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -27,12 +28,82 @@ struct ProfilerState {
     std::thread::id thread;
     // The samples of the open scopes, innermost last.
     std::vector<std::uint32_t> open;
+
+    // What other threads read to record into the frame: its number plus one while it is recorded, 0 otherwise, and
+    // when it started.
+    std::atomic<std::uint64_t> recordingNumber = 0;
+    std::atomic<Clock::rep> frameStartTicks = 0;
+};
+
+// The scopes another thread recorded for a frame, which join it when it ends.
+struct ThreadSamples {
+    std::mutex mutex;
+    std::uint32_t thread = 0;
+    std::uint64_t frame = 0;
+    std::vector<ProfileSample> samples;
+    std::vector<std::uint32_t> open;
+    std::size_t dropped = 0;
+};
+
+struct ThreadRegistry {
+    std::mutex mutex;
+    // Shared with each thread's own reference, so a thread that exits leaves its last samples behind safely.
+    std::vector<std::shared_ptr<ThreadSamples>> threads;
 };
 
 ProfilerState& GetState() {
     // Allocated on first use, since it is large, and never freed, so scopes in static destructors stay safe.
     static ProfilerState* state = new ProfilerState();
     return *state;
+}
+
+ThreadRegistry& GetThreads() {
+    static ThreadRegistry* registry = new ThreadRegistry();
+    return *registry;
+}
+
+ThreadSamples& GetThreadSamples() {
+    thread_local const std::shared_ptr<ThreadSamples> samples = [] {
+        auto created = std::make_shared<ThreadSamples>();
+        ThreadRegistry& registry = GetThreads();
+        const std::scoped_lock lock(registry.mutex);
+        created->thread = static_cast<std::uint32_t>(registry.threads.size() + 1);
+        registry.threads.push_back(created);
+        return created;
+    }();
+    return *samples;
+}
+
+std::chrono::nanoseconds SinceFrameStart(const ProfilerState& state) {
+    const Clock::time_point start{Clock::duration(state.frameStartTicks.load(std::memory_order_relaxed))};
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - start);
+}
+
+// Appends the scopes other threads recorded for the frame after its own, thread by thread.
+void MergeThreadSamples(ProfileFrame& frame, std::chrono::nanoseconds end) {
+    ThreadRegistry& registry = GetThreads();
+    const std::scoped_lock registryLock(registry.mutex);
+    for (const auto& thread : registry.threads) {
+        const std::scoped_lock lock(thread->mutex);
+        if (thread->frame != frame.number + 1) {
+            continue;
+        }
+        for (const std::uint32_t index : thread->open) {
+            thread->samples[index].duration = end - thread->samples[index].start;
+        }
+        for (const ProfileSample& sample : thread->samples) {
+            if (frame.samples.size() < Profiler::MaxSamplesPerFrame) {
+                frame.samples.push_back(sample);
+            } else {
+                ++frame.droppedSamples;
+            }
+        }
+        frame.droppedSamples += thread->dropped;
+        thread->samples.clear();
+        thread->open.clear();
+        thread->dropped = 0;
+        thread->frame = 0;
+    }
 }
 
 } // namespace
@@ -61,6 +132,8 @@ void BeginFrame() {
     state.thread = std::this_thread::get_id();
     state.recording = true;
     state.frameStart = Clock::now();
+    state.frameStartTicks.store(state.frameStart.time_since_epoch().count(), std::memory_order_relaxed);
+    state.recordingNumber.store(frame.number + 1, std::memory_order_release);
 }
 
 void EndFrame() {
@@ -75,6 +148,8 @@ void EndFrame() {
         frame.samples[index].duration = end - frame.samples[index].start;
     }
     state.open.clear();
+    state.recordingNumber.store(0, std::memory_order_release);
+    MergeThreadSamples(frame, end);
     frame.duration = end;
     state.recording = false;
     state.completed = std::min(state.completed + 1, MaxFrames);
@@ -89,6 +164,7 @@ void SetEnabled(bool enabled) {
     if (!enabled && state.recording) {
         // The frame in progress is dropped rather than kept with part of its scopes.
         state.recording = false;
+        state.recordingNumber.store(0, std::memory_order_release);
         state.current = (state.current + state.frames.size() - 1) % state.frames.size();
     }
     state.enabled = enabled;
@@ -110,6 +186,7 @@ std::vector<const ProfileFrame*> GetFrames() {
 void Clear() {
     ProfilerState& state = GetState();
     state.recording = false;
+    state.recordingNumber.store(0, std::memory_order_release);
     state.completed = 0;
     state.nextNumber = 0;
     state.current = 0;
@@ -154,7 +231,33 @@ namespace Detail {
 
 ProfileScope::ProfileScope(std::string_view name) {
     ProfilerState& state = GetState();
-    if (!state.recording || state.thread != std::this_thread::get_id()) {
+    const std::uint64_t recording = state.recordingNumber.load(std::memory_order_acquire);
+    if (recording == 0) {
+        return;
+    }
+    if (state.thread != std::this_thread::get_id()) {
+        ThreadSamples& thread = GetThreadSamples();
+        const std::scoped_lock lock(thread.mutex);
+        if (thread.frame != recording) {
+            // What it recorded for a frame that ended without taking it is dropped.
+            thread.samples.clear();
+            thread.open.clear();
+            thread.dropped = 0;
+            thread.frame = recording;
+        }
+        if (thread.samples.size() >= Profiler::MaxSamplesPerFrame) {
+            ++thread.dropped;
+            return;
+        }
+        m_frame = recording;
+        m_index = static_cast<std::uint32_t>(thread.samples.size());
+        m_recording = true;
+        m_otherThread = true;
+        thread.samples.push_back({.name = name,
+                                  .depth = static_cast<std::uint32_t>(thread.open.size()),
+                                  .start = SinceFrameStart(state),
+                                  .thread = thread.thread});
+        thread.open.push_back(m_index);
         return;
     }
     ProfileFrame& frame = state.frames[state.current];
@@ -178,6 +281,20 @@ ProfileScope::~ProfileScope() {
         return;
     }
     ProfilerState& state = GetState();
+    if (m_otherThread) {
+        ThreadSamples& thread = GetThreadSamples();
+        const std::scoped_lock lock(thread.mutex);
+        // A scope that outlived its frame was ended with it.
+        if (thread.frame != m_frame) {
+            return;
+        }
+        ProfileSample& sample = thread.samples[m_index];
+        sample.duration = SinceFrameStart(state) - sample.start;
+        if (!thread.open.empty() && thread.open.back() == m_index) {
+            thread.open.pop_back();
+        }
+        return;
+    }
     ProfileFrame& frame = state.frames[state.current];
     // A scope that outlived its frame was ended with it.
     if (!state.recording || frame.number != m_frame) {

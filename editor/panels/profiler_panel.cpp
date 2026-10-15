@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <format>
+#include <map>
+#include <string>
 
 namespace Spot::Editor {
 namespace {
@@ -85,11 +87,19 @@ void ProfilerPanel::DrawTimeline(const ProfileFrame& frame) {
     const auto start = ImGui::GetCursorScreenPos();
     const float width = std::max(1.0f, ImGui::GetContentRegionAvail().x);
     constexpr float Row = 20.0f;
-    std::uint32_t depth = 0;
+    // A lane per thread, the frame's own first, each as deep as its deepest scope.
+    std::map<std::uint32_t, std::uint32_t> laneDepths;
     for (const auto& sample : frame.samples) {
-        depth = std::max(depth, std::min(sample.depth, 15u));
+        auto& depth = laneDepths[sample.thread];
+        depth = std::max(depth, std::min(sample.depth, 15u) + 1);
     }
-    ImGui::InvisibleButton("##Timeline", {width, Row * static_cast<float>(depth + 1)});
+    std::map<std::uint32_t, std::uint32_t> laneRows;
+    std::uint32_t rows = 0;
+    for (const auto& [thread, depth] : laneDepths) {
+        laneRows[thread] = rows;
+        rows += depth;
+    }
+    ImGui::InvisibleButton("##Timeline", {width, Row * static_cast<float>(std::max(rows, 1u))});
     auto* draw = ImGui::GetWindowDrawList();
     const double duration = static_cast<double>(std::max<std::int64_t>(1, frame.duration.count()));
     for (const auto& sample : frame.samples) {
@@ -102,7 +112,7 @@ void ProfilerPanel::DrawTimeline(const ProfileFrame& frame) {
                 (static_cast<double>(sample.start.count()) + static_cast<double>(sample.duration.count())) / duration,
                 0.0, 1.0)) *
                 width;
-        const float top = start.y + Row * static_cast<float>(std::min(sample.depth, 15u));
+        const float top = start.y + Row * static_cast<float>(laneRows[sample.thread] + std::min(sample.depth, 15u));
         const ImVec2 end{std::min(start.x + width, std::max(left + 1.0f, right)), top + Row - 2.0f};
         draw->AddRectFilled({left, top}, end, IM_COL32(45 + (sample.depth % 4) * 20, 100, 165, 255), 2.0f);
         if (end.x > left + 4.0f) {
@@ -112,8 +122,10 @@ void ProfilerPanel::DrawTimeline(const ProfileFrame& frame) {
             draw->PopClipRect();
         }
         if (ImGui::IsMouseHoveringRect({left, top}, end)) {
-            ImGui::SetTooltip("%.*s\n%.3f ms (inclusive)", static_cast<int>(sample.name.size()), sample.name.data(),
-                              Milliseconds(sample.duration));
+            const std::string thread =
+                sample.thread == 0 ? std::string("frame thread") : std::format("thread {}", sample.thread);
+            ImGui::SetTooltip("%.*s\n%.3f ms (inclusive), %s", static_cast<int>(sample.name.size()), sample.name.data(),
+                              Milliseconds(sample.duration), thread.c_str());
         }
     }
 }

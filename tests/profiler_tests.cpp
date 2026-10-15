@@ -121,20 +121,37 @@ TEST_CASE("The profiler keeps the last frames in a ring", "[profiler]") {
     CHECK(Profiler::GetFrames().back()->number == total);
 }
 
-TEST_CASE("The profiler records the game thread only, and nothing while disabled", "[profiler]") {
+TEST_CASE("The profiler records other threads into the frame, and nothing while disabled", "[profiler]") {
     const CleanProfiler clean;
     Profiler::BeginFrame();
+    Leaf();
     std::thread other(Leaf);
     other.join();
+    Spot::JobSystem jobs(2);
+    jobs.ParallelFor(4, 1, [](std::size_t, std::size_t) { Leaf(); });
     Profiler::EndFrame();
     REQUIRE(Profiler::GetFrames().size() == 1);
-    CHECK(Profiler::GetFrames()[0]->samples.empty());
+    const auto& samples = Profiler::GetFrames()[0]->samples;
+    REQUIRE(samples.size() == 6);
+    // The frame's own thread comes first, then the others, each numbered from 1. The frame's thread ran its own leaf
+    // and the first range of the loop, and may have run more ranges while it waited.
+    CHECK(std::ranges::count(samples, 0u, &Spot::ProfileSample::thread) >= 2);
+    CHECK(std::ranges::count_if(samples, [](const auto& sample) { return sample.thread > 0; }) >= 1);
+    CHECK(std::ranges::all_of(samples, [](const auto& sample) { return sample.depth == 0; }));
+    CHECK(std::ranges::is_sorted(samples, {}, &Spot::ProfileSample::thread));
+
+    // Scopes another thread recorded after the frame ended wait for no frame: they are dropped.
+    std::thread late(Leaf);
+    late.join();
+    Profiler::BeginFrame();
+    Profiler::EndFrame();
+    CHECK(Profiler::GetFrames().back()->samples.empty());
 
     Profiler::SetEnabled(false);
     Profiler::BeginFrame();
     Leaf();
     Profiler::EndFrame();
-    CHECK(Profiler::GetFrames().size() == 1);
+    CHECK(Profiler::GetFrames().size() == 2);
 
     CHECK(Profiler::Intern(std::string("Dynamic")) == "Dynamic");
     CHECK(Profiler::Intern("Dynamic").data() == Profiler::Intern(std::string("Dynamic")).data());

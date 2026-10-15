@@ -30,10 +30,10 @@ TEST_CASE("Malformed profile records are ignored instead of entering profiler hi
     for (
         auto line :
         {"hello", "@spot-profile {}", "@spot-profile []", "@spot-profile invalid",
-         R"(@spot-profile {"version":2,"number":1,"duration":10,"dropped":0,"samples":[],"counters":[]})",
-         R"(@spot-profile {"version":1,"number":1,"duration":-1,"dropped":0,"samples":[],"counters":[]})",
-         R"(@spot-profile {"version":1,"number":1,"duration":10,"dropped":0,"samples":[["Bad",-1,0,1]],"counters":[]})",
-         R"(@spot-profile {"version":1,"number":1,"duration":10,"dropped":0,"samples":[["Bad",0,-1,1]],"counters":[]})"}) {
+         R"(@spot-profile {"version":3,"number":1,"duration":10,"dropped":0,"samples":[],"counters":[]})",
+         R"(@spot-profile {"version":2,"number":1,"duration":-1,"dropped":0,"samples":[],"counters":[]})",
+         R"(@spot-profile {"version":2,"number":1,"duration":10,"dropped":0,"samples":[["Bad",-1,0,1,0]],"counters":[]})",
+         R"(@spot-profile {"version":2,"number":1,"duration":10,"dropped":0,"samples":[["Bad",0,-1,1,0]],"counters":[]})"}) {
         CHECK_FALSE(Spot::DecodeProfileFrame(line));
     }
     CHECK_FALSE(Spot::DecodeProfileFrame(std::string(4 * 1024 * 1024 + 1, 'x')));

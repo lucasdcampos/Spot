@@ -35,7 +35,7 @@ contained, and stop the process with a report.
 
 ## Profiler
 
-`SPOT_PROFILE_SCOPE("Name")` (`engine/core/profiler.h`) times the rest of the enclosing scope on the game thread:
+`SPOT_PROFILE_SCOPE("Name")` (`engine/core/profiler.h`) times the rest of the enclosing scope, on any thread:
 
 ```cpp
 void Spawner::OnUpdate(float deltaTime) {
@@ -51,8 +51,14 @@ and the engine times its own work: the application's stages (`Application::Wait`
 `Application::Render` and the rest), `Scene::Update` and its stages (`Components::OnUpdate`, `Systems::OnFixedUpdate`
 and so on), each system under its type's name (`Spot::PhysicsWorld`), the renderers and the audio device's calls.
 
-Scope names are string literals, or names made at run time and kept with `Profiler::Intern()`. Scopes on other
-threads and outside of frames are not recorded. Frames reuse their memory, so the profiler stays on in Release;
+Scopes on other threads, such as the job system's workers, record into a buffer of their thread while a frame is
+recorded, and join the frame when it ends, after the frame thread's own, each with its `thread` (0 for the thread that
+begins frames, then 1, 2… in the order threads first record a scope). Their depths describe a tree per thread, and
+the editor's profiler panel draws a lane per thread. Scopes still open when the frame ends end with it; counters are
+only kept on the frame's thread.
+
+Scope names are string literals, or names made at run time and kept with `Profiler::Intern()`. Scopes outside of
+frames are not recorded. Frames reuse their memory, so the profiler stays on in Release;
 `Profiler::SetEnabled(false)` turns it off. The sandbox HUD samples unscaled FPS; the `stats` developer overlay
 adds frame time, rendering, physics, audio and resident-memory counters.
 
