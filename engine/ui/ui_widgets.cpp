@@ -1,11 +1,12 @@
 #include "ui/ui_widgets.h"
 
+#include "assets/asset_archive.h"
+#include "core/archive.h"
 #include "core/utf8.h"
 #include "graphics/font.h"
 #include "graphics/render_context.h"
 #include "graphics/renderer_2d.h"
 #include "graphics/texture.h"
-#include "scene/archive.h"
 #include "scene/entity.h"
 #include "scene/scene.h"
 

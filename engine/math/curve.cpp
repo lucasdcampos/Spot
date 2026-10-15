@@ -1,5 +1,5 @@
 #include "math/curve.h"
-#include "scene/archive.h"
+#include "core/archive.h"
 
 #include <algorithm>
 #include <cmath>

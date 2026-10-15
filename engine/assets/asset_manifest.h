@@ -3,8 +3,8 @@
 // Engine-internal: the manifest.json file in the import directory, which lists every imported asset. The asset
 // database writes it, and the asset manager reads it, so a game can ship with the import directory alone.
 
-#include "assets/asset_id.h"
 #include "assets/asset_type.h"
+#include "core/asset_id.h"
 
 #include <cstdint>
 #include <filesystem>

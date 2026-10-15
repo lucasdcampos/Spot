@@ -1,8 +1,9 @@
 #include "animation/bone_attachment.h"
 
 #include "animation/animator.h"
+#include "assets/asset_archive.h"
+#include "core/archive.h"
 #include "core/log.h"
-#include "scene/archive.h"
 #include "scene/scene.h"
 
 namespace Spot {

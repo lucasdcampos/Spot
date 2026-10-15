@@ -1,6 +1,8 @@
 #include "animation/ragdoll.h"
 
 #include "animation/animator.h"
+#include "assets/asset_archive.h"
+#include "core/archive.h"
 #include "core/log.h"
 #include "core/profiler.h"
 #include "math/angles.h"
@@ -8,7 +10,6 @@
 #include "physics/collider.h"
 #include "physics/joint.h"
 #include "physics/rigidbody.h"
-#include "scene/archive.h"
 #include "scene/scene.h"
 
 #include <algorithm>

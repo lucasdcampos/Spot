@@ -1,8 +1,9 @@
 #include "ui/ui_text_layout.h"
 
+#include "assets/asset_archive.h"
+#include "core/archive.h"
 #include "core/utf8.h"
 #include "graphics/font_atlas.h"
-#include "scene/archive.h"
 
 #include <algorithm>
 #include <array>

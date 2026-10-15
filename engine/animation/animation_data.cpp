@@ -1,6 +1,6 @@
 #include "animation/animation_data.h"
 
-#include "scene/archive.h"
+#include "core/archive.h"
 
 #include <cmath>
 

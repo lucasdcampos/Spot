@@ -1,7 +1,12 @@
 #pragma once
 
+#include "core/archive.h"
+#include "scene/component_registry.h"
 #include "scene/entity.h"
 #include "scene/scene.h"
+
+#include <string_view>
+#include <typeinfo>
 
 namespace Spot {
 
@@ -27,5 +32,20 @@ public:
 private:
     EntityId m_entityId = EntityId::Invalid;
 };
+
+// Saved as the entity's id; tools pick among the entities with a T.
+template <typename T>
+void SerializeField(Archive& archive, std::string_view name, ComponentRef<T>& value, const FieldOptions& options) {
+    FieldOptions referenceOptions = options;
+    referenceOptions.entityFilter = [](const Entity& entity) { return entity.HasComponent<T>(); };
+    if (const auto* type = Detail::FindComponentTypeName(typeid(T))) {
+        referenceOptions.componentType = *type;
+    }
+    EntityId id = value.GetEntityId();
+    archive.Field(name, id, referenceOptions);
+    if (archive.IsLoading()) {
+        value.SetEntityId(id);
+    }
+}
 
 } // namespace Spot

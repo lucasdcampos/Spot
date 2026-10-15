@@ -1,7 +1,8 @@
 #include "animation/animation_layer.h"
 
+#include "assets/asset_archive.h"
+#include "core/archive.h"
 #include "core/assert.h"
-#include "scene/archive.h"
 
 #include <algorithm>
 #include <array>

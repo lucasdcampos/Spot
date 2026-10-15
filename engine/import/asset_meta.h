@@ -1,8 +1,8 @@
 #pragma once
 
 #include "animation/animation_data.h"
-#include "assets/asset_id.h"
 #include "assets/asset_type.h"
+#include "core/asset_id.h"
 
 #include <filesystem>
 #include <optional>

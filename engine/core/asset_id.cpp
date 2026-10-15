@@ -1,4 +1,4 @@
-#include "assets/asset_id.h"
+#include "core/asset_id.h"
 
 #include <format>
 #include <random>

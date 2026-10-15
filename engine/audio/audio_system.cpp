@@ -1,7 +1,8 @@
 #include "audio/audio_system.h"
 
+#include "assets/asset_archive.h"
 #include "audio/audio_device.h"
-#include "scene/archive.h"
+#include "core/archive.h"
 #include "scene/camera.h"
 #include "scene/entity.h"
 #include "scene/scene.h"

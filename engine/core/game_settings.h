@@ -1,7 +1,7 @@
 #pragma once
 
-#include "assets/asset_id.h"
 #include "audio/audio_settings.h"
+#include "core/asset_id.h"
 #include "graphics/rendering_settings.h"
 #include "input/input_settings.h"
 #include "physics/physics_settings.h"

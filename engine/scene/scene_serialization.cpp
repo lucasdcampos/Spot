@@ -1,8 +1,9 @@
+#include "assets/asset_archive.h"
+#include "core/archive.h"
+#include "core/archive_state.h"
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/paths.h"
-#include "scene/archive.h"
-#include "scene/archive_state.h"
 #include "scene/component_registry.h"
 #include "scene/component_serialization.h"
 #include "scene/missing_component.h"
@@ -24,6 +25,84 @@ namespace Spot {
 using nlohmann::json;
 
 namespace {
+
+using IdMap = Detail::SceneSerializer::IdMap;
+
+// Entity references in scene files: plain ids, remapped to the new ids of the entities loaded along, or, in a
+// prefab's canonical fields, marked as references inside the prefab or to the scene around it.
+class SceneEntityReferences final : public Detail::EntityReferenceCodec {
+public:
+    explicit SceneEntityReferences(const IdMap* entityIds = nullptr, const Scene* scene = nullptr,
+                                   const IdMap* prefabIds = nullptr, const IdMap* externalEntityIds = nullptr)
+        : entityIds(entityIds), scene(scene), prefabIds(prefabIds), externalEntityIds(externalEntityIds) {}
+
+    // When loading, maps the saved ids of the entities being loaded to their new ids. Without it, ids load as saved.
+    const IdMap* entityIds = nullptr;
+    // With entityIds, ids missing from them that this scene has an entity for are kept rather than lost.
+    const Scene* scene = nullptr;
+    // Saving a prefab's canonical fields: maps runtime ids to source-local ids. Other ids are scene references.
+    const IdMap* prefabIds = nullptr;
+    // Loading canonical fields: scene references use the whole document's map, apart from prefab-local references.
+    const IdMap* externalEntityIds = nullptr;
+
+    void Field(Detail::ArchiveState& state, std::string_view name, EntityId& value) const override {
+        auto id = static_cast<std::uint64_t>(value);
+        if (!state.loading) {
+            json& field = Detail::AddArchiveField(state, name);
+            if (prefabIds) {
+                const auto found = prefabIds->find(id);
+                field = found != prefabIds->end() ? json{{"prefabEntity", static_cast<std::uint64_t>(found->second)}}
+                                                  : json{{"sceneEntity", id}};
+            } else {
+                field = id;
+            }
+            return;
+        }
+        const json* field = Detail::FindArchiveField(state, name);
+        if (!field) {
+            return;
+        }
+        if (field->is_object()) {
+            const auto local = field->find("prefabEntity");
+            const auto external = field->find("sceneEntity");
+            const json* saved = local != field->end() ? &*local : external != field->end() ? &*external : nullptr;
+            if (!saved || field->size() != 1 || !saved->is_number_unsigned()) {
+                Detail::WarnArchiveFieldType(name, "an entity reference");
+                return;
+            }
+            id = saved->get<std::uint64_t>();
+            const IdMap* ids = local != field->end() ? entityIds : externalEntityIds;
+            if (ids) {
+                const auto found = ids->find(id);
+                value = found != ids->end() ? found->second : EntityId::Invalid;
+            } else {
+                value = static_cast<EntityId>(id);
+            }
+            if (external != field->end() && value == EntityId::Invalid && scene &&
+                scene->GetEntity(static_cast<EntityId>(id))) {
+                value = static_cast<EntityId>(id);
+            }
+            return;
+        }
+        if (!field->is_number_unsigned()) {
+            Detail::WarnArchiveFieldType(name, "an unsigned integer");
+            return;
+        }
+        id = field->get<std::uint64_t>();
+        if (!entityIds) {
+            value = static_cast<EntityId>(id);
+            return;
+        }
+        const auto found = entityIds->find(id);
+        if (found != entityIds->end()) {
+            value = found->second;
+        } else if (scene && scene->GetEntity(static_cast<EntityId>(id))) {
+            value = static_cast<EntityId>(id);
+        } else {
+            value = EntityId::Invalid;
+        }
+    }
+};
 
 constexpr std::string_view Format = "spot-scene";
 constexpr int FormatVersion = 2;
@@ -84,7 +163,8 @@ void SceneSerializer::SaveTree(const Entity& entity, json& entities, const Prefa
 }
 
 void SceneSerializer::SaveEntity(const Entity& entity, json& node, const IdMap* prefabIds) {
-    ArchiveState state{.loading = false, .nodes = {&node}, .prefabIds = prefabIds};
+    const SceneEntityReferences references(nullptr, nullptr, prefabIds);
+    ArchiveState state{.loading = false, .nodes = {&node}, .entities = &references};
     Archive archive(state);
 
     auto id = static_cast<std::uint64_t>(entity.m_id);
@@ -144,7 +224,8 @@ std::optional<json> SceneSerializer::SaveComponent(const Component& component, c
     saved["type"] = *type;
     saved["enabled"] = component.m_enabled;
     json& data = saved["data"] = json::object();
-    ArchiveState state{.loading = false, .nodes = {&data}, .prefabIds = prefabIds};
+    const SceneEntityReferences references(nullptr, nullptr, prefabIds);
+    ArchiveState state{.loading = false, .nodes = {&data}, .entities = &references};
     Archive archive(state);
     // Serialize() both saves and loads, so it cannot be const.
     const_cast<Component&>(component).Serialize(archive);
@@ -197,7 +278,8 @@ std::optional<std::vector<Entity*>> SceneSerializer::Load(Scene& scene, std::str
     std::vector<Entity*> created;
     created.reserve(entities.size());
     for (json& node : entities) {
-        ArchiveState state{.loading = true, .nodes = {&node}};
+        const SceneEntityReferences references;
+        ArchiveState state{.loading = true, .nodes = {&node}, .entities = &references};
         Archive archive(state);
 
         std::string name;
@@ -248,7 +330,8 @@ std::optional<std::vector<Entity*>> SceneSerializer::Load(Scene& scene, std::str
     for (std::size_t i = 0; i < created.size(); ++i) {
         Entity& entity = *created[i];
         // Parents only come from the saved entities, so a saved subtree loads as a new one wherever it came from.
-        ArchiveState parentState{.loading = true, .nodes = {&entities[i]}, .entityIds = &ids};
+        const SceneEntityReferences parentReferences(&ids);
+        ArchiveState parentState{.loading = true, .nodes = {&entities[i]}, .entities = &parentReferences};
         Archive parentArchive(parentState);
         EntityId parentId = EntityId::Invalid;
         parentArchive.Field("parent", parentId);
@@ -315,12 +398,8 @@ Component* SceneSerializer::LoadComponent(Entity& entity, json& saved, std::opti
     entity.Attach(std::move(owned), index);
 
     if (hasData && !dynamic_cast<MissingComponent*>(&component)) {
-        ArchiveState state{.loading = true,
-                           .nodes = {&*data},
-                           .entityIds = &ids,
-                           .scene = referenced,
-                           .assets = assets,
-                           .externalEntityIds = externalIds};
+        const SceneEntityReferences references(&ids, referenced, nullptr, externalIds);
+        ArchiveState state{.loading = true, .nodes = {&*data}, .assets = assets, .entities = &references};
         Archive archive(state);
         component.Serialize(archive);
         if (validate) {
@@ -353,7 +432,8 @@ bool SceneSerializer::ReplaceComponent(Component& component, std::string_view te
         missing->m_data = data != saved.end() && data->is_object() ? data->dump() : "{}";
     } else if (data != saved.end() && data->is_object()) {
         // Ids load as saved: the text comes from the same scene, such as an earlier state of the component.
-        ArchiveState state{.loading = true, .nodes = {&*data}, .assets = assets};
+        const SceneEntityReferences references;
+        ArchiveState state{.loading = true, .nodes = {&*data}, .assets = assets, .entities = &references};
         Archive archive(state);
         component.Serialize(archive);
         Validate(component);

@@ -1,7 +1,8 @@
 #include "animation/animator_controller.h"
 
-#include "scene/archive.h"
-#include "scene/archive_state.h"
+#include "assets/asset_archive.h"
+#include "core/archive.h"
+#include "core/archive_state.h"
 
 #include <algorithm>
 #include <array>

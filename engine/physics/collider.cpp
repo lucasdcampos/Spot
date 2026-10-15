@@ -1,7 +1,8 @@
 #include "physics/collider.h"
 
+#include "assets/asset_archive.h"
+#include "core/archive.h"
 #include "physics/physics_world.h"
-#include "scene/archive.h"
 #include "scene/scene.h"
 
 #include <algorithm>

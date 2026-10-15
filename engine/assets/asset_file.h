@@ -3,8 +3,8 @@
 // Engine-internal: the binary files imported assets are stored in, under the import directory as "<id>.asset".
 // Each starts with a header naming the format version and asset type, followed by the type's own data.
 
-#include "assets/asset_id.h"
 #include "assets/asset_type.h"
+#include "core/asset_id.h"
 
 #include <cstddef>
 #include <cstdint>

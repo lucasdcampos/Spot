@@ -1,8 +1,9 @@
 #include "scene/text_renderer.h"
 
+#include "assets/asset_archive.h"
+#include "core/archive.h"
 #include "graphics/camera_3d.h"
 #include "graphics/font.h"
-#include "scene/archive.h"
 #include "scene/entity.h"
 
 #include <algorithm>

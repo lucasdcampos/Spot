@@ -4,8 +4,8 @@
 // database runs them when a source, its dependencies, its settings or the importer itself change.
 
 #include "assets/asset_file.h"
-#include "assets/asset_id.h"
 #include "assets/asset_type.h"
+#include "core/asset_id.h"
 #include "import/asset_meta.h"
 
 #include <cstdint>

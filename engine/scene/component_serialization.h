@@ -1,6 +1,6 @@
 #pragma once
 
-#include "assets/asset_id.h"
+#include "core/asset_id.h"
 
 #include <cstddef>
 #include <optional>

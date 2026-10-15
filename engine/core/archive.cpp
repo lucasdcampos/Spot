@@ -1,8 +1,8 @@
-#include "scene/archive.h"
+#include "core/archive.h"
 
+#include "core/archive_state.h"
+#include "core/asset_id.h"
 #include "core/log.h"
-#include "scene/archive_state.h"
-#include "scene/scene.h"
 
 #include <algorithm>
 #include <array>
@@ -11,9 +11,9 @@ namespace Spot {
 
 using nlohmann::json;
 
-namespace {
+namespace Detail {
 
-json* FindField(Detail::ArchiveState& state, std::string_view name) {
+json* FindArchiveField(ArchiveState& state, std::string_view name) {
     json& node = *state.nodes.back();
     if (name.empty()) {
         return &node;
@@ -25,28 +25,36 @@ json* FindField(Detail::ArchiveState& state, std::string_view name) {
     return found != node.end() ? &*found : nullptr;
 }
 
-json& AddField(Detail::ArchiveState& state, std::string_view name) {
+json& AddArchiveField(ArchiveState& state, std::string_view name) {
     json& node = *state.nodes.back();
     return name.empty() ? node : node[std::string(name)];
 }
 
-void WarnWrongType(std::string_view name, const char* expected) {
+void WarnArchiveFieldType(std::string_view name, const char* expected) {
     Log::GetEngineLogger().Warning("Field '{}' should be {}; it keeps its value", name, expected);
 }
+
+} // namespace Detail
+
+namespace {
+
+using Detail::AddArchiveField;
+using Detail::FindArchiveField;
+using Detail::WarnArchiveFieldType;
 
 template <typename T>
 void Scalar(Detail::ArchiveState& state, std::string_view name, T& value, bool (json::*matches)() const noexcept,
             const char* expected) {
     if (!state.loading) {
-        AddField(state, name) = value;
+        AddArchiveField(state, name) = value;
         return;
     }
-    const json* field = FindField(state, name);
+    const json* field = FindArchiveField(state, name);
     if (!field) {
         return;
     }
     if (!(field->*matches)()) {
-        WarnWrongType(name, expected);
+        WarnArchiveFieldType(name, expected);
         return;
     }
     value = field->get<T>();
@@ -56,20 +64,20 @@ void Scalar(Detail::ArchiveState& state, std::string_view name, T& value, bool (
 template <std::size_t N>
 void Floats(Detail::ArchiveState& state, std::string_view name, std::array<float*, N> values) {
     if (!state.loading) {
-        json& field = AddField(state, name);
+        json& field = AddArchiveField(state, name);
         field = json::array();
         for (const float* value : values) {
             field.push_back(*value);
         }
         return;
     }
-    const json* field = FindField(state, name);
+    const json* field = FindArchiveField(state, name);
     if (!field) {
         return;
     }
     if (!field->is_array() || field->size() != N ||
         !std::ranges::all_of(*field, [](const json& element) { return element.is_number(); })) {
-        WarnWrongType(name, "an array of numbers of the right size");
+        WarnArchiveFieldType(name, "an array of numbers of the right size");
         return;
     }
     for (std::size_t i = 0; i < N; ++i) {
@@ -137,60 +145,21 @@ public:
     }
 
     void Field(std::string_view name, EntityId& value, const FieldOptions& options) override {
+        if (m_state.entities) {
+            m_state.entities->Field(m_state, name, value);
+            return;
+        }
         auto id = static_cast<std::uint64_t>(value);
-        if (!m_state.loading && m_state.prefabIds) {
-            const auto found = m_state.prefabIds->find(id);
-            AddField(m_state, name) = found != m_state.prefabIds->end()
-                                          ? json{{"prefabEntity", static_cast<std::uint64_t>(found->second)}}
-                                          : json{{"sceneEntity", id}};
-            return;
-        }
-        if (m_state.loading) {
-            const json* field = FindField(m_state, name);
-            if (field && field->is_object()) {
-                const auto local = field->find("prefabEntity");
-                const auto external = field->find("sceneEntity");
-                const json* saved = local != field->end() ? &*local : external != field->end() ? &*external : nullptr;
-                if (!saved || field->size() != 1 || !saved->is_number_unsigned()) {
-                    WarnWrongType(name, "an entity reference");
-                    return;
-                }
-                id = saved->get<std::uint64_t>();
-                const auto* ids = local != field->end() ? m_state.entityIds : m_state.externalEntityIds;
-                if (ids) {
-                    const auto found = ids->find(id);
-                    value = found != ids->end() ? found->second : EntityId::Invalid;
-                } else {
-                    value = static_cast<EntityId>(id);
-                }
-                if (external != field->end() && value == EntityId::Invalid && m_state.scene &&
-                    m_state.scene->GetEntity(static_cast<EntityId>(id))) {
-                    value = static_cast<EntityId>(id);
-                }
-                return;
-            }
-        }
         Field(name, id, options);
-        if (!m_state.loading || !m_state.entityIds) {
-            value = static_cast<EntityId>(id);
-            return;
-        }
-        const auto found = m_state.entityIds->find(id);
-        if (found != m_state.entityIds->end()) {
-            value = found->second;
-        } else if (m_state.scene && m_state.scene->GetEntity(static_cast<EntityId>(id))) {
-            value = static_cast<EntityId>(id);
-        } else {
-            value = EntityId::Invalid;
-        }
+        value = static_cast<EntityId>(id);
     }
 
     void Field(std::string_view name, AssetId& value, std::optional<AssetType>, const FieldOptions&) override {
         if (!m_state.loading) {
-            AddField(m_state, name) = value.IsValid() ? json(value.ToString()) : json(nullptr);
+            AddArchiveField(m_state, name) = value.IsValid() ? json(value.ToString()) : json(nullptr);
             return;
         }
-        const json* field = FindField(m_state, name);
+        const json* field = FindArchiveField(m_state, name);
         if (!field) {
             return;
         }
@@ -200,7 +169,7 @@ public:
         }
         const auto id = field->is_string() ? AssetId::Parse(field->get<std::string>()) : std::nullopt;
         if (!id) {
-            WarnWrongType(name, "an asset id of 32 hexadecimal digits");
+            WarnArchiveFieldType(name, "an asset id of 32 hexadecimal digits");
             return;
         }
         value = *id;
@@ -230,17 +199,17 @@ private:
     // returns false if it is missing or of another kind, and gives the size of arrays.
     bool Enter(std::string_view name, bool array, std::size_t& size) {
         if (!m_state.loading) {
-            json& field = AddField(m_state, name);
+            json& field = AddArchiveField(m_state, name);
             field = array ? json(size, nullptr) : json::object();
             m_state.nodes.push_back(&field);
             return true;
         }
-        json* field = FindField(m_state, name);
+        json* field = FindArchiveField(m_state, name);
         if (!field) {
             return false;
         }
         if (array ? !field->is_array() : !field->is_object()) {
-            WarnWrongType(name, array ? "an array" : "an object");
+            WarnArchiveFieldType(name, array ? "an array" : "an object");
             return false;
         }
         size = field->size();
@@ -338,15 +307,6 @@ void Archive::Field(std::string_view name, Curve& value, const FieldOptions& opt
 }
 void Archive::Field(std::string_view name, Gradient& value, const FieldOptions& options) {
     m_backend->GradientField(name, value, options);
-}
-
-AssetManager* Archive::GetAssetManager() const {
-    AssetManager* assets = m_backend->GetAssetManager();
-    return assets ? assets : Assets::GetManager();
-}
-
-void Archive::WarnAssetWithoutId(std::string_view name) {
-    Log::GetEngineLogger().Warning("Field '{}' refers to an asset made in code, which is saved as null", name);
 }
 
 } // namespace Spot

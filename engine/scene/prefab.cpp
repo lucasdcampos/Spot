@@ -1,6 +1,6 @@
 #include "scene/prefab.h"
 
-#include "assets/asset_id.h"
+#include "core/asset_id.h"
 #include "core/log.h"
 
 #include <nlohmann/json.hpp>

@@ -1,6 +1,7 @@
 #include "ui/ui_layout_group.h"
 
-#include "scene/archive.h"
+#include "assets/asset_archive.h"
+#include "core/archive.h"
 
 #include <algorithm>
 #include <array>

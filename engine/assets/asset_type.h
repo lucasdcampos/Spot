@@ -6,7 +6,7 @@
 
 namespace Spot {
 
-enum class AssetType {
+enum class AssetType : int {
     Texture,
     Mesh,
     Material,

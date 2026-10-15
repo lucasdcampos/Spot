@@ -1,6 +1,7 @@
 #include "physics2d/collider_2d.h"
+#include "assets/asset_archive.h"
+#include "core/archive.h"
 #include "physics2d/physics_world_2d.h"
-#include "scene/archive.h"
 #include <algorithm>
 #include <cmath>
 

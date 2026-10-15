@@ -1,17 +1,11 @@
 #pragma once
 
-#include "assets/asset_id.h"
-#include "assets/asset_ref.h"
-#include "assets/asset_type.h"
-#include "assets/assets.h"
+#include "core/asset_id.h"
 #include "math/color.h"
-#include "math/gradient.h"
 #include "math/curve.h"
+#include "math/gradient.h"
 #include "math/quaternion.h"
 #include "math/vector.h"
-#include "scene/component_ref.h"
-#include "scene/component_registry.h"
-#include "scene/entity.h"
 
 #include <concepts>
 #include <cstddef>
@@ -26,6 +20,13 @@
 
 namespace Spot {
 
+// Identifiers of the layers above the core, which archives save and tools pick. The core only names them; the scene
+// defines entities and the asset layer assets, so the core depends on neither.
+enum class EntityId : std::uint64_t;
+enum class AssetType : int;
+class AssetManager;
+class Entity;
+
 class Archive;
 
 namespace Detail {
@@ -35,6 +36,19 @@ struct ArchiveState;
 // Types with a Serialize(Archive&) member are saved as nested objects.
 template <typename T>
 concept ArchiveSerializable = requires(T& value, Archive& archive) { value.Serialize(archive); };
+
+struct FieldOptions;
+
+// Types of other layers describe themselves to archives with a free function found by argument-dependent lookup, as
+// the asset layer does for AssetRef and the scene for ComponentRef:
+//
+//     void SerializeField(Spot::Archive& archive, std::string_view name, MyHandle& value,
+//                         const Spot::FieldOptions& options);
+template <typename T>
+concept ArchiveFieldExtension =
+    requires(Archive& archive, std::string_view name, T& value, const FieldOptions& options) {
+        SerializeField(archive, name, value, options);
+    };
 
 // What tools need to know about a field to edit it well. Files ignore it.
 struct FieldOptions {
@@ -154,36 +168,8 @@ public:
     // References to other entities. Entities loaded together keep referring to each other through their new ids;
     // references to entities that were not saved along load as EntityId::Invalid.
     void Field(std::string_view name, EntityId& value, const FieldOptions& options = {});
-    template <typename T>
-    void Field(std::string_view name, ComponentRef<T>& value, const FieldOptions& options = {}) {
-        auto referenceOptions = options;
-        referenceOptions.entityFilter = [](const Entity& entity) { return entity.HasComponent<T>(); };
-        if (const auto* type = Detail::FindComponentTypeName(typeid(T))) {
-            referenceOptions.componentType = *type;
-        }
-        EntityId id = value.GetEntityId();
-        Field(name, id, referenceOptions);
-        if (IsLoading()) {
-            value.SetEntityId(id);
-        }
-    }
     // Saved as 32 hexadecimal digits, or null for the null id.
     void Field(std::string_view name, AssetId& value, const FieldOptions& options = {});
-
-    // References to assets are saved as their id, and loaded through the asset manager the scene is loaded with,
-    // or the running application's. Assets made in code have no id, so they are saved as null, with a warning.
-    template <LoadableAsset T>
-    void Field(std::string_view name, AssetRef<T>& value, const FieldOptions& options = {}) {
-        AssetId id = value.GetId();
-        if (IsSaving() && !id.IsValid() && value) {
-            WarnAssetWithoutId(name);
-        }
-        m_backend->Field(name, id, AssetTypeOf<T>::Value, options);
-        if (IsLoading() && id != value.GetId()) {
-            AssetManager* assets = GetAssetManager();
-            value = !id.IsValid() ? AssetRef<T>() : assets ? assets->Load<T>(id) : AssetRef<T>(id, nullptr);
-        }
-    }
 
     // Enums are saved as their underlying value.
     template <typename T>
@@ -192,6 +178,11 @@ public:
         auto underlying = static_cast<std::int64_t>(value);
         m_backend->EnumField(name, underlying, options);
         value = static_cast<T>(underlying);
+    }
+
+    template <ArchiveFieldExtension T>
+    void Field(std::string_view name, T& value, const FieldOptions& options = {}) {
+        SerializeField(*this, name, value, options);
     }
 
     template <ArchiveSerializable T>
@@ -220,10 +211,11 @@ public:
         m_backend->EndArray();
     }
 
-private:
-    AssetManager* GetAssetManager() const;
-    static void WarnAssetWithoutId(std::string_view name);
+    // Loads the assets that fields refer to; null when the backend has none, and the asset layer then uses the
+    // running application's.
+    AssetManager* GetAssetManager() const { return m_backend->GetAssetManager(); }
 
+private:
     std::unique_ptr<ArchiveBackend> m_ownedBackend;
     ArchiveBackend* m_backend;
 };

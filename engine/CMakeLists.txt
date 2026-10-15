@@ -9,13 +9,14 @@ add_library(spot_objects OBJECT
     assets/asset_file.cpp
     assets/asset_formats.h
     assets/asset_formats.cpp
-    assets/asset_id.h
-    assets/asset_id.cpp
+    core/asset_id.h
+    core/asset_id.cpp
     assets/asset_manifest.h
     assets/asset_manifest.cpp
     assets/asset_manager.h
     assets/asset_manager.cpp
     assets/asset_ref.h
+    assets/asset_archive.h
     assets/asset_type.h
     assets/asset_type.cpp
     assets/built_in_assets.h
@@ -232,9 +233,9 @@ add_library(spot_objects OBJECT
     physics2d/collider_2d.cpp
     physics2d/rigidbody_2d.cpp
     platform/platform.h
-    scene/archive.h
-    scene/archive.cpp
-    scene/archive_state.h
+    core/archive.h
+    core/archive.cpp
+    core/archive_state.h
     scene/camera.h
     scene/camera.cpp
     scene/component.h

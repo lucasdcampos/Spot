@@ -1,9 +1,9 @@
 #include "import/asset_meta.h"
 
+#include "core/archive.h"
+#include "core/archive_state.h"
 #include "core/log.h"
 #include "core/paths.h"
-#include "scene/archive.h"
-#include "scene/archive_state.h"
 
 #include <fstream>
 #include <iterator>

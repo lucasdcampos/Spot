@@ -1,6 +1,7 @@
 #include "scene/sprite_animator.h"
+#include "assets/asset_archive.h"
+#include "core/archive.h"
 #include "core/profiler.h"
-#include "scene/archive.h"
 #include "scene/entity.h"
 #include "scene/sprite_renderer.h"
 #include <cmath>

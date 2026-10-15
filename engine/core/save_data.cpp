@@ -1,10 +1,10 @@
 #include "core/save_data.h"
 
-#include "assets/asset_id.h"
+#include "core/archive.h"
+#include "core/archive_state.h"
+#include "core/asset_id.h"
 #include "core/diagnostics.h"
 #include "core/paths.h"
-#include "scene/archive.h"
-#include "scene/archive_state.h"
 
 #include <fstream>
 #include <iterator>

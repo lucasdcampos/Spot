@@ -1,6 +1,7 @@
 #include "scene/light.h"
 
-#include "scene/archive.h"
+#include "assets/asset_archive.h"
+#include "core/archive.h"
 #include "scene/entity.h"
 #include "scene/transform.h"
 

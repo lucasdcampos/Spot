@@ -1,6 +1,7 @@
 #include "graphics/material.h"
 
-#include "scene/archive.h"
+#include "assets/asset_archive.h"
+#include "core/archive.h"
 
 #include <array>
 #include <string_view>

@@ -1,5 +1,6 @@
 #include "scene/tilemap.h"
-#include "scene/archive.h"
+#include "assets/asset_archive.h"
+#include "core/archive.h"
 #include <algorithm>
 #include <array>
 #include <cmath>

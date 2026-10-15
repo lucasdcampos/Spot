@@ -1,11 +1,11 @@
 #include "input/input_action.h"
 
 #include "assets/asset_file.h"
+#include "core/archive.h"
+#include "core/archive_state.h"
 #include "core/log.h"
 #include "core/paths.h"
 #include "input/input_state.h"
-#include "scene/archive.h"
-#include "scene/archive_state.h"
 
 #include <algorithm>
 #include <cmath>

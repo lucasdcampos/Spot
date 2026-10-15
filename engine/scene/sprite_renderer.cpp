@@ -1,7 +1,8 @@
 #include "scene/sprite_renderer.h"
 
+#include "assets/asset_archive.h"
+#include "core/archive.h"
 #include "graphics/texture.h"
-#include "scene/archive.h"
 
 namespace Spot {
 

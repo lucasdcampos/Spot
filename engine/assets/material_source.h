@@ -1,8 +1,8 @@
 #pragma once
 
-#include "assets/asset_id.h"
-#include "math/color.h"
+#include "core/asset_id.h"
 #include "graphics/material.h"
+#include "math/color.h"
 
 #include <filesystem>
 #include <optional>

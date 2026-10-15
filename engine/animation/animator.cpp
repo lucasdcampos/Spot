@@ -4,9 +4,10 @@
 #include "animation/pose.h"
 #include "animation/ragdoll.h"
 #include "animation/skinned_mesh_renderer.h"
+#include "assets/asset_archive.h"
+#include "core/archive.h"
 #include "core/log.h"
 #include "core/profiler.h"
-#include "scene/archive.h"
 #include "scene/scene.h"
 
 #include <algorithm>
