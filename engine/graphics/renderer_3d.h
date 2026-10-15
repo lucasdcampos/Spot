@@ -1,7 +1,6 @@
 #pragma once
 
 #include "graphics/camera_3d.h"
-#include "math/color.h"
 #include "graphics/fog_data.h"
 #include "graphics/fullscreen_pass.h"
 #include "graphics/light_data.h"
@@ -11,6 +10,7 @@
 #include "graphics/render_context.h"
 #include "graphics/sky_data.h"
 #include "graphics/texture.h"
+#include "math/color.h"
 #include "math/matrix.h"
 #include "math/vector.h"
 
@@ -26,7 +26,6 @@ namespace Spot {
 class GraphicsDevice;
 class Model;
 class Pipeline;
-class Scene;
 struct Material;
 
 namespace Detail {
@@ -140,10 +139,8 @@ public:
                          const Matrix4& transform = {}, float boundsPadding = 1.0f, bool castsShadows = true,
                          std::uint32_t submesh = Mesh::AllSubmeshes);
     void DrawModel(const Model& model, const Matrix4& transform = {});
-    // Draws every MeshRenderer and Light of the scene that is enabled on an active entity, at its entity's world
-    // transform, and the first such Sky and Fog.
-    // The scene must not change until End(), since its components keep the meshes alive.
-    void DrawScene(Scene& scene);
+    // The camera Begin() was given.
+    const Camera3D& GetCamera() const { return m_camera; }
 
     // What the last End() drew.
     Renderer3DStats GetStats() const { return m_stats; }

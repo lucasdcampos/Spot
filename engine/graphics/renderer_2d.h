@@ -1,11 +1,11 @@
 #pragma once
 
 #include "graphics/camera_2d.h"
-#include "math/color.h"
 #include "graphics/quad_batch.h"
 #include "graphics/render_context.h"
 #include "graphics/text_layout.h"
 #include "graphics/texture.h"
+#include "math/color.h"
 #include "math/vector.h"
 
 #include <cstdint>
@@ -21,9 +21,6 @@ class Font;
 class GraphicsDevice;
 class Pipeline;
 class RenderPass;
-class Scene;
-class SpriteRenderer;
-class Tilemap;
 
 struct Renderer2DConfig {
     // Nearest keeps pixel art sharp; linear smooths scaled textures.
@@ -75,12 +72,11 @@ public:
     void DrawRotatedQuad(Vector2 position, Vector2 size, float rotation, const Texture& texture,
                          Color tint = Color::White, const TextureRegion& region = {});
 
-    // Draws every SpriteRenderer that is enabled on an active entity, at its entity's world position, rotation around
-    // Z and scale, in their order, and of the same order the lower ones along Z first. The scene must not change
-    // until End(), since its sprites keep their textures alive.
-    void DrawScene(Scene& scene);
-    // Draws world text over sprites, ordered by its order and entity traversal.
-    void DrawWorldText(Scene& scene, const Camera3D& camera);
+    // Draws what follows through the transform, applied before the view projection Begin() was given, such as to
+    // place world text or lift sprites along Z; quads queued before it are drawn first. Begin() resets it.
+    void SetTransform(const Matrix4& transform);
+    // Whether Begin() was given a 3D view, where what is drawn keeps its depth.
+    bool IsDrawingInWorld() const { return m_worldDepth; }
 
     // Draws UTF-8 text with its top-left corner at the position. At scale 1 a pixel of the font covers one world
     // unit, which is one window point with the default camera. Fonts must stay alive until End().
@@ -111,20 +107,12 @@ private:
     QuadBatch m_batch;
     RenderPass* m_pass = nullptr;
     Matrix4 m_viewProjection;
+    // As Begin() set it, before SetTransform().
+    Matrix4 m_baseViewProjection;
     bool m_worldDepth = false;
     PixelPerfectSettings m_pixelPerfect;
     std::optional<ScissorRect> m_scissor;
     Renderer2DStats m_stats;
-    struct SceneDraw {
-        const SpriteRenderer* sprite = nullptr;
-        const Tilemap* tilemap = nullptr;
-        Vector3 position = {};
-        float rotation = 0;
-        Vector2 size = {};
-        int order = 0;
-        std::size_t index = 0;
-    };
-    std::vector<SceneDraw> m_sceneDraws;
 };
 
 } // namespace Spot

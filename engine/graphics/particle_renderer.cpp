@@ -6,8 +6,6 @@
 #include "graphics/pipeline.h"
 #include "particle.frag.h"
 #include "particle.vert.h"
-#include "particles/particle_system.h"
-#include "scene/scene.h"
 #include <array>
 #include <cstddef>
 
@@ -68,14 +66,6 @@ void ParticleRenderer::Draw(std::span<const Particle> particles, const ParticleS
                             const Matrix4& emitter, const Texture* texture) {
     SPOT_ASSERT(m_context, "ParticleRenderer must be begun");
     m_batch.Add(particles, settings, m_camera, emitter, texture);
-}
-void ParticleRenderer::DrawScene(Scene& scene) {
-    scene.ForEachComponent<ParticleSystem>([&](ParticleSystem& system) {
-        if (system.IsActiveAndEnabled() && (m_camera.cullingMask & (1u << system.GetEntity().GetLayer()))) {
-            Draw(system.GetParticles(), system.GetSettings(), system.GetEntity().GetTransform().GetWorldMatrix(),
-                 system.GetTexture().Get());
-        }
-    });
 }
 void ParticleRenderer::End() {
     SPOT_PROFILE_SCOPE("ParticleRenderer::End");

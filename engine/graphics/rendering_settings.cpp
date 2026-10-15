@@ -1,7 +1,7 @@
 #include "graphics/rendering_settings.h"
 
 #include "core/archive.h"
-#include "graphics/scene_renderer.h"
+#include "scene/scene_renderer.h"
 
 #include <algorithm>
 #include <array>

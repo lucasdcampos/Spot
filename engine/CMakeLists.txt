@@ -169,8 +169,6 @@ add_library(spot_objects OBJECT
     graphics/particle_batch.cpp
     graphics/particle_renderer.h
     graphics/particle_renderer.cpp
-    graphics/scene_renderer.h
-    graphics/scene_renderer.cpp
     graphics/screenshot.cpp
     graphics/shader.h
     graphics/shadow_views.h
@@ -263,6 +261,10 @@ add_library(spot_objects OBJECT
     scene/scene_model.cpp
     scene/scene_prefab.cpp
     scene/scene_assets.h
+    scene/scene_drawing.h
+    scene/scene_drawing.cpp
+    scene/scene_renderer.h
+    scene/scene_renderer.cpp
     scene/scene_assets.cpp
     scene/scene_serialization.cpp
     scene/scene_serializer.h

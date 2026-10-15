@@ -21,11 +21,11 @@
 #include "graphics/debug_draw.h"
 #include "graphics/font.h"
 #include "graphics/renderer_2d.h"
-#include "graphics/scene_renderer.h"
 #include "graphics/screenshot.h"
 #include "input/input.h"
 #include "platform/platform.h"
 #include "scene/scene_assets.h"
+#include "scene/scene_renderer.h"
 
 #include <algorithm>
 #include <chrono>

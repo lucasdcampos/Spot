@@ -11,13 +11,7 @@
 #include "graphics/model.h"
 #include "graphics/render_context.h"
 #include "graphics/shadow_views.h"
-#include "scene/fog.h"
-#include "scene/light.h"
-#include "scene/mesh_renderer.h"
-#include "scene/scene.h"
-#include "scene/sky.h"
 
-#include "animation/skinned_mesh_renderer.h"
 #include "mesh.frag.h"
 #include "mesh.vert.h"
 #include "shadow.frag.h"
@@ -719,43 +713,6 @@ void Renderer3D::DrawModel(const Model& model, const Matrix4& transform) {
                      part.submesh);
         }
     }
-}
-
-void Renderer3D::DrawScene(Scene& scene) {
-    SPOT_PROFILE_SCOPE("Renderer3D::DrawScene");
-    static const Material DefaultMaterial;
-    const Sky* sky = nullptr;
-    scene.ForEachComponent<Sky>([&sky](const Sky& found) { sky = sky ? sky : &found; });
-    // The sky lights the scene with its sun itself, once the air has dimmed it.
-    const DirectionalLight* sun = sky ? sky->FindSun() : nullptr;
-    scene.ForEachComponent<Light>([this, sun](const Light& light) {
-        if (&light != sun) {
-            DrawLight(light.GetLightData());
-        }
-    });
-    if (sky) {
-        DrawSky(sky->GetSkyData());
-    }
-    const Fog* fog = nullptr;
-    scene.ForEachComponent<Fog>([&fog](const Fog& found) { fog = fog ? fog : &found; });
-    if (fog) {
-        DrawFog(fog->GetFogData());
-    }
-    scene.ForEachComponent<SkinnedMeshRenderer>([this](const SkinnedMeshRenderer& renderer) {
-        if (renderer.GetMesh() && !renderer.GetPalette().empty() &&
-            ((m_camera.cullingMask >> renderer.GetEntity().GetLayer()) & 1u)) {
-            DrawSkinnedMesh(*renderer.GetMesh(), renderer.GetMaterial() ? *renderer.GetMaterial() : DefaultMaterial,
-                            renderer.GetPalette(), renderer.GetEntity().GetTransform().GetWorldMatrix(),
-                            renderer.GetBoundsPadding(), renderer.IsCastingShadows(), renderer.GetSubmesh());
-        }
-    });
-    scene.ForEachComponent<MeshRenderer>([this](const MeshRenderer& renderer) {
-        if (renderer.GetMesh() && ((m_camera.cullingMask >> renderer.GetEntity().GetLayer()) & 1u)) {
-            DrawMesh(*renderer.GetMesh(), renderer.GetMaterial() ? *renderer.GetMaterial() : DefaultMaterial,
-                     renderer.GetEntity().GetTransform().GetWorldMatrix(), renderer.IsCastingShadows(),
-                     renderer.GetSubmesh());
-        }
-    });
 }
 
 namespace {

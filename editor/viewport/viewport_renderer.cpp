@@ -265,7 +265,7 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
     if (options.defaultLights && !scene.FindComponent<Light>() && !scene.FindComponent<Sky>()) {
         DrawDefaultLights(*m_renderer);
     }
-    m_renderer->DrawScene(scene);
+    Spot::DrawScene(*m_renderer, scene);
     m_renderer->End();
 
     // DebugDraw's shapes, hidden by the meshes where they test depth.
@@ -284,8 +284,8 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
         spriteDesc.depthTarget = nullptr;
         auto pass = context.BeginRenderPass(spriteDesc);
         m_sprites->Begin(pass, camera, size);
-        m_sprites->DrawScene(scene);
-        m_sprites->DrawWorldText(scene, stage.camera);
+        Spot::DrawScene(*m_sprites, scene);
+        Spot::DrawWorldText(*m_sprites, scene, stage.camera);
         m_sprites->End();
     }
     bool hasParticles = false;
@@ -295,7 +295,7 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
     if (hasParticles) {
         const Texture* particleDepth = m_sampleCount == 1 ? targets.GetDepth() : m_renderer->RenderCameraDepth(context);
         m_particles->Begin(context, hdrPass, camera, size, particleDepth);
-        m_particles->DrawScene(scene);
+        Spot::DrawScene(*m_particles, scene);
         m_particles->End();
     }
     runStage(RenderStage::AfterTransparent);

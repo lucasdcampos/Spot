@@ -135,7 +135,7 @@ TEST_CASE("Tilemaps render atlas cells holes ordering and transforms offscreen",
         REQUIRE(context);
         auto pass = context->BeginRenderPass({.clearColor = Spot::Color::Black});
         renderer.Begin(pass, Spot::Scene::ScreenCamera({64, 64}), {64, 64});
-        renderer.DrawScene(scene);
+        Spot::DrawScene(renderer, scene);
         renderer.End();
         pass.End();
         device->EndFrame();
@@ -202,7 +202,7 @@ TEST_CASE("Sprite atlas regions and animation render repeated offscreen frames",
         REQUIRE(context);
         auto pass = context->BeginRenderPass({.clearColor = Spot::Color::Black});
         renderer.Begin(pass, Spot::Scene::ScreenCamera({64, 32}), {64, 32});
-        renderer.DrawScene(scene);
+        Spot::DrawScene(renderer, scene);
         renderer.End();
         pass.End();
         device->EndFrame();
@@ -1140,7 +1140,7 @@ TEST_CASE("Renderer2D draws a scene's sprites in their order, through any camera
         camera.orthographicSize = 2.0f;
         auto pass = context.BeginRenderPass({.target = target.get(), .clearColor = Spot::Color::Black});
         renderer.Begin(pass, camera.GetViewProjection({4.0f, 4.0f}));
-        renderer.DrawScene(scene);
+        Spot::DrawScene(renderer, scene);
         renderer.End();
         stats = renderer.GetStats();
     });
@@ -1695,7 +1695,7 @@ TEST_CASE("Models draw their transformed submeshes with separate materials, incl
             if (sceneInstance) {
                 Spot::Scene scene;
                 scene.Instantiate(*model, "Model").GetTransform().SetScale({mirrored ? -1.0f : 1.0f, 1.0f, 1.0f});
-                renderer.DrawScene(scene);
+                Spot::DrawScene(renderer, scene);
             } else if (selected) {
                 const auto& part = model->GetParts()[1];
                 renderer.DrawMesh(*part.mesh, *part.material, part.transform, true, part.submesh);
@@ -1749,7 +1749,7 @@ TEST_CASE("Renderer3D draws the active mesh renderers of a scene at their world 
 
             renderer.Begin(context, target, MakeFrontCamera());
             renderer.DrawLight(FrontLight);
-            renderer.DrawScene(scene);
+            Spot::DrawScene(renderer, scene);
             renderer.End();
             stats = renderer.GetStats();
         });
@@ -2149,7 +2149,7 @@ TEST_CASE("Renderer3D draws only the meshes on the layers the camera sees", "[gp
             camera.cullingMask &= ~(1u << 3);
             renderer.Begin(context, target, camera);
             renderer.DrawLight(FrontLight);
-            renderer.DrawScene(scene);
+            Spot::DrawScene(renderer, scene);
             renderer.End();
             stats = renderer.GetStats();
         });
@@ -2302,7 +2302,7 @@ TEST_CASE("Renderer3D lights scenes with their active lights", "[gpu]") {
             inactive.SetActive(false);
 
             renderer.Begin(context, target, MakeFrontCamera());
-            renderer.DrawScene(scene);
+            Spot::DrawScene(renderer, scene);
             renderer.End();
         });
 
@@ -2505,7 +2505,7 @@ TEST_CASE("Renderer3D lights scenes with the sun of their sky through its air", 
                 sky.SetNightColor(Spot::Color::Black);
 
                 renderer.Begin(context, target, MakeFrontCamera());
-                renderer.DrawScene(scene);
+                Spot::DrawScene(renderer, scene);
                 renderer.End();
             });
     };
@@ -2770,7 +2770,7 @@ TEST_CASE("Renderer3D scenes are shadowed by their sky's sun and by the mesh ren
                 camera.position = {0.0f, 10.0f, 0.0f};
                 camera.rotation = Spot::Quaternion::LookRotation({0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, -1.0f});
                 renderer.Begin(context, target, camera);
-                renderer.DrawScene(scene);
+                Spot::DrawScene(renderer, scene);
                 renderer.End();
             });
     };
@@ -3409,7 +3409,7 @@ TEST_CASE("Renderer3D fogs scenes with their first active Fog, from its entity's
             renderer.Begin(context, target, MakeFrontCamera());
             renderer.DrawLight(FrontLight);
             renderer.DrawMesh(*cube, {.baseColor = Spot::Color::Green});
-            renderer.DrawScene(scene);
+            Spot::DrawScene(renderer, scene);
             renderer.End();
         });
     CHECK(render.At(4, 4)[0] > 200);
@@ -3708,7 +3708,7 @@ TEST_CASE("SDF text scales and world text renders offscreen", "[gpu][text][offsc
             text.SetText("A");
             text.SetPixelScale(scale);
             text.SetFacingCamera(true);
-            renderer.DrawWorldText(scene, {});
+            Spot::DrawWorldText(renderer, scene, {});
         } else {
             renderer.DrawString(*font, "A", {20, 110}, Spot::Color::White, scale);
         }

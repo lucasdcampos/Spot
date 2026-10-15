@@ -1,4 +1,4 @@
-#include "graphics/scene_renderer.h"
+#include "scene/scene_renderer.h"
 #include "scene/tilemap.h"
 
 #include "core/profiler.h"
@@ -15,6 +15,7 @@
 #include "scene/camera.h"
 #include "scene/post_processing.h"
 #include "scene/scene.h"
+#include "scene/scene_drawing.h"
 #include "scene/sprite_renderer.h"
 #include "scene/text_renderer.h"
 
@@ -132,7 +133,7 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
 
     m_renderer3D->Begin(context, hdrPass, view);
     for (Scene* scene : scenes) {
-        m_renderer3D->DrawScene(*scene);
+        DrawScene(*m_renderer3D, *scene);
     }
     m_renderer3D->End();
     runStage(RenderStage::AfterOpaque);
@@ -144,10 +145,10 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
         auto spritePass = context.BeginRenderPass(spriteDesc);
         m_sprites->Begin(spritePass, view, size);
         for (Scene* scene : scenes) {
-            m_sprites->DrawScene(*scene);
+            DrawScene(*m_sprites, *scene);
         }
         for (Scene* scene : scenes) {
-            m_sprites->DrawWorldText(*scene, view);
+            DrawWorldText(*m_sprites, *scene, view);
         }
         m_sprites->End();
     }
@@ -160,7 +161,7 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
         const Texture* particleDepth = m_sampleCount == 1 ? m_depth.get() : m_renderer3D->RenderCameraDepth(context);
         m_particles->Begin(context, hdrPass, view, size, particleDepth);
         for (Scene* scene : scenes)
-            m_particles->DrawScene(*scene);
+            DrawScene(*m_particles, *scene);
         m_particles->End();
     }
     runStage(RenderStage::AfterTransparent);

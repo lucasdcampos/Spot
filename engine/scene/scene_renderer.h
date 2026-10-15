@@ -1,11 +1,11 @@
 #pragma once
 
 #include "graphics/bloom.h"
-#include "math/color.h"
 #include "graphics/fxaa.h"
 #include "graphics/render_stage.h"
 #include "graphics/texture.h"
 #include "graphics/tonemapper.h"
+#include "math/color.h"
 
 #include <cstdint>
 #include <memory>
