@@ -1,12 +1,12 @@
 #include "core/engine_console.h"
 
 #include "audio/audio_device.h"
-#include "audio/audio_system.h"
 #include "audio/playback.h"
 #include "core/application.h"
 #include "core/profiler.h"
 #include "core/time.h"
-#include "physics/physics_world.h"
+#include "scene/audio/audio_system.h"
+#include "scene/physics/physics_world.h"
 
 namespace Spot {
 namespace {

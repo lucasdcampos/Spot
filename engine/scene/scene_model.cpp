@@ -1,11 +1,11 @@
 #include "scene/scene.h"
 
-#include "animation/animator.h"
-#include "animation/bone_attachment.h"
-#include "animation/skinned_mesh_renderer.h"
 #include "core/profiler.h"
 #include "graphics/model.h"
-#include "scene/mesh_renderer.h"
+#include "scene/animation/animator.h"
+#include "scene/animation/bone_attachment.h"
+#include "scene/animation/skinned_mesh_renderer.h"
+#include "scene/rendering/mesh_renderer.h"
 
 #include <algorithm>
 #include <utility>

@@ -1,11 +1,11 @@
 #include "scene/entity.h"
-#include "ui/ui_widgets.h"
+#include "scene/ui/ui_widgets.h"
 
 #include "core/assert.h"
-#include "physics/character_controller.h"
-#include "physics/collider.h"
-#include "physics/physics_world.h"
-#include "physics/rigidbody.h"
+#include "scene/physics/character_controller.h"
+#include "scene/physics/collider.h"
+#include "scene/physics/physics_world.h"
+#include "scene/physics/rigidbody.h"
 #include "scene/scene.h"
 
 #include <algorithm>

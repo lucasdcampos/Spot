@@ -2,9 +2,9 @@
 
 #include "audio/audio_settings.h"
 #include "core/asset_id.h"
-#include "graphics/rendering_settings.h"
 #include "input/input_settings.h"
-#include "physics/physics_settings.h"
+#include "scene/physics/physics_settings.h"
+#include "scene/rendering/rendering_settings.h"
 
 #include <filesystem>
 #include <map>

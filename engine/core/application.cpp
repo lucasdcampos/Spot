@@ -1,8 +1,7 @@
 #include "core/application.h"
-#include "ui/ui_input_system.h"
+#include "scene/ui/ui_input_system.h"
 
 #include "assets/assets.h"
-#include "audio/audio_system.h"
 #include "core/assert.h"
 #include "core/console_input.h"
 #include "core/crash_handler.h"
@@ -24,8 +23,9 @@
 #include "graphics/screenshot.h"
 #include "input/input.h"
 #include "platform/platform.h"
+#include "scene/audio/audio_system.h"
+#include "scene/rendering/scene_renderer.h"
 #include "scene/scene_assets.h"
-#include "scene/scene_renderer.h"
 
 #include <algorithm>
 #include <chrono>

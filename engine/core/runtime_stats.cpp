@@ -3,7 +3,7 @@
 #include "audio/audio_device.h"
 #include "core/process.h"
 #include "core/time.h"
-#include "physics/physics_world.h"
+#include "scene/physics/physics_world.h"
 #include "scene/scene.h"
 
 #include <algorithm>

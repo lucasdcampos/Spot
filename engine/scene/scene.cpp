@@ -1,18 +1,18 @@
 #include "scene/scene.h"
 #include "scene/prefab.h"
 
-#include "audio/audio_system.h"
 #include "core/assert.h"
 #include "core/diagnostics.h"
 #include "core/log.h"
 #include "core/profiler.h"
 #include "graphics/renderer_2d.h"
 #include "input/input.h"
-#include "physics/physics_world.h"
-#include "physics2d/physics_world_2d.h"
-#include "ui/canvas.h"
-#include "ui/ui_input_system.h"
-#include "ui/ui_system.h"
+#include "scene/audio/audio_system.h"
+#include "scene/physics/physics_world.h"
+#include "scene/physics2d/physics_world_2d.h"
+#include "scene/ui/canvas.h"
+#include "scene/ui/ui_input_system.h"
+#include "scene/ui/ui_system.h"
 
 #include <algorithm>
 #include <atomic>

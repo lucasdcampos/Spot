@@ -34,10 +34,10 @@ add_library(spot_objects OBJECT
     audio/sound.cpp
     audio/audio_settings.h
     audio/audio_settings.cpp
-    audio/audio_source.h
-    audio/audio_source.cpp
-    audio/audio_system.h
-    audio/audio_system.cpp
+    scene/audio/audio_source.h
+    scene/audio/audio_source.cpp
+    scene/audio/audio_system.h
+    scene/audio/audio_system.cpp
     audio/sound_decoder.h
     audio/sound_stream.h
     audio/sound_stream.cpp
@@ -120,24 +120,24 @@ add_library(spot_objects OBJECT
     graphics/mesh_data.h
     graphics/mikktspace.cpp
     graphics/mesh_data.cpp
-    animation/skinned_mesh_renderer.h
-    animation/skinned_mesh_renderer.cpp
+    scene/animation/skinned_mesh_renderer.h
+    scene/animation/skinned_mesh_renderer.cpp
     animation/animator_controller.h
     animation/animator_controller.cpp
     animation/blend_tree.h
     animation/blend_tree.cpp
-    animation/animator.h
-    animation/animator.cpp
+    scene/animation/animator.h
+    scene/animation/animator.cpp
     animation/animation_motion.h
     animation/animation_motion.cpp
-    animation/animator_motion.cpp
+    scene/animation/animator_motion.cpp
     animation/animation_layer.h
     animation/animation_layer.cpp
-    animation/animator_layers.cpp
-    animation/bone_attachment.h
-    animation/bone_attachment.cpp
-    animation/ragdoll.h
-    animation/ragdoll.cpp
+    scene/animation/animator_layers.cpp
+    scene/animation/bone_attachment.h
+    scene/animation/bone_attachment.cpp
+    scene/animation/ragdoll.h
+    scene/animation/ragdoll.cpp
     animation/pose.h
     animation/pose.cpp
     animation/animation_data.h
@@ -152,17 +152,17 @@ add_library(spot_objects OBJECT
     graphics/quad_batch.h
     graphics/quad_batch.cpp
     graphics/sprite_atlas.cpp
-    scene/sprite_animator.cpp
-    scene/tilemap.cpp
-    physics2d/tilemap_collider_2d.cpp
+    scene/rendering/sprite_animator.cpp
+    scene/rendering/tilemap.cpp
+    scene/physics2d/tilemap_collider_2d.cpp
     graphics/render_context.h
     graphics/render_stage.h
     graphics/renderer_2d.h
     graphics/renderer_2d.cpp
     graphics/console_overlay.cpp
     graphics/renderer_3d.h
-    graphics/rendering_settings.cpp
-    graphics/rendering_settings.h
+    scene/rendering/rendering_settings.cpp
+    scene/rendering/rendering_settings.h
     graphics/renderer_3d.cpp
     graphics/renderer_3d_depth.cpp
     graphics/particle_batch.h
@@ -193,8 +193,8 @@ add_library(spot_objects OBJECT
     particles/particle_settings.cpp
     particles/particle_simulation.h
     particles/particle_simulation.cpp
-    particles/particle_system.h
-    particles/particle_system.cpp
+    scene/particles/particle_system.h
+    scene/particles/particle_system.cpp
     math/curve.h
     math/curve.cpp
     math/gradient.h
@@ -206,36 +206,36 @@ add_library(spot_objects OBJECT
     math/quaternion.h
     math/quaternion.cpp
     math/vector.h
-    physics/character_controller.h
-    physics/character_controller.cpp
-    physics/collider.h
-    physics/collider.cpp
-    physics/collision.h
-    physics/joint.h
-    physics/joint.cpp
-    physics/physics_debug.h
-    physics/physics_debug.cpp
-    physics/physics_query.h
+    scene/physics/character_controller.h
+    scene/physics/character_controller.cpp
+    scene/physics/collider.h
+    scene/physics/collider.cpp
+    scene/physics/collision.h
+    scene/physics/joint.h
+    scene/physics/joint.cpp
+    scene/physics/physics_debug.h
+    scene/physics/physics_debug.cpp
+    scene/physics/physics_query.h
     physics/physics_simulation.h
-    physics/physics_settings.h
-    physics/physics_settings.cpp
-    physics/physics_world.h
-    physics/physics_world.cpp
-    physics/physics_world_contacts.cpp
-    physics/physics_world_joints.cpp
-    physics/physics_world_queries.cpp
-    physics/rigidbody.h
-    physics/rigidbody.cpp
+    scene/physics/physics_settings.h
+    scene/physics/physics_settings.cpp
+    scene/physics/physics_world.h
+    scene/physics/physics_world.cpp
+    scene/physics/physics_world_contacts.cpp
+    scene/physics/physics_world_joints.cpp
+    scene/physics/physics_world_queries.cpp
+    scene/physics/rigidbody.h
+    scene/physics/rigidbody.cpp
     physics2d/physics_2d.h
-    physics2d/physics_world_2d.cpp
-    physics2d/collider_2d.cpp
-    physics2d/rigidbody_2d.cpp
+    scene/physics2d/physics_world_2d.cpp
+    scene/physics2d/collider_2d.cpp
+    scene/physics2d/rigidbody_2d.cpp
     platform/platform.h
     core/archive.h
     core/archive.cpp
     core/archive_state.h
-    scene/camera.h
-    scene/camera.cpp
+    scene/rendering/camera.h
+    scene/rendering/camera.cpp
     scene/component.h
     scene/component_ref.h
     scene/component.cpp
@@ -244,44 +244,44 @@ add_library(spot_objects OBJECT
     scene/component_registry.cpp
     scene/entity.h
     scene/entity.cpp
-    scene/light.h
-    scene/fog.cpp
-    scene/fog.h
-    scene/light.cpp
-    scene/post_processing.cpp
-    scene/post_processing.h
+    scene/rendering/light.h
+    scene/rendering/fog.cpp
+    scene/rendering/fog.h
+    scene/rendering/light.cpp
+    scene/rendering/post_processing.cpp
+    scene/rendering/post_processing.h
     scene/prefab.h
     scene/prefab.cpp
     scene/prefab_serialization.cpp
-    scene/mesh_renderer.h
+    scene/rendering/mesh_renderer.h
     scene/missing_component.h
-    scene/mesh_renderer.cpp
+    scene/rendering/mesh_renderer.cpp
     scene/scene.h
     scene/scene.cpp
     scene/scene_model.cpp
     scene/scene_prefab.cpp
     scene/scene_assets.h
-    scene/scene_drawing.h
-    scene/scene_drawing.cpp
-    scene/scene_renderer.h
-    scene/scene_renderer.cpp
+    scene/rendering/scene_drawing.h
+    scene/rendering/scene_drawing.cpp
+    scene/rendering/scene_renderer.h
+    scene/rendering/scene_renderer.cpp
     scene/scene_assets.cpp
     scene/scene_serialization.cpp
     scene/scene_serializer.h
     scene/scene_system.h
     scene/scene_system.cpp
-    scene/sky.h
-    scene/sky.cpp
-    scene/sprite_renderer.h
-    scene/sprite_renderer.cpp
-    ui/ui_text_layout.cpp
-    ui/ui_widgets.cpp
-    ui/ui_layout_group.cpp
-    ui/ui_input_system.cpp
-    ui/ui_layout.cpp
-    ui/ui_system.cpp
-    scene/text_renderer.cpp
-    scene/text_renderer.h
+    scene/rendering/sky.h
+    scene/rendering/sky.cpp
+    scene/rendering/sprite_renderer.h
+    scene/rendering/sprite_renderer.cpp
+    scene/ui/ui_text_layout.cpp
+    scene/ui/ui_widgets.cpp
+    scene/ui/ui_layout_group.cpp
+    scene/ui/ui_input_system.cpp
+    scene/ui/ui_layout.cpp
+    scene/ui/ui_system.cpp
+    scene/rendering/text_renderer.cpp
+    scene/rendering/text_renderer.h
     scene/transform.h
     scene/transform.cpp
     scene/tween_system.h
