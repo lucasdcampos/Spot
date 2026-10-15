@@ -1,10 +1,10 @@
-#include "core/engine_console.h"
+#include "runtime/engine_console.h"
 
 #include "audio/audio_device.h"
 #include "audio/playback.h"
-#include "core/application.h"
 #include "core/profiler.h"
 #include "core/time.h"
+#include "runtime/application.h"
 #include "scene/audio/audio_system.h"
 #include "scene/physics/physics_world.h"
 

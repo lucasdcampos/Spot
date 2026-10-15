@@ -1,4 +1,4 @@
-#include "core/game_module.h"
+#include "runtime/game_module.h"
 
 #include "core/log.h"
 #include "core/paths.h"

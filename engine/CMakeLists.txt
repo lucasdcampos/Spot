@@ -41,13 +41,13 @@ add_library(spot_objects OBJECT
     audio/sound_decoder.h
     audio/sound_stream.h
     audio/sound_stream.cpp
-    core/application.h
-    core/application.cpp
+    runtime/application.h
+    runtime/application.cpp
     core/console.cpp
-    core/console_input.cpp
-    core/runtime_stats.cpp
+    runtime/console_input.cpp
+    runtime/runtime_stats.cpp
     core/profile_stream.cpp
-    core/engine_console.cpp
+    runtime/engine_console.cpp
     core/assert.h
     core/assert.cpp
     core/crash_handler.h
@@ -55,10 +55,10 @@ add_library(spot_objects OBJECT
     core/crash_handler_internal.h
     core/diagnostics.h
     core/diagnostics.cpp
-    core/game_module.h
-    core/game_module.cpp
-    core/game_settings.h
-    core/game_settings.cpp
+    runtime/game_module.h
+    runtime/game_module.cpp
+    runtime/game_settings.h
+    runtime/game_settings.cpp
     core/log.h
     core/log.cpp
     core/log_sinks.h
@@ -159,7 +159,7 @@ add_library(spot_objects OBJECT
     graphics/render_stage.h
     graphics/renderer_2d.h
     graphics/renderer_2d.cpp
-    graphics/console_overlay.cpp
+    runtime/console_overlay.cpp
     graphics/renderer_3d.h
     scene/rendering/rendering_settings.cpp
     scene/rendering/rendering_settings.h

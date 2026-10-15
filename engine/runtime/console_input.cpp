@@ -1,4 +1,4 @@
-#include "core/console_input.h"
+#include "runtime/console_input.h"
 
 #include "core/console.h"
 #include "core/log.h"

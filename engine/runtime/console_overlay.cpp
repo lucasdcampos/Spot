@@ -1,10 +1,10 @@
-#include "graphics/console_overlay.h"
+#include "runtime/console_overlay.h"
 
 #include "core/console.h"
-#include "core/console_input.h"
-#include "core/runtime_stats.h"
 #include "graphics/font.h"
 #include "graphics/renderer_2d.h"
+#include "runtime/console_input.h"
+#include "runtime/runtime_stats.h"
 
 #include <algorithm>
 

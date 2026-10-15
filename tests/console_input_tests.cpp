@@ -1,4 +1,4 @@
-#include "core/console_input.h"
+#include "runtime/console_input.h"
 #include <spot.h>
 
 #include <catch2/catch_test_macros.hpp>

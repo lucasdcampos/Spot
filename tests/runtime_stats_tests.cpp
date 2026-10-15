@@ -1,4 +1,4 @@
-#include "core/runtime_stats.h"
+#include "runtime/runtime_stats.h"
 #include <spot.h>
 
 #include <catch2/catch_approx.hpp>

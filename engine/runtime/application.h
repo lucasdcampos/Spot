@@ -2,12 +2,12 @@
 
 #include "assets/asset_manager.h"
 #include "audio/audio_device.h"
-#include "core/game_settings.h"
 #include "core/time.h"
 #include "events/event.h"
 #include "graphics/graphics_device.h"
 #include "input/input_action.h"
 #include "input/input_state.h"
+#include "runtime/game_settings.h"
 #include "scene/scene.h"
 #include "window/window.h"
 
