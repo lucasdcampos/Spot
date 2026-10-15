@@ -1,4 +1,4 @@
-#include "graphics/gradient.h"
+#include "math/gradient.h"
 #include "scene/archive.h"
 #include <algorithm>
 #include <cmath>

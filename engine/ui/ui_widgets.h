@@ -2,7 +2,7 @@
 
 #include "assets/asset_ref.h"
 #include "core/signal.h"
-#include "graphics/color.h"
+#include "math/color.h"
 #include "scene/component.h"
 #include "ui/ui_system.h"
 #include "ui/ui_text_layout.h"

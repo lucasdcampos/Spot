@@ -1,7 +1,7 @@
 #pragma once
 
 #include "assets/asset_ref.h"
-#include "graphics/color.h"
+#include "math/color.h"
 #include "graphics/sprite_atlas.h"
 #include "math/vector.h"
 #include "scene/component.h"

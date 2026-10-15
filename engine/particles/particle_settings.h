@@ -1,6 +1,6 @@
 #pragma once
 
-#include "graphics/gradient.h"
+#include "math/gradient.h"
 #include "math/curve.h"
 #include "math/vector.h"
 #include <cstdint>

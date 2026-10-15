@@ -1,7 +1,7 @@
 #pragma once
 
 #include "graphics/camera_2d.h"
-#include "graphics/color.h"
+#include "math/color.h"
 #include "graphics/quad_batch.h"
 #include "graphics/render_context.h"
 #include "graphics/text_layout.h"

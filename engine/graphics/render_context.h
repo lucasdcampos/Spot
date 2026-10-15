@@ -1,7 +1,7 @@
 #pragma once
 
 #include "graphics/buffer.h"
-#include "graphics/color.h"
+#include "math/color.h"
 #include "graphics/texture.h"
 
 #include <cstdint>

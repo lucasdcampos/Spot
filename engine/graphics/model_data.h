@@ -1,7 +1,7 @@
 #pragma once
 
 #include "animation/animation_data.h"
-#include "graphics/color.h"
+#include "math/color.h"
 #include "graphics/image.h"
 #include "graphics/material.h"
 #include "graphics/mesh_data.h"

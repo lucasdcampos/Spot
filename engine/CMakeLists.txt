@@ -92,7 +92,7 @@ add_library(spot_objects OBJECT
     graphics/pixel_perfect.cpp
     graphics/camera_3d.h
     graphics/camera_3d.cpp
-    graphics/color.h
+    math/color.h
     graphics/debug_draw.h
     graphics/debug_draw.cpp
     graphics/font.h
@@ -198,8 +198,8 @@ add_library(spot_objects OBJECT
     particles/particle_system.cpp
     math/curve.h
     math/curve.cpp
-    graphics/gradient.h
-    graphics/gradient.cpp
+    math/gradient.h
+    math/gradient.cpp
     math/angles.h
     math/glm_conversions.h
     math/matrix.h

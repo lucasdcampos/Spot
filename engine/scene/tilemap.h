@@ -1,6 +1,6 @@
 #pragma once
 
-#include "graphics/color.h"
+#include "math/color.h"
 #include "graphics/sprite_atlas.h"
 #include "scene/component.h"
 

@@ -8,7 +8,7 @@
 #include "assets/asset_file.h"
 #include "assets/asset_id.h"
 #include "assets/material_source.h"
-#include "graphics/color.h"
+#include "math/color.h"
 #include "graphics/image.h"
 #include "graphics/mesh_data.h"
 #include "math/matrix.h"

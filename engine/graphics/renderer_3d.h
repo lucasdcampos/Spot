@@ -1,7 +1,7 @@
 #pragma once
 
 #include "graphics/camera_3d.h"
-#include "graphics/color.h"
+#include "math/color.h"
 #include "graphics/fog_data.h"
 #include "graphics/fullscreen_pass.h"
 #include "graphics/light_data.h"

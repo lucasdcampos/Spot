@@ -1,7 +1,7 @@
 #pragma once
 
 #include "graphics/camera_3d.h"
-#include "graphics/color.h"
+#include "math/color.h"
 #include "math/angles.h"
 #include "scene/component.h"
 

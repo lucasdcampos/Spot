@@ -1,7 +1,7 @@
 #pragma once
 
 #include "assets/asset_ref.h"
-#include "graphics/color.h"
+#include "math/color.h"
 
 namespace Spot {
 
