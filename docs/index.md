@@ -34,15 +34,33 @@ Building, testing and the code rules are in [`AGENTS.md`](../AGENTS.md); the pla
 
 ## Layers
 
-Every system sits in one layer and only uses the ones below it:
+The engine is layers, each a set of folders of `engine/` that only includes its own layer and the ones below it. The
+test "Engine layers include only the layers below them" (`cmake/spot_check_layers.cmake`) fails the build's tests
+otherwise.
 
-1. **Core**: logging, assertions, crash handling, paths, time, the profiler, math.
-2. **Backends** behind engine contracts: windowing (SDL3, `engine/platform/`), graphics (SDL_GPU,
-   `engine/graphics/sdl_gpu/`), audio (SDL3, `engine/audio/`) and physics (Jolt, `engine/physics/jolt/`). Public
-   headers never show backend types.
-3. **Engine features** built on public APIs only: the renderers, the mixer, the physics world, assets.
-4. **Scene components** on top of those features: `MeshRenderer`, `Light`, `Rigidbody` and the rest.
-5. **Tools** (`spot_import`, `spot_tools`, the `spot` command line) **and the editor**, which games never link.
+| Layer | Folders | What it holds |
+|---|---|---|
+| 0. Core | `core/`, `math/` | Logging, assertions, crash handling, paths, time, the profiler, tasks, serialization (`Archive`), ids, math, colors, curves |
+| 1. Platform | `platform/`, `window/`, `events/`, `input/` | Windows, events, the input state and actions, processes; SDL3 behind `platform/sdl3/` |
+| 2. Systems | `graphics/`, `audio/`, `physics/`, `physics2d/`, `animation/`, `particles/`, `assets/` | The mechanism: the graphics device and the code-only renderers, the mixer, the physics simulations, poses and clips, particle simulation, loading imported assets |
+| 3. Scene | `scene/`, with a folder per system: `scene/rendering/`, `scene/physics/`, `scene/audio/`, `scene/ui/`… | Entities, components and scene systems built on the systems' public API: `MeshRenderer`, `Rigidbody`, `PhysicsWorld`, `SceneRenderer`, the entity-based UI |
+| 4. Runtime | `runtime/` | `Application`, the default game loop with scenes, and what runs a game: settings, the console, game modules |
+| 5. Tools | `import/`, then `tools/`, `cli/` and `editor/` outside the engine | Importing and making games out of projects, which games never link |
+
+Backends live in their system's folder, behind its contract: SDL_GPU in `graphics/sdl_gpu/`, SDL3 audio in
+`audio/sdl3/`, Jolt in `physics/jolt/`, Box2D in `physics/box2d/`. Public headers never show backend types.
+
+### Games without scenes
+
+`Application` and `Scene` are the default way to make a game, not the only one. A game that needs another model,
+such as an ECS of its own for a large world, writes its own `main()` and loop on the layers below the scene:
+`Window` and `Platform::PollEvents()` for events, an `InputState` it feeds them to, the `GraphicsDevice` with
+`Renderer2D`, `Renderer3D` and the other code-only renderers, `AudioDevice`, and an `AssetManager` for imported
+assets. The scene layer itself draws with those renderers' public API only (`scene/rendering/scene_drawing.h`), so
+a game's own storage can draw the same way. `tests/custom_loop_tests.cpp` is such a loop.
+
+The `Input::`, `Time::`, `Audio::` and `Assets::` shortcuts read what `Application` hands them while it runs; a loop
+of its own sets them (`Input::SetState()` and the like) or passes its objects around instead.
 
 The engine never knows about projects or the editor: a game runs from the `game.json` its build writes and from its
 imported assets.

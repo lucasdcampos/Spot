@@ -49,7 +49,7 @@ projects velocity onto the camera plane; stationary or head-on particles retain 
 Local particles inherit emitter position and the largest scale axis. Rotation turns normal billboards.
 Flipbooks use row-major cells, normalized lifetime and an optional number of cycles.
 
-`ParticleRenderer` has a code-only `Begin/Draw/End` API and `DrawScene()`. It uploads one instance per
+`ParticleRenderer` has a code-only `Begin/Draw/End` API; `DrawScene(ParticleRenderer&, Scene&)` draws a scene's systems. It uploads one instance per
 particle and merges consecutive draws that share texture and blend mode. Buffers and staging vectors
 retain capacity. No texture produces an analytic soft disc; an assigned imported texture provides its
 own coverage. Alpha and additive colors remain linear HDR through bloom and tonemapping.

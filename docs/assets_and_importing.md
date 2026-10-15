@@ -61,7 +61,7 @@ auto texture = Spot::Assets::Load<Spot::Texture>(textureId);
 ```
 
 `Load()` returns an `AssetRef<T>`, a shared reference that also remembers the asset's id, so components that hold
-one save it in scenes (`Archive::Field()` takes `AssetRef` fields). A reference can keep an id without an asset when
+one save it in scenes (`Archive::Field()` takes `AssetRef` fields through `assets/asset_archive.h`). A reference can keep an id without an asset when
 loading failed; saving keeps the id. Assets that need the GPU, such as textures and meshes, only load with a
 graphics device.
 
@@ -96,3 +96,10 @@ this layout and reimports older models automatically, preserving subasset ids by
 - `spot cook --out <folder>` and `spot export` import into the game's folder, beside `game.json`, whose
   `importDirectory` points at them.
 - The engine's own build cooks the sandbox's assets beside its executable.
+
+## Asset types of other layers
+
+The asset manager loads the types of the layers up to its own. Layers above it register loaders for theirs with
+`AssetManager::RegisterLoader()`, as the scene layer does for prefabs; scenes are not shared assets, and
+`InstantiateScene(AssetManager&, AssetId)` (`engine/scene/scene_assets.h`) makes a new one from its imported data
+each time, which `AssetManager::ReadImportedData()` gives.

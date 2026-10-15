@@ -68,6 +68,11 @@ the commit that finishes a step ticks its box. Follow its architecture principle
   the engine's mixer produces, and physics backends only simulate the bodies the engine's physics world asks for.
 - Engine features built on top of the graphics API (such as the 2D renderer) only use its public interface, so
   users can always do anything the engine does.
+- The engine is layers of folders (see "Layers" in `docs/index.md`): core (`core/`, `math/`), platform, systems
+  (`graphics/`, `audio/`, `physics/`, `assets/`…), scene (`scene/`, a folder per system's components), runtime
+  (`runtime/`, `Application`) and import. A folder only includes its own layer and the ones below;
+  `cmake/spot_check_layers.cmake` runs as a test. Systems keep their mechanism usable without scenes, so a game can
+  run a loop and an object model of its own; their scene components go in `scene/<system>/`.
 - GPU tests go in `tests/gpu_tests.cpp` (the `spot_gpu_tests` executable) and are skipped where no GPU is available.
   Golden-image tests (`tests/golden_tests.cpp`, same executable) compare reference scenes with the images in
   `tests/golden/`; when a change to how things look is meant, run them with `SPOT_UPDATE_GOLDEN=1`, look at the new

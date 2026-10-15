@@ -14,7 +14,7 @@ world units. Normal text uses the entity world matrix, including parent transfor
 text uses the camera rotation while keeping the entity's world position and scale. The engine and
 editor draw world text after sprites in the HDR pass, ordered by `order` and stable traversal;
 like sprites, it overlays meshes without depth testing. It still receives post-processing.
-Use `Renderer2D::DrawWorldText()` inside a begun pass for custom rendering.
+Use `DrawWorldText(Renderer2D&, Scene&, const Camera3D&)` inside a begun pass for custom rendering.
 
 ## Canvas and rectangles
 

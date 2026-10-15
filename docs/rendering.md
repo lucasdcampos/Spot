@@ -73,10 +73,16 @@ vertex uniforms at `register(b0, space1)`, fragment textures and samplers at `re
 
 | Renderer | Draws |
 |---|---|
-| `Renderer2D` | Colored and textured quads and text, batched, in the order given, with alpha blending, inside a pass the caller opens; `DrawScene()` draws a scene's `SpriteRenderer`s |
-| `Renderer3D` | Lit, textured, shadowed meshes and models with a sky; it opens the pass described to `Begin()` in `End()`, after drawing shadow maps; `DrawScene()` draws a scene's `MeshRenderer`s, `Light`s and first `Sky` |
+| `Renderer2D` | Colored and textured quads and text, batched, in the order given, with alpha blending, inside a pass the caller opens; `SetTransform()` places what follows, as world text and sprites at a depth need |
+| `Renderer3D` | Lit, textured, shadowed meshes and models with a sky; it opens the pass described to `Begin()` in `End()`, after drawing shadow maps |
 | `LineRenderer` | One-pixel lines in 3D, depth-tested or over everything, inside a pass the caller opens; `DrawDebugLines()` draws the `DebugDraw` queue |
-| `SceneRenderer` | Whole scenes as games show them, through their main camera |
+| `SceneRenderer` | Whole scenes as games show them, through their main camera (`engine/scene/rendering/`) |
+
+The renderers know nothing of scenes. `engine/scene/rendering/scene_drawing.h` draws a scene's components with them:
+`DrawScene(Renderer3D&, Scene&)` its `MeshRenderer`s, `SkinnedMeshRenderer`s, `Light`s and first `Sky` and `Fog`,
+`DrawScene(Renderer2D&, Scene&)` its sprites and tilemaps, `DrawWorldText()` its `TextRenderer`s and
+`DrawScene(ParticleRenderer&, Scene&)` its particle systems. It uses only the renderers' public API, so games that
+keep their objects some other way draw them the same way.
 
 ### Models and submeshes
 
@@ -99,7 +105,7 @@ and normal maps.
 `End()` leaves out of the view's pass the meshes whose bounds are outside the camera's frustum; `GetStats()` and the
 profiler count both (`visibleMeshes` and `culledMeshes`). A camera also sees only the layers in its `cullingMask`
 (`Camera3D::cullingMask`, set on the `Camera` component, which the inspector shows as layers to tick):
-`DrawScene()` skips the meshes of entities on the others, in its shadows too.
+`DrawScene(Renderer3D&, Scene&)` skips the meshes of entities on the others, in its shadows too.
 
 ### Shadows
 

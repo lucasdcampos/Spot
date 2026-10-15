@@ -1,8 +1,11 @@
 # Application and scenes
 
-`Application` (`engine/core/application.h`) owns the window, the graphics and audio devices, the asset manager, the
+`Application` (`engine/runtime/application.h`) owns the window, the graphics and audio devices, the asset manager, the
 input state and the scenes, and runs the frame loop. `Scene` (`engine/scene/scene.h`) owns a hierarchy of entities
 and drives their components and its systems.
+
+Both are the default model, not a requirement: a game can run a loop of its own on the layers below them (see
+[Games without scenes](index.md#games-without-scenes)).
 
 ## Running a game
 
