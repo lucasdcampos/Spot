@@ -2,7 +2,6 @@
 #include "assets/asset_archive.h"
 
 #include "core/log.h"
-#include "scene/scene.h"
 
 namespace Spot {
 
@@ -18,14 +17,6 @@ void Detail::WarnAssetWithoutId(std::string_view name) {
 
 AssetManager* Assets::GetManager() {
     return s_manager;
-}
-
-std::unique_ptr<Scene> Assets::InstantiateScene(std::string_view path) {
-    if (!s_manager) {
-        Log::GetEngineLogger().Error("Scene '{}' cannot be instantiated without a running application", path);
-        return nullptr;
-    }
-    return s_manager->InstantiateScene(path);
 }
 
 void Detail::SetAssetManager(AssetManager* manager) {

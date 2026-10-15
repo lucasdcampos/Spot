@@ -27,9 +27,6 @@ AssetRef<T> Load(std::string_view path) {
     return manager ? manager->Load<T>(path) : AssetRef<T>();
 }
 
-// Null, after logging why, when there is no manager or the scene cannot be instantiated.
-std::unique_ptr<Scene> InstantiateScene(std::string_view path);
-
 } // namespace Spot::Assets
 
 namespace Spot::Detail {

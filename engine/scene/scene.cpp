@@ -1,4 +1,5 @@
 #include "scene/scene.h"
+#include "scene/prefab.h"
 
 #include "audio/audio_system.h"
 #include "core/assert.h"
@@ -29,7 +30,10 @@ std::atomic<std::uint64_t> s_nextEntityId = 1;
 
 } // namespace
 
-Scene::Scene() = default;
+Scene::Scene() {
+    // Referenced from here so linking scenes links their asset loaders too.
+    Detail::RegisterSceneAssetLoaders();
+}
 
 Scene::~Scene() {
     Clear();

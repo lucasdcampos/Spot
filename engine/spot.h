@@ -125,6 +125,7 @@
 #include "scene/post_processing.h"
 #include "scene/prefab.h"
 #include "scene/scene.h"
+#include "scene/scene_assets.h"
 #include "scene/scene_system.h"
 #include "scene/sky.h"
 #include "scene/sprite_animator.h"

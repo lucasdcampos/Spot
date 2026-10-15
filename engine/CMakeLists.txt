@@ -262,6 +262,8 @@ add_library(spot_objects OBJECT
     scene/scene.cpp
     scene/scene_model.cpp
     scene/scene_prefab.cpp
+    scene/scene_assets.h
+    scene/scene_assets.cpp
     scene/scene_serialization.cpp
     scene/scene_serializer.h
     scene/scene_system.h

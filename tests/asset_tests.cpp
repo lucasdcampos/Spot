@@ -785,16 +785,16 @@ TEST_CASE("Scene files are assets that instantiate into new scenes", "[assets]")
     CHECK(database.Refresh() == 1);
 
     Spot::AssetManager assets(imported);
-    const auto first = assets.InstantiateScene("levels/first.scene");
-    const auto second = assets.InstantiateScene("levels/first.scene");
+    const auto first = Spot::InstantiateScene(assets, "levels/first.scene");
+    const auto second = Spot::InstantiateScene(assets, "levels/first.scene");
     REQUIRE((first && second));
     CHECK(first.get() != second.get());
     const auto* floor = first->FindEntity("Floor");
     REQUIRE(floor);
     CHECK(floor->GetComponent<Spot::MeshRenderer>()->GetMaterial()->baseColor == Spot::Color::Blue);
 
-    CHECK_FALSE(assets.InstantiateScene("levels/broken.scene"));
-    CHECK_FALSE(assets.InstantiateScene("pixels.png"));
+    CHECK_FALSE(Spot::InstantiateScene(assets, "levels/broken.scene"));
+    CHECK_FALSE(Spot::InstantiateScene(assets, "pixels.png"));
     CHECK_FALSE(Spot::Assets::InstantiateScene("levels/first.scene"));
 }
 

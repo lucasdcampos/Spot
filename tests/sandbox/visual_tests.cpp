@@ -29,7 +29,7 @@ TEST_CASE("The cooked playground renders its yards by day, at sunset and at nigh
     const auto settings = Spot::GameSettings::LoadFromFile(std::filesystem::path(SANDBOX_IMPORTED_DIR).parent_path() /
                                                            Spot::GameSettings::FileName);
     REQUIRE(settings);
-    auto scene = assets.InstantiateScene(settings->startupScene);
+    auto scene = Spot::InstantiateScene(assets, settings->startupScene);
     REQUIRE(scene);
     REQUIRE(scene->FindEntity("Workshop"));
     scene->ForEachComponent<Spot::Camera>([](Spot::Camera& camera) { camera.SetEnabled(false); });
@@ -154,7 +154,7 @@ TEST_CASE("The cooked sandbox renders held items, recoil, sights and reloads", "
                                                            Spot::GameSettings::FileName);
     REQUIRE(settings);
     settings->sections.input.Apply(actions);
-    auto scene = assets.InstantiateScene(settings->startupScene);
+    auto scene = Spot::InstantiateScene(assets, settings->startupScene);
     REQUIRE(scene);
     auto step = [&] {
         actions.Update(input);

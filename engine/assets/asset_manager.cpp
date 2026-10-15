@@ -15,8 +15,6 @@
 #include "graphics/material.h"
 #include "graphics/mesh.h"
 #include "graphics/model.h"
-#include "scene/prefab.h"
-#include "scene/scene.h"
 
 #include <algorithm>
 #include <array>
@@ -68,7 +66,7 @@ void AssetManager::RefreshManifest() {
         entries[entry.id] = {entry.type, entry.path,
                              previous != m_entries.end() ? previous->second.loaded : std::weak_ptr<const void>()};
         if (previous != m_entries.end()) {
-            entries[entry.id].prefabDependencies = previous->second.prefabDependencies;
+            entries[entry.id].dependencies = previous->second.dependencies;
         }
         // The first of sub-assets with the same name keeps the path.
         m_paths.try_emplace(entry.parent.IsValid() ? entry.path + "#" + entry.name : entry.path, entry.id);
@@ -158,8 +156,8 @@ std::vector<AssetId> AssetManager::Reload(std::span<const AssetId> assets) {
         grew = false;
         for (const auto& [id, entry] : m_entries) {
             const auto loaded = entry.loaded.lock();
-            const bool prefabChanged = std::ranges::any_of(
-                entry.prefabDependencies, [&](AssetId dependency) { return stale.contains(dependency); });
+            const bool prefabChanged =
+                std::ranges::any_of(entry.dependencies, [&](AssetId dependency) { return stale.contains(dependency); });
             if (!stale.contains(id) && (prefabChanged || (loaded && refersToStale(entry, loaded)))) {
                 stale.insert(id);
                 grew = true;
@@ -178,28 +176,30 @@ std::vector<AssetId> AssetManager::Reload(std::span<const AssetId> assets) {
     return reloaded;
 }
 
-std::unique_ptr<Scene> AssetManager::InstantiateScene(AssetId id) {
-    if (GetType(id) != AssetType::Scene) {
-        Log::GetEngineLogger().Error("Asset {} is not a scene", id.ToString());
-        return nullptr;
-    }
-    const auto data = Detail::ReadAssetFile(Detail::GetImportedAssetPath(m_importDirectory, id), AssetType::Scene);
-    const auto text = data ? Detail::DecodeScene(*data) : std::nullopt;
-    auto scene = std::make_unique<Scene>();
-    if (!text || !scene->LoadFromString(*text, this)) {
-        Log::GetEngineLogger().Error("Could not instantiate scene {} from '{}'", id.ToString(), m_entries.at(id).path);
-        return nullptr;
-    }
-    return scene;
+namespace {
+
+std::unordered_map<AssetType, AssetLoader>& GetLoaders() {
+    static std::unordered_map<AssetType, AssetLoader> loaders;
+    return loaders;
 }
 
-std::unique_ptr<Scene> AssetManager::InstantiateScene(std::string_view path) {
-    const auto id = FindByPath(path);
-    if (!id) {
-        LogUnknownPath(path);
-        return nullptr;
+} // namespace
+
+void AssetManager::RegisterLoader(AssetType type, AssetLoader loader) {
+    GetLoaders()[type] = loader;
+}
+
+std::optional<std::vector<std::byte>> AssetManager::ReadImportedData(AssetId id, AssetType type) const {
+    if (GetType(id) != type) {
+        Log::GetEngineLogger().Error("Asset {} is not a {}", id.ToString(), GetAssetTypeName(type));
+        return std::nullopt;
     }
-    return InstantiateScene(*id);
+    return Detail::ReadAssetFile(Detail::GetImportedAssetPath(m_importDirectory, id), type);
+}
+
+std::string_view AssetManager::GetPath(AssetId id) const {
+    const auto found = m_entries.find(id);
+    return found != m_entries.end() ? std::string_view(found->second.path) : std::string_view();
 }
 
 void AssetManager::LogUnknownPath(std::string_view path) {
@@ -232,9 +232,8 @@ std::shared_ptr<const void> AssetManager::LoadAsset(AssetId id, AssetType type) 
     }
     // Looked up again: loading the asset's own references may have added entries to the map.
     m_entries.at(id).loaded = asset;
-    if (type == AssetType::Prefab) {
-        const auto dependencies = static_cast<const Prefab*>(asset.get())->GetDependencies();
-        m_entries.at(id).prefabDependencies.assign(dependencies.begin(), dependencies.end());
+    if (const auto loader = GetLoaders().find(type); loader != GetLoaders().end() && loader->second.dependencies) {
+        m_entries.at(id).dependencies = loader->second.dependencies(asset.get());
     }
     return asset;
 }
@@ -304,6 +303,10 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
     if (needsDevice && !m_device) {
         Log::GetEngineLogger().Error("{} assets need a graphics device", GetAssetTypeName(type));
         return nullptr;
+    }
+
+    if (const auto loader = GetLoaders().find(type); loader != GetLoaders().end() && loader->second.load) {
+        return loader->second.load(*this, id, *data);
     }
 
     switch (type) {
@@ -394,11 +397,6 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
         std::shared_ptr<const Font> result = Font::LoadFromMemory(*m_device, font->fontData, font->pixelSize);
         return result;
     }
-    case AssetType::Prefab: {
-        const auto text = Detail::DecodeScene(*data);
-        auto prefab = text ? Prefab::FromString(*text) : std::nullopt;
-        return prefab ? std::make_shared<const Prefab>(std::move(*prefab)) : nullptr;
-    }
     case AssetType::AnimatorController: {
         const auto text = Detail::DecodeScene(*data);
         auto controller = text ? AnimatorController::LoadFromString(*text, this) : std::nullopt;
@@ -417,8 +415,9 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
         auto clip = Detail::DecodeAnimationClip(*data);
         return clip ? std::make_shared<const AnimationClip>(std::move(*clip)) : nullptr;
     }
+    case AssetType::Prefab:
     case AssetType::Scene:
-        Log::GetEngineLogger().Error("Scenes are not loaded as shared assets");
+        Log::GetEngineLogger().Error("{} assets load through the scene layer", GetAssetTypeName(type));
         return nullptr;
     }
 

@@ -143,7 +143,7 @@ TEST_CASE("The 3D template makes a project that opens on a lit scene", "[editor]
     REQUIRE(scene != nullptr);
     CHECK(scene->path == "scenes/Main.scene");
 
-    const auto instance = project->GetAssets().InstantiateScene(startup);
+    const auto instance = Spot::InstantiateScene(project->GetAssets(), startup);
     REQUIRE(instance != nullptr);
     CHECK(instance->FindComponent<Spot::DirectionalLight>() != nullptr);
     CHECK(instance->FindComponent<Spot::Sky>() != nullptr);
@@ -176,7 +176,7 @@ TEST_CASE("The 3D with C++ template adds the game's code, whose component the sc
     const auto project = Spot::Editor::EditorProject::Open(*file, nullptr);
     REQUIRE(project != nullptr);
     CHECK(project->GetModules().HasCode());
-    const auto scene = project->GetAssets().InstantiateScene(project->GetProject().GetSettings().startupScene);
+    const auto scene = Spot::InstantiateScene(project->GetAssets(), project->GetProject().GetSettings().startupScene);
     REQUIRE(scene != nullptr);
     const auto* rotator = scene->FindEntity("Cube")->GetComponent<Spot::MissingComponent>();
     REQUIRE(rotator != nullptr);

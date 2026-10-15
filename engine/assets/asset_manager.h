@@ -4,6 +4,7 @@
 #include "assets/asset_type.h"
 #include "core/asset_id.h"
 
+#include <cstddef>
 #include <filesystem>
 #include <memory>
 #include <optional>
@@ -25,8 +26,6 @@ class GraphicsDevice;
 class Mesh;
 struct MeshData;
 class Model;
-class Prefab;
-class Scene;
 class Sound;
 class Texture;
 struct Material;
@@ -71,11 +70,6 @@ struct AssetTypeOf<Font> {
 };
 
 template <>
-struct AssetTypeOf<Prefab> {
-    static constexpr AssetType Value = AssetType::Prefab;
-};
-
-template <>
 struct AssetTypeOf<Skeleton> {
     static constexpr AssetType Value = AssetType::Skeleton;
 };
@@ -93,6 +87,16 @@ struct AssetTypeOf<AnimatorController> {
 template <>
 struct AssetTypeOf<SpriteAtlas> {
     static constexpr AssetType Value = AssetType::SpriteAtlas;
+};
+
+class AssetManager;
+
+// Loads the assets of a type the asset layer does not define itself, such as the prefabs the scene layer registers.
+struct AssetLoader {
+    // Makes the asset from its imported data; null, after logging why, when the data is not valid.
+    std::shared_ptr<const void> (*load)(AssetManager& assets, AssetId id, std::span<const std::byte> data) = nullptr;
+    // The assets the loaded asset was made from, so it loads anew when they are reloaded; none when unset.
+    std::vector<AssetId> (*dependencies)(const void* asset) = nullptr;
 };
 
 // The types Load() can load.
@@ -159,10 +163,15 @@ public:
     // load anew, for references to them to be loaded again (see ReloadAssetReferences()).
     std::vector<AssetId> Reload(std::span<const AssetId> assets);
 
-    // Scenes are not shared: each call makes a new scene from the asset, whose asset references load through this
-    // manager. Null, after logging why, when the asset is missing or not a scene.
-    std::unique_ptr<Scene> InstantiateScene(AssetId id);
-    std::unique_ptr<Scene> InstantiateScene(std::string_view path);
+    // The imported data of an asset of the type, as its loader receives it, for assets that are not shared, such as
+    // scenes, which each instantiation makes anew. Nothing, after logging why, when it is missing or of another type.
+    std::optional<std::vector<std::byte>> ReadImportedData(AssetId id, AssetType type) const;
+    // The asset's path, as FindByPath() takes it; empty for unknown assets.
+    std::string_view GetPath(AssetId id) const;
+
+    // Makes every manager load assets of the type with the loader, as the layers above the asset layer do for
+    // their own types. The latest registration for a type wins.
+    static void RegisterLoader(AssetType type, AssetLoader loader);
 
 private:
     struct Entry {
@@ -171,8 +180,8 @@ private:
         std::weak_ptr<const void> loaded;
         // Mesh assets only: the CPU copy.
         std::weak_ptr<const MeshData> meshData = {};
-        // Keep dependency edges after a prefab's temporary normalization reference expires.
-        std::vector<AssetId> prefabDependencies = {};
+        // Kept after the asset is freed, so it still loads anew when one of them is reloaded.
+        std::vector<AssetId> dependencies = {};
     };
 
     std::shared_ptr<const void> LoadAsset(AssetId id, AssetType type);

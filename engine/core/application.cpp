@@ -25,6 +25,7 @@
 #include "graphics/screenshot.h"
 #include "input/input.h"
 #include "platform/platform.h"
+#include "scene/scene_assets.h"
 
 #include <algorithm>
 #include <chrono>
@@ -656,7 +657,7 @@ bool Application::LoadStartupScene() {
         Log::GetEngineLogger().Error("'{}' has no startup scene to run", m_config.game->name);
         return false;
     }
-    auto scene = m_assets->InstantiateScene(startup);
+    auto scene = InstantiateScene(*m_assets, startup);
     if (!scene) {
         Log::GetEngineLogger().Error("The startup scene of '{}' could not be loaded", m_config.game->name);
         return false;

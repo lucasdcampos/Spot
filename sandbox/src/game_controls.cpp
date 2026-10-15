@@ -72,7 +72,7 @@ void GameControls::OnUpdate(float /*deltaTime*/) {
         }
     }
     if (Input::IsActionPressed("Restart") && restartScene.IsValid()) {
-        if (auto scene = Spot::Assets::GetManager()->InstantiateScene(restartScene)) {
+        if (auto scene = Spot::InstantiateScene(*Spot::Assets::GetManager(), restartScene)) {
             GetScene().GetApplication().LoadScene(std::move(scene));
         }
     }
