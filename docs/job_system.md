@@ -17,6 +17,12 @@ that wait, which helps when debugging.
   the workers and the calling thread, and returns once every range is done. Pick a grain that makes each range worth
   a job: a few thousand cheap items, or a handful of costly ones.
 
+## Who uses it
+
+Physics steps on it: the Jolt backend runs Jolt's jobs as jobs of the shared system
+(`engine/physics/jolt/jolt_job_system.h`) instead of starting a thread pool of its own, so physics and the rest of
+the engine share the same workers.
+
 ## Failures
 
 A job that throws never takes the process down. The first error among the jobs of a counter is rethrown by

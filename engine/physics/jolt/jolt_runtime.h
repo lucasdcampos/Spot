@@ -2,18 +2,20 @@
 
 // Backend-internal: Jolt's global state, shared by every simulation.
 
+#include "core/job_system.h"
 #include "physics/jolt/jolt_common.h"
+#include "physics/jolt/jolt_job_system.h"
 
-#include <Jolt/Core/JobSystemThreadPool.h>
 #include <Jolt/Core/TempAllocator.h>
 #include <Jolt/Physics/PhysicsSettings.h>
 
 namespace Spot::Detail {
 
-// The threads and scratch memory every simulation shares. Simulations step one at a time, so they can share them.
+// The scratch memory every simulation shares, and their jobs, which run on the engine's shared job system.
+// Simulations step one at a time, so they can share them.
 struct JoltRuntime {
     JPH::TempAllocatorImpl tempAllocator{16 * 1024 * 1024};
-    JPH::JobSystemThreadPool jobSystem{JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers};
+    JoltJobSystem jobSystem{JobSystem::GetShared(), JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers};
 };
 
 // Keeps Jolt and the runtime alive while it exists, setting them up for the first simulation and tearing them down

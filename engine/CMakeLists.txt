@@ -495,6 +495,8 @@ if(SPOT_PHYSICS STREQUAL "JOLT")
         physics/jolt/jolt_common.h
         physics/jolt/jolt_contacts.cpp
         physics/jolt/jolt_contacts.h
+        physics/jolt/jolt_job_system.cpp
+        physics/jolt/jolt_job_system.h
         physics/jolt/jolt_joints.cpp
         physics/jolt/jolt_layers.h
         physics/jolt/jolt_physics_simulation.cpp

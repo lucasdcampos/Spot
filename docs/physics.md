@@ -114,7 +114,8 @@ it, its velocity relative to the other's, and an estimate of the impulse of the 
 fast they met, which suits impact sounds. A `TriggerContact` has the other entity and whether the receiver's trigger
 is the one overlapped. Bodies of the same entity, and two triggers, report nothing.
 
-The backend records contacts as Jolt reports them from its threads, and ends them itself after each step: Jolt
+The backend records contacts as Jolt reports them from the workers of the engine's job system (see
+[Job system](job_system.md)), and ends them itself after each step: Jolt
 reports contacts as removed when a body falls asleep, but resting bodies keep touching, so a contact ends only when
 Jolt no longer finds it and neither body sleeps. Pairs are compared with the step before through sorted lists that
 keep their memory, so events cost no allocation once warmed up. Hooks run under the component guard, and may destroy
