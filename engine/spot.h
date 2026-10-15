@@ -25,6 +25,7 @@
 #include "core/frame_capture.h"
 #include "core/job_system.h"
 #include "core/log.h"
+#include "core/memory.h"
 #include "core/log_sinks.h"
 #include "core/paths.h"
 #include "core/process.h"

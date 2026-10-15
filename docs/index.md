@@ -9,6 +9,7 @@ that does the same with a window around it.
 
 | Page | What it covers |
 |---|---|
+| [Memory](memory.md) | Linear and pool allocators, and memory counted by what it is for |
 | [Job system](job_system.md) | Worker threads, jobs, counters and parallel loops, shared by every layer |
 | [Application and scenes](application_and_scenes.md) | The application loop, scenes, the update order, scene systems, settings sections, game modules |
 | [Entities and components](entities_and_components.md) | Entities, the hierarchy, components and their hooks, failures, saving and registering components |

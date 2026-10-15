@@ -15,6 +15,8 @@ add_library(spot_objects OBJECT
     core/file_io.cpp
     core/job_system.h
     core/job_system.cpp
+    core/memory.h
+    core/memory.cpp
     assets/asset_manifest.h
     assets/asset_manifest.cpp
     assets/asset_manager.h
