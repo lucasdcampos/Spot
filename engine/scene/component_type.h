@@ -12,8 +12,8 @@ class Component;
 namespace Detail {
 
 // A small number per component type, given the first time the type is seen, so queries compare numbers instead of
-// casting every component they visit. Types are told apart by their type_info, so a type keeps its number when the
-// game module that defines it is reloaded.
+// casting every component they visit. Types are told apart by their name, so a type keeps its number when the game
+// module that defines it is reloaded.
 using ComponentTypeIndex = std::uint32_t;
 
 ComponentTypeIndex GetComponentTypeIndex(std::type_index type);

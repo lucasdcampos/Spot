@@ -160,6 +160,9 @@ void UnregisterComponent(std::string_view name) {
     if (found == registry.types.end()) {
         return;
     }
+    // What the type requires refers to code of the module that defined it, which may be about to be unloaded; a
+    // module loaded again declares it anew.
+    Detail::SetComponentRequirements(Detail::GetComponentTypeIndex(found->second), {});
     registry.names.erase(found->second);
     registry.factories.erase(found->first);
     registry.types.erase(found);

@@ -3,6 +3,7 @@
 #include "scene/component_requirements.h"
 
 #include <mutex>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -12,7 +13,9 @@ namespace {
 
 struct TypeTable {
     std::mutex mutex;
-    std::unordered_map<std::type_index, ComponentTypeIndex> indices;
+    // By a copy of the type's name: a type_index points into the module that defines the type, which a game module
+    // that is unloaded takes away.
+    std::unordered_map<std::string, ComponentTypeIndex> indices;
     // relations[concrete][queried]: -1 unknown, 0 no, 1 yes.
     std::vector<std::vector<signed char>> relations;
 };
@@ -28,7 +31,8 @@ TypeTable& GetTable() {
 ComponentTypeIndex GetComponentTypeIndex(std::type_index type) {
     TypeTable& table = GetTable();
     const std::scoped_lock lock(table.mutex);
-    const auto [found, added] = table.indices.try_emplace(type, static_cast<ComponentTypeIndex>(table.indices.size()));
+    const auto [found, added] =
+        table.indices.try_emplace(type.name(), static_cast<ComponentTypeIndex>(table.indices.size()));
     return found->second;
 }
 

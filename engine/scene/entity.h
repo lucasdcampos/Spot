@@ -293,13 +293,12 @@ std::vector<ComponentRequirement> MakeComponentRequirements(RequiredComponentLis
 template <typename T>
 void DeclareComponentRequirements() {
     if constexpr (ComponentRequirementsAccess::Declares<T>) {
-        static const bool declared = [] {
+        // Declared again whenever the table lacks it, as after the type was unregistered.
+        if (!FindComponentRequirements(GetComponentTypeIndex<T>())) {
             using List = ComponentRequirementsAccess::Of<T>;
             SetComponentRequirements(GetComponentTypeIndex<T>(),
                                      MakeComponentRequirements(static_cast<List*>(nullptr)));
-            return true;
-        }();
-        static_cast<void>(declared);
+        }
     }
 }
 
