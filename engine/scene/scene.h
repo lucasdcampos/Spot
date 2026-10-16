@@ -241,8 +241,8 @@ public:
     void ForEachComponent(F&& fn) {
         const Detail::DeferRemovalsScope defer(*this);
         // A copy, since fn may change what the cache holds.
-        const std::vector<Component*> components = GetCachedComponents(
-            typeid(T), [](Component& component) { return dynamic_cast<T*>(&component) != nullptr; });
+        const std::vector<Component*> components =
+            GetCachedComponents(typeid(T), [](Component& component) { return Detail::IsComponentOf<T>(component); });
         for (Component* component : components) {
             if (IsIncluded(*component)) {
                 fn(static_cast<T&>(*component));

@@ -153,10 +153,8 @@ public:
     template <std::derived_from<Component> T>
     T* GetComponent() const {
         for (const auto& component : m_components) {
-            if (!component->m_removed) {
-                if (auto* found = dynamic_cast<T*>(component.get())) {
-                    return found;
-                }
+            if (!component->m_removed && Detail::IsComponentOf<T>(*component)) {
+                return static_cast<T*>(component.get());
             }
         }
         return nullptr;
@@ -166,10 +164,8 @@ public:
     std::vector<T*> GetComponents() const {
         std::vector<T*> found;
         for (const auto& component : m_components) {
-            if (!component->m_removed) {
-                if (auto* match = dynamic_cast<T*>(component.get())) {
-                    found.push_back(match);
-                }
+            if (!component->m_removed && Detail::IsComponentOf<T>(*component)) {
+                found.push_back(static_cast<T*>(component.get()));
             }
         }
         return found;
@@ -227,10 +223,8 @@ public:
         // By index, because fn may add components.
         for (std::size_t i = 0; i < m_components.size(); ++i) {
             Component& component = *m_components[i];
-            if (!component.m_removed) {
-                if (auto* found = dynamic_cast<T*>(&component)) {
-                    fn(*found);
-                }
+            if (!component.m_removed && Detail::IsComponentOf<T>(component)) {
+                fn(static_cast<T&>(component));
             }
         }
     }

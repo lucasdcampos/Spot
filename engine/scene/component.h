@@ -4,10 +4,12 @@
 #include "core/task.h"
 #include "core/timer.h"
 #include "math/vector.h"
+#include "scene/component_type.h"
 
 #include <exception>
 #include <memory>
 #include <string_view>
+#include <type_traits>
 
 namespace Spot {
 
@@ -29,6 +31,11 @@ struct TriggerContact2D;
 
 namespace Detail {
 struct SceneSerializer;
+
+// Whether the component is a T, its own type or one it derives from. A cast answers it the first time a pair of types
+// meets; later checks of the pair read the answer.
+template <typename T>
+bool IsComponentOf(const Component& component);
 } // namespace Detail
 
 // A piece of behavior attached to an entity. Custom components derive from it and override the hooks they need:
@@ -142,6 +149,8 @@ private:
     friend class Animator;
     friend class UiWidget;
     friend struct Detail::SceneSerializer;
+    template <typename T>
+    friend bool Detail::IsComponentOf(const Component& component);
 
     // Calls OnEnable() or OnDisable() when the component started and its activity changed since the last call.
     void RefreshActivity();
@@ -162,6 +171,8 @@ private:
     void Fault(std::string_view hook, const std::exception_ptr& error);
 
     Entity* m_entity = nullptr;
+    // Its concrete type's, set when it joins an entity.
+    Detail::ComponentTypeIndex m_typeIndex = 0;
     ComponentId m_id = ComponentId::Generate();
     std::unique_ptr<TimerQueue> m_timers;
     std::unique_ptr<TaskScheduler> m_tasks;
@@ -172,5 +183,22 @@ private:
     bool m_removed = false;
     bool m_faulted = false;
 };
+
+template <typename T>
+bool Detail::IsComponentOf(const Component& component) {
+    if constexpr (std::is_same_v<std::remove_cv_t<T>, Component>) {
+        return true;
+    } else {
+        const ComponentTypeIndex queried = GetComponentTypeIndex<std::remove_cv_t<T>>();
+        if (component.m_typeIndex == queried) {
+            return true;
+        }
+        signed char& related = GetComponentTypeRelation(component.m_typeIndex, queried);
+        if (related < 0) {
+            related = dynamic_cast<const T*>(&component) != nullptr ? 1 : 0;
+        }
+        return related == 1;
+    }
+}
 
 } // namespace Spot

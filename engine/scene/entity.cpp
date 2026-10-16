@@ -230,6 +230,7 @@ void Entity::MoveComponent(Component& component, std::size_t index) {
 void Entity::Attach(std::unique_ptr<Component> component, std::optional<std::size_t> index) {
     SPOT_ASSERT(!m_destroyed, "Components cannot be added to a destroyed entity");
     component->m_entity = this;
+    component->m_typeIndex = Detail::GetComponentTypeIndex(typeid(*component));
     while (std::ranges::any_of(m_components, [&](const auto& existing) {
         return !existing->m_removed && existing->m_id == component->m_id;
     })) {
