@@ -245,6 +245,7 @@ private:
     // Brings OnEnable() and OnDisable() up to date for the components of this entity and its descendants.
     void RefreshActivity();
     void DrawUiComponents(Renderer2D& renderer, Vector2 viewSize);
+    void DrawUiComponent(Component& component, Renderer2D& renderer, Vector2 viewSize);
     // Calls OnDestroy() on the started components being removed, or on all of them once the entity is destroyed, and
     // frees the removed components that are done.
     void ProcessRemovals();

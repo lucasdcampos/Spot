@@ -333,7 +333,7 @@ private:
     // What each stage of an update visits, so a stage only goes through the components it concerns rather than every
     // entity: those not started yet, those whose type overrides each update hook, and those with invokes or
     // coroutines. Each is in the order components were added; leaving one empties a slot until it is compacted.
-    enum class HookList { Start, FixedUpdate, Update, LateUpdate, Scheduled, Count };
+    enum class HookList { Start, FixedUpdate, Update, LateUpdate, Scheduled, DrawUi, Count };
     struct ComponentList {
         std::vector<Component*> components;
         std::size_t emptySlots = 0;

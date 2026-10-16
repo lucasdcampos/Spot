@@ -293,9 +293,20 @@ void Scene::DrawUi(Renderer2D& renderer, Vector2 viewSize) {
     const Detail::DeferRemovalsScope defer(*this);
     auto& ui = GetUi();
     ui.Layout(viewSize);
-    for (std::size_t i = 0; i < m_entities.size(); ++i) {
-        if (m_entities[i] && !m_entities[i]->GetComponentInParent<Canvas>()) {
-            m_entities[i]->DrawUiComponents(renderer, viewSize);
+    // Components under a canvas are drawn by the UI system's entries below, in its order.
+    ComponentList& drawers = m_hookLists[static_cast<std::size_t>(HookList::DrawUi)];
+    for (std::size_t i = 0, end = drawers.components.size(); i < end; ++i) {
+        Component* component = drawers.components[i];
+        if (!component) {
+            continue;
+        }
+        if (Detail::IsComponentHookUnused(component->m_typeIndex, Detail::ComponentHook::DrawUi)) {
+            RemoveFromList(HookList::DrawUi, *component);
+            continue;
+        }
+        Entity& entity = *component->m_entity;
+        if (!entity.m_destroyed && !entity.GetComponentInParent<Canvas>()) {
+            entity.DrawUiComponent(*component, renderer, viewSize);
         }
     }
     for (const auto& entry : ui.GetEntries()) {
@@ -431,7 +442,8 @@ void Scene::ListComponent(Component& component) {
     const std::pair<HookList, Detail::ComponentHook> hooks[] = {
         {HookList::FixedUpdate, Detail::ComponentHook::FixedUpdate},
         {HookList::Update, Detail::ComponentHook::Update},
-        {HookList::LateUpdate, Detail::ComponentHook::LateUpdate}};
+        {HookList::LateUpdate, Detail::ComponentHook::LateUpdate},
+        {HookList::DrawUi, Detail::ComponentHook::DrawUi}};
     for (const auto& [hookList, hook] : hooks) {
         if (!Detail::IsComponentHookUnused(component.m_typeIndex, hook)) {
             AddToList(hookList, component);

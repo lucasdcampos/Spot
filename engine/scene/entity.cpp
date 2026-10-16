@@ -277,10 +277,14 @@ void Entity::RefreshActivity() {
 
 void Entity::DrawUiComponents(Renderer2D& renderer, Vector2 viewSize) {
     for (std::size_t i = 0; i < m_components.size(); ++i) {
-        if (Component& component = *m_components[i];
-            component.m_active || (dynamic_cast<UiWidget*>(&component) && component.IsActiveAndEnabled())) {
-            component.InvokeHook("OnDrawUi", [&] { component.OnDrawUi(renderer, viewSize); });
-        }
+        DrawUiComponent(*m_components[i], renderer, viewSize);
+    }
+}
+
+void Entity::DrawUiComponent(Component& component, Renderer2D& renderer, Vector2 viewSize) {
+    // Widgets draw before they start, so an interface shows from its first frame.
+    if (component.m_active || (Detail::IsComponentOf<UiWidget>(component) && component.IsActiveAndEnabled())) {
+        component.InvokeHook("OnDrawUi", [&] { component.OnDrawUi(renderer, viewSize); });
     }
 }
 

@@ -113,8 +113,8 @@ protected:
     virtual void OnStart() {}
     virtual void OnEnable() {}
     virtual void OnDisable() {}
-    // The scene skips these three for types that keep Component's own: the first call marks the type. An override
-    // has no reason to call them, and must not, or its type would be skipped.
+    // The scene skips these, and OnDrawUi(), for types that keep Component's own: the first call marks the type. An
+    // override has no reason to call them, and must not, or its type would be skipped.
     virtual void OnFixedUpdate(float /*fixedDeltaTime*/) {
         Detail::MarkComponentHookUnused(m_typeIndex, Detail::ComponentHook::FixedUpdate);
     }
@@ -126,7 +126,9 @@ protected:
     }
     // Draws over the view of the scene with the renderer, which draws in the view's pixels, from (0, 0) at its
     // bottom-left corner to the size at its top-right one.
-    virtual void OnDrawUi(Renderer2D& /*renderer*/, Vector2 /*viewSize*/) {}
+    virtual void OnDrawUi(Renderer2D& /*renderer*/, Vector2 /*viewSize*/) {
+        Detail::MarkComponentHookUnused(m_typeIndex, Detail::ComponentHook::DrawUi);
+    }
     virtual void OnDestroy() {}
 
     virtual void OnAnimationEvent(const AnimationEvent& /*event*/) {}
@@ -190,7 +192,7 @@ private:
     std::uint64_t m_sequence = 0;
     bool m_listed = false;
     // Its places in the scene's lists of what each stage of an update visits; see Scene::HookList.
-    std::array<std::size_t, 5> m_hookSlots = {NotInList, NotInList, NotInList, NotInList, NotInList};
+    std::array<std::size_t, 6> m_hookSlots = {NotInList, NotInList, NotInList, NotInList, NotInList, NotInList};
     static constexpr std::size_t NotInList = static_cast<std::size_t>(-1);
     ComponentId m_id = ComponentId::Generate();
     std::unique_ptr<TimerQueue> m_timers;
