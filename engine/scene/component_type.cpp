@@ -46,4 +46,17 @@ signed char& GetComponentTypeRelation(ComponentTypeIndex concrete, ComponentType
     return row[queried];
 }
 
+std::vector<std::uint8_t>& GetUnusedComponentHooks() {
+    static auto* unused = new std::vector<std::uint8_t>();
+    return *unused;
+}
+
+void MarkComponentHookUnused(ComponentTypeIndex type, ComponentHook hook) {
+    std::vector<std::uint8_t>& unused = GetUnusedComponentHooks();
+    if (type >= unused.size()) {
+        unused.resize(type + 1, 0);
+    }
+    unused[type] |= static_cast<std::uint8_t>(hook);
+}
+
 } // namespace Spot::Detail

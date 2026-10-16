@@ -6,6 +6,7 @@
 #include "scene/entity.h"
 #include "scene/scene_system.h"
 
+#include <array>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -319,6 +320,7 @@ protected:
 
 private:
     friend class Application;
+    friend class Component;
     friend class Entity;
     friend class Detail::DeferRemovalsScope;
     friend struct Detail::SceneSerializer;
@@ -328,6 +330,25 @@ private:
     static bool IsAlive(const std::unique_ptr<Entity>& entity);
     // Whether ForEachComponent() gives the component: enabled, not removed, on a live entity active in the hierarchy.
     static bool IsIncluded(const Component& component);
+    // What each stage of an update visits, so a stage only goes through the components it concerns rather than every
+    // entity: those not started yet, those whose type overrides each update hook, and those with invokes or
+    // coroutines. Each is in the order components were added; leaving one empties a slot until it is compacted.
+    enum class HookList { Start, FixedUpdate, Update, LateUpdate, Scheduled, Count };
+    struct ComponentList {
+        std::vector<Component*> components;
+        std::size_t emptySlots = 0;
+    };
+    void AddToList(HookList list, Component& component);
+    void RemoveFromList(HookList list, Component& component);
+    void CompactHookLists();
+    // Starts the components due to, as Update() does first.
+    void StartComponents();
+    // Calls the update hook for the active components of the list, leaving out types found not to override it.
+    template <typename F>
+    void RunHook(HookList list, Detail::ComponentHook hook, std::string_view name, F&& call);
+    // Puts a component that has invokes or coroutines in the list that updates them.
+    void ScheduleComponent(Component& component) { AddToList(HookList::Scheduled, component); }
+
     // Puts the component in the list of its type, or takes it out, leaving its slot empty until the list is compacted.
     void ListComponent(Component& component);
     void UnlistComponent(Component& component);
@@ -375,6 +396,7 @@ private:
         std::size_t emptySlots = 0;
     };
     std::vector<TypeList> m_componentsByType;
+    std::array<ComponentList, static_cast<std::size_t>(HookList::Count)> m_hookLists;
     std::uint64_t m_nextComponentSequence = 1;
     std::unordered_map<EntityId, Entity*> m_entitiesById;
     // The entities without a parent, in sibling order, which can differ from m_entities' creation order.

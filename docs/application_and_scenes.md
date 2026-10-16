@@ -70,7 +70,14 @@ Scenes also work on their own, without an application, by calling `Update()` dir
 6. Every active component's `OnUpdate()`, then every system's.
 7. Every active component's `OnLateUpdate()`, then every system's.
 
-Entities go in creation order, components in the order they were added, and systems by their order.
+Components go in the order they were added to the scene, and systems by their order; for entities made with their
+components, that is the order the entities were made in.
+
+Each stage only visits the components it concerns. The scene keeps lists of the components not started yet, of
+those with invokes or coroutines, and of those whose type overrides each update hook: Component's own empty
+`OnFixedUpdate()`, `OnUpdate()` and `OnLateUpdate()` mark their type the first time they are called, and the scene
+skips that hook for the type from then on. So a large scene whose components are mostly data costs an update only
+for the components that do something, and an override must never call those empty hooks of `Component`.
 
 ### Fixed steps
 

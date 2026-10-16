@@ -113,6 +113,8 @@ Registry& GetRegistry() {
 } // namespace
 
 void RegisterComponentType(std::type_index type, std::string name, ComponentFactory factory) {
+    // Code that registers types may be a reloaded game module, whose types may override hooks they did not before.
+    GetUnusedComponentHooks().clear();
     Registry& registry = GetRegistry();
     const std::lock_guard lock(registry.mutex);
 
@@ -151,6 +153,7 @@ ComponentFactory FindComponentFactory(std::string_view name) {
 namespace Spot {
 
 void UnregisterComponent(std::string_view name) {
+    Detail::GetUnusedComponentHooks().clear();
     Detail::Registry& registry = Detail::GetRegistry();
     const std::lock_guard lock(registry.mutex);
     const auto found = registry.types.find(std::string(name));

@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <deque>
+#include <map>
 #include <numeric>
 #include <string_view>
 #include <vector>
@@ -89,9 +90,17 @@ int main(int argc, char** argv) {
     std::deque<Spot::EntityId> spawned;
     Timings timings;
     std::size_t checksum = 0;
+    std::map<std::string_view, double> scopes;
     for (int frame = 0; frame < frames; ++frame) {
+        Spot::Profiler::BeginFrame();
         auto start = Clock::now();
         scene.Update(1.0f / 60.0f);
+        Spot::Profiler::EndFrame();
+        for (const Spot::ProfileSample& sample : Spot::Profiler::GetFrames().back()->samples) {
+            if (sample.thread == 0 && sample.depth <= 2) {
+                scopes[sample.name] += std::chrono::duration<double, std::milli>(sample.duration).count();
+            }
+        }
         timings.update.push_back(Milliseconds(Clock::now() - start));
 
         // A hundred spawns and despawns a frame, as projectiles, effects and pickups come and go.
@@ -132,5 +141,9 @@ int main(int argc, char** argv) {
         total[i] = timings.update[i] + timings.churn[i] + timings.queries[i];
     }
     Print("Frame", total);
+    std::printf("Update by stage (mean ms):\n");
+    for (const auto& [name, milliseconds] : scopes) {
+        std::printf("  %-28.*s %7.3f\n", static_cast<int>(name.size()), name.data(), milliseconds / frames);
+    }
     return EXIT_SUCCESS;
 }

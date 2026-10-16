@@ -236,16 +236,7 @@ void Scene::Update(float deltaTime) {
 
     SPOT_PROFILE_SCOPE("Scene::Update");
     const Detail::DeferRemovalsScope defer(*this);
-    {
-        SPOT_PROFILE_SCOPE("Components::OnStart");
-        // By index, because components may create entities, and checking for empty slots left by entities that
-        // moved to another scene.
-        for (std::size_t i = 0; i < m_entities.size(); ++i) {
-            if (m_entities[i]) {
-                m_entities[i]->StartComponents();
-            }
-        }
-    }
+    StartComponents();
     RunSystems("OnBeforeFixedSteps", "Systems::OnBeforeFixedSteps",
                [deltaTime](SceneSystem& system) { system.OnBeforeFixedSteps(deltaTime); });
 
@@ -258,14 +249,8 @@ void Scene::Update(float deltaTime) {
     const float fixedTimeStep = m_fixedTimeStep;
     for (int step = 0; step < steps; ++step) {
         SPOT_PROFILE_SCOPE("Scene::FixedStep");
-        {
-            SPOT_PROFILE_SCOPE("Components::OnFixedUpdate");
-            for (std::size_t i = 0; i < m_entities.size(); ++i) {
-                if (m_entities[i]) {
-                    m_entities[i]->FixedUpdateComponents(fixedTimeStep);
-                }
-            }
-        }
+        RunHook(HookList::FixedUpdate, Detail::ComponentHook::FixedUpdate, "Components::OnFixedUpdate",
+                [fixedTimeStep](Component& component) { component.OnFixedUpdate(fixedTimeStep); });
         RunSystems("OnFixedUpdate", "Systems::OnFixedUpdate",
                    [fixedTimeStep](SceneSystem& system) { system.OnFixedUpdate(fixedTimeStep); });
     }
@@ -274,18 +259,19 @@ void Scene::Update(float deltaTime) {
 
     {
         SPOT_PROFILE_SCOPE("Components::Invoke");
-        for (std::size_t i = 0; i < m_entities.size(); ++i) {
-            if (m_entities[i]) {
-                m_entities[i]->UpdateInvokes(deltaTime);
+        const ComponentList& scheduled = m_hookLists[static_cast<std::size_t>(HookList::Scheduled)];
+        for (std::size_t i = 0, end = scheduled.components.size(); i < end; ++i) {
+            if (Component* component = scheduled.components[i]) {
+                component->UpdateInvokes(deltaTime);
             }
         }
     }
-
     {
         SPOT_PROFILE_SCOPE("Components::Coroutine");
-        for (std::size_t i = 0; i < m_entities.size(); ++i) {
-            if (m_entities[i]) {
-                m_entities[i]->UpdateCoroutines(deltaTime);
+        const ComponentList& scheduled = m_hookLists[static_cast<std::size_t>(HookList::Scheduled)];
+        for (std::size_t i = 0, end = scheduled.components.size(); i < end; ++i) {
+            if (Component* component = scheduled.components[i]) {
+                component->UpdateCoroutines(deltaTime);
             }
         }
     }
@@ -293,23 +279,11 @@ void Scene::Update(float deltaTime) {
         SPOT_PROFILE_SCOPE("Scene::OnUpdate");
         OnUpdate(deltaTime);
     }
-    {
-        SPOT_PROFILE_SCOPE("Components::OnUpdate");
-        for (std::size_t i = 0; i < m_entities.size(); ++i) {
-            if (m_entities[i]) {
-                m_entities[i]->UpdateComponents(deltaTime);
-            }
-        }
-    }
+    RunHook(HookList::Update, Detail::ComponentHook::Update, "Components::OnUpdate",
+            [deltaTime](Component& component) { component.OnUpdate(deltaTime); });
     RunSystems("OnUpdate", "Systems::OnUpdate", [deltaTime](SceneSystem& system) { system.OnUpdate(deltaTime); });
-    {
-        SPOT_PROFILE_SCOPE("Components::OnLateUpdate");
-        for (std::size_t i = 0; i < m_entities.size(); ++i) {
-            if (m_entities[i]) {
-                m_entities[i]->LateUpdateComponents(deltaTime);
-            }
-        }
-    }
+    RunHook(HookList::LateUpdate, Detail::ComponentHook::LateUpdate, "Components::OnLateUpdate",
+            [deltaTime](Component& component) { component.OnLateUpdate(deltaTime); });
     RunSystems("OnLateUpdate", "Systems::OnLateUpdate",
                [deltaTime](SceneSystem& system) { system.OnLateUpdate(deltaTime); });
 }
@@ -359,6 +333,86 @@ bool Scene::IsAlive(const std::unique_ptr<Entity>& entity) {
     return entity && !entity->m_destroyed;
 }
 
+void Scene::AddToList(HookList list, Component& component) {
+    std::size_t& slot = component.m_hookSlots[static_cast<std::size_t>(list)];
+    if (slot != Component::NotInList) {
+        return;
+    }
+    ComponentList& components = m_hookLists[static_cast<std::size_t>(list)];
+    slot = components.components.size();
+    components.components.push_back(&component);
+}
+
+void Scene::RemoveFromList(HookList list, Component& component) {
+    std::size_t& slot = component.m_hookSlots[static_cast<std::size_t>(list)];
+    if (slot == Component::NotInList) {
+        return;
+    }
+    ComponentList& components = m_hookLists[static_cast<std::size_t>(list)];
+    components.components[slot] = nullptr;
+    ++components.emptySlots;
+    slot = Component::NotInList;
+}
+
+void Scene::CompactHookLists() {
+    for (std::size_t list = 0; list < m_hookLists.size(); ++list) {
+        ComponentList& components = m_hookLists[list];
+        if (components.emptySlots > 64 && components.emptySlots * 2 > components.components.size()) {
+            std::erase(components.components, nullptr);
+            for (std::size_t i = 0; i < components.components.size(); ++i) {
+                components.components[i]->m_hookSlots[list] = i;
+            }
+            components.emptySlots = 0;
+        }
+    }
+}
+
+void Scene::StartComponents() {
+    SPOT_PROFILE_SCOPE("Components::OnStart");
+    ComponentList& pending = m_hookLists[static_cast<std::size_t>(HookList::Start)];
+    // By index up to the current end, so components added by OnStart() start in the same update.
+    for (std::size_t i = 0; i < pending.components.size(); ++i) {
+        Component* component = pending.components[i];
+        if (!component) {
+            continue;
+        }
+        Entity& entity = *component->m_entity;
+        if (component->m_started || component->m_removed || entity.m_destroyed) {
+            RemoveFromList(HookList::Start, *component);
+            continue;
+        }
+        // Disabled components and inactive entities stay in the list, and start once they are enabled and active.
+        if (!component->m_enabled || !entity.IsActiveInHierarchy()) {
+            continue;
+        }
+        RemoveFromList(HookList::Start, *component);
+        component->m_started = true;
+        if (component->InvokeHook("OnStart", [component] { component->OnStart(); })) {
+            component->RefreshActivity();
+        }
+    }
+}
+
+template <typename F>
+void Scene::RunHook(HookList list, Detail::ComponentHook hook, std::string_view name, F&& call) {
+    SPOT_PROFILE_SCOPE(name);
+    ComponentList& components = m_hookLists[static_cast<std::size_t>(list)];
+    // Components added meanwhile wait for the next update.
+    for (std::size_t i = 0, end = components.components.size(); i < end; ++i) {
+        Component* component = components.components[i];
+        if (!component) {
+            continue;
+        }
+        if (Detail::IsComponentHookUnused(component->m_typeIndex, hook)) {
+            RemoveFromList(list, *component);
+            continue;
+        }
+        if (component->m_active) {
+            component->InvokeHook(name.substr(name.find("::") + 2), [&call, component] { call(*component); });
+        }
+    }
+}
+
 void Scene::ListComponent(Component& component) {
     if (component.m_listed) {
         return;
@@ -371,6 +425,21 @@ void Scene::ListComponent(Component& component) {
     component.m_sequence = m_nextComponentSequence++;
     component.m_listed = true;
     list.push_back(&component);
+    if (!component.m_started) {
+        AddToList(HookList::Start, component);
+    }
+    const std::pair<HookList, Detail::ComponentHook> hooks[] = {
+        {HookList::FixedUpdate, Detail::ComponentHook::FixedUpdate},
+        {HookList::Update, Detail::ComponentHook::Update},
+        {HookList::LateUpdate, Detail::ComponentHook::LateUpdate}};
+    for (const auto& [hookList, hook] : hooks) {
+        if (!Detail::IsComponentHookUnused(component.m_typeIndex, hook)) {
+            AddToList(hookList, component);
+        }
+    }
+    if (component.m_timers || component.m_tasks) {
+        AddToList(HookList::Scheduled, component);
+    }
 }
 
 void Scene::UnlistComponent(Component& component) {
@@ -381,6 +450,9 @@ void Scene::UnlistComponent(Component& component) {
     list.components[component.m_typeSlot] = nullptr;
     ++list.emptySlots;
     component.m_listed = false;
+    for (std::size_t hookList = 0; hookList < m_hookLists.size(); ++hookList) {
+        RemoveFromList(static_cast<HookList>(hookList), component);
+    }
 }
 
 void Scene::CompactComponentLists() {
@@ -511,6 +583,7 @@ void Scene::ProcessRemovals() {
         }
     }
     CompactComponentLists();
+    CompactHookLists();
     if (m_emptySlots > 64 && m_emptySlots * 2 > m_entities.size()) {
         CompactSlots();
     }

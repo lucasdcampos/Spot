@@ -21,6 +21,9 @@ InvokeId Component::Invoke(float delay, std::function<void()> callback) {
     }
     if (!m_timers) {
         m_timers = std::make_unique<TimerQueue>();
+        if (m_entity) {
+            m_entity->GetScene().ScheduleComponent(*this);
+        }
     }
     return m_timers->Invoke(delay, std::move(callback));
 }
@@ -31,6 +34,9 @@ InvokeId Component::InvokeRepeating(float delay, float interval, std::function<v
     }
     if (!m_timers) {
         m_timers = std::make_unique<TimerQueue>();
+        if (m_entity) {
+            m_entity->GetScene().ScheduleComponent(*this);
+        }
     }
     return m_timers->InvokeRepeating(delay, interval, std::move(callback));
 }
@@ -66,6 +72,7 @@ TaskId Component::StartCoroutine(Task task) {
     const Detail::DeferRemovalsScope defer(GetScene());
     if (!m_tasks) {
         m_tasks = std::make_unique<TaskScheduler>();
+        GetScene().ScheduleComponent(*this);
     }
     TaskId id = TaskId::Invalid;
     InvokeHook("Coroutine", [&] { id = m_tasks->Start(std::move(task), GetScene().GetUpdateCount()); });

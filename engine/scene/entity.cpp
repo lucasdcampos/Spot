@@ -275,59 +275,11 @@ void Entity::RefreshActivity() {
     }
 }
 
-void Entity::StartComponents() {
-    for (std::size_t i = 0; i < m_components.size() && !m_destroyed && IsActiveInHierarchy(); ++i) {
-        Component& component = *m_components[i];
-        if (!component.m_started && component.m_enabled && !component.m_removed) {
-            component.m_started = true;
-            if (component.InvokeHook("OnStart", [&component] { component.OnStart(); })) {
-                component.RefreshActivity();
-            }
-        }
-    }
-}
-
-void Entity::FixedUpdateComponents(float fixedDeltaTime) {
-    for (std::size_t i = 0; i < m_components.size(); ++i) {
-        if (Component& component = *m_components[i]; component.m_active) {
-            component.InvokeHook("OnFixedUpdate", [&] { component.OnFixedUpdate(fixedDeltaTime); });
-        }
-    }
-}
-
-void Entity::UpdateComponents(float deltaTime) {
-    for (std::size_t i = 0; i < m_components.size(); ++i) {
-        if (Component& component = *m_components[i]; component.m_active) {
-            component.InvokeHook("OnUpdate", [&] { component.OnUpdate(deltaTime); });
-        }
-    }
-}
-
-void Entity::UpdateInvokes(float deltaTime) {
-    for (std::size_t i = 0; i < m_components.size(); ++i) {
-        m_components[i]->UpdateInvokes(deltaTime);
-    }
-}
-
-void Entity::UpdateCoroutines(float deltaTime) {
-    for (std::size_t i = 0; i < m_components.size(); ++i) {
-        m_components[i]->UpdateCoroutines(deltaTime);
-    }
-}
-
 void Entity::DrawUiComponents(Renderer2D& renderer, Vector2 viewSize) {
     for (std::size_t i = 0; i < m_components.size(); ++i) {
         if (Component& component = *m_components[i];
             component.m_active || (dynamic_cast<UiWidget*>(&component) && component.IsActiveAndEnabled())) {
             component.InvokeHook("OnDrawUi", [&] { component.OnDrawUi(renderer, viewSize); });
-        }
-    }
-}
-
-void Entity::LateUpdateComponents(float deltaTime) {
-    for (std::size_t i = 0; i < m_components.size(); ++i) {
-        if (Component& component = *m_components[i]; component.m_active) {
-            component.InvokeHook("OnLateUpdate", [&] { component.OnLateUpdate(deltaTime); });
         }
     }
 }
