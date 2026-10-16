@@ -707,12 +707,13 @@ TEST_CASE("ForEachComponent follows components and entities as they change betwe
     };
     CHECK(visit() == std::vector<Mover*>{&a});
 
-    // Added components, on new entities or existing ones, are found in creation order.
+    // Added components, on new entities or existing ones and of derived types too, are found in the order they were
+    // added; their place among their entity's components does not change it.
     auto& b = scene.CreateEntity().AddComponent<FastMover>();
     auto& c = first.AddComponent<Mover>();
-    CHECK(visit() == std::vector<Mover*>{&a, &c, &b});
+    CHECK(visit() == std::vector<Mover*>{&a, &b, &c});
     first.MoveComponent(c, 0);
-    CHECK(visit() == std::vector<Mover*>{&c, &a, &b});
+    CHECK(visit() == std::vector<Mover*>{&a, &b, &c});
 
     // Disabled components and inactive entities are left out at once, and come back the same way.
     a.SetEnabled(false);
@@ -720,7 +721,7 @@ TEST_CASE("ForEachComponent follows components and entities as they change betwe
     CHECK(visit() == std::vector<Mover*>{&c});
     a.SetEnabled(true);
     b.GetEntity().SetActive(true);
-    CHECK(visit() == std::vector<Mover*>{&c, &a, &b});
+    CHECK(visit() == std::vector<Mover*>{&a, &b, &c});
 
     // Removed components and destroyed entities are left out before and after they are freed.
     first.RemoveComponent(c);

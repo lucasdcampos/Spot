@@ -6,6 +6,8 @@
 #include "math/vector.h"
 #include "scene/component_type.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <exception>
 #include <memory>
 #include <string_view>
@@ -173,6 +175,11 @@ private:
     Entity* m_entity = nullptr;
     // Its concrete type's, set when it joins an entity.
     Detail::ComponentTypeIndex m_typeIndex = 0;
+    // Its place in its scene's list of the components of its type, and when it joined it, which orders those lists
+    // against each other; listed is false until it is in one.
+    std::size_t m_typeSlot = 0;
+    std::uint64_t m_sequence = 0;
+    bool m_listed = false;
     ComponentId m_id = ComponentId::Generate();
     std::unique_ptr<TimerQueue> m_timers;
     std::unique_ptr<TaskScheduler> m_tasks;

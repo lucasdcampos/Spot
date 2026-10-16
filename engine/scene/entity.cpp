@@ -246,10 +246,9 @@ void Entity::Attach(std::unique_ptr<Component> component, std::optional<std::siz
             }
         }
     }
+    Component& added = *component;
     m_components.insert(place, std::move(component));
-    if (m_scene) {
-        m_scene->InvalidateComponentCache();
-    }
+    m_scene->ListComponent(added);
 }
 
 void Entity::MarkDestroyed() {
@@ -345,7 +344,13 @@ void Entity::ProcessRemovals() {
             component.InvokeHook("OnDestroy", [&component] { component.OnDestroy(); });
         }
     }
-    std::erase_if(m_components, [](const auto& component) { return component->m_removed && !component->m_started; });
+    std::erase_if(m_components, [this](const auto& component) {
+        if (component->m_removed && !component->m_started) {
+            m_scene->UnlistComponent(*component);
+            return true;
+        }
+        return false;
+    });
 }
 
 bool Entity::CanBeFreed() const {

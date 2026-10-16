@@ -359,24 +359,40 @@ bool Scene::IsAlive(const std::unique_ptr<Entity>& entity) {
     return entity && !entity->m_destroyed;
 }
 
-const std::vector<Component*>& Scene::GetCachedComponents(std::type_index type,
-                                                          const std::function<bool(Component&)>& matches) {
-    ComponentCache& cache = m_componentCache[type];
-    if (cache.version != m_componentVersion) {
-        cache.components.clear();
-        for (const auto& entity : m_entities) {
-            if (!entity) {
-                continue;
-            }
-            for (const auto& component : entity->m_components) {
-                if (matches(*component)) {
-                    cache.components.push_back(component.get());
-                }
-            }
-        }
-        cache.version = m_componentVersion;
+void Scene::ListComponent(Component& component) {
+    if (component.m_listed) {
+        return;
     }
-    return cache.components;
+    if (component.m_typeIndex >= m_componentsByType.size()) {
+        m_componentsByType.resize(component.m_typeIndex + 1);
+    }
+    std::vector<Component*>& list = m_componentsByType[component.m_typeIndex].components;
+    component.m_typeSlot = list.size();
+    component.m_sequence = m_nextComponentSequence++;
+    component.m_listed = true;
+    list.push_back(&component);
+}
+
+void Scene::UnlistComponent(Component& component) {
+    if (!component.m_listed) {
+        return;
+    }
+    TypeList& list = m_componentsByType[component.m_typeIndex];
+    list.components[component.m_typeSlot] = nullptr;
+    ++list.emptySlots;
+    component.m_listed = false;
+}
+
+void Scene::CompactComponentLists() {
+    for (TypeList& list : m_componentsByType) {
+        if (list.emptySlots > 32 && list.emptySlots * 2 > list.components.size()) {
+            std::erase(list.components, nullptr);
+            for (std::size_t i = 0; i < list.components.size(); ++i) {
+                list.components[i]->m_typeSlot = i;
+            }
+            list.emptySlots = 0;
+        }
+    }
 }
 
 bool Scene::IsIncluded(const Component& component) {
@@ -394,17 +410,18 @@ std::unique_ptr<Entity> Scene::Release(Entity& entity) {
     if (!entity.m_destroyed) {
         --m_liveCount;
     }
-    InvalidateComponentCache();
     m_entitiesById.erase(entity.m_id);
     if (!entity.m_parent) {
         RemoveRoot(entity);
     }
     std::erase(m_removalCandidates, &entity);
+    for (const auto& component : entity.m_components) {
+        UnlistComponent(*component);
+    }
     return released;
 }
 
 void Scene::Adopt(std::unique_ptr<Entity> entity, bool moved) {
-    InvalidateComponentCache();
     entity->m_scene = this;
     entity->m_slot = m_entities.size();
     m_entitiesById.emplace(entity->m_id, entity.get());
@@ -416,6 +433,9 @@ void Scene::Adopt(std::unique_ptr<Entity> entity, bool moved) {
     }
     if (moved) {
         AddRemovalCandidate(*entity);
+    }
+    for (const auto& component : entity->m_components) {
+        ListComponent(*component);
     }
     m_entities.push_back(std::move(entity));
 }
@@ -483,12 +503,14 @@ void Scene::ProcessRemovals() {
             m_entitiesById.erase(entity->m_id);
         }
         for (Entity* entity : freed) {
+            for (const auto& component : entity->m_components) {
+                UnlistComponent(*component);
+            }
             m_entities[entity->m_slot].reset();
             ++m_emptySlots;
         }
-        // OnDestroy() may have found components again while they were still there.
-        InvalidateComponentCache();
     }
+    CompactComponentLists();
     if (m_emptySlots > 64 && m_emptySlots * 2 > m_entities.size()) {
         CompactSlots();
     }

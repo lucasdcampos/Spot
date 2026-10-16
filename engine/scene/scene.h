@@ -176,17 +176,27 @@ public:
     // An entity below another of the list is saved once, with that one.
     std::string SaveEntitiesToString(std::span<Entity* const> entities, bool expandPrefabs = false) const;
 
-    // The first component that is a T on any entity, active or not; null when there is none.
+    // The first component added that is a T, on any entity, active or not; null when there is none.
     template <std::derived_from<Component> T>
     T* FindComponent() const {
-        for (const auto& entity : m_entities) {
-            if (IsAlive(entity)) {
-                if (T* found = entity->GetComponent<T>()) {
-                    return found;
+        Component* first = nullptr;
+        for (const TypeList& list : m_componentsByType) {
+            for (Component* component : list.components) {
+                if (!component) {
+                    continue;
+                }
+                if (!Detail::IsComponentOf<T>(*component)) {
+                    break;
+                }
+                if (!component->m_removed && !component->m_entity->IsDestroyed()) {
+                    if (!first || component->m_sequence < first->m_sequence) {
+                        first = component;
+                    }
+                    break;
                 }
             }
         }
-        return nullptr;
+        return static_cast<T*>(first);
     }
 
     // Runs one frame of the scene:
@@ -231,19 +241,64 @@ public:
         }
     }
 
-    // Calls fn(T&) for each enabled component that is a T on an entity active in the hierarchy, in creation order.
-    // Components that have not started yet are included, so a new entity can be drawn before its first update.
+    // Calls fn(T&) for each enabled component that is a T on an entity active in the hierarchy, in the order they were
+    // added. Components that have not started yet are included, so a new entity can be drawn before its first update.
     // Components that fn adds are left for the next call.
     //
-    // The components of each type are found once and kept until components or entities are added, moved or freed, so
-    // systems that go through one type every frame do not go through every entity of a large scene each time.
+    // The scene keeps a list of the components of each type, so this goes through the components of the types that
+    // are a T, not through every entity.
     template <std::derived_from<Component> T, typename F>
     void ForEachComponent(F&& fn) {
         const Detail::DeferRemovalsScope defer(*this);
-        // A copy, since fn may change what the cache holds.
-        const std::vector<Component*> components =
-            GetCachedComponents(typeid(T), [](Component& component) { return Detail::IsComponentOf<T>(component); });
-        for (Component* component : components) {
+        // The ends are taken now, so components that fn adds wait for the next call.
+        struct Cursor {
+            const std::vector<Component*>* components;
+            std::size_t next;
+            std::size_t end;
+        };
+        Cursor cursors[8];
+        std::vector<Cursor> moreCursors;
+        std::size_t cursorCount = 0;
+        for (const TypeList& list : m_componentsByType) {
+            const auto found = std::ranges::find_if(list.components, [](const Component* c) { return c != nullptr; });
+            if (found == list.components.end() || !Detail::IsComponentOf<T>(**found)) {
+                continue;
+            }
+            const Cursor cursor{&list.components, 0, list.components.size()};
+            if (cursorCount < std::size(cursors)) {
+                cursors[cursorCount++] = cursor;
+            } else {
+                moreCursors.push_back(cursor);
+            }
+        }
+        if (cursorCount == 1) {
+            const Cursor& only = cursors[0];
+            for (std::size_t i = 0; i < only.end; ++i) {
+                if (Component* component = (*only.components)[i]; component && IsIncluded(*component)) {
+                    fn(static_cast<T&>(*component));
+                }
+            }
+            return;
+        }
+        // Several types: their lists are merged by when each component was added.
+        std::vector<Cursor> all(cursors, cursors + cursorCount);
+        all.insert(all.end(), moreCursors.begin(), moreCursors.end());
+        while (true) {
+            Cursor* earliest = nullptr;
+            for (Cursor& cursor : all) {
+                while (cursor.next < cursor.end && !(*cursor.components)[cursor.next]) {
+                    ++cursor.next;
+                }
+                if (cursor.next < cursor.end &&
+                    (!earliest || (*cursor.components)[cursor.next]->m_sequence <
+                                      (*earliest->components)[earliest->next]->m_sequence)) {
+                    earliest = &cursor;
+                }
+            }
+            if (!earliest) {
+                return;
+            }
+            Component* component = (*earliest->components)[earliest->next++];
             if (IsIncluded(*component)) {
                 fn(static_cast<T&>(*component));
             }
@@ -271,14 +326,12 @@ private:
     // Whether the slot holds an entity that is not destroyed. Slots are empty after their entity moved to another
     // scene, until removals are processed.
     static bool IsAlive(const std::unique_ptr<Entity>& entity);
-    // The components the predicate picks, in creation order, as last found for the type, or found again when
-    // components or entities changed since.
-    const std::vector<Component*>& GetCachedComponents(std::type_index type,
-                                                       const std::function<bool(Component&)>& matches);
     // Whether ForEachComponent() gives the component: enabled, not removed, on a live entity active in the hierarchy.
     static bool IsIncluded(const Component& component);
-    // Forgets the components found for each type, as components or entities change.
-    void InvalidateComponentCache() { ++m_componentVersion; }
+    // Puts the component in the list of its type, or takes it out, leaving its slot empty until the list is compacted.
+    void ListComponent(Component& component);
+    void UnlistComponent(Component& component);
+    void CompactComponentLists();
     // Creates an entity with that id, or a new one when it is in use.
     Entity& CreateEntityWithId(EntityId id, std::string name);
     // Takes the entity out of the scene, leaving its slot empty, and gives it to another one.
@@ -316,12 +369,13 @@ private:
     // Entities destroyed, or with components removed, since removals were last processed: the only ones processing
     // them needs to visit.
     std::vector<Entity*> m_removalCandidates;
-    struct ComponentCache {
-        std::uint64_t version = 0;
+    // The components of each concrete type, by its type index, in the order they were added.
+    struct TypeList {
         std::vector<Component*> components;
+        std::size_t emptySlots = 0;
     };
-    std::unordered_map<std::type_index, ComponentCache> m_componentCache;
-    std::uint64_t m_componentVersion = 1;
+    std::vector<TypeList> m_componentsByType;
+    std::uint64_t m_nextComponentSequence = 1;
     std::unordered_map<EntityId, Entity*> m_entitiesById;
     // The entities without a parent, in sibling order, which can differ from m_entities' creation order.
     std::vector<Entity*> m_roots;

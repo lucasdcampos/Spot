@@ -55,9 +55,14 @@ it has not faulted. Its hooks run in this order:
 The entity is not available in the constructor; setup that needs it goes in `OnStart()`. `GetComponent<T>()`,
 `GetComponents<T>()`, `GetComponentInChildren<T>()`, `GetComponentInParent<T>()` and `Scene::FindComponent<T>()` find
 components, including types derived from `T`. `Scene::ForEachComponent<T>()` walks the enabled ones on active
-entities. It keeps the components found for each type until components or entities are added, moved or freed, so
-systems that go through one type every frame do not scan a large scene each time; components fn adds are found by
-the next call.
+entities, in the order they were added; components fn adds are found by the next call.
+
+These queries scale with the components they look at, not the size of the scene. Each component knows the index of
+its concrete type, and whether a concrete type is of a queried one is answered by a cast once per pair of types, then
+read from a table. The scene keeps a list of the components of each concrete type, updated as components are added,
+moved and freed, so `ForEachComponent<T>()` goes through the lists of the types that are a `T`, merged by when each
+component was added, and `FindComponent<T>()` looks at the head of those lists. Freeing a component or an entity
+empties its slots, which are compacted once they are many, and costs the same in a scene of any size.
 
 ### Failures
 
