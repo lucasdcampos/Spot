@@ -169,7 +169,6 @@ void Scene::DestroyEntity(Entity& entity) {
     }
     const Detail::DeferRemovalsScope defer(*this);
     entity.MarkDestroyed();
-    m_hasPendingRemovals = true;
     entity.RefreshActivity();
 }
 
@@ -225,7 +224,7 @@ std::vector<Entity*> Scene::GetRootEntities() const {
 }
 
 std::size_t Scene::GetEntityCount() const {
-    return static_cast<std::size_t>(std::ranges::count_if(m_entities, &Scene::IsAlive));
+    return m_liveCount;
 }
 
 void Scene::Update(float deltaTime) {
@@ -387,25 +386,58 @@ bool Scene::IsIncluded(const Component& component) {
 }
 
 std::unique_ptr<Entity> Scene::Release(Entity& entity) {
-    const auto slot = std::ranges::find_if(m_entities, [&entity](const auto& owned) { return owned.get() == &entity; });
-    SPOT_ASSERT(slot != m_entities.end(), "The entity belongs to another scene");
-    // The slot stays empty until removals are processed, so loops in progress keep their place.
-    auto released = std::move(*slot);
+    SPOT_ASSERT(entity.m_slot < m_entities.size() && m_entities[entity.m_slot].get() == &entity,
+                "The entity belongs to another scene");
+    // The slot stays empty until it is compacted, so loops in progress keep their place.
+    auto released = std::move(m_entities[entity.m_slot]);
+    ++m_emptySlots;
+    if (!entity.m_destroyed) {
+        --m_liveCount;
+    }
     InvalidateComponentCache();
     m_entitiesById.erase(entity.m_id);
-    std::erase(m_roots, &entity);
-    m_hasPendingRemovals = true;
+    if (!entity.m_parent) {
+        RemoveRoot(entity);
+    }
+    std::erase(m_removalCandidates, &entity);
     return released;
 }
 
-void Scene::Adopt(std::unique_ptr<Entity> entity) {
+void Scene::Adopt(std::unique_ptr<Entity> entity, bool moved) {
     InvalidateComponentCache();
     entity->m_scene = this;
+    entity->m_slot = m_entities.size();
     m_entitiesById.emplace(entity->m_id, entity.get());
     if (!entity->m_parent) {
         m_roots.push_back(entity.get());
     }
+    if (!entity->m_destroyed) {
+        ++m_liveCount;
+    }
+    if (moved) {
+        AddRemovalCandidate(*entity);
+    }
     m_entities.push_back(std::move(entity));
+}
+
+void Scene::AddRemovalCandidate(Entity& entity) {
+    m_removalCandidates.push_back(&entity);
+    m_hasPendingRemovals = true;
+}
+
+void Scene::RemoveRoot(const Entity& entity) {
+    const auto found = std::find(m_roots.rbegin(), m_roots.rend(), &entity);
+    if (found != m_roots.rend()) {
+        m_roots.erase(std::next(found).base());
+    }
+}
+
+void Scene::CompactSlots() {
+    std::erase_if(m_entities, [](const auto& entity) { return !entity; });
+    for (std::size_t i = 0; i < m_entities.size(); ++i) {
+        m_entities[i]->m_slot = i;
+    }
+    m_emptySlots = 0;
 }
 
 void Scene::ProcessRemovals() {
@@ -415,21 +447,34 @@ void Scene::ProcessRemovals() {
     SPOT_PROFILE_SCOPE("Scene::ProcessRemovals");
     const bool deferRemovals = std::exchange(m_deferRemovals, true);
     // OnDestroy() may ask for more removals, which are handled by another round.
+    std::vector<Entity*> freed;
     while (m_hasPendingRemovals) {
         m_hasPendingRemovals = false;
-        for (std::size_t i = 0; i < m_entities.size(); ++i) {
-            if (m_entities[i]) {
-                m_entities[i]->ProcessRemovals();
-            }
+        std::vector<Entity*> candidates = std::exchange(m_removalCandidates, {});
+        std::ranges::sort(candidates);
+        candidates.erase(std::unique(candidates.begin(), candidates.end()), candidates.end());
+        // In creation order, as components of every entity were before.
+        std::ranges::sort(candidates, {}, &Entity::m_slot);
+        for (Entity* entity : candidates) {
+            entity->ProcessRemovals();
         }
 
         // Unlinks the entities about to be freed from the ones that stay, before any of them is freed.
-        for (const auto& entity : m_entities) {
-            if (!entity || !entity->CanBeFreed()) {
-                continue;
+        freed.clear();
+        for (Entity* entity : candidates) {
+            if (entity->m_scene == this && entity->CanBeFreed()) {
+                freed.push_back(entity);
             }
+        }
+        // Roots are told apart before unlinking, which leaves freed children without a parent too.
+        for (const Entity* entity : freed) {
+            if (!entity->m_parent) {
+                RemoveRoot(*entity);
+            }
+        }
+        for (Entity* entity : freed) {
             if (Entity* parent = entity->m_parent; parent && !parent->CanBeFreed()) {
-                std::erase(parent->m_children, entity.get());
+                std::erase(parent->m_children, entity);
             }
             for (Entity* child : entity->m_children) {
                 child->m_parent = nullptr;
@@ -437,10 +482,15 @@ void Scene::ProcessRemovals() {
             }
             m_entitiesById.erase(entity->m_id);
         }
-        std::erase_if(m_roots, [](const Entity* entity) { return entity->CanBeFreed(); });
-        std::erase_if(m_entities, [](const auto& entity) { return !entity || entity->CanBeFreed(); });
+        for (Entity* entity : freed) {
+            m_entities[entity->m_slot].reset();
+            ++m_emptySlots;
+        }
         // OnDestroy() may have found components again while they were still there.
         InvalidateComponentCache();
+    }
+    if (m_emptySlots > 64 && m_emptySlots * 2 > m_entities.size()) {
+        CompactSlots();
     }
     m_deferRemovals = deferRemovals;
 }

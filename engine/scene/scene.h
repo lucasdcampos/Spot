@@ -283,7 +283,12 @@ private:
     Entity& CreateEntityWithId(EntityId id, std::string name);
     // Takes the entity out of the scene, leaving its slot empty, and gives it to another one.
     std::unique_ptr<Entity> Release(Entity& entity);
-    void Adopt(std::unique_ptr<Entity> entity);
+    // moved: the entity comes from another scene, with removals of its own that may be pending.
+    void Adopt(std::unique_ptr<Entity> entity, bool moved = false);
+    void AddRemovalCandidate(Entity& entity);
+    // Removes the entity from the roots, looking from the newest, which are the ones most often freed.
+    void RemoveRoot(const Entity& entity);
+    void CompactSlots();
     void ProcessRemovals();
     void AttachSystem(std::unique_ptr<SceneSystem> system);
     // Calls fn(SceneSystem&) under the guard for each system that is not faulted, by order, profiled under the name.
@@ -303,7 +308,14 @@ private:
     std::vector<RenderHookEntry> m_renderHooks;
     std::uint32_t m_nextRenderHook = 1;
     AudioSystem* m_audio = nullptr;
+    // In creation order. Freed and moved entities leave empty slots, which are compacted once they are many.
     std::vector<std::unique_ptr<Entity>> m_entities;
+    std::size_t m_emptySlots = 0;
+    // Entities that are not destroyed.
+    std::size_t m_liveCount = 0;
+    // Entities destroyed, or with components removed, since removals were last processed: the only ones processing
+    // them needs to visit.
+    std::vector<Entity*> m_removalCandidates;
     struct ComponentCache {
         std::uint64_t version = 0;
         std::vector<Component*> components;

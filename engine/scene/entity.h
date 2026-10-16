@@ -263,6 +263,8 @@ private:
     bool CanBeFreed() const;
 
     Scene* m_scene;
+    // Its place among its scene's entities.
+    std::size_t m_slot = 0;
     EntityId m_id;
     EntityId m_prefabRoot = EntityId::Invalid;
     std::uint64_t m_prefabLocalId = 0;

@@ -163,8 +163,6 @@ void Entity::MoveToScene(Scene& scene) {
     const Detail::DeferRemovalsScope deferSource(*m_scene);
     const Detail::DeferRemovalsScope deferTarget(scene);
     MoveSubtree(scene);
-    // Components already removed but not yet destroyed are now the other scene's to process.
-    scene.m_hasPendingRemovals = true;
 }
 
 void Entity::MoveSubtree(Scene& scene) {
@@ -173,7 +171,8 @@ void Entity::MoveSubtree(Scene& scene) {
         physics->MarkChanged(m_id);
         scene.GetPhysics().MarkChanged(m_id);
     }
-    scene.Adopt(m_scene->Release(*this));
+    // Components already removed but not yet destroyed are now the other scene's to process.
+    scene.Adopt(m_scene->Release(*this), true);
     for (Entity* child : m_children) {
         child->MoveSubtree(scene);
     }
@@ -190,7 +189,7 @@ void Entity::RemoveComponent(Component& component) {
     }
     const Detail::DeferRemovalsScope defer(*m_scene);
     component.m_removed = true;
-    m_scene->m_hasPendingRemovals = true;
+    m_scene->AddRemovalCandidate(*this);
     // Validation and queries can create a body before OnStart(), so removal cannot rely only on OnDisable().
     if (dynamic_cast<Collider*>(&component) || dynamic_cast<Rigidbody*>(&component) ||
         dynamic_cast<CharacterController*>(&component)) {
@@ -253,7 +252,11 @@ void Entity::Attach(std::unique_ptr<Component> component, std::optional<std::siz
 }
 
 void Entity::MarkDestroyed() {
+    if (!m_destroyed) {
+        --m_scene->m_liveCount;
+    }
     m_destroyed = true;
+    m_scene->AddRemovalCandidate(*this);
     if (auto* physics = m_scene->GetSystem<PhysicsWorld>()) {
         physics->MarkChanged(m_id);
     }

@@ -498,7 +498,7 @@ std::vector<PrefabOverride> SceneSerializer::GetOverrides(const Entity& root) {
     }
     for (const auto& stored : root.GetScene().m_entities) {
         const Entity* entity = stored.get();
-        if (entity->m_destroyed) {
+        if (!entity || entity->m_destroyed) {
             continue;
         }
         if (entity->m_prefabRoot != root.m_id && IsWithin(*entity, root) && entity->GetParent() &&
@@ -591,7 +591,7 @@ std::optional<PrefabEdit> SceneSerializer::EditPrefab(const Entity& root, const 
     std::unordered_set<EntityId> additions;
     for (const auto& stored : root.GetScene().m_entities) {
         const Entity* entity = stored.get();
-        if (entity->m_destroyed) {
+        if (!entity || entity->m_destroyed) {
             continue;
         }
         if (entity->m_prefabRoot == root.m_id || !IsWithin(*entity, root)) {
@@ -660,7 +660,7 @@ std::optional<std::string> SceneSerializer::CompactPrefabSource(std::string_view
         return std::nullopt;
     }
     for (const auto& member : before.m_entities) {
-        if (!member->m_prefabInstance) {
+        if (!member || !member->m_prefabInstance) {
             continue;
         }
         Entity* root = after.GetEntity(member->m_id);
