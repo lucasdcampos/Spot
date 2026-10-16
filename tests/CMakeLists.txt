@@ -316,6 +316,11 @@ add_executable(spot_benchmark benchmark/rendering_benchmark.cpp)
 target_link_libraries(spot_benchmark PRIVATE spot::spot)
 spot_set_compile_options(spot_benchmark)
 
+# The scene benchmark, run by hand in Release when the scene changes; see its source.
+add_executable(spot_scene_benchmark benchmark/scene_benchmark.cpp)
+target_link_libraries(spot_scene_benchmark PRIVATE spot::spot)
+spot_set_compile_options(spot_scene_benchmark)
+
 # The sandbox's asset generator, when the sandbox is built.
 if(TARGET sandbox_generator_core)
     add_executable(spot_animation_generator_tests animation_generator_tests.cpp)
