@@ -64,6 +64,23 @@ moved and freed, so `ForEachComponent<T>()` goes through the lists of the types 
 component was added, and `FindComponent<T>()` looks at the head of those lists. Freeing a component or an entity
 empties its slots, which are compacted once they are many, and costs the same in a scene of any size.
 
+### Components that need others
+
+A component can declare the components it needs on its entity, which is how an entity gets the shape of a class,
+such as a player, out of components:
+
+```cpp
+class Player final : public Spot::Component {
+    SPOT_REQUIRE_COMPONENTS(Health, PlayerMovement)
+    ...
+};
+```
+
+Adding a `Player`, by code or by tools from its registered name, first adds the `Health` and `PlayerMovement` the
+entity lacks, and what those require in turn; a component of a type derived from a required one counts. Removing a
+required component that is the only one of its kind while something requires it is refused, with an error logged.
+Loading a saved scene adds nothing, since it holds what was saved. The required types must be default-constructible.
+
 ### Failures
 
 Every hook runs under one guard. A hook that throws **faults** its component: the error is logged once with the

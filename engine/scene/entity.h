@@ -1,6 +1,7 @@
 #pragma once
 
 #include "scene/component.h"
+#include "scene/component_requirements.h"
 #include "scene/transform.h"
 
 #include <concepts>
@@ -131,8 +132,11 @@ public:
     bool IsDestroyed() const { return m_destroyed; }
 
     // Constructs the component with the given arguments. An entity may hold several components of the same type.
+    // Components the type requires (see SPOT_REQUIRE_COMPONENTS()) that the entity lacks are added first.
     template <std::derived_from<Component> T, typename... Args>
     T& AddComponent(Args&&... args) {
+        Detail::DeclareComponentRequirements<T>();
+        AddRequiredComponents(Detail::GetComponentTypeIndex<T>());
         auto component = std::make_unique<T>(std::forward<Args>(args)...);
         T& added = *component;
         Attach(std::move(component));
@@ -140,7 +144,7 @@ public:
     }
 
     // Adds a component made elsewhere, such as by CreateComponent() from a type's registered name, at that place
-    // among the entity's components, or last.
+    // among the entity's components, or last, after the components its type requires that the entity lacks.
     Component& AddComponent(std::unique_ptr<Component> component, std::optional<std::size_t> index = std::nullopt);
 
     // The component's place among the entity's components that are not being removed, which is the order they update
@@ -204,6 +208,7 @@ public:
     }
 
     // The component leaves queries and gets OnDisable() at once; it gets OnDestroy() and is freed as Scene describes.
+    // A component another one of the entity requires, and the only one of its type, stays, with an error logged.
     void RemoveComponent(Component& component);
 
     // Removes the first component that is a T; returns whether there was one.
@@ -238,6 +243,10 @@ private:
     Entity(Scene& scene, EntityId id, std::string name);
 
     void Attach(std::unique_ptr<Component> component, std::optional<std::size_t> index = std::nullopt);
+    void AddRequiredComponents(Detail::ComponentTypeIndex type);
+    // The type of a component of the entity that requires the given one, which is the only one of its kind; null
+    // when none does.
+    const Component* FindDependent(const Component& required) const;
     // The list the entity is ordered in: its parent's children, or the scene's roots.
     std::vector<Entity*>& GetSiblings() const;
     void MoveSubtree(Scene& scene);
@@ -268,5 +277,32 @@ private:
     bool m_activeSelf = true;
     bool m_destroyed = false;
 };
+
+namespace Detail {
+
+template <typename... Required>
+std::vector<ComponentRequirement> MakeComponentRequirements(RequiredComponentList<Required...>*) {
+    (DeclareComponentRequirements<Required>(), ...);
+    return {
+        ComponentRequirement{.type = GetComponentTypeIndex<Required>(),
+                             .isPresent = [](const Entity& entity) { return entity.HasComponent<Required>(); },
+                             .matches = [](const Component& component) { return IsComponentOf<Required>(component); },
+                             .create = []() -> std::unique_ptr<Component> { return std::make_unique<Required>(); }}...};
+}
+
+template <typename T>
+void DeclareComponentRequirements() {
+    if constexpr (ComponentRequirementsAccess::Declares<T>) {
+        static const bool declared = [] {
+            using List = ComponentRequirementsAccess::Of<T>;
+            SetComponentRequirements(GetComponentTypeIndex<T>(),
+                                     MakeComponentRequirements(static_cast<List*>(nullptr)));
+            return true;
+        }();
+        static_cast<void>(declared);
+    }
+}
+
+} // namespace Detail
 
 } // namespace Spot

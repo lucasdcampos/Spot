@@ -2,6 +2,9 @@
 #include "scene/ui/ui_widgets.h"
 
 #include "core/assert.h"
+#include "core/diagnostics.h"
+#include "core/log.h"
+#include "scene/component_registry.h"
 #include "scene/physics/character_controller.h"
 #include "scene/physics/collider.h"
 #include "scene/physics/physics_world.h"
@@ -187,6 +190,15 @@ void Entity::RemoveComponent(Component& component) {
     if (component.m_removed) {
         return;
     }
+    if (const Component* dependent = FindDependent(component)) {
+        const auto name = [](const Component& of) {
+            std::string registered = GetComponentTypeName(of);
+            return registered.empty() ? std::string(Detail::GetTypeName(typeid(of))) : registered;
+        };
+        Log::GetEngineLogger().Error("{} on '{}' is required by {} and stays", name(component), m_name,
+                                     name(*dependent));
+        return;
+    }
     const Detail::DeferRemovalsScope defer(*m_scene);
     component.m_removed = true;
     m_scene->AddRemovalCandidate(*this);
@@ -202,6 +214,7 @@ void Entity::RemoveComponent(Component& component) {
 
 Component& Entity::AddComponent(std::unique_ptr<Component> component, std::optional<std::size_t> index) {
     SPOT_ASSERT(component && !component->m_entity, "Only components that belong to no entity can be added");
+    AddRequiredComponents(Detail::GetComponentTypeIndex(typeid(*component)));
     Component& added = *component;
     Attach(std::move(component), index);
     return added;
@@ -249,6 +262,44 @@ void Entity::Attach(std::unique_ptr<Component> component, std::optional<std::siz
     Component& added = *component;
     m_components.insert(place, std::move(component));
     m_scene->ListComponent(added);
+}
+
+void Entity::AddRequiredComponents(Detail::ComponentTypeIndex type) {
+    const auto* requirements = Detail::FindComponentRequirements(type);
+    if (!requirements) {
+        return;
+    }
+    for (const Detail::ComponentRequirement& requirement : *requirements) {
+        if (!requirement.isPresent(*this)) {
+            // Through the public path, so what the required type itself requires comes first.
+            AddComponent(requirement.create());
+        }
+    }
+}
+
+const Component* Entity::FindDependent(const Component& required) const {
+    for (const auto& component : m_components) {
+        if (component.get() == &required || component->m_removed) {
+            continue;
+        }
+        const auto* requirements = Detail::FindComponentRequirements(component->m_typeIndex);
+        if (!requirements) {
+            continue;
+        }
+        for (const Detail::ComponentRequirement& requirement : *requirements) {
+            if (!requirement.matches(required)) {
+                continue;
+            }
+            // Another component of the required type can stand in for it.
+            const bool replaced = std::ranges::any_of(m_components, [&](const auto& other) {
+                return other.get() != &required && !other->m_removed && requirement.matches(*other);
+            });
+            if (!replaced) {
+                return component.get();
+            }
+        }
+    }
+    return nullptr;
 }
 
 void Entity::MarkDestroyed() {

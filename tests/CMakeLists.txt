@@ -21,6 +21,7 @@ add_executable(spot_tests
     audio_scene_tests.cpp
     cli_tests.cpp
     component_fault_tests.cpp
+    component_requirement_tests.cpp
     debug_draw_tests.cpp
     crash_tests.cpp
     event_tests.cpp

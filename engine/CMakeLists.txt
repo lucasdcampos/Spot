@@ -246,6 +246,7 @@ add_library(spot_objects OBJECT
     scene/component_ref.h
     scene/component.cpp
     scene/component_type.h
+    scene/component_requirements.h
     scene/component_type.cpp
     scene/component_registry.h
     scene/component_serialization.h

@@ -1,5 +1,7 @@
 #include "scene/component_type.h"
 
+#include "scene/component_requirements.h"
+
 #include <mutex>
 #include <unordered_map>
 #include <vector>
@@ -44,6 +46,28 @@ signed char& GetComponentTypeRelation(ComponentTypeIndex concrete, ComponentType
         }
     }
     return row[queried];
+}
+
+namespace {
+
+std::vector<std::vector<ComponentRequirement>>& GetRequirements() {
+    static auto* requirements = new std::vector<std::vector<ComponentRequirement>>();
+    return *requirements;
+}
+
+} // namespace
+
+void SetComponentRequirements(ComponentTypeIndex type, std::vector<ComponentRequirement> requirements) {
+    auto& all = GetRequirements();
+    if (type >= all.size()) {
+        all.resize(type + 1);
+    }
+    all[type] = std::move(requirements);
+}
+
+const std::vector<ComponentRequirement>* FindComponentRequirements(ComponentTypeIndex type) {
+    const auto& all = GetRequirements();
+    return type < all.size() && !all[type].empty() ? &all[type] : nullptr;
 }
 
 std::vector<std::uint8_t>& GetUnusedComponentHooks() {

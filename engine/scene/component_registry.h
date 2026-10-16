@@ -1,6 +1,7 @@
 #pragma once
 
 #include "scene/component.h"
+#include "scene/component_requirements.h"
 
 #include <concepts>
 #include <memory>
@@ -31,6 +32,8 @@ ComponentFactory FindComponentFactory(std::string_view name);
 template <std::derived_from<Component> T>
     requires std::default_initializable<T>
 void RegisterComponent(std::string name) {
+    // So components made from the name, as tools and saved scenes make them, know what they require too.
+    Detail::DeclareComponentRequirements<T>();
     Detail::RegisterComponentType(typeid(T), std::move(name),
                                   []() -> std::unique_ptr<Component> { return std::make_unique<T>(); });
 }
