@@ -356,6 +356,23 @@ std::unique_ptr<VulkanSurface> VulkanSurface::Create(SDL_Window* window, const G
     if (window) {
         vulkan->m_deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     }
+    // NVRHI turns depth clipping off, as pipelines that clamp depth ask, such as shadow casters behind a shadow
+    // view's near plane, only through this extension.
+    VkPhysicalDeviceDepthClipEnableFeaturesEXT depthClip{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_CLIP_ENABLE_FEATURES_EXT};
+    if (HasDeviceExtension(vulkan->m_physicalDevice, VK_EXT_DEPTH_CLIP_ENABLE_EXTENSION_NAME)) {
+        VkPhysicalDeviceFeatures2 query{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+        query.pNext = &depthClip;
+        Vk().vkGetPhysicalDeviceFeatures2(vulkan->m_physicalDevice, &query);
+        if (depthClip.depthClipEnable) {
+            vulkan->m_deviceExtensions.push_back(VK_EXT_DEPTH_CLIP_ENABLE_EXTENSION_NAME);
+            depthClip.pNext = nullptr;
+            enabled.vulkan13.pNext = &depthClip;
+        }
+    }
+    if (!enabled.vulkan13.pNext) {
+        Log::GetEngineLogger().Warning("This GPU cannot turn depth clipping off, so shadows may miss far casters");
+    }
 
     const float priority = 1.0f;
     VkDeviceQueueCreateInfo queueInfo{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};

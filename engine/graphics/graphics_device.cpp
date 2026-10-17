@@ -11,24 +11,40 @@ namespace Spot {
 
 namespace {
 
+// The backend asked for, by the config or else by SPOT_GRAPHICS_BACKEND; Auto when neither asks for one.
 GraphicsBackend ChooseBackend(GraphicsBackend requested) {
-    if (requested == GraphicsBackend::Auto) {
-        const auto chosen = Process::GetEnvironmentValue("SPOT_GRAPHICS_BACKEND");
-        if (chosen == "vulkan") {
-            return GraphicsBackend::Vulkan;
-        }
-        if (chosen && chosen != "sdl_gpu") {
-            Log::GetEngineLogger().Warning("SPOT_GRAPHICS_BACKEND '{}' is not sdl_gpu or vulkan; using sdl_gpu",
-                                           *chosen);
-        }
+    if (requested != GraphicsBackend::Auto) {
+        return requested;
+    }
+    const auto chosen = Process::GetEnvironmentValue("SPOT_GRAPHICS_BACKEND");
+    if (chosen == "vulkan") {
+        return GraphicsBackend::Vulkan;
+    }
+    if (chosen == "sdl_gpu") {
         return GraphicsBackend::SdlGpu;
     }
-    return requested;
+    if (chosen) {
+        Log::GetEngineLogger().Warning("SPOT_GRAPHICS_BACKEND '{}' is not sdl_gpu or vulkan; choosing one", *chosen);
+    }
+    return GraphicsBackend::Auto;
 }
 
 std::unique_ptr<GraphicsDevice::Impl> CreateBackend(Window* window, const GraphicsConfig& config) {
-    if (ChooseBackend(config.backend) == GraphicsBackend::Vulkan) {
+    switch (ChooseBackend(config.backend)) {
+    case GraphicsBackend::Vulkan:
         return Detail::CreateNvrhiVulkanDevice(window, config);
+    case GraphicsBackend::SdlGpu:
+        return Detail::CreateSdlGpuDevice(window, config);
+    case GraphicsBackend::Auto:
+        break;
+    }
+    // Vulkan through NVRHI where it is built and the GPU runs Vulkan 1.3, as it does more; SDL_GPU everywhere else,
+    // such as on macOS or older GPUs and drivers.
+    if (Detail::IsNvrhiVulkanSupported()) {
+        if (auto vulkan = Detail::CreateNvrhiVulkanDevice(window, config)) {
+            return vulkan;
+        }
+        Log::GetEngineLogger().Warning("The Vulkan backend could not start; falling back to SDL_GPU");
     }
     return Detail::CreateSdlGpuDevice(window, config);
 }

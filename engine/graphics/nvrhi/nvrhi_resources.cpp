@@ -278,15 +278,28 @@ std::unique_ptr<Buffer> NvrhiDevice::CreateBuffer(const BufferDesc& desc) {
 
 void NvrhiDevice::UploadToBuffer(Buffer& buffer, std::span<const std::byte> data, std::uint32_t offset,
                                  UploadMode mode) {
-    nvrhi::IBuffer* native = GetNvrhiBuffer(buffer);
+    auto& impl = static_cast<NvrhiBuffer&>(GraphicsAccess::GetImpl(buffer));
     const bool discards = mode == UploadMode::Discard || (offset == 0 && data.size() == buffer.GetSize());
     if (discards && m_context.frameOpen) {
-        // In the frame's own commands, after the draws recorded so far, which keep reading what they were recorded
-        // with, as discarding uploads promise.
-        m_context.commandList->writeBuffer(native, data.data(), data.size(), offset);
-        return;
+        // Draws recorded so far keep the memory they were recorded with, as discarding uploads promise: the buffer
+        // moves to other memory, retired memory the GPU is done with or new, which later draws bind instead.
+        const std::uint64_t done = m_frameNumber > FramesInFlight ? m_frameNumber - FramesInFlight : 0;
+        const auto spare =
+            std::ranges::find_if(impl.retired, [done](const auto& entry) { return entry.second <= done; });
+        nvrhi::BufferHandle next;
+        if (spare != impl.retired.end()) {
+            next = std::move(spare->first);
+            impl.retired.erase(spare);
+        } else {
+            next = m_device->createBuffer(impl.handle->getDesc());
+        }
+        if (next) {
+            impl.retired.emplace_back(std::move(impl.handle), m_frameNumber);
+            impl.handle = std::move(next);
+        }
     }
     // Ahead of the frame being recorded, so its draws, those recorded already included, see the new data.
+    nvrhi::IBuffer* native = impl.handle;
     RunNow(
         [&](nvrhi::ICommandList& commandList) { commandList.writeBuffer(native, data.data(), data.size(), offset); });
 }

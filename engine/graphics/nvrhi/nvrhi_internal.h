@@ -59,6 +59,9 @@ struct NvrhiBuffer final : Buffer::Impl {
     // First, so it goes after the handle.
     std::shared_ptr<NvrhiShared> shared;
     nvrhi::BufferHandle handle;
+    // Memory the buffer moved away from by discarding uploads, with the frame that last read it, reused once the GPU
+    // is done with that frame.
+    std::vector<std::pair<nvrhi::BufferHandle, std::uint64_t>> retired;
 };
 
 inline nvrhi::IBuffer* GetNvrhiBuffer(const Buffer& buffer) {
@@ -235,6 +238,8 @@ private:
     std::array<nvrhi::EventQueryHandle, FramesInFlight> m_frameQueries;
     std::array<bool, FramesInFlight> m_frameQueried = {};
     std::size_t m_frameSlot = 0;
+    // The frame being recorded, or next to be, counted from 1; frames before m_frameNumber - FramesInFlight are done.
+    std::uint64_t m_frameNumber = 1;
     // Whether the open frame draws into the window, which it then presents, rather than into a texture.
     bool m_presenting = false;
 };

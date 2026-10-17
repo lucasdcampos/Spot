@@ -333,6 +333,7 @@ void NvrhiDevice::EndFrame() {
     // Frees what was released once the GPU is done with it.
     m_device->runGarbageCollection();
     m_frameSlot = (m_frameSlot + 1) % FramesInFlight;
+    ++m_frameNumber;
     m_context.target = nullptr;
     m_context.acquiredTarget = nullptr;
     m_context.width = 0;

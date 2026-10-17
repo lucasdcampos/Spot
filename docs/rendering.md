@@ -12,8 +12,8 @@ after submission. `GetWindowFormat()` supplies the offscreen device's default co
 `linearWindow` is enabled). VSync has no effect. See [developer-tool testing](developer_tools.md#testing-without-windows).
 
 Rendering has two layers. The **graphics API** (`GraphicsDevice`, `RenderContext`, `RenderPass`, buffers, textures,
-shaders and pipelines) is a thin, backend-independent interface over SDL_GPU, whose backend lives in
-`engine/graphics/sdl_gpu/` and never shows in public headers. The **renderers** (`Renderer2D`, `Renderer3D`,
+shaders and pipelines) is the engine's own, independent of the backends that run it (Vulkan through NVRHI, or
+SDL_GPU; see [Backends](#backends)), which never show in public headers. The **renderers** (`Renderer2D`, `Renderer3D`,
 `LineRenderer`, `SceneRenderer`) are built only on that public API, so games can do anything they do, or draw their
 own way next to them.
 
@@ -50,18 +50,21 @@ Each frame, `BeginFrame()` returns a `RenderContext` (null when nothing can be d
 
 The graphics API is the engine's own; backends implement it behind `engine/graphics/graphics_backend.h`, where each
 public object holds an implementation the backend derives from. Several backends are built into one program, and
-the device picks one when it is made, from `GraphicsConfig::backend`, which the environment variable
-`SPOT_GRAPHICS_BACKEND` (`sdl_gpu` or `vulkan`) overrides:
+the device picks one when it is made, from `GraphicsConfig::backend`. With `Auto`, the environment variable
+`SPOT_GRAPHICS_BACKEND` (`sdl_gpu` or `vulkan`) chooses, as the tests do to run on each; otherwise the device takes
+Vulkan where it can and SDL_GPU everywhere else, falling back to SDL_GPU when Vulkan fails to start.
 
-- **SDL_GPU** (`graphics/sdl_gpu/`), over Direct3D 12, Vulkan or Metal, on every platform. It is the default for now.
-- **Vulkan through NVRHI** (`graphics/nvrhi/`), on Windows and Linux, which the engine is moving to: NVRHI tracks
-  resource states and places barriers, and opens compute, bindless resources, indirect draws and GPU timers. The
-  backend makes the Vulkan 1.3 instance, device and swapchain NVRHI runs on (`nvrhi_vulkan.cpp`), on the best GPU
-  that runs it, with Vulkan's validation layer in debug builds when it is installed. CMake fetches NVRHI and Vulkan's
-  headers, so building needs no SDK; running needs only the GPU's driver. It clears, resolves, uploads and downloads
-  textures so far; shaders, pipelines, buffers and draws come next, and until then the device logs what it cannot do.
+- **Vulkan through NVRHI** (`graphics/nvrhi/`), on Windows and Linux, the default where the GPU runs Vulkan 1.3:
+  NVRHI tracks resource states and places barriers, and opens compute, bindless resources, indirect draws and GPU
+  timers. The backend makes the Vulkan instance, device and swapchain NVRHI runs on (`nvrhi_vulkan.cpp`), on the best
+  GPU that runs it, with Vulkan's validation layer in debug builds when it is installed. Devices without a window load
+  the Vulkan loader themselves, so they run under any SDL video driver. CMake fetches NVRHI and Vulkan's headers, so
+  building needs no SDK; running needs only the GPU's driver. Vulkan has no mipmap generation, so the backend draws
+  each level from the one above (`mip_downsample.frag.hlsl`).
+- **SDL_GPU** (`graphics/sdl_gpu/`), over Direct3D 12, Vulkan or Metal, on every platform: macOS, whose Metal NVRHI
+  lacks, and machines without Vulkan 1.3.
 
-macOS keeps SDL_GPU, whose Metal NVRHI lacks.
+Every GPU test and golden image passes on both; run them on one with `SPOT_GRAPHICS_BACKEND`.
 
 ### Fullscreen passes
 
@@ -82,7 +85,8 @@ tonemap->Draw(pass, inputs);
 
 Shaders are HLSL files named `*.vert.hlsl` or `*.frag.hlsl`. `spot_add_shaders(<target> ...)`
 (`cmake/spot_shaders.cmake`) compiles them to SPIR-V, MSL and, on Windows, DXIL, and generates a header per shader
-with a ready-to-use `ShaderDesc` (the engine's are in `Spot::Detail::Shaders`). Conventions follow SDL_GPU:
+with a ready-to-use `ShaderDesc` (the engine's are in `Spot::Detail::Shaders`), holding a second SPIR-V for the
+Vulkan backend, whose textures, samplers and buffers are numbered as NVRHI binds them. Conventions follow SDL_GPU:
 vertex uniforms at `register(b0, space1)`, fragment textures and samplers at `register(t0, space2)` and
 `register(s0, space2)`, and vertex inputs as `TEXCOORD{N}` for attribute `N`.
 

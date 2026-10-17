@@ -49,7 +49,7 @@ otherwise.
 | 4. Runtime | `runtime/` | `Application`, the default game loop with scenes, and what runs a game: settings, the console, game modules |
 | 5. Tools | `import/`, then `tools/`, `cli/` and `editor/` outside the engine | Importing and making games out of projects, which games never link |
 
-Backends live in their system's folder, behind its contract: SDL_GPU in `graphics/sdl_gpu/`, SDL3 audio in
+Backends live in their system's folder, behind its contract: Vulkan through NVRHI in `graphics/nvrhi/` and SDL_GPU in `graphics/sdl_gpu/`, SDL3 audio in
 `audio/sdl3/`, Jolt in `physics/jolt/`, Box2D in `physics/box2d/`. Public headers never show backend types.
 
 ### Games without scenes

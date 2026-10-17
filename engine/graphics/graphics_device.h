@@ -20,7 +20,7 @@ class Window;
 
 // The graphics API the device runs on.
 enum class GraphicsBackend {
-    // The best the machine runs: SDL_GPU for now, until the Vulkan backend covers everything.
+    // The best the machine runs: Vulkan where the GPU runs Vulkan 1.3 and the build has it, SDL_GPU elsewhere.
     Auto,
     // SDL_GPU, over Direct3D 12, Vulkan or Metal.
     SdlGpu,
