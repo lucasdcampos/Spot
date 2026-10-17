@@ -449,6 +449,26 @@ else()
     message(FATAL_ERROR "Unknown SPOT_GRAPHICS '${SPOT_GRAPHICS}'")
 endif()
 
+# NVRHI runs Vulkan, and later Direct3D 12, for the graphics backend that takes over from SDL_GPU on Windows and Linux;
+# macOS keeps SDL_GPU, whose Metal NVRHI lacks. Both are built in, and the device picks one when it is made.
+if(NOT APPLE)
+    set(SPOT_GRAPHICS_NVRHI ON)
+    set(NVRHI_WITH_VULKAN ON CACHE BOOL "" FORCE)
+    set(NVRHI_WITH_DX11 OFF CACHE BOOL "" FORCE)
+    set(NVRHI_WITH_DX12 OFF CACHE BOOL "" FORCE)
+    set(NVRHI_WITH_VALIDATION ON CACHE BOOL "" FORCE)
+    set(NVRHI_INSTALL OFF CACHE BOOL "" FORCE)
+    set(NVRHI_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(nvrhi
+        GIT_REPOSITORY https://github.com/NVIDIA-RTX/NVRHI.git
+        GIT_TAG 6b96fb03e07539f08327aea76c56d55f1de9d906
+        SYSTEM
+    )
+    FetchContent_MakeAvailable(nvrhi)
+    target_link_libraries(spot_objects PRIVATE nvrhi nvrhi_vk)
+    target_compile_definitions(spot_objects PRIVATE SPOT_GRAPHICS_NVRHI)
+endif()
+
 # Like the graphics backend, the audio backend never reaches the public headers. It only plays what the engine's mixer
 # produces.
 set(SPOT_AUDIO "SDL3" CACHE STRING "Audio backend")
