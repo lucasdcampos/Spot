@@ -3,6 +3,10 @@
 #include "core/assert.h"
 #include "core/log.h"
 
+#include "fullscreen.vert.h"
+#include "mip_downsample.frag.h"
+#include "mip_downsample_layer.frag.h"
+
 #include <algorithm>
 #include <bit>
 #include <utility>
@@ -23,7 +27,8 @@ bool SameAttachment(const nvrhi::FramebufferAttachment& a, const nvrhi::Framebuf
 }
 
 bool SameFramebuffer(const nvrhi::FramebufferDesc& a, const nvrhi::FramebufferDesc& b) {
-    if (a.colorAttachments.size() != b.colorAttachments.size() || !SameAttachment(a.depthAttachment, b.depthAttachment)) {
+    if (a.colorAttachments.size() != b.colorAttachments.size() ||
+        !SameAttachment(a.depthAttachment, b.depthAttachment)) {
         return false;
     }
     for (std::size_t i = 0; i < a.colorAttachments.size(); ++i) {
@@ -39,8 +44,8 @@ bool SameFramebuffer(const nvrhi::FramebufferDesc& a, const nvrhi::FramebufferDe
 // target when it ends.
 class NvrhiPass final : public RenderPass::Impl {
 public:
-    NvrhiPass(NvrhiContext& context, const RenderPassDesc& desc, nvrhi::IFramebuffer* framebuffer,
-              std::uint32_t width, std::uint32_t height)
+    NvrhiPass(NvrhiContext& context, const RenderPassDesc& desc, nvrhi::IFramebuffer* framebuffer, std::uint32_t width,
+              std::uint32_t height)
         : m_context(context), m_desc(desc), m_framebuffer(framebuffer) {
         m_viewport = nvrhi::Viewport(static_cast<float>(width), static_cast<float>(height));
         m_scissor = nvrhi::Rect(static_cast<int>(width), static_cast<int>(height));
@@ -160,11 +165,12 @@ private:
             }
             for (std::uint32_t slot = 0; slot < resources.storageBuffers; ++slot) {
                 if (!bound.storageBuffers[slot]) {
-                    Log::GetEngineLogger().Error("A draw reads storage buffer slot {}, which nothing is bound to", slot);
+                    Log::GetEngineLogger().Error("A draw reads storage buffer slot {}, which nothing is bound to",
+                                                 slot);
                     return nullptr;
                 }
-                desc.addItem(nvrhi::BindingSetItem::StructuredBuffer_SRV(resources.textures + slot,
-                                                                          bound.storageBuffers[slot]));
+                desc.addItem(
+                    nvrhi::BindingSetItem::StructuredBuffer_SRV(resources.textures + slot, bound.storageBuffers[slot]));
             }
         }
         return m_context.GetBindingSet(m_pipeline->layouts[static_cast<std::size_t>(set)], desc);
@@ -279,6 +285,11 @@ void NvrhiContext::FinishFrame() {
 void NvrhiContext::Release() {
     m_bindingSets.clear();
     m_framebuffers.clear();
+    m_mipPipelines.clear();
+    m_mipLayouts = {};
+    m_mipSampler = nullptr;
+    m_mipVertexShader = nullptr;
+    m_mipFragmentShaders = {};
     stages = {};
     commandList = nullptr;
 }
@@ -345,10 +356,97 @@ bool NvrhiContext::BlitTextureToFrame(const Texture& source) {
 
 void NvrhiContext::GenerateMipmaps(Texture& texture) {
     SPOT_ASSERT(!passOpen, "Mipmaps cannot be generated during a render pass");
-    if (texture.GetMipLevelCount() > 1) {
-        static bool warned = false;
-        if (!std::exchange(warned, true)) {
-            Log::GetEngineLogger().Error("The Vulkan backend cannot generate mipmaps yet");
+    SPOT_ASSERT(frameOpen, "Mipmaps are generated in an open frame");
+    RecordMipmaps(*commandList, texture);
+}
+
+nvrhi::IGraphicsPipeline* NvrhiContext::GetMipmapPipeline(nvrhi::Format targetFormat, bool layers) {
+    const std::uint32_t key = static_cast<std::uint32_t>(targetFormat) * 2 + (layers ? 1 : 0);
+    if (const auto found = m_mipPipelines.find(key); found != m_mipPipelines.end()) {
+        return found->second;
+    }
+    if (!m_mipVertexShader) {
+        nvrhi::ShaderDesc vertex;
+        vertex.shaderType = nvrhi::ShaderType::Vertex;
+        m_mipVertexShader = device->createShader(vertex, Shaders::FullscreenVert.vulkanSpirv.data(),
+                                                 Shaders::FullscreenVert.vulkanSpirv.size());
+        nvrhi::ShaderDesc fragment;
+        fragment.shaderType = nvrhi::ShaderType::Pixel;
+        m_mipFragmentShaders[0] = device->createShader(fragment, Shaders::MipDownsampleFrag.vulkanSpirv.data(),
+                                                       Shaders::MipDownsampleFrag.vulkanSpirv.size());
+        m_mipFragmentShaders[1] = device->createShader(fragment, Shaders::MipDownsampleLayerFrag.vulkanSpirv.data(),
+                                                       Shaders::MipDownsampleLayerFrag.vulkanSpirv.size());
+        for (std::uint32_t set = 0; set < m_mipLayouts.size(); ++set) {
+            nvrhi::BindingLayoutDesc layout;
+            layout.visibility = set == 2 ? nvrhi::ShaderType::Pixel : nvrhi::ShaderType::Vertex;
+            layout.registerSpace = set;
+            layout.registerSpaceIsDescriptorSet = true;
+            if (set == 2) {
+                layout.addItem(nvrhi::BindingLayoutItem::Texture_SRV(0));
+                layout.addItem(nvrhi::BindingLayoutItem::Sampler(0));
+            }
+            m_mipLayouts[set] = device->createBindingLayout(layout);
+        }
+        m_mipSampler = device->createSampler(
+            nvrhi::SamplerDesc().setAllFilters(true).setAllAddressModes(nvrhi::SamplerAddressMode::ClampToEdge));
+    }
+    nvrhi::GraphicsPipelineDesc desc;
+    desc.primType = nvrhi::PrimitiveType::TriangleList;
+    desc.VS = m_mipVertexShader;
+    desc.PS = m_mipFragmentShaders[layers ? 1 : 0];
+    for (const auto& layout : m_mipLayouts) {
+        desc.addBindingLayout(layout);
+    }
+    desc.renderState.rasterState.cullMode = nvrhi::RasterCullMode::None;
+    desc.renderState.depthStencilState.depthTestEnable = false;
+    desc.renderState.depthStencilState.depthWriteEnable = false;
+    nvrhi::FramebufferInfo framebuffer;
+    framebuffer.addColorFormat(targetFormat);
+    nvrhi::GraphicsPipelineHandle pipeline = device->createGraphicsPipeline(desc, framebuffer);
+    if (!pipeline) {
+        Log::GetEngineLogger().Error("Failed to create the pipeline that generates mipmaps");
+        return nullptr;
+    }
+    return m_mipPipelines.emplace(key, std::move(pipeline)).first->second;
+}
+
+void NvrhiContext::RecordMipmaps(nvrhi::ICommandList& commands, Texture& texture) {
+    const std::uint32_t levels = texture.GetMipLevelCount();
+    if (levels <= 1) {
+        return;
+    }
+    nvrhi::ITexture* native = GetNvrhiTexture(texture);
+    // Faces of a cube are read through array views, as NVRHI views no face of a cube as a 2D texture.
+    const bool layers = texture.GetLayerCount() > 1;
+    nvrhi::IGraphicsPipeline* pipeline = GetMipmapPipeline(native->getDesc().format, layers);
+    if (!pipeline) {
+        return;
+    }
+    nvrhi::IBindingSet* empty[2] = {GetBindingSet(m_mipLayouts[0], {}), GetBindingSet(m_mipLayouts[1], {})};
+    for (std::uint32_t layer = 0; layer < texture.GetLayerCount(); ++layer) {
+        for (std::uint32_t level = 1; level < levels; ++level) {
+            // A view of the face's level above, which the draw reads while it writes the level below.
+            nvrhi::BindingSetDesc bindings;
+            bindings.addItem(nvrhi::BindingSetItem::Texture_SRV(
+                0, native, nvrhi::Format::UNKNOWN, nvrhi::TextureSubresourceSet(level - 1, 1, layer, 1),
+                layers ? nvrhi::TextureDimension::Texture2DArray : nvrhi::TextureDimension::Texture2D));
+            bindings.addItem(nvrhi::BindingSetItem::Sampler(0, m_mipSampler));
+            nvrhi::FramebufferDesc framebufferDesc;
+            framebufferDesc.addColorAttachment(native, nvrhi::TextureSubresourceSet(level, 1, layer, 1));
+            nvrhi::IFramebuffer* framebuffer = GetFramebuffer(framebufferDesc);
+            nvrhi::IBindingSet* source = GetBindingSet(m_mipLayouts[2], bindings);
+            if (!framebuffer || !source || !empty[0] || !empty[1]) {
+                return;
+            }
+            const auto levelWidth = static_cast<float>(GetLevelSize(texture.GetWidth(), level));
+            const auto levelHeight = static_cast<float>(GetLevelSize(texture.GetHeight(), level));
+            nvrhi::GraphicsState state;
+            state.pipeline = pipeline;
+            state.framebuffer = framebuffer;
+            state.viewport.addViewportAndScissorRect(nvrhi::Viewport(levelWidth, levelHeight));
+            state.addBindingSet(empty[0]).addBindingSet(empty[1]).addBindingSet(source);
+            commands.setGraphicsState(state);
+            commands.draw(nvrhi::DrawArguments().setVertexCount(3));
         }
     }
 }

@@ -13,9 +13,9 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
-#include <string_view>
 #include <vector>
 
 struct SDL_Window;
@@ -95,7 +95,13 @@ struct NvrhiShader final : Shader::Impl {
 
 // Shaders follow SDL_GPU's register spaces, each a descriptor set: the vertex stage's textures, samplers and storage
 // buffers, then its uniforms, then the fragment stage's.
-enum class DescriptorSet : std::uint32_t { VertexResources, VertexUniforms, FragmentResources, FragmentUniforms, Count };
+enum class DescriptorSet : std::uint32_t {
+    VertexResources,
+    VertexUniforms,
+    FragmentResources,
+    FragmentUniforms,
+    Count
+};
 constexpr std::size_t DescriptorSetCount = static_cast<std::size_t>(DescriptorSet::Count);
 
 struct NvrhiPipeline final : Pipeline::Impl {
@@ -149,6 +155,8 @@ public:
     // Binding sets and framebuffers made for draws, kept while they are used and let go a few frames after.
     nvrhi::IBindingSet* GetBindingSet(nvrhi::IBindingLayout* layout, const nvrhi::BindingSetDesc& desc);
     nvrhi::IFramebuffer* GetFramebuffer(const nvrhi::FramebufferDesc& desc);
+    // Draws each level of the texture's mipmaps, of each face, from the level above it, into the command list.
+    void RecordMipmaps(nvrhi::ICommandList& commands, Texture& texture);
     // Ends a frame for the caches, forgetting what was not used in the last frames.
     void FinishFrame();
     // Lets go of everything the context holds of the device, before the device goes.
@@ -174,6 +182,15 @@ private:
     };
     std::vector<std::pair<nvrhi::FramebufferDesc, CachedFramebuffer>> m_framebuffers;
     std::uint64_t m_frame = 1;
+
+    // What mipmap generation draws with, made on first use: a pipeline per format, for 2D textures and for faces of
+    // cubes, and descriptor sets 0 and 1 empty.
+    nvrhi::IGraphicsPipeline* GetMipmapPipeline(nvrhi::Format targetFormat, bool layers);
+    nvrhi::ShaderHandle m_mipVertexShader;
+    std::array<nvrhi::ShaderHandle, 2> m_mipFragmentShaders;
+    std::array<nvrhi::BindingLayoutHandle, 3> m_mipLayouts;
+    nvrhi::SamplerHandle m_mipSampler;
+    std::unordered_map<std::uint32_t, nvrhi::GraphicsPipelineHandle> m_mipPipelines;
 };
 
 class NvrhiDevice final : public GraphicsDevice::Impl {

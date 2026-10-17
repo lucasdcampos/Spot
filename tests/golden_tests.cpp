@@ -301,7 +301,9 @@ TEST_CASE("Golden: glTF sample models", "[gpu][golden]") {
             AddModel(device, scene, helmet, {-0.4f, -0.6f, -0.7f});
         });
         REQUIRE(render);
-        CheckGolden("damaged_helmet", *render);
+        // Its fine, high-contrast detail is filtered a little differently by Vulkan and Direct3D 12 drivers, which
+        // tells about 1.3% of the pixels apart; both pass.
+        CheckGolden("damaged_helmet", *render, {.differingPixels = 0.02});
     }
     SECTION("AlphaBlendModeTest: opaque, cutout and blended alpha") {
         const auto render = RenderScene([&](Spot::GraphicsDevice& device, Spot::Scene& scene) {

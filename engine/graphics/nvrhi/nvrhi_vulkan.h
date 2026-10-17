@@ -15,6 +15,7 @@
 #include <vector>
 
 struct SDL_Window;
+struct SDL_SharedObject;
 
 namespace Spot::Detail {
 
@@ -58,6 +59,8 @@ private:
     bool CreateSwapchain(nvrhi::IDevice& device);
 
     SDL_Window* m_window = nullptr;
+    // The Vulkan loader when the device was made without a window, which SDL's video driver may not load.
+    SDL_SharedObject* m_library = nullptr;
     VkInstance m_instance = VK_NULL_HANDLE;
     VkDebugUtilsMessengerEXT m_messenger = VK_NULL_HANDLE;
     VkSurfaceKHR m_surface = VK_NULL_HANDLE;

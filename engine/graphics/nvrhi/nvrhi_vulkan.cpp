@@ -45,19 +45,47 @@ VKAPI_ATTR VkBool32 VKAPI_CALL ReportValidation(VkDebugUtilsMessageSeverityFlagB
     return VK_FALSE;
 }
 
-bool LoadVulkan() {
-    if (!SDL_Vulkan_LoadLibrary(nullptr)) {
-        Log::GetEngineLogger().Error("Vulkan is not available: {}", SDL_GetError());
-        return false;
+#if defined(_WIN32)
+constexpr const char* VulkanLoader = "vulkan-1.dll";
+#else
+constexpr const char* VulkanLoader = "libvulkan.so.1";
+#endif
+
+// A window's device loads Vulkan through SDL's video driver, which makes its surfaces. A device without a window
+// loads the loader itself, so it runs whatever the video driver is, even one with no Vulkan, as headless runs use.
+bool LoadVulkan(bool window, SDL_SharedObject*& library, bool quiet) {
+    PFN_vkGetInstanceProcAddr getInstanceProcAddr = nullptr;
+    if (window) {
+        if (SDL_Vulkan_LoadLibrary(nullptr)) {
+            getInstanceProcAddr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(SDL_Vulkan_GetVkGetInstanceProcAddr());
+            if (!getInstanceProcAddr) {
+                SDL_Vulkan_UnloadLibrary();
+            }
+        }
+    } else if ((library = SDL_LoadObject(VulkanLoader))) {
+        getInstanceProcAddr =
+            reinterpret_cast<PFN_vkGetInstanceProcAddr>(SDL_LoadFunction(library, "vkGetInstanceProcAddr"));
+        if (!getInstanceProcAddr) {
+            SDL_UnloadObject(library);
+            library = nullptr;
+        }
     }
-    const auto getInstanceProcAddr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(SDL_Vulkan_GetVkGetInstanceProcAddr());
     if (!getInstanceProcAddr) {
-        Log::GetEngineLogger().Error("Vulkan is not available: {}", SDL_GetError());
-        SDL_Vulkan_UnloadLibrary();
+        if (!quiet) {
+            Log::GetEngineLogger().Error("Vulkan is not available: {}", SDL_GetError());
+        }
         return false;
     }
     Vk().init(getInstanceProcAddr);
     return true;
+}
+
+void UnloadVulkan(SDL_SharedObject* library) {
+    if (library) {
+        SDL_UnloadObject(library);
+    } else {
+        SDL_Vulkan_UnloadLibrary();
+    }
 }
 
 bool HasInstanceLayer(const char* name) {
@@ -185,18 +213,14 @@ bool VulkanSurface::IsSupported() {
         return false;
     }
     bool supported = false;
-    if (SDL_Vulkan_LoadLibrary(nullptr)) {
-        const auto getInstanceProcAddr =
-            reinterpret_cast<PFN_vkGetInstanceProcAddr>(SDL_Vulkan_GetVkGetInstanceProcAddr());
-        if (getInstanceProcAddr) {
-            Vk().init(getInstanceProcAddr);
-            std::uint32_t version = VK_API_VERSION_1_0;
-            if (Vk().vkEnumerateInstanceVersion) {
-                Vk().vkEnumerateInstanceVersion(&version);
-            }
-            supported = version >= RequiredVersion;
+    SDL_SharedObject* library = nullptr;
+    if (LoadVulkan(false, library, true)) {
+        std::uint32_t version = VK_API_VERSION_1_0;
+        if (Vk().vkEnumerateInstanceVersion) {
+            Vk().vkEnumerateInstanceVersion(&version);
         }
-        SDL_Vulkan_UnloadLibrary();
+        supported = version >= RequiredVersion;
+        UnloadVulkan(library);
     }
     Platform::Shutdown();
     return supported;
@@ -206,12 +230,14 @@ std::unique_ptr<VulkanSurface> VulkanSurface::Create(SDL_Window* window, const G
     if (!Platform::Initialize()) {
         return nullptr;
     }
-    if (!LoadVulkan()) {
+    SDL_SharedObject* library = nullptr;
+    if (!LoadVulkan(window != nullptr, library, false)) {
         Platform::Shutdown();
         return nullptr;
     }
     // From here on its destructor unloads Vulkan and shuts the platform down, whatever fails.
     std::unique_ptr<VulkanSurface> vulkan(new VulkanSurface());
+    vulkan->m_library = library;
     vulkan->m_window = window;
     vulkan->m_vsync = config.vsync;
     vulkan->m_linearWindow = config.linearWindow;
@@ -379,7 +405,7 @@ VulkanSurface::~VulkanSurface() {
     if (m_instance) {
         Vk().vkDestroyInstance(m_instance, nullptr);
     }
-    SDL_Vulkan_UnloadLibrary();
+    UnloadVulkan(m_library);
     Platform::Shutdown();
 }
 

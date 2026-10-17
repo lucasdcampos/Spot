@@ -19,15 +19,6 @@ std::uint32_t GetLevelSize(std::uint32_t size, std::uint32_t mipLevel) {
     return std::max(size >> mipLevel, 1u);
 }
 
-// What the backend has yet to run, logged once per kind so a frame that uses it every time does not flood the log.
-void WarnUnsupported(const char* what) {
-    static std::vector<const char*> warned;
-    if (std::ranges::find(warned, what) == warned.end()) {
-        warned.push_back(what);
-        Log::GetEngineLogger().Error("The Vulkan backend cannot make {} yet", what);
-    }
-}
-
 } // namespace
 
 nvrhi::Format ToNvrhi(TextureFormat format) {
@@ -163,7 +154,8 @@ std::unique_ptr<Texture> NvrhiDevice::CreateTexture(const TextureDesc& desc) {
     native.dimension = cube           ? nvrhi::TextureDimension::TextureCube
                        : multisampled ? nvrhi::TextureDimension::Texture2DMS
                                       : nvrhi::TextureDimension::Texture2D;
-    native.isRenderTarget = desc.renderTarget;
+    // Mipmaps are drawn, each level from the one above.
+    native.isRenderTarget = desc.renderTarget || mipLevels > 1;
     // NVRHI tracks each texture's state and places the barriers between its uses.
     native.enableAutomaticStateTracking(depth && desc.renderTarget ? nvrhi::ResourceStates::DepthWrite
                                         : desc.renderTarget        ? nvrhi::ResourceStates::RenderTarget
@@ -193,10 +185,8 @@ void NvrhiDevice::UploadToTexture(Texture& texture, std::span<const std::byte> p
         for (std::uint32_t layer = 0; layer < texture.GetLayerCount(); ++layer) {
             commandList.writeTexture(native, layer, 0, pixels.data() + layer * layerSize, rowPitch);
         }
+        m_context.RecordMipmaps(commandList, texture);
     });
-    if (texture.GetMipLevelCount() > 1) {
-        WarnUnsupported("mipmaps");
-    }
 }
 
 std::vector<std::uint8_t> NvrhiDevice::DownloadTexture(const Texture& texture, std::uint32_t mipLevel) {
@@ -271,11 +261,13 @@ TextureFormat NvrhiDevice::GetWindowFormat() const {
 }
 
 bool NvrhiDevice::IsVSyncEnabled() const {
-    return m_vulkan->IsVSyncEnabled();
+    return m_vulkan->HasWindow() && m_vulkan->IsVSyncEnabled();
 }
 
 void NvrhiDevice::SetVSync(bool enabled) {
-    m_vulkan->SetVSync(enabled);
+    if (m_vulkan->HasWindow()) {
+        m_vulkan->SetVSync(enabled);
+    }
 }
 
 bool NvrhiDevice::BeginFrame() {

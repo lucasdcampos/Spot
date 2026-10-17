@@ -223,7 +223,12 @@ std::unique_ptr<Pipeline> NvrhiDevice::CreatePipeline(const PipelineDesc& desc) 
         state.depthStencilState.depthTestEnable = desc.depth->test;
         state.depthStencilState.depthWriteEnable = desc.depth->write;
         state.depthStencilState.depthFunc = ToNvrhi(desc.depth->compare);
+        // NVRHI only enables depth bias when its constant factor is not 0, so a slope alone takes the smallest
+        // constant there is, a unit of the depth's precision, which is too little to show.
         state.rasterState.depthBias = static_cast<int>(desc.depth->biasConstant);
+        if (state.rasterState.depthBias == 0 && desc.depth->biasSlope != 0.0f) {
+            state.rasterState.depthBias = desc.depth->biasSlope > 0.0f ? 1 : -1;
+        }
         state.rasterState.slopeScaledDepthBias = desc.depth->biasSlope;
         framebuffer.depthFormat = ToNvrhi(desc.depth->format);
     } else {
@@ -282,7 +287,8 @@ void NvrhiDevice::UploadToBuffer(Buffer& buffer, std::span<const std::byte> data
         return;
     }
     // Ahead of the frame being recorded, so its draws, those recorded already included, see the new data.
-    RunNow([&](nvrhi::ICommandList& commandList) { commandList.writeBuffer(native, data.data(), data.size(), offset); });
+    RunNow(
+        [&](nvrhi::ICommandList& commandList) { commandList.writeBuffer(native, data.data(), data.size(), offset); });
 }
 
 std::unique_ptr<Sampler> NvrhiDevice::CreateSampler(const SamplerDesc& desc) {
