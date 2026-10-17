@@ -74,14 +74,31 @@ std::unique_ptr<GraphicsDevice::Impl> CreateNvrhiVulkanDevice(Window* window, co
     }
     Log::GetEngineLogger().Info("Graphics device created with the 'vulkan (nvrhi)' backend on {}",
                                 vulkan->GetAdapterName());
-    return std::make_unique<NvrhiDevice>(std::move(vulkan), std::move(vulkanDevice), std::move(device));
+    return std::make_unique<NvrhiDevice>(
+        std::make_shared<NvrhiShared>(std::move(vulkan), std::move(vulkanDevice), std::move(device)));
 }
 
-NvrhiDevice::NvrhiDevice(std::unique_ptr<VulkanSurface> vulkan, nvrhi::vulkan::DeviceHandle vulkanDevice,
+NvrhiShared::NvrhiShared(std::unique_ptr<VulkanSurface> vulkan, nvrhi::vulkan::DeviceHandle vulkanDevice,
                          nvrhi::DeviceHandle device)
-    : m_vulkan(std::move(vulkan)), m_vulkanDevice(std::move(vulkanDevice)), m_device(std::move(device)) {
-    m_context.device = m_device.Get();
-    m_context.commandList = m_device->createCommandList();
+    : vulkan(std::move(vulkan)), vulkanDevice(std::move(vulkanDevice)), device(std::move(device)) {
+}
+
+NvrhiShared::~NvrhiShared() {
+    device->waitForIdle();
+    // The swapchain's images are NVRHI textures, which must go before the device, and the device before Vulkan's.
+    vulkan->ReleaseSwapchain();
+    device = nullptr;
+    vulkanDevice = nullptr;
+    vulkan.reset();
+}
+
+NvrhiDevice::NvrhiDevice(std::shared_ptr<NvrhiShared> shared)
+    : m_shared(std::move(shared)), m_vulkan(m_shared->vulkan.get()), m_vulkanDevice(m_shared->vulkanDevice.Get()),
+      m_device(m_shared->device.Get()) {
+    m_context.device = m_device;
+    // Not immediate, so uploads can record into command lists of their own while the frame's is open.
+    m_context.commandList =
+        m_device->createCommandList(nvrhi::CommandListParameters().setEnableImmediateExecution(false));
     for (auto& query : m_frameQueries) {
         query = m_device->createEventQuery();
     }
@@ -89,46 +106,19 @@ NvrhiDevice::NvrhiDevice(std::unique_ptr<VulkanSurface> vulkan, nvrhi::vulkan::D
 
 NvrhiDevice::~NvrhiDevice() {
     m_device->waitForIdle();
-    m_context.commandList = nullptr;
+    m_context.Release();
     for (auto& query : m_frameQueries) {
         query = nullptr;
     }
-    // The swapchain's images are NVRHI textures, which must go before the device, and the device before Vulkan's.
-    m_vulkan->ReleaseSwapchain();
-    m_device = nullptr;
-    m_vulkanDevice = nullptr;
 }
 
 void NvrhiDevice::RunNow(const std::function<void(nvrhi::ICommandList&)>& record) {
-    const nvrhi::CommandListHandle commandList = m_device->createCommandList();
+    const nvrhi::CommandListHandle commandList =
+        m_device->createCommandList(nvrhi::CommandListParameters().setEnableImmediateExecution(false));
     commandList->open();
     record(*commandList);
     commandList->close();
     m_device->executeCommandList(commandList);
-}
-
-std::unique_ptr<Shader> NvrhiDevice::CreateShader(const ShaderDesc&) {
-    WarnUnsupported("shaders");
-    return nullptr;
-}
-
-std::unique_ptr<Pipeline> NvrhiDevice::CreatePipeline(const PipelineDesc&) {
-    WarnUnsupported("pipelines");
-    return nullptr;
-}
-
-std::unique_ptr<Buffer> NvrhiDevice::CreateBuffer(const BufferDesc&) {
-    WarnUnsupported("buffers");
-    return nullptr;
-}
-
-void NvrhiDevice::UploadToBuffer(Buffer&, std::span<const std::byte>, std::uint32_t, UploadMode) {
-    WarnUnsupported("buffer uploads");
-}
-
-std::unique_ptr<Sampler> NvrhiDevice::CreateSampler(const SamplerDesc&) {
-    WarnUnsupported("samplers");
-    return nullptr;
 }
 
 std::unique_ptr<Texture> NvrhiDevice::CreateTexture(const TextureDesc& desc) {
@@ -185,6 +175,7 @@ std::unique_ptr<Texture> NvrhiDevice::CreateTexture(const TextureDesc& desc) {
         return nullptr;
     }
     auto impl = std::make_unique<NvrhiTexture>();
+    impl->shared = m_shared;
     impl->handle = std::move(handle);
     impl->desc = desc;
     impl->mipLevels = mipLevels;
@@ -346,6 +337,7 @@ void NvrhiDevice::EndFrame() {
     if (presents) {
         m_vulkan->Present();
     }
+    m_context.FinishFrame();
     // Frees what was released once the GPU is done with it.
     m_device->runGarbageCollection();
     m_frameSlot = (m_frameSlot + 1) % FramesInFlight;

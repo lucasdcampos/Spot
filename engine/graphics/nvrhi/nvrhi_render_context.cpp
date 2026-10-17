@@ -3,74 +3,319 @@
 #include "core/assert.h"
 #include "core/log.h"
 
+#include <algorithm>
+#include <bit>
 #include <utility>
 
 namespace Spot::Detail {
 
 namespace {
 
-void WarnDrawUnsupported() {
-    static bool warned = false;
-    if (!std::exchange(warned, true)) {
-        Log::GetEngineLogger().Error("The Vulkan backend cannot draw yet");
+// Frames a binding set or framebuffer is kept after its last use: past every frame in flight that may still use it.
+constexpr std::uint64_t CacheFrames = 4;
+
+std::uint32_t GetLevelSize(std::uint32_t size, std::uint32_t mipLevel) {
+    return std::max(size >> mipLevel, 1u);
+}
+
+bool SameAttachment(const nvrhi::FramebufferAttachment& a, const nvrhi::FramebufferAttachment& b) {
+    return a.texture == b.texture && a.subresources == b.subresources;
+}
+
+bool SameFramebuffer(const nvrhi::FramebufferDesc& a, const nvrhi::FramebufferDesc& b) {
+    if (a.colorAttachments.size() != b.colorAttachments.size() || !SameAttachment(a.depthAttachment, b.depthAttachment)) {
+        return false;
     }
+    for (std::size_t i = 0; i < a.colorAttachments.size(); ++i) {
+        if (!SameAttachment(a.colorAttachments[i], b.colorAttachments[i])) {
+            return false;
+        }
+    }
+    return true;
 }
 
 // NVRHI has no render pass objects to begin: it records draws against a framebuffer, beginning and ending Vulkan's
-// passes itself. A pass here clears its targets when it begins and resolves them when it ends.
+// passes itself. A pass here clears its targets when it begins, gathers the state of its draws, and resolves its
+// target when it ends.
 class NvrhiPass final : public RenderPass::Impl {
 public:
-    NvrhiPass(NvrhiContext& context, const RenderPassDesc& desc) : m_context(context), m_desc(desc) {}
+    NvrhiPass(NvrhiContext& context, const RenderPassDesc& desc, nvrhi::IFramebuffer* framebuffer,
+              std::uint32_t width, std::uint32_t height)
+        : m_context(context), m_desc(desc), m_framebuffer(framebuffer) {
+        m_viewport = nvrhi::Viewport(static_cast<float>(width), static_cast<float>(height));
+        m_scissor = nvrhi::Rect(static_cast<int>(width), static_cast<int>(height));
+    }
 
     void End() override {
-        nvrhi::ICommandList& commandList = *m_context.commandList;
         if (m_desc.resolveTarget || m_desc.resolveToWindow) {
             nvrhi::ITexture* destination =
                 m_desc.resolveTarget ? GetNvrhiTexture(*m_desc.resolveTarget) : m_context.target;
-            commandList.resolveTexture(destination, nvrhi::AllSubresources, GetNvrhiTexture(*m_desc.target),
-                                       nvrhi::AllSubresources);
+            m_context.commandList->resolveTexture(destination, nvrhi::AllSubresources, GetNvrhiTexture(*m_desc.target),
+                                                  nvrhi::AllSubresources);
         }
         m_context.passOpen = false;
     }
 
-    void BindPipeline(const Pipeline&) override { WarnDrawUnsupported(); }
-    void SetViewport(const Viewport&) override {}
-    void SetScissor(const ScissorRect&) override {}
-    void BindVertexBuffer(std::uint32_t, const Buffer&, std::uint32_t) override {}
-    void BindIndexBuffer(const Buffer&, IndexType, std::uint32_t) override {}
-    void BindFragmentTexture(std::uint32_t, const Texture&, const Sampler&) override {}
-    void BindVertexStorageBuffer(std::uint32_t, const Buffer&) override {}
-    void BindFragmentStorageBuffer(std::uint32_t, const Buffer&) override {}
-    void PushVertexUniformData(std::uint32_t, const void*, std::uint32_t) override {}
-    void PushFragmentUniformData(std::uint32_t, const void*, std::uint32_t) override {}
-    void Draw(std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t) override { WarnDrawUnsupported(); }
-    void DrawIndexed(std::uint32_t, std::uint32_t, std::uint32_t, std::int32_t, std::uint32_t) override {
-        WarnDrawUnsupported();
+    void BindPipeline(const Pipeline& pipeline) override {
+        m_pipeline = &static_cast<const NvrhiPipeline&>(GraphicsAccess::GetImpl(pipeline));
     }
+
+    void SetViewport(const Viewport& viewport) override {
+        m_viewport = nvrhi::Viewport(viewport.x, viewport.x + viewport.width, viewport.y, viewport.y + viewport.height,
+                                     viewport.minDepth, viewport.maxDepth);
+    }
+
+    void SetScissor(const ScissorRect& rect) override {
+        m_scissor = nvrhi::Rect(rect.x, rect.x + rect.width, rect.y, rect.y + rect.height);
+    }
+
+    void BindVertexBuffer(std::uint32_t slot, const Buffer& buffer, std::uint32_t offset) override {
+        if (slot >= m_vertexBuffers.size()) {
+            m_vertexBuffers.resize(slot + 1);
+        }
+        m_vertexBuffers[slot] = {GetNvrhiBuffer(buffer), slot, offset};
+    }
+
+    void BindIndexBuffer(const Buffer& buffer, IndexType type, std::uint32_t offset) override {
+        m_indexBuffer = {GetNvrhiBuffer(buffer),
+                         type == IndexType::UInt16 ? nvrhi::Format::R16_UINT : nvrhi::Format::R32_UINT, offset};
+    }
+
+    void BindFragmentTexture(std::uint32_t slot, const Texture& texture, const Sampler& sampler) override {
+        SPOT_ASSERT(slot < MaxStageTextures, "Fragment texture slot {} is past the last one", slot);
+        m_context.stages[1].textures[slot] = GetNvrhiTexture(texture);
+        m_context.stages[1].samplers[slot] = GetNvrhiSampler(sampler);
+    }
+
+    void BindVertexStorageBuffer(std::uint32_t slot, const Buffer& buffer) override {
+        SPOT_ASSERT(slot < MaxStageStorageBuffers, "Storage buffer slot {} is past the last one", slot);
+        m_context.stages[0].storageBuffers[slot] = GetNvrhiBuffer(buffer);
+    }
+
+    void BindFragmentStorageBuffer(std::uint32_t slot, const Buffer& buffer) override {
+        SPOT_ASSERT(slot < MaxStageStorageBuffers, "Storage buffer slot {} is past the last one", slot);
+        m_context.stages[1].storageBuffers[slot] = GetNvrhiBuffer(buffer);
+    }
+
+    void PushVertexUniformData(std::uint32_t slot, const void* data, std::uint32_t size) override {
+        m_context.PushUniforms(0, slot, data, size);
+    }
+
+    void PushFragmentUniformData(std::uint32_t slot, const void* data, std::uint32_t size) override {
+        m_context.PushUniforms(1, slot, data, size);
+    }
+
+    void Draw(std::uint32_t vertexCount, std::uint32_t instanceCount, std::uint32_t firstVertex,
+              std::uint32_t firstInstance) override {
+        if (!SetState(false)) {
+            return;
+        }
+        nvrhi::DrawArguments arguments;
+        arguments.vertexCount = vertexCount;
+        arguments.instanceCount = instanceCount;
+        arguments.startVertexLocation = firstVertex;
+        arguments.startInstanceLocation = firstInstance;
+        m_context.commandList->draw(arguments);
+    }
+
+    void DrawIndexed(std::uint32_t indexCount, std::uint32_t instanceCount, std::uint32_t firstIndex,
+                     std::int32_t vertexOffset, std::uint32_t firstInstance) override {
+        if (!SetState(true)) {
+            return;
+        }
+        nvrhi::DrawArguments arguments;
+        arguments.vertexCount = indexCount;
+        arguments.instanceCount = instanceCount;
+        arguments.startIndexLocation = firstIndex;
+        arguments.startVertexLocation = static_cast<std::uint32_t>(vertexOffset);
+        arguments.startInstanceLocation = firstInstance;
+        m_context.commandList->drawIndexed(arguments);
+    }
+
     void* GetNativeHandle() const override { return m_context.commandList.Get(); }
 
 private:
+    // The binding set of a descriptor set of the pipeline, from what the stage has bound.
+    nvrhi::IBindingSet* MakeBindings(DescriptorSet set) {
+        const bool vertex = set == DescriptorSet::VertexResources || set == DescriptorSet::VertexUniforms;
+        const StageResources& resources = vertex ? m_pipeline->vertex : m_pipeline->fragment;
+        const NvrhiContext::StageBindings& bound = m_context.stages[vertex ? 0 : 1];
+        nvrhi::BindingSetDesc desc;
+        if (set == DescriptorSet::VertexUniforms || set == DescriptorSet::FragmentUniforms) {
+            for (std::uint32_t slot = 0; slot < resources.uniformBuffers; ++slot) {
+                if (!bound.uniforms[slot]) {
+                    Log::GetEngineLogger().Error("A draw reads uniforms at slot {} that were never pushed", slot);
+                    return nullptr;
+                }
+                desc.addItem(nvrhi::BindingSetItem::ConstantBuffer(slot, bound.uniforms[slot]));
+            }
+        } else {
+            for (std::uint32_t slot = 0; slot < resources.textures; ++slot) {
+                if (!bound.textures[slot] || !bound.samplers[slot]) {
+                    Log::GetEngineLogger().Error("A draw samples texture slot {}, which nothing is bound to", slot);
+                    return nullptr;
+                }
+                desc.addItem(nvrhi::BindingSetItem::Texture_SRV(slot, bound.textures[slot]));
+                desc.addItem(nvrhi::BindingSetItem::Sampler(slot, bound.samplers[slot]));
+            }
+            for (std::uint32_t slot = 0; slot < resources.storageBuffers; ++slot) {
+                if (!bound.storageBuffers[slot]) {
+                    Log::GetEngineLogger().Error("A draw reads storage buffer slot {}, which nothing is bound to", slot);
+                    return nullptr;
+                }
+                desc.addItem(nvrhi::BindingSetItem::StructuredBuffer_SRV(resources.textures + slot,
+                                                                          bound.storageBuffers[slot]));
+            }
+        }
+        return m_context.GetBindingSet(m_pipeline->layouts[static_cast<std::size_t>(set)], desc);
+    }
+
+    bool SetState(bool indexed) {
+        SPOT_ASSERT(m_pipeline, "Bind a pipeline before drawing");
+        if (!m_framebuffer) {
+            return false;
+        }
+        nvrhi::GraphicsState state;
+        state.pipeline = m_pipeline->handle;
+        state.framebuffer = m_framebuffer;
+        state.viewport.addViewport(m_viewport);
+        state.viewport.addScissorRect(m_scissor);
+        for (std::size_t set = 0; set < DescriptorSetCount; ++set) {
+            nvrhi::IBindingSet* bindings = MakeBindings(static_cast<DescriptorSet>(set));
+            if (!bindings) {
+                return false;
+            }
+            state.addBindingSet(bindings);
+        }
+        for (const nvrhi::VertexBufferBinding& binding : m_vertexBuffers) {
+            if (binding.buffer) {
+                state.addVertexBuffer(binding);
+            }
+        }
+        if (indexed) {
+            state.indexBuffer = m_indexBuffer;
+        }
+        m_context.commandList->setGraphicsState(state);
+        return true;
+    }
+
     NvrhiContext& m_context;
     RenderPassDesc m_desc;
+    nvrhi::IFramebuffer* m_framebuffer;
+    const NvrhiPipeline* m_pipeline = nullptr;
+    nvrhi::Viewport m_viewport;
+    nvrhi::Rect m_scissor;
+    std::vector<nvrhi::VertexBufferBinding> m_vertexBuffers;
+    nvrhi::IndexBufferBinding m_indexBuffer{nullptr, nvrhi::Format::R32_UINT, 0};
 };
 
 } // namespace
 
+std::size_t NvrhiContext::BindingSetKeyHash::operator()(const BindingSetKey& key) const {
+    std::size_t value = std::hash<nvrhi::BindingSetDesc>()(key.desc);
+    nvrhi::hash_combine(value, key.layout);
+    return value;
+}
+
+void NvrhiContext::PushUniforms(std::size_t stage, std::uint32_t slot, const void* data, std::uint32_t size) {
+    SPOT_ASSERT(slot < MaxStageUniforms, "Uniform slot {} is past the last one", slot);
+    nvrhi::BufferHandle& buffer = stages[stage].uniforms[slot];
+    if (!buffer || buffer->getDesc().byteSize < size) {
+        // Sized to a power of two, so uniforms that grow seldom need a new buffer; a version of it is taken by each
+        // push, from a ring of about two megabytes.
+        const std::uint64_t byteSize = std::max<std::uint64_t>(std::bit_ceil(static_cast<std::uint64_t>(size)), 256);
+        nvrhi::BufferDesc desc;
+        desc.byteSize = byteSize;
+        desc.isConstantBuffer = true;
+        desc.isVolatile = true;
+        desc.maxVersions = static_cast<std::uint32_t>(std::clamp<std::uint64_t>((2u << 20) / byteSize, 64, 16384));
+        desc.debugName = stage == 0 ? "Vertex uniforms" : "Fragment uniforms";
+        buffer = device->createBuffer(desc);
+    }
+    commandList->writeBuffer(buffer, data, size);
+}
+
+nvrhi::IBindingSet* NvrhiContext::GetBindingSet(nvrhi::IBindingLayout* layout, const nvrhi::BindingSetDesc& desc) {
+    BindingSetKey key{layout, desc};
+    auto found = m_bindingSets.find(key);
+    if (found == m_bindingSets.end()) {
+        nvrhi::BindingSetHandle handle = device->createBindingSet(desc, layout);
+        if (!handle) {
+            Log::GetEngineLogger().Error("Failed to create a binding set");
+            return nullptr;
+        }
+        found = m_bindingSets.emplace(std::move(key), CachedBindingSet{std::move(handle), m_frame}).first;
+    }
+    found->second.lastUsed = m_frame;
+    return found->second.handle;
+}
+
+nvrhi::IFramebuffer* NvrhiContext::GetFramebuffer(const nvrhi::FramebufferDesc& desc) {
+    for (auto& [cachedDesc, cached] : m_framebuffers) {
+        if (SameFramebuffer(cachedDesc, desc)) {
+            cached.lastUsed = m_frame;
+            return cached.handle;
+        }
+    }
+    nvrhi::FramebufferHandle handle = device->createFramebuffer(desc);
+    if (!handle) {
+        Log::GetEngineLogger().Error("Failed to create a framebuffer");
+        return nullptr;
+    }
+    m_framebuffers.emplace_back(desc, CachedFramebuffer{handle, m_frame});
+    return handle;
+}
+
+void NvrhiContext::FinishFrame() {
+    std::erase_if(m_bindingSets, [this](const auto& entry) { return entry.second.lastUsed + CacheFrames < m_frame; });
+    std::erase_if(m_framebuffers, [this](const auto& entry) { return entry.second.lastUsed + CacheFrames < m_frame; });
+    // Pushed uniforms only last for the frame they were written in.
+    for (StageBindings& stage : stages) {
+        stage = {.uniforms = stage.uniforms};
+    }
+    ++m_frame;
+}
+
+void NvrhiContext::Release() {
+    m_bindingSets.clear();
+    m_framebuffers.clear();
+    stages = {};
+    commandList = nullptr;
+}
+
 std::unique_ptr<RenderPass::Impl> NvrhiContext::BeginRenderPass(const RenderPassDesc& desc) {
     SPOT_ASSERT(!passOpen, "Only one render pass can be open at a time");
     SPOT_ASSERT(frameOpen, "Render passes need an open frame");
-    if (!desc.depthOnly && desc.clearColor) {
+    nvrhi::FramebufferDesc framebuffer;
+    std::uint32_t passWidth = width;
+    std::uint32_t passHeight = height;
+    if (!desc.depthOnly) {
         nvrhi::ITexture* color = desc.target ? GetNvrhiTexture(*desc.target) : target;
-        const Color& clear = *desc.clearColor;
-        commandList->clearTextureFloat(color, nvrhi::TextureSubresourceSet(desc.targetMipLevel, 1, desc.targetLayer, 1),
-                                       nvrhi::Color(clear.r, clear.g, clear.b, clear.a));
+        const nvrhi::TextureSubresourceSet subresources(desc.targetMipLevel, 1, desc.targetLayer, 1);
+        if (desc.clearColor) {
+            const Color& clear = *desc.clearColor;
+            commandList->clearTextureFloat(color, subresources, nvrhi::Color(clear.r, clear.g, clear.b, clear.a));
+        }
+        framebuffer.addColorAttachment(color, subresources);
+        if (desc.target) {
+            passWidth = GetLevelSize(desc.target->GetWidth(), desc.targetMipLevel);
+            passHeight = GetLevelSize(desc.target->GetHeight(), desc.targetMipLevel);
+        }
     }
-    if (desc.depthTarget && desc.clearDepth) {
-        commandList->clearDepthStencilTexture(GetNvrhiTexture(*desc.depthTarget), nvrhi::AllSubresources, true,
-                                              *desc.clearDepth, false, 0);
+    if (desc.depthTarget) {
+        nvrhi::ITexture* depth = GetNvrhiTexture(*desc.depthTarget);
+        if (desc.clearDepth) {
+            commandList->clearDepthStencilTexture(depth, nvrhi::AllSubresources, true, *desc.clearDepth, false, 0);
+        }
+        framebuffer.setDepthAttachment(depth);
+        if (desc.depthOnly) {
+            passWidth = desc.depthTarget->GetWidth();
+            passHeight = desc.depthTarget->GetHeight();
+        }
     }
+    nvrhi::IFramebuffer* native = GetFramebuffer(framebuffer);
     passOpen = true;
-    return std::make_unique<NvrhiPass>(*this, desc);
+    return std::make_unique<NvrhiPass>(*this, desc, native, passWidth, passHeight);
 }
 
 bool NvrhiContext::SetFrameTarget(Texture* frameTarget) {

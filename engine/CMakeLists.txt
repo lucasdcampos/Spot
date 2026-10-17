@@ -481,6 +481,7 @@ if(NOT APPLE)
         graphics/nvrhi/nvrhi_device.cpp
         graphics/nvrhi/nvrhi_internal.h
         graphics/nvrhi/nvrhi_render_context.cpp
+        graphics/nvrhi/nvrhi_resources.cpp
         graphics/nvrhi/nvrhi_vulkan.cpp
         graphics/nvrhi/nvrhi_vulkan.h
     )
