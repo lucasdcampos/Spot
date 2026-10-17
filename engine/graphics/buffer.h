@@ -5,6 +5,10 @@
 
 namespace Spot {
 
+namespace Detail {
+struct GraphicsAccess;
+} // namespace Detail
+
 enum class BufferUsage {
     Vertex,
     Index,
@@ -49,10 +53,11 @@ public:
     // The backend's buffer (an SDL_GPUBuffer* with SDL_GPU), for code that needs the backend directly.
     void* GetNativeHandle() const;
 
-private:
-    friend class GraphicsDevice;
-
+    // Backend-internal: what a graphics backend derives its implementation from (see graphics/graphics_backend.h).
     struct Impl;
+
+private:
+    friend struct Detail::GraphicsAccess;
 
     explicit Buffer(std::unique_ptr<Impl> impl);
 

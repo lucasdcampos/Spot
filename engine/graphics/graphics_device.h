@@ -124,12 +124,14 @@ public:
     // The backend's device (an SDL_GPUDevice* with SDL_GPU), for code that needs the backend directly.
     void* GetNativeHandle() const;
 
-private:
+    // Backend-internal: what a graphics backend derives its implementation from (see graphics/graphics_backend.h).
     struct Impl;
 
+private:
     explicit GraphicsDevice(std::unique_ptr<Impl> impl);
 
     std::unique_ptr<Impl> m_impl;
+    std::unique_ptr<RenderContext> m_context;
 };
 
 } // namespace Spot

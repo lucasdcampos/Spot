@@ -6,6 +6,10 @@
 
 namespace Spot {
 
+namespace Detail {
+struct GraphicsAccess;
+} // namespace Detail
+
 enum class TextureFormat {
     // 8 bits per channel, in memory order, holding the values shaders read and write as they are.
     Rgba8,
@@ -95,10 +99,11 @@ public:
     // The backend's texture (an SDL_GPUTexture* with SDL_GPU), for code that needs the backend directly.
     void* GetNativeHandle() const;
 
-private:
-    friend class GraphicsDevice;
-
+    // Backend-internal: what a graphics backend derives its implementation from (see graphics/graphics_backend.h).
     struct Impl;
+
+private:
+    friend struct Detail::GraphicsAccess;
 
     explicit Texture(std::unique_ptr<Impl> impl);
 
@@ -152,10 +157,11 @@ public:
     // The backend's sampler (an SDL_GPUSampler* with SDL_GPU), for code that needs the backend directly.
     void* GetNativeHandle() const;
 
-private:
-    friend class GraphicsDevice;
-
+    // Backend-internal: what a graphics backend derives its implementation from (see graphics/graphics_backend.h).
     struct Impl;
+
+private:
+    friend struct Detail::GraphicsAccess;
 
     explicit Sampler(std::unique_ptr<Impl> impl);
 

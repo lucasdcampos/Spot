@@ -1,5 +1,3 @@
-#include "graphics/render_context.h"
-
 #include "core/assert.h"
 #include "core/log.h"
 #include "graphics/sdl_gpu/sdl_gpu_internal.h"
@@ -7,183 +5,130 @@
 #include <algorithm>
 #include <cstdint>
 
-namespace Spot {
+namespace Spot::Detail {
 
-RenderPass::RenderPass(RenderContext& context, void* native) : m_context(&context), m_native(native) {
-}
+namespace {
 
-RenderPass::~RenderPass() {
-    End();
-}
+class SdlGpuPass final : public RenderPass::Impl {
+public:
+    SdlGpuPass(SdlGpuContext& context, SDL_GPURenderPass* pass) : m_context(context), m_pass(pass) {}
 
-void RenderPass::End() {
-    if (!m_native) {
-        return;
+    void End() override {
+        SDL_EndGPURenderPass(m_pass);
+        m_context.passOpen = false;
     }
 
-    SDL_EndGPURenderPass(static_cast<SDL_GPURenderPass*>(m_native));
-    m_native = nullptr;
-    m_context->m_impl->passOpen = false;
-}
+    void BindPipeline(const Pipeline& pipeline) override {
+        SDL_BindGPUGraphicsPipeline(m_pass, static_cast<SDL_GPUGraphicsPipeline*>(pipeline.GetNativeHandle()));
+    }
 
-void RenderPass::BindPipeline(const Pipeline& pipeline) {
-    SPOT_ASSERT(m_native, "The render pass has ended");
-    SDL_BindGPUGraphicsPipeline(static_cast<SDL_GPURenderPass*>(m_native),
-                                static_cast<SDL_GPUGraphicsPipeline*>(pipeline.GetNativeHandle()));
-    m_pipelineBound = true;
-}
+    void SetViewport(const Viewport& viewport) override {
+        const SDL_GPUViewport native{viewport.x,      viewport.y,        viewport.width,
+                                     viewport.height, viewport.minDepth, viewport.maxDepth};
+        SDL_SetGPUViewport(m_pass, &native);
+    }
 
-void RenderPass::SetViewport(const Viewport& viewport) {
-    SPOT_ASSERT(m_native, "The render pass has ended");
-    const SDL_GPUViewport native{viewport.x,      viewport.y,        viewport.width,
-                                 viewport.height, viewport.minDepth, viewport.maxDepth};
-    SDL_SetGPUViewport(static_cast<SDL_GPURenderPass*>(m_native), &native);
-}
+    void SetScissor(const ScissorRect& rect) override {
+        const SDL_Rect native{rect.x, rect.y, rect.width, rect.height};
+        SDL_SetGPUScissor(m_pass, &native);
+    }
 
-void RenderPass::SetScissor(const ScissorRect& rect) {
-    SPOT_ASSERT(m_native, "The render pass has ended");
-    SPOT_ASSERT(rect.width >= 0 && rect.height >= 0, "Scissor rectangles cannot have a negative size");
-    const SDL_Rect native{rect.x, rect.y, rect.width, rect.height};
-    SDL_SetGPUScissor(static_cast<SDL_GPURenderPass*>(m_native), &native);
-}
+    void BindVertexBuffer(std::uint32_t slot, const Buffer& buffer, std::uint32_t offset) override {
+        SDL_GPUBufferBinding binding{};
+        binding.buffer = GetSdlBuffer(buffer);
+        binding.offset = offset;
+        SDL_BindGPUVertexBuffers(m_pass, slot, &binding, 1);
+    }
 
-void RenderPass::BindVertexBuffer(std::uint32_t slot, const Buffer& buffer, std::uint32_t offset) {
-    SPOT_ASSERT(m_native, "The render pass has ended");
-    SPOT_ASSERT(buffer.GetUsage() == BufferUsage::Vertex, "Only vertex buffers can be bound as vertex buffers");
-    SDL_GPUBufferBinding binding{};
-    binding.buffer = static_cast<SDL_GPUBuffer*>(buffer.GetNativeHandle());
-    binding.offset = offset;
-    SDL_BindGPUVertexBuffers(static_cast<SDL_GPURenderPass*>(m_native), slot, &binding, 1);
-}
+    void BindIndexBuffer(const Buffer& buffer, IndexType type, std::uint32_t offset) override {
+        SDL_GPUBufferBinding binding{};
+        binding.buffer = GetSdlBuffer(buffer);
+        binding.offset = offset;
+        SDL_BindGPUIndexBuffer(m_pass, &binding,
+                               type == IndexType::UInt16 ? SDL_GPU_INDEXELEMENTSIZE_16BIT
+                                                         : SDL_GPU_INDEXELEMENTSIZE_32BIT);
+    }
 
-void RenderPass::BindIndexBuffer(const Buffer& buffer, IndexType type, std::uint32_t offset) {
-    SPOT_ASSERT(m_native, "The render pass has ended");
-    SPOT_ASSERT(buffer.GetUsage() == BufferUsage::Index, "Only index buffers can be bound as index buffers");
-    SDL_GPUBufferBinding binding{};
-    binding.buffer = static_cast<SDL_GPUBuffer*>(buffer.GetNativeHandle());
-    binding.offset = offset;
-    SDL_BindGPUIndexBuffer(static_cast<SDL_GPURenderPass*>(m_native), &binding,
-                           type == IndexType::UInt16 ? SDL_GPU_INDEXELEMENTSIZE_16BIT : SDL_GPU_INDEXELEMENTSIZE_32BIT);
-}
+    void BindFragmentTexture(std::uint32_t slot, const Texture& texture, const Sampler& sampler) override {
+        SDL_GPUTextureSamplerBinding binding{};
+        binding.texture = GetSdlTexture(texture);
+        binding.sampler = static_cast<SDL_GPUSampler*>(sampler.GetNativeHandle());
+        SDL_BindGPUFragmentSamplers(m_pass, slot, &binding, 1);
+    }
 
-void RenderPass::BindFragmentTexture(std::uint32_t slot, const Texture& texture, const Sampler& sampler) {
-    SPOT_ASSERT(m_native, "The render pass has ended");
-    SDL_GPUTextureSamplerBinding binding{};
-    binding.texture = static_cast<SDL_GPUTexture*>(texture.GetNativeHandle());
-    binding.sampler = static_cast<SDL_GPUSampler*>(sampler.GetNativeHandle());
-    SDL_BindGPUFragmentSamplers(static_cast<SDL_GPURenderPass*>(m_native), slot, &binding, 1);
-}
+    void BindVertexStorageBuffer(std::uint32_t slot, const Buffer& buffer) override {
+        auto* handle = GetSdlBuffer(buffer);
+        SDL_BindGPUVertexStorageBuffers(m_pass, slot, &handle, 1);
+    }
 
-void RenderPass::BindVertexStorageBuffer(std::uint32_t slot, const Buffer& buffer) {
-    SPOT_ASSERT(m_native, "The render pass has ended");
-    SPOT_ASSERT(buffer.GetUsage() == BufferUsage::Storage, "Only storage buffers can be bound as storage buffers");
-    auto* handle = static_cast<SDL_GPUBuffer*>(buffer.GetNativeHandle());
-    SDL_BindGPUVertexStorageBuffers(static_cast<SDL_GPURenderPass*>(m_native), slot, &handle, 1);
-}
+    void BindFragmentStorageBuffer(std::uint32_t slot, const Buffer& buffer) override {
+        auto* handle = GetSdlBuffer(buffer);
+        SDL_BindGPUFragmentStorageBuffers(m_pass, slot, &handle, 1);
+    }
 
-void RenderPass::BindFragmentStorageBuffer(std::uint32_t slot, const Buffer& buffer) {
-    SPOT_ASSERT(m_native, "The render pass has ended");
-    SPOT_ASSERT(buffer.GetUsage() == BufferUsage::Storage, "Only storage buffers can be bound as storage buffers");
-    auto* handle = static_cast<SDL_GPUBuffer*>(buffer.GetNativeHandle());
-    SDL_BindGPUFragmentStorageBuffers(static_cast<SDL_GPURenderPass*>(m_native), slot, &handle, 1);
-}
+    void PushVertexUniformData(std::uint32_t slot, const void* data, std::uint32_t size) override {
+        SDL_PushGPUVertexUniformData(m_context.commandBuffer, slot, data, size);
+    }
 
-void RenderPass::PushVertexUniformData(std::uint32_t slot, const void* data, std::uint32_t size) {
-    SDL_PushGPUVertexUniformData(m_context->m_impl->commandBuffer, slot, data, size);
-}
+    void PushFragmentUniformData(std::uint32_t slot, const void* data, std::uint32_t size) override {
+        SDL_PushGPUFragmentUniformData(m_context.commandBuffer, slot, data, size);
+    }
 
-void RenderPass::PushFragmentUniformData(std::uint32_t slot, const void* data, std::uint32_t size) {
-    SDL_PushGPUFragmentUniformData(m_context->m_impl->commandBuffer, slot, data, size);
-}
+    void Draw(std::uint32_t vertexCount, std::uint32_t instanceCount, std::uint32_t firstVertex,
+              std::uint32_t firstInstance) override {
+        SDL_DrawGPUPrimitives(m_pass, vertexCount, instanceCount, firstVertex, firstInstance);
+    }
 
-void RenderPass::Draw(std::uint32_t vertexCount, std::uint32_t instanceCount, std::uint32_t firstVertex,
-                      std::uint32_t firstInstance) {
-    SPOT_ASSERT(m_native, "The render pass has ended");
-    SPOT_ASSERT(m_pipelineBound, "Bind a pipeline before drawing");
-    SDL_DrawGPUPrimitives(static_cast<SDL_GPURenderPass*>(m_native), vertexCount, instanceCount, firstVertex,
-                          firstInstance);
-}
+    void DrawIndexed(std::uint32_t indexCount, std::uint32_t instanceCount, std::uint32_t firstIndex,
+                     std::int32_t vertexOffset, std::uint32_t firstInstance) override {
+        SDL_DrawGPUIndexedPrimitives(m_pass, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+    }
 
-void RenderPass::DrawIndexed(std::uint32_t indexCount, std::uint32_t instanceCount, std::uint32_t firstIndex,
-                             std::int32_t vertexOffset, std::uint32_t firstInstance) {
-    SPOT_ASSERT(m_native, "The render pass has ended");
-    SPOT_ASSERT(m_pipelineBound, "Bind a pipeline before drawing");
-    SDL_DrawGPUIndexedPrimitives(static_cast<SDL_GPURenderPass*>(m_native), indexCount, instanceCount, firstIndex,
-                                 vertexOffset, firstInstance);
-}
+    void* GetNativeHandle() const override { return m_pass; }
 
-RenderContext::RenderContext() : m_impl(std::make_unique<Impl>()) {
-}
+private:
+    SdlGpuContext& m_context;
+    SDL_GPURenderPass* m_pass;
+};
 
-RenderContext::~RenderContext() = default;
+} // namespace
 
-int RenderContext::GetWidth() const {
-    return static_cast<int>(m_impl->width);
-}
+std::unique_ptr<RenderPass::Impl> SdlGpuContext::BeginRenderPass(const RenderPassDesc& desc) {
+    SPOT_ASSERT(!passOpen, "Only one render pass can be open at a time");
 
-int RenderContext::GetHeight() const {
-    return static_cast<int>(m_impl->height);
-}
-
-RenderPass RenderContext::BeginRenderPass(const RenderPassDesc& desc) {
-    SPOT_ASSERT(!m_impl->passOpen, "Only one render pass can be open at a time");
-
-    SPOT_ASSERT(!desc.depthOnly || (desc.depthTarget && !desc.target && !desc.clearColor && !desc.resolveTarget &&
-                                    !desc.resolveToWindow),
-                "Depth-only passes need a depth target and nothing to draw colors into");
-    SPOT_ASSERT(!desc.target || desc.target->IsRenderTarget(), "Render pass targets must be created as render targets");
-    SPOT_ASSERT(!desc.target || !IsDepthFormat(desc.target->GetFormat()),
-                "Depth textures go in RenderPassDesc::depthTarget");
-
-    SPOT_ASSERT((desc.targetLayer == 0 && desc.targetMipLevel == 0) ||
-                    (desc.target && desc.targetLayer < desc.target->GetLayerCount() &&
-                     desc.targetMipLevel < desc.target->GetMipLevelCount()),
-                "The pass's target has no layer {} or mip level {}", desc.targetLayer, desc.targetMipLevel);
-    SDL_GPUColorTargetInfo target{};
-    target.texture = desc.target ? static_cast<SDL_GPUTexture*>(desc.target->GetNativeHandle()) : m_impl->target;
-    target.layer_or_depth_plane = desc.targetLayer;
-    target.mip_level = desc.targetMipLevel;
-    target.store_op = SDL_GPU_STOREOP_STORE;
+    SDL_GPUColorTargetInfo colorTarget{};
+    colorTarget.texture = desc.target ? GetSdlTexture(*desc.target) : target;
+    colorTarget.layer_or_depth_plane = desc.targetLayer;
+    colorTarget.mip_level = desc.targetMipLevel;
+    colorTarget.store_op = SDL_GPU_STOREOP_STORE;
     if (desc.clearColor) {
-        target.load_op = SDL_GPU_LOADOP_CLEAR;
-        target.clear_color = {desc.clearColor->r, desc.clearColor->g, desc.clearColor->b, desc.clearColor->a};
+        colorTarget.load_op = SDL_GPU_LOADOP_CLEAR;
+        colorTarget.clear_color = {desc.clearColor->r, desc.clearColor->g, desc.clearColor->b, desc.clearColor->a};
     } else {
-        target.load_op = SDL_GPU_LOADOP_LOAD;
+        colorTarget.load_op = SDL_GPU_LOADOP_LOAD;
     }
 
-    const bool resolves = desc.resolveTarget || desc.resolveToWindow;
-    SPOT_ASSERT(!(desc.resolveTarget && desc.resolveToWindow), "A pass resolves into one texture or the window");
-    SPOT_ASSERT(resolves == (desc.target && desc.target->GetSampleCount() > 1),
-                "Multisampled targets must be resolved, and only they can be");
     if (desc.resolveTarget) {
-        SPOT_ASSERT(desc.resolveTarget->IsRenderTarget() && desc.resolveTarget->GetSampleCount() == 1,
-                    "Resolve targets must be single-sample render targets");
-        SPOT_ASSERT(desc.resolveTarget->GetFormat() == desc.target->GetFormat() &&
-                        desc.resolveTarget->GetWidth() == desc.target->GetWidth() &&
-                        desc.resolveTarget->GetHeight() == desc.target->GetHeight(),
-                    "Resolve targets must have the size and format of the target");
-        target.resolve_texture = static_cast<SDL_GPUTexture*>(desc.resolveTarget->GetNativeHandle());
+        colorTarget.resolve_texture = GetSdlTexture(*desc.resolveTarget);
     } else if (desc.resolveToWindow) {
-        SPOT_ASSERT(desc.target->GetWidth() == m_impl->width && desc.target->GetHeight() == m_impl->height,
+        SPOT_ASSERT(desc.target->GetWidth() == width && desc.target->GetHeight() == height,
                     "Targets resolved into the window must be the size of its frame");
-        target.resolve_texture = m_impl->target;
+        colorTarget.resolve_texture = target;
     }
-    if (resolves) {
-        target.store_op = desc.keepSamples ? SDL_GPU_STOREOP_RESOLVE_AND_STORE : SDL_GPU_STOREOP_RESOLVE;
+    if (desc.resolveTarget || desc.resolveToWindow) {
+        colorTarget.store_op = desc.keepSamples ? SDL_GPU_STOREOP_RESOLVE_AND_STORE : SDL_GPU_STOREOP_RESOLVE;
     }
 
     SDL_GPUDepthStencilTargetInfo depth{};
     if (desc.depthTarget) {
-        SPOT_ASSERT(desc.depthTarget->IsRenderTarget() && IsDepthFormat(desc.depthTarget->GetFormat()),
-                    "Depth targets must be depth textures created as render targets");
         SPOT_ASSERT(desc.depthOnly || (desc.depthTarget->GetWidth() ==
                                            (desc.target ? std::max(desc.target->GetWidth() >> desc.targetMipLevel, 1u)
-                                                        : static_cast<std::uint32_t>(m_impl->width)) &&
+                                                        : static_cast<std::uint32_t>(width)) &&
                                        desc.depthTarget->GetHeight() ==
                                            (desc.target ? std::max(desc.target->GetHeight() >> desc.targetMipLevel, 1u)
-                                                        : static_cast<std::uint32_t>(m_impl->height))),
+                                                        : static_cast<std::uint32_t>(height))),
                     "The depth target must be the size of the target");
-        depth.texture = static_cast<SDL_GPUTexture*>(desc.depthTarget->GetNativeHandle());
+        depth.texture = GetSdlTexture(*desc.depthTarget);
         depth.load_op = desc.clearDepth ? SDL_GPU_LOADOP_CLEAR : SDL_GPU_LOADOP_LOAD;
         depth.clear_depth = desc.clearDepth.value_or(1.0f);
         depth.store_op = SDL_GPU_STOREOP_STORE;
@@ -191,59 +136,55 @@ RenderPass RenderContext::BeginRenderPass(const RenderPassDesc& desc) {
         depth.stencil_store_op = SDL_GPU_STOREOP_DONT_CARE;
     }
 
-    SDL_GPURenderPass* pass = SDL_BeginGPURenderPass(m_impl->commandBuffer, desc.depthOnly ? nullptr : &target,
+    SDL_GPURenderPass* pass = SDL_BeginGPURenderPass(commandBuffer, desc.depthOnly ? nullptr : &colorTarget,
                                                      desc.depthOnly ? 0 : 1, desc.depthTarget ? &depth : nullptr);
     if (!pass) {
         Log::GetEngineLogger().Error("Failed to begin render pass: {}", SDL_GetError());
+        return nullptr;
     }
-    m_impl->passOpen = pass != nullptr;
-    return RenderPass(*this, pass);
+    passOpen = true;
+    return std::make_unique<SdlGpuPass>(*this, pass);
 }
 
-void RenderContext::GenerateMipmaps(Texture& texture) {
-    SPOT_ASSERT(!m_impl->passOpen, "Mipmaps cannot be generated during a render pass");
+void SdlGpuContext::GenerateMipmaps(Texture& texture) {
+    SPOT_ASSERT(!passOpen, "Mipmaps cannot be generated during a render pass");
     if (texture.GetMipLevelCount() > 1) {
-        SDL_GenerateMipmapsForGPUTexture(m_impl->commandBuffer,
-                                         static_cast<SDL_GPUTexture*>(texture.GetNativeHandle()));
+        SDL_GenerateMipmapsForGPUTexture(commandBuffer, GetSdlTexture(texture));
     }
 }
 
-bool RenderContext::SetFrameTarget(Texture* target) {
-    if (m_impl->passOpen || !m_impl->commandBuffer || !m_impl->acquiredTarget) {
+bool SdlGpuContext::SetFrameTarget(Texture* frameTarget) {
+    if (passOpen || !commandBuffer || !acquiredTarget) {
         return false;
     }
-    if (target && (!target->IsRenderTarget() || target->GetSampleCount() != 1 || target->GetLayerCount() != 1 ||
-                   target->GetFormat() != m_impl->format || target->GetWidth() != m_impl->width ||
-                   target->GetHeight() != m_impl->height)) {
+    if (frameTarget && (!frameTarget->IsRenderTarget() || frameTarget->GetSampleCount() != 1 ||
+                        frameTarget->GetLayerCount() != 1 || frameTarget->GetFormat() != format ||
+                        frameTarget->GetWidth() != width || frameTarget->GetHeight() != height)) {
         Log::GetEngineLogger().Warning("Frame targets must match the acquired frame's size and format");
         return false;
     }
-    m_impl->target = target ? static_cast<SDL_GPUTexture*>(target->GetNativeHandle()) : m_impl->acquiredTarget;
+    target = frameTarget ? GetSdlTexture(*frameTarget) : acquiredTarget;
     return true;
 }
 
-bool RenderContext::BlitTextureToFrame(const Texture& source) {
-    auto* texture = static_cast<SDL_GPUTexture*>(source.GetNativeHandle());
-    if (m_impl->passOpen || !m_impl->commandBuffer || !m_impl->target || texture == m_impl->target ||
-        source.GetSampleCount() != 1 || source.GetLayerCount() != 1 || source.GetFormat() != m_impl->format ||
-        source.GetWidth() != m_impl->width || source.GetHeight() != m_impl->height) {
+bool SdlGpuContext::BlitTextureToFrame(const Texture& source) {
+    auto* texture = GetSdlTexture(source);
+    if (passOpen || !commandBuffer || !target || texture == target || source.GetSampleCount() != 1 ||
+        source.GetLayerCount() != 1 || source.GetFormat() != format || source.GetWidth() != width ||
+        source.GetHeight() != height) {
         return false;
     }
     SDL_GPUBlitInfo blit{};
     blit.source.texture = texture;
-    blit.source.w = m_impl->width;
-    blit.source.h = m_impl->height;
-    blit.destination.texture = m_impl->target;
-    blit.destination.w = m_impl->width;
-    blit.destination.h = m_impl->height;
+    blit.source.w = width;
+    blit.source.h = height;
+    blit.destination.texture = target;
+    blit.destination.w = width;
+    blit.destination.h = height;
     blit.load_op = SDL_GPU_LOADOP_DONT_CARE;
     blit.filter = SDL_GPU_FILTER_NEAREST;
-    SDL_BlitGPUTexture(m_impl->commandBuffer, &blit);
+    SDL_BlitGPUTexture(commandBuffer, &blit);
     return true;
 }
 
-void* RenderContext::GetNativeHandle() const {
-    return m_impl->commandBuffer;
-}
-
-} // namespace Spot
+} // namespace Spot::Detail

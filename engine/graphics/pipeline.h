@@ -9,6 +9,10 @@
 
 namespace Spot {
 
+namespace Detail {
+struct GraphicsAccess;
+} // namespace Detail
+
 class Shader;
 
 enum class PrimitiveType {
@@ -123,10 +127,11 @@ public:
     // The backend's pipeline (an SDL_GPUGraphicsPipeline* with SDL_GPU), for code that needs the backend directly.
     void* GetNativeHandle() const;
 
-private:
-    friend class GraphicsDevice;
-
+    // Backend-internal: what a graphics backend derives its implementation from (see graphics/graphics_backend.h).
     struct Impl;
+
+private:
+    friend struct Detail::GraphicsAccess;
 
     explicit Pipeline(std::unique_ptr<Impl> impl);
 

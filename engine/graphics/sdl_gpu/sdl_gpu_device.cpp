@@ -1,5 +1,3 @@
-#include "graphics/graphics_device.h"
-
 #include "core/assert.h"
 #include "core/log.h"
 #include "graphics/sdl_gpu/sdl_gpu_internal.h"
@@ -11,7 +9,7 @@
 #include <optional>
 #include <utility>
 
-namespace Spot {
+namespace Spot::Detail {
 
 namespace {
 
@@ -58,19 +56,18 @@ SharedGpuDevice::~SharedGpuDevice() {
     Platform::Shutdown();
 }
 
-GraphicsDevice::Impl::Impl(std::shared_ptr<SharedGpuDevice> device, SDL_Window* window,
-                           std::unique_ptr<RenderContext> context)
-    : device(std::move(device)), window(window), context(std::move(context)) {
+SdlGpuDevice::SdlGpuDevice(std::shared_ptr<SharedGpuDevice> device, SDL_Window* window)
+    : shared(std::move(device)), window(window) {
 }
 
-GraphicsDevice::Impl::~Impl() {
-    SDL_WaitForGPUIdle(device->Get());
+SdlGpuDevice::~SdlGpuDevice() {
+    SDL_WaitForGPUIdle(shared->Get());
     if (window) {
-        SDL_ReleaseWindowFromGPUDevice(device->Get(), window);
+        SDL_ReleaseWindowFromGPUDevice(shared->Get(), window);
     }
 }
 
-bool GraphicsDevice::IsSupported() {
+bool IsSdlGpuSupported() {
     // Probing a backend loads its driver, which needs the video subsystem running.
     if (!Platform::Initialize()) {
         return false;
@@ -80,9 +77,27 @@ bool GraphicsDevice::IsSupported() {
     return supported;
 }
 
-std::unique_ptr<GraphicsDevice> GraphicsDevice::Create(Window& window, const GraphicsConfig& config) {
-    auto* sdlWindow = static_cast<SDL_Window*>(window.GetNativeHandle());
+std::unique_ptr<GraphicsDevice::Impl> CreateSdlGpuDevice(Window* window, const GraphicsConfig& config) {
+    if (!window) {
+        if (!Platform::Initialize()) {
+            return nullptr;
+        }
+        SDL_GPUDevice* handle = CreateDevice(config.debug);
+        if (!handle) {
+            Log::GetEngineLogger().Error("Failed to create an offscreen GPU device: {}", SDL_GetError());
+            Platform::Shutdown();
+            return nullptr;
+        }
+        auto device = std::make_shared<SharedGpuDevice>(handle);
+        Platform::Shutdown();
+        auto impl = std::make_unique<SdlGpuDevice>(std::move(device), nullptr);
+        impl->vsync = false;
+        impl->composition =
+            config.linearWindow ? SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR : SDL_GPU_SWAPCHAINCOMPOSITION_SDR;
+        return impl;
+    }
 
+    auto* sdlWindow = static_cast<SDL_Window*>(window->GetNativeHandle());
     SDL_GPUDevice* handle = CreateDevice(config.debug);
     if (!handle) {
         Log::GetEngineLogger().Error("Failed to create GPU device: {}", SDL_GetError());
@@ -95,8 +110,7 @@ std::unique_ptr<GraphicsDevice> GraphicsDevice::Create(Window& window, const Gra
         return nullptr;
     }
 
-    auto context = std::unique_ptr<RenderContext>(new RenderContext());
-    auto impl = std::make_unique<Impl>(std::move(device), sdlWindow, std::move(context));
+    auto impl = std::make_unique<SdlGpuDevice>(std::move(device), sdlWindow);
     // Rendering is linear, so the window's frames encode what shaders write as sRGB for display.
     if (!config.linearWindow) {
         impl->composition = SDL_GPU_SWAPCHAINCOMPOSITION_SDR;
@@ -105,59 +119,31 @@ std::unique_ptr<GraphicsDevice> GraphicsDevice::Create(Window& window, const Gra
     } else {
         Log::GetEngineLogger().Warning("This GPU cannot show linear colors in the window, so they will look too dark");
     }
-    auto graphics = std::unique_ptr<GraphicsDevice>(new GraphicsDevice(std::move(impl)));
-    graphics->SetVSync(config.vsync);
-    const char* adapter = SDL_GetStringProperty(SDL_GetGPUDeviceProperties(graphics->m_impl->device->Get()),
-                                                SDL_PROP_GPU_DEVICE_NAME_STRING, "an unknown GPU");
-    Log::GetEngineLogger().Info("Graphics device created with the '{}' backend on {}", graphics->GetBackendName(),
-                                adapter);
-    return graphics;
+    impl->SetVSync(config.vsync);
+    const char* adapter =
+        SDL_GetStringProperty(SDL_GetGPUDeviceProperties(handle), SDL_PROP_GPU_DEVICE_NAME_STRING, "an unknown GPU");
+    Log::GetEngineLogger().Info("Graphics device created with the '{}' backend on {}", impl->GetBackendName(), adapter);
+    return impl;
 }
 
-std::unique_ptr<GraphicsDevice> GraphicsDevice::CreateOffscreen(const GraphicsConfig& config) {
-    if (!Platform::Initialize()) {
-        return nullptr;
-    }
-    SDL_GPUDevice* handle = CreateDevice(config.debug);
-    if (!handle) {
-        Log::GetEngineLogger().Error("Failed to create an offscreen GPU device: {}", SDL_GetError());
-        Platform::Shutdown();
-        return nullptr;
-    }
-    auto device = std::make_shared<SharedGpuDevice>(handle);
-    Platform::Shutdown();
-    auto context = std::unique_ptr<RenderContext>(new RenderContext());
-    auto impl = std::make_unique<Impl>(std::move(device), nullptr, std::move(context));
-    impl->vsync = false;
-    impl->composition =
-        config.linearWindow ? SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR : SDL_GPU_SWAPCHAINCOMPOSITION_SDR;
-    return std::unique_ptr<GraphicsDevice>(new GraphicsDevice(std::move(impl)));
-}
-
-GraphicsDevice::GraphicsDevice(std::unique_ptr<Impl> impl) : m_impl(std::move(impl)) {
-}
-
-GraphicsDevice::~GraphicsDevice() = default;
-
-bool GraphicsDevice::SupportsSampleCount(TextureFormat format, std::uint32_t sampleCount) const {
+bool SdlGpuDevice::SupportsSampleCount(TextureFormat format, std::uint32_t sampleCount) const {
     const auto count = ToSdlSampleCount(sampleCount);
-    return count && SDL_GPUTextureSupportsSampleCount(m_impl->device->Get(), ToSdl(format), *count);
+    return count && SDL_GPUTextureSupportsSampleCount(shared->Get(), ToSdl(format), *count);
 }
 
-bool GraphicsDevice::SupportsRenderTarget(TextureFormat format) const {
+bool SdlGpuDevice::SupportsRenderTarget(TextureFormat format) const {
     const SDL_GPUTextureUsageFlags usage =
         (IsDepthFormat(format) ? SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET : SDL_GPU_TEXTUREUSAGE_COLOR_TARGET) |
         SDL_GPU_TEXTUREUSAGE_SAMPLER;
-    return SDL_GPUTextureSupportsFormat(m_impl->device->Get(), ToSdl(format), SDL_GPU_TEXTURETYPE_2D, usage);
+    return SDL_GPUTextureSupportsFormat(shared->Get(), ToSdl(format), SDL_GPU_TEXTURETYPE_2D, usage);
 }
 
-TextureFormat GraphicsDevice::GetWindowFormat() const {
-    if (!m_impl->window) {
-        return m_impl->composition == SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR ? TextureFormat::Rgba8Srgb
-                                                                              : TextureFormat::Rgba8;
+TextureFormat SdlGpuDevice::GetWindowFormat() const {
+    if (!window) {
+        return composition == SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR ? TextureFormat::Rgba8Srgb : TextureFormat::Rgba8;
     }
     // The swapchain is SDR, linear or not, which SDL gives one of these formats.
-    switch (SDL_GetGPUSwapchainTextureFormat(m_impl->device->Get(), m_impl->window)) {
+    switch (SDL_GetGPUSwapchainTextureFormat(shared->Get(), window)) {
     case SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM:
         return TextureFormat::Rgba8;
     case SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM_SRGB:
@@ -169,107 +155,104 @@ TextureFormat GraphicsDevice::GetWindowFormat() const {
     }
 }
 
-std::string_view GraphicsDevice::GetBackendName() const {
-    return SDL_GetGPUDeviceDriver(m_impl->device->Get());
+std::string_view SdlGpuDevice::GetBackendName() const {
+    return SDL_GetGPUDeviceDriver(shared->Get());
 }
 
-bool GraphicsDevice::IsVSyncEnabled() const {
-    return m_impl->pendingVSync.value_or(m_impl->vsync);
+bool SdlGpuDevice::IsVSyncEnabled() const {
+    return pendingVSync.value_or(vsync);
 }
 
-void GraphicsDevice::SetVSync(bool enabled) {
-    if (!m_impl->window) {
+void SdlGpuDevice::SetVSync(bool enabled) {
+    if (!window) {
         return;
     }
     // Changing the present mode recreates the swapchain, whose texture an open frame is still using.
-    if (m_impl->frameOpen) {
-        m_impl->pendingVSync = enabled;
+    if (frameOpen) {
+        pendingVSync = enabled;
         return;
     }
 
-    const auto mode = ChoosePresentMode(m_impl->device->Get(), m_impl->window, enabled);
-    if (!SDL_SetGPUSwapchainParameters(m_impl->device->Get(), m_impl->window, m_impl->composition, mode)) {
+    const auto mode = ChoosePresentMode(shared->Get(), window, enabled);
+    if (!SDL_SetGPUSwapchainParameters(shared->Get(), window, composition, mode)) {
         Log::GetEngineLogger().Error("Failed to change the present mode: {}", SDL_GetError());
         return;
     }
-    m_impl->vsync = mode == SDL_GPU_PRESENTMODE_VSYNC;
+    vsync = mode == SDL_GPU_PRESENTMODE_VSYNC;
 }
 
-RenderContext* GraphicsDevice::BeginFrame() {
-    SPOT_ASSERT(!m_impl->frameOpen, "BeginFrame() called while a frame is open");
-    if (!m_impl->window) {
-        return nullptr;
+bool SdlGpuDevice::BeginFrame() {
+    SPOT_ASSERT(!frameOpen, "BeginFrame() called while a frame is open");
+    if (!window) {
+        return false;
     }
 
-    if (const auto vsync = std::exchange(m_impl->pendingVSync, std::nullopt)) {
-        SetVSync(*vsync);
+    if (const auto pending = std::exchange(pendingVSync, std::nullopt)) {
+        SetVSync(*pending);
     }
 
-    SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(m_impl->device->Get());
+    SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(shared->Get());
     if (!commandBuffer) {
         Log::GetEngineLogger().Error("Failed to acquire a command buffer: {}", SDL_GetError());
-        return nullptr;
+        return false;
     }
 
-    auto& context = *m_impl->context->m_impl;
-    if (!SDL_WaitAndAcquireGPUSwapchainTexture(commandBuffer, m_impl->window, &context.target, &context.width,
+    if (!SDL_WaitAndAcquireGPUSwapchainTexture(commandBuffer, window, &context.target, &context.width,
                                                &context.height)) {
         Log::GetEngineLogger().Error("Failed to acquire the swapchain texture: {}", SDL_GetError());
         SDL_CancelGPUCommandBuffer(commandBuffer);
-        return nullptr;
+        return false;
     }
 
     // No texture means the window cannot be presented to right now, such as while it is minimized.
     if (!context.target) {
         SDL_SubmitGPUCommandBuffer(commandBuffer);
-        return nullptr;
+        return false;
     }
 
     context.commandBuffer = commandBuffer;
     context.acquiredTarget = context.target;
     context.format = GetWindowFormat();
-    m_impl->frameOpen = true;
-    return m_impl->context.get();
+    frameOpen = true;
+    return true;
 }
 
-RenderContext* GraphicsDevice::BeginOffscreenFrame(Texture& target) {
-    SPOT_ASSERT(!m_impl->frameOpen, "A frame is already open");
+bool SdlGpuDevice::BeginOffscreenFrame(Texture& target) {
+    SPOT_ASSERT(!frameOpen, "A frame is already open");
     if (!target.IsRenderTarget() || target.GetSampleCount() != 1 || target.GetLayerCount() != 1 ||
         IsDepthFormat(target.GetFormat())) {
         Log::GetEngineLogger().Error("Offscreen frames need a single-sample 2D color render target");
-        return nullptr;
+        return false;
     }
-    auto* commandBuffer = SDL_AcquireGPUCommandBuffer(m_impl->device->Get());
+    auto* commandBuffer = SDL_AcquireGPUCommandBuffer(shared->Get());
     if (!commandBuffer) {
         Log::GetEngineLogger().Error("Failed to acquire an offscreen command buffer: {}", SDL_GetError());
-        return nullptr;
+        return false;
     }
-    auto& context = *m_impl->context->m_impl;
     context.commandBuffer = commandBuffer;
-    context.target = static_cast<SDL_GPUTexture*>(target.GetNativeHandle());
+    context.target = GetSdlTexture(target);
     context.width = target.GetWidth();
     context.height = target.GetHeight();
     context.acquiredTarget = context.target;
     context.format = target.GetFormat();
-    m_impl->frameOpen = true;
-    return m_impl->context.get();
+    frameOpen = true;
+    return true;
 }
 
-void GraphicsDevice::EndFrame() {
-    SPOT_ASSERT(m_impl->frameOpen, "EndFrame() called without an open frame");
-
-    auto& context = *m_impl->context->m_impl;
+void SdlGpuDevice::EndFrame() {
+    SPOT_ASSERT(frameOpen, "EndFrame() called without an open frame");
     SPOT_ASSERT(!context.passOpen, "A render pass is still open at the end of the frame");
 
     if (!SDL_SubmitGPUCommandBuffer(context.commandBuffer)) {
         Log::GetEngineLogger().Error("Failed to submit the frame: {}", SDL_GetError());
     }
-    context = {};
-    m_impl->frameOpen = false;
+    context.commandBuffer = nullptr;
+    context.target = nullptr;
+    context.acquiredTarget = nullptr;
+    context.width = 0;
+    context.height = 0;
+    context.passOpen = false;
+    frameOpen = false;
 }
 
-void* GraphicsDevice::GetNativeHandle() const {
-    return m_impl->device->Get();
-}
-
-} // namespace Spot
+} // namespace Spot::Detail

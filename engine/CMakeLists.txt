@@ -111,7 +111,9 @@ add_library(spot_objects OBJECT
     graphics/fxaa.h
     graphics/fullscreen_pass.h
     graphics/font_atlas.cpp
+    graphics/graphics_backend.h
     graphics/graphics_device.h
+    graphics/graphics_device.cpp
     graphics/image.h
     graphics/image.cpp
     graphics/light_clusters.cpp

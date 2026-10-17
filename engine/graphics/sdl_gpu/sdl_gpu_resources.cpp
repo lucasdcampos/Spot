@@ -7,7 +7,7 @@
 #include <span>
 #include <vector>
 
-namespace Spot {
+namespace Spot::Detail {
 
 namespace {
 
@@ -190,8 +190,8 @@ std::optional<SDL_GPUSampleCount> ToSdlSampleCount(std::uint32_t sampleCount) {
     }
 }
 
-std::unique_ptr<Shader> GraphicsDevice::CreateShader(const ShaderDesc& desc) {
-    SDL_GPUDevice* device = m_impl->device->Get();
+std::unique_ptr<Shader> SdlGpuDevice::CreateShader(const ShaderDesc& desc) {
+    SDL_GPUDevice* device = shared->Get();
     const auto code = ChooseShaderCode(device, desc);
     if (!code) {
         Log::GetEngineLogger().Error("Shader has no code in a format the '{}' backend accepts", GetBackendName());
@@ -215,24 +215,19 @@ std::unique_ptr<Shader> GraphicsDevice::CreateShader(const ShaderDesc& desc) {
         return nullptr;
     }
 
-    auto impl = std::make_unique<Shader::Impl>();
-    impl->device = m_impl->device;
+    auto impl = std::make_unique<SdlGpuShader>();
+    impl->device = shared;
     impl->handle = handle;
     impl->stage = desc.stage;
-    return std::unique_ptr<Shader>(new Shader(std::move(impl)));
+    return GraphicsAccess::Make<Shader>(std::move(impl));
 }
 
-std::unique_ptr<Pipeline> GraphicsDevice::CreatePipeline(const PipelineDesc& desc) {
-    SPOT_ASSERT(desc.vertexShader && desc.vertexShader->GetStage() == ShaderStage::Vertex,
-                "A pipeline needs a vertex shader");
-    SPOT_ASSERT(desc.fragmentShader && desc.fragmentShader->GetStage() == ShaderStage::Fragment,
-                "A pipeline needs a fragment shader");
-
-    SDL_GPUDevice* device = m_impl->device->Get();
+std::unique_ptr<Pipeline> SdlGpuDevice::CreatePipeline(const PipelineDesc& desc) {
+    SDL_GPUDevice* device = shared->Get();
 
     SDL_GPUColorTargetDescription colorTarget{};
     colorTarget.format =
-        desc.targetFormat ? ToSdl(*desc.targetFormat) : SDL_GetGPUSwapchainTextureFormat(device, m_impl->window);
+        desc.targetFormat ? ToSdl(*desc.targetFormat) : SDL_GetGPUSwapchainTextureFormat(device, window);
     colorTarget.blend_state = ToSdl(desc.blendMode);
 
     SDL_GPUGraphicsPipelineCreateInfo info{};
@@ -267,9 +262,7 @@ std::unique_ptr<Pipeline> GraphicsDevice::CreatePipeline(const PipelineDesc& des
         info.target_info.color_target_descriptions = &colorTarget;
         info.target_info.num_color_targets = 1;
     }
-    SPOT_ASSERT(desc.depth || !desc.depthOnly, "Depth-only pipelines need a depth state");
     if (desc.depth) {
-        SPOT_ASSERT(IsDepthFormat(desc.depth->format), "Depth states need a depth format");
         info.depth_stencil_state.enable_depth_test = desc.depth->test;
         info.depth_stencil_state.enable_depth_write = desc.depth->write;
         info.depth_stencil_state.compare_op = ToSdl(desc.depth->compare);
@@ -293,13 +286,13 @@ std::unique_ptr<Pipeline> GraphicsDevice::CreatePipeline(const PipelineDesc& des
         return nullptr;
     }
 
-    auto impl = std::make_unique<Pipeline::Impl>();
-    impl->device = m_impl->device;
+    auto impl = std::make_unique<SdlGpuPipeline>();
+    impl->device = shared;
     impl->handle = handle;
-    return std::unique_ptr<Pipeline>(new Pipeline(std::move(impl)));
+    return GraphicsAccess::Make<Pipeline>(std::move(impl));
 }
 
-std::unique_ptr<Buffer> GraphicsDevice::CreateBuffer(const BufferDesc& desc) {
+std::unique_ptr<Buffer> SdlGpuDevice::CreateBuffer(const BufferDesc& desc) {
     if (desc.size == 0) {
         Log::GetEngineLogger().Error("Cannot create an empty buffer");
         return nullptr;
@@ -311,29 +304,23 @@ std::unique_ptr<Buffer> GraphicsDevice::CreateBuffer(const BufferDesc& desc) {
                                                       : SDL_GPU_BUFFERUSAGE_VERTEX;
     info.size = desc.size;
 
-    SDL_GPUBuffer* handle = SDL_CreateGPUBuffer(m_impl->device->Get(), &info);
+    SDL_GPUBuffer* handle = SDL_CreateGPUBuffer(shared->Get(), &info);
     if (!handle) {
         Log::GetEngineLogger().Error("Failed to create buffer: {}", SDL_GetError());
         return nullptr;
     }
 
-    auto impl = std::make_unique<Buffer::Impl>();
-    impl->device = m_impl->device;
+    auto impl = std::make_unique<SdlGpuBuffer>();
+    impl->device = shared;
     impl->handle = handle;
     impl->usage = desc.usage;
     impl->size = desc.size;
-    return std::unique_ptr<Buffer>(new Buffer(std::move(impl)));
+    return GraphicsAccess::Make<Buffer>(std::move(impl));
 }
 
-void GraphicsDevice::UploadToBuffer(Buffer& buffer, std::span<const std::byte> data, std::uint32_t offset,
-                                    UploadMode mode) {
-    SPOT_ASSERT(offset + data.size() <= buffer.GetSize(), "Upload of {} bytes at offset {} overflows a {}-byte buffer",
-                data.size(), offset, buffer.GetSize());
-    if (data.empty()) {
-        return;
-    }
-
-    SDL_GPUDevice* device = m_impl->device->Get();
+void SdlGpuDevice::UploadToBuffer(Buffer& buffer, std::span<const std::byte> data, std::uint32_t offset,
+                                  UploadMode mode) {
+    SDL_GPUDevice* device = shared->Get();
     const auto size = static_cast<Uint32>(data.size());
 
     SDL_GPUTransferBufferCreateInfo transferInfo{};
@@ -371,46 +358,7 @@ void GraphicsDevice::UploadToBuffer(Buffer& buffer, std::span<const std::byte> d
     SDL_ReleaseGPUTransferBuffer(device, transfer);
 }
 
-Buffer::Buffer(std::unique_ptr<Impl> impl) : m_impl(std::move(impl)) {
-}
-
-Buffer::~Buffer() = default;
-
-BufferUsage Buffer::GetUsage() const {
-    return m_impl->usage;
-}
-
-std::uint32_t Buffer::GetSize() const {
-    return m_impl->size;
-}
-
-void* Buffer::GetNativeHandle() const {
-    return m_impl->handle;
-}
-
-Shader::Shader(std::unique_ptr<Impl> impl) : m_impl(std::move(impl)) {
-}
-
-Shader::~Shader() = default;
-
-ShaderStage Shader::GetStage() const {
-    return m_impl->stage;
-}
-
-void* Shader::GetNativeHandle() const {
-    return m_impl->handle;
-}
-
-Pipeline::Pipeline(std::unique_ptr<Impl> impl) : m_impl(std::move(impl)) {
-}
-
-Pipeline::~Pipeline() = default;
-
-void* Pipeline::GetNativeHandle() const {
-    return m_impl->handle;
-}
-
-std::unique_ptr<Texture> GraphicsDevice::CreateTexture(const TextureDesc& desc) {
+std::unique_ptr<Texture> SdlGpuDevice::CreateTexture(const TextureDesc& desc) {
     if (desc.width == 0 || desc.height == 0) {
         Log::GetEngineLogger().Error("Cannot create a {}x{} texture", desc.width, desc.height);
         return nullptr;
@@ -465,30 +413,21 @@ std::unique_ptr<Texture> GraphicsDevice::CreateTexture(const TextureDesc& desc) 
     info.num_levels = mipLevels;
     info.sample_count = *sampleCount;
 
-    SDL_GPUTexture* handle = SDL_CreateGPUTexture(m_impl->device->Get(), &info);
+    SDL_GPUTexture* handle = SDL_CreateGPUTexture(shared->Get(), &info);
     if (!handle) {
         Log::GetEngineLogger().Error("Failed to create texture: {}", SDL_GetError());
         return nullptr;
     }
 
-    auto impl = std::make_unique<Texture::Impl>();
-    impl->device = m_impl->device;
+    auto impl = std::make_unique<SdlGpuTexture>();
+    impl->device = shared;
     impl->handle = handle;
     impl->desc = desc;
     impl->mipLevels = mipLevels;
-    return std::unique_ptr<Texture>(new Texture(std::move(impl)));
+    return GraphicsAccess::Make<Texture>(std::move(impl));
 }
 
-std::unique_ptr<Texture> GraphicsDevice::CreateTexture(const Image& image, bool mipmaps, TextureFormat format) {
-    auto texture =
-        CreateTexture({.width = image.GetWidth(), .height = image.GetHeight(), .format = format, .mipmaps = mipmaps});
-    if (texture) {
-        UploadToTexture(*texture, image.GetPixels());
-    }
-    return texture;
-}
-
-std::unique_ptr<Sampler> GraphicsDevice::CreateSampler(const SamplerDesc& desc) {
+std::unique_ptr<Sampler> SdlGpuDevice::CreateSampler(const SamplerDesc& desc) {
     SDL_GPUSamplerCreateInfo info{};
     info.min_filter = ToSdl(desc.filter);
     info.mag_filter = ToSdl(desc.filter);
@@ -508,25 +447,23 @@ std::unique_ptr<Sampler> GraphicsDevice::CreateSampler(const SamplerDesc& desc) 
         info.compare_op = ToSdl(*desc.compare);
     }
 
-    SDL_GPUSampler* handle = SDL_CreateGPUSampler(m_impl->device->Get(), &info);
+    SDL_GPUSampler* handle = SDL_CreateGPUSampler(shared->Get(), &info);
     if (!handle) {
         Log::GetEngineLogger().Error("Failed to create sampler: {}", SDL_GetError());
         return nullptr;
     }
 
-    auto impl = std::make_unique<Sampler::Impl>();
-    impl->device = m_impl->device;
+    auto impl = std::make_unique<SdlGpuSampler>();
+    impl->device = shared;
     impl->handle = handle;
-    return std::unique_ptr<Sampler>(new Sampler(std::move(impl)));
+    return GraphicsAccess::Make<Sampler>(std::move(impl));
 }
 
-void GraphicsDevice::UploadToTexture(Texture& texture, std::span<const std::byte> pixels) {
-    SPOT_ASSERT(!IsDepthFormat(texture.GetFormat()), "Depth textures cannot be uploaded to");
-    SPOT_ASSERT(texture.GetSampleCount() == 1, "Multisampled textures cannot be uploaded to");
+void SdlGpuDevice::UploadToTexture(Texture& texture, std::span<const std::byte> pixels) {
     SPOT_ASSERT(pixels.size() == GetPixelDataSize(texture), "A {}x{} texture takes {} bytes of pixels, not {}",
                 texture.GetWidth(), texture.GetHeight(), GetPixelDataSize(texture), pixels.size());
 
-    SDL_GPUDevice* device = m_impl->device->Get();
+    SDL_GPUDevice* device = shared->Get();
     SDL_GPUTransferBufferCreateInfo transferInfo{};
     transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
     transferInfo.size = static_cast<Uint32>(pixels.size());
@@ -570,11 +507,8 @@ void GraphicsDevice::UploadToTexture(Texture& texture, std::span<const std::byte
     SDL_ReleaseGPUTransferBuffer(device, transfer);
 }
 
-std::vector<std::uint8_t> GraphicsDevice::DownloadTexture(const Texture& texture, std::uint32_t mipLevel) {
-    SPOT_ASSERT(!IsDepthFormat(texture.GetFormat()), "Depth textures cannot be downloaded");
-    SPOT_ASSERT(texture.GetSampleCount() == 1, "Multisampled textures cannot be downloaded; resolve them first");
-    SPOT_ASSERT(mipLevel < texture.GetMipLevelCount(), "The texture has no mip level {}", mipLevel);
-    SDL_GPUDevice* device = m_impl->device->Get();
+std::vector<std::uint8_t> SdlGpuDevice::DownloadTexture(const Texture& texture, std::uint32_t mipLevel) {
+    SDL_GPUDevice* device = shared->Get();
     const std::uint32_t size = GetPixelDataSize(texture, mipLevel);
 
     SDL_GPUTransferBufferCreateInfo transferInfo{};
@@ -622,53 +556,4 @@ std::vector<std::uint8_t> GraphicsDevice::DownloadTexture(const Texture& texture
     return pixels;
 }
 
-Texture::Texture(std::unique_ptr<Impl> impl) : m_impl(std::move(impl)) {
-}
-
-Texture::~Texture() = default;
-
-std::uint32_t Texture::GetWidth() const {
-    return m_impl->desc.width;
-}
-
-std::uint32_t Texture::GetHeight() const {
-    return m_impl->desc.height;
-}
-
-TextureFormat Texture::GetFormat() const {
-    return m_impl->desc.format;
-}
-
-TextureType Texture::GetType() const {
-    return m_impl->desc.type;
-}
-
-std::uint32_t Texture::GetLayerCount() const {
-    return m_impl->desc.type == TextureType::Cube ? 6 : 1;
-}
-
-bool Texture::IsRenderTarget() const {
-    return m_impl->desc.renderTarget;
-}
-
-std::uint32_t Texture::GetMipLevelCount() const {
-    return m_impl->mipLevels;
-}
-
-std::uint32_t Texture::GetSampleCount() const {
-    return m_impl->desc.sampleCount;
-}
-
-void* Texture::GetNativeHandle() const {
-    return m_impl->handle;
-}
-
-Sampler::Sampler(std::unique_ptr<Impl> impl) : m_impl(std::move(impl)) {
-}
-
-Sampler::~Sampler() = default;
-
-void* Sampler::GetNativeHandle() const {
-    return m_impl->handle;
-}
-} // namespace Spot
+} // namespace Spot::Detail

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "graphics/buffer.h"
-#include "math/color.h"
 #include "graphics/texture.h"
+#include "math/color.h"
 
 #include <cstdint>
 #include <memory>
@@ -113,16 +113,19 @@ public:
     void DrawIndexed(std::uint32_t indexCount, std::uint32_t instanceCount = 1, std::uint32_t firstIndex = 0,
                      std::int32_t vertexOffset = 0, std::uint32_t firstInstance = 0);
 
-    // The backend's pass object (an SDL_GPURenderPass* with SDL_GPU), for code that needs the backend directly.
-    void* GetNativeHandle() const { return m_native; }
+    // The backend's pass object (an SDL_GPURenderPass* with SDL_GPU), for code that needs the backend directly; null
+    // once the pass ended, or when it could not begin.
+    void* GetNativeHandle() const;
+
+    // Backend-internal: what a graphics backend derives its implementation from (see graphics/graphics_backend.h).
+    struct Impl;
 
 private:
     friend class RenderContext;
 
-    RenderPass(RenderContext& context, void* native);
+    explicit RenderPass(std::unique_ptr<Impl> impl);
 
-    RenderContext* m_context;
-    void* m_native;
+    std::unique_ptr<Impl> m_impl;
     bool m_pipelineBound = false;
 };
 
@@ -152,15 +155,15 @@ public:
     // The backend's command buffer (an SDL_GPUCommandBuffer* with SDL_GPU), for code that needs the backend directly.
     void* GetNativeHandle() const;
 
-private:
-    friend class GraphicsDevice;
-    friend class RenderPass;
-
+    // Backend-internal: what a graphics backend derives its implementation from (see graphics/graphics_backend.h).
     struct Impl;
 
-    RenderContext();
+private:
+    friend class GraphicsDevice;
 
-    std::unique_ptr<Impl> m_impl;
+    explicit RenderContext(Impl& impl);
+
+    Impl* m_impl;
 };
 
 } // namespace Spot
