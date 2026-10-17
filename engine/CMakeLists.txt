@@ -466,7 +466,24 @@ if(NOT APPLE)
     )
     FetchContent_MakeAvailable(nvrhi)
     target_link_libraries(spot_objects PRIVATE nvrhi nvrhi_vk)
+    # The backend makes the Vulkan instance and device NVRHI runs on, so it needs Vulkan's headers too.
+    if(TARGET Vulkan::Headers)
+        target_link_libraries(spot_objects PRIVATE Vulkan::Headers)
+    else()
+        target_link_libraries(spot_objects PRIVATE Vulkan-Headers)
+    endif()
     target_compile_definitions(spot_objects PRIVATE SPOT_GRAPHICS_NVRHI)
+    # Vulkan's Windows header brings in windows.h, whose min and max macros would break std::min and std::max.
+    if(WIN32)
+        target_compile_definitions(spot_objects PRIVATE NOMINMAX)
+    endif()
+    target_sources(spot_objects PRIVATE
+        graphics/nvrhi/nvrhi_device.cpp
+        graphics/nvrhi/nvrhi_internal.h
+        graphics/nvrhi/nvrhi_render_context.cpp
+        graphics/nvrhi/nvrhi_vulkan.cpp
+        graphics/nvrhi/nvrhi_vulkan.h
+    )
 endif()
 
 # Like the graphics backend, the audio backend never reaches the public headers. It only plays what the engine's mixer

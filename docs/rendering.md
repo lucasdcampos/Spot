@@ -46,6 +46,23 @@ Each frame, `BeginFrame()` returns a `RenderContext` (null when nothing can be d
   `Depth32Float`. `GetBytesPerPixel()` gives the size of a pixel as uploads and downloads hold it. Multisampled
   targets of any color format resolve into single-sample render targets, which later passes sample.
 
+### Backends
+
+The graphics API is the engine's own; backends implement it behind `engine/graphics/graphics_backend.h`, where each
+public object holds an implementation the backend derives from. Several backends are built into one program, and
+the device picks one when it is made, from `GraphicsConfig::backend`, which the environment variable
+`SPOT_GRAPHICS_BACKEND` (`sdl_gpu` or `vulkan`) overrides:
+
+- **SDL_GPU** (`graphics/sdl_gpu/`), over Direct3D 12, Vulkan or Metal, on every platform. It is the default for now.
+- **Vulkan through NVRHI** (`graphics/nvrhi/`), on Windows and Linux, which the engine is moving to: NVRHI tracks
+  resource states and places barriers, and opens compute, bindless resources, indirect draws and GPU timers. The
+  backend makes the Vulkan 1.3 instance, device and swapchain NVRHI runs on (`nvrhi_vulkan.cpp`), on the best GPU
+  that runs it, with Vulkan's validation layer in debug builds when it is installed. CMake fetches NVRHI and Vulkan's
+  headers, so building needs no SDK; running needs only the GPU's driver. It clears, resolves, uploads and downloads
+  textures so far; shaders, pipelines, buffers and draws come next, and until then the device logs what it cannot do.
+
+macOS keeps SDL_GPU, whose Metal NVRHI lacks.
+
 ### Fullscreen passes
 
 `FullscreenPass` (`engine/graphics/fullscreen_pass.h`) runs a fragment shader over every pixel of a pass's target,

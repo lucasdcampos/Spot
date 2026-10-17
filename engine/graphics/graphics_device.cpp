@@ -1,23 +1,63 @@
 #include "graphics/graphics_device.h"
 
 #include "core/assert.h"
+#include "core/log.h"
+#include "core/process.h"
 #include "graphics/graphics_backend.h"
 
 #include <utility>
 
 namespace Spot {
 
+namespace {
+
+GraphicsBackend ChooseBackend(GraphicsBackend requested) {
+    if (requested == GraphicsBackend::Auto) {
+        const auto chosen = Process::GetEnvironmentValue("SPOT_GRAPHICS_BACKEND");
+        if (chosen == "vulkan") {
+            return GraphicsBackend::Vulkan;
+        }
+        if (chosen && chosen != "sdl_gpu") {
+            Log::GetEngineLogger().Warning("SPOT_GRAPHICS_BACKEND '{}' is not sdl_gpu or vulkan; using sdl_gpu",
+                                           *chosen);
+        }
+        return GraphicsBackend::SdlGpu;
+    }
+    return requested;
+}
+
+std::unique_ptr<GraphicsDevice::Impl> CreateBackend(Window* window, const GraphicsConfig& config) {
+    if (ChooseBackend(config.backend) == GraphicsBackend::Vulkan) {
+        return Detail::CreateNvrhiVulkanDevice(window, config);
+    }
+    return Detail::CreateSdlGpuDevice(window, config);
+}
+
+} // namespace
+
+#ifndef SPOT_GRAPHICS_NVRHI
+// Builds without NVRHI, as on macOS, have no Vulkan backend.
+bool Detail::IsNvrhiVulkanSupported() {
+    return false;
+}
+
+std::unique_ptr<GraphicsDevice::Impl> Detail::CreateNvrhiVulkanDevice(Window*, const GraphicsConfig&) {
+    Log::GetEngineLogger().Error("This build of the engine has no Vulkan backend");
+    return nullptr;
+}
+#endif
+
 bool GraphicsDevice::IsSupported() {
-    return Detail::IsSdlGpuSupported();
+    return Detail::IsSdlGpuSupported() || Detail::IsNvrhiVulkanSupported();
 }
 
 std::unique_ptr<GraphicsDevice> GraphicsDevice::Create(Window& window, const GraphicsConfig& config) {
-    auto impl = Detail::CreateSdlGpuDevice(&window, config);
+    auto impl = CreateBackend(&window, config);
     return impl ? std::unique_ptr<GraphicsDevice>(new GraphicsDevice(std::move(impl))) : nullptr;
 }
 
 std::unique_ptr<GraphicsDevice> GraphicsDevice::CreateOffscreen(const GraphicsConfig& config) {
-    auto impl = Detail::CreateSdlGpuDevice(nullptr, config);
+    auto impl = CreateBackend(nullptr, config);
     return impl ? std::unique_ptr<GraphicsDevice>(new GraphicsDevice(std::move(impl))) : nullptr;
 }
 

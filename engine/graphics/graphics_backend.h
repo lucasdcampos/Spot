@@ -134,6 +134,10 @@ struct GraphicsAccess {
 bool IsSdlGpuSupported();
 std::unique_ptr<GraphicsDevice::Impl> CreateSdlGpuDevice(Window* window, const GraphicsConfig& config);
 
+// The Vulkan backend, through NVRHI, where the engine was built with it.
+bool IsNvrhiVulkanSupported();
+std::unique_ptr<GraphicsDevice::Impl> CreateNvrhiVulkanDevice(Window* window, const GraphicsConfig& config);
+
 } // namespace Detail
 
 } // namespace Spot

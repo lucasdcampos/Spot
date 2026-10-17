@@ -18,7 +18,20 @@ namespace Spot {
 
 class Window;
 
+// The graphics API the device runs on.
+enum class GraphicsBackend {
+    // The best the machine runs: SDL_GPU for now, until the Vulkan backend covers everything.
+    Auto,
+    // SDL_GPU, over Direct3D 12, Vulkan or Metal.
+    SdlGpu,
+    // Vulkan through NVRHI, on Windows and Linux.
+    Vulkan,
+};
+
 struct GraphicsConfig {
+    // The environment variable SPOT_GRAPHICS_BACKEND, "sdl_gpu" or "vulkan", overrides Auto, as tests do to run on
+    // either backend.
+    GraphicsBackend backend = GraphicsBackend::Auto;
     // Turned off for runs without a display, such as tests or servers; the application then never renders.
     bool enabled = true;
     bool vsync = true;
