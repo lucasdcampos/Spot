@@ -1,5 +1,7 @@
 # Shader build: HLSL sources compiled to every format the graphics backend may ask for.
-#   SPIR-V (Vulkan)   glslang, built from source
+#   SPIR-V (Vulkan)   glslang, built from source, twice: for SDL_GPU, with each texture combined with its sampler, and
+#                     for the NVRHI backend, with textures and samplers apart and bindings offset by resource type
+#                     as NVRHI numbers them
 #   MSL (Metal)       SPIRV-Cross, translated from the SPIR-V
 #   DXIL (Direct3D)   the DXC that ships with the Windows SDK, when it is installed
 # The results are embedded in a generated header, so shaders need no files at runtime.
@@ -86,6 +88,7 @@ function(spot_add_shaders target)
 
         string(REGEX REPLACE "\\.hlsl$" "" base_name "${file_name}")
         set(spirv "${output_dir}/${base_name}.spv")
+        set(vulkan_spirv "${output_dir}/${base_name}.vk.spv")
         set(msl "${output_dir}/${base_name}.msl")
         set(reflection "${output_dir}/${base_name}.json")
         set(header "${output_dir}/${base_name}.h")
@@ -98,6 +101,12 @@ function(spot_add_shaders target)
             COMMAND $<TARGET_FILE:spirv-cross> "${spirv}" --msl --msl-version 20100 --msl-decoration-binding
                     --output "${msl}"
             COMMAND $<TARGET_FILE:spirv-cross> "${spirv}" --reflect --output "${reflection}"
+            # NVRHI binds textures and samplers apart, each register space being a descriptor set, and numbers
+            # bindings as its default VulkanBindingOffsets do: shader resources from 0, samplers from 128, constant
+            # buffers from 256 and unordered access views from 384.
+            COMMAND $<TARGET_FILE:glslang-standalone> -D -V -S ${glslang_stage} -e main --hlsl-iomap
+                    --shift-texture-binding 0 --shift-ssbo-binding 0 --shift-sampler-binding 128
+                    --shift-ubo-binding 256 --shift-uav-binding 384 --quiet "${source}" -o "${vulkan_spirv}"
         )
         set(dxil_argument)
         if(SPOT_DXC)
@@ -111,7 +120,8 @@ function(spot_add_shaders target)
             COMMAND ${CMAKE_COMMAND} -E make_directory "${output_dir}"
             ${commands}
             COMMAND ${CMAKE_COMMAND} "-DNAME=${base_name}" "-DNAMESPACE=${ARG_NAMESPACE}" "-DSTAGE=${stage}"
-                    "-DSOURCE_NAME=${file_name}" "-DSPIRV=${spirv}" "-DMSL=${msl}" "-DREFLECTION=${reflection}"
+                    "-DSOURCE_NAME=${file_name}" "-DSPIRV=${spirv}" "-DVULKAN_SPIRV=${vulkan_spirv}" "-DMSL=${msl}"
+                    "-DREFLECTION=${reflection}"
                     ${dxil_argument} "-DOUTPUT=${header}" -P "${SPOT_EMBED_SHADER_SCRIPT}"
             DEPENDS "${source}" "${SPOT_EMBED_SHADER_SCRIPT}" "${SPOT_EMBED_COMMON_SCRIPT}" glslang-standalone
                     spirv-cross

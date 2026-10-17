@@ -27,6 +27,10 @@ enum class ShaderStage {
 struct ShaderDesc {
     ShaderStage stage = ShaderStage::Vertex;
     std::span<const std::uint8_t> spirv = {};
+    // SPIR-V for the Vulkan backend through NVRHI: textures and samplers apart, each register space a descriptor set,
+    // and bindings offset by resource type as NVRHI's default VulkanBindingOffsets number them (shader resources from
+    // 0, samplers from 128, constant buffers from 256).
+    std::span<const std::uint8_t> vulkanSpirv = {};
     // Metal Shading Language source.
     std::span<const std::uint8_t> msl = {};
     std::span<const std::uint8_t> dxil = {};

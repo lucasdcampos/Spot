@@ -1,5 +1,5 @@
 # Writes a header that embeds a compiled shader as a Spot::ShaderDesc. Run by spot_add_shaders() in script mode.
-# Inputs: NAME, NAMESPACE, STAGE, SOURCE_NAME, SPIRV, MSL, REFLECTION, OUTPUT and optionally DXIL.
+# Inputs: NAME, NAMESPACE, STAGE, SOURCE_NAME, SPIRV, VULKAN_SPIRV, MSL, REFLECTION, OUTPUT and optionally DXIL.
 
 include("${CMAKE_CURRENT_LIST_DIR}/spot_embed_common.cmake")
 
@@ -19,9 +19,11 @@ spot_count_resources("${reflection}" ssbos storage_buffer_count)
 spot_count_resources("${reflection}" ubos uniform_buffer_count)
 
 spot_to_byte_array("${SPIRV}" spirv_bytes)
+spot_to_byte_array("${VULKAN_SPIRV}" vulkan_spirv_bytes)
 spot_to_byte_array("${MSL}" msl_bytes)
 
 set(arrays "inline constexpr std::uint8_t ${identifier}Spirv[] = {\n    ${spirv_bytes}\n};\n\n")
+string(APPEND arrays "inline constexpr std::uint8_t ${identifier}VulkanSpirv[] = {\n    ${vulkan_spirv_bytes}\n};\n\n")
 string(APPEND arrays "inline constexpr std::uint8_t ${identifier}Msl[] = {\n    ${msl_bytes}\n};\n")
 set(dxil_span "{}")
 if(DXIL)
@@ -43,6 +45,7 @@ ${arrays}
 inline constexpr Spot::ShaderDesc ${identifier}{
     .stage = Spot::ShaderStage::${STAGE},
     .spirv = ${identifier}Spirv,
+    .vulkanSpirv = ${identifier}VulkanSpirv,
     .msl = ${identifier}Msl,
     .dxil = ${dxil_span},
     .samplerCount = ${sampler_count},
