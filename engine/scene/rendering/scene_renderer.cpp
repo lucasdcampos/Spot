@@ -115,6 +115,7 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
                              .camera = view,
                              .viewProjection = view.GetViewProjection(size),
                              .viewSize = size,
+                             .pass = {},
                              .colorFormat = HdrFormat,
                              .sampleCount = m_sampleCount,
                              .depth = nullptr,
