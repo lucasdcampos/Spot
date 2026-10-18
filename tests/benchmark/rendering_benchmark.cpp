@@ -125,11 +125,14 @@ protected:
 
     // The scene, its own cameras off, with lamps spread over the middle of it and a camera circling above.
     void StartWithScene() {
+        const auto loadStart = std::chrono::steady_clock::now();
         auto scene = std::make_unique<Spot::Scene>();
         if (!scene->LoadFromFile(m_options.scene, &GetAssets())) {
             Quit();
             return;
         }
+        std::printf("Loaded the scene in %.1f ms\n",
+                    std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - loadStart).count());
         scene->ForEachComponent<Spot::Camera>([](Spot::Camera& camera) { camera.SetEnabled(false); });
         std::mt19937 random(7);
         std::uniform_real_distribution<float> across(-18.0f, 18.0f);

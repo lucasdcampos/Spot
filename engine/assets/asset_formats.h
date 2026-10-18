@@ -10,6 +10,7 @@
 #include "core/asset_id.h"
 #include "graphics/image.h"
 #include "graphics/mesh_data.h"
+#include "graphics/texture.h"
 #include "math/color.h"
 #include "math/matrix.h"
 
@@ -23,10 +24,17 @@
 namespace Spot::Detail {
 
 struct TextureFile {
+    // The pixels; a placeholder when the texture is block-compressed.
     Image image;
     bool mipmaps = true;
     // Colors, read as linear light, or data read as it is.
     bool srgb = true;
+    // Block-compressed (BC1 or BC3, sRGB or not), the texture is its levels instead, the first width by height, each
+    // half the one before down to 1x1, made when it was imported.
+    std::optional<TextureFormat> compressedFormat;
+    std::uint32_t width = 0;
+    std::uint32_t height = 0;
+    std::vector<std::vector<std::uint8_t>> levels;
 };
 
 // A node of a model file: its transform relative to its parent, and the mesh it shows with a material per submesh.
@@ -73,6 +81,9 @@ void EncodeScene(BinaryWriter& writer, std::string_view text);
 
 // Each returns nothing when the data is truncated, has extra bytes or is inconsistent.
 std::optional<TextureFile> DecodeTexture(std::span<const std::byte> data);
+// RGBA pixels from a level of BC1 or BC3 blocks, for GPUs that cannot sample them.
+std::vector<std::uint8_t> DecompressBlocks(TextureFormat format, std::uint32_t width, std::uint32_t height,
+                                           std::span<const std::uint8_t> blocks);
 std::optional<MeshData> DecodeMesh(std::span<const std::byte> data);
 std::optional<MaterialSource> DecodeMaterial(std::span<const std::byte> data);
 std::optional<std::vector<ModelFileNode>> DecodeModel(std::span<const std::byte> data);

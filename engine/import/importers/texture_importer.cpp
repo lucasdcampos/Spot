@@ -1,5 +1,6 @@
 #include "assets/asset_formats.h"
 #include "import/importers/importer.h"
+#include "import/importers/texture_compression.h"
 
 #include <utility>
 
@@ -11,8 +12,13 @@ bool ImportTexture(ImportContext& context) {
         return false;
     }
 
+    const TextureImportSettings& settings = context.GetMeta().texture;
     BinaryWriter data;
-    Encode(data, TextureFile{std::move(*image), context.GetMeta().texture.mipmaps, context.GetMeta().texture.srgb});
+    if (settings.compress && CanCompressTexture(*image, settings.mipmaps)) {
+        Encode(data, CompressTexture(*image, settings.srgb));
+    } else {
+        Encode(data, TextureFile{std::move(*image), settings.mipmaps, settings.srgb});
+    }
     return context.WriteAsset(AssetType::Texture, data);
 }
 

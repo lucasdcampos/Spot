@@ -28,11 +28,11 @@ bool ImportContext::Write(AssetId id, AssetType type, const BinaryWriter& data) 
 ImporterInfo FindImporter(AssetType type) {
     switch (type) {
     case AssetType::Texture:
-        return {&ImportTexture, 2};
+        return {&ImportTexture, 3};
     case AssetType::SpriteAtlas:
         return {&ImportSpriteAtlas, 1};
     case AssetType::Model:
-        return {&ImportModel, 11};
+        return {&ImportModel, 12};
     case AssetType::AnimatorController:
         return {&ImportAnimatorController, 2};
     case AssetType::Material:

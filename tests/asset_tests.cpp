@@ -1,4 +1,5 @@
 #include "assets/asset_formats.h"
+#include "import/importers/texture_compression.h"
 #include "log_capture.h"
 #include "temp_directory.h"
 
@@ -1034,4 +1035,43 @@ TEST_CASE("Materials saved before PBR get a roughness from their specular and sh
     const auto saved = Spot::MaterialSource::LoadFromString(R"({"roughness": 0.3, "specular": 0.0})");
     REQUIRE(saved.has_value());
     CHECK(saved->roughness == Catch::Approx(0.3f));
+}
+
+TEST_CASE("Textures with mipmaps import block-compressed, with every level, and decode back close", "[assets]") {
+    std::vector<std::uint8_t> pixels(16 * 8 * 4);
+    for (std::size_t i = 0; i < pixels.size(); i += 4) {
+        pixels[i] = 200;
+        pixels[i + 1] = 60;
+        pixels[i + 2] = 30;
+        pixels[i + 3] = 255;
+    }
+    const Spot::Image opaque(16, 8, pixels);
+    CHECK(Spot::Detail::CanCompressTexture(opaque, true));
+    CHECK_FALSE(Spot::Detail::CanCompressTexture(opaque, false));
+    CHECK_FALSE(Spot::Detail::CanCompressTexture(Spot::Image(6, 8, std::vector<std::uint8_t>(6 * 8 * 4)), true));
+
+    const auto file = Spot::Detail::CompressTexture(opaque, true);
+    REQUIRE(file.compressedFormat == Spot::TextureFormat::Bc1Srgb);
+    // 16x8, 8x4, 4x2, 2x1 and 1x1.
+    REQUIRE(file.levels.size() == 5);
+    CHECK(file.levels[0].size() == 4 * 2 * 8);
+
+    Spot::Detail::BinaryWriter writer;
+    Spot::Detail::Encode(writer, file);
+    const auto decoded = Spot::Detail::DecodeTexture(writer.GetData());
+    REQUIRE(decoded.has_value());
+    REQUIRE(decoded->levels == file.levels);
+    const auto back =
+        Spot::Detail::DecompressBlocks(*decoded->compressedFormat, decoded->width, decoded->height, decoded->levels[0]);
+    REQUIRE(back.size() == pixels.size());
+    for (std::size_t i = 0; i < back.size(); ++i) {
+        CHECK(std::abs(static_cast<int>(back[i]) - pixels[i]) <= 8);
+    }
+
+    pixels[3] = 100;
+    const auto translucent = Spot::Detail::CompressTexture(Spot::Image(16, 8, pixels), false);
+    CHECK(translucent.compressedFormat == Spot::TextureFormat::Bc3);
+    const auto alpha = Spot::Detail::DecompressBlocks(Spot::TextureFormat::Bc3, 16, 8, translucent.levels[0]);
+    CHECK(std::abs(static_cast<int>(alpha[3]) - 100) <= 8);
+    CHECK(alpha[7] == 255);
 }

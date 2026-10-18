@@ -315,8 +315,29 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
         if (!texture) {
             break;
         }
-        std::shared_ptr<Texture> result = m_device->CreateTexture(
-            texture->image, texture->mipmaps, texture->srgb ? TextureFormat::Rgba8Srgb : TextureFormat::Rgba8);
+        const TextureFormat pixelFormat = texture->srgb ? TextureFormat::Rgba8Srgb : TextureFormat::Rgba8;
+        if (texture->compressedFormat) {
+            const TextureFormat format = *texture->compressedFormat;
+            if (m_device->SupportsSampling(format)) {
+                std::shared_ptr<Texture> result = m_device->CreateTexture({.width = texture->width,
+                                                                           .height = texture->height,
+                                                                           .format = format,
+                                                                           .mipmaps = texture->levels.size() > 1});
+                if (!result) {
+                    break;
+                }
+                for (std::uint32_t i = 0; i < texture->levels.size() && i < result->GetMipLevelCount(); ++i) {
+                    m_device->UploadToTextureLevel(*result, i, texture->levels[i]);
+                }
+                return result;
+            }
+            // The GPU cannot sample the blocks, so they are turned back into pixels here.
+            Image image(texture->width, texture->height,
+                        Detail::DecompressBlocks(format, texture->width, texture->height, texture->levels[0]));
+            std::shared_ptr<Texture> result = m_device->CreateTexture(image, texture->mipmaps, pixelFormat);
+            return result;
+        }
+        std::shared_ptr<Texture> result = m_device->CreateTexture(texture->image, texture->mipmaps, pixelFormat);
         return result;
     }
     case AssetType::Mesh: {

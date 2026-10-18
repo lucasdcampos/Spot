@@ -49,6 +49,13 @@ Import settings live in each `.meta` file, and the editor's inspector edits them
 scale and material overrides, fonts their sizes, and sounds whether they stream (see [Audio](audio.md)); sounds that
 do not stream are stored decoded, as 16-bit samples.
 
+Textures with mipmaps whose sides are multiples of 4 are stored block-compressed (`compress`, on by default): BC1,
+or BC3 when any pixel is not opaque, a quarter or an eighth of the memory of their pixels, with every mip level made
+when importing (averaged as light for colors) rather than when loading. Textures without mipmaps, such as pixel art,
+keep their exact pixels. On a GPU that cannot sample those blocks the loader turns them back into pixels. Models'
+embedded images are compressed the same way. The block encoder is `stb_dxt`
+(`engine/import/importers/texture_compression.cpp`).
+
 ## Loading imported assets
 
 `AssetManager` (`engine/assets/asset_manager.h`) loads imported assets from an import directory, by id or by source

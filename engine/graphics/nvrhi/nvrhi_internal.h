@@ -280,11 +280,16 @@ public:
     void* GetNativeHandle() const override { return m_device; }
 
 private:
-    // Records commands into a command list of their own and runs it at once, so they reach the GPU before the frame
-    // being recorded, as uploads made during a frame must.
+    // Records commands into a command list of their own, run before the frame being recorded, as uploads made during
+    // a frame must be.
     void RunNow(const std::function<void(nvrhi::ICommandList&)>& record);
-    // Reused by every RunNow, which NVRHI allows once a command list has been executed.
+    // Reused by every RunNow, which NVRHI allows once a command list has been executed. Uploads are recorded into it
+    // and run together, before the next frame or anything that reads back, rather than one submission each.
+    void FlushUploads();
     nvrhi::CommandListHandle m_uploadCommandList;
+    bool m_uploadsOpen = false;
+    std::uint32_t m_pendingUploads = 0;
+    static constexpr std::uint32_t MaxPendingUploads = 256;
 
     std::shared_ptr<NvrhiShared> m_shared;
     GraphicsCapabilities m_capabilities;

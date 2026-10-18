@@ -141,6 +141,7 @@ NvrhiDevice::NvrhiDevice(std::shared_ptr<NvrhiShared> shared)
 }
 
 NvrhiDevice::~NvrhiDevice() {
+    FlushUploads();
     m_device->waitForIdle();
     m_context.Release();
     m_uploadCommandList = nullptr;
@@ -150,10 +151,25 @@ NvrhiDevice::~NvrhiDevice() {
 }
 
 void NvrhiDevice::RunNow(const std::function<void(nvrhi::ICommandList&)>& record) {
-    m_uploadCommandList->open();
+    if (!m_uploadsOpen) {
+        m_uploadCommandList->open();
+        m_uploadsOpen = true;
+    }
     record(*m_uploadCommandList);
+    // Bounded, so loading many assets does not hold all of their staging memory at once.
+    if (++m_pendingUploads >= MaxPendingUploads) {
+        FlushUploads();
+    }
+}
+
+void NvrhiDevice::FlushUploads() {
+    if (!m_uploadsOpen) {
+        return;
+    }
     m_uploadCommandList->close();
     m_device->executeCommandList(m_uploadCommandList);
+    m_uploadsOpen = false;
+    m_pendingUploads = 0;
 }
 
 std::unique_ptr<Texture> NvrhiDevice::CreateTexture(const TextureDesc& desc) {
@@ -262,6 +278,7 @@ std::vector<std::uint8_t> NvrhiDevice::DownloadTexture(const Texture& texture, s
                                     nvrhi::TextureSlice().setMipLevel(mipLevel).setArraySlice(layer));
         }
     });
+    FlushUploads();
 
     const std::size_t rowSize = GetTextureDataSize(texture.GetFormat(), width, 1);
     const std::uint32_t rows = IsCompressedFormat(texture.GetFormat()) ? (height + 3) / 4 : height;
@@ -382,6 +399,8 @@ void NvrhiDevice::EndFrame() {
     if (presents) {
         m_vulkan->PrepareToPresent(*m_vulkanDevice);
     }
+    // The frame's uploads go first, as uploads made during a frame reach the GPU before its draws.
+    FlushUploads();
     m_device->executeCommandList(m_context.commandList);
     m_device->resetEventQuery(m_frameQueries[m_frameSlot]);
     m_device->setEventQuery(m_frameQueries[m_frameSlot], nvrhi::CommandQueue::Graphics);

@@ -20,6 +20,9 @@ struct TextureImportSettings {
     // Whether the image holds colors, as most do, which shaders read as linear light; off for data kept as it is,
     // such as LUTs and normal maps.
     bool srgb = true;
+    // Stores it block-compressed, a quarter or an eighth of the memory, when it has mipmaps and its sides are
+    // multiples of 4; textures without mipmaps, such as pixel art, keep their exact pixels either way.
+    bool compress = true;
 
     void Serialize(Archive& archive);
 };

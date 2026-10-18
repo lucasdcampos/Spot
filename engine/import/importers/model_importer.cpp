@@ -2,6 +2,7 @@
 #include "core/paths.h"
 #include "graphics/model_data.h"
 #include "import/importers/importer.h"
+#include "import/importers/texture_compression.h"
 
 #include <nlohmann/json.hpp>
 
@@ -153,7 +154,11 @@ bool ImportModel(ImportContext& context) {
     for (std::size_t i = 0; i < model->images.size(); ++i) {
         BinaryWriter data;
         const bool color = model->IsColorImage(i);
-        Encode(data, TextureFile{std::move(model->images[i]), true, color});
+        if (CanCompressTexture(model->images[i], true)) {
+            Encode(data, CompressTexture(model->images[i], color));
+        } else {
+            Encode(data, TextureFile{std::move(model->images[i]), true, color});
+        }
         textures.push_back(context.WriteSubAsset(std::format("texture:{}", i), AssetType::Texture,
                                                  std::format("Texture {}", i), data));
         if (!textures.back().IsValid()) {

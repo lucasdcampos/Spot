@@ -44,6 +44,8 @@ void SerializeSettings(AssetMeta& meta, Archive& archive, std::string_view name)
 void TextureImportSettings::Serialize(Archive& archive) {
     archive.Field("mipmaps", mipmaps, {.tooltip = "Smaller copies that keep the texture smooth from afar"});
     archive.Field("srgb", srgb, {.tooltip = "Holds colors; off for data kept as it is, such as LUTs and normal maps"});
+    archive.Field("compress", compress,
+                  {.tooltip = "Block-compressed when it has mipmaps: far less memory, a little blur"});
 }
 
 void MaterialOverride::Serialize(Archive& archive) {
