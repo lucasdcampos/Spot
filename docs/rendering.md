@@ -229,6 +229,21 @@ buffer, and draws each run of them in view as instances of one draw, in the view
 needs to be marked: a level of the same crates is a handful of draws (`GetStats().drawCalls` counts draws, not meshes).
 Materials batch by their values, so copies of a material batch as well as the same asset.
 
+### Render worlds
+
+A `RenderWorld` (`engine/graphics/render_world.h`) holds what stays from frame to frame: meshes are added once
+(`AddMesh()`, which returns a `RenderObjectId`), changed only when they change (`SetTransform()`, `UpdateMesh()`) and
+removed, and `Renderer3D::DrawWorld()` draws every one on a layer the camera sees. Each object keeps its world bounds,
+index range and whether its transform mirrors, worked out when it changes rather than each frame; materials are read
+when drawn, so edits to them show at once. Objects are kept side by side and ids stay safe after removal, so a game
+keeping its objects elsewhere, such as in an ECS, fills one the same way. Skinned meshes, whose poses change every
+frame, are still handed over each frame with `DrawSkinnedMesh()`.
+
+Scenes keep theirs in a `RenderWorldSystem` (`engine/scene/rendering/render_world_system.h`), which `DrawScene()`
+creates and syncs: it visits the scene's `MeshRenderer`s, and takes from each only what changed since the last sync,
+as `Transform::GetVersion()` (which changes when the transform or an ancestor moves) and the renderer's own changes
+tell, then removes the objects of renderers that went away or were disabled. Graphics never sees the scene.
+
 ### SceneRenderer
 
 `SceneRenderer::Render()` draws scenes over each other into the window or a texture: their meshes through the first

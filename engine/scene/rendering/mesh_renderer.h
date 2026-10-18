@@ -3,6 +3,7 @@
 #include "assets/asset_ref.h"
 #include "graphics/material.h"
 #include "graphics/mesh.h"
+#include "graphics/render_world.h"
 #include "scene/component.h"
 
 #include <cstdint>
@@ -35,31 +36,64 @@ public:
 
     // Without a mesh, nothing is drawn.
     const AssetRef<Mesh>& GetMesh() const { return m_mesh; }
-    void SetMesh(AssetRef<Mesh> mesh) { m_mesh = std::move(mesh); }
+    void SetMesh(AssetRef<Mesh> mesh) {
+        m_mesh = std::move(mesh);
+        ++m_version;
+    }
 
     // Without a material, the mesh is drawn plain white.
     const AssetRef<Material>& GetMaterial() const { return m_material; }
-    void SetMaterial(AssetRef<Material> material) { m_material = std::move(material); }
+    void SetMaterial(AssetRef<Material> material) {
+        m_material = std::move(material);
+        ++m_version;
+    }
     // A material of the renderer's own, saved inline rather than as a material asset reference.
-    void SetMaterial(Material material) { m_material = std::make_shared<const Material>(std::move(material)); }
+    void SetMaterial(Material material) {
+        m_material = std::make_shared<const Material>(std::move(material));
+        ++m_version;
+    }
 
     // The index of the mesh's submesh it draws, or Mesh::AllSubmeshes for all of it, as models' parts each draw one.
     std::uint32_t GetSubmesh() const { return m_submesh; }
-    void SetSubmesh(std::uint32_t submesh) { m_submesh = submesh; }
+    void SetSubmesh(std::uint32_t submesh) {
+        m_submesh = submesh;
+        ++m_version;
+    }
 
     // Whether the mesh blocks lights that cast shadows, which it does unless told not to. It is lit and shadowed
     // either way.
     bool IsCastingShadows() const { return m_castingShadows; }
-    void SetCastingShadows(bool castingShadows) { m_castingShadows = castingShadows; }
+    void SetCastingShadows(bool castingShadows) {
+        m_castingShadows = castingShadows;
+        ++m_version;
+    }
 
 protected:
     void Serialize(Archive& archive) override;
 
 private:
+    friend class RenderWorldSystem;
+
     AssetRef<Mesh> m_mesh;
     AssetRef<Material> m_material;
     bool m_castingShadows = true;
     std::uint32_t m_submesh = Mesh::AllSubmeshes;
+    // Changes with each of the above, so the scene's render world updates the renderer's object only then.
+    std::uint32_t m_version = 0;
+    // What the render world last took from it. Copies of the renderer start without, so each has an object of its own.
+    struct RenderSync {
+        RenderObjectId object = RenderObjectId::Invalid;
+        std::uint32_t version = 0;
+        std::uint64_t transform = 0;
+        int layer = 0;
+        const Mesh* mesh = nullptr;
+        const Material* material = nullptr;
+
+        RenderSync() = default;
+        RenderSync(const RenderSync&) {}
+        RenderSync& operator=(const RenderSync&) { return *this; }
+    };
+    RenderSync m_sync;
 };
 
 // Same as Scene::Instantiate(model, name), preserving the model's node hierarchy.

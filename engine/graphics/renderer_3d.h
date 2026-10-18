@@ -26,7 +26,9 @@ namespace Spot {
 class GraphicsDevice;
 class Model;
 class Pipeline;
+class RenderWorld;
 struct Material;
+struct RenderMeshObject;
 
 namespace Detail {
 struct SelectedLights;
@@ -139,6 +141,9 @@ public:
                          const Matrix4& transform = {}, float boundsPadding = 1.0f, bool castsShadows = true,
                          std::uint32_t submesh = Mesh::AllSubmeshes);
     void DrawModel(const Model& model, const Matrix4& transform = {});
+    // Draws every mesh of the world on a layer the camera sees. The world and what its objects show must stay alive
+    // and unchanged until End().
+    void DrawWorld(const RenderWorld& world);
     // The camera Begin() was given.
     const Camera3D& GetCamera() const { return m_camera; }
 
@@ -182,6 +187,7 @@ private:
         std::uint32_t skinCount = 0;
     };
 
+    void AddCommand(const RenderMeshObject& object, const Material& material);
     void DrawShadows(Detail::SelectedLights& lights, Detail::ShadowUniforms& shadows);
     void DrawShadowViews(Detail::SelectedLights& lights, Detail::ShadowUniforms& shadows);
     // Whether the shadow map could be created.

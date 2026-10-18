@@ -170,10 +170,12 @@ add_library(spot_objects OBJECT
     graphics/renderer_2d.cpp
     runtime/console_overlay.cpp
     graphics/render_graph.h
+    graphics/render_world.h
     graphics/renderer_3d.h
     scene/rendering/rendering_settings.cpp
     scene/rendering/rendering_settings.h
     graphics/render_graph.cpp
+    graphics/render_world.cpp
     graphics/renderer_3d.cpp
     graphics/renderer_3d_depth.cpp
     graphics/particle_batch.h
@@ -269,8 +271,10 @@ add_library(spot_objects OBJECT
     scene/prefab.cpp
     scene/prefab_serialization.cpp
     scene/rendering/mesh_renderer.h
+    scene/rendering/render_world_system.h
     scene/missing_component.h
     scene/rendering/mesh_renderer.cpp
+    scene/rendering/render_world_system.cpp
     scene/scene.h
     scene/scene.cpp
     scene/scene_model.cpp

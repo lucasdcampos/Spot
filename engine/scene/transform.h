@@ -4,6 +4,8 @@
 #include "math/quaternion.h"
 #include "math/vector.h"
 
+#include <cstdint>
+
 namespace Spot {
 
 class Entity;
@@ -49,6 +51,9 @@ public:
     const Quaternion& GetWorldRotation() const;
     void SetWorldRotation(const Quaternion& rotation);
     float GetWorldRotation2D() const;
+    // Changes whenever the world values may have, this transform's or an ancestor's change included, so systems
+    // mirroring transforms elsewhere update only those that moved.
+    std::uint64_t GetVersion() const { return m_version; }
 
 private:
     friend class Entity;
@@ -71,6 +76,7 @@ private:
     mutable Matrix4 m_worldMatrix = {};
     mutable Quaternion m_worldRotation = {};
     mutable bool m_worldDirty = true;
+    std::uint64_t m_version = 0;
 };
 
 } // namespace Spot

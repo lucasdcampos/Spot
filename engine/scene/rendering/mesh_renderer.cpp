@@ -7,6 +7,9 @@
 namespace Spot {
 
 void MeshRenderer::Serialize(Archive& archive) {
+    if (archive.IsLoading()) {
+        ++m_version;
+    }
     archive.Field("mesh", m_mesh);
     AssetRef<Material> assetMaterial = m_material.GetId().IsValid() ? m_material : AssetRef<Material>{};
     archive.Field("material", assetMaterial);

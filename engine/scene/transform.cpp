@@ -82,10 +82,12 @@ float Transform::GetWorldRotation2D() const {
 }
 
 void Transform::MarkWorldDirty() {
+    // Already outdated world values have changed since anyone read them, so their version already tells.
     if (m_worldDirty) {
         return;
     }
     m_worldDirty = true;
+    ++m_version;
     for (Entity* child : m_entity.m_children) {
         child->m_transform.MarkWorldDirty();
     }

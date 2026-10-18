@@ -1,4 +1,5 @@
 #include "graphics/renderer_3d.h"
+#include "graphics/render_world.h"
 
 #include "core/assert.h"
 #include "core/log.h"
@@ -636,20 +637,29 @@ void Renderer3D::DrawFog(const FogData& fog) {
 void Renderer3D::DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform, bool castsShadows,
                           std::uint32_t submesh) {
     SPOT_ASSERT(m_context, "Draw calls must come between Begin() and End()");
-    if (submesh != Mesh::AllSubmeshes && submesh >= mesh.GetSubmeshes().size()) {
-        Log::GetEngineLogger().Warning("Cannot draw submesh {} of a mesh with {} submeshes", submesh,
-                                       mesh.GetSubmeshes().size());
-        return;
+    RenderMeshObject object;
+    if (Detail::MakeMeshObject(
+            {.mesh = &mesh, .transform = transform, .submesh = submesh, .castsShadows = castsShadows}, object)) {
+        AddCommand(object, material);
     }
-    const BoundingSphere bounds = mesh.GetBounds();
-    const Vector4 center = transform * Vector4{bounds.center.x, bounds.center.y, bounds.center.z, 1.0f};
-    float scale = 0.0f;
-    for (std::size_t i = 0; i < 3; ++i) {
-        const Vector4& axis = transform.columns[i];
-        scale = std::max(scale, Length(Vector3{axis.x, axis.y, axis.z}));
+}
+
+void Renderer3D::DrawWorld(const RenderWorld& world) {
+    SPOT_ASSERT(m_context, "Draw calls must come between Begin() and End()");
+    SPOT_PROFILE_SCOPE("Renderer3D::DrawWorld");
+    static const Material DefaultMaterial;
+    const std::span<const RenderMeshObject> objects = world.GetMeshes();
+    m_commands.reserve(m_commands.size() + objects.size());
+    for (const RenderMeshObject& object : objects) {
+        if (object.desc.mesh && ((m_camera.cullingMask >> object.desc.layer) & 1u)) {
+            AddCommand(object, object.desc.material ? *object.desc.material : DefaultMaterial);
+        }
     }
+}
+
+void Renderer3D::AddCommand(const RenderMeshObject& object, const Material& material) {
     m_commands.push_back(
-        {&mesh,
+        {object.desc.mesh,
          {material.baseColorTexture.Get(), material.metallicRoughnessTexture.Get(), material.normalTexture.Get(),
           material.occlusionTexture.Get(), material.emissiveTexture.Get()},
          material.baseColor,
@@ -662,22 +672,13 @@ void Renderer3D::DrawMesh(const Mesh& mesh, const Material& material, const Matr
          material.alphaCutoff,
          material.doubleSided,
          material.worldTextureSize,
-         transform,
-         {{center.x, center.y, center.z}, bounds.radius * scale},
-         castsShadows});
+         object.desc.transform,
+         object.bounds,
+         object.desc.castsShadows});
     DrawCommand& command = m_commands.back();
-    const std::span<const SubMesh> submeshes = mesh.GetSubmeshes();
-    if (submesh < submeshes.size()) {
-        command.firstIndex = submeshes[submesh].firstIndex;
-        command.indexCount = submeshes[submesh].indexCount;
-    } else {
-        command.indexCount = mesh.GetIndexCount();
-    }
-    const auto axis = [&](int column) {
-        const Vector4& c = transform.columns[static_cast<std::size_t>(column)];
-        return Vector3{c.x, c.y, c.z};
-    };
-    command.mirrored = Dot(Cross(axis(0), axis(1)), axis(2)) < 0.0f;
+    command.firstIndex = object.firstIndex;
+    command.indexCount = object.indexCount;
+    command.mirrored = object.mirrored;
 }
 
 void Renderer3D::DrawSkinnedMesh(const Mesh& mesh, const Material& material, std::span<const Matrix4> palette,

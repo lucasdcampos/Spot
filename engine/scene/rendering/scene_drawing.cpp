@@ -11,6 +11,7 @@
 #include "scene/rendering/fog.h"
 #include "scene/rendering/light.h"
 #include "scene/rendering/mesh_renderer.h"
+#include "scene/rendering/render_world_system.h"
 #include "scene/rendering/sky.h"
 #include "scene/rendering/sprite_renderer.h"
 #include "scene/rendering/text_renderer.h"
@@ -67,13 +68,11 @@ void DrawScene(Renderer3D& meshes, Scene& scene) {
                                    renderer.GetBoundsPadding(), renderer.IsCastingShadows(), renderer.GetSubmesh());
         }
     });
-    scene.ForEachComponent<MeshRenderer>([&meshes](const MeshRenderer& renderer) {
-        if (renderer.GetMesh() && ((meshes.GetCamera().cullingMask >> renderer.GetEntity().GetLayer()) & 1u)) {
-            meshes.DrawMesh(*renderer.GetMesh(), renderer.GetMaterial() ? *renderer.GetMaterial() : DefaultMaterial,
-                            renderer.GetEntity().GetTransform().GetWorldMatrix(), renderer.IsCastingShadows(),
-                            renderer.GetSubmesh());
-        }
-    });
+    RenderWorldSystem* world = scene.GetSystem<RenderWorldSystem>();
+    if (!world) {
+        world = &scene.AddSystem<RenderWorldSystem>();
+    }
+    meshes.DrawWorld(world->Sync());
 }
 
 void DrawScene(Renderer2D& renderer, Scene& scene) {
