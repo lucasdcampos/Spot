@@ -6,6 +6,8 @@
 add_library(sandbox_generator_core STATIC
     rigs.h
     rigs.cpp
+    foliage_textures.cpp
+    foliage_textures.h
     generator.cpp
     generator.h
     gltf_writer.cpp
@@ -25,6 +27,8 @@ add_library(sandbox_generator_core STATIC
     texture_painting.h
     textures.cpp
     textures.h
+    trees.cpp
+    trees.h
     weapons.cpp
     weapons.h
 )

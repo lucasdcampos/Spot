@@ -483,13 +483,18 @@ std::string_view GetSurfaceName(Surface surface) {
         return "water";
     case Surface::Slab:
         return "slab";
+    case Surface::Needles:
+        return "needles";
     }
     return "";
 }
 
 std::uint32_t GetSurfaceSize(Surface surface) {
-    return surface == Surface::Grass || surface == Surface::Rock || surface == Surface::Asphalt ||
-                   surface == Surface::Slab
+    if (surface == Surface::Grass) {
+        return 1024;
+    }
+    return surface == Surface::Rock || surface == Surface::Asphalt || surface == Surface::Slab ||
+                   surface == Surface::Bark || surface == Surface::Leaves || surface == Surface::Needles
                ? 512
                : Size;
 }

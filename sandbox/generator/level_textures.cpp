@@ -1,5 +1,6 @@
 #include "level_textures.h"
 
+#include "foliage_textures.h"
 #include "texture_painting.h"
 
 namespace Generator::Textures {
@@ -12,48 +13,34 @@ float Coordinate(int pixel, float scale) {
     return (static_cast<float>(pixel) + 0.5f) * scale / 256.0f;
 }
 
-// Short blades over patches of lush and dry grass, with bare earth showing in places.
-SurfacePoint GrassPoint(int x, int y, float scale) {
-    const float u = Coordinate(x, scale);
-    const float v = Coordinate(y, scale);
-    const float patches = Fractal(u, v, 5, 5, 4, 1001);
-    const float dry = Smooth(0.55f, 0.75f, Fractal(u, v, 3, 3, 3, 1002));
-    const float bare = Smooth(0.68f, 0.8f, Fractal(u, v, 7, 7, 4, 1003));
-    // Blades: fine noise stretched a little along v, as grass leans one way.
-    const float blades = Fractal(u, v, 96, 48, 2, 1004);
-    const float tips = Random(x, y, 1005);
-    Rgb color = Mix(Rgb{0.16f, 0.27f, 0.08f}, Rgb{0.33f, 0.45f, 0.14f}, patches);
-    color = Mix(color, Rgb{0.48f, 0.47f, 0.24f}, dry * 0.7f);
-    color = color * (0.72f + blades * 0.45f + tips * 0.08f);
-    const Rgb earth = Rgb{0.33f, 0.26f, 0.18f} * (0.85f + tips * 0.2f);
-    color = Mix(color, earth, bare * 0.85f);
-    return {.color = color,
-            .height = blades * 3.0f + patches * 2.0f - bare * 1.5f,
-            .occlusion = 0.65f + blades * 0.35f,
-            .roughness = 0.82f + tips * 0.12f - dry * 0.05f};
-}
-
-// Round pebbles of several sizes scattered over packed earth.
+// Gravel: pebbles of several sizes and stones (greys, buff and brown) packed together, each rounded on top, with
+// dark grit showing between them.
 SurfacePoint GravelPoint(int x, int y, float scale) {
     const float u = Coordinate(x, scale);
     const float v = Coordinate(y, scale);
-    const CellSample stones = Cells(u * 20.0f, v * 20.0f, 20, 1101);
-    const CellSample small = Cells(u * 48.0f, v * 48.0f, 48, 1102);
-    const float grain = Random(x, y, 1103);
-    const float dirt = Fractal(u, v, 6, 6, 3, 1104);
-    // Each cell's point holds a pebble of its own size, domed, with earth between them.
-    const float bigRadius = 0.25f + stones.id * 0.2f;
-    const float smallRadius = 0.2f + small.id * 0.18f;
-    const float big = Smooth(bigRadius, bigRadius * 0.55f, stones.nearest) * (stones.id > 0.25f ? 1.0f : 0.0f);
-    const float little = Smooth(smallRadius, smallRadius * 0.5f, small.nearest) * (small.id > 0.4f ? 0.7f : 0.0f);
-    const float stone = std::max(big, little);
-    const float tone = big >= little ? stones.id : small.id;
-    const Rgb pebble = Mix(Rgb{0.4f, 0.38f, 0.35f}, Rgb{0.64f, 0.6f, 0.53f}, tone);
-    const Rgb soil = Mix(Rgb{0.27f, 0.21f, 0.15f}, Rgb{0.39f, 0.31f, 0.22f}, dirt) * (0.9f + grain * 0.15f);
-    return {.color = Mix(soil, pebble * (0.85f + grain * 0.1f), Smooth(0.0f, 0.3f, stone)),
-            .height = stone * 3.5f + grain * 0.3f,
-            .occlusion = 0.55f + Smooth(0.0f, 0.5f, stone) * 0.45f,
-            .roughness = 0.93f - stone * 0.2f};
+    const float grain = Random(x, y, 1101);
+    // Warping the cells' space a little rounds their straight edges off, as pebbles are.
+    const float warpU = (Fractal(u, v, 24, 24, 2, 1102) - 0.5f) * 0.5f;
+    const float warpV = (Fractal(u, v, 24, 24, 2, 1103) - 0.5f) * 0.5f;
+    const CellSample large = Cells(u * 14.0f + warpU, v * 14.0f + warpV, 14, 1104);
+    const CellSample small = Cells(u * 34.0f + warpU * 2.0f, v * 34.0f + warpV * 2.0f, 34, 1105);
+    // How far inside its cell a point is: 0 at the gaps between stones, rising to their tops.
+    const float largeInside = Smooth(0.04f, 0.45f, large.second - large.nearest);
+    const float smallInside = Smooth(0.04f, 0.4f, small.second - small.nearest);
+    // Some large cells hold a stone; elsewhere small pebbles fill in.
+    const bool isLarge = large.id > 0.35f && largeInside > 0.0f;
+    const float inside = isLarge ? largeInside : smallInside;
+    const float id = isLarge ? large.id : small.id;
+    const float tint = Random(static_cast<int>(id * 65536.0f), 0, 1106);
+    Rgb stone = Mix(Rgb{0.42f, 0.41f, 0.39f}, Rgb{0.63f, 0.59f, 0.52f}, id);
+    stone = Mix(stone, Rgb{0.45f, 0.36f, 0.27f}, tint > 0.75f ? 0.7f : 0.0f);
+    stone = stone * (0.82f + grain * 0.12f + std::sqrt(inside) * 0.12f);
+    const Rgb grit = Mix(Rgb{0.17f, 0.14f, 0.11f}, Rgb{0.3f, 0.26f, 0.21f}, grain);
+    const float covered = Smooth(0.0f, 0.25f, inside);
+    return {.color = Mix(grit, stone, covered),
+            .height = std::sqrt(inside) * (isLarge ? 6.0f : 3.0f) + grain * 0.3f,
+            .occlusion = 0.35f + covered * 0.65f,
+            .roughness = 0.94f - covered * 0.2f + grain * 0.04f};
 }
 
 // Worn asphalt: dark binder with small light stones, smoother where tires polish it, and a few fine cracks.
@@ -229,47 +216,45 @@ SurfacePoint RockPoint(int x, int y, float scale) {
                         Smooth(0.45f, 0.6f, Fractal(u, v, 5, 5, 3, 1706));
     const float lichen = Smooth(0.64f, 0.76f, Fractal(u, v, 8, 8, 4, 1703));
     const float grain = Random(x, y, 1704);
+    // Sharp ridges where the surface broke off, and the specks of its minerals, light and dark.
+    const float ridges = 1.0f - std::abs(Fractal(u, v, 10, 10, 4, 1709) * 2.0f - 1.0f);
+    const float minerals = ValueNoise(u * 160.0f, v * 160.0f, 160, 160, 1710);
+    const float speck = Smooth(0.75f, 0.85f, minerals) - Smooth(0.25f, 0.15f, minerals);
     Rgb color = Mix(Rgb{0.33f, 0.31f, 0.29f}, Rgb{0.58f, 0.55f, 0.5f}, body);
-    color = color * (0.86f + layers * 0.14f + detail * 0.12f + grain * 0.05f);
+    color = color * (0.8f + layers * 0.14f + detail * 0.12f + ridges * 0.12f + grain * 0.05f + speck * 0.12f);
     color = Mix(color, Rgb{0.44f, 0.47f, 0.26f}, lichen * 0.55f);
     color = Mix(color, Rgb{0.13f, 0.12f, 0.11f}, crack * 0.85f);
     return {.color = color,
-            .height = body * 10.0f + layers * 2.0f + detail * 2.0f - crack * 4.0f + grain * 0.4f,
+            .height =
+                body * 10.0f + layers * 2.0f + detail * 2.0f + ridges * ridges * 3.0f - crack * 4.0f + grain * 0.4f,
             .occlusion = 1.0f - crack * 0.5f - (1.0f - body) * 0.2f,
             .roughness = 0.86f + grain * 0.08f - lichen * 0.05f};
 }
 
-// Rough bark in long ridges along v.
+// Furrowed bark, as an old oak's or pine's: long rounded plates along v, split by deep furrows that wander and join,
+// grey-brown on their worn faces with a little lichen and dark in the furrows. Its v runs along the branch, about a
+// meter per repeat.
 SurfacePoint BarkPoint(int x, int y, float scale) {
     const float u = Coordinate(x, scale);
     const float v = Coordinate(y, scale);
-    const float ridges = Fractal(u, v, 14, 2, 4, 1801);
-    const float furrow = Smooth(0.35f, 0.6f, ridges);
-    const float grain = Random(x, y, 1802);
-    const Rgb color = Mix(Rgb{0.16f, 0.11f, 0.08f}, Rgb{0.38f, 0.29f, 0.21f}, furrow) * (0.85f + grain * 0.2f);
-    return {
-        .color = color, .height = furrow * 6.0f + grain * 0.5f, .occlusion = 0.55f + furrow * 0.45f, .roughness = 0.9f};
-}
-
-// A canopy: masses of foliage, lighter where they bulge toward the light, made of small leaves of slightly different
-// greens, with little shadow between them.
-SurfacePoint LeavesPoint(int x, int y, float scale) {
-    const float u = Coordinate(x, scale);
-    const float v = Coordinate(y, scale);
-    const float masses = Fractal(u, v, 5, 5, 4, 1901);
-    const CellSample leaves = Cells(u * 30.0f, v * 30.0f, 30, 1904);
-    const CellSample under = Cells(u * 30.0f + 0.5f, v * 30.0f + 0.5f, 30, 1905);
-    const float leaf = Smooth(0.55f, 0.2f, leaves.nearest);
-    const float lower = Smooth(0.6f, 0.25f, under.nearest);
-    const float id = leaf > 0.3f ? leaves.id : under.id;
-    Rgb color = Mix(Rgb{0.19f, 0.33f, 0.08f}, Rgb{0.36f, 0.5f, 0.15f}, id * 0.6f + masses * 0.4f);
-    color = Mix(color, Rgb{0.48f, 0.53f, 0.18f}, Smooth(0.9f, 1.0f, id) * 0.4f);
-    const float shade = leaf > 0.3f ? 0.85f + (1.0f - leaves.nearest) * 0.2f : 0.6f + lower * 0.25f;
-    color = color * shade * (0.6f + masses * 0.5f);
-    return {.color = color,
-            .height = masses * 6.0f + leaf * 1.5f + lower * 0.8f,
-            .occlusion = 0.55f + masses * 0.3f + leaf * 0.15f,
-            .roughness = 0.62f + (1.0f - leaf) * 0.2f};
+    // Plates are cells four times as long as they are wide, their edges warped so the furrows wander.
+    const float warpU = (Fractal(u, v, 4, 8, 3, 1801) - 0.5f) * 0.6f;
+    const float warpV = (Fractal(u, v, 4, 8, 3, 1802) - 0.5f) * 0.6f;
+    const CellSample plates = Cells(u * 12.0f + warpU, v * 3.0f + warpV, 12, 3, 1803);
+    const float gap = plates.second - plates.nearest;
+    // Each plate is rounded, worn smooth on top and falling away into the furrows around it.
+    const float raised = Smooth(0.02f, 0.45f, gap);
+    const float fibers = Fractal(u, v, 64, 8, 3, 1805);
+    const float grain = Random(x, y, 1806);
+    const float lichen = Smooth(0.62f, 0.78f, Fractal(u, v, 5, 5, 3, 1807)) * raised;
+    Rgb face = Mix(Rgb{0.27f, 0.22f, 0.17f}, Rgb{0.44f, 0.39f, 0.33f}, plates.id * 0.6f + fibers * 0.4f);
+    face = face * (0.7f + raised * 0.25f + fibers * 0.2f + grain * 0.08f);
+    face = Mix(face, Rgb{0.46f, 0.49f, 0.37f}, lichen * 0.45f);
+    const Rgb furrow = Rgb{0.12f, 0.09f, 0.07f} * (0.8f + fibers * 0.4f);
+    return {.color = Mix(furrow, face, Smooth(0.0f, 0.35f, raised)),
+            .height = raised * 10.0f + fibers * 1.5f + grain * 0.3f,
+            .occlusion = 0.35f + raised * 0.65f,
+            .roughness = 0.88f + grain * 0.08f - lichen * 0.05f};
 }
 
 // Calm water: gentle swells and ripples in its normals, smooth enough to mirror the sky.
@@ -277,10 +262,11 @@ SurfacePoint WaterPoint(int x, int y, float scale) {
     const float u = Coordinate(x, scale);
     const float v = Coordinate(y, scale);
     const float swell = Fractal(u, v, 3, 3, 3, 2001);
-    const float ripples = Wave(u * 9.0f + swell * 2.0f) * Wave(v * 7.0f + swell * 1.5f);
+    // Wind ripples, longer across the wind than along it, wandering with the swell.
+    const float ripples = Fractal(u + swell * 0.05f, v, 10, 18, 3, 2003);
     const float fine = Fractal(u, v, 24, 24, 2, 2002);
     return {.color = Mix(Rgb{0.08f, 0.2f, 0.22f}, Rgb{0.12f, 0.28f, 0.3f}, swell),
-            .height = swell * 10.0f + ripples * 1.5f + fine * 0.8f,
+            .height = swell * 5.0f + ripples * 2.0f + fine * 0.5f,
             .roughness = 0.03f + fine * 0.03f};
 }
 
@@ -289,7 +275,7 @@ SurfacePoint WaterPoint(int x, int y, float scale) {
 SurfaceTextures PaintLevelSurface(Surface surface, std::uint32_t size) {
     switch (surface) {
     case Surface::Grass:
-        return PaintSurfaceTexels(size, GrassPoint);
+        return PaintGrass(size);
     case Surface::Gravel:
         return PaintSurfaceTexels(size, GravelPoint);
     case Surface::Asphalt:
@@ -307,7 +293,9 @@ SurfaceTextures PaintLevelSurface(Surface surface, std::uint32_t size) {
     case Surface::Bark:
         return PaintSurfaceTexels(size, BarkPoint);
     case Surface::Leaves:
-        return PaintSurfaceTexels(size, LeavesPoint);
+        return PaintLeaves(size);
+    case Surface::Needles:
+        return PaintNeedles(size);
     case Surface::Slab:
         return PaintSurfaceTexels(size, SlabPoint);
     default:

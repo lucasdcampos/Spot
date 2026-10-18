@@ -23,5 +23,5 @@
   "alphaMode": 0,
   "alphaCutoff": 0.5,
   "doubleSided": false,
-  "worldTextureSize": 1.2
+  "worldTextureSize": 0.0
 }

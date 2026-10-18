@@ -88,7 +88,8 @@ struct CellSample {
     float id = 0.0f;
 };
 
-inline CellSample Cells(float x, float y, int period, std::uint32_t seed) {
+// Cells tiling every periodX cells along x and periodY along y, so stretching x and y differently stretches them.
+inline CellSample Cells(float x, float y, int periodX, int periodY, std::uint32_t seed) {
     const int cx = static_cast<int>(std::floor(x));
     const int cy = static_cast<int>(std::floor(y));
     CellSample sample{1e9f, 1e9f, 0.0f};
@@ -96,8 +97,8 @@ inline CellSample Cells(float x, float y, int period, std::uint32_t seed) {
         for (int dx = -1; dx <= 1; ++dx) {
             const int px = cx + dx;
             const int py = cy + dy;
-            const int wx = Wrap(px, period);
-            const int wy = Wrap(py, period);
+            const int wx = Wrap(px, periodX);
+            const int wy = Wrap(py, periodY);
             const float fx = static_cast<float>(px) + Random(wx, wy, seed);
             const float fy = static_cast<float>(py) + Random(wx, wy, seed + 1);
             const float distance = std::sqrt((x - fx) * (x - fx) + (y - fy) * (y - fy));
@@ -113,6 +114,10 @@ inline CellSample Cells(float x, float y, int period, std::uint32_t seed) {
     return sample;
 }
 
+inline CellSample Cells(float x, float y, int period, std::uint32_t seed) {
+    return Cells(x, y, period, period, seed);
+}
+
 // A smooth wave of the phase, in turns, from -1 to 1, shaped like a sine from arithmetic alone.
 inline float Wave(float phase) {
     const float x = phase - std::floor(phase);
@@ -126,15 +131,20 @@ inline float Smooth(float from, float to, float value) {
     return t * t * (3.0f - 2.0f * t);
 }
 
-// What a surface is at a pixel: its color, its height (in pixels, for its normals), how much light reaches it, and its
-// roughness and metalness.
+// What a surface is at a pixel: its color, its height (in pixels, for its normals), how much light reaches it, its
+// roughness and metalness, and how much of the pixel it covers, for cutouts such as leaves.
 struct SurfacePoint {
     Rgb color;
     float height = 0.0f;
     float occlusion = 1.0f;
     float roughness = 0.5f;
     float metallic = 0.0f;
+    float alpha = 1.0f;
 };
+
+// Encodes a surface's points, size pixels square, row by row, into its textures; normals come from the slopes of the
+// heights, which wrap around the edges so they tile.
+inline SurfaceTextures EncodeSurface(std::uint32_t size, const std::vector<SurfacePoint>& points);
 
 // Paints a surface's textures, size pixels square, from what it is at each pixel: the function takes the pixel and
 // how many pixels of a 256-pixel texture each covers, so heights can be given in those pixels whatever the size.
@@ -149,6 +159,10 @@ SurfaceTextures PaintSurfaceTexels(std::uint32_t size, F&& surface) {
             points[static_cast<std::size_t>(y) * size + x] = point;
         }
     }
+    return EncodeSurface(size, points);
+}
+
+inline SurfaceTextures EncodeSurface(std::uint32_t size, const std::vector<SurfacePoint>& points) {
     const auto at = [&](int x, int y) -> const SurfacePoint& {
         const int wrap = static_cast<int>(size);
         return points[static_cast<std::size_t>(Wrap(y, wrap)) * size + static_cast<std::size_t>(Wrap(x, wrap))];
@@ -166,7 +180,7 @@ SurfaceTextures PaintSurfaceTexels(std::uint32_t size, F&& surface) {
             color[i] = byte(point.color.r);
             color[i + 1] = byte(point.color.g);
             color[i + 2] = byte(point.color.b);
-            color[i + 3] = 255;
+            color[i + 3] = byte(point.alpha);
             // Slopes across the pixels around it, wrapping, so the normals tile; up the texture is toward lower y.
             const float dx = (at(x + 1, y).height - at(x - 1, y).height) * 0.5f;
             const float dy = (at(x, y - 1).height - at(x, y + 1).height) * 0.5f;

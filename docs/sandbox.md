@@ -34,11 +34,17 @@ night stars come out and turn with the sun's path (`DayCycle` sets `Sky::SetStar
 sun; see [Clouds, stars and the moon](sky.md). Three tagged pads mark where to build, test lamps and test weapons.
 
 The level's surfaces are generated PBR texture sets (grass, gravel, asphalt, paving, concrete slabs, brick,
-corrugated steel, tread plate, rock, bark, leaves and water), used by the materials in `materials/level/`, most
-projected from the world (`worldTextureSize`) so they keep their scale on boxes of any size. Its models
-(`generator/level_models.cpp`) are the terrain, rocks, trees, the container, the street lamp, the barrier, the
-bench, the quarter pipe and the fence panel. GPU acceptance captures of every yard by day, at sunset and at night
-are written to the test build's `tests/sandbox_captures/` directory.
+corrugated steel, tread plate, rock, bark, leaves, needles and water), used by the materials in `materials/level/`,
+most projected from the world (`worldTextureSize`) so they keep their scale on boxes of any size, their normal maps
+included. Most are painted pixel by pixel from noise and cells (`generator/level_textures.cpp`); the grass, leaves
+and needles are painted stroke by stroke (`generator/foliage_textures.cpp`): the lawn from tens of thousands of
+blades in tufts over straw and soil, repeating every four meters, and the foliage as a twig of oak leaves and a spray
+of spruce needles cut out by their alpha, imported with `keepAlphaCoverage` so they do not thin out from afar. Its
+models (`generator/level_models.cpp`) are the terrain, rocks, trees, the container, the street lamp, the barrier, the
+bench, the quarter pipe and the fence panel. The trees are grown by `generator/trees.cpp`: branches as tapering tubes
+that split into smaller ones, with buttress roots at the trunk's foot, and foliage as double-sided cards whose normals
+point out of the crown, so it is lit as a whole. GPU acceptance captures of every yard by day, at sunset and at night,
+and of the grass and trees up close, are written to the test build's `tests/sandbox_captures/` directory.
 
 ## Spawnable prefabs
 

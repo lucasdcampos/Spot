@@ -2,6 +2,7 @@
 
 #include "shapes.h"
 #include "texture_painting.h"
+#include "trees.h"
 
 #include <spot.h>
 
@@ -102,57 +103,29 @@ GltfModel Rock(std::uint32_t seed, Vector3 scale) {
     return builder.Build();
 }
 
-GltfModel Oak() {
+// Cards of leaves or needles, cut out of their texture and seen from both sides.
+GltfMaterial FoliageMaterial(std::string name, Surface surface) {
+    GltfMaterial material = SurfaceMaterial(std::move(name), surface);
+    material.doubleSided = true;
+    material.cutout = true;
+    return material;
+}
+
+GltfModel Tree(const Trees::TreeMeshes& meshes, std::string foliage, Surface surface) {
     Builder builder;
     const std::size_t bark = builder.AddMaterial(SurfaceMaterial("Bark", Surface::Bark));
-    const std::size_t leaves = builder.AddMaterial(SurfaceMaterial("Leaves", Surface::Leaves));
-    builder.Add(bark, Shapes::Frustum(0.32f, 0.18f, 3.6f, 14), At({0.0f, 1.8f, 0.0f}));
-    // Boughs leaning out toward the canopy's lobes.
-    const struct {
-        float yaw;
-        float lean;
-        float length;
-    } boughs[] = {{20.0f, 45.0f, 1.8f}, {140.0f, 50.0f, 1.6f}, {260.0f, 40.0f, 1.7f}};
-    for (const auto& bough : boughs) {
-        const Quaternion rotation = Turn({0, 1, 0}, bough.yaw) * Turn({0, 0, 1}, -bough.lean);
-        const Vector3 start{0.0f, 3.0f, 0.0f};
-        builder.Add(bark, Shapes::Frustum(0.13f, 0.06f, bough.length, 8),
-                    At(start + rotation * Vector3{0.0f, bough.length * 0.5f, 0.0f}, rotation));
-    }
-    const struct {
-        Vector3 center;
-        float radius;
-        std::uint32_t seed;
-    } lobes[] = {{{0.0f, 5.0f, 0.0f}, 2.1f, 11},  {{1.4f, 4.3f, 0.5f}, 1.6f, 12},  {{-1.2f, 4.5f, -0.7f}, 1.7f, 13},
-                 {{0.4f, 4.2f, -1.4f}, 1.5f, 14}, {{-0.5f, 4.1f, 1.3f}, 1.5f, 15}, {{0.2f, 6.2f, 0.2f}, 1.3f, 16}};
-    for (const auto& lobe : lobes) {
-        const std::uint32_t seed = lobe.seed;
-        builder.Add(leaves,
-                    Shapes::Icosphere(lobe.radius, 2,
-                                      [seed](Vector3 direction) {
-                                          return Lumps(direction, 3.0f, seed) * 0.45f -
-                                                 std::max(-direction.y - 0.5f, 0.0f) * 0.4f;
-                                      }),
-                    At(lobe.center));
-    }
+    const std::size_t leaves = builder.AddMaterial(FoliageMaterial(std::move(foliage), surface));
+    builder.Add(bark, meshes.bark);
+    builder.Add(leaves, meshes.foliage);
     return builder.Build();
 }
 
+GltfModel Oak() {
+    return Tree(Trees::Oak(7101), "Leaves", Surface::Leaves);
+}
+
 GltfModel Pine() {
-    Builder builder;
-    const std::size_t bark = builder.AddMaterial(SurfaceMaterial("Bark", Surface::Bark));
-    const std::size_t needles =
-        builder.AddMaterial(SurfaceMaterial("Needles", Surface::Leaves, {0.62f, 0.78f, 0.7f, 1.0f}));
-    builder.Add(bark, Shapes::Frustum(0.24f, 0.07f, 7.6f, 12), At({0.0f, 3.8f, 0.0f}));
-    const struct {
-        float radius;
-        float height;
-        float y;
-    } layers[] = {{2.3f, 2.6f, 2.5f}, {1.9f, 2.4f, 3.8f}, {1.5f, 2.2f, 5.0f}, {1.05f, 2.0f, 6.2f}, {0.6f, 1.6f, 7.4f}};
-    for (const auto& layer : layers) {
-        builder.Add(needles, Shapes::Cone(layer.radius, layer.height, 14), At({0.0f, layer.y, 0.0f}));
-    }
-    return builder.Build();
+    return Tree(Trees::Pine(7201, false), "Needles", Surface::Needles);
 }
 
 // A 20-foot container, six meters long along X, with doors at +X.
@@ -432,10 +405,10 @@ float GetDistanceOutside(float x, float z) {
 GltfModel Forest() {
     Builder builder;
     const std::size_t bark = builder.AddMaterial(SurfaceMaterial("Bark", Surface::Bark));
-    const std::size_t needles =
-        builder.AddMaterial(SurfaceMaterial("Needles", Surface::Leaves, {0.62f, 0.78f, 0.7f, 1.0f}));
+    const std::size_t needles = builder.AddMaterial(FoliageMaterial("Needles", Surface::Needles));
     const std::size_t stone = builder.AddMaterial(SurfaceMaterial("Rock", Surface::Rock));
-    const GltfModel pine = Pine();
+    // A few pines of their own, sparser than the one placed alone, as the forest is seen from afar.
+    const Trees::TreeMeshes kinds[] = {Trees::Pine(7301, true), Trees::Pine(7302, true), Trees::Pine(7303, true)};
     const MeshData rocks[] = {Rock(4001, {1.3f, 0.95f, 1.1f}).parts[0].mesh,
                               Rock(4002, {2.2f, 0.7f, 1.6f}).parts[0].mesh,
                               Rock(4003, {0.9f, 1.9f, 1.0f}).parts[0].mesh};
@@ -458,8 +431,9 @@ GltfModel Forest() {
         const float scale = 0.9f + random(i, 5003) * 0.6f;
         const Vector3 base{x, GetTerrainHeight(x, z) - 0.4f, z};
         const float yaw = random(i, 5004) * 360.0f;
-        place(bark, pine.parts[0].mesh, base, yaw, scale);
-        place(needles, pine.parts[1].mesh, base, yaw, scale);
+        const Trees::TreeMeshes& pine = kinds[static_cast<std::size_t>(random(i, 5005) * 2.999f)];
+        place(bark, pine.bark, base, yaw, scale);
+        place(needles, pine.foliage, base, yaw, scale);
         ++pines;
     }
     int boulders = 0;

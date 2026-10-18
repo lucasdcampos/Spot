@@ -1,6 +1,7 @@
 {
   "id": "acb617e066e08644732901e12610494a",
   "settings": {
+    "keepAlphaCoverage": true,
     "mipmaps": true,
     "srgb": true
   },

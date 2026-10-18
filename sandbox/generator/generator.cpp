@@ -12,6 +12,7 @@
 #include <spot.h>
 
 #include <functional>
+#include <future>
 #include <string>
 
 namespace Generator {
@@ -164,16 +165,29 @@ std::vector<PropInfo> GetProps() {
 
 OutputCounts GenerateSandboxAssets(const std::filesystem::path& directory) {
     OutputCounts counts;
+    // Painting and encoding images is most of the work, and each is on its own, so they are painted on threads of
+    // their own and written in order as they are done.
+    struct PaintedImage {
+        std::string name;
+        std::future<std::vector<std::byte>> png;
+    };
+    std::vector<PaintedImage> images;
     for (const Texture& texture : GetTextures()) {
-        const std::vector<std::byte> png = texture.paint().EncodePng();
-        WriteIfChanged(directory / "textures" / (std::string(texture.name) + ".png"), png, counts);
+        images.push_back({std::string(texture.name),
+                          std::async(std::launch::async, [&texture] { return texture.paint().EncodePng(); })});
     }
     for (const Textures::Surface surface : Textures::Surfaces) {
         const std::string name(Textures::GetSurfaceName(surface));
-        const Textures::SurfaceTextures textures = Textures::PaintSurface(surface);
-        WriteIfChanged(directory / "textures" / (name + "_color.png"), textures.color.EncodePng(), counts);
-        WriteIfChanged(directory / "textures" / (name + "_normal.png"), textures.normal.EncodePng(), counts);
-        WriteIfChanged(directory / "textures" / (name + "_orm.png"), textures.orm.EncodePng(), counts);
+        auto textures = std::async(std::launch::async, [surface] { return Textures::PaintSurface(surface); }).share();
+        images.push_back(
+            {name + "_color", std::async(std::launch::async, [textures] { return textures.get().color.EncodePng(); })});
+        images.push_back({name + "_normal",
+                          std::async(std::launch::async, [textures] { return textures.get().normal.EncodePng(); })});
+        images.push_back(
+            {name + "_orm", std::async(std::launch::async, [textures] { return textures.get().orm.EncodePng(); })});
+    }
+    for (PaintedImage& image : images) {
+        WriteIfChanged(directory / "textures" / (image.name + ".png"), image.png.get(), counts);
     }
     const auto writeModel = [&](const std::string& name, const GltfModel& model) {
         const GltfFiles files = EncodeGltf(model, name + ".bin");

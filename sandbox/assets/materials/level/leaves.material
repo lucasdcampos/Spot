@@ -20,8 +20,8 @@
     1
   ],
   "emissiveTexture": "00000000000000000000000000000000",
-  "alphaMode": 0,
+  "alphaMode": 1,
   "alphaCutoff": 0.5,
-  "doubleSided": false,
-  "worldTextureSize": 1.4
+  "doubleSided": true,
+  "worldTextureSize": 0.0
 }

@@ -366,7 +366,7 @@ if(TARGET sandbox)
         SANDBOX_ASSETS_DIR="${PROJECT_SOURCE_DIR}/sandbox/assets"
         SANDBOX_IMPORTED_DIR="$<TARGET_FILE_DIR:sandbox>/imported")
     target_link_libraries(spot_sandbox_tests PRIVATE spot_sandbox_test_code)
-    add_executable(spot_sandbox_gpu_tests sandbox/visual_tests.cpp)
+    add_executable(spot_sandbox_gpu_tests sandbox/visual_tests.cpp sandbox/scenery_tests.cpp)
     target_link_libraries(spot_sandbox_gpu_tests PRIVATE spot_sandbox_test_code Catch2::Catch2WithMain)
     target_include_directories(spot_sandbox_gpu_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_compile_definitions(spot_sandbox_gpu_tests PRIVATE

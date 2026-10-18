@@ -35,7 +35,8 @@ Spot::Image UiHitMarker();
 // Galvanized chain link: wires along both diagonals, white in color and alpha, for cutout fences.
 Spot::Image ChainLink();
 
-// The surfaces props, weapons and the level are made of, each a set of tiling PBR textures.
+// The surfaces props, weapons and the level are made of, each a set of tiling PBR textures, but for leaves and
+// needles: a twig of them on its own, cut out by its alpha, for the cards trees' foliage is made of.
 enum class Surface {
     Wood,
     PaintedMetal,
@@ -55,17 +56,19 @@ enum class Surface {
     Leaves,
     Water,
     Slab,
+    Needles,
 };
 
-inline constexpr std::array<Surface, 18> Surfaces = {
+inline constexpr std::array<Surface, 19> Surfaces = {
     Surface::Wood,   Surface::PaintedMetal, Surface::RustyMetal, Surface::Concrete, Surface::Rubber,
     Surface::Glass,  Surface::Grass,        Surface::Gravel,     Surface::Asphalt,  Surface::Paving,
     Surface::Brick,  Surface::Corrugated,   Surface::TreadPlate, Surface::Rock,     Surface::Bark,
-    Surface::Leaves, Surface::Water,        Surface::Slab};
+    Surface::Leaves, Surface::Water,        Surface::Slab,       Surface::Needles};
 
 // Names as in file names, such as "painted_metal".
 std::string_view GetSurfaceName(Surface surface);
-// How many pixels square its textures are: 512 for the broad ground and rock, which show the most, 256 otherwise.
+// How many pixels square its textures are: 1024 for grass, which covers most of the ground, 512 for the other broad
+// surfaces and the trees', and 256 otherwise.
 std::uint32_t GetSurfaceSize(Surface surface);
 
 // A surface's textures, as glTF materials take them: its color (sRGB), its tangent-space normals (+Y toward the
