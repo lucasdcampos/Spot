@@ -1,6 +1,7 @@
 #include "projectile.h"
 
 #include "explosion.h"
+#include "water.h"
 
 #include <algorithm>
 
@@ -25,6 +26,21 @@ Spot::Entity& Projectile::Launch(Spot::Scene& scene, Spot::Vector3 position, Spo
 
 void Projectile::OnStart() {
     Invoke(std::max(0.0f, lifetime), [this] { Explode(GetEntity().GetTransform().GetWorldPosition()); });
+}
+
+void Projectile::OnFixedUpdate(float /*fixedDeltaTime*/) {
+    const Spot::Vector3 position = GetEntity().GetTransform().GetWorldPosition();
+    if (m_last) {
+        const Spot::Vector3 travel = position - *m_last;
+        const float length = Spot::Length(travel);
+        if (length > 1e-4f) {
+            if (const auto water = Water::Raycast(GetScene(), *m_last, travel / length, length)) {
+                Explode(water->point);
+                return;
+            }
+        }
+    }
+    m_last = position;
 }
 
 void Projectile::OnCollisionEnter(const Spot::Collision& collision) {

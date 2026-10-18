@@ -28,6 +28,8 @@ public:
     float GetFieldOfView() const;
     void SetFieldOfView(float radians);
     void Kick(float radians, float recoveryTime = 0.2f);
+    // Shakes the view, as a blast nearby does: by up to the radians, dying down over the seconds. Aim stays steady.
+    void Shake(float radians, float seconds = 0.6f);
     float GetRecoil() const { return m_recoil; }
 
 protected:
@@ -49,4 +51,8 @@ private:
     // From 0 to 1 as the player runs, widening the view a little.
     float m_run = 0.0f;
     Spot::TweenId m_recoilTween = Spot::TweenId::Invalid;
+    float m_shake = 0.0f;
+    float m_shakeLength = 0.0f;
+    float m_shakeLeft = 0.0f;
+    float m_shakeClock = 0.0f;
 };

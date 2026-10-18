@@ -71,11 +71,24 @@ void PlayerController::Kick(float radians, float recoveryTime) {
                                            [this](float value) { m_recoil = value; }, Spot::Ease::QuadOut));
 }
 
+void PlayerController::Shake(float radians, float seconds) {
+    if (!std::isfinite(radians) || radians <= 0.0f || !std::isfinite(seconds) || seconds <= 0.0f) {
+        return;
+    }
+    // A stronger shake takes over a weaker one still going on.
+    const float current = m_shakeLength > 0.0f ? m_shake * m_shakeLeft / m_shakeLength : 0.0f;
+    if (radians >= current) {
+        m_shake = std::min(radians, 0.2f);
+        m_shakeLength = m_shakeLeft = seconds;
+    }
+}
+
 void PlayerController::OnDisable() {
     if (auto* tweens = GetScene().GetSystem<Spot::TweenSystem>()) {
         tweens->Cancel(m_recoilTween);
     }
     m_recoil = 0;
+    m_shakeLeft = 0;
 }
 
 void PlayerController::OnUpdate(float deltaTime) {
@@ -87,6 +100,8 @@ void PlayerController::OnUpdate(float deltaTime) {
     const auto* movement = GetEntity().GetComponent<PlayerMovement>();
     const float run = movement && movement->IsSprinting() ? 1.0f : 0.0f;
     m_run += (run - m_run) * (1.0f - std::exp(-6.0f * deltaTime));
+    m_shakeLeft = std::max(m_shakeLeft - deltaTime, 0.0f);
+    m_shakeClock += deltaTime;
 
     // A free cursor belongs to the rest of the screen, the carrier and the gun take the mouse while turning props, and
     // the weapon wheel while it is open.
@@ -110,7 +125,19 @@ void PlayerController::OnLateUpdate(float /*deltaTime*/) {
     if (!entity) {
         return;
     }
-    entity->GetTransform().SetRotation(GetViewRotation());
+    Spot::Quaternion rotation = GetViewRotation();
+    if (m_shakeLeft > 0.0f && m_shakeLength > 0.0f) {
+        // Dying down, quickly at first; waves out of step on each axis, so it jolts rather than sways.
+        const float left = m_shakeLeft / m_shakeLength;
+        const float amount = m_shake * left * left;
+        const float t = m_shakeClock;
+        const float pitch = amount * (0.6f * std::sin(t * 41.0f) + 0.4f * std::sin(t * 23.0f + 1.7f));
+        const float yaw = amount * (0.6f * std::sin(t * 37.0f + 0.5f) + 0.4f * std::sin(t * 19.0f + 2.9f));
+        const float roll = amount * 0.5f * std::sin(t * 31.0f + 4.1f);
+        rotation = rotation * Spot::Quaternion::FromAxisAngle({1.0f, 0.0f, 0.0f}, pitch) *
+                   Spot::Quaternion::FromAxisAngle(Up, yaw) * Spot::Quaternion::FromAxisAngle({0.0f, 0.0f, 1.0f}, roll);
+    }
+    entity->GetTransform().SetRotation(rotation);
     if (auto* camera = entity->GetComponent<Spot::Camera>(); camera && m_fieldOfView > 0.0f) {
         // What a lens of that magnification sees, a little wider running.
         camera->SetFieldOfView(2.0f * std::atan(std::tan(m_fieldOfView * 0.5f) * (1.0f + 0.07f * m_run) / m_zoom));

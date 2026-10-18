@@ -21,6 +21,42 @@
         },
         {
           "data": {
+            "muzzleFlash": {
+              "texture": "8b555f5a06e2feddc7ca9a46331589cf"
+            },
+            "muzzleFlame": {
+              "texture": "ed1fecb259b1e722099798820fb26a6c"
+            },
+            "muzzleSmoke": {
+              "texture": "02fcdc57f020cf8d04173ef11494c733"
+            },
+            "blastFlash": {
+              "texture": "c841b3d66ab062b8ffe35e2382d44667"
+            },
+            "fireball": {
+              "texture": "c841b3d66ab062b8ffe35e2382d44667"
+            },
+            "explosionSmoke": {
+              "texture": "02fcdc57f020cf8d04173ef11494c733"
+            },
+            "explosionDebris": {
+              "texture": "b73334bd6ee526e31cfe54f84425a778"
+            },
+            "groundDust": {
+              "texture": "02fcdc57f020cf8d04173ef11494c733"
+            },
+            "splashSpray": {
+              "texture": "02fcdc57f020cf8d04173ef11494c733"
+            },
+            "splashMist": {
+              "texture": "02fcdc57f020cf8d04173ef11494c733"
+            },
+            "ripples": {
+              "texture": "7dcfac3a28721a3de8486e29cbd485cb"
+            },
+            "waterPlume": {
+              "texture": "02fcdc57f020cf8d04173ef11494c733"
+            },
             "beam": {
               "count": 1,
               "settings": {
@@ -263,498 +299,6 @@
                   0.3799999952316284,
                   0.3400000035762787,
                   0.5
-                ],
-                "velocityStretch": 0.10000000149011612
-              },
-              "texture": null
-            },
-            "debris": {
-              "count": 24,
-              "settings": {
-                "blend": 0,
-                "boxSize": [
-                  1.0,
-                  1.0,
-                  1.0
-                ],
-                "bursts": [],
-                "colorOverLifetime": {
-                  "keys": [
-                    {
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        1.0
-                      ],
-                      "time": 0.0
-                    },
-                    {
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        1.0
-                      ],
-                      "time": 0.20000000298023224
-                    },
-                    {
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        0.0
-                      ],
-                      "time": 1.0
-                    }
-                  ]
-                },
-                "coneAngle": 0.800000011920929,
-                "duration": 5.0,
-                "emissionRate": 0.0,
-                "facing": 0,
-                "flipbookColumns": 1,
-                "flipbookCycles": 1.0,
-                "flipbookRows": 1,
-                "gravity": [
-                  0.0,
-                  -9.8100004196167,
-                  0.0
-                ],
-                "lifetime": {
-                  "max": 1.2000000476837158,
-                  "min": 0.30000001192092896
-                },
-                "loop": false,
-                "maxParticles": 512,
-                "playOnStart": false,
-                "radius": 0.029999999329447746,
-                "rotation": {
-                  "max": 0.0,
-                  "min": 0.0
-                },
-                "rotationOverLifetime": {
-                  "keys": [
-                    {
-                      "inTangent": 0.0,
-                      "outTangent": 0.0,
-                      "time": 0.0,
-                      "value": 0.0
-                    }
-                  ]
-                },
-                "seed": 1,
-                "shape": 1,
-                "size": {
-                  "max": 0.10000000149011612,
-                  "min": 0.029999999329447746
-                },
-                "sizeOverLifetime": {
-                  "keys": [
-                    {
-                      "inTangent": 1.5,
-                      "outTangent": 1.5,
-                      "time": 0.0,
-                      "value": 1.0
-                    },
-                    {
-                      "inTangent": 1.5,
-                      "outTangent": 1.5,
-                      "time": 1.0,
-                      "value": 2.5
-                    }
-                  ]
-                },
-                "softDistance": 0.30000001192092896,
-                "space": 1,
-                "speed": {
-                  "max": 9.0,
-                  "min": 3.0
-                },
-                "speedOverLifetime": {
-                  "keys": [
-                    {
-                      "inTangent": 0.0,
-                      "outTangent": 0.0,
-                      "time": 0.0,
-                      "value": 1.0
-                    }
-                  ]
-                },
-                "startColor": [
-                  0.20000000298023224,
-                  0.11999999731779099,
-                  0.05000000074505806,
-                  1.0
-                ],
-                "velocityStretch": 0.10000000149011612
-              },
-              "texture": null
-            },
-            "fire": {
-              "count": 48,
-              "settings": {
-                "blend": 1,
-                "boxSize": [
-                  1.0,
-                  1.0,
-                  1.0
-                ],
-                "bursts": [],
-                "colorOverLifetime": {
-                  "keys": [
-                    {
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        1.0
-                      ],
-                      "time": 0.0
-                    },
-                    {
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        1.0
-                      ],
-                      "time": 0.20000000298023224
-                    },
-                    {
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        0.0
-                      ],
-                      "time": 1.0
-                    }
-                  ]
-                },
-                "coneAngle": 0.800000011920929,
-                "duration": 5.0,
-                "emissionRate": 0.0,
-                "facing": 0,
-                "flipbookColumns": 1,
-                "flipbookCycles": 1.0,
-                "flipbookRows": 1,
-                "gravity": [
-                  0.0,
-                  0.0,
-                  0.0
-                ],
-                "lifetime": {
-                  "max": 0.6000000238418579,
-                  "min": 0.15000000596046448
-                },
-                "loop": false,
-                "maxParticles": 512,
-                "playOnStart": false,
-                "radius": 0.029999999329447746,
-                "rotation": {
-                  "max": 0.0,
-                  "min": 0.0
-                },
-                "rotationOverLifetime": {
-                  "keys": [
-                    {
-                      "inTangent": 0.0,
-                      "outTangent": 0.0,
-                      "time": 0.0,
-                      "value": 0.0
-                    }
-                  ]
-                },
-                "seed": 1,
-                "shape": 1,
-                "size": {
-                  "max": 0.800000011920929,
-                  "min": 0.20000000298023224
-                },
-                "sizeOverLifetime": {
-                  "keys": [
-                    {
-                      "inTangent": -1.0,
-                      "outTangent": -1.0,
-                      "time": 0.0,
-                      "value": 1.0
-                    },
-                    {
-                      "inTangent": -1.0,
-                      "outTangent": -1.0,
-                      "time": 1.0,
-                      "value": 0.0
-                    }
-                  ]
-                },
-                "softDistance": 0.0,
-                "space": 1,
-                "speed": {
-                  "max": 6.0,
-                  "min": 2.0
-                },
-                "speedOverLifetime": {
-                  "keys": [
-                    {
-                      "inTangent": 0.0,
-                      "outTangent": 0.0,
-                      "time": 0.0,
-                      "value": 1.0
-                    }
-                  ]
-                },
-                "startColor": [
-                  8.0,
-                  2.0,
-                  0.20000000298023224,
-                  1.0
-                ],
-                "velocityStretch": 0.10000000149011612
-              },
-              "texture": null
-            },
-            "muzzle": {
-              "count": 8,
-              "settings": {
-                "blend": 1,
-                "boxSize": [
-                  1.0,
-                  1.0,
-                  1.0
-                ],
-                "bursts": [],
-                "colorOverLifetime": {
-                  "keys": [
-                    {
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        1.0
-                      ],
-                      "time": 0.0
-                    },
-                    {
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        1.0
-                      ],
-                      "time": 0.20000000298023224
-                    },
-                    {
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        0.0
-                      ],
-                      "time": 1.0
-                    }
-                  ]
-                },
-                "coneAngle": 0.800000011920929,
-                "duration": 5.0,
-                "emissionRate": 0.0,
-                "facing": 0,
-                "flipbookColumns": 1,
-                "flipbookCycles": 1.0,
-                "flipbookRows": 1,
-                "gravity": [
-                  0.0,
-                  0.0,
-                  0.0
-                ],
-                "lifetime": {
-                  "max": 0.07999999821186066,
-                  "min": 0.029999999329447746
-                },
-                "loop": false,
-                "maxParticles": 512,
-                "playOnStart": false,
-                "radius": 0.029999999329447746,
-                "rotation": {
-                  "max": 0.0,
-                  "min": 0.0
-                },
-                "rotationOverLifetime": {
-                  "keys": [
-                    {
-                      "inTangent": 0.0,
-                      "outTangent": 0.0,
-                      "time": 0.0,
-                      "value": 0.0
-                    }
-                  ]
-                },
-                "seed": 1,
-                "shape": 2,
-                "size": {
-                  "max": 0.18000000715255737,
-                  "min": 0.07999999821186066
-                },
-                "sizeOverLifetime": {
-                  "keys": [
-                    {
-                      "inTangent": -1.0,
-                      "outTangent": -1.0,
-                      "time": 0.0,
-                      "value": 1.0
-                    },
-                    {
-                      "inTangent": -1.0,
-                      "outTangent": -1.0,
-                      "time": 1.0,
-                      "value": 0.0
-                    }
-                  ]
-                },
-                "softDistance": 0.0,
-                "space": 1,
-                "speed": {
-                  "max": 2.0,
-                  "min": 0.5
-                },
-                "speedOverLifetime": {
-                  "keys": [
-                    {
-                      "inTangent": 0.0,
-                      "outTangent": 0.0,
-                      "time": 0.0,
-                      "value": 1.0
-                    }
-                  ]
-                },
-                "startColor": [
-                  6.0,
-                  3.0,
-                  0.6000000238418579,
-                  1.0
-                ],
-                "velocityStretch": 0.10000000149011612
-              },
-              "texture": null
-            },
-            "smoke": {
-              "count": 32,
-              "settings": {
-                "blend": 0,
-                "boxSize": [
-                  1.0,
-                  1.0,
-                  1.0
-                ],
-                "bursts": [],
-                "colorOverLifetime": {
-                  "keys": [
-                    {
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        1.0
-                      ],
-                      "time": 0.0
-                    },
-                    {
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        1.0
-                      ],
-                      "time": 0.20000000298023224
-                    },
-                    {
-                      "color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        0.0
-                      ],
-                      "time": 1.0
-                    }
-                  ]
-                },
-                "coneAngle": 0.800000011920929,
-                "duration": 5.0,
-                "emissionRate": 0.0,
-                "facing": 0,
-                "flipbookColumns": 1,
-                "flipbookCycles": 1.0,
-                "flipbookRows": 1,
-                "gravity": [
-                  0.0,
-                  0.5,
-                  0.0
-                ],
-                "lifetime": {
-                  "max": 3.0,
-                  "min": 1.0
-                },
-                "loop": false,
-                "maxParticles": 512,
-                "playOnStart": false,
-                "radius": 0.029999999329447746,
-                "rotation": {
-                  "max": 0.0,
-                  "min": 0.0
-                },
-                "rotationOverLifetime": {
-                  "keys": [
-                    {
-                      "inTangent": 0.0,
-                      "outTangent": 0.0,
-                      "time": 0.0,
-                      "value": 0.0
-                    }
-                  ]
-                },
-                "seed": 1,
-                "shape": 2,
-                "size": {
-                  "max": 1.0,
-                  "min": 0.4000000059604645
-                },
-                "sizeOverLifetime": {
-                  "keys": [
-                    {
-                      "inTangent": 1.5,
-                      "outTangent": 1.5,
-                      "time": 0.0,
-                      "value": 1.0
-                    },
-                    {
-                      "inTangent": 1.5,
-                      "outTangent": 1.5,
-                      "time": 1.0,
-                      "value": 2.5
-                    }
-                  ]
-                },
-                "softDistance": 0.30000001192092896,
-                "space": 1,
-                "speed": {
-                  "max": 1.5,
-                  "min": 0.30000001192092896
-                },
-                "speedOverLifetime": {
-                  "keys": [
-                    {
-                      "inTangent": 0.0,
-                      "outTangent": 0.0,
-                      "time": 0.0,
-                      "value": 1.0
-                    }
-                  ]
-                },
-                "startColor": [
-                  0.10000000149011612,
-                  0.09000000357627869,
-                  0.07999999821186066,
-                  0.6000000238418579
                 ],
                 "velocityStretch": 0.10000000149011612
               },
@@ -1706,6 +1250,8 @@
       "components": [
         {
           "data": {
+            "largeSplash": "15f39ed5c7e6e7897c3bf66243f7cb25",
+            "smallSplash": "08dd8f4c6127ae0ce3e460a4c3ae8f89",
             "click": "740b4adc271ec8e9467bedbd8163a294",
             "explosion": "b25b62392b7f2f42ea25384ab0a311a7",
             "surfaces": [
@@ -32315,6 +31861,17 @@
     {
       "active": true,
       "components": [
+        {
+          "data": {
+            "depth": 4.0,
+            "drag": 1.5,
+            "minSplashSpeed": 1.0,
+            "shotDepth": 1.0
+          },
+          "enabled": true,
+          "id": "d445a7785a1d075752136602166b9f6f",
+          "type": "Water"
+        },
         {
           "data": {
             "castsShadows": false,

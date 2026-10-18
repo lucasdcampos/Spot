@@ -50,6 +50,8 @@ void SoundBank::PlayClick(Spot::Scene& scene) {
 void SoundBank::Serialize(Spot::Archive& archive) {
     archive.Field("surfaces", surfaces, {.tooltip = "By surface: concrete, wood and metal"});
     archive.Field("explosion", explosion);
+    archive.Field("smallSplash", smallSplash, {.tooltip = "Shots and small things falling in water"});
+    archive.Field("largeSplash", largeSplash, {.tooltip = "Big things and blasts in water"});
     archive.Field("click", click);
 }
 

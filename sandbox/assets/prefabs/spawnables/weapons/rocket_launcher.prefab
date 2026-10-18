@@ -14,6 +14,7 @@
             "impulse": 0.0,
             "kind": 1,
             "magazineSize": 1,
+            "muzzleFlash": 1.4,
             "model": "f27b3975595947e82baeaa312a999887",
             "pellets": 1,
             "projectileSpeed": 30.0,

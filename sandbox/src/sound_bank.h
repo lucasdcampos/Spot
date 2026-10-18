@@ -29,12 +29,15 @@ struct SurfaceSounds {
     void Serialize(Spot::Archive& archive);
 };
 
-// The sounds shared by the scene: those of each surface, by SurfaceKind, explosions and the interface's click.
+// The sounds shared by the scene: those of each surface, by SurfaceKind, explosions, splashes in water and the
+// interface's click.
 // Spawnable prefabs select their surface; weapons carry their own fire and reload sounds.
 class SoundBank final : public Spot::Component {
 public:
     std::vector<SurfaceSounds> surfaces;
     Spot::AssetRef<Spot::Sound> explosion;
+    Spot::AssetRef<Spot::Sound> smallSplash;
+    Spot::AssetRef<Spot::Sound> largeSplash;
     Spot::AssetRef<Spot::Sound> click;
 
     // The scene's bank; null when it has none.

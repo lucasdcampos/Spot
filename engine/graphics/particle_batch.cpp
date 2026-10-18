@@ -39,6 +39,11 @@ void ParticleBatch::Add(std::span<const Particle> particles, const ParticleSetti
                 right = Normalize(Cross(forward, up));
             }
             up *= 1 + Length(velocity) * settings.velocityStretch / std::max(particle.size * scale, 0.001f);
+        } else if (settings.facing == ParticleFacing::Horizontal) {
+            // As a billboard seen from straight above, so its front faces up.
+            const float cosine = std::cos(particle.rotation), sine = std::sin(particle.rotation);
+            right = {cosine, 0, -sine};
+            up = {-sine, 0, -cosine};
         } else {
             const float cosine = std::cos(particle.rotation), sine = std::sin(particle.rotation);
             right = cameraRight * cosine + cameraUp * sine;

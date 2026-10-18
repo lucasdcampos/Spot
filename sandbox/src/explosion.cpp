@@ -3,16 +3,21 @@
 #include "explosive_barrel.h"
 #include "flash.h"
 #include "particle_effects.h"
+#include "player_controller.h"
 #include "player_health.h"
 #include "player_movement.h"
 #include "robot.h"
 #include "sound_bank.h"
+#include "water.h"
 
 #include <algorithm>
+#include <optional>
 
 namespace Explosion {
 
 namespace {
+
+constexpr Spot::Vector3 Up = {0.0f, 1.0f, 0.0f};
 
 // Hurts and throws back the players within the radius.
 void HurtPlayers(Spot::Scene& scene, Spot::Vector3 center, float radius, float impulse, float damage) {
@@ -32,7 +37,7 @@ void HurtPlayers(Spot::Scene& scene, Spot::Vector3 center, float radius, float i
             return;
         }
         float share = 1.0f - distance / radius;
-        const Spot::Vector3 direction = toAxis > 0.01f ? (axis - center) / toAxis : Spot::Vector3{0.0f, 1.0f, 0.0f};
+        const Spot::Vector3 direction = toAxis > 0.01f ? (axis - center) / toAxis : Up;
         // From a little out of the center, past what exploded, to the player: anything between shields it.
         const float start = std::min(0.5f, distance);
         if (distance - start > 0.05f && scene.GetPhysics().Raycast(center + direction * start, direction,
@@ -48,19 +53,56 @@ void HurtPlayers(Spot::Scene& scene, Spot::Vector3 center, float radius, float i
     });
 }
 
+// The blast wave shakes the view of players well beyond where it hurts, less the farther they are.
+void ShakePlayers(Spot::Scene& scene, Spot::Vector3 center, float radius) {
+    const float reach = std::max(radius, 1.0f) * 8.0f;
+    scene.ForEachComponent<PlayerController>([&](PlayerController& player) {
+        const float closeness = 1.0f - Spot::Distance(player.GetEyePosition(), center) / reach;
+        if (closeness > 0.0f) {
+            player.Shake(0.05f * closeness * closeness * std::clamp(radius / 5.0f, 0.3f, 2.0f),
+                         0.4f + 0.5f * closeness);
+        }
+    });
+}
+
 } // namespace
 
 void Explode(Spot::Scene& scene, Spot::Vector3 center, float radius, float impulse, float damage,
              Spot::EntityId ignore) {
-    ParticleEffects::Explosion(scene, center, radius);
+    // At the water's surface, or under it, the blast throws the water up instead of dust; under it, there is no fire.
+    Water* water = Water::FindAt(scene, center);
+    const float surface = water ? water->GetHeight() : 0.0f;
+    const bool atWater =
+        water && center.y < surface + std::max(radius * 0.35f, 0.3f) && center.y > surface - water->depth;
+    const bool underwater = atWater && center.y < surface - 0.3f;
+    std::optional<Spot::Vector3> ground;
+    if (!atWater) {
+        const float above = 0.3f;
+        if (const auto hit = scene.GetPhysics().Raycast(center + Up * above, Spot::Vector3{0.0f, -1.0f, 0.0f},
+                                                        radius * 0.6f + above, {.ignore = ignore})) {
+            ground = hit->point;
+        }
+    }
+    ParticleEffects::Explosion(scene, center, radius,
+                               underwater ? ParticleEffects::Blast::UnderWater
+                               : atWater  ? ParticleEffects::Blast::OnWater
+                                          : ParticleEffects::Blast::InAir,
+                               ground);
+    if (atWater) {
+        water->Splash(center, 2.0f + radius * (underwater ? 1.2f : 0.8f));
+    }
     Robots::Explode(scene, center, radius, impulse);
     HurtPlayers(scene, center, radius, impulse, damage);
-    // The light flash accompanies the fire, smoke and flying debris.
-    Flash::Spawn(scene, center, {1.0f, 0.55f, 0.2f, 1.0f}, radius * 0.6f, radius * 4.0f, 20.0f, 0.35f);
+    ShakePlayers(scene, center, radius);
+    if (!underwater) {
+        // The fireball's light: blinding at first, then dying down as it flickers.
+        Flash::Spawn(scene, center + Up * 0.3f, {1.0f, 0.62f, 0.3f, 1.0f}, radius * 5.0f, 30.0f, 0.7f, 0.35f);
+    }
     if (const SoundBank* bank = SoundBank::Find(scene); bank && bank->explosion) {
-        // Heard from afar, and never the one sound dropped when voices run out.
+        // Heard from afar, and never the one sound dropped when voices run out; muffled by the water over it.
         scene.GetAudio().PlayOneShot(bank->explosion.GetShared(), center,
-                                     {.bus = "Effects",
+                                     {.volume = underwater ? 0.5f : 1.0f,
+                                      .bus = "Effects",
                                       .spatialSettings = {.minDistance = 6.0f, .maxDistance = 150.0f},
                                       .priority = 10,
                                       .maxInstances = 4});
@@ -82,7 +124,7 @@ void Explode(Spot::Scene& scene, Spot::Vector3 center, float radius, float impul
         const Spot::Vector3 offset = entity->GetTransform().GetWorldPosition() - center;
         const float distance = Spot::Length(offset);
         // Straight up from right below the center, and harder the closer to it, down to nothing at the radius.
-        const Spot::Vector3 direction = distance > 0.01f ? offset / distance : Spot::Vector3{0.0f, 1.0f, 0.0f};
+        const Spot::Vector3 direction = distance > 0.01f ? offset / distance : Up;
         const float strength = impulse * std::clamp(1.0f - distance / radius, 0.0f, 1.0f);
         // A little lift, so things fly rather than slide.
         body->AddImpulse(Spot::Normalize(direction + Spot::Vector3{0.0f, 0.3f, 0.0f}) * strength);

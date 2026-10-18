@@ -48,6 +48,8 @@ allocate no memory. Profiling records the simulation scope.
 to front along the camera axis, with stable ties. Additive particles follow. Velocity stretching
 projects velocity onto the camera plane; stationary or head-on particles retain a valid billboard.
 Local particles inherit emitter position and the largest scale axis. Rotation turns normal billboards.
+Horizontal particles lie flat in the world's XZ plane, facing up whatever the camera, and rotation turns them around
+Y: ripples on water and marks on the ground.
 Flipbooks use row-major cells, normalized lifetime and an optional number of cycles.
 
 `ParticleRenderer` has a code-only `Begin/Draw/End` API; `DrawScene(ParticleRenderer&, Scene&)` draws a scene's systems. It uploads one instance per
@@ -85,13 +87,15 @@ entries. Configuration edits still use normal undo and prefab overrides.
 
 ## Sandbox effects
 
-The playground's ParticleEffects component holds serialized definitions for muzzle glow, metal sparks,
-concrete and wood dust, explosion fire and smoke, debris and the physics-gun beam. Each definition
-contains ParticleSettings, a count and an optional imported texture. Defaults use procedural discs,
-so effects need no GPU-loaded assets to simulate. Tune definitions on the Game entity in the editor.
+The playground's ParticleEffects component holds serialized definitions for the muzzle's flash, flame and smoke,
+metal sparks, concrete and wood dust, the explosion's flash, fireball, smoke, embers, debris and ground dust, water's
+droplets, spray, mist, ripples and blasts' plume, and the physics-gun beam and tracers. Each definition contains ParticleSettings, a
+count, an optional imported texture and whether it is lit, which dims it with the daylight when spawned. Defaults use
+procedural discs, so effects need no GPU-loaded assets to simulate; the playground assigns generated textures. Tune
+definitions on the Game entity in the editor.
 
 WeaponHolder emits at the muzzle and raycast hit; surface markers select the impact. Explosions
-emit fire, smoke and debris beside their existing light/sound/impulse. Spawnable props carry a separate
+emit their layers beside their light/sound/impulse, and water splashes emit theirs (see [Sandbox](sandbox.md)). Spawnable props carry a separate
 ImpactParticles component with a startup grace period and contact cooldown; it works without audio.
 The physics gun emits along its full held beam with a fractional, configurable rate accumulator.
 

@@ -247,6 +247,58 @@ Samples Footstep(const StepSound& sound, std::uint32_t seed, int variant) {
     return FadeEdges(Normalize(std::move(samples), 0.6f), 0.004f);
 }
 
+// A bubble's note, rising as it shrinks, as struck water rings.
+void AddBloop(Samples& samples, std::size_t start, float from, float to, float seconds, float gain) {
+    const auto rate = static_cast<float>(samples.sampleRate);
+    const auto length = static_cast<std::size_t>(seconds * rate);
+    const auto attack = static_cast<std::size_t>(0.002f * rate) + 1;
+    float phase = 0.0f;
+    for (std::size_t i = 0; i < length && start + i < samples.data.size(); ++i) {
+        const float t = static_cast<float>(i) / static_cast<float>(length);
+        const float rise = i < attack ? static_cast<float>(i) / static_cast<float>(attack) : 1.0f;
+        samples.data[start + i] += Sine(phase) * gain * rise * (1.0f - t) * (1.0f - t);
+        phase += (from + (to - from) * t) / rate;
+    }
+}
+
+// The hiss of spray: noise above the cutoff, rising over the attack and then falling.
+void AddSpray(Samples& samples, std::uint32_t seed, float cutoff, float attack, float decay, float gain,
+              std::size_t start = 0) {
+    Noise noise(seed);
+    LowPass low(cutoff, samples.sampleRate);
+    LowPass soften(9000.0f, samples.sampleRate);
+    const auto attackSamples = static_cast<std::size_t>(attack * static_cast<float>(samples.sampleRate)) + 1;
+    const float factor = DecayFactor(decay, samples.sampleRate);
+    float envelope = gain;
+    for (std::size_t i = start; i < samples.data.size(); ++i) {
+        const std::size_t t = i - start;
+        const float rise = t < attackSamples ? static_cast<float>(t) / static_cast<float>(attackSamples) : 1.0f;
+        const float white = noise.Next();
+        samples.data[i] += soften.Process(white - low.Process(white)) * envelope * rise;
+        if (t >= attackSamples) {
+            envelope *= factor;
+        }
+    }
+}
+
+// Drops falling back onto water, at random times between the seconds, fewer and quieter toward the end.
+void AddDroplets(Samples& samples, std::uint32_t seed, int count, float from, float to, float gain) {
+    Noise noise(seed);
+    const auto rate = static_cast<float>(samples.sampleRate);
+    for (int drop = 0; drop < count; ++drop) {
+        const float early = (noise.Next() + 1.0f) * 0.5f;
+        // Squared, so most fall soon after the splash.
+        const float at = from + (to - from) * early * early;
+        const float size = (noise.Next() + 1.0f) * 0.5f;
+        const float loudness = gain * (1.0f - 0.6f * (at - from) / (to - from)) * (0.4f + 0.6f * size);
+        const auto start = static_cast<std::size_t>(at * rate);
+        AddBloop(samples, start, 900.0f + 1400.0f * (1.0f - size), 1800.0f + 2200.0f * (1.0f - size),
+                 0.015f + 0.03f * size, loudness);
+        AddSpray(samples, seed + 1000u + static_cast<std::uint32_t>(drop), 2500.0f, 0.0005f, 0.006f, loudness * 0.8f,
+                 start);
+    }
+}
+
 } // namespace
 
 Samples PistolShot() {
@@ -289,11 +341,46 @@ Samples RocketLaunch() {
 }
 
 Samples Explosion() {
-    Samples samples = Make(2.2f);
-    AddNoiseBurst(samples, 51, 2500.0f, 0.001f, 0.15f, 0.8f);
-    AddNoiseBurst(samples, 52, 250.0f, 0.01f, 0.7f, 1.6f);
-    AddThump(samples, 90.0f, 32.0f, 0.5f, 1.2f);
+    Samples samples = Make(3.6f);
+    const auto rate = static_cast<float>(samples.sampleRate);
+    // The crack of the shock front, the blast's roar and its low boom.
+    AddNoiseBurst(samples, 51, 7000.0f, 0.0005f, 0.04f, 0.9f);
+    AddNoiseBurst(samples, 52, 300.0f, 0.008f, 0.6f, 1.8f);
+    AddThump(samples, 85.0f, 28.0f, 0.6f, 1.4f);
+    // The rumble rolling back from the hills.
+    AddNoiseBurst(samples, 53, 110.0f, 0.25f, 1.4f, 0.9f, static_cast<std::size_t>(0.08f * rate));
+    // Debris landing around.
+    Noise noise(54);
+    for (int piece = 0; piece < 14; ++piece) {
+        const float at = 0.5f + 2.0f * (noise.Next() + 1.0f) * 0.5f;
+        AddNoiseBurst(samples, 55 + static_cast<std::uint32_t>(piece), 2500.0f, 0.0005f, 0.02f,
+                      0.06f + 0.06f * (noise.Next() + 1.0f) * 0.5f, static_cast<std::size_t>(at * rate));
+    }
     return FadeEdges(Normalize(std::move(samples), 0.98f));
+}
+
+Samples SplashSmall() {
+    Samples samples = Make(0.6f);
+    const auto rate = static_cast<float>(samples.sampleRate);
+    AddSpray(samples, 201, 1500.0f, 0.002f, 0.05f, 0.9f);
+    AddNoiseBurst(samples, 202, 900.0f, 0.001f, 0.03f, 0.5f);
+    AddBloop(samples, static_cast<std::size_t>(0.01f * rate), 400.0f, 1100.0f, 0.06f, 0.6f);
+    AddDroplets(samples, 203, 6, 0.08f, 0.45f, 0.25f);
+    return FadeEdges(Normalize(std::move(samples), 0.8f));
+}
+
+Samples SplashLarge() {
+    Samples samples = Make(2.4f);
+    const auto rate = static_cast<float>(samples.sampleRate);
+    // The water's mass struck, its whoosh and spray, and a big bubble closing.
+    AddThump(samples, 70.0f, 40.0f, 0.15f, 0.8f);
+    AddNoiseBurst(samples, 211, 600.0f, 0.005f, 0.25f, 1.2f);
+    AddSpray(samples, 212, 1200.0f, 0.01f, 0.35f, 1.0f);
+    AddBloop(samples, static_cast<std::size_t>(0.02f * rate), 180.0f, 520.0f, 0.15f, 0.6f);
+    // What was thrown up rains back down.
+    AddSpray(samples, 214, 2500.0f, 0.4f, 0.7f, 0.35f, static_cast<std::size_t>(0.3f * rate));
+    AddDroplets(samples, 213, 70, 0.35f, 2.2f, 0.35f);
+    return FadeEdges(Normalize(std::move(samples), 0.9f));
 }
 
 Samples Reload() {

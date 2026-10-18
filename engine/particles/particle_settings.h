@@ -1,7 +1,7 @@
 #pragma once
 
-#include "math/gradient.h"
 #include "math/curve.h"
+#include "math/gradient.h"
 #include "math/vector.h"
 #include <cstdint>
 #include <vector>
@@ -10,7 +10,9 @@ namespace Spot {
 class Archive;
 enum class ParticleShape { Point, Sphere, Cone, Box };
 enum class ParticleSpace { Local, World };
-enum class ParticleFacing { Billboard, Stretched };
+// Billboards face the camera; stretched ones also lengthen along their velocity; horizontal ones lie flat, facing up,
+// as ripples and marks on the ground do.
+enum class ParticleFacing { Billboard, Stretched, Horizontal };
 enum class ParticleBlend { Alpha, Additive };
 
 struct ParticleRange {

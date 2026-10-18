@@ -1,5 +1,6 @@
 #include "generator.h"
 
+#include "effect_textures.h"
 #include "gltf_writer.h"
 #include "icons.h"
 #include "level_models.h"
@@ -77,6 +78,12 @@ const std::vector<Texture>& GetTextures() {
         {"icon_sun", Icons::Sun},
         {"icon_moon", Icons::Moon},
         {"icon_health", Icons::Health},
+        {"fx_smoke", EffectTextures::Smoke},
+        {"fx_fire", EffectTextures::Fire},
+        {"fx_muzzle_flash", EffectTextures::MuzzleFlash},
+        {"fx_flame", EffectTextures::Flame},
+        {"fx_debris", EffectTextures::Debris},
+        {"fx_ripple", EffectTextures::Ripple},
     };
     return textures;
 }
@@ -93,6 +100,8 @@ const std::vector<GeneratedSound>& GetSounds() {
         {"shotgun_shot", Sounds::ShotgunShot},
         {"rocket_launch", Sounds::RocketLaunch},
         {"explosion", Sounds::Explosion},
+        {"splash_small", Sounds::SplashSmall},
+        {"splash_large", Sounds::SplashLarge},
         {"reload", Sounds::Reload},
         {"impact_concrete", Sounds::ImpactConcrete},
         {"impact_wood", Sounds::ImpactWood},

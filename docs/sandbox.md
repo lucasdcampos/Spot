@@ -23,7 +23,8 @@ remain outside world checkpoints and cleanup.
   and twenty meters, steel plates on hinges that swing when hit, explosive barrels and a berm.
 - **Container yard** (south-west, across the road): stacked shipping containers in four colors behind a cutout
   chain-link fence, with steps onto one of them.
-- **Pond** (south-east): transparent water in a hollow of the terrain, with a dock and rocks.
+- **Pond** (south-east): transparent water in a hollow of the terrain, with a dock and rocks. It is `Water`:
+  shots, things falling in and blasts splash it (see [Particle effects](#particle-effects)).
 - Around them, the generated terrain rises into hills with rock on its steep slopes, scattered with pines,
   oaks and boulders. A road with markings crosses the valley under street lamps.
 
@@ -123,7 +124,7 @@ Transient projectiles, flashes and held view models are excluded. Missing or mal
 current world intact. Checkpoints expand prefab instances so later prefab edits do not rewrite a saved world.
 
 Weapon intervals, reloads, explosive fuses, projectile lifetimes and impact quiet periods use component-owned
-timers. Flash fades, aiming, switching and recoil use owner-bound tweens. All advance with scaled simulation time and
+timers. Aiming, switching and recoil use owner-bound tweens, and flashes fade on their own updates. All advance with scaled simulation time and
 pause at zero time scale. The HUD samples unscaled time. Destroying an owner cancels its work.
 
 Each Weapon prefab exposes `cameraRecoil` (radians), `viewRecoil` (meters) and `recoilRecovery`
@@ -239,15 +240,40 @@ check that tracers leave the muzzle, that the sights line up with the crosshair 
 
 ## Particle effects
 
-Weapons emit muzzle glow and surface impacts: sparks on metal, dust on concrete, and dust/debris on
-wood. Explosions emit fire, smoke and debris, and the held physics gun adds particles along its beam.
+Each shot flashes at the muzzle: a star of flame turned at random, tongues of fire stretched along the barrel and a
+puff of gun smoke that drifts, swells and thins, with a flickering light of a frame or two. `Weapon.muzzleFlash`
+scales all of it per weapon: the pistol's is smallest, the shotgun's biggest. Impacts throw sparks on metal, dust on
+concrete, and dust and splinters on wood.
+
+Explosions unfold in layers, as real ones do. A blinding flash lasts a tenth of a second; a fireball of turbulent
+flame swells, slows and rises, cooling from white through orange and red into soot, while black smoke billows out of
+it and rises for seconds. Embers arc out and fall, cooling as they go, debris chunks tumble out, and when the ground
+is close below, a skirt of dust rolls out along it. The light flickers and dies down over most of a second, and the
+blast wave shakes the view of players within eight times its radius (`PlayerController::Shake()`), without moving
+their aim. Fire and smoke are textured from `generator/effect_textures.cpp`, and their speed and size follow drag and
+swelling curves.
+
+The pond's `Water` component (on its "Pond Water" entity) has no collider; it checks rays and bodies against its
+surface, the unit square its entity's scale stretches. A shot that reaches it splashes and goes on for `shotDepth`
+(a meter) before the water stops it, pushing less on the way; tracers end at the surface. Bodies and players falling
+in splash as hard as they hit it, more for heavier ones, and the water drags on what moves in it. Rockets explode on
+the surface. Explosions at the water only flash, and throw up a column of white water that rains back down; under it,
+they show nothing but the water and sound muffled. Each splash throws droplets, a spout of spray, mist for harder
+ones, and rings that lie flat on the water
+(`ParticleFacing::Horizontal`) and spread, with the `SoundBank`'s small or large splash.
+
+Smoke, dust, spray and ripples are lit effects (`ParticleEffect.lit`): particles are not shaded, so the pool dims
+them with the day cycle's daylight when they are spawned, and they do not glow at night. Fire, sparks and flashes
+give off their own light.
+
 The playground's Game entity owns editable ParticleEffects definitions; props carry ImpactParticles
 separately from their impact audio. Effects reuse a bounded pool and expire without affecting
 physics, spawning undo or world checkpoints. See [Particles](particles.md).
 
-Play-test: fire each weapon at wood, metal and the ground; detonate a barrel and a rocket; hold, move
-and release a prop with the physics gun. Check that glow, sparks, dust, fire, smoke and debris appear
-and fade, that the beam stops emitting on release, and that saving/cleanup keeps no transient effects.
+Play-test: fire each weapon at wood, metal, the ground and the pond; detonate a barrel, a rocket on the ground and
+one on the water; throw a crate into the pond; hold, move and release a prop with the physics gun. Check that the
+flash, sparks, dust, fire, smoke, embers, debris and splashes appear and fade, that ripples spread on the water,
+that the beam stops emitting on release, and that saving/cleanup keeps no transient effects.
 
 Sandbox headless tests normally read the workspace's authored assets. Set `SPOT_SANDBOX_TEST_ASSETS`
 to an absolute directory containing a snapshot of `sandbox/assets` to validate a committed scene

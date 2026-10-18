@@ -1274,6 +1274,9 @@ TEST_CASE("Shots and explosions flash, and the flashes go out", "[sandbox]") {
     Explosion::Explode(playground.scene, playground.PlayerPosition() + Spot::Vector3{0.0f, 0.0f, -10.0f}, 3.0f, 0.0f,
                        0.0f);
     CHECK(flashes() == 1);
+    // The fireball's light dies down over a little longer.
+    playground.Run(0.4f);
+    CHECK(flashes() == 1);
     playground.Run(0.5f);
     CHECK(flashes() == 0);
 }
@@ -1631,13 +1634,13 @@ TEST_CASE("Sandbox weapons emit muzzle particles and metal impact sparks", "[san
     crate.AddComponent<Surface>().kind = SurfaceKind::Metal;
     playground.Run(0.05f);
     FireSlot(playground, Key::Digit2);
-    CHECK(ParticleCount(playground.scene, bank->muzzle.settings.startColor) > 0);
+    CHECK(ParticleCount(playground.scene, bank->muzzleSmoke.settings.startColor) > 0);
     CHECK(ParticleCount(playground.scene, bank->sparks.settings.startColor) > 0);
     auto* pool = playground.scene.GetSystem<ParticleEffectPool>();
     REQUIRE(pool);
     CHECK(pool->GetEmitterCount() <= ParticleEffectPool::MaxEmitters);
     playground.Run(6);
-    CHECK(ParticleCount(playground.scene, bank->muzzle.settings.startColor) == 0);
+    CHECK(ParticleCount(playground.scene, bank->muzzleSmoke.settings.startColor) == 0);
     CHECK(ParticleCount(playground.scene, bank->sparks.settings.startColor) == 0);
 }
 TEST_CASE("Sandbox surface impacts and explosions select authored particle definitions", "[sandbox][particles]") {
@@ -1651,28 +1654,37 @@ TEST_CASE("Sandbox surface impacts and explosions select authored particle defin
     CHECK(ParticleCount(playground.scene, bank->woodDust.settings.startColor) == bank->woodDust.count);
     CHECK(ParticleCount(playground.scene, bank->sparks.settings.startColor) == bank->sparks.count);
     Explosion::Explode(playground.scene, {1000, 1000, 1000}, 5, 100, 0);
-    CHECK(ParticleCount(playground.scene, bank->fire.settings.startColor) == bank->fire.count);
-    CHECK(ParticleCount(playground.scene, bank->smoke.settings.startColor) == bank->smoke.count);
-    CHECK(ParticleCount(playground.scene, bank->debris.settings.startColor) >= bank->debris.count);
+    // An explosion in the air unfolds in layers, but raises no dust.
+    for (const ParticleEffect* effect : {&bank->blastFlash, &bank->fireball, &bank->explosionSmoke, &bank->embers})
+        CHECK(ParticleCount(playground.scene, effect->settings.startColor) == effect->count);
+    CHECK(ParticleCount(playground.scene, bank->explosionDebris.settings.startColor) >= bank->explosionDebris.count);
+    CHECK(ParticleCount(playground.scene, bank->groundDust.settings.startColor) == 0);
     playground.Run(6);
-    CHECK(ParticleCount(playground.scene, bank->fire.settings.startColor) == 0);
-    CHECK(ParticleCount(playground.scene, bank->smoke.settings.startColor) == 0);
+    for (const ParticleEffect* effect :
+         {&bank->blastFlash, &bank->fireball, &bank->explosionSmoke, &bank->embers, &bank->explosionDebris})
+        CHECK(ParticleCount(playground.scene, effect->settings.startColor) == 0);
+    // Close above the ground, it kicks dust up from it.
+    const Spot::Vector3 above = playground.PlayerPosition() + Spot::Vector3{0, 20, -10};
+    const auto ground = playground.scene.GetPhysics().Raycast(above, {0, -1, 0}, 40);
+    REQUIRE(ground);
+    Explosion::Explode(playground.scene, ground->point + Spot::Vector3{0, 0.5f, 0}, 5, 0, 0);
+    CHECK(ParticleCount(playground.scene, bank->groundDust.settings.startColor) == bank->groundDust.count);
 }
 TEST_CASE("Sandbox effect pooling bounds bursts and reuses expired emitters", "[sandbox][particles]") {
     Spot::Scene scene;
     auto* bank = &scene.CreateEntity().AddComponent<ParticleEffects>();
     auto& pool = scene.AddSystem<ParticleEffectPool>();
     for (std::size_t i = 0; i < ParticleEffectPool::MaxEmitters + 10; ++i)
-        pool.Spawn(bank->muzzle, {1000, 1000, 1000});
+        pool.Spawn(bank->muzzleFlash, {1000, 1000, 1000});
     CHECK(pool.GetEmitterCount() == ParticleEffectPool::MaxEmitters);
     CHECK(pool.GetDroppedCount() == 10);
     scene.Update(0.5f);
     const auto entities = scene.GetEntityCount();
-    REQUIRE(pool.Spawn(bank->muzzle, {1000, 1000, 1000}));
+    REQUIRE(pool.Spawn(bank->muzzleFlash, {1000, 1000, 1000}));
     CHECK(scene.GetEntityCount() == entities);
-    const auto id = pool.Spawn(bank->muzzle, {1000, 1000, 1000})->GetEntity().GetId();
+    const auto id = pool.Spawn(bank->muzzleFlash, {1000, 1000, 1000})->GetEntity().GetId();
     scene.GetEntity(id)->Destroy();
-    REQUIRE(pool.Spawn(bank->muzzle, {1000, 1000, 1000}));
+    REQUIRE(pool.Spawn(bank->muzzleFlash, {1000, 1000, 1000}));
     CHECK(pool.GetEmitterCount() == ParticleEffectPool::MaxEmitters - 1);
 }
 TEST_CASE("The held physics gun emits beam particles and stops emission on release", "[sandbox][particles]") {

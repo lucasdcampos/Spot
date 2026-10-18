@@ -203,6 +203,17 @@ TEST_CASE("Particle billboards stretch rotate and address flipbooks", "[particle
     p.rotation = Spot::ToRadians(90);
     batch.Add(std::span(&p, 1), settings, {}, emitter);
     CHECK(batch.GetDraws()[0].instance.rightAndSoftDistance.y == Approx(1));
+    // Horizontal particles lie flat whatever the camera, facing up, and turn around it.
+    batch.Clear();
+    settings.facing = Spot::ParticleFacing::Horizontal;
+    batch.Add(std::span(&p, 1), settings, {}, emitter);
+    const auto& flat = batch.GetDraws()[0].instance;
+    const Spot::Vector3 right{flat.rightAndSoftDistance.x, flat.rightAndSoftDistance.y, flat.rightAndSoftDistance.z};
+    const Spot::Vector3 up{flat.up.x, flat.up.y, flat.up.z};
+    CHECK(right.y == Approx(0).margin(1e-6));
+    CHECK(up.y == Approx(0).margin(1e-6));
+    CHECK(Spot::Cross(right, up).y == Approx(1));
+    CHECK(right.z == Approx(-1));
 }
 
 TEST_CASE("Reconfiguring pooled particles retains contiguous storage and does not restart inspection", "[particles]") {

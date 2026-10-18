@@ -2,7 +2,10 @@
 
 #include <spot.h>
 
-// A rocket, which explodes where it hits something other than whoever fired it, or once its time is up.
+#include <optional>
+
+// A rocket, which explodes where it hits something other than whoever fired it, water included, or once its time
+// is up.
 class Projectile final : public Spot::Component {
 public:
     float explosionRadius = 5.0f;
@@ -17,6 +20,7 @@ public:
 
 protected:
     void OnStart() override;
+    void OnFixedUpdate(float fixedDeltaTime) override;
     void OnCollisionEnter(const Spot::Collision& collision) override;
     void Serialize(Spot::Archive& archive) override;
 
@@ -24,4 +28,6 @@ private:
     void Explode(Spot::Vector3 center);
 
     bool m_exploded = false;
+    // Where it was a step ago, to tell when it went into water, which has no collider.
+    std::optional<Spot::Vector3> m_last;
 };

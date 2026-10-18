@@ -42,7 +42,7 @@ void ParticleSettings::Validate() {
         shape = ParticleShape::Point;
     if (space != ParticleSpace::Local && space != ParticleSpace::World)
         space = ParticleSpace::World;
-    if (facing != ParticleFacing::Billboard && facing != ParticleFacing::Stretched)
+    if (facing < ParticleFacing::Billboard || facing > ParticleFacing::Horizontal)
         facing = ParticleFacing::Billboard;
     if (blend != ParticleBlend::Alpha && blend != ParticleBlend::Additive)
         blend = ParticleBlend::Alpha;
@@ -61,8 +61,8 @@ void ParticleSettings::Validate() {
 }
 void ParticleSettings::Serialize(Archive& archive) {
     static constexpr std::array<std::string_view, 4> Shapes{"Point", "Sphere", "Cone", "Box"};
-    static constexpr std::array<std::string_view, 2> Spaces{"Local", "World"}, Facings{"Billboard", "Stretched"},
-        Blends{"Alpha", "Additive"};
+    static constexpr std::array<std::string_view, 2> Spaces{"Local", "World"}, Blends{"Alpha", "Additive"};
+    static constexpr std::array<std::string_view, 3> Facings{"Billboard", "Stretched", "Horizontal"};
     archive.Field("maxParticles", maxParticles, {.min = 1, .max = 100000});
     archive.Field("seed", seed);
     archive.Field("duration", duration, {.min = 0.01f, .max = 3600});

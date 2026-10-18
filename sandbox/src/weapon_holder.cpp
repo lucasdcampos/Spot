@@ -12,6 +12,7 @@
 #include "robot.h"
 #include "sound_bank.h"
 #include "view_model.h"
+#include "water.h"
 #include "weapon.h"
 
 #include <algorithm>
@@ -150,8 +151,9 @@ void WeaponHolder::Fire() {
     }
     Spot::Input::RumbleGamepad(0.2f, weapon->kind == Weapon::Kind::Projectile ? 0.8f : 0.5f, 0.08f);
     PlayWeaponSound(weapon->fireSound, 1.0f);
-    Flash::Spawn(GetScene(), muzzle + aim * 0.05f, {1.0f, 0.75f, 0.4f, 1.0f}, 0.12f, 5.0f, 12.0f, 0.05f);
-    ParticleEffects::Muzzle(GetScene(), muzzle, aim);
+    const float flash = std::clamp(weapon->muzzleFlash, 0.1f, 4.0f);
+    Flash::Spawn(GetScene(), muzzle + aim * 0.05f, {1.0f, 0.75f, 0.4f, 1.0f}, 5.0f * flash, 12.0f, 0.05f, 0.3f);
+    ParticleEffects::Muzzle(GetScene(), muzzle, aim, flash);
     if (weapon->kind == Weapon::Kind::Projectile) {
         // From the muzzle toward what the crosshair is on, unless a wall is closer than the muzzle.
         const float reach = 200.0f;
@@ -182,9 +184,23 @@ void WeaponHolder::FireHitscan(const Weapon& weapon, Spot::Vector3 eye, Spot::Ve
     for (int pellet = 0; pellet < weapon.pellets; ++pellet) {
         const Spot::Vector3 direction = Scatter(aim, spread);
         const auto hit = GetScene().GetPhysics().Raycast(eye, direction, weapon.range, {.ignore = GetEntity().GetId()});
+        const auto water = Water::Raycast(GetScene(), eye, direction, hit ? hit->distance : weapon.range);
         // A streak of light from the muzzle to where the pellet went; every other one of a spread is enough.
         if (pellet % 2 == 0) {
-            ParticleEffects::Tracer(GetScene(), muzzle, hit ? hit->point : eye + direction * weapon.range);
+            ParticleEffects::Tracer(GetScene(), muzzle,
+                                    water ? water->point
+                                    : hit ? hit->point
+                                          : eye + direction * weapon.range);
+        }
+        // Water stops shots soon: what is deeper is out of reach, and what is close below gets less of a push.
+        float push = 1.0f;
+        if (water) {
+            water->water->Splash(water->point, 0.25f / std::sqrt(static_cast<float>(std::max(weapon.pellets, 1))));
+            const float under = hit ? hit->distance - water->distance : weapon.range;
+            if (under > water->water->shotDepth) {
+                continue;
+            }
+            push = 0.3f * (1.0f - under / std::max(water->water->shotDepth, 0.01f));
         }
         if (!hit) {
             continue;
@@ -193,8 +209,10 @@ void WeaponHolder::FireHitscan(const Weapon& weapon, Spot::Vector3 eye, Spot::Ve
         if (!entity) {
             continue;
         }
-        ParticleEffects::Impact(GetScene(), hit->point, hit->normal, Surface::Of(entity));
-        if (Robots::Hit(GetScene(), hit->entity, direction * weapon.impulse, hit->point)) {
+        if (!water) {
+            ParticleEffects::Impact(GetScene(), hit->point, hit->normal, Surface::Of(entity));
+        }
+        if (Robots::Hit(GetScene(), hit->entity, direction * weapon.impulse * push, hit->point)) {
             m_hitMarker = 1.0f;
             continue;
         }
@@ -203,7 +221,7 @@ void WeaponHolder::FireHitscan(const Weapon& weapon, Spot::Vector3 eye, Spot::Ve
         }
         if (auto* body = entity->GetComponent<Spot::Rigidbody>(); body && !body->IsKinematic()) {
             m_hitMarker = 1.0f;
-            body->AddImpulseAtPosition(direction * weapon.impulse, hit->point);
+            body->AddImpulseAtPosition(direction * weapon.impulse * push, hit->point);
         }
     }
 }

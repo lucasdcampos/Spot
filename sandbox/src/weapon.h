@@ -33,6 +33,8 @@ public:
     float cameraRecoil = 0.025f;
     float viewRecoil = 0.05f;
     float recoilRecovery = 0.2f;
+    // How big its muzzle flash is, and how far its light reaches.
+    float muzzleFlash = 1.0f;
     // What the player holds while it is in hand (see ViewModel).
     Spot::AssetRef<Spot::Model> model;
     // What the HUD and the weapon wheel show for it.

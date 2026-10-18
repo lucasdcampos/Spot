@@ -6,6 +6,8 @@
 add_library(sandbox_generator_core STATIC
     rigs.h
     rigs.cpp
+    effect_textures.cpp
+    effect_textures.h
     foliage_textures.cpp
     foliage_textures.h
     generator.cpp
