@@ -2134,6 +2134,39 @@ TEST_CASE("Renderer3D draws the level of detail of world objects their screen si
     CHECK_FALSE(drawn(0.0f, 100.0f));
 }
 
+TEST_CASE("Renderer3D culls world objects hidden in the last frame of the same view, and keeps those that show",
+          "[gpu]") {
+    RequireGpu();
+    const TargetRender render(
+        32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            REQUIRE(cube != nullptr);
+            const Spot::Material red{.baseColor = Spot::Color::Red};
+            const Spot::Material green{.baseColor = Spot::Color::Green};
+            Spot::RenderWorld world;
+            // A green wall over the left half of the view hides the cubes behind it; the red one on the right shows.
+            world.AddMesh({.mesh = cube.get(),
+                           .material = &green,
+                           .transform = Spot::Matrix4::Translation({-1.5f, 0.0f, 1.0f}) *
+                                        Spot::Matrix4::Scale({3.0f, 6.0f, 0.2f})});
+            world.AddMesh(
+                {.mesh = cube.get(), .material = &red, .transform = Spot::Matrix4::Translation({1.0f, 0.0f, 0.0f})});
+            world.AddMesh(
+                {.mesh = cube.get(), .material = &red, .transform = Spot::Matrix4::Translation({-1.5f, 0.0f, -2.0f})});
+            for (std::size_t frame = 0; frame < 2; ++frame) {
+                renderer.Begin(context, target, MakeFrontCamera());
+                renderer.DrawLight(FrontLight);
+                renderer.DrawWorld(world);
+                renderer.End();
+            }
+        });
+    // The image of the second pass, culled against the first, is what the first showed.
+    CHECK(render.At(8, 16)[1] > 100);
+    CHECK(render.At(8, 16)[0] < 40);
+    CHECK(render.At(24, 16)[0] > 100);
+}
+
 TEST_CASE("Renderer3D draws meshes that look the same as instances of one draw, in every pass", "[gpu]") {
     RequireGpu();
     Spot::Renderer3DStats stats;

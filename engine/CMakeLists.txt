@@ -321,6 +321,8 @@ spot_add_shaders(spot_objects NAMESPACE Spot::Detail::Shaders
     graphics/shaders/mip_downsample.frag.hlsl
     graphics/shaders/mip_downsample_layer.frag.hlsl
     graphics/shaders/fxaa.frag.hlsl
+    graphics/shaders/hiz_reduce.frag.hlsl
+    graphics/shaders/world_cull.comp.hlsl
     graphics/shaders/line.frag.hlsl
     graphics/shaders/line.vert.hlsl
     graphics/shaders/mesh.frag.hlsl

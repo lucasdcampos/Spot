@@ -37,6 +37,8 @@ struct Options {
     int lamps = 48;
     // The meshes are a grid this many on a side.
     int grid = 100;
+    // Spheres turn into coarser ones far away.
+    bool lods = false;
 };
 
 class Benchmark final : public Spot::Application {
@@ -60,7 +62,10 @@ protected:
         const Spot::AssetRef<Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
         const Spot::AssetRef<Spot::Mesh> sphere = Spot::Mesh::Create(device, Spot::MeshData::CreateSphere(0.5f));
         const Spot::AssetRef<Spot::Mesh> floor = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(1.0f));
-        if (!cube || !sphere || !floor) {
+        // Spheres look as round from afar with far fewer triangles.
+        const Spot::AssetRef<Spot::Mesh> farSphere =
+            Spot::Mesh::Create(device, Spot::MeshData::CreateSphere(0.5f, 12, 6));
+        if (!cube || !sphere || !floor || !farSphere) {
             Quit();
             return;
         }
@@ -84,8 +89,11 @@ protected:
                 auto& entity = scene.CreateEntity("Mesh");
                 entity.GetTransform().SetPosition({(static_cast<float>(x) - GridSize * 0.5f) * Spacing, 0.5f,
                                                    (static_cast<float>(z) - GridSize * 0.5f) * Spacing});
-                entity.AddComponent<Spot::MeshRenderer>((x + z) % 2 == 0 ? cube : sphere,
-                                                        materials[static_cast<std::size_t>((x * 7 + z * 3) % 8)]);
+                auto& renderer = entity.AddComponent<Spot::MeshRenderer>(
+                    (x + z) % 2 == 0 ? cube : sphere, materials[static_cast<std::size_t>((x * 7 + z * 3) % 8)]);
+                if (m_options.lods && (x + z) % 2 != 0) {
+                    renderer.SetLods({{farSphere, 0.04f}});
+                }
             }
         }
 
@@ -194,6 +202,16 @@ private:
                     "lights\n",
                     counter("Visible meshes"), counter("Culled meshes"), counter("Draw calls"),
                     counter("Shadow draw calls"), counter("Lights"));
+        // The GPU's time, part by part, as the renderers time it.
+        if (!frames.empty()) {
+            std::printf("  GPU, last frame:");
+            for (const Spot::ProfileCounter& gpu : frames.back()->counters) {
+                if (gpu.name.starts_with("GPU ")) {
+                    std::printf(" %.*s %.2f;", static_cast<int>(gpu.name.size() - 4), gpu.name.data() + 4, gpu.value);
+                }
+            }
+            std::puts("");
+        }
         // Where the time goes, from the profiler's scopes over the frames it kept, the costliest first.
         std::map<std::string_view, double> totals;
         for (const Spot::ProfileFrame* frame : frames) {
@@ -242,6 +260,8 @@ int main(int argc, char** argv) {
             options.scene = argv[++i];
         } else if (argument == "--assets") {
             options.assets = argv[++i];
+        } else if (argument == "--lods") {
+            options.lods = std::atoi(argv[++i]) != 0;
         } else if (argument == "--grid") {
             options.grid = std::max(std::atoi(argv[++i]), 1);
         } else if (argument == "--lamps") {

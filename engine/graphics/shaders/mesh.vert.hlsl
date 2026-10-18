@@ -19,7 +19,11 @@ struct Instance {
 // Every mesh drawn by the frame's passes; an instanced draw reads its instances from the first of its batch on.
 StructuredBuffer<Instance> instances : register(t0, space0);
 
-// x is the first instance of the batch; y is set for batches whose instances are culled here, against the view.
+// The instances of render worlds that the culling pass kept, batch by batch (see world_cull.comp.hlsl).
+StructuredBuffer<uint> visible : register(t1, space0);
+
+// x is the first instance of the batch; y has bit 0 set for batches whose instances are culled here, against the
+// view, and bit 1 for those the culling pass kept the instances of, which are read through visible.
 cbuffer Batch : register(b1, space1) {
     uint4 firstInstance;
 };
@@ -61,11 +65,12 @@ struct Output {
 
 Output main(Input input, uint instanceId : SV_InstanceID) {
     // SV_InstanceID starts at 0 for each draw on every backend, whatever its first instance.
-    const Instance instance = instances[firstInstance.x + instanceId];
+    const uint index = (firstInstance.y & 2) != 0 ? visible[firstInstance.x + instanceId] : firstInstance.x + instanceId;
+    const Instance instance = instances[index];
     const float4x4 model = instance.model;
     const float4x4 normalMatrix = instance.normalMatrix;
     Output output;
-    if (firstInstance.y != 0 && (!IsInView(instance.bounds) || !InSizeRange(instance.bounds, instance.skin))) {
+    if ((firstInstance.y & 1) != 0 && (!IsInView(instance.bounds) || !InSizeRange(instance.bounds, instance.skin))) {
         // Every vertex at the same point, so its triangles cover nothing.
         output = (Output)0;
         output.position = float4(2.0, 2.0, 2.0, 1.0);

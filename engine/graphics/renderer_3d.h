@@ -25,6 +25,7 @@ namespace Spot {
 
 class GraphicsDevice;
 class Model;
+class ComputePipeline;
 class Pipeline;
 class RenderWorld;
 struct Material;
@@ -199,6 +200,11 @@ private:
         std::uint32_t instanceCount = 1;
         // The batch's instances as uploaded, which shadow views cull one by one.
         const InstanceData* instanceData = nullptr;
+        // When the culling pass ran for the frame: the instances it kept, and the batch's indirect draw in arguments,
+        // the batch-th.
+        const Buffer* keptInstances = nullptr;
+        const Buffer* arguments = nullptr;
+        std::uint32_t batch = 0;
     };
 
     // A render world as kept on the GPU: its objects' instances, in batches of those drawn the same way, so drawing
@@ -233,7 +239,17 @@ private:
         std::vector<std::uint32_t> batchOfInstance;
         std::vector<WorldBatch> batches;
         std::uint64_t lastDrawn = 0;
+        // For the culling pass: each batch's first instance, count, index count and first index, the instances it
+        // keeps, and the batches' indirect draws.
+        std::unique_ptr<Buffer> batchTable;
+        std::unique_ptr<Buffer> visible;
+        std::unique_ptr<Buffer> arguments;
     };
+    // Culls the instances of the frame's worlds on the GPU, against the view, their levels of detail and what the
+    // last frame of the view drew, into lists the view's pass draws indirectly.
+    void CullWorlds();
+    // Keeps the farthest depth of each tile of what the view's pass drew, for the next frame to cull against.
+    void UpdateOcclusionTiles();
     // Null when its buffer cannot be made, after logging why.
     WorldCache* UpdateWorldCache(const RenderWorld& world);
 
@@ -324,6 +340,18 @@ private:
 
     std::vector<DrawCommand> m_commands;
     std::vector<std::unique_ptr<WorldCache>> m_worldCaches;
+    // Occlusion culling: the last frame's depth, by tiles, and the view it was drawn from, which only the next frame
+    // of the same view culls against.
+    std::unique_ptr<FullscreenPass> m_occlusionTilePass;
+    std::unique_ptr<ComputePipeline> m_occlusionPipeline;
+    std::unique_ptr<Sampler> m_occlusionSampler;
+    std::unique_ptr<Texture> m_occlusionTiles;
+    std::unique_ptr<Buffer> m_noVisible;
+    // Stands in for tiles when there are none, hiding nothing.
+    std::unique_ptr<Texture> m_noOcclusionTiles;
+    Matrix4 m_occlusionViewProjection;
+    const Texture* m_occlusionDepth = nullptr;
+    bool m_occlusionValid = false;
     // Counts End() calls, so worlds no longer drawn are let go.
     std::uint64_t m_endCount = 0;
     // What End() sorts the commands by, small enough to move around cheaply, and where they go once sorted.

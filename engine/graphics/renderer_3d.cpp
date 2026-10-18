@@ -5,6 +5,7 @@
 #include "core/log.h"
 #include "core/profiler.h"
 #include "graphics/atmosphere.h"
+#include "graphics/compute.h"
 #include "graphics/graphics_device.h"
 #include "graphics/light_clusters.h"
 #include "graphics/material.h"
@@ -13,6 +14,7 @@
 #include "graphics/render_context.h"
 #include "graphics/shadow_views.h"
 
+#include "hiz_reduce.frag.h"
 #include "mesh.frag.h"
 #include "mesh.vert.h"
 #include "shadow.frag.h"
@@ -24,6 +26,7 @@
 #include "sky.vert.h"
 #include "sky_irradiance.frag.h"
 #include "sky_prefilter.frag.h"
+#include "world_cull.comp.h"
 
 #include <algorithm>
 #include <array>
@@ -56,6 +59,9 @@ FrameUniforms MakeFrameUniforms(const Matrix4& viewProjection, const Camera3D& c
 // cull the instances of the others in the shaders, so smaller batches leave the GPU less to cull, larger ones the CPU
 // fewer draws.
 constexpr std::uint32_t WorldBatchSize = 128;
+
+// The side, in texels, of the tiles of depth that occlusion culling tests against.
+constexpr std::uint32_t OcclusionTileSize = 16;
 
 // A sphere around the spheres.
 BoundingSphere Enclose(std::span<const BoundingSphere> spheres) {
@@ -471,6 +477,22 @@ Renderer3D::Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config) :
     m_noShadows =
         device.CreateTexture({.width = 1, .height = 1, .format = TextureFormat::Depth32Float, .renderTarget = true});
 
+    // Occlusion culling needs compute shaders, and depth tiles it can draw; without them every instance in view shows.
+    m_noVisible = device.CreateBuffer(BufferUsage::Storage, std::array<std::uint32_t, 4>{});
+    if (device.GetCapabilities().compute && device.GetCapabilities().indirectDraws &&
+        device.SupportsRenderTarget(TextureFormat::R32Float)) {
+        m_occlusionTilePass =
+            FullscreenPass::Create(device, Detail::Shaders::HizReduceFrag, {.targetFormat = TextureFormat::R32Float});
+        if (const auto shader = device.CreateShader(Detail::Shaders::WorldCullComp)) {
+            m_occlusionPipeline = device.CreateComputePipeline({.shader = shader.get()});
+        }
+        m_occlusionSampler = device.CreateSampler({.filter = TextureFilter::Nearest});
+        m_noOcclusionTiles = device.CreateTexture({.width = 1, .height = 1, .format = TextureFormat::R32Float});
+        if (m_noOcclusionTiles) {
+            device.UploadToTexture(*m_noOcclusionTiles, std::array<float, 1>{1.0f});
+        }
+    }
+
     // Untextured materials sample this, so one shader serves both kinds.
     m_whiteTexture = device.CreateTexture({.width = 1, .height = 1});
     if (m_whiteTexture) {
@@ -640,16 +662,24 @@ void Renderer3D::End() {
         m_commands.clear();
     }
     Detail::ShadowUniforms shadows{};
+    m_context->BeginGpuTimer("Shadows");
     DrawShadows(lights, shadows);
+    m_context->EndGpuTimer();
 
     if (!UploadLights(lights)) {
         m_commands.clear();
     }
-    auto pass = m_context->BeginRenderPass(m_target);
-    if (m_sky) {
-        FlushSky(pass, *m_sky, *skyLighting);
+    m_context->BeginGpuTimer("Opaque");
+    CullWorlds();
+    {
+        auto pass = m_context->BeginRenderPass(m_target);
+        if (m_sky) {
+            FlushSky(pass, *m_sky, *skyLighting);
+        }
+        Flush(pass, lights, shadows);
     }
-    Flush(pass, lights, shadows);
+    UpdateOcclusionTiles();
+    m_context->EndGpuTimer();
     Profiler::Count("Draw calls", m_stats.drawCalls);
     Profiler::Count("Triangles", m_stats.triangleCount);
     Profiler::Count("Shadow draw calls", m_stats.shadowDrawCalls);
@@ -736,6 +766,7 @@ void Renderer3D::DrawWorld(const RenderWorld& world) {
         command.instanceData = cache->instanceData.data();
         command.instanceFirst = batch.first;
         command.instanceCount = batch.count;
+        command.batch = static_cast<std::uint32_t>(&batch - cache->batches.data());
     }
 }
 
@@ -882,6 +913,7 @@ Renderer3D::WorldCache* Renderer3D::UpdateWorldCache(const RenderWorld& world) {
         }
         cache.built = true;
         cache.structureVersion = world.GetStructureVersion();
+        cache.batchTable.reset();
     } else if (cache.changeCount != world.GetChangeCount()) {
         // Only the instances that moved go up again, in runs of neighbors.
         const std::span<const std::uint64_t> stamps = world.GetChangeStamps();
@@ -935,6 +967,97 @@ Renderer3D::WorldCache* Renderer3D::UpdateWorldCache(const RenderWorld& world) {
         batch.boundsChanged = false;
     }
     return &cache;
+}
+
+void Renderer3D::CullWorlds() {
+    if (!m_occlusionPipeline || !m_noOcclusionTiles) {
+        return;
+    }
+    SPOT_PROFILE_SCOPE("Renderer3D::CullWorlds");
+    // Only a frame of the same view culls against the last one's depth, which another view's would not hide.
+    const Texture* depth = m_target.depthTarget;
+    const bool occlusion =
+        m_occlusionValid && m_occlusionDepth == depth && m_occlusionTiles &&
+        m_occlusionTiles->GetWidth() == (depth->GetWidth() + OcclusionTileSize - 1) / OcclusionTileSize &&
+        m_occlusionTiles->GetHeight() == (depth->GetHeight() + OcclusionTileSize - 1) / OcclusionTileSize;
+    struct Uniforms {
+        std::array<Vector4, 6> cullPlanes;
+        Vector4 lodView;
+        Matrix4 occlusionViewProjection;
+        std::array<std::uint32_t, 4> occlusion;
+    };
+    const Uniforms uniforms{Detail::Frustum(m_viewProjection).GetPlanes(),
+                            Detail::GetLodView(m_camera),
+                            m_occlusionViewProjection,
+                            {occlusion ? 1u : 0u, OcclusionTileSize, occlusion ? m_occlusionDepth->GetWidth() : 1u,
+                             occlusion ? m_occlusionDepth->GetHeight() : 1u}};
+    for (const auto& cache : m_worldCaches) {
+        if (cache->lastDrawn != m_endCount || cache->batches.empty()) {
+            continue;
+        }
+        const auto batches = static_cast<std::uint32_t>(cache->batches.size());
+        const auto instances = static_cast<std::uint32_t>(cache->instanceData.size());
+        const auto ensure = [this](std::unique_ptr<Buffer>& buffer, BufferUsage usage, std::uint32_t size) {
+            if (!buffer || buffer->GetSize() < size) {
+                buffer = m_device->CreateBuffer({.usage = usage, .size = size});
+            }
+            return buffer != nullptr;
+        };
+        if (!cache->batchTable || cache->batchTable->GetSize() < batches * sizeof(std::array<std::uint32_t, 4>)) {
+            std::vector<std::array<std::uint32_t, 4>> table;
+            table.reserve(batches);
+            for (const WorldBatch& batch : cache->batches) {
+                table.push_back({batch.first, batch.count, batch.indexCount, batch.firstIndex});
+            }
+            cache->batchTable = m_device->CreateBuffer(BufferUsage::Storage, table);
+        }
+        if (!cache->batchTable || !ensure(cache->visible, BufferUsage::Storage, instances * 4) ||
+            !ensure(cache->arguments, BufferUsage::Indirect, batches * sizeof(DrawIndexedIndirectArguments))) {
+            continue;
+        }
+        {
+            auto pass = m_context->BeginComputePass({.buffers = {cache->visible.get(), cache->arguments.get()}});
+            pass.BindPipeline(*m_occlusionPipeline);
+            pass.BindTexture(0, occlusion ? *m_occlusionTiles : *m_noOcclusionTiles, *m_occlusionSampler);
+            pass.BindStorageBuffer(0, *cache->instances);
+            pass.BindStorageBuffer(1, *cache->batchTable);
+            pass.PushUniforms(0, uniforms);
+            pass.Dispatch(batches);
+        }
+        for (DrawCommand& command : m_commands) {
+            if (command.instanceBuffer == cache->instances.get()) {
+                command.keptInstances = cache->visible.get();
+                command.arguments = cache->arguments.get();
+            }
+        }
+    }
+}
+
+void Renderer3D::UpdateOcclusionTiles() {
+    m_occlusionValid = false;
+    const Texture* depth = m_target.depthTarget;
+    if (!m_occlusionTilePass || !m_occlusionPipeline || m_worldCaches.empty() || !depth ||
+        depth->GetSampleCount() != 1) {
+        return;
+    }
+    SPOT_PROFILE_SCOPE("Renderer3D::UpdateOcclusionTiles");
+    const std::uint32_t width = (depth->GetWidth() + OcclusionTileSize - 1) / OcclusionTileSize;
+    const std::uint32_t height = (depth->GetHeight() + OcclusionTileSize - 1) / OcclusionTileSize;
+    if (!m_occlusionTiles || m_occlusionTiles->GetWidth() != width || m_occlusionTiles->GetHeight() != height) {
+        m_occlusionTiles = m_device->CreateTexture(
+            {.width = width, .height = height, .format = TextureFormat::R32Float, .renderTarget = true});
+        if (!m_occlusionTiles) {
+            return;
+        }
+    }
+    auto pass = m_context->BeginRenderPass({.target = m_occlusionTiles.get()});
+    pass.PushFragmentUniforms(
+        0, std::array<std::uint32_t, 4>{OcclusionTileSize, depth->GetWidth(), depth->GetHeight(), 0});
+    const std::array inputs{FullscreenInput{depth, m_occlusionSampler.get()}};
+    m_occlusionTilePass->Draw(pass, inputs);
+    m_occlusionViewProjection = m_viewProjection;
+    m_occlusionDepth = depth;
+    m_occlusionValid = true;
 }
 
 void Renderer3D::AddCommand(const RenderMeshObject& object, const Material& material, std::uint32_t level) {
@@ -1559,6 +1682,7 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
 
     pass.BindVertexStorageBuffer(0, *m_instances);
     const Buffer* boundInstances = m_instances.get();
+    const Buffer* boundVisible = nullptr;
     const Pipeline* boundPipeline = nullptr;
     MaterialTextures boundTextures{};
     const Mesh* boundMesh = nullptr;
@@ -1584,6 +1708,7 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
         if (command.skinCount) {
             pass.BindVertexStorageBuffer(1, *m_palettes);
             pass.BindVertexBuffer(1, *command.mesh->GetSkinBuffer());
+            boundVisible = nullptr;
         }
         // Missing textures are white, which leaves the values they multiply as they are.
         bool materialChanged = false;
@@ -1625,7 +1750,17 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
             pass.BindVertexStorageBuffer(0, *instanceBuffer);
             boundInstances = instanceBuffer;
         }
-        if (command.instanceBuffer) {
+        const Buffer* visible = command.keptInstances ? command.keptInstances : m_noVisible.get();
+        // Skinned meshes read their palettes there instead.
+        if (!command.skinCount && visible != boundVisible) {
+            pass.BindVertexStorageBuffer(1, *visible);
+            boundVisible = visible;
+        }
+        if (command.arguments) {
+            pass.PushVertexUniforms(1, BatchUniforms{{command.instanceFirst, 2, 0, 0}});
+            pass.DrawIndexedIndirect(*command.arguments,
+                                     command.batch * static_cast<std::uint32_t>(sizeof(DrawIndexedIndirectArguments)));
+        } else if (command.instanceBuffer) {
             pass.PushVertexUniforms(1, BatchUniforms{{command.instanceFirst, 1, 0, 0}});
             pass.DrawIndexed(command.indexCount, command.instanceCount, command.firstIndex);
         } else {
