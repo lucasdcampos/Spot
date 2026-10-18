@@ -39,10 +39,12 @@ keeps its step size and changes how many steps are due. The editor's UI and back
 
 Each iteration of `Application::Run()`:
 
-1. Begins a profiler frame and waits for the frame rate cap (`Application::Wait`).
+1. Begins a profiler frame, waits for the frame rate cap (`Application::Wait`) and makes the assets whose background
+   loads finished reading (`AssetManager::Update()`).
 2. Polls events and dispatches them to the input state, `OnEvent()` and the scenes (`DeliversToScenes()` filters
    them).
-3. Applies the scene changes queued since the last frame (`LoadScene()`, `LoadSceneAdditive()`, `UnloadScene()`).
+3. Queues the scenes loading in the background whose files are read, instantiated now, then applies the scene
+   changes queued since the last frame (`LoadScene()`, `LoadSceneAdditive()`, `UnloadScene()`).
 4. Calls `OnUpdate()`, then updates the persistent scene and the loaded scenes in load order, unless they are paused
    (`SetScenesPaused()`, `StepScenes()`).
 5. On frames that can be drawn: runs each scene's `PrepareToRender()`, their `OnRender()`, draws them with a
@@ -58,6 +60,13 @@ A scene is usually derived per level, and builds its entities in `OnLoad()`; sce
 `Application::MakePersistent()` moves an entity there so it survives scene changes.
 
 Scenes also work on their own, without an application, by calling `Update()` directly, which is how most tests run.
+
+Worlds too large to load at once stream their parts in as scenes: `LoadSceneAdditiveAsync(sceneId)` returns a
+`SceneLoad` at once, reads and decodes the scene's file and those of the assets it names on the job system's threads
+while the game runs (`AssetManager::StartPreload()`), then, at the start of the frame after that is done, makes the
+assets and instantiates and loads the scene next to the others. `IsDone()` tells when it is loaded, and `GetScene()`
+gives it, or null when it failed; `UnloadScene()` unloads it like any other. Making the scene's entities still takes
+that one frame.
 
 ### What `Scene::Update()` does
 

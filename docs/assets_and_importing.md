@@ -92,7 +92,9 @@ on any thread, and making the asset, on the thread that loads it. So:
   decoded together on the job system's threads, which tells what they refer to (a material's textures, a model's
   meshes and materials, the ids that scenes and prefabs name), the next wave; then the assets are made from the last
   wave back, so each finds what it refers to ready. It returns what it loaded, which stays loaded while kept.
-  Loading a scene preloads what it names (`PreloadReferencedBy()`) before making its entities; fonts rasterize their
+  `StartPreload(ids)` does the reading and decoding in the background, and `FinishPreload()` makes the assets once
+  `IsReady()`, as scenes streamed in do. Loading a scene preloads what it names (`PreloadReferencedBy()`) before
+  making its entities; fonts rasterize their
   glyphs while being read, the costliest part of loading them.
 
 A mesh asset can also load as its CPU triangles, `MeshData`, with `AssetManager::LoadMeshData()` or

@@ -1143,3 +1143,65 @@ TEST_CASE("Assets load in the background, and preload together with what they re
     CHECK(assets.IsLoaded(*other));
     CHECK(assets.Load<Spot::Sound>(*other).Get() == preloaded.front().get());
 }
+
+TEST_CASE("Applications load scenes in the background, next to the ones loaded", "[assets]") {
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    const auto imported = project.GetPath() / "imported";
+    std::filesystem::create_directories(sources);
+    {
+        Spot::Scene start;
+        start.CreateEntity("Player");
+        REQUIRE(start.SaveToFile(sources / "start.scene"));
+        Spot::Scene district;
+        district.CreateEntity("Market");
+        REQUIRE(district.SaveToFile(sources / "district.scene"));
+    }
+    AssetDatabase database(sources, imported);
+    database.Refresh();
+    const auto start = database.FindByPath("start.scene");
+    const auto district = database.FindByPath("district.scene");
+    REQUIRE((start && district));
+
+    class StreamingApplication final : public Spot::Application {
+    public:
+        StreamingApplication(const Spot::ApplicationConfig& config, Spot::AssetId district)
+            : Application(config), m_district(district) {}
+
+        bool streamed = false;
+        bool playerKept = false;
+        int framesWaited = 0;
+
+    protected:
+        void OnUpdate(float) override {
+            if (!m_load.IsValid()) {
+                m_load = LoadSceneAdditiveAsync(m_district);
+                return;
+            }
+            if (!m_load.IsDone()) {
+                if (++framesWaited > 1000) {
+                    Quit();
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                return;
+            }
+            // Loaded alongside the scene already there, which kept running.
+            const auto scenes = GetScenes();
+            streamed = m_load.GetScene() && scenes.size() == 2 && m_load.GetScene()->FindEntity("Market");
+            playerKept = GetScene() && GetScene()->FindEntity("Player");
+            Quit();
+        }
+
+    private:
+        Spot::AssetId m_district;
+        Spot::SceneLoad m_load;
+    };
+
+    Spot::ApplicationConfig config{
+        .graphics = {.enabled = false}, .audio = {.enabled = false}, .assets = {.importDirectory = imported}};
+    config.game = Spot::GameSettings{.name = "Streaming", .startupScene = *start};
+    StreamingApplication application(config, *district);
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    CHECK(application.streamed);
+    CHECK(application.playerKept);
+}

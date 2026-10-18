@@ -105,6 +105,14 @@ struct AsyncLoad {
     bool done = false;
     std::shared_ptr<const void> result;
 };
+
+// A preload running in the background (see AssetManager::StartPreload()).
+struct PreloadTask {
+    std::vector<AssetId> ids;
+    std::shared_ptr<const std::unordered_map<AssetId, AssetType>> types;
+    std::shared_ptr<void> waves;
+    std::atomic<bool> ready = false;
+};
 } // namespace Detail
 
 // An asset loading in the background (see AssetManager::LoadAsync()): done once AssetManager::Update() made it,
@@ -197,6 +205,12 @@ public:
     // their files are read and decoded together on the job system's threads, then made here. Returns what it loaded,
     // which stays loaded while the caller keeps it, so loads of the same assets after it find them ready.
     std::vector<std::shared_ptr<const void>> Preload(std::span<const AssetId> ids);
+    // The same in the background: the files are read and decoded on the job system's threads while this one goes on,
+    // and FinishPreload() makes the assets, once IsReady() says the reading is done, or after waiting for it. The
+    // manifest must not be refreshed meanwhile.
+    std::shared_ptr<Detail::PreloadTask> StartPreload(std::span<const AssetId> ids);
+    static bool IsReady(const Detail::PreloadTask& task) { return task.ready.load(); }
+    std::vector<std::shared_ptr<const void>> FinishPreload(Detail::PreloadTask& task);
     bool IsLoaded(AssetId id) const;
     // Preloads the assets text saved by the engine, such as a scene, names by their ids.
     std::vector<std::shared_ptr<const void>> PreloadReferencedBy(std::string_view text);
@@ -248,8 +262,16 @@ private:
     std::shared_ptr<const void> Finish(Detail::PreparedAsset prepared);
     // Records a loaded asset, or logs why it did not load; returns it either way.
     std::shared_ptr<const void> Keep(AssetId id, AssetType type, std::shared_ptr<const void> asset);
-    void ForEachReference(const Detail::PreparedAsset& asset, const std::function<void(AssetId)>& fn) const;
-    void ForEachIdInText(std::span<const std::byte> text, const std::function<void(AssetId)>& fn) const;
+    // Calls fn for each asset the prepared one refers to; text names assets by id, of which those known count.
+    void ForEachReference(const Detail::PreparedAsset& asset, const std::function<bool(AssetId)>& known,
+                          const std::function<void(AssetId)>& fn) const;
+    static void ForEachIdInText(std::span<const std::byte> text, const std::function<bool(AssetId)>& known,
+                                const std::function<void(AssetId)>& fn);
+    // The types of the assets not loaded, as a preload reads them.
+    std::unordered_map<AssetId, AssetType> GetUnloadedTypes() const;
+    std::vector<std::vector<Detail::PreparedAsset>>
+    PrepareWaves(std::span<const AssetId> ids, const std::unordered_map<AssetId, AssetType>& types) const;
+    std::vector<std::shared_ptr<const void>> FinishWaves(std::vector<std::vector<Detail::PreparedAsset>>& waves);
     static bool IsBuiltIn(AssetId id);
     std::shared_ptr<Detail::AsyncLoad> StartAsyncLoad(AssetId id, AssetType type);
     // The asset's data after its header, from the pak when there is one, or from its imported file.
@@ -261,6 +283,7 @@ private:
     GraphicsDevice* m_device;
     std::unique_ptr<Detail::AssetPak> m_pak;
     std::deque<std::shared_ptr<Detail::AsyncLoad>> m_pending;
+    std::vector<std::shared_ptr<Detail::PreloadTask>> m_preloads;
     std::unordered_map<AssetId, Entry> m_entries;
     std::unordered_map<std::string, AssetId> m_paths;
 };

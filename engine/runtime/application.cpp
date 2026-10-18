@@ -28,6 +28,7 @@
 #include "scene/scene_assets.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cstdlib>
 #include <format>
@@ -193,6 +194,7 @@ int Application::Run() {
 
         {
             SPOT_PROFILE_SCOPE("Application::LoadScenes");
+            FinishSceneLoads();
             ApplySceneChanges();
         }
         {
@@ -397,6 +399,36 @@ AudioDevice& Application::GetAudioDevice() {
 void Application::LoadScene(std::unique_ptr<Scene> scene) {
     m_sceneChanges.clear();
     m_sceneChanges.push_back({.kind = SceneChangeKind::Replace, .scene = std::move(scene)});
+}
+
+SceneLoad Application::LoadSceneAdditiveAsync(AssetId scene) {
+    auto state = std::make_shared<SceneLoad::State>();
+    if (!m_assets) {
+        Log::GetEngineLogger().Error("Scenes load in the background only while the application runs");
+        state->done = true;
+        return SceneLoad(state);
+    }
+    const std::array ids{scene};
+    m_sceneLoads.push_back({scene, m_assets->StartPreload(ids), state});
+    return SceneLoad(state);
+}
+
+void Application::FinishSceneLoads() {
+    for (auto it = m_sceneLoads.begin(); it != m_sceneLoads.end();) {
+        if (!AssetManager::IsReady(*it->task)) {
+            ++it;
+            continue;
+        }
+        // Kept until the scene is made, which finds them loaded.
+        const auto preloaded = m_assets->FinishPreload(*it->task);
+        auto scene = InstantiateScene(*m_assets, it->scene);
+        it->state->scene = scene.get();
+        it->state->done = true;
+        if (scene) {
+            LoadSceneAdditive(std::move(scene));
+        }
+        it = m_sceneLoads.erase(it);
+    }
 }
 
 void Application::LoadSceneAdditive(std::unique_ptr<Scene> scene) {

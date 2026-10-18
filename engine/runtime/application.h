@@ -66,6 +66,26 @@ struct ApplicationConfig {
     bool consoleOverlay = true;
 };
 
+// A scene loading in the background (see Application::LoadSceneAdditiveAsync()). Done once the scene was loaded, or
+// failed to be; the scene is then the one loaded, until it is unloaded, or null when it failed.
+class SceneLoad {
+public:
+    struct State {
+        bool done = false;
+        Scene* scene = nullptr;
+    };
+
+    SceneLoad() = default;
+    explicit SceneLoad(std::shared_ptr<State> state) : m_state(std::move(state)) {}
+
+    bool IsValid() const { return m_state != nullptr; }
+    bool IsDone() const { return m_state && m_state->done; }
+    Scene* GetScene() const { return m_state ? m_state->scene : nullptr; }
+
+private:
+    std::shared_ptr<State> m_state;
+};
+
 class Application {
 public:
     explicit Application(ApplicationConfig config = {});
@@ -150,6 +170,11 @@ public:
     void LoadSceneAdditive(std::unique_ptr<Scene> scene);
     // Unloads a loaded scene. A scene still waiting to be loaded is dropped without being loaded.
     void UnloadScene(Scene& scene);
+    // Loads the scene asset next to the ones already loaded without stopping the game, as worlds stream their parts
+    // in: the files of the scene and of the assets it names are read and decoded on the job system's threads, then,
+    // at the start of a frame once that is done, the assets are made, the scene is instantiated and loaded as
+    // LoadSceneAdditive() would. Making the scene's entities still takes that frame.
+    SceneLoad LoadSceneAdditiveAsync(AssetId scene);
 
     template <std::derived_from<Scene> T, typename... Args>
     T& LoadScene(Args&&... args) {
@@ -247,6 +272,14 @@ private:
     std::unique_ptr<Scene> m_persistentScene;
     std::vector<std::unique_ptr<Scene>> m_scenes;
     std::vector<SceneChange> m_sceneChanges;
+    struct PendingSceneLoad {
+        AssetId scene;
+        std::shared_ptr<Detail::PreloadTask> task;
+        std::shared_ptr<SceneLoad::State> state;
+    };
+    std::vector<PendingSceneLoad> m_sceneLoads;
+    // Instantiates the scenes whose background loads finished reading, queuing them to load.
+    void FinishSceneLoads();
     InputState m_input;
     std::unique_ptr<ConsoleInput> m_consoleInput;
     AssetRef<Font> m_developerFont;

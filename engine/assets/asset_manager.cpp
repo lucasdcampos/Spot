@@ -65,7 +65,12 @@ AssetManager::AssetManager(std::filesystem::path importDirectory, GraphicsDevice
 }
 
 AssetManager::~AssetManager() {
-    // Loads still being read refer to the manager.
+    // Preloads and loads still being read refer to the manager.
+    for (const auto& task : m_preloads) {
+        while (!task->ready.load()) {
+            std::this_thread::yield();
+        }
+    }
     while (!m_pending.empty()) {
         if (!m_pending.front()->prepared.load()) {
             std::this_thread::yield();
@@ -286,51 +291,61 @@ bool AssetManager::IsLoaded(AssetId id) const {
     return found != m_entries.end() && !found->second.loaded.expired();
 }
 
-std::vector<std::shared_ptr<const void>> AssetManager::Preload(std::span<const AssetId> ids) {
-    SPOT_PROFILE_SCOPE("AssetManager::Preload");
+std::unordered_map<AssetId, AssetType> AssetManager::GetUnloadedTypes() const {
+    std::unordered_map<AssetId, AssetType> types;
+    types.reserve(m_entries.size());
+    for (const auto& [id, entry] : m_entries) {
+        if (entry.loaded.expired() && !IsBuiltIn(id)) {
+            types.emplace(id, entry.type);
+        }
+    }
+    return types;
+}
+
+std::vector<std::vector<Detail::PreparedAsset>>
+AssetManager::PrepareWaves(std::span<const AssetId> ids, const std::unordered_map<AssetId, AssetType>& types) const {
     // Wave by wave: the assets of a wave are read and decoded at once, on the job system's threads, which tells the
-    // assets they refer to, the next wave. They are then made from the last wave back, so each finds what it refers
-    // to loaded already.
-    const auto loadable = [this](AssetId id) {
-        const auto found = m_entries.find(id);
-        return found != m_entries.end() && found->second.loaded.expired() && !IsBuiltIn(id);
-    };
+    // assets they refer to, the next wave. Only what the types name is looked at, so this may run on another thread.
+    const auto known = [&types](AssetId id) { return types.contains(id); };
     std::unordered_set<AssetId> seen;
     std::vector<AssetId> wave;
     for (const AssetId id : ids) {
-        if (loadable(id) && seen.insert(id).second) {
+        if (known(id) && seen.insert(id).second) {
             wave.push_back(id);
         }
     }
     std::vector<std::vector<Detail::PreparedAsset>> waves;
     while (!wave.empty()) {
-        std::vector<AssetType> types;
-        for (const AssetId id : wave) {
-            types.push_back(m_entries.at(id).type);
-        }
         std::vector<Detail::PreparedAsset> prepared(wave.size());
         JobSystem::GetShared().ParallelFor(wave.size(), 1, [&](std::size_t begin, std::size_t end) {
             for (std::size_t i = begin; i < end; ++i) {
-                prepared[i] = Prepare(wave[i], types[i]);
+                prepared[i] = Prepare(wave[i], types.at(wave[i]));
             }
         });
         std::vector<AssetId> next;
         const auto refer = [&](AssetId id) {
-            if (id.IsValid() && loadable(id) && seen.insert(id).second) {
+            if (id.IsValid() && known(id) && seen.insert(id).second) {
                 next.push_back(id);
             }
         };
         for (const Detail::PreparedAsset& asset : prepared) {
-            ForEachReference(asset, refer);
+            ForEachReference(asset, known, refer);
         }
         waves.push_back(std::move(prepared));
         wave = std::move(next);
     }
+    return waves;
+}
+
+std::vector<std::shared_ptr<const void>>
+AssetManager::FinishWaves(std::vector<std::vector<Detail::PreparedAsset>>& waves) {
+    // Made from the last wave back, so each finds what it refers to loaded already.
     std::vector<std::shared_ptr<const void>> loaded;
     for (auto it = waves.rbegin(); it != waves.rend(); ++it) {
         for (Detail::PreparedAsset& asset : *it) {
-            // Scenes are not shared assets: what they refer to is all they are preloaded for.
-            if (asset.type == AssetType::Scene || !asset.data || !loadable(asset.id)) {
+            // Scenes are not shared assets: what they refer to is all they are preloaded for. Assets loaded since
+            // they were read are kept as they are.
+            if (asset.type == AssetType::Scene || !asset.data || IsLoaded(asset.id) || !m_entries.contains(asset.id)) {
                 continue;
             }
             const AssetId id = asset.id;
@@ -340,16 +355,52 @@ std::vector<std::shared_ptr<const void>> AssetManager::Preload(std::span<const A
             }
         }
     }
+    waves.clear();
     return loaded;
+}
+
+std::vector<std::shared_ptr<const void>> AssetManager::Preload(std::span<const AssetId> ids) {
+    SPOT_PROFILE_SCOPE("AssetManager::Preload");
+    auto waves = PrepareWaves(ids, GetUnloadedTypes());
+    return FinishWaves(waves);
+}
+
+std::shared_ptr<Detail::PreloadTask> AssetManager::StartPreload(std::span<const AssetId> ids) {
+    auto task = std::make_shared<Detail::PreloadTask>();
+    task->ids.assign(ids.begin(), ids.end());
+    // Taken here, so the job never reads what this thread changes.
+    task->types = std::make_shared<std::unordered_map<AssetId, AssetType>>(GetUnloadedTypes());
+    std::erase_if(m_preloads, [](const auto& running) { return running->ready.load(); });
+    m_preloads.push_back(task);
+    JobSystem::GetShared().Run([this, task] {
+        auto waves = PrepareWaves(task->ids, *task->types);
+        task->waves = std::make_shared<std::vector<std::vector<Detail::PreparedAsset>>>(std::move(waves));
+        task->ready = true;
+    });
+    return task;
+}
+
+std::vector<std::shared_ptr<const void>> AssetManager::FinishPreload(Detail::PreloadTask& task) {
+    while (!task.ready.load()) {
+        std::this_thread::yield();
+    }
+    if (!task.waves) {
+        return {};
+    }
+    auto& waves = *std::static_pointer_cast<std::vector<std::vector<Detail::PreparedAsset>>>(task.waves);
+    return FinishWaves(waves);
 }
 
 std::vector<std::shared_ptr<const void>> AssetManager::PreloadReferencedBy(std::string_view text) {
     std::vector<AssetId> ids;
-    ForEachIdInText(std::as_bytes(std::span(text)), [&](AssetId id) { ids.push_back(id); });
+    ForEachIdInText(
+        std::as_bytes(std::span(text)), [this](AssetId id) { return m_entries.contains(id); },
+        [&](AssetId id) { ids.push_back(id); });
     return Preload(ids);
 }
 
-void AssetManager::ForEachReference(const Detail::PreparedAsset& asset, const std::function<void(AssetId)>& fn) const {
+void AssetManager::ForEachReference(const Detail::PreparedAsset& asset, const std::function<bool(AssetId)>& known,
+                                    const std::function<void(AssetId)>& fn) const {
     if (asset.material) {
         for (const AssetId texture :
              {asset.material->baseColorTexture, asset.material->metallicRoughnessTexture, asset.material->normalTexture,
@@ -372,11 +423,12 @@ void AssetManager::ForEachReference(const Detail::PreparedAsset& asset, const st
     // Assets saved as text, such as scenes and prefabs, name the assets they refer to by their ids.
     if (asset.data && (asset.type == AssetType::Scene || asset.type == AssetType::Prefab ||
                        asset.type == AssetType::AnimatorController || asset.type == AssetType::SpriteAtlas)) {
-        ForEachIdInText(*asset.data, fn);
+        ForEachIdInText(*asset.data, known, fn);
     }
 }
 
-void AssetManager::ForEachIdInText(std::span<const std::byte> text, const std::function<void(AssetId)>& fn) const {
+void AssetManager::ForEachIdInText(std::span<const std::byte> text, const std::function<bool(AssetId)>& known,
+                                   const std::function<void(AssetId)>& fn) {
     const auto isHex = [](std::byte b) {
         const auto c = static_cast<char>(b);
         return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
@@ -389,7 +441,7 @@ void AssetManager::ForEachIdInText(std::span<const std::byte> text, const std::f
         }
         if (run == 32) {
             const std::string_view digits(reinterpret_cast<const char*>(text.data()) + i - 32, 32);
-            if (const auto id = AssetId::Parse(digits); id && m_entries.contains(*id)) {
+            if (const auto id = AssetId::Parse(digits); id && known(*id)) {
                 fn(*id);
             }
         }
