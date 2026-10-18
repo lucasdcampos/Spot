@@ -294,6 +294,8 @@ add_library(spot_objects OBJECT
     scene/scene_system.cpp
     scene/rendering/sky.h
     scene/rendering/sky.cpp
+    scene/rendering/clouds.h
+    scene/rendering/clouds.cpp
     scene/rendering/sprite_renderer.h
     scene/rendering/sprite_renderer.cpp
     scene/ui/ui_text_layout.cpp

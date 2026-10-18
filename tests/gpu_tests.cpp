@@ -4167,3 +4167,63 @@ TEST_CASE("GPU skinning matches transformed meshes in color, shadows and camera 
         }
     }
 }
+
+TEST_CASE("Renderer3D draws clouds over the day sky, and stars and the moon at night", "[gpu]") {
+    RequireGpu();
+    const auto render = [](const Spot::SkyData& sky, Spot::Vector3 forward) {
+        Spot::Camera3D camera;
+        camera.rotation = Spot::Quaternion::LookRotation(Spot::Normalize(forward), {0.0f, 0.0f, -1.0f});
+        return TargetRender(
+            256, 256,
+            [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+                Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+                REQUIRE(renderer.IsValid());
+                renderer.Begin(context, target, camera);
+                renderer.DrawSky(sky);
+                renderer.End();
+            });
+    };
+    // How saturated the sky is on average, from 0, gray, to 1.
+    const auto saturation = [](const TargetRender& image) {
+        double total = 0.0;
+        for (int y = 0; y < 256; y += 4) {
+            for (int x = 0; x < 256; x += 4) {
+                const Pixel pixel = image.At(x, y);
+                const int high = std::max({int{pixel[0]}, int{pixel[1]}, int{pixel[2]}});
+                const int low = std::min({int{pixel[0]}, int{pixel[1]}, int{pixel[2]}});
+                total += high > 0 ? static_cast<double>(high - low) / high : 0.0;
+            }
+        }
+        return total / (64.0 * 64.0);
+    };
+
+    // White clouds take the blue out of a clear sky.
+    const Spot::SkyData day{.sunDirection = {-0.3f, -1.0f, -0.2f}};
+    Spot::SkyData cloudy = day;
+    cloudy.clouds.coverage = 0.8f;
+    const Spot::Vector3 up{0.1f, 1.0f, 0.05f};
+    const double clear = saturation(render(day, up));
+    const double clouded = saturation(render(cloudy, up));
+    INFO("Saturation " << clear << " clear, " << clouded << " cloudy");
+    CHECK(clouded < clear * 0.8);
+
+    // At night, stars come out, and the moon rises opposite the sun.
+    const Spot::SkyData night{.sunDirection = {0.3f, 1.0f, 0.2f}};
+    Spot::SkyData dark = night;
+    dark.night.starBrightness = 0.0f;
+    dark.night.moonSize = 0.0f;
+    const auto starry = render(night, up);
+    const auto starless = render(dark, up);
+    int stars = 0;
+    for (int y = 0; y < 256; ++y) {
+        for (int x = 0; x < 256; ++x) {
+            stars += starry.At(x, y)[1] > starless.At(x, y)[1] + 25 ? 1 : 0;
+        }
+    }
+    CHECK(stars > 20);
+    const Spot::Vector3 toMoon{0.3f, 1.0f, 0.2f};
+    const Pixel moon = render(night, toMoon).At(128, 128);
+    const Pixel moonless = render(dark, toMoon).At(128, 128);
+    INFO("Moon " << int{moon[0]} << ", " << int{moon[1]} << ", " << int{moon[2]});
+    CHECK(moon[1] > moonless[1] + 80);
+}

@@ -145,6 +145,15 @@ struct SkyUniforms {
     Vector4 settings;
     // 1 when capturing the sky's light for lighting, and the scale of that light.
     Vector4 capture;
+    // The clouds' coverage, density, height and size; their offset along X and Z and their softness; their color.
+    Vector4 clouds;
+    Vector4 cloudMotion;
+    Color cloudColor;
+    // The stars' brightness, density, rotation and time, the axis they turn around, and the moon's size and
+    // brightness.
+    Vector4 stars;
+    Vector4 starAxis;
+    Vector4 moon;
 };
 
 struct PrefilterUniforms {
@@ -186,6 +195,13 @@ Color operator*(Color a, Color b) {
 
 Color operator+(Color a, Color b) {
     return {a.r + b.r, a.g + b.g, a.b + b.b, a.a};
+}
+
+// What of the sky changes how it lights the scene: not its clouds, stars or moon, which move every frame.
+SkyData GetLightingSky(SkyData sky) {
+    sky.clouds = {};
+    sky.night = {};
+    return sky;
 }
 
 } // namespace
@@ -559,7 +575,7 @@ void Renderer3D::End() {
                 m_lights.push_back(sun);
             }
             // The sky lights from every direction, through its captured light; should that fail, it lights evenly.
-            m_skyLit = UpdateSkyLighting(*m_sky, *skyLighting);
+            m_skyLit = UpdateSkyLighting(GetLightingSky(*m_sky), *skyLighting);
             if (!m_skyLit) {
                 m_lights.push_back({.type = LightType::Ambient, .color = skyLighting->ambient});
             }
@@ -1143,6 +1159,15 @@ SkyUniforms GetSkyUniforms(const SkyData& sky, const SkyLighting& lighting, bool
         .settings = {std::max(sky.sunSize, 0.0f), std::max(sky.atmosphereThickness, 0.0f), std::max(sky.exposure, 0.0f),
                      hdr ? 1.0f : 0.0f},
         .capture = {capture ? 1.0f : 0.0f, std::max(sky.ambientIntensity, 0.0f), 0.0f, 0.0f},
+        .clouds = {std::clamp(sky.clouds.coverage, 0.0f, 1.0f), std::clamp(sky.clouds.density, 0.0f, 1.0f),
+                   std::max(sky.clouds.height, 1.0f), std::max(sky.clouds.size, 1.0f)},
+        .cloudMotion = {sky.clouds.offset.x, sky.clouds.offset.y, std::clamp(sky.clouds.softness, 0.0f, 1.0f), 0.0f},
+        .cloudColor = sky.clouds.color,
+        .stars = {std::max(sky.night.starBrightness, 0.0f), std::clamp(sky.night.starDensity, 0.0f, 1.0f),
+                  sky.night.starRotation, std::fmod(sky.night.time, 3600.0f)},
+        .starAxis = ToVector4(LengthSquared(sky.night.starAxis) > 1e-8f ? Normalize(sky.night.starAxis)
+                                                                        : Vector3{0.0f, 0.0f, 1.0f}),
+        .moon = {std::max(sky.night.moonSize, 0.0f), std::max(sky.night.moonBrightness, 0.0f), 0.0f, 0.0f},
     };
 }
 

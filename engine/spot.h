@@ -133,6 +133,7 @@
 #include "scene/rendering/scene_drawing.h"
 #include "scene/rendering/scene_renderer.h"
 #include "scene/rendering/sky.h"
+#include "scene/rendering/clouds.h"
 #include "scene/rendering/sprite_animator.h"
 #include "scene/rendering/sprite_renderer.h"
 #include "scene/rendering/tilemap.h"

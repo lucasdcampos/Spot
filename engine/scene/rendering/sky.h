@@ -19,8 +19,9 @@ class DirectionalLight;
 //     sun.AddComponent<Spot::DirectionalLight>();
 //     scene.CreateEntity("Sky").AddComponent<Spot::Sky>();
 //
-// Only the first active sky of a scene is drawn, and its entity's transform plays no part. See SkyData for what each
-// setting does.
+// Once the sun has set, stars come out, turning with the night sky (SetStarRotation()), and a moon rises opposite the
+// sun. A Clouds component in the scene adds a layer of clouds the wind carries. Only the first active sky of a scene is
+// drawn, and its entity's transform plays no part. See SkyData for what each setting does.
 class Sky final : public Component {
 public:
     // The light that lights the sky, or null when the scene has no active directional light.
@@ -40,6 +41,19 @@ public:
     void SetExposure(float exposure) { m_exposure = exposure; }
     float GetAmbientIntensity() const { return m_ambientIntensity; }
     void SetAmbientIntensity(float intensity) { m_ambientIntensity = intensity; }
+    // Stars and the moon; see SkyNight. The rotation turns the stars around the axis, as the hours of a day do.
+    float GetStarBrightness() const { return m_starBrightness; }
+    void SetStarBrightness(float brightness) { m_starBrightness = brightness; }
+    float GetStarDensity() const { return m_starDensity; }
+    void SetStarDensity(float density) { m_starDensity = density; }
+    Vector3 GetStarAxis() const { return m_starAxis; }
+    void SetStarAxis(Vector3 axis) { m_starAxis = axis; }
+    float GetStarRotation() const { return m_starRotation; }
+    void SetStarRotation(float radians) { m_starRotation = radians; }
+    float GetMoonSize() const { return m_moonSize; }
+    void SetMoonSize(float angularRadius) { m_moonSize = angularRadius; }
+    float GetMoonBrightness() const { return m_moonBrightness; }
+    void SetMoonBrightness(float brightness) { m_moonBrightness = brightness; }
 
     // The sky as it is now, lit by the scene's sun, if any.
     SkyData GetSkyData() const;
@@ -55,6 +69,12 @@ private:
     Color m_nightColor = SkyData{}.nightColor;
     float m_exposure = SkyData{}.exposure;
     float m_ambientIntensity = SkyData{}.ambientIntensity;
+    float m_starBrightness = SkyNight{}.starBrightness;
+    float m_starDensity = SkyNight{}.starDensity;
+    Vector3 m_starAxis = SkyNight{}.starAxis;
+    float m_starRotation = 0.0f;
+    float m_moonSize = SkyNight{}.moonSize;
+    float m_moonBrightness = SkyNight{}.moonBrightness;
 };
 
 } // namespace Spot

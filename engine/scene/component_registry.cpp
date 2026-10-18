@@ -14,6 +14,7 @@
 #include "scene/physics2d/physics_world_2d.h"
 #include "scene/physics2d/tilemap_collider_2d.h"
 #include "scene/rendering/camera.h"
+#include "scene/rendering/clouds.h"
 #include "scene/rendering/fog.h"
 #include "scene/rendering/light.h"
 #include "scene/rendering/mesh_renderer.h"
@@ -83,6 +84,7 @@ Registry& GetRegistry() {
         RegisterBuiltIn<PointLight>(registry, "PointLight");
         RegisterBuiltIn<SpotLight>(registry, "SpotLight");
         RegisterBuiltIn<Sky>(registry, "Sky");
+        RegisterBuiltIn<Clouds>(registry, "Clouds");
         RegisterBuiltIn<Fog>(registry, "Fog");
         RegisterBuiltIn<PostProcessing>(registry, "PostProcessing");
         RegisterBuiltIn<UiLayoutGroup>(registry, "UiLayoutGroup");

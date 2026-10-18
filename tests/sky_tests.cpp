@@ -108,3 +108,59 @@ TEST_CASE("The sky casts blue light by day and next to none at night", "[sky]") 
     const Vector3 toSun = {0.0f, 0.5f, -1.0f};
     CHECK(atmosphere.GetSkyRadiance(toSun, toSun).r > atmosphere.GetSkyRadiance({0.0f, 0.5f, 1.0f}, toSun).r);
 }
+
+TEST_CASE("Clouds drift with the wind, and the sky draws them", "[sky]") {
+    Scene scene;
+    auto& entity = scene.CreateEntity("Sky");
+    const Sky& sky = entity.AddComponent<Sky>();
+    CHECK(sky.GetSkyData().clouds.coverage == 0.0f);
+
+    auto& clouds = entity.AddComponent<Spot::Clouds>();
+    clouds.coverage = 0.6f;
+    clouds.windDirection = {3.0f, 5.0f, 4.0f};
+    clouds.windSpeed = 10.0f;
+    scene.Update(0.5f);
+    // Five meters along the wind on the ground, whatever its height.
+    CHECK(clouds.GetOffset().x == Approx(3.0f).margin(1e-4));
+    CHECK(clouds.GetOffset().y == Approx(4.0f).margin(1e-4));
+    const Spot::SkyData data = sky.GetSkyData();
+    CHECK(data.clouds.coverage == 0.6f);
+    CHECK(data.clouds.offset == clouds.GetOffset());
+
+    // Out of range settings reach the sky within it.
+    clouds.coverage = 4.0f;
+    clouds.size = -1.0f;
+    CHECK(sky.GetSkyData().clouds.coverage == 1.0f);
+    CHECK(sky.GetSkyData().clouds.size >= 1.0f);
+    entity.GetComponent<Spot::Clouds>()->SetEnabled(false);
+    CHECK(sky.GetSkyData().clouds.coverage == 0.0f);
+}
+
+TEST_CASE("Stars, the moon and clouds are saved with their scene", "[sky][serialization]") {
+    Scene scene;
+    auto& entity = scene.CreateEntity("Sky");
+    auto& sky = entity.AddComponent<Sky>();
+    sky.SetStarBrightness(2.0f);
+    sky.SetStarDensity(0.25f);
+    sky.SetStarRotation(1.0f);
+    sky.SetMoonSize(0.05f);
+    auto& clouds = entity.AddComponent<Spot::Clouds>();
+    clouds.coverage = 0.3f;
+    clouds.height = 2500.0f;
+    clouds.SetOffset({10.0f, -20.0f});
+
+    Scene loaded;
+    REQUIRE(loaded.LoadFromString(scene.SaveToString()));
+    const auto* copy = loaded.FindComponent<Sky>();
+    const auto* loadedClouds = loaded.FindComponent<Spot::Clouds>();
+    REQUIRE(copy);
+    REQUIRE(loadedClouds);
+    CHECK(copy->GetStarBrightness() == 2.0f);
+    CHECK(copy->GetStarDensity() == 0.25f);
+    CHECK(copy->GetStarRotation() == 1.0f);
+    CHECK(copy->GetMoonSize() == 0.05f);
+    CHECK(loadedClouds->coverage == 0.3f);
+    CHECK(loadedClouds->height == 2500.0f);
+    CHECK(loadedClouds->GetOffset() == Spot::Vector2{10.0f, -20.0f});
+    CHECK(copy->GetSkyData().night.starRotation == 1.0f);
+}

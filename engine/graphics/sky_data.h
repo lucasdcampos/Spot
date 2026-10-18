@@ -1,10 +1,51 @@
 #pragma once
 
-#include "math/color.h"
 #include "math/angles.h"
+#include "math/color.h"
 #include "math/vector.h"
 
 namespace Spot {
+
+// A layer of clouds high above the viewer, which the sky draws over itself, lit as the sky is: white by day, glowing
+// red at sunset, dark gray against the stars at night. Its shapes are noise, so they need no texture, and moving
+// offset makes them drift.
+struct SkyClouds {
+    // How much of the sky they cover, from 0, a clear sky, to 1, overcast.
+    float coverage = 0.0f;
+    // How opaque their thick parts are, from 0 to 1.
+    float density = 0.9f;
+    // How high the layer is above the viewer, and about how wide a cloud is, in meters.
+    float height = 1500.0f;
+    float size = 900.0f;
+    // How blurred their edges are, from 0, crisp, to 1, wispy.
+    float softness = 0.35f;
+    // How far the wind has carried them, in meters along X and Z.
+    Vector2 offset = {};
+    // Multiplies the light they get, white by default.
+    Color color = Color::White;
+
+    bool operator==(const SkyClouds&) const = default;
+};
+
+// What the sky shows once the sun has set: stars, which turn with the sky and twinkle, and a moon opposite the sun,
+// which rises as it sets. Both fade in as the sun goes down and are hidden by clouds.
+struct SkyNight {
+    // How bright the stars are; 0 hides them.
+    float starBrightness = 1.0f;
+    // How many there are, from 0 to 1.
+    float starDensity = 0.5f;
+    // The axis the night sky turns around, and how far it has turned, in radians: a sun crossing from east (+X) to
+    // west turns around Z, and a whole day is a whole turn.
+    Vector3 starAxis = {0.0f, 0.0f, 1.0f};
+    float starRotation = 0.0f;
+    // Seconds that drive the stars' twinkling.
+    float time = 0.0f;
+    // The moon's angular radius, in radians, and its brightness; a size of 0 hides it.
+    float moonSize = ToRadians(1.6f);
+    float moonBrightness = 1.0f;
+
+    bool operator==(const SkyNight&) const = default;
+};
 
 // A sky for Renderer3D::DrawSky(): an atmosphere lit by the sun, which it scatters into a blue sky by day and red
 // sunsets, with the sun's disc in it and the ground below the horizon. Colors are linear.
@@ -37,6 +78,9 @@ struct SkyData {
     float ambientIntensity = 1.0f;
     // Whether the sun casts shadows when it lights the scene; see LightData::castsShadows.
     bool sunCastsShadows = true;
+    // Drawn only, without changing how the sky lights the scene.
+    SkyClouds clouds;
+    SkyNight night;
 
     bool operator==(const SkyData&) const = default;
 };
