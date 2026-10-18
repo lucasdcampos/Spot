@@ -18,7 +18,9 @@ add_library(spot_objects OBJECT
     core/memory.h
     core/memory.cpp
     assets/asset_manifest.h
+    assets/asset_pak.h
     assets/asset_manifest.cpp
+    assets/asset_pak.cpp
     assets/asset_manager.h
     assets/asset_manager.cpp
     assets/asset_ref.h
@@ -373,6 +375,18 @@ FetchContent_Declare(stb
 FetchContent_MakeAvailable(stb)
 target_include_directories(spot_objects SYSTEM PRIVATE ${stb_SOURCE_DIR})
 target_include_directories(spot_objects SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/third_party/renderdoc)
+
+# LZ4 compresses the assets of paks; only its one source file is built, without its CMake project.
+FetchContent_Declare(lz4
+    URL https://github.com/lz4/lz4/releases/download/v1.10.0/lz4-1.10.0.tar.gz
+    SOURCE_SUBDIR no_cmake_project
+    SYSTEM
+)
+FetchContent_MakeAvailable(lz4)
+add_library(spot_lz4 STATIC ${lz4_SOURCE_DIR}/lib/lz4.c)
+target_include_directories(spot_lz4 SYSTEM PUBLIC ${lz4_SOURCE_DIR}/lib)
+set_target_properties(spot_lz4 PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_link_libraries(spot_objects PRIVATE spot_lz4)
 
 # cgltf reads glTF models; like stb, it is a single header.
 FetchContent_Declare(cgltf

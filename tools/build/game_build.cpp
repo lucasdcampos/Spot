@@ -2,6 +2,9 @@
 
 #include "tools_log.h"
 
+#include "assets/asset_manifest.h"
+#include "assets/asset_pak.h"
+
 #include <spot_import.h>
 
 #include <string>
@@ -140,12 +143,20 @@ bool ExportGame(const Project& project, const std::filesystem::path& directory) 
             return fail("a library cannot be copied");
         }
     }
-    // The project's imports hold only the assets its sources have now, which is what the game ships with.
+    // The project's imports hold only the assets its sources have now, which is what the game ships with: their
+    // manifest, and the assets themselves in one pak, which loads faster than a file per asset.
     const GameSettings settings = project.GetGameSettings();
-    std::filesystem::copy(project.GetImportDirectory(), directory / Utf8ToPath(settings.importDirectory),
-                          std::filesystem::copy_options::recursive, error);
+    const std::filesystem::path shippedImports = directory / Utf8ToPath(settings.importDirectory);
+    std::filesystem::create_directories(shippedImports, error);
+    if (!error) {
+        std::filesystem::copy_file(Detail::Manifest::GetPath(project.GetImportDirectory()),
+                                   Detail::Manifest::GetPath(shippedImports), error);
+    }
     if (error) {
-        return fail("the imported assets cannot be copied");
+        return fail("the imported assets' manifest cannot be copied");
+    }
+    if (!Detail::WriteAssetPak(shippedImports / Detail::AssetPakFileName, project.GetImportDirectory())) {
+        return fail("the imported assets cannot be packed");
     }
     if (!settings.SaveToFile(directory / GameSettings::FileName)) {
         return false;

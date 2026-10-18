@@ -33,6 +33,11 @@ which get ids of their own under a key that names the part (`models/house.glb#Ro
 - `Refresh()` finds the sources, gives new ones a `.meta` file and imports the ones that changed into the import
   directory, along with a manifest of what it holds. Ids that clash, as from a file copied with its `.meta`, are
   replaced in the copy.
+- Shipped games hold their imported assets in one pak, `assets.pak` in the import directory
+  (`engine/assets/asset_pak.h`), which `spot export` and `spot pack` write: a table of the assets, then each one,
+  compressed with LZ4 when that saves enough. `AssetManager` reads from it whenever it is there, and from a file per
+  asset otherwise, as the editor and `spot run` do; opening one file instead of hundreds halves the time a scene
+  such as the sandbox's playground takes to load.
 - Imports are cached: a source is imported again only when it, a file it depends on, its settings or its importer's
   version change. `GetChanged()` tells what was imported again, so loaded copies can be reloaded.
 - `CreateFolder()`, `Move()`, `Delete()`, `Duplicate()` and `CopyIn()` change sources the way tools do, keeping each

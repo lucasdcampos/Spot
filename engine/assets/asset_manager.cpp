@@ -5,6 +5,7 @@
 #include "assets/asset_file.h"
 #include "assets/asset_formats.h"
 #include "assets/asset_manifest.h"
+#include "assets/asset_pak.h"
 #include "assets/built_in_assets.h"
 #include "audio/sound.h"
 #include "core/log.h"
@@ -50,6 +51,10 @@ AssetManager::AssetManager(std::filesystem::path importDirectory, GraphicsDevice
 AssetManager::~AssetManager() = default;
 
 void AssetManager::RefreshManifest() {
+    // Shipped games hold their assets in one pak; tools and the editor read the imported files themselves.
+    const auto pakPath = m_importDirectory / Detail::AssetPakFileName;
+    std::error_code error;
+    m_pak = std::filesystem::is_regular_file(pakPath, error) ? Detail::AssetPak::Open(pakPath) : nullptr;
     const auto manifest = Detail::Manifest::LoadFromFile(Detail::Manifest::GetPath(m_importDirectory));
     if (!manifest) {
         // Applications without assets have no import folder at all, which is no cause for concern.
@@ -194,6 +199,16 @@ std::optional<std::vector<std::byte>> AssetManager::ReadImportedData(AssetId id,
         Log::GetEngineLogger().Error("Asset {} is not a {}", id.ToString(), GetAssetTypeName(type));
         return std::nullopt;
     }
+    return ReadData(id, type);
+}
+
+std::optional<std::vector<std::byte>> AssetManager::ReadData(AssetId id, AssetType type) const {
+    if (m_pak && m_pak->Contains(id)) {
+        auto file = m_pak->Read(id);
+        return file
+                   ? Detail::ParseAssetFile(std::move(*file), type, Detail::GetImportedAssetPath(m_importDirectory, id))
+                   : std::nullopt;
+    }
     return Detail::ReadAssetFile(Detail::GetImportedAssetPath(m_importDirectory, id), type);
 }
 
@@ -257,8 +272,7 @@ std::shared_ptr<const MeshData> AssetManager::LoadMeshData(AssetId id) {
         mesh = std::make_shared<const MeshData>(MeshData::CreateSphere());
     } else if (id == BuiltInAssets::PlaneMesh) {
         mesh = std::make_shared<const MeshData>(MeshData::CreatePlane());
-    } else if (const auto data =
-                   Detail::ReadAssetFile(Detail::GetImportedAssetPath(m_importDirectory, id), AssetType::Mesh)) {
+    } else if (const auto data = ReadData(id, AssetType::Mesh)) {
         if (auto decoded = Detail::DecodeMesh(*data)) {
             mesh = std::make_shared<const MeshData>(std::move(*decoded));
         }
@@ -294,7 +308,7 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
         return result;
     }
 
-    const auto data = Detail::ReadAssetFile(Detail::GetImportedAssetPath(m_importDirectory, id), type);
+    const auto data = ReadData(id, type);
     if (!data) {
         return nullptr;
     }

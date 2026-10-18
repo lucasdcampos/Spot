@@ -52,13 +52,15 @@ spot cook [<project>] [--out <folder>]
 spot build [<project>]
 spot run [<project>]
 spot export [<project>] [--out <folder>]
+spot pack <imported folder>
 spot help
 ```
 
 A project is its `.spot` file or the folder that has one; the current folder by default. `cook` imports what
 changed, and with `--out` cooks the game into that folder. `build` builds the game's executable and module. `run`
 builds, imports and runs the game. `export` builds the game and makes its shipping folder, `builds/<platform>` by
-default.
+default, with the imported assets packed into one `assets.pak` beside their manifest. `pack` packs a folder of
+imported assets the same way (see [Assets and importing](assets_and_importing.md)).
 
 Use the Release build of the tools for shipping: it builds the game's code against that same Release engine.
 The generated game CMake package copies the MSVC redistributable runtime or the GCC runtime libraries beside

@@ -89,6 +89,10 @@ struct AssetTypeOf<SpriteAtlas> {
     static constexpr AssetType Value = AssetType::SpriteAtlas;
 };
 
+namespace Detail {
+class AssetPak;
+}
+
 class AssetManager;
 
 // Loads the assets of a type the asset layer does not define itself, such as the prefabs the scene layer registers.
@@ -185,11 +189,14 @@ private:
     };
 
     std::shared_ptr<const void> LoadAsset(AssetId id, AssetType type);
+    // The asset's data after its header, from the pak when there is one, or from its imported file.
+    std::optional<std::vector<std::byte>> ReadData(AssetId id, AssetType type) const;
     std::shared_ptr<const void> Create(AssetId id, AssetType type);
     static void LogUnknownPath(std::string_view path);
 
     std::filesystem::path m_importDirectory;
     GraphicsDevice* m_device;
+    std::unique_ptr<Detail::AssetPak> m_pak;
     std::unordered_map<AssetId, Entry> m_entries;
     std::unordered_map<std::string, AssetId> m_paths;
 };

@@ -73,6 +73,9 @@ std::filesystem::path GetImportedAssetPath(const std::filesystem::path& importDi
 bool WriteAssetFile(const std::filesystem::path& path, AssetType type, std::span<const std::byte> data);
 // The data after the header; nothing, after logging why, when the file is missing, of another version or type.
 std::optional<std::vector<std::byte>> ReadAssetFile(const std::filesystem::path& path, AssetType type);
+// The same from the file's bytes, read elsewhere, such as from a pak; the path only names it in what is logged.
+std::optional<std::vector<std::byte>> ParseAssetFile(std::vector<std::byte> file, AssetType type,
+                                                     const std::filesystem::path& path);
 
 // 64-bit FNV-1a, to notice when sources and settings change.
 class Hasher {

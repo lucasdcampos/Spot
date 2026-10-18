@@ -79,7 +79,12 @@ std::optional<std::vector<std::byte>> ReadAssetFile(const std::filesystem::path&
         Log::GetEngineLogger().Error("Could not open imported asset '{}'", PathToUtf8(path));
         return std::nullopt;
     }
+    return ParseAssetFile(std::move(*bytes), type, path);
+}
 
+std::optional<std::vector<std::byte>> ParseAssetFile(std::vector<std::byte> file, AssetType type,
+                                                     const std::filesystem::path& path) {
+    std::optional<std::vector<std::byte>> bytes(std::move(file));
     BinaryReader reader(*bytes);
     const auto magic = reader.Read<std::array<char, 4>>();
     const auto version = reader.Read<std::uint32_t>();

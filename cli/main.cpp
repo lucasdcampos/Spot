@@ -3,6 +3,8 @@
 #include <spot.h>
 #include <spot_tools.h>
 
+#include "assets/asset_pak.h"
+
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
@@ -28,6 +30,9 @@ Commands:
   run [<project>]    Builds the game, imports its assets and runs it
   export [<project>] [--out <folder>]
                      Builds the game and makes the folder it ships in, builds/<platform> by default
+  pack <imported folder>
+                     Packs the imported assets of the folder into its assets.pak, as export does, which the
+                     engine then loads them from
   help               Shows this
 
 A project is its .spot file or the folder that has one; the current folder by default.
@@ -171,6 +176,19 @@ int Export(const Arguments& arguments) {
                                                                                                : EXIT_FAILURE;
 }
 
+int Pack(const Arguments& arguments) {
+    if (arguments.positionals.size() != 1) {
+        Spot::GetToolsLogger().Error("'spot pack' takes the folder of imported assets");
+        return EXIT_FAILURE;
+    }
+    const std::filesystem::path folder = ToPath(arguments.positionals[0]);
+    if (!Spot::Detail::WriteAssetPak(folder / Spot::Detail::AssetPakFileName, folder)) {
+        return EXIT_FAILURE;
+    }
+    Spot::GetToolsLogger().Info("Packed the assets of '{}'", Spot::PathToUtf8(folder));
+    return EXIT_SUCCESS;
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -197,6 +215,9 @@ int main(int argc, char** argv) {
     }
     if (command == "export") {
         return Export(*arguments);
+    }
+    if (command == "pack") {
+        return Pack(*arguments);
     }
     Spot::GetToolsLogger().Error("There is no command '{}'; 'spot help' lists them", command);
     return EXIT_FAILURE;

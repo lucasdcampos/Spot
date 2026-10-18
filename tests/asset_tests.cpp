@@ -1,4 +1,5 @@
 #include "assets/asset_formats.h"
+#include "assets/asset_pak.h"
 #include "import/importers/texture_compression.h"
 #include "log_capture.h"
 #include "temp_directory.h"
@@ -1074,4 +1075,33 @@ TEST_CASE("Textures with mipmaps import block-compressed, with every level, and 
     const auto alpha = Spot::Detail::DecompressBlocks(Spot::TextureFormat::Bc3, 16, 8, translucent.levels[0]);
     CHECK(std::abs(static_cast<int>(alpha[3]) - 100) <= 8);
     CHECK(alpha[7] == 255);
+}
+
+TEST_CASE("Paks hold the imported assets in one file, which the asset manager loads them from", "[assets]") {
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    const auto imported = project.GetPath() / "imported";
+    CopyFile(TestAssets / "pixels.png", sources / "pixels.png");
+    CopyFile(TestAssets / "sine.ogg", sources / "sine.ogg");
+    AssetDatabase database(sources, imported);
+    database.Refresh();
+    const auto texture = database.FindByPath("pixels.png");
+    const auto sound = database.FindByPath("sine.ogg");
+    REQUIRE((texture && sound));
+    const auto loose = Spot::Detail::ReadFileBytes(Spot::Detail::GetImportedAssetPath(imported, *texture));
+    REQUIRE(loose.has_value());
+
+    REQUIRE(Spot::Detail::WriteAssetPak(imported / Spot::Detail::AssetPakFileName, imported));
+    const auto pak = Spot::Detail::AssetPak::Open(imported / Spot::Detail::AssetPakFileName);
+    REQUIRE(pak);
+    CHECK(pak->GetAssetCount() == 2);
+    CHECK(pak->Read(*texture) == *loose);
+    CHECK_FALSE(pak->Read(Spot::AssetId::Generate()).has_value());
+
+    // Without their own files, assets still load, from the pak.
+    std::filesystem::remove(Spot::Detail::GetImportedAssetPath(imported, *texture));
+    std::filesystem::remove(Spot::Detail::GetImportedAssetPath(imported, *sound));
+    Spot::AssetManager assets(imported);
+    CHECK(assets.ReadImportedData(*texture, AssetType::Texture).has_value());
+    CHECK(assets.Load<Spot::Sound>(*sound));
 }
