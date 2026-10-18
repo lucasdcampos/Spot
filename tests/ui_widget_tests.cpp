@@ -57,6 +57,17 @@ TEST_CASE("UI text wraps words and long words aligns and ellipsizes", "[ui][widg
     REQUIRE(ellipsis.glyphs.size() >= 3);
     CHECK(ellipsis.size.x <= width);
     CHECK(ellipsis.glyphs.back().uvMin == atlas->FindGlyph(U'.')->uvMin);
+
+    // In a taller box, lines sit at the top, in the middle or at the bottom.
+    const float line = atlas->GetLineHeight();
+    const auto top = Spot::LayoutUiText(*atlas, "Hi", {200, 100});
+    const auto middle =
+        Spot::LayoutUiText(*atlas, "Hi", {200, 100}, {.verticalAlignment = Spot::UiTextVerticalAlignment::Middle});
+    const auto bottom =
+        Spot::LayoutUiText(*atlas, "Hi", {200, 100}, {.verticalAlignment = Spot::UiTextVerticalAlignment::Bottom});
+    CHECK(top.glyphs[0].min.y - middle.glyphs[0].min.y == Catch::Approx((100 - line) / 2));
+    CHECK(top.glyphs[0].min.y - bottom.glyphs[0].min.y == Catch::Approx(100 - line));
+    CHECK(middle.glyphs[0].min.x == top.glyphs[0].min.x);
 }
 
 TEST_CASE("UI control signals clamp values and contain callback failures", "[ui][widgets]") {

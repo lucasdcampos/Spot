@@ -44,7 +44,8 @@ Widgets are components on entities with a `UiRect`. They also draw before scene 
 canvas previews without running gameplay. `UiImage` fills with a tint or draws a texture; `borders`
 (left, bottom, right, top) enable nine-slice images with source-pixel borders. Tiny destinations
 shrink the border pairs proportionally. `UiText` has a font asset, UTF-8 text, display size, color,
-left/center/right alignment, word wrapping (long words break), and overflow/clip/ellipsis modes.
+left/center/right alignment, top/middle/bottom vertical alignment (middle centers a line in a panel or
+button), word wrapping (long words break), and overflow/clip/ellipsis modes.
 Text and image geometry are cached until their inputs change. `LayoutUiText()` and
 `BuildUiNineSlice()` expose the same mechanisms without scene components.
 

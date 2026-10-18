@@ -15,9 +15,11 @@ namespace Spot {
 void UiTextLayoutSettings::Serialize(Archive& archive) {
     static constexpr std::array<std::string_view, 3> Alignments{"Left", "Center", "Right"};
     static constexpr std::array<std::string_view, 3> Overflows{"Overflow", "Clip", "Ellipsis"};
+    static constexpr std::array<std::string_view, 3> VerticalAlignments{"Top", "Middle", "Bottom"};
     archive.Field("alignment", alignment, {.enumNames = Alignments});
     archive.Field("overflow", overflow, {.enumNames = Overflows});
     archive.Field("wrap", wrap);
+    archive.Field("verticalAlignment", verticalAlignment, {.enumNames = VerticalAlignments});
 }
 
 UiTextGeometry LayoutUiText(const FontAtlas& atlas, std::string_view text, Vector2 box,
@@ -99,7 +101,13 @@ UiTextGeometry LayoutUiText(const FontAtlas& atlas, std::string_view text, Vecto
             line.width += dots;
         }
     }
-    float baseline = -atlas.GetAscent();
+    // The lines' boxes, from the ascent to the descent, are what is centered: for most fonts the middle of capitals
+    // and digits is within a pixel of theirs.
+    const float block = static_cast<float>(lines.size()) * lineHeight;
+    const float top = settings.verticalAlignment == UiTextVerticalAlignment::Middle   ? (height - block) * 0.5f
+                      : settings.verticalAlignment == UiTextVerticalAlignment::Bottom ? height - block
+                                                                                      : 0;
+    float baseline = -atlas.GetAscent() - top;
     for (const auto& line : lines) {
         float pen = settings.alignment == UiTextAlignment::Center  ? (width - line.width) * 0.5f
                     : settings.alignment == UiTextAlignment::Right ? width - line.width

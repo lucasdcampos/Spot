@@ -13,11 +13,14 @@ class FontAtlas;
 
 enum class UiTextAlignment { Left, Center, Right };
 enum class UiTextOverflow { Overflow, Clip, Ellipsis };
+// Where the lines sit in a box taller than they are; Middle centers them, as on a button or in a panel.
+enum class UiTextVerticalAlignment { Top, Middle, Bottom };
 
 struct UiTextLayoutSettings {
     UiTextAlignment alignment = UiTextAlignment::Left;
     UiTextOverflow overflow = UiTextOverflow::Clip;
     bool wrap = true;
+    UiTextVerticalAlignment verticalAlignment = UiTextVerticalAlignment::Top;
     void Serialize(class Archive& archive);
     friend bool operator==(const UiTextLayoutSettings&, const UiTextLayoutSettings&) = default;
 };
