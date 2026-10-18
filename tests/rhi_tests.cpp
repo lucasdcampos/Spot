@@ -431,3 +431,62 @@ TEST_CASE("Texture tables let shaders pick textures by index", "[gpu][rhi]") {
         }
     });
 }
+
+TEST_CASE("Render graphs run their passes with the textures they keep", "[gpu][rhi]") {
+    ForEachBackend([](Spot::GraphicsDevice& device) {
+        const Quad quad(device);
+        auto target = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
+        const auto sampler = device.CreateSampler({.filter = Spot::TextureFilter::Nearest});
+        const auto fragmentShader = device.CreateShader(Shaders::TexturedFrag);
+        REQUIRE((target && sampler && fragmentShader));
+        const auto pipeline = quad.CreatePipeline(*fragmentShader);
+        REQUIRE(pipeline);
+
+        Spot::RenderGraph graph;
+        for (int frame = 0; frame < 2; ++frame) {
+            auto* context = device.BeginOffscreenFrame(*target);
+            REQUIRE(context);
+            const auto output = graph.Import("Target", nullptr);
+            Spot::RenderGraphTexture fill;
+            bool culledRan = false;
+            graph.AddPass(
+                "Fill",
+                [&](Spot::RenderGraphBuilder& pass) {
+                    fill = pass.Create("Fill", {.width = 4, .height = 4, .renderTarget = true});
+                    pass.Write(fill);
+                },
+                [&](Spot::RenderGraphResources& resources) {
+                    REQUIRE(resources.GetTexture(fill));
+                    resources.GetContext()
+                        .BeginRenderPass({.target = resources.GetTexture(fill), .clearColor = Spot::Color::Green})
+                        .End();
+                });
+            graph.AddPass(
+                "Culled", [&](Spot::RenderGraphBuilder& pass) { pass.Read(fill); },
+                [&](Spot::RenderGraphResources&) { culledRan = true; });
+            graph.AddPass(
+                "Show",
+                [&](Spot::RenderGraphBuilder& pass) {
+                    pass.Read(fill);
+                    pass.Write(output);
+                },
+                [&](Spot::RenderGraphResources& resources) {
+                    auto pass = resources.GetContext().BeginRenderPass(
+                        {.target = resources.GetTexture(output), .clearColor = Spot::Color::Black});
+                    pass.BindFragmentTexture(0, *resources.GetTexture(fill), *sampler);
+                    pass.PushFragmentUniforms(0, Spot::Color::White);
+                    quad.Draw(pass, *pipeline);
+                });
+            graph.Execute(device, *context);
+            device.EndFrame();
+
+            CHECK_FALSE(culledRan);
+            CHECK(graph.GetStats().culledPasses == 1);
+            // The second frame reuses the texture the first made.
+            CHECK(graph.GetStats().createdTextures == (frame == 0 ? 1u : 0u));
+            const auto pixels = device.DownloadTexture(*target);
+            REQUIRE(pixels.size() == 4 * 4 * 4);
+            CHECK((pixels[0] < 10 && pixels[1] > 245 && pixels[2] < 10));
+        }
+    });
+}

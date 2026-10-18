@@ -51,6 +51,7 @@ add_executable(spot_tests
     prefab_override_tests.cpp
     prefab_nesting_tests.cpp
     project_tests.cpp
+    render_graph_tests.cpp
     renderer_2d_tests.cpp
     sprite_atlas_tests.cpp
     tilemap_tests.cpp

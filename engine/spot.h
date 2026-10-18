@@ -67,6 +67,7 @@
 #include "graphics/render_context.h"
 #include "graphics/render_stage.h"
 #include "graphics/renderer_2d.h"
+#include "graphics/render_graph.h"
 #include "graphics/renderer_3d.h"
 #include "graphics/screenshot.h"
 #include "graphics/shader.h"

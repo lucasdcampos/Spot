@@ -169,9 +169,11 @@ add_library(spot_objects OBJECT
     graphics/renderer_2d.h
     graphics/renderer_2d.cpp
     runtime/console_overlay.cpp
+    graphics/render_graph.h
     graphics/renderer_3d.h
     scene/rendering/rendering_settings.cpp
     scene/rendering/rendering_settings.h
+    graphics/render_graph.cpp
     graphics/renderer_3d.cpp
     graphics/renderer_3d_depth.cpp
     graphics/particle_batch.h

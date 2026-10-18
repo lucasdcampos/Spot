@@ -125,6 +125,31 @@ const std::array inputs{Spot::FullscreenInput{hdr.get(), sampler.get()}};
 tonemap->Draw(pass, inputs);
 ```
 
+### Render graphs
+
+`RenderGraph` (`engine/graphics/render_graph.h`) describes a frame as passes that declare the textures they read
+and write, then runs them in the order they were added. Passes create the textures that live for the frame only
+(`RenderGraphBuilder::Create()`), and import the others, the frame target included (`Import(name, nullptr)`).
+Before running, the graph leaves out passes whose results nothing uses (writing an imported texture, or
+`KeepAlways()`, is what keeps a pass), and backs transient textures with textures it keeps from frame to frame:
+textures of the same description that are not in use at the same time share one, so a frame of many effects needs
+few targets, and none are created once sizes settle. Backends order the GPU's work on textures themselves, so the
+graph has no barriers to place. Built on the public API alone, it is how a game composes passes of its own too.
+
+```cpp
+Spot::RenderGraph graph; // kept across frames, so its textures are
+const auto target = graph.Import("Window", nullptr);
+Spot::RenderGraphTexture scene;
+graph.AddPass("Scene", [&](Spot::RenderGraphBuilder& pass) {
+    scene = pass.Create("Scene", {.width = w, .height = h, .format = Spot::TextureFormat::Rgba16Float,
+                                  .renderTarget = true});
+    pass.Write(scene);
+}, [&](Spot::RenderGraphResources& resources) { /* draw into resources.GetTexture(scene) */ });
+graph.AddPass("Tonemap", [&](Spot::RenderGraphBuilder& pass) { pass.Read(scene); pass.Write(target); },
+              [&](Spot::RenderGraphResources& resources) { /* draw into the window */ });
+graph.Execute(device, context);
+```
+
 ### Shaders
 
 Shaders are HLSL files named `*.vert.hlsl` or `*.frag.hlsl`. `spot_add_shaders(<target> ...)`
