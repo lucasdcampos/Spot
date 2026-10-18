@@ -2,6 +2,7 @@
 
 #include "graphics/bloom.h"
 #include "graphics/fxaa.h"
+#include "graphics/render_graph.h"
 #include "graphics/render_stage.h"
 #include "graphics/texture.h"
 #include "graphics/tonemapper.h"
@@ -80,10 +81,6 @@ public:
     void RemoveHook(RenderHookId id);
 
 private:
-    // The HDR, depth and multisampled targets must match the frame's size, which changes with the window.
-    bool UpdateTargets(std::uint32_t width, std::uint32_t height);
-    bool UpdateTonemapped(std::uint32_t width, std::uint32_t height);
-
     GraphicsDevice& m_device;
     TextureFormat m_format;
     std::uint32_t m_sampleCount;
@@ -101,11 +98,8 @@ private:
     std::unique_ptr<Tonemapper> m_tonemapper;
     std::unique_ptr<Bloom> m_bloom;
     std::unique_ptr<Fxaa> m_fxaa;
-    // The tonemapped image FXAA reads, in the target's format; made when FXAA is first on.
-    std::unique_ptr<Texture> m_tonemapped;
-    std::unique_ptr<Texture> m_hdr;
-    std::unique_ptr<Texture> m_depth;
-    std::unique_ptr<Texture> m_samples;
+    // Describes each frame, and keeps its HDR, depth and other targets from frame to frame, at the frame's size.
+    RenderGraph m_graph;
     bool m_warnedNoCamera = false;
     struct Hook {
         RenderHookId id;

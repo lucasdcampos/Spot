@@ -76,16 +76,20 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
     SPOT_PROFILE_SCOPE("SceneRenderer::Render");
     const auto width = static_cast<std::uint32_t>(target ? target->GetWidth() : context.GetWidth());
     const auto height = static_cast<std::uint32_t>(target ? target->GetHeight() : context.GetHeight());
-    if (!IsValid() || width == 0 || height == 0 || !UpdateTargets(width, height)) {
+    if (!IsValid() || width == 0 || height == 0) {
         return;
     }
 
     const Camera* camera = nullptr;
     bool sprites = false;
+    bool particles = false;
     for (Scene* scene : scenes) {
         camera = camera ? camera : FindMainCamera(*scene);
         sprites = sprites || scene->FindComponent<SpriteRenderer>() || scene->FindComponent<TextRenderer>() ||
                   scene->FindComponent<Tilemap>();
+        scene->ForEachComponent<ParticleSystem>([&](ParticleSystem& system) {
+            particles = particles || (system.IsActiveAndEnabled() && !system.GetParticles().empty());
+        });
     }
     if (!camera && !scenes.empty() && !m_warnedNoCamera) {
         m_warnedNoCamera = true;
@@ -94,13 +98,16 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
     const Camera3D view = camera ? camera->GetCamera3D() : Camera3D{};
     const bool pixelPerfect = view.orthographic && view.pixelPerfect.enabled && view.pixelPerfect.IsValid();
 
-    // With several samples, each pass draws into the multisampled target and resolves it into the HDR image, keeping
-    // the samples for the passes drawn over it.
-    Texture* samples = m_samples.get();
-    const RenderPassDesc hdrPass{.target = samples ? samples : m_hdr.get(),
-                                 .depthTarget = m_depth.get(),
-                                 .resolveTarget = samples ? m_hdr.get() : nullptr,
-                                 .keepSamples = samples != nullptr};
+    const PostProcessing* look = PostProcessing::Find(scenes);
+    TonemapSettings tonemapping = look ? look->GetTonemapping() : m_tonemapping;
+    if (pixelPerfect) {
+        tonemapping.dither = false;
+    }
+    const BloomSettings bloom = look ? look->GetBloom() : m_bloomSettings;
+    const GradingSettings grading = look ? look->GetGrading() : m_grading;
+    // FXAA reads the finished image, so it is tonemapped into a texture first.
+    const bool fxaa = !pixelPerfect && m_fxaaEnabled;
+
     const Vector2 size{static_cast<float>(width), static_cast<float>(height)};
     RenderStageContext stage{.device = m_device,
                              .context = context,
@@ -108,11 +115,10 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
                              .camera = view,
                              .viewProjection = view.GetViewProjection(size),
                              .viewSize = size,
-                             .pass = hdrPass,
                              .colorFormat = HdrFormat,
                              .sampleCount = m_sampleCount,
-                             .depth = m_depth.get(),
-                             .sceneColor = m_hdr.get()};
+                             .depth = nullptr,
+                             .sceneColor = nullptr};
     const auto runStage = [&](RenderStage at) {
         stage.stage = at;
         for (const Hook& hook : m_hooks) {
@@ -125,87 +131,154 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
         }
     };
 
-    RenderPassDesc clear = hdrPass;
-    clear.clearColor = camera ? camera->GetBackground() : m_background;
-    clear.clearDepth = 1.0f;
-    context.BeginRenderPass(clear).End();
-    runStage(RenderStage::BeforeOpaque);
+    const RenderGraphTexture output = m_graph.Import("Target", target);
+    RenderGraphTexture hdr;
+    RenderGraphTexture depth;
+    RenderGraphTexture samples;
+    // With several samples, each pass draws into the multisampled target and resolves it into the HDR image, keeping
+    // the samples for the passes drawn over it.
+    const auto hdrPass = [&](const RenderGraphResources& resources) {
+        Texture* multisampled = samples.IsValid() ? resources.GetTexture(samples) : nullptr;
+        const RenderPassDesc pass{.target = multisampled ? multisampled : resources.GetTexture(hdr),
+                                  .depthTarget = resources.GetTexture(depth),
+                                  .resolveTarget = multisampled ? resources.GetTexture(hdr) : nullptr,
+                                  .keepSamples = multisampled != nullptr};
+        stage.pass = pass;
+        stage.depth = pass.depthTarget;
+        stage.sceneColor = resources.GetTexture(hdr);
+        return pass;
+    };
+    const auto drawsHdr = [&](RenderGraphBuilder& pass) {
+        pass.Write(hdr);
+        pass.Write(depth);
+        if (samples.IsValid()) {
+            pass.Write(samples);
+        }
+    };
 
-    m_renderer3D->Begin(context, hdrPass, view);
-    for (Scene* scene : scenes) {
-        DrawScene(*m_renderer3D, *scene);
-    }
-    m_renderer3D->End();
-    runStage(RenderStage::AfterOpaque);
+    m_graph.AddPass(
+        "Scene",
+        [&](RenderGraphBuilder& pass) {
+            hdr = pass.Create("HDR", {.width = width, .height = height, .format = HdrFormat, .renderTarget = true});
+            depth = pass.Create("Depth", {.width = width,
+                                          .height = height,
+                                          .format = TextureFormat::Depth32Float,
+                                          .renderTarget = true,
+                                          .sampleCount = m_sampleCount});
+            if (m_sampleCount > 1) {
+                samples = pass.Create("Samples", {.width = width,
+                                                  .height = height,
+                                                  .format = HdrFormat,
+                                                  .renderTarget = true,
+                                                  .sampleCount = m_sampleCount});
+            }
+            drawsHdr(pass);
+        },
+        [&](RenderGraphResources& resources) {
+            const RenderPassDesc pass = hdrPass(resources);
+            RenderPassDesc clear = pass;
+            clear.clearColor = camera ? camera->GetBackground() : m_background;
+            clear.clearDepth = 1.0f;
+            context.BeginRenderPass(clear).End();
+            runStage(RenderStage::BeforeOpaque);
+
+            m_renderer3D->Begin(context, pass, view);
+            for (Scene* scene : scenes) {
+                DrawScene(*m_renderer3D, *scene);
+            }
+            m_renderer3D->End();
+            runStage(RenderStage::AfterOpaque);
+        });
 
     // Sprites go over the meshes, as 2D games draw them, without a depth target.
     if (sprites) {
-        RenderPassDesc spriteDesc = hdrPass;
-        spriteDesc.depthTarget = nullptr;
-        auto spritePass = context.BeginRenderPass(spriteDesc);
-        m_sprites->Begin(spritePass, view, size);
-        for (Scene* scene : scenes) {
-            DrawScene(*m_sprites, *scene);
-        }
-        for (Scene* scene : scenes) {
-            DrawWorldText(*m_sprites, *scene, view);
-        }
-        m_sprites->End();
-    }
-    bool hasParticles = false;
-    for (Scene* scene : scenes)
-        scene->ForEachComponent<ParticleSystem>([&](ParticleSystem& system) {
-            hasParticles = hasParticles || (system.IsActiveAndEnabled() && !system.GetParticles().empty());
+        m_graph.AddPass("Sprites", drawsHdr, [&](RenderGraphResources& resources) {
+            RenderPassDesc spriteDesc = hdrPass(resources);
+            spriteDesc.depthTarget = nullptr;
+            auto spritePass = context.BeginRenderPass(spriteDesc);
+            m_sprites->Begin(spritePass, view, size);
+            for (Scene* scene : scenes) {
+                DrawScene(*m_sprites, *scene);
+            }
+            for (Scene* scene : scenes) {
+                DrawWorldText(*m_sprites, *scene, view);
+            }
+            m_sprites->End();
         });
-    if (hasParticles) {
-        const Texture* particleDepth = m_sampleCount == 1 ? m_depth.get() : m_renderer3D->RenderCameraDepth(context);
-        m_particles->Begin(context, hdrPass, view, size, particleDepth);
-        for (Scene* scene : scenes)
-            DrawScene(*m_particles, *scene);
-        m_particles->End();
     }
-    runStage(RenderStage::AfterTransparent);
-    runStage(RenderStage::BeforePostProcessing);
+    if (particles) {
+        m_graph.AddPass("Particles", drawsHdr, [&](RenderGraphResources& resources) {
+            const RenderPassDesc pass = hdrPass(resources);
+            const Texture* particleDepth =
+                m_sampleCount == 1 ? pass.depthTarget : m_renderer3D->RenderCameraDepth(context);
+            m_particles->Begin(context, pass, view, size, particleDepth);
+            for (Scene* scene : scenes) {
+                DrawScene(*m_particles, *scene);
+            }
+            m_particles->End();
+        });
+    }
+    m_graph.AddPass("Transparent stages", drawsHdr, [&](RenderGraphResources& resources) {
+        hdrPass(resources);
+        runStage(RenderStage::AfterTransparent);
+        runStage(RenderStage::BeforePostProcessing);
+    });
 
-    const PostProcessing* look = PostProcessing::Find(scenes);
-    TonemapSettings tonemapping = look ? look->GetTonemapping() : m_tonemapping;
-    if (pixelPerfect)
-        tonemapping.dither = false;
-    const BloomSettings bloom = look ? look->GetBloom() : m_bloomSettings;
-    const GradingSettings grading = look ? look->GetGrading() : m_grading;
-    const Texture* glow = pixelPerfect ? nullptr : m_bloom->Render(context, *m_hdr, bloom);
-    // FXAA reads the finished image, so it is tonemapped into a texture first.
-    const bool fxaa = !pixelPerfect && m_fxaaEnabled && UpdateTonemapped(width, height);
+    RenderGraphTexture tonemapped;
+    m_graph.AddPass(
+        "Post-processing",
+        [&](RenderGraphBuilder& pass) {
+            pass.Read(hdr);
+            if (fxaa) {
+                tonemapped = pass.Create("Tonemapped",
+                                         {.width = width, .height = height, .format = m_format, .renderTarget = true});
+                pass.Write(tonemapped);
+            } else {
+                pass.Write(output);
+            }
+        },
+        [&](RenderGraphResources& resources) {
+            const Texture& image = *resources.GetTexture(hdr);
+            const Texture* glow = pixelPerfect ? nullptr : m_bloom->Render(context, image, bloom);
+            // It covers the whole target.
+            auto pass = context.BeginRenderPass({.target = resources.GetTexture(fxaa ? tonemapped : output)});
+            m_tonemapper->Draw(pass, image, tonemapping, grading, glow, bloom.intensity);
+        });
     if (fxaa) {
-        auto tonemapped = context.BeginRenderPass({.target = m_tonemapped.get()});
-        m_tonemapper->Draw(tonemapped, *m_hdr, tonemapping, grading, glow, bloom.intensity);
-    }
-    {
-        // It covers the whole target.
-        auto output = context.BeginRenderPass({.target = target});
-        if (fxaa) {
-            m_fxaa->Draw(output, *m_tonemapped);
-        } else {
-            m_tonemapper->Draw(output, *m_hdr, tonemapping, grading, glow, bloom.intensity);
-        }
+        m_graph.AddPass(
+            "FXAA",
+            [&](RenderGraphBuilder& pass) {
+                pass.Read(tonemapped);
+                pass.Write(output);
+            },
+            [&](RenderGraphResources& resources) {
+                auto pass = context.BeginRenderPass({.target = resources.GetTexture(output)});
+                m_fxaa->Draw(pass, *resources.GetTexture(tonemapped));
+            });
     }
 
-    // From here on, into the target in its colors.
-    stage.pass = {.target = target};
-    stage.colorFormat = m_format;
-    stage.sampleCount = 1;
-    stage.depth = nullptr;
-    stage.sceneColor = nullptr;
-    runStage(RenderStage::AfterPostProcessing);
-    {
-        auto interfacePass = context.BeginRenderPass({.target = target});
-        m_interface->Begin(interfacePass, Scene::ScreenCamera(size), size);
-        for (Scene* scene : scenes) {
-            scene->DrawUi(*m_interface, size);
-        }
-        m_interface->End();
-    }
-    runStage(RenderStage::Overlay);
+    m_graph.AddPass(
+        "Interface", [&](RenderGraphBuilder& pass) { pass.Write(output); },
+        [&](RenderGraphResources& resources) {
+            // From here on, into the target in its colors.
+            stage.pass = {.target = resources.GetTexture(output)};
+            stage.colorFormat = m_format;
+            stage.sampleCount = 1;
+            stage.depth = nullptr;
+            stage.sceneColor = nullptr;
+            runStage(RenderStage::AfterPostProcessing);
+            {
+                auto interfacePass = context.BeginRenderPass(stage.pass);
+                m_interface->Begin(interfacePass, Scene::ScreenCamera(size), size);
+                for (Scene* scene : scenes) {
+                    scene->DrawUi(*m_interface, size);
+                }
+                m_interface->End();
+            }
+            runStage(RenderStage::Overlay);
+        });
+
+    m_graph.Execute(m_device, context);
 }
 
 RenderHookId SceneRenderer::AddHook(RenderStage stage, RenderHook hook) {
@@ -216,32 +289,6 @@ RenderHookId SceneRenderer::AddHook(RenderStage stage, RenderHook hook) {
 
 void SceneRenderer::RemoveHook(RenderHookId id) {
     std::erase_if(m_hooks, [id](const Hook& hook) { return hook.id == id; });
-}
-
-bool SceneRenderer::UpdateTonemapped(std::uint32_t width, std::uint32_t height) {
-    if (!m_tonemapped || m_tonemapped->GetWidth() != width || m_tonemapped->GetHeight() != height) {
-        m_tonemapped =
-            m_device.CreateTexture({.width = width, .height = height, .format = m_format, .renderTarget = true});
-    }
-    return m_tonemapped != nullptr;
-}
-
-bool SceneRenderer::UpdateTargets(std::uint32_t width, std::uint32_t height) {
-    if (!m_depth || m_depth->GetWidth() != width || m_depth->GetHeight() != height) {
-        m_hdr = m_device.CreateTexture({.width = width, .height = height, .format = HdrFormat, .renderTarget = true});
-        m_depth = m_device.CreateTexture({.width = width,
-                                          .height = height,
-                                          .format = TextureFormat::Depth32Float,
-                                          .renderTarget = true,
-                                          .sampleCount = m_sampleCount});
-        m_samples = m_sampleCount > 1 ? m_device.CreateTexture({.width = width,
-                                                                .height = height,
-                                                                .format = HdrFormat,
-                                                                .renderTarget = true,
-                                                                .sampleCount = m_sampleCount})
-                                      : nullptr;
-    }
-    return m_hdr && m_depth && (m_sampleCount == 1 || m_samples);
 }
 
 } // namespace Spot

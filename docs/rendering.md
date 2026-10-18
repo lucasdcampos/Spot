@@ -237,7 +237,9 @@ main camera among them (`FindMainCamera()`), then the shapes queued with `DebugD
 the GPU allows), which a tonemapper turns into the target's colors; then their interfaces over it, as they are
 (`Scene::DrawUi()`, which calls each active component's `OnDrawUi()` with a renderer in pixels from the view's
 bottom-left corner). The application draws its scenes with one unless `ApplicationConfig::renderScenes` is off, and
-the editor's views draw the same way.
+the editor's views draw the same way. Each frame is a render graph (see [Render graphs](#render-graphs)): scene,
+sprites, particles, post-processing, FXAA and interface passes, whose HDR, depth and tonemapped targets the graph
+keeps at the frame's size.
 
 ### Render hooks
 
