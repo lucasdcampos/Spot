@@ -384,6 +384,8 @@ FetchContent_Declare(lz4
 )
 FetchContent_MakeAvailable(lz4)
 add_library(spot_lz4 STATIC ${lz4_SOURCE_DIR}/lib/lz4.c)
+# Built as C++, which it supports, as the project enables no other language.
+set_source_files_properties(${lz4_SOURCE_DIR}/lib/lz4.c PROPERTIES LANGUAGE CXX)
 target_include_directories(spot_lz4 SYSTEM PUBLIC ${lz4_SOURCE_DIR}/lib)
 set_target_properties(spot_lz4 PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_link_libraries(spot_objects PRIVATE spot_lz4)

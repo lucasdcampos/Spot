@@ -32,13 +32,13 @@ namespace Spot {
 struct Detail::PreparedAsset {
     AssetId id;
     AssetType type = AssetType::Texture;
-    std::optional<std::vector<std::byte>> data;
-    std::optional<TextureFile> texture;
-    std::optional<MeshData> mesh;
-    std::optional<MaterialSource> material;
-    std::optional<std::vector<ModelFileNode>> model;
+    std::optional<std::vector<std::byte>> data = std::nullopt;
+    std::optional<TextureFile> texture = std::nullopt;
+    std::optional<MeshData> mesh = std::nullopt;
+    std::optional<MaterialSource> material = std::nullopt;
+    std::optional<std::vector<ModelFileNode>> model = std::nullopt;
     // Rasterizing a font's glyphs takes the longest of loading it.
-    std::optional<FontAtlas> fontAtlas;
+    std::optional<FontAtlas> fontAtlas = std::nullopt;
 };
 
 namespace {

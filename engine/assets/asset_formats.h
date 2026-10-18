@@ -31,10 +31,10 @@ struct TextureFile {
     bool srgb = true;
     // Block-compressed (BC1 or BC3, sRGB or not), the texture is its levels instead, the first width by height, each
     // half the one before down to 1x1, made when it was imported.
-    std::optional<TextureFormat> compressedFormat;
+    std::optional<TextureFormat> compressedFormat = std::nullopt;
     std::uint32_t width = 0;
     std::uint32_t height = 0;
-    std::vector<std::vector<std::uint8_t>> levels;
+    std::vector<std::vector<std::uint8_t>> levels = {};
 };
 
 // A node of a model file: its transform relative to its parent, and the mesh it shows with a material per submesh.
