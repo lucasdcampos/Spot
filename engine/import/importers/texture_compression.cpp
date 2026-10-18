@@ -83,13 +83,40 @@ std::vector<std::uint8_t> CompressLevel(std::span<const std::uint8_t> pixels, st
     return result;
 }
 
+// The share of the pixels whose alpha is at least the cutoff, as cutout surfaces draw them.
+float GetCoverage(std::span<const std::uint8_t> pixels, float cutoff, float scale) {
+    std::size_t covered = 0;
+    for (std::size_t i = 3; i < pixels.size(); i += 4) {
+        covered += static_cast<float>(pixels[i]) * scale >= cutoff * 255.0f;
+    }
+    return static_cast<float>(covered) / static_cast<float>(std::max<std::size_t>(pixels.size() / 4, 1));
+}
+
+// Averaging alpha thins cutouts out in smaller levels, as gaps blend into what they surround and sink below the
+// cutoff; scaling the level's alpha so as much of it is covered as in the full-size image keeps leaves and grates as
+// dense from afar (Castaño, "Computing Alpha Mipmaps"). The pixels are lifted a little past the cutoff, so the
+// blocks' alpha, a few levels off, does not drop them below it again.
+std::vector<std::uint8_t> KeepCoverage(std::vector<std::uint8_t> pixels, float coverage, float cutoff) {
+    constexpr float Margin = 16.0f / 255.0f;
+    float low = 0.0f;
+    float high = 4.0f;
+    for (int step = 0; step < 12; ++step) {
+        const float middle = (low + high) * 0.5f;
+        (GetCoverage(pixels, cutoff + Margin, middle) < coverage ? low : high) = middle;
+    }
+    for (std::size_t i = 3; i < pixels.size(); i += 4) {
+        pixels[i] = static_cast<std::uint8_t>(std::min(std::lround(static_cast<float>(pixels[i]) * high), 255l));
+    }
+    return pixels;
+}
+
 } // namespace
 
 bool CanCompressTexture(const Image& image, bool mipmaps) {
     return mipmaps && image.GetWidth() % 4 == 0 && image.GetHeight() % 4 == 0 && image.GetWidth() > 0;
 }
 
-TextureFile CompressTexture(const Image& image, bool srgb) {
+TextureFile CompressTexture(const Image& image, bool srgb, bool keepAlphaCoverage) {
     const std::span<const std::uint8_t> pixels = image.GetPixels();
     bool alpha = false;
     for (std::size_t i = 3; i < pixels.size(); i += 4) {
@@ -106,8 +133,14 @@ TextureFile CompressTexture(const Image& image, bool srgb) {
     std::vector<std::uint8_t> level(pixels.begin(), pixels.end());
     std::uint32_t width = file.width;
     std::uint32_t height = file.height;
+    constexpr float Cutoff = 0.5f;
+    const float coverage = GetCoverage(pixels, Cutoff, 1.0f);
     while (true) {
-        file.levels.push_back(CompressLevel(level, width, height, alpha));
+        if (alpha && keepAlphaCoverage && file.levels.size() > 0) {
+            file.levels.push_back(CompressLevel(KeepCoverage(level, coverage, Cutoff), width, height, alpha));
+        } else {
+            file.levels.push_back(CompressLevel(level, width, height, alpha));
+        }
         if (width == 1 && height == 1) {
             break;
         }

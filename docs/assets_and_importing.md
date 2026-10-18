@@ -59,7 +59,9 @@ or BC3 when any pixel is not opaque, a quarter or an eighth of the memory of the
 when importing (averaged as light for colors) rather than when loading. Textures without mipmaps, such as pixel art,
 keep their exact pixels. On a GPU that cannot sample those blocks the loader turns them back into pixels. Models'
 embedded images are compressed the same way. The block encoder is `stb_dxt`
-(`engine/import/importers/texture_compression.cpp`).
+(`engine/import/importers/texture_compression.cpp`). Averaging alpha makes cutouts such as leaves thin out in the
+smaller levels, as their gaps blend in and sink below the cutoff; `keepAlphaCoverage` scales each level's alpha so as
+much of it stays at half alpha or more as in the full image, and foliage keeps its density from afar.
 
 ## Loading imported assets
 

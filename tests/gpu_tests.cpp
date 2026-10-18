@@ -1936,6 +1936,52 @@ TEST_CASE("Renderer3D tilts surfaces by their normal maps and darkens ambient li
     CHECK(renderWall(Flat, {64, 0, 0, 255}, FrontLight).At(16, 16)[0] > 250);
 }
 
+TEST_CASE("Renderer3D tilts projected surfaces by their normal maps along the world's axes", "[gpu]") {
+    RequireGpu();
+
+    // A wall facing the front camera and a floor seen from above, their textures projected from the world, with a
+    // normal map tilted 60 degrees along the texture's u: +X on both, as GetWorldUv() lays textures out.
+    const auto render = [](std::array<std::uint8_t, 4> normal, bool floor, const Spot::LightData& light) {
+        return TargetRender(
+            32, 32,
+            [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+                const Spot::Material material{
+                    .normalTexture = Spot::AssetRef<Spot::Texture>(device.CreateTexture(
+                        Spot::Image(1, 1, {normal.begin(), normal.end()}), false, Spot::TextureFormat::Rgba8)),
+                    .worldTextureSize = 1.0f};
+                Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+                const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+                REQUIRE(cube != nullptr);
+                Spot::Camera3D camera = MakeFrontCamera();
+                if (floor) {
+                    camera.position = {0.0f, 3.0f, 0.0f};
+                    camera.LookAt({0.0f, 0.0f, -0.01f});
+                }
+                renderer.Begin(context, target, camera);
+                renderer.DrawLight(light);
+                renderer.DrawMesh(*cube, material,
+                                  floor ? Spot::Matrix4::Scale({20.0f, 1.0f, 20.0f})
+                                        : Spot::Matrix4::Scale({20.0f, 20.0f, 1.0f}));
+                renderer.End();
+            });
+    };
+    constexpr std::array<std::uint8_t, 4> Flat{128, 128, 255, 255};
+    constexpr std::array<std::uint8_t, 4> Tilted{238, 128, 192, 255};
+    const Spot::LightData fromFront{.type = Spot::LightType::Directional,
+                                    .direction = Spot::Normalize(Spot::Vector3{-1.0f, 0.0f, -1.0f})};
+    const Spot::LightData fromAbove{.type = Spot::LightType::Directional,
+                                    .direction = Spot::Normalize(Spot::Vector3{-1.0f, -1.0f, 0.0f})};
+    // Lights from +X light the tilted surfaces more than the flat ones.
+    const int wallFlat = render(Flat, false, fromFront).At(16, 16)[0];
+    const int wallTilted = render(Tilted, false, fromFront).At(16, 16)[0];
+    const int floorFlat = render(Flat, true, fromAbove).At(16, 16)[0];
+    const int floorTilted = render(Tilted, true, fromAbove).At(16, 16)[0];
+    INFO("Wall " << wallFlat << " flat, " << wallTilted << " tilted; floor " << floorFlat << " flat, " << floorTilted
+                 << " tilted");
+    CHECK(wallTilted > wallFlat + 40);
+    CHECK(floorTilted > floorFlat + 40);
+}
+
 TEST_CASE("Renderer3D drops cutout pixels below their cutoff and blends transparent surfaces in any order", "[gpu]") {
     RequireGpu();
 

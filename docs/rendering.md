@@ -363,7 +363,8 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
   `occlusionStrength`; and an `emissive` color and texture the surface gives off itself, which glow through bloom
   above 1. Dielectrics scatter their color and reflect about 4% of the light untinted; metals scatter nothing and
   reflect in their color. Highlights are GGX microfacets, as wide as the roughness says. Materials can also be
-  double-sided, and project their textures from world space (`worldTextureSize`), which keeps the mesh's normals.
+  double-sided, and project their textures from world space (`worldTextureSize`), their normal maps then tilting
+  the surface along the world axes the texture is laid out on.
   Normal, metallic-roughness and occlusion textures hold data, so they are imported with `srgb` off; models do this
   for the images they use only that way. A material's `alphaMode` says what its alpha does: `Opaque` ignores it,
   `Cutout` drops pixels below `alphaCutoff` (in shadows too) for leaves and grates, and `Transparent` lets what is

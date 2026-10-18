@@ -322,15 +322,37 @@ float3 GetEnvironmentReflectance(float3 reflectance, float perceived, float nv) 
     return reflectance * ab.x + ab.y;
 }
 
-// Tilts the normal as the normal map says, in the tangent space of the surface. Projected textures have no tangents
-// of their own, so they keep the mesh's normals.
+// Tilts the normal as the normal map says, in the tangent space of the surface: along the mesh's tangents, or for
+// projected textures along the world axes GetWorldUv() lays them out on, with the bitangent toward lower v as on meshes.
 float3 ApplyNormalMap(float3 normal, float4 tangent, float2 uv) {
-    if (normalScale <= 0.0 || worldTextureSize > 0.0 || dot(tangent.xyz, tangent.xyz) < 1e-8) {
+    if (normalScale <= 0.0) {
         return normal;
     }
-    // Interpolation bends the tangent away from the normal, so it is made perpendicular again.
-    const float3 t = normalize(tangent.xyz - normal * dot(normal, tangent.xyz));
-    const float3 b = cross(normal, t) * (tangent.w < 0.0 ? -1.0 : 1.0);
+    float3 t;
+    float3 b;
+    if (worldTextureSize > 0.0) {
+        const float3 facing = abs(normal);
+        if (facing.x >= facing.y && facing.x >= facing.z) {
+            t = float3(0.0, 0.0, 1.0);
+            b = float3(0.0, 1.0, 0.0);
+        } else if (facing.y >= facing.z) {
+            t = float3(1.0, 0.0, 0.0);
+            b = float3(0.0, 0.0, -1.0);
+        } else {
+            t = float3(1.0, 0.0, 0.0);
+            b = float3(0.0, 1.0, 0.0);
+        }
+        // On slopes the axes lean out of the surface, so they are laid onto it.
+        t = normalize(t - normal * dot(normal, t));
+        b = normalize(b - normal * dot(normal, b));
+    } else {
+        if (dot(tangent.xyz, tangent.xyz) < 1e-8) {
+            return normal;
+        }
+        // Interpolation bends the tangent away from the normal, so it is made perpendicular again.
+        t = normalize(tangent.xyz - normal * dot(normal, tangent.xyz));
+        b = cross(normal, t) * (tangent.w < 0.0 ? -1.0 : 1.0);
+    }
     float3 mapped = normalTexture.Sample(normalSampler, uv).xyz * 2.0 - 1.0;
     mapped.xy *= normalScale;
     return normalize(t * mapped.x + b * mapped.y + normal * mapped.z);

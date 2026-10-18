@@ -15,7 +15,7 @@ bool ImportTexture(ImportContext& context) {
     const TextureImportSettings& settings = context.GetMeta().texture;
     BinaryWriter data;
     if (settings.compress && CanCompressTexture(*image, settings.mipmaps)) {
-        Encode(data, CompressTexture(*image, settings.srgb));
+        Encode(data, CompressTexture(*image, settings.srgb, settings.keepAlphaCoverage));
     } else {
         Encode(data, TextureFile{std::move(*image), settings.mipmaps, settings.srgb});
     }

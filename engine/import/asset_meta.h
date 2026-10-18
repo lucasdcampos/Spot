@@ -23,6 +23,9 @@ struct TextureImportSettings {
     // Stores it block-compressed, a quarter or an eighth of the memory, when it has mipmaps and its sides are
     // multiples of 4; textures without mipmaps, such as pixel art, keep their exact pixels either way.
     bool compress = true;
+    // For cutout surfaces such as leaves, when compressed: scales the alpha of each mipmap so as much of it stays at
+    // half alpha or more as in the image, rather than thinning out from afar.
+    bool keepAlphaCoverage = false;
 
     void Serialize(Archive& archive);
 };

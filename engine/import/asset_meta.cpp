@@ -46,6 +46,9 @@ void TextureImportSettings::Serialize(Archive& archive) {
     archive.Field("srgb", srgb, {.tooltip = "Holds colors; off for data kept as it is, such as LUTs and normal maps"});
     archive.Field("compress", compress,
                   {.tooltip = "Block-compressed when it has mipmaps: far less memory, a little blur"});
+    archive.Field(
+        "keepAlphaCoverage", keepAlphaCoverage,
+        {.tooltip = "For cutouts such as leaves: compressed mipmaps stay as covered, not thinning from afar"});
 }
 
 void MaterialOverride::Serialize(Archive& archive) {

@@ -1078,6 +1078,37 @@ TEST_CASE("Textures with mipmaps import block-compressed, with every level, and 
     CHECK(alpha[7] == 255);
 }
 
+TEST_CASE("Compressed cutout textures can keep their alpha coverage in smaller mipmaps", "[assets]") {
+    // Scattered opaque pixels, about three in ten, as leaves with gaps between them: averaged, most of the smaller
+    // levels' pixels fall below half alpha unless their coverage is kept.
+    constexpr std::uint32_t Size = 64;
+    std::vector<std::uint8_t> pixels(Size * Size * 4, 0);
+    std::uint32_t state = 12345;
+    for (std::size_t i = 0; i < pixels.size(); i += 4) {
+        state = state * 1664525u + 1013904223u;
+        pixels[i + 1] = 160;
+        pixels[i + 3] = (state >> 24) < 77 ? 255 : 0;
+    }
+    const auto coverage = [](const Spot::Detail::TextureFile& file, std::size_t level) {
+        const std::uint32_t size = Size >> level;
+        const auto decoded = Spot::Detail::DecompressBlocks(Spot::TextureFormat::Bc3, size, size, file.levels[level]);
+        std::size_t covered = 0;
+        for (std::size_t i = 3; i < decoded.size(); i += 4) {
+            covered += decoded[i] >= 128;
+        }
+        return static_cast<float>(covered) / static_cast<float>(size * size);
+    };
+    const Spot::Image image(Size, Size, pixels);
+    const auto plain = Spot::Detail::CompressTexture(image, true);
+    const auto kept = Spot::Detail::CompressTexture(image, true, true);
+    const float full = coverage(kept, 0);
+    INFO("Full size " << full << "; at 16x16, " << coverage(plain, 2) << " plain and " << coverage(kept, 2) << " kept");
+    CHECK(coverage(kept, 0) == coverage(plain, 0));
+    CHECK(coverage(plain, 2) < full * 0.5f);
+    CHECK(coverage(kept, 2) > full * 0.75f);
+    CHECK(coverage(kept, 2) < full * 1.5f);
+}
+
 TEST_CASE("Paks hold the imported assets in one file, which the asset manager loads them from", "[assets]") {
     const TempDirectory project;
     const auto sources = project.GetPath() / "assets";
