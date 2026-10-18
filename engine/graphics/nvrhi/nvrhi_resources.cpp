@@ -125,13 +125,20 @@ std::unique_ptr<Shader> NvrhiDevice::CreateShader(const ShaderDesc& desc) {
         Log::GetEngineLogger().Error("Shader has no SPIR-V for the Vulkan backend; build it with spot_add_shaders()");
         return nullptr;
     }
+    if (desc.storageTextureCount > 0) {
+        Log::GetEngineLogger().Error("Shaders read storage textures through samplers on the Vulkan backend");
+        return nullptr;
+    }
     if (desc.samplerCount > MaxStageTextures || desc.storageBufferCount > MaxStageStorageBuffers ||
-        desc.uniformBufferCount > MaxStageUniforms) {
+        desc.uniformBufferCount > MaxStageUniforms || desc.readWriteStorageTextureCount > MaxStageTextures ||
+        desc.readWriteStorageBufferCount > MaxStageStorageBuffers) {
         Log::GetEngineLogger().Error("Shader reads more resources than a stage can bind");
         return nullptr;
     }
     nvrhi::ShaderDesc native;
-    native.shaderType = desc.stage == ShaderStage::Vertex ? nvrhi::ShaderType::Vertex : nvrhi::ShaderType::Pixel;
+    native.shaderType = desc.stage == ShaderStage::Vertex     ? nvrhi::ShaderType::Vertex
+                        : desc.stage == ShaderStage::Fragment ? nvrhi::ShaderType::Pixel
+                                                              : nvrhi::ShaderType::Compute;
     native.entryName = "main";
     nvrhi::ShaderHandle handle = m_device->createShader(native, desc.vulkanSpirv.data(), desc.vulkanSpirv.size());
     if (!handle) {
@@ -142,7 +149,8 @@ std::unique_ptr<Shader> NvrhiDevice::CreateShader(const ShaderDesc& desc) {
     impl->shared = m_shared;
     impl->handle = std::move(handle);
     impl->stage = desc.stage;
-    impl->resources = {desc.samplerCount, desc.storageBufferCount, desc.uniformBufferCount};
+    impl->resources = {desc.samplerCount, desc.storageBufferCount, desc.uniformBufferCount,
+                       desc.readWriteStorageTextureCount, desc.readWriteStorageBufferCount};
     return GraphicsAccess::Make<Shader>(std::move(impl));
 }
 
@@ -248,6 +256,56 @@ std::unique_ptr<Pipeline> NvrhiDevice::CreatePipeline(const PipelineDesc& desc) 
     return GraphicsAccess::Make<Pipeline>(std::move(impl));
 }
 
+std::unique_ptr<ComputePipeline> NvrhiDevice::CreateComputePipeline(const ComputePipelineDesc& desc) {
+    const auto& shader = static_cast<const NvrhiShader&>(GraphicsAccess::GetImpl(*desc.shader));
+    const StageResources& resources = shader.resources;
+    auto impl = std::make_unique<NvrhiComputePipeline>();
+    impl->shared = m_shared;
+    impl->resources = resources;
+    for (std::uint32_t set = 0; set < ComputeSetCount; ++set) {
+        nvrhi::BindingLayoutDesc layout;
+        layout.visibility = nvrhi::ShaderType::Compute;
+        layout.registerSpace = set;
+        layout.registerSpaceIsDescriptorSet = true;
+        switch (static_cast<ComputeSet>(set)) {
+        case ComputeSet::Resources:
+            for (std::uint32_t slot = 0; slot < resources.textures; ++slot) {
+                layout.addItem(nvrhi::BindingLayoutItem::Texture_SRV(slot));
+                layout.addItem(nvrhi::BindingLayoutItem::Sampler(slot));
+            }
+            for (std::uint32_t slot = 0; slot < resources.storageBuffers; ++slot) {
+                layout.addItem(nvrhi::BindingLayoutItem::StructuredBuffer_SRV(resources.textures + slot));
+            }
+            break;
+        case ComputeSet::Writes:
+            for (std::uint32_t slot = 0; slot < resources.readWriteTextures; ++slot) {
+                layout.addItem(nvrhi::BindingLayoutItem::Texture_UAV(slot));
+            }
+            for (std::uint32_t slot = 0; slot < resources.readWriteBuffers; ++slot) {
+                layout.addItem(nvrhi::BindingLayoutItem::StructuredBuffer_UAV(resources.readWriteTextures + slot));
+            }
+            break;
+        default:
+            for (std::uint32_t slot = 0; slot < resources.uniformBuffers; ++slot) {
+                layout.addItem(nvrhi::BindingLayoutItem::VolatileConstantBuffer(slot));
+            }
+            break;
+        }
+        impl->layouts[set] = m_device->createBindingLayout(layout);
+    }
+    nvrhi::ComputePipelineDesc native;
+    native.CS = shader.handle;
+    for (const auto& layout : impl->layouts) {
+        native.addBindingLayout(layout);
+    }
+    impl->handle = m_device->createComputePipeline(native);
+    if (!impl->handle) {
+        Log::GetEngineLogger().Error("Failed to create compute pipeline");
+        return nullptr;
+    }
+    return GraphicsAccess::Make<ComputePipeline>(std::move(impl));
+}
+
 std::unique_ptr<Buffer> NvrhiDevice::CreateBuffer(const BufferDesc& desc) {
     if (desc.size == 0) {
         Log::GetEngineLogger().Error("Cannot create an empty buffer");
@@ -257,17 +315,21 @@ std::unique_ptr<Buffer> NvrhiDevice::CreateBuffer(const BufferDesc& desc) {
     native.byteSize = desc.size;
     native.isVertexBuffer = desc.usage == BufferUsage::Vertex;
     native.isIndexBuffer = desc.usage == BufferUsage::Index;
-    if (desc.usage == BufferUsage::Storage) {
-        // Bound as structured buffers; Vulkan reads them as storage buffers, whatever their elements' size.
+    if (desc.usage == BufferUsage::Storage || desc.usage == BufferUsage::Indirect) {
+        // Bound as structured buffers; Vulkan reads them as storage buffers, whatever their elements' size. Compute
+        // passes write them.
         native.structStride = 4;
         native.canHaveRawViews = true;
+        native.canHaveUAVs = true;
+        native.isDrawIndirectArgs = desc.usage == BufferUsage::Indirect;
     }
     native.enableAutomaticStateTracking(desc.usage == BufferUsage::Vertex  ? nvrhi::ResourceStates::VertexBuffer
                                         : desc.usage == BufferUsage::Index ? nvrhi::ResourceStates::IndexBuffer
                                                                            : nvrhi::ResourceStates::ShaderResource);
-    native.debugName = desc.usage == BufferUsage::Vertex  ? "Vertex buffer"
-                       : desc.usage == BufferUsage::Index ? "Index buffer"
-                                                          : "Storage buffer";
+    native.debugName = desc.usage == BufferUsage::Vertex     ? "Vertex buffer"
+                       : desc.usage == BufferUsage::Index    ? "Index buffer"
+                       : desc.usage == BufferUsage::Indirect ? "Indirect buffer"
+                                                             : "Storage buffer";
     nvrhi::BufferHandle handle = m_device->createBuffer(native);
     if (!handle) {
         Log::GetEngineLogger().Error("Failed to create buffer");

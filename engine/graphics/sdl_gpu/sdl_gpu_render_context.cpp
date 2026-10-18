@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <vector>
 
 namespace Spot::Detail {
 
@@ -84,6 +85,14 @@ public:
         SDL_DrawGPUIndexedPrimitives(m_pass, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     }
 
+    void DrawIndirect(const Buffer& buffer, std::uint32_t offset, std::uint32_t drawCount) override {
+        SDL_DrawGPUPrimitivesIndirect(m_pass, GetSdlBuffer(buffer), offset, drawCount);
+    }
+
+    void DrawIndexedIndirect(const Buffer& buffer, std::uint32_t offset, std::uint32_t drawCount) override {
+        SDL_DrawGPUIndexedPrimitivesIndirect(m_pass, GetSdlBuffer(buffer), offset, drawCount);
+    }
+
     void* GetNativeHandle() const override { return m_pass; }
 
 private:
@@ -91,7 +100,73 @@ private:
     SDL_GPURenderPass* m_pass;
 };
 
+class SdlGpuComputePass final : public ComputePass::Impl {
+public:
+    SdlGpuComputePass(SdlGpuContext& context, SDL_GPUComputePass* pass) : m_context(context), m_pass(pass) {}
+
+    void End() override {
+        SDL_EndGPUComputePass(m_pass);
+        m_context.passOpen = false;
+    }
+
+    void BindPipeline(const ComputePipeline& pipeline) override {
+        SDL_BindGPUComputePipeline(m_pass, static_cast<SDL_GPUComputePipeline*>(pipeline.GetNativeHandle()));
+    }
+
+    void BindTexture(std::uint32_t slot, const Texture& texture, const Sampler& sampler) override {
+        SDL_GPUTextureSamplerBinding binding{};
+        binding.texture = GetSdlTexture(texture);
+        binding.sampler = static_cast<SDL_GPUSampler*>(sampler.GetNativeHandle());
+        SDL_BindGPUComputeSamplers(m_pass, slot, &binding, 1);
+    }
+
+    void BindStorageBuffer(std::uint32_t slot, const Buffer& buffer) override {
+        auto* handle = GetSdlBuffer(buffer);
+        SDL_BindGPUComputeStorageBuffers(m_pass, slot, &handle, 1);
+    }
+
+    void PushUniformData(std::uint32_t slot, const void* data, std::uint32_t size) override {
+        SDL_PushGPUComputeUniformData(m_context.commandBuffer, slot, data, size);
+    }
+
+    void Dispatch(std::uint32_t groupsX, std::uint32_t groupsY, std::uint32_t groupsZ) override {
+        SDL_DispatchGPUCompute(m_pass, groupsX, groupsY, groupsZ);
+    }
+
+    void DispatchIndirect(const Buffer& buffer, std::uint32_t offset) override {
+        SDL_DispatchGPUComputeIndirect(m_pass, GetSdlBuffer(buffer), offset);
+    }
+
+    void* GetNativeHandle() const override { return m_pass; }
+
+private:
+    SdlGpuContext& m_context;
+    SDL_GPUComputePass* m_pass;
+};
+
 } // namespace
+
+std::unique_ptr<ComputePass::Impl> SdlGpuContext::BeginComputePass(const ComputePassDesc& desc) {
+    SPOT_ASSERT(!passOpen, "Only one pass can be open at a time");
+    std::vector<SDL_GPUStorageTextureReadWriteBinding> textures(desc.textures.size());
+    for (std::size_t i = 0; i < desc.textures.size(); ++i) {
+        textures[i].texture = GetSdlTexture(*desc.textures[i].texture);
+        textures[i].mip_level = desc.textures[i].mipLevel;
+    }
+    std::vector<SDL_GPUStorageBufferReadWriteBinding> buffers(desc.buffers.size());
+    for (std::size_t i = 0; i < desc.buffers.size(); ++i) {
+        buffers[i].buffer = GetSdlBuffer(*desc.buffers[i]);
+    }
+    SDL_GPUComputePass* pass =
+        SDL_BeginGPUComputePass(commandBuffer, textures.data(), static_cast<Uint32>(textures.size()), buffers.data(),
+                                static_cast<Uint32>(buffers.size()));
+    if (!pass) {
+        Log::GetEngineLogger().Error("Failed to begin compute pass: {}", SDL_GetError());
+        return nullptr;
+    }
+    passOpen = true;
+    return std::make_unique<SdlGpuComputePass>(*this, pass);
+}
 
 std::unique_ptr<RenderPass::Impl> SdlGpuContext::BeginRenderPass(const RenderPassDesc& desc) {
     SPOT_ASSERT(!passOpen, "Only one render pass can be open at a time");

@@ -56,6 +56,22 @@ Each frame, `BeginFrame()` returns a `RenderContext` (null when nothing can be d
   textures, compute, indirect draws, several color targets, GPU timers, bindless textures); what a device lacks it
   refuses, after logging why, so code checks first and takes another way.
 
+### Compute and indirect draws
+
+Where `GraphicsCapabilities::compute` says so (every backend but SDL_GPU's Metal driver, whose resource order the
+shader build does not follow yet), `RenderContext::BeginComputePass()` opens a pass that runs compute shaders
+(`*.comp.hlsl`, made into a `ComputePipeline`). A pass names what it writes when it begins
+(`ComputePassDesc::textures`, mip levels of textures created with `TextureDesc::storage`, and `buffers`), since
+SDL_GPU and Vulkan place their barriers there; shaders read sampled textures and storage buffers bound during the
+pass, and uniforms. Registers follow SDL_GPU: what the shader reads in `space0`, what it writes at `u#` of `space1`,
+uniforms in `space2`. glslang needs the format of the storage textures written, as `[[spv::format_rgba8]]`.
+
+`BufferUsage::Indirect` buffers hold the arguments of draws and dispatches (`DrawIndirectArguments`,
+`DrawIndexedIndirectArguments`, `DispatchIndirectArguments`), which compute passes may write, so the GPU sizes the work
+of the next passes: `ComputePass::DispatchIndirect()`, and `RenderPass::DrawIndirect()` and `DrawIndexedIndirect()`,
+which make up to `maxIndirectDrawCount` draws in one call. This is what GPU-driven rendering (culling on the GPU,
+then drawing what survived) is built on.
+
 ### Backends
 
 The graphics API is the engine's own; backends implement it behind `engine/graphics/graphics_backend.h`, where each

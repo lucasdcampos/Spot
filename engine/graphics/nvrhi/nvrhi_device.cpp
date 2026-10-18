@@ -131,6 +131,9 @@ NvrhiDevice::NvrhiDevice(std::shared_ptr<NvrhiShared> shared)
     }
     m_capabilities.compressedTextures = SupportsSampling(TextureFormat::Bc7);
     m_capabilities.maxColorTargets = 8;
+    m_capabilities.compute = true;
+    m_capabilities.indirectDraws = true;
+    m_capabilities.maxIndirectDrawCount = m_vulkan->HasMultiDrawIndirect() ? 1u << 16 : 1;
 }
 
 NvrhiDevice::~NvrhiDevice() {
@@ -194,6 +197,7 @@ std::unique_ptr<Texture> NvrhiDevice::CreateTexture(const TextureDesc& desc) {
                                       : nvrhi::TextureDimension::Texture2D;
     // Mipmaps are drawn, each level from the one above.
     native.isRenderTarget = desc.renderTarget || (mipLevels > 1 && !IsCompressedFormat(desc.format));
+    native.isUAV = desc.storage;
     // NVRHI tracks each texture's state and places the barriers between its uses.
     native.enableAutomaticStateTracking(depth && desc.renderTarget ? nvrhi::ResourceStates::DepthWrite
                                         : desc.renderTarget        ? nvrhi::ResourceStates::RenderTarget

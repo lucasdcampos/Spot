@@ -49,6 +49,25 @@ struct Pipeline::Impl {
     virtual void* GetNativeHandle() const = 0;
 };
 
+struct ComputePipeline::Impl {
+    virtual ~Impl() = default;
+    virtual void* GetNativeHandle() const = 0;
+};
+
+// An open compute pass; ComputePass forwards to it and checks how it is used.
+struct ComputePass::Impl {
+    virtual ~Impl() = default;
+
+    virtual void End() = 0;
+    virtual void BindPipeline(const ComputePipeline& pipeline) = 0;
+    virtual void BindTexture(std::uint32_t slot, const Texture& texture, const Sampler& sampler) = 0;
+    virtual void BindStorageBuffer(std::uint32_t slot, const Buffer& buffer) = 0;
+    virtual void PushUniformData(std::uint32_t slot, const void* data, std::uint32_t size) = 0;
+    virtual void Dispatch(std::uint32_t groupsX, std::uint32_t groupsY, std::uint32_t groupsZ) = 0;
+    virtual void DispatchIndirect(const Buffer& buffer, std::uint32_t offset) = 0;
+    virtual void* GetNativeHandle() const = 0;
+};
+
 // An open render pass; RenderPass forwards to it and checks how it is used.
 struct RenderPass::Impl {
     virtual ~Impl() = default;
@@ -68,6 +87,8 @@ struct RenderPass::Impl {
                       std::uint32_t firstInstance) = 0;
     virtual void DrawIndexed(std::uint32_t indexCount, std::uint32_t instanceCount, std::uint32_t firstIndex,
                              std::int32_t vertexOffset, std::uint32_t firstInstance) = 0;
+    virtual void DrawIndirect(const Buffer& buffer, std::uint32_t offset, std::uint32_t drawCount) = 0;
+    virtual void DrawIndexedIndirect(const Buffer& buffer, std::uint32_t offset, std::uint32_t drawCount) = 0;
     virtual void* GetNativeHandle() const = 0;
 };
 
@@ -79,6 +100,7 @@ struct RenderContext::Impl {
     virtual int GetHeight() const = 0;
     // Null when the backend could not begin the pass, after logging why.
     virtual std::unique_ptr<RenderPass::Impl> BeginRenderPass(const RenderPassDesc& desc) = 0;
+    virtual std::unique_ptr<ComputePass::Impl> BeginComputePass(const ComputePassDesc& desc) = 0;
     virtual bool SetFrameTarget(Texture* target) = 0;
     virtual bool BlitTextureToFrame(const Texture& source) = 0;
     virtual void GenerateMipmaps(Texture& texture) = 0;
@@ -93,6 +115,7 @@ struct GraphicsDevice::Impl {
 
     virtual std::unique_ptr<Shader> CreateShader(const ShaderDesc& desc) = 0;
     virtual std::unique_ptr<Pipeline> CreatePipeline(const PipelineDesc& desc) = 0;
+    virtual std::unique_ptr<ComputePipeline> CreateComputePipeline(const ComputePipelineDesc& desc) = 0;
     virtual std::unique_ptr<Buffer> CreateBuffer(const BufferDesc& desc) = 0;
     virtual void UploadToBuffer(Buffer& buffer, std::span<const std::byte> data, std::uint32_t offset,
                                 UploadMode mode) = 0;

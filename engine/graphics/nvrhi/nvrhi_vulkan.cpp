@@ -353,6 +353,7 @@ std::unique_ptr<VulkanSurface> VulkanSurface::Create(SDL_Window* window, const G
     DeviceFeatures enabled;
     SelectFeatures(supported, enabled);
     vulkan->m_bufferDeviceAddress = enabled.vulkan12.bufferDeviceAddress == VK_TRUE;
+    vulkan->m_multiDrawIndirect = enabled.core.features.multiDrawIndirect == VK_TRUE;
     if (window) {
         vulkan->m_deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     }

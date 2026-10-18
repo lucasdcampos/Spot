@@ -143,6 +143,18 @@ public:
         m_context.commandList->drawIndexed(arguments);
     }
 
+    void DrawIndirect(const Buffer& buffer, std::uint32_t offset, std::uint32_t drawCount) override {
+        if (SetState(false, GetNvrhiBuffer(buffer))) {
+            m_context.commandList->drawIndirect(offset, drawCount);
+        }
+    }
+
+    void DrawIndexedIndirect(const Buffer& buffer, std::uint32_t offset, std::uint32_t drawCount) override {
+        if (SetState(true, GetNvrhiBuffer(buffer))) {
+            m_context.commandList->drawIndexedIndirect(offset, drawCount);
+        }
+    }
+
     void* GetNativeHandle() const override { return m_context.commandList.Get(); }
 
 private:
@@ -182,7 +194,7 @@ private:
         return m_context.GetBindingSet(m_pipeline->layouts[static_cast<std::size_t>(set)], desc);
     }
 
-    bool SetState(bool indexed) {
+    bool SetState(bool indexed, nvrhi::IBuffer* indirect = nullptr) {
         SPOT_ASSERT(m_pipeline, "Bind a pipeline before drawing");
         if (!m_framebuffer) {
             return false;
@@ -207,6 +219,7 @@ private:
         if (indexed) {
             state.indexBuffer = m_indexBuffer;
         }
+        state.indirectParams = indirect;
         m_context.commandList->setGraphicsState(state);
         return true;
     }
@@ -221,7 +234,133 @@ private:
     nvrhi::IndexBufferBinding m_indexBuffer{nullptr, nvrhi::Format::R32_UINT, 0};
 };
 
+// A compute pass: it gathers what dispatches read, like render passes do for draws, and binds what the pass writes,
+// as it was named when the pass began.
+class NvrhiComputePass final : public ComputePass::Impl {
+public:
+    NvrhiComputePass(NvrhiContext& context, const ComputePassDesc& desc) : m_context(context), m_desc(desc) {}
+
+    void End() override { m_context.passOpen = false; }
+
+    void BindPipeline(const ComputePipeline& pipeline) override {
+        m_pipeline = &static_cast<const NvrhiComputePipeline&>(GraphicsAccess::GetImpl(pipeline));
+    }
+
+    void BindTexture(std::uint32_t slot, const Texture& texture, const Sampler& sampler) override {
+        SPOT_ASSERT(slot < MaxStageTextures, "Texture slot {} is past the last one", slot);
+        Bindings().textures[slot] = GetNvrhiTexture(texture);
+        Bindings().samplers[slot] = GetNvrhiSampler(sampler);
+    }
+
+    void BindStorageBuffer(std::uint32_t slot, const Buffer& buffer) override {
+        SPOT_ASSERT(slot < MaxStageStorageBuffers, "Storage buffer slot {} is past the last one", slot);
+        Bindings().storageBuffers[slot] = GetNvrhiBuffer(buffer);
+    }
+
+    void PushUniformData(std::uint32_t slot, const void* data, std::uint32_t size) override {
+        m_context.PushUniforms(NvrhiContext::ComputeStage, slot, data, size);
+    }
+
+    void Dispatch(std::uint32_t groupsX, std::uint32_t groupsY, std::uint32_t groupsZ) override {
+        if (SetState(nullptr)) {
+            m_context.commandList->dispatch(groupsX, groupsY, groupsZ);
+        }
+    }
+
+    void DispatchIndirect(const Buffer& buffer, std::uint32_t offset) override {
+        if (SetState(GetNvrhiBuffer(buffer))) {
+            m_context.commandList->dispatchIndirect(offset);
+        }
+    }
+
+    void* GetNativeHandle() const override { return m_context.commandList.Get(); }
+
+private:
+    NvrhiContext::StageBindings& Bindings() { return m_context.stages[NvrhiContext::ComputeStage]; }
+
+    nvrhi::IBindingSet* MakeBindings(ComputeSet set) {
+        const StageResources& resources = m_pipeline->resources;
+        const NvrhiContext::StageBindings& bound = Bindings();
+        nvrhi::BindingSetDesc desc;
+        switch (set) {
+        case ComputeSet::Resources:
+            for (std::uint32_t slot = 0; slot < resources.textures; ++slot) {
+                if (!bound.textures[slot] || !bound.samplers[slot]) {
+                    Log::GetEngineLogger().Error("A dispatch samples texture slot {}, which nothing is bound to", slot);
+                    return nullptr;
+                }
+                desc.addItem(nvrhi::BindingSetItem::Texture_SRV(slot, bound.textures[slot]));
+                desc.addItem(nvrhi::BindingSetItem::Sampler(slot, bound.samplers[slot]));
+            }
+            for (std::uint32_t slot = 0; slot < resources.storageBuffers; ++slot) {
+                if (!bound.storageBuffers[slot]) {
+                    Log::GetEngineLogger().Error("A dispatch reads storage buffer slot {}, which nothing is bound to",
+                                                 slot);
+                    return nullptr;
+                }
+                desc.addItem(
+                    nvrhi::BindingSetItem::StructuredBuffer_SRV(resources.textures + slot, bound.storageBuffers[slot]));
+            }
+            break;
+        case ComputeSet::Writes:
+            if (resources.readWriteTextures > m_desc.textures.size() ||
+                resources.readWriteBuffers > m_desc.buffers.size()) {
+                Log::GetEngineLogger().Error("A dispatch writes more than its compute pass was given to write");
+                return nullptr;
+            }
+            for (std::uint32_t slot = 0; slot < resources.readWriteTextures; ++slot) {
+                const StorageTexture& storage = m_desc.textures[slot];
+                desc.addItem(nvrhi::BindingSetItem::Texture_UAV(
+                    slot, GetNvrhiTexture(*storage.texture), nvrhi::Format::UNKNOWN,
+                    nvrhi::TextureSubresourceSet(storage.mipLevel, 1, 0, 1), nvrhi::TextureDimension::Texture2D));
+            }
+            for (std::uint32_t slot = 0; slot < resources.readWriteBuffers; ++slot) {
+                desc.addItem(nvrhi::BindingSetItem::StructuredBuffer_UAV(resources.readWriteTextures + slot,
+                                                                         GetNvrhiBuffer(*m_desc.buffers[slot])));
+            }
+            break;
+        default:
+            for (std::uint32_t slot = 0; slot < resources.uniformBuffers; ++slot) {
+                if (!bound.uniforms[slot]) {
+                    Log::GetEngineLogger().Error("A dispatch reads uniforms at slot {} that were never pushed", slot);
+                    return nullptr;
+                }
+                desc.addItem(nvrhi::BindingSetItem::ConstantBuffer(slot, bound.uniforms[slot]));
+            }
+            break;
+        }
+        return m_context.GetBindingSet(m_pipeline->layouts[static_cast<std::size_t>(set)], desc);
+    }
+
+    bool SetState(nvrhi::IBuffer* indirect) {
+        SPOT_ASSERT(m_pipeline, "Bind a pipeline before dispatching");
+        nvrhi::ComputeState state;
+        state.pipeline = m_pipeline->handle;
+        for (std::size_t set = 0; set < ComputeSetCount; ++set) {
+            nvrhi::IBindingSet* bindings = MakeBindings(static_cast<ComputeSet>(set));
+            if (!bindings) {
+                return false;
+            }
+            state.addBindingSet(bindings);
+        }
+        state.indirectParams = indirect;
+        m_context.commandList->setComputeState(state);
+        return true;
+    }
+
+    NvrhiContext& m_context;
+    ComputePassDesc m_desc;
+    const NvrhiComputePipeline* m_pipeline = nullptr;
+};
+
 } // namespace
+
+std::unique_ptr<ComputePass::Impl> NvrhiContext::BeginComputePass(const ComputePassDesc& desc) {
+    SPOT_ASSERT(!passOpen, "Only one pass can be open at a time");
+    SPOT_ASSERT(frameOpen, "Compute passes need an open frame");
+    passOpen = true;
+    return std::make_unique<NvrhiComputePass>(*this, desc);
+}
 
 std::size_t NvrhiContext::BindingSetKeyHash::operator()(const BindingSetKey& key) const {
     std::size_t value = std::hash<nvrhi::BindingSetDesc>()(key.desc);
@@ -241,7 +380,7 @@ void NvrhiContext::PushUniforms(std::size_t stage, std::uint32_t slot, const voi
         desc.isConstantBuffer = true;
         desc.isVolatile = true;
         desc.maxVersions = static_cast<std::uint32_t>(std::clamp<std::uint64_t>((2u << 20) / byteSize, 64, 16384));
-        desc.debugName = stage == 0 ? "Vertex uniforms" : "Fragment uniforms";
+        desc.debugName = stage == 0 ? "Vertex uniforms" : stage == 1 ? "Fragment uniforms" : "Compute uniforms";
         buffer = device->createBuffer(desc);
     }
     commandList->writeBuffer(buffer, data, size);

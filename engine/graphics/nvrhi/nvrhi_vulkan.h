@@ -35,6 +35,8 @@ public:
     nvrhi::vulkan::DeviceHandle CreateNvrhiDevice();
     std::string_view GetAdapterName() const { return m_adapterName; }
     bool HasWindow() const { return m_window != nullptr; }
+    // Whether one indirect call may make several draws.
+    bool HasMultiDrawIndirect() const { return m_multiDrawIndirect; }
 
     // The swapchain, made on first use and again when the window's size or the present mode changes.
     bool IsVSyncEnabled() const { return m_vsync; }
@@ -72,6 +74,7 @@ private:
     std::vector<const char*> m_instanceExtensions;
     std::vector<const char*> m_deviceExtensions;
     bool m_bufferDeviceAddress = false;
+    bool m_multiDrawIndirect = false;
     bool m_linearWindow = true;
 
     VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;

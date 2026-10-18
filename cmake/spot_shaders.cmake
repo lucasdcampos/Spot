@@ -58,7 +58,7 @@ endif()
 set(SPOT_EMBED_SHADER_SCRIPT "${CMAKE_CURRENT_LIST_DIR}/spot_embed_shader.cmake")
 set(SPOT_EMBED_COMMON_SCRIPT "${CMAKE_CURRENT_LIST_DIR}/spot_embed_common.cmake")
 
-# spot_add_shaders(<target> [NAMESPACE <namespace>] <file.vert.hlsl | file.frag.hlsl>...)
+# spot_add_shaders(<target> [NAMESPACE <namespace>] <file.vert.hlsl | file.frag.hlsl | file.comp.hlsl>...)
 # Compiles each shader and generates "<file>.h" (e.g. "sprite.vert.h"), which defines a Spot::ShaderDesc named after
 # the file in PascalCase (e.g. Shaders::SpriteVert), ready for GraphicsDevice::CreateShader().
 function(spot_add_shaders target)
@@ -82,8 +82,12 @@ function(spot_add_shaders target)
             set(stage Fragment)
             set(glslang_stage frag)
             set(dxc_profile ps_6_0)
+        elseif(file_name MATCHES "^(.+)\\.comp\\.hlsl$")
+            set(stage Compute)
+            set(glslang_stage comp)
+            set(dxc_profile cs_6_0)
         else()
-            message(FATAL_ERROR "spot_add_shaders: '${file_name}' must end in .vert.hlsl or .frag.hlsl")
+            message(FATAL_ERROR "spot_add_shaders: '${file_name}' must end in .vert.hlsl, .frag.hlsl or .comp.hlsl")
         endif()
 
         string(REGEX REPLACE "\\.hlsl$" "" base_name "${file_name}")
@@ -111,7 +115,10 @@ function(spot_add_shaders target)
         set(dxil_argument)
         if(SPOT_DXC)
             set(dxil "${output_dir}/${base_name}.dxil")
-            list(APPEND commands COMMAND "${SPOT_DXC}" -nologo -T ${dxc_profile} -E main "${source}" -Fo "${dxil}")
+            # Shaders tell glslang the format of the storage textures they write with [[spv::format_*]], which
+            # Direct3D needs not.
+            list(APPEND commands COMMAND "${SPOT_DXC}" -nologo -Wno-unknown-attributes -T ${dxc_profile} -E main
+                                 "${source}" -Fo "${dxil}")
             set(dxil_argument "-DDXIL=${dxil}")
         endif()
 

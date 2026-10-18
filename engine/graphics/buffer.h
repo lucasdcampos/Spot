@@ -14,8 +14,35 @@ enum class BufferUsage {
     Index,
     // Read by shaders as an HLSL StructuredBuffer, such as data per instance of an instanced draw; see
     // RenderPass::BindVertexStorageBuffer(). Its elements follow HLSL structured buffer layout, which packs fields as
-    // C++ does, without the 16-byte rows of constant buffers.
+    // C++ does, without the 16-byte rows of constant buffers. Compute passes also write it (ComputePassDesc::buffers).
     Storage,
+    // Holds the arguments of indirect draws and dispatches (DrawIndirectArguments and the like), which compute passes
+    // may write, so the GPU decides what it draws. Shaders also read and write it as a storage buffer.
+    Indirect,
+};
+
+// The arguments of one RenderPass::DrawIndirect() draw, as an indirect buffer holds them.
+struct DrawIndirectArguments {
+    std::uint32_t vertexCount = 0;
+    std::uint32_t instanceCount = 0;
+    std::uint32_t firstVertex = 0;
+    std::uint32_t firstInstance = 0;
+};
+
+// The arguments of one RenderPass::DrawIndexedIndirect() draw.
+struct DrawIndexedIndirectArguments {
+    std::uint32_t indexCount = 0;
+    std::uint32_t instanceCount = 0;
+    std::uint32_t firstIndex = 0;
+    std::int32_t vertexOffset = 0;
+    std::uint32_t firstInstance = 0;
+};
+
+// The thread groups of one ComputePass::DispatchIndirect().
+struct DispatchIndirectArguments {
+    std::uint32_t groupsX = 0;
+    std::uint32_t groupsY = 0;
+    std::uint32_t groupsZ = 0;
 };
 
 enum class IndexType {

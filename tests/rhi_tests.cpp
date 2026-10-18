@@ -1,5 +1,7 @@
 // The graphics API's features beyond drawing, on every backend this machine runs: formats, compressed textures, and
 // what GraphicsCapabilities tells apart.
+#include "fill.comp.h"
+#include "indirect_arguments.comp.h"
 #include "textured.frag.h"
 #include "textured_quad.vert.h"
 #include "two_targets.frag.h"
@@ -68,10 +70,14 @@ public:
         });
     }
 
-    void Draw(Spot::RenderPass& pass, const Spot::Pipeline& pipeline) const {
+    void Bind(Spot::RenderPass& pass, const Spot::Pipeline& pipeline) const {
         pass.BindPipeline(pipeline);
         pass.BindVertexBuffer(0, *m_vertices);
         pass.BindIndexBuffer(*m_indices, Spot::IndexType::UInt16);
+    }
+
+    void Draw(Spot::RenderPass& pass, const Spot::Pipeline& pipeline) const {
+        Bind(pass, pipeline);
         pass.DrawIndexed(6);
     }
 
@@ -258,5 +264,89 @@ TEST_CASE("Passes draw into several color targets at once", "[gpu][rhi]") {
         REQUIRE(firstPixels.size() == 4 * 4 * 4);
         CHECK((firstPixels[0] == 255 && firstPixels[1] == 0));
         CHECK(Read<std::uint16_t>(secondPixels, 0) == ToHalf(0.75f));
+    });
+}
+
+TEST_CASE("Compute passes write storage textures", "[gpu][rhi]") {
+    ForEachBackend([](Spot::GraphicsDevice& device) {
+        if (!device.GetCapabilities().compute) {
+            SKIP("This device runs no compute shaders");
+        }
+        CHECK(Shaders::FillComp.threadCountX == 8);
+        CHECK(Shaders::FillComp.readWriteStorageTextureCount == 1);
+        CHECK(Shaders::IndirectArgumentsComp.storageBufferCount == 1);
+        CHECK(Shaders::IndirectArgumentsComp.readWriteStorageBufferCount == 1);
+        auto texture = device.CreateTexture({.width = 12, .height = 5, .storage = true});
+        auto frame = device.CreateTexture({.width = 1, .height = 1, .renderTarget = true});
+        const auto shader = device.CreateShader(Shaders::FillComp);
+        REQUIRE((texture && frame && shader));
+        const auto pipeline = device.CreateComputePipeline({.shader = shader.get()});
+        REQUIRE(pipeline);
+
+        auto* context = device.BeginOffscreenFrame(*frame);
+        REQUIRE(context);
+        {
+            auto pass = context->BeginComputePass({.textures = {{.texture = texture.get()}}});
+            pass.BindPipeline(*pipeline);
+            pass.PushUniforms(0, Spot::Color{0.0f, 1.0f, 0.0f, 1.0f});
+            pass.Dispatch(2, 1);
+        }
+        device.EndFrame();
+        const auto pixels = device.DownloadTexture(*texture);
+        REQUIRE(pixels.size() == 12 * 5 * 4);
+        for (std::size_t i = 0; i < pixels.size(); i += 4) {
+            REQUIRE((pixels[i] == 0 && pixels[i + 1] == 255 && pixels[i + 2] == 0 && pixels[i + 3] == 255));
+        }
+    });
+}
+
+TEST_CASE("Compute passes write the arguments of indirect dispatches and draws", "[gpu][rhi]") {
+    ForEachBackend([](Spot::GraphicsDevice& device) {
+        if (!device.GetCapabilities().compute || !device.GetCapabilities().indirectDraws) {
+            SKIP("This device runs no compute shaders or indirect draws");
+        }
+        const Quad quad(device);
+        auto target = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
+        auto filled = device.CreateTexture({.width = 4, .height = 4, .storage = true});
+        const auto counts = device.CreateBuffer(Spot::BufferUsage::Storage, std::array<std::uint32_t, 1>{6});
+        auto arguments = device.CreateBuffer({.usage = Spot::BufferUsage::Indirect, .size = 8 * sizeof(std::uint32_t)});
+        const auto argumentsShader = device.CreateShader(Shaders::IndirectArgumentsComp);
+        const auto fillShader = device.CreateShader(Shaders::FillComp);
+        const auto texturedShader = device.CreateShader(Shaders::TexturedFrag);
+        const auto sampler = device.CreateSampler({.filter = Spot::TextureFilter::Nearest});
+        REQUIRE(
+            (target && filled && counts && arguments && argumentsShader && fillShader && texturedShader && sampler));
+        const auto argumentsPipeline = device.CreateComputePipeline({.shader = argumentsShader.get()});
+        const auto fillPipeline = device.CreateComputePipeline({.shader = fillShader.get()});
+        const auto drawPipeline = quad.CreatePipeline(*texturedShader);
+        REQUIRE((argumentsPipeline && fillPipeline && drawPipeline));
+
+        auto* context = device.BeginOffscreenFrame(*target);
+        REQUIRE(context);
+        {
+            auto pass = context->BeginComputePass({.buffers = {arguments.get()}});
+            pass.BindPipeline(*argumentsPipeline);
+            pass.BindStorageBuffer(0, *counts);
+            pass.Dispatch(1);
+        }
+        {
+            auto pass = context->BeginComputePass({.textures = {{.texture = filled.get()}}});
+            pass.BindPipeline(*fillPipeline);
+            pass.PushUniforms(0, Spot::Color{0.0f, 0.0f, 1.0f, 1.0f});
+            pass.DispatchIndirect(*arguments, sizeof(Spot::DrawIndexedIndirectArguments));
+        }
+        {
+            auto pass = context->BeginRenderPass({.clearColor = Spot::Color::Black});
+            quad.Bind(pass, *drawPipeline);
+            pass.BindFragmentTexture(0, *filled, *sampler);
+            pass.PushFragmentUniforms(0, Spot::Color::White);
+            pass.DrawIndexedIndirect(*arguments);
+        }
+        device.EndFrame();
+        const auto pixels = device.DownloadTexture(*target);
+        REQUIRE(pixels.size() == 4 * 4 * 4);
+        for (std::size_t i = 0; i < pixels.size(); i += 4) {
+            REQUIRE((pixels[i] == 0 && pixels[i + 1] == 0 && pixels[i + 2] == 255 && pixels[i + 3] == 255));
+        }
     });
 }

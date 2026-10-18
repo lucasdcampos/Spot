@@ -107,6 +107,16 @@ std::unique_ptr<Pipeline> GraphicsDevice::CreatePipeline(const PipelineDesc& des
     return m_impl->CreatePipeline(desc);
 }
 
+std::unique_ptr<ComputePipeline> GraphicsDevice::CreateComputePipeline(const ComputePipelineDesc& desc) {
+    SPOT_ASSERT(desc.shader && desc.shader->GetStage() == ShaderStage::Compute,
+                "A compute pipeline needs a compute shader");
+    if (!GetCapabilities().compute) {
+        Log::GetEngineLogger().Error("The '{}' backend runs no compute shaders", GetBackendName());
+        return nullptr;
+    }
+    return m_impl->CreateComputePipeline(desc);
+}
+
 std::unique_ptr<Buffer> GraphicsDevice::CreateBuffer(const BufferDesc& desc) {
     return m_impl->CreateBuffer(desc);
 }
@@ -121,6 +131,12 @@ void GraphicsDevice::UploadToBuffer(Buffer& buffer, std::span<const std::byte> d
 }
 
 std::unique_ptr<Texture> GraphicsDevice::CreateTexture(const TextureDesc& desc) {
+    if (desc.storage && (!GetCapabilities().compute || desc.type != TextureType::Texture2D ||
+                         IsDepthFormat(desc.format) || IsCompressedFormat(desc.format) || desc.sampleCount != 1)) {
+        Log::GetEngineLogger().Error(
+            "Storage textures are single-sample 2D color textures, on devices that run compute shaders");
+        return nullptr;
+    }
     if (IsCompressedFormat(desc.format)) {
         if (desc.renderTarget || desc.sampleCount != 1) {
             Log::GetEngineLogger().Error("Compressed textures cannot be render targets or multisampled");
@@ -280,6 +296,24 @@ RenderPass RenderContext::BeginRenderPass(const RenderPassDesc& desc) {
     return RenderPass(m_impl->BeginRenderPass(desc));
 }
 
+ComputePass RenderContext::BeginComputePass(const ComputePassDesc& desc) {
+    for (const StorageTexture& storage : desc.textures) {
+        SPOT_ASSERT(storage.texture && storage.texture->IsStorage() &&
+                        storage.mipLevel < storage.texture->GetMipLevelCount(),
+                    "Compute passes write mip levels of textures created with TextureDesc::storage");
+    }
+    for (const Buffer* buffer : desc.buffers) {
+        SPOT_ASSERT(buffer &&
+                        (buffer->GetUsage() == BufferUsage::Storage || buffer->GetUsage() == BufferUsage::Indirect),
+                    "Compute passes write storage and indirect buffers");
+    }
+    if (!m_capabilities->compute) {
+        Log::GetEngineLogger().Error("This device runs no compute shaders");
+        return ComputePass(nullptr);
+    }
+    return ComputePass(m_impl->BeginComputePass(desc));
+}
+
 bool RenderContext::SetFrameTarget(Texture* target) {
     return m_impl->SetFrameTarget(target);
 }
@@ -382,8 +416,96 @@ void RenderPass::DrawIndexed(std::uint32_t indexCount, std::uint32_t instanceCou
     m_impl->DrawIndexed(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 }
 
+void RenderPass::DrawIndirect(const Buffer& buffer, std::uint32_t offset, std::uint32_t drawCount) {
+    SPOT_ASSERT(m_impl, "The render pass has ended");
+    SPOT_ASSERT(m_pipelineBound, "Bind a pipeline before drawing");
+    SPOT_ASSERT(buffer.GetUsage() == BufferUsage::Indirect, "Indirect draws read indirect buffers");
+    SPOT_ASSERT(offset + drawCount * sizeof(DrawIndirectArguments) <= buffer.GetSize(),
+                "The draws' arguments overflow the indirect buffer");
+    if (drawCount > 0) {
+        m_impl->DrawIndirect(buffer, offset, drawCount);
+    }
+}
+
+void RenderPass::DrawIndexedIndirect(const Buffer& buffer, std::uint32_t offset, std::uint32_t drawCount) {
+    SPOT_ASSERT(m_impl, "The render pass has ended");
+    SPOT_ASSERT(m_pipelineBound, "Bind a pipeline before drawing");
+    SPOT_ASSERT(buffer.GetUsage() == BufferUsage::Indirect, "Indirect draws read indirect buffers");
+    SPOT_ASSERT(offset + drawCount * sizeof(DrawIndexedIndirectArguments) <= buffer.GetSize(),
+                "The draws' arguments overflow the indirect buffer");
+    if (drawCount > 0) {
+        m_impl->DrawIndexedIndirect(buffer, offset, drawCount);
+    }
+}
+
 void* RenderPass::GetNativeHandle() const {
     return m_impl ? m_impl->GetNativeHandle() : nullptr;
+}
+
+ComputePass::ComputePass(std::unique_ptr<Impl> impl) : m_impl(std::move(impl)) {
+}
+
+ComputePass::~ComputePass() {
+    End();
+}
+
+void ComputePass::End() {
+    if (m_impl) {
+        m_impl->End();
+        m_impl.reset();
+    }
+}
+
+void ComputePass::BindPipeline(const ComputePipeline& pipeline) {
+    SPOT_ASSERT(m_impl, "The compute pass has ended");
+    m_impl->BindPipeline(pipeline);
+    m_pipelineBound = true;
+}
+
+void ComputePass::BindTexture(std::uint32_t slot, const Texture& texture, const Sampler& sampler) {
+    SPOT_ASSERT(m_impl, "The compute pass has ended");
+    m_impl->BindTexture(slot, texture, sampler);
+}
+
+void ComputePass::BindStorageBuffer(std::uint32_t slot, const Buffer& buffer) {
+    SPOT_ASSERT(m_impl, "The compute pass has ended");
+    SPOT_ASSERT(buffer.GetUsage() == BufferUsage::Storage || buffer.GetUsage() == BufferUsage::Indirect,
+                "Only storage and indirect buffers can be bound as storage buffers");
+    m_impl->BindStorageBuffer(slot, buffer);
+}
+
+void ComputePass::PushUniformData(std::uint32_t slot, const void* data, std::uint32_t size) {
+    if (m_impl) {
+        m_impl->PushUniformData(slot, data, size);
+    }
+}
+
+void ComputePass::Dispatch(std::uint32_t groupsX, std::uint32_t groupsY, std::uint32_t groupsZ) {
+    SPOT_ASSERT(m_impl, "The compute pass has ended");
+    SPOT_ASSERT(m_pipelineBound, "Bind a pipeline before dispatching");
+    if (groupsX > 0 && groupsY > 0 && groupsZ > 0) {
+        m_impl->Dispatch(groupsX, groupsY, groupsZ);
+    }
+}
+
+void ComputePass::DispatchIndirect(const Buffer& buffer, std::uint32_t offset) {
+    SPOT_ASSERT(m_impl, "The compute pass has ended");
+    SPOT_ASSERT(m_pipelineBound, "Bind a pipeline before dispatching");
+    SPOT_ASSERT(buffer.GetUsage() == BufferUsage::Indirect, "Indirect dispatches read indirect buffers");
+    SPOT_ASSERT(offset + sizeof(DispatchIndirectArguments) <= buffer.GetSize(),
+                "The dispatch's arguments overflow the indirect buffer");
+    m_impl->DispatchIndirect(buffer, offset);
+}
+
+void* ComputePass::GetNativeHandle() const {
+    return m_impl ? m_impl->GetNativeHandle() : nullptr;
+}
+
+ComputePipeline::ComputePipeline(std::unique_ptr<Impl> impl) : m_impl(std::move(impl)) {
+}
+ComputePipeline::~ComputePipeline() = default;
+void* ComputePipeline::GetNativeHandle() const {
+    return m_impl->GetNativeHandle();
 }
 
 Buffer::Buffer(std::unique_ptr<Impl> impl) : m_impl(std::move(impl)) {
@@ -436,6 +558,9 @@ std::uint32_t Texture::GetLayerCount() const {
 }
 bool Texture::IsRenderTarget() const {
     return m_impl->desc.renderTarget;
+}
+bool Texture::IsStorage() const {
+    return m_impl->desc.storage;
 }
 std::uint32_t Texture::GetMipLevelCount() const {
     return m_impl->mipLevels;

@@ -58,7 +58,11 @@ SharedGpuDevice::~SharedGpuDevice() {
 
 SdlGpuDevice::SdlGpuDevice(std::shared_ptr<SharedGpuDevice> device, SDL_Window* window)
     : shared(std::move(device)), window(window) {
-    // SDL_GPU has no GPU timers or bindless resources.
+    // SDL_GPU has no GPU timers or bindless resources. Its Metal driver binds compute resources in an order the
+    // engine's shader build does not follow yet, so compute stays off there.
+    capabilities.compute = GetBackendName() != "metal";
+    capabilities.indirectDraws = true;
+    capabilities.maxIndirectDrawCount = 1u << 16;
     capabilities.compressedTextures = SDL_GPUTextureSupportsFormat(
         shared->Get(), SDL_GPU_TEXTUREFORMAT_BC7_RGBA_UNORM, SDL_GPU_TEXTURETYPE_2D, SDL_GPU_TEXTUREUSAGE_SAMPLER);
     capabilities.maxColorTargets = 4;

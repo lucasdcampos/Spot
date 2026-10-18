@@ -14,9 +14,47 @@ endfunction()
 spot_to_identifier("${NAME}" identifier)
 file(READ "${REFLECTION}" reflection)
 spot_count_resources("${reflection}" textures sampler_count)
-spot_count_resources("${reflection}" images storage_texture_count)
-spot_count_resources("${reflection}" ssbos storage_buffer_count)
 spot_count_resources("${reflection}" ubos uniform_buffer_count)
+
+# Storage textures and buffers, split into those the shader only reads and those it writes: for compute shaders by
+# their space, space1 holding what they write; for the other stages, which only read, all of them.
+set(storage_texture_count 0)
+set(storage_buffer_count 0)
+set(read_write_texture_count 0)
+set(read_write_buffer_count 0)
+foreach(kind IN ITEMS images ssbos)
+    spot_count_resources("${reflection}" ${kind} count)
+    if(count GREATER 0)
+        math(EXPR last "${count} - 1")
+        foreach(index RANGE ${last})
+            string(JSON set GET "${reflection}" ${kind} ${index} set)
+            if(STAGE STREQUAL "Compute" AND set EQUAL 1)
+                if(kind STREQUAL "images")
+                    math(EXPR read_write_texture_count "${read_write_texture_count} + 1")
+                else()
+                    math(EXPR read_write_buffer_count "${read_write_buffer_count} + 1")
+                endif()
+            elseif(kind STREQUAL "images")
+                math(EXPR storage_texture_count "${storage_texture_count} + 1")
+            else()
+                math(EXPR storage_buffer_count "${storage_buffer_count} + 1")
+            endif()
+        endforeach()
+    endif()
+endforeach()
+
+set(thread_counts 1 1 1)
+if(STAGE STREQUAL "Compute")
+    foreach(axis RANGE 2)
+        string(JSON size GET "${reflection}" entryPoints 0 workgroup_size ${axis})
+        list(INSERT thread_counts ${axis} ${size})
+        math(EXPR next "${axis} + 1")
+        list(REMOVE_AT thread_counts ${next})
+    endforeach()
+endif()
+list(GET thread_counts 0 thread_count_x)
+list(GET thread_counts 1 thread_count_y)
+list(GET thread_counts 2 thread_count_z)
 
 spot_to_byte_array("${SPIRV}" spirv_bytes)
 spot_to_byte_array("${VULKAN_SPIRV}" vulkan_spirv_bytes)
@@ -52,6 +90,11 @@ inline constexpr Spot::ShaderDesc ${identifier}{
     .storageTextureCount = ${storage_texture_count},
     .storageBufferCount = ${storage_buffer_count},
     .uniformBufferCount = ${uniform_buffer_count},
+    .readWriteStorageTextureCount = ${read_write_texture_count},
+    .readWriteStorageBufferCount = ${read_write_buffer_count},
+    .threadCountX = ${thread_count_x},
+    .threadCountY = ${thread_count_y},
+    .threadCountZ = ${thread_count_z},
 };
 
 } // namespace ${NAMESPACE}

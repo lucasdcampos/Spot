@@ -13,6 +13,8 @@ struct GraphicsAccess;
 enum class ShaderStage {
     Vertex,
     Fragment,
+    // Run by compute passes; see ComputePass for how they bind resources.
+    Compute,
 };
 
 // A compiled shader in every format a backend may need; the device uses the one its graphics API takes. The
@@ -22,6 +24,8 @@ enum class ShaderStage {
 // Resources follow SDL_GPU's binding conventions, written in HLSL as:
 //   vertex:   textures/samplers t#/s# space0, uniforms b# space1
 //   fragment: textures/samplers t#/s# space2, uniforms b# space3
+//   compute:  textures/samplers then read-only storage textures and buffers t#/s# space0, what the pass writes u#
+//             space1, uniforms b# space2
 // The fragment shader's input must declare the same fields, in the same order, as the vertex shader's output,
 // SV_Position included: Direct3D 12 rejects pipelines whose stages disagree.
 struct ShaderDesc {
@@ -35,9 +39,16 @@ struct ShaderDesc {
     std::span<const std::uint8_t> msl = {};
     std::span<const std::uint8_t> dxil = {};
     std::uint32_t samplerCount = 0;
+    // Storage textures and buffers the shader only reads.
     std::uint32_t storageTextureCount = 0;
     std::uint32_t storageBufferCount = 0;
     std::uint32_t uniformBufferCount = 0;
+    // Compute shaders only: what they write, and the size of their thread groups ([numthreads]).
+    std::uint32_t readWriteStorageTextureCount = 0;
+    std::uint32_t readWriteStorageBufferCount = 0;
+    std::uint32_t threadCountX = 1;
+    std::uint32_t threadCountY = 1;
+    std::uint32_t threadCountZ = 1;
 };
 
 class Shader {

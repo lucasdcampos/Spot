@@ -1,6 +1,7 @@
 #pragma once
 
 #include "graphics/buffer.h"
+#include "graphics/compute.h"
 #include "graphics/image.h"
 #include "graphics/pipeline.h"
 #include "graphics/render_context.h"
@@ -87,6 +88,8 @@ public:
     // Each returns null, after logging why, when the backend rejects the description.
     std::unique_ptr<Shader> CreateShader(const ShaderDesc& desc);
     std::unique_ptr<Pipeline> CreatePipeline(const PipelineDesc& desc);
+    // Null, after logging why, where GraphicsCapabilities::compute is off.
+    std::unique_ptr<ComputePipeline> CreateComputePipeline(const ComputePipelineDesc& desc);
     std::unique_ptr<Buffer> CreateBuffer(const BufferDesc& desc);
 
     // Creates a buffer sized to hold the data, such as a std::array or std::vector of vertices, and uploads it.

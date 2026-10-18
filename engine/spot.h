@@ -44,6 +44,7 @@
 #include "graphics/buffer.h"
 #include "graphics/camera_2d.h"
 #include "graphics/camera_3d.h"
+#include "graphics/compute.h"
 #include "graphics/debug_draw.h"
 #include "graphics/fog_data.h"
 #include "graphics/font.h"

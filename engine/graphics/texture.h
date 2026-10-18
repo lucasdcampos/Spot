@@ -156,6 +156,10 @@ struct TextureDesc {
     // into it once a render pass resolves it into a regular texture or the window. Multisampled textures cannot be
     // sampled, uploaded to or downloaded. See GraphicsDevice::SupportsSampleCount().
     std::uint32_t sampleCount = 1;
+    // Lets compute passes write the texture (ComputePassDesc::textures), as well as shaders sample it. 2D textures of
+    // uncompressed color formats only, and not every format everywhere: the 8-bit RGBA, float and R32Uint ones are
+    // safe. Shaders declare the format of what they write, as glslang's [[spv::format_rgba8]] and the like.
+    bool storage = false;
 };
 
 // An image on the GPU, 2D or a cube. Fill it with GraphicsDevice::UploadToTexture() or by rendering into it.
@@ -173,6 +177,7 @@ public:
     // 6 for cube textures, 1 for the others.
     std::uint32_t GetLayerCount() const;
     bool IsRenderTarget() const;
+    bool IsStorage() const;
     // 1 for textures without mipmaps.
     std::uint32_t GetMipLevelCount() const;
     std::uint32_t GetSampleCount() const;

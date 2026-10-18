@@ -173,6 +173,8 @@ target_link_libraries(spot_gpu_tests PRIVATE
 
 spot_add_shaders(spot_gpu_tests
     shaders/depth_compare.frag.hlsl
+    shaders/fill.comp.hlsl
+    shaders/indirect_arguments.comp.hlsl
     shaders/quad.vert.hlsl
     shaders/solid.frag.hlsl
     shaders/textured.frag.hlsl

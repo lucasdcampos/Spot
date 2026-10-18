@@ -92,6 +92,7 @@ add_library(spot_objects OBJECT
     graphics/atmosphere.h
     graphics/atmosphere.cpp
     graphics/buffer.h
+    graphics/compute.h
     graphics/camera_2d.h
     graphics/bloom.cpp
     graphics/bloom.h

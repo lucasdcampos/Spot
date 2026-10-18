@@ -241,6 +241,26 @@ std::unique_ptr<Shader> SdlGpuDevice::CreateShader(const ShaderDesc& desc) {
         return nullptr;
     }
 
+    if (desc.stage == ShaderStage::Compute) {
+        auto impl = std::make_unique<SdlGpuShader>();
+        impl->device = shared;
+        impl->stage = desc.stage;
+        impl->computeCode.assign(code->code.begin(), code->code.end());
+        SDL_GPUComputePipelineCreateInfo& info = impl->compute;
+        info.entrypoint = code->entryPoint;
+        info.format = code->format;
+        info.num_samplers = desc.samplerCount;
+        info.num_readonly_storage_textures = desc.storageTextureCount;
+        info.num_readonly_storage_buffers = desc.storageBufferCount;
+        info.num_readwrite_storage_textures = desc.readWriteStorageTextureCount;
+        info.num_readwrite_storage_buffers = desc.readWriteStorageBufferCount;
+        info.num_uniform_buffers = desc.uniformBufferCount;
+        info.threadcount_x = desc.threadCountX;
+        info.threadcount_y = desc.threadCountY;
+        info.threadcount_z = desc.threadCountZ;
+        return GraphicsAccess::Make<Shader>(std::move(impl));
+    }
+
     SDL_GPUShaderCreateInfo info{};
     info.code = code->code.data();
     info.code_size = code->code.size();
@@ -340,6 +360,22 @@ std::unique_ptr<Pipeline> SdlGpuDevice::CreatePipeline(const PipelineDesc& desc)
     return GraphicsAccess::Make<Pipeline>(std::move(impl));
 }
 
+std::unique_ptr<ComputePipeline> SdlGpuDevice::CreateComputePipeline(const ComputePipelineDesc& desc) {
+    const auto& shader = static_cast<const SdlGpuShader&>(GraphicsAccess::GetImpl(*desc.shader));
+    SDL_GPUComputePipelineCreateInfo info = shader.compute;
+    info.code = shader.computeCode.data();
+    info.code_size = shader.computeCode.size();
+    SDL_GPUComputePipeline* handle = SDL_CreateGPUComputePipeline(shared->Get(), &info);
+    if (!handle) {
+        Log::GetEngineLogger().Error("Failed to create compute pipeline: {}", SDL_GetError());
+        return nullptr;
+    }
+    auto impl = std::make_unique<SdlGpuComputePipeline>();
+    impl->device = shared;
+    impl->handle = handle;
+    return GraphicsAccess::Make<ComputePipeline>(std::move(impl));
+}
+
 std::unique_ptr<Buffer> SdlGpuDevice::CreateBuffer(const BufferDesc& desc) {
     if (desc.size == 0) {
         Log::GetEngineLogger().Error("Cannot create an empty buffer");
@@ -347,9 +383,24 @@ std::unique_ptr<Buffer> SdlGpuDevice::CreateBuffer(const BufferDesc& desc) {
     }
 
     SDL_GPUBufferCreateInfo info{};
-    info.usage = desc.usage == BufferUsage::Index     ? SDL_GPU_BUFFERUSAGE_INDEX
-                 : desc.usage == BufferUsage::Storage ? SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ
-                                                      : SDL_GPU_BUFFERUSAGE_VERTEX;
+    // Storage and indirect buffers are read by every stage and written by compute passes.
+    constexpr SDL_GPUBufferUsageFlags storage = SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ |
+                                                SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_READ |
+                                                SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_WRITE;
+    switch (desc.usage) {
+    case BufferUsage::Vertex:
+        info.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
+        break;
+    case BufferUsage::Index:
+        info.usage = SDL_GPU_BUFFERUSAGE_INDEX;
+        break;
+    case BufferUsage::Storage:
+        info.usage = storage;
+        break;
+    case BufferUsage::Indirect:
+        info.usage = SDL_GPU_BUFFERUSAGE_INDIRECT | storage;
+        break;
+    }
     info.size = desc.size;
 
     SDL_GPUBuffer* handle = SDL_CreateGPUBuffer(shared->Get(), &info);
@@ -454,6 +505,9 @@ std::unique_ptr<Texture> SdlGpuDevice::CreateTexture(const TextureDesc& desc) {
         info.usage |= SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET;
     } else if (desc.renderTarget || (mipLevels > 1 && !IsCompressedFormat(desc.format))) {
         info.usage |= SDL_GPU_TEXTUREUSAGE_COLOR_TARGET;
+    }
+    if (desc.storage) {
+        info.usage |= SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE | SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_READ;
     }
     info.width = desc.width;
     info.height = desc.height;

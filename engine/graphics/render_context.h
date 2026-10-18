@@ -1,6 +1,7 @@
 #pragma once
 
 #include "graphics/buffer.h"
+#include "graphics/compute.h"
 #include "graphics/texture.h"
 #include "math/color.h"
 
@@ -130,6 +131,12 @@ public:
     // Draws with the bound pipeline and index buffer; vertexOffset is added to every index.
     void DrawIndexed(std::uint32_t indexCount, std::uint32_t instanceCount = 1, std::uint32_t firstIndex = 0,
                      std::int32_t vertexOffset = 0, std::uint32_t firstInstance = 0);
+    // Draws drawCount times, with the DrawIndirectArguments an indirect buffer holds one after the other from the byte
+    // offset, which a compute pass may have written: the GPU decides what is drawn. drawCount is at most
+    // GraphicsCapabilities::maxIndirectDrawCount.
+    void DrawIndirect(const Buffer& buffer, std::uint32_t offset = 0, std::uint32_t drawCount = 1);
+    // The same with the bound index buffer and DrawIndexedIndirectArguments.
+    void DrawIndexedIndirect(const Buffer& buffer, std::uint32_t offset = 0, std::uint32_t drawCount = 1);
 
     // The backend's pass object (an SDL_GPURenderPass* with SDL_GPU), for code that needs the backend directly; null
     // once the pass ended, or when it could not begin.
@@ -161,6 +168,9 @@ public:
     int GetHeight() const;
 
     RenderPass BeginRenderPass(const RenderPassDesc& desc = {});
+    // Opens a pass that runs compute shaders, where GraphicsCapabilities::compute says so; what it writes is visible
+    // to the passes after it.
+    ComputePass BeginComputePass(const ComputePassDesc& desc = {});
     // Redirects default passes and window resolves into a same-size/format single-sample target; null restores
     // the acquired frame target. Change it only between passes. Explicit pass targets are unaffected.
     bool SetFrameTarget(Texture* target);

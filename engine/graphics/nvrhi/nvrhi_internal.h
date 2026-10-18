@@ -80,11 +80,13 @@ inline nvrhi::ISampler* GetNvrhiSampler(const Sampler& sampler) {
     return static_cast<nvrhi::ISampler*>(sampler.GetNativeHandle());
 }
 
-// The resources a stage of a shader reads, as ShaderDesc counts them.
+// The resources a stage of a shader reads, and for compute shaders writes, as ShaderDesc counts them.
 struct StageResources {
     std::uint32_t textures = 0;
     std::uint32_t storageBuffers = 0;
     std::uint32_t uniformBuffers = 0;
+    std::uint32_t readWriteTextures = 0;
+    std::uint32_t readWriteBuffers = 0;
 };
 
 struct NvrhiShader final : Shader::Impl {
@@ -118,6 +120,20 @@ struct NvrhiPipeline final : Pipeline::Impl {
     StageResources fragment;
 };
 
+// Compute shaders follow SDL_GPU's register spaces too: what they read, what the pass writes, and their uniforms.
+enum class ComputeSet : std::uint32_t { Resources, Writes, Uniforms, Count };
+constexpr std::size_t ComputeSetCount = static_cast<std::size_t>(ComputeSet::Count);
+
+struct NvrhiComputePipeline final : ComputePipeline::Impl {
+    void* GetNativeHandle() const override { return handle.Get(); }
+
+    // First, so it goes after the handle.
+    std::shared_ptr<NvrhiShared> shared;
+    nvrhi::ComputePipelineHandle handle;
+    std::array<nvrhi::BindingLayoutHandle, ComputeSetCount> layouts;
+    StageResources resources;
+};
+
 // The most a stage binds of each kind; SDL_GPU's limits, which the engine's shaders stay within.
 constexpr std::size_t MaxStageTextures = 16;
 constexpr std::size_t MaxStageStorageBuffers = 8;
@@ -137,6 +153,7 @@ public:
     int GetWidth() const override { return static_cast<int>(width); }
     int GetHeight() const override { return static_cast<int>(height); }
     std::unique_ptr<RenderPass::Impl> BeginRenderPass(const RenderPassDesc& desc) override;
+    std::unique_ptr<ComputePass::Impl> BeginComputePass(const ComputePassDesc& desc) override;
     bool SetFrameTarget(Texture* target) override;
     bool BlitTextureToFrame(const Texture& source) override;
     void GenerateMipmaps(Texture& texture) override;
@@ -152,7 +169,9 @@ public:
     bool frameOpen = false;
     bool passOpen = false;
 
-    std::array<StageBindings, 2> stages;
+    // The vertex, fragment and compute stages.
+    static constexpr std::size_t ComputeStage = 2;
+    std::array<StageBindings, 3> stages;
     // Writes uniforms into a volatile constant buffer of the stage's slot, grown when they outgrow it.
     void PushUniforms(std::size_t stage, std::uint32_t slot, const void* data, std::uint32_t size);
     // Binding sets and framebuffers made for draws, kept while they are used and let go a few frames after.
@@ -206,6 +225,7 @@ public:
     const GraphicsCapabilities& GetCapabilities() const override { return m_capabilities; }
     std::unique_ptr<Shader> CreateShader(const ShaderDesc& desc) override;
     std::unique_ptr<Pipeline> CreatePipeline(const PipelineDesc& desc) override;
+    std::unique_ptr<ComputePipeline> CreateComputePipeline(const ComputePipelineDesc& desc) override;
     std::unique_ptr<Buffer> CreateBuffer(const BufferDesc& desc) override;
     void UploadToBuffer(Buffer& buffer, std::span<const std::byte> data, std::uint32_t offset,
                         UploadMode mode) override;

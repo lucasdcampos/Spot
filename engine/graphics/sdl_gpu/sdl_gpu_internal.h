@@ -8,6 +8,7 @@
 
 #include <memory>
 #include <optional>
+#include <vector>
 
 namespace Spot::Detail {
 
@@ -28,11 +29,26 @@ private:
 };
 
 struct SdlGpuShader final : Shader::Impl {
-    ~SdlGpuShader() override { SDL_ReleaseGPUShader(device->Get(), handle); }
+    ~SdlGpuShader() override {
+        if (handle) {
+            SDL_ReleaseGPUShader(device->Get(), handle);
+        }
+    }
     void* GetNativeHandle() const override { return handle; }
 
     std::shared_ptr<SharedGpuDevice> device;
     SDL_GPUShader* handle = nullptr;
+    // SDL_GPU makes compute shaders and their pipelines at once, so a compute shader keeps its code for the pipeline.
+    SDL_GPUComputePipelineCreateInfo compute{};
+    std::vector<std::uint8_t> computeCode;
+};
+
+struct SdlGpuComputePipeline final : ComputePipeline::Impl {
+    ~SdlGpuComputePipeline() override { SDL_ReleaseGPUComputePipeline(device->Get(), handle); }
+    void* GetNativeHandle() const override { return handle; }
+
+    std::shared_ptr<SharedGpuDevice> device;
+    SDL_GPUComputePipeline* handle = nullptr;
 };
 
 struct SdlGpuBuffer final : Buffer::Impl {
@@ -80,6 +96,7 @@ public:
     int GetWidth() const override { return static_cast<int>(width); }
     int GetHeight() const override { return static_cast<int>(height); }
     std::unique_ptr<RenderPass::Impl> BeginRenderPass(const RenderPassDesc& desc) override;
+    std::unique_ptr<ComputePass::Impl> BeginComputePass(const ComputePassDesc& desc) override;
     bool SetFrameTarget(Texture* target) override;
     bool BlitTextureToFrame(const Texture& source) override;
     void GenerateMipmaps(Texture& texture) override;
@@ -103,6 +120,7 @@ public:
     const GraphicsCapabilities& GetCapabilities() const override { return capabilities; }
     std::unique_ptr<Shader> CreateShader(const ShaderDesc& desc) override;
     std::unique_ptr<Pipeline> CreatePipeline(const PipelineDesc& desc) override;
+    std::unique_ptr<ComputePipeline> CreateComputePipeline(const ComputePipelineDesc& desc) override;
     std::unique_ptr<Buffer> CreateBuffer(const BufferDesc& desc) override;
     void UploadToBuffer(Buffer& buffer, std::span<const std::byte> data, std::uint32_t offset,
                         UploadMode mode) override;
