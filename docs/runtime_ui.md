@@ -51,7 +51,9 @@ Text and image geometry are cached until their inputs change. `LayoutUiText()` a
 
 `UiButton::OnClick`, `UiToggle::OnValueChanged` and `UiSlider::OnValueChanged` are signals. Keep
 the returned `SignalConnection` to stay subscribed. Buttons have normal, hovered, pressed,
-focused and disabled colors; all controls share `UiControlStyle`. Sliders have a range, keyboard
+focused and disabled colors; all controls share `UiControlStyle`. A style's `texture`, nine-sliced by its
+`borders` as `UiImage` does, replaces the flat rectangles a control draws, tinted with the state's color, so buttons
+can be rounded panels. Sliders have a range, keyboard
 step and horizontal/vertical orientation. Programmatic setters are silent unless `notify` is true.
 `UiWidget::HandleUiEvent()` permits code-only activation as well as input dispatch; callbacks
 are guarded and a throwing subscriber faults only its widget. Signal dispatch reuses snapshot

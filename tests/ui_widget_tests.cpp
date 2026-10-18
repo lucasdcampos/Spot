@@ -153,6 +153,20 @@ TEST_CASE("Scroll views offset children and inherit clipping through serializati
     CHECK(loaded.FindComponent<Spot::UiImage>()->tint == Spot::Color::Red);
 }
 
+TEST_CASE("UI control styles keep the nine-slice texture they draw with", "[ui][widgets]") {
+    Spot::Scene scene;
+    auto& button = scene.CreateEntity("Button").AddComponent<Spot::UiButton>();
+    button.style.borders = {6, 5, 4, 3};
+    button.style.hovered = Spot::Color::Red;
+    Spot::Scene loaded;
+    REQUIRE(loaded.LoadFromString(scene.SaveToString()));
+    const auto* copy = loaded.FindComponent<Spot::UiButton>();
+    REQUIRE(copy);
+    CHECK(copy->style.borders == Spot::Vector4{6, 5, 4, 3});
+    CHECK(copy->style.hovered == Spot::Color::Red);
+    CHECK_FALSE(copy->style.texture);
+}
+
 TEST_CASE("UI callbacks can destroy their entity safely", "[ui][widgets]") {
     Spot::Scene scene;
     auto& entity = scene.CreateEntity("Button");

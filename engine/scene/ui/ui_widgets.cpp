@@ -29,6 +29,16 @@ void Fill(Renderer2D& renderer, UiBounds bounds, Color color) {
     if (!bounds.IsEmpty())
         renderer.DrawQuad(bounds.GetCenter(), bounds.GetSize(), color);
 }
+// With the style's texture, nine-sliced, or flat without one.
+void Fill(Renderer2D& renderer, UiBounds bounds, Color color, const UiControlStyle& style, float scale) {
+    if (!style.texture) {
+        Fill(renderer, bounds, color);
+        return;
+    }
+    const Vector2 size{static_cast<float>(style.texture->GetWidth()), static_cast<float>(style.texture->GetHeight())};
+    for (const auto& quad : BuildUiNineSlice(bounds, size, style.borders, scale))
+        renderer.DrawQuad(quad.bounds.GetCenter(), quad.bounds.GetSize(), *style.texture, color, quad.region);
+}
 std::size_t Previous(std::string_view text, std::size_t caret) {
     if (caret == 0)
         return 0;
@@ -94,6 +104,8 @@ void UiControlStyle::Serialize(Archive& archive) {
     archive.Field("focused", focused);
     archive.Field("disabled", disabled);
     archive.Field("accent", accent);
+    archive.Field("texture", texture, {.tooltip = "Drawn tinted by the state's color instead of a flat rectangle"});
+    archive.Field("borders", borders, {.tooltip = "Its nine-slice borders: left, bottom, right, top, in its pixels"});
 }
 const UiLayoutEntry* UiWidget::GetLayout() const {
     const auto* system = GetScene().GetSystem<UiSystem>();
@@ -178,7 +190,7 @@ void UiText::Serialize(Archive& archive) {
 }
 
 void UiButton::DrawWidget(Renderer2D& renderer, const UiLayoutEntry& entry) {
-    Fill(renderer, entry.bounds, style.GetColor(GetUiState()));
+    Fill(renderer, entry.bounds, style.GetColor(GetUiState()), style, entry.scale);
 }
 void UiButton::OnUiEvent(const UiEvent& event) {
     if (event.type == UiEventType::Activate)
@@ -197,10 +209,10 @@ void UiToggle::SetValue(bool value, bool notify) {
         Notify([&] { OnValueChanged.Emit(m_value); });
 }
 void UiToggle::DrawWidget(Renderer2D& renderer, const UiLayoutEntry& entry) {
-    Fill(renderer, entry.bounds, style.GetColor(GetUiState()));
+    Fill(renderer, entry.bounds, style.GetColor(GetUiState()), style, entry.scale);
     if (m_value) {
         const Vector2 inset = entry.bounds.GetSize() * 0.2f;
-        Fill(renderer, {entry.bounds.min + inset, entry.bounds.max - inset}, style.accent);
+        Fill(renderer, {entry.bounds.min + inset, entry.bounds.max - inset}, style.accent, style, entry.scale);
     }
 }
 void UiToggle::OnUiEvent(const UiEvent& event) {
@@ -227,13 +239,13 @@ float UiSlider::GetFraction() const {
     return maximum > minimum ? std::clamp((m_value - minimum) / (maximum - minimum), 0.0f, 1.0f) : 0;
 }
 void UiSlider::DrawWidget(Renderer2D& renderer, const UiLayoutEntry& entry) {
-    Fill(renderer, entry.bounds, style.GetColor(GetUiState()));
+    Fill(renderer, entry.bounds, style.GetColor(GetUiState()), style, entry.scale);
     UiBounds fill = entry.bounds;
     if (vertical)
         fill.max.y = fill.min.y + fill.GetSize().y * GetFraction();
     else
         fill.max.x = fill.min.x + fill.GetSize().x * GetFraction();
-    Fill(renderer, fill, style.accent);
+    Fill(renderer, fill, style.accent, style, entry.scale);
 }
 void UiSlider::OnUiEvent(const UiEvent& event) {
     if (event.type == UiEventType::Adjust)
@@ -311,7 +323,7 @@ void UiInputField::OnUiEvent(const UiEvent& event) {
     m_caret = caret;
 }
 void UiInputField::DrawWidget(Renderer2D& renderer, const UiLayoutEntry& entry) {
-    Fill(renderer, entry.bounds, style.GetColor(GetUiState()));
+    Fill(renderer, entry.bounds, style.GetColor(GetUiState()), style, entry.scale);
     if (!font)
         return;
     const float scale = Positive(fontSize, 20) / font->GetPixelSize() * entry.scale;
@@ -374,7 +386,7 @@ UiBounds UiScrollView::GetContentBounds(UiBounds viewport, float scale) const {
     return {min, min + size};
 }
 void UiScrollView::DrawWidget(Renderer2D& renderer, const UiLayoutEntry& entry) {
-    Fill(renderer, entry.bounds, style.GetColor(GetUiState()));
+    Fill(renderer, entry.bounds, style.GetColor(GetUiState()), style, entry.scale);
 }
 void UiScrollView::OnUiEvent(const UiEvent& event) {
     if (event.type == UiEventType::Scroll || event.type == UiEventType::Adjust)

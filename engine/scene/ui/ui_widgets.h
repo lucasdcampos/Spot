@@ -46,6 +46,10 @@ struct UiControlStyle {
     Color focused = {0.2f, 0.35f, 0.5f, 1};
     Color disabled = {0.08f, 0.08f, 0.08f, 0.5f};
     Color accent = {0.2f, 0.65f, 0.9f, 1};
+    // Drawn, tinted with the state's color, instead of a flat rectangle: a rounded panel, for instance, nine-sliced
+    // by its borders (left, bottom, right, top, in its pixels) as UiImage does. The accent parts use it too.
+    AssetRef<Texture> texture;
+    Vector4 borders = {};
     Color GetColor(UiControlState state) const;
     void Serialize(Archive& archive);
 };
