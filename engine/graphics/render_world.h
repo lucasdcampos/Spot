@@ -51,6 +51,11 @@ struct RenderMeshObject {
 // Not for the scene's own use only: games keeping their objects elsewhere fill one the same way.
 class RenderWorld {
 public:
+    RenderWorld();
+    // Renderers keep what they made of a world under its id, so copies would be taken for it.
+    RenderWorld(const RenderWorld&) = delete;
+    RenderWorld& operator=(const RenderWorld&) = delete;
+
     // Invalid, after logging why, when the submesh is not one of the mesh's.
     RenderObjectId AddMesh(const RenderMeshDesc& desc);
     // False for objects no longer in the world.
@@ -66,6 +71,14 @@ public:
     // The id of each of GetMeshes(), in the same order.
     std::span<const RenderObjectId> GetMeshIds() const { return m_meshIds; }
 
+    // What renderers keeping the world on the GPU follow it by: an id no other world has, a version that changes
+    // when objects are added, removed or changed beyond their transform, or when a transform starts or stops
+    // mirroring, and for each of GetMeshes() the count of changes when it last changed, which GetChangeCount() is now.
+    std::uint64_t GetId() const { return m_id; }
+    std::uint64_t GetStructureVersion() const { return m_structureVersion; }
+    std::uint64_t GetChangeCount() const { return m_changeCount; }
+    std::span<const std::uint64_t> GetChangeStamps() const { return m_changeStamps; }
+
 private:
     struct Slot {
         std::uint32_t dense = 0;
@@ -78,6 +91,10 @@ private:
 
     std::vector<RenderMeshObject> m_meshes;
     std::vector<RenderObjectId> m_meshIds;
+    std::vector<std::uint64_t> m_changeStamps;
+    std::uint64_t m_id;
+    std::uint64_t m_structureVersion = 0;
+    std::uint64_t m_changeCount = 0;
     std::vector<Slot> m_slots;
     std::vector<std::uint32_t> m_freeSlots;
 };

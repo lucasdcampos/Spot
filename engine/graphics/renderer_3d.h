@@ -153,6 +153,13 @@ public:
 private:
     // The material's textures, in the order the mesh shader binds them after the shadow maps.
     using MaterialTextures = std::array<const Texture*, 5>;
+    // As the mesh shaders read each instance.
+    struct InstanceData {
+        Matrix4 model;
+        Matrix4 normalMatrix;
+        std::array<std::uint32_t, 4> skin;
+        Vector4 bounds;
+    };
 
     struct DrawCommand {
         const Mesh* mesh;
@@ -185,7 +192,47 @@ private:
         bool mirrored = false;
         std::uint32_t skinOffset = 0;
         std::uint32_t skinCount = 0;
+        // For a batch of a render world kept on the GPU: its instances, from the first on, which the shaders cull
+        // themselves. The command's bounds are then around all of them.
+        const Buffer* instanceBuffer = nullptr;
+        std::uint32_t instanceFirst = 0;
+        std::uint32_t instanceCount = 1;
+        // The batch's instances as uploaded, which shadow views cull one by one.
+        const InstanceData* instanceData = nullptr;
     };
+
+    // A render world as kept on the GPU: its objects' instances, in batches of those drawn the same way, so drawing
+    // it costs a command per batch, and only what changed is uploaded again.
+    struct WorldBatch {
+        const Mesh* mesh;
+        const Material* material;
+        std::uint32_t firstIndex;
+        std::uint32_t indexCount;
+        bool mirrored;
+        bool castsShadows;
+        std::uint32_t layer;
+        // Of its instances, in the world's buffer.
+        std::uint32_t first;
+        std::uint32_t count;
+        BoundingSphere bounds;
+        bool boundsChanged;
+    };
+    struct WorldCache {
+        std::uint64_t worldId = 0;
+        std::uint64_t structureVersion = 0;
+        std::uint64_t changeCount = 0;
+        bool built = false;
+        std::unique_ptr<Buffer> instances;
+        std::vector<InstanceData> instanceData;
+        // The world's object at each instance, and the instance of each object, or ~0 for those not drawn.
+        std::vector<std::uint32_t> objects;
+        std::vector<std::uint32_t> slots;
+        std::vector<std::uint32_t> batchOfInstance;
+        std::vector<WorldBatch> batches;
+        std::uint64_t lastDrawn = 0;
+    };
+    // Null when its buffer cannot be made, after logging why.
+    WorldCache* UpdateWorldCache(const RenderWorld& world);
 
     void AddCommand(const RenderMeshObject& object, const Material& material);
     void DrawShadows(Detail::SelectedLights& lights, Detail::ShadowUniforms& shadows);
@@ -272,6 +319,9 @@ private:
     Renderer3DConfig m_config;
 
     std::vector<DrawCommand> m_commands;
+    std::vector<std::unique_ptr<WorldCache>> m_worldCaches;
+    // Counts End() calls, so worlds no longer drawn are let go.
+    std::uint64_t m_endCount = 0;
     // What End() sorts the commands by, small enough to move around cheaply, and where they go once sorted.
     struct SortEntry {
         bool transparent;

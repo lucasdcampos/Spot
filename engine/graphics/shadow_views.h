@@ -53,6 +53,8 @@ public:
 
     // Whether a sphere may show in the view.
     bool Contains(Vector3 center, float radius) const;
+    // As shaders test them: a plane that is not tested rejects nothing.
+    const std::array<Vector4, 6>& GetPlanes() const { return m_planes; }
 
 private:
     std::array<Vector4, 6> m_planes;

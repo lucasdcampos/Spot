@@ -1,12 +1,16 @@
 // Draws the depth of meshes into a tile of a shadow map, as the light sees them.
 cbuffer View : register(b0, space1) {
     float4x4 viewProjection;
+    // The planes of the view, which batches culled here test their instances' bounds against.
+    float4 cullPlanes[6];
 };
 
 struct Instance {
     float4x4 model;
     float4x4 normalMatrix;
     uint4 skin;
+    // Around the mesh in world space: center and radius.
+    float4 bounds;
 };
 
 // The meshes' transforms, as the mesh shader reads them, and the view's casters, as indices into them.

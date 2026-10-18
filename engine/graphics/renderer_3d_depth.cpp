@@ -3,6 +3,7 @@
 #include "graphics/graphics_device.h"
 #include "graphics/render_context.h"
 #include "graphics/renderer_3d.h"
+#include "graphics/shadow_views.h"
 #include "shadow.frag.h"
 #include "shadow.vert.h"
 #include "shadow_cutout.frag.h"
@@ -69,7 +70,12 @@ const Texture* Renderer3D::RenderCameraDepth(RenderContext& context) {
     if (!m_cameraDepthOrder.empty()) {
         pass.BindVertexStorageBuffer(0, *m_instances);
         pass.BindVertexStorageBuffer(1, *m_cameraDepthIndices);
-        pass.PushVertexUniforms(0, m_viewProjection);
+        // The view, and its planes, which batches of render worlds are culled against in the shader.
+        struct {
+            Matrix4 viewProjection;
+            std::array<Vector4, 6> cullPlanes;
+        } view{m_viewProjection, Detail::Frustum(m_viewProjection).GetPlanes()};
+        pass.PushVertexUniforms(0, view);
         for (std::size_t i = 0; i < m_cameraDepthOrder.size(); ++i) {
             const auto& command = m_commands[m_cameraDepthOrder[i]];
             const bool cutout = command.alphaMode == AlphaMode::Cutout;
@@ -85,10 +91,17 @@ const Texture* Renderer3D::RenderCameraDepth(RenderContext& context) {
                 pass.BindFragmentTexture(0, command.textures[0] ? *command.textures[0] : *m_whiteTexture, *m_sampler);
                 pass.PushFragmentUniforms(0, Vector4{command.color.a, command.alphaCutoff, 0, 0});
             }
-            pass.PushVertexUniforms(1, std::array<std::uint32_t, 4>{static_cast<std::uint32_t>(i), 0, 0, 0});
             pass.BindVertexBuffer(0, command.mesh->GetVertexBuffer());
             pass.BindIndexBuffer(command.mesh->GetIndexBuffer(), IndexType::UInt32);
-            pass.DrawIndexed(command.indexCount, 1, command.firstIndex);
+            if (command.instanceBuffer) {
+                pass.BindVertexStorageBuffer(0, *command.instanceBuffer);
+                pass.PushVertexUniforms(1, std::array<std::uint32_t, 4>{command.instanceFirst, 1, 0, 0});
+                pass.DrawIndexed(command.indexCount, command.instanceCount, command.firstIndex);
+                pass.BindVertexStorageBuffer(0, *m_instances);
+            } else {
+                pass.PushVertexUniforms(1, std::array<std::uint32_t, 4>{static_cast<std::uint32_t>(i), 0, 0, 0});
+                pass.DrawIndexed(command.indexCount, 1, command.firstIndex);
+            }
         }
     }
     return m_cameraDepth.get();

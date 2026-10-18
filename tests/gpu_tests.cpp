@@ -2056,6 +2056,49 @@ TEST_CASE("Renderer3D leaves meshes out of the view out of its pass, and counts 
     CHECK(IsNear(render.At(16, 16), {255, 0, 0, 255}));
 }
 
+TEST_CASE("Renderer3D keeps render worlds on the GPU, in batches, and follows their changes", "[gpu]") {
+    RequireGpu();
+    Spot::Renderer3DStats first;
+    Spot::Renderer3DStats second;
+    const TargetRender render(
+        32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            REQUIRE(cube != nullptr);
+            const Spot::Material red{.baseColor = Spot::Color::Red};
+            const Spot::Material green{.baseColor = Spot::Color::Green};
+            Spot::RenderWorld world;
+            const auto a = world.AddMesh({.mesh = cube.get(), .material = &red});
+            // Three of the same look, one draw.
+            for (float x : {40.0f, 44.0f, 48.0f}) {
+                world.AddMesh(
+                    {.mesh = cube.get(), .material = &green, .transform = Spot::Matrix4::Translation({x, 0.0f, 0.0f})});
+            }
+            const auto b = world.GetMeshIds().back();
+            renderer.Begin(context, target, MakeFrontCamera());
+            renderer.DrawLight(FrontLight);
+            renderer.DrawWorld(world);
+            renderer.End();
+            first = renderer.GetStats();
+
+            // Only the moved instances go up again; the green one now hides where the red one was.
+            world.SetTransform(a, Spot::Matrix4::Translation({-40.0f, 0.0f, 0.0f}));
+            world.SetTransform(b, {});
+            renderer.Begin(context, target, MakeFrontCamera());
+            renderer.DrawLight(FrontLight);
+            renderer.DrawWorld(world);
+            renderer.End();
+            second = renderer.GetStats();
+        });
+    CHECK(first.drawCalls == 1);
+    CHECK(first.visibleMeshes == 1);
+    CHECK(first.culledMeshes == 3);
+    CHECK(second.drawCalls == 1);
+    CHECK(second.visibleMeshes == 3);
+    CHECK(second.culledMeshes == 1);
+    CHECK(IsNear(render.At(16, 16), {0, 255, 0, 255}));
+}
+
 TEST_CASE("Renderer3D draws meshes that look the same as instances of one draw, in every pass", "[gpu]") {
     RequireGpu();
     Spot::Renderer3DStats stats;

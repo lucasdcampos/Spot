@@ -37,6 +37,43 @@ namespace Spot {
 
 namespace {
 
+// The view, and its planes, which batches whose instances the shaders cull test them against.
+struct FrameUniforms {
+    Matrix4 viewProjection;
+    std::array<Vector4, 6> cullPlanes;
+};
+
+FrameUniforms MakeFrameUniforms(const Matrix4& viewProjection, bool ignoreNear = false) {
+    return {viewProjection, Detail::Frustum(viewProjection, ignoreNear).GetPlanes()};
+}
+
+// The most instances of a batch of a render world kept on the GPU: views leave out batches outside them whole, and
+// cull the instances of the others in the shaders, so smaller batches leave the GPU less to cull, larger ones the CPU
+// fewer draws.
+constexpr std::uint32_t WorldBatchSize = 128;
+
+// A sphere around the spheres.
+BoundingSphere Enclose(std::span<const BoundingSphere> spheres) {
+    if (spheres.empty()) {
+        return {};
+    }
+    Vector3 low = spheres[0].center;
+    Vector3 high = low;
+    for (const BoundingSphere& sphere : spheres) {
+        const Vector3 r{sphere.radius, sphere.radius, sphere.radius};
+        low = {std::min(low.x, sphere.center.x - r.x), std::min(low.y, sphere.center.y - r.y),
+               std::min(low.z, sphere.center.z - r.z)};
+        high = {std::max(high.x, sphere.center.x + r.x), std::max(high.y, sphere.center.y + r.y),
+                std::max(high.z, sphere.center.z + r.z)};
+    }
+    const Vector3 center = (low + high) * 0.5f;
+    float radius = 0.0f;
+    for (const BoundingSphere& sphere : spheres) {
+        radius = std::max(radius, Length(sphere.center - center) + sphere.radius);
+    }
+    return {center, radius};
+}
+
 // The inverse transpose of the model matrix's rotation and scale, which keeps normals perpendicular under non-uniform
 // scale: its cofactors, signed by its determinant, since the shader normalizes the normals anyway.
 Matrix4 GetNormalMatrix(const Matrix4& m) {
@@ -56,12 +93,6 @@ Matrix4 GetNormalMatrix(const Matrix4& m) {
 }
 
 // These mirror the shaders' buffers.
-struct InstanceData {
-    Matrix4 model;
-    Matrix4 normalMatrix;
-    std::array<std::uint32_t, 4> skin;
-};
-
 struct BatchUniforms {
     std::array<std::uint32_t, 4> firstInstance;
 };
@@ -513,7 +544,8 @@ void Renderer3D::End() {
     const Detail::Frustum view(m_viewProjection);
     for (DrawCommand& command : m_commands) {
         command.visible = view.Contains(command.bounds.center, command.bounds.radius);
-        ++(command.visible ? m_stats.visibleMeshes : m_stats.culledMeshes);
+        // A batch the shaders cull counts as seen whole, as far as the CPU can tell.
+        (command.visible ? m_stats.visibleMeshes : m_stats.culledMeshes) += command.instanceCount;
     }
     AssignLooks();
     Profiler::Count("Visible meshes", m_stats.visibleMeshes);
@@ -617,6 +649,9 @@ void Renderer3D::End() {
     Profiler::Count("Triangles", m_stats.triangleCount);
     Profiler::Count("Shadow draw calls", m_stats.shadowDrawCalls);
     m_context = nullptr;
+    ++m_endCount;
+    // Worlds not drawn for a while are let go, with their buffers.
+    std::erase_if(m_worldCaches, [this](const auto& cache) { return m_endCount - cache->lastDrawn > 120; });
 }
 
 void Renderer3D::DrawLight(const LightData& light) {
@@ -649,12 +684,206 @@ void Renderer3D::DrawWorld(const RenderWorld& world) {
     SPOT_PROFILE_SCOPE("Renderer3D::DrawWorld");
     static const Material DefaultMaterial;
     const std::span<const RenderMeshObject> objects = world.GetMeshes();
-    m_commands.reserve(m_commands.size() + objects.size());
-    for (const RenderMeshObject& object : objects) {
-        if (object.desc.mesh && ((m_camera.cullingMask >> object.desc.layer) & 1u)) {
-            AddCommand(object, object.desc.material ? *object.desc.material : DefaultMaterial);
+    const auto sees = [this](std::uint32_t layer) { return ((m_camera.cullingMask >> layer) & 1u) != 0; };
+    WorldCache* cache = UpdateWorldCache(world);
+    if (!cache) {
+        for (const RenderMeshObject& object : objects) {
+            if (object.desc.mesh && sees(object.desc.layer)) {
+                AddCommand(object, object.desc.material ? *object.desc.material : DefaultMaterial);
+            }
+        }
+        return;
+    }
+    for (const WorldBatch& batch : cache->batches) {
+        if (!sees(batch.layer)) {
+            continue;
+        }
+        const Material& material = batch.material ? *batch.material : DefaultMaterial;
+        // Transparent surfaces are drawn one by one, from the farthest, so each blends over what is behind it.
+        if (material.alphaMode == AlphaMode::Transparent) {
+            for (std::uint32_t i = batch.first; i < batch.first + batch.count; ++i) {
+                AddCommand(objects[cache->objects[i]], material);
+            }
+            continue;
+        }
+        const RenderMeshObject proxy{.desc = {.mesh = batch.mesh, .castsShadows = batch.castsShadows},
+                                     .bounds = batch.bounds,
+                                     .mirrored = batch.mirrored,
+                                     .firstIndex = batch.firstIndex,
+                                     .indexCount = batch.indexCount};
+        AddCommand(proxy, material);
+        DrawCommand& command = m_commands.back();
+        command.instanceBuffer = cache->instances.get();
+        command.instanceData = cache->instanceData.data();
+        command.instanceFirst = batch.first;
+        command.instanceCount = batch.count;
+    }
+}
+
+Renderer3D::WorldCache* Renderer3D::UpdateWorldCache(const RenderWorld& world) {
+    SPOT_PROFILE_SCOPE("Renderer3D::UpdateWorldCache");
+    auto found =
+        std::ranges::find_if(m_worldCaches, [&](const auto& cache) { return cache->worldId == world.GetId(); });
+    if (found == m_worldCaches.end()) {
+        m_worldCaches.push_back(std::make_unique<WorldCache>());
+        m_worldCaches.back()->worldId = world.GetId();
+        found = m_worldCaches.end() - 1;
+    }
+    WorldCache& cache = **found;
+    cache.lastDrawn = m_endCount;
+    const std::span<const RenderMeshObject> objects = world.GetMeshes();
+    const auto makeInstance = [](const RenderMeshObject& object) {
+        return InstanceData{object.desc.transform,
+                            GetNormalMatrix(object.desc.transform),
+                            {},
+                            ToVector4(object.bounds.center, object.bounds.radius)};
+    };
+
+    if (!cache.built || cache.structureVersion != world.GetStructureVersion()) {
+        // Objects drawn the same way go side by side, as one batch.
+        cache.objects.clear();
+        for (std::uint32_t i = 0; i < objects.size(); ++i) {
+            if (objects[i].desc.mesh && objects[i].indexCount > 0) {
+                cache.objects.push_back(i);
+            }
+        }
+        const auto key = [&](std::uint32_t index) {
+            const RenderMeshObject& o = objects[index];
+            return std::make_tuple(o.desc.layer, reinterpret_cast<std::uintptr_t>(o.desc.material),
+                                   reinterpret_cast<std::uintptr_t>(o.desc.mesh), o.firstIndex, o.indexCount,
+                                   o.mirrored, o.desc.castsShadows);
+        };
+        // Within those, near ones go together, so each batch covers a small part of the world that views can leave
+        // out whole: they are ordered along a Morton curve through the world's bounds, and cut every BatchSize.
+        Vector3 low{};
+        Vector3 high{};
+        for (std::size_t i = 0; i < cache.objects.size(); ++i) {
+            const Vector3 c = objects[cache.objects[i]].bounds.center;
+            low = i == 0 ? c : Vector3{std::min(low.x, c.x), std::min(low.y, c.y), std::min(low.z, c.z)};
+            high = i == 0 ? c : Vector3{std::max(high.x, c.x), std::max(high.y, c.y), std::max(high.z, c.z)};
+        }
+        const auto spread = [](std::uint32_t v) {
+            std::uint32_t x = v & 0x3FFu;
+            x = (x | (x << 16)) & 0x030000FFu;
+            x = (x | (x << 8)) & 0x0300F00Fu;
+            x = (x | (x << 4)) & 0x030C30C3u;
+            x = (x | (x << 2)) & 0x09249249u;
+            return x;
+        };
+        const auto morton = [&](std::uint32_t index) {
+            const Vector3 c = objects[index].bounds.center;
+            const auto cell = [](float value, float from, float to) {
+                const float t = to > from ? (value - from) / (to - from) : 0.0f;
+                return static_cast<std::uint32_t>(std::clamp(t, 0.0f, 1.0f) * 1023.0f);
+            };
+            return spread(cell(c.x, low.x, high.x)) | (spread(cell(c.y, low.y, high.y)) << 1) |
+                   (spread(cell(c.z, low.z, high.z)) << 2);
+        };
+        std::vector<std::uint32_t> codes(objects.size());
+        for (const std::uint32_t index : cache.objects) {
+            codes[index] = morton(index);
+        }
+        std::ranges::sort(cache.objects, [&](std::uint32_t a, std::uint32_t b) {
+            const auto ka = key(a);
+            const auto kb = key(b);
+            return ka != kb ? ka < kb : codes[a] < codes[b];
+        });
+        cache.slots.assign(objects.size(), ~0u);
+        cache.instanceData.clear();
+        cache.instanceData.reserve(cache.objects.size());
+        cache.batchOfInstance.resize(cache.objects.size());
+        cache.batches.clear();
+        for (std::uint32_t i = 0; i < cache.objects.size(); ++i) {
+            const std::uint32_t index = cache.objects[i];
+            const RenderMeshObject& object = objects[index];
+            cache.slots[index] = i;
+            cache.instanceData.push_back(makeInstance(object));
+            if (cache.batches.empty() || cache.batches.back().count == WorldBatchSize ||
+                key(cache.objects[cache.batches.back().first]) != key(index)) {
+                cache.batches.push_back({.mesh = object.desc.mesh,
+                                         .material = object.desc.material,
+                                         .firstIndex = object.firstIndex,
+                                         .indexCount = object.indexCount,
+                                         .mirrored = object.mirrored,
+                                         .castsShadows = object.desc.castsShadows,
+                                         .layer = object.desc.layer,
+                                         .first = i,
+                                         .count = 0,
+                                         .bounds = {},
+                                         .boundsChanged = true});
+            }
+            ++cache.batches.back().count;
+            cache.batchOfInstance[i] = static_cast<std::uint32_t>(cache.batches.size() - 1);
+        }
+        const auto size =
+            static_cast<std::uint32_t>(std::max<std::size_t>(cache.instanceData.size(), 1) * sizeof(InstanceData));
+        if (!cache.instances || cache.instances->GetSize() < size) {
+            std::uint32_t capacity = 64 * sizeof(InstanceData);
+            while (capacity < size) {
+                capacity *= 2;
+            }
+            cache.instances = m_device->CreateBuffer({.usage = BufferUsage::Storage, .size = capacity});
+        }
+        if (!cache.instances) {
+            cache.built = false;
+            return nullptr;
+        }
+        if (!cache.instanceData.empty()) {
+            m_device->UploadToBuffer(*cache.instances, std::span<const InstanceData>(cache.instanceData), 0,
+                                     UploadMode::Discard);
+        }
+        cache.built = true;
+        cache.structureVersion = world.GetStructureVersion();
+    } else if (cache.changeCount != world.GetChangeCount()) {
+        // Only the instances that moved go up again, in runs of neighbors.
+        const std::span<const std::uint64_t> stamps = world.GetChangeStamps();
+        std::vector<std::uint32_t> changed;
+        for (std::uint32_t i = 0; i < stamps.size(); ++i) {
+            if (stamps[i] > cache.changeCount && cache.slots[i] != ~0u) {
+                const std::uint32_t slot = cache.slots[i];
+                cache.instanceData[slot] = makeInstance(objects[i]);
+                cache.batches[cache.batchOfInstance[slot]].boundsChanged = true;
+                changed.push_back(slot);
+            }
+        }
+        std::ranges::sort(changed);
+        constexpr std::size_t MaxRuns = 64;
+        std::size_t runs = 0;
+        for (std::size_t i = 0; i < changed.size() && runs <= MaxRuns; ++i) {
+            runs += i == 0 || changed[i] != changed[i - 1] + 1 ? 1 : 0;
+        }
+        if (runs > MaxRuns) {
+            m_device->UploadToBuffer(*cache.instances, std::span<const InstanceData>(cache.instanceData), 0,
+                                     UploadMode::Preserve);
+        } else {
+            for (std::size_t first = 0; first < changed.size();) {
+                std::size_t end = first + 1;
+                while (end < changed.size() && changed[end] == changed[end - 1] + 1) {
+                    ++end;
+                }
+                m_device->UploadToBuffer(
+                    *cache.instances,
+                    std::span<const InstanceData>(cache.instanceData.data() + changed[first], end - first),
+                    static_cast<std::uint32_t>(changed[first] * sizeof(InstanceData)), UploadMode::Preserve);
+                first = end;
+            }
         }
     }
+    cache.changeCount = world.GetChangeCount();
+
+    std::vector<BoundingSphere> spheres;
+    for (WorldBatch& batch : cache.batches) {
+        if (!batch.boundsChanged) {
+            continue;
+        }
+        spheres.clear();
+        for (std::uint32_t i = batch.first; i < batch.first + batch.count; ++i) {
+            spheres.push_back(objects[cache.objects[i]].bounds);
+        }
+        batch.bounds = Enclose(spheres);
+        batch.boundsChanged = false;
+    }
+    return &cache;
 }
 
 void Renderer3D::AddCommand(const RenderMeshObject& object, const Material& material) {
@@ -828,7 +1057,11 @@ void Renderer3D::DrawShadows(Detail::SelectedLights& lights, Detail::ShadowUnifo
     // room for every view to draw every caster, so it never has to grow while draws refer to it, and starts in fresh
     // memory, so views drawn by an earlier End() in the frame keep their own.
     m_frameCasters.clear();
-    const std::size_t maxCasters = (Detail::MaxShadowCascades + MaxShadowTiles) * m_shadowOrder.size() + 1;
+    std::size_t shadowInstances = 0;
+    for (const std::uint32_t index : m_shadowOrder) {
+        shadowInstances += m_commands[index].instanceCount;
+    }
+    const std::size_t maxCasters = (Detail::MaxShadowCascades + MaxShadowTiles) * shadowInstances + 1;
     if (!m_shadowCasters || m_shadowCasters->GetSize() < maxCasters * sizeof(std::uint32_t)) {
         m_shadowCasters = m_device->CreateBuffer(
             {.usage = BufferUsage::Storage, .size = static_cast<std::uint32_t>(maxCasters * sizeof(std::uint32_t))});
@@ -980,15 +1213,16 @@ namespace {
 
 // Whether the two commands draw the same mesh the same way, so they can be instances of one draw.
 bool HaveSameLook(const auto& a, const auto& b) {
-    return a.mesh == b.mesh && a.firstIndex == b.firstIndex && a.indexCount == b.indexCount && a.look == b.look &&
-           a.mirrored == b.mirrored && (a.skinCount != 0) == (b.skinCount != 0);
+    return !a.instanceBuffer && !b.instanceBuffer && a.mesh == b.mesh && a.firstIndex == b.firstIndex &&
+           a.indexCount == b.indexCount && a.look == b.look && a.mirrored == b.mirrored &&
+           (a.skinCount != 0) == (b.skinCount != 0);
 }
 
 // Whether the two commands cast the same shadow but for their transforms: depth alone, or cut out the same way.
 bool HaveSameShadow(const auto& a, const auto& b) {
-    if ((a.skinCount != 0) != (b.skinCount != 0) || a.mesh != b.mesh || a.firstIndex != b.firstIndex ||
-        a.indexCount != b.indexCount || a.doubleSided != b.doubleSided || a.mirrored != b.mirrored ||
-        a.alphaMode != b.alphaMode) {
+    if (a.instanceBuffer || b.instanceBuffer || (a.skinCount != 0) != (b.skinCount != 0) || a.mesh != b.mesh ||
+        a.firstIndex != b.firstIndex || a.indexCount != b.indexCount || a.doubleSided != b.doubleSided ||
+        a.mirrored != b.mirrored || a.alphaMode != b.alphaMode) {
         return false;
     }
     return a.alphaMode != AlphaMode::Cutout || a.look == b.look;
@@ -1085,8 +1319,10 @@ bool Renderer3D::UploadInstances() {
     std::vector<InstanceData> instances;
     instances.reserve(m_commands.size());
     for (const DrawCommand& command : m_commands) {
-        instances.push_back(
-            {command.transform, GetNormalMatrix(command.transform), {command.skinOffset, command.skinCount, 0, 0}});
+        instances.push_back({command.transform,
+                             GetNormalMatrix(command.transform),
+                             {command.skinOffset, command.skinCount, 0, 0},
+                             ToVector4(command.bounds.center, command.bounds.radius)});
     }
     return UploadStorage(*m_device, m_instances, instances) && UploadStorage(*m_device, m_palettes, m_paletteData);
 }
@@ -1101,17 +1337,22 @@ void Renderer3D::DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjecti
     // The view's casters go after those of the views drawn before, in one list that DrawShadows() uploads once.
     const Detail::Frustum frustum(viewProjection, ignoreNear);
     const std::size_t viewStart = m_frameCasters.size();
+    bool worldCasters = false;
     for (const std::uint32_t index : m_shadowOrder) {
         const DrawCommand& command = m_commands[index];
         if (frustum.Contains(command.bounds.center, command.bounds.radius)) {
-            m_frameCasters.push_back(index);
+            if (command.instanceBuffer) {
+                worldCasters = true;
+            } else {
+                m_frameCasters.push_back(index);
+            }
         }
     }
     const std::span<const std::uint32_t> casters(m_frameCasters.data() + viewStart, m_frameCasters.size() - viewStart);
-    if (casters.empty()) {
+    if (casters.empty() && !worldCasters) {
         return;
     }
-    pass.PushVertexUniforms(0, viewProjection);
+    pass.PushVertexUniforms(0, MakeFrameUniforms(viewProjection, ignoreNear));
     pass.BindVertexStorageBuffer(0, *m_instances);
     pass.BindVertexStorageBuffer(1, *m_shadowCasters);
     const Pipeline* boundPipeline = nullptr;
@@ -1147,6 +1388,47 @@ void Renderer3D::DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjecti
         pass.DrawIndexed(command.indexCount, static_cast<std::uint32_t>(end - first), command.firstIndex);
         ++m_stats.shadowDrawCalls;
         first = end;
+    }
+    if (!worldCasters) {
+        return;
+    }
+    // Batches of worlds the view reaches are culled instance by instance into the casters, as those cast into small
+    // views, such as a point light's, are mostly out of them.
+    for (const std::uint32_t index : m_shadowOrder) {
+        const DrawCommand& command = m_commands[index];
+        if (!command.instanceBuffer || !frustum.Contains(command.bounds.center, command.bounds.radius)) {
+            continue;
+        }
+        const auto batchStart = static_cast<std::uint32_t>(m_frameCasters.size());
+        for (std::uint32_t i = command.instanceFirst; i < command.instanceFirst + command.instanceCount; ++i) {
+            const Vector4& bounds = command.instanceData[i].bounds;
+            if (frustum.Contains({bounds.x, bounds.y, bounds.z}, bounds.w)) {
+                m_frameCasters.push_back(i);
+            }
+        }
+        const auto visible = static_cast<std::uint32_t>(m_frameCasters.size()) - batchStart;
+        if (visible == 0) {
+            continue;
+        }
+        const Pipeline* pipeline = GetShadowPipeline(command);
+        if (pipeline != boundPipeline) {
+            pass.BindPipeline(*pipeline);
+            boundPipeline = pipeline;
+        }
+        if (command.alphaMode == AlphaMode::Cutout) {
+            const Texture* texture = command.textures[0] ? command.textures[0] : m_whiteTexture.get();
+            if (texture != boundTexture) {
+                pass.BindFragmentTexture(0, *texture, *m_sampler);
+                boundTexture = texture;
+            }
+            pass.PushFragmentUniforms(0, Vector4{command.color.a, command.alphaCutoff, 0.0f, 0.0f});
+        }
+        pass.BindVertexStorageBuffer(0, *command.instanceBuffer);
+        pass.BindVertexBuffer(0, command.mesh->GetVertexBuffer());
+        pass.BindIndexBuffer(command.mesh->GetIndexBuffer(), IndexType::UInt32);
+        pass.PushVertexUniforms(1, BatchUniforms{{batchStart, 0, 0, 0}});
+        pass.DrawIndexed(command.indexCount, visible, command.firstIndex);
+        ++m_stats.shadowDrawCalls;
     }
 }
 
@@ -1190,7 +1472,7 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
         return;
     }
 
-    pass.PushVertexUniforms(0, m_viewProjection);
+    pass.PushVertexUniforms(0, MakeFrameUniforms(m_viewProjection));
     const Vector3 forward = m_camera.GetForward();
     const LightingUniforms lighting{
         .ambient = lights.ambient,
@@ -1213,6 +1495,7 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
     pass.BindFragmentTexture(8, m_skyLit ? *m_skyIrradiance : *m_noSkyIrradiance, *m_skySampler);
 
     pass.BindVertexStorageBuffer(0, *m_instances);
+    const Buffer* boundInstances = m_instances.get();
     const Pipeline* boundPipeline = nullptr;
     MaterialTextures boundTextures{};
     const Mesh* boundMesh = nullptr;
@@ -1274,11 +1557,22 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
             pass.BindIndexBuffer(command.mesh->GetIndexBuffer(), IndexType::UInt32);
             boundMesh = command.mesh;
         }
-        pass.PushVertexUniforms(1, BatchUniforms{{static_cast<std::uint32_t>(first), 0, 0, 0}});
-        pass.DrawIndexed(command.indexCount, instanceCount, command.firstIndex);
+        const Buffer* instanceBuffer = command.instanceBuffer ? command.instanceBuffer : m_instances.get();
+        if (instanceBuffer != boundInstances) {
+            pass.BindVertexStorageBuffer(0, *instanceBuffer);
+            boundInstances = instanceBuffer;
+        }
+        if (command.instanceBuffer) {
+            pass.PushVertexUniforms(1, BatchUniforms{{command.instanceFirst, 1, 0, 0}});
+            pass.DrawIndexed(command.indexCount, command.instanceCount, command.firstIndex);
+        } else {
+            pass.PushVertexUniforms(1, BatchUniforms{{static_cast<std::uint32_t>(first), 0, 0, 0}});
+            pass.DrawIndexed(command.indexCount, instanceCount, command.firstIndex);
+        }
 
         ++m_stats.drawCalls;
-        m_stats.triangleCount += command.indexCount / 3 * instanceCount;
+        m_stats.triangleCount +=
+            command.indexCount / 3 * (command.instanceBuffer ? command.instanceCount : instanceCount);
         first = end;
     }
 }

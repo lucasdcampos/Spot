@@ -1,5 +1,7 @@
 cbuffer Frame : register(b0, space1) {
     float4x4 viewProjection;
+    // The planes of the view, which batches culled here test their instances' bounds against.
+    float4 cullPlanes[6];
 };
 
 struct Instance {
@@ -8,6 +10,8 @@ struct Instance {
     // element is -1 for transforms that mirror.
     float4x4 normalMatrix;
     uint4 skin;
+    // Around the mesh in world space: center and radius.
+    float4 bounds;
 };
 
 // Every mesh drawn by the frame's passes; an instanced draw reads its instances from the first of its batch on.

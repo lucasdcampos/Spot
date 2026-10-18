@@ -239,6 +239,16 @@ when drawn, so edits to them show at once. Objects are kept side by side and ids
 keeping its objects elsewhere, such as in an ECS, fills one the same way. Skinned meshes, whose poses change every
 frame, are still handed over each frame with `DrawSkinnedMesh()`.
 
+Renderers keep each world they draw on the GPU: its instances in a buffer of their own, in batches of up to 128
+objects drawn the same way (same layer, material, mesh and range, mirroring and shadows) and near each other, along a
+Morton curve through the world. A frame then costs the CPU a command per batch, not per object: views leave out the
+batches they cannot see, and the mesh shaders cull the instances of the others against the view (`Instance::bounds`
+and the frame's `cullPlanes`), drawing those outside as nothing. Shadow views cull the instances of the batches they
+reach on the CPU into their casters, since small views, such as a point light's faces, see few of them. Only what
+changed goes up again, in runs of neighbors, as the world's change stamps tell; adding, removing or restyling objects
+rebuilds the batches. Transparent materials are drawn object by object, sorted, as `DrawMesh()` does, and a renderer
+lets go of worlds it has not drawn for 120 frames. A batch the CPU keeps counts whole in `visibleMeshes`.
+
 Scenes keep theirs in a `RenderWorldSystem` (`engine/scene/rendering/render_world_system.h`), which `DrawScene()`
 creates and syncs: it visits the scene's `MeshRenderer`s, and takes from each only what changed since the last sync,
 as `Transform::GetVersion()` (which changes when the transform or an ancestor moves) and the renderer's own changes

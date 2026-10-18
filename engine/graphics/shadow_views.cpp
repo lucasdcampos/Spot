@@ -115,6 +115,9 @@ Frustum::Frustum(const Matrix4& viewProjection, bool ignoreNear) : m_planeCount(
         // Degenerate planes reject nothing.
         plane = length > 0.0f ? plane * (1.0f / length) : Vector4{0.0f, 0.0f, 0.0f, 1.0f};
     }
+    if (ignoreNear) {
+        m_planes[5] = {0.0f, 0.0f, 0.0f, 1.0f};
+    }
 }
 
 bool Frustum::Contains(Vector3 center, float radius) const {

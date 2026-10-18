@@ -3,6 +3,7 @@
 #include "core/log.h"
 
 #include <algorithm>
+#include <atomic>
 #include <utility>
 
 namespace Spot {
@@ -52,6 +53,11 @@ bool Detail::MakeMeshObject(const RenderMeshDesc& desc, RenderMeshObject& object
     return true;
 }
 
+RenderWorld::RenderWorld() {
+    static std::atomic<std::uint64_t> nextId = 1;
+    m_id = nextId++;
+}
+
 RenderObjectId RenderWorld::AddMesh(const RenderMeshDesc& desc) {
     RenderMeshObject object;
     if (!Detail::MakeMeshObject(desc, object)) {
@@ -72,6 +78,8 @@ RenderObjectId RenderWorld::AddMesh(const RenderMeshDesc& desc) {
     const RenderObjectId id = MakeId(slot, entry.generation);
     m_meshes.push_back(object);
     m_meshIds.push_back(id);
+    m_changeStamps.push_back(++m_changeCount);
+    ++m_structureVersion;
     return id;
 }
 
@@ -87,6 +95,8 @@ bool RenderWorld::UpdateMesh(RenderObjectId id, const RenderMeshDesc& desc) {
         object.desc.mesh = nullptr;
     }
     m_meshes[slot->dense] = object;
+    m_changeStamps[slot->dense] = ++m_changeCount;
+    ++m_structureVersion;
     return true;
 }
 
@@ -95,9 +105,15 @@ bool RenderWorld::SetTransform(RenderObjectId id, const Matrix4& transform) {
     if (!slot) {
         return false;
     }
-    RenderMeshDesc desc = m_meshes[slot->dense].desc;
+    RenderMeshObject& object = m_meshes[slot->dense];
+    const bool mirrored = object.mirrored;
+    RenderMeshDesc desc = object.desc;
     desc.transform = transform;
-    Detail::MakeMeshObject(desc, m_meshes[slot->dense]);
+    Detail::MakeMeshObject(desc, object);
+    m_changeStamps[slot->dense] = ++m_changeCount;
+    if (object.mirrored != mirrored) {
+        ++m_structureVersion;
+    }
     return true;
 }
 
@@ -111,8 +127,11 @@ void RenderWorld::Remove(RenderObjectId id) {
     const RenderObjectId moved = m_meshIds.back();
     m_meshes[dense] = m_meshes.back();
     m_meshIds[dense] = moved;
+    m_changeStamps[dense] = m_changeStamps.back();
     m_meshes.pop_back();
     m_meshIds.pop_back();
+    m_changeStamps.pop_back();
+    ++m_structureVersion;
     m_slots[static_cast<std::uint32_t>(static_cast<std::uint64_t>(moved))].dense = dense;
     slot->used = false;
     m_freeSlots.push_back(static_cast<std::uint32_t>(static_cast<std::uint64_t>(id)));
@@ -135,6 +154,8 @@ void RenderWorld::Clear() {
     }
     m_meshes.clear();
     m_meshIds.clear();
+    m_changeStamps.clear();
+    ++m_structureVersion;
 }
 
 RenderWorld::Slot* RenderWorld::FindSlot(RenderObjectId id) {
