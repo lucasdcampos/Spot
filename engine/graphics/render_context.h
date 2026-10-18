@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <string_view>
 #include <type_traits>
 #include <vector>
 
@@ -179,6 +180,12 @@ public:
     // Makes every mip level of a texture after the first from the one before it, for render targets drawn at their
     // first level. Not during a render pass.
     void GenerateMipmaps(Texture& texture);
+
+    // Measures how long the GPU takes over what is recorded until the matching EndGpuTimer(), such as a few passes,
+    // where GraphicsCapabilities::timestamps says so; GraphicsDevice::GetGpuTimings() reads them once the frame is
+    // done. Timers nest, and begin and end between passes.
+    void BeginGpuTimer(std::string_view name);
+    void EndGpuTimer();
 
     // The backend's command buffer (an SDL_GPUCommandBuffer* with SDL_GPU), for code that needs the backend directly.
     void* GetNativeHandle() const;

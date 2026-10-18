@@ -3,6 +3,7 @@
 // Backend-internal definitions shared by the NVRHI sources. NVRHI runs the device; the Vulkan instance, device and
 // swapchain it needs are made in nvrhi_vulkan.cpp.
 
+#include "core/assert.h"
 #include "graphics/graphics_backend.h"
 
 #include <nvrhi/nvrhi.h>
@@ -157,6 +158,8 @@ public:
     bool SetFrameTarget(Texture* target) override;
     bool BlitTextureToFrame(const Texture& source) override;
     void GenerateMipmaps(Texture& texture) override;
+    void BeginGpuTimer(std::string_view name) override;
+    void EndGpuTimer() override;
     void* GetNativeHandle() const override { return commandList.Get(); }
 
     nvrhi::IDevice* device = nullptr;
@@ -181,6 +184,12 @@ public:
     void RecordMipmaps(nvrhi::ICommandList& commands, Texture& texture);
     // Ends a frame for the caches, forgetting what was not used in the last frames.
     void FinishFrame();
+    // Reads the timers of the frame in flight slot, which the GPU finished, and readies the slot for a new frame.
+    void CollectTimers(std::size_t slot, std::vector<GpuTiming>& timings);
+    void CheckTimersEnded() const {
+        SPOT_ASSERT(m_timers[frameSlot].open.empty(), "A GPU timer is still open at the end of the frame");
+    }
+    std::size_t frameSlot = 0;
     // Lets go of everything the context holds of the device, before the device goes.
     void Release();
 
@@ -213,6 +222,15 @@ private:
     std::array<nvrhi::BindingLayoutHandle, 3> m_mipLayouts;
     nvrhi::SamplerHandle m_mipSampler;
     std::unordered_map<std::uint32_t, nvrhi::GraphicsPipelineHandle> m_mipPipelines;
+
+    // The timers of each frame in flight, their queries kept from frame to frame.
+    struct FrameTimers {
+        std::vector<nvrhi::TimerQueryHandle> queries;
+        std::vector<GpuTiming> timings;
+        std::size_t used = 0;
+        std::vector<std::size_t> open;
+    };
+    std::array<FrameTimers, 2> m_timers;
 };
 
 class NvrhiDevice final : public GraphicsDevice::Impl {
@@ -222,6 +240,7 @@ public:
     ~NvrhiDevice() override;
 
     std::string_view GetBackendName() const override { return "vulkan (nvrhi)"; }
+    const std::vector<GpuTiming>& GetGpuTimings() const override { return m_timings; }
     const GraphicsCapabilities& GetCapabilities() const override { return m_capabilities; }
     std::unique_ptr<Shader> CreateShader(const ShaderDesc& desc) override;
     std::unique_ptr<Pipeline> CreatePipeline(const PipelineDesc& desc) override;
@@ -253,6 +272,7 @@ private:
 
     std::shared_ptr<NvrhiShared> m_shared;
     GraphicsCapabilities m_capabilities;
+    std::vector<GpuTiming> m_timings;
     VulkanSurface* m_vulkan;
     nvrhi::vulkan::IDevice* m_vulkanDevice;
     nvrhi::IDevice* m_device;

@@ -220,6 +220,7 @@ int Application::Run() {
         if (m_graphics) {
             SPOT_PROFILE_SCOPE("Application::Render");
             if (RenderContext* context = m_graphics->BeginFrame()) {
+                context->BeginGpuTimer("Frame");
                 const bool screenshot = PrepareScreenshot(*context);
                 m_persistentScene->PrepareToRender();
                 for (const auto& scene : m_scenes) {
@@ -239,9 +240,16 @@ int Application::Run() {
                     context->SetFrameTarget(nullptr);
                     context->BlitTextureToFrame(*m_screenshotTexture);
                 }
+                context->EndGpuTimer();
                 {
                     SPOT_PROFILE_SCOPE("GraphicsDevice::EndFrame");
                     m_graphics->EndFrame();
+                }
+                // The GPU times of the latest frame the GPU finished, as counters in milliseconds.
+                if (Profiler::IsEnabled()) {
+                    for (const GpuTiming& timing : m_graphics->GetGpuTimings()) {
+                        Profiler::Count(Profiler::Intern("GPU " + timing.name + " (ms)"), timing.milliseconds);
+                    }
                 }
                 if (screenshot) {
                     const bool saved = SaveScreenshot(*m_graphics, *m_screenshotTexture, m_screenshotPath);

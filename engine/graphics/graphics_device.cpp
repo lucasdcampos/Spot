@@ -209,6 +209,10 @@ const GraphicsCapabilities& GraphicsDevice::GetCapabilities() const {
     return m_impl->GetCapabilities();
 }
 
+const std::vector<GpuTiming>& GraphicsDevice::GetGpuTimings() const {
+    return m_impl->GetGpuTimings();
+}
+
 TextureFormat GraphicsDevice::GetWindowFormat() const {
     return m_impl->GetWindowFormat();
 }
@@ -324,6 +328,18 @@ bool RenderContext::BlitTextureToFrame(const Texture& source) {
 
 void RenderContext::GenerateMipmaps(Texture& texture) {
     m_impl->GenerateMipmaps(texture);
+}
+
+void RenderContext::BeginGpuTimer(std::string_view name) {
+    if (m_capabilities->timestamps) {
+        m_impl->BeginGpuTimer(name);
+    }
+}
+
+void RenderContext::EndGpuTimer() {
+    if (m_capabilities->timestamps) {
+        m_impl->EndGpuTimer();
+    }
 }
 
 void* RenderContext::GetNativeHandle() const {

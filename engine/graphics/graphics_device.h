@@ -12,6 +12,7 @@
 #include <memory>
 #include <ranges>
 #include <span>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -65,6 +66,14 @@ struct GraphicsCapabilities {
     bool bindlessTextures = false;
 };
 
+// How long the GPU took over the work between RenderContext::BeginGpuTimer() and EndGpuTimer().
+struct GpuTiming {
+    std::string name;
+    double milliseconds = 0.0;
+    // How many timers it was nested in.
+    std::uint32_t depth = 0;
+};
+
 class GraphicsDevice {
 public:
     // Whether this machine has a GPU and driver the backend can use.
@@ -83,6 +92,9 @@ public:
     // The graphics API in use, such as "vulkan", "direct3d12" or "metal".
     std::string_view GetBackendName() const;
     const GraphicsCapabilities& GetCapabilities() const;
+    // The GPU timers of the latest frame the GPU finished, a frame or two behind the one being recorded, in the order
+    // they began. Empty where GraphicsCapabilities::timestamps is off.
+    const std::vector<GpuTiming>& GetGpuTimings() const;
 
     // Resources may outlive the device; they keep the backend alive until they are destroyed.
     // Each returns null, after logging why, when the backend rejects the description.

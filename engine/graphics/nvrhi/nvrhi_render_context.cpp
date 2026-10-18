@@ -417,6 +417,42 @@ nvrhi::IFramebuffer* NvrhiContext::GetFramebuffer(const nvrhi::FramebufferDesc& 
     return handle;
 }
 
+void NvrhiContext::BeginGpuTimer(std::string_view name) {
+    SPOT_ASSERT(frameOpen && !passOpen, "GPU timers begin in a frame, between passes");
+    FrameTimers& timers = m_timers[frameSlot];
+    if (timers.used == timers.queries.size()) {
+        timers.queries.push_back(device->createTimerQuery());
+        timers.timings.emplace_back();
+    }
+    const std::size_t index = timers.used++;
+    timers.timings[index] = {std::string(name), 0.0, static_cast<std::uint32_t>(timers.open.size())};
+    timers.open.push_back(index);
+    commandList->beginTimerQuery(timers.queries[index]);
+}
+
+void NvrhiContext::EndGpuTimer() {
+    SPOT_ASSERT(frameOpen && !passOpen, "GPU timers end in a frame, between passes");
+    FrameTimers& timers = m_timers[frameSlot];
+    SPOT_ASSERT(!timers.open.empty(), "EndGpuTimer() without a timer begun");
+    commandList->endTimerQuery(timers.queries[timers.open.back()]);
+    timers.open.pop_back();
+}
+
+void NvrhiContext::CollectTimers(std::size_t slot, std::vector<GpuTiming>& timings) {
+    FrameTimers& timers = m_timers[slot];
+    if (timers.used == 0) {
+        return;
+    }
+    timings.clear();
+    for (std::size_t i = 0; i < timers.used; ++i) {
+        GpuTiming timing = timers.timings[i];
+        timing.milliseconds = device->getTimerQueryTime(timers.queries[i]) * 1000.0;
+        device->resetTimerQuery(timers.queries[i]);
+        timings.push_back(std::move(timing));
+    }
+    timers.used = 0;
+}
+
 void NvrhiContext::FinishFrame() {
     std::erase_if(m_bindingSets, [this](const auto& entry) { return entry.second.lastUsed + CacheFrames < m_frame; });
     std::erase_if(m_framebuffers, [this](const auto& entry) { return entry.second.lastUsed + CacheFrames < m_frame; });
@@ -431,6 +467,7 @@ void NvrhiContext::Release() {
     m_bindingSets.clear();
     m_framebuffers.clear();
     m_mipPipelines.clear();
+    m_timers = {};
     m_mipLayouts = {};
     m_mipSampler = nullptr;
     m_mipVertexShader = nullptr;

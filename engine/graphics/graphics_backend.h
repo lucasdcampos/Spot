@@ -104,6 +104,8 @@ struct RenderContext::Impl {
     virtual bool SetFrameTarget(Texture* target) = 0;
     virtual bool BlitTextureToFrame(const Texture& source) = 0;
     virtual void GenerateMipmaps(Texture& texture) = 0;
+    virtual void BeginGpuTimer(std::string_view name) = 0;
+    virtual void EndGpuTimer() = 0;
     virtual void* GetNativeHandle() const = 0;
 };
 
@@ -112,6 +114,7 @@ struct GraphicsDevice::Impl {
 
     virtual std::string_view GetBackendName() const = 0;
     virtual const GraphicsCapabilities& GetCapabilities() const = 0;
+    virtual const std::vector<GpuTiming>& GetGpuTimings() const = 0;
 
     virtual std::unique_ptr<Shader> CreateShader(const ShaderDesc& desc) = 0;
     virtual std::unique_ptr<Pipeline> CreatePipeline(const PipelineDesc& desc) = 0;

@@ -132,6 +132,7 @@ NvrhiDevice::NvrhiDevice(std::shared_ptr<NvrhiShared> shared)
     m_capabilities.compressedTextures = SupportsSampling(TextureFormat::Bc7);
     m_capabilities.maxColorTargets = 8;
     m_capabilities.compute = true;
+    m_capabilities.timestamps = true;
     m_capabilities.indirectDraws = true;
     m_capabilities.maxIndirectDrawCount = m_vulkan->HasMultiDrawIndirect() ? 1u << 16 : 1;
 }
@@ -330,7 +331,9 @@ bool NvrhiDevice::BeginFrame() {
     // The slot's last frame finished on the GPU before this one records over what it used.
     if (m_frameQueried[m_frameSlot]) {
         m_device->waitEventQuery(m_frameQueries[m_frameSlot]);
+        m_context.CollectTimers(m_frameSlot, m_timings);
     }
+    m_context.frameSlot = m_frameSlot;
     nvrhi::ITexture* image = m_vulkan->Acquire(*m_vulkanDevice);
     if (!image) {
         return false;
@@ -355,7 +358,9 @@ bool NvrhiDevice::BeginOffscreenFrame(Texture& target) {
     }
     if (m_frameQueried[m_frameSlot]) {
         m_device->waitEventQuery(m_frameQueries[m_frameSlot]);
+        m_context.CollectTimers(m_frameSlot, m_timings);
     }
+    m_context.frameSlot = m_frameSlot;
     m_context.commandList->open();
     m_context.target = GetNvrhiTexture(target);
     m_context.acquiredTarget = m_context.target;
@@ -369,6 +374,7 @@ bool NvrhiDevice::BeginOffscreenFrame(Texture& target) {
 void NvrhiDevice::EndFrame() {
     SPOT_ASSERT(m_context.frameOpen, "EndFrame() called without an open frame");
     SPOT_ASSERT(!m_context.passOpen, "A render pass is still open at the end of the frame");
+    m_context.CheckTimersEnded();
     m_context.commandList->close();
     const bool presents = std::exchange(m_presenting, false);
     if (presents) {

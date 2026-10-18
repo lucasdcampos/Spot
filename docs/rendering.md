@@ -72,6 +72,14 @@ of the next passes: `ComputePass::DispatchIndirect()`, and `RenderPass::DrawIndi
 which make up to `maxIndirectDrawCount` draws in one call. This is what GPU-driven rendering (culling on the GPU,
 then drawing what survived) is built on.
 
+### GPU timers
+
+Where `GraphicsCapabilities::timestamps` says so (Vulkan; SDL_GPU has none), `RenderContext::BeginGpuTimer()` and
+`EndGpuTimer()` measure the GPU time of what is recorded between them, between passes, and nest.
+`GraphicsDevice::GetGpuTimings()` reads them a frame or two later, once the GPU is done with their frame, as the
+frame waits for its slot of frames in flight anyway. `Application` times its whole frame as "Frame" and adds every
+timing to the profiler as a counter, "GPU Frame (ms)", which the editor's profiler shows with the others.
+
 ### Backends
 
 The graphics API is the engine's own; backends implement it behind `engine/graphics/graphics_backend.h`, where each

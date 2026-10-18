@@ -350,3 +350,33 @@ TEST_CASE("Compute passes write the arguments of indirect dispatches and draws",
         }
     });
 }
+
+TEST_CASE("GPU timers measure parts of frames once the GPU is done with them", "[gpu][rhi]") {
+    ForEachBackend([](Spot::GraphicsDevice& device) {
+        auto target = device.CreateTexture({.width = 64, .height = 64, .renderTarget = true});
+        REQUIRE(target);
+        for (int frame = 0; frame < 4; ++frame) {
+            auto* context = device.BeginOffscreenFrame(*target);
+            REQUIRE(context);
+            context->BeginGpuTimer("Frame");
+            context->BeginGpuTimer("Clear");
+            context->BeginRenderPass({.clearColor = Spot::Color::Red}).End();
+            context->EndGpuTimer();
+            context->EndGpuTimer();
+            device.EndFrame();
+        }
+        const auto& timings = device.GetGpuTimings();
+        if (!device.GetCapabilities().timestamps) {
+            CHECK(timings.empty());
+            return;
+        }
+        REQUIRE(timings.size() == 2);
+        CHECK(timings[0].name == "Frame");
+        CHECK(timings[0].depth == 0);
+        CHECK(timings[1].name == "Clear");
+        CHECK(timings[1].depth == 1);
+        CHECK(timings[0].milliseconds >= timings[1].milliseconds);
+        CHECK(timings[1].milliseconds >= 0.0);
+        CHECK(timings[0].milliseconds < 1000.0);
+    });
+}

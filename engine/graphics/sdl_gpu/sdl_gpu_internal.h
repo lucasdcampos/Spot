@@ -100,6 +100,9 @@ public:
     bool SetFrameTarget(Texture* target) override;
     bool BlitTextureToFrame(const Texture& source) override;
     void GenerateMipmaps(Texture& texture) override;
+    // SDL_GPU has no GPU timers.
+    void BeginGpuTimer(std::string_view) override {}
+    void EndGpuTimer() override {}
     void* GetNativeHandle() const override { return commandBuffer; }
 
     SDL_GPUCommandBuffer* commandBuffer = nullptr;
@@ -118,6 +121,7 @@ public:
 
     std::string_view GetBackendName() const override;
     const GraphicsCapabilities& GetCapabilities() const override { return capabilities; }
+    const std::vector<GpuTiming>& GetGpuTimings() const override { return timings; }
     std::unique_ptr<Shader> CreateShader(const ShaderDesc& desc) override;
     std::unique_ptr<Pipeline> CreatePipeline(const PipelineDesc& desc) override;
     std::unique_ptr<ComputePipeline> CreateComputePipeline(const ComputePipelineDesc& desc) override;
@@ -144,6 +148,7 @@ public:
     std::shared_ptr<SharedGpuDevice> shared;
     SDL_Window* window;
     GraphicsCapabilities capabilities;
+    std::vector<GpuTiming> timings;
     bool vsync = true;
     std::optional<bool> pendingVSync;
     SDL_GPUSwapchainComposition composition = SDL_GPU_SWAPCHAINCOMPOSITION_SDR;
