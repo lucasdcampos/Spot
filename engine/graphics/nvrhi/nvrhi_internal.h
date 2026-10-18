@@ -110,12 +110,24 @@ enum class DescriptorSet : std::uint32_t {
 };
 constexpr std::size_t DescriptorSetCount = static_cast<std::size_t>(DescriptorSet::Count);
 
+struct NvrhiTextureTable final : TextureTable::Impl {
+    void* GetNativeHandle() const override { return table.Get(); }
+
+    // First, so it goes after the table.
+    std::shared_ptr<NvrhiShared> shared;
+    nvrhi::DescriptorTableHandle table;
+    // NVRHI's tables hold no references to their textures, so the table does.
+    std::vector<nvrhi::TextureHandle> textures;
+};
+
 struct NvrhiPipeline final : Pipeline::Impl {
     void* GetNativeHandle() const override { return handle.Get(); }
 
     // First, so it goes after the handle.
     std::shared_ptr<NvrhiShared> shared;
     nvrhi::GraphicsPipelineHandle handle;
+    // Whether it reads the pass's texture table, bound after its four sets, as NVRHI puts texture tables last.
+    bool textureTable = false;
     std::array<nvrhi::BindingLayoutHandle, DescriptorSetCount> layouts;
     StageResources vertex;
     StageResources fragment;
@@ -250,6 +262,8 @@ public:
                         UploadMode mode) override;
     std::unique_ptr<Texture> CreateTexture(const TextureDesc& desc) override;
     std::unique_ptr<Sampler> CreateSampler(const SamplerDesc& desc) override;
+    std::unique_ptr<TextureTable> CreateTextureTable(std::uint32_t capacity) override;
+    void SetTextureTableEntry(TextureTable& table, std::uint32_t index, const Texture& texture) override;
     void UploadToTexture(Texture& texture, std::uint32_t mipLevel, std::span<const std::byte> pixels,
                          bool generateMipmaps) override;
     std::vector<std::uint8_t> DownloadTexture(const Texture& texture, std::uint32_t mipLevel) override;
@@ -272,6 +286,9 @@ private:
 
     std::shared_ptr<NvrhiShared> m_shared;
     GraphicsCapabilities m_capabilities;
+    // The layout of every texture table, made on first use; descriptor set 4 of the pipelines that read one.
+    nvrhi::BindingLayoutHandle GetTextureTableLayout();
+    nvrhi::BindingLayoutHandle m_textureTableLayout;
     std::vector<GpuTiming> m_timings;
     VulkanSurface* m_vulkan;
     nvrhi::vulkan::IDevice* m_vulkanDevice;

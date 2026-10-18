@@ -93,6 +93,10 @@ std::unique_ptr<Shader> GraphicsDevice::CreateShader(const ShaderDesc& desc) {
 }
 
 std::unique_ptr<Pipeline> GraphicsDevice::CreatePipeline(const PipelineDesc& desc) {
+    if (desc.textureTable && !GetCapabilities().bindlessTextures) {
+        Log::GetEngineLogger().Error("The '{}' backend has no texture tables", GetBackendName());
+        return nullptr;
+    }
     SPOT_ASSERT(desc.vertexShader && desc.vertexShader->GetStage() == ShaderStage::Vertex,
                 "A pipeline needs a vertex shader");
     SPOT_ASSERT(desc.fragmentShader && desc.fragmentShader->GetStage() == ShaderStage::Fragment,
@@ -161,6 +165,26 @@ std::unique_ptr<Texture> GraphicsDevice::CreateTexture(const Image& image, bool 
 
 std::unique_ptr<Sampler> GraphicsDevice::CreateSampler(const SamplerDesc& desc) {
     return m_impl->CreateSampler(desc);
+}
+
+std::unique_ptr<TextureTable> GraphicsDevice::CreateTextureTable(std::uint32_t capacity) {
+    if (!GetCapabilities().bindlessTextures) {
+        Log::GetEngineLogger().Error("The '{}' backend has no texture tables", GetBackendName());
+        return nullptr;
+    }
+    if (capacity == 0 || capacity > MaxTextureTableCapacity) {
+        Log::GetEngineLogger().Error("Texture tables hold 1 to {} textures, not {}", MaxTextureTableCapacity, capacity);
+        return nullptr;
+    }
+    return m_impl->CreateTextureTable(capacity);
+}
+
+void GraphicsDevice::SetTextureTableEntry(TextureTable& table, std::uint32_t index, const Texture& texture) {
+    SPOT_ASSERT(index < table.GetCapacity(), "Index {} is past the end of a table of {} textures", index,
+                table.GetCapacity());
+    SPOT_ASSERT(texture.GetType() == TextureType::Texture2D && texture.GetSampleCount() == 1,
+                "Texture tables hold single-sample 2D textures");
+    m_impl->SetTextureTableEntry(table, index, texture);
 }
 
 void GraphicsDevice::UploadToTexture(Texture& texture, std::span<const std::byte> pixels) {
@@ -406,6 +430,11 @@ void RenderPass::BindFragmentStorageBuffer(std::uint32_t slot, const Buffer& buf
     m_impl->BindFragmentStorageBuffer(slot, buffer);
 }
 
+void RenderPass::BindTextureTable(const TextureTable& table) {
+    SPOT_ASSERT(m_impl, "The render pass has ended");
+    m_impl->BindTextureTable(table);
+}
+
 void RenderPass::PushVertexUniformData(std::uint32_t slot, const void* data, std::uint32_t size) {
     if (m_impl) {
         m_impl->PushVertexUniformData(slot, data, size);
@@ -518,6 +547,16 @@ void* ComputePass::GetNativeHandle() const {
 }
 
 ComputePipeline::ComputePipeline(std::unique_ptr<Impl> impl) : m_impl(std::move(impl)) {
+}
+
+TextureTable::TextureTable(std::unique_ptr<Impl> impl) : m_impl(std::move(impl)) {
+}
+TextureTable::~TextureTable() = default;
+std::uint32_t TextureTable::GetCapacity() const {
+    return m_impl->capacity;
+}
+void* TextureTable::GetNativeHandle() const {
+    return m_impl->GetNativeHandle();
 }
 ComputePipeline::~ComputePipeline() = default;
 void* ComputePipeline::GetNativeHandle() const {

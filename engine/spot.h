@@ -73,6 +73,7 @@
 #include "graphics/sky_data.h"
 #include "graphics/text_layout.h"
 #include "graphics/texture.h"
+#include "graphics/texture_table.h"
 #include "graphics/tonemapper.h"
 #include "input/input.h"
 #include "input/input_action.h"

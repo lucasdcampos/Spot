@@ -7,6 +7,7 @@
 #include "graphics/render_context.h"
 #include "graphics/shader.h"
 #include "graphics/texture.h"
+#include "graphics/texture_table.h"
 
 #include <cstddef>
 #include <memory>
@@ -133,6 +134,14 @@ public:
     std::unique_ptr<Texture> CreateTexture(const Image& image, bool mipmaps = false,
                                            TextureFormat format = TextureFormat::Rgba8Srgb);
     std::unique_ptr<Sampler> CreateSampler(const SamplerDesc& desc = {});
+    // The most textures a TextureTable holds.
+    static constexpr std::uint32_t MaxTextureTableCapacity = 1u << 16;
+    // A table of up to capacity textures shaders index freely; null, after logging why, where
+    // GraphicsCapabilities::bindlessTextures is off.
+    std::unique_ptr<TextureTable> CreateTextureTable(std::uint32_t capacity);
+    // Puts the texture at the index of the table, for the draws recorded after; it can be called at any time, and the
+    // table keeps the texture alive while it holds it.
+    void SetTextureTableEntry(TextureTable& table, std::uint32_t index, const Texture& texture);
 
     // Whether render targets of this format can have this many samples; 1 always can.
     bool SupportsSampleCount(TextureFormat format, std::uint32_t sampleCount) const;

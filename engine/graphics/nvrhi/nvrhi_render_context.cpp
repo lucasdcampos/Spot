@@ -108,6 +108,10 @@ public:
         m_context.stages[1].storageBuffers[slot] = GetNvrhiBuffer(buffer);
     }
 
+    void BindTextureTable(const TextureTable& table) override {
+        m_textureTable = static_cast<nvrhi::IDescriptorTable*>(table.GetNativeHandle());
+    }
+
     void PushVertexUniformData(std::uint32_t slot, const void* data, std::uint32_t size) override {
         m_context.PushUniforms(0, slot, data, size);
     }
@@ -211,6 +215,13 @@ private:
             }
             state.addBindingSet(bindings);
         }
+        if (m_pipeline->textureTable) {
+            if (!m_textureTable) {
+                Log::GetEngineLogger().Error("A draw reads a texture table, and none is bound");
+                return false;
+            }
+            state.addBindingSet(m_textureTable);
+        }
         for (const nvrhi::VertexBufferBinding& binding : m_vertexBuffers) {
             if (binding.buffer) {
                 state.addVertexBuffer(binding);
@@ -232,6 +243,7 @@ private:
     nvrhi::Rect m_scissor;
     std::vector<nvrhi::VertexBufferBinding> m_vertexBuffers;
     nvrhi::IndexBufferBinding m_indexBuffer{nullptr, nvrhi::Format::R32_UINT, 0};
+    nvrhi::IDescriptorTable* m_textureTable = nullptr;
 };
 
 // A compute pass: it gathers what dispatches read, like render passes do for draws, and binds what the pass writes,

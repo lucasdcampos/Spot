@@ -186,6 +186,7 @@ add_library(spot_objects OBJECT
     graphics/text_layout.h
     graphics/text_layout.cpp
     graphics/texture.h
+    graphics/texture_table.h
     graphics/tonemapper.cpp
     graphics/tonemapper.h
     input/input.h

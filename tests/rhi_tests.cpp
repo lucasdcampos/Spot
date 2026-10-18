@@ -2,6 +2,7 @@
 // what GraphicsCapabilities tells apart.
 #include "fill.comp.h"
 #include "indirect_arguments.comp.h"
+#include "texture_table.frag.h"
 #include "textured.frag.h"
 #include "textured_quad.vert.h"
 #include "two_targets.frag.h"
@@ -56,7 +57,8 @@ public:
     }
 
     std::unique_ptr<Spot::Pipeline> CreatePipeline(const Spot::Shader& fragmentShader,
-                                                   std::vector<Spot::TextureFormat> additionalFormats = {}) const {
+                                                   std::vector<Spot::TextureFormat> additionalFormats = {},
+                                                   bool textureTable = false) const {
         return m_device.CreatePipeline({
             .vertexShader = m_vertexShader.get(),
             .fragmentShader = &fragmentShader,
@@ -67,6 +69,7 @@ public:
             }},
             .targetFormat = Spot::TextureFormat::Rgba8,
             .additionalTargetFormats = std::move(additionalFormats),
+            .textureTable = textureTable,
         });
     }
 
@@ -183,7 +186,8 @@ TEST_CASE("Render targets of the data formats hold what passes clear them to", "
 TEST_CASE("Compressed textures take their mip levels one by one and are decoded as they are sampled", "[gpu][rhi]") {
     ForEachBackend([](Spot::GraphicsDevice& device) {
         if (!device.GetCapabilities().compressedTextures) {
-            SKIP("This GPU has no block-compressed textures");
+            WARN("This GPU has no block-compressed textures");
+            return;
         }
         CHECK(Spot::GetTextureDataSize(Spot::TextureFormat::Bc1, 8, 8) == 32);
         CHECK(Spot::GetTextureDataSize(Spot::TextureFormat::Bc7, 2, 1) == 16);
@@ -270,7 +274,8 @@ TEST_CASE("Passes draw into several color targets at once", "[gpu][rhi]") {
 TEST_CASE("Compute passes write storage textures", "[gpu][rhi]") {
     ForEachBackend([](Spot::GraphicsDevice& device) {
         if (!device.GetCapabilities().compute) {
-            SKIP("This device runs no compute shaders");
+            WARN("This device runs no compute shaders");
+            return;
         }
         CHECK(Shaders::FillComp.threadCountX == 8);
         CHECK(Shaders::FillComp.readWriteStorageTextureCount == 1);
@@ -303,7 +308,8 @@ TEST_CASE("Compute passes write storage textures", "[gpu][rhi]") {
 TEST_CASE("Compute passes write the arguments of indirect dispatches and draws", "[gpu][rhi]") {
     ForEachBackend([](Spot::GraphicsDevice& device) {
         if (!device.GetCapabilities().compute || !device.GetCapabilities().indirectDraws) {
-            SKIP("This device runs no compute shaders or indirect draws");
+            WARN("This device runs no compute shaders or indirect draws");
+            return;
         }
         const Quad quad(device);
         auto target = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
@@ -378,5 +384,50 @@ TEST_CASE("GPU timers measure parts of frames once the GPU is done with them", "
         CHECK(timings[0].milliseconds >= timings[1].milliseconds);
         CHECK(timings[1].milliseconds >= 0.0);
         CHECK(timings[0].milliseconds < 1000.0);
+    });
+}
+
+TEST_CASE("Texture tables let shaders pick textures by index", "[gpu][rhi]") {
+    ForEachBackend([](Spot::GraphicsDevice& device) {
+        if (!device.GetCapabilities().bindlessTextures) {
+            CHECK_FALSE(device.CreateTextureTable(4));
+            WARN("This device has no texture tables");
+            return;
+        }
+        const Quad quad(device);
+        auto table = device.CreateTextureTable(8);
+        REQUIRE(table);
+        CHECK(table->GetCapacity() == 8);
+        const std::array<std::array<std::uint8_t, 4>, 3> colors{{{255, 0, 0, 255}, {0, 255, 0, 255}, {0, 0, 255, 255}}};
+        std::vector<std::unique_ptr<Spot::Texture>> textures;
+        for (std::uint32_t i = 0; i < colors.size(); ++i) {
+            auto texture = device.CreateTexture({.width = 1, .height = 1});
+            REQUIRE(texture);
+            device.UploadToTexture(*texture, colors[i]);
+            device.SetTextureTableEntry(*table, i, *texture);
+            textures.push_back(std::move(texture));
+        }
+        // The table keeps its textures alive.
+        textures.clear();
+        const auto shader = device.CreateShader(Shaders::TextureTableFrag);
+        REQUIRE(shader);
+        auto target = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
+        REQUIRE(target);
+        for (std::uint32_t pick = 0; pick < colors.size(); ++pick) {
+            const auto drawPipeline = quad.CreatePipeline(*shader, {}, true);
+            REQUIRE(drawPipeline);
+            auto* context = device.BeginOffscreenFrame(*target);
+            REQUIRE(context);
+            {
+                auto pass = context->BeginRenderPass({.clearColor = Spot::Color::Black});
+                pass.BindTextureTable(*table);
+                pass.PushFragmentUniforms(0, std::array<std::uint32_t, 4>{pick, 0, 0, 0});
+                quad.Draw(pass, *drawPipeline);
+            }
+            device.EndFrame();
+            const auto pixels = device.DownloadTexture(*target);
+            REQUIRE(pixels.size() == 4 * 4 * 4);
+            CHECK(std::array<std::uint8_t, 4>{pixels[0], pixels[1], pixels[2], pixels[3]} == colors[pick]);
+        }
     });
 }

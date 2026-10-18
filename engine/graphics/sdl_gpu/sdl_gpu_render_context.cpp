@@ -67,6 +67,9 @@ public:
         SDL_BindGPUFragmentStorageBuffers(m_pass, slot, &handle, 1);
     }
 
+    // Pipelines that read texture tables are never made through SDL_GPU.
+    void BindTextureTable(const TextureTable&) override {}
+
     void PushVertexUniformData(std::uint32_t slot, const void* data, std::uint32_t size) override {
         SDL_PushGPUVertexUniformData(m_context.commandBuffer, slot, data, size);
     }

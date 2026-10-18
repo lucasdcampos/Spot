@@ -157,6 +157,7 @@ bool SelectFeatures(const DeviceFeatures& supported, DeviceFeatures& enabled) {
     use12.descriptorBindingPartiallyBound = has12.descriptorBindingPartiallyBound;
     use12.descriptorBindingVariableDescriptorCount = has12.descriptorBindingVariableDescriptorCount;
     use12.shaderSampledImageArrayNonUniformIndexing = has12.shaderSampledImageArrayNonUniformIndexing;
+    use12.descriptorBindingSampledImageUpdateAfterBind = has12.descriptorBindingSampledImageUpdateAfterBind;
     use12.bufferDeviceAddress = has12.bufferDeviceAddress;
     use12.hostQueryReset = has12.hostQueryReset;
     use12.scalarBlockLayout = has12.scalarBlockLayout;
@@ -354,6 +355,10 @@ std::unique_ptr<VulkanSurface> VulkanSurface::Create(SDL_Window* window, const G
     SelectFeatures(supported, enabled);
     vulkan->m_bufferDeviceAddress = enabled.vulkan12.bufferDeviceAddress == VK_TRUE;
     vulkan->m_multiDrawIndirect = enabled.core.features.multiDrawIndirect == VK_TRUE;
+    const VkPhysicalDeviceVulkan12Features& indexing = enabled.vulkan12;
+    vulkan->m_textureTables = indexing.runtimeDescriptorArray && indexing.descriptorBindingPartiallyBound &&
+                              indexing.descriptorBindingVariableDescriptorCount &&
+                              indexing.descriptorBindingSampledImageUpdateAfterBind;
     if (window) {
         vulkan->m_deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     }

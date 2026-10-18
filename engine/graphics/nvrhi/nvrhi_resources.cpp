@@ -214,6 +214,10 @@ std::unique_ptr<Pipeline> NvrhiDevice::CreatePipeline(const PipelineDesc& desc) 
     for (const auto& layout : impl->layouts) {
         native.addBindingLayout(layout);
     }
+    if (desc.textureTable) {
+        native.addBindingLayout(GetTextureTableLayout());
+        impl->textureTable = true;
+    }
     nvrhi::RenderState& state = native.renderState;
     for (std::size_t target = 0; target <= desc.additionalTargetFormats.size(); ++target) {
         state.blendState.targets[target] = ToNvrhi(desc.blendMode);
@@ -369,6 +373,39 @@ void NvrhiDevice::UploadToBuffer(Buffer& buffer, std::span<const std::byte> data
     nvrhi::IBuffer* native = impl.handle;
     RunNow(
         [&](nvrhi::ICommandList& commandList) { commandList.writeBuffer(native, data.data(), data.size(), offset); });
+}
+
+nvrhi::BindingLayoutHandle NvrhiDevice::GetTextureTableLayout() {
+    if (!m_textureTableLayout) {
+        nvrhi::BindlessLayoutDesc desc;
+        desc.visibility = nvrhi::ShaderType::All;
+        desc.maxCapacity = GraphicsDevice::MaxTextureTableCapacity;
+        desc.addRegisterSpace(nvrhi::BindingLayoutItem::Texture_SRV(4));
+        m_textureTableLayout = m_device->createBindlessLayout(desc);
+    }
+    return m_textureTableLayout;
+}
+
+std::unique_ptr<TextureTable> NvrhiDevice::CreateTextureTable(std::uint32_t capacity) {
+    nvrhi::DescriptorTableHandle table = m_device->createDescriptorTable(GetTextureTableLayout());
+    if (!table) {
+        Log::GetEngineLogger().Error("Failed to create a texture table");
+        return nullptr;
+    }
+    m_device->resizeDescriptorTable(table, capacity, false);
+    auto impl = std::make_unique<NvrhiTextureTable>();
+    impl->shared = m_shared;
+    impl->table = std::move(table);
+    impl->textures.resize(capacity);
+    impl->capacity = capacity;
+    return GraphicsAccess::Make<TextureTable>(std::move(impl));
+}
+
+void NvrhiDevice::SetTextureTableEntry(TextureTable& table, std::uint32_t index, const Texture& texture) {
+    auto& impl = static_cast<NvrhiTextureTable&>(GraphicsAccess::GetImpl(table));
+    nvrhi::ITexture* native = GetNvrhiTexture(texture);
+    m_device->writeDescriptorTable(impl.table, nvrhi::BindingSetItem::Texture_SRV(index, native));
+    impl.textures[index] = native;
 }
 
 std::unique_ptr<Sampler> NvrhiDevice::CreateSampler(const SamplerDesc& desc) {

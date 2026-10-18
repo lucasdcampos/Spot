@@ -37,6 +37,8 @@ public:
     bool HasWindow() const { return m_window != nullptr; }
     // Whether one indirect call may make several draws.
     bool HasMultiDrawIndirect() const { return m_multiDrawIndirect; }
+    // Whether shaders index arrays of textures that change while frames using them are in flight.
+    bool HasTextureTables() const { return m_textureTables; }
 
     // The swapchain, made on first use and again when the window's size or the present mode changes.
     bool IsVSyncEnabled() const { return m_vsync; }
@@ -75,6 +77,7 @@ private:
     std::vector<const char*> m_deviceExtensions;
     bool m_bufferDeviceAddress = false;
     bool m_multiDrawIndirect = false;
+    bool m_textureTables = false;
     bool m_linearWindow = true;
 
     VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;

@@ -72,6 +72,15 @@ of the next passes: `ComputePass::DispatchIndirect()`, and `RenderPass::DrawIndi
 which make up to `maxIndirectDrawCount` draws in one call. This is what GPU-driven rendering (culling on the GPU,
 then drawing what survived) is built on.
 
+### Texture tables
+
+Where `GraphicsCapabilities::bindlessTextures` says so (Vulkan, through descriptor indexing), a `TextureTable` holds up
+to 65536 textures that shaders index freely: a pass binds one table (`RenderPass::BindTextureTable()`), and draws
+pick their textures by numbers their data holds, so they need no texture bound of their own and differ only in data,
+as GPU-driven rendering needs. Pipelines that read it are made with `PipelineDesc::textureTable`, and their fragment
+shader declares `Texture2D<float4> textures[] : register(t0, space4)`; the table keeps its textures alive, and its
+entries can change at any time (`SetTextureTableEntry()`).
+
 ### GPU timers
 
 Where `GraphicsCapabilities::timestamps` says so (Vulkan; SDL_GPU has none), `RenderContext::BeginGpuTimer()` and

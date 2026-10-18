@@ -49,6 +49,13 @@ struct Pipeline::Impl {
     virtual void* GetNativeHandle() const = 0;
 };
 
+struct TextureTable::Impl {
+    virtual ~Impl() = default;
+    virtual void* GetNativeHandle() const = 0;
+
+    std::uint32_t capacity = 0;
+};
+
 struct ComputePipeline::Impl {
     virtual ~Impl() = default;
     virtual void* GetNativeHandle() const = 0;
@@ -81,6 +88,7 @@ struct RenderPass::Impl {
     virtual void BindFragmentTexture(std::uint32_t slot, const Texture& texture, const Sampler& sampler) = 0;
     virtual void BindVertexStorageBuffer(std::uint32_t slot, const Buffer& buffer) = 0;
     virtual void BindFragmentStorageBuffer(std::uint32_t slot, const Buffer& buffer) = 0;
+    virtual void BindTextureTable(const TextureTable& table) = 0;
     virtual void PushVertexUniformData(std::uint32_t slot, const void* data, std::uint32_t size) = 0;
     virtual void PushFragmentUniformData(std::uint32_t slot, const void* data, std::uint32_t size) = 0;
     virtual void Draw(std::uint32_t vertexCount, std::uint32_t instanceCount, std::uint32_t firstVertex,
@@ -124,6 +132,8 @@ struct GraphicsDevice::Impl {
                                 UploadMode mode) = 0;
     virtual std::unique_ptr<Texture> CreateTexture(const TextureDesc& desc) = 0;
     virtual std::unique_ptr<Sampler> CreateSampler(const SamplerDesc& desc) = 0;
+    virtual std::unique_ptr<TextureTable> CreateTextureTable(std::uint32_t capacity) = 0;
+    virtual void SetTextureTableEntry(TextureTable& table, std::uint32_t index, const Texture& texture) = 0;
     // Replaces one mip level of every layer, then, when asked, makes the levels after it from it.
     virtual void UploadToTexture(Texture& texture, std::uint32_t mipLevel, std::span<const std::byte> pixels,
                                  bool generateMipmaps) = 0;

@@ -130,6 +130,8 @@ public:
                         UploadMode mode) override;
     std::unique_ptr<Texture> CreateTexture(const TextureDesc& desc) override;
     std::unique_ptr<Sampler> CreateSampler(const SamplerDesc& desc) override;
+    std::unique_ptr<TextureTable> CreateTextureTable(std::uint32_t) override { return nullptr; }
+    void SetTextureTableEntry(TextureTable&, std::uint32_t, const Texture&) override {}
     void UploadToTexture(Texture& texture, std::uint32_t mipLevel, std::span<const std::byte> pixels,
                          bool generateMipmaps) override;
     std::vector<std::uint8_t> DownloadTexture(const Texture& texture, std::uint32_t mipLevel) override;

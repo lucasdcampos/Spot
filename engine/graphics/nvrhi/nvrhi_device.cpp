@@ -133,6 +133,7 @@ NvrhiDevice::NvrhiDevice(std::shared_ptr<NvrhiShared> shared)
     m_capabilities.maxColorTargets = 8;
     m_capabilities.compute = true;
     m_capabilities.timestamps = true;
+    m_capabilities.bindlessTextures = m_vulkan->HasTextureTables();
     m_capabilities.indirectDraws = true;
     m_capabilities.maxIndirectDrawCount = m_vulkan->HasMultiDrawIndirect() ? 1u << 16 : 1;
 }

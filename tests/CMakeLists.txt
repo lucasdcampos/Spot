@@ -77,6 +77,7 @@ target_link_libraries(spot_tests PRIVATE
 )
 
 spot_add_shaders(spot_tests
+    shaders/texture_table.frag.hlsl
     shaders/textured.frag.hlsl
     shaders/triangle.vert.hlsl
 )
@@ -177,6 +178,7 @@ spot_add_shaders(spot_gpu_tests
     shaders/indirect_arguments.comp.hlsl
     shaders/quad.vert.hlsl
     shaders/solid.frag.hlsl
+    shaders/texture_table.frag.hlsl
     shaders/textured.frag.hlsl
     shaders/textured_quad.vert.hlsl
     shaders/triangle.frag.hlsl

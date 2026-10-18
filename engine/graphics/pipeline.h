@@ -118,6 +118,8 @@ struct PipelineDesc {
     // The formats of the pass's color targets after the first (RenderPassDesc::additionalTargets), which the fragment
     // shader writes as SV_Target1 and after. Blending applies to each.
     std::vector<TextureFormat> additionalTargetFormats = {};
+    // Lets the fragment shader read the TextureTable bound to the pass (RenderPass::BindTextureTable()).
+    bool textureTable = false;
 };
 
 class Pipeline {

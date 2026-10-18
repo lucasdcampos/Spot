@@ -3,6 +3,7 @@
 #include "graphics/buffer.h"
 #include "graphics/compute.h"
 #include "graphics/texture.h"
+#include "graphics/texture_table.h"
 #include "math/color.h"
 
 #include <cstdint>
@@ -107,6 +108,8 @@ public:
     // fragment shader, it is register t{samplers + n} of space2.
     void BindVertexStorageBuffer(std::uint32_t slot, const Buffer& buffer);
     void BindFragmentStorageBuffer(std::uint32_t slot, const Buffer& buffer);
+    // Binds the table that pipelines made with PipelineDesc::textureTable read, for later draws of the pass.
+    void BindTextureTable(const TextureTable& table);
 
     // Uniforms set the HLSL constant buffer at register b{slot} of the stage, and stay set for later draws, in this
     // pass and the next ones of the frame. Data follows HLSL constant buffer packing: fields do not cross 16-byte

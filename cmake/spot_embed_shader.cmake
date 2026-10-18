@@ -13,7 +13,18 @@ endfunction()
 
 spot_to_identifier("${NAME}" identifier)
 file(READ "${REFLECTION}" reflection)
-spot_count_resources("${reflection}" textures sampler_count)
+# Texture tables, in space4, are bound whole, not slot by slot, so they are not counted.
+set(sampler_count 0)
+spot_count_resources("${reflection}" textures texture_count)
+if(texture_count GREATER 0)
+    math(EXPR last "${texture_count} - 1")
+    foreach(index RANGE ${last})
+        string(JSON set GET "${reflection}" textures ${index} set)
+        if(NOT set EQUAL 4)
+            math(EXPR sampler_count "${sampler_count} + 1")
+        endif()
+    endforeach()
+endif()
 spot_count_resources("${reflection}" ubos uniform_buffer_count)
 
 # Storage textures and buffers, split into those the shader only reads and those it writes: for compute shaders by
