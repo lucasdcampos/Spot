@@ -2099,6 +2099,41 @@ TEST_CASE("Renderer3D keeps render worlds on the GPU, in batches, and follows th
     CHECK(IsNear(render.At(16, 16), {0, 255, 0, 255}));
 }
 
+TEST_CASE("Renderer3D draws the level of detail of world objects their screen size picks", "[gpu]") {
+    RequireGpu();
+    // The level of detail is a cube moved out of the view's middle, so the middle shows which level is drawn.
+    const auto drawn = [](float lodScreenSize, float cullScreenSize) {
+        const TargetRender render(
+            32, 32,
+            [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+                Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+                const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+                Spot::MeshData aside = Spot::MeshData::CreateCube();
+                for (Spot::MeshVertex& vertex : aside.vertices) {
+                    vertex.position.x += 20.0f;
+                }
+                const auto far = Spot::Mesh::Create(device, aside);
+                REQUIRE((cube && far));
+                const Spot::Material red{.baseColor = Spot::Color::Red};
+                Spot::RenderWorld world;
+                world.AddMesh({.mesh = cube.get(),
+                               .material = &red,
+                               .lods = {{{lodScreenSize > 0.0f ? far.get() : nullptr, lodScreenSize}}},
+                               .cullScreenSize = cullScreenSize});
+                renderer.Begin(context, target, MakeFrontCamera());
+                renderer.DrawLight(FrontLight);
+                renderer.DrawWorld(world);
+                renderer.End();
+            });
+        return IsNear(render.At(16, 16), {255, 0, 0, 255});
+    };
+    CHECK(drawn(0.01f, 0.0f));
+    CHECK_FALSE(drawn(100.0f, 0.0f));
+    // Without levels of detail, small enough objects are not drawn at all.
+    CHECK(drawn(0.0f, 0.01f));
+    CHECK_FALSE(drawn(0.0f, 100.0f));
+}
+
 TEST_CASE("Renderer3D draws meshes that look the same as instances of one draw, in every pass", "[gpu]") {
     RequireGpu();
     Spot::Renderer3DStats stats;

@@ -27,8 +27,10 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cmath>
 #include <cstring>
+#include <limits>
 #include <optional>
 #include <tuple>
 #include <unordered_map>
@@ -41,10 +43,13 @@ namespace {
 struct FrameUniforms {
     Matrix4 viewProjection;
     std::array<Vector4, 6> cullPlanes;
+    // Where the camera that picks levels of detail is, and how it sizes things: an instance's screen size is its
+    // radius times w over its distance, or times -w alone when w is negative, for orthographic cameras.
+    Vector4 lodView;
 };
 
-FrameUniforms MakeFrameUniforms(const Matrix4& viewProjection, bool ignoreNear = false) {
-    return {viewProjection, Detail::Frustum(viewProjection, ignoreNear).GetPlanes()};
+FrameUniforms MakeFrameUniforms(const Matrix4& viewProjection, const Camera3D& camera, bool ignoreNear = false) {
+    return {viewProjection, Detail::Frustum(viewProjection, ignoreNear).GetPlanes(), Detail::GetLodView(camera)};
 }
 
 // The most instances of a batch of a render world kept on the GPU: views leave out batches outside them whole, and
@@ -685,11 +690,23 @@ void Renderer3D::DrawWorld(const RenderWorld& world) {
     static const Material DefaultMaterial;
     const std::span<const RenderMeshObject> objects = world.GetMeshes();
     const auto sees = [this](std::uint32_t layer) { return ((m_camera.cullingMask >> layer) & 1u) != 0; };
+    // Objects drawn one by one take the level of detail their screen size picks here.
+    const auto drawObject = [&](const RenderMeshObject& object, const Material& material, std::uint32_t only) {
+        const float size = object.levelCount > 1 || object.levels[0].minScreenSize > 0.0f
+                               ? GetScreenSize(m_camera, object.bounds)
+                               : 1.0f;
+        for (std::uint32_t level = 0; level < object.levelCount; ++level) {
+            const RenderMeshLevel& range = object.levels[level];
+            if ((only == ~0u || only == level) && size >= range.minScreenSize && size < range.maxScreenSize) {
+                AddCommand(object, material, level);
+            }
+        }
+    };
     WorldCache* cache = UpdateWorldCache(world);
     if (!cache) {
         for (const RenderMeshObject& object : objects) {
             if (object.desc.mesh && sees(object.desc.layer)) {
-                AddCommand(object, object.desc.material ? *object.desc.material : DefaultMaterial);
+                drawObject(object, object.desc.material ? *object.desc.material : DefaultMaterial, ~0u);
             }
         }
         return;
@@ -702,15 +719,17 @@ void Renderer3D::DrawWorld(const RenderWorld& world) {
         // Transparent surfaces are drawn one by one, from the farthest, so each blends over what is behind it.
         if (material.alphaMode == AlphaMode::Transparent) {
             for (std::uint32_t i = batch.first; i < batch.first + batch.count; ++i) {
-                AddCommand(objects[cache->objects[i]], material);
+                drawObject(objects[cache->objects[i]], material, cache->levels[i]);
             }
             continue;
         }
-        const RenderMeshObject proxy{.desc = {.mesh = batch.mesh, .castsShadows = batch.castsShadows},
-                                     .bounds = batch.bounds,
-                                     .mirrored = batch.mirrored,
-                                     .firstIndex = batch.firstIndex,
-                                     .indexCount = batch.indexCount};
+        RenderMeshObject proxy{.desc = {.mesh = batch.mesh, .castsShadows = batch.castsShadows},
+                               .bounds = batch.bounds,
+                               .mirrored = batch.mirrored,
+                               .firstIndex = batch.firstIndex,
+                               .indexCount = batch.indexCount};
+        proxy.levels[0] = {.mesh = batch.mesh, .firstIndex = batch.firstIndex, .indexCount = batch.indexCount};
+        proxy.levelCount = 1;
         AddCommand(proxy, material);
         DrawCommand& command = m_commands.back();
         command.instanceBuffer = cache->instances.get();
@@ -732,33 +751,47 @@ Renderer3D::WorldCache* Renderer3D::UpdateWorldCache(const RenderWorld& world) {
     WorldCache& cache = **found;
     cache.lastDrawn = m_endCount;
     const std::span<const RenderMeshObject> objects = world.GetMeshes();
-    const auto makeInstance = [](const RenderMeshObject& object) {
+    // The range of screen sizes an instance shows at goes where skinned instances keep their skin, which world
+    // instances have none of.
+    const auto makeInstance = [](const RenderMeshObject& object, std::uint32_t level) {
+        const RenderMeshLevel& range = object.levels[level];
         return InstanceData{object.desc.transform,
                             GetNormalMatrix(object.desc.transform),
-                            {},
+                            {0, 0, std::bit_cast<std::uint32_t>(range.minScreenSize),
+                             std::bit_cast<std::uint32_t>(range.maxScreenSize)},
                             ToVector4(object.bounds.center, object.bounds.radius)};
     };
 
     if (!cache.built || cache.structureVersion != world.GetStructureVersion()) {
-        // Objects drawn the same way go side by side, as one batch.
-        cache.objects.clear();
+        // Each level of detail of each object is an instance, and instances drawn the same way go side by side, as
+        // one batch.
+        struct Entry {
+            std::uint32_t object;
+            std::uint32_t level;
+        };
+        std::vector<Entry> entries;
         for (std::uint32_t i = 0; i < objects.size(); ++i) {
-            if (objects[i].desc.mesh && objects[i].indexCount > 0) {
-                cache.objects.push_back(i);
+            if (objects[i].desc.mesh) {
+                for (std::uint32_t level = 0; level < objects[i].levelCount; ++level) {
+                    if (objects[i].levels[level].indexCount > 0) {
+                        entries.push_back({i, level});
+                    }
+                }
             }
         }
-        const auto key = [&](std::uint32_t index) {
-            const RenderMeshObject& o = objects[index];
+        const auto key = [&](const Entry& entry) {
+            const RenderMeshObject& o = objects[entry.object];
+            const RenderMeshLevel& range = o.levels[entry.level];
             return std::make_tuple(o.desc.layer, reinterpret_cast<std::uintptr_t>(o.desc.material),
-                                   reinterpret_cast<std::uintptr_t>(o.desc.mesh), o.firstIndex, o.indexCount,
+                                   reinterpret_cast<std::uintptr_t>(range.mesh), range.firstIndex, range.indexCount,
                                    o.mirrored, o.desc.castsShadows);
         };
         // Within those, near ones go together, so each batch covers a small part of the world that views can leave
-        // out whole: they are ordered along a Morton curve through the world's bounds, and cut every BatchSize.
+        // out whole: they are ordered along a Morton curve through the world's bounds, and cut every WorldBatchSize.
         Vector3 low{};
         Vector3 high{};
-        for (std::size_t i = 0; i < cache.objects.size(); ++i) {
-            const Vector3 c = objects[cache.objects[i]].bounds.center;
+        for (std::size_t i = 0; i < entries.size(); ++i) {
+            const Vector3 c = objects[entries[i].object].bounds.center;
             low = i == 0 ? c : Vector3{std::min(low.x, c.x), std::min(low.y, c.y), std::min(low.z, c.z)};
             high = i == 0 ? c : Vector3{std::max(high.x, c.x), std::max(high.y, c.y), std::max(high.z, c.z)};
         }
@@ -770,40 +803,41 @@ Renderer3D::WorldCache* Renderer3D::UpdateWorldCache(const RenderWorld& world) {
             x = (x | (x << 2)) & 0x09249249u;
             return x;
         };
-        const auto morton = [&](std::uint32_t index) {
-            const Vector3 c = objects[index].bounds.center;
-            const auto cell = [](float value, float from, float to) {
-                const float t = to > from ? (value - from) / (to - from) : 0.0f;
-                return static_cast<std::uint32_t>(std::clamp(t, 0.0f, 1.0f) * 1023.0f);
-            };
-            return spread(cell(c.x, low.x, high.x)) | (spread(cell(c.y, low.y, high.y)) << 1) |
-                   (spread(cell(c.z, low.z, high.z)) << 2);
+        const auto cell = [](float value, float from, float to) {
+            const float t = to > from ? (value - from) / (to - from) : 0.0f;
+            return static_cast<std::uint32_t>(std::clamp(t, 0.0f, 1.0f) * 1023.0f);
         };
         std::vector<std::uint32_t> codes(objects.size());
-        for (const std::uint32_t index : cache.objects) {
-            codes[index] = morton(index);
+        for (const Entry& entry : entries) {
+            const Vector3 c = objects[entry.object].bounds.center;
+            codes[entry.object] = spread(cell(c.x, low.x, high.x)) | (spread(cell(c.y, low.y, high.y)) << 1) |
+                                  (spread(cell(c.z, low.z, high.z)) << 2);
         }
-        std::ranges::sort(cache.objects, [&](std::uint32_t a, std::uint32_t b) {
+        std::ranges::sort(entries, [&](const Entry& a, const Entry& b) {
             const auto ka = key(a);
             const auto kb = key(b);
-            return ka != kb ? ka < kb : codes[a] < codes[b];
+            return ka != kb ? ka < kb : codes[a.object] < codes[b.object];
         });
-        cache.slots.assign(objects.size(), ~0u);
+
+        cache.objects.resize(entries.size());
+        cache.levels.resize(entries.size());
+        cache.batchOfInstance.resize(entries.size());
         cache.instanceData.clear();
-        cache.instanceData.reserve(cache.objects.size());
-        cache.batchOfInstance.resize(cache.objects.size());
+        cache.instanceData.reserve(entries.size());
         cache.batches.clear();
-        for (std::uint32_t i = 0; i < cache.objects.size(); ++i) {
-            const std::uint32_t index = cache.objects[i];
-            const RenderMeshObject& object = objects[index];
-            cache.slots[index] = i;
-            cache.instanceData.push_back(makeInstance(object));
+        for (std::uint32_t i = 0; i < entries.size(); ++i) {
+            const Entry& entry = entries[i];
+            const RenderMeshObject& object = objects[entry.object];
+            const RenderMeshLevel& range = object.levels[entry.level];
+            cache.objects[i] = entry.object;
+            cache.levels[i] = entry.level;
+            cache.instanceData.push_back(makeInstance(object, entry.level));
             if (cache.batches.empty() || cache.batches.back().count == WorldBatchSize ||
-                key(cache.objects[cache.batches.back().first]) != key(index)) {
-                cache.batches.push_back({.mesh = object.desc.mesh,
+                key(entries[cache.batches.back().first]) != key(entry)) {
+                cache.batches.push_back({.mesh = range.mesh,
                                          .material = object.desc.material,
-                                         .firstIndex = object.firstIndex,
-                                         .indexCount = object.indexCount,
+                                         .firstIndex = range.firstIndex,
+                                         .indexCount = range.indexCount,
                                          .mirrored = object.mirrored,
                                          .castsShadows = object.desc.castsShadows,
                                          .layer = object.desc.layer,
@@ -815,6 +849,20 @@ Renderer3D::WorldCache* Renderer3D::UpdateWorldCache(const RenderWorld& world) {
             ++cache.batches.back().count;
             cache.batchOfInstance[i] = static_cast<std::uint32_t>(cache.batches.size() - 1);
         }
+        // The instances of each object, as offsets into the list of them.
+        cache.slotStarts.assign(objects.size() + 1, 0);
+        for (const Entry& entry : entries) {
+            ++cache.slotStarts[entry.object + 1];
+        }
+        for (std::size_t i = 1; i < cache.slotStarts.size(); ++i) {
+            cache.slotStarts[i] += cache.slotStarts[i - 1];
+        }
+        cache.slots.resize(entries.size());
+        std::vector<std::uint32_t> filled(cache.slotStarts.begin(), cache.slotStarts.end() - 1);
+        for (std::uint32_t i = 0; i < entries.size(); ++i) {
+            cache.slots[filled[entries[i].object]++] = i;
+        }
+
         const auto size =
             static_cast<std::uint32_t>(std::max<std::size_t>(cache.instanceData.size(), 1) * sizeof(InstanceData));
         if (!cache.instances || cache.instances->GetSize() < size) {
@@ -839,9 +887,12 @@ Renderer3D::WorldCache* Renderer3D::UpdateWorldCache(const RenderWorld& world) {
         const std::span<const std::uint64_t> stamps = world.GetChangeStamps();
         std::vector<std::uint32_t> changed;
         for (std::uint32_t i = 0; i < stamps.size(); ++i) {
-            if (stamps[i] > cache.changeCount && cache.slots[i] != ~0u) {
-                const std::uint32_t slot = cache.slots[i];
-                cache.instanceData[slot] = makeInstance(objects[i]);
+            if (stamps[i] <= cache.changeCount) {
+                continue;
+            }
+            for (std::uint32_t s = cache.slotStarts[i]; s < cache.slotStarts[i + 1]; ++s) {
+                const std::uint32_t slot = cache.slots[s];
+                cache.instanceData[slot] = makeInstance(objects[i], cache.levels[slot]);
                 cache.batches[cache.batchOfInstance[slot]].boundsChanged = true;
                 changed.push_back(slot);
             }
@@ -886,9 +937,10 @@ Renderer3D::WorldCache* Renderer3D::UpdateWorldCache(const RenderWorld& world) {
     return &cache;
 }
 
-void Renderer3D::AddCommand(const RenderMeshObject& object, const Material& material) {
+void Renderer3D::AddCommand(const RenderMeshObject& object, const Material& material, std::uint32_t level) {
+    const RenderMeshLevel& range = object.levels[level];
     m_commands.push_back(
-        {object.desc.mesh,
+        {range.mesh,
          {material.baseColorTexture.Get(), material.metallicRoughnessTexture.Get(), material.normalTexture.Get(),
           material.occlusionTexture.Get(), material.emissiveTexture.Get()},
          material.baseColor,
@@ -905,8 +957,8 @@ void Renderer3D::AddCommand(const RenderMeshObject& object, const Material& mate
          object.bounds,
          object.desc.castsShadows});
     DrawCommand& command = m_commands.back();
-    command.firstIndex = object.firstIndex;
-    command.indexCount = object.indexCount;
+    command.firstIndex = range.firstIndex;
+    command.indexCount = range.indexCount;
     command.mirrored = object.mirrored;
 }
 
@@ -1352,7 +1404,7 @@ void Renderer3D::DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjecti
     if (casters.empty() && !worldCasters) {
         return;
     }
-    pass.PushVertexUniforms(0, MakeFrameUniforms(viewProjection, ignoreNear));
+    pass.PushVertexUniforms(0, MakeFrameUniforms(viewProjection, m_camera, ignoreNear));
     pass.BindVertexStorageBuffer(0, *m_instances);
     pass.BindVertexStorageBuffer(1, *m_shadowCasters);
     const Pipeline* boundPipeline = nullptr;
@@ -1401,10 +1453,21 @@ void Renderer3D::DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjecti
         }
         const auto batchStart = static_cast<std::uint32_t>(m_frameCasters.size());
         for (std::uint32_t i = command.instanceFirst; i < command.instanceFirst + command.instanceCount; ++i) {
-            const Vector4& bounds = command.instanceData[i].bounds;
-            if (frustum.Contains({bounds.x, bounds.y, bounds.z}, bounds.w)) {
-                m_frameCasters.push_back(i);
+            const InstanceData& instance = command.instanceData[i];
+            const Vector4& bounds = instance.bounds;
+            if (!frustum.Contains({bounds.x, bounds.y, bounds.z}, bounds.w)) {
+                continue;
             }
+            // The level of detail the camera sees casts the shadow.
+            const float minSize = std::bit_cast<float>(instance.skin[2]);
+            const float maxSize = std::bit_cast<float>(instance.skin[3]);
+            if (minSize > 0.0f || maxSize < std::numeric_limits<float>::infinity()) {
+                const float size = GetScreenSize(m_camera, {{bounds.x, bounds.y, bounds.z}, bounds.w});
+                if (size < minSize || size >= maxSize) {
+                    continue;
+                }
+            }
+            m_frameCasters.push_back(i);
         }
         const auto visible = static_cast<std::uint32_t>(m_frameCasters.size()) - batchStart;
         if (visible == 0) {
@@ -1472,7 +1535,7 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
         return;
     }
 
-    pass.PushVertexUniforms(0, MakeFrameUniforms(m_viewProjection));
+    pass.PushVertexUniforms(0, MakeFrameUniforms(m_viewProjection, m_camera));
     const Vector3 forward = m_camera.GetForward();
     const LightingUniforms lighting{
         .ambient = lights.ambient,

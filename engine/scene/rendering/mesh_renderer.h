@@ -10,6 +10,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace Spot {
 
@@ -17,6 +18,16 @@ class Entity;
 class Mesh;
 class Model;
 class Scene;
+
+// A simpler mesh a MeshRenderer shows in place of its own once its screen size, the height of its bounds as a
+// fraction of the view's, is below screenSize (see MeshLod).
+struct MeshRendererLod {
+    AssetRef<Mesh> mesh;
+    float screenSize = 0.1f;
+
+    void Serialize(Archive& archive);
+    friend bool operator==(const MeshRendererLod&, const MeshRendererLod&) = default;
+};
 
 // Shows a mesh with a material at its entity's world transform. Renderer3D::DrawScene() draws every active one:
 //
@@ -73,6 +84,21 @@ public:
         MarkChanged();
     }
 
+    // Levels of detail, from the most detailed down, each with a smaller screen size; up to three are drawn.
+    const std::vector<MeshRendererLod>& GetLods() const { return m_lods; }
+    void SetLods(std::vector<MeshRendererLod> lods) {
+        m_lods = std::move(lods);
+        ++m_version;
+        MarkChanged();
+    }
+    // Below this screen size nothing is drawn; 0 draws the mesh however small it looks.
+    float GetCullScreenSize() const { return m_cullScreenSize; }
+    void SetCullScreenSize(float screenSize) {
+        m_cullScreenSize = screenSize;
+        ++m_version;
+        MarkChanged();
+    }
+
 protected:
     void Serialize(Archive& archive) override;
 
@@ -83,6 +109,8 @@ private:
     AssetRef<Material> m_material;
     bool m_castingShadows = true;
     std::uint32_t m_submesh = Mesh::AllSubmeshes;
+    std::vector<MeshRendererLod> m_lods;
+    float m_cullScreenSize = 0.0f;
     // Changes with each of the above, so the scene's render world updates the renderer's object only then.
     std::uint32_t m_version = 0;
     // What the render world last took from it. Copies of the renderer start without, so each has an object of its own.

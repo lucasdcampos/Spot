@@ -5,6 +5,7 @@
 #include "scene/rendering/mesh_renderer.h"
 #include "scene/scene.h"
 
+#include <algorithm>
 #include <unordered_set>
 #include <vector>
 
@@ -23,12 +24,16 @@ void RenderWorldSystem::SyncRenderer(MeshRenderer& renderer) {
     }
     // Reading the world matrix brings outdated world values up to date, so the version is taken after it.
     const Matrix4& worldMatrix = transform.GetWorldMatrix();
-    const RenderMeshDesc desc{.mesh = mesh,
-                              .material = material,
-                              .transform = worldMatrix,
-                              .submesh = renderer.m_submesh,
-                              .castsShadows = renderer.m_castingShadows,
-                              .layer = static_cast<std::uint32_t>(entity.GetLayer())};
+    RenderMeshDesc desc{.mesh = mesh,
+                        .material = material,
+                        .transform = worldMatrix,
+                        .submesh = renderer.m_submesh,
+                        .castsShadows = renderer.m_castingShadows,
+                        .layer = static_cast<std::uint32_t>(entity.GetLayer()),
+                        .cullScreenSize = renderer.m_cullScreenSize};
+    for (std::size_t i = 0; i < std::min(renderer.m_lods.size(), desc.lods.size()); ++i) {
+        desc.lods[i] = {renderer.m_lods[i].mesh.Get(), renderer.m_lods[i].screenSize};
+    }
     if (known && sameLook) {
         m_world.SetTransform(renderer.m_sync.object, worldMatrix);
     } else if (known) {

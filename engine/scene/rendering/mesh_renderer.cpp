@@ -6,6 +6,13 @@
 
 namespace Spot {
 
+void MeshRendererLod::Serialize(Archive& archive) {
+    archive.Field("mesh", mesh);
+    archive.Field(
+        "screenSize", screenSize,
+        {.min = 0.0f, .max = 1.0f, .tooltip = "Shown below this height on screen, as a fraction of the view's"});
+}
+
 void MeshRenderer::Serialize(Archive& archive) {
     if (archive.IsLoading()) {
         ++m_version;
@@ -36,6 +43,9 @@ void MeshRenderer::Serialize(Archive& archive) {
     if (archive.IsLoading()) {
         m_submesh = submesh < 0 ? Mesh::AllSubmeshes : static_cast<std::uint32_t>(submesh);
     }
+    archive.Field("lods", m_lods, {.tooltip = "Simpler meshes shown once the mesh looks small, most detailed first"});
+    archive.Field("cullScreenSize", m_cullScreenSize,
+                  {.min = 0.0f, .max = 1.0f, .tooltip = "Not drawn below this height on screen; 0 never culls"});
 }
 
 Entity& InstantiateModel(Scene& scene, const Model& model, std::string name) {

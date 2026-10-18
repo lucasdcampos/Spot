@@ -61,6 +61,10 @@ private:
     std::size_t m_planeCount;
 };
 
+// Where the camera that picks levels of detail is, and how it sizes things, as the mesh shaders take it: a sphere's
+// screen size is its radius times w over its distance, or times -w alone when w is negative, for orthographic cameras.
+Vector4 GetLodView(const Camera3D& camera);
+
 bool IsSphereInView(const Matrix4& viewProjection, Vector3 center, float radius, bool ignoreNear = false);
 
 } // namespace Spot::Detail

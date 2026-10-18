@@ -224,8 +224,11 @@ private:
         bool built = false;
         std::unique_ptr<Buffer> instances;
         std::vector<InstanceData> instanceData;
-        // The world's object at each instance, and the instance of each object, or ~0 for those not drawn.
+        // The world's object and level of detail at each instance, and the instances of each object: those in
+        // slots from slotStarts[object] to slotStarts[object + 1].
         std::vector<std::uint32_t> objects;
+        std::vector<std::uint32_t> levels;
+        std::vector<std::uint32_t> slotStarts;
         std::vector<std::uint32_t> slots;
         std::vector<std::uint32_t> batchOfInstance;
         std::vector<WorldBatch> batches;
@@ -234,7 +237,8 @@ private:
     // Null when its buffer cannot be made, after logging why.
     WorldCache* UpdateWorldCache(const RenderWorld& world);
 
-    void AddCommand(const RenderMeshObject& object, const Material& material);
+    // Draws the level of detail of the object.
+    void AddCommand(const RenderMeshObject& object, const Material& material, std::uint32_t level = 0);
     void DrawShadows(Detail::SelectedLights& lights, Detail::ShadowUniforms& shadows);
     void DrawShadowViews(Detail::SelectedLights& lights, Detail::ShadowUniforms& shadows);
     // Whether the shadow map could be created.

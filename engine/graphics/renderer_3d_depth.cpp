@@ -9,6 +9,7 @@
 #include "shadow_cutout.frag.h"
 #include "skinned_shadow.vert.h"
 #include <array>
+#include <cmath>
 #include <cstddef>
 
 namespace Spot {
@@ -74,7 +75,8 @@ const Texture* Renderer3D::RenderCameraDepth(RenderContext& context) {
         struct {
             Matrix4 viewProjection;
             std::array<Vector4, 6> cullPlanes;
-        } view{m_viewProjection, Detail::Frustum(m_viewProjection).GetPlanes()};
+            Vector4 lodView;
+        } view{m_viewProjection, Detail::Frustum(m_viewProjection).GetPlanes(), Detail::GetLodView(m_camera)};
         pass.PushVertexUniforms(0, view);
         for (std::size_t i = 0; i < m_cameraDepthOrder.size(); ++i) {
             const auto& command = m_commands[m_cameraDepthOrder[i]];

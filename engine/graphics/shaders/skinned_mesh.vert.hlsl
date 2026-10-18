@@ -2,6 +2,8 @@ cbuffer Frame : register(b0, space1) {
     float4x4 viewProjection;
     // The planes of the view, which batches culled here test their instances' bounds against.
     float4 cullPlanes[6];
+    // Where the camera that picks levels of detail is, and how it sizes things (see InSizeRange()).
+    float4 lodView;
 };
 
 struct Instance {

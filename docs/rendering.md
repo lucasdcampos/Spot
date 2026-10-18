@@ -249,6 +249,13 @@ changed goes up again, in runs of neighbors, as the world's change stamps tell; 
 rebuilds the batches. Transparent materials are drawn object by object, sorted, as `DrawMesh()` does, and a renderer
 lets go of worlds it has not drawn for 120 frames. A batch the CPU keeps counts whole in `visibleMeshes`.
 
+Objects of a world can have levels of detail (`RenderMeshDesc::lods`, `MeshRenderer::SetLods()`): up to three
+simpler meshes, each shown once the object's screen size (`GetScreenSize()`: the height of its bounds as a fraction
+of the view's) is below its own `screenSize`, and `cullScreenSize`, below which nothing is drawn. Each level is an
+instance of its own, batched with the others of its mesh, and the shaders draw the one whose range the size falls in,
+as the view's camera sees it, in shadows too, so they fall from the same mesh. Levels draw their whole mesh, and are
+chosen by the bounds of the object's own.
+
 Scenes keep theirs in a `RenderWorldSystem` (`engine/scene/rendering/render_world_system.h`), which `DrawScene()`
 creates and syncs: it visits the scene's `MeshRenderer`s, and takes from each only what changed since the last sync,
 as `Transform::GetVersion()` (which changes when the transform or an ancestor moves) and the renderer's own changes
@@ -340,7 +347,8 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
 
 - `Camera`: where a scene is seen from, looking down its entity's -Z; perspective or orthographic, with a
   background color.
-- `MeshRenderer`: a mesh with a material at its entity's world transform. Materials (`Material`) are
+- `MeshRenderer`: a mesh with a material at its entity's world transform, with optional levels of detail
+  (`lods`, `cullScreenSize`; see [Render worlds](#render-worlds)). Materials (`Material`) are
   metallic-roughness PBR, as glTF defines it, so models look as their authors made them: a base color, `metallic`
   (0 for dielectrics, 1 for metals) and `roughness` (0 for a mirror, 1, the default, for a matte surface), each with
   an optional texture that multiplies it (roughness in green and metallic in blue of one texture, as glTF packs

@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cmath>
+#include <limits>
 #include <utility>
 
 namespace Spot {
@@ -19,8 +21,21 @@ RenderObjectId MakeId(std::uint32_t slot, std::uint32_t generation) {
 
 } // namespace
 
+float GetScreenSize(const Camera3D& camera, const BoundingSphere& bounds) {
+    if (camera.orthographic) {
+        return camera.orthographicSize > 0.0f ? bounds.radius / camera.orthographicSize : 0.0f;
+    }
+    const float distance = Length(bounds.center - camera.position);
+    // Inside its bounds, it fills the view.
+    if (distance <= bounds.radius) {
+        return 1.0f;
+    }
+    return bounds.radius / (distance * std::tan(camera.fieldOfView * 0.5f));
+}
+
 bool Detail::MakeMeshObject(const RenderMeshDesc& desc, RenderMeshObject& object) {
     object.desc = desc;
+    object.levelCount = 0;
     if (!desc.mesh) {
         object.bounds = {};
         object.indexCount = 0;
@@ -50,6 +65,22 @@ bool Detail::MakeMeshObject(const RenderMeshDesc& desc, RenderMeshObject& object
         object.firstIndex = 0;
         object.indexCount = mesh.GetIndexCount();
     }
+    // Each level shows from the screen size of the next one, or of culling, up to its own.
+    object.levels[0] = {.mesh = desc.mesh,
+                        .firstIndex = object.firstIndex,
+                        .indexCount = object.indexCount,
+                        .maxScreenSize = std::numeric_limits<float>::infinity()};
+    object.levelCount = 1;
+    for (const MeshLod& lod : desc.lods) {
+        if (!lod.mesh) {
+            break;
+        }
+        object.levels[object.levelCount - 1].minScreenSize = lod.screenSize;
+        object.levels[object.levelCount] = {
+            .mesh = lod.mesh, .indexCount = lod.mesh->GetIndexCount(), .maxScreenSize = lod.screenSize};
+        ++object.levelCount;
+    }
+    object.levels[object.levelCount - 1].minScreenSize = desc.cullScreenSize;
     return true;
 }
 

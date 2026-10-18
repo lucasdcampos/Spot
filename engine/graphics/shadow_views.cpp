@@ -130,6 +130,14 @@ bool Frustum::Contains(Vector3 center, float radius) const {
     return true;
 }
 
+Vector4 GetLodView(const Camera3D& camera) {
+    if (camera.orthographic) {
+        const float scale = camera.orthographicSize > 0.0f ? -1.0f / camera.orthographicSize : -1.0f;
+        return {camera.position.x, camera.position.y, camera.position.z, scale};
+    }
+    return {camera.position.x, camera.position.y, camera.position.z, 1.0f / std::tan(camera.fieldOfView * 0.5f)};
+}
+
 bool IsSphereInView(const Matrix4& viewProjection, Vector3 center, float radius, bool ignoreNear) {
     return Frustum(viewProjection, ignoreNear).Contains(center, radius);
 }
