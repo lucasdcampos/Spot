@@ -1,4 +1,5 @@
 #include "assets/asset_archive.h"
+#include "assets/assets.h"
 #include "core/archive.h"
 #include "core/archive_state.h"
 #include "core/assert.h"
@@ -489,6 +490,11 @@ bool Scene::SaveToFile(const std::filesystem::path& path) const {
 }
 
 bool Scene::LoadFromString(std::string_view text, AssetManager* assets) {
+    // The assets the scene names, and those they refer to, are read together before its entities need them one by
+    // one, and kept until it is loaded. Only whole scenes do, as instantiating prefabs often, such as projectiles,
+    // finds their assets loaded already.
+    AssetManager* manager = assets ? assets : Assets::GetManager();
+    const auto preloaded = manager ? manager->PreloadReferencedBy(text) : std::vector<std::shared_ptr<const void>>();
     return Detail::SceneSerializer::Load(*this, text, {.assets = assets}).has_value();
 }
 

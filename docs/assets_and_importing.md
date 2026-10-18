@@ -82,6 +82,19 @@ including its descendants, sorted by source path and then id. The directory is o
 excluded. It reads the runtime manifest without loading assets or inspecting source files, so shipped games can
 discover content such as spawnable prefabs. `RefreshManifest()` makes newly cooked entries available to queries.
 
+Loading has two halves: reading and decoding the asset's file, which needs neither the GPU nor other assets and runs
+on any thread, and making the asset, on the thread that loads it. So:
+
+- `LoadAsync<T>(id)` reads and decodes the asset on the job system's threads and returns an `AssetRequest<T>`; the
+  next `AssetManager::Update()` after that, which the application calls every frame, makes it, and the request is
+  then done (`IsDone()`, `Get()`). What the asset refers to, such as a material's textures, loads when it is made.
+- `Preload(ids)` loads the assets and what they refer to at once: wave by wave, the files of a wave are read and
+  decoded together on the job system's threads, which tells what they refer to (a material's textures, a model's
+  meshes and materials, the ids that scenes and prefabs name), the next wave; then the assets are made from the last
+  wave back, so each finds what it refers to ready. It returns what it loaded, which stays loaded while kept.
+  Loading a scene preloads what it names (`PreloadReferencedBy()`) before making its entities; fonts rasterize their
+  glyphs while being read, the costliest part of loading them.
+
 A mesh asset can also load as its CPU triangles, `MeshData`, with `AssetManager::LoadMeshData()` or
 `Load<MeshData>()`, as mesh colliders need; it loads without a graphics device, and is cached apart from the GPU mesh.
 

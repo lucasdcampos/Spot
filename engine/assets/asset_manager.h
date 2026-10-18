@@ -4,8 +4,11 @@
 #include "assets/asset_type.h"
 #include "core/asset_id.h"
 
+#include <atomic>
 #include <cstddef>
+#include <deque>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <span>
@@ -91,7 +94,38 @@ struct AssetTypeOf<SpriteAtlas> {
 
 namespace Detail {
 class AssetPak;
-}
+struct PreparedAsset;
+
+// What an asynchronous load shares between the thread that reads the asset and the manager, which makes it.
+struct AsyncLoad {
+    AssetId id;
+    AssetType type = AssetType::Texture;
+    std::atomic<bool> prepared = false;
+    std::shared_ptr<void> asset;
+    bool done = false;
+    std::shared_ptr<const void> result;
+};
+} // namespace Detail
+
+// An asset loading in the background (see AssetManager::LoadAsync()): done once AssetManager::Update() made it,
+// which the application calls every frame.
+template <typename T>
+class AssetRequest {
+public:
+    AssetRequest() = default;
+    explicit AssetRequest(std::shared_ptr<Detail::AsyncLoad> load) : m_load(std::move(load)) {}
+
+    bool IsValid() const { return m_load != nullptr; }
+    bool IsDone() const { return m_load && m_load->done; }
+    // A reference without an asset until it is done, or when it failed to load.
+    AssetRef<T> Get() const {
+        return m_load && m_load->done ? AssetRef<T>(m_load->id, std::static_pointer_cast<const T>(m_load->result))
+                                      : AssetRef<T>();
+    }
+
+private:
+    std::shared_ptr<Detail::AsyncLoad> m_load;
+};
 
 class AssetManager;
 
@@ -147,6 +181,26 @@ public:
         }
     }
 
+    // Starts loading the asset in the background: its file is read and decoded on the job system's threads, and the
+    // next Update() after that makes it, on the thread that calls it. What it refers to, such as a material's
+    // textures, loads then. An asset already loaded is done at once.
+    template <LoadableAsset T>
+        requires(!std::is_same_v<T, MeshData>)
+    AssetRequest<T> LoadAsync(AssetId id) {
+        return AssetRequest<T>(StartAsyncLoad(id, AssetTypeOf<T>::Value));
+    }
+    // Makes the assets whose background loads are read, in the order they were asked for. The application calls it
+    // every frame.
+    void Update();
+
+    // Loads the assets and those they refer to, as a scene about to be instantiated does with the assets it names:
+    // their files are read and decoded together on the job system's threads, then made here. Returns what it loaded,
+    // which stays loaded while the caller keeps it, so loads of the same assets after it find them ready.
+    std::vector<std::shared_ptr<const void>> Preload(std::span<const AssetId> ids);
+    bool IsLoaded(AssetId id) const;
+    // Preloads the assets text saved by the engine, such as a scene, names by their ids.
+    std::vector<std::shared_ptr<const void>> PreloadReferencedBy(std::string_view text);
+
     // The CPU copy of a mesh asset, as Load<MeshData>() gives it: it loads without a graphics device, and is shared
     // while something refers to it, apart from the GPU mesh of the same asset.
     std::shared_ptr<const MeshData> LoadMeshData(AssetId id);
@@ -189,6 +243,15 @@ private:
     };
 
     std::shared_ptr<const void> LoadAsset(AssetId id, AssetType type);
+    // Reads and decodes the asset, as far as that goes without the GPU or other assets; safe on any thread.
+    Detail::PreparedAsset Prepare(AssetId id, AssetType type) const;
+    std::shared_ptr<const void> Finish(Detail::PreparedAsset prepared);
+    // Records a loaded asset, or logs why it did not load; returns it either way.
+    std::shared_ptr<const void> Keep(AssetId id, AssetType type, std::shared_ptr<const void> asset);
+    void ForEachReference(const Detail::PreparedAsset& asset, const std::function<void(AssetId)>& fn) const;
+    void ForEachIdInText(std::span<const std::byte> text, const std::function<void(AssetId)>& fn) const;
+    static bool IsBuiltIn(AssetId id);
+    std::shared_ptr<Detail::AsyncLoad> StartAsyncLoad(AssetId id, AssetType type);
     // The asset's data after its header, from the pak when there is one, or from its imported file.
     std::optional<std::vector<std::byte>> ReadData(AssetId id, AssetType type) const;
     std::shared_ptr<const void> Create(AssetId id, AssetType type);
@@ -197,6 +260,7 @@ private:
     std::filesystem::path m_importDirectory;
     GraphicsDevice* m_device;
     std::unique_ptr<Detail::AssetPak> m_pak;
+    std::deque<std::shared_ptr<Detail::AsyncLoad>> m_pending;
     std::unordered_map<AssetId, Entry> m_entries;
     std::unordered_map<std::string, AssetId> m_paths;
 };

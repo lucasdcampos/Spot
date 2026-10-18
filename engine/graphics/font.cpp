@@ -29,14 +29,15 @@ std::unique_ptr<Font> Font::Load(GraphicsDevice& device, const std::filesystem::
 
 std::unique_ptr<Font> Font::LoadFromMemory(GraphicsDevice& device, std::span<const std::byte> data, float pixelSize) {
     auto atlas = FontAtlas::Create(data, pixelSize);
-    if (!atlas) {
-        return nullptr;
-    }
-    auto texture = device.CreateTexture(atlas->GetImage(), false, TextureFormat::Rgba8);
+    return atlas ? Create(device, std::move(*atlas)) : nullptr;
+}
+
+std::unique_ptr<Font> Font::Create(GraphicsDevice& device, FontAtlas atlas) {
+    auto texture = device.CreateTexture(atlas.GetImage(), false, TextureFormat::Rgba8);
     if (!texture) {
         return nullptr;
     }
-    return std::unique_ptr<Font>(new Font(std::move(*atlas), std::move(texture)));
+    return std::unique_ptr<Font>(new Font(std::move(atlas), std::move(texture)));
 }
 
 Font::Font(FontAtlas atlas, std::unique_ptr<Texture> texture)

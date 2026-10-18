@@ -21,6 +21,7 @@
 #include <memory>
 #include <span>
 #include <string>
+#include <thread>
 #include <unordered_set>
 #include <vector>
 
@@ -1104,4 +1105,41 @@ TEST_CASE("Paks hold the imported assets in one file, which the asset manager lo
     Spot::AssetManager assets(imported);
     CHECK(assets.ReadImportedData(*texture, AssetType::Texture).has_value());
     CHECK(assets.Load<Spot::Sound>(*sound));
+}
+
+TEST_CASE("Assets load in the background, and preload together with what they refer to", "[assets]") {
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    const auto imported = project.GetPath() / "imported";
+    CopyFile(TestAssets / "sine.ogg", sources / "sine.ogg");
+    CopyFile(TestAssets / "sine.ogg", sources / "other.ogg");
+    AssetDatabase database(sources, imported);
+    database.Refresh();
+    const auto sine = database.FindByPath("sine.ogg");
+    const auto other = database.FindByPath("other.ogg");
+    REQUIRE((sine && other));
+    Spot::AssetManager assets(imported);
+
+    auto request = assets.LoadAsync<Spot::Sound>(*sine);
+    REQUIRE(request.IsValid());
+    CHECK_FALSE(assets.IsLoaded(*sine));
+    // Made by Update(), once read on another thread.
+    for (int i = 0; i < 1000 && !request.IsDone(); ++i) {
+        assets.Update();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    REQUIRE(request.IsDone());
+    const auto sound = request.Get();
+    CHECK(sound);
+    CHECK(assets.IsLoaded(*sine));
+    // Loaded already, it is done at once, and the same asset.
+    const auto again = assets.LoadAsync<Spot::Sound>(*sine);
+    CHECK(again.IsDone());
+    CHECK(again.Get().Get() == sound.Get());
+
+    // Text naming assets by id preloads them, while what it returns is kept.
+    const auto preloaded = assets.PreloadReferencedBy("{\"sound\": \"" + other->ToString() + "\"}");
+    CHECK(preloaded.size() == 1);
+    CHECK(assets.IsLoaded(*other));
+    CHECK(assets.Load<Spot::Sound>(*other).Get() == preloaded.front().get());
 }

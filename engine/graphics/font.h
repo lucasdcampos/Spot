@@ -20,6 +20,8 @@ class Font {
 public:
     // Return null, after logging why, when the file cannot be read or is not a usable font.
     static std::unique_ptr<Font> Load(GraphicsDevice& device, const std::filesystem::path& path, float pixelSize);
+    // From an atlas rasterized beforehand, such as on another thread, as asset loads do.
+    static std::unique_ptr<Font> Create(GraphicsDevice& device, FontAtlas atlas);
     static std::unique_ptr<Font> LoadFromMemory(GraphicsDevice& device, std::span<const std::byte> data,
                                                 float pixelSize);
 

@@ -177,6 +177,8 @@ int Application::Run() {
             Platform::SleepFor(m_limiter.GetWaitTime(std::chrono::steady_clock::now()));
         }
         m_clock.Tick(std::chrono::steady_clock::now());
+        // Assets loading in the background whose files are read become ready for this frame.
+        m_assets->Update();
 
         {
             SPOT_PROFILE_SCOPE("Application::Events");

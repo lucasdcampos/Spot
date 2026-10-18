@@ -8,8 +8,10 @@
 #include "assets/asset_pak.h"
 #include "assets/built_in_assets.h"
 #include "audio/sound.h"
+#include "core/job_system.h"
 #include "core/log.h"
 #include "core/paths.h"
+#include "core/profiler.h"
 #include "graphics/font.h"
 #include "graphics/graphics_device.h"
 #include "graphics/image.h"
@@ -19,11 +21,25 @@
 
 #include <algorithm>
 #include <array>
+#include <thread>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
 namespace Spot {
+
+// An asset read and decoded as far as it goes without the GPU or other assets, which can be done on any thread.
+struct Detail::PreparedAsset {
+    AssetId id;
+    AssetType type = AssetType::Texture;
+    std::optional<std::vector<std::byte>> data;
+    std::optional<TextureFile> texture;
+    std::optional<MeshData> mesh;
+    std::optional<MaterialSource> material;
+    std::optional<std::vector<ModelFileNode>> model;
+    // Rasterizing a font's glyphs takes the longest of loading it.
+    std::optional<FontAtlas> fontAtlas;
+};
 
 namespace {
 
@@ -48,7 +64,16 @@ AssetManager::AssetManager(std::filesystem::path importDirectory, GraphicsDevice
     RefreshManifest();
 }
 
-AssetManager::~AssetManager() = default;
+AssetManager::~AssetManager() {
+    // Loads still being read refer to the manager.
+    while (!m_pending.empty()) {
+        if (!m_pending.front()->prepared.load()) {
+            std::this_thread::yield();
+            continue;
+        }
+        m_pending.pop_front();
+    }
+}
 
 void AssetManager::RefreshManifest() {
     // Shipped games hold their assets in one pak; tools and the editor read the imported files themselves.
@@ -239,10 +264,13 @@ std::shared_ptr<const void> AssetManager::LoadAsset(AssetId id, AssetType type) 
         return loaded;
     }
 
-    auto asset = Create(id, type);
+    return Keep(id, type, Create(id, type));
+}
+
+std::shared_ptr<const void> AssetManager::Keep(AssetId id, AssetType type, std::shared_ptr<const void> asset) {
     if (!asset) {
         Log::GetEngineLogger().Error("Could not load {} {} from '{}'", GetAssetTypeName(type), id.ToString(),
-                                     found->second.path);
+                                     GetPath(id));
         return nullptr;
     }
     // Looked up again: loading the asset's own references may have added entries to the map.
@@ -251,6 +279,169 @@ std::shared_ptr<const void> AssetManager::LoadAsset(AssetId id, AssetType type) 
         m_entries.at(id).dependencies = loader->second.dependencies(asset.get());
     }
     return asset;
+}
+
+bool AssetManager::IsLoaded(AssetId id) const {
+    const auto found = m_entries.find(id);
+    return found != m_entries.end() && !found->second.loaded.expired();
+}
+
+std::vector<std::shared_ptr<const void>> AssetManager::Preload(std::span<const AssetId> ids) {
+    SPOT_PROFILE_SCOPE("AssetManager::Preload");
+    // Wave by wave: the assets of a wave are read and decoded at once, on the job system's threads, which tells the
+    // assets they refer to, the next wave. They are then made from the last wave back, so each finds what it refers
+    // to loaded already.
+    const auto loadable = [this](AssetId id) {
+        const auto found = m_entries.find(id);
+        return found != m_entries.end() && found->second.loaded.expired() && !IsBuiltIn(id);
+    };
+    std::unordered_set<AssetId> seen;
+    std::vector<AssetId> wave;
+    for (const AssetId id : ids) {
+        if (loadable(id) && seen.insert(id).second) {
+            wave.push_back(id);
+        }
+    }
+    std::vector<std::vector<Detail::PreparedAsset>> waves;
+    while (!wave.empty()) {
+        std::vector<AssetType> types;
+        for (const AssetId id : wave) {
+            types.push_back(m_entries.at(id).type);
+        }
+        std::vector<Detail::PreparedAsset> prepared(wave.size());
+        JobSystem::GetShared().ParallelFor(wave.size(), 1, [&](std::size_t begin, std::size_t end) {
+            for (std::size_t i = begin; i < end; ++i) {
+                prepared[i] = Prepare(wave[i], types[i]);
+            }
+        });
+        std::vector<AssetId> next;
+        const auto refer = [&](AssetId id) {
+            if (id.IsValid() && loadable(id) && seen.insert(id).second) {
+                next.push_back(id);
+            }
+        };
+        for (const Detail::PreparedAsset& asset : prepared) {
+            ForEachReference(asset, refer);
+        }
+        waves.push_back(std::move(prepared));
+        wave = std::move(next);
+    }
+    std::vector<std::shared_ptr<const void>> loaded;
+    for (auto it = waves.rbegin(); it != waves.rend(); ++it) {
+        for (Detail::PreparedAsset& asset : *it) {
+            // Scenes are not shared assets: what they refer to is all they are preloaded for.
+            if (asset.type == AssetType::Scene || !asset.data || !loadable(asset.id)) {
+                continue;
+            }
+            const AssetId id = asset.id;
+            const AssetType type = asset.type;
+            if (auto kept = Keep(id, type, Finish(std::move(asset)))) {
+                loaded.push_back(std::move(kept));
+            }
+        }
+    }
+    return loaded;
+}
+
+std::vector<std::shared_ptr<const void>> AssetManager::PreloadReferencedBy(std::string_view text) {
+    std::vector<AssetId> ids;
+    ForEachIdInText(std::as_bytes(std::span(text)), [&](AssetId id) { ids.push_back(id); });
+    return Preload(ids);
+}
+
+void AssetManager::ForEachReference(const Detail::PreparedAsset& asset, const std::function<void(AssetId)>& fn) const {
+    if (asset.material) {
+        for (const AssetId texture :
+             {asset.material->baseColorTexture, asset.material->metallicRoughnessTexture, asset.material->normalTexture,
+              asset.material->occlusionTexture, asset.material->emissiveTexture}) {
+            fn(texture);
+        }
+    }
+    if (asset.model) {
+        for (const auto& node : *asset.model) {
+            fn(node.mesh);
+            fn(node.skeleton);
+            for (const AssetId id : node.materials) {
+                fn(id);
+            }
+            for (const AssetId id : node.animations) {
+                fn(id);
+            }
+        }
+    }
+    // Assets saved as text, such as scenes and prefabs, name the assets they refer to by their ids.
+    if (asset.data && (asset.type == AssetType::Scene || asset.type == AssetType::Prefab ||
+                       asset.type == AssetType::AnimatorController || asset.type == AssetType::SpriteAtlas)) {
+        ForEachIdInText(*asset.data, fn);
+    }
+}
+
+void AssetManager::ForEachIdInText(std::span<const std::byte> text, const std::function<void(AssetId)>& fn) const {
+    const auto isHex = [](std::byte b) {
+        const auto c = static_cast<char>(b);
+        return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
+    };
+    std::size_t run = 0;
+    for (std::size_t i = 0; i <= text.size(); ++i) {
+        if (i < text.size() && isHex(text[i])) {
+            ++run;
+            continue;
+        }
+        if (run == 32) {
+            const std::string_view digits(reinterpret_cast<const char*>(text.data()) + i - 32, 32);
+            if (const auto id = AssetId::Parse(digits); id && m_entries.contains(*id)) {
+                fn(*id);
+            }
+        }
+        run = 0;
+    }
+}
+
+bool AssetManager::IsBuiltIn(AssetId id) {
+    return std::ranges::any_of(BuiltIns, [id](const BuiltIn& builtIn) { return builtIn.id == id; });
+}
+
+void AssetManager::Update() {
+    // Finished in the order they were asked for, so what loads first shows first.
+    while (!m_pending.empty() && m_pending.front()->prepared.load()) {
+        const std::shared_ptr<Detail::AsyncLoad> load = std::move(m_pending.front());
+        m_pending.pop_front();
+        if (const auto found = m_entries.find(load->id); found != m_entries.end()) {
+            if (auto loaded = found->second.loaded.lock()) {
+                load->result = std::move(loaded);
+            } else {
+                load->result = Keep(load->id, load->type,
+                                    Finish(std::move(*std::static_pointer_cast<Detail::PreparedAsset>(load->asset))));
+            }
+        }
+        load->asset.reset();
+        load->done = true;
+    }
+}
+
+std::shared_ptr<Detail::AsyncLoad> AssetManager::StartAsyncLoad(AssetId id, AssetType type) {
+    auto load = std::make_shared<Detail::AsyncLoad>();
+    load->id = id;
+    load->type = type;
+    const auto found = m_entries.find(id);
+    if (found == m_entries.end() || found->second.type != type || IsBuiltIn(id)) {
+        // Unknown, of another type, or built in: Load() says why, or makes it, at once.
+        load->result = LoadAsset(id, type);
+        load->done = true;
+        return load;
+    }
+    if (auto loaded = found->second.loaded.lock()) {
+        load->result = std::move(loaded);
+        load->done = true;
+        return load;
+    }
+    m_pending.push_back(load);
+    // The job holds the load, not the manager, which may finish waiting for it.
+    JobSystem::GetShared().Run([this, load] {
+        load->asset = std::make_shared<Detail::PreparedAsset>(Prepare(load->id, load->type));
+        load->prepared = true;
+    });
+    return load;
 }
 
 std::shared_ptr<const MeshData> AssetManager::LoadMeshData(AssetId id) {
@@ -308,7 +499,43 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
         return result;
     }
 
-    const auto data = ReadData(id, type);
+    return Finish(Prepare(id, type));
+}
+
+Detail::PreparedAsset AssetManager::Prepare(AssetId id, AssetType type) const {
+    Detail::PreparedAsset prepared{.id = id, .type = type, .data = ReadData(id, type)};
+    if (!prepared.data) {
+        return prepared;
+    }
+    // What decodes without the GPU or other assets is done here, wherever this runs.
+    switch (type) {
+    case AssetType::Texture:
+        prepared.texture = Detail::DecodeTexture(*prepared.data);
+        break;
+    case AssetType::Mesh:
+        prepared.mesh = Detail::DecodeMesh(*prepared.data);
+        break;
+    case AssetType::Material:
+        prepared.material = Detail::DecodeMaterial(*prepared.data);
+        break;
+    case AssetType::Model:
+        prepared.model = Detail::DecodeModel(*prepared.data);
+        break;
+    case AssetType::Font:
+        if (const auto font = Detail::DecodeFont(*prepared.data)) {
+            prepared.fontAtlas = FontAtlas::Create(font->fontData, font->pixelSize);
+        }
+        break;
+    default:
+        break;
+    }
+    return prepared;
+}
+
+std::shared_ptr<const void> AssetManager::Finish(Detail::PreparedAsset prepared) {
+    const AssetId id = prepared.id;
+    const AssetType type = prepared.type;
+    const auto& data = prepared.data;
     if (!data) {
         return nullptr;
     }
@@ -325,7 +552,7 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
 
     switch (type) {
     case AssetType::Texture: {
-        const auto texture = Detail::DecodeTexture(*data);
+        const auto& texture = prepared.texture;
         if (!texture) {
             break;
         }
@@ -355,7 +582,7 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
         return result;
     }
     case AssetType::Mesh: {
-        const auto mesh = Detail::DecodeMesh(*data);
+        const auto& mesh = prepared.mesh;
         if (!mesh) {
             break;
         }
@@ -363,7 +590,7 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
         return result;
     }
     case AssetType::Material: {
-        const auto material = Detail::DecodeMaterial(*data);
+        const auto& material = prepared.material;
         if (!material) {
             break;
         }
@@ -385,7 +612,7 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
                      .worldTextureSize = material->worldTextureSize});
     }
     case AssetType::Model: {
-        const auto nodes = Detail::DecodeModel(*data);
+        const auto& nodes = prepared.model;
         if (!nodes) {
             break;
         }
@@ -425,11 +652,10 @@ std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
         return std::make_shared<const Sound>(sound->sampleRate, sound->channelCount, std::move(samples));
     }
     case AssetType::Font: {
-        const auto font = Detail::DecodeFont(*data);
-        if (!font) {
+        if (!prepared.fontAtlas) {
             break;
         }
-        std::shared_ptr<const Font> result = Font::LoadFromMemory(*m_device, font->fontData, font->pixelSize);
+        std::shared_ptr<const Font> result = Font::Create(*m_device, std::move(*prepared.fontAtlas));
         return result;
     }
     case AssetType::AnimatorController: {
