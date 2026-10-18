@@ -3,6 +3,7 @@
 #include "animation/pose.h"
 #include "assets/asset_archive.h"
 #include "core/archive.h"
+#include "core/job_system.h"
 #include "core/log.h"
 #include "core/profiler.h"
 #include "scene/animation/bone_attachment.h"
@@ -13,6 +14,9 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <exception>
+#include <span>
+#include <unordered_map>
 #include <utility>
 
 namespace Spot {
@@ -141,12 +145,21 @@ void Animator::Seek(float time) {
 }
 
 void Animator::Simulate(float deltaTime) {
-    if (!std::isfinite(deltaTime) || deltaTime < 0 || !m_playing) {
-        return;
+    if (BeginSimulate(deltaTime)) {
+        FinishSimulate();
     }
-    std::array<LayerEventStep, MaxLayers> layerEvents{};
-    const auto layerCount = AdvanceLayers(deltaTime, layerEvents);
-    MotionStep motion;
+}
+
+bool Animator::BeginSimulate(float deltaTime) {
+    if (!std::isfinite(deltaTime) || deltaTime < 0 || !m_playing) {
+        return false;
+    }
+    std::array<LayerEventStep, MaxLayers>& layerEvents = m_pendingLayerEvents;
+    layerEvents = {};
+    m_pendingLayerCount = AdvanceLayers(deltaTime, layerEvents);
+    m_pendingDelta = deltaTime;
+    MotionStep& motion = m_pendingMotion;
+    motion = {};
     motion.state = m_controllerRuntime.GetState();
     motion.clip = m_clip;
     motion.from = m_time;
@@ -185,14 +198,21 @@ void Animator::Simulate(float deltaTime) {
         m_time += deltaTime * m_speed;
     }
     Evaluate(transitioned ? 0.0f : deltaTime);
-    DeliverMotion(motion, deltaTime);
-    for (std::size_t i = 0; i < layerCount; ++i) {
-        const auto& step = layerEvents[i];
+    return true;
+}
+
+void Animator::FinishSimulate() {
+    DeliverMotion(m_pendingMotion, m_pendingDelta);
+    for (std::size_t i = 0; i < m_pendingLayerCount; ++i) {
+        const auto& step = m_pendingLayerEvents[i];
         DispatchEvents(-1, step.clip, step.from, step.to, step.loop, step.includeStart);
     }
     if (!m_controller && m_clip && !m_loop && (m_speed >= 0 ? m_time >= m_clip->duration : m_time <= 0)) {
         m_playing = false;
     }
+    // The clips are let go here, on the thread that frees assets.
+    m_pendingMotion = {};
+    m_pendingLayerEvents = {};
 }
 
 void Animator::Preview(float deltaTime) {
@@ -275,21 +295,35 @@ void Animator::SampleState(int index, float time, std::span<TransformComponents>
 }
 
 void Animator::RefreshRenderers() {
+    std::vector<SkinnedMeshRenderer*> renderers;
+    GetScene().ForEachComponent<SkinnedMeshRenderer>([&](SkinnedMeshRenderer& renderer) {
+        if (renderer.GetAnimator() == GetEntity().GetId()) {
+            renderers.push_back(&renderer);
+        }
+    });
+    std::vector<BoneAttachment*> attachments;
+    GetScene().ForEachComponent<BoneAttachment>([&](BoneAttachment& attachment) {
+        if (attachment.GetAnimator() == GetEntity().GetId() || attachment.GetAnimator() == EntityId::Invalid) {
+            attachments.push_back(&attachment);
+        }
+    });
+    RefreshRenderers(renderers, attachments);
+}
+
+void Animator::RefreshRenderers(std::span<SkinnedMeshRenderer* const> renderers,
+                                std::span<BoneAttachment* const> attachments) {
     if (!m_skeleton || m_model.empty()) {
         return;
     }
-    GetScene().ForEachComponent<SkinnedMeshRenderer>([&](SkinnedMeshRenderer& renderer) {
-        if (renderer.GetAnimator() == GetEntity().GetId()) {
-            Pose::Palette(*m_skeleton, m_model, renderer.GetMeshModel(), m_palette);
-            renderer.SetPalette(m_palette);
+    for (SkinnedMeshRenderer* renderer : renderers) {
+        Pose::Palette(*m_skeleton, m_model, renderer->GetMeshModel(), m_palette);
+        renderer->SetPalette(m_palette);
+    }
+    for (BoneAttachment* attachment : attachments) {
+        if (attachment->IsActiveAndEnabled()) {
+            attachment->InvokeHook("BoneAttachment", [&] { attachment->Synchronize(); });
         }
-    });
-    GetScene().ForEachComponent<BoneAttachment>([&](BoneAttachment& attachment) {
-        if (attachment.IsActiveAndEnabled() &&
-            (attachment.GetAnimator() == GetEntity().GetId() || attachment.GetAnimator() == EntityId::Invalid)) {
-            attachment.InvokeHook("BoneAttachment", [&] { attachment.Synchronize(); });
-        }
-    });
+    }
 }
 
 bool Animator::SetPose(std::span<const TransformComponents> pose) {
@@ -365,6 +399,13 @@ void Animator::Serialize(Archive& archive) {
 
 void AnimationSystem::OnUpdate(float deltaTime) {
     SPOT_PROFILE_SCOPE("AnimationSystem");
+    struct Due {
+        Animator* animator;
+        float elapsed;
+        bool finish = false;
+        std::exception_ptr error = nullptr;
+    };
+    std::vector<Due> due;
     GetScene().ForEachComponent<Animator>([&](Animator& animator) {
         if (!animator.IsActiveAndEnabled()) {
             return;
@@ -373,12 +414,58 @@ void AnimationSystem::OnUpdate(float deltaTime) {
         if (animator.m_pendingTime < animator.m_updateInterval) {
             return;
         }
-        const float elapsed = std::exchange(animator.m_pendingTime, 0.0f);
-        animator.InvokeHook("Animation", [&] {
-            animator.Simulate(elapsed);
-            animator.RefreshRenderers();
-        });
+        due.push_back({&animator, std::exchange(animator.m_pendingTime, 0.0f)});
     });
+    if (due.empty()) {
+        return;
+    }
+
+    // What each animator drives, gathered once rather than looked for by each.
+    std::unordered_map<EntityId, std::vector<SkinnedMeshRenderer*>> renderers;
+    GetScene().ForEachComponent<SkinnedMeshRenderer>(
+        [&](SkinnedMeshRenderer& renderer) { renderers[renderer.GetAnimator()].push_back(&renderer); });
+    std::unordered_map<EntityId, std::vector<BoneAttachment*>> attachments;
+    std::vector<BoneAttachment*> anyAttachments;
+    GetScene().ForEachComponent<BoneAttachment>([&](BoneAttachment& attachment) {
+        if (attachment.GetAnimator() == EntityId::Invalid) {
+            anyAttachments.push_back(&attachment);
+        } else {
+            attachments[attachment.GetAnimator()].push_back(&attachment);
+        }
+    });
+
+    // Poses are worked out together, on the job system's threads: each animator only touches its own state there.
+    // What reaches other components, root motion and events, then goes in order, here.
+    JobSystem::GetShared().ParallelFor(due.size(), 4, [&](std::size_t begin, std::size_t end) {
+        for (std::size_t i = begin; i < end; ++i) {
+            try {
+                due[i].finish = due[i].animator->BeginSimulate(due[i].elapsed);
+            } catch (...) {
+                due[i].error = std::current_exception();
+            }
+        }
+    });
+    std::vector<BoneAttachment*> driven;
+    for (Due& item : due) {
+        Animator& animator = *item.animator;
+        const EntityId id = animator.GetEntity().GetId();
+        animator.InvokeHook("Animation", [&] {
+            if (item.error) {
+                std::rethrow_exception(item.error);
+            }
+            if (item.finish) {
+                animator.FinishSimulate();
+            }
+            const auto own = renderers.find(id);
+            driven = anyAttachments;
+            if (const auto found = attachments.find(id); found != attachments.end()) {
+                driven.insert(driven.end(), found->second.begin(), found->second.end());
+            }
+            animator.RefreshRenderers(own != renderers.end() ? std::span<SkinnedMeshRenderer* const>(own->second)
+                                                             : std::span<SkinnedMeshRenderer* const>(),
+                                      driven);
+        });
+    }
 }
 
 void AnimationSystem::OnLateUpdate(float) {

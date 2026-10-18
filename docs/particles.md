@@ -19,7 +19,8 @@ stops emission while live particles drain, or clears them when requested. `Emit(
 burst, independent of automatic emission. `Seek()` replays from the seed at one emitter pose.
 
 `ParticleSystem` wraps this API for entities. Configure it with `SetSettings()`; add a texture with
-`SetTexture()`. A lazy `ParticleSceneSystem` advances active components after gameplay updates.
+`SetTexture()`. A lazy `ParticleSceneSystem` advances active components after gameplay updates, together on the job
+system's threads, each from its entity's world transform read beforehand.
 Disabling a component freezes it. Runtime particle state is transient; scenes save configuration
 and the texture asset id. Editing configuration resets its simulation; merely inspecting or saving
 does not. No entity or component pointers are cached by the system.

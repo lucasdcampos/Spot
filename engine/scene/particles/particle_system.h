@@ -29,6 +29,7 @@ protected:
 
 private:
     void EnsureSystem();
+    friend class ParticleSceneSystem;
     ParticleSimulation m_simulation;
     AssetRef<Texture> m_texture;
     bool m_initialized = false;

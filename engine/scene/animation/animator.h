@@ -8,12 +8,16 @@
 #include "scene/scene_system.h"
 
 #include <algorithm>
+#include <array>
 #include <span>
 #include <vector>
 
 namespace Spot {
 
 enum class RootMotionMode { None, Transform, CharacterController };
+
+class BoneAttachment;
+class SkinnedMeshRenderer;
 
 class Animator final : public Component {
 public:
@@ -59,6 +63,9 @@ public:
     void Preview(float deltaTime);
     bool PreviewClip(AssetRef<AnimationClip> clip, float time);
     void RefreshRenderers();
+    // The same for the renderers and attachments it drives, found beforehand.
+    void RefreshRenderers(std::span<SkinnedMeshRenderer* const> renderers,
+                          std::span<BoneAttachment* const> attachments);
 
 protected:
     void OnEnable() override;
@@ -67,6 +74,10 @@ protected:
 
 private:
     friend class AnimationSystem;
+    // Simulate() in two halves: the first advances and poses the animator, touching nothing but its own state, so
+    // several run at once; the second, true when the first says so, delivers root motion and events, in order.
+    bool BeginSimulate(float deltaTime);
+    void FinishSimulate();
     void Evaluate(float deltaTime);
     bool Accepts(const AssetRef<AnimationClip>& clip) const;
     struct MotionStep {
@@ -130,6 +141,11 @@ private:
     std::vector<TransformComponents> m_fadeSource;
     std::vector<Matrix4> m_model;
     std::vector<Matrix4> m_palette;
+    // What BeginSimulate() left for FinishSimulate().
+    MotionStep m_pendingMotion;
+    std::array<LayerEventStep, MaxLayers> m_pendingLayerEvents = {};
+    std::size_t m_pendingLayerCount = 0;
+    float m_pendingDelta = 0.0f;
 };
 
 class AnimationSystem final : public SceneSystem {

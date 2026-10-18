@@ -34,7 +34,10 @@ Meshes and palettes must stay valid until submission; too-short palettes are rej
 both clips and blends local poses; interrupting a fade starts from the currently blended
 pose. Speed can be negative, loops wrap, and non-looping playback holds its last pose.
 The lazy `AnimationSystem` evaluates active animators after component updates under their
-failure guard, then refreshes renderer palettes. Model instances create non-joint nodes
+failure guard, then refreshes renderer palettes. Poses are worked out together on the job system's threads, since an
+animator only touches its own state while advancing its clips, controller and layers and sampling them; root motion,
+events and the renderers and bone attachments it drives then follow in order, on the scene's thread, with what each
+animator drives gathered once per frame rather than looked for by each. Model instances create non-joint nodes
 and an animator per skin, and use skinned renderers for skin-bearing nodes.
 
 Select an Animator in the editor to preview with real time, pause, restart or seek in the

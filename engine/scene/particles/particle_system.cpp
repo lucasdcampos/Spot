@@ -1,9 +1,13 @@
 #include "scene/particles/particle_system.h"
 #include "assets/asset_archive.h"
 #include "core/archive.h"
+#include "core/job_system.h"
+#include "core/profiler.h"
 #include "graphics/texture.h"
 #include "scene/entity.h"
 #include "scene/scene.h"
+
+#include <vector>
 
 namespace Spot {
 void ParticleSystem::EnsureSystem() {
@@ -50,9 +54,23 @@ void ParticleSystem::Serialize(Archive& archive) {
         SetSettings(std::move(settings));
 }
 void ParticleSceneSystem::OnUpdate(float deltaTime) {
+    SPOT_PROFILE_SCOPE("ParticleSceneSystem");
+    // Each system simulates only its own particles, so they run together on the job system's threads, from world
+    // transforms read here first, as reading one brings its ancestors' up to date.
+    struct Due {
+        ParticleSystem* system;
+        Matrix4 transform;
+    };
+    std::vector<Due> due;
     GetScene().ForEachComponent<ParticleSystem>([&](ParticleSystem& system) {
-        if (system.IsActiveAndEnabled())
-            system.Simulate(deltaTime);
+        if (system.IsActiveAndEnabled()) {
+            due.push_back({&system, system.GetEntity().GetTransform().GetWorldMatrix()});
+        }
+    });
+    JobSystem::GetShared().ParallelFor(due.size(), 2, [&](std::size_t begin, std::size_t end) {
+        for (std::size_t i = begin; i < end; ++i) {
+            due[i].system->m_simulation.Advance(deltaTime, due[i].transform);
+        }
     });
 }
 } // namespace Spot
