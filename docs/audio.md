@@ -119,3 +119,10 @@ sounds play, then passes the buses up the tree, each before its parent, in chunk
 slots, so mixing never allocates and the peak meters are atomics. The audio thread only mixes: it never touches
 scenes or assets, and sounds stay alive while they play because the mixer holds them.
 
+The audio thread takes no lock, so a game holding the mixer busy never makes it miss its deadline and crackle. The
+game's calls keep their own record of the voices and buses, under a lock of theirs, and send what changes through a
+fixed-size queue without locks (`engine/core/spsc_queue.h`), which `Mix()` applies before mixing, on voices and buses
+of its own kept in room reserved up front (1,024 voices, fading ones included). Voices that end go back through
+another queue, and the game's side lets their sounds go on its next call, so the audio thread never frees memory
+either. What the game asks for is heard from the next mix on.
+

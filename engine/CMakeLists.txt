@@ -68,6 +68,7 @@ add_library(spot_objects OBJECT
     runtime/game_settings.h
     runtime/game_settings.cpp
     core/log.h
+    core/spsc_queue.h
     core/log.cpp
     core/log_sinks.h
     core/log_sinks.cpp

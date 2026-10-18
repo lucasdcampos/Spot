@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <thread>
 #include <utility>
 
 namespace Spot::Detail {
@@ -34,8 +35,10 @@ AudioBusId ToBus(std::size_t slot) {
 
 Mixer::Mixer(std::uint32_t sampleRate, bool streamThread) : m_sampleRate(sampleRate), m_useStreamThread(streamThread) {
     SPOT_ASSERT(sampleRate > 0, "The mixer needs a sample rate");
-    m_voices.reserve(64);
-    m_buses[0] = {.used = true, .name = "Master"};
+    m_voices.reserve(MaxRenderVoices);
+    m_gameVoices.reserve(64);
+    m_buses[0] = {.used = true};
+    m_gameBuses[0] = {.used = true, .name = "Master"};
     m_busOrder.reserve(MaxBuses);
     m_busBuffers.resize(MaxBuses * ChunkFrames * 2);
     for (std::atomic<float>& peak : m_peaks) {
@@ -102,19 +105,19 @@ SoundInstance Mixer::Play(std::shared_ptr<const Sound> sound, const PlayParams& 
     }
 
     std::scoped_lock lock(m_mutex);
-    std::erase_if(m_voices, [](const Voice& voice) { return voice.ended; });
+    CollectEnded();
 
     // Voices are in the order they started, so the first found is the oldest.
-    const auto isActive = [](const Voice& voice) { return !voice.stopping && !voice.ended; };
+    const auto isActive = [](const GameVoice& voice) { return !voice.stopping; };
     if (params.maxInstances > 0) {
-        const auto sameSound = [&](const Voice& voice) { return isActive(voice) && voice.sound == sound; };
-        if (std::ranges::count_if(m_voices, sameSound) >= params.maxInstances) {
-            StopVoice(*std::ranges::find_if(m_voices, sameSound), 0.0f);
+        const auto sameSound = [&](const GameVoice& voice) { return isActive(voice) && voice.sound == sound; };
+        if (std::ranges::count_if(m_gameVoices, sameSound) >= params.maxInstances) {
+            StopVoice(*std::ranges::find_if(m_gameVoices, sameSound), 0.0f);
         }
     }
-    if (std::ranges::count_if(m_voices, isActive) >= m_maxVoices) {
-        Voice* victim = nullptr;
-        for (Voice& voice : m_voices) {
+    if (std::ranges::count_if(m_gameVoices, isActive) >= m_maxVoices) {
+        GameVoice* victim = nullptr;
+        for (GameVoice& voice : m_gameVoices) {
             if (isActive(voice) && (!victim || voice.params.priority < victim->params.priority)) {
                 victim = &voice;
             }
@@ -124,44 +127,38 @@ SoundInstance Mixer::Play(std::shared_ptr<const Sound> sound, const PlayParams& 
         }
         StopVoice(*victim, 0.0f);
     }
+    // The audio thread holds a voice of its own for each, fading ones included, in room it never grows.
+    if (m_gameVoices.size() >= MaxRenderVoices) {
+        return {};
+    }
 
     const std::uint32_t id = m_nextId++;
     // The default instance must never match, even after the counter wraps around.
     if (m_nextId == 0) {
         m_nextId = 1;
     }
-    const auto [leftGain, rightGain] = GetGains(params);
-    m_voices.push_back({.sound = std::move(sound),
-                        .id = id,
-                        .params = params,
-                        .leftGain = leftGain,
-                        .rightGain = rightGain,
-                        .fade = params.fadeIn > 0.0f ? 0.0f : 1.0f,
-                        .fadeStep = params.fadeIn > 0.0f ? GetFadeStep(params.fadeIn) : 0.0f});
-    Voice& voice = m_voices.back();
-    if (!FindBusSlot(params.bus)) {
-        voice.params.bus = AudioBusId::Master;
+    PlayParams played = params;
+    if (ToSlot(played.bus) >= MaxBuses || !m_gameBuses[ToSlot(played.bus)].used) {
+        played.bus = AudioBusId::Master;
     }
-    if (stream) {
-        voice.stream = std::move(stream);
-        AdvanceStream(voice);
-        AdvanceStream(voice);
-        voice.streamFrame = 0;
-    }
+    m_gameVoices.push_back({.id = id, .sound = sound, .stream = stream, .params = played});
+    Send({.type = CommandType::Start, .id = id, .params = played, .sound = sound.get(), .stream = stream.get()});
     return {id};
 }
 
 void Mixer::Stop(SoundInstance instance, float fadeOut) {
     std::scoped_lock lock(m_mutex);
-    if (Voice* voice = FindVoice(instance)) {
+    CollectEnded();
+    if (GameVoice* voice = FindVoice(instance)) {
         StopVoice(*voice, fadeOut);
     }
 }
 
 void Mixer::StopAll() {
     std::scoped_lock lock(m_mutex);
-    for (Voice& voice : m_voices) {
-        if (!voice.stopping && !voice.ended) {
+    CollectEnded();
+    for (GameVoice& voice : m_gameVoices) {
+        if (!voice.stopping) {
             StopVoice(voice, 0.0f);
         }
     }
@@ -174,23 +171,19 @@ int Mixer::GetMaxVoices() const {
 
 void Mixer::SetMaxVoices(int count) {
     std::scoped_lock lock(m_mutex);
-    m_maxVoices = std::max(count, 1);
+    m_maxVoices = std::clamp(count, 1, static_cast<int>(MaxRenderVoices / 2));
 }
 
 int Mixer::GetVoiceCount() const {
     std::scoped_lock lock(m_mutex);
+    CollectEnded();
     return static_cast<int>(
-        std::ranges::count_if(m_voices, [](const Voice& voice) { return !voice.stopping && !voice.ended; }));
+        std::ranges::count_if(m_gameVoices, [](const GameVoice& voice) { return !voice.stopping; }));
 }
 
-void Mixer::StopVoice(Voice& voice, float fadeOut) {
+void Mixer::StopVoice(GameVoice& voice, float fadeOut) {
     voice.stopping = true;
-    // A paused voice is silent already.
-    if (voice.paused) {
-        voice.ended = true;
-        return;
-    }
-    voice.fadeStep = -GetFadeStep(std::max(fadeOut, ClickFadeSeconds));
+    Send({.type = CommandType::Stop, .id = voice.id, .value = fadeOut});
 }
 
 float Mixer::GetFadeStep(float seconds) const {
@@ -199,47 +192,49 @@ float Mixer::GetFadeStep(float seconds) const {
 
 bool Mixer::IsPlaying(SoundInstance instance) const {
     std::scoped_lock lock(m_mutex);
+    CollectEnded();
     return FindVoice(instance) != nullptr;
 }
 
 bool Mixer::IsPaused(SoundInstance instance) const {
     std::scoped_lock lock(m_mutex);
-    const Voice* voice = FindVoice(instance);
+    CollectEnded();
+    const GameVoice* voice = FindVoice(instance);
     return voice && voice->pauseRequested;
 }
 
 void Mixer::SetPaused(SoundInstance instance, bool paused) {
     std::scoped_lock lock(m_mutex);
-    Voice* voice = FindVoice(instance);
+    CollectEnded();
+    GameVoice* voice = FindVoice(instance);
     if (!voice || voice->pauseRequested == paused) {
         return;
     }
     voice->pauseRequested = paused;
-    const float step = GetFadeStep(ClickFadeSeconds);
-    voice->fadeStep = paused ? -step : step;
-    if (!paused) {
-        voice->paused = false;
-    }
+    Send({.type = CommandType::SetPaused, .id = voice->id, .flag = paused});
 }
 
 void Mixer::SetVolume(SoundInstance instance, float volume) {
     std::scoped_lock lock(m_mutex);
-    if (Voice* voice = FindVoice(instance)) {
+    if (GameVoice* voice = FindVoice(instance)) {
         voice->params.volume = volume;
+        Send({.type = CommandType::SetParams, .id = voice->id, .params = voice->params});
     }
 }
 
 void Mixer::SetPan(SoundInstance instance, float pan) {
     std::scoped_lock lock(m_mutex);
-    if (Voice* voice = FindVoice(instance)) {
+    if (GameVoice* voice = FindVoice(instance)) {
         voice->params.pan = pan;
+        Send({.type = CommandType::SetParams, .id = voice->id, .params = voice->params});
     }
 }
 
 void Mixer::SetPitch(SoundInstance instance, float pitch) {
     std::scoped_lock lock(m_mutex);
-    if (Voice* voice = FindVoice(instance)) {
+    if (GameVoice* voice = FindVoice(instance)) {
         voice->params.pitch = pitch;
+        Send({.type = CommandType::SetParams, .id = voice->id, .params = voice->params});
     }
 }
 
@@ -253,38 +248,40 @@ void Mixer::SetMasterVolume(float volume) {
 
 std::optional<AudioBusId> Mixer::AddBus(std::string_view name, AudioBusId parent) {
     std::scoped_lock lock(m_mutex);
-    const auto free = std::ranges::find(m_buses, false, &Bus::used);
-    if (free == m_buses.end()) {
+    const auto free = std::ranges::find(m_gameBuses, false, &GameBus::used);
+    if (free == m_gameBuses.end()) {
         return std::nullopt;
     }
-    const auto slot = static_cast<std::size_t>(free - m_buses.begin());
+    const auto slot = static_cast<std::size_t>(free - m_gameBuses.begin());
     *free = {.used = true, .name = std::string(name), .parent = FindBusSlot(parent) ? ToSlot(parent) : 0};
     m_peaks[slot * 2].store(0.0f, std::memory_order_relaxed);
     m_peaks[slot * 2 + 1].store(0.0f, std::memory_order_relaxed);
-    UpdateBusOrder();
+    SendBus(slot);
     return ToBus(slot);
 }
 
 bool Mixer::RemoveBus(AudioBusId bus) {
     std::scoped_lock lock(m_mutex);
-    const Bus* removed = FindBusSlot(bus);
+    const GameBus* removed = FindBusSlot(bus);
     if (!removed || bus == AudioBusId::Master) {
         return false;
     }
     const std::size_t slot = ToSlot(bus);
     const std::size_t parent = removed->parent;
-    for (Bus& child : m_buses) {
-        if (child.used && child.parent == slot) {
-            child.parent = parent;
+    for (std::size_t child = 0; child < MaxBuses; ++child) {
+        if (m_gameBuses[child].used && m_gameBuses[child].parent == slot) {
+            m_gameBuses[child].parent = parent;
+            SendBus(child);
         }
     }
-    for (Voice& voice : m_voices) {
+    for (GameVoice& voice : m_gameVoices) {
         if (voice.params.bus == bus) {
             voice.params.bus = ToBus(parent);
+            Send({.type = CommandType::SetParams, .id = voice.id, .params = voice.params});
         }
     }
-    m_buses[slot] = {};
-    UpdateBusOrder();
+    m_gameBuses[slot] = {};
+    SendBus(slot);
     return true;
 }
 
@@ -296,7 +293,7 @@ bool Mixer::HasBus(AudioBusId bus) const {
 std::optional<AudioBusId> Mixer::FindBus(std::string_view name) const {
     std::scoped_lock lock(m_mutex);
     for (std::size_t slot = 0; slot < MaxBuses; ++slot) {
-        if (m_buses[slot].used && m_buses[slot].name == name) {
+        if (m_gameBuses[slot].used && m_gameBuses[slot].name == name) {
             return ToBus(slot);
         }
     }
@@ -307,7 +304,7 @@ std::vector<AudioBusId> Mixer::GetBuses() const {
     std::scoped_lock lock(m_mutex);
     std::vector<AudioBusId> buses;
     for (std::size_t slot = 0; slot < MaxBuses; ++slot) {
-        if (m_buses[slot].used) {
+        if (m_gameBuses[slot].used) {
             buses.push_back(ToBus(slot));
         }
     }
@@ -316,20 +313,20 @@ std::vector<AudioBusId> Mixer::GetBuses() const {
 
 std::string Mixer::GetBusName(AudioBusId bus) const {
     std::scoped_lock lock(m_mutex);
-    const Bus* found = FindBusSlot(bus);
+    const GameBus* found = FindBusSlot(bus);
     return found ? found->name : std::string();
 }
 
 void Mixer::SetBusName(AudioBusId bus, std::string_view name) {
     std::scoped_lock lock(m_mutex);
-    if (Bus* found = FindBusSlot(bus)) {
+    if (GameBus* found = FindBusSlot(bus)) {
         found->name = name;
     }
 }
 
 std::optional<AudioBusId> Mixer::GetBusParent(AudioBusId bus) const {
     std::scoped_lock lock(m_mutex);
-    const Bus* found = FindBusSlot(bus);
+    const GameBus* found = FindBusSlot(bus);
     if (!found || bus == AudioBusId::Master) {
         return std::nullopt;
     }
@@ -338,12 +335,12 @@ std::optional<AudioBusId> Mixer::GetBusParent(AudioBusId bus) const {
 
 bool Mixer::SetBusParent(AudioBusId bus, AudioBusId parent) {
     std::scoped_lock lock(m_mutex);
-    Bus* found = FindBusSlot(bus);
+    GameBus* found = FindBusSlot(bus);
     if (!found || bus == AudioBusId::Master || !FindBusSlot(parent)) {
         return false;
     }
     // Climbing from the parent must never reach the bus, or the tree would become a loop.
-    for (std::size_t slot = ToSlot(parent);; slot = m_buses[slot].parent) {
+    for (std::size_t slot = ToSlot(parent);; slot = m_gameBuses[slot].parent) {
         if (slot == ToSlot(bus)) {
             return false;
         }
@@ -352,47 +349,49 @@ bool Mixer::SetBusParent(AudioBusId bus, AudioBusId parent) {
         }
     }
     found->parent = ToSlot(parent);
-    UpdateBusOrder();
+    SendBus(ToSlot(bus));
     return true;
 }
 
 float Mixer::GetBusVolume(AudioBusId bus) const {
     std::scoped_lock lock(m_mutex);
-    const Bus* found = FindBusSlot(bus);
+    const GameBus* found = FindBusSlot(bus);
     return found ? found->volume : 0.0f;
 }
 
 void Mixer::SetBusVolume(AudioBusId bus, float volume) {
     std::scoped_lock lock(m_mutex);
-    if (Bus* found = FindBusSlot(bus)) {
+    if (GameBus* found = FindBusSlot(bus)) {
         found->volume = volume;
+        SendBus(ToSlot(bus));
     }
 }
 
 bool Mixer::IsBusMuted(AudioBusId bus) const {
     std::scoped_lock lock(m_mutex);
-    const Bus* found = FindBusSlot(bus);
+    const GameBus* found = FindBusSlot(bus);
     return found && found->muted;
 }
 
 void Mixer::SetBusMuted(AudioBusId bus, bool muted) {
     std::scoped_lock lock(m_mutex);
-    if (Bus* found = FindBusSlot(bus)) {
+    if (GameBus* found = FindBusSlot(bus)) {
         found->muted = muted;
+        SendBus(ToSlot(bus));
     }
 }
 
 bool Mixer::IsBusSolo(AudioBusId bus) const {
     std::scoped_lock lock(m_mutex);
-    const Bus* found = FindBusSlot(bus);
+    const GameBus* found = FindBusSlot(bus);
     return found && found->solo;
 }
 
 void Mixer::SetBusSolo(AudioBusId bus, bool solo) {
     std::scoped_lock lock(m_mutex);
-    if (Bus* found = FindBusSlot(bus)) {
+    if (GameBus* found = FindBusSlot(bus)) {
         found->solo = solo;
-        UpdateBusOrder();
+        SendBus(ToSlot(bus));
     }
 }
 
@@ -404,11 +403,111 @@ AudioPeak Mixer::GetBusPeak(AudioBusId bus) const {
     return {m_peaks[slot * 2].load(std::memory_order_relaxed), m_peaks[slot * 2 + 1].load(std::memory_order_relaxed)};
 }
 
+void Mixer::Send(const Command& command) {
+    // Full only when the audio thread has not mixed for thousands of commands; it soon makes room.
+    while (!m_commands.Push(command)) {
+        std::this_thread::yield();
+    }
+}
+
+void Mixer::SendBus(std::size_t slot) {
+    const GameBus& bus = m_gameBuses[slot];
+    Send({.type = CommandType::SetBus,
+          .id = static_cast<std::uint32_t>(slot),
+          .value = bus.volume,
+          .flag = bus.used,
+          .muted = bus.muted,
+          .solo = bus.solo,
+          .parent = bus.parent});
+}
+
+void Mixer::CollectEnded() const {
+    // The sounds of voices that ended are let go here, on the game's side, so the audio thread never frees them.
+    bool any = false;
+    while (const auto id = m_ended.Pop()) {
+        for (GameVoice& voice : m_gameVoices) {
+            if (voice.id == *id) {
+                voice.ended = true;
+                any = true;
+            }
+        }
+    }
+    if (any) {
+        std::erase_if(m_gameVoices, [](const GameVoice& voice) { return voice.ended; });
+    }
+}
+
+void Mixer::ApplyCommands() {
+    while (const auto command = m_commands.Pop()) {
+        switch (command->type) {
+        case CommandType::Start: {
+            const auto [leftGain, rightGain] = GetGains(command->params);
+            Voice voice{.sound = command->sound,
+                        .id = command->id,
+                        .params = command->params,
+                        .stream = command->stream,
+                        .leftGain = leftGain,
+                        .rightGain = rightGain,
+                        .fade = command->params.fadeIn > 0.0f ? 0.0f : 1.0f,
+                        .fadeStep = command->params.fadeIn > 0.0f ? GetFadeStep(command->params.fadeIn) : 0.0f};
+            if (voice.stream) {
+                AdvanceStream(voice);
+                AdvanceStream(voice);
+                voice.streamFrame = 0;
+            }
+            // Room for it was kept by the game's side.
+            m_voices.push_back(voice);
+            break;
+        }
+        case CommandType::Stop:
+            if (Voice* voice = FindRenderVoice(command->id)) {
+                voice->stopping = true;
+                // A paused voice is silent already.
+                if (voice->paused) {
+                    voice->ended = true;
+                } else {
+                    voice->fadeStep = -GetFadeStep(std::max(command->value, ClickFadeSeconds));
+                }
+            }
+            break;
+        case CommandType::SetPaused:
+            if (Voice* voice = FindRenderVoice(command->id); voice && !voice->stopping) {
+                voice->pauseRequested = command->flag;
+                const float step = GetFadeStep(ClickFadeSeconds);
+                voice->fadeStep = command->flag ? -step : step;
+                if (!command->flag) {
+                    voice->paused = false;
+                }
+            }
+            break;
+        case CommandType::SetParams:
+            if (Voice* voice = FindRenderVoice(command->id)) {
+                voice->params = command->params;
+            }
+            break;
+        case CommandType::SetBus: {
+            Bus& bus = m_buses[command->id];
+            const bool added = command->flag && !bus.used;
+            bus.used = command->flag;
+            bus.parent = command->parent;
+            bus.volume = command->value;
+            bus.muted = command->muted;
+            bus.solo = command->solo;
+            if (added) {
+                bus.gain = 1.0f;
+            }
+            UpdateBusOrder();
+            break;
+        }
+        }
+    }
+}
+
 void Mixer::Mix(std::span<float> output) {
     SPOT_ASSERT(output.size() % 2 == 0, "Stereo output needs an even number of samples, not {}", output.size());
     std::ranges::fill(output, 0.0f);
-
-    std::scoped_lock lock(m_mutex);
+    // Never waits for the game: what it asked for since the last mix arrives through the queue.
+    ApplyCommands();
     std::array<AudioPeak, MaxBuses> peaks = {};
     const auto measure = [&peaks](std::size_t slot, std::span<const float> samples) {
         for (std::size_t i = 0; i + 1 < samples.size(); i += 2) {
@@ -454,6 +553,13 @@ void Mixer::Mix(std::span<float> output) {
         m_peaks[slot * 2].store(peaks[slot].left, std::memory_order_relaxed);
         m_peaks[slot * 2 + 1].store(peaks[slot].right, std::memory_order_relaxed);
     }
+    // Voices that ended go back to the game, which lets their sounds go; within the room kept, nothing is freed.
+    for (const Voice& voice : m_voices) {
+        if (voice.ended) {
+            m_ended.Push(voice.id);
+        }
+    }
+    std::erase_if(m_voices, [](const Voice& voice) { return voice.ended; });
 }
 
 void Mixer::ApplyBusGain(Bus& bus, std::span<float> samples) const {
@@ -466,13 +572,13 @@ void Mixer::ApplyBusGain(Bus& bus, std::span<float> samples) const {
     }
 }
 
-const Mixer::Bus* Mixer::FindBusSlot(AudioBusId bus) const {
+const Mixer::GameBus* Mixer::FindBusSlot(AudioBusId bus) const {
     const std::size_t slot = ToSlot(bus);
-    return slot < MaxBuses && m_buses[slot].used ? &m_buses[slot] : nullptr;
+    return slot < MaxBuses && m_gameBuses[slot].used ? &m_gameBuses[slot] : nullptr;
 }
 
-Mixer::Bus* Mixer::FindBusSlot(AudioBusId bus) {
-    return const_cast<Bus*>(std::as_const(*this).FindBusSlot(bus));
+Mixer::GameBus* Mixer::FindBusSlot(AudioBusId bus) {
+    return const_cast<GameBus*>(std::as_const(*this).FindBusSlot(bus));
 }
 
 void Mixer::UpdateBusOrder() {
@@ -506,13 +612,19 @@ std::span<float> Mixer::GetBusBuffer(std::size_t slot, std::size_t samples) {
     return std::span<float>(m_busBuffers).subspan(slot * ChunkFrames * 2, samples);
 }
 
-Mixer::Voice* Mixer::FindVoice(SoundInstance instance) {
-    return const_cast<Voice*>(std::as_const(*this).FindVoice(instance));
+Mixer::GameVoice* Mixer::FindVoice(SoundInstance instance) {
+    return const_cast<GameVoice*>(std::as_const(*this).FindVoice(instance));
 }
 
-const Mixer::Voice* Mixer::FindVoice(SoundInstance instance) const {
-    const auto it = std::ranges::find_if(
-        m_voices, [&](const Voice& voice) { return voice.id == instance.id && !voice.stopping && !voice.ended; });
+const Mixer::GameVoice* Mixer::FindVoice(SoundInstance instance) const {
+    const auto it = std::ranges::find_if(m_gameVoices, [&](const GameVoice& voice) {
+        return voice.id == instance.id && !voice.stopping && !voice.ended;
+    });
+    return it != m_gameVoices.end() ? &*it : nullptr;
+}
+
+Mixer::Voice* Mixer::FindRenderVoice(std::uint32_t id) {
+    const auto it = std::ranges::find(m_voices, id, &Voice::id);
     return it != m_voices.end() ? &*it : nullptr;
 }
 
@@ -577,6 +689,7 @@ bool Mixer::ReadStreamFrame(Voice& voice, std::array<float, 2>& frame) {
 
 void Mixer::MixVoice(Voice& voice, std::span<float> output, float gain) const {
     const Sound& sound = *voice.sound;
+    // The game's side holds the sound until the voice ended.
     const std::span<const float> samples = sound.GetSamples();
     const std::uint64_t frameCount = sound.GetFrameCount();
     const std::uint32_t channelCount = sound.GetChannelCount();

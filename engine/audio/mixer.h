@@ -3,6 +3,7 @@
 #include "audio/playback.h"
 #include "audio/sound.h"
 #include "audio/sound_stream.h"
+#include "core/spsc_queue.h"
 
 #include <array>
 #include <atomic>
@@ -30,7 +31,10 @@ namespace Spot::Detail {
 // Streamed sounds decode ahead on a thread of the mixer's, started with the first of them, which tests may do without
 // and update the streams themselves with UpdateStreams().
 //
-// All methods are thread-safe: the game controls playback while the backend's audio thread calls Mix().
+// All methods are thread-safe: the game controls playback while the backend's audio thread calls Mix(). The audio
+// thread takes no lock and frees nothing: the game's calls keep their own record of the voices and buses and send
+// what changes through a queue, which Mix() applies first, and voices that ended come back through another, for the
+// game's side to let their sounds go.
 class Mixer {
 public:
     static constexpr std::size_t MaxBuses = 32;
@@ -113,8 +117,12 @@ private:
     // Frames mixed at once into the buses' buffers.
     static constexpr std::size_t ChunkFrames = 256;
 
+    // The most voices the audio thread holds, those fading out included; room for them is kept from the start.
+    static constexpr std::size_t MaxRenderVoices = 1024;
+
+    // As the audio thread plays it.
     struct Voice {
-        std::shared_ptr<const Sound> sound = {};
+        const Sound* sound = nullptr;
         std::uint32_t id = 0;
         PlayParams params = {};
         // In source frames; fractional because the pitch and the sample rate conversion step through the sound.
@@ -126,7 +134,7 @@ private:
         bool ended = false;
         // Streamed sounds only: the decoded frames played between, the first of which is the stream's frame of that
         // index, and how many silent frames followed the end.
-        std::shared_ptr<SoundStream> stream = {};
+        SoundStream* stream = nullptr;
         std::array<float, 2> frame0 = {};
         std::array<float, 2> frame1 = {};
         std::uint64_t streamFrame = 0;
@@ -139,9 +147,44 @@ private:
         float fadeStep = 0.0f;
     };
 
-    struct Bus {
+    // As the game's calls know it, which keep what it plays alive until it ended.
+    struct GameVoice {
+        std::uint32_t id = 0;
+        std::shared_ptr<const Sound> sound = {};
+        std::shared_ptr<SoundStream> stream = {};
+        PlayParams params = {};
+        bool pauseRequested = false;
+        bool stopping = false;
+        bool ended = false;
+    };
+
+    struct GameBus {
         bool used = false;
         std::string name;
+        std::size_t parent = 0;
+        float volume = 1.0f;
+        bool muted = false;
+        bool solo = false;
+    };
+
+    enum class CommandType : std::uint8_t { Start, Stop, SetPaused, SetParams, SetBus };
+    // What the game asks of the audio thread. SetBus sends a bus's slot as the id.
+    struct Command {
+        CommandType type = CommandType::Start;
+        std::uint32_t id = 0;
+        PlayParams params = {};
+        const Sound* sound = nullptr;
+        SoundStream* stream = nullptr;
+        float value = 0.0f;
+        bool flag = false;
+        bool muted = false;
+        bool solo = false;
+        std::size_t parent = 0;
+    };
+
+    // As the audio thread mixes it.
+    struct Bus {
+        bool used = false;
         std::size_t parent = 0;
         float volume = 1.0f;
         bool muted = false;
@@ -152,8 +195,14 @@ private:
         float gain = 1.0f;
     };
 
-    Voice* FindVoice(SoundInstance instance);
-    const Voice* FindVoice(SoundInstance instance) const;
+    GameVoice* FindVoice(SoundInstance instance);
+    const GameVoice* FindVoice(SoundInstance instance) const;
+    Voice* FindRenderVoice(std::uint32_t id);
+    void Send(const Command& command);
+    void SendBus(std::size_t slot);
+    // Lets go of the voices the audio thread said ended.
+    void CollectEnded() const;
+    void ApplyCommands();
     // The gain multiplies the voice's volume, as solo does.
     void MixVoice(Voice& voice, std::span<float> output, float gain) const;
     // Fades and ramps the voice a frame; false once a fade silenced it.
@@ -162,20 +211,26 @@ private:
     static bool ReadStreamFrame(Voice& voice, std::array<float, 2>& frame);
     static void AdvanceStream(Voice& voice);
     void RunStreamThread();
-    void StopVoice(Voice& voice, float fadeOut);
+    void StopVoice(GameVoice& voice, float fadeOut);
     float GetFadeStep(float seconds) const;
     void ApplyBusGain(Bus& bus, std::span<float> samples) const;
-    const Bus* FindBusSlot(AudioBusId bus) const;
-    Bus* FindBusSlot(AudioBusId bus);
+    const GameBus* FindBusSlot(AudioBusId bus) const;
+    GameBus* FindBusSlot(AudioBusId bus);
     // Orders the buses so each comes before its parent, as mixing passes them up, and works out which solo silences.
     void UpdateBusOrder();
     std::span<float> GetBusBuffer(std::size_t slot, std::size_t samples);
 
     std::uint32_t m_sampleRate;
+    // The game's side, which several threads may call.
     mutable std::mutex m_mutex;
-    std::vector<Voice> m_voices;
+    mutable std::vector<GameVoice> m_gameVoices;
+    std::array<GameBus, MaxBuses> m_gameBuses;
     std::uint32_t m_nextId = 1;
     int m_maxVoices = DefaultMaxVoices;
+    SpscQueue<Command, 8192> m_commands;
+    mutable SpscQueue<std::uint32_t, 2048> m_ended;
+    // The audio thread's side.
+    std::vector<Voice> m_voices;
     // By slot, which is the bus's id; the master bus is the first.
     std::array<Bus, MaxBuses> m_buses;
     // The buses but the master one, deepest first.

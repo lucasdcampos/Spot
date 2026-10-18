@@ -664,3 +664,39 @@ TEST_CASE("The audio device plays sounds through the default output", "[audio]")
     }
     CHECK_FALSE(audio.IsPlaying(instance));
 }
+
+TEST_CASE("The mixer lets go of sounds on the game's side, once the audio thread is done with them", "[audio][mixer]") {
+    Spot::Detail::Mixer mixer(48000);
+    auto sound = MakeSound(48000, 1, {0.1f, 0.2f});
+    const std::weak_ptr<const Spot::Sound> watched = sound;
+    const auto instance = mixer.Play(std::move(sound));
+    // Held while it plays, and after it ended until the game's side hears so.
+    Mix(mixer, 4);
+    CHECK_FALSE(watched.expired());
+    CHECK_FALSE(mixer.IsPlaying(instance));
+    CHECK(watched.expired());
+}
+
+TEST_CASE("The mixer plays while another thread starts and stops sounds", "[audio][mixer]") {
+    Spot::Detail::Mixer mixer(48000);
+    const auto sound = MakeSound(48000, 1, std::vector<float>(480, 0.01f));
+    std::atomic<bool> done = false;
+    std::thread audio([&] {
+        std::vector<float> output(256 * 2);
+        while (!done.load()) {
+            mixer.Mix(output);
+        }
+    });
+    for (int i = 0; i < 2000; ++i) {
+        const auto instance = mixer.Play(sound, {.volume = 0.5f});
+        mixer.SetVolume(instance, 0.25f);
+        if (i % 3 == 0) {
+            mixer.Stop(instance);
+        }
+    }
+    done = true;
+    audio.join();
+    Settle(mixer);
+    Settle(mixer);
+    CHECK(mixer.GetVoiceCount() == 0);
+}
