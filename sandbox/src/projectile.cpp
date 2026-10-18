@@ -36,6 +36,8 @@ void Projectile::OnCollisionEnter(const Spot::Collision& collision) {
 void Projectile::Serialize(Spot::Archive& archive) {
     archive.Field("explosionRadius", explosionRadius, {.min = 0.0f, .max = 100.0f, .speed = 0.05f});
     archive.Field("explosionImpulse", explosionImpulse, {.min = 0.0f, .max = 100000.0f, .speed = 1.0f});
+    archive.Field("explosionDamage", explosionDamage,
+                  {.min = 0.0f, .max = 10000.0f, .speed = 1.0f, .tooltip = "To a player at the center"});
     archive.Field("lifetime", lifetime, {.min = 0.0f, .max = 60.0f, .speed = 0.1f});
     archive.Field("shooter", shooter);
 }
@@ -46,5 +48,5 @@ void Projectile::Explode(Spot::Vector3 center) {
     }
     m_exploded = true;
     GetEntity().Destroy();
-    Explosion::Explode(GetScene(), center, explosionRadius, explosionImpulse, GetEntity().GetId());
+    Explosion::Explode(GetScene(), center, explosionRadius, explosionImpulse, explosionDamage, GetEntity().GetId());
 }

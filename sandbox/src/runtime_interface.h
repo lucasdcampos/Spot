@@ -3,10 +3,12 @@
 #include "interface_settings.h"
 #include "menu_thumbnails.h"
 #include "spawnable.h"
+#include "weapon_wheel.h"
 
 #include <spot.h>
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -16,9 +18,14 @@ struct HudState {
     std::string statistics;
     bool showStatistics = false;
     std::string clock;
-    // What is in hand: its name, a large line (rounds left, or the tool's mode), a smaller one beside it (rounds in
-    // reserve, or the mode's option) and the controls that matter for it.
+    // Whether it is day, between 6:00 and 18:00, for the clock's sun or moon.
+    bool day = true;
+    // What is in hand: its icon, its name, shown a moment after switching (from 1 to 0 as it fades), a large line
+    // (rounds left, or the tool's mode), a smaller one beside it (rounds in reserve, or the mode's option) and the
+    // controls that matter for it.
+    Spot::AssetRef<Spot::Texture> icon;
     std::string item;
+    float itemOpacity = 0.0f;
     std::string count;
     std::string detail;
     std::string hints;
@@ -27,16 +34,27 @@ struct HudState {
     bool lowAmmo = false;
     // From 0 to 1 while reloading; negative hides the bar.
     float reload = -1.0f;
-    // Hidden down the sights, where the sights themselves aim; spread from 0, steady, to 1, as wide as it goes.
+    // Hidden down the sights, where the sights themselves aim, and while nothing can be used; spread from 0, steady,
+    // to 1, as wide as it goes.
     bool crosshair = true;
     float spread = 0.0f;
     float hitMarker = 0.0f;
     // What Use would do with what is under the crosshair, such as picking it up; empty for nothing.
     std::string prompt;
-    // The items in hand's slots, in order, with the selected one and how visible the bar is, from 0 to 1.
-    std::vector<std::string> slots;
+    // The player's health out of its most; low health turns it red and pulses the edges of the screen, which flash as
+    // it is hurt, as strongly as damage says, from 0 to 1.
+    float health = 100.0f;
+    float maxHealth = 100.0f;
+    bool lowHealth = false;
+    float damage = 0.0f;
+    // Dead, with the seconds left before coming back.
+    bool dead = false;
+    float respawn = 0.0f;
+    // The slots, in order, with the one in hand; while the wheel is open, the one it points at.
+    std::vector<WeaponWheel::Slot> slots;
     int selectedSlot = 0;
-    float slotsOpacity = 0.0f;
+    bool wheelOpen = false;
+    int wheelSlot = 0;
 };
 
 class RuntimeInterface final : public Spot::Component {
@@ -64,9 +82,18 @@ public:
                    hintText = Spot::EntityId::Invalid;
     Spot::EntityId reloadTrack = Spot::EntityId::Invalid, reloadFill = Spot::EntityId::Invalid;
     Spot::EntityId crosshair = Spot::EntityId::Invalid, hitMarker = Spot::EntityId::Invalid,
-                   promptText = Spot::EntityId::Invalid, slotBar = Spot::EntityId::Invalid;
-    // The reload bar's width when full, in canvas pixels.
+                   promptText = Spot::EntityId::Invalid, itemIcon = Spot::EntityId::Invalid;
+    Spot::EntityId clockIcon = Spot::EntityId::Invalid;
+    Spot::EntityId healthIcon = Spot::EntityId::Invalid, healthText = Spot::EntityId::Invalid,
+                   healthFill = Spot::EntityId::Invalid;
+    Spot::EntityId damageOverlay = Spot::EntityId::Invalid, deathOverlay = Spot::EntityId::Invalid,
+                   deathTimer = Spot::EntityId::Invalid;
+    Spot::EntityId wheelOverlay = Spot::EntityId::Invalid, weaponWheel = Spot::EntityId::Invalid;
+    // What the clock shows beside the time by day and by night.
+    Spot::AssetRef<Spot::Texture> sunIcon, moonIcon;
+    // The reload and health bars' widths when full, in canvas pixels.
     float reloadWidth = 264.0f;
+    float healthWidth = 100.0f;
 
     Menu GetMenu() const { return m_menu; }
     const InterfaceSettings& GetSettings() const { return m_settings; }
@@ -123,5 +150,7 @@ private:
     std::vector<BindingRow> m_bindingRows;
     int m_rebinding = -1;
     MenuThumbnails m_thumbnails;
+    // The tabs' style as authored, which the selected one trades for the accent.
+    std::optional<Spot::UiControlStyle> m_tabStyle;
     Spot::RenderHookId m_thumbnailHook = Spot::RenderHookId::Invalid;
 };

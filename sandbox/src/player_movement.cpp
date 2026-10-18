@@ -1,7 +1,11 @@
 #include "player_movement.h"
 
+#include "physics_gun.h"
 #include "player_controller.h"
+#include "player_health.h"
+#include "prop_carrier.h"
 #include "sound_bank.h"
+#include "weapon_holder.h"
 
 #include <algorithm>
 #include <cmath>
@@ -35,6 +39,29 @@ void PlayerMovement::SetFlying(bool flying) {
     }
 }
 
+void PlayerMovement::Push(Spot::Vector3 velocity) {
+    m_push += Spot::Vector3{velocity.x, 0.0f, velocity.z};
+    m_lift = std::max(m_lift, velocity.y);
+}
+
+void PlayerMovement::Respawn() {
+    GetEntity().GetTransform().SetPosition(m_spawnPoint);
+    m_verticalSpeed = 0.0f;
+    m_push = {};
+    m_lift = 0.0f;
+    m_sprinting = false;
+}
+
+bool PlayerMovement::CanSprint() const {
+    const Spot::Entity& player = GetEntity();
+    const auto* health = player.GetComponent<PlayerHealth>();
+    const auto* holder = player.GetComponent<WeaponHolder>();
+    const auto* carrier = player.GetComponent<PropCarrier>();
+    const auto* gun = player.GetComponent<PhysicsGun>();
+    return !(health && health->IsDead()) && !(holder && holder->IsAiming()) && !(carrier && carrier->IsHolding()) &&
+           !(gun && gun->IsGrabbing());
+}
+
 void PlayerMovement::OnStart() {
     m_spawnPoint = GetEntity().GetTransform().GetWorldPosition();
     if (const auto* controller = GetEntity().GetComponent<Spot::CharacterController>()) {
@@ -57,8 +84,7 @@ void PlayerMovement::OnUpdate(float /*deltaTime*/) {
 
     Spot::Transform& transform = GetEntity().GetTransform();
     if (transform.GetWorldPosition().y < fallHeight) {
-        transform.SetPosition(m_spawnPoint);
-        m_verticalSpeed = 0.0f;
+        Respawn();
     }
 }
 
@@ -78,7 +104,11 @@ void PlayerMovement::OnLateUpdate(float deltaTime) {
     if (!head) {
         return;
     }
-    const float target = m_crouching ? m_standHeight - crouchHeight : 0.0f;
+    // The dead sink down to the ground.
+    const auto* health = GetEntity().GetComponent<PlayerHealth>();
+    const float target = health && health->IsDead() ? m_headHeight + m_standHeight * 0.5f - 0.35f
+                         : m_crouching              ? m_standHeight - crouchHeight
+                                                    : 0.0f;
     m_headDrop += (target - m_headDrop) * std::min(deltaTime * 12.0f, 1.0f);
     // Landing compresses the legs: the head dips and springs back, damped so it settles without bouncing.
     constexpr float Stiffness = 120.0f;
@@ -101,20 +131,36 @@ void PlayerMovement::Walk(Spot::CharacterController& controller, float deltaTime
     }
 
     const auto* player = GetEntity().GetComponent<PlayerController>();
+    auto* health = GetEntity().GetComponent<PlayerHealth>();
+    const bool alive = !(health && health->IsDead());
     const auto yaw = Spot::Quaternion::FromAxisAngle(Up, player ? player->GetYaw() : 0.0f);
-    const Spot::Vector3 direction = yaw * GetMove();
-    const float speed = m_crouching ? crouchSpeed : Spot::Input::IsActionDown("Sprint") ? runSpeed : walkSpeed;
+    const Spot::Vector3 move = alive ? GetMove() : Spot::Vector3{};
+    const Spot::Vector3 direction = yaw * move;
+    // Forward, or nearly, and once in the air only as the jump began.
+    const bool sprint = Spot::Input::IsActionDown("Sprint") && !m_crouching && -move.z > 0.5f && CanSprint();
+    m_sprinting = sprint && (controller.IsGrounded() || m_sprinting);
+    const float speed = m_crouching ? crouchSpeed : m_sprinting ? runSpeed : walkSpeed;
 
-    if (controller.IsGrounded()) {
+    if (m_lift > 0.0f) {
+        m_verticalSpeed = std::max(m_verticalSpeed, m_lift);
+        m_lift = 0.0f;
+    } else if (controller.IsGrounded()) {
         // On the ground, the controller keeps the player on it down slopes and steps.
-        m_verticalSpeed = m_jump && !m_crouching ? jumpSpeed : 0.0f;
+        m_verticalSpeed = m_jump && !m_crouching && alive ? jumpSpeed : 0.0f;
     } else {
         m_verticalSpeed += GetScene().GetPhysics().GetGravity().y * deltaTime;
     }
     const float falling = -m_verticalSpeed;
-    controller.Move(direction * speed + Spot::Vector3{0.0f, m_verticalSpeed, 0.0f}, deltaTime);
-    if (controller.IsGrounded() && !m_wasGrounded && falling > 3.0f) {
-        m_landingSpeed = falling;
+    controller.Move(direction * speed + m_push + Spot::Vector3{0.0f, m_verticalSpeed, 0.0f}, deltaTime);
+    // A push slides to a stop on the ground, and barely slows in the air.
+    m_push = m_push * std::exp(-(controller.IsGrounded() ? 6.0f : 0.3f) * deltaTime);
+    if (controller.IsGrounded() && !m_wasGrounded) {
+        if (falling > 3.0f) {
+            m_landingSpeed = falling;
+        }
+        if (health) {
+            health->Land(falling);
+        }
     }
     m_wasGrounded = controller.IsGrounded();
     // A ceiling stops a jump.
@@ -122,6 +168,7 @@ void PlayerMovement::Walk(Spot::CharacterController& controller, float deltaTime
 }
 
 void PlayerMovement::Fly(float deltaTime) {
+    m_sprinting = false;
     const auto* player = GetEntity().GetComponent<PlayerController>();
     const Spot::Quaternion view = player ? player->GetViewRotation() : Spot::Quaternion{};
     Spot::Vector3 move = view * GetMove() + Up * GetAxis("Jump", "Crouch");

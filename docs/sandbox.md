@@ -29,7 +29,9 @@ remain outside world checkpoints and cleanup.
 
 Street lamps, the booth and the monument's uplights carry `NightLight`, which lights them as the day cycle's
 daylight fades (`DayCycle::GetDaylight()`). The workshop's lamps stay on. The day lasts eight minutes; hold T to
-advance it quickly. Three tagged pads mark where to build, test lamps and test weapons.
+advance it quickly. Clouds drift over the valley (a `Clouds` component on the Sky entity, set in the scene), and at
+night stars come out and turn with the sun's path (`DayCycle` sets `Sky::SetStarRotation()`), with a moon opposite the
+sun; see [Clouds, stars and the moon](sky.md). Three tagged pads mark where to build, test lamps and test weapons.
 
 The level's surfaces are generated PBR texture sets (grass, gravel, asphalt, paving, concrete slabs, brick,
 corrugated steel, tread plate, rock, bark, leaves and water), used by the materials in `materials/level/`, most
@@ -73,10 +75,11 @@ controls are:
 | Control | Action |
 |---|---|
 | WASD, mouse | Move and look |
-| Shift, Ctrl, V | Run, crouch, toggle noclip |
+| Shift, Ctrl, Alt | Run forward, crouch, toggle noclip |
 | Space | Jump |
 | 2–5 | Select a firearm |
 | 1, 6 | Select the physics gun or tool gun |
+| Hold Tab, mouse | Weapon wheel: point at a slot, release to take it |
 | Left mouse, right mouse | Fire/use the tool, aim or turn a held prop |
 | R | Reload; cycle the tool gun's mode |
 | E | Carry or drop a nearby light prop |
@@ -158,7 +161,8 @@ ambience at 50% and master at 90%; saved personal volumes remain authoritative.
 
 ## Developer commands
 
-Open the console with Grave, then run `console.cheats true` to permit sandbox commands. Registrations belong to
+Open the console with Grave; the sandbox permits cheats while it runs (`GameControls::cheats`), so its commands work
+at once, and `console.cheats false` forbids them again. Registrations belong to
 the active scene's GameControls and disappear when it is disabled, removed or unloaded. Commands resolve the
 current components on execution, so world checkpoint loads do not leave stale entity pointers.
 
@@ -246,9 +250,12 @@ while preserving concurrent editor changes. Imported assets still come from the 
 
 ## Runtime interface
 
-Q (gamepad Back) opens the spawn menu with Props, Lamps and Weapons tabs. Select a thumbnail to
-spawn that prefab at the aim point; Undo and Cleanup use the normal gameplay operations. Thumbnails
-are rendered from the real prefab meshes into cached textures, two per frame. Escape (gamepad Start)
+Q (gamepad Back) opens the spawn menu: a rounded panel with a title, pill tabs for Props, Lamps and Weapons (the
+one shown lit in the accent, `RuntimeInterface::SelectCategory()`), five rounded cards to a row and Undo, Clean up
+and Close at the bottom. Select a card to spawn that prefab at the aim point; Undo and Cleanup use the normal gameplay
+operations. Thumbnails are rendered from the real prefab meshes into cached textures, two per frame, and stay hidden
+until drawn. Buttons, cards, sliders and scroll areas draw the generated `ui_panel` through their style's `texture`
+(see [Runtime UI](runtime_ui.md)), so the pause menu matches. Escape (gamepad Start)
 opens pause. Resume, Escape or gamepad East/Start closes it; the previous time scale and requested
 cursor lock return. Tab/Shift-Tab, arrows, D-pad and left-stick threshold crossings navigate; Return,
 Space or South activate. Arrow/D-pad input adjusts sliders; offscreen entries scroll into view.
@@ -259,14 +266,39 @@ cancels. Composite directions have individual rows. Graphics changes rebuild the
 next frame, in both the standalone game and the editor's game view, while keeping rebinds.
 
 The HUD is laid out like a game's rather than a debugging overlay. A small crosshair (a dot and four lines) opens
-up while moving, in the air and under recoil, gives way to the sights while aiming, and flashes a hit marker when a
-shot moves a prop or knocks down a robot. The bottom-right panel names what is in hand with its rounds and reserve,
-which turn red when low, or the tool's mode and option, with a reload bar; the controls that matter for it sit above
-it, and what Use would do appears under the crosshair. Switching shows the six slots along the top for a moment.
-The clock reads the day cycle; key caps at the bottom left list the menus. Frame rate, body count and update and
-render times appear only on the Statistics action (F11). `Hud` works the state out each frame (`HudState`) and
-`RuntimeInterface::UpdateHud()` applies it to the widgets it references by id. Panels use the generated rounded
-`ui_panel` texture as nine-slice images; key caps and their labels size themselves with layout groups and fitters.
+up while moving, in the air and under recoil, gives way to the sights while aiming, hides while nothing in hand can
+be used, and flashes a hit marker when a shot moves a prop or knocks down a robot. The bottom-right panel shows the
+icon of what is in hand with its rounds and reserve, which turn red when low, or the tool's mode and option, with a
+thin reload line; the controls that matter for it sit above it, its name shows there for a moment after switching,
+and what Use would do appears under the crosshair. Health is at the bottom left, as a number and a bar that turn red
+below 30%. The clock at the top right shows the sun from 6:00 to 18:00 and the moon otherwise; small key caps in a
+panel at the top left list the menus. Frame rate, body count and update and render times appear only on the
+Statistics action (F11). `Hud` works the state out each frame (`HudState`) and `RuntimeInterface::UpdateHud()` applies
+it to the widgets it references by id. Panels use the generated rounded `ui_panel` texture as nine-slice images; key
+caps and their labels size themselves with layout groups and fitters, and texts center vertically in their panels
+(`verticalAlignment`).
+
+Holding Tab opens the weapon wheel, a GTA-style ring of eight sectors clockwise from the top, one per slot, each with
+the item's icon and number key, and slows time to `WeaponHolder::wheelTimeScale`. Moving the mouse (or the right
+stick) points at a sector; the middle names it with its rounds or mode, and releasing Tab takes it. Empty sectors
+keep the slot pointed at; the number keys and the mouse wheel still switch at once. Opening a menu over the wheel
+closes it without choosing, before the pause takes the time scale. `WeaponWheel` is a `UiWidget` of the sandbox that
+only draws: it rotates the generated `ui_wheel_sector` texture around its center for each sector. Every item names
+its icon: `Weapon::icon` in the weapon prefabs, `PhysicsGun::icon` and `ToolGun::icon` on the player. The generator
+paints the icons (`generator/icons.cpp`) as white silhouettes from signed distances, so they tint and stay sharp.
+
+### Running, health and damage
+
+Sprint runs only forward, and only with free hands: aiming, carrying a prop or holding one with the physics gun
+walks instead. While running, `ViewModel` carries what is in hand low and across the body, swinging with the stride,
+the view widens a little, and nothing in hand can be used (`WeaponHolder::CanUseItem()`); aiming ends the run.
+
+`PlayerHealth` gives the player 100 health. Landing faster than `safeFallSpeed` (12 m/s, about a 7 m drop) hurts,
+up to killing at `lethalFallSpeed`; `PlayerMovement` reports each landing. Explosions hurt players within their
+radius by up to their `damage` at the center (barrels 120, rockets 110), a third as much behind cover, and throw them
+back (`PlayerMovement::Push()`). Health comes back after five seconds without hurt. Hurts flash the edges of the
+screen red, which keep beating at low health. At zero the player drops what it holds, the screen shows how long until
+it comes back, and after `respawnTime` it returns to the start with full health.
 
 The layout and style are authored in `assets/prefabs/interface.prefab`, opened in the editor's prefab
 mode. Its RuntimeInterface component refers to widgets by id; its inactive item/row templates are

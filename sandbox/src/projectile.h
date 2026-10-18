@@ -7,6 +7,7 @@ class Projectile final : public Spot::Component {
 public:
     float explosionRadius = 5.0f;
     float explosionImpulse = 400.0f;
+    float explosionDamage = 110.0f;
     float lifetime = 5.0f;
     Spot::EntityId shooter = Spot::EntityId::Invalid;
 

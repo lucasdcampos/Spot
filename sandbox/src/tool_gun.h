@@ -50,6 +50,8 @@ public:
     std::vector<ToolMaterial> materials;
     Spot::AssetRef<Spot::Prefab> pointLamp;
     Spot::AssetRef<Spot::Prefab> spotLamp;
+    // What the HUD and the weapon wheel show for it.
+    Spot::AssetRef<Spot::Texture> icon;
     // The palette color, the material and the kind of lamp clicks give.
     int color = 0;
     int material = 0;

@@ -5,7 +5,8 @@
 // Turns its entity, the sun, across the sky: it rises in the east (+X) at 6:00, peaks at noon and sets in the west at
 // 18:00. The sky follows the sun and lights the scene through the air, so the light dims and reddens on its own as
 // it sets. The Fog and the PostProcessing of its entity follow: pale haze by day, warm at sunset and dark blue at
-// night, when the exposure rises as eyes adjust. Fast Forward speeds time up.
+// night, when the exposure rises as eyes adjust. The scene's Sky turns its stars with the sun. Fast Forward speeds time
+// up.
 class DayCycle final : public Spot::Component {
 public:
     // From 0 at midnight to 1 at the next one.

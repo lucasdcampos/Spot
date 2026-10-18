@@ -24,7 +24,8 @@
             "spread": 0.02,
             "cameraRecoil": 0.018,
             "viewRecoil": 0.035,
-            "recoilRecovery": 0.12
+            "recoilRecovery": 0.12,
+            "icon": "9d51e2dbaed302aa214e127561011ceb"
           },
           "enabled": true,
           "id": "ee86e41d266e61aff13d0505bb077ffa",

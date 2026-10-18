@@ -4,8 +4,11 @@
 #include "prop_spawner.h"
 #include "sound_bank.h"
 #include "undo_list.h"
+#include "weapon_holder.h"
 
 #include <algorithm>
+#include <cmath>
+#include <format>
 
 SPOT_COMPONENT(RuntimeInterface);
 
@@ -92,6 +95,9 @@ void RuntimeInterface::RefreshInput() {
 void RuntimeInterface::Open(Menu menu) {
     Initialize();
     CloseMenus();
+    // Before pausing takes the time scale, which the wheel slows while it is open.
+    if (auto* holder = GetScene().FindComponent<WeaponHolder>())
+        holder->CloseWheel(false);
     m_menu = menu;
     if (auto* canvas = Get<Spot::Canvas>(menu == Menu::Spawn ? spawnCanvas : pauseCanvas))
         canvas->GetEntity().SetActive(true);
@@ -161,21 +167,55 @@ void RuntimeInterface::UpdateHud(const HudState& state) {
         if (auto* entity = GetScene().GetEntity(id); entity && entity->IsActiveSelf() != active)
             entity->SetActive(active);
     };
+    constexpr Spot::Color Ink{0.95f, 0.97f, 1.0f, 1.0f};
+    constexpr Spot::Color Warning{1.0f, 0.36f, 0.26f, 1.0f};
+    constexpr Spot::Color Accent{1.0f, 0.68f, 0.22f, 1.0f};
     setText(statusText, state.statistics);
     setActive(statsPanel, state.showStatistics);
     setText(clockText, state.clock);
+    if (auto* icon = Get<Spot::UiImage>(clockIcon)) {
+        icon->texture = state.day ? sunIcon : moonIcon;
+        icon->tint = state.day ? Spot::Color{1.0f, 0.8f, 0.36f, 1.0f} : Spot::Color{0.76f, 0.83f, 1.0f, 1.0f};
+    }
+
+    // What is in hand, its name a moment after switching.
     setText(handText, state.item);
+    if (auto* name = Get<Spot::UiText>(handText))
+        name->color = {Accent.r, Accent.g, Accent.b, std::clamp(state.itemOpacity, 0.0f, 1.0f)};
+    // Without its texture, an image would fill its rectangle.
+    setActive(itemIcon, static_cast<bool>(state.icon));
+    if (auto* icon = Get<Spot::UiImage>(itemIcon); icon && icon->texture != state.icon)
+        icon->texture = state.icon;
     setText(countText, state.count);
     setText(detailText, state.detail);
     setText(hintText, state.hints);
     setText(promptText, state.prompt);
     if (auto* count = Get<Spot::UiText>(countText)) {
-        count->fontSize = state.countIsWord ? 30.0f : 46.0f;
-        count->color = state.lowAmmo ? Spot::Color{1.0f, 0.36f, 0.24f, 1.0f} : Spot::Color{0.96f, 0.97f, 1.0f, 1.0f};
+        count->fontSize = state.countIsWord ? 16.0f : 28.0f;
+        count->color = state.lowAmmo ? Warning : Ink;
     }
     setActive(reloadTrack, state.reload >= 0.0f);
     if (auto* fill = Get<Spot::UiRect>(reloadFill); fill && state.reload >= 0.0f)
         fill->layout.sizeDelta.x = std::clamp(state.reload, 0.0f, 1.0f) * reloadWidth;
+
+    // Health, red when low; the edges of the screen flash as the player is hurt.
+    const float health = state.maxHealth > 0.0f ? std::clamp(state.health / state.maxHealth, 0.0f, 1.0f) : 0.0f;
+    setText(healthText, std::to_string(static_cast<int>(std::ceil(std::max(state.health, 0.0f)))));
+    if (auto* text = Get<Spot::UiText>(healthText))
+        text->color = state.lowHealth ? Warning : Ink;
+    if (auto* icon = Get<Spot::UiImage>(healthIcon))
+        icon->tint = state.lowHealth ? Warning : Ink;
+    if (auto* fill = Get<Spot::UiRect>(healthFill))
+        fill->layout.sizeDelta.x = health * healthWidth;
+    if (auto* fill = Get<Spot::UiImage>(healthFill))
+        fill->tint = state.lowHealth ? Warning : Ink;
+    setActive(damageOverlay, state.damage > 0.01f);
+    if (auto* overlay = Get<Spot::UiImage>(damageOverlay))
+        overlay->tint.a = std::clamp(state.damage, 0.0f, 1.0f);
+    setActive(deathOverlay, state.dead);
+    if (state.dead)
+        setText(deathTimer, std::format("Respawning in {}", static_cast<int>(std::ceil(state.respawn))));
+
     setActive(crosshair, state.crosshair);
     if (auto* entity = GetScene().GetEntity(crosshair); entity && state.crosshair) {
         // The lines move out as the aim gets less steady.
@@ -191,36 +231,13 @@ void RuntimeInterface::UpdateHud(const HudState& state) {
     }
     if (auto* marker = Get<Spot::UiImage>(hitMarker))
         marker->tint.a = std::clamp(state.hitMarker, 0.0f, 1.0f);
-    // The slot bar shows what each number selects, and fades a moment after switching.
-    auto* bar = GetScene().GetEntity(slotBar);
-    setActive(slotBar, state.slotsOpacity > 0.01f);
-    if (!bar || state.slotsOpacity <= 0.01f)
-        return;
-    const float opacity = std::clamp(state.slotsOpacity, 0.0f, 1.0f);
-    constexpr Spot::Color Accent{1.0f, 0.68f, 0.22f, 1.0f};
-    int index = 0;
-    bar->ForEachChild([&](Spot::Entity& slot) {
-        const bool used = index < static_cast<int>(state.slots.size());
-        if (slot.IsActiveSelf() != used)
-            slot.SetActive(used);
-        const bool selected = index == state.selectedSlot;
-        if (auto* image = used ? slot.GetComponent<Spot::UiImage>() : nullptr)
-            image->tint = selected ? Spot::Color{Accent.r, Accent.g, Accent.b, 0.92f * opacity}
-                                   : Spot::Color{0.03f, 0.04f, 0.06f, 0.62f * opacity};
-        const Spot::Entity* name = used ? slot.FindChild("Name") : nullptr;
-        if (auto* text = name ? name->GetComponent<Spot::UiText>() : nullptr) {
-            const std::string& label = state.slots[static_cast<std::size_t>(index)];
-            if (text->text != label)
-                text->text = label;
-            text->color =
-                selected ? Spot::Color{0.06f, 0.05f, 0.03f, opacity} : Spot::Color{0.9f, 0.93f, 1.0f, 0.85f * opacity};
-        }
-        const Spot::Entity* number = used ? slot.FindChild("Number") : nullptr;
-        if (auto* text = number ? number->GetComponent<Spot::UiText>() : nullptr)
-            text->color = selected ? Spot::Color{0.06f, 0.05f, 0.03f, 0.75f * opacity}
-                                   : Spot::Color{Accent.r, Accent.g, Accent.b, 0.9f * opacity};
-        ++index;
-    });
+
+    setActive(wheelOverlay, state.wheelOpen);
+    if (auto* wheel = Get<WeaponWheel>(weaponWheel); wheel && state.wheelOpen) {
+        wheel->slots = state.slots;
+        wheel->highlighted = state.wheelSlot;
+        wheel->selected = state.selectedSlot;
+    }
 }
 void RuntimeInterface::Serialize(Spot::Archive& archive) {
     archive.Field("font", font);
@@ -259,8 +276,20 @@ void RuntimeInterface::Serialize(Spot::Archive& archive) {
     archive.Field("reloadTrack", reloadTrack);
     archive.Field("reloadFill", reloadFill);
     archive.Field("reloadWidth", reloadWidth, {.min = 0, .max = 2000, .tooltip = "The reload bar's full width"});
+    archive.Field("healthWidth", healthWidth, {.min = 0, .max = 2000, .tooltip = "The health bar's full width"});
     archive.Field("crosshair", crosshair);
     archive.Field("hitMarker", hitMarker);
     archive.Field("promptText", promptText);
-    archive.Field("slotBar", slotBar);
+    archive.Field("itemIcon", itemIcon);
+    archive.Field("clockIcon", clockIcon);
+    archive.Field("sunIcon", sunIcon);
+    archive.Field("moonIcon", moonIcon);
+    archive.Field("healthIcon", healthIcon);
+    archive.Field("healthText", healthText);
+    archive.Field("healthFill", healthFill);
+    archive.Field("damageOverlay", damageOverlay);
+    archive.Field("deathOverlay", deathOverlay);
+    archive.Field("deathTimer", deathTimer);
+    archive.Field("wheelOverlay", wheelOverlay);
+    archive.Field("weaponWheel", weaponWheel);
 }

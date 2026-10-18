@@ -99,16 +99,20 @@ TEST_CASE("Sandbox authored HUD and spawn menu route Q and gamepad tabs", "[sand
     CHECK(game.Send(Spot::KeyReleasedEvent{Spot::Key::Q}));
 }
 
-TEST_CASE("The sandbox HUD shows rounds, reloads, sights, slots and statistics like a game", "[sandbox][ui][hud]") {
+TEST_CASE("The sandbox HUD shows rounds, reloads, sights, the item's name and statistics like a game",
+          "[sandbox][ui][hud]") {
     InterfaceGame game;
     auto& ui = game.GetUi();
     const auto text = [&](Spot::EntityId id) { return game.scene.GetEntity(id)->GetComponent<Spot::UiText>()->text; };
     const auto active = [&](Spot::EntityId id) { return game.scene.GetEntity(id)->IsActiveInHierarchy(); };
-    // Debugging statistics wait for their key; the slot bar for a switch.
+    const auto nameOpacity = [&] { return game.scene.GetEntity(ui.handText)->GetComponent<Spot::UiText>()->color.a; };
+    // Debugging statistics wait for their key; the name of what is in hand for a switch.
     CHECK_FALSE(active(ui.statsPanel));
-    CHECK_FALSE(active(ui.slotBar));
+    CHECK(nameOpacity() == 0.0f);
     CHECK(active(ui.crosshair));
     CHECK(text(ui.clockText).size() == 5);
+    // By day the clock shows the sun.
+    CHECK(game.scene.GetEntity(ui.clockIcon)->GetComponent<Spot::UiImage>()->texture == ui.sunIcon);
 
     auto& holder = *game.scene.FindComponent<WeaponHolder>();
     game.input.OnEvent(Spot::KeyPressedEvent{Spot::Key::Digit2, false});
@@ -116,13 +120,13 @@ TEST_CASE("The sandbox HUD shows rounds, reloads, sights, slots and statistics l
     game.input.OnEvent(Spot::KeyReleasedEvent{Spot::Key::Digit2});
     game.Step();
     REQUIRE(holder.GetWeapon());
-    CHECK(active(ui.slotBar));
+    CHECK(nameOpacity() == 1.0f);
     CHECK(text(ui.handText) == "PISTOL");
     CHECK(text(ui.countText) == std::to_string(holder.GetWeapon()->GetAmmo()));
     CHECK(text(ui.detailText) == "/ " + std::to_string(holder.GetWeapon()->GetReserve()));
     for (int i = 0; i < 180; ++i)
         game.Step();
-    CHECK_FALSE(active(ui.slotBar));
+    CHECK(nameOpacity() == 0.0f);
 
     // Down the sights, the crosshair gives way to them.
     game.input.OnEvent(Spot::MouseButtonPressedEvent{Spot::MouseButton::Right});

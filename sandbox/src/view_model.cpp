@@ -2,6 +2,7 @@
 
 #include "physics_gun.h"
 #include "player_controller.h"
+#include "player_health.h"
 #include "player_movement.h"
 #include "prop_carrier.h"
 #include "weapon.h"
@@ -53,7 +54,8 @@ bool StartsWith(std::string_view name, std::string_view prefix) {
 
 Spot::AssetRef<Spot::Model> ViewModel::GetHeldModel() const {
     const auto* holder = GetEntity().GetComponent<WeaponHolder>();
-    if (!holder) {
+    const auto* health = GetEntity().GetComponent<PlayerHealth>();
+    if (!holder || (health && health->IsDead())) {
         return {};
     }
     if (holder->IsPhysicsGunSelected()) {
@@ -244,6 +246,15 @@ Spot::Matrix4 ViewModel::ComputePose() const {
         }
     }
 
+    // Running, it is carried low and across the body, swinging with each stride, and comes back up as the run ends.
+    const auto* movement = GetEntity().GetComponent<PlayerMovement>();
+    if (m_sprint > 0.0f) {
+        const float phase = (movement ? movement->GetStepPhase() : 0.0f) * Spot::Pi;
+        position += Vector3{-0.045f, -0.04f, 0.035f} * m_sprint;
+        position += Vector3{0.012f * std::sin(phase), 0.009f * std::cos(2.0f * phase), 0.0f} * m_sprint;
+        rotation = rotation * Turn(-0.4f * m_sprint, 0.5f * m_sprint, (0.45f + 0.05f * std::sin(phase)) * m_sprint);
+    }
+
     const float lowered = 1.0f - m_raise;
     position += Vector3{0.02f, -0.2f, 0.06f} * lowered;
     rotation = rotation * Turn(-0.7f * lowered, 0.0f, -0.3f * lowered);
@@ -337,6 +348,13 @@ void ViewModel::OnLateUpdate(float deltaTime) {
         m_jolt += m_joltVelocity * step;
     }
 
+    const auto* movement = GetEntity().GetComponent<PlayerMovement>();
+    const auto* holder = GetEntity().GetComponent<WeaponHolder>();
+    const Weapon* weapon = holder ? holder->GetWeapon() : nullptr;
+    // Reloading on the run brings it most of the way up, where the hands can reach it.
+    const float sprint = movement && movement->IsSprinting() ? weapon && weapon->IsReloading() ? 0.3f : 1.0f : 0.0f;
+    m_sprint += (sprint - m_sprint) * (1.0f - std::exp(-(sprint > m_sprint ? 9.0f : 12.0f) * deltaTime));
+
     const Quaternion rotation = player->GetViewRotation();
     UpdateMotion(deltaTime, rotation);
     UpdateObstruction(deltaTime);
@@ -375,6 +393,7 @@ void ViewModel::OnDisable() {
     m_jolt = 0.0f;
     m_joltVelocity = 0.0f;
     m_blocked = 0.0f;
+    m_sprint = 0.0f;
     m_hasPreviousView = false;
     Clear();
 }

@@ -35,12 +35,16 @@ public:
     float recoilRecovery = 0.2f;
     // What the player holds while it is in hand (see ViewModel).
     Spot::AssetRef<Spot::Model> model;
+    // What the HUD and the weapon wheel show for it.
+    Spot::AssetRef<Spot::Texture> icon;
     Spot::AssetRef<Spot::Sound> fireSound;
     Spot::AssetRef<Spot::Sound> reloadSound;
     // Projectiles only.
     float projectileSpeed = 30.0f;
     float explosionRadius = 5.0f;
     float explosionImpulse = 400.0f;
+    // What an explosion takes from the health of a player at its center.
+    float explosionDamage = 110.0f;
 
     int GetAmmo() const { return m_ammo; }
     int GetReserve() const { return m_reserve; }

@@ -498,6 +498,23 @@
           "bindings": [
             {
               "control": {
+                "code": 39,
+                "source": 0
+              },
+              "deadZone": 0.0,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1.0
+            }
+          ],
+          "name": "Weapon Wheel",
+          "pressPoint": 0.5,
+          "type": 0
+        },
+        {
+          "bindings": [
+            {
+              "control": {
                 "code": 6,
                 "source": 0
               },
@@ -525,7 +542,7 @@
           "bindings": [
             {
               "control": {
-                "code": 22,
+                "code": 101,
                 "source": 0
               },
               "deadZone": 0.0,

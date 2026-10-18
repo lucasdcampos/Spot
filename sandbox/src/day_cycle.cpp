@@ -33,6 +33,11 @@ void DayCycle::UpdateSun() {
     const float angle = (timeOfDay - 0.25f) * 2.0f * Spot::Pi;
     const Spot::Vector3 toSun = Spot::Normalize(Spot::Vector3{std::cos(angle), std::sin(angle), 0.4f});
     GetEntity().GetTransform().SetRotation(Spot::Quaternion::LookRotation(-toSun));
+    // The stars turn with the sun, around the same axis, a turn a day.
+    if (auto* sky = GetScene().FindComponent<Spot::Sky>()) {
+        sky->SetStarAxis({0.0f, 0.0f, 1.0f});
+        sky->SetStarRotation(angle);
+    }
     UpdateAtmosphere(toSun.y);
 }
 

@@ -1,6 +1,7 @@
 #include "player_controller.h"
 
 #include "physics_gun.h"
+#include "player_movement.h"
 #include "prop_carrier.h"
 #include "weapon_holder.h"
 
@@ -83,11 +84,16 @@ void PlayerController::OnUpdate(float deltaTime) {
     const auto* holder = GetEntity().GetComponent<WeaponHolder>();
     const float zoom = holder ? holder->GetAimZoom() : 1.0f;
     m_zoom += (zoom - m_zoom) * std::min(zoomSpeed * deltaTime * 60.0f, 1.0f);
+    const auto* movement = GetEntity().GetComponent<PlayerMovement>();
+    const float run = movement && movement->IsSprinting() ? 1.0f : 0.0f;
+    m_run += (run - m_run) * (1.0f - std::exp(-6.0f * deltaTime));
 
-    // A free cursor belongs to the rest of the screen, and the carrier and the gun take the mouse while turning props.
+    // A free cursor belongs to the rest of the screen, the carrier and the gun take the mouse while turning props, and
+    // the weapon wheel while it is open.
     const auto* carrier = GetEntity().GetComponent<PropCarrier>();
     const auto* gun = GetEntity().GetComponent<PhysicsGun>();
-    const bool turning = (carrier && carrier->IsTurning()) || (gun && gun->IsTurning());
+    const bool turning =
+        (carrier && carrier->IsTurning()) || (gun && gun->IsTurning()) || (holder && holder->IsWheelOpen());
     if (Input::IsCursorLocked() && !turning) {
         // Up is positive, so the pitch rises with it.
         const Spot::Vector2 look = Input::GetActionVector2("Look") * (lookSensitivity / m_zoom);
@@ -106,8 +112,8 @@ void PlayerController::OnLateUpdate(float /*deltaTime*/) {
     }
     entity->GetTransform().SetRotation(GetViewRotation());
     if (auto* camera = entity->GetComponent<Spot::Camera>(); camera && m_fieldOfView > 0.0f) {
-        // What a lens of that magnification sees.
-        camera->SetFieldOfView(2.0f * std::atan(std::tan(m_fieldOfView * 0.5f) / m_zoom));
+        // What a lens of that magnification sees, a little wider running.
+        camera->SetFieldOfView(2.0f * std::atan(std::tan(m_fieldOfView * 0.5f) * (1.0f + 0.07f * m_run) / m_zoom));
     }
 }
 

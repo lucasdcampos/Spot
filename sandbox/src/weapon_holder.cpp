@@ -5,6 +5,8 @@
 #include "particle_effects.h"
 #include "physics_gun.h"
 #include "player_controller.h"
+#include "player_health.h"
+#include "player_movement.h"
 #include "projectile.h"
 #include "prop_carrier.h"
 #include "robot.h"
@@ -24,6 +26,58 @@ void WeaponHolder::Select(int slot) {
     const int selected = ((slot % count) + count) % count;
     if (selected != m_selected) {
         m_selected = selected;
+        SoundBank::PlayClick(GetScene());
+    }
+}
+
+bool WeaponHolder::CanUseItem() const {
+    const auto* movement = GetEntity().GetComponent<PlayerMovement>();
+    const auto* health = GetEntity().GetComponent<PlayerHealth>();
+    return !m_wheelOpen && !(movement && movement->IsSprinting()) && !(health && health->IsDead());
+}
+
+void WeaponHolder::OpenWheel() {
+    if (m_wheelOpen) {
+        return;
+    }
+    m_wheelOpen = true;
+    m_wheelSlot = m_selected;
+    m_wheelPointer = {};
+    m_timeScaleBefore = Spot::Time::GetTimeScale();
+    m_timeScaleSet = m_timeScaleBefore * std::clamp(wheelTimeScale, 0.0f, 1.0f);
+    Spot::Time::SetTimeScale(m_timeScaleSet);
+    SoundBank::PlayClick(GetScene());
+}
+
+void WeaponHolder::CloseWheel(bool select) {
+    if (!m_wheelOpen) {
+        return;
+    }
+    m_wheelOpen = false;
+    // Unless something else, such as the pause menu, changed it meanwhile.
+    if (Spot::Time::GetTimeScale() == m_timeScaleSet) {
+        Spot::Time::SetTimeScale(m_timeScaleBefore);
+    }
+    if (select) {
+        Select(m_wheelSlot);
+    }
+}
+
+void WeaponHolder::UpdateWheel() {
+    // A few centimeters of mouse reach the rim; the pointer stays on it as the mouse goes on.
+    m_wheelPointer += Spot::Input::GetActionVector2("Look") / 90.0f;
+    const float length = Spot::Length(m_wheelPointer);
+    if (length > 1.0f) {
+        m_wheelPointer = m_wheelPointer / length;
+    }
+    if (length < 0.4f) {
+        return;
+    }
+    // Clockwise from the top, in eighths of a turn.
+    const float turn = std::atan2(m_wheelPointer.x, m_wheelPointer.y) / (2.0f * Spot::Pi);
+    const int slot = (static_cast<int>(std::lround(turn * WheelSlots)) % WheelSlots + WheelSlots) % WheelSlots;
+    if (slot < GetSlotCount() && slot != m_wheelSlot) {
+        m_wheelSlot = slot;
         SoundBank::PlayClick(GetScene());
     }
 }
@@ -83,7 +137,7 @@ std::vector<Weapon*> WeaponHolder::GetWeapons() const {
 void WeaponHolder::Fire() {
     Weapon* weapon = GetWeapon();
     auto* player = GetEntity().GetComponent<PlayerController>();
-    if (!weapon || !player || !weapon->TakeShot()) {
+    if (!weapon || !player || !CanUseItem() || !weapon->TakeShot()) {
         return;
     }
     auto* view = GetEntity().GetComponent<ViewModel>();
@@ -116,6 +170,7 @@ void WeaponHolder::Fire() {
         auto& projectile = *rocket.GetComponent<Projectile>();
         projectile.explosionRadius = weapon->explosionRadius;
         projectile.explosionImpulse = weapon->explosionImpulse;
+        projectile.explosionDamage = weapon->explosionDamage;
     } else {
         FireHitscan(*weapon, eye, aim, muzzle);
     }
@@ -177,7 +232,21 @@ void WeaponHolder::OnUpdate(float deltaTime) {
     for (int slot = 0; slot < 9 && slot <= count + 1; ++slot) {
         if (Input::IsActionPressed(Slots[static_cast<std::size_t>(slot)])) {
             Select(slot);
+            m_wheelSlot = m_selected;
         }
+    }
+    // The wheel is for the game, not over a menu, which takes it away without choosing.
+    const Spot::InputState* state = Input::GetState();
+    const bool inGame = Input::IsCursorLocked() && !(state && state->IsCaptured());
+    if (!m_wheelOpen && inGame && Input::IsActionDown("Weapon Wheel")) {
+        OpenWheel();
+    } else if (m_wheelOpen && !inGame) {
+        CloseWheel(false);
+    } else if (m_wheelOpen && !Input::IsActionDown("Weapon Wheel")) {
+        CloseWheel(true);
+    }
+    if (m_wheelOpen) {
+        UpdateWheel();
     }
     // The physics gun takes the wheel while it holds something, to push and pull it.
     const auto* gun = GetEntity().GetComponent<PhysicsGun>();
@@ -189,7 +258,9 @@ void WeaponHolder::OnUpdate(float deltaTime) {
     // A carried prop takes the buttons, to be turned and thrown.
     const auto* carrier = GetEntity().GetComponent<PropCarrier>();
     // Both hands are busy reloading.
-    m_aiming = weapon && Input::IsActionDown("Aim") && !(carrier && carrier->IsHolding()) && !weapon->IsReloading();
+    const auto* health = GetEntity().GetComponent<PlayerHealth>();
+    m_aiming = weapon && Input::IsActionDown("Aim") && !(carrier && carrier->IsHolding()) && !weapon->IsReloading() &&
+               !m_wheelOpen && !(health && health->IsDead());
     if (!weapon) {
         return;
     }
@@ -206,6 +277,12 @@ void WeaponHolder::OnUpdate(float deltaTime) {
     }
 }
 
+void WeaponHolder::OnDisable() {
+    CloseWheel(false);
+}
+
 void WeaponHolder::Serialize(Spot::Archive& archive) {
     archive.Field("selected", m_selected, {.min = 0.0f, .max = 9.0f, .tooltip = "0 is the physics gun"});
+    archive.Field("wheelTimeScale", wheelTimeScale,
+                  {.min = 0.0f, .max = 1.0f, .speed = 0.01f, .tooltip = "How much the open wheel slows time"});
 }

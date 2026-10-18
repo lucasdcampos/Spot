@@ -3,6 +3,7 @@
 #include "day_cycle.h"
 #include "physics_gun.h"
 #include "player_controller.h"
+#include "player_health.h"
 #include "player_movement.h"
 #include "prop_carrier.h"
 #include "tool_gun.h"
@@ -54,7 +55,8 @@ void Hud::OnUpdate(float deltaTime) {
         m_showStatistics = !m_showStatistics;
         UpdateStatus();
     }
-    m_slotsLeft = std::max(m_slotsLeft - elapsed, 0.0f);
+    m_nameLeft = std::max(m_nameLeft - elapsed, 0.0f);
+    m_time += elapsed;
 }
 
 void Hud::OnStart() {
@@ -87,7 +89,9 @@ void Hud::OnLateUpdate(float) {
     const DayCycle* day = GetScene().FindComponent<DayCycle>();
     const int minutes = day ? static_cast<int>(day->timeOfDay * 24.0f * 60.0f) % (24 * 60) : 0;
     m_state.clock = std::format("{:02}:{:02}", minutes / 60, minutes % 60);
+    m_state.day = minutes >= 6 * 60 && minutes < 18 * 60;
     DescribeHand();
+    DescribeHealth();
     auto* root = GetScene().GetEntity(m_interface);
     if (auto* ui = root ? root->GetComponent<RuntimeInterface>() : nullptr)
         ui->UpdateHud(m_state);
@@ -97,6 +101,25 @@ void Hud::UpdateStatus() {
     m_status = std::format("{} FPS   {} bodies   update {:.2f} ms   render {:.2f} ms",
                            static_cast<int>(std::lround(m_frameRate)), GetScene().GetPhysics().GetBodyCount(),
                            GetAverageMilliseconds("Scene::Update"), GetAverageMilliseconds("Application::Render"));
+}
+
+void Hud::DescribeHealth() {
+    HudState& state = m_state;
+    const PlayerHealth* health = GetScene().FindComponent<PlayerHealth>();
+    if (!health) {
+        state.health = state.maxHealth = 100.0f;
+        state.lowHealth = state.dead = false;
+        state.damage = 0.0f;
+        return;
+    }
+    state.health = health->GetHealth();
+    state.maxHealth = health->maxHealth;
+    state.dead = health->IsDead();
+    state.respawn = health->GetRespawnTimeLeft();
+    state.lowHealth = !state.dead && state.health <= state.maxHealth * 0.3f;
+    // Hurts flash the edges of the screen; low health keeps them beating, slowly.
+    const float beat = state.lowHealth ? 0.3f + 0.12f * std::sin(m_time * 5.0f) : 0.0f;
+    state.damage = std::max(health->GetHurt() * 0.7f, beat);
 }
 
 void Hud::DescribeHand() {
@@ -111,32 +134,45 @@ void Hud::DescribeHand() {
     state.crosshair = true;
     state.hitMarker = 0.0f;
     state.item.clear();
+    state.icon = {};
+    state.wheelOpen = false;
     const WeaponHolder* holder = GetScene().FindComponent<WeaponHolder>();
     if (!holder) {
-        state.slotsOpacity = 0.0f;
+        state.itemOpacity = 0.0f;
         return;
     }
     const Spot::Entity& player = holder->GetEntity();
     const auto* controller = player.GetComponent<PlayerController>();
     const auto* movement = player.GetComponent<PlayerMovement>();
     const auto* body = player.GetComponent<Spot::CharacterController>();
+    const auto* gun = player.GetComponent<PhysicsGun>();
+    const auto* tool = player.GetComponent<ToolGun>();
 
-    // The slots, named as briefly as the bar has room for.
+    // Every slot, with its icon and what the wheel says under its name.
     state.slots.clear();
-    state.slots.emplace_back("Physics Gun");
+    state.slots.push_back({"Physics Gun", gun && gun->IsGrabbing() ? "Holding" : "Grab and move props",
+                           gun ? gun->icon : Spot::AssetRef<Spot::Texture>()});
     for (const Weapon* weapon : holder->GetWeapons()) {
-        state.slots.push_back(weapon->displayName);
+        state.slots.push_back(
+            {weapon->displayName, std::format("{} / {}", weapon->GetAmmo(), weapon->GetReserve()), weapon->icon});
     }
-    state.slots.emplace_back("Tool Gun");
+    state.slots.push_back({"Tool Gun", tool ? ToolModes[static_cast<int>(tool->mode)] : "",
+                           tool ? tool->icon : Spot::AssetRef<Spot::Texture>()});
     state.selectedSlot = holder->GetSelected();
+    state.wheelOpen = holder->IsWheelOpen();
+    state.wheelSlot = holder->GetWheelSlot();
     if (state.selectedSlot != m_lastSlot) {
         // Not when the game starts, only when the player switches.
-        m_slotsLeft = m_lastSlot < 0 ? 0.0f : slotsTime;
+        m_nameLeft = m_lastSlot < 0 ? 0.0f : nameTime;
         m_lastSlot = state.selectedSlot;
     }
-    state.slotsOpacity = std::clamp(m_slotsLeft / 0.4f, 0.0f, 1.0f);
+    state.itemOpacity = std::clamp(m_nameLeft / 0.4f, 0.0f, 1.0f);
+    if (state.selectedSlot >= 0 && state.selectedSlot < static_cast<int>(state.slots.size())) {
+        state.icon = state.slots[static_cast<std::size_t>(state.selectedSlot)].icon;
+        state.item = Upper(state.slots[static_cast<std::size_t>(state.selectedSlot)].name);
+    }
 
-    // The crosshair opens up while moving, in the air and as recoil kicks.
+    // The crosshair opens up while moving, in the air and as recoil kicks, and goes while nothing can be used.
     float spread = 0.0f;
     if (body && movement) {
         const Spot::Vector3 velocity = body->GetVelocity();
@@ -148,9 +184,9 @@ void Hud::DescribeHand() {
     }
     state.spread += (std::min(spread, 1.0f) - state.spread) * 0.25f;
     state.hitMarker = holder->GetHitMarker();
+    state.crosshair = holder->CanUseItem();
 
     const auto* carrier = player.GetComponent<PropCarrier>();
-    const auto* gun = player.GetComponent<PhysicsGun>();
     if (carrier && carrier->IsHolding()) {
         state.prompt = "LMB  Throw      E  Drop      RMB  Rotate";
     } else if (!(gun && gun->IsGrabbing()) && carrier && carrier->FindCarryable()) {
@@ -158,8 +194,6 @@ void Hud::DescribeHand() {
     }
 
     if (holder->IsToolGunSelected()) {
-        const auto* tool = player.GetComponent<ToolGun>();
-        state.item = "TOOL GUN";
         state.countIsWord = true;
         if (!tool) {
             return;
@@ -174,31 +208,29 @@ void Hud::DescribeHand() {
         }
         const bool options = tool->mode == ToolGun::Mode::Color || tool->mode == ToolGun::Mode::Material ||
                              tool->mode == ToolGun::Mode::Lamp;
-        state.hints = options ? "LMB  Use      RMB  Option      R  Mode" : "LMB  Use      R  Mode      Z  Undo";
+        state.hints = options ? "LMB Use    RMB Option    R Mode" : "LMB Use    R Mode    Z Undo";
         return;
     }
     const Weapon* weapon = holder->GetWeapon();
     if (!weapon) {
-        state.item = "PHYSICS GUN";
         state.countIsWord = true;
         state.count = gun && gun->IsGrabbing() ? "Holding" : "Ready";
-        state.hints = gun && gun->IsGrabbing() ? "Wheel  Distance      E  Rotate      RMB  Freeze"
-                                               : "Hold LMB  Grab      U  Unfreeze all";
+        state.hints =
+            gun && gun->IsGrabbing() ? "Wheel Distance    E Rotate    RMB Freeze" : "Hold LMB Grab    U Unfreeze all";
         return;
     }
-    state.item = Upper(weapon->displayName);
     state.count = std::to_string(weapon->GetAmmo());
     state.detail = std::format("/ {}", weapon->GetReserve());
     state.lowAmmo = weapon->magazineSize > 3 && weapon->GetAmmo() <= weapon->magazineSize / 4 && !weapon->IsReloading();
-    state.hints = "R  Reload      RMB  Aim";
+    state.hints = "R Reload    RMB Aim";
     if (weapon->IsReloading()) {
         state.reload = weapon->GetReloadProgress();
-        state.hints = "Reloading...";
+        state.hints = "Reloading";
     } else if (weapon->GetAmmo() == 0 && weapon->GetReserve() == 0) {
         state.hints = "Out of ammunition";
     }
     // Down the sights, the sights are the crosshair.
-    state.crosshair = !holder->IsAiming();
+    state.crosshair = state.crosshair && !holder->IsAiming();
 }
 
 void Hud::OnDrawUi(Spot::Renderer2D& renderer, Spot::Vector2 viewSize) {
@@ -218,5 +250,6 @@ void Hud::OnDrawUi(Spot::Renderer2D& renderer, Spot::Vector2 viewSize) {
 
 void Hud::Serialize(Spot::Archive& archive) {
     archive.Field("font", font);
-    archive.Field("slotsTime", slotsTime, {.min = 0, .max = 10, .speed = .05f});
+    archive.Field("nameTime", nameTime,
+                  {.min = 0, .max = 10, .speed = .05f, .tooltip = "Seconds the name of what is in hand shows"});
 }

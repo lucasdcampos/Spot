@@ -87,6 +87,7 @@ void Weapon::Serialize(Spot::Archive& archive) {
     archive.Field("aimZoom", aimZoom,
                   {.min = 1.0f, .max = 10.0f, .speed = 0.01f, .tooltip = "How many times aiming magnifies the view"});
     archive.Field("model", model, {.tooltip = "What the player holds while it is in hand"});
+    archive.Field("icon", icon, {.tooltip = "What the HUD and the weapon wheel show for it"});
     archive.Field("fireSound", fireSound);
     archive.Field("reloadSound", reloadSound);
     archive.Field("aimSpread", aimSpread,
@@ -94,6 +95,8 @@ void Weapon::Serialize(Spot::Archive& archive) {
     archive.Field("projectileSpeed", projectileSpeed, {.min = 0.0f, .max = 1000.0f, .speed = 0.5f});
     archive.Field("explosionRadius", explosionRadius, {.min = 0.0f, .max = 100.0f, .speed = 0.05f});
     archive.Field("explosionImpulse", explosionImpulse, {.min = 0.0f, .max = 100000.0f, .speed = 1.0f});
+    archive.Field("explosionDamage", explosionDamage,
+                  {.min = 0.0f, .max = 10000.0f, .speed = 1.0f, .tooltip = "To a player at the center"});
     if (archive.IsSaving()) {
         m_savedCooldown = GetInvokeTimeLeft(m_cooldown);
         m_savedReload = GetInvokeTimeLeft(m_reload);

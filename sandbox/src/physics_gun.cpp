@@ -100,7 +100,9 @@ void PhysicsGun::OnUpdate(float /*deltaTime*/) {
         Release();
     }
     const auto* carrier = GetEntity().GetComponent<PropCarrier>();
-    if (!IsGrabbing() && Input::IsActionPressed("Fire") && !(carrier && carrier->HasClick())) {
+    const auto* holder = GetEntity().GetComponent<WeaponHolder>();
+    if (!IsGrabbing() && Input::IsActionPressed("Fire") && !(carrier && carrier->HasClick()) &&
+        !(holder && !holder->CanUseItem())) {
         Grab();
     }
     if (!IsGrabbing()) {
@@ -170,6 +172,7 @@ void PhysicsGun::OnLateUpdate(float deltaTime) {
 }
 
 void PhysicsGun::Serialize(Spot::Archive& archive) {
+    archive.Field("icon", icon, {.tooltip = "What the HUD and the weapon wheel show for it"});
     archive.Field("range", range, {.min = 0.0f, .max = 1000.0f, .speed = 0.5f});
     archive.Field("minDistance", minDistance, {.min = 0.0f, .max = 100.0f, .speed = 0.05f});
     archive.Field("scrollStep", scrollStep, {.min = 0.0f, .max = 10.0f, .speed = 0.05f});

@@ -3,10 +3,12 @@
 #include <spot.h>
 
 // Moves the player's CharacterController where its PlayerController looks, with the actions: Move to walk, Sprint to
-// run, Jump to jump and Crouch to crouch, standing up again only once there is room above. Steps sound like the
-// ground they land on, quieter crouching and louder running, in a cadence that slows as strides lengthen. Noclip
-// switches flying through everything: Jump goes up, Crouch down and Sprint faster. Falling below the world brings the
-// player back to the start.
+// run forward, Jump to jump and Crouch to crouch, standing up again only once there is room above. Running lowers what
+// is in hand, so it cannot be used, and needs free hands: not aiming, carrying or holding a prop with the physics gun.
+// Steps sound like the ground they land on, quieter crouching and louder running, in a cadence that slows as strides
+// lengthen. Landing too fast hurts the PlayerHealth, and explosions push the player (Push()). Noclip switches flying
+// through everything: Jump goes up, Crouch down and Sprint faster. Falling below the world brings the player back to
+// the start. The dead neither move nor jump.
 class PlayerMovement final : public Spot::Component {
 public:
     // Meters per second.
@@ -26,6 +28,13 @@ public:
     float bobHeight = 0.012f;
 
     bool IsCrouching() const { return m_crouching; }
+    // Running forward, on the ground or in a jump that began running.
+    bool IsSprinting() const { return m_sprinting; }
+    // Adds to the player's velocity, in meters per second: what it gains sideways slows down as it slides on the
+    // ground, and what it gains upward lifts it off.
+    void Push(Spot::Vector3 velocity);
+    // Puts the player back at the start, standing still.
+    void Respawn();
     bool IsFlying() const { return m_flying; }
     void SetFlying(bool flying);
     float GetCameraBob() const { return m_bob; }
@@ -51,6 +60,8 @@ private:
     // Advances the walk cycle by the distance walked on the ground, playing a step as each stride ends.
     void Stride(float deltaTime);
     void PlayFootstep(float loudness);
+    // Whether nothing keeps the player from running: the dead, and hands busy aiming, carrying or holding, do not.
+    bool CanSprint() const;
 
     Spot::Vector3 m_spawnPoint;
     float m_standHeight = 1.8f;
@@ -64,6 +75,9 @@ private:
     bool m_crouchHeld = false;
     bool m_crouching = false;
     bool m_flying = false;
+    bool m_sprinting = false;
+    Spot::Vector3 m_push;
+    float m_lift = 0.0f;
     bool m_wasGrounded = true;
     float m_landingSpeed = 0.0f;
     float m_stepPhase = 0.5f;

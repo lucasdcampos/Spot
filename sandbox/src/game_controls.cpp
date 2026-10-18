@@ -13,11 +13,19 @@ GameControls::GameControls() = default;
 GameControls::~GameControls() = default;
 
 void GameControls::OnEnable() {
-    m_commands = std::make_unique<SandboxCommands>(Spot::Console::Get(), GetScene());
+    auto& console = Spot::Console::Get();
+    m_commands = std::make_unique<SandboxCommands>(console, GetScene());
+    m_cheatsBefore = console.AreCheatsEnabled();
+    if (cheats) {
+        console.SetCheatsEnabled(true);
+    }
 }
 
 void GameControls::OnDisable() {
     m_commands.reset();
+    if (cheats) {
+        Spot::Console::Get().SetCheatsEnabled(m_cheatsBefore);
+    }
 }
 
 void GameControls::OnStart() {
@@ -88,6 +96,7 @@ void GameControls::OnLateUpdate(float /*deltaTime*/) {
 void GameControls::Serialize(Spot::Archive& archive) {
     archive.Field("robots", robots,
                   {.tooltip = "The robot population prefab; the default population is used when empty"});
+    archive.Field("cheats", cheats, {.tooltip = "Permits the console's cheat commands while the game runs"});
     archive.Field("restartScene", restartScene,
                   {.tooltip = "The scene the Restart action loads", .assetType = Spot::AssetType::Scene});
 }

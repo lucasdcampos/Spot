@@ -10,6 +10,8 @@ add_library(sandbox_generator_core STATIC
     generator.h
     gltf_writer.cpp
     gltf_writer.h
+    icons.cpp
+    icons.h
     level_models.cpp
     level_models.h
     level_textures.cpp

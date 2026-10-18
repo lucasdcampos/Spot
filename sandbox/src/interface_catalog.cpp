@@ -29,8 +29,12 @@ void RuntimeInterface::BuildSpawnMenu() {
                 label->font = font;
             }
         }
-        if (auto* image = entity.FindChild("Thumbnail"))
+        if (auto* image = entity.FindChild("Thumbnail")) {
+            // Hidden until it is drawn, rather than a blank square.
+            if (auto* picture = image->GetComponent<Spot::UiImage>())
+                picture->tint.a = 0.0f;
             m_thumbnails.Add(image->GetId(), spawnables[index].prefab);
+        }
         ConnectButton(entity.GetId(), [this, index] {
             if (auto* current = GetScene().FindComponent<PropSpawner>()) {
                 current->Spawn(index);
@@ -41,6 +45,29 @@ void RuntimeInterface::BuildSpawnMenu() {
     SelectCategory(Spawnable::Category::Prop);
 }
 void RuntimeInterface::SelectCategory(Spawnable::Category category) {
+    // The tab of what is shown is lit with the accent, with dark ink.
+    const std::pair<Spot::EntityId, Spawnable::Category> tabs[] = {{propsTab, Spawnable::Category::Prop},
+                                                                   {lampsTab, Spawnable::Category::Lamp},
+                                                                   {weaponsTab, Spawnable::Category::Weapon}};
+    for (const auto& [id, tabCategory] : tabs) {
+        auto* tab = Get<Spot::UiButton>(id);
+        if (!tab)
+            continue;
+        if (!m_tabStyle)
+            m_tabStyle = tab->style;
+        const bool selected = tabCategory == category;
+        tab->style = *m_tabStyle;
+        if (selected) {
+            const Spot::Color accent = m_tabStyle->accent;
+            tab->style.normal = tab->style.hovered = tab->style.focused = accent;
+            tab->style.pressed = {accent.r * 0.8f, accent.g * 0.8f, accent.b * 0.8f, accent.a};
+        }
+        if (auto* caption = tab->GetEntity().FindChild("Label")) {
+            if (auto* label = caption->GetComponent<Spot::UiText>())
+                label->color =
+                    selected ? Spot::Color{0.07f, 0.06f, 0.04f, 1.0f} : Spot::Color{0.95f, 0.97f, 1.0f, 1.0f};
+        }
+    }
     std::size_t count = 0;
     for (std::size_t index = 0; index < m_spawnButtons.size(); ++index) {
         const bool active = m_categories[index] == category;

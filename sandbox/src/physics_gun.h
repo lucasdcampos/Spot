@@ -21,6 +21,8 @@ public:
     float maxSpeed = 40.0f;
     // An entity whose AudioSource hums while the gun holds something, higher the faster the prop moves.
     Spot::EntityId hum;
+    // What the HUD and the weapon wheel show for it.
+    Spot::AssetRef<Spot::Texture> icon;
 
     bool IsGrabbing() const { return m_grabbed != Spot::EntityId::Invalid; }
     Spot::EntityId GetGrabbed() const { return m_grabbed; }

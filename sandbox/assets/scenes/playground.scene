@@ -1164,6 +1164,34 @@
           "enabled": true,
           "id": "ad876a91fe091c277eeef465e15e1529",
           "type": "Sky"
+        },
+        {
+          "data": {
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "coverage": 0.42,
+            "density": 0.85,
+            "height": 1400.0,
+            "offset": [
+              0.0,
+              0.0
+            ],
+            "size": 1100.0,
+            "softness": 0.4,
+            "windDirection": [
+              1.0,
+              0.0,
+              0.35
+            ],
+            "windSpeed": 14.0
+          },
+          "enabled": true,
+          "id": "8a41d2c7e05b4f93a6d1c08e7b25f4a9",
+          "type": "Clouds"
         }
       ],
       "id": 73,
@@ -1251,6 +1279,7 @@
         {
           "data": {
             "hum": 138,
+            "icon": "93f132404e33e4c27a5b59e5ea7332df",
             "maxSpeed": 40.0,
             "minDistance": 1.5,
             "range": 60.0,
@@ -1280,6 +1309,7 @@
         {
           "data": {
             "color": 0,
+            "icon": "13a48e966222fcefbf89be305feffdd2",
             "lamp": 0,
             "material": 0,
             "materials": [
@@ -1341,6 +1371,19 @@
           "enabled": true,
           "id": "ddc6a46d89865f98f41023300ff2d3e4",
           "type": "ViewModel"
+        },
+        {
+          "data": {
+            "lethalFallSpeed": 26.0,
+            "maxHealth": 100.0,
+            "regenerationDelay": 5.0,
+            "regenerationRate": 12.0,
+            "respawnTime": 4.0,
+            "safeFallSpeed": 12.0
+          },
+          "enabled": true,
+          "id": "5f0d3c1e9a7b42d6b8e14c2a7d903f61",
+          "type": "PlayerHealth"
         }
       ],
       "id": 117,

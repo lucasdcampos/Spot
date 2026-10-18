@@ -63,8 +63,20 @@
             "reloadTrack": 219,
             "reloadFill": 220,
             "hintText": 221,
-            "slotBar": 222,
-            "reloadWidth": 264
+            "reloadWidth": 220,
+            "healthWidth": 104,
+            "itemIcon": 304,
+            "clockIcon": 302,
+            "sunIcon": "826f4551dbdabe265e1fc61c53fdc198",
+            "moonIcon": "0c2c9f75ea193e1cbe63e68a0cff1e97",
+            "healthIcon": 311,
+            "healthText": 312,
+            "healthFill": 314,
+            "damageOverlay": 300,
+            "deathOverlay": 320,
+            "deathTimer": 322,
+            "wheelOverlay": 330,
+            "weaponWheel": 331
           }
         }
       ],
@@ -85,6 +97,78 @@
         1
       ],
       "tags": []
+    },
+    {
+      "id": 300,
+      "name": "HUD Damage",
+      "active": false,
+      "components": [
+        {
+          "id": "000000000000012c0000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "id": "000000000000012c0000000000000002",
+          "type": "UiImage",
+          "enabled": true,
+          "data": {
+            "tint": [
+              0.62,
+              0.02,
+              0.02,
+              0
+            ],
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "texture": "e153cd08a5cc02d932044daddae905a0"
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1
     },
     {
       "id": 200,
@@ -110,11 +194,11 @@
             ],
             "offset": [
               20,
-              -20
+              -56
             ],
             "sizeDelta": [
-              600,
-              32
+              440,
+              26
             ]
           }
         },
@@ -127,13 +211,13 @@
               0.03,
               0.04,
               0.06,
-              0.62
+              0.55
             ],
             "borders": [
-              12,
-              12,
-              12,
-              12
+              10,
+              10,
+              10,
+              10
             ],
             "texture": "88686c16704f97f193d65bdd3af0d1d8"
           }
@@ -185,8 +269,8 @@
               0
             ],
             "sizeDelta": [
-              -28,
-              -8
+              -24,
+              0
             ]
           }
         },
@@ -197,17 +281,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "60 FPS",
-            "fontSize": 14,
+            "fontSize": 12,
             "color": [
-              0.68,
-              0.73,
-              0.82,
+              0.7,
+              0.75,
+              0.84,
               1
             ],
             "layout": {
               "alignment": 0,
               "overflow": 0,
-              "wrap": false
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -254,12 +339,12 @@
               1
             ],
             "offset": [
-              -24,
-              -20
+              -20,
+              -18
             ],
             "sizeDelta": [
-              96,
-              36
+              100,
+              32
             ]
           }
         },
@@ -272,7 +357,7 @@
               0.03,
               0.04,
               0.06,
-              0.62
+              0.55
             ],
             "borders": [
               12,
@@ -326,12 +411,12 @@
               0.5
             ],
             "offset": [
-              0,
+              12,
               0
             ],
             "sizeDelta": [
-              0,
-              -6
+              -24,
+              0
             ]
           }
         },
@@ -342,7 +427,7 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "12:00",
-            "fontSize": 20,
+            "fontSize": 16,
             "color": [
               0.95,
               0.97,
@@ -352,8 +437,81 @@
             "layout": {
               "alignment": 1,
               "overflow": 0,
-              "wrap": false
+              "wrap": false,
+              "verticalAlignment": 1
             }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 201
+    },
+    {
+      "id": 302,
+      "name": "HUD Clock Icon",
+      "active": true,
+      "components": [
+        {
+          "id": "000000000000012e0000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              13,
+              0
+            ],
+            "sizeDelta": [
+              18,
+              18
+            ]
+          }
+        },
+        {
+          "id": "000000000000012e0000000000000002",
+          "type": "UiImage",
+          "enabled": true,
+          "data": {
+            "tint": [
+              1,
+              0.8,
+              0.36,
+              1
+            ],
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "texture": "826f4551dbdabe265e1fc61c53fdc198"
           }
         }
       ],
@@ -1236,11 +1394,11 @@
             ],
             "offset": [
               0,
-              -36
+              -34
             ],
             "sizeDelta": [
               600,
-              24
+              20
             ]
           }
         },
@@ -1251,7 +1409,7 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "",
-            "fontSize": 16,
+            "fontSize": 14,
             "color": [
               0.95,
               0.97,
@@ -1261,7 +1419,8 @@
             "layout": {
               "alignment": 1,
               "overflow": 0,
-              "wrap": false
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -1308,12 +1467,12 @@
               0
             ],
             "offset": [
-              -28,
-              28
+              -20,
+              20
             ],
             "sizeDelta": [
-              300,
-              96
+              244,
+              52
             ]
           }
         },
@@ -1326,7 +1485,7 @@
               0.03,
               0.04,
               0.06,
-              0.62
+              0.55
             ],
             "borders": [
               12,
@@ -1358,56 +1517,55 @@
       "parent": 1
     },
     {
-      "id": 6,
-      "name": "HUD Item Name",
+      "id": 304,
+      "name": "HUD Item Icon",
       "active": true,
       "components": [
         {
-          "id": "00000000000000060000000000000001",
+          "id": "00000000000001300000000000000001",
           "type": "UiRect",
           "enabled": true,
           "data": {
             "anchorMin": [
               0,
-              1
+              0.5
             ],
             "anchorMax": [
               0,
-              1
+              0.5
             ],
             "pivot": [
               0,
-              1
+              0.5
             ],
             "offset": [
-              18,
-              -12
+              12,
+              0
             ],
             "sizeDelta": [
-              264,
-              20
+              76,
+              38
             ]
           }
         },
         {
-          "id": "00000000000000060000000000000002",
-          "type": "UiText",
+          "id": "00000000000001300000000000000002",
+          "type": "UiImage",
           "enabled": true,
           "data": {
-            "font": "b3999c7ba8d944228a80146a8f38a9da",
-            "text": "PHYSICS GUN",
-            "fontSize": 15,
-            "color": [
+            "tint": [
+              0.95,
+              0.97,
               1,
-              0.68,
-              0.22,
-              1
+              0.95
             ],
-            "layout": {
-              "alignment": 0,
-              "overflow": 0,
-              "wrap": false
-            }
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "texture": null
           }
         }
       ],
@@ -1446,19 +1604,19 @@
             ],
             "anchorMax": [
               0,
-              0
+              1
             ],
             "pivot": [
               1,
-              0
+              0.5
             ],
             "offset": [
               158,
-              12
+              0
             ],
             "sizeDelta": [
-              150,
-              56
+              64,
+              0
             ]
           }
         },
@@ -1469,7 +1627,7 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Ready",
-            "fontSize": 46,
+            "fontSize": 28,
             "color": [
               0.95,
               0.97,
@@ -1479,7 +1637,8 @@
             "layout": {
               "alignment": 2,
               "overflow": 0,
-              "wrap": false
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -1519,19 +1678,19 @@
             ],
             "anchorMax": [
               0,
-              0
+              1
             ],
             "pivot": [
               0,
-              0
+              0.5
             ],
             "offset": [
-              166,
-              20
+              163,
+              0
             ],
             "sizeDelta": [
-              124,
-              28
+              76,
+              0
             ]
           }
         },
@@ -1542,17 +1701,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "",
-            "fontSize": 20,
+            "fontSize": 14,
             "color": [
-              0.68,
-              0.73,
-              0.82,
+              0.7,
+              0.75,
+              0.84,
               1
             ],
             "layout": {
               "alignment": 0,
               "overflow": 0,
-              "wrap": false
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -1600,11 +1760,11 @@
             ],
             "offset": [
               0,
-              10
+              6
             ],
             "sizeDelta": [
-              -36,
-              4
+              -24,
+              2
             ]
           }
         },
@@ -1719,6 +1879,80 @@
       "parent": 219
     },
     {
+      "id": 6,
+      "name": "HUD Item Name",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000000060000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              1,
+              0
+            ],
+            "anchorMax": [
+              1,
+              0
+            ],
+            "pivot": [
+              1,
+              0
+            ],
+            "offset": [
+              -22,
+              96
+            ],
+            "sizeDelta": [
+              300,
+              18
+            ]
+          }
+        },
+        {
+          "id": "00000000000000060000000000000002",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "b3999c7ba8d944228a80146a8f38a9da",
+            "text": "PHYSICS GUN",
+            "fontSize": 13,
+            "color": [
+              1,
+              0.68,
+              0.22,
+              1
+            ],
+            "layout": {
+              "alignment": 2,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
       "id": 221,
       "name": "HUD Item Hints",
       "active": true,
@@ -1741,12 +1975,12 @@
               0
             ],
             "offset": [
-              -34,
-              132
+              -22,
+              76
             ],
             "sizeDelta": [
               600,
-              22
+              18
             ]
           }
         },
@@ -1757,17 +1991,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "",
-            "fontSize": 15,
+            "fontSize": 12,
             "color": [
-              0.68,
-              0.73,
-              0.82,
-              1
+              0.86,
+              0.9,
+              0.96,
+              0.72
             ],
             "layout": {
               "alignment": 2,
               "overflow": 0,
-              "wrap": false
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -1792,35 +2027,55 @@
       "parent": 1
     },
     {
-      "id": 222,
-      "name": "HUD Slots",
-      "active": false,
+      "id": 310,
+      "name": "HUD Health Panel",
+      "active": true,
       "components": [
         {
-          "id": "00000000000000de0000000000000001",
+          "id": "00000000000001360000000000000001",
           "type": "UiRect",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
-              1
+              0,
+              0
             ],
             "anchorMax": [
-              0.5,
-              1
+              0,
+              0
             ],
             "pivot": [
-              0.5,
-              1
+              0,
+              0
             ],
             "offset": [
-              0,
-              -22
+              20,
+              20
             ],
             "sizeDelta": [
-              798,
-              40
+              224,
+              52
             ]
+          }
+        },
+        {
+          "id": "00000000000001360000000000000002",
+          "type": "UiImage",
+          "enabled": true,
+          "data": {
+            "tint": [
+              0.03,
+              0.04,
+              0.06,
+              0.55
+            ],
+            "borders": [
+              12,
+              12,
+              12,
+              12
+            ],
+            "texture": "88686c16704f97f193d65bdd3af0d1d8"
           }
         }
       ],
@@ -1844,55 +2099,55 @@
       "parent": 1
     },
     {
-      "id": 223,
-      "name": "Slot 1",
+      "id": 311,
+      "name": "HUD Health Icon",
       "active": true,
       "components": [
         {
-          "id": "00000000000000df0000000000000001",
+          "id": "00000000000001370000000000000001",
           "type": "UiRect",
           "enabled": true,
           "data": {
             "anchorMin": [
               0,
-              0
+              0.5
             ],
             "anchorMax": [
               0,
-              0
+              0.5
             ],
             "pivot": [
               0,
-              0
+              0.5
             ],
             "offset": [
-              0,
+              15,
               0
             ],
             "sizeDelta": [
-              128,
-              40
+              20,
+              20
             ]
           }
         },
         {
-          "id": "00000000000000df0000000000000002",
+          "id": "00000000000001370000000000000002",
           "type": "UiImage",
           "enabled": true,
           "data": {
             "tint": [
-              0.03,
-              0.04,
-              0.06,
-              0.62
+              0.95,
+              0.97,
+              1,
+              1
             ],
             "borders": [
-              12,
-              12,
-              12,
-              12
+              0,
+              0,
+              0,
+              0
             ],
-            "texture": "88686c16704f97f193d65bdd3af0d1d8"
+            "texture": "8c13e64d71d75d3b7b5d013c8cfaf645"
           }
         }
       ],
@@ -1913,15 +2168,15 @@
         1
       ],
       "tags": [],
-      "parent": 222
+      "parent": 310
     },
     {
-      "id": 224,
-      "name": "Number",
+      "id": 312,
+      "name": "HUD Health Value",
       "active": true,
       "components": [
         {
-          "id": "00000000000000e00000000000000001",
+          "id": "00000000000001380000000000000001",
           "type": "UiRect",
           "enabled": true,
           "data": {
@@ -1938,96 +2193,23 @@
               0.5
             ],
             "offset": [
-              9,
+              45,
               0
             ],
             "sizeDelta": [
-              14,
-              -8
+              58,
+              0
             ]
           }
         },
         {
-          "id": "00000000000000e00000000000000002",
+          "id": "00000000000001380000000000000002",
           "type": "UiText",
           "enabled": true,
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
-            "text": "1",
-            "fontSize": 14,
-            "color": [
-              1,
-              0.68,
-              0.22,
-              1
-            ],
-            "layout": {
-              "alignment": 0,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "parent": 223
-    },
-    {
-      "id": 225,
-      "name": "Name",
-      "active": true,
-      "components": [
-        {
-          "id": "00000000000000e10000000000000001",
-          "type": "UiRect",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0,
-              0
-            ],
-            "anchorMax": [
-              1,
-              1
-            ],
-            "pivot": [
-              0,
-              0.5
-            ],
-            "offset": [
-              24,
-              0
-            ],
-            "sizeDelta": [
-              -30,
-              -8
-            ]
-          }
-        },
-        {
-          "id": "00000000000000e10000000000000002",
-          "type": "UiText",
-          "enabled": true,
-          "data": {
-            "font": "b3999c7ba8d944228a80146a8f38a9da",
-            "text": "",
-            "fontSize": 14,
+            "text": "100",
+            "fontSize": 28,
             "color": [
               0.95,
               0.97,
@@ -2037,7 +2219,8 @@
             "layout": {
               "alignment": 0,
               "overflow": 0,
-              "wrap": false
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -2059,58 +2242,58 @@
         1
       ],
       "tags": [],
-      "parent": 223
+      "parent": 310
     },
     {
-      "id": 226,
-      "name": "Slot 2",
+      "id": 313,
+      "name": "HUD Health Track",
       "active": true,
       "components": [
         {
-          "id": "00000000000000e20000000000000001",
+          "id": "00000000000001390000000000000001",
           "type": "UiRect",
           "enabled": true,
           "data": {
             "anchorMin": [
               0,
-              0
+              0.5
             ],
             "anchorMax": [
               0,
-              0
+              0.5
             ],
             "pivot": [
               0,
-              0
+              0.5
             ],
             "offset": [
-              134,
+              106,
               0
             ],
             "sizeDelta": [
-              128,
-              40
+              104,
+              6
             ]
           }
         },
         {
-          "id": "00000000000000e20000000000000002",
+          "id": "00000000000001390000000000000002",
           "type": "UiImage",
           "enabled": true,
           "data": {
             "tint": [
-              0.03,
-              0.04,
-              0.06,
-              0.62
+              1,
+              1,
+              1,
+              0.14
             ],
             "borders": [
-              12,
-              12,
-              12,
-              12
+              0,
+              0,
+              0,
+              0
             ],
-            "texture": "88686c16704f97f193d65bdd3af0d1d8"
+            "texture": null
           }
         }
       ],
@@ -2131,15 +2314,15 @@
         1
       ],
       "tags": [],
-      "parent": 222
+      "parent": 310
     },
     {
-      "id": 227,
-      "name": "Number",
+      "id": 314,
+      "name": "HUD Health Fill",
       "active": true,
       "components": [
         {
-          "id": "00000000000000e30000000000000001",
+          "id": "000000000000013a0000000000000001",
           "type": "UiRect",
           "enabled": true,
           "data": {
@@ -2156,179 +2339,33 @@
               0.5
             ],
             "offset": [
-              9,
+              0,
               0
             ],
             "sizeDelta": [
-              14,
-              -8
+              104,
+              0
             ]
           }
         },
         {
-          "id": "00000000000000e30000000000000002",
-          "type": "UiText",
+          "id": "000000000000013a0000000000000002",
+          "type": "UiImage",
           "enabled": true,
           "data": {
-            "font": "b3999c7ba8d944228a80146a8f38a9da",
-            "text": "2",
-            "fontSize": 14,
-            "color": [
-              1,
-              0.68,
-              0.22,
-              1
-            ],
-            "layout": {
-              "alignment": 0,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "parent": 226
-    },
-    {
-      "id": 228,
-      "name": "Name",
-      "active": true,
-      "components": [
-        {
-          "id": "00000000000000e40000000000000001",
-          "type": "UiRect",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0,
-              0
-            ],
-            "anchorMax": [
-              1,
-              1
-            ],
-            "pivot": [
-              0,
-              0.5
-            ],
-            "offset": [
-              24,
-              0
-            ],
-            "sizeDelta": [
-              -30,
-              -8
-            ]
-          }
-        },
-        {
-          "id": "00000000000000e40000000000000002",
-          "type": "UiText",
-          "enabled": true,
-          "data": {
-            "font": "b3999c7ba8d944228a80146a8f38a9da",
-            "text": "",
-            "fontSize": 14,
-            "color": [
+            "tint": [
               0.95,
               0.97,
               1,
               1
             ],
-            "layout": {
-              "alignment": 0,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "parent": 226
-    },
-    {
-      "id": 229,
-      "name": "Slot 3",
-      "active": true,
-      "components": [
-        {
-          "id": "00000000000000e50000000000000001",
-          "type": "UiRect",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0,
-              0
-            ],
-            "anchorMax": [
-              0,
-              0
-            ],
-            "pivot": [
-              0,
-              0
-            ],
-            "offset": [
-              268,
-              0
-            ],
-            "sizeDelta": [
-              128,
-              40
-            ]
-          }
-        },
-        {
-          "id": "00000000000000e50000000000000002",
-          "type": "UiImage",
-          "enabled": true,
-          "data": {
-            "tint": [
-              0.03,
-              0.04,
-              0.06,
-              0.62
-            ],
             "borders": [
-              12,
-              12,
-              12,
-              12
+              0,
+              0,
+              0,
+              0
             ],
-            "texture": "88686c16704f97f193d65bdd3af0d1d8"
+            "texture": null
           }
         }
       ],
@@ -2349,807 +2386,7 @@
         1
       ],
       "tags": [],
-      "parent": 222
-    },
-    {
-      "id": 230,
-      "name": "Number",
-      "active": true,
-      "components": [
-        {
-          "id": "00000000000000e60000000000000001",
-          "type": "UiRect",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0,
-              0
-            ],
-            "anchorMax": [
-              0,
-              1
-            ],
-            "pivot": [
-              0,
-              0.5
-            ],
-            "offset": [
-              9,
-              0
-            ],
-            "sizeDelta": [
-              14,
-              -8
-            ]
-          }
-        },
-        {
-          "id": "00000000000000e60000000000000002",
-          "type": "UiText",
-          "enabled": true,
-          "data": {
-            "font": "b3999c7ba8d944228a80146a8f38a9da",
-            "text": "3",
-            "fontSize": 14,
-            "color": [
-              1,
-              0.68,
-              0.22,
-              1
-            ],
-            "layout": {
-              "alignment": 0,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "parent": 229
-    },
-    {
-      "id": 231,
-      "name": "Name",
-      "active": true,
-      "components": [
-        {
-          "id": "00000000000000e70000000000000001",
-          "type": "UiRect",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0,
-              0
-            ],
-            "anchorMax": [
-              1,
-              1
-            ],
-            "pivot": [
-              0,
-              0.5
-            ],
-            "offset": [
-              24,
-              0
-            ],
-            "sizeDelta": [
-              -30,
-              -8
-            ]
-          }
-        },
-        {
-          "id": "00000000000000e70000000000000002",
-          "type": "UiText",
-          "enabled": true,
-          "data": {
-            "font": "b3999c7ba8d944228a80146a8f38a9da",
-            "text": "",
-            "fontSize": 14,
-            "color": [
-              0.95,
-              0.97,
-              1,
-              1
-            ],
-            "layout": {
-              "alignment": 0,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "parent": 229
-    },
-    {
-      "id": 232,
-      "name": "Slot 4",
-      "active": true,
-      "components": [
-        {
-          "id": "00000000000000e80000000000000001",
-          "type": "UiRect",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0,
-              0
-            ],
-            "anchorMax": [
-              0,
-              0
-            ],
-            "pivot": [
-              0,
-              0
-            ],
-            "offset": [
-              402,
-              0
-            ],
-            "sizeDelta": [
-              128,
-              40
-            ]
-          }
-        },
-        {
-          "id": "00000000000000e80000000000000002",
-          "type": "UiImage",
-          "enabled": true,
-          "data": {
-            "tint": [
-              0.03,
-              0.04,
-              0.06,
-              0.62
-            ],
-            "borders": [
-              12,
-              12,
-              12,
-              12
-            ],
-            "texture": "88686c16704f97f193d65bdd3af0d1d8"
-          }
-        }
-      ],
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "parent": 222
-    },
-    {
-      "id": 233,
-      "name": "Number",
-      "active": true,
-      "components": [
-        {
-          "id": "00000000000000e90000000000000001",
-          "type": "UiRect",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0,
-              0
-            ],
-            "anchorMax": [
-              0,
-              1
-            ],
-            "pivot": [
-              0,
-              0.5
-            ],
-            "offset": [
-              9,
-              0
-            ],
-            "sizeDelta": [
-              14,
-              -8
-            ]
-          }
-        },
-        {
-          "id": "00000000000000e90000000000000002",
-          "type": "UiText",
-          "enabled": true,
-          "data": {
-            "font": "b3999c7ba8d944228a80146a8f38a9da",
-            "text": "4",
-            "fontSize": 14,
-            "color": [
-              1,
-              0.68,
-              0.22,
-              1
-            ],
-            "layout": {
-              "alignment": 0,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "parent": 232
-    },
-    {
-      "id": 234,
-      "name": "Name",
-      "active": true,
-      "components": [
-        {
-          "id": "00000000000000ea0000000000000001",
-          "type": "UiRect",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0,
-              0
-            ],
-            "anchorMax": [
-              1,
-              1
-            ],
-            "pivot": [
-              0,
-              0.5
-            ],
-            "offset": [
-              24,
-              0
-            ],
-            "sizeDelta": [
-              -30,
-              -8
-            ]
-          }
-        },
-        {
-          "id": "00000000000000ea0000000000000002",
-          "type": "UiText",
-          "enabled": true,
-          "data": {
-            "font": "b3999c7ba8d944228a80146a8f38a9da",
-            "text": "",
-            "fontSize": 14,
-            "color": [
-              0.95,
-              0.97,
-              1,
-              1
-            ],
-            "layout": {
-              "alignment": 0,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "parent": 232
-    },
-    {
-      "id": 235,
-      "name": "Slot 5",
-      "active": true,
-      "components": [
-        {
-          "id": "00000000000000eb0000000000000001",
-          "type": "UiRect",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0,
-              0
-            ],
-            "anchorMax": [
-              0,
-              0
-            ],
-            "pivot": [
-              0,
-              0
-            ],
-            "offset": [
-              536,
-              0
-            ],
-            "sizeDelta": [
-              128,
-              40
-            ]
-          }
-        },
-        {
-          "id": "00000000000000eb0000000000000002",
-          "type": "UiImage",
-          "enabled": true,
-          "data": {
-            "tint": [
-              0.03,
-              0.04,
-              0.06,
-              0.62
-            ],
-            "borders": [
-              12,
-              12,
-              12,
-              12
-            ],
-            "texture": "88686c16704f97f193d65bdd3af0d1d8"
-          }
-        }
-      ],
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "parent": 222
-    },
-    {
-      "id": 236,
-      "name": "Number",
-      "active": true,
-      "components": [
-        {
-          "id": "00000000000000ec0000000000000001",
-          "type": "UiRect",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0,
-              0
-            ],
-            "anchorMax": [
-              0,
-              1
-            ],
-            "pivot": [
-              0,
-              0.5
-            ],
-            "offset": [
-              9,
-              0
-            ],
-            "sizeDelta": [
-              14,
-              -8
-            ]
-          }
-        },
-        {
-          "id": "00000000000000ec0000000000000002",
-          "type": "UiText",
-          "enabled": true,
-          "data": {
-            "font": "b3999c7ba8d944228a80146a8f38a9da",
-            "text": "5",
-            "fontSize": 14,
-            "color": [
-              1,
-              0.68,
-              0.22,
-              1
-            ],
-            "layout": {
-              "alignment": 0,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "parent": 235
-    },
-    {
-      "id": 237,
-      "name": "Name",
-      "active": true,
-      "components": [
-        {
-          "id": "00000000000000ed0000000000000001",
-          "type": "UiRect",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0,
-              0
-            ],
-            "anchorMax": [
-              1,
-              1
-            ],
-            "pivot": [
-              0,
-              0.5
-            ],
-            "offset": [
-              24,
-              0
-            ],
-            "sizeDelta": [
-              -30,
-              -8
-            ]
-          }
-        },
-        {
-          "id": "00000000000000ed0000000000000002",
-          "type": "UiText",
-          "enabled": true,
-          "data": {
-            "font": "b3999c7ba8d944228a80146a8f38a9da",
-            "text": "",
-            "fontSize": 14,
-            "color": [
-              0.95,
-              0.97,
-              1,
-              1
-            ],
-            "layout": {
-              "alignment": 0,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "parent": 235
-    },
-    {
-      "id": 238,
-      "name": "Slot 6",
-      "active": true,
-      "components": [
-        {
-          "id": "00000000000000ee0000000000000001",
-          "type": "UiRect",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0,
-              0
-            ],
-            "anchorMax": [
-              0,
-              0
-            ],
-            "pivot": [
-              0,
-              0
-            ],
-            "offset": [
-              670,
-              0
-            ],
-            "sizeDelta": [
-              128,
-              40
-            ]
-          }
-        },
-        {
-          "id": "00000000000000ee0000000000000002",
-          "type": "UiImage",
-          "enabled": true,
-          "data": {
-            "tint": [
-              0.03,
-              0.04,
-              0.06,
-              0.62
-            ],
-            "borders": [
-              12,
-              12,
-              12,
-              12
-            ],
-            "texture": "88686c16704f97f193d65bdd3af0d1d8"
-          }
-        }
-      ],
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "parent": 222
-    },
-    {
-      "id": 239,
-      "name": "Number",
-      "active": true,
-      "components": [
-        {
-          "id": "00000000000000ef0000000000000001",
-          "type": "UiRect",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0,
-              0
-            ],
-            "anchorMax": [
-              0,
-              1
-            ],
-            "pivot": [
-              0,
-              0.5
-            ],
-            "offset": [
-              9,
-              0
-            ],
-            "sizeDelta": [
-              14,
-              -8
-            ]
-          }
-        },
-        {
-          "id": "00000000000000ef0000000000000002",
-          "type": "UiText",
-          "enabled": true,
-          "data": {
-            "font": "b3999c7ba8d944228a80146a8f38a9da",
-            "text": "6",
-            "fontSize": 14,
-            "color": [
-              1,
-              0.68,
-              0.22,
-              1
-            ],
-            "layout": {
-              "alignment": 0,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "parent": 238
-    },
-    {
-      "id": 240,
-      "name": "Name",
-      "active": true,
-      "components": [
-        {
-          "id": "00000000000000f00000000000000001",
-          "type": "UiRect",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0,
-              0
-            ],
-            "anchorMax": [
-              1,
-              1
-            ],
-            "pivot": [
-              0,
-              0.5
-            ],
-            "offset": [
-              24,
-              0
-            ],
-            "sizeDelta": [
-              -30,
-              -8
-            ]
-          }
-        },
-        {
-          "id": "00000000000000f00000000000000002",
-          "type": "UiText",
-          "enabled": true,
-          "data": {
-            "font": "b3999c7ba8d944228a80146a8f38a9da",
-            "text": "",
-            "fontSize": 14,
-            "color": [
-              0.95,
-              0.97,
-              1,
-              1
-            ],
-            "layout": {
-              "alignment": 0,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "parent": 238
+      "parent": 313
     },
     {
       "id": 241,
@@ -3163,23 +2400,23 @@
           "data": {
             "anchorMin": [
               0,
-              0
+              1
             ],
             "anchorMax": [
               0,
-              0
+              1
             ],
             "pivot": [
               0,
-              0
+              1
             ],
             "offset": [
-              28,
-              28
+              20,
+              -18
             ],
             "sizeDelta": [
-              800,
-              26
+              900,
+              32
             ]
           }
         },
@@ -3190,13 +2427,13 @@
           "data": {
             "direction": 0,
             "padding": [
-              0,
-              0,
-              0,
-              0
+              8,
+              7,
+              12,
+              7
             ],
             "spacing": [
-              18,
+              14,
               0
             ],
             "cellSize": [
@@ -3207,6 +2444,35 @@
             "alignment": 0,
             "expandWidth": false,
             "expandHeight": false
+          }
+        },
+        {
+          "id": "00000000000000f10000000000000003",
+          "type": "UiImage",
+          "enabled": true,
+          "data": {
+            "tint": [
+              0.03,
+              0.04,
+              0.06,
+              0.55
+            ],
+            "borders": [
+              12,
+              12,
+              12,
+              12
+            ],
+            "texture": "88686c16704f97f193d65bdd3af0d1d8"
+          }
+        },
+        {
+          "id": "00000000000000f10000000000000004",
+          "type": "UiSizeFitter",
+          "enabled": true,
+          "data": {
+            "fitWidth": true,
+            "fitHeight": true
           }
         }
       ],
@@ -3257,7 +2523,7 @@
             ],
             "sizeDelta": [
               100,
-              26
+              18
             ]
           }
         },
@@ -3274,7 +2540,7 @@
               0
             ],
             "spacing": [
-              7,
+              5,
               0
             ],
             "cellSize": [
@@ -3343,8 +2609,8 @@
               0
             ],
             "sizeDelta": [
-              26,
-              26
+              18,
+              18
             ]
           }
         },
@@ -3357,13 +2623,13 @@
               0.95,
               0.97,
               1,
-              0.88
+              0.86
             ],
             "borders": [
-              12,
-              12,
-              12,
-              12
+              5,
+              5,
+              5,
+              5
             ],
             "texture": "88686c16704f97f193d65bdd3af0d1d8"
           }
@@ -3375,10 +2641,10 @@
           "data": {
             "direction": 0,
             "padding": [
-              8,
-              3,
-              8,
-              3
+              5,
+              2,
+              5,
+              2
             ],
             "spacing": [
               0,
@@ -3462,7 +2728,7 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Q",
-            "fontSize": 14,
+            "fontSize": 11,
             "color": [
               0.05,
               0.06,
@@ -3472,7 +2738,8 @@
             "layout": {
               "alignment": 0,
               "overflow": 0,
-              "wrap": false
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         },
@@ -3544,17 +2811,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Spawn menu",
-            "fontSize": 15,
+            "fontSize": 12,
             "color": [
-              0.95,
+              0.88,
+              0.91,
               0.97,
-              1,
-              1
+              0.78
             ],
             "layout": {
               "alignment": 0,
               "overflow": 0,
-              "wrap": false
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         },
@@ -3588,6 +2856,366 @@
       "parent": 242
     },
     {
+      "id": 340,
+      "name": "Tab Weapons",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000001540000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              0,
+              0
+            ],
+            "pivot": [
+              0,
+              0
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              100,
+              18
+            ]
+          }
+        },
+        {
+          "id": "00000000000001540000000000000002",
+          "type": "UiLayoutGroup",
+          "enabled": true,
+          "data": {
+            "direction": 0,
+            "padding": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "spacing": [
+              5,
+              0
+            ],
+            "cellSize": [
+              100,
+              30
+            ],
+            "columns": 2,
+            "alignment": 1,
+            "expandWidth": false,
+            "expandHeight": false
+          }
+        },
+        {
+          "id": "00000000000001540000000000000003",
+          "type": "UiSizeFitter",
+          "enabled": true,
+          "data": {
+            "fitWidth": true,
+            "fitHeight": true
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 241
+    },
+    {
+      "id": 341,
+      "name": "Key",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000001550000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              0,
+              0
+            ],
+            "pivot": [
+              0,
+              0
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              18,
+              18
+            ]
+          }
+        },
+        {
+          "id": "00000000000001550000000000000002",
+          "type": "UiImage",
+          "enabled": true,
+          "data": {
+            "tint": [
+              0.95,
+              0.97,
+              1,
+              0.86
+            ],
+            "borders": [
+              5,
+              5,
+              5,
+              5
+            ],
+            "texture": "88686c16704f97f193d65bdd3af0d1d8"
+          }
+        },
+        {
+          "id": "00000000000001550000000000000003",
+          "type": "UiLayoutGroup",
+          "enabled": true,
+          "data": {
+            "direction": 0,
+            "padding": [
+              5,
+              2,
+              5,
+              2
+            ],
+            "spacing": [
+              0,
+              0
+            ],
+            "cellSize": [
+              100,
+              30
+            ],
+            "columns": 2,
+            "alignment": 1,
+            "expandWidth": false,
+            "expandHeight": false
+          }
+        },
+        {
+          "id": "00000000000001550000000000000004",
+          "type": "UiSizeFitter",
+          "enabled": true,
+          "data": {
+            "fitWidth": true,
+            "fitHeight": true
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 340
+    },
+    {
+      "id": 343,
+      "name": "Action",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000001570000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              0,
+              0
+            ],
+            "pivot": [
+              0,
+              0
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              60,
+              20
+            ]
+          }
+        },
+        {
+          "id": "00000000000001570000000000000002",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "b3999c7ba8d944228a80146a8f38a9da",
+            "text": "Weapons",
+            "fontSize": 12,
+            "color": [
+              0.88,
+              0.91,
+              0.97,
+              0.78
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        },
+        {
+          "id": "00000000000001570000000000000003",
+          "type": "UiSizeFitter",
+          "enabled": true,
+          "data": {
+            "fitWidth": true,
+            "fitHeight": true
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 340
+    },
+    {
+      "id": 342,
+      "name": "Label",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000001560000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              0,
+              0
+            ],
+            "pivot": [
+              0,
+              0
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              12,
+              20
+            ]
+          }
+        },
+        {
+          "id": "00000000000001560000000000000002",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "b3999c7ba8d944228a80146a8f38a9da",
+            "text": "Tab",
+            "fontSize": 11,
+            "color": [
+              0.05,
+              0.06,
+              0.08,
+              1
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        },
+        {
+          "id": "00000000000001560000000000000003",
+          "type": "UiSizeFitter",
+          "enabled": true,
+          "data": {
+            "fitWidth": true,
+            "fitHeight": true
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 341
+    },
+    {
       "id": 246,
       "name": "Z Undo",
       "active": true,
@@ -3615,7 +3243,7 @@
             ],
             "sizeDelta": [
               100,
-              26
+              18
             ]
           }
         },
@@ -3632,7 +3260,7 @@
               0
             ],
             "spacing": [
-              7,
+              5,
               0
             ],
             "cellSize": [
@@ -3701,8 +3329,8 @@
               0
             ],
             "sizeDelta": [
-              26,
-              26
+              18,
+              18
             ]
           }
         },
@@ -3715,13 +3343,13 @@
               0.95,
               0.97,
               1,
-              0.88
+              0.86
             ],
             "borders": [
-              12,
-              12,
-              12,
-              12
+              5,
+              5,
+              5,
+              5
             ],
             "texture": "88686c16704f97f193d65bdd3af0d1d8"
           }
@@ -3733,10 +3361,10 @@
           "data": {
             "direction": 0,
             "padding": [
-              8,
-              3,
-              8,
-              3
+              5,
+              2,
+              5,
+              2
             ],
             "spacing": [
               0,
@@ -3820,7 +3448,7 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Z",
-            "fontSize": 14,
+            "fontSize": 11,
             "color": [
               0.05,
               0.06,
@@ -3830,7 +3458,8 @@
             "layout": {
               "alignment": 0,
               "overflow": 0,
-              "wrap": false
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         },
@@ -3902,17 +3531,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Undo",
-            "fontSize": 15,
+            "fontSize": 12,
             "color": [
-              0.95,
+              0.88,
+              0.91,
               0.97,
-              1,
-              1
+              0.78
             ],
             "layout": {
               "alignment": 0,
               "overflow": 0,
-              "wrap": false
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         },
@@ -3973,7 +3603,7 @@
             ],
             "sizeDelta": [
               100,
-              26
+              18
             ]
           }
         },
@@ -3990,7 +3620,7 @@
               0
             ],
             "spacing": [
-              7,
+              5,
               0
             ],
             "cellSize": [
@@ -4059,8 +3689,8 @@
               0
             ],
             "sizeDelta": [
-              26,
-              26
+              18,
+              18
             ]
           }
         },
@@ -4073,13 +3703,13 @@
               0.95,
               0.97,
               1,
-              0.88
+              0.86
             ],
             "borders": [
-              12,
-              12,
-              12,
-              12
+              5,
+              5,
+              5,
+              5
             ],
             "texture": "88686c16704f97f193d65bdd3af0d1d8"
           }
@@ -4091,10 +3721,10 @@
           "data": {
             "direction": 0,
             "padding": [
-              8,
-              3,
-              8,
-              3
+              5,
+              2,
+              5,
+              2
             ],
             "spacing": [
               0,
@@ -4178,7 +3808,7 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "F",
-            "fontSize": 14,
+            "fontSize": 11,
             "color": [
               0.05,
               0.06,
@@ -4188,7 +3818,8 @@
             "layout": {
               "alignment": 0,
               "overflow": 0,
-              "wrap": false
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         },
@@ -4260,17 +3891,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Flashlight",
-            "fontSize": 15,
+            "fontSize": 12,
             "color": [
-              0.95,
+              0.88,
+              0.91,
               0.97,
-              1,
-              1
+              0.78
             ],
             "layout": {
               "alignment": 0,
               "overflow": 0,
-              "wrap": false
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         },
@@ -4331,7 +3963,7 @@
             ],
             "sizeDelta": [
               100,
-              26
+              18
             ]
           }
         },
@@ -4348,7 +3980,7 @@
               0
             ],
             "spacing": [
-              7,
+              5,
               0
             ],
             "cellSize": [
@@ -4417,8 +4049,8 @@
               0
             ],
             "sizeDelta": [
-              26,
-              26
+              18,
+              18
             ]
           }
         },
@@ -4431,13 +4063,13 @@
               0.95,
               0.97,
               1,
-              0.88
+              0.86
             ],
             "borders": [
-              12,
-              12,
-              12,
-              12
+              5,
+              5,
+              5,
+              5
             ],
             "texture": "88686c16704f97f193d65bdd3af0d1d8"
           }
@@ -4449,10 +4081,10 @@
           "data": {
             "direction": 0,
             "padding": [
-              8,
-              3,
-              8,
-              3
+              5,
+              2,
+              5,
+              2
             ],
             "spacing": [
               0,
@@ -4536,7 +4168,7 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Esc",
-            "fontSize": 14,
+            "fontSize": 11,
             "color": [
               0.05,
               0.06,
@@ -4546,7 +4178,8 @@
             "layout": {
               "alignment": 0,
               "overflow": 0,
-              "wrap": false
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         },
@@ -4617,18 +4250,19 @@
           "enabled": true,
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
-            "text": "Pause",
-            "fontSize": 15,
+            "text": "Menu",
+            "fontSize": 12,
             "color": [
-              0.95,
+              0.88,
+              0.91,
               0.97,
-              1,
-              1
+              0.78
             ],
             "layout": {
               "alignment": 0,
               "overflow": 0,
-              "wrap": false
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         },
@@ -4689,7 +4323,7 @@
             ],
             "sizeDelta": [
               100,
-              26
+              18
             ]
           }
         },
@@ -4706,7 +4340,7 @@
               0
             ],
             "spacing": [
-              7,
+              5,
               0
             ],
             "cellSize": [
@@ -4775,8 +4409,8 @@
               0
             ],
             "sizeDelta": [
-              26,
-              26
+              18,
+              18
             ]
           }
         },
@@ -4789,13 +4423,13 @@
               0.95,
               0.97,
               1,
-              0.88
+              0.86
             ],
             "borders": [
-              12,
-              12,
-              12,
-              12
+              5,
+              5,
+              5,
+              5
             ],
             "texture": "88686c16704f97f193d65bdd3af0d1d8"
           }
@@ -4807,10 +4441,10 @@
           "data": {
             "direction": 0,
             "padding": [
-              8,
-              3,
-              8,
-              3
+              5,
+              2,
+              5,
+              2
             ],
             "spacing": [
               0,
@@ -4894,7 +4528,7 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "F11",
-            "fontSize": 14,
+            "fontSize": 11,
             "color": [
               0.05,
               0.06,
@@ -4904,7 +4538,8 @@
             "layout": {
               "alignment": 0,
               "overflow": 0,
-              "wrap": false
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         },
@@ -4976,17 +4611,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Stats",
-            "fontSize": 15,
+            "fontSize": 12,
             "color": [
-              0.95,
+              0.88,
+              0.91,
               0.97,
-              1,
-              1
+              0.78
             ],
             "layout": {
               "alignment": 0,
               "overflow": 0,
-              "wrap": false
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         },
@@ -5020,6 +4656,366 @@
       "parent": 258
     },
     {
+      "id": 320,
+      "name": "HUD Death",
+      "active": false,
+      "components": [
+        {
+          "id": "00000000000001400000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "id": "00000000000001400000000000000002",
+          "type": "UiImage",
+          "enabled": true,
+          "data": {
+            "tint": [
+              0.14,
+              0.0,
+              0.0,
+              0.55
+            ],
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "texture": null
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "id": 321,
+      "name": "HUD Death Title",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000001410000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              26
+            ],
+            "sizeDelta": [
+              600,
+              56
+            ]
+          }
+        },
+        {
+          "id": "00000000000001410000000000000002",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "b3999c7ba8d944228a80146a8f38a9da",
+            "text": "YOU DIED",
+            "fontSize": 44,
+            "color": [
+              0.94,
+              0.24,
+              0.2,
+              1
+            ],
+            "layout": {
+              "alignment": 1,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 320
+    },
+    {
+      "id": 322,
+      "name": "HUD Death Timer",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000001420000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              -18
+            ],
+            "sizeDelta": [
+              400,
+              22
+            ]
+          }
+        },
+        {
+          "id": "00000000000001420000000000000002",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "b3999c7ba8d944228a80146a8f38a9da",
+            "text": "Respawning in 4",
+            "fontSize": 15,
+            "color": [
+              0.9,
+              0.92,
+              0.96,
+              0.85
+            ],
+            "layout": {
+              "alignment": 1,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 320
+    },
+    {
+      "id": 330,
+      "name": "HUD Weapon Wheel",
+      "active": false,
+      "components": [
+        {
+          "id": "000000000000014a0000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "id": "000000000000014a0000000000000002",
+          "type": "UiImage",
+          "enabled": true,
+          "data": {
+            "tint": [
+              0.01,
+              0.015,
+              0.03,
+              0.85
+            ],
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "texture": "e153cd08a5cc02d932044daddae905a0"
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "id": 331,
+      "name": "Wheel",
+      "active": true,
+      "components": [
+        {
+          "id": "000000000000014b0000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              440,
+              440
+            ]
+          }
+        },
+        {
+          "id": "000000000000014b0000000000000002",
+          "type": "WeaponWheel",
+          "enabled": true,
+          "data": {
+            "font": "b3999c7ba8d944228a80146a8f38a9da",
+            "sector": "3b8808b64174dde20a2556c95e0bea81",
+            "disc": "365f97d67c971a8994857f8dd835afe5",
+            "accent": [
+              1,
+              0.68,
+              0.22,
+              1
+            ]
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 330
+    },
+    {
       "id": 8,
       "name": "Spawn Menu",
       "active": false,
@@ -5045,10 +5041,10 @@
           "enabled": true,
           "data": {
             "tint": [
+              0.0,
               0.005,
-              0.008,
               0.015,
-              0.72
+              0.6
             ],
             "borders": [
               0,
@@ -5105,8 +5101,8 @@
               0
             ],
             "sizeDelta": [
-              900,
-              600
+              980,
+              620
             ]
           }
         },
@@ -5116,17 +5112,18 @@
           "enabled": true,
           "data": {
             "tint": [
-              0.025,
               0.035,
-              0.055,
-              0.98
+              0.045,
+              0.065,
+              0.97
             ],
             "borders": [
-              0,
-              0,
-              0,
-              0
-            ]
+              14,
+              14,
+              14,
+              14
+            ],
+            "texture": "88686c16704f97f193d65bdd3af0d1d8"
           }
         }
       ],
@@ -5160,24 +5157,24 @@
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
+              0,
               1
             ],
             "anchorMax": [
-              0.5,
+              0,
               1
             ],
             "pivot": [
-              0.5,
+              0,
               1
             ],
             "offset": [
-              0,
-              -14
+              28,
+              -20
             ],
             "sizeDelta": [
-              800,
-              40
+              420,
+              30
             ]
           }
         },
@@ -5187,18 +5184,93 @@
           "enabled": true,
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
-            "text": "Spawn menu",
-            "fontSize": 28,
+            "text": "Spawn",
+            "fontSize": 24,
             "color": [
-              0.9,
-              0.94,
+              0.95,
+              0.97,
               1,
               1
             ],
             "layout": {
-              "alignment": 1,
-              "overflow": 2,
-              "wrap": false
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 9
+    },
+    {
+      "id": 350,
+      "name": "Spawn Subtitle",
+      "active": true,
+      "components": [
+        {
+          "id": "000000000000015e0000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              1
+            ],
+            "anchorMax": [
+              0,
+              1
+            ],
+            "pivot": [
+              0,
+              1
+            ],
+            "offset": [
+              28,
+              -50
+            ],
+            "sizeDelta": [
+              520,
+              18
+            ]
+          }
+        },
+        {
+          "id": "000000000000015e0000000000000002",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "b3999c7ba8d944228a80146a8f38a9da",
+            "text": "Pick something to place it where you aim",
+            "fontSize": 13,
+            "color": [
+              0.62,
+              0.67,
+              0.76,
+              1
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -5233,24 +5305,24 @@
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
+              1,
               1
             ],
             "anchorMax": [
-              0.5,
+              1,
               1
             ],
             "pivot": [
-              0.5,
+              1,
               1
             ],
             "offset": [
-              0,
-              -62
+              -24,
+              -24
             ],
             "sizeDelta": [
-              830,
-              38
+              420,
+              34
             ]
           }
         },
@@ -5261,15 +5333,16 @@
           "data": {
             "direction": 0,
             "spacing": [
-              8,
-              8
+              6,
+              6
             ],
             "padding": [
               0,
               0,
               0,
               0
-            ]
+            ],
+            "alignment": 2
           }
         }
       ],
@@ -5319,8 +5392,8 @@
               0
             ],
             "sizeDelta": [
-              160,
-              36
+              128,
+              34
             ]
           }
         },
@@ -5328,7 +5401,53 @@
           "id": "000000000000000c0000000000000002",
           "type": "UiButton",
           "enabled": true,
-          "data": {}
+          "data": {
+            "style": {
+              "normal": [
+                0.09,
+                0.11,
+                0.145,
+                1
+              ],
+              "hovered": [
+                0.15,
+                0.18,
+                0.235,
+                1
+              ],
+              "pressed": [
+                0.06,
+                0.075,
+                0.1,
+                1
+              ],
+              "focused": [
+                0.17,
+                0.21,
+                0.28,
+                1
+              ],
+              "disabled": [
+                0.06,
+                0.07,
+                0.09,
+                0.5
+              ],
+              "accent": [
+                1,
+                0.68,
+                0.22,
+                1
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                10,
+                10,
+                10,
+                10
+              ]
+            }
+          }
         }
       ],
       "position": [
@@ -5374,7 +5493,7 @@
             ],
             "offset": [
               0,
-              -8
+              0
             ],
             "sizeDelta": [
               0,
@@ -5389,17 +5508,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Props",
-            "fontSize": 18,
+            "fontSize": 15,
             "color": [
-              0.9,
-              0.94,
+              0.95,
+              0.97,
               1,
               1
             ],
             "layout": {
               "alignment": 1,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -5450,8 +5570,8 @@
               0
             ],
             "sizeDelta": [
-              160,
-              36
+              128,
+              34
             ]
           }
         },
@@ -5459,7 +5579,53 @@
           "id": "000000000000000e0000000000000002",
           "type": "UiButton",
           "enabled": true,
-          "data": {}
+          "data": {
+            "style": {
+              "normal": [
+                0.09,
+                0.11,
+                0.145,
+                1
+              ],
+              "hovered": [
+                0.15,
+                0.18,
+                0.235,
+                1
+              ],
+              "pressed": [
+                0.06,
+                0.075,
+                0.1,
+                1
+              ],
+              "focused": [
+                0.17,
+                0.21,
+                0.28,
+                1
+              ],
+              "disabled": [
+                0.06,
+                0.07,
+                0.09,
+                0.5
+              ],
+              "accent": [
+                1,
+                0.68,
+                0.22,
+                1
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                10,
+                10,
+                10,
+                10
+              ]
+            }
+          }
         }
       ],
       "position": [
@@ -5505,7 +5671,7 @@
             ],
             "offset": [
               0,
-              -8
+              0
             ],
             "sizeDelta": [
               0,
@@ -5520,17 +5686,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Lamps",
-            "fontSize": 18,
+            "fontSize": 15,
             "color": [
-              0.9,
-              0.94,
+              0.95,
+              0.97,
               1,
               1
             ],
             "layout": {
               "alignment": 1,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -5581,8 +5748,8 @@
               0
             ],
             "sizeDelta": [
-              160,
-              36
+              128,
+              34
             ]
           }
         },
@@ -5590,7 +5757,53 @@
           "id": "00000000000000100000000000000002",
           "type": "UiButton",
           "enabled": true,
-          "data": {}
+          "data": {
+            "style": {
+              "normal": [
+                0.09,
+                0.11,
+                0.145,
+                1
+              ],
+              "hovered": [
+                0.15,
+                0.18,
+                0.235,
+                1
+              ],
+              "pressed": [
+                0.06,
+                0.075,
+                0.1,
+                1
+              ],
+              "focused": [
+                0.17,
+                0.21,
+                0.28,
+                1
+              ],
+              "disabled": [
+                0.06,
+                0.07,
+                0.09,
+                0.5
+              ],
+              "accent": [
+                1,
+                0.68,
+                0.22,
+                1
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                10,
+                10,
+                10,
+                10
+              ]
+            }
+          }
         }
       ],
       "position": [
@@ -5636,7 +5849,7 @@
             ],
             "offset": [
               0,
-              -8
+              0
             ],
             "sizeDelta": [
               0,
@@ -5651,17 +5864,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Weapons",
-            "fontSize": 18,
+            "fontSize": 15,
             "color": [
-              0.9,
-              0.94,
+              0.95,
+              0.97,
               1,
               1
             ],
             "layout": {
               "alignment": 1,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -5684,6 +5898,78 @@
       ],
       "tags": [],
       "parent": 16
+    },
+    {
+      "id": 351,
+      "name": "Spawn Rule",
+      "active": true,
+      "components": [
+        {
+          "id": "000000000000015f0000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              1
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              1
+            ],
+            "offset": [
+              0,
+              -80
+            ],
+            "sizeDelta": [
+              -48,
+              1
+            ]
+          }
+        },
+        {
+          "id": "000000000000015f0000000000000002",
+          "type": "UiImage",
+          "enabled": true,
+          "data": {
+            "tint": [
+              1,
+              1,
+              1,
+              0.07
+            ],
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "texture": null
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 9
     },
     {
       "id": 18,
@@ -5709,11 +5995,11 @@
             ],
             "offset": [
               0,
-              -12
+              -6
             ],
             "sizeDelta": [
-              830,
-              390
+              932,
+              444
             ]
           }
         },
@@ -5726,7 +6012,52 @@
               0,
               600
             ],
-            "vertical": true
+            "vertical": true,
+            "style": {
+              "normal": [
+                0.02,
+                0.028,
+                0.042,
+                0.55
+              ],
+              "hovered": [
+                0.02,
+                0.028,
+                0.042,
+                0.55
+              ],
+              "pressed": [
+                0.02,
+                0.028,
+                0.042,
+                0.55
+              ],
+              "focused": [
+                0.03,
+                0.04,
+                0.06,
+                0.65
+              ],
+              "disabled": [
+                0.06,
+                0.07,
+                0.09,
+                0.5
+              ],
+              "accent": [
+                1,
+                0.68,
+                0.22,
+                0.6
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                12,
+                12,
+                12,
+                12
+              ]
+            }
           }
         }
       ],
@@ -5776,7 +6107,7 @@
               0
             ],
             "sizeDelta": [
-              830,
+              932,
               600
             ]
           }
@@ -5788,20 +6119,20 @@
           "data": {
             "direction": 2,
             "spacing": [
-              10,
-              10
+              12,
+              12
             ],
             "padding": [
-              8,
-              8,
-              8,
-              8
+              6,
+              6,
+              6,
+              6
             ],
             "cellSize": [
-              190,
-              160
+              174,
+              174
             ],
-            "columns": 4,
+            "columns": 5,
             "alignment": 1
           }
         },
@@ -5861,8 +6192,8 @@
               0
             ],
             "sizeDelta": [
-              190,
-              160
+              174,
+              174
             ]
           }
         },
@@ -5870,7 +6201,53 @@
           "id": "00000000000000140000000000000002",
           "type": "UiButton",
           "enabled": true,
-          "data": {}
+          "data": {
+            "style": {
+              "normal": [
+                0.06,
+                0.075,
+                0.1,
+                1
+              ],
+              "hovered": [
+                0.12,
+                0.15,
+                0.2,
+                1
+              ],
+              "pressed": [
+                0.05,
+                0.06,
+                0.08,
+                1
+              ],
+              "focused": [
+                0.15,
+                0.19,
+                0.26,
+                1
+              ],
+              "disabled": [
+                0.06,
+                0.07,
+                0.09,
+                0.5
+              ],
+              "accent": [
+                1,
+                0.68,
+                0.22,
+                1
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                12,
+                12,
+                12,
+                12
+              ]
+            }
+          }
         }
       ],
       "position": [
@@ -5916,11 +6293,11 @@
             ],
             "offset": [
               0,
-              -8
+              -10
             ],
             "sizeDelta": [
-              120,
-              120
+              128,
+              128
             ]
           }
         },
@@ -5974,11 +6351,11 @@
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
+              0,
               0
             ],
             "anchorMax": [
-              0.5,
+              1,
               0
             ],
             "pivot": [
@@ -5987,11 +6364,11 @@
             ],
             "offset": [
               0,
-              6
+              8
             ],
             "sizeDelta": [
-              180,
-              25
+              -16,
+              24
             ]
           }
         },
@@ -6002,17 +6379,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Spawnable",
-            "fontSize": 18,
+            "fontSize": 14,
             "color": [
-              0.9,
-              0.94,
+              0.95,
+              0.97,
               1,
               1
             ],
             "layout": {
               "alignment": 1,
               "overflow": 2,
-              "wrap": false
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -6047,11 +6425,11 @@
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
+              0,
               0
             ],
             "anchorMax": [
-              0.5,
+              1,
               0
             ],
             "pivot": [
@@ -6060,11 +6438,11 @@
             ],
             "offset": [
               0,
-              16
+              18
             ],
             "sizeDelta": [
-              830,
-              40
+              -48,
+              36
             ]
           }
         },
@@ -6134,8 +6512,8 @@
               0
             ],
             "sizeDelta": [
-              180,
-              38
+              128,
+              36
             ]
           }
         },
@@ -6143,7 +6521,53 @@
           "id": "00000000000000180000000000000002",
           "type": "UiButton",
           "enabled": true,
-          "data": {}
+          "data": {
+            "style": {
+              "normal": [
+                0.09,
+                0.11,
+                0.145,
+                1
+              ],
+              "hovered": [
+                0.15,
+                0.18,
+                0.235,
+                1
+              ],
+              "pressed": [
+                0.06,
+                0.075,
+                0.1,
+                1
+              ],
+              "focused": [
+                0.17,
+                0.21,
+                0.28,
+                1
+              ],
+              "disabled": [
+                0.06,
+                0.07,
+                0.09,
+                0.5
+              ],
+              "accent": [
+                1,
+                0.68,
+                0.22,
+                1
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                10,
+                10,
+                10,
+                10
+              ]
+            }
+          }
         }
       ],
       "position": [
@@ -6189,7 +6613,7 @@
             ],
             "offset": [
               0,
-              -8
+              0
             ],
             "sizeDelta": [
               0,
@@ -6204,17 +6628,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Undo",
-            "fontSize": 18,
+            "fontSize": 15,
             "color": [
-              0.9,
-              0.94,
+              0.95,
+              0.97,
               1,
               1
             ],
             "layout": {
               "alignment": 1,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -6265,8 +6690,8 @@
               0
             ],
             "sizeDelta": [
-              180,
-              38
+              128,
+              36
             ]
           }
         },
@@ -6274,7 +6699,53 @@
           "id": "000000000000001a0000000000000002",
           "type": "UiButton",
           "enabled": true,
-          "data": {}
+          "data": {
+            "style": {
+              "normal": [
+                0.09,
+                0.11,
+                0.145,
+                1
+              ],
+              "hovered": [
+                0.42,
+                0.12,
+                0.1,
+                1
+              ],
+              "pressed": [
+                0.3,
+                0.08,
+                0.07,
+                1
+              ],
+              "focused": [
+                0.42,
+                0.12,
+                0.1,
+                1
+              ],
+              "disabled": [
+                0.06,
+                0.07,
+                0.09,
+                0.5
+              ],
+              "accent": [
+                1,
+                0.68,
+                0.22,
+                1
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                10,
+                10,
+                10,
+                10
+              ]
+            }
+          }
         }
       ],
       "position": [
@@ -6320,7 +6791,7 @@
             ],
             "offset": [
               0,
-              -8
+              0
             ],
             "sizeDelta": [
               0,
@@ -6334,18 +6805,19 @@
           "enabled": true,
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
-            "text": "Cleanup",
-            "fontSize": 18,
+            "text": "Clean up",
+            "fontSize": 15,
             "color": [
-              0.9,
-              0.94,
+              0.95,
+              0.97,
               1,
               1
             ],
             "layout": {
               "alignment": 1,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -6396,8 +6868,8 @@
               0
             ],
             "sizeDelta": [
-              180,
-              38
+              128,
+              36
             ]
           }
         },
@@ -6405,7 +6877,53 @@
           "id": "000000000000001c0000000000000002",
           "type": "UiButton",
           "enabled": true,
-          "data": {}
+          "data": {
+            "style": {
+              "normal": [
+                0.09,
+                0.11,
+                0.145,
+                1
+              ],
+              "hovered": [
+                0.15,
+                0.18,
+                0.235,
+                1
+              ],
+              "pressed": [
+                0.06,
+                0.075,
+                0.1,
+                1
+              ],
+              "focused": [
+                0.17,
+                0.21,
+                0.28,
+                1
+              ],
+              "disabled": [
+                0.06,
+                0.07,
+                0.09,
+                0.5
+              ],
+              "accent": [
+                1,
+                0.68,
+                0.22,
+                1
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                10,
+                10,
+                10,
+                10
+              ]
+            }
+          }
         }
       ],
       "position": [
@@ -6451,7 +6969,7 @@
             ],
             "offset": [
               0,
-              -8
+              0
             ],
             "sizeDelta": [
               0,
@@ -6465,18 +6983,19 @@
           "enabled": true,
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
-            "text": "Close (Q)",
-            "fontSize": 18,
+            "text": "Close",
+            "fontSize": 15,
             "color": [
-              0.9,
-              0.94,
+              0.95,
+              0.97,
               1,
               1
             ],
             "layout": {
               "alignment": 1,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -6499,6 +7018,80 @@
       ],
       "tags": [],
       "parent": 28
+    },
+    {
+      "id": 352,
+      "name": "Spawn Hint",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000001600000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              0,
+              0
+            ],
+            "pivot": [
+              0,
+              0
+            ],
+            "offset": [
+              28,
+              18
+            ],
+            "sizeDelta": [
+              420,
+              36
+            ]
+          }
+        },
+        {
+          "id": "00000000000001600000000000000002",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "b3999c7ba8d944228a80146a8f38a9da",
+            "text": "Q or Esc to close   ·   Z undoes the last spawn",
+            "fontSize": 12,
+            "color": [
+              0.62,
+              0.67,
+              0.76,
+              1
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 9
     },
     {
       "id": 30,
@@ -6525,10 +7118,10 @@
           "enabled": true,
           "data": {
             "tint": [
+              0.0,
               0.005,
-              0.008,
               0.015,
-              0.78
+              0.6
             ],
             "borders": [
               0,
@@ -6596,17 +7189,18 @@
           "enabled": true,
           "data": {
             "tint": [
-              0.025,
               0.035,
-              0.055,
-              0.98
+              0.045,
+              0.065,
+              0.97
             ],
             "borders": [
-              0,
-              0,
-              0,
-              0
-            ]
+              14,
+              14,
+              14,
+              14
+            ],
+            "texture": "88686c16704f97f193d65bdd3af0d1d8"
           }
         }
       ],
@@ -6640,24 +7234,24 @@
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
+              0,
               1
             ],
             "anchorMax": [
-              0.5,
+              0,
               1
             ],
             "pivot": [
-              0.5,
+              0,
               1
             ],
             "offset": [
-              0,
-              -14
+              28,
+              -20
             ],
             "sizeDelta": [
-              900,
-              40
+              500,
+              30
             ]
           }
         },
@@ -6667,18 +7261,93 @@
           "enabled": true,
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
-            "text": "Paused: settings",
-            "fontSize": 28,
+            "text": "Paused",
+            "fontSize": 24,
             "color": [
-              0.9,
-              0.94,
+              0.95,
+              0.97,
               1,
               1
             ],
             "layout": {
-              "alignment": 1,
-              "overflow": 2,
-              "wrap": false
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 31
+    },
+    {
+      "id": 360,
+      "name": "Pause Subtitle",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000001680000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              1
+            ],
+            "anchorMax": [
+              0,
+              1
+            ],
+            "pivot": [
+              0,
+              1
+            ],
+            "offset": [
+              28,
+              -50
+            ],
+            "sizeDelta": [
+              520,
+              18
+            ]
+          }
+        },
+        {
+          "id": "00000000000001680000000000000002",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "b3999c7ba8d944228a80146a8f38a9da",
+            "text": "Settings are kept for next time",
+            "fontSize": 13,
+            "color": [
+              0.62,
+              0.67,
+              0.76,
+              1
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -6725,12 +7394,12 @@
               0.5
             ],
             "offset": [
-              24,
-              8
+              28,
+              -6
             ],
             "sizeDelta": [
               430,
-              460
+              452
             ]
           }
         },
@@ -6864,17 +7533,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Sensitivity",
-            "fontSize": 18,
+            "fontSize": 15,
             "color": [
-              0.9,
-              0.94,
+              0.95,
+              0.97,
               1,
               1
             ],
             "layout": {
               "alignment": 0,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -6937,17 +7607,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "0.0025",
-            "fontSize": 18,
+            "fontSize": 15,
             "color": [
-              0.9,
-              0.94,
-              1,
+              0.62,
+              0.67,
+              0.76,
               1
             ],
             "layout": {
               "alignment": 2,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -6995,11 +7666,11 @@
             ],
             "offset": [
               0,
-              0
+              6
             ],
             "sizeDelta": [
               0,
-              14
+              8
             ]
           }
         },
@@ -7011,7 +7682,52 @@
             "minimum": 0.0002,
             "maximum": 0.02,
             "value": 0.0025,
-            "step": 0.00025
+            "step": 0.00025,
+            "style": {
+              "normal": [
+                0.12,
+                0.14,
+                0.19,
+                1
+              ],
+              "hovered": [
+                0.16,
+                0.19,
+                0.25,
+                1
+              ],
+              "pressed": [
+                0.12,
+                0.14,
+                0.19,
+                1
+              ],
+              "focused": [
+                0.2,
+                0.24,
+                0.32,
+                1
+              ],
+              "disabled": [
+                0.06,
+                0.07,
+                0.09,
+                0.5
+              ],
+              "accent": [
+                1,
+                0.68,
+                0.22,
+                1
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
           }
         }
       ],
@@ -7125,17 +7841,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Field of view",
-            "fontSize": 18,
+            "fontSize": 15,
             "color": [
-              0.9,
-              0.94,
+              0.95,
+              0.97,
               1,
               1
             ],
             "layout": {
               "alignment": 0,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -7198,17 +7915,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "60",
-            "fontSize": 18,
+            "fontSize": 15,
             "color": [
-              0.9,
-              0.94,
-              1,
+              0.62,
+              0.67,
+              0.76,
               1
             ],
             "layout": {
               "alignment": 2,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -7256,11 +7974,11 @@
             ],
             "offset": [
               0,
-              0
+              6
             ],
             "sizeDelta": [
               0,
-              14
+              8
             ]
           }
         },
@@ -7272,7 +7990,52 @@
             "minimum": 45,
             "maximum": 120,
             "value": 60,
-            "step": 1
+            "step": 1,
+            "style": {
+              "normal": [
+                0.12,
+                0.14,
+                0.19,
+                1
+              ],
+              "hovered": [
+                0.16,
+                0.19,
+                0.25,
+                1
+              ],
+              "pressed": [
+                0.12,
+                0.14,
+                0.19,
+                1
+              ],
+              "focused": [
+                0.2,
+                0.24,
+                0.32,
+                1
+              ],
+              "disabled": [
+                0.06,
+                0.07,
+                0.09,
+                0.5
+              ],
+              "accent": [
+                1,
+                0.68,
+                0.22,
+                1
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
           }
         }
       ],
@@ -7386,17 +8149,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Master",
-            "fontSize": 18,
+            "fontSize": 15,
             "color": [
-              0.9,
-              0.94,
+              0.95,
+              0.97,
               1,
               1
             ],
             "layout": {
               "alignment": 0,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -7459,17 +8223,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "1",
-            "fontSize": 18,
+            "fontSize": 15,
             "color": [
-              0.9,
-              0.94,
-              1,
+              0.62,
+              0.67,
+              0.76,
               1
             ],
             "layout": {
               "alignment": 2,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -7517,11 +8282,11 @@
             ],
             "offset": [
               0,
-              0
+              6
             ],
             "sizeDelta": [
               0,
-              14
+              8
             ]
           }
         },
@@ -7533,7 +8298,52 @@
             "minimum": 0,
             "maximum": 1,
             "value": 1,
-            "step": 0.05
+            "step": 0.05,
+            "style": {
+              "normal": [
+                0.12,
+                0.14,
+                0.19,
+                1
+              ],
+              "hovered": [
+                0.16,
+                0.19,
+                0.25,
+                1
+              ],
+              "pressed": [
+                0.12,
+                0.14,
+                0.19,
+                1
+              ],
+              "focused": [
+                0.2,
+                0.24,
+                0.32,
+                1
+              ],
+              "disabled": [
+                0.06,
+                0.07,
+                0.09,
+                0.5
+              ],
+              "accent": [
+                1,
+                0.68,
+                0.22,
+                1
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
           }
         }
       ],
@@ -7647,17 +8457,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Effects",
-            "fontSize": 18,
+            "fontSize": 15,
             "color": [
-              0.9,
-              0.94,
+              0.95,
+              0.97,
               1,
               1
             ],
             "layout": {
               "alignment": 0,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -7720,17 +8531,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "1",
-            "fontSize": 18,
+            "fontSize": 15,
             "color": [
-              0.9,
-              0.94,
-              1,
+              0.62,
+              0.67,
+              0.76,
               1
             ],
             "layout": {
               "alignment": 2,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -7778,11 +8590,11 @@
             ],
             "offset": [
               0,
-              0
+              6
             ],
             "sizeDelta": [
               0,
-              14
+              8
             ]
           }
         },
@@ -7794,7 +8606,52 @@
             "minimum": 0,
             "maximum": 1,
             "value": 1,
-            "step": 0.05
+            "step": 0.05,
+            "style": {
+              "normal": [
+                0.12,
+                0.14,
+                0.19,
+                1
+              ],
+              "hovered": [
+                0.16,
+                0.19,
+                0.25,
+                1
+              ],
+              "pressed": [
+                0.12,
+                0.14,
+                0.19,
+                1
+              ],
+              "focused": [
+                0.2,
+                0.24,
+                0.32,
+                1
+              ],
+              "disabled": [
+                0.06,
+                0.07,
+                0.09,
+                0.5
+              ],
+              "accent": [
+                1,
+                0.68,
+                0.22,
+                1
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
           }
         }
       ],
@@ -7908,17 +8765,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Music",
-            "fontSize": 18,
+            "fontSize": 15,
             "color": [
-              0.9,
-              0.94,
+              0.95,
+              0.97,
               1,
               1
             ],
             "layout": {
               "alignment": 0,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -7981,17 +8839,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "0.7",
-            "fontSize": 18,
+            "fontSize": 15,
             "color": [
-              0.9,
-              0.94,
-              1,
+              0.62,
+              0.67,
+              0.76,
               1
             ],
             "layout": {
               "alignment": 2,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -8039,11 +8898,11 @@
             ],
             "offset": [
               0,
-              0
+              6
             ],
             "sizeDelta": [
               0,
-              14
+              8
             ]
           }
         },
@@ -8055,7 +8914,52 @@
             "minimum": 0,
             "maximum": 1,
             "value": 0.7,
-            "step": 0.05
+            "step": 0.05,
+            "style": {
+              "normal": [
+                0.12,
+                0.14,
+                0.19,
+                1
+              ],
+              "hovered": [
+                0.16,
+                0.19,
+                0.25,
+                1
+              ],
+              "pressed": [
+                0.12,
+                0.14,
+                0.19,
+                1
+              ],
+              "focused": [
+                0.2,
+                0.24,
+                0.32,
+                1
+              ],
+              "disabled": [
+                0.06,
+                0.07,
+                0.09,
+                0.5
+              ],
+              "accent": [
+                1,
+                0.68,
+                0.22,
+                1
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
           }
         }
       ],
@@ -8169,17 +9073,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Ambience",
-            "fontSize": 18,
+            "fontSize": 15,
             "color": [
-              0.9,
-              0.94,
+              0.95,
+              0.97,
               1,
               1
             ],
             "layout": {
               "alignment": 0,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -8242,17 +9147,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "0.8",
-            "fontSize": 18,
+            "fontSize": 15,
             "color": [
-              0.9,
-              0.94,
-              1,
+              0.62,
+              0.67,
+              0.76,
               1
             ],
             "layout": {
               "alignment": 2,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -8300,11 +9206,11 @@
             ],
             "offset": [
               0,
-              0
+              6
             ],
             "sizeDelta": [
               0,
-              14
+              8
             ]
           }
         },
@@ -8316,7 +9222,52 @@
             "minimum": 0,
             "maximum": 1,
             "value": 0.8,
-            "step": 0.05
+            "step": 0.05,
+            "style": {
+              "normal": [
+                0.12,
+                0.14,
+                0.19,
+                1
+              ],
+              "hovered": [
+                0.16,
+                0.19,
+                0.25,
+                1
+              ],
+              "pressed": [
+                0.12,
+                0.14,
+                0.19,
+                1
+              ],
+              "focused": [
+                0.2,
+                0.24,
+                0.32,
+                1
+              ],
+              "disabled": [
+                0.06,
+                0.07,
+                0.09,
+                0.5
+              ],
+              "accent": [
+                1,
+                0.68,
+                0.22,
+                1
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
           }
         }
       ],
@@ -8430,17 +9381,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Interface",
-            "fontSize": 18,
+            "fontSize": 15,
             "color": [
-              0.9,
-              0.94,
+              0.95,
+              0.97,
               1,
               1
             ],
             "layout": {
               "alignment": 0,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -8503,17 +9455,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "1",
-            "fontSize": 18,
+            "fontSize": 15,
             "color": [
-              0.9,
-              0.94,
-              1,
+              0.62,
+              0.67,
+              0.76,
               1
             ],
             "layout": {
               "alignment": 2,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -8561,11 +9514,11 @@
             ],
             "offset": [
               0,
-              0
+              6
             ],
             "sizeDelta": [
               0,
-              14
+              8
             ]
           }
         },
@@ -8577,7 +9530,52 @@
             "minimum": 0,
             "maximum": 1,
             "value": 1,
-            "step": 0.05
+            "step": 0.05,
+            "style": {
+              "normal": [
+                0.12,
+                0.14,
+                0.19,
+                1
+              ],
+              "hovered": [
+                0.16,
+                0.19,
+                0.25,
+                1
+              ],
+              "pressed": [
+                0.12,
+                0.14,
+                0.19,
+                1
+              ],
+              "focused": [
+                0.2,
+                0.24,
+                0.32,
+                1
+              ],
+              "disabled": [
+                0.06,
+                0.07,
+                0.09,
+                0.5
+              ],
+              "accent": [
+                1,
+                0.68,
+                0.22,
+                1
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
           }
         }
       ],
@@ -8628,7 +9626,7 @@
             ],
             "sizeDelta": [
               430,
-              38
+              36
             ]
           }
         },
@@ -8636,7 +9634,53 @@
           "id": "000000000000003e0000000000000002",
           "type": "UiButton",
           "enabled": true,
-          "data": {}
+          "data": {
+            "style": {
+              "normal": [
+                0.09,
+                0.11,
+                0.145,
+                1
+              ],
+              "hovered": [
+                0.15,
+                0.18,
+                0.235,
+                1
+              ],
+              "pressed": [
+                0.06,
+                0.075,
+                0.1,
+                1
+              ],
+              "focused": [
+                0.17,
+                0.21,
+                0.28,
+                1
+              ],
+              "disabled": [
+                0.06,
+                0.07,
+                0.09,
+                0.5
+              ],
+              "accent": [
+                1,
+                0.68,
+                0.22,
+                1
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                10,
+                10,
+                10,
+                10
+              ]
+            }
+          }
         }
       ],
       "position": [
@@ -8682,7 +9726,7 @@
             ],
             "offset": [
               0,
-              -8
+              0
             ],
             "sizeDelta": [
               0,
@@ -8697,17 +9741,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Graphics: High",
-            "fontSize": 18,
+            "fontSize": 15,
             "color": [
-              0.9,
-              0.94,
+              0.95,
+              0.97,
               1,
               1
             ],
             "layout": {
               "alignment": 1,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -8755,11 +9800,11 @@
             ],
             "offset": [
               -24,
-              -68
+              -76
             ],
             "sizeDelta": [
               450,
-              35
+              22
             ]
           }
         },
@@ -8769,18 +9814,19 @@
           "enabled": true,
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
-            "text": "Bindings: select, then press a control",
-            "fontSize": 19,
+            "text": "Controls: select one, then press a key or button",
+            "fontSize": 13,
             "color": [
-              0.9,
-              0.94,
-              1,
+              0.62,
+              0.67,
+              0.76,
               1
             ],
             "layout": {
               "alignment": 0,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -8844,7 +9890,52 @@
             "contentSize": [
               0,
               600
-            ]
+            ],
+            "style": {
+              "normal": [
+                0.02,
+                0.028,
+                0.042,
+                0.55
+              ],
+              "hovered": [
+                0.02,
+                0.028,
+                0.042,
+                0.55
+              ],
+              "pressed": [
+                0.02,
+                0.028,
+                0.042,
+                0.55
+              ],
+              "focused": [
+                0.03,
+                0.04,
+                0.06,
+                0.65
+              ],
+              "disabled": [
+                0.06,
+                0.07,
+                0.09,
+                0.5
+              ],
+              "accent": [
+                1,
+                0.68,
+                0.22,
+                0.6
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                12,
+                12,
+                12,
+                12
+              ]
+            }
           }
         }
       ],
@@ -8975,7 +10066,7 @@
             ],
             "sizeDelta": [
               410,
-              32
+              30
             ]
           }
         },
@@ -8983,7 +10074,53 @@
           "id": "00000000000000430000000000000002",
           "type": "UiButton",
           "enabled": true,
-          "data": {}
+          "data": {
+            "style": {
+              "normal": [
+                0.09,
+                0.11,
+                0.145,
+                1
+              ],
+              "hovered": [
+                0.15,
+                0.18,
+                0.235,
+                1
+              ],
+              "pressed": [
+                0.06,
+                0.075,
+                0.1,
+                1
+              ],
+              "focused": [
+                0.17,
+                0.21,
+                0.28,
+                1
+              ],
+              "disabled": [
+                0.06,
+                0.07,
+                0.09,
+                0.5
+              ],
+              "accent": [
+                1,
+                0.68,
+                0.22,
+                1
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                10,
+                10,
+                10,
+                10
+              ]
+            }
+          }
         }
       ],
       "position": [
@@ -9028,11 +10165,11 @@
               0.5
             ],
             "offset": [
-              8,
-              -5
+              10,
+              0
             ],
             "sizeDelta": [
-              -16,
+              -20,
               0
             ]
           }
@@ -9044,17 +10181,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Action: control",
-            "fontSize": 16,
+            "fontSize": 14,
             "color": [
-              0.9,
-              0.94,
+              0.95,
+              0.97,
               1,
               1
             ],
             "layout": {
               "alignment": 0,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -9089,11 +10227,11 @@
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
+              0,
               0
             ],
             "anchorMax": [
-              0.5,
+              1,
               0
             ],
             "pivot": [
@@ -9102,11 +10240,11 @@
             ],
             "offset": [
               0,
-              16
+              18
             ],
             "sizeDelta": [
-              900,
-              40
+              -48,
+              38
             ]
           }
         },
@@ -9126,7 +10264,7 @@
               0,
               0
             ],
-            "alignment": 1
+            "alignment": 2
           }
         }
       ],
@@ -9176,7 +10314,7 @@
               0
             ],
             "sizeDelta": [
-              250,
+              180,
               38
             ]
           }
@@ -9185,7 +10323,53 @@
           "id": "00000000000000460000000000000002",
           "type": "UiButton",
           "enabled": true,
-          "data": {}
+          "data": {
+            "style": {
+              "normal": [
+                1,
+                0.68,
+                0.22,
+                1
+              ],
+              "hovered": [
+                1,
+                0.76,
+                0.36,
+                1
+              ],
+              "pressed": [
+                0.8,
+                0.54,
+                0.18,
+                1
+              ],
+              "focused": [
+                1,
+                0.8,
+                0.45,
+                1
+              ],
+              "disabled": [
+                0.06,
+                0.07,
+                0.09,
+                0.5
+              ],
+              "accent": [
+                1,
+                0.68,
+                0.22,
+                1
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                10,
+                10,
+                10,
+                10
+              ]
+            }
+          }
         }
       ],
       "position": [
@@ -9231,7 +10415,7 @@
             ],
             "offset": [
               0,
-              -8
+              0
             ],
             "sizeDelta": [
               0,
@@ -9246,17 +10430,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Resume",
-            "fontSize": 18,
+            "fontSize": 15,
             "color": [
-              0.9,
-              0.94,
-              1,
+              0.07,
+              0.06,
+              0.04,
               1
             ],
             "layout": {
               "alignment": 1,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }
@@ -9307,7 +10492,7 @@
               0
             ],
             "sizeDelta": [
-              250,
+              180,
               38
             ]
           }
@@ -9316,7 +10501,53 @@
           "id": "00000000000000480000000000000002",
           "type": "UiButton",
           "enabled": true,
-          "data": {}
+          "data": {
+            "style": {
+              "normal": [
+                0.09,
+                0.11,
+                0.145,
+                1
+              ],
+              "hovered": [
+                0.42,
+                0.12,
+                0.1,
+                1
+              ],
+              "pressed": [
+                0.3,
+                0.08,
+                0.07,
+                1
+              ],
+              "focused": [
+                0.42,
+                0.12,
+                0.1,
+                1
+              ],
+              "disabled": [
+                0.06,
+                0.07,
+                0.09,
+                0.5
+              ],
+              "accent": [
+                1,
+                0.68,
+                0.22,
+                1
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                10,
+                10,
+                10,
+                10
+              ]
+            }
+          }
         }
       ],
       "position": [
@@ -9362,7 +10593,7 @@
             ],
             "offset": [
               0,
-              -8
+              0
             ],
             "sizeDelta": [
               0,
@@ -9377,17 +10608,18 @@
           "data": {
             "font": "b3999c7ba8d944228a80146a8f38a9da",
             "text": "Quit game",
-            "fontSize": 18,
+            "fontSize": 15,
             "color": [
-              0.9,
-              0.94,
+              0.95,
+              0.97,
               1,
               1
             ],
             "layout": {
               "alignment": 1,
-              "overflow": 2,
-              "wrap": false
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
             }
           }
         }

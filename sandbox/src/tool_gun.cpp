@@ -232,7 +232,9 @@ void ToolGun::OnUpdate(float /*deltaTime*/) {
     }
     const auto* player = GetEntity().GetComponent<PlayerController>();
     const auto* carrier = GetEntity().GetComponent<PropCarrier>();
-    if (!player || !Input::IsCursorLocked() || !Input::IsActionPressed("Fire") || (carrier && carrier->HasClick())) {
+    const auto* holder = GetEntity().GetComponent<WeaponHolder>();
+    if (!player || !Input::IsCursorLocked() || !Input::IsActionPressed("Fire") || (carrier && carrier->HasClick()) ||
+        (holder && !holder->CanUseItem())) {
         return;
     }
     const auto hit = GetScene().GetPhysics().Raycast(player->GetEyePosition(), player->GetAimDirection(), range,
@@ -274,6 +276,7 @@ void ToolGun::ToolMaterial::Serialize(Spot::Archive& archive) {
 }
 
 void ToolGun::Serialize(Spot::Archive& archive) {
+    archive.Field("icon", icon, {.tooltip = "What the HUD and the weapon wheel show for it"});
     static constexpr std::array<std::string_view, 6> Modes = {"Weld", "Rope", "Remover", "Color", "Material", "Lamp"};
     archive.Field("mode", mode, {.enumNames = Modes});
     archive.Field("lamp", lamp, {.enumNames = LampNames, .tooltip = "The lamp Lamp mode places"});

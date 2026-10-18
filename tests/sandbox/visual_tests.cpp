@@ -1,5 +1,7 @@
 #include "day_cycle.h"
 #include "player_controller.h"
+#include "player_health.h"
+#include "runtime_interface.h"
 #include "view_model.h"
 #include "weapon.h"
 #include "weapon_holder.h"
@@ -62,6 +64,10 @@ TEST_CASE("The cooked playground renders its yards by day, at sunset and at nigh
         View{"container_yard.png", {-26, 4, 27}, {-42, 2, 40}, 0.36f},
         View{"pond_sunset.png", {19, 3, 27}, {34, 0, 44}, 0.71f},
         View{"playground_night.png", {0, 9, 34}, {0, 2, -12}, 0.95f},
+        // The sky: clouds by day and at sunset, stars and the moon at night.
+        View{"sky_clouds.png", {0, 3, 30}, {30, 45, -60}, 0.45f},
+        View{"sky_sunset.png", {0, 3, 30}, {-80, 20, 0}, 0.735f},
+        View{"sky_night.png", {0, 3, 30}, {-40, 35, -30}, 0.02f},
     };
     const std::filesystem::path output(SPOT_SANDBOX_CAPTURE_DIR);
     std::filesystem::create_directories(output);
@@ -240,4 +246,139 @@ TEST_CASE("The cooked sandbox renders held items, recoil, sights and reloads", "
         step();
     }
     draw("rifle_reload.png");
+}
+
+TEST_CASE("The cooked sandbox draws its HUD over the game: in hand, the wheel, hurt at night, running and dead",
+          "[gpu][sandbox][offscreen]") {
+    if (!Spot::GraphicsDevice::IsSupported()) {
+        SKIP("No usable graphics device");
+    }
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    Spot::AssetManager assets(SANDBOX_IMPORTED_DIR, device.get());
+    Spot::InputState input;
+    Spot::InputActionMap actions;
+    struct Restore {
+        Spot::AssetManager* assets = Spot::Assets::GetManager();
+        Spot::InputState* input = Spot::Input::GetState();
+        Spot::InputActionMap* actions = Spot::Input::GetActionMap();
+        float timeScale = Spot::Time::GetTimeScale();
+        ~Restore() {
+            Spot::Detail::SetAssetManager(assets);
+            Spot::Input::SetState(input);
+            Spot::Input::SetActionMap(actions);
+            Spot::Time::SetTimeScale(timeScale);
+        }
+    } restore;
+    Spot::Detail::SetAssetManager(&assets);
+    Spot::Input::SetState(&input);
+    Spot::Input::SetActionMap(&actions);
+    Spot::Detail::GameCode::Load();
+    const auto settings = Spot::GameSettings::LoadFromFile(std::filesystem::path(SANDBOX_IMPORTED_DIR).parent_path() /
+                                                           Spot::GameSettings::FileName);
+    REQUIRE(settings);
+    settings->sections.input.Apply(actions);
+    auto scene = Spot::InstantiateScene(assets, settings->startupScene);
+    REQUIRE(scene);
+    auto step = [&] {
+        actions.Update(input);
+        scene->Update(Spot::Scene::DefaultFixedTimeStep * Spot::Time::GetTimeScale());
+        input.BeginFrame();
+    };
+    auto run = [&](int frames) {
+        for (int i = 0; i < frames; ++i) {
+            step();
+        }
+    };
+    run(90);
+    auto* holder = scene->FindComponent<WeaponHolder>();
+    auto* health = scene->FindComponent<PlayerHealth>();
+    auto* day = scene->FindComponent<DayCycle>();
+    REQUIRE(holder);
+    REQUIRE(health);
+    REQUIRE(day);
+    constexpr std::uint32_t Width = 1280;
+    constexpr std::uint32_t Height = 720;
+    const Spot::Vector2 size{static_cast<float>(Width), static_cast<float>(Height)};
+    auto target = device->CreateTexture(
+        {.width = Width, .height = Height, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
+    REQUIRE(target);
+    Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb});
+    Spot::Renderer2D interface(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb});
+    REQUIRE(renderer.IsValid());
+    REQUIRE(interface.IsValid());
+    const std::array scenes{scene.get()};
+    std::filesystem::create_directories(SPOT_SANDBOX_CAPTURE_DIR);
+    auto draw = [&](std::string_view name) {
+        auto* context = device->BeginOffscreenFrame(*target);
+        REQUIRE(context);
+        renderer.Render(*context, scenes, target.get());
+        {
+            auto pass = context->BeginRenderPass({.target = target.get()});
+            interface.Begin(pass, Spot::Scene::ScreenCamera(size), size);
+            scene->DrawUi(interface, size);
+            interface.End();
+        }
+        device->EndFrame();
+        auto pixels = device->DownloadTexture(*target);
+        CHECK(Spot::Image(Width, Height, pixels).SavePng(std::filesystem::path(SPOT_SANDBOX_CAPTURE_DIR) / name));
+        return pixels;
+    };
+    auto tap = [&](Spot::Key key) {
+        input.OnEvent(Spot::KeyPressedEvent{key, false});
+        step();
+        input.OnEvent(Spot::KeyReleasedEvent{key});
+        step();
+    };
+
+    tap(Spot::Key::Digit3);
+    run(30);
+    const auto inHand = draw("hud_rifle.png");
+
+    input.OnEvent(Spot::KeyPressedEvent{Spot::Key::Tab, false});
+    step();
+    input.OnEvent(Spot::MouseMovedEvent{{700, 360}, {60, 60}});
+    run(3);
+    REQUIRE(holder->IsWheelOpen());
+    CHECK(draw("hud_wheel.png") != inHand);
+    input.OnEvent(Spot::KeyReleasedEvent{Spot::Key::Tab});
+    run(3);
+
+    input.OnEvent(Spot::KeyPressedEvent{Spot::Key::W, false});
+    input.OnEvent(Spot::KeyPressedEvent{Spot::Key::LeftShift, false});
+    run(40);
+    CHECK(draw("hud_running.png") != inHand);
+    input.OnEvent(Spot::KeyReleasedEvent{Spot::Key::LeftShift});
+    input.OnEvent(Spot::KeyReleasedEvent{Spot::Key::W});
+    run(30);
+
+    tap(Spot::Key::Digit6);
+    day->timeOfDay = 0.92f;
+    health->Damage(78.0f);
+    run(6);
+    draw("hud_hurt_night.png");
+
+    health->Damage(100.0f);
+    run(30);
+    REQUIRE(health->IsDead());
+    draw("hud_dead.png");
+    run(static_cast<int>(health->respawnTime * 60.0f) + 10);
+    REQUIRE_FALSE(health->IsDead());
+
+    // The menus, once the spawn menu's thumbnails, two a frame, are all drawn.
+    auto* ui = scene->FindComponent<RuntimeInterface>();
+    REQUIRE(ui);
+    day->timeOfDay = 0.45f;
+    ui->OpenSpawnMenu();
+    for (int frame = 0; frame < 30; ++frame) {
+        step();
+        draw("menu_spawn.png");
+    }
+    ui->SelectCategory(Spawnable::Category::Weapon);
+    step();
+    draw("menu_spawn_weapons.png");
+    ui->OpenPauseMenu();
+    step();
+    draw("menu_pause.png");
+    ui->CloseMenus();
 }

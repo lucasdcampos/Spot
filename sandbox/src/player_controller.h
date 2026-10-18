@@ -46,5 +46,7 @@ private:
     // The head camera's field of view without zoom.
     float m_fieldOfView = 0.0f;
     float m_recoil = 0;
+    // From 0 to 1 as the player runs, widening the view a little.
+    float m_run = 0.0f;
     Spot::TweenId m_recoilTween = Spot::TweenId::Invalid;
 };

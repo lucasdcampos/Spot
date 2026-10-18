@@ -8,6 +8,8 @@ public:
     float radius = 6.0f;
     // In newton seconds, at the center.
     float impulse = 600.0f;
+    // What it takes from the health of a player at its center, less farther.
+    float damage = 120.0f;
     // Seconds between being set off and exploding.
     float fuse = 0.15f;
 

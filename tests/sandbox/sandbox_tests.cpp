@@ -183,7 +183,7 @@ TEST_CASE("Generated robots patrol with blended root motion, footsteps and recov
     auto* ragdoll = entity.GetComponent<Spot::Ragdoll>();
     REQUIRE(ragdoll);
     const auto hitPosition = entity.GetTransform().GetWorldPosition();
-    Explosion::Explode(playground.scene, hitPosition + Spot::Vector3{0, 0, 0.5f}, 1.5f, 50);
+    Explosion::Explode(playground.scene, hitPosition + Spot::Vector3{0, 0, 0.5f}, 1.5f, 50, 0);
     REQUIRE(robot->IsDead());
     REQUIRE(ragdoll->IsActive());
     REQUIRE(ragdoll->GetBodies().size() == 11);
@@ -611,9 +611,9 @@ TEST_CASE("Noclip flies the player through everything, and walking lands it agai
     playground.Run(1.5f);
     const float ground = playground.PlayerPosition().y;
 
-    playground.Press(Key::V);
+    playground.Press(Key::LeftAlt);
     playground.Run(0.1f);
-    playground.Release(Key::V);
+    playground.Release(Key::LeftAlt);
     playground.Press(Key::Space);
     playground.Run(1.0f);
     playground.Release(Key::Space);
@@ -622,7 +622,7 @@ TEST_CASE("Noclip flies the player through everything, and walking lands it agai
     playground.Run(1.0f);
     CHECK(playground.PlayerPosition().y == Approx(ground + 10.0f).margin(1.0f));
 
-    playground.Press(Key::V);
+    playground.Press(Key::LeftAlt);
     playground.Run(3.0f);
     CHECK(playground.Controller().IsGrounded());
     CHECK(playground.PlayerPosition().y == Approx(ground).margin(0.05f));
@@ -1212,7 +1212,7 @@ TEST_CASE("The playground sounds from where things are, on its buses", "[sandbox
 
     // An explosion to the right is heard on the right.
     const Spot::Vector3 right = playground.Player().GetViewRotation() * Spot::Vector3{1.0f, 0.0f, 0.0f};
-    Explosion::Explode(playground.scene, playground.Player().GetEyePosition() + right * 12.0f, 1.0f, 0.0f);
+    Explosion::Explode(playground.scene, playground.Player().GetEyePosition() + right * 12.0f, 1.0f, 0.0f, 0.0f);
     playground.Run(0.3f);
     const Spot::AudioPeak blast = playground.peaks["Effects"];
     CHECK(blast.right > 0.05f);
@@ -1271,7 +1271,8 @@ TEST_CASE("Shots and explosions flash, and the flashes go out", "[sandbox]") {
     playground.Run(0.2f);
     CHECK(flashes() == 0);
 
-    Explosion::Explode(playground.scene, playground.PlayerPosition() + Spot::Vector3{0.0f, 0.0f, -10.0f}, 3.0f, 0.0f);
+    Explosion::Explode(playground.scene, playground.PlayerPosition() + Spot::Vector3{0.0f, 0.0f, -10.0f}, 3.0f, 0.0f,
+                       0.0f);
     CHECK(flashes() == 1);
     playground.Run(0.5f);
     CHECK(flashes() == 0);
@@ -1649,7 +1650,7 @@ TEST_CASE("Sandbox surface impacts and explosions select authored particle defin
     CHECK(ParticleCount(playground.scene, bank->concreteDust.settings.startColor) == bank->concreteDust.count);
     CHECK(ParticleCount(playground.scene, bank->woodDust.settings.startColor) == bank->woodDust.count);
     CHECK(ParticleCount(playground.scene, bank->sparks.settings.startColor) == bank->sparks.count);
-    Explosion::Explode(playground.scene, {1000, 1000, 1000}, 5, 100);
+    Explosion::Explode(playground.scene, {1000, 1000, 1000}, 5, 100, 0);
     CHECK(ParticleCount(playground.scene, bank->fire.settings.startColor) == bank->fire.count);
     CHECK(ParticleCount(playground.scene, bank->smoke.settings.startColor) == bank->smoke.count);
     CHECK(ParticleCount(playground.scene, bank->debris.settings.startColor) >= bank->debris.count);

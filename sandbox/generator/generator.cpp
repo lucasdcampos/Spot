@@ -1,6 +1,7 @@
 #include "generator.h"
 
 #include "gltf_writer.h"
+#include "icons.h"
 #include "level_models.h"
 #include "rigs.h"
 #include "shapes.h"
@@ -64,6 +65,17 @@ const std::vector<Texture>& GetTextures() {
         {"ui_dot", Textures::UiDot},
         {"ui_hit_marker", Textures::UiHitMarker},
         {"chain_link", Textures::ChainLink},
+        {"ui_wheel_sector", Icons::WheelSector},
+        {"ui_vignette", Icons::Vignette},
+        {"icon_physics_gun", Icons::PhysicsGun},
+        {"icon_pistol", Icons::Pistol},
+        {"icon_rifle", Icons::Rifle},
+        {"icon_shotgun", Icons::Shotgun},
+        {"icon_rocket_launcher", Icons::RocketLauncher},
+        {"icon_tool_gun", Icons::ToolGun},
+        {"icon_sun", Icons::Sun},
+        {"icon_moon", Icons::Moon},
+        {"icon_health", Icons::Health},
     };
     return textures;
 }

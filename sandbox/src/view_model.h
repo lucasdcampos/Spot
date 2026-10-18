@@ -7,7 +7,8 @@
 
 // Draws what the player holds in front of the eyes and moves it by hand, without an animated rig: it sways behind the
 // view as the player looks, bobs with the walk cycle of PlayerMovement, kicks when fired, rolls aside to reload, comes
-// up from below when switched to, aims down its sights and turns away from walls it would go through.
+// up from below when switched to, aims down its sights, turns away from walls it would go through, and is carried
+// low across the body while running, swinging with the stride. The dead hold nothing.
 //
 // Models say where their "Muzzle" is, where the "Eye" is when aiming down their sights, and optionally the point held
 // at the "Hip", with nodes of those names: aiming puts the eye point at the eye, and shots leave from the muzzle. Parts
@@ -42,6 +43,8 @@ public:
     float GetAim() const { return m_aim; }
     // From 0 out of sight, after a switch, to 1 in hand.
     float GetRaise() const { return m_raise; }
+    // From 0 held ready to 1 carried low, running.
+    float GetSprint() const { return m_sprint; }
     // Where the muzzle of what is in hand is, in the world, as it is drawn; the eyes when nothing is shown.
     Spot::Vector3 GetMuzzlePosition() const;
 
@@ -89,6 +92,7 @@ private:
     float m_time = 0.0f;
     float m_spin = 0.0f;
     float m_blocked = 0.0f;
+    float m_sprint = 0.0f;
     // The lag the view's turning gives the item, smoothed: yaw and pitch rates.
     Spot::Vector2 m_lag;
     Spot::Quaternion m_previousView;
