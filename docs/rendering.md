@@ -28,7 +28,8 @@ Each frame, `BeginFrame()` returns a `RenderContext` (null when nothing can be d
 - **Resources**: `CreateBuffer()`, `CreateTexture()`, `CreateSampler()`, `CreateShader()` and `CreatePipeline()`
   return null, after logging why, when the backend rejects them. Uploads (`UploadToBuffer()`, `UploadToTexture()`)
   can happen at any time and reach the GPU before the frame's draws; `UploadMode::Discard` suits data rewritten every
-  frame. `DownloadTexture()` reads pixels back, slowly, for tools and tests.
+  frame. Backends reuse their upload memory (one command list on Vulkan, one growing transfer buffer on SDL_GPU),
+  so many small uploads a frame cost no allocations. `DownloadTexture()` reads pixels back, slowly, for tools and tests.
 - **Blending**: `None`, `Alpha` (straight alpha), `Additive`, and `Premultiplied` for colors already multiplied
   by their coverage.
 - **Pipelines** are immutable: one per combination of shaders, vertex layout, primitive type, blending, culling,

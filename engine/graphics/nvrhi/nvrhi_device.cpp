@@ -126,6 +126,8 @@ NvrhiDevice::NvrhiDevice(std::shared_ptr<NvrhiShared> shared)
     // Not immediate, so uploads can record into command lists of their own while the frame's is open.
     m_context.commandList =
         m_device->createCommandList(nvrhi::CommandListParameters().setEnableImmediateExecution(false));
+    m_uploadCommandList =
+        m_device->createCommandList(nvrhi::CommandListParameters().setEnableImmediateExecution(false));
     for (auto& query : m_frameQueries) {
         query = m_device->createEventQuery();
     }
@@ -141,18 +143,17 @@ NvrhiDevice::NvrhiDevice(std::shared_ptr<NvrhiShared> shared)
 NvrhiDevice::~NvrhiDevice() {
     m_device->waitForIdle();
     m_context.Release();
+    m_uploadCommandList = nullptr;
     for (auto& query : m_frameQueries) {
         query = nullptr;
     }
 }
 
 void NvrhiDevice::RunNow(const std::function<void(nvrhi::ICommandList&)>& record) {
-    const nvrhi::CommandListHandle commandList =
-        m_device->createCommandList(nvrhi::CommandListParameters().setEnableImmediateExecution(false));
-    commandList->open();
-    record(*commandList);
-    commandList->close();
-    m_device->executeCommandList(commandList);
+    m_uploadCommandList->open();
+    record(*m_uploadCommandList);
+    m_uploadCommandList->close();
+    m_device->executeCommandList(m_uploadCommandList);
 }
 
 std::unique_ptr<Texture> NvrhiDevice::CreateTexture(const TextureDesc& desc) {

@@ -417,23 +417,44 @@ std::unique_ptr<Buffer> SdlGpuDevice::CreateBuffer(const BufferDesc& desc) {
     return GraphicsAccess::Make<Buffer>(std::move(impl));
 }
 
+SDL_GPUTransferBuffer* SdlGpuDevice::WriteUpload(std::span<const std::byte> data) {
+    SDL_GPUDevice* device = shared->Get();
+    const auto size = static_cast<std::uint32_t>(data.size());
+    if (size > uploadBufferSize) {
+        if (uploadBuffer) {
+            SDL_ReleaseGPUTransferBuffer(device, uploadBuffer);
+            uploadBuffer = nullptr;
+            uploadBufferSize = 0;
+        }
+        SDL_GPUTransferBufferCreateInfo transferInfo{};
+        transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
+        transferInfo.size = std::max(size, std::min(uploadBufferSize * 2, 64u << 20));
+        transferInfo.size = std::max(transferInfo.size, 64u << 10);
+        uploadBuffer = SDL_CreateGPUTransferBuffer(device, &transferInfo);
+        if (!uploadBuffer) {
+            Log::GetEngineLogger().Error("Failed to create transfer buffer: {}", SDL_GetError());
+            return nullptr;
+        }
+        uploadBufferSize = transferInfo.size;
+    }
+    void* mapped = SDL_MapGPUTransferBuffer(device, uploadBuffer, true);
+    if (!mapped) {
+        Log::GetEngineLogger().Error("Failed to map transfer buffer: {}", SDL_GetError());
+        return nullptr;
+    }
+    std::memcpy(mapped, data.data(), data.size());
+    SDL_UnmapGPUTransferBuffer(device, uploadBuffer);
+    return uploadBuffer;
+}
+
 void SdlGpuDevice::UploadToBuffer(Buffer& buffer, std::span<const std::byte> data, std::uint32_t offset,
                                   UploadMode mode) {
     SDL_GPUDevice* device = shared->Get();
     const auto size = static_cast<Uint32>(data.size());
-
-    SDL_GPUTransferBufferCreateInfo transferInfo{};
-    transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
-    transferInfo.size = size;
-    SDL_GPUTransferBuffer* transfer = SDL_CreateGPUTransferBuffer(device, &transferInfo);
+    SDL_GPUTransferBuffer* transfer = WriteUpload(data);
     if (!transfer) {
-        Log::GetEngineLogger().Error("Failed to create transfer buffer: {}", SDL_GetError());
         return;
     }
-
-    void* mapped = SDL_MapGPUTransferBuffer(device, transfer, false);
-    std::memcpy(mapped, data.data(), data.size());
-    SDL_UnmapGPUTransferBuffer(device, transfer);
 
     // A separate command buffer submitted now runs before the current frame's, which is submitted later.
     SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device);
@@ -454,7 +475,6 @@ void SdlGpuDevice::UploadToBuffer(Buffer& buffer, std::span<const std::byte> dat
     if (!SDL_SubmitGPUCommandBuffer(commandBuffer)) {
         Log::GetEngineLogger().Error("Failed to submit buffer upload: {}", SDL_GetError());
     }
-    SDL_ReleaseGPUTransferBuffer(device, transfer);
 }
 
 std::unique_ptr<Texture> SdlGpuDevice::CreateTexture(const TextureDesc& desc) {
@@ -564,18 +584,10 @@ std::unique_ptr<Sampler> SdlGpuDevice::CreateSampler(const SamplerDesc& desc) {
 void SdlGpuDevice::UploadToTexture(Texture& texture, std::uint32_t mipLevel, std::span<const std::byte> pixels,
                                    bool generateMipmaps) {
     SDL_GPUDevice* device = shared->Get();
-    SDL_GPUTransferBufferCreateInfo transferInfo{};
-    transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
-    transferInfo.size = static_cast<Uint32>(pixels.size());
-    SDL_GPUTransferBuffer* transfer = SDL_CreateGPUTransferBuffer(device, &transferInfo);
+    SDL_GPUTransferBuffer* transfer = WriteUpload(pixels);
     if (!transfer) {
-        Log::GetEngineLogger().Error("Failed to create transfer buffer: {}", SDL_GetError());
         return;
     }
-
-    void* mapped = SDL_MapGPUTransferBuffer(device, transfer, false);
-    std::memcpy(mapped, pixels.data(), pixels.size());
-    SDL_UnmapGPUTransferBuffer(device, transfer);
 
     SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device);
     SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
@@ -607,7 +619,6 @@ void SdlGpuDevice::UploadToTexture(Texture& texture, std::uint32_t mipLevel, std
     if (!SDL_SubmitGPUCommandBuffer(commandBuffer)) {
         Log::GetEngineLogger().Error("Failed to submit texture upload: {}", SDL_GetError());
     }
-    SDL_ReleaseGPUTransferBuffer(device, transfer);
 }
 
 std::vector<std::uint8_t> SdlGpuDevice::DownloadTexture(const Texture& texture, std::uint32_t mipLevel) {

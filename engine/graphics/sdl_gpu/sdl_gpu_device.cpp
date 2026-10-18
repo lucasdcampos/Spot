@@ -75,6 +75,9 @@ bool SdlGpuDevice::SupportsSampling(TextureFormat format) const {
 
 SdlGpuDevice::~SdlGpuDevice() {
     SDL_WaitForGPUIdle(shared->Get());
+    if (uploadBuffer) {
+        SDL_ReleaseGPUTransferBuffer(shared->Get(), uploadBuffer);
+    }
     if (window) {
         SDL_ReleaseWindowFromGPUDevice(shared->Get(), window);
     }

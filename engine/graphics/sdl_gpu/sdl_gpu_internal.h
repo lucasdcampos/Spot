@@ -148,6 +148,11 @@ public:
     void* GetNativeHandle() const override { return shared->Get(); }
 
     std::shared_ptr<SharedGpuDevice> shared;
+    // One transfer buffer for every upload, grown when an upload needs more. Mapping it cycles, so SDL hands out
+    // fresh memory while copies still read the last contents, instead of a buffer made and released per upload.
+    SDL_GPUTransferBuffer* uploadBuffer = nullptr;
+    std::uint32_t uploadBufferSize = 0;
+    SDL_GPUTransferBuffer* WriteUpload(std::span<const std::byte> data);
     SDL_Window* window;
     GraphicsCapabilities capabilities;
     std::vector<GpuTiming> timings;

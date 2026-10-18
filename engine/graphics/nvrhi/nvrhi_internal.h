@@ -283,6 +283,8 @@ private:
     // Records commands into a command list of their own and runs it at once, so they reach the GPU before the frame
     // being recorded, as uploads made during a frame must.
     void RunNow(const std::function<void(nvrhi::ICommandList&)>& record);
+    // Reused by every RunNow, which NVRHI allows once a command list has been executed.
+    nvrhi::CommandListHandle m_uploadCommandList;
 
     std::shared_ptr<NvrhiShared> m_shared;
     GraphicsCapabilities m_capabilities;
