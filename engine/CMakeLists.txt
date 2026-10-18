@@ -469,7 +469,8 @@ if(NOT APPLE)
         SYSTEM
     )
     FetchContent_MakeAvailable(nvrhi)
-    target_link_libraries(spot_objects PRIVATE nvrhi nvrhi_vk)
+    # nvrhi_vk uses nvrhi without linking it, so it comes first for linkers that read libraries in order.
+    target_link_libraries(spot_objects PRIVATE nvrhi_vk nvrhi)
     # The backend makes the Vulkan instance and device NVRHI runs on, so it needs Vulkan's headers too.
     if(TARGET Vulkan::Headers)
         target_link_libraries(spot_objects PRIVATE Vulkan::Headers)

@@ -116,11 +116,14 @@ bool HasDeviceExtension(VkPhysicalDevice device, const char* name) {
 
 // The features the engine and NVRHI use, chained as Vulkan queries and enables them.
 struct DeviceFeatures {
-    VkPhysicalDeviceFeatures2 core{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
-    VkPhysicalDeviceVulkan12Features vulkan12{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
-    VkPhysicalDeviceVulkan13Features vulkan13{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES};
+    VkPhysicalDeviceFeatures2 core{};
+    VkPhysicalDeviceVulkan12Features vulkan12{};
+    VkPhysicalDeviceVulkan13Features vulkan13{};
 
     DeviceFeatures() {
+        core.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+        vulkan12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+        vulkan13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
         core.pNext = &vulkan12;
         vulkan12.pNext = &vulkan13;
     }
@@ -271,11 +274,13 @@ std::unique_ptr<VulkanSurface> VulkanSurface::Create(SDL_Window* window, const G
         }
     }
 
-    VkApplicationInfo application{VK_STRUCTURE_TYPE_APPLICATION_INFO};
+    VkApplicationInfo application{};
+    application.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     application.pApplicationName = "Spot";
     application.pEngineName = "Spot";
     application.apiVersion = RequiredVersion;
-    VkInstanceCreateInfo instanceInfo{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
+    VkInstanceCreateInfo instanceInfo{};
+    instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     instanceInfo.pApplicationInfo = &application;
     instanceInfo.enabledExtensionCount = static_cast<std::uint32_t>(vulkan->m_instanceExtensions.size());
     instanceInfo.ppEnabledExtensionNames = vulkan->m_instanceExtensions.data();
@@ -289,7 +294,8 @@ std::unique_ptr<VulkanSurface> VulkanSurface::Create(SDL_Window* window, const G
     Vk().init(vk::Instance(vulkan->m_instance));
 
     if (debugUtils && !layers.empty()) {
-        VkDebugUtilsMessengerCreateInfoEXT messengerInfo{VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
+        VkDebugUtilsMessengerCreateInfoEXT messengerInfo{};
+        messengerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
         messengerInfo.messageSeverity =
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
         messengerInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
@@ -364,10 +370,11 @@ std::unique_ptr<VulkanSurface> VulkanSurface::Create(SDL_Window* window, const G
     }
     // NVRHI turns depth clipping off, as pipelines that clamp depth ask, such as shadow casters behind a shadow
     // view's near plane, only through this extension.
-    VkPhysicalDeviceDepthClipEnableFeaturesEXT depthClip{
-        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_CLIP_ENABLE_FEATURES_EXT};
+    VkPhysicalDeviceDepthClipEnableFeaturesEXT depthClip{};
+    depthClip.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_CLIP_ENABLE_FEATURES_EXT;
     if (HasDeviceExtension(vulkan->m_physicalDevice, VK_EXT_DEPTH_CLIP_ENABLE_EXTENSION_NAME)) {
-        VkPhysicalDeviceFeatures2 query{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+        VkPhysicalDeviceFeatures2 query{};
+        query.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
         query.pNext = &depthClip;
         Vk().vkGetPhysicalDeviceFeatures2(vulkan->m_physicalDevice, &query);
         if (depthClip.depthClipEnable) {
@@ -381,11 +388,13 @@ std::unique_ptr<VulkanSurface> VulkanSurface::Create(SDL_Window* window, const G
     }
 
     const float priority = 1.0f;
-    VkDeviceQueueCreateInfo queueInfo{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
+    VkDeviceQueueCreateInfo queueInfo{};
+    queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     queueInfo.queueFamilyIndex = vulkan->m_queueFamily;
     queueInfo.queueCount = 1;
     queueInfo.pQueuePriorities = &priority;
-    VkDeviceCreateInfo deviceInfo{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
+    VkDeviceCreateInfo deviceInfo{};
+    deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     deviceInfo.pNext = &enabled.core;
     deviceInfo.queueCreateInfoCount = 1;
     deviceInfo.pQueueCreateInfos = &queueInfo;
@@ -523,7 +532,8 @@ bool VulkanSurface::CreateSwapchain(nvrhi::IDevice& device) {
         imageCount = std::min(imageCount, capabilities.maxImageCount);
     }
 
-    VkSwapchainCreateInfoKHR info{VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
+    VkSwapchainCreateInfoKHR info{};
+    info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     info.surface = m_surface;
     info.minImageCount = imageCount;
     info.imageFormat = chosen.format;
@@ -566,7 +576,8 @@ bool VulkanSurface::CreateSwapchain(nvrhi::IDevice& device) {
             device.createHandleForNativeTexture(nvrhi::ObjectTypes::VK_Image, nvrhi::Object(image), desc));
     }
 
-    const VkSemaphoreCreateInfo semaphoreInfo{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+    VkSemaphoreCreateInfo semaphoreInfo{};
+    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     while (m_acquireSemaphores.size() < count + 1) {
         VkSemaphore semaphore = VK_NULL_HANDLE;
         Vk().vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &semaphore);
@@ -619,7 +630,8 @@ void VulkanSurface::PrepareToPresent(nvrhi::vulkan::IDevice& device) {
 }
 
 void VulkanSurface::Present() {
-    VkPresentInfoKHR info{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
+    VkPresentInfoKHR info{};
+    info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     info.waitSemaphoreCount = 1;
     info.pWaitSemaphores = &m_presentSemaphores[m_imageIndex];
     info.swapchainCount = 1;
