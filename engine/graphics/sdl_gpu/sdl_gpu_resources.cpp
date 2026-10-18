@@ -268,10 +268,15 @@ std::unique_ptr<Shader> SdlGpuDevice::CreateShader(const ShaderDesc& desc) {
 std::unique_ptr<Pipeline> SdlGpuDevice::CreatePipeline(const PipelineDesc& desc) {
     SDL_GPUDevice* device = shared->Get();
 
-    SDL_GPUColorTargetDescription colorTarget{};
-    colorTarget.format =
+    std::vector<SDL_GPUColorTargetDescription> colorTargets(1 + desc.additionalTargetFormats.size());
+    colorTargets[0].format =
         desc.targetFormat ? ToSdl(*desc.targetFormat) : SDL_GetGPUSwapchainTextureFormat(device, window);
-    colorTarget.blend_state = ToSdl(desc.blendMode);
+    for (std::size_t i = 0; i < desc.additionalTargetFormats.size(); ++i) {
+        colorTargets[i + 1].format = ToSdl(desc.additionalTargetFormats[i]);
+    }
+    for (SDL_GPUColorTargetDescription& colorTarget : colorTargets) {
+        colorTarget.blend_state = ToSdl(desc.blendMode);
+    }
 
     SDL_GPUGraphicsPipelineCreateInfo info{};
     info.vertex_shader = static_cast<SDL_GPUShader*>(desc.vertexShader->GetNativeHandle());
@@ -302,8 +307,8 @@ std::unique_ptr<Pipeline> SdlGpuDevice::CreatePipeline(const PipelineDesc& desc)
     info.rasterizer_state.front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
     info.rasterizer_state.enable_depth_clip = !(desc.depth && desc.depth->clamp);
     if (!desc.depthOnly) {
-        info.target_info.color_target_descriptions = &colorTarget;
-        info.target_info.num_color_targets = 1;
+        info.target_info.color_target_descriptions = colorTargets.data();
+        info.target_info.num_color_targets = static_cast<Uint32>(colorTargets.size());
     }
     if (desc.depth) {
         info.depth_stencil_state.enable_depth_test = desc.depth->test;

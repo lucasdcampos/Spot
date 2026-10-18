@@ -2,6 +2,7 @@
 // what GraphicsCapabilities tells apart.
 #include "textured.frag.h"
 #include "textured_quad.vert.h"
+#include "two_targets.frag.h"
 
 #include <spot.h>
 
@@ -35,47 +36,73 @@ void ForEachBackend(const Test& test) {
     }
 }
 
-// Draws the texture over the whole of a 4x4 RGBA8 target, and reads the target back.
-std::vector<std::uint8_t> DrawTexture(Spot::GraphicsDevice& device, const Spot::Texture& texture) {
+// A quad over the whole of its target, drawn with a fragment shader that reads the quad's UVs.
+class Quad {
+public:
+    explicit Quad(Spot::GraphicsDevice& device) : m_device(device) {
+        const std::array<Vertex, 4> vertices{{
+            {{-1.0f, 1.0f}, {0.0f, 0.0f}},
+            {{1.0f, 1.0f}, {1.0f, 0.0f}},
+            {{1.0f, -1.0f}, {1.0f, 1.0f}},
+            {{-1.0f, -1.0f}, {0.0f, 1.0f}},
+        }};
+        const std::array<std::uint16_t, 6> indices{0, 1, 2, 2, 3, 0};
+        m_vertices = device.CreateBuffer(Spot::BufferUsage::Vertex, vertices);
+        m_indices = device.CreateBuffer(Spot::BufferUsage::Index, indices);
+        m_vertexShader = device.CreateShader(Shaders::TexturedQuadVert);
+        REQUIRE((m_vertices && m_indices && m_vertexShader));
+    }
+
+    std::unique_ptr<Spot::Pipeline> CreatePipeline(const Spot::Shader& fragmentShader,
+                                                   std::vector<Spot::TextureFormat> additionalFormats = {}) const {
+        return m_device.CreatePipeline({
+            .vertexShader = m_vertexShader.get(),
+            .fragmentShader = &fragmentShader,
+            .vertexBuffers = {{
+                .stride = sizeof(Vertex),
+                .attributes = {{0, Spot::VertexFormat::Float2, offsetof(Vertex, position)},
+                               {1, Spot::VertexFormat::Float2, offsetof(Vertex, uv)}},
+            }},
+            .targetFormat = Spot::TextureFormat::Rgba8,
+            .additionalTargetFormats = std::move(additionalFormats),
+        });
+    }
+
+    void Draw(Spot::RenderPass& pass, const Spot::Pipeline& pipeline) const {
+        pass.BindPipeline(pipeline);
+        pass.BindVertexBuffer(0, *m_vertices);
+        pass.BindIndexBuffer(*m_indices, Spot::IndexType::UInt16);
+        pass.DrawIndexed(6);
+    }
+
+private:
     struct Vertex {
         Spot::Vector2 position;
         Spot::Vector2 uv;
     };
-    const std::array<Vertex, 4> vertices{{
-        {{-1.0f, 1.0f}, {0.0f, 0.0f}},
-        {{1.0f, 1.0f}, {1.0f, 0.0f}},
-        {{1.0f, -1.0f}, {1.0f, 1.0f}},
-        {{-1.0f, -1.0f}, {0.0f, 1.0f}},
-    }};
-    const std::array<std::uint16_t, 6> indices{0, 1, 2, 2, 3, 0};
+
+    Spot::GraphicsDevice& m_device;
+    std::unique_ptr<Spot::Buffer> m_vertices;
+    std::unique_ptr<Spot::Buffer> m_indices;
+    std::unique_ptr<Spot::Shader> m_vertexShader;
+};
+
+// Draws the texture over the whole of a 4x4 RGBA8 target, and reads the target back.
+std::vector<std::uint8_t> DrawTexture(Spot::GraphicsDevice& device, const Spot::Texture& texture) {
+    const Quad quad(device);
     auto target = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
     const auto sampler = device.CreateSampler({.filter = Spot::TextureFilter::Nearest});
-    const auto vertexBuffer = device.CreateBuffer(Spot::BufferUsage::Vertex, vertices);
-    const auto indexBuffer = device.CreateBuffer(Spot::BufferUsage::Index, indices);
-    const auto vertexShader = device.CreateShader(Shaders::TexturedQuadVert);
     const auto fragmentShader = device.CreateShader(Shaders::TexturedFrag);
-    REQUIRE((target && sampler && vertexBuffer && indexBuffer && vertexShader && fragmentShader));
-    const auto pipeline = device.CreatePipeline({
-        .vertexShader = vertexShader.get(),
-        .fragmentShader = fragmentShader.get(),
-        .vertexBuffers = {{
-            .stride = sizeof(Vertex),
-            .attributes = {{0, Spot::VertexFormat::Float2, offsetof(Vertex, position)},
-                           {1, Spot::VertexFormat::Float2, offsetof(Vertex, uv)}},
-        }},
-        .targetFormat = Spot::TextureFormat::Rgba8,
-    });
+    REQUIRE((target && sampler && fragmentShader));
+    const auto pipeline = quad.CreatePipeline(*fragmentShader);
     REQUIRE(pipeline);
     auto* context = device.BeginOffscreenFrame(*target);
     REQUIRE(context);
     {
         auto pass = context->BeginRenderPass({.clearColor = Spot::Color::Black});
-        pass.BindPipeline(*pipeline);
-        pass.BindVertexBuffer(0, *vertexBuffer);
-        pass.BindIndexBuffer(*indexBuffer, Spot::IndexType::UInt16);
         pass.BindFragmentTexture(0, texture, *sampler);
         pass.PushFragmentUniforms(0, Spot::Color::White);
-        pass.DrawIndexed(6);
+        quad.Draw(pass, *pipeline);
     }
     device.EndFrame();
     return device.DownloadTexture(*target);
@@ -201,5 +228,35 @@ TEST_CASE("Devices tell what their backend can do", "[gpu][rhi]") {
         CHECK(capabilities.maxColorTargets >= 1);
         CHECK(device.SupportsRenderTarget(Spot::TextureFormat::Rgba8));
         CHECK(device.SupportsSampling(Spot::TextureFormat::Rgba8));
+    });
+}
+
+TEST_CASE("Passes draw into several color targets at once", "[gpu][rhi]") {
+    ForEachBackend([](Spot::GraphicsDevice& device) {
+        REQUIRE(device.GetCapabilities().maxColorTargets >= 2);
+        const Quad quad(device);
+        auto first = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
+        auto second = device.CreateTexture(
+            {.width = 4, .height = 4, .format = Spot::TextureFormat::R16Float, .renderTarget = true});
+        const auto shader = device.CreateShader(Shaders::TwoTargetsFrag);
+        REQUIRE((first && second && shader));
+        const auto pipeline = quad.CreatePipeline(*shader, {Spot::TextureFormat::R16Float});
+        REQUIRE(pipeline);
+
+        auto* context = device.BeginOffscreenFrame(*first);
+        REQUIRE(context);
+        {
+            auto pass = context->BeginRenderPass(
+                {.target = first.get(),
+                 .clearColor = Spot::Color::Black,
+                 .additionalTargets = {{.texture = second.get(), .clearColor = Spot::Color::Black}}});
+            quad.Draw(pass, *pipeline);
+        }
+        device.EndFrame();
+        const auto firstPixels = device.DownloadTexture(*first);
+        const auto secondPixels = device.DownloadTexture(*second);
+        REQUIRE(firstPixels.size() == 4 * 4 * 4);
+        CHECK((firstPixels[0] == 255 && firstPixels[1] == 0));
+        CHECK(Read<std::uint16_t>(secondPixels, 0) == ToHalf(0.75f));
     });
 }

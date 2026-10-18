@@ -207,7 +207,9 @@ std::unique_ptr<Pipeline> NvrhiDevice::CreatePipeline(const PipelineDesc& desc) 
         native.addBindingLayout(layout);
     }
     nvrhi::RenderState& state = native.renderState;
-    state.blendState.targets[0] = ToNvrhi(desc.blendMode);
+    for (std::size_t target = 0; target <= desc.additionalTargetFormats.size(); ++target) {
+        state.blendState.targets[target] = ToNvrhi(desc.blendMode);
+    }
     state.rasterState.cullMode = desc.cullMode == CullMode::Back    ? nvrhi::RasterCullMode::Back
                                  : desc.cullMode == CullMode::Front ? nvrhi::RasterCullMode::Front
                                                                     : nvrhi::RasterCullMode::None;
@@ -218,6 +220,9 @@ std::unique_ptr<Pipeline> NvrhiDevice::CreatePipeline(const PipelineDesc& desc) 
     framebuffer.sampleCount = desc.sampleCount;
     if (!desc.depthOnly) {
         framebuffer.addColorFormat(ToNvrhi(desc.targetFormat.value_or(GetWindowFormat())));
+        for (const TextureFormat format : desc.additionalTargetFormats) {
+            framebuffer.addColorFormat(ToNvrhi(format));
+        }
     }
     if (desc.depth) {
         state.depthStencilState.depthTestEnable = desc.depth->test;

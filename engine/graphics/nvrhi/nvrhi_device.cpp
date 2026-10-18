@@ -130,7 +130,7 @@ NvrhiDevice::NvrhiDevice(std::shared_ptr<NvrhiShared> shared)
         query = m_device->createEventQuery();
     }
     m_capabilities.compressedTextures = SupportsSampling(TextureFormat::Bc7);
-    m_capabilities.maxColorTargets = 1;
+    m_capabilities.maxColorTargets = 8;
 }
 
 NvrhiDevice::~NvrhiDevice() {

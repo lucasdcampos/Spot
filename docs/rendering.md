@@ -36,7 +36,9 @@ Each frame, `BeginFrame()` returns a `RenderContext` (null when nothing can be d
 - **Passes** clear or keep their targets, can have a depth target, and with several samples resolve into a single
   sample target (`keepSamples` lets a later pass draw more over the samples). They draw into one face and mip level of
   their target (`targetLayer`, `targetMipLevel`), and `RenderContext::GenerateMipmaps()` makes a render target's
-  levels from its first.
+  levels from its first. A pass draws into several color targets at once (`additionalTargets`, up to
+  `GraphicsCapabilities::maxColorTargets`), as G-buffers need: the fragment shader writes `SV_Target1` and after, and
+  its pipelines list their formats in `PipelineDesc::additionalTargetFormats`.
 - **Cube textures** (`TextureType::Cube`) are six square faces that shaders sample by direction (`TextureCube`), laid
   out as Direct3D, Vulkan and Metal agree (see `TextureType`). Uploads and downloads hold their faces one after the
   other, and downloads can read any mip level.

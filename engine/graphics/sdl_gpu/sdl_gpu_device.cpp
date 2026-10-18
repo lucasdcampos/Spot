@@ -61,7 +61,7 @@ SdlGpuDevice::SdlGpuDevice(std::shared_ptr<SharedGpuDevice> device, SDL_Window* 
     // SDL_GPU has no GPU timers or bindless resources.
     capabilities.compressedTextures = SDL_GPUTextureSupportsFormat(
         shared->Get(), SDL_GPU_TEXTUREFORMAT_BC7_RGBA_UNORM, SDL_GPU_TEXTURETYPE_2D, SDL_GPU_TEXTUREUSAGE_SAMPLER);
-    capabilities.maxColorTargets = 1;
+    capabilities.maxColorTargets = 4;
 }
 
 bool SdlGpuDevice::SupportsSampling(TextureFormat format) const {

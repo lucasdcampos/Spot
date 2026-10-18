@@ -119,6 +119,25 @@ std::unique_ptr<RenderPass::Impl> SdlGpuContext::BeginRenderPass(const RenderPas
         colorTarget.store_op = desc.keepSamples ? SDL_GPU_STOREOP_RESOLVE_AND_STORE : SDL_GPU_STOREOP_RESOLVE;
     }
 
+    // The pass's other color targets, after the first.
+    SDL_GPUColorTargetInfo colorTargets[4] = {colorTarget};
+    for (std::size_t i = 0; i < desc.additionalTargets.size(); ++i) {
+        const ColorTarget& color = desc.additionalTargets[i];
+        SDL_GPUColorTargetInfo& info = colorTargets[i + 1];
+        info.texture = GetSdlTexture(*color.texture);
+        info.layer_or_depth_plane = color.layer;
+        info.mip_level = color.mipLevel;
+        info.load_op = color.clearColor ? SDL_GPU_LOADOP_CLEAR : SDL_GPU_LOADOP_LOAD;
+        if (color.clearColor) {
+            info.clear_color = {color.clearColor->r, color.clearColor->g, color.clearColor->b, color.clearColor->a};
+        }
+        info.store_op = SDL_GPU_STOREOP_STORE;
+        if (color.resolveTarget) {
+            info.resolve_texture = GetSdlTexture(*color.resolveTarget);
+            info.store_op = desc.keepSamples ? SDL_GPU_STOREOP_RESOLVE_AND_STORE : SDL_GPU_STOREOP_RESOLVE;
+        }
+    }
+
     SDL_GPUDepthStencilTargetInfo depth{};
     if (desc.depthTarget) {
         SPOT_ASSERT(desc.depthOnly || (desc.depthTarget->GetWidth() ==
@@ -136,8 +155,9 @@ std::unique_ptr<RenderPass::Impl> SdlGpuContext::BeginRenderPass(const RenderPas
         depth.stencil_store_op = SDL_GPU_STOREOP_DONT_CARE;
     }
 
-    SDL_GPURenderPass* pass = SDL_BeginGPURenderPass(commandBuffer, desc.depthOnly ? nullptr : &colorTarget,
-                                                     desc.depthOnly ? 0 : 1, desc.depthTarget ? &depth : nullptr);
+    const auto colorCount = static_cast<Uint32>(desc.depthOnly ? 0 : 1 + desc.additionalTargets.size());
+    SDL_GPURenderPass* pass = SDL_BeginGPURenderPass(commandBuffer, desc.depthOnly ? nullptr : colorTargets, colorCount,
+                                                     desc.depthTarget ? &depth : nullptr);
     if (!pass) {
         Log::GetEngineLogger().Error("Failed to begin render pass: {}", SDL_GetError());
         return nullptr;

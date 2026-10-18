@@ -58,6 +58,12 @@ public:
             m_context.commandList->resolveTexture(destination, nvrhi::AllSubresources, GetNvrhiTexture(*m_desc.target),
                                                   nvrhi::AllSubresources);
         }
+        for (const ColorTarget& color : m_desc.additionalTargets) {
+            if (color.resolveTarget) {
+                m_context.commandList->resolveTexture(GetNvrhiTexture(*color.resolveTarget), nvrhi::AllSubresources,
+                                                      GetNvrhiTexture(*color.texture), nvrhi::AllSubresources);
+            }
+        }
         m_context.passOpen = false;
     }
 
@@ -308,6 +314,15 @@ std::unique_ptr<RenderPass::Impl> NvrhiContext::BeginRenderPass(const RenderPass
             commandList->clearTextureFloat(color, subresources, nvrhi::Color(clear.r, clear.g, clear.b, clear.a));
         }
         framebuffer.addColorAttachment(color, subresources);
+        for (const ColorTarget& additional : desc.additionalTargets) {
+            nvrhi::ITexture* texture = GetNvrhiTexture(*additional.texture);
+            const nvrhi::TextureSubresourceSet levels(additional.mipLevel, 1, additional.layer, 1);
+            if (additional.clearColor) {
+                const Color& clear = *additional.clearColor;
+                commandList->clearTextureFloat(texture, levels, nvrhi::Color(clear.r, clear.g, clear.b, clear.a));
+            }
+            framebuffer.addColorAttachment(texture, levels);
+        }
         if (desc.target) {
             passWidth = GetLevelSize(desc.target->GetWidth(), desc.targetMipLevel);
             passHeight = GetLevelSize(desc.target->GetHeight(), desc.targetMipLevel);

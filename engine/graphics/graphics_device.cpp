@@ -79,7 +79,7 @@ std::unique_ptr<GraphicsDevice> GraphicsDevice::CreateOffscreen(const GraphicsCo
 }
 
 GraphicsDevice::GraphicsDevice(std::unique_ptr<Impl> impl)
-    : m_impl(std::move(impl)), m_context(new RenderContext(m_impl->GetContext())) {
+    : m_impl(std::move(impl)), m_context(new RenderContext(m_impl->GetContext(), m_impl->GetCapabilities())) {
 }
 
 GraphicsDevice::~GraphicsDevice() = default;
@@ -99,6 +99,11 @@ std::unique_ptr<Pipeline> GraphicsDevice::CreatePipeline(const PipelineDesc& des
                 "A pipeline needs a fragment shader");
     SPOT_ASSERT(desc.depth || !desc.depthOnly, "Depth-only pipelines need a depth state");
     SPOT_ASSERT(!desc.depth || IsDepthFormat(desc.depth->format), "Depth states need a depth format");
+    if (desc.additionalTargetFormats.size() + 1 > GetCapabilities().maxColorTargets) {
+        Log::GetEngineLogger().Error("This device draws into {} color targets at most, not {}",
+                                     GetCapabilities().maxColorTargets, desc.additionalTargetFormats.size() + 1);
+        return nullptr;
+    }
     return m_impl->CreatePipeline(desc);
 }
 
@@ -216,7 +221,8 @@ void* GraphicsDevice::GetNativeHandle() const {
     return m_impl->GetNativeHandle();
 }
 
-RenderContext::RenderContext(Impl& impl) : m_impl(&impl) {
+RenderContext::RenderContext(Impl& impl, const GraphicsCapabilities& capabilities)
+    : m_impl(&impl), m_capabilities(&capabilities) {
 }
 
 RenderContext::~RenderContext() = default;
@@ -252,6 +258,25 @@ RenderPass RenderContext::BeginRenderPass(const RenderPassDesc& desc) {
     SPOT_ASSERT(!desc.depthTarget ||
                     (desc.depthTarget->IsRenderTarget() && IsDepthFormat(desc.depthTarget->GetFormat())),
                 "Depth targets must be depth textures created as render targets");
+    SPOT_ASSERT(desc.additionalTargets.empty() || (desc.target && !desc.depthOnly),
+                "Passes with several color targets name their first");
+    for (const ColorTarget& color : desc.additionalTargets) {
+        SPOT_ASSERT(color.texture && color.texture->IsRenderTarget() && !IsDepthFormat(color.texture->GetFormat()),
+                    "Color targets must be color textures created as render targets");
+        SPOT_ASSERT(std::max(color.texture->GetWidth() >> color.mipLevel, 1u) ==
+                            std::max(desc.target->GetWidth() >> desc.targetMipLevel, 1u) &&
+                        std::max(color.texture->GetHeight() >> color.mipLevel, 1u) ==
+                            std::max(desc.target->GetHeight() >> desc.targetMipLevel, 1u) &&
+                        color.texture->GetSampleCount() == desc.target->GetSampleCount(),
+                    "Color targets must have the size and sample count of the first");
+        SPOT_ASSERT((color.resolveTarget != nullptr) == (color.texture->GetSampleCount() > 1),
+                    "Multisampled color targets must be resolved, and only they can be");
+    }
+    if (desc.additionalTargets.size() + 1 > m_capabilities->maxColorTargets) {
+        Log::GetEngineLogger().Error("This device draws into {} color targets at most, not {}",
+                                     m_capabilities->maxColorTargets, desc.additionalTargets.size() + 1);
+        return RenderPass(nullptr);
+    }
     return RenderPass(m_impl->BeginRenderPass(desc));
 }
 

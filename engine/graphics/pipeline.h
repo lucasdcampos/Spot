@@ -115,6 +115,9 @@ struct PipelineDesc {
     std::optional<DepthState> depth = std::nullopt;
     // The sample count of the targets of the passes it draws in; see TextureDesc::sampleCount.
     std::uint32_t sampleCount = 1;
+    // The formats of the pass's color targets after the first (RenderPassDesc::additionalTargets), which the fragment
+    // shader writes as SV_Target1 and after. Blending applies to each.
+    std::vector<TextureFormat> additionalTargetFormats = {};
 };
 
 class Pipeline {

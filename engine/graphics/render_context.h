@@ -8,12 +8,26 @@
 #include <memory>
 #include <optional>
 #include <type_traits>
+#include <vector>
 
 namespace Spot {
 
 class GraphicsDevice;
 class Pipeline;
+struct GraphicsCapabilities;
 class RenderContext;
+
+// A color target a pass draws into besides its first: a render target texture the size of the first, read by the
+// fragment shader's SV_Target{1 + index} output.
+struct ColorTarget {
+    Texture* texture = nullptr;
+    std::uint32_t layer = 0;
+    std::uint32_t mipLevel = 0;
+    std::optional<Color> clearColor = std::nullopt;
+    // For a multisampled texture, the single-sample render target its samples are averaged into, as
+    // RenderPassDesc::resolveTarget is for the first.
+    Texture* resolveTarget = nullptr;
+};
 
 struct RenderPassDesc {
     // A texture created as a render target, or null to draw into the frame target (window or offscreen texture).
@@ -39,6 +53,10 @@ struct RenderPassDesc {
     // Draws only into the depth target, with no color target, as shadow maps are; target, clearColor and the
     // resolve fields must then be unset. Only pipelines created with PipelineDesc::depthOnly draw in such passes.
     bool depthOnly = false;
+    // More color targets drawn into at once (multiple render targets), as G-buffers are: up to
+    // GraphicsCapabilities::maxColorTargets, the first included. Pipelines drawing in the pass list their formats in
+    // PipelineDesc::additionalTargetFormats.
+    std::vector<ColorTarget> additionalTargets = {};
 };
 
 // The rectangle of the pass's targets that draws are mapped into, in pixels from the top-left corner, and the range
@@ -161,9 +179,10 @@ public:
 private:
     friend class GraphicsDevice;
 
-    explicit RenderContext(Impl& impl);
+    RenderContext(Impl& impl, const GraphicsCapabilities& capabilities);
 
     Impl* m_impl;
+    const GraphicsCapabilities* m_capabilities;
 };
 
 } // namespace Spot
