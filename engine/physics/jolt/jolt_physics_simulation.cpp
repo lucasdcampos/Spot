@@ -88,6 +88,49 @@ PhysicsBodyId PhysicsSimulation::CreateBody(const PhysicsBodyDesc& desc) {
     return FromJolt(body->GetID());
 }
 
+void PhysicsSimulation::UpdateBody(PhysicsBodyId body, const PhysicsBodyDesc& desc) {
+    const JPH::BodyID id = ToJolt(body);
+    JPH::BodyInterface& bodies = m_impl->GetBodies();
+    const bool isStatic = desc.motion == PhysicsMotion::Static;
+    bodies.SetFriction(id, desc.friction);
+    bodies.SetRestitution(id, desc.restitution);
+    bodies.SetObjectLayer(id, ToObjectLayer(desc.layer, !isStatic));
+    if (isStatic) {
+        return;
+    }
+    bodies.SetGravityFactor(id, desc.gravityScale);
+    bodies.SetMotionQuality(id, desc.continuous ? JPH::EMotionQuality::LinearCast : JPH::EMotionQuality::Discrete);
+    {
+        const JPH::BodyLockWrite lock(m_impl->system.GetBodyLockInterface(), id);
+        if (!lock.Succeeded()) {
+            return;
+        }
+        JPH::Body& locked = lock.GetBody();
+        JPH::MotionProperties* motion = locked.GetMotionProperties();
+        motion->SetLinearDamping(desc.linearDamping);
+        motion->SetAngularDamping(desc.angularDamping);
+        locked.SetAllowSleeping(desc.allowSleeping);
+        if (desc.motion == PhysicsMotion::Dynamic) {
+            auto dofs = static_cast<std::uint8_t>(JPH::EAllowedDOFs::All);
+            dofs &= desc.lockRotationX ? ~static_cast<std::uint8_t>(JPH::EAllowedDOFs::RotationX) : 0xff;
+            dofs &= desc.lockRotationY ? ~static_cast<std::uint8_t>(JPH::EAllowedDOFs::RotationY) : 0xff;
+            dofs &= desc.lockRotationZ ? ~static_cast<std::uint8_t>(JPH::EAllowedDOFs::RotationZ) : 0xff;
+            const float mass = std::max(desc.mass, MinShapeSize);
+            JPH::MassProperties properties;
+            if (desc.shapes.empty()) {
+                // As when created: without shapes, the body turns like a ball of size 1.
+                properties.mMass = mass;
+                properties.mInertia = JPH::Mat44::sScale(0.1f * mass);
+            } else {
+                properties = locked.GetShape()->GetMassProperties();
+                properties.ScaleToMass(mass);
+            }
+            motion->SetMassProperties(static_cast<JPH::EAllowedDOFs>(dofs), properties);
+        }
+    }
+    bodies.ActivateBody(id);
+}
+
 void PhysicsSimulation::DestroyBody(PhysicsBodyId body) {
     const JPH::BodyID id = ToJolt(body);
     m_impl->WakeBodiesAround(id);

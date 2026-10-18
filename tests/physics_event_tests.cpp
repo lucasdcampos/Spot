@@ -182,3 +182,31 @@ TEST_CASE("Collision hooks that throw fault only their component", "[physics][ev
     CHECK(throwing.IsFaulted());
     CHECK(recorder.Has("enter Ground"));
 }
+
+TEST_CASE("Changing what a body is made of but its shapes keeps its contacts going", "[physics]") {
+    Scene scene;
+    CreateGround(scene);
+    auto& box = scene.CreateEntity("Box");
+    box.GetTransform().SetPosition({0.0f, 0.6f, 0.0f});
+    auto& collider = box.AddComponent<BoxCollider>(Vector3{1.0f, 1.0f, 1.0f});
+    auto& body = box.AddComponent<Rigidbody>();
+    auto& recorder = box.AddComponent<EventRecorder>();
+    Simulate(scene, 1.0f);
+    REQUIRE(recorder.Count("enter Ground") == 1);
+
+    // Changed in place, the body keeps its contact with the ground and stays where it rests.
+    collider.SetFriction(0.9f);
+    body.SetMass(3.0f);
+    body.SetLinearDamping(0.2f);
+    Simulate(scene, 0.5f);
+    CHECK(recorder.Count("enter Ground") == 1);
+    CHECK_FALSE(recorder.Has("exit Ground"));
+    CHECK(box.GetTransform().GetPosition().y == Approx(0.5f).margin(0.05f));
+    CHECK(scene.GetPhysics().GetBodyCount() == 2);
+
+    // A new shape makes a new body, which rests on the ground as the old one did.
+    collider.SetSize({1.0f, 2.0f, 1.0f});
+    Simulate(scene, 1.0f);
+    CHECK(box.GetTransform().GetPosition().y == Approx(1.0f).margin(0.05f));
+    CHECK(scene.GetPhysics().GetBodyCount() == 2);
+}

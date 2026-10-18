@@ -151,7 +151,10 @@ which colliders and rigidbodies do, so scenes without physics never pay for it. 
 
 It steps on each of the scene's fixed steps, after the components' `OnFixedUpdate()`:
 
-1. Bodies whose colliders or rigidbody changed are rebuilt, in id order, so runs are reproducible.
+1. Bodies whose colliders or rigidbody changed are brought up to date, in id order, so runs are reproducible. A body
+   whose shapes, motion and triggers stay is changed in place (material, layer, mass, damping, gravity, rotation
+   locks, continuous collision, sleeping), keeping its velocity, contacts and joints; a new shape, scale or motion
+   type, or a character controller, rebuilds it.
 2. Bodies follow the entities that something else moved since the last step; kinematic bodies are moved toward their
    entity's pose over the step.
 3. The simulation steps.

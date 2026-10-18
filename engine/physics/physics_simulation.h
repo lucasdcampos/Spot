@@ -98,6 +98,8 @@ struct PhysicsShape {
     // it while the mesh lives.
     std::shared_ptr<const MeshData> mesh = {};
     Vector3 meshScale = {1.0f, 1.0f, 1.0f};
+
+    bool operator==(const PhysicsShape&) const = default;
 };
 
 struct PhysicsBodyDesc {
@@ -228,6 +230,10 @@ public:
     PhysicsBodyId CreateBody(const PhysicsBodyDesc& desc);
     // Bodies resting on a destroyed body wake up, so they fall when it was holding them.
     void DestroyBody(PhysicsBodyId body);
+    // Changes what a body is made of but its shapes, motion and sensing, which only a new body changes: its material,
+    // layer, mass, damping, gravity, rotation locks, sweeping and sleeping. The body keeps its pose, velocity,
+    // contacts and joints.
+    void UpdateBody(PhysicsBodyId body, const PhysicsBodyDesc& desc);
 
     void Step(float deltaTime);
     // Returns PhysicsCharacterId::Invalid, after logging why, when the character cannot be created.

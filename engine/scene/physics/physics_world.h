@@ -123,6 +123,9 @@ private:
         Vector3 position = {};
         Quaternion rotation = {};
         Vector3 scale = {};
+        // What the bodies are made of, which only a new body changes.
+        std::vector<Detail::PhysicsShape> shapes = {};
+        std::vector<Detail::PhysicsShape> sensorShapes = {};
     };
 
     PhysicsWorld();

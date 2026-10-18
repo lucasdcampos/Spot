@@ -152,7 +152,11 @@ void PhysicsWorld::Rebuild(EntityId entityId) {
     Vector3 linearVelocity = {};
     Vector3 angularVelocity = {};
     bool keepVelocity = false;
-    if (const auto found = m_bodies.find(entityId); found != m_bodies.end()) {
+    const auto destroyOld = [&] {
+        const auto found = m_bodies.find(entityId);
+        if (found == m_bodies.end()) {
+            return;
+        }
         // Joints cannot outlive the bodies they hold.
         ReleaseJoints(entityId);
         const Body& old = found->second;
@@ -172,10 +176,11 @@ void PhysicsWorld::Rebuild(EntityId entityId) {
             m_simulation->DestroyCharacter(old.character);
         }
         m_bodies.erase(found);
-    }
+    };
 
     Entity* entity = GetScene().GetEntity(entityId);
     if (!entity || !entity->IsActiveInHierarchy()) {
+        destroyOld();
         return;
     }
 
@@ -214,6 +219,7 @@ void PhysicsWorld::Rebuild(EntityId entityId) {
     }
     const bool solid = !desc.shapes.empty() || rigidbody;
     if (!solid && sensor.shapes.empty() && !controller) {
+        destroyOld();
         return;
     }
 
@@ -239,14 +245,50 @@ void PhysicsWorld::Rebuild(EntityId entityId) {
         desc.lockRotationZ = rigidbody->m_rotationLocks.z;
         desc.continuous = rigidbody->m_continuous;
         desc.allowSleeping = rigidbody->m_canSleep;
+    }
+    sensor.motion = rigidbody ? PhysicsMotion::Kinematic : PhysicsMotion::Static;
+    sensor.position = desc.position;
+    sensor.rotation = desc.rotation;
+    sensor.layer = desc.layer;
+
+    // A body whose shapes, motion and sensing stay is changed in place, keeping its velocity, contacts and joints,
+    // rather than made anew.
+    if (const auto found = m_bodies.find(entityId); found != m_bodies.end()) {
+        Body& old = found->second;
+        const bool sameSolid = (old.id != PhysicsBodyId::Invalid) == solid &&
+                               (!solid || (old.motion == desc.motion && old.shapes == desc.shapes));
+        const bool sameSensor = (old.sensor != PhysicsBodyId::Invalid) == !sensor.shapes.empty() &&
+                                (sensor.shapes.empty() || old.sensorShapes == sensor.shapes);
+        if (sameSolid && sameSensor && old.character == Detail::PhysicsCharacterId::Invalid && !controller) {
+            if (old.id != PhysicsBodyId::Invalid) {
+                m_simulation->UpdateBody(old.id, desc);
+                m_owners[old.id].colliders = std::move(solidColliders);
+            }
+            if (old.sensor != PhysicsBodyId::Invalid) {
+                m_simulation->UpdateBody(old.sensor, sensor);
+                m_owners[old.sensor].colliders = std::move(triggerColliders);
+            }
+            if (rigidbody) {
+                rigidbody->m_linearVelocity = {};
+                rigidbody->m_angularVelocity = {};
+            }
+            return;
+        }
+    }
+    destroyOld();
+    if (rigidbody) {
         desc.linearVelocity = keepVelocity ? linearVelocity : rigidbody->m_linearVelocity;
         desc.angularVelocity = keepVelocity ? angularVelocity : rigidbody->m_angularVelocity;
         rigidbody->m_linearVelocity = {};
         rigidbody->m_angularVelocity = {};
     }
 
-    Body body{
-        .motion = desc.motion, .position = desc.position, .rotation = transform.GetWorldRotation(), .scale = scale};
+    Body body{.motion = desc.motion,
+              .position = desc.position,
+              .rotation = transform.GetWorldRotation(),
+              .scale = scale,
+              .shapes = desc.shapes,
+              .sensorShapes = sensor.shapes};
     if (solid) {
         body.id = GetSimulation().CreateBody(desc);
         if (body.id != PhysicsBodyId::Invalid) {
@@ -255,10 +297,6 @@ void PhysicsWorld::Rebuild(EntityId entityId) {
     }
     if (!sensor.shapes.empty()) {
         // Triggers of moving entities follow them as kinematic bodies, so they sweep through what they pass.
-        sensor.motion = rigidbody ? PhysicsMotion::Kinematic : PhysicsMotion::Static;
-        sensor.position = desc.position;
-        sensor.rotation = desc.rotation;
-        sensor.layer = desc.layer;
         body.sensor = GetSimulation().CreateBody(sensor);
         if (body.sensor != PhysicsBodyId::Invalid) {
             m_owners.emplace(body.sensor, Owner{entityId, true, std::move(triggerColliders)});
