@@ -203,6 +203,7 @@ public:
     ~NvrhiDevice() override;
 
     std::string_view GetBackendName() const override { return "vulkan (nvrhi)"; }
+    const GraphicsCapabilities& GetCapabilities() const override { return m_capabilities; }
     std::unique_ptr<Shader> CreateShader(const ShaderDesc& desc) override;
     std::unique_ptr<Pipeline> CreatePipeline(const PipelineDesc& desc) override;
     std::unique_ptr<Buffer> CreateBuffer(const BufferDesc& desc) override;
@@ -210,10 +211,12 @@ public:
                         UploadMode mode) override;
     std::unique_ptr<Texture> CreateTexture(const TextureDesc& desc) override;
     std::unique_ptr<Sampler> CreateSampler(const SamplerDesc& desc) override;
-    void UploadToTexture(Texture& texture, std::span<const std::byte> pixels) override;
+    void UploadToTexture(Texture& texture, std::uint32_t mipLevel, std::span<const std::byte> pixels,
+                         bool generateMipmaps) override;
     std::vector<std::uint8_t> DownloadTexture(const Texture& texture, std::uint32_t mipLevel) override;
     bool SupportsSampleCount(TextureFormat format, std::uint32_t sampleCount) const override;
     bool SupportsRenderTarget(TextureFormat format) const override;
+    bool SupportsSampling(TextureFormat format) const override;
     TextureFormat GetWindowFormat() const override;
     bool IsVSyncEnabled() const override;
     void SetVSync(bool enabled) override;
@@ -229,6 +232,7 @@ private:
     void RunNow(const std::function<void(nvrhi::ICommandList&)>& record);
 
     std::shared_ptr<NvrhiShared> m_shared;
+    GraphicsCapabilities m_capabilities;
     VulkanSurface* m_vulkan;
     nvrhi::vulkan::IDevice* m_vulkanDevice;
     nvrhi::IDevice* m_device;

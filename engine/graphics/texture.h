@@ -26,6 +26,39 @@ enum class TextureFormat {
     // Unsigned floats packed in 32 bits, 11 bits for red and green and 10 for blue, without alpha: HDR color in half
     // the memory of Rgba16Float. Not every GPU renders into it; see GraphicsDevice::SupportsRenderTarget().
     R11G11B10Float,
+    // Fewer channels, for data rather than colors: masks, coverage, velocities, depths of their own, as G-buffers and
+    // compute passes use. Shaders read the missing channels as 0, and alpha as 1.
+    R8,
+    Rg8,
+    R16Float,
+    Rg16Float,
+    R32Float,
+    Rg32Float,
+    Rgba32Float,
+    // A 32-bit unsigned integer, read in HLSL as Texture2D<uint>; it cannot be filtered or blended, only loaded, and
+    // not every backend samples it (see GraphicsDevice::SupportsSampling()).
+    R32Uint,
+    // 10 bits for each color channel and 2 for alpha, unsigned normalized: more precision than Rgba8 in the same
+    // memory, as normals and HDR-ish targets want.
+    Rgb10A2,
+    // Block-compressed formats, which store 4x4 pixels in 8 or 16 bytes and are decoded by the GPU as it samples, so
+    // textures take four to eight times less memory. They can be sampled, uploaded and downloaded, but not drawn into,
+    // and their mipmaps are uploaded level by level instead of generated. See GraphicsCapabilities::compressedTextures.
+    //   Bc1 (8 bytes):  RGB with 1-bit alpha, for opaque colors
+    //   Bc3 (16 bytes): RGBA, colors with smooth alpha
+    //   Bc4 (8 bytes):  one channel, for masks and heights
+    //   Bc5 (16 bytes): two channels, for normal maps
+    //   Bc6hFloat (16): RGB unsigned half floats, for HDR images such as skies
+    //   Bc7 (16 bytes): RGBA at the best quality, for colors
+    Bc1,
+    Bc1Srgb,
+    Bc3,
+    Bc3Srgb,
+    Bc4,
+    Bc5,
+    Bc6hFloat,
+    Bc7,
+    Bc7Srgb,
 };
 
 constexpr bool IsDepthFormat(TextureFormat format) {
@@ -33,16 +66,64 @@ constexpr bool IsDepthFormat(TextureFormat format) {
 }
 
 constexpr bool IsSrgbFormat(TextureFormat format) {
-    return format == TextureFormat::Rgba8Srgb || format == TextureFormat::Bgra8Srgb;
+    return format == TextureFormat::Rgba8Srgb || format == TextureFormat::Bgra8Srgb ||
+           format == TextureFormat::Bc1Srgb || format == TextureFormat::Bc3Srgb || format == TextureFormat::Bc7Srgb;
 }
 
 constexpr bool IsFloatFormat(TextureFormat format) {
-    return format == TextureFormat::Rgba16Float || format == TextureFormat::R11G11B10Float;
+    switch (format) {
+    case TextureFormat::Rgba16Float:
+    case TextureFormat::R11G11B10Float:
+    case TextureFormat::R16Float:
+    case TextureFormat::Rg16Float:
+    case TextureFormat::R32Float:
+    case TextureFormat::Rg32Float:
+    case TextureFormat::Rgba32Float:
+    case TextureFormat::Bc6hFloat:
+        return true;
+    default:
+        return false;
+    }
 }
 
-// The bytes of one pixel, as uploads and downloads hold them.
+constexpr bool IsCompressedFormat(TextureFormat format) {
+    return format >= TextureFormat::Bc1;
+}
+
+// The bytes of one pixel, as uploads and downloads hold them; for compressed formats, of one 4x4 block.
 constexpr std::uint32_t GetBytesPerPixel(TextureFormat format) {
-    return format == TextureFormat::Rgba16Float ? 8 : 4;
+    switch (format) {
+    case TextureFormat::R8:
+        return 1;
+    case TextureFormat::Rg8:
+    case TextureFormat::R16Float:
+        return 2;
+    case TextureFormat::Rgba16Float:
+    case TextureFormat::Rg32Float:
+    case TextureFormat::Bc1:
+    case TextureFormat::Bc1Srgb:
+    case TextureFormat::Bc4:
+        return 8;
+    case TextureFormat::Rgba32Float:
+    case TextureFormat::Bc3:
+    case TextureFormat::Bc3Srgb:
+    case TextureFormat::Bc5:
+    case TextureFormat::Bc6hFloat:
+    case TextureFormat::Bc7:
+    case TextureFormat::Bc7Srgb:
+        return 16;
+    default:
+        return 4;
+    }
+}
+
+// The bytes of one layer of a width x height image of the format, as uploads and downloads hold it: rows of pixels,
+// or for compressed formats rows of 4x4 blocks, the last ones covering the edges.
+constexpr std::uint32_t GetTextureDataSize(TextureFormat format, std::uint32_t width, std::uint32_t height) {
+    if (IsCompressedFormat(format)) {
+        return ((width + 3) / 4) * ((height + 3) / 4) * GetBytesPerPixel(format);
+    }
+    return width * height * GetBytesPerPixel(format);
 }
 
 enum class TextureType {

@@ -145,8 +145,15 @@ std::uint32_t GetLevelSize(std::uint32_t size, std::uint32_t mipLevel) {
 
 // The bytes of one layer of a mip level.
 std::uint32_t GetLayerDataSize(const Texture& texture, std::uint32_t mipLevel = 0) {
-    return GetLevelSize(texture.GetWidth(), mipLevel) * GetLevelSize(texture.GetHeight(), mipLevel) *
-           GetBytesPerPixel(texture.GetFormat());
+    return GetTextureDataSize(texture.GetFormat(), GetLevelSize(texture.GetWidth(), mipLevel),
+                              GetLevelSize(texture.GetHeight(), mipLevel));
+}
+
+// The size of a copy of a mip level: compressed levels smaller than a block are still copied whole blocks, as
+// Direct3D 12 requires.
+std::uint32_t GetCopySize(TextureFormat format, std::uint32_t size, std::uint32_t mipLevel) {
+    const std::uint32_t level = GetLevelSize(size, mipLevel);
+    return IsCompressedFormat(format) ? (level + 3) / 4 * 4 : level;
 }
 
 std::uint32_t GetPixelDataSize(const Texture& texture, std::uint32_t mipLevel = 0) {
@@ -171,6 +178,42 @@ SDL_GPUTextureFormat ToSdl(TextureFormat format) {
         return SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT;
     case TextureFormat::R11G11B10Float:
         return SDL_GPU_TEXTUREFORMAT_R11G11B10_UFLOAT;
+    case TextureFormat::R8:
+        return SDL_GPU_TEXTUREFORMAT_R8_UNORM;
+    case TextureFormat::Rg8:
+        return SDL_GPU_TEXTUREFORMAT_R8G8_UNORM;
+    case TextureFormat::R16Float:
+        return SDL_GPU_TEXTUREFORMAT_R16_FLOAT;
+    case TextureFormat::Rg16Float:
+        return SDL_GPU_TEXTUREFORMAT_R16G16_FLOAT;
+    case TextureFormat::R32Float:
+        return SDL_GPU_TEXTUREFORMAT_R32_FLOAT;
+    case TextureFormat::Rg32Float:
+        return SDL_GPU_TEXTUREFORMAT_R32G32_FLOAT;
+    case TextureFormat::Rgba32Float:
+        return SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT;
+    case TextureFormat::R32Uint:
+        return SDL_GPU_TEXTUREFORMAT_R32_UINT;
+    case TextureFormat::Rgb10A2:
+        return SDL_GPU_TEXTUREFORMAT_R10G10B10A2_UNORM;
+    case TextureFormat::Bc1:
+        return SDL_GPU_TEXTUREFORMAT_BC1_RGBA_UNORM;
+    case TextureFormat::Bc1Srgb:
+        return SDL_GPU_TEXTUREFORMAT_BC1_RGBA_UNORM_SRGB;
+    case TextureFormat::Bc3:
+        return SDL_GPU_TEXTUREFORMAT_BC3_RGBA_UNORM;
+    case TextureFormat::Bc3Srgb:
+        return SDL_GPU_TEXTUREFORMAT_BC3_RGBA_UNORM_SRGB;
+    case TextureFormat::Bc4:
+        return SDL_GPU_TEXTUREFORMAT_BC4_R_UNORM;
+    case TextureFormat::Bc5:
+        return SDL_GPU_TEXTUREFORMAT_BC5_RG_UNORM;
+    case TextureFormat::Bc6hFloat:
+        return SDL_GPU_TEXTUREFORMAT_BC6H_RGB_UFLOAT;
+    case TextureFormat::Bc7:
+        return SDL_GPU_TEXTUREFORMAT_BC7_RGBA_UNORM;
+    case TextureFormat::Bc7Srgb:
+        return SDL_GPU_TEXTUREFORMAT_BC7_RGBA_UNORM_SRGB;
     }
     return SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
 }
@@ -404,7 +447,7 @@ std::unique_ptr<Texture> SdlGpuDevice::CreateTexture(const TextureDesc& desc) {
     // SDL generates mipmaps by rendering each level from the previous one, so they need a color target.
     if (depth && desc.renderTarget) {
         info.usage |= SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET;
-    } else if (desc.renderTarget || mipLevels > 1) {
+    } else if (desc.renderTarget || (mipLevels > 1 && !IsCompressedFormat(desc.format))) {
         info.usage |= SDL_GPU_TEXTUREUSAGE_COLOR_TARGET;
     }
     info.width = desc.width;
@@ -459,10 +502,8 @@ std::unique_ptr<Sampler> SdlGpuDevice::CreateSampler(const SamplerDesc& desc) {
     return GraphicsAccess::Make<Sampler>(std::move(impl));
 }
 
-void SdlGpuDevice::UploadToTexture(Texture& texture, std::span<const std::byte> pixels) {
-    SPOT_ASSERT(pixels.size() == GetPixelDataSize(texture), "A {}x{} texture takes {} bytes of pixels, not {}",
-                texture.GetWidth(), texture.GetHeight(), GetPixelDataSize(texture), pixels.size());
-
+void SdlGpuDevice::UploadToTexture(Texture& texture, std::uint32_t mipLevel, std::span<const std::byte> pixels,
+                                   bool generateMipmaps) {
     SDL_GPUDevice* device = shared->Get();
     SDL_GPUTransferBufferCreateInfo transferInfo{};
     transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
@@ -482,23 +523,26 @@ void SdlGpuDevice::UploadToTexture(Texture& texture, std::span<const std::byte> 
 
     SDL_GPUTextureRegion destination{};
     destination.texture = static_cast<SDL_GPUTexture*>(texture.GetNativeHandle());
-    destination.w = texture.GetWidth();
-    destination.h = texture.GetHeight();
+    destination.mip_level = mipLevel;
+    destination.w = GetCopySize(texture.GetFormat(), texture.GetWidth(), mipLevel);
+    destination.h = GetCopySize(texture.GetFormat(), texture.GetHeight(), mipLevel);
     destination.d = 1;
+    // Every pixel is replaced when the whole texture is, so draws still reading the old contents can keep them while
+    // this writes new memory. Only the first copy may do that, or it would throw away the layers before it, and only
+    // a texture that has no other levels to keep or regenerates them all.
+    const bool replacesAll = mipLevel == 0 && (texture.GetMipLevelCount() == 1 || generateMipmaps);
     for (std::uint32_t layer = 0; layer < texture.GetLayerCount(); ++layer) {
         SDL_GPUTextureTransferInfo source{};
         source.transfer_buffer = transfer;
-        source.offset = layer * GetLayerDataSize(texture);
-        source.pixels_per_row = texture.GetWidth();
-        source.rows_per_layer = texture.GetHeight();
+        source.offset = layer * GetLayerDataSize(texture, mipLevel);
+        source.pixels_per_row = destination.w;
+        source.rows_per_layer = destination.h;
         destination.layer = layer;
-        // Every pixel is replaced, so draws still reading the old contents can keep them while this writes new
-        // memory. Only the first copy may do that, or it would throw away the layers before it.
-        SDL_UploadToGPUTexture(copyPass, &source, &destination, layer == 0);
+        SDL_UploadToGPUTexture(copyPass, &source, &destination, replacesAll && layer == 0);
     }
 
     SDL_EndGPUCopyPass(copyPass);
-    if (texture.GetMipLevelCount() > 1) {
+    if (generateMipmaps) {
         SDL_GenerateMipmapsForGPUTexture(commandBuffer, destination.texture);
     }
     if (!SDL_SubmitGPUCommandBuffer(commandBuffer)) {
@@ -526,8 +570,8 @@ std::vector<std::uint8_t> SdlGpuDevice::DownloadTexture(const Texture& texture, 
     SDL_GPUTextureRegion source{};
     source.texture = static_cast<SDL_GPUTexture*>(texture.GetNativeHandle());
     source.mip_level = mipLevel;
-    source.w = GetLevelSize(texture.GetWidth(), mipLevel);
-    source.h = GetLevelSize(texture.GetHeight(), mipLevel);
+    source.w = GetCopySize(texture.GetFormat(), texture.GetWidth(), mipLevel);
+    source.h = GetCopySize(texture.GetFormat(), texture.GetHeight(), mipLevel);
     source.d = 1;
     for (std::uint32_t layer = 0; layer < texture.GetLayerCount(); ++layer) {
         source.layer = layer;

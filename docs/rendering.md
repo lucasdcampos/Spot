@@ -42,9 +42,17 @@ Each frame, `BeginFrame()` returns a `RenderContext` (null when nothing can be d
   other, and downloads can read any mip level.
 - **Colors** are linear. The window's format is sRGB, so shaders write linear colors and the window encodes them.
 - **Formats**: 8-bit RGBA and BGRA, sRGB or not; `Rgba16Float` and `R11G11B10Float` for HDR render targets, which
-  hold values above 1 (`SupportsRenderTarget()` tells whether the GPU draws into the packed one); and
-  `Depth32Float`. `GetBytesPerPixel()` gives the size of a pixel as uploads and downloads hold it. Multisampled
-  targets of any color format resolve into single-sample render targets, which later passes sample.
+  hold values above 1 (`SupportsRenderTarget()` tells whether the GPU draws into the packed one); formats of one, two
+  or four channels for data (`R8`, `Rg8`, `R16Float`, `Rg16Float`, `R32Float`, `Rg32Float`, `Rgba32Float`,
+  `R32Uint`, `Rgb10A2`), as G-buffers and compute passes use; and `Depth32Float`. `GetTextureDataSize()` gives the
+  bytes of an image as uploads and downloads hold it. Multisampled targets of any color format resolve into
+  single-sample render targets, which later passes sample.
+- **Compressed textures** (`Bc1` to `Bc7`, where `GraphicsCapabilities::compressedTextures` says so) store 4x4 pixels
+  in 8 or 16 bytes, which the GPU decodes as it samples them. They are never drawn into, so their mipmaps are made
+  beforehand, by the tools, and uploaded level by level with `UploadToTextureLevel()`.
+- **Capabilities**: `GetCapabilities()` tells what the device does beyond what every device does (compressed
+  textures, compute, indirect draws, several color targets, GPU timers, bindless textures); what a device lacks it
+  refuses, after logging why, so code checks first and takes another way.
 
 ### Backends
 

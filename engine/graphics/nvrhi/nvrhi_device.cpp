@@ -37,6 +37,42 @@ nvrhi::Format ToNvrhi(TextureFormat format) {
         return nvrhi::Format::RGBA16_FLOAT;
     case TextureFormat::R11G11B10Float:
         return nvrhi::Format::R11G11B10_FLOAT;
+    case TextureFormat::R8:
+        return nvrhi::Format::R8_UNORM;
+    case TextureFormat::Rg8:
+        return nvrhi::Format::RG8_UNORM;
+    case TextureFormat::R16Float:
+        return nvrhi::Format::R16_FLOAT;
+    case TextureFormat::Rg16Float:
+        return nvrhi::Format::RG16_FLOAT;
+    case TextureFormat::R32Float:
+        return nvrhi::Format::R32_FLOAT;
+    case TextureFormat::Rg32Float:
+        return nvrhi::Format::RG32_FLOAT;
+    case TextureFormat::Rgba32Float:
+        return nvrhi::Format::RGBA32_FLOAT;
+    case TextureFormat::R32Uint:
+        return nvrhi::Format::R32_UINT;
+    case TextureFormat::Rgb10A2:
+        return nvrhi::Format::R10G10B10A2_UNORM;
+    case TextureFormat::Bc1:
+        return nvrhi::Format::BC1_UNORM;
+    case TextureFormat::Bc1Srgb:
+        return nvrhi::Format::BC1_UNORM_SRGB;
+    case TextureFormat::Bc3:
+        return nvrhi::Format::BC3_UNORM;
+    case TextureFormat::Bc3Srgb:
+        return nvrhi::Format::BC3_UNORM_SRGB;
+    case TextureFormat::Bc4:
+        return nvrhi::Format::BC4_UNORM;
+    case TextureFormat::Bc5:
+        return nvrhi::Format::BC5_UNORM;
+    case TextureFormat::Bc6hFloat:
+        return nvrhi::Format::BC6H_UFLOAT;
+    case TextureFormat::Bc7:
+        return nvrhi::Format::BC7_UNORM;
+    case TextureFormat::Bc7Srgb:
+        return nvrhi::Format::BC7_UNORM_SRGB;
     }
     return nvrhi::Format::RGBA8_UNORM;
 }
@@ -93,6 +129,8 @@ NvrhiDevice::NvrhiDevice(std::shared_ptr<NvrhiShared> shared)
     for (auto& query : m_frameQueries) {
         query = m_device->createEventQuery();
     }
+    m_capabilities.compressedTextures = SupportsSampling(TextureFormat::Bc7);
+    m_capabilities.maxColorTargets = 1;
 }
 
 NvrhiDevice::~NvrhiDevice() {
@@ -155,7 +193,7 @@ std::unique_ptr<Texture> NvrhiDevice::CreateTexture(const TextureDesc& desc) {
                        : multisampled ? nvrhi::TextureDimension::Texture2DMS
                                       : nvrhi::TextureDimension::Texture2D;
     // Mipmaps are drawn, each level from the one above.
-    native.isRenderTarget = desc.renderTarget || mipLevels > 1;
+    native.isRenderTarget = desc.renderTarget || (mipLevels > 1 && !IsCompressedFormat(desc.format));
     // NVRHI tracks each texture's state and places the barriers between its uses.
     native.enableAutomaticStateTracking(depth && desc.renderTarget ? nvrhi::ResourceStates::DepthWrite
                                         : desc.renderTarget        ? nvrhi::ResourceStates::RenderTarget
@@ -174,25 +212,28 @@ std::unique_ptr<Texture> NvrhiDevice::CreateTexture(const TextureDesc& desc) {
     return GraphicsAccess::Make<Texture>(std::move(impl));
 }
 
-void NvrhiDevice::UploadToTexture(Texture& texture, std::span<const std::byte> pixels) {
-    const std::uint32_t rowPitch = texture.GetWidth() * GetBytesPerPixel(texture.GetFormat());
-    const std::size_t layerSize = static_cast<std::size_t>(rowPitch) * texture.GetHeight();
-    SPOT_ASSERT(pixels.size() == layerSize * texture.GetLayerCount(),
-                "A {}x{} texture takes {} bytes of pixels, not {}", texture.GetWidth(), texture.GetHeight(),
-                layerSize * texture.GetLayerCount(), pixels.size());
+void NvrhiDevice::UploadToTexture(Texture& texture, std::uint32_t mipLevel, std::span<const std::byte> pixels,
+                                  bool generateMipmaps) {
+    const TextureFormat format = texture.GetFormat();
+    const std::uint32_t width = GetLevelSize(texture.GetWidth(), mipLevel);
+    const std::uint32_t height = GetLevelSize(texture.GetHeight(), mipLevel);
+    // A row of pixels, or of 4x4 blocks for compressed formats.
+    const std::uint32_t rowPitch = GetTextureDataSize(format, width, 1);
+    const std::size_t layerSize = GetTextureDataSize(format, width, height);
     nvrhi::ITexture* native = GetNvrhiTexture(texture);
     RunNow([&](nvrhi::ICommandList& commandList) {
         for (std::uint32_t layer = 0; layer < texture.GetLayerCount(); ++layer) {
-            commandList.writeTexture(native, layer, 0, pixels.data() + layer * layerSize, rowPitch);
+            commandList.writeTexture(native, layer, mipLevel, pixels.data() + layer * layerSize, rowPitch);
         }
-        m_context.RecordMipmaps(commandList, texture);
+        if (generateMipmaps) {
+            m_context.RecordMipmaps(commandList, texture);
+        }
     });
 }
 
 std::vector<std::uint8_t> NvrhiDevice::DownloadTexture(const Texture& texture, std::uint32_t mipLevel) {
     const std::uint32_t width = GetLevelSize(texture.GetWidth(), mipLevel);
     const std::uint32_t height = GetLevelSize(texture.GetHeight(), mipLevel);
-    const std::uint32_t bytesPerPixel = GetBytesPerPixel(texture.GetFormat());
     const std::uint32_t layers = texture.GetLayerCount();
 
     nvrhi::TextureDesc stagingDesc;
@@ -215,8 +256,9 @@ std::vector<std::uint8_t> NvrhiDevice::DownloadTexture(const Texture& texture, s
         }
     });
 
-    std::vector<std::uint8_t> pixels(static_cast<std::size_t>(width) * height * bytesPerPixel * layers);
-    const std::size_t rowSize = static_cast<std::size_t>(width) * bytesPerPixel;
+    const std::size_t rowSize = GetTextureDataSize(texture.GetFormat(), width, 1);
+    const std::uint32_t rows = IsCompressedFormat(texture.GetFormat()) ? (height + 3) / 4 : height;
+    std::vector<std::uint8_t> pixels(rowSize * rows * layers);
     for (std::uint32_t layer = 0; layer < layers; ++layer) {
         std::size_t rowPitch = 0;
         // Mapping waits for the copy to finish.
@@ -226,8 +268,8 @@ std::vector<std::uint8_t> NvrhiDevice::DownloadTexture(const Texture& texture, s
             Log::GetEngineLogger().Error("Failed to read the downloaded texture back");
             return {};
         }
-        std::uint8_t* destination = pixels.data() + static_cast<std::size_t>(layer) * rowSize * height;
-        for (std::uint32_t row = 0; row < height; ++row) {
+        std::uint8_t* destination = pixels.data() + static_cast<std::size_t>(layer) * rowSize * rows;
+        for (std::uint32_t row = 0; row < rows; ++row) {
             std::memcpy(destination + row * rowSize, mapped + row * rowPitch, rowSize);
         }
         m_device->unmapStagingTexture(staging);
@@ -253,6 +295,12 @@ bool NvrhiDevice::SupportsRenderTarget(TextureFormat format) const {
     const nvrhi::FormatSupport needed =
         (IsDepthFormat(format) ? nvrhi::FormatSupport::DepthStencil : nvrhi::FormatSupport::RenderTarget) |
         nvrhi::FormatSupport::ShaderSample;
+    return (support & needed) == needed;
+}
+
+bool NvrhiDevice::SupportsSampling(TextureFormat format) const {
+    const nvrhi::FormatSupport support = m_device->queryFormatSupport(ToNvrhi(format));
+    const nvrhi::FormatSupport needed = nvrhi::FormatSupport::Texture | nvrhi::FormatSupport::ShaderLoad;
     return (support & needed) == needed;
 }
 

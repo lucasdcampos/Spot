@@ -89,6 +89,7 @@ struct GraphicsDevice::Impl {
     virtual ~Impl() = default;
 
     virtual std::string_view GetBackendName() const = 0;
+    virtual const GraphicsCapabilities& GetCapabilities() const = 0;
 
     virtual std::unique_ptr<Shader> CreateShader(const ShaderDesc& desc) = 0;
     virtual std::unique_ptr<Pipeline> CreatePipeline(const PipelineDesc& desc) = 0;
@@ -97,11 +98,14 @@ struct GraphicsDevice::Impl {
                                 UploadMode mode) = 0;
     virtual std::unique_ptr<Texture> CreateTexture(const TextureDesc& desc) = 0;
     virtual std::unique_ptr<Sampler> CreateSampler(const SamplerDesc& desc) = 0;
-    virtual void UploadToTexture(Texture& texture, std::span<const std::byte> pixels) = 0;
+    // Replaces one mip level of every layer, then, when asked, makes the levels after it from it.
+    virtual void UploadToTexture(Texture& texture, std::uint32_t mipLevel, std::span<const std::byte> pixels,
+                                 bool generateMipmaps) = 0;
     virtual std::vector<std::uint8_t> DownloadTexture(const Texture& texture, std::uint32_t mipLevel) = 0;
 
     virtual bool SupportsSampleCount(TextureFormat format, std::uint32_t sampleCount) const = 0;
     virtual bool SupportsRenderTarget(TextureFormat format) const = 0;
+    virtual bool SupportsSampling(TextureFormat format) const = 0;
     virtual TextureFormat GetWindowFormat() const = 0;
     virtual bool IsVSyncEnabled() const = 0;
     virtual void SetVSync(bool enabled) = 0;

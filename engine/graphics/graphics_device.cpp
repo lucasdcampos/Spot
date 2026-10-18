@@ -5,6 +5,7 @@
 #include "core/process.h"
 #include "graphics/graphics_backend.h"
 
+#include <algorithm>
 #include <utility>
 
 namespace Spot {
@@ -115,6 +116,16 @@ void GraphicsDevice::UploadToBuffer(Buffer& buffer, std::span<const std::byte> d
 }
 
 std::unique_ptr<Texture> GraphicsDevice::CreateTexture(const TextureDesc& desc) {
+    if (IsCompressedFormat(desc.format)) {
+        if (desc.renderTarget || desc.sampleCount != 1) {
+            Log::GetEngineLogger().Error("Compressed textures cannot be render targets or multisampled");
+            return nullptr;
+        }
+        if (!SupportsSampling(desc.format)) {
+            Log::GetEngineLogger().Error("This GPU has no compressed texture format {}", static_cast<int>(desc.format));
+            return nullptr;
+        }
+    }
     return m_impl->CreateTexture(desc);
 }
 
@@ -134,7 +145,24 @@ std::unique_ptr<Sampler> GraphicsDevice::CreateSampler(const SamplerDesc& desc) 
 void GraphicsDevice::UploadToTexture(Texture& texture, std::span<const std::byte> pixels) {
     SPOT_ASSERT(!IsDepthFormat(texture.GetFormat()), "Depth textures cannot be uploaded to");
     SPOT_ASSERT(texture.GetSampleCount() == 1, "Multisampled textures cannot be uploaded to");
-    m_impl->UploadToTexture(texture, pixels);
+    const std::uint32_t size =
+        GetTextureDataSize(texture.GetFormat(), texture.GetWidth(), texture.GetHeight()) * texture.GetLayerCount();
+    SPOT_ASSERT(pixels.size() == size, "A {}x{} texture takes {} bytes of pixels, not {}", texture.GetWidth(),
+                texture.GetHeight(), size, pixels.size());
+    m_impl->UploadToTexture(texture, 0, pixels,
+                            texture.GetMipLevelCount() > 1 && !IsCompressedFormat(texture.GetFormat()));
+}
+
+void GraphicsDevice::UploadToTextureLevel(Texture& texture, std::uint32_t mipLevel, std::span<const std::byte> pixels) {
+    SPOT_ASSERT(!IsDepthFormat(texture.GetFormat()), "Depth textures cannot be uploaded to");
+    SPOT_ASSERT(texture.GetSampleCount() == 1, "Multisampled textures cannot be uploaded to");
+    SPOT_ASSERT(mipLevel < texture.GetMipLevelCount(), "The texture has no mip level {}", mipLevel);
+    const std::uint32_t width = std::max(texture.GetWidth() >> mipLevel, 1u);
+    const std::uint32_t height = std::max(texture.GetHeight() >> mipLevel, 1u);
+    const std::uint32_t size = GetTextureDataSize(texture.GetFormat(), width, height) * texture.GetLayerCount();
+    SPOT_ASSERT(pixels.size() == size, "Mip level {} of the texture takes {} bytes, not {}", mipLevel, size,
+                pixels.size());
+    m_impl->UploadToTexture(texture, mipLevel, pixels, false);
 }
 
 std::vector<std::uint8_t> GraphicsDevice::DownloadTexture(const Texture& texture, std::uint32_t mipLevel) {
@@ -149,7 +177,15 @@ bool GraphicsDevice::SupportsSampleCount(TextureFormat format, std::uint32_t sam
 }
 
 bool GraphicsDevice::SupportsRenderTarget(TextureFormat format) const {
-    return m_impl->SupportsRenderTarget(format);
+    return !IsCompressedFormat(format) && m_impl->SupportsRenderTarget(format);
+}
+
+bool GraphicsDevice::SupportsSampling(TextureFormat format) const {
+    return (!IsCompressedFormat(format) || GetCapabilities().compressedTextures) && m_impl->SupportsSampling(format);
+}
+
+const GraphicsCapabilities& GraphicsDevice::GetCapabilities() const {
+    return m_impl->GetCapabilities();
 }
 
 TextureFormat GraphicsDevice::GetWindowFormat() const {

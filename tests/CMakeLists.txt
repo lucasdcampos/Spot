@@ -161,6 +161,7 @@ add_executable(spot_gpu_tests
     gpu_tests.cpp
     custom_loop_tests.cpp
     vulkan_backend_tests.cpp
+    rhi_tests.cpp
     rendering_application.h
 )
 

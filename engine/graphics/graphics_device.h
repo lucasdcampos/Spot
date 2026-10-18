@@ -46,6 +46,24 @@ struct GraphicsConfig {
 #endif
 };
 
+// What the device's backend and GPU can do beyond what every device does. Features a device lacks are refused, after
+// logging why, so code that uses them checks here first and takes another way.
+struct GraphicsCapabilities {
+    // Block-compressed texture formats (TextureFormat::Bc1 and after), which desktop GPUs have.
+    bool compressedTextures = false;
+    // Compute shaders, pipelines and passes (RenderContext::BeginComputePass()).
+    bool compute = false;
+    // Draws whose arguments a buffer holds (RenderPass::DrawIndirect()), and how many one call may draw.
+    bool indirectDraws = false;
+    std::uint32_t maxIndirectDrawCount = 0;
+    // How many color targets a pass draws into at once (RenderPassDesc::additionalTargets), 1 without MRT.
+    std::uint32_t maxColorTargets = 1;
+    // GPU timers around parts of a frame (RenderContext::BeginGpuTimer()).
+    bool timestamps = false;
+    // Texture tables shaders index freely (TextureTable).
+    bool bindlessTextures = false;
+};
+
 class GraphicsDevice {
 public:
     // Whether this machine has a GPU and driver the backend can use.
@@ -63,6 +81,7 @@ public:
 
     // The graphics API in use, such as "vulkan", "direct3d12" or "metal".
     std::string_view GetBackendName() const;
+    const GraphicsCapabilities& GetCapabilities() const;
 
     // Resources may outlive the device; they keep the backend alive until they are destroyed.
     // Each returns null, after logging why, when the backend rejects the description.
@@ -102,20 +121,33 @@ public:
 
     // Whether render targets of this format can have this many samples; 1 always can.
     bool SupportsSampleCount(TextureFormat format, std::uint32_t sampleCount) const;
-    // Whether textures of this format can be drawn into and sampled. Every format but R11G11B10Float always can.
+    // Whether textures of this format can be drawn into and sampled. Every uncompressed color format but
+    // R11G11B10Float, Rg32Float, Rgba32Float and R32Uint always can; compressed ones never can.
     bool SupportsRenderTarget(TextureFormat format) const;
+    // Whether textures of this format can be made and sampled at all: every format but the compressed ones and
+    // R32Uint always can.
+    bool SupportsSampling(TextureFormat format) const;
     // The format of the window's frames, which textures resolved into the window must have. It is sRGB where the GPU
     // supports it, as it nearly always does, so shaders write linear colors and the window shows them right, unless
     // GraphicsConfig::linearWindow is off.
     TextureFormat GetWindowFormat() const;
 
-    // Replaces all of the texture's pixels: width * height * GetBytesPerPixel() bytes, rows from top to bottom, for
-    // each of its layers in turn (the six faces of a cube). Like buffer uploads, it can be called at any time.
+    // Replaces all of the texture's pixels: GetTextureDataSize() bytes, rows from top to bottom, for each of its layers
+    // in turn (the six faces of a cube), and makes its other mip levels from them. Compressed textures have their
+    // levels made beforehand instead, and uploaded with UploadToTextureLevel(). Like buffer uploads, it can be called
+    // at any time.
     void UploadToTexture(Texture& texture, std::span<const std::byte> pixels);
+    // Replaces the pixels of one mip level, of every layer in turn, leaving the other levels as they are.
+    void UploadToTextureLevel(Texture& texture, std::uint32_t mipLevel, std::span<const std::byte> pixels);
 
     template <std::ranges::contiguous_range Data>
     void UploadToTexture(Texture& texture, const Data& pixels) {
         UploadToTexture(texture, std::span<const std::byte>(std::as_bytes(std::span(pixels))));
+    }
+
+    template <std::ranges::contiguous_range Data>
+    void UploadToTextureLevel(Texture& texture, std::uint32_t mipLevel, const Data& pixels) {
+        UploadToTextureLevel(texture, mipLevel, std::span<const std::byte>(std::as_bytes(std::span(pixels))));
     }
 
     // Reads the pixels of a mip level of the texture back, rows from top to bottom, for each of its layers in turn. It
