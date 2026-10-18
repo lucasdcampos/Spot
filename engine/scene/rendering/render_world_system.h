@@ -1,15 +1,20 @@
 #pragma once
 
 #include "graphics/render_world.h"
+#include "scene/entity.h"
 #include "scene/scene_system.h"
 
 #include <cstdint>
+#include <vector>
 
 namespace Spot {
 
-// The scene's MeshRenderers as a RenderWorld, which DrawScene() draws. Sync() takes from each renderer only what
-// changed since the last call, as their transforms' and their own versions tell, and removes the objects of renderers
-// that are gone or no longer active; it is created the first time the scene is drawn.
+class MeshRenderer;
+
+// The scene's MeshRenderers as a RenderWorld, which DrawScene() draws; it is created the first time the scene is
+// drawn. Sync() visits only the entities that moved or whose renderers changed (Scene::TakeChangedEntities()), and
+// every renderer only when what the scene holds changed (Scene::GetStructureVersion()), when it also removes the
+// objects of renderers that are gone or no longer active.
 class RenderWorldSystem final : public SceneSystem {
 public:
     RenderWorldSystem() = default;
@@ -19,7 +24,12 @@ public:
     const RenderWorld& GetWorld() const { return m_world; }
 
 private:
+    void SyncRenderer(MeshRenderer& renderer);
+
     RenderWorld m_world;
+    std::uint64_t m_structureVersion = 0;
+    bool m_synced = false;
+    std::vector<EntityId> m_changed;
 };
 
 } // namespace Spot

@@ -217,6 +217,17 @@ public:
     // drawing it; the application does for its scenes.
     void PrepareToRender();
 
+    // Changes whenever what ForEachComponent() gives may have: entities or components added, removed, enabled or
+    // activated, entities moved in the hierarchy or to another layer. Systems that mirror components elsewhere, such
+    // as the render world, go through all of them again only then.
+    std::uint64_t GetStructureVersion() const { return m_structureVersion; }
+    // Starts recording the entities that move, and those whose components tell they changed, for
+    // TakeChangedEntities(). Recording costs nothing until something calls this.
+    void TrackChanges();
+    // Moves the entities recorded since the last call into entities, once or more each. False when more changed than
+    // the scene kept, so the caller goes through every entity instead.
+    bool TakeChangedEntities(std::vector<EntityId>& entities);
+
     // Calls OnDrawUi() for every active component, in the order Update() goes, to draw what goes over the view of
     // the scene, such as a HUD. Whatever shows the scene calls it once the scene is drawn, with the renderer begun
     // with ScreenCamera() for a view of the size:
@@ -322,12 +333,20 @@ private:
     friend class Application;
     friend class Component;
     friend class Entity;
+    friend class Transform;
     friend class Detail::DeferRemovalsScope;
     friend struct Detail::SceneSerializer;
 
     // Whether the slot holds an entity that is not destroyed. Slots are empty after their entity moved to another
     // scene, until removals are processed.
     static bool IsAlive(const std::unique_ptr<Entity>& entity);
+    void MarkEntityChanged(const Entity& entity);
+    void MarkStructureChanged() { ++m_structureVersion; }
+
+    std::uint64_t m_structureVersion = 0;
+    bool m_trackingChanges = false;
+    bool m_changesOverflowed = false;
+    std::vector<EntityId> m_changedEntities;
     // Whether ForEachComponent() gives the component: enabled, not removed, on a live entity active in the hierarchy.
     static bool IsIncluded(const Component& component);
     // What each stage of an update visits, so a stage only goes through the components it concerns rather than every

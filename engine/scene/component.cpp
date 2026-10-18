@@ -101,12 +101,19 @@ Scene& Component::GetScene() const {
     return m_entity->GetScene();
 }
 
+void Component::MarkChanged() {
+    if (m_entity) {
+        m_entity->GetScene().MarkEntityChanged(*m_entity);
+    }
+}
+
 void Component::SetEnabled(bool enabled) {
     if (m_enabled == enabled) {
         return;
     }
     m_enabled = enabled;
     if (m_entity) {
+        m_entity->GetScene().MarkStructureChanged();
         const Detail::DeferRemovalsScope defer(m_entity->GetScene());
         RefreshActivity();
     }
@@ -152,6 +159,9 @@ void Component::Fault(std::string_view hook, const std::exception_ptr& error) {
     Log::GetEngineLogger().Error("{} on {} threw in {}(): {}. It is disabled until the scene is reloaded.", type, where,
                                  hook, Detail::DescribeException(error));
     m_faulted = true;
+    if (m_entity) {
+        m_entity->GetScene().MarkStructureChanged();
+    }
     CancelInvokes();
     CancelCoroutines();
     if (m_entity) {

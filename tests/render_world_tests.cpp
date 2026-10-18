@@ -59,6 +59,17 @@ TEST_CASE("The scene's render world follows its mesh renderers", "[render_world]
         CHECK(lid.GetTransform().GetWorldPosition().y == 5.0f);
     }
 
+    SECTION("Changes to the renderer alone reach the world, through the scene's record of changes") {
+        const auto version = scene.GetStructureVersion();
+        barrelRenderer.SetCastingShadows(false);
+        CHECK(scene.GetStructureVersion() == version);
+        int changed = 0;
+        for (const auto& object : system.Sync().GetMeshes()) {
+            changed += !object.desc.castsShadows;
+        }
+        CHECK(changed == 1);
+    }
+
     SECTION("Changes to the renderer and its entity reach the world") {
         barrelRenderer.SetCastingShadows(false);
         barrel.SetLayer(7);

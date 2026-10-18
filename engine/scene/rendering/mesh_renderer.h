@@ -39,6 +39,7 @@ public:
     void SetMesh(AssetRef<Mesh> mesh) {
         m_mesh = std::move(mesh);
         ++m_version;
+        MarkChanged();
     }
 
     // Without a material, the mesh is drawn plain white.
@@ -46,11 +47,13 @@ public:
     void SetMaterial(AssetRef<Material> material) {
         m_material = std::move(material);
         ++m_version;
+        MarkChanged();
     }
     // A material of the renderer's own, saved inline rather than as a material asset reference.
     void SetMaterial(Material material) {
         m_material = std::make_shared<const Material>(std::move(material));
         ++m_version;
+        MarkChanged();
     }
 
     // The index of the mesh's submesh it draws, or Mesh::AllSubmeshes for all of it, as models' parts each draw one.
@@ -58,6 +61,7 @@ public:
     void SetSubmesh(std::uint32_t submesh) {
         m_submesh = submesh;
         ++m_version;
+        MarkChanged();
     }
 
     // Whether the mesh blocks lights that cast shadows, which it does unless told not to. It is lit and shadowed
@@ -66,6 +70,7 @@ public:
     void SetCastingShadows(bool castingShadows) {
         m_castingShadows = castingShadows;
         ++m_version;
+        MarkChanged();
     }
 
 protected:

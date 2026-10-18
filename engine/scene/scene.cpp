@@ -162,12 +162,42 @@ Entity& Scene::CreateEntityWithId(EntityId id, std::string name) {
     return *m_entities.back();
 }
 
+void Scene::TrackChanges() {
+    if (!m_trackingChanges) {
+        m_trackingChanges = true;
+        m_changesOverflowed = true;
+    }
+}
+
+bool Scene::TakeChangedEntities(std::vector<EntityId>& entities) {
+    const bool complete = !m_changesOverflowed;
+    entities.insert(entities.end(), m_changedEntities.begin(), m_changedEntities.end());
+    m_changedEntities.clear();
+    m_changesOverflowed = false;
+    return complete;
+}
+
+void Scene::MarkEntityChanged(const Entity& entity) {
+    if (!m_trackingChanges || m_changesOverflowed) {
+        return;
+    }
+    // Past as many as there are entities, going through them all is no slower, and the record stays bounded when
+    // nothing takes it.
+    if (m_changedEntities.size() >= std::max<std::size_t>(m_entities.size(), 1024)) {
+        m_changesOverflowed = true;
+        m_changedEntities.clear();
+        return;
+    }
+    m_changedEntities.push_back(entity.GetId());
+}
+
 void Scene::DestroyEntity(Entity& entity) {
     SPOT_ASSERT(entity.m_scene == this, "The entity belongs to another scene");
     if (entity.m_destroyed) {
         return;
     }
     const Detail::DeferRemovalsScope defer(*this);
+    MarkStructureChanged();
     entity.MarkDestroyed();
     entity.RefreshActivity();
 }
@@ -428,6 +458,7 @@ void Scene::ListComponent(Component& component) {
     if (component.m_listed) {
         return;
     }
+    MarkStructureChanged();
     if (component.m_typeIndex >= m_componentsByType.size()) {
         m_componentsByType.resize(component.m_typeIndex + 1);
     }
@@ -458,6 +489,7 @@ void Scene::UnlistComponent(Component& component) {
     if (!component.m_listed) {
         return;
     }
+    MarkStructureChanged();
     TypeList& list = m_componentsByType[component.m_typeIndex];
     list.components[component.m_typeSlot] = nullptr;
     ++list.emptySlots;

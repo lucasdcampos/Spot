@@ -3,7 +3,7 @@
 // and prints how long they took. Run its Release build when rendering changes, and compare with the times in
 // ROADMAP.md's M7 notes:
 //
-//     spot_benchmark [--frames <count>] [--warmup <count>]
+//     spot_benchmark [--frames <count>] [--warmup <count>] [--grid <meshes on a side, 100 by default>]
 //
 // It can time a project's scene instead, from its imported assets, with lamps added over it, as many as asked:
 //
@@ -26,7 +26,6 @@
 
 namespace {
 
-constexpr int GridSize = 100;
 constexpr float Spacing = 2.0f;
 constexpr int LightCount = 200;
 
@@ -36,6 +35,8 @@ struct Options {
     std::filesystem::path scene;
     std::filesystem::path assets;
     int lamps = 48;
+    // The meshes are a grid this many on a side.
+    int grid = 100;
 };
 
 class Benchmark final : public Spot::Application {
@@ -72,6 +73,8 @@ protected:
                                .metallic = i >= 6 ? 1.0f : 0.0f,
                                .roughness = 0.2f + 0.1f * static_cast<float>(i)}));
         }
+        const int GridSize = m_options.grid;
+        m_meshCount = GridSize * GridSize;
         auto& ground = scene.CreateEntity("Ground");
         ground.GetTransform().SetScale({GridSize * Spacing * 1.2f, 1.0f, GridSize * Spacing * 1.2f});
         ground.AddComponent<Spot::MeshRenderer>(floor, Spot::Material{.baseColor = {0.4f, 0.4f, 0.42f, 1.0f}});
@@ -216,7 +219,7 @@ private:
     Options m_options;
     float m_orbitRadius = 90.0f;
     float m_orbitHeight = 30.0f;
-    int m_meshCount = GridSize * GridSize;
+    int m_meshCount = 0;
     int m_lightCount = LightCount;
     int m_frame = 0;
     int m_result = EXIT_FAILURE;
@@ -239,6 +242,8 @@ int main(int argc, char** argv) {
             options.scene = argv[++i];
         } else if (argument == "--assets") {
             options.assets = argv[++i];
+        } else if (argument == "--grid") {
+            options.grid = std::max(std::atoi(argv[++i]), 1);
         } else if (argument == "--lamps") {
             options.lamps = std::max(std::atoi(argv[++i]), 0);
         }

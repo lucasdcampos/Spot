@@ -152,6 +152,9 @@ protected:
     // Called after fields were loaded or changed by tools rather than through the component's own functions, so it
     // can bring what depends on them up to date.
     virtual void OnValidate() {}
+    // Tells systems that mirror the component elsewhere, such as the render world, that it changed (see
+    // Scene::TakeChangedEntities()).
+    void MarkChanged();
 
 private:
     friend class Entity;

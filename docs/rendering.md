@@ -252,7 +252,10 @@ lets go of worlds it has not drawn for 120 frames. A batch the CPU keeps counts 
 Scenes keep theirs in a `RenderWorldSystem` (`engine/scene/rendering/render_world_system.h`), which `DrawScene()`
 creates and syncs: it visits the scene's `MeshRenderer`s, and takes from each only what changed since the last sync,
 as `Transform::GetVersion()` (which changes when the transform or an ancestor moves) and the renderer's own changes
-tell, then removes the objects of renderers that went away or were disabled. Graphics never sees the scene.
+tell, then removes the objects of renderers that went away or were disabled. That full visit only happens when what
+the scene holds changed (`Scene::GetStructureVersion()`); otherwise it visits only the entities the scene recorded as
+moved or changed (`Scene::TakeChangedEntities()`, fed by transforms and `Component::MarkChanged()`), so a large world
+that mostly stands still costs next to nothing. Graphics never sees the scene.
 
 ### SceneRenderer
 
@@ -391,7 +394,7 @@ with the times recorded in the M7 notes of `ROADMAP.md`:
 
 ```sh
 cmake --build --preset msvc-release --target spot_benchmark
-./build/msvc/tests/Release/spot_benchmark      # --frames <count> --warmup <count>
+./build/msvc/tests/Release/spot_benchmark      # --frames <count> --warmup <count> --grid <meshes on a side>
 ```
 
 With `--scene <file> --assets <imported folder>`, it times a project's scene instead, its cameras off, with

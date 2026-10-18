@@ -38,6 +38,7 @@ void Entity::SetLayer(int layer) {
         return;
     }
     m_layer = static_cast<std::uint8_t>(layer);
+    m_scene->MarkStructureChanged();
     // Its body, if any, moves to the layer.
     if (PhysicsWorld* physics = m_scene->GetSystem<PhysicsWorld>()) {
         physics->MarkChanged(m_id);
@@ -49,6 +50,7 @@ void Entity::SetActive(bool active) {
         return;
     }
     m_activeSelf = active;
+    m_scene->MarkStructureChanged();
     const Detail::DeferRemovalsScope defer(*m_scene);
     RefreshActivity();
 }
@@ -78,6 +80,7 @@ void Entity::SetParent(Entity* parent, bool keepWorldPose) {
 
     std::erase(GetSiblings(), this);
     m_parent = parent;
+    m_scene->MarkStructureChanged();
     GetSiblings().push_back(this);
 
     m_transform.MarkWorldDirty();
@@ -200,6 +203,7 @@ void Entity::RemoveComponent(Component& component) {
         return;
     }
     const Detail::DeferRemovalsScope defer(*m_scene);
+    m_scene->MarkStructureChanged();
     component.m_removed = true;
     m_scene->AddRemovalCandidate(*this);
     // Validation and queries can create a body before OnStart(), so removal cannot rely only on OnDisable().

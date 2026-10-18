@@ -1,6 +1,7 @@
 #include "scene/transform.h"
 
 #include "scene/entity.h"
+#include "scene/scene.h"
 
 namespace Spot {
 
@@ -88,6 +89,7 @@ void Transform::MarkWorldDirty() {
     }
     m_worldDirty = true;
     ++m_version;
+    m_entity.GetScene().MarkEntityChanged(m_entity);
     for (Entity* child : m_entity.m_children) {
         child->m_transform.MarkWorldDirty();
     }
