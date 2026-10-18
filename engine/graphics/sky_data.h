@@ -79,8 +79,8 @@ struct SkyData {
     // Whether the sun casts shadows when it lights the scene; see LightData::castsShadows.
     bool sunCastsShadows = true;
     // Drawn only, without changing how the sky lights the scene.
-    SkyClouds clouds;
-    SkyNight night;
+    SkyClouds clouds = {};
+    SkyNight night = {};
 
     bool operator==(const SkyData&) const = default;
 };
