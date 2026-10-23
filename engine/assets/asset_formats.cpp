@@ -226,6 +226,7 @@ void Encode(BinaryWriter& writer, const MaterialSource& material) {
     writer.Write(material.alphaCutoff);
     writer.Write(static_cast<std::uint8_t>(material.doubleSided));
     writer.Write(material.worldTextureSize);
+    writer.Write(static_cast<std::uint8_t>(material.nearestFiltering));
 }
 
 std::optional<MaterialSource> DecodeMaterial(std::span<const std::byte> data) {
@@ -250,6 +251,7 @@ std::optional<MaterialSource> DecodeMaterial(std::span<const std::byte> data) {
     material.alphaCutoff = reader.Read<float>();
     material.doubleSided = reader.Read<std::uint8_t>() != 0;
     material.worldTextureSize = reader.Read<float>();
+    material.nearestFiltering = reader.Read<std::uint8_t>() != 0;
     return Finish(reader, material);
 }
 

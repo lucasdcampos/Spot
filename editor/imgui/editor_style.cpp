@@ -15,6 +15,7 @@ namespace Spot::Editor {
 namespace {
 
 ImFont* s_boldFont = nullptr;
+ImFont* s_codeFont = nullptr;
 
 ImFont* AddFont(std::span<const std::uint8_t> data, const char* name) {
     ImGuiIO& io = ImGui::GetIO();
@@ -127,10 +128,15 @@ void LoadEditorFonts() {
     ImGui::GetIO().Fonts->Clear();
     AddFont(Resources::InterRegularTtf, "Inter Regular");
     s_boldFont = AddFont(Resources::InterSemiboldTtf, "Inter SemiBold");
+    s_codeFont = ImGui::GetIO().Fonts->AddFontDefaultVector();
 }
 
 ImFont* GetBoldFont() {
     return s_boldFont;
+}
+
+ImFont* GetCodeFont() {
+    return ImGui::GetIO().Fonts->Fonts.contains(s_codeFont) ? s_codeFont : nullptr;
 }
 
 void ApplyEditorStyle(float contentScale) {

@@ -1,10 +1,12 @@
 #include "panels/asset_browser_panel.h"
+#include "panels/code_editor_panel.h"
 
 #include <spot_tools.h>
 
 #include "assets/asset_list.h"
 #include "assets/plain_files.h"
 #include "assets/thumbnail_cache.h"
+#include "code/vice_editor.h"
 #include "core/editor_log.h"
 #include "imgui/asset_icons.h"
 #include "imgui/drag_payloads.h"
@@ -24,6 +26,7 @@
 #include <cmath>
 #include <format>
 #include <fstream>
+#include <iterator>
 #include <system_error>
 
 namespace Spot::Editor {
@@ -40,7 +43,7 @@ constexpr float CaptionScale = 0.85f;
 constexpr double CodeListInterval = 1.0;
 
 const std::array ImportFilters{
-    FileFilter{"Assets", "png;jpg;jpeg;bmp;tga;gltf;glb;bin;wav;ogg;ttf;otf;material;scene;prefab"},
+    FileFilter{"Assets", "png;jpg;jpeg;bmp;tga;gltf;glb;bin;wav;ogg;ttf;otf;material;scene;prefab;vice;lua"},
     FileFilter{"All files", "*"},
 };
 
@@ -322,6 +325,8 @@ void AssetBrowserPanel::DrawCreateItems(EditorProject& project) {
         ImGui::Separator();
         item(ICON_FA_MOUNTAIN_SUN, "Scene", NewAsset::Scene);
         item(ICON_FA_PALETTE, "Material", NewAsset::Material);
+        item(ICON_FA_FILE_CODE, "ViceScript", NewAsset::ViceScript);
+        item(ICON_FA_FILE_CODE, "Lua Script", NewAsset::LuaScript);
         ImGui::BeginDisabled(project.GetAssets().GetAssetIds(AssetType::AnimationClip).empty());
         item(ICON_FA_CUBES, "Animator Controller", NewAsset::AnimatorController);
         ImGui::EndDisabled();
@@ -610,7 +615,7 @@ void AssetBrowserPanel::DrawTile(EditorProject& project, const BrowserItem& item
         } else if (code) {
             AssetIcons::DrawFile(drawList, corner, side, item.name);
         } else {
-            AssetIcons::DrawAsset(drawList, corner, side, item.type);
+            AssetIcons::DrawAsset(drawList, corner, side, item.type, item.path);
         }
     }
 
@@ -638,7 +643,7 @@ void AssetBrowserPanel::DrawTile(EditorProject& project, const BrowserItem& item
         // Under the icon, a line in the type's color, fading out toward the sides, and a caption naming the type
         // tell assets apart even when their pictures look alike, such as a material and a sphere mesh.
         const ImVec4 color =
-            code ? AssetIcons::GetFileColor(GetFileKind(item.name)) : AssetIcons::GetTypeColor(item.type);
+            code ? AssetIcons::GetFileColor(GetFileKind(item.name)) : AssetIcons::GetTypeColor(item.type, item.path);
         const ImU32 on = ImGui::GetColorU32(ImVec4(color.x, color.y, color.z, 0.9f));
         const ImU32 off = ImGui::GetColorU32(ImVec4(color.x, color.y, color.z, 0.0f));
         const float lineTop = min.y + size;
@@ -1056,6 +1061,12 @@ void AssetBrowserPanel::Open(EditorProject& project, const BrowserItem& item) {
         }
         return;
     }
+    if (item.root == BrowserRoot::Assets && item.type == AssetType::Script) {
+        if (CodeEditorPanel* editor = m_context.GetCodeEditor()) {
+            editor->OpenScript(item.id);
+            return;
+        }
+    }
     if (item.hasSubAssets) {
         if (!m_expanded.erase(item.id)) {
             m_expanded.insert(item.id);
@@ -1109,9 +1120,27 @@ void AssetBrowserPanel::CommitRename(EditorProject& project) {
     }
     const BrowserRoot root = item->root;
     const std::string from = item->path;
+    const EditorScriptLanguage* scriptLanguage = nullptr;
+    if (root == BrowserRoot::Assets && !item->folder && item->type == AssetType::Script) {
+        if (const EditorScriptLanguage* language = FindEditorScriptLanguage(from); language && language->makeTemplate) {
+            std::ifstream file(directory / Utf8ToPath(from), std::ios::binary);
+            const std::string source{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+            // Keep the generated header in sync while the template is untouched, preserving any user-written code.
+            if (source == language->makeTemplate(GetFileName(from))) {
+                scriptLanguage = language;
+            }
+        }
+    }
     m_renaming.clear();
     m_renameError.reset();
     if (WithFiles(project, root, [&](auto& files) { return files.Move(from, path); })) {
+        if (scriptLanguage) {
+            std::ofstream file(directory / Utf8ToPath(path), std::ios::binary);
+            file << scriptLanguage->makeTemplate(name);
+            if (!file) {
+                GetEditorLogger().Error("Could not update the script header in '{}'", path);
+            }
+        }
         AfterChange(project, {{root, path}});
     }
 }
@@ -1181,6 +1210,20 @@ void AssetBrowserPanel::Create(EditorProject& project, NewAsset kind) {
         path = project.GetAssetDatabase().GetFreePath(JoinPath(m_folder, "New Material.material"));
         created = MaterialSource{}.SaveToFile(assets / Utf8ToPath(path));
         break;
+    case NewAsset::ViceScript:
+    case NewAsset::LuaScript: {
+        const std::string_view defaultFile =
+            kind == NewAsset::LuaScript ? std::string_view("New Script.lua") : std::string_view("New Script.vice");
+        const EditorScriptLanguage* language = FindEditorScriptLanguage(defaultFile);
+        if (!language || !language->makeTemplate) {
+            return;
+        }
+        path = project.GetAssetDatabase().GetFreePath(JoinPath(m_folder, std::string(language->defaultFileName)));
+        std::ofstream file(assets / Utf8ToPath(path), std::ios::binary);
+        file << language->makeTemplate(GetFileName(path));
+        created = static_cast<bool>(file);
+        break;
+    }
     }
     if (!created) {
         GetEditorLogger().Error("Could not create '{}'", path);

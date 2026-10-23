@@ -684,3 +684,24 @@ TEST_CASE("Fields listed with SPOT_FIELDS save and load under their names", "[sc
     CHECK(copy->home == Spot::Vector3{1.0f, 2.0f, 3.0f});
     CHECK(copy->tags == std::vector<std::string>{"brave", "tall"});
 }
+
+TEST_CASE("Unregistered components of a load are reported once per type", "[scene][serialization]") {
+    RegisterTestComponents();
+    auto capture = std::make_shared<Spot::Tests::CaptureSink>();
+    const Spot::Tests::ScopedSinks sinks({capture});
+
+    Scene scene;
+    for (const auto* name : {"Crate", "Crate", "Barrel", "Cone", "Ball", "Plank"})
+        scene.CreateEntity(name).AddComponent<Speed>();
+    // As a game's types appear while its code is not loaded.
+    std::string text = scene.SaveToString();
+    for (auto found = text.find("\"Speed\""); found != std::string::npos; found = text.find("\"Speed\""))
+        text.replace(found, 7, "\"Gone\"");
+    Scene loaded;
+    REQUIRE(loaded.LoadFromString(text));
+    REQUIRE(capture->GetRecords().size() == 1);
+    const auto& message = capture->GetRecords()[0].message;
+    CHECK_THAT(message, Catch::Matchers::StartsWith("6 components of type"));
+    CHECK_THAT(message, Catch::Matchers::ContainsSubstring("not registered"));
+    CHECK_THAT(message, Catch::Matchers::EndsWith("(on 'Crate', 'Barrel', 'Cone' and 2 more)"));
+}

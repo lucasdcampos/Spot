@@ -1,0 +1,15 @@
+import math as numbers
+import string
+import core
+import combat
+
+func start() {
+    print(string.replace("Hello from Vice", "Vice", "Vice libraries"))
+    print("Damage:", combat.calculate_damage(20, 6))
+    print("Clamped:", numbers.clamp(12, 0, 10))
+    core.assert(combat.attacks == 1, "Combat state was not initialized")
+}
+
+func update(delta_time) {
+    print("Delta type:", core.type(delta_time))
+}

@@ -1,5 +1,6 @@
 #include "imgui/asset_icons.h"
 
+#include "code/vice_editor.h"
 #include "imgui/editor_style.h"
 
 #include <algorithm>
@@ -433,6 +434,14 @@ void DrawFont(ImDrawList* drawList, ImVec2 min, float size) {
     Label(drawList, center, "Aa", half.y * 1.85f, half.x * 1.55f);
 }
 
+void DrawDocument(ImDrawList* drawList, ImVec2 min, float size, const char* label, ImVec4 accent, bool code) {
+    const Box page = Page(drawList, min, size);
+    TextLines(drawList, page, size, 3, code ? &accent : nullptr);
+    const auto [center, half] = BadgeBox(page, 0.14f);
+    Badge(drawList, center, half, accent, size);
+    Label(drawList, center, label, half.y * 1.85f, half.x * 1.55f);
+}
+
 } // namespace
 
 ImVec4 GetFileColor(FileKind kind) {
@@ -452,7 +461,6 @@ ImVec4 GetFileColor(FileKind kind) {
 void DrawFile(ImDrawList* drawList, ImVec2 min, float size, std::string_view name) {
     const FileKind kind = GetFileKind(name);
     const ImVec4 accent = GetFileColor(kind);
-    const Box page = Page(drawList, min, size);
     std::string badge;
     switch (kind) {
     case FileKind::Source:
@@ -480,18 +488,21 @@ void DrawFile(ImDrawList* drawList, ImVec2 min, float size, std::string_view nam
     }
     }
     if (badge.empty()) {
-        TextLines(drawList, page, size, 5);
+        TextLines(drawList, Page(drawList, min, size), size, 5);
         return;
     }
     const bool code = kind == FileKind::Source || kind == FileKind::Header;
-    TextLines(drawList, page, size, 3, code ? &accent : nullptr);
-    const auto [center, half] = BadgeBox(page, 0.14f);
-    Badge(drawList, center, half, accent, size);
-    Label(drawList, center, badge.c_str(), half.y * 1.85f, half.x * 1.55f);
+    DrawDocument(drawList, min, size, badge.c_str(), accent, code);
 }
 
-ImVec4 GetTypeColor(AssetType type) {
+ImVec4 GetTypeColor(AssetType type, std::string_view path) {
+    if (type == AssetType::Script) {
+        if (const EditorScriptLanguage* language = FindEditorScriptLanguage(path))
+            return language->color;
+    }
     switch (type) {
+    case AssetType::Script:
+        return SourceAccent;
     case AssetType::SpriteAtlas:
     case AssetType::Texture:
         return TextureAccent;
@@ -558,8 +569,14 @@ void DrawFolder(ImDrawList* drawList, ImVec2 min, float size, bool hasContents) 
     HorizontalLine(drawList, x0 + r, x1 - r, bottom - 0.5f, {0.0f, 0.0f, 0.0f, 0.18f});
 }
 
-void DrawAsset(ImDrawList* drawList, ImVec2 min, float size, AssetType type) {
+void DrawAsset(ImDrawList* drawList, ImVec2 min, float size, AssetType type, std::string_view path) {
     switch (type) {
+    case AssetType::Script: {
+        const EditorScriptLanguage* language = FindEditorScriptLanguage(path);
+        const std::string badge = language ? std::string(language->badge) : std::string("VICE");
+        DrawDocument(drawList, min, size, badge.c_str(), GetTypeColor(type, path), true);
+        return;
+    }
     case AssetType::SpriteAtlas:
     case AssetType::Texture:
         DrawTexture(drawList, min, size);

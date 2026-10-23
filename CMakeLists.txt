@@ -9,6 +9,8 @@ project(spot
 option(SPOT_BUILD_SANDBOX "Build the sandbox application" ${PROJECT_IS_TOP_LEVEL})
 option(SPOT_BUILD_EDITOR "Build the Spot editor" ${PROJECT_IS_TOP_LEVEL})
 option(SPOT_BUILD_TESTS "Build the Spot test suite" ${PROJECT_IS_TOP_LEVEL})
+option(SPOT_ENABLE_VICESCRIPT "Build experimental ViceScript support" OFF)
+option(SPOT_ENABLE_LUA "Build Lua scripting support" ON)
 
 # Set globally so fetched dependencies are built with the same standard as the engine;
 # Catch2 built as C++14 omits its std::string_view support and the tests fail to link.
@@ -53,10 +55,16 @@ endif()
 include(cmake/spot_shaders.cmake)
 include(cmake/spot_embed_files.cmake)
 
+if(SPOT_ENABLE_VICESCRIPT)
+    add_subdirectory(vice)
+endif()
+
 add_subdirectory(engine)
 
-# The tools and their command line, which the editor shares and the sandbox imports its assets with.
+# The tools and their command line, which the editor shares and the sandbox imports its assets with, and the player
+# that the tools run and ship games without code of their own with.
 if(SPOT_BUILD_SANDBOX OR SPOT_BUILD_EDITOR OR SPOT_BUILD_TESTS)
+    add_subdirectory(player)
     add_subdirectory(tools)
     add_subdirectory(cli)
 endif()

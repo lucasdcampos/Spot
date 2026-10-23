@@ -290,9 +290,12 @@ TEST_CASE("Projects build their game's executable, which runs the startup scene 
         REQUIRE(host.GetBuild().GetState() == CodeBuildState::Succeeded);
     }
     Spot::ImportProjectAssets(*project);
-    REQUIRE(Spot::WriteRunSettings(*project));
+    const auto launch = Spot::PrepareGameRun(*project);
+    REQUIRE(launch);
+    CHECK(launch->executable == project->GetGameExecutable());
+    CHECK(launch->arguments.empty());
 
-    const std::vector<std::string> run = RunGame(project->GetGameExecutable());
+    const std::vector<std::string> run = RunGame(launch->executable);
     CHECK(Contains(run, "The cube is there"));
     CHECK(Contains(run, "The game exited"));
     // The cube's component comes from the game's code, which its executable has.

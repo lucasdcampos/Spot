@@ -20,6 +20,8 @@ inline constexpr ImVec4 TextMuted{0.553f, 0.573f, 0.612f, 1.0f};
 void LoadEditorFonts();
 // The semibold font, for headers and emphasis. Pushed with ImGui::PushFont(GetBoldFont(), 0.0f).
 ImFont* GetBoldFont();
+// The embedded monospaced font used for source code; null in contexts without editor fonts.
+ImFont* GetCodeFont();
 
 // Replaces the current context's style with the editor's theme, sized for the content scale.
 void ApplyEditorStyle(float contentScale);

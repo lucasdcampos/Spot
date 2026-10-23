@@ -14,14 +14,14 @@
 namespace Spot::Editor::AssetIcons {
 
 // The type's color, for its icon's accents and the line under its tile.
-ImVec4 GetTypeColor(AssetType type);
+ImVec4 GetTypeColor(AssetType type, std::string_view path = {});
 // The same for plain files.
 ImVec4 GetFileColor(FileKind kind);
 
 // A folder with a tabbed back panel; papers peek out of it when it holds anything.
 void DrawFolder(ImDrawList* drawList, ImVec2 min, float size, bool hasContents);
 // The type's icon, for assets that have no picture of their own yet.
-void DrawAsset(ImDrawList* drawList, ImVec2 min, float size, AssetType type);
+void DrawAsset(ImDrawList* drawList, ImVec2 min, float size, AssetType type, std::string_view path = {});
 // A plain file, by its name: code, a build script, or any other file with its extension on a badge.
 void DrawFile(ImDrawList* drawList, ImVec2 min, float size, std::string_view name);
 

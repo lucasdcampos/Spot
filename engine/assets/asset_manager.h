@@ -24,6 +24,7 @@ struct Skeleton;
 struct AnimationClip;
 struct AnimatorController;
 struct SpriteAtlas;
+struct ScriptSource;
 class Font;
 class GraphicsDevice;
 class Mesh;
@@ -90,6 +91,11 @@ struct AssetTypeOf<AnimatorController> {
 template <>
 struct AssetTypeOf<SpriteAtlas> {
     static constexpr AssetType Value = AssetType::SpriteAtlas;
+};
+
+template <>
+struct AssetTypeOf<ScriptSource> {
+    static constexpr AssetType Value = AssetType::Script;
 };
 
 namespace Detail {

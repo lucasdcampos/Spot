@@ -21,12 +21,13 @@ namespace {
 constexpr std::string_view Usage = R"(Usage: spot <command> [options]
 
 Commands:
-  new <name> [--path <folder>] [--template 3d|component|empty]
-                     Creates a project in a new folder named after it, in the folder or the current one
+  new <name> [--path <folder>] [--template 3d|component|empty] [--code cpp|none]
+                     Creates a project in a new folder named after it, in the folder or the current one; with
+                     --code none, it has no C++ code and runs with the player, so it needs no compiler
   cook [<project>] [--out <folder>]
                      Imports the project's assets that changed; with --out, into that folder, with the game's
                      settings, so a game's executable there runs the game
-  build [<project>]  Builds the game's code: its executable and the module the editor loads
+  build [<project>]  Builds the game's code, if it has any: its executable and the module the editor loads
   run [<project>]    Builds the game, imports its assets and runs it
   export [<project>] [--out <folder>]
                      Builds the game and makes the folder it ships in, builds/<platform> by default
@@ -97,7 +98,11 @@ std::optional<Spot::Project> LoadProject(const Arguments& arguments) {
     return project;
 }
 
+// Games without code run with the player, which has nothing to build.
 bool BuildCode(const Spot::Project& project) {
+    if (!project.HasCode()) {
+        return true;
+    }
     Spot::CodeBuild build(project.GetCodeDirectory(), project.GetBuildDirectory(), Spot::Toolchain::GetBuilt());
     build.Start();
     build.Wait();
@@ -119,9 +124,15 @@ int New(const Arguments& arguments) {
         Spot::GetToolsLogger().Error("There is no template '{}'; there are 3d, component and empty", kind);
         return EXIT_FAILURE;
     }
+    const std::string code = arguments.Get("code").value_or("cpp");
+    if (code != "cpp" && code != "none") {
+        Spot::GetToolsLogger().Error("Projects have C++ code or none: --code cpp or --code none, not '{}'", code);
+        return EXIT_FAILURE;
+    }
     const auto location = arguments.Get("path");
     const auto file = Spot::CreateProject(location ? ToPath(*location) : std::filesystem::current_path(),
-                                          arguments.positionals.front(), projectTemplate);
+                                          arguments.positionals.front(), projectTemplate,
+                                          code == "cpp" ? Spot::ProjectCode::Cpp : Spot::ProjectCode::None);
     return file ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
@@ -150,11 +161,12 @@ int Run(const Arguments& arguments) {
         return EXIT_FAILURE;
     }
     Spot::ImportProjectAssets(*project);
-    if (!Spot::WriteRunSettings(*project)) {
+    const auto launch = Spot::PrepareGameRun(*project);
+    if (!launch) {
         return EXIT_FAILURE;
     }
     Spot::GameRunner game;
-    if (!game.Start(project->GetGameExecutable())) {
+    if (!game.Start(launch->executable, launch->arguments)) {
         return EXIT_FAILURE;
     }
     while (game.IsRunning()) {

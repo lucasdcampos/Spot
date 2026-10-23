@@ -30,7 +30,8 @@ TEST_CASE("The default layout puts scenes in the middle and panels around them",
                                               .hierarchy = "Hierarchy",
                                               .inspector = "Inspector",
                                               .assets = "Assets",
-                                              .console = "Console"};
+                                              .console = "Console",
+                                              .code = "Code"};
 
     // Docking settles over a couple of frames.
     for (int frame = 0; frame < 3; ++frame) {
@@ -40,13 +41,14 @@ TEST_CASE("The default layout puts scenes in the middle and panels around them",
             Spot::Editor::BuildDefaultLayout(dockSpace, windows);
         }
         ImGui::DockSpaceOverViewport(dockSpace, ImGui::GetMainViewport());
-        for (const char* id : {"Scene", "Hierarchy", "Inspector", "Assets", "Console"}) {
+        for (const char* id : {"Scene", "Code", "Hierarchy", "Inspector", "Assets", "Console"}) {
             SubmitWindow(id);
         }
         imgui.EndFrame();
     }
 
     const ImGuiDockNode* scene = GetWindowNode("Scene");
+    CHECK(GetWindowNode("Code") == scene);
     const ImGuiDockNode* hierarchy = GetWindowNode("Hierarchy");
     const ImGuiDockNode* inspector = GetWindowNode("Inspector");
     const ImGuiDockNode* assets = GetWindowNode("Assets");

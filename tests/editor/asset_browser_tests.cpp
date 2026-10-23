@@ -1,10 +1,14 @@
 #include "headless_imgui.h"
+#include "script_asset_fixture.h"
 #include "temp_directory.h"
 
 #include "app/editor_context.h"
 #include "assets/asset_browser_model.h"
 #include "assets/plain_files.h"
+#include "code/vice_editor.h"
+#include "imgui/asset_icons.h"
 #include "panels/asset_browser_panel.h"
+#include "panels/code_editor_panel.h"
 #include "panels/hierarchy_panel.h"
 #include "panels/inspector_panel.h"
 #include "project/editor_project.h"
@@ -48,6 +52,19 @@ std::vector<std::string> GetNames(const std::vector<BrowserItem>& items) {
 }
 
 } // namespace
+
+TEST_CASE("The asset browser exposes imported ViceScript files as script assets", "[editor][assets][vice]") {
+    ScriptAssetFixture fixture;
+    const auto id = fixture.Import("scripts/hello.vice", "override func OnStart() { print(\"hello\") }");
+    const auto folders = Spot::Editor::ListFolders(fixture.sources);
+    const auto items = Spot::Editor::ListFolder(fixture.database, folders, "scripts");
+    REQUIRE(items.size() == 1);
+    CHECK(items[0].id == id);
+    CHECK(items[0].type == Spot::AssetType::Script);
+    CHECK(items[0].GetDisplayName() == "hello");
+    CHECK_FALSE(items[0].folder);
+    CHECK_FALSE(items[0].hasSubAssets);
+}
 
 TEST_CASE("The asset browser lists folders first, then assets, by name", "[editor][assets]") {
     const TempDirectory temp;
@@ -237,6 +254,26 @@ struct BrowserFixture {
 };
 
 } // namespace
+
+TEST_CASE("The asset browser opens ViceScript in the embedded code editor", "[editor][assets][code][vice][ui]") {
+    BrowserFixture fixture;
+    std::ofstream(fixture.assets / "hello.vice") << "override func OnStart() {}\n";
+    fixture.Project().Refresh();
+    const ImVec4 luaColor = Spot::Editor::AssetIcons::GetTypeColor(Spot::AssetType::Script, "scripts/Player.lua");
+    const ImVec4 viceColor = Spot::Editor::AssetIcons::GetTypeColor(Spot::AssetType::Script, "scripts/Player.vice");
+    CHECK(luaColor.z > luaColor.x);
+    CHECK(luaColor.z > luaColor.y);
+    CHECK(luaColor.x < viceColor.x);
+
+    Spot::Editor::CodeEditorPanel code(*fixture.context);
+    fixture.context->SetCodeEditor(&code);
+    fixture.imgui.Frame();
+    fixture.DoubleClick(fixture.Tile("hello.vice"));
+    CHECK(code.GetDocumentCount() == 1);
+    CHECK(code.IsOpen());
+    CHECK(code.GetActivePath() == "hello.vice");
+    fixture.context->SetCodeEditor(nullptr);
+}
 
 TEST_CASE("Prefab documents preserve source identities and refuse invalid trees", "[editor][prefab][editing]") {
     BrowserFixture fixture;
@@ -511,6 +548,125 @@ TEST_CASE("New assets are created and named in place", "[editor][assets][ui]") {
     CHECK(std::filesystem::exists(fixture.assets / "Bricks.material"));
     CHECK_FALSE(std::filesystem::exists(fixture.assets / "New Material.material"));
     CHECK(fixture.panel->GetSelection() == std::vector<std::string>{fixture.KeyOf("Bricks.material")});
+}
+
+TEST_CASE("The asset browser creates ViceScript templates in the current folder", "[editor][assets][ui][vice]") {
+    BrowserFixture fixture;
+    REQUIRE(fixture.Project().GetAssetDatabase().CreateFolder("scripts"));
+    fixture.Project().Refresh();
+    fixture.panel->SetFolder("scripts");
+    fixture.imgui.Frame();
+    const auto create = [&] {
+        fixture.imgui.Click(fixture.Center(fixture.panel->GetItemRect("Create")));
+        fixture.imgui.Click(fixture.Center(fixture.panel->GetItemRect("Create/ViceScript")));
+    };
+    create();
+    const auto id = fixture.Project().GetAssetDatabase().FindByPath("scripts/New Script.vice");
+    REQUIRE(id);
+    REQUIRE(std::filesystem::is_regular_file(fixture.assets / "scripts/New Script.vice.meta"));
+    const auto script = fixture.Project().GetAssets().Load<Spot::ScriptSource>(*id);
+    REQUIRE(script);
+    CHECK(script->source.starts_with("// New Script.vice\n\nclass NewScript : Component {"));
+    CHECK(script->source.find("class NewScript : Component {\n    override func OnStart() {\n        \n    }") !=
+          std::string::npos);
+    CHECK(script->source.find("override func OnUpdate(deltaTime) {\n        \n    }") != std::string::npos);
+#ifdef SPOT_ENABLE_VICESCRIPT
+    Spot::Scene scene;
+    auto& component = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
+    component.script = script;
+    scene.Update(0.016f);
+    CHECK_FALSE(component.IsFaulted());
+#endif
+    fixture.imgui.Press(ImGuiMod_Ctrl | ImGuiKey_A);
+    fixture.imgui.Type("Player");
+    fixture.imgui.Press(ImGuiKey_Enter);
+    CHECK(fixture.Project().GetAssetDatabase().FindByPath("scripts/Player.vice") == id);
+    CHECK(fixture.panel->GetSelection() == std::vector<std::string>{id->ToString()});
+    const auto renamed = fixture.Project().GetAssets().Load<Spot::ScriptSource>(*id);
+    REQUIRE(renamed);
+    CHECK(renamed->source.starts_with("// Player.vice\n\n"));
+    CHECK(renamed->source.find("class Player : Component {") != std::string::npos);
+    create();
+    fixture.imgui.Press(ImGuiKey_Enter);
+    create();
+    fixture.imgui.Press(ImGuiKey_Enter);
+    const auto first = fixture.Project().GetAssetDatabase().FindByPath("scripts/New Script.vice");
+    const auto second = fixture.Project().GetAssetDatabase().FindByPath("scripts/New Script 2.vice");
+    REQUIRE(first);
+    REQUIRE(second);
+    CHECK(*first != *second);
+    const auto numbered = fixture.Project().GetAssets().Load<Spot::ScriptSource>(*second);
+    REQUIRE(numbered);
+    CHECK(numbered->source.starts_with("// New Script 2.vice\n\n"));
+    CHECK(fixture.Project().GetAssetDatabase().FindByPath("scripts/Player.vice") == id);
+
+    const std::string edited = renamed->source + "// User code\nfunc helper() { return 42 }\n";
+    {
+        std::ofstream file(fixture.assets / "scripts/Player.vice", std::ios::binary);
+        file << edited;
+        REQUIRE(file.good());
+    }
+    fixture.Project().Refresh();
+    fixture.imgui.Frame();
+    fixture.imgui.Click(fixture.Tile("scripts/Player.vice"));
+    fixture.imgui.Press(ImGuiKey_F2);
+    fixture.imgui.Press(ImGuiMod_Ctrl | ImGuiKey_A);
+    fixture.imgui.Type("Actor");
+    fixture.imgui.Press(ImGuiKey_Enter);
+    CHECK(fixture.Project().GetAssetDatabase().FindByPath("scripts/Actor.vice") == id);
+    const auto customized = fixture.Project().GetAssets().Load<Spot::ScriptSource>(*id);
+    REQUIRE(customized);
+    CHECK(customized->source == edited);
+}
+
+TEST_CASE("The asset browser creates Lua script templates and opens them in the code editor",
+          "[editor][assets][ui][lua]") {
+    BrowserFixture fixture;
+    REQUIRE(fixture.Project().GetAssetDatabase().CreateFolder("scripts"));
+    fixture.Project().Refresh();
+    fixture.panel->SetFolder("scripts");
+    fixture.imgui.Frame();
+    fixture.imgui.Click(fixture.Center(fixture.panel->GetItemRect("Create")));
+    fixture.imgui.Click(fixture.Center(fixture.panel->GetItemRect("Create/Lua Script")));
+    const auto id = fixture.Project().GetAssetDatabase().FindByPath("scripts/New Script.lua");
+    REQUIRE(id);
+    REQUIRE(std::filesystem::is_regular_file(fixture.assets / "scripts/New Script.lua.meta"));
+    const auto script = fixture.Project().GetAssets().Load<Spot::ScriptSource>(*id);
+    REQUIRE(script);
+    CHECK(script->source.starts_with("-- New Script.lua\n\nlocal spot = require(\"spot\")\n\n"));
+    CHECK(script->source.find("function OnStart()\n    \nend") != std::string::npos);
+    CHECK(script->source.find("function OnUpdate(deltaTime)\n    \nend") != std::string::npos);
+#ifdef SPOT_ENABLE_LUA
+    Spot::Scene scene;
+    auto& component = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
+    component.script = script;
+    scene.Update(0.016f);
+    CHECK_FALSE(component.IsFaulted());
+#endif
+    fixture.imgui.Press(ImGuiMod_Ctrl | ImGuiKey_A);
+    fixture.imgui.Type("Player");
+    fixture.imgui.Press(ImGuiKey_Enter);
+    CHECK(fixture.Project().GetAssetDatabase().FindByPath("scripts/Player.lua") == id);
+    const auto renamed = fixture.Project().GetAssets().Load<Spot::ScriptSource>(*id);
+    REQUIRE(renamed);
+    CHECK(renamed->source.starts_with("-- Player.lua\n\n"));
+
+    const ImVec4 luaColor = Spot::Editor::AssetIcons::GetTypeColor(Spot::AssetType::Script, "scripts/Player.lua");
+    const ImVec4 viceColor = Spot::Editor::AssetIcons::GetTypeColor(Spot::AssetType::Script, "scripts/Player.vice");
+    CHECK(luaColor.z > luaColor.x);
+    CHECK(luaColor.z > luaColor.y);
+    CHECK(luaColor.x < viceColor.x);
+
+    Spot::Editor::CodeEditorPanel code(*fixture.context);
+    fixture.context->SetCodeEditor(&code);
+    fixture.imgui.Frame();
+    fixture.DoubleClick(fixture.Tile("scripts/Player.lua"));
+    CHECK(code.GetDocumentCount() == 1);
+    CHECK(code.IsOpen());
+    CHECK(code.GetActivePath() == "scripts/Player.lua");
+    REQUIRE(code.GetActiveEditor());
+    CHECK(code.GetActiveEditor()->GetLanguageName() == "Lua");
+    fixture.context->SetCodeEditor(nullptr);
 }
 
 TEST_CASE("The asset browser creates a sprite atlas from the selected texture", "[editor][sprites][ui]") {

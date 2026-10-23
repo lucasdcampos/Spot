@@ -13,6 +13,8 @@ that does the same with a window around it.
 | [Job system](job_system.md) | Worker threads, jobs, counters and parallel loops, shared by every layer |
 | [Application and scenes](application_and_scenes.md) | The application loop, scenes, the update order, scene systems, settings sections, game modules |
 | [Entities and components](entities_and_components.md) | Entities, the hierarchy, components and their hooks, failures, saving and registering components |
+| [Scripting integration](scripting.md) | Shared scene bindings, component lifecycle and adding language runtimes |
+| [ViceScript](vicescript.md) | Optional scripting with classes and inheritance, native component hooks, the standalone runtime and console output |
 | [Gameplay toolkit](gameplay_toolkit.md) | Time, timers, tweens, coroutines, signals, typed references and versioned saves |
 | [Assets and importing](assets_and_importing.md) | Source assets and `.meta` files, the asset database and importers, loading imported assets |
 | [Prefabs](prefabs.md) | Reusable entity tree assets, import validation and runtime instantiation |
@@ -48,7 +50,7 @@ otherwise.
 | 2. Systems | `graphics/`, `audio/`, `physics/`, `physics2d/`, `animation/`, `particles/`, `assets/` | The mechanism: the graphics device and the code-only renderers, the mixer, the physics simulations, poses and clips, particle simulation, loading imported assets |
 | 3. Scene | `scene/`, with a folder per system: `scene/rendering/`, `scene/physics/`, `scene/audio/`, `scene/ui/`… | Entities, components and scene systems built on the systems' public API: `MeshRenderer`, `Rigidbody`, `PhysicsWorld`, `SceneRenderer`, the entity-based UI |
 | 4. Runtime | `runtime/` | `Application`, the default game loop with scenes, and what runs a game: settings, the console, game modules |
-| 5. Tools | `import/`, then `tools/`, `cli/` and `editor/` outside the engine | Importing and making games out of projects, which games never link |
+| 5. Tools | `import/`, then `tools/`, `cli/`, `player/` and `editor/` outside the engine | Importing and making games out of projects, which games never link |
 
 Backends live in their system's folder, behind its contract: Vulkan through NVRHI in `graphics/nvrhi/` and SDL_GPU in `graphics/sdl_gpu/`, SDL3 audio in
 `audio/sdl3/`, Jolt in `physics/jolt/`, Box2D in `physics/box2d/`. Public headers never show backend types.

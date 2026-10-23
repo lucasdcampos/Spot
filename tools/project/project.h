@@ -24,7 +24,7 @@ struct ProjectSettings {
 // their project, only the GameSettings their build derives from it. Every project's folder has the same layout:
 //   <name>.spot   the project file, with its settings
 //   assets/       the source assets, each beside its .meta file
-//   src/          the game's C++ code with its CMakeLists.txt and main.cpp
+//   src/          the game's C++ code with its CMakeLists.txt and main.cpp, for games that have code of their own
 //   builds/       games exported from the editor
 //   .spot/        what is generated from the rest, such as imported assets, and the editor's state
 // The last two are not meant for version control.
@@ -48,6 +48,9 @@ public:
     std::filesystem::path GetAssetsDirectory() const;
     // The game's code.
     std::filesystem::path GetCodeDirectory() const;
+    // Whether the game has C++ code of its own: a build script in its code directory. Games without it are made of
+    // assets and scripts, and run with the player the tools come with, so making them needs no compiler.
+    bool HasCode() const;
     // Generated files: imported assets, caches and editor state.
     std::filesystem::path GetCacheDirectory() const;
     std::filesystem::path GetImportDirectory() const;
@@ -55,7 +58,8 @@ public:
     std::filesystem::path GetBuildDirectory() const;
     // The game module built from the project's code, which the editor loads.
     std::filesystem::path GetModuleFile() const;
-    // The game's executable built from the project's code, which runs it from the GameSettings beside it.
+    // The game's executable built from the project's code, which runs it from the GameSettings beside it. Games
+    // without code have none (see Toolchain::player).
     std::filesystem::path GetGameExecutable() const;
 
     ProjectSettings& GetSettings() { return m_settings; }

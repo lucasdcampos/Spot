@@ -1,0 +1,45 @@
+// movement.vice: vector math, string interpolation, random values and type checks.
+
+import math
+import random
+
+class Enemy {
+    var name
+    var position = Vector3(0, 0, 0)
+    var velocity = Vector3(0, 0, 0)
+
+    func init(name) {
+        self.name = name
+    }
+}
+
+class Boss : Enemy {
+    func init(name) {
+        super.init(name)
+    }
+}
+
+const enemies = []
+
+func start() {
+    random.seed(7)
+    for i in range(3) {
+        const enemy = Enemy("enemy {i}")
+        enemy.velocity = Vector3(random.range(-1, 1), 0, random.range(-1, 1)).normalized() * 2
+        enemies.push(enemy)
+    }
+    enemies.push(Boss("boss"))
+    for enemy in enemies {
+        if enemy is Boss {
+            print("{enemy.name} is the boss")
+        }
+    }
+}
+
+func update(delta_time) {
+    for enemy in enemies {
+        enemy.position += enemy.velocity * delta_time
+        const angle = math.atan2(enemy.velocity.x, enemy.velocity.z) % math.tau
+        print("{enemy.name}: {enemy.position.length()} from the origin, heading {angle}")
+    }
+}

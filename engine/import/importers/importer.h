@@ -72,6 +72,7 @@ bool ImportModel(ImportContext& context);
 bool ImportAnimatorController(ImportContext& context);
 bool ImportMaterial(ImportContext& context);
 bool ImportScene(ImportContext& context);
+bool ImportScript(ImportContext& context);
 bool ImportPrefab(ImportContext& context);
 bool ImportSound(ImportContext& context);
 bool ImportFont(ImportContext& context);

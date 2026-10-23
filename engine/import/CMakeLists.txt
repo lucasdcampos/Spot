@@ -16,6 +16,7 @@ add_library(spot_import STATIC
     importers/model_importer.cpp
     importers/prefab_importer.cpp
     importers/scene_importer.cpp
+    importers/script_importer.cpp
     importers/sound_importer.cpp
     importers/texture_compression.cpp
     importers/texture_compression.h

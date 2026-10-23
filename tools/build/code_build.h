@@ -32,11 +32,17 @@ struct Toolchain {
     // The shared engine library games link, which the editor runs with. Modules built before it last changed may
     // not match it, and are built again before they load.
     std::filesystem::path engineLibrary;
+    // The player, which runs games without code of their own (see Project::HasCode()), with the engine library
+    // beside it.
+    std::filesystem::path player;
 
     // The toolchain that built the tools.
     static Toolchain GetBuilt();
     // Changes with anything that needs a project's build directory made again.
     std::string GetKey() const;
+    // Whether its CMake, and its compiler for generators that need one named, are still where they were, so it can
+    // build games' code.
+    bool IsAvailable() const;
 };
 
 // How long each phase of a build took. Compiling and linking are told apart when the build tool says when it links,

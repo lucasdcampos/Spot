@@ -32,13 +32,15 @@ ImporterInfo FindImporter(AssetType type) {
     case AssetType::SpriteAtlas:
         return {&ImportSpriteAtlas, 1};
     case AssetType::Model:
-        return {&ImportModel, 12};
+        return {&ImportModel, 13};
     case AssetType::AnimatorController:
         return {&ImportAnimatorController, 2};
     case AssetType::Material:
-        return {&ImportMaterial, 6};
+        return {&ImportMaterial, 7};
     case AssetType::Scene:
         return {&ImportScene, 2};
+    case AssetType::Script:
+        return {&ImportScript, 1};
     case AssetType::Prefab:
         return {&ImportPrefab, 3};
     case AssetType::Sound:

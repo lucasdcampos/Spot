@@ -29,6 +29,9 @@ ImGuiID BuildDefaultLayout(ImGuiID dockSpace, const LayoutWindows& windows) {
     for (const std::string& scene : windows.scenes) {
         Dock(scene, scenes);
     }
+    if (!windows.code.empty()) {
+        Dock(windows.code, scenes);
+    }
     Dock(windows.hierarchy, hierarchy);
     Dock(windows.inspector, inspector);
     Dock(windows.assets, assets);

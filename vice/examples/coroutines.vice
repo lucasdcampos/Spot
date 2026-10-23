@@ -1,0 +1,25 @@
+// coroutines.vice: functions that pause at `yield` and continue when resumed.
+// In a game, a component starts them with StartCoroutine() and the engine resumes them each frame.
+
+import core
+
+func Countdown(from) {
+    var remaining = from
+    while remaining > 0 {
+        yield "{remaining}..."
+        remaining -= 1
+    }
+    return "go!"
+}
+
+var countdown
+
+func start() {
+    countdown = core.coroutine(func() { return Countdown(3) })
+}
+
+func update(delta_time) {
+    if not countdown.done {
+        print(countdown.resume())
+    }
+}

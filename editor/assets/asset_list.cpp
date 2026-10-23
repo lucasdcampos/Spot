@@ -64,6 +64,8 @@ std::optional<AssetEntry> FindAsset(EditorProject* project, AssetId id) {
 
 const char* GetAssetTypeIcon(AssetType type) {
     switch (type) {
+    case AssetType::Script:
+        return ICON_FA_FILE_CODE;
     case AssetType::SpriteAtlas:
     case AssetType::Texture:
         return ICON_FA_IMAGE;

@@ -107,7 +107,8 @@ Games can still load a raw file when they need one, such as a picture the player
 `Image::Load()` and `GraphicsDevice::CreateTexture()`, `Font::Load()` or `Sound::Load()`.
 
 Supported sources: PNG/JPEG/BMP/TGA textures, glTF models (`.gltf`, `.glb`), WAV/Ogg sounds, TrueType/OpenType fonts,
-`.material` files and `.scene` files.
+`.material` files, `.scene` files and `.vice` scripts. Executing ViceScript is experimental and enabled with
+`-DSPOT_ENABLE_VICESCRIPT=ON`; see [ViceScript](docs/vicescript.md).
 
 ## Layout
 
@@ -115,5 +116,6 @@ Supported sources: PNG/JPEG/BMP/TGA textures, glTF models (`.gltf`, `.glb`), WAV
 - `sandbox/` – application for trying out the engine
 - `tools/` – the tools that make games out of projects, shared by the editor and the command line
 - `cli/` – `spot`, the tools' command line
+- `player/` – `spot_player`, which runs and ships games without code of their own
 - `editor/` – the editor, built with Dear ImGui
 - `tests/` – unit tests

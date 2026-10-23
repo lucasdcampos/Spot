@@ -27,6 +27,7 @@ add_library(spot_objects OBJECT
     assets/asset_archive.h
     assets/asset_type.h
     assets/asset_type.cpp
+    assets/script_source.h
     assets/built_in_assets.h
     assets/assets.h
     assets/assets.cpp
@@ -96,6 +97,7 @@ add_library(spot_objects OBJECT
     graphics/atmosphere.cpp
     graphics/buffer.h
     graphics/compute.h
+    graphics/custom_surface.h
     graphics/camera_2d.h
     graphics/bloom.cpp
     graphics/bloom.h
@@ -274,6 +276,7 @@ add_library(spot_objects OBJECT
     scene/prefab.cpp
     scene/prefab_serialization.cpp
     scene/rendering/mesh_renderer.h
+    scene/rendering/surface_renderer.h
     scene/rendering/render_world_system.h
     scene/missing_component.h
     scene/rendering/mesh_renderer.cpp
@@ -622,6 +625,86 @@ else()
     target_link_libraries(spot_objects PUBLIC ${CMAKE_DL_LIBS})
 endif()
 
+target_sources(spot_objects PRIVATE
+    scene/scripting/script_bindings.h
+    scene/scripting/script_api.h
+    scene/scripting/script_bindings.cpp
+    scene/scripting/script_runtime.h
+    scene/scripting/script_runtime.cpp
+    scene/scripting/script_scene.h
+    scene/scripting/script_events.h
+    scene/scripting/script_scene.cpp
+    scene/scripting/script_component.h
+    scene/scripting/script_component.cpp
+)
+if(SPOT_ENABLE_VICESCRIPT)
+    target_sources(spot_objects PRIVATE
+        scene/scripting/vice_runtime.h
+        scene/scripting/vice_runtime.cpp
+    )
+    target_link_libraries(spot_objects PRIVATE vice::vice)
+    target_compile_definitions(spot_objects PUBLIC SPOT_ENABLE_VICESCRIPT=1)
+endif()
+
+if(SPOT_ENABLE_LUA)
+    # Lua is built from its C sources as C++, so Lua errors unwind with C++ exceptions and no third-party header
+    # reaches the engine's public headers.
+    FetchContent_Declare(lua
+        GIT_REPOSITORY https://github.com/lua/lua.git
+        GIT_TAG v5.4.7
+        GIT_SHALLOW TRUE
+        SOURCE_SUBDIR none
+        SYSTEM
+    )
+    FetchContent_MakeAvailable(lua)
+    set(spot_lua_sources
+        ${lua_SOURCE_DIR}/lapi.c
+        ${lua_SOURCE_DIR}/lauxlib.c
+        ${lua_SOURCE_DIR}/lbaselib.c
+        ${lua_SOURCE_DIR}/lcode.c
+        ${lua_SOURCE_DIR}/lcorolib.c
+        ${lua_SOURCE_DIR}/lctype.c
+        ${lua_SOURCE_DIR}/ldblib.c
+        ${lua_SOURCE_DIR}/ldebug.c
+        ${lua_SOURCE_DIR}/ldo.c
+        ${lua_SOURCE_DIR}/ldump.c
+        ${lua_SOURCE_DIR}/lfunc.c
+        ${lua_SOURCE_DIR}/lgc.c
+        ${lua_SOURCE_DIR}/linit.c
+        ${lua_SOURCE_DIR}/liolib.c
+        ${lua_SOURCE_DIR}/llex.c
+        ${lua_SOURCE_DIR}/lmathlib.c
+        ${lua_SOURCE_DIR}/lmem.c
+        ${lua_SOURCE_DIR}/loadlib.c
+        ${lua_SOURCE_DIR}/lobject.c
+        ${lua_SOURCE_DIR}/lopcodes.c
+        ${lua_SOURCE_DIR}/loslib.c
+        ${lua_SOURCE_DIR}/lparser.c
+        ${lua_SOURCE_DIR}/lstate.c
+        ${lua_SOURCE_DIR}/lstring.c
+        ${lua_SOURCE_DIR}/lstrlib.c
+        ${lua_SOURCE_DIR}/ltable.c
+        ${lua_SOURCE_DIR}/ltablib.c
+        ${lua_SOURCE_DIR}/ltm.c
+        ${lua_SOURCE_DIR}/lundump.c
+        ${lua_SOURCE_DIR}/lutf8lib.c
+        ${lua_SOURCE_DIR}/lvm.c
+        ${lua_SOURCE_DIR}/lzio.c
+    )
+    set_source_files_properties(${spot_lua_sources} PROPERTIES LANGUAGE CXX)
+    add_library(spot_lua STATIC ${spot_lua_sources})
+    target_include_directories(spot_lua SYSTEM PUBLIC ${lua_SOURCE_DIR})
+    set_target_properties(spot_lua PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    target_compile_options(spot_lua PRIVATE $<IF:$<CXX_COMPILER_ID:MSVC>,/W0,-w>)
+
+    target_sources(spot_objects PRIVATE
+        scene/scripting/lua_runtime.h
+        scene/scripting/lua_runtime.cpp
+    )
+    target_link_libraries(spot_objects PRIVATE spot_lua)
+    target_compile_definitions(spot_objects PUBLIC SPOT_ENABLE_LUA=1)
+endif()
+
 target_compile_features(spot_objects PUBLIC cxx_std_20)
 
 target_compile_definitions(spot_objects PRIVATE
@@ -654,6 +737,13 @@ elseif(UNIX)
     set_target_properties(spot_shared PROPERTIES BUILD_RPATH "$ORIGIN" INSTALL_RPATH "$ORIGIN")
 endif()
 add_library(spot::shared ALIAS spot_shared)
+
+if(SPOT_ENABLE_VICESCRIPT)
+    target_compile_definitions(spot_shared PUBLIC SPOT_ENABLE_VICESCRIPT=1)
+endif()
+if(SPOT_ENABLE_LUA)
+    target_compile_definitions(spot_shared PUBLIC SPOT_ENABLE_LUA=1)
+endif()
 
 # A CMake package for game modules, which link the shared library of this build: find_package(Spot CONFIG) with
 # Spot_DIR set to package/<configuration> in the build directory.

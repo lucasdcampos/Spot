@@ -1,0 +1,9 @@
+class Hello : Component {
+    override func OnStart() {
+        print("Hello, World!")
+    }
+
+    override func OnUpdate(deltaTime) {
+        
+    }
+}

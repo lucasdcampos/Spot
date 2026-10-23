@@ -114,9 +114,61 @@ add_dependencies(spot_tests spot_crash_app)
 # The command line runs as a program of its own.
 target_compile_definitions(spot_tests PRIVATE SPOT_CLI="$<TARGET_FILE:spot_cli>")
 add_dependencies(spot_tests spot_cli)
+target_compile_definitions(spot_tests PRIVATE SPOT_PLAYER="$<TARGET_FILE:spot_player>")
+add_dependencies(spot_tests spot_player)
 
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(Catch)
+add_executable(spot_script_asset_tests script_asset_tests.cpp)
+target_link_libraries(spot_script_asset_tests PRIVATE spot::import spot::spot Catch2::Catch2WithMain)
+spot_set_compile_options(spot_script_asset_tests)
+catch_discover_tests(spot_script_asset_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
+
+add_executable(spot_script_tests script_runtime_tests.cpp)
+target_link_libraries(spot_script_tests PRIVATE spot::spot Catch2::Catch2WithMain)
+spot_set_compile_options(spot_script_tests)
+catch_discover_tests(spot_script_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
+
+add_executable(spot_script_shared_tests script_runtime_tests.cpp)
+target_link_libraries(spot_script_shared_tests PRIVATE spot::shared Catch2::Catch2WithMain)
+spot_set_compile_options(spot_script_shared_tests)
+spot_copy_runtime_dlls(spot_script_shared_tests)
+catch_discover_tests(spot_script_shared_tests TEST_PREFIX "Shared engine: "
+    PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
+
+if(SPOT_ENABLE_VICESCRIPT)
+    add_executable(vice_tests vice_tests.cpp vice_library_tests.cpp vice_collection_tests.cpp)
+    target_link_libraries(vice_tests PRIVATE vice::vice Catch2::Catch2WithMain)
+    spot_set_compile_options(vice_tests)
+    catch_discover_tests(vice_tests)
+
+    add_executable(spot_vice_tests vice_component_tests.cpp vice_scene_tests.cpp vice_engine_tests.cpp)
+    target_link_libraries(spot_vice_tests PRIVATE spot::import spot::spot Catch2::Catch2WithMain)
+    spot_set_compile_options(spot_vice_tests)
+    catch_discover_tests(spot_vice_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
+
+    add_executable(spot_vice_shared_tests vice_component_tests.cpp vice_scene_tests.cpp vice_engine_tests.cpp)
+    target_link_libraries(spot_vice_shared_tests PRIVATE spot::import spot::shared Catch2::Catch2WithMain)
+    spot_set_compile_options(spot_vice_shared_tests)
+    spot_copy_runtime_dlls(spot_vice_shared_tests)
+    catch_discover_tests(spot_vice_shared_tests TEST_PREFIX "Shared engine: "
+        PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
+endif()
+
+if(SPOT_ENABLE_LUA)
+    add_executable(spot_lua_tests lua_component_tests.cpp lua_scene_tests.cpp)
+    target_link_libraries(spot_lua_tests PRIVATE spot::import spot::spot Catch2::Catch2WithMain)
+    spot_set_compile_options(spot_lua_tests)
+    catch_discover_tests(spot_lua_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
+
+    add_executable(spot_lua_shared_tests lua_component_tests.cpp lua_scene_tests.cpp)
+    target_link_libraries(spot_lua_shared_tests PRIVATE spot::import spot::shared Catch2::Catch2WithMain)
+    spot_set_compile_options(spot_lua_shared_tests)
+    spot_copy_runtime_dlls(spot_lua_shared_tests)
+    catch_discover_tests(spot_lua_shared_tests TEST_PREFIX "Shared engine: "
+        PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
+endif()
+
 add_executable(spot_animation_tests animation_import_tests.cpp animation_pose_tests.cpp animation_runtime_tests.cpp animation_controller_tests.cpp animation_blend_tests.cpp animation_motion_tests.cpp animation_layer_tests.cpp bone_attachment_tests.cpp ragdoll_tests.cpp)
 target_link_libraries(spot_animation_tests PRIVATE spot::import spot::spot Catch2::Catch2WithMain)
 target_compile_definitions(spot_animation_tests PRIVATE SPOT_TEST_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets")
@@ -180,6 +232,10 @@ spot_add_shaders(spot_gpu_tests
     shaders/indirect_arguments.comp.hlsl
     shaders/quad.vert.hlsl
     shaders/solid.frag.hlsl
+    shaders/surface.frag.hlsl
+    shaders/surface.vert.hlsl
+    shaders/surface_depth.frag.hlsl
+    shaders/surface_depth.vert.hlsl
     shaders/texture_table.frag.hlsl
     shaders/textured.frag.hlsl
     shaders/textured_quad.vert.hlsl
@@ -258,6 +314,7 @@ if(TARGET spot_editor_core)
     spot_copy_runtime_dlls(spot_editor_tools_tests)
     catch_discover_tests(spot_editor_tools_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
     add_executable(spot_editor_tests
+        editor/code_editor_tests.cpp
         editor/asset_browser_tests.cpp
         editor/tilemap_editor_tests.cpp
         editor/command_history_tests.cpp
@@ -368,6 +425,10 @@ if(TARGET sandbox)
         SANDBOX_IMPORTED_DIR="$<TARGET_FILE_DIR:sandbox>/imported")
     target_link_libraries(spot_sandbox_tests PRIVATE spot_sandbox_test_code)
     add_executable(spot_sandbox_gpu_tests sandbox/visual_tests.cpp sandbox/scenery_tests.cpp sandbox/effects_visual_tests.cpp)
+    if(SPOT_ENABLE_VICESCRIPT)
+        target_sources(spot_sandbox_tests PRIVATE sandbox/vice_tests.cpp)
+        target_sources(spot_sandbox_gpu_tests PRIVATE sandbox/vice_visual_tests.cpp)
+    endif()
     target_link_libraries(spot_sandbox_gpu_tests PRIVATE spot_sandbox_test_code Catch2::Catch2WithMain)
     target_include_directories(spot_sandbox_gpu_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_compile_definitions(spot_sandbox_gpu_tests PRIVATE

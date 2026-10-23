@@ -1,0 +1,47 @@
+// callbacks.vice: functions and bound methods passed around as values.
+
+class Button {
+    var label
+    var onClick
+
+    func init(label) {
+        self.label = label
+    }
+
+    func Click() {
+        print(label, "->", onClick())
+    }
+}
+
+class Score {
+    var points = 0
+
+    func Add() {
+        points += 10
+        return points
+    }
+}
+
+func Greet() {
+    return "hello"
+}
+
+func Twice(action) {
+    action()
+    return action()
+}
+
+const score = Score()
+const buttons = [Button("greet"), Button("score")]
+
+func start() {
+    buttons[0].onClick = Greet
+    buttons[1].onClick = score.Add
+    for button in buttons {
+        button.Click()
+    }
+    print("twice:", Twice(score.Add))
+}
+
+func update(delta_time) {
+}

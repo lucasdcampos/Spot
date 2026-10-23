@@ -12,7 +12,7 @@ with this layout:
 ```
 <name>.spot   the project file: name, version, startup scene and settings sections
 assets/       the source assets, each beside its .meta file
-src/          the game's C++ code, with its CMakeLists.txt and main.cpp
+src/          the game's C++ code, with its CMakeLists.txt and main.cpp, for games that have code of their own
 builds/       games exported from the editor or with `spot export`
 .spot/        what is generated from the rest: imported assets, the code's build, the editor's state
 ```
@@ -21,6 +21,19 @@ The last two are not meant for version control. `ProjectSettings` holds what the
 settings sections (see [Application and scenes](application_and_scenes.md)); `Project::GetGameSettings()` derives the
 `GameSettings` a game runs from. `CreateProject()` (`tools/project/project_templates.h`) makes new projects from
 templates: a 3D scene, a component to start from, or nothing.
+
+### Projects with and without code
+
+A project has C++ code when its code folder has a build script, `src/CMakeLists.txt` (`Project::HasCode()`); nothing
+else records it. New projects get code or not (`ProjectCode`), and templates about the code, such as the component
+one, need it. Games without code are made of assets and scripts: they run with the **player**, `spot_player`
+(`player/`), an executable built with the engine that runs whatever game it is given, so making them takes no CMake or
+compiler and nothing is built before they run. `AddProjectCode()` gives such a project the code every project with code
+starts with, as adding a C++ component does; deleting `src/` makes it a project without code again.
+
+The player runs the game whose `game.json` is beside it, as a shipped game, or the one in the folder after `--game`,
+whose import directory is relative to that folder. The tools find it beside their build of the engine
+(`Toolchain::player`), with the engine library and compiler runtime libraries beside it.
 
 ## From a project to a game
 
@@ -38,16 +51,19 @@ templates: a 3D scene, a component to start from, or nothing.
   long loading the module and reloading the scenes took, and how long after the code changed.
 - **Cooking**: `CookGame()` imports the sources into `imported/` in a folder and writes `game.json` there, so a game's
   executable in that folder runs the game. The engine's own build cooks the sandbox this way.
-- **Running**: `WriteRunSettings()` writes `game.json` beside the built executable, pointing at the project's imports,
-  and `GameRunner` runs it in its own window, logging what it logs as "Game".
+- **Running**: `PrepareGameRun()` writes `game.json`, pointing at the project's imports, and tells what to start
+  (`GameLaunch`): a game with code runs its built executable, with `game.json` beside it; one without runs the player
+  with `--game .spot/run`, since every game without code shares it. `GameRunner` runs it in its own window, logging
+  what it logs as "Game".
 - **Exporting**: `ExportGame()` makes the folder the game ships in: its executable named after the project, the
-  engine library, compiler runtime libraries, its imported assets and `game.json`. Export destinations that overlap
+  engine library, compiler runtime libraries, its imported assets and `game.json`. Games without code ship the player
+  as their executable, with the libraries beside it. Export destinations that overlap
   the project's source, imports or code build are rejected before any files are replaced.
 
 ## The command line
 
 ```
-spot new <name> [--path <folder>] [--template 3d|component|empty]
+spot new <name> [--path <folder>] [--template 3d|component|empty] [--code cpp|none]
 spot cook [<project>] [--out <folder>]
 spot build [<project>]
 spot run [<project>]
@@ -57,7 +73,8 @@ spot help
 ```
 
 A project is its `.spot` file or the folder that has one; the current folder by default. `cook` imports what
-changed, and with `--out` cooks the game into that folder. `build` builds the game's executable and module. `run`
+changed, and with `--out` cooks the game into that folder. `new --code none` makes a project without code. `build` builds the game's executable and module, and
+does nothing for a game without code; `run` and `export` skip building those too. `run`
 builds, imports and runs the game. `export` builds the game and makes its shipping folder, `builds/<platform>` by
 default, with the imported assets packed into one `assets.pak` beside their manifest. `pack` packs a folder of
 imported assets the same way (see [Assets and importing](assets_and_importing.md)).

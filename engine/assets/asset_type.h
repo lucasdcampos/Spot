@@ -19,6 +19,7 @@ enum class AssetType : int {
     AnimationClip,
     AnimatorController,
     SpriteAtlas,
+    Script,
 };
 
 // The name used in .meta and manifest files, such as "Texture".
@@ -30,6 +31,7 @@ std::optional<AssetType> ParseAssetType(std::string_view name);
 //   Model    .gltf .glb                       Font   .ttf .otf
 //   Material .material                        Scene  .scene
 //   Prefab   .prefab
+//   Script   .vice .lua
 // Nothing for files that are not assets, such as .meta files, licenses or a .gltf's buffers.
 std::optional<AssetType> GetSourceAssetType(const std::filesystem::path& path);
 

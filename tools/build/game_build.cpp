@@ -45,6 +45,22 @@ std::string MakeFileName(std::string_view name) {
     return file.empty() ? "game" : file;
 }
 
+// Logs why when the project's game has no executable to run with.
+bool HasExecutable(const Project& project, const std::filesystem::path& executable) {
+    std::error_code error;
+    if (std::filesystem::is_regular_file(executable, error)) {
+        return true;
+    }
+    if (project.HasCode()) {
+        GetToolsLogger().Error("The game of '{}' was not built: there is no '{}'", project.GetSettings().name,
+                               PathToUtf8(executable));
+    } else {
+        GetToolsLogger().Error("The player that runs games without code is missing: there is no '{}'",
+                               PathToUtf8(executable));
+    }
+    return false;
+}
+
 } // namespace
 
 std::string_view GetPlatformName() {
@@ -75,25 +91,38 @@ bool CookGame(const Project& project, const std::filesystem::path& directory) {
     return settings.SaveToFile(directory / GameSettings::FileName);
 }
 
-bool WriteRunSettings(const Project& project) {
-    const std::filesystem::path executable = project.GetGameExecutable();
-    std::error_code error;
-    if (!std::filesystem::is_regular_file(executable, error)) {
-        GetToolsLogger().Error("The game of '{}' was not built: there is no '{}'", project.GetSettings().name,
-                               PathToUtf8(executable));
-        return false;
+std::filesystem::path GetGameExecutable(const Project& project, const std::filesystem::path& player) {
+    return project.HasCode() ? project.GetGameExecutable() : player;
+}
+
+std::optional<GameLaunch> PrepareGameRun(const Project& project, const std::filesystem::path& player) {
+    const std::filesystem::path executable = GetGameExecutable(project, player);
+    if (!HasExecutable(project, executable)) {
+        return std::nullopt;
     }
+    std::error_code error;
     GameSettings settings = project.GetGameSettings();
     settings.importDirectory = PathToUtf8(project.GetImportDirectory());
-    return settings.SaveToFile(executable.parent_path() / GameSettings::FileName);
+    // The player runs every game without code, so their settings cannot go beside it.
+    const std::filesystem::path folder =
+        project.HasCode() ? executable.parent_path() : project.GetCacheDirectory() / "run";
+    std::filesystem::create_directories(folder, error);
+    if (!settings.SaveToFile(folder / GameSettings::FileName)) {
+        return std::nullopt;
+    }
+    GameLaunch launch{.executable = executable};
+    if (!project.HasCode()) {
+        launch.arguments = {"--game", PathToUtf8(folder)};
+    }
+    return launch;
 }
 
 std::filesystem::path GetExportDirectory(const Project& project) {
     return project.GetDirectory() / "builds" / Utf8ToPath(GetPlatformName());
 }
 
-bool ExportGame(const Project& project, const std::filesystem::path& directory) {
-    const std::filesystem::path executable = project.GetGameExecutable();
+bool ExportGame(const Project& project, const std::filesystem::path& directory, const std::filesystem::path& player) {
+    const std::filesystem::path executable = GetGameExecutable(project, player);
     std::error_code error;
     const auto destination = std::filesystem::weakly_canonical(directory, error);
     if (directory.empty() || error || destination == destination.root_path() ||
@@ -106,9 +135,7 @@ bool ExportGame(const Project& project, const std::filesystem::path& directory) 
                                PathToUtf8(directory));
         return false;
     }
-    if (!std::filesystem::is_regular_file(executable, error)) {
-        GetToolsLogger().Error("The game of '{}' was not built: there is no '{}'", project.GetSettings().name,
-                               PathToUtf8(executable));
+    if (!HasExecutable(project, executable)) {
         return false;
     }
     if (!project.GetSettings().startupScene.IsValid()) {

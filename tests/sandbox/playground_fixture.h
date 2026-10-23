@@ -60,6 +60,7 @@ struct Playground {
         Spot::Audio::SetDevice(previousAudio);
         Spot::Time::SetTimeScale(previousScale);
         for (const auto& record : log->GetRecords()) {
+            INFO(record.message);
             CHECK(record.message.find(" threw in ") == std::string::npos);
         }
     }

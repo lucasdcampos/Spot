@@ -12,7 +12,10 @@ shows scenes in its own views).
 ## Projects
 
 Without a project open, the **hub** lists recent projects and creates or opens one (from the templates in
-`spot_tools`). An open project (`EditorProject`) has its `Project` (see
+`spot_tools`). The hub is only the interface: creating, building and running projects are the tools' (see
+[Tools and the command line](tools_and_command_line.md)). A new project has C++ code or is made of scripts only; the
+hub warns when the toolchain the tools were built with is missing (`Toolchain::IsAvailable()`), which only projects
+with code need. An open project (`EditorProject`) has its `Project` (see
 [Tools and the command line](tools_and_command_line.md)), an `AssetDatabase` that imports its sources as they change,
 an `AssetManager` that loads the imports, and, for projects with code, a `ModuleHost` that builds and loads the
 game's code.
@@ -68,6 +71,9 @@ its entity ids and selection. Picking and selection outlines respect each render
 | Project Settings | The project's name, version and startup scene, every settings section, drawn through the inspector backend, the layers' names and collision matrix, and the input actions, whose controls are bound by clicking and pressing them |
 
 ## Game code
+
+Projects without code have nothing to build or load: their scripts reload as they change, and Run starts the player
+(see [Tools and the command line](tools_and_command_line.md)). Adding a C++ component gives them code.
 
 For a project with code (`src/CMakeLists.txt`), the `ModuleHost` builds the game's code in the background with CMake
 whenever it changes, into a game module (a shared library linking `spot_shared`), and loads it from a copy, so the

@@ -18,6 +18,8 @@ public:
 
     // How much daylight there is, from 0 at night to 1 once the sun is well up.
     float GetDaylight() const { return m_daylight; }
+    // Applies a time in [0, 1) immediately, including the sky, fog and exposure.
+    void SetTimeOfDay(float time);
 
 protected:
     void OnStart() override;

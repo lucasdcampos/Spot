@@ -1,11 +1,16 @@
 #include "rendering_application.h"
 #include "temp_directory.h"
 
+#include "app/editor_context.h"
 #include "assets/thumbnail_cache.h"
+#include "code/vice_editor.h"
+#include "panels/code_editor_panel.h"
 #include "project/editor_project.h"
 #include "scene/entity_actions.h"
 #include "scene/scene_document.h"
 
+#include "imgui/asset_icons.h"
+#include "imgui/editor_style.h"
 #include "imgui/imgui_renderer.h"
 #include "viewport/viewport_renderer.h"
 
@@ -18,12 +23,174 @@
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <memory>
 #include <optional>
 #include <vector>
 
 using Spot::Tests::RenderingApplication;
 using Spot::Tests::RequireGpu;
+
+TEST_CASE("The embedded ViceScript editor renders syntax colors and monospaced text", "[editor][gpu][code][vice]") {
+    RequireGpu();
+    constexpr std::uint32_t Width = 800;
+    constexpr std::uint32_t Height = 450;
+    TempDirectory temp;
+    const auto file = Spot::CreateProject(temp.GetPath(), "Code", Spot::ProjectTemplate::Empty);
+    REQUIRE(file);
+    auto project = Spot::Editor::EditorProject::Open(*file, nullptr);
+    REQUIRE(project);
+    std::ofstream(project->GetProject().GetAssetsDirectory() / "hello.vice")
+        << "// Fields and methods resolve on the current instance\nimport spot\n"
+           "class PlayerController : Component {\n    var speed = 3\n"
+           "    func OnStart() { entity.name = \"Player\" }\n"
+           "    func Move(deltaTime) {\n"
+           "        entity.transform.Translate(Vector3(speed * deltaTime, 0, 0))\n    }\n"
+           "    func OnUpdate(deltaTime) {\n"
+           "        if spot.Input.IsKeyDown(\"Right\") { Move(deltaTime) }\n"
+           "    }\n}\n";
+    project->Refresh();
+    const auto asset = project->GetAssetDatabase().FindByPath("hello.vice");
+    REQUIRE(asset);
+    ImGuiContext* imgui = ImGui::CreateContext();
+    Spot::Editor::LoadEditorFonts();
+    Spot::Editor::ApplyEditorStyle(1.0f);
+    Spot::Editor::EditorSettings settings;
+    std::unique_ptr<Spot::Editor::EditorContext> context;
+    std::unique_ptr<Spot::Editor::CodeEditorPanel> panel;
+    std::unique_ptr<Spot::Texture> target;
+    std::unique_ptr<Spot::Editor::ImGuiRenderer> renderer;
+    std::vector<std::uint8_t> pixels;
+    int frame = 0;
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& renderContext) {
+        auto& device = app.GetGraphicsDevice();
+        if (++frame == 3) {
+            pixels = device.DownloadTexture(*target);
+            return;
+        }
+        if (frame == 1) {
+            context = std::make_unique<Spot::Editor::EditorContext>(app.GetWindow(), nullptr, settings);
+            context->SetProject(std::move(project));
+            panel = std::make_unique<Spot::Editor::CodeEditorPanel>(*context);
+            REQUIRE(panel->OpenScript(*asset));
+            target = device.CreateTexture({.width = Width, .height = Height, .renderTarget = true});
+            renderer = std::make_unique<Spot::Editor::ImGuiRenderer>(device, Spot::TextureFormat::Rgba8);
+            REQUIRE(target);
+            REQUIRE(renderer->IsValid());
+        }
+        ImGuiIO& io = ImGui::GetIO();
+        io.IniFilename = nullptr;
+        io.DisplaySize = {static_cast<float>(Width), static_cast<float>(Height)};
+        io.DeltaTime = 1.0f / 60.0f;
+        io.ConfigInputTrickleEventQueue = false;
+        if (frame == 2) {
+            io.AddMousePosEvent(150, 150);
+            io.AddKeyEvent(ImGuiMod_Ctrl, true);
+            io.AddMouseWheelEvent(0, 4);
+        }
+        ImGui::NewFrame();
+        REQUIRE(Spot::Editor::GetCodeFont());
+        ImGui::PushFont(Spot::Editor::GetCodeFont(), 14.0f);
+        CHECK(ImGui::CalcTextSize("iiii").x == ImGui::CalcTextSize("WWWW").x);
+        const float defaultGlyphWidth = ImGui::CalcTextSize("#").x;
+        ImGui::PopFont();
+        ImGui::SetNextWindowPos({0, 0});
+        ImGui::SetNextWindowSize({static_cast<float>(Width), static_cast<float>(Height)});
+        panel->Draw();
+        if (frame == 2) {
+            CHECK(panel->GetActiveEditor()->GetGlyphWidth() > defaultGlyphWidth);
+        }
+        ImGui::Render();
+        auto pass = renderContext.BeginRenderPass({.target = target.get(), .clearColor = Spot::Color::Black});
+        renderer->Render(pass, *ImGui::GetDrawData());
+    });
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    renderer.reset();
+    panel.reset();
+    context.reset();
+    ImGui::DestroyContext(imgui);
+    REQUIRE(pixels.size() == Width * Height * 4);
+    std::size_t purple = 0;
+    std::size_t orange = 0;
+    std::size_t green = 0;
+    std::size_t cyan = 0;
+    std::size_t teal = 0;
+    for (std::uint32_t y = 90; y < Height - 30; ++y) {
+        for (std::uint32_t x = 40; x < Width; ++x) {
+            const auto offset = (y * Width + x) * 4;
+            const int red = pixels[offset];
+            const int g = pixels[offset + 1];
+            const int blue = pixels[offset + 2];
+            purple += blue > red + 15 && red > g + 20 ? 1 : 0;
+            orange += red > g + 20 && g > blue + 20 ? 1 : 0;
+            green += g > red + 20 && g > blue + 20 ? 1 : 0;
+            cyan += blue > red + 40 && blue > g + 15 ? 1 : 0;
+            teal += g > red + 50 && blue > red + 50 && std::abs(g - blue) < 20 ? 1 : 0;
+        }
+    }
+    CHECK(purple > 20);
+    CHECK(orange > 20);
+    CHECK(green > 20);
+    CHECK(cyan > 20);
+    CHECK(teal > 20);
+    if (const auto capture = Spot::Process::GetEnvironmentValue("SPOT_CODE_CAPTURE")) {
+        CHECK(Spot::Image(Width, Height, std::move(pixels)).SavePng(Spot::Utf8ToPath(*capture)));
+    }
+}
+
+TEST_CASE("ViceScript icons render as code documents beside C++ files", "[editor][gpu][vice]") {
+    RequireGpu();
+    constexpr std::uint32_t Width = 256;
+    constexpr std::uint32_t Height = 136;
+    std::unique_ptr<Spot::Texture> target;
+    std::unique_ptr<Spot::Editor::ImGuiRenderer> renderer;
+    std::vector<std::uint8_t> pixels;
+    ImGuiContext* context = ImGui::CreateContext();
+    int frame = 0;
+    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& renderContext) {
+        auto& device = app.GetGraphicsDevice();
+        if (++frame == 2) {
+            pixels = device.DownloadTexture(*target);
+            return;
+        }
+        if (frame != 1)
+            return;
+        target = device.CreateTexture({.width = Width, .height = Height, .renderTarget = true});
+        renderer = std::make_unique<Spot::Editor::ImGuiRenderer>(device, Spot::TextureFormat::Rgba8);
+        REQUIRE(target);
+        REQUIRE(renderer->IsValid());
+        ImGuiIO& io = ImGui::GetIO();
+        io.IniFilename = nullptr;
+        io.DisplaySize = {static_cast<float>(Width), static_cast<float>(Height)};
+        io.DeltaTime = 1.0f / 60.0f;
+        ImGui::NewFrame();
+        auto* drawList = ImGui::GetForegroundDrawList();
+        Spot::Editor::AssetIcons::DrawFile(drawList, {8, 8}, 112, "component.cpp");
+        Spot::Editor::AssetIcons::DrawAsset(drawList, {136, 8}, 112, Spot::AssetType::Script);
+        ImGui::Render();
+        auto pass = renderContext.BeginRenderPass({.target = target.get(), .clearColor = Spot::Color::Black});
+        renderer->Render(pass, *ImGui::GetDrawData());
+    });
+    REQUIRE(application.Run() == EXIT_SUCCESS);
+    renderer.reset();
+    ImGui::DestroyContext(context);
+    REQUIRE(pixels.size() == Width * Height * 4);
+    for (const std::uint32_t start : {0u, 128u}) {
+        std::size_t accentPixels = 0;
+        for (std::uint32_t y = 0; y < Height; ++y) {
+            for (std::uint32_t x = start; x < start + 128; ++x) {
+                const auto offset = (y * Width + x) * 4;
+                if (pixels[offset + 2] > pixels[offset] + 15 && pixels[offset] > pixels[offset + 1] + 10) {
+                    ++accentPixels;
+                }
+            }
+        }
+        CHECK(accentPixels > 100);
+    }
+    if (const auto capture = Spot::Process::GetEnvironmentValue("SPOT_ICON_CAPTURE")) {
+        CHECK(Spot::Image(Width, Height, pixels).SavePng(Spot::Utf8ToPath(*capture)));
+    }
+}
 
 TEST_CASE("Pixel-perfect scene cameras keep pixel edges in both editor and game views",
           "[editor][gpu][pixelperfect][offscreen]") {

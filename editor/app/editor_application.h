@@ -8,6 +8,7 @@
 #include "core/editor_settings.h"
 #include "imgui/imgui_layer.h"
 #include "panels/asset_browser_panel.h"
+#include "panels/code_editor_panel.h"
 #include "panels/hierarchy_panel.h"
 #include "panels/inspector_panel.h"
 #include "panels/panel.h"
@@ -21,6 +22,7 @@
 #include <imgui.h>
 
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -65,6 +67,7 @@ protected:
 private:
     void OpenProject(const std::filesystem::path& file);
     void CloseProject();
+    void ConfirmUnsavedChanges(std::function<void()> proceed);
     void BrowseForProject();
     void UpdateTitle();
     void ShowError(std::string title, std::string message);
@@ -119,6 +122,7 @@ private:
     InspectorPanel* m_inspector = nullptr;
     HierarchyPanel* m_hierarchy = nullptr;
     AssetBrowserPanel* m_assetBrowser = nullptr;
+    CodeEditorPanel* m_codeEditor = nullptr;
     // OS dialogs answer later; they only reach the editor while this is alive.
     std::shared_ptr<EditorApplication*> m_self;
     int m_frame = 0;

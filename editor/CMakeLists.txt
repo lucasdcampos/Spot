@@ -24,6 +24,16 @@ FetchContent_Declare(icon_font_headers
 )
 FetchContent_MakeAvailable(imgui imguizmo icon_font_headers)
 
+FetchContent_Declare(imgui_text_editor
+    GIT_REPOSITORY https://github.com/goossens/ImGuiColorTextEdit.git
+    GIT_TAG bff6757c29a33494eca57ee2c59ad5a0adcc3726
+    PATCH_COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/patch_text_editor.cmake
+    UPDATE_DISCONNECTED TRUE
+    SOURCE_SUBDIR none
+    SYSTEM
+)
+FetchContent_MakeAvailable(imgui_text_editor)
+
 add_library(imgui STATIC
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
@@ -39,9 +49,16 @@ target_include_directories(imgui SYSTEM PUBLIC
     ${imguizmo_SOURCE_DIR}/src
     ${icon_font_headers_SOURCE_DIR}
 )
-target_compile_definitions(imgui PUBLIC IMGUI_DISABLE_OBSOLETE_FUNCTIONS)
+target_compile_definitions(imgui PUBLIC IMGUI_DISABLE_OBSOLETE_FUNCTIONS IMGUI_USE_WCHAR32)
 # Third-party code: its warnings are not ours to fix.
 target_compile_options(imgui PRIVATE $<IF:$<CXX_COMPILER_ID:MSVC>,/W0,-w>)
+
+add_library(imgui_text_editor STATIC ${imgui_text_editor_SOURCE_DIR}/TextEditor.cpp)
+target_include_directories(imgui_text_editor SYSTEM PUBLIC ${imgui_text_editor_SOURCE_DIR})
+target_link_libraries(imgui_text_editor PUBLIC imgui)
+target_compile_features(imgui_text_editor PUBLIC cxx_std_20)
+target_compile_options(imgui_text_editor PRIVATE $<IF:$<CXX_COMPILER_ID:MSVC>,/W0,-w>
+    $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 
 # Everything but main(), so tests can link the editor.
 add_library(spot_editor_core STATIC
@@ -78,6 +95,10 @@ add_library(spot_editor_core STATIC
     core/editor_settings.h
     core/text.cpp
     core/text.h
+    code/vice_completion.cpp
+    code/vice_completion.h
+    code/vice_editor.cpp
+    code/vice_editor.h
     imgui/asset_icons.cpp
     imgui/asset_icons.h
     imgui/drag_payloads.h
@@ -119,6 +140,8 @@ add_library(spot_editor_core STATIC
     panels/asset_browser_panel.h
     panels/console_panel.cpp
     panels/console_panel.h
+    panels/code_editor_panel.cpp
+    panels/code_editor_panel.h
     panels/hierarchy_panel.cpp
     panels/hierarchy_panel.h
     panels/inspector_panel.cpp
@@ -161,11 +184,13 @@ add_library(spot_editor_core STATIC
     viewport/viewport_renderer.h
 )
 target_include_directories(spot_editor_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(spot_editor_core PRIVATE ${PROJECT_SOURCE_DIR}/vice/include)
 target_link_libraries(spot_editor_core PUBLIC
     spot::tools
     spot::import
     spot::shared
     imgui
+    imgui_text_editor
 )
 # The engine keeps its JSON library to itself; the editor uses it for its own settings files.
 target_link_libraries(spot_editor_core PRIVATE nlohmann_json::nlohmann_json)
@@ -194,3 +219,8 @@ add_executable(spot_editor
 target_link_libraries(spot_editor PRIVATE spot_editor_core)
 spot_set_compile_options(spot_editor)
 spot_copy_runtime_dlls(spot_editor)
+add_custom_command(TARGET spot_editor POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/resources/licenses/imgui_color_text_edit_license.txt"
+        "$<TARGET_FILE_DIR:spot_editor>/imgui_color_text_edit_license.txt"
+)

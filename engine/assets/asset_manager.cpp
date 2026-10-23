@@ -7,6 +7,7 @@
 #include "assets/asset_manifest.h"
 #include "assets/asset_pak.h"
 #include "assets/built_in_assets.h"
+#include "assets/script_source.h"
 #include "audio/sound.h"
 #include "core/job_system.h"
 #include "core/log.h"
@@ -98,8 +99,11 @@ void AssetManager::RefreshManifest() {
     for (const auto& entry : manifest ? manifest->entries : std::vector<Detail::ManifestEntry>()) {
         // Assets keep what they already loaded, so references to them stay shared.
         const auto previous = m_entries.find(entry.id);
+        // Script diagnostics carry the source path, so a rename needs a new source object.
+        const bool keepLoaded =
+            previous != m_entries.end() && (entry.type != AssetType::Script || previous->second.path == entry.path);
         entries[entry.id] = {entry.type, entry.path,
-                             previous != m_entries.end() ? previous->second.loaded : std::weak_ptr<const void>()};
+                             keepLoaded ? previous->second.loaded : std::weak_ptr<const void>()};
         if (previous != m_entries.end()) {
             entries[entry.id].dependencies = previous->second.dependencies;
         }
@@ -661,7 +665,8 @@ std::shared_ptr<const void> AssetManager::Finish(Detail::PreparedAsset prepared)
                      .alphaMode = material->alphaMode,
                      .alphaCutoff = material->alphaCutoff,
                      .doubleSided = material->doubleSided,
-                     .worldTextureSize = material->worldTextureSize});
+                     .worldTextureSize = material->worldTextureSize,
+                     .nearestFiltering = material->nearestFiltering});
     }
     case AssetType::Model: {
         const auto& nodes = prepared.model;
@@ -727,6 +732,14 @@ std::shared_ptr<const void> AssetManager::Finish(Detail::PreparedAsset prepared)
     case AssetType::AnimationClip: {
         auto clip = Detail::DecodeAnimationClip(*data);
         return clip ? std::make_shared<const AnimationClip>(std::move(*clip)) : nullptr;
+    }
+    case AssetType::Script: {
+        Detail::BinaryReader reader(*data);
+        std::string source = reader.ReadString();
+        if (!reader.IsValid() || !reader.IsAtEnd()) {
+            break;
+        }
+        return std::make_shared<const ScriptSource>(std::move(source), std::string(GetPath(id)));
     }
     case AssetType::Prefab:
     case AssetType::Scene:

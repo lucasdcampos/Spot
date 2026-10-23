@@ -16,6 +16,7 @@ Toolchain Toolchain::GetBuilt() {
         .multiConfiguration = SPOT_TOOLCHAIN_MULTI_CONFIGURATION != 0,
         .package = Utf8ToPath(SPOT_TOOLCHAIN_PACKAGE),
         .engineLibrary = Utf8ToPath(SPOT_TOOLCHAIN_ENGINE_LIBRARY),
+        .player = Utf8ToPath(SPOT_TOOLCHAIN_PLAYER),
     };
 }
 

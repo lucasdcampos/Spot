@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <fstream>
 #include <iterator>
+#include <map>
 #include <optional>
 #include <string>
 #include <typeinfo>
@@ -131,6 +132,64 @@ bool GetBool(const json& object, std::string_view key, bool fallback) {
 std::int64_t GetInteger(const json& object, std::string_view key) {
     const auto found = object.find(key);
     return found != object.end() && found->is_number_integer() ? found->get<std::int64_t>() : 0;
+}
+
+} // namespace
+
+namespace {
+
+// Components of unregistered types, gathered while a scene or prefab loads so each type is reported once: a game
+// whose code is not loaded yet would otherwise log a line per component.
+struct UnregisteredComponents {
+    struct Type {
+        std::size_t count = 0;
+        std::vector<std::string> entities;
+    };
+    std::map<std::string, Type> types;
+};
+thread_local UnregisteredComponents* t_unregistered = nullptr;
+
+class UnregisteredScope {
+public:
+    UnregisteredScope() : m_owner(!t_unregistered) {
+        if (m_owner)
+            t_unregistered = &m_components;
+    }
+    ~UnregisteredScope() {
+        if (!m_owner)
+            return;
+        t_unregistered = nullptr;
+        for (const auto& [type, found] : m_components.types) {
+            std::string names;
+            constexpr std::size_t Listed = 3;
+            for (std::size_t i = 0; i < std::min(Listed, found.entities.size()); ++i)
+                names += (i == 0 ? "'" : ", '") + found.entities[i] + "'";
+            if (found.entities.size() > Listed)
+                names += " and " + std::to_string(found.entities.size() - Listed) + " more";
+            Log::GetEngineLogger().Warning(
+                "{} component{} of type '{}', which is not registered, keep their data as it is (on {})", found.count,
+                found.count == 1 ? "" : "s", type, names);
+        }
+    }
+    UnregisteredScope(const UnregisteredScope&) = delete;
+    UnregisteredScope& operator=(const UnregisteredScope&) = delete;
+
+private:
+    bool m_owner;
+    UnregisteredComponents m_components;
+};
+
+void ReportUnregistered(const std::string& entity, const std::string& type) {
+    if (!t_unregistered) {
+        Log::GetEngineLogger().Warning(
+            "A component of entity '{}' is of type '{}', which is not registered; its data is kept as it is", entity,
+            type);
+        return;
+    }
+    auto& found = t_unregistered->types[type];
+    ++found.count;
+    if (std::ranges::find(found.entities, entity) == found.entities.end())
+        found.entities.push_back(entity);
 }
 
 } // namespace
@@ -258,6 +317,7 @@ std::optional<json> SceneSerializer::ParseDocument(std::string_view text) {
 std::optional<std::vector<Entity*>> SceneSerializer::Load(Scene& scene, std::string_view text,
                                                           const InstantiateOptions& options, IdMap* loadedIds,
                                                           bool validateComponents, bool requireTree) {
+    const UnregisteredScope unregistered;
     std::optional<json> document = ParseDocument(text);
     if (!document) {
         return std::nullopt;
@@ -388,9 +448,7 @@ Component* SceneSerializer::LoadComponent(Entity& entity, json& saved, std::opti
     if (const ComponentFactory factory = FindComponentFactory(type)) {
         owned = factory();
     } else {
-        Log::GetEngineLogger().Warning(
-            "A component of entity '{}' is of type '{}', which is not registered; its data is kept as it is",
-            entity.m_name, type);
+        ReportUnregistered(entity.m_name, type);
         owned = std::make_unique<MissingComponent>(type, hasData ? data->dump() : "{}");
     }
     Component& component = *owned;

@@ -73,3 +73,22 @@ TEST_CASE("The command line creates projects and cooks their games", "[cli]") {
     CHECK(std::filesystem::is_regular_file(project->GetImportDirectory() / "manifest.json"));
     CHECK(RunSpot({"cook", Spot::PathToUtf8(temp.GetPath())}).exitCode != 0);
 }
+
+TEST_CASE("The command line creates projects without code, which build nothing", "[cli]") {
+    const TempDirectory temp;
+    const std::string location = Spot::PathToUtf8(temp.GetPath());
+    REQUIRE(RunSpot({"new", "Scripted", "--path", location, "--code", "none"}).exitCode == 0);
+    const std::filesystem::path directory = temp.GetPath() / "Scripted";
+    CHECK(std::filesystem::is_regular_file(directory / "Scripted.spot"));
+    CHECK_FALSE(std::filesystem::exists(directory / "src"));
+
+    // Opening the project, as every command does, gives it no code.
+    CHECK(RunSpot({"build", Spot::PathToUtf8(directory)}).exitCode == 0);
+    CHECK_FALSE(std::filesystem::exists(directory / "src"));
+    CHECK_FALSE(std::filesystem::exists(directory / ".spot" / "build"));
+
+    const Result rejected =
+        RunSpot({"new", "Rotating", "--path", location, "--code", "none", "--template", "component"});
+    CHECK(rejected.exitCode != 0);
+    CHECK(RunSpot({"new", "Other", "--path", location, "--code", "rust"}).exitCode != 0);
+}

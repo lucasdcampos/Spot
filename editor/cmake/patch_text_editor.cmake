@@ -1,0 +1,15 @@
+# Typing a member access opens the editor's suggestions, as typing a word does: "entity." lists entity's members.
+# Applied by FetchContent to the pinned ImGuiColorTextEdit sources; running it again changes nothing.
+set(file "${CMAKE_CURRENT_SOURCE_DIR}/TextEditor.cpp")
+file(READ "${file}" text)
+set(original "if (CodePoint::isWord(character)) {")
+set(patched "if (CodePoint::isWord(character) || character == '.') {")
+string(FIND "${text}" "${patched}" applied)
+if(applied EQUAL -1)
+    string(FIND "${text}" "${original}" found)
+    if(found EQUAL -1)
+        message(FATAL_ERROR "ImGuiColorTextEdit changed: its autocomplete trigger cannot be patched")
+    endif()
+    string(REPLACE "${original}" "${patched}" text "${text}")
+    file(WRITE "${file}" "${text}")
+endif()

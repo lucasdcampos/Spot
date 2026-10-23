@@ -633,7 +633,8 @@ TEST_CASE("Material files are assets that refer to textures by id", "[assets]") 
                                 .alphaMode = Spot::AlphaMode::Cutout,
                                 .alphaCutoff = 0.25f,
                                 .doubleSided = true,
-                                .worldTextureSize = 2.0f};
+                                .worldTextureSize = 2.0f,
+                                .nearestFiltering = true};
     const auto reloaded = Spot::MaterialSource::LoadFromString(source.SaveToString());
     REQUIRE(reloaded.has_value());
     CHECK(reloaded->baseColorTexture == pixelsId);
@@ -650,6 +651,8 @@ TEST_CASE("Material files are assets that refer to textures by id", "[assets]") 
     CHECK(reloaded->alphaCutoff == 0.25f);
     CHECK(reloaded->doubleSided);
     CHECK(reloaded->worldTextureSize == 2.0f);
+    CHECK(reloaded->nearestFiltering);
+    CHECK_FALSE(Spot::MaterialSource::LoadFromString("{}")->nearestFiltering);
 
     REQUIRE(source.SaveToFile(sources / "red.material"));
     CHECK(database.Refresh() == 1);
@@ -660,6 +663,7 @@ TEST_CASE("Material files are assets that refer to textures by id", "[assets]") 
     CHECK(material->baseColor == Spot::Color::Red);
     CHECK(material->doubleSided);
     CHECK(material->worldTextureSize == 2.0f);
+    CHECK(material->nearestFiltering);
     CHECK(material->metallic == 1.0f);
     CHECK(material->roughness == 0.25f);
     CHECK(material->normalScale == 0.5f);
@@ -732,8 +736,8 @@ TEST_CASE("Scenes save mesh renderers by asset id and load them back through the
     REQUIRE(cube.FindChild("Pivot")->FindChild("Cube"));
     REQUIRE(cube.FindChild("Pivot")->FindChild("Cube")->GetComponents<Spot::MeshRenderer>().size() == 2);
     // A material made in code is saved inline, without a material asset id.
-    scene.CreateEntity("Custom").AddComponent<Spot::MeshRenderer>(Spot::AssetRef<Spot::Mesh>(),
-                                                                  Spot::Material{.baseColor = Spot::Color::Red});
+    scene.CreateEntity("Custom").AddComponent<Spot::MeshRenderer>(
+        Spot::AssetRef<Spot::Mesh>(), Spot::Material{.baseColor = Spot::Color::Red, .nearestFiltering = true});
     const std::string text = scene.SaveToString();
     CHECK(text.find(plainId.ToString()) != std::string::npos);
     CHECK(text.find(meshId.ToString()) != std::string::npos);
@@ -758,6 +762,7 @@ TEST_CASE("Scenes save mesh renderers by asset id and load them back through the
     REQUIRE(custom->GetMaterial());
     CHECK_FALSE(custom->GetMaterial().GetId().IsValid());
     CHECK(custom->GetMaterial()->baseColor == Spot::Color::Red);
+    CHECK(custom->GetMaterial()->nearestFiltering);
 
     // Without an asset manager, the ids are kept so saving again loses nothing.
     Spot::Scene offline;

@@ -36,6 +36,7 @@ void NewProjectDialog::Open() {
     m_location = PathToUtf8(m_settings.GetProjectsLocation());
     m_name = MakeUniqueName(m_settings.GetProjectsLocation());
     m_error.clear();
+    m_canBuildCode = Toolchain::GetBuilt().IsAvailable();
 }
 
 std::optional<std::filesystem::path> NewProjectDialog::Draw() {
@@ -78,9 +79,31 @@ std::optional<std::filesystem::path> NewProjectDialog::Draw() {
                 Utf8ToPath(m_location));
         }
 
+        Widgets::PropertyLabel("Code", "Games with C++ code of their own are built with CMake and a compiler. "
+                                       "Games made of assets and scripts run as they are, and C++ can be added "
+                                       "to them later.");
+        if (ImGui::RadioButton("C++", m_code == ProjectCode::Cpp)) {
+            m_code = ProjectCode::Cpp;
+        }
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Scripts only", m_code == ProjectCode::None)) {
+            m_code = ProjectCode::None;
+        }
+        if (m_code == ProjectCode::Cpp && !m_canBuildCode) {
+            ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Warning);
+            ImGui::TextWrapped(ICON_FA_TRIANGLE_EXCLAMATION "  CMake or the compiler the tools were built with is "
+                                                            "missing; the code will not build until it is back.");
+            ImGui::PopStyleColor();
+        }
+
         Widgets::PropertyLabel("Template");
         for (const ProjectTemplateInfo& info : GetProjectTemplates()) {
+            const bool available = !info.needsCode || m_code == ProjectCode::Cpp;
+            if (!available && m_template == info.kind) {
+                m_template = ProjectTemplate::Basic3D;
+            }
             ImGui::PushID(info.name);
+            ImGui::BeginDisabled(!available);
             const bool selected = m_template == info.kind;
             if (ImGui::Selectable("##Template", selected, ImGuiSelectableFlags_None,
                                   {0.0f, ImGui::GetTextLineHeight() * 2.0f + ImGui::GetStyle().ItemSpacing.y})) {
@@ -91,6 +114,10 @@ std::optional<std::filesystem::path> NewProjectDialog::Draw() {
             Widgets::Heading(info.name);
             ImGui::TextColored(EditorColors::TextMuted, "%s", info.description);
             ImGui::EndGroup();
+            ImGui::EndDisabled();
+            if (!available) {
+                ImGui::SetItemTooltip("This template is about the game's C++ code.");
+            }
             ImGui::PopID();
         }
         Widgets::EndProperties();
@@ -130,7 +157,7 @@ std::optional<std::filesystem::path> NewProjectDialog::Draw() {
     ImGui::PopStyleColor();
     ImGui::EndDisabled();
     if (create && nameProblem.empty() && !m_location.empty() && !exists) {
-        created = CreateProject(location, m_name, m_template);
+        created = CreateProject(location, m_name, m_template, m_code);
         if (created) {
             m_settings.SetProjectsLocation(location);
             ImGui::CloseCurrentPopup();

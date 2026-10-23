@@ -202,6 +202,40 @@ TEST_CASE("Empty projects only have their file, an empty assets folder and the g
     CHECK(actions.size() == Spot::InputSettings::MakeDefault().actions.size());
 }
 
+TEST_CASE("Projects without code have no code folder, and get one when C++ is added", "[editor][project]") {
+    const TempDirectory temp;
+
+    const auto file =
+        Spot::CreateProject(temp.GetPath(), "Scripted", Spot::ProjectTemplate::Basic3D, Spot::ProjectCode::None);
+
+    REQUIRE(file.has_value());
+    const auto project = Spot::Project::Load(*file);
+    REQUIRE(project);
+    CHECK_FALSE(std::filesystem::exists(project->GetCodeDirectory()));
+    CHECK_FALSE(project->HasCode());
+    CHECK(project->GetSettings().startupScene.IsValid());
+    {
+        Spot::Editor::ModuleHost host(*project, {});
+        CHECK_FALSE(host.HasCode());
+    }
+
+    REQUIRE(Spot::AddProjectCode(*project));
+    CHECK(project->HasCode());
+    for (const char* name : {"CMakeLists.txt", "main.cpp", "game.cpp"}) {
+        CHECK(std::filesystem::is_regular_file(project->GetCodeDirectory() / name));
+    }
+    Spot::Editor::ModuleHost host(*project, {});
+    CHECK(host.HasCode());
+}
+
+TEST_CASE("Templates about the game's code need projects with code", "[editor][project]") {
+    const TempDirectory temp;
+
+    CHECK_FALSE(
+        Spot::CreateProject(temp.GetPath(), "Rotating", Spot::ProjectTemplate::Code3D, Spot::ProjectCode::None));
+    CHECK_FALSE(std::filesystem::exists(temp.GetPath() / "Rotating"));
+}
+
 TEST_CASE("Projects are never created over a folder that has files", "[editor][project]") {
     const TempDirectory temp;
     std::filesystem::create_directories(temp.GetPath() / "Taken");
@@ -271,17 +305,14 @@ TEST_CASE("Projects of older editors get code that builds their game's executabl
         CHECK(std::filesystem::is_regular_file(project->GetCodeDirectory() / "main.cpp"));
         CHECK(std::filesystem::is_regular_file(project->GetCodeDirectory() / "game.cpp"));
     }
-    SECTION("Projects without code get all of it") {
+    SECTION("Projects without code keep none") {
         const auto project = Spot::Project::Create(temp.GetPath(), {.name = "Codeless"});
         REQUIRE(project);
 
-        CHECK(Spot::UpdateProjectLayout(*project));
-
-        std::ifstream script(project->GetCodeDirectory() / "CMakeLists.txt");
-        const std::string text{std::istreambuf_iterator<char>(script), std::istreambuf_iterator<char>()};
-        CHECK(text.find("spot_add_game(${sources})") != std::string::npos);
-        CHECK(std::filesystem::is_regular_file(project->GetCodeDirectory() / "main.cpp"));
         CHECK_FALSE(Spot::UpdateProjectLayout(*project));
+
+        CHECK_FALSE(std::filesystem::exists(project->GetCodeDirectory()));
+        CHECK_FALSE(project->HasCode());
     }
 }
 

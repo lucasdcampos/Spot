@@ -1,0 +1,23 @@
+var enemies = [
+    {"name": "Drone", "health": 20},
+    {"name": "Guard", "health": 40},
+]
+
+func start() {
+    for index, enemy in enemies {
+        print("Enemy", index, enemy["name"], "health", enemy["health"])
+    }
+
+    for wave in range(1, 4) {
+        if wave == 2 { continue }
+        print("Wave", wave)
+    }
+
+    var shots = 0
+    while enemies[0]["health"] > 0 {
+        enemies[0]["health"] -= 5
+        shots += 1
+        if shots >= 4 { break }
+    }
+    print("Drone health", enemies[0]["health"])
+}

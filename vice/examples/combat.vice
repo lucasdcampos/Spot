@@ -1,0 +1,9 @@
+import math
+
+const minimum_damage = 1
+var attacks = 0
+
+func calculate_damage(attack, defense) {
+    attacks += 1
+    return math.max(attack - defense, minimum_damage)
+}

@@ -22,8 +22,9 @@ constexpr std::array Templates{
     ProjectTemplateInfo{ProjectTemplate::Basic3D, "3D", "A lit scene with a sky, ready to fill."},
     ProjectTemplateInfo{ProjectTemplate::Code3D, "3D with a component",
                         "The same scene, with a component of the game's own C++ code that turns the cube, which the "
-                        "editor builds and reloads as it changes."},
-    ProjectTemplateInfo{ProjectTemplate::Empty, "Empty", "An empty assets folder, and the game's code."},
+                        "editor builds and reloads as it changes.",
+                        true},
+    ProjectTemplateInfo{ProjectTemplate::Empty, "Empty", "An empty assets folder."},
 };
 
 // The generated folder is rebuilt from the sources, and exported games from the project, so neither is committed.
@@ -308,12 +309,11 @@ std::optional<std::vector<std::string>> CreateComponentCode(const Project& proje
         GetToolsLogger().Error("Cannot create the component '{}': {}", name, problem);
         return std::nullopt;
     }
-    // Projects made without code by older editors get what building it takes first.
-    const std::filesystem::path code = project.GetCodeDirectory();
-    if (!WriteCodeFiles(project, ModuleCode)) {
-        GetToolsLogger().Error("Could not write the build of the project's code in '{}'", PathToUtf8(code));
+    // Projects without code get what building it takes first.
+    if (!AddProjectCode(project)) {
         return std::nullopt;
     }
+    const std::filesystem::path code = project.GetCodeDirectory();
     const std::string header = folder.empty() ? name + ".h" : std::string(folder) + "/" + name + ".h";
     const std::string source = folder.empty() ? name + ".cpp" : std::string(folder) + "/" + name + ".cpp";
     if (!WriteText(code / Utf8ToPath(header), std::vformat(ComponentHeader, std::make_format_args(name))) ||
@@ -323,6 +323,18 @@ std::optional<std::vector<std::string>> CreateComponentCode(const Project& proje
     }
     GetToolsLogger().Info("Created the component '{}'; it can be added to entities once the code is built", name);
     return std::vector{header, source};
+}
+
+bool AddProjectCode(const Project& project) {
+    const bool hadCode = project.HasCode();
+    if (!WriteCodeFiles(project, ModuleCode)) {
+        GetToolsLogger().Error("Could not write the project's code in '{}'", PathToUtf8(project.GetCodeDirectory()));
+        return false;
+    }
+    if (!hadCode) {
+        GetToolsLogger().Info("The project has C++ code now, in 'src', which the tools build with CMake");
+    }
+    return true;
 }
 
 bool UpdateProjectLayout(const Project& project) {
@@ -368,19 +380,15 @@ bool UpdateProjectLayout(const Project& project) {
         GetToolsLogger().Info("The project's code builds the game's executable now, with spot_add_game()");
         changed = true;
     }
-    const bool hadMain = std::filesystem::exists(project.GetCodeDirectory() / "main.cpp", error);
-    const bool hadScript = std::filesystem::exists(newScript, error);
-    if (!hadMain || !hadScript) {
+    // Code built before games had their own executable has no main() for it.
+    if (std::filesystem::exists(newScript, error) &&
+        !std::filesystem::exists(project.GetCodeDirectory() / "main.cpp", error)) {
         if (!WriteCodeFiles(project, ModuleCode)) {
             GetToolsLogger().Error("Could not write the project's code in '{}'",
                                    PathToUtf8(project.GetCodeDirectory()));
             return false;
         }
-        if (hadScript) {
-            GetToolsLogger().Info("Added the game's main.cpp to the project's code");
-        } else {
-            GetToolsLogger().Info("The project has code now, in 'src', which runs the game");
-        }
+        GetToolsLogger().Info("Added the game's main.cpp to the project's code");
         changed = true;
     }
 
@@ -438,9 +446,14 @@ std::string ValidateProjectName(std::string_view name) {
 }
 
 std::optional<std::filesystem::path> CreateProject(const std::filesystem::path& location, const std::string& name,
-                                                   ProjectTemplate kind) {
+                                                   ProjectTemplate kind, ProjectCode code) {
     if (const std::string problem = ValidateProjectName(name); !problem.empty()) {
         GetToolsLogger().Error("Cannot create project '{}': {}", name, problem);
+        return std::nullopt;
+    }
+    const auto info = std::ranges::find(Templates, kind, &ProjectTemplateInfo::kind);
+    if (info->needsCode && code == ProjectCode::None) {
+        GetToolsLogger().Error("Cannot create project '{}': the template '{}' needs C++ code", name, info->name);
         return std::nullopt;
     }
     const std::filesystem::path directory = location / Utf8ToPath(name);
@@ -458,8 +471,8 @@ std::optional<std::filesystem::path> CreateProject(const std::filesystem::path& 
     }
     std::ofstream(directory / ".gitignore", std::ios::binary) << GitIgnore;
 
-    // Every game has code, if only to run it.
-    if (!WriteCodeFiles(*project, kind == ProjectTemplate::Code3D ? GameCode : ModuleCode)) {
+    if (code == ProjectCode::Cpp &&
+        !WriteCodeFiles(*project, kind == ProjectTemplate::Code3D ? GameCode : ModuleCode)) {
         GetToolsLogger().Error("Could not write the code of project '{}'", name);
         return std::nullopt;
     }

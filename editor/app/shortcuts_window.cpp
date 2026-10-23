@@ -19,7 +19,7 @@ constexpr std::array ScenesShortcuts{
     ShortcutInfo{ImGuiMod_Ctrl | ImGuiKey_O, nullptr, "Open a scene"},
     ShortcutInfo{ImGuiMod_Ctrl | ImGuiKey_S, nullptr, "Save the scene"},
     ShortcutInfo{ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S, nullptr, "Save the scene as"},
-    ShortcutInfo{ImGuiMod_Ctrl | ImGuiMod_Alt | ImGuiKey_S, nullptr, "Save all scenes"},
+    ShortcutInfo{ImGuiMod_Ctrl | ImGuiMod_Alt | ImGuiKey_S, nullptr, "Save all scenes and scripts"},
     ShortcutInfo{ImGuiMod_Ctrl | ImGuiKey_W, nullptr, "Close the scene"},
     ShortcutInfo{ImGuiMod_Ctrl | ImGuiKey_Comma, nullptr, "Preferences"},
     ShortcutInfo{ImGuiKey_F1, nullptr, "Keyboard shortcuts"},
@@ -83,6 +83,22 @@ constexpr std::array ConsoleShortcuts{
     ShortcutInfo{ImGuiMod_Ctrl | ImGuiKey_A, nullptr, "Select all messages"},
 };
 
+constexpr std::array CodeShortcuts{
+    ShortcutInfo{0, "Ctrl + Mouse wheel", "Change the code font size"},
+    ShortcutInfo{ImGuiMod_Ctrl | ImGuiKey_S, nullptr, "Save the script"},
+    ShortcutInfo{ImGuiMod_Ctrl | ImGuiKey_W, nullptr, "Close the script"},
+    ShortcutInfo{ImGuiMod_Ctrl | ImGuiKey_Z, nullptr, "Undo text editing"},
+    ShortcutInfo{ImGuiMod_Ctrl | ImGuiKey_Y, nullptr, "Redo text editing"},
+    ShortcutInfo{ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_Z, nullptr, "Redo text editing"},
+    ShortcutInfo{ImGuiMod_Ctrl | ImGuiKey_A, nullptr, "Select all text"},
+    ShortcutInfo{ImGuiMod_Ctrl | ImGuiKey_C, nullptr, "Copy text"},
+    ShortcutInfo{ImGuiMod_Ctrl | ImGuiKey_X, nullptr, "Cut text"},
+    ShortcutInfo{ImGuiMod_Ctrl | ImGuiKey_V, nullptr, "Paste text"},
+    ShortcutInfo{ImGuiKey_Tab, nullptr, "Insert spaces or indent selected lines"},
+    ShortcutInfo{ImGuiMod_Shift | ImGuiKey_Tab, nullptr, "Unindent lines"},
+    ShortcutInfo{ImGuiKey_Enter, nullptr, "Insert a line with automatic indentation"},
+};
+
 constexpr std::array Groups{
     ShortcutGroup{"Scenes and windows", ScenesShortcuts},
     ShortcutGroup{"Editing, in the hierarchy and the scene views", EditingShortcuts},
@@ -90,6 +106,7 @@ constexpr std::array Groups{
     ShortcutGroup{"Playing", PlayShortcuts},
     ShortcutGroup{"Asset browser", AssetShortcuts},
     ShortcutGroup{"Console", ConsoleShortcuts},
+    ShortcutGroup{"ViceScript code editor", CodeShortcuts},
 };
 
 } // namespace

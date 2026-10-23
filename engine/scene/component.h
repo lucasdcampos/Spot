@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <exception>
+#include <functional>
 #include <memory>
 #include <string_view>
 #include <type_traits>
@@ -155,6 +156,9 @@ protected:
     // Tells systems that mirror the component elsewhere, such as the render world, that it changed (see
     // Scene::TakeChangedEntities()).
     void MarkChanged();
+    // Runs work on the component's behalf outside its usual hooks, such as a callback another component triggered,
+    // faulting it like a hook would when the work throws. Returns whether it completed.
+    bool RunGuarded(std::string_view hook, const std::function<void()>& work) { return InvokeHook(hook, work); }
 
 private:
     friend class Entity;

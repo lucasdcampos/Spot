@@ -56,6 +56,12 @@ std::string Toolchain::GetKey() const {
                        makeProgram, configuration, PathToUtf8(package));
 }
 
+bool Toolchain::IsAvailable() const {
+    std::error_code error;
+    return !cmake.empty() && std::filesystem::is_regular_file(Utf8ToPath(cmake), error) &&
+           (compiler.empty() || std::filesystem::is_regular_file(Utf8ToPath(compiler), error));
+}
+
 CodeBuild::CodeBuild(std::filesystem::path sourceDirectory, std::filesystem::path buildDirectory, Toolchain toolchain)
     : m_source(std::move(sourceDirectory)), m_build(std::move(buildDirectory)), m_toolchain(std::move(toolchain)) {
 }

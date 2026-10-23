@@ -12,7 +12,7 @@
 
 namespace Spot::Editor {
 
-// A modal dialog that asks for a project's name, folder and template, and creates it.
+// A modal dialog that asks for a project's name, folder, template and whether it has C++ code, and creates it.
 class NewProjectDialog {
 public:
     NewProjectDialog(EditorSettings& settings, Window& window);
@@ -33,6 +33,9 @@ private:
     std::string m_name;
     std::string m_location;
     ProjectTemplate m_template = ProjectTemplate::Basic3D;
+    ProjectCode m_code = ProjectCode::Cpp;
+    // Whether the tools can build C++ code here, which projects without code do not need.
+    bool m_canBuildCode = true;
     std::string m_error;
     std::shared_ptr<ChosenLocation> m_chosenLocation = std::make_shared<ChosenLocation>();
 };

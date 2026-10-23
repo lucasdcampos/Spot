@@ -1,0 +1,39 @@
+import spot
+import math
+
+// The plaza's neon sign breathes and floats without moving its solid plinth.
+class MonumentSign : Component {
+    var basePosition
+    var baseScale
+    var neon
+    var pulse = 0
+    var direction = 1
+
+    override func OnStart() {
+        basePosition = transform.position
+        baseScale = transform.scale
+        neon = entity.FindChild("Neon")
+    }
+
+    override func OnUpdate(deltaTime) {
+        if deltaTime <= 0 { return }
+
+        pulse += direction * deltaTime * 0.5
+        if pulse >= 1 {
+            pulse = 1
+            direction = -1
+        } else if pulse <= 0 {
+            pulse = 0
+            direction = 1
+        }
+
+        transform.position.y = basePosition.y + pulse * 0.08
+        var size = math.lerp(1, 1.04, pulse)
+        transform.scale = Vector3(baseScale.x * size, baseScale.y * size, baseScale.z * size)
+
+        if spot.Input.IsKeyPressed("N") and neon != null and neon.IsValid() {
+            var mesh = neon.GetComponent("MeshRenderer")
+            mesh.enabled = not mesh.enabled
+        }
+    }
+}

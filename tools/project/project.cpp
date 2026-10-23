@@ -119,6 +119,11 @@ std::filesystem::path Project::GetCodeDirectory() const {
     return GetDirectory() / "src";
 }
 
+bool Project::HasCode() const {
+    std::error_code error;
+    return std::filesystem::is_regular_file(GetCodeDirectory() / "CMakeLists.txt", error);
+}
+
 std::filesystem::path Project::GetCacheDirectory() const {
     return GetDirectory() / ".spot";
 }

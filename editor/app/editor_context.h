@@ -13,6 +13,7 @@ namespace Spot::Editor {
 
 class SceneWorkspace;
 class ThumbnailCache;
+class CodeEditorPanel;
 
 // What the editor's windows share: the devices, the user's settings and the open project.
 class EditorContext {
@@ -33,6 +34,8 @@ public:
     // The scenes open in the editor; null in tests that have none.
     SceneWorkspace* GetWorkspace() { return m_workspace; }
     void SetWorkspace(SceneWorkspace* workspace) { m_workspace = workspace; }
+    CodeEditorPanel* GetCodeEditor() { return m_codeEditor; }
+    void SetCodeEditor(CodeEditorPanel* editor) { m_codeEditor = editor; }
     // The scene being edited: the one whose view was focused last.
     SceneDocument* GetActiveDocument();
 
@@ -64,6 +67,7 @@ private:
     EditorSettings& m_settings;
     std::unique_ptr<EditorProject> m_project;
     SceneWorkspace* m_workspace = nullptr;
+    CodeEditorPanel* m_codeEditor = nullptr;
     ThumbnailCache* m_thumbnails = nullptr;
     AssetId m_inspectedAsset;
     // The active scene and its selection's version when the asset was inspected.

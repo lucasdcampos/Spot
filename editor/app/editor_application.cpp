@@ -1,6 +1,7 @@
 #include "app/editor_application.h"
 
 #include "app/editor_layout.h"
+#include "code/vice_editor.h"
 #include "core/editor_log.h"
 #include "imgui/editor_style.h"
 #include "imgui/icons.h"
@@ -124,11 +125,16 @@ EditorApplication::~EditorApplication() {
 
 void EditorApplication::RequestOpenProject(std::filesystem::path file) {
     // The scenes of the open project are closed first, so unsaved changes are asked about.
-    m_workspace->ConfirmAllUnsavedChanges([this, file = std::move(file)] { m_projectToOpen = file; });
+    ConfirmUnsavedChanges([this, file = std::move(file)] { m_projectToOpen = file; });
 }
 
 void EditorApplication::RequestCloseProject() {
-    m_workspace->ConfirmAllUnsavedChanges([this] { m_closeProjectRequested = true; });
+    ConfirmUnsavedChanges([this] { m_closeProjectRequested = true; });
+}
+
+void EditorApplication::ConfirmUnsavedChanges(std::function<void()> proceed) {
+    m_codeEditor->ConfirmAllUnsavedChanges(
+        [this, proceed = std::move(proceed)] { m_workspace->ConfirmAllUnsavedChanges(proceed); });
 }
 
 void EditorApplication::OnStart() {
@@ -164,6 +170,10 @@ void EditorApplication::OnStart() {
     auto assetBrowser = std::make_unique<AssetBrowserPanel>(*m_context);
     m_assetBrowser = assetBrowser.get();
     m_panels.push_back(std::move(assetBrowser));
+    auto codeEditor = std::make_unique<CodeEditorPanel>(*m_context);
+    m_codeEditor = codeEditor.get();
+    m_context->SetCodeEditor(m_codeEditor);
+    m_panels.push_back(std::move(codeEditor));
     m_panels.push_back(std::make_unique<ConsolePanel>(m_consoleLog));
     m_panels.push_back(std::make_unique<ProfilerPanel>(
         [this] { return m_game ? m_game->GetProfileFrames() : std::vector<const ProfileFrame*>{}; }));
@@ -235,8 +245,8 @@ void EditorApplication::UpdateModules() {
         if (modules.GetBuild().GetState() == CodeBuildState::Failed) {
             ShowError("The game did not build", "The game's code has errors, which the console shows. Run the game "
                                                 "again once they are fixed.");
-        } else if (WriteRunSettings(project->GetProject())) {
-            m_game->Start(project->GetProject().GetGameExecutable());
+        } else if (const auto launch = PrepareGameRun(project->GetProject())) {
+            m_game->Start(launch->executable, launch->arguments);
         }
     }
     // A game that stopped leaves its scenes, with components of the old code, until the frame after.
@@ -310,6 +320,8 @@ void EditorApplication::OnStop() {
     m_inspector = nullptr;
     m_assetBrowser = nullptr;
     m_hierarchy = nullptr;
+    m_context->SetCodeEditor(nullptr);
+    m_codeEditor = nullptr;
     m_panels.clear();
     m_hub.reset();
     m_newProjectDialog.reset();
@@ -324,10 +336,10 @@ void EditorApplication::OnStop() {
 }
 
 bool EditorApplication::OnCloseRequested() {
-    if (m_quitConfirmed || !m_workspace->HasUnsavedChanges()) {
+    if (m_quitConfirmed || (!m_workspace->HasUnsavedChanges() && !m_codeEditor->HasUnsavedChanges())) {
         return true;
     }
-    m_workspace->ConfirmAllUnsavedChanges([this] {
+    ConfirmUnsavedChanges([this] {
         m_quitConfirmed = true;
         Quit();
     });
@@ -368,6 +380,7 @@ void EditorApplication::CloseProject() {
     // Changes were asked about before, so the scenes close as they are.
     m_workspace->SaveState();
     m_workspace->CloseAll();
+    m_codeEditor->CloseAll();
     // Assets loaded from now on come from the application again, until another project opens.
     Detail::SetAssetManager(&GetAssets());
     m_thumbnails->Clear();
@@ -439,6 +452,9 @@ void EditorApplication::DrawUi() {
         const ImGuiDockNode* central = ImGui::DockBuilderGetCentralNode(m_dockSpace);
         m_workspace->Draw(central ? central->ID : m_dockSpace);
         for (const auto& panel : m_panels) {
+            if (panel.get() == m_codeEditor && panel->IsOpen()) {
+                ImGui::SetNextWindowDockID(central ? central->ID : m_dockSpace, ImGuiCond_FirstUseEver);
+            }
             panel->Draw();
         }
         HandleShortcuts();
@@ -480,42 +496,59 @@ void EditorApplication::DrawMainMenu() {
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Edit")) {
+        TextEditor* code = m_codeEditor->IsFocused() ? m_codeEditor->GetActiveEditor() : nullptr;
         CommandHistory* history = GetFocusedHistory();
         const std::string undo = history && history->CanUndo() ? ICON_FA_ROTATE_LEFT "  Undo " + history->GetUndoName()
                                                                : std::string(ICON_FA_ROTATE_LEFT "  Undo");
         const std::string redo = history && history->CanRedo() ? ICON_FA_ROTATE_RIGHT "  Redo " + history->GetRedoName()
                                                                : std::string(ICON_FA_ROTATE_RIGHT "  Redo");
-        if (MenuItem(undo.c_str(), ImGuiMod_Ctrl | ImGuiKey_Z, history && history->CanUndo())) {
+        if (MenuItem(undo.c_str(), ImGuiMod_Ctrl | ImGuiKey_Z,
+                     code ? code->CanUndo() : history && history->CanUndo())) {
             Undo();
         }
-        if (MenuItem(redo.c_str(), ImGuiMod_Ctrl | ImGuiKey_Y, history && history->CanRedo())) {
+        if (MenuItem(redo.c_str(), ImGuiMod_Ctrl | ImGuiKey_Y,
+                     code ? code->CanRedo() : history && history->CanRedo())) {
             Redo();
         }
         ImGui::Separator();
         SceneDocument* document = m_workspace->GetActiveDocument();
         const bool hasSelection = document && !document->GetSelection().IsEmpty();
-        if (MenuItem(ICON_FA_SCISSORS "  Cut", ImGuiMod_Ctrl | ImGuiKey_X, hasSelection)) {
-            CutSelection(*document);
+        if (MenuItem(ICON_FA_SCISSORS "  Cut", ImGuiMod_Ctrl | ImGuiKey_X,
+                     code ? code->AnyCursorHasSelection() : hasSelection)) {
+            if (code)
+                code->Cut();
+            else
+                CutSelection(*document);
         }
-        if (MenuItem(ICON_FA_COPY "  Copy", ImGuiMod_Ctrl | ImGuiKey_C, hasSelection)) {
-            CopySelection(*document);
+        if (MenuItem(ICON_FA_COPY "  Copy", ImGuiMod_Ctrl | ImGuiKey_C,
+                     code ? code->AnyCursorHasSelection() : hasSelection)) {
+            if (code)
+                code->Copy();
+            else
+                CopySelection(*document);
         }
-        if (MenuItem(ICON_FA_PASTE "  Paste", ImGuiMod_Ctrl | ImGuiKey_V, document != nullptr)) {
-            PasteClipboard(*document);
+        if (MenuItem(ICON_FA_PASTE "  Paste", ImGuiMod_Ctrl | ImGuiKey_V, code || document)) {
+            if (code)
+                code->Paste();
+            else
+                PasteClipboard(*document);
         }
-        if (MenuItem(ICON_FA_CLONE "  Duplicate", ImGuiMod_Ctrl | ImGuiKey_D, hasSelection)) {
+        if (MenuItem(ICON_FA_CLONE "  Duplicate", ImGuiMod_Ctrl | ImGuiKey_D, !code && hasSelection)) {
             DuplicateSelection(*document);
         }
-        if (MenuItem(ICON_FA_TRASH_CAN "  Delete", ImGuiKey_Delete, hasSelection)) {
+        if (MenuItem(ICON_FA_TRASH_CAN "  Delete", ImGuiKey_Delete, !code && hasSelection)) {
             DeleteSelection(*document);
         }
-        if (MenuItem(ICON_FA_PEN "  Rename", ImGuiKey_F2, hasSelection && m_hierarchy)) {
+        if (MenuItem(ICON_FA_PEN "  Rename", ImGuiKey_F2, !code && hasSelection && m_hierarchy)) {
             m_hierarchy->SetOpen(true);
             m_hierarchy->BeginRename(document->GetSelection().GetPrimary());
         }
         ImGui::Separator();
-        if (MenuItem("Select All", ImGuiMod_Ctrl | ImGuiKey_A, document != nullptr)) {
-            SelectAll(*document);
+        if (MenuItem("Select All", ImGuiMod_Ctrl | ImGuiKey_A, code || document)) {
+            if (code)
+                code->SelectAll();
+            else
+                SelectAll(*document);
         }
         ImGui::Separator();
         if (MenuItem(ICON_FA_SLIDERS "  Preferences...", ImGuiMod_Ctrl | ImGuiKey_Comma)) {
@@ -541,7 +574,8 @@ void EditorApplication::DrawMainMenu() {
         if (ImGui::MenuItem(ICON_FA_TABLE_COLUMNS "  Reset Layout")) {
             for (const auto& panel : m_panels) {
                 // Windows opened when needed start closed.
-                panel->SetOpen(panel->GetId() != "ProjectSettings" && panel->GetId() != "AudioMixer");
+                panel->SetOpen(panel->GetId() != "ProjectSettings" && panel->GetId() != "AudioMixer" &&
+                               panel->GetId() != "Code");
             }
             m_layoutPending = true;
         }
@@ -589,23 +623,33 @@ void EditorApplication::DrawFileMenu() {
     }
     ImGui::Separator();
     SceneDocument* document = m_workspace->GetActiveDocument();
+    const bool editingCode = m_codeEditor->IsFocused() && m_codeEditor->GetActiveEditor();
     if (MenuItem(ICON_FA_FILE "  New Scene", ImGuiMod_Ctrl | ImGuiKey_N, hasProject)) {
         m_workspace->NewScene();
     }
     if (MenuItem(ICON_FA_FILE_IMPORT "  Open Scene...", ImGuiMod_Ctrl | ImGuiKey_O, hasProject)) {
         m_workspace->BrowseForScene();
     }
-    if (MenuItem(ICON_FA_FLOPPY_DISK "  Save Scene", ImGuiMod_Ctrl | ImGuiKey_S, document != nullptr)) {
-        m_workspace->Save(*document);
+    if (MenuItem(editingCode ? ICON_FA_FLOPPY_DISK "  Save Script" : ICON_FA_FLOPPY_DISK "  Save Scene",
+                 ImGuiMod_Ctrl | ImGuiKey_S, editingCode || document)) {
+        if (editingCode)
+            m_codeEditor->SaveActive();
+        else
+            m_workspace->Save(*document);
     }
-    if (MenuItem("Save Scene As...", ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S, document != nullptr)) {
+    if (MenuItem("Save Scene As...", ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S, !editingCode && document)) {
         m_workspace->SaveAs(*document);
     }
-    if (MenuItem("Save All", ImGuiMod_Ctrl | ImGuiMod_Alt | ImGuiKey_S, m_workspace->GetDocumentCount() > 0)) {
+    if (MenuItem("Save All", ImGuiMod_Ctrl | ImGuiMod_Alt | ImGuiKey_S,
+                 m_workspace->GetDocumentCount() > 0 || m_codeEditor->GetDocumentCount() > 0)) {
+        m_codeEditor->SaveAll();
         m_workspace->SaveAll();
     }
-    if (MenuItem("Close Scene", ImGuiMod_Ctrl | ImGuiKey_W, document != nullptr)) {
-        m_workspace->Close(*document);
+    if (MenuItem(editingCode ? "Close Script" : "Close Scene", ImGuiMod_Ctrl | ImGuiKey_W, editingCode || document)) {
+        if (editingCode)
+            m_codeEditor->CloseActive();
+        else
+            m_workspace->Close(*document);
     }
     ImGui::Separator();
     const bool hasCode = hasProject && m_context->GetProject()->GetModules().HasCode();
@@ -896,7 +940,8 @@ void EditorApplication::DrawDockSpace() {
                                          .assets = "Assets",
                                          .console = "Console",
                                          .mixer = "AudioMixer",
-                                         .profiler = "Profiler"});
+                                         .profiler = "Profiler",
+                                         .code = "Code"});
     }
     ImGui::DockSpaceOverViewport(m_dockSpace, ImGui::GetMainViewport());
 }
@@ -938,6 +983,9 @@ void EditorApplication::DrawEntityMenu(SceneDocument& document) {
 }
 
 CommandHistory* EditorApplication::GetFocusedHistory() {
+    if (m_codeEditor->IsFocused()) {
+        return nullptr;
+    }
     if (CommandHistory* history = m_inspector ? m_inspector->GetFocusedHistory() : nullptr) {
         return history;
     }
@@ -946,7 +994,9 @@ CommandHistory* EditorApplication::GetFocusedHistory() {
 }
 
 void EditorApplication::Undo() {
-    if (CommandHistory* history = m_inspector ? m_inspector->GetFocusedHistory() : nullptr) {
+    if (TextEditor* code = m_codeEditor->IsFocused() ? m_codeEditor->GetActiveEditor() : nullptr) {
+        code->Undo();
+    } else if (CommandHistory* history = m_inspector ? m_inspector->GetFocusedHistory() : nullptr) {
         history->Undo();
     } else if (SceneDocument* document = m_workspace->GetActiveDocument()) {
         document->Undo();
@@ -954,7 +1004,9 @@ void EditorApplication::Undo() {
 }
 
 void EditorApplication::Redo() {
-    if (CommandHistory* history = m_inspector ? m_inspector->GetFocusedHistory() : nullptr) {
+    if (TextEditor* code = m_codeEditor->IsFocused() ? m_codeEditor->GetActiveEditor() : nullptr) {
+        code->Redo();
+    } else if (CommandHistory* history = m_inspector ? m_inspector->GetFocusedHistory() : nullptr) {
         history->Redo();
     } else if (SceneDocument* document = m_workspace->GetActiveDocument()) {
         document->Redo();
@@ -991,6 +1043,14 @@ void EditorApplication::HandleShortcuts() {
     if (ImGui::Shortcut(ImGuiMod_Shift | ImGuiKey_F5, Global)) {
         m_runPending = false;
         m_game->Stop();
+    }
+    if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiMod_Alt | ImGuiKey_S, Global)) {
+        m_codeEditor->SaveAll();
+        m_workspace->SaveAll();
+    }
+    if (m_codeEditor->IsFocused()) {
+        m_codeEditor->HandleShortcuts();
+        return;
     }
     SceneDocument* document = m_workspace->GetActiveDocument();
     if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_N, Global)) {
@@ -1029,9 +1089,6 @@ void EditorApplication::HandleShortcuts() {
     if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S, Global)) {
         m_workspace->SaveAs(*document);
     }
-    if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiMod_Alt | ImGuiKey_S, Global)) {
-        m_workspace->SaveAll();
-    }
     if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_W, Global)) {
         m_workspace->Close(*document);
     }
@@ -1063,7 +1120,8 @@ void EditorApplication::DrawAboutWindow() {
     ImGui::TextColored(EditorColors::TextMuted, "Game code builds with %s, %s", toolchain.generator.c_str(),
                        toolchain.configuration.c_str());
     ImGui::Separator();
-    ImGui::TextUnformatted("Built with Dear ImGui and ImGuizmo (MIT), the Inter font and Font Awesome Free\n"
+    ImGui::TextUnformatted("Built with Dear ImGui, ImGuizmo and ImGuiColorTextEdit (MIT),\n"
+                           "the Inter font and Font Awesome Free\n"
                            "(SIL OFL 1.1; icons CC BY 4.0).");
     ImGui::Spacing();
     const float buttonWidth = ImGui::GetFontSize() * 6.0f;

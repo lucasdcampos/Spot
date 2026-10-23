@@ -46,6 +46,7 @@ set_property(SOURCE build/build_info.cpp APPEND PROPERTY COMPILE_DEFINITIONS
     SPOT_TOOLCHAIN_MULTI_CONFIGURATION=$<BOOL:${spot_multi_config}>
     SPOT_TOOLCHAIN_PACKAGE="${PROJECT_BINARY_DIR}/package/$<CONFIG>"
     SPOT_TOOLCHAIN_ENGINE_LIBRARY="$<TARGET_FILE:spot_shared>"
+    SPOT_TOOLCHAIN_PLAYER="$<TARGET_FILE:spot_player>"
 )
-# What the tools build games against comes with them.
-add_dependencies(spot_tools spot_shared)
+# What the tools build games against, and run games without code with, comes with them.
+add_dependencies(spot_tools spot_shared spot_player)

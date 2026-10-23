@@ -573,6 +573,14 @@ void SceneWorkspace::SyncWithAssets() {
                 }
             });
         }
+        // The game being played sees them too, so script components swap in edited code as it runs.
+        if (m_play && m_play->GetDocument()) {
+            m_play->GetDocument()->GetScene().ForEachEntity([&](Entity& entity) {
+                for (Component* component : entity.GetComponents<Component>()) {
+                    ReloadAssetReferences(*component, reloaded, &project->GetAssets());
+                }
+            });
+        }
     }
     for (const Opened& open : m_scenes) {
         SceneDocument& document = *open.document;

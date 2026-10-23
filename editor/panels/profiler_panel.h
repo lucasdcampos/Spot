@@ -20,6 +20,7 @@ private:
     void DrawFrames();
     void DrawTimeline(const ProfileFrame& frame);
     void DrawAverages();
+    void DrawScripts();
     RemoteFrames m_remoteFrames;
     ProfilerModel m_model;
     bool m_remote = false;

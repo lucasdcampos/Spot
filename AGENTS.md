@@ -15,6 +15,8 @@ Each project lives in its own folder at the repository root, with headers next t
 - `tools/` – `spot_tools` (`spot::tools`), what makes games out of projects (`Project`), shared by the editor and the
   command line; built against the engine's headers only, so whatever links it links one engine library itself
 - `cli/` – `spot` (target `spot_cli`), the tools' command line: `new`, `cook`, `build`, `run` and `export` projects
+- `player/` – `spot_player`, the executable of games without C++ code: it runs the game it is given from its
+  `game.json` and imported assets, and exports ship it named after the game
 - `editor/` – the editor (`spot_editor`), a Dear ImGui application; everything but `main.cpp` is the
   `spot_editor_core` library its tests link
 
@@ -91,6 +93,9 @@ the commit that finishes a step ticks its box. Follow its architecture principle
   frames: it refers to them by `EntityId`, so undo history and game code reloads stay valid.
 - The build must have no warnings.
 - New engine features come with tests in `tests/`.
+- ViceScript language and API changes must update editor highlighting, its tests and affected script examples in the same change.
+  Members of the engine's script objects are described in `ScriptApi::Types` (`engine/scene/scripting/script_api.h`),
+  which both the scene bindings and the editor's suggestions read: a new member goes there, with its type.
 - Features keep their page in `docs/` up to date in the same commit: how the system works, why, and where to start.
   New systems get a page, linked from `docs/index.md`.
 - Assets (`engine/assets/`) are loaded from imported files, not raw sources. Every source asset has a `.meta` file

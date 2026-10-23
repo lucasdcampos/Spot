@@ -2,8 +2,16 @@
 
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 
 SPOT_COMPONENT(DayCycle);
+
+void DayCycle::SetTimeOfDay(float time) {
+    if (!std::isfinite(time) || time < 0.0f || time >= 1.0f)
+        throw std::invalid_argument("Time of day must be in [0, 1)");
+    timeOfDay = time;
+    UpdateSun();
+}
 
 void DayCycle::OnStart() {
     UpdateSun();

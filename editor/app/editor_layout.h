@@ -17,6 +17,7 @@ struct LayoutWindows {
     // Docked with the console, for when it opens.
     std::string mixer = {};
     std::string profiler = {};
+    std::string code = {};
 };
 
 // Splits the dock space into the default layout: scenes in the middle, the hierarchy above the inspector on the

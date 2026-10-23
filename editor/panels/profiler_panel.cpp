@@ -1,5 +1,7 @@
 #include "panels/profiler_panel.h"
 
+#include <spot.h>
+
 #include <algorithm>
 #include <format>
 #include <map>
@@ -31,9 +33,17 @@ void ProfilerPanel::OnDraw() {
         m_model.Clear();
         m_selected = 0;
     }
+    ImGui::SameLine();
+    bool scripts = IsScriptProfiling();
+    if (ImGui::Checkbox("Script functions", &scripts))
+        SetScriptProfiling(scripts);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Profiles each function of the scripts running in the editor; it slows scripts down");
     const auto frames =
         m_remote ? (m_remoteFrames ? m_remoteFrames() : std::vector<const ProfileFrame*>{}) : Profiler::GetFrames();
     m_model.Update(frames);
+    if (scripts)
+        DrawScripts();
     if (m_model.GetFrames().empty()) {
         ImGui::TextDisabled("No recorded frames");
         return;
@@ -128,6 +138,51 @@ void ProfilerPanel::DrawTimeline(const ProfileFrame& frame) {
                               Milliseconds(sample.duration), thread.c_str());
         }
     }
+}
+
+void ProfilerPanel::DrawScripts() {
+    ImGui::SeparatorText("Script functions (own time, since enabled)");
+    if (ImGui::SmallButton("Reset"))
+        ResetScriptProfile();
+    if (m_remote) {
+        ImGui::SameLine();
+        ImGui::TextDisabled("Scripts of the game process are not listed here");
+    }
+    const auto profile = GetScriptProfile();
+    if (profile.empty()) {
+        ImGui::TextDisabled("No script functions ran yet");
+        return;
+    }
+    const float height =
+        std::min(ImGui::GetTextLineHeightWithSpacing() * 9.0f, ImGui::GetContentRegionAvail().y * 0.4f);
+    if (!ImGui::BeginTable("##Scripts", 6, ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable,
+                           {0.0f, height})) {
+        return;
+    }
+    ImGui::TableSetupScrollFreeze(0, 1);
+    ImGui::TableSetupColumn("Function");
+    ImGui::TableSetupColumn("Source");
+    ImGui::TableSetupColumn("ms");
+    ImGui::TableSetupColumn("Calls");
+    ImGui::TableSetupColumn("Instructions");
+    ImGui::TableSetupColumn("Allocations");
+    ImGui::TableHeadersRow();
+    for (const auto& function : profile) {
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::TextUnformatted(function.name.c_str());
+        ImGui::TableNextColumn();
+        ImGui::TextUnformatted(std::format("{}:{}", function.sourceName, function.line).c_str());
+        ImGui::TableNextColumn();
+        ImGui::Text("%.3f", Milliseconds(function.time));
+        ImGui::TableNextColumn();
+        ImGui::Text("%llu", static_cast<unsigned long long>(function.calls));
+        ImGui::TableNextColumn();
+        ImGui::Text("%llu", static_cast<unsigned long long>(function.instructions));
+        ImGui::TableNextColumn();
+        ImGui::Text("%llu", static_cast<unsigned long long>(function.allocations));
+    }
+    ImGui::EndTable();
 }
 
 void ProfilerPanel::DrawAverages() {

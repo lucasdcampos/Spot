@@ -22,11 +22,15 @@
 #include "scene/rendering/sky.h"
 #include "scene/rendering/sprite_animator.h"
 #include "scene/rendering/sprite_renderer.h"
+#include "scene/rendering/surface_renderer.h"
 #include "scene/rendering/text_renderer.h"
 #include "scene/rendering/tilemap.h"
 #include "scene/ui/canvas.h"
 #include "scene/ui/ui_layout_group.h"
 #include "scene/ui/ui_widgets.h"
+
+#include "scene/scripting/script_bindings.h"
+#include "scene/scripting/script_component.h"
 
 #include <algorithm>
 #include <mutex>
@@ -63,6 +67,7 @@ Registry& GetRegistry() {
         RegisterBuiltIn<Animator>(registry, "Animator");
         RegisterBuiltIn<SkinnedMeshRenderer>(registry, "SkinnedMeshRenderer");
         RegisterBuiltIn<MeshRenderer>(registry, "MeshRenderer");
+        RegisterBuiltIn<SurfaceRenderer>(registry, "SurfaceRenderer");
         RegisterBuiltIn<Rigidbody>(registry, "Rigidbody");
         RegisterBuiltIn<Rigidbody2D>(registry, "Rigidbody2D");
         RegisterBuiltIn<BoxCollider2D>(registry, "BoxCollider2D");
@@ -106,6 +111,7 @@ Registry& GetRegistry() {
         RegisterBuiltIn<Camera>(registry, "Camera");
         RegisterBuiltIn<AudioSource>(registry, "AudioSource");
         RegisterBuiltIn<AudioListener>(registry, "AudioListener");
+        RegisterBuiltIn<ScriptComponent>(registry, "ScriptComponent");
         return true;
     }();
     static_cast<void>(builtInRegistered);
@@ -122,10 +128,12 @@ void RegisterComponentType(std::type_index type, std::string name, ComponentFact
 
     // The name stands for a single type, and a type for a single name.
     if (const auto previous = registry.types.find(name); previous != registry.types.end()) {
+        RemoveScriptBindings(previous->second);
         registry.names.erase(previous->second);
         registry.types.erase(previous);
     }
     if (const auto previous = registry.names.find(type); previous != registry.names.end()) {
+        RemoveScriptBindings(type);
         registry.factories.erase(previous->second);
         registry.types.erase(previous->second);
     }
@@ -165,6 +173,7 @@ void UnregisterComponent(std::string_view name) {
     // What the type requires refers to code of the module that defined it, which may be about to be unloaded; a
     // module loaded again declares it anew.
     Detail::SetComponentRequirements(Detail::GetComponentTypeIndex(found->second), {});
+    Detail::RemoveScriptBindings(found->second);
     registry.names.erase(found->second);
     registry.factories.erase(found->first);
     registry.types.erase(found);
