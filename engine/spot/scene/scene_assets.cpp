@@ -87,7 +87,7 @@ void Scene::FinishChunkLoads() {
         JobSystem::GetShared().Wait(pending->reading);
         const auto preloaded = pending->assets->FinishPreload(*pending->preload);
         if (pending->text) {
-            Entity& root = CreateEntity(pending->assets->GetPath(pending->id));
+            Entity& root = CreateEntity(std::string(pending->assets->GetPath(pending->id)));
             const auto entities = Instantiate(*pending->text, {.parent = &root, .assets = pending->assets});
             // Empty scenes are valid chunks too; LoadFromString validates their format without adding entities.
             if (!entities.empty()) {
