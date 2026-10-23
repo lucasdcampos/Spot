@@ -156,7 +156,7 @@ Depends on: Phase 1.
 
 Depends on: Phase 1.
 
-- [ ] **5.1 Chunks (M).** A scene loads a scene asset into itself, under a root entity it returns, in the background;
+- [x] **5.1 Chunks (M).** A scene loads a scene asset into itself, under a root entity it returns, in the background;
   unloading the chunk destroys its root.
 - [ ] **5.2 One scene per application (L).** Waits for 5.1. `Application` runs one active scene: the persistent scene,
   the additive scene list, per-scene event routing and drawing several scenes go. Entities marked with

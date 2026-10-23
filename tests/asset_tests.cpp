@@ -1180,7 +1180,7 @@ TEST_CASE("Assets load in the background, and preload together with what they re
     CHECK(assets.Load<Spot::Sound>(*other).Get() == preloaded.front().get());
 }
 
-TEST_CASE("Applications load scenes in the background, next to the ones loaded", "[assets]") {
+TEST_CASE("Scenes load chunks in the background into their own hierarchy", "[assets]") {
     const TempDirectory project;
     const auto sources = project.GetPath() / "assets";
     const auto imported = project.GetPath() / "imported";
@@ -1211,7 +1211,7 @@ TEST_CASE("Applications load scenes in the background, next to the ones loaded",
     protected:
         void OnUpdate(float) override {
             if (!m_load.IsValid()) {
-                m_load = LoadSceneAdditiveAsync(m_district);
+                m_load = GetScene()->LoadChunkAsync(GetAssets(), m_district);
                 return;
             }
             if (!m_load.IsDone()) {
@@ -1222,15 +1222,20 @@ TEST_CASE("Applications load scenes in the background, next to the ones loaded",
                 return;
             }
             // Loaded alongside the scene already there, which kept running.
-            const auto scenes = GetScenes();
-            streamed = m_load.GetScene() && scenes.size() == 2 && m_load.GetScene()->FindEntity("Market");
+            auto* root = m_load.GetRoot();
+            streamed = root && root->FindChild("Market") && &root->GetScene() == GetScene();
+            if (root) {
+                root->Destroy();
+                CHECK(m_load.GetRoot() == nullptr);
+                CHECK(GetScene()->FindEntity("Market") == nullptr);
+            }
             playerKept = GetScene() && GetScene()->FindEntity("Player");
             Quit();
         }
 
     private:
         Spot::AssetId m_district;
-        Spot::SceneLoad m_load;
+        Spot::ChunkLoad m_load;
     };
 
     Spot::ApplicationConfig config{
@@ -1240,4 +1245,34 @@ TEST_CASE("Applications load scenes in the background, next to the ones loaded",
     REQUIRE(application.Run() == EXIT_SUCCESS);
     CHECK(application.streamed);
     CHECK(application.playerKept);
+}
+
+TEST_CASE("Chunk handles survive failure, cancellation and scene destruction", "[assets]") {
+    const TempDirectory project;
+    Spot::AssetManager assets(project.GetPath());
+    Spot::ChunkLoad cancelled;
+    {
+        Spot::Scene scene;
+        cancelled = scene.LoadChunkAsync(assets, Spot::AssetId::Generate());
+        REQUIRE(cancelled.IsValid());
+        scene.Clear();
+        CHECK(cancelled.IsDone());
+        CHECK(cancelled.GetRoot() == nullptr);
+        scene.Update(0.0f);
+        CHECK(scene.GetEntityCount() == 0);
+    }
+    CHECK(cancelled.GetRoot() == nullptr);
+    Spot::ChunkLoad failed;
+    {
+        Spot::Scene scene;
+        failed = scene.LoadChunkAsync(assets, Spot::AssetId::Generate());
+        for (int frame = 0; frame < 1000 && !failed.IsDone(); ++frame) {
+            scene.Update(0.0f);
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        CHECK(failed.IsDone());
+        CHECK(failed.GetRoot() == nullptr);
+        CHECK(scene.GetEntityCount() == 0);
+    }
+    CHECK(failed.GetRoot() == nullptr);
 }

@@ -203,6 +203,7 @@ void Scene::DestroyEntity(Entity& entity) {
 }
 
 void Scene::Clear() {
+    CancelChunkLoads();
     ForEachEntity([this](Entity& entity) {
         if (!entity.m_parent) {
             DestroyEntity(entity);
@@ -259,6 +260,7 @@ std::size_t Scene::GetEntityCount() const {
 
 void Scene::Update(float deltaTime) {
     SPOT_ASSERT(!m_deferRemovals, "Update() cannot be called while the scene walks its entities");
+    FinishChunkLoads();
     ++m_updateCount;
     if (!std::isfinite(deltaTime) || deltaTime < 0.0f) {
         deltaTime = 0.0f;

@@ -140,3 +140,15 @@ action map.
 Sections a build does not know are kept as they are (`SettingsSections::unknown`), so an older build never loses a
 newer one's settings. A new section is a struct with those members, a field in `SettingsSections` and a line in its
 `ForEach()`.
+
+### Streaming chunks
+
+`scene.LoadChunkAsync(assets, sceneId)` reads a scene asset and preloads its dependencies on worker threads.
+`Scene::Update()` finishes ready requests before starting components. Applications also finish requests while
+paused. Entity creation and GPU asset creation happen on the main thread; they can still take part of a frame.
+The asset manager must outlive the scene and its background reads.
+
+The returned `ChunkLoad` reports completion with `IsDone()`. `GetRoot()` returns the new root entity, or null on
+failure, after the root is destroyed, or after the scene is cleared. The imported scene's roots become children
+of that root, with fresh ids and remapped internal references. Destroy the root to unload the whole chunk.
+Chunks share the host scene's systems, including its physics world. Clearing a scene cancels unfinished chunks.

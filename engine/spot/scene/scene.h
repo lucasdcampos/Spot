@@ -24,6 +24,7 @@
 namespace Spot {
 
 class Application;
+class Scene;
 class AssetManager;
 class Event;
 class AudioSystem;
@@ -35,6 +36,24 @@ class RenderContext;
 class InputState;
 class UiSystem;
 class UiInputSystem;
+
+// A chunk finishes on Scene::Update(). Its root becomes null after destruction or scene clearing.
+class ChunkLoad {
+public:
+    struct State {
+        bool done = false;
+        Scene* scene = nullptr;
+        EntityId root = EntityId::Invalid;
+    };
+    ChunkLoad() = default;
+    explicit ChunkLoad(std::shared_ptr<State> state) : m_state(std::move(state)) {}
+    bool IsValid() const { return m_state != nullptr; }
+    bool IsDone() const { return m_state && m_state->done; }
+    Entity* GetRoot() const;
+
+private:
+    std::shared_ptr<State> m_state;
+};
 
 // How Scene::Instantiate() adds saved entities.
 struct InstantiateOptions {
@@ -167,6 +186,12 @@ public:
     // Adds saved entities like LoadFromString(), as the options say, and returns those that had no parent among
     // them, in order. Returns nothing, having added nothing, when the text is not a saved scene.
     std::vector<Entity*> Instantiate(std::string_view text, const InstantiateOptions& options = {});
+    // Reads a scene asset and its dependencies on workers, then creates its entities below a new root at the
+    // start of Update(). Destroying that root unloads the chunk. The manager must outlive this scene.
+    ChunkLoad LoadChunkAsync(AssetManager& assets, AssetId scene);
+    // Completes ready chunks without advancing simulation, including while an application is paused.
+    void FinishChunkLoads();
+
     // Creates a root with the given name and an entity per model node below it, keeping local transforms and the
     // hierarchy. Each drawable submesh gets a MeshRenderer on its node; meshes and materials remain shared.
     Entity& Instantiate(const Model& model, std::string name = {});
@@ -342,6 +367,11 @@ private:
     static bool IsAlive(const std::unique_ptr<Entity>& entity);
     void MarkEntityChanged(const Entity& entity);
     void MarkStructureChanged() { ++m_structureVersion; }
+
+    struct PendingChunk;
+    std::vector<std::shared_ptr<PendingChunk>> m_chunkLoads;
+    std::vector<std::weak_ptr<ChunkLoad::State>> m_chunkStates;
+    void CancelChunkLoads();
 
     std::uint64_t m_structureVersion = 0;
     bool m_trackingChanges = false;
