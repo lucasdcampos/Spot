@@ -117,7 +117,7 @@ Depends on: Phase 1.
 - [x] **3.1 Ids in the core (S).** `AssetRef` moves to `core/` beside `AssetId`, and `EntityId` to `core/`.
   `core/archive.h` stops declaring scene and asset types; `FieldOptions::entityFilter` takes a filter on entity ids
   that the tools give.
-- [ ] **3.2 CPU geometry in the core (S).** `MeshData` and the bounds types move to `core/`, so physics stops including
+- [x] **3.2 CPU geometry in the core (S).** `MeshData` and the bounds types move to `core/`, so physics stops including
   rendering.
 - [ ] **3.3 Asset loaders register themselves (M).** Waits for 3.1. The asset manager stops building every type:
   graphics and each system register their own (`RegisterGraphicsAssets()`, `RegisterRenderAssets()`,

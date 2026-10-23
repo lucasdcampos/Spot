@@ -498,3 +498,10 @@ Skinned meshes use `SkinnedMeshRenderer` or `Renderer3D::DrawSkinnedMesh()` with
 vertex stream and per-instance joint palettes. Color, shadows, readable camera depth and
 editor picking use the same deformation. Bounds padding covers animation beyond the bind mesh;
 see [animation](animation.md).
+
+## CPU geometry in the foundation
+
+`MeshData`, its vertices and submeshes live in `spot/core/geometry/mesh_data.h`. Procedural generation, normals,
+tangents and bounds are CPU operations and need no graphics device. `BoundingBox` and `BoundingSphere` are in
+`spot/core/geometry/bounds.h`. Start there when sharing geometry between rendering, physics and custom tools;
+`Mesh::Create()` in the rendering API uploads the CPU geometry when drawing is needed.

@@ -1,4 +1,4 @@
-#include "spot/render/mesh_data.h"
+#include "spot/core/geometry/mesh_data.h"
 
 #include "spot/core/angles.h"
 

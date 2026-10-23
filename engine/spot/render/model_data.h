@@ -2,10 +2,10 @@
 
 #include "spot/animation/animation_data.h"
 #include "spot/core/color.h"
+#include "spot/core/geometry/mesh_data.h"
 #include "spot/core/matrix.h"
 #include "spot/graphics/image.h"
 #include "spot/render/material.h"
-#include "spot/render/mesh_data.h"
 
 #include <cstddef>
 #include <filesystem>

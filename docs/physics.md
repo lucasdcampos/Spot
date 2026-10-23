@@ -180,3 +180,9 @@ physics never ran. The sandbox switches the debug view with B.
 
 `Ragdoll` builds ordinary rigidbodies and swing/twist joints from a skeleton through the
 public API, and transfers their transforms back to animation. See [animation](animation.md).
+
+## CPU geometry without rendering
+
+Mesh and convex-hull shapes use `MeshData` from `spot/core/geometry/mesh_data.h`. Physics consumes CPU vertices
+and indices directly and does not include rendering. Bounds are independent foundation types in
+`spot/core/geometry/bounds.h`; no graphics device, renderer or scene is needed to create and inspect geometry.

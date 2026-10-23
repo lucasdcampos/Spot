@@ -47,7 +47,7 @@ with `<spot.h>`.
 
 | Level | Folders | What it holds |
 |---|---|---|
-| 0 | `core/` | Logging, assertions, memory, files, math, time, jobs, archives (`Archive`), the profiler, ids, colors, curves |
+| 0 | `core/` | Logging, assertions, memory, files, math, time, jobs, archives (`Archive`), the profiler, ids, asset references, CPU geometry and bounds, colors, curves |
 | 1 | `platform/` | Windows, events, the input state and actions, processes, shared libraries, the crash handler, RenderDoc capture; SDL3 behind `platform/sdl3/` |
 | 2 | `assets/` | Loading imported assets |
 | 3 | `graphics/` | The graphics API and its backends (rendering level 1) |

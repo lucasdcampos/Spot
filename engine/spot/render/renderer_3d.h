@@ -1,6 +1,7 @@
 #pragma once
 
 #include "spot/core/color.h"
+#include "spot/core/geometry/mesh_data.h"
 #include "spot/core/matrix.h"
 #include "spot/core/vector.h"
 #include "spot/graphics/render_context.h"
@@ -12,7 +13,6 @@
 #include "spot/render/light_data.h"
 #include "spot/render/material.h"
 #include "spot/render/mesh.h"
-#include "spot/render/mesh_data.h"
 #include "spot/render/sky_data.h"
 
 #include <array>
