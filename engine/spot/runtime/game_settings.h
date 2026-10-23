@@ -2,7 +2,7 @@
 
 #include "spot/audio/audio_settings.h"
 #include "spot/core/asset_id.h"
-#include "spot/input/input_settings.h"
+#include "spot/platform/input_settings.h"
 #include "spot/scene/physics/physics_settings.h"
 #include "spot/scene/rendering/rendering_settings.h"
 

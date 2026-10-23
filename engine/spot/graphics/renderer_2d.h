@@ -1,12 +1,12 @@
 #pragma once
 
+#include "spot/core/color.h"
+#include "spot/core/vector.h"
 #include "spot/graphics/camera_2d.h"
 #include "spot/graphics/quad_batch.h"
 #include "spot/graphics/render_context.h"
 #include "spot/graphics/text_layout.h"
 #include "spot/graphics/texture.h"
-#include "spot/math/color.h"
-#include "spot/math/vector.h"
 
 #include <cstdint>
 #include <memory>

@@ -2,8 +2,8 @@
 
 #include "spot/audio/playback.h"
 #include "spot/audio/sound.h"
-#include "spot/math/quaternion.h"
-#include "spot/math/vector.h"
+#include "spot/core/quaternion.h"
+#include "spot/core/vector.h"
 #include "spot/scene/audio/audio_source.h"
 #include "spot/scene/scene_system.h"
 

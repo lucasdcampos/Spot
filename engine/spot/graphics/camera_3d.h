@@ -1,10 +1,10 @@
 #pragma once
 
+#include "spot/core/angles.h"
+#include "spot/core/matrix.h"
+#include "spot/core/quaternion.h"
+#include "spot/core/vector.h"
 #include "spot/graphics/pixel_perfect.h"
-#include "spot/math/angles.h"
-#include "spot/math/matrix.h"
-#include "spot/math/quaternion.h"
-#include "spot/math/vector.h"
 
 #include <cstdint>
 

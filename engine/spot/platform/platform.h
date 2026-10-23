@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/events/event.h"
+#include "spot/platform/event.h"
 
 #include <chrono>
 #include <functional>

@@ -2,7 +2,7 @@
 #include "spot/core/log.h"
 #include "spot/graphics/sdl_gpu/sdl_gpu_internal.h"
 #include "spot/platform/platform.h"
-#include "spot/window/window.h"
+#include "spot/platform/window.h"
 
 #include <SDL3/SDL.h>
 

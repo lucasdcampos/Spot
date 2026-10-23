@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/input/input_action.h"
+#include "spot/platform/input_action.h"
 
 #include <string_view>
 #include <vector>

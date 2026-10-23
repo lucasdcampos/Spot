@@ -1,4 +1,4 @@
-#include "spot/input/input_settings.h"
+#include "spot/platform/input_settings.h"
 
 #include "spot/core/archive.h"
 

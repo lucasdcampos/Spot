@@ -6,7 +6,7 @@
 #include "spot/core/log.h"
 #include "spot/core/profiler.h"
 #include "spot/graphics/renderer_2d.h"
-#include "spot/input/input.h"
+#include "spot/platform/input.h"
 #include "spot/scene/audio/audio_system.h"
 #include "spot/scene/physics/physics_world.h"
 #include "spot/scene/physics2d/physics_world_2d.h"

@@ -3,13 +3,13 @@
 #include "spot/assets/asset_manager.h"
 #include "spot/audio/audio_device.h"
 #include "spot/core/time.h"
-#include "spot/events/event.h"
 #include "spot/graphics/graphics_device.h"
-#include "spot/input/input_action.h"
-#include "spot/input/input_state.h"
+#include "spot/platform/event.h"
+#include "spot/platform/input_action.h"
+#include "spot/platform/input_state.h"
+#include "spot/platform/window.h"
 #include "spot/runtime/game_settings.h"
 #include "spot/scene/scene.h"
-#include "spot/window/window.h"
 
 #include <concepts>
 #include <filesystem>

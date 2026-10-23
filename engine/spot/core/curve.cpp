@@ -1,4 +1,4 @@
-#include "spot/math/curve.h"
+#include "spot/core/curve.h"
 #include "spot/core/archive.h"
 
 #include <algorithm>

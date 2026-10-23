@@ -1,8 +1,8 @@
 #pragma once
 
-#include "spot/math/matrix.h"
-#include "spot/math/quaternion.h"
-#include "spot/math/vector.h"
+#include "spot/core/matrix.h"
+#include "spot/core/quaternion.h"
+#include "spot/core/vector.h"
 
 #include <cstdint>
 

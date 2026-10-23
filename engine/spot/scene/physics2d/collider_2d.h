@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/physics2d/physics_2d.h"
+#include "spot/physics/physics_2d.h"
 #include "spot/scene/component.h"
 
 namespace Spot {

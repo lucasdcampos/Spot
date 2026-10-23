@@ -1,8 +1,8 @@
 #pragma once
 
+#include "spot/core/matrix.h"
 #include "spot/graphics/camera_3d.h"
 #include "spot/graphics/mesh.h"
-#include "spot/math/matrix.h"
 
 #include <array>
 #include <cstdint>

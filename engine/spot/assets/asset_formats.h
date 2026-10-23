@@ -8,11 +8,11 @@
 #include "spot/assets/asset_file.h"
 #include "spot/assets/material_source.h"
 #include "spot/core/asset_id.h"
+#include "spot/core/color.h"
+#include "spot/core/matrix.h"
 #include "spot/graphics/image.h"
 #include "spot/graphics/mesh_data.h"
 #include "spot/graphics/texture.h"
-#include "spot/math/color.h"
-#include "spot/math/matrix.h"
 
 #include <cstddef>
 #include <cstdint>

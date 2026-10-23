@@ -3,7 +3,7 @@
 #include "spot/core/asset_id.h"
 #include "spot/core/task.h"
 #include "spot/core/timer.h"
-#include "spot/math/vector.h"
+#include "spot/core/vector.h"
 #include "spot/scene/component_type.h"
 
 #include <array>

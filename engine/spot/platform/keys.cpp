@@ -1,4 +1,4 @@
-#include "spot/input/keys.h"
+#include "spot/platform/keys.h"
 
 namespace Spot {
 

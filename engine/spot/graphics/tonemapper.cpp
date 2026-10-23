@@ -1,9 +1,9 @@
 #include "spot/graphics/tonemapper.h"
 
 #include "spot/core/log.h"
+#include "spot/core/vector.h"
 #include "spot/graphics/graphics_device.h"
 #include "spot/graphics/render_context.h"
-#include "spot/math/vector.h"
 
 #include "tonemap.frag.h"
 

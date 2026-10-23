@@ -35,7 +35,7 @@ in order, as each moves files the next one touches.
   `<spot/core/log.h>` instead of `<core/log.h>`, which could collide with their own folders; `<spot.h>` stays where it
   is. Every include in the engine, the editor, the tools, the tests and the sandbox follows, and so do the layer
   check, `AGENTS.md` and `docs/`.
-- [ ] **1.2 Merge folders (S).** `math/` into `core/`; `window/`, `events/` and `input/` into `platform/`; `physics2d/`
+- [x] **1.2 Merge folders (S).** `math/` into `core/`; `window/`, `events/` and `input/` into `platform/`; `physics2d/`
   into `physics/`.
 - [ ] **1.3 A foundation-only core (S).** Tweens, timers, tasks and signals move to `scene/`; the console, save data and
   profile streaming to `runtime/`; the crash handler, RenderDoc capture, processes and shared libraries to

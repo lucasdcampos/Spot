@@ -1,8 +1,8 @@
 #include "spot/graphics/model_data.h"
 
 #include "spot/core/log.h"
+#include "spot/core/matrix.h"
 #include "spot/core/paths.h"
-#include "spot/math/matrix.h"
 
 #include <nlohmann/json.hpp>
 

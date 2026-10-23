@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/input/input_state.h"
+#include "spot/platform/input_state.h"
 
 namespace Spot {
 

@@ -1,11 +1,11 @@
-#include "spot/input/input_action.h"
+#include "spot/platform/input_action.h"
 
 #include "spot/core/archive.h"
 #include "spot/core/archive_state.h"
 #include "spot/core/file_io.h"
 #include "spot/core/log.h"
 #include "spot/core/paths.h"
-#include "spot/input/input_state.h"
+#include "spot/platform/input_state.h"
 
 #include <algorithm>
 #include <cmath>

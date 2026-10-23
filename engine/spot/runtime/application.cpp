@@ -16,7 +16,7 @@
 #include "spot/graphics/font.h"
 #include "spot/graphics/renderer_2d.h"
 #include "spot/graphics/screenshot.h"
-#include "spot/input/input.h"
+#include "spot/platform/input.h"
 #include "spot/platform/platform.h"
 #include "spot/runtime/console_input.h"
 #include "spot/runtime/console_overlay.h"

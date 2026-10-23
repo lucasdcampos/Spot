@@ -1,11 +1,11 @@
 #pragma once
 
 #include "spot/animation/animation_data.h"
+#include "spot/core/color.h"
+#include "spot/core/matrix.h"
 #include "spot/graphics/image.h"
 #include "spot/graphics/material.h"
 #include "spot/graphics/mesh_data.h"
-#include "spot/math/color.h"
-#include "spot/math/matrix.h"
 
 #include <cstddef>
 #include <filesystem>

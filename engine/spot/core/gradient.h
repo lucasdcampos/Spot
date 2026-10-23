@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/math/color.h"
+#include "spot/core/color.h"
 #include <span>
 #include <vector>
 

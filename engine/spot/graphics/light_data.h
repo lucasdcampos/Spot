@@ -1,8 +1,8 @@
 #pragma once
 
-#include "spot/math/angles.h"
-#include "spot/math/color.h"
-#include "spot/math/vector.h"
+#include "spot/core/angles.h"
+#include "spot/core/color.h"
+#include "spot/core/vector.h"
 
 namespace Spot {
 

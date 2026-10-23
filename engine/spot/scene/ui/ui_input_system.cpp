@@ -1,7 +1,7 @@
 #include "spot/scene/ui/ui_input_system.h"
 
 #include "spot/core/profiler.h"
-#include "spot/input/input.h"
+#include "spot/platform/input.h"
 #include "spot/scene/scene.h"
 #include "spot/scene/ui/canvas.h"
 #include "spot/scene/ui/ui_system.h"

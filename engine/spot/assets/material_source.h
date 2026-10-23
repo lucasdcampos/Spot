@@ -1,8 +1,8 @@
 #pragma once
 
 #include "spot/core/asset_id.h"
+#include "spot/core/color.h"
 #include "spot/graphics/material.h"
-#include "spot/math/color.h"
 
 #include <filesystem>
 #include <optional>

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "spot/core/signal.h"
-#include "spot/events/event.h"
-#include "spot/input/input_state.h"
+#include "spot/platform/event.h"
+#include "spot/platform/input_state.h"
 #include "spot/scene/entity.h"
 #include "spot/scene/scene_system.h"
 

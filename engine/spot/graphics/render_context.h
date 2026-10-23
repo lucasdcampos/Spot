@@ -1,10 +1,10 @@
 #pragma once
 
+#include "spot/core/color.h"
 #include "spot/graphics/buffer.h"
 #include "spot/graphics/compute.h"
 #include "spot/graphics/texture.h"
 #include "spot/graphics/texture_table.h"
-#include "spot/math/color.h"
 
 #include <cstdint>
 #include <memory>

@@ -1,7 +1,7 @@
-#include "spot/input/input.h"
+#include "spot/platform/input.h"
 
-#include "spot/input/input_action.h"
-#include "spot/input/input_state.h"
+#include "spot/platform/input_action.h"
+#include "spot/platform/input_state.h"
 #include "spot/platform/platform.h"
 
 #include <chrono>

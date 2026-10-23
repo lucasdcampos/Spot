@@ -1,4 +1,4 @@
-#include "spot/physics2d/physics_2d.h"
+#include "spot/physics/physics_2d.h"
 
 #include "spot/core/log.h"
 #include "spot/core/profiler.h"

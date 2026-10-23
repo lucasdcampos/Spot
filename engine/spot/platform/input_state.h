@@ -1,8 +1,8 @@
 #pragma once
 
-#include "spot/events/event.h"
-#include "spot/input/keys.h"
-#include "spot/math/vector.h"
+#include "spot/core/vector.h"
+#include "spot/platform/event.h"
+#include "spot/platform/keys.h"
 
 #include <array>
 #include <bitset>

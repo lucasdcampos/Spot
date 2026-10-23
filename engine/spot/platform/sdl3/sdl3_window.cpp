@@ -1,4 +1,4 @@
-#include "spot/window/window.h"
+#include "spot/platform/window.h"
 
 #include "spot/core/log.h"
 #include "spot/platform/platform.h"

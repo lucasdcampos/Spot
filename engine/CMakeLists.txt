@@ -92,7 +92,7 @@ add_library(spot_objects OBJECT
     spot/core/tween.cpp
     spot/core/utf8.h
     spot/core/utf8.cpp
-    spot/events/event.h
+    spot/platform/event.h
     spot/graphics/atmosphere.h
     spot/graphics/atmosphere.cpp
     spot/graphics/buffer.h
@@ -105,7 +105,7 @@ add_library(spot_objects OBJECT
     spot/graphics/pixel_perfect.cpp
     spot/graphics/camera_3d.h
     spot/graphics/camera_3d.cpp
-    spot/math/color.h
+    spot/core/color.h
     spot/graphics/debug_draw.h
     spot/graphics/debug_draw.cpp
     spot/graphics/font.h
@@ -198,33 +198,33 @@ add_library(spot_objects OBJECT
     spot/graphics/texture_table.h
     spot/graphics/tonemapper.cpp
     spot/graphics/tonemapper.h
-    spot/input/input.h
-    spot/input/input.cpp
-    spot/input/input_action.h
-    spot/input/input_action.cpp
-    spot/input/input_settings.h
-    spot/input/input_settings.cpp
-    spot/input/input_state.h
-    spot/input/input_state.cpp
-    spot/input/keys.h
-    spot/input/keys.cpp
+    spot/platform/input.h
+    spot/platform/input.cpp
+    spot/platform/input_action.h
+    spot/platform/input_action.cpp
+    spot/platform/input_settings.h
+    spot/platform/input_settings.cpp
+    spot/platform/input_state.h
+    spot/platform/input_state.cpp
+    spot/platform/keys.h
+    spot/platform/keys.cpp
     spot/particles/particle_settings.h
     spot/particles/particle_settings.cpp
     spot/particles/particle_simulation.h
     spot/particles/particle_simulation.cpp
     spot/scene/particles/particle_system.h
     spot/scene/particles/particle_system.cpp
-    spot/math/curve.h
-    spot/math/curve.cpp
-    spot/math/gradient.h
-    spot/math/gradient.cpp
-    spot/math/angles.h
-    spot/math/glm_conversions.h
-    spot/math/matrix.h
-    spot/math/matrix.cpp
-    spot/math/quaternion.h
-    spot/math/quaternion.cpp
-    spot/math/vector.h
+    spot/core/curve.h
+    spot/core/curve.cpp
+    spot/core/gradient.h
+    spot/core/gradient.cpp
+    spot/core/angles.h
+    spot/core/glm_conversions.h
+    spot/core/matrix.h
+    spot/core/matrix.cpp
+    spot/core/quaternion.h
+    spot/core/quaternion.cpp
+    spot/core/vector.h
     spot/scene/physics/character_controller.h
     spot/scene/physics/character_controller.cpp
     spot/scene/physics/collider.h
@@ -245,7 +245,7 @@ add_library(spot_objects OBJECT
     spot/scene/physics/physics_world_queries.cpp
     spot/scene/physics/rigidbody.h
     spot/scene/physics/rigidbody.cpp
-    spot/physics2d/physics_2d.h
+    spot/physics/physics_2d.h
     spot/scene/physics2d/physics_world_2d.cpp
     spot/scene/physics2d/collider_2d.cpp
     spot/scene/physics2d/rigidbody_2d.cpp
@@ -313,11 +313,11 @@ add_library(spot_objects OBJECT
     spot/scene/transform.cpp
     spot/scene/tween_system.h
     spot/scene/tween_system.cpp
-    spot/window/clipboard.h
-    spot/window/file_dialog.h
-    spot/window/shell.cpp
-    spot/window/shell.h
-    spot/window/window.h
+    spot/platform/clipboard.h
+    spot/platform/file_dialog.h
+    spot/platform/shell.cpp
+    spot/platform/shell.h
+    spot/platform/window.h
 )
 
 spot_add_shaders(spot_objects NAMESPACE Spot::Detail::Shaders

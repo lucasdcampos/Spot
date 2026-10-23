@@ -2,7 +2,7 @@
 
 Input reaches games two ways: as **events**, delivered to the application and the scenes as they come, and as an
 **input state** that games query each frame. The platform backend (SDL3, `engine/spot/platform/`) turns the OS's events
-into the engine's (`engine/spot/events/event.h`) and never shows in public headers.
+into the engine's (`engine/spot/platform/event.h`) and never shows in public headers.
 
 ## Events
 
@@ -22,7 +22,7 @@ void OnEvent(const Spot::Event& event) override {
 
 ## The input state
 
-`InputState` (`engine/spot/input/input_state.h`) is the keyboard and mouse built from events. Holding a key or button is
+`InputState` (`engine/spot/platform/input_state.h`) is the keyboard and mouse built from events. Holding a key or button is
 "down"; "pressed" and "released" only hold during the frame in which they changed, so a press and a release within
 one frame are both seen. The running application's state is reached anywhere through `Spot::Input`:
 
@@ -32,7 +32,7 @@ if (Spot::Input::IsMouseButtonPressed(Spot::MouseButton::Left)) { /* shoot */ }
 const Spot::Vector2 look = Spot::Input::GetMouseDelta();
 ```
 
-Keys (`engine/spot/input/keys.h`) name physical positions on a US layout, so WASD stays in place on other layouts; text
+Keys (`engine/spot/platform/keys.h`) name physical positions on a US layout, so WASD stays in place on other layouts; text
 typed comes through `TextInputEvent` instead.
 
 ## Text
@@ -64,7 +64,7 @@ frequency motors through the platform. Dead zones and other processing belong to
 ## Actions
 
 Games rarely care which key jumps: they ask whether the player jumped. An `InputActionMap`
-(`engine/spot/input/input_action.h`) holds named actions, each with bindings to the controls that drive it:
+(`engine/spot/platform/input_action.h`) holds named actions, each with bindings to the controls that drive it:
 
 ```cpp
 Spot::InputActionMap& actions = GetInputActions(); // in the Application

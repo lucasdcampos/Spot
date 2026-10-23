@@ -1,4 +1,4 @@
-#include "spot/window/shell.h"
+#include "spot/platform/shell.h"
 
 #include "spot/core/log.h"
 #include "spot/core/paths.h"

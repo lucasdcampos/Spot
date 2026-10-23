@@ -1,6 +1,6 @@
-#include "spot/math/quaternion.h"
+#include "spot/core/quaternion.h"
 
-#include "spot/math/glm_conversions.h"
+#include "spot/core/glm_conversions.h"
 
 #include <cmath>
 

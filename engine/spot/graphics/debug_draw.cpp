@@ -1,7 +1,7 @@
 #include "spot/graphics/debug_draw.h"
 
+#include "spot/core/angles.h"
 #include "spot/core/log.h"
-#include "spot/math/angles.h"
 
 #include <algorithm>
 #include <cmath>

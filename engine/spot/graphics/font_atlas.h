@@ -1,7 +1,7 @@
 #pragma once
 
+#include "spot/core/vector.h"
 #include "spot/graphics/image.h"
-#include "spot/math/vector.h"
 
 #include <cstddef>
 #include <memory>

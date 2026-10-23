@@ -1,8 +1,8 @@
 #pragma once
 
+#include "spot/core/matrix.h"
+#include "spot/core/vector.h"
 #include "spot/graphics/pixel_perfect.h"
-#include "spot/math/matrix.h"
-#include "spot/math/vector.h"
 
 namespace Spot {
 

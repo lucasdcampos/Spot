@@ -1,9 +1,9 @@
-#include "spot/window/file_dialog.h"
+#include "spot/platform/file_dialog.h"
 
 #include "spot/core/log.h"
 #include "spot/core/paths.h"
 #include "spot/platform/platform.h"
-#include "spot/window/window.h"
+#include "spot/platform/window.h"
 
 #include <SDL3/SDL.h>
 

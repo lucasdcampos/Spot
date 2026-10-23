@@ -3,7 +3,7 @@
 #include "spot/core/assert.h"
 #include "spot/core/log.h"
 #include "spot/graphics/nvrhi/nvrhi_vulkan.h"
-#include "spot/window/window.h"
+#include "spot/platform/window.h"
 
 #include <nvrhi/validation.h>
 

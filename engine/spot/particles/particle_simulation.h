@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/math/matrix.h"
+#include "spot/core/matrix.h"
 #include "spot/particles/particle_settings.h"
 #include <span>
 

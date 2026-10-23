@@ -1,4 +1,4 @@
-#include "spot/math/gradient.h"
+#include "spot/core/gradient.h"
 #include "spot/core/archive.h"
 #include <algorithm>
 #include <cmath>

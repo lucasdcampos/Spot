@@ -1,4 +1,4 @@
-#include "spot/window/clipboard.h"
+#include "spot/platform/clipboard.h"
 
 #include "spot/core/log.h"
 #include "spot/platform/platform.h"

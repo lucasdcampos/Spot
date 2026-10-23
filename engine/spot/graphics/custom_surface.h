@@ -1,10 +1,10 @@
 #pragma once
 
+#include "spot/core/matrix.h"
+#include "spot/core/vector.h"
 #include "spot/graphics/camera_3d.h"
 #include "spot/graphics/pipeline.h"
 #include "spot/graphics/texture.h"
-#include "spot/math/matrix.h"
-#include "spot/math/vector.h"
 
 #include <array>
 #include <cstdint>

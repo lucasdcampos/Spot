@@ -1,8 +1,8 @@
 #pragma once
 
-#include "spot/input/input_state.h"
-#include "spot/input/keys.h"
-#include "spot/math/vector.h"
+#include "spot/core/vector.h"
+#include "spot/platform/input_state.h"
+#include "spot/platform/keys.h"
 
 #include <string_view>
 

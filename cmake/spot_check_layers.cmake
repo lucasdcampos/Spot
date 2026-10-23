@@ -5,9 +5,9 @@
 #
 # A folder may include its own layer and the ones below. Backends live inside their system's folder.
 set(SPOT_LAYERS
-    "core=0" "math=0"
-    "events=1" "platform=1" "window=1" "input=1"
-    "graphics=2" "audio=2" "physics=2" "physics2d=2" "animation=2" "particles=2" "assets=2"
+    "core=0"
+    "platform=1"
+    "graphics=2" "audio=2" "physics=2" "animation=2" "particles=2" "assets=2"
     "scene=3"
     "runtime=4"
     "import=5"

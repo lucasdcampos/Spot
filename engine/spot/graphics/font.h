@@ -1,7 +1,7 @@
 #pragma once
 
+#include "spot/core/vector.h"
 #include "spot/graphics/font_atlas.h"
-#include "spot/math/vector.h"
 
 #include <cstddef>
 #include <filesystem>

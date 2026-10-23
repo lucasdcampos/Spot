@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/math/matrix.h"
+#include "spot/core/matrix.h"
 
 #include <cstdint>
 #include <optional>

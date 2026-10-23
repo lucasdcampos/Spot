@@ -1,5 +1,8 @@
 #pragma once
 
+#include "spot/core/color.h"
+#include "spot/core/matrix.h"
+#include "spot/core/vector.h"
 #include "spot/graphics/camera_3d.h"
 #include "spot/graphics/custom_surface.h"
 #include "spot/graphics/fog_data.h"
@@ -11,9 +14,6 @@
 #include "spot/graphics/render_context.h"
 #include "spot/graphics/sky_data.h"
 #include "spot/graphics/texture.h"
-#include "spot/math/color.h"
-#include "spot/math/matrix.h"
-#include "spot/math/vector.h"
 
 #include <array>
 #include <cstddef>

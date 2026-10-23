@@ -1,7 +1,7 @@
 #pragma once
 
-#include "spot/input/keys.h"
-#include "spot/math/vector.h"
+#include "spot/core/vector.h"
+#include "spot/platform/keys.h"
 
 #include <filesystem>
 #include <string>
