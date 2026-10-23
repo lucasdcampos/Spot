@@ -62,9 +62,6 @@ run headless regressions, invoke `spot export`, relocate the result and execute 
 tar artifact, preserving executable permissions on Unix. A failing build, regression, export or smoke test
 prevents a successful artifact for that platform. The workflow does not replace the interactive checklist.
 
-The current platform results and remaining acceptance work are recorded in M15's Notes in [the Roadmap](../ROADMAP.md).
-Keep M15.5 unchecked until exported builds have been validated on all three platforms.
-
 Local validation on 2026-10-13:
 
 | Platform | Result |

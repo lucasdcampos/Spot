@@ -1,120 +1,79 @@
 # AGENTS.md
 
-Spot is a 2D/3D game engine written in C++20 and built as a static library.
-It targets Windows, macOS and Linux.
+Spot is a 2D/3D game engine library in C++20 for Windows, macOS and Linux. The engine (`engine/`) is modules in
+layers, each usable from code on its own; the editor and the tools are programs built on it, like any game.
 
 ## Layout
 
-Each project lives in its own folder at the repository root, with headers next to their sources.
-
-- `engine/` – the engine, static library target `spot` (`spot::spot`), also built as the shared library `spot_shared`
-  (`spot::shared`) that the editor and the game modules it loads share
-- `sandbox/` – the project `sandbox/Sandbox.spot`, which the editor opens too; the engine's build builds its code
-  (`sandbox/src/`) into the `sandbox` executable with the static engine, and cooks its assets beside it with `spot`
-- `tests/` – unit tests using Catch2
-- `tools/` – `spot_tools` (`spot::tools`), what makes games out of projects (`Project`), shared by the editor and the
-  command line; built against the engine's headers only, so whatever links it links one engine library itself
-- `cli/` – `spot` (target `spot_cli`), the tools' command line: `new`, `cook`, `build`, `run` and `export` projects
-- `player/` – `spot_player`, the executable of games without C++ code: it runs the game it is given from its
-  `game.json` and imported assets, and exports ship it named after the game
-- `editor/` – the editor (`spot_editor`), a Dear ImGui application; everything but `main.cpp` is the
-  `spot_editor_core` library its tests link
+- `engine/` – the engine: static library `spot` (`spot::spot`), and shared library `spot_shared` for the editor and
+  the game code it loads
+- `editor/` – the editor (`spot_editor`, Dear ImGui); everything but `main.cpp` is `spot_editor_core`
+- `tools/` – `spot_tools`, which makes games out of projects, for the editor and the command line
+- `cli/` – `spot`, the command line: `new`, `cook`, `build`, `run` and `export`
+- `player/` – `spot_player`, which runs games without C++ code from their `game.json`
+- `sandbox/` – the sample project (`Sandbox.spot`), built into the `sandbox` executable
+- `tests/` – Catch2 tests
+- `docs/` – a page per system, starting from `docs/index.md`
 
 ## Build and test
 
 ```sh
-cmake --preset msvc                  # or: cmake --preset ninja
+cmake --preset msvc                  # or: ninja
 cmake --build --preset msvc-debug    # or: ninja-debug
-ctest --preset msvc-debug            # or: ninja-debug; headless tests, two processes at most
+ctest --preset msvc-debug            # headless tests
+ctest --preset msvc-debug-gpu        # GPU tests, when rendering, shaders or graphics backends change
 ```
 
-The normal test presets exclude GPU tests. Use them for routine changes to gameplay, assets, serialization,
-physics, audio, tools and headless editor behavior. Run the relevant GPU tests when changing rendering, shaders,
-graphics backends or visual editor behavior; use `ctest --preset msvc-debug-gpu` (or `ninja-debug-gpu`) for that
-suite, and `-R <pattern>` to select cases. GPU tests open real windows and are marked `RUN_SERIAL`, so only one
-runs at a time even when parallelism is requested. `ctest --preset msvc-debug-all` (or `ninja-debug-all`) explicitly
-runs the complete suite. Release presets have the same `-gpu` and `-all` variants. Avoid repeating graphical
-suites for unrelated changes or running MSVC and GCC GPU suites concurrently.
-For a build directory without presets, use `ctest --test-dir <build> -LE gpu --parallel 2` for routine tests, or
-`-L gpu --parallel 1` for the graphical suite.
+GPU tests open real windows and run one at a time: run the relevant ones (`-R <pattern>`) only for changes that can
+affect what is drawn, and never two GPU suites at once. The `-all` presets run everything; Release presets have the
+same variants. `./run.ps1` or `./run.sh` build and run the sandbox (`editor` runs the editor, `debug` a Debug build,
+`no-build` skips building).
 
-With the Ninja or Makefile generators, the build compiles through sccache or ccache when one is installed (see
-`cmake/spot_compiler_cache.cmake`; `-DSPOT_USE_COMPILER_CACHE=OFF` turns it off), and so do games built by the tools.
-The Visual Studio generator runs no compiler cache.
-
-Shaders are HLSL files named `*.vert.hlsl` or `*.frag.hlsl`. `spot_add_shaders(<target> ...)` (in
-`cmake/spot_shaders.cmake`) compiles them to SPIR-V, MSL and, on Windows, DXIL, and generates a header per shader
-with a ready-to-use `Spot::ShaderDesc`.
-
-To build and run the sandbox: `./run.ps1` (PowerShell) or `./run.sh` (Linux, macOS, Git Bash). Both accept
-`editor` to run the editor instead, and `debug` for a Debug build; Release is the default.
-Add `no-build` to launch an existing build without configuring, compiling or cooking assets.
-
-## Documentation
-
-`docs/` explains each system of the engine and the tools, starting from `docs/index.md`; the headers stay the
-reference for each function.
-
-## Roadmap
-
-`ROADMAP.md` plans the engine's next features, a checkbox per step: the next task is the first unchecked step, and
-the commit that finishes a step ticks its box. Follow its architecture principles and its "How to use this plan".
+Shaders are HLSL (`*.vert.hlsl`, `*.frag.hlsl`), compiled by `spot_add_shaders()` (`cmake/spot_shaders.cmake`) into
+a header per shader with a ready-to-use `Spot::ShaderDesc`.
 
 ## Rules
 
 - Everything in the repository is in English: code, comments, docs and commit messages.
-- Code must build on Windows, macOS and Linux. Keep platform-specific code isolated.
-- Backends are only used in their own folders: windowing (SDL3, `SPOT_PLATFORM`) under `engine/platform/<backend>/`,
-  graphics (SDL_GPU, `SPOT_GRAPHICS`) under `engine/graphics/<backend>/`, audio (SDL3, `SPOT_AUDIO`) under
-  `engine/audio/<backend>/` and physics (Jolt, `SPOT_PHYSICS`) under `engine/physics/<backend>/`. Public headers never
-  expose backend types, so a backend can be replaced without changing the engine API. Audio backends only deliver what
-  the engine's mixer produces, and physics backends only simulate the bodies the engine's physics world asks for.
-- Engine features built on top of the graphics API (such as the 2D renderer) only use its public interface, so
-  users can always do anything the engine does.
-- The engine is layers of folders (see "Layers" in `docs/index.md`): core (`core/`, `math/`), platform, systems
-  (`graphics/`, `audio/`, `physics/`, `assets/`…), scene (`scene/`, a folder per system's components), runtime
-  (`runtime/`, `Application`) and import. A folder only includes its own layer and the ones below;
-  `cmake/spot_check_layers.cmake` runs as a test. Systems keep their mechanism usable without scenes, so a game can
-  run a loop and an object model of its own; their scene components go in `scene/<system>/`.
-- GPU tests go in `tests/gpu_tests.cpp` (the `spot_gpu_tests` executable) and are skipped where no GPU is available.
-  Golden-image tests (`tests/golden_tests.cpp`, same executable) compare reference scenes with the images in
-  `tests/golden/`; when a change to how things look is meant, run them with `SPOT_UPDATE_GOLDEN=1`, look at the new
-  images, and commit them with the change.
-- Sandbox tests go in `tests/sandbox/` (`spot_sandbox_tests`): the sandbox's game code on its real scenes, headless,
-  driven by simulated input, so a regression shows as something broken in the game.
-- Editor tests go in `tests/editor/`: `spot_editor_tests` (headless ImGui, no GPU), `spot_editor_gpu_tests` and
-  `spot_editor_module_tests` (building projects' code with CMake, which takes a while).
-- Importing is for tools: the asset database and importers are `spot_import` (`spot::import`, in `engine/import/`),
-  which games never link; they load imported assets, or raw files through `Model::Load()`, `Image::Load()` and the like.
-- Projects are a tools concept: the engine never knows about them. A game runs from the `GameSettings`
-  (`game.json`) its build derives from the project, and from its imported assets.
-- The editor uses only the engine's public API, like any game; it never reaches a backend. ImGui stays in the
-  editor, so the runtime never depends on it. The editor never keeps pointers to entities or components across
-  frames: it refers to them by `EntityId`, so undo history and game code reloads stay valid.
-- The build must have no warnings.
+- Code builds on Windows, macOS and Linux without warnings. Platform-specific code stays isolated.
+- A folder of `engine/` includes only its own layer and the ones below (see "Layers" in `docs/index.md`); a test
+  checks it. Systems work without scenes; their components go in `scene/<system>/`.
+- Backends (SDL3, SDL_GPU, NVRHI, Jolt, Box2D) are used only in their system's folder, `engine/<system>/<backend>/`.
+  Public headers never expose backend types.
+- Engine features built on the graphics API use only its public interface, so users can do anything the engine does.
+- The editor uses only the engine's public API, and ImGui stays in the editor. The editor refers to entities by
+  `EntityId`, never by pointers kept across frames.
+- Games never link `spot_import` (importers and the asset database), and the engine never knows about projects: a
+  game runs from its `game.json` and its imported assets.
+- Every source asset has a `.meta` file beside it, committed with it; never edit its ids by hand. New source formats
+  get an importer in `engine/import/importers/`, and a change to an imported format bumps its importer's version.
+- Scripting API changes update `ScriptApi::Types` (`engine/scene/scripting/script_api.h`), the editor's Luau
+  highlighting and its tests, and the scripts they affect, the sandbox's included, in the same change.
+
+## Tests
+
 - New engine features come with tests in `tests/`.
-- Scripting API changes must update the editor's Luau highlighting, its tests and affected scripts (the sandbox's
-  included) in the same change. Members of the engine's script objects are described in `ScriptApi::Types`
-  (`engine/scene/scripting/script_api.h`), which both the scene bindings and the tools' Luau types read: a new member
-  goes there, with its type.
-- Features keep their page in `docs/` up to date in the same commit: how the system works, why, and where to start.
-  New systems get a page, linked from `docs/index.md`.
-- Assets (`engine/assets/`) are loaded from imported files, not raw sources. Every source asset has a `.meta` file
-  beside it, which is committed with it; never edit ids in them by hand. New source formats get an importer in
-  `engine/import/importers/`, and a change to any imported format bumps its importer's version.
+- GPU tests go in `tests/gpu_tests.cpp` and are skipped where no GPU is available. Golden-image tests
+  (`tests/golden_tests.cpp`) compare scenes with `tests/golden/`: when a change to how things look is meant, run them
+  with `SPOT_UPDATE_GOLDEN=1`, look at the new images and commit them with the change.
+- Sandbox tests (`tests/sandbox/`) run the sandbox's game code on its real scenes, headless, with simulated input.
+- Editor tests go in `tests/editor/`: headless (`spot_editor_tests`), GPU (`spot_editor_gpu_tests`) and project code
+  builds (`spot_editor_module_tests`, slow).
+
+## Documentation
+
+A change to a system updates its page in `docs/` in the same commit: how it works, why, and where to start. New
+systems get a page, linked from `docs/index.md`. Headers stay the reference for each function.
 
 ## Code style
 
-Formatting is defined by `.clang-format`; format C++ files with clang-format before committing.
+`.clang-format` formats C++ files; run clang-format before committing.
 
-- Files and folders: `snake_case`. Headers use `.h`, sources use `.cpp`.
-- Types (classes, structs, enums, aliases), functions and methods: `PascalCase`.
-- Getters use `Get` (`GetWidth()`), boolean queries use `Is`/`Has` (`IsRunning()`).
-- Private and protected members: `m_camelCase`. Static members: `s_camelCase`.
-- Public fields of plain data structs: `camelCase` (`position.x`).
-- Local variables and parameters: `camelCase`.
-- Constants and enum values: `PascalCase`. Always use `enum class`.
-- Macros: `SPOT_UPPER_SNAKE_CASE`.
-- Namespaces: `PascalCase` (`Spot`).
-- Headers start with `#pragma once`. Include with quotes inside the engine, `<spot.h>` outside.
+- Files and folders `snake_case`; headers `.h` starting with `#pragma once`, sources `.cpp`. Include with quotes
+  inside the engine, `<spot.h>` outside.
+- Types, functions and methods `PascalCase`; getters `Get…`, boolean queries `Is…`/`Has…`.
+- Private and protected members `m_camelCase`, static members `s_camelCase`; public fields of plain structs, locals
+  and parameters `camelCase`.
+- Constants and enum values `PascalCase`, always `enum class`; macros `SPOT_UPPER_SNAKE_CASE`; namespaces
+  `PascalCase` (`Spot`).
 - Comment only when necessary, and explain why, not what.

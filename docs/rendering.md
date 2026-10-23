@@ -453,7 +453,7 @@ times 600 frames and prints their mean, median, 95th percentile and worst times,
 draw calls and lights, the GPU's time for shadows and the opaque pass (`Renderer3D` times them with GPU timers), and
 the costliest profiler scopes. `--grid 316` makes it about 100,000 meshes, and `--lods 1` gives its spheres a coarser
 level of detail. Run its Release build when rendering changes, and compare
-with the times recorded in the M7 notes of `ROADMAP.md`:
+with the times of the build before the change:
 
 ```sh
 cmake --build --preset msvc-release --target spot_benchmark
