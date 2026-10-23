@@ -158,7 +158,7 @@ Depends on: Phase 1.
 
 - [x] **5.1 Chunks (M).** A scene loads a scene asset into itself, under a root entity it returns, in the background;
   unloading the chunk destroys its root.
-- [ ] **5.2 One scene per application (L).** Waits for 5.1. `Application` runs one active scene: the persistent scene,
+- [x] **5.2 One scene per application (L).** Waits for 5.1. `Application` runs one active scene: the persistent scene,
   the additive scene list, per-scene event routing and drawing several scenes go. Entities marked with
   `Entity::SetKeepOnSceneChange()` move into the next scene. `SceneRenderer` draws one scene, so the whole world is one
   physics simulation. The editor's play mode follows; `docs/application_and_scenes.md` describes it.
