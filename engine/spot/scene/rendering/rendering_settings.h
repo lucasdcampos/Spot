@@ -1,7 +1,7 @@
 #pragma once
 
-#include "spot/graphics/bloom.h"
-#include "spot/graphics/tonemapper.h"
+#include "spot/render/bloom.h"
+#include "spot/render/tonemapper.h"
 
 #include <cstdint>
 #include <string_view>

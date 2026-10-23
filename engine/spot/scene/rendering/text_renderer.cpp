@@ -2,8 +2,8 @@
 
 #include "spot/assets/asset_archive.h"
 #include "spot/core/archive.h"
-#include "spot/graphics/camera_3d.h"
-#include "spot/graphics/font.h"
+#include "spot/render/camera_3d.h"
+#include "spot/render/font.h"
 #include "spot/scene/entity.h"
 
 #include <algorithm>

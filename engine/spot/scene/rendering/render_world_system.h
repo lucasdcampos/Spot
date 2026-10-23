@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/graphics/render_world.h"
+#include "spot/render/render_world.h"
 #include "spot/scene/entity.h"
 #include "spot/scene/scene_system.h"
 

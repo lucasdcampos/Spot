@@ -1,7 +1,7 @@
 #include "spot/scene/scene.h"
 
 #include "spot/core/profiler.h"
-#include "spot/graphics/model.h"
+#include "spot/render/model.h"
 #include "spot/scene/animation/animator.h"
 #include "spot/scene/animation/bone_attachment.h"
 #include "spot/scene/animation/skinned_mesh_renderer.h"

@@ -2,7 +2,7 @@
 
 #include "spot/core/color.h"
 #include "spot/core/vector.h"
-#include "spot/graphics/sky_data.h"
+#include "spot/render/sky_data.h"
 #include "spot/scene/component.h"
 
 namespace Spot {

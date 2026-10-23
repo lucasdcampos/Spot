@@ -1,12 +1,12 @@
 #pragma once
 
 #include "spot/core/color.h"
-#include "spot/graphics/bloom.h"
-#include "spot/graphics/fxaa.h"
 #include "spot/graphics/render_graph.h"
-#include "spot/graphics/render_stage.h"
 #include "spot/graphics/texture.h"
-#include "spot/graphics/tonemapper.h"
+#include "spot/render/bloom.h"
+#include "spot/render/fxaa.h"
+#include "spot/render/render_stage.h"
+#include "spot/render/tonemapper.h"
 
 #include <cstdint>
 #include <memory>

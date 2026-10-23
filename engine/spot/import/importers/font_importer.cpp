@@ -1,7 +1,7 @@
 #include "spot/assets/asset_formats.h"
 #include "spot/core/log.h"
-#include "spot/graphics/font_atlas.h"
 #include "spot/import/importers/importer.h"
+#include "spot/render/font_atlas.h"
 
 #include <cmath>
 #include <format>

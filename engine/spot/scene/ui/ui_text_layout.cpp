@@ -3,7 +3,7 @@
 #include "spot/assets/asset_archive.h"
 #include "spot/core/archive.h"
 #include "spot/core/utf8.h"
-#include "spot/graphics/font_atlas.h"
+#include "spot/render/font_atlas.h"
 
 #include <algorithm>
 #include <array>

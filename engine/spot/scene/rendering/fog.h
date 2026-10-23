@@ -1,7 +1,7 @@
 #pragma once
 
 #include "spot/core/color.h"
-#include "spot/graphics/fog_data.h"
+#include "spot/render/fog_data.h"
 #include "spot/scene/component.h"
 
 namespace Spot {

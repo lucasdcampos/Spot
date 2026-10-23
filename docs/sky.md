@@ -1,7 +1,7 @@
 # Clouds, stars and the moon
 
 The `Sky` component draws an atmosphere lit by the scene's sun (see [Rendering](rendering.md)). Over it, the same
-shader (`graphics/shaders/sky.frag.hlsl`) draws a layer of clouds, and at night stars and a moon. None of them needs a
+shader (`render/shaders/sky.frag.hlsl`) draws a layer of clouds, and at night stars and a moon. None of them needs a
 texture or a mesh: they are noise and hashes evaluated for each pixel of the sky, so any game gets a moving sky by
 adding components and setting them in its scene.
 
@@ -53,6 +53,6 @@ out, so they move every frame without capturing it again.
 ## Where to start
 
 - `engine/spot/scene/rendering/clouds.h` and `sky.h`: the components.
-- `engine/spot/graphics/sky_data.h`: `SkyClouds` and `SkyNight`, what the renderer draws.
-- `engine/spot/graphics/shaders/sky.frag.hlsl`: `GetClouds()`, `GetStars()` and `GetMoon()`.
+- `engine/spot/render/sky_data.h`: `SkyClouds` and `SkyNight`, what the renderer draws.
+- `engine/spot/render/shaders/sky.frag.hlsl`: `GetClouds()`, `GetStars()` and `GetMoon()`.
 - The sandbox's `DayCycle` turns the stars with its time of day, and its playground has a `Clouds` on the sun.

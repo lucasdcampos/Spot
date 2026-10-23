@@ -2,7 +2,7 @@
 
 #include "spot/core/asset_id.h"
 #include "spot/core/color.h"
-#include "spot/graphics/material.h"
+#include "spot/render/material.h"
 
 #include <filesystem>
 #include <optional>

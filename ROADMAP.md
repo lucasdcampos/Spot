@@ -40,7 +40,7 @@ in order, as each moves files the next one touches.
 - [x] **1.3 A foundation-only core (S).** Tweens, timers, tasks and signals move to `scene/`; the console, save data and
   profile streaming to `runtime/`; the crash handler, RenderDoc capture, processes and shared libraries to
   `platform/`.
-- [ ] **1.4 Split `graphics/` (M).** The GPU interface and its backends stay in `graphics/` (rendering level 1);
+- [x] **1.4 Split `graphics/` (M).** The GPU interface and its backends stay in `graphics/` (rendering level 1);
   renderers, meshes, materials, models, fonts, text, cameras, lights, sky, shadows, post-processing, debug drawing and
   particle drawing move to `render/` (rendering level 2). No behavior changes.
 - [ ] **1.5 Layer check by levels (S).** `cmake/spot_check_layers.cmake` gives each folder its level and fails on

@@ -1,9 +1,9 @@
 #pragma once
 
 #include "spot/assets/asset_ref.h"
-#include "spot/graphics/material.h"
-#include "spot/graphics/mesh.h"
-#include "spot/graphics/render_world.h"
+#include "spot/render/material.h"
+#include "spot/render/mesh.h"
+#include "spot/render/render_world.h"
 #include "spot/scene/component.h"
 
 #include <cstdint>

@@ -1,6 +1,6 @@
 #include "spot/scene/physics/physics_world.h"
 
-#include "spot/graphics/debug_draw.h"
+#include "spot/render/debug_draw.h"
 #include "spot/scene/scene.h"
 
 #include <utility>

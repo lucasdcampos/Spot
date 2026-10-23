@@ -1,5 +1,5 @@
 #include "spot/assets/asset_manager.h"
-#include "spot/graphics/sprite_atlas.h"
+#include "spot/render/sprite_atlas.h"
 
 #include "spot/animation/animator_controller.h"
 #include "spot/assets/asset_file.h"
@@ -13,12 +13,12 @@
 #include "spot/core/log.h"
 #include "spot/core/paths.h"
 #include "spot/core/profiler.h"
-#include "spot/graphics/font.h"
 #include "spot/graphics/graphics_device.h"
 #include "spot/graphics/image.h"
-#include "spot/graphics/material.h"
-#include "spot/graphics/mesh.h"
-#include "spot/graphics/model.h"
+#include "spot/render/font.h"
+#include "spot/render/material.h"
+#include "spot/render/mesh.h"
+#include "spot/render/model.h"
 
 #include <algorithm>
 #include <array>

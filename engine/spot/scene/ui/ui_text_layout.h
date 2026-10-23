@@ -1,7 +1,7 @@
 #pragma once
 
-#include "spot/graphics/quad_batch.h"
-#include "spot/graphics/text_layout.h"
+#include "spot/render/quad_batch.h"
+#include "spot/render/text_layout.h"
 #include "spot/scene/ui/ui_layout.h"
 
 #include <string_view>

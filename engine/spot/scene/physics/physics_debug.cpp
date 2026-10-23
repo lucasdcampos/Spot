@@ -1,6 +1,6 @@
 #include "spot/scene/physics/physics_debug.h"
 
-#include "spot/graphics/debug_draw.h"
+#include "spot/render/debug_draw.h"
 #include "spot/scene/physics/character_controller.h"
 #include "spot/scene/physics/collider.h"
 #include "spot/scene/physics/joint.h"

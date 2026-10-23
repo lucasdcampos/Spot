@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/graphics/custom_surface.h"
+#include "spot/render/custom_surface.h"
 #include "spot/scene/component.h"
 
 #include <memory>

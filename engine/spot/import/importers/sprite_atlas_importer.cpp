@@ -1,7 +1,7 @@
 #include "spot/assets/asset_formats.h"
 #include "spot/core/log.h"
-#include "spot/graphics/sprite_atlas.h"
 #include "spot/import/importers/importer.h"
+#include "spot/render/sprite_atlas.h"
 
 namespace Spot::Detail {
 bool ImportSpriteAtlas(ImportContext& context) {

@@ -3,10 +3,10 @@
 #include "spot/assets/asset_archive.h"
 #include "spot/core/archive.h"
 #include "spot/core/utf8.h"
-#include "spot/graphics/font.h"
 #include "spot/graphics/render_context.h"
-#include "spot/graphics/renderer_2d.h"
 #include "spot/graphics/texture.h"
+#include "spot/render/font.h"
+#include "spot/render/renderer_2d.h"
 #include "spot/scene/entity.h"
 #include "spot/scene/scene.h"
 

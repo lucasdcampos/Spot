@@ -77,7 +77,7 @@ inclusive averages per frame. It can also read managed game processes over their
 
 ## Debug drawing
 
-`Spot::DebugDraw` (`engine/spot/graphics/debug_draw.h`) lets any code draw lines, arrows, crosses, boxes, circles, spheres
+`Spot::DebugDraw` (`engine/spot/render/debug_draw.h`) lets any code draw lines, arrows, crosses, boxes, circles, spheres
 and capsules in world space, for this frame or for a duration, tested against depth or over everything:
 
 ```cpp

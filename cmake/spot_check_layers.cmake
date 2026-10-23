@@ -7,7 +7,7 @@
 set(SPOT_LAYERS
     "core=0"
     "platform=1"
-    "graphics=2" "audio=2" "physics=2" "animation=2" "particles=2" "assets=2"
+    "graphics=2" "render=2" "audio=2" "physics=2" "animation=2" "particles=2" "assets=2"
     "scene=3"
     "runtime=4"
     "import=5"

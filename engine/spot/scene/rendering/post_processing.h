@@ -1,9 +1,9 @@
 #pragma once
 
 #include "spot/assets/asset_ref.h"
-#include "spot/graphics/bloom.h"
 #include "spot/graphics/texture.h"
-#include "spot/graphics/tonemapper.h"
+#include "spot/render/bloom.h"
+#include "spot/render/tonemapper.h"
 #include "spot/scene/component.h"
 
 #include <span>

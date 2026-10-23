@@ -17,10 +17,11 @@ after submission. `GetWindowFormat()` supplies the offscreen device's default co
 `linearWindow` is enabled). VSync has no effect. See [developer-tool testing](developer_tools.md#testing-without-windows).
 
 Rendering has two layers. The **graphics API** (`GraphicsDevice`, `RenderContext`, `RenderPass`, buffers, textures,
-shaders and pipelines) is the engine's own, independent of the backends that run it (Vulkan through NVRHI, or
-SDL_GPU; see [Backends](#backends)), which never show in public headers. The **renderers** (`Renderer2D`, `Renderer3D`,
-`LineRenderer`, `SceneRenderer`) are built only on that public API, so games can do anything they do, or draw their
-own way next to them.
+shaders and pipelines, in `engine/spot/graphics/`) is the engine's own, independent of the backends that run it
+(Vulkan through NVRHI, or SDL_GPU; see [Backends](#backends)), which never show in public headers. The **renderers**
+(`Renderer2D`, `Renderer3D`, `LineRenderer`, with meshes, materials, models, fonts, cameras, lights, skies, shadows and
+post-processing, in `engine/spot/render/`) are built only on that public API, so games can do anything they do, or
+draw their own way next to them. `SceneRenderer` draws scenes with them.
 
 ## The graphics API
 
@@ -118,7 +119,7 @@ Every GPU test and golden image passes on both; run them on one with `SPOT_GRAPH
 
 ### Fullscreen passes
 
-`FullscreenPass` (`engine/spot/graphics/fullscreen_pass.h`) runs a fragment shader over every pixel of a pass's target,
+`FullscreenPass` (`engine/spot/render/fullscreen_pass.h`) runs a fragment shader over every pixel of a pass's target,
 as post-processing effects do: one triangle covering the target, built from the vertex index, with texture
 coordinates from (0, 0) at its top-left corner. The fragment shader takes `SV_Position` then `float2 uv :
 TEXCOORD0`; `Draw()` binds its pipeline and the input textures, and uniforms pushed before stay set.
@@ -165,7 +166,7 @@ Vulkan backend, whose textures, samplers and buffers are numbered as NVRHI binds
 vertex uniforms at `register(b0, space1)`, fragment textures and samplers at `register(t0, space2)` and
 `register(s0, space2)`, and vertex inputs as `TEXCOORD{N}` for attribute `N`.
 
-Shaders `#include` headers from their own folder, from the engine's shader headers (`engine/spot/graphics/shaders/include/`)
+Shaders `#include` headers from their own folder, from the engine's shader headers (`engine/spot/render/shaders/include/`)
 and from the folders given as `INCLUDE_DIRECTORIES`; a change to any `.hlsl` file there compiles them again. The engine
 builds the shader tools once, and its CMake package hands games `spot_add_shaders()` with them
 (`cmake/spot_shader_function.cmake`), so a game compiles shaders of its own in its `CMakeLists.txt`, after
@@ -247,7 +248,7 @@ Materials batch by their values, so copies of a material batch as well as the sa
 
 ### Render worlds
 
-A `RenderWorld` (`engine/spot/graphics/render_world.h`) holds what stays from frame to frame: meshes are added once
+A `RenderWorld` (`engine/spot/render/render_world.h`) holds what stays from frame to frame: meshes are added once
 (`AddMesh()`, which returns a `RenderObjectId`), changed only when they change (`SetTransform()`, `UpdateMesh()`) and
 removed, and `Renderer3D::DrawWorld()` draws every one on a layer the camera sees. Each object keeps its world bounds,
 index range and whether its transform mirrors, worked out when it changes rather than each frame; materials are read
@@ -289,7 +290,7 @@ that mostly stands still costs next to nothing. Graphics never sees the scene.
 ### Custom surfaces
 
 A game whose geometry is kept in buffers of its own, such as terrain, draws it with its own shaders inside
-`Renderer3D`'s passes, so it looks like the rest: a `CustomSurface` (`engine/spot/graphics/custom_surface.h`) handed to
+`Renderer3D`'s passes, so it looks like the rest: a `CustomSurface` (`engine/spot/render/custom_surface.h`) handed to
 `Renderer3D::DrawSurface()` each frame, or kept by a `SurfaceRenderer` component, which `DrawScene()` draws on the
 layers the camera sees. Renderer3D calls it back in each of its passes with a `SurfaceDrawContext`: the pass, the
 view and its frustum planes for culling, and what pipelines must match there.

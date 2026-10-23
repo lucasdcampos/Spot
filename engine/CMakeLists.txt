@@ -93,47 +93,47 @@ add_library(spot_objects OBJECT
     spot/core/utf8.h
     spot/core/utf8.cpp
     spot/platform/event.h
-    spot/graphics/atmosphere.h
-    spot/graphics/atmosphere.cpp
+    spot/render/atmosphere.h
+    spot/render/atmosphere.cpp
     spot/graphics/buffer.h
     spot/graphics/compute.h
-    spot/graphics/custom_surface.h
-    spot/graphics/camera_2d.h
-    spot/graphics/bloom.cpp
-    spot/graphics/bloom.h
-    spot/graphics/camera_2d.cpp
-    spot/graphics/pixel_perfect.cpp
-    spot/graphics/camera_3d.h
-    spot/graphics/camera_3d.cpp
+    spot/render/custom_surface.h
+    spot/render/camera_2d.h
+    spot/render/bloom.cpp
+    spot/render/bloom.h
+    spot/render/camera_2d.cpp
+    spot/render/pixel_perfect.cpp
+    spot/render/camera_3d.h
+    spot/render/camera_3d.cpp
     spot/core/color.h
-    spot/graphics/debug_draw.h
-    spot/graphics/debug_draw.cpp
-    spot/graphics/font.h
-    spot/graphics/fog_data.h
-    spot/graphics/font.cpp
-    spot/graphics/font_atlas.h
-    spot/graphics/fullscreen_pass.cpp
-    spot/graphics/fxaa.cpp
-    spot/graphics/fxaa.h
-    spot/graphics/fullscreen_pass.h
-    spot/graphics/font_atlas.cpp
+    spot/render/debug_draw.h
+    spot/render/debug_draw.cpp
+    spot/render/font.h
+    spot/render/fog_data.h
+    spot/render/font.cpp
+    spot/render/font_atlas.h
+    spot/render/fullscreen_pass.cpp
+    spot/render/fxaa.cpp
+    spot/render/fxaa.h
+    spot/render/fullscreen_pass.h
+    spot/render/font_atlas.cpp
     spot/graphics/graphics_backend.h
     spot/graphics/graphics_device.h
     spot/graphics/graphics_device.cpp
     spot/graphics/image.h
     spot/graphics/image.cpp
-    spot/graphics/light_clusters.cpp
-    spot/graphics/light_clusters.h
-    spot/graphics/light_data.h
-    spot/graphics/line_renderer.h
-    spot/graphics/line_renderer.cpp
-    spot/graphics/material.h
-    spot/graphics/material.cpp
-    spot/graphics/mesh.h
-    spot/graphics/mesh.cpp
-    spot/graphics/mesh_data.h
-    spot/graphics/mikktspace.cpp
-    spot/graphics/mesh_data.cpp
+    spot/render/light_clusters.cpp
+    spot/render/light_clusters.h
+    spot/render/light_data.h
+    spot/render/line_renderer.h
+    spot/render/line_renderer.cpp
+    spot/render/material.h
+    spot/render/material.cpp
+    spot/render/mesh.h
+    spot/render/mesh.cpp
+    spot/render/mesh_data.h
+    spot/render/mikktspace.cpp
+    spot/render/mesh_data.cpp
     spot/scene/animation/skinned_mesh_renderer.h
     spot/scene/animation/skinned_mesh_renderer.cpp
     spot/animation/animator_controller.h
@@ -157,47 +157,47 @@ add_library(spot_objects OBJECT
     spot/animation/animation_data.h
     spot/animation/animation_data.cpp
     spot/animation/animation_formats.cpp
-    spot/graphics/model_data.h
-    spot/graphics/model.h
-    spot/graphics/model.cpp
-    spot/graphics/model_data.cpp
+    spot/render/model_data.h
+    spot/render/model.h
+    spot/render/model.cpp
+    spot/render/model_data.cpp
     spot/graphics/pipeline.h
     spot/graphics/pipeline.cpp
-    spot/graphics/quad_batch.h
-    spot/graphics/quad_batch.cpp
-    spot/graphics/sprite_atlas.cpp
+    spot/render/quad_batch.h
+    spot/render/quad_batch.cpp
+    spot/render/sprite_atlas.cpp
     spot/scene/rendering/sprite_animator.cpp
     spot/scene/rendering/tilemap.cpp
     spot/scene/physics2d/tilemap_collider_2d.cpp
     spot/graphics/render_context.h
-    spot/graphics/render_stage.h
-    spot/graphics/renderer_2d.h
-    spot/graphics/renderer_2d.cpp
+    spot/render/render_stage.h
+    spot/render/renderer_2d.h
+    spot/render/renderer_2d.cpp
     spot/runtime/console_overlay.cpp
     spot/graphics/render_graph.h
-    spot/graphics/render_world.h
-    spot/graphics/renderer_3d.h
+    spot/render/render_world.h
+    spot/render/renderer_3d.h
     spot/scene/rendering/rendering_settings.cpp
     spot/scene/rendering/rendering_settings.h
     spot/graphics/render_graph.cpp
-    spot/graphics/render_world.cpp
-    spot/graphics/renderer_3d.cpp
-    spot/graphics/renderer_3d_depth.cpp
-    spot/graphics/particle_batch.h
-    spot/graphics/particle_batch.cpp
-    spot/graphics/particle_renderer.h
-    spot/graphics/particle_renderer.cpp
+    spot/render/render_world.cpp
+    spot/render/renderer_3d.cpp
+    spot/render/renderer_3d_depth.cpp
+    spot/render/particle_batch.h
+    spot/render/particle_batch.cpp
+    spot/render/particle_renderer.h
+    spot/render/particle_renderer.cpp
     spot/graphics/screenshot.cpp
     spot/graphics/shader.h
-    spot/graphics/shadow_views.h
-    spot/graphics/shadow_views.cpp
-    spot/graphics/sky_data.h
-    spot/graphics/text_layout.h
-    spot/graphics/text_layout.cpp
+    spot/render/shadow_views.h
+    spot/render/shadow_views.cpp
+    spot/render/sky_data.h
+    spot/render/text_layout.h
+    spot/render/text_layout.cpp
     spot/graphics/texture.h
     spot/graphics/texture_table.h
-    spot/graphics/tonemapper.cpp
-    spot/graphics/tonemapper.h
+    spot/render/tonemapper.cpp
+    spot/render/tonemapper.h
     spot/platform/input.h
     spot/platform/input.cpp
     spot/platform/input_action.h
@@ -321,32 +321,32 @@ add_library(spot_objects OBJECT
 )
 
 spot_add_shaders(spot_objects NAMESPACE Spot::Detail::Shaders
-    spot/graphics/shaders/particle.vert.hlsl
-    spot/graphics/shaders/particle.frag.hlsl
-    spot/graphics/shaders/bloom_down.frag.hlsl
-    spot/graphics/shaders/bloom_up.frag.hlsl
-    spot/graphics/shaders/fullscreen.vert.hlsl
-    spot/graphics/shaders/mip_downsample.frag.hlsl
-    spot/graphics/shaders/mip_downsample_layer.frag.hlsl
-    spot/graphics/shaders/fxaa.frag.hlsl
-    spot/graphics/shaders/hiz_reduce.frag.hlsl
-    spot/graphics/shaders/world_cull.comp.hlsl
-    spot/graphics/shaders/line.frag.hlsl
-    spot/graphics/shaders/line.vert.hlsl
-    spot/graphics/shaders/mesh.frag.hlsl
-    spot/graphics/shaders/skinned_mesh.vert.hlsl
-    spot/graphics/shaders/skinned_shadow.vert.hlsl
-    spot/graphics/shaders/mesh.vert.hlsl
-    spot/graphics/shaders/shadow.frag.hlsl
-    spot/graphics/shaders/shadow.vert.hlsl
-    spot/graphics/shaders/shadow_cutout.frag.hlsl
-    spot/graphics/shaders/sky.frag.hlsl
-    spot/graphics/shaders/sky.vert.hlsl
-    spot/graphics/shaders/sky_irradiance.frag.hlsl
-    spot/graphics/shaders/sky_prefilter.frag.hlsl
-    spot/graphics/shaders/sprite.frag.hlsl
-    spot/graphics/shaders/sprite.vert.hlsl
-    spot/graphics/shaders/tonemap.frag.hlsl
+    spot/render/shaders/particle.vert.hlsl
+    spot/render/shaders/particle.frag.hlsl
+    spot/render/shaders/bloom_down.frag.hlsl
+    spot/render/shaders/bloom_up.frag.hlsl
+    spot/render/shaders/fullscreen.vert.hlsl
+    spot/render/shaders/mip_downsample.frag.hlsl
+    spot/render/shaders/mip_downsample_layer.frag.hlsl
+    spot/render/shaders/fxaa.frag.hlsl
+    spot/render/shaders/hiz_reduce.frag.hlsl
+    spot/render/shaders/world_cull.comp.hlsl
+    spot/render/shaders/line.frag.hlsl
+    spot/render/shaders/line.vert.hlsl
+    spot/render/shaders/mesh.frag.hlsl
+    spot/render/shaders/skinned_mesh.vert.hlsl
+    spot/render/shaders/skinned_shadow.vert.hlsl
+    spot/render/shaders/mesh.vert.hlsl
+    spot/render/shaders/shadow.frag.hlsl
+    spot/render/shaders/shadow.vert.hlsl
+    spot/render/shaders/shadow_cutout.frag.hlsl
+    spot/render/shaders/sky.frag.hlsl
+    spot/render/shaders/sky.vert.hlsl
+    spot/render/shaders/sky_irradiance.frag.hlsl
+    spot/render/shaders/sky_prefilter.frag.hlsl
+    spot/render/shaders/sprite.frag.hlsl
+    spot/render/shaders/sprite.vert.hlsl
+    spot/render/shaders/tonemap.frag.hlsl
 )
 
 include(FetchContent)
@@ -407,7 +407,7 @@ FetchContent_MakeAvailable(cgltf)
 target_include_directories(spot_objects SYSTEM PRIVATE ${cgltf_SOURCE_DIR})
 
 # dr_wav decodes WAV audio; like stb, it is a single header.
-# MikkTSpace, the tangent space glTF's normal maps are baked in; spot/graphics/mikktspace.cpp compiles it.
+# MikkTSpace, the tangent space glTF's normal maps are baked in; spot/render/mikktspace.cpp compiles it.
 FetchContent_Declare(mikktspace
     GIT_REPOSITORY https://github.com/mmikk/MikkTSpace.git
     GIT_TAG 3e895b49d05ea07e4c2133156cfa94369e19e409

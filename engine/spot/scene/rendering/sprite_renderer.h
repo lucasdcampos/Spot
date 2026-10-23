@@ -3,7 +3,7 @@
 #include "spot/assets/asset_ref.h"
 #include "spot/core/color.h"
 #include "spot/core/vector.h"
-#include "spot/graphics/sprite_atlas.h"
+#include "spot/render/sprite_atlas.h"
 #include "spot/scene/component.h"
 
 #include <utility>

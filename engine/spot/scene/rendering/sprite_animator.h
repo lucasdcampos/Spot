@@ -1,5 +1,5 @@
 #pragma once
-#include "spot/graphics/sprite_atlas.h"
+#include "spot/render/sprite_atlas.h"
 #include "spot/scene/component.h"
 
 namespace Spot {

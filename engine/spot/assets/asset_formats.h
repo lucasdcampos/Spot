@@ -11,8 +11,8 @@
 #include "spot/core/color.h"
 #include "spot/core/matrix.h"
 #include "spot/graphics/image.h"
-#include "spot/graphics/mesh_data.h"
 #include "spot/graphics/texture.h"
+#include "spot/render/mesh_data.h"
 
 #include <cstddef>
 #include <cstdint>

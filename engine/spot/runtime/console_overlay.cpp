@@ -1,7 +1,7 @@
 #include "spot/runtime/console_overlay.h"
 
-#include "spot/graphics/font.h"
-#include "spot/graphics/renderer_2d.h"
+#include "spot/render/font.h"
+#include "spot/render/renderer_2d.h"
 #include "spot/runtime/console.h"
 #include "spot/runtime/console_input.h"
 #include "spot/runtime/runtime_stats.h"
