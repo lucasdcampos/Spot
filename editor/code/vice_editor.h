@@ -25,7 +25,7 @@ const EditorScriptLanguage* FindEditorScriptLanguage(std::string_view path);
 
 // Editor-only language definitions: highlighting must also accept unfinished or invalid source.
 void ConfigureViceEditor(TextEditor& editor);
-void ConfigureLuaEditor(TextEditor& editor);
+void ConfigureLuauEditor(TextEditor& editor);
 void ConfigureScriptEditor(TextEditor& editor, std::string_view path);
 // Unlike TextEditor::GetText(), this preserves whether the last line has a newline.
 std::string GetEditorText(const TextEditor& editor);

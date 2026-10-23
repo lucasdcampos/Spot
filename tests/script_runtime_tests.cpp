@@ -412,12 +412,15 @@ TEST_CASE("Script languages report the first syntax error of a source", "[script
     CHECK(vice->message.find("scripts/f.vice") == std::string::npos);
     CHECK_FALSE(Spot::CheckScriptSyntax("vice", "func f() { return 1 }", "f.vice"));
 #endif
-#ifdef SPOT_ENABLE_LUA
-    const auto lua = Spot::CheckScriptSyntax("lua", "function f()\n  return 1 +\nend", "scripts/f.lua");
-    REQUIRE(lua);
-    CHECK(lua->line == 3);
-    CHECK_FALSE(lua->message.empty());
-    CHECK_FALSE(Spot::CheckScriptSyntax("lua", "function f() return 1 end", "f.lua"));
+#ifdef SPOT_ENABLE_LUAU
+    const auto luau = Spot::CheckScriptSyntax("luau", "function f()\n  return 1 +\nend", "scripts/f.luau");
+    REQUIRE(luau);
+    CHECK(luau->line == 3);
+    CHECK(luau->column == 1);
+    CHECK_FALSE(luau->message.empty());
+    CHECK(luau->message.find("scripts/f.luau") == std::string::npos);
+    CHECK_FALSE(
+        Spot::CheckScriptSyntax("luau", "local function f(x: number): number\n  x += 1\n  return x\nend", "f.luau"));
 #endif
     CHECK_FALSE(Spot::CheckScriptSyntax("unknown", "anything", "f.x"));
 }

@@ -2,8 +2,8 @@
 
 #include "core/log.h"
 
-#ifdef SPOT_ENABLE_LUA
-#include "scene/scripting/lua_runtime.h"
+#ifdef SPOT_ENABLE_LUAU
+#include "scene/scripting/luau_runtime.h"
 #endif
 #ifdef SPOT_ENABLE_VICESCRIPT
 #include "scene/scripting/vice_runtime.h"
@@ -42,8 +42,8 @@ std::string Normalize(std::string_view value) {
 Registry& Languages() {
     static Registry registry;
     static const bool initialized = [] {
-#ifdef SPOT_ENABLE_LUA
-        registry.languages.emplace("lua", Language{{".lua"}, Detail::CreateLuaRuntime, {}, Detail::CheckLuaSyntax});
+#ifdef SPOT_ENABLE_LUAU
+        registry.languages.emplace("luau", Language{{".luau"}, Detail::CreateLuauRuntime, {}, Detail::CheckLuauSyntax});
 #endif
 #ifdef SPOT_ENABLE_VICESCRIPT
         registry.languages.emplace(

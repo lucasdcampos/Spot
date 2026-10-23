@@ -232,18 +232,19 @@ TEST_CASE("ViceScript editing supports indentation and unfinished syntax", "[edi
     REQUIRE(fixture.panel.SaveActive());
 }
 
-TEST_CASE("Lua editing configures Lua syntax highlighting and engine identifiers", "[editor][code][lua][ui]") {
+TEST_CASE("Luau editing configures Luau syntax highlighting and engine identifiers", "[editor][code][luau][ui]") {
     CodeFixture fixture;
-    fixture.Open("hello.lua", "-- hello\nlocal spot = require(\"spot\")\nfunction OnStart() end\n");
-    CHECK(fixture.Editor().GetLanguageName() == "Lua");
+    fixture.Open("hello.luau", "-- hello\nlocal spot = require(\"spot\")\nfunction OnStart() end\n");
+    CHECK(fixture.Editor().GetLanguageName() == "Luau");
     CHECK(fixture.Editor().GetLanguage()->keywords.contains("nil"));
     CHECK_FALSE(fixture.Editor().GetLanguage()->keywords.contains("null"));
-    for (const auto keyword :
-         {"function", "local", "return", "if", "then", "else", "elseif", "end", "true", "false", "not", "and", "or"})
+    for (const auto keyword : {"function", "local", "return", "if", "then", "else", "elseif", "end", "true", "false",
+                               "not", "and", "or", "continue"})
         CHECK(fixture.Editor().GetLanguage()->keywords.contains(keyword));
     for (const auto constructor : {"Vector2", "Vector3", "Color"})
         CHECK(fixture.Editor().GetLanguage()->declarations.contains(constructor));
-    for (const auto global : {"spot", "require", "math", "string", "table", "utf8", "coroutine", "print"})
+    for (const auto global :
+         {"spot", "require", "math", "string", "table", "utf8", "coroutine", "print", "typeof", "vector"})
         CHECK(fixture.Editor().GetLanguage()->identifiers.contains(global));
     CHECK_FALSE(fixture.Editor().GetLanguage()->identifiers.contains("entity"));
     CHECK_FALSE(fixture.Editor().GetLanguage()->identifiers.contains("Scene"));
@@ -592,8 +593,8 @@ TEST_CASE("Typing a dot in ViceScript opens member suggestions, which Enter inse
     fixture.imgui.Press(ImGuiKey_Enter);
     CHECK(fixture.Editor().GetLineText(2) == "        entity.active = transform.worldPosition");
 
-    // Lua scripts have none.
-    fixture.Open("mover.lua", "local x = 1\n");
+    // Luau scripts have none.
+    fixture.Open("mover.luau", "local x = 1\n");
     fixture.Editor().SetCursor({1, 0});
     fixture.imgui.Frame();
     type("x.");

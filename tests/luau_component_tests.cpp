@@ -20,7 +20,7 @@ struct Console {
     std::vector<std::string> Messages() const {
         std::vector<std::string> messages;
         for (const auto& record : sink->GetRecords()) {
-            if (record.loggerName == "Lua") {
+            if (record.loggerName == "Luau") {
                 CHECK(record.level == Spot::LogLevel::Info);
                 messages.push_back(record.message);
             }
@@ -42,11 +42,11 @@ constexpr auto CounterSource = R"(
 
 } // namespace
 
-TEST_CASE("Lua components print through engine logs and follow the component lifecycle", "[lua][scene]") {
+TEST_CASE("Luau components print through engine logs and follow the component lifecycle", "[luau][scene]") {
     Console console;
     Spot::Scene scene;
     auto& component = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
-    component.language = "lua";
+    component.language = "luau";
     component.source = CounterSource;
     component.SetEnabled(false);
     scene.Update(0.25f);
@@ -68,17 +68,17 @@ TEST_CASE("Lua components print through engine logs and follow the component lif
     CHECK(console.Messages().size() == 4);
 }
 
-TEST_CASE("Lua components keep independent variables", "[lua][scene]") {
+TEST_CASE("Luau components keep independent variables", "[luau][scene]") {
     Console console;
     Spot::Scene scene;
     {
         auto& component = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
-        component.language = "lua";
+        component.language = "luau";
         component.source = CounterSource;
     }
     {
         auto& component = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
-        component.language = "lua";
+        component.language = "luau";
         component.source = CounterSource;
     }
     scene.Update(0.25f);
@@ -91,35 +91,35 @@ TEST_CASE("Lua components keep independent variables", "[lua][scene]") {
     CHECK(messages[5] == "2 0.25");
 }
 
-TEST_CASE("Lua source round trips through scenes and resets runtime state", "[lua][scene]") {
+TEST_CASE("Luau source round trips through scenes and resets runtime state", "[luau][scene]") {
     Console console;
     Spot::Scene scene;
     auto& component = scene.CreateEntity("Scripted").AddComponent<Spot::ScriptComponent>();
-    component.language = "lua";
+    component.language = "luau";
     component.source = CounterSource;
-    component.sourceName = "counter.lua";
+    component.sourceName = "counter.luau";
     scene.Update(0.25f);
     const std::string saved = scene.SaveToString();
     Spot::Scene loaded;
     REQUIRE(loaded.LoadFromString(saved));
     const auto* restored = loaded.GetRootEntities()[0]->GetComponent<Spot::ScriptComponent>();
     REQUIRE(restored);
-    CHECK(restored->language == "lua");
+    CHECK(restored->language == "luau");
     CHECK(restored->source == component.source);
-    CHECK(restored->sourceName == "counter.lua");
+    CHECK(restored->sourceName == "counter.luau");
     loaded.Update(0.25f);
     CHECK(console.Messages() == std::vector<std::string>{"start nil", "1 0.25", "start nil", "1 0.25"});
 }
 
-TEST_CASE("Lua failures stop one component and are logged once with script location", "[lua][scene]") {
+TEST_CASE("Luau failures stop one component and are logged once with script location", "[luau][scene]") {
     Console console;
     Spot::Scene scene;
     auto& bad = scene.CreateEntity("Broken").AddComponent<Spot::ScriptComponent>();
-    bad.language = "lua";
-    bad.sourceName = "broken.lua";
+    bad.language = "luau";
+    bad.sourceName = "broken.luau";
     bad.source = "function OnUpdate(dt)\n    print(missing)\nend";
     auto& good = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
-    good.language = "lua";
+    good.language = "luau";
     good.source = "function OnUpdate(dt) print(\"alive\") end";
     scene.Update(0.25f);
     scene.Update(0.25f);
@@ -130,21 +130,21 @@ TEST_CASE("Lua failures stop one component and are logged once with script locat
     for (const auto& record : console.sink->GetRecords()) {
         if (record.level == Spot::LogLevel::Error) {
             ++errors;
-            CHECK(record.message.find("broken.lua:2:") != std::string::npos);
+            CHECK(record.message.find("broken.luau:2:") != std::string::npos);
             CHECK(record.message.find("Broken") != std::string::npos);
         }
     }
     CHECK(errors == 1);
 }
 
-TEST_CASE("Lua lifecycle signatures are checked before any script executes", "[lua][scene]") {
+TEST_CASE("Luau lifecycle signatures are checked before any script executes", "[luau][scene]") {
     for (const auto* source : {"function OnStart(arg) print(arg) end", "function OnUpdate() print(1) end",
                                "function OnStart() print(1) end\nfunction OnUpdate(a, b) end", "function OnStart()"}) {
         INFO(source);
         Console console;
         Spot::Scene scene;
         auto& component = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
-        component.language = "lua";
+        component.language = "luau";
         component.source = source;
         scene.Update(0.25f);
         CHECK(component.IsFaulted());
@@ -152,13 +152,13 @@ TEST_CASE("Lua lifecycle signatures are checked before any script executes", "[l
     }
 }
 
-TEST_CASE("Lua lifecycle functions are optional", "[lua][scene]") {
+TEST_CASE("Luau lifecycle functions are optional", "[luau][scene]") {
     Console console;
     Spot::Scene scene;
     auto& empty = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
-    empty.language = "lua";
+    empty.language = "luau";
     auto& startOnly = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
-    startOnly.language = "lua";
+    startOnly.language = "luau";
     startOnly.source = "function OnStart() print(\"started\") end";
     scene.Update(0.25f);
     scene.Update(0.25f);
@@ -167,10 +167,10 @@ TEST_CASE("Lua lifecycle functions are optional", "[lua][scene]") {
     CHECK(console.Messages() == std::vector<std::string>{"started"});
 }
 
-TEST_CASE("Lua file assets are shared while component state stays independent", "[lua][assets]") {
+TEST_CASE("Luau file assets are shared while component state stays independent", "[luau][assets]") {
     Console console;
     ScriptAssetFixture fixture;
-    const auto id = fixture.Import("scripts/counter.lua", CounterSource);
+    const auto id = fixture.Import("scripts/counter.luau", CounterSource);
     Spot::AssetManager assets(fixture.imported);
     Spot::Scene scene;
     for (int i = 0; i < 2; ++i) {
@@ -195,10 +195,10 @@ TEST_CASE("Lua file assets are shared while component state stays independent", 
     CHECK(component->script.Get() == assets.Load<Spot::ScriptSource>(id).Get());
 }
 
-TEST_CASE("Lua scenes execute file assets from a shipped pak", "[lua][assets]") {
+TEST_CASE("Luau scenes execute file assets from a shipped pak", "[luau][assets]") {
     Console console;
     ScriptAssetFixture fixture;
-    const auto id = fixture.Import("scripts/shipped.lua", "function OnStart() print(\"shipped\", nil) end");
+    const auto id = fixture.Import("scripts/shipped.luau", "function OnStart() print(\"shipped\", nil) end");
     {
         Spot::AssetManager assets(fixture.imported);
         Spot::Scene scene;
@@ -222,10 +222,10 @@ TEST_CASE("Lua scenes execute file assets from a shipped pak", "[lua][assets]") 
     CHECK(console.Messages() == std::vector<std::string>{"shipped nil"});
 }
 
-TEST_CASE("Lua asset errors use the relative file path in diagnostics", "[lua][assets]") {
+TEST_CASE("Luau asset errors use the relative file path in diagnostics", "[luau][assets]") {
     Console console;
     ScriptAssetFixture fixture;
-    const auto id = fixture.Import("scripts/broken.lua", "function OnUpdate(dt)\n    print(missing)\nend");
+    const auto id = fixture.Import("scripts/broken.luau", "function OnUpdate(dt)\n    print(missing)\nend");
     Spot::AssetManager assets(fixture.imported);
     Spot::Scene scene;
     auto& component = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
@@ -234,13 +234,13 @@ TEST_CASE("Lua asset errors use the relative file path in diagnostics", "[lua][a
     scene.Update(0.25f);
     REQUIRE(component.IsFaulted());
     REQUIRE_FALSE(console.sink->GetRecords().empty());
-    CHECK(console.sink->GetRecords().back().message.find("scripts/broken.lua:2:") != std::string::npos);
+    CHECK(console.sink->GetRecords().back().message.find("scripts/broken.luau:2:") != std::string::npos);
 }
 
-TEST_CASE("Lua source modules load imported assets and share the explicit spot context", "[lua][assets][libraries]") {
+TEST_CASE("Luau source modules load imported assets and share the explicit spot context", "[luau][assets][libraries]") {
     Console console;
     ScriptAssetFixture fixture;
-    fixture.Import("scripts/combat.lua", R"(
+    fixture.Import("scripts/combat.luau", R"(
         local spot = require("spot")
         local M = { calls = 0 }
         function M.advance(amount)
@@ -249,9 +249,9 @@ TEST_CASE("Lua source modules load imported assets and share the explicit spot c
         end
         return M
     )");
-    const auto root = fixture.Import("scripts/player.lua", R"(
+    const auto root = fixture.Import("scripts/player.luau", R"(
         local combat = require("combat")
-        local Battle = require("./combat.lua")
+        local Battle = require("./combat.luau")
         function OnStart()
             combat.advance(3)
         end
@@ -290,11 +290,11 @@ TEST_CASE("Lua source modules load imported assets and share the explicit spot c
     CHECK(console.Messages() == std::vector<std::string>{"2", "3"});
 }
 
-TEST_CASE("Lua engine modules require explicit require and accept local aliases", "[lua][scene][libraries]") {
+TEST_CASE("Luau engine modules require explicit require and accept local aliases", "[luau][scene][libraries]") {
     Spot::Scene scene;
     auto& entity = scene.CreateEntity();
     auto& script = entity.AddComponent<Spot::ScriptComponent>();
-    script.language = "lua";
+    script.language = "luau";
     SECTION("Local alias") {
         script.source =
             "local engine = require(\"spot\")\nfunction OnStart() engine.entity.Transform.position.x = 7 end";
@@ -319,7 +319,7 @@ TEST_CASE("Lua engine modules require explicit require and accept local aliases"
     }
 }
 
-TEST_CASE("Lua receives registered native engine libraries without adapter specific bindings", "[lua][libraries]") {
+TEST_CASE("Luau receives registered native engine libraries without adapter specific bindings", "[luau][libraries]") {
     class Combat final : public Spot::ScriptObject {
     public:
         Spot::ScriptValue Call(std::string_view name, std::span<const Spot::ScriptValue> arguments) override {
@@ -335,17 +335,17 @@ TEST_CASE("Lua receives registered native engine libraries without adapter speci
     Console console;
     Spot::Scene scene;
     auto& component = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
-    component.language = "lua";
+    component.language = "luau";
     component.source = "local combat = require(\"combat\")\nfunction OnStart() print(combat.damage(10, 3)) end";
     scene.Update(0.1f);
     CHECK_FALSE(component.IsFaulted());
     CHECK(console.Messages() == std::vector<std::string>{"7"});
 }
 
-TEST_CASE("Lua supports file scope modules struct formatting and instruction budgets", "[lua][scene][libraries]") {
+TEST_CASE("Luau supports file scope modules struct formatting and execution budgets", "[luau][scene][libraries]") {
     Console console;
     ScriptAssetFixture fixture;
-    fixture.Import("scripts/math_helpers.lua", R"(
+    fixture.Import("scripts/math_helpers.luau", R"(
         local spot = require("spot")
         calls = 0
         function step(x)
@@ -353,7 +353,7 @@ TEST_CASE("Lua supports file scope modules struct formatting and instruction bud
             spot.entity.Transform.position = Vector3(x, 2, 3)
         end
     )");
-    const auto root = fixture.Import("scripts/actor.lua", R"(
+    const auto root = fixture.Import("scripts/actor.luau", R"(
         local helpers = require("math_helpers")
         function OnStart()
             helpers.step(5)
@@ -378,18 +378,18 @@ TEST_CASE("Lua supports file scope modules struct formatting and instruction bud
     CHECK(console.Messages() == std::vector<std::string>{"Vector2(1, 2) Color(1, 0.5, 0.25, 1) 1"});
 
     auto& runaway = scene.CreateEntity("Runaway").AddComponent<Spot::ScriptComponent>();
-    runaway.language = "lua";
+    runaway.language = "luau";
     runaway.source = "function OnStart() while true do end end";
     scene.Update(0.1f);
     CHECK(runaway.IsFaulted());
 }
 
-TEST_CASE("Lua native lifecycle hooks support nested activity changes and removal cleanup", "[lua][scene]") {
+TEST_CASE("Luau native lifecycle hooks support nested activity changes and removal cleanup", "[luau][scene]") {
     Console console;
     Spot::Scene scene;
     auto& entity = scene.CreateEntity("Actor");
     auto& script = entity.AddComponent<Spot::ScriptComponent>();
-    script.language = "lua";
+    script.language = "luau";
     script.source = R"(
         local spot = require("spot")
         function OnEnable() print("enable") end
@@ -408,11 +408,11 @@ TEST_CASE("Lua native lifecycle hooks support nested activity changes and remova
     CHECK(console.Messages() == std::vector<std::string>{"enable", "disable false", "after 0", "destroy Actor false"});
 }
 
-TEST_CASE("Lua bounds recursive native activity hooks", "[lua][scene]") {
+TEST_CASE("Luau bounds recursive native activity hooks", "[luau][scene]") {
     Console console;
     Spot::Scene scene;
     auto& script = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
-    script.language = "lua";
+    script.language = "luau";
     script.source = R"(
         local spot = require("spot")
         function OnEnable() spot.Component:SetEnabled(false) end
@@ -421,9 +421,57 @@ TEST_CASE("Lua bounds recursive native activity hooks", "[lua][scene]") {
     scene.Update(0);
     CHECK(script.IsFaulted());
     auto& healthy = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
-    healthy.language = "lua";
+    healthy.language = "luau";
     healthy.source = "function OnStart() print(42) end";
     scene.Update(0);
     CHECK_FALSE(healthy.IsFaulted());
     CHECK(console.Messages() == std::vector<std::string>{"42"});
+}
+
+TEST_CASE("Luau components run Luau syntax with type annotations and compound assignment", "[luau][scene]") {
+    Console console;
+    Spot::Scene scene;
+    auto& component = scene.CreateEntity("Typed").AddComponent<Spot::ScriptComponent>();
+    component.language = "luau";
+    component.source = R"(
+        local spot = require("spot")
+        type Counter = { value: number }
+        local counter: Counter = { value = 0 }
+        local function add(amount: number): number
+            counter.value += amount
+            return counter.value
+        end
+        function OnUpdate(deltaTime: number)
+            for i = 1, 3 do
+                if i == 2 then continue end
+                add(i)
+            end
+            print(`{spot.entity.name} {counter.value} {math.floor(deltaTime * 10)}`)
+        end
+    )";
+    scene.Update(0.25f);
+    REQUIRE_FALSE(component.IsFaulted());
+    CHECK(console.Messages() == std::vector<std::string>{"Typed 4 2"});
+}
+
+TEST_CASE("Luau built-ins are read only and cannot be shadowed by script globals", "[luau][scene]") {
+    for (const auto* source : {"math = {}", "Vector3 = 1", "print = nil", "math.floor = nil",
+                               "string.upper = function() end", "function OnStart() local x = debug end"}) {
+        INFO(source);
+        Console console;
+        Spot::Scene scene;
+        auto& component = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
+        component.language = "luau";
+        component.source = source;
+        scene.Update(0.1f);
+        CHECK(component.IsFaulted());
+    }
+    Console console;
+    Spot::Scene scene;
+    auto& component = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
+    component.language = "luau";
+    component.source = "local floor = math.floor\nfunction OnStart() print(floor(2.5), bit32.band(6, 3)) end";
+    scene.Update(0.1f);
+    CHECK_FALSE(component.IsFaulted());
+    CHECK(console.Messages() == std::vector<std::string>{"2 2"});
 }

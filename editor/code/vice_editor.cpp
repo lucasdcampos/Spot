@@ -14,22 +14,24 @@ namespace Spot::Editor {
 
 namespace {
 
-constexpr std::array LuaKeywords{
-    std::string_view("and"),      std::string_view("break"),  std::string_view("do"),    std::string_view("else"),
-    std::string_view("elseif"),   std::string_view("end"),    std::string_view("false"), std::string_view("for"),
-    std::string_view("function"), std::string_view("goto"),   std::string_view("if"),    std::string_view("in"),
-    std::string_view("local"),    std::string_view("nil"),    std::string_view("not"),   std::string_view("or"),
-    std::string_view("repeat"),   std::string_view("return"), std::string_view("then"),  std::string_view("true"),
-    std::string_view("until"),    std::string_view("while"),
+constexpr std::array LuauKeywords{
+    std::string_view("and"),  std::string_view("break"),    std::string_view("continue"), std::string_view("do"),
+    std::string_view("else"), std::string_view("elseif"),   std::string_view("end"),      std::string_view("false"),
+    std::string_view("for"),  std::string_view("function"), std::string_view("goto"),     std::string_view("if"),
+    std::string_view("in"),   std::string_view("local"),    std::string_view("nil"),      std::string_view("not"),
+    std::string_view("or"),   std::string_view("repeat"),   std::string_view("return"),   std::string_view("then"),
+    std::string_view("true"), std::string_view("until"),    std::string_view("while"),
 };
 
-constexpr std::array LuaBuiltins{
+constexpr std::array LuauBuiltins{
     std::string_view("print"),    std::string_view("require"),  std::string_view("type"),
     std::string_view("tostring"), std::string_view("tonumber"), std::string_view("pairs"),
     std::string_view("ipairs"),   std::string_view("next"),     std::string_view("select"),
     std::string_view("pcall"),    std::string_view("xpcall"),   std::string_view("error"),
     std::string_view("assert"),   std::string_view("math"),     std::string_view("string"),
     std::string_view("table"),    std::string_view("utf8"),     std::string_view("coroutine"),
+    std::string_view("typeof"),   std::string_view("bit32"),    std::string_view("buffer"),
+    std::string_view("vector"),
 };
 
 std::string MakeViceScriptTemplate(std::string_view name) {
@@ -73,7 +75,7 @@ void AttachViceCompletion(TextEditor& editor) {
     editor.SetAutoCompleteConfig(&config);
 }
 
-std::string MakeLuaScriptTemplate(std::string_view name) {
+std::string MakeLuauScriptTemplate(std::string_view name) {
     return "-- " + std::string(name) +
            "\n\nlocal spot = require(\"spot\")\n\nfunction OnStart()\n    \nend\n\nfunction OnUpdate(deltaTime)\n    "
            "\nend\n";
@@ -154,15 +156,15 @@ constexpr std::array Languages{
         .configureEditor = &ConfigureViceEditor,
     },
     EditorScriptLanguage{
-        .id = "lua",
-        .displayName = "Lua",
-        .menuLabel = "Lua Script",
-        .defaultFileName = "New Script.lua",
-        .extension = ".lua",
-        .badge = "LUA",
+        .id = "luau",
+        .displayName = "Luau",
+        .menuLabel = "Luau Script",
+        .defaultFileName = "New Script.luau",
+        .extension = ".luau",
+        .badge = "LUAU",
         .color = {68.0f / 255.0f, 138.0f / 255.0f, 228.0f / 255.0f, 1.0f},
-        .makeTemplate = &MakeLuaScriptTemplate,
-        .configureEditor = &ConfigureLuaEditor,
+        .makeTemplate = &MakeLuauScriptTemplate,
+        .configureEditor = &ConfigureLuauEditor,
     },
 };
 
@@ -213,16 +215,16 @@ void ConfigureViceEditor(TextEditor& editor) {
     AttachViceCompletion(editor);
 }
 
-void ConfigureLuaEditor(TextEditor& editor) {
+void ConfigureLuauEditor(TextEditor& editor) {
     static const TextEditor::Language language = [] {
         TextEditor::Language result = *TextEditor::Language::Lua();
-        result.name = "Lua";
+        result.name = "Luau";
         result.keywords.clear();
         result.declarations.clear();
         result.identifiers.clear();
-        for (const auto keyword : LuaKeywords)
+        for (const auto keyword : LuauKeywords)
             result.keywords.emplace(keyword);
-        for (const auto builtin : LuaBuiltins)
+        for (const auto builtin : LuauBuiltins)
             result.identifiers.emplace(builtin);
         AttachScriptTokenizer(result);
         return result;

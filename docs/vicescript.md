@@ -708,7 +708,7 @@ using it swaps in the new code before its next hook (`ScriptComponent::Reload()`
 - `OnStart()` does not run again. The script's coroutines and event subscriptions end; the optional `OnReload()`
   hook runs right after, to start them again (`override func OnReload() { StartCoroutine(Patrol) }`).
 - When the new code fails to compile or initialize, the warning names the script and the old code keeps running.
-- Lua scripts reload too, without keeping state. Exported games never reload: their assets do not change.
+- Luau scripts reload too, without keeping state. Exported games never reload: their assets do not change.
 
 ## Scene API
 
@@ -886,7 +886,7 @@ The coroutine runs at once until its first `yield`. `StartCoroutine` returns an 
 returns whether it was running) and `IsCoroutineRunning(id)`; `StopCoroutines()` stops them all. They are the
 engine's component coroutines: paused while the component is inactive, ended when it is removed, and an error or an
 invalid yield (any value other than those above) faults the component under the `Coroutine` hook. These methods
-belong to every script component reference. Lua scripts use them too, yielding with `coroutine.yield(...)`; in C++,
+belong to every script component reference. Luau scripts use them too, yielding with `coroutine.yield(...)`; in C++,
 `ScriptComponent::StartScriptCoroutine(function)` does the same.
 
 ### Calling other scripts
@@ -1014,7 +1014,7 @@ The receiver is a chain of names and calls starting at what a component script k
 the `spot` module under the name it was imported as, a hook's parameter (`collision` in `OnCollisionEnter`), or a
 value constructor. Calls go through their return types, and `GetComponent("Camera")` or `entity.Camera` leads to that
 component's members. Local variables are not followed, so `var player = scene.FindEntity("P")` then `player.` suggests
-nothing, nor do Lua scripts. Like highlighting, it reads the text without parsing it, so unfinished code works.
+nothing, nor do Luau scripts. Like highlighting, it reads the text without parsing it, so unfinished code works.
 
 What is suggested is what runs: the members of the engine's objects are described once, in `ScriptApi::Types`
 (`engine/scene/scripting/script_api.h`), with their types, and the scene bindings answer `HasProperty`/`HasMethod`
@@ -1027,7 +1027,7 @@ text widget only opens suggestions as a word is typed, so the editor's build pat
 ### Diagnostics
 
 The Code panel parses the source shortly after typing stops, without running it (`CheckScriptSyntax()`, which
-languages provide with `SetScriptSyntaxChecker()`; Vice and Lua do). The first syntax error shows next to the cursor
+languages provide with `SetScriptSyntaxChecker()`; Vice and Luau do). The first syntax error shows next to the cursor
 position below the source, and its line is marked, with the message as tooltip. Unfinished code stays editable and
 savable.
 

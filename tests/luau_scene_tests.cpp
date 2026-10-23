@@ -51,14 +51,14 @@ struct Log {
 
 } // namespace
 
-TEST_CASE("Lua accesses its owning entity scene and transforms with both dot and colon calls", "[lua][scene]") {
+TEST_CASE("Luau accesses its owning entity scene and transforms with both dot and colon calls", "[luau][scene]") {
     Spot::Scene scene;
     auto& parent = scene.CreateEntity("Parent");
     parent.GetTransform().SetPosition({10, 0, 0});
     auto& entity = parent.CreateChild("Player");
     entity.AddTag("player");
     auto& script = entity.AddComponent<Spot::ScriptComponent>();
-    script.language = "lua";
+    script.language = "luau";
     script.source = R"(
         local spot = require("spot")
         local target = spot.Scene:FindEntityWithTag("player")
@@ -89,14 +89,14 @@ TEST_CASE("Lua accesses its owning entity scene and transforms with both dot and
     CHECK(entity.GetTransform().GetRotation2D() == Catch::Approx(0.5));
 }
 
-TEST_CASE("Lua reads and writes game components using the generic registry", "[lua][scene]") {
+TEST_CASE("Luau reads and writes game components using the generic registry", "[luau][scene]") {
     HealthRegistration registration;
     Spot::Scene scene;
     auto& player = scene.CreateEntity("Player");
     auto& health = player.AddComponent<Health>();
     auto& another = player.AddComponent<Health>();
     auto& script = scene.CreateEntity("Controller").AddComponent<Spot::ScriptComponent>();
-    script.language = "lua";
+    script.language = "luau";
     script.source = R"(
         local spot = require("spot")
         local player = spot.Scene.FindEntity("Player")
@@ -124,14 +124,14 @@ TEST_CASE("Lua reads and writes game components using the generic registry", "[l
     CHECK(another.value == 25);
 }
 
-TEST_CASE("Lua exposes sprite camera and audio with the same descriptors", "[lua][scene]") {
+TEST_CASE("Luau exposes sprite camera and audio with the same descriptors", "[luau][scene]") {
     Spot::Scene scene;
     auto& entity = scene.CreateEntity();
     auto& sprite = entity.AddComponent<Spot::SpriteRenderer>();
     auto& camera = entity.AddComponent<Spot::Camera>();
     auto& audio = entity.AddComponent<Spot::AudioSource>();
     auto& script = entity.AddComponent<Spot::ScriptComponent>();
-    script.language = "lua";
+    script.language = "luau";
     script.source = R"(
         local spot = require("spot")
         function OnStart()
@@ -166,14 +166,14 @@ TEST_CASE("Lua exposes sprite camera and audio with the same descriptors", "[lua
     CHECK(audio.loop);
 }
 
-TEST_CASE("Lua component handles cannot retarget replacement components", "[lua][scene]") {
+TEST_CASE("Luau component handles cannot retarget replacement components", "[luau][scene]") {
     HealthRegistration registration;
     Log log;
     Spot::Scene scene;
     auto& target = scene.CreateEntity("Target");
     auto& original = target.AddComponent<Health>();
     auto& script = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
-    script.language = "lua";
+    script.language = "luau";
     script.source = R"(
         local spot = require("spot")
         local target = spot.Scene.FindEntity("Target")
@@ -197,15 +197,15 @@ TEST_CASE("Lua component handles cannot retarget replacement components", "[lua]
     CHECK(log.Contains("false false"));
 }
 
-TEST_CASE("Lua invalid component access faults only the script with source location", "[lua][scene]") {
+TEST_CASE("Luau invalid component access faults only the script with source location", "[luau][scene]") {
     HealthRegistration registration;
     Log log;
     Spot::Scene scene;
     auto& target = scene.CreateEntity("Target");
     auto& health = target.AddComponent<Health>();
     auto& script = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
-    script.language = "lua";
-    script.sourceName = "scripts/handles.lua";
+    script.language = "luau";
+    script.sourceName = "scripts/handles.luau";
     script.source = "local spot = require(\"spot\")\nlocal health = spot.Scene.FindEntity(\"Target\").Health\nfunction "
                     "OnUpdate(delta_time)\nhealth.value = health.value - 1\nend";
     scene.Update(0.01f);
@@ -213,11 +213,11 @@ TEST_CASE("Lua invalid component access faults only the script with source locat
     target.RemoveComponent(health);
     scene.Update(0.01f);
     CHECK(script.IsFaulted());
-    CHECK(log.Contains("scripts/handles.lua:4:"));
+    CHECK(log.Contains("scripts/handles.luau:4:"));
     CHECK(log.Contains("Component reference is no longer valid"));
 }
 
-TEST_CASE("Lua component binding errors reject invalid values without mutation", "[lua][scene]") {
+TEST_CASE("Luau component binding errors reject invalid values without mutation", "[luau][scene]") {
     HealthRegistration registration;
     for (const auto* statement : {"spot.entity.layer = 32",
                                   "spot.entity.layer = -1",
@@ -251,7 +251,7 @@ TEST_CASE("Lua component binding errors reject invalid values without mutation",
         entity.AddComponent<Spot::Camera>();
         entity.AddComponent<Spot::AudioSource>();
         auto& script = entity.AddComponent<Spot::ScriptComponent>();
-        script.language = "lua";
+        script.language = "luau";
         script.source = "local spot = require(\"spot\")\nfunction OnStart() " + std::string(statement) + " end";
         scene.Update(0.01f);
         CHECK(script.IsFaulted());
@@ -262,7 +262,7 @@ TEST_CASE("Lua component binding errors reject invalid values without mutation",
     }
 }
 
-TEST_CASE("Lua uses captured input state and frame transitions", "[lua][scene]") {
+TEST_CASE("Luau uses captured input state and frame transitions", "[luau][scene]") {
     Spot::InputState state;
     struct RestoreInput {
         Spot::InputState* previous = Spot::Input::GetState();
@@ -272,7 +272,7 @@ TEST_CASE("Lua uses captured input state and frame transitions", "[lua][scene]")
     Spot::Scene scene;
     auto& entity = scene.CreateEntity();
     auto& script = entity.AddComponent<Spot::ScriptComponent>();
-    script.language = "lua";
+    script.language = "luau";
     script.source = R"(
         local spot = require("spot")
         function OnUpdate(delta_time)
@@ -297,11 +297,11 @@ TEST_CASE("Lua uses captured input state and frame transitions", "[lua][scene]")
     CHECK(entity.GetTransform().GetPosition() == Spot::Vector3{2, 1, 1});
 }
 
-TEST_CASE("Lua shares lowercase engine object properties with ViceScript", "[lua][scene]") {
+TEST_CASE("Luau reads lowercase engine object properties", "[luau][scene]") {
     Spot::Scene scene;
     auto& entity = scene.CreateEntity("Original");
     auto& script = entity.AddComponent<Spot::ScriptComponent>();
-    script.language = "lua";
+    script.language = "luau";
     script.source = R"(
         local spot = require("spot")
         function OnStart()
@@ -320,7 +320,7 @@ TEST_CASE("Lua shares lowercase engine object properties with ViceScript", "[lua
     CHECK(entity.GetTransform().GetPosition() == Spot::Vector3{5, 2, 3});
 }
 
-TEST_CASE("Lua subscribes to events, calls other scripts and receives physics hooks", "[lua][scene][events]") {
+TEST_CASE("Luau subscribes to events, calls other scripts and receives physics hooks", "[luau][scene][events]") {
     Log log;
     Spot::Scene scene;
     auto& ground = scene.CreateEntity("Ground");
@@ -331,8 +331,8 @@ TEST_CASE("Lua subscribes to events, calls other scripts and receives physics ho
     listener.AddComponent<Spot::SphereCollider>();
     listener.AddComponent<Spot::Rigidbody>();
     auto& listenerScript = listener.AddComponent<Spot::ScriptComponent>();
-    listenerScript.language = "lua";
-    listenerScript.sourceName = "scripts/listener.lua";
+    listenerScript.language = "luau";
+    listenerScript.sourceName = "scripts/listener.luau";
     listenerScript.source = R"(
         local spot = require("spot")
         total = 0
@@ -345,7 +345,7 @@ TEST_CASE("Lua subscribes to events, calls other scripts and receives physics ho
     )";
     auto& emitter = scene.CreateEntity("Emitter");
     auto& emitterScript = emitter.AddComponent<Spot::ScriptComponent>();
-    emitterScript.language = "lua";
+    emitterScript.language = "luau";
     emitterScript.source = R"(
         local spot = require("spot")
         function OnUpdate(deltaTime)
@@ -367,11 +367,11 @@ TEST_CASE("Lua subscribes to events, calls other scripts and receives physics ho
     CHECK(std::get<double>(object->Get("total")) == 7);
 }
 
-TEST_CASE("Lua component coroutines yield engine waits", "[lua][scene][coroutines]") {
+TEST_CASE("Luau component coroutines yield engine waits", "[luau][scene][coroutines]") {
     Log log;
     Spot::Scene scene;
     auto& script = scene.CreateEntity("Owner").AddComponent<Spot::ScriptComponent>();
-    script.language = "lua";
+    script.language = "luau";
     script.source = R"(
         local spot = require("spot")
         steps = {}
@@ -383,12 +383,12 @@ TEST_CASE("Lua component coroutines yield engine waits", "[lua][scene][coroutine
                 coroutine.yield(spot.Component:WaitSeconds(0.25))
                 table.insert(steps, "seconds")
                 coroutine.yield()
-                print("lua coroutine " .. table.concat(steps, " "))
+                print("luau coroutine " .. table.concat(steps, " "))
             end)
         end
     )";
     for (int i = 0; i < 40; ++i)
         scene.Update(Spot::Scene::DefaultFixedTimeStep);
     REQUIRE_FALSE(script.IsFaulted());
-    CHECK(log.Contains("lua coroutine start frames seconds"));
+    CHECK(log.Contains("luau coroutine start frames seconds"));
 }

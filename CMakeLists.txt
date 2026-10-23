@@ -10,7 +10,7 @@ option(SPOT_BUILD_SANDBOX "Build the sandbox application" ${PROJECT_IS_TOP_LEVEL
 option(SPOT_BUILD_EDITOR "Build the Spot editor" ${PROJECT_IS_TOP_LEVEL})
 option(SPOT_BUILD_TESTS "Build the Spot test suite" ${PROJECT_IS_TOP_LEVEL})
 option(SPOT_ENABLE_VICESCRIPT "Build experimental ViceScript support" OFF)
-option(SPOT_ENABLE_LUA "Build Lua scripting support" ON)
+option(SPOT_ENABLE_LUAU "Build Luau scripting support" ON)
 
 # Set globally so fetched dependencies are built with the same standard as the engine;
 # Catch2 built as C++14 omits its std::string_view support and the tests fail to link.

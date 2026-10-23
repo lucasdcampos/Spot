@@ -22,7 +22,7 @@ Files are recognized by extension (`GetSourceAssetType()` in `engine/assets/asse
 | Font | `.ttf` `.otf` |
 | Scene | `.scene` (JSON) |
 | Prefab | `.prefab` (one entity tree in scene JSON) |
-| Script | `.lua` `.vice` (UTF-8 source text) |
+| Script | `.luau` `.vice` (UTF-8 source text) |
 
 Folders whose name starts with `.` are skipped. A source can make sub-assets, such as a model's meshes and materials,
 which get ids of their own under a key that names the part (`models/house.glb#Roof`).

@@ -43,7 +43,7 @@ constexpr float CaptionScale = 0.85f;
 constexpr double CodeListInterval = 1.0;
 
 const std::array ImportFilters{
-    FileFilter{"Assets", "png;jpg;jpeg;bmp;tga;gltf;glb;bin;wav;ogg;ttf;otf;material;scene;prefab;vice;lua"},
+    FileFilter{"Assets", "png;jpg;jpeg;bmp;tga;gltf;glb;bin;wav;ogg;ttf;otf;material;scene;prefab;vice;luau"},
     FileFilter{"All files", "*"},
 };
 
@@ -326,7 +326,7 @@ void AssetBrowserPanel::DrawCreateItems(EditorProject& project) {
         item(ICON_FA_MOUNTAIN_SUN, "Scene", NewAsset::Scene);
         item(ICON_FA_PALETTE, "Material", NewAsset::Material);
         item(ICON_FA_FILE_CODE, "ViceScript", NewAsset::ViceScript);
-        item(ICON_FA_FILE_CODE, "Lua Script", NewAsset::LuaScript);
+        item(ICON_FA_FILE_CODE, "Luau Script", NewAsset::LuauScript);
         ImGui::BeginDisabled(project.GetAssets().GetAssetIds(AssetType::AnimationClip).empty());
         item(ICON_FA_CUBES, "Animator Controller", NewAsset::AnimatorController);
         ImGui::EndDisabled();
@@ -1211,9 +1211,9 @@ void AssetBrowserPanel::Create(EditorProject& project, NewAsset kind) {
         created = MaterialSource{}.SaveToFile(assets / Utf8ToPath(path));
         break;
     case NewAsset::ViceScript:
-    case NewAsset::LuaScript: {
+    case NewAsset::LuauScript: {
         const std::string_view defaultFile =
-            kind == NewAsset::LuaScript ? std::string_view("New Script.lua") : std::string_view("New Script.vice");
+            kind == NewAsset::LuauScript ? std::string_view("New Script.luau") : std::string_view("New Script.vice");
         const EditorScriptLanguage* language = FindEditorScriptLanguage(defaultFile);
         if (!language || !language->makeTemplate) {
             return;

@@ -43,7 +43,7 @@ constexpr std::array<std::pair<std::string_view, AssetType>, 18> Extensions{{
     {".controller", AssetType::AnimatorController},
     {".atlas", AssetType::SpriteAtlas},
     {".vice", AssetType::Script},
-    {".lua", AssetType::Script},
+    {".luau", AssetType::Script},
 }};
 
 } // namespace

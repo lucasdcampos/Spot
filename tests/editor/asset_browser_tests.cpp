@@ -259,11 +259,11 @@ TEST_CASE("The asset browser opens ViceScript in the embedded code editor", "[ed
     BrowserFixture fixture;
     std::ofstream(fixture.assets / "hello.vice") << "override func OnStart() {}\n";
     fixture.Project().Refresh();
-    const ImVec4 luaColor = Spot::Editor::AssetIcons::GetTypeColor(Spot::AssetType::Script, "scripts/Player.lua");
+    const ImVec4 luauColor = Spot::Editor::AssetIcons::GetTypeColor(Spot::AssetType::Script, "scripts/Player.luau");
     const ImVec4 viceColor = Spot::Editor::AssetIcons::GetTypeColor(Spot::AssetType::Script, "scripts/Player.vice");
-    CHECK(luaColor.z > luaColor.x);
-    CHECK(luaColor.z > luaColor.y);
-    CHECK(luaColor.x < viceColor.x);
+    CHECK(luauColor.z > luauColor.x);
+    CHECK(luauColor.z > luauColor.y);
+    CHECK(luauColor.x < viceColor.x);
 
     Spot::Editor::CodeEditorPanel code(*fixture.context);
     fixture.context->SetCodeEditor(&code);
@@ -619,7 +619,7 @@ TEST_CASE("The asset browser creates ViceScript templates in the current folder"
     CHECK(customized->source == edited);
 }
 
-TEST_CASE("The asset browser creates Lua script templates and opens them in the code editor",
+TEST_CASE("The asset browser creates Luau script templates and opens them in the code editor",
           "[editor][assets][ui][lua]") {
     BrowserFixture fixture;
     REQUIRE(fixture.Project().GetAssetDatabase().CreateFolder("scripts"));
@@ -627,16 +627,16 @@ TEST_CASE("The asset browser creates Lua script templates and opens them in the 
     fixture.panel->SetFolder("scripts");
     fixture.imgui.Frame();
     fixture.imgui.Click(fixture.Center(fixture.panel->GetItemRect("Create")));
-    fixture.imgui.Click(fixture.Center(fixture.panel->GetItemRect("Create/Lua Script")));
-    const auto id = fixture.Project().GetAssetDatabase().FindByPath("scripts/New Script.lua");
+    fixture.imgui.Click(fixture.Center(fixture.panel->GetItemRect("Create/Luau Script")));
+    const auto id = fixture.Project().GetAssetDatabase().FindByPath("scripts/New Script.luau");
     REQUIRE(id);
-    REQUIRE(std::filesystem::is_regular_file(fixture.assets / "scripts/New Script.lua.meta"));
+    REQUIRE(std::filesystem::is_regular_file(fixture.assets / "scripts/New Script.luau.meta"));
     const auto script = fixture.Project().GetAssets().Load<Spot::ScriptSource>(*id);
     REQUIRE(script);
-    CHECK(script->source.starts_with("-- New Script.lua\n\nlocal spot = require(\"spot\")\n\n"));
+    CHECK(script->source.starts_with("-- New Script.luau\n\nlocal spot = require(\"spot\")\n\n"));
     CHECK(script->source.find("function OnStart()\n    \nend") != std::string::npos);
     CHECK(script->source.find("function OnUpdate(deltaTime)\n    \nend") != std::string::npos);
-#ifdef SPOT_ENABLE_LUA
+#ifdef SPOT_ENABLE_LUAU
     Spot::Scene scene;
     auto& component = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
     component.script = script;
@@ -646,26 +646,26 @@ TEST_CASE("The asset browser creates Lua script templates and opens them in the 
     fixture.imgui.Press(ImGuiMod_Ctrl | ImGuiKey_A);
     fixture.imgui.Type("Player");
     fixture.imgui.Press(ImGuiKey_Enter);
-    CHECK(fixture.Project().GetAssetDatabase().FindByPath("scripts/Player.lua") == id);
+    CHECK(fixture.Project().GetAssetDatabase().FindByPath("scripts/Player.luau") == id);
     const auto renamed = fixture.Project().GetAssets().Load<Spot::ScriptSource>(*id);
     REQUIRE(renamed);
-    CHECK(renamed->source.starts_with("-- Player.lua\n\n"));
+    CHECK(renamed->source.starts_with("-- Player.luau\n\n"));
 
-    const ImVec4 luaColor = Spot::Editor::AssetIcons::GetTypeColor(Spot::AssetType::Script, "scripts/Player.lua");
+    const ImVec4 luauColor = Spot::Editor::AssetIcons::GetTypeColor(Spot::AssetType::Script, "scripts/Player.luau");
     const ImVec4 viceColor = Spot::Editor::AssetIcons::GetTypeColor(Spot::AssetType::Script, "scripts/Player.vice");
-    CHECK(luaColor.z > luaColor.x);
-    CHECK(luaColor.z > luaColor.y);
-    CHECK(luaColor.x < viceColor.x);
+    CHECK(luauColor.z > luauColor.x);
+    CHECK(luauColor.z > luauColor.y);
+    CHECK(luauColor.x < viceColor.x);
 
     Spot::Editor::CodeEditorPanel code(*fixture.context);
     fixture.context->SetCodeEditor(&code);
     fixture.imgui.Frame();
-    fixture.DoubleClick(fixture.Tile("scripts/Player.lua"));
+    fixture.DoubleClick(fixture.Tile("scripts/Player.luau"));
     CHECK(code.GetDocumentCount() == 1);
     CHECK(code.IsOpen());
-    CHECK(code.GetActivePath() == "scripts/Player.lua");
+    CHECK(code.GetActivePath() == "scripts/Player.luau");
     REQUIRE(code.GetActiveEditor());
-    CHECK(code.GetActiveEditor()->GetLanguageName() == "Lua");
+    CHECK(code.GetActiveEditor()->GetLanguageName() == "Luau");
     fixture.context->SetCodeEditor(nullptr);
 }
 

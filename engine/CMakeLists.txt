@@ -646,63 +646,29 @@ if(SPOT_ENABLE_VICESCRIPT)
     target_compile_definitions(spot_objects PUBLIC SPOT_ENABLE_VICESCRIPT=1)
 endif()
 
-if(SPOT_ENABLE_LUA)
-    # Lua is built from its C sources as C++, so Lua errors unwind with C++ exceptions and no third-party header
-    # reaches the engine's public headers.
-    FetchContent_Declare(lua
-        GIT_REPOSITORY https://github.com/lua/lua.git
-        GIT_TAG v5.4.7
+if(SPOT_ENABLE_LUAU)
+    # Only Luau's parser, compiler and VM are built, as their targets are linked: scripts are compiled as they load,
+    # and nothing needs the type checker or native code generation. Luau reports errors with C++ exceptions.
+    set(LUAU_BUILD_CLI OFF CACHE BOOL "" FORCE)
+    set(LUAU_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(luau
+        GIT_REPOSITORY https://github.com/luau-lang/luau.git
+        GIT_TAG 0.743
         GIT_SHALLOW TRUE
         SOURCE_SUBDIR none
-        SYSTEM
     )
-    FetchContent_MakeAvailable(lua)
-    set(spot_lua_sources
-        ${lua_SOURCE_DIR}/lapi.c
-        ${lua_SOURCE_DIR}/lauxlib.c
-        ${lua_SOURCE_DIR}/lbaselib.c
-        ${lua_SOURCE_DIR}/lcode.c
-        ${lua_SOURCE_DIR}/lcorolib.c
-        ${lua_SOURCE_DIR}/lctype.c
-        ${lua_SOURCE_DIR}/ldblib.c
-        ${lua_SOURCE_DIR}/ldebug.c
-        ${lua_SOURCE_DIR}/ldo.c
-        ${lua_SOURCE_DIR}/ldump.c
-        ${lua_SOURCE_DIR}/lfunc.c
-        ${lua_SOURCE_DIR}/lgc.c
-        ${lua_SOURCE_DIR}/linit.c
-        ${lua_SOURCE_DIR}/liolib.c
-        ${lua_SOURCE_DIR}/llex.c
-        ${lua_SOURCE_DIR}/lmathlib.c
-        ${lua_SOURCE_DIR}/lmem.c
-        ${lua_SOURCE_DIR}/loadlib.c
-        ${lua_SOURCE_DIR}/lobject.c
-        ${lua_SOURCE_DIR}/lopcodes.c
-        ${lua_SOURCE_DIR}/loslib.c
-        ${lua_SOURCE_DIR}/lparser.c
-        ${lua_SOURCE_DIR}/lstate.c
-        ${lua_SOURCE_DIR}/lstring.c
-        ${lua_SOURCE_DIR}/lstrlib.c
-        ${lua_SOURCE_DIR}/ltable.c
-        ${lua_SOURCE_DIR}/ltablib.c
-        ${lua_SOURCE_DIR}/ltm.c
-        ${lua_SOURCE_DIR}/lundump.c
-        ${lua_SOURCE_DIR}/lutf8lib.c
-        ${lua_SOURCE_DIR}/lvm.c
-        ${lua_SOURCE_DIR}/lzio.c
-    )
-    set_source_files_properties(${spot_lua_sources} PROPERTIES LANGUAGE CXX)
-    add_library(spot_lua STATIC ${spot_lua_sources})
-    target_include_directories(spot_lua SYSTEM PUBLIC ${lua_SOURCE_DIR})
-    set_target_properties(spot_lua PROPERTIES POSITION_INDEPENDENT_CODE ON)
-    target_compile_options(spot_lua PRIVATE $<IF:$<CXX_COMPILER_ID:MSVC>,/W0,-w>)
+    FetchContent_MakeAvailable(luau)
+    add_subdirectory(${luau_SOURCE_DIR} ${luau_BINARY_DIR} EXCLUDE_FROM_ALL SYSTEM)
+    foreach(target Luau.Common Luau.Ast Luau.Bytecode Luau.Compiler Luau.VM)
+        target_compile_options(${target} PRIVATE $<IF:$<CXX_COMPILER_ID:MSVC>,/W0,-w>)
+    endforeach()
 
     target_sources(spot_objects PRIVATE
-        scene/scripting/lua_runtime.h
-        scene/scripting/lua_runtime.cpp
+        scene/scripting/luau_runtime.h
+        scene/scripting/luau_runtime.cpp
     )
-    target_link_libraries(spot_objects PRIVATE spot_lua)
-    target_compile_definitions(spot_objects PUBLIC SPOT_ENABLE_LUA=1)
+    target_link_libraries(spot_objects PRIVATE Luau.Compiler Luau.VM)
+    target_compile_definitions(spot_objects PUBLIC SPOT_ENABLE_LUAU=1)
 endif()
 
 target_compile_features(spot_objects PUBLIC cxx_std_20)
@@ -741,8 +707,8 @@ add_library(spot::shared ALIAS spot_shared)
 if(SPOT_ENABLE_VICESCRIPT)
     target_compile_definitions(spot_shared PUBLIC SPOT_ENABLE_VICESCRIPT=1)
 endif()
-if(SPOT_ENABLE_LUA)
-    target_compile_definitions(spot_shared PUBLIC SPOT_ENABLE_LUA=1)
+if(SPOT_ENABLE_LUAU)
+    target_compile_definitions(spot_shared PUBLIC SPOT_ENABLE_LUAU=1)
 endif()
 
 # A CMake package for game modules, which link the shared library of this build: find_package(Spot CONFIG) with

@@ -2,7 +2,7 @@
 
 Spot exposes one scene API to all scripting languages. Start with `scene/scripting/script_runtime.h` for a
 runtime adapter and `scene/scripting/script_component.h` for the component lifecycle. Built-in adapters are
-provided for **Lua 5.4** (`SPOT_ENABLE_LUA=ON` by default, `scene/scripting/lua_runtime.cpp`) and
+provided for **[Luau](https://luau.org)** (`SPOT_ENABLE_LUAU=ON` by default, `scene/scripting/luau_runtime.cpp`) and
 [ViceScript](vicescript.md) (`SPOT_ENABLE_VICESCRIPT=OFF` by default, `scene/scripting/vice_runtime.cpp`).
 
 ## Shared engine behavior
@@ -33,7 +33,7 @@ physics contact hooks (`ScriptApi::Hooks`), scene scopes, event delivery and exp
 registers a `ScriptExportReader` with `SetScriptExportReader` so tools can list its exported fields.
 `CreateCoroutine(function)` wraps one of the script's functions in a resumable object (`Call("resume")`, `"done"`);
 `ScriptComponent::StartScriptCoroutine` drives it with the engine's `Task` scheduler, so script coroutines wait with
-`NextFrame`, `WaitForSeconds` and `WaitUntil` like C++ ones. Vice implements it with its own coroutines and Lua with
+`NextFrame`, `WaitForSeconds` and `WaitUntil` like C++ ones. Vice implements it with its own coroutines and Luau with
 threads; a language returning null has no coroutines.
 
 Tools reach running scripts through registries that need nothing from a language beyond its adapter:
@@ -41,7 +41,7 @@ Tools reach running scripts through registries that need nothing from a language
 (the runtime's `SetBreakpoints()`; hits report the stack and continue), and `SetScriptProfiling()` with
 `GetScriptProfile()` (the runtime's `SetProfiling()` / `TakeProfile()`). Hooks are always timed as profiler scopes.
 `ScriptComponent::Reload()` swaps in reimported code, carrying what the runtime's `CaptureState()` returns into the
-new one and calling `OnReload()`. Vice implements all of them; Lua provides syntax checks and reloads without state. Normal component activation and
+new one and calling `OnReload()`. Vice implements all of them; Luau provides syntax checks and reloads without state. Normal component activation and
 fault guards suspend disabled scripts and isolate runtime failures. Runtime state is discarded on destruction
 and is not serialized. Imported scripts choose a registered runtime from their relative source extension,
 including assets loaded from a pak. Embedded source uses the component's explicit `language` string; `sourceName`
@@ -49,11 +49,11 @@ labels diagnostics and supplies the base path for embedded imports; it does not 
 
 ```cpp
 auto& script = entity.AddComponent<Spot::ScriptComponent>();
-script.script = Spot::Assets::Load<Spot::ScriptSource>("scripts/hello.lua");
+script.script = Spot::Assets::Load<Spot::ScriptSource>("scripts/hello.luau");
 
 // Without an asset:
 auto& embedded = entity.AddComponent<Spot::ScriptComponent>();
-embedded.language = "lua";
+embedded.language = "luau";
 embedded.source = "function OnStart() print(123) end";
 ```
 
@@ -99,36 +99,41 @@ rename old `start`/`update` hooks to `OnStart`/`OnUpdate`, move Vice hooks into 
 snake_case calls such as `find`, `translate` or `is_key_down` with their engine method names. Stored script state is
 not migrated while Play is running; restart it after importing the edited files.
 
-## Lua scripting
+## Luau scripting
 
-When `SPOT_ENABLE_LUA=ON` (the default), `.lua` script assets and `language = "lua"` embedded scripts run in an
-isolated Lua 5.4 state per component:
+When `SPOT_ENABLE_LUAU=ON` (the default), `.luau` script assets and `language = "luau"` embedded scripts run in an
+isolated Luau state per component:
 
 ```lua
--- Player.lua
+-- Player.luau
 local spot = require("spot")
 
 function OnStart()
     spot.entity:GetTransform():SetPosition(Vector3(1, 2, 3))
 end
 
-function OnUpdate(deltaTime)
+function OnUpdate(deltaTime: number)
     if spot.Input:IsKeyDown("Right") then
-        spot.entity:GetTransform():Translate(Vector3(deltaTime * 4, 0, 0))
+        spot.entity.transform.position.x += deltaTime * 4
     end
 end
 ```
 
-- Engine objects support both dot (`spot.Scene.FindEntity("Player")`) and colon (`spot.Scene:FindEntity("Player")`) calls.
+- Luau is fetched at a pinned release; only its parser, compiler and VM are built. Sources are compiled to bytecode
+  when a component loads them, and the parser checks syntax for the editor without running anything.
+- Engine objects support both dot (`spot.Scene.FindEntity("Player")`) and colon (`spot.Scene:FindEntity("Player")`)
+  calls; colon calls go through `__namecall`, without making a function per call.
 - Value types (`Vector2`, `Vector3`, `Color`) are available as global constructors; mutating a field on a struct
   read from an engine property (`spot.entity.Transform.position.x = 5`, `spot.entity.SpriteRenderer.color.a = 0.5`)
   writes the updated struct back to the owning object.
 - `require("spot")` and registered native libraries return bound `ScriptObject` modules; `require("combat")` or
-  `require("./combat.lua")` loads imported `.lua` `ScriptSource` assets through the shared asset loader (including
-  from shipped `.pak` files).
-- Only safe standard libraries (`base`, `math`, `string`, `table`, `utf8`, `coroutine`) are opened; `io`, `os`,
-  `package` and `debug` are omitted, bytecode chunks are rejected, and a per-call instruction budget prevents
-  runaway loops from hanging the frame.
+  `require("./combat.luau")` loads imported `.luau` `ScriptSource` assets through the shared asset loader (including
+  from shipped `.pak` files). Each module gets an environment of its own over the built-ins.
+- Luau's `base`, `coroutine`, `table`, `string`, `math`, `utf8`, `bit32`, `buffer` and `vector` libraries are opened;
+  `os` and `debug` are not. The built-ins are frozen with `luaL_sandbox`: their tables are read only and scripts
+  cannot assign their names, so Luau's fast built-in calls stay valid. Reading a name that is neither a built-in nor
+  declared faults the script with its location, instead of giving `nil`.
+- Luau's interrupt callback bounds each hook: a runaway loop faults its component instead of hanging the frame.
 
 ## Adding a language
 
@@ -165,7 +170,7 @@ retain their runtime while new creations fail. Destroy instances and unregister 
 module that supplies their code. Register languages before running scenes. Factory calls execute outside the
 registry lock, and throwing/null factories fault the calling component.
 
-Lua's factory is installed automatically when `SPOT_ENABLE_LUA=ON`, and VICE's when `SPOT_ENABLE_VICESCRIPT=ON`. Source importing and the component are
+Luau's factory is installed automatically when `SPOT_ENABLE_LUAU=ON`, and VICE's when `SPOT_ENABLE_VICESCRIPT=ON`. Source importing and the component are
 independent of those options. A registered custom runtime uses the same `ScriptComponent` and descriptors.
 
 A language's standard output function can format its native values and send messages through the engine logger,

@@ -53,7 +53,7 @@ protected:
 
 private:
     // New assets the browser can create.
-    enum class NewAsset { Folder, Scene, Material, AnimatorController, SpriteAtlas, ViceScript, LuaScript };
+    enum class NewAsset { Folder, Scene, Material, AnimatorController, SpriteAtlas, ViceScript, LuauScript };
 
     struct Tile {
         std::string key;
