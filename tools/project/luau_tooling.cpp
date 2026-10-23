@@ -105,6 +105,8 @@ std::string MakeLuauModule() {
     for (const auto& type : ScriptApi::Types) {
         out += "export type " + GetTypeName(type) + " = {\n";
         for (const auto& member : type.members) {
+            if (member.hidden)
+                continue;
             out += "    " + std::string(member.name) + ": ";
             if (member.kind == ScriptApi::MemberKind::Property)
                 out += ToLuauType(member.type, member.name == "parent");

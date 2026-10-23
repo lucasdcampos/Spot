@@ -1,7 +1,7 @@
 #include "panels/code_editor_panel.h"
 
 #include "app/editor_context.h"
-#include "code/vice_editor.h"
+#include "code/script_editor.h"
 #include "core/editor_log.h"
 #include "imgui/editor_style.h"
 #include "imgui/icons.h"

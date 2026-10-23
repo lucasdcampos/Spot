@@ -2,8 +2,7 @@
 #include "temp_directory.h"
 
 #include "app/editor_context.h"
-#include "code/vice_completion.h"
-#include "code/vice_editor.h"
+#include "code/script_editor.h"
 #include "panels/code_editor_panel.h"
 
 #include <spot.h>
@@ -107,9 +106,9 @@ struct CodeFixture {
 
 } // namespace
 
-TEST_CASE("Ctrl wheel zooms only the hovered code text", "[editor][code][vice][ui]") {
+TEST_CASE("Ctrl wheel zooms only the hovered code text", "[editor][code][luau][ui]") {
     CodeFixture fixture;
-    fixture.Open("hello.vice", "// hello\nfunc OnStart() {}\n");
+    fixture.Open("hello.luau", "-- hello\nfunction OnStart() end\n");
     const auto source = fixture.panel.GetItemRect("Source");
     REQUIRE(source);
     ImGuiIO& io = ImGui::GetIO();
@@ -147,15 +146,15 @@ TEST_CASE("Ctrl wheel zooms only the hovered code text", "[editor][code][vice][u
     CHECK_FALSE(fixture.panel.HasUnsavedChanges());
 }
 
-TEST_CASE("The code editor edits ViceScript with undo redo clipboard and save shortcuts", "[editor][code][vice][ui]") {
+TEST_CASE("The code editor edits scripts with undo redo clipboard and save shortcuts", "[editor][code][luau][ui]") {
     CodeFixture fixture;
-    const std::string original = "// hello.vice\nfunc OnStart() {}\n";
-    const auto asset = fixture.Open("scripts/hello.vice", original);
+    const std::string original = "-- hello.luau\nfunction OnStart() end\n";
+    const auto asset = fixture.Open("scripts/hello.luau", original);
     CHECK(fixture.panel.IsFocused());
     CHECK_FALSE(fixture.panel.HasUnsavedChanges());
-    fixture.Replace("// edited\nfunc OnStart() { print(\"ola\", null) }\n");
+    fixture.Replace("-- edited\nfunction OnStart() print(\"ola\", nil) end\n");
     const std::string edited = fixture.Text();
-    CHECK(edited == "// edited\nfunc OnStart() { print(\"ola\", null) }\n");
+    CHECK(edited == "-- edited\nfunction OnStart() print(\"ola\", nil) end\n");
     CHECK(fixture.panel.HasUnsavedChanges());
     int undone = 0;
     while (fixture.Editor().CanUndo() && undone < 64) {
@@ -175,7 +174,7 @@ TEST_CASE("The code editor edits ViceScript with undo redo clipboard and save sh
     fixture.imgui.Press(ImGuiMod_Ctrl | ImGuiKey_V);
     CHECK(fixture.Text() == edited);
     fixture.imgui.Press(ImGuiMod_Ctrl | ImGuiKey_S);
-    CHECK(fixture.Read("scripts/hello.vice") == edited);
+    CHECK(fixture.Read("scripts/hello.luau") == edited);
     CHECK_FALSE(fixture.panel.HasUnsavedChanges());
     const auto loaded = fixture.context.GetProject()->GetAssets().Load<Spot::ScriptSource>(asset);
     REQUIRE(loaded);
@@ -184,23 +183,24 @@ TEST_CASE("The code editor edits ViceScript with undo redo clipboard and save sh
     CHECK(fixture.panel.GetDocumentCount() == 0);
 }
 
-TEST_CASE("ViceScript editing preserves UTF8 line endings tabs and the final newline", "[editor][code][vice]") {
+TEST_CASE("Script editing preserves UTF8 line endings tabs and the final newline", "[editor][code][luau]") {
     CodeFixture fixture;
-    const std::string source = "\xef\xbb\xbf// a\r\nfunc OnStart() {\r\n\tprint(\"ol\xc3\xa1 \xf0\x9f\x8c\x8d\")\r\n}";
-    fixture.Open("hello.vice", source);
-    CHECK(fixture.Text() == "// a\nfunc OnStart() {\n\tprint(\"ol\xc3\xa1 \xf0\x9f\x8c\x8d\")\n}");
+    const std::string source =
+        "\xef\xbb\xbf-- a\r\nfunction OnStart()\r\n\tprint(\"ol\xc3\xa1 \xf0\x9f\x8c\x8d\")\r\nend";
+    fixture.Open("hello.luau", source);
+    CHECK(fixture.Text() == "-- a\nfunction OnStart()\n\tprint(\"ol\xc3\xa1 \xf0\x9f\x8c\x8d\")\nend");
     REQUIRE(fixture.panel.SaveActive());
-    CHECK(fixture.Read("hello.vice") == source);
+    CHECK(fixture.Read("hello.luau") == source);
     fixture.Editor().ReplaceSectionText({0, 3}, {0, 4}, "b");
     CHECK(fixture.panel.HasUnsavedChanges());
     REQUIRE(fixture.panel.SaveActive());
-    CHECK(fixture.Read("hello.vice") ==
-          "\xef\xbb\xbf// b\r\nfunc OnStart() {\r\n\tprint(\"ol\xc3\xa1 \xf0\x9f\x8c\x8d\")\r\n}");
+    CHECK(fixture.Read("hello.luau") ==
+          "\xef\xbb\xbf-- b\r\nfunction OnStart()\r\n\tprint(\"ol\xc3\xa1 \xf0\x9f\x8c\x8d\")\r\nend");
 }
 
-TEST_CASE("ViceScript editing supports indentation and unfinished syntax", "[editor][code][vice][ui]") {
+TEST_CASE("Script editing supports indentation and unfinished syntax", "[editor][code][luau][ui]") {
     CodeFixture fixture;
-    fixture.Open("hello.vice", "    print(\"unfinished");
+    fixture.Open("hello.luau", "    print(\"unfinished");
     fixture.Editor().SetCursor({0, 4});
     fixture.imgui.Frame();
     fixture.imgui.Press(ImGuiKey_Enter);
@@ -209,26 +209,7 @@ TEST_CASE("ViceScript editing supports indentation and unfinished syntax", "[edi
     CHECK(fixture.Text() == "    \n        print(\"unfinished");
     fixture.imgui.Press(ImGuiMod_Shift | ImGuiKey_Tab);
     CHECK(fixture.Text() == "    \n    print(\"unfinished");
-    CHECK(fixture.Editor().GetLanguageName() == "ViceScript");
-    CHECK(fixture.Editor().GetLanguage()->keywords.contains("null"));
-    CHECK_FALSE(fixture.Editor().GetLanguage()->keywords.contains("nil"));
-    for (const auto keyword :
-         {"func", "var",    "const",    "return", "if",      "else",  "true",  "false",    "not",   "and",
-          "or",   "import", "as",       "class",  "extends", "self",  "super", "override", "while", "for",
-          "in",   "break",  "continue", "export", "is",      "yield", "enum",  "match"})
-        CHECK(fixture.Editor().GetLanguage()->keywords.contains(keyword));
-    for (const auto constructor : {"Vector2", "Vector3", "Color", "Component", "range"})
-        CHECK(fixture.Editor().GetLanguage()->declarations.contains(constructor));
-    for (const auto global : {"spot", "math", "string", "core", "random", "print", "OnStart", "OnUpdate",
-                              "OnCollisionEnter", "OnTriggerExit2D"})
-        CHECK(fixture.Editor().GetLanguage()->identifiers.contains(global));
-    for (const auto member : {"entity", "transform", "scene", "enabled"})
-        CHECK(fixture.Editor().GetLanguage()->identifiers.contains(member));
-    CHECK_FALSE(fixture.Editor().GetLanguage()->identifiers.contains("Scene"));
-    CHECK_FALSE(fixture.Editor().GetLanguage()->identifiers.contains("Input"));
-    CHECK_FALSE(fixture.Editor().GetLanguage()->identifiers.contains("Self"));
-    CHECK_FALSE(fixture.Editor().GetLanguage()->identifiers.contains("self"));
-    CHECK(fixture.Editor().GetLanguage()->singleLineComment == "//");
+    CHECK(fixture.Editor().GetLanguageName() == "Luau");
     REQUIRE(fixture.panel.SaveActive());
 }
 
@@ -256,66 +237,66 @@ TEST_CASE("Luau editing configures Luau syntax highlighting and engine identifie
     REQUIRE(fixture.panel.SaveActive());
 }
 
-TEST_CASE("Code documents follow asset renames and keep separate undo histories", "[editor][code][vice]") {
+TEST_CASE("Code documents follow asset renames and keep separate undo histories", "[editor][code][luau]") {
     CodeFixture fixture;
-    const auto first = fixture.Open("first.vice", "override func OnStart() {}\n");
-    fixture.Editor().ReplaceSectionText({0, 0}, {0, 0}, "// edit\n");
-    const auto second = fixture.Open("second.vice", "override func OnUpdate(deltaTime) {}\n");
+    const auto first = fixture.Open("first.luau", "function OnStart() end\n");
+    fixture.Editor().ReplaceSectionText({0, 0}, {0, 0}, "-- edit\n");
+    const auto second = fixture.Open("second.luau", "function OnUpdate(deltaTime) end\n");
     CHECK(fixture.panel.GetDocumentCount() == 2);
     CHECK(fixture.panel.GetActiveAsset() == second);
     CHECK_FALSE(fixture.Editor().CanUndo());
-    REQUIRE(fixture.context.GetProject()->GetAssetDatabase().Move("first.vice", "renamed.vice"));
+    REQUIRE(fixture.context.GetProject()->GetAssetDatabase().Move("first.luau", "renamed.luau"));
     fixture.context.GetProject()->Refresh();
     fixture.panel.SyncWithAssets();
     REQUIRE(fixture.panel.OpenScript(first));
     CHECK(fixture.panel.GetDocumentCount() == 2);
-    CHECK(fixture.panel.GetActivePath() == "renamed.vice");
+    CHECK(fixture.panel.GetActivePath() == "renamed.luau");
     CHECK(fixture.Editor().CanUndo());
     REQUIRE(fixture.panel.SaveAll());
-    CHECK(fixture.Read("renamed.vice") == "// edit\noverride func OnStart() {}\n");
-    CHECK_FALSE(std::filesystem::exists(fixture.assets / "first.vice"));
+    CHECK(fixture.Read("renamed.luau") == "-- edit\nfunction OnStart() end\n");
+    CHECK_FALSE(std::filesystem::exists(fixture.assets / "first.luau"));
 }
 
-TEST_CASE("Code documents protect edits from external changes and deleted assets", "[editor][code][vice]") {
+TEST_CASE("Code documents protect edits from external changes and deleted assets", "[editor][code][luau]") {
     CodeFixture fixture;
-    const auto asset = fixture.Open("hello.vice", "// original\n");
-    fixture.Write("hello.vice", "// changed outside\n");
+    const auto asset = fixture.Open("hello.luau", "-- original\n");
+    fixture.Write("hello.luau", "-- changed outside\n");
     fixture.panel.SyncWithAssets();
-    CHECK(fixture.Text() == "// changed outside\n");
-    fixture.Editor().ReplaceSectionText({0, 0}, {0, 0}, "// local\n");
-    fixture.Write("hello.vice", "// changed again outside\n");
+    CHECK(fixture.Text() == "-- changed outside\n");
+    fixture.Editor().ReplaceSectionText({0, 0}, {0, 0}, "-- local\n");
+    fixture.Write("hello.luau", "-- changed again outside\n");
     CHECK_FALSE(fixture.panel.SaveActive());
-    CHECK(fixture.Text() == "// local\n// changed outside\n");
-    CHECK(fixture.Read("hello.vice") == "// changed again outside\n");
+    CHECK(fixture.Text() == "-- local\n-- changed outside\n");
+    CHECK(fixture.Read("hello.luau") == "-- changed again outside\n");
     CHECK_FALSE(fixture.panel.GetError().empty());
-    REQUIRE(fixture.context.GetProject()->GetAssetDatabase().Delete("hello.vice"));
+    REQUIRE(fixture.context.GetProject()->GetAssetDatabase().Delete("hello.luau"));
     fixture.context.GetProject()->Refresh();
     CHECK_FALSE(fixture.panel.SaveAll());
     CHECK(fixture.panel.GetActiveAsset() == asset);
     CHECK(fixture.panel.HasUnsavedChanges());
-    CHECK_FALSE(std::filesystem::exists(fixture.assets / "hello.vice"));
+    CHECK_FALSE(std::filesystem::exists(fixture.assets / "hello.luau"));
 }
 
-TEST_CASE("Closing code documents asks to save discard or cancel", "[editor][code][vice][ui]") {
+TEST_CASE("Closing code documents asks to save discard or cancel", "[editor][code][luau][ui]") {
     CodeFixture fixture;
-    fixture.Open("hello.vice", "// original\n");
-    fixture.Replace("// changed\n");
+    fixture.Open("hello.luau", "-- original\n");
+    fixture.Replace("-- changed\n");
     fixture.panel.CloseActive();
     fixture.imgui.Frame();
     fixture.Click("SavePrompt/Cancel");
     CHECK(fixture.panel.GetDocumentCount() == 1);
     CHECK(fixture.panel.HasUnsavedChanges());
-    CHECK(fixture.Read("hello.vice") == "// original\n");
+    CHECK(fixture.Read("hello.luau") == "-- original\n");
     fixture.panel.CloseActive();
     fixture.imgui.Frame();
     fixture.Click("SavePrompt/Save");
     CHECK(fixture.panel.GetDocumentCount() == 0);
-    CHECK(fixture.Read("hello.vice") == "// changed\n");
-    const auto id = fixture.context.GetProject()->GetAssetDatabase().FindByPath("hello.vice");
+    CHECK(fixture.Read("hello.luau") == "-- changed\n");
+    const auto id = fixture.context.GetProject()->GetAssetDatabase().FindByPath("hello.luau");
     REQUIRE(id);
     REQUIRE(fixture.panel.OpenScript(*id));
     fixture.imgui.Frame();
-    fixture.Replace("// discarded\n");
+    fixture.Replace("-- discarded\n");
     bool proceeded = false;
     fixture.panel.SetOpen(false);
     fixture.panel.ConfirmAllUnsavedChanges([&] { proceeded = true; });
@@ -323,14 +304,14 @@ TEST_CASE("Closing code documents asks to save discard or cancel", "[editor][cod
     CHECK(fixture.panel.IsOpen());
     fixture.Click("SavePrompt/Discard");
     CHECK(proceeded);
-    CHECK(fixture.Read("hello.vice") == "// changed\n");
+    CHECK(fixture.Read("hello.luau") == "-- changed\n");
 }
 
-TEST_CASE("A failed script save keeps the unsaved confirmation open", "[editor][code][vice][ui]") {
+TEST_CASE("A failed script save keeps the unsaved confirmation open", "[editor][code][luau][ui]") {
     CodeFixture fixture;
-    fixture.Open("hello.vice", "// original\n");
-    fixture.Replace("// local\n");
-    fixture.Write("hello.vice", "// external\n");
+    fixture.Open("hello.luau", "-- original\n");
+    fixture.Replace("-- local\n");
+    fixture.Write("hello.luau", "-- external\n");
     bool proceeded = false;
     fixture.panel.ConfirmAllUnsavedChanges([&] { proceeded = true; });
     fixture.imgui.Frame();
@@ -340,13 +321,13 @@ TEST_CASE("A failed script save keeps the unsaved confirmation open", "[editor][
     REQUIRE(fixture.panel.GetItemRect("SavePrompt/Cancel"));
     fixture.Click("SavePrompt/Cancel");
     CHECK_FALSE(proceeded);
-    CHECK(fixture.Text() == "// local\n");
+    CHECK(fixture.Text() == "-- local\n");
 }
 
-TEST_CASE("Code save shortcuts follow focus and reload asks before discarding text", "[editor][code][vice][ui]") {
+TEST_CASE("Code save shortcuts follow focus and reload asks before discarding text", "[editor][code][luau][ui]") {
     CodeFixture fixture;
-    fixture.Open("hello.vice", "// original\n");
-    fixture.Replace("// local\n");
+    fixture.Open("hello.luau", "-- original\n");
+    fixture.Replace("-- local\n");
     fixture.imgui.SetDraw([&] {
         ImGui::SetNextWindowPos({0, 0});
         ImGui::SetNextWindowSize({700, 600});
@@ -363,21 +344,21 @@ TEST_CASE("Code save shortcuts follow focus and reload asks before discarding te
     fixture.imgui.Frame();
     CHECK_FALSE(fixture.panel.IsFocused());
     fixture.imgui.Press(ImGuiMod_Ctrl | ImGuiKey_S);
-    CHECK(fixture.Read("hello.vice") == "// original\n");
+    CHECK(fixture.Read("hello.luau") == "-- original\n");
     fixture.imgui.Frame();
     fixture.Click("Reload");
     fixture.Click("SavePrompt/Cancel");
-    CHECK(fixture.Text() == "// local\n");
+    CHECK(fixture.Text() == "-- local\n");
     fixture.Click("Reload");
     fixture.Click("SavePrompt/Discard");
-    CHECK(fixture.Text() == "// original\n");
+    CHECK(fixture.Text() == "-- original\n");
     CHECK_FALSE(fixture.panel.HasUnsavedChanges());
 }
 
-TEST_CASE("Unsaved script confirmation brings a hidden dock tab forward", "[editor][code][vice][ui]") {
+TEST_CASE("Unsaved script confirmation brings a hidden dock tab forward", "[editor][code][luau][ui]") {
     CodeFixture fixture;
-    fixture.Open("hello.vice", "// original\n");
-    fixture.Replace("// local\n");
+    fixture.Open("hello.luau", "-- original\n");
+    fixture.Replace("-- local\n");
     fixture.imgui.SetDraw([&] {
         const ImGuiID dock = ImGui::DockSpaceOverViewport(ImGui::GetID("TestDock"));
         ImGui::SetNextWindowDockID(dock, ImGuiCond_Always);
@@ -401,27 +382,24 @@ TEST_CASE("Unsaved script confirmation brings a hidden dock tab forward", "[edit
     CHECK(fixture.panel.HasUnsavedChanges());
 }
 
-TEST_CASE("ViceScript templates create component classes with valid names and native hooks", "[editor][code][vice]") {
-    const auto* language = Spot::Editor::FindEditorScriptLanguage("test.vice");
+TEST_CASE("Luau templates require the spot module and define the main hooks", "[editor][code][luau]") {
+    const auto* language = Spot::Editor::FindEditorScriptLanguage("scripts/Player.LUAU");
     REQUIRE(language);
     REQUIRE(language->makeTemplate);
-    for (const auto& [fileName, className] :
-         {std::pair{"player_controller.vice", "PlayerController"}, std::pair{"New Script.vice", "NewScript"},
-          std::pair{"123.vice", "Script123"}, std::pair{"Component.vice", "ComponentScript"},
-          std::pair{"Vector3.vice", "Vector3Script"}, std::pair{"---.vice", "NewScript"}}) {
-        const auto source = language->makeTemplate(fileName);
-        CHECK(source.find("class " + std::string(className) + " : Component {") != std::string::npos);
-        CHECK(source.find("override func OnStart()") != std::string::npos);
-        CHECK(source.find("override func OnUpdate(deltaTime)") != std::string::npos);
-#ifdef SPOT_ENABLE_VICESCRIPT
-        Spot::Scene scene;
-        auto& script = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
-        script.language = "vice";
-        script.source = source;
-        scene.Update(0);
-        CHECK_FALSE(script.IsFaulted());
+    const auto source = language->makeTemplate("Player.luau");
+    CHECK(source.starts_with("-- Player.luau\n"));
+    CHECK(source.find("local spot = require(\"@spot\")") != std::string::npos);
+    CHECK(source.find("function OnStart()") != std::string::npos);
+    CHECK(source.find("function OnUpdate(deltaTime)") != std::string::npos);
+    CHECK_FALSE(Spot::Editor::FindEditorScriptLanguage("Player.lua"));
+#ifdef SPOT_ENABLE_LUAU
+    Spot::Scene scene;
+    auto& script = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
+    script.language = "luau";
+    script.source = source;
+    scene.Update(0);
+    CHECK_FALSE(script.IsFaulted());
 #endif
-    }
 }
 
 TEST_CASE("The code editor shows the first syntax error while editing", "[editor][code][luau]") {
@@ -467,137 +445,15 @@ TEST_CASE("The code editor sets breakpoints and shows where scripts stopped", "[
     CHECK(Spot::GetScriptBreakpoints("scripts/stopper.luau").empty());
 }
 
-namespace {
-
-// The names suggested where the source has '|', after the member being typed there.
-std::vector<std::string> SuggestAt(std::string source) {
-    const std::size_t cursor = source.find('|');
-    REQUIRE(cursor != std::string::npos);
-    source.erase(cursor, 1);
-    std::size_t start = cursor;
-    while (start > 0 && (std::isalnum(static_cast<unsigned char>(source[start - 1])) || source[start - 1] == '_'))
-        --start;
-    std::vector<std::string> names;
-    for (const auto& completion :
-         Spot::Editor::GetViceMemberCompletions(source, start, std::string_view(source).substr(start, cursor - start)))
-        names.push_back(completion.name);
-    return names;
-}
-
-bool Suggests(const std::vector<std::string>& names, std::string_view name) {
-    return std::ranges::find(names, name) != names.end();
-}
-
-constexpr std::string_view ScriptStart = "import spot as engine\n\nclass Mover : Component {\n"
-                                         "    var speed = 3\n    func Jump() {}\n";
-
-std::string InHook(std::string_view hook, std::string_view body) {
-    return std::string(ScriptStart) + "    override func " + std::string(hook) + " {\n        " + std::string(body) +
-           "\n    }\n}\n";
-}
-
-} // namespace
-
-TEST_CASE("The code editor suggests the members of a component's implicit objects after a dot",
-          "[editor][code][completion]") {
-    const auto entity = SuggestAt(InHook("OnStart()", "entity.|"));
-    CHECK(Suggests(entity, "transform"));
-    CHECK(Suggests(entity, "name"));
-    CHECK(Suggests(entity, "GetComponent"));
-    CHECK(Suggests(entity, "SpriteRenderer"));
-    // Older spellings still work but are not suggested.
-    CHECK_FALSE(Suggests(entity, "Transform"));
-
-    const auto typed = SuggestAt(InHook("OnStart()", "entity.tra|"));
-    CHECK(typed == std::vector<std::string>{"transform"});
-    // Case does not matter while typing.
-    CHECK(Suggests(SuggestAt(InHook("OnStart()", "entity.getc|")), "GetComponent"));
-
-    CHECK(Suggests(SuggestAt(InHook("OnStart()", "transform.|")), "position"));
-    CHECK(Suggests(SuggestAt(InHook("OnStart()", "scene.|")), "FindEntity"));
-    // Members of Component need no self.
-    CHECK(Suggests(SuggestAt(InHook("OnStart()", "GetEntity().|")), "transform"));
-}
-
-TEST_CASE("The code editor follows chains of members and calls to suggest what they lead to",
-          "[editor][code][completion]") {
-    CHECK(Suggests(SuggestAt(InHook("OnStart()", "entity.transform.|")), "Translate"));
-    CHECK(SuggestAt(InHook("OnStart()", "entity.transform.position.|")) == std::vector<std::string>{"x", "y", "z"});
-    CHECK(Suggests(SuggestAt(InHook("OnStart()", "scene.FindEntity(\"Player\").transform.|")), "worldPosition"));
-    CHECK(Suggests(SuggestAt(InHook("OnStart()", "Vector3(1, 2, 3).|")), "z"));
-
-    // Components bring the members their script bindings describe, besides what every component has.
-    const auto sprite = SuggestAt(InHook("OnStart()", "entity.GetComponent(\"SpriteRenderer\").|"));
-    CHECK(Suggests(sprite, "color"));
-    CHECK(Suggests(sprite, "enabled"));
-    CHECK(Suggests(SuggestAt(InHook("OnStart()", "entity.SpriteRenderer.color.|")), "a"));
-    CHECK(Suggests(SuggestAt(InHook("OnStart()", "entity.Camera.|")), "fieldOfView"));
-}
-
-TEST_CASE("The code editor suggests the script's own members, the spot module and hook parameters",
-          "[editor][code][completion]") {
-    const auto self = SuggestAt(InHook("OnStart()", "self.|"));
-    CHECK(Suggests(self, "speed"));
-    CHECK(Suggests(self, "Jump"));
-    CHECK(Suggests(self, "StartCoroutine"));
-
-    // The module goes by the name it was imported as.
-    const auto module = SuggestAt(InHook("OnStart()", "engine.|"));
-    CHECK(Suggests(module, "Input"));
-    CHECK(Suggests(SuggestAt(InHook("OnStart()", "engine.Input.|")), "IsKeyDown"));
-    CHECK(Suggests(SuggestAt(InHook("OnStart()", "engine.Time.|")), "deltaTime"));
-
-    CHECK(Suggests(SuggestAt(InHook("OnCollisionEnter(hit)", "hit.|")), "relativeVelocity"));
-    CHECK(Suggests(SuggestAt(InHook("OnCollisionEnter(hit)", "hit.other.|")), "transform"));
-    CHECK(Suggests(SuggestAt(InHook("OnTriggerEnter2D(contact)", "contact.|")), "isTrigger"));
-}
-
-TEST_CASE("The code editor suggests nothing where it cannot tell what is before the dot",
-          "[editor][code][completion]") {
-    // Local variables and fields are not followed, nor anything that is not a member access.
-    CHECK(SuggestAt(InHook("OnStart()", "var player = scene.FindEntity(\"P\")\n        player.|")).empty());
-    CHECK(SuggestAt(InHook("OnStart()", "speed.|")).empty());
-    CHECK(SuggestAt(InHook("OnStart()", "unknown.|")).empty());
-    CHECK(SuggestAt(InHook("OnStart()", "entity|")).empty());
-    CHECK(SuggestAt(InHook("OnStart()", "1.|")).empty());
-    CHECK(SuggestAt(InHook("OnStart()", "entity.name.|")).empty());
-    // Outside the hook, its parameter means nothing.
-    CHECK(SuggestAt(std::string(ScriptStart) +
-                    "    override func OnCollisionEnter(hit) {}\n    func Other() { hit.| }\n}\n")
-              .empty());
-}
-
-TEST_CASE("Typing a dot in ViceScript opens member suggestions, which Enter inserts",
-          "[editor][code][completion][ui]") {
+TEST_CASE("Typing a dot in a script opens no suggestions, so Enter starts a new line", "[editor][code][luau][ui]") {
     CodeFixture fixture;
-    // As people type: a character a frame.
-    const auto type = [&](std::string_view text) {
-        for (const char c : text) {
-            fixture.imgui.Type(std::string(1, c).c_str());
-            fixture.imgui.Frame();
-        }
-        fixture.imgui.Frame();
-    };
-    fixture.Open("mover.vice", "class Mover : Component {\n    override func OnStart() {\n        \n    }\n}\n");
-    fixture.Editor().SetCursor({2, 8});
-    fixture.imgui.Frame();
-
-    // The dot alone opens them, sorted, the first selected.
-    type("entity.");
-    fixture.imgui.Press(ImGuiKey_Enter);
-    CHECK(fixture.Editor().GetLineText(2) == "        entity.active");
-
-    // Typing narrows them.
-    fixture.imgui.Press(ImGuiKey_End);
-    type(" = transform.worldP");
-    fixture.imgui.Press(ImGuiKey_Enter);
-    CHECK(fixture.Editor().GetLineText(2) == "        entity.active = transform.worldPosition");
-
-    // Luau scripts have none.
     fixture.Open("mover.luau", "local x = 1\n");
     fixture.Editor().SetCursor({1, 0});
     fixture.imgui.Frame();
-    type("x.");
+    for (const char c : std::string_view("x.")) {
+        fixture.imgui.Type(std::string(1, c).c_str());
+        fixture.imgui.Frame();
+    }
     fixture.imgui.Press(ImGuiKey_Enter);
     CHECK(fixture.Text() == "local x = 1\nx.\n");
 }

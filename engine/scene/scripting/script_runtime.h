@@ -91,7 +91,7 @@ private:
 using ScriptRuntimeFactory =
     std::function<std::unique_ptr<ScriptRuntime>(std::string_view source, std::string_view sourceName)>;
 
-// A field a script exposes to tools, such as ViceScript's `export var speed = 3`, with its default value: a
+// A field a script exposes to tools, such as a Luau script's global `speed = 3`, with its default value: a
 // boolean, number, string, Vector2, Vector3 or Color. ScriptComponent shows them in the inspector and saves edits.
 struct ScriptExport {
     std::string name;
@@ -140,7 +140,7 @@ bool IsScriptProfiling();
 std::vector<ScriptFunctionProfile> GetScriptProfile();
 void ResetScriptProfile();
 
-// Breakpoints in script sources, by their source name ("scripts/player.vice"), with one-based lines; an empty list
+// Breakpoints in script sources, by their source name ("scripts/player.luau"), with one-based lines; an empty list
 // removes a source's. Running scripts take changes before their next hook. A hit calls the break handler with the
 // call stack and continues: the engine never blocks a frame, so tools pause the game themselves, as the editor does.
 void SetScriptBreakpoints(std::string sourceName, std::vector<std::size_t> lines);

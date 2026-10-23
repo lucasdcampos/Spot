@@ -42,7 +42,6 @@ constexpr std::array<std::pair<std::string_view, AssetType>, 18> Extensions{{
     {".prefab", AssetType::Prefab},
     {".controller", AssetType::AnimatorController},
     {".atlas", AssetType::SpriteAtlas},
-    {".vice", AssetType::Script},
     {".luau", AssetType::Script},
 }};
 

@@ -13,8 +13,7 @@ that does the same with a window around it.
 | [Job system](job_system.md) | Worker threads, jobs, counters and parallel loops, shared by every layer |
 | [Application and scenes](application_and_scenes.md) | The application loop, scenes, the update order, scene systems, settings sections, game modules |
 | [Entities and components](entities_and_components.md) | Entities, the hierarchy, components and their hooks, failures, saving and registering components |
-| [Scripting integration](scripting.md) | Shared scene bindings, component lifecycle and adding language runtimes |
-| [ViceScript](vicescript.md) | Optional scripting with classes and inheritance, native component hooks, the standalone runtime and console output |
+| [Scripting](scripting.md) | Luau scripts on components, the scene API they reach, writing them in other editors, and adding languages |
 | [Gameplay toolkit](gameplay_toolkit.md) | Time, timers, tweens, coroutines, signals, typed references and versioned saves |
 | [Assets and importing](assets_and_importing.md) | Source assets and `.meta` files, the asset database and importers, loading imported assets |
 | [Prefabs](prefabs.md) | Reusable entity tree assets, import validation and runtime instantiation |

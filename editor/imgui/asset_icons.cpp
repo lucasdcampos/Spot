@@ -1,6 +1,6 @@
 #include "imgui/asset_icons.h"
 
-#include "code/vice_editor.h"
+#include "code/script_editor.h"
 #include "imgui/editor_style.h"
 
 #include <algorithm>
@@ -573,7 +573,7 @@ void DrawAsset(ImDrawList* drawList, ImVec2 min, float size, AssetType type, std
     switch (type) {
     case AssetType::Script: {
         const EditorScriptLanguage* language = FindEditorScriptLanguage(path);
-        const std::string badge = language ? std::string(language->badge) : std::string("VICE");
+        const std::string badge = language ? std::string(language->badge) : std::string("CODE");
         DrawDocument(drawList, min, size, badge.c_str(), GetTypeColor(type, path), true);
         return;
     }

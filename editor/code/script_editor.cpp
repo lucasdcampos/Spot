@@ -1,13 +1,9 @@
-#include "code/vice_editor.h"
-#include "code/vice_completion.h"
+#include "code/script_editor.h"
 #include "scene/scripting/script_api.h"
-
-#include <vice/language.h>
 
 #include <algorithm>
 #include <array>
 #include <cctype>
-#include <chrono>
 #include <limits>
 
 namespace Spot::Editor {
@@ -15,12 +11,12 @@ namespace Spot::Editor {
 namespace {
 
 constexpr std::array LuauKeywords{
-    std::string_view("and"),  std::string_view("break"),    std::string_view("continue"), std::string_view("do"),
-    std::string_view("else"), std::string_view("elseif"),   std::string_view("end"),      std::string_view("false"),
-    std::string_view("for"),  std::string_view("function"), std::string_view("goto"),     std::string_view("if"),
-    std::string_view("in"),   std::string_view("local"),    std::string_view("nil"),      std::string_view("not"),
-    std::string_view("or"),   std::string_view("repeat"),   std::string_view("return"),   std::string_view("then"),
-    std::string_view("true"), std::string_view("until"),    std::string_view("while"),
+    std::string_view("and"),    std::string_view("break"),    std::string_view("continue"), std::string_view("do"),
+    std::string_view("else"),   std::string_view("elseif"),   std::string_view("end"),      std::string_view("false"),
+    std::string_view("for"),    std::string_view("function"), std::string_view("if"),       std::string_view("in"),
+    std::string_view("local"),  std::string_view("nil"),      std::string_view("not"),      std::string_view("or"),
+    std::string_view("repeat"), std::string_view("return"),   std::string_view("then"),     std::string_view("true"),
+    std::string_view("until"),  std::string_view("while"),
 };
 
 constexpr std::array LuauBuiltins{
@@ -33,47 +29,6 @@ constexpr std::array LuauBuiltins{
     std::string_view("typeof"),   std::string_view("bit32"),    std::string_view("buffer"),
     std::string_view("vector"),
 };
-
-std::string MakeViceScriptTemplate(std::string_view name) {
-    const auto dot = name.find_last_of('.');
-    const auto stem = dot == std::string_view::npos ? name : name.substr(0, dot);
-    std::string className;
-    bool capitalize = true;
-    for (const unsigned char c : stem) {
-        const bool letter = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
-        if (!letter && !(c >= '0' && c <= '9')) {
-            capitalize = true;
-            continue;
-        }
-        if (className.empty() && !letter)
-            className = "Script";
-        className += capitalize && c >= 'a' && c <= 'z' ? static_cast<char>(c - 'a' + 'A') : static_cast<char>(c);
-        capitalize = false;
-    }
-    if (className.empty())
-        className = "NewScript";
-    if (className == ScriptApi::Component || Vice::IsValueConstructor(className))
-        className += "Script";
-    return "// " + std::string(name) + "\n\nclass " + className +
-           " : Component {\n    override func OnStart() {\n        \n    }\n\n    override func OnUpdate(deltaTime) "
-           "{\n        \n    "
-           "}\n}\n";
-}
-
-// Suggests the members of what is before a dot as it is typed, or with Ctrl+Space. The configuration refers to the
-// editor it is given to, whose text it reads, so that editor must not move.
-void AttachViceCompletion(TextEditor& editor) {
-    TextEditor::AutoCompleteConfig config;
-    config.triggerDelay = std::chrono::milliseconds(0);
-    config.callback = [&editor](TextEditor::AutoCompleteState& state) {
-        const std::string before = editor.GetSectionText({0, 0}, state.searchTermStart);
-        state.suggestions.clear();
-        for (const ViceCompletion& completion :
-             GetViceMemberCompletions(GetEditorText(editor), before.size(), state.searchTerm))
-            state.suggestions.push_back(completion.name);
-    };
-    editor.SetAutoCompleteConfig(&config);
-}
 
 std::string MakeLuauScriptTemplate(std::string_view name) {
     return "-- " + std::string(name) +
@@ -145,17 +100,6 @@ void ApplyScriptEditorStyle(TextEditor& editor, const TextEditor::Language& lang
 
 constexpr std::array Languages{
     EditorScriptLanguage{
-        .id = "vice",
-        .displayName = "ViceScript",
-        .menuLabel = "ViceScript",
-        .defaultFileName = "New Script.vice",
-        .extension = ".vice",
-        .badge = "VICE",
-        .color = {146.0f / 255.0f, 104.0f / 255.0f, 214.0f / 255.0f, 1.0f},
-        .makeTemplate = &MakeViceScriptTemplate,
-        .configureEditor = &ConfigureViceEditor,
-    },
-    EditorScriptLanguage{
         .id = "luau",
         .displayName = "Luau",
         .menuLabel = "Luau Script",
@@ -190,31 +134,6 @@ const EditorScriptLanguage* FindEditorScriptLanguage(std::string_view path) {
     return nullptr;
 }
 
-void ConfigureViceEditor(TextEditor& editor) {
-    static const TextEditor::Language language = [] {
-        TextEditor::Language result;
-        result.name = "ViceScript";
-        result.singleLineComment = "//";
-        result.hasDoubleQuotedStrings = true;
-        result.stringEscape = '\\';
-        for (const auto& keyword : Vice::Keywords)
-            result.keywords.emplace(keyword.name);
-        for (const auto constructor : Vice::ValueConstructors)
-            result.declarations.emplace(constructor);
-        result.declarations.emplace(ScriptApi::Component);
-        result.identifiers = {"print", "entity", "transform", "scene", "enabled"};
-        for (const auto library : Vice::StandardLibraries)
-            result.identifiers.emplace(library);
-        result.getIdentifier = TextEditor::Language::C()->getIdentifier;
-        result.getNumber = TextEditor::Language::C()->getNumber;
-        result.isPunctuation = TextEditor::Language::C()->isPunctuation;
-        AttachScriptTokenizer(result);
-        return result;
-    }();
-    ApplyScriptEditorStyle(editor, language);
-    AttachViceCompletion(editor);
-}
-
 void ConfigureLuauEditor(TextEditor& editor) {
     static const TextEditor::Language language = [] {
         TextEditor::Language result = *TextEditor::Language::Lua();
@@ -233,7 +152,6 @@ void ConfigureLuauEditor(TextEditor& editor) {
         return result;
     }();
     ApplyScriptEditorStyle(editor, language);
-    editor.SetAutoCompleteConfig(nullptr);
 }
 
 void ConfigureScriptEditor(TextEditor& editor, std::string_view path) {
@@ -241,7 +159,7 @@ void ConfigureScriptEditor(TextEditor& editor, std::string_view path) {
         language->configureEditor(editor);
         return;
     }
-    ConfigureViceEditor(editor);
+    ConfigureLuauEditor(editor);
 }
 
 std::string GetEditorText(const TextEditor& editor) {

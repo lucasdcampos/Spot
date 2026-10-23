@@ -3,7 +3,7 @@
 
 #include "app/editor_context.h"
 #include "assets/thumbnail_cache.h"
-#include "code/vice_editor.h"
+#include "code/script_editor.h"
 #include "panels/code_editor_panel.h"
 #include "project/editor_project.h"
 #include "scene/entity_actions.h"
@@ -31,7 +31,7 @@
 using Spot::Tests::RenderingApplication;
 using Spot::Tests::RequireGpu;
 
-TEST_CASE("The embedded ViceScript editor renders syntax colors and monospaced text", "[editor][gpu][code][vice]") {
+TEST_CASE("The embedded code editor renders Luau syntax colors and monospaced text", "[editor][gpu][code][luau]") {
     RequireGpu();
     constexpr std::uint32_t Width = 800;
     constexpr std::uint32_t Height = 450;
@@ -40,17 +40,18 @@ TEST_CASE("The embedded ViceScript editor renders syntax colors and monospaced t
     REQUIRE(file);
     auto project = Spot::Editor::EditorProject::Open(*file, nullptr);
     REQUIRE(project);
-    std::ofstream(project->GetProject().GetAssetsDirectory() / "hello.vice")
-        << "// Fields and methods resolve on the current instance\nimport spot\n"
-           "class PlayerController : Component {\n    var speed = 3\n"
-           "    func OnStart() { entity.name = \"Player\" }\n"
-           "    func Move(deltaTime) {\n"
-           "        entity.transform.Translate(Vector3(speed * deltaTime, 0, 0))\n    }\n"
-           "    func OnUpdate(deltaTime) {\n"
-           "        if spot.Input.IsKeyDown(\"Right\") { Move(deltaTime) }\n"
-           "    }\n}\n";
+    std::ofstream(project->GetProject().GetAssetsDirectory() / "hello.luau")
+        << "-- Moves the player with the arrow keys\nlocal spot = require(\"@spot\")\n"
+           "speed = 3\n"
+           "function OnStart() spot.entity.name = \"Player\" end\n"
+           "local function Move(deltaTime: number)\n"
+           "    spot.entity.transform:Translate(Vector3(speed * deltaTime, 0, 0))\n"
+           "end\n"
+           "function OnUpdate(deltaTime)\n"
+           "    if spot.Input:IsKeyDown(\"Right\") then Move(deltaTime) end\n"
+           "end\n";
     project->Refresh();
-    const auto asset = project->GetAssetDatabase().FindByPath("hello.vice");
+    const auto asset = project->GetAssetDatabase().FindByPath("hello.luau");
     REQUIRE(asset);
     ImGuiContext* imgui = ImGui::CreateContext();
     Spot::Editor::LoadEditorFonts();
@@ -138,7 +139,7 @@ TEST_CASE("The embedded ViceScript editor renders syntax colors and monospaced t
     }
 }
 
-TEST_CASE("ViceScript icons render as code documents beside C++ files", "[editor][gpu][vice]") {
+TEST_CASE("Script icons render as code documents beside C++ files", "[editor][gpu]") {
     RequireGpu();
     constexpr std::uint32_t Width = 256;
     constexpr std::uint32_t Height = 136;

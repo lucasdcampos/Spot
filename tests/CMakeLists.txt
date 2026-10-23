@@ -142,25 +142,6 @@ spot_copy_runtime_dlls(spot_script_shared_tests)
 catch_discover_tests(spot_script_shared_tests TEST_PREFIX "Shared engine: "
     PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
 
-if(SPOT_ENABLE_VICESCRIPT)
-    add_executable(vice_tests vice_tests.cpp vice_library_tests.cpp vice_collection_tests.cpp)
-    target_link_libraries(vice_tests PRIVATE vice::vice Catch2::Catch2WithMain)
-    spot_set_compile_options(vice_tests)
-    catch_discover_tests(vice_tests)
-
-    add_executable(spot_vice_tests vice_component_tests.cpp vice_scene_tests.cpp vice_engine_tests.cpp)
-    target_link_libraries(spot_vice_tests PRIVATE spot::import spot::spot Catch2::Catch2WithMain)
-    spot_set_compile_options(spot_vice_tests)
-    catch_discover_tests(spot_vice_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
-
-    add_executable(spot_vice_shared_tests vice_component_tests.cpp vice_scene_tests.cpp vice_engine_tests.cpp)
-    target_link_libraries(spot_vice_shared_tests PRIVATE spot::import spot::shared Catch2::Catch2WithMain)
-    spot_set_compile_options(spot_vice_shared_tests)
-    spot_copy_runtime_dlls(spot_vice_shared_tests)
-    catch_discover_tests(spot_vice_shared_tests TEST_PREFIX "Shared engine: "
-        PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
-endif()
-
 if(SPOT_ENABLE_LUAU)
     add_executable(spot_luau_tests luau_component_tests.cpp luau_scene_tests.cpp luau_tools_tests.cpp)
     target_link_libraries(spot_luau_tests PRIVATE spot::import spot::spot Catch2::Catch2WithMain)

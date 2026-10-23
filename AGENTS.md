@@ -93,9 +93,10 @@ the commit that finishes a step ticks its box. Follow its architecture principle
   frames: it refers to them by `EntityId`, so undo history and game code reloads stay valid.
 - The build must have no warnings.
 - New engine features come with tests in `tests/`.
-- ViceScript language and API changes must update editor highlighting, its tests and affected script examples in the same change.
-  Members of the engine's script objects are described in `ScriptApi::Types` (`engine/scene/scripting/script_api.h`),
-  which both the scene bindings and the editor's suggestions read: a new member goes there, with its type.
+- Scripting API changes must update the editor's Luau highlighting, its tests and affected scripts (the sandbox's
+  included) in the same change. Members of the engine's script objects are described in `ScriptApi::Types`
+  (`engine/scene/scripting/script_api.h`), which both the scene bindings and the tools' Luau types read: a new member
+  goes there, with its type.
 - Features keep their page in `docs/` up to date in the same commit: how the system works, why, and where to start.
   New systems get a page, linked from `docs/index.md`.
 - Assets (`engine/assets/`) are loaded from imported files, not raw sources. Every source asset has a `.meta` file

@@ -27,7 +27,6 @@ FetchContent_MakeAvailable(imgui imguizmo icon_font_headers)
 FetchContent_Declare(imgui_text_editor
     GIT_REPOSITORY https://github.com/goossens/ImGuiColorTextEdit.git
     GIT_TAG bff6757c29a33494eca57ee2c59ad5a0adcc3726
-    PATCH_COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/patch_text_editor.cmake
     UPDATE_DISCONNECTED TRUE
     SOURCE_SUBDIR none
     SYSTEM
@@ -95,10 +94,8 @@ add_library(spot_editor_core STATIC
     core/editor_settings.h
     core/text.cpp
     core/text.h
-    code/vice_completion.cpp
-    code/vice_completion.h
-    code/vice_editor.cpp
-    code/vice_editor.h
+    code/script_editor.cpp
+    code/script_editor.h
     imgui/asset_icons.cpp
     imgui/asset_icons.h
     imgui/drag_payloads.h
@@ -186,7 +183,6 @@ add_library(spot_editor_core STATIC
     viewport/viewport_renderer.h
 )
 target_include_directories(spot_editor_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_include_directories(spot_editor_core PRIVATE ${PROJECT_SOURCE_DIR}/vice/include)
 target_link_libraries(spot_editor_core PUBLIC
     spot::tools
     spot::import

@@ -50,7 +50,7 @@ public:
     // compile or initialize, the error is logged and the old code keeps running. Hooks call it when the asset's
     // source changed; returns whether it reloaded.
     bool Reload();
-    // The source's file name without directories or extension, such as "player" for "scripts/player.vice".
+    // The source's file name without directories or extension, such as "player" for "scripts/player.luau".
     std::string GetScriptName() const;
 
 protected:

@@ -107,8 +107,8 @@ Games can still load a raw file when they need one, such as a picture the player
 `Image::Load()` and `GraphicsDevice::CreateTexture()`, `Font::Load()` or `Sound::Load()`.
 
 Supported sources: PNG/JPEG/BMP/TGA textures, glTF models (`.gltf`, `.glb`), WAV/Ogg sounds, TrueType/OpenType fonts,
-`.material` files, `.scene` files and `.vice` scripts. Executing ViceScript is experimental and enabled with
-`-DSPOT_ENABLE_VICESCRIPT=ON`; see [ViceScript](docs/vicescript.md).
+`.material` files, `.scene` files and `.luau` scripts, which [Luau](https://luau.org) runs (`SPOT_ENABLE_LUAU`, on by
+default); see [scripting](docs/scripting.md).
 
 ## Layout
 

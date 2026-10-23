@@ -21,26 +21,24 @@ inline constexpr std::string_view UpdateHook = "OnUpdate";
 struct Hook {
     std::string_view name;
     std::size_t parameterCount;
-    // The type of its parameter, as Types names it, when it has one.
-    std::string_view parameterType = {};
 };
 inline constexpr std::array Hooks{Hook{StartHook, 0},
                                   Hook{"OnEnable", 0},
                                   Hook{"OnDisable", 0},
-                                  Hook{"OnFixedUpdate", 1, "number"},
-                                  Hook{UpdateHook, 1, "number"},
-                                  Hook{"OnLateUpdate", 1, "number"},
+                                  Hook{"OnFixedUpdate", 1},
+                                  Hook{UpdateHook, 1},
+                                  Hook{"OnLateUpdate", 1},
                                   Hook{"OnDestroy", 0},
-                                  Hook{"OnCollisionEnter", 1, "Collision"},
-                                  Hook{"OnCollisionStay", 1, "Collision"},
-                                  Hook{"OnCollisionExit", 1, "Collision"},
-                                  Hook{"OnTriggerEnter", 1, "TriggerContact"},
-                                  Hook{"OnTriggerExit", 1, "TriggerContact"},
-                                  Hook{"OnCollisionEnter2D", 1, "Collision2D"},
-                                  Hook{"OnCollisionStay2D", 1, "Collision2D"},
-                                  Hook{"OnCollisionExit2D", 1, "Collision2D"},
-                                  Hook{"OnTriggerEnter2D", 1, "TriggerContact2D"},
-                                  Hook{"OnTriggerExit2D", 1, "TriggerContact2D"},
+                                  Hook{"OnCollisionEnter", 1},
+                                  Hook{"OnCollisionStay", 1},
+                                  Hook{"OnCollisionExit", 1},
+                                  Hook{"OnTriggerEnter", 1},
+                                  Hook{"OnTriggerExit", 1},
+                                  Hook{"OnCollisionEnter2D", 1},
+                                  Hook{"OnCollisionStay2D", 1},
+                                  Hook{"OnCollisionExit2D", 1},
+                                  Hook{"OnTriggerEnter2D", 1},
+                                  Hook{"OnTriggerExit2D", 1},
                                   Hook{"OnReload", 0}};
 
 inline constexpr std::array<std::string_view, 3> ValueConstructors{"Vector2", "Vector3", "Color"};
@@ -53,9 +51,9 @@ constexpr bool IsValueConstructor(std::string_view name) {
     return false;
 }
 
-// The members of the objects the engine gives scripts: what the scene bindings answer to, and what the editor
-// suggests after a dot. Types are named by these tables, value types ("number", "string", "bool", "Vector2",
-// "Vector3", "Color") or "any"; components add the members their script bindings describe.
+// The members of the objects the engine gives scripts: what the scene bindings answer to, and what the tools
+// describe to Luau's language server (see MakeLuauModule()). Types are named by these tables, value types ("number",
+// "string", "bool", "Vector2", "Vector3", "Color") or "any"; components add the members their script bindings describe.
 enum class MemberKind { Property, Method };
 
 struct Member {
@@ -273,7 +271,7 @@ inline constexpr std::array Vector3Members{Property("x", "number", true), Proper
                                            Property("z", "number", true)};
 inline constexpr std::array ColorMembers{Property("r", "number", true), Property("g", "number", true),
                                          Property("b", "number", true), Property("a", "number", true)};
-// What `import spot` gives.
+// What `require("@spot")` gives.
 inline constexpr std::array ModuleMembers{Property(Input, Input),     Property(Scene, Scene),
                                           Property(Time, Time),       Property(Physics, Physics),
                                           Property(Entity, "Entity"), Property(Component, Component)};

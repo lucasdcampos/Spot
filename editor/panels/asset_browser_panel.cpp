@@ -6,7 +6,7 @@
 #include "assets/asset_list.h"
 #include "assets/plain_files.h"
 #include "assets/thumbnail_cache.h"
-#include "code/vice_editor.h"
+#include "code/script_editor.h"
 #include "core/editor_log.h"
 #include "imgui/asset_icons.h"
 #include "imgui/drag_payloads.h"
@@ -44,7 +44,7 @@ constexpr float CaptionScale = 0.85f;
 constexpr double CodeListInterval = 1.0;
 
 const std::array ImportFilters{
-    FileFilter{"Assets", "png;jpg;jpeg;bmp;tga;gltf;glb;bin;wav;ogg;ttf;otf;material;scene;prefab;vice;luau"},
+    FileFilter{"Assets", "png;jpg;jpeg;bmp;tga;gltf;glb;bin;wav;ogg;ttf;otf;material;scene;prefab;luau"},
     FileFilter{"All files", "*"},
 };
 
@@ -326,7 +326,6 @@ void AssetBrowserPanel::DrawCreateItems(EditorProject& project) {
         ImGui::Separator();
         item(ICON_FA_MOUNTAIN_SUN, "Scene", NewAsset::Scene);
         item(ICON_FA_PALETTE, "Material", NewAsset::Material);
-        item(ICON_FA_FILE_CODE, "ViceScript", NewAsset::ViceScript);
         item(ICON_FA_FILE_CODE, "Luau Script", NewAsset::LuauScript);
         ImGui::BeginDisabled(project.GetAssets().GetAssetIds(AssetType::AnimationClip).empty());
         item(ICON_FA_CUBES, "Animator Controller", NewAsset::AnimatorController);
@@ -1216,11 +1215,8 @@ void AssetBrowserPanel::Create(EditorProject& project, NewAsset kind) {
         path = project.GetAssetDatabase().GetFreePath(JoinPath(m_folder, "New Material.material"));
         created = MaterialSource{}.SaveToFile(assets / Utf8ToPath(path));
         break;
-    case NewAsset::ViceScript:
     case NewAsset::LuauScript: {
-        const std::string_view defaultFile =
-            kind == NewAsset::LuauScript ? std::string_view("New Script.luau") : std::string_view("New Script.vice");
-        const EditorScriptLanguage* language = FindEditorScriptLanguage(defaultFile);
+        const EditorScriptLanguage* language = FindEditorScriptLanguage("New Script.luau");
         if (!language || !language->makeTemplate) {
             return;
         }

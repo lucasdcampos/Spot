@@ -26,7 +26,7 @@ struct RuntimeState {
     std::string name;
 };
 
-// Deliberately has no dependency on Vice: it exercises the complete engine side of a second runtime.
+// Deliberately has no dependency on Luau: it exercises the complete engine side of a runtime of its own.
 class TestRuntime final : public Spot::ScriptRuntime {
 public:
     explicit TestRuntime(std::shared_ptr<RuntimeState> state) : m_state(std::move(state)) {}
@@ -404,14 +404,6 @@ TEST_CASE("Script native library factories are shared across languages and creat
 }
 
 TEST_CASE("Script languages report the first syntax error of a source", "[script]") {
-#ifdef SPOT_ENABLE_VICESCRIPT
-    const auto vice = Spot::CheckScriptSyntax("vice", "func f() {\n    return 1 +* 2\n}", "scripts/f.vice");
-    REQUIRE(vice);
-    CHECK(vice->line == 2);
-    CHECK(vice->column == 15);
-    CHECK(vice->message.find("scripts/f.vice") == std::string::npos);
-    CHECK_FALSE(Spot::CheckScriptSyntax("vice", "func f() { return 1 }", "f.vice"));
-#endif
 #ifdef SPOT_ENABLE_LUAU
     const auto luau = Spot::CheckScriptSyntax("luau", "function f()\n  return 1 +\nend", "scripts/f.luau");
     REQUIRE(luau);

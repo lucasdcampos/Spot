@@ -1,7 +1,7 @@
 #include "app/editor_application.h"
 
 #include "app/editor_layout.h"
-#include "code/vice_editor.h"
+#include "code/script_editor.h"
 #include "core/editor_log.h"
 #include "imgui/editor_style.h"
 #include "imgui/icons.h"

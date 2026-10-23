@@ -9,7 +9,6 @@ project(spot
 option(SPOT_BUILD_SANDBOX "Build the sandbox application" ${PROJECT_IS_TOP_LEVEL})
 option(SPOT_BUILD_EDITOR "Build the Spot editor" ${PROJECT_IS_TOP_LEVEL})
 option(SPOT_BUILD_TESTS "Build the Spot test suite" ${PROJECT_IS_TOP_LEVEL})
-option(SPOT_ENABLE_VICESCRIPT "Build experimental ViceScript support" OFF)
 option(SPOT_ENABLE_LUAU "Build Luau scripting support" ON)
 
 # Set globally so fetched dependencies are built with the same standard as the engine;
@@ -54,10 +53,6 @@ endif()
 
 include(cmake/spot_shaders.cmake)
 include(cmake/spot_embed_files.cmake)
-
-if(SPOT_ENABLE_VICESCRIPT)
-    add_subdirectory(vice)
-endif()
 
 add_subdirectory(engine)
 

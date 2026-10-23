@@ -5,9 +5,6 @@
 #ifdef SPOT_ENABLE_LUAU
 #include "scene/scripting/luau_runtime.h"
 #endif
-#ifdef SPOT_ENABLE_VICESCRIPT
-#include "scene/scripting/vice_runtime.h"
-#endif
 
 #include <algorithm>
 #include <map>
@@ -45,10 +42,6 @@ Registry& Languages() {
 #ifdef SPOT_ENABLE_LUAU
         registry.languages.emplace(
             "luau", Language{{".luau"}, Detail::CreateLuauRuntime, Detail::ReadLuauExports, Detail::CheckLuauSyntax});
-#endif
-#ifdef SPOT_ENABLE_VICESCRIPT
-        registry.languages.emplace(
-            "vice", Language{{".vice"}, Detail::CreateViceRuntime, Detail::ReadViceExports, Detail::CheckViceSyntax});
 #endif
         return true;
     }();

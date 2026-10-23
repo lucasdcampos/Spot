@@ -22,7 +22,7 @@ Files are recognized by extension (`GetSourceAssetType()` in `engine/assets/asse
 | Font | `.ttf` `.otf` |
 | Scene | `.scene` (JSON) |
 | Prefab | `.prefab` (one entity tree in scene JSON) |
-| Script | `.luau` `.vice` (UTF-8 source text) |
+| Script | `.luau` (UTF-8 source text) |
 
 Folders whose name starts with `.` are skipped. A source can make sub-assets, such as a model's meshes and materials,
 which get ids of their own under a key that names the part (`models/house.glb#Roof`).
@@ -112,7 +112,7 @@ code that does not use the asset pipeline.
 `ScriptSource` assets contain imported source text and a relative source path for diagnostics. They load without
 the GPU or a language runtime through `AssetManager::Load<ScriptSource>()`, including from shipped paks. Script
 importer version 1 stores a length-prefixed source string and strips an optional UTF-8 BOM. Parsing belongs to the
-component that executes it; see [ViceScript](vicescript.md).
+component that executes it; see [scripting](scripting.md).
 
 `Prefab` assets share serialized entity trees and load without a graphics device. `Scene::Instantiate(prefab)`
 creates independent entities and remaps internal entity references. See [Prefabs](prefabs.md) for the source

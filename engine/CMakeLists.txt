@@ -637,15 +637,6 @@ target_sources(spot_objects PRIVATE
     scene/scripting/script_component.h
     scene/scripting/script_component.cpp
 )
-if(SPOT_ENABLE_VICESCRIPT)
-    target_sources(spot_objects PRIVATE
-        scene/scripting/vice_runtime.h
-        scene/scripting/vice_runtime.cpp
-    )
-    target_link_libraries(spot_objects PRIVATE vice::vice)
-    target_compile_definitions(spot_objects PUBLIC SPOT_ENABLE_VICESCRIPT=1)
-endif()
-
 if(SPOT_ENABLE_LUAU)
     # Only Luau's parser, compiler and VM are built, as their targets are linked: scripts are compiled as they load,
     # and nothing needs the type checker or native code generation. Luau reports errors with C++ exceptions.
@@ -704,9 +695,6 @@ elseif(UNIX)
 endif()
 add_library(spot::shared ALIAS spot_shared)
 
-if(SPOT_ENABLE_VICESCRIPT)
-    target_compile_definitions(spot_shared PUBLIC SPOT_ENABLE_VICESCRIPT=1)
-endif()
 if(SPOT_ENABLE_LUAU)
     target_compile_definitions(spot_shared PUBLIC SPOT_ENABLE_LUAU=1)
 endif()
