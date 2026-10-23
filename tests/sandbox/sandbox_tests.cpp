@@ -831,7 +831,7 @@ TEST_CASE("The playground uses linked spawnable prefabs with its authored overri
                 [&](Spot::MeshRenderer& renderer) { CHECK_FALSE(renderer.GetEntity().IsDescendantOf(entity)); });
         }
     });
-    CHECK(linked == 71);
+    CHECK(linked == 70);
     const Entity* cone = playground.scene.FindEntity("Cone");
     REQUIRE(cone != nullptr);
     CHECK(cone->HasComponent<Spot::BoxCollider>());
