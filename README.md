@@ -33,7 +33,12 @@ Use `ctest --preset msvc-debug-all` (or `ninja-debug-all`) for the complete suit
 ./run.sh           # Linux / macOS
 ```
 
-Pass `editor` to run the editor instead of the sandbox, and `release` to run an optimized build.
+Both scripts build and run Release by default. Pass `editor` to run the editor instead of the sandbox,
+or `debug` for a Debug build (for example, `./run.ps1 editor debug`). Explicit `release` is also accepted.
+
+To open an existing build immediately, pass `no-build`: `./run.ps1 editor no-build` or `./run.ps1 no-build`
+for the sandbox (`./run.sh` accepts the same arguments). This skips CMake, compilation and asset cooking;
+it runs the last build of the selected configuration. Omit `no-build` to include code and asset changes.
 
 In the sandbox, WASD moves, Shift runs, Space jumps, the mouse looks around and a click throws a ball. F switches the
 flashlight, G the shadows, T speeds up time and R resets the scene; Escape frees the mouse, then quits.

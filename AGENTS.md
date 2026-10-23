@@ -45,7 +45,8 @@ Shaders are HLSL files named `*.vert.hlsl` or `*.frag.hlsl`. `spot_add_shaders(<
 with a ready-to-use `Spot::ShaderDesc`.
 
 To build and run the sandbox: `./run.ps1` (PowerShell) or `./run.sh` (Linux, macOS, Git Bash). Both accept
-`editor` to run the editor instead, and `release` for an optimized build.
+`editor` to run the editor instead, and `debug` for a Debug build; Release is the default.
+Add `no-build` to launch an existing build without configuring, compiling or cooking assets.
 
 ## Documentation
 
