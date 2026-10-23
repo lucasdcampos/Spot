@@ -1,7 +1,7 @@
 include(FetchContent)
 
-# The engine's layers only include themselves and the layers below them.
-add_test(NAME "Engine layers include only the layers below them"
+# The engine's folders only include themselves and the levels below them.
+add_test(NAME "Engine folders include only the levels below them"
     COMMAND ${CMAKE_COMMAND} -DSPOT_ENGINE_DIR=${PROJECT_SOURCE_DIR}/engine/spot -P ${PROJECT_SOURCE_DIR}/cmake/spot_check_layers.cmake
 )
 

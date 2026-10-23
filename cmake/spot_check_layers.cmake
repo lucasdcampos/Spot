@@ -1,46 +1,173 @@
-# Fails when a source of the engine includes a header of a layer above its own, so the layers stay usable on their
-# own: a game can build on the core, the platform or the systems without the scene or the Application above them.
+# Fails when a source of the engine includes a header of a folder at its own level or above, so each level stays
+# usable on its own: a game can build on the core, the platform, graphics or a system without the scene or the
+# Application above them, and the systems of a level stay independent of each other.
 #
 #     cmake -DSPOT_ENGINE_DIR=<repository>/engine/spot -P spot_check_layers.cmake
 #
-# A folder may include its own layer and the ones below. Backends live inside their system's folder.
-set(SPOT_LAYERS
+# A folder may include itself and the levels below. Each folder of scene/ is a folder of its own: scene/<module>/
+# holds a system's components and its module, above the scene core. Backends live inside their system's folder.
+set(SPOT_LEVELS
     "core=0"
     "platform=1"
-    "graphics=2" "render=2" "audio=2" "physics=2" "animation=2" "particles=2" "assets=2"
-    "scene=3"
-    "runtime=4"
-    "import=5"
+    "assets=2"
+    "graphics=3"
+    "render=4" "audio=4" "physics=4" "animation=4" "particles=4"
+    "scene=5"
+    "runtime=6"
+    "scene/animation=7" "scene/audio=7" "scene/particles=7" "scene/physics=7" "scene/physics2d=7"
+    "scene/rendering=7" "scene/ui=7"
+    "scene/scripting=8"
+    "import=9"
 )
 
-foreach(entry IN LISTS SPOT_LAYERS)
+# Includes across a level that are part of the design: models draw animation's skeletons and clips, and ragdolls
+# animate physics' components.
+set(SPOT_LEVEL_EXCEPTIONS
+    "render>animation"
+    "scene/animation>scene/physics"
+)
+
+# Today's violations, each fixed by a task of the refactor: the commit that fixes one removes its line.
+set(SPOT_LEVEL_ALLOWLIST
+    "assets/asset_formats.h>animation/animation_data.h"
+    "assets/asset_formats.h>graphics/image.h"
+    "assets/asset_formats.h>graphics/texture.h"
+    "assets/asset_formats.h>render/mesh_data.h"
+    "assets/asset_manager.cpp>animation/animator_controller.h"
+    "assets/asset_manager.cpp>audio/sound.h"
+    "assets/asset_manager.cpp>graphics/graphics_device.h"
+    "assets/asset_manager.cpp>graphics/image.h"
+    "assets/asset_manager.cpp>render/font.h"
+    "assets/asset_manager.cpp>render/material.h"
+    "assets/asset_manager.cpp>render/mesh.h"
+    "assets/asset_manager.cpp>render/model.h"
+    "assets/asset_manager.cpp>render/sprite_atlas.h"
+    "assets/material_source.h>render/material.h"
+    "physics/physics_simulation.h>render/mesh_data.h"
+    "render/particle_batch.h>particles/particle_simulation.h"
+    "runtime/application.cpp>scene/audio/audio_system.h"
+    "runtime/application.cpp>scene/rendering/scene_renderer.h"
+    "runtime/application.cpp>scene/ui/ui_input_system.h"
+    "runtime/engine_console.cpp>scene/audio/audio_system.h"
+    "runtime/engine_console.cpp>scene/physics/physics_world.h"
+    "runtime/game_settings.h>scene/physics/physics_settings.h"
+    "runtime/game_settings.h>scene/rendering/rendering_settings.h"
+    "runtime/runtime_stats.cpp>scene/physics/physics_world.h"
+    "scene/audio/audio_system.cpp>scene/rendering/camera.h"
+    "scene/component_registry.cpp>scene/animation/animator.h"
+    "scene/component_registry.cpp>scene/animation/bone_attachment.h"
+    "scene/component_registry.cpp>scene/animation/ragdoll.h"
+    "scene/component_registry.cpp>scene/animation/skinned_mesh_renderer.h"
+    "scene/component_registry.cpp>scene/audio/audio_source.h"
+    "scene/component_registry.cpp>scene/particles/particle_system.h"
+    "scene/component_registry.cpp>scene/physics/character_controller.h"
+    "scene/component_registry.cpp>scene/physics/collider.h"
+    "scene/component_registry.cpp>scene/physics/joint.h"
+    "scene/component_registry.cpp>scene/physics/rigidbody.h"
+    "scene/component_registry.cpp>scene/physics2d/physics_world_2d.h"
+    "scene/component_registry.cpp>scene/physics2d/tilemap_collider_2d.h"
+    "scene/component_registry.cpp>scene/rendering/camera.h"
+    "scene/component_registry.cpp>scene/rendering/clouds.h"
+    "scene/component_registry.cpp>scene/rendering/fog.h"
+    "scene/component_registry.cpp>scene/rendering/light.h"
+    "scene/component_registry.cpp>scene/rendering/mesh_renderer.h"
+    "scene/component_registry.cpp>scene/rendering/post_processing.h"
+    "scene/component_registry.cpp>scene/rendering/sky.h"
+    "scene/component_registry.cpp>scene/rendering/sprite_animator.h"
+    "scene/component_registry.cpp>scene/rendering/sprite_renderer.h"
+    "scene/component_registry.cpp>scene/rendering/surface_renderer.h"
+    "scene/component_registry.cpp>scene/rendering/text_renderer.h"
+    "scene/component_registry.cpp>scene/rendering/tilemap.h"
+    "scene/component_registry.cpp>scene/scripting/script_bindings.h"
+    "scene/component_registry.cpp>scene/scripting/script_component.h"
+    "scene/component_registry.cpp>scene/ui/canvas.h"
+    "scene/component_registry.cpp>scene/ui/ui_layout_group.h"
+    "scene/component_registry.cpp>scene/ui/ui_widgets.h"
+    "scene/entity.cpp>scene/physics/character_controller.h"
+    "scene/entity.cpp>scene/physics/collider.h"
+    "scene/entity.cpp>scene/physics/physics_world.h"
+    "scene/entity.cpp>scene/physics/rigidbody.h"
+    "scene/entity.cpp>scene/ui/ui_widgets.h"
+    "scene/physics/physics_settings.cpp>scene/physics2d/physics_world_2d.h"
+    "scene/physics2d/physics_world_2d.h>scene/physics/physics_query.h"
+    "scene/physics2d/tilemap_collider_2d.cpp>scene/rendering/tilemap.h"
+    "scene/rendering/scene_drawing.cpp>scene/animation/skinned_mesh_renderer.h"
+    "scene/rendering/scene_drawing.cpp>scene/particles/particle_system.h"
+    "scene/rendering/scene_renderer.cpp>scene/particles/particle_system.h"
+    "scene/scene.cpp>scene/audio/audio_system.h"
+    "scene/scene.cpp>scene/physics/physics_world.h"
+    "scene/scene.cpp>scene/physics2d/physics_world_2d.h"
+    "scene/scene.cpp>scene/ui/canvas.h"
+    "scene/scene.cpp>scene/ui/ui_input_system.h"
+    "scene/scene.cpp>scene/ui/ui_system.h"
+    "scene/scene_model.cpp>scene/animation/animator.h"
+    "scene/scene_model.cpp>scene/animation/bone_attachment.h"
+    "scene/scene_model.cpp>scene/animation/skinned_mesh_renderer.h"
+    "scene/scene_model.cpp>scene/rendering/mesh_renderer.h"
+)
+
+foreach(entry IN LISTS SPOT_LEVELS)
     string(REPLACE "=" ";" pair "${entry}")
     list(GET pair 0 folder)
     list(GET pair 1 level)
-    set(LAYER_${folder} ${level})
+    set(LEVEL_${folder} ${level})
 endforeach()
 
 if(NOT IS_DIRECTORY "${SPOT_ENGINE_DIR}")
-    message(FATAL_ERROR "SPOT_ENGINE_DIR must name the engine's folder")
+    message(FATAL_ERROR "SPOT_ENGINE_DIR must name the folder of the engine's modules")
 endif()
+
+# The folder a path of engine/spot/ belongs to: scene/<module>/ when it has one, else its first folder.
+function(spot_get_level_folder path out)
+    string(REGEX MATCH "^scene/[a-z0-9_]+/" sub "${path}")
+    if(sub)
+        string(REGEX REPLACE "/$" "" sub "${sub}")
+        if(DEFINED LEVEL_${sub})
+            set(${out} "${sub}" PARENT_SCOPE)
+            return()
+        endif()
+    endif()
+    string(REGEX MATCH "^[^/]+" folder "${path}")
+    set(${out} "${folder}" PARENT_SCOPE)
+endfunction()
 
 file(GLOB_RECURSE sources RELATIVE "${SPOT_ENGINE_DIR}" "${SPOT_ENGINE_DIR}/*.h" "${SPOT_ENGINE_DIR}/*.cpp")
 set(violations "")
+set(found "")
 foreach(source IN LISTS sources)
-    string(REGEX MATCH "^[^/]+" folder "${source}")
-    if(NOT DEFINED LAYER_${folder})
+    spot_get_level_folder("${source}" folder)
+    if(NOT DEFINED LEVEL_${folder})
         continue()
     endif()
     file(STRINGS "${SPOT_ENGINE_DIR}/${source}" includes REGEX "^#include \"spot/[a-z0-9_]+/")
     foreach(line IN LISTS includes)
-        string(REGEX REPLACE "^#include \"spot/([a-z0-9_]+)/.*$" "\\1" included "${line}")
-        if(DEFINED LAYER_${included} AND LAYER_${included} GREATER LAYER_${folder})
+        string(REGEX REPLACE "^#include \"spot/([^\"]+)\".*$" "\\1" header "${line}")
+        spot_get_level_folder("${header}" included)
+        if(NOT DEFINED LEVEL_${included} OR included STREQUAL folder)
+            continue()
+        endif()
+        if(LEVEL_${included} LESS LEVEL_${folder} OR "${folder}>${included}" IN_LIST SPOT_LEVEL_EXCEPTIONS)
+            continue()
+        endif()
+        set(entry "${source}>${header}")
+        list(APPEND found "${entry}")
+        if(NOT entry IN_LIST SPOT_LEVEL_ALLOWLIST)
             string(APPEND violations "\n  ${source}: ${line}")
         endif()
     endforeach()
 endforeach()
 
+set(fixed "")
+foreach(entry IN LISTS SPOT_LEVEL_ALLOWLIST)
+    if(NOT entry IN_LIST found)
+        string(APPEND fixed "\n  ${entry}")
+    endif()
+endforeach()
+
 if(violations)
-    message(FATAL_ERROR "Headers of a higher layer are included:${violations}")
+    message(FATAL_ERROR "Headers of the same level or above are included:${violations}")
 endif()
-message(STATUS "Every engine source includes only its own layer and the ones below")
+if(fixed)
+    message(FATAL_ERROR "Remove these fixed entries from SPOT_LEVEL_ALLOWLIST:${fixed}")
+endif()
+message(STATUS "Every engine source includes only its own folder and the levels below")

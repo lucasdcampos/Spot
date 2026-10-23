@@ -37,18 +37,26 @@ Building, testing and the code rules are in [`AGENTS.md`](../AGENTS.md).
 
 ## Layers
 
-The engine is layers, each a set of folders of `engine/spot/` that only includes its own layer and the ones below it. The
-test "Engine layers include only the layers below them" (`cmake/spot_check_layers.cmake`) fails the build's tests
-otherwise. Games include the headers with the prefix, as `<spot/core/log.h>`, or all of them with `<spot.h>`.
+The engine is levels of folders of `engine/spot/`. A folder includes only itself and the levels below it, never a
+folder of its own level or above, so each level works without the ones above it and the systems of a level stay
+independent of each other. The test "Engine folders include only the levels below them"
+(`cmake/spot_check_layers.cmake`) fails the build's tests otherwise. It lists the two includes across a level that
+are meant (models draw animation's skeletons and clips; ragdolls animate physics' components) and, while the refactor
+lasts, the violations left to fix. Games include the headers with the prefix, as `<spot/core/log.h>`, or all of them
+with `<spot.h>`.
 
-| Layer | Folders | What it holds |
+| Level | Folders | What it holds |
 |---|---|---|
-| 0. Core | `core/` | Logging, assertions, paths, time, the profiler, jobs, serialization (`Archive`), ids, math, colors, curves |
-| 1. Platform | `platform/` | Windows, events, the input state and actions, processes, shared libraries, the crash handler, RenderDoc capture; SDL3 behind `platform/sdl3/` |
-| 2. Systems | `graphics/`, `render/`, `audio/`, `physics/`, `animation/`, `particles/`, `assets/` | The mechanism: the graphics device (`graphics/`) and the code-only renderers (`render/`), the mixer, the physics simulations, poses and clips, particle simulation, loading imported assets |
-| 3. Scene | `scene/`, with a folder per system: `scene/rendering/`, `scene/physics/`, `scene/audio/`, `scene/ui/`… | Entities, components and scene systems built on the systems' public API, tweens, timers, tasks and signals: `MeshRenderer`, `Rigidbody`, `PhysicsWorld`, `SceneRenderer`, the entity-based UI |
-| 4. Runtime | `runtime/` | `Application`, the default game loop with scenes, and what runs a game: settings, the console, save data, profile streaming, game modules |
-| 5. Tools | `import/`, then `tools/`, `cli/`, `player/` and `editor/` outside the engine | Importing and making games out of projects, which games never link |
+| 0 | `core/` | Logging, assertions, memory, files, math, time, jobs, archives (`Archive`), the profiler, ids, colors, curves |
+| 1 | `platform/` | Windows, events, the input state and actions, processes, shared libraries, the crash handler, RenderDoc capture; SDL3 behind `platform/sdl3/` |
+| 2 | `assets/` | Loading imported assets |
+| 3 | `graphics/` | The graphics API and its backends (rendering level 1) |
+| 4 | `render/`, `audio/`, `physics/`, `animation/`, `particles/` | The systems' low-level APIs, without scenes: the code-only renderers (rendering level 2), the mixer, the physics simulations, poses and clips, particle simulation |
+| 5 | `scene/` | Entities, components, scenes, scene systems, prefab instancing, tweens, timers, tasks and signals |
+| 6 | `runtime/` | `Application`, the default game loop with scenes, and what runs a game: settings, the console, save data, profile streaming, game modules |
+| 7 | `scene/<module>/`: `scene/rendering/`, `scene/physics/`, `scene/audio/`, `scene/ui/`… | Each system's components and scene systems, built on its public API (rendering level 3): `MeshRenderer`, `Rigidbody`, `PhysicsWorld`, `SceneRenderer`, the entity-based UI |
+| 8 | `scene/scripting/` | Luau scripts and their bindings |
+| Tools | `import/`, then `tools/`, `cli/`, `player/` and `editor/` outside the engine | Importing and making games out of projects, which games never link |
 
 Backends live in their system's folder, behind its contract: Vulkan through NVRHI in `graphics/nvrhi/` and SDL_GPU in `graphics/sdl_gpu/`, SDL3 audio in
 `audio/sdl3/`, Jolt in `physics/jolt/`, Box2D in `physics/box2d/`. Public headers never show backend types.

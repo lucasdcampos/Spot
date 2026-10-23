@@ -43,7 +43,7 @@ in order, as each moves files the next one touches.
 - [x] **1.4 Split `graphics/` (M).** The GPU interface and its backends stay in `graphics/` (rendering level 1);
   renderers, meshes, materials, models, fonts, text, cameras, lights, sky, shadows, post-processing, debug drawing and
   particle drawing move to `render/` (rendering level 2). No behavior changes.
-- [ ] **1.5 Layer check by levels (S).** `cmake/spot_check_layers.cmake` gives each folder its level and fails on
+- [x] **1.5 Layer check by levels (S).** `cmake/spot_check_layers.cmake` gives each folder its level and fails on
   includes of the same level or above, except two it lists: rendering reaching animation's skeletons and clips for
   skinned models, and animation's components reaching physics' for ragdolls. It starts with an allowlist of today's
   violations; the commit that fixes one removes its entry. "Layers" in `docs/index.md` and the layer rule in
