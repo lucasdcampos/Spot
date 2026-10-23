@@ -240,10 +240,9 @@ TEST_CASE("Pixel-perfect scene cameras keep pixel edges in both editor and game 
                                            .fxaa = true,
                                            .shadowMapSize = 128,
                                            .localShadowMapSize = 128});
-    std::array<Spot::Scene*, 1> scenes{&scene};
     context = device->BeginOffscreenFrame(*target);
     REQUIRE(context);
-    renderer.Render(*context, scenes, target.get());
+    renderer.Render(*context, scene, target.get());
     device->EndFrame();
     const auto game = device->DownloadTexture(*target);
     for (const auto* pixels : {&editor, &game}) {
@@ -299,14 +298,13 @@ TEST_CASE("Tilemap-only scenes render in game and editor views offscreen", "[edi
                                            .sampleCount = 1,
                                            .shadowMapSize = 128,
                                            .localShadowMapSize = 128});
-    std::array<Spot::Scene*, 1> scenes{&scene};
     auto gameTarget = device->CreateTexture(
         {.width = 64, .height = 64, .format = Spot::Editor::ViewportRenderer::ColorFormat, .renderTarget = true});
     REQUIRE(gameTarget);
     REQUIRE(renderer.IsValid());
     context = device->BeginOffscreenFrame(*gameTarget);
     REQUIRE(context);
-    renderer.Render(*context, scenes, gameTarget.get());
+    renderer.Render(*context, scene, gameTarget.get());
     device->EndFrame();
     pixels = device->DownloadTexture(*gameTarget);
     CHECK(pixels[center] > 150);

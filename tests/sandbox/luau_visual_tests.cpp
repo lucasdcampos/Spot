@@ -45,11 +45,10 @@ TEST_CASE("Luau scripts change the rendered monument and daylight in the cooked 
     Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb});
     REQUIRE(renderer.IsValid());
     const auto capture = [&](const char* name) {
-        const std::array scenes{scene.get()};
         for (int frame = 0; frame < 2; ++frame) {
             auto* context = device->BeginOffscreenFrame(*target);
             REQUIRE(context);
-            renderer.Render(*context, scenes, target.get());
+            renderer.Render(*context, *scene, target.get());
             device->EndFrame();
         }
         auto pixels = device->DownloadTexture(*target);

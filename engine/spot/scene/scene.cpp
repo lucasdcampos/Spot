@@ -540,6 +540,9 @@ std::unique_ptr<Entity> Scene::Release(Entity& entity) {
 }
 
 void Scene::Adopt(std::unique_ptr<Entity> entity, bool moved) {
+    if (moved && entity->m_scene->m_audio) {
+        entity->m_scene->m_audio->MoveSources(*entity, *this);
+    }
     entity->m_scene = this;
     entity->m_slot = m_entities.size();
     m_entitiesById.emplace(entity->m_id, entity.get());

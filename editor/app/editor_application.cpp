@@ -251,7 +251,7 @@ void EditorApplication::UpdateModules() {
         }
     }
     // A game that stopped leaves its scenes, with components of the old code, until the frame after.
-    if (modules.HasNewModule() && !m_workspace->GetPlaySession() && GetScenes().empty()) {
+    if (modules.HasNewModule() && !m_workspace->GetPlaySession() && !GetScene()) {
         const auto started = std::chrono::steady_clock::now();
         m_workspace->ReloadScenes([&modules] { modules.SwapModule(); });
         const auto now = std::chrono::steady_clock::now();

@@ -44,12 +44,8 @@ struct SceneRendererConfig {
     std::uint32_t localShadowMapSize = 512;
 };
 
-// Draws scenes as games show them: through the first main camera among them (see FindMainCamera()), their meshes,
-// then the shapes queued with DebugDraw, then their sprites over the meshes, all as light into an HDR image, which a
-// Tonemapper turns into what the target shows; then their interfaces over everything, in the target's colors. The
-// look comes from the first active PostProcessing among the scenes, or from the renderer's settings without one.
-// Applications draw their scenes with one by default (see ApplicationConfig::renderScenes); it is built only on the
-// public graphics API, so games that draw their own way can use it too, into the window or into a texture.
+// Draws a scene through its first main camera: meshes, debug shapes, sprites and particles into HDR,
+// post-processing, then interfaces. Built on the public graphics API, into a window or texture.
 class SceneRenderer {
 public:
     explicit SceneRenderer(GraphicsDevice& device, const SceneRendererConfig& config = {});
@@ -70,10 +66,8 @@ public:
     bool IsFxaaEnabled() const { return m_fxaaEnabled; }
     void SetFxaaEnabled(bool enabled) { m_fxaaEnabled = enabled; }
 
-    // Draws the scenes, in order, over each other, into the target: a render target in the configured format, or the
-    // window when null. At each RenderStage it runs its own hooks, then those of the scenes (see
-    // Scene::AddRenderHook()).
-    void Render(RenderContext& context, std::span<Scene* const> scenes, Texture* target = nullptr);
+    // Draws the scene into the target, or the window when null. Runs its hooks before the scene hooks at each stage.
+    void Render(RenderContext& context, Scene& scene, Texture* target = nullptr);
 
     // Draws at the stage of every frame this renderer draws, whatever the scenes, after the hooks added before it, as
     // the shapes queued with DebugDraw are drawn after the opaque stage.

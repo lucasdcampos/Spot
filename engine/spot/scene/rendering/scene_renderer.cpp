@@ -19,6 +19,8 @@
 #include "spot/scene/rendering/text_renderer.h"
 #include "spot/scene/scene.h"
 
+#include <array>
+
 namespace Spot {
 
 namespace {
@@ -72,7 +74,7 @@ bool SceneRenderer::IsValid() const {
            m_tonemapper && m_bloom && m_fxaa;
 }
 
-void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scenes, Texture* target) {
+void SceneRenderer::Render(RenderContext& context, Scene& scene, Texture* target) {
     SPOT_PROFILE_SCOPE("SceneRenderer::Render");
     const auto width = static_cast<std::uint32_t>(target ? target->GetWidth() : context.GetWidth());
     const auto height = static_cast<std::uint32_t>(target ? target->GetHeight() : context.GetHeight());
@@ -80,25 +82,21 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
         return;
     }
 
-    const Camera* camera = nullptr;
-    bool sprites = false;
+    const Camera* camera = FindMainCamera(scene);
+    const bool sprites =
+        scene.FindComponent<SpriteRenderer>() || scene.FindComponent<TextRenderer>() || scene.FindComponent<Tilemap>();
     bool particles = false;
-    for (Scene* scene : scenes) {
-        camera = camera ? camera : FindMainCamera(*scene);
-        sprites = sprites || scene->FindComponent<SpriteRenderer>() || scene->FindComponent<TextRenderer>() ||
-                  scene->FindComponent<Tilemap>();
-        scene->ForEachComponent<ParticleSystem>([&](ParticleSystem& system) {
-            particles = particles || (system.IsActiveAndEnabled() && !system.GetParticles().empty());
-        });
-    }
-    if (!camera && !scenes.empty() && !m_warnedNoCamera) {
+    scene.ForEachComponent<ParticleSystem>([&](ParticleSystem& system) {
+        particles = particles || (system.IsActiveAndEnabled() && !system.GetParticles().empty());
+    });
+    if (!camera && !m_warnedNoCamera) {
         m_warnedNoCamera = true;
         Log::GetEngineLogger().Warning("The scene has no enabled Camera to be seen through; it shows from the origin");
     }
     const Camera3D view = camera ? camera->GetCamera3D() : Camera3D{};
     const bool pixelPerfect = view.orthographic && view.pixelPerfect.enabled && view.pixelPerfect.IsValid();
 
-    const PostProcessing* look = PostProcessing::Find(scenes);
+    const PostProcessing* look = PostProcessing::Find(std::array<Scene*, 1>{&scene});
     TonemapSettings tonemapping = look ? look->GetTonemapping() : m_tonemapping;
     if (pixelPerfect) {
         tonemapping.dither = false;
@@ -127,9 +125,7 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
                 hook.hook(stage);
             }
         }
-        for (Scene* scene : scenes) {
-            scene->RunRenderHooks(stage);
-        }
+        scene.RunRenderHooks(stage);
     };
 
     const RenderGraphTexture output = m_graph.Import("Target", target);
@@ -184,9 +180,7 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
             runStage(RenderStage::BeforeOpaque);
 
             m_renderer3D->Begin(context, pass, view);
-            for (Scene* scene : scenes) {
-                DrawScene(*m_renderer3D, *scene);
-            }
+            DrawScene(*m_renderer3D, scene);
             m_renderer3D->End();
             runStage(RenderStage::AfterOpaque);
         });
@@ -198,12 +192,8 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
             spriteDesc.depthTarget = nullptr;
             auto spritePass = context.BeginRenderPass(spriteDesc);
             m_sprites->Begin(spritePass, view, size);
-            for (Scene* scene : scenes) {
-                DrawScene(*m_sprites, *scene);
-            }
-            for (Scene* scene : scenes) {
-                DrawWorldText(*m_sprites, *scene, view);
-            }
+            DrawScene(*m_sprites, scene);
+            DrawWorldText(*m_sprites, scene, view);
             m_sprites->End();
         });
     }
@@ -213,9 +203,7 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
             const Texture* particleDepth =
                 m_sampleCount == 1 ? pass.depthTarget : m_renderer3D->RenderCameraDepth(context);
             m_particles->Begin(context, pass, view, size, particleDepth);
-            for (Scene* scene : scenes) {
-                DrawScene(*m_particles, *scene);
-            }
+            DrawScene(*m_particles, scene);
             m_particles->End();
         });
     }
@@ -271,9 +259,7 @@ void SceneRenderer::Render(RenderContext& context, std::span<Scene* const> scene
             {
                 auto interfacePass = context.BeginRenderPass(stage.pass);
                 m_interface->Begin(interfacePass, Scene::ScreenCamera(size), size);
-                for (Scene* scene : scenes) {
-                    scene->DrawUi(*m_interface, size);
-                }
+                scene.DrawUi(*m_interface, size);
                 m_interface->End();
             }
             runStage(RenderStage::Overlay);

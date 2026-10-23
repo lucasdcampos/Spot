@@ -126,3 +126,6 @@ of its own kept in room reserved up front (1,024 voices, fading ones included). 
 another queue, and the game's side lets their sounds go on its next call, so the audio thread never frees memory
 either. What the game asks for is heard from the next mix on.
 
+
+Sources on entities retained with `Entity::SetKeepOnSceneChange()` transfer to the next scene's audio system
+without restarting playback. They follow the new listener and pause with the active scene.

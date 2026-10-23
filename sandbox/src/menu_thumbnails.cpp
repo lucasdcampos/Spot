@@ -94,8 +94,7 @@ void MenuThumbnails::Render(const Spot::RenderStageContext& stage, Spot::Scene& 
             entry.ready = true;
             continue;
         }
-        const std::array scenes{entry.preview.get()};
-        m_renderer->Render(stage.context, scenes, texture.get());
+        m_renderer->Render(stage.context, *entry.preview, texture.get());
         entry.texture = Spot::AssetRef<Spot::Texture>(std::move(texture));
         image->texture = entry.texture;
         image->tint.a = 1.0f;

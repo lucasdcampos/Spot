@@ -73,6 +73,7 @@ private:
 
     void Register(AudioSource& source);
     void Unregister(AudioSource& source);
+    void MoveSources(const Entity& entity, Scene& destination);
 
     std::vector<AudioSource*> m_sources;
     std::vector<OneShot> m_oneShots;

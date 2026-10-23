@@ -129,8 +129,7 @@ std::optional<Spot::Image> RenderScene(const std::function<void(Spot::GraphicsDe
                                                   .bloom = {.intensity = 0.0f}});
             REQUIRE(renderer->IsValid());
             setup(device, scene);
-            const std::array<Spot::Scene*, 1> scenes{&scene};
-            renderer->Render(context, scenes, target.get());
+            renderer->Render(context, scene, target.get());
         } else if (frame == 2) {
             pixels = device.DownloadTexture(*target);
         }

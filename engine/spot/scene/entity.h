@@ -123,6 +123,11 @@ public:
     // of an update, the moved components may run again in that update.
     void MoveToScene(Scene& scene);
 
+    // Keeps this entity and its descendants when the application replaces its scene. A retained child of an
+    // ordinary entity detaches with its world pose. Explicit unloading and application shutdown destroy it.
+    void SetKeepOnSceneChange(bool keep = true) { m_keepOnSceneChange = keep; }
+    bool IsKeptOnSceneChange() const { return m_keepOnSceneChange; }
+
     // Saves the entity and its descendants in the format of Scene::SaveToString(). Loading the text into a scene
     // creates a copy of them, so it also works as a template for entities made many times.
     std::string SaveToString(bool expandPrefabs = false) const;
@@ -275,6 +280,7 @@ private:
     std::vector<Entity*> m_children;
     std::vector<std::unique_ptr<Component>> m_components;
     bool m_activeSelf = true;
+    bool m_keepOnSceneChange = false;
     bool m_destroyed = false;
 };
 

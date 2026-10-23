@@ -158,6 +158,15 @@ void AudioSystem::Unregister(AudioSource& source) {
     std::erase(m_sources, &source);
 }
 
+void AudioSystem::MoveSources(const Entity& entity, Scene& destination) {
+    std::erase_if(m_sources, [&](AudioSource* source) {
+        if (&source->GetEntity() != &entity)
+            return false;
+        destination.GetAudio().Register(*source);
+        return true;
+    });
+}
+
 namespace Audio {
 
 void SetDevice(AudioDevice* device) {

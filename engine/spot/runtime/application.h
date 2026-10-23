@@ -59,31 +59,11 @@ struct ApplicationConfig {
     bool showCrashMessage = false;
     // Caps how many frames run per second; 0 means unlimited.
     int maxFrameRate = 0;
-    // Draws the persistent scene and the loaded ones into the window with a SceneRenderer, before OnRender(), so a
+    // Draws the active scene into the window with a SceneRenderer, before OnRender(), so a
     // game needs no code to show them. Tools that show scenes their own way, such as the editor, turn it off.
     bool renderScenes = true;
     // The Grave key opens an event-driven developer console. Tools with their own console turn it off.
     bool consoleOverlay = true;
-};
-
-// A scene loading in the background (see Application::LoadSceneAdditiveAsync()). Done once the scene was loaded, or
-// failed to be; the scene is then the one loaded, until it is unloaded, or null when it failed.
-class SceneLoad {
-public:
-    struct State {
-        bool done = false;
-        Scene* scene = nullptr;
-    };
-
-    SceneLoad() = default;
-    explicit SceneLoad(std::shared_ptr<State> state) : m_state(std::move(state)) {}
-
-    bool IsValid() const { return m_state != nullptr; }
-    bool IsDone() const { return m_state && m_state->done; }
-    Scene* GetScene() const { return m_state ? m_state->scene : nullptr; }
-
-private:
-    std::shared_ptr<State> m_state;
 };
 
 class Application {
@@ -154,27 +134,10 @@ public:
     // make it do.
     const InputState& GetInputState() const { return m_input; }
 
-    // Scene changes are queued and applied at the start of the next frame, in the order they were asked for, so a
-    // scene that asks for a change is never destroyed while it runs. Unloading a scene calls its OnUnload(), then
-    // clears and destroys it; loading one calls its OnLoad(). Changes asked for from those hooks wait for the frame
-    // after.
-    //
-    // Each frame, the persistent scene and then the loaded scenes, in load order, update after
-    // Application::OnUpdate(), receive events after Application::OnEvent() and render before
-    // Application::OnRender(). They are unloaded after OnStop(), while the devices still exist.
-
-    // Replaces every loaded scene with this one, and cancels the changes still queued. A null scene just unloads
-    // them all.
+    // Replaces the active scene at the start of the next frame; later requests replace earlier queued ones.
+    // OnUnload() runs before retained entities move into the next scene, followed by OnLoad(). Requests from
+    // either hook wait for the following frame. Null unloads the scene and destroys all its entities.
     void LoadScene(std::unique_ptr<Scene> scene);
-    // Loads the scene next to the ones already loaded.
-    void LoadSceneAdditive(std::unique_ptr<Scene> scene);
-    // Unloads a loaded scene. A scene still waiting to be loaded is dropped without being loaded.
-    void UnloadScene(Scene& scene);
-    // Loads the scene asset next to the ones already loaded without stopping the game, as worlds stream their parts
-    // in: the files of the scene and of the assets it names are read and decoded on the job system's threads, then,
-    // at the start of a frame once that is done, the assets are made, the scene is instantiated and loaded as
-    // LoadSceneAdditive() would. Making the scene's entities still takes that frame.
-    SceneLoad LoadSceneAdditiveAsync(AssetId scene);
 
     template <std::derived_from<Scene> T, typename... Args>
     T& LoadScene(Args&&... args) {
@@ -184,32 +147,14 @@ public:
         return loaded;
     }
 
-    template <std::derived_from<Scene> T, typename... Args>
-    T& LoadSceneAdditive(Args&&... args) {
-        auto scene = std::make_unique<T>(std::forward<Args>(args)...);
-        T& loaded = *scene;
-        LoadSceneAdditive(std::move(scene));
-        return loaded;
-    }
+    // The active scene, or null when none is loaded.
+    Scene* GetScene() const { return m_scene.get(); }
 
-    // The main scene: the first loaded scene, which is the one LoadScene() loaded unless it was unloaded since.
-    // Null when no scene is loaded.
-    Scene* GetScene() const { return m_scenes.empty() ? nullptr : m_scenes.front().get(); }
-    // Every loaded scene, in load order; the persistent scene is not part of them.
-    std::vector<Scene*> GetScenes() const;
-
-    // Stops updating the scenes, the persistent one included, which keep receiving events and rendering, as games are
-    // paused in tools. StepScenes() updates them once on the next frame meanwhile.
-    // Their sounds pause too.
+    // Pauses simulation and sounds; events, rendering and chunk completion continue.
+    // StepScenes() advances one frame while paused.
     void SetScenesPaused(bool paused);
     bool AreScenesPaused() const { return m_scenesPaused; }
     void StepScenes() { m_stepScenes = true; }
-
-    // A scene loaded for the whole of Run(), whatever other scenes come and go. Entities that must survive scene
-    // changes, like the player or the music, move into it. Only available while Run() is running.
-    Scene& GetPersistentScene();
-    // Moves the entity and its descendants to the persistent scene.
-    void MakePersistent(Entity& entity);
 
 protected:
     virtual void OnStart() {}
@@ -236,20 +181,8 @@ private:
     std::uint64_t m_renderingRevision = 1;
     bool m_renderingDirty = false;
     std::unique_ptr<EngineConsole> m_engineConsole;
-    enum class SceneChangeKind { Replace, Add, Remove };
-
-    struct SceneChange {
-        SceneChangeKind kind;
-        // The scene to load, for Replace and Add.
-        std::unique_ptr<Scene> scene;
-        // The scene to unload, for Remove.
-        Scene* target = nullptr;
-    };
-
     void ApplySceneChanges();
-    void AddScene(std::unique_ptr<Scene> scene);
-    void RemoveScene(const Scene* scene);
-    void RemoveAllScenes();
+    void RemoveScene();
     void RenderScenes(RenderContext& context);
     void RenderDeveloperOverlay(RenderContext& context);
     void StreamProfileFrame();
@@ -269,17 +202,9 @@ private:
     std::unique_ptr<AssetManager> m_assets;
     // Created when there is first something to draw, so applications that draw no scene never pay for it.
     std::unique_ptr<SceneRenderer> m_sceneRenderer;
-    std::unique_ptr<Scene> m_persistentScene;
-    std::vector<std::unique_ptr<Scene>> m_scenes;
-    std::vector<SceneChange> m_sceneChanges;
-    struct PendingSceneLoad {
-        AssetId scene;
-        std::shared_ptr<Detail::PreloadTask> task;
-        std::shared_ptr<SceneLoad::State> state;
-    };
-    std::vector<PendingSceneLoad> m_sceneLoads;
-    // Instantiates the scenes whose background loads finished reading, queuing them to load.
-    void FinishSceneLoads();
+    std::unique_ptr<Scene> m_scene;
+    std::unique_ptr<Scene> m_pendingScene;
+    bool m_sceneChangePending = false;
     InputState m_input;
     std::unique_ptr<ConsoleInput> m_consoleInput;
     AssetRef<Font> m_developerFont;

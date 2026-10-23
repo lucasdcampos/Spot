@@ -79,11 +79,10 @@ TEST_CASE("The cooked playground renders its yards by day, at sunset and at nigh
         // Long enough for the night lights to come on.
         scene->Update(0.0f);
         scene->Update(0.0f);
-        std::array scenes{scene.get()};
         for (int frame = 0; frame < 2; ++frame) {
             auto* context = device->BeginOffscreenFrame(*target);
             REQUIRE(context);
-            renderer.Render(*context, scenes, target.get());
+            renderer.Render(*context, *scene, target.get());
             device->EndFrame();
         }
         auto pixels = device->DownloadTexture(*target);
@@ -113,10 +112,9 @@ TEST_CASE("The cooked playground renders its yards by day, at sunset and at nigh
     camera.GetTransform().SetRotation(Spot::Quaternion::LookRotation(Spot::Vector3{-1, 0, 0}));
     day->timeOfDay = 0.5f;
     scene->Update(0.0f);
-    const std::array scenes{scene.get()};
     auto* context = device->BeginOffscreenFrame(*target);
     REQUIRE(context);
-    renderer.Render(*context, scenes, target.get());
+    renderer.Render(*context, *scene, target.get());
     device->EndFrame();
     const auto withoutGlass = device->DownloadTexture(*target);
     for (auto* window : windows) {
@@ -125,7 +123,7 @@ TEST_CASE("The cooked playground renders its yards by day, at sunset and at nigh
     scene->Update(0.0f);
     context = device->BeginOffscreenFrame(*target);
     REQUIRE(context);
-    renderer.Render(*context, scenes, target.get());
+    renderer.Render(*context, *scene, target.get());
     device->EndFrame();
     const auto withGlass = device->DownloadTexture(*target);
     CHECK(Spot::Image(960, 540, withGlass).SavePng(output / "workshop_glass.png"));
@@ -192,11 +190,10 @@ TEST_CASE("The cooked sandbox renders held items, recoil, sights and reloads", "
     REQUIRE(target);
     Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb});
     REQUIRE(renderer.IsValid());
-    const std::array scenes{scene.get()};
     auto draw = [&](std::string_view name) {
         auto* context = device->BeginOffscreenFrame(*target);
         REQUIRE(context);
-        renderer.Render(*context, scenes, target.get());
+        renderer.Render(*context, *scene, target.get());
         device->EndFrame();
         auto pixels = device->DownloadTexture(*target);
         CHECK(Spot::Image(960, 540, pixels).SavePng(std::filesystem::path(SPOT_SANDBOX_CAPTURE_DIR) / name));
@@ -307,12 +304,11 @@ TEST_CASE("The cooked sandbox draws its HUD over the game: in hand, the wheel, h
     Spot::Renderer2D interface(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb});
     REQUIRE(renderer.IsValid());
     REQUIRE(interface.IsValid());
-    const std::array scenes{scene.get()};
     std::filesystem::create_directories(SPOT_SANDBOX_CAPTURE_DIR);
     auto draw = [&](std::string_view name) {
         auto* context = device->BeginOffscreenFrame(*target);
         REQUIRE(context);
-        renderer.Render(*context, scenes, target.get());
+        renderer.Render(*context, *scene, target.get());
         {
             auto pass = context->BeginRenderPass({.target = target.get()});
             interface.Begin(pass, Spot::Scene::ScreenCamera(size), size);

@@ -79,8 +79,7 @@ protected:
     void OnLoad() override {
         m_calls.push_back(m_label + ".load");
         CHECK(IsLoaded());
-        const auto scenes = GetApplication().GetScenes();
-        CHECK(std::ranges::find(scenes, this) != scenes.end());
+        CHECK(GetApplication().GetScene() == this);
         CreateEntity().AddComponent<LoggingComponent>(m_calls, m_label);
     }
     void OnUnload() override { m_calls.push_back(m_label + ".unload"); }
@@ -120,50 +119,65 @@ private:
     int m_frame = 0;
 };
 
-// Runs two scenes side by side, keeps an entity across scene changes and replaces everything on the third frame.
-class MultiSceneApplication final : public Spot::Application {
+class RetainedComponent final : public Spot::Component {
 public:
-    MultiSceneApplication(Spot::ApplicationConfig config, std::vector<std::string>& calls)
-        : Application(std::move(config)), m_calls(calls) {}
+    int starts = 0;
+    int updates = 0;
+    void OnStart() override { ++starts; }
+    void OnUpdate(float) override { ++updates; }
+};
+
+// Retained children detach, carry their descendants, and keep their identity and component state.
+class RetainingApplication final : public Spot::Application {
+public:
+    explicit RetainingApplication(Spot::ApplicationConfig config) : Application(std::move(config)) {}
 
 protected:
-    void OnStart() override {
-        m_base = &LoadScene<LoggingScene>(m_calls, "base");
-        m_overlay = &LoadSceneAdditive<LoggingScene>(m_calls, "overlay");
-        // Unloaded before it had a chance to load.
-        UnloadScene(LoadSceneAdditive<LoggingScene>(m_calls, "dropped"));
-    }
-
-    void OnUpdate(float /*deltaTime*/) override {
-        m_calls.push_back("frame");
-        switch (++m_frame) {
-        case 1: {
-            CHECK(GetScenes() == std::vector<Spot::Scene*>{m_base, m_overlay});
-            CHECK(GetScene() == m_base);
-            Spot::Entity& player = m_base->CreateEntity("Player");
-            player.AddComponent<LoggingComponent>(m_calls, "player");
-            MakePersistent(player);
-            UnloadScene(*m_base);
-            break;
-        }
-        case 2:
-            CHECK(GetScene() == m_overlay);
-            LoadScene<LoggingScene>(m_calls, "next");
-            break;
-        default:
-            CHECK(GetPersistentScene().FindEntity("Player") != nullptr);
-            CHECK(GetScenes().size() == 1);
+    void OnStart() override { LoadScene<Spot::Scene>(); }
+    void OnUpdate(float) override {
+        if (++m_frame == 1) {
+            auto& parent = GetScene()->CreateEntity("Temporary");
+            parent.GetTransform().SetPosition({3, 0, 0});
+            auto& kept = parent.CreateChild("Player");
+            kept.GetTransform().SetPosition({2, 0, 0});
+            kept.SetKeepOnSceneChange();
+            m_component = &kept.AddComponent<RetainedComponent>();
+            auto& music = kept.AddComponent<Spot::AudioSource>();
+            music.sound = std::make_shared<Spot::Sound>(48000, 1, std::vector<float>(48000, 0.1f));
+            music.loop = true;
+            music.spatial = false;
+            kept.CreateChild("Inventory").SetKeepOnSceneChange();
+            m_player = kept.GetId();
+            LoadScene<Spot::Scene>();
+        } else if (m_frame == 2) {
+            auto* player = GetScene()->GetEntity(m_player);
+            REQUIRE(player);
+            CHECK(player->GetParent() == nullptr);
+            CHECK(player->GetComponent<RetainedComponent>() == m_component);
+            CHECK(m_component->starts == 1);
+            CHECK(m_component->updates == 1);
+            CHECK(player->GetComponent<Spot::AudioSource>()->IsPlaying());
+            CHECK(GetScene()->GetSystem<Spot::AudioSystem>());
+            CHECK(player->GetTransform().GetPosition().x == 5.0f);
+            CHECK(player->FindChild("Inventory"));
+            CHECK(GetScene()->FindEntity("Temporary") == nullptr);
+            CHECK(GetScene()->GetEntityCount() == 2);
+            LoadScene<Spot::Scene>();
+        } else if (m_frame == 3) {
+            REQUIRE(GetScene()->GetEntity(m_player));
+            CHECK(m_component->starts == 1);
+            CHECK(m_component->updates == 2);
+            CHECK(GetScene()->GetEntity(m_player)->GetComponent<Spot::AudioSource>()->IsPlaying());
+            LoadScene(nullptr);
+        } else {
+            CHECK(GetScene() == nullptr);
             Quit();
-            break;
         }
     }
-
-    void OnStop() override { m_calls.emplace_back("stop"); }
 
 private:
-    std::vector<std::string>& m_calls;
-    Spot::Scene* m_base = nullptr;
-    Spot::Scene* m_overlay = nullptr;
+    RetainedComponent* m_component = nullptr;
+    Spot::EntityId m_player = Spot::EntityId::Invalid;
     int m_frame = 0;
 };
 
@@ -303,23 +317,13 @@ TEST_CASE("Application pauses its scenes, steps them, and keeps events from them
     CHECK(updates == std::vector<int>{1, 1, 1, 2, 2});
 }
 
-TEST_CASE("Application runs scenes side by side and keeps persistent entities", "[application]") {
-    std::vector<std::string> calls;
-    MultiSceneApplication application(MakeConfig(), calls);
-
+TEST_CASE("Application retains entity subtrees through replacements and destroys them on explicit unload",
+          "[application]") {
+    auto config = MakeConfig();
+    config.audio.manualMix = true;
+    RetainingApplication application(config);
     CHECK(application.Run() == EXIT_SUCCESS);
-
-    CHECK(calls == std::vector<std::string>{
-                       // Frame 1: both scenes load and run; the player moves to the persistent scene, which updates
-                       // first.
-                       "base.load", "overlay.load", "frame", "player.start", "base.start", "base.update",
-                       "overlay.start", "overlay.update",
-                       // Frame 2: the base scene unloads, but the player was moved out of it.
-                       "base.unload", "base.destroy", "frame", "overlay.update",
-                       // Frame 3: everything is replaced by the next scene.
-                       "overlay.unload", "overlay.destroy", "next.load", "frame", "next.start", "next.update",
-                       // Stop: loaded scenes unload, then the persistent scene is cleared.
-                       "stop", "next.unload", "next.destroy", "player.destroy"});
+    CHECK(application.GetScene() == nullptr);
 }
 
 namespace {
@@ -545,4 +549,36 @@ TEST_CASE("Applications load the player's rebinds from the user data folder", "[
     CHECK(run(true) == std::pair(Spot::InputControl::Of(Spot::Key::Space), true));
     CHECK(std::filesystem::is_regular_file(temp.GetPath() / "user" / Spot::Application::InputRebindsFileName));
     CHECK(run(false).first == Spot::InputControl::Of(Spot::Key::J));
+}
+
+TEST_CASE("Scene changes from lifecycle hooks wait until the following frame", "[application]") {
+    struct RedirectScene final : Spot::Scene {
+        explicit RedirectScene(int& updateCount) : updates(updateCount) {}
+        int& updates;
+        void OnLoad() override {
+            // The second queued request supersedes the first.
+            GetApplication().LoadScene<Spot::Scene>();
+            GetApplication().LoadScene(nullptr);
+            CHECK(GetApplication().GetScene() == this);
+        }
+        void OnUpdate(float) override { ++updates; }
+    };
+    struct App final : Spot::Application {
+        explicit App(int& updateCount) : Application(MakeConfig()), updates(updateCount) {}
+        int& updates;
+        int frames = 0;
+        void OnStart() override { LoadScene<RedirectScene>(updates); }
+        void OnUpdate(float) override {
+            if (++frames == 1) {
+                CHECK(GetScene());
+            } else {
+                CHECK(GetScene() == nullptr);
+                Quit();
+            }
+        }
+    };
+    int updates = 0;
+    App app(updates);
+    CHECK(app.Run() == EXIT_SUCCESS);
+    CHECK(updates == 1);
 }
