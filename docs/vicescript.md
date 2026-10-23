@@ -708,7 +708,7 @@ using it swaps in the new code before its next hook (`ScriptComponent::Reload()`
 - `OnStart()` does not run again. The script's coroutines and event subscriptions end; the optional `OnReload()`
   hook runs right after, to start them again (`override func OnReload() { StartCoroutine(Patrol) }`).
 - When the new code fails to compile or initialize, the warning names the script and the old code keeps running.
-- Luau scripts reload too, without keeping state. Exported games never reload: their assets do not change.
+- Luau scripts reload too, keeping their globals that hold values. Exported games never reload: their assets do not change.
 
 ## Scene API
 

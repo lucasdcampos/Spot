@@ -60,7 +60,7 @@ TEST_CASE("Luau accesses its owning entity scene and transforms with both dot an
     auto& script = entity.AddComponent<Spot::ScriptComponent>();
     script.language = "luau";
     script.source = R"(
-        local spot = require("spot")
+        local spot = require("@spot")
         local target = spot.Scene:FindEntityWithTag("player")
         function OnStart()
             if target ~= spot.entity then missing() end
@@ -98,7 +98,7 @@ TEST_CASE("Luau reads and writes game components using the generic registry", "[
     auto& script = scene.CreateEntity("Controller").AddComponent<Spot::ScriptComponent>();
     script.language = "luau";
     script.source = R"(
-        local spot = require("spot")
+        local spot = require("@spot")
         local player = spot.Scene.FindEntity("Player")
         function OnStart()
             if player.Health ~= player:GetComponent("Health") then missing() end
@@ -133,7 +133,7 @@ TEST_CASE("Luau exposes sprite camera and audio with the same descriptors", "[lu
     auto& script = entity.AddComponent<Spot::ScriptComponent>();
     script.language = "luau";
     script.source = R"(
-        local spot = require("spot")
+        local spot = require("@spot")
         function OnStart()
             spot.entity.SpriteRenderer.color = Color(1, 0.5, 0.25, 1)
             spot.entity.SpriteRenderer.color.a = 0.5
@@ -175,7 +175,7 @@ TEST_CASE("Luau component handles cannot retarget replacement components", "[lua
     auto& script = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
     script.language = "luau";
     script.source = R"(
-        local spot = require("spot")
+        local spot = require("@spot")
         local target = spot.Scene.FindEntity("Target")
         local health = target.Health
         function OnUpdate(delta_time)
@@ -206,8 +206,9 @@ TEST_CASE("Luau invalid component access faults only the script with source loca
     auto& script = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
     script.language = "luau";
     script.sourceName = "scripts/handles.luau";
-    script.source = "local spot = require(\"spot\")\nlocal health = spot.Scene.FindEntity(\"Target\").Health\nfunction "
-                    "OnUpdate(delta_time)\nhealth.value = health.value - 1\nend";
+    script.source =
+        "local spot = require(\"@spot\")\nlocal health = spot.Scene.FindEntity(\"Target\").Health\nfunction "
+        "OnUpdate(delta_time)\nhealth.value = health.value - 1\nend";
     scene.Update(0.01f);
     REQUIRE_FALSE(script.IsFaulted());
     target.RemoveComponent(health);
@@ -252,7 +253,7 @@ TEST_CASE("Luau component binding errors reject invalid values without mutation"
         entity.AddComponent<Spot::AudioSource>();
         auto& script = entity.AddComponent<Spot::ScriptComponent>();
         script.language = "luau";
-        script.source = "local spot = require(\"spot\")\nfunction OnStart() " + std::string(statement) + " end";
+        script.source = "local spot = require(\"@spot\")\nfunction OnStart() " + std::string(statement) + " end";
         scene.Update(0.01f);
         CHECK(script.IsFaulted());
         CHECK(health.value == 100);
@@ -274,7 +275,7 @@ TEST_CASE("Luau uses captured input state and frame transitions", "[luau][scene]
     auto& script = entity.AddComponent<Spot::ScriptComponent>();
     script.language = "luau";
     script.source = R"(
-        local spot = require("spot")
+        local spot = require("@spot")
         function OnUpdate(delta_time)
             if spot.Input:IsKeyDown("Right") then
                 spot.entity.Transform.position.x = spot.entity.Transform.position.x + 1
@@ -303,7 +304,7 @@ TEST_CASE("Luau reads lowercase engine object properties", "[luau][scene]") {
     auto& script = entity.AddComponent<Spot::ScriptComponent>();
     script.language = "luau";
     script.source = R"(
-        local spot = require("spot")
+        local spot = require("@spot")
         function OnStart()
             local entity = spot.Component.entity
             entity.name = "Player"
@@ -334,7 +335,7 @@ TEST_CASE("Luau subscribes to events, calls other scripts and receives physics h
     listenerScript.language = "luau";
     listenerScript.sourceName = "scripts/listener.luau";
     listenerScript.source = R"(
-        local spot = require("spot")
+        local spot = require("@spot")
         total = 0
         landed = nil
         function OnStart()
@@ -347,7 +348,7 @@ TEST_CASE("Luau subscribes to events, calls other scripts and receives physics h
     auto& emitterScript = emitter.AddComponent<Spot::ScriptComponent>();
     emitterScript.language = "luau";
     emitterScript.source = R"(
-        local spot = require("spot")
+        local spot = require("@spot")
         function OnUpdate(deltaTime)
             if spot.Scene:Emit("Scored", 5, spot.entity) ~= 1 then error("not delivered") end
             local other = spot.Scene:FindEntity("Listener"):GetScript("listener")
@@ -373,7 +374,7 @@ TEST_CASE("Luau component coroutines yield engine waits", "[luau][scene][corouti
     auto& script = scene.CreateEntity("Owner").AddComponent<Spot::ScriptComponent>();
     script.language = "luau";
     script.source = R"(
-        local spot = require("spot")
+        local spot = require("@spot")
         steps = {}
         function OnStart()
             spot.Component:StartCoroutine(function()

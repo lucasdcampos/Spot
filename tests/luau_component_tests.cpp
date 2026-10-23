@@ -241,7 +241,7 @@ TEST_CASE("Luau source modules load imported assets and share the explicit spot 
     Console console;
     ScriptAssetFixture fixture;
     fixture.Import("scripts/combat.luau", R"(
-        local spot = require("spot")
+        local spot = require("@spot")
         local M = { calls = 0 }
         function M.advance(amount)
             M.calls = M.calls + 1
@@ -250,7 +250,7 @@ TEST_CASE("Luau source modules load imported assets and share the explicit spot 
         return M
     )");
     const auto root = fixture.Import("scripts/player.luau", R"(
-        local combat = require("combat")
+        local combat = require("./combat")
         local Battle = require("./combat.luau")
         function OnStart()
             combat.advance(3)
@@ -290,14 +290,14 @@ TEST_CASE("Luau source modules load imported assets and share the explicit spot 
     CHECK(console.Messages() == std::vector<std::string>{"2", "3"});
 }
 
-TEST_CASE("Luau engine modules require explicit require and accept local aliases", "[luau][scene][libraries]") {
+TEST_CASE("Luau engine libraries are required by alias into locals", "[luau][scene][libraries]") {
     Spot::Scene scene;
     auto& entity = scene.CreateEntity();
     auto& script = entity.AddComponent<Spot::ScriptComponent>();
     script.language = "luau";
     SECTION("Local alias") {
         script.source =
-            "local engine = require(\"spot\")\nfunction OnStart() engine.entity.Transform.position.x = 7 end";
+            "local engine = require(\"@spot\")\nfunction OnStart() engine.entity.Transform.position.x = 7 end";
         scene.Update(0.1f);
         CHECK_FALSE(script.IsFaulted());
         CHECK(entity.GetTransform().GetPosition().x == 7);
@@ -308,7 +308,17 @@ TEST_CASE("Luau engine modules require explicit require and accept local aliases
         CHECK(script.IsFaulted());
     }
     SECTION("No implicit engine globals after require") {
-        script.source = "local spot = require(\"spot\")\nfunction OnStart() print(entity) end";
+        script.source = "local spot = require(\"@spot\")\nfunction OnStart() print(entity) end";
+        scene.Update(0.1f);
+        CHECK(script.IsFaulted());
+    }
+    SECTION("Engine libraries are required by alias") {
+        script.source = "local spot = require(\"spot\")";
+        scene.Update(0.1f);
+        CHECK(script.IsFaulted());
+    }
+    SECTION("Unknown engine libraries fault") {
+        script.source = "local missing = require(\"@missing\")";
         scene.Update(0.1f);
         CHECK(script.IsFaulted());
     }
@@ -336,7 +346,7 @@ TEST_CASE("Luau receives registered native engine libraries without adapter spec
     Spot::Scene scene;
     auto& component = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
     component.language = "luau";
-    component.source = "local combat = require(\"combat\")\nfunction OnStart() print(combat.damage(10, 3)) end";
+    component.source = "local combat = require(\"@combat\")\nfunction OnStart() print(combat.damage(10, 3)) end";
     scene.Update(0.1f);
     CHECK_FALSE(component.IsFaulted());
     CHECK(console.Messages() == std::vector<std::string>{"7"});
@@ -346,7 +356,7 @@ TEST_CASE("Luau supports file scope modules struct formatting and execution budg
     Console console;
     ScriptAssetFixture fixture;
     fixture.Import("scripts/math_helpers.luau", R"(
-        local spot = require("spot")
+        local spot = require("@spot")
         calls = 0
         function step(x)
             calls = calls + 1
@@ -354,7 +364,7 @@ TEST_CASE("Luau supports file scope modules struct formatting and execution budg
         end
     )");
     const auto root = fixture.Import("scripts/actor.luau", R"(
-        local helpers = require("math_helpers")
+        local helpers = require("./math_helpers")
         function OnStart()
             helpers.step(5)
             if Vector2(1, 2) ~= Vector2(1, 2) then missing() end
@@ -391,7 +401,7 @@ TEST_CASE("Luau native lifecycle hooks support nested activity changes and remov
     auto& script = entity.AddComponent<Spot::ScriptComponent>();
     script.language = "luau";
     script.source = R"(
-        local spot = require("spot")
+        local spot = require("@spot")
         function OnEnable() print("enable") end
         function OnDisable() print("disable", spot.Component:IsEnabled()) end
         function OnUpdate(dt)
@@ -414,7 +424,7 @@ TEST_CASE("Luau bounds recursive native activity hooks", "[luau][scene]") {
     auto& script = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
     script.language = "luau";
     script.source = R"(
-        local spot = require("spot")
+        local spot = require("@spot")
         function OnEnable() spot.Component:SetEnabled(false) end
         function OnDisable() spot.Component:SetEnabled(true) end
     )";
@@ -434,7 +444,7 @@ TEST_CASE("Luau components run Luau syntax with type annotations and compound as
     auto& component = scene.CreateEntity("Typed").AddComponent<Spot::ScriptComponent>();
     component.language = "luau";
     component.source = R"(
-        local spot = require("spot")
+        local spot = require("@spot")
         type Counter = { value: number }
         local counter: Counter = { value = 0 }
         local function add(amount: number): number

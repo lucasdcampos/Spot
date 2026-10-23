@@ -41,7 +41,7 @@ Tools reach running scripts through registries that need nothing from a language
 (the runtime's `SetBreakpoints()`; hits report the stack and continue), and `SetScriptProfiling()` with
 `GetScriptProfile()` (the runtime's `SetProfiling()` / `TakeProfile()`). Hooks are always timed as profiler scopes.
 `ScriptComponent::Reload()` swaps in reimported code, carrying what the runtime's `CaptureState()` returns into the
-new one and calling `OnReload()`. Vice implements all of them; Luau provides syntax checks and reloads without state. Normal component activation and
+new one and calling `OnReload()`. Vice and Luau implement all of them. Normal component activation and
 fault guards suspend disabled scripts and isolate runtime failures. Runtime state is discarded on destruction
 and is not serialized. Imported scripts choose a registered runtime from their relative source extension,
 including assets loaded from a pak. Embedded source uses the component's explicit `language` string; `sourceName`
@@ -105,35 +105,72 @@ When `SPOT_ENABLE_LUAU=ON` (the default), `.luau` script assets and `language = 
 isolated Luau state per component:
 
 ```lua
--- Player.luau
-local spot = require("spot")
+-- player.luau
+local spot = require("@spot")
+local combat = require("./combat")
 
-function OnStart()
-    spot.entity:GetTransform():SetPosition(Vector3(1, 2, 3))
-end
+speed = 4 -- a global with a constant value: shown and saved in the inspector
+local hits = 0 -- a local: private to the script
 
 function OnUpdate(deltaTime: number)
     if spot.Input:IsKeyDown("Right") then
-        spot.entity.transform.position.x += deltaTime * 4
+        spot.entity.transform.position.x += deltaTime * speed
     end
 end
 ```
 
 - Luau is fetched at a pinned release; only its parser, compiler and VM are built. Sources are compiled to bytecode
   when a component loads them, and the parser checks syntax for the editor without running anything.
+- `require` follows Luau's require-by-string: an alias names an engine library (`require("@spot")`, or
+  `require("@combat")` for one a game registers with `RegisterScriptLibrary`), and a path starting with `./` or `../`
+  names a module of the project, relative to the requiring script, with `.luau` added when it has no extension. Modules
+  load from imported `ScriptSource` assets, including shipped `.pak` files; each gets an environment of its own over
+  the built-ins, and what it returns (or, when it returns nothing, its globals, read only) is what `require` gives.
 - Engine objects support both dot (`spot.Scene.FindEntity("Player")`) and colon (`spot.Scene:FindEntity("Player")`)
   calls; colon calls go through `__namecall`, without making a function per call.
 - Value types (`Vector2`, `Vector3`, `Color`) are available as global constructors; mutating a field on a struct
-  read from an engine property (`spot.entity.Transform.position.x = 5`, `spot.entity.SpriteRenderer.color.a = 0.5`)
+  read from an engine property (`spot.entity.transform.position.x = 5`, `spot.entity.SpriteRenderer.color.a = 0.5`)
   writes the updated struct back to the owning object.
-- `require("spot")` and registered native libraries return bound `ScriptObject` modules; `require("combat")` or
-  `require("./combat.luau")` loads imported `.luau` `ScriptSource` assets through the shared asset loader (including
-  from shipped `.pak` files). Each module gets an environment of its own over the built-ins.
 - Luau's `base`, `coroutine`, `table`, `string`, `math`, `utf8`, `bit32`, `buffer` and `vector` libraries are opened;
   `os` and `debug` are not. The built-ins are frozen with `luaL_sandbox`: their tables are read only and scripts
   cannot assign their names, so Luau's fast built-in calls stay valid. Reading a name that is neither a built-in nor
   declared faults the script with its location, instead of giving `nil`.
 - Luau's interrupt callback bounds each hook: a runaway loop faults its component instead of hanging the frame.
+
+A script's globals are its object (`GetScriptObject()`, other scripts' `GetScript()`): functions are its methods,
+other values its fields. The tools build on that:
+
+- **Exports.** Top-level assignments of constant values to globals (numbers, strings, booleans, and `Vector2`,
+  `Vector3` or `Color` built from numbers) are the script's exported fields, read from the syntax tree without
+  running it. The inspector shows them, and the values saved for a component are assigned after the script's top
+  level runs, before `OnStart`. Use `local` for state that is not a field.
+- **Reloading.** New code keeps the globals of the old that hold values (numbers, strings, booleans, value types and
+  engine references), when the new code still declares them with a value of the same type or nil. Locals, tables and
+  functions start over.
+- **Breakpoints.** `lua_breakpoint` patches the first instruction of the line in each function, or of the next line
+  with code; the `debugbreak` callback reports the stack with each frame's locals, formatted without running script
+  code, and lets the frame continue. Scripts are compiled at optimization level 1 and debug level 2 for that.
+- **Profiling.** While on, the interrupt callback samples at Luau's safepoints (calls, returns and loop iterations):
+  the time since the last one goes to the function running, and a deeper frame counts a call. `instructions` counts
+  those safepoints, and `allocations` the collectable objects (tables, strings, closures, userdata) made while the
+  function was innermost, including those the engine made for it.
+
+### Writing scripts in other editors
+
+Spot checks Luau scripts with any editor that runs Luau's language server, [luau-lsp](https://github.com/JohnnyMorganz/luau-lsp)
+(VS Code, Zed, Neovim and others). The tools write the engine's API into the project's generated files, from
+`ScriptApi`, whenever the editor opens a project or `spot cook` runs (`tools/project/luau_tooling.h`):
+
+- `.spot/luau/spot.luau` is the module `require("@spot")` resolves to. It does nothing, but its type describes every
+  engine object, as structural types (`spot.Entity`, `spot.Vector3`...), so a project's `.luaurc` aliasing `spot` to it
+  is all the language server needs to complete and check engine calls.
+- `.spot/luau/spot.d.luau` declares the global constructors, in Luau's definition file syntax. Load it as the editor's
+  luau-lsp settings say: `"luau-lsp.types.definitionFiles": {"spot": ".spot/luau/spot.d.luau"}` in VS Code, or
+  `--definitions=@spot=.spot/luau/spot.d.luau` for luau-lsp's command line. Set the platform to `standard`.
+
+`WriteLuauTooling()` adds the alias to the project's `.luaurc`, or writes one that also turns off the
+`FunctionUnused` lint: a script's global functions are what the engine and other scripts call. The editor does it
+when opening a project or a file in the external editor (see [the editor](editor.md#scripts)).
 
 ## Adding a language
 

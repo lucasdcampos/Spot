@@ -234,7 +234,7 @@ TEST_CASE("ViceScript editing supports indentation and unfinished syntax", "[edi
 
 TEST_CASE("Luau editing configures Luau syntax highlighting and engine identifiers", "[editor][code][luau][ui]") {
     CodeFixture fixture;
-    fixture.Open("hello.luau", "-- hello\nlocal spot = require(\"spot\")\nfunction OnStart() end\n");
+    fixture.Open("hello.luau", "-- hello\nlocal spot = require(\"@spot\")\nfunction OnStart() end\n");
     CHECK(fixture.Editor().GetLanguageName() == "Luau");
     CHECK(fixture.Editor().GetLanguage()->keywords.contains("nil"));
     CHECK_FALSE(fixture.Editor().GetLanguage()->keywords.contains("null"));
@@ -424,37 +424,36 @@ TEST_CASE("ViceScript templates create component classes with valid names and na
     }
 }
 
-TEST_CASE("The code editor shows the first syntax error while editing", "[editor][code][vice]") {
+TEST_CASE("The code editor shows the first syntax error while editing", "[editor][code][luau]") {
     CodeFixture fixture;
-    fixture.Open("scripts/broken.vice", "class Broken : Component {\n    var speed = \n}\n");
+    fixture.Open("scripts/broken.luau", "function OnStart()\n    local speed = \nend\n");
     REQUIRE(fixture.panel.GetItemRect("Diagnostic").has_value());
     CHECK(fixture.Editor().HasMarkers());
-    fixture.Replace("class Fixed : Component {\n    var speed = 3\n}\n");
+    fixture.Replace("function OnStart()\n    local speed = 3\nend\n");
     for (int i = 0; i < 30; ++i)
         fixture.imgui.Frame();
     CHECK_FALSE(fixture.panel.GetItemRect("Diagnostic").has_value());
     CHECK_FALSE(fixture.Editor().HasMarkers());
 }
 
-TEST_CASE("The code editor sets breakpoints and shows where scripts stopped", "[editor][code][vice][ui]") {
+TEST_CASE("The code editor sets breakpoints and shows where scripts stopped", "[editor][code][luau][ui]") {
     CodeFixture fixture;
-    const std::string source = "class Stopper : Component {\n"
-                               "    override func OnUpdate(deltaTime) {\n"
-                               "        const speed = 3\n"
-                               "        print(speed)\n"
-                               "    }\n"
-                               "}\n";
-    fixture.Open("scripts/stopper.vice", source);
+    const std::string source = "-- stopper\n"
+                               "function OnUpdate(deltaTime)\n"
+                               "    local speed = 3\n"
+                               "    print(speed)\n"
+                               "end\n";
+    fixture.Open("scripts/stopper.luau", source);
     fixture.Editor().SetCursor({3, 0});
     fixture.imgui.Frame();
     fixture.Click("Breakpoint");
-    CHECK(Spot::GetScriptBreakpoints("scripts/stopper.vice") == std::vector<std::size_t>{4});
+    CHECK(Spot::GetScriptBreakpoints("scripts/stopper.luau") == std::vector<std::size_t>{4});
     CHECK(fixture.Editor().HasMarkers());
 
     Spot::Scene scene;
     auto& script = scene.CreateEntity("Stopper").AddComponent<Spot::ScriptComponent>();
-    script.language = "vice";
-    script.sourceName = "scripts/stopper.vice";
+    script.language = "luau";
+    script.sourceName = "scripts/stopper.luau";
     script.source = source;
     scene.Update(1.0f / 60.0f);
     fixture.imgui.Frame();
@@ -465,7 +464,7 @@ TEST_CASE("The code editor sets breakpoints and shows where scripts stopped", "[
     CHECK_FALSE(fixture.panel.GetItemRect("Continue").has_value());
 
     fixture.Click("Breakpoint");
-    CHECK(Spot::GetScriptBreakpoints("scripts/stopper.vice").empty());
+    CHECK(Spot::GetScriptBreakpoints("scripts/stopper.luau").empty());
 }
 
 namespace {

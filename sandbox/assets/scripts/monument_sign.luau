@@ -1,9 +1,9 @@
-local spot = require("spot")
+local spot = require("@spot")
 
 -- The plaza's neon sign breathes and floats without moving its solid plinth.
 local transform
-local basePosition: Vector3
-local baseScale: Vector3
+local basePosition: spot.Vector3
+local baseScale: spot.Vector3
 local neon
 local pulse = 0
 local direction = 1

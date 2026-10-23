@@ -3,6 +3,7 @@
 #include "core/editor_settings.h"
 #include "imgui/widgets.h"
 #include "project/editor_project.h"
+#include "project/external_editor.h"
 
 #include <spot.h>
 #include <spot_tools.h>
@@ -346,4 +347,37 @@ TEST_CASE("New components need C++ class names that no type or file has", "[edit
     CHECK_FALSE(ValidateComponentName(*project, "actors", "Player").empty());
     CHECK(ValidateComponentName(*project, "", "Player").empty());
     CHECK_FALSE(Spot::CreateComponentCode(*project, "actors", "Player"));
+}
+
+TEST_CASE("External editor commands open the project or a file where the user's command puts them",
+          "[editor][project]") {
+    using Spot::Editor::MakeExternalEditorCommand;
+    const std::filesystem::path project = std::filesystem::path("Games") / "My Game";
+    const std::filesystem::path file = project / "assets" / "player.luau";
+    const std::string folder = Spot::PathToUtf8(project);
+    const std::string script = Spot::PathToUtf8(file);
+
+    CHECK(MakeExternalEditorCommand("", project).empty());
+    CHECK(MakeExternalEditorCommand("  ", project, file).empty());
+    CHECK(MakeExternalEditorCommand("zed", project) == std::vector<std::string>{"zed", folder});
+    CHECK(MakeExternalEditorCommand("zed", project, file) == std::vector<std::string>{"zed", script});
+    CHECK(MakeExternalEditorCommand("code {project} --goto {file}:{line}", project, file, 12) ==
+          std::vector<std::string>{"code", folder, "--goto", script + ":12"});
+    CHECK(MakeExternalEditorCommand("code {project} --goto {file}:{line}", project) ==
+          std::vector<std::string>{"code", folder, "--goto", folder + ":1"});
+    CHECK(MakeExternalEditorCommand(R"("C:\Program Files\Editor\editor.exe" "{file}" -n)", project, file) ==
+          std::vector<std::string>{R"(C:\Program Files\Editor\editor.exe)", script, "-n"});
+}
+
+TEST_CASE("The external editor command is kept with the editor settings", "[editor][project]") {
+    TempDirectory temp;
+    const auto file = temp.GetPath() / "settings.json";
+    {
+        Spot::Editor::EditorSettings settings(file);
+        settings.GetPreferences().externalEditor = "code {project}";
+        REQUIRE(settings.Save());
+    }
+    Spot::Editor::EditorSettings settings(file);
+    settings.Load();
+    CHECK(settings.GetPreferences().externalEditor == "code {project}");
 }

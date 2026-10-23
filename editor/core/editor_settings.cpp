@@ -84,6 +84,7 @@ void EditorSettings::Load() {
         m_preferences.buildOnChange = preferences->value("buildOnChange", m_preferences.buildOnChange);
         m_preferences.backupMinutes = std::clamp(preferences->value("backupMinutes", m_preferences.backupMinutes), 0,
                                                  EditorPreferences::MaxBackupMinutes);
+        m_preferences.externalEditor = preferences->value("externalEditor", m_preferences.externalEditor);
     }
 }
 
@@ -113,6 +114,7 @@ bool EditorSettings::Save() const {
         {"clearConsoleOnPlay", m_preferences.clearConsoleOnPlay},
         {"buildOnChange", m_preferences.buildOnChange},
         {"backupMinutes", m_preferences.backupMinutes},
+        {"externalEditor", m_preferences.externalEditor},
     };
     const json document = {
         {"recentProjects", recent},

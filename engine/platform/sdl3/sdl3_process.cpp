@@ -132,6 +132,34 @@ std::unique_ptr<Process> Process::Start(std::span<const std::string> arguments,
     return std::unique_ptr<Process>(new Process(std::move(impl)));
 }
 
+bool Process::Launch(std::span<const std::string> arguments, const std::filesystem::path& workingDirectory) {
+    if (arguments.empty()) {
+        Log::GetEngineLogger().Error("A process needs a program to run");
+        return false;
+    }
+    std::vector<const char*> argv;
+    for (const std::string& argument : arguments) {
+        argv.push_back(argument.c_str());
+    }
+    argv.push_back(nullptr);
+    const std::string directory = PathToUtf8(workingDirectory);
+    const SDL_PropertiesID properties = SDL_CreateProperties();
+    SDL_SetPointerProperty(properties, SDL_PROP_PROCESS_CREATE_ARGS_POINTER, argv.data());
+    if (!workingDirectory.empty()) {
+        SDL_SetStringProperty(properties, SDL_PROP_PROCESS_CREATE_WORKING_DIRECTORY_STRING, directory.c_str());
+    }
+    SDL_SetBooleanProperty(properties, SDL_PROP_PROCESS_CREATE_BACKGROUND_BOOLEAN, true);
+    SDL_Process* process = SDL_CreateProcessWithProperties(properties);
+    SDL_DestroyProperties(properties);
+    if (!process) {
+        Log::GetEngineLogger().Error("Could not run '{}': {}", arguments.front(), SDL_GetError());
+        return false;
+    }
+    // Destroying the handle leaves the program running.
+    SDL_DestroyProcess(process);
+    return true;
+}
+
 Process::~Process() {
     if (IsRunning()) {
         Kill();

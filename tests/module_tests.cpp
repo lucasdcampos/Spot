@@ -4,9 +4,13 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <array>
+#include <chrono>
 #include <cstdlib>
+#include <filesystem>
+#include <format>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace {
@@ -103,4 +107,20 @@ TEST_CASE("Processes run programs and give back what they wrote and their exit c
 
     const std::array missing{std::string("spot-no-such-program")};
     CHECK_FALSE(Spot::Process::Start(missing));
+}
+
+TEST_CASE("Launched processes run on their own", "[module]") {
+    const auto marker =
+        std::filesystem::temp_directory_path() / std::format("spot_launch_{}", Spot::AssetId::Generate().ToString());
+    const std::array touch{std::string(SPOT_CMAKE_COMMAND), std::string("-E"), std::string("touch"),
+                           Spot::PathToUtf8(marker)};
+    REQUIRE(Spot::Process::Launch(touch));
+    for (int i = 0; i < 200 && !std::filesystem::exists(marker); ++i)
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    CHECK(std::filesystem::exists(marker));
+    std::error_code error;
+    std::filesystem::remove(marker, error);
+
+    const std::array missing{std::string("spot-no-such-program")};
+    CHECK_FALSE(Spot::Process::Launch(missing));
 }

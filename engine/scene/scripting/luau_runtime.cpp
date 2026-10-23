@@ -9,8 +9,11 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstdint>
+#include <map>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -24,6 +27,7 @@ namespace {
 constexpr const char* ObjectsRegistryKey = "Spot.LuauObjects";
 constexpr const char* ModulesRegistryKey = "Spot.LuauModules";
 constexpr const char* BuiltinsRegistryKey = "Spot.LuauBuiltins";
+constexpr const char* DeclaredRegistryKey = "Spot.LuauDeclared";
 constexpr int StructTag = 1;
 constexpr int ObjectTag = 2;
 // Interrupts come at loop back edges and calls, so this bounds the iterations of a runaway hook.
@@ -130,11 +134,58 @@ struct LuauGlobals final : ScriptObject {
 };
 
 // Compiles a source for luau_load(); a syntax error gives bytecode that makes luau_load() fail with its message.
+// Optimization level 1 keeps every line breakable, and debug level 2 keeps the names of locals for breakpoints.
 std::string Compile(std::string_view text) {
     Luau::CompileOptions options;
     options.optimizationLevel = 1;
-    options.debugLevel = 1;
+    options.debugLevel = 2;
     return Luau::compile(std::string(text), options);
+}
+
+// What a function profile is filed under: functions are told apart by where they are defined.
+struct ProfileKey {
+    std::string sourceName;
+    int line = 0;
+    std::string name;
+    auto operator<=>(const ProfileKey&) const = default;
+};
+
+// The value of a constant expression, as a field's default: numbers, strings, booleans and value types built from
+// numbers. Nothing for anything that would have to run.
+std::optional<ScriptValue> ReadConstant(const Luau::AstExpr* expression) {
+    if (const auto* group = expression->as<Luau::AstExprGroup>())
+        return ReadConstant(group->expr);
+    if (const auto* assertion = expression->as<Luau::AstExprTypeAssertion>())
+        return ReadConstant(assertion->expr);
+    if (const auto* number = expression->as<Luau::AstExprConstantNumber>())
+        return number->value;
+    if (const auto* boolean = expression->as<Luau::AstExprConstantBool>())
+        return boolean->value;
+    if (const auto* text = expression->as<Luau::AstExprConstantString>())
+        return std::string(text->value.data, text->value.size);
+    if (const auto* unary = expression->as<Luau::AstExprUnary>(); unary && unary->op == Luau::AstExprUnary::Op::Minus) {
+        if (const auto value = ReadConstant(unary->expr); value && std::holds_alternative<double>(*value))
+            return -std::get<double>(*value);
+        return std::nullopt;
+    }
+    if (const auto* call = expression->as<Luau::AstExprCall>()) {
+        const auto* constructor = call->func->as<Luau::AstExprGlobal>();
+        if (!constructor || call->self || !ScriptApi::IsValueConstructor(constructor->name.value))
+            return std::nullopt;
+        std::vector<ScriptValue> arguments;
+        for (const Luau::AstExpr* argument : call->args) {
+            const auto value = ReadConstant(argument);
+            if (!value || !std::holds_alternative<double>(*value))
+                return std::nullopt;
+            arguments.push_back(*value);
+        }
+        try {
+            return Detail::ConstructScriptStruct(constructor->name.value, arguments);
+        } catch (const std::exception&) {
+            return std::nullopt;
+        }
+    }
+    return std::nullopt;
 }
 
 class LuauRuntime final : public ScriptRuntime {
@@ -153,6 +204,7 @@ public:
                 throw std::runtime_error(error ? error : "Failed to parse Luau script");
             }
             m_mainChunkRef = lua_ref(m_state, -1);
+            AddChunk(m_state, m_name);
             lua_pop(m_state, 1);
         } catch (...) {
             lua_close(m_state);
@@ -264,6 +316,44 @@ public:
         return m_initialized ? std::make_shared<LuauGlobals>(*this, m_life) : nullptr;
     }
 
+    // The script's globals that hold values of their own; functions and tables belong to the old code.
+    std::vector<std::pair<std::string, ScriptValue>> CaptureState() override {
+        std::vector<std::pair<std::string, ScriptValue>> state;
+        lua_pushnil(m_state);
+        while (lua_next(m_state, LUA_GLOBALSINDEX) != 0) {
+            const int type = lua_type(m_state, -1);
+            if (lua_type(m_state, -2) == LUA_TSTRING && type != LUA_TFUNCTION && type != LUA_TTABLE) {
+                try {
+                    state.emplace_back(ToKey(m_state, -2), ToScriptValue(m_state, -1));
+                } catch (const std::exception&) {
+                    // A value the engine cannot hold, such as a thread, starts over with the new code.
+                }
+            }
+            lua_pop(m_state, 1);
+        }
+        return state;
+    }
+
+    void SetBreakpoints(const std::map<std::string, std::vector<std::size_t>>& breakpoints) override {
+        m_requestedBreakpoints = breakpoints;
+        for (const auto& [source, reference] : m_chunks)
+            ApplyBreakpoints(source, reference);
+    }
+
+    void SetProfiling(bool enabled) override {
+        m_profiling = enabled;
+        lua_callbacks(m_state)->onallocate = enabled ? &OnAllocate : nullptr;
+    }
+    std::vector<ScriptFunctionProfile> TakeProfile() override {
+        std::vector<ScriptFunctionProfile> profile;
+        profile.reserve(m_profile.size());
+        for (auto& [key, function] : m_profile)
+            profile.push_back(std::move(function));
+        m_profile.clear();
+        m_profileByProto.clear();
+        return profile;
+    }
+
     // Runs a registry function, or a global one when the reference is LUA_NOREF, in the script's invocation scope.
     ScriptValue InvokeForeign(int reference, std::string_view global, std::span<const ScriptValue> arguments) {
         ScriptValue result;
@@ -285,6 +375,14 @@ public:
             result = ToScriptValue(m_state, -1);
         });
         return result;
+    }
+    // Whether the script assigned a global, even if only nil, which leaves no value behind.
+    bool IsDeclared(std::string_view name) const {
+        lua_getfield(m_state, LUA_REGISTRYINDEX, DeclaredRegistryKey);
+        lua_pushlstring(m_state, name.data(), name.size());
+        const bool declared = lua_rawget(m_state, -2) != LUA_TNIL;
+        lua_pop(m_state, 2);
+        return declared;
     }
     int GlobalType(std::string_view name) const {
         lua_pushlstring(m_state, name.data(), name.size());
@@ -390,6 +488,8 @@ private:
             if (outermost) {
                 runtime.m_running = true;
                 runtime.m_interrupts = 0;
+                runtime.m_sampledThread = nullptr;
+                runtime.m_lastSample = std::chrono::steady_clock::now();
             }
         }
         ~RunScope() {
@@ -410,8 +510,142 @@ private:
         if (gc >= 0)
             return;
         auto& runtime = FromState(state);
-        if (runtime.m_running && ++runtime.m_interrupts > MaxInterruptsPerCall)
+        if (!runtime.m_running)
+            return;
+        if (++runtime.m_interrupts > MaxInterruptsPerCall)
             RaiseLuauError(state, "Execution limit exceeded");
+        if (runtime.m_profiling)
+            runtime.Sample(state);
+    }
+
+    static void OnDebugBreak(lua_State* state, lua_Debug*) { FromState(state).ReportBreak(state); }
+
+    // Luau patches the first instruction of a breakpoint's line in each function, so a pass over the line stops once.
+    void ReportBreak(lua_State* state) {
+        lua_Debug info{};
+        ScriptBreak stop;
+        for (int level = 0; lua_getinfo(state, level, "sln", &info); ++level) {
+            if (info.what && std::string_view(info.what) == "C")
+                continue;
+            ScriptDebugFrame frame;
+            frame.function = info.name                                            ? info.name
+                             : info.what && std::string_view(info.what) == "main" ? "main"
+                                                                                  : "<anonymous>";
+            frame.sourceName = info.short_src;
+            frame.line = info.currentline > 0 ? static_cast<std::size_t>(info.currentline) : 0;
+            for (int index = 1;; ++index) {
+                const char* local = lua_getlocal(state, level, index);
+                if (!local)
+                    break;
+                // Names in parentheses are the compiler's temporaries.
+                if (local[0] != '(')
+                    frame.locals.emplace_back(local, FormatLocal(state, -1));
+                lua_pop(state, 1);
+            }
+            stop.frames.push_back(std::move(frame));
+        }
+        Detail::ReportScriptBreak(stop);
+    }
+
+    // Formats a local without calling into the script, which a stopped frame must not do.
+    std::string FormatLocal(lua_State* state, int index) {
+        switch (lua_type(state, index)) {
+        case LUA_TNIL:
+        case LUA_TBOOLEAN:
+        case LUA_TNUMBER:
+        case LUA_TSTRING:
+            return Detail::FormatScriptValue(ToScriptValue(state, index), "nil");
+        case LUA_TUSERDATA:
+            if (const auto* structData = ToStruct(state, index))
+                return Detail::FormatScriptValue(structData->value, "nil");
+            if (ToObject(state, index))
+                return "<object>";
+            break;
+        default:
+            break;
+        }
+        return luaL_typename(state, index);
+    }
+
+    // The profile of the function at a level of the stack, found by its prototype once it has been seen.
+    ScriptFunctionProfile* ProfileOf(lua_State* state, int level) {
+        lua_Debug info{};
+        if (!lua_getinfo(state, level, "p", &info))
+            return nullptr;
+        if (const auto found = m_profileByProto.find(info.protoid); found != m_profileByProto.end())
+            return found->second;
+        if (!lua_getinfo(state, level, "sn", &info))
+            return nullptr;
+        ProfileKey key{info.short_src, info.linedefined, info.name ? info.name : "<anonymous>"};
+        if (info.what && std::string_view(info.what) == "main")
+            key.name = "main";
+        auto [entry, added] = m_profile.try_emplace(key);
+        if (added) {
+            entry->second.name = key.name;
+            entry->second.sourceName = key.sourceName;
+            entry->second.line = static_cast<std::size_t>(std::max(key.line, 0));
+        }
+        m_profileByProto.emplace(info.protoid, &entry->second);
+        return &entry->second;
+    }
+
+    // Adds the time since the last safepoint to the function running now, which is where it went: safepoints come
+    // at calls, returns and loop iterations, so engine calls count in the script function that made them.
+    void Sample(lua_State* state) {
+        const auto now = std::chrono::steady_clock::now();
+        const auto elapsed = now - m_lastSample;
+        m_lastSample = now;
+        ScriptFunctionProfile* function = ProfileOf(state, 0);
+        if (!function)
+            return;
+        // A deeper frame of the same thread is a call that started since the last safepoint.
+        const int depth = lua_stackdepth(state);
+        if (state != m_sampledThread || depth > m_sampledDepth)
+            ++function->calls;
+        m_sampledThread = state;
+        m_sampledDepth = depth;
+        ++function->instructions;
+        function->time += std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed);
+    }
+
+    // Counts collectable objects (tables, strings, closures, userdata) in the innermost script function, including
+    // those the engine makes for it; the VM's own buffers have no type.
+    static void OnAllocate(lua_State* state, void*, std::size_t, std::size_t, std::uint8_t, int type, int) {
+        auto& runtime = FromState(state);
+        if (type == LUA_T_ALL || !runtime.m_running)
+            return;
+        lua_Debug info{};
+        for (int level = 0; lua_getinfo(state, level, "p", &info); ++level) {
+            if (info.protoid != 0) {
+                if (ScriptFunctionProfile* function = runtime.ProfileOf(state, level))
+                    ++function->allocations;
+                return;
+            }
+        }
+    }
+
+    // Keeps a loaded chunk, the function at the top of the stack, so breakpoints can be set in its code.
+    void AddChunk(lua_State* state, const std::string& sourceName) {
+        const auto [chunk, added] = m_chunks.try_emplace(sourceName, LUA_NOREF);
+        if (!added)
+            return;
+        chunk->second = lua_ref(state, -1);
+        ApplyBreakpoints(sourceName, chunk->second);
+    }
+
+    void ApplyBreakpoints(const std::string& sourceName, int reference) {
+        lua_getref(m_state, reference);
+        auto& active = m_activeBreakpoints[sourceName];
+        for (const int line : active)
+            lua_breakpoint(m_state, -1, line, 0);
+        active.clear();
+        if (const auto requested = m_requestedBreakpoints.find(sourceName); requested != m_requestedBreakpoints.end()) {
+            for (const std::size_t line : requested->second) {
+                if (const int target = lua_breakpoint(m_state, -1, static_cast<int>(line), 1); target != -1)
+                    active.push_back(target);
+            }
+        }
+        lua_pop(m_state, 1);
     }
 
     // Pushes a global of the script, as found without metamethods; returns whether it is a function.
@@ -762,23 +996,25 @@ private:
         if (request.empty())
             RaiseLuauError(state, "Module name cannot be empty");
 
-        if (const auto native = runtime.m_libraries.find(request); native != runtime.m_libraries.end()) {
+        // Luau's require-by-string: aliases name engine libraries, paths name the project's modules.
+        if (request.starts_with('@')) {
+            const auto native = runtime.m_libraries.find(request.substr(1));
+            if (native == runtime.m_libraries.end())
+                RaiseLuauError(state, "Unknown engine library '" + request + "'");
             runtime.PushObject(state, native->second);
             return 1;
         }
-        if (IsStandardLibraryName(request) && request != "base") {
-            lua_getfield(state, LUA_REGISTRYINDEX, BuiltinsRegistryKey);
-            lua_getfield(state, -1, request.c_str());
-            lua_remove(state, -2);
-            return 1;
-        }
+        if (!request.starts_with("./") && !request.starts_with("../"))
+            RaiseLuauError(state, "Cannot require '" + request +
+                                      "': modules are required by a path starting with ./ or ../, engine libraries "
+                                      "by an alias such as @spot");
 
         std::string failure;
         try {
             if (!runtime.m_loader)
                 throw std::runtime_error("Cannot load module '" + request + "'");
             const std::string importer = runtime.m_moduleStack.empty() ? runtime.m_name : runtime.m_moduleStack.back();
-            const std::string resolved = Detail::ResolveScriptModulePath(request, ".luau", true);
+            const std::string resolved = Detail::ResolveScriptModulePath(request, ".luau");
             auto source = runtime.m_loader(resolved, importer);
             if (!source || source->sourceName.empty())
                 throw std::runtime_error("Could not load module '" + request + "'");
@@ -805,6 +1041,7 @@ private:
                 const char* error = lua_tostring(state, -1);
                 throw std::runtime_error(error ? error : "Failed to parse module");
             }
+            runtime.AddChunk(state, source->sourceName);
 
             runtime.m_loadingModules.push_back(source->sourceName);
             runtime.m_moduleStack.push_back(source->sourceName);
@@ -852,6 +1089,7 @@ private:
     void SetUpState() {
         lua_callbacks(m_state)->userdata = this;
         lua_callbacks(m_state)->interrupt = &OnInterrupt;
+        lua_callbacks(m_state)->debugbreak = &OnDebugBreak;
 
         // Weak-valued table for ScriptObject* -> LuauObject userdata identity cache.
         lua_newtable(m_state);
@@ -919,7 +1157,7 @@ private:
         lua_pushvalue(m_state, LUA_GLOBALSINDEX);
         lua_setfield(m_state, LUA_REGISTRYINDEX, BuiltinsRegistryKey);
         PushEnvironment(m_state);
-        lua_pop(m_state, 1);
+        lua_setfield(m_state, LUA_REGISTRYINDEX, DeclaredRegistryKey);
         lua_replace(m_state, LUA_GLOBALSINDEX);
     }
 
@@ -937,6 +1175,16 @@ private:
     ScriptSourceLoader m_loader;
     std::vector<std::string> m_loadingModules;
     std::vector<std::string> m_moduleStack;
+    // Registry references of the root and module chunks, by source name, and their breakpoints.
+    std::map<std::string, int> m_chunks;
+    std::map<std::string, std::vector<std::size_t>> m_requestedBreakpoints;
+    std::unordered_map<std::string, std::vector<int>> m_activeBreakpoints;
+    bool m_profiling = false;
+    std::map<ProfileKey, ScriptFunctionProfile> m_profile;
+    std::unordered_map<int, ScriptFunctionProfile*> m_profileByProto;
+    lua_State* m_sampledThread = nullptr;
+    int m_sampledDepth = 0;
+    std::chrono::steady_clock::time_point m_lastSample;
 };
 
 LuauFunction::~LuauFunction() {
@@ -978,7 +1226,7 @@ bool LuauGlobals::HasMethod(std::string_view name) const {
 }
 bool LuauGlobals::HasProperty(std::string_view name) const {
     const int type = Runtime().GlobalType(name);
-    return type != LUA_TNIL && type != LUA_TFUNCTION;
+    return type == LUA_TNIL ? Runtime().IsDeclared(name) : type != LUA_TFUNCTION;
 }
 ScriptValue LuauGlobals::Get(std::string_view name) const {
     // Functions are methods: callers bind them through Call().
@@ -1005,6 +1253,32 @@ std::optional<ScriptDiagnostic> Detail::CheckLuauSyntax(std::string_view text, s
     return ScriptDiagnostic{.line = error.getLocation().begin.line + 1,
                             .column = error.getLocation().begin.column + 1,
                             .message = error.getMessage()};
+}
+
+std::vector<ScriptExport> Detail::ReadLuauExports(std::string_view text, std::string_view) {
+    Luau::Allocator allocator;
+    Luau::AstNameTable names(allocator);
+    const Luau::ParseResult result = Luau::Parser::parse(text.data(), text.size(), names, allocator);
+    if (!result.errors.empty())
+        throw std::runtime_error(result.errors.front().getMessage());
+    // Globals the script's top level gives constant values; locals stay private.
+    std::vector<ScriptExport> exports;
+    for (const Luau::AstStat* statement : result.root->body) {
+        const auto* assignment = statement->as<Luau::AstStatAssign>();
+        if (!assignment)
+            continue;
+        for (std::size_t i = 0; i < assignment->vars.size && i < assignment->values.size; ++i) {
+            const auto* global = assignment->vars.data[i]->as<Luau::AstExprGlobal>();
+            if (!global)
+                continue;
+            const std::string name = global->name.value;
+            if (std::ranges::any_of(exports, [&](const ScriptExport& field) { return field.name == name; }))
+                continue;
+            if (auto value = ReadConstant(assignment->values.data[i]))
+                exports.push_back({name, std::move(*value)});
+        }
+    }
+    return exports;
 }
 
 std::unique_ptr<ScriptRuntime> Detail::CreateLuauRuntime(std::string_view text, std::string_view name) {

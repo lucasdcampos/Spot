@@ -44,6 +44,9 @@ struct EditorPreferences {
     // Minutes between backups of scenes with unsaved changes, which come back if the editor stops before they are
     // saved; 0 makes none.
     int backupMinutes = 5;
+    // The command that opens the project or a script in the user's code editor, such as
+    // "code {project} --goto {file}:{line}"; see MakeExternalEditorCommand(). Empty hands them to the OS.
+    std::string externalEditor;
 };
 
 struct RecentProject {

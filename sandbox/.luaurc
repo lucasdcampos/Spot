@@ -1,0 +1,9 @@
+{
+    "aliases": {
+        "spot": ".spot/luau/spot"
+    },
+    "languageMode": "nonstrict",
+    "lint": {
+        "FunctionUnused": false
+    }
+}

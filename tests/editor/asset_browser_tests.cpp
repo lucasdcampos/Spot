@@ -633,7 +633,7 @@ TEST_CASE("The asset browser creates Luau script templates and opens them in the
     REQUIRE(std::filesystem::is_regular_file(fixture.assets / "scripts/New Script.luau.meta"));
     const auto script = fixture.Project().GetAssets().Load<Spot::ScriptSource>(*id);
     REQUIRE(script);
-    CHECK(script->source.starts_with("-- New Script.luau\n\nlocal spot = require(\"spot\")\n\n"));
+    CHECK(script->source.starts_with("-- New Script.luau\n\nlocal spot = require(\"@spot\")\n\n"));
     CHECK(script->source.find("function OnStart()\n    \nend") != std::string::npos);
     CHECK(script->source.find("function OnUpdate(deltaTime)\n    \nend") != std::string::npos);
 #ifdef SPOT_ENABLE_LUAU

@@ -13,6 +13,7 @@
 #include "panels/inspector_panel.h"
 #include "panels/profiler_panel.h"
 #include "panels/project_settings_panel.h"
+#include "project/external_editor.h"
 #include "scene/entity_actions.h"
 
 #include <imgui_internal.h>
@@ -655,6 +656,9 @@ void EditorApplication::DrawFileMenu() {
     const bool hasCode = hasProject && m_context->GetProject()->GetModules().HasCode();
     if (MenuItem(ICON_FA_HAMMER "  Build Game Code", ImGuiMod_Ctrl | ImGuiKey_B, hasCode)) {
         m_context->GetProject()->GetModules().Build(ModuleHost::BuildScope::Game);
+    }
+    if (MenuItem(ICON_FA_CODE "  Open in External Editor", 0, hasProject)) {
+        OpenInExternalEditor(m_settings.GetPreferences().externalEditor, m_context->GetProject()->GetProject());
     }
     if (MenuItem(ICON_FA_GEAR "  Project Settings...", 0, hasProject)) {
         if (Panel* settings = FindPanel("ProjectSettings")) {

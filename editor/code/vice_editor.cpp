@@ -77,7 +77,7 @@ void AttachViceCompletion(TextEditor& editor) {
 
 std::string MakeLuauScriptTemplate(std::string_view name) {
     return "-- " + std::string(name) +
-           "\n\nlocal spot = require(\"spot\")\n\nfunction OnStart()\n    \nend\n\nfunction OnUpdate(deltaTime)\n    "
+           "\n\nlocal spot = require(\"@spot\")\n\nfunction OnStart()\n    \nend\n\nfunction OnUpdate(deltaTime)\n    "
            "\nend\n";
 }
 

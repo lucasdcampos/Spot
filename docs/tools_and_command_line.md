@@ -73,7 +73,8 @@ spot help
 ```
 
 A project is its `.spot` file or the folder that has one; the current folder by default. `cook` imports what
-changed, and with `--out` cooks the game into that folder. `new --code none` makes a project without code. `build` builds the game's executable and module, and
+changed and writes the engine's API for Luau's language server into `.spot/luau/` (`WriteLuauTypes()`, see
+[scripting](scripting.md#writing-scripts-in-other-editors)), and with `--out` cooks the game into that folder. `new --code none` makes a project without code. `build` builds the game's executable and module, and
 does nothing for a game without code; `run` and `export` skip building those too. `run`
 builds, imports and runs the game. `export` builds the game and makes its shipping folder, `builds/<platform>` by
 default, with the imported assets packed into one `assets.pak` beside their manifest. `pack` packs a folder of

@@ -43,7 +43,8 @@ Registry& Languages() {
     static Registry registry;
     static const bool initialized = [] {
 #ifdef SPOT_ENABLE_LUAU
-        registry.languages.emplace("luau", Language{{".luau"}, Detail::CreateLuauRuntime, {}, Detail::CheckLuauSyntax});
+        registry.languages.emplace(
+            "luau", Language{{".luau"}, Detail::CreateLuauRuntime, Detail::ReadLuauExports, Detail::CheckLuauSyntax});
 #endif
 #ifdef SPOT_ENABLE_VICESCRIPT
         registry.languages.emplace(

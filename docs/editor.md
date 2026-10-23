@@ -85,6 +85,41 @@ Scene documents preserve saved entity ids when first opened, including while the
 Missing components keep opaque fields, so changing those ids before their types load would leave references such
 as the player's camera pointing at missing entities. Saving and reloading the module keep those references valid.
 
+## Scripts
+
+Script assets open in the Code panel (double-click them, or **Window > Code**), or in the user's own code editor.
+
+**The Code panel** gives each open script a tab with its own text undo history, line numbers, a monospaced font and
+syntax highlighting that works on unfinished source (`editor/code/`, on
+[ImGuiColorTextEdit](https://github.com/goossens/ImGuiColorTextEdit), fetched at a pinned commit; the runtime never
+links it). While it has focus, **Ctrl+S** saves its script, **Ctrl+W** closes the tab, and the Edit shortcuts act on
+its text; **Ctrl** and the wheel resize the text. Saving writes the file and imports it, and tabs follow their assets
+when they move or are renamed. Closing a tab with unsaved text, quitting or switching projects asks whether to save;
+files changed outside with local edits must be reloaded or copied before saving. UTF-8 BOMs, tabs, line endings and
+the final newline are kept.
+
+- **Diagnostics**: shortly after typing stops, the source is parsed without running it (`CheckScriptSyntax()`), and
+  the first syntax error shows below the text, its line marked.
+- **Breakpoints**: **F9** toggles one at the cursor's line, for every script running from that file
+  (`SetScriptBreakpoints()`). A running script that reaches one finishes its hook, the game pauses at the end of the
+  frame, and the panel shows the call stack with each call's locals as they were. **Continue** resumes; **Next Frame**
+  runs one more frame.
+- **Profiling**: the Profiler panel times every hook as a `<script>.<hook>` scope; **Script functions** also profiles
+  each function of the running scripts (`SetScriptProfiling()`), which costs time, so it is off by default.
+- **Reloading**: scripts running in Play swap in saved code before their next hook, keeping the state their language
+  keeps (see [scripting](scripting.md)); `OnStart()` does not run again, coroutines and event subscriptions end, and
+  the optional `OnReload()` hook runs. Code that fails to compile leaves the old code running.
+
+**External editors.** **File > Open in External Editor** opens the project, and the asset browser's
+**Open in External Editor** opens a file, with the command set in **Preferences > Scripts > External editor**: the
+program and its arguments, where `{project}`, `{file}` and `{line}` go (`code {project} --goto {file}:{line}`,
+`zed {file}`, `"C:\Program Files\Editor\editor.exe" {file}`); a command naming neither gets what to open last. Empty, the
+project opens in the file manager and files with the application the system opens them with. The editor launches the
+command on its own (`Process::Launch()`), so it keeps running after the editor exits, and first points the project's
+`.luaurc` at the engine's Luau types, so the editor's Luau language server knows the engine's API (see
+[writing scripts in other editors](scripting.md#writing-scripts-in-other-editors)). `MakeExternalEditorCommand()`
+(`editor/project/external_editor.h`) builds the command.
+
 ## Play mode
 
 Playing a document (`PlaySession`) copies its scene and loads the copy into the application, which updates it every

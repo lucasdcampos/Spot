@@ -23,6 +23,8 @@ EditorProject::EditorProject(Project project, GraphicsDevice* device) : m_projec
     const std::size_t imported = m_database->Refresh();
     m_assets = std::make_unique<AssetManager>(m_project.GetImportDirectory(), device);
     m_modules = std::make_unique<ModuleHost>(m_project, ModuleHost::Options{});
+    // Scripts written in other editors are checked against the API of the engine the project is opened with.
+    WriteLuauTypes(m_project);
     GetEditorLogger().Info("Opened project '{}' ({} assets, {} imported)", m_project.GetSettings().name,
                            m_database->GetAssets().size(), imported);
 }

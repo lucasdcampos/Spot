@@ -28,6 +28,10 @@ public:
     static std::unique_ptr<Process> Start(std::span<const std::string> arguments,
                                           const std::filesystem::path& workingDirectory = {},
                                           std::span<const ProcessEnvironmentVariable> environment = {});
+    // Runs the program, the first argument, with the others, on its own: it keeps running after this process ends,
+    // as an application opened for the user does, and nothing reads its output. Returns false, after logging why,
+    // when it cannot start.
+    static bool Launch(std::span<const std::string> arguments, const std::filesystem::path& workingDirectory = {});
     // Kills the program if it still runs.
     ~Process();
 

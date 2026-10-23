@@ -10,6 +10,8 @@ add_library(spot_tools STATIC
     build/code_build.h
     build/game_build.cpp
     build/game_build.h
+    project/luau_tooling.cpp
+    project/luau_tooling.h
     project/project.cpp
     project/project.h
     project/project_templates.cpp

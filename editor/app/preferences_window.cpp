@@ -8,6 +8,7 @@
 #include <imgui_stdlib.h>
 
 #include <array>
+#include <cfloat>
 #include <cmath>
 #include <format>
 #include <string>
@@ -106,6 +107,19 @@ void PreferencesWindow::Draw() {
         Widgets::PropertyLabel("Build on change", "Builds the game's code as soon as it changes; otherwise only with "
                                                   "Ctrl+B");
         changed |= ImGui::Checkbox("##BuildOnChange", &preferences.buildOnChange);
+        Widgets::EndProperties();
+    }
+
+    Section("Scripts");
+    if (Widgets::BeginProperties("##Scripts")) {
+        Widgets::PropertyLabel("External editor",
+                               "The command that opens the project or a script in your code editor, with {project}, "
+                               "{file} and {line} where they go, such as: code {project} --goto {file}:{line}. "
+                               "Empty opens them with the applications the system opens them with");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        ImGui::InputTextWithHint("##ExternalEditor", "code {project} --goto {file}:{line}",
+                                 &preferences.externalEditor);
+        changed |= ImGui::IsItemDeactivatedAfterEdit();
         Widgets::EndProperties();
     }
 

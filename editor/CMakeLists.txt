@@ -152,6 +152,8 @@ add_library(spot_editor_core STATIC
     panels/project_settings_panel.h
     project/editor_project.cpp
     project/editor_project.h
+    project/external_editor.cpp
+    project/external_editor.h
     project/new_project_dialog.cpp
     project/new_project_dialog.h
     project/project_hub.cpp

@@ -14,6 +14,7 @@
 #include "imgui/icons.h"
 #include "imgui/imgui_renderer.h"
 #include "imgui/widgets.h"
+#include "project/external_editor.h"
 #include "scene/prefab_actions.h"
 #include "scene/scene_workspace.h"
 
@@ -720,6 +721,11 @@ void AssetBrowserPanel::DrawItemMenu(EditorProject& project) {
 
     if (single && ImGui::MenuItem(ICON_FA_FOLDER_OPEN "  Open", "Enter")) {
         Open(project, *single);
+    }
+    if (single && !single->folder && !single->subAsset &&
+        ImGui::MenuItem(ICON_FA_UP_RIGHT_FROM_SQUARE "  Open in External Editor")) {
+        OpenInExternalEditor(m_context.GetSettings().GetPreferences().externalEditor, project.GetProject(),
+                             GetRootDirectory(project, single->root) / Utf8ToPath(single->path));
     }
     if (ImGui::BeginMenu(ICON_FA_PLUS "  Create")) {
         DrawCreateItems(project);

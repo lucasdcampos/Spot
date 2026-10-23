@@ -1,4 +1,4 @@
-local spot = require("spot")
+local spot = require("@spot")
 
 -- Drive the game's C++ DayCycle through its registered API.
 local sun

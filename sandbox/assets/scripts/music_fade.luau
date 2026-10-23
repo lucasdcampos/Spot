@@ -1,4 +1,4 @@
-local spot = require("spot")
+local spot = require("@spot")
 
 -- Fade the existing music source; keep playback running so M preserves the song's position.
 local audio

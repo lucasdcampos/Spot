@@ -87,6 +87,12 @@ if(SPOT_DXC)
     target_compile_definitions(spot_tests PRIVATE SPOT_TEST_EXPECT_DXIL)
 endif()
 
+# The tools' Luau definitions are checked with Luau's own parser.
+if(SPOT_ENABLE_LUAU)
+    target_sources(spot_tests PRIVATE luau_tooling_tests.cpp)
+    target_link_libraries(spot_tests PRIVATE Luau.Ast)
+endif()
+
 # Backend tests feed native events in, so they need the backend's headers; the library comes through spot.
 if(SPOT_PLATFORM STREQUAL "SDL3")
     target_sources(spot_tests PRIVATE sdl3_event_tests.cpp)
@@ -156,12 +162,12 @@ if(SPOT_ENABLE_VICESCRIPT)
 endif()
 
 if(SPOT_ENABLE_LUAU)
-    add_executable(spot_luau_tests luau_component_tests.cpp luau_scene_tests.cpp)
+    add_executable(spot_luau_tests luau_component_tests.cpp luau_scene_tests.cpp luau_tools_tests.cpp)
     target_link_libraries(spot_luau_tests PRIVATE spot::import spot::spot Catch2::Catch2WithMain)
     spot_set_compile_options(spot_luau_tests)
     catch_discover_tests(spot_luau_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
 
-    add_executable(spot_luau_shared_tests luau_component_tests.cpp luau_scene_tests.cpp)
+    add_executable(spot_luau_shared_tests luau_component_tests.cpp luau_scene_tests.cpp luau_tools_tests.cpp)
     target_link_libraries(spot_luau_shared_tests PRIVATE spot::import spot::shared Catch2::Catch2WithMain)
     spot_set_compile_options(spot_luau_shared_tests)
     spot_copy_runtime_dlls(spot_luau_shared_tests)

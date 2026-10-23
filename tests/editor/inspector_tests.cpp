@@ -202,12 +202,12 @@ TEST_CASE("Dragging a field changes it while dragging, as one undoable step", "[
     CHECK(light.GetIntensity() == after);
 }
 
-#ifdef SPOT_ENABLE_VICESCRIPT
-TEST_CASE("Script inspectors expose only the script asset and hide embedded fields", "[editor][inspector][ui][vice]") {
+#ifdef SPOT_ENABLE_LUAU
+TEST_CASE("Script inspectors expose only the script asset and hide embedded fields", "[editor][inspector][ui][luau]") {
     InspectorFixture fixture;
     auto& component = fixture.Selected().AddComponent<Spot::ScriptComponent>();
-    component.source = "func OnStart() {}";
-    component.sourceName = "legacy.vice";
+    component.source = "function OnStart() end";
+    component.sourceName = "legacy.luau";
     fixture.Frame();
     fixture.Frame();
     CHECK(fixture.panel->GetItemRect("ScriptComponent/data/script").has_value());
@@ -215,8 +215,8 @@ TEST_CASE("Script inspectors expose only the script asset and hide embedded fiel
     CHECK_FALSE(fixture.panel->GetItemRect("ScriptComponent/data/source").has_value());
     CHECK_FALSE(fixture.panel->GetItemRect("ScriptComponent/data/sourceName").has_value());
     const auto saved = fixture.document->GetScene().SaveToString();
-    CHECK(saved.find("legacy.vice") != std::string::npos);
-    CHECK(saved.find("func OnStart()") != std::string::npos);
+    CHECK(saved.find("legacy.luau") != std::string::npos);
+    CHECK(saved.find("function OnStart()") != std::string::npos);
     component.script = std::make_shared<Spot::ScriptSource>();
     fixture.Frame();
     fixture.Frame();
@@ -562,17 +562,18 @@ TEST_CASE("Curve and gradient key times commit before reordering", "[editor][ins
     CHECK(changed == std::vector<std::string>{"/data/gradient"});
 }
 
-#ifdef SPOT_ENABLE_VICESCRIPT
-TEST_CASE("Script inspectors show exported fields and undo their edits", "[editor][inspector][ui][vice]") {
+#ifdef SPOT_ENABLE_LUAU
+TEST_CASE("Script inspectors show exported fields and undo their edits", "[editor][inspector][ui][luau]") {
     InspectorFixture fixture;
     auto& component = fixture.Selected().AddComponent<Spot::ScriptComponent>();
-    component.language = "vice";
-    component.sourceName = "mover.vice";
-    component.source = "class Mover : Component {\n    export var speed = 3\n    export var label = \"crate\"\n}\n";
+    component.language = "luau";
+    component.sourceName = "mover.luau";
+    component.source = "speed = 3\nlabel = \"crate\"\nlocal hidden = 1\n";
     fixture.Frame();
     fixture.Frame();
     REQUIRE(fixture.panel->GetItemRect("ScriptComponent/data/fields/speed").has_value());
     CHECK(fixture.panel->GetItemRect("ScriptComponent/data/fields/label").has_value());
+    CHECK_FALSE(fixture.panel->GetItemRect("ScriptComponent/data/fields/hidden").has_value());
     CHECK(component.fieldValues.empty());
 
     const std::size_t steps = fixture.Steps();

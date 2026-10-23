@@ -25,8 +25,9 @@ Commands:
                      Creates a project in a new folder named after it, in the folder or the current one; with
                      --code none, it has no C++ code and runs with the player, so it needs no compiler
   cook [<project>] [--out <folder>]
-                     Imports the project's assets that changed; with --out, into that folder, with the game's
-                     settings, so a game's executable there runs the game
+                     Imports the project's assets that changed, and writes the engine's API for Luau's language
+                     server into .spot/luau; with --out, into that folder, with the game's settings, so a game's
+                     executable there runs the game
   build [<project>]  Builds the game's code, if it has any: its executable and the module the editor loads
   run [<project>]    Builds the game, imports its assets and runs it
   export [<project>] [--out <folder>]
@@ -141,6 +142,8 @@ int Cook(const Arguments& arguments) {
     if (!project) {
         return EXIT_FAILURE;
     }
+    // Editors' Luau language servers check scripts against the API of the engine that cooks them.
+    Spot::WriteLuauTypes(*project);
     if (const auto out = arguments.Get("out")) {
         return Spot::CookGame(*project, ToPath(*out)) ? EXIT_SUCCESS : EXIT_FAILURE;
     }
