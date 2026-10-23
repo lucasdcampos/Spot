@@ -1,6 +1,6 @@
 # Memory
 
-`engine/core/memory.h` gives the engine and games allocators for the patterns that `new` serves poorly, and counts
+`engine/spot/core/memory.h` gives the engine and games allocators for the patterns that `new` serves poorly, and counts
 the memory they hold by what it is for.
 
 ## Allocators

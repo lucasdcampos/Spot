@@ -37,9 +37,9 @@ Building, testing and the code rules are in [`AGENTS.md`](../AGENTS.md).
 
 ## Layers
 
-The engine is layers, each a set of folders of `engine/` that only includes its own layer and the ones below it. The
+The engine is layers, each a set of folders of `engine/spot/` that only includes its own layer and the ones below it. The
 test "Engine layers include only the layers below them" (`cmake/spot_check_layers.cmake`) fails the build's tests
-otherwise.
+otherwise. Games include the headers with the prefix, as `<spot/core/log.h>`, or all of them with `<spot.h>`.
 
 | Layer | Folders | What it holds |
 |---|---|---|

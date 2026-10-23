@@ -1,5 +1,5 @@
-#include "graphics/light_clusters.h"
-#include "graphics/shadow_views.h"
+#include <spot/graphics/light_clusters.h>
+#include <spot/graphics/shadow_views.h>
 
 #include <spot.h>
 

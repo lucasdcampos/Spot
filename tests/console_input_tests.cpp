@@ -1,5 +1,5 @@
-#include "runtime/console_input.h"
 #include <spot.h>
+#include <spot/runtime/console_input.h>
 
 #include <catch2/catch_test_macros.hpp>
 

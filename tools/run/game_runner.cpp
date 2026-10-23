@@ -1,5 +1,5 @@
 #include "run/game_runner.h"
-#include "core/profile_stream.h"
+#include <spot/core/profile_stream.h>
 
 #include <algorithm>
 #include <array>

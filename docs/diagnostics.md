@@ -6,7 +6,7 @@ owns it, and only takes the frame down when nothing else is possible.
 
 ## Logging
 
-`Spot::Log` (`engine/core/log.h`) writes formatted messages at a level (trace, debug, info, warning, error):
+`Spot::Log` (`engine/spot/core/log.h`) writes formatted messages at a level (trace, debug, info, warning, error):
 
 ```cpp
 Spot::Log::Info("Loaded {} props", count);
@@ -19,7 +19,7 @@ previous run's log beside it), and the editor's console panel.
 
 ## Crash reports
 
-`InstallCrashHandler()` (`engine/core/crash_handler.h`), which applications call, makes crashes leave a trace: on a
+`InstallCrashHandler()` (`engine/spot/core/crash_handler.h`), which applications call, makes crashes leave a trace: on a
 bad memory access, an uncaught exception, an abort or a stack overflow, the crash and its stack are logged to every
 sink, the sinks are flushed and a report is written (in a `crashes` folder beside the log by default) before the
 process ends. Tools also show a message saying where the report is.
@@ -35,7 +35,7 @@ contained, and stop the process with a report.
 
 ## Profiler
 
-`SPOT_PROFILE_SCOPE("Name")` (`engine/core/profiler.h`) times the rest of the enclosing scope, on any thread:
+`SPOT_PROFILE_SCOPE("Name")` (`engine/spot/core/profiler.h`) times the rest of the enclosing scope, on any thread:
 
 ```cpp
 void Spawner::OnUpdate(float deltaTime) {
@@ -73,7 +73,7 @@ inclusive averages per frame. It can also read managed game processes over their
 
 ## Debug drawing
 
-`Spot::DebugDraw` (`engine/graphics/debug_draw.h`) lets any code draw lines, arrows, crosses, boxes, circles, spheres
+`Spot::DebugDraw` (`engine/spot/graphics/debug_draw.h`) lets any code draw lines, arrows, crosses, boxes, circles, spheres
 and capsules in world space, for this frame or for a duration, tested against depth or over everything:
 
 ```cpp

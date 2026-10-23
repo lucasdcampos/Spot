@@ -49,6 +49,19 @@ public:
     int GetResult() const { return m_result; }
 
 protected:
+    void OnStart() override {
+        Spot::Profiler::SetEnabled(true);
+        const auto start = std::chrono::steady_clock::now();
+        const auto* game = GetGameSettings();
+        auto scene = game ? Spot::InstantiateScene(GetAssets(), game->startupScene) : nullptr;
+        m_sceneLoadMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+        if (!scene) {
+            Quit();
+            return;
+        }
+        LoadScene(std::move(scene));
+    }
+
     void OnUpdate(float) override {
         auto* scene = GetScene();
         if (!scene) {
@@ -71,6 +84,19 @@ protected:
         const auto now = std::chrono::steady_clock::now();
         if (m_frame >= m_options.warmup) {
             m_times.push_back(std::chrono::duration<double, std::milli>(now - m_last).count());
+            const auto frames = Spot::Profiler::GetFrames();
+            if (!frames.empty()) {
+                double scriptMs = 0;
+                for (const auto& sample : frames.back()->samples) {
+                    m_scopeTotals[sample.name] += std::chrono::duration<double, std::milli>(sample.duration).count();
+                    if (sample.name.ends_with(".OnUpdate")) {
+                        scriptMs += std::chrono::duration<double, std::milli>(sample.duration).count();
+                        ++m_scriptCalls;
+                    }
+                }
+                m_scriptTimes.push_back(scriptMs);
+                m_droppedSamples += frames.back()->droppedSamples;
+            }
         }
         m_last = now;
         if (m_options.walk) {
@@ -126,7 +152,10 @@ private:
         const auto index = static_cast<std::size_t>(crate - entries.begin());
         const int side = std::max(1, static_cast<int>(std::ceil(std::cbrt(static_cast<float>(m_options.props)))));
         for (int i = 0; i < m_options.props; ++i) {
+            const auto start = std::chrono::steady_clock::now();
             auto* prop = spawner->Spawn(index);
+            m_spawnTimes.push_back(
+                std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count());
             if (!prop) {
                 return false;
             }
@@ -169,19 +198,30 @@ private:
                     percentile(.5), percentile(.95), m_times.back());
         std::printf("Bodies: %zu, resident memory: %.1f MiB\n", scene.GetPhysics().GetBodyCount(),
                     static_cast<double>(GetRuntimeStats().memoryBytes) / (1024 * 1024));
-        const auto frames = Spot::Profiler::GetFrames();
-        std::map<std::string_view, double> totals;
-        for (const auto* frame : frames) {
-            for (const auto& sample : frame->samples) {
-                totals[sample.name] += std::chrono::duration<double, std::milli>(sample.duration).count();
+        std::printf("Scene load: %.3f ms (startup InstantiateScene, assets initially uncached)\n", m_sceneLoadMs);
+        const auto print = [](const char* label, std::vector<double> values) {
+            if (values.empty()) {
+                std::printf("%s: no samples\n", label);
+                return;
             }
+            std::ranges::sort(values);
+            std::printf("%s: %zu samples, mean %.6f ms, median %.6f ms, p95 %.6f ms\n", label, values.size(),
+                        std::accumulate(values.begin(), values.end(), 0.0) / static_cast<double>(values.size()),
+                        values[values.size() / 2], values[values.size() * 95 / 100]);
+        };
+        // The first spawn may load the prefab; report it separately from the sorted distribution.
+        if (!m_spawnTimes.empty()) {
+            std::printf("First prefab spawn: %.6f ms\n", m_spawnTimes.front());
         }
-        std::vector<std::pair<std::string_view, double>> scopes(totals.begin(), totals.end());
+        print("Prefab spawn (PropSpawner::Spawn, includes raycast and undo)", m_spawnTimes);
+        print("Script OnUpdate (sum per measured frame)", m_scriptTimes);
+        std::printf("Script OnUpdate calls: %zu, dropped profiler samples: %zu\n", m_scriptCalls, m_droppedSamples);
+        std::vector<std::pair<std::string_view, double>> scopes(m_scopeTotals.begin(), m_scopeTotals.end());
         std::ranges::sort(scopes, [](const auto& a, const auto& b) { return a.second > b.second; });
         for (std::size_t i = 0; i < std::min<std::size_t>(scopes.size(), 40); ++i) {
             const auto& [name, total] = scopes[i];
             std::printf("%-40.*s %.3f ms\n", static_cast<int>(name.size()), name.data(),
-                        total / static_cast<double>(std::max<std::size_t>(frames.size(), 1)));
+                        total / static_cast<double>(std::max<std::size_t>(m_times.size(), 1)));
         }
         m_result = EXIT_SUCCESS;
     }
@@ -193,6 +233,12 @@ private:
     Spot::EntityId m_camera = Spot::EntityId::Invalid;
     std::chrono::steady_clock::time_point m_last;
     std::vector<double> m_times;
+    double m_sceneLoadMs = 0;
+    std::vector<double> m_spawnTimes;
+    std::vector<double> m_scriptTimes;
+    std::map<std::string_view, double> m_scopeTotals;
+    std::size_t m_scriptCalls = 0;
+    std::size_t m_droppedSamples = 0;
 };
 
 } // namespace

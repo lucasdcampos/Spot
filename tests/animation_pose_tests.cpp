@@ -1,5 +1,5 @@
-#include "animation/pose.h"
 #include <spot.h>
+#include <spot/animation/pose.h>
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>

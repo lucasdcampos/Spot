@@ -1,5 +1,5 @@
-#include "animation/animation_motion.h"
 #include "temp_directory.h"
+#include <spot/animation/animation_motion.h>
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>

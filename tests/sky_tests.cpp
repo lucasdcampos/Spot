@@ -1,4 +1,4 @@
-#include "graphics/atmosphere.h"
+#include <spot/graphics/atmosphere.h>
 
 #include <spot.h>
 

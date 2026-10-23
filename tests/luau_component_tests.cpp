@@ -1,7 +1,7 @@
-#include "assets/asset_manifest.h"
-#include "assets/asset_pak.h"
 #include "log_capture.h"
 #include "script_asset_fixture.h"
+#include <spot/assets/asset_manifest.h>
+#include <spot/assets/asset_pak.h>
 
 #include <spot.h>
 

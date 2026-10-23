@@ -1,15 +1,15 @@
 // A game that runs its own loop and keeps its objects its own way, with neither Application nor Scene: only the
 // layers below them, which is what a large game with an ECS of its own builds on.
-#include "events/event.h"
-#include "graphics/camera_3d.h"
-#include "graphics/graphics_device.h"
-#include "graphics/light_data.h"
-#include "graphics/material.h"
-#include "graphics/mesh.h"
-#include "graphics/mesh_data.h"
-#include "graphics/renderer_3d.h"
-#include "input/input_state.h"
-#include "math/matrix.h"
+#include <spot/events/event.h>
+#include <spot/graphics/camera_3d.h>
+#include <spot/graphics/graphics_device.h>
+#include <spot/graphics/light_data.h>
+#include <spot/graphics/material.h>
+#include <spot/graphics/mesh.h>
+#include <spot/graphics/mesh_data.h>
+#include <spot/graphics/renderer_3d.h>
+#include <spot/input/input_state.h>
+#include <spot/math/matrix.h>
 
 #include <catch2/catch_test_macros.hpp>
 

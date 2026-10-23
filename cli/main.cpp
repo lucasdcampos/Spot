@@ -3,7 +3,7 @@
 #include <spot.h>
 #include <spot_tools.h>
 
-#include "assets/asset_pak.h"
+#include <spot/assets/asset_pak.h>
 
 #include <algorithm>
 #include <chrono>

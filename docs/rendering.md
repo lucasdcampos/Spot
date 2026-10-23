@@ -98,7 +98,7 @@ timing to the profiler as a counter, "GPU Frame (ms)", which the editor's profil
 
 ### Backends
 
-The graphics API is the engine's own; backends implement it behind `engine/graphics/graphics_backend.h`, where each
+The graphics API is the engine's own; backends implement it behind `engine/spot/graphics/graphics_backend.h`, where each
 public object holds an implementation the backend derives from. Several backends are built into one program, and
 the device picks one when it is made, from `GraphicsConfig::backend`. With `Auto`, the environment variable
 `SPOT_GRAPHICS_BACKEND` (`sdl_gpu` or `vulkan`) chooses, as the tests do to run on each; otherwise the device takes
@@ -118,7 +118,7 @@ Every GPU test and golden image passes on both; run them on one with `SPOT_GRAPH
 
 ### Fullscreen passes
 
-`FullscreenPass` (`engine/graphics/fullscreen_pass.h`) runs a fragment shader over every pixel of a pass's target,
+`FullscreenPass` (`engine/spot/graphics/fullscreen_pass.h`) runs a fragment shader over every pixel of a pass's target,
 as post-processing effects do: one triangle covering the target, built from the vertex index, with texture
 coordinates from (0, 0) at its top-left corner. The fragment shader takes `SV_Position` then `float2 uv :
 TEXCOORD0`; `Draw()` binds its pipeline and the input textures, and uniforms pushed before stay set.
@@ -133,7 +133,7 @@ tonemap->Draw(pass, inputs);
 
 ### Render graphs
 
-`RenderGraph` (`engine/graphics/render_graph.h`) describes a frame as passes that declare the textures they read
+`RenderGraph` (`engine/spot/graphics/render_graph.h`) describes a frame as passes that declare the textures they read
 and write, then runs them in the order they were added. Passes create the textures that live for the frame only
 (`RenderGraphBuilder::Create()`), and import the others, the frame target included (`Import(name, nullptr)`).
 Before running, the graph leaves out passes whose results nothing uses (writing an imported texture, or
@@ -165,7 +165,7 @@ Vulkan backend, whose textures, samplers and buffers are numbered as NVRHI binds
 vertex uniforms at `register(b0, space1)`, fragment textures and samplers at `register(t0, space2)` and
 `register(s0, space2)`, and vertex inputs as `TEXCOORD{N}` for attribute `N`.
 
-Shaders `#include` headers from their own folder, from the engine's shader headers (`engine/graphics/shaders/include/`)
+Shaders `#include` headers from their own folder, from the engine's shader headers (`engine/spot/graphics/shaders/include/`)
 and from the folders given as `INCLUDE_DIRECTORIES`; a change to any `.hlsl` file there compiles them again. The engine
 builds the shader tools once, and its CMake package hands games `spot_add_shaders()` with them
 (`cmake/spot_shader_function.cmake`), so a game compiles shaders of its own in its `CMakeLists.txt`, after
@@ -182,9 +182,9 @@ spot_add_shaders(game_code terrain.vert.hlsl terrain.frag.hlsl)
 | `Renderer2D` | Colored and textured quads and text, batched, in the order given, with alpha blending, inside a pass the caller opens; `SetTransform()` places what follows, as world text and sprites at a depth need |
 | `Renderer3D` | Lit, textured, shadowed meshes and models with a sky; it opens the pass described to `Begin()` in `End()`, after drawing shadow maps |
 | `LineRenderer` | One-pixel lines in 3D, depth-tested or over everything, inside a pass the caller opens; `DrawDebugLines()` draws the `DebugDraw` queue |
-| `SceneRenderer` | Whole scenes as games show them, through their main camera (`engine/scene/rendering/`) |
+| `SceneRenderer` | Whole scenes as games show them, through their main camera (`engine/spot/scene/rendering/`) |
 
-The renderers know nothing of scenes. `engine/scene/rendering/scene_drawing.h` draws a scene's components with them:
+The renderers know nothing of scenes. `engine/spot/scene/rendering/scene_drawing.h` draws a scene's components with them:
 `DrawScene(Renderer3D&, Scene&)` its `MeshRenderer`s, `SkinnedMeshRenderer`s, `Light`s and first `Sky` and `Fog`,
 `DrawScene(Renderer2D&, Scene&)` its sprites and tilemaps, `DrawWorldText()` its `TextRenderer`s and
 `DrawScene(ParticleRenderer&, Scene&)` its particle systems. It uses only the renderers' public API, so games that
@@ -247,7 +247,7 @@ Materials batch by their values, so copies of a material batch as well as the sa
 
 ### Render worlds
 
-A `RenderWorld` (`engine/graphics/render_world.h`) holds what stays from frame to frame: meshes are added once
+A `RenderWorld` (`engine/spot/graphics/render_world.h`) holds what stays from frame to frame: meshes are added once
 (`AddMesh()`, which returns a `RenderObjectId`), changed only when they change (`SetTransform()`, `UpdateMesh()`) and
 removed, and `Renderer3D::DrawWorld()` draws every one on a layer the camera sees. Each object keeps its world bounds,
 index range and whether its transform mirrors, worked out when it changes rather than each frame; materials are read
@@ -278,7 +278,7 @@ instance of its own, batched with the others of its mesh, and the shaders draw t
 as the view's camera sees it, in shadows too, so they fall from the same mesh. Levels draw their whole mesh, and are
 chosen by the bounds of the object's own.
 
-Scenes keep theirs in a `RenderWorldSystem` (`engine/scene/rendering/render_world_system.h`), which `DrawScene()`
+Scenes keep theirs in a `RenderWorldSystem` (`engine/spot/scene/rendering/render_world_system.h`), which `DrawScene()`
 creates and syncs: it visits the scene's `MeshRenderer`s, and takes from each only what changed since the last sync,
 as `Transform::GetVersion()` (which changes when the transform or an ancestor moves) and the renderer's own changes
 tell, then removes the objects of renderers that went away or were disabled. That full visit only happens when what
@@ -289,7 +289,7 @@ that mostly stands still costs next to nothing. Graphics never sees the scene.
 ### Custom surfaces
 
 A game whose geometry is kept in buffers of its own, such as terrain, draws it with its own shaders inside
-`Renderer3D`'s passes, so it looks like the rest: a `CustomSurface` (`engine/graphics/custom_surface.h`) handed to
+`Renderer3D`'s passes, so it looks like the rest: a `CustomSurface` (`engine/spot/graphics/custom_surface.h`) handed to
 `Renderer3D::DrawSurface()` each frame, or kept by a `SurfaceRenderer` component, which `DrawScene()` draws on the
 layers the camera sees. Renderer3D calls it back in each of its passes with a `SurfaceDrawContext`: the pass, the
 view and its frustum planes for culling, and what pipelines must match there.

@@ -52,7 +52,7 @@ out, so they move every frame without capturing it again.
 
 ## Where to start
 
-- `engine/scene/rendering/clouds.h` and `sky.h`: the components.
-- `engine/graphics/sky_data.h`: `SkyClouds` and `SkyNight`, what the renderer draws.
-- `engine/graphics/shaders/sky.frag.hlsl`: `GetClouds()`, `GetStars()` and `GetMoon()`.
+- `engine/spot/scene/rendering/clouds.h` and `sky.h`: the components.
+- `engine/spot/graphics/sky_data.h`: `SkyClouds` and `SkyNight`, what the renderer draws.
+- `engine/spot/graphics/shaders/sky.frag.hlsl`: `GetClouds()`, `GetStars()` and `GetMoon()`.
 - The sandbox's `DayCycle` turns the stars with its time of day, and its playground has a `Clouds` on the sun.

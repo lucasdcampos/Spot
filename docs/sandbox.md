@@ -235,6 +235,27 @@ Quality is 0/1/2 for Low/Medium/High. A camera orbits the level at 1600x900 with
 off; gameplay, physics, robots, particles and the HUD continue. It spawns actual imported crates,
 adds point lamps (every eighth shadowed), excludes loading/warmup, then reports frame mean, median,
 p95, worst, body count, memory and inclusive CPU scopes. Exit status is nonzero if setup fails.
+The report also records the startup scene's synchronous `InstantiateScene` time (including asset reads,
+decoding and entity/component creation, excluding window/device setup, scene activation and first updates),
+each crate's `PropSpawner::Spawn` time (including its placement raycast, prefab instantiation and undo entry,
+excluding the benchmark's grid placement), and the sum of script `.OnUpdate` scopes per measured frame.
+The first spawn is printed separately because it may load the prefab. Script totals include hook dispatch and
+bindings, exclude fixed/start hooks, and print the invocation count and dropped profiler samples so an empty
+or incomplete capture is visible. CPU scope averages cover every measured frame, excluding warmup, rather
+than just the profiler's 240-frame history. Frame intervals include this collection overhead. Loading uses
+an initially uncached asset manager; the operating system's file cache is not flushed.
+
+To reproduce the roadmap's Release baseline from the repository root:
+
+```powershell
+cmake --build --preset msvc-release --target spot_sandbox_benchmark
+./build/msvc/tests/Release/spot_sandbox_benchmark --props 500 --lamps 50 --warmup 240 --frames 1200 --quality 2
+```
+
+Run each capture in a fresh process; keep the cooked assets, backend, quality, resolution and population
+fixed when comparing later phases. The measurements and machine configuration are recorded under Phase 2
+in `ROADMAP.md`.
+
 Run without concurrent builds or tests. `--walk 1` instead walks the player through the plaza into the workshop,
 seen through its own eyes with its weapon, as a game plays: 150.6 FPS in Release and about 71 FPS in Debug. On an i5-11600K / GTX 1660 the valley playground measures 99.0 FPS average, 11.83 ms p95 and 19.92 ms
 worst in High quality with that population, and 148.9 FPS (8.45 ms p95) on its own. HUD texts do not clip

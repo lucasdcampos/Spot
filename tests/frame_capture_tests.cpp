@@ -1,6 +1,6 @@
-#include "core/frame_capture.h"
 #include "temp_directory.h"
 #include <spot.h>
+#include <spot/core/frame_capture.h>
 
 #include <catch2/catch_test_macros.hpp>
 

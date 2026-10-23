@@ -1,11 +1,11 @@
 # Audio
 
-Audio is mixed by the engine and only delivered by the backend: `engine/audio/` has the engine's mixer, and the SDL3
+Audio is mixed by the engine and only delivered by the backend: `engine/spot/audio/` has the engine's mixer, and the SDL3
 backend (`AudioOutput`) only pulls mixed samples from it on its own thread.
 
 ## Sounds
 
-A `Sound` (`engine/audio/sound.h`) is decoded audio in CPU memory: 32-bit float samples, mono or stereo. Sounds never
+A `Sound` (`engine/spot/audio/sound.h`) is decoded audio in CPU memory: 32-bit float samples, mono or stereo. Sounds never
 change, so one sound can play many times at once. They load as assets (`.wav` and `.ogg` sources) or from raw files.
 
 ## Streaming
@@ -19,7 +19,7 @@ the thread fall behind, the playback waits where it is rather than skip.
 
 ## Playing
 
-`AudioDevice` (`engine/audio/audio_device.h`) plays sounds on the default output device. The application owns one,
+`AudioDevice` (`engine/spot/audio/audio_device.h`) plays sounds on the default output device. The application owns one,
 reached with `Application::GetAudioDevice()`:
 
 ```cpp
@@ -38,7 +38,7 @@ is disabled (`AudioConfig::enabled`) or no device can be opened, it stays usable
 
 ## Sounds in scenes
 
-An `AudioSource` component (`engine/audio/audio_source.h`) plays a sound from its entity: its sound, its bus (by the
+An `AudioSource` component (`engine/spot/audio/audio_source.h`) plays a sound from its entity: its sound, its bus (by the
 name the mixer gives it; the master bus when empty), volume, pitch, looping, whether it plays on start, and whether
 it is spatial, with the distances and the rolloff of its fading. `Play()` starts it, or resumes it when paused,
 `Pause()` and `Stop()` do what they say. A source with `playOnStart` plays once the component starts, and again each
@@ -114,14 +114,14 @@ runs.
 
 ## The mixer
 
-The mixer (`engine/audio/mixer.h`) mixes every playing voice into its bus's buffer, converting sample rates as
+The mixer (`engine/spot/audio/mixer.h`) mixes every playing voice into its bus's buffer, converting sample rates as
 sounds play, then passes the buses up the tree, each before its parent, in chunks of 256 frames. Buses live in fixed
 slots, so mixing never allocates and the peak meters are atomics. The audio thread only mixes: it never touches
 scenes or assets, and sounds stay alive while they play because the mixer holds them.
 
 The audio thread takes no lock, so a game holding the mixer busy never makes it miss its deadline and crackle. The
 game's calls keep their own record of the voices and buses, under a lock of theirs, and send what changes through a
-fixed-size queue without locks (`engine/core/spsc_queue.h`), which `Mix()` applies before mixing, on voices and buses
+fixed-size queue without locks (`engine/spot/core/spsc_queue.h`), which `Mix()` applies before mixing, on voices and buses
 of its own kept in room reserved up front (1,024 voices, fading ones included). Voices that end go back through
 another queue, and the game's side lets their sounds go on its next call, so the audio thread never frees memory
 either. What the game asks for is heard from the next mix on.

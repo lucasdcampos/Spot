@@ -1,7 +1,7 @@
 #include "project/luau_tooling.h"
 
-#include "scene/scripting/script_api.h"
 #include "tools_log.h"
+#include <spot/scene/scripting/script_api.h>
 
 #include <nlohmann/json.hpp>
 

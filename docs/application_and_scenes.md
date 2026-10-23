@@ -1,7 +1,7 @@
 # Application and scenes
 
-`Application` (`engine/runtime/application.h`) owns the window, the graphics and audio devices, the asset manager, the
-input state and the scenes, and runs the frame loop. `Scene` (`engine/scene/scene.h`) owns a hierarchy of entities
+`Application` (`engine/spot/runtime/application.h`) owns the window, the graphics and audio devices, the asset manager, the
+input state and the scenes, and runs the frame loop. `Scene` (`engine/spot/scene/scene.h`) owns a hierarchy of entities
 and drives their components and its systems.
 
 Both are the default model, not a requirement: a game can run a loop of its own on the layers below them (see
@@ -104,7 +104,7 @@ references stay valid until then; outside of those they happen at once.
 
 ## Scene systems
 
-A `SceneSystem` (`engine/scene/scene_system.h`) is logic that runs over a whole scene rather than per entity. It has a
+A `SceneSystem` (`engine/spot/scene/scene_system.h`) is logic that runs over a whole scene rather than per entity. It has a
 hook for each point of the update above, plus `OnBeforeRender()`, called by `Scene::PrepareToRender()` on frames that
 are drawn. Games add theirs with `Scene::AddSystem<T>()` and find them with `Scene::GetSystem<T>()`:
 

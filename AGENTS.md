@@ -5,8 +5,8 @@ layers, each usable from code on its own; the editor and the tools are programs 
 
 ## Layout
 
-- `engine/` – the engine: static library `spot` (`spot::spot`), and shared library `spot_shared` for the editor and
-  the game code it loads
+- `engine/` – the engine, its modules in `engine/spot/`: static library `spot` (`spot::spot`), and shared library
+  `spot_shared` for the editor and the game code it loads
 - `editor/` – the editor (`spot_editor`, Dear ImGui); everything but `main.cpp` is `spot_editor_core`
 - `tools/` – `spot_tools`, which makes games out of projects, for the editor and the command line
 - `cli/` – `spot`, the command line: `new`, `cook`, `build`, `run` and `export`
@@ -36,7 +36,7 @@ a header per shader with a ready-to-use `Spot::ShaderDesc`.
 
 - Everything in the repository is in English: code, comments, docs and commit messages.
 - Code builds on Windows, macOS and Linux without warnings. Platform-specific code stays isolated.
-- A folder of `engine/` includes only its own layer and the ones below (see "Layers" in `docs/index.md`); a test
+- A folder of `engine/spot/` includes only its own layer and the ones below (see "Layers" in `docs/index.md`); a test
   checks it. Systems work without scenes; their components go in `scene/<system>/`.
 - Backends (SDL3, SDL_GPU, NVRHI, Jolt, Box2D) are used only in their system's folder, `engine/<system>/<backend>/`.
   Public headers never expose backend types.
@@ -46,8 +46,8 @@ a header per shader with a ready-to-use `Spot::ShaderDesc`.
 - Games never link `spot_import` (importers and the asset database), and the engine never knows about projects: a
   game runs from its `game.json` and its imported assets.
 - Every source asset has a `.meta` file beside it, committed with it; never edit its ids by hand. New source formats
-  get an importer in `engine/import/importers/`, and a change to an imported format bumps its importer's version.
-- Scripting API changes update `ScriptApi::Types` (`engine/scene/scripting/script_api.h`), the editor's Luau
+  get an importer in `engine/spot/import/importers/`, and a change to an imported format bumps its importer's version.
+- Scripting API changes update `ScriptApi::Types` (`engine/spot/scene/scripting/script_api.h`), the editor's Luau
   highlighting and its tests, and the scripts they affect, the sandbox's included, in the same change.
 
 ## Tests
@@ -70,7 +70,7 @@ systems get a page, linked from `docs/index.md`. Headers stay the reference for 
 `.clang-format` formats C++ files; run clang-format before committing.
 
 - Files and folders `snake_case`; headers `.h` starting with `#pragma once`, sources `.cpp`. Include with quotes
-  inside the engine, `<spot.h>` outside.
+  inside the engine (`"spot/core/log.h"`), `<spot.h>` or `<spot/core/log.h>` outside.
 - Types, functions and methods `PascalCase`; getters `Get…`, boolean queries `Is…`/`Has…`.
 - Private and protected members `m_camelCase`, static members `s_camelCase`; public fields of plain structs, locals
   and parameters `camelCase`.

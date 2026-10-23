@@ -1,6 +1,6 @@
 # Prefabs
 
-A `Prefab` (`engine/scene/prefab.h`) is an immutable asset containing one entity tree. It stores the saved data
+A `Prefab` (`engine/spot/scene/prefab.h`) is an immutable asset containing one entity tree. It stores the saved data
 rather than live entities or components, so loading it needs neither a graphics device nor registered game code.
 Instantiating it creates independent entities in a scene and resolves their components with the current registry.
 

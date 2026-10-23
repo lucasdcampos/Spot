@@ -1,6 +1,6 @@
 #include "log_capture.h"
 
-#include "audio/mixer.h"
+#include <spot/audio/mixer.h>
 
 #include <spot.h>
 

@@ -1,7 +1,7 @@
-#include "animation/blend_tree.h"
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <spot.h>
+#include <spot/animation/blend_tree.h>
 
 #include <numeric>
 

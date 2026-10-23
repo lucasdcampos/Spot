@@ -1,4 +1,4 @@
-#include "platform/platform.h"
+#include <spot/platform/platform.h>
 
 #include <spot.h>
 

@@ -31,7 +31,7 @@ The longest chain is 1, then 4 and 5, then 6, which phases 10 and 11 wait for: s
 Depends on: nothing. Done first and quickly, since moving folders conflicts with every other change. Its tasks run
 in order, as each moves files the next one touches.
 
-- [ ] **1.1 A `spot/` prefix for the engine's headers (S).** The modules move into `engine/spot/`, so games include
+- [x] **1.1 A `spot/` prefix for the engine's headers (S).** The modules move into `engine/spot/`, so games include
   `<spot/core/log.h>` instead of `<core/log.h>`, which could collide with their own folders; `<spot.h>` stays where it
   is. Every include in the engine, the editor, the tools, the tests and the sandbox follows, and so do the layer
   check, `AGENTS.md` and `docs/`.
@@ -65,8 +65,50 @@ in order, as each moves files the next one touches.
 
 Depends on: nothing. Must be done before phases 7, 8 and 9.
 
-- [ ] **2.1 Profile the sandbox in Release (S).** Frame time, prefab spawn cost, scene load time and script update
+- [x] **2.1 Profile the sandbox in Release (S).** Frame time, prefab spawn cost, scene load time and script update
   time, written under this task, so later phases measure against them.
+
+  Baseline captured on 2026-10-23 from `d3e666a` with the Phase 1.1 layout changes and the benchmark
+  instrumentation in this working tree. Windows 11 Pro 10.0.26200, Intel Core i5-11600K, NVIDIA GeForce
+  GTX 1660, MSVC toolset 14.51.36231, Release, Luau enabled, Vulkan (NVRHI). Three fresh processes,
+  High quality, 1600x900, vsync/graphics validation off, orbit camera, 500 spawned crates and 50 added
+  lamps; 934 physics bodies. Each capture warms up for 240 frames and measures the next 1,200.
+  Builds/tests were monitored during captures; captures overlapping them were discarded. Asset-manager
+  caches start empty; the operating system's file cache is warm and is not flushed.
+
+  ```powershell
+  cmake --build --preset msvc-release --target spot_sandbox_benchmark
+  ./build/msvc/tests/Release/spot_sandbox_benchmark --props 500 --lamps 50 --warmup 240 --frames 1200 --quality 2
+  ```
+
+  | Measurement (ms) | Capture 1 | Capture 2 | Capture 3 |
+  |---|---:|---:|---:|
+  | Frame mean | 9.088 | 9.200 | 9.268 |
+  | Frame median | 8.935 | 9.033 | 9.138 |
+  | Frame p95 | 10.378 | 10.568 | 10.577 |
+  | Frame worst | 12.158 | 12.915 | 12.218 |
+  | Startup scene load | 177.644 | 158.769 | 213.998 |
+  | Prefab spawn mean | 0.120272 | 0.127238 | 0.109111 |
+  | Prefab spawn median | 0.102900 | 0.114800 | 0.098800 |
+  | Prefab spawn p95 | 0.193000 | 0.191300 | 0.172900 |
+  | First prefab spawn | 0.191000 | 0.289500 | 0.209700 |
+  | Script update mean per frame | 0.036402 | 0.036367 | 0.036462 |
+  | Script update median per frame | 0.035100 | 0.035200 | 0.035500 |
+  | Script update p95 per frame | 0.051400 | 0.051800 | 0.052300 |
+
+  Scene load times the startup `InstantiateScene`: imported data read/decode, entity/component creation
+  and asset-reference loading, excluding platform/device setup, activation and first updates. Spawn
+  times 500 calls to `PropSpawner::Spawn` for the imported Crate, including the placement raycast and
+  undo entry, excluding the benchmark's subsequent grid placement. Script update sums inclusive
+  `<script>.OnUpdate` scopes per measured frame: three hooks per frame, 3,600 calls per capture,
+  no dropped profiler samples. It includes dispatch/bindings, excluding start/fixed hooks. CPU scope
+  averages now cover all measured frames, not only the profiler's last 240; frame intervals include
+  collection overhead. Resident memory was 221.6/220.5/222.1 MiB.
+
+  Use the median of the three run means for comparison: **9.200 ms/frame**, **0.120272 ms/spawn**,
+  **177.644 ms/scene load**, **0.036402 ms/frame of script updates**. Scene loading has only three
+  samples; retain the spread rather than treating its median as a precise threshold. Keep the workload
+  and instrumentation fixed in later phases; see [Sandbox](docs/sandbox.md#play-test-checklist).
 
 ## Phase 3 – Untangle the systems
 

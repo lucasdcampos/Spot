@@ -9,7 +9,7 @@ components or destroying their entity invalidates those bodies independently of 
 newly instantiated world prop for use as held equipment leaves no orphan body in the next physics step.
 
 Physics simulates colliders and rigidbodies with Jolt, behind an engine contract
-(`engine/physics/physics_simulation.h`) whose only backend is `engine/physics/jolt/`. Games only see components
+(`engine/spot/physics/physics_simulation.h`) whose only backend is `engine/spot/physics/jolt/`. Games only see components
 and the `PhysicsWorld`.
 
 ## Components
@@ -104,7 +104,7 @@ test each other. Tags stay for finding entities; layers are what systems filter 
 ## Collision and trigger events
 
 After each step, `PhysicsWorld` turns the contacts between bodies into events for the components of both entities,
-once per pair of entities however many of their shapes touch (see `engine/physics/collision.h`):
+once per pair of entities however many of their shapes touch (see `engine/spot/physics/collision.h`):
 
 | Hook | When |
 |---|---|
@@ -127,7 +127,7 @@ entities or change colliders; changes show from the next step.
 
 ## Queries
 
-`PhysicsWorld` answers questions about the bodies (see `engine/physics/physics_query.h`):
+`PhysicsWorld` answers questions about the bodies (see `engine/spot/physics/physics_query.h`):
 
 | Query | Finds |
 |---|---|
@@ -148,7 +148,7 @@ rebuilt first where colliders or rigidbodies changed since, and never wake bodie
 
 ## The physics world
 
-`PhysicsWorld` (`engine/physics/physics_world.h`) is the scene's physics system (see
+`PhysicsWorld` (`engine/spot/physics/physics_world.h`) is the scene's physics system (see
 [Application and scenes](application_and_scenes.md)): `Scene::GetPhysics()` creates it the first time it is needed,
 which colliders and rigidbodies do, so scenes without physics never pay for it. It has the scene's gravity
 (`SetGravity()`) and reports how many bodies it simulates.

@@ -1,5 +1,5 @@
-#include "animation/animator_controller.h"
 #include "temp_directory.h"
+#include <spot/animation/animator_controller.h>
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>

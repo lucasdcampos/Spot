@@ -1,7 +1,7 @@
 # Fails when a source of the engine includes a header of a layer above its own, so the layers stay usable on their
 # own: a game can build on the core, the platform or the systems without the scene or the Application above them.
 #
-#     cmake -DSPOT_ENGINE_DIR=<repository>/engine -P spot_check_layers.cmake
+#     cmake -DSPOT_ENGINE_DIR=<repository>/engine/spot -P spot_check_layers.cmake
 #
 # A folder may include its own layer and the ones below. Backends live inside their system's folder.
 set(SPOT_LAYERS
@@ -31,9 +31,9 @@ foreach(source IN LISTS sources)
     if(NOT DEFINED LAYER_${folder})
         continue()
     endif()
-    file(STRINGS "${SPOT_ENGINE_DIR}/${source}" includes REGEX "^#include \"[a-z0-9_]+/")
+    file(STRINGS "${SPOT_ENGINE_DIR}/${source}" includes REGEX "^#include \"spot/[a-z0-9_]+/")
     foreach(line IN LISTS includes)
-        string(REGEX REPLACE "^#include \"([a-z0-9_]+)/.*$" "\\1" included "${line}")
+        string(REGEX REPLACE "^#include \"spot/([a-z0-9_]+)/.*$" "\\1" included "${line}")
         if(DEFINED LAYER_${included} AND LAYER_${included} GREATER LAYER_${folder})
             string(APPEND violations "\n  ${source}: ${line}")
         endif()

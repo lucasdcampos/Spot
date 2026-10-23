@@ -1,5 +1,5 @@
-#include "assets/asset_formats.h"
 #include "temp_directory.h"
+#include <spot/assets/asset_formats.h>
 
 #include <spot.h>
 #include <spot_import.h>

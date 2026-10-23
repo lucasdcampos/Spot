@@ -1,7 +1,7 @@
 # Entities and components
 
 Scenes hold entities; entities hold a transform, a place in the hierarchy and components, which give them behavior.
-The code is in `engine/scene/`.
+The code is in `engine/spot/scene/`.
 
 ## Entities
 
@@ -139,7 +139,7 @@ void Serialize(Spot::Archive& archive) override {
 }
 ```
 
-`Archive` is in the core (`engine/core/archive.h`), so every layer describes its data with it; the core only names
+`Archive` is in the core (`engine/spot/core/archive.h`), so every layer describes its data with it; the core only names
 entity and asset ids. Types of higher layers add themselves with a `SerializeField()` free function found by
 argument-dependent lookup, as `AssetRef` does in `assets/asset_archive.h` and `ComponentRef` in its own header.
 

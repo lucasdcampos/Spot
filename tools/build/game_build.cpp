@@ -2,8 +2,8 @@
 
 #include "tools_log.h"
 
-#include "assets/asset_manifest.h"
-#include "assets/asset_pak.h"
+#include <spot/assets/asset_manifest.h>
+#include <spot/assets/asset_pak.h>
 
 #include <spot_import.h>
 

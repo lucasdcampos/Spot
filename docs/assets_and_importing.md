@@ -3,7 +3,7 @@
 Assets live in two forms. **Source assets** are the files artists and tools make (PNG, glTF, WAV, `.material`,
 `.scene` and the rest), under a project's `assets/` folder. **Imported assets** are the engine's own binary formats,
 made from the sources, which is all a shipped game loads. Importing is for tools: `spot_import` (`spot::import`,
-`engine/import/`) does it, and games never link it.
+`engine/spot/import/`) does it, and games never link it.
 
 ## Source assets and `.meta` files
 
@@ -11,7 +11,7 @@ Every source asset has a `.meta` file beside it, committed with it. It holds the
 changes, and its import settings. References between assets and from scenes go through ids, so files can be moved
 and renamed without breaking anything. Never edit ids in `.meta` files by hand.
 
-Files are recognized by extension (`GetSourceAssetType()` in `engine/assets/asset_type.h`):
+Files are recognized by extension (`GetSourceAssetType()` in `engine/spot/assets/asset_type.h`):
 
 | Type | Extensions |
 |---|---|
@@ -29,13 +29,13 @@ which get ids of their own under a key that names the part (`models/house.glb#Ro
 
 ## The asset database
 
-`AssetDatabase` (`engine/import/asset_database.h`) looks after a source directory and an import directory:
+`AssetDatabase` (`engine/spot/import/asset_database.h`) looks after a source directory and an import directory:
 
 - `Refresh()` finds the sources, gives new ones a `.meta` file and imports the ones that changed into the import
   directory, along with a manifest of what it holds. Ids that clash, as from a file copied with its `.meta`, are
   replaced in the copy.
 - Shipped games hold their imported assets in one pak, `assets.pak` in the import directory
-  (`engine/assets/asset_pak.h`), which `spot export` and `spot pack` write: a table of the assets, then each one,
+  (`engine/spot/assets/asset_pak.h`), which `spot export` and `spot pack` write: a table of the assets, then each one,
   compressed with LZ4 when that saves enough. `AssetManager` reads from it whenever it is there, and from a file per
   asset otherwise, as the editor and `spot run` do; opening one file instead of hundreds halves the time a scene
   such as the sandbox's playground takes to load.
@@ -47,7 +47,7 @@ which get ids of their own under a key that names the part (`models/house.glb#Ro
 
 ## Importers
 
-Each source type has an importer in `engine/import/importers/` that turns the source into imported files. An
+Each source type has an importer in `engine/spot/import/importers/` that turns the source into imported files. An
 importer has a version; **a change to any imported format bumps its importer's version**, which makes every source
 of that type import again. A new source format gets a new importer there.
 
@@ -60,13 +60,13 @@ or BC3 when any pixel is not opaque, a quarter or an eighth of the memory of the
 when importing (averaged as light for colors) rather than when loading. Textures without mipmaps, such as pixel art,
 keep their exact pixels. On a GPU that cannot sample those blocks the loader turns them back into pixels. Models'
 embedded images are compressed the same way. The block encoder is `stb_dxt`
-(`engine/import/importers/texture_compression.cpp`). Averaging alpha makes cutouts such as leaves thin out in the
+(`engine/spot/import/importers/texture_compression.cpp`). Averaging alpha makes cutouts such as leaves thin out in the
 smaller levels, as their gaps blend in and sink below the cutoff; `keepAlphaCoverage` scales each level's alpha so as
 much of it stays at half alpha or more as in the full image, and foliage keeps its density from afar.
 
 ## Loading imported assets
 
-`AssetManager` (`engine/assets/asset_manager.h`) loads imported assets from an import directory, by id or by source
+`AssetManager` (`engine/spot/assets/asset_manager.h`) loads imported assets from an import directory, by id or by source
 path, and shares each one while something refers to it. The running application has one, reached anywhere through
 `Spot::Assets`:
 
@@ -103,7 +103,7 @@ on any thread, and making the asset, on the thread that loads it. So:
 A mesh asset can also load as its CPU triangles, `MeshData`, with `AssetManager::LoadMeshData()` or
 `Load<MeshData>()`, as mesh colliders need; it loads without a graphics device, and is cached apart from the GPU mesh.
 
-Built-in assets have fixed ids and need no file (`engine/assets/built_in_assets.h`): the cube, sphere and plane
+Built-in assets have fixed ids and need no file (`engine/spot/assets/built_in_assets.h`): the cube, sphere and plane
 meshes and the grid and checker textures.
 
 Raw files can also be loaded directly, without importing, through `Model::Load()`, `Image::Load()` and the like, for
@@ -136,5 +136,5 @@ this layout and reimports older models automatically, preserving subasset ids by
 
 The asset manager loads the types of the layers up to its own. Layers above it register loaders for theirs with
 `AssetManager::RegisterLoader()`, as the scene layer does for prefabs; scenes are not shared assets, and
-`InstantiateScene(AssetManager&, AssetId)` (`engine/scene/scene_assets.h`) makes a new one from its imported data
+`InstantiateScene(AssetManager&, AssetId)` (`engine/spot/scene/scene_assets.h`) makes a new one from its imported data
 each time, which `AssetManager::ReadImportedData()` gives.

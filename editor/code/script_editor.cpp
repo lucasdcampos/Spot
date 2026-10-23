@@ -1,5 +1,5 @@
 #include "code/script_editor.h"
-#include "scene/scripting/script_api.h"
+#include <spot/scene/scripting/script_api.h>
 
 #include <algorithm>
 #include <array>
