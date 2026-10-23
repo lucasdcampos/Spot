@@ -111,34 +111,33 @@ pitch. Keep these references assigned in the scene so movement, aiming and the r
 Gamepad bindings are in the same settings. Spawn cycles through the catalog rather than requiring a separate
 button per entry. The tool gun's right mouse/Aim action cycles colors, materials or lamp kinds in those modes.
 
-## VICE script demonstrations
+## Luau script demonstrations
 
-With `SPOT_ENABLE_VICESCRIPT=ON`, the authored playground runs three imported component classes from `assets/scripts/`, each derived from `Component` and driven by `OnStart` / `OnUpdate`. They use implicit fields and methods, plus
-`entity`, `transform` and `scene` properties, so instance access does not require a `self` prefix.
-The scripts explicitly import `spot`; the neon and music examples also import `math`.
+The authored playground runs three imported Luau scripts from `assets/scripts/`, each a module with `OnStart` /
+`OnUpdate` hooks that keeps its state in locals and reaches the engine through `require("spot")`.
 They are already assigned to enabled `ScriptComponent`s in the scene; press Play in the editor or run the
-sandbox normally. Without scripting support, the scene keeps its ordinary C++ gameplay and static scenery.
+sandbox normally. Built with `SPOT_ENABLE_LUAU=OFF`, the scene keeps its ordinary C++ gameplay and static scenery.
 
 | Script / entity | Behavior | Control |
 | --- | --- | --- |
-| `monument_sign.vice` / Monument Sign | The plaza's SPOT ENGINE neon gently floats and changes scale; the solid plinth stays still. The script also accesses its Neon child's `MeshRenderer`. | **N** switches the neon mesh off/on. |
-| `music_fade.vice` / Music | The existing looping soundtrack fades to its authored volume over 1.5 seconds. Muting fades to silence while playback continues, preserving the song's position. | **M** fades music out/in. |
-| `day_controls.vice` / Game | Finds the Sun entity and calls the Sandbox's C++ `DayCycle` through generic descriptors. Sky, sunlight, fog, exposure and automatic street lamps respond to the new time. | **J** morning, **K** noon, **L** night; **P** pauses/resumes the day. |
+| `monument_sign.luau` / Monument Sign | The plaza's SPOT ENGINE neon gently floats and changes scale; the solid plinth stays still. The script also accesses its Neon child's `MeshRenderer`. | **N** switches the neon mesh off/on. |
+| `music_fade.luau` / Music | The existing looping soundtrack fades to its authored volume over 1.5 seconds. Muting fades to silence while playback continues, preserving the song's position. | **M** fades music out/in. |
+| `day_controls.luau` / Game | Finds the Sun entity and calls the Sandbox's C++ `DayCycle` through generic descriptors. Sky, sunlight, fog, exposure and automatic street lamps respond to the new time. | **J** morning, **K** noon, **L** night; **P** pauses/resumes the day. |
 
 These demo keys are physical key queries in the scripts, separate from the configurable gameplay action bindings
-above. Input capture by menus/console suppresses them. Animation and fades use `delta_time`, and the controls do
+above. Input capture by menus/console suppresses them. Animation and fades use `deltaTime`, and the controls do
 nothing while simulation time is paused. The day pause uses `DayCycle.dayLength = 0`, keeping the component active
 so night lamps can still read its daylight level.
 
 `src/game.cpp` registers the game's `DayCycle` script API after component registration, on every module load:
 read-only `timeOfDay` and `daylight`, writable `dayLength`, and `SetTimeOfDay(time)` for a value in [0, 1). The method
 applies the sun and atmosphere immediately. This uses the same descriptors as engine components; it requires no
-special case in ViceScript. See [ViceScript's scene API](vicescript.md#scene-api) to expose other components.
+special case in the Luau adapter. See [scripting](scripting.md#native-game-libraries) to expose other components.
 
-`tests/sandbox/vice_tests.cpp` drives these exact scene assets through simulated input, including music playback,
+`tests/sandbox/luau_tests.cpp` drives these exact scene assets through simulated input, including music playback,
 menu input capture, neon visibility and night lamps. The targeted graphical test
-`VICE scripts change the rendered monument and daylight in the cooked sandbox` captures the monument by day,
-with its neon off, and at night under `build/<preset>/tests/sandbox_captures/vice_monument_*.png`.
+`Luau scripts change the rendered monument and daylight in the cooked sandbox` captures the monument by day,
+with its neon off, and at night under `build/<preset>/tests/sandbox_captures/luau_monument_*.png`.
 
 ## World checkpoints and weapon feel
 

@@ -219,6 +219,9 @@ void ConfigureLuauEditor(TextEditor& editor) {
     static const TextEditor::Language language = [] {
         TextEditor::Language result = *TextEditor::Language::Lua();
         result.name = "Luau";
+        // Interpolated strings: `Hello {name}`.
+        result.otherStringStart = "`";
+        result.otherStringEnd = "`";
         result.keywords.clear();
         result.declarations.clear();
         result.identifiers.clear();

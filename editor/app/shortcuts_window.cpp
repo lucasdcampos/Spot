@@ -106,7 +106,7 @@ constexpr std::array Groups{
     ShortcutGroup{"Playing", PlayShortcuts},
     ShortcutGroup{"Asset browser", AssetShortcuts},
     ShortcutGroup{"Console", ConsoleShortcuts},
-    ShortcutGroup{"ViceScript code editor", CodeShortcuts},
+    ShortcutGroup{"Code editor", CodeShortcuts},
 };
 
 } // namespace

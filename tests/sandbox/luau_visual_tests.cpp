@@ -6,7 +6,7 @@
 
 #include <array>
 
-TEST_CASE("VICE scripts change the rendered monument and daylight in the cooked sandbox", "[gpu][sandbox][vice]") {
+TEST_CASE("Luau scripts change the rendered monument and daylight in the cooked sandbox", "[gpu][sandbox][luau]") {
     if (!Spot::GraphicsDevice::IsSupported())
         SKIP("No usable graphics device");
     auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
@@ -32,7 +32,7 @@ TEST_CASE("VICE scripts change the rendered monument and daylight in the cooked 
     scene->ForEachComponent<Spot::Camera>([](Spot::Camera& camera) { camera.SetEnabled(false); });
     scene->Update(0);
     scene->FindEntity("Game")->ForEachChild([](Spot::Entity& child) { child.SetActive(false); });
-    auto& camera = scene->CreateEntity("VICE Capture Camera");
+    auto& camera = scene->CreateEntity("Luau Capture Camera");
     camera.AddComponent<Spot::Camera>().SetFarPlane(600);
     camera.GetTransform().SetPosition({0, 1.7f, -1});
     camera.GetTransform().SetRotation(Spot::Quaternion::LookRotation({0, -0.08f, -1}));
@@ -62,14 +62,14 @@ TEST_CASE("VICE scripts change the rendered monument and daylight in the cooked 
     input.OnEvent(Spot::KeyPressedEvent{Spot::Key::K, false});
     scene->Update(1.0f / 60);
     input.BeginFrame();
-    const auto day = capture("vice_monument_day.png");
+    const auto day = capture("luau_monument_day.png");
     input.OnEvent(Spot::KeyPressedEvent{Spot::Key::N, false});
     scene->Update(1.0f / 60);
     input.BeginFrame();
     auto* neon = scene->FindEntity("Monument Sign")->FindChild("Neon")->GetComponent<Spot::MeshRenderer>();
     REQUIRE(neon);
     CHECK_FALSE(neon->IsEnabled());
-    const auto off = capture("vice_monument_off.png");
+    const auto off = capture("luau_monument_off.png");
     std::size_t changed = 0;
     for (std::size_t pixel = 0; pixel < day.size(); pixel += 4)
         changed += day[pixel] != off[pixel] || day[pixel + 1] != off[pixel + 1] || day[pixel + 2] != off[pixel + 2];
@@ -83,7 +83,7 @@ TEST_CASE("VICE scripts change the rendered monument and daylight in the cooked 
     input.BeginFrame();
     CHECK(neon->IsEnabled());
     CHECK(cycle->GetDaylight() < 0.01f);
-    const auto night = capture("vice_monument_night.png");
+    const auto night = capture("luau_monument_night.png");
     CHECK(day != night);
     int scripts = 0;
     scene->ForEachComponent<Spot::ScriptComponent>([&](Spot::ScriptComponent& script) {

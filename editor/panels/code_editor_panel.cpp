@@ -498,7 +498,7 @@ void CodeEditorPanel::OnDraw() {
     m_rects.clear();
     DrawBreak();
     if (m_documents.empty()) {
-        DrawEmptyState(ICON_FA_FILE_CODE, "Open a ViceScript asset to edit its source.");
+        DrawEmptyState(ICON_FA_FILE_CODE, "Open a script asset to edit its source.");
     } else {
         std::vector<AssetId> close;
         if (ImGui::BeginTabBar("##Scripts", ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_AutoSelectNewTabs |

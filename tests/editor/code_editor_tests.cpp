@@ -252,6 +252,7 @@ TEST_CASE("Luau editing configures Luau syntax highlighting and engine identifie
     CHECK_FALSE(fixture.Editor().GetLanguage()->identifiers.contains("Self"));
     CHECK_FALSE(fixture.Editor().GetLanguage()->identifiers.contains("self"));
     CHECK(fixture.Editor().GetLanguage()->singleLineComment == "--");
+    CHECK(fixture.Editor().GetLanguage()->otherStringStart == "`");
     REQUIRE(fixture.panel.SaveActive());
 }
 

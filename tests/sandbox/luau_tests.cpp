@@ -5,7 +5,7 @@
 
 #include <array>
 
-TEST_CASE("The sandbox VICE assets animate the real monument and toggle its neon", "[sandbox][vice]") {
+TEST_CASE("The sandbox Luau scripts animate the real monument and toggle its neon", "[sandbox][luau]") {
     SandboxTests::Playground game;
     auto* sign = game.scene.FindEntity("Monument Sign");
     auto* plinth = game.scene.FindEntity("Monument Plinth");
@@ -14,7 +14,7 @@ TEST_CASE("The sandbox VICE assets animate the real monument and toggle its neon
     auto* script = sign->GetComponent<Spot::ScriptComponent>();
     REQUIRE(script);
     REQUIRE(script->script);
-    CHECK(script->script->sourceName == "scripts/monument_sign.vice");
+    CHECK(script->script->sourceName == "scripts/monument_sign.luau");
     auto* neon = sign->FindChild("Neon");
     REQUIRE(neon);
     auto* mesh = neon->GetComponent<Spot::MeshRenderer>();
@@ -40,7 +40,7 @@ TEST_CASE("The sandbox VICE assets animate the real monument and toggle its neon
     CHECK_FALSE(script->IsFaulted());
 }
 
-TEST_CASE("The sandbox VICE music script fades the playing soundtrack and respects input capture", "[sandbox][vice]") {
+TEST_CASE("The sandbox Luau music script fades the playing soundtrack and respects input capture", "[sandbox][luau]") {
     SandboxTests::Playground game(true);
     REQUIRE(game.audio);
     // A manual device has no audio thread to consume commands or finish one-shot voices.
@@ -58,7 +58,7 @@ TEST_CASE("The sandbox VICE music script fades the playing soundtrack and respec
     REQUIRE(audio);
     REQUIRE(script);
     REQUIRE(script->script);
-    CHECK(script->script->sourceName == "scripts/music_fade.vice");
+    CHECK(script->script->sourceName == "scripts/music_fade.luau");
     CHECK(audio->volume < 0.05f);
     run(100);
     CHECK(audio->volume == Catch::Approx(0.35f));
@@ -67,7 +67,7 @@ TEST_CASE("The sandbox VICE music script fades the playing soundtrack and respec
     run(100);
     CHECK(audio->volume == 0.0f);
     CHECK(audio->IsPlaying());
-    const auto capture = game.input.PushCapture("VICE test menu");
+    const auto capture = game.input.PushCapture("Luau test menu");
     game.input.OnEvent(Spot::KeyPressedEvent{Spot::Key::M, false});
     game.Step();
     CHECK(audio->volume == 0.0f);
@@ -78,7 +78,7 @@ TEST_CASE("The sandbox VICE music script fades the playing soundtrack and respec
     CHECK_FALSE(script->IsFaulted());
 }
 
-TEST_CASE("The sandbox VICE day controls drive the C++ cycle and real night lamps", "[sandbox][vice]") {
+TEST_CASE("The sandbox Luau day controls drive the C++ cycle and real night lamps", "[sandbox][luau]") {
     SandboxTests::Playground game;
     auto* cycle = game.scene.FindComponent<DayCycle>();
     auto* control = game.scene.FindEntity("Game")->GetComponent<Spot::ScriptComponent>();
@@ -89,7 +89,7 @@ TEST_CASE("The sandbox VICE day controls drive the C++ cycle and real night lamp
     REQUIRE(street);
     auto* lamp = street->GetComponent<Spot::PointLight>();
     REQUIRE(lamp);
-    CHECK(control->script->sourceName == "scripts/day_controls.vice");
+    CHECK(control->script->sourceName == "scripts/day_controls.luau");
     game.input.OnEvent(Spot::KeyPressedEvent{Spot::Key::J, false});
     game.Step();
     CHECK(cycle->timeOfDay == Catch::Approx(0.30f).margin(0.002f));
