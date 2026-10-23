@@ -52,16 +52,16 @@ add_library(spot_objects OBJECT
     spot/audio/sound_stream.cpp
     spot/runtime/application.h
     spot/runtime/application.cpp
-    spot/core/console.cpp
+    spot/runtime/console.cpp
     spot/runtime/console_input.cpp
     spot/runtime/runtime_stats.cpp
-    spot/core/profile_stream.cpp
+    spot/runtime/profile_stream.cpp
     spot/runtime/engine_console.cpp
     spot/core/assert.h
     spot/core/assert.cpp
-    spot/core/crash_handler.h
-    spot/core/crash_handler.cpp
-    spot/core/crash_handler_internal.h
+    spot/platform/crash_handler.h
+    spot/platform/crash_handler.cpp
+    spot/platform/crash_handler_internal.h
     spot/core/diagnostics.h
     spot/core/diagnostics.cpp
     spot/runtime/game_module.h
@@ -75,21 +75,21 @@ add_library(spot_objects OBJECT
     spot/core/log_sinks.cpp
     spot/core/paths.h
     spot/core/paths.cpp
-    spot/core/process.h
-    spot/core/save_data.h
-    spot/core/save_data.cpp
+    spot/platform/process.h
+    spot/runtime/save_data.h
+    spot/runtime/save_data.cpp
     spot/core/profiler.h
     spot/core/profiler.cpp
-    spot/core/shared_library.h
-    spot/core/signal.h
-    spot/core/task.h
-    spot/core/task.cpp
+    spot/platform/shared_library.h
+    spot/scene/signal.h
+    spot/scene/task.h
+    spot/scene/task.cpp
     spot/core/time.h
     spot/core/time.cpp
-    spot/core/timer.h
-    spot/core/timer.cpp
-    spot/core/tween.h
-    spot/core/tween.cpp
+    spot/scene/timer.h
+    spot/scene/timer.cpp
+    spot/scene/tween.h
+    spot/scene/tween.cpp
     spot/core/utf8.h
     spot/core/utf8.cpp
     spot/platform/event.h
@@ -618,10 +618,10 @@ target_include_directories(spot_objects PUBLIC
 
 # Crashes are reported with the system's own tools: DbgHelp on Windows, signals and dladdr() elsewhere.
 if(WIN32)
-    target_sources(spot_objects PRIVATE spot/core/crash_handler_windows.cpp)
+    target_sources(spot_objects PRIVATE spot/platform/crash_handler_windows.cpp)
     target_link_libraries(spot_objects PUBLIC dbghelp psapi)
 else()
-    target_sources(spot_objects PRIVATE spot/core/crash_handler_posix.cpp)
+    target_sources(spot_objects PRIVATE spot/platform/crash_handler_posix.cpp)
     target_link_libraries(spot_objects PUBLIC ${CMAKE_DL_LIBS})
 endif()
 

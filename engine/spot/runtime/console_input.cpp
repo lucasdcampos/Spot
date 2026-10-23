@@ -1,7 +1,7 @@
 #include "spot/runtime/console_input.h"
 
-#include "spot/core/console.h"
 #include "spot/core/log.h"
+#include "spot/runtime/console.h"
 
 #include <algorithm>
 

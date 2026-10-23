@@ -1,10 +1,10 @@
 #pragma once
 
 #include "spot/core/asset_id.h"
-#include "spot/core/task.h"
-#include "spot/core/timer.h"
 #include "spot/core/vector.h"
 #include "spot/scene/component_type.h"
+#include "spot/scene/task.h"
+#include "spot/scene/timer.h"
 
 #include <array>
 #include <cstddef>

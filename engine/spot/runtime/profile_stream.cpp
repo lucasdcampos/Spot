@@ -1,4 +1,4 @@
-#include "spot/core/profile_stream.h"
+#include "spot/runtime/profile_stream.h"
 
 #include <nlohmann/json.hpp>
 

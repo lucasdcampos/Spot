@@ -1,4 +1,4 @@
-#include "spot/core/tween.h"
+#include "spot/scene/tween.h"
 
 #include <algorithm>
 #include <cmath>

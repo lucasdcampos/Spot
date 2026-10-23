@@ -1,4 +1,4 @@
-#include "spot/core/console.h"
+#include "spot/runtime/console.h"
 
 #include "spot/core/archive.h"
 

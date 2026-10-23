@@ -43,11 +43,11 @@ otherwise. Games include the headers with the prefix, as `<spot/core/log.h>`, or
 
 | Layer | Folders | What it holds |
 |---|---|---|
-| 0. Core | `core/` | Logging, assertions, crash handling, paths, time, the profiler, tasks, serialization (`Archive`), ids, math, colors, curves |
-| 1. Platform | `platform/` | Windows, events, the input state and actions, processes; SDL3 behind `platform/sdl3/` |
+| 0. Core | `core/` | Logging, assertions, paths, time, the profiler, jobs, serialization (`Archive`), ids, math, colors, curves |
+| 1. Platform | `platform/` | Windows, events, the input state and actions, processes, shared libraries, the crash handler, RenderDoc capture; SDL3 behind `platform/sdl3/` |
 | 2. Systems | `graphics/`, `audio/`, `physics/`, `animation/`, `particles/`, `assets/` | The mechanism: the graphics device and the code-only renderers, the mixer, the physics simulations, poses and clips, particle simulation, loading imported assets |
-| 3. Scene | `scene/`, with a folder per system: `scene/rendering/`, `scene/physics/`, `scene/audio/`, `scene/ui/`… | Entities, components and scene systems built on the systems' public API: `MeshRenderer`, `Rigidbody`, `PhysicsWorld`, `SceneRenderer`, the entity-based UI |
-| 4. Runtime | `runtime/` | `Application`, the default game loop with scenes, and what runs a game: settings, the console, game modules |
+| 3. Scene | `scene/`, with a folder per system: `scene/rendering/`, `scene/physics/`, `scene/audio/`, `scene/ui/`… | Entities, components and scene systems built on the systems' public API, tweens, timers, tasks and signals: `MeshRenderer`, `Rigidbody`, `PhysicsWorld`, `SceneRenderer`, the entity-based UI |
+| 4. Runtime | `runtime/` | `Application`, the default game loop with scenes, and what runs a game: settings, the console, save data, profile streaming, game modules |
 | 5. Tools | `import/`, then `tools/`, `cli/`, `player/` and `editor/` outside the engine | Importing and making games out of projects, which games never link |
 
 Backends live in their system's folder, behind its contract: Vulkan through NVRHI in `graphics/nvrhi/` and SDL_GPU in `graphics/sdl_gpu/`, SDL3 audio in

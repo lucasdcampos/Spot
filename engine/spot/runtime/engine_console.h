@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/core/console.h"
+#include "spot/runtime/console.h"
 
 namespace Spot {
 

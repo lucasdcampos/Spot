@@ -19,10 +19,14 @@ previous run's log beside it), and the editor's console panel.
 
 ## Crash reports
 
-`InstallCrashHandler()` (`engine/spot/core/crash_handler.h`), which applications call, makes crashes leave a trace: on a
-bad memory access, an uncaught exception, an abort or a stack overflow, the crash and its stack are logged to every
-sink, the sinks are flushed and a report is written (in a `crashes` folder beside the log by default) before the
-process ends. Tools also show a message saying where the report is.
+`InstallCrashHandler()` (`engine/spot/platform/crash_handler.h`), which applications call, makes crashes leave a
+trace: on a bad memory access, an uncaught exception, an abort or a stack overflow, the crash and its stack are logged
+to every sink, the sinks are flushed and a report is written (in a `crashes` folder beside the log by default) before
+the process ends. Tools also show a message saying where the report is.
+
+The core sits below the platform, so a failed assertion reaches the crash handler through
+`Detail::SetFatalErrorHandler()` (`engine/spot/core/assert.h`), which the crash handler sets when it is linked. A
+program built on the core alone only logs the failure before aborting.
 
 ## Contained failures
 

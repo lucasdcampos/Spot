@@ -1,7 +1,7 @@
 #pragma once
 
-#include "spot/core/tween.h"
 #include "spot/scene/scene_system.h"
+#include "spot/scene/tween.h"
 
 namespace Spot {
 

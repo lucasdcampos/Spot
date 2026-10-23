@@ -1,4 +1,4 @@
-#include "spot/core/task.h"
+#include "spot/scene/task.h"
 
 #include <algorithm>
 #include <cmath>

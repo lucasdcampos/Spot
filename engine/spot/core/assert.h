@@ -7,6 +7,11 @@
 
 namespace Spot::Detail {
 
+// Reports a fatal error the engine finds, such as a failed assertion, before the process ends. The crash handler
+// (platform/crash_handler.h) sets one that writes a crash report; without it, the error is only logged.
+using FatalErrorHandler = void (*)(std::string_view what);
+void SetFatalErrorHandler(FatalErrorHandler handler);
+
 [[noreturn]] void ReportAssertionFailure(std::string_view condition, std::string_view message,
                                          const std::source_location& location);
 

@@ -1,8 +1,8 @@
 #include "spot/runtime/runtime_stats.h"
 
 #include "spot/audio/audio_device.h"
-#include "spot/core/process.h"
 #include "spot/core/time.h"
+#include "spot/platform/process.h"
 #include "spot/scene/physics/physics_world.h"
 #include "spot/scene/scene.h"
 

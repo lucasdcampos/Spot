@@ -1,10 +1,10 @@
 #pragma once
 
-#include "spot/core/signal.h"
 #include "spot/platform/event.h"
 #include "spot/platform/input_state.h"
 #include "spot/scene/entity.h"
 #include "spot/scene/scene_system.h"
+#include "spot/scene/signal.h"
 
 #include <array>
 #include <bitset>

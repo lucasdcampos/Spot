@@ -1,7 +1,7 @@
-#include "spot/core/frame_capture.h"
+#include "spot/platform/frame_capture.h"
 
 #include "spot/core/paths.h"
-#include "spot/core/process.h"
+#include "spot/platform/process.h"
 
 #include <SDL3/SDL_loadso.h>
 #include <renderdoc_app.h>

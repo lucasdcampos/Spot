@@ -1,8 +1,9 @@
-#include "spot/core/crash_handler.h"
+#include "spot/platform/crash_handler.h"
 
-#include "spot/core/crash_handler_internal.h"
+#include "spot/core/assert.h"
 #include "spot/core/log.h"
 #include "spot/core/paths.h"
+#include "spot/platform/crash_handler_internal.h"
 
 #include <atomic>
 #include <chrono>
@@ -50,6 +51,10 @@ std::tm GetLocalTime() {
     Detail::ReportFatalError(what);
     std::abort();
 }
+
+// Failed assertions write crash reports whenever the crash handler is linked, installed or not, as they did when it
+// was part of the core.
+[[maybe_unused]] const bool s_fatalErrorHandlerSet = (Detail::SetFatalErrorHandler(Detail::ReportFatalError), true);
 
 } // namespace
 

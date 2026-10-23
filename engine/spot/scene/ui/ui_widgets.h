@@ -2,8 +2,8 @@
 
 #include "spot/assets/asset_ref.h"
 #include "spot/core/color.h"
-#include "spot/core/signal.h"
 #include "spot/scene/component.h"
+#include "spot/scene/signal.h"
 #include "spot/scene/ui/ui_system.h"
 #include "spot/scene/ui/ui_text_layout.h"
 

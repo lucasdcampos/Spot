@@ -1,4 +1,4 @@
-#include "spot/core/process.h"
+#include "spot/platform/process.h"
 
 #include "spot/core/log.h"
 #include "spot/core/paths.h"

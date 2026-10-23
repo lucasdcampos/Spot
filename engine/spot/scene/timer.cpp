@@ -1,4 +1,4 @@
-#include "spot/core/timer.h"
+#include "spot/scene/timer.h"
 
 #include <algorithm>
 #include <cmath>

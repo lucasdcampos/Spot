@@ -1,8 +1,8 @@
 #include "spot/runtime/console_overlay.h"
 
-#include "spot/core/console.h"
 #include "spot/graphics/font.h"
 #include "spot/graphics/renderer_2d.h"
+#include "spot/runtime/console.h"
 #include "spot/runtime/console_input.h"
 #include "spot/runtime/runtime_stats.h"
 

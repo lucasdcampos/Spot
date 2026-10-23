@@ -2,8 +2,8 @@
 
 #include "spot/core/assert.h"
 #include "spot/core/log.h"
-#include "spot/core/process.h"
 #include "spot/graphics/graphics_backend.h"
+#include "spot/platform/process.h"
 
 #include <algorithm>
 #include <utility>

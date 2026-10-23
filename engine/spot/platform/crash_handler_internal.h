@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/core/crash_handler.h"
+#include "spot/platform/crash_handler.h"
 
 #include <filesystem>
 #include <string>

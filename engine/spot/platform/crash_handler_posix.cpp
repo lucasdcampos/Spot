@@ -1,4 +1,4 @@
-#include "spot/core/crash_handler_internal.h"
+#include "spot/platform/crash_handler_internal.h"
 
 #include <array>
 #include <csignal>

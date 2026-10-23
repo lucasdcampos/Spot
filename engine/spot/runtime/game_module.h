@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/core/shared_library.h"
+#include "spot/platform/shared_library.h"
 
 #include <filesystem>
 #include <memory>

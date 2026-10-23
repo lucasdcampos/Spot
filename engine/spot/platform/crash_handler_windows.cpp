@@ -1,6 +1,6 @@
-#include "spot/core/crash_handler_internal.h"
 #include "spot/core/log.h"
 #include "spot/core/paths.h"
+#include "spot/platform/crash_handler_internal.h"
 
 #include <csignal>
 #include <cstdint>

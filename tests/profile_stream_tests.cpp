@@ -1,5 +1,5 @@
 #include <spot.h>
-#include <spot/core/profile_stream.h>
+#include <spot/runtime/profile_stream.h>
 
 #include "log_capture.h"
 #include <catch2/catch_test_macros.hpp>
