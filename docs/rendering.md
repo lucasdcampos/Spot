@@ -1,5 +1,10 @@
 # Rendering
 
+Materials can opt into `nearestFiltering` to keep pixel art texels sharp while other materials inherit the
+renderer's filtering. This sampler selection is part of material batching and applies to lit, cutout shadow and
+camera-depth passes. It is saved for inline and imported materials; existing materials default to the renderer's
+filter. Texture mipmaps still limit distant shimmer.
+
 `MeshRenderer` saves materials with asset IDs as references. A material created or painted in code has no
 material asset ID and is saved inline, including PBR values and texture asset references. Scene copies and
 checkpoints therefore preserve paint and emissive lamp colors. Code-created meshes still need an asset ID to
@@ -160,6 +165,16 @@ Vulkan backend, whose textures, samplers and buffers are numbered as NVRHI binds
 vertex uniforms at `register(b0, space1)`, fragment textures and samplers at `register(t0, space2)` and
 `register(s0, space2)`, and vertex inputs as `TEXCOORD{N}` for attribute `N`.
 
+Shaders `#include` headers from their own folder, from the engine's shader headers (`engine/graphics/shaders/include/`)
+and from the folders given as `INCLUDE_DIRECTORIES`; a change to any `.hlsl` file there compiles them again. The engine
+builds the shader tools once, and its CMake package hands games `spot_add_shaders()` with them
+(`cmake/spot_shader_function.cmake`), so a game compiles shaders of its own in its `CMakeLists.txt`, after
+`spot_add_game()`:
+
+```cmake
+spot_add_shaders(game_code terrain.vert.hlsl terrain.frag.hlsl)
+```
+
 ## Renderers
 
 | Renderer | Draws |
@@ -271,6 +286,34 @@ the scene holds changed (`Scene::GetStructureVersion()`); otherwise it visits on
 moved or changed (`Scene::TakeChangedEntities()`, fed by transforms and `Component::MarkChanged()`), so a large world
 that mostly stands still costs next to nothing. Graphics never sees the scene.
 
+### Custom surfaces
+
+A game whose geometry is kept in buffers of its own, such as terrain, draws it with its own shaders inside
+`Renderer3D`'s passes, so it looks like the rest: a `CustomSurface` (`engine/graphics/custom_surface.h`) handed to
+`Renderer3D::DrawSurface()` each frame, or kept by a `SurfaceRenderer` component, which `DrawScene()` draws on the
+layers the camera sees. Renderer3D calls it back in each of its passes with a `SurfaceDrawContext`: the pass, the
+view and its frustum planes for culling, and what pipelines must match there.
+
+- **Lit**: in the view's pass, after the sky and before the meshes, with the view and the frame's lighting already
+  bound, so a surface binds only its pipeline, buffers, textures and uniforms of its own. Its vertex shader reads the
+  view from `surface_frame.hlsl`; its fragment shader includes `surface_lighting.hlsl`, which declares every resource
+  of the pass at the registers Renderer3D binds and shades a point as the meshes are (`ShadeOpaqueSurface()`, or
+  `LightSurface()` for shading of its own). Five texture slots and the fragment uniforms at `b1` are the surface's
+  own; `mesh.frag.hlsl` is itself built this way.
+- **Shadow**: each view of a shadow-casting light, depth only, with the depth clamp and bias of Renderer3D's own
+  casters (`GetShadowDepthState()`).
+- **Depth**: the camera's depth, when `RenderCameraDepth()` draws it for effects that read it.
+
+Before opening a pass, Renderer3D calls `CustomSurface::Prepare()` with a `SurfacePrepareContext`: the render
+context, the view's kind, matrix and frustum planes, and its `viewIndex`. A surface can dispatch compute here to
+cull its geometry into indirect draw arguments. All the views of a shadow atlas are prepared before the atlas's
+pass opens, so each needs separate output until its draw callback. `SurfaceDrawContext::viewIndex` identifies the
+matching preparation; it starts over at `Begin()` and keeps advancing through subsequent `RenderCameraDepth()`
+calls. Preparation is optional; surfaces with CPU culling only implement their draw callbacks.
+
+Drawn in the view's pass, surfaces also hide what is behind them from the occlusion culling of render worlds. Their
+draws are their own: Renderer3D's statistics do not count them.
+
 ### SceneRenderer
 
 `SceneRenderer::Render()` draws scenes over each other into the window or a texture: their meshes through the first
@@ -354,6 +397,8 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
 
 - `Camera`: where a scene is seen from, looking down its entity's -Z; perspective or orthographic, with a
   background color.
+- `SurfaceRenderer`: a custom surface made by code (see [Custom surfaces](#custom-surfaces)), which scenes save
+  without it.
 - `MeshRenderer`: a mesh with a material at its entity's world transform, with optional levels of detail
   (`lods`, `cullScreenSize`; see [Render worlds](#render-worlds)). Materials (`Material`) are
   metallic-roughness PBR, as glTF defines it, so models look as their authors made them: a base color, `metallic`

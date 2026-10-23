@@ -14,6 +14,7 @@
 #include "scene/rendering/render_world_system.h"
 #include "scene/rendering/sky.h"
 #include "scene/rendering/sprite_renderer.h"
+#include "scene/rendering/surface_renderer.h"
 #include "scene/rendering/text_renderer.h"
 #include "scene/rendering/tilemap.h"
 #include "scene/scene.h"
@@ -66,6 +67,11 @@ void DrawScene(Renderer3D& meshes, Scene& scene) {
                                    renderer.GetMaterial() ? *renderer.GetMaterial() : DefaultMaterial,
                                    renderer.GetPalette(), renderer.GetEntity().GetTransform().GetWorldMatrix(),
                                    renderer.GetBoundsPadding(), renderer.IsCastingShadows(), renderer.GetSubmesh());
+        }
+    });
+    scene.ForEachComponent<SurfaceRenderer>([&meshes](const SurfaceRenderer& renderer) {
+        if (renderer.GetSurface() && ((meshes.GetCamera().cullingMask >> renderer.GetEntity().GetLayer()) & 1u)) {
+            meshes.DrawSurface(*renderer.GetSurface());
         }
     });
     RenderWorldSystem* world = scene.GetSystem<RenderWorldSystem>();

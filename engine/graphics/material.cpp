@@ -25,6 +25,7 @@ void Material::Serialize(Archive& archive) {
     archive.Field("alphaCutoff", alphaCutoff, {.min = 0.0f, .max = 1.0f});
     archive.Field("doubleSided", doubleSided);
     archive.Field("worldTextureSize", worldTextureSize, {.min = 0.0f, .max = 1000.0f});
+    archive.Field("nearestFiltering", nearestFiltering);
 }
 
 } // namespace Spot

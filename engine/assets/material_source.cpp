@@ -19,6 +19,7 @@ namespace Spot {
 using nlohmann::json;
 
 void MaterialSource::Serialize(Archive& archive) {
+    archive.Field("nearestFiltering", nearestFiltering, {.tooltip = "Keeps pixel art texels sharp in every pass"});
     archive.Field("baseColor", baseColor, {.tooltip = "The surface's color, which multiplies the texture's"});
     archive.Field("baseColorTexture", baseColorTexture,
                   {.tooltip = "The surface's colors, from the mesh's UVs", .assetType = AssetType::Texture});

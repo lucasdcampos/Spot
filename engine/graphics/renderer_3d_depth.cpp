@@ -67,6 +67,7 @@ const Texture* Renderer3D::RenderCameraDepth(RenderContext& context) {
             return nullptr;
         m_device->UploadToBuffer(*m_cameraDepthIndices, m_cameraDepthOrder, 0, UploadMode::Discard);
     }
+    const std::uint32_t surfaceView = PrepareSurfaces(context, SurfacePass::Depth, m_viewProjection, false);
     auto pass = context.BeginRenderPass({.depthTarget = m_cameraDepth.get(), .clearDepth = 1.0f, .depthOnly = true});
     if (!m_cameraDepthOrder.empty()) {
         pass.BindVertexStorageBuffer(0, *m_instances);
@@ -90,7 +91,8 @@ const Texture* Renderer3D::RenderCameraDepth(RenderContext& context) {
                 pass.BindVertexBuffer(1, *command.mesh->GetSkinBuffer());
             }
             if (cutout) {
-                pass.BindFragmentTexture(0, command.textures[0] ? *command.textures[0] : *m_whiteTexture, *m_sampler);
+                pass.BindFragmentTexture(0, command.textures[0] ? *command.textures[0] : *m_whiteTexture,
+                                         command.nearestFiltering ? *m_nearestSampler : *m_sampler);
                 pass.PushFragmentUniforms(0, Vector4{command.color.a, command.alphaCutoff, 0, 0});
             }
             pass.BindVertexBuffer(0, command.mesh->GetVertexBuffer());
@@ -106,6 +108,7 @@ const Texture* Renderer3D::RenderCameraDepth(RenderContext& context) {
             }
         }
     }
+    DrawSurfaces(pass, SurfacePass::Depth, m_viewProjection, false, surfaceView);
     return m_cameraDepth.get();
 }
 } // namespace Spot

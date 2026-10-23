@@ -1,6 +1,11 @@
 #include "depth_compare.frag.h"
+#include "indirect_arguments.comp.h"
 #include "quad.vert.h"
 #include "solid.frag.h"
+#include "surface.frag.h"
+#include "surface.vert.h"
+#include "surface_depth.frag.h"
+#include "surface_depth.vert.h"
 #include "textured.frag.h"
 #include "textured_quad.vert.h"
 #include "triangle.frag.h"
@@ -1330,6 +1335,56 @@ TEST_CASE("Renderer3D draws lit meshes with depth testing", "[gpu]") {
     CHECK(IsNear(render.At(0, 0), {0, 0, 0, 255}));
 }
 
+TEST_CASE("Renderer3D preserves pixel art filtering per material with shared textures", "[gpu][material-filter]") {
+    RequireGpu();
+    for (const bool world : {false, true}) {
+        const TargetRender render(
+            96, 48,
+            [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+                Spot::Renderer3D renderer(
+                    device, {.filter = Spot::TextureFilter::Linear, .targetFormat = Spot::TextureFormat::Rgba8});
+                const auto plane = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane());
+                const std::shared_ptr<Spot::Texture> texture =
+                    device.CreateTexture(Spot::Image(2, 1, {255, 0, 0, 255, 0, 0, 255, 255}));
+                REQUIRE((plane && texture));
+                Spot::RenderWorld renderWorld;
+                // Identical geometry and texture, with different samplers: batching and binding must retain both.
+                renderer.Begin(context, target, MakeFrontCamera());
+                std::vector<std::shared_ptr<Spot::Material>> materials;
+                for (int i = 0; i < 2; ++i) {
+                    auto material = std::make_shared<Spot::Material>(
+                        Spot::Material{.baseColor = Spot::Color::Black,
+                                       .emissive = Spot::Color::White,
+                                       .emissiveTexture = Spot::AssetRef<Spot::Texture>(texture),
+                                       .nearestFiltering = i == 1});
+                    materials.push_back(material);
+                    const auto transform =
+                        Spot::Matrix4::Translation({i == 0 ? -0.65f : 0.65f, 0, 0}) *
+                        Spot::Matrix4::Rotation(Spot::Quaternion::FromAxisAngle({1, 0, 0}, Spot::Pi / 2.0f));
+                    if (world) {
+                        renderWorld.AddMesh({.mesh = plane.get(), .material = material.get(), .transform = transform});
+                    } else {
+                        renderer.DrawMesh(*plane, *material, transform);
+                    }
+                }
+                if (world) {
+                    renderer.DrawWorld(renderWorld);
+                }
+                renderer.End();
+            });
+        int mixedLeft = 0;
+        int mixedRight = 0;
+        for (int x = 0; x < 96; ++x) {
+            const auto pixel = render.At(x, 24);
+            if (pixel[0] > 8 && pixel[2] > 8) {
+                x < 48 ? ++mixedLeft : ++mixedRight;
+            }
+        }
+        CHECK(mixedLeft > 2);
+        CHECK(mixedRight == 0);
+    }
+}
+
 TEST_CASE("Renderer3D hides back faces unless the material is double-sided", "[gpu]") {
     RequireGpu();
 
@@ -2072,6 +2127,333 @@ TEST_CASE("Renderer3D drops the shadows of cutout pixels, and transparent surfac
     CHECK_FALSE(shadowed({.baseColor = {1.0f, 1.0f, 1.0f, 0.2f}, .alphaMode = Spot::AlphaMode::Cutout}));
     CHECK(shadowed({.baseColor = {1.0f, 1.0f, 1.0f, 0.8f}, .alphaMode = Spot::AlphaMode::Cutout}));
     CHECK_FALSE(shadowed({.baseColor = {1.0f, 1.0f, 1.0f, 0.8f}, .alphaMode = Spot::AlphaMode::Transparent}));
+}
+
+namespace {
+
+// A mesh in buffers of its own, drawn as a custom surface of one color by the test's shaders: lit like Renderer3D's
+// meshes, and into its shadows and the camera's depth. It counts what it is asked to draw.
+class TestSurface final : public Spot::CustomSurface {
+public:
+    int litDraws = 0;
+    int shadowDraws = 0;
+    int depthDraws = 0;
+
+    TestSurface(Spot::GraphicsDevice& device, const Spot::MeshData& mesh, Spot::Color color,
+                const Spot::Matrix4& transform = {}, bool indirect = false)
+        : m_indirect(indirect), m_color(color) {
+        std::vector<float> vertices;
+        for (const Spot::MeshVertex& vertex : mesh.vertices) {
+            const Spot::Vector4 position =
+                transform * Spot::Vector4{vertex.position.x, vertex.position.y, vertex.position.z, 1.0f};
+            const Spot::Vector4 normal =
+                transform * Spot::Vector4{vertex.normal.x, vertex.normal.y, vertex.normal.z, 0.0f};
+            const Spot::Vector3 unit = Spot::Normalize(Spot::Vector3{normal.x, normal.y, normal.z});
+            vertices.insert(vertices.end(), {position.x, position.y, position.z, unit.x, unit.y, unit.z});
+        }
+        m_vertices = device.CreateBuffer(Spot::BufferUsage::Vertex, vertices);
+        m_indices = device.CreateBuffer(Spot::BufferUsage::Index, mesh.indices);
+        m_indexCount = static_cast<std::uint32_t>(mesh.indices.size());
+        m_vertexShader = device.CreateShader(Shaders::SurfaceVert);
+        m_fragmentShader = device.CreateShader(Shaders::SurfaceFrag);
+        m_depthVertexShader = device.CreateShader(Shaders::SurfaceDepthVert);
+        m_depthFragmentShader = device.CreateShader(Shaders::SurfaceDepthFrag);
+        REQUIRE((m_vertices && m_indices && m_vertexShader && m_fragmentShader && m_depthVertexShader &&
+                 m_depthFragmentShader));
+        if (m_indirect) {
+            REQUIRE((device.GetCapabilities().compute && device.GetCapabilities().indirectDraws));
+            m_counts = device.CreateBuffer(Spot::BufferUsage::Storage, std::array{m_indexCount});
+            const auto shader = device.CreateShader(Shaders::IndirectArgumentsComp);
+            REQUIRE((m_counts && shader));
+            m_compute = device.CreateComputePipeline({.shader = shader.get()});
+            REQUIRE(m_compute);
+        }
+    }
+
+    void Prepare(const Spot::SurfacePrepareContext& context) override {
+        if (m_views.size() <= context.viewIndex) {
+            m_views.resize(static_cast<std::size_t>(context.viewIndex) + 1);
+        }
+        auto& view = m_views[context.viewIndex];
+        CHECK_FALSE(view.prepared);
+        view.kind = context.kind;
+        view.viewProjection = context.viewProjection;
+        view.planes = context.planes;
+        view.prepared = true;
+        if (m_indirect) {
+            view.arguments = context.device.CreateBuffer({.usage = Spot::BufferUsage::Indirect, .size = 8 * 4});
+            REQUIRE(view.arguments);
+            // Opening a compute pass here also proves no renderer pass is open yet.
+            auto pass = context.context.BeginComputePass({.buffers = {view.arguments.get()}});
+            pass.BindPipeline(*m_compute);
+            pass.BindStorageBuffer(0, *m_counts);
+            pass.Dispatch(1);
+        }
+    }
+
+    void DrawLit(const Spot::SurfaceDrawContext& context) override {
+        ++litDraws;
+        if (!m_litPipeline) {
+            m_litPipeline = context.device.CreatePipeline({.vertexShader = m_vertexShader.get(),
+                                                           .fragmentShader = m_fragmentShader.get(),
+                                                           .vertexBuffers = {GetLayout()},
+                                                           .cullMode = Spot::CullMode::Back,
+                                                           .targetFormat = context.colorFormat,
+                                                           .depth = context.depth,
+                                                           .sampleCount = context.sampleCount});
+            REQUIRE(m_litPipeline);
+        }
+        context.pass.BindPipeline(*m_litPipeline);
+        context.pass.PushFragmentUniforms(1, m_color);
+        Draw(context);
+    }
+
+    void DrawShadow(const Spot::SurfaceDrawContext& context) override {
+        ++shadowDraws;
+        DrawDepthOnly(context, m_shadowPipeline);
+    }
+
+    void DrawDepth(const Spot::SurfaceDrawContext& context) override {
+        ++depthDraws;
+        DrawDepthOnly(context, m_depthPipeline);
+    }
+
+private:
+    static Spot::VertexBufferLayout GetLayout() {
+        return {.stride = 6 * sizeof(float),
+                .attributes = {{0, Spot::VertexFormat::Float3, 0}, {1, Spot::VertexFormat::Float3, 3 * sizeof(float)}}};
+    }
+
+    void DrawDepthOnly(const Spot::SurfaceDrawContext& context, std::unique_ptr<Spot::Pipeline>& pipeline) {
+        if (!pipeline) {
+            pipeline = context.device.CreatePipeline({.vertexShader = m_depthVertexShader.get(),
+                                                      .fragmentShader = m_depthFragmentShader.get(),
+                                                      .vertexBuffers = {GetLayout()},
+                                                      .cullMode = Spot::CullMode::Back,
+                                                      .depthOnly = true,
+                                                      .depth = context.depth});
+            REQUIRE(pipeline);
+        }
+        context.pass.BindPipeline(*pipeline);
+        context.pass.PushVertexUniforms(0, context.viewProjection);
+        Draw(context);
+    }
+
+    void Draw(const Spot::SurfaceDrawContext& context) {
+        REQUIRE(context.viewIndex < m_views.size());
+        auto& view = m_views[context.viewIndex];
+        REQUIRE(view.prepared);
+        CHECK(view.kind == context.kind);
+        CHECK(view.viewProjection == context.viewProjection);
+        CHECK(view.planes == context.planes);
+        view.prepared = false;
+        Spot::RenderPass& pass = context.pass;
+        pass.BindVertexBuffer(0, *m_vertices);
+        pass.BindIndexBuffer(*m_indices, Spot::IndexType::UInt32);
+        if (m_indirect) {
+            pass.DrawIndexedIndirect(*view.arguments);
+        } else {
+            pass.DrawIndexed(m_indexCount);
+        }
+    }
+
+    struct View {
+        Spot::SurfacePass kind = Spot::SurfacePass::Lit;
+        Spot::Matrix4 viewProjection;
+        std::array<Spot::Vector4, 6> planes;
+        bool prepared = false;
+        std::unique_ptr<Spot::Buffer> arguments;
+    };
+    std::vector<View> m_views;
+    bool m_indirect = false;
+    std::unique_ptr<Spot::Buffer> m_counts;
+    std::unique_ptr<Spot::ComputePipeline> m_compute;
+    Spot::Color m_color;
+    std::unique_ptr<Spot::Buffer> m_vertices;
+    std::unique_ptr<Spot::Buffer> m_indices;
+    std::uint32_t m_indexCount = 0;
+    std::unique_ptr<Spot::Shader> m_vertexShader;
+    std::unique_ptr<Spot::Shader> m_fragmentShader;
+    std::unique_ptr<Spot::Shader> m_depthVertexShader;
+    std::unique_ptr<Spot::Shader> m_depthFragmentShader;
+    std::unique_ptr<Spot::Pipeline> m_litPipeline;
+    std::unique_ptr<Spot::Pipeline> m_shadowPipeline;
+    std::unique_ptr<Spot::Pipeline> m_depthPipeline;
+};
+
+// Lit from an angle, by a light and the ambient light, so the surface's shade depends on its normal.
+void DrawAngledLights(Spot::Renderer3D& renderer) {
+    renderer.DrawLight({.type = Spot::LightType::Directional,
+                        .color = {0.8f, 0.7f, 0.6f},
+                        .direction = Spot::Normalize(Spot::Vector3{0.4f, -0.5f, -1.0f})});
+    renderer.DrawLight({.type = Spot::LightType::Ambient, .color = {0.15f, 0.2f, 0.25f}});
+}
+
+} // namespace
+
+TEST_CASE("Renderer3D lights custom surfaces as it lights its meshes", "[gpu]") {
+    RequireGpu();
+    const Spot::Color color{0.8f, 0.5f, 0.3f};
+    const Spot::Matrix4 turned = Spot::Matrix4::Rotation(
+        Spot::Quaternion::FromAxisAngle(Spot::Normalize(Spot::Vector3{1.0f, 1.0f, 0.0f}), 0.6f));
+    const auto render = [&](bool asSurface) {
+        return TargetRender(
+            32, 32,
+            [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+                Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+                const Spot::MeshData cube = Spot::MeshData::CreateCube();
+                const auto mesh = Spot::Mesh::Create(device, cube);
+                TestSurface surface(device, cube, color, turned);
+                REQUIRE(mesh);
+                renderer.Begin(context, target, MakeFrontCamera());
+                DrawAngledLights(renderer);
+                if (asSurface) {
+                    renderer.DrawSurface(surface);
+                } else {
+                    renderer.DrawMesh(*mesh, {.baseColor = color}, turned);
+                }
+                renderer.End();
+                CHECK(surface.litDraws == (asSurface ? 1 : 0));
+            });
+    };
+    const TargetRender mesh = render(false);
+    const TargetRender surface = render(true);
+    // Faces of the turned cube, each lit differently, and the background.
+    for (const auto& [x, y] : {std::pair{12, 16}, std::pair{20, 12}, std::pair{16, 22}, std::pair{1, 1}}) {
+        CHECK(IsNear(surface.At(x, y), mesh.At(x, y)));
+    }
+    CHECK(surface.At(12, 16) != surface.At(1, 1));
+}
+
+TEST_CASE("Renderer3D draws custom surfaces into its shadows, and shadows them", "[gpu]") {
+    RequireGpu();
+
+    // A slab two units over the floor, lit from 45 degrees, shadows the floor two units aside; either may be the
+    // custom surface.
+    const auto shadowed = [](bool slabIsSurface) {
+        int shadowDraws = 0;
+        const TargetRender render(
+            64, 64,
+            [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+                Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+                const Spot::MeshData slabData = Spot::MeshData::CreateCube();
+                const Spot::MeshData floorData = Spot::MeshData::CreatePlane(40.0f);
+                const Spot::Matrix4 slabAt =
+                    Spot::Matrix4::Translation({0.0f, 2.0f, 0.0f}) * Spot::Matrix4::Scale({1.0f, 0.2f, 1.0f});
+                const auto slab = Spot::Mesh::Create(device, slabData);
+                const auto floor = Spot::Mesh::Create(device, floorData);
+                TestSurface surface(device, slabIsSurface ? slabData : floorData, Spot::Color::White,
+                                    slabIsSurface ? slabAt : Spot::Matrix4{});
+                REQUIRE((slab && floor));
+                Spot::Camera3D camera;
+                camera.position = {0.0f, 10.0f, 0.0f};
+                camera.rotation = Spot::Quaternion::LookRotation({0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, -1.0f});
+                renderer.Begin(context, target, camera);
+                renderer.DrawLight({.type = Spot::LightType::Directional,
+                                    .direction = Spot::Normalize(Spot::Vector3{1.0f, -1.0f, 0.0f}),
+                                    .castsShadows = true});
+                renderer.DrawSurface(surface);
+                if (slabIsSurface) {
+                    renderer.DrawMesh(*floor, {});
+                } else {
+                    renderer.DrawMesh(*slab, {}, slabAt);
+                }
+                renderer.End();
+                shadowDraws = surface.shadowDraws;
+            });
+        CHECK(shadowDraws >= 1);
+        // The floor's pixel two units along +X, where the shadow falls, and one on the other side, in the light.
+        return render.At(static_cast<int>((2.0f / 5.7735f + 1.0f) * 32.0f), 32)[0] < 40 &&
+               render.At(static_cast<int>((-2.0f / 5.7735f + 1.0f) * 32.0f), 32)[0] > 120;
+    };
+    CHECK(shadowed(true));
+    CHECK(shadowed(false));
+}
+
+TEST_CASE("Renderer3D draws custom surfaces into the camera's depth", "[gpu]") {
+    RequireGpu();
+    int depthDraws = 0;
+    const TargetRender render(
+        16, 16, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            TestSurface surface(device, Spot::MeshData::CreateCube(), Spot::Color::White);
+            renderer.Begin(context, target, MakeFrontCamera());
+            renderer.DrawSurface(surface);
+            renderer.End();
+            CHECK(renderer.RenderCameraDepth(context) != nullptr);
+            depthDraws = surface.depthDraws;
+        });
+    CHECK(depthDraws == 1);
+}
+
+TEST_CASE("Renderer3D prepares custom surfaces with compute before every view", "[gpu]") {
+    RequireGpu();
+    const auto render = [](bool indirect) {
+        return TargetRender(
+            32, 32,
+            [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+                if (!device.GetCapabilities().compute || !device.GetCapabilities().indirectDraws) {
+                    SKIP("This device runs no compute shaders or indirect draws");
+                }
+                Spot::Renderer3D renderer(
+                    device,
+                    {.targetFormat = Spot::TextureFormat::Rgba8, .shadowMapSize = 32, .localShadowMapSize = 16});
+                TestSurface surface(device, Spot::MeshData::CreateCube(), Spot::Color::White, {}, indirect);
+                for (int view = 0; view < 2; ++view) {
+                    Spot::Camera3D camera = MakeFrontCamera();
+                    camera.position.x += static_cast<float>(view) * 0.25f;
+                    renderer.Begin(context, target, camera);
+                    renderer.DrawSurface(surface);
+                    renderer.DrawLight(
+                        {.type = Spot::LightType::Directional, .direction = {0, -1, -1}, .castsShadows = true});
+                    renderer.DrawLight(
+                        {.type = Spot::LightType::Point, .position = {1, 1, 1}, .range = 8, .castsShadows = true});
+                    renderer.DrawLight({.type = Spot::LightType::Spot,
+                                        .position = {-1, 1, 1},
+                                        .direction = {0, -1, -1},
+                                        .range = 8,
+                                        .castsShadows = true});
+                    renderer.End();
+                    REQUIRE(renderer.RenderCameraDepth(context));
+                }
+                CHECK(surface.litDraws == 2);
+                CHECK(surface.depthDraws == 2);
+                CHECK(surface.shadowDraws == 2 * (4 + 6 + 1));
+            });
+    };
+    const TargetRender direct = render(false);
+    const TargetRender indirect = render(true);
+    for (int y = 0; y < 32; ++y) {
+        for (int x = 0; x < 32; ++x) {
+            REQUIRE(IsNear(indirect.At(x, y), direct.At(x, y)));
+        }
+    }
+    CHECK(direct.At(16, 16) != direct.At(0, 0));
+}
+
+TEST_CASE("Renderer3D draws the custom surfaces of a scene's surface renderers on layers the camera sees", "[gpu]") {
+    RequireGpu();
+    const auto draws = [](std::uint32_t cullingMask) {
+        int litDraws = 0;
+        const TargetRender render(
+            8, 8, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+                Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+                auto surface = std::make_shared<TestSurface>(device, Spot::MeshData::CreateCube(), Spot::Color::White);
+                Spot::Scene scene;
+                Spot::Entity& entity = scene.CreateEntity("Terrain");
+                entity.SetLayer(3);
+                entity.AddComponent<Spot::SurfaceRenderer>(surface);
+                Spot::Camera3D camera = MakeFrontCamera();
+                camera.cullingMask = cullingMask;
+                renderer.Begin(context, target, camera);
+                Spot::DrawScene(renderer, scene);
+                renderer.End();
+                litDraws = surface->litDraws;
+            });
+        return litDraws;
+    };
+    CHECK(draws(0xFFFFFFFFu) == 1);
+    CHECK(draws(~(1u << 3)) == 0);
 }
 
 TEST_CASE("Renderer3D leaves meshes out of the view out of its pass, and counts them", "[gpu]") {
@@ -3176,6 +3558,54 @@ TEST_CASE("Float render targets keep values above 1, in half precision", "[gpu]"
     CHECK(HalfToFloat(halves[1]) == Catch::Approx(0.001f).margin(0.00001f));
     CHECK(HalfToFloat(halves[2]) == Catch::Approx(0.5f));
     CHECK(HalfToFloat(halves[3]) == Catch::Approx(1.0f));
+}
+
+TEST_CASE("HDR sun cores stay brighter than their halo under strong warm sunlight", "[gpu][sky][offscreen]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = false});
+    REQUIRE(device);
+    constexpr std::uint32_t Size = 127;
+    auto target = device->CreateTexture(
+        {.width = Size, .height = Size, .format = Spot::TextureFormat::Rgba16Float, .renderTarget = true});
+    auto depth = device->CreateTexture(
+        {.width = Size, .height = Size, .format = Spot::TextureFormat::Depth32Float, .renderTarget = true});
+    REQUIRE((target && depth));
+    Spot::Renderer3D renderer(
+        *device,
+        {.targetFormat = Spot::TextureFormat::Rgba16Float, .hdr = true, .shadowMapSize = 0, .localShadowMapSize = 0});
+    REQUIRE(renderer.IsValid());
+    Spot::Camera3D camera;
+    camera.LookAt({0, 1, -1});
+    for (const float intensity : {1.0f, 5.0f}) {
+        CAPTURE(intensity);
+        auto* context = device->BeginOffscreenFrame(*target);
+        REQUIRE(context);
+        renderer.Begin(*context, {.clearColor = Spot::Color::Black, .depthTarget = depth.get(), .clearDepth = 1.0f},
+                       camera);
+        renderer.DrawSky({.sunDirection = {0, -1, 1},
+                          .sunColor = {1.0f, 0.85f, 0.62f},
+                          .sunIntensity = intensity,
+                          .sunSize = Spot::ToRadians(5.0f),
+                          .exposure = 0.42f,
+                          .lightsScene = false});
+        renderer.End();
+        device->EndFrame();
+        const auto pixels = device->DownloadTexture(*target);
+        REQUIRE(pixels.size() == Size * Size * 8);
+        const auto channel = [&](int x, int component) {
+            std::uint16_t half = 0;
+            const auto index = (static_cast<std::size_t>(Size / 2) * Size + x) * 8 + component * 2;
+            std::memcpy(&half, pixels.data() + index, sizeof(half));
+            return HalfToFloat(half);
+        };
+        for (int component = 0; component < 3; ++component) {
+            CAPTURE(component);
+            const float core = channel(Size / 2, component);
+            const float halo = std::max(channel(Size / 2 - 12, component), channel(Size / 2 + 12, component));
+            INFO("Core radiance " << core << "; halo " << halo);
+            CHECK(core > halo);
+        }
+    }
 }
 
 TEST_CASE("Fullscreen passes cover the target, with coordinates from its top-left corner", "[gpu]") {

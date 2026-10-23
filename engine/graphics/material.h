@@ -58,6 +58,8 @@ struct Material {
     // UVs, repeating every this many units, so they keep their size however the mesh is scaled. Suits
     // BuiltInAssets::GridTexture on level blocks.
     float worldTextureSize = 0.0f;
+    // Samples exact texels for pixel art, overriding the renderer's default filtering in all passes.
+    bool nearestFiltering = false;
 
     void Serialize(Archive& archive);
     friend bool operator==(const Material&, const Material&) = default;

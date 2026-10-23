@@ -489,6 +489,8 @@ Renderer3D::Renderer3D(GraphicsDevice& device, const Renderer3DConfig& config) :
     }
     m_sampler = device.CreateSampler(
         {.filter = config.filter, .addressMode = TextureAddressMode::Repeat, .maxAnisotropy = config.maxAnisotropy});
+    m_nearestSampler =
+        device.CreateSampler({.filter = TextureFilter::Nearest, .addressMode = TextureAddressMode::Repeat});
     m_shadowSampler = device.CreateSampler({.compare = CompareOp::LessOrEqual});
     m_noShadows =
         device.CreateTexture({.width = 1, .height = 1, .format = TextureFormat::Depth32Float, .renderTarget = true});
@@ -528,9 +530,9 @@ bool Renderer3D::IsValid() const {
            m_doubleSidedPipeline && m_transparentPipeline && m_doubleSidedTransparentPipeline && m_mirroredPipeline &&
            m_mirroredTransparentPipeline && m_mirroredShadowPipeline && m_mirroredCutoutShadowPipeline &&
            m_skyPipeline && m_shadowPipeline && m_doubleSidedShadowPipeline && m_cutoutShadowPipeline &&
-           m_doubleSidedCutoutShadowPipeline && m_sampler && m_shadowSampler && m_whiteTexture && m_noShadows &&
-           m_skyCapturePipeline && m_skyPrefilter && m_skyIrradiancePass && m_skySampler && m_noSkyReflections &&
-           m_noSkyIrradiance;
+           m_doubleSidedCutoutShadowPipeline && m_sampler && m_nearestSampler && m_shadowSampler && m_whiteTexture &&
+           m_noShadows && m_skyCapturePipeline && m_skyPrefilter && m_skyIrradiancePass && m_skySampler &&
+           m_noSkyReflections && m_noSkyIrradiance;
 }
 
 void Renderer3D::Begin(RenderContext& context, const RenderPassDesc& target, const Camera3D& camera) {
@@ -548,6 +550,8 @@ void Renderer3D::Begin(RenderContext& context, const RenderPassDesc& target, con
     m_viewSize = viewSize;
     m_aspectRatio = viewSize.y > 0.0f ? viewSize.x / viewSize.y : 1.0f;
     m_commands.clear();
+    m_surfaces.clear();
+    m_surfaceViewIndex = 0;
     m_paletteData.clear();
     m_lights.clear();
     m_sky.reset();
@@ -687,12 +691,17 @@ void Renderer3D::End() {
     }
     m_context->BeginGpuTimer("Opaque");
     CullWorlds();
+    const std::uint32_t surfaceView = PrepareSurfaces(*m_context, SurfacePass::Lit, m_viewProjection, false);
     {
         auto pass = m_context->BeginRenderPass(m_target);
         if (m_sky) {
             FlushSky(pass, *m_sky, *skyLighting);
         }
-        Flush(pass, lights, shadows);
+        // Surfaces draw before the meshes, as they are mostly large and in front, such as terrain, and so hide much
+        // of what comes after them; transparent meshes, last, blend over them.
+        BindLighting(pass, lights, shadows);
+        DrawSurfaces(pass, SurfacePass::Lit, m_viewProjection, false, surfaceView);
+        Flush(pass);
     }
     UpdateOcclusionTiles();
     m_context->EndGpuTimer();
@@ -1096,6 +1105,7 @@ void Renderer3D::AddCommand(const RenderMeshObject& object, const Material& mate
          object.bounds,
          object.desc.castsShadows});
     DrawCommand& command = m_commands.back();
+    command.nearestFiltering = material.nearestFiltering;
     command.firstIndex = range.firstIndex;
     command.indexCount = range.indexCount;
     command.mirrored = object.mirrored;
@@ -1282,7 +1292,7 @@ void Renderer3D::DrawShadowViews(Detail::SelectedLights& lights, Detail::ShadowU
         m_context->BeginRenderPass({.depthTarget = m_noShadows.get(), .clearDepth = 1.0f, .depthOnly = true});
         m_noShadowsCleared = true;
     }
-    if (m_commands.empty()) {
+    if (m_commands.empty() && m_surfaces.empty()) {
         return;
     }
     if (m_config.shadowMapSize > 0) {
@@ -1325,13 +1335,18 @@ bool Renderer3D::DrawCascades(const LightData& light, Detail::ShadowUniforms& sh
     shadows.cascadeLayout = {static_cast<float>(columns), static_cast<float>(rows),
                              1.0f / static_cast<float>(columns * size), 1.0f / static_cast<float>(rows * size)};
 
+    std::array<Detail::ShadowView, Detail::MaxShadowCascades> views{};
+    std::array<std::uint32_t, Detail::MaxShadowCascades> surfaceViews{};
+    for (std::uint32_t cascade = 0; cascade < count; ++cascade) {
+        const float start = cascade == 0 ? nearPlane : ends[cascade - 1];
+        views[cascade] = Detail::GetCascadeView(m_camera, m_aspectRatio, start, ends[cascade], light.direction, size);
+        surfaceViews[cascade] = PrepareSurfaces(*m_context, SurfacePass::Shadow, views[cascade].viewProjection, true);
+    }
     auto pass =
         m_context->BeginRenderPass({.depthTarget = m_cascadeShadows.get(), .clearDepth = 1.0f, .depthOnly = true});
     std::array<float, Detail::MaxShadowCascades> texelSizes{};
     for (std::uint32_t cascade = 0; cascade < count; ++cascade) {
-        const float start = cascade == 0 ? nearPlane : ends[cascade - 1];
-        const Detail::ShadowView view =
-            Detail::GetCascadeView(m_camera, m_aspectRatio, start, ends[cascade], light.direction, size);
+        const Detail::ShadowView& view = views[cascade];
         shadows.cascadeViews[cascade] = TileFromClip * view.viewProjection;
         texelSizes[cascade] = view.texelSize;
         pass.SetViewport({.x = static_cast<float>(cascade % columns * size),
@@ -1339,6 +1354,7 @@ bool Renderer3D::DrawCascades(const LightData& light, Detail::ShadowUniforms& sh
                           .width = static_cast<float>(size),
                           .height = static_cast<float>(size)});
         DrawShadowCasters(pass, view.viewProjection, true);
+        DrawSurfaces(pass, SurfacePass::Shadow, view.viewProjection, true, surfaceViews[cascade]);
     }
     shadows.cascadeTexelSizes = {texelSizes[0], texelSizes[1], texelSizes[2], texelSizes[3]};
     return true;
@@ -1384,20 +1400,34 @@ void Renderer3D::DrawLocalShadows(Detail::SelectedLights& lights, Detail::Shadow
     shadows.tileLayout = {static_cast<float>(Columns), static_cast<float>(Rows),
                           1.0f / static_cast<float>(Columns * size), 1.0f / static_cast<float>(Rows * size)};
 
-    auto pass =
-        m_context->BeginRenderPass({.depthTarget = m_localShadows.get(), .clearDepth = 1.0f, .depthOnly = true});
+    std::array<Detail::ShadowView, MaxShadowTiles> views{};
+    std::array<std::uint32_t, MaxShadowTiles> surfaceViews{};
     for (std::size_t i = 0; i < lights.lights.size(); ++i) {
-        if (lights.shadows[i] < 0.0f) {
+        if (lights.shadows[i] < 0.0f || lights.lights[i]->type == LightType::Directional) {
             continue;
         }
         const LightData& light = *lights.lights[i];
         const auto first = static_cast<std::uint32_t>(lights.shadows[i]);
         const std::uint32_t faces = light.type == LightType::Point ? 6 : 1;
         for (std::uint32_t face = 0; face < faces; ++face) {
-            const Detail::ShadowView view = light.type == LightType::Point
-                                                ? Detail::GetPointShadowView(light, face, size)
-                                                : Detail::GetSpotShadowView(light, size);
             const std::uint32_t tile = first + face;
+            views[tile] = light.type == LightType::Point ? Detail::GetPointShadowView(light, face, size)
+                                                         : Detail::GetSpotShadowView(light, size);
+            surfaceViews[tile] = PrepareSurfaces(*m_context, SurfacePass::Shadow, views[tile].viewProjection, false);
+        }
+    }
+    auto pass =
+        m_context->BeginRenderPass({.depthTarget = m_localShadows.get(), .clearDepth = 1.0f, .depthOnly = true});
+    for (std::size_t i = 0; i < lights.lights.size(); ++i) {
+        if (lights.shadows[i] < 0.0f || lights.lights[i]->type == LightType::Directional) {
+            continue;
+        }
+        const LightData& light = *lights.lights[i];
+        const auto first = static_cast<std::uint32_t>(lights.shadows[i]);
+        const std::uint32_t faces = light.type == LightType::Point ? 6 : 1;
+        for (std::uint32_t face = 0; face < faces; ++face) {
+            const std::uint32_t tile = first + face;
+            const Detail::ShadowView& view = views[tile];
             shadows.tileViews[tile] = TileFromClip * view.viewProjection;
             lights.shadowTexelSizes[i] = view.texelSize;
             pass.SetViewport({.x = static_cast<float>(tile % Columns * size),
@@ -1405,6 +1435,7 @@ void Renderer3D::DrawLocalShadows(Detail::SelectedLights& lights, Detail::Shadow
                               .width = static_cast<float>(size),
                               .height = static_cast<float>(size)});
             DrawShadowCasters(pass, view.viewProjection, false);
+            DrawSurfaces(pass, SurfacePass::Shadow, view.viewProjection, false, surfaceViews[tile]);
         }
     }
 }
@@ -1483,7 +1514,7 @@ void Renderer3D::AssignLooks() {
     // Materials look the same when their textures and every value match, as copies of a material do.
     struct Look {
         MaterialTextures textures;
-        std::array<float, 15> values;
+        std::array<float, 16> values;
         bool operator==(const Look&) const = default;
     };
     struct LookHash {
@@ -1506,7 +1537,8 @@ void Renderer3D::AssignLooks() {
         const Look look{c.textures,
                         {c.color.r, c.color.g, c.color.b, c.color.a, c.metallic, c.roughness, c.normalScale,
                          c.occlusionStrength, c.emissive.r, c.emissive.g, c.emissive.b, c.alphaCutoff,
-                         c.worldTextureSize, static_cast<float>(c.alphaMode), c.doubleSided ? 1.0f : 0.0f}};
+                         c.worldTextureSize, static_cast<float>(c.alphaMode), c.doubleSided ? 1.0f : 0.0f,
+                         c.nearestFiltering ? 1.0f : 0.0f}};
         c.look = looks.try_emplace(look, static_cast<std::uint32_t>(looks.size())).first->second;
     }
 }
@@ -1557,6 +1589,7 @@ void Renderer3D::DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjecti
     pass.BindVertexStorageBuffer(1, *m_shadowCasters);
     const Pipeline* boundPipeline = nullptr;
     const Texture* boundTexture = nullptr;
+    const Sampler* boundSampler = nullptr;
     for (std::size_t first = 0; first < casters.size();) {
         const DrawCommand& command = m_commands[casters[first]];
         std::size_t end = first + 1;
@@ -1572,9 +1605,11 @@ void Renderer3D::DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjecti
         // Cutout shadows follow the mesh's UVs, even for textures projected from world space.
         if (cutout) {
             const Texture* texture = command.textures[0] ? command.textures[0] : m_whiteTexture.get();
-            if (texture != boundTexture) {
-                pass.BindFragmentTexture(0, *texture, *m_sampler);
+            const Sampler* sampler = command.nearestFiltering ? m_nearestSampler.get() : m_sampler.get();
+            if (texture != boundTexture || sampler != boundSampler) {
+                pass.BindFragmentTexture(0, *texture, *sampler);
                 boundTexture = texture;
+                boundSampler = sampler;
             }
             pass.PushFragmentUniforms(0, Vector4{command.color.a, command.alphaCutoff, 0.0f, 0.0f});
         }
@@ -1628,9 +1663,11 @@ void Renderer3D::DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjecti
         }
         if (command.alphaMode == AlphaMode::Cutout) {
             const Texture* texture = command.textures[0] ? command.textures[0] : m_whiteTexture.get();
-            if (texture != boundTexture) {
-                pass.BindFragmentTexture(0, *texture, *m_sampler);
+            const Sampler* sampler = command.nearestFiltering ? m_nearestSampler.get() : m_sampler.get();
+            if (texture != boundTexture || sampler != boundSampler) {
+                pass.BindFragmentTexture(0, *texture, *sampler);
                 boundTexture = texture;
+                boundSampler = sampler;
             }
             pass.PushFragmentUniforms(0, Vector4{command.color.a, command.alphaCutoff, 0.0f, 0.0f});
         }
@@ -1677,12 +1714,8 @@ const Pipeline* Renderer3D::GetShadowPipeline(const DrawCommand& command) const 
                                : m_shadowPipeline.get();
 }
 
-void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, const Detail::ShadowUniforms& shadows) {
-    SPOT_PROFILE_SCOPE("Renderer3D::Flush");
-    if (m_commands.empty()) {
-        return;
-    }
-
+void Renderer3D::BindLighting(RenderPass& pass, const Detail::SelectedLights& lights,
+                              const Detail::ShadowUniforms& shadows) {
     pass.PushVertexUniforms(0, MakeFrameUniforms(m_viewProjection, m_camera));
     const Vector3 forward = m_camera.GetForward();
     const LightingUniforms lighting{
@@ -1695,21 +1728,95 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
         .viewForward = ToVector4(forward),
     };
     pass.PushFragmentUniforms(0, lighting);
-    pass.BindFragmentStorageBuffer(0, *m_lightBuffer);
-    pass.BindFragmentStorageBuffer(1, *m_clusterBuffer);
-    pass.BindFragmentStorageBuffer(2, *m_lightIndexBuffer);
+    if (m_lightBuffer && m_clusterBuffer && m_lightIndexBuffer) {
+        pass.BindFragmentStorageBuffer(0, *m_lightBuffer);
+        pass.BindFragmentStorageBuffer(1, *m_clusterBuffer);
+        pass.BindFragmentStorageBuffer(2, *m_lightIndexBuffer);
+    }
     pass.PushFragmentUniforms(2, shadows);
     pass.PushFragmentUniforms(3, GetFogUniforms(m_fog, m_camera.position));
     pass.BindFragmentTexture(1, m_cascadeShadows ? *m_cascadeShadows : *m_noShadows, *m_shadowSampler);
     pass.BindFragmentTexture(2, m_localShadows ? *m_localShadows : *m_noShadows, *m_shadowSampler);
     pass.BindFragmentTexture(7, m_skyLit ? *m_skyReflections : *m_noSkyReflections, *m_skySampler);
     pass.BindFragmentTexture(8, m_skyLit ? *m_skyIrradiance : *m_noSkyIrradiance, *m_skySampler);
+    // The surfaces' own texture slots, white until a surface binds its own.
+    for (const std::uint32_t slot : {0u, 3u, 4u, 5u, 6u}) {
+        pass.BindFragmentTexture(slot, *m_whiteTexture, *m_sampler);
+    }
+}
 
+void Renderer3D::DrawSurface(CustomSurface& surface) {
+    SPOT_ASSERT(m_context, "Renderer3D::DrawSurface() called outside Begin() and End()");
+    m_surfaces.push_back(&surface);
+}
+
+DepthState Renderer3D::GetShadowDepthState() {
+    // Surfaces sloping away from the light cover the most depth per texel, and so need the most bias.
+    return {.format = TextureFormat::Depth32Float, .biasSlope = 1.5f, .clamp = true};
+}
+
+std::uint32_t Renderer3D::PrepareSurfaces(RenderContext& context, SurfacePass kind, const Matrix4& viewProjection,
+                                          bool ignoreNear) {
+    const std::uint32_t viewIndex = m_surfaceViewIndex++;
+    const SurfacePrepareContext prepare{
+        *m_device, context, kind, m_camera, viewProjection, Detail::Frustum(viewProjection, ignoreNear).GetPlanes(),
+        viewIndex};
+    for (CustomSurface* surface : m_surfaces) {
+        surface->Prepare(prepare);
+    }
+    return viewIndex;
+}
+
+void Renderer3D::DrawSurfaces(RenderPass& pass, SurfacePass kind, const Matrix4& viewProjection, bool ignoreNear,
+                              std::uint32_t viewIndex) {
+    if (m_surfaces.empty()) {
+        return;
+    }
+    SPOT_PROFILE_SCOPE("Renderer3D::DrawSurfaces");
+    const bool lit = kind == SurfacePass::Lit;
+    const SurfaceDrawContext context{
+        .device = *m_device,
+        .pass = pass,
+        .kind = kind,
+        .camera = m_camera,
+        .viewProjection = viewProjection,
+        .planes = Detail::Frustum(viewProjection, ignoreNear).GetPlanes(),
+        .colorFormat = lit ? m_config.targetFormat : std::nullopt,
+        .sampleCount = lit ? m_config.sampleCount : 1,
+        .depth = lit                           ? DepthState{.format = m_config.depthFormat}
+                 : kind == SurfacePass::Shadow ? GetShadowDepthState()
+                                               : DepthState{},
+        .viewIndex = viewIndex,
+    };
+    for (CustomSurface* surface : m_surfaces) {
+        switch (kind) {
+        case SurfacePass::Lit:
+            surface->DrawLit(context);
+            break;
+        case SurfacePass::Shadow:
+            surface->DrawShadow(context);
+            break;
+        case SurfacePass::Depth:
+            surface->DrawDepth(context);
+            break;
+        }
+    }
+}
+
+void Renderer3D::Flush(RenderPass& pass) {
+    SPOT_PROFILE_SCOPE("Renderer3D::Flush");
+    if (m_commands.empty()) {
+        return;
+    }
+
+    // Surfaces drawn before may have changed what the view's uniforms and the instances' slots hold.
+    pass.PushVertexUniforms(0, MakeFrameUniforms(m_viewProjection, m_camera));
     pass.BindVertexStorageBuffer(0, *m_instances);
     const Buffer* boundInstances = m_instances.get();
     const Buffer* boundVisible = nullptr;
     const Pipeline* boundPipeline = nullptr;
     MaterialTextures boundTextures{};
+    const Sampler* boundSampler = nullptr;
     const Mesh* boundMesh = nullptr;
     std::optional<MaterialUniforms> boundMaterial;
     for (std::size_t first = 0; first < m_commands.size();) {
@@ -1739,12 +1846,14 @@ void Renderer3D::Flush(RenderPass& pass, const Detail::SelectedLights& lights, c
         bool materialChanged = false;
         for (std::size_t i = 0; i < command.textures.size(); ++i) {
             const Texture* texture = command.textures[i] ? command.textures[i] : m_whiteTexture.get();
-            if (texture != boundTextures[i]) {
-                pass.BindFragmentTexture(i == 0 ? 0 : static_cast<std::uint32_t>(i + 2), *texture, *m_sampler);
+            const Sampler* sampler = command.nearestFiltering ? m_nearestSampler.get() : m_sampler.get();
+            if (texture != boundTextures[i] || sampler != boundSampler) {
+                pass.BindFragmentTexture(i == 0 ? 0 : static_cast<std::uint32_t>(i + 2), *texture, *sampler);
                 boundTextures[i] = texture;
                 materialChanged = true;
             }
         }
+        boundSampler = command.nearestFiltering ? m_nearestSampler.get() : m_sampler.get();
         const MaterialUniforms material{.baseColor = command.color,
                                         .emissive = command.emissive,
                                         .metallic = command.metallic,

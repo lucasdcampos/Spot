@@ -1,6 +1,7 @@
 #pragma once
 
 #include "graphics/camera_3d.h"
+#include "graphics/custom_surface.h"
 #include "graphics/fog_data.h"
 #include "graphics/fullscreen_pass.h"
 #include "graphics/light_data.h"
@@ -145,6 +146,12 @@ public:
     // Draws every mesh of the world on a layer the camera sees. The world and what its objects show must stay alive
     // and unchanged until End().
     void DrawWorld(const RenderWorld& world);
+    // Draws a surface of the game's own with its own shaders in the frame's passes: lit, shadowed and fogged like the
+    // meshes, in their shadows and the camera's depth (see CustomSurface). It must stay alive until End(), and until
+    // RenderCameraDepth() when that is called.
+    void DrawSurface(CustomSurface& surface);
+    // How Renderer3D draws its own shadow casters, which the pipelines of surfaces drawing into shadows match.
+    static DepthState GetShadowDepthState();
     // The camera Begin() was given.
     const Camera3D& GetCamera() const { return m_camera; }
 
@@ -205,6 +212,7 @@ private:
         const Buffer* keptInstances = nullptr;
         const Buffer* arguments = nullptr;
         std::uint32_t batch = 0;
+        bool nearestFiltering = false;
     };
 
     // A render world as kept on the GPU: its objects' instances, in batches of those drawn the same way, so drawing
@@ -255,6 +263,11 @@ private:
 
     // Draws the level of detail of the object.
     void AddCommand(const RenderMeshObject& object, const Material& material, std::uint32_t level = 0);
+    std::uint32_t PrepareSurfaces(RenderContext& context, SurfacePass kind, const Matrix4& viewProjection,
+                                  bool ignoreNear);
+    void DrawSurfaces(RenderPass& pass, SurfacePass kind, const Matrix4& viewProjection, bool ignoreNear,
+                      std::uint32_t viewIndex);
+    void BindLighting(RenderPass& pass, const Detail::SelectedLights& lights, const Detail::ShadowUniforms& shadows);
     void DrawShadows(Detail::SelectedLights& lights, Detail::ShadowUniforms& shadows);
     void DrawShadowViews(Detail::SelectedLights& lights, Detail::ShadowUniforms& shadows);
     // Whether the shadow map could be created.
@@ -267,7 +280,7 @@ private:
     bool UploadInstances();
     // Sends the lights and the view's clusters of them to their buffers.
     bool UploadLights(const Detail::SelectedLights& lights);
-    void Flush(RenderPass& pass, const Detail::SelectedLights& lights, const Detail::ShadowUniforms& shadows);
+    void Flush(RenderPass& pass);
     const Pipeline* GetPipeline(const DrawCommand& command) const;
     const Pipeline* GetShadowPipeline(const DrawCommand& command) const;
     void FlushSky(RenderPass& pass, const SkyData& sky, const Detail::SkyLighting& lighting);
@@ -297,6 +310,7 @@ private:
     std::unique_ptr<Pipeline> m_cutoutShadowPipeline;
     std::unique_ptr<Pipeline> m_doubleSidedCutoutShadowPipeline;
     std::unique_ptr<Sampler> m_sampler;
+    std::unique_ptr<Sampler> m_nearestSampler;
     std::unique_ptr<Sampler> m_shadowSampler;
     std::unique_ptr<Texture> m_whiteTexture;
     // Bound in place of shadow maps that are not drawn.
@@ -339,6 +353,9 @@ private:
     Renderer3DConfig m_config;
 
     std::vector<DrawCommand> m_commands;
+    // The frame's custom surfaces, kept until the next Begin() for RenderCameraDepth().
+    std::vector<CustomSurface*> m_surfaces;
+    std::uint32_t m_surfaceViewIndex = 0;
     std::vector<std::unique_ptr<WorldCache>> m_worldCaches;
     // Occlusion culling: the last frame's depth, by tiles, and the view it was drawn from, which only the next frame
     // of the same view culls against.

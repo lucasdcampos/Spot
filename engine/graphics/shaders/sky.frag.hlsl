@@ -414,7 +414,10 @@ float4 main(Input input) : SV_Target0 {
         const float source = max(max(sunColor.r, sunColor.g), sunColor.b);
         const float opacity = core * saturate(4.0 * brightest / max(source, 1e-4)) * (1.0 - cover);
         const float3 coreLight = sunLight.rgb / brightest * SunCoreBrightness;
-        color = lerp(color, settings.w > 0.5 ? coreLight * settings.z : 1.0 - exp(-coreLight), opacity);
+        // HDR keeps the atmosphere and halo as radiance: replacing them by a fixed core could darken the sun's
+        // center when its halo is brighter. Add the core's radiance before bloom and tonemapping instead.
+        color = settings.w > 0.5 ? color + coreLight * settings.z * opacity
+                                : lerp(color, 1.0 - exp(-coreLight), opacity);
     }
     // Fog toward the horizon, as for a surface infinitely far away.
     color = lerp(color, fogColor.rgb, GetFogAmount(direction * 1e5));

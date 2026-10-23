@@ -5,6 +5,12 @@ shader (`graphics/shaders/sky.frag.hlsl`) draws a layer of clouds, and at night 
 texture or a mesh: they are noise and hashes evaluated for each pixel of the sky, so any game gets a moving sky by
 adding components and setting them in its scene.
 
+The sun has an atmospheric halo and a bright core. In HDR the core adds radiance over the halo before bloom and
+tonemapping, so stronger sunlight cannot turn the center darker than its surroundings. Display-range rendering
+retains its hue-preserving core blend. The offscreen GPU check `HDR sun cores stay brighter than their halo under
+strong warm sunlight` reads linear HDR pixels at ordinary and high sun intensity; existing sky checks cover the
+display-range sun, sunset color and scene lighting.
+
 ## Clouds
 
 Add `Clouds` beside the `Sky` (any entity does; the first active one is drawn) and set it in the inspector or in code:

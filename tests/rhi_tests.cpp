@@ -2,6 +2,7 @@
 // what GraphicsCapabilities tells apart.
 #include "fill.comp.h"
 #include "indirect_arguments.comp.h"
+#include "solid.frag.h"
 #include "texture_table.frag.h"
 #include "textured.frag.h"
 #include "textured_quad.vert.h"
@@ -11,6 +12,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <array>
 #include <bit>
 #include <cstdint>
@@ -353,6 +355,92 @@ TEST_CASE("Compute passes write the arguments of indirect dispatches and draws",
         REQUIRE(pixels.size() == 4 * 4 * 4);
         for (std::size_t i = 0; i < pixels.size(); i += 4) {
             REQUIRE((pixels[i] == 0 && pixels[i + 1] == 0 && pixels[i + 2] == 255 && pixels[i + 3] == 255));
+        }
+    });
+}
+
+TEST_CASE("Indexed indirect batches keep their vertex offsets and discarded arguments within a pass", "[gpu][rhi]") {
+    ForEachBackend([](Spot::GraphicsDevice& device) {
+        const auto& capabilities = device.GetCapabilities();
+        if (!capabilities.indirectDraws || capabilities.maxIndirectDrawCount == 0) {
+            WARN("This device runs no indirect draws");
+            return;
+        }
+        struct Vertex {
+            Spot::Vector2 position;
+            Spot::Vector2 uv;
+        };
+        // Two tiles across the top and one across the bottom, sharing one quad's indices.
+        const std::array<Vertex, 12> vertices{{
+            {{-1, 1}, {}},
+            {{0, 1}, {}},
+            {{0, 0}, {}},
+            {{-1, 0}, {}},
+            {{0, 1}, {}},
+            {{1, 1}, {}},
+            {{1, 0}, {}},
+            {{0, 0}, {}},
+            {{-1, 0}, {}},
+            {{1, 0}, {}},
+            {{1, -1}, {}},
+            {{-1, -1}, {}},
+        }};
+        const auto vertexBuffer = device.CreateBuffer(Spot::BufferUsage::Vertex, vertices);
+        const auto indexBuffer =
+            device.CreateBuffer(Spot::BufferUsage::Index, std::array<std::uint32_t, 6>{0, 1, 2, 0, 2, 3});
+        const auto vertexShader = device.CreateShader(Shaders::TexturedQuadVert);
+        const auto fragmentShader = device.CreateShader(Shaders::SolidFrag);
+        auto target = device.CreateTexture({.width = 8, .height = 8, .renderTarget = true});
+        constexpr std::uint32_t stride = sizeof(Spot::DrawIndexedIndirectArguments);
+        auto arguments = device.CreateBuffer({.usage = Spot::BufferUsage::Indirect, .size = 4 * stride});
+        REQUIRE((vertexBuffer && indexBuffer && vertexShader && fragmentShader && target && arguments));
+        const auto pipeline = device.CreatePipeline({
+            .vertexShader = vertexShader.get(),
+            .fragmentShader = fragmentShader.get(),
+            .vertexBuffers = {{.stride = sizeof(Vertex),
+                               .attributes = {{0, Spot::VertexFormat::Float2, offsetof(Vertex, position)},
+                                              {1, Spot::VertexFormat::Float2, offsetof(Vertex, uv)}}}},
+            .targetFormat = Spot::TextureFormat::Rgba8,
+        });
+        REQUIRE(pipeline);
+        const std::array<Spot::DrawIndexedIndirectArguments, 3> top{{
+            {},
+            {.indexCount = 6, .instanceCount = 1},
+            {.indexCount = 6, .instanceCount = 1, .vertexOffset = 4},
+        }};
+        const std::array<Spot::DrawIndexedIndirectArguments, 2> bottom{{
+            {},
+            {.indexCount = 6, .instanceCount = 1, .vertexOffset = 8},
+        }};
+        for (int frame = 0; frame < 6; ++frame) {
+            auto* context = device.BeginOffscreenFrame(*target);
+            REQUIRE(context);
+            {
+                auto pass = context->BeginRenderPass({.clearColor = Spot::Color::Black});
+                pass.BindPipeline(*pipeline);
+                pass.BindVertexBuffer(0, *vertexBuffer);
+                pass.BindIndexBuffer(*indexBuffer, Spot::IndexType::UInt32);
+                device.UploadToBuffer(*arguments, top, 0, Spot::UploadMode::Discard);
+                pass.PushFragmentUniforms(0, Spot::Color::Red);
+                for (std::uint32_t first = 0; first < 2;) {
+                    const std::uint32_t count = std::min(2u - first, capabilities.maxIndirectDrawCount);
+                    pass.DrawIndexedIndirect(*arguments, (first + 1) * stride, count);
+                    first += count;
+                }
+                device.UploadToBuffer(*arguments, bottom, 0, Spot::UploadMode::Discard);
+                pass.PushFragmentUniforms(0, Spot::Color::Green);
+                pass.DrawIndexedIndirect(*arguments, stride);
+            }
+            device.EndFrame();
+        }
+        const auto pixels = device.DownloadTexture(*target);
+        REQUIRE(pixels.size() == 8 * 8 * 4);
+        for (std::uint32_t y = 0; y < 8; ++y) {
+            for (std::uint32_t x = 0; x < 8; ++x) {
+                const std::uint32_t at = (y * 8 + x) * 4;
+                REQUIRE((pixels[at] == (y < 4 ? 255 : 0) && pixels[at + 1] == (y < 4 ? 0 : 255) &&
+                         pixels[at + 2] == 0 && pixels[at + 3] == 255));
+            }
         }
     });
 }

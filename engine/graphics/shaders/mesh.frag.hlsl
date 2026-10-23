@@ -1,86 +1,16 @@
-Texture2D<float4> baseColorTexture : register(t0, space2);
-SamplerState baseColorSampler : register(s0, space2);
-// The shadow cascades of the directional light, and the tiles of the other lights' shadows.
-Texture2D<float> cascadeShadows : register(t1, space2);
-SamplerComparisonState cascadeShadowSampler : register(s1, space2);
-Texture2D<float> localShadows : register(t2, space2);
-SamplerComparisonState localShadowSampler : register(s2, space2);
-// The material's other textures, white where it has none.
-Texture2D<float4> metallicRoughnessTexture : register(t3, space2);
-SamplerState metallicRoughnessSampler : register(s3, space2);
-Texture2D<float4> normalTexture : register(t4, space2);
-SamplerState normalSampler : register(s4, space2);
-Texture2D<float4> occlusionTexture : register(t5, space2);
-SamplerState occlusionSampler : register(s5, space2);
-Texture2D<float4> emissiveTexture : register(t6, space2);
-SamplerState emissiveSampler : register(s6, space2);
-// The sky's light, blurred for each roughness down its mip levels, and its irradiance as nine spherical harmonics,
-// already convolved with the cosine lobe.
-TextureCube<float4> skyReflections : register(t7, space2);
-SamplerState skyReflectionsSampler : register(s7, space2);
-Texture2D<float4> skyIrradiance : register(t8, space2);
-SamplerState skyIrradianceSampler : register(s8, space2);
+#include "surface_lighting.hlsl"
 
-// Must match Detail::MaxShadowCascades and Renderer3D::MaxShadowTiles.
-#define MAX_CASCADES 4
-#define MAX_SHADOW_TILES 32
-
-struct Light {
-    // w is the type: 0 for directional, 1 for point and 2 for spot.
-    float4 positionAndType;
-    // The normalized direction the light travels in, and the range.
-    float4 directionAndRange;
-    // Premultiplied by the intensity.
-    float4 color;
-    // The cosine of the outer cone angle, and the inverse of how much greater the inner one's is. Then, for lights
-    // that cast shadows, 0 or more: for directional lights, any such value means the cascades are theirs; for the
-    // others, the first of their shadow tiles, and in w the size of their texels per unit of distance.
-    float4 cone;
-};
-
-// The frame's lights, directional ones first; the view's clusters, each the first of its lights in lightIndices and
-// how many there are; and those lists of lights, by their index in lights. See Detail::BuildLightClusters().
-StructuredBuffer<Light> lights : register(t9, space2);
-StructuredBuffer<uint2> clusters : register(t10, space2);
-StructuredBuffer<uint> lightIndices : register(t11, space2);
-
-cbuffer Lighting : register(b0, space3) {
-    float4 ambientColor;
-    float4 cameraPosition;
-    // x is the number of directional lights, which reach every pixel.
-    uint4 lightCount;
-    // 1 in x when the sky lights the scene, and in y the mip level of its reflections for a roughness of 1.
-    float4 skyLighting;
-    // The clusters across, down and in depth.
-    uint4 clusterGrid;
-    // The near plane's depth and the scale of the slices' logarithm, and the size of the view in pixels.
-    float4 clusterDepth;
-    // The camera's forward axis, along which depth goes.
-    float4 viewForward;
-};
-
-// The list of lights that may reach the pixel at the position, at the depth along the camera's forward axis.
-uint2 GetCluster(float2 pixel, float depth) {
-    const uint2 tile = min(uint2(pixel / clusterDepth.zw * float2(clusterGrid.xy)), clusterGrid.xy - 1);
-    const float slice = depth > clusterDepth.x ? floor(log(depth / clusterDepth.x) * clusterDepth.y) : 0.0;
-    const uint z = (uint)clamp(slice, 0.0, float(clusterGrid.z - 1));
-    return clusters[(z * clusterGrid.y + tile.y) * clusterGrid.x + tile.x];
-}
-
-// Shadow views take world positions to the [0, 1] UVs of their tile, Y down, and to the depth it holds.
-cbuffer Shadows : register(b2, space3) {
-    float4x4 cascadeViews[MAX_CASCADES];
-    float4x4 tileViews[MAX_SHADOW_TILES];
-    // The view distance at which each cascade ends.
-    float4 cascadeEnds;
-    // The size of a texel of each cascade in world units.
-    float4 cascadeTexelSizes;
-    // The camera's forward direction, and the number of cascades.
-    float4 cameraForward;
-    // The columns and rows of tiles in each shadow map, and the size of their texels in UVs.
-    float4 cascadeLayout;
-    float4 tileLayout;
-};
+// The material's textures, in the surface's own slots, white where it has none.
+#define baseColorTexture surfaceTexture0
+#define baseColorSampler surfaceSampler0
+#define metallicRoughnessTexture surfaceTexture1
+#define metallicRoughnessSampler surfaceSampler1
+#define normalTexture surfaceTexture2
+#define normalSampler surfaceSampler2
+#define occlusionTexture surfaceTexture3
+#define occlusionSampler surfaceSampler3
+#define emissiveTexture surfaceTexture4
+#define emissiveSampler surfaceSampler4
 
 cbuffer Material : register(b1, space3) {
     float4 baseColor;
@@ -99,38 +29,6 @@ cbuffer Material : register(b1, space3) {
     float alphaMode;
     float alphaCutoff;
 };
-
-// The fog's color, with 1 in w when there is fog; its density, start, height falloff and base height; and the camera's
-// position.
-cbuffer Fog : register(b3, space3) {
-    float4 fogColor;
-    float4 fogParams;
-    float4 fogCamera;
-};
-
-// How much of the light from a point the fog takes on its way to the viewer: exponential height fog, integrated in
-// closed form along the ray from where the fog starts.
-float GetFogAmount(float3 toPoint) {
-    if (fogColor.w < 0.5) {
-        return 0.0;
-    }
-    const float distance = length(toPoint);
-    const float fogged = max(distance - fogParams.y, 0.0);
-    if (fogged <= 0.0) {
-        return 0.0;
-    }
-    const float3 direction = toPoint / max(distance, 1e-5);
-    const float startHeight = fogCamera.y + direction.y * (distance - fogged) - fogParams.w;
-    const float falloff = fogParams.z;
-    float depth = fogParams.x * fogged;
-    if (falloff > 1e-5) {
-        const float rise = falloff * direction.y * fogged;
-        // The fog thins along the ray as it climbs; flat rays see it as it is.
-        const float thinning = abs(rise) > 1e-4 ? (1.0 - exp(-rise)) / rise : 1.0;
-        depth *= exp(-falloff * startHeight) * thinning;
-    }
-    return 1.0 - exp(-depth);
-}
 
 struct Input {
     float4 position : SV_Position;
@@ -151,175 +49,6 @@ float2 GetWorldUv(float3 position, float3 normal) {
         return p.xz;
     }
     return float2(p.x, -p.y);
-}
-
-// Points spread evenly over a disc (a Poisson disk), at which shadow maps are compared around each point.
-static const float2 ShadowTaps[16] = {
-    float2(-0.9420, -0.3991), float2(0.9456, -0.7689), float2(-0.0942, -0.9294), float2(0.3450, 0.2939),
-    float2(-0.9159, 0.4577),  float2(-0.8154, -0.8791), float2(-0.3828, 0.2768), float2(0.9748, 0.7565),
-    float2(0.4432, -0.9751),  float2(0.5374, -0.4737),  float2(-0.2650, -0.4189), float2(0.7920, 0.1909),
-    float2(-0.2419, 0.9971),  float2(-0.8141, 0.9144),  float2(0.1998, 0.7864),   float2(0.1438, -0.1410)};
-
-// Shadow edges are filtered over 16 comparisons on a disc a few texels wide, each blending the four nearest texels,
-// so they fade smoothly over about four texels without the grid of a regular pattern; the disc is the same for every
-// pixel, so edges do not flicker. Surfaces beyond the tile's view are lit, so nothing outside a shadow map is
-// shadowed by it.
-float SampleShadow(Texture2D<float> map, SamplerComparisonState mapSampler, float4x4 view, float4 layout, uint tile,
-                   float3 position) {
-    const float4 clip = mul(view, float4(position, 1.0));
-    const float3 projected = clip.xyz / clip.w;
-    if (clip.w <= 0.0 || any(projected.xy < 0.0) || any(projected.xy > 1.0) || projected.z > 1.0) {
-        return 1.0;
-    }
-    // Filtering stays inside the tile, which views draw with a margin of three texels for it.
-    const float2 margin = 3.0 * layout.zw * layout.xy;
-    const float2 tileUv = clamp(projected.xy, margin, 1.0 - margin);
-    const float2 uv = (float2(tile % (uint)layout.x, tile / (uint)layout.x) + tileUv) / layout.xy;
-    float lit = 0.0;
-    [unroll] for (int i = 0; i < 16; ++i) {
-        lit += map.SampleCmpLevelZero(mapSampler, uv + ShadowTaps[i] * 1.5 * layout.zw, projected.z);
-    }
-    return lit / 16.0;
-}
-
-// Surfaces are moved toward the light along their normal by about a texel of the shadow map before they are looked up
-// in it, which keeps them from shadowing themselves where its texels, larger than the surface's pixels, cover depths
-// both in front of and behind it.
-float3 OffsetForShadow(float3 position, float3 normal, float texelSize) {
-    return position + normal * texelSize * 1.5;
-}
-
-float GetCascadeShadow(uint cascade, float3 position, float3 normal) {
-    return SampleShadow(cascadeShadows, cascadeShadowSampler, cascadeViews[cascade], cascadeLayout, cascade,
-                        OffsetForShadow(position, normal, cascadeTexelSizes[cascade]));
-}
-
-// Each cascade blends into the next over its last tenth, and the last one fades out into no shadow.
-float GetDirectionalShadow(float3 position, float3 normal) {
-    const float distance = dot(position - cameraPosition.xyz, cameraForward.xyz);
-    const uint count = (uint)cameraForward.w;
-    uint cascade = 0;
-    while (cascade + 1 < count && distance > cascadeEnds[cascade]) {
-        ++cascade;
-    }
-    const float end = cascadeEnds[cascade];
-    if (distance >= end) {
-        return 1.0;
-    }
-    const float start = cascade == 0 ? 0.0 : cascadeEnds[cascade - 1];
-    const float band = 0.1 * (end - start);
-    const float blend = saturate((distance - (end - band)) / band);
-    float lit = GetCascadeShadow(cascade, position, normal);
-    if (blend > 0.0) {
-        const float next = cascade + 1 < count ? GetCascadeShadow(cascade + 1, position, normal) : 1.0;
-        lit = lerp(lit, next, blend);
-    }
-    return lit;
-}
-
-// Point lights have six tiles, one per face of a cube around them, in the order +X, -X, +Y, -Y, +Z and -Z.
-float GetLocalShadow(Light light, float3 position, float3 normal) {
-    const float3 fromLight = position - light.positionAndType.xyz;
-    uint tile = (uint)light.cone.z;
-    if (light.positionAndType.w < 1.5) {
-        const float3 axis = abs(fromLight);
-        if (axis.x >= axis.y && axis.x >= axis.z) {
-            tile += fromLight.x > 0.0 ? 0 : 1;
-        } else if (axis.y >= axis.z) {
-            tile += fromLight.y > 0.0 ? 2 : 3;
-        } else {
-            tile += fromLight.z > 0.0 ? 4 : 5;
-        }
-    }
-    const float texelSize = light.cone.w * length(fromLight);
-    return SampleShadow(localShadows, localShadowSampler, tileViews[tile], tileLayout, tile,
-                        OffsetForShadow(position, normal, texelSize));
-}
-
-struct Lit {
-    float3 diffuse;
-    float3 specular;
-};
-
-static const float Pi = 3.14159265;
-
-// The light a surface reflects toward the viewer, as a share of the light reaching it: GGX microfacets, with
-// height-correlated Smith visibility and Schlick's Fresnel. It is scaled by pi, as lights' colors are the light a
-// white surface facing them scatters rather than what reaches it.
-float3 GetHighlight(float3 normal, float3 toLight, float3 toViewer, float alpha, float3 reflectance) {
-    const float nl = saturate(dot(normal, toLight));
-    if (nl <= 0.0) {
-        return 0.0;
-    }
-    const float nv = max(dot(normal, toViewer), 1e-4);
-    const float3 halfway = normalize(toLight + toViewer);
-    const float nh = saturate(dot(normal, halfway));
-    const float a2 = alpha * alpha;
-    const float d = nh * nh * (a2 - 1.0) + 1.0;
-    const float distribution = a2 / (Pi * d * d);
-    const float visibility = 0.5 / (nl * sqrt(nv * nv * (1.0 - a2) + a2) + nv * sqrt(nl * nl * (1.0 - a2) + a2));
-    const float3 fresnel = reflectance + (1.0 - reflectance) * pow(1.0 - saturate(dot(toViewer, halfway)), 5.0);
-    return Pi * distribution * visibility * fresnel * nl;
-}
-
-// The light a surface at the position with the normal scatters, before it takes the surface's color, and the light
-// it reflects toward the viewer as highlights.
-Lit GetLight(Light light, float3 position, float3 normal, float3 toViewer, float alpha, float3 reflectance) {
-    const float type = light.positionAndType.w;
-    float3 toLight = -light.directionAndRange.xyz;
-    float attenuation = 1.0;
-    if (type > 0.5) {
-        const float3 offset = light.positionAndType.xyz - position;
-        const float distanceSquared = dot(offset, offset);
-        toLight = offset * rsqrt(max(distanceSquared, 1e-8));
-        // Inverse-square falloff, windowed to reach nothing at the range without a visible edge, so a light can be
-        // skipped beyond it. Surfaces closer than a centimeter are lit as if at a centimeter, not infinitely.
-        const float ratio = distanceSquared / (light.directionAndRange.w * light.directionAndRange.w);
-        const float window = saturate(1.0 - ratio * ratio);
-        attenuation = window * window / max(distanceSquared, 1e-4);
-        if (type > 1.5) {
-            const float cone = saturate((dot(-toLight, light.directionAndRange.xyz) - light.cone.x) * light.cone.y);
-            attenuation *= cone * cone;
-        }
-    }
-    const float facing = dot(normal, toLight);
-    if (light.cone.z >= 0.0 && attenuation > 0.0 && (facing > 0.0 || doubleSided > 0.5)) {
-        // Back faces of double-sided surfaces are offset toward the light too.
-        const float3 lightSide = facing < 0.0 ? -normal : normal;
-        attenuation *= type > 0.5 ? GetLocalShadow(light, position, lightSide) : GetDirectionalShadow(position, lightSide);
-    }
-    const float3 color = light.color.rgb * attenuation;
-    // Back faces of double-sided surfaces have normals pointing away from the viewer, so they are lit as if flipped.
-    const float diffuse = doubleSided > 0.5 ? abs(facing) : max(facing, 0.0);
-    // Only the side the viewer sees has highlights, and only from lights in front of it.
-    const float3 seenNormal = dot(normal, toViewer) < 0.0 && doubleSided > 0.5 ? -normal : normal;
-    Lit lit;
-    lit.diffuse = color * diffuse;
-    lit.specular = color * GetHighlight(seenNormal, toLight, toViewer, alpha, reflectance);
-    return lit;
-}
-
-// The light a surface facing the direction receives from the sky.
-float3 GetSkyIrradiance(float3 n) {
-    float3 sh[9];
-    [unroll] for (int i = 0; i < 9; ++i) {
-        sh[i] = skyIrradiance.Load(int3(i, 0, 0)).rgb;
-    }
-    return max(sh[0] * 0.282095 + (sh[1] * n.y + sh[2] * n.z + sh[3] * n.x) * 0.488603 +
-                   (sh[4] * n.x * n.y + sh[5] * n.y * n.z + sh[7] * n.x * n.z) * 1.092548 +
-                   sh[6] * 0.315392 * (3.0 * n.z * n.z - 1.0) + sh[8] * 0.546274 * (n.x * n.x - n.y * n.y),
-               0.0);
-}
-
-// The share of light from all around that a surface reflects toward the viewer: the integral of the GGX lobe over the
-// environment, fitted analytically (Karis 2014) instead of read from a table.
-float3 GetEnvironmentReflectance(float3 reflectance, float perceived, float nv) {
-    const float4 c0 = float4(-1.0, -0.0275, -0.572, 0.022);
-    const float4 c1 = float4(1.0, 0.0425, 1.04, -0.04);
-    const float4 r = perceived * c0 + c1;
-    const float a004 = min(r.x * r.x, exp2(-9.28 * nv)) * r.x + r.y;
-    const float2 ab = float2(-1.04, 1.04) * a004 + r.zw;
-    return reflectance * ab.x + ab.y;
 }
 
 // Tilts the normal as the normal map says, in the tangent space of the surface: along the mesh's tangents, or for
@@ -368,57 +97,29 @@ float4 main(Input input) : SV_Target0 {
     }
     const float4 metallicRoughness = metallicRoughnessTexture.Sample(metallicRoughnessSampler, uv);
     const float metalness = saturate(metallic * metallicRoughness.b);
-    // Roughness is perceptually linear, and its square is GGX's alpha. Perfect mirrors would have highlights a pixel
-    // wide and far too bright, which flicker.
-    const float perceived = max(saturate(roughness * metallicRoughness.g), 0.05);
-    const float alpha = perceived * perceived;
     const float occlusion = lerp(1.0, occlusionTexture.Sample(occlusionSampler, uv).r, occlusionStrength);
-    // Dielectrics scatter their color and reflect about 4% of the light untinted, as plastic or varnish do; metals
-    // scatter nothing and reflect in their color.
-    const float3 scattered = albedo.rgb * (1.0 - metalness);
-    const float3 reflectance = lerp(float3(0.04, 0.04, 0.04), albedo.rgb, metalness);
-    const float3 toViewer = normalize(cameraPosition.xyz - input.worldPosition);
-    float3 diffuse = 0.0;
-    float3 highlights = 0.0;
-    for (uint i = 0; i < lightCount.x; ++i) {
-        const Lit lit = GetLight(lights[i], input.worldPosition, normal, toViewer, alpha, reflectance);
-        diffuse += lit.diffuse;
-        highlights += lit.specular;
-    }
-    const uint2 cluster =
-        GetCluster(input.position.xy, dot(input.worldPosition - cameraPosition.xyz, viewForward.xyz));
-    for (uint j = 0; j < cluster.y; ++j) {
-        const Lit lit =
-            GetLight(lights[lightIndices[cluster.x + j]], input.worldPosition, normal, toViewer, alpha, reflectance);
-        diffuse += lit.diffuse;
-        highlights += lit.specular;
-    }
-    // Light from all around: ambient lights, the same from every direction, and the sky's, scattered by the
-    // irradiance and reflected from the blurred sky along the mirror direction. Occlusion darkens both.
-    float3 surroundings = ambientColor.rgb;
-    float3 reflectedSurroundings = ambientColor.rgb;
-    const float3 seenNormal = dot(normal, toViewer) < 0.0 && doubleSided > 0.5 ? -normal : normal;
-    if (skyLighting.x > 0.5) {
-        surroundings += GetSkyIrradiance(seenNormal);
-        const float3 mirrored = reflect(-toViewer, seenNormal);
-        reflectedSurroundings +=
-            skyReflections.SampleLevel(skyReflectionsSampler, mirrored, perceived * skyLighting.y).rgb;
-    }
-    const float nv = saturate(dot(seenNormal, toViewer));
-    const float3 ambient = scattered * surroundings +
-                           reflectedSurroundings * GetEnvironmentReflectance(reflectance, perceived, nv);
     const float3 emitted = emissive.rgb * emissiveTexture.Sample(emissiveSampler, uv).rgb;
-    const float fog = GetFogAmount(input.worldPosition - fogCamera.xyz);
-    if (alphaMode > 1.5) {
-        // Premultiplied: what the surface scatters covers what is behind it as much as its alpha says, while what it
-        // reflects and gives off is added at full strength. Fog covers it all, as much as the surface is there.
-        const float3 scatteredLight = scattered * (diffuse + surroundings * occlusion);
-        const float3 reflectedLight =
-            reflectedSurroundings * GetEnvironmentReflectance(reflectance, perceived, nv) * occlusion + highlights +
-            emitted;
-        const float3 premultiplied = scatteredLight * albedo.a + reflectedLight;
-        return float4(lerp(premultiplied, fogColor.rgb * albedo.a, fog), albedo.a);
+    if (alphaMode < 1.5) {
+        return float4(ShadeOpaqueSurface(input.worldPosition, normal, input.position.xy, albedo.rgb, metalness,
+                                         roughness * metallicRoughness.g, occlusion, emitted, doubleSided > 0.5),
+                      1.0);
     }
-    const float3 color = scattered * diffuse + ambient * occlusion + highlights + emitted;
-    return float4(lerp(color, fogColor.rgb, fog), 1.0);
+
+    SurfacePoint surface;
+    surface.position = input.worldPosition;
+    surface.normal = normal;
+    surface.pixel = input.position.xy;
+    surface.doubleSided = doubleSided > 0.5;
+    surface.roughness = max(saturate(roughness * metallicRoughness.g), 0.05);
+    surface.reflectance = lerp(float3(0.04, 0.04, 0.04), albedo.rgb, metalness);
+    const SurfaceLight light = LightSurface(surface);
+    const float3 scattered = albedo.rgb * (1.0 - metalness);
+    const float fog = GetFogAmount(input.worldPosition - fogCamera.xyz);
+    // Premultiplied: what the surface scatters covers what is behind it as much as its alpha says, while what it
+    // reflects and gives off is added at full strength. Fog covers it all, as much as the surface is there.
+    const float3 scatteredLight = scattered * (light.diffuse + light.surroundings * occlusion);
+    const float3 reflectedLight =
+        light.reflectedSurroundings * light.environmentReflectance * occlusion + light.highlights + emitted;
+    const float3 premultiplied = scatteredLight * albedo.a + reflectedLight;
+    return float4(lerp(premultiplied, fogColor.rgb * albedo.a, fog), albedo.a);
 }

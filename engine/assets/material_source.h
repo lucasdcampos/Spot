@@ -31,6 +31,7 @@ struct MaterialSource {
     float alphaCutoff = 0.5f;
     bool doubleSided = false;
     float worldTextureSize = 0.0f;
+    bool nearestFiltering = false;
 
     void Serialize(Archive& archive);
 
