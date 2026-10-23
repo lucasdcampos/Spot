@@ -11,6 +11,11 @@ JoltJobSystem::JoltJobSystem(Spot::JobSystem& jobs, JPH::uint maxJobs, JPH::uint
     m_pool.Init(maxJobs, maxJobs);
 }
 
+JoltJobSystem::~JoltJobSystem() {
+    // A barrier may execute a job before its queued wrapper runs. Those wrappers still own pool references.
+    m_jobs.Wait(m_pendingJobs);
+}
+
 int JoltJobSystem::GetMaxConcurrency() const {
     // The thread stepping the simulation runs jobs too while it waits for them.
     return static_cast<int>(m_jobs.GetWorkerCount()) + 1;
@@ -35,10 +40,12 @@ JPH::JobHandle JoltJobSystem::CreateJob(const char* name, JPH::ColorArg color, c
 void JoltJobSystem::QueueJob(Job* job) {
     // Held until the job ran, as Jolt's own thread pool does, so the slot is not freed under it.
     job->AddRef();
-    m_jobs.Run([job] {
-        job->Execute();
-        job->Release();
-    });
+    m_jobs.Run(
+        [job] {
+            job->Execute();
+            job->Release();
+        },
+        &m_pendingJobs);
 }
 
 void JoltJobSystem::QueueJobs(Job** jobs, JPH::uint count) {

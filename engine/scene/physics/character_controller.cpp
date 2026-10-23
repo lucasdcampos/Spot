@@ -50,6 +50,11 @@ bool CharacterController::IsGrounded() const {
     return state && state->grounded;
 }
 
+bool CharacterController::IsSupported() const {
+    const auto state = GetScene().GetPhysics().GetCharacterState(GetEntity().GetId());
+    return state && state->supported;
+}
+
 Vector3 CharacterController::GetGroundNormal() const {
     const auto state = GetScene().GetPhysics().GetCharacterState(GetEntity().GetId());
     return state ? state->groundNormal : Vector3{};

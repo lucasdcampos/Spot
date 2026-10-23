@@ -202,6 +202,8 @@ struct PhysicsCharacterState {
     Vector3 velocity = {};
     // Standing on ground no steeper than its slope limit.
     bool grounded = false;
+    // The feet touch ground, including a slope too steep to walk up.
+    bool supported = false;
     Vector3 groundNormal = {};
     Vector3 groundVelocity = {};
     PhysicsBodyId groundBody = PhysicsBodyId::Invalid;

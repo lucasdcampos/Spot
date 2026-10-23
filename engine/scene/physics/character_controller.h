@@ -50,6 +50,9 @@ public:
 
     // Standing on ground no steeper than the slope limit, as of the last move.
     bool IsGrounded() const;
+    // The feet have support, including ground steeper than the slope limit. A wall touching the side does not count.
+    // Games can stop applying gravity on steep support without allowing the character to walk up it.
+    bool IsSupported() const;
     // The normal of the ground under the character, and the velocity of that ground, such as a moving platform's.
     Vector3 GetGroundNormal() const;
     Vector3 GetGroundVelocity() const;

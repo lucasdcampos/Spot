@@ -3,6 +3,7 @@
 // Backend-internal: Jolt's jobs on the engine's job system, so physics shares the engine's workers instead of
 // starting threads of its own.
 
+#include "core/job_system.h"
 #include "physics/jolt/jolt_common.h"
 
 #include <Jolt/Core/FixedSizeFreeList.h>
@@ -17,6 +18,7 @@ namespace Spot::Detail {
 class JoltJobSystem final : public JPH::JobSystemWithBarrier {
 public:
     JoltJobSystem(Spot::JobSystem& jobs, JPH::uint maxJobs, JPH::uint maxBarriers);
+    ~JoltJobSystem() override;
 
     int GetMaxConcurrency() const override;
     JPH::JobHandle CreateJob(const char* name, JPH::ColorArg color, const JobFunction& function,
@@ -29,6 +31,7 @@ protected:
 
 private:
     Spot::JobSystem& m_jobs;
+    Spot::JobCounter m_pendingJobs;
     JPH::FixedSizeFreeList<Job> m_pool;
 };
 

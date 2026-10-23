@@ -21,7 +21,9 @@ that wait, which helps when debugging.
 
 Physics steps on it: the Jolt backend runs Jolt's jobs as jobs of the shared system
 (`engine/physics/jolt/jolt_job_system.h`) instead of starting a thread pool of its own, so physics and the rest of
-the engine share the same workers.
+the engine share the same workers. Jolt barriers can execute a job before its queued worker wrapper runs; the backend
+counts those wrappers and drains them before destroying its job pool, so rapid scene teardown cannot leave workers
+holding references to freed physics jobs.
 
 ## Failures
 

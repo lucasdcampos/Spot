@@ -75,7 +75,11 @@ m_fall = controller.IsGrounded() ? 0.0f : m_fall - 9.81f * deltaTime;
 controller.Move(walk + Spot::Vector3{0.0f, m_fall, 0.0f}, deltaTime);
 ```
 
-`IsGrounded()`, `GetGroundNormal()`, `GetGroundVelocity()`, `GetGround()` and `GetVelocity()` describe the last move.
+`IsGrounded()`, `IsSupported()`, `GetGroundNormal()`, `GetGroundVelocity()`, `GetGround()` and `GetVelocity()` describe
+the last move. `IsSupported()` includes a foothold steeper than the walking slope limit, whereas `IsGrounded()`
+requires walkable ground. Games can use support to stop gravity and hold still on steep terrain without enabling
+uphill walking. Support requires an upward-facing contact below the capsule's center; a vertical wall touching its
+side does not count, enable stair climbing or snap an airborne character toward a floor.
 It is Jolt's `CharacterVirtual`, with a kinematic inner body of the same capsule, so dynamic bodies, triggers and
 queries see the character. It collides with the layers its entity's layer does, gets collision and trigger events
 like a body, and follows its entity when code places it elsewhere. The entity needs no collider or rigidbody.

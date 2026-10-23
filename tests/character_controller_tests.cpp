@@ -148,6 +148,55 @@ TEST_CASE("Characters push dynamic bodies out of their way", "[physics][characte
     CHECK(crate.GetTransform().GetPosition().x > 3.0f);
 }
 
+TEST_CASE("Character support distinguishes a steep foothold from a wall touching the side", "[physics][character]") {
+    SECTION("A steep foothold can hold still without allowing uphill walking") {
+        Scene scene;
+        auto& slope = CreateBox(scene, "Slope", {0, 5, 0}, {30, 0.5f, 20});
+        slope.GetTransform().SetRotation(Spot::Quaternion::FromAxisAngle({0, 0, 1}, Spot::ToRadians(70.0f)));
+        auto& entity = scene.CreateEntity("Character");
+        auto& controller = entity.AddComponent<CharacterController>();
+        controller.SetStepHeight(1.0f);
+        entity.GetTransform().SetPosition({0, 9, 0});
+        float fall = 0.0f;
+        for (int i = 0; i < 90; ++i) {
+            scene.Update(Step);
+            fall = controller.IsSupported() ? 0.0f : fall - 24.0f * Step;
+            controller.Move({0, fall, 0}, Step);
+        }
+        const auto position = entity.GetTransform().GetPosition();
+        const auto normal = controller.GetGroundNormal();
+        INFO("Position " << position.x << ", " << position.y << ", " << position.z << "; normal " << normal.x << ", "
+                         << normal.y << ", " << normal.z);
+        REQUIRE(controller.IsSupported());
+        CHECK_FALSE(controller.IsGrounded());
+        const auto resting = entity.GetTransform().GetPosition();
+        for (int i = 0; i < 60; ++i) {
+            scene.Update(Step);
+            controller.Move({}, Step);
+        }
+        CHECK(Spot::Length(entity.GetTransform().GetPosition() - resting) < 0.005f);
+        for (int i = 0; i < 60; ++i) {
+            scene.Update(Step);
+            controller.Move({3, 0, 0}, Step);
+        }
+        CHECK(entity.GetTransform().GetPosition().y < resting.y + 0.1f);
+    }
+    SECTION("A vertical wall cannot suspend a falling character") {
+        Scene scene;
+        CreateBox(scene, "Wall", {2, 5, 0}, {1, 20, 10});
+        auto& entity = scene.CreateEntity("Character");
+        auto& controller = entity.AddComponent<CharacterController>();
+        entity.GetTransform().SetPosition({1.05f, 5, 0});
+        for (int i = 0; i < 60; ++i) {
+            scene.Update(Step);
+            controller.Move({4, -3, 0}, Step);
+            CHECK_FALSE(controller.IsSupported());
+            CHECK_FALSE(controller.IsGrounded());
+        }
+        CHECK(entity.GetTransform().GetPosition().y < 2.1f);
+    }
+}
+
 TEST_CASE("Characters enter triggers, keep to their layer and are seen by queries", "[physics][character]") {
     CharacterScene world;
     auto& zone = CreateBox(world.scene, "Zone", {2.0f, 1.0f, 0.0f}, {1.0f, 2.0f, 4.0f});
@@ -172,6 +221,15 @@ TEST_CASE("Characters enter triggers, keep to their layer and are seen by querie
         world.Position() + Vector3{0.0f, 5.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 10.0f, {.ignore = world.character.GetId()});
     REQUIRE(through.has_value());
     CHECK(through->entity == world.ground.GetId());
+}
+
+TEST_CASE("Character simulations can be destroyed and recreated with physics jobs in flight", "[physics][character]") {
+    for (int i = 0; i < 40; ++i) {
+        CharacterScene world;
+        world.walker.walk = {3.0f, 0.0f, 0.0f};
+        Simulate(world.scene, 4.0f * Step);
+        CHECK(world.Position().x > 0.15f);
+    }
 }
 
 TEST_CASE("Characters are saved with their scene, and follow their entity when it is placed", "[physics][character]") {

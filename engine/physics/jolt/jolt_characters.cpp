@@ -21,8 +21,8 @@ PhysicsCharacterId PhysicsSimulation::CreateCharacter(const PhysicsCharacterDesc
     settings->mMaxSlopeAngle = desc.maxSlopeAngle;
     settings->mMass = std::max(desc.mass, MinShapeSize);
     settings->mMaxStrength = std::max(desc.maxStrength, 0.0f);
-    // Ground below the capsule's lower half counts as ground to stand on.
-    settings->mSupportingVolume = JPH::Plane(JPH::Vec3::sAxisY(), -halfHeight);
+    // Support must be below the capsule's center. Its normal is checked too, since a side wall can touch this half.
+    settings->mSupportingVolume = JPH::Plane(JPH::Vec3::sAxisY(), 0.0f);
 
     auto character = std::make_unique<JPH::CharacterVirtual>(settings, ToJolt(desc.position), JPH::Quat::sIdentity(),
                                                              &m_impl->system);
@@ -55,8 +55,11 @@ void PhysicsSimulation::MoveCharacter(PhysicsCharacterId id, Vector3 velocity, f
     const JPH::ObjectLayer layer = ToObjectLayer(m_impl->characterLayers[static_cast<std::size_t>(id)], true);
     character.SetLinearVelocity(ToJolt(velocity));
     JPH::CharacterVirtual::ExtendedUpdateSettings settings;
-    settings.mStickToFloorStepDown = JPH::Vec3(0.0f, -std::max(stepHeight, 0.0f), 0.0f);
-    settings.mWalkStairsStepUp = JPH::Vec3(0.0f, std::max(stepHeight, 0.0f), 0.0f);
+    // Side contact while airborne must not enable stair climbing or snapping to a floor below the wall.
+    const bool supported = character.IsSupported() && character.GetGroundNormal().GetY() > 0.01f;
+    const float step = supported ? std::max(stepHeight, 0.0f) : 0.0f;
+    settings.mStickToFloorStepDown = JPH::Vec3(0.0f, -step, 0.0f);
+    settings.mWalkStairsStepUp = JPH::Vec3(0.0f, step, 0.0f);
     const JPH::IgnoreSingleBodyFilter ignoreOwnBody(character.GetInnerBodyID());
     if (deltaTime > 0.0f) {
         character.ExtendedUpdate(
@@ -83,7 +86,9 @@ PhysicsCharacterState PhysicsSimulation::GetCharacterState(PhysicsCharacterId id
     const JPH::CharacterVirtual& character = m_impl->GetCharacter(id);
     return {.position = FromJolt(JPH::Vec3(character.GetPosition())),
             .velocity = FromJolt(character.GetLinearVelocity()),
-            .grounded = character.GetGroundState() == JPH::CharacterBase::EGroundState::OnGround,
+            .grounded = character.GetGroundState() == JPH::CharacterBase::EGroundState::OnGround &&
+                        character.GetGroundNormal().GetY() > 0.01f,
+            .supported = character.IsSupported() && character.GetGroundNormal().GetY() > 0.01f,
             .groundNormal = FromJolt(character.GetGroundNormal()),
             .groundVelocity = FromJolt(character.GetGroundVelocity()),
             .groundBody = FromJolt(character.GetGroundBodyID())};
