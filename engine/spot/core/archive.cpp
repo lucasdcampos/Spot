@@ -192,7 +192,9 @@ public:
 
     void EndArray() override { m_state.nodes.pop_back(); }
 
-    AssetManager* GetAssetManager() const override { return m_state.assets; }
+    void* GetContext(const std::type_info& type) const override {
+        return m_state.contextType && *m_state.contextType == type ? m_state.context : nullptr;
+    }
 
 private:
     // Makes the named field the current node, or the current node itself when the name is empty. When loading,

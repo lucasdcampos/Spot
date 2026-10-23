@@ -85,7 +85,8 @@ std::optional<SpriteAtlas> SpriteAtlas::LoadFromString(std::string_view text, As
     if (!json.is_object() || !json.contains("version") || json["version"] != 1)
         return std::nullopt;
     SpriteAtlas atlas;
-    Detail::ArchiveState state{.loading = true, .nodes = {&json}, .assets = assets};
+    Detail::ArchiveState state{
+        .loading = true, .nodes = {&json}, .context = assets, .contextType = &typeid(AssetManager)};
     Archive archive(state);
     atlas.Serialize(archive);
     return atlas.IsValid() ? std::optional{std::move(atlas)} : std::nullopt;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/assets/asset_ref.h"
+#include "spot/core/asset_ref.h"
 #include "spot/particles/particle_simulation.h"
 #include "spot/scene/component.h"
 #include "spot/scene/scene_system.h"

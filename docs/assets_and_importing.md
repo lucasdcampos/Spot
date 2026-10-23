@@ -138,3 +138,13 @@ The asset manager loads the types of the layers up to its own. Layers above it r
 `AssetManager::RegisterLoader()`, as the scene layer does for prefabs; scenes are not shared assets, and
 `InstantiateScene(AssetManager&, AssetId)` (`engine/spot/scene/scene_assets.h`) makes a new one from its imported data
 each time, which `AssetManager::ReadImportedData()` gives.
+
+## Foundation references and archive context
+
+`AssetRef<T>` lives in `spot/core/asset_ref.h`, beside `AssetId`. It retains shared ownership and an optional
+persistent id without depending on a manager or on any system. `AssetType` is also foundation metadata; loading
+and source-format helpers remain in `assets/`. Unresolved references keep their ids when saved.
+
+An archive backend supplies services to field extensions through `GetContext(typeid(T))`; extensions request
+one with `archive.GetContext<T>()`. The JSON backend exposes only the context explicitly attached by its caller.
+Scene and asset-loading code attach their asset manager there; the core never declares an asset manager.

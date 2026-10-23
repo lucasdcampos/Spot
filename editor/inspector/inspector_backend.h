@@ -79,7 +79,7 @@ public:
     void BeginElement(std::size_t index) override;
     void EndElement() override;
     void EndArray() override;
-    AssetManager* GetAssetManager() const override;
+    void* GetContext(const std::type_info& type) const override;
 
 private:
     // An object or array being drawn. Its fields are skipped while it, or one around it, is collapsed.

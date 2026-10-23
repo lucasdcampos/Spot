@@ -122,7 +122,8 @@ std::optional<AnimatorController> AnimatorController::LoadFromString(std::string
         return std::nullopt;
     }
     try {
-        Detail::ArchiveState state{.loading = true, .nodes = {&document}, .assets = assets};
+        Detail::ArchiveState state{
+            .loading = true, .nodes = {&document}, .context = assets, .contextType = &typeid(AssetManager)};
         Archive archive(state);
         AnimatorController controller;
         controller.Serialize(archive);

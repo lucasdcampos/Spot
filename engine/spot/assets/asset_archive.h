@@ -1,9 +1,9 @@
 #pragma once
 
 #include "spot/assets/asset_manager.h"
-#include "spot/assets/asset_ref.h"
 #include "spot/assets/assets.h"
 #include "spot/core/archive.h"
+#include "spot/core/asset_ref.h"
 
 #include <string_view>
 
@@ -27,7 +27,7 @@ void SerializeField(Archive& archive, std::string_view name, AssetRef<T>& value,
     typed.assetType = AssetTypeOf<T>::Value;
     archive.Field(name, id, typed);
     if (archive.IsLoading() && id != value.GetId()) {
-        AssetManager* assets = archive.GetAssetManager();
+        AssetManager* assets = archive.GetContext<AssetManager>();
         assets = assets ? assets : Assets::GetManager();
         value = !id.IsValid() ? AssetRef<T>() : assets ? assets->Load<T>(id) : AssetRef<T>(id, nullptr);
     }

@@ -1,8 +1,10 @@
 #pragma once
 
 #include "spot/core/asset_id.h"
+#include "spot/core/asset_type.h"
 #include "spot/core/color.h"
 #include "spot/core/curve.h"
+#include "spot/core/entity_id.h"
 #include "spot/core/gradient.h"
 #include "spot/core/quaternion.h"
 #include "spot/core/vector.h"
@@ -10,22 +12,17 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <span>
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <typeinfo>
 #include <vector>
 
 namespace Spot {
-
-// Identifiers of the layers above the core, which archives save and tools pick. The core only names them; the scene
-// defines entities and the asset layer assets, so the core depends on neither.
-enum class EntityId : std::uint64_t;
-enum class AssetType : int;
-class AssetManager;
-class Entity;
 
 class Archive;
 
@@ -75,7 +72,7 @@ struct FieldOptions {
     // A std::uint32_t with a bit per entity layer (see Entity::GetLayer()), which tools show as layers to tick.
     bool layerMask = false;
     // Tools restrict an entity picker and drag-and-drop to entities accepted by this predicate.
-    bool (*entityFilter)(const Entity&) = nullptr;
+    std::function<bool(EntityId)> entityFilter = {};
     std::string_view componentType = {};
 };
 
@@ -123,8 +120,8 @@ public:
     virtual void EndElement() = 0;
     virtual void EndArray() = 0;
 
-    // Loads the assets that fields refer to; the running application's asset manager when null.
-    virtual AssetManager* GetAssetManager() const { return nullptr; }
+    // Supplies a service to field extensions without making the core depend on its type.
+    virtual void* GetContext(const std::type_info& /*type*/) const { return nullptr; }
 };
 
 // Saves or loads the fields of a component when its scene is saved or loaded, and lets tools edit them. The same
@@ -211,9 +208,10 @@ public:
         m_backend->EndArray();
     }
 
-    // Loads the assets that fields refer to; null when the backend has none, and the asset layer then uses the
-    // running application's.
-    AssetManager* GetAssetManager() const { return m_backend->GetAssetManager(); }
+    template <typename T>
+    T* GetContext() const {
+        return static_cast<T*>(m_backend->GetContext(typeid(T)));
+    }
 
 private:
     std::unique_ptr<ArchiveBackend> m_ownedBackend;

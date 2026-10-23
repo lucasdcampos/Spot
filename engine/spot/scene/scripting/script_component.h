@@ -1,7 +1,7 @@
 #pragma once
 
-#include "spot/assets/asset_ref.h"
 #include "spot/assets/script_source.h"
+#include "spot/core/asset_ref.h"
 #include "spot/scene/component.h"
 #include "spot/scene/scripting/script_runtime.h"
 

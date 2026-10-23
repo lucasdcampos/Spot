@@ -114,7 +114,7 @@ Depends on: nothing. Must be done before phases 7, 8 and 9.
 
 Depends on: Phase 1.
 
-- [ ] **3.1 Ids in the core (S).** `AssetRef` moves to `core/` beside `AssetId`, and `EntityId` to `core/`.
+- [x] **3.1 Ids in the core (S).** `AssetRef` moves to `core/` beside `AssetId`, and `EntityId` to `core/`.
   `core/archive.h` stops declaring scene and asset types; `FieldOptions::entityFilter` takes a filter on entity ids
   that the tools give.
 - [ ] **3.2 CPU geometry in the core (S).** `MeshData` and the bounds types move to `core/`, so physics stops including

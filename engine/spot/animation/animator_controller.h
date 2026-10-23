@@ -2,7 +2,7 @@
 
 #include "spot/animation/animation_data.h"
 #include "spot/animation/blend_tree.h"
-#include "spot/assets/asset_ref.h"
+#include "spot/core/asset_ref.h"
 
 #include <optional>
 #include <span>

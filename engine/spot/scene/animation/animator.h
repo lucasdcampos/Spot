@@ -3,7 +3,7 @@
 #include "spot/animation/animation_data.h"
 #include "spot/animation/animation_layer.h"
 #include "spot/animation/animator_controller.h"
-#include "spot/assets/asset_ref.h"
+#include "spot/core/asset_ref.h"
 #include "spot/scene/component.h"
 #include "spot/scene/scene_system.h"
 

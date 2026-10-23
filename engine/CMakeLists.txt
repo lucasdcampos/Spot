@@ -23,7 +23,9 @@ add_library(spot_objects OBJECT
     spot/assets/asset_pak.cpp
     spot/assets/asset_manager.h
     spot/assets/asset_manager.cpp
-    spot/assets/asset_ref.h
+    spot/core/asset_ref.h
+    spot/core/asset_type.h
+    spot/core/entity_id.h
     spot/assets/asset_archive.h
     spot/assets/asset_type.h
     spot/assets/asset_type.cpp

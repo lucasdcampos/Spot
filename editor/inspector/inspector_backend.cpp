@@ -72,8 +72,8 @@ ImGuiSliderFlags GetSliderFlags(const FieldOptions& options) {
 
 // The entity and its descendants, in hierarchy order, with the names of their parents as details.
 void ListEntities(Entity& entity, const std::string& parents, std::vector<PickerItem>& items,
-                  std::vector<EntityId>& ids, bool (*filter)(const Entity&)) {
-    if (!filter || filter(entity)) {
+                  std::vector<EntityId>& ids, const std::function<bool(EntityId)>& filter) {
+    if (!filter || filter(entity.GetId())) {
         items.push_back({entity.GetName(), GetEntityIcon(entity), parents});
         ids.push_back(entity.GetId());
     }
@@ -424,7 +424,7 @@ void InspectorBackend::Field(std::string_view name, EntityId& value, const Field
     if (target) {
         current = target->GetName();
         color = nullptr;
-        if (options.entityFilter && !options.entityFilter(*target)) {
+        if (options.entityFilter && !options.entityFilter(target->GetId())) {
             current += " (wrong component type)";
             color = &EditorColors::Warning;
         }
@@ -454,7 +454,7 @@ void InspectorBackend::Field(std::string_view name, EntityId& value, const Field
         const auto dropped = result.GetDropped<EntityId>();
         if (!dropped.empty()) {
             const Entity* droppedEntity = scene ? scene->GetEntity(dropped.front()) : nullptr;
-            if (droppedEntity && (!options.entityFilter || options.entityFilter(*droppedEntity))) {
+            if (droppedEntity && (!options.entityFilter || options.entityFilter(droppedEntity->GetId()))) {
                 value = dropped.front();
                 MarkChanged(pointer);
             }
@@ -692,8 +692,14 @@ void InspectorBackend::EndArray() {
     EndContainer();
 }
 
-AssetManager* InspectorBackend::GetAssetManager() const {
-    return m_options.project ? &m_options.project->GetAssets() : nullptr;
+void* InspectorBackend::GetContext(const std::type_info& type) const {
+    if (type == typeid(Scene)) {
+        return m_options.scene;
+    }
+    if (type == typeid(AssetManager) && m_options.project) {
+        return &m_options.project->GetAssets();
+    }
+    return nullptr;
 }
 
 } // namespace Spot::Editor

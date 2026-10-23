@@ -1,26 +1,12 @@
 #pragma once
 
+#include "spot/core/asset_type.h"
+
 #include <filesystem>
 #include <optional>
 #include <string_view>
 
 namespace Spot {
-
-enum class AssetType : int {
-    Texture,
-    Mesh,
-    Material,
-    Model,
-    Sound,
-    Font,
-    Scene,
-    Prefab,
-    Skeleton,
-    AnimationClip,
-    AnimatorController,
-    SpriteAtlas,
-    Script,
-};
 
 // The name used in .meta and manifest files, such as "Texture".
 std::string_view GetAssetTypeName(AssetType type);
