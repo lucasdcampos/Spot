@@ -1,3 +1,4 @@
+#include "spot/animation/animation_asset_format.h"
 #include "spot/assets/asset_formats.h"
 
 #include <utility>

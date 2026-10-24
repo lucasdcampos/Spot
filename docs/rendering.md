@@ -505,3 +505,11 @@ see [animation](animation.md).
 tangents and bounds are CPU operations and need no graphics device. `BoundingBox` and `BoundingSphere` are in
 `spot/core/geometry/bounds.h`. Start there when sharing geometry between rendering, physics and custom tools;
 `Mesh::Create()` in the rendering API uploads the CPU geometry when drawing is needed.
+
+## Asset loader setup
+
+Before loading GPU or rendering assets, call `RegisterGraphicsAssets(assets, device)` and
+`RegisterRenderAssets(assets, device)`. The graphics layer owns texture decoding and GPU creation; rendering owns
+meshes, materials, models, fonts and sprite atlases. Register animation separately for animated models. Decoding,
+font rasterization and unsupported texture-block decompression run on workers; GPU creation and reference resolution
+run when the calling thread finishes the load. Loaders are local to the supplied manager.

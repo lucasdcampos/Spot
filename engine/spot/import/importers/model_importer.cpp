@@ -1,5 +1,7 @@
+#include "spot/animation/animation_asset_format.h"
 #include "spot/assets/asset_formats.h"
 #include "spot/core/paths.h"
+#include "spot/graphics/texture_asset_format.h"
 #include "spot/import/importers/importer.h"
 #include "spot/import/importers/texture_compression.h"
 #include "spot/render/model_data.h"

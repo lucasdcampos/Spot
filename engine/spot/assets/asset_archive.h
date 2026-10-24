@@ -1,7 +1,6 @@
 #pragma once
 
 #include "spot/assets/asset_manager.h"
-#include "spot/assets/assets.h"
 #include "spot/core/archive.h"
 #include "spot/core/asset_ref.h"
 
@@ -15,8 +14,8 @@ void WarnAssetWithoutId(std::string_view name);
 
 } // namespace Detail
 
-// References to assets are saved as their id, and loaded through the archive's asset manager, or the running
-// application's. Assets made in code have no id, so they are saved as null, with a warning.
+// References load only through the manager supplied by the archive's context. Without one, their ids are retained.
+// Assets made in code have no id, so they are saved as null, with a warning.
 template <LoadableAsset T>
 void SerializeField(Archive& archive, std::string_view name, AssetRef<T>& value, const FieldOptions& options) {
     AssetId id = value.GetId();
@@ -28,7 +27,6 @@ void SerializeField(Archive& archive, std::string_view name, AssetRef<T>& value,
     archive.Field(name, id, typed);
     if (archive.IsLoading() && id != value.GetId()) {
         AssetManager* assets = archive.GetContext<AssetManager>();
-        assets = assets ? assets : Assets::GetManager();
         value = !id.IsValid() ? AssetRef<T>() : assets ? assets->Load<T>(id) : AssetRef<T>(id, nullptr);
     }
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "spot/assets/asset_loader.h"
 #include "spot/assets/asset_type.h"
 #include "spot/core/asset_id.h"
 #include "spot/core/asset_ref.h"
@@ -26,7 +27,6 @@ struct AnimatorController;
 struct SpriteAtlas;
 struct ScriptSource;
 class Font;
-class GraphicsDevice;
 class Mesh;
 struct MeshData;
 class Model;
@@ -143,14 +143,6 @@ private:
 
 class AssetManager;
 
-// Loads the assets of a type the asset layer does not define itself, such as the prefabs the scene layer registers.
-struct AssetLoader {
-    // Makes the asset from its imported data; null, after logging why, when the data is not valid.
-    std::shared_ptr<const void> (*load)(AssetManager& assets, AssetId id, std::span<const std::byte> data) = nullptr;
-    // The assets the loaded asset was made from, so it loads anew when they are reloaded; none when unset.
-    std::vector<AssetId> (*dependencies)(const void* asset) = nullptr;
-};
-
 // The types Load() can load.
 template <typename T>
 concept LoadableAsset = requires { AssetTypeOf<T>::Value; };
@@ -163,7 +155,7 @@ concept LoadableAsset = requires { AssetTypeOf<T>::Value; };
 // Assets that need the GPU, such as textures and meshes, only load with a graphics device.
 class AssetManager {
 public:
-    explicit AssetManager(std::filesystem::path importDirectory, GraphicsDevice* device = nullptr);
+    explicit AssetManager(std::filesystem::path importDirectory);
     ~AssetManager();
 
     AssetManager(const AssetManager&) = delete;
@@ -247,9 +239,8 @@ public:
     // The asset's path, as FindByPath() takes it; empty for unknown assets.
     std::string_view GetPath(AssetId id) const;
 
-    // Makes every manager load assets of the type with the loader, as the layers above the asset layer do for
-    // their own types. The latest registration for a type wins.
-    static void RegisterLoader(AssetType type, AssetLoader loader);
+    // Register before starting loads. Registrations belong only to this manager; the latest for a type wins.
+    void RegisterLoader(AssetType type, AssetLoader loader);
 
 private:
     struct Entry {
@@ -286,7 +277,7 @@ private:
     static void LogUnknownPath(std::string_view path);
 
     std::filesystem::path m_importDirectory;
-    GraphicsDevice* m_device;
+    std::unordered_map<AssetType, AssetLoader> m_loaders;
     std::unique_ptr<Detail::AssetPak> m_pak;
     std::deque<std::shared_ptr<Detail::AsyncLoad>> m_pending;
     std::vector<std::shared_ptr<Detail::PreloadTask>> m_preloads;

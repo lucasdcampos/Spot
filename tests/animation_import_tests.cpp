@@ -1,4 +1,6 @@
+#include "registered_assets.h"
 #include "temp_directory.h"
+#include <spot/animation/animation_asset_format.h>
 #include <spot/assets/asset_formats.h>
 
 #include <spot.h>
@@ -49,7 +51,7 @@ TEST_CASE("Animation assets cook, load without a GPU and keep subasset identitie
     }
     AssetDatabase database(source, directory.GetPath() / "imported");
     database.Refresh();
-    AssetManager assets(directory.GetPath() / "imported");
+    Spot::Tests::RegisteredAssetManager assets(directory.GetPath() / "imported");
     auto skeleton = assets.Load<Skeleton>("rig.gltf#Rig");
     auto clip = assets.Load<AnimationClip>("rig.gltf#Move");
     auto separate = assets.Load<AnimationClip>("animation_only.gltf#Move");

@@ -126,3 +126,9 @@ of its own kept in room reserved up front (1,024 voices, fading ones included). 
 another queue, and the game's side lets their sounds go on its next call, so the audio thread never frees memory
 either. What the game asks for is heard from the next mix on.
 
+
+## Asset loader setup
+
+Call `RegisterAudioAssets(assets)` before loading `Sound` assets through a standalone manager. Imported sound decoding
+and PCM conversion run during preparation on workers; the completed sound is created when the caller finishes the load.
+`Application` registers audio assets during setup. Registering audio never changes another manager.

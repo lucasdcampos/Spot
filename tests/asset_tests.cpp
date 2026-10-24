@@ -1,7 +1,9 @@
 #include "log_capture.h"
+#include "registered_assets.h"
 #include "temp_directory.h"
 #include <spot/assets/asset_formats.h>
 #include <spot/assets/asset_pak.h>
+#include <spot/graphics/texture_asset_format.h>
 #include <spot/import/importers/texture_compression.h>
 
 #include <spot.h>
@@ -237,7 +239,7 @@ TEST_CASE("The asset database imports sources into the import directory", "[asse
             CHECK(std::ranges::find(cubeParts, part.id, &Spot::AssetInfo::id) != cubeParts.end());
         }
 
-        Spot::AssetManager assets(imported);
+        Spot::Tests::RegisteredAssetManager assets(imported);
         const auto model = assets.Load<Spot::Model>(*cubeId);
         REQUIRE(model);
         REQUIRE(model->GetNodes().size() == 2);
@@ -419,7 +421,7 @@ TEST_CASE("Changed assets load anew, with the loaded assets that refer to them",
     CHECK(database.GetChanged().size() == 2);
 
     // Without a device the texture does not load, but materials still refer to it by id.
-    Spot::AssetManager manager(project.GetPath() / "imported");
+    Spot::Tests::RegisteredAssetManager manager(project.GetPath() / "imported");
     const auto paintBefore = manager.Load<Spot::Material>(paint);
     const auto plainBefore = manager.Load<Spot::Material>(plain);
     REQUIRE((paintBefore && plainBefore));
@@ -449,7 +451,7 @@ TEST_CASE("Components load their references to changed assets again", "[assets]"
     AssetDatabase database(sources, project.GetPath() / "imported");
     database.Refresh();
     const AssetId paint = *database.FindByPath("paint.material");
-    Spot::AssetManager manager(project.GetPath() / "imported");
+    Spot::Tests::RegisteredAssetManager manager(project.GetPath() / "imported");
 
     Spot::Scene scene;
     auto& renderer = scene.CreateEntity().AddComponent<Spot::MeshRenderer>(Spot::AssetRef<Spot::Mesh>(),
@@ -509,7 +511,7 @@ TEST_CASE("The asset manager loads imported assets once and shares them", "[asse
     const AssetId plainId = ImportProject(project.GetPath() / "assets", imported);
     REQUIRE(plainId.IsValid());
 
-    Spot::AssetManager assets(imported);
+    Spot::Tests::RegisteredAssetManager assets(imported);
     CHECK(assets.Contains(plainId));
     CHECK(assets.GetType(plainId) == AssetType::Material);
     CHECK(assets.FindByPath("models/cube.glb").has_value());
@@ -553,10 +555,10 @@ TEST_CASE("The asset manager rejects corrupt imported files", "[assets]") {
     const AssetId plainId = ImportProject(project.GetPath() / "assets", imported);
 
     std::ofstream(imported / (plainId.ToString() + ".asset"), std::ios::binary) << "SPOT garbage";
-    Spot::AssetManager assets(imported);
+    Spot::Tests::RegisteredAssetManager assets(imported);
     CHECK_FALSE(assets.Load<Spot::Material>(plainId));
 
-    Spot::AssetManager empty(project.GetPath() / "nowhere");
+    Spot::Tests::RegisteredAssetManager empty(project.GetPath() / "nowhere");
     CHECK_FALSE(empty.Contains(plainId));
 }
 
@@ -569,12 +571,12 @@ TEST_CASE("Asset managers only warn about a missing manifest when the import fol
     const Spot::LogLevel level = logger.GetLevel();
     logger.SetLevel(Spot::LogLevel::Debug);
 
-    const Spot::AssetManager withoutFolder(project.GetPath() / "nowhere");
+    const Spot::Tests::RegisteredAssetManager withoutFolder(project.GetPath() / "nowhere");
     REQUIRE(sink->GetRecords().size() == 1);
     CHECK(sink->GetRecords()[0].level == Spot::LogLevel::Debug);
 
     std::filesystem::create_directories(project.GetPath() / "imported");
-    const Spot::AssetManager withEmptyFolder(project.GetPath() / "imported");
+    const Spot::Tests::RegisteredAssetManager withEmptyFolder(project.GetPath() / "imported");
     REQUIRE(sink->GetRecords().size() == 2);
     CHECK(sink->GetRecords()[1].level == Spot::LogLevel::Warning);
     logger.SetLevel(level);
@@ -657,7 +659,7 @@ TEST_CASE("Material files are assets that refer to textures by id", "[assets]") 
     REQUIRE(source.SaveToFile(sources / "red.material"));
     CHECK(database.Refresh() == 1);
 
-    Spot::AssetManager assets(imported);
+    Spot::Tests::RegisteredAssetManager assets(imported);
     const auto material = assets.Load<Spot::Material>("red.material");
     REQUIRE(material);
     CHECK(material->baseColor == Spot::Color::Red);
@@ -697,7 +699,7 @@ TEST_CASE("Materials extracted from a model replace the model's own", "[assets]"
 
     // The model's own material is still imported, so it can be extracted again, but the model uses the file.
     {
-        Spot::AssetManager assets(imported);
+        Spot::Tests::RegisteredAssetManager assets(imported);
         CHECK(assets.Contains(plainId));
         const auto model = assets.Load<Spot::Model>(cubeId);
         REQUIRE(model);
@@ -709,7 +711,7 @@ TEST_CASE("Materials extracted from a model replace the model's own", "[assets]"
     edited.baseColor = Spot::Color::Green;
     edited.SaveToFile(sources / "materials" / "plain.material");
     CHECK(database.Refresh() == 1);
-    Spot::AssetManager assets(imported);
+    Spot::Tests::RegisteredAssetManager assets(imported);
     CHECK(assets.Load<Spot::Model>(cubeId)->GetParts()[1].material->baseColor == Spot::Color::Green);
 
     CHECK_FALSE(database.ExtractMaterial(plainId, "materials/plain.material").has_value());
@@ -722,7 +724,7 @@ TEST_CASE("Scenes save mesh renderers by asset id and load them back through the
     const auto sources = project.GetPath() / "assets";
     const auto imported = project.GetPath() / "imported";
     const AssetId plainId = ImportProject(sources, imported);
-    Spot::AssetManager assets(imported);
+    Spot::Tests::RegisteredAssetManager assets(imported);
 
     // Without a GPU the meshes do not load, but their references keep their ids.
     const auto model = assets.Load<Spot::Model>("models/cube.glb");
@@ -781,7 +783,7 @@ TEST_CASE("Scene files are assets that instantiate into new scenes", "[assets]")
     const AssetId plainId = ImportProject(sources, imported);
 
     {
-        Spot::AssetManager assets(imported);
+        Spot::Tests::RegisteredAssetManager assets(imported);
         Spot::Scene level;
         level.CreateEntity("Floor").AddComponent<Spot::MeshRenderer>(Spot::AssetRef<Spot::Mesh>(),
                                                                      assets.Load<Spot::Material>(plainId));
@@ -792,7 +794,7 @@ TEST_CASE("Scene files are assets that instantiate into new scenes", "[assets]")
     AssetDatabase database(sources, imported);
     CHECK(database.Refresh() == 1);
 
-    Spot::AssetManager assets(imported);
+    Spot::Tests::RegisteredAssetManager assets(imported);
     const auto first = Spot::InstantiateScene(assets, "levels/first.scene");
     const auto second = Spot::InstantiateScene(assets, "levels/first.scene");
     REQUIRE((first && second));
@@ -816,7 +818,7 @@ TEST_CASE("Sounds are imported decoded and load without a decoder", "[assets]") 
 
     const auto original = Spot::Sound::Load(TestAssets / "sine.ogg");
     REQUIRE(original);
-    Spot::AssetManager assets(imported);
+    Spot::Tests::RegisteredAssetManager assets(imported);
     const auto sound = assets.Load<Spot::Sound>("sine.ogg");
     REQUIRE(sound);
     CHECK(sound->GetSampleRate() == original->GetSampleRate());
@@ -841,7 +843,7 @@ TEST_CASE("Sounds set to stream are imported encoded and stream when they load",
     CHECK(database.Refresh() == 1);
     CHECK(AssetMeta::LoadFromFile(sources / "sine.ogg.meta")->sound.stream);
 
-    Spot::AssetManager assets(imported);
+    Spot::Tests::RegisteredAssetManager assets(imported);
     const auto sound = assets.Load<Spot::Sound>("sine.ogg");
     REQUIRE(sound);
     CHECK(sound->IsStreamed());
@@ -871,7 +873,7 @@ TEST_CASE("Fonts are imported with extra sizes as sub-assets", "[assets]") {
     CHECK(database.Find(*large)->parent == fontId);
     CHECK_FALSE(database.FindByPath("fonts/FiraSans-Regular.ttf#12px").has_value());
 
-    Spot::AssetManager assets(imported);
+    Spot::Tests::RegisteredAssetManager assets(imported);
     CHECK(assets.FindByPath("fonts/FiraSans-Regular.ttf#48px") == large);
     CHECK(assets.GetType(*large) == AssetType::Font);
 }
@@ -885,7 +887,7 @@ TEST_CASE("Sub-assets and built-in assets are found by path", "[assets]") {
     CHECK(database.FindByPath("models/cube.glb#Plain") == plainId);
     CHECK_FALSE(database.FindByPath("models/cube.glb#").has_value());
 
-    Spot::AssetManager assets(imported);
+    Spot::Tests::RegisteredAssetManager assets(imported);
     CHECK(assets.FindByPath("models/cube.glb#Plain") == plainId);
     CHECK(assets.FindByPath("builtin/cube") == Spot::BuiltInAssets::CubeMesh);
     CHECK(assets.GetType(Spot::BuiltInAssets::SphereMesh) == AssetType::Mesh);
@@ -912,7 +914,7 @@ TEST_CASE("Runtime asset catalogs query the manifest by type and directory", "[a
     write("prefabs/level.scene");
     AssetDatabase database(sources, imported);
     database.Refresh();
-    Spot::AssetManager assets(imported);
+    Spot::Tests::RegisteredAssetManager assets(imported);
     const AssetId nested = *database.FindByPath("prefabs/nested/a.prefab");
     const AssetId last = *database.FindByPath("prefabs/z.prefab");
     const AssetId outside = *database.FindByPath("prefabs_extra/outside.prefab");
@@ -936,7 +938,7 @@ TEST_CASE("Runtime asset catalogs query the manifest by type and directory", "[a
 
     // A shipped game has only imported files; catalog queries must not inspect source files.
     std::filesystem::remove_all(sources);
-    Spot::AssetManager shipped(imported);
+    Spot::Tests::RegisteredAssetManager shipped(imported);
     CHECK(shipped.GetAssetIds(AssetType::Prefab, "prefabs") == refreshed);
     CHECK(shipped.Load<Spot::Prefab>(added));
 }
@@ -1138,7 +1140,7 @@ TEST_CASE("Paks hold the imported assets in one file, which the asset manager lo
     // Without their own files, assets still load, from the pak.
     std::filesystem::remove(Spot::Detail::GetImportedAssetPath(imported, *texture));
     std::filesystem::remove(Spot::Detail::GetImportedAssetPath(imported, *sound));
-    Spot::AssetManager assets(imported);
+    Spot::Tests::RegisteredAssetManager assets(imported);
     CHECK(assets.ReadImportedData(*texture, AssetType::Texture).has_value());
     CHECK(assets.Load<Spot::Sound>(*sound));
 }
@@ -1154,7 +1156,7 @@ TEST_CASE("Assets load in the background, and preload together with what they re
     const auto sine = database.FindByPath("sine.ogg");
     const auto other = database.FindByPath("other.ogg");
     REQUIRE((sine && other));
-    Spot::AssetManager assets(imported);
+    Spot::Tests::RegisteredAssetManager assets(imported);
 
     auto request = assets.LoadAsync<Spot::Sound>(*sine);
     REQUIRE(request.IsValid());

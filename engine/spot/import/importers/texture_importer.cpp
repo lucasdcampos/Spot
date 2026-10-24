@@ -1,4 +1,5 @@
 #include "spot/assets/asset_formats.h"
+#include "spot/graphics/texture_asset_format.h"
 #include "spot/import/importers/importer.h"
 #include "spot/import/importers/texture_compression.h"
 

@@ -2,6 +2,7 @@
 
 #include "spot/assets/asset_formats.h"
 #include "spot/graphics/image.h"
+#include "spot/graphics/texture_asset_format.h"
 
 namespace Spot::Detail {
 

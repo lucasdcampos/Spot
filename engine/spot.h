@@ -168,3 +168,10 @@
 #include "spot/scene/ui/ui_layout_group.h"
 
 #include "spot/scene/ui/ui_input_system.h"
+
+#include "spot/animation/animation_assets.h"
+#include "spot/assets/script_assets.h"
+#include "spot/audio/audio_assets.h"
+#include "spot/graphics/graphics_assets.h"
+#include "spot/render/render_assets.h"
+#include "spot/scene/scene_assets.h"

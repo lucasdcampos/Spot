@@ -1,4 +1,5 @@
 #include "log_capture.h"
+#include "registered_assets.h"
 #include "script_asset_fixture.h"
 #include <spot/assets/asset_manifest.h>
 #include <spot/assets/asset_pak.h>
@@ -171,7 +172,7 @@ TEST_CASE("Luau file assets are shared while component state stays independent",
     Console console;
     ScriptAssetFixture fixture;
     const auto id = fixture.Import("scripts/counter.luau", CounterSource);
-    Spot::AssetManager assets(fixture.imported);
+    Spot::Tests::RegisteredAssetManager assets(fixture.imported);
     Spot::Scene scene;
     for (int i = 0; i < 2; ++i) {
         auto& component = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
@@ -200,7 +201,7 @@ TEST_CASE("Luau scenes execute file assets from a shipped pak", "[luau][assets]"
     ScriptAssetFixture fixture;
     const auto id = fixture.Import("scripts/shipped.luau", "function OnStart() print(\"shipped\", nil) end");
     {
-        Spot::AssetManager assets(fixture.imported);
+        Spot::Tests::RegisteredAssetManager assets(fixture.imported);
         Spot::Scene scene;
         {
             auto& component = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
@@ -215,7 +216,7 @@ TEST_CASE("Luau scenes execute file assets from a shipped pak", "[luau][assets]"
                                Spot::Detail::Manifest::GetPath(shipped));
     REQUIRE(Spot::Detail::WriteAssetPak(shipped / Spot::Detail::AssetPakFileName, fixture.imported));
     std::filesystem::rename(fixture.sources, fixture.temp.GetPath() / "unavailable_sources");
-    Spot::AssetManager assets(shipped);
+    Spot::Tests::RegisteredAssetManager assets(shipped);
     auto scene = Spot::InstantiateScene(assets, "level.scene");
     REQUIRE(scene);
     scene->Update(0.25f);
@@ -226,7 +227,7 @@ TEST_CASE("Luau asset errors use the relative file path in diagnostics", "[luau]
     Console console;
     ScriptAssetFixture fixture;
     const auto id = fixture.Import("scripts/broken.luau", "function OnUpdate(dt)\n    print(missing)\nend");
-    Spot::AssetManager assets(fixture.imported);
+    Spot::Tests::RegisteredAssetManager assets(fixture.imported);
     Spot::Scene scene;
     auto& component = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
     component.script = assets.Load<Spot::ScriptSource>(id);
@@ -272,7 +273,7 @@ TEST_CASE("Luau source modules load imported assets and share the explicit spot 
         REQUIRE(Spot::Detail::WriteAssetPak(directory / Spot::Detail::AssetPakFileName, fixture.imported));
         std::filesystem::rename(fixture.sources, fixture.temp.GetPath() / "unavailable_sources");
     }
-    Spot::AssetManager assets(directory);
+    Spot::Tests::RegisteredAssetManager assets(directory);
     struct AssetScope {
         Spot::AssetManager* previous = Spot::Assets::GetManager();
         ~AssetScope() { Spot::Detail::SetAssetManager(previous); }
@@ -371,7 +372,7 @@ TEST_CASE("Luau supports file scope modules struct formatting and execution budg
             print(Vector2(1, 2), Color(1, 0.5, 0.25, 1), helpers.calls)
         end
     )");
-    Spot::AssetManager assets(fixture.imported);
+    Spot::Tests::RegisteredAssetManager assets(fixture.imported);
     struct AssetScope {
         Spot::AssetManager* previous = Spot::Assets::GetManager();
         ~AssetScope() { Spot::Detail::SetAssetManager(previous); }

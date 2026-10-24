@@ -1,4 +1,5 @@
 #include "log_capture.h"
+#include "registered_assets.h"
 #include "temp_directory.h"
 
 #include <spot.h>
@@ -32,7 +33,7 @@ struct PrefabProject {
     Spot::EntityId rootId;
     Spot::AssetId assetId;
     std::unique_ptr<Spot::AssetDatabase> database;
-    std::unique_ptr<Spot::AssetManager> assets;
+    std::unique_ptr<Spot::Tests::RegisteredAssetManager> assets;
 
     PrefabProject() {
         Spot::RegisterComponent<PrefabData>("PrefabOverrideData");
@@ -51,7 +52,7 @@ struct PrefabProject {
         const auto id = database->FindByPath("Prop.prefab");
         REQUIRE(id);
         assetId = *id;
-        assets = std::make_unique<Spot::AssetManager>(temp.GetPath() / "imported");
+        assets = std::make_unique<Spot::Tests::RegisteredAssetManager>(temp.GetPath() / "imported");
     }
 
     std::filesystem::path GetFile() const { return temp.GetPath() / "assets" / "Prop.prefab"; }

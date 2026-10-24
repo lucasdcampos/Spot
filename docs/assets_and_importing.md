@@ -134,8 +134,7 @@ this layout and reimports older models automatically, preserving subasset ids by
 
 ## Asset types of other layers
 
-The asset manager loads the types of the layers up to its own. Layers above it register loaders for theirs with
-`AssetManager::RegisterLoader()`, as the scene layer does for prefabs; scenes are not shared assets, and
+Each system registers its loaders on a manager with `assets.RegisterLoader()`, as the scene layer does for prefabs; scenes are not shared assets, and
 `InstantiateScene(AssetManager&, AssetId)` (`engine/spot/scene/scene_assets.h`) makes a new one from its imported data
 each time, which `AssetManager::ReadImportedData()` gives.
 
@@ -148,3 +147,24 @@ and source-format helpers remain in `assets/`. Unresolved references keep their 
 An archive backend supplies services to field extensions through `GetContext(typeid(T))`; extensions request
 one with `archive.GetContext<T>()`. The JSON backend exposes only the context explicitly attached by its caller.
 Scene and asset-loading code attach their asset manager there; the core never declares an asset manager.
+
+## Registering loaders on a manager
+
+An `AssetManager` starts without system loaders. Call `RegisterGraphicsAssets(assets, device)`,
+`RegisterRenderAssets(assets, device)`, `RegisterAudioAssets(assets)`, `RegisterAnimationAssets(assets)`,
+`RegisterScriptAssets(assets)` and `RegisterSceneAssets(assets)` for the systems in use. A graphics device is optional
+for registration; GPU assets fail to load without one. CPU mesh data remains available without rendering.
+`Application` and editor projects perform these registrations during setup. Registrations never affect another manager.
+
+A custom `AssetLoader` has a worker-safe `prepare` callback and a `create` callback that runs on the thread calling
+`Load()`, `Update()` or `FinishPreload()`. `MakeAssetLoader<T>()` wraps a decoder returning `optional<T>` and a factory
+that consumes the decoded data. Register before starting loads and keep captured services alive until the manager
+is destroyed. Decoder failures complete asynchronous requests with an unresolved reference instead of leaving work pending.
+
+Loaders also describe prepared references for background preload waves and loaded dependencies for reload propagation.
+The manager handles scheduling and caching without constructing types from other systems. Texture and animation binary
+schemas belong to their systems; the serialized layouts and importer versions are unchanged.
+
+Asset fields load through `archive.GetContext<AssetManager>()` exclusively. Without that context they retain the id
+and remain unresolved, even while an application has a global asset manager. Pass the manager explicitly when loading
+scenes, animator controllers and sprite atlases outside the application.

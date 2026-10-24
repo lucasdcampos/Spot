@@ -1,4 +1,5 @@
 #include "spot/scene/scripting/script_component.h"
+#include "spot/assets/assets.h"
 
 #include "spot/assets/asset_archive.h"
 #include "spot/core/archive.h"

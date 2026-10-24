@@ -1,3 +1,4 @@
+#include "../registered_assets.h"
 #include "day_cycle.h"
 #include "explosion.h"
 #include "flash.h"
@@ -20,7 +21,7 @@ TEST_CASE("The cooked sandbox draws explosions, muzzle flashes and splashes", "[
     }
     auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
     REQUIRE(device);
-    Spot::AssetManager assets(SANDBOX_IMPORTED_DIR, device.get());
+    Spot::Tests::RegisteredAssetManager assets(SANDBOX_IMPORTED_DIR, device.get());
     auto* previousAssets = Spot::Assets::GetManager();
     Spot::Detail::SetAssetManager(&assets);
     struct RestoreAssets {

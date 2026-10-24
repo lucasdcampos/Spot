@@ -1,3 +1,4 @@
+#include "registered_assets.h"
 #include "temp_directory.h"
 #include <spot/animation/animation_motion.h>
 
@@ -142,7 +143,7 @@ TEST_CASE("Model metadata event overrides survive cooking and load with clips", 
     database.GetMeta(*id)->model.animations = {{"Move", {{0.25f, "Footstep", "left"}}}};
     REQUIRE(database.SaveMeta(*id));
     REQUIRE(database.Reimport(*id));
-    AssetManager assets(directory.GetPath() / "imported");
+    Spot::Tests::RegisteredAssetManager assets(directory.GetPath() / "imported");
     const auto clip = assets.Load<AnimationClip>("rig.gltf#Move");
     REQUIRE(clip);
     REQUIRE(clip->events.size() == 1);

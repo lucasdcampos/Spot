@@ -1,3 +1,4 @@
+#include "registered_assets.h"
 #include "temp_directory.h"
 
 #include <catch2/catch_approx.hpp>
@@ -94,7 +95,7 @@ TEST_CASE("Ragdoll saves restore body identities and physics mode without new pr
     std::filesystem::copy_file(std::filesystem::path(SPOT_TEST_ASSETS_DIR) / "models/rig.gltf", source / "rig.gltf");
     AssetDatabase database(source, directory.GetPath() / "imported");
     database.Refresh();
-    AssetManager assets(directory.GetPath() / "imported");
+    Spot::Tests::RegisteredAssetManager assets(directory.GetPath() / "imported");
     Scene scene;
     auto& actor = scene.CreateEntity("Actor");
     actor.GetTransform().SetPosition({0, 3, 0});
@@ -120,4 +121,3 @@ TEST_CASE("Ragdoll saves restore body identities and physics mode without new pr
         CHECK(restored.GetEntity(id));
     }
 }
-

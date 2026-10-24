@@ -119,7 +119,7 @@ Depends on: Phase 1.
   that the tools give.
 - [x] **3.2 CPU geometry in the core (S).** `MeshData` and the bounds types move to `core/`, so physics stops including
   rendering.
-- [ ] **3.3 Asset loaders register themselves (M).** Waits for 3.1. The asset manager stops building every type:
+- [x] **3.3 Asset loaders register themselves (M).** Waits for 3.1. The asset manager stops building every type:
   graphics and each system register their own (`RegisterGraphicsAssets()`, `RegisterRenderAssets()`,
   `RegisterAudioAssets()`, `RegisterAnimationAssets()`), decoding on workers and creating on the main thread. Loaders
   belong to a manager instead of being static. Asset references load only through the archive's manager, never

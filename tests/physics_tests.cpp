@@ -1,3 +1,4 @@
+#include "registered_assets.h"
 #include <spot.h>
 
 #include <catch2/catch_approx.hpp>
@@ -670,7 +671,7 @@ TEST_CASE("Mesh colliders save their mesh asset, and assets give meshes' triangl
     REQUIRE(loaded.FindComponent<Spot::MeshCollider>());
     CHECK(loaded.FindComponent<Spot::MeshCollider>()->GetMesh().GetId() == Spot::BuiltInAssets::CubeMesh);
 
-    Spot::AssetManager assets("missing-imports");
+    Spot::Tests::RegisteredAssetManager assets("missing-imports");
     const auto cube = assets.LoadMeshData(Spot::BuiltInAssets::CubeMesh);
     REQUIRE(cube);
     CHECK(cube->vertices.size() == 24);

@@ -3,6 +3,22 @@
 # registered components, logs, input and assets.
 add_library(spot_objects OBJECT
     spot.h
+    spot/assets/asset_loader.h
+    spot/assets/alpha_mode.h
+    spot/graphics/texture_asset_format.h
+    spot/graphics/texture_asset_format.cpp
+    spot/animation/animation_asset_format.h
+    spot/graphics/graphics_assets.h
+    spot/graphics/graphics_assets.cpp
+    spot/render/render_assets.h
+    spot/render/render_assets.cpp
+    spot/audio/audio_assets.h
+    spot/audio/audio_assets.cpp
+    spot/animation/animation_assets.h
+    spot/animation/animation_assets.cpp
+    spot/assets/script_assets.h
+    spot/assets/script_assets.cpp
+
     version.h
     version.cpp
     spot/assets/asset_file.h

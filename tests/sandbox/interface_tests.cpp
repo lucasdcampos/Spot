@@ -1,3 +1,4 @@
+#include "../registered_assets.h"
 #include "hud.h"
 #include "interface_settings.h"
 #include "log_capture.h"
@@ -23,7 +24,7 @@ struct InterfaceGame {
     Spot::Tests::ScopedSinks sinks{{log}};
     Spot::InputState input;
     Spot::InputActionMap actions;
-    Spot::AssetManager assets{SANDBOX_IMPORTED_DIR};
+    Spot::Tests::RegisteredAssetManager assets{SANDBOX_IMPORTED_DIR};
     Spot::InputState* previousInput = Spot::Input::GetState();
     Spot::InputActionMap* previousActions = Spot::Input::GetActionMap();
     Spot::AssetManager* previousAssets = Spot::Assets::GetManager();

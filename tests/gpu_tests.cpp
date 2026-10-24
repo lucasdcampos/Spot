@@ -1,6 +1,7 @@
 #include "depth_compare.frag.h"
 #include "indirect_arguments.comp.h"
 #include "quad.vert.h"
+#include "registered_assets.h"
 #include "solid.frag.h"
 #include "surface.frag.h"
 #include "surface.vert.h"
@@ -4374,7 +4375,7 @@ TEST_CASE("The generated robot renders animated poses, a held pistol and ragdoll
     RequireGpu();
     auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
     REQUIRE(device);
-    Spot::AssetManager assets(SPOT_SANDBOX_IMPORTED_DIR, device.get());
+    Spot::Tests::RegisteredAssetManager assets(SPOT_SANDBOX_IMPORTED_DIR, device.get());
     struct AssetScope {
         Spot::AssetManager* previous = Spot::Assets::GetManager();
         ~AssetScope() { Spot::Detail::SetAssetManager(previous); }
@@ -4468,7 +4469,7 @@ TEST_CASE("Spawn menu thumbnails render real prefab meshes and retain their cach
     RequireGpu();
     auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
     REQUIRE(device);
-    Spot::AssetManager assets(SPOT_SANDBOX_IMPORTED_DIR, device.get());
+    Spot::Tests::RegisteredAssetManager assets(SPOT_SANDBOX_IMPORTED_DIR, device.get());
     struct AssetScope {
         Spot::AssetManager* previous = Spot::Assets::GetManager();
         ~AssetScope() { Spot::Detail::SetAssetManager(previous); }
@@ -4520,7 +4521,7 @@ TEST_CASE("Authored sandbox menus render their labels and controls offscreen", "
     RequireGpu();
     auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
     REQUIRE(device);
-    Spot::AssetManager assets(SPOT_SANDBOX_IMPORTED_DIR, device.get());
+    Spot::Tests::RegisteredAssetManager assets(SPOT_SANDBOX_IMPORTED_DIR, device.get());
     struct AssetScope {
         Spot::AssetManager* previous = Spot::Assets::GetManager();
         ~AssetScope() { Spot::Detail::SetAssetManager(previous); }

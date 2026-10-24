@@ -30,10 +30,7 @@ std::atomic<std::uint64_t> s_nextEntityId = 1;
 
 } // namespace
 
-Scene::Scene() {
-    // Referenced from here so linking scenes links their asset loaders too.
-    Detail::RegisterSceneAssetLoaders();
-}
+Scene::Scene() = default;
 
 Scene::~Scene() {
     Clear();

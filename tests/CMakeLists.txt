@@ -18,6 +18,7 @@ add_executable(spot_tests
     application_tests.cpp
     character_controller_tests.cpp
     asset_tests.cpp
+    asset_loader_tests.cpp
     audio_tests.cpp
     audio_scene_tests.cpp
     cli_tests.cpp

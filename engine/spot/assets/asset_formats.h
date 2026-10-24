@@ -4,15 +4,12 @@
 // asset manager decodes it; a change to any of these bumps the type's importer version, so assets get imported
 // again.
 
-#include "spot/animation/animation_data.h"
 #include "spot/assets/asset_file.h"
 #include "spot/assets/material_source.h"
 #include "spot/core/asset_id.h"
 #include "spot/core/color.h"
 #include "spot/core/geometry/mesh_data.h"
 #include "spot/core/matrix.h"
-#include "spot/graphics/image.h"
-#include "spot/graphics/texture.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -22,20 +19,6 @@
 #include <vector>
 
 namespace Spot::Detail {
-
-struct TextureFile {
-    // The pixels; a placeholder when the texture is block-compressed.
-    Image image;
-    bool mipmaps = true;
-    // Colors, read as linear light, or data read as it is.
-    bool srgb = true;
-    // Block-compressed (BC1 or BC3, sRGB or not), the texture is its levels instead, the first width by height, each
-    // half the one before down to 1x1, made when it was imported.
-    std::optional<TextureFormat> compressedFormat = std::nullopt;
-    std::uint32_t width = 0;
-    std::uint32_t height = 0;
-    std::vector<std::vector<std::uint8_t>> levels = {};
-};
 
 // A node of a model file: its transform relative to its parent, and the mesh it shows with a material per submesh.
 struct ModelFileNode {
@@ -65,12 +48,6 @@ struct FontFile {
     std::vector<std::byte> fontData;
 };
 
-void Encode(BinaryWriter& writer, const Skeleton& skeleton);
-void Encode(BinaryWriter& writer, const AnimationClip& clip);
-std::optional<Skeleton> DecodeSkeleton(std::span<const std::byte> data);
-std::optional<AnimationClip> DecodeAnimationClip(std::span<const std::byte> data);
-
-void Encode(BinaryWriter& writer, const TextureFile& texture);
 void Encode(BinaryWriter& writer, const MeshData& mesh);
 void Encode(BinaryWriter& writer, const MaterialSource& material);
 void Encode(BinaryWriter& writer, const std::vector<ModelFileNode>& nodes);
@@ -80,10 +57,6 @@ void Encode(BinaryWriter& writer, const FontFile& font);
 void EncodeScene(BinaryWriter& writer, std::string_view text);
 
 // Each returns nothing when the data is truncated, has extra bytes or is inconsistent.
-std::optional<TextureFile> DecodeTexture(std::span<const std::byte> data);
-// RGBA pixels from a level of BC1 or BC3 blocks, for GPUs that cannot sample them.
-std::vector<std::uint8_t> DecompressBlocks(TextureFormat format, std::uint32_t width, std::uint32_t height,
-                                           std::span<const std::uint8_t> blocks);
 std::optional<MeshData> DecodeMesh(std::span<const std::byte> data);
 std::optional<MaterialSource> DecodeMaterial(std::span<const std::byte> data);
 std::optional<std::vector<ModelFileNode>> DecodeModel(std::span<const std::byte> data);

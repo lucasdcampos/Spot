@@ -1,4 +1,5 @@
 #include "log_capture.h"
+#include "registered_assets.h"
 #include "temp_directory.h"
 #include <spot/assets/asset_formats.h>
 
@@ -157,7 +158,7 @@ TEST_CASE("Prefab assets import, share, reload and instantiate without source fi
     CHECK(database.GetMeta(*id)->type == Spot::AssetType::Prefab);
     CHECK(database.Find(*id)->type == Spot::AssetType::Prefab);
     CHECK(database.Refresh() == 0);
-    Spot::AssetManager assets(imported);
+    Spot::Tests::RegisteredAssetManager assets(imported);
     const auto prefab = assets.Load<Spot::Prefab>(*id);
     REQUIRE(prefab);
     CHECK(assets.Load<Spot::Prefab>("Crate.prefab").Get() == prefab.Get());
@@ -204,7 +205,7 @@ TEST_CASE("Prefab importing rejects invalid trees and runtime rejects corrupt im
     }
     REQUIRE(Spot::Detail::WriteAssetFile(Spot::Detail::GetImportedAssetPath(imported, *id), Spot::AssetType::Prefab,
                                          data.GetData()));
-    Spot::AssetManager assets(imported);
+    Spot::Tests::RegisteredAssetManager assets(imported);
     const auto prefab = assets.Load<Spot::Prefab>(*id);
     CHECK_FALSE(prefab);
     CHECK(prefab.GetId() == *id);

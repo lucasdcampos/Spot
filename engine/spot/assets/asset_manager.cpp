@@ -1,27 +1,18 @@
 #include "spot/assets/asset_manager.h"
-#include "spot/render/sprite_atlas.h"
 
-#include "spot/animation/animator_controller.h"
 #include "spot/assets/asset_file.h"
 #include "spot/assets/asset_formats.h"
 #include "spot/assets/asset_manifest.h"
 #include "spot/assets/asset_pak.h"
 #include "spot/assets/built_in_assets.h"
-#include "spot/assets/script_source.h"
-#include "spot/audio/sound.h"
 #include "spot/core/job_system.h"
 #include "spot/core/log.h"
 #include "spot/core/paths.h"
 #include "spot/core/profiler.h"
-#include "spot/graphics/graphics_device.h"
-#include "spot/graphics/image.h"
-#include "spot/render/font.h"
-#include "spot/render/material.h"
-#include "spot/render/mesh.h"
-#include "spot/render/model.h"
 
 #include <algorithm>
 #include <array>
+#include <exception>
 #include <thread>
 #include <unordered_set>
 #include <utility>
@@ -34,12 +25,8 @@ struct Detail::PreparedAsset {
     AssetId id;
     AssetType type = AssetType::Texture;
     std::optional<std::vector<std::byte>> data = std::nullopt;
-    std::optional<TextureFile> texture = std::nullopt;
-    std::optional<MeshData> mesh = std::nullopt;
-    std::optional<MaterialSource> material = std::nullopt;
-    std::optional<std::vector<ModelFileNode>> model = std::nullopt;
-    // Rasterizing a font's glyphs takes the longest of loading it.
-    std::optional<FontAtlas> fontAtlas = std::nullopt;
+    AssetLoader loader = {};
+    std::shared_ptr<void> decoded = {};
 };
 
 namespace {
@@ -60,8 +47,7 @@ constexpr std::array BuiltIns{
 
 } // namespace
 
-AssetManager::AssetManager(std::filesystem::path importDirectory, GraphicsDevice* device)
-    : m_importDirectory(std::move(importDirectory)), m_device(device) {
+AssetManager::AssetManager(std::filesystem::path importDirectory) : m_importDirectory(std::move(importDirectory)) {
     RefreshManifest();
 }
 
@@ -155,49 +141,12 @@ std::vector<AssetId> AssetManager::GetAssetIds(AssetType type, std::string_view 
 
 std::vector<AssetId> AssetManager::Reload(std::span<const AssetId> assets) {
     std::unordered_set<AssetId> stale(assets.begin(), assets.end());
-    // Loaded materials and models hold on to other assets, so they go out of date with them, as do models with
-    // their materials, until nothing more does.
-    const auto refersToStale = [&](const Entry& entry, const std::shared_ptr<const void>& loaded) {
-        if (entry.type == AssetType::SpriteAtlas) {
-            return stale.contains(static_cast<const SpriteAtlas*>(loaded.get())->texture.GetId());
-        }
-        if (entry.type == AssetType::Material) {
-            const auto& material = *static_cast<const Material*>(loaded.get());
-            return std::ranges::any_of(
-                std::array{&material.baseColorTexture, &material.metallicRoughnessTexture, &material.normalTexture,
-                           &material.occlusionTexture, &material.emissiveTexture},
-                [&](const AssetRef<Texture>* texture) { return stale.contains(texture->GetId()); });
-        }
-        if (entry.type == AssetType::AnimatorController) {
-            return std::ranges::any_of(
-                static_cast<const AnimatorController*>(loaded.get())->states, [&](const auto& state) {
-                    return stale.contains(state.clip.GetId()) ||
-                           std::ranges::any_of(state.blendTree.motions,
-                                               [&](const auto& motion) { return stale.contains(motion.clip.GetId()); });
-                });
-        }
-        if (entry.type == AssetType::Model) {
-            const auto& model = *static_cast<const Model*>(loaded.get());
-            return std::ranges::any_of(model.GetParts(),
-                                       [&](const ModelPart& part) {
-                                           return stale.contains(part.mesh.GetId()) ||
-                                                  stale.contains(part.material.GetId());
-                                       }) ||
-                   std::ranges::any_of(model.GetNodes(), [&](const ModelNode& node) {
-                       return stale.contains(node.skeleton.GetId()) ||
-                              std::ranges::any_of(node.animations,
-                                                  [&](const auto& clip) { return stale.contains(clip.GetId()); });
-                   });
-        }
-        return false;
-    };
     for (bool grew = true; grew;) {
         grew = false;
         for (const auto& [id, entry] : m_entries) {
-            const auto loaded = entry.loaded.lock();
             const bool prefabChanged =
                 std::ranges::any_of(entry.dependencies, [&](AssetId dependency) { return stale.contains(dependency); });
-            if (!stale.contains(id) && (prefabChanged || (loaded && refersToStale(entry, loaded)))) {
+            if (!stale.contains(id) && prefabChanged) {
                 stale.insert(id);
                 grew = true;
             }
@@ -215,17 +164,8 @@ std::vector<AssetId> AssetManager::Reload(std::span<const AssetId> assets) {
     return reloaded;
 }
 
-namespace {
-
-std::unordered_map<AssetType, AssetLoader>& GetLoaders() {
-    static std::unordered_map<AssetType, AssetLoader> loaders;
-    return loaders;
-}
-
-} // namespace
-
 void AssetManager::RegisterLoader(AssetType type, AssetLoader loader) {
-    GetLoaders()[type] = loader;
+    m_loaders[type] = std::move(loader);
 }
 
 std::optional<std::vector<std::byte>> AssetManager::ReadImportedData(AssetId id, AssetType type) const {
@@ -284,7 +224,7 @@ std::shared_ptr<const void> AssetManager::Keep(AssetId id, AssetType type, std::
     }
     // Looked up again: loading the asset's own references may have added entries to the map.
     m_entries.at(id).loaded = asset;
-    if (const auto loader = GetLoaders().find(type); loader != GetLoaders().end() && loader->second.dependencies) {
+    if (const auto loader = m_loaders.find(type); loader != m_loaders.end() && loader->second.dependencies) {
         m_entries.at(id).dependencies = loader->second.dependencies(asset.get());
     }
     return asset;
@@ -377,8 +317,14 @@ std::shared_ptr<Detail::PreloadTask> AssetManager::StartPreload(std::span<const 
     std::erase_if(m_preloads, [](const auto& running) { return running->ready.load(); });
     m_preloads.push_back(task);
     JobSystem::GetShared().Run([this, task] {
-        auto waves = PrepareWaves(task->ids, *task->types);
-        task->waves = std::make_shared<std::vector<std::vector<Detail::PreparedAsset>>>(std::move(waves));
+        try {
+            auto waves = PrepareWaves(task->ids, *task->types);
+            task->waves = std::make_shared<std::vector<std::vector<Detail::PreparedAsset>>>(std::move(waves));
+        } catch (const std::exception& error) {
+            Log::GetEngineLogger().Error("Asset preload failed: {}", error.what());
+        } catch (...) {
+            Log::GetEngineLogger().Error("Asset preload failed");
+        }
         task->ready = true;
     });
     return task;
@@ -405,28 +351,12 @@ std::vector<std::shared_ptr<const void>> AssetManager::PreloadReferencedBy(std::
 
 void AssetManager::ForEachReference(const Detail::PreparedAsset& asset, const std::function<bool(AssetId)>& known,
                                     const std::function<void(AssetId)>& fn) const {
-    if (asset.material) {
-        for (const AssetId texture :
-             {asset.material->baseColorTexture, asset.material->metallicRoughnessTexture, asset.material->normalTexture,
-              asset.material->occlusionTexture, asset.material->emissiveTexture}) {
-            fn(texture);
+    if (asset.decoded && asset.loader.references) {
+        for (const AssetId id : asset.loader.references(asset.decoded.get())) {
+            fn(id);
         }
     }
-    if (asset.model) {
-        for (const auto& node : *asset.model) {
-            fn(node.mesh);
-            fn(node.skeleton);
-            for (const AssetId id : node.materials) {
-                fn(id);
-            }
-            for (const AssetId id : node.animations) {
-                fn(id);
-            }
-        }
-    }
-    // Assets saved as text, such as scenes and prefabs, name the assets they refer to by their ids.
-    if (asset.data && (asset.type == AssetType::Scene || asset.type == AssetType::Prefab ||
-                       asset.type == AssetType::AnimatorController || asset.type == AssetType::SpriteAtlas)) {
+    if (asset.data && (asset.type == AssetType::Scene || asset.loader.textReferences)) {
         ForEachIdInText(*asset.data, known, fn);
     }
 }
@@ -534,220 +464,38 @@ std::shared_ptr<const MeshData> AssetManager::LoadMeshData(AssetId id) {
 }
 
 std::shared_ptr<const void> AssetManager::Create(AssetId id, AssetType type) {
-    if (id == BuiltInAssets::CubeMesh || id == BuiltInAssets::SphereMesh || id == BuiltInAssets::PlaneMesh) {
-        if (!m_device) {
-            Log::GetEngineLogger().Error("Mesh assets need a graphics device");
-            return nullptr;
-        }
-        const MeshData mesh = id == BuiltInAssets::CubeMesh     ? MeshData::CreateCube()
-                              : id == BuiltInAssets::SphereMesh ? MeshData::CreateSphere()
-                                                                : MeshData::CreatePlane();
-        std::shared_ptr<const Mesh> result = Mesh::Create(*m_device, mesh);
-        return result;
-    }
-    if (id == BuiltInAssets::GridTexture || id == BuiltInAssets::CheckerTexture) {
-        if (!m_device) {
-            Log::GetEngineLogger().Error("Texture assets need a graphics device");
-            return nullptr;
-        }
-        const Image image = id == BuiltInAssets::GridTexture ? Image::CreateGrid() : Image::CreateChecker();
-        std::shared_ptr<Texture> result = m_device->CreateTexture(image, true);
-        return result;
-    }
-
     return Finish(Prepare(id, type));
 }
 
 Detail::PreparedAsset AssetManager::Prepare(AssetId id, AssetType type) const {
-    Detail::PreparedAsset prepared{.id = id, .type = type, .data = ReadData(id, type)};
-    if (!prepared.data) {
-        return prepared;
+    Detail::PreparedAsset prepared{.id = id, .type = type};
+    if (const auto loader = m_loaders.find(type); loader != m_loaders.end()) {
+        prepared.loader = loader->second;
     }
-    // What decodes without the GPU or other assets is done here, wherever this runs.
-    switch (type) {
-    case AssetType::Texture:
-        prepared.texture = Detail::DecodeTexture(*prepared.data);
-        break;
-    case AssetType::Mesh:
-        prepared.mesh = Detail::DecodeMesh(*prepared.data);
-        break;
-    case AssetType::Material:
-        prepared.material = Detail::DecodeMaterial(*prepared.data);
-        break;
-    case AssetType::Model:
-        prepared.model = Detail::DecodeModel(*prepared.data);
-        break;
-    case AssetType::Font:
-        if (const auto font = Detail::DecodeFont(*prepared.data)) {
-            prepared.fontAtlas = FontAtlas::Create(font->fontData, font->pixelSize);
+    prepared.data = IsBuiltIn(id) ? std::optional(std::vector<std::byte>()) : ReadData(id, type);
+    if (prepared.data && prepared.loader.prepare) {
+        try {
+            prepared.decoded = prepared.loader.prepare(id, *prepared.data);
+        } catch (const std::exception& error) {
+            Log::GetEngineLogger().Error("Asset {} decoder failed: {}", id.ToString(), error.what());
+        } catch (...) {
+            Log::GetEngineLogger().Error("Asset {} decoder failed", id.ToString());
         }
-        break;
-    default:
-        break;
     }
     return prepared;
 }
 
 std::shared_ptr<const void> AssetManager::Finish(Detail::PreparedAsset prepared) {
-    const AssetId id = prepared.id;
-    const AssetType type = prepared.type;
-    const auto& data = prepared.data;
-    if (!data) {
-        return nullptr;
-    }
-
-    const bool needsDevice = type == AssetType::Texture || type == AssetType::Mesh || type == AssetType::Font;
-    if (needsDevice && !m_device) {
-        Log::GetEngineLogger().Error("{} assets need a graphics device", GetAssetTypeName(type));
-        return nullptr;
-    }
-
-    if (const auto loader = GetLoaders().find(type); loader != GetLoaders().end() && loader->second.load) {
-        return loader->second.load(*this, id, *data);
-    }
-
-    switch (type) {
-    case AssetType::Texture: {
-        const auto& texture = prepared.texture;
-        if (!texture) {
-            break;
+    if (prepared.decoded && prepared.loader.create) {
+        try {
+            return prepared.loader.create(*this, prepared.id, prepared.decoded.get());
+        } catch (const std::exception& error) {
+            Log::GetEngineLogger().Error("Asset {} creation failed: {}", prepared.id.ToString(), error.what());
+        } catch (...) {
+            Log::GetEngineLogger().Error("Asset {} creation failed", prepared.id.ToString());
         }
-        const TextureFormat pixelFormat = texture->srgb ? TextureFormat::Rgba8Srgb : TextureFormat::Rgba8;
-        if (texture->compressedFormat) {
-            const TextureFormat format = *texture->compressedFormat;
-            if (m_device->SupportsSampling(format)) {
-                std::shared_ptr<Texture> result = m_device->CreateTexture({.width = texture->width,
-                                                                           .height = texture->height,
-                                                                           .format = format,
-                                                                           .mipmaps = texture->levels.size() > 1});
-                if (!result) {
-                    break;
-                }
-                for (std::uint32_t i = 0; i < texture->levels.size() && i < result->GetMipLevelCount(); ++i) {
-                    m_device->UploadToTextureLevel(*result, i, texture->levels[i]);
-                }
-                return result;
-            }
-            // The GPU cannot sample the blocks, so they are turned back into pixels here.
-            Image image(texture->width, texture->height,
-                        Detail::DecompressBlocks(format, texture->width, texture->height, texture->levels[0]));
-            std::shared_ptr<Texture> result = m_device->CreateTexture(image, texture->mipmaps, pixelFormat);
-            return result;
-        }
-        std::shared_ptr<Texture> result = m_device->CreateTexture(texture->image, texture->mipmaps, pixelFormat);
-        return result;
     }
-    case AssetType::Mesh: {
-        const auto& mesh = prepared.mesh;
-        if (!mesh) {
-            break;
-        }
-        std::shared_ptr<const Mesh> result = Mesh::Create(*m_device, *mesh);
-        return result;
-    }
-    case AssetType::Material: {
-        const auto& material = prepared.material;
-        if (!material) {
-            break;
-        }
-        return std::make_shared<const Material>(
-            Material{.baseColor = material->baseColor,
-                     .baseColorTexture = Load<Texture>(material->baseColorTexture),
-                     .metallic = material->metallic,
-                     .roughness = material->roughness,
-                     .metallicRoughnessTexture = Load<Texture>(material->metallicRoughnessTexture),
-                     .normalTexture = Load<Texture>(material->normalTexture),
-                     .normalScale = material->normalScale,
-                     .occlusionTexture = Load<Texture>(material->occlusionTexture),
-                     .occlusionStrength = material->occlusionStrength,
-                     .emissive = material->emissive,
-                     .emissiveTexture = Load<Texture>(material->emissiveTexture),
-                     .alphaMode = material->alphaMode,
-                     .alphaCutoff = material->alphaCutoff,
-                     .doubleSided = material->doubleSided,
-                     .worldTextureSize = material->worldTextureSize,
-                     .nearestFiltering = material->nearestFiltering});
-    }
-    case AssetType::Model: {
-        const auto& nodes = prepared.model;
-        if (!nodes) {
-            break;
-        }
-        std::vector<ModelNode> loaded;
-        for (const auto& node : *nodes) {
-            ModelNode& added = loaded.emplace_back(
-                ModelNode{.name = node.name,
-                          .transform = node.transform,
-                          .parent = node.parent >= 0 ? std::optional<std::size_t>(static_cast<std::size_t>(node.parent))
-                                                     : std::nullopt});
-            added.joint = node.joint;
-            added.skeleton = Load<Skeleton>(node.skeleton);
-            for (const auto clip : node.animations) {
-                added.animations.push_back(Load<AnimationClip>(clip));
-            }
-            if (node.mesh.IsValid()) {
-                added.mesh = Load<Mesh>(node.mesh);
-            }
-            for (const AssetId material : node.materials) {
-                added.materials.push_back(Load<Material>(material));
-            }
-        }
-        return std::make_shared<const Model>(std::move(loaded));
-    }
-    case AssetType::Sound: {
-        auto sound = Detail::DecodeSound(*data);
-        if (!sound) {
-            break;
-        }
-        if (sound->streamed) {
-            return Sound::CreateStream(std::move(sound->encoded));
-        }
-        std::vector<float> samples(sound->samples.size());
-        for (std::size_t i = 0; i < samples.size(); ++i) {
-            samples[i] = static_cast<float>(sound->samples[i]) / 32768.0f;
-        }
-        return std::make_shared<const Sound>(sound->sampleRate, sound->channelCount, std::move(samples));
-    }
-    case AssetType::Font: {
-        if (!prepared.fontAtlas) {
-            break;
-        }
-        std::shared_ptr<const Font> result = Font::Create(*m_device, std::move(*prepared.fontAtlas));
-        return result;
-    }
-    case AssetType::AnimatorController: {
-        const auto text = Detail::DecodeScene(*data);
-        auto controller = text ? AnimatorController::LoadFromString(*text, this) : std::nullopt;
-        return controller ? std::make_shared<const AnimatorController>(std::move(*controller)) : nullptr;
-    }
-    case AssetType::SpriteAtlas: {
-        const auto text = Detail::DecodeScene(*data);
-        auto atlas = text ? SpriteAtlas::LoadFromString(*text, this) : std::nullopt;
-        return atlas ? std::make_shared<const SpriteAtlas>(std::move(*atlas)) : nullptr;
-    }
-    case AssetType::Skeleton: {
-        auto skeleton = Detail::DecodeSkeleton(*data);
-        return skeleton ? std::make_shared<const Skeleton>(std::move(*skeleton)) : nullptr;
-    }
-    case AssetType::AnimationClip: {
-        auto clip = Detail::DecodeAnimationClip(*data);
-        return clip ? std::make_shared<const AnimationClip>(std::move(*clip)) : nullptr;
-    }
-    case AssetType::Script: {
-        Detail::BinaryReader reader(*data);
-        std::string source = reader.ReadString();
-        if (!reader.IsValid() || !reader.IsAtEnd()) {
-            break;
-        }
-        return std::make_shared<const ScriptSource>(std::move(source), std::string(GetPath(id)));
-    }
-    case AssetType::Prefab:
-    case AssetType::Scene:
-        Log::GetEngineLogger().Error("{} assets load through the scene layer", GetAssetTypeName(type));
-        return nullptr;
-    }
-
-    Log::GetEngineLogger().Error("Imported asset {} is corrupt; import it again", id.ToString());
+    Log::GetEngineLogger().Error("Asset {} could not be decoded or has no registered loader", prepared.id.ToString());
     return nullptr;
 }
 
