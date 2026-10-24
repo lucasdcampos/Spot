@@ -1,5 +1,6 @@
 // A game that runs its own loop and keeps its objects its own way, with neither Application nor Scene: only the
 // layers below them, which is what a large game with an ECS of its own builds on.
+#include <spot/assets/primitive_meshes.h>
 #include <spot/core/geometry/mesh_data.h>
 #include <spot/core/math/matrix.h>
 #include <spot/graphics/graphics_device.h>
@@ -61,7 +62,7 @@ TEST_CASE("A game loop of its own drives input, its own storage and the renderer
     REQUIRE(depth);
     Spot::Renderer3D renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8, .shadowMapSize = 0});
     REQUIRE(renderer.IsValid());
-    const auto cube = Spot::Mesh::Create(*device, Spot::MeshData::CreateCube());
+    const auto cube = Spot::Mesh::Create(*device, Spot::PrimitiveMeshes::CreateCube());
     REQUIRE(cube);
 
     World world;

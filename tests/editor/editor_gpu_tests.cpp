@@ -15,6 +15,7 @@
 #include "viewport/viewport_renderer.h"
 
 #include <spot.h>
+#include <spot/assets/primitive_meshes.h>
 #include <spot_tools.h>
 
 #include <catch2/catch_test_macros.hpp>
@@ -408,7 +409,7 @@ TEST_CASE("Viewports pick the mesh under a pixel and outline the selection", "[e
         ++frame;
         if (frame == 1) {
             renderer = std::make_unique<Spot::Editor::ViewportRenderer>(device);
-            cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
             REQUIRE(cube);
             REQUIRE(targets.Resize(device, Size, Size, renderer->GetSampleCount()));
             meshes = {{cube.get(), Spot::Matrix4::Translation({-1.0f, 0.0f, 0.0f})},
@@ -495,7 +496,7 @@ TEST_CASE("Viewport picking and selection masks draw only the selected submesh",
         if (++frame == 1) {
             Spot::MeshData combined;
             for (const float x : {-1.0f, 1.0f}) {
-                Spot::MeshData cube = Spot::MeshData::CreateCube();
+                Spot::MeshData cube = Spot::PrimitiveMeshes::CreateCube();
                 for (auto& vertex : cube.vertices) {
                     vertex.position.x += x;
                 }
@@ -714,7 +715,7 @@ TEST_CASE("Skinned edit-mode previews, picking and outlines follow the animated 
     Spot::Editor::ViewportRenderer renderer(*device);
     Spot::Editor::ViewportTargets targets;
     REQUIRE(targets.Resize(*device, 96, 96, renderer.GetSampleCount()));
-    auto data = Spot::MeshData::CreateCube(0.5f);
+    auto data = Spot::PrimitiveMeshes::CreateCube(0.5f);
     data.skin.resize(data.vertices.size());
     const Spot::AssetRef<Spot::Mesh> mesh = Spot::Mesh::Create(*device, data);
     REQUIRE(mesh);

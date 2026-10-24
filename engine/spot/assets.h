@@ -8,3 +8,4 @@
 #include "spot/assets/assets.h"
 #include "spot/assets/built_in_assets.h"
 #include "spot/assets/material_source.h"
+#include "spot/assets/primitive_meshes.h"

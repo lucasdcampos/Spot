@@ -2,6 +2,7 @@
 #include "spot/assets/asset_formats.h"
 #include "spot/assets/asset_manager.h"
 #include "spot/assets/built_in_assets.h"
+#include "spot/assets/primitive_meshes.h"
 #include "spot/core/debug/log.h"
 #include "spot/graphics/graphics_device.h"
 #include "spot/render/font.h"
@@ -35,11 +36,11 @@ void RegisterRenderAssets(AssetManager& assets, GraphicsDevice* device) {
                           MakeAssetLoader<MeshData>(
                               [](AssetId id, std::span<const std::byte> data) -> std::optional<MeshData> {
                                   if (id == BuiltInAssets::CubeMesh)
-                                      return MeshData::CreateCube();
+                                      return PrimitiveMeshes::CreateCube();
                                   if (id == BuiltInAssets::SphereMesh)
-                                      return MeshData::CreateSphere();
+                                      return PrimitiveMeshes::CreateSphere();
                                   if (id == BuiltInAssets::PlaneMesh)
-                                      return MeshData::CreatePlane();
+                                      return PrimitiveMeshes::CreatePlane();
                                   return Detail::DecodeMesh(data);
                               },
                               [device](AssetManager&, AssetId, MeshData& mesh) -> std::shared_ptr<const void> {

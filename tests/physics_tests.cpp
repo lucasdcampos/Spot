@@ -1,5 +1,6 @@
 #include "registered_assets.h"
 #include <spot.h>
+#include <spot/assets/primitive_meshes.h>
 #include <spot/scene/physics/physics_world.h>
 
 #include <catch2/catch_approx.hpp>
@@ -598,7 +599,7 @@ TEST_CASE("Rigidbodies sleep when told, wake up when told, and may never sleep",
 namespace {
 
 std::shared_ptr<const Spot::MeshData> MakePlaneMesh(float size) {
-    return std::make_shared<const Spot::MeshData>(Spot::MeshData::CreatePlane(size));
+    return std::make_shared<const Spot::MeshData>(Spot::PrimitiveMeshes::CreatePlane(size));
 }
 
 } // namespace
@@ -647,14 +648,14 @@ TEST_CASE("Mesh colliders of dynamic bodies take the convex hull", "[physics][me
     auto& crate = scene.CreateEntity("Crate");
     crate.GetTransform().SetPosition({0.0f, 3.0f, 0.0f});
     auto& collider = crate.AddComponent<Spot::MeshCollider>();
-    collider.SetMesh(std::make_shared<const Spot::MeshData>(Spot::MeshData::CreateCube()));
+    collider.SetMesh(std::make_shared<const Spot::MeshData>(Spot::PrimitiveMeshes::CreateCube()));
     CHECK_FALSE(collider.IsConvex());
     crate.AddComponent<Rigidbody>();
     Simulate(scene, 2.0f);
     CHECK(GetHeight(crate) == Approx(0.5f).margin(RestMargin));
 
     // Meshes shared by many colliders, convex or not, are fine.
-    auto mesh = std::make_shared<const Spot::MeshData>(Spot::MeshData::CreateSphere(0.5f));
+    auto mesh = std::make_shared<const Spot::MeshData>(Spot::PrimitiveMeshes::CreateSphere(0.5f));
     for (int i = 0; i < 20; ++i) {
         auto& ball = scene.CreateEntity("Ball");
         ball.GetTransform().SetPosition({static_cast<float>(i) * 1.5f - 15.0f, 2.0f, 4.0f});

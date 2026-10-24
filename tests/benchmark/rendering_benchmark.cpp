@@ -9,6 +9,7 @@
 //
 //     spot_benchmark --scene <scene file> --assets <imported folder> [--lamps <count>]
 #include <spot.h>
+#include <spot/assets/primitive_meshes.h>
 
 #include <algorithm>
 #include <chrono>
@@ -64,12 +65,12 @@ protected:
         }
         auto& device = GetGraphicsDevice();
         auto& scene = LoadScene<Spot::Scene>();
-        const Spot::AssetRef<Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
-        const Spot::AssetRef<Spot::Mesh> sphere = Spot::Mesh::Create(device, Spot::MeshData::CreateSphere(0.5f));
-        const Spot::AssetRef<Spot::Mesh> floor = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(1.0f));
+        const Spot::AssetRef<Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
+        const Spot::AssetRef<Spot::Mesh> sphere = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateSphere(0.5f));
+        const Spot::AssetRef<Spot::Mesh> floor = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreatePlane(1.0f));
         // Spheres look as round from afar with far fewer triangles.
         const Spot::AssetRef<Spot::Mesh> farSphere =
-            Spot::Mesh::Create(device, Spot::MeshData::CreateSphere(0.5f, 12, 6));
+            Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateSphere(0.5f, 12, 6));
         if (!cube || !sphere || !floor || !farSphere) {
             Quit();
             return;

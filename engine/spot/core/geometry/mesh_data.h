@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/core/geometry/bounds.h"
+#include "spot/core/math/bounds.h"
 #include "spot/core/math/vector.h"
 
 #include <array>
@@ -41,13 +41,6 @@ struct MeshData {
     std::vector<SubMesh> submeshes = {};
     // Optional second vertex stream; empty for static meshes.
     std::vector<SkinVertex> skin = {};
-
-    // Centered on the origin, with every face mapping the whole texture.
-    static MeshData CreateCube(float size = 1.0f);
-    // A square on the XZ plane, facing +Y.
-    static MeshData CreatePlane(float size = 1.0f);
-    // The texture wraps around once, its top at the north pole (+Y).
-    static MeshData CreateSphere(float radius = 0.5f, std::uint32_t segments = 32, std::uint32_t rings = 16);
 
     // Replaces the normals by the average of the faces around each vertex, weighted by their area. Vertices are not
     // merged, so split vertices keep hard edges.

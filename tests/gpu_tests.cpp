@@ -12,6 +12,7 @@
 #include "triangle.frag.h"
 #include "triangle.vert.h"
 #include "uv.frag.h"
+#include <spot/assets/primitive_meshes.h>
 #include <spot/scene/rendering/render_hook_system.h>
 #include <spot/scene/ui/ui_draw_listener.h>
 #include <spot/scene/ui/ui_system.h>
@@ -1319,7 +1320,7 @@ TEST_CASE("Renderer3D draws lit meshes with depth testing", "[gpu]") {
         32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
             Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
             REQUIRE(renderer.IsValid());
-            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
             REQUIRE(cube != nullptr);
 
             // The large far cube is drawn last but stays behind the small near one.
@@ -1348,7 +1349,7 @@ TEST_CASE("Renderer3D preserves pixel art filtering per material with shared tex
             [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
                 Spot::Renderer3D renderer(
                     device, {.filter = Spot::TextureFilter::Linear, .targetFormat = Spot::TextureFormat::Rgba8});
-                const auto plane = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane());
+                const auto plane = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreatePlane());
                 const std::shared_ptr<Spot::Texture> texture =
                     device.CreateTexture(Spot::Image(2, 1, {255, 0, 0, 255, 0, 0, 255, 255}));
                 REQUIRE((plane && texture));
@@ -1398,7 +1399,7 @@ TEST_CASE("Renderer3D hides back faces unless the material is double-sided", "[g
             16, 16,
             [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
                 Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-                const auto plane = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(2.0f));
+                const auto plane = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreatePlane(2.0f));
                 REQUIRE(plane != nullptr);
 
                 // The plane faces +Y; a quarter turn around X makes it face away from the camera.
@@ -1427,7 +1428,7 @@ TEST_CASE("Renderer3D projects textures from world space when asked", "[gpu]") {
             [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
                 Spot::Renderer3D renderer(
                     device, {.filter = Spot::TextureFilter::Nearest, .targetFormat = Spot::TextureFormat::Rgba8});
-                const auto plane = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane());
+                const auto plane = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreatePlane());
                 const std::shared_ptr<Spot::Texture> texture =
                     device.CreateTexture(Spot::Image(2, 1, {255, 255, 255, 255, 0, 0, 0, 255}));
                 REQUIRE((plane && texture));
@@ -1461,7 +1462,7 @@ TEST_CASE("Renderer3D samples mipmaps, anisotropically when asked", "[gpu]") {
             [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
                 Spot::Renderer3D renderer(device,
                                           {.maxAnisotropy = maxAnisotropy, .targetFormat = Spot::TextureFormat::Rgba8});
-                const auto plane = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(100.0f));
+                const auto plane = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreatePlane(100.0f));
                 std::vector<std::uint8_t> pixels(64 * 64 * 4);
                 for (std::size_t i = 0; i < 64 * 64; ++i) {
                     const auto value = static_cast<std::uint8_t>(i % 16 < 8 ? 255 : 0);
@@ -1511,7 +1512,7 @@ TEST_CASE("Multisampled targets smooth the edges they resolve", "[gpu]") {
                 Spot::Renderer3D renderer(device,
                                           {.targetFormat = Spot::TextureFormat::Rgba8, .sampleCount = sampleCount});
                 REQUIRE(renderer.IsValid());
-                const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+                const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
                 REQUIRE(cube != nullptr);
                 renderer.Begin(context, target, MakeFrontCamera());
                 renderer.DrawLight(FrontLight);
@@ -1782,7 +1783,8 @@ TEST_CASE("Renderer3D draws the active mesh renderers of a scene at their world 
     const TargetRender render(
         32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
             Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-            const std::shared_ptr<const Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            const std::shared_ptr<const Spot::Mesh> cube =
+                Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
             REQUIRE(cube != nullptr);
 
             Spot::Scene scene;
@@ -1829,7 +1831,7 @@ TargetRender RenderLitWall(const std::function<void(Spot::Renderer3D&)>& drawLig
     return TargetRender(
         32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
             Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
             REQUIRE(cube != nullptr);
             renderer.Begin(context, target, MakeFrontCamera());
             drawLights(renderer);
@@ -1966,7 +1968,7 @@ TEST_CASE("Renderer3D tilts surfaces by their normal maps and darkens ambient li
                 const Spot::Material material{.normalTexture = makeTexture(normal),
                                               .occlusionTexture = makeTexture(occlusion)};
                 Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-                const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+                const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
                 REQUIRE(cube != nullptr);
                 renderer.Begin(context, target, MakeFrontCamera());
                 renderer.DrawLight(light);
@@ -2010,7 +2012,7 @@ TEST_CASE("Renderer3D tilts projected surfaces by their normal maps along the wo
                         Spot::Image(1, 1, {normal.begin(), normal.end()}), false, Spot::TextureFormat::Rgba8)),
                     .worldTextureSize = 1.0f};
                 Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-                const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+                const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
                 REQUIRE(cube != nullptr);
                 Spot::Camera3D camera = MakeFrontCamera();
                 if (floor) {
@@ -2060,7 +2062,7 @@ TEST_CASE("Renderer3D drops cutout pixels below their cutoff and blends transpar
                     Spot::Image(2, 1, {255, 255, 255, 0, 255, 255, 255, 255}), false, Spot::TextureFormat::Rgba8));
                 Spot::Renderer3D renderer(
                     device, {.filter = Spot::TextureFilter::Nearest, .targetFormat = Spot::TextureFormat::Rgba8});
-                const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+                const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
                 REQUIRE(cube != nullptr);
                 renderer.Begin(context, target, MakeFrontCamera());
                 renderer.DrawLight(FrontLight);
@@ -2109,8 +2111,8 @@ TEST_CASE("Renderer3D drops the shadows of cutout pixels, and transparent surfac
             64, 64,
             [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
                 Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-                const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
-                const auto floor = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(40.0f));
+                const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
+                const auto floor = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreatePlane(40.0f));
                 REQUIRE((cube && floor));
                 Spot::Camera3D camera;
                 camera.position = {0.0f, 10.0f, 0.0f};
@@ -2306,7 +2308,7 @@ TEST_CASE("Renderer3D lights custom surfaces as it lights its meshes", "[gpu]") 
             32, 32,
             [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
                 Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-                const Spot::MeshData cube = Spot::MeshData::CreateCube();
+                const Spot::MeshData cube = Spot::PrimitiveMeshes::CreateCube();
                 const auto mesh = Spot::Mesh::Create(device, cube);
                 TestSurface surface(device, cube, color, turned);
                 REQUIRE(mesh);
@@ -2341,8 +2343,8 @@ TEST_CASE("Renderer3D draws custom surfaces into its shadows, and shadows them",
             64, 64,
             [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
                 Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-                const Spot::MeshData slabData = Spot::MeshData::CreateCube();
-                const Spot::MeshData floorData = Spot::MeshData::CreatePlane(40.0f);
+                const Spot::MeshData slabData = Spot::PrimitiveMeshes::CreateCube();
+                const Spot::MeshData floorData = Spot::PrimitiveMeshes::CreatePlane(40.0f);
                 const Spot::Matrix4 slabAt =
                     Spot::Matrix4::Translation({0.0f, 2.0f, 0.0f}) * Spot::Matrix4::Scale({1.0f, 0.2f, 1.0f});
                 const auto slab = Spot::Mesh::Create(device, slabData);
@@ -2381,7 +2383,7 @@ TEST_CASE("Renderer3D draws custom surfaces into the camera's depth", "[gpu]") {
     const TargetRender render(
         16, 16, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
             Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-            TestSurface surface(device, Spot::MeshData::CreateCube(), Spot::Color::White);
+            TestSurface surface(device, Spot::PrimitiveMeshes::CreateCube(), Spot::Color::White);
             renderer.Begin(context, target, MakeFrontCamera());
             renderer.DrawSurface(surface);
             renderer.End();
@@ -2403,7 +2405,7 @@ TEST_CASE("Renderer3D prepares custom surfaces with compute before every view", 
                 Spot::Renderer3D renderer(
                     device,
                     {.targetFormat = Spot::TextureFormat::Rgba8, .shadowMapSize = 32, .localShadowMapSize = 16});
-                TestSurface surface(device, Spot::MeshData::CreateCube(), Spot::Color::White, {}, indirect);
+                TestSurface surface(device, Spot::PrimitiveMeshes::CreateCube(), Spot::Color::White, {}, indirect);
                 for (int view = 0; view < 2; ++view) {
                     Spot::Camera3D camera = MakeFrontCamera();
                     camera.position.x += static_cast<float>(view) * 0.25f;
@@ -2443,7 +2445,8 @@ TEST_CASE("Renderer3D draws the custom surfaces of a scene's surface renderers o
         const TargetRender render(
             8, 8, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
                 Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-                auto surface = std::make_shared<TestSurface>(device, Spot::MeshData::CreateCube(), Spot::Color::White);
+                auto surface =
+                    std::make_shared<TestSurface>(device, Spot::PrimitiveMeshes::CreateCube(), Spot::Color::White);
                 Spot::Scene scene;
                 Spot::Entity& entity = scene.CreateEntity("Terrain");
                 entity.SetLayer(3);
@@ -2468,7 +2471,7 @@ TEST_CASE("Renderer3D leaves meshes out of the view out of its pass, and counts 
     const TargetRender render(
         32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
             Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
             REQUIRE(cube != nullptr);
             Spot::Profiler::BeginFrame();
             renderer.Begin(context, target, MakeFrontCamera());
@@ -2498,7 +2501,7 @@ TEST_CASE("Renderer3D draws render worlds, kept on the GPU in batches when asked
     const TargetRender render(
         32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
             Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8, .gpuCulling = gpuCulling});
-            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
             REQUIRE(cube != nullptr);
             const Spot::Material red{.baseColor = Spot::Color::Red};
             const Spot::Material green{.baseColor = Spot::Color::Green};
@@ -2547,8 +2550,8 @@ TEST_CASE("Renderer3D draws the level of detail of world objects their screen si
             [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
                 Spot::Renderer3D renderer(device,
                                           {.targetFormat = Spot::TextureFormat::Rgba8, .gpuCulling = gpuCulling});
-                const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
-                Spot::MeshData aside = Spot::MeshData::CreateCube();
+                const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
+                Spot::MeshData aside = Spot::PrimitiveMeshes::CreateCube();
                 for (Spot::MeshVertex& vertex : aside.vertices) {
                     vertex.position.x += 20.0f;
                 }
@@ -2579,7 +2582,7 @@ TEST_CASE("Renderer3D culls world objects hidden in the last frame of the same v
     const TargetRender render(
         32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
             Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8, .gpuCulling = true});
-            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
             REQUIRE(cube != nullptr);
             const Spot::Material red{.baseColor = Spot::Color::Red};
             const Spot::Material green{.baseColor = Spot::Color::Green};
@@ -2612,8 +2615,8 @@ TEST_CASE("Renderer3D draws meshes that look the same as instances of one draw, 
     const TargetRender render(
         32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
             Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
-            const auto sphere = Spot::Mesh::Create(device, Spot::MeshData::CreateSphere(0.5f));
+            const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
+            const auto sphere = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateSphere(0.5f));
             REQUIRE((cube && sphere));
             renderer.Begin(context, target, MakeFrontCamera());
             renderer.DrawLight(
@@ -2638,7 +2641,7 @@ TEST_CASE("Renderer3D draws meshes that look the same as instances of one draw, 
     CHECK(stats.visibleMeshes == 17);
     CHECK(stats.drawCalls == 4);
     CHECK(stats.shadowDrawCalls <= 4 * 4);
-    CHECK(stats.triangleCount == 16 * 12 + Spot::MeshData::CreateSphere(0.5f).indices.size() / 3);
+    CHECK(stats.triangleCount == 16 * 12 + Spot::PrimitiveMeshes::CreateSphere(0.5f).indices.size() / 3);
     // Each instance is where its own transform puts it: the cubes of the top row are red at both ends.
     CHECK(render.At(3, 11)[0] > 200);
     CHECK(render.At(29, 11)[0] > 200);
@@ -2651,7 +2654,7 @@ TEST_CASE("Renderer3D sorts what it draws by pipeline and material, changing eac
     const TargetRender render(
         32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
             Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
             REQUIRE(cube != nullptr);
             renderer.Begin(context, target, MakeFrontCamera());
             renderer.DrawLight(FrontLight);
@@ -2685,7 +2688,7 @@ TEST_CASE("Renderer3D draws only the meshes on the layers the camera sees", "[gp
     const TargetRender render(
         32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
             Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-            const Spot::AssetRef<Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            const Spot::AssetRef<Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
             REQUIRE(cube);
             Spot::Scene scene;
             // A red cube on layer 3 in front of a green one on the default layer.
@@ -2760,8 +2763,8 @@ TEST_CASE("Renderer3D softens shadow edges, and shadows what lies between the su
                                                    .shadowMapSize = 256,
                                                    .shadowCascadeCount = 1,
                                                    .shadowDistance = 20.0f});
-                const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
-                const auto floor = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(40.0f));
+                const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
+                const auto floor = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreatePlane(40.0f));
                 REQUIRE((cube && floor));
                 Spot::Camera3D camera;
                 camera.position = {0.0f, 6.0f, 0.0f};
@@ -2819,7 +2822,7 @@ TEST_CASE("Images become sRGB textures that shaders read as linear colors", "[gp
     const TargetRender render(
         32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
             Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
             const std::shared_ptr<Spot::Texture> gray =
                 device.CreateTexture(Spot::Image(1, 1, std::vector<std::uint8_t>{128, 128, 128, 255}));
             REQUIRE((cube && gray));
@@ -2839,7 +2842,8 @@ TEST_CASE("Renderer3D lights scenes with their active lights", "[gpu]") {
     const TargetRender render(
         32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
             Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-            const std::shared_ptr<const Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            const std::shared_ptr<const Spot::Mesh> cube =
+                Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
             REQUIRE(cube != nullptr);
 
             Spot::Scene scene;
@@ -2900,7 +2904,7 @@ TargetRender RenderSkyLitWall(const Spot::Camera3D& camera, const Spot::Matrix4&
     return TargetRender(
         32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
             Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
             REQUIRE(cube != nullptr);
             renderer.Begin(context, target, camera);
             renderer.DrawSky(PlainSky);
@@ -2972,7 +2976,7 @@ TEST_CASE("Renderer3D draws the sky behind meshes", "[gpu]") {
     const TargetRender render(
         32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
             Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
             REQUIRE(cube != nullptr);
             renderer.Begin(context, target, MakeFrontCamera());
             renderer.DrawLight(FrontLight);
@@ -3040,7 +3044,8 @@ TEST_CASE("Renderer3D lights scenes with the sun of their sky through its air", 
             32, 32,
             [=](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
                 Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-                const std::shared_ptr<const Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+                const std::shared_ptr<const Spot::Mesh> cube =
+                    Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
                 REQUIRE(cube != nullptr);
 
                 Spot::Scene scene;
@@ -3174,8 +3179,8 @@ TargetRender RenderShadows(const std::vector<Spot::LightData>& lights, const std
         64, 64, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
             Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
             REQUIRE(renderer.IsValid());
-            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
-            const auto floor = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(40.0f));
+            const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
+            const auto floor = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreatePlane(40.0f));
             REQUIRE((cube && floor));
 
             Spot::Camera3D camera;
@@ -3299,9 +3304,10 @@ TEST_CASE("Renderer3D scenes are shadowed by their sky's sun and by the mesh ren
             64, 64,
             [=](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
                 Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-                const std::shared_ptr<const Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+                const std::shared_ptr<const Spot::Mesh> cube =
+                    Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
                 const std::shared_ptr<const Spot::Mesh> floor =
-                    Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(40.0f));
+                    Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreatePlane(40.0f));
                 REQUIRE((cube && floor));
 
                 Spot::Scene scene;
@@ -3478,7 +3484,7 @@ TEST_CASE("LineRenderer draws lines hidden by meshes, and debug lines over every
             Spot::Renderer3D meshes(device, {.targetFormat = Spot::TextureFormat::Rgba8});
             Spot::LineRenderer lines(device, {.targetFormat = Spot::TextureFormat::Rgba8});
             REQUIRE(lines.IsValid());
-            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
             REQUIRE(cube != nullptr);
             const Spot::Camera3D camera = MakeFrontCamera();
             meshes.Begin(context, target, camera);
@@ -3963,7 +3969,7 @@ TEST_CASE("Renderer3D fogs what is far away in the fog's color, and the sky towa
         const TargetRender render(
             8, 8, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
                 Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-                const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+                const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
                 REQUIRE((renderer.IsValid() && cube));
                 renderer.Begin(context, target, MakeFrontCamera());
                 renderer.DrawLight(FrontLight);
@@ -4017,7 +4023,7 @@ TEST_CASE("Renderer3D fogs scenes with their first active Fog, from its entity's
     const TargetRender render(
         8, 8, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
             Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
-            const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
+            const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
             REQUIRE((renderer.IsValid() && cube));
             renderer.Begin(context, target, MakeFrontCamera());
             renderer.DrawLight(FrontLight);
@@ -4260,7 +4266,7 @@ TEST_CASE("Particles use opaque and cutout camera depth with multisampling offsc
     REQUIRE(target);
     REQUIRE(color);
     REQUIRE(depth);
-    auto cube = Spot::Mesh::Create(*device, Spot::MeshData::CreateCube());
+    auto cube = Spot::Mesh::Create(*device, Spot::PrimitiveMeshes::CreateCube());
     REQUIRE(cube);
     Spot::Renderer3D meshes(*device, {.targetFormat = Spot::TextureFormat::Rgba8,
                                       .sampleCount = samples,
@@ -4434,7 +4440,7 @@ TEST_CASE("The generated robot renders animated poses, a held pistol and ragdoll
     auto& floor = scene.CreateEntity("Floor");
     floor.GetTransform().SetPosition({0, -0.95f, 0});
     floor.AddComponent<Spot::BoxCollider>(Spot::Vector3{10, 0.1f, 10});
-    floor.AddComponent<Spot::MeshRenderer>(Spot::Mesh::Create(*device, Spot::MeshData::CreatePlane(10)),
+    floor.AddComponent<Spot::MeshRenderer>(Spot::Mesh::Create(*device, Spot::PrimitiveMeshes::CreatePlane(10)),
                                            Spot::Material{.baseColor = {0.3f, 0.3f, 0.3f, 1}});
     auto& cameraEntity = scene.CreateEntity("Camera");
     cameraEntity.GetTransform().SetPosition({2.8f, 1.5f, -4});
@@ -4607,14 +4613,14 @@ TEST_CASE("GPU skinning matches transformed meshes in color, shadows and camera 
     RequireGpu();
     auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = false});
     REQUIRE(device);
-    auto data = Spot::MeshData::CreateCube(0.8f);
+    auto data = Spot::PrimitiveMeshes::CreateCube(0.8f);
     data.skin.resize(data.vertices.size());
     for (auto& skin : data.skin) {
         skin.joints = {0, 1, 0, 0};
         skin.weights = {0.25f, 0.75f, 0, 0};
     }
     auto mesh = Spot::Mesh::Create(*device, data);
-    auto floor = Spot::Mesh::Create(*device, Spot::MeshData::CreatePlane(8));
+    auto floor = Spot::Mesh::Create(*device, Spot::PrimitiveMeshes::CreatePlane(8));
     REQUIRE(mesh);
     REQUIRE(floor);
     REQUIRE(mesh->GetSkinBuffer());

@@ -5,6 +5,7 @@
 #include "spot/assets/asset_manifest.h"
 #include "spot/assets/asset_pak.h"
 #include "spot/assets/built_in_assets.h"
+#include "spot/assets/primitive_meshes.h"
 #include "spot/core/debug/log.h"
 #include "spot/core/debug/profiler.h"
 #include "spot/core/io/paths.h"
@@ -438,11 +439,11 @@ std::shared_ptr<const MeshData> AssetManager::LoadMeshData(AssetId id) {
     }
     std::shared_ptr<const MeshData> mesh;
     if (id == BuiltInAssets::CubeMesh) {
-        mesh = std::make_shared<const MeshData>(MeshData::CreateCube());
+        mesh = std::make_shared<const MeshData>(PrimitiveMeshes::CreateCube());
     } else if (id == BuiltInAssets::SphereMesh) {
-        mesh = std::make_shared<const MeshData>(MeshData::CreateSphere());
+        mesh = std::make_shared<const MeshData>(PrimitiveMeshes::CreateSphere());
     } else if (id == BuiltInAssets::PlaneMesh) {
-        mesh = std::make_shared<const MeshData>(MeshData::CreatePlane());
+        mesh = std::make_shared<const MeshData>(PrimitiveMeshes::CreatePlane());
     } else if (const auto data = ReadData(id, AssetType::Mesh)) {
         if (auto decoded = Detail::DecodeMesh(*data)) {
             mesh = std::make_shared<const MeshData>(std::move(*decoded));

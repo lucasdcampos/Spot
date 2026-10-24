@@ -212,7 +212,7 @@ public API, and transfers their transforms back to animation. See [animation](an
 
 Mesh and convex-hull shapes use `MeshData` from `spot/core/geometry/mesh_data.h`. Physics consumes CPU vertices
 and indices directly and does not include rendering. Bounds are independent foundation types in
-`spot/core/geometry/bounds.h`; no graphics device, renderer or scene is needed to create and inspect geometry.
+`spot/core/math/bounds.h`; no graphics device, renderer or scene is needed to create and inspect geometry.
 
 Physics callbacks belong to opt-in `CollisionListener`, `TriggerListener` and `JointBreakListener`
 interfaces in `scene/physics/`. Derive a component from the interfaces it uses, then override their

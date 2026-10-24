@@ -1,4 +1,5 @@
 #include <spot.h>
+#include <spot/assets/primitive_meshes.h>
 #include <spot/scene/physics/physics_world.h>
 
 #include <catch2/catch_approx.hpp>
@@ -41,7 +42,7 @@ TEST_CASE("Colliders, characters and joints draw from their components", "[physi
     prop.AddComponent<Spot::CapsuleCollider>();
     prop.AddComponent<Spot::Rigidbody>();
     scene.CreateEntity("Mesh").AddComponent<Spot::MeshCollider>().SetMesh(
-        std::make_shared<const Spot::MeshData>(Spot::MeshData::CreatePlane()));
+        std::make_shared<const Spot::MeshData>(Spot::PrimitiveMeshes::CreatePlane()));
     scene.CreateEntity("Player").AddComponent<Spot::CharacterController>();
     prop.AddComponent<Spot::FixedJoint>();
 
@@ -106,7 +107,7 @@ TEST_CASE("The physics debug view draws colliders, contacts and queries before f
 }
 
 TEST_CASE("Box, sphere and capsule colliders fit around a mesh's bounds", "[physics][debug]") {
-    Spot::MeshData mesh = Spot::MeshData::CreateCube(2.0f);
+    Spot::MeshData mesh = Spot::PrimitiveMeshes::CreateCube(2.0f);
     for (Spot::MeshVertex& vertex : mesh.vertices) {
         vertex.position = vertex.position * Vector3{1.0f, 2.0f, 0.5f} + Vector3{0.0f, 2.0f, 0.0f};
     }

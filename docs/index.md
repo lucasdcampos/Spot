@@ -65,7 +65,7 @@ public headers with its own header, or all of them with `<spot.h>`. A module hea
 |---|---|---|
 | 0 | `core/` | Logging, assertions, memory, files, math, time, jobs, archives (`Archive`), the profiler, ids, asset references, CPU geometry and bounds, colors, curves |
 | 1 | `platform/` | Windows, events, the input state and actions, processes, shared libraries, the crash handler, RenderDoc capture; SDL3 behind `platform/sdl3/` |
-| 2 | `assets/` | Loading imported assets |
+| 2 | `assets/` | Loading imported assets, the built-in assets and their primitive meshes (`PrimitiveMeshes`) |
 | 3 | `graphics/` | The graphics API and its backends (rendering level 1) |
 | 4 | `render/`, `audio/`, `physics/`, `animation/`, `particles/` | The systems' low-level APIs, without scenes: the code-only renderers (rendering level 2), the mixer, the physics simulations, poses and clips, particle simulation |
 | 5 | `scene/` | Entities, components, scenes, scene systems, prefab instancing, tweens, timers, tasks and signals |

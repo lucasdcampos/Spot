@@ -13,6 +13,7 @@
 
 using Spot::Camera3D;
 using Spot::MeshData;
+namespace PrimitiveMeshes = Spot::PrimitiveMeshes;
 using Spot::Vector3;
 
 namespace {
@@ -103,7 +104,7 @@ TEST_CASE("Orthographic cameras see things the same size however far they are", 
 }
 
 TEST_CASE("MeshData builds primitives with outward faces", "[renderer3d]") {
-    const auto cube = MeshData::CreateCube(2.0f);
+    const auto cube = PrimitiveMeshes::CreateCube(2.0f);
     CHECK(cube.vertices.size() == 24);
     CHECK(cube.indices.size() == 36);
     for (const auto& vertex : cube.vertices) {
@@ -111,12 +112,12 @@ TEST_CASE("MeshData builds primitives with outward faces", "[renderer3d]") {
     }
     CheckFacesPointOut(cube);
 
-    const auto plane = MeshData::CreatePlane(4.0f);
+    const auto plane = PrimitiveMeshes::CreatePlane(4.0f);
     CHECK(plane.indices.size() == 6);
     CHECK(IsNear(plane.vertices[2].position, {2.0f, 0.0f, 2.0f}));
     CheckFacesPointOut(plane);
 
-    const auto sphere = MeshData::CreateSphere(1.5f, 8, 4);
+    const auto sphere = PrimitiveMeshes::CreateSphere(1.5f, 8, 4);
     CHECK(sphere.vertices.size() == 9 * 5);
     CHECK(sphere.indices.size() == 8 * 4 * 6);
     for (const auto& vertex : sphere.vertices) {
@@ -126,7 +127,7 @@ TEST_CASE("MeshData builds primitives with outward faces", "[renderer3d]") {
 }
 
 TEST_CASE("MeshData recalculates normals from its faces", "[renderer3d]") {
-    auto cube = MeshData::CreateCube();
+    auto cube = PrimitiveMeshes::CreateCube();
     const auto original = cube.vertices;
     for (auto& vertex : cube.vertices) {
         vertex.normal = {};
@@ -140,7 +141,7 @@ TEST_CASE("MeshData recalculates normals from its faces", "[renderer3d]") {
 TEST_CASE("MeshData bounds hold every vertex around the middle of its box", "[renderer3d]") {
     CHECK(MeshData{}.GetBounds().radius == 0.0f);
 
-    auto plane = MeshData::CreatePlane(2.0f);
+    auto plane = PrimitiveMeshes::CreatePlane(2.0f);
     for (auto& vertex : plane.vertices) {
         vertex.position += Spot::Vector3{3.0f, 1.0f, 0.0f};
     }

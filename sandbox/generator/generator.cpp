@@ -11,6 +11,7 @@
 #include "weapons.h"
 
 #include <spot.h>
+#include <spot/assets/primitive_meshes.h>
 
 #include <functional>
 #include <future>
@@ -42,7 +43,7 @@ std::vector<Prop> MakeProps() {
         {{"explosive_barrel", "explosive_barrel", "painted_metal"}, [] { return Shapes::Cylinder(0.3f, 0.9f, 24); }},
         {{"plank", "plank", "wood"}, [] { return Shapes::Box({2.0f, 0.06f, 0.3f}, 1.0f); }},
         {{"beam", "beam", "rusty_metal"}, [] { return Shapes::Box({3.0f, 0.2f, 0.2f}, 0.75f); }},
-        {{"ball", "ball", "rubber"}, [] { return Spot::MeshData::CreateSphere(0.3f, 32, 16); }, 0.0f, 0.7f},
+        {{"ball", "ball", "rubber"}, [] { return Spot::PrimitiveMeshes::CreateSphere(0.3f, 32, 16); }, 0.0f, 0.7f},
         {{"cone", "cone", "rubber"}, [] { return Shapes::Cone(0.3f, 0.7f, 24); }},
         {{"ramp", "concrete", "concrete"}, [] { return Shapes::Ramp(2.0f, 1.0f, 3.0f, 1.0f); }},
         {{"stairs", "concrete", "concrete"}, [] { return Shapes::Stairs(2.0f, 0.2f, 0.3f, 10, 1.0f); }},

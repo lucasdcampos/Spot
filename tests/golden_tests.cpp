@@ -4,6 +4,7 @@
 #include "rendering_application.h"
 
 #include <spot.h>
+#include <spot/assets/primitive_meshes.h>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -212,8 +213,8 @@ std::filesystem::path GetSampleModel(std::string_view name) {
 TEST_CASE("Golden: spheres from dielectric to metal and from smooth to rough, under the sky", "[gpu][golden]") {
     RequireGpu();
     const auto render = RenderScene([](Spot::GraphicsDevice& device, Spot::Scene& scene) {
-        const Spot::AssetRef<Spot::Mesh> sphere = Spot::Mesh::Create(device, Spot::MeshData::CreateSphere(0.4f));
-        const Spot::AssetRef<Spot::Mesh> floor = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(20.0f));
+        const Spot::AssetRef<Spot::Mesh> sphere = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateSphere(0.4f));
+        const Spot::AssetRef<Spot::Mesh> floor = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreatePlane(20.0f));
         REQUIRE((sphere && floor));
         for (int row = 0; row < 2; ++row) {
             for (int column = 0; column < 5; ++column) {
@@ -234,8 +235,8 @@ TEST_CASE("Golden: spheres from dielectric to metal and from smooth to rough, un
 TEST_CASE("Golden: cutout leaves, transparent panes and shadows", "[gpu][golden]") {
     RequireGpu();
     const auto render = RenderScene([](Spot::GraphicsDevice& device, Spot::Scene& scene) {
-        const Spot::AssetRef<Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
-        const Spot::AssetRef<Spot::Mesh> floor = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(20.0f));
+        const Spot::AssetRef<Spot::Mesh> cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
+        const Spot::AssetRef<Spot::Mesh> floor = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreatePlane(20.0f));
         // Discs on a transparent background, as a cutout texture of leaves would have.
         std::vector<std::uint8_t> discs(64 * 64 * 4);
         for (int y = 0; y < 64; ++y) {
@@ -270,7 +271,7 @@ TEST_CASE("Golden: cutout leaves, transparent panes and shadows", "[gpu][golden]
 TEST_CASE("Golden: a normal-mapped wall lit at a grazing angle", "[gpu][golden]") {
     RequireGpu();
     const auto render = RenderScene([](Spot::GraphicsDevice& device, Spot::Scene& scene) {
-        const Spot::AssetRef<Spot::Mesh> plane = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(4.0f));
+        const Spot::AssetRef<Spot::Mesh> plane = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreatePlane(4.0f));
         // Rows of rounded bumps, as tangent-space normals with +Y toward the texture's top.
         std::vector<std::uint8_t> normals(64 * 64 * 4);
         for (int y = 0; y < 64; ++y) {
@@ -328,8 +329,8 @@ TEST_CASE("Golden: glTF sample models", "[gpu][golden]") {
 TEST_CASE("Renderers draw scenes on the baseline as they do with every capability", "[gpu][golden][baseline]") {
     RequireGpu();
     const auto setup = [](Spot::GraphicsDevice& device, Spot::Scene& scene) {
-        const Spot::AssetRef<Spot::Mesh> sphere = Spot::Mesh::Create(device, Spot::MeshData::CreateSphere(0.4f));
-        const Spot::AssetRef<Spot::Mesh> floor = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(20.0f));
+        const Spot::AssetRef<Spot::Mesh> sphere = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateSphere(0.4f));
+        const Spot::AssetRef<Spot::Mesh> floor = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreatePlane(20.0f));
         REQUIRE((sphere && floor));
         for (int column = 0; column < 5; ++column) {
             AddMesh(scene, sphere, {.baseColor = {0.8f, 0.3f, 0.1f}, .roughness = static_cast<float>(column) / 4.0f},

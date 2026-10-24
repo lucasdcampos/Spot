@@ -544,7 +544,7 @@ see [animation](animation.md).
 
 `MeshData`, its vertices and submeshes live in `spot/core/geometry/mesh_data.h`. Procedural generation, normals,
 tangents and bounds are CPU operations and need no graphics device. `BoundingBox` and `BoundingSphere` are in
-`spot/core/geometry/bounds.h`. Start there when sharing geometry between rendering, physics and custom tools;
+`spot/core/math/bounds.h`. Start there when sharing geometry between rendering, physics and custom tools;
 `Mesh::Create()` in the rendering API uploads the CPU geometry when drawing is needed.
 
 ## Asset loader setup

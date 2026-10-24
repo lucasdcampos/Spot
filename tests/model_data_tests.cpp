@@ -1,4 +1,5 @@
 #include <spot.h>
+#include <spot/assets/primitive_meshes.h>
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -175,14 +176,15 @@ std::string Base64(std::span<const std::byte> bytes) {
 } // namespace
 
 TEST_CASE("Built meshes get tangents along their texture's u, on the side of its top", "[mesh]") {
-    const Spot::MeshData plane = Spot::MeshData::CreatePlane(2.0f);
+    const Spot::MeshData plane = Spot::PrimitiveMeshes::CreatePlane(2.0f);
     for (const Spot::MeshVertex& vertex : plane.vertices) {
         CHECK(Spot::Distance(Xyz(vertex.tangent), Spot::Vector3{1.0f, 0.0f, 0.0f}) < 1e-4f);
         // v grows toward +Z, so the texture's top is toward -Z.
         CHECK(Spot::Distance(Bitangent(vertex), Spot::Vector3{0.0f, 0.0f, -1.0f}) < 1e-4f);
     }
 
-    for (const Spot::MeshData& mesh : {Spot::MeshData::CreateCube(), Spot::MeshData::CreateSphere(0.5f, 12, 6)}) {
+    for (const Spot::MeshData& mesh :
+         {Spot::PrimitiveMeshes::CreateCube(), Spot::PrimitiveMeshes::CreateSphere(0.5f, 12, 6)}) {
         for (const Spot::MeshVertex& vertex : mesh.vertices) {
             CHECK(std::abs(Spot::Length(Xyz(vertex.tangent)) - 1.0f) < 1e-3f);
             CHECK(std::abs(Spot::Dot(Xyz(vertex.tangent), vertex.normal)) < 1e-3f);
@@ -190,7 +192,7 @@ TEST_CASE("Built meshes get tangents along their texture's u, on the side of its
         }
     }
     // The cube's front face maps u to the right.
-    const Spot::MeshData cube = Spot::MeshData::CreateCube();
+    const Spot::MeshData cube = Spot::PrimitiveMeshes::CreateCube();
     CHECK(Spot::Distance(Xyz(cube.vertices[0].tangent), Spot::Vector3{1.0f, 0.0f, 0.0f}) < 1e-4f);
 }
 
@@ -337,8 +339,8 @@ TEST_CASE("Model nodes share meshes and keep empty nodes and multiple roots", "[
 }
 
 TEST_CASE("Appending submeshes offsets their vertices and keeps existing triangles", "[mesh]") {
-    Spot::MeshData combined = Spot::MeshData::CreateCube();
-    const Spot::MeshData second = Spot::MeshData::CreatePlane();
+    Spot::MeshData combined = Spot::PrimitiveMeshes::CreateCube();
+    const Spot::MeshData second = Spot::PrimitiveMeshes::CreatePlane();
     const auto vertexCount = combined.vertices.size();
     const auto indexCount = combined.indices.size();
     combined.AppendSubmesh(second);

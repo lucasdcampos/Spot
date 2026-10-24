@@ -6,11 +6,11 @@
 // paths are "builtin/cube", "builtin/sphere", "builtin/plane", "builtin/grid" and "builtin/checker".
 namespace Spot::BuiltInAssets {
 
-// MeshData::CreateCube(): a unit cube centered on the origin.
+// PrimitiveMeshes::CreateCube(): a unit cube centered on the origin.
 inline constexpr AssetId CubeMesh{0, 1};
-// MeshData::CreateSphere(): a sphere of diameter 1 centered on the origin.
+// PrimitiveMeshes::CreateSphere(): a sphere of diameter 1 centered on the origin.
 inline constexpr AssetId SphereMesh{0, 2};
-// MeshData::CreatePlane(): a unit square on the XZ plane, facing +Y.
+// PrimitiveMeshes::CreatePlane(): a unit square on the XZ plane, facing +Y.
 inline constexpr AssetId PlaneMesh{0, 3};
 // Image::CreateGrid(), mipmapped. With Material::worldTextureSize it keeps its size on blocks of any size, for
 // prototyping levels.

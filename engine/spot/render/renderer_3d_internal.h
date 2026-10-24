@@ -4,7 +4,7 @@
 // Renderer3DState and the parts that draw from it: MeshBatcher (renderer_3d_meshes.h), ShadowRenderer
 // (renderer_3d_shadows.h), SkyRenderer (renderer_3d_sky.h) and WorldCuller (renderer_3d_worlds.h).
 
-#include "spot/core/geometry/bounds.h"
+#include "spot/core/math/bounds.h"
 #include "spot/core/math/color.h"
 #include "spot/core/math/matrix.h"
 #include "spot/core/math/vector.h"

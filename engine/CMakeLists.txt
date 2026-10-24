@@ -36,6 +36,8 @@ add_library(spot_objects OBJECT
     version.cpp
     spot/assets/asset_file.h
     spot/assets/asset_file.cpp
+    spot/assets/primitive_meshes.h
+    spot/assets/primitive_meshes.cpp
     spot/assets/asset_formats.h
     spot/assets/asset_formats.cpp
     spot/core/ids/asset_id.h
@@ -167,7 +169,7 @@ add_library(spot_objects OBJECT
     spot/render/material.cpp
     spot/render/mesh.h
     spot/render/mesh.cpp
-    spot/core/geometry/bounds.h
+    spot/core/math/bounds.h
     spot/core/geometry/mesh_data.h
     spot/core/geometry/mikktspace.cpp
     spot/core/geometry/mesh_data.cpp

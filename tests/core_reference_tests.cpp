@@ -55,7 +55,14 @@ TEST_CASE("Core entity ids round trip without a scene and filters accept ids", "
 }
 
 TEST_CASE("CPU geometry and bounds are usable from the core alone", "[core][geometry]") {
-    const auto mesh = Spot::MeshData::CreateCube(4.0f);
+    Spot::MeshData mesh;
+    for (const float x : {-2.0f, 2.0f}) {
+        for (const float y : {-2.0f, 2.0f}) {
+            for (const float z : {-2.0f, 2.0f}) {
+                mesh.vertices.push_back({{x, y, z}, {0, 1, 0}, {0, 0}});
+            }
+        }
+    }
     const auto box = mesh.GetBoundingBox();
     CHECK((box.GetCenter() == Spot::Vector3{0, 0, 0}));
     CHECK((box.GetSize() == Spot::Vector3{4, 4, 4}));
