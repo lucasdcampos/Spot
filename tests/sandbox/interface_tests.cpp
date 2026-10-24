@@ -78,7 +78,7 @@ struct InterfaceGame {
 
 TEST_CASE("Sandbox authored HUD and spawn menu route Q and gamepad tabs", "[sandbox][ui]") {
     InterfaceGame game;
-    auto& ui = game.GetOrAddSystem<Spot::UiSystem>();
+    auto& ui = game.GetUi();
     CHECK(game.scene.GetEntity(ui.handText)->GetComponent<Spot::UiText>()->text == "PHYSICS GUN");
     CHECK(game.scene.GetEntity(ui.statusText)->GetComponent<Spot::UiText>()->text.find("bodies") != std::string::npos);
     REQUIRE(ui.GetSpawnButtons().size() == game.scene.FindComponent<PropSpawner>()->GetSpawnables().size());
@@ -105,7 +105,7 @@ TEST_CASE("Sandbox authored HUD and spawn menu route Q and gamepad tabs", "[sand
 TEST_CASE("The sandbox HUD shows rounds, reloads, sights, the item's name and statistics like a game",
           "[sandbox][ui][hud]") {
     InterfaceGame game;
-    auto& ui = game.GetOrAddSystem<Spot::UiSystem>();
+    auto& ui = game.GetUi();
     const auto text = [&](Spot::EntityId id) { return game.scene.GetEntity(id)->GetComponent<Spot::UiText>()->text; };
     const auto active = [&](Spot::EntityId id) { return game.scene.GetEntity(id)->IsActiveInHierarchy(); };
     const auto nameOpacity = [&] { return game.scene.GetEntity(ui.handText)->GetComponent<Spot::UiText>()->color.a; };
@@ -161,7 +161,7 @@ TEST_CASE("The sandbox HUD shows rounds, reloads, sights, the item's name and st
 
 TEST_CASE("Sandbox menu clicks spawn real prefabs and offer undo and cleanup", "[sandbox][ui]") {
     InterfaceGame game;
-    auto& ui = game.GetOrAddSystem<Spot::UiSystem>();
+    auto& ui = game.GetUi();
     ui.OpenSpawnMenu();
     auto& spawner = *game.scene.FindComponent<PropSpawner>();
     auto* button = game.scene.GetEntity(ui.GetSpawnButtons().front())->GetComponent<Spot::UiButton>();
@@ -185,7 +185,7 @@ TEST_CASE("Sandbox menu clicks spawn real prefabs and offer undo and cleanup", "
 TEST_CASE("Sandbox pause settings persist sensitivity FOV volumes quality and bindings", "[sandbox][ui]") {
     InterfaceGame game;
     TempDirectory directory;
-    auto& ui = game.GetOrAddSystem<Spot::UiSystem>();
+    auto& ui = game.GetUi();
     ui.SetSettingsDirectory(directory.GetPath());
     Spot::Time::SetTimeScale(0.5f);
     ui.OpenPauseMenu();
