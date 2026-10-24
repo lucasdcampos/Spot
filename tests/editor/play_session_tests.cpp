@@ -36,9 +36,7 @@ protected:
 class FrameApplication final : public Spot::Application {
 public:
     explicit FrameApplication(std::function<bool(FrameApplication&, int)> frame)
-        : Application({.window = {.title = "Play Tests", .width = 320, .height = 240},
-                       .graphics = {.enabled = false},
-                       .audio = {.enabled = false}}),
+        : Application({.window = {.title = "Play Tests", .width = 320, .height = 240}, .graphics = {.enabled = false}}),
           m_frame(std::move(frame)) {}
 
     using Application::DispatchEvent;

@@ -363,8 +363,8 @@ through the first main camera (`FindMainCamera()`), then the shapes queued with 
 [Diagnostics](diagnostics.md)), then sprites and particles, all as light into an HDR image (`Rgba16Float`,
 multisampled where the GPU allows). A tonemapper turns it into the target's colors, and the scene's interfaces
 go over it (`UiSystem::DrawUi()`, which calls each active component's `OnDrawUi()` in pixels from the view's
-bottom-left corner). The application draws its active scene this way unless `ApplicationConfig::renderScenes`
-is off; the editor's game view uses the same renderer. Each frame is a render graph (see
+bottom-left corner). An application's `RenderModule` (`scene/rendering/render_module.h`) draws its active scene this way
+unless `RenderModuleConfig::drawScene` is off; the editor's game view uses the same renderer. Each frame is a render graph (see
 [Render graphs](#render-graphs)): scene, sprites, particles, post-processing, FXAA and interface passes, whose
 HDR, depth and tonemapped targets the graph keeps at the frame's size.
 

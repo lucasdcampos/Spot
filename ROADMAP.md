@@ -176,7 +176,7 @@ Depends on: phases 4 and 5. Task 6.2 also waits for 3.3 to move asset loader reg
   `Application::AddModule<T>()` and `GetModule<T>()`. `Run()` starts modules in the order they were added, stops them
   in reverse, and calls their hooks at fixed points of the frame. Only `Application` uses `Module`: no system's
   low-level API depends on it.
-- [ ] **6.2 A module per system (M).** Waits for 6.1. `RenderModule` owns the `SceneRenderer` and draws the scene,
+- [x] **6.2 A module per system (M).** Waits for 6.1. `RenderModule` owns the `SceneRenderer` and draws the scene,
   `AudioModule` owns the `AudioDevice`, `UiModule` routes events to canvases and draws them; physics, animation,
   particles and scripting get theirs. Each registers its components and asset loaders. `runtime/` includes no system.
   The sandbox, the player and the editor add the modules they use.

@@ -33,7 +33,7 @@ TEST_CASE("Frame capture loads the SDK ABI, sets the destination and requests a 
 
 TEST_CASE("Capture commands report unavailable graphics and reject extra arguments headlessly", "[capture][console]") {
     Spot::Console console;
-    Spot::Application application({.graphics = {.enabled = false}, .audio = {.enabled = false}});
+    Spot::Application application({.graphics = {.enabled = false}});
     Spot::EngineConsole commands(console, application);
     CHECK_FALSE(console.Execute("screenshot"));
     CHECK_FALSE(console.Execute("capture"));

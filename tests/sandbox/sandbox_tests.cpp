@@ -1586,12 +1586,12 @@ TEST_CASE("Sandbox stress piles record physics scopes and cleanup removes their 
     Spot::Profiler::Clear();
     Spot::Profiler::BeginFrame();
     game.Run(Step * 2.0f);
-    const auto stressed = Spot::RuntimeStats::Sample(std::array<Spot::Scene*, 1>{&game.scene});
-    Spot::Profiler::Count("Bodies", static_cast<double>(stressed.bodies));
+    const auto stressed = game.scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount();
+    Spot::Profiler::Count("Bodies", static_cast<double>(stressed));
     Spot::Profiler::EndFrame();
     const auto frames = Spot::Profiler::GetFrames();
     REQUIRE(frames.size() == 1);
-    CHECK(stressed.bodies == bodies + 16);
+    CHECK(stressed == bodies + 16);
     CHECK(Spot::Profiler::GetCounter(*frames.back(), "Bodies") == static_cast<double>(bodies + 16));
     CHECK(std::ranges::any_of(frames.back()->samples, [](const auto& sample) {
         return sample.name.find("Physics") != std::string_view::npos;

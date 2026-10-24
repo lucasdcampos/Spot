@@ -604,8 +604,8 @@ TEST_CASE("Applications load the assets imported into their import directory", "
 
     AssetApplication application({.window = {.title = "Asset Tests"},
                                   .graphics = {.enabled = false},
-                                  .audio = {.enabled = false},
                                   .assets = {.importDirectory = project.GetPath() / "imported"}});
+    application.AddModule<Spot::RenderModule>();
     REQUIRE(application.Run() == EXIT_SUCCESS);
     REQUIRE(application.model);
     CHECK(application.model->GetParts().size() == 2);
@@ -982,8 +982,7 @@ TEST_CASE("Applications run a game from its startup scene", "[assets]") {
         int m_frames = 0;
     };
 
-    const Spot::ApplicationConfig config{
-        .graphics = {.enabled = false}, .audio = {.enabled = false}, .assets = {.importDirectory = imported}};
+    const Spot::ApplicationConfig config{.graphics = {.enabled = false}, .assets = {.importDirectory = imported}};
     // The game says where its imported assets are, when the application does not.
     Spot::ApplicationConfig game = config;
     game.assets.importDirectory.clear();
@@ -1249,8 +1248,7 @@ TEST_CASE("Scenes load chunks in the background into their own hierarchy", "[ass
         Spot::ChunkLoad m_load;
     };
 
-    Spot::ApplicationConfig config{
-        .graphics = {.enabled = false}, .audio = {.enabled = false}, .assets = {.importDirectory = imported}};
+    Spot::ApplicationConfig config{.graphics = {.enabled = false}, .assets = {.importDirectory = imported}};
     config.game = Spot::GameSettings{.name = "Streaming", .startupScene = *start};
     StreamingApplication application(config, *district);
     REQUIRE(application.Run() == EXIT_SUCCESS);

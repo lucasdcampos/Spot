@@ -21,7 +21,6 @@ namespace {
 struct Observed {
     std::vector<std::string> calls;
     std::string windowTitle;
-    bool hasAudioOutput = true;
     float smallestDelta = 1.0f;
 };
 
@@ -36,7 +35,6 @@ protected:
         m_observed.calls.emplace_back("start");
         m_framesLeft = m_framesPerRun;
         m_observed.windowTitle = GetWindow().GetTitle();
-        m_observed.hasAudioOutput = GetAudioDevice().HasOutput();
         Spot::Log::Info("started");
     }
 
@@ -131,7 +129,9 @@ public:
 // Retained children detach, carry their descendants, and keep their identity and component state.
 class RetainingApplication final : public Spot::Application {
 public:
-    explicit RetainingApplication(Spot::ApplicationConfig config) : Application(std::move(config)) {}
+    explicit RetainingApplication(Spot::ApplicationConfig config) : Application(std::move(config)) {
+        AddModule<Spot::AudioModule>(Spot::AudioConfig{.manualMix = true});
+    }
 
 protected:
     void OnStart() override { LoadScene<Spot::Scene>(); }
@@ -183,9 +183,7 @@ private:
 };
 
 Spot::ApplicationConfig MakeConfig() {
-    return {.window = {.title = "Application Tests", .width = 320, .height = 240},
-            .graphics = {.enabled = false},
-            .audio = {.enabled = false}};
+    return {.window = {.title = "Application Tests", .width = 320, .height = 240}, .graphics = {.enabled = false}};
 }
 
 } // namespace
@@ -198,7 +196,6 @@ TEST_CASE("Application runs frames between start and stop until Quit is called",
 
     CHECK(observed.calls == std::vector<std::string>{"start", "update", "update", "update", "stop"});
     CHECK(observed.windowTitle == "Application Tests");
-    CHECK_FALSE(observed.hasAudioOutput);
     CHECK(observed.smallestDelta >= 0.0f);
     CHECK_FALSE(application.IsRunning());
 }
@@ -386,9 +383,7 @@ TEST_CASE("Application pauses its scenes, steps them, and keeps events from them
 
 TEST_CASE("Application retains entity subtrees through replacements and destroys them on explicit unload",
           "[application]") {
-    auto config = MakeConfig();
-    config.audio.manualMix = true;
-    RetainingApplication application(config);
+    RetainingApplication application(MakeConfig());
     CHECK(application.Run() == EXIT_SUCCESS);
     CHECK(application.GetScene() == nullptr);
 }

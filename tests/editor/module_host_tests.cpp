@@ -84,7 +84,7 @@ namespace {
 
 class TestGame final : public Spot::Application {
 public:
-    TestGame() : Application({.graphics = {.enabled = false}, .audio = {.enabled = false}}) {}
+    TestGame() : Application({.graphics = {.enabled = false}}) { AddModule<Spot::RenderModule>(); }
 
 protected:
     void OnUpdate(float) override {
