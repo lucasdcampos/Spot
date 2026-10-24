@@ -2528,8 +2528,8 @@ TEST_CASE("Renderer3D draws render worlds, kept on the GPU in batches when asked
     CHECK(first.culledMeshes == 3);
     CHECK(second.drawCalls == 1);
     // A batch the CPU keeps counts whole; objects drawn one by one count one by one.
-    CHECK(second.visibleMeshes == (gpuCulling ? 3 : 1));
-    CHECK(second.culledMeshes == (gpuCulling ? 1 : 3));
+    CHECK(second.visibleMeshes == (gpuCulling ? 3u : 1u));
+    CHECK(second.culledMeshes == (gpuCulling ? 1u : 3u));
     CHECK(IsNear(render.At(16, 16), {0, 255, 0, 255}));
 }
 
