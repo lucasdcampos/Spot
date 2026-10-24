@@ -180,7 +180,7 @@ Depends on: phases 4 and 5. Task 6.2 also waits for 3.3 to move asset loader reg
   `AudioModule` owns the `AudioDevice`, `UiModule` routes events to canvases and draws them; physics, animation,
   particles and scripting get theirs. Each registers its components and asset loaders. `runtime/` includes no system.
   The sandbox, the player and the editor add the modules they use.
-- [ ] **6.3 Startup written down (M).** Waits for 6.2. The constructor does no work; `Run()` is a sequence read top to
+- [x] **6.3 Startup written down (M).** Waits for 6.2. The constructor does no work; `Run()` is a sequence read top to
   bottom: log file and crash reports when configured, platform, window, graphics device, assets, input, modules,
   `OnStart()`, the start scene. `docs/application_and_scenes.md` describes it.
 - [ ] **6.4 Data-driven games through `Run()` (M).** Waits for 6.1. `ApplicationConfig::game` is the only way game

@@ -37,7 +37,22 @@ The game's code marks itself once with `SPOT_GAME_MODULE()` and registers its co
 (see [Entities and components](entities_and_components.md)). Built into the executable, the registrations run when
 `Run()` starts; built into a shared library, they run when the editor loads it (see [Editor](editor.md)).
 
-## The frame
+## Startup
+
+The constructor only keeps the configuration; `Run()` does the work, as a sequence read top to bottom, each step
+needing only the ones before it:
+
+1. The log file and crash reports, when configured (`ApplicationConfig::logFile`, `crashReportDirectory`).
+2. The platform and the window (`StartWindow()`); `Run()` fails if it cannot be opened.
+3. The graphics device, unless graphics are disabled.
+4. The asset manager, on the import directory, with scene assets registered.
+5. The input: the input state, the game's actions and the player's rebinds, and the frame clock.
+6. The modules, in the order they were added, then the console settings they registered are loaded.
+7. `OnStart()`.
+8. The game's start scene, unless `OnStart()` loaded a scene.
+
+Stopping runs the other way: `OnStop()`, the modules in reverse, the scene, then the assets, devices and log.
+
 
 `Time::SetTimeScale(scale)` controls simulation time globally: zero pauses time, values below one slow it down,
 and values above one speed it up. Negative and non-finite values are rejected. `Time::GetDeltaTime()` and

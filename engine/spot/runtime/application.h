@@ -193,6 +193,16 @@ private:
     std::uint64_t m_renderingRevision = 1;
     std::uint64_t m_gameSettingsRevision = 1;
     std::unique_ptr<EngineConsole> m_engineConsole;
+    void StartLog();
+    void StopLog();
+    WindowConfig GetWindowConfig() const;
+    bool StartWindow();
+    bool StartGraphics();
+    void StartAssets();
+    void StartInput();
+    void StartModules();
+    void RunFrame();
+    void Stop();
     void ApplySceneChanges();
     void RemoveScene();
     void RenderDeveloperOverlay(RenderContext& context);

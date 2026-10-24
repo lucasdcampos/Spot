@@ -53,7 +53,15 @@ std::string CaptureName(std::string_view prefix, std::string_view extension) {
 } // namespace
 
 Application::Application(ApplicationConfig config) : m_config(std::move(config)) {
-    m_profileStreamEnabled = Process::GetEnvironmentValue("SPOT_PROFILE_STREAM") == "1";
+}
+
+Application::~Application() = default;
+
+// Startup, in order: what tells of a crash, the window, the graphics device, the assets, the input, the modules,
+// OnStart() and the start scene. Each step needs only the ones before it.
+int Application::Run() {
+    SPOT_ASSERT(!m_window, "Run() is already running");
+    m_failed = false;
     if (!m_config.game) {
         const auto file = GetExecutableDirectory() / GameSettings::FileName;
         std::error_code error;
@@ -61,61 +69,95 @@ Application::Application(ApplicationConfig config) : m_config(std::move(config))
             m_config.game = GameSettings::LoadFromFile(file);
         }
     }
-    // Only the default title gives way to the game's name, so applications can still name their window.
-    if (m_config.game && !m_config.game->name.empty() && m_config.window.title == WindowConfig{}.title) {
-        m_config.window.title = m_config.game->name;
+    StartLog();
+    if (!StartWindow() || !StartGraphics()) {
+        m_graphics.reset();
+        m_frameCapture.reset();
+        m_window.reset();
+        StopLog();
+        return EXIT_FAILURE;
     }
+    StartAssets();
+    StartInput();
+    m_running = true;
+    StartModules();
+    OnStart();
+    if (m_running && !m_scene && !m_sceneChangePending && !LoadStartupScene()) {
+        m_failed = true;
+        Quit();
+    }
+
+    while (m_running) {
+        RunFrame();
+    }
+
+    Stop();
+    return m_failed ? EXIT_FAILURE : EXIT_SUCCESS;
+}
+
+void Application::StartLog() {
+    m_profileStreamEnabled = Process::GetEnvironmentValue("SPOT_PROFILE_STREAM") == "1";
     // A game that crashes where it was shipped leaves what led to it.
-    if (m_config.game && m_config.logFile.empty()) {
-        m_config.logFile = GetExecutableDirectory() / "game.log";
+    std::filesystem::path logFile = m_config.logFile;
+    if (m_config.game && logFile.empty()) {
+        logFile = GetExecutableDirectory() / "game.log";
     }
-    if (!m_config.logFile.empty()) {
+    if (!logFile.empty()) {
         std::error_code error;
-        if (std::filesystem::exists(m_config.logFile, error)) {
-            std::filesystem::path previous = m_config.logFile;
-            previous.replace_extension(".previous" + PathToUtf8(m_config.logFile.extension()));
-            std::filesystem::rename(m_config.logFile, previous, error);
+        if (std::filesystem::exists(logFile, error)) {
+            std::filesystem::path previous = logFile;
+            previous.replace_extension(".previous" + PathToUtf8(logFile.extension()));
+            std::filesystem::rename(logFile, previous, error);
         }
-        auto file = std::make_shared<FileSink>(m_config.logFile);
+        auto file = std::make_shared<FileSink>(logFile);
         if (file->IsOpen()) {
             m_logFile = std::move(file);
             Log::AddSink(m_logFile);
         } else {
-            Log::GetEngineLogger().Warning("Could not open log file '{}'", PathToUtf8(m_config.logFile));
+            Log::GetEngineLogger().Warning("Could not open log file '{}'", PathToUtf8(logFile));
         }
     }
     std::filesystem::path reports = m_config.crashReportDirectory;
     if (reports.empty() && m_logFile) {
-        reports = std::filesystem::absolute(m_config.logFile).parent_path() / "crashes";
+        reports = std::filesystem::absolute(logFile).parent_path() / "crashes";
     }
-    InstallCrashHandler({.applicationName = m_config.window.title,
+    InstallCrashHandler({.applicationName = GetWindowConfig().title,
                          .reportDirectory = reports,
                          .showMessage = m_config.showCrashMessage});
 }
 
-Application::~Application() {
+void Application::StopLog() {
+    m_profileStreamEnabled = false;
     if (m_logFile) {
         Log::RemoveSink(m_logFile);
+        m_logFile.reset();
     }
 }
 
-int Application::Run() {
-    SPOT_ASSERT(!m_window, "Run() is already running");
-
-    m_window = Window::Create(m_config.window);
-    if (!m_window) {
-        return EXIT_FAILURE;
+WindowConfig Application::GetWindowConfig() const {
+    WindowConfig window = m_config.window;
+    // Only the default title gives way to the game's name, so applications can still name their window.
+    if (m_config.game && !m_config.game->name.empty() && window.title == WindowConfig{}.title) {
+        window.title = m_config.game->name;
     }
+    return window;
+}
 
-    if (m_config.graphics.enabled) {
-        m_frameCapture = FrameCapture::Connect();
-        m_graphics = GraphicsDevice::Create(*m_window, m_config.graphics);
-        if (!m_graphics) {
-            m_window.reset();
-            return EXIT_FAILURE;
-        }
+bool Application::StartWindow() {
+    m_window = Window::Create(GetWindowConfig());
+    return m_window != nullptr;
+}
+
+bool Application::StartGraphics() {
+    if (!m_config.graphics.enabled) {
+        return true;
     }
+    m_frameCapture = FrameCapture::Connect();
+    m_graphics = GraphicsDevice::Create(*m_window, m_config.graphics);
+    return m_graphics != nullptr;
+}
 
+void Application::StartAssets() {
     std::filesystem::path importDirectory = m_config.assets.importDirectory;
     if (importDirectory.empty()) {
         importDirectory = Utf8ToPath(m_config.game ? m_config.game->importDirectory : "imported");
@@ -123,7 +165,9 @@ int Application::Run() {
     m_assets = std::make_unique<AssetManager>(GetExecutableDirectory() / importDirectory);
     RegisterSceneAssets(*m_assets);
     Detail::SetAssetManager(m_assets.get());
+}
 
+void Application::StartInput() {
     Input::SetState(&m_input);
     Input::SetActionMap(&m_actions);
     Time::SetClock(&m_clock);
@@ -139,12 +183,13 @@ int Application::Run() {
             m_actions.LoadRebinds(directory / InputRebindsFileName);
         }
     }
+}
+
+void Application::StartModules() {
     m_engineConsole = std::make_unique<EngineConsole>(Console::Get(), *this);
     if (m_config.consoleOverlay) {
         m_consoleInput = std::make_unique<ConsoleInput>(Console::Get(), m_input);
     }
-    m_running = true;
-    m_failed = false;
     // The game's components are known before its scenes load.
     Detail::GameCode::Load();
     for (auto& [type, module] : m_modules) {
@@ -158,112 +203,109 @@ int Application::Run() {
             Log::GetEngineLogger().Warning("Could not load console settings: {}", result.message);
         }
     }
-    OnStart();
-    if (m_running && !m_scene && !m_sceneChangePending && !LoadStartupScene()) {
-        m_failed = true;
-        Quit();
+}
+
+void Application::RunFrame() {
+    // Ends the last frame's profile, so the one profiled spans the whole frame, waiting included.
+    Profiler::BeginFrame();
+    StreamProfileFrame();
+    {
+        SPOT_PROFILE_SCOPE("Application::Wait");
+        Platform::SleepFor(m_limiter.GetWaitTime(std::chrono::steady_clock::now()));
+    }
+    m_clock.Tick(std::chrono::steady_clock::now());
+    // Assets loading in the background whose files are read become ready for this frame.
+    m_assets->Update();
+
+    {
+        SPOT_PROFILE_SCOPE("Application::Events");
+        m_input.BeginFrame();
+        Platform::PollEvents([this](const Event& event) { DispatchEvent(event); });
+        // From whatever state is current, so games played in the editor read the editor's.
+        Input::UpdateActions();
+    }
+    if (!m_running) {
+        return;
     }
 
-    while (m_running) {
-        // Ends the last frame's profile, so the one profiled spans the whole frame, waiting included.
-        Profiler::BeginFrame();
-        StreamProfileFrame();
-        {
-            SPOT_PROFILE_SCOPE("Application::Wait");
-            Platform::SleepFor(m_limiter.GetWaitTime(std::chrono::steady_clock::now()));
-        }
-        m_clock.Tick(std::chrono::steady_clock::now());
-        // Assets loading in the background whose files are read become ready for this frame.
-        m_assets->Update();
+    {
+        SPOT_PROFILE_SCOPE("Application::LoadScenes");
+        ApplySceneChanges();
+        if (m_scene)
+            m_scene->FinishChunkLoads();
+    }
+    {
+        SPOT_PROFILE_SCOPE("Application::OnUpdate");
+        OnUpdate(m_clock.GetDeltaTime());
+    }
+    if (!m_scenesPaused || std::exchange(m_stepScenes, false)) {
+        if (m_scene)
+            m_scene->Update(m_clock.GetDeltaTime());
+    }
+    for (auto& [type, module] : m_modules) {
+        module->OnUpdate(m_clock.GetDeltaTime());
+    }
+    if (Profiler::IsEnabled()) {
+        Profiler::Count("Resident memory", static_cast<double>(Process::GetResidentMemoryBytes()));
+    }
+    // Only changes are applied, so applications can still capture the mouse themselves.
+    if (m_input.IsCursorLockApplied() != m_cursorLocked) {
+        m_cursorLocked = m_input.IsCursorLockApplied();
+        m_window->SetMouseCaptured(m_cursorLocked);
+    }
 
-        {
-            SPOT_PROFILE_SCOPE("Application::Events");
-            m_input.BeginFrame();
-            Platform::PollEvents([this](const Event& event) { DispatchEvent(event); });
-            // From whatever state is current, so games played in the editor read the editor's.
-            Input::UpdateActions();
-        }
-        if (!m_running) {
-            break;
-        }
-
-        {
-            SPOT_PROFILE_SCOPE("Application::LoadScenes");
-            ApplySceneChanges();
-            if (m_scene)
-                m_scene->FinishChunkLoads();
-        }
-        {
-            SPOT_PROFILE_SCOPE("Application::OnUpdate");
-            OnUpdate(m_clock.GetDeltaTime());
-        }
-        if (!m_scenesPaused || std::exchange(m_stepScenes, false)) {
-            if (m_scene)
-                m_scene->Update(m_clock.GetDeltaTime());
-        }
-        for (auto& [type, module] : m_modules) {
-            module->OnUpdate(m_clock.GetDeltaTime());
-        }
-        if (Profiler::IsEnabled()) {
-            Profiler::Count("Resident memory", static_cast<double>(Process::GetResidentMemoryBytes()));
-        }
-        // Only changes are applied, so applications can still capture the mouse themselves.
-        if (m_input.IsCursorLockApplied() != m_cursorLocked) {
-            m_cursorLocked = m_input.IsCursorLockApplied();
-            m_window->SetMouseCaptured(m_cursorLocked);
-        }
-
-        if (m_graphics) {
-            SPOT_PROFILE_SCOPE("Application::Render");
-            if (RenderContext* context = m_graphics->BeginFrame()) {
-                context->BeginGpuTimer("Frame");
-                const bool screenshot = PrepareScreenshot(*context);
-                for (auto& [type, module] : m_modules) {
-                    module->OnBeginRender(*context);
-                }
-                if (m_scene) {
-                    m_scene->PrepareToRender();
-                    m_scene->OnRender(*context);
-                }
-                for (auto& [type, module] : m_modules) {
-                    module->OnRender(*context);
-                }
-                {
-                    SPOT_PROFILE_SCOPE("Application::OnRender");
-                    OnRender(*context);
-                }
-                for (auto& module : std::views::reverse(m_modules)) {
-                    module.second->OnEndRender(*context);
-                }
-                RenderDeveloperOverlay(*context);
-                if (screenshot) {
-                    context->SetFrameTarget(nullptr);
-                    context->BlitTextureToFrame(*m_screenshotTexture);
-                }
-                context->EndGpuTimer();
-                {
-                    SPOT_PROFILE_SCOPE("GraphicsDevice::EndFrame");
-                    m_graphics->EndFrame();
-                }
-                // The GPU times of the latest frame the GPU finished, as counters in milliseconds.
-                if (Profiler::IsEnabled()) {
-                    for (const GpuTiming& timing : m_graphics->GetGpuTimings()) {
-                        Profiler::Count(Profiler::Intern("GPU " + timing.name + " (ms)"), timing.milliseconds);
-                    }
-                }
-                if (screenshot) {
-                    const bool saved = SaveScreenshot(*m_graphics, *m_screenshotTexture, m_screenshotPath);
-                    Log::GetEngineLogger().Write(saved ? LogLevel::Info : LogLevel::Warning, "Screenshot {}: {}",
-                                                 saved ? "saved" : "failed", PathToUtf8(m_screenshotPath));
-                    m_screenshotPath.clear();
-                    m_screenshotTexture.reset();
+    if (m_graphics) {
+        SPOT_PROFILE_SCOPE("Application::Render");
+        if (RenderContext* context = m_graphics->BeginFrame()) {
+            context->BeginGpuTimer("Frame");
+            const bool screenshot = PrepareScreenshot(*context);
+            for (auto& [type, module] : m_modules) {
+                module->OnBeginRender(*context);
+            }
+            if (m_scene) {
+                m_scene->PrepareToRender();
+                m_scene->OnRender(*context);
+            }
+            for (auto& [type, module] : m_modules) {
+                module->OnRender(*context);
+            }
+            {
+                SPOT_PROFILE_SCOPE("Application::OnRender");
+                OnRender(*context);
+            }
+            for (auto& module : std::views::reverse(m_modules)) {
+                module.second->OnEndRender(*context);
+            }
+            RenderDeveloperOverlay(*context);
+            if (screenshot) {
+                context->SetFrameTarget(nullptr);
+                context->BlitTextureToFrame(*m_screenshotTexture);
+            }
+            context->EndGpuTimer();
+            {
+                SPOT_PROFILE_SCOPE("GraphicsDevice::EndFrame");
+                m_graphics->EndFrame();
+            }
+            // The GPU times of the latest frame the GPU finished, as counters in milliseconds.
+            if (Profiler::IsEnabled()) {
+                for (const GpuTiming& timing : m_graphics->GetGpuTimings()) {
+                    Profiler::Count(Profiler::Intern("GPU " + timing.name + " (ms)"), timing.milliseconds);
                 }
             }
+            if (screenshot) {
+                const bool saved = SaveScreenshot(*m_graphics, *m_screenshotTexture, m_screenshotPath);
+                Log::GetEngineLogger().Write(saved ? LogLevel::Info : LogLevel::Warning, "Screenshot {}: {}",
+                                             saved ? "saved" : "failed", PathToUtf8(m_screenshotPath));
+                m_screenshotPath.clear();
+                m_screenshotTexture.reset();
+            }
         }
-        // Once every view of the frame drew the shapes.
-        DebugDraw::Update(m_clock.GetDeltaTime());
     }
+    // Once every view of the frame drew the shapes.
+    DebugDraw::Update(m_clock.GetDeltaTime());
+}
 
+void Application::Stop() {
     Profiler::EndFrame();
     StreamProfileFrame();
     DebugDraw::Clear();
@@ -297,7 +339,7 @@ int Application::Run() {
     m_graphics.reset();
     m_frameCapture.reset();
     m_window.reset();
-    return m_failed ? EXIT_FAILURE : EXIT_SUCCESS;
+    StopLog();
 }
 
 void Application::AddModule(std::type_index type, std::unique_ptr<Module> module) {
