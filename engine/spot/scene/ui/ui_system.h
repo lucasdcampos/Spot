@@ -12,6 +12,7 @@ namespace Spot {
 
 class Entity;
 class Canvas;
+class Renderer2D;
 
 struct UiLayoutEntry {
     EntityId entity = EntityId::Invalid;
@@ -25,7 +26,9 @@ struct UiLayoutEntry {
 class UiSystem final : public SceneSystem {
 public:
     void Layout(Vector2 viewSize);
+    // Draws active UiDrawListeners after canvas layout, restoring the full viewport scissor.
     void DrawUi(Renderer2D& renderer, Vector2 viewSize);
+    // Maps one world unit to one pixel, with (0, 0) at the bottom-left of the view.
     static Camera2D ScreenCamera(Vector2 viewSize);
     std::span<const UiLayoutEntry> GetEntries() const { return m_entries; }
     const UiLayoutEntry* Find(EntityId entity) const;
