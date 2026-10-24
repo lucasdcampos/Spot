@@ -23,10 +23,6 @@ void SerializeComponent(Component& component, Archive& archive);
 // Calls the component's OnValidate(), as tools do after changing its fields.
 void ValidateComponent(Component& component);
 
-// Loads the component's references to these assets again, through the asset manager, or the running application's
-// when it is null, so it gets their new versions after AssetManager::Reload(). Its other fields are left alone.
-void ReloadAssetReferences(Component& component, std::span<const AssetId> assets, AssetManager* manager = nullptr);
-
 // Empty when the component's type is not registered.
 std::string SaveComponentToString(const Component& component);
 

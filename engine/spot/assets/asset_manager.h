@@ -227,11 +227,11 @@ public:
         return Load<T>(*id);
     }
 
-    // Makes the next Load() of these assets read their imported files again, as after they were imported again (see
-    // AssetDatabase::GetChanged()), along with the loaded assets that refer to them, such as the materials of a
-    // changed texture. What refers to the old ones keeps them until it lets them go. Returns every asset that will
-    // load anew, for references to them to be loaded again (see ReloadAssetReferences()).
-    std::vector<AssetId> Reload(std::span<const AssetId> assets);
+    // Makes the next Load() of the asset read its imported file again, as after it was imported again. What refers to
+    // the loaded one keeps it until it lets it go (see DevToolsModule::ReloadAssets()).
+    void Forget(AssetId id);
+    // The known assets that loaded referring to any of these, such as the materials of a texture.
+    std::vector<AssetId> GetDependents(std::span<const AssetId> assets) const;
 
     // The imported data of an asset of the type, as its loader receives it, for assets that are not shared, such as
     // scenes, which each instantiation makes anew. Nothing, after logging why, when it is missing or of another type.

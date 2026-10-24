@@ -68,7 +68,7 @@ struct PrefabProject {
         REQUIRE(database->Refresh() == 1);
         assets->RefreshManifest();
         const std::array changed{assetId};
-        assets->Reload(changed);
+        Spot::DevToolsModule::ReloadAssets(*assets, changed);
     }
 };
 
@@ -149,7 +149,7 @@ TEST_CASE("Prefab editing prepares field and component changes without mutating 
     std::ofstream(project.GetFile()) << apply->prefabText;
     REQUIRE(project.database->Refresh() == 1);
     project.assets->RefreshManifest();
-    project.assets->Reload(std::array{project.assetId});
+    Spot::DevToolsModule::ReloadAssets(*project.assets, std::array{project.assetId});
     Spot::Scene applied;
     REQUIRE(applied.LoadFromString(apply->sceneText, project.assets.get()));
     auto& appliedRoot = *applied.GetRootEntities()[0];
@@ -191,7 +191,7 @@ TEST_CASE("Applying structural prefab edits preserves identities and converts ad
     std::ofstream(project.GetFile()) << edit->prefabText;
     REQUIRE(project.database->Refresh() == 1);
     project.assets->RefreshManifest();
-    project.assets->Reload(std::array{project.assetId});
+    Spot::DevToolsModule::ReloadAssets(*project.assets, std::array{project.assetId});
     Spot::Scene applied;
     REQUIRE_FALSE(applied.Instantiate(edit->sceneText, {.keepIds = true, .assets = project.assets.get()}).empty());
     auto* appliedRoot = applied.GetEntity(rootId);

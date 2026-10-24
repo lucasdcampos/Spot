@@ -569,7 +569,7 @@ void SceneWorkspace::SyncWithAssets() {
             open.document->RefreshPrefabs(reloaded);
             open.document->GetScene().ForEachEntity([&](Entity& entity) {
                 for (Component* component : entity.GetComponents<Component>()) {
-                    ReloadAssetReferences(*component, reloaded, &project->GetAssets());
+                    DevToolsModule::ReloadAssetReferences(*component, reloaded, &project->GetAssets());
                 }
             });
         }
@@ -577,7 +577,7 @@ void SceneWorkspace::SyncWithAssets() {
         if (m_play && m_play->GetDocument()) {
             m_play->GetDocument()->GetScene().ForEachEntity([&](Entity& entity) {
                 for (Component* component : entity.GetComponents<Component>()) {
-                    ReloadAssetReferences(*component, reloaded, &project->GetAssets());
+                    DevToolsModule::ReloadAssetReferences(*component, reloaded, &project->GetAssets());
                 }
             });
         }

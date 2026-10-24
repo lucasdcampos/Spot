@@ -5,6 +5,7 @@
 #include <spot/assets/asset_manifest.h>
 #include <spot/assets/assets.h>
 #include <spot/core/io/archive_state.h>
+#include <spot/runtime/dev_tools_module.h>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -189,7 +190,7 @@ TEST_CASE("Registered preload references create dependencies first and propagate
     CHECK(order == std::vector<int>{7, 42});
     CHECK(childWasReady);
     const auto parent = manager.Load<Spot::Tests::LoaderValue>(fixture.id);
-    const auto reloaded = manager.Reload(std::array{child});
+    const auto reloaded = Spot::DevToolsModule::ReloadAssets(manager, std::array{child});
     CHECK(std::ranges::find(reloaded, child) != reloaded.end());
     CHECK(std::ranges::find(reloaded, fixture.id) != reloaded.end());
     CHECK_FALSE(manager.IsLoaded(fixture.id));

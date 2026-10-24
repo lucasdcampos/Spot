@@ -5,6 +5,7 @@
 #include <spot/assets/asset_file.h>
 #include <spot/assets/asset_manifest.h>
 #include <spot/assets/asset_pak.h>
+#include <spot/runtime/dev_tools_module.h>
 
 #include <array>
 #include <chrono>
@@ -75,7 +76,7 @@ TEST_CASE("Reimporting script assets invalidates the cached source without chang
     REQUIRE(fixture.database.Refresh() == 1);
     CHECK(fixture.database.FindByPath("counter.luau") == id);
     assets.RefreshManifest();
-    assets.Reload(fixture.database.GetChanged());
+    Spot::DevToolsModule::ReloadAssets(assets, fixture.database.GetChanged());
     const auto updated = assets.Load<Spot::ScriptSource>(id);
     REQUIRE(updated);
     CHECK(updated.Get() != old.Get());

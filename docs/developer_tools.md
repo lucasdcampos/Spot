@@ -47,6 +47,11 @@ their code unloads. The engine registers:
 | `screenshot [name.png]` | Queue a PNG of the next complete frame |
 | `capture [name]` | Request the next RenderDoc frame when its runtime is present |
 
+`DevToolsModule` also holds the reloads of assets edited while a game runs, which the editor uses after imports:
+`ReloadAssets()` makes changed assets, and the loaded assets that refer to them, load anew from their imported files,
+and `ReloadAssetReferences()` loads a component's references to them again. They stay out of `AssetManager` and the
+scene layer, which games ship with and never reload.
+
 Scene bindings resolve the current scene each time, retaining no component pointers across scene changes.
 Gravity and debug settings apply to the current main scene; its authored settings apply again when it is replaced.
 

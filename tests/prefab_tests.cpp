@@ -177,7 +177,7 @@ TEST_CASE("Prefab assets import, share, reload and instantiate without source fi
     REQUIRE(loaded.LoadFromString(scene.SaveToString(), &assets));
     CHECK(loaded.FindEntity("Crate")->GetComponent<PrefabLinks>()->internal == loaded.FindEntity("Handle")->GetId());
     const std::array changed{*id};
-    assets.Reload(changed);
+    Spot::DevToolsModule::ReloadAssets(assets, changed);
     const auto reloaded = assets.Load<Spot::Prefab>(*id);
     REQUIRE(reloaded);
     CHECK(reloaded.Get() != prefab.Get());

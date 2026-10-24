@@ -40,7 +40,9 @@ which get ids of their own under a key that names the part (`models/house.glb#Ro
   asset otherwise, as the editor and `spot run` do; opening one file instead of hundreds halves the time a scene
   such as the sandbox's playground takes to load.
 - Imports are cached: a source is imported again only when it, a file it depends on, its settings or its importer's
-  version change. `GetChanged()` tells what was imported again, so loaded copies can be reloaded.
+  version change. `GetChanged()` tells what was imported again, so loaded copies can be reloaded:
+  `DevToolsModule::ReloadAssets()` makes them and the assets that refer to them load anew, and
+  `DevToolsModule::ReloadAssetReferences()` points a component at the new versions. Shipped games never reload.
 - `CreateFolder()`, `Move()`, `Delete()`, `Duplicate()` and `CopyIn()` change sources the way tools do, keeping each
   `.meta` file with its source.
 - `ExtractMaterial()` turns a model's material into a `.material` file that can be edited.

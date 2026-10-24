@@ -58,7 +58,7 @@ public:
     // How long the last SwapModule() took to load the module.
     std::chrono::duration<float> GetLoadDuration() const { return m_loadDuration; }
     // Null while none is loaded.
-    const GameModule* GetModule() const { return m_module.get(); }
+    const GameLibrary* GetModule() const { return m_module.get(); }
 
 private:
     // Changes with any change to the code: its files, their sizes and times.
@@ -69,7 +69,7 @@ private:
     std::filesystem::path m_cacheDirectory;
     Options m_options;
     CodeBuild m_build;
-    std::unique_ptr<GameModule> m_module;
+    std::unique_ptr<GameLibrary> m_module;
     // The built module's time when it was loaded, to tell new builds from those that changed nothing.
     std::filesystem::file_time_type m_loadedTime;
     bool m_newModule = false;

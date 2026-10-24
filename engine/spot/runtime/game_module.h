@@ -1,15 +1,9 @@
 #pragma once
 
-#include "spot/platform/shared_library.h"
 #include "spot/runtime/module.h"
 
 #include <concepts>
-#include <filesystem>
 #include <memory>
-#include <span>
-#include <string>
-#include <string_view>
-#include <vector>
 
 #if defined(_WIN32)
 #define SPOT_MODULE_EXPORT extern "C" __declspec(dllexport)
@@ -26,8 +20,8 @@
 // Marks the game's code, once, in one of its source files, naming its module: a Module the application runs, whose
 // OnStart() registers the game's components. Without a type, it is a GameCodeModule, which registers the components
 // marked with SPOT_COMPONENT(). Built into the game's executable, main() adds it with Spot::CreateGameModule(); built
-// into a shared library, it makes a game library, which the editor loads, starting its module to register the
-// components and stopping it when it unloads.
+// into a shared library, it makes a game library (see GameLibrary), which the editor loads, starting its module to
+// register the components and stopping it when it unloads.
 //
 //     class Game final : public Spot::GameCodeModule {
 //     protected:
@@ -119,40 +113,5 @@ inline void LoadGameCode() {
 }
 
 } // namespace Detail
-
-// A game module loaded into the program, with the component types it registered.
-class GameModule {
-public:
-    // The extension CMake gives modules: .dll on Windows, and .so everywhere else, macOS included.
-#if defined(_WIN32)
-    static constexpr std::string_view FileExtension = ".dll";
-#else
-    static constexpr std::string_view FileExtension = ".so";
-#endif
-
-    // Loads the library and starts the module its SPOT_GAME_MODULE names. Null, after logging why, when it cannot be
-    // loaded or is not a game module.
-    static std::unique_ptr<GameModule> Load(const std::filesystem::path& path);
-    // Stops its module, unregisters the types it registered and unloads it. No component of those types may be left, as
-    // their code goes with the module.
-    ~GameModule();
-
-    GameModule(const GameModule&) = delete;
-    GameModule& operator=(const GameModule&) = delete;
-
-    // The names of the component types it registered, in order.
-    std::span<const std::string> GetComponentTypes() const { return m_componentTypes; }
-    const std::filesystem::path& GetPath() const { return m_library->GetPath(); }
-
-private:
-    GameModule(std::unique_ptr<SharedLibrary> library, std::unique_ptr<Module> module,
-               std::vector<std::string> componentTypes)
-        : m_library(std::move(library)), m_module(std::move(module)), m_componentTypes(std::move(componentTypes)) {}
-
-    std::unique_ptr<SharedLibrary> m_library;
-    // Made by the library's code, so destroyed before it unloads.
-    std::unique_ptr<Module> m_module;
-    std::vector<std::string> m_componentTypes;
-};
 
 } // namespace Spot

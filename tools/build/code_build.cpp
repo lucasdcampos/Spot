@@ -233,7 +233,7 @@ std::chrono::duration<float> CodeBuild::GetDuration() const {
 }
 
 std::filesystem::path CodeBuild::GetModulePath() const {
-    return m_build / "module" / ("game" + std::string(GameModule::FileExtension));
+    return m_build / "module" / ("game" + std::string(GameLibrary::FileExtension));
 }
 
 LogLevel CodeBuild::ClassifyLine(std::string_view line) {

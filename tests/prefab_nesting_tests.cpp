@@ -58,7 +58,7 @@ struct NestedProject {
         // Importing fails for prefabs that cannot be flattened, which some tests write.
         database.Refresh();
         assets->RefreshManifest();
-        assets->Reload(database.GetChanged());
+        Spot::DevToolsModule::ReloadAssets(*assets, database.GetChanged());
         const auto id = database.FindByPath(name);
         REQUIRE(id);
         return *id;

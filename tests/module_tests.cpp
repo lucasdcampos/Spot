@@ -40,7 +40,7 @@ TEST_CASE("Shared libraries load and give their functions", "[module]") {
 TEST_CASE("Game modules register their components while loaded, and can be loaded again", "[module]") {
     std::string saved;
     {
-        const auto module = Spot::GameModule::Load(TestModule);
+        const auto module = Spot::GameLibrary::Load(TestModule);
         REQUIRE(module);
         CHECK(std::vector(module->GetComponentTypes().begin(), module->GetComponentTypes().end()) ==
               std::vector<std::string>{"TestPusher", "TestSpinner"});
@@ -77,7 +77,7 @@ TEST_CASE("Game modules register their components while loaded, and can be loade
     }
 
     // Loaded again, as after rebuilding it, the module's components come back.
-    const auto again = Spot::GameModule::Load(TestModule);
+    const auto again = Spot::GameLibrary::Load(TestModule);
     REQUIRE(again);
     CHECK(again->GetComponentTypes().size() == 2);
     {

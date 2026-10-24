@@ -56,7 +56,7 @@ bool EditorProject::Reimport(AssetId id) {
 void EditorProject::AfterImport() {
     m_assets->RefreshManifest();
     // What changed loads anew from now on; references to the old versions are for their holders to reload.
-    for (const AssetId id : m_assets->Reload(m_database->GetChanged())) {
+    for (const AssetId id : DevToolsModule::ReloadAssets(*m_assets, m_database->GetChanged())) {
         if (std::ranges::find(m_reloaded, id) == m_reloaded.end()) {
             m_reloaded.push_back(id);
         }

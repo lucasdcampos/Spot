@@ -43,7 +43,7 @@ The game's code is a `Module`, which registers its components in `OnStart()`. Th
 `SPOT_GAME_MODULE(Type)`; without a type it is a `GameCodeModule`, which registers the components marked with
 `SPOT_COMPONENT()` (see [Entities and components](entities_and_components.md)), and games with more to do derive from
 it. Built into the executable, `main()` adds it with `CreateGameModule()`; built into a shared library, the
-macro exports the function that makes it, and the editor starts it when it loads the library (see
+macro exports the function that makes it, and the editor starts it when it loads the library as a `GameLibrary` (see
 [Editor](editor.md)).
 
 ## Startup

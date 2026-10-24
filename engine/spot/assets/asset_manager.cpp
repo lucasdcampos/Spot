@@ -139,29 +139,23 @@ std::vector<AssetId> AssetManager::GetAssetIds(AssetType type, std::string_view 
     return ids;
 }
 
-std::vector<AssetId> AssetManager::Reload(std::span<const AssetId> assets) {
-    std::unordered_set<AssetId> stale(assets.begin(), assets.end());
-    for (bool grew = true; grew;) {
-        grew = false;
-        for (const auto& [id, entry] : m_entries) {
-            const bool prefabChanged =
-                std::ranges::any_of(entry.dependencies, [&](AssetId dependency) { return stale.contains(dependency); });
-            if (!stale.contains(id) && prefabChanged) {
-                stale.insert(id);
-                grew = true;
-            }
+void AssetManager::Forget(AssetId id) {
+    if (const auto found = m_entries.find(id); found != m_entries.end()) {
+        found->second.loaded.reset();
+        found->second.meshData.reset();
+    }
+}
+
+std::vector<AssetId> AssetManager::GetDependents(std::span<const AssetId> assets) const {
+    std::vector<AssetId> dependents;
+    for (const auto& [id, entry] : m_entries) {
+        if (std::ranges::any_of(entry.dependencies, [&](AssetId dependency) {
+                return std::ranges::find(assets, dependency) != assets.end();
+            })) {
+            dependents.push_back(id);
         }
     }
-    std::vector<AssetId> reloaded;
-    for (const AssetId id : stale) {
-        if (const auto found = m_entries.find(id); found != m_entries.end()) {
-            found->second.loaded.reset();
-            found->second.meshData.reset();
-        }
-        reloaded.push_back(id);
-    }
-    std::ranges::sort(reloaded);
-    return reloaded;
+    return dependents;
 }
 
 void AssetManager::RegisterLoader(AssetType type, AssetLoader loader) {

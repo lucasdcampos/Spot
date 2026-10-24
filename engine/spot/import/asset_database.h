@@ -50,7 +50,7 @@ public:
     // Imports the source again, such as after its settings changed, even if nothing else did.
     bool Reimport(AssetId id);
     // The assets that the last Refresh() or Reimport() imported again or removed, sub-assets included, whose loaded
-    // versions are out of date (see AssetManager::Reload()).
+    // versions are out of date (see DevToolsModule::ReloadAssets()).
     std::span<const AssetId> GetChanged() const { return m_changed; }
 
     // Every asset found, in the order of their paths.
