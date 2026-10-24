@@ -9,39 +9,24 @@
 #include "spot/scene/scene.h"
 
 #include <array>
-#include <mutex>
 #include <utility>
 
 namespace Spot {
 
-namespace Detail {
-
-void RegisterSceneAssetLoaders() {
-    static std::once_flag registered;
-    std::call_once(registered, [] {
-        AssetManager::RegisterLoader(
-            AssetType::Prefab,
-            {.load = [](AssetManager&, AssetId, std::span<const std::byte> data) -> std::shared_ptr<const void> {
-                 const auto text = DecodeScene(data);
-                 auto prefab = text ? Prefab::FromString(*text) : std::nullopt;
-                 return prefab ? std::make_shared<const Prefab>(std::move(*prefab)) : nullptr;
-             },
-             .dependencies =
-                 [](const void* asset) {
-                     const auto dependencies = static_cast<const Prefab*>(asset)->GetDependencies();
-                     return std::vector<AssetId>(dependencies.begin(), dependencies.end());
-                 }});
-    });
+void RegisterSceneAssets(AssetManager& assets) {
+    auto loader = MakeAssetLoader<Prefab>(
+        [](AssetId, std::span<const std::byte> data) -> std::optional<Prefab> {
+            const auto text = Detail::DecodeScene(data);
+            return text ? Prefab::FromString(*text) : std::nullopt;
+        },
+        [](AssetManager&, AssetId, Prefab& prefab) { return std::make_shared<const Prefab>(std::move(prefab)); });
+    loader.textReferences = true;
+    loader.dependencies = [](const void* data) {
+        const auto dependencies = static_cast<const Prefab*>(data)->GetDependencies();
+        return std::vector<AssetId>(dependencies.begin(), dependencies.end());
+    };
+    assets.RegisterLoader(AssetType::Prefab, std::move(loader));
 }
-
-} // namespace Detail
-
-namespace {
-
-// Programs that link the scene layer load its assets from the start, scenes made or not.
-[[maybe_unused]] const bool s_loadersRegistered = (Detail::RegisterSceneAssetLoaders(), true);
-
-} // namespace
 
 struct Scene::PendingChunk {
     AssetManager* assets;

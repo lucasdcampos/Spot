@@ -1,11 +1,34 @@
 #pragma once
 
-#include "spot/particles/particle_simulation.h"
+#include "spot/core/math/color.h"
 #include "spot/render/camera_3d.h"
+#include <cstddef>
+#include <cstdint>
+#include <span>
 #include <vector>
 
 namespace Spot {
 class Texture;
+enum class ParticleDrawFacing { Billboard, Stretched, Horizontal };
+enum class ParticleDrawBlend { Alpha, Additive };
+struct Particle {
+    Vector3 position;
+    Vector3 velocity;
+    float age = 0;
+    float lifetime = 1;
+    float size = 1;
+    float rotation = 0;
+    Color color = Color::White;
+};
+struct ParticleDrawSettings {
+    ParticleDrawFacing facing = ParticleDrawFacing::Billboard;
+    ParticleDrawBlend blend = ParticleDrawBlend::Alpha;
+    float velocityStretch = 0.1f;
+    float softDistance = 0.0f;
+    std::uint32_t flipbookColumns = 1;
+    std::uint32_t flipbookRows = 1;
+    float flipbookCycles = 1.0f;
+};
 struct ParticleInstance {
     Vector4 centerAndSize;
     Vector4 rightAndSoftDistance;
@@ -16,16 +39,16 @@ struct ParticleInstance {
 struct ParticleDraw {
     ParticleInstance instance;
     const Texture* texture = nullptr;
-    ParticleBlend blend = ParticleBlend::Alpha;
+    ParticleDrawBlend blend = ParticleDrawBlend::Alpha;
     float depth = 0;
     std::size_t sequence = 0;
 };
 
-// Converts simulation data to camera-facing instances without graphics resources, reusable by custom renderers.
+// Converts plain particle arrays to camera-facing instances without graphics resources, reusable by custom renderers.
 class ParticleBatch {
 public:
     void Clear() { m_draws.clear(); }
-    void Add(std::span<const Particle> particles, const ParticleSettings& settings, const Camera3D& camera,
+    void Add(std::span<const Particle> particles, const ParticleDrawSettings& settings, const Camera3D& camera,
              const Matrix4& emitter = {}, const Texture* texture = nullptr);
     void Sort();
     std::span<const ParticleDraw> GetDraws() const { return m_draws; }

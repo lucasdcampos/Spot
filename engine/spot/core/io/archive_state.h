@@ -27,8 +27,9 @@ struct ArchiveState {
     bool loading = false;
     // The node fields are read from or written to is the last one.
     std::vector<nlohmann::json*> nodes;
-    // Loads asset references; the running application's when null.
-    AssetManager* assets = nullptr;
+    // A service supplied by the caller, without depending on its layer.
+    void* context = nullptr;
+    const std::type_info* contextType = nullptr;
     const EntityReferenceCodec* entities = nullptr;
 };
 

@@ -1,3 +1,4 @@
+#include "../registered_assets.h"
 #include "day_cycle.h"
 #include "player_controller.h"
 #include "player_health.h"
@@ -20,7 +21,7 @@ TEST_CASE("The cooked playground renders its yards by day, at sunset and at nigh
     }
     auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
     REQUIRE(device);
-    Spot::AssetManager assets(SANDBOX_IMPORTED_DIR, device.get());
+    Spot::Tests::RegisteredAssetManager assets(SANDBOX_IMPORTED_DIR, device.get());
     auto* previousAssets = Spot::Assets::GetManager();
     Spot::Detail::SetAssetManager(&assets);
     struct RestoreAssets {
@@ -137,7 +138,7 @@ TEST_CASE("The cooked sandbox renders held items, recoil, sights and reloads", "
     }
     auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
     REQUIRE(device);
-    Spot::AssetManager assets(SANDBOX_IMPORTED_DIR, device.get());
+    Spot::Tests::RegisteredAssetManager assets(SANDBOX_IMPORTED_DIR, device.get());
     Spot::InputState input;
     Spot::InputActionMap actions;
     struct Restore {
@@ -252,7 +253,7 @@ TEST_CASE("The cooked sandbox draws its HUD over the game: in hand, the wheel, h
     }
     auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
     REQUIRE(device);
-    Spot::AssetManager assets(SANDBOX_IMPORTED_DIR, device.get());
+    Spot::Tests::RegisteredAssetManager assets(SANDBOX_IMPORTED_DIR, device.get());
     Spot::InputState input;
     Spot::InputActionMap actions;
     struct Restore {

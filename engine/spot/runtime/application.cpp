@@ -1,4 +1,10 @@
 #include "spot/runtime/application.h"
+#include "spot/animation/animation_assets.h"
+#include "spot/assets/script_assets.h"
+#include "spot/audio/audio_assets.h"
+#include "spot/graphics/graphics_assets.h"
+#include "spot/render/render_assets.h"
+#include "spot/scene/scene_assets.h"
 #include "spot/scene/ui/ui_input_system.h"
 
 #include "spot/assets/assets.h"
@@ -126,7 +132,13 @@ int Application::Run() {
     if (importDirectory.empty()) {
         importDirectory = Utf8ToPath(m_config.game ? m_config.game->importDirectory : "imported");
     }
-    m_assets = std::make_unique<AssetManager>(GetExecutableDirectory() / importDirectory, m_graphics.get());
+    m_assets = std::make_unique<AssetManager>(GetExecutableDirectory() / importDirectory);
+    RegisterGraphicsAssets(*m_assets, m_graphics.get());
+    RegisterRenderAssets(*m_assets, m_graphics.get());
+    RegisterAudioAssets(*m_assets);
+    RegisterAnimationAssets(*m_assets);
+    RegisterScriptAssets(*m_assets);
+    RegisterSceneAssets(*m_assets);
     Detail::SetAssetManager(m_assets.get());
 
     Input::SetState(&m_input);

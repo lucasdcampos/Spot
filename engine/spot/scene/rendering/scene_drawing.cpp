@@ -184,11 +184,36 @@ void DrawWorldText(Renderer2D& renderer, Scene& scene, const Camera3D& camera) {
 }
 
 void DrawScene(ParticleRenderer& renderer, Scene& scene) {
+    std::vector<Particle> particles;
     scene.ForEachComponent<ParticleSystem>([&](ParticleSystem& system) {
-        if (system.IsActiveAndEnabled() && (renderer.GetCamera().cullingMask & (1u << system.GetEntity().GetLayer()))) {
-            renderer.Draw(system.GetParticles(), system.GetSettings(),
-                          system.GetEntity().GetTransform().GetWorldMatrix(), system.GetTexture().Get());
+        if (!system.IsActiveAndEnabled() ||
+            !(renderer.GetCamera().cullingMask & (1u << system.GetEntity().GetLayer()))) {
+            return;
         }
+        const auto& settings = system.GetSettings();
+        const auto simulated = system.GetParticles();
+        particles.resize(simulated.size());
+        for (std::size_t i = 0; i < simulated.size(); ++i) {
+            particles[i] = {.position = simulated[i].position,
+                            .velocity = simulated[i].velocity,
+                            .age = simulated[i].age,
+                            .lifetime = simulated[i].lifetime,
+                            .size = simulated[i].size,
+                            .rotation = simulated[i].rotation,
+                            .color = simulated[i].color};
+        }
+        const ParticleDrawSettings draw{
+            .facing = static_cast<ParticleDrawFacing>(settings.facing),
+            .blend = static_cast<ParticleDrawBlend>(settings.blend),
+            .velocityStretch = settings.velocityStretch,
+            .softDistance = settings.softDistance,
+            .flipbookColumns = settings.flipbookColumns,
+            .flipbookRows = settings.flipbookRows,
+            .flipbookCycles = settings.flipbookCycles,
+        };
+        const Matrix4 emitter =
+            settings.space == ParticleSpace::Local ? system.GetEntity().GetTransform().GetWorldMatrix() : Matrix4{};
+        renderer.Draw(particles, draw, emitter, system.GetTexture().Get());
     });
 }
 

@@ -26,8 +26,8 @@ public:
     // Depth is a readable single-sample camera depth texture, never attached to the particle pass.
     void Begin(RenderContext& context, const RenderPassDesc& target, const Camera3D& camera, Vector2 viewSize,
                const Texture* depth = nullptr);
-    void Draw(std::span<const Particle> particles, const ParticleSettings& settings, const Matrix4& emitter = {},
-              const Texture* texture = nullptr);
+    void Draw(std::span<const Particle> particles, const ParticleDrawSettings& settings = {},
+              const Matrix4& emitter = {}, const Texture* texture = nullptr);
     // The camera Begin() was given.
     const Camera3D& GetCamera() const { return m_camera; }
     void End();

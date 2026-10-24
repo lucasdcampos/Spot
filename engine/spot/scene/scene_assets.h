@@ -10,6 +10,8 @@ namespace Spot {
 class AssetManager;
 class Scene;
 
+void RegisterSceneAssets(AssetManager& assets);
+
 // Scenes are not shared assets: each call makes a new scene from the asset, whose asset references load through the
 // manager. Null, after logging why, when the asset is missing or not a scene.
 std::unique_ptr<Scene> InstantiateScene(AssetManager& assets, AssetId id);

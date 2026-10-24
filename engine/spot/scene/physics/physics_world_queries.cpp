@@ -7,16 +7,13 @@
 
 namespace Spot {
 
-using Detail::PhysicsBodyId;
-using Detail::PhysicsMotion;
-
-Detail::PhysicsQueryFilter PhysicsWorld::MakeQueryFilter(const QueryFilter& filter) const {
-    Detail::PhysicsQueryFilter query{.layerMask = filter.layerMask, .sensors = filter.includeTriggers};
+QueryFilter3D PhysicsWorld::MakeQueryFilter(const QueryFilter& filter) const {
+    QueryFilter3D query{.layerMask = filter.layerMask, .includeTriggers = filter.includeTriggers};
     if (const auto ignored = m_bodies.find(filter.ignore); ignored != m_bodies.end()) {
         const Body& body = ignored->second;
-        const PhysicsBodyId character = body.character != Detail::PhysicsCharacterId::Invalid
-                                            ? m_simulation->GetCharacterBody(body.character)
-                                            : PhysicsBodyId::Invalid;
+        const BodyId3D character = body.character != CharacterId3D::Invalid
+                                       ? m_simulation->GetCharacterBody(body.character)
+                                       : BodyId3D::Invalid;
         query.ignored = {body.id, body.sensor, character};
     }
     return query;
@@ -27,7 +24,7 @@ bool PhysicsWorld::PrepareQuery() {
     return m_simulation && !m_bodies.empty();
 }
 
-RaycastHit PhysicsWorld::MakeHit(const Detail::PhysicsQueryHit& hit) const {
+RaycastHit PhysicsWorld::MakeHit(const QueryHit3D& hit) const {
     RaycastHit result{.point = hit.point, .normal = hit.normal, .distance = hit.distance};
     if (const auto owner = m_owners.find(hit.body); owner != m_owners.end()) {
         result.entity = owner->second.entity;
@@ -39,7 +36,7 @@ RaycastHit PhysicsWorld::MakeHit(const Detail::PhysicsQueryHit& hit) const {
 std::vector<OverlapHit> PhysicsWorld::MakeOverlapHits() const {
     std::vector<OverlapHit> hits;
     hits.reserve(m_queryHits.size());
-    for (const Detail::PhysicsQueryHit& hit : m_queryHits) {
+    for (const QueryHit3D& hit : m_queryHits) {
         const RaycastHit found = MakeHit(hit);
         hits.push_back({found.entity, found.collider});
     }
@@ -48,10 +45,10 @@ std::vector<OverlapHit> PhysicsWorld::MakeOverlapHits() const {
 
 std::optional<RaycastHit> PhysicsWorld::Raycast(Vector3 origin, Vector3 direction, float maxDistance,
                                                 const QueryFilter& filter) {
-    Detail::PhysicsQueryHit hit;
+    QueryHit3D hit;
     std::optional<RaycastHit> result;
     if (PrepareQuery() && LengthSquared(direction) > 0.0f && maxDistance > 0.0f &&
-        m_simulation->CastRay(origin, Normalize(direction), maxDistance, MakeQueryFilter(filter), hit)) {
+        m_simulation->Raycast(origin, direction, maxDistance, MakeQueryFilter(filter), hit)) {
         result = MakeHit(hit);
     }
     RecordQuery({.kind = DebugQuery::Kind::Ray,
@@ -68,8 +65,8 @@ std::vector<RaycastHit> PhysicsWorld::RaycastAll(Vector3 origin, Vector3 directi
     if (!PrepareQuery() || LengthSquared(direction) <= 0.0f || maxDistance <= 0.0f) {
         return hits;
     }
-    m_simulation->CastRayAll(origin, Normalize(direction), maxDistance, MakeQueryFilter(filter), m_queryHits);
-    for (const Detail::PhysicsQueryHit& hit : m_queryHits) {
+    m_simulation->RaycastAll(origin, direction, maxDistance, MakeQueryFilter(filter), m_queryHits);
+    for (const QueryHit3D& hit : m_queryHits) {
         hits.push_back(MakeHit(hit));
     }
     RecordQuery({.kind = DebugQuery::Kind::Ray,
@@ -82,10 +79,10 @@ std::vector<RaycastHit> PhysicsWorld::RaycastAll(Vector3 origin, Vector3 directi
 
 std::optional<RaycastHit> PhysicsWorld::SphereCast(Vector3 origin, float radius, Vector3 direction, float maxDistance,
                                                    const QueryFilter& filter) {
-    Detail::PhysicsQueryHit hit;
+    QueryHit3D hit;
     std::optional<RaycastHit> result;
     if (PrepareQuery() && LengthSquared(direction) > 0.0f && maxDistance >= 0.0f &&
-        m_simulation->CastSphere(origin, radius, Normalize(direction), maxDistance, MakeQueryFilter(filter), hit)) {
+        m_simulation->SphereCast(origin, radius, direction, maxDistance, MakeQueryFilter(filter), hit)) {
         result = MakeHit(hit);
     }
     RecordQuery({.kind = DebugQuery::Kind::Ray,

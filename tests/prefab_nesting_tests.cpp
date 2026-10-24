@@ -1,4 +1,5 @@
 #include "log_capture.h"
+#include "registered_assets.h"
 #include "temp_directory.h"
 
 #include <spot.h>
@@ -29,7 +30,7 @@ struct NestedProject {
     Spot::EntityId rootId;
     Spot::AssetId baseId;
     Spot::AssetDatabase database{temp.GetPath() / "assets", temp.GetPath() / "imported"};
-    std::unique_ptr<Spot::AssetManager> assets;
+    std::unique_ptr<Spot::Tests::RegisteredAssetManager> assets;
 
     NestedProject() {
         Spot::RegisterComponent<NestedData>("NestedData");
@@ -42,7 +43,7 @@ struct NestedProject {
         std::ofstream(File("Lamp.prefab")) << source.SaveToString();
         REQUIRE(database.Refresh() == 1);
         baseId = *database.FindByPath("Lamp.prefab");
-        assets = std::make_unique<Spot::AssetManager>(temp.GetPath() / "imported");
+        assets = std::make_unique<Spot::Tests::RegisteredAssetManager>(temp.GetPath() / "imported");
     }
 
     std::filesystem::path File(std::string_view name) const { return temp.GetPath() / "assets" / std::string(name); }

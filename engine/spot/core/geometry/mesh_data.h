@@ -1,5 +1,6 @@
 #pragma once
 
+#include "spot/core/geometry/bounds.h"
 #include "spot/core/math/vector.h"
 
 #include <array>
@@ -22,21 +23,6 @@ struct MeshVertex {
     // of it the texture's top is on: the bitangent, cross(normal, tangent.xyz) * w, points toward lower v. Normal maps
     // are read in this space, as glTF defines it.
     Vector4 tangent = {};
-};
-
-// A sphere holding something, such as every vertex of a mesh, so renderers can skip it when it is out of view.
-struct BoundingSphere {
-    Vector3 center = {};
-    float radius = 0.0f;
-};
-
-// A box aligned with the axes holding something, such as every vertex of a mesh.
-struct BoundingBox {
-    Vector3 min = {};
-    Vector3 max = {};
-
-    Vector3 GetCenter() const { return (min + max) * 0.5f; }
-    Vector3 GetSize() const { return max - min; }
 };
 
 // A range of a mesh's indices, drawn with a material of its own, as a glTF mesh's primitives are.

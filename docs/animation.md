@@ -127,3 +127,10 @@ creating duplicates; destroying the component releases its proxies.
 `Animator::SetUpdateInterval()` (the inspector's `updateInterval`) updates the pose only every so many seconds; 0, the
 default, updates it every frame. The time in between accumulates and is simulated at once, so clips, events and root
 motion keep their pace. Characters far from the camera can update a few times a second for a fraction of the cost.
+
+## Asset loader setup
+
+Call `RegisterAnimationAssets(assets)` before loading skeletons, clips or animator controllers through a standalone
+manager. Skeleton, clip and controller data decode on workers; controller clip references resolve through that manager
+when the caller finishes the load. `Application` performs this registration during setup. Animated model loaders use
+the same manager and require both animation and rendering registrations.

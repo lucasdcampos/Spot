@@ -29,22 +29,7 @@ set(SPOT_LEVEL_EXCEPTIONS
 
 # Today's violations, each fixed by a task of the refactor: the commit that fixes one removes its line.
 set(SPOT_LEVEL_ALLOWLIST
-    "assets/asset_formats.h>animation/animation_data.h"
-    "assets/asset_formats.h>graphics/image.h"
-    "assets/asset_formats.h>graphics/texture.h"
-    "assets/asset_formats.h>render/mesh_data.h"
-    "assets/asset_manager.cpp>animation/animator_controller.h"
-    "assets/asset_manager.cpp>audio/sound.h"
-    "assets/asset_manager.cpp>graphics/graphics_device.h"
-    "assets/asset_manager.cpp>graphics/image.h"
-    "assets/asset_manager.cpp>render/font.h"
-    "assets/asset_manager.cpp>render/material.h"
-    "assets/asset_manager.cpp>render/mesh.h"
-    "assets/asset_manager.cpp>render/model.h"
-    "assets/asset_manager.cpp>render/sprite_atlas.h"
-    "assets/material_source.h>render/material.h"
-    "physics/physics_simulation.h>render/mesh_data.h"
-    "render/particle_batch.h>particles/particle_simulation.h"
+
     "runtime/application.cpp>scene/audio/audio_system.h"
     "runtime/application.cpp>scene/rendering/scene_renderer.h"
     "runtime/application.cpp>scene/ui/ui_input_system.h"

@@ -32,7 +32,7 @@ Depends on: nothing. Done first and quickly, since moving folders conflicts with
 in order, as each moves files the next one touches.
 
 - [x] **1.1 A `spot/` prefix for the engine's headers (S).** The modules move into `engine/spot/`, so games include
-  `<spot/core/log.h>` instead of `<core/log.h>`, which could collide with their own folders; `<spot.h>` stays where it
+  `<spot/core/debug/log.h>` instead of `<core/log.h>`, which could collide with their own folders; `<spot.h>` stays where it
   is. Every include in the engine, the editor, the tools, the tests and the sandbox follows, and so do the layer
   check, `AGENTS.md` and `docs/`.
 - [x] **1.2 Merge folders (S).** `math/` into `core/`; `window/`, `events/` and `input/` into `platform/`; `physics2d/`
@@ -114,20 +114,20 @@ Depends on: nothing. Must be done before phases 7, 8 and 9.
 
 Depends on: Phase 1.
 
-- [ ] **3.1 Ids in the core (S).** `AssetRef` moves to `core/` beside `AssetId`, and `EntityId` to `core/`.
+- [x] **3.1 Ids in the core (S).** `AssetRef` moves to `core/` beside `AssetId`, and `EntityId` to `core/`.
   `core/archive.h` stops declaring scene and asset types; `FieldOptions::entityFilter` takes a filter on entity ids
   that the tools give.
-- [ ] **3.2 CPU geometry in the core (S).** `MeshData` and the bounds types move to `core/`, so physics stops including
+- [x] **3.2 CPU geometry in the core (S).** `MeshData` and the bounds types move to `core/`, so physics stops including
   rendering.
-- [ ] **3.3 Asset loaders register themselves (M).** Waits for 3.1. The asset manager stops building every type:
+- [x] **3.3 Asset loaders register themselves (M).** Waits for 3.1. The asset manager stops building every type:
   graphics and each system register their own (`RegisterGraphicsAssets()`, `RegisterRenderAssets()`,
   `RegisterAudioAssets()`, `RegisterAnimationAssets()`), decoding on workers and creating on the main thread. Loaders
   belong to a manager instead of being static. Asset references load only through the archive's manager, never
   through `Assets::GetManager()`. `Application` calls the registrations until 6.2 moves them into modules.
-- [ ] **3.4 Models and particles (S).** `render/` includes animation only for models' skeletons and clips, the listed
+- [x] **3.4 Models and particles (S).** `render/` includes animation only for models' skeletons and clips, the listed
   exception, and particles not at all: `ParticleRenderer` draws plain particle arrays instead of a
   `ParticleSimulation`.
-- [ ] **3.5 3D physics public (M).** `Detail::PhysicsSimulation` becomes `Spot::Physics3D`, beside `Spot::Physics2D`,
+- [x] **3.5 3D physics public (M).** `Detail::PhysicsSimulation` becomes `Spot::Physics3D`, beside `Spot::Physics2D`,
   with the same naming for bodies, shapes and queries. A test simulates 3D bodies without a scene.
 
 ## Phase 4 – A scene core that knows no system

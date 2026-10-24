@@ -1,3 +1,4 @@
+#include "registered_assets.h"
 #include "temp_directory.h"
 #include <algorithm>
 #include <catch2/catch_approx.hpp>
@@ -118,7 +119,7 @@ TEST_CASE("Sprite atlas import caches metadata and loads from shipped assets", "
     CHECK(database.Refresh() == 0);
     auto id = database.FindByPath("sheet.atlas");
     REQUIRE(id);
-    AssetManager manager(imported);
+    Spot::Tests::RegisteredAssetManager manager(imported);
     auto loaded = manager.Load<SpriteAtlas>(*id);
     REQUIRE(loaded);
     CHECK(loaded->texture.GetId() == *texture);

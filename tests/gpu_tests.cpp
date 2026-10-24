@@ -1,6 +1,7 @@
 #include "depth_compare.frag.h"
 #include "indirect_arguments.comp.h"
 #include "quad.vert.h"
+#include "registered_assets.h"
 #include "solid.frag.h"
 #include "surface.frag.h"
 #include "surface.vert.h"
@@ -4129,8 +4130,8 @@ TEST_CASE("Instanced particles blend sort flipbook and fade against camera depth
     camera.orthographicSize = 1;
     camera.nearPlane = 0.1f;
     camera.farPlane = 10.1f;
-    Spot::ParticleSettings settings;
-    settings.gravity = {};
+    Spot::ParticleDrawSettings settings;
+
     Spot::Particle p;
     p.position = {0, 0, -5.1f};
     p.size = 1;
@@ -4172,14 +4173,14 @@ TEST_CASE("Instanced particles blend sort flipbook and fade against camera depth
     CHECK(blended[center + 2] > 58);
     CHECK(blended[center + 2] < 70);
     CHECK(renderer.GetStats().drawCalls == 1);
-    settings.blend = Spot::ParticleBlend::Additive;
+    settings.blend = Spot::ParticleDrawBlend::Additive;
     const std::array glow{p, p};
     const auto additive = render(glow, 1);
     CHECK(additive[center] > 245);
     auto atlas = device->CreateTexture({.width = 2, .height = 1});
     REQUIRE(atlas);
     device->UploadToTexture(*atlas, std::array<std::uint8_t, 8>{255, 0, 0, 255, 0, 0, 255, 255});
-    settings.blend = Spot::ParticleBlend::Alpha;
+    settings.blend = Spot::ParticleDrawBlend::Alpha;
     settings.flipbookColumns = 2;
     p.color = Spot::Color::White;
     p.age = 0.75f;
@@ -4224,7 +4225,7 @@ TEST_CASE("Particles use opaque and cutout camera depth with multisampling offsc
     Spot::Camera3D camera;
     camera.orthographic = true;
     camera.orthographicSize = 1;
-    Spot::ParticleSettings settings;
+    Spot::ParticleDrawSettings settings;
     Spot::Particle p;
     p.position = {0, 0, -5};
     p.size = 1;
@@ -4370,7 +4371,7 @@ TEST_CASE("The generated robot renders animated poses, a held pistol and ragdoll
     RequireGpu();
     auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
     REQUIRE(device);
-    Spot::AssetManager assets(SPOT_SANDBOX_IMPORTED_DIR, device.get());
+    Spot::Tests::RegisteredAssetManager assets(SPOT_SANDBOX_IMPORTED_DIR, device.get());
     struct AssetScope {
         Spot::AssetManager* previous = Spot::Assets::GetManager();
         ~AssetScope() { Spot::Detail::SetAssetManager(previous); }
@@ -4463,7 +4464,7 @@ TEST_CASE("Spawn menu thumbnails render real prefab meshes and retain their cach
     RequireGpu();
     auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
     REQUIRE(device);
-    Spot::AssetManager assets(SPOT_SANDBOX_IMPORTED_DIR, device.get());
+    Spot::Tests::RegisteredAssetManager assets(SPOT_SANDBOX_IMPORTED_DIR, device.get());
     struct AssetScope {
         Spot::AssetManager* previous = Spot::Assets::GetManager();
         ~AssetScope() { Spot::Detail::SetAssetManager(previous); }
@@ -4515,7 +4516,7 @@ TEST_CASE("Authored sandbox menus render their labels and controls offscreen", "
     RequireGpu();
     auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
     REQUIRE(device);
-    Spot::AssetManager assets(SPOT_SANDBOX_IMPORTED_DIR, device.get());
+    Spot::Tests::RegisteredAssetManager assets(SPOT_SANDBOX_IMPORTED_DIR, device.get());
     struct AssetScope {
         Spot::AssetManager* previous = Spot::Assets::GetManager();
         ~AssetScope() { Spot::Detail::SetAssetManager(previous); }

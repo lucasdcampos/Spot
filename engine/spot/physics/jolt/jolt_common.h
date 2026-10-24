@@ -5,7 +5,7 @@
 
 #include "spot/core/math/quaternion.h"
 #include "spot/core/math/vector.h"
-#include "spot/physics/physics_simulation.h"
+#include "spot/physics/physics_3d.h"
 
 // Jolt.h comes before every other Jolt header.
 #include <Jolt/Jolt.h>
@@ -38,21 +38,21 @@ inline Quaternion FromJolt(JPH::QuatArg q) {
     return {q.GetX(), q.GetY(), q.GetZ(), q.GetW()};
 }
 
-inline JPH::BodyID ToJolt(PhysicsBodyId body) {
+inline JPH::BodyID ToJolt(BodyId3D body) {
     return JPH::BodyID(static_cast<JPH::uint32>(body));
 }
 
-inline PhysicsBodyId FromJolt(const JPH::BodyID& body) {
-    return body.IsInvalid() ? PhysicsBodyId::Invalid : static_cast<PhysicsBodyId>(body.GetIndexAndSequenceNumber());
+inline BodyId3D FromJolt(const JPH::BodyID& body) {
+    return body.IsInvalid() ? BodyId3D::Invalid : static_cast<BodyId3D>(body.GetIndexAndSequenceNumber());
 }
 
-inline JPH::EMotionType ToJolt(PhysicsMotion motion) {
+inline JPH::EMotionType ToJolt(BodyMotion3D motion) {
     switch (motion) {
-    case PhysicsMotion::Static:
+    case BodyMotion3D::Static:
         return JPH::EMotionType::Static;
-    case PhysicsMotion::Kinematic:
+    case BodyMotion3D::Kinematic:
         return JPH::EMotionType::Kinematic;
-    case PhysicsMotion::Dynamic:
+    case BodyMotion3D::Dynamic:
         return JPH::EMotionType::Dynamic;
     }
     return JPH::EMotionType::Static;

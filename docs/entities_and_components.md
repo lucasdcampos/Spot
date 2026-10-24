@@ -158,3 +158,10 @@ that keep their data and save it back unchanged.
 Animation clips send `OnAnimationEvent(const AnimationEvent&)` to the active components on
 the animator entity, with the same failure guard as lifecycle and physics hooks. Seeking and
 editor previews do not send gameplay events; see [animation](animation.md).
+
+## Entity ids in the foundation
+
+`spot/core/ids/entity_id.h` defines `EntityId`, so code can store, compare and serialize entity handles without
+including a scene. Only a scene resolves an id into an entity. `FieldOptions::entityFilter` accepts an id,
+allowing tools to choose the resolution scope. Typed component references obtain the inspector's scene through
+its archive context and build a filter that resolves each candidate id there, without retaining entity pointers.

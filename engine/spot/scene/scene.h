@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/assets/asset_ref.h"
+#include "spot/core/ids/asset_ref.h"
 #include "spot/render/camera_2d.h"
 #include "spot/render/render_stage.h"
 #include "spot/scene/entity.h"

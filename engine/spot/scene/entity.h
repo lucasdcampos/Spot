@@ -1,5 +1,6 @@
 #pragma once
 
+#include "spot/core/ids/entity_id.h"
 #include "spot/scene/component.h"
 #include "spot/scene/component_requirements.h"
 #include "spot/scene/transform.h"
@@ -18,10 +19,6 @@
 namespace Spot {
 
 class Scene;
-
-// Identifies an entity. Unlike a pointer, it can be kept after the entity is destroyed: Scene::GetEntity() then
-// returns null. Ids are unique across all scenes, never reused, and kept when an entity moves to another scene.
-enum class EntityId : std::uint64_t { Invalid = 0 };
 
 namespace Detail {
 

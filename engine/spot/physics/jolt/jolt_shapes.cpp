@@ -67,12 +67,12 @@ JPH::RefConst<JPH::Shape> MeshShapeCache::Get(const std::shared_ptr<const MeshDa
     return shape;
 }
 
-JPH::RefConst<JPH::Shape> CreateShape(const PhysicsShape& shape, MeshShapeCache& meshes) {
+JPH::RefConst<JPH::Shape> CreateShape(const Shape3D& shape, MeshShapeCache& meshes) {
     const float radius = std::max(shape.radius, MinShapeSize);
     switch (shape.kind) {
-    case PhysicsShapeKind::Mesh:
-    case PhysicsShapeKind::ConvexHull: {
-        JPH::RefConst<JPH::Shape> built = meshes.Get(shape.mesh, shape.kind == PhysicsShapeKind::ConvexHull);
+    case ShapeKind3D::Mesh:
+    case ShapeKind3D::ConvexHull: {
+        JPH::RefConst<JPH::Shape> built = meshes.Get(shape.mesh, shape.kind == ShapeKind3D::ConvexHull);
         if (!built) {
             return new JPH::EmptyShape();
         }
@@ -82,14 +82,14 @@ JPH::RefConst<JPH::Shape> CreateShape(const PhysicsShape& shape, MeshShapeCache&
         }
         return new JPH::ScaledShape(built, built->MakeScaleValid(scale));
     }
-    case PhysicsShapeKind::Box: {
+    case ShapeKind3D::Box: {
         const JPH::Vec3 halfExtents = JPH::Vec3::sMax(ToJolt(shape.halfExtents), JPH::Vec3::sReplicate(MinShapeSize));
         // The rounding of the edges cannot exceed the box.
         return new JPH::BoxShape(halfExtents, std::min(JPH::cDefaultConvexRadius, halfExtents.ReduceMin()));
     }
-    case PhysicsShapeKind::Sphere:
+    case ShapeKind3D::Sphere:
         return new JPH::SphereShape(radius);
-    case PhysicsShapeKind::Capsule:
+    case ShapeKind3D::Capsule:
         if (shape.halfHeight <= 0.0f) {
             return new JPH::SphereShape(radius);
         }
@@ -98,12 +98,12 @@ JPH::RefConst<JPH::Shape> CreateShape(const PhysicsShape& shape, MeshShapeCache&
     return new JPH::SphereShape(radius);
 }
 
-JPH::RefConst<JPH::Shape> CreateBodyShape(const std::vector<PhysicsShape>& shapes, MeshShapeCache& meshes) {
+JPH::RefConst<JPH::Shape> CreateBodyShape(const std::vector<Shape3D>& shapes, MeshShapeCache& meshes) {
     if (shapes.empty()) {
         return new JPH::EmptyShape();
     }
     if (shapes.size() == 1) {
-        const PhysicsShape& shape = shapes.front();
+        const Shape3D& shape = shapes.front();
         if (shape.center == Vector3{}) {
             return CreateShape(shape, meshes);
         }
@@ -112,7 +112,7 @@ JPH::RefConst<JPH::Shape> CreateBodyShape(const std::vector<PhysicsShape>& shape
     }
 
     JPH::StaticCompoundShapeSettings compound;
-    for (const PhysicsShape& shape : shapes) {
+    for (const Shape3D& shape : shapes) {
         compound.AddShape(ToJolt(shape.center), JPH::Quat::sIdentity(), CreateShape(shape, meshes));
     }
     const JPH::ShapeSettings::ShapeResult result = compound.Create();

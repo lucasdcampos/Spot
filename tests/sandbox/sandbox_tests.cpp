@@ -1,3 +1,4 @@
+#include "../registered_assets.h"
 // The sandbox's game code, run headless on its real scenes: the engine's integration test, which shows a regression
 // as something broken in the game.
 #include "day_cycle.h"
@@ -72,7 +73,7 @@ struct Playground {
     Spot::AudioDevice* previousAudio = Spot::Audio::GetDevice();
     // The loudest sample of each bus over the last run, by name.
     std::map<std::string, Spot::AudioPeak, std::less<>> peaks;
-    Spot::AssetManager assets{SANDBOX_IMPORTED_DIR};
+    Spot::Tests::RegisteredAssetManager assets{SANDBOX_IMPORTED_DIR};
     Spot::AssetManager* previousAssets = Spot::Assets::GetManager();
     Scene scene;
     Entity* player = nullptr;
@@ -894,7 +895,7 @@ TEST_CASE("Adding a marked prefab asset extends the sandbox catalog without code
     const TempDirectory project;
     const auto sources = project.GetPath() / "assets";
     const auto imported = project.GetPath() / "imported";
-    Spot::AssetManager assets(imported);
+    Spot::Tests::RegisteredAssetManager assets(imported);
     auto& spawner = *playground.player->GetComponent<PropSpawner>();
     Scene authored;
     Entity& root = authored.CreateEntity("Custom Lamp");
@@ -945,7 +946,7 @@ TEST_CASE("Sandbox prefab edits propagate while instance overrides survive", "[s
     std::filesystem::copy_file(Assets / "prefabs/spawnables/props/crate.prefab.meta", sources / "crate.prefab.meta");
     Spot::AssetDatabase database(sources, imported);
     database.Refresh();
-    Spot::AssetManager assets(imported);
+    Spot::Tests::RegisteredAssetManager assets(imported);
     const auto id = *database.FindByPath("crate.prefab");
     Entity* original = playground.scene.FindEntity("Crate");
     REQUIRE(original != nullptr);

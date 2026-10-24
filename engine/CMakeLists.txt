@@ -3,6 +3,22 @@
 # registered components, logs, input and assets.
 add_library(spot_objects OBJECT
     spot.h
+    spot/assets/asset_loader.h
+    spot/assets/alpha_mode.h
+    spot/graphics/texture_asset_format.h
+    spot/graphics/texture_asset_format.cpp
+    spot/animation/animation_asset_format.h
+    spot/graphics/graphics_assets.h
+    spot/graphics/graphics_assets.cpp
+    spot/render/render_assets.h
+    spot/render/render_assets.cpp
+    spot/audio/audio_assets.h
+    spot/audio/audio_assets.cpp
+    spot/animation/animation_assets.h
+    spot/animation/animation_assets.cpp
+    spot/assets/script_assets.h
+    spot/assets/script_assets.cpp
+
     version.h
     version.cpp
     spot/assets/asset_file.h
@@ -23,7 +39,9 @@ add_library(spot_objects OBJECT
     spot/assets/asset_pak.cpp
     spot/assets/asset_manager.h
     spot/assets/asset_manager.cpp
-    spot/assets/asset_ref.h
+    spot/core/ids/asset_ref.h
+    spot/core/ids/asset_type.h
+    spot/core/ids/entity_id.h
     spot/assets/asset_archive.h
     spot/assets/asset_type.h
     spot/assets/asset_type.cpp
@@ -131,9 +149,10 @@ add_library(spot_objects OBJECT
     spot/render/material.cpp
     spot/render/mesh.h
     spot/render/mesh.cpp
-    spot/render/mesh_data.h
-    spot/render/mikktspace.cpp
-    spot/render/mesh_data.cpp
+    spot/core/geometry/bounds.h
+    spot/core/geometry/mesh_data.h
+    spot/core/geometry/mikktspace.cpp
+    spot/core/geometry/mesh_data.cpp
     spot/scene/animation/skinned_mesh_renderer.h
     spot/scene/animation/skinned_mesh_renderer.cpp
     spot/animation/animator_controller.h
@@ -235,7 +254,7 @@ add_library(spot_objects OBJECT
     spot/scene/physics/physics_debug.h
     spot/scene/physics/physics_debug.cpp
     spot/scene/physics/physics_query.h
-    spot/physics/physics_simulation.h
+    spot/physics/physics_3d.h
     spot/scene/physics/physics_settings.h
     spot/scene/physics/physics_settings.cpp
     spot/scene/physics/physics_world.h
@@ -407,7 +426,7 @@ FetchContent_MakeAvailable(cgltf)
 target_include_directories(spot_objects SYSTEM PRIVATE ${cgltf_SOURCE_DIR})
 
 # dr_wav decodes WAV audio; like stb, it is a single header.
-# MikkTSpace, the tangent space glTF's normal maps are baked in; spot/render/mikktspace.cpp compiles it.
+# MikkTSpace, the tangent space glTF's normal maps are baked in; spot/core/geometry/mikktspace.cpp compiles it.
 FetchContent_Declare(mikktspace
     GIT_REPOSITORY https://github.com/mmikk/MikkTSpace.git
     GIT_TAG 3e895b49d05ea07e4c2133156cfa94369e19e409
@@ -579,7 +598,7 @@ if(SPOT_PHYSICS STREQUAL "JOLT")
         spot/physics/jolt/jolt_job_system.h
         spot/physics/jolt/jolt_joints.cpp
         spot/physics/jolt/jolt_layers.h
-        spot/physics/jolt/jolt_physics_simulation.cpp
+        spot/physics/jolt/jolt_physics_3d.cpp
         spot/physics/jolt/jolt_queries.cpp
         spot/physics/jolt/jolt_runtime.cpp
         spot/physics/jolt/jolt_runtime.h

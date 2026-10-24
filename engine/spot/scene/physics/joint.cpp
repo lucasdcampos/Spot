@@ -64,13 +64,12 @@ void Joint::MarkChanged() {
     }
 }
 
-Detail::PhysicsJointId Joint::GetJointId() const {
+JointId3D Joint::GetJointId() const {
     return GetScene().GetPhysics().FindJoint(*this);
 }
 
-void FixedJoint::Describe(Detail::PhysicsJointDesc& desc, const Transform& transform,
-                          const Transform* /*connected*/) const {
-    desc.kind = Detail::PhysicsJointKind::Fixed;
+void FixedJoint::Describe(JointDesc3D& desc, const Transform& transform, const Transform* /*connected*/) const {
+    desc.kind = JointKind3D::Fixed;
     desc.point = ToWorld(transform, GetAnchor());
 }
 
@@ -110,9 +109,8 @@ void HingeJoint::Serialize(Archive& archive) {
                   {.min = 0.0f, .max = 1.0e9f, .speed = 1.0f, .tooltip = "The most it pushes with, in newton meters"});
 }
 
-void HingeJoint::Describe(Detail::PhysicsJointDesc& desc, const Transform& transform,
-                          const Transform* /*connected*/) const {
-    desc.kind = Detail::PhysicsJointKind::Hinge;
+void HingeJoint::Describe(JointDesc3D& desc, const Transform& transform, const Transform* /*connected*/) const {
+    desc.kind = JointKind3D::Hinge;
     desc.point = ToWorld(transform, GetAnchor());
     desc.axis = Normalize(transform.GetWorldRotation() * m_axis);
     desc.normal = GetPerpendicular(desc.axis);
@@ -144,9 +142,8 @@ void DistanceJoint::Serialize(Archive& archive) {
                   {.min = -1.0f, .max = 1.0e6f, .speed = 0.01f, .tooltip = "Negative: the distance when it is made"});
 }
 
-void DistanceJoint::Describe(Detail::PhysicsJointDesc& desc, const Transform& transform,
-                             const Transform* connected) const {
-    desc.kind = Detail::PhysicsJointKind::Distance;
+void DistanceJoint::Describe(JointDesc3D& desc, const Transform& transform, const Transform* connected) const {
+    desc.kind = JointKind3D::Distance;
     desc.point = connected ? ToWorld(*connected, m_connectedAnchor) : m_connectedAnchor;
     desc.secondPoint = ToWorld(transform, GetAnchor());
     desc.minDistance = m_minDistance;
@@ -183,9 +180,8 @@ void SpringJoint::Serialize(Archive& archive) {
     archive.Field("damping", m_damping, {.min = 0.0f, .max = 10.0f, .speed = 0.01f});
 }
 
-void SpringJoint::Describe(Detail::PhysicsJointDesc& desc, const Transform& transform,
-                           const Transform* connected) const {
-    desc.kind = Detail::PhysicsJointKind::Distance;
+void SpringJoint::Describe(JointDesc3D& desc, const Transform& transform, const Transform* connected) const {
+    desc.kind = JointKind3D::Distance;
     desc.point = connected ? ToWorld(*connected, m_connectedAnchor) : m_connectedAnchor;
     desc.secondPoint = ToWorld(transform, GetAnchor());
     desc.minDistance = m_restLength;
@@ -222,9 +218,8 @@ void SwingTwistJoint::Serialize(Archive& archive) {
     archive.Field("twistMax", m_twistMax, {.min = 0.0f, .max = 3.14159265f, .angle = true});
 }
 
-void SwingTwistJoint::Describe(Detail::PhysicsJointDesc& desc, const Transform& transform,
-                               const Transform* /*connected*/) const {
-    desc.kind = Detail::PhysicsJointKind::SwingTwist;
+void SwingTwistJoint::Describe(JointDesc3D& desc, const Transform& transform, const Transform* /*connected*/) const {
+    desc.kind = JointKind3D::SwingTwist;
     desc.point = ToWorld(transform, GetAnchor());
     desc.axis = Normalize(transform.GetWorldRotation() * m_twistAxis);
     desc.normal = GetPerpendicular(desc.axis);

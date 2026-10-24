@@ -458,7 +458,11 @@ Component* SceneSerializer::LoadComponent(Entity& entity, json& saved, std::opti
 
     if (hasData && !dynamic_cast<MissingComponent*>(&component)) {
         const SceneEntityReferences references(&ids, referenced, nullptr, externalIds);
-        ArchiveState state{.loading = true, .nodes = {&*data}, .assets = assets, .entities = &references};
+        ArchiveState state{.loading = true,
+                           .nodes = {&*data},
+                           .context = assets,
+                           .contextType = &typeid(AssetManager),
+                           .entities = &references};
         Archive archive(state);
         component.Serialize(archive);
         if (validate) {
@@ -492,7 +496,11 @@ bool SceneSerializer::ReplaceComponent(Component& component, std::string_view te
     } else if (data != saved.end() && data->is_object()) {
         // Ids load as saved: the text comes from the same scene, such as an earlier state of the component.
         const SceneEntityReferences references;
-        ArchiveState state{.loading = true, .nodes = {&*data}, .assets = assets, .entities = &references};
+        ArchiveState state{.loading = true,
+                           .nodes = {&*data},
+                           .context = assets,
+                           .contextType = &typeid(AssetManager),
+                           .entities = &references};
         Archive archive(state);
         component.Serialize(archive);
         Validate(component);
@@ -626,7 +634,9 @@ public:
     void BeginElement(std::size_t) override {}
     void EndElement() override {}
     void EndArray() override {}
-    AssetManager* GetAssetManager() const override { return m_manager; }
+    void* GetContext(const std::type_info& type) const override {
+        return type == typeid(AssetManager) ? m_manager : nullptr;
+    }
 
 private:
     std::span<const AssetId> m_assets;

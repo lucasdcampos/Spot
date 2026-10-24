@@ -1,7 +1,7 @@
 #pragma once
 
+#include "spot/core/geometry/mesh_data.h"
 #include "spot/graphics/pipeline.h"
-#include "spot/render/mesh_data.h"
 
 #include <cstdint>
 #include <memory>

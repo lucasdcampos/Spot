@@ -71,10 +71,10 @@ void BoxCollider::Serialize(Archive& archive) {
     archive.Field("size", m_size, {.min = 0.0f, .max = 10000.0f, .speed = 0.01f});
 }
 
-Detail::PhysicsShape BoxCollider::GetShape(Vector3 scale) const {
+Shape3D BoxCollider::GetShape(Vector3 scale) const {
     const Vector3 size = m_size * scale;
     return {
-        .kind = Detail::PhysicsShapeKind::Box,
+        .kind = ShapeKind3D::Box,
         .center = GetCenter() * scale,
         .halfExtents = Vector3{std::abs(size.x), std::abs(size.y), std::abs(size.z)} * 0.5f,
     };
@@ -96,10 +96,10 @@ void SphereCollider::Serialize(Archive& archive) {
     archive.Field("radius", m_radius, {.min = 0.0f, .max = 10000.0f, .speed = 0.01f});
 }
 
-Detail::PhysicsShape SphereCollider::GetShape(Vector3 scale) const {
+Shape3D SphereCollider::GetShape(Vector3 scale) const {
     const float largestScale = std::max({std::abs(scale.x), std::abs(scale.y), std::abs(scale.z)});
     return {
-        .kind = Detail::PhysicsShapeKind::Sphere,
+        .kind = ShapeKind3D::Sphere,
         .center = GetCenter() * scale,
         .radius = m_radius * largestScale,
     };
@@ -130,10 +130,10 @@ void CapsuleCollider::Serialize(Archive& archive) {
                   {.min = 0.0f, .max = 10000.0f, .speed = 0.01f, .tooltip = "From end to end, rounded ends included"});
 }
 
-Detail::PhysicsShape CapsuleCollider::GetShape(Vector3 scale) const {
+Shape3D CapsuleCollider::GetShape(Vector3 scale) const {
     const float radius = m_radius * std::max(std::abs(scale.x), std::abs(scale.z));
     return {
-        .kind = Detail::PhysicsShapeKind::Capsule,
+        .kind = ShapeKind3D::Capsule,
         .center = GetCenter() * scale,
         .radius = radius,
         .halfHeight = std::max(m_height * std::abs(scale.y) * 0.5f - radius, 0.0f),
@@ -158,9 +158,9 @@ void MeshCollider::Serialize(Archive& archive) {
         {.tooltip = "The convex hull around the mesh, which bodies that move need, rather than its triangles"});
 }
 
-Detail::PhysicsShape MeshCollider::GetShape(Vector3 scale) const {
+Shape3D MeshCollider::GetShape(Vector3 scale) const {
     return {
-        .kind = m_convex ? Detail::PhysicsShapeKind::ConvexHull : Detail::PhysicsShapeKind::Mesh,
+        .kind = m_convex ? ShapeKind3D::ConvexHull : ShapeKind3D::Mesh,
         .center = GetCenter() * scale,
         .mesh = m_mesh.GetShared(),
         .meshScale = scale,

@@ -1,3 +1,4 @@
+#include "registered_assets.h"
 #include "temp_directory.h"
 #include <spot/animation/animator_controller.h>
 
@@ -79,7 +80,7 @@ TEST_CASE("Controller assets validate, cook and load clips without GPU resources
                                source / "rig.gltf");
     AssetDatabase database(source, directory.GetPath() / "imported");
     database.Refresh();
-    AssetManager assets(directory.GetPath() / "imported");
+    Spot::Tests::RegisteredAssetManager assets(directory.GetPath() / "imported");
     AnimatorController controller;
     controller.states = {{"Move", assets.Load<AnimationClip>("rig.gltf#Move")}};
     controller.parameters = {{"speed", AnimatorParameterType::Float}};

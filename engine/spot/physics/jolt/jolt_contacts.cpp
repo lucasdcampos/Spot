@@ -62,7 +62,7 @@ void ContactRecorder::ForgetBody(JPH::BodyID body) {
     std::erase_if(m_contacts, [id](const auto& entry) { return entry.first.first == id || entry.first.second == id; });
 }
 
-void ContactRecorder::GetContacts(std::vector<PhysicsContact>& contacts) const {
+void ContactRecorder::GetContacts(std::vector<Contact3D>& contacts) const {
     contacts.clear();
     contacts.reserve(m_contacts.size());
     for (const auto& [key, contact] : m_contacts) {
@@ -71,7 +71,7 @@ void ContactRecorder::GetContacts(std::vector<PhysicsContact>& contacts) const {
 }
 
 void ContactRecorder::Record(const JPH::Body& first, const JPH::Body& second, const JPH::ContactManifold& manifold) {
-    PhysicsContact contact{
+    Contact3D contact{
         .first = FromJolt(first.GetID()),
         .second = FromJolt(second.GetID()),
         .firstShape = manifold.mSubShapeID1.GetValue(),

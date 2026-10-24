@@ -1,3 +1,4 @@
+#include "../registered_assets.h"
 #include "day_cycle.h"
 
 #include <spot.h>
@@ -11,7 +12,7 @@ TEST_CASE("Luau scripts change the rendered monument and daylight in the cooked 
         SKIP("No usable graphics device");
     auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
     REQUIRE(device);
-    Spot::AssetManager assets(SANDBOX_IMPORTED_DIR, device.get());
+    Spot::Tests::RegisteredAssetManager assets(SANDBOX_IMPORTED_DIR, device.get());
     Spot::InputState input;
     struct Restore {
         Spot::AssetManager* assets = Spot::Assets::GetManager();

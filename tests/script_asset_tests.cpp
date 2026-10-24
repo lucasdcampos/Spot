@@ -1,4 +1,5 @@
 #include "log_capture.h"
+#include "registered_assets.h"
 #include "script_asset_fixture.h"
 
 #include <spot/assets/asset_file.h>
@@ -26,7 +27,7 @@ TEST_CASE("Script assets import Luau files with stable metadata and cached sourc
     CHECK(fixture.database.GetMeta(id)->type == Spot::AssetType::Script);
     CHECK(fixture.database.Refresh() == 0);
 
-    Spot::AssetManager assets(fixture.imported);
+    Spot::Tests::RegisteredAssetManager assets(fixture.imported);
     const auto script = assets.Load<Spot::ScriptSource>("scripts/hello.luau");
     REQUIRE(script);
     CHECK(script.GetId() == id);
@@ -52,7 +53,7 @@ TEST_CASE("Script assets support empty files UTF8 BOM and source that is parsed 
     fixture.Write("bom.luau", "\xEF\xBB\xBF-- UTF-8\r\nfunction start() print(\"\xC3\xA9\") end\r\n");
     fixture.Write("unfinished.luau", "function OnStart()");
     REQUIRE(fixture.database.Refresh() == 3);
-    Spot::AssetManager assets(fixture.imported);
+    Spot::Tests::RegisteredAssetManager assets(fixture.imported);
     const auto empty = assets.Load<Spot::ScriptSource>("empty.luau");
     REQUIRE(empty);
     CHECK(empty->source.empty());
@@ -67,7 +68,7 @@ TEST_CASE("Script assets support empty files UTF8 BOM and source that is parsed 
 TEST_CASE("Reimporting script assets invalidates the cached source without changing its id", "[assets][script]") {
     ScriptAssetFixture fixture;
     const auto id = fixture.Import("counter.luau", "n = 1");
-    Spot::AssetManager assets(fixture.imported);
+    Spot::Tests::RegisteredAssetManager assets(fixture.imported);
     const auto old = assets.Load<Spot::ScriptSource>(id);
     REQUIRE(old);
     fixture.Write("counter.luau", "n = 2");
@@ -91,7 +92,7 @@ TEST_CASE("Script assets load from a shipped pak without source or loose importe
                                Spot::Detail::Manifest::GetPath(shipped));
     REQUIRE(Spot::Detail::WriteAssetPak(shipped / Spot::Detail::AssetPakFileName, fixture.imported));
     std::filesystem::rename(fixture.sources, fixture.temp.GetPath() / "unavailable_sources");
-    Spot::AssetManager assets(shipped);
+    Spot::Tests::RegisteredAssetManager assets(shipped);
     const auto script = assets.Load<Spot::ScriptSource>(id);
     REQUIRE(script);
     CHECK(script->source == "function OnStart() print(\"shipped\") end");
@@ -114,7 +115,7 @@ TEST_CASE("Script asset loading rejects corrupt payloads", "[assets][script]") {
         }
         REQUIRE(Spot::Detail::WriteAssetFile(Spot::Detail::GetImportedAssetPath(fixture.imported, id),
                                              Spot::AssetType::Script, writer.GetData()));
-        Spot::AssetManager assets(fixture.imported);
+        Spot::Tests::RegisteredAssetManager assets(fixture.imported);
         const auto script = assets.Load<Spot::ScriptSource>(id);
         CHECK_FALSE(script);
         CHECK(script.GetId() == id);
@@ -124,7 +125,7 @@ TEST_CASE("Script asset loading rejects corrupt payloads", "[assets][script]") {
 TEST_CASE("Script assets participate in asynchronous loading and preloading", "[assets][script]") {
     ScriptAssetFixture fixture;
     const auto id = fixture.Import("async.luau", "n = nil");
-    Spot::AssetManager assets(fixture.imported);
+    Spot::Tests::RegisteredAssetManager assets(fixture.imported);
     const auto request = assets.LoadAsync<Spot::ScriptSource>(id);
     REQUIRE(request.IsValid());
     CHECK_FALSE(assets.IsLoaded(id));
@@ -135,7 +136,7 @@ TEST_CASE("Script assets participate in asynchronous loading and preloading", "[
     REQUIRE(request.IsDone());
     REQUIRE(request.Get());
     CHECK(request.Get()->source == "n = nil");
-    Spot::AssetManager preloadAssets(fixture.imported);
+    Spot::Tests::RegisteredAssetManager preloadAssets(fixture.imported);
     const std::array ids{id};
     const auto preloaded = preloadAssets.Preload(ids);
     REQUIRE(preloaded.size() == 1);

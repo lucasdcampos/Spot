@@ -129,3 +129,9 @@ either. What the game asks for is heard from the next mix on.
 
 Sources on entities retained with `Entity::SetKeepOnSceneChange()` transfer to the next scene's audio system
 without restarting playback. They follow the new listener and pause with the active scene.
+
+## Asset loader setup
+
+Call `RegisterAudioAssets(assets)` before loading `Sound` assets through a standalone manager. Imported sound decoding
+and PCM conversion run during preparation on workers; the completed sound is created when the caller finishes the load.
+`Application` registers audio assets during setup. Registering audio never changes another manager.

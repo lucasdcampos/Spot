@@ -1,8 +1,8 @@
 #pragma once
 
-#include "spot/assets/asset_ref.h"
 #include "spot/audio/playback.h"
 #include "spot/audio/sound.h"
+#include "spot/core/ids/asset_ref.h"
 #include "spot/scene/component.h"
 
 #include <cstdint>

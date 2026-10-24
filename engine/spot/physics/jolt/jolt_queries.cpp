@@ -11,16 +11,18 @@
 
 #include <algorithm>
 
-namespace Spot::Detail {
+namespace Spot {
 
-PhysicsQueryHit PhysicsSimulation::Impl::MakeHit(const JPH::BodyID& body, const JPH::SubShapeID& subShape) const {
+using namespace Detail;
+
+QueryHit3D Physics3D::Impl::MakeHit(const JPH::BodyID& body, const JPH::SubShapeID& subShape) const {
     const JPH::RefConst<JPH::Shape> shape = GetBodies().GetShape(body);
     return {.body = FromJolt(body), .shape = shape ? GetShapeIndex(*shape, subShape) : 0};
 }
 
-PhysicsQueryHit PhysicsSimulation::Impl::MakeRayHit(const JPH::RRayCast& ray, const JPH::RayCastResult& result,
-                                                    float maxDistance) const {
-    PhysicsQueryHit hit = MakeHit(result.mBodyID, result.mSubShapeID2);
+QueryHit3D Physics3D::Impl::MakeRayHit(const JPH::RRayCast& ray, const JPH::RayCastResult& result,
+                                       float maxDistance) const {
+    QueryHit3D hit = MakeHit(result.mBodyID, result.mSubShapeID2);
     const JPH::RVec3 point = ray.GetPointOnRay(result.mFraction);
     hit.point = FromJolt(JPH::Vec3(point));
     hit.normal = FromJolt(
@@ -29,8 +31,8 @@ PhysicsQueryHit PhysicsSimulation::Impl::MakeRayHit(const JPH::RRayCast& ray, co
     return hit;
 }
 
-void PhysicsSimulation::Impl::Overlap(const JPH::Shape& shape, const JPH::RMat44& transform,
-                                      const PhysicsQueryFilter& filter, std::vector<PhysicsQueryHit>& hits) const {
+void Physics3D::Impl::Overlap(const JPH::Shape& shape, const JPH::RMat44& transform, const QueryFilter3D& filter,
+                              std::vector<QueryHit3D>& hits) const {
     hits.clear();
     JPH::AllHitCollisionCollector<JPH::CollideShapeCollector> collector;
     const QueryLayerFilter layers(filter.layerMask);
@@ -38,18 +40,21 @@ void PhysicsSimulation::Impl::Overlap(const JPH::Shape& shape, const JPH::RMat44
     system.GetNarrowPhaseQuery().CollideShape(&shape, JPH::Vec3::sOne(), transform, JPH::CollideShapeSettings(),
                                               JPH::RVec3::sZero(), collector, {}, layers, bodies);
     for (const JPH::CollideShapeResult& result : collector.mHits) {
-        const PhysicsQueryHit hit = MakeHit(result.mBodyID2, result.mSubShapeID2);
+        const QueryHit3D hit = MakeHit(result.mBodyID2, result.mSubShapeID2);
         const bool seen = std::ranges::any_of(
-            hits, [&hit](const PhysicsQueryHit& other) { return other.body == hit.body && other.shape == hit.shape; });
+            hits, [&hit](const QueryHit3D& other) { return other.body == hit.body && other.shape == hit.shape; });
         if (!seen) {
             hits.push_back(hit);
         }
     }
 }
 
-bool PhysicsSimulation::CastRay(Vector3 origin, Vector3 direction, float maxDistance, const PhysicsQueryFilter& filter,
-                                PhysicsQueryHit& hit) const {
-    const JPH::RRayCast ray{ToJolt(origin), ToJolt(direction) * maxDistance};
+bool Physics3D::Raycast(Vector3 origin, Vector3 direction, float maxDistance, const QueryFilter3D& filter,
+                        QueryHit3D& hit) const {
+    if (LengthSquared(direction) <= 0.0f || maxDistance <= 0.0f) {
+        return false;
+    }
+    const JPH::RRayCast ray{ToJolt(origin), ToJolt(Normalize(direction)) * maxDistance};
     JPH::RayCastResult result;
     const QueryLayerFilter layers(filter.layerMask);
     const QueryBodyFilter bodies(filter);
@@ -60,10 +65,13 @@ bool PhysicsSimulation::CastRay(Vector3 origin, Vector3 direction, float maxDist
     return true;
 }
 
-void PhysicsSimulation::CastRayAll(Vector3 origin, Vector3 direction, float maxDistance,
-                                   const PhysicsQueryFilter& filter, std::vector<PhysicsQueryHit>& hits) const {
+void Physics3D::RaycastAll(Vector3 origin, Vector3 direction, float maxDistance, const QueryFilter3D& filter,
+                           std::vector<QueryHit3D>& hits) const {
     hits.clear();
-    const JPH::RRayCast ray{ToJolt(origin), ToJolt(direction) * maxDistance};
+    if (LengthSquared(direction) <= 0.0f || maxDistance <= 0.0f) {
+        return;
+    }
+    const JPH::RRayCast ray{ToJolt(origin), ToJolt(Normalize(direction)) * maxDistance};
     JPH::AllHitCollisionCollector<JPH::CastRayCollector> collector;
     const QueryLayerFilter layers(filter.layerMask);
     const QueryBodyFilter bodies(filter);
@@ -74,13 +82,17 @@ void PhysicsSimulation::CastRayAll(Vector3 origin, Vector3 direction, float maxD
     }
 }
 
-bool PhysicsSimulation::CastSphere(Vector3 origin, float radius, Vector3 direction, float maxDistance,
-                                   const PhysicsQueryFilter& filter, PhysicsQueryHit& hit) const {
+bool Physics3D::SphereCast(Vector3 origin, float radius, Vector3 direction, float maxDistance,
+                           const QueryFilter3D& filter, QueryHit3D& hit) const {
+    if (LengthSquared(direction) <= 0.0f || maxDistance < 0.0f) {
+        return false;
+    }
     JPH::SphereShape sphere(std::max(radius, MinShapeSize));
     // On the stack, so Jolt's references must not free it.
     sphere.SetEmbedded();
-    const JPH::RShapeCast cast = JPH::RShapeCast::sFromWorldTransform(
-        &sphere, JPH::Vec3::sOne(), JPH::RMat44::sTranslation(ToJolt(origin)), ToJolt(direction) * maxDistance);
+    const JPH::RShapeCast cast =
+        JPH::RShapeCast::sFromWorldTransform(&sphere, JPH::Vec3::sOne(), JPH::RMat44::sTranslation(ToJolt(origin)),
+                                             ToJolt(Normalize(direction)) * maxDistance);
     JPH::ClosestHitCollisionCollector<JPH::CastShapeCollector> collector;
     const QueryLayerFilter layers(filter.layerMask);
     const QueryBodyFilter bodies(filter);
@@ -98,19 +110,19 @@ bool PhysicsSimulation::CastSphere(Vector3 origin, float radius, Vector3 directi
     return true;
 }
 
-void PhysicsSimulation::OverlapSphere(Vector3 center, float radius, const PhysicsQueryFilter& filter,
-                                      std::vector<PhysicsQueryHit>& hits) const {
+void Physics3D::OverlapSphere(Vector3 center, float radius, const QueryFilter3D& filter,
+                              std::vector<QueryHit3D>& hits) const {
     JPH::SphereShape sphere(std::max(radius, MinShapeSize));
     sphere.SetEmbedded();
     m_impl->Overlap(sphere, JPH::RMat44::sTranslation(ToJolt(center)), filter, hits);
 }
 
-void PhysicsSimulation::OverlapBox(Vector3 center, Vector3 halfExtents, const Quaternion& rotation,
-                                   const PhysicsQueryFilter& filter, std::vector<PhysicsQueryHit>& hits) const {
+void Physics3D::OverlapBox(Vector3 center, Vector3 halfExtents, const Quaternion& rotation, const QueryFilter3D& filter,
+                           std::vector<QueryHit3D>& hits) const {
     const JPH::Vec3 extents = JPH::Vec3::sMax(ToJolt(halfExtents), JPH::Vec3::sReplicate(MinShapeSize));
     JPH::BoxShape box(extents, std::min(JPH::cDefaultConvexRadius, extents.ReduceMin()));
     box.SetEmbedded();
     m_impl->Overlap(box, JPH::RMat44::sRotationTranslation(ToJolt(rotation), ToJolt(center)), filter, hits);
 }
 
-} // namespace Spot::Detail
+} // namespace Spot

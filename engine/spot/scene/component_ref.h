@@ -37,7 +37,12 @@ private:
 template <typename T>
 void SerializeField(Archive& archive, std::string_view name, ComponentRef<T>& value, const FieldOptions& options) {
     FieldOptions referenceOptions = options;
-    referenceOptions.entityFilter = [](const Entity& entity) { return entity.HasComponent<T>(); };
+    if (const auto* scene = archive.GetContext<Scene>()) {
+        referenceOptions.entityFilter = [scene](EntityId id) {
+            const auto* entity = scene->GetEntity(id);
+            return entity && entity->HasComponent<T>();
+        };
+    }
     if (const auto* type = Detail::FindComponentTypeName(typeid(T))) {
         referenceOptions.componentType = *type;
     }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/assets/asset_ref.h"
+#include "spot/core/ids/asset_ref.h"
 #include "spot/core/math/color.h"
 #include "spot/core/math/matrix.h"
 #include "spot/scene/component.h"

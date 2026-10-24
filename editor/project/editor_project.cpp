@@ -1,4 +1,10 @@
 #include "project/editor_project.h"
+#include <spot/animation/animation_assets.h>
+#include <spot/assets/script_assets.h>
+#include <spot/audio/audio_assets.h>
+#include <spot/graphics/graphics_assets.h>
+#include <spot/render/render_assets.h>
+#include <spot/scene/scene_assets.h>
 
 #include <spot_tools.h>
 
@@ -21,7 +27,13 @@ std::unique_ptr<EditorProject> EditorProject::Open(const std::filesystem::path& 
 EditorProject::EditorProject(Project project, GraphicsDevice* device) : m_project(std::move(project)) {
     m_database = std::make_unique<AssetDatabase>(m_project.GetAssetsDirectory(), m_project.GetImportDirectory());
     const std::size_t imported = m_database->Refresh();
-    m_assets = std::make_unique<AssetManager>(m_project.GetImportDirectory(), device);
+    m_assets = std::make_unique<AssetManager>(m_project.GetImportDirectory());
+    RegisterGraphicsAssets(*m_assets, device);
+    RegisterRenderAssets(*m_assets, device);
+    RegisterAudioAssets(*m_assets);
+    RegisterAnimationAssets(*m_assets);
+    RegisterScriptAssets(*m_assets);
+    RegisterSceneAssets(*m_assets);
     m_modules = std::make_unique<ModuleHost>(m_project, ModuleHost::Options{});
     // Scripts written in other editors are checked against the API of the engine the project is opened with.
     WriteLuauTypes(m_project);

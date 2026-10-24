@@ -488,7 +488,7 @@ Culling and instancing come in the roadmap's rendering milestone M7.
 ## Particles
 
 SceneRenderer and editor viewports draw instanced HDR particles before post processing.
-See [Particles](particles.md) for the code-only renderer, sorting, flipbooks and readable camera depth.
+See [Particles](particles.md) for the code-only renderer (`ParticleRenderer`, which draws plain `Particle` arrays with `ParticleDrawSettings`), sorting, flipbooks and readable camera depth.
 `Renderer3D::RenderCameraDepth()` exposes an optional single-sample opaque/cutout depth pass from the
 last frame's submissions, useful when a consumer needs readable depth from a multisampled view.
 
@@ -498,3 +498,18 @@ Skinned meshes use `SkinnedMeshRenderer` or `Renderer3D::DrawSkinnedMesh()` with
 vertex stream and per-instance joint palettes. Color, shadows, readable camera depth and
 editor picking use the same deformation. Bounds padding covers animation beyond the bind mesh;
 see [animation](animation.md).
+
+## CPU geometry in the foundation
+
+`MeshData`, its vertices and submeshes live in `spot/core/geometry/mesh_data.h`. Procedural generation, normals,
+tangents and bounds are CPU operations and need no graphics device. `BoundingBox` and `BoundingSphere` are in
+`spot/core/geometry/bounds.h`. Start there when sharing geometry between rendering, physics and custom tools;
+`Mesh::Create()` in the rendering API uploads the CPU geometry when drawing is needed.
+
+## Asset loader setup
+
+Before loading GPU or rendering assets, call `RegisterGraphicsAssets(assets, device)` and
+`RegisterRenderAssets(assets, device)`. The graphics layer owns texture decoding and GPU creation; rendering owns
+meshes, materials, models, fonts and sprite atlases. Register animation separately for animated models. Decoding,
+font rasterization and unsupported texture-block decompression run on workers; GPU creation and reference resolution
+run when the calling thread finishes the load. Loaders are local to the supplied manager.

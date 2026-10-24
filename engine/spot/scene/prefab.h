@@ -66,12 +66,4 @@ struct AssetTypeOf<Prefab> {
     static constexpr AssetType Value = AssetType::Prefab;
 };
 
-namespace Detail {
-
-// Lets asset managers load prefabs and scenes, which the asset layer leaves to the scene layer. Scenes call it when
-// they are made, so loading works wherever scenes are used.
-void RegisterSceneAssetLoaders();
-
-} // namespace Detail
-
 } // namespace Spot
