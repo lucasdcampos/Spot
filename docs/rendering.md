@@ -214,6 +214,20 @@ The renderers know nothing of scenes. `engine/spot/scene/rendering/scene_drawing
 `DrawScene(ParticleRenderer&, Scene&)` its particle systems. It uses only the renderers' public API, so games that
 keep their objects some other way draw them the same way.
 
+### Inside Renderer3D
+
+`renderer_3d.h` is small: the public API over an `Impl`, so the parts it draws with change without touching code that
+uses it. The `Impl` (`renderer_3d.cpp`) selects the frame's lights, uploads them and runs `End()`; the parts share a
+`Renderer3DState` (`renderer_3d_internal.h`), the frame being drawn and what every part binds:
+
+- `MeshBatcher` (`renderer_3d_meshes.cpp`) culls the frame's meshes against the view, sorts them, gives them their
+  looks, uploads their instances and draws them, in the view's pass and into the camera's depth.
+- `ShadowRenderer` (`renderer_3d_shadows.cpp`) draws the directional light's cascades and the tiles of point and spot
+  lights, culling the casters of each view.
+- `SkyRenderer` (`renderer_3d_sky.cpp`) draws the sky and captures the light it gives surfaces.
+- `WorldCuller` (`renderer_3d_worlds.cpp`) keeps render worlds on the GPU in batches and, where the device has compute
+  and indirect draws, culls their instances there.
+
 ### Models and submeshes
 
 `ModelData` reads a glTF scene into nodes with names, local matrices, parents and mesh indices. Parents precede

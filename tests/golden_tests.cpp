@@ -125,25 +125,27 @@ std::optional<Spot::Image> RenderScene(const std::function<void(Spot::GraphicsDe
     Spot::Scene scene;
     std::vector<std::uint8_t> pixels;
     int frame = 0;
-    RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
-        auto& device = app.GetGraphicsDevice();
-        ++frame;
-        if (frame == 1) {
-            target = device.CreateTexture(
-                {.width = Width, .height = Height, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
-            REQUIRE(target);
-            renderer = std::make_unique<Spot::SceneRenderer>(
-                device, Spot::SceneRendererConfig{.targetFormat = Spot::TextureFormat::Rgba8Srgb,
-                                                  .sampleCount = 1,
-                                                  .tonemapping = {.dither = false},
-                                                  .bloom = {.intensity = 0.0f}});
-            REQUIRE(renderer->IsValid());
-            setup(device, scene);
-            renderer->Render(context, scene, target.get());
-        } else if (frame == 2) {
-            pixels = device.DownloadTexture(*target);
-        }
-    }, {}, graphics);
+    RenderingApplication application(
+        [&](Spot::Application& app, Spot::RenderContext& context) {
+            auto& device = app.GetGraphicsDevice();
+            ++frame;
+            if (frame == 1) {
+                target = device.CreateTexture(
+                    {.width = Width, .height = Height, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
+                REQUIRE(target);
+                renderer = std::make_unique<Spot::SceneRenderer>(
+                    device, Spot::SceneRendererConfig{.targetFormat = Spot::TextureFormat::Rgba8Srgb,
+                                                      .sampleCount = 1,
+                                                      .tonemapping = {.dither = false},
+                                                      .bloom = {.intensity = 0.0f}});
+                REQUIRE(renderer->IsValid());
+                setup(device, scene);
+                renderer->Render(context, scene, target.get());
+            } else if (frame == 2) {
+                pixels = device.DownloadTexture(*target);
+            }
+        },
+        {}, graphics);
     REQUIRE(application.Run() == EXIT_SUCCESS);
     if (pixels.size() != std::size_t{Width} * Height * 4) {
         return std::nullopt;

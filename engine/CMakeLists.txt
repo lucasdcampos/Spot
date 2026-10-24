@@ -201,7 +201,15 @@ add_library(spot_objects OBJECT
     spot/graphics/render_graph.cpp
     spot/render/render_world.cpp
     spot/render/renderer_3d.cpp
-    spot/render/renderer_3d_depth.cpp
+    spot/render/renderer_3d_internal.h
+    spot/render/renderer_3d_meshes.h
+    spot/render/renderer_3d_meshes.cpp
+    spot/render/renderer_3d_shadows.h
+    spot/render/renderer_3d_shadows.cpp
+    spot/render/renderer_3d_sky.h
+    spot/render/renderer_3d_sky.cpp
+    spot/render/renderer_3d_worlds.h
+    spot/render/renderer_3d_worlds.cpp
     spot/render/particle_batch.h
     spot/render/particle_batch.cpp
     spot/render/particle_renderer.h

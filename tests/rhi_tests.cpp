@@ -14,9 +14,9 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <array>
 #include <bit>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <memory>
@@ -63,8 +63,8 @@ public:
     std::unique_ptr<Spot::Pipeline> CreatePipeline(const Spot::Shader& fragmentShader,
                                                    std::vector<Spot::TextureFormat> additionalFormats = {},
                                                    bool textureTable = false) const {
-        return CreatePipelineWith(fragmentShader,
-                                  {.additionalTargetFormats = std::move(additionalFormats), .textureTable = textureTable});
+        return CreatePipelineWith(
+            fragmentShader, {.additionalTargetFormats = std::move(additionalFormats), .textureTable = textureTable});
     }
 
     // A pipeline of the quad into an RGBA8 target, with the rest of its description, such as blending, as given.
