@@ -210,3 +210,7 @@ auto& spinner = scene.Spawn<Spinner>();
 spinner.GetTransform().SetPosition({1.0f, 0.0f, 0.0f});
 spinner.AddComponent<Spot::MeshRenderer>();
 ```
+
+When instantiating scenes or prefabs, the resolved asset manager is passed to every component archive, including
+nested prefab components. Standalone callers can pass `InstantiateOptions::assets` explicitly; otherwise the scene
+uses the running asset manager, as other scene-loading entry points do.
