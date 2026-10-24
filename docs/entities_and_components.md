@@ -48,7 +48,7 @@ it has not faulted. Its hooks run in this order:
 | `OnEnable()`, `OnDisable()` | Each time a started component becomes active or stops being active, at once |
 | `OnFixedUpdate()` | On each fixed step, before the systems' (physics) step |
 | `OnUpdate()`, `OnLateUpdate()` | Every update; all `OnUpdate()` of the scene run before the first `OnLateUpdate()` |
-| `OnDrawUi()` | Each frame the scene is shown, after it was drawn, for what goes over it, such as a HUD |
+| `UiDrawListener::OnDrawUi()` | Each frame the scene is shown, after it was drawn, for what goes over it, such as a HUD |
 | `OnDestroy()` | Once, if `OnStart()` ran, when the component is removed or its entity destroyed |
 | `OnValidate()` | After tools changed its fields rather than its own functions |
 
@@ -157,7 +157,7 @@ costs nothing at runtime.
 
 `Entity::ForEachChild()` visits live children without copying the child list. Do not reorder the hierarchy during this traversal.
 
-Animation clips send `OnAnimationEvent(const AnimationEvent&)` to the active components on
+Animation clips send `OnAnimationEvent(const AnimationEvent&)` to active `AnimationEventListener` components on
 the animator entity, with the same failure guard as lifecycle and physics hooks. Seeking and
 editor previews do not send gameplay events; see [animation](animation.md).
 
