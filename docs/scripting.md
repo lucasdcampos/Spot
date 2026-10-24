@@ -307,7 +307,7 @@ repeating name comparisons. Custom runtime adapters can use `ScriptObject::Resol
 `SetResolved`; dynamic objects retain their named fallback. Warm scalar and reference reads avoid wrapper/key
 allocations; strings and value snapshots can still allocate. Component bindings use heterogeneous name lookup and
 retain an immutable property descriptor only for the invocation, avoiding copies of heap-backed callbacks without
-keeping callbacks alive across component-type unregistration.
+caching callbacks in entity wrappers after component-type unregistration.
 
 ## Binding layout
 
@@ -317,3 +317,37 @@ component members; `script_input.cpp`, `script_time.cpp` and `script_physics.cpp
 conversion, validation, property tokens and read-only result records stay in the private `script_module_bindings.h`.
 Physics resolves entity arguments and creates result references through the scene facade, retaining ids rather than
 engine pointers. The public script API remains described once in `script_api.h`; the binding files implement it.
+
+## Phase 9.1 measurements
+
+Captured on 2026-10-24 from `658c7ac`, before the binding split, on the Phase 2.1 Windows/MSVC machine with Vulkan
+(NVRHI), Release, the unchanged benchmark and workload: 500 crates, 50 lamps, 934 bodies, High quality, 1600x900,
+vsync/validation off, orbit camera, 240 warm-up frames and 1,200 measured frames in each fresh process.
+
+```powershell
+cmake --build --preset msvc-release --target spot_sandbox_benchmark
+./build/msvc/tests/Release/spot_sandbox_benchmark --props 500 --lamps 50 --warmup 240 --frames 1200 --quality 2
+```
+
+| Measurement (ms) | Capture 1 | Capture 2 | Capture 3 |
+|---|---:|---:|---:|
+| Frame mean | 10.146 | 9.949 | 9.919 |
+| Frame median | 10.128 | 9.885 | 9.890 |
+| Frame p95 | 11.533 | 10.822 | 10.837 |
+| Startup scene load | 147.239 | 155.258 | 135.412 |
+| Prefab spawn mean | 0.060455 | 0.053784 | 0.048319 |
+| Script update mean per frame | 0.034147 | 0.029936 | 0.030898 |
+| Script update median per frame | 0.031500 | 0.028600 | 0.029700 |
+| Script update p95 per frame | 0.047600 | 0.042300 | 0.042100 |
+
+The median of the three script-update means is **0.030898 ms/frame**, 15.1% below Phase 2.1's **0.036402 ms/frame**.
+Each capture records 3,600 hooks without dropped samples; resident memory is 212.4 / 212.9 / 213.1 MiB. Compiler,
+linker and test processes were monitored throughout; a capture overlapping another session's GPU tests was
+rejected. Assets start uncached in each process; the OS cache is warm. These figures compare historical revisions
+across intervening phases, so they do not isolate this change's contribution. Frame means increased relative to
+Phase 2.1; the script gain is not a claim of whole-frame improvement.
+
+Validation: the full MSVC Debug build succeeded. The headless run passed 941 of 942 cases, with the falling/respawn
+sandbox case timing out under concurrent build load; its isolated repeat passed in 134.30 seconds. After the final
+property fast-path adjustment and getter-copy regression test, all 16 native-runtime and 32 Luau cases passed
+against both static and shared libraries. The binding split also passed those cases and six tooling/API checks.
