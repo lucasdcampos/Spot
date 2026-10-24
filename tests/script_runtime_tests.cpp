@@ -497,3 +497,70 @@ TEST_CASE("Component script bindings tell tools their members and types", "[scri
 
     CHECK(Spot::GetComponentScriptMembers("NoSuchComponent").empty());
 }
+
+TEST_CASE("Scene wrappers persist between hooks and release with their context", "[scripting]") {
+    TestLanguage language;
+    std::weak_ptr<Spot::ScriptObject> cached;
+    {
+        Spot::Scene scene;
+        auto& entity = scene.CreateEntity("Cached");
+        language.Add(entity);
+        auto state = language.state;
+        state->call = [&](std::string_view name, std::span<const Spot::ScriptValue>) {
+            if (name != "OnUpdate")
+                return;
+            auto owner = Object(state->libraries.at("spot")->Get("entity"));
+            auto transform = Object(owner->Get("transform"));
+            if (auto previous = cached.lock())
+                CHECK(previous == transform);
+            cached = transform;
+            const auto position = transform->ResolveProperty("position");
+            transform->SetResolved(position, "position", Spot::Vector3{2, 3, 4});
+            CHECK(std::get<Spot::Vector3>(transform->GetResolved(position, "position")) == Spot::Vector3{2, 3, 4});
+            CHECK_THROWS(transform->GetResolved(transform->ResolveProperty("missing"), "missing"));
+        };
+        scene.Update(0.01f);
+        REQUIRE_FALSE(cached.expired());
+        scene.Update(0.01f);
+        CHECK_FALSE(entity.GetComponent<Spot::ScriptComponent>()->IsFaulted());
+    }
+    language.state->libraries.clear();
+    CHECK(cached.expired());
+}
+
+TEST_CASE("Reading bound properties does not copy heap backed getters", "[scripting]") {
+    struct Bound final : Spot::Component {
+        double value = 7;
+    };
+    struct Getter {
+        std::shared_ptr<int> copies;
+        std::array<char, 64> padding{};
+        explicit Getter(std::shared_ptr<int> counter) : copies(std::move(counter)) {}
+        Getter(const Getter& other) : copies(other.copies) { ++*copies; }
+        double operator()(const Bound& component) const { return component.value; }
+    };
+    Spot::RegisterComponent<Bound>("PropertyProbe");
+    struct Cleanup {
+        ~Cleanup() { Spot::UnregisterComponent("PropertyProbe"); }
+    } cleanup;
+    auto copies = std::make_shared<int>(0);
+    Spot::ScriptBindings<Bound>().ReadOnly("property_with_a_name_beyond_small_string_storage", Getter(copies));
+    TestLanguage language;
+    Spot::Scene scene;
+    auto& entity = scene.CreateEntity();
+    entity.AddComponent<Bound>();
+    language.Add(entity);
+    auto state = language.state;
+    state->call = [&](std::string_view name, std::span<const Spot::ScriptValue>) {
+        if (name != "OnUpdate")
+            return;
+        const auto owner = Object(state->libraries.at("spot")->Get("entity"));
+        const auto component = Object(owner->Get("PropertyProbe"));
+        *copies = 0;
+        for (int i = 0; i < 100; ++i)
+            CHECK(std::get<double>(component->Get("property_with_a_name_beyond_small_string_storage")) == 7);
+        CHECK(*copies == 0);
+    };
+    scene.Update(0.01f);
+    CHECK_FALSE(entity.GetComponent<Spot::ScriptComponent>()->IsFaulted());
+}

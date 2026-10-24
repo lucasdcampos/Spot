@@ -55,9 +55,21 @@ bool IsStandardLibraryName(std::string_view name) {
 
 class LuauRuntime;
 
+struct PropertyNameHash {
+    using is_transparent = void;
+    std::size_t operator()(std::string_view name) const noexcept { return std::hash<std::string_view>{}(name); }
+};
 struct LuauObject {
     ScriptObjectRef object;
     LuauRuntime* runtime = nullptr;
+    std::unordered_map<std::string, std::size_t, PropertyNameHash, std::equal_to<>> properties;
+    std::size_t ResolveProperty(std::string_view name) {
+        if (const auto found = properties.find(name); found != properties.end())
+            return found->second;
+        const auto id = object->ResolveProperty(name);
+        properties.emplace(name, id);
+        return id;
+    }
 };
 
 struct LuauStruct {
@@ -674,7 +686,7 @@ private:
         lua_pop(state, 1);
 
         void* memory = lua_newuserdatataggedwithmetatable(state, sizeof(LuauObject), ObjectTag);
-        new (memory) LuauObject{object, this};
+        new (memory) LuauObject{object, this, {}};
 
         lua_pushlightuserdata(state, object.get());
         lua_pushvalue(state, -2);
@@ -873,7 +885,7 @@ private:
             if (name.data() == nullptr)
                 throw std::runtime_error("Property name must be a string");
             try {
-                const ScriptValue value = self.object->Get(name);
+                const ScriptValue value = self.object->GetResolved(self.ResolveProperty(name), name);
                 self.runtime->PushValue(state, value, self.object, name);
                 return 1;
             } catch (const std::exception& error) {
@@ -899,7 +911,7 @@ private:
         try {
             if (name.data() == nullptr)
                 throw std::runtime_error("Property name must be a string");
-            self.object->Set(name, self.runtime->ToScriptValue(state, 3));
+            self.object->SetResolved(self.ResolveProperty(name), name, self.runtime->ToScriptValue(state, 3));
             return 0;
         } catch (const std::exception& error) {
             failure = error.what();

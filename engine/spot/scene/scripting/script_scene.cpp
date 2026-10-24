@@ -28,11 +28,24 @@
 
 namespace Spot::Detail {
 
+struct ScriptObjectKey {
+    int kind;
+    EntityId entity;
+    ComponentId component;
+    bool operator==(const ScriptObjectKey&) const = default;
+};
+struct ScriptObjectKeyHash {
+    std::size_t operator()(const ScriptObjectKey& key) const noexcept {
+        return std::hash<EntityId>{}(key.entity) ^ (std::hash<ComponentId>{}(key.component) << 1) ^
+               static_cast<std::size_t>(key.kind);
+    }
+};
+
 struct ScriptSceneContext : std::enable_shared_from_this<ScriptSceneContext> {
     Scene* scene = nullptr;
     // The executing owner can finish cleanup after public scene queries stop listing it.
     Component* component = nullptr;
-    std::unordered_map<std::string, std::weak_ptr<ScriptObject>> objects;
+    std::unordered_map<ScriptObjectKey, std::unique_ptr<ScriptObject>, ScriptObjectKeyHash> objects;
     // The script's own entity and component, which own its event subscriptions.
     EntityId owner = EntityId::Invalid;
     ComponentId ownerComponent;
@@ -131,6 +144,14 @@ ScriptValue WrapEntity(const std::shared_ptr<ScriptSceneContext>& context, const
     return entity ? Wrap(context, ObjectKind::Entity, entity->GetId()) : ScriptValue{};
 }
 
+ScriptValue Wrap(ScriptSceneContext* context, ObjectKind kind, EntityId entity = EntityId::Invalid,
+                 ComponentId component = {}) {
+    return Wrap(context->shared_from_this(), kind, entity, component);
+}
+ScriptValue WrapEntity(ScriptSceneContext* context, const Entity* entity) {
+    return WrapEntity(context->shared_from_this(), entity);
+}
+
 // The name ScriptApi::Types describes each kind of object by.
 constexpr std::string_view TypeName(ObjectKind kind) {
     switch (kind) {
@@ -220,8 +241,80 @@ struct ScriptRecord final : ScriptObject {
     }
 };
 
+enum class SceneProperty : std::size_t {
+    Unknown,
+    Scene,
+    Transform,
+    Parent,
+    Name,
+    Id,
+    Active,
+    ActiveInHierarchy,
+    Layer,
+    Entity,
+    Position,
+    WorldPosition,
+    Scale,
+    Rotation,
+    WorldRotation,
+    Rotation2D,
+    Enabled,
+    Faulted,
+    DeltaTime,
+    UnscaledDeltaTime,
+    Time,
+    UnscaledTime,
+    FrameCount,
+    FixedDeltaTime,
+    TimeScale,
+    MousePosition,
+    MouseDelta,
+    ScrollDelta,
+    GamepadCount,
+    CursorLocked
+};
+SceneProperty ResolveSceneProperty(std::string_view name) {
+    static const std::unordered_map<std::string_view, SceneProperty> properties{
+        {"scene", SceneProperty::Scene},
+        {"Transform", SceneProperty::Transform},
+        {"transform", SceneProperty::Transform},
+        {"Parent", SceneProperty::Parent},
+        {"parent", SceneProperty::Parent},
+        {"name", SceneProperty::Name},
+        {"id", SceneProperty::Id},
+        {"active", SceneProperty::Active},
+        {"activeInHierarchy", SceneProperty::ActiveInHierarchy},
+        {"layer", SceneProperty::Layer},
+        {"Entity", SceneProperty::Entity},
+        {"entity", SceneProperty::Entity},
+        {"position", SceneProperty::Position},
+        {"worldPosition", SceneProperty::WorldPosition},
+        {"scale", SceneProperty::Scale},
+        {"rotation", SceneProperty::Rotation},
+        {"worldRotation", SceneProperty::WorldRotation},
+        {"rotation2D", SceneProperty::Rotation2D},
+        {"enabled", SceneProperty::Enabled},
+        {"faulted", SceneProperty::Faulted},
+        {"deltaTime", SceneProperty::DeltaTime},
+        {"unscaledDeltaTime", SceneProperty::UnscaledDeltaTime},
+        {"time", SceneProperty::Time},
+        {"unscaledTime", SceneProperty::UnscaledTime},
+        {"frameCount", SceneProperty::FrameCount},
+        {"fixedDeltaTime", SceneProperty::FixedDeltaTime},
+        {"timeScale", SceneProperty::TimeScale},
+        {"mousePosition", SceneProperty::MousePosition},
+        {"mouseDelta", SceneProperty::MouseDelta},
+        {"scrollDelta", SceneProperty::ScrollDelta},
+        {"gamepadCount", SceneProperty::GamepadCount},
+        {"cursorLocked", SceneProperty::CursorLocked},
+    };
+    const auto found = properties.find(name);
+    return found == properties.end() ? SceneProperty::Unknown : found->second;
+}
+
 struct SceneObject final : ScriptObject {
-    std::shared_ptr<ScriptSceneContext> context;
+    // Wrappers are owned by the context; returned references alias its shared ownership.
+    ScriptSceneContext* context;
     ObjectKind kind;
     EntityId entityId;
     ComponentId componentId;
@@ -343,10 +436,15 @@ struct SceneObject final : ScriptObject {
         }
         return false;
     }
-    ScriptValue Get(std::string_view name) const override {
-        if (HasMethod(name))
+    std::size_t ResolveProperty(std::string_view name) const override {
+        return static_cast<std::size_t>(ResolveSceneProperty(name));
+    }
+    ScriptValue Get(std::string_view name) const override { return GetResolved(ResolveProperty(name), name); }
+    ScriptValue GetResolved(std::size_t id, std::string_view name) const override {
+        const auto property = static_cast<SceneProperty>(id);
+        if (property == SceneProperty::Unknown && kind != ObjectKind::Component && HasMethod(name))
             return ScriptObject::Get(name);
-        if (name == "scene" &&
+        if (property == SceneProperty::Scene &&
             (kind == ObjectKind::Entity || kind == ObjectKind::Transform || kind == ObjectKind::Component)) {
             if (kind == ObjectKind::Component)
                 RequireComponent();
@@ -356,98 +454,108 @@ struct SceneObject final : ScriptObject {
         }
         if (kind == ObjectKind::Entity) {
             const auto& entity = RequireEntity();
-            if (name == "Transform" || name == "transform")
+            if (property == SceneProperty::Transform)
                 return Wrap(context, ObjectKind::Transform, entityId);
-            if (name == "Parent" || name == "parent")
+            if (property == SceneProperty::Parent)
                 return WrapEntity(context, entity.GetParent());
-            if (name == "name")
+            if (property == SceneProperty::Name)
                 return entity.GetName();
-            if (name == "id")
+            if (property == SceneProperty::Id)
                 return std::to_string(static_cast<std::uint64_t>(entityId));
-            if (name == "active")
+            if (property == SceneProperty::Active)
                 return entity.IsActiveSelf();
-            if (name == "activeInHierarchy")
+            if (property == SceneProperty::ActiveInHierarchy)
                 return entity.IsActiveInHierarchy();
-            if (name == "layer")
+            if (property == SceneProperty::Layer)
                 return static_cast<double>(entity.GetLayer());
             if (!name.empty() && name.front() >= 'A' && name.front() <= 'Z')
                 return ComponentNamed(name);
         } else if (kind == ObjectKind::Transform) {
             const auto& transform = RequireEntity().GetTransform();
-            if (name == "Entity" || name == "entity")
+            if (property == SceneProperty::Entity)
                 return Wrap(context, ObjectKind::Entity, entityId);
-            if (name == "position")
+            if (property == SceneProperty::Position)
                 return transform.GetPosition();
-            if (name == "worldPosition")
+            if (property == SceneProperty::WorldPosition)
                 return transform.GetWorldPosition();
-            if (name == "scale")
+            if (property == SceneProperty::Scale)
                 return transform.GetScale();
-            if (name == "rotation")
+            if (property == SceneProperty::Rotation)
                 return ToEuler(transform.GetRotation());
-            if (name == "worldRotation")
+            if (property == SceneProperty::WorldRotation)
                 return ToEuler(transform.GetWorldRotation());
-            if (name == "rotation2D")
+            if (property == SceneProperty::Rotation2D)
                 return static_cast<double>(transform.GetRotation2D());
         } else if (kind == ObjectKind::Component) {
             const auto& component = RequireComponent();
-            if (name == "transform")
+            if (property == SceneProperty::Transform)
                 return Wrap(context, ObjectKind::Transform, entityId);
-            if (name == "Entity" || name == "entity")
+            if (property == SceneProperty::Entity)
                 return Wrap(context, ObjectKind::Entity, entityId);
-            if (name == "id")
+            if (property == SceneProperty::Id)
                 return componentId.ToString();
-            if (name == "enabled")
+            if (property == SceneProperty::Enabled)
                 return component.IsEnabled();
-            if (name == "active")
+            if (property == SceneProperty::Active)
                 return component.IsActiveAndEnabled();
-            if (name == "faulted")
+            if (property == SceneProperty::Faulted)
                 return component.IsFaulted();
             if (!HasScriptProperty(component, name)) {
-                if (const auto script = ForwardedScript(component); script && script->HasProperty(name))
-                    return script->Get(name);
+                if (HasScriptMethod(component, name))
+                    return ScriptObject::Get(name);
+                if (const auto script = ForwardedScript(component)) {
+                    if (script->HasMethod(name))
+                        return ScriptObject::Get(name);
+                    if (script->HasProperty(name))
+                        return script->Get(name);
+                }
             }
             return GetScriptProperty(component, name);
         } else if (kind == ObjectKind::Time) {
-            if (name == "deltaTime")
+            if (property == SceneProperty::DeltaTime)
                 return static_cast<double>(Time::GetDeltaTime());
-            if (name == "unscaledDeltaTime")
+            if (property == SceneProperty::UnscaledDeltaTime)
                 return static_cast<double>(Time::GetUnscaledDeltaTime());
-            if (name == "time")
+            if (property == SceneProperty::Time)
                 return Time::GetTime();
-            if (name == "unscaledTime")
+            if (property == SceneProperty::UnscaledTime)
                 return Time::GetUnscaledTime();
-            if (name == "frameCount")
+            if (property == SceneProperty::FrameCount)
                 return ToScriptValue(Time::GetFrameCount());
-            if (name == "fixedDeltaTime")
+            if (property == SceneProperty::FixedDeltaTime)
                 return static_cast<double>(CurrentScene().GetFixedTimeStep());
-            if (name == "timeScale")
+            if (property == SceneProperty::TimeScale)
                 return static_cast<double>(Time::GetTimeScale());
         } else if (kind == ObjectKind::Input) {
-            if (name == "mousePosition")
+            if (property == SceneProperty::MousePosition)
                 return Input::GetMousePosition();
-            if (name == "mouseDelta")
+            if (property == SceneProperty::MouseDelta)
                 return Input::GetMouseDelta();
-            if (name == "scrollDelta")
+            if (property == SceneProperty::ScrollDelta)
                 return Input::GetScrollDelta();
-            if (name == "gamepadCount")
+            if (property == SceneProperty::GamepadCount)
                 return static_cast<double>(Input::GetGamepadCount());
-            if (name == "cursorLocked")
+            if (property == SceneProperty::CursorLocked)
                 return Input::IsCursorLocked();
         }
         return ScriptObject::Get(name);
     }
     void Set(std::string_view name, const ScriptValue& value) override {
+        SetResolved(ResolveProperty(name), name, value);
+    }
+    void SetResolved(std::size_t id, std::string_view name, const ScriptValue& value) override {
+        const auto property = static_cast<SceneProperty>(id);
         if (kind == ObjectKind::Entity) {
             auto& entity = RequireEntity();
-            if (name == "name") {
+            if (property == SceneProperty::Name) {
                 entity.SetName(Argument<std::string>(value));
                 return;
             }
-            if (name == "active") {
+            if (property == SceneProperty::Active) {
                 entity.SetActive(Argument<bool>(value));
                 return;
             }
-            if (name == "layer") {
+            if (property == SceneProperty::Layer) {
                 const auto layer = Argument<int>(value);
                 if (layer < 0 || layer >= Entity::LayerCount)
                     throw std::runtime_error("Entity layer must be between 0 and 31");
@@ -456,38 +564,39 @@ struct SceneObject final : ScriptObject {
             }
         } else if (kind == ObjectKind::Transform) {
             auto& transform = RequireEntity().GetTransform();
-            if (name == "position") {
+            if (property == SceneProperty::Position) {
                 transform.SetPosition(Argument<Vector3>(value));
                 return;
             }
-            if (name == "worldPosition") {
+            if (property == SceneProperty::WorldPosition) {
                 transform.SetWorldPosition(Argument<Vector3>(value));
                 return;
             }
-            if (name == "scale") {
+            if (property == SceneProperty::Scale) {
                 transform.SetScale(Argument<Vector3>(value));
                 return;
             }
-            if (name == "rotation") {
+            if (property == SceneProperty::Rotation) {
                 transform.SetRotation(Quaternion::FromEuler(Argument<Vector3>(value)));
                 return;
             }
-            if (name == "worldRotation") {
+            if (property == SceneProperty::WorldRotation) {
                 transform.SetWorldRotation(Quaternion::FromEuler(Argument<Vector3>(value)));
                 return;
             }
-            if (name == "rotation2D") {
+            if (property == SceneProperty::Rotation2D) {
                 transform.SetRotation2D(Argument<float>(value));
                 return;
             }
         } else if (kind == ObjectKind::Component) {
             auto& component = RequireComponent();
-            if (name == "enabled") {
+            if (property == SceneProperty::Enabled) {
                 component.SetEnabled(Argument<bool>(value));
                 return;
             }
-            if (name == "active" || name == "faulted" || name == "id" || name == "Entity" || name == "entity" ||
-                name == "scene" || name == "transform")
+            if (property == SceneProperty::Active || property == SceneProperty::Faulted ||
+                property == SceneProperty::Id || property == SceneProperty::Entity ||
+                property == SceneProperty::Scene || property == SceneProperty::Transform)
                 throw std::runtime_error("Component property is read-only");
             if (!HasScriptProperty(component, name)) {
                 if (const auto script = ForwardedScript(component); script && script->HasProperty(name)) {
@@ -497,11 +606,11 @@ struct SceneObject final : ScriptObject {
             }
             WriteScriptProperty(component, name, value);
             return;
-        } else if (kind == ObjectKind::Time && name == "timeScale") {
+        } else if (kind == ObjectKind::Time && property == SceneProperty::TimeScale) {
             if (!Time::SetTimeScale(Argument<float>(value)))
                 throw std::runtime_error("Time scale must be finite and not negative");
             return;
-        } else if (kind == ObjectKind::Input && name == "cursorLocked") {
+        } else if (kind == ObjectKind::Input && property == SceneProperty::CursorLocked) {
             Input::SetCursorLocked(Argument<bool>(value));
             return;
         }
@@ -887,19 +996,17 @@ ScriptValue SceneObject::CallStructure(std::string_view name, std::span<const Sc
 
 ScriptValue Wrap(const std::shared_ptr<ScriptSceneContext>& context, ObjectKind kind, EntityId entity,
                  ComponentId component) {
-    const auto key = std::to_string(static_cast<int>(kind)) + ":" + std::to_string(static_cast<std::uint64_t>(entity)) +
-                     ":" + component.ToString();
-    if (const auto found = context->objects.find(key); found != context->objects.end()) {
-        if (auto existing = found->second.lock())
-            return existing;
-    }
-    auto object = std::make_shared<SceneObject>();
-    object->context = context;
+    const ScriptObjectKey key{static_cast<int>(kind), entity, component};
+    if (const auto found = context->objects.find(key); found != context->objects.end())
+        return ScriptObjectRef(context, found->second.get());
+    auto object = std::make_unique<SceneObject>();
+    object->context = context.get();
     object->kind = kind;
     object->entityId = entity;
     object->componentId = component;
-    context->objects.insert_or_assign(key, object);
-    return ScriptObjectRef(object);
+    auto* result = object.get();
+    context->objects.emplace(key, std::move(object));
+    return ScriptObjectRef(context, result);
 }
 
 template <typename CollisionType>
@@ -1101,8 +1208,6 @@ ScriptSceneScope::ScriptSceneScope(ScriptSceneContext& context, Scene& scene, Co
       m_previousActive(t_activeContext) {
     if (context.scene && (context.scene != &scene || context.component != component))
         throw std::logic_error("Scene script scope is already active for another context");
-    if (!context.scene)
-        std::erase_if(context.objects, [](const auto& item) { return item.second.expired(); });
     context.scene = &scene;
     context.component = component;
     t_activeContext = &context;

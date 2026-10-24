@@ -38,6 +38,10 @@ public:
     virtual ScriptValue Call(std::string_view name, std::span<const ScriptValue>) {
         throw std::runtime_error("Unknown script method '" + std::string(name) + "'");
     }
+    // Runtime adapters may cache a property token; zero keeps dynamic host objects on their named path.
+    virtual std::size_t ResolveProperty(std::string_view) const { return 0; }
+    virtual ScriptValue GetResolved(std::size_t, std::string_view name) const { return Get(name); }
+    virtual void SetResolved(std::size_t, std::string_view name, const ScriptValue& value) { Set(name, value); }
     virtual bool HasMethod(std::string_view) const { return true; }
     // Discovery must not invoke getters or mutate the object.
     virtual bool HasProperty(std::string_view) const { return false; }

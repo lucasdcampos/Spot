@@ -294,3 +294,17 @@ supplies the code. Map the extension to `AssetType::Script` in `assets/asset_typ
 
 `tests/script_runtime_tests.cpp` exercises the engine side with a test runtime of its own; the `luau_*_tests.cpp` run
 the Luau adapter against the same API, with both the static and the shared engine libraries.
+
+## Host property access
+
+Scene references are cached by object kind, entity id and component id in each script context. Repeated traversal
+of `entity.transform` reuses the wrapper even when a script keeps no reference between hooks. Returned references
+share the context's lifetime; cached wrappers do not own it, so releasing the runtime and all exported references
+releases the cache. References still resolve ids inside the current execution scope and reject destroyed objects.
+
+Luau caches property tokens per host wrapper. Built-in scene properties dispatch through these tokens instead of
+repeating name comparisons. Custom runtime adapters can use `ScriptObject::ResolveProperty`, `GetResolved` and
+`SetResolved`; dynamic objects retain their named fallback. Warm scalar and reference reads avoid wrapper/key
+allocations; strings and value snapshots can still allocate. Component bindings use heterogeneous name lookup and
+retain an immutable property descriptor only for the invocation, avoiding copies of heap-backed callbacks without
+keeping callbacks alive across component-type unregistration.
