@@ -134,3 +134,6 @@ Call `RegisterAnimationAssets(assets)` before loading skeletons, clips or animat
 manager. Skeleton, clip and controller data decode on workers; controller clip references resolve through that manager
 when the caller finishes the load. `Application` performs this registration during setup. Animated model loaders use
 the same manager and require both animation and rendering registrations.
+
+Animation event receivers derive from `AnimationEventListener` as well as `Component` and
+override `OnAnimationEvent()`. Components without this interface are skipped when clips emit events.

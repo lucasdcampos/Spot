@@ -114,7 +114,7 @@ const UiLayoutEntry* UiWidget::GetLayout() const {
 void UiWidget::HandleUiEvent(const UiEvent& event) {
     const Detail::DeferRemovalsScope defer(GetScene());
     if (IsActiveAndEnabled() && m_interactable) {
-        InvokeHook("OnUiEvent", [&] { OnUiEvent(event); });
+        RunGuarded("OnUiEvent", [&] { OnUiEvent(event); });
     }
 }
 void UiWidget::OnUiEvent(const UiEvent&) {

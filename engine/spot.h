@@ -177,3 +177,18 @@
 #include "spot/graphics/graphics_assets.h"
 #include "spot/render/render_assets.h"
 #include "spot/scene/scene_assets.h"
+
+#include "spot/scene/animation/animation_event_listener.h"
+#include "spot/scene/physics/collision_listener.h"
+#include "spot/scene/physics/joint_break_listener.h"
+#include "spot/scene/physics2d/collision_listener_2d.h"
+#include "spot/scene/ui/ui_draw_listener.h"
+
+#include "spot/scene/animation/animation_components.h"
+#include "spot/scene/audio/audio_components.h"
+#include "spot/scene/particles/particles_components.h"
+#include "spot/scene/physics/physics_components.h"
+#include "spot/scene/physics2d/physics2d_components.h"
+#include "spot/scene/rendering/rendering_components.h"
+#include "spot/scene/scripting/scripting_components.h"
+#include "spot/scene/ui/ui_components.h"

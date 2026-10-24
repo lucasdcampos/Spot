@@ -1,8 +1,9 @@
 #pragma once
 
 #include <spot.h>
+#include <spot/scene/animation/animation_event_listener.h>
 
-class Robot final : public Spot::Component {
+class Robot final : public Spot::Component, public Spot::AnimationEventListener {
 public:
     Spot::Vector3 patrolAxis = {0, 0, 1};
     float patrolDistance = 3;

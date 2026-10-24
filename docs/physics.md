@@ -121,8 +121,8 @@ a scene, they reach its `PhysicsWorld`, which can also change them at run time (
 `SetLayerMask()`) and finds layers by name (`FindLayer()`):
 
 ```cpp
-const int props = *scene.GetPhysics().FindLayer("Props");
-scene.GetPhysics().SetLayerCollision(props, props, false);
+const int props = *scene.GetOrAddSystem<Spot::PhysicsWorld>().FindLayer("Props");
+scene.GetOrAddSystem<Spot::PhysicsWorld>().SetLayerCollision(props, props, false);
 ```
 
 The backend turns each layer into two Jolt object layers, for static and moving bodies, so static bodies still never
@@ -164,7 +164,7 @@ entities or change colliders; changes show from the next step.
 | `OverlapSphere()`, `OverlapBox()` | The colliders overlapping a sphere, or a box of a size and rotation |
 
 ```cpp
-if (auto hit = scene.GetPhysics().Raycast(eye, forward, 100.0f, {.ignore = player.GetId()})) {
+if (auto hit = scene.GetOrAddSystem<Spot::PhysicsWorld>().Raycast(eye, forward, 100.0f, {.ignore = player.GetId()})) {
     // hit->entity, hit->collider, hit->point, hit->normal, hit->distance
 }
 ```
@@ -213,3 +213,7 @@ public API, and transfers their transforms back to animation. See [animation](an
 Mesh and convex-hull shapes use `MeshData` from `spot/core/geometry/mesh_data.h`. Physics consumes CPU vertices
 and indices directly and does not include rendering. Bounds are independent foundation types in
 `spot/core/geometry/bounds.h`; no graphics device, renderer or scene is needed to create and inspect geometry.
+
+Physics callbacks belong to opt-in `CollisionListener`, `TriggerListener` and `JointBreakListener`
+interfaces in `scene/physics/`. Derive a component from the interfaces it uses, then override their
+hooks. Active listeners receive events through guarded calls; a throwing listener faults only its component.

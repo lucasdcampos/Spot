@@ -1,6 +1,7 @@
 #include "registered_assets.h"
 #include "temp_directory.h"
 #include <spot/animation/animation_motion.h>
+#include <spot/scene/animation/animation_event_listener.h>
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -23,14 +24,14 @@ AssetRef<AnimationClip> MovingClip() {
                       {{0, AnimationPath::Translation, AnimationInterpolation::Linear, {0, 1}, {{}, {2, 0, 0, 0}}}},
                       {{0, "Start", {}}, {0.25f, "Step", "left"}, {0.75f, "Step", "right"}}});
 }
-class EventRecorder final : public Component {
+class EventRecorder final : public Component, public AnimationEventListener {
 public:
     std::vector<std::string> events;
 
 protected:
     void OnAnimationEvent(const AnimationEvent& event) override { events.push_back(event.name + ":" + event.payload); }
 };
-class ThrowingEvent final : public Component {
+class ThrowingEvent final : public Component, public AnimationEventListener {
 public:
     int calls = 0;
 

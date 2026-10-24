@@ -167,3 +167,30 @@ editor previews do not send gameplay events; see [animation](animation.md).
 including a scene. Only a scene resolves an id into an entity. `FieldOptions::entityFilter` accepts an id,
 allowing tools to choose the resolution scope. Typed component references obtain the inspector's scene through
 its archive context and build a filter that resolves each candidate id there, without retaining entity pointers.
+
+## Registering system components
+
+The component registry holds names and factories; it does not know any engine system. `Application` registers the
+engine's component groups during startup. When using scenes without an application, include the registration header
+of each system you use and call its registration before saving or loading scenes:
+
+```cpp
+#include <spot/scene/physics/physics_components.h>
+#include <spot/scene/rendering/rendering_components.h>
+
+Spot::RegisterPhysicsComponents();
+Spot::RegisterRenderComponents();
+```
+
+Animation, audio, particles, 2D physics, UI and scripting provide `RegisterAnimationComponents()`,
+`RegisterAudioComponents()`, `RegisterParticleComponents()`, `RegisterPhysics2DComponents()`, `RegisterUiComponents()`
+and `RegisterScriptComponents()` in their respective `scene/<system>/<system>_components.h` headers. Each group
+registers its existing serialized names, so saved scenes keep the same format. A group can be registered again;
+custom component registration continues to use `RegisterComponent<T>()`.
+
+System callbacks are opt-in interfaces alongside `Component`: derive from `CollisionListener`,
+`TriggerListener`, `CollisionListener2D`, `TriggerListener2D`, `JointBreakListener`,
+`AnimationEventListener` or `UiDrawListener` for the callbacks a component needs. Their headers
+live in `scene/physics/`, `scene/physics2d/`, `scene/animation/` and `scene/ui/`; `<spot.h>` includes
+them. The systems call active listeners through `Component::RunGuarded()`, preserving component
+fault isolation without making the scene core depend on any system.

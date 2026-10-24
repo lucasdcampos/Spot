@@ -4,6 +4,8 @@
 #include "spot/core/ids/asset_ref.h"
 #include "spot/scene/component.h"
 #include "spot/scene/scripting/script_runtime.h"
+#include <spot/scene/physics/collision_listener.h>
+#include <spot/scene/physics2d/collision_listener_2d.h>
 
 #include <map>
 #include <memory>
@@ -17,7 +19,11 @@ struct ScriptSceneContext;
 }
 
 // Uses an imported script asset, or embedded source when none is assigned. Each component owns its runtime state.
-class ScriptComponent final : public Component {
+class ScriptComponent final : public Component,
+                              public CollisionListener,
+                              public CollisionListener2D,
+                              public TriggerListener,
+                              public TriggerListener2D {
 public:
     ScriptComponent();
     ~ScriptComponent() override;

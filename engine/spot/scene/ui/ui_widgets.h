@@ -6,6 +6,7 @@
 #include "spot/scene/signal.h"
 #include "spot/scene/ui/ui_system.h"
 #include "spot/scene/ui/ui_text_layout.h"
+#include <spot/scene/ui/ui_draw_listener.h>
 
 #include <string>
 
@@ -54,7 +55,7 @@ struct UiControlStyle {
     void Serialize(Archive& archive);
 };
 
-class UiWidget : public Component {
+class UiWidget : public Component, public UiDrawListener {
 public:
     bool IsInteractable() const { return m_interactable; }
     void SetInteractable(bool interactable) { m_interactable = interactable; }
@@ -75,7 +76,7 @@ protected:
     void Notify(F&& callback) {
         const Detail::DeferRemovalsScope defer(GetScene());
         if (!IsFaulted())
-            InvokeHook("UiCallback", std::forward<F>(callback));
+            RunGuarded("UiCallback", std::forward<F>(callback));
     }
 
 private:

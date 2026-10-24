@@ -1,5 +1,6 @@
 #include "spot/scene/physics2d/physics_world_2d.h"
 #include "spot/core/debug/profiler.h"
+#include "spot/scene/physics2d/collision_listener_2d.h"
 #include "spot/scene/transform.h"
 #include <algorithm>
 #include <cmath>
@@ -204,16 +205,27 @@ void PhysicsWorld2D::Dispatch(const PairContact& contact, int phase) {
                     return;
                 if (contact.pair.trigger) {
                     if (phase == 0)
-                        component.InvokeHook("OnTriggerEnter2D", [&] { component.OnTriggerEnter2D(trigger); });
+                        if (auto* listener = dynamic_cast<TriggerListener2D*>(&component)) {
+                            component.RunGuarded("OnTriggerEnter2D", [&] { listener->OnTriggerEnter2D(trigger); });
+                        }
                     if (phase == 2)
-                        component.InvokeHook("OnTriggerExit2D", [&] { component.OnTriggerExit2D(trigger); });
+                        if (auto* listener = dynamic_cast<TriggerListener2D*>(&component)) {
+                            component.RunGuarded("OnTriggerExit2D", [&] { listener->OnTriggerExit2D(trigger); });
+                        }
                 } else {
                     if (phase == 0)
-                        component.InvokeHook("OnCollisionEnter2D", [&] { component.OnCollisionEnter2D(collision); });
+                        if (auto* listener = dynamic_cast<CollisionListener2D*>(&component)) {
+                            component.RunGuarded("OnCollisionEnter2D",
+                                                 [&] { listener->OnCollisionEnter2D(collision); });
+                        }
                     if (phase == 1 && contact.active)
-                        component.InvokeHook("OnCollisionStay2D", [&] { component.OnCollisionStay2D(collision); });
+                        if (auto* listener = dynamic_cast<CollisionListener2D*>(&component)) {
+                            component.RunGuarded("OnCollisionStay2D", [&] { listener->OnCollisionStay2D(collision); });
+                        }
                     if (phase == 2)
-                        component.InvokeHook("OnCollisionExit2D", [&] { component.OnCollisionExit2D(collision); });
+                        if (auto* listener = dynamic_cast<CollisionListener2D*>(&component)) {
+                            component.RunGuarded("OnCollisionExit2D", [&] { listener->OnCollisionExit2D(collision); });
+                        }
                 }
             });
         }

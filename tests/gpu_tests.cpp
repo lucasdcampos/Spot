@@ -12,6 +12,7 @@
 #include "triangle.frag.h"
 #include "triangle.vert.h"
 #include "uv.frag.h"
+#include <spot/scene/ui/ui_draw_listener.h>
 
 #ifdef SPOT_SANDBOX_IMPORTED_DIR
 #include "../sandbox/src/menu_thumbnails.h"
@@ -3325,7 +3326,7 @@ TEST_CASE("Renderer3D scenes are shadowed by their sky's sun and by the mesh ren
 namespace {
 
 // Fills a square of the view, from its bottom-left corner.
-class UiSquare final : public Spot::Component {
+class UiSquare final : public Spot::Component, public Spot::UiDrawListener {
 public:
     UiSquare(float side, Spot::Color color) : m_side(side), m_color(color) {}
 

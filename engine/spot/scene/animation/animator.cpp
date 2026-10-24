@@ -321,7 +321,7 @@ void Animator::RefreshRenderers(std::span<SkinnedMeshRenderer* const> renderers,
     }
     for (BoneAttachment* attachment : attachments) {
         if (attachment->IsActiveAndEnabled()) {
-            attachment->InvokeHook("BoneAttachment", [&] { attachment->Synchronize(); });
+            attachment->RunGuarded("BoneAttachment", [&] { attachment->Synchronize(); });
         }
     }
 }
@@ -449,7 +449,7 @@ void AnimationSystem::OnUpdate(float deltaTime) {
     for (Due& item : due) {
         Animator& animator = *item.animator;
         const EntityId id = animator.GetEntity().GetId();
-        animator.InvokeHook("Animation", [&] {
+        animator.RunGuarded("Animation", [&] {
             if (item.error) {
                 std::rethrow_exception(item.error);
             }
@@ -471,12 +471,12 @@ void AnimationSystem::OnUpdate(float deltaTime) {
 void AnimationSystem::OnLateUpdate(float) {
     GetScene().ForEachComponent<Ragdoll>([](Ragdoll& ragdoll) {
         if (ragdoll.IsActiveAndEnabled()) {
-            ragdoll.InvokeHook("Ragdoll", [&] { ragdoll.SynchronizePose(); });
+            ragdoll.RunGuarded("Ragdoll", [&] { ragdoll.SynchronizePose(); });
         }
     });
     GetScene().ForEachComponent<BoneAttachment>([](BoneAttachment& attachment) {
         if (attachment.IsActiveAndEnabled()) {
-            attachment.InvokeHook("BoneAttachment", [&] { attachment.Synchronize(); });
+            attachment.RunGuarded("BoneAttachment", [&] { attachment.Synchronize(); });
         }
     });
 }

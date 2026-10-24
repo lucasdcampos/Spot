@@ -1,3 +1,4 @@
+#include "spot/scene/physics/joint_break_listener.h"
 #include "spot/scene/physics/physics_world.h"
 
 #include "spot/scene/physics/joint.h"
@@ -110,7 +111,9 @@ void PhysicsWorld::BreakJoints() {
         joint->SetEnabled(false);
         joint->GetEntity().ForEachComponent<Component>([joint](Component& component) {
             if (component.IsActiveAndEnabled()) {
-                component.InvokeHook("OnJointBreak", [&] { component.OnJointBreak(*joint); });
+                if (auto* listener = dynamic_cast<JointBreakListener*>(&component)) {
+                    component.RunGuarded("OnJointBreak", [&] { listener->OnJointBreak(*joint); });
+                }
             }
         });
     }

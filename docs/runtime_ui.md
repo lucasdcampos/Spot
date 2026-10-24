@@ -150,3 +150,6 @@ gamepad control; Escape cancels capture. Settings debounce writes using unscaled
 closing, and save in the game's user directory as versioned `interface.json`. Rebinds are stored
 with them. Headless callers can supply an explicit directory. Runtime graphics changes retain
 input bindings and project defaults; both standalone and editor game rendering follow them.
+
+Custom component overlays derive from `UiDrawListener` (`scene/ui/ui_draw_listener.h`) and
+override `OnDrawUi(Renderer2D&, Vector2)`. `UiWidget` implements this interface for built-in widgets.

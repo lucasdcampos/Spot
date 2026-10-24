@@ -1,14 +1,16 @@
+#include "spot/scene/physics2d/physics_world_2d.h"
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <limits>
 #include <spot.h>
+#include <spot/scene/physics2d/collision_listener_2d.h>
 #include <stdexcept>
 
 using namespace Spot;
 using Catch::Approx;
 namespace {
 constexpr float Step = Scene::DefaultFixedTimeStep;
-class Contacts2D final : public Component {
+class Contacts2D final : public Component, public CollisionListener2D, public TriggerListener2D {
 public:
     int enters = 0, stays = 0, exits = 0, triggers = 0, triggerExits = 0;
     bool destroyOther = false, fail = false;
@@ -107,7 +109,7 @@ TEST_CASE("2D physics layers continuous collision and rotation locks constrain m
 
 TEST_CASE("2D scene queries filter layers triggers and edited compound colliders", "[physics2d]") {
     Scene scene;
-    auto& world = scene.GetPhysics2D();
+    auto& world = scene.GetOrAddSystem<Spot::PhysicsWorld2D>();
     world.SetGravity({});
     auto& box = scene.CreateEntity("Box");
     box.GetTransform().SetPosition({3, 0, 7});
@@ -137,7 +139,7 @@ TEST_CASE("2D scene queries filter layers triggers and edited compound colliders
 }
 TEST_CASE("2D scene contacts survive compound shapes edits destruction and hook failure", "[physics2d]") {
     Scene scene;
-    scene.GetPhysics2D().SetGravity({});
+    scene.GetOrAddSystem<Spot::PhysicsWorld2D>().SetGravity({});
     auto& a = scene.CreateEntity("A");
     a.AddComponent<BoxCollider2D>();
     a.AddComponent<CircleCollider2D>();
@@ -168,7 +170,7 @@ TEST_CASE("2D scene contacts survive compound shapes edits destruction and hook 
     events.fail = true;
     Steps(scene, 1);
     CHECK(events.IsFaulted());
-    CHECK_FALSE(scene.GetPhysics2D().IsFaulted());
+    CHECK_FALSE(scene.GetOrAddSystem<Spot::PhysicsWorld2D>().IsFaulted());
 }
 TEST_CASE("2D scene dynamics preserve hierarchy depth and rebuild velocity", "[physics2d]") {
     Scene scene;
@@ -201,7 +203,7 @@ TEST_CASE("2D scene dynamics preserve hierarchy depth and rebuild velocity", "[p
 }
 TEST_CASE("2D scene callbacks can destroy the other body and query safely", "[physics2d]") {
     Scene scene;
-    scene.GetPhysics2D().SetGravity({});
+    scene.GetOrAddSystem<Spot::PhysicsWorld2D>().SetGravity({});
     auto& a = scene.CreateEntity();
     a.AddComponent<BoxCollider2D>();
     a.AddComponent<Rigidbody2D>();
@@ -213,7 +215,7 @@ TEST_CASE("2D scene callbacks can destroy the other body and query safely", "[ph
     Steps(scene, 1);
     CHECK(events.enters == 1);
     CHECK(scene.GetEntity(id) == nullptr);
-    CHECK(scene.GetPhysics2D().OverlapBox({0, 0}, {10, 10}).size() == 1);
+    CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld2D>().OverlapBox({0, 0}, {10, 10}).size() == 1);
     Steps(scene, 1);
     CHECK(events.exits == 1);
 }

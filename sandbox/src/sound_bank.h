@@ -1,6 +1,7 @@
 #pragma once
 
 #include <spot.h>
+#include <spot/scene/physics/collision_listener.h>
 
 #include <cstdint>
 #include <vector>
@@ -53,7 +54,7 @@ protected:
 
 // Sounds its entity's surface where it hits something, louder the faster they meet. A short pause after each keeps
 // a prop rattling against another from flooding the mixer.
-class ImpactSounds final : public Spot::Component {
+class ImpactSounds final : public Spot::Component, public Spot::CollisionListener {
 public:
     // Meters per second along the contact's normal: quieter impacts make no sound, and faster ones play at full volume.
     float minSpeed = 1.0f;
