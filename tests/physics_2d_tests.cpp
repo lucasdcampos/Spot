@@ -1,9 +1,9 @@
-#include "spot/scene/physics2d/physics_world_2d.h"
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <limits>
 #include <spot.h>
 #include <spot/scene/physics2d/collision_listener_2d.h>
+#include <spot/scene/physics2d/physics_world_2d.h>
 #include <stdexcept>
 
 using namespace Spot;

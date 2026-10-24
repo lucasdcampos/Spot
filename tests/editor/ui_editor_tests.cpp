@@ -1,8 +1,8 @@
 #include "editor/headless_imgui.h"
 #include "scene/entity_actions.h"
 #include "scene/scene_document.h"
-#include "spot/scene/ui/ui_system.h"
 #include "viewport/ui_rect_gizmo.h"
+#include <spot/scene/ui/ui_system.h>
 
 #include <catch2/catch_test_macros.hpp>
 #include <spot.h>

@@ -1,6 +1,6 @@
-#include "spot/scene/physics/physics_world.h"
 #include <spot.h>
 #include <spot/scene/physics/collision_listener.h>
+#include <spot/scene/physics/physics_world.h>
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>

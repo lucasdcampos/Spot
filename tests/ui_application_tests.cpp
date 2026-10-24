@@ -1,5 +1,5 @@
-#include "spot/scene/ui/ui_input_system.h"
 #include <spot.h>
+#include <spot/scene/ui/ui_input_system.h>
 
 #include <catch2/catch_test_macros.hpp>
 

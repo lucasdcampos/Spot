@@ -1,5 +1,5 @@
 #include "view_model.h"
-#include "spot/scene/physics/physics_world.h"
+#include <spot/scene/physics/physics_world.h>
 
 #include "physics_gun.h"
 #include "player_controller.h"

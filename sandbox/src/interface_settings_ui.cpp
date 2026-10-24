@@ -1,5 +1,5 @@
 #include "runtime_interface.h"
-#include "spot/scene/ui/ui_input_system.h"
+#include <spot/scene/ui/ui_input_system.h>
 
 #include <algorithm>
 #include <array>

@@ -1,5 +1,5 @@
 #include "physics_debug_view.h"
-#include "spot/scene/physics/physics_world.h"
+#include <spot/scene/physics/physics_world.h>
 
 SPOT_COMPONENT(PhysicsDebugView);
 

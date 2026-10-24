@@ -1,7 +1,7 @@
 #include "runtime_interface.h"
-#include "spot/scene/rendering/render_hook_system.h"
-#include "spot/scene/ui/ui_input_system.h"
-#include "spot/scene/ui/ui_system.h"
+#include <spot/scene/rendering/render_hook_system.h>
+#include <spot/scene/ui/ui_input_system.h>
+#include <spot/scene/ui/ui_system.h>
 
 #include "player_controller.h"
 #include "prop_spawner.h"

@@ -1,5 +1,5 @@
 #include "viewport/ui_rect_gizmo.h"
-#include "spot/scene/ui/ui_system.h"
+#include <spot/scene/ui/ui_system.h>
 
 #include "scene/scene_commands.h"
 

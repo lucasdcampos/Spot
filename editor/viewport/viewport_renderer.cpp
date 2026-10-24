@@ -1,6 +1,6 @@
 #include "viewport/viewport_renderer.h"
-#include "spot/scene/rendering/render_hook_system.h"
-#include "spot/scene/ui/ui_system.h"
+#include <spot/scene/rendering/render_hook_system.h>
+#include <spot/scene/ui/ui_system.h>
 
 #include "core/editor_log.h"
 

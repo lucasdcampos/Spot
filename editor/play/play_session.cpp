@@ -1,5 +1,5 @@
 #include "play/play_session.h"
-#include "spot/scene/ui/ui_input_system.h"
+#include <spot/scene/ui/ui_input_system.h>
 
 #include "core/editor_log.h"
 #include <imgui.h>

@@ -1,5 +1,5 @@
-#include "spot/scene/physics/physics_world.h"
 #include <spot.h>
+#include <spot/scene/physics/physics_world.h>
 
 #include "temp_directory.h"
 

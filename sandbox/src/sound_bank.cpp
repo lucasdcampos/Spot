@@ -1,5 +1,5 @@
 #include "sound_bank.h"
-#include "spot/scene/audio/audio_system.h"
+#include <spot/scene/audio/audio_system.h>
 
 #include <algorithm>
 #include <array>

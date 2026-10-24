@@ -1,5 +1,5 @@
 #include "../registered_assets.h"
-#include "spot/scene/physics/physics_world.h"
+#include <spot/scene/physics/physics_world.h>
 // The sandbox's game code, run headless on its real scenes: the engine's integration test, which shows a regression
 // as something broken in the game.
 #include "day_cycle.h"

@@ -3,8 +3,6 @@
 #include "quad.vert.h"
 #include "registered_assets.h"
 #include "solid.frag.h"
-#include "spot/scene/rendering/render_hook_system.h"
-#include "spot/scene/ui/ui_system.h"
 #include "surface.frag.h"
 #include "surface.vert.h"
 #include "surface_depth.frag.h"
@@ -14,7 +12,9 @@
 #include "triangle.frag.h"
 #include "triangle.vert.h"
 #include "uv.frag.h"
+#include <spot/scene/rendering/render_hook_system.h>
 #include <spot/scene/ui/ui_draw_listener.h>
+#include <spot/scene/ui/ui_system.h>
 
 #ifdef SPOT_SANDBOX_IMPORTED_DIR
 #include "../sandbox/src/menu_thumbnails.h"

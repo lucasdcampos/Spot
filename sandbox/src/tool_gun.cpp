@@ -1,6 +1,6 @@
 #include "tool_gun.h"
-#include "spot/scene/physics/physics_world.h"
-#include "spot/scene/rendering/render_hook_system.h"
+#include <spot/scene/physics/physics_world.h>
+#include <spot/scene/rendering/render_hook_system.h>
 
 #include "player_controller.h"
 #include "prop_carrier.h"

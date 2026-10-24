@@ -1,6 +1,6 @@
 #include "robot.h"
-#include "spot/scene/audio/audio_system.h"
-#include "spot/scene/physics/physics_world.h"
+#include <spot/scene/audio/audio_system.h>
+#include <spot/scene/physics/physics_world.h>
 
 #include "sound_bank.h"
 

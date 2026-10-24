@@ -1,6 +1,6 @@
 #include "player_movement.h"
-#include "spot/scene/audio/audio_system.h"
-#include "spot/scene/physics/physics_world.h"
+#include <spot/scene/audio/audio_system.h>
+#include <spot/scene/physics/physics_world.h>
 
 #include "physics_gun.h"
 #include "player_controller.h"

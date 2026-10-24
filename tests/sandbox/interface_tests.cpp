@@ -5,12 +5,12 @@
 #include "player_controller.h"
 #include "prop_spawner.h"
 #include "runtime_interface.h"
-#include "spot/scene/ui/ui_input_system.h"
-#include "spot/scene/ui/ui_system.h"
 #include "temp_directory.h"
 #include "undo_list.h"
 #include "weapon.h"
 #include "weapon_holder.h"
+#include <spot/scene/ui/ui_input_system.h>
+#include <spot/scene/ui/ui_system.h>
 
 #include <spot.h>
 

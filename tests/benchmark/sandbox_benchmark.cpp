@@ -2,8 +2,8 @@
 #include "player_movement.h"
 #include "prop_spawner.h"
 #include "runtime_interface.h"
-#include "spot/scene/physics/physics_world.h"
 #include "view_model.h"
+#include <spot/scene/physics/physics_world.h>
 
 #include <spot.h>
 

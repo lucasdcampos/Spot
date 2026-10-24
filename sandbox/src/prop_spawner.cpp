@@ -1,5 +1,5 @@
 #include "prop_spawner.h"
-#include "spot/scene/physics/physics_world.h"
+#include <spot/scene/physics/physics_world.h>
 
 #include "player_controller.h"
 #include "undo_list.h"

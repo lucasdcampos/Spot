@@ -1,6 +1,6 @@
 #include "explosion.h"
-#include "spot/scene/audio/audio_system.h"
-#include "spot/scene/physics/physics_world.h"
+#include <spot/scene/audio/audio_system.h>
+#include <spot/scene/physics/physics_world.h>
 
 #include "explosive_barrel.h"
 #include "flash.h"

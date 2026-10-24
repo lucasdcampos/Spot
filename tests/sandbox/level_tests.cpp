@@ -1,7 +1,7 @@
 #include "day_cycle.h"
 #include "player_controller.h"
 #include "playground_fixture.h"
-#include "spot/scene/physics/physics_world.h"
+#include <spot/scene/physics/physics_world.h>
 
 #include <catch2/catch_approx.hpp>
 

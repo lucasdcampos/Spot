@@ -1,6 +1,6 @@
 #include "water.h"
-#include "spot/scene/audio/audio_system.h"
-#include "spot/scene/physics/physics_world.h"
+#include <spot/scene/audio/audio_system.h>
+#include <spot/scene/physics/physics_world.h>
 
 #include "particle_effects.h"
 #include "player_movement.h"

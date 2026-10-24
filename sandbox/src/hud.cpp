@@ -1,5 +1,5 @@
 #include "hud.h"
-#include "spot/scene/physics/physics_world.h"
+#include <spot/scene/physics/physics_world.h>
 
 #include "day_cycle.h"
 #include "physics_gun.h"

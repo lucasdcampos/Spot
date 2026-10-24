@@ -1,8 +1,8 @@
-#include "spot/scene/physics2d/physics_world_2d.h"
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <cmath>
 #include <spot.h>
+#include <spot/scene/physics2d/physics_world_2d.h>
 
 using namespace Spot;
 TEST_CASE("Tilemap grids resize preserve cells and reject invalid edits", "[tilemap]") {
