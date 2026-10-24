@@ -25,15 +25,9 @@ class Application;
 class Scene;
 class AssetManager;
 class Event;
-class AudioSystem;
 class Model;
-class PhysicsWorld;
-class PhysicsWorld2D;
 class Prefab;
 class RenderContext;
-class InputState;
-class UiSystem;
-class UiInputSystem;
 
 // A chunk finishes on Scene::Update(). Its root becomes null after destruction or scene clearing.
 class ChunkLoad {
