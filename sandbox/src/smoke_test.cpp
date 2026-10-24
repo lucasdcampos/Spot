@@ -20,7 +20,8 @@ namespace {
 class SmokeTest final : public Spot::Application {
 public:
     explicit SmokeTest(const std::filesystem::path& directory)
-        : Application({.graphics = {.enabled = false},
+        : Application({.game = Spot::GameSettings::LoadBesideExecutable(),
+                       .graphics = {.enabled = false},
                        .logFile = directory / "smoke.log",
                        .userDataDirectory = directory,
                        .maxFrameRate = 60,
@@ -33,6 +34,7 @@ public:
         AddModule<Spot::AnimationModule>();
         AddModule<Spot::ParticlesModule>();
         AddModule<Spot::ScriptingModule>();
+        AddModule(Spot::CreateGameModule());
     }
     bool IsPassed() const { return m_passed; }
 

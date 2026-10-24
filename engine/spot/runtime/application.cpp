@@ -19,7 +19,6 @@
 #include "spot/runtime/console_input.h"
 #include "spot/runtime/console_overlay.h"
 #include "spot/runtime/engine_console.h"
-#include "spot/runtime/game_module.h"
 #include "spot/runtime/profile_stream.h"
 #include "spot/runtime/runtime_stats.h"
 #include "spot/runtime/save_data.h"
@@ -62,13 +61,6 @@ Application::~Application() = default;
 int Application::Run() {
     SPOT_ASSERT(!m_window, "Run() is already running");
     m_failed = false;
-    if (!m_config.game) {
-        const auto file = GetExecutableDirectory() / GameSettings::FileName;
-        std::error_code error;
-        if (std::filesystem::is_regular_file(file, error)) {
-            m_config.game = GameSettings::LoadFromFile(file);
-        }
-    }
     StartLog();
     if (!StartWindow() || !StartGraphics()) {
         m_graphics.reset();
@@ -190,8 +182,6 @@ void Application::StartModules() {
     if (m_config.consoleOverlay) {
         m_consoleInput = std::make_unique<ConsoleInput>(Console::Get(), m_input);
     }
-    // The game's components are known before its scenes load.
-    Detail::GameCode::Load();
     for (auto& [type, module] : m_modules) {
         module->OnStart();
     }
@@ -340,6 +330,13 @@ void Application::Stop() {
     m_frameCapture.reset();
     m_window.reset();
     StopLog();
+}
+
+Module& Application::AddModule(std::unique_ptr<Module> module) {
+    SPOT_ASSERT(module, "A module to add");
+    Module& added = *module;
+    AddModule(typeid(added), std::move(module));
+    return added;
 }
 
 void Application::AddModule(std::type_index type, std::unique_ptr<Module> module) {

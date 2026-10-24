@@ -183,7 +183,7 @@ Depends on: phases 4 and 5. Task 6.2 also waits for 3.3 to move asset loader reg
 - [x] **6.3 Startup written down (M).** Waits for 6.2. The constructor does no work; `Run()` is a sequence read top to
   bottom: log file and crash reports when configured, platform, window, graphics device, assets, input, modules,
   `OnStart()`, the start scene. `docs/application_and_scenes.md` describes it.
-- [ ] **6.4 Data-driven games through `Run()` (M).** Waits for 6.1. `ApplicationConfig::game` is the only way game
+- [x] **6.4 Data-driven games through `Run()` (M).** Waits for 6.1. `ApplicationConfig::game` is the only way game
   settings reach an application, and `Run()` applies their rebinds, console settings and start scene. Only
   `GameSettings::LoadBesideExecutable()`, which the player and games call in `main()`, looks for `game.json`. The
   game's code is a `Module` that registers its components in `OnStart()` (`SPOT_COMPONENT` stays as a shorthand it

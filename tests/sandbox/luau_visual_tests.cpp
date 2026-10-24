@@ -24,7 +24,7 @@ TEST_CASE("Luau scripts change the rendered monument and daylight in the cooked 
     } restore;
     Spot::Detail::SetAssetManager(&assets);
     Spot::Input::SetState(&input);
-    Spot::Detail::GameCode::Load();
+    Spot::Detail::LoadGameCode();
     auto settings = Spot::GameSettings::LoadFromFile(std::filesystem::path(SANDBOX_IMPORTED_DIR).parent_path() /
                                                      Spot::GameSettings::FileName);
     REQUIRE(settings);

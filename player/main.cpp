@@ -27,7 +27,7 @@ int Run(Spot::ApplicationConfig config) {
 
 int main(int argc, char** argv) {
     if (argc == 1) {
-        return Run({});
+        return Run({.game = Spot::GameSettings::LoadBesideExecutable()});
     }
     if (argc != 3 || std::string_view(argv[1]) != "--game") {
         std::fprintf(stderr, "Usage: spot_player [--game <folder with %s>]\n", Spot::GameSettings::FileName.data());

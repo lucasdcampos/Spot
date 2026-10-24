@@ -81,7 +81,7 @@ struct Playground {
     Entity* player = nullptr;
 
     explicit Playground(bool withAudio = false) {
-        Spot::Detail::GameCode::Load();
+        Spot::Detail::LoadGameCode();
         Spot::Detail::SetAssetManager(&assets);
         const auto game = Spot::GameSettings::LoadFromFile(std::filesystem::path(SANDBOX_IMPORTED_DIR).parent_path() /
                                                            Spot::GameSettings::FileName);

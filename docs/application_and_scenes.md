@@ -15,7 +15,7 @@ A game's executable runs an application with the modules of the systems it uses:
 #include <spot.h>
 
 int main() {
-    Spot::Application application;
+    Spot::Application application({.game = Spot::GameSettings::LoadBesideExecutable()});
     application.AddModule<Spot::UiModule>();
     application.AddModule<Spot::RenderModule>();
     application.AddModule<Spot::AudioModule>();
@@ -24,18 +24,24 @@ int main() {
     application.AddModule<Spot::AnimationModule>();
     application.AddModule<Spot::ParticlesModule>();
     application.AddModule<Spot::ScriptingModule>();
+    application.AddModule(Spot::CreateGameModule());
     return application.Run();
 }
 ```
 
-Without a configured game, the application reads `game.json` beside the executable (`GameSettings`, written by the
-tools), loads the startup scene it names and loads assets from the import directory it names. Applications can also
+`ApplicationConfig::game` is the only way game settings reach an application. `GameSettings::LoadBesideExecutable()`
+reads the `game.json` the tools write beside a game's executable, as games and the player do in `main()`; nothing
+else looks for it. `Run()` applies the game's input actions, the player's rebinds and console settings, loads the
+startup scene it names and loads assets from the import directory it names. Applications can also
 derive from `Application` and override `OnStart()`, `OnUpdate()`, `OnEvent()`, `OnRender()` and `OnStop()`, and
 configure it with `ApplicationConfig` (window, graphics, frame rate cap, log file, crash reports).
 
-The game's code marks itself once with `SPOT_GAME_MODULE()` and registers its components with `SPOT_COMPONENT()`
-(see [Entities and components](entities_and_components.md)). Built into the executable, the registrations run when
-`Run()` starts; built into a shared library, they run when the editor loads it (see [Editor](editor.md)).
+The game's code is a `Module`, which registers its components in `OnStart()`. The code names it once with
+`SPOT_GAME_MODULE(Type)`; without a type it is a `GameCodeModule`, which registers the components marked with
+`SPOT_COMPONENT()` (see [Entities and components](entities_and_components.md)), and games with more to do derive from
+it. Built into the executable, `main()` adds it with `CreateGameModule()`; built into a shared library, the
+macro exports the function that makes it, and the editor starts it when it loads the library (see
+[Editor](editor.md)).
 
 ## Startup
 

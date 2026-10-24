@@ -37,9 +37,10 @@ struct AssetConfig {
 };
 
 struct ApplicationConfig {
-    // The game the application runs, whose startup scene it loads after OnStart() unless OnStart() loaded a scene
-    // itself. When unset, it is read from GameSettings::FileName beside the executable, as games built by the tools
-    // have it; without that file, the application starts with no scene.
+    // The game the application runs: the only way game settings reach it. Run() applies its input actions, the
+    // player's rebinds and its sections, and loads its start scene after OnStart() unless OnStart() loaded a scene
+    // itself. Games built by the tools read it in main() with GameSettings::LoadBesideExecutable(); without one,
+    // the application starts with no scene.
     std::optional<GameSettings> game = std::nullopt;
     WindowConfig window = {};
     GraphicsConfig graphics = {};
@@ -89,6 +90,8 @@ public:
         AddModule(typeid(T), std::move(module));
         return added;
     }
+    // Adds a module made elsewhere, such as the game's (see CreateGameModule()), under its dynamic type.
+    Module& AddModule(std::unique_ptr<Module> module);
     // The module of that exact type, or null when none was added.
     template <std::derived_from<Module> T>
     T* GetModule() const {

@@ -46,6 +46,15 @@ class Benchmark final : public Spot::Application {
 public:
     explicit Benchmark(Options options) : Application(Config()), m_options(options) {
         m_times.reserve(static_cast<std::size_t>(options.frames));
+        AddModule<Spot::UiModule>();
+        AddModule<Spot::RenderModule>();
+        AddModule<Spot::AudioModule>();
+        AddModule<Spot::PhysicsModule>();
+        AddModule<Spot::Physics2DModule>();
+        AddModule<Spot::AnimationModule>();
+        AddModule<Spot::ParticlesModule>();
+        AddModule<Spot::ScriptingModule>();
+        AddModule(Spot::CreateGameModule());
     }
     int GetResult() const { return m_result; }
 

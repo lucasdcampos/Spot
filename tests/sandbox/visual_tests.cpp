@@ -29,7 +29,7 @@ TEST_CASE("The cooked playground renders its yards by day, at sunset and at nigh
         Spot::AssetManager* previous;
         ~RestoreAssets() { Spot::Detail::SetAssetManager(previous); }
     } restore{previousAssets};
-    Spot::Detail::GameCode::Load();
+    Spot::Detail::LoadGameCode();
     const auto settings = Spot::GameSettings::LoadFromFile(std::filesystem::path(SANDBOX_IMPORTED_DIR).parent_path() /
                                                            Spot::GameSettings::FileName);
     REQUIRE(settings);
@@ -155,7 +155,7 @@ TEST_CASE("The cooked sandbox renders held items, recoil, sights and reloads", "
     Spot::Detail::SetAssetManager(&assets);
     Spot::Input::SetState(&input);
     Spot::Input::SetActionMap(&actions);
-    Spot::Detail::GameCode::Load();
+    Spot::Detail::LoadGameCode();
     const auto settings = Spot::GameSettings::LoadFromFile(std::filesystem::path(SANDBOX_IMPORTED_DIR).parent_path() /
                                                            Spot::GameSettings::FileName);
     REQUIRE(settings);
@@ -272,7 +272,7 @@ TEST_CASE("The cooked sandbox draws its HUD over the game: in hand, the wheel, h
     Spot::Detail::SetAssetManager(&assets);
     Spot::Input::SetState(&input);
     Spot::Input::SetActionMap(&actions);
-    Spot::Detail::GameCode::Load();
+    Spot::Detail::LoadGameCode();
     const auto settings = Spot::GameSettings::LoadFromFile(std::filesystem::path(SANDBOX_IMPORTED_DIR).parent_path() /
                                                            Spot::GameSettings::FileName);
     REQUIRE(settings);
