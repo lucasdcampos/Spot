@@ -255,3 +255,63 @@ TEST_CASE("Scene systems hear structural changes immediately", "[scene][systems]
     entity.Destroy();
     REQUIRE(destinationCalls == Calls{"entered", "destroyed"});
 }
+
+namespace {
+
+class BrokenNotification final : public SceneSystem {
+protected:
+    void OnComponentAdded(Spot::Component&) override { throw std::runtime_error("broken notification"); }
+};
+
+class NotificationAdder final : public SceneSystem {
+public:
+    explicit NotificationAdder(Calls& calls) : m_calls(calls) {}
+
+protected:
+    void OnComponentAdded(Spot::Component&) override { GetScene().GetOrAddSystem<NotificationRecorder>(m_calls); }
+
+private:
+    Calls& m_calls;
+};
+
+} // namespace
+
+TEST_CASE("Scene notifications fault only the throwing system", "[scene][systems]") {
+    Calls calls;
+    Scene scene;
+    auto& broken = scene.AddSystem<BrokenNotification>();
+    scene.AddSystem<NotificationRecorder>(calls);
+    auto& entity = scene.CreateEntity();
+    entity.AddComponent<ComponentRecorder>(calls);
+    CHECK(broken.IsFaulted());
+    entity.SetLayer(3);
+    CHECK(calls == Calls{"added", "layer"});
+}
+
+TEST_CASE("Systems added by a notification hear subsequent changes", "[scene][systems]") {
+    Calls calls;
+    Scene scene;
+    scene.AddSystem<NotificationAdder>(calls);
+    auto& entity = scene.CreateEntity();
+    entity.AddComponent<ComponentRecorder>(calls);
+    CHECK(calls.empty());
+    entity.SetLayer(3);
+    CHECK(calls == Calls{"layer"});
+    scene.Update(0.0f);
+    CHECK(scene.GetSystem<NotificationRecorder>() != nullptr);
+}
+
+TEST_CASE("Destroyed children are notified once when their parent is destroyed", "[scene][systems]") {
+    Calls calls;
+    Scene scene;
+    scene.AddSystem<NotificationRecorder>(calls);
+    auto& parent = scene.CreateEntity();
+    auto& child = parent.CreateChild();
+    scene.ForEachEntity([&](Spot::Entity& entity) {
+        if (&entity == &parent) {
+            child.Destroy();
+            parent.Destroy();
+        }
+    });
+    CHECK(calls == Calls{"destroyed", "destroyed"});
+}

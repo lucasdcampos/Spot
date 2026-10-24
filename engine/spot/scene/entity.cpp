@@ -298,9 +298,10 @@ const Component* Entity::FindDependent(const Component& required) const {
 }
 
 void Entity::MarkDestroyed() {
-    if (!m_destroyed) {
-        --m_scene->m_liveCount;
+    if (m_destroyed) {
+        return;
     }
+    --m_scene->m_liveCount;
     m_destroyed = true;
     m_scene->AddRemovalCandidate(*this);
     m_scene->NotifyEntityDestroyed(*this);
