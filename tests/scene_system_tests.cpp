@@ -89,10 +89,16 @@ protected:
 
 // Adds a Counter from its first update.
 class Adder final : public SceneSystem {
+public:
+    bool pendingVisible = false;
+    bool pendingReused = false;
+
 protected:
     void OnUpdate(float /*deltaTime*/) override {
         if (!GetScene().GetSystem<Counter>()) {
-            GetScene().AddSystem<Counter>();
+            auto& added = GetScene().GetOrAddSystem<Counter>();
+            pendingVisible = GetScene().GetSystem<Counter>() == &added;
+            pendingReused = &GetScene().GetOrAddSystem<Counter>() == &added;
         }
     }
 };
@@ -108,7 +114,7 @@ TEST_CASE("Systems run at their points of the update, by order, after components
     scene.AddSystem<Early>(calls, "early", -10);
     CHECK(&first.GetScene() == &scene);
     CHECK(scene.GetSystem<First>() == &first);
-    CHECK(scene.GetSystem<Recorder>() != nullptr);
+    CHECK(scene.GetSystem<Recorder>() == nullptr);
 
     // One fixed step.
     scene.Update(Scene::DefaultFixedTimeStep * 1.5f);
@@ -120,6 +126,34 @@ TEST_CASE("Systems run at their points of the update, by order, after components
     calls.clear();
     scene.PrepareToRender();
     CHECK(calls == Calls{"early.render", "second.render", "first.render"});
+}
+
+TEST_CASE("Systems are reused by exact type and forward construction arguments", "[scene][systems]") {
+    class Configured final : public SceneSystem {
+    public:
+        explicit Configured(std::unique_ptr<int> value) : value(std::move(value)) {}
+        std::unique_ptr<int> value;
+    };
+    Scene scene;
+    auto value = std::make_unique<int>(42);
+    auto& first = scene.GetOrAddSystem<Configured>(std::move(value));
+    CHECK(value == nullptr);
+    REQUIRE(first.value != nullptr);
+    CHECK(*first.value == 42);
+    auto unused = std::make_unique<int>(99);
+    CHECK(&scene.GetOrAddSystem<Configured>(std::move(unused)) == &first);
+    REQUIRE(unused != nullptr);
+    CHECK(*unused == 99);
+    CHECK(scene.GetSystem<Configured>() == &first);
+    CHECK(scene.GetSystem<SceneSystem>() == nullptr);
+
+    Calls calls;
+    auto& derived = scene.GetOrAddSystem<First>(calls, "derived");
+    CHECK(scene.GetSystem<Recorder>() == nullptr);
+    auto& base = scene.GetOrAddSystem<Recorder>(calls, "base");
+    CHECK(scene.GetSystem<Recorder>() == &base);
+    CHECK(scene.GetSystem<First>() == &derived);
+    CHECK(static_cast<Recorder*>(&derived) != &base);
 }
 
 TEST_CASE("Physics is created when the scene first needs it", "[scene][systems]") {
@@ -165,8 +199,10 @@ TEST_CASE("A system that throws is skipped, and the others keep running", "[scen
 
 TEST_CASE("Systems added while systems run join from the next hook", "[scene][systems]") {
     Scene scene;
-    scene.AddSystem<Adder>();
+    auto& adder = scene.AddSystem<Adder>();
     scene.Update(0.016f);
+    CHECK(adder.pendingVisible);
+    CHECK(adder.pendingReused);
     auto* counter = scene.GetSystem<Counter>();
     REQUIRE(counter != nullptr);
     CHECK(counter->updates == 0);
