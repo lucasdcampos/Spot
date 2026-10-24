@@ -1,6 +1,6 @@
 #include "spot/platform/input_settings.h"
 
-#include "spot/core/archive.h"
+#include "spot/core/io/archive.h"
 
 namespace Spot {
 

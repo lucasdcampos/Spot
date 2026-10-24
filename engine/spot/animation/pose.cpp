@@ -1,6 +1,6 @@
 #include "spot/animation/pose.h"
 
-#include "spot/core/assert.h"
+#include "spot/core/debug/assert.h"
 
 #include <algorithm>
 #include <cmath>

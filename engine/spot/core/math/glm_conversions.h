@@ -3,9 +3,9 @@
 // Engine-internal bridge to glm, which implements the heavier math. Public headers never include it, so glm
 // stays a private dependency.
 
-#include "spot/core/matrix.h"
-#include "spot/core/quaternion.h"
-#include "spot/core/vector.h"
+#include "spot/core/math/matrix.h"
+#include "spot/core/math/quaternion.h"
+#include "spot/core/math/vector.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>

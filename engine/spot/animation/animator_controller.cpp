@@ -1,8 +1,8 @@
 #include "spot/animation/animator_controller.h"
 
 #include "spot/assets/asset_archive.h"
-#include "spot/core/archive.h"
-#include "spot/core/archive_state.h"
+#include "spot/core/io/archive.h"
+#include "spot/core/io/archive_state.h"
 
 #include <algorithm>
 #include <array>

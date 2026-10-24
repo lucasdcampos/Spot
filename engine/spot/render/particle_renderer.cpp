@@ -1,9 +1,9 @@
 #include "spot/render/particle_renderer.h"
 #include "particle.frag.h"
 #include "particle.vert.h"
-#include "spot/core/assert.h"
-#include "spot/core/log.h"
-#include "spot/core/profiler.h"
+#include "spot/core/debug/assert.h"
+#include "spot/core/debug/log.h"
+#include "spot/core/debug/profiler.h"
 #include "spot/graphics/graphics_device.h"
 #include "spot/graphics/pipeline.h"
 #include <array>

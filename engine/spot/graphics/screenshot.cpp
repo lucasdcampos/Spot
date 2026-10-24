@@ -1,6 +1,6 @@
 #include "spot/graphics/screenshot.h"
 
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
 #include "spot/graphics/graphics_device.h"
 
 #include <algorithm>

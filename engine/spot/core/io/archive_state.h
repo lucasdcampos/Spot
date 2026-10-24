@@ -2,7 +2,7 @@
 
 // Engine-internal: the JSON behind an Archive. Public headers never include it, so the JSON library stays private.
 
-#include "spot/core/archive.h"
+#include "spot/core/io/archive.h"
 
 #include <nlohmann/json.hpp>
 

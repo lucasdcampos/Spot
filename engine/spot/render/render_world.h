@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/core/matrix.h"
+#include "spot/core/math/matrix.h"
 #include "spot/render/camera_3d.h"
 #include "spot/render/mesh.h"
 

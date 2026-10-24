@@ -1,8 +1,8 @@
 #include "spot/scene/rendering/sky.h"
 
 #include "spot/assets/asset_archive.h"
-#include "spot/core/archive.h"
-#include "spot/core/time.h"
+#include "spot/core/io/archive.h"
+#include "spot/core/time/time.h"
 #include "spot/scene/rendering/clouds.h"
 #include "spot/scene/rendering/light.h"
 #include "spot/scene/scene.h"

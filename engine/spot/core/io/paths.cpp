@@ -1,4 +1,4 @@
-#include "spot/core/paths.h"
+#include "spot/core/io/paths.h"
 
 namespace Spot {
 

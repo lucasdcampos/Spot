@@ -1,6 +1,6 @@
 #include "spot/platform/platform.h"
 
-#include "spot/core/paths.h"
+#include "spot/core/io/paths.h"
 #include "spot/platform/sdl3/sdl3_mouse_capture.h"
 
 #include <SDL3/SDL.h>

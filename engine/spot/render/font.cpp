@@ -1,7 +1,7 @@
 #include "spot/render/font.h"
 
-#include "spot/core/log.h"
-#include "spot/core/paths.h"
+#include "spot/core/debug/log.h"
+#include "spot/core/io/paths.h"
 #include "spot/graphics/graphics_device.h"
 #include "spot/render/text_layout.h"
 

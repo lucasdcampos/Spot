@@ -1,6 +1,6 @@
 #include "spot/render/fullscreen_pass.h"
 
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
 #include "spot/graphics/graphics_device.h"
 #include "spot/graphics/render_context.h"
 

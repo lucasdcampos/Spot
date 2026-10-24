@@ -2,7 +2,7 @@
 
 #include "spot/assets/asset_manager.h"
 #include "spot/audio/audio_device.h"
-#include "spot/core/time.h"
+#include "spot/core/time/time.h"
 #include "spot/graphics/graphics_device.h"
 #include "spot/platform/event.h"
 #include "spot/platform/input_action.h"

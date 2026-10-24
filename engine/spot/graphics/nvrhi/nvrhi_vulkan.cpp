@@ -1,6 +1,6 @@
 #include "spot/graphics/nvrhi/nvrhi_vulkan.h"
 
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
 #include "spot/platform/platform.h"
 
 #include <nvrhi/vulkan.h>

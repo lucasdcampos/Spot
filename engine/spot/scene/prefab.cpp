@@ -1,7 +1,7 @@
 #include "spot/scene/prefab.h"
 
-#include "spot/core/asset_id.h"
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
+#include "spot/core/ids/asset_id.h"
 
 #include <nlohmann/json.hpp>
 

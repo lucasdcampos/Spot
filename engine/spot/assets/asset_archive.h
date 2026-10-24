@@ -3,7 +3,7 @@
 #include "spot/assets/asset_manager.h"
 #include "spot/assets/asset_ref.h"
 #include "spot/assets/assets.h"
-#include "spot/core/archive.h"
+#include "spot/core/io/archive.h"
 
 #include <string_view>
 

@@ -3,7 +3,7 @@
 #include "spot/audio/playback.h"
 #include "spot/audio/sound.h"
 #include "spot/audio/sound_stream.h"
-#include "spot/core/spsc_queue.h"
+#include "spot/core/memory/spsc_queue.h"
 
 #include <array>
 #include <atomic>

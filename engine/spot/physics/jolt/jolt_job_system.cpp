@@ -1,6 +1,6 @@
 #include "spot/physics/jolt/jolt_job_system.h"
 
-#include "spot/core/job_system.h"
+#include "spot/core/jobs/job_system.h"
 
 #include <thread>
 

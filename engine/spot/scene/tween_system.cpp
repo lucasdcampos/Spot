@@ -1,7 +1,7 @@
 #include "spot/scene/tween_system.h"
 
-#include "spot/core/diagnostics.h"
-#include "spot/core/log.h"
+#include "spot/core/debug/diagnostics.h"
+#include "spot/core/debug/log.h"
 #include "spot/scene/component.h"
 #include "spot/scene/entity.h"
 #include "spot/scene/scene.h"

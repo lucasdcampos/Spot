@@ -1,6 +1,6 @@
 #include "spot/render/mesh_data.h"
 
-#include "spot/core/angles.h"
+#include "spot/core/math/angles.h"
 
 #include <mikktspace.h>
 

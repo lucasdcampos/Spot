@@ -1,6 +1,6 @@
 // A game that runs its own loop and keeps its objects its own way, with neither Application nor Scene: only the
 // layers below them, which is what a large game with an ECS of its own builds on.
-#include <spot/core/matrix.h>
+#include <spot/core/math/matrix.h>
 #include <spot/graphics/graphics_device.h>
 #include <spot/platform/event.h>
 #include <spot/platform/input_state.h>

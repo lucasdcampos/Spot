@@ -1,8 +1,8 @@
-#include "spot/core/archive.h"
+#include "spot/core/io/archive.h"
 
-#include "spot/core/archive_state.h"
-#include "spot/core/asset_id.h"
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
+#include "spot/core/ids/asset_id.h"
+#include "spot/core/io/archive_state.h"
 
 #include <algorithm>
 #include <array>

@@ -1,6 +1,6 @@
 #include "spot/scene/rendering/render_world_system.h"
 
-#include "spot/core/profiler.h"
+#include "spot/core/debug/profiler.h"
 #include "spot/scene/entity.h"
 #include "spot/scene/rendering/mesh_renderer.h"
 #include "spot/scene/scene.h"

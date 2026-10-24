@@ -1,6 +1,6 @@
 #include "spot/physics/jolt/jolt_simulation_impl.h"
 
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
 
 #include <Jolt/Physics/Constraints/DistanceConstraint.h>
 #include <Jolt/Physics/Constraints/FixedConstraint.h>

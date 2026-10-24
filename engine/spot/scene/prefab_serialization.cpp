@@ -1,7 +1,7 @@
 #include "spot/scene/scene_serializer.h"
 
 #include "spot/assets/assets.h"
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
 #include "spot/scene/prefab.h"
 
 #include <algorithm>

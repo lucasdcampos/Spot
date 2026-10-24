@@ -1,7 +1,7 @@
 #pragma once
 
-#include "spot/core/asset_id.h"
-#include "spot/core/color.h"
+#include "spot/core/ids/asset_id.h"
+#include "spot/core/math/color.h"
 #include "spot/render/material.h"
 
 #include <filesystem>

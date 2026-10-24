@@ -1,6 +1,6 @@
 #include "spot/platform/clipboard.h"
 
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
 #include "spot/platform/platform.h"
 
 #include <SDL3/SDL.h>

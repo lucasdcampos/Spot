@@ -1,7 +1,7 @@
 #pragma once
 
-#include "spot/core/color.h"
-#include "spot/core/vector.h"
+#include "spot/core/math/color.h"
+#include "spot/core/math/vector.h"
 #include "spot/graphics/render_context.h"
 #include "spot/graphics/texture.h"
 #include "spot/render/camera_2d.h"

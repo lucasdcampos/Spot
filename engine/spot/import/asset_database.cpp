@@ -3,8 +3,8 @@
 #include "spot/assets/asset_file.h"
 #include "spot/assets/asset_formats.h"
 #include "spot/assets/asset_manifest.h"
-#include "spot/core/log.h"
-#include "spot/core/paths.h"
+#include "spot/core/debug/log.h"
+#include "spot/core/io/paths.h"
 #include "spot/import/importers/importer.h"
 
 #include <algorithm>

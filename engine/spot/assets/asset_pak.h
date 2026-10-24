@@ -4,7 +4,7 @@
 // a file per asset, which opening hundreds of costs more than reading them. It starts with a table of the assets it
 // holds, each compressed with LZ4 when that makes it smaller, then their data.
 
-#include "spot/core/asset_id.h"
+#include "spot/core/ids/asset_id.h"
 
 #include <cstdint>
 #include <filesystem>

@@ -1,9 +1,9 @@
 #include "spot/scene/rendering/scene_renderer.h"
 #include "spot/scene/rendering/tilemap.h"
 
-#include "spot/core/profiler.h"
+#include "spot/core/debug/profiler.h"
 
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
 #include "spot/graphics/graphics_device.h"
 #include "spot/graphics/render_context.h"
 #include "spot/render/debug_draw.h"

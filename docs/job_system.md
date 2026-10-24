@@ -1,6 +1,6 @@
 # Job system
 
-`JobSystem` (`engine/spot/core/job_system.h`) runs work on worker threads. It is part of the core, so every layer, and
+`JobSystem` (`engine/spot/core/jobs/job_system.h`) runs work on worker threads. It is part of the core, so every layer, and
 games with loops of their own, can use it.
 
 ## How it works

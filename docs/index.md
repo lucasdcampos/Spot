@@ -42,7 +42,7 @@ folder of its own level or above, so each level works without the ones above it 
 independent of each other. The test "Engine folders include only the levels below them"
 (`cmake/spot_check_layers.cmake`) fails the build's tests otherwise. It lists the two includes across a level that
 are meant (models draw animation's skeletons and clips; ragdolls animate physics' components) and, while the refactor
-lasts, the violations left to fix. Games include the headers with the prefix, as `<spot/core/log.h>`, or all of them
+lasts, the violations left to fix. Games include the headers with the prefix, as `<spot/core/debug/log.h>`, or all of them
 with `<spot.h>`.
 
 | Level | Folders | What it holds |

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "spot/assets/asset_ref.h"
-#include "spot/core/color.h"
-#include "spot/core/vector.h"
+#include "spot/core/math/color.h"
+#include "spot/core/math/vector.h"
 #include "spot/render/sprite_atlas.h"
 #include "spot/scene/component.h"
 

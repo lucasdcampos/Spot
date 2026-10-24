@@ -1,5 +1,5 @@
 #include "spot/scene/physics2d/physics_world_2d.h"
-#include "spot/core/profiler.h"
+#include "spot/core/debug/profiler.h"
 #include "spot/scene/transform.h"
 #include <algorithm>
 #include <cmath>

@@ -9,14 +9,14 @@ add_library(spot_objects OBJECT
     spot/assets/asset_file.cpp
     spot/assets/asset_formats.h
     spot/assets/asset_formats.cpp
-    spot/core/asset_id.h
-    spot/core/asset_id.cpp
-    spot/core/file_io.h
-    spot/core/file_io.cpp
-    spot/core/job_system.h
-    spot/core/job_system.cpp
-    spot/core/memory.h
-    spot/core/memory.cpp
+    spot/core/ids/asset_id.h
+    spot/core/ids/asset_id.cpp
+    spot/core/io/file_io.h
+    spot/core/io/file_io.cpp
+    spot/core/jobs/job_system.h
+    spot/core/jobs/job_system.cpp
+    spot/core/memory/memory.h
+    spot/core/memory/memory.cpp
     spot/assets/asset_manifest.h
     spot/assets/asset_pak.h
     spot/assets/asset_manifest.cpp
@@ -57,41 +57,41 @@ add_library(spot_objects OBJECT
     spot/runtime/runtime_stats.cpp
     spot/runtime/profile_stream.cpp
     spot/runtime/engine_console.cpp
-    spot/core/assert.h
-    spot/core/assert.cpp
+    spot/core/debug/assert.h
+    spot/core/debug/assert.cpp
     spot/platform/crash_handler.h
     spot/platform/crash_handler.cpp
     spot/platform/crash_handler_internal.h
-    spot/core/diagnostics.h
-    spot/core/diagnostics.cpp
+    spot/core/debug/diagnostics.h
+    spot/core/debug/diagnostics.cpp
     spot/runtime/game_module.h
     spot/runtime/game_module.cpp
     spot/runtime/game_settings.h
     spot/runtime/game_settings.cpp
-    spot/core/log.h
-    spot/core/spsc_queue.h
-    spot/core/log.cpp
-    spot/core/log_sinks.h
-    spot/core/log_sinks.cpp
-    spot/core/paths.h
-    spot/core/paths.cpp
+    spot/core/debug/log.h
+    spot/core/memory/spsc_queue.h
+    spot/core/debug/log.cpp
+    spot/core/debug/log_sinks.h
+    spot/core/debug/log_sinks.cpp
+    spot/core/io/paths.h
+    spot/core/io/paths.cpp
     spot/platform/process.h
     spot/runtime/save_data.h
     spot/runtime/save_data.cpp
-    spot/core/profiler.h
-    spot/core/profiler.cpp
+    spot/core/debug/profiler.h
+    spot/core/debug/profiler.cpp
     spot/platform/shared_library.h
     spot/scene/signal.h
     spot/scene/task.h
     spot/scene/task.cpp
-    spot/core/time.h
-    spot/core/time.cpp
+    spot/core/time/time.h
+    spot/core/time/time.cpp
     spot/scene/timer.h
     spot/scene/timer.cpp
     spot/scene/tween.h
     spot/scene/tween.cpp
-    spot/core/utf8.h
-    spot/core/utf8.cpp
+    spot/core/io/utf8.h
+    spot/core/io/utf8.cpp
     spot/platform/event.h
     spot/render/atmosphere.h
     spot/render/atmosphere.cpp
@@ -105,7 +105,7 @@ add_library(spot_objects OBJECT
     spot/render/pixel_perfect.cpp
     spot/render/camera_3d.h
     spot/render/camera_3d.cpp
-    spot/core/color.h
+    spot/core/math/color.h
     spot/render/debug_draw.h
     spot/render/debug_draw.cpp
     spot/render/font.h
@@ -214,17 +214,17 @@ add_library(spot_objects OBJECT
     spot/particles/particle_simulation.cpp
     spot/scene/particles/particle_system.h
     spot/scene/particles/particle_system.cpp
-    spot/core/curve.h
-    spot/core/curve.cpp
-    spot/core/gradient.h
-    spot/core/gradient.cpp
-    spot/core/angles.h
-    spot/core/glm_conversions.h
-    spot/core/matrix.h
-    spot/core/matrix.cpp
-    spot/core/quaternion.h
-    spot/core/quaternion.cpp
-    spot/core/vector.h
+    spot/core/math/curve.h
+    spot/core/math/curve.cpp
+    spot/core/math/gradient.h
+    spot/core/math/gradient.cpp
+    spot/core/math/angles.h
+    spot/core/math/glm_conversions.h
+    spot/core/math/matrix.h
+    spot/core/math/matrix.cpp
+    spot/core/math/quaternion.h
+    spot/core/math/quaternion.cpp
+    spot/core/math/vector.h
     spot/scene/physics/character_controller.h
     spot/scene/physics/character_controller.cpp
     spot/scene/physics/collider.h
@@ -250,9 +250,9 @@ add_library(spot_objects OBJECT
     spot/scene/physics2d/collider_2d.cpp
     spot/scene/physics2d/rigidbody_2d.cpp
     spot/platform/platform.h
-    spot/core/archive.h
-    spot/core/archive.cpp
-    spot/core/archive_state.h
+    spot/core/io/archive.h
+    spot/core/io/archive.cpp
+    spot/core/io/archive_state.h
     spot/scene/rendering/camera.h
     spot/scene/rendering/camera.cpp
     spot/scene/component.h

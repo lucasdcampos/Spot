@@ -1,6 +1,6 @@
 #include "spot/scene/physics2d/rigidbody_2d.h"
 #include "spot/assets/asset_archive.h"
-#include "spot/core/archive.h"
+#include "spot/core/io/archive.h"
 #include "spot/scene/physics2d/physics_world_2d.h"
 
 namespace Spot {

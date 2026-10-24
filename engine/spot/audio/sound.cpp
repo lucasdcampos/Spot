@@ -1,9 +1,9 @@
 #include "spot/audio/sound.h"
 
 #include "spot/audio/sound_decoder.h"
-#include "spot/core/assert.h"
-#include "spot/core/log.h"
-#include "spot/core/paths.h"
+#include "spot/core/debug/assert.h"
+#include "spot/core/debug/log.h"
+#include "spot/core/io/paths.h"
 
 #include <algorithm>
 #include <array>

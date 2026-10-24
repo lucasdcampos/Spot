@@ -1,6 +1,6 @@
 #include "spot/platform/window.h"
 
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
 #include "spot/platform/platform.h"
 #include "spot/platform/sdl3/sdl3_mouse_capture.h"
 

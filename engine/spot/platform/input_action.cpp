@@ -1,10 +1,10 @@
 #include "spot/platform/input_action.h"
 
-#include "spot/core/archive.h"
-#include "spot/core/archive_state.h"
-#include "spot/core/file_io.h"
-#include "spot/core/log.h"
-#include "spot/core/paths.h"
+#include "spot/core/debug/log.h"
+#include "spot/core/io/archive.h"
+#include "spot/core/io/archive_state.h"
+#include "spot/core/io/file_io.h"
+#include "spot/core/io/paths.h"
 #include "spot/platform/input_state.h"
 
 #include <algorithm>

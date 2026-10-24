@@ -1,6 +1,6 @@
 #include "spot/physics/jolt/jolt_runtime.h"
 
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
 
 #include <Jolt/Core/Factory.h>
 #include <Jolt/RegisterTypes.h>

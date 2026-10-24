@@ -1,4 +1,4 @@
-#include "spot/core/diagnostics.h"
+#include "spot/core/debug/diagnostics.h"
 
 #include <string_view>
 

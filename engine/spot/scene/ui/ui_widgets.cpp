@@ -1,8 +1,8 @@
 #include "spot/scene/ui/ui_widgets.h"
 
 #include "spot/assets/asset_archive.h"
-#include "spot/core/archive.h"
-#include "spot/core/utf8.h"
+#include "spot/core/io/archive.h"
+#include "spot/core/io/utf8.h"
 #include "spot/graphics/render_context.h"
 #include "spot/graphics/texture.h"
 #include "spot/render/font.h"

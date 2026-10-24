@@ -1,5 +1,5 @@
 #include "spot/assets/asset_formats.h"
-#include "spot/core/paths.h"
+#include "spot/core/io/paths.h"
 #include "spot/import/importers/importer.h"
 #include "spot/import/importers/texture_compression.h"
 #include "spot/render/model_data.h"

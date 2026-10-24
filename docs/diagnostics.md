@@ -6,7 +6,7 @@ owns it, and only takes the frame down when nothing else is possible.
 
 ## Logging
 
-`Spot::Log` (`engine/spot/core/log.h`) writes formatted messages at a level (trace, debug, info, warning, error):
+`Spot::Log` (`engine/spot/core/debug/log.h`) writes formatted messages at a level (trace, debug, info, warning, error):
 
 ```cpp
 Spot::Log::Info("Loaded {} props", count);
@@ -25,7 +25,7 @@ to every sink, the sinks are flushed and a report is written (in a `crashes` fol
 the process ends. Tools also show a message saying where the report is.
 
 The core sits below the platform, so a failed assertion reaches the crash handler through
-`Detail::SetFatalErrorHandler()` (`engine/spot/core/assert.h`), which the crash handler sets when it is linked. A
+`Detail::SetFatalErrorHandler()` (`engine/spot/core/debug/assert.h`), which the crash handler sets when it is linked. A
 program built on the core alone only logs the failure before aborting.
 
 ## Contained failures
@@ -39,7 +39,7 @@ contained, and stop the process with a report.
 
 ## Profiler
 
-`SPOT_PROFILE_SCOPE("Name")` (`engine/spot/core/profiler.h`) times the rest of the enclosing scope, on any thread:
+`SPOT_PROFILE_SCOPE("Name")` (`engine/spot/core/debug/profiler.h`) times the rest of the enclosing scope, on any thread:
 
 ```cpp
 void Spawner::OnUpdate(float deltaTime) {

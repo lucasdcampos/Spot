@@ -3,7 +3,7 @@
 // Backend-internal: Jolt's jobs on the engine's job system, so physics shares the engine's workers instead of
 // starting threads of its own.
 
-#include "spot/core/job_system.h"
+#include "spot/core/jobs/job_system.h"
 #include "spot/physics/jolt/jolt_common.h"
 
 #include <Jolt/Core/FixedSizeFreeList.h>

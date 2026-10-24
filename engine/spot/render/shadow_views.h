@@ -1,7 +1,7 @@
 #pragma once
 
-#include "spot/core/matrix.h"
-#include "spot/core/vector.h"
+#include "spot/core/math/matrix.h"
+#include "spot/core/math/vector.h"
 #include "spot/render/camera_3d.h"
 #include "spot/render/light_data.h"
 

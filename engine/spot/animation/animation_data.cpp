@@ -1,6 +1,6 @@
 #include "spot/animation/animation_data.h"
 
-#include "spot/core/archive.h"
+#include "spot/core/io/archive.h"
 
 #include <cmath>
 

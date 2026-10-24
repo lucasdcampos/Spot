@@ -1,5 +1,5 @@
 #include "spot/assets/asset_formats.h"
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
 #include "spot/import/importers/importer.h"
 #include "spot/render/font_atlas.h"
 

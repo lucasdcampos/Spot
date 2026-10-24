@@ -1,8 +1,8 @@
 #include "spot/animation/animation_layer.h"
 
 #include "spot/assets/asset_archive.h"
-#include "spot/core/archive.h"
-#include "spot/core/assert.h"
+#include "spot/core/debug/assert.h"
+#include "spot/core/io/archive.h"
 
 #include <algorithm>
 #include <array>

@@ -1,6 +1,6 @@
 #include "spot/render/font_atlas.h"
 
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
 
 #include <algorithm>
 #include <array>

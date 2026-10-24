@@ -1,8 +1,8 @@
 #include "spot/graphics/render_graph.h"
 
-#include "spot/core/assert.h"
-#include "spot/core/log.h"
-#include "spot/core/profiler.h"
+#include "spot/core/debug/assert.h"
+#include "spot/core/debug/log.h"
+#include "spot/core/debug/profiler.h"
 #include "spot/graphics/graphics_device.h"
 
 #include <algorithm>

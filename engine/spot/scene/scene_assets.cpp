@@ -3,8 +3,8 @@
 #include "spot/assets/asset_formats.h"
 #include "spot/assets/asset_manager.h"
 #include "spot/assets/assets.h"
-#include "spot/core/log.h"
-#include "spot/core/job_system.h"
+#include "spot/core/debug/log.h"
+#include "spot/core/jobs/job_system.h"
 #include "spot/scene/prefab.h"
 #include "spot/scene/scene.h"
 

@@ -1,6 +1,6 @@
 #include "spot/scene/rendering/scene_drawing.h"
 
-#include "spot/core/profiler.h"
+#include "spot/core/debug/profiler.h"
 #include "spot/render/material.h"
 #include "spot/render/particle_renderer.h"
 #include "spot/render/renderer_2d.h"

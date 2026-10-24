@@ -1,7 +1,7 @@
 #include "spot/platform/shell.h"
 
-#include "spot/core/log.h"
-#include "spot/core/paths.h"
+#include "spot/core/debug/log.h"
+#include "spot/core/io/paths.h"
 #include "spot/platform/platform.h"
 
 #include <SDL3/SDL.h>

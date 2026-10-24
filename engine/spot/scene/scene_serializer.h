@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/core/archive_state.h"
+#include "spot/core/io/archive_state.h"
 #include "spot/scene/prefab.h"
 #include "spot/scene/scene.h"
 

@@ -1,6 +1,6 @@
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
 
-#include "spot/core/log_sinks.h"
+#include "spot/core/debug/log_sinks.h"
 
 #include <ctime>
 #include <mutex>

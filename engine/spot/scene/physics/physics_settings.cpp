@@ -1,6 +1,6 @@
 #include "spot/scene/physics/physics_settings.h"
 
-#include "spot/core/archive.h"
+#include "spot/core/io/archive.h"
 #include "spot/scene/physics/physics_world.h"
 #include "spot/scene/physics2d/physics_world_2d.h"
 #include "spot/scene/scene.h"

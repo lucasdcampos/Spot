@@ -1,7 +1,7 @@
 #include "spot/audio/audio_settings.h"
 
 #include "spot/audio/audio_device.h"
-#include "spot/core/archive.h"
+#include "spot/core/io/archive.h"
 
 namespace Spot {
 

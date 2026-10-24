@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/core/profiler.h"
+#include "spot/core/debug/profiler.h"
 
 #include <optional>
 #include <string>

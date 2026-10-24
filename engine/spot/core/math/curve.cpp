@@ -1,5 +1,5 @@
-#include "spot/core/curve.h"
-#include "spot/core/archive.h"
+#include "spot/core/math/curve.h"
+#include "spot/core/io/archive.h"
 
 #include <algorithm>
 #include <cmath>

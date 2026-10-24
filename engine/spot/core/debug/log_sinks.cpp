@@ -1,4 +1,4 @@
-#include "spot/core/log_sinks.h"
+#include "spot/core/debug/log_sinks.h"
 
 #include <fstream>
 

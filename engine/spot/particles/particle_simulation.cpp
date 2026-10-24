@@ -1,5 +1,5 @@
 #include "spot/particles/particle_simulation.h"
-#include "spot/core/profiler.h"
+#include "spot/core/debug/profiler.h"
 #include <algorithm>
 #include <cmath>
 #include <utility>

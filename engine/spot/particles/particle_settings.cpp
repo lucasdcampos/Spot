@@ -1,5 +1,5 @@
 #include "spot/particles/particle_settings.h"
-#include "spot/core/archive.h"
+#include "spot/core/io/archive.h"
 #include <algorithm>
 #include <array>
 #include <cmath>

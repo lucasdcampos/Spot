@@ -2,8 +2,8 @@
 
 #include "spot/audio/audio_device.h"
 #include "spot/audio/playback.h"
-#include "spot/core/profiler.h"
-#include "spot/core/time.h"
+#include "spot/core/debug/profiler.h"
+#include "spot/core/time/time.h"
 #include "spot/runtime/application.h"
 #include "spot/scene/audio/audio_system.h"
 #include "spot/scene/physics/physics_world.h"

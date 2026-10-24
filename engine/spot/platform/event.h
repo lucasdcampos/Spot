@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/core/vector.h"
+#include "spot/core/math/vector.h"
 #include "spot/platform/keys.h"
 
 #include <filesystem>

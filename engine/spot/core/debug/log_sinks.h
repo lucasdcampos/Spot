@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
 
 #include <filesystem>
 #include <iosfwd>
