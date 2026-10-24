@@ -279,6 +279,7 @@ private:
     bool m_activeSelf = true;
     bool m_keepOnSceneChange = false;
     bool m_destroyed = false;
+    bool m_movingScene = false;
 };
 
 template <std::derived_from<Component> T, typename... Args>

@@ -315,3 +315,66 @@ TEST_CASE("Destroyed children are notified once when their parent is destroyed",
     });
     CHECK(calls == Calls{"destroyed", "destroyed"});
 }
+
+namespace {
+
+class MoveMutation final : public SceneSystem {
+public:
+    std::function<void(Spot::Entity&, Scene&, Scene&)> callback;
+
+protected:
+    void OnEntityMoved(Spot::Entity& entity, Scene& source, Scene& destination) override {
+        if (callback) {
+            callback(entity, source, destination);
+        }
+    }
+};
+
+} // namespace
+
+TEST_CASE("Scene transfers tolerate changes from move notifications", "[scene][systems]") {
+    Scene source;
+    Scene destination;
+    Scene third;
+    auto& mutations = source.AddSystem<MoveMutation>();
+    auto& parent = source.CreateEntity();
+    auto& child = parent.CreateChild();
+    const auto parentId = parent.GetId();
+    const auto childId = child.GetId();
+
+    SECTION("Nested transfers of the moving entity are ignored") {
+        mutations.callback = [&](Spot::Entity& entity, Scene&, Scene&) { entity.MoveToScene(third); };
+        parent.MoveToScene(destination);
+        CHECK(destination.GetEntity(parentId) == &parent);
+        CHECK(destination.GetEntity(childId) == &child);
+        CHECK(third.GetEntityCount() == 0);
+    }
+    SECTION("Destroying the entity cancels its transfer") {
+        mutations.callback = [](Spot::Entity& entity, Scene&, Scene&) { entity.Destroy(); };
+        parent.MoveToScene(destination);
+        CHECK(source.GetEntityCount() == 0);
+        CHECK(destination.GetEntityCount() == 0);
+    }
+    SECTION("Reparented children stay in their chosen scene") {
+        mutations.callback = [&](Spot::Entity& entity, Scene&, Scene&) {
+            if (entity.GetId() == parentId) {
+                child.SetParent(nullptr);
+                child.MoveToScene(third);
+            }
+        };
+        parent.MoveToScene(destination);
+        CHECK(destination.GetEntity(parentId) == &parent);
+        CHECK(third.GetEntity(childId) == &child);
+        CHECK(parent.GetChildren().empty());
+    }
+    SECTION("Destination callbacks can destroy the transferred hierarchy") {
+        destination.AddSystem<MoveMutation>().callback = [&](Spot::Entity& entity, Scene&, Scene&) {
+            if (entity.GetId() == parentId) {
+                entity.Destroy();
+            }
+        };
+        parent.MoveToScene(destination);
+        CHECK(source.GetEntityCount() == 0);
+        CHECK(destination.GetEntityCount() == 0);
+    }
+}

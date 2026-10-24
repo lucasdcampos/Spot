@@ -152,7 +152,7 @@ bool Entity::IsDescendantOf(const Entity& ancestor) const {
 
 void Entity::MoveToScene(Scene& scene) {
     SPOT_ASSERT(!m_destroyed, "A destroyed entity cannot move to another scene");
-    if (&scene == m_scene) {
+    if (&scene == m_scene || m_movingScene) {
         return;
     }
     if (m_parent) {
@@ -164,14 +164,31 @@ void Entity::MoveToScene(Scene& scene) {
 }
 
 void Entity::MoveSubtree(Scene& scene) {
+    struct MovingScope {
+        bool& moving;
+        ~MovingScope() { moving = false; }
+    };
+    m_movingScene = true;
+    const MovingScope moving{m_movingScene};
     Scene& source = *m_scene;
     source.NotifyEntityMoved(*this, source, scene);
+    if (m_destroyed) {
+        return;
+    }
+    // Hooks may reparent children, so keep ids and resolve only those still below this entity in the source.
+    std::vector<EntityId> children;
+    children.reserve(m_children.size());
+    for (const Entity* child : m_children) {
+        children.push_back(child->GetId());
+    }
     // Components already removed but not yet destroyed are now the other scene's to process.
     scene.Adopt(source.Release(*this), true);
-    scene.NotifyEntityMoved(*this, source, scene);
-    for (Entity* child : m_children) {
-        child->MoveSubtree(scene);
+    for (EntityId id : children) {
+        if (Entity* child = source.GetEntity(id); child && child->m_parent == this) {
+            child->MoveSubtree(scene);
+        }
     }
+    scene.NotifyEntityMoved(*this, source, scene);
 }
 
 void Entity::Destroy() {

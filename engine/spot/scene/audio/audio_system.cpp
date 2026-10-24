@@ -160,7 +160,11 @@ void AudioSystem::Unregister(AudioSource& source) {
 
 void AudioSystem::OnEntityMoved(Entity& entity, Scene& source, Scene& destination) {
     if (&GetScene() == &source) {
-        MoveSources(entity, destination);
+        if (std::ranges::any_of(m_sources, [&](const AudioSource* sound) { return &sound->GetEntity() == &entity; })) {
+            destination.GetOrAddSystem<AudioSystem>();
+        }
+    } else if (auto* previous = source.GetSystem<AudioSystem>()) {
+        previous->MoveSources(entity, destination);
     }
 }
 
@@ -168,7 +172,9 @@ void AudioSystem::MoveSources(const Entity& entity, Scene& destination) {
     std::erase_if(m_sources, [&](AudioSource* source) {
         if (&source->GetEntity() != &entity)
             return false;
-        destination.GetOrAddSystem<Spot::AudioSystem>().Register(*source);
+        if (source->IsActiveAndEnabled()) {
+            destination.GetOrAddSystem<Spot::AudioSystem>().Register(*source);
+        }
         return true;
     });
 }

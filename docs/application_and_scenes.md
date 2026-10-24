@@ -171,3 +171,8 @@ The scene core does not route UI events or own render callbacks. `UiSystem::Draw
 state that owns the view; `HandleUiEvent(event, viewSize, input)` updates that binding and consumes handled input.
 Render callbacks belong to `scene.GetOrAddSystem<Spot::RenderHookSystem>()`. Removing a callback during dispatch
 prevents a later call in that dispatch; newly added callbacks wait for the next dispatch.
+
+A destination's move notification runs after the entity's children have transferred. Move hooks may destroy entities
+or reparent children; destroyed entities cancel their pending transfer, and children moved elsewhere stay there.
+A nested request to move an entity already transferring is ignored. Audio transfers source registrations only once
+the move reaches its destination, so a move canceled by destruction cannot leave stale audio registrations.
