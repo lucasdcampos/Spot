@@ -12,6 +12,7 @@
 #include "spot/platform/input_settings.h"
 #include "spot/platform/input_state.h"
 #include "spot/platform/keys.h"
+#include "spot/platform/platform.h"
 #include "spot/platform/process.h"
 #include "spot/platform/shared_library.h"
 #include "spot/platform/shell.h"

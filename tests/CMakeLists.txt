@@ -286,6 +286,19 @@ spot_precompile_engine_header(spot_gpu_tests <catch2/catch_test_macros.hpp>)
 # GPU processes compete for the same device and open windows; run each without other tests alongside it.
 catch_discover_tests(spot_gpu_tests PROPERTIES LABELS gpu RUN_SERIAL TRUE TIMEOUT 60)
 
+# The examples, run for a few frames as their users would run them; the data-driven one runs in the tests, as the
+# player would run it, so they can see its script turn the cube.
+if(SPOT_BUILD_EXAMPLES)
+    foreach(example IN ITEMS own_loop application)
+        add_test(NAME "Example ${example} runs" COMMAND example_${example} --frames 30)
+        set_tests_properties("Example ${example} runs" PROPERTIES LABELS gpu RUN_SERIAL TRUE TIMEOUT 60)
+    endforeach()
+    target_sources(spot_gpu_tests PRIVATE example_tests.cpp)
+    target_compile_definitions(spot_gpu_tests PRIVATE
+        SPOT_DATA_DRIVEN_EXAMPLE_DIR="${PROJECT_BINARY_DIR}/examples/data_driven")
+    add_dependencies(spot_gpu_tests example_data_driven)
+endif()
+
 # What runs in the shared engine library, as the editor and game modules use it: loading modules, such as this one,
 # built as projects with code build theirs, and running programs.
 add_library(spot_test_module MODULE modules/test_module.cpp modules/test_component.cpp)

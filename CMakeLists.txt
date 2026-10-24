@@ -9,6 +9,7 @@ project(spot
 option(SPOT_BUILD_SANDBOX "Build the sandbox application" ${PROJECT_IS_TOP_LEVEL})
 option(SPOT_BUILD_EDITOR "Build the Spot editor" ${PROJECT_IS_TOP_LEVEL})
 option(SPOT_BUILD_TESTS "Build the Spot test suite" ${PROJECT_IS_TOP_LEVEL})
+option(SPOT_BUILD_EXAMPLES "Build the examples of using the engine" ${PROJECT_IS_TOP_LEVEL})
 option(SPOT_SCRIPTING "Build scripting components, bindings and runtime support" ON)
 option(SPOT_ENABLE_LUAU "Build Luau scripting support" ON)
 
@@ -67,7 +68,7 @@ add_subdirectory(engine)
 
 # The tools and their command line, which the editor shares and the sandbox imports its assets with, and the player
 # that the tools run and ship games without code of their own with.
-if(SPOT_BUILD_SANDBOX OR SPOT_BUILD_EDITOR OR SPOT_BUILD_TESTS)
+if(SPOT_BUILD_SANDBOX OR SPOT_BUILD_EDITOR OR SPOT_BUILD_TESTS OR SPOT_BUILD_EXAMPLES)
     add_subdirectory(player)
     add_subdirectory(tools)
     add_subdirectory(cli)
@@ -80,6 +81,10 @@ endif()
 
 if(SPOT_BUILD_EDITOR)
     add_subdirectory(editor)
+endif()
+
+if(SPOT_BUILD_EXAMPLES)
+    add_subdirectory(examples)
 endif()
 
 if(SPOT_BUILD_TESTS)

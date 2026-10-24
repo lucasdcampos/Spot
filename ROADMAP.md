@@ -252,7 +252,7 @@ Depends on: phases 3 to 9.
 - [x] **10.1 A header per module (S).** `<spot/core.h>`, `<spot/platform.h>`, `<spot/graphics.h>`, `<spot/render.h>`,
   `<spot/audio.h>`, `<spot/physics.h>`, `<spot/scene.h>`, `<spot/runtime.h>` and the others; `<spot.h>` includes them
   all.
-- [ ] **10.2 One example per level (S).** Small programs using the engine as a library with a loop of their own, as an
+- [x] **10.2 One example per level (S).** Small programs using the engine as a library with a loop of their own, as an
   application in code, and as a data-driven game, built and run by the tests; the docs link them as where to start.
 - [ ] **10.3 Architecture page (S).** `docs/architecture.md`, linked from `docs/index.md`: the levels, modules and
   `Module`, the three rendering levels and the graphics contract.

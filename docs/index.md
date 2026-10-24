@@ -7,6 +7,11 @@ Spot is a 2D/3D game engine written in C++20. A game is a project (`.spot`) with
 import its assets, build its code against the engine, and run or export it. The editor is a Dear ImGui application
 that does the same with a window around it.
 
+Where to start: the [examples](../examples/), one per way of using the engine, each built and run by the tests: as a
+library with a loop of its own ([`own_loop`](../examples/own_loop/main.cpp)), as an application made in code
+([`application`](../examples/application/main.cpp)) and as a data-driven game without C++
+([`data_driven`](../examples/data_driven/)).
+
 | Page | What it covers |
 |---|---|
 | [Memory](memory.md) | Linear and pool allocators, and memory counted by what it is for |

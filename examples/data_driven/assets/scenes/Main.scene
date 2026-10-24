@@ -1,0 +1,251 @@
+{
+  "entities": [
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "background": [
+              0.11999999731779099,
+              0.12999999523162842,
+              0.15000000596046448,
+              1.0
+            ],
+            "cullingMask": 4294967295,
+            "farPlane": 1000.0,
+            "fieldOfView": 1.0471975803375244,
+            "nearPlane": 0.10000000149011612,
+            "orthographicSize": 5.0,
+            "pixelPerfect": {
+              "enabled": false,
+              "pixelsPerUnit": 100.0,
+              "referenceResolution": [
+                320.0,
+                180.0
+              ]
+            },
+            "projection": 0
+          },
+          "enabled": true,
+          "id": "5b84ddc91ba7a2488e81d7b2dbd8c31d",
+          "type": "Camera"
+        }
+      ],
+      "id": 1,
+      "layer": 0,
+      "name": "Camera",
+      "position": [
+        0.0,
+        2.0,
+        6.0
+      ],
+      "rotation": [
+        -0.12218326330184937,
+        0.0,
+        0.0,
+        0.9925075173377991
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "intensity": 1.0
+          },
+          "enabled": true,
+          "id": "9699e01b19848e8cba63a9f96bfcdd13",
+          "type": "DirectionalLight"
+        }
+      ],
+      "id": 2,
+      "layer": 0,
+      "name": "Sun",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        -0.43602994084358215,
+        0.2579646706581116,
+        0.13201923668384552,
+        0.8519994616508484
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "ambientIntensity": 1.0,
+            "atmosphereThickness": 1.0,
+            "exposure": 1.0,
+            "groundColor": [
+              0.20000000298023224,
+              0.20000000298023224,
+              0.20999999344348907,
+              1.0
+            ],
+            "moonBrightness": 1.0,
+            "moonSize": 0.027925267815589905,
+            "nightColor": [
+              0.004000000189989805,
+              0.006000000052154064,
+              0.014000000432133675,
+              1.0
+            ],
+            "skyTint": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "starAxis": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "starBrightness": 1.0,
+            "starDensity": 0.5,
+            "starRotation": 0.0,
+            "sunSize": 0.04363323003053665
+          },
+          "enabled": true,
+          "id": "f307f230b0651d2d34c28541c68d6f77",
+          "type": "Sky"
+        }
+      ],
+      "id": 3,
+      "layer": 0,
+      "name": "Sky",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "cullScreenSize": 0.0,
+            "inlineMaterial": false,
+            "lods": [],
+            "material": null,
+            "mesh": "00000000000000000000000000000003",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "4cdd3232941fb8eb42bc6ebc48e03e14",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 4,
+      "layer": 0,
+      "name": "Ground",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        20.0,
+        1.0,
+        20.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "cullScreenSize": 0.0,
+            "inlineMaterial": false,
+            "lods": [],
+            "material": null,
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "68476682e7289394b03eaecd8a2d3106",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "language": "",
+            "script": "a1a67b6516868bf24c90d63821bf2664",
+            "source": "",
+            "sourceName": "<ScriptComponent>"
+          },
+          "enabled": true,
+          "id": "c0154f28991c47f78f869bc2218e8951",
+          "type": "ScriptComponent"
+        }
+      ],
+      "id": 5,
+      "layer": 0,
+      "name": "Cube",
+      "position": [
+        0.0,
+        0.5,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    }
+  ],
+  "format": "spot-scene",
+  "version": 2
+}
