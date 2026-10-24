@@ -148,7 +148,7 @@ Depends on: Phase 1.
 - [x] **4.5 Components registered by their folders (S).** Each `scene/<module>/` registers its own components
   (`RegisterPhysicsComponents()`…), and `scene/component_registry.cpp` includes none of them. `Application` calls the
   registrations until 6.2 moves them into modules.
-- [ ] **4.6 `Scene::Spawn<T>()` and component shortcuts (S).** `Spawn<T>()` creates an entity with its component;
+- [x] **4.6 `Scene::Spawn<T>()` and component shortcuts (S).** `Spawn<T>()` creates an entity with its component;
   `Component` gets `GetTransform()`, `AddComponent<T>()`, `GetComponent<T>()` and `Destroy()`, forwarding to its
   entity.
 

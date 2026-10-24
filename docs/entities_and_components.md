@@ -194,3 +194,19 @@ System callbacks are opt-in interfaces alongside `Component`: derive from `Colli
 live in `scene/physics/`, `scene/physics2d/`, `scene/animation/` and `scene/ui/`; `<spot.h>` includes
 them. The systems call active listeners through `Component::RunGuarded()`, preserving component
 fault isolation without making the scene core depend on any system.
+
+## Spawning behavior directly
+
+`Scene::Spawn<T>(args...)` creates a root entity and returns its new `T` component. Arguments are forwarded to the
+component's constructor, and required components are added just as with `Entity::AddComponent<T>()`. If construction
+throws, the new entity is destroyed. Set its name through `component.GetEntity().SetName()` when needed.
+
+A component can call `GetTransform()`, `AddComponent<T>(args...)` and `GetComponent<T>()` directly to work with its
+entity. `Destroy()` destroys that entity and its descendants using the usual deferred removal rules. These helpers
+keep simple gameplay code local:
+
+```cpp
+auto& spinner = scene.Spawn<Spinner>();
+spinner.GetTransform().SetPosition({1.0f, 0.0f, 0.0f});
+spinner.AddComponent<Spot::MeshRenderer>();
+```

@@ -7,6 +7,7 @@
 #include "spot/scene/timer.h"
 
 #include <array>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <exception>
@@ -24,6 +25,7 @@ using ComponentId = AssetId;
 class Archive;
 class Entity;
 class Scene;
+class Transform;
 
 namespace Detail {
 struct SceneSerializer;
@@ -74,6 +76,13 @@ public:
 
     Entity& GetEntity() const { return *m_entity; }
     Scene& GetScene() const;
+    Transform& GetTransform() const;
+    template <std::derived_from<Component> T, typename... Args>
+    T& AddComponent(Args&&... args);
+    template <std::derived_from<Component> T>
+    T* GetComponent() const;
+    // Destroys this component's entity and its descendants, with Entity::Destroy()'s deferred lifetime.
+    void Destroy();
     ComponentId GetId() const { return m_id; }
 
     bool IsEnabled() const { return m_enabled; }

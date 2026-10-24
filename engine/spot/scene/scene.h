@@ -110,6 +110,17 @@ public:
 
     // Creates an entity at the root of the hierarchy.
     Entity& CreateEntity(std::string name = {});
+    // Creates a root entity and returns its component, constructed with the forwarded arguments.
+    template <std::derived_from<Component> T, typename... Args>
+    T& Spawn(Args&&... args) {
+        Entity& entity = CreateEntity();
+        try {
+            return entity.AddComponent<T>(std::forward<Args>(args)...);
+        } catch (...) {
+            DestroyEntity(entity);
+            throw;
+        }
+    }
     // Destroys the entity and all its descendants.
     void DestroyEntity(Entity& entity);
     // Destroys every entity.
