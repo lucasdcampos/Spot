@@ -231,13 +231,14 @@ Depends on: phases 1 and 2. Task 9.3 also waits for 6.2.
 - [x] **9.1 Allocation-free property access (M).** Script wrappers are cached per entity in the script context, and
   member names are resolved once instead of compared on each access. The baseline's script update time shows the
   gain.
-  Measured on 2026-10-24 with the unchanged Phase 2.1 workload and benchmark, Release, Vulkan (NVRHI),
-  from the 9.1 implementation (`658c7ac`, before the binding split). Three fresh-process script-update means:
-  **0.034147 / 0.029936 / 0.030898 ms/frame**; their median is **0.030898 ms/frame**, **15.1% below**
-  Phase 2.1's 0.036402. Each capture has 3,600 hooks and no dropped samples. Build/test processes were monitored;
-  an overlapping capture was discarded. This is a historical comparison across intervening phases, not an isolated
-  A/B attribution; frame means were 10.146 / 9.949 / 9.919 ms, so no whole-frame speedup is claimed.
-  Capture details and validation are in [Scripting](docs/scripting.md#phase-91-measurements).
+  Final measurements on 2026-10-24 from `a1ee0e8`, including native property tokens, persistent Lua reference
+  wrappers and the completed application/reload refactors: Release, Vulkan (NVRHI), the Phase 2.1 workload and
+  unchanged measurement scopes (module startup is now explicit). Three script-update means:
+  **0.027866 / 0.027207 / 0.027476 ms/frame**; their median is **0.027476 ms/frame**, **24.5% below**
+  Phase 2.1's 0.036402. Each capture has 3,600 hooks and no dropped samples, with no concurrent builds/tests.
+  This is a historical comparison across intervening phases, not isolated A/B attribution. Frame means were
+  9.418 / 9.438 / 9.397 ms, so no whole-frame speedup is claimed. Initial and final captures and validation are in
+  [Scripting](docs/scripting.md#phase-91-measurements).
 
 - [x] **9.2 Bindings by module (S).** The built-in bindings in `scene/scripting/script_scene.cpp` split into a file per
   module.

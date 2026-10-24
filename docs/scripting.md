@@ -367,6 +367,8 @@ engine pointers. The public script API remains described once in `script_api.h`;
 
 ## Phase 9.1 measurements
 
+### Initial implementation
+
 Captured on 2026-10-24 from `658c7ac`, before the binding split, on the Phase 2.1 Windows/MSVC machine with Vulkan
 (NVRHI), Release, the unchanged benchmark and workload: 500 crates, 50 lamps, 934 bodies, High quality, 1600x900,
 vsync/validation off, orbit camera, 240 warm-up frames and 1,200 measured frames in each fresh process.
@@ -398,3 +400,35 @@ Validation: the full MSVC Debug build succeeded. The headless run passed 941 of 
 sandbox case timing out under concurrent build load; its isolated repeat passed in 134.30 seconds. After the final
 property fast-path adjustment and getter-copy regression test, all 16 native-runtime and 32 Luau cases passed
 against both static and shared libraries. The binding split also passed those cases and six tooling/API checks.
+
+### Final integrated implementation
+
+Three new fresh-process captures from `a1ee0e8` include the completed native property-token path and persistent
+Lua reference wrappers, plus the application and asset-reload refactors integrated from `main`. The sandbox
+benchmark adds the required system/game modules explicitly; its workload and measured scopes remain the same.
+Both scripting options are on. No compiler, linker or test process overlapped any capture.
+
+| Measurement (ms) | Capture 1 | Capture 2 | Capture 3 |
+|---|---:|---:|---:|
+| Frame mean | 9.418 | 9.438 | 9.397 |
+| Frame median | 9.374 | 9.361 | 9.351 |
+| Frame p95 | 10.139 | 10.178 | 10.166 |
+| Frame worst | 27.327 | 44.085 | 13.157 |
+| Startup scene load | 404.369 | 130.342 | 127.761 |
+| Prefab spawn mean | 0.049626 | 0.047834 | 0.047877 |
+| Script update mean per frame | 0.027866 | 0.027207 | 0.027476 |
+| Script update median per frame | 0.027200 | 0.026600 | 0.026900 |
+| Script update p95 per frame | 0.040900 | 0.041200 | 0.040700 |
+
+The median of run means is **0.027476 ms/frame**, **24.5% below** the historical baseline's 0.036402. All runs have
+934 bodies, 3,600 measured script hooks and zero dropped samples. Resident memory is 211.3 / 211.8 / 237.1 MiB.
+Each process starts with empty asset caches; the OS file cache was not flushed. The first scene-load result is an
+outlier, retained rather than interpreted as a scripting effect. Frame time is still above the historical 9.200 ms
+baseline. Intervening refactors and run variance mean these figures do not isolate the scripting change's effect.
+
+Final validation on Windows/MSVC Debug: all **947 headless cases** passed after integrating the complete Phase 6,
+with the long falling/respawn case run separately (125.44 seconds). After integrating `main`'s subsequent reload
+commit, the full build and **257 affected integration cases** passed, followed by all **98 scripting cases**
+(17 native-runtime and 32 Luau cases against each library). The enabled Release benchmark built and completed
+three valid captures. Both static and shared scripting-disabled consumers also rebuilt and passed, with Luau
+still requested in CMake but absent from the target graph and consumer definitions. The layer check passes.
