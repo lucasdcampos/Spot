@@ -1,6 +1,7 @@
 #include "spot/scene/rendering/rendering_components.h"
 
 #include "spot/scene/component_registry.h"
+#include "spot/scene/entity.h"
 #include "spot/scene/rendering/camera.h"
 #include "spot/scene/rendering/clouds.h"
 #include "spot/scene/rendering/fog.h"

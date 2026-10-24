@@ -1,6 +1,7 @@
 #include "spot/scene/physics2d/physics2d_components.h"
 
 #include "spot/scene/component_registry.h"
+#include "spot/scene/entity.h"
 #include "spot/scene/physics2d/physics_world_2d.h"
 #include "spot/scene/physics2d/tilemap_collider_2d.h"
 

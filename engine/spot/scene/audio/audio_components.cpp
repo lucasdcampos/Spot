@@ -2,6 +2,7 @@
 
 #include "spot/scene/audio/audio_source.h"
 #include "spot/scene/component_registry.h"
+#include "spot/scene/entity.h"
 
 namespace Spot {
 

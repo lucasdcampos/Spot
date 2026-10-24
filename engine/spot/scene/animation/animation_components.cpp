@@ -5,6 +5,7 @@
 #include "spot/scene/animation/ragdoll.h"
 #include "spot/scene/animation/skinned_mesh_renderer.h"
 #include "spot/scene/component_registry.h"
+#include "spot/scene/entity.h"
 
 namespace Spot {
 
