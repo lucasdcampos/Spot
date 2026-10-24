@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -41,6 +42,11 @@ public:
 
     // Other files the import read, such as a .gltf's buffers, so changes to them import the source again.
     void AddDependency(const std::filesystem::path& path) { m_dependencies.push_back(path); }
+    // The source file of another asset, such as a prefab nested in this one; empty when there is none.
+    std::filesystem::path FindSource(AssetId id) const {
+        return m_findSource ? m_findSource(id) : std::filesystem::path();
+    }
+    void SetSourceFinder(std::function<std::filesystem::path(AssetId)> find) { m_findSource = std::move(find); }
 
     const std::vector<ImportedAsset>& GetImportedAssets() const { return m_imported; }
     const std::vector<std::filesystem::path>& GetDependencies() const { return m_dependencies; }
@@ -53,6 +59,7 @@ private:
     std::filesystem::path m_importDirectory;
     std::vector<ImportedAsset> m_imported;
     std::vector<std::filesystem::path> m_dependencies;
+    std::function<std::filesystem::path(AssetId)> m_findSource;
 };
 
 using Importer = bool (*)(ImportContext& context);

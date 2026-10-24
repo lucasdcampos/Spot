@@ -272,9 +272,9 @@ TEST_CASE("Invalid prefab dependencies leave open documents and their histories 
     const auto history = fixture.first->GetHistory().GetCurrentState();
     const auto revision = fixture.first->GetSceneRevision();
     const std::string original = fixture.Source().SaveToString();
-    // A valid imported source with an invalid dependency graph reaches the runtime's staging check.
-    std::ofstream(fixture.sourceDocument->GetFile(), std::ios::binary) << fixture.First().SaveToString();
-    REQUIRE(fixture.Project().Reimport(fixture.prefab));
+    // A source that nests itself does not import.
+    std::ofstream(fixture.sourceDocument->GetFile(), std::ios::binary) << Spot::SaveEntitySource(fixture.First());
+    CHECK_FALSE(fixture.Project().Reimport(fixture.prefab));
     fixture.workspace->SyncWithAssets();
     CHECK(fixture.first->GetScene().SaveToString() == saved);
     CHECK(fixture.first->GetHistory().GetCurrentState() == history);

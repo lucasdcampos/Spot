@@ -2,6 +2,8 @@
 
 #include "scene/scene_document.h"
 
+#include <spot_tools.h>
+
 namespace Spot::Editor {
 
 class EditorProject;

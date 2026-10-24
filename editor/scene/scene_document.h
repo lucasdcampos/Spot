@@ -95,8 +95,9 @@ public:
     // Changes when entities are replaced outside the command history, for inspector caches and edits in progress.
     std::uint64_t GetSceneRevision() const { return m_sceneRevision; }
 
-    // Stages a replacement before changing the document; history remains owned by its caller.
-    bool ReplaceSceneText(std::string_view text);
+    // Stages a replacement before changing the document; history remains owned by its caller. With keepUnchanged, a
+    // replacement that would save as the scene does leaves the document as it is.
+    bool ReplaceSceneText(std::string_view text, bool keepUnchanged = false);
 
 private:
     std::unique_ptr<Scene> m_ownedScene;

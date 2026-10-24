@@ -27,6 +27,7 @@
 
 #include <spot.h>
 #include <spot_import.h>
+#include <spot_tools.h>
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -961,7 +962,7 @@ TEST_CASE("Sandbox prefab edits propagate while instance overrides survive", "[s
     const auto firstPosition = first->GetTransform().GetPosition();
     second->SetName("Personal Crate");
     second->GetComponent<ImpactSounds>()->minSpeed = 3.0f;
-    const auto saved = instances.SaveToString();
+    const auto saved = Spot::SaveSceneSource(instances, &assets);
 
     Scene authored;
     auto sourceRoots =

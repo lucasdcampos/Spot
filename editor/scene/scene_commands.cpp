@@ -1,5 +1,7 @@
 #include "scene/scene_commands.h"
 
+#include <spot_tools.h>
+
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
@@ -148,12 +150,12 @@ bool CreateEntitiesCommand::Execute() {
             index = before->GetSiblingIndex();
         }
         // The first time they get new ids, as copies of entities still in the scene must; afterwards the same ones.
-        const std::vector<Entity*> roots =
-            scene.Instantiate(placement.text, {.parent = parent,
-                                               .siblingIndex = index,
-                                               .keepIds = m_executed,
-                                               .keepExternalReferences = true,
-                                               .assets = GetDocument().GetAssetManager()});
+        const std::vector<Entity*> roots = scene.Instantiate(placement.text, {.parent = parent,
+                                                                              .siblingIndex = index,
+                                                                              .keepIds = m_executed,
+                                                                              .keepExternalReferences = true,
+                                                                              .assets = GetDocument().GetAssetManager(),
+                                                                              .keepUnknownComponents = true});
         if (!m_executed) {
             placement.text = scene.SaveEntitiesToString(roots);
         }
@@ -195,7 +197,8 @@ bool DeleteEntitiesCommand::Execute() {
                 m_prefabs.push_back({prefab->GetId(),
                                      {.parent = prefab->GetParent() ? prefab->GetParent()->GetId() : EntityId::Invalid,
                                       .index = prefab->GetSiblingIndex(),
-                                      .text = prefab->SaveToString()}});
+                                      // As overrides, so undoing takes what the prefab gained meanwhile.
+                                      .text = SaveEntitySource(*prefab, GetDocument().GetAssetManager())}});
             }
         }
     }
@@ -238,7 +241,8 @@ void DeleteEntitiesCommand::Undo() {
     }
     const std::string text = combined.dump();
     Scene prepared;
-    if (prepared.Instantiate(text, {.assets = GetDocument().GetAssetManager()}).empty()) {
+    if (prepared.Instantiate(text, {.assets = GetDocument().GetAssetManager(), .keepUnknownComponents = true})
+            .empty()) {
         return;
     }
     for (const auto& [id, saved] : m_prefabs) {
@@ -247,8 +251,10 @@ void DeleteEntitiesCommand::Undo() {
             instance->Destroy();
         }
     }
-    const auto roots = scene.Instantiate(
-        text, {.keepIds = true, .keepExternalReferences = true, .assets = GetDocument().GetAssetManager()});
+    const auto roots = scene.Instantiate(text, {.keepIds = true,
+                                                .keepExternalReferences = true,
+                                                .assets = GetDocument().GetAssetManager(),
+                                                .keepUnknownComponents = true});
     // Back in hierarchy order, so the earlier places exist when the later ones are taken.
     for (std::size_t i = 0; i < roots.size(); ++i) {
         const Deleted& saved = i < m_prefabs.size() ? m_prefabs[i].second : m_deleted[i - m_prefabs.size()];

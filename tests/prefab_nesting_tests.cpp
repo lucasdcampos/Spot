@@ -4,6 +4,7 @@
 
 #include <spot.h>
 #include <spot_import.h>
+#include <spot_tools.h>
 
 #include <catch2/catch_test_macros.hpp>
 #include <nlohmann/json.hpp>
@@ -11,6 +12,7 @@
 #include <algorithm>
 #include <array>
 #include <fstream>
+#include <iterator>
 #include <memory>
 
 namespace {
@@ -47,9 +49,14 @@ struct NestedProject {
     }
 
     std::filesystem::path File(std::string_view name) const { return temp.GetPath() / "assets" / std::string(name); }
+    std::string Read(std::string_view name) const {
+        std::ifstream input(File(name), std::ios::binary);
+        return {std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
+    }
     Spot::AssetId Write(std::string_view name, std::string_view text) {
         std::ofstream(File(name)) << text;
-        REQUIRE(database.Refresh() >= 1);
+        // Importing fails for prefabs that cannot be flattened, which some tests write.
+        database.Refresh();
         assets->RefreshManifest();
         assets->Reload(database.GetChanged());
         const auto id = database.FindByPath(name);
@@ -65,7 +72,7 @@ struct NestedProject {
         Spot::Scene scene;
         auto& root = scene.CreateEntity(name);
         Instantiate(scene, asset, &root);
-        return Write(name + ".prefab", scene.SaveToString());
+        return Write(name + ".prefab", Spot::SaveSceneSource(scene, assets.get()));
     }
 };
 
@@ -81,7 +88,7 @@ TEST_CASE("Nested prefabs propagate source edits through multiple levels while i
     auto* lamp = root.FindChild("Assembly")->FindChild("Lamp");
     REQUIRE(lamp);
     lamp->GetComponent<NestedData>()->value = 9.0f;
-    const auto saved = scene.SaveToString();
+    const auto saved = Spot::SaveSceneSource(scene, project.assets.get());
     CHECK(json::parse(saved)["entities"].size() == 1);
     CHECK(lamp->GetPrefabRootId() == root.GetId());
     CHECK_FALSE(lamp->GetPrefabAssetId().IsValid());
@@ -110,14 +117,19 @@ TEST_CASE("Variants inherit current base data and keep their own overrides indep
     auto& root = project.Instantiate(authoring, project.baseId);
     root.SetName("Bright Lamp");
     root.GetComponent<NestedData>()->value = 8.0f;
-    const auto variant = project.Write("Bright.prefab", root.SaveToString());
+    const auto variant = project.Write("Bright.prefab", Spot::SaveEntitySource(root, project.assets.get()));
+    const auto source = Spot::Prefab::FromString(project.Read("Bright.prefab"));
+    REQUIRE(source);
+    CHECK(std::ranges::find(source->GetDependencies(), project.baseId) != source->GetDependencies().end());
+    // Imported prefabs have the prefabs nested in them expanded.
     const auto loadedAsset = project.assets->Load<Spot::Prefab>(variant);
     REQUIRE(loadedAsset);
-    CHECK(std::ranges::find(loadedAsset->GetDependencies(), project.baseId) != loadedAsset->GetDependencies().end());
+    CHECK(loadedAsset->IsFlat());
+    CHECK(loadedAsset->GetDependencies().empty());
     Spot::Scene scene;
     auto& instance = project.Instantiate(scene, variant);
     instance.GetComponent<NestedData>()->value = 11.0f;
-    const auto saved = scene.SaveToString();
+    const auto saved = Spot::SaveSceneSource(scene, project.assets.get());
     CHECK(instance.GetPrefabAssetId() == variant);
     project.source.GetEntity(project.rootId)->SetName("Changed Base");
     project.source.GetEntity(project.rootId)->GetComponent<NestedData>()->value = 3.0f;
@@ -151,7 +163,7 @@ TEST_CASE("New nested source identities stay stable when further children are in
     REQUIRE(child);
     const auto local = child->GetPrefabLocalId();
     child->GetComponent<NestedData>()->value = 7.0f;
-    const auto saved = first.SaveToString();
+    const auto saved = Spot::SaveSceneSource(first, project.assets.get());
     sourceRoot.CreateChild("Second New").SetSiblingIndex(0);
     project.Write("Lamp.prefab", project.source.SaveToString());
     Spot::Scene second;
@@ -170,7 +182,7 @@ TEST_CASE("Applying changes to nested prefabs and variants preserves their depen
     Spot::Scene scene;
     auto& root = project.Instantiate(scene, container);
     root.FindChild("Lamp")->GetComponent<NestedData>()->value = 12.0f;
-    const auto edit = Spot::PreparePrefabEdit(root, {}, true, project.assets.get());
+    const auto edit = Spot::PreparePrefabEdit(root, {}, true, project.Read("Assembly.prefab"), project.assets.get());
     REQUIRE(edit);
     const auto prefab = Spot::Prefab::FromString(edit->prefabText);
     REQUIRE(prefab);
@@ -180,11 +192,12 @@ TEST_CASE("Applying changes to nested prefabs and variants preserves their depen
     Spot::Scene variantScene;
     auto& variantRoot = project.Instantiate(variantScene, project.baseId);
     variantRoot.SetName("Variant");
-    const auto variant = project.Write("Variant.prefab", variantRoot.SaveToString());
+    const auto variant = project.Write("Variant.prefab", Spot::SaveEntitySource(variantRoot, project.assets.get()));
     Spot::Scene variantInstance;
     auto& instance = project.Instantiate(variantInstance, variant);
     instance.GetComponent<NestedData>()->value = 14.0f;
-    const auto variantEdit = Spot::PreparePrefabEdit(instance, {}, true, project.assets.get());
+    const auto variantEdit =
+        Spot::PreparePrefabEdit(instance, {}, true, project.Read("Variant.prefab"), project.assets.get());
     REQUIRE(variantEdit);
     CHECK(json::parse(variantEdit->prefabText)["entities"][0]["prefab"] == project.baseId.ToString());
     project.Write("Variant.prefab", variantEdit->prefabText);
@@ -199,24 +212,27 @@ TEST_CASE("Applying changes to nested prefabs and variants preserves their depen
     CHECK(changedVariant.GetComponent<NestedData>()->value == 14.0f);
 }
 
-TEST_CASE("Prefab dependency cycles and unavailable nested assets fail before changing a scene",
+TEST_CASE("Prefab dependency cycles and unavailable nested assets fail to import before changing a scene",
           "[scene][prefab][nesting]") {
     NestedProject project;
     const auto container = project.Container(project.baseId, "Assembly");
     Spot::Scene baseScene;
     auto& instance = project.Instantiate(baseScene, container);
-    project.Write("Lamp.prefab", instance.SaveToString());
+    {
+        const auto sink = std::make_shared<Spot::Tests::CaptureSink>();
+        const Spot::Tests::ScopedSinks capture({sink});
+        project.Write("Lamp.prefab", Spot::SaveEntitySource(instance, project.assets.get()));
+        CHECK(std::ranges::any_of(sink->GetRecords(), [](const auto& record) {
+            return record.message.find("nests itself") != std::string::npos;
+        }));
+    }
     Spot::Scene target;
-    auto& sentinel = target.CreateEntity("Sentinel");
-    const auto sentinelId = sentinel.GetId();
-    CHECK_FALSE(target.Instantiate(project.assets->Load<Spot::Prefab>(container), {.assets = project.assets.get()}));
-    CHECK(target.GetEntityCount() == 1);
-    CHECK(target.GetEntity(sentinelId));
+    target.CreateEntity("Sentinel");
     Spot::Scene replacement;
     replacement.CreateEntity("Replacement");
     project.Write("Lamp.prefab", replacement.SaveToString());
     REQUIRE(target.Instantiate(project.assets->Load<Spot::Prefab>(container), {.assets = project.assets.get()}));
-    json unavailable = json::parse(project.assets->Load<Spot::Prefab>(container)->GetEntityText());
+    json unavailable = json::parse(project.Read("Assembly.prefab"));
     for (json& node : unavailable["entities"]) {
         if (node.contains("prefab")) {
             node["prefab"] = Spot::AssetId::Generate().ToString();
@@ -228,20 +244,21 @@ TEST_CASE("Prefab dependency cycles and unavailable nested assets fail before ch
     CHECK(target.SaveToString() == before);
 }
 
-TEST_CASE("Reloading a base prefab invalidates transitive dependencies whose temporary references expired",
-          "[assets][prefab][nesting]") {
+TEST_CASE("Changing a base prefab imports the prefabs nesting it again", "[assets][prefab][nesting]") {
     NestedProject project;
     const auto container = project.Container(project.baseId, "Assembly");
     const auto outer = project.Container(container, "Outer");
-    Spot::Scene scene;
-    project.Instantiate(scene, outer);
     const auto before = project.assets->Load<Spot::Prefab>(outer);
-    const auto changed = project.assets->Reload(std::array{project.baseId});
+    project.source.GetEntity(project.rootId)->CreateChild("Added");
+    project.Write("Lamp.prefab", project.source.SaveToString());
+    const auto changed = project.database.GetChanged();
     CHECK(std::ranges::find(changed, container) != changed.end());
     CHECK(std::ranges::find(changed, outer) != changed.end());
     const auto after = project.assets->Load<Spot::Prefab>(outer);
     REQUIRE(after);
     CHECK(before.Get() != after.Get());
+    Spot::Scene scene;
+    CHECK(project.Instantiate(scene, outer).FindChild("Assembly")->FindChild("Lamp")->FindChild("Added"));
 }
 
 TEST_CASE("Nested source metadata and disconnected expanded hierarchies are rejected safely",
@@ -249,7 +266,7 @@ TEST_CASE("Nested source metadata and disconnected expanded hierarchies are reje
     NestedProject project;
     Spot::Scene scene;
     auto& root = project.Instantiate(scene, project.baseId);
-    json variant = json::parse(root.SaveToString());
+    json variant = json::parse(Spot::SaveEntitySource(root, project.assets.get()));
     const auto key = variant["entities"][0]["entityIds"].begin().key();
     json duplicate = variant;
     duplicate["entities"][0]["entityIds"]["0" + key] = 1000000;

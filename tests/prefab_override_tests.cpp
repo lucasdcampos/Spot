@@ -4,6 +4,7 @@
 
 #include <spot.h>
 #include <spot_import.h>
+#include <spot_tools.h>
 
 #include <catch2/catch_test_macros.hpp>
 #include <nlohmann/json.hpp>
@@ -93,7 +94,7 @@ TEST_CASE("Unchanged prefab instances save only identity and no overrides", "[sc
     REQUIRE(child);
     CHECK(child->GetPrefabRootId() == root.GetId());
     CHECK(child->GetPrefabLocalId() == static_cast<std::uint64_t>(project.GetRoot().FindChild("Part")->GetId()));
-    const json saved = json::parse(scene.SaveToString());
+    const json saved = json::parse(Spot::SaveSceneSource(scene, project.assets.get()));
     CHECK(saved["version"] == 2);
     REQUIRE(saved["entities"].size() == 1);
     const auto& record = saved["entities"][0];
@@ -106,7 +107,16 @@ TEST_CASE("Unchanged prefab instances save only identity and no overrides", "[sc
     REQUIRE(loaded.LoadFromString(saved.dump(), project.assets.get()));
     CHECK(loaded.GetEntityCount() == 4);
     CHECK(loaded.GetRootEntities()[0]->GetPrefabAssetId() == project.assetId);
-    CHECK(json::parse(loaded.SaveToString())["entities"][0]["overrides"].empty());
+    CHECK(json::parse(Spot::SaveSceneSource(loaded, project.assets.get()))["entities"][0]["overrides"].empty());
+    // Saved by the engine, instances keep their links without their prefab's data being compared.
+    const json linked = json::parse(scene.SaveToString());
+    REQUIRE(linked["entities"].size() == 4);
+    CHECK(linked["entities"][0]["prefabAsset"] == project.assetId.ToString());
+    CHECK(linked["entities"][1]["prefabRoot"] == static_cast<std::uint64_t>(root.GetId()));
+    Spot::Scene copy;
+    REQUIRE(copy.LoadFromString(linked.dump(), project.assets.get()));
+    CHECK(copy.GetRootEntities()[0]->GetPrefabAssetId() == project.assetId);
+    CHECK(copy.GetRootEntities()[0]->FindChild("Part")->GetPrefabRootId() == copy.GetRootEntities()[0]->GetId());
 }
 
 TEST_CASE("Prefab editing prepares field and component changes without mutating the scene",
@@ -280,7 +290,7 @@ TEST_CASE("Prefab source edits propagate while fields and stable component overr
     const auto secondId = first.GetComponents<PrefabData>()[1]->GetId();
     first.SetName("Custom");
     FindData(first, firstId)->value = 7.0f;
-    const auto saved = scene.SaveToString();
+    const auto saved = Spot::SaveSceneSource(scene, project.assets.get());
     auto& source = project.GetRoot();
     source.SetName("Updated");
     FindData(source, firstId)->value = 3.0f;
@@ -306,7 +316,7 @@ TEST_CASE("Prefab source edits propagate while fields and stable component overr
     CHECK(custom->FindChild("Part")->GetTransform().GetPosition().y == 2.0f);
     CHECK(custom->FindChild("New source child"));
     CHECK(updated->FindChild("New source child"));
-    const auto again = loaded.SaveToString();
+    const auto again = Spot::SaveSceneSource(loaded, project.assets.get());
     Spot::Scene roundTrip;
     REQUIRE(roundTrip.LoadFromString(again, project.assets.get()));
     CHECK(FindData(*roundTrip.FindEntity("Custom"), firstId)->value == 7.0f);
@@ -331,7 +341,7 @@ TEST_CASE("Prefab structural overrides keep additions and removals through sourc
     const auto addedId = added.GetId();
     FindData(root, keptComponent)->target = extra.GetId();
     root.MoveComponent(added, 0);
-    const auto saved = scene.SaveToString();
+    const auto saved = Spot::SaveSceneSource(scene, project.assets.get());
     project.GetRoot().FindChild("Removed")->CreateChild("Also removed");
     project.GetRoot().CreateChild("From source");
     auto& sourceComponent = project.GetRoot().AddComponent<PrefabData>();
@@ -356,13 +366,13 @@ TEST_CASE("Prefab structural overrides keep additions and removals through sourc
     CHECK(FindData(*instance, sourceId)->value == 15.0f);
     CHECK(instance->GetComponents<PrefabData>()[0]->GetId() == addedId);
     Spot::Scene roundTrip;
-    REQUIRE(roundTrip.LoadFromString(loaded.SaveToString(), project.assets.get()));
+    REQUIRE(roundTrip.LoadFromString(Spot::SaveSceneSource(loaded, project.assets.get()), project.assets.get()));
     CHECK_FALSE(roundTrip.FindEntity("Removed"));
     CHECK(roundTrip.FindEntity("Extra"));
     CHECK(roundTrip.FindEntity("From source"));
 }
 
-TEST_CASE("Overrides of removed prefab targets are retained and do not affect replacement components",
+TEST_CASE("Overrides of removed prefab targets are dropped and do not affect replacement components",
           "[scene][prefab][overrides]") {
     PrefabProject project;
     Spot::Scene scene;
@@ -370,9 +380,7 @@ TEST_CASE("Overrides of removed prefab targets are retained and do not affect re
     const auto componentId = root.GetComponents<PrefabData>()[0]->GetId();
     FindData(root, componentId)->value = 7.0f;
     root.FindChild("Part")->SetName("Custom part");
-    const auto saved = scene.SaveToString();
-    const auto partText = project.GetRoot().FindChild("Part")->SaveToString();
-    const auto componentText = Spot::SaveComponentToString(*FindData(project.GetRoot(), componentId));
+    const auto saved = Spot::SaveSceneSource(scene, project.assets.get());
     project.GetRoot().FindChild("Part")->Destroy();
     project.GetRoot().RemoveComponent(*FindData(project.GetRoot(), componentId));
     auto& replacement = project.GetRoot().AddComponent<PrefabData>();
@@ -389,19 +397,8 @@ TEST_CASE("Overrides of removed prefab targets are retained and do not affect re
     CHECK_FALSE(FindData(*instance, componentId));
     CHECK(FindData(*instance, replacementId)->value == 20.0f);
     CHECK_FALSE(sink->GetRecords().empty());
-    const auto retained = loaded.SaveToString();
-    const auto restored = project.source.Instantiate(partText, {.parent = &project.GetRoot(), .keepIds = true});
-    REQUIRE(restored.size() == 1);
-    REQUIRE(Spot::AddComponentFromString(project.GetRoot(), componentText));
-    project.Reimport();
-    Spot::Scene restoredScene;
-    REQUIRE(restoredScene.LoadFromString(retained, project.assets.get()));
-    auto* restoredRoot = restoredScene.FindEntity("Prop");
-    REQUIRE(restoredRoot);
-    CHECK(restoredRoot->FindChild("Custom part"));
-    REQUIRE(FindData(*restoredRoot, componentId));
-    CHECK(FindData(*restoredRoot, componentId)->value == 7.0f);
-    CHECK(FindData(*restoredRoot, replacementId)->value == 20.0f);
+    const json resaved = json::parse(Spot::SaveSceneSource(loaded, project.assets.get()));
+    CHECK(resaved["entities"][0]["overrides"].empty());
 }
 
 TEST_CASE("Prefab local references and references between instances remap without collisions",
@@ -418,7 +415,7 @@ TEST_CASE("Prefab local references and references between instances remap withou
     auto& outside = scene.CreateEntity("Outside");
     outside.AddComponent<PrefabData>().target = first.FindChild("Part")->GetId();
     Spot::Scene loaded;
-    REQUIRE(loaded.LoadFromString(scene.SaveToString(), project.assets.get()));
+    REQUIRE(loaded.LoadFromString(Spot::SaveSceneSource(scene, project.assets.get()), project.assets.get()));
     auto* loadedFirst = loaded.FindEntity("First");
     auto* loadedSecond = loaded.FindEntity("Second");
     REQUIRE(loadedFirst);
@@ -455,7 +452,7 @@ TEST_CASE("Unavailable prefabs and malformed overrides reject a scene before cha
     PrefabProject project;
     Spot::Scene source;
     project.Instantiate(source);
-    json saved = json::parse(source.SaveToString());
+    json saved = json::parse(Spot::SaveSceneSource(source, project.assets.get()));
     SECTION("Unavailable asset") {
         saved["entities"][0]["prefab"] = Spot::AssetId::Generate().ToString();
     }

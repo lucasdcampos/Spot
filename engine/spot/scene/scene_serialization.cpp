@@ -8,6 +8,7 @@
 #include "spot/scene/component_registry.h"
 #include "spot/scene/component_serialization.h"
 #include "spot/scene/missing_component.h"
+#include "spot/scene/prefab_document.h"
 #include "spot/scene/scene.h"
 #include "spot/scene/scene_serializer.h"
 
@@ -30,21 +31,25 @@ namespace {
 
 using IdMap = Detail::SceneSerializer::IdMap;
 
-// Entity references in scene files: plain ids, remapped to the new ids of the entities loaded along, or, in a
-// prefab's canonical fields, marked as references inside the prefab or to the scene around it.
+// Entity references in scene files: plain ids, remapped to the new ids of the entities loaded along, or, inside a
+// prefab instance, marked as references to the instance's entities or to the others (see prefab_document.h).
 class SceneEntityReferences final : public Detail::EntityReferenceCodec {
 public:
     explicit SceneEntityReferences(const IdMap* entityIds = nullptr, const Scene* scene = nullptr,
-                                   const IdMap* prefabIds = nullptr, const IdMap* externalEntityIds = nullptr)
-        : entityIds(entityIds), scene(scene), prefabIds(prefabIds), externalEntityIds(externalEntityIds) {}
+                                   const IdMap* prefabIds = nullptr, const IdMap* localEntityIds = nullptr,
+                                   const IdMap* externalEntityIds = nullptr)
+        : entityIds(entityIds), scene(scene), prefabIds(prefabIds), localEntityIds(localEntityIds),
+          externalEntityIds(externalEntityIds) {}
 
     // When loading, maps the saved ids of the entities being loaded to their new ids. Without it, ids load as saved.
     const IdMap* entityIds = nullptr;
     // With entityIds, ids missing from them that this scene has an entity for are kept rather than lost.
     const Scene* scene = nullptr;
-    // Saving a prefab's canonical fields: maps runtime ids to source-local ids. Other ids are scene references.
+    // Saving an instance's entity: maps the ids of the instance's entities to their ids in the prefab, saved as
+    // markers. Other ids are saved as scene references.
     const IdMap* prefabIds = nullptr;
-    // Loading canonical fields: scene references use the whole document's map, apart from prefab-local references.
+    // Loading markers: references inside the instance map through the first, the others through the second.
+    const IdMap* localEntityIds = nullptr;
     const IdMap* externalEntityIds = nullptr;
 
     void Field(Detail::ArchiveState& state, std::string_view name, EntityId& value) const override {
@@ -73,10 +78,12 @@ public:
                 return;
             }
             id = saved->get<std::uint64_t>();
-            const IdMap* ids = local != field->end() ? entityIds : externalEntityIds;
+            const IdMap* ids = local != field->end() ? localEntityIds : externalEntityIds;
             if (ids) {
                 const auto found = ids->find(id);
                 value = found != ids->end() ? found->second : EntityId::Invalid;
+            } else if (local != field->end()) {
+                value = EntityId::Invalid;
             } else {
                 value = static_cast<EntityId>(id);
             }
@@ -144,6 +151,7 @@ struct UnregisteredComponents {
     struct Type {
         std::size_t count = 0;
         std::vector<std::string> entities;
+        bool kept = false;
     };
     std::map<std::string, Type> types;
 };
@@ -166,9 +174,9 @@ public:
                 names += (i == 0 ? "'" : ", '") + found.entities[i] + "'";
             if (found.entities.size() > Listed)
                 names += " and " + std::to_string(found.entities.size() - Listed) + " more";
-            Log::GetEngineLogger().Warning(
-                "{} component{} of type '{}', which is not registered, keep their data as it is (on {})", found.count,
-                found.count == 1 ? "" : "s", type, names);
+            Log::GetEngineLogger().Warning("{} component{} of type '{}', which is not registered, {} (on {})",
+                                           found.count, found.count == 1 ? "" : "s", type,
+                                           found.kept ? "keep their data as it is" : "are skipped", names);
         }
     }
     UnregisteredScope(const UnregisteredScope&) = delete;
@@ -179,15 +187,15 @@ private:
     UnregisteredComponents m_components;
 };
 
-void ReportUnregistered(const std::string& entity, const std::string& type) {
+void ReportUnregistered(const std::string& entity, const std::string& type, bool kept) {
     if (!t_unregistered) {
-        Log::GetEngineLogger().Warning(
-            "A component of entity '{}' is of type '{}', which is not registered; its data is kept as it is", entity,
-            type);
+        Log::GetEngineLogger().Warning("A component of entity '{}' is of type '{}', which is not registered; {}",
+                                       entity, type, kept ? "its data is kept as it is" : "it is skipped");
         return;
     }
     auto& found = t_unregistered->types[type];
     ++found.count;
+    found.kept = kept;
     if (std::ranges::find(found.entities, entity) == found.entities.end())
         found.entities.push_back(entity);
 }
@@ -205,19 +213,35 @@ void SceneSerializer::Validate(Component& component) {
 
 // Saves the entity and then its descendants, depth first, so parents always come before their children and
 // children keep their order.
-void SceneSerializer::SaveTree(const Entity& entity, json& entities, const PrefabRoots& roots) {
-    if (entity.m_prefabInstance && roots.contains(entity.m_id)) {
-        entities.push_back(SavePrefab(entity));
-    } else if (!roots.contains(entity.m_prefabRoot)) {
-        json& saved = entities.emplace_back(json::object());
-        SaveEntity(entity, saved);
-        if (entity.m_parent && roots.contains(entity.m_parent->m_prefabRoot)) {
-            saved["siblingIndex"] = entity.GetSiblingIndex();
+void SceneSerializer::SaveTree(const Entity& entity, json& entities, const PrefabRoots& roots,
+                               std::unordered_map<EntityId, IdMap>& localIds) {
+    json& saved = entities.emplace_back(json::object());
+    if (roots.contains(entity.m_prefabRoot)) {
+        auto [instance, added] = localIds.try_emplace(entity.m_prefabRoot);
+        if (added) {
+            std::vector<const Entity*> pending{entity.m_scene->GetEntity(entity.m_prefabRoot)};
+            while (!pending.empty()) {
+                const Entity* member = pending.back();
+                pending.pop_back();
+                if (member->m_prefabRoot == entity.m_prefabRoot) {
+                    instance->second[static_cast<std::uint64_t>(member->m_id)] =
+                        static_cast<EntityId>(member->m_prefabLocalId);
+                }
+                pending.insert(pending.end(), member->m_children.begin(), member->m_children.end());
+            }
         }
+        SaveEntity(entity, saved, &instance->second);
+        saved["prefabRoot"] = static_cast<std::uint64_t>(entity.m_prefabRoot);
+        saved["prefabLocal"] = entity.m_prefabLocalId;
+        if (entity.m_prefabRoot == entity.m_id) {
+            saved["prefabAsset"] = entity.m_prefabAsset.GetId().ToString();
+        }
+    } else {
+        SaveEntity(entity, saved);
     }
     for (const Entity* child : entity.m_children) {
         if (!child->m_destroyed) {
-            SaveTree(*child, entities, roots);
+            SaveTree(*child, entities, roots, localIds);
         }
     }
 }
@@ -234,8 +258,8 @@ void SceneSerializer::SaveEntity(const Entity& entity, json& node, const IdMap* 
     bool active = entity.m_activeSelf;
     archive.Field("active", active);
     if (entity.m_parent) {
-        EntityId parent = entity.m_parent->m_id;
-        archive.Field("parent", parent);
+        // Parents are plain ids even inside prefab instances, as the hierarchy is the document's own.
+        node["parent"] = static_cast<std::uint64_t>(entity.m_parent->m_id);
     }
     std::vector<std::string> tags = entity.m_tags;
     archive.Field("tags", tags);
@@ -315,22 +339,31 @@ std::optional<json> SceneSerializer::ParseDocument(std::string_view text) {
 }
 
 std::optional<std::vector<Entity*>> SceneSerializer::Load(Scene& scene, std::string_view text,
-                                                          const InstantiateOptions& options, IdMap* loadedIds,
-                                                          bool validateComponents, bool requireTree) {
-    const UnregisteredScope unregistered;
+                                                          const InstantiateOptions& options) {
     std::optional<json> document = ParseDocument(text);
     if (!document) {
         return std::nullopt;
     }
-    std::vector<PrefabLoadGroup> groups;
-    if (!ExpandPrefabs(*document, options.assets, groups)) {
+    return Load(scene, std::move(*document), options);
+}
+
+std::optional<std::vector<Entity*>> SceneSerializer::Load(Scene& scene, json document,
+                                                          const InstantiateOptions& options,
+                                                          const Prefab::NestedPrefabs* prefabs) {
+    const UnregisteredScope unregistered;
+    AssetManager* manager = options.assets ? options.assets : Assets::GetManager();
+    const Prefab::NestedPrefabs managed = [manager](AssetId id) {
+        return manager ? manager->Load<Prefab>(id) : AssetRef<Prefab>();
+    };
+    PrefabAssets prefabAssets;
+    if (!ExpandPrefabs(document, prefabs ? *prefabs : managed, &prefabAssets)) {
         Log::GetEngineLogger().Warning("Could not load the scene: its prefab instances could not be resolved");
         return std::nullopt;
     }
-    if (requireTree && !Prefab::FromString(document->dump())) {
-        return std::nullopt;
-    }
-    json& entities = (*document)["entities"];
+    json& entities = document["entities"];
+    const json noScopes = json::array();
+    const auto savedScopes = document.find("referenceScopes");
+    const json& scopes = savedScopes != document.end() && savedScopes->is_array() ? *savedScopes : noScopes;
 
     const DeferRemovalsScope defer(scene);
 
@@ -347,8 +380,17 @@ std::optional<std::vector<Entity*>> SceneSerializer::Load(Scene& scene, std::str
         archive.Field("name", name);
         std::uint64_t id = 0;
         archive.Field("id", id);
-        Entity& entity = options.keepIds ? scene.CreateEntityWithId(static_cast<EntityId>(id), std::move(name))
-                                         : scene.CreateEntity(std::move(name));
+        std::optional<EntityId> wanted;
+        if (options.ids) {
+            if (const auto found = options.ids->find(static_cast<EntityId>(id)); found != options.ids->end()) {
+                wanted = found->second;
+            }
+        }
+        if (!wanted && options.keepIds) {
+            wanted = static_cast<EntityId>(id);
+        }
+        Entity& entity =
+            wanted ? scene.CreateEntityWithId(*wanted, std::move(name)) : scene.CreateEntity(std::move(name));
         created.push_back(&entity);
         if (id != 0) {
             ids.insert_or_assign(id, entity.m_id);
@@ -376,17 +418,65 @@ std::optional<std::vector<Entity*>> SceneSerializer::Load(Scene& scene, std::str
         transform.SetScale(scale);
     }
 
-    if (loadedIds) {
-        *loadedIds = ids;
+    // Instances whose root was saved along keep their links; their other entities saved alone become ordinary.
+    std::unordered_map<std::uint64_t, Entity*> prefabRoots;
+    for (std::size_t i = 0; i < created.size(); ++i) {
+        const auto asset = entities[i].find("prefabAsset");
+        const auto id = entities[i].find("id");
+        if (asset == entities[i].end() || !asset->is_string() || id == entities[i].end() || !id->is_number_unsigned()) {
+            continue;
+        }
+        const auto expanded = prefabAssets.find(id->get<std::uint64_t>());
+        AssetRef<Prefab> prefab = expanded != prefabAssets.end() ? expanded->second : AssetRef<Prefab>();
+        if (!prefab) {
+            const auto assetId = AssetId::Parse(asset->get<std::string>());
+            prefab = assetId ? managed(*assetId) : AssetRef<Prefab>();
+        }
+        if (!prefab) {
+            Log::GetEngineLogger().Warning("Entity '{}' loads unlinked from its prefab {}, which is unavailable",
+                                           created[i]->m_name, asset->get<std::string>());
+            continue;
+        }
+        created[i]->m_prefabAsset = std::move(prefab);
+        prefabRoots[id->get<std::uint64_t>()] = created[i];
     }
-    RestorePrefabGroups(scene, groups, ids);
-    std::unordered_map<EntityId, const IdMap*> prefabMaps;
-    for (const auto& group : groups) {
-        for (const auto& [local, entityId] : group.instance->entities) {
-            (void)local;
-            prefabMaps[entityId] = &group.instance->entities;
+    std::unordered_map<std::uint64_t, IdMap> localIds;
+    for (std::size_t i = 0; i < created.size(); ++i) {
+        const auto root = entities[i].find("prefabRoot");
+        const auto local = entities[i].find("prefabLocal");
+        if (root == entities[i].end() || !root->is_number_unsigned() || local == entities[i].end() ||
+            !local->is_number_unsigned() || local->get<std::uint64_t>() == 0) {
+            continue;
+        }
+        const auto found = prefabRoots.find(root->get<std::uint64_t>());
+        if (found != prefabRoots.end()) {
+            created[i]->m_prefabRoot = found->second->m_id;
+            created[i]->m_prefabLocalId = local->get<std::uint64_t>();
+            localIds[root->get<std::uint64_t>()][local->get<std::uint64_t>()] = created[i]->m_id;
         }
     }
+    // Plain references of entities expanded from prefabs are ids of their prefab, which their scope maps.
+    std::vector<std::optional<IdMap>> scopeIds(scopes.size());
+    const auto referenceIds = [&](const json& node) -> const IdMap& {
+        const auto scope = node.find("referenceScope");
+        if (scope == node.end() || !scope->is_number_unsigned() || scope->get<std::size_t>() >= scopes.size() ||
+            !scopes[scope->get<std::size_t>()].is_object()) {
+            return ids;
+        }
+        auto& mapped = scopeIds[scope->get<std::size_t>()];
+        if (!mapped) {
+            mapped.emplace();
+            for (const auto& [key, saved] : scopes[scope->get<std::size_t>()].items()) {
+                const auto local = ParsePrefabLocalId(key);
+                const auto found = saved.is_number_unsigned() ? ids.find(saved.get<std::uint64_t>()) : ids.end();
+                if (local) {
+                    (*mapped)[*local] = found != ids.end() ? found->second : EntityId::Invalid;
+                }
+            }
+        }
+        return *mapped;
+    };
+
     const Scene* referenced = options.keepExternalReferences ? &scene : nullptr;
     for (std::size_t i = 0; i < created.size(); ++i) {
         Entity& entity = *created[i];
@@ -403,10 +493,15 @@ std::optional<std::vector<Entity*>> SceneSerializer::Load(Scene& scene, std::str
 
         const auto components = entities[i].find("components");
         if (components != entities[i].end() && components->is_array()) {
+            const auto root = entities[i].find("prefabRoot");
+            const auto instance = entity.m_prefabRoot != EntityId::Invalid && root != entities[i].end()
+                                      ? localIds.find(root->get<std::uint64_t>())
+                                      : localIds.end();
+            const IdMap* local = instance != localIds.end() ? &instance->second : nullptr;
+            const IdMap& raw = referenceIds(entities[i]);
             for (json& saved : *components) {
-                const auto prefab = prefabMaps.find(entity.GetId());
-                LoadComponent(entity, saved, std::nullopt, prefab != prefabMaps.end() ? *prefab->second : ids,
-                              referenced, options.assets, &ids, validateComponents);
+                LoadComponent(entity, saved, std::nullopt, raw, referenced, options.assets, local, &ids,
+                              options.keepUnknownComponents);
             }
         }
     }
@@ -436,7 +531,7 @@ std::optional<std::vector<Entity*>> SceneSerializer::Load(Scene& scene, std::str
 
 Component* SceneSerializer::LoadComponent(Entity& entity, json& saved, std::optional<std::size_t> index,
                                           const IdMap& ids, const Scene* referenced, AssetManager* assets,
-                                          const IdMap* externalIds, bool validate) {
+                                          const IdMap* localIds, const IdMap* externalIds, bool keepUnknown) {
     if (!saved.is_object()) {
         return nullptr;
     }
@@ -448,7 +543,10 @@ Component* SceneSerializer::LoadComponent(Entity& entity, json& saved, std::opti
     if (const ComponentFactory factory = FindComponentFactory(type)) {
         owned = factory();
     } else {
-        ReportUnregistered(entity.m_name, type);
+        ReportUnregistered(entity.m_name, type, keepUnknown);
+        if (!keepUnknown) {
+            return nullptr;
+        }
         owned = std::make_unique<MissingComponent>(type, hasData ? data->dump() : "{}");
     }
     Component& component = *owned;
@@ -457,7 +555,7 @@ Component* SceneSerializer::LoadComponent(Entity& entity, json& saved, std::opti
     entity.Attach(std::move(owned), index);
 
     if (hasData && !dynamic_cast<MissingComponent*>(&component)) {
-        const SceneEntityReferences references(&ids, referenced, nullptr, externalIds);
+        const SceneEntityReferences references(&ids, referenced, nullptr, localIds, externalIds);
         ArchiveState state{.loading = true,
                            .nodes = {&*data},
                            .context = assets,
@@ -465,9 +563,7 @@ Component* SceneSerializer::LoadComponent(Entity& entity, json& saved, std::opti
                            .entities = &references};
         Archive archive(state);
         component.Serialize(archive);
-        if (validate) {
-            Validate(component);
-        }
+        Validate(component);
     }
     return &component;
 }
@@ -519,9 +615,10 @@ std::string Scene::SaveToString(bool expandPrefabs) const {
             Detail::SceneSerializer::CollectPrefabRoots(*root, prefabs);
         }
     }
+    std::unordered_map<EntityId, Detail::SceneSerializer::IdMap> localIds;
     for (const Entity* root : m_roots) {
         if (!root->m_destroyed) {
-            Detail::SceneSerializer::SaveTree(*root, document["entities"], prefabs);
+            Detail::SceneSerializer::SaveTree(*root, document["entities"], prefabs, localIds);
         }
     }
     return Dump(document);
@@ -535,12 +632,13 @@ std::string Scene::SaveEntitiesToString(std::span<Entity* const> entities, bool 
             Detail::SceneSerializer::CollectPrefabRoots(*entity, prefabs);
         }
     }
+    std::unordered_map<EntityId, Detail::SceneSerializer::IdMap> localIds;
     for (const Entity* entity : entities) {
         SPOT_ASSERT(&entity->GetScene() == this, "The entity belongs to another scene");
         const bool savedWithAncestor = std::ranges::any_of(
             entities, [entity](const Entity* other) { return other != entity && entity->IsDescendantOf(*other); });
         if (!entity->m_destroyed && !savedWithAncestor) {
-            Detail::SceneSerializer::SaveTree(*entity, document["entities"], prefabs);
+            Detail::SceneSerializer::SaveTree(*entity, document["entities"], prefabs, localIds);
         }
     }
     return Dump(document);
@@ -586,7 +684,8 @@ std::string Entity::SaveToString(bool expandPrefabs) const {
     if (!expandPrefabs) {
         Detail::SceneSerializer::CollectPrefabRoots(*this, prefabs);
     }
-    Detail::SceneSerializer::SaveTree(*this, document["entities"], prefabs);
+    std::unordered_map<EntityId, Detail::SceneSerializer::IdMap> localIds;
+    Detail::SceneSerializer::SaveTree(*this, document["entities"], prefabs, localIds);
     return Dump(document);
 }
 

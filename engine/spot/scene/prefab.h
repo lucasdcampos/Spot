@@ -3,62 +3,55 @@
 #include "spot/assets/asset_manager.h"
 #include "spot/core/ids/asset_id.h"
 
-#include <cstdint>
+#include <functional>
+#include <memory>
 #include <optional>
 #include <span>
 #include <string>
 #include <string_view>
-#include <utility>
-#include <vector>
 
 namespace Spot {
 
-class Entity;
-class AssetManager;
+namespace Detail {
+struct PrefabDocument;
+} // namespace Detail
 
-// Zero selects the entire instance; otherwise the source-local entity and its JSON-pointer subtree are selected.
-struct PrefabOverrideScope {
-    std::uint64_t entity = 0;
-    std::string pointer;
-};
-
-struct PrefabOverride {
-    PrefabOverrideScope scope;
-    std::string operation;
-};
-
-// Prepared documents let tools write the asset and replace the scene as one undoable operation.
-struct PrefabEdit {
-    std::string sceneText;
-    // Empty for Revert. Apply produces a validated source tree with source-local references.
-    std::string prefabText;
-};
-
-std::vector<PrefabOverride> GetPrefabOverrides(const Entity& root);
-std::optional<PrefabEdit> PreparePrefabEdit(const Entity& root, const PrefabOverrideScope& scope = {},
-                                            bool apply = false, AssetManager* assets = nullptr);
-// Expands just this instance in its scene; other instances keep their links and overrides.
-std::optional<std::string> UnpackPrefabToString(const Entity& root);
-
-// An immutable entity tree in the saved scene format. Components are created only when the prefab is instantiated,
-// so game code can register their types after assets load.
+// An immutable entity tree in the saved scene format, parsed once when it loads. Components are created only when
+// the prefab is instantiated, so game code can register their types after assets load.
+//
+// Imported prefabs are flat: the prefabs nested in their source are expanded into their tree when they are imported,
+// so games instantiate a prefab without resolving others.
 class Prefab {
 public:
+    // Finds a nested prefab by its id; empty when it is unavailable.
+    using NestedPrefabs = std::function<AssetRef<Prefab>(AssetId)>;
+
     // Accepts exactly one tree with distinct, nonzero entity ids. An external parent of its root is discarded,
     // so Entity::SaveToString() can be used even when the entity belongs to a larger hierarchy. Nested prefab
-    // records are kept; their dependencies and expanded tree are checked when instantiated.
+    // records are kept; their dependencies and expanded tree are checked when flattened.
     // Nothing, after logging why, when the document or hierarchy is invalid.
     static std::optional<Prefab> FromString(std::string_view text);
 
-    const std::string& GetEntityText() const { return m_entityText; }
-    std::span<const AssetId> GetDependencies() const { return m_dependencies; }
+    // The prefab with the trees of the prefabs nested in it expanded into its own and their overrides applied. The
+    // entity references of a nested tree keep pointing at its own entities. Nothing, after logging why, when a
+    // nested prefab is unavailable, nests itself or its records are invalid.
+    std::optional<Prefab> Flatten(const NestedPrefabs& nested) const;
+    // Whether the tree has no nested prefab records, as instantiating needs.
+    bool IsFlat() const;
+
+    std::string GetEntityText() const;
+    // The prefabs nested in the tree; none once flattened.
+    std::span<const AssetId> GetDependencies() const;
+    // Engine-internal: the parsed tree.
+    const Detail::PrefabDocument& GetDocument() const { return *m_document; }
 
 private:
-    Prefab(std::string entityText, std::vector<AssetId> dependencies)
-        : m_entityText(std::move(entityText)), m_dependencies(std::move(dependencies)) {}
+    explicit Prefab(std::shared_ptr<const Detail::PrefabDocument> document) : m_document(std::move(document)) {}
 
-    std::string m_entityText;
-    std::vector<AssetId> m_dependencies;
+    // Validates the document's tree, which FromString() and Flatten() make.
+    static std::optional<Prefab> FromDocument(Detail::PrefabDocument document);
+
+    std::shared_ptr<const Detail::PrefabDocument> m_document;
 };
 
 template <>

@@ -42,7 +42,7 @@ ImporterInfo FindImporter(AssetType type) {
     case AssetType::Script:
         return {&ImportScript, 1};
     case AssetType::Prefab:
-        return {&ImportPrefab, 3};
+        return {&ImportPrefab, 4};
     case AssetType::Sound:
         return {&ImportSound, 2};
     case AssetType::Font:

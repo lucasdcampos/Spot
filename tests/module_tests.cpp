@@ -67,10 +67,10 @@ TEST_CASE("Game modules register their components while loaded, and can be loade
         CHECK_FALSE(Spot::CreateComponent("TestSpinner"));
     }
 
-    // Without the module, its components are kept as they were saved.
+    // Without the module, tools keep its components as they were saved.
     {
         Spot::Scene scene;
-        REQUIRE(scene.LoadFromString(saved));
+        REQUIRE_FALSE(scene.Instantiate(saved, {.keepUnknownComponents = true}).empty());
         const auto* missing = scene.FindEntity("Spinner")->GetComponent<Spot::MissingComponent>();
         REQUIRE(missing);
         CHECK(missing->GetTypeName() == "TestSpinner");

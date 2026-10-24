@@ -4,6 +4,7 @@
 
 #include "build/code_build.h"
 #include "build/game_build.h"
+#include "prefabs/prefab_editing.h"
 #include "project/luau_tooling.h"
 #include "project/project.h"
 #include "project/project_templates.h"

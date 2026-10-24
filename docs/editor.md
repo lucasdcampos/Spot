@@ -79,7 +79,7 @@ For a project with code (`src/CMakeLists.txt`), the `ModuleHost` builds the game
 whenever it changes, into a game module (a shared library linking `spot_shared`), and loads it from a copy, so the
 next build can replace the file meanwhile. Before loading a new module, the open scenes are saved to text and their
 components destroyed; after, they load again with the new types. Components whose type the module no longer has stay
-as `MissingComponent`s that keep their data.
+as `MissingComponent`s that keep their data: the editor loads every scene with `keepUnknownComponents`.
 
 Scene documents preserve saved entity ids when first opened, including while the game's module is still building.
 Missing components keep opaque fields, so changing those ids before their types load would leave references such

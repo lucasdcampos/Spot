@@ -28,6 +28,7 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <vector>
@@ -453,6 +454,16 @@ TEST_CASE("Folders open with a double click, and Backspace goes back up", "[edit
 TEST_CASE("Prefab authoring preserves nested links and creates variants from linked instance roots",
           "[editor][prefab][nesting][variants]") {
     BrowserFixture fixture;
+    // Imported prefabs have their nested prefabs expanded; sources keep them.
+    const auto sourceOf = [&](Spot::AssetId id) {
+        const Spot::AssetInfo* info = fixture.Project().GetAssetDatabase().Find(id);
+        REQUIRE(info);
+        std::ifstream input(fixture.assets / Spot::Utf8ToPath(info->path), std::ios::binary);
+        const auto prefab = Spot::Prefab::FromString(
+            std::string{std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()});
+        REQUIRE(prefab);
+        return *prefab;
+    };
     Spot::Scene source;
     auto& baseRoot = source.CreateEntity("Lamp");
     baseRoot.AddComponent<Spot::PointLight>().SetIntensity(2.0f);
@@ -465,11 +476,12 @@ TEST_CASE("Prefab authoring preserves nested links and creates variants from lin
     REQUIRE(lamp);
     const auto assembly = Spot::Editor::CreatePrefab(fixture.Project(), assemblyRoot, "");
     REQUIRE(assembly);
-    CHECK(fixture.Project().GetAssets().Load<Spot::Prefab>(*assembly)->GetDependencies().size() == 1);
+    CHECK(sourceOf(*assembly).GetDependencies().size() == 1);
+    CHECK(fixture.Project().GetAssets().Load<Spot::Prefab>(*assembly)->IsFlat());
     lamp->SetName("Variant");
     const auto variant = Spot::Editor::CreatePrefab(fixture.Project(), *lamp, "");
     REQUIRE(variant);
-    CHECK(fixture.Project().GetAssets().Load<Spot::Prefab>(*variant)->GetDependencies()[0] == *base);
+    CHECK(sourceOf(*variant).GetDependencies()[0] == *base);
     Spot::Editor::SceneWorkspace workspace(*fixture.context);
     auto* document = workspace.OpenScene(*variant);
     REQUIRE(document);
@@ -478,7 +490,7 @@ TEST_CASE("Prefab authoring preserves nested links and creates variants from lin
     document->GetScene().GetRootEntities()[0]->GetComponent<Spot::PointLight>()->SetIntensity(8.0f);
     REQUIRE(document->Save());
     fixture.Project().Refresh();
-    CHECK(fixture.Project().GetAssets().Load<Spot::Prefab>(*variant)->GetDependencies()[0] == *base);
+    CHECK(sourceOf(*variant).GetDependencies()[0] == *base);
     Spot::Scene loaded;
     auto* instance = loaded.Instantiate(fixture.Project().GetAssets().Load<Spot::Prefab>(*variant),
                                         {.assets = &fixture.Project().GetAssets()});
@@ -492,7 +504,7 @@ TEST_CASE("Prefab authoring preserves nested links and creates variants from lin
     CHECK(assemblyDocument->GetScene().GetRootEntities()[0]->FindChild("Lamp")->GetPrefabAssetId() == *base);
     REQUIRE(assemblyDocument->Save());
     fixture.Project().Refresh();
-    CHECK(fixture.Project().GetAssets().Load<Spot::Prefab>(*assembly)->GetDependencies()[0] == *base);
+    CHECK(sourceOf(*assembly).GetDependencies()[0] == *base);
 }
 
 TEST_CASE("Tiles out of view draw nothing", "[editor][assets][ui]") {

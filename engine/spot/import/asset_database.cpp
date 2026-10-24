@@ -244,6 +244,10 @@ std::size_t AssetDatabase::Import(const AssetId* forced) {
         }
         const std::size_t knownSubAssets = source.meta.subAssets.size();
         Detail::ImportContext context(source.path, source.meta, m_importDirectory);
+        context.SetSourceFinder([this](AssetId id) {
+            const auto found = m_sourceIndices.find(id);
+            return found != m_sourceIndices.end() ? m_sources[found->second].path : std::filesystem::path();
+        });
         const bool imported = importer.import(context);
         if (source.meta.subAssets.size() != knownSubAssets) {
             source.meta.SaveToFile(AssetMeta::GetMetaPath(source.path));

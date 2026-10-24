@@ -6,6 +6,7 @@
 #include "project/external_editor.h"
 
 #include <spot.h>
+#include <spot/assets/asset_formats.h>
 #include <spot_tools.h>
 
 #include <catch2/catch_test_macros.hpp>
@@ -177,8 +178,12 @@ TEST_CASE("The 3D with C++ template adds the game's code, whose component the sc
     const auto project = Spot::Editor::EditorProject::Open(*file, nullptr);
     REQUIRE(project != nullptr);
     CHECK(project->GetModules().HasCode());
-    const auto scene = Spot::InstantiateScene(project->GetAssets(), project->GetProject().GetSettings().startupScene);
-    REQUIRE(scene != nullptr);
+    const auto data =
+        project->GetAssets().ReadImportedData(project->GetProject().GetSettings().startupScene, Spot::AssetType::Scene);
+    const auto sceneText = data ? Spot::Detail::DecodeScene(*data) : std::nullopt;
+    REQUIRE(sceneText);
+    const auto scene = std::make_unique<Spot::Scene>();
+    REQUIRE_FALSE(scene->Instantiate(*sceneText, {.keepUnknownComponents = true}).empty());
     const auto* rotator = scene->FindEntity("Cube")->GetComponent<Spot::MissingComponent>();
     REQUIRE(rotator != nullptr);
     CHECK(rotator->GetTypeName() == "Rotator");

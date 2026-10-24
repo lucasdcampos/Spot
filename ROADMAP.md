@@ -194,10 +194,10 @@ Depends on: phases 4 and 5. Task 6.2 also waits for 3.3 to move asset loader reg
 
 Depends on: phases 1 and 2. Task 7.3 also waits for 6.4 and 6.5.
 
-- [ ] **7.1 Prefabs: instantiated by games, edited by tools (M).** Overrides, diffing, apply, revert and unpack move to
+- [x] **7.1 Prefabs: instantiated by games, edited by tools (M).** Overrides, diffing, apply, revert and unpack move to
   `spot_tools`. Instances keep only their prefab root and local ids. A prefab is parsed once when it loads, and nested
   prefabs are flattened when imported.
-- [ ] **7.2 Unknown components (S).** `MissingComponent` keeps unknown components only when tools ask for it (an option
+- [x] **7.2 Unknown components (S).** `MissingComponent` keeps unknown components only when tools ask for it (an option
   of `InstantiateOptions`); games log a warning and skip them.
 - [ ] **7.3 Reloads in the developer tools (S).** `GameModule`, renamed `GameLibrary` so "module" has one meaning,
   `ReloadAssetReferences()` and `AssetManager::Reload()` move into `DevToolsModule`.

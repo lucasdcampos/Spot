@@ -214,12 +214,16 @@ TEST_CASE("Prefab importing rejects invalid trees and runtime rejects corrupt im
     CHECK(scene.GetEntityCount() == 0);
 }
 
-TEST_CASE("Prefabs preserve unavailable component data until game code registers its types", "[assets][prefab]") {
+TEST_CASE("Prefabs keep unavailable component data for tools until game code registers its types", "[assets][prefab]") {
     const auto parsed = Spot::Prefab::FromString(R"({"format":"spot-scene","version":1,"entities":[
         {"id":42,"name":"Future","components":[{"type":"FuturePrefabComponent","enabled":false,"data":{"value":9}}]}]})");
     REQUIRE(parsed);
     Spot::Scene scene;
-    auto* root = scene.Instantiate(std::make_shared<const Spot::Prefab>(*parsed));
+    // Games skip them.
+    auto* skipped = scene.Instantiate(std::make_shared<const Spot::Prefab>(*parsed));
+    REQUIRE(skipped);
+    CHECK_FALSE(skipped->GetComponent<Spot::MissingComponent>());
+    auto* root = scene.Instantiate(std::make_shared<const Spot::Prefab>(*parsed), {.keepUnknownComponents = true});
     REQUIRE(root);
     const auto* missing = root->GetComponent<Spot::MissingComponent>();
     REQUIRE(missing);

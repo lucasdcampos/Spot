@@ -30,7 +30,7 @@ bool Write(const std::filesystem::path& file, std::string_view text) {
 } // namespace
 
 std::optional<AssetId> CreatePrefab(EditorProject& project, const Entity& entity, std::string_view folder) {
-    const auto prefab = Prefab::FromString(entity.SaveToString());
+    const auto prefab = Prefab::FromString(SaveEntitySource(entity, &project.GetAssets()));
     if (!prefab) {
         return std::nullopt;
     }
@@ -62,20 +62,20 @@ PrefabCommand::PrefabCommand(SceneDocument& document, EditorProject& project, En
     m_before = GetScene().SaveToString();
     if (action == PrefabAction::Unpack) {
         m_after = UnpackPrefabToString(*root).value_or(std::string());
-    } else if (const auto edit = PreparePrefabEdit(*root, scope, action == PrefabAction::Apply, &project.GetAssets())) {
+        return;
+    }
+    if (action == PrefabAction::Apply) {
+        const AssetInfo* info = project.GetAssetDatabase().Find(m_asset);
+        m_sourceBefore =
+            info ? Read(project.GetAssetDatabase().GetSourceDirectory() / Utf8ToPath(info->path)) : std::string();
+        if (m_sourceBefore.empty()) {
+            return;
+        }
+    }
+    if (const auto edit =
+            PreparePrefabEdit(*root, scope, action == PrefabAction::Apply, m_sourceBefore, &project.GetAssets())) {
         m_after = edit->sceneText;
         m_sourceAfter = edit->prefabText;
-        if (action == PrefabAction::Apply) {
-            const AssetInfo* info = project.GetAssetDatabase().Find(m_asset);
-            if (!info) {
-                m_after.clear();
-                return;
-            }
-            m_sourceBefore = Read(project.GetAssetDatabase().GetSourceDirectory() / Utf8ToPath(info->path));
-            if (m_sourceBefore.empty()) {
-                m_after.clear();
-            }
-        }
     }
 }
 

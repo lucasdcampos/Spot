@@ -292,6 +292,7 @@ add_library(spot_objects OBJECT
     spot/scene/rendering/post_processing.cpp
     spot/scene/rendering/post_processing.h
     spot/scene/prefab.h
+    spot/scene/prefab_document.h
     spot/scene/prefab.cpp
     spot/scene/prefab_serialization.cpp
     spot/scene/rendering/mesh_renderer.h

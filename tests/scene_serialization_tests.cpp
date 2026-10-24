@@ -280,11 +280,9 @@ TEST_CASE("Missing fields keep their defaults and wrong ones are skipped", "[sce
     CHECK(odd->GetTransform().GetPosition() == Spot::Vector3{});
     REQUIRE(odd->GetComponent<Speed>());
     CHECK(odd->GetComponent<Speed>()->value == 1.0f);
-    // The unknown component is kept, so saving the scene again does not lose it.
-    REQUIRE(odd->GetComponents<Spot::Component>().size() == 2);
-    const auto* missing = odd->GetComponent<Spot::MissingComponent>();
-    REQUIRE(missing);
-    CHECK(missing->GetTypeName() == "Missing");
+    // Games skip the unknown component.
+    CHECK(odd->GetComponents<Spot::Component>().size() == 1);
+    CHECK_FALSE(odd->GetComponent<Spot::MissingComponent>());
 
     std::vector<std::string> warnings;
     for (const auto& record : capture->GetRecords()) {
@@ -296,6 +294,7 @@ TEST_CASE("Missing fields keep their defaults and wrong ones are skipped", "[sce
     CHECK_THAT(warnings[0], Catch::Matchers::ContainsSubstring("'position'"));
     CHECK_THAT(warnings[1], Catch::Matchers::ContainsSubstring("'value'"));
     CHECK_THAT(warnings[2], Catch::Matchers::ContainsSubstring("'Missing'"));
+    CHECK_THAT(warnings[2], Catch::Matchers::ContainsSubstring("skipped"));
 }
 
 TEST_CASE("Invalid scene text loads nothing", "[scene][serialization]") {
@@ -363,12 +362,16 @@ TEST_CASE("A saved entity loads as many copies as needed", "[scene][serializatio
     }
 }
 
-TEST_CASE("Components of unknown types keep their data when saved again", "[scene][serialization]") {
+TEST_CASE("Components of unknown types keep their data for tools that save them again", "[scene][serialization]") {
     const Spot::Tests::ScopedSinks sinks({});
-    Scene scene;
-    REQUIRE(scene.LoadFromString(R"({"format": "spot-scene", "version": 1, "entities": [
+    const std::string text = R"({"format": "spot-scene", "version": 1, "entities": [
         {"name": "Holder", "components": [{"type": "FromAGame", "enabled": false, "data": {"speed": 4.5}}]}
-    ]})"));
+    ]})";
+    Scene game;
+    REQUIRE(game.LoadFromString(text));
+    CHECK_FALSE(game.FindEntity("Holder")->GetComponent<Spot::MissingComponent>());
+    Scene scene;
+    REQUIRE(scene.Instantiate(text, {.keepUnknownComponents = true}).size() == 1);
 
     const std::string saved = scene.SaveToString();
 

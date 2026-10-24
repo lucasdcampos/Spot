@@ -2,6 +2,8 @@
 
 #include "core/editor_log.h"
 
+#include <spot_tools.h>
+
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
@@ -94,9 +96,11 @@ std::unique_ptr<SceneDocument> SceneDocument::Open(const std::filesystem::path& 
         std::ifstream input(file, std::ios::binary);
         const std::string text{std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
         if (const auto prefab = Prefab::FromString(text)) {
-            loaded =
-                !document->m_scene->Instantiate(prefab->GetEntityText(), {.keepIds = true, .assets = assets}).empty() &&
-                document->m_scene->GetRootEntities().size() == 1;
+            loaded = !document->m_scene
+                          ->Instantiate(prefab->GetEntityText(),
+                                        {.keepIds = true, .assets = assets, .keepUnknownComponents = true})
+                          .empty() &&
+                     document->m_scene->GetRootEntities().size() == 1;
         }
     } else {
         std::ifstream input(file, std::ios::binary);
@@ -128,7 +132,9 @@ bool SceneDocument::Save() {
     SPOT_ASSERT(!m_file.empty(), "The scene has no file yet; save it with SaveAs()");
     bool saved = false;
     if (m_prefabMode) {
-        const auto prefab = Prefab::FromString(m_scene->SaveToString());
+        const auto roots = m_scene->GetRootEntities();
+        const auto prefab =
+            roots.size() == 1 ? Prefab::FromString(SaveEntitySource(*roots.front(), m_assets)) : std::nullopt;
         if (!prefab) {
             GetEditorLogger().Error("A prefab must contain exactly one entity tree");
             return false;
@@ -138,7 +144,10 @@ bool SceneDocument::Save() {
         output.close();
         saved = static_cast<bool>(output);
     } else {
-        saved = m_scene->SaveToFile(m_file);
+        std::ofstream output(m_file, std::ios::binary | std::ios::trunc);
+        output << SaveSceneSource(*m_scene, m_assets);
+        output.close();
+        saved = static_cast<bool>(output);
     }
     if (!saved) {
         GetEditorLogger().Error("Could not save the scene '{}'", PathToUtf8(m_file));
@@ -177,9 +186,11 @@ void SceneDocument::Redo() {
 
 bool SceneDocument::RefreshPrefabs(std::span<const AssetId> changed) {
     if (m_prefabMode && !IsDirty() && m_asset.IsValid() && std::ranges::find(changed, m_asset) != changed.end()) {
-        const auto current = m_assets ? m_assets->Load<Prefab>(m_asset) : AssetRef<Prefab>();
-        if (current) {
-            return ReplaceSceneText(current->GetEntityText());
+        // The source keeps the prefabs nested in it, which the imported prefab has expanded.
+        std::ifstream input(m_file, std::ios::binary);
+        const std::string text{std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
+        if (const auto prefab = Prefab::FromString(text)) {
+            return ReplaceSceneText(prefab->GetEntityText());
         }
     }
     bool affected = false;
@@ -190,10 +201,11 @@ bool SceneDocument::RefreshPrefabs(std::span<const AssetId> changed) {
     if (!affected) {
         return true;
     }
-    return ReplaceSceneText(m_scene->SaveToString());
+    // Saved as overrides, the instances take what changed in their prefabs when they load again.
+    return ReplaceSceneText(SaveSceneSource(*m_scene, m_assets), true);
 }
 
-bool SceneDocument::ReplaceSceneText(std::string_view text) {
+bool SceneDocument::ReplaceSceneText(std::string_view text, bool keepUnchanged) {
     const auto saved = nlohmann::json::parse(text, nullptr, false);
     if (!saved.is_object() || !saved.contains("format") || saved["format"] != "spot-scene" ||
         !saved.contains("version") || (saved["version"] != 1 && saved["version"] != 2) || !saved.contains("entities") ||
@@ -201,11 +213,14 @@ bool SceneDocument::ReplaceSceneText(std::string_view text) {
         return false;
     }
     Scene prepared;
-    const auto roots =
-        prepared.Instantiate(text, {.keepIds = true, .keepExternalReferences = true, .assets = m_assets});
+    const auto roots = prepared.Instantiate(
+        text, {.keepIds = true, .keepExternalReferences = true, .assets = m_assets, .keepUnknownComponents = true});
     if ((roots.empty() && !saved["entities"].empty()) || (m_prefabMode && roots.size() != 1)) {
         GetEditorLogger().Error("Could not update the prefab instances in '{}'; the document was kept", m_name);
         return false;
+    }
+    if (keepUnchanged && prepared.SaveToString() == m_scene->SaveToString()) {
+        return true;
     }
     m_scene->Clear();
     for (Entity* root : roots) {

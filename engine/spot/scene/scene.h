@@ -71,6 +71,12 @@ struct InstantiateOptions {
     bool keepExternalReferences = false;
     // References to assets load through it, or through the running application's asset manager when null.
     AssetManager* assets = nullptr;
+    // Gives the entities saved with these ids the ids they map to, which must be free, as tools do to renumber a
+    // tree. The others get ids as keepIds says.
+    const std::unordered_map<EntityId, EntityId>* ids = nullptr;
+    // Keeps the components of types that are not registered as MissingComponents, so saving them again keeps them,
+    // as tools that edit scenes ask for. Games skip them with a warning.
+    bool keepUnknownComponents = false;
 };
 
 // Owns a hierarchy of entities and drives their components. A game usually derives a scene per level or screen, and
@@ -172,12 +178,13 @@ public:
 
     // Saves every entity, with its name, tags, activity, transform, place in the hierarchy and registered
     // components, as JSON.
-    // expandPrefabs writes their complete trees, such as when authoring a prefab source or exporting a snapshot.
+    // Prefab instances keep their links to their prefabs (see GetPrefabRootId()); expandPrefabs saves them as
+    // ordinary entities. Asset files keep instances as their overrides, which the tools write.
     std::string SaveToString(bool expandPrefabs = false) const;
     bool SaveToFile(const std::filesystem::path& path) const;
     // Adds the saved entities to the scene, next to the ones it has. Their components start on the next Update().
-    // Returns false, having added nothing, when the text is not a saved scene; components of unknown types are
-    // skipped with a warning.
+    // Returns false, having added nothing, when the text is not a saved scene; components of types that are not
+    // registered are skipped with a warning.
     //
     // References to assets load through the given asset manager, or the running application's when null.
     bool LoadFromString(std::string_view text, AssetManager* assets = nullptr);

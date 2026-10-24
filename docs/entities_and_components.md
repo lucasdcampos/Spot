@@ -150,8 +150,10 @@ is saved and edited the same way. Fields added later keep their defaults when ol
 
 `SPOT_COMPONENT(Type)` registers a type under its name when the game's code loads; `RegisterComponent<T>("Name")`
 does it by hand under another name. The name is written to files, so it must stay the same. Components whose type is
-not registered when a scene loads, as when the game's code is not loaded in the editor, become `MissingComponent`s
-that keep their data and save it back unchanged.
+not registered when a scene loads are skipped with a warning. Tools that save what they load, such as the editor
+while the game's code is not loaded, set `InstantiateOptions::keepUnknownComponents`: those components become
+`MissingComponent`s that keep their data and save it back unchanged. Games never keep them, so a stale component
+costs nothing at runtime.
 
 `Entity::ForEachChild()` visits live children without copying the child list. Do not reorder the hierarchy during this traversal.
 

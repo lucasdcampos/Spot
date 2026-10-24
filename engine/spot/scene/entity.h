@@ -1,5 +1,6 @@
 #pragma once
 
+#include "spot/core/ids/asset_ref.h"
 #include "spot/core/ids/entity_id.h"
 #include "spot/scene/component.h"
 #include "spot/scene/component_requirements.h"
@@ -18,11 +19,10 @@
 
 namespace Spot {
 
+class Prefab;
 class Scene;
 
 namespace Detail {
-
-struct PrefabInstanceState;
 
 // While one is alive, removals asked for in the scene wait until the outermost one ends, so loops over entities and
 // components never see them freed under their feet.
@@ -57,11 +57,13 @@ public:
 
     Scene& GetScene() const { return *m_scene; }
     EntityId GetId() const { return m_id; }
-    // The root and source-local identity of an inherited prefab entity; invalid/zero for ordinary entities.
+    // The root of the prefab instance the entity belongs to, and its id in the prefab; invalid and zero for entities
+    // of no instance. An instance keeps nothing else: the tools work out its overrides from these.
     EntityId GetPrefabRootId() const { return m_prefabRoot; }
     std::uint64_t GetPrefabLocalId() const { return m_prefabLocalId; }
-    // Valid on the root of a linked prefab instance.
-    AssetId GetPrefabAssetId() const;
+    // On the root of a prefab instance, the prefab it was made from; empty elsewhere.
+    const AssetRef<Prefab>& GetPrefabAsset() const { return m_prefabAsset; }
+    AssetId GetPrefabAssetId() const { return m_prefabAsset.GetId(); }
 
     const std::string& GetName() const { return m_name; }
     void SetName(std::string name) { m_name = std::move(name); }
@@ -268,7 +270,7 @@ private:
     EntityId m_id;
     EntityId m_prefabRoot = EntityId::Invalid;
     std::uint64_t m_prefabLocalId = 0;
-    std::shared_ptr<Detail::PrefabInstanceState> m_prefabInstance;
+    AssetRef<Prefab> m_prefabAsset;
     std::string m_name;
     std::vector<std::string> m_tags;
     std::uint8_t m_layer = 0;
