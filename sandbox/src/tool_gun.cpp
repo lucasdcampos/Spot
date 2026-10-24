@@ -1,4 +1,6 @@
 #include "tool_gun.h"
+#include <spot/scene/physics/physics_world.h>
+#include <spot/scene/rendering/render_hook_system.h>
 
 #include "player_controller.h"
 #include "prop_carrier.h"
@@ -237,8 +239,8 @@ void ToolGun::OnUpdate(float /*deltaTime*/) {
         (holder && !holder->CanUseItem())) {
         return;
     }
-    const auto hit = GetScene().GetPhysics().Raycast(player->GetEyePosition(), player->GetAimDirection(), range,
-                                                     {.ignore = GetEntity().GetId()});
+    const auto hit = GetScene().GetOrAddSystem<Spot::PhysicsWorld>().Raycast(
+        player->GetEyePosition(), player->GetAimDirection(), range, {.ignore = GetEntity().GetId()});
     if (auto* view = GetEntity().GetComponent<ViewModel>()) {
         view->Kick(0.015f);
     }
@@ -248,13 +250,13 @@ void ToolGun::OnUpdate(float /*deltaTime*/) {
 }
 
 void ToolGun::OnEnable() {
-    m_ropeHook =
-        GetScene().AddRenderHook(Spot::RenderStage::AfterOpaque,
-                                 [this](const Spot::RenderStageContext& stage) { m_ropeLines.Draw(stage, m_ropes); });
+    m_ropeHook = GetScene().GetOrAddSystem<Spot::RenderHookSystem>().AddRenderHook(
+        Spot::RenderStage::AfterOpaque,
+        [this](const Spot::RenderStageContext& stage) { m_ropeLines.Draw(stage, m_ropes); });
 }
 
 void ToolGun::OnDisable() {
-    GetScene().RemoveRenderHook(m_ropeHook);
+    GetScene().GetOrAddSystem<Spot::RenderHookSystem>().RemoveRenderHook(m_ropeHook);
     m_ropes.clear();
 }
 

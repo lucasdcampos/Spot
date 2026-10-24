@@ -2,6 +2,7 @@
 #include "scene/entity_actions.h"
 #include "scene/scene_document.h"
 #include "viewport/ui_rect_gizmo.h"
+#include <spot/scene/ui/ui_system.h>
 
 #include <catch2/catch_test_macros.hpp>
 #include <spot.h>
@@ -55,7 +56,7 @@ TEST_CASE("Anchor presets preserve rectangles and undo their serialized fields",
     root.AddComponent<Spot::Canvas>();
     auto& entity = root.CreateChild("Rect");
     auto& rect = entity.AddComponent<Spot::UiRect>();
-    auto& ui = document.GetScene().GetUi();
+    auto& ui = document.GetScene().GetOrAddSystem<Spot::UiSystem>();
     ui.Layout({800, 600});
     const auto bounds = ui.Find(entity.GetId())->bounds;
     REQUIRE(Spot::Editor::SetUiAnchorPreset(document, entity.GetId(), {800, 600}, {}, {1, 1}, {0.5f, 0.5f}));

@@ -120,7 +120,7 @@ scene.AddSystem<Spawner>();
 A scene has at most one system of each type. Systems run by their order (`SystemOrder`, given to the `SceneSystem`
 constructor; lower first, ties in the order they were added). Systems added while systems run join before the next
 hook. The engine's systems are created when a scene first needs them: `PhysicsWorld` is the first, created by
-`Scene::GetPhysics()` when a collider or rigidbody asks for it.
+`Scene::GetOrAddSystem<PhysicsWorld>()` when a collider or rigidbody asks for it.
 
 A system whose hook throws is faulted and skipped from then on, as components are (see
 [Diagnostics](diagnostics.md)).
@@ -152,3 +152,27 @@ The returned `ChunkLoad` reports completion with `IsDone()`. `GetRoot()` returns
 failure, after the root is destroyed, or after the scene is cleared. The imported scene's roots become children
 of that root, with fresh ids and remapped internal references. Destroy the root to unload the whole chunk.
 Chunks share the host scene's systems, including its physics world. Clearing a scene cancels unfinished chunks.
+
+Scene systems receive immediate `OnComponentAdded`, `OnComponentRemoved`, `OnEntityLayerChanged` and
+`OnEntityDestroyed` notifications, including changes made before the first update. Moving a component within its
+entity does not add it again. `OnEntityMoved(entity, source, destination)` runs in the source before transfer and in
+the destination afterward; the entity belongs to the receiving scene during each call. Notifications use the same
+exception guard as update hooks. Systems added during a notification receive subsequent notifications.
+
+Physics follows these notifications to rebuild bodies after structural changes, so entities themselves have no
+physics dependencies. Audio transfers its playing sources through the move notification.
+
+Scene systems are indexed by their exact concrete C++ type. Use `GetOrAddSystem<T>(args...)` to create one on demand,
+or `GetSystem<T>()` to query without creating it. Base-type queries do not search derived systems. Systems added
+inside a system hook are queryable immediately and join execution at the next hook boundary.
+
+The scene core does not route UI events or own render callbacks. `UiSystem::DrawUi()` lays out canvases and invokes
+`UiDrawListener` components, and `UiSystem::ScreenCamera()` supplies the pixel camera. Give `UiInputSystem` the input
+state that owns the view; `HandleUiEvent(event, viewSize, input)` updates that binding and consumes handled input.
+Render callbacks belong to `scene.GetOrAddSystem<Spot::RenderHookSystem>()`. Removing a callback during dispatch
+prevents a later call in that dispatch; newly added callbacks wait for the next dispatch.
+
+A destination's move notification runs after the entity's children have transferred. Move hooks may destroy entities
+or reparent children; destroyed entities cancel their pending transfer, and children moved elsewhere stay there.
+A nested request to move an entity already transferring is ignored. Audio transfers source registrations only once
+the move reaches its destination, so a move canceled by destruction cannot leave stale audio registrations.

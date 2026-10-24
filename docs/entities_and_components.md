@@ -48,7 +48,7 @@ it has not faulted. Its hooks run in this order:
 | `OnEnable()`, `OnDisable()` | Each time a started component becomes active or stops being active, at once |
 | `OnFixedUpdate()` | On each fixed step, before the systems' (physics) step |
 | `OnUpdate()`, `OnLateUpdate()` | Every update; all `OnUpdate()` of the scene run before the first `OnLateUpdate()` |
-| `OnDrawUi()` | Each frame the scene is shown, after it was drawn, for what goes over it, such as a HUD |
+| `UiDrawListener::OnDrawUi()` | Each frame the scene is shown, after it was drawn, for what goes over it, such as a HUD |
 | `OnDestroy()` | Once, if `OnStart()` ran, when the component is removed or its entity destroyed |
 | `OnValidate()` | After tools changed its fields rather than its own functions |
 
@@ -157,7 +157,7 @@ costs nothing at runtime.
 
 `Entity::ForEachChild()` visits live children without copying the child list. Do not reorder the hierarchy during this traversal.
 
-Animation clips send `OnAnimationEvent(const AnimationEvent&)` to the active components on
+Animation clips send `OnAnimationEvent(const AnimationEvent&)` to active `AnimationEventListener` components on
 the animator entity, with the same failure guard as lifecycle and physics hooks. Seeking and
 editor previews do not send gameplay events; see [animation](animation.md).
 
@@ -167,3 +167,50 @@ editor previews do not send gameplay events; see [animation](animation.md).
 including a scene. Only a scene resolves an id into an entity. `FieldOptions::entityFilter` accepts an id,
 allowing tools to choose the resolution scope. Typed component references obtain the inspector's scene through
 its archive context and build a filter that resolves each candidate id there, without retaining entity pointers.
+
+## Registering system components
+
+The component registry holds names and factories; it does not know any engine system. `Application` registers the
+engine's component groups during startup. When using scenes without an application, include the registration header
+of each system you use and call its registration before saving or loading scenes:
+
+```cpp
+#include <spot/scene/physics/physics_components.h>
+#include <spot/scene/rendering/rendering_components.h>
+
+Spot::RegisterPhysicsComponents();
+Spot::RegisterRenderComponents();
+```
+
+Animation, audio, particles, 2D physics, UI and scripting provide `RegisterAnimationComponents()`,
+`RegisterAudioComponents()`, `RegisterParticleComponents()`, `RegisterPhysics2DComponents()`, `RegisterUiComponents()`
+and `RegisterScriptComponents()` in their respective `scene/<system>/<system>_components.h` headers. Each group
+registers its existing serialized names, so saved scenes keep the same format. A group can be registered again;
+custom component registration continues to use `RegisterComponent<T>()`.
+
+System callbacks are opt-in interfaces alongside `Component`: derive from `CollisionListener`,
+`TriggerListener`, `CollisionListener2D`, `TriggerListener2D`, `JointBreakListener`,
+`AnimationEventListener` or `UiDrawListener` for the callbacks a component needs. Their headers
+live in `scene/physics/`, `scene/physics2d/`, `scene/animation/` and `scene/ui/`; `<spot.h>` includes
+them. The systems call active listeners through `Component::RunGuarded()`, preserving component
+fault isolation without making the scene core depend on any system.
+
+## Spawning behavior directly
+
+`Scene::Spawn<T>(args...)` creates a root entity and returns its new `T` component. Arguments are forwarded to the
+component's constructor, and required components are added just as with `Entity::AddComponent<T>()`. If construction
+throws, the new entity is destroyed. Set its name through `component.GetEntity().SetName()` when needed.
+
+A component can call `GetTransform()`, `AddComponent<T>(args...)` and `GetComponent<T>()` directly to work with its
+entity. `Destroy()` destroys that entity and its descendants using the usual deferred removal rules. These helpers
+keep simple gameplay code local:
+
+```cpp
+auto& spinner = scene.Spawn<Spinner>();
+spinner.GetTransform().SetPosition({1.0f, 0.0f, 0.0f});
+spinner.AddComponent<Spot::MeshRenderer>();
+```
+
+When instantiating scenes or prefabs, the resolved asset manager is passed to every component archive, including
+nested prefab components. Standalone callers can pass `InstantiateOptions::assets` explicitly; otherwise the scene
+uses the running asset manager, as other scene-loading entry points do.

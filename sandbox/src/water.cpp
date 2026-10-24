@@ -1,4 +1,6 @@
 #include "water.h"
+#include <spot/scene/audio/audio_system.h>
+#include <spot/scene/physics/physics_world.h>
 
 #include "particle_effects.h"
 #include "player_movement.h"
@@ -97,12 +99,13 @@ void Water::Splash(Spot::Vector3 point, float strength) {
     const bool large = strength >= 1.2f;
     const Spot::AssetRef<Spot::Sound>* sound = bank ? (large ? &bank->largeSplash : &bank->smallSplash) : nullptr;
     if (sound && *sound) {
-        scene.GetAudio().PlayOneShot(sound->GetShared(), point,
-                                     {.volume = std::clamp(large ? strength / 3.0f : strength * 2.0f, 0.25f, 1.0f),
-                                      .bus = "Effects",
-                                      .spatialSettings = {.minDistance = 3.0f, .maxDistance = large ? 120.0f : 50.0f},
-                                      .priority = large ? 6 : 2,
-                                      .maxInstances = 6});
+        scene.GetOrAddSystem<Spot::AudioSystem>().PlayOneShot(
+            sound->GetShared(), point,
+            {.volume = std::clamp(large ? strength / 3.0f : strength * 2.0f, 0.25f, 1.0f),
+             .bus = "Effects",
+             .spatialSettings = {.minDistance = 3.0f, .maxDistance = large ? 120.0f : 50.0f},
+             .priority = large ? 6 : 2,
+             .maxInstances = 6});
     }
 }
 
@@ -115,7 +118,8 @@ void Water::OnFixedUpdate(float fixedDeltaTime) {
     // Water slows what moves in it, the faster the more, as drag does, but stops nothing.
     const float keep = std::exp(-std::max(drag, 0.0f) * fixedDeltaTime);
     m_insideNow.clear();
-    for (const Spot::OverlapHit& hit : scene.GetPhysics().OverlapBox(center, size, transform.GetWorldRotation())) {
+    for (const Spot::OverlapHit& hit :
+         scene.GetOrAddSystem<Spot::PhysicsWorld>().OverlapBox(center, size, transform.GetWorldRotation())) {
         Spot::Entity* entity = scene.GetEntity(hit.entity);
         auto* body = entity ? entity->GetComponent<Spot::Rigidbody>() : nullptr;
         const Spot::Vector3 position = entity ? entity->GetTransform().GetWorldPosition() : Spot::Vector3{};

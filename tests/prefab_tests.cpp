@@ -5,6 +5,7 @@
 
 #include <spot.h>
 #include <spot_import.h>
+#include <spot_tools.h>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -251,4 +252,54 @@ TEST_CASE("Prefab validation accepts a root after its child and full-width entit
     CHECK(root->GetName() == "Root");
     REQUIRE(root->GetChildren().size() == 1);
     CHECK(root->GetChildren()[0]->GetName() == "Child");
+}
+
+TEST_CASE("Prefab component archives use the resolved running asset manager", "[assets][prefab]") {
+    const TempDirectory temp;
+    const auto sources = temp.GetPath() / "assets";
+    const auto imported = temp.GetPath() / "imported";
+    std::filesystem::create_directories(sources);
+    REQUIRE(Spot::MaterialSource{.baseColor = Spot::Color::Red}.SaveToFile(sources / "Red.material"));
+    Spot::AssetDatabase database(sources, imported);
+    REQUIRE(database.Refresh() == 1);
+    const auto materialId = database.FindByPath("Red.material");
+    REQUIRE(materialId);
+    std::ofstream(sources / "Crate.prefab") << MakeTree(*materialId);
+    REQUIRE(database.Refresh() == 1);
+    const auto crateId = database.FindByPath("Crate.prefab");
+    REQUIRE(crateId);
+    Spot::Tests::RegisteredAssetManager assets(imported);
+
+    Spot::AssetId prefabId = *crateId;
+    SECTION("A component of the instantiated prefab") {
+    }
+    SECTION("A component inherited from a nested prefab") {
+        Spot::Scene authoring;
+        auto& container = authoring.CreateEntity("Container");
+        REQUIRE(authoring.Instantiate(assets.Load<Spot::Prefab>(*crateId), {.parent = &container, .assets = &assets}));
+        std::ofstream(sources / "Container.prefab") << Spot::SaveSceneSource(authoring, &assets);
+        REQUIRE(database.Refresh() == 1);
+        const auto containerId = database.FindByPath("Container.prefab");
+        REQUIRE(containerId);
+        assets.RefreshManifest();
+        prefabId = *containerId;
+    }
+
+    struct RestoreAssets {
+        Spot::AssetManager* previous = Spot::Assets::GetManager();
+        ~RestoreAssets() { Spot::Detail::SetAssetManager(previous); }
+    } restore;
+    Spot::Detail::SetAssetManager(&assets);
+    const auto prefab = assets.Load<Spot::Prefab>(prefabId);
+    REQUIRE(prefab);
+    Spot::Scene scene;
+    REQUIRE(scene.Instantiate(prefab));
+    const auto* crate = scene.FindEntity("Crate");
+    REQUIRE(crate);
+    const auto* links = crate->GetComponent<PrefabLinks>();
+    REQUIRE(links);
+    CHECK(links->material.GetId() == *materialId);
+    REQUIRE(links->material);
+    CHECK(links->material->baseColor == Spot::Color::Red);
+    CHECK(links->material.Get() == assets.Load<Spot::Material>(*materialId).Get());
 }

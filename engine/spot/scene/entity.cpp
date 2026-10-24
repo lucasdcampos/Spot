@@ -1,14 +1,9 @@
 #include "spot/scene/entity.h"
-#include "spot/scene/ui/ui_widgets.h"
 
 #include "spot/core/debug/assert.h"
 #include "spot/core/debug/diagnostics.h"
 #include "spot/core/debug/log.h"
 #include "spot/scene/component_registry.h"
-#include "spot/scene/physics/character_controller.h"
-#include "spot/scene/physics/collider.h"
-#include "spot/scene/physics/physics_world.h"
-#include "spot/scene/physics/rigidbody.h"
 #include "spot/scene/scene.h"
 
 #include <algorithm>
@@ -39,10 +34,7 @@ void Entity::SetLayer(int layer) {
     }
     m_layer = static_cast<std::uint8_t>(layer);
     m_scene->MarkStructureChanged();
-    // Its body, if any, moves to the layer.
-    if (PhysicsWorld* physics = m_scene->GetSystem<PhysicsWorld>()) {
-        physics->MarkChanged(m_id);
-    }
+    m_scene->NotifyEntityLayerChanged(*this);
 }
 
 void Entity::SetActive(bool active) {
@@ -160,7 +152,7 @@ bool Entity::IsDescendantOf(const Entity& ancestor) const {
 
 void Entity::MoveToScene(Scene& scene) {
     SPOT_ASSERT(!m_destroyed, "A destroyed entity cannot move to another scene");
-    if (&scene == m_scene) {
+    if (&scene == m_scene || m_movingScene) {
         return;
     }
     if (m_parent) {
@@ -172,16 +164,31 @@ void Entity::MoveToScene(Scene& scene) {
 }
 
 void Entity::MoveSubtree(Scene& scene) {
-    // Its body, if any, moves along with it. Without physics in its scene, it has none.
-    if (PhysicsWorld* physics = m_scene->GetSystem<PhysicsWorld>()) {
-        physics->MarkChanged(m_id);
-        scene.GetPhysics().MarkChanged(m_id);
+    struct MovingScope {
+        bool& moving;
+        ~MovingScope() { moving = false; }
+    };
+    m_movingScene = true;
+    const MovingScope moving{m_movingScene};
+    Scene& source = *m_scene;
+    source.NotifyEntityMoved(*this, source, scene);
+    if (m_destroyed) {
+        return;
+    }
+    // Hooks may reparent children, so keep ids and resolve only those still below this entity in the source.
+    std::vector<EntityId> children;
+    children.reserve(m_children.size());
+    for (const Entity* child : m_children) {
+        children.push_back(child->GetId());
     }
     // Components already removed but not yet destroyed are now the other scene's to process.
-    scene.Adopt(m_scene->Release(*this), true);
-    for (Entity* child : m_children) {
-        child->MoveSubtree(scene);
+    scene.Adopt(source.Release(*this), true);
+    for (EntityId id : children) {
+        if (Entity* child = source.GetEntity(id); child && child->m_parent == this) {
+            child->MoveSubtree(scene);
+        }
     }
+    scene.NotifyEntityMoved(*this, source, scene);
 }
 
 void Entity::Destroy() {
@@ -206,13 +213,7 @@ void Entity::RemoveComponent(Component& component) {
     m_scene->MarkStructureChanged();
     component.m_removed = true;
     m_scene->AddRemovalCandidate(*this);
-    // Validation and queries can create a body before OnStart(), so removal cannot rely only on OnDisable().
-    if (dynamic_cast<Collider*>(&component) || dynamic_cast<Rigidbody*>(&component) ||
-        dynamic_cast<CharacterController*>(&component)) {
-        if (auto* physics = m_scene->GetSystem<PhysicsWorld>()) {
-            physics->MarkChanged(m_id);
-        }
-    }
+    m_scene->NotifyComponentRemoved(component);
     component.RefreshActivity();
 }
 
@@ -246,6 +247,7 @@ void Entity::MoveComponent(Component& component, std::size_t index) {
 
 void Entity::Attach(std::unique_ptr<Component> component, std::optional<std::size_t> index) {
     SPOT_ASSERT(!m_destroyed, "Components cannot be added to a destroyed entity");
+    const bool isNew = component->m_entity == nullptr;
     component->m_entity = this;
     component->m_typeIndex = Detail::GetComponentTypeIndex(typeid(*component));
     while (std::ranges::any_of(m_components, [&](const auto& existing) {
@@ -266,6 +268,9 @@ void Entity::Attach(std::unique_ptr<Component> component, std::optional<std::siz
     Component& added = *component;
     m_components.insert(place, std::move(component));
     m_scene->ListComponent(added);
+    if (isNew) {
+        m_scene->NotifyComponentAdded(added);
+    }
 }
 
 void Entity::AddRequiredComponents(Detail::ComponentTypeIndex type) {
@@ -307,14 +312,13 @@ const Component* Entity::FindDependent(const Component& required) const {
 }
 
 void Entity::MarkDestroyed() {
-    if (!m_destroyed) {
-        --m_scene->m_liveCount;
+    if (m_destroyed) {
+        return;
     }
+    --m_scene->m_liveCount;
     m_destroyed = true;
     m_scene->AddRemovalCandidate(*this);
-    if (auto* physics = m_scene->GetSystem<PhysicsWorld>()) {
-        physics->MarkChanged(m_id);
-    }
+    m_scene->NotifyEntityDestroyed(*this);
     for (Entity* child : m_children) {
         child->MarkDestroyed();
     }
@@ -327,19 +331,6 @@ void Entity::RefreshActivity() {
     }
     for (std::size_t i = 0; i < m_children.size(); ++i) {
         m_children[i]->RefreshActivity();
-    }
-}
-
-void Entity::DrawUiComponents(Renderer2D& renderer, Vector2 viewSize) {
-    for (std::size_t i = 0; i < m_components.size(); ++i) {
-        DrawUiComponent(*m_components[i], renderer, viewSize);
-    }
-}
-
-void Entity::DrawUiComponent(Component& component, Renderer2D& renderer, Vector2 viewSize) {
-    // Widgets draw before they start, so an interface shows from its first frame.
-    if (component.m_active || (Detail::IsComponentOf<UiWidget>(component) && component.IsActiveAndEnabled())) {
-        component.InvokeHook("OnDrawUi", [&] { component.OnDrawUi(renderer, viewSize); });
     }
 }
 

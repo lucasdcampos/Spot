@@ -45,7 +45,7 @@ it is spatial, with the distances and the rolloff of its fading. `Play()` starts
 time it is enabled; it stops when disabled or removed.
 
 Spatial sounds are heard from the scene's `AudioListener`, or its main camera without one: the scene's
-`AudioSystem` (`Scene::GetAudio()`) works out, once a frame after everything moved, how loud each is at its distance
+`AudioSystem` (`Scene::GetOrAddSystem<AudioSystem>()`) works out, once a frame after everything moved, how loud each is at its distance
 and from which side, and gives the playing sounds their volume and pan. Within the min distance a sound plays at full
 volume, past the max distance it is silent, and in between it falls as its rolloff says: `Inverse`, as sound does
 in the open (half as loud at twice the distance), or `Linear`. Sources that are not spatial, such as music, are heard

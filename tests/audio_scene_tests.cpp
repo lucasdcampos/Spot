@@ -1,4 +1,5 @@
 #include "temp_directory.h"
+#include <spot/scene/audio/audio_system.h>
 
 #include <spot.h>
 
@@ -67,7 +68,7 @@ TEST_CASE("Spatial sounds fade with distance, as their rolloff says", "[audio][s
 
 TEST_CASE("The listener hears sounds from their side", "[audio][spatial]") {
     Spot::Scene scene;
-    Spot::AudioSystem& audio = scene.GetAudio();
+    Spot::AudioSystem& audio = scene.GetOrAddSystem<Spot::AudioSystem>();
     const Spot::AudioSpatialSettings settings;
 
     // Without a listener or a camera, sounds play as they are.
@@ -185,18 +186,18 @@ TEST_CASE("A scene's sounds pause with it and stop when it goes", "[audio]") {
         paused.spatial = false;
         scene.Update(0.016f);
         paused.Pause();
-        const auto shot = scene.GetAudio().PlayOneShot(
+        const auto shot = scene.GetOrAddSystem<Spot::AudioSystem>().PlayOneShot(
             std::make_shared<Spot::Sound>(48000, 1, std::vector<float>(48000, 0.5f)), {}, {.volume = 0.0f});
         CHECK(audio.device.IsPlaying(shot));
         CHECK(audio.device.GetVoiceCount() == 3);
 
-        scene.GetAudio().SetPaused(true);
+        scene.GetOrAddSystem<Spot::AudioSystem>().SetPaused(true);
         CHECK(audio.Render().first == 0.0f);
         CHECK(music.IsPlaying());
         CHECK(audio.device.IsPaused(shot));
 
         // What the game paused stays paused.
-        scene.GetAudio().SetPaused(false);
+        scene.GetOrAddSystem<Spot::AudioSystem>().SetPaused(false);
         CHECK(audio.Render().first == Approx(0.5f));
         CHECK(paused.IsPaused());
         CHECK_FALSE(audio.device.IsPaused(shot));
@@ -235,9 +236,9 @@ protected:
 
     void OnUpdate(float /*deltaTime*/) override {
         usedItsDevice = Spot::Audio::GetDevice() == &GetAudioDevice();
-        GetScene()->GetAudio();
+        GetScene()->GetOrAddSystem<Spot::AudioSystem>();
         SetScenesPaused(true);
-        audioPaused = GetScene()->GetAudio().IsPaused();
+        audioPaused = GetScene()->GetOrAddSystem<Spot::AudioSystem>().IsPaused();
         Quit();
     }
 };

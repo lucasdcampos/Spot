@@ -1,4 +1,7 @@
 #include "runtime_interface.h"
+#include <spot/scene/rendering/render_hook_system.h>
+#include <spot/scene/ui/ui_input_system.h>
+#include <spot/scene/ui/ui_system.h>
 
 #include "player_controller.h"
 #include "prop_spawner.h"
@@ -67,7 +70,7 @@ void RuntimeInterface::Initialize() {
         if (auto* undo = GetScene().FindComponent<UndoList>())
             undo->Undo();
     });
-    auto& input = GetScene().GetUiInput();
+    auto& input = GetScene().GetOrAddSystem<Spot::UiInputSystem>();
     input.SetInputState(Spot::Input::GetState());
     m_connections.push_back(input.OnCancel.Connect([this](Spot::EntityId id) {
         if (id == spawnCanvas || id == pauseCanvas)
@@ -75,8 +78,8 @@ void RuntimeInterface::Initialize() {
     }));
     m_connections.push_back(input.OnRawEvent.Connect(
         [this](const Spot::Event& event, bool& consumed) { HandleRawEvent(event, consumed); }));
-    m_thumbnailHook =
-        GetScene().AddRenderHook(Spot::RenderStage::BeforeOpaque, [this](const Spot::RenderStageContext& stage) {
+    m_thumbnailHook = GetScene().GetOrAddSystem<Spot::RenderHookSystem>().AddRenderHook(
+        Spot::RenderStage::BeforeOpaque, [this](const Spot::RenderStageContext& stage) {
             if (m_menu == Menu::Spawn)
                 m_thumbnails.Render(stage, GetScene());
         });
@@ -85,9 +88,9 @@ void RuntimeInterface::OnStart() {
     Initialize();
 }
 void RuntimeInterface::RefreshInput() {
-    auto& input = GetScene().GetUiInput();
+    auto& input = GetScene().GetOrAddSystem<Spot::UiInputSystem>();
     input.SetInputState(Spot::Input::GetState());
-    auto size = GetScene().GetUi().GetViewSize();
+    auto size = GetScene().GetOrAddSystem<Spot::UiSystem>().GetViewSize();
     if (size.x <= 0 || size.y <= 0)
         size = {1280, 720};
     input.Refresh(size);
@@ -109,9 +112,9 @@ void RuntimeInterface::Open(Menu menu) {
     RefreshInput();
     Spot::Input::UpdateActions();
     if (menu == Menu::Pause)
-        GetScene().GetUiInput().Focus(pauseResume);
+        GetScene().GetOrAddSystem<Spot::UiInputSystem>().Focus(pauseResume);
     else
-        GetScene().GetUiInput().Focus(propsTab);
+        GetScene().GetOrAddSystem<Spot::UiInputSystem>().Focus(propsTab);
     SoundBank::PlayClick(GetScene());
 }
 void RuntimeInterface::OpenSpawnMenu() {
@@ -155,7 +158,7 @@ void RuntimeInterface::OnDisable() {
 void RuntimeInterface::OnDestroy() {
     CloseMenus();
     if (m_thumbnailHook != Spot::RenderHookId::Invalid)
-        GetScene().RemoveRenderHook(m_thumbnailHook);
+        GetScene().GetOrAddSystem<Spot::RenderHookSystem>().RemoveRenderHook(m_thumbnailHook);
     m_connections.clear();
 }
 void RuntimeInterface::UpdateHud(const HudState& state) {

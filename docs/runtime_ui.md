@@ -33,7 +33,7 @@ and sizes scale together. Nested canvases are independent viewport roots with th
 
 `ComputeUiRect()` and `ComputeUiScale()` are code-only mechanisms, usable without scenes or a GPU.
 `UiSystem::Layout(viewSize)` builds transient screen rectangles keyed by entity id. Layout runs
-before `Scene::DrawUi()`; canvases draw in increasing `settings.order`, ties in creation order, and
+before `UiSystem::DrawUi()`; canvases draw in increasing `settings.order`, ties in creation order, and
 children draw depth-first in sibling order, parents first. Later elements appear over earlier ones.
 Inactive entities and disabled rectangles are excluded. Resize and hierarchy changes are resolved
 on the next pass. Canvas/rect fields serialize normally, including prefab and inspector editing.
@@ -88,9 +88,9 @@ Group and fitter state serializes normally, while generated rectangles remain tr
 ## Input and navigation
 
 The application routes viewport events to scene UI before gameplay input/action updates. Use
-`Scene::HandleUiEvent(event, viewSize, input)` for custom hosts: pointer coordinates grow down from
+`UiInputSystem::HandleUiEvent(event, viewSize, input)` for custom hosts: pointer coordinates grow down from
 the viewport's top-left, in pixels. The editor converts its played viewport coordinates too.
-`Scene::GetUi()` and `Scene::GetUiInput()` lazily create each service exactly once.
+`Scene::GetOrAddSystem<UiSystem>()` and `Scene::GetOrAddSystem<UiInputSystem>()` lazily create each service exactly once.
 While no modal canvas is active and no widget can be focused, as with a HUD of labels, input skips laying the
 interface out.
 Handled events clear the matching game control via `InputState::ConsumeEvent()`, avoiding held
@@ -150,3 +150,10 @@ gamepad control; Escape cancels capture. Settings debounce writes using unscaled
 closing, and save in the game's user directory as versioned `interface.json`. Rebinds are stored
 with them. Headless callers can supply an explicit directory. Runtime graphics changes retain
 input bindings and project defaults; both standalone and editor game rendering follow them.
+
+Custom component overlays derive from `UiDrawListener` (`scene/ui/ui_draw_listener.h`) and
+override `OnDrawUi(Renderer2D&, Vector2)`. `UiWidget` implements this interface for built-in widgets.
+
+Custom UI listeners draw after `HasStarted()` becomes true, in component addition order outside
+canvases and in canvas layout order inside them. Widgets may draw before their first update so
+interfaces are visible immediately; disabled, removed and faulted components are skipped.

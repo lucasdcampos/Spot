@@ -1,4 +1,6 @@
 #include "player_movement.h"
+#include <spot/scene/audio/audio_system.h>
+#include <spot/scene/physics/physics_world.h>
 
 #include "physics_gun.h"
 #include "player_controller.h"
@@ -148,7 +150,7 @@ void PlayerMovement::Walk(Spot::CharacterController& controller, float deltaTime
         // On the ground, the controller keeps the player on it down slopes and steps.
         m_verticalSpeed = m_jump && !m_crouching && alive ? jumpSpeed : 0.0f;
     } else {
-        m_verticalSpeed += GetScene().GetPhysics().GetGravity().y * deltaTime;
+        m_verticalSpeed += GetScene().GetOrAddSystem<Spot::PhysicsWorld>().GetGravity().y * deltaTime;
     }
     const float falling = -m_verticalSpeed;
     controller.Move(direction * speed + m_push + Spot::Vector3{0.0f, m_verticalSpeed, 0.0f}, deltaTime);
@@ -191,8 +193,8 @@ bool PlayerMovement::HasRoomToStand(const Spot::CharacterController& controller)
     const float radius = controller.GetRadius();
     const Spot::Vector3 top = GetEntity().GetTransform().GetWorldPosition() + controller.GetCenter() +
                               Up * (controller.GetHeight() * 0.5f - radius);
-    const auto hit = GetScene().GetPhysics().SphereCast(top, radius * 0.9f, Up, m_standHeight - crouchHeight,
-                                                        {.ignore = GetEntity().GetId()});
+    const auto hit = GetScene().GetOrAddSystem<Spot::PhysicsWorld>().SphereCast(
+        top, radius * 0.9f, Up, m_standHeight - crouchHeight, {.ignore = GetEntity().GetId()});
     return !hit.has_value();
 }
 
@@ -238,8 +240,8 @@ void PlayerMovement::PlayFootstep(float loudness) {
     }
     const Spot::Vector3 feet = GetEntity().GetTransform().GetWorldPosition() + controller->GetCenter() -
                                Spot::Vector3{0.0f, controller->GetHeight() * 0.5f, 0.0f};
-    const auto ground = GetScene().GetPhysics().Raycast(feet + Spot::Vector3{0.0f, 0.2f, 0.0f}, {0.0f, -1.0f, 0.0f},
-                                                        0.6f, {.ignore = GetEntity().GetId()});
+    const auto ground = GetScene().GetOrAddSystem<Spot::PhysicsWorld>().Raycast(
+        feet + Spot::Vector3{0.0f, 0.2f, 0.0f}, {0.0f, -1.0f, 0.0f}, 0.6f, {.ignore = GetEntity().GetId()});
     const SoundBank* bank = SoundBank::Find(GetScene());
     const SurfaceSounds* sounds =
         bank ? bank->GetSurface(Surface::Of(ground ? GetScene().GetEntity(ground->entity) : nullptr)) : nullptr;
@@ -258,12 +260,13 @@ void PlayerMovement::PlayFootstep(float loudness) {
         m_footstep += 1 + static_cast<std::size_t>(next() * static_cast<float>(count - 1));
     }
     const Spot::AssetRef<Spot::Sound>& sound = sounds->footsteps[m_footstep % count];
-    GetScene().GetAudio().PlayOneShot(sound.GetShared(), feet,
-                                      {.volume = footstepVolume * loudness * (0.85f + next() * 0.15f),
-                                       .pitch = 0.93f + next() * 0.14f,
-                                       .bus = "Effects",
-                                       .spatialSettings = {.minDistance = 2.0f, .maxDistance = 25.0f},
-                                       .maxInstances = 3});
+    GetScene().GetOrAddSystem<Spot::AudioSystem>().PlayOneShot(
+        sound.GetShared(), feet,
+        {.volume = footstepVolume * loudness * (0.85f + next() * 0.15f),
+         .pitch = 0.93f + next() * 0.14f,
+         .bus = "Effects",
+         .spatialSettings = {.minDistance = 2.0f, .maxDistance = 25.0f},
+         .maxInstances = 3});
 }
 
 void PlayerMovement::Serialize(Spot::Archive& archive) {

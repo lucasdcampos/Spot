@@ -42,35 +42,35 @@ void CharacterController::SetPushStrength(float strength) {
 }
 
 void CharacterController::Move(Vector3 velocity, float deltaTime) {
-    GetScene().GetPhysics().MoveCharacter(GetEntity().GetId(), velocity, deltaTime);
+    GetScene().GetOrAddSystem<Spot::PhysicsWorld>().MoveCharacter(GetEntity().GetId(), velocity, deltaTime);
 }
 
 bool CharacterController::IsGrounded() const {
-    const auto state = GetScene().GetPhysics().GetCharacterState(GetEntity().GetId());
+    const auto state = GetScene().GetOrAddSystem<Spot::PhysicsWorld>().GetCharacterState(GetEntity().GetId());
     return state && state->grounded;
 }
 
 bool CharacterController::IsSupported() const {
-    const auto state = GetScene().GetPhysics().GetCharacterState(GetEntity().GetId());
+    const auto state = GetScene().GetOrAddSystem<Spot::PhysicsWorld>().GetCharacterState(GetEntity().GetId());
     return state && state->supported;
 }
 
 Vector3 CharacterController::GetGroundNormal() const {
-    const auto state = GetScene().GetPhysics().GetCharacterState(GetEntity().GetId());
+    const auto state = GetScene().GetOrAddSystem<Spot::PhysicsWorld>().GetCharacterState(GetEntity().GetId());
     return state ? state->groundNormal : Vector3{};
 }
 
 Vector3 CharacterController::GetGroundVelocity() const {
-    const auto state = GetScene().GetPhysics().GetCharacterState(GetEntity().GetId());
+    const auto state = GetScene().GetOrAddSystem<Spot::PhysicsWorld>().GetCharacterState(GetEntity().GetId());
     return state ? state->groundVelocity : Vector3{};
 }
 
 EntityId CharacterController::GetGround() const {
-    return GetScene().GetPhysics().GetCharacterGround(GetEntity().GetId());
+    return GetScene().GetOrAddSystem<Spot::PhysicsWorld>().GetCharacterGround(GetEntity().GetId());
 }
 
 Vector3 CharacterController::GetVelocity() const {
-    const auto state = GetScene().GetPhysics().GetCharacterState(GetEntity().GetId());
+    const auto state = GetScene().GetOrAddSystem<Spot::PhysicsWorld>().GetCharacterState(GetEntity().GetId());
     return state ? state->velocity : Vector3{};
 }
 
@@ -97,7 +97,7 @@ void CharacterController::Serialize(Archive& archive) {
 }
 
 void CharacterController::MarkChanged() {
-    GetScene().GetPhysics().MarkChanged(GetEntity().GetId());
+    GetScene().GetOrAddSystem<Spot::PhysicsWorld>().MarkChanged(GetEntity().GetId());
 }
 
 } // namespace Spot

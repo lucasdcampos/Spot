@@ -1,4 +1,5 @@
 #include <spot.h>
+#include <spot/scene/physics/physics_world.h>
 
 #include "temp_directory.h"
 
@@ -156,7 +157,7 @@ TEST_CASE("Global time scale drives the application's clock and fixed physics", 
     REQUIRE(Spot::Time::SetTimeScale(0.5f));
     Spot::Scene scene;
     scene.SetFixedTimeStep(0.01f);
-    scene.GetPhysics().SetGravity({});
+    scene.GetOrAddSystem<Spot::PhysicsWorld>().SetGravity({});
     auto& entity = scene.CreateEntity();
     entity.AddComponent<Spot::BoxCollider>();
     auto& body = entity.AddComponent<Spot::Rigidbody>();
@@ -756,19 +757,19 @@ TEST_CASE("Removing or destroying unstarted physics components releases bodies c
     auto& body = prop.AddComponent<Spot::Rigidbody>();
     body.SetMass(2.0f);
     CHECK(body.GetLinearVelocity() == Spot::Vector3{});
-    REQUIRE(scene.GetPhysics().GetBodyCount() == 1);
+    REQUIRE(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == 1);
     REQUIRE(prop.RemoveComponent<Spot::Rigidbody>());
     REQUIRE(prop.RemoveComponent<Spot::Collider>());
     scene.Update(Spot::Scene::DefaultFixedTimeStep);
-    CHECK(scene.GetPhysics().GetBodyCount() == 0);
+    CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == 0);
 
     auto& doomed = scene.CreateEntity("Unstarted doomed prop");
     doomed.AddComponent<Spot::BoxCollider>().SetSize({1.0f, 1.0f, 1.0f});
     auto& doomedBody = doomed.AddComponent<Spot::Rigidbody>();
     doomedBody.SetMass(2.0f);
     CHECK(doomedBody.GetLinearVelocity() == Spot::Vector3{});
-    REQUIRE(scene.GetPhysics().GetBodyCount() == 1);
+    REQUIRE(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == 1);
     doomed.Destroy();
     scene.Update(Spot::Scene::DefaultFixedTimeStep);
-    CHECK(scene.GetPhysics().GetBodyCount() == 0);
+    CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == 0);
 }

@@ -1,4 +1,6 @@
 #include <spot.h>
+#include <spot/scene/physics/collision_listener.h>
+#include <spot/scene/physics/physics_world.h>
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -27,7 +29,7 @@ void Simulate(Scene& scene, float seconds) {
 }
 
 // Walks with a velocity, falling with gravity while in the air, and records its physics events.
-class Walker final : public Spot::Component {
+class Walker final : public Spot::Component, public Spot::CollisionListener, public Spot::TriggerListener {
 public:
     Vector3 walk = {};
     std::vector<std::string> events;
@@ -204,7 +206,7 @@ TEST_CASE("Characters enter triggers, keep to their layer and are seen by querie
     auto& wall = CreateBox(world.scene, "Wall", {5.0f, 1.0f, 0.0f}, {1.0f, 2.0f, 10.0f});
     wall.SetLayer(5);
     world.character.SetLayer(3);
-    world.scene.GetPhysics().SetLayerCollision(3, 5, false);
+    world.scene.GetOrAddSystem<Spot::PhysicsWorld>().SetLayerCollision(3, 5, false);
 
     world.walker.walk = {4.0f, 0.0f, 0.0f};
     Simulate(world.scene, 2.0f);
@@ -212,12 +214,12 @@ TEST_CASE("Characters enter triggers, keep to their layer and are seen by querie
     // Its layer does not collide with the wall's, so it walked through.
     CHECK(world.Position().x > 6.0f);
 
-    const auto hit =
-        world.scene.GetPhysics().Raycast(world.Position() + Vector3{0.0f, 5.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 10.0f);
+    const auto hit = world.scene.GetOrAddSystem<Spot::PhysicsWorld>().Raycast(
+        world.Position() + Vector3{0.0f, 5.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 10.0f);
     REQUIRE(hit.has_value());
     CHECK(hit->entity == world.character.GetId());
     // Ignoring the entity goes through its character too.
-    const auto through = world.scene.GetPhysics().Raycast(
+    const auto through = world.scene.GetOrAddSystem<Spot::PhysicsWorld>().Raycast(
         world.Position() + Vector3{0.0f, 5.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 10.0f, {.ignore = world.character.GetId()});
     REQUIRE(through.has_value());
     CHECK(through->entity == world.ground.GetId());

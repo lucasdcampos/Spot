@@ -134,23 +134,28 @@ Depends on: Phase 1.
 
 Depends on: Phase 1.
 
-- [ ] **4.1 Scene notifications (M).** `SceneSystem` hears about components added and removed, entity layers changed
+- [x] **4.1 Scene notifications (M).** `SceneSystem` hears about components added and removed, entity layers changed
   and entities moved. `PhysicsWorld` follows the scene through them; `Entity` loses its `dynamic_cast`s and direct
   physics calls.
-- [ ] **4.2 Listener interfaces (M).** Collision, trigger, 2D collision and trigger, animation event, joint break and UI
+- [x] **4.2 Listener interfaces (M).** Collision, trigger, 2D collision and trigger, animation event, joint break and UI
   drawing hooks move from `Component` into interfaces of their `scene/<module>/` folders (`CollisionListener`…), and
   `Component` loses its system friends. `ScriptComponent` implements them; the sandbox's components add the ones they
   use.
-- [ ] **4.3 Systems by type (S).** `Scene::GetOrAddSystem<T>()`, looked up by type index, replaces `GetPhysics()`,
+- [x] **4.3 Systems by type (S).** `Scene::GetOrAddSystem<T>()`, looked up by type index, replaces `GetPhysics()`,
   `GetPhysics2D()`, `GetAudio()`, `GetUi()`, `GetUiInput()` and the `dynamic_cast` scan of `GetSystem<T>()`.
-- [ ] **4.4 UI and render hooks out of `Scene` (M).** Waits for 4.3. Canvas drawing and UI event routing move into
+- [x] **4.4 UI and render hooks out of `Scene` (M).** Waits for 4.3. Canvas drawing and UI event routing move into
   `UiSystem` and `UiInputSystem`, which is given its `InputState`; render hooks move into a `scene/rendering` system.
-- [ ] **4.5 Components registered by their folders (S).** Each `scene/<module>/` registers its own components
+- [x] **4.5 Components registered by their folders (S).** Each `scene/<module>/` registers its own components
   (`RegisterPhysicsComponents()`…), and `scene/component_registry.cpp` includes none of them. `Application` calls the
   registrations until 6.2 moves them into modules.
-- [ ] **4.6 `Scene::Spawn<T>()` and component shortcuts (S).** `Spawn<T>()` creates an entity with its component;
+- [x] **4.6 `Scene::Spawn<T>()` and component shortcuts (S).** `Spawn<T>()` creates an entity with its component;
   `Component` gets `GetTransform()`, `AddComponent<T>()`, `GetComponent<T>()` and `Destroy()`, forwarding to its
   entity.
+
+Phase 4 validated on Windows with MSVC Debug: the full build, all 938 headless tests and eight relevant GPU tests
+passed. GPU coverage includes component overlays, render-hook mutation, authored UI and sandbox menus, editor
+canvas previews, pixel-perfect scene cameras and tilemap views. The layer check passes with no system includes in
+`Entity`, `Component`, `Scene` or the component registry.
 
 ## Phase 5 – One active scene
 

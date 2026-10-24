@@ -1,4 +1,6 @@
 #include "viewport/viewport_renderer.h"
+#include <spot/scene/rendering/render_hook_system.h>
+#include <spot/scene/ui/ui_system.h>
 
 #include "core/editor_log.h"
 
@@ -252,7 +254,7 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
                              .sceneColor = hdr};
     const auto runStage = [&](RenderStage at) {
         stage.stage = at;
-        scene.RunRenderHooks(stage);
+        scene.GetOrAddSystem<Spot::RenderHookSystem>().RunRenderHooks(stage);
     };
 
     RenderPassDesc clear = hdrPass;
@@ -336,8 +338,8 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
     runStage(RenderStage::AfterPostProcessing);
     if (options.drawUi && m_interface->IsValid()) {
         auto pass = context.BeginRenderPass({.target = targets.GetColor()});
-        m_interface->Begin(pass, Scene::ScreenCamera(size), size);
-        scene.DrawUi(*m_interface, size);
+        m_interface->Begin(pass, UiSystem::ScreenCamera(size), size);
+        scene.GetOrAddSystem<Spot::UiSystem>().DrawUi(*m_interface, size);
         m_interface->End();
     }
     runStage(RenderStage::Overlay);

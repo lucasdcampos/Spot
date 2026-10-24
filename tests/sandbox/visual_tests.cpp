@@ -6,6 +6,7 @@
 #include "view_model.h"
 #include "weapon.h"
 #include "weapon_holder.h"
+#include <spot/scene/ui/ui_system.h>
 
 #include <spot.h>
 
@@ -312,8 +313,8 @@ TEST_CASE("The cooked sandbox draws its HUD over the game: in hand, the wheel, h
         renderer.Render(*context, *scene, target.get());
         {
             auto pass = context->BeginRenderPass({.target = target.get()});
-            interface.Begin(pass, Spot::Scene::ScreenCamera(size), size);
-            scene->DrawUi(interface, size);
+            interface.Begin(pass, Spot::UiSystem::ScreenCamera(size), size);
+            scene->GetOrAddSystem<Spot::UiSystem>().DrawUi(interface, size);
             interface.End();
         }
         device->EndFrame();

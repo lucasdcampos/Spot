@@ -1,4 +1,5 @@
 #include <spot.h>
+#include <spot/scene/physics/physics_world.h>
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -37,7 +38,7 @@ struct QueryScene {
         scene.Update(0.0f);
     }
 
-    Spot::PhysicsWorld& Physics() { return scene.GetPhysics(); }
+    Spot::PhysicsWorld& Physics() { return scene.GetOrAddSystem<Spot::PhysicsWorld>(); }
 };
 
 } // namespace

@@ -1,12 +1,13 @@
 #pragma once
 
 #include <spot.h>
+#include <spot/scene/physics/collision_listener.h>
 
 #include <optional>
 
 // A rocket, which explodes where it hits something other than whoever fired it, water included, or once its time
 // is up.
-class Projectile final : public Spot::Component {
+class Projectile final : public Spot::Component, public Spot::CollisionListener {
 public:
     float explosionRadius = 5.0f;
     float explosionImpulse = 400.0f;

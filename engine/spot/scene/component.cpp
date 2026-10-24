@@ -15,6 +15,14 @@ namespace Spot {
 Component::Component() = default;
 Component::~Component() = default;
 
+Transform& Component::GetTransform() const {
+    return GetEntity().GetTransform();
+}
+
+void Component::Destroy() {
+    GetEntity().Destroy();
+}
+
 InvokeId Component::Invoke(float delay, std::function<void()> callback) {
     if (m_removed || m_faulted || (m_entity && m_entity->m_destroyed)) {
         return InvokeId::Invalid;

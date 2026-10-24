@@ -16,7 +16,7 @@ void AudioSource::Play() {
     if (!device || !sound) {
         return;
     }
-    AudioSystem& system = GetScene().GetAudio();
+    AudioSystem& system = GetScene().GetOrAddSystem<Spot::AudioSystem>();
     if (m_paused && device->IsPlaying(m_instance)) {
         m_paused = false;
         if (!system.IsPaused()) {
@@ -66,7 +66,7 @@ bool AudioSource::IsPaused() const {
 }
 
 void AudioSource::OnEnable() {
-    GetScene().GetAudio().Register(*this);
+    GetScene().GetOrAddSystem<Spot::AudioSystem>().Register(*this);
     if (playOnStart) {
         Play();
     }
@@ -98,8 +98,8 @@ void AudioSource::Refresh() {
         return;
     }
     if (spatial) {
-        std::tie(m_gain, m_pan) =
-            GetScene().GetAudio().Spatialize(GetEntity().GetTransform().GetWorldPosition(), spatialSettings);
+        std::tie(m_gain, m_pan) = GetScene().GetOrAddSystem<Spot::AudioSystem>().Spatialize(
+            GetEntity().GetTransform().GetWorldPosition(), spatialSettings);
     } else {
         m_gain = 1.0f;
         m_pan = 0.0f;

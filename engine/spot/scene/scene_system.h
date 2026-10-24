@@ -6,6 +6,8 @@
 namespace Spot {
 
 class Scene;
+class Component;
+class Entity;
 
 // Where systems run among the others of their scene: lower orders run first, and systems of the same order run in
 // the order they were added.
@@ -50,6 +52,14 @@ public:
 protected:
     // The scene is not available in the constructor yet.
     explicit SceneSystem(int order = SystemOrder::Default) : m_order(order) {}
+
+    // Notifications run immediately after a change, under the same fault guard as update hooks.
+    virtual void OnComponentAdded(Component& /*component*/) {}
+    virtual void OnComponentRemoved(Component& /*component*/) {}
+    virtual void OnEntityLayerChanged(Entity& /*entity*/) {}
+    virtual void OnEntityDestroyed(Entity& /*entity*/) {}
+    // The source hears this before transfer, the destination after it. Both scenes stay alive during the hook.
+    virtual void OnEntityMoved(Entity& /*entity*/, Scene& /*source*/, Scene& /*destination*/) {}
 
     virtual void OnBeforeFixedSteps(float /*deltaTime*/) {}
     virtual void OnFixedUpdate(float /*fixedDeltaTime*/) {}

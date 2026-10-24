@@ -1,4 +1,5 @@
 #include <spot.h>
+#include <spot/scene/physics/physics_world.h>
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -81,15 +82,15 @@ TEST_CASE("The physics debug view draws colliders, contacts and queries before f
     scene.PrepareToRender();
     CHECK(Spot::DebugDraw::GetLines().empty());
 
-    scene.GetPhysics().SetDebugDraw(Spot::PhysicsDebugFlags::Contacts);
+    scene.GetOrAddSystem<Spot::PhysicsWorld>().SetDebugDraw(Spot::PhysicsDebugFlags::Contacts);
     scene.PrepareToRender();
     // A cross and an arrow per contact point.
     CHECK_FALSE(Spot::DebugDraw::GetLines().empty());
     CHECK(Spot::DebugDraw::GetLines().size() % 8 == 0);
     Spot::DebugDraw::Clear();
 
-    scene.GetPhysics().SetDebugDraw(Spot::PhysicsDebugFlags::Queries);
-    scene.GetPhysics().Raycast({3.0f, 5.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 10.0f);
+    scene.GetOrAddSystem<Spot::PhysicsWorld>().SetDebugDraw(Spot::PhysicsDebugFlags::Queries);
+    scene.GetOrAddSystem<Spot::PhysicsWorld>().Raycast({3.0f, 5.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 10.0f);
     scene.PrepareToRender();
     // The ray to its hit, a cross and an arrow at the hit.
     CHECK(Spot::DebugDraw::GetLines().size() == 1 + 3 + 5);
@@ -98,7 +99,7 @@ TEST_CASE("The physics debug view draws colliders, contacts and queries before f
     scene.PrepareToRender();
     CHECK(Spot::DebugDraw::GetLines().empty());
 
-    scene.GetPhysics().SetDebugDraw(Spot::PhysicsDebugFlags::Colliders);
+    scene.GetOrAddSystem<Spot::PhysicsWorld>().SetDebugDraw(Spot::PhysicsDebugFlags::Colliders);
     scene.PrepareToRender();
     CHECK(Spot::DebugDraw::GetLines().size() == 12 + 3 * 32);
     Spot::DebugDraw::Clear();

@@ -12,6 +12,9 @@
 #include "triangle.frag.h"
 #include "triangle.vert.h"
 #include "uv.frag.h"
+#include <spot/scene/rendering/render_hook_system.h>
+#include <spot/scene/ui/ui_draw_listener.h>
+#include <spot/scene/ui/ui_system.h>
 
 #ifdef SPOT_SANDBOX_IMPORTED_DIR
 #include "../sandbox/src/menu_thumbnails.h"
@@ -141,7 +144,7 @@ TEST_CASE("Tilemaps render atlas cells holes ordering and transforms offscreen",
         auto* context = device->BeginOffscreenFrame(*target);
         REQUIRE(context);
         auto pass = context->BeginRenderPass({.clearColor = Spot::Color::Black});
-        renderer.Begin(pass, Spot::Scene::ScreenCamera({64, 64}), {64, 64});
+        renderer.Begin(pass, Spot::UiSystem::ScreenCamera({64, 64}), {64, 64});
         Spot::DrawScene(renderer, scene);
         renderer.End();
         pass.End();
@@ -208,7 +211,7 @@ TEST_CASE("Sprite atlas regions and animation render repeated offscreen frames",
         auto* context = device->BeginOffscreenFrame(*target);
         REQUIRE(context);
         auto pass = context->BeginRenderPass({.clearColor = Spot::Color::Black});
-        renderer.Begin(pass, Spot::Scene::ScreenCamera({64, 32}), {64, 32});
+        renderer.Begin(pass, Spot::UiSystem::ScreenCamera({64, 32}), {64, 32});
         Spot::DrawScene(renderer, scene);
         renderer.End();
         pass.End();
@@ -3332,7 +3335,7 @@ TEST_CASE("Renderer3D scenes are shadowed by their sky's sun and by the mesh ren
 namespace {
 
 // Fills a square of the view, from its bottom-left corner.
-class UiSquare final : public Spot::Component {
+class UiSquare final : public Spot::Component, public Spot::UiDrawListener {
 public:
     UiSquare(float side, Spot::Color color) : m_side(side), m_color(color) {}
 
@@ -3346,6 +3349,16 @@ private:
     Spot::Color m_color;
 };
 
+class UiDrawRecorder final : public Spot::Component, public Spot::UiDrawListener {
+public:
+    UiDrawRecorder(std::vector<int>& calls, int value) : m_calls(calls), m_value(value) {}
+    void OnDrawUi(Spot::Renderer2D&, Spot::Vector2) override { m_calls.push_back(m_value); }
+
+private:
+    std::vector<int>& m_calls;
+    int m_value;
+};
+
 } // namespace
 
 TEST_CASE("Scenes draw their active components' interfaces in pixels from the view's bottom-left corner", "[gpu]") {
@@ -3354,6 +3367,7 @@ TEST_CASE("Scenes draw their active components' interfaces in pixels from the vi
     std::vector<std::uint8_t> result;
     Spot::Scene scene;
     int frame = 0;
+    std::vector<int> drawCalls;
 
     RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
         auto& device = app.GetGraphicsDevice();
@@ -3368,15 +3382,21 @@ TEST_CASE("Scenes draw their active components' interfaces in pixels from the vi
         REQUIRE(target);
         scene.CreateEntity("Square").AddComponent<UiSquare>(2.0f, Spot::Color::Green);
         scene.CreateEntity("Disabled").AddComponent<UiSquare>(4.0f, Spot::Color::Blue).SetEnabled(false);
-        // Components draw once they started, as they update.
-        scene.Update(0.0f);
+        auto& firstEntity = scene.CreateEntity("Earlier entity");
+        scene.CreateEntity("Later entity").AddComponent<UiDrawRecorder>(drawCalls, 1);
+        firstEntity.AddComponent<UiDrawRecorder>(drawCalls, 2);
 
         Spot::Renderer2D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
         REQUIRE(renderer.IsValid());
         const Spot::Vector2 size{4.0f, 4.0f};
         auto pass = context.BeginRenderPass({.target = target.get(), .clearColor = Spot::Color::Black});
-        renderer.Begin(pass, Spot::Scene::ScreenCamera(size), size);
-        scene.DrawUi(renderer, size);
+        renderer.Begin(pass, Spot::UiSystem::ScreenCamera(size), size);
+        scene.GetOrAddSystem<Spot::UiSystem>().DrawUi(renderer, size);
+        CHECK(drawCalls.empty());
+        // Custom overlays wait for OnStart; component addition order determines drawing order.
+        scene.Update(0.0f);
+        scene.GetOrAddSystem<Spot::UiSystem>().DrawUi(renderer, size);
+        CHECK(drawCalls == std::vector<int>{1, 2});
         renderer.End();
     });
 
@@ -4062,18 +4082,36 @@ TEST_CASE("SceneRenderer runs render hooks at their stages, its own before the s
     for (const auto stage : {Spot::RenderStage::BeforeOpaque, Spot::RenderStage::AfterOpaque,
                              Spot::RenderStage::AfterTransparent, Spot::RenderStage::BeforePostProcessing,
                              Spot::RenderStage::AfterPostProcessing, Spot::RenderStage::Overlay}) {
-        scene.AddRenderHook(stage, [&calls, stage](const Spot::RenderStageContext& context) {
-            CHECK(context.stage == stage);
-            CHECK((context.depth != nullptr) == (stage < Spot::RenderStage::AfterPostProcessing));
-            calls.push_back(std::to_string(static_cast<int>(stage)));
-        });
+        scene.GetOrAddSystem<Spot::RenderHookSystem>().AddRenderHook(
+            stage, [&calls, stage](const Spot::RenderStageContext& context) {
+                CHECK(context.stage == stage);
+                CHECK((context.depth != nullptr) == (stage < Spot::RenderStage::AfterPostProcessing));
+                calls.push_back(std::to_string(static_cast<int>(stage)));
+            });
     }
-    scene.AddRenderHook(Spot::RenderStage::AfterOpaque,
-                        [&](const Spot::RenderStageContext& stage) { fill(stage, Spot::Color::Green); });
-    const auto overlay = scene.AddRenderHook(
+    scene.GetOrAddSystem<Spot::RenderHookSystem>().AddRenderHook(
+        Spot::RenderStage::AfterOpaque,
+        [&](const Spot::RenderStageContext& stage) { fill(stage, Spot::Color::Green); });
+    const auto overlay = scene.GetOrAddSystem<Spot::RenderHookSystem>().AddRenderHook(
         Spot::RenderStage::Overlay, [&](const Spot::RenderStageContext& stage) { fill(stage, Spot::Color::Blue); });
-    scene.AddRenderHook(Spot::RenderStage::Overlay,
-                        [](const Spot::RenderStageContext&) { throw std::runtime_error("Broken hook"); });
+    scene.GetOrAddSystem<Spot::RenderHookSystem>().AddRenderHook(
+        Spot::RenderStage::Overlay, [](const Spot::RenderStageContext&) { throw std::runtime_error("Broken hook"); });
+
+    auto& hooks = scene.GetOrAddSystem<Spot::RenderHookSystem>();
+    std::vector<std::string> mutations;
+    auto self = Spot::RenderHookId::Invalid;
+    auto removed = Spot::RenderHookId::Invalid;
+    self = hooks.AddRenderHook(Spot::RenderStage::Overlay, [&](const Spot::RenderStageContext&) {
+        mutations.push_back("self");
+        hooks.RemoveRenderHook(self);
+        hooks.RemoveRenderHook(removed);
+        hooks.AddRenderHook(Spot::RenderStage::Overlay,
+                            [&](const Spot::RenderStageContext&) { mutations.push_back("added"); });
+    });
+    removed = hooks.AddRenderHook(Spot::RenderStage::Overlay,
+                                  [&](const Spot::RenderStageContext&) { mutations.push_back("removed"); });
+    hooks.AddRenderHook(Spot::RenderStage::Overlay,
+                        [&](const Spot::RenderStageContext&) { mutations.push_back("survivor"); });
 
     std::vector<std::uint8_t> first;
     std::vector<std::uint8_t> second;
@@ -4096,7 +4134,7 @@ TEST_CASE("SceneRenderer runs render hooks at their stages, its own before the s
                               [&calls](const Spot::RenderStageContext&) { calls.push_back("renderer"); });
         } else if (frame == 2) {
             first = device.DownloadTexture(*target);
-            scene.RemoveRenderHook(overlay);
+            scene.GetOrAddSystem<Spot::RenderHookSystem>().RemoveRenderHook(overlay);
             calls.clear();
         } else {
             second = device.DownloadTexture(*target);
@@ -4106,6 +4144,8 @@ TEST_CASE("SceneRenderer runs render hooks at their stages, its own before the s
     });
     REQUIRE(application.Run() == EXIT_SUCCESS);
 
+    CHECK(mutations == std::vector<std::string>{"self", "survivor", "survivor", "added"});
+    CHECK_FALSE(hooks.IsFaulted());
     CHECK(calls == std::vector<std::string>{"0", "renderer", "1", "2", "3", "4", "5"});
     REQUIRE(first.size() == 4 * 4 * 4);
     REQUIRE(second.size() == 4 * 4 * 4);
@@ -4288,7 +4328,7 @@ TEST_CASE("SDF text scales and world text renders offscreen", "[gpu][text][offsc
         auto* context = device->BeginOffscreenFrame(*target);
         REQUIRE(context);
         auto pass = context->BeginRenderPass({.clearColor = Spot::Color::Black});
-        renderer.Begin(pass, Spot::Scene::ScreenCamera({256, 128}), {256, 128});
+        renderer.Begin(pass, Spot::UiSystem::ScreenCamera({256, 128}), {256, 128});
         renderer.DrawQuad({240, 10}, {8, 8}, Spot::Color::Blue);
         if (world) {
             Spot::Scene scene;
@@ -4353,8 +4393,8 @@ TEST_CASE("Authored UI previews and scroll clipping render offscreen", "[gpu][ui
         auto* context = device->BeginOffscreenFrame(*target);
         REQUIRE(context);
         auto pass = context->BeginRenderPass({.clearColor = Spot::Color::Black});
-        renderer.Begin(pass, Spot::Scene::ScreenCamera({64, 64}), {64, 64});
-        scene.DrawUi(renderer, {64, 64});
+        renderer.Begin(pass, Spot::UiSystem::ScreenCamera({64, 64}), {64, 64});
+        scene.GetOrAddSystem<Spot::UiSystem>().DrawUi(renderer, {64, 64});
         renderer.DrawQuad({60, 4}, {4, 4}, Spot::Color::Blue);
         renderer.End();
         pass.End();
@@ -4532,7 +4572,7 @@ TEST_CASE("Authored sandbox menus render their labels and controls offscreen", "
     const auto prefab = assets.Load<Spot::Prefab>("prefabs/interface.prefab");
     REQUIRE(prefab);
     Spot::Scene scene;
-    REQUIRE(scene.Instantiate(prefab));
+    REQUIRE(scene.Instantiate(prefab, {.assets = &assets}));
     auto* pause = scene.FindEntity("Pause Menu");
     REQUIRE(pause);
     pause->SetActive(true);

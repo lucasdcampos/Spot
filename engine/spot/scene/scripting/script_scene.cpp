@@ -682,13 +682,13 @@ ScriptValue SceneObject::CallPhysics(std::string_view name, std::span<const Scri
     if (cast && !(radius > 0))
         throw std::runtime_error("Cast radius must be positive");
     if (name == "Raycast" || name == "SphereCast") {
-        auto& physics = CurrentScene().GetPhysics();
+        auto& physics = CurrentScene().GetOrAddSystem<Spot::PhysicsWorld>();
         const auto origin = Argument<Vector3>(arguments[0]);
         const auto direction = Argument<Vector3>(arguments[cast ? 2 : 1]);
         return MakeHit(cast ? physics.SphereCast(origin, radius, direction, distance, filter)
                             : physics.Raycast(origin, direction, distance, filter));
     }
-    auto& physics = CurrentScene().GetPhysics2D();
+    auto& physics = CurrentScene().GetOrAddSystem<Spot::PhysicsWorld2D>();
     const auto origin = Argument<Vector2>(arguments[0]);
     const auto direction = Argument<Vector2>(arguments[cast ? 2 : 1]);
     return MakeHit(cast ? physics.CircleCast(origin, radius, direction, distance, filter)

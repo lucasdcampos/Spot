@@ -1,4 +1,6 @@
 #include "weapon_holder.h"
+#include <spot/scene/audio/audio_system.h>
+#include <spot/scene/physics/physics_world.h>
 
 #include "explosive_barrel.h"
 #include "flash.h"
@@ -89,12 +91,13 @@ void WeaponHolder::PlayWeaponSound(const Spot::AssetRef<Spot::Sound>& sound, flo
         return;
     }
     // Close to full volume for the player holding it, and heard far around.
-    GetScene().GetAudio().PlayOneShot(sound.GetShared(), player->GetEyePosition(),
-                                      {.volume = volume,
-                                       .bus = "Effects",
-                                       .spatialSettings = {.minDistance = 3.0f, .maxDistance = 100.0f},
-                                       .priority = 5,
-                                       .maxInstances = 4});
+    GetScene().GetOrAddSystem<Spot::AudioSystem>().PlayOneShot(
+        sound.GetShared(), player->GetEyePosition(),
+        {.volume = volume,
+         .bus = "Effects",
+         .spatialSettings = {.minDistance = 3.0f, .maxDistance = 100.0f},
+         .priority = 5,
+         .maxInstances = 4});
 }
 
 void WeaponHolder::StartReload(Weapon& weapon) {
@@ -157,12 +160,13 @@ void WeaponHolder::Fire() {
     if (weapon->kind == Weapon::Kind::Projectile) {
         // From the muzzle toward what the crosshair is on, unless a wall is closer than the muzzle.
         const float reach = 200.0f;
-        const auto target = GetScene().GetPhysics().Raycast(eye, aim, reach, {.ignore = GetEntity().GetId()});
+        const auto target =
+            GetScene().GetOrAddSystem<Spot::PhysicsWorld>().Raycast(eye, aim, reach, {.ignore = GetEntity().GetId()});
         const Spot::Vector3 point = target ? target->point : eye + aim * reach;
         const float toMuzzle = Spot::Distance(muzzle, eye);
         const auto blocked = toMuzzle > 0.01f
-                                 ? GetScene().GetPhysics().Raycast(eye, (muzzle - eye) / toMuzzle, toMuzzle,
-                                                                   {.ignore = GetEntity().GetId()})
+                                 ? GetScene().GetOrAddSystem<Spot::PhysicsWorld>().Raycast(
+                                       eye, (muzzle - eye) / toMuzzle, toMuzzle, {.ignore = GetEntity().GetId()})
                                  : std::nullopt;
         const bool clear = toMuzzle > 0.01f && !blocked && (!target || target->distance > 1.5f);
         const Spot::Vector3 start = clear ? muzzle : eye + aim * 0.5f;
@@ -183,7 +187,8 @@ void WeaponHolder::FireHitscan(const Weapon& weapon, Spot::Vector3 eye, Spot::Ve
     const float spread = m_aiming ? weapon.spread * weapon.aimSpread : weapon.spread;
     for (int pellet = 0; pellet < weapon.pellets; ++pellet) {
         const Spot::Vector3 direction = Scatter(aim, spread);
-        const auto hit = GetScene().GetPhysics().Raycast(eye, direction, weapon.range, {.ignore = GetEntity().GetId()});
+        const auto hit = GetScene().GetOrAddSystem<Spot::PhysicsWorld>().Raycast(eye, direction, weapon.range,
+                                                                                 {.ignore = GetEntity().GetId()});
         const auto water = Water::Raycast(GetScene(), eye, direction, hit ? hit->distance : weapon.range);
         // A streak of light from the muzzle to where the pellet went; every other one of a spread is enough.
         if (pellet % 2 == 0) {

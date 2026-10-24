@@ -1,4 +1,6 @@
 #include <spot.h>
+#include <spot/scene/physics/joint_break_listener.h>
+#include <spot/scene/physics/physics_world.h>
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -36,7 +38,7 @@ Vector3 PositionOf(const Entity& entity) {
     return entity.GetTransform().GetPosition();
 }
 
-class BreakListener final : public Spot::Component {
+class BreakListener final : public Spot::Component, public Spot::JointBreakListener {
 public:
     int breaks = 0;
 
@@ -85,7 +87,7 @@ TEST_CASE("Hinge joints swing within their limits, and their motors turn them", 
     CHECK(PositionOf(door).y > 4.6f);
 
     Scene driven;
-    driven.GetPhysics().SetGravity({});
+    driven.GetOrAddSystem<Spot::PhysicsWorld>().SetGravity({});
     Entity& wheel = CreateBox(driven, "Wheel", {0.0f, 1.0f, 0.0f});
     auto& axle = wheel.AddComponent<Spot::HingeJoint>();
     axle.SetAxis({1.0f, 0.0f, 0.0f});

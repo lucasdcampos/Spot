@@ -1,5 +1,6 @@
 #include "registered_assets.h"
 #include <spot.h>
+#include <spot/scene/physics/physics_world.h>
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -104,19 +105,19 @@ TEST_CASE("Static, kinematic and weightless bodies do not fall", "[physics]") {
     CHECK(GetHeight(wall) == 5.0f);
     CHECK(GetHeight(platform) == 5.0f);
     CHECK(GetHeight(balloon) == Approx(5.0f));
-    CHECK(scene.GetPhysics().GetBodyCount() == 3);
+    CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == 3);
 }
 
 TEST_CASE("The gravity of a world can be changed", "[physics]") {
     Scene scene;
     auto& ball = CreateBall(scene, {});
-    CHECK(scene.GetPhysics().GetGravity() == PhysicsWorld::DefaultGravity);
+    CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetGravity() == PhysicsWorld::DefaultGravity);
 
-    scene.GetPhysics().SetGravity({});
+    scene.GetOrAddSystem<Spot::PhysicsWorld>().SetGravity({});
     Simulate(scene, 0.5f);
     CHECK(ball.GetTransform().GetPosition() == Vector3{});
 
-    scene.GetPhysics().SetGravity({4.0f, 0.0f, 0.0f});
+    scene.GetOrAddSystem<Spot::PhysicsWorld>().SetGravity({4.0f, 0.0f, 0.0f});
     Simulate(scene, 1.0f);
     CHECK(ball.GetTransform().GetPosition().x == Approx(2.0f).margin(0.1f));
     CHECK(GetHeight(ball) == Approx(0.0f).margin(0.001f));
@@ -160,7 +161,7 @@ TEST_CASE("Dynamic bodies come to rest on colliders", "[physics]") {
         dumbbell.AddComponent<Rigidbody>();
         Simulate(scene, 3.0f);
         CHECK(GetHeight(dumbbell) == Approx(0.5f).margin(RestMargin));
-        CHECK(scene.GetPhysics().GetBodyCount() == 2);
+        CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == 2);
     }
 }
 
@@ -202,7 +203,7 @@ TEST_CASE("Bodies follow entities moved by the game", "[physics]") {
     }
 
     SECTION("A kinematic body pushes dynamic ones") {
-        scene.GetPhysics().SetGravity({});
+        scene.GetOrAddSystem<Spot::PhysicsWorld>().SetGravity({});
         auto& pusher = scene.CreateEntity("Pusher");
         pusher.GetTransform().SetPosition({-3.0f, 0.5f, 0.0f});
         pusher.AddComponent<BoxCollider>();
@@ -221,28 +222,28 @@ TEST_CASE("Bodies leave the world with their colliders and entities", "[physics]
     auto& ground = CreateGround(scene);
     auto& ball = CreateBall(scene, {0.0f, 1.0f, 0.0f});
     Simulate(scene, 1.0f);
-    REQUIRE(scene.GetPhysics().GetBodyCount() == 2);
+    REQUIRE(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == 2);
 
     SECTION("Destroyed ground lets bodies fall") {
         ground.Destroy();
         Simulate(scene, 1.0f);
-        CHECK(scene.GetPhysics().GetBodyCount() == 1);
+        CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == 1);
         CHECK(GetHeight(ball) < -1.0f);
     }
 
     SECTION("Inactive entities have no body") {
         ground.SetActive(false);
         Simulate(scene, 0.5f);
-        CHECK(scene.GetPhysics().GetBodyCount() == 1);
+        CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == 1);
         ground.SetActive(true);
         scene.Update(Step);
-        CHECK(scene.GetPhysics().GetBodyCount() == 2);
+        CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == 2);
     }
 
     SECTION("A rigidbody without colliders keeps a body") {
         ball.GetComponent<SphereCollider>()->SetEnabled(false);
         Simulate(scene, 1.0f);
-        CHECK(scene.GetPhysics().GetBodyCount() == 2);
+        CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == 2);
         CHECK(GetHeight(ball) < -1.0f);
     }
 
@@ -250,7 +251,7 @@ TEST_CASE("Bodies leave the world with their colliders and entities", "[physics]
         ball.RemoveComponent<Rigidbody>();
         ground.Destroy();
         Simulate(scene, 1.0f);
-        CHECK(scene.GetPhysics().GetBodyCount() == 1);
+        CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == 1);
         CHECK(GetHeight(ball) == Approx(0.5f).margin(RestMargin));
     }
 
@@ -259,8 +260,8 @@ TEST_CASE("Bodies leave the world with their colliders and entities", "[physics]
         ball.MoveToScene(other);
         scene.Update(Step);
         other.Update(Step);
-        CHECK(scene.GetPhysics().GetBodyCount() == 1);
-        CHECK(other.GetPhysics().GetBodyCount() == 1);
+        CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == 1);
+        CHECK(other.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == 1);
         // Nothing holds it in the other scene.
         Simulate(other, 1.0f);
         CHECK(GetHeight(ball) < -1.0f);
@@ -269,7 +270,7 @@ TEST_CASE("Bodies leave the world with their colliders and entities", "[physics]
 
 TEST_CASE("Rigidbodies take velocities, impulses and forces", "[physics]") {
     Scene scene;
-    scene.GetPhysics().SetGravity({});
+    scene.GetOrAddSystem<Spot::PhysicsWorld>().SetGravity({});
     auto& ball = CreateBall(scene, {});
     auto& rigidbody = *ball.GetComponent<Rigidbody>();
     rigidbody.SetMass(2.0f);
@@ -306,7 +307,7 @@ TEST_CASE("Rigidbodies take velocities, impulses and forces", "[physics]") {
 
 TEST_CASE("Bodies spinning as fast as the simulation allows keep spinning", "[physics]") {
     Scene scene;
-    scene.GetPhysics().SetGravity({});
+    scene.GetOrAddSystem<Spot::PhysicsWorld>().SetGravity({});
     // Rotations do not keep this scale exactly, which must not rebuild the bodies as they turn, and the speed limit
     // must hold whatever the axis.
     std::vector<Rigidbody*> rigidbodies;
@@ -411,9 +412,9 @@ TEST_CASE("Bodies on layers that do not collide pass through each other", "[phys
     Entity& ghost = CreateBall(scene, {0.0f, 1.0f, 0.0f});
     ghost.SetLayer(3);
     Entity& ball = CreateBall(scene, {2.0f, 1.0f, 0.0f});
-    scene.GetPhysics().SetLayerCollision(0, 3, false);
-    CHECK_FALSE(scene.GetPhysics().GetLayerCollision(3, 0));
-    CHECK(scene.GetPhysics().GetLayerCollision(3, 3));
+    scene.GetOrAddSystem<Spot::PhysicsWorld>().SetLayerCollision(0, 3, false);
+    CHECK_FALSE(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetLayerCollision(3, 0));
+    CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetLayerCollision(3, 3));
 
     Simulate(scene, 1.0f);
     CHECK(GetHeight(ball) == Approx(0.5f).margin(RestMargin));
@@ -451,10 +452,10 @@ TEST_CASE("Physics settings keep layer names and a symmetric collision matrix", 
     Scene scene;
     loaded.Apply(scene);
     REQUIRE(scene.GetSystem<PhysicsWorld>() != nullptr);
-    CHECK(scene.GetPhysics().FindLayer("Props") == 4);
-    CHECK(scene.GetPhysics().GetLayerName(4) == "Props");
-    CHECK_FALSE(scene.GetPhysics().GetLayerCollision(0, 4));
-    CHECK(scene.GetPhysics().GetLayerCollision(4, 4));
+    CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld>().FindLayer("Props") == 4);
+    CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetLayerName(4) == "Props");
+    CHECK_FALSE(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetLayerCollision(0, 4));
+    CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetLayerCollision(4, 4));
 
     // Default settings leave physics to be created when needed.
     Scene empty;
@@ -473,7 +474,7 @@ TEST_CASE("Triggers let bodies through, as sensor bodies of their own", "[physic
     Entity& ball = CreateBall(scene, {0.0f, 4.0f, 0.0f});
 
     Simulate(scene, 2.0f);
-    CHECK(scene.GetPhysics().GetBodyCount() == 3);
+    CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == 3);
     // It fell through the trigger onto the ground.
     CHECK(GetHeight(ball) == Approx(0.5f).margin(RestMargin));
 
@@ -484,7 +485,7 @@ TEST_CASE("Triggers let bodies through, as sensor bodies of their own", "[physic
     both.AddComponent<SphereCollider>().SetTrigger(true);
     both.AddComponent<Rigidbody>();
     Simulate(scene, 0.5f);
-    CHECK(scene.GetPhysics().GetBodyCount() == 5);
+    CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == 5);
     CHECK(GetHeight(both) == Approx(0.5f).margin(RestMargin));
 
     // A trigger becoming solid holds what falls on it.
@@ -506,7 +507,7 @@ TEST_CASE("Triggers are saved with their scene", "[physics][triggers]") {
 
 TEST_CASE("Forces and impulses at a point turn bodies, and torques spin them", "[physics][rigidbody]") {
     Scene scene;
-    scene.GetPhysics().SetGravity({});
+    scene.GetOrAddSystem<Spot::PhysicsWorld>().SetGravity({});
     const auto create = [&scene](Vector3 position) -> Rigidbody& {
         auto& entity = scene.CreateEntity();
         entity.GetTransform().SetPosition(position);
@@ -537,7 +538,7 @@ TEST_CASE("Forces and impulses at a point turn bodies, and torques spin them", "
 
 TEST_CASE("Locked rotations keep a body from turning", "[physics][rigidbody]") {
     Scene scene;
-    scene.GetPhysics().SetGravity({});
+    scene.GetOrAddSystem<Spot::PhysicsWorld>().SetGravity({});
     auto& entity = scene.CreateEntity();
     entity.AddComponent<BoxCollider>();
     auto& rigidbody = entity.AddComponent<Rigidbody>();
@@ -557,7 +558,7 @@ TEST_CASE("Locked rotations keep a body from turning", "[physics][rigidbody]") {
 TEST_CASE("Continuous bodies cannot pass through thin ones however fast they go", "[physics][rigidbody]") {
     const auto shoot = [](bool continuous) {
         Scene scene;
-        scene.GetPhysics().SetGravity({});
+        scene.GetOrAddSystem<Spot::PhysicsWorld>().SetGravity({});
         auto& wall = scene.CreateEntity("Wall");
         wall.GetTransform().SetPosition({0.0f, 0.0f, -5.0f});
         wall.AddComponent<BoxCollider>(Vector3{4.0f, 4.0f, 0.05f});
@@ -611,16 +612,20 @@ TEST_CASE("Mesh colliders hold bodies on their triangles", "[physics][mesh]") {
     Simulate(scene, 2.0f);
     CHECK(GetHeight(ball) == Approx(0.5f).margin(RestMargin));
 
-    const auto hit = scene.GetPhysics().Raycast({3.0f, 5.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 10.0f);
+    const auto hit = scene.GetOrAddSystem<Spot::PhysicsWorld>().Raycast({3.0f, 5.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 10.0f);
     REQUIRE(hit.has_value());
     CHECK(hit->collider == &collider);
     CHECK(hit->normal.y == Approx(1.0f).margin(1e-3f));
 
     // The shape scales with the entity.
-    CHECK_FALSE(scene.GetPhysics().Raycast({15.0f, 5.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 10.0f).has_value());
+    CHECK_FALSE(scene.GetOrAddSystem<Spot::PhysicsWorld>()
+                    .Raycast({15.0f, 5.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 10.0f)
+                    .has_value());
     ground.GetTransform().SetScale({2.0f, 1.0f, 2.0f});
     Simulate(scene, Step);
-    CHECK(scene.GetPhysics().Raycast({15.0f, 5.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 10.0f).has_value());
+    CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld>()
+              .Raycast({15.0f, 5.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 10.0f)
+              .has_value());
 }
 
 TEST_CASE("Mesh colliders of tilted meshes make slopes", "[physics][mesh]") {
@@ -659,7 +664,7 @@ TEST_CASE("Mesh colliders of dynamic bodies take the convex hull", "[physics][me
         ball.AddComponent<Rigidbody>();
     }
     Simulate(scene, 2.0f);
-    CHECK(scene.GetPhysics().GetBodyCount() == 22);
+    CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == 22);
 }
 
 TEST_CASE("Mesh colliders save their mesh asset, and assets give meshes' triangles without a GPU", "[physics][mesh]") {
