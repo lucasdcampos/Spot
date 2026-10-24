@@ -1,8 +1,8 @@
 #pragma once
 
-#include "spot/core/geometry/mesh_data.h"
 #include "spot/core/math/quaternion.h"
 #include "spot/core/math/vector.h"
+#include "spot/graphics/mesh_data.h"
 
 #include <array>
 #include <cstdint>

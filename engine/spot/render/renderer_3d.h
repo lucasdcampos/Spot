@@ -1,9 +1,9 @@
 #pragma once
 
-#include "spot/core/geometry/mesh_data.h"
 #include "spot/core/math/color.h"
 #include "spot/core/math/matrix.h"
 #include "spot/core/math/vector.h"
+#include "spot/graphics/mesh_data.h"
 #include "spot/graphics/render_context.h"
 #include "spot/graphics/texture.h"
 #include "spot/render/camera_3d.h"

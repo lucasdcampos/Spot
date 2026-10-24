@@ -6,7 +6,6 @@
 #include "spot/core/debug/log.h"
 #include "spot/core/debug/log_sinks.h"
 #include "spot/core/debug/profiler.h"
-#include "spot/core/geometry/mesh_data.h"
 #include "spot/core/ids/asset_id.h"
 #include "spot/core/ids/asset_ref.h"
 #include "spot/core/ids/entity_id.h"

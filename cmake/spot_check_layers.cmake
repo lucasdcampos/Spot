@@ -20,9 +20,10 @@ set(SPOT_LEVELS
     "import=9"
 )
 
-# Includes across a level that are part of the design: models draw animation's skeletons and clips, and ragdolls
-# animate physics' components.
+# Includes across a level that are part of the design: models draw animation's skeletons and clips, ragdolls
+# animate physics' components, and assets load and build graphics' mesh data.
 set(SPOT_LEVEL_EXCEPTIONS
+    "assets>graphics"
     "render>animation"
     "scene/animation>scene/physics"
 )

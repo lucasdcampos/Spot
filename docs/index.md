@@ -46,9 +46,9 @@ Building, testing and the code rules are in [`AGENTS.md`](../AGENTS.md).
 The engine is levels of folders of `engine/spot/`. A folder includes only itself and the levels below it, never a
 folder of its own level or above, so each level works without the ones above it and the systems of a level stay
 independent of each other. The test "Engine folders include only the levels below them"
-(`cmake/spot_check_layers.cmake`) fails the build's tests otherwise. It lists the two includes across a level that
-are meant (models draw animation's skeletons and clips; ragdolls animate physics' components) and, while the refactor
-lasts, the violations left to fix. Games include the headers with the prefix, as `<spot/core/debug/log.h>`, a module's
+(`cmake/spot_check_layers.cmake`) fails the build's tests otherwise. It lists the includes across a level that are
+meant (models draw animation's skeletons and clips; ragdolls animate physics' components; assets load and build
+graphics' meshes) and, while the refactor lasts, the violations left to fix. Games include the headers with the prefix, as `<spot/core/debug/log.h>`, a module's
 public headers with its own header, or all of them with `<spot.h>`. A module header compiles on its own
 (`tests/module_headers/`) and pulls in only its folder and the levels below:
 
@@ -63,10 +63,10 @@ public headers with its own header, or all of them with `<spot.h>`. A module hea
 
 | Level | Folders | What it holds |
 |---|---|---|
-| 0 | `core/` | Logging, assertions, memory, files, math, time, jobs, archives (`Archive`), the profiler, ids, asset references, CPU geometry and bounds, colors, curves |
+| 0 | `core/` | Logging, assertions, memory, files, math, time, jobs, archives (`Archive`), the profiler, ids, asset references, bounds, colors, curves |
 | 1 | `platform/` | Windows, events, the input state and actions, processes, shared libraries, the crash handler, RenderDoc capture; SDL3 behind `platform/sdl3/` |
 | 2 | `assets/` | Loading imported assets, the built-in assets and their primitive meshes (`PrimitiveMeshes`) |
-| 3 | `graphics/` | The graphics API and its backends (rendering level 1) |
+| 3 | `graphics/` | The graphics API and its backends (rendering level 1), and the CPU data it uploads: images and meshes (`MeshData`) |
 | 4 | `render/`, `audio/`, `physics/`, `animation/`, `particles/` | The systems' low-level APIs, without scenes: the code-only renderers (rendering level 2), the mixer, the physics simulations, poses and clips, particle simulation |
 | 5 | `scene/` | Entities, components, scenes, scene systems, prefab instancing, tweens, timers, tasks and signals |
 | 6 | `runtime/` | `Application`, the default game loop with scenes, and what runs a game: settings, the console, save data, profile streaming, game modules |

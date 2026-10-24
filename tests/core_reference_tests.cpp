@@ -1,4 +1,3 @@
-#include <spot/core/geometry/mesh_data.h>
 #include <spot/core/ids/asset_ref.h>
 #include <spot/core/ids/entity_id.h>
 #include <spot/core/io/archive.h>
@@ -52,23 +51,4 @@ TEST_CASE("Core entity ids round trip without a scene and filters accept ids", "
     Spot::FieldOptions options{.entityFilter = [id](Spot::EntityId candidate) { return candidate == id; }};
     CHECK(options.entityFilter(id));
     CHECK_FALSE(options.entityFilter(Spot::EntityId::Invalid));
-}
-
-TEST_CASE("CPU geometry and bounds are usable from the core alone", "[core][geometry]") {
-    Spot::MeshData mesh;
-    for (const float x : {-2.0f, 2.0f}) {
-        for (const float y : {-2.0f, 2.0f}) {
-            for (const float z : {-2.0f, 2.0f}) {
-                mesh.vertices.push_back({{x, y, z}, {0, 1, 0}, {0, 0}});
-            }
-        }
-    }
-    const auto box = mesh.GetBoundingBox();
-    CHECK((box.GetCenter() == Spot::Vector3{0, 0, 0}));
-    CHECK((box.GetSize() == Spot::Vector3{4, 4, 4}));
-    const auto sphere = mesh.GetBounds();
-    CHECK((sphere.center == Spot::Vector3{0, 0, 0}));
-    for (const auto& vertex : mesh.vertices) {
-        CHECK(Spot::Length(vertex.position - sphere.center) <= sphere.radius);
-    }
 }

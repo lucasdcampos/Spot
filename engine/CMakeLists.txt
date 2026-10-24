@@ -170,9 +170,9 @@ add_library(spot_objects OBJECT
     spot/render/mesh.h
     spot/render/mesh.cpp
     spot/core/math/bounds.h
-    spot/core/geometry/mesh_data.h
-    spot/core/geometry/mikktspace.cpp
-    spot/core/geometry/mesh_data.cpp
+    spot/graphics/mesh_data.h
+    spot/graphics/mikktspace.cpp
+    spot/graphics/mesh_data.cpp
     spot/scene/animation/skinned_mesh_renderer.h
     spot/scene/animation/skinned_mesh_renderer.cpp
     spot/animation/animator_controller.h
@@ -484,7 +484,7 @@ FetchContent_MakeAvailable(cgltf)
 target_include_directories(spot_objects SYSTEM PRIVATE ${cgltf_SOURCE_DIR})
 
 # dr_wav decodes WAV audio; like stb, it is a single header.
-# MikkTSpace, the tangent space glTF's normal maps are baked in; spot/core/geometry/mikktspace.cpp compiles it.
+# MikkTSpace, the tangent space glTF's normal maps are baked in; spot/graphics/mikktspace.cpp compiles it.
 FetchContent_Declare(mikktspace
     GIT_REPOSITORY https://github.com/mmikk/MikkTSpace.git
     GIT_TAG 3e895b49d05ea07e4c2133156cfa94369e19e409

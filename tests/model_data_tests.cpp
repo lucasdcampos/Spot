@@ -352,3 +352,22 @@ TEST_CASE("Appending submeshes offsets their vertices and keeps existing triangl
         CHECK(combined.indices[indexCount + i] == vertexCount + second.indices[i]);
     }
 }
+
+TEST_CASE("Mesh data and its bounds work without a graphics device", "[graphics][geometry]") {
+    Spot::MeshData mesh;
+    for (const float x : {-2.0f, 2.0f}) {
+        for (const float y : {-2.0f, 2.0f}) {
+            for (const float z : {-2.0f, 2.0f}) {
+                mesh.vertices.push_back({{x, y, z}, {0, 1, 0}, {0, 0}});
+            }
+        }
+    }
+    const auto box = mesh.GetBoundingBox();
+    CHECK((box.GetCenter() == Spot::Vector3{0, 0, 0}));
+    CHECK((box.GetSize() == Spot::Vector3{4, 4, 4}));
+    const auto sphere = mesh.GetBounds();
+    CHECK((sphere.center == Spot::Vector3{0, 0, 0}));
+    for (const auto& vertex : mesh.vertices) {
+        CHECK(Spot::Length(vertex.position - sphere.center) <= sphere.radius);
+    }
+}

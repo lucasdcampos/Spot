@@ -7,6 +7,7 @@
 #include "spot/graphics/graphics_assets.h"
 #include "spot/graphics/graphics_device.h"
 #include "spot/graphics/image.h"
+#include "spot/graphics/mesh_data.h"
 #include "spot/graphics/pipeline.h"
 #include "spot/graphics/render_context.h"
 #include "spot/graphics/render_graph.h"

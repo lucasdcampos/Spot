@@ -1,4 +1,4 @@
-#include "spot/core/geometry/mesh_data.h"
+#include "spot/graphics/mesh_data.h"
 
 #include <mikktspace.h>
 

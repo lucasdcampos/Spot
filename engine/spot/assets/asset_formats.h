@@ -6,10 +6,10 @@
 
 #include "spot/assets/asset_file.h"
 #include "spot/assets/material_source.h"
-#include "spot/core/geometry/mesh_data.h"
 #include "spot/core/ids/asset_id.h"
 #include "spot/core/math/color.h"
 #include "spot/core/math/matrix.h"
+#include "spot/graphics/mesh_data.h"
 
 #include <cstddef>
 #include <cstdint>
