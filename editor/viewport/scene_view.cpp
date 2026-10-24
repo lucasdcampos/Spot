@@ -661,11 +661,11 @@ void SceneView::Render(RenderContext& context, ViewportRenderer& renderer) {
     // The game's view looks through its main camera, as the game would, without the editor's aids.
     if (IsShowingGame()) {
         Scene& scene = m_shown->GetScene();
-        const auto revision = scene.IsLoaded() ? scene.GetApplication().GetRenderingRevision() : 0;
+        const auto revision = scene.IsLoaded() ? Application::Get().GetRenderingRevision() : 0;
         if (!m_gameRenderer || m_gameRenderingRevision != revision) {
             SceneRendererConfig config{.targetFormat = ViewportRenderer::ColorFormat};
             if (scene.IsLoaded())
-                scene.GetApplication().GetRenderingSettings().Apply(config);
+                Application::Get().GetRenderingSettings().Apply(config);
             else
                 m_rendering.Apply(config);
             m_gameRenderer = std::make_unique<SceneRenderer>(renderer.GetDevice(), config);

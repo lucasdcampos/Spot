@@ -43,7 +43,7 @@ struct EditorOptions {
     bool showCrashMessage = false;
 };
 
-class EditorApplication final : public Application {
+class EditorApplication final : public PlayHost {
 public:
     explicit EditorApplication(EditorOptions options = {});
     ~EditorApplication() override;

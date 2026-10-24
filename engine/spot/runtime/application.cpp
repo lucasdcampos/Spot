@@ -32,6 +32,11 @@ Application::Application(ApplicationConfig config) : m_config(std::move(config))
 
 Application::~Application() = default;
 
+Application& Application::Get() {
+    SPOT_ASSERT(s_running, "The application is only available while Run() is running");
+    return *s_running;
+}
+
 // Startup, in order: what tells of a crash, the window, the graphics device, the assets, the input, the modules,
 // OnStart() and the start scene. Each step needs only the ones before it.
 int Application::Run() {
@@ -47,6 +52,7 @@ int Application::Run() {
     StartAssets();
     StartInput();
     m_running = true;
+    s_running = this;
     StartModules();
     OnStart();
     if (m_running && !m_scene && !m_sceneChangePending && !LoadStartupScene()) {
@@ -59,6 +65,7 @@ int Application::Run() {
     }
 
     Stop();
+    s_running = nullptr;
     return m_failed ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
@@ -196,9 +203,8 @@ void Application::RunFrame() {
         SPOT_PROFILE_SCOPE("Application::OnUpdate");
         OnUpdate(m_clock.GetDeltaTime());
     }
-    if (!m_scenesPaused || std::exchange(m_stepScenes, false)) {
-        if (m_scene)
-            m_scene->Update(m_clock.GetDeltaTime());
+    if (m_scene) {
+        m_scene->Update(m_clock.GetDeltaTime());
     }
     for (auto& [type, module] : m_modules) {
         module->OnUpdate(m_clock.GetDeltaTime());
@@ -421,12 +427,12 @@ void Application::ApplySceneChanges() {
             }
         }
         m_scene->Clear();
-        m_scene->m_application = nullptr;
+        m_scene->m_loaded = false;
         m_scene.reset();
     }
     m_scene = std::move(next);
     if (m_scene) {
-        m_scene->m_application = this;
+        m_scene->m_loaded = true;
         m_scene->OnLoad();
     }
 }
@@ -436,7 +442,7 @@ void Application::RemoveScene() {
         return;
     m_scene->OnUnload();
     m_scene->Clear();
-    m_scene->m_application = nullptr;
+    m_scene->m_loaded = false;
     m_scene.reset();
 }
 

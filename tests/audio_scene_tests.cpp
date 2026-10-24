@@ -236,10 +236,10 @@ protected:
 
     void OnUpdate(float /*deltaTime*/) override {
         // The audio module pauses the scene's sounds after the frame's update.
-        if (!AreScenesPaused()) {
+        if (!GetScene()->IsPaused()) {
             usedItsDevice = Spot::Audio::GetDevice() == &GetModule<Spot::AudioModule>()->GetDevice();
             GetScene()->GetOrAddSystem<Spot::AudioSystem>();
-            SetScenesPaused(true);
+            GetScene()->SetPaused(true);
             return;
         }
         audioPaused = GetScene()->GetOrAddSystem<Spot::AudioSystem>().IsPaused();

@@ -97,7 +97,7 @@ SceneDocument* SceneWorkspace::GetActiveDocument() {
     return m_active;
 }
 
-void SceneWorkspace::Play(Application& application) {
+void SceneWorkspace::Play(PlayHost& application) {
     EditorProject* project = m_context.GetProject();
     if (m_play || !m_active || m_active->IsPrefab() || !project) {
         return;

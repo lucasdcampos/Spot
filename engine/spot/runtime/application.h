@@ -61,6 +61,11 @@ public:
     explicit Application(ApplicationConfig config = {});
     virtual ~Application();
 
+    // The application that is running, as game code reaches it. Only available while Run() is running.
+    static Application& Get();
+    // Null while no application runs.
+    static Application* TryGet() { return s_running; }
+
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;
 
@@ -92,10 +97,6 @@ public:
     }
     // Null when the application runs no game; see ApplicationConfig::game.
     const GameSettings* GetGameSettings() const { return m_config.game ? &*m_config.game : nullptr; }
-    // Changes the game the application runs, as tools that run games inside them do. Its sections apply to the
-    // scenes loaded from then on; what the application set up when it started, such as its window and where its
-    // assets are, stays. The action map is emptied and given the game's actions.
-    void SetGameSettings(std::optional<GameSettings> game);
     RenderingSettings GetRenderingSettings() const;
     // Applies at the next scene render; input bindings and project defaults are retained.
     void SetRenderingSettings(RenderingSettings rendering);
@@ -149,12 +150,6 @@ public:
     // The active scene, or null when none is loaded.
     Scene* GetScene() const { return m_scene.get(); }
 
-    // Pauses simulation and sounds; events, rendering and chunk completion continue.
-    // StepScenes() advances one frame while paused.
-    void SetScenesPaused(bool paused) { m_scenesPaused = paused; }
-    bool AreScenesPaused() const { return m_scenesPaused; }
-    void StepScenes() { m_stepScenes = true; }
-
 protected:
     virtual void OnStart() {}
     virtual void OnEvent(const Event&) {}
@@ -165,6 +160,11 @@ protected:
     // Called after a WindowCloseEvent has reached OnEvent() and the scenes. Returning false keeps the application
     // running, such as to ask about unsaved changes first.
     virtual bool OnCloseRequested() { return true; }
+
+    // Changes the game the application runs, as tools that run games inside them do, from their own subclass. Its
+    // sections apply to the scenes loaded from then on; what the application set up when it started, such as its
+    // window and where its assets are, stays. The action map is emptied and given the game's actions.
+    void SetGameSettings(std::optional<GameSettings> game);
 
     // Sends the event as the platform's are sent: to the input state, OnEvent() and the scenes; and closes the
     // application on a WindowCloseEvent that OnCloseRequested() allows.
@@ -192,6 +192,8 @@ private:
     // Returns false, after logging why, when the game's startup scene cannot be loaded.
     bool LoadStartupScene();
 
+    static inline Application* s_running = nullptr;
+
     ApplicationConfig m_config;
     std::vector<std::pair<std::type_index, std::unique_ptr<Module>>> m_modules;
     std::shared_ptr<LogSink> m_logFile;
@@ -210,8 +212,6 @@ private:
     bool m_failed = false;
     // The cursor lock last applied to the window, which follows the input state's when it changes.
     bool m_cursorLocked = false;
-    bool m_scenesPaused = false;
-    bool m_stepScenes = false;
 };
 
 } // namespace Spot

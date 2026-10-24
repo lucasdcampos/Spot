@@ -130,6 +130,7 @@ add_library(spot_editor_core STATIC
     modules/module_host.cpp
     modules/module_host.h
     play/play_session.cpp
+    play/play_host.h
     play/play_session.h
     panels/asset_browser_panel.cpp
     panels/audio_mixer_panel.cpp

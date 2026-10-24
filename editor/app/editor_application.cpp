@@ -107,7 +107,7 @@ void ToolbarSeparator() {
 } // namespace
 
 EditorApplication::EditorApplication(EditorOptions options)
-    : Application(MakeConfig(options)), m_options(std::move(options)), m_consoleLog(std::make_shared<ConsoleLog>()),
+    : PlayHost(MakeConfig(options)), m_options(std::move(options)), m_consoleLog(std::make_shared<ConsoleLog>()),
       m_self(std::make_shared<EditorApplication*>(this)) {
     m_options.settingsDirectory = ResolveSettingsDirectory(m_options);
     m_settings = EditorSettings(m_options.settingsDirectory.empty() ? std::filesystem::path()

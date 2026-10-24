@@ -77,13 +77,18 @@ Each iteration of `Application::Run()`:
 2. Polls events and dispatches them to the modules, the input state, `OnEvent()` and the active scene
    (`DeliversToScenes()` filters them). A module that consumes an event keeps it from the rest but `OnEvent()`.
 3. Applies the scene replacement queued since the last frame with `LoadScene()`, then finishes ready chunks.
-4. Calls `OnUpdate()`, then updates the active scene unless paused (`SetScenesPaused()`, `StepScenes()`), then the
+4. Calls `OnUpdate()`, then updates the active scene (which does nothing while paused: `Scene::SetPaused()`, `Scene::Step()`), then the
    modules' `OnUpdate()`.
 5. On frames that can be drawn: calls the modules' `OnBeginRender()`, runs the scene's `PrepareToRender()` and
    `OnRender()`, calls the modules' `OnRender()` (where `RenderModule` draws the scene), then `OnRender()`, then the modules' `OnEndRender()` in reverse, and submits the frame.
 6. Ages the shapes queued with `DebugDraw` by the frame's time.
 
 Scene changes are applied between frames, so a scene that asks to be replaced is never destroyed while it runs.
+
+Game code reaches the running application with `Application::Get()`; scenes do not know it (`Scene::IsLoaded()`
+only tells whether one is the application's current scene). What only tools that run games inside them need, such as
+switching the game's settings (`SetGameSettings()`, protected), they reach through a subclass of their own: the
+editor's `PlayHost`, which also keeps input from the game unless its view has focus (`DeliversToScenes()`).
 
 ## Modules
 

@@ -84,7 +84,7 @@ public:
 
     // Plays the active document in the application: a copy of it runs as the game would, in the document's view.
     // Does nothing without an active document.
-    void Play(Application& application);
+    void Play(PlayHost& application);
     void StopPlaying();
     // Null while nothing plays.
     PlaySession* GetPlaySession() { return m_play.get(); }

@@ -60,8 +60,8 @@ void AudioModule::OnUpdate(float /*deltaTime*/) {
         }
     }
     if (Scene* scene = application.GetScene()) {
-        if (auto* audio = scene->GetSystem<AudioSystem>(); audio && audio->IsPaused() != application.AreScenesPaused())
-            audio->SetPaused(application.AreScenesPaused());
+        if (auto* audio = scene->GetSystem<AudioSystem>(); audio && audio->IsPaused() != scene->IsPaused())
+            audio->SetPaused(scene->IsPaused());
     }
     if (Profiler::IsEnabled()) {
         Profiler::Count("Voices", static_cast<double>(std::max(0, m_device->GetVoiceCount())));

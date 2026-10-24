@@ -28,11 +28,6 @@ Scene::~Scene() {
     Clear();
 }
 
-Application& Scene::GetApplication() const {
-    SPOT_ASSERT(m_application, "The application is only available while the scene is loaded");
-    return *m_application;
-}
-
 void Scene::SetFixedTimeStep(float seconds) {
     SPOT_ASSERT(seconds > 0.0f, "The fixed time step must be positive");
     m_fixedTimeStep = seconds;
@@ -239,6 +234,9 @@ std::size_t Scene::GetEntityCount() const {
 
 void Scene::Update(float deltaTime) {
     SPOT_ASSERT(!m_deferRemovals, "Update() cannot be called while the scene walks its entities");
+    if (m_paused && !std::exchange(m_stepPending, false)) {
+        return;
+    }
     FinishChunkLoads();
     ++m_updateCount;
     if (!std::isfinite(deltaTime) || deltaTime < 0.0f) {

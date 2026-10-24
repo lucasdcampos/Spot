@@ -344,7 +344,7 @@ protected:
             m_updates.push_back(scene->updates);
         }
         if (m_frame == 2) {
-            SetScenesPaused(true);
+            scene->SetPaused(true);
             DispatchEvent(Spot::KeyPressedEvent{.key = Spot::Key::A, .repeat = false});
             DispatchEvent(Spot::WindowResizeEvent{.width = 10, .height = 10});
         }
@@ -354,10 +354,10 @@ protected:
             CHECK(scene->resizes == 1);
         }
         if (m_frame == 4) {
-            StepScenes();
+            scene->Step();
         }
         if (m_frame == 6) {
-            CHECK(AreScenesPaused());
+            CHECK(scene->IsPaused());
             Quit();
         }
     }
@@ -371,7 +371,8 @@ private:
 
 } // namespace
 
-TEST_CASE("Application pauses its scenes, steps them, and keeps events from them when told to", "[application]") {
+TEST_CASE("Paused scenes step one update at a time, and applications keep events from them when told to",
+          "[application]") {
     std::vector<int> updates;
     PausingApplication application(updates);
     CHECK(application.Run() == EXIT_SUCCESS);
@@ -619,9 +620,9 @@ TEST_CASE("Scene changes from lifecycle hooks wait until the following frame", "
         int& updates;
         void OnLoad() override {
             // The second queued request supersedes the first.
-            GetApplication().LoadScene<Spot::Scene>();
-            GetApplication().LoadScene(nullptr);
-            CHECK(GetApplication().GetScene() == this);
+            Spot::Application::Get().LoadScene<Spot::Scene>();
+            Spot::Application::Get().LoadScene(nullptr);
+            CHECK(Spot::Application::Get().GetScene() == this);
         }
         void OnUpdate(float) override { ++updates; }
     };
