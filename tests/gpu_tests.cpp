@@ -29,6 +29,7 @@
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 
 #include <algorithm>
 #include <array>
@@ -2488,20 +2489,22 @@ TEST_CASE("Renderer3D leaves meshes out of the view out of its pass, and counts 
     CHECK(IsNear(render.At(16, 16), {255, 0, 0, 255}));
 }
 
-TEST_CASE("Renderer3D keeps render worlds on the GPU, in batches, and follows their changes", "[gpu]") {
+TEST_CASE("Renderer3D draws render worlds, kept on the GPU in batches when asked, and follows their changes", "[gpu]") {
     RequireGpu();
+    const bool gpuCulling = GENERATE(false, true);
+    INFO("GPU culling " << gpuCulling);
     Spot::Renderer3DStats first;
     Spot::Renderer3DStats second;
     const TargetRender render(
         32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
-            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8, .gpuCulling = gpuCulling});
             const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
             REQUIRE(cube != nullptr);
             const Spot::Material red{.baseColor = Spot::Color::Red};
             const Spot::Material green{.baseColor = Spot::Color::Green};
             Spot::RenderWorld world;
             const auto a = world.AddMesh({.mesh = cube.get(), .material = &red});
-            // Three of the same look, one draw.
+            // Three of the same look, one draw: one batch, or three instances.
             for (float x : {40.0f, 44.0f, 48.0f}) {
                 world.AddMesh(
                     {.mesh = cube.get(), .material = &green, .transform = Spot::Matrix4::Translation({x, 0.0f, 0.0f})});
@@ -2513,7 +2516,8 @@ TEST_CASE("Renderer3D keeps render worlds on the GPU, in batches, and follows th
             renderer.End();
             first = renderer.GetStats();
 
-            // Only the moved instances go up again; the green one now hides where the red one was.
+            // Only the moved instances go up again, when kept on the GPU; the green one now hides where the red one
+            // was.
             world.SetTransform(a, Spot::Matrix4::Translation({-40.0f, 0.0f, 0.0f}));
             world.SetTransform(b, {});
             renderer.Begin(context, target, MakeFrontCamera());
@@ -2526,19 +2530,23 @@ TEST_CASE("Renderer3D keeps render worlds on the GPU, in batches, and follows th
     CHECK(first.visibleMeshes == 1);
     CHECK(first.culledMeshes == 3);
     CHECK(second.drawCalls == 1);
-    CHECK(second.visibleMeshes == 3);
-    CHECK(second.culledMeshes == 1);
+    // A batch the CPU keeps counts whole; objects drawn one by one count one by one.
+    CHECK(second.visibleMeshes == (gpuCulling ? 3u : 1u));
+    CHECK(second.culledMeshes == (gpuCulling ? 1u : 3u));
     CHECK(IsNear(render.At(16, 16), {0, 255, 0, 255}));
 }
 
 TEST_CASE("Renderer3D draws the level of detail of world objects their screen size picks", "[gpu]") {
     RequireGpu();
+    const bool gpuCulling = GENERATE(false, true);
+    INFO("GPU culling " << gpuCulling);
     // The level of detail is a cube moved out of the view's middle, so the middle shows which level is drawn.
-    const auto drawn = [](float lodScreenSize, float cullScreenSize) {
+    const auto drawn = [gpuCulling](float lodScreenSize, float cullScreenSize) {
         const TargetRender render(
             32, 32,
             [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
-                Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+                Spot::Renderer3D renderer(device,
+                                          {.targetFormat = Spot::TextureFormat::Rgba8, .gpuCulling = gpuCulling});
                 const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
                 Spot::MeshData aside = Spot::MeshData::CreateCube();
                 for (Spot::MeshVertex& vertex : aside.vertices) {
@@ -2566,12 +2574,11 @@ TEST_CASE("Renderer3D draws the level of detail of world objects their screen si
     CHECK_FALSE(drawn(0.0f, 100.0f));
 }
 
-TEST_CASE("Renderer3D culls world objects hidden in the last frame of the same view, and keeps those that show",
-          "[gpu]") {
+TEST_CASE("Renderer3D culls world objects hidden in the last frame of the same view with GPU culling", "[gpu]") {
     RequireGpu();
     const TargetRender render(
         32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
-            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8, .gpuCulling = true});
             const auto cube = Spot::Mesh::Create(device, Spot::MeshData::CreateCube());
             REQUIRE(cube != nullptr);
             const Spot::Material red{.baseColor = Spot::Color::Red};
@@ -3488,7 +3495,7 @@ TEST_CASE("LineRenderer draws lines hidden by meshes, and debug lines over every
             auto pass = context.BeginRenderPass(over);
             lines.Begin(pass, camera.GetViewProjection({32.0f, 32.0f}));
             lines.DrawLine({-5.0f, 0.0f, -2.0f}, {5.0f, 0.0f, -2.0f}, Spot::Color::Green);
-            lines.DrawDebugLines();
+            lines.DrawLines(Spot::DebugDraw::GetLines());
             lines.End();
             lineCount = lines.GetLineCount();
         });
@@ -4737,4 +4744,37 @@ TEST_CASE("Renderer3D draws clouds over the day sky, and stars and the moon at n
     const Pixel moonless = render(dark, toMoon).At(128, 128);
     INFO("Moon " << int{moon[0]} << ", " << int{moon[1]} << ", " << int{moon[2]});
     CHECK(moon[1] > moonless[1] + 80);
+}
+
+TEST_CASE("Every engine renderer is made and draws on a device with only the baseline", "[gpu][baseline]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.baselineOnly = true, .debug = false});
+    REQUIRE(device);
+    const Spot::GraphicsCapabilities& capabilities = device->GetCapabilities();
+    REQUIRE_FALSE((capabilities.compute || capabilities.indirectDraws || capabilities.timestamps ||
+                   capabilities.bindlessTextures || capabilities.compressedTextures));
+    REQUIRE(capabilities.maxColorTargets == 1);
+
+    const Spot::TextureFormat format = Spot::TextureFormat::Rgba8;
+    CHECK(Spot::Renderer2D(*device, {.targetFormat = format}).IsValid());
+    CHECK(Spot::Renderer3D(*device, {.targetFormat = format}).IsValid());
+    CHECK(Spot::LineRenderer(*device, {.targetFormat = format}).IsValid());
+    CHECK(Spot::ParticleRenderer(*device, {.targetFormat = format}).IsValid());
+    CHECK(Spot::SceneRenderer(*device, {.targetFormat = format}).IsValid());
+
+    auto target = device->CreateTexture({.width = 4, .height = 4, .renderTarget = true});
+    REQUIRE(target);
+    Spot::Renderer2D renderer(*device, {.targetFormat = format});
+    auto* context = device->BeginOffscreenFrame(*target);
+    REQUIRE(context);
+    {
+        auto pass = context->BeginRenderPass({.clearColor = Spot::Color::Black});
+        renderer.Begin(pass, Spot::Camera2D{}, {4.0f, 4.0f});
+        renderer.DrawQuad({0.0f, 0.0f}, {4.0f, 4.0f}, Spot::Color::Green);
+        renderer.End();
+    }
+    device->EndFrame();
+    const auto pixels = device->DownloadTexture(*target);
+    REQUIRE(pixels.size() == 4 * 4 * 4);
+    CHECK(pixels[1] == 255);
 }

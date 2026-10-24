@@ -75,10 +75,6 @@ void LineRenderer::DrawLines(std::span<const DebugLine> lines) {
     }
 }
 
-void LineRenderer::DrawDebugLines() {
-    DrawLines(DebugDraw::GetLines());
-}
-
 void LineRenderer::End() {
     SPOT_PROFILE_SCOPE("LineRenderer::End");
     SPOT_ASSERT(m_pass, "LineRenderer::End() called without Begin()");

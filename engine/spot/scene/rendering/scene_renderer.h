@@ -42,6 +42,7 @@ struct SceneRendererConfig {
     std::uint32_t shadowCascadeCount = 4;
     float shadowDistance = 60.0f;
     std::uint32_t localShadowMapSize = 512;
+    bool gpuCulling = false;
 };
 
 // Draws a scene through its first main camera: meshes, debug shapes, sprites and particles into HDR,

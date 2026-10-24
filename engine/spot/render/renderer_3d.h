@@ -9,7 +9,6 @@
 #include "spot/render/camera_3d.h"
 #include "spot/render/custom_surface.h"
 #include "spot/render/fog_data.h"
-#include "spot/render/fullscreen_pass.h"
 #include "spot/render/light_data.h"
 #include "spot/render/material.h"
 #include "spot/render/mesh.h"
@@ -26,17 +25,8 @@ namespace Spot {
 
 class GraphicsDevice;
 class Model;
-class ComputePipeline;
-class Pipeline;
 class RenderWorld;
 struct Material;
-struct RenderMeshObject;
-
-namespace Detail {
-struct SelectedLights;
-struct ShadowUniforms;
-struct SkyLighting;
-} // namespace Detail
 
 struct Renderer3DConfig {
     TextureFilter filter = TextureFilter::Linear;
@@ -62,6 +52,12 @@ struct Renderer3DConfig {
     // The size in pixels of each of the MaxShadowTiles tiles that point and spot light shadows are drawn in, which
     // are created the first time one is needed. 0 turns these shadows off.
     std::uint32_t localShadowMapSize = 512;
+
+    // Keeps the render worlds it draws on the GPU, in batches of nearby objects drawn the same way, whose instances
+    // the GPU culls against the view and by level of detail, and, where the device has compute and indirect draws,
+    // against what the last frame of the view hid. For worlds of many objects, where it spares the CPU a command per
+    // object; off, worlds are drawn object by object, culled and given their levels of detail on the CPU.
+    bool gpuCulling = false;
 };
 
 struct Renderer3DStats {
@@ -153,253 +149,16 @@ public:
     // How Renderer3D draws its own shadow casters, which the pipelines of surfaces drawing into shadows match.
     static DepthState GetShadowDepthState();
     // The camera Begin() was given.
-    const Camera3D& GetCamera() const { return m_camera; }
+    const Camera3D& GetCamera() const;
 
     // What the last End() drew.
-    Renderer3DStats GetStats() const { return m_stats; }
+    Renderer3DStats GetStats() const;
+
+    // Engine-internal: the parts it draws with (see render/renderer_3d_internal.h).
+    struct Impl;
 
 private:
-    // The material's textures, in the order the mesh shader binds them after the shadow maps.
-    using MaterialTextures = std::array<const Texture*, 5>;
-    // As the mesh shaders read each instance.
-    struct InstanceData {
-        Matrix4 model;
-        Matrix4 normalMatrix;
-        std::array<std::uint32_t, 4> skin;
-        Vector4 bounds;
-    };
-
-    struct DrawCommand {
-        const Mesh* mesh;
-        // Base color, metallic-roughness, normal, occlusion and emissive; null where the material has none.
-        MaterialTextures textures;
-        Color color;
-        float metallic;
-        float roughness;
-        float normalScale;
-        float occlusionStrength;
-        Color emissive;
-        AlphaMode alphaMode;
-        float alphaCutoff;
-        bool doubleSided;
-        float worldTextureSize;
-        Matrix4 transform;
-        // Around the mesh, in world space.
-        BoundingSphere bounds;
-        bool castsShadows;
-        // Whether it is in the camera's view, which End() decides.
-        bool visible = true;
-        // Of its bounds' center along the camera's forward axis.
-        float depth = 0.0f;
-        // The same for commands whose material looks the same, textures and values alike, which End() gives.
-        std::uint32_t look = 0;
-        // The range of the mesh's indices it draws.
-        std::uint32_t firstIndex = 0;
-        std::uint32_t indexCount = 0;
-        // Whether its transform turns the mesh inside out, which swaps the faces culled.
-        bool mirrored = false;
-        std::uint32_t skinOffset = 0;
-        std::uint32_t skinCount = 0;
-        // For a batch of a render world kept on the GPU: its instances, from the first on, which the shaders cull
-        // themselves. The command's bounds are then around all of them.
-        const Buffer* instanceBuffer = nullptr;
-        std::uint32_t instanceFirst = 0;
-        std::uint32_t instanceCount = 1;
-        // The batch's instances as uploaded, which shadow views cull one by one.
-        const InstanceData* instanceData = nullptr;
-        // When the culling pass ran for the frame: the instances it kept, and the batch's indirect draw in arguments,
-        // the batch-th.
-        const Buffer* keptInstances = nullptr;
-        const Buffer* arguments = nullptr;
-        std::uint32_t batch = 0;
-        bool nearestFiltering = false;
-    };
-
-    // A render world as kept on the GPU: its objects' instances, in batches of those drawn the same way, so drawing
-    // it costs a command per batch, and only what changed is uploaded again.
-    struct WorldBatch {
-        const Mesh* mesh;
-        const Material* material;
-        std::uint32_t firstIndex;
-        std::uint32_t indexCount;
-        bool mirrored;
-        bool castsShadows;
-        std::uint32_t layer;
-        // Of its instances, in the world's buffer.
-        std::uint32_t first;
-        std::uint32_t count;
-        BoundingSphere bounds;
-        bool boundsChanged;
-    };
-    struct WorldCache {
-        std::uint64_t worldId = 0;
-        std::uint64_t structureVersion = 0;
-        std::uint64_t changeCount = 0;
-        bool built = false;
-        std::unique_ptr<Buffer> instances;
-        std::vector<InstanceData> instanceData;
-        // The world's object and level of detail at each instance, and the instances of each object: those in
-        // slots from slotStarts[object] to slotStarts[object + 1].
-        std::vector<std::uint32_t> objects;
-        std::vector<std::uint32_t> levels;
-        std::vector<std::uint32_t> slotStarts;
-        std::vector<std::uint32_t> slots;
-        std::vector<std::uint32_t> batchOfInstance;
-        std::vector<WorldBatch> batches;
-        std::uint64_t lastDrawn = 0;
-        // For the culling pass: each batch's first instance, count, index count and first index, the instances it
-        // keeps, and the batches' indirect draws.
-        std::unique_ptr<Buffer> batchTable;
-        std::unique_ptr<Buffer> visible;
-        std::unique_ptr<Buffer> arguments;
-    };
-    // Culls the instances of the frame's worlds on the GPU, against the view, their levels of detail and what the
-    // last frame of the view drew, into lists the view's pass draws indirectly.
-    void CullWorlds();
-    // Keeps the farthest depth of each tile of what the view's pass drew, for the next frame to cull against.
-    void UpdateOcclusionTiles();
-    // Null when its buffer cannot be made, after logging why.
-    WorldCache* UpdateWorldCache(const RenderWorld& world);
-
-    // Draws the level of detail of the object.
-    void AddCommand(const RenderMeshObject& object, const Material& material, std::uint32_t level = 0);
-    std::uint32_t PrepareSurfaces(RenderContext& context, SurfacePass kind, const Matrix4& viewProjection,
-                                  bool ignoreNear);
-    void DrawSurfaces(RenderPass& pass, SurfacePass kind, const Matrix4& viewProjection, bool ignoreNear,
-                      std::uint32_t viewIndex);
-    void BindLighting(RenderPass& pass, const Detail::SelectedLights& lights, const Detail::ShadowUniforms& shadows);
-    void DrawShadows(Detail::SelectedLights& lights, Detail::ShadowUniforms& shadows);
-    void DrawShadowViews(Detail::SelectedLights& lights, Detail::ShadowUniforms& shadows);
-    // Whether the shadow map could be created.
-    bool DrawCascades(const LightData& light, Detail::ShadowUniforms& shadows);
-    void DrawLocalShadows(Detail::SelectedLights& lights, Detail::ShadowUniforms& shadows);
-    void DrawShadowCasters(RenderPass& pass, const Matrix4& viewProjection, bool ignoreNear);
-    // Gives the commands their looks.
-    void AssignLooks();
-    // Sends every command's transforms to the instance buffer, in the commands' order.
-    bool UploadInstances();
-    // Sends the lights and the view's clusters of them to their buffers.
-    bool UploadLights(const Detail::SelectedLights& lights);
-    void Flush(RenderPass& pass);
-    const Pipeline* GetPipeline(const DrawCommand& command) const;
-    const Pipeline* GetShadowPipeline(const DrawCommand& command) const;
-    void FlushSky(RenderPass& pass, const SkyData& sky, const Detail::SkyLighting& lighting);
-    // Captures the sky's light into the reflections and irradiance when it changed; false when it cannot.
-    bool UpdateSkyLighting(const SkyData& sky, const Detail::SkyLighting& lighting);
-
-    std::array<std::unique_ptr<Pipeline>, 12> m_cameraDepthPipelines;
-    std::array<std::unique_ptr<Pipeline>, 6> m_skinnedPipelines;
-    std::array<std::unique_ptr<Pipeline>, 6> m_skinnedShadowPipelines;
-    std::unique_ptr<Buffer> m_palettes;
-    std::vector<Matrix4> m_paletteData;
-    std::unique_ptr<Texture> m_cameraDepth;
-    std::unique_ptr<Buffer> m_cameraDepthIndices;
-    std::vector<std::uint32_t> m_cameraDepthOrder;
-    std::unique_ptr<Pipeline> m_pipeline;
-    std::unique_ptr<Pipeline> m_doubleSidedPipeline;
-    std::unique_ptr<Pipeline> m_transparentPipeline;
-    std::unique_ptr<Pipeline> m_doubleSidedTransparentPipeline;
-    // Single-sided ones for mirroring transforms, which cull front faces, as the mirror winds them clockwise.
-    std::unique_ptr<Pipeline> m_mirroredPipeline;
-    std::unique_ptr<Pipeline> m_mirroredTransparentPipeline;
-    std::unique_ptr<Pipeline> m_mirroredShadowPipeline;
-    std::unique_ptr<Pipeline> m_mirroredCutoutShadowPipeline;
-    std::unique_ptr<Pipeline> m_skyPipeline;
-    std::unique_ptr<Pipeline> m_shadowPipeline;
-    std::unique_ptr<Pipeline> m_doubleSidedShadowPipeline;
-    std::unique_ptr<Pipeline> m_cutoutShadowPipeline;
-    std::unique_ptr<Pipeline> m_doubleSidedCutoutShadowPipeline;
-    std::unique_ptr<Sampler> m_sampler;
-    std::unique_ptr<Sampler> m_nearestSampler;
-    std::unique_ptr<Sampler> m_shadowSampler;
-    std::unique_ptr<Texture> m_whiteTexture;
-    // Bound in place of shadow maps that are not drawn.
-    std::unique_ptr<Texture> m_noShadows;
-    bool m_noShadowsCleared = false;
-    std::unique_ptr<Texture> m_cascadeShadows;
-    std::unique_ptr<Texture> m_localShadows;
-    // The transforms of every command of the frame, which instanced draws read from the first of their batch on.
-    std::unique_ptr<Buffer> m_instances;
-    // The commands each shadow view draws, as indices into the instances, uploaded anew for each view.
-    std::unique_ptr<Buffer> m_shadowCasters;
-    // The commands that may cast shadows, in the order that keeps those that cast the same shadow side by side, which
-    // each shadow view keeps those it sees of.
-    std::vector<std::uint32_t> m_shadowOrder;
-    // The casters of every shadow view of the frame, one view after the other, as indices into the instances.
-    std::vector<std::uint32_t> m_frameCasters;
-    // The frame's lights, the view's clusters and their lists of lights.
-    std::unique_ptr<Buffer> m_lightBuffer;
-    std::unique_ptr<Buffer> m_clusterBuffer;
-    std::unique_ptr<Buffer> m_lightIndexBuffer;
-    std::uint32_t m_directionalLightCount = 0;
-    float m_clusterNear = 0.1f;
-    float m_clusterScale = 1.0f;
-    Vector2 m_viewSize = {1.0f, 1.0f};
-    // The sky's light, as surfaces show it: captured into a cube, then blurred for each roughness down the mip levels
-    // of the reflections, and projected onto spherical harmonics in the irradiance. Black ones stand in without a
-    // sky.
-    std::unique_ptr<Pipeline> m_skyCapturePipeline;
-    std::unique_ptr<FullscreenPass> m_skyPrefilter;
-    std::unique_ptr<FullscreenPass> m_skyIrradiancePass;
-    std::unique_ptr<Sampler> m_skySampler;
-    std::unique_ptr<Texture> m_skyEnvironment;
-    std::unique_ptr<Texture> m_skyReflections;
-    std::unique_ptr<Texture> m_skyIrradiance;
-    std::unique_ptr<Texture> m_noSkyReflections;
-    std::unique_ptr<Texture> m_noSkyIrradiance;
-    std::optional<SkyData> m_capturedSky;
-    bool m_skyLit = false;
-    GraphicsDevice* m_device;
-    Renderer3DConfig m_config;
-
-    std::vector<DrawCommand> m_commands;
-    // The frame's custom surfaces, kept until the next Begin() for RenderCameraDepth().
-    std::vector<CustomSurface*> m_surfaces;
-    std::uint32_t m_surfaceViewIndex = 0;
-    std::vector<std::unique_ptr<WorldCache>> m_worldCaches;
-    // Occlusion culling: the last frame's depth, by tiles, and the view it was drawn from, which only the next frame
-    // of the same view culls against.
-    std::unique_ptr<FullscreenPass> m_occlusionTilePass;
-    std::unique_ptr<ComputePipeline> m_occlusionPipeline;
-    std::unique_ptr<Sampler> m_occlusionSampler;
-    std::unique_ptr<Texture> m_occlusionTiles;
-    std::unique_ptr<Buffer> m_noVisible;
-    // Stands in for tiles when there are none, hiding nothing.
-    std::unique_ptr<Texture> m_noOcclusionTiles;
-    Matrix4 m_occlusionViewProjection;
-    const Texture* m_occlusionDepth = nullptr;
-    bool m_occlusionValid = false;
-    // Counts End() calls, so worlds no longer drawn are let go.
-    std::uint64_t m_endCount = 0;
-    // What End() sorts the commands by, small enough to move around cheaply, and where they go once sorted.
-    struct SortEntry {
-        bool transparent;
-        bool hidden;
-        bool doubleSided;
-        bool mirrored;
-        AlphaMode alphaMode;
-        std::uint32_t look;
-        const Mesh* mesh;
-        std::uint32_t firstIndex;
-        // Along the camera's forward axis for surfaces that hide what is behind; the squared distance from the eye
-        // for transparent ones.
-        float depth;
-        std::uint32_t index;
-    };
-    std::vector<SortEntry> m_sortEntries;
-    std::vector<DrawCommand> m_sortedCommands;
-    RenderContext* m_context = nullptr;
-    RenderPassDesc m_target;
-    std::vector<LightData> m_lights;
-    std::optional<SkyData> m_sky;
-    std::optional<FogData> m_fog;
-    Matrix4 m_viewProjection;
-    // Of the camera's rotation and projection only, which turns clip-space positions into directions.
-    Matrix4 m_inverseSkyViewProjection;
-    Camera3D m_camera;
-    float m_aspectRatio = 1.0f;
-    bool m_warnedAboutLights = false;
-    Renderer3DStats m_stats;
+    std::unique_ptr<Impl> m_impl;
 };
 
 } // namespace Spot

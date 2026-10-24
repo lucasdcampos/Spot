@@ -81,7 +81,7 @@ void Sphere(Vector3 center, float radius, const DebugDrawOptions& options = {});
 void Capsule(Vector3 start, Vector3 end, float radius, const DebugDrawOptions& options = {});
 void Circle(Vector3 center, Vector3 normal, float radius, const DebugDrawOptions& options = {});
 
-// The lines to draw this frame, for renderers; LineRenderer::DrawDebugLines() draws them.
+// The lines to draw this frame, for renderers; SceneRenderer gives them to LineRenderer::DrawLines().
 std::span<const DebugLine> GetLines();
 // Ages the lines by the seconds, dropping those whose time is up. The application calls it once each frame was
 // drawn, with the frame's real time.

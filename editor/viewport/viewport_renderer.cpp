@@ -274,7 +274,7 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
     if (drawLines) {
         auto pass = context.BeginRenderPass(hdrPass);
         m_lines->Begin(pass, stage.viewProjection);
-        m_lines->DrawDebugLines();
+        m_lines->DrawLines(DebugDraw::GetLines());
         m_lines->DrawLines(options.lines);
         m_lines->End();
     }

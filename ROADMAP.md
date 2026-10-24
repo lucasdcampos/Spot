@@ -211,17 +211,17 @@ Depends on: phases 1 and 2. Task 7.3 also waits for 6.4 and 6.5.
 
 Depends on: phases 1 and 2.
 
-- [ ] **8.1 The graphics contract (M).** `tests/rhi_tests.cpp` checks the baseline every backend must do, and each
+- [x] **8.1 The graphics contract (M).** `tests/rhi_tests.cpp` checks the baseline every backend must do, and each
   capability a backend reports, on every backend built. Renderer and golden tests run on each platform's default
   backend; the whole GPU suite runs on every backend when a backend or a shader changes (test presets and
   `AGENTS.md`). `docs/rendering.md` writes the contract down.
-- [ ] **8.2 Renderers on the baseline (S).** GPU tests draw each engine renderer with every capability off, so none
+- [x] **8.2 Renderers on the baseline (S).** GPU tests draw each engine renderer with every capability off, so none
   needs one without a fallback.
-- [ ] **8.3 Split `Renderer3D` (L).** A small public header (pimpl) over internal classes: mesh batching and drawing,
+- [x] **8.3 Split `Renderer3D` (L).** A small public header (pimpl) over internal classes: mesh batching and drawing,
   shadows, sky lighting and world culling.
-- [ ] **8.4 GPU culling optional (S).** Waits for 8.3. GPU culling with Hi-Z occlusion and LODs becomes an option, off
+- [x] **8.4 GPU culling optional (S).** Waits for 8.3. GPU culling with Hi-Z occlusion and LODs becomes an option, off
   by default. `RenderWorld` stays public at rendering level 2, documented for scenes with many objects.
-- [ ] **8.5 Debug lines given, not read (S).** `LineRenderer` draws the lines it is given instead of reading
+- [x] **8.5 Debug lines given, not read (S).** `LineRenderer` draws the lines it is given instead of reading
   `DebugDraw::GetLines()`; `SceneRenderer` passes them.
 
 ## Phase 9 – Scripting

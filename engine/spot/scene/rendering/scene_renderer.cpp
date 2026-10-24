@@ -46,7 +46,8 @@ SceneRenderer::SceneRenderer(GraphicsDevice& device, const SceneRendererConfig& 
                                                               .shadowMapSize = config.shadowMapSize,
                                                               .shadowCascadeCount = config.shadowCascadeCount,
                                                               .shadowDistance = config.shadowDistance,
-                                                              .localShadowMapSize = config.localShadowMapSize});
+                                                              .localShadowMapSize = config.localShadowMapSize,
+                                                              .gpuCulling = config.gpuCulling});
     m_sprites =
         std::make_unique<Renderer2D>(device, Renderer2DConfig{.targetFormat = HdrFormat, .sampleCount = m_sampleCount});
     m_particles = std::make_unique<ParticleRenderer>(
@@ -64,7 +65,7 @@ SceneRenderer::SceneRenderer(GraphicsDevice& device, const SceneRendererConfig& 
         }
         auto pass = stage.context.BeginRenderPass(stage.pass);
         m_lines->Begin(pass, stage.viewProjection);
-        m_lines->DrawDebugLines();
+        m_lines->DrawLines(DebugDraw::GetLines());
         m_lines->End();
     });
 }

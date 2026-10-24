@@ -28,6 +28,7 @@ struct RenderingSettings {
     std::uint32_t shadowCascadeCount = 4;
     float shadowDistance = 60.0f;
     std::uint32_t localShadowMapSize = 512;
+    bool gpuCulling = false;
 
     void Serialize(Archive& archive);
     // Sets the config's look and quality from the settings.

@@ -39,6 +39,8 @@ struct Options {
     int grid = 100;
     // Spheres turn into coarser ones far away.
     bool lods = false;
+    // Its worlds are culled on the GPU, as scenes of this many meshes should be.
+    bool gpuCulling = true;
 };
 
 class Benchmark final : public Spot::Application {
@@ -53,6 +55,9 @@ public:
 
 protected:
     void OnStart() override {
+        Spot::RenderingSettings rendering = GetRenderingSettings();
+        rendering.gpuCulling = m_options.gpuCulling;
+        SetRenderingSettings(rendering);
         if (!m_options.scene.empty()) {
             StartWithScene();
             return;
@@ -265,6 +270,8 @@ int main(int argc, char** argv) {
             options.assets = argv[++i];
         } else if (argument == "--lods") {
             options.lods = std::atoi(argv[++i]) != 0;
+        } else if (argument == "--gpu-culling") {
+            options.gpuCulling = std::atoi(argv[++i]) != 0;
         } else if (argument == "--grid") {
             options.grid = std::max(std::atoi(argv[++i]), 1);
         } else if (argument == "--lamps") {

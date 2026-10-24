@@ -70,16 +70,17 @@ bool GraphicsDevice::IsSupported() {
 
 std::unique_ptr<GraphicsDevice> GraphicsDevice::Create(Window& window, const GraphicsConfig& config) {
     auto impl = CreateBackend(&window, config);
-    return impl ? std::unique_ptr<GraphicsDevice>(new GraphicsDevice(std::move(impl))) : nullptr;
+    return impl ? std::unique_ptr<GraphicsDevice>(new GraphicsDevice(std::move(impl), config.baselineOnly)) : nullptr;
 }
 
 std::unique_ptr<GraphicsDevice> GraphicsDevice::CreateOffscreen(const GraphicsConfig& config) {
     auto impl = CreateBackend(nullptr, config);
-    return impl ? std::unique_ptr<GraphicsDevice>(new GraphicsDevice(std::move(impl))) : nullptr;
+    return impl ? std::unique_ptr<GraphicsDevice>(new GraphicsDevice(std::move(impl), config.baselineOnly)) : nullptr;
 }
 
-GraphicsDevice::GraphicsDevice(std::unique_ptr<Impl> impl)
-    : m_impl(std::move(impl)), m_context(new RenderContext(m_impl->GetContext(), m_impl->GetCapabilities())) {
+GraphicsDevice::GraphicsDevice(std::unique_ptr<Impl> impl, bool baselineOnly)
+    : m_impl(std::move(impl)), m_capabilities(baselineOnly ? GraphicsCapabilities{} : m_impl->GetCapabilities()),
+      m_context(new RenderContext(m_impl->GetContext(), m_capabilities)) {
 }
 
 GraphicsDevice::~GraphicsDevice() = default;
@@ -122,6 +123,10 @@ std::unique_ptr<ComputePipeline> GraphicsDevice::CreateComputePipeline(const Com
 }
 
 std::unique_ptr<Buffer> GraphicsDevice::CreateBuffer(const BufferDesc& desc) {
+    if (desc.usage == BufferUsage::Indirect && !GetCapabilities().indirectDraws) {
+        Log::GetEngineLogger().Error("This device has no indirect draws (GraphicsCapabilities::indirectDraws)");
+        return nullptr;
+    }
     return m_impl->CreateBuffer(desc);
 }
 
@@ -230,7 +235,7 @@ bool GraphicsDevice::SupportsSampling(TextureFormat format) const {
 }
 
 const GraphicsCapabilities& GraphicsDevice::GetCapabilities() const {
-    return m_impl->GetCapabilities();
+    return m_capabilities;
 }
 
 const std::vector<GpuTiming>& GraphicsDevice::GetGpuTimings() const {

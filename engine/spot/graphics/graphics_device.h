@@ -41,6 +41,9 @@ struct GraphicsConfig {
     // Shaders write linear colors, which the window encodes as sRGB for display; the engine's renderers need this.
     // Turned off, the window shows what shaders write as it is, for drawing that blends in sRGB, as most UI does.
     bool linearWindow = true;
+    // Reports only the baseline, every GraphicsCapabilities feature off, whatever the GPU can do, so tests can check
+    // that code takes its fallbacks.
+    bool baselineOnly = false;
     // Enables the backend's validation layers, when installed. Slow, so only on by default in debug builds.
 #ifdef NDEBUG
     bool debug = false;
@@ -197,9 +200,10 @@ public:
     struct Impl;
 
 private:
-    explicit GraphicsDevice(std::unique_ptr<Impl> impl);
+    GraphicsDevice(std::unique_ptr<Impl> impl, bool baselineOnly);
 
     std::unique_ptr<Impl> m_impl;
+    GraphicsCapabilities m_capabilities;
     std::unique_ptr<RenderContext> m_context;
 };
 

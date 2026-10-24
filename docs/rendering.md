@@ -115,7 +115,30 @@ Vulkan where it can and SDL_GPU everywhere else, falling back to SDL_GPU when Vu
 - **SDL_GPU** (`graphics/sdl_gpu/`), over Direct3D 12, Vulkan or Metal, on every platform: macOS, whose Metal NVRHI
   lacks, and machines without Vulkan 1.3.
 
-Every GPU test and golden image passes on both; run them on one with `SPOT_GRAPHICS_BACKEND`.
+#### The contract
+
+What a backend must do is written down in two parts, and `tests/rhi_tests.cpp` checks both on every backend built
+and supported on the machine, each on an offscreen device.
+
+- **The baseline**, which every device does and code never checks for: shaders and pipelines from `ShaderDesc`,
+  vertex, index, uniform and storage buffers, indexed and instanced draws, every blend mode, back-face culling, depth
+  targets with every comparison and bias, viewports and scissors, color render targets of every uncompressed format
+  but those `SupportsRenderTarget()` names, 2D and cube textures with their mip levels, generated mipmaps, 4x
+  multisampled RGBA8 targets resolved into textures or the window, uploads at any time and texture readbacks. Its
+  tests are tagged `[baseline]`.
+- **The capabilities** (`GraphicsCapabilities`), which a device may lack: compressed textures, compute, indirect
+  draws, several color targets, GPU timers and texture tables. A backend reports only what it does, and refuses the
+  rest after logging why; each capability's test runs where the device reports it and warns where it does not.
+
+The engine's renderers use only the baseline, or take a fallback when a capability is off, so every game runs on
+every backend. `GraphicsConfig::baselineOnly` makes a device report no capability, whatever its GPU does: GPU
+tests make every engine renderer on such a device, and golden-image tests render a scene with and without it to see
+that the fallbacks look the same. A new backend implements `graphics_backend.h` and passes `rhi_tests.cpp`; a new capability gets a
+field, a refusal where it is off and a test.
+
+Renderer and golden-image tests run on each platform's default backend (`ctest --preset msvc-debug-gpu`). When a
+backend or a shader changes, the whole GPU suite runs on each backend: `msvc-debug-gpu-sdl-gpu` and
+`msvc-debug-gpu-vulkan` (and their Release and Ninja variants) set `SPOT_GRAPHICS_BACKEND` for it.
 
 ### Fullscreen passes
 
@@ -182,7 +205,7 @@ spot_add_shaders(game_code terrain.vert.hlsl terrain.frag.hlsl)
 |---|---|
 | `Renderer2D` | Colored and textured quads and text, batched, in the order given, with alpha blending, inside a pass the caller opens; `SetTransform()` places what follows, as world text and sprites at a depth need |
 | `Renderer3D` | Lit, textured, shadowed meshes and models with a sky; it opens the pass described to `Begin()` in `End()`, after drawing shadow maps |
-| `LineRenderer` | One-pixel lines in 3D, depth-tested or over everything, inside a pass the caller opens; `DrawDebugLines()` draws the `DebugDraw` queue |
+| `LineRenderer` | One-pixel lines in 3D, depth-tested or over everything, inside a pass the caller opens; it draws the lines it is given, and `SceneRenderer` gives it the `DebugDraw` queue |
 | `SceneRenderer` | Whole scenes as games show them, through their main camera (`engine/spot/scene/rendering/`) |
 
 The renderers know nothing of scenes. `engine/spot/scene/rendering/scene_drawing.h` draws a scene's components with them:
@@ -190,6 +213,20 @@ The renderers know nothing of scenes. `engine/spot/scene/rendering/scene_drawing
 `DrawScene(Renderer2D&, Scene&)` its sprites and tilemaps, `DrawWorldText()` its `TextRenderer`s and
 `DrawScene(ParticleRenderer&, Scene&)` its particle systems. It uses only the renderers' public API, so games that
 keep their objects some other way draw them the same way.
+
+### Inside Renderer3D
+
+`renderer_3d.h` is small: the public API over an `Impl`, so the parts it draws with change without touching code that
+uses it. The `Impl` (`renderer_3d.cpp`) selects the frame's lights, uploads them and runs `End()`; the parts share a
+`Renderer3DState` (`renderer_3d_internal.h`), the frame being drawn and what every part binds:
+
+- `MeshBatcher` (`renderer_3d_meshes.cpp`) culls the frame's meshes against the view, sorts them, gives them their
+  looks, uploads their instances and draws them, in the view's pass and into the camera's depth.
+- `ShadowRenderer` (`renderer_3d_shadows.cpp`) draws the directional light's cascades and the tiles of point and spot
+  lights, culling the casters of each view.
+- `SkyRenderer` (`renderer_3d_sky.cpp`) draws the sky and captures the light it gives surfaces.
+- `WorldCuller` (`renderer_3d_worlds.cpp`) keeps render worlds on the GPU in batches and, where the device has compute
+  and indirect draws, culls their instances there.
 
 ### Models and submeshes
 
@@ -256,21 +293,25 @@ when drawn, so edits to them show at once. Objects are kept side by side and ids
 keeping its objects elsewhere, such as in an ECS, fills one the same way. Skinned meshes, whose poses change every
 frame, are still handed over each frame with `DrawSkinnedMesh()`.
 
-Renderers keep each world they draw on the GPU: its instances in a buffer of their own, in batches of up to 128
-objects drawn the same way (same layer, material, mesh and range, mirroring and shadows) and near each other, along a
-Morton curve through the world. A frame then costs the CPU a command per batch, not per object: views leave out the
-batches they cannot see, and the GPU culls the instances of the others. Where compute shaders and indirect draws are
-available, a compute pass (`world_cull.comp.hlsl`) runs a group per batch that keeps the instances in view, of the
-level of detail their screen size picks, and not hidden behind what the last frame of the same view drew, writes them
-side by side in their order, so the image does not change from frame to frame, and writes the batch's indirect draw,
-which the view's pass then draws: instances culled cost the GPU nothing. Hidden means behind the farthest depth of
-every 16-pixel tile the instance covers in the last frame's depth (`hiz_reduce.frag.hlsl`), as that frame's view saw
-it; an object a frame reveals shows from the next. Elsewhere the mesh shaders cull the instances themselves
-(`Instance::bounds` and the frame's `cullPlanes`), drawing those outside as nothing. Shadow views cull the instances of the batches they
-reach on the CPU into their casters, since small views, such as a point light's faces, see few of them. Only what
-changed goes up again, in runs of neighbors, as the world's change stamps tell; adding, removing or restyling objects
-rebuilds the batches. Transparent materials are drawn object by object, sorted, as `DrawMesh()` does, and a renderer
-lets go of worlds it has not drawn for 120 frames. A batch the CPU keeps counts whole in `visibleMeshes`.
+With `Renderer3DConfig::gpuCulling` (`SceneRendererConfig::gpuCulling`, or `gpuCulling` in the game's rendering
+settings), off by default, renderers keep each world they draw on the GPU: its instances in a buffer of their own, in
+batches of up to 128 objects drawn the same way (same layer, material, mesh and range, mirroring and shadows) and near
+each other, along a Morton curve through the world. A frame then costs the CPU a command per batch, not per object:
+views leave out the batches they cannot see, and the GPU culls the instances of the others. Where compute shaders and
+indirect draws are available, a compute pass (`world_cull.comp.hlsl`) runs a group per batch that keeps the instances in
+view, of the level of detail their screen size picks, and not hidden behind what the last frame of the same view drew,
+writes them side by side in their order, so the image does not change from frame to frame, and writes the batch's
+indirect draw, which the view's pass then draws: instances culled cost the GPU nothing. Hidden means behind the farthest
+depth of every 16-pixel tile the instance covers in the last frame's depth (`hiz_reduce.frag.hlsl`), as that frame's
+view saw it; an object a frame reveals shows from the next. Elsewhere the mesh shaders cull the instances themselves
+(`Instance::bounds` and the frame's `cullPlanes`), drawing those outside as nothing. Shadow views cull the instances of
+the batches they reach on the CPU into their casters, since small views, such as a point light's faces, see few of them.
+Only what changed goes up again, in runs of neighbors, as the world's change stamps tell; adding, removing or restyling
+objects rebuilds the batches. Transparent materials are drawn object by object, sorted, as `DrawMesh()` does, and a
+renderer lets go of worlds it has not drawn for 120 frames. A batch the CPU keeps counts whole in `visibleMeshes`.
+Without it, a world's objects are drawn one by one, as `DrawMesh()` draws, culled and given their level of detail on the
+CPU: simpler and as fast for the few hundred objects most scenes hold, while GPU culling spares the CPU a command per
+object in scenes of thousands.
 
 Objects of a world can have levels of detail (`RenderMeshDesc::lods`, `MeshRenderer::SetLods()`): up to three
 simpler meshes, each shown once the object's screen size (`GetScreenSize()`: the height of its bounds as a fraction
@@ -450,11 +491,11 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
 
 `spot_benchmark` (`tests/benchmark/`) renders a scene of 10,000 meshes and 200 lights under the sky, its sun and a few
 shadowed point and spot lights, through a camera circling it, as games draw scenes, without vsync. After warming up it
-times 600 frames and prints their mean, median, 95th percentile and worst times, the last frame's counts of meshes,
-draw calls and lights, the GPU's time for shadows and the opaque pass (`Renderer3D` times them with GPU timers), and
-the costliest profiler scopes. `--grid 316` makes it about 100,000 meshes, and `--lods 1` gives its spheres a coarser
-level of detail. Run its Release build when rendering changes, and compare
-with the times of the build before the change:
+times 600 frames and prints their mean, median, 95th percentile and worst times, the last frame's counts of meshes, draw
+calls and lights, the GPU's time for shadows and the opaque pass (`Renderer3D` times them with GPU timers), and the
+costliest profiler scopes. `--grid 316` makes it about 100,000 meshes, and `--lods 1` gives its spheres a coarser level
+of detail. It culls on the GPU (`Renderer3DConfig::gpuCulling`), and `--gpu-culling 0` on the CPU. Run its Release build
+when rendering changes, and compare with the times of the build before the change:
 
 ```sh
 cmake --build --preset msvc-release --target spot_benchmark

@@ -36,6 +36,8 @@ void RenderingSettings::Serialize(Archive& archive) {
     archive.Field(
         "localShadowMapSize", localShadowMapSize,
         {.min = 0.0f, .max = 4096.0f, .tooltip = "Pixels of each point and spot light shadow; 0 turns them off"});
+    archive.Field("gpuCulling", gpuCulling,
+                  {.tooltip = "Culls the scene's meshes on the GPU, for scenes of many objects"});
     if (archive.IsLoading()) {
         grading.lut = nullptr;
     }
@@ -52,6 +54,7 @@ void RenderingSettings::Apply(SceneRendererConfig& config) const {
     config.shadowCascadeCount = std::clamp(shadowCascadeCount, 1u, 4u);
     config.shadowDistance = std::max(shadowDistance, 1.0f);
     config.localShadowMapSize = localShadowMapSize;
+    config.gpuCulling = gpuCulling;
 }
 
 } // namespace Spot
