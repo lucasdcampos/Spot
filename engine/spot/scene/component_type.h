@@ -33,7 +33,6 @@ enum class ComponentHook : std::uint8_t {
     FixedUpdate = 1,
     Update = 2,
     LateUpdate = 4,
-    DrawUi = 8,
 };
 
 // A bit per hook that components of the type were found not to override, by Component's own hooks, which mark it the

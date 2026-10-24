@@ -158,11 +158,17 @@ void AudioSystem::Unregister(AudioSource& source) {
     std::erase(m_sources, &source);
 }
 
+void AudioSystem::OnEntityMoved(Entity& entity, Scene& source, Scene& destination) {
+    if (&GetScene() == &source) {
+        MoveSources(entity, destination);
+    }
+}
+
 void AudioSystem::MoveSources(const Entity& entity, Scene& destination) {
     std::erase_if(m_sources, [&](AudioSource* source) {
         if (&source->GetEntity() != &entity)
             return false;
-        destination.GetAudio().Register(*source);
+        destination.GetOrAddSystem<Spot::AudioSystem>().Register(*source);
         return true;
     });
 }
@@ -185,7 +191,7 @@ AudioBusId FindBus(std::string_view name) {
 }
 
 SoundInstance PlayOneShot(Scene& scene, std::shared_ptr<const Sound> sound, Vector3 position, std::string_view bus) {
-    return scene.GetAudio().PlayOneShot(std::move(sound), position, {.bus = bus});
+    return scene.GetOrAddSystem<Spot::AudioSystem>().PlayOneShot(std::move(sound), position, {.bus = bus});
 }
 
 } // namespace Audio

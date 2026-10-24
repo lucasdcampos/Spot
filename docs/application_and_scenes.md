@@ -152,3 +152,12 @@ The returned `ChunkLoad` reports completion with `IsDone()`. `GetRoot()` returns
 failure, after the root is destroyed, or after the scene is cleared. The imported scene's roots become children
 of that root, with fresh ids and remapped internal references. Destroy the root to unload the whole chunk.
 Chunks share the host scene's systems, including its physics world. Clearing a scene cancels unfinished chunks.
+
+Scene systems receive immediate `OnComponentAdded`, `OnComponentRemoved`, `OnEntityLayerChanged` and
+`OnEntityDestroyed` notifications, including changes made before the first update. Moving a component within its
+entity does not add it again. `OnEntityMoved(entity, source, destination)` runs in the source before transfer and in
+the destination afterward; the entity belongs to the receiving scene during each call. Notifications use the same
+exception guard as update hooks. Systems added during a notification receive subsequent notifications.
+
+Physics follows these notifications to rebuild bodies after structural changes, so entities themselves have no
+physics dependencies. Audio transfers its playing sources through the move notification.

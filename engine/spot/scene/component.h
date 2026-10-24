@@ -161,7 +161,7 @@ private:
     std::uint64_t m_sequence = 0;
     bool m_listed = false;
     // Its places in the scene's lists of what each stage of an update visits; see Scene::HookList.
-    std::array<std::size_t, 6> m_hookSlots = {NotInList, NotInList, NotInList, NotInList, NotInList, NotInList};
+    std::array<std::size_t, 5> m_hookSlots = {NotInList, NotInList, NotInList, NotInList, NotInList};
     static constexpr std::size_t NotInList = static_cast<std::size_t>(-1);
     ComponentId m_id = ComponentId::Generate();
     std::unique_ptr<TimerQueue> m_timers;

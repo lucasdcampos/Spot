@@ -56,6 +56,7 @@ public:
     bool IsPaused() const { return m_paused; }
 
 protected:
+    void OnEntityMoved(Entity& entity, Scene& source, Scene& destination) override;
     void OnLateUpdate(float deltaTime) override;
 
 private:

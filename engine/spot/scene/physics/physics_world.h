@@ -99,7 +99,6 @@ public:
 private:
     friend class CharacterController;
     friend class Collider;
-    friend class Entity;
     friend class HingeJoint;
     friend class Joint;
     friend class Rigidbody;
@@ -130,6 +129,11 @@ private:
 
     PhysicsWorld();
 
+    void OnComponentAdded(Component& component) override;
+    void OnComponentRemoved(Component& component) override;
+    void OnEntityLayerChanged(Entity& entity) override;
+    void OnEntityDestroyed(Entity& entity) override;
+    void OnEntityMoved(Entity& entity, Scene& source, Scene& destination) override;
     void OnFixedUpdate(float fixedDeltaTime) override;
     void OnBeforeRender() override;
 

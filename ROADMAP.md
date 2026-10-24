@@ -134,7 +134,7 @@ Depends on: Phase 1.
 
 Depends on: Phase 1.
 
-- [ ] **4.1 Scene notifications (M).** `SceneSystem` hears about components added and removed, entity layers changed
+- [x] **4.1 Scene notifications (M).** `SceneSystem` hears about components added and removed, entity layers changed
   and entities moved. `PhysicsWorld` follows the scene through them; `Entity` loses its `dynamic_cast`s and direct
   physics calls.
 - [ ] **4.2 Listener interfaces (M).** Collision, trigger, 2D collision and trigger, animation event, joint break and UI
@@ -145,7 +145,7 @@ Depends on: Phase 1.
   `GetPhysics2D()`, `GetAudio()`, `GetUi()`, `GetUiInput()` and the `dynamic_cast` scan of `GetSystem<T>()`.
 - [ ] **4.4 UI and render hooks out of `Scene` (M).** Waits for 4.3. Canvas drawing and UI event routing move into
   `UiSystem` and `UiInputSystem`, which is given its `InputState`; render hooks move into a `scene/rendering` system.
-- [ ] **4.5 Components registered by their folders (S).** Each `scene/<module>/` registers its own components
+- [x] **4.5 Components registered by their folders (S).** Each `scene/<module>/` registers its own components
   (`RegisterPhysicsComponents()`…), and `scene/component_registry.cpp` includes none of them. `Application` calls the
   registrations until 6.2 moves them into modules.
 - [ ] **4.6 `Scene::Spawn<T>()` and component shortcuts (S).** `Spawn<T>()` creates an entity with its component;

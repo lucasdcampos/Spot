@@ -1,8 +1,6 @@
 #pragma once
 
 #include "spot/core/ids/asset_ref.h"
-#include "spot/render/camera_2d.h"
-#include "spot/render/render_stage.h"
 #include "spot/scene/entity.h"
 #include "spot/scene/scene_system.h"
 
@@ -117,22 +115,6 @@ public:
     // Destroys every entity.
     void Clear();
 
-    // Draws at the stage of every frame the scene is drawn in, by a SceneRenderer or the editor's views, after the
-    // hooks added before it. Components add theirs in OnEnable() and remove them in OnDisable(). A hook that throws
-    // is logged and removed.
-    RenderHookId AddRenderHook(RenderStage stage, RenderHook hook);
-    void RemoveRenderHook(RenderHookId id);
-    // Runs the hooks of the context's stage, as renderers do.
-    void RunRenderHooks(const RenderStageContext& context);
-
-    // Simulates the scene's colliders and rigidbodies; created on the first call.
-    PhysicsWorld& GetPhysics();
-    PhysicsWorld2D& GetPhysics2D();
-    // Plays the scene's sounds where they are; created on the first call.
-    AudioSystem& GetAudio();
-    UiSystem& GetUi();
-    UiInputSystem& GetUiInput();
-
     // Adds a system of the type, constructed with the arguments. A scene has one system of each type at most.
     template <std::derived_from<SceneSystem> T, typename... Args>
     T& AddSystem(Args&&... args) {
@@ -143,17 +125,18 @@ public:
         return added;
     }
 
-    // The system that is a T, including types derived from T; null when there is none.
+    // Finds the exact concrete type, including systems pending their first hook.
     template <std::derived_from<SceneSystem> T>
     T* GetSystem() const {
-        for (const auto* systems : {&m_systems, &m_pendingSystems}) {
-            for (const auto& system : *systems) {
-                if (auto* found = dynamic_cast<T*>(system.get())) {
-                    return found;
-                }
-            }
-        }
-        return nullptr;
+        const auto found = m_systemsByType.find(std::type_index(typeid(T)));
+        return found == m_systemsByType.end() ? nullptr : static_cast<T*>(found->second);
+    }
+
+    template <std::derived_from<SceneSystem> T, typename... Args>
+    T& GetOrAddSystem(Args&&... args) {
+        if (auto* system = GetSystem<T>())
+            return *system;
+        return AddSystem<T>(std::forward<Args>(args)...);
     }
 
     // The seconds each fixed step of Update() simulates: Component::OnFixedUpdate() and the physics run once per
@@ -260,19 +243,6 @@ public:
     // the scene kept, so the caller goes through every entity instead.
     bool TakeChangedEntities(std::vector<EntityId>& entities);
 
-    // Calls OnDrawUi() for every active component, in the order Update() goes, to draw what goes over the view of
-    // the scene, such as a HUD. Whatever shows the scene calls it once the scene is drawn, with the renderer begun
-    // with ScreenCamera() for a view of the size:
-    //
-    //     renderer.Begin(pass, Spot::Scene::ScreenCamera(viewSize), viewSize);
-    //     scene.DrawUi(renderer, viewSize);
-    //     renderer.End();
-    void DrawUi(Renderer2D& renderer, Vector2 viewSize);
-    // Positions and view size are viewport pixels, with pointer Y growing down.
-    bool HandleUiEvent(const Event& event, Vector2 viewSize, InputState* input = nullptr);
-    // The camera that puts (0, 0) at the bottom-left corner of a view of the size, and one unit on each pixel.
-    static Camera2D ScreenCamera(Vector2 viewSize);
-
     // Calls fn(Entity&) for each entity, active or not, in creation order. fn may create and destroy entities.
     template <typename F>
     void ForEachEntity(F&& fn) {
@@ -374,6 +344,13 @@ private:
     static bool IsAlive(const std::unique_ptr<Entity>& entity);
     void MarkEntityChanged(const Entity& entity);
     void MarkStructureChanged() { ++m_structureVersion; }
+    void NotifyComponentAdded(Component& component);
+    void NotifyComponentRemoved(Component& component);
+    void NotifyEntityLayerChanged(Entity& entity);
+    void NotifyEntityDestroyed(Entity& entity);
+    void NotifyEntityMoved(Entity& entity, Scene& source, Scene& destination);
+    template <typename F>
+    void NotifySystems(std::string_view hook, F&& fn);
 
     struct PendingChunk;
     std::vector<std::shared_ptr<PendingChunk>> m_chunkLoads;
@@ -389,7 +366,7 @@ private:
     // What each stage of an update visits, so a stage only goes through the components it concerns rather than every
     // entity: those not started yet, those whose type overrides each update hook, and those with invokes or
     // coroutines. Each is in the order components were added; leaving one empties a slot until it is compacted.
-    enum class HookList { Start, FixedUpdate, Update, LateUpdate, Scheduled, DrawUi, Count };
+    enum class HookList { Start, FixedUpdate, Update, LateUpdate, Scheduled, Count };
     struct ComponentList {
         std::vector<Component*> components;
         std::size_t emptySlots = 0;
@@ -429,15 +406,7 @@ private:
     std::vector<std::unique_ptr<SceneSystem>> m_systems;
     // Systems added while systems run, which join the others before the next hook.
     std::vector<std::unique_ptr<SceneSystem>> m_pendingSystems;
-    PhysicsWorld* m_physics = nullptr;
-    struct RenderHookEntry {
-        RenderHookId id;
-        RenderStage stage;
-        RenderHook hook;
-    };
-    std::vector<RenderHookEntry> m_renderHooks;
-    std::uint32_t m_nextRenderHook = 1;
-    AudioSystem* m_audio = nullptr;
+    std::unordered_map<std::type_index, SceneSystem*> m_systemsByType;
     // In creation order. Freed and moved entities leave empty slots, which are compacted once they are many.
     std::vector<std::unique_ptr<Entity>> m_entities;
     std::size_t m_emptySlots = 0;

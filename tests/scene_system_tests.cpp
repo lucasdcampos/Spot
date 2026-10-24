@@ -1,4 +1,5 @@
 #include "log_capture.h"
+#include "spot/scene/physics/physics_world.h"
 
 #include <spot.h>
 
@@ -131,7 +132,7 @@ TEST_CASE("Physics is created when the scene first needs it", "[scene][systems]"
     scene.Update(0.1f);
     Spot::PhysicsWorld* physics = scene.GetSystem<Spot::PhysicsWorld>();
     REQUIRE(physics != nullptr);
-    CHECK(&scene.GetPhysics() == physics);
+    CHECK(&scene.GetOrAddSystem<Spot::PhysicsWorld>() == physics);
     CHECK(physics->GetOrder() == Spot::SystemOrder::Physics);
     CHECK(physics->GetBodyCount() == 1);
 }
@@ -171,4 +172,50 @@ TEST_CASE("Systems added while systems run join from the next hook", "[scene][sy
     CHECK(counter->updates == 0);
     scene.Update(0.016f);
     CHECK(counter->updates == 1);
+}
+
+namespace {
+
+class NotificationRecorder final : public SceneSystem {
+public:
+    explicit NotificationRecorder(Calls& calls) : m_calls(calls) {}
+
+protected:
+    void OnComponentAdded(Spot::Component&) override { m_calls.emplace_back("added"); }
+    void OnComponentRemoved(Spot::Component&) override { m_calls.emplace_back("removed"); }
+    void OnEntityLayerChanged(Spot::Entity&) override { m_calls.emplace_back("layer"); }
+    void OnEntityDestroyed(Spot::Entity&) override { m_calls.emplace_back("destroyed"); }
+    void OnEntityMoved(Spot::Entity& entity, Scene& source, Scene& destination) override {
+        REQUIRE(&entity.GetScene() == &GetScene());
+        m_calls.emplace_back(&GetScene() == &source ? "leaving" : "entered");
+        REQUIRE(&source != &destination);
+    }
+
+private:
+    Calls& m_calls;
+};
+
+} // namespace
+
+TEST_CASE("Scene systems hear structural changes immediately", "[scene][systems]") {
+    Calls sourceCalls;
+    Calls destinationCalls;
+    Scene source;
+    Scene destination;
+    source.AddSystem<NotificationRecorder>(sourceCalls);
+    destination.AddSystem<NotificationRecorder>(destinationCalls);
+    auto& entity = source.CreateEntity();
+    auto& component = entity.AddComponent<ComponentRecorder>(sourceCalls);
+    REQUIRE(sourceCalls == Calls{"added"});
+    entity.MoveComponent(component, 0);
+    REQUIRE(sourceCalls == Calls{"added"});
+    entity.SetLayer(2);
+    entity.SetLayer(2);
+    entity.RemoveComponent(component);
+    REQUIRE(sourceCalls == Calls{"added", "layer", "removed"});
+    entity.MoveToScene(destination);
+    REQUIRE(sourceCalls == Calls{"added", "layer", "removed", "leaving"});
+    REQUIRE(destinationCalls == Calls{"entered"});
+    entity.Destroy();
+    REQUIRE(destinationCalls == Calls{"entered", "destroyed"});
 }
