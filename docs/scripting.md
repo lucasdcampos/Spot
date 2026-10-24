@@ -1,7 +1,7 @@
 # Scripting
 
 Spot's scripting language is **[Luau](https://luau.org)**, a sandboxed and typed descendant of Lua. Scripts are
-`.luau` assets run by `ScriptComponent`s, one isolated Luau state per component (`SPOT_ENABLE_LUAU=ON` by default,
+`.luau` assets run by `ScriptComponent`s, one isolated Luau state per component (`SPOT_SCRIPTING=ON` and `SPOT_ENABLE_LUAU=ON` by default,
 `scene/scripting/luau_runtime.cpp`). The engine side does not depend on Luau: it is one scene API for any language,
 starting at `scene/scripting/script_runtime.h` for a language's adapter and `scene/scripting/script_component.h` for the
 component's lifecycle.
@@ -30,9 +30,45 @@ function OnCollisionEnter(collision)
 end
 ```
 
+## Optional support
+
+`SPOT_SCRIPTING` controls the complete scene scripting module. With it off, no scripting components, bindings,
+runtimes or `ScriptingModule` are compiled, and Luau is neither fetched nor linked, even if `SPOT_ENABLE_LUAU`
+remains on. The text-only `ScriptSource` asset format and its loader remain usable independently of a runtime.
+With scripting on, `SPOT_ENABLE_LUAU=OFF` still supports custom language adapters without Luau.
+
+`<spot.h>` includes no scripting headers. Include only the API you use, such as
+`<spot/scene/scripting/script_component.h>`, `<spot/scene/scripting/script_bindings.h>` or
+`<spot/scene/scripting/scripting_module.h>`. Applications add `ScriptingModule` explicitly; standalone scenes call
+`RegisterScriptComponents()` from `scripting_components.h`, and register script assets when needed. Both static and
+shared consumers inherit `SPOT_SCRIPTING=1` only in enabled builds; exported `Spot::Shared` packages carry the same
+feature definitions.
+
+The bundled editor, player, sandbox and integration tests require scripting support and build with it on. To build
+only the engine without scripting:
+
+```powershell
+cmake --preset msvc -DSPOT_SCRIPTING=OFF -DSPOT_BUILD_EDITOR=OFF -DSPOT_BUILD_SANDBOX=OFF -DSPOT_BUILD_TESTS=OFF
+cmake --build --preset msvc-debug --target spot spot_shared
+```
+
+The standalone consumer test deliberately requests Luau while disabling scripting, verifies that no Luau targets
+exist and no scripting definitions reach its translation unit, then updates a native C++ scene through both static and shared libraries:
+
+```powershell
+cmake -S tests/cmake/scripting_disabled -B build/scripting-disabled -G "Visual Studio 18 2026" -A x64
+cmake --build build/scripting-disabled --config Debug --target spot_no_scripting_smoke spot_no_scripting_shared_smoke
+ctest --test-dir build/scripting-disabled -C Debug --output-on-failure
+```
+
+The MSVC Debug enabled build and all 945 headless cases passed (the long falling/respawn case ran separately with
+one worker). Both static and shared scripting-disabled consumers built and passed their native-scene tests.
+
 ## Scripts and components
 
 ```cpp
+#include <spot/scene/scripting/script_component.h>
+
 auto& script = entity.AddComponent<Spot::ScriptComponent>();
 script.script = Spot::Assets::Load<Spot::ScriptSource>("scripts/player.luau");
 
@@ -190,7 +226,7 @@ gives the same object.
 
 ## Exposing game components
 
-`ScriptBindings<T>` (`scene/scripting/script_bindings.h`, included by `<spot.h>`) describes a C++ component's fields,
+`ScriptBindings<T>` (`scene/scripting/script_bindings.h`, included explicitly) describes a C++ component's fields,
 validated properties and methods once, with engine values; every language dispatches through these descriptors. To
 expose a game's `Health` component:
 

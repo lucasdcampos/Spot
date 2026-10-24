@@ -1,0 +1,25 @@
+cmake_minimum_required(VERSION 3.25)
+project(SpotWithoutScripting LANGUAGES CXX)
+
+set(SPOT_BUILD_SANDBOX OFF CACHE BOOL "" FORCE)
+set(SPOT_BUILD_EDITOR OFF CACHE BOOL "" FORCE)
+set(SPOT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(SPOT_SCRIPTING OFF CACHE BOOL "" FORCE)
+set(SPOT_ENABLE_LUAU ON CACHE BOOL "" FORCE)
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../../.." spot)
+
+if(TARGET Luau.VM OR TARGET Luau.Compiler)
+    message(FATAL_ERROR "Scripting-disabled consumers must not fetch or build Luau")
+endif()
+
+add_executable(spot_no_scripting_smoke main.cpp)
+target_link_libraries(spot_no_scripting_smoke PRIVATE spot::spot)
+spot_set_compile_options(spot_no_scripting_smoke)
+add_executable(spot_no_scripting_shared_smoke main.cpp)
+target_link_libraries(spot_no_scripting_shared_smoke PRIVATE spot::shared)
+spot_set_compile_options(spot_no_scripting_shared_smoke)
+spot_copy_runtime_dlls(spot_no_scripting_shared_smoke)
+
+enable_testing()
+add_test(NAME "Native scene without scripting" COMMAND spot_no_scripting_smoke)
+add_test(NAME "Native scene without scripting (shared)" COMMAND spot_no_scripting_shared_smoke)

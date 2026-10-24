@@ -1,6 +1,7 @@
 #pragma once
 
 #include <spot.h>
+#include <spot/scene/scripting/scripting_module.h>
 
 #include <catch2/catch_test_macros.hpp>
 

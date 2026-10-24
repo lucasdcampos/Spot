@@ -1,3 +1,6 @@
+
+#include <spot/scene/scripting/script_component.h>
+
 #include "day_cycle.h"
 #include "playground_fixture.h"
 

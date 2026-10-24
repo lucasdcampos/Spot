@@ -14,6 +14,8 @@
 #include "scene/scene_workspace.h"
 
 #include <spot.h>
+#include <spot/assets/script_source.h>
+#include <spot/scene/scripting/script_component.h>
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>

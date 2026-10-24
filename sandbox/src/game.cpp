@@ -1,4 +1,5 @@
 #include <spot.h>
+#include <spot/scene/scripting/script_bindings.h>
 
 #include "day_cycle.h"
 

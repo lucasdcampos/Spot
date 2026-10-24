@@ -1,4 +1,5 @@
 #include <spot.h>
+#include <spot/scene/scripting/scripting_components.h>
 
 #include <catch2/reporters/catch_reporter_event_listener.hpp>
 #include <catch2/reporters/catch_reporter_registrars.hpp>

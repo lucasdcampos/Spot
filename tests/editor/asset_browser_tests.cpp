@@ -18,6 +18,8 @@
 #include "scene/scene_workspace.h"
 
 #include <spot.h>
+#include <spot/assets/script_source.h>
+#include <spot/scene/scripting/script_component.h>
 #include <spot_import.h>
 #include <spot_tools.h>
 

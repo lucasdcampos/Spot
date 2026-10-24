@@ -49,6 +49,7 @@ constexpr std::string_view OldModuleCall = "spot_add_game_module(game ${sources}
 constexpr std::string_view GameCall = "spot_add_game(${sources})";
 
 constexpr std::string_view MainCode = R"(#include <spot.h>
+#include <spot/scene/scripting/scripting_module.h>
 
 // Runs the game from its startup scene, as the settings the tools write beside the executable say.
 int main() {

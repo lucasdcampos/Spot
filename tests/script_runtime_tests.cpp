@@ -1,4 +1,8 @@
 #include <spot.h>
+#include <spot/assets/script_source.h>
+#include <spot/scene/scripting/script_bindings.h>
+#include <spot/scene/scripting/script_component.h>
+#include <spot/scene/scripting/script_runtime.h>
 
 #include <spot/scene/scripting/script_api.h>
 
