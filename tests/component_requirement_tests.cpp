@@ -140,7 +140,8 @@ TEST_CASE("Spawn forwards constructor arguments and adds required components", "
     CHECK(component.GetComponent<Health>() != nullptr);
     CHECK(component.GetComponent<Spawned>() == &component);
     CHECK(&component.GetTransform() == &component.GetEntity().GetTransform());
-    CHECK(&component.AddComponent<Movement>() == component.GetComponent<Movement>());
+    auto& movement = component.AddComponent<Movement>();
+    CHECK(&movement == component.GetComponent<Movement>());
     CHECK(component.GetEntity().GetComponents<Health>().size() == 1);
 }
 
