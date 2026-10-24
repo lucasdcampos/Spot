@@ -7,8 +7,6 @@
 
 namespace Spot {
 
-using Detail::PhysicsMotion;
-
 void Rigidbody::SetMass(float mass) {
     m_mass = mass;
     MarkChanged();
@@ -66,8 +64,7 @@ void Rigidbody::SetAngularVelocity(Vector3 velocity) {
 
 void Rigidbody::AddForce(Vector3 force) {
     PhysicsWorld& physics = GetScene().GetPhysics();
-    if (const auto* body = physics.FindMovingBody(GetEntity().GetId());
-        body && body->motion == PhysicsMotion::Dynamic) {
+    if (const auto* body = physics.FindMovingBody(GetEntity().GetId()); body && body->motion == BodyMotion3D::Dynamic) {
         physics.GetSimulation().AddForce(body->id, force);
     }
 }
@@ -75,7 +72,7 @@ void Rigidbody::AddForce(Vector3 force) {
 void Rigidbody::AddImpulse(Vector3 impulse) {
     PhysicsWorld& physics = GetScene().GetPhysics();
     if (const auto* body = physics.FindMovingBody(GetEntity().GetId())) {
-        if (body->motion == PhysicsMotion::Dynamic) {
+        if (body->motion == BodyMotion3D::Dynamic) {
             physics.GetSimulation().AddImpulse(body->id, impulse);
         }
     } else if (!m_kinematic && m_mass > 0.0f) {
@@ -85,8 +82,7 @@ void Rigidbody::AddImpulse(Vector3 impulse) {
 
 void Rigidbody::AddForceAtPosition(Vector3 force, Vector3 position) {
     PhysicsWorld& physics = GetScene().GetPhysics();
-    if (const auto* body = physics.FindMovingBody(GetEntity().GetId());
-        body && body->motion == PhysicsMotion::Dynamic) {
+    if (const auto* body = physics.FindMovingBody(GetEntity().GetId()); body && body->motion == BodyMotion3D::Dynamic) {
         physics.GetSimulation().AddForceAtPosition(body->id, force, position);
     }
 }
@@ -94,7 +90,7 @@ void Rigidbody::AddForceAtPosition(Vector3 force, Vector3 position) {
 void Rigidbody::AddImpulseAtPosition(Vector3 impulse, Vector3 position) {
     PhysicsWorld& physics = GetScene().GetPhysics();
     if (const auto* body = physics.FindMovingBody(GetEntity().GetId())) {
-        if (body->motion == PhysicsMotion::Dynamic) {
+        if (body->motion == BodyMotion3D::Dynamic) {
             physics.GetSimulation().AddImpulseAtPosition(body->id, impulse, position);
         }
     } else if (!m_kinematic && m_mass > 0.0f) {
@@ -104,8 +100,7 @@ void Rigidbody::AddImpulseAtPosition(Vector3 impulse, Vector3 position) {
 
 void Rigidbody::AddTorque(Vector3 torque) {
     PhysicsWorld& physics = GetScene().GetPhysics();
-    if (const auto* body = physics.FindMovingBody(GetEntity().GetId());
-        body && body->motion == PhysicsMotion::Dynamic) {
+    if (const auto* body = physics.FindMovingBody(GetEntity().GetId()); body && body->motion == BodyMotion3D::Dynamic) {
         physics.GetSimulation().AddTorque(body->id, torque);
     }
 }

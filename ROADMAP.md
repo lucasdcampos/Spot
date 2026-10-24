@@ -127,7 +127,7 @@ Depends on: Phase 1.
 - [x] **3.4 Models and particles (S).** `render/` includes animation only for models' skeletons and clips, the listed
   exception, and particles not at all: `ParticleRenderer` draws plain particle arrays instead of a
   `ParticleSimulation`.
-- [ ] **3.5 3D physics public (M).** `Detail::PhysicsSimulation` becomes `Spot::Physics3D`, beside `Spot::Physics2D`,
+- [x] **3.5 3D physics public (M).** `Detail::PhysicsSimulation` becomes `Spot::Physics3D`, beside `Spot::Physics2D`,
   with the same naming for bodies, shapes and queries. A test simulates 3D bodies without a scene.
 
 ## Phase 4 – A scene core that knows no system

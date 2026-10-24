@@ -8,9 +8,6 @@
 
 namespace Spot {
 
-using Detail::PhysicsBodyId;
-using Detail::PhysicsMotion;
-
 void PhysicsWorld::MarkJointChanged(Joint& joint) {
     ForgetJoint(joint);
     if (joint.IsActiveAndEnabled()) {
@@ -26,23 +23,23 @@ void PhysicsWorld::ForgetJoint(Joint& joint) {
     }
 }
 
-Detail::PhysicsJointId PhysicsWorld::FindJoint(const Joint& joint) const {
+JointId3D PhysicsWorld::FindJoint(const Joint& joint) const {
     const auto found = m_joints.find(&joint);
-    return found != m_joints.end() ? found->second.id : Detail::PhysicsJointId::Invalid;
+    return found != m_joints.end() ? found->second.id : JointId3D::Invalid;
 }
 
 float PhysicsWorld::GetJointForce(const Joint& joint) const {
-    const Detail::PhysicsJointId id = FindJoint(joint);
-    return id != Detail::PhysicsJointId::Invalid ? m_simulation->GetJointForce(id, m_stepTime) : 0.0f;
+    const JointId3D id = FindJoint(joint);
+    return id != JointId3D::Invalid ? m_simulation->GetJointForce(id, m_stepTime) : 0.0f;
 }
 
 float PhysicsWorld::GetHingeAngle(const Joint& joint) const {
-    const Detail::PhysicsJointId id = FindJoint(joint);
-    return id != Detail::PhysicsJointId::Invalid ? m_simulation->GetHingeAngle(id) : 0.0f;
+    const JointId3D id = FindJoint(joint);
+    return id != JointId3D::Invalid ? m_simulation->GetHingeAngle(id) : 0.0f;
 }
 
 void PhysicsWorld::SetHingeMotor(const Joint& joint, bool enabled, float speed, float torque) {
-    if (const Detail::PhysicsJointId id = FindJoint(joint); id != Detail::PhysicsJointId::Invalid) {
+    if (const JointId3D id = FindJoint(joint); id != JointId3D::Invalid) {
         m_simulation->SetHingeMotor(id, enabled, speed, torque);
     }
 }
@@ -63,33 +60,33 @@ void PhysicsWorld::CreatePendingJoints() {
     std::erase_if(m_pendingJoints, [this](Joint* joint) {
         const EntityId owner = joint->GetEntity().GetId();
         const auto ownerBody = m_bodies.find(owner);
-        if (ownerBody == m_bodies.end() || ownerBody->second.id == PhysicsBodyId::Invalid) {
+        if (ownerBody == m_bodies.end() || ownerBody->second.id == BodyId3D::Invalid) {
             // It waits for its entity's body.
             return false;
         }
         // The entity's body is the second, so angles and motors are its own, relative to what it is joined to.
-        Detail::PhysicsJointDesc desc{.second = ownerBody->second.id};
+        JointDesc3D desc{.second = ownerBody->second.id};
         const Transform* connected = nullptr;
         bool connectedMoves = false;
         if (joint->m_connected != EntityId::Invalid) {
             const auto connectedBody = m_bodies.find(joint->m_connected);
             const Entity* entity = GetScene().GetEntity(joint->m_connected);
-            if (!entity || connectedBody == m_bodies.end() || connectedBody->second.id == PhysicsBodyId::Invalid ||
+            if (!entity || connectedBody == m_bodies.end() || connectedBody->second.id == BodyId3D::Invalid ||
                 joint->m_connected == owner) {
                 // It waits for the other entity's body.
                 return false;
             }
             desc.first = connectedBody->second.id;
             connected = &entity->GetTransform();
-            connectedMoves = connectedBody->second.motion != PhysicsMotion::Static;
+            connectedMoves = connectedBody->second.motion != BodyMotion3D::Static;
         }
-        if (ownerBody->second.motion == PhysicsMotion::Static && !connectedMoves) {
+        if (ownerBody->second.motion == BodyMotion3D::Static && !connectedMoves) {
             // Nothing it joins can move, so it has nothing to do.
             return true;
         }
         joint->Describe(desc, joint->GetEntity().GetTransform(), connected);
-        const Detail::PhysicsJointId id = m_simulation->CreateJoint(desc);
-        if (id != Detail::PhysicsJointId::Invalid) {
+        const JointId3D id = m_simulation->CreateJoint(desc);
+        if (id != JointId3D::Invalid) {
             m_joints.emplace(joint, JointRecord{id, owner, joint->m_connected});
         }
         return true;

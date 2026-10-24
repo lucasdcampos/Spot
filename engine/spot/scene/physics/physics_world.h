@@ -2,7 +2,7 @@
 
 #include "spot/core/quaternion.h"
 #include "spot/core/vector.h"
-#include "spot/physics/physics_simulation.h"
+#include "spot/physics/physics_3d.h"
 #include "spot/scene/entity.h"
 #include "spot/scene/physics/collision.h"
 #include "spot/scene/physics/physics_debug.h"
@@ -108,15 +108,15 @@ private:
     // An entity's bodies: the one of its solid colliders and rigidbody, and the one of its triggers, either of which
     // may be missing.
     struct Body {
-        Detail::PhysicsBodyId id = Detail::PhysicsBodyId::Invalid;
-        Detail::PhysicsBodyId sensor = Detail::PhysicsBodyId::Invalid;
-        Detail::PhysicsMotion motion = Detail::PhysicsMotion::Static;
+        BodyId3D id = BodyId3D::Invalid;
+        BodyId3D sensor = BodyId3D::Invalid;
+        BodyMotion3D motion = BodyMotion3D::Static;
         // The entity's CharacterController, if any: its character, where the capsule is from the entity, its mass,
         // and the contacts of its last move, which count as active until the next step.
-        Detail::PhysicsCharacterId character = Detail::PhysicsCharacterId::Invalid;
+        CharacterId3D character = CharacterId3D::Invalid;
         Vector3 characterCenter = {};
         float characterMass = 0.0f;
-        std::vector<Detail::PhysicsCharacterContact> characterContacts = {};
+        std::vector<CharacterContact3D> characterContacts = {};
         bool characterMoved = false;
         // The world pose and scale of the entity when the body last followed it or it last followed the body, to tell
         // when something else moved it.
@@ -124,8 +124,8 @@ private:
         Quaternion rotation = {};
         Vector3 scale = {};
         // What the bodies are made of, which only a new body changes.
-        std::vector<Detail::PhysicsShape> shapes = {};
-        std::vector<Detail::PhysicsShape> sensorShapes = {};
+        std::vector<Shape3D> shapes = {};
+        std::vector<Shape3D> sensorShapes = {};
     };
 
     PhysicsWorld();
@@ -137,14 +137,14 @@ private:
     void MarkChanged(EntityId entity);
     // The entity's solid body when it is dynamic or kinematic, brought up to date first; null otherwise.
     const Body* FindMovingBody(EntityId entity);
-    Detail::PhysicsSimulation& GetSimulation();
+    Physics3D& GetSimulation();
     void RebuildChanged();
     void Rebuild(EntityId entity);
     void FollowEntities();
     void FollowBodies();
     // See CharacterController.
     void MoveCharacter(EntityId entity, Vector3 velocity, float deltaTime);
-    std::optional<Detail::PhysicsCharacterState> GetCharacterState(EntityId entity);
+    std::optional<CharacterState3D> GetCharacterState(EntityId entity);
     EntityId GetCharacterGround(EntityId entity);
     // The entity's body record with a character, brought up to date first; null when it has none.
     Body* FindCharacter(EntityId entity);
@@ -155,7 +155,7 @@ private:
     // rebuilt, since a joint cannot outlive its bodies.
     void MarkJointChanged(Joint& joint);
     void ForgetJoint(Joint& joint);
-    Detail::PhysicsJointId FindJoint(const Joint& joint) const;
+    JointId3D FindJoint(const Joint& joint) const;
     float GetJointForce(const Joint& joint) const;
     float GetHingeAngle(const Joint& joint) const;
     void SetHingeMotor(const Joint& joint, bool enabled, float speed, float torque);
@@ -166,10 +166,10 @@ private:
 
     // Turns the contacts after a step into events, against those of the step before.
     void DispatchContacts();
-    void ForgetBody(Detail::PhysicsBodyId body);
+    void ForgetBody(BodyId3D body);
 
     // Created with the first body, so scenes without physics do not pay for it.
-    std::unique_ptr<Detail::PhysicsSimulation> m_simulation;
+    std::unique_ptr<Physics3D> m_simulation;
     std::unordered_map<EntityId, Body> m_bodies;
     // Which entity each body is for, whether it is the entity's sensor, and the colliders its shapes come from, in
     // order.
@@ -178,12 +178,12 @@ private:
         bool sensor;
         std::vector<Collider*> colliders;
     };
-    Detail::PhysicsQueryFilter MakeQueryFilter(const QueryFilter& filter) const;
+    QueryFilter3D MakeQueryFilter(const QueryFilter& filter) const;
     // Brings the bodies up to date for a query; false when there are none.
     bool PrepareQuery();
-    RaycastHit MakeHit(const Detail::PhysicsQueryHit& hit) const;
+    RaycastHit MakeHit(const QueryHit3D& hit) const;
     std::vector<OverlapHit> MakeOverlapHits() const;
-    std::vector<Detail::PhysicsQueryHit> m_queryHits;
+    std::vector<QueryHit3D> m_queryHits;
     // The queries asked since the last frame was drawn, kept for the debug view while it shows them.
     struct DebugQuery {
         enum class Kind { Ray, Sphere, Box } kind = Kind::Ray;
@@ -198,14 +198,14 @@ private:
     PhysicsDebugFlags m_debugFlags = PhysicsDebugFlags::None;
     std::vector<DebugQuery> m_debugQueries;
     struct JointRecord {
-        Detail::PhysicsJointId id;
+        JointId3D id;
         EntityId owner;
         EntityId connected;
     };
     // Joints are referred to by pointer here because they leave the moment they are disabled, before they are freed.
     std::unordered_map<const Joint*, JointRecord> m_joints;
     std::vector<Joint*> m_pendingJoints;
-    std::unordered_map<Detail::PhysicsBodyId, Owner> m_owners;
+    std::unordered_map<BodyId3D, Owner> m_owners;
     // A pair of entities touching, the lower id first.
     struct ContactPair {
         EntityId first;
@@ -228,7 +228,7 @@ private:
     // The pairs touching after the last step, sorted, and the list the next step fills.
     std::vector<PairContact> m_previous;
     std::vector<PairContact> m_current;
-    std::vector<Detail::PhysicsContact> m_contactBuffer;
+    std::vector<Contact3D> m_contactBuffer;
     std::unordered_set<EntityId> m_changed;
     Vector3 m_gravity = DefaultGravity;
     std::array<std::uint32_t, Entity::LayerCount> m_layerMasks;

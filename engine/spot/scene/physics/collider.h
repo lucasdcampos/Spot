@@ -3,7 +3,7 @@
 #include "spot/core/asset_ref.h"
 #include "spot/core/geometry/mesh_data.h"
 #include "spot/core/vector.h"
-#include "spot/physics/physics_simulation.h"
+#include "spot/physics/physics_3d.h"
 #include "spot/scene/component.h"
 
 namespace Spot {
@@ -49,7 +49,7 @@ private:
     friend class PhysicsWorld;
 
     // The shape for an entity with this world scale.
-    virtual Detail::PhysicsShape GetShape(Vector3 scale) const = 0;
+    virtual Shape3D GetShape(Vector3 scale) const = 0;
 
     Vector3 m_center = {};
     float m_friction = 0.5f;
@@ -70,7 +70,7 @@ protected:
     void Serialize(Archive& archive) override;
 
 private:
-    Detail::PhysicsShape GetShape(Vector3 scale) const override;
+    Shape3D GetShape(Vector3 scale) const override;
 
     Vector3 m_size;
 };
@@ -90,7 +90,7 @@ protected:
     void Serialize(Archive& archive) override;
 
 private:
-    Detail::PhysicsShape GetShape(Vector3 scale) const override;
+    Shape3D GetShape(Vector3 scale) const override;
 
     float m_radius;
 };
@@ -112,7 +112,7 @@ protected:
     void Serialize(Archive& archive) override;
 
 private:
-    Detail::PhysicsShape GetShape(Vector3 scale) const override;
+    Shape3D GetShape(Vector3 scale) const override;
 
     float m_radius;
     float m_height;
@@ -140,7 +140,7 @@ protected:
     void Serialize(Archive& archive) override;
 
 private:
-    Detail::PhysicsShape GetShape(Vector3 scale) const override;
+    Shape3D GetShape(Vector3 scale) const override;
 
     AssetRef<MeshData> m_mesh;
     bool m_convex = false;

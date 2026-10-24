@@ -29,7 +29,7 @@ public:
     void BeginStep();
     void EndStep(const JPH::BodyInterface& bodies);
     void ForgetBody(JPH::BodyID body);
-    void GetContacts(std::vector<PhysicsContact>& contacts) const;
+    void GetContacts(std::vector<Contact3D>& contacts) const;
 
 private:
     // The two bodies and shapes of a contact, as Jolt tells them apart.
@@ -49,7 +49,7 @@ private:
     void Record(const JPH::Body& first, const JPH::Body& second, const JPH::ContactManifold& manifold);
 
     std::mutex m_mutex;
-    std::unordered_map<Key, PhysicsContact, KeyHash> m_contacts;
+    std::unordered_map<Key, Contact3D, KeyHash> m_contacts;
 };
 
 } // namespace Spot::Detail

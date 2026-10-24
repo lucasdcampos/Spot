@@ -1,7 +1,7 @@
 #pragma once
 
 #include "spot/core/vector.h"
-#include "spot/physics/physics_simulation.h"
+#include "spot/physics/physics_3d.h"
 #include "spot/scene/component.h"
 #include "spot/scene/entity.h"
 
@@ -45,14 +45,13 @@ protected:
     // Makes the joint again with its new values.
     void MarkChanged();
     // The joint as it is in the physics, while it is; for the kinds that read or change it.
-    Detail::PhysicsJointId GetJointId() const;
+    JointId3D GetJointId() const;
 
 private:
     friend class PhysicsWorld;
 
     // Fills in what the kind of joint decides, from where its entity, and the connected one if any, are.
-    virtual void Describe(Detail::PhysicsJointDesc& desc, const Transform& transform,
-                          const Transform* connected) const = 0;
+    virtual void Describe(JointDesc3D& desc, const Transform& transform, const Transform* connected) const = 0;
 
     EntityId m_connected = EntityId::Invalid;
     Vector3 m_anchor = {};
@@ -63,8 +62,7 @@ private:
 // Holds the bodies together as they are, as a weld does.
 class FixedJoint final : public Joint {
 private:
-    void Describe(Detail::PhysicsJointDesc& desc, const Transform& transform,
-                  const Transform* connected) const override;
+    void Describe(JointDesc3D& desc, const Transform& transform, const Transform* connected) const override;
 };
 
 // Lets the bodies turn around an axis through the anchor, as a door or a wheel does, within limits and driven by a
@@ -93,8 +91,7 @@ protected:
     void Serialize(Archive& archive) override;
 
 private:
-    void Describe(Detail::PhysicsJointDesc& desc, const Transform& transform,
-                  const Transform* connected) const override;
+    void Describe(JointDesc3D& desc, const Transform& transform, const Transform* connected) const override;
 
     Vector3 m_axis = {0.0f, 1.0f, 0.0f};
     bool m_limits = false;
@@ -120,8 +117,7 @@ protected:
     void Serialize(Archive& archive) override;
 
 private:
-    void Describe(Detail::PhysicsJointDesc& desc, const Transform& transform,
-                  const Transform* connected) const override;
+    void Describe(JointDesc3D& desc, const Transform& transform, const Transform* connected) const override;
 
     Vector3 m_connectedAnchor = {};
     float m_minDistance = 0.0f;
@@ -147,8 +143,7 @@ protected:
     void Serialize(Archive& archive) override;
 
 private:
-    void Describe(Detail::PhysicsJointDesc& desc, const Transform& transform,
-                  const Transform* connected) const override;
+    void Describe(JointDesc3D& desc, const Transform& transform, const Transform* connected) const override;
 
     Vector3 m_connectedAnchor = {};
     float m_restLength = -1.0f;
@@ -175,8 +170,7 @@ protected:
     void Serialize(Archive& archive) override;
 
 private:
-    void Describe(Detail::PhysicsJointDesc& desc, const Transform& transform,
-                  const Transform* connected) const override;
+    void Describe(JointDesc3D& desc, const Transform& transform, const Transform* connected) const override;
 
     Vector3 m_twistAxis = {0.0f, 1.0f, 0.0f};
     float m_swingLimit = 0.785398f;

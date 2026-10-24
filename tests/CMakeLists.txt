@@ -44,6 +44,7 @@ add_executable(spot_tests
     physics_joint_tests.cpp
     physics_query_tests.cpp
     physics_tests.cpp
+    physics_3d_tests.cpp
     physics_2d_tests.cpp
     model_data_tests.cpp
     model_instance_tests.cpp
@@ -112,7 +113,7 @@ target_compile_definitions(spot_tests PRIVATE
 spot_set_compile_options(spot_tests)
 spot_precompile_engine_header(spot_tests <catch2/catch_test_macros.hpp>)
 # These tests also check that the foundation headers work without the engine umbrella.
-set_source_files_properties(core_reference_tests.cpp PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+set_source_files_properties(core_reference_tests.cpp physics_3d_tests.cpp PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
 
 # Crashes the way the crash tests ask, after installing the crash handler.
 add_executable(spot_crash_app crash_app.cpp)

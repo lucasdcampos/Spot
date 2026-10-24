@@ -32,9 +32,9 @@ private:
     std::unordered_map<const MeshData*, Shapes> m_shapes;
 };
 
-JPH::RefConst<JPH::Shape> CreateShape(const PhysicsShape& shape, MeshShapeCache& meshes);
+JPH::RefConst<JPH::Shape> CreateShape(const Shape3D& shape, MeshShapeCache& meshes);
 // One shape for a body of any number of them: a compound when there are several, and an empty shape without any.
-JPH::RefConst<JPH::Shape> CreateBodyShape(const std::vector<PhysicsShape>& shapes, MeshShapeCache& meshes);
+JPH::RefConst<JPH::Shape> CreateBodyShape(const std::vector<Shape3D>& shapes, MeshShapeCache& meshes);
 // The index, in the shapes CreateBodyShape() was given, of the shape a sub shape of the body's shape belongs to.
 std::uint32_t GetShapeIndex(const JPH::Shape& shape, const JPH::SubShapeID& subShape);
 

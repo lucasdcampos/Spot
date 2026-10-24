@@ -254,7 +254,7 @@ add_library(spot_objects OBJECT
     spot/scene/physics/physics_debug.h
     spot/scene/physics/physics_debug.cpp
     spot/scene/physics/physics_query.h
-    spot/physics/physics_simulation.h
+    spot/physics/physics_3d.h
     spot/scene/physics/physics_settings.h
     spot/scene/physics/physics_settings.cpp
     spot/scene/physics/physics_world.h
@@ -598,7 +598,7 @@ if(SPOT_PHYSICS STREQUAL "JOLT")
         spot/physics/jolt/jolt_job_system.h
         spot/physics/jolt/jolt_joints.cpp
         spot/physics/jolt/jolt_layers.h
-        spot/physics/jolt/jolt_physics_simulation.cpp
+        spot/physics/jolt/jolt_physics_3d.cpp
         spot/physics/jolt/jolt_queries.cpp
         spot/physics/jolt/jolt_runtime.cpp
         spot/physics/jolt/jolt_runtime.h

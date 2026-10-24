@@ -6,9 +6,11 @@
 
 #include <algorithm>
 
-namespace Spot::Detail {
+namespace Spot {
 
-PhysicsCharacterId PhysicsSimulation::CreateCharacter(const PhysicsCharacterDesc& desc) {
+using namespace Detail;
+
+CharacterId3D Physics3D::CreateCharacter(const CharacterDesc3D& desc) {
     const float radius = std::max(desc.radius, MinShapeSize);
     const float halfHeight = std::max(desc.height * 0.5f - radius, 0.0f);
     const JPH::RefConst<JPH::Shape> shape = halfHeight > 0.0f
@@ -36,21 +38,21 @@ PhysicsCharacterId PhysicsSimulation::CreateCharacter(const PhysicsCharacterDesc
     }
     m_impl->characters[slot] = std::move(character);
     m_impl->characterLayers[slot] = desc.layer;
-    return static_cast<PhysicsCharacterId>(slot);
+    return static_cast<CharacterId3D>(slot);
 }
 
-void PhysicsSimulation::DestroyCharacter(PhysicsCharacterId character) {
+void Physics3D::DestroyCharacter(CharacterId3D character) {
     JPH::CharacterVirtual& destroyed = m_impl->GetCharacter(character);
     m_impl->contacts.ForgetBody(destroyed.GetInnerBodyID());
     m_impl->characters[static_cast<std::size_t>(character)].reset();
 }
 
-void PhysicsSimulation::SetCharacterPosition(PhysicsCharacterId character, Vector3 position) {
+void Physics3D::SetCharacterPosition(CharacterId3D character, Vector3 position) {
     m_impl->GetCharacter(character).SetPosition(ToJolt(position));
 }
 
-void PhysicsSimulation::MoveCharacter(PhysicsCharacterId id, Vector3 velocity, float deltaTime, float stepHeight,
-                                      std::vector<PhysicsCharacterContact>& contacts) {
+void Physics3D::MoveCharacter(CharacterId3D id, Vector3 velocity, float deltaTime, float stepHeight,
+                              std::vector<CharacterContact3D>& contacts) {
     JPH::CharacterVirtual& character = m_impl->GetCharacter(id);
     const JPH::ObjectLayer layer = ToObjectLayer(m_impl->characterLayers[static_cast<std::size_t>(id)], true);
     character.SetLinearVelocity(ToJolt(velocity));
@@ -82,7 +84,7 @@ void PhysicsSimulation::MoveCharacter(PhysicsCharacterId id, Vector3 velocity, f
     }
 }
 
-PhysicsCharacterState PhysicsSimulation::GetCharacterState(PhysicsCharacterId id) const {
+CharacterState3D Physics3D::GetCharacterState(CharacterId3D id) const {
     const JPH::CharacterVirtual& character = m_impl->GetCharacter(id);
     return {.position = FromJolt(JPH::Vec3(character.GetPosition())),
             .velocity = FromJolt(character.GetLinearVelocity()),
@@ -94,8 +96,8 @@ PhysicsCharacterState PhysicsSimulation::GetCharacterState(PhysicsCharacterId id
             .groundBody = FromJolt(character.GetGroundBodyID())};
 }
 
-PhysicsBodyId PhysicsSimulation::GetCharacterBody(PhysicsCharacterId character) const {
+BodyId3D Physics3D::GetCharacterBody(CharacterId3D character) const {
     return FromJolt(m_impl->GetCharacter(character).GetInnerBodyID());
 }
 
-} // namespace Spot::Detail
+} // namespace Spot

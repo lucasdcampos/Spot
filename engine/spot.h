@@ -55,6 +55,8 @@
 #include "spot/graphics/texture_table.h"
 #include "spot/particles/particle_settings.h"
 #include "spot/particles/particle_simulation.h"
+#include "spot/physics/physics_2d.h"
+#include "spot/physics/physics_3d.h"
 #include "spot/platform/clipboard.h"
 #include "spot/platform/crash_handler.h"
 #include "spot/platform/event.h"

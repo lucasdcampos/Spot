@@ -8,14 +8,11 @@
 
 namespace Spot {
 
-using Detail::PhysicsBodyId;
-using Detail::PhysicsMotion;
-
 namespace {
 
 // The contact as the first or second entity sees it: the normal points toward it and the velocity is its own minus
 // the other's.
-Collision MakeCollision(const Detail::PhysicsContact& contact, EntityId other, bool forFirst) {
+Collision MakeCollision(const Contact3D& contact, EntityId other, bool forFirst) {
     Collision collision{
         .other = other, .points = contact.points, .pointCount = contact.pointCount, .impulse = contact.impulse};
     collision.normal = forFirst ? -contact.normal : contact.normal;
@@ -38,8 +35,7 @@ PhysicsWorld::Body* PhysicsWorld::FindCharacter(EntityId entity) {
         Rebuild(entity);
     }
     const auto found = m_bodies.find(entity);
-    return found != m_bodies.end() && found->second.character != Detail::PhysicsCharacterId::Invalid ? &found->second
-                                                                                                     : nullptr;
+    return found != m_bodies.end() && found->second.character != CharacterId3D::Invalid ? &found->second : nullptr;
 }
 
 void PhysicsWorld::MoveCharacter(EntityId entityId, Vector3 velocity, float deltaTime) {
@@ -61,7 +57,7 @@ void PhysicsWorld::MoveCharacter(EntityId entityId, Vector3 velocity, float delt
     body->position = transform.GetWorldPosition();
 }
 
-std::optional<Detail::PhysicsCharacterState> PhysicsWorld::GetCharacterState(EntityId entity) {
+std::optional<CharacterState3D> PhysicsWorld::GetCharacterState(EntityId entity) {
     const Body* body = FindCharacter(entity);
     if (!body) {
         return std::nullopt;
@@ -80,11 +76,11 @@ EntityId PhysicsWorld::GetCharacterGround(EntityId entity) {
 
 void PhysicsWorld::AddCharacterContacts() {
     for (auto& [entity, body] : m_bodies) {
-        if (body.character == Detail::PhysicsCharacterId::Invalid) {
+        if (body.character == CharacterId3D::Invalid) {
             continue;
         }
         const Vector3 velocity = m_simulation->GetCharacterState(body.character).velocity;
-        for (const Detail::PhysicsCharacterContact& contact : body.characterContacts) {
+        for (const CharacterContact3D& contact : body.characterContacts) {
             const auto owner = m_owners.find(contact.body);
             if (owner == m_owners.end() || owner->second.entity == entity) {
                 continue;
@@ -114,7 +110,7 @@ void PhysicsWorld::DispatchContacts() {
     if (m_simulation) {
         m_simulation->GetContacts(m_contactBuffer);
     }
-    for (const Detail::PhysicsContact& contact : m_contactBuffer) {
+    for (const Contact3D& contact : m_contactBuffer) {
         const auto first = m_owners.find(contact.first);
         const auto second = m_owners.find(contact.second);
         if (first == m_owners.end() || second == m_owners.end() || first->second.entity == second->second.entity ||

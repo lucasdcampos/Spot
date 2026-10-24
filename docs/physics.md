@@ -8,9 +8,36 @@ Validation and body queries can build physics bodies before components reach `On
 components or destroying their entity invalidates those bodies independently of `OnDisable()`, so stripping a
 newly instantiated world prop for use as held equipment leaves no orphan body in the next physics step.
 
-Physics simulates colliders and rigidbodies with Jolt, behind an engine contract
-(`engine/spot/physics/physics_simulation.h`) whose only backend is `engine/spot/physics/jolt/`. Games only see components
-and the `PhysicsWorld`.
+Physics simulates 3D bodies, shapes, joints, characters and queries with Jolt behind `Spot::Physics3D`
+(`engine/spot/physics/physics_3d.h`), beside `Spot::Physics2D` (`engine/spot/physics/physics_2d.h`), whose backend is in
+`engine/spot/physics/jolt/`. Games can simulate bodies directly in code with `Physics3D` without a scene, or use the
+scene components and `PhysicsWorld` (`engine/spot/scene/physics/`).
+
+## Simulating directly in code
+
+Include `<spot/physics/physics_3d.h>` and construct a `Physics3D`. It initializes its backend and needs no scene,
+application, window or graphics device. Describe bodies with `BodyDesc3D` and `Shape3D`; keep their `BodyId3D`
+handles for poses, forces and queries:
+
+```cpp
+Spot::Physics3D physics;
+const auto floor = physics.CreateBody({.position = {0, -0.5f, 0},
+                                      .shapes = {Spot::Shape3D{.halfExtents = {10, 0.5f, 10}}}});
+const auto ball = physics.CreateBody({.motion = Spot::BodyMotion3D::Dynamic,
+                                     .position = {0, 3, 0},
+                                     .shapes = {Spot::Shape3D{.kind = Spot::ShapeKind3D::Sphere}}});
+physics.Step(1.0f / 60.0f);
+const Spot::Pose3D pose = physics.GetPose(ball);
+physics.DestroyBody(ball);
+physics.DestroyBody(floor);
+```
+
+Step at a fixed interval and step multiple simulations serially. `SetPose()` teleports a body;
+`MoveKinematic()` moves it toward a `Pose3D` over the supplied interval. `Raycast()`, `RaycastAll()` and
+`SphereCast()` accept directions of any nonzero length. `QueryFilter3D` filters layers, includes triggers when
+requested, and ignores body handles. Hits refer to bodies and shape indices; scene code maps those to entities.
+`GetContacts()` and queries that fill vectors replace their contents while retaining capacity. The standalone
+API uses the same backend as `PhysicsWorld`; scene components translate their settings into these descriptors.
 
 ## Components
 

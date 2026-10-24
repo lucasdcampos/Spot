@@ -74,17 +74,19 @@ private:
 // The bodies a query sees: sensors when asked, and never the ignored ones.
 class QueryBodyFilter final : public JPH::BodyFilter {
 public:
-    explicit QueryBodyFilter(const PhysicsQueryFilter& filter) : m_filter(filter) {}
+    explicit QueryBodyFilter(const QueryFilter3D& filter) : m_filter(filter) {}
 
     bool ShouldCollide(const JPH::BodyID& body) const override {
-        const PhysicsBodyId id = FromJolt(body);
-        return std::ranges::find(m_filter.ignored, id) == m_filter.ignored.end();
+        const BodyId3D id = FromJolt(body);
+        return id != m_filter.ignore && std::ranges::find(m_filter.ignored, id) == m_filter.ignored.end();
     }
 
-    bool ShouldCollideLocked(const JPH::Body& body) const override { return m_filter.sensors || !body.IsSensor(); }
+    bool ShouldCollideLocked(const JPH::Body& body) const override {
+        return m_filter.includeTriggers || !body.IsSensor();
+    }
 
 private:
-    const PhysicsQueryFilter& m_filter;
+    const QueryFilter3D& m_filter;
 };
 
 } // namespace Spot::Detail
