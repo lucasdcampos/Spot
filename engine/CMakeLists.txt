@@ -85,6 +85,7 @@ add_library(spot_objects OBJECT
     spot/runtime/game_module.h
     spot/runtime/game_module.cpp
     spot/runtime/game_settings.h
+    spot/runtime/module.h
     spot/runtime/game_settings.cpp
     spot/core/debug/log.h
     spot/core/memory/spsc_queue.h

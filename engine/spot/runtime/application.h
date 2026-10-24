@@ -9,11 +9,13 @@
 #include "spot/platform/input_state.h"
 #include "spot/platform/window.h"
 #include "spot/runtime/game_settings.h"
+#include "spot/runtime/module.h"
 #include "spot/scene/scene.h"
 
 #include <concepts>
 #include <filesystem>
 #include <memory>
+#include <typeindex>
 #include <utility>
 #include <vector>
 
@@ -83,6 +85,21 @@ public:
     virtual void QuitGame() { Quit(); }
 
     bool IsRunning() const { return m_running; }
+
+    // Adds a module, made from the arguments, which Run() starts with the others; see Module. Modules are added
+    // before Run(), one of each type.
+    template <std::derived_from<Module> T, typename... Args>
+    T& AddModule(Args&&... args) {
+        auto module = std::make_unique<T>(std::forward<Args>(args)...);
+        T& added = *module;
+        AddModule(typeid(T), std::move(module));
+        return added;
+    }
+    // The module of that exact type, or null when none was added.
+    template <std::derived_from<Module> T>
+    T* GetModule() const {
+        return static_cast<T*>(FindModule(typeid(T)));
+    }
     // Null when the application runs no game; see ApplicationConfig::game.
     const GameSettings* GetGameSettings() const { return m_config.game ? &*m_config.game : nullptr; }
     // Changes the game the application runs, as tools that run games inside them do. Its sections apply to the
@@ -175,6 +192,8 @@ protected:
     void DispatchEvent(const Event& event);
 
 private:
+    void AddModule(std::type_index type, std::unique_ptr<Module> module);
+    Module* FindModule(std::type_index type) const;
     void UpdateUiTextInput();
     bool m_uiTextInput = false;
     std::optional<RenderingSettings> m_runtimeRendering;
@@ -192,6 +211,7 @@ private:
     bool LoadStartupScene();
 
     ApplicationConfig m_config;
+    std::vector<std::pair<std::type_index, std::unique_ptr<Module>>> m_modules;
     std::shared_ptr<LogSink> m_logFile;
     std::unique_ptr<Window> m_window;
     std::unique_ptr<GraphicsDevice> m_graphics;

@@ -203,6 +203,72 @@ TEST_CASE("Application runs frames between start and stop until Quit is called",
     CHECK_FALSE(application.IsRunning());
 }
 
+namespace {
+
+class RecordingModule : public Spot::Module {
+public:
+    RecordingModule(std::vector<std::string>& calls, std::string label, bool consumes = false)
+        : m_calls(calls), m_label(std::move(label)), m_consumes(consumes) {}
+
+protected:
+    void OnStart() override { m_calls.push_back(m_label + ".start"); }
+    void OnStop() override { m_calls.push_back(m_label + ".stop"); }
+    bool OnEvent(const Spot::Event& event) override {
+        if (event.Is<Spot::KeyPressedEvent>())
+            m_calls.push_back(m_label + ".event");
+        return m_consumes && event.Is<Spot::KeyPressedEvent>();
+    }
+    void OnUpdate(float) override { m_calls.push_back(m_label + ".update"); }
+
+private:
+    std::vector<std::string>& m_calls;
+    std::string m_label;
+    bool m_consumes;
+};
+
+class FirstModule final : public RecordingModule {
+    using RecordingModule::RecordingModule;
+};
+class SecondModule final : public RecordingModule {
+    using RecordingModule::RecordingModule;
+};
+
+class ModuleApplication final : public Spot::Application {
+public:
+    explicit ModuleApplication(std::vector<std::string>& calls) : Application(MakeConfig()), m_calls(calls) {}
+
+protected:
+    void OnStart() override { m_calls.emplace_back("app.start"); }
+    void OnUpdate(float) override {
+        m_calls.emplace_back("app.update");
+        DispatchEvent(Spot::Event(Spot::KeyPressedEvent{.key = Spot::Key::A, .repeat = false}));
+        m_calls.emplace_back(GetInputState().IsKeyDown(Spot::Key::A) ? "key.down" : "key.up");
+        Quit();
+    }
+    void OnStop() override { m_calls.emplace_back("app.stop"); }
+
+private:
+    std::vector<std::string>& m_calls;
+};
+
+} // namespace
+
+TEST_CASE("Application starts its modules in order, stops them in reverse and calls their hooks", "[application]") {
+    std::vector<std::string> calls;
+    ModuleApplication application(calls);
+    auto& first = application.AddModule<FirstModule>(calls, "first");
+    application.AddModule<SecondModule>(calls, "second", true);
+
+    CHECK(application.GetModule<FirstModule>() == &first);
+    CHECK(&first.GetApplication() == &application);
+    CHECK(application.GetModule<RecordingModule>() == nullptr);
+    CHECK(application.Run() == EXIT_SUCCESS);
+
+    CHECK(calls == std::vector<std::string>{"first.start", "second.start", "app.start", "app.update", "first.event",
+                                            "second.event", "key.up", "first.update", "second.update", "app.stop",
+                                            "second.stop", "first.stop"});
+}
+
 TEST_CASE("Application can run again after it stopped", "[application]") {
     Observed observed;
     RecordingApplication application(MakeConfig(), observed, 1);

@@ -46,6 +46,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <format>
+#include <ranges>
 #include <system_error>
 #include <utility>
 
@@ -188,6 +189,9 @@ int Application::Run() {
     m_failed = false;
     // The game's components are known before its scenes load.
     Detail::GameCode::Load();
+    for (auto& [type, module] : m_modules) {
+        module->OnStart();
+    }
     OnStart();
     if (m_running && !m_scene && !m_sceneChangePending && !LoadStartupScene()) {
         m_failed = true;
@@ -231,6 +235,9 @@ int Application::Run() {
             if (m_scene)
                 m_scene->Update(m_clock.GetDeltaTime());
         }
+        for (auto& [type, module] : m_modules) {
+            module->OnUpdate(m_clock.GetDeltaTime());
+        }
         if (Profiler::IsEnabled()) {
             SPOT_PROFILE_SCOPE("Developer::Stats");
             const auto stats = GetRuntimeStats();
@@ -250,14 +257,23 @@ int Application::Run() {
             if (RenderContext* context = m_graphics->BeginFrame()) {
                 context->BeginGpuTimer("Frame");
                 const bool screenshot = PrepareScreenshot(*context);
+                for (auto& [type, module] : m_modules) {
+                    module->OnBeginRender(*context);
+                }
                 if (m_scene) {
                     m_scene->PrepareToRender();
                     m_scene->OnRender(*context);
                 }
                 RenderScenes(*context);
+                for (auto& [type, module] : m_modules) {
+                    module->OnRender(*context);
+                }
                 {
                     SPOT_PROFILE_SCOPE("Application::OnRender");
                     OnRender(*context);
+                }
+                for (auto& module : std::views::reverse(m_modules)) {
+                    module.second->OnEndRender(*context);
                 }
                 RenderDeveloperOverlay(*context);
                 if (screenshot) {
@@ -299,6 +315,9 @@ int Application::Run() {
         }
     }
     OnStop();
+    for (auto& module : std::views::reverse(m_modules)) {
+        module.second->OnStop();
+    }
     m_consoleInput.reset();
     m_developerRenderer.reset();
     m_developerFont = {};
@@ -322,6 +341,18 @@ int Application::Run() {
     m_frameCapture.reset();
     m_window.reset();
     return m_failed ? EXIT_FAILURE : EXIT_SUCCESS;
+}
+
+void Application::AddModule(std::type_index type, std::unique_ptr<Module> module) {
+    SPOT_ASSERT(!m_running, "Modules are added before Run()");
+    SPOT_ASSERT(!FindModule(type), "An application has one module of each type");
+    module->m_application = this;
+    m_modules.emplace_back(type, std::move(module));
+}
+
+Module* Application::FindModule(std::type_index type) const {
+    const auto found = std::ranges::find(m_modules, type, [](const auto& entry) { return entry.first; });
+    return found != m_modules.end() ? found->second.get() : nullptr;
 }
 
 void Application::SetScenesPaused(bool paused) {
@@ -417,6 +448,15 @@ void Application::LoadScene(std::unique_ptr<Scene> scene) {
 }
 
 void Application::DispatchEvent(const Event& event) {
+    for (auto& [type, module] : m_modules) {
+        if (module->OnEvent(event)) {
+            OnEvent(event);
+            if (event.Is<WindowCloseEvent>() && OnCloseRequested()) {
+                Quit();
+            }
+            return;
+        }
+    }
     const bool wasOpen = m_consoleInput && m_consoleInput->IsOpen();
     bool consumed = m_consoleInput && m_consoleInput->OnEvent(event);
     if (m_window && m_consoleInput && wasOpen != m_consoleInput->IsOpen()) {

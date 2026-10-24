@@ -41,15 +41,25 @@ Each iteration of `Application::Run()`:
 
 1. Begins a profiler frame, waits for the frame rate cap (`Application::Wait`) and makes the assets whose background
    loads finished reading (`AssetManager::Update()`).
-2. Polls events and dispatches them to the input state, `OnEvent()` and the active scene (`DeliversToScenes()`
-   filters them).
+2. Polls events and dispatches them to the modules, the input state, `OnEvent()` and the active scene
+   (`DeliversToScenes()` filters them). A module that consumes an event keeps it from the rest but `OnEvent()`.
 3. Applies the scene replacement queued since the last frame with `LoadScene()`, then finishes ready chunks.
-4. Calls `OnUpdate()`, then updates the active scene unless paused (`SetScenesPaused()`, `StepScenes()`).
-5. On frames that can be drawn: runs the scene's `PrepareToRender()` and `OnRender()`, draws it with a
-   `SceneRenderer` (unless `ApplicationConfig::renderScenes` is off), calls `OnRender()` and submits the frame.
+4. Calls `OnUpdate()`, then updates the active scene unless paused (`SetScenesPaused()`, `StepScenes()`), then the
+   modules' `OnUpdate()`.
+5. On frames that can be drawn: calls the modules' `OnBeginRender()`, runs the scene's `PrepareToRender()` and
+   `OnRender()`, draws it with a `SceneRenderer` (unless `ApplicationConfig::renderScenes` is off), calls the
+   modules' `OnRender()`, then `OnRender()`, then the modules' `OnEndRender()` in reverse, and submits the frame.
 6. Ages the shapes queued with `DebugDraw` by the frame's time.
 
 Scene changes are applied between frames, so a scene that asks to be replaced is never destroyed while it runs.
+
+## Modules
+
+A `Module` (`engine/spot/runtime/module.h`) is a part of an application that hooks into its frame, so a system
+joins the loop without `Application` knowing it. Applications add them before `Run()` with `AddModule<T>(args...)`
+and find them with `GetModule<T>()`, by exact type. `Run()` starts them in the order they were added, after the
+window, the graphics device and the assets, and before `OnStart()`; it stops them in reverse after `OnStop()`, while
+those still exist. Only `Application` knows modules: no system's own API depends on one.
 
 ## Scenes
 

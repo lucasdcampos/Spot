@@ -172,7 +172,7 @@ Depends on: Phase 1.
 
 Depends on: phases 4 and 5. Task 6.2 also waits for 3.3 to move asset loader registrations.
 
-- [ ] **6.1 `Module` (M).** The interface (`OnStart`, `OnStop`, `OnEvent`, `OnUpdate`, `OnRender`),
+- [x] **6.1 `Module` (M).** The interface (`OnStart`, `OnStop`, `OnEvent`, `OnUpdate`, `OnRender`),
   `Application::AddModule<T>()` and `GetModule<T>()`. `Run()` starts modules in the order they were added, stops them
   in reverse, and calls their hooks at fixed points of the frame. Only `Application` uses `Module`: no system's
   low-level API depends on it.
