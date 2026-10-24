@@ -78,7 +78,7 @@ protected:
     void OnLoad() override {
         m_calls.push_back(m_label + ".load");
         CHECK(IsLoaded());
-        CHECK(GetApplication().GetScene() == this);
+        CHECK(Spot::Application::Get().GetScene() == this);
         CreateEntity().AddComponent<LoggingComponent>(m_calls, m_label);
     }
     void OnUnload() override { m_calls.push_back(m_label + ".unload"); }

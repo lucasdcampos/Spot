@@ -32,7 +32,7 @@ constexpr const char* SpinnerText = R"({"type":"TestSpinner","enabled":true,"dat
 TEST_CASE("Shared libraries load and give their functions", "[module]") {
     const auto library = Spot::SharedLibrary::Load(TestModule);
     REQUIRE(library);
-    CHECK(library->GetFunction("SpotLoadGameModule") != nullptr);
+    CHECK(library->GetFunction("SpotCreateGameModule") != nullptr);
     CHECK(library->GetFunction("NoSuchFunction") == nullptr);
     CHECK_FALSE(Spot::SharedLibrary::Load(TestModule.parent_path() / "no_such_library.dll"));
 }

@@ -6,6 +6,7 @@
 #include <catch2/generators/catch_generators.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
 
+#include <cstdlib>
 #include <fstream>
 #include <iterator>
 #include <string>
@@ -88,10 +89,20 @@ TEST_CASE("Applications keep the log of the run before", "[crash][application]")
     const TempDirectory temp;
     const auto log = temp.GetPath() / "game.log";
     std::ofstream(log, std::ios::binary) << "the last run\n";
-    {
-        const Spot::Application application({.window = {.title = "Previous Log"}, .logFile = log});
-        Spot::Log::Info("this run");
-    }
+    class LoggingApplication final : public Spot::Application {
+    public:
+        explicit LoggingApplication(std::filesystem::path file)
+            : Application(
+                  {.window = {.title = "Previous Log"}, .graphics = {.enabled = false}, .logFile = std::move(file)}) {}
+
+    protected:
+        void OnStart() override {
+            Spot::Log::Info("this run");
+            Quit();
+        }
+    };
+    LoggingApplication application(log);
+    CHECK(application.Run() == EXIT_SUCCESS);
     CHECK(ReadText(temp.GetPath() / "game.previous.log") == "the last run\n");
     CHECK_THAT(ReadText(log), Catch::Matchers::ContainsSubstring("this run"));
 }

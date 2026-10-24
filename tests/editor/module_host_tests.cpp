@@ -58,9 +58,10 @@ protected:
 
 class Pulse final : public Spot::Component {};
 
-class Game final : public Spot::Module {
+class Game final : public Spot::GameCodeModule {
 protected:
     void OnStart() override {
+        GameCodeModule::OnStart();
         Spot::RegisterComponent<Rotator>("Rotator");
         Spot::RegisterComponent<Pulse>("Pulse");
     }
