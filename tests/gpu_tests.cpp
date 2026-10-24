@@ -4565,7 +4565,7 @@ TEST_CASE("Authored sandbox menus render their labels and controls offscreen", "
     const auto prefab = assets.Load<Spot::Prefab>("prefabs/interface.prefab");
     REQUIRE(prefab);
     Spot::Scene scene;
-    REQUIRE(scene.Instantiate(prefab));
+    REQUIRE(scene.Instantiate(prefab, {.assets = &assets}));
     auto* pause = scene.FindEntity("Pause Menu");
     REQUIRE(pause);
     pause->SetActive(true);
