@@ -19,3 +19,9 @@ Thumbs.db
 
 # Logs written by the sandbox
 *.log
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
