@@ -5,6 +5,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <functional>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -377,4 +378,19 @@ TEST_CASE("Scene transfers tolerate changes from move notifications", "[scene][s
         CHECK(source.GetEntityCount() == 0);
         CHECK(destination.GetEntityCount() == 0);
     }
+}
+
+TEST_CASE("Canceled scene transfers leave no stale audio source registrations", "[scene][systems][audio]") {
+    Scene source;
+    Scene destination;
+    auto& entity = source.CreateEntity();
+    const auto id = entity.GetId();
+    entity.AddComponent<Spot::AudioSource>();
+    source.Update(0.0f);
+    source.AddSystem<MoveMutation>().callback = [](Spot::Entity& moving, Scene&, Scene&) { moving.Destroy(); };
+    entity.MoveToScene(destination);
+    CHECK(source.GetEntity(id) == nullptr);
+    CHECK(destination.GetEntity(id) == nullptr);
+    source.Update(0.0f);
+    destination.Update(0.0f);
 }
