@@ -3,9 +3,9 @@
 #include "spot/assets/script_source.h"
 #include "spot/core/ids/asset_ref.h"
 #include "spot/scene/component.h"
+#include "spot/scene/physics/collision_listener.h"
+#include "spot/scene/physics2d/collision_listener_2d.h"
 #include "spot/scene/scripting/script_runtime.h"
-#include <spot/scene/physics/collision_listener.h>
-#include <spot/scene/physics2d/collision_listener_2d.h>
 
 #include <map>
 #include <memory>

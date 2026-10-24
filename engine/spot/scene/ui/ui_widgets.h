@@ -4,9 +4,9 @@
 #include "spot/core/math/color.h"
 #include "spot/scene/component.h"
 #include "spot/scene/signal.h"
+#include "spot/scene/ui/ui_draw_listener.h"
 #include "spot/scene/ui/ui_system.h"
 #include "spot/scene/ui/ui_text_layout.h"
-#include <spot/scene/ui/ui_draw_listener.h>
 
 #include <string>
 
