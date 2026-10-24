@@ -447,3 +447,21 @@ if(TARGET sandbox)
     # Full-scene Debug physics and tests with several sections can take over a minute.
     catch_discover_tests(spot_sandbox_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 180)
 endif()
+
+# Standalone test scenes register the systems they exercise, just as a standalone engine user does.
+foreach(component_test_target IN ITEMS
+    spot_tests spot_script_asset_tests spot_script_tests spot_script_shared_tests
+    spot_luau_tests spot_luau_shared_tests spot_animation_tests spot_ui_tests spot_particle_tests
+    spot_gameplay_tests spot_console_tests spot_profile_process_tests spot_gpu_tests spot_module_tests
+    spot_editor_tools_tests spot_editor_tests spot_editor_module_tests spot_editor_gpu_tests
+    spot_animation_generator_tests spot_sandbox_tests spot_sandbox_gpu_tests)
+    if(TARGET ${component_test_target})
+        target_sources(${component_test_target} PRIVATE register_components.cpp)
+    endif()
+endforeach()
+
+add_executable(spot_registration_tests component_registration_tests.cpp)
+target_link_libraries(spot_registration_tests PRIVATE spot::spot Catch2::Catch2WithMain)
+spot_set_compile_options(spot_registration_tests)
+spot_copy_runtime_dlls(spot_registration_tests)
+catch_discover_tests(spot_registration_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)

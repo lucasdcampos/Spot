@@ -25,6 +25,11 @@ struct Registry {
 };
 Registry& Bindings() {
     static Registry registry;
+    static const bool cleanupInstalled = [] {
+        SetComponentTypeCleanup(RemoveScriptBindings);
+        return true;
+    }();
+    static_cast<void>(cleanupInstalled);
     return registry;
 }
 void CheckName(std::string_view name) {

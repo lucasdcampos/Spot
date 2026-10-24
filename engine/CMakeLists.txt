@@ -282,6 +282,22 @@ add_library(spot_objects OBJECT
     spot/scene/component_type.cpp
     spot/scene/component_registry.h
     spot/scene/component_serialization.h
+    spot/scene/animation/animation_components.h
+    spot/scene/animation/animation_components.cpp
+    spot/scene/audio/audio_components.h
+    spot/scene/audio/audio_components.cpp
+    spot/scene/particles/particles_components.h
+    spot/scene/particles/particles_components.cpp
+    spot/scene/physics/physics_components.h
+    spot/scene/physics/physics_components.cpp
+    spot/scene/physics2d/physics2d_components.h
+    spot/scene/physics2d/physics2d_components.cpp
+    spot/scene/rendering/rendering_components.h
+    spot/scene/rendering/rendering_components.cpp
+    spot/scene/ui/ui_components.h
+    spot/scene/ui/ui_components.cpp
+    spot/scene/scripting/scripting_components.h
+    spot/scene/scripting/scripting_components.cpp
     spot/scene/component_registry.cpp
     spot/scene/entity.h
     spot/scene/entity.cpp
@@ -303,12 +319,13 @@ add_library(spot_objects OBJECT
     spot/scene/rendering/render_world_system.cpp
     spot/scene/scene.h
     spot/scene/scene.cpp
-    spot/scene/scene_model.cpp
+    spot/scene/rendering/scene_model.cpp
     spot/scene/scene_prefab.cpp
     spot/scene/scene_assets.h
     spot/scene/rendering/scene_drawing.h
     spot/scene/rendering/scene_drawing.cpp
     spot/scene/rendering/scene_renderer.h
+    spot/scene/rendering/render_hook_system.cpp
     spot/scene/rendering/scene_renderer.cpp
     spot/scene/scene_assets.cpp
     spot/scene/scene_serialization.cpp

@@ -29,6 +29,14 @@ set(SPOT_LEVEL_EXCEPTIONS
 
 # Today's violations, each fixed by a task of the refactor: the commit that fixes one removes its line.
 set(SPOT_LEVEL_ALLOWLIST
+    "runtime/application.cpp>scene/animation/animation_components.h"
+    "runtime/application.cpp>scene/audio/audio_components.h"
+    "runtime/application.cpp>scene/particles/particles_components.h"
+    "runtime/application.cpp>scene/physics/physics_components.h"
+    "runtime/application.cpp>scene/physics2d/physics2d_components.h"
+    "runtime/application.cpp>scene/rendering/rendering_components.h"
+    "runtime/application.cpp>scene/scripting/scripting_components.h"
+    "runtime/application.cpp>scene/ui/ui_components.h"
 
     "runtime/application.cpp>scene/audio/audio_system.h"
     "runtime/application.cpp>scene/rendering/scene_renderer.h"
@@ -46,16 +54,6 @@ set(SPOT_LEVEL_ALLOWLIST
     "scene/rendering/scene_drawing.cpp>scene/animation/skinned_mesh_renderer.h"
     "scene/rendering/scene_drawing.cpp>scene/particles/particle_system.h"
     "scene/rendering/scene_renderer.cpp>scene/particles/particle_system.h"
-    "scene/scene.cpp>scene/audio/audio_system.h"
-    "scene/scene.cpp>scene/physics/physics_world.h"
-    "scene/scene.cpp>scene/physics2d/physics_world_2d.h"
-    "scene/scene.cpp>scene/ui/canvas.h"
-    "scene/scene.cpp>scene/ui/ui_input_system.h"
-    "scene/scene.cpp>scene/ui/ui_system.h"
-    "scene/scene_model.cpp>scene/animation/animator.h"
-    "scene/scene_model.cpp>scene/animation/bone_attachment.h"
-    "scene/scene_model.cpp>scene/animation/skinned_mesh_renderer.h"
-    "scene/scene_model.cpp>scene/rendering/mesh_renderer.h"
 )
 
 foreach(entry IN LISTS SPOT_LEVELS)
