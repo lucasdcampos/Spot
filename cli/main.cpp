@@ -4,6 +4,9 @@
 #include <spot_tools.h>
 
 #include <spot/assets/asset_pak.h>
+#if SPOT_SCRIPTING
+#include <spot/scene/scripting/scripting_components.h>
+#endif
 
 #include <algorithm>
 #include <chrono>
@@ -204,9 +207,24 @@ int Pack(const Arguments& arguments) {
     return EXIT_SUCCESS;
 }
 
+// Projects' scenes hold the components of every system, which new projects write and cooking reads.
+void RegisterComponents() {
+    Spot::RegisterAnimationComponents();
+    Spot::RegisterAudioComponents();
+    Spot::RegisterParticleComponents();
+    Spot::RegisterPhysicsComponents();
+    Spot::RegisterPhysics2DComponents();
+    Spot::RegisterRenderComponents();
+    Spot::RegisterUiComponents();
+#if SPOT_SCRIPTING
+    Spot::RegisterScriptComponents();
+#endif
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
+    RegisterComponents();
     const std::string_view command = argc > 1 ? argv[1] : "help";
     if (command == "help" || command == "--help" || command == "-h") {
         std::cout << Usage;

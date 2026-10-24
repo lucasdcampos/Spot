@@ -56,6 +56,11 @@ TEST_CASE("The command line creates projects and cooks their games", "[cli]") {
     CHECK(std::filesystem::is_regular_file(directory / "Cooked.spot"));
     CHECK(std::filesystem::is_regular_file(directory / "src" / "main.cpp"));
     CHECK(RunSpot({"new", "Cooked", "--path", location}).exitCode != 0);
+    // Its scene keeps the components of every system, which the command line registers before writing it.
+    Spot::Scene scene;
+    REQUIRE(scene.LoadFromFile(directory / "assets" / "scenes" / "Main.scene"));
+    CHECK(scene.FindComponent<Spot::Camera>());
+    CHECK(scene.FindComponent<Spot::DirectionalLight>());
 
     // Cooked for an executable in the folder, the game is told where its assets are and what it starts with.
     const std::filesystem::path out = temp.GetPath() / "out";
