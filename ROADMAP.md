@@ -231,7 +231,7 @@ Depends on: phases 1 and 2. Task 9.3 also waits for 6.2.
 - [ ] **9.1 Allocation-free property access (M).** Script wrappers are cached per entity in the script context, and
   member names are resolved once instead of compared on each access. The baseline's script update time shows the
   gain.
-- [ ] **9.2 Bindings by module (S).** The built-in bindings in `scene/scripting/script_scene.cpp` split into a file per
+- [x] **9.2 Bindings by module (S).** The built-in bindings in `scene/scripting/script_scene.cpp` split into a file per
   module.
 - [ ] **9.3 Optional scripting (M).** Waits for 9.2 and 6.2. A `SPOT_SCRIPTING` CMake option; scripting leaves `spot.h`, and
   only builds with it on compile and link Luau. The player and the editor build with it.

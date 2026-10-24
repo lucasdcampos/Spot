@@ -679,6 +679,12 @@ target_sources(spot_objects PRIVATE
     spot/scene/scripting/script_scene.h
     spot/scene/scripting/script_events.h
     spot/scene/scripting/script_scene.cpp
+    spot/scene/scripting/script_module_bindings.h
+    spot/scene/scripting/script_audio.cpp
+    spot/scene/scripting/script_render.cpp
+    spot/scene/scripting/script_input.cpp
+    spot/scene/scripting/script_time.cpp
+    spot/scene/scripting/script_physics.cpp
     spot/scene/scripting/script_component.h
     spot/scene/scripting/script_component.cpp
 )

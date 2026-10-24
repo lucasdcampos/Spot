@@ -308,3 +308,12 @@ repeating name comparisons. Custom runtime adapters can use `ScriptObject::Resol
 allocations; strings and value snapshots can still allocate. Component bindings use heterogeneous name lookup and
 retain an immutable property descriptor only for the invocation, avoiding copies of heap-backed callbacks without
 keeping callbacks alive across component-type unregistration.
+
+## Binding layout
+
+`scene/scripting/script_scene.cpp` owns scene scopes, cached entity/component references, structural operations,
+events and coroutines. System-specific built-ins live beside it: `script_render.cpp` and `script_audio.cpp` register
+component members; `script_input.cpp`, `script_time.cpp` and `script_physics.cpp` implement their libraries. Shared
+conversion, validation, property tokens and read-only result records stay in the private `script_module_bindings.h`.
+Physics resolves entity arguments and creates result references through the scene facade, retaining ids rather than
+engine pointers. The public script API remains described once in `script_api.h`; the binding files implement it.
