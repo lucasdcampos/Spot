@@ -36,9 +36,10 @@ int main(int argc, char** argv) {
             running = running && !event.Is<Spot::WindowCloseEvent>();
             input.OnEvent(event);
         });
-        const Spot::Vector2 direction = {
-            static_cast<float>(input.IsKeyDown(Spot::Key::Right)) - static_cast<float>(input.IsKeyDown(Spot::Key::Left)),
-            static_cast<float>(input.IsKeyDown(Spot::Key::Up)) - static_cast<float>(input.IsKeyDown(Spot::Key::Down))};
+        const Spot::Vector2 direction = {static_cast<float>(input.IsKeyDown(Spot::Key::Right)) -
+                                             static_cast<float>(input.IsKeyDown(Spot::Key::Left)),
+                                         static_cast<float>(input.IsKeyDown(Spot::Key::Up)) -
+                                             static_cast<float>(input.IsKeyDown(Spot::Key::Down))};
         position += direction * 200.0f * deltaTime;
 
         // Null while nothing can be drawn, such as while the window is minimized.
