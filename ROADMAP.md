@@ -206,7 +206,7 @@ Depends on: phases 1 and 2. Task 7.3 also waits for 6.4 and 6.5.
 
 Depends on: phases 1 and 2.
 
-- [ ] **8.1 The graphics contract (M).** `tests/rhi_tests.cpp` checks the baseline every backend must do, and each
+- [x] **8.1 The graphics contract (M).** `tests/rhi_tests.cpp` checks the baseline every backend must do, and each
   capability a backend reports, on every backend built. Renderer and golden tests run on each platform's default
   backend; the whole GPU suite runs on every backend when a backend or a shader changes (test presets and
   `AGENTS.md`). `docs/rendering.md` writes the contract down.

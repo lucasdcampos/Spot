@@ -25,9 +25,10 @@ ctest --preset msvc-debug-gpu        # GPU tests, when rendering, shaders or gra
 ```
 
 GPU tests open real windows and run one at a time: run the relevant ones (`-R <pattern>`) only for changes that can
-affect what is drawn, and never two GPU suites at once. The `-all` presets run everything; Release presets have the
-same variants. `./run.ps1` or `./run.sh` build and run the sandbox (`editor` runs the editor, `debug` a Debug build,
-`no-build` skips building).
+affect what is drawn, and never two GPU suites at once. When a graphics backend or a shader changes, run the whole GPU
+suite on each backend (`msvc-debug-gpu-sdl-gpu`, `msvc-debug-gpu-vulkan`). The `-all` presets run everything; Release
+presets have the same variants. `./run.ps1` or `./run.sh` build and run the sandbox (`editor` runs the editor, `debug` a
+Debug build, `no-build` skips building).
 
 Shaders are HLSL (`*.vert.hlsl`, `*.frag.hlsl`), compiled by `spot_add_shaders()` (`cmake/spot_shaders.cmake`) into
 a header per shader with a ready-to-use `Spot::ShaderDesc`.

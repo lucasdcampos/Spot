@@ -1,5 +1,6 @@
-// The graphics API's features beyond drawing, on every backend this machine runs: formats, compressed textures, and
-// what GraphicsCapabilities tells apart.
+// The graphics contract, on every backend this machine runs: the baseline every device does (drawing, blending,
+// depth, viewports, scissors, multisampling, mipmaps, formats), and each feature GraphicsCapabilities tells apart,
+// checked where the device reports it.
 #include "fill.comp.h"
 #include "indirect_arguments.comp.h"
 #include "solid.frag.h"
@@ -13,6 +14,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <array>
 #include <bit>
 #include <cstdint>
@@ -61,18 +63,22 @@ public:
     std::unique_ptr<Spot::Pipeline> CreatePipeline(const Spot::Shader& fragmentShader,
                                                    std::vector<Spot::TextureFormat> additionalFormats = {},
                                                    bool textureTable = false) const {
-        return m_device.CreatePipeline({
-            .vertexShader = m_vertexShader.get(),
-            .fragmentShader = &fragmentShader,
-            .vertexBuffers = {{
-                .stride = sizeof(Vertex),
-                .attributes = {{0, Spot::VertexFormat::Float2, offsetof(Vertex, position)},
-                               {1, Spot::VertexFormat::Float2, offsetof(Vertex, uv)}},
-            }},
-            .targetFormat = Spot::TextureFormat::Rgba8,
-            .additionalTargetFormats = std::move(additionalFormats),
-            .textureTable = textureTable,
-        });
+        return CreatePipelineWith(fragmentShader,
+                                  {.additionalTargetFormats = std::move(additionalFormats), .textureTable = textureTable});
+    }
+
+    // A pipeline of the quad into an RGBA8 target, with the rest of its description, such as blending, as given.
+    std::unique_ptr<Spot::Pipeline> CreatePipelineWith(const Spot::Shader& fragmentShader,
+                                                       Spot::PipelineDesc desc) const {
+        desc.vertexShader = m_vertexShader.get();
+        desc.fragmentShader = &fragmentShader;
+        desc.vertexBuffers = {{
+            .stride = sizeof(Vertex),
+            .attributes = {{0, Spot::VertexFormat::Float2, offsetof(Vertex, position)},
+                           {1, Spot::VertexFormat::Float2, offsetof(Vertex, uv)}},
+        }};
+        desc.targetFormat = Spot::TextureFormat::Rgba8;
+        return m_device.CreatePipeline(desc);
     }
 
     void Bind(Spot::RenderPass& pass, const Spot::Pipeline& pipeline) const {
@@ -131,6 +137,22 @@ T Read(const std::vector<std::uint8_t>& bytes, std::size_t offset) {
     T value{};
     std::memcpy(&value, bytes.data() + offset, sizeof(T));
     return value;
+}
+
+// A 4x4 RGBA8 render target, multisampled when asked.
+struct Target {
+    explicit Target(Spot::GraphicsDevice& device, std::uint32_t sampleCount = 1)
+        : texture(device.CreateTexture({.width = 4, .height = 4, .renderTarget = true, .sampleCount = sampleCount})) {
+        REQUIRE(texture);
+    }
+
+    std::unique_ptr<Spot::Texture> texture;
+};
+
+std::array<std::uint8_t, 4> PixelAt(const std::vector<std::uint8_t>& pixels, std::uint32_t x, std::uint32_t y) {
+    const std::size_t offset = (y * 4 + x) * 4;
+    REQUIRE(pixels.size() >= offset + 4);
+    return {pixels[offset], pixels[offset + 1], pixels[offset + 2], pixels[offset + 3]};
 }
 
 } // namespace
@@ -245,7 +267,10 @@ TEST_CASE("Devices tell what their backend can do", "[gpu][rhi]") {
 
 TEST_CASE("Passes draw into several color targets at once", "[gpu][rhi]") {
     ForEachBackend([](Spot::GraphicsDevice& device) {
-        REQUIRE(device.GetCapabilities().maxColorTargets >= 2);
+        if (device.GetCapabilities().maxColorTargets < 2) {
+            WARN("This device draws into one color target at a time");
+            return;
+        }
         const Quad quad(device);
         auto first = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
         auto second = device.CreateTexture(
@@ -576,5 +601,146 @@ TEST_CASE("Render graphs run their passes with the textures they keep", "[gpu][r
             REQUIRE(pixels.size() == 4 * 4 * 4);
             CHECK((pixels[0] < 10 && pixels[1] > 245 && pixels[2] < 10));
         }
+    });
+}
+
+TEST_CASE("Baseline: indexed draws replace or blend over what passes clear, with their uniforms",
+          "[gpu][rhi][baseline]") {
+    ForEachBackend([](Spot::GraphicsDevice& device) {
+        const Quad quad(device);
+        const Target target(device);
+        const auto shader = device.CreateShader(Shaders::SolidFrag);
+        REQUIRE(shader);
+        const auto opaque = quad.CreatePipelineWith(*shader, Spot::PipelineDesc{});
+        const auto alpha = quad.CreatePipelineWith(*shader, {.blendMode = Spot::BlendMode::Alpha});
+        const auto additive = quad.CreatePipelineWith(*shader, {.blendMode = Spot::BlendMode::Additive});
+        REQUIRE((opaque && alpha && additive));
+
+        auto* context = device.BeginOffscreenFrame(*target.texture);
+        REQUIRE(context);
+        {
+            auto pass = context->BeginRenderPass({.clearColor = Spot::Color::Black});
+            pass.PushFragmentUniforms(0, Spot::Color(0.0f, 0.0f, 1.0f, 1.0f));
+            quad.Draw(pass, *opaque);
+            pass.PushFragmentUniforms(0, Spot::Color(1.0f, 0.0f, 0.0f, 0.5f));
+            quad.Draw(pass, *alpha);
+            pass.PushFragmentUniforms(0, Spot::Color(0.0f, 1.0f, 0.0f, 0.25f));
+            quad.Draw(pass, *additive);
+        }
+        device.EndFrame();
+        const auto pixel = PixelAt(device.DownloadTexture(*target.texture), 1, 1);
+        CHECK(std::abs(pixel[0] - 128) <= 2);
+        CHECK(std::abs(pixel[1] - 64) <= 2);
+        CHECK(std::abs(pixel[2] - 128) <= 2);
+    });
+}
+
+TEST_CASE("Baseline: viewports and scissors keep draws inside their rectangles", "[gpu][rhi][baseline]") {
+    ForEachBackend([](Spot::GraphicsDevice& device) {
+        const Quad quad(device);
+        const Target target(device);
+        const auto shader = device.CreateShader(Shaders::SolidFrag);
+        REQUIRE(shader);
+        const auto pipeline = quad.CreatePipelineWith(*shader, Spot::PipelineDesc{});
+        REQUIRE(pipeline);
+
+        auto* context = device.BeginOffscreenFrame(*target.texture);
+        REQUIRE(context);
+        {
+            auto pass = context->BeginRenderPass({.clearColor = Spot::Color::Black});
+            // The left half through the viewport, then the bottom-right pixel through a scissor.
+            pass.SetViewport({.width = 2.0f, .height = 4.0f});
+            pass.PushFragmentUniforms(0, Spot::Color::White);
+            quad.Draw(pass, *pipeline);
+            pass.SetViewport({.width = 4.0f, .height = 4.0f});
+            pass.SetScissor({.x = 3, .y = 3, .width = 1, .height = 1});
+            pass.PushFragmentUniforms(0, Spot::Color(1.0f, 0.0f, 0.0f, 1.0f));
+            quad.Draw(pass, *pipeline);
+        }
+        device.EndFrame();
+        const auto pixels = device.DownloadTexture(*target.texture);
+        CHECK(PixelAt(pixels, 1, 2)[1] == 255);
+        CHECK(PixelAt(pixels, 2, 1)[0] == 0);
+        CHECK(PixelAt(pixels, 3, 3)[0] == 255);
+        CHECK(PixelAt(pixels, 3, 3)[1] == 0);
+        CHECK(PixelAt(pixels, 2, 3)[0] == 0);
+    });
+}
+
+TEST_CASE("Baseline: depth targets drop fragments that fail their comparison", "[gpu][rhi][baseline]") {
+    ForEachBackend([](Spot::GraphicsDevice& device) {
+        const Quad quad(device);
+        const Target target(device);
+        auto depth = device.CreateTexture(
+            {.width = 4, .height = 4, .format = Spot::TextureFormat::Depth32Float, .renderTarget = true});
+        const auto shader = device.CreateShader(Shaders::SolidFrag);
+        REQUIRE((depth && shader));
+        // The quad lies at depth 0, so a depth target cleared to 0 hides it from Less and lets it through LessOrEqual.
+        const auto less = quad.CreatePipelineWith(*shader, {.depth = Spot::DepthState{}});
+        const auto lessOrEqual =
+            quad.CreatePipelineWith(*shader, {.depth = Spot::DepthState{.compare = Spot::CompareOp::LessOrEqual}});
+        REQUIRE((less && lessOrEqual));
+
+        for (const bool equalPasses : {false, true}) {
+            auto* context = device.BeginOffscreenFrame(*target.texture);
+            REQUIRE(context);
+            {
+                auto pass = context->BeginRenderPass(
+                    {.clearColor = Spot::Color::Black, .depthTarget = depth.get(), .clearDepth = 0.0f});
+                pass.PushFragmentUniforms(0, Spot::Color::White);
+                quad.Draw(pass, equalPasses ? *lessOrEqual : *less);
+            }
+            device.EndFrame();
+            CHECK(PixelAt(device.DownloadTexture(*target.texture), 2, 2)[0] == (equalPasses ? 255 : 0));
+        }
+    });
+}
+
+TEST_CASE("Baseline: 4x multisampled color targets resolve into single-sample ones", "[gpu][rhi][baseline]") {
+    ForEachBackend([](Spot::GraphicsDevice& device) {
+        REQUIRE(device.SupportsSampleCount(Spot::TextureFormat::Rgba8, 4));
+        const Quad quad(device);
+        const Target samples(device, 4);
+        const Target resolved(device);
+        const auto shader = device.CreateShader(Shaders::SolidFrag);
+        REQUIRE(shader);
+        const auto pipeline = quad.CreatePipelineWith(*shader, {.sampleCount = 4});
+        REQUIRE(pipeline);
+
+        auto* context = device.BeginOffscreenFrame(*resolved.texture);
+        REQUIRE(context);
+        {
+            auto pass = context->BeginRenderPass({.target = samples.texture.get(),
+                                                  .clearColor = Spot::Color::Black,
+                                                  .resolveTarget = resolved.texture.get()});
+            pass.PushFragmentUniforms(0, Spot::Color(0.0f, 1.0f, 0.0f, 1.0f));
+            quad.Draw(pass, *pipeline);
+        }
+        device.EndFrame();
+        CHECK(PixelAt(device.DownloadTexture(*resolved.texture), 0, 0)[1] == 255);
+    });
+}
+
+TEST_CASE("Baseline: render targets make their mip levels from the first", "[gpu][rhi][baseline]") {
+    ForEachBackend([](Spot::GraphicsDevice& device) {
+        const Quad quad(device);
+        auto target = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true, .mipmaps = true});
+        const auto shader = device.CreateShader(Shaders::SolidFrag);
+        REQUIRE((target && shader));
+        const auto pipeline = quad.CreatePipelineWith(*shader, Spot::PipelineDesc{});
+        REQUIRE(pipeline);
+
+        auto* context = device.BeginOffscreenFrame(*target);
+        REQUIRE(context);
+        {
+            auto pass = context->BeginRenderPass({.clearColor = Spot::Color::Black});
+            pass.PushFragmentUniforms(0, Spot::Color(1.0f, 0.0f, 1.0f, 1.0f));
+            quad.Draw(pass, *pipeline);
+        }
+        context->GenerateMipmaps(*target);
+        device.EndFrame();
+        const auto level = device.DownloadTexture(*target, 2);
+        REQUIRE(level.size() == 4);
+        CHECK((level[0] == 255 && level[1] == 0 && level[2] == 255));
     });
 }

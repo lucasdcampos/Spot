@@ -115,7 +115,28 @@ Vulkan where it can and SDL_GPU everywhere else, falling back to SDL_GPU when Vu
 - **SDL_GPU** (`graphics/sdl_gpu/`), over Direct3D 12, Vulkan or Metal, on every platform: macOS, whose Metal NVRHI
   lacks, and machines without Vulkan 1.3.
 
-Every GPU test and golden image passes on both; run them on one with `SPOT_GRAPHICS_BACKEND`.
+#### The contract
+
+What a backend must do is written down in two parts, and `tests/rhi_tests.cpp` checks both on every backend built
+and supported on the machine, each on an offscreen device.
+
+- **The baseline**, which every device does and code never checks for: shaders and pipelines from `ShaderDesc`,
+  vertex, index, uniform and storage buffers, indexed and instanced draws, every blend mode, back-face culling, depth
+  targets with every comparison and bias, viewports and scissors, color render targets of every uncompressed format
+  but those `SupportsRenderTarget()` names, 2D and cube textures with their mip levels, generated mipmaps, 4x
+  multisampled RGBA8 targets resolved into textures or the window, uploads at any time and texture readbacks. Its
+  tests are tagged `[baseline]`.
+- **The capabilities** (`GraphicsCapabilities`), which a device may lack: compressed textures, compute, indirect
+  draws, several color targets, GPU timers and texture tables. A backend reports only what it does, and refuses the
+  rest after logging why; each capability's test runs where the device reports it and warns where it does not.
+
+The engine's renderers use only the baseline, or take a fallback when a capability is off, so every game runs on
+every backend. A new backend implements `graphics_backend.h` and passes `rhi_tests.cpp`; a new capability gets a
+field, a refusal where it is off and a test.
+
+Renderer and golden-image tests run on each platform's default backend (`ctest --preset msvc-debug-gpu`). When a
+backend or a shader changes, the whole GPU suite runs on each backend: `msvc-debug-gpu-sdl-gpu` and
+`msvc-debug-gpu-vulkan` (and their Release and Ninja variants) set `SPOT_GRAPHICS_BACKEND` for it.
 
 ### Fullscreen passes
 

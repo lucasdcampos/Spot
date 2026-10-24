@@ -61,6 +61,18 @@
             "filter": { "include": { "label": "gpu" } },
             "execution": { "jobs": 1 }
         },
+        {
+            "name": "gpu-sdl-gpu",
+            "hidden": true,
+            "inherits": "gpu",
+            "environment": { "SPOT_GRAPHICS_BACKEND": "sdl_gpu" }
+        },
+        {
+            "name": "gpu-vulkan",
+            "hidden": true,
+            "inherits": "gpu",
+            "environment": { "SPOT_GRAPHICS_BACKEND": "vulkan" }
+        },
         { "name": "msvc-debug", "inherits": "headless", "configurePreset": "msvc", "configuration": "Debug" },
         { "name": "msvc-release", "inherits": "headless", "configurePreset": "msvc", "configuration": "Release" },
         { "name": "ninja-debug", "inherits": "headless", "configurePreset": "ninja", "configuration": "Debug" },
@@ -69,6 +81,14 @@
         { "name": "msvc-release-gpu", "inherits": "gpu", "configurePreset": "msvc", "configuration": "Release" },
         { "name": "ninja-debug-gpu", "inherits": "gpu", "configurePreset": "ninja", "configuration": "Debug" },
         { "name": "ninja-release-gpu", "inherits": "gpu", "configurePreset": "ninja", "configuration": "Release" },
+        { "name": "msvc-debug-gpu-sdl-gpu", "inherits": "gpu-sdl-gpu", "configurePreset": "msvc", "configuration": "Debug" },
+        { "name": "msvc-debug-gpu-vulkan", "inherits": "gpu-vulkan", "configurePreset": "msvc", "configuration": "Debug" },
+        { "name": "msvc-release-gpu-sdl-gpu", "inherits": "gpu-sdl-gpu", "configurePreset": "msvc", "configuration": "Release" },
+        { "name": "msvc-release-gpu-vulkan", "inherits": "gpu-vulkan", "configurePreset": "msvc", "configuration": "Release" },
+        { "name": "ninja-debug-gpu-sdl-gpu", "inherits": "gpu-sdl-gpu", "configurePreset": "ninja", "configuration": "Debug" },
+        { "name": "ninja-debug-gpu-vulkan", "inherits": "gpu-vulkan", "configurePreset": "ninja", "configuration": "Debug" },
+        { "name": "ninja-release-gpu-sdl-gpu", "inherits": "gpu-sdl-gpu", "configurePreset": "ninja", "configuration": "Release" },
+        { "name": "ninja-release-gpu-vulkan", "inherits": "gpu-vulkan", "configurePreset": "ninja", "configuration": "Release" },
         { "name": "msvc-debug-all", "inherits": "base", "configurePreset": "msvc", "configuration": "Debug" },
         { "name": "msvc-release-all", "inherits": "base", "configurePreset": "msvc", "configuration": "Release" },
         { "name": "ninja-debug-all", "inherits": "base", "configurePreset": "ninja", "configuration": "Debug" },
