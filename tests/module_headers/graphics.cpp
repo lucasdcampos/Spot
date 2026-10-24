@@ -1,0 +1,1 @@
+#include <spot/graphics.h>

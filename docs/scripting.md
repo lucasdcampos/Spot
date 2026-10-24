@@ -37,7 +37,7 @@ runtimes or `ScriptingModule` are compiled, and Luau is neither fetched nor link
 remains on. The text-only `ScriptSource` asset format and its loader remain usable independently of a runtime.
 With scripting on, `SPOT_ENABLE_LUAU=OFF` still supports custom language adapters without Luau.
 
-`<spot.h>` includes no scripting headers. Include only the API you use, such as
+`<spot.h>` includes no scripting headers. `<spot/scripting.h>` includes the public ones, or include only the API you use, such as
 `<spot/scene/scripting/script_component.h>`, `<spot/scene/scripting/script_bindings.h>` or
 `<spot/scene/scripting/scripting_module.h>`. Applications add `ScriptingModule` explicitly; standalone scenes call
 `RegisterScriptComponents()` from `scripting_components.h`, and register script assets when needed. Both static and

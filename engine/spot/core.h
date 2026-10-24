@@ -1,0 +1,25 @@
+#pragma once
+
+// Level 0: logging, assertions, memory, files, math, time, jobs, archives, ids and the profiler.
+
+#include "spot/core/debug/assert.h"
+#include "spot/core/debug/log.h"
+#include "spot/core/debug/log_sinks.h"
+#include "spot/core/debug/profiler.h"
+#include "spot/core/geometry/mesh_data.h"
+#include "spot/core/ids/asset_id.h"
+#include "spot/core/ids/asset_ref.h"
+#include "spot/core/ids/entity_id.h"
+#include "spot/core/io/archive.h"
+#include "spot/core/io/paths.h"
+#include "spot/core/io/utf8.h"
+#include "spot/core/jobs/job_system.h"
+#include "spot/core/math/angles.h"
+#include "spot/core/math/color.h"
+#include "spot/core/math/curve.h"
+#include "spot/core/math/gradient.h"
+#include "spot/core/math/matrix.h"
+#include "spot/core/math/quaternion.h"
+#include "spot/core/math/vector.h"
+#include "spot/core/memory/memory.h"
+#include "spot/core/time/time.h"

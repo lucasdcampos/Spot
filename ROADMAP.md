@@ -249,7 +249,7 @@ Depends on: phases 1 and 2. Task 9.3 also waits for 6.2.
 
 Depends on: phases 3 to 9.
 
-- [ ] **10.1 A header per module (S).** `<spot/core.h>`, `<spot/platform.h>`, `<spot/graphics.h>`, `<spot/render.h>`,
+- [x] **10.1 A header per module (S).** `<spot/core.h>`, `<spot/platform.h>`, `<spot/graphics.h>`, `<spot/render.h>`,
   `<spot/audio.h>`, `<spot/physics.h>`, `<spot/scene.h>`, `<spot/runtime.h>` and the others; `<spot.h>` includes them
   all.
 - [ ] **10.2 One example per level (S).** Small programs using the engine as a library with a loop of their own, as an

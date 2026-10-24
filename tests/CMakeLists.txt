@@ -115,6 +115,16 @@ spot_precompile_engine_header(spot_tests <catch2/catch_test_macros.hpp>)
 # These tests also check that the foundation headers work without the engine umbrella.
 set_source_files_properties(core_reference_tests.cpp physics_3d_tests.cpp PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
 
+# Each module header compiles on its own, in a file of its own.
+set(SPOT_MODULE_HEADERS core platform assets graphics render audio physics animation particles scene runtime modules)
+if(SPOT_SCRIPTING)
+    list(APPEND SPOT_MODULE_HEADERS scripting)
+endif()
+list(TRANSFORM SPOT_MODULE_HEADERS PREPEND module_headers/)
+list(TRANSFORM SPOT_MODULE_HEADERS APPEND .cpp)
+target_sources(spot_tests PRIVATE ${SPOT_MODULE_HEADERS})
+set_source_files_properties(${SPOT_MODULE_HEADERS} PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+
 # Crashes the way the crash tests ask, after installing the crash handler.
 add_executable(spot_crash_app crash_app.cpp)
 target_link_libraries(spot_crash_app PRIVATE spot::spot)

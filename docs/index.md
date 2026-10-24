@@ -42,8 +42,18 @@ folder of its own level or above, so each level works without the ones above it 
 independent of each other. The test "Engine folders include only the levels below them"
 (`cmake/spot_check_layers.cmake`) fails the build's tests otherwise. It lists the two includes across a level that
 are meant (models draw animation's skeletons and clips; ragdolls animate physics' components) and, while the refactor
-lasts, the violations left to fix. Games include the headers with the prefix, as `<spot/core/debug/log.h>`, or all of them
-with `<spot.h>`.
+lasts, the violations left to fix. Games include the headers with the prefix, as `<spot/core/debug/log.h>`, a module's
+public headers with its own header, or all of them with `<spot.h>`. A module header compiles on its own
+(`tests/module_headers/`) and pulls in only its folder and the levels below:
+
+| Header | What it includes |
+|---|---|
+| `<spot/core.h>`, `<spot/platform.h>`, `<spot/assets.h>`, `<spot/graphics.h>` | Levels 0 to 3 |
+| `<spot/render.h>`, `<spot/audio.h>`, `<spot/physics.h>`, `<spot/animation.h>`, `<spot/particles.h>` | A system's low-level API, level 4 |
+| `<spot/scene.h>` | The scene core, level 5 |
+| `<spot/runtime.h>` | `Application`, `Module` and what runs a game, level 6 |
+| `<spot/modules.h>` | Every system's components and `Module`, level 7 |
+| `<spot/scripting.h>` | Scripting, level 8, only in builds with `SPOT_SCRIPTING`; `<spot.h>` leaves it out |
 
 | Level | Folders | What it holds |
 |---|---|---|
