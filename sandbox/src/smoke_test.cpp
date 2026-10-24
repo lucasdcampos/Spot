@@ -24,8 +24,7 @@ public:
                        .graphics = {.enabled = false},
                        .logFile = directory / "smoke.log",
                        .userDataDirectory = directory,
-                       .maxFrameRate = 60,
-                       .consoleOverlay = false}) {
+                       .maxFrameRate = 60}) {
         AddModule<Spot::UiModule>();
         AddModule<Spot::RenderModule>();
         AddModule<Spot::AudioModule>(Spot::AudioConfig{.enabled = false});

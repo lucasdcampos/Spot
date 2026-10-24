@@ -16,6 +16,7 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
     Spot::Application application({.game = Spot::GameSettings::LoadBesideExecutable()});
+    application.AddModule<Spot::DevToolsModule>();
     application.AddModule<Spot::UiModule>();
     application.AddModule<Spot::RenderModule>();
     application.AddModule<Spot::AudioModule>();

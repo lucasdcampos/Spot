@@ -16,6 +16,9 @@ A game's executable runs an application with the modules of the systems it uses:
 
 int main() {
     Spot::Application application({.game = Spot::GameSettings::LoadBesideExecutable()});
+#ifndef NDEBUG
+    application.AddModule<Spot::DevToolsModule>();
+#endif
     application.AddModule<Spot::UiModule>();
     application.AddModule<Spot::RenderModule>();
     application.AddModule<Spot::AudioModule>();
@@ -100,6 +103,7 @@ starts, so `runtime/` includes no system:
 | `UiModule` | Registers the UI components, routes events to the scene's canvases before the game sees them, and starts text input for focused fields; canvases draw with the scene, inside `SceneRenderer`, so the editor's game view shows them too |
 | `PhysicsModule`, `Physics2DModule` | Register the physics components; 3D adds the `physics.*` console settings and counts bodies |
 | `AnimationModule`, `ParticlesModule`, `ScriptingModule` | Register their components, and animation and script loaders |
+| `DevToolsModule` (`runtime/`) | The console and statistics overlays, screenshots, RenderDoc captures and profile streaming; development builds and the editor add it first (see [Developer tools](developer_tools.md)) |
 
 The console settings of a system (`render.enabled`, `audio.volume`, `physics.gravity`…) come with its module, and the
 statistics overlay reads the bodies and voices the modules count for the profiler.

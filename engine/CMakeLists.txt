@@ -75,6 +75,8 @@ add_library(spot_objects OBJECT
     spot/runtime/runtime_stats.cpp
     spot/runtime/profile_stream.cpp
     spot/runtime/engine_console.cpp
+    spot/runtime/dev_tools_module.h
+    spot/runtime/dev_tools_module.cpp
     spot/core/debug/assert.h
     spot/core/debug/assert.cpp
     spot/platform/crash_handler.h

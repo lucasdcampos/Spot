@@ -53,7 +53,6 @@ ApplicationConfig MakeConfig(const EditorOptions& options) {
         .graphics = {.linearWindow = false},
         .logFile = settings.empty() ? std::filesystem::path() : settings / "editor.log",
         .showCrashMessage = options.showCrashMessage,
-        .consoleOverlay = false,
     };
 }
 
@@ -115,6 +114,8 @@ EditorApplication::EditorApplication(EditorOptions options)
                                                                     : m_options.settingsDirectory / "settings.json");
     // Added before Run() so the console also shows how the devices started.
     Log::AddSink(m_consoleLog);
+    // The editor has a console of its own.
+    AddModule<DevToolsModule>(DevToolsConfig{.consoleOverlay = false});
     AddModule<UiModule>();
     // The scenes show in the editor's views, which draw them themselves.
     AddModule<RenderModule>(RenderModuleConfig{.drawScene = false});

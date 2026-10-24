@@ -53,6 +53,10 @@ constexpr std::string_view MainCode = R"(#include <spot.h>
 // Runs the game from its startup scene, as the settings the tools write beside the executable say.
 int main() {
     Spot::Application application({.game = Spot::GameSettings::LoadBesideExecutable()});
+#ifndef NDEBUG
+    // The developer console (the Grave key), statistics and screenshots, in development builds.
+    application.AddModule<Spot::DevToolsModule>();
+#endif
     application.AddModule<Spot::UiModule>();
     application.AddModule<Spot::RenderModule>();
     application.AddModule<Spot::AudioModule>();

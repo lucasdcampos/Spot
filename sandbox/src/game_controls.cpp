@@ -44,7 +44,8 @@ void GameControls::OnStart() {
     }
     if (GetScene().IsLoaded()) {
         if (const auto* hud = GetScene().FindComponent<Hud>()) {
-            GetScene().GetApplication().SetDeveloperFont(hud->font);
+            if (auto* tools = GetScene().GetApplication().GetModule<Spot::DevToolsModule>())
+                tools->SetFont(hud->font);
         }
     }
 }

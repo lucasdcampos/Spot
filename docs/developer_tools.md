@@ -59,9 +59,14 @@ events stay with the console, and closing restores the cursor lock the game requ
 closing, so it cannot also activate the game's pause action. Platform text input starts and stops with the overlay.
 The simulation continues while it is open; use `console.cheats true` and `time.scale 0` to pause simulation.
 
-Set the game's imported UI font with `Application::SetDeveloperFont()`. The sandbox uses its HUD font. Applications
-draw `DrawConsoleOverlay()` with the public `Renderer2D` after the game's rendering, including when scene rendering
-is disabled. Tools can set `ApplicationConfig::consoleOverlay = false`; the editor uses its own console panel.
+The overlays, screenshots, RenderDoc captures and profile streaming are `DevToolsModule`
+(`engine/spot/runtime/dev_tools_module.h`), which development builds and the editor add first, so the console sees
+events before the game and draws over everything. It registers the `stats`, `screenshot`, `capture` and
+`profiler.stream` commands, connects to RenderDoc when it is made, before the graphics device, and streams profiled
+frames as they complete. Set the game's imported UI font with `DevToolsModule::SetFont()`; the sandbox uses its HUD
+font. It draws `DrawConsoleOverlay()` with the public `Renderer2D` after the game's rendering, including when scene
+rendering is disabled. Tools can turn the overlay off (`DevToolsConfig::consoleOverlay`); the editor uses its own
+console panel.
 Its command field executes the shared registry, logs results, completes with Tab and browses with Up/Down.
 
 `ConsoleInput` and `DrawConsoleOverlay()` also work in custom loops. The input model is independent of the GPU;

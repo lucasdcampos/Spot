@@ -21,11 +21,6 @@
 namespace Spot {
 
 class EngineConsole;
-class ConsoleInput;
-class Font;
-class Renderer2D;
-class FrameCapture;
-struct RuntimeStats;
 
 class LogSink;
 
@@ -59,8 +54,6 @@ struct ApplicationConfig {
     bool showCrashMessage = false;
     // Caps how many frames run per second; 0 means unlimited.
     int maxFrameRate = 0;
-    // The Grave key opens an event-driven developer console. Tools with their own console turn it off.
-    bool consoleOverlay = true;
 };
 
 class Application {
@@ -114,18 +107,6 @@ public:
     // Caps how many frames run per second from the next frame on; 0 means unlimited.
     int GetMaxFrameRate() const { return m_config.maxFrameRate; }
     void SetMaxFrameRate(int maxFrameRate);
-    // A game's imported UI font; keep the asset reference so it stays loaded for the developer overlays.
-    void SetDeveloperFont(AssetRef<Font> font) { m_developerFont = std::move(font); }
-    ConsoleInput* GetConsoleInput() const { return m_consoleInput.get(); }
-    bool IsStatsVisible() const { return m_statsVisible; }
-    void SetStatsVisible(bool visible) { m_statsVisible = visible; }
-    RuntimeStats GetRuntimeStats() const;
-    bool IsProfileStreamEnabled() const { return m_profileStreamEnabled; }
-    void SetProfileStreamEnabled(bool enabled) { m_profileStreamEnabled = enabled; }
-    // Queues the next complete frame as a PNG in the user's screenshots folder; rejects paths and pending requests.
-    bool RequestScreenshot(std::string_view fileName = {});
-    // Requests a RenderDoc frame when its optional runtime connected before graphics creation.
-    bool RequestFrameCapture(std::string_view fileName = {});
 
     // Only available while Run() is running.
     Window& GetWindow();
@@ -208,10 +189,6 @@ private:
     void Stop();
     void ApplySceneChanges();
     void RemoveScene();
-    void RenderDeveloperOverlay(RenderContext& context);
-    void StreamProfileFrame();
-    bool PrepareScreenshot(RenderContext& context);
-    std::filesystem::path GetCaptureDirectory();
     // Returns false, after logging why, when the game's startup scene cannot be loaded.
     bool LoadStartupScene();
 
@@ -220,17 +197,11 @@ private:
     std::shared_ptr<LogSink> m_logFile;
     std::unique_ptr<Window> m_window;
     std::unique_ptr<GraphicsDevice> m_graphics;
-    std::unique_ptr<FrameCapture> m_frameCapture;
-    std::unique_ptr<Texture> m_screenshotTexture;
-    std::filesystem::path m_screenshotPath;
     std::unique_ptr<AssetManager> m_assets;
     std::unique_ptr<Scene> m_scene;
     std::unique_ptr<Scene> m_pendingScene;
     bool m_sceneChangePending = false;
     InputState m_input;
-    std::unique_ptr<ConsoleInput> m_consoleInput;
-    AssetRef<Font> m_developerFont;
-    std::unique_ptr<Renderer2D> m_developerRenderer;
     InputActionMap m_actions;
     std::filesystem::path m_userDataDirectory;
     FrameClock m_clock;
@@ -241,9 +212,6 @@ private:
     bool m_cursorLocked = false;
     bool m_scenesPaused = false;
     bool m_stepScenes = false;
-    bool m_statsVisible = false;
-    bool m_profileStreamEnabled = false;
-    std::optional<std::uint64_t> m_lastStreamedFrame;
 };
 
 } // namespace Spot

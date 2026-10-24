@@ -115,8 +115,6 @@ TEST_CASE("Engine console bindings change public application and time settings",
         CHECK(Spot::Time::GetTimeScale() == 0.25f);
         REQUIRE(console.Execute("render.max_fps 90"));
         CHECK(application.GetMaxFrameRate() == 90);
-        REQUIRE(console.Execute("stats true"));
-        CHECK(application.IsStatsVisible());
         CHECK_FALSE(console.Execute("render.max_fps -1"));
         CHECK(console.Execute("help render.").message.find("render.max_fps") != std::string::npos);
     }
@@ -131,6 +129,7 @@ TEST_CASE("Applications persist saved cvars and remove engine bindings when they
             : Application({.graphics = {.enabled = false}, .userDataDirectory = directory}), m_write(write) {
             AddModule<Spot::AudioModule>(Spot::AudioConfig{.enabled = false});
             AddModule<Spot::RenderModule>();
+            AddModule<Spot::DevToolsModule>(Spot::DevToolsConfig{.frameCapture = false});
         }
 
     protected:
@@ -140,11 +139,14 @@ TEST_CASE("Applications persist saved cvars and remove engine bindings when they
                 REQUIRE(console.Execute("render.max_fps 72"));
                 REQUIRE(console.Execute("audio.volume 0.3"));
                 CHECK_FALSE(console.Execute("audio.volume -1"));
+                REQUIRE(console.Execute("stats true"));
+                CHECK(GetModule<Spot::DevToolsModule>()->IsStatsVisible());
                 REQUIRE(console.Execute("render.enabled false"));
                 CHECK_FALSE(GetModule<Spot::RenderModule>()->IsSceneDrawingEnabled());
             } else {
                 CHECK(GetMaxFrameRate() == 72);
                 CHECK(GetModule<Spot::AudioModule>()->GetDevice().GetMasterVolume() == 0.3f);
+                CHECK(GetModule<Spot::DevToolsModule>()->IsStatsVisible());
             }
         }
         void OnUpdate(float) override { Quit(); }

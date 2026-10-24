@@ -12,6 +12,9 @@ namespace {
 
 int Run(Spot::ApplicationConfig config) {
     Spot::Application application(std::move(config));
+#ifndef NDEBUG
+    application.AddModule<Spot::DevToolsModule>();
+#endif
     application.AddModule<Spot::UiModule>();
     application.AddModule<Spot::RenderModule>();
     application.AddModule<Spot::AudioModule>();

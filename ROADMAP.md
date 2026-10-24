@@ -189,7 +189,7 @@ Depends on: phases 4 and 5. Task 6.2 also waits for 3.3 to move asset loader reg
   game's code is a `Module` that registers its components in `OnStart()` (`SPOT_COMPONENT` stays as a shorthand it
   runs); `SPOT_GAME_MODULE(Type)` exports a function that makes it, for the editor; `Detail::GameCode` goes. The
   project templates and the sandbox write the new `main()`.
-- [ ] **6.5 Developer tools module (M).** Waits for 6.1. The console overlay, stats overlay, screenshots, RenderDoc
+- [x] **6.5 Developer tools module (M).** Waits for 6.1. The console overlay, stats overlay, screenshots, RenderDoc
   capture and profile streaming move into `DevToolsModule`, which development builds and the editor add.
 - [ ] **6.6 Editor hooks off `Application` (M).** Waits for 6.1. Pausing and stepping move to the scene, event filtering
   and game settings switching to the editor's own subclass. `Scene::GetApplication()` goes; game code reaches the
