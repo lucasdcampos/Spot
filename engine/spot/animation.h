@@ -1,6 +1,6 @@
 #pragma once
 
-// Level 4: skeletons, clips, poses and animator controllers, without scenes.
+// Skeletons, clips, poses and animator controllers, without scenes.
 
 #include "spot/animation/animation_assets.h"
 #include "spot/animation/animation_data.h"

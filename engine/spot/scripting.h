@@ -1,6 +1,6 @@
 #pragma once
 
-// Level 8: Luau scripts on components. Only builds configured with SPOT_SCRIPTING have it; <spot.h> leaves it out.
+// Luau scripts on components. Only builds configured with SPOT_SCRIPTING have it; <spot.h> leaves it out.
 
 #if !SPOT_SCRIPTING
 #error "<spot/scripting.h> needs a build configured with SPOT_SCRIPTING"

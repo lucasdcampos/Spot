@@ -1,6 +1,6 @@
 #pragma once
 
-// Level 4: sounds, the audio device and playback.
+// Sounds, the audio device and playback.
 
 #include "spot/audio/audio_assets.h"
 #include "spot/audio/audio_device.h"

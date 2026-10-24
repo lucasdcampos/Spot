@@ -1,6 +1,6 @@
 #pragma once
 
-// Level 3: the graphics API (rendering level 1).
+// The graphics API (rendering level 1).
 
 #include "spot/graphics/buffer.h"
 #include "spot/graphics/compute.h"

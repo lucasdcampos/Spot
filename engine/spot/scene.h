@@ -1,6 +1,6 @@
 #pragma once
 
-// Level 5: entities, components, scenes, scene systems, prefabs, tweens, timers, tasks and signals.
+// Entities, components, scenes, scene systems, prefabs, tweens, timers, tasks and signals.
 
 #include "spot/scene/component.h"
 #include "spot/scene/component_ref.h"

@@ -38,9 +38,9 @@ a header per shader with a ready-to-use `Spot::ShaderDesc`.
 
 - Everything in the repository is in English: code, comments, docs and commit messages.
 - Code builds on Windows, macOS and Linux without warnings. Platform-specific code stays isolated.
-- A folder of `engine/spot/` includes only itself and the levels below its own, never a folder of its level (see
-  "Layers" in `docs/index.md`); a test checks it. Systems work without scenes; their components go in
-  `scene/<system>/`.
+- The modules of `engine/spot/` may depend on each other, but only where they need to: keep them as loosely coupled
+  as makes sense, and put each thing where its concept belongs (see "Modules" in `docs/index.md`). Systems work
+  without scenes; their components go in `scene/<system>/`.
 - Backends (SDL3, SDL_GPU, NVRHI, Jolt, Box2D) are used only in their system's folder, `engine/<system>/<backend>/`.
   Public headers never expose backend types.
 - Engine features built on the graphics API use only its public interface, so users can do anything the engine does.

@@ -1,6 +1,6 @@
 #pragma once
 
-// Level 7: each system's components and Module on scenes (scene/<module>/): rendering, physics, audio, UI, animation
+// Each system's components and Module on scenes (scene/<module>/): rendering, physics, audio, UI, animation
 // and particles (rendering level 3).
 
 #include "spot/scene/animation/animation_components.h"

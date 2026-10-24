@@ -1,6 +1,6 @@
 #pragma once
 
-// Level 1: windows, events, input, processes, shared libraries and the crash handler.
+// Windows, events, input, processes, shared libraries and the crash handler.
 
 #include "spot/platform/clipboard.h"
 #include "spot/platform/crash_handler.h"

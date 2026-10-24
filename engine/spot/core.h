@@ -1,6 +1,6 @@
 #pragma once
 
-// Level 0: logging, assertions, memory, files, math, time, jobs, archives, ids and the profiler.
+// Logging, assertions, memory, files, math, time, jobs, archives, ids and the profiler.
 
 #include "spot/core/debug/assert.h"
 #include "spot/core/debug/log.h"

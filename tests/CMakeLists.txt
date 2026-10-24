@@ -1,10 +1,5 @@
 include(FetchContent)
 
-# The engine's folders only include themselves and the levels below them.
-add_test(NAME "Engine folders include only the levels below them"
-    COMMAND ${CMAKE_COMMAND} -DSPOT_ENGINE_DIR=${PROJECT_SOURCE_DIR}/engine/spot -P ${PROJECT_SOURCE_DIR}/cmake/spot_check_layers.cmake
-)
-
 FetchContent_Declare(Catch2
     GIT_REPOSITORY https://github.com/catchorg/Catch2.git
     GIT_TAG v3.16.0

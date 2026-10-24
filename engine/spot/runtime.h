@@ -1,6 +1,6 @@
 #pragma once
 
-// Level 6: Application, Module, game settings, the console, save data and the developer tools.
+// Application, Module, game settings, the console, save data and the developer tools.
 
 #include "spot/runtime/application.h"
 #include "spot/runtime/console.h"

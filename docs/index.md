@@ -41,38 +41,30 @@ library with a loop of its own ([`own_loop`](../examples/own_loop/main.cpp)), as
 
 Building, testing and the code rules are in [`AGENTS.md`](../AGENTS.md).
 
-## Layers
+## Modules
 
-The engine is levels of folders of `engine/spot/`. A folder includes only itself and the levels below it, never a
-folder of its own level or above, so each level works without the ones above it and the systems of a level stay
-independent of each other. The test "Engine folders include only the levels below them"
-(`cmake/spot_check_layers.cmake`) fails the build's tests otherwise. It lists the includes across a level that are
-meant (models draw animation's skeletons and clips; ragdolls animate physics' components; assets load and build
-graphics' meshes) and, while the refactor lasts, the violations left to fix. Games include the headers with the prefix, as `<spot/core/debug/log.h>`, a module's
-public headers with its own header, or all of them with `<spot.h>`. A module header compiles on its own
-(`tests/module_headers/`) and pulls in only its folder and the levels below:
+The engine is the modules of `engine/spot/`, one folder each. There are no fixed levels: roughly, the modules near
+the operating system and the hardware (the core, the platform, graphics) are what the others build on, and they never
+know about scenes or the game loop. A module may depend on another where it needs to; what matters is to keep them as
+loosely coupled as makes sense and to put each thing where its concept belongs, so a game that only needs a window and
+a renderer gets just that and a system can be tested on its own.
 
-| Header | What it includes |
-|---|---|
-| `<spot/core.h>`, `<spot/platform.h>`, `<spot/assets.h>`, `<spot/graphics.h>` | Levels 0 to 3 |
-| `<spot/render.h>`, `<spot/audio.h>`, `<spot/physics.h>`, `<spot/animation.h>`, `<spot/particles.h>` | A system's low-level API, level 4 |
-| `<spot/scene.h>` | The scene core, level 5 |
-| `<spot/runtime.h>` | `Application`, `Module` and what runs a game, level 6 |
-| `<spot/modules.h>` | Every system's components and `Module`, level 7 |
-| `<spot/scripting.h>` | Scripting, level 8, only in builds with `SPOT_SCRIPTING`; `<spot.h>` leaves it out |
+Games include the headers with the prefix, as `<spot/core/debug/log.h>`, a module's public headers with its own
+header, or all of them with `<spot.h>`; `<spot/scripting.h>` is only in builds with `SPOT_SCRIPTING`, and `<spot.h>`
+leaves it out. A module header compiles on its own (`tests/module_headers/`).
 
-| Level | Folders | What it holds |
+| Folder | Header | What it holds |
 |---|---|---|
-| 0 | `core/` | Logging, assertions, memory, files, math, time, jobs, archives (`Archive`), the profiler, ids, asset references, bounds, colors, curves |
-| 1 | `platform/` | Windows, events, the input state and actions, processes, shared libraries, the crash handler, RenderDoc capture; SDL3 behind `platform/sdl3/` |
-| 2 | `assets/` | Loading imported assets, the built-in assets and their primitive meshes (`PrimitiveMeshes`) |
-| 3 | `graphics/` | The graphics API and its backends (rendering level 1), and the CPU data it uploads: images and meshes (`MeshData`) |
-| 4 | `render/`, `audio/`, `physics/`, `animation/`, `particles/` | The systems' low-level APIs, without scenes: the code-only renderers (rendering level 2), the mixer, the physics simulations, poses and clips, particle simulation |
-| 5 | `scene/` | Entities, components, scenes, scene systems, prefab instancing, tweens, timers, tasks and signals |
-| 6 | `runtime/` | `Application`, the default game loop with scenes, and what runs a game: settings, the console, save data, profile streaming, game modules |
-| 7 | `scene/<module>/`: `scene/rendering/`, `scene/physics/`, `scene/audio/`, `scene/ui/`â€¦ | Each system's components and scene systems, built on its public API (rendering level 3): `MeshRenderer`, `Rigidbody`, `PhysicsWorld`, `SceneRenderer`, the entity-based UI |
-| 8 | `scene/scripting/` | Luau scripts and their bindings |
-| Tools | `import/`, then `tools/`, `cli/`, `player/` and `editor/` outside the engine | Importing and making games out of projects, which games never link |
+| `core/` | `<spot/core.h>` | Logging, assertions, memory, files, math, time, jobs, archives (`Archive`), the profiler, ids, asset references, bounds, colors, curves |
+| `platform/` | `<spot/platform.h>` | Windows, events, the input state and actions, processes, shared libraries, the crash handler, RenderDoc capture; SDL3 behind `platform/sdl3/` |
+| `assets/` | `<spot/assets.h>` | Loading imported assets, the built-in assets and their primitive meshes (`PrimitiveMeshes`) |
+| `graphics/` | `<spot/graphics.h>` | The graphics API and its backends (rendering level 1), and the CPU data it uploads: images and meshes (`MeshData`) |
+| `render/`, `audio/`, `physics/`, `animation/`, `particles/` | `<spot/render.h>`, `<spot/audio.h>`… | The systems' APIs, without scenes: the code-only renderers (rendering level 2), the mixer, the physics simulations, poses and clips, particle simulation |
+| `scene/` | `<spot/scene.h>` | Entities, components, scenes, scene systems, prefab instancing, tweens, timers, tasks and signals |
+| `runtime/` | `<spot/runtime.h>` | `Application`, the default game loop with scenes, and what runs a game: settings, the console, save data, profile streaming, game modules |
+| `scene/<module>/`: `scene/rendering/`, `scene/physics/`, `scene/audio/`, `scene/ui/`… | `<spot/modules.h>` | Each system's components and scene systems, built on its public API (rendering level 3): `MeshRenderer`, `Rigidbody`, `PhysicsWorld`, `SceneRenderer`, the entity-based UI |
+| `scene/scripting/` | `<spot/scripting.h>` | Luau scripts and their bindings |
+| `import/`, then `tools/`, `cli/`, `player/` and `editor/` outside the engine | | Importing and making games out of projects, which games never link |
 
 Backends live in their system's folder, behind its contract: Vulkan through NVRHI in `graphics/nvrhi/` and SDL_GPU in `graphics/sdl_gpu/`, SDL3 audio in
 `audio/sdl3/`, Jolt in `physics/jolt/`, Box2D in `physics/box2d/`. Public headers never show backend types.

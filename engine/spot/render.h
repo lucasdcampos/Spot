@@ -1,6 +1,6 @@
 #pragma once
 
-// Level 4: the code-only renderers, cameras, fonts and debug drawing (rendering level 2).
+// The code-only renderers, cameras, fonts and debug drawing (rendering level 2).
 
 #include "spot/render/bloom.h"
 #include "spot/render/camera_2d.h"

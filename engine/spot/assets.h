@@ -1,6 +1,6 @@
 #pragma once
 
-// Level 2: loading imported assets.
+// Loading imported assets.
 
 #include "spot/assets/asset_archive.h"
 #include "spot/assets/asset_manager.h"

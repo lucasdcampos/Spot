@@ -1,13 +1,13 @@
 # Architecture
 
-Spot is a library first. The engine is modules in levels, each usable from code without the ones above it; the
-editor, the tools and the player are programs built on it, like any game. This page is the map: the levels, how
+Spot is a library first. The engine is loosely coupled modules, each usable from code on its own; the
+editor, the tools and the player are programs built on it, like any game. This page is the map: the modules, how
 `Application` and `Module` put them together, and the three levels of rendering down to the graphics contract. The
 system pages linked from the [index](index.md) go into each part.
 
 ## Three ways to use the engine
 
-The [examples](../examples/) are where to start, one per level, each built and run by the tests:
+The [examples](../examples/) are where to start, one per way of using the engine, each built and run by the tests:
 
 | Example | Uses the engine | Builds on |
 |---|---|---|
@@ -15,39 +15,40 @@ The [examples](../examples/) are where to start, one per level, each built and r
 | [`application`](../examples/application/main.cpp) | As an application in code: `Application` runs the loop, `RenderModule` draws, the scene is built from components in `OnStart()` | `<spot/runtime.h>`, `<spot/scene.h>`, `<spot/modules.h>` |
 | [`data_driven`](../examples/data_driven/) | As a data-driven game: a project with a scene and a Luau script and no C++, which the tools cook and `spot_player` runs from its `game.json` | The tools and the player |
 
-A game picks the lowest level that does what it needs. One with its own model of the world, such as an ECS for a
+A game picks the simplest way that does what it needs. One with its own model of the world, such as an ECS for a
 large world, stays below the scene ([Games without scenes](index.md#games-without-scenes)); most games are an
 application with scenes; games that need no code of their own are data.
 
-## Levels
+## Modules
 
-The engine's modules are the folders of `engine/spot/`. A folder includes only itself and the levels below it, so
-each level builds and works without the ones above, and the systems of one level never know each other. The test
-"Engine folders include only the levels below them" (`cmake/spot_check_layers.cmake`) enforces it.
+The engine's modules are the folders of `engine/spot/`, each with its header. There are no fixed levels: the core, the
+platform and graphics, near the operating system and the GPU, are what the rest builds on, and the systems above them
+depend on each other only where they need to.
 
-| Level | Folders | Header |
-|---|---|---|
-| 0 | `core/`: logging, memory, files, math, time, jobs, archives, ids, the profiler | `<spot/core.h>` |
-| 1 | `platform/`: windows, events, input, processes, shared libraries, crashes | `<spot/platform.h>` |
-| 2 | `assets/`: loading imported assets | `<spot/assets.h>` |
-| 3 | `graphics/`: the graphics API and its backends | `<spot/graphics.h>` |
-| 4 | `render/`, `audio/`, `physics/`, `animation/`, `particles/`: the systems' low-level APIs, without scenes | `<spot/render.h>`, `<spot/audio.h>`, `<spot/physics.h>`, `<spot/animation.h>`, `<spot/particles.h>` |
-| 5 | `scene/`: entities, components, scenes, scene systems, prefabs, the gameplay toolkit | `<spot/scene.h>` |
-| 6 | `runtime/`: `Application`, `Module`, game settings, the console, save data, developer tools | `<spot/runtime.h>` |
-| 7 | `scene/<module>/`: each system's components and its `Module` | `<spot/modules.h>` |
-| 8 | `scene/scripting/`: Luau scripts, only with `SPOT_SCRIPTING` | `<spot/scripting.h>` |
+| Folders | Header |
+|---|---|
+| `core/`: logging, memory, files, math, time, jobs, archives, ids, the profiler | `<spot/core.h>` |
+| `platform/`: windows, events, input, processes, shared libraries, crashes | `<spot/platform.h>` |
+| `assets/`: loading imported assets | `<spot/assets.h>` |
+| `graphics/`: the graphics API and its backends, images and meshes | `<spot/graphics.h>` |
+| `render/`, `audio/`, `physics/`, `animation/`, `particles/`: the systems' APIs, without scenes | `<spot/render.h>`, `<spot/audio.h>`, `<spot/physics.h>`, `<spot/animation.h>`, `<spot/particles.h>` |
+| `scene/`: entities, components, scenes, scene systems, prefabs, the gameplay toolkit | `<spot/scene.h>` |
+| `runtime/`: `Application`, `Module`, game settings, the console, save data, developer tools | `<spot/runtime.h>` |
+| `scene/<module>/`: each system's components and its `Module` | `<spot/modules.h>` |
+| `scene/scripting/`: Luau scripts, only with `SPOT_SCRIPTING` | `<spot/scripting.h>` |
 
 `<spot.h>` includes every header but scripting's. Backends stay inside their system's folder (`graphics/nvrhi/`,
 `graphics/sdl_gpu/`, `platform/sdl3/`, `audio/sdl3/`, `physics/jolt/`, `physics/box2d/`) and public headers never show
 their types, so a backend changes without the API changing. Importing (`import/`) and the programs outside the engine
 are tools: games never link them, and the engine never knows about projects.
 
-Why levels: a game that only needs a window and a renderer gets just that, a system can be tested and replaced on its
-own, and the dependencies that would make the engine one block cannot creep in unnoticed.
+Why loose coupling rather than rigid levels: a game that only needs a window and a renderer gets just that and a
+system can be tested and replaced on its own, while each thing still lives where its concept belongs instead of where
+a rule of levels forces it.
 
 ## Application and modules
 
-`Application` (level 6) is the default game loop with one active scene. Its constructor only keeps the configuration;
+`Application` is the default game loop with one active scene. Its constructor only keeps the configuration;
 `Run()` starts the platform, the window, the graphics device, the assets and the input in that order, then the
 modules, and runs frames until the game quits ([Application and scenes](application_and_scenes.md)).
 
@@ -58,7 +59,7 @@ asset loaders in `OnStart()` and hooks into the frame at fixed points (`OnEvent(
 order it was added; they stop in reverse. A game adds only the modules it uses, and its own code is a module too, as
 `DevToolsModule` is for the console and the overlays.
 
-Only `Application` knows modules. A system's low-level API (level 4) and its scene components (level 7) work without
+Only `Application` knows modules. A system's API and its scene components work without
 one, so a loop of its own uses the same renderers and simulations without `Module` at all.
 
 ## Rendering in three levels
@@ -87,6 +88,6 @@ backend; [Rendering](rendering.md#the-contract) has the details.
 - Using the engine: the [examples](../examples/), then [Application and scenes](application_and_scenes.md) and
   [Entities and components](entities_and_components.md).
 - Drawing: [Rendering](rendering.md), from the graphics API to `SceneRenderer`.
-- Adding a system: a folder at level 4 for its low-level API, its components and `Module` in `scene/<system>/`, its
+- Adding a system: a folder for its API, without scenes, its components and `Module` in `scene/<system>/`, its
   header in `engine/spot/`, a page here.
 - Building and the code rules: [`AGENTS.md`](../AGENTS.md).

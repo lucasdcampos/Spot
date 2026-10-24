@@ -1,5 +1,5 @@
-// The engine as a library, with a loop of its own: no Application, no scenes, only the levels below them. A square
-// follows the arrow keys; the game keeps its state as it likes.
+// The engine as a library, with a loop of its own: no Application and no scenes, only the platform, graphics and the
+// renderers. A square follows the arrow keys; the game keeps its state as it likes.
 #include <spot/graphics.h>
 #include <spot/platform.h>
 #include <spot/render.h>
