@@ -223,6 +223,7 @@ struct SceneObject final : ScriptObject {
     ObjectKind kind;
     EntityId entityId;
     ComponentId componentId;
+    bool IsPersistentReference() const override { return true; }
 
     Scene& CurrentScene() const {
         if (context->scene)
@@ -328,10 +329,23 @@ struct SceneObject final : ScriptObject {
         return false;
     }
     std::size_t ResolveProperty(std::string_view name) const override {
+        if (kind == ObjectKind::Component) {
+            if (const auto id = ResolveScriptProperty(RequireComponent(), name))
+                return static_cast<std::size_t>(SceneProperty::Count) + id;
+            // Only entities accept the uppercase transform alias.
+            if (name == "Transform")
+                return 0;
+        }
         return static_cast<std::size_t>(ResolveSceneProperty(name));
     }
     ScriptValue Get(std::string_view name) const override { return GetResolved(ResolveProperty(name), name); }
     ScriptValue GetResolved(std::size_t id, std::string_view name) const override {
+        if (kind == ObjectKind::Component && id >= static_cast<std::size_t>(SceneProperty::Count)) {
+            const auto& component = RequireComponent();
+            if (const auto property = FindResolvedScriptProperty(id - static_cast<std::size_t>(SceneProperty::Count)))
+                return property->get(component);
+            return Get(name);
+        }
         const auto property = static_cast<SceneProperty>(id);
         if (property == SceneProperty::Unknown && kind != ObjectKind::Component && HasMethod(name))
             return ScriptObject::Get(name);
@@ -415,6 +429,17 @@ struct SceneObject final : ScriptObject {
         SetResolved(ResolveProperty(name), name, value);
     }
     void SetResolved(std::size_t id, std::string_view name, const ScriptValue& value) override {
+        if (kind == ObjectKind::Component && id >= static_cast<std::size_t>(SceneProperty::Count)) {
+            auto& component = RequireComponent();
+            if (const auto property = FindResolvedScriptProperty(id - static_cast<std::size_t>(SceneProperty::Count))) {
+                if (!property->set)
+                    throw std::runtime_error("Read-only script property '" + std::string(name) + "'");
+                property->set(component, value);
+            } else {
+                Set(name, value);
+            }
+            return;
+        }
         const auto property = static_cast<SceneProperty>(id);
         if (kind == ObjectKind::Entity) {
             auto& entity = RequireEntity();
@@ -834,6 +859,7 @@ void BindSceneScript(ScriptRuntime& runtime, const std::shared_ptr<ScriptSceneCo
     context->ownerComponent = component;
     struct SceneLibrary final : ScriptObject {
         std::unordered_map<std::string, ScriptValue> exports;
+        bool IsPersistentReference() const override { return true; }
         bool HasMethod(std::string_view) const override { return false; }
         ScriptValue Get(std::string_view name) const override {
             const auto found = exports.find(std::string(name));

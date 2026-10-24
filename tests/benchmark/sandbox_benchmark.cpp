@@ -6,6 +6,7 @@
 #include <spot/scene/physics/physics_world.h>
 
 #include <spot.h>
+#include <spot/scene/scripting/scripting_module.h>
 
 #include <algorithm>
 #include <array>
@@ -45,6 +46,14 @@ Spot::ApplicationConfig Config() {
 class Benchmark final : public Spot::Application {
 public:
     explicit Benchmark(Options options) : Application(Config()), m_options(options) {
+        AddModule<Spot::UiModule>();
+        AddModule<Spot::RenderModule>();
+        AddModule<Spot::AudioModule>();
+        AddModule<Spot::PhysicsModule>();
+        AddModule<Spot::Physics2DModule>();
+        AddModule<Spot::AnimationModule>();
+        AddModule<Spot::ParticlesModule>();
+        AddModule<Spot::ScriptingModule>();
         m_times.reserve(static_cast<std::size_t>(options.frames));
     }
     int GetResult() const { return m_result; }

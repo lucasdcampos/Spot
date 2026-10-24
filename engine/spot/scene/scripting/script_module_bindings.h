@@ -89,7 +89,8 @@ enum class SceneProperty : std::size_t {
     MouseDelta,
     ScrollDelta,
     GamepadCount,
-    CursorLocked
+    CursorLocked,
+    Count
 };
 template <typename T>
 void PropertyMethods(std::string_view property, std::string_view getter, std::string_view setter = {}) {

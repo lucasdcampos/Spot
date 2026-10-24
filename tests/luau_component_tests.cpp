@@ -495,6 +495,8 @@ TEST_CASE("Luau resolves host property tokens once and keeps values live", "[lua
     struct Counter final : Spot::ScriptObject {
         mutable int resolutions = 0;
         double value = 0;
+        bool persistent = false;
+        bool IsPersistentReference() const override { return persistent; }
         bool HasMethod(std::string_view) const override { return false; }
         std::size_t ResolveProperty(std::string_view name) const override {
             ++resolutions;
@@ -510,7 +512,14 @@ TEST_CASE("Luau resolves host property tokens once and keeps values live", "[lua
             value = std::get<double>(updated);
         }
     };
+    bool persistent = false;
+    SECTION("A script retains a host object") {
+    }
+    SECTION("Context references survive allocation pressure") {
+        persistent = true;
+    }
     auto counter = std::make_shared<Counter>();
+    counter->persistent = persistent;
     Spot::RegisterScriptLibrary("property_counter", [counter] { return counter; });
     struct Cleanup {
         ~Cleanup() { Spot::UnregisterScriptLibrary("property_counter"); }
@@ -518,7 +527,16 @@ TEST_CASE("Luau resolves host property tokens once and keeps values live", "[lua
     Spot::Scene scene;
     auto& script = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
     script.language = "luau";
-    script.source = R"(
+    script.source = persistent ? R"(
+        function OnUpdate(dt)
+            for i = 1, 100 do
+                local garbage = table.create(128, i)
+                assert(#garbage == 128)
+                require("@property_counter").value += 1
+            end
+        end
+    )"
+                               : R"(
         local counter = require("@property_counter")
         function OnUpdate(dt)
             for i = 1, 100 do
@@ -526,9 +544,10 @@ TEST_CASE("Luau resolves host property tokens once and keeps values live", "[lua
             end
         end
     )";
-    scene.Update(0.01f);
-    scene.Update(0.01f);
+    const int frames = persistent ? 20 : 2;
+    for (int frame = 0; frame < frames; ++frame)
+        scene.Update(0.01f);
     CHECK_FALSE(script.IsFaulted());
-    CHECK(counter->value == 200);
+    CHECK(counter->value == frames * 100);
     CHECK(counter->resolutions == 1);
 }

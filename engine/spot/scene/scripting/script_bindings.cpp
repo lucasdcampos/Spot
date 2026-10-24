@@ -21,13 +21,19 @@ struct MemberNameHash {
 };
 template <typename T>
 using MemberMap = std::unordered_map<std::string, T, MemberNameHash, std::equal_to<>>;
+struct PropertyEntry {
+    std::size_t id;
+    std::shared_ptr<const ScriptProperty> descriptor;
+};
 struct Members {
-    MemberMap<std::shared_ptr<const ScriptProperty>> properties;
+    MemberMap<PropertyEntry> properties;
     MemberMap<Method> methods;
 };
 struct Registry {
     std::mutex mutex;
     std::unordered_map<std::type_index, Members> types;
+    std::unordered_map<std::size_t, std::weak_ptr<const ScriptProperty>> propertyIds;
+    std::size_t nextPropertyId = 1;
 };
 Registry& Bindings() {
     static Registry registry;
@@ -60,7 +66,7 @@ std::shared_ptr<const ScriptProperty> Property(const Component& component, std::
     if (type != registry.types.end()) {
         const auto property = type->second.properties.find(name);
         if (property != type->second.properties.end())
-            return property->second;
+            return property->second.descriptor;
     }
     throw std::runtime_error("Unknown script property '" + std::string(name) + "'");
 }
@@ -165,7 +171,11 @@ void SetScriptProperty(std::type_index type, std::string name, ScriptProperty pr
     auto& members = registry.types[type];
     if (members.methods.contains(name))
         throw std::invalid_argument("Script member is already a method");
-    members.properties.insert_or_assign(std::move(name), std::make_shared<const ScriptProperty>(std::move(property)));
+    const auto previous = members.properties.find(name);
+    const auto id = previous == members.properties.end() ? registry.nextPropertyId++ : previous->second.id;
+    auto descriptor = std::make_shared<const ScriptProperty>(std::move(property));
+    registry.propertyIds.insert_or_assign(id, descriptor);
+    members.properties.insert_or_assign(std::move(name), PropertyEntry{id, std::move(descriptor)});
 }
 void SetScriptMethod(std::type_index type, std::string name, ScriptMethod method, std::string returnType) {
     CheckName(name);
@@ -185,12 +195,31 @@ std::string GetScriptPropertyType(std::type_index type, std::string_view name) {
     if (members == registry.types.end())
         return "any";
     const auto property = members->second.properties.find(name);
-    return property == members->second.properties.end() ? "any" : property->second->type;
+    return property == members->second.properties.end() ? "any" : property->second.descriptor->type;
 }
 void RemoveScriptBindings(std::type_index type) {
     auto& registry = Bindings();
     const std::lock_guard lock(registry.mutex);
-    registry.types.erase(type);
+    if (const auto found = registry.types.find(type); found != registry.types.end()) {
+        for (const auto& [name, property] : found->second.properties)
+            registry.propertyIds.erase(property.id);
+        registry.types.erase(found);
+    }
+}
+std::size_t ResolveScriptProperty(const Component& component, std::string_view name) {
+    auto& registry = Bindings();
+    const std::lock_guard lock(registry.mutex);
+    const auto type = registry.types.find(typeid(component));
+    if (type == registry.types.end())
+        return 0;
+    const auto property = type->second.properties.find(name);
+    return property == type->second.properties.end() ? 0 : property->second.id;
+}
+std::shared_ptr<const ScriptProperty> FindResolvedScriptProperty(std::size_t id) {
+    auto& registry = Bindings();
+    const std::lock_guard lock(registry.mutex);
+    const auto property = registry.propertyIds.find(id);
+    return property == registry.propertyIds.end() ? nullptr : property->second.lock();
 }
 ScriptValue GetScriptProperty(const Component& component, std::string_view name) {
     return Property(component, name)->get(component);
@@ -244,7 +273,9 @@ std::vector<ScriptMemberInfo> GetComponentScriptMembers(std::string_view compone
         if (!name || *name != componentTypeName)
             continue;
         for (const auto& [member, property] : members.properties)
-            found.push_back({.name = member, .type = property->type, .writable = static_cast<bool>(property->set)});
+            found.push_back({.name = member,
+                             .type = property.descriptor->type,
+                             .writable = static_cast<bool>(property.descriptor->set)});
         for (const auto& [member, method] : members.methods)
             found.push_back({.name = member, .method = true, .type = method.returnType});
     }

@@ -25,6 +25,7 @@ namespace Spot {
 namespace {
 
 constexpr const char* ObjectsRegistryKey = "Spot.LuauObjects";
+constexpr const char* ReferencesRegistryKey = "Spot.LuauReferences";
 constexpr const char* ModulesRegistryKey = "Spot.LuauModules";
 constexpr const char* BuiltinsRegistryKey = "Spot.LuauBuiltins";
 constexpr const char* DeclaredRegistryKey = "Spot.LuauDeclared";
@@ -677,7 +678,8 @@ private:
             lua_getref(state, function->reference);
             return;
         }
-        lua_getfield(state, LUA_REGISTRYINDEX, ObjectsRegistryKey);
+        lua_getfield(state, LUA_REGISTRYINDEX,
+                     object->IsPersistentReference() ? ReferencesRegistryKey : ObjectsRegistryKey);
         lua_pushlightuserdata(state, object.get());
         if (lua_rawget(state, -2) == LUA_TUSERDATA) {
             lua_remove(state, -2);
@@ -1110,6 +1112,10 @@ private:
         lua_setfield(m_state, -2, "__mode");
         lua_setmetatable(m_state, -2);
         lua_setfield(m_state, LUA_REGISTRYINDEX, ObjectsRegistryKey);
+
+        // Context references remain interned even when scripts keep no Lua reference between hooks.
+        lua_newtable(m_state);
+        lua_setfield(m_state, LUA_REGISTRYINDEX, ReferencesRegistryKey);
 
         // Loaded source modules cache per instance.
         lua_newtable(m_state);

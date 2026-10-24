@@ -51,6 +51,8 @@ public:
     virtual ScriptValue Invoke(std::span<const ScriptValue>) {
         throw std::runtime_error("Script value is not callable");
     }
+    // Context-backed references can retain their runtime wrappers until that runtime closes.
+    virtual bool IsPersistentReference() const { return false; }
 };
 
 namespace Detail {
@@ -148,6 +150,9 @@ void SetScriptMethod(std::type_index type, std::string name, ScriptMethod method
 // The type of a property the bindings of `type` describe; "any" when they do not.
 std::string GetScriptPropertyType(std::type_index type, std::string_view name);
 void RemoveScriptBindings(std::type_index type);
+// Tokens retain no callbacks: replacement keeps the token, unregistration invalidates it.
+std::size_t ResolveScriptProperty(const Component& component, std::string_view name);
+std::shared_ptr<const ScriptProperty> FindResolvedScriptProperty(std::size_t id);
 ScriptValue GetScriptProperty(const Component& component, std::string_view name);
 void WriteScriptProperty(Component& component, std::string_view name, const ScriptValue& value);
 ScriptValue CallScriptMethod(Component& component, std::string_view name, std::span<const ScriptValue> arguments);

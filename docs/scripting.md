@@ -336,14 +336,25 @@ the Luau adapter against the same API, with both the static and the shared engin
 Scene references are cached by object kind, entity id and component id in each script context. Repeated traversal
 of `entity.transform` reuses the wrapper even when a script keeps no reference between hooks. Returned references
 share the context's lifetime; cached wrappers do not own it, so releasing the runtime and all exported references
-releases the cache. References still resolve ids inside the current execution scope and reject destroyed objects.
+releases the cache. References still resolve ids inside the current execution scope and reject destroyed objects. Luau
+retains the userdata and property-token cache of context references until the runtime closes, so a garbage
+collection between hooks does not recreate them. Transient records and ordinary host objects keep weak runtime
+caches; custom context-backed objects can opt in through `IsPersistentReference()`.
 
 Luau caches property tokens per host wrapper. Built-in scene properties dispatch through these tokens instead of
-repeating name comparisons. Custom runtime adapters can use `ScriptObject::ResolveProperty`, `GetResolved` and
+repeating name comparisons. Registered component properties receive numeric registry tokens too. Replacing a
+binding keeps its token and updates the descriptor; unregistering a component removes its tokens and callbacks.
+Wrappers cache only tokens, and an invalidated token falls back to resolving the current binding by name. Property
+names that overlap another object's fields remain component bindings, including the uppercase `Transform` name.
+Custom runtime adapters can use `ScriptObject::ResolveProperty`, `GetResolved` and
 `SetResolved`; dynamic objects retain their named fallback. Warm scalar and reference reads avoid wrapper/key
 allocations; strings and value snapshots can still allocate. Component bindings use heterogeneous name lookup and
 retain an immutable property descriptor only for the invocation, avoiding copies of heap-backed callbacks without
 caching callbacks in entity wrappers after component-type unregistration.
+
+The completed native-token and persistent-wrapper paths passed all 17 native-runtime and 32 Luau cases against
+both libraries, including binding replacement/unregistration and allocation pressure, plus the three real-scene
+sandbox Luau cases. The benchmark now adds its system modules explicitly, preserving its workload after Phase 6.2.
 
 ## Binding layout
 
