@@ -3,6 +3,7 @@
 #include "prop_spawner.h"
 #include "runtime_interface.h"
 #include "view_model.h"
+#include <spot/scene/physics/physics_world.h>
 
 #include <spot.h>
 
@@ -196,7 +197,8 @@ private:
                     std::string(GetGraphicsDevice().GetBackendName()).c_str(), m_options.walk ? ", walking" : "");
         std::printf("Frame: mean %.3f ms (%.1f FPS), median %.3f ms, p95 %.3f ms, worst %.3f ms\n", mean, 1000 / mean,
                     percentile(.5), percentile(.95), m_times.back());
-        std::printf("Bodies: %zu, resident memory: %.1f MiB\n", scene.GetPhysics().GetBodyCount(),
+        std::printf("Bodies: %zu, resident memory: %.1f MiB\n",
+                    scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount(),
                     static_cast<double>(GetRuntimeStats().memoryBytes) / (1024 * 1024));
         std::printf("Scene load: %.3f ms (startup InstantiateScene, assets initially uncached)\n", m_sceneLoadMs);
         const auto print = [](const char* label, std::vector<double> values) {

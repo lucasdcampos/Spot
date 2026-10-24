@@ -1,3 +1,4 @@
+#include "spot/scene/physics/collision_listener.h"
 #include "spot/scene/physics/physics_world.h"
 
 #include "spot/scene/physics/character_controller.h"
@@ -171,7 +172,7 @@ void PhysicsWorld::SendContact(const PairContact& contact, ContactPhase phase) {
         }
         entity->ForEachComponent<Component>([&](Component& component) {
             if (component.IsActiveAndEnabled()) {
-                component.InvokeHook(hook, [&] { call(component); });
+                component.RunGuarded(hook, [&] { call(component); });
             }
         });
     };
@@ -180,24 +181,45 @@ void PhysicsWorld::SendContact(const PairContact& contact, ContactPhase phase) {
         const TriggerContact forFirst{.other = pair.second, .isTrigger = pair.firstIsTrigger};
         const TriggerContact forSecond{.other = pair.first, .isTrigger = !pair.firstIsTrigger};
         if (phase == ContactPhase::Enter) {
-            notify(pair.first, "OnTriggerEnter", [&](Component& c) { c.OnTriggerEnter(forFirst); });
-            notify(pair.second, "OnTriggerEnter", [&](Component& c) { c.OnTriggerEnter(forSecond); });
+            notify(pair.first, "OnTriggerEnter", [&](Component& c) {
+                if (auto* listener = dynamic_cast<TriggerListener*>(&c))
+                    listener->OnTriggerEnter(forFirst);
+            });
+            notify(pair.second, "OnTriggerEnter", [&](Component& c) {
+                if (auto* listener = dynamic_cast<TriggerListener*>(&c))
+                    listener->OnTriggerEnter(forSecond);
+            });
         } else if (phase == ContactPhase::Exit) {
-            notify(pair.first, "OnTriggerExit", [&](Component& c) { c.OnTriggerExit(forFirst); });
-            notify(pair.second, "OnTriggerExit", [&](Component& c) { c.OnTriggerExit(forSecond); });
+            notify(pair.first, "OnTriggerExit", [&](Component& c) {
+                if (auto* listener = dynamic_cast<TriggerListener*>(&c))
+                    listener->OnTriggerExit(forFirst);
+            });
+            notify(pair.second, "OnTriggerExit", [&](Component& c) {
+                if (auto* listener = dynamic_cast<TriggerListener*>(&c))
+                    listener->OnTriggerExit(forSecond);
+            });
         }
         return;
     }
     const auto deliver = [&](EntityId id, const Collision& seen) {
         switch (phase) {
         case ContactPhase::Enter:
-            notify(id, "OnCollisionEnter", [&](Component& c) { c.OnCollisionEnter(seen); });
+            notify(id, "OnCollisionEnter", [&](Component& c) {
+                if (auto* listener = dynamic_cast<CollisionListener*>(&c))
+                    listener->OnCollisionEnter(seen);
+            });
             break;
         case ContactPhase::Stay:
-            notify(id, "OnCollisionStay", [&](Component& c) { c.OnCollisionStay(seen); });
+            notify(id, "OnCollisionStay", [&](Component& c) {
+                if (auto* listener = dynamic_cast<CollisionListener*>(&c))
+                    listener->OnCollisionStay(seen);
+            });
             break;
         case ContactPhase::Exit:
-            notify(id, "OnCollisionExit", [&](Component& c) { c.OnCollisionExit(seen); });
+            notify(id, "OnCollisionExit", [&](Component& c) {
+                if (auto* listener = dynamic_cast<CollisionListener*>(&c))
+                    listener->OnCollisionExit(seen);
+            });
             break;
         }
     };

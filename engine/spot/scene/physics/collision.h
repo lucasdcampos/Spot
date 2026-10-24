@@ -9,7 +9,7 @@
 
 namespace Spot {
 
-// Two solid bodies touching, as seen by one of their entities; see Component::OnCollisionEnter().
+// Two solid bodies touching, as seen by one of their entities; see CollisionListener::OnCollisionEnter().
 struct Collision {
     static constexpr std::size_t MaxPoints = 4;
 
@@ -29,7 +29,7 @@ struct Collision {
     std::span<const Vector3> GetPoints() const { return {points.data(), pointCount}; }
 };
 
-// A body and a trigger overlapping, as seen by one of their entities; see Component::OnTriggerEnter().
+// A body and a trigger overlapping, as seen by one of their entities; see TriggerListener::OnTriggerEnter().
 struct TriggerContact {
     // The entity on the other side: the trigger's, for the entity that entered it, or the one that entered, for the
     // trigger's. It may be destroyed by the time an exit is reported.

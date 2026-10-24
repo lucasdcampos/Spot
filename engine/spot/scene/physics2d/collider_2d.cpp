@@ -7,7 +7,7 @@
 
 namespace Spot {
 void Collider2D::OnEnable() {
-    GetScene().GetPhysics2D();
+    GetScene().GetOrAddSystem<Spot::PhysicsWorld2D>();
 }
 Shape2D Collider2D::GetShape(Vector2 scale) const {
     auto result = m_shape;

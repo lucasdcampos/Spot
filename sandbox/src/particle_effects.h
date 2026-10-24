@@ -2,6 +2,7 @@
 
 #include "sound_bank.h"
 #include <spot.h>
+#include <spot/scene/physics/collision_listener.h>
 
 #include <optional>
 
@@ -74,7 +75,7 @@ private:
     std::uint64_t m_dropped = 0;
 };
 
-class ImpactParticles final : public Spot::Component {
+class ImpactParticles final : public Spot::Component, public Spot::CollisionListener {
 public:
     float minSpeed = 1.5f;
 

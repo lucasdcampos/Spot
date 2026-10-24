@@ -321,7 +321,7 @@ draws are their own: Renderer3D's statistics do not count them.
 through the first main camera (`FindMainCamera()`), then the shapes queued with `DebugDraw` (see
 [Diagnostics](diagnostics.md)), then sprites and particles, all as light into an HDR image (`Rgba16Float`,
 multisampled where the GPU allows). A tonemapper turns it into the target's colors, and the scene's interfaces
-go over it (`Scene::DrawUi()`, which calls each active component's `OnDrawUi()` in pixels from the view's
+go over it (`UiSystem::DrawUi()`, which calls each active component's `OnDrawUi()` in pixels from the view's
 bottom-left corner). The application draws its active scene this way unless `ApplicationConfig::renderScenes`
 is off; the editor's game view uses the same renderer. Each frame is a render graph (see
 [Render graphs](#render-graphs)): scene, sprites, particles, post-processing, FXAA and interface passes, whose
@@ -338,15 +338,15 @@ format and sample count its pipelines must match, the depth target, and the HDR 
 
 ```cpp
 void OnEnable() override {
-    m_hook = GetScene().AddRenderHook(Spot::RenderStage::AfterOpaque, [this](const Spot::RenderStageContext& stage) {
+    m_hook = GetScene().GetOrAddSystem<Spot::RenderHookSystem>().AddRenderHook(Spot::RenderStage::AfterOpaque, [this](const Spot::RenderStageContext& stage) {
         auto pass = stage.context.BeginRenderPass(stage.pass);
         // ... draw with pipelines made for stage.colorFormat and stage.sampleCount ...
     });
 }
-void OnDisable() override { GetScene().RemoveRenderHook(m_hook); }
+void OnDisable() override { GetScene().GetOrAddSystem<Spot::RenderHookSystem>().RemoveRenderHook(m_hook); }
 ```
 
-`Scene::AddRenderHook()` hooks run wherever the scene is drawn, the editor's views included; `SceneRenderer::AddHook()`
+`RenderHookSystem::AddRenderHook()` hooks run wherever the scene is drawn, the editor's views included; `SceneRenderer::AddHook()`
 hooks run first, for every scene that renderer draws. A hook that throws is logged and removed.
 
 ### HDR and tonemapping

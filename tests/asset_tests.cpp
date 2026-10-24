@@ -5,6 +5,7 @@
 #include <spot/assets/asset_pak.h>
 #include <spot/graphics/texture_asset_format.h>
 #include <spot/import/importers/texture_compression.h>
+#include <spot/scene/physics/physics_world.h>
 
 #include <spot.h>
 #include <spot_import.h>
@@ -1230,14 +1231,14 @@ TEST_CASE("Scenes load chunks in the background into their own hierarchy", "[ass
             auto* root = m_load.GetRoot();
             streamed = root && root->FindChild("Market") && &root->GetScene() == GetScene();
             if (root) {
-                const auto hit = GetScene()->GetPhysics().Raycast({3, 5, 0}, {0, -1, 0}, 10);
+                const auto hit = GetScene()->GetOrAddSystem<Spot::PhysicsWorld>().Raycast({3, 5, 0}, {0, -1, 0}, 10);
                 REQUIRE(hit);
                 CHECK(hit->entity == root->FindChild("Market")->GetId());
-                CHECK(GetScene()->GetPhysics().GetBodyCount() == 2);
+                CHECK(GetScene()->GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == 2);
                 root->Destroy();
                 CHECK(m_load.GetRoot() == nullptr);
                 CHECK(GetScene()->FindEntity("Market") == nullptr);
-                CHECK_FALSE(GetScene()->GetPhysics().Raycast({3, 5, 0}, {0, -1, 0}, 10));
+                CHECK_FALSE(GetScene()->GetOrAddSystem<Spot::PhysicsWorld>().Raycast({3, 5, 0}, {0, -1, 0}, 10));
             }
             playerKept = GetScene() && GetScene()->FindEntity("Player");
             Quit();

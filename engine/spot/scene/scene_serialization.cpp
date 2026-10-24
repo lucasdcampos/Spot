@@ -500,7 +500,7 @@ std::optional<std::vector<Entity*>> SceneSerializer::Load(Scene& scene, json doc
             const IdMap* local = instance != localIds.end() ? &instance->second : nullptr;
             const IdMap& raw = referenceIds(entities[i]);
             for (json& saved : *components) {
-                LoadComponent(entity, saved, std::nullopt, raw, referenced, options.assets, local, &ids,
+                LoadComponent(entity, saved, std::nullopt, raw, referenced, manager, local, &ids,
                               options.keepUnknownComponents);
             }
         }

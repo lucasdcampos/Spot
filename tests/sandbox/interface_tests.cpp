@@ -9,6 +9,8 @@
 #include "undo_list.h"
 #include "weapon.h"
 #include "weapon_holder.h"
+#include <spot/scene/ui/ui_input_system.h>
+#include <spot/scene/ui/ui_system.h>
 
 #include <spot.h>
 
@@ -66,7 +68,7 @@ struct InterfaceGame {
         input.BeginFrame();
     }
     bool Send(const Spot::Event& event) {
-        const bool used = scene.HandleUiEvent(event, {1280, 720}, &input);
+        const bool used = scene.GetOrAddSystem<Spot::UiInputSystem>().HandleUiEvent(event, {1280, 720}, &input);
         if (!used)
             input.OnEvent(event);
         return used;
@@ -89,10 +91,10 @@ TEST_CASE("Sandbox authored HUD and spawn menu route Q and gamepad tabs", "[sand
     REQUIRE(first);
     CHECK(first->GetComponent<Spot::UiButton>());
     CHECK(first->FindChild("Thumbnail")->GetComponent<Spot::UiImage>());
-    game.scene.GetUiInput().Focus(ui.weaponsTab);
+    game.scene.GetOrAddSystem<Spot::UiInputSystem>().Focus(ui.weaponsTab);
     game.Send(Spot::GamepadButtonPressedEvent{Spot::GamepadId{1}, Spot::GamepadButton::South});
     CHECK_FALSE(first->IsActiveInHierarchy());
-    CHECK(game.scene.GetUiInput().GetFocusedEntity() == ui.weaponsTab);
+    CHECK(game.scene.GetOrAddSystem<Spot::UiInputSystem>().GetFocusedEntity() == ui.weaponsTab);
     CHECK(game.Send(Spot::KeyPressedEvent{Spot::Key::Q, false}));
     game.Step();
     CHECK(ui.GetMenu() == RuntimeInterface::Menu::Closed);
@@ -164,7 +166,7 @@ TEST_CASE("Sandbox menu clicks spawn real prefabs and offer undo and cleanup", "
     auto& spawner = *game.scene.FindComponent<PropSpawner>();
     auto* button = game.scene.GetEntity(ui.GetSpawnButtons().front())->GetComponent<Spot::UiButton>();
     REQUIRE(button);
-    const auto* layout = game.scene.GetUi().Find(button->GetEntity().GetId());
+    const auto* layout = game.scene.GetOrAddSystem<Spot::UiSystem>().Find(button->GetEntity().GetId());
     REQUIRE(layout);
     const auto center = layout->bounds.GetCenter();
     game.Send(Spot::MouseMovedEvent{{center.x, 720 - center.y}, {}});

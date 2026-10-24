@@ -1,4 +1,6 @@
 #include <spot.h>
+#include <spot/scene/physics/collision_listener.h>
+#include <spot/scene/physics/physics_world.h>
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -30,7 +32,7 @@ void Simulate(Scene& scene, float seconds) {
 }
 
 // Records the physics events of its entity as "<event> <other's name>".
-class EventRecorder final : public Spot::Component {
+class EventRecorder final : public Spot::Component, public Spot::CollisionListener, public Spot::TriggerListener {
 public:
     std::vector<std::string> events;
     std::vector<Spot::Collision> enters;
@@ -148,7 +150,7 @@ TEST_CASE("Entities destroyed from inside a collision hook end their contacts", 
     Simulate(scene, 1.0f);
     CHECK(scene.GetEntity(ballId) == nullptr);
     CHECK(ground.events == std::vector<std::string>{"enter Ball", "exit (gone)"});
-    CHECK(scene.GetPhysics().GetBodyCount() == 1);
+    CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == 1);
 }
 
 TEST_CASE("Disabling or removing a collider ends its contacts", "[physics][events]") {
@@ -168,7 +170,7 @@ TEST_CASE("Disabling or removing a collider ends its contacts", "[physics][event
 }
 
 TEST_CASE("Collision hooks that throw fault only their component", "[physics][events]") {
-    class Throwing final : public Spot::Component {
+    class Throwing final : public Spot::Component, public Spot::CollisionListener {
     protected:
         void OnCollisionEnter(const Spot::Collision&) override { throw std::runtime_error("broken collision"); }
     };
@@ -180,6 +182,22 @@ TEST_CASE("Collision hooks that throw fault only their component", "[physics][ev
     auto& recorder = ball.AddComponent<EventRecorder>();
     Simulate(scene, 1.0f);
     CHECK(throwing.IsFaulted());
+    CHECK(recorder.Has("enter Ground"));
+}
+
+TEST_CASE("Physics events require listener interfaces", "[physics][events]") {
+    class Unsubscribed final : public Spot::Component {
+    public:
+        int calls = 0;
+        void OnCollisionEnter(const Spot::Collision&) { ++calls; }
+    };
+    Scene scene;
+    CreateGround(scene);
+    Entity& ball = CreateBall(scene, {0.0f, 1.0f, 0.0f});
+    auto& unsubscribed = ball.AddComponent<Unsubscribed>();
+    auto& recorder = ball.AddComponent<EventRecorder>();
+    Simulate(scene, 1.0f);
+    CHECK(unsubscribed.calls == 0);
     CHECK(recorder.Has("enter Ground"));
 }
 
@@ -202,11 +220,11 @@ TEST_CASE("Changing what a body is made of but its shapes keeps its contacts goi
     CHECK(recorder.Count("enter Ground") == 1);
     CHECK_FALSE(recorder.Has("exit Ground"));
     CHECK(box.GetTransform().GetPosition().y == Approx(0.5f).margin(0.05f));
-    CHECK(scene.GetPhysics().GetBodyCount() == 2);
+    CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == 2);
 
     // A new shape makes a new body, which rests on the ground as the old one did.
     collider.SetSize({1.0f, 2.0f, 1.0f});
     Simulate(scene, 1.0f);
     CHECK(box.GetTransform().GetPosition().y == Approx(1.0f).margin(0.05f));
-    CHECK(scene.GetPhysics().GetBodyCount() == 2);
+    CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == 2);
 }

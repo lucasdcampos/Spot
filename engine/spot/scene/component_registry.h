@@ -17,6 +17,8 @@ namespace Detail {
 
 using ComponentFactory = std::unique_ptr<Component> (*)();
 
+// Installs cleanup for system-owned metadata when a component type is replaced or removed.
+void SetComponentTypeCleanup(void (*cleanup)(std::type_index));
 void RegisterComponentType(std::type_index type, std::string name, ComponentFactory factory);
 // Null when the type is not registered.
 const std::string* FindComponentTypeName(std::type_index type);

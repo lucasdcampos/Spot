@@ -77,7 +77,7 @@ void UiInputSystem::Refresh(Vector2 viewSize) {
         UpdateCapture();
         return;
     }
-    auto& layout = GetScene().GetUi();
+    auto& layout = GetScene().GetOrAddSystem<Spot::UiSystem>();
     layout.Layout(viewSize);
     m_modal = EntityId::Invalid;
     for (const auto& entry : layout.GetEntries()) {
@@ -447,4 +447,16 @@ void UiInputSystem::OnBeforeFixedSteps(float) {
     Refresh(m_viewSize);
 }
 
+} // namespace Spot
+
+namespace Spot {
+bool UiInputSystem::HandleUiEvent(const Event& event, Vector2 viewSize, InputState* input) {
+    if (!GetScene().FindComponent<Canvas>())
+        return false;
+    SetInputState(input);
+    const bool consumed = OnEvent(event, viewSize);
+    if (consumed && input)
+        input->ConsumeEvent(event);
+    return consumed;
+}
 } // namespace Spot

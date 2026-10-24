@@ -5,14 +5,6 @@
 #include "spot/core/debug/diagnostics.h"
 #include "spot/core/debug/log.h"
 #include "spot/core/debug/profiler.h"
-#include "spot/platform/input.h"
-#include "spot/render/renderer_2d.h"
-#include "spot/scene/audio/audio_system.h"
-#include "spot/scene/physics/physics_world.h"
-#include "spot/scene/physics2d/physics_world_2d.h"
-#include "spot/scene/ui/canvas.h"
-#include "spot/scene/ui/ui_input_system.h"
-#include "spot/scene/ui/ui_system.h"
 
 #include <algorithm>
 #include <atomic>
@@ -41,58 +33,6 @@ Application& Scene::GetApplication() const {
     return *m_application;
 }
 
-PhysicsWorld2D& Scene::GetPhysics2D() {
-    if (auto* world = GetSystem<PhysicsWorld2D>())
-        return *world;
-    return AddSystem<PhysicsWorld2D>();
-}
-
-PhysicsWorld& Scene::GetPhysics() {
-    if (!m_physics) {
-        m_physics = &AddSystem<PhysicsWorld>();
-    }
-    return *m_physics;
-}
-
-RenderHookId Scene::AddRenderHook(RenderStage stage, RenderHook hook) {
-    const auto id = static_cast<RenderHookId>(m_nextRenderHook++);
-    m_renderHooks.push_back({id, stage, std::move(hook)});
-    return id;
-}
-
-void Scene::RemoveRenderHook(RenderHookId id) {
-    std::erase_if(m_renderHooks, [id](const RenderHookEntry& entry) { return entry.id == id; });
-}
-
-void Scene::RunRenderHooks(const RenderStageContext& context) {
-    // By index and id, as a hook may add or remove hooks while it runs.
-    for (std::size_t i = 0; i < m_renderHooks.size(); ++i) {
-        if (m_renderHooks[i].stage != context.stage) {
-            continue;
-        }
-        const RenderHookId id = m_renderHooks[i].id;
-        try {
-            const RenderHook hook = m_renderHooks[i].hook;
-            hook(context);
-        } catch (const std::exception& error) {
-            Log::GetEngineLogger().Error("A render hook threw and was removed: {}", error.what());
-            RemoveRenderHook(id);
-            --i;
-        } catch (...) {
-            Log::GetEngineLogger().Error("A render hook threw and was removed");
-            RemoveRenderHook(id);
-            --i;
-        }
-    }
-}
-
-AudioSystem& Scene::GetAudio() {
-    if (!m_audio) {
-        m_audio = &AddSystem<AudioSystem>();
-    }
-    return *m_audio;
-}
-
 void Scene::SetFixedTimeStep(float seconds) {
     SPOT_ASSERT(seconds > 0.0f, "The fixed time step must be positive");
     m_fixedTimeStep = seconds;
@@ -104,6 +44,7 @@ void Scene::AttachSystem(std::unique_ptr<SceneSystem> system) {
         SPOT_ASSERT(std::ranges::none_of(*systems, [&type](const auto& other) { return typeid(*other) == type; }),
                     "The scene has a system of this type already");
     }
+    m_systemsByType[std::type_index(type)] = system.get();
     system->m_scene = this;
     system->m_profileName = Profiler::Intern(Detail::GetTypeName(type));
     if (m_runningSystems) {
@@ -132,6 +73,47 @@ void Scene::RunSystems(std::string_view hook, std::string_view profileName, F&& 
         }
     }
     m_runningSystems = running;
+}
+
+template <typename F>
+void Scene::NotifySystems(std::string_view hook, F&& fn) {
+    const Detail::DeferRemovalsScope defer(*this);
+    const bool running = std::exchange(m_runningSystems, true);
+    // New systems wait until the next notification. Indices survive callbacks that grow the pending list.
+    const std::size_t systemCount = m_systems.size();
+    const std::size_t pendingCount = m_pendingSystems.size();
+    const auto notify = [&](SceneSystem& system) {
+        if (!system.m_faulted) {
+            system.InvokeHook(hook, [&] { fn(system); });
+        }
+    };
+    for (std::size_t i = 0; i < systemCount; ++i) {
+        notify(*m_systems[i]);
+    }
+    for (std::size_t i = 0; i < pendingCount; ++i) {
+        notify(*m_pendingSystems[i]);
+    }
+    m_runningSystems = running;
+}
+
+void Scene::NotifyComponentAdded(Component& component) {
+    NotifySystems("OnComponentAdded", [&](SceneSystem& system) { system.OnComponentAdded(component); });
+}
+
+void Scene::NotifyComponentRemoved(Component& component) {
+    NotifySystems("OnComponentRemoved", [&](SceneSystem& system) { system.OnComponentRemoved(component); });
+}
+
+void Scene::NotifyEntityLayerChanged(Entity& entity) {
+    NotifySystems("OnEntityLayerChanged", [&](SceneSystem& system) { system.OnEntityLayerChanged(entity); });
+}
+
+void Scene::NotifyEntityDestroyed(Entity& entity) {
+    NotifySystems("OnEntityDestroyed", [&](SceneSystem& system) { system.OnEntityDestroyed(entity); });
+}
+
+void Scene::NotifyEntityMoved(Entity& entity, Scene& source, Scene& destination) {
+    NotifySystems("OnEntityMoved", [&](SceneSystem& system) { system.OnEntityMoved(entity, source, destination); });
 }
 
 void Scene::PrepareToRender() {
@@ -317,58 +299,6 @@ void Scene::Update(float deltaTime) {
                [deltaTime](SceneSystem& system) { system.OnLateUpdate(deltaTime); });
 }
 
-void Scene::DrawUi(Renderer2D& renderer, Vector2 viewSize) {
-    SPOT_PROFILE_SCOPE("Scene::DrawUi");
-    const Detail::DeferRemovalsScope defer(*this);
-    auto& ui = GetUi();
-    ui.Layout(viewSize);
-    // Components under a canvas are drawn by the UI system's entries below, in its order.
-    ComponentList& drawers = m_hookLists[static_cast<std::size_t>(HookList::DrawUi)];
-    for (std::size_t i = 0, end = drawers.components.size(); i < end; ++i) {
-        Component* component = drawers.components[i];
-        if (!component) {
-            continue;
-        }
-        if (Detail::IsComponentHookUnused(component->m_typeIndex, Detail::ComponentHook::DrawUi)) {
-            RemoveFromList(HookList::DrawUi, *component);
-            continue;
-        }
-        Entity& entity = *component->m_entity;
-        if (!entity.m_destroyed && !entity.GetComponentInParent<Canvas>()) {
-            entity.DrawUiComponent(*component, renderer, viewSize);
-        }
-    }
-    for (const auto& entry : ui.GetEntries()) {
-        if (auto* entity = GetEntity(entry.entity))
-            entity->DrawUiComponents(renderer, viewSize);
-    }
-    renderer.SetScissor({0, 0, static_cast<std::int32_t>(viewSize.x), static_cast<std::int32_t>(viewSize.y)});
-}
-
-UiSystem& Scene::GetUi() {
-    auto* ui = GetSystem<UiSystem>();
-    return ui ? *ui : AddSystem<UiSystem>();
-}
-UiInputSystem& Scene::GetUiInput() {
-    auto* ui = GetSystem<UiInputSystem>();
-    return ui ? *ui : AddSystem<UiInputSystem>();
-}
-
-bool Scene::HandleUiEvent(const Event& event, Vector2 viewSize, InputState* input) {
-    if (!FindComponent<Canvas>())
-        return false;
-    auto& ui = GetUiInput();
-    ui.SetInputState(input ? input : Input::GetState());
-    const bool consumed = ui.OnEvent(event, viewSize);
-    if (consumed && input)
-        input->ConsumeEvent(event);
-    return consumed;
-}
-
-Camera2D Scene::ScreenCamera(Vector2 viewSize) {
-    return {.position = viewSize * 0.5f};
-}
-
 bool Scene::IsAlive(const std::unique_ptr<Entity>& entity) {
     return entity && !entity->m_destroyed;
 }
@@ -472,8 +402,7 @@ void Scene::ListComponent(Component& component) {
     const std::pair<HookList, Detail::ComponentHook> hooks[] = {
         {HookList::FixedUpdate, Detail::ComponentHook::FixedUpdate},
         {HookList::Update, Detail::ComponentHook::Update},
-        {HookList::LateUpdate, Detail::ComponentHook::LateUpdate},
-        {HookList::DrawUi, Detail::ComponentHook::DrawUi}};
+        {HookList::LateUpdate, Detail::ComponentHook::LateUpdate}};
     for (const auto& [hookList, hook] : hooks) {
         if (!Detail::IsComponentHookUnused(component.m_typeIndex, hook)) {
             AddToList(hookList, component);
@@ -537,9 +466,6 @@ std::unique_ptr<Entity> Scene::Release(Entity& entity) {
 }
 
 void Scene::Adopt(std::unique_ptr<Entity> entity, bool moved) {
-    if (moved && entity->m_scene->m_audio) {
-        entity->m_scene->m_audio->MoveSources(*entity, *this);
-    }
     entity->m_scene = this;
     entity->m_slot = m_entities.size();
     m_entitiesById.emplace(entity->m_id, entity.get());

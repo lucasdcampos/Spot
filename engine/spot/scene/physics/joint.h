@@ -18,7 +18,7 @@ class Transform;
 //     hinge.SetAnchor({-0.5f, 0.0f, 0.0f});
 //
 // A joint with a break force breaks when holding its bodies together takes more than that force: it is disabled,
-// IsBroken() turns true, and the components of its entity get Component::OnJointBreak().
+// IsBroken() turns true, and the JointBreakListener components of its entity get OnJointBreak().
 class Joint : public Component {
 public:
     // The entity whose body this one is joined to; EntityId::Invalid joins it to the world.

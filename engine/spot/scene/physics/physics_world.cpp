@@ -84,6 +84,32 @@ void PhysicsWorld::SetGravity(Vector3 gravity) {
     }
 }
 
+void PhysicsWorld::OnComponentAdded(Component& component) {
+    if (dynamic_cast<Collider*>(&component) || dynamic_cast<Rigidbody*>(&component) ||
+        dynamic_cast<CharacterController*>(&component)) {
+        MarkChanged(component.GetEntity().GetId());
+    }
+}
+
+void PhysicsWorld::OnComponentRemoved(Component& component) {
+    OnComponentAdded(component);
+}
+
+void PhysicsWorld::OnEntityLayerChanged(Entity& entity) {
+    MarkChanged(entity.GetId());
+}
+
+void PhysicsWorld::OnEntityDestroyed(Entity& entity) {
+    MarkChanged(entity.GetId());
+}
+
+void PhysicsWorld::OnEntityMoved(Entity& entity, Scene& source, Scene& destination) {
+    MarkChanged(entity.GetId());
+    if (&GetScene() == &source) {
+        destination.GetOrAddSystem<PhysicsWorld>().MarkChanged(entity.GetId());
+    }
+}
+
 void PhysicsWorld::OnFixedUpdate(float fixedDeltaTime) {
     m_stepTime = fixedDeltaTime;
     RebuildChanged();

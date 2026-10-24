@@ -1,5 +1,6 @@
 #include "log_capture.h"
 #include "temp_directory.h"
+#include <spot/scene/physics/physics_world.h>
 
 #include <spot.h>
 
@@ -459,7 +460,7 @@ TEST_CASE("Settings sections apply to scenes, which create physics only when it 
     sections.physics.gravity = {0.0f, -1.0f, 0.0f};
     sections.Apply(scene);
     REQUIRE(scene.GetSystem<Spot::PhysicsWorld>() != nullptr);
-    CHECK(scene.GetPhysics().GetGravity() == Spot::Vector3{0.0f, -1.0f, 0.0f});
+    CHECK(scene.GetOrAddSystem<Spot::PhysicsWorld>().GetGravity() == Spot::Vector3{0.0f, -1.0f, 0.0f});
 }
 
 namespace {

@@ -57,21 +57,27 @@ EngineConsole::EngineConsole(Console& console, Application& app) {
         [](float value) { return value >= 0.0f && value <= 100.0f; }));
     m_registrations.push_back(Bind<float>(
         console, "physics.gravity", -9.81f, "Main scene gravity on the Y axis", ConsoleFlags::Cheat,
-        [&app] { return app.GetScene() ? app.GetScene()->GetPhysics().GetGravity().y : -9.81f; },
+        [&app] {
+            return app.GetScene() ? app.GetScene()->GetOrAddSystem<Spot::PhysicsWorld>().GetGravity().y : -9.81f;
+        },
         [&app](float value) {
             if (auto* scene = app.GetScene()) {
-                auto gravity = scene->GetPhysics().GetGravity();
+                auto gravity = scene->GetOrAddSystem<Spot::PhysicsWorld>().GetGravity();
                 gravity.y = value;
-                scene->GetPhysics().SetGravity(gravity);
+                scene->GetOrAddSystem<Spot::PhysicsWorld>().SetGravity(gravity);
             }
         },
         [](float value) { return std::abs(value) <= 1000.0f; }));
     m_registrations.push_back(Bind<bool>(
         console, "physics.debug", false, "Draw collision shapes in the main scene", {},
-        [&app] { return app.GetScene() && app.GetScene()->GetPhysics().GetDebugDraw() != PhysicsDebugFlags::None; },
+        [&app] {
+            return app.GetScene() &&
+                   app.GetScene()->GetOrAddSystem<Spot::PhysicsWorld>().GetDebugDraw() != PhysicsDebugFlags::None;
+        },
         [&app](bool value) {
             if (auto* scene = app.GetScene()) {
-                scene->GetPhysics().SetDebugDraw(value ? PhysicsDebugFlags::Colliders : PhysicsDebugFlags::None);
+                scene->GetOrAddSystem<Spot::PhysicsWorld>().SetDebugDraw(value ? PhysicsDebugFlags::Colliders
+                                                                               : PhysicsDebugFlags::None);
             }
         },
         [](bool) { return true; }));

@@ -65,7 +65,7 @@ void PhysicsSettings::Apply(Scene& scene) const {
     const bool defaults2D = gravity2D == PhysicsWorld2D::DefaultGravity &&
                             std::ranges::all_of(layerCollisions, [](std::uint32_t mask) { return mask == AllLayers; });
     if (!defaults2D || scene.GetSystem<PhysicsWorld2D>()) {
-        auto& physics = scene.GetPhysics2D();
+        auto& physics = scene.GetOrAddSystem<Spot::PhysicsWorld2D>();
         physics.SetGravity(gravity2D);
         for (int layer = 0; layer < 32; ++layer)
             physics.SetLayerMask(layer, layer < static_cast<int>(layerCollisions.size())
@@ -79,7 +79,7 @@ void PhysicsSettings::Apply(Scene& scene) const {
                           std::ranges::all_of(layerCollisions, [](std::uint32_t mask) { return mask == AllLayers; }) &&
                           layerNames == MakeDefaultLayerNames();
     if (!defaults || scene.GetSystem<PhysicsWorld>()) {
-        PhysicsWorld& physics = scene.GetPhysics();
+        PhysicsWorld& physics = scene.GetOrAddSystem<Spot::PhysicsWorld>();
         physics.SetGravity(gravity);
         physics.SetLayerNames(layerNames);
         for (int layer = 0; layer < Entity::LayerCount; ++layer) {

@@ -1,3 +1,4 @@
+#include "spot/scene/animation/animation_event_listener.h"
 #include "spot/scene/animation/animator.h"
 
 #include "spot/animation/animation_motion.h"
@@ -97,7 +98,9 @@ void Animator::DispatchEvents(int stateIndex, const AssetRef<AnimationClip>& sou
     for (std::size_t i = 0; i < count; ++i) {
         GetEntity().ForEachComponent<Component>([&](Component& component) {
             if (component.IsActiveAndEnabled()) {
-                component.InvokeHook("OnAnimationEvent", [&] { component.OnAnimationEvent(*events[i]); });
+                if (auto* listener = dynamic_cast<AnimationEventListener*>(&component)) {
+                    component.RunGuarded("OnAnimationEvent", [&] { listener->OnAnimationEvent(*events[i]); });
+                }
             }
         });
     }

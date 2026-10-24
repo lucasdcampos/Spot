@@ -1,5 +1,7 @@
 #include "spot/scene/rendering/scene_renderer.h"
+#include "spot/scene/rendering/render_hook_system.h"
 #include "spot/scene/rendering/tilemap.h"
+#include "spot/scene/ui/ui_system.h"
 
 #include "spot/core/debug/profiler.h"
 
@@ -125,7 +127,7 @@ void SceneRenderer::Render(RenderContext& context, Scene& scene, Texture* target
                 hook.hook(stage);
             }
         }
-        scene.RunRenderHooks(stage);
+        scene.GetOrAddSystem<Spot::RenderHookSystem>().RunRenderHooks(stage);
     };
 
     const RenderGraphTexture output = m_graph.Import("Target", target);
@@ -258,8 +260,8 @@ void SceneRenderer::Render(RenderContext& context, Scene& scene, Texture* target
             runStage(RenderStage::AfterPostProcessing);
             {
                 auto interfacePass = context.BeginRenderPass(stage.pass);
-                m_interface->Begin(interfacePass, Scene::ScreenCamera(size), size);
-                scene.DrawUi(*m_interface, size);
+                m_interface->Begin(interfacePass, UiSystem::ScreenCamera(size), size);
+                scene.GetOrAddSystem<Spot::UiSystem>().DrawUi(*m_interface, size);
                 m_interface->End();
             }
             runStage(RenderStage::Overlay);

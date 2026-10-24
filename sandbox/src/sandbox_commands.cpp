@@ -1,4 +1,5 @@
 #include "sandbox_commands.h"
+#include <spot/scene/physics/physics_world.h>
 
 #include "player_controller.h"
 #include "player_movement.h"
@@ -62,7 +63,7 @@ SandboxCommands::SandboxCommands(Spot::Console& console, Spot::Scene& scene) : m
     m_registrations.push_back(console.Register(
         {"gravity", "Query/set gravity on Y (-1000..1000)", ConsoleFlags::Cheat,
          [this](std::span<const std::string> arguments) -> ConsoleResult {
-             auto& physics = m_scene.GetPhysics();
+             auto& physics = m_scene.GetOrAddSystem<Spot::PhysicsWorld>();
              if (arguments.empty()) {
                  return {true, std::format("Gravity: {}", physics.GetGravity().y)};
              }

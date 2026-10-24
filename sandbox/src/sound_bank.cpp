@@ -1,4 +1,5 @@
 #include "sound_bank.h"
+#include <spot/scene/audio/audio_system.h>
 
 #include <algorithm>
 #include <array>
@@ -76,12 +77,13 @@ void ImpactSounds::OnCollisionEnter(const Spot::Collision& collision) {
     const float volume = std::clamp((speed - minSpeed) / std::max(fullSpeed - minSpeed, 0.01f), 0.1f, 1.0f);
     const Spot::Vector3 where =
         collision.pointCount > 0 ? collision.points[0] : GetEntity().GetTransform().GetWorldPosition();
-    GetScene().GetAudio().PlayOneShot(sounds->impact.GetShared(), where,
-                                      {.volume = volume,
-                                       .pitch = 1.0f + detune,
-                                       .bus = "Effects",
-                                       .spatialSettings = {.minDistance = 2.0f, .maxDistance = 40.0f},
-                                       .maxInstances = 6});
+    GetScene().GetOrAddSystem<Spot::AudioSystem>().PlayOneShot(
+        sounds->impact.GetShared(), where,
+        {.volume = volume,
+         .pitch = 1.0f + detune,
+         .bus = "Effects",
+         .spatialSettings = {.minDistance = 2.0f, .maxDistance = 40.0f},
+         .maxInstances = 6});
 }
 
 void ImpactSounds::Serialize(Spot::Archive& archive) {

@@ -5,7 +5,9 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <memory>
+#include <stdexcept>
 #include <string>
+#include <utility>
 
 namespace {
 
@@ -96,4 +98,72 @@ TEST_CASE("Loading a saved scene adds nothing beyond what was saved", "[scene][r
     CHECK(entity.GetComponents<Movement>().size() == 1);
     Spot::UnregisterComponent("RequirementMovement");
     Spot::UnregisterComponent("RequirementHealth");
+}
+
+namespace {
+
+class Spawned final : public Spot::Component {
+    SPOT_REQUIRE_COMPONENTS(Health)
+public:
+    explicit Spawned(std::unique_ptr<int> value) : value(std::move(value)) {}
+    std::unique_ptr<int> value;
+};
+
+class FailedSpawn final : public Spot::Component {
+    SPOT_REQUIRE_COMPONENTS(Health)
+public:
+    FailedSpawn() { throw std::runtime_error("Construction failed"); }
+};
+
+class DestroyFromUpdate final : public Spot::Component {
+public:
+    bool* continued = nullptr;
+
+protected:
+    void OnUpdate(float) override {
+        Destroy();
+        *continued = GetEntity().IsDestroyed();
+    }
+};
+
+} // namespace
+
+TEST_CASE("Spawn forwards constructor arguments and adds required components", "[scene][spawn]") {
+    Spot::Scene scene;
+    auto value = std::make_unique<int>(42);
+    Spawned& component = scene.Spawn<Spawned>(std::move(value));
+    CHECK_FALSE(value);
+    REQUIRE(component.value);
+    CHECK(*component.value == 42);
+    REQUIRE(scene.GetRootEntities().size() == 1);
+    CHECK(scene.GetRootEntities().front() == &component.GetEntity());
+    CHECK(component.GetComponent<Health>() != nullptr);
+    CHECK(component.GetComponent<Spawned>() == &component);
+    CHECK(&component.GetTransform() == &component.GetEntity().GetTransform());
+    auto& movement = component.AddComponent<Movement>();
+    CHECK(&movement == component.GetComponent<Movement>());
+    CHECK(component.GetEntity().GetComponents<Health>().size() == 1);
+}
+
+TEST_CASE("Failed spawning does not leave an entity or its required components", "[scene][spawn]") {
+    Spot::Scene scene;
+    Spot::Entity& existing = scene.CreateEntity("Existing");
+    CHECK_THROWS_AS(scene.Spawn<FailedSpawn>(), std::runtime_error);
+    REQUIRE(scene.GetRootEntities().size() == 1);
+    CHECK(scene.GetRootEntities().front() == &existing);
+    CHECK(scene.FindComponent<Health>() == nullptr);
+}
+
+TEST_CASE("Component Destroy removes its entity hierarchy and defers freeing during a hook", "[scene][spawn]") {
+    Spot::Scene scene;
+    auto& component = scene.Spawn<DestroyFromUpdate>();
+    const Spot::EntityId root = component.GetEntity().GetId();
+    const Spot::EntityId child = component.GetEntity().CreateChild().GetId();
+    bool continued = false;
+    component.continued = &continued;
+    scene.Update(0.0f);
+    CHECK(continued);
+    CHECK(scene.GetEntity(root) == nullptr);
+    CHECK(scene.GetEntity(child) == nullptr);
+    CHECK(scene.GetRootEntities().empty());
 }

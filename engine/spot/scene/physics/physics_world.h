@@ -27,8 +27,8 @@
 namespace Spot {
 
 // Simulates the colliders and rigidbodies of a scene. It is the scene's system for physics, created the first time
-// Scene::GetPhysics() is called, as colliders and rigidbodies do. It steps on each of the scene's fixed steps, so it
-// behaves the same at any frame rate.
+// Scene::GetOrAddSystem<PhysicsWorld>() is called, as colliders and rigidbodies do. It steps on each of the scene's
+// fixed steps, so it behaves the same at any frame rate.
 //
 // The active colliders of an entity form one body, which is static without a Rigidbody: it stays where its entity is
 // placed, like floors and walls. A Rigidbody makes the body dynamic, moved by gravity, forces and collisions, or
@@ -99,7 +99,6 @@ public:
 private:
     friend class CharacterController;
     friend class Collider;
-    friend class Entity;
     friend class HingeJoint;
     friend class Joint;
     friend class Rigidbody;
@@ -130,6 +129,11 @@ private:
 
     PhysicsWorld();
 
+    void OnComponentAdded(Component& component) override;
+    void OnComponentRemoved(Component& component) override;
+    void OnEntityLayerChanged(Entity& entity) override;
+    void OnEntityDestroyed(Entity& entity) override;
+    void OnEntityMoved(Entity& entity, Scene& source, Scene& destination) override;
     void OnFixedUpdate(float fixedDeltaTime) override;
     void OnBeforeRender() override;
 

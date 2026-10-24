@@ -5,7 +5,7 @@
 
 namespace Spot {
 void Rigidbody2D::OnEnable() {
-    GetScene().GetPhysics2D();
+    GetScene().GetOrAddSystem<Spot::PhysicsWorld2D>();
 }
 Vector2 Rigidbody2D::GetLinearVelocity() const {
     if (auto* world = GetScene().GetSystem<PhysicsWorld2D>(); world && IsActiveAndEnabled()) {

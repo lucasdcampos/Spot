@@ -4,7 +4,15 @@
 #include "spot/audio/audio_assets.h"
 #include "spot/graphics/graphics_assets.h"
 #include "spot/render/render_assets.h"
+#include "spot/scene/animation/animation_components.h"
+#include "spot/scene/audio/audio_components.h"
+#include "spot/scene/particles/particles_components.h"
+#include "spot/scene/physics/physics_components.h"
+#include "spot/scene/physics2d/physics2d_components.h"
+#include "spot/scene/rendering/rendering_components.h"
 #include "spot/scene/scene_assets.h"
+#include "spot/scene/scripting/scripting_components.h"
+#include "spot/scene/ui/ui_components.h"
 #include "spot/scene/ui/ui_input_system.h"
 
 #include "spot/assets/assets.h"
@@ -139,6 +147,14 @@ int Application::Run() {
     RegisterAnimationAssets(*m_assets);
     RegisterScriptAssets(*m_assets);
     RegisterSceneAssets(*m_assets);
+    RegisterAnimationComponents();
+    RegisterAudioComponents();
+    RegisterParticleComponents();
+    RegisterPhysicsComponents();
+    RegisterPhysics2DComponents();
+    RegisterRenderComponents();
+    RegisterUiComponents();
+    RegisterScriptComponents();
     Detail::SetAssetManager(m_assets.get());
 
     Input::SetState(&m_input);
@@ -424,7 +440,7 @@ void Application::DispatchEvent(const Event& event) {
         const Vector2 size{static_cast<float>(m_window->GetPixelWidth()),
                            static_cast<float>(m_window->GetPixelHeight())};
         if (m_scene)
-            consumed = m_scene->HandleUiEvent(uiEvent, size, &m_input);
+            consumed = m_scene->GetOrAddSystem<Spot::UiInputSystem>().HandleUiEvent(uiEvent, size, &m_input);
         if (consumed)
             m_input.ConsumeEvent(event);
     }

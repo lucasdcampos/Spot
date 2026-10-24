@@ -7,6 +7,7 @@
 #include "spot/scene/timer.h"
 
 #include <array>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <exception>
@@ -23,15 +24,8 @@ using ComponentId = AssetId;
 
 class Archive;
 class Entity;
-class Joint;
-class PhysicsWorld;
-class Renderer2D;
 class Scene;
-struct AnimationEvent;
-struct Collision;
-struct TriggerContact;
-struct Collision2D;
-struct TriggerContact2D;
+class Transform;
 
 namespace Detail {
 struct SceneSerializer;
@@ -62,14 +56,8 @@ bool IsComponentOf(const Component& component);
 // - OnUpdate() and then OnLateUpdate() on every Scene::Update() while active. Every OnUpdate() of the scene runs
 //   before the first OnLateUpdate(), so OnLateUpdate() suits work that follows others, like a camera that tracks
 //   something.
-// - OnDrawUi() on every frame the scene is shown while active, after it was drawn, for what goes over it, such as a
-//   HUD; see Scene::DrawUi().
 // - OnDestroy() once, if OnStart() ran, when the component is removed, its entity destroyed or the scene cleared. It
 //   releases what OnStart() acquired.
-// - The physics events, while active, after the physics step that found them; see PhysicsWorld. OnCollisionEnter()
-//   when a solid body of the entity starts touching another entity's, OnCollisionStay() on each step they keep
-//   touching while either is awake, and OnCollisionExit() once they stop, or one of them goes away.
-//   OnTriggerEnter() and OnTriggerExit() likewise, between a trigger and a body that overlaps it, on both entities.
 //
 // The entity is not available in the constructor yet; setup that needs it goes in OnStart().
 //
@@ -88,8 +76,17 @@ public:
 
     Entity& GetEntity() const { return *m_entity; }
     Scene& GetScene() const;
+    Transform& GetTransform() const;
+    template <std::derived_from<Component> T, typename... Args>
+    T& AddComponent(Args&&... args);
+    template <std::derived_from<Component> T>
+    T* GetComponent() const;
+    // Destroys this component's entity and its descendants, with Entity::Destroy()'s deferred lifetime.
+    void Destroy();
     ComponentId GetId() const { return m_id; }
 
+    // Whether OnStart() has run and the component has not been destroyed.
+    bool HasStarted() const { return m_started; }
     bool IsEnabled() const { return m_enabled; }
     void SetEnabled(bool enabled);
     // Whether the component is enabled, on an entity active in the hierarchy, and neither is being removed.
@@ -108,13 +105,17 @@ public:
     void CancelCoroutines();
     bool IsCoroutineRunning(TaskId id) const;
 
+    // Runs work on the component's behalf outside its usual hooks, such as a callback another component triggered,
+    // faulting it like a hook would when the work throws. Returns whether it completed.
+    bool RunGuarded(std::string_view hook, const std::function<void()>& work) { return InvokeHook(hook, work); }
+
 protected:
     Component();
 
     virtual void OnStart() {}
     virtual void OnEnable() {}
     virtual void OnDisable() {}
-    // The scene skips these, and OnDrawUi(), for types that keep Component's own: the first call marks the type. An
+    // The scene skips these for types that keep Component's own: the first call marks the type. An
     // override has no reason to call them, and must not, or its type would be skipped.
     virtual void OnFixedUpdate(float /*fixedDeltaTime*/) {
         Detail::MarkComponentHookUnused(m_typeIndex, Detail::ComponentHook::FixedUpdate);
@@ -125,27 +126,7 @@ protected:
     virtual void OnLateUpdate(float /*deltaTime*/) {
         Detail::MarkComponentHookUnused(m_typeIndex, Detail::ComponentHook::LateUpdate);
     }
-    // Draws over the view of the scene with the renderer, which draws in the view's pixels, from (0, 0) at its
-    // bottom-left corner to the size at its top-right one.
-    virtual void OnDrawUi(Renderer2D& /*renderer*/, Vector2 /*viewSize*/) {
-        Detail::MarkComponentHookUnused(m_typeIndex, Detail::ComponentHook::DrawUi);
-    }
     virtual void OnDestroy() {}
-
-    virtual void OnAnimationEvent(const AnimationEvent& /*event*/) {}
-
-    virtual void OnCollisionEnter(const Collision& /*collision*/) {}
-    virtual void OnCollisionStay(const Collision& /*collision*/) {}
-    virtual void OnCollisionExit(const Collision& /*collision*/) {}
-    virtual void OnTriggerEnter(const TriggerContact& /*contact*/) {}
-    virtual void OnTriggerExit(const TriggerContact& /*contact*/) {}
-    virtual void OnCollisionEnter2D(const Collision2D& /*collision*/) {}
-    virtual void OnCollisionStay2D(const Collision2D& /*collision*/) {}
-    virtual void OnCollisionExit2D(const Collision2D& /*collision*/) {}
-    virtual void OnTriggerEnter2D(const TriggerContact2D& /*contact*/) {}
-    virtual void OnTriggerExit2D(const TriggerContact2D& /*contact*/) {}
-    // A joint of the entity broke, past its break force; see Joint.
-    virtual void OnJointBreak(const Joint& /*joint*/) {}
 
     // Saves or loads the component's fields. Loading happens on a new component, after it was added to its entity
     // and before OnStart(), or on an existing one when tools replace its fields.
@@ -156,18 +137,10 @@ protected:
     // Tells systems that mirror the component elsewhere, such as the render world, that it changed (see
     // Scene::TakeChangedEntities()).
     void MarkChanged();
-    // Runs work on the component's behalf outside its usual hooks, such as a callback another component triggered,
-    // faulting it like a hook would when the work throws. Returns whether it completed.
-    bool RunGuarded(std::string_view hook, const std::function<void()>& work) { return InvokeHook(hook, work); }
 
 private:
     friend class Entity;
     friend class Scene;
-    friend class PhysicsWorld;
-    friend class PhysicsWorld2D;
-    friend class AnimationSystem;
-    friend class Animator;
-    friend class UiWidget;
     friend struct Detail::SceneSerializer;
     template <typename T>
     friend bool Detail::IsComponentOf(const Component& component);
@@ -199,7 +172,7 @@ private:
     std::uint64_t m_sequence = 0;
     bool m_listed = false;
     // Its places in the scene's lists of what each stage of an update visits; see Scene::HookList.
-    std::array<std::size_t, 6> m_hookSlots = {NotInList, NotInList, NotInList, NotInList, NotInList, NotInList};
+    std::array<std::size_t, 5> m_hookSlots = {NotInList, NotInList, NotInList, NotInList, NotInList};
     static constexpr std::size_t NotInList = static_cast<std::size_t>(-1);
     ComponentId m_id = ComponentId::Generate();
     std::unique_ptr<TimerQueue> m_timers;

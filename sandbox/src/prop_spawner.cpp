@@ -1,4 +1,5 @@
 #include "prop_spawner.h"
+#include <spot/scene/physics/physics_world.h>
 
 #include "player_controller.h"
 #include "undo_list.h"
@@ -56,7 +57,8 @@ Spot::Entity* PropSpawner::Spawn(std::size_t index) {
     // Where the player looks, on what it looks at, lifted so the prop rests on it; or in the air ahead.
     const Spot::Vector3 eye = player->GetEyePosition();
     const Spot::Vector3 aim = player->GetAimDirection();
-    const auto hit = GetScene().GetPhysics().Raycast(eye, aim, reach, {.ignore = GetEntity().GetId()});
+    const auto hit =
+        GetScene().GetOrAddSystem<Spot::PhysicsWorld>().Raycast(eye, aim, reach, {.ignore = GetEntity().GetId()});
     const Spot::Vector3 position = hit ? hit->point + hit->normal * item.clearance : eye + aim * reach;
 
     Spot::Entity* entity = GetScene().Instantiate(item.prefab, {.assets = m_assets});

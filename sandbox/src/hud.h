@@ -1,6 +1,7 @@
 #pragma once
 
 #include "runtime_interface.h"
+#include <spot/scene/ui/ui_draw_listener.h>
 
 #include <spot.h>
 
@@ -10,7 +11,7 @@
 // steady and hides down the sights and while nothing can be used, a hit marker, what is in hand with its icon and
 // rounds or mode, the controls that matter for it, what Use would do, the player's health and hurts, the weapon wheel
 // while it is open, the time of day with the sun or the moon and, on the Statistics action, the frame rate and timings.
-class Hud final : public Spot::Component {
+class Hud final : public Spot::Component, public Spot::UiDrawListener {
 public:
     Spot::AssetRef<Spot::Font> font;
     // Seconds the name of what is in hand shows after switching, before it fades.
