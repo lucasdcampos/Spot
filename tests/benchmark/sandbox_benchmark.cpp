@@ -6,6 +6,7 @@
 #include <spot/scene/physics/physics_world.h>
 
 #include <spot.h>
+#include <spot/scene/scripting/scripting_module.h>
 
 #include <algorithm>
 #include <array>

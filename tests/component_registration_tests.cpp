@@ -1,4 +1,5 @@
 #include <spot.h>
+#include <spot/scene/scripting/scripting_components.h>
 
 #include <catch2/catch_test_macros.hpp>
 

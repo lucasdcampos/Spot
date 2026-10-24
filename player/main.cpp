@@ -1,6 +1,7 @@
 // spot_player: the executable of games without code of their own. Shipped, it runs the game whose settings are beside
 // it; the tools run it with --game, pointing at a folder with the settings of a project's game.
 #include <spot.h>
+#include <spot/scene/scripting/scripting_module.h>
 
 #include <cstdio>
 #include <cstdlib>

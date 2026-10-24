@@ -1,9 +1,5 @@
 #pragma once
 
-#include "spot/scene/scripting/script_bindings.h"
-#include "spot/scene/scripting/script_component.h"
-#include "spot/scene/scripting/script_events.h"
-
 #include "spot/animation/animation_data.h"
 #include "spot/animation/animation_layer.h"
 #include "spot/animation/animation_motion.h"
@@ -16,7 +12,6 @@
 #include "spot/assets/assets.h"
 #include "spot/assets/built_in_assets.h"
 #include "spot/assets/material_source.h"
-#include "spot/assets/script_source.h"
 #include "spot/audio/audio_device.h"
 #include "spot/audio/audio_settings.h"
 #include "spot/audio/playback.h"
@@ -175,7 +170,6 @@
 #include "spot/scene/ui/ui_input_system.h"
 
 #include "spot/animation/animation_assets.h"
-#include "spot/assets/script_assets.h"
 #include "spot/audio/audio_assets.h"
 #include "spot/graphics/graphics_assets.h"
 #include "spot/render/render_assets.h"
@@ -199,8 +193,6 @@
 #include "spot/scene/physics2d/physics2d_module.h"
 #include "spot/scene/rendering/render_module.h"
 #include "spot/scene/rendering/rendering_components.h"
-#include "spot/scene/scripting/scripting_components.h"
-#include "spot/scene/scripting/scripting_module.h"
 #include "spot/scene/ui/ui_components.h"
 #include "spot/scene/ui/ui_module.h"
 

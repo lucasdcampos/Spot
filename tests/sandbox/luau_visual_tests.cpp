@@ -2,6 +2,7 @@
 #include "day_cycle.h"
 
 #include <spot.h>
+#include <spot/scene/scripting/script_component.h>
 
 #include <catch2/catch_test_macros.hpp>
 

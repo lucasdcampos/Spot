@@ -1,6 +1,7 @@
 #include "panels/profiler_panel.h"
 
 #include <spot.h>
+#include <spot/scene/scripting/script_runtime.h>
 
 #include <algorithm>
 #include <format>

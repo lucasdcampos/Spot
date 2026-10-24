@@ -1,3 +1,6 @@
+
+#include <spot/scene/scripting/script_runtime.h>
+
 #include "panels/code_editor_panel.h"
 
 #include "app/editor_context.h"

@@ -38,6 +38,10 @@ public:
     virtual ScriptValue Call(std::string_view name, std::span<const ScriptValue>) {
         throw std::runtime_error("Unknown script method '" + std::string(name) + "'");
     }
+    // Runtime adapters may cache a property token; zero keeps dynamic host objects on their named path.
+    virtual std::size_t ResolveProperty(std::string_view) const { return 0; }
+    virtual ScriptValue GetResolved(std::size_t, std::string_view name) const { return Get(name); }
+    virtual void SetResolved(std::size_t, std::string_view name, const ScriptValue& value) { Set(name, value); }
     virtual bool HasMethod(std::string_view) const { return true; }
     // Discovery must not invoke getters or mutate the object.
     virtual bool HasProperty(std::string_view) const { return false; }
@@ -47,6 +51,8 @@ public:
     virtual ScriptValue Invoke(std::span<const ScriptValue>) {
         throw std::runtime_error("Script value is not callable");
     }
+    // Context-backed references can retain their runtime wrappers until that runtime closes.
+    virtual bool IsPersistentReference() const { return false; }
 };
 
 namespace Detail {
@@ -144,6 +150,9 @@ void SetScriptMethod(std::type_index type, std::string name, ScriptMethod method
 // The type of a property the bindings of `type` describe; "any" when they do not.
 std::string GetScriptPropertyType(std::type_index type, std::string_view name);
 void RemoveScriptBindings(std::type_index type);
+// Tokens retain no callbacks: replacement keeps the token, unregistration invalidates it.
+std::size_t ResolveScriptProperty(const Component& component, std::string_view name);
+std::shared_ptr<const ScriptProperty> FindResolvedScriptProperty(std::size_t id);
 ScriptValue GetScriptProperty(const Component& component, std::string_view name);
 void WriteScriptProperty(Component& component, std::string_view name, const ScriptValue& value);
 ScriptValue CallScriptMethod(Component& component, std::string_view name, std::span<const ScriptValue> arguments);

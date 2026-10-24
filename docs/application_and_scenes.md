@@ -13,6 +13,7 @@ A game's executable runs an application with the modules of the systems it uses:
 
 ```cpp
 #include <spot.h>
+#include <spot/scene/scripting/scripting_module.h>
 
 int main() {
     Spot::Application application({.game = Spot::GameSettings::LoadBesideExecutable()});

@@ -1,6 +1,9 @@
 #include "log_capture.h"
 
 #include <spot.h>
+#include <spot/assets/script_source.h>
+#include <spot/scene/scripting/script_component.h>
+#include <spot/scene/scripting/script_runtime.h>
 
 #include <catch2/catch_test_macros.hpp>
 

@@ -1,19 +1,12 @@
 #include "spot/scene/scripting/script_scene.h"
+#include "spot/scene/scripting/script_module_bindings.h"
 
 #include "spot/assets/assets.h"
 #include "spot/core/math/quaternion.h"
-#include "spot/core/time/time.h"
-#include "spot/platform/input.h"
-#include "spot/scene/audio/audio_source.h"
 #include "spot/scene/component_registry.h"
-#include "spot/scene/physics/collider.h"
 #include "spot/scene/physics/collision.h"
-#include "spot/scene/physics/physics_world.h"
 #include "spot/scene/physics2d/collision_2d.h"
-#include "spot/scene/physics2d/physics_world_2d.h"
 #include "spot/scene/prefab.h"
-#include "spot/scene/rendering/camera.h"
-#include "spot/scene/rendering/sprite_renderer.h"
 #include "spot/scene/scene.h"
 #include "spot/scene/scene_system.h"
 #include "spot/scene/scripting/script_api.h"
@@ -28,11 +21,24 @@
 
 namespace Spot::Detail {
 
+struct ScriptObjectKey {
+    int kind;
+    EntityId entity;
+    ComponentId component;
+    bool operator==(const ScriptObjectKey&) const = default;
+};
+struct ScriptObjectKeyHash {
+    std::size_t operator()(const ScriptObjectKey& key) const noexcept {
+        return std::hash<EntityId>{}(key.entity) ^ (std::hash<ComponentId>{}(key.component) << 1) ^
+               static_cast<std::size_t>(key.kind);
+    }
+};
+
 struct ScriptSceneContext : std::enable_shared_from_this<ScriptSceneContext> {
     Scene* scene = nullptr;
     // The executing owner can finish cleanup after public scene queries stop listing it.
     Component* component = nullptr;
-    std::unordered_map<std::string, std::weak_ptr<ScriptObject>> objects;
+    std::unordered_map<ScriptObjectKey, std::unique_ptr<ScriptObject>, ScriptObjectKeyHash> objects;
     // The script's own entity and component, which own its event subscriptions.
     EntityId owner = EntityId::Invalid;
     ComponentId ownerComponent;
@@ -115,20 +121,19 @@ std::size_t DispatchEvent(Scene& scene, EntityId target, std::string_view name,
     return delivered;
 }
 
-template <typename T>
-T Argument(const ScriptValue& value) {
-    return FromScriptValue<T>(value);
-}
-void Count(std::span<const ScriptValue> arguments, std::size_t count) {
-    if (arguments.size() != count)
-        throw std::runtime_error("Incorrect argument count");
-}
-
 enum class ObjectKind { Entity, Transform, Component, Scene, Input, Time, Physics };
 ScriptValue Wrap(const std::shared_ptr<ScriptSceneContext>& context, ObjectKind kind,
                  EntityId entity = EntityId::Invalid, ComponentId component = {});
 ScriptValue WrapEntity(const std::shared_ptr<ScriptSceneContext>& context, const Entity* entity) {
     return entity ? Wrap(context, ObjectKind::Entity, entity->GetId()) : ScriptValue{};
+}
+
+ScriptValue Wrap(ScriptSceneContext* context, ObjectKind kind, EntityId entity = EntityId::Invalid,
+                 ComponentId component = {}) {
+    return Wrap(context->shared_from_this(), kind, entity, component);
+}
+ScriptValue WrapEntity(ScriptSceneContext* context, const Entity* entity) {
+    return WrapEntity(context->shared_from_this(), entity);
 }
 
 // The name ScriptApi::Types describes each kind of object by.
@@ -152,11 +157,6 @@ constexpr std::string_view TypeName(ObjectKind kind) {
     return {};
 }
 
-constexpr std::array<std::string_view, 3> KeyQueries{"IsKeyDown", "IsKeyPressed", "IsKeyReleased"};
-constexpr std::array<std::string_view, 3> MouseQueries{"IsMouseButtonDown", "IsMouseButtonPressed",
-                                                       "IsMouseButtonReleased"};
-constexpr std::array<std::string_view, 3> GamepadQueries{"IsGamepadButtonDown", "IsGamepadButtonPressed",
-                                                         "IsGamepadButtonReleased"};
 constexpr std::array<std::string_view, 4> PhysicsQueries{"Raycast", "SphereCast", "Raycast2D", "CircleCast2D"};
 constexpr std::array<std::string_view, 7> CoroutineMethods{"StartCoroutine",     "StopCoroutine", "StopCoroutines",
                                                            "IsCoroutineRunning", "WaitSeconds",   "WaitFrames",
@@ -178,53 +178,52 @@ ScriptObjectRef ScriptOf(const Component& component) {
 }
 constexpr std::array<std::string_view, 5> SceneStructure{"CreateEntity", "Instantiate", "DestroyEntity", "On", "Emit"};
 
-template <std::size_t N>
-constexpr bool Contains(const std::array<std::string_view, N>& names, std::string_view name) {
-    for (const auto item : names) {
-        if (item == name)
-            return true;
-    }
-    return false;
+SceneProperty ResolveSceneProperty(std::string_view name) {
+    static const std::unordered_map<std::string_view, SceneProperty> properties{
+        {"scene", SceneProperty::Scene},
+        {"Transform", SceneProperty::Transform},
+        {"transform", SceneProperty::Transform},
+        {"Parent", SceneProperty::Parent},
+        {"parent", SceneProperty::Parent},
+        {"name", SceneProperty::Name},
+        {"id", SceneProperty::Id},
+        {"active", SceneProperty::Active},
+        {"activeInHierarchy", SceneProperty::ActiveInHierarchy},
+        {"layer", SceneProperty::Layer},
+        {"Entity", SceneProperty::Entity},
+        {"entity", SceneProperty::Entity},
+        {"position", SceneProperty::Position},
+        {"worldPosition", SceneProperty::WorldPosition},
+        {"scale", SceneProperty::Scale},
+        {"rotation", SceneProperty::Rotation},
+        {"worldRotation", SceneProperty::WorldRotation},
+        {"rotation2D", SceneProperty::Rotation2D},
+        {"enabled", SceneProperty::Enabled},
+        {"faulted", SceneProperty::Faulted},
+        {"deltaTime", SceneProperty::DeltaTime},
+        {"unscaledDeltaTime", SceneProperty::UnscaledDeltaTime},
+        {"time", SceneProperty::Time},
+        {"unscaledTime", SceneProperty::UnscaledTime},
+        {"frameCount", SceneProperty::FrameCount},
+        {"fixedDeltaTime", SceneProperty::FixedDeltaTime},
+        {"timeScale", SceneProperty::TimeScale},
+        {"mousePosition", SceneProperty::MousePosition},
+        {"mouseDelta", SceneProperty::MouseDelta},
+        {"scrollDelta", SceneProperty::ScrollDelta},
+        {"gamepadCount", SceneProperty::GamepadCount},
+        {"cursorLocked", SceneProperty::CursorLocked},
+    };
+    const auto found = properties.find(name);
+    return found == properties.end() ? SceneProperty::Unknown : found->second;
 }
-// Finds the enum value named as GetKeyName() and the like name it, for the first `count` values.
-template <typename T, typename Name>
-T ParseName(std::string_view text, int first, int last, Name name, std::string_view what) {
-    for (int i = first; i <= last; ++i) {
-        if (name(static_cast<T>(i)) == text)
-            return static_cast<T>(i);
-    }
-    throw std::runtime_error("Unknown " + std::string(what) + " name '" + std::string(text) + "'");
-}
-
-// A value object with fixed read-only properties, such as a contact or a raycast hit. Points beyond the first are read
-// with GetPoint(index), since script values have no engine array type.
-struct ScriptRecord final : ScriptObject {
-    std::unordered_map<std::string, ScriptValue> properties;
-    std::vector<ScriptValue> points;
-    bool HasProperty(std::string_view name) const override { return properties.contains(std::string(name)); }
-    bool HasMethod(std::string_view name) const override { return name == "GetPoint" && !points.empty(); }
-    ScriptValue Get(std::string_view name) const override {
-        if (const auto found = properties.find(std::string(name)); found != properties.end())
-            return found->second;
-        return ScriptObject::Get(name);
-    }
-    ScriptValue Call(std::string_view name, std::span<const ScriptValue> arguments) override {
-        if (name == "GetPoint" && !points.empty()) {
-            Count(arguments, 1);
-            const auto index = Argument<std::uint32_t>(arguments[0]);
-            if (index >= points.size())
-                throw std::runtime_error("Contact point index is out of range");
-            return points[index];
-        }
-        return ScriptObject::Call(name, arguments);
-    }
-};
 
 struct SceneObject final : ScriptObject {
-    std::shared_ptr<ScriptSceneContext> context;
+    // Wrappers are owned by the context; returned references alias its shared ownership.
+    ScriptSceneContext* context;
     ObjectKind kind;
     EntityId entityId;
     ComponentId componentId;
+    bool IsPersistentReference() const override { return true; }
 
     Scene& CurrentScene() const {
         if (context->scene)
@@ -299,20 +298,6 @@ struct SceneObject final : ScriptObject {
             throw std::runtime_error("Entity reference is no longer valid in this scene");
         return entity;
     }
-    QueryFilter Filter(std::span<const ScriptValue> arguments, std::size_t first) const {
-        QueryFilter filter;
-        if (arguments.size() > first)
-            filter.ignore = EntityArgument(arguments[first]);
-        if (arguments.size() > first + 1)
-            filter.layerMask = Argument<std::uint32_t>(arguments[first + 1]);
-        if (arguments.size() > first + 2)
-            filter.includeTriggers = Argument<bool>(arguments[first + 2]);
-        return filter;
-    }
-    template <typename Hit>
-    ScriptValue MakeHit(const std::optional<Hit>& hit) const;
-    ScriptValue CallInput(std::string_view name, std::span<const ScriptValue> arguments) const;
-    ScriptValue CallPhysics(std::string_view name, std::span<const ScriptValue> arguments) const;
     ScriptValue CallStructure(std::string_view name, std::span<const ScriptValue> arguments);
     ScriptValue CallCoroutine(std::string_view name, std::span<const ScriptValue> arguments);
     bool Describes(std::string_view name, ScriptApi::MemberKind member) const {
@@ -343,10 +328,28 @@ struct SceneObject final : ScriptObject {
         }
         return false;
     }
-    ScriptValue Get(std::string_view name) const override {
-        if (HasMethod(name))
+    std::size_t ResolveProperty(std::string_view name) const override {
+        if (kind == ObjectKind::Component) {
+            if (const auto id = ResolveScriptProperty(RequireComponent(), name))
+                return static_cast<std::size_t>(SceneProperty::Count) + id;
+            // Only entities accept the uppercase transform alias.
+            if (name == "Transform")
+                return 0;
+        }
+        return static_cast<std::size_t>(ResolveSceneProperty(name));
+    }
+    ScriptValue Get(std::string_view name) const override { return GetResolved(ResolveProperty(name), name); }
+    ScriptValue GetResolved(std::size_t id, std::string_view name) const override {
+        if (kind == ObjectKind::Component && id >= static_cast<std::size_t>(SceneProperty::Count)) {
+            const auto& component = RequireComponent();
+            if (const auto property = FindResolvedScriptProperty(id - static_cast<std::size_t>(SceneProperty::Count)))
+                return property->get(component);
+            return Get(name);
+        }
+        const auto property = static_cast<SceneProperty>(id);
+        if (property == SceneProperty::Unknown && kind != ObjectKind::Component && HasMethod(name))
             return ScriptObject::Get(name);
-        if (name == "scene" &&
+        if (property == SceneProperty::Scene &&
             (kind == ObjectKind::Entity || kind == ObjectKind::Transform || kind == ObjectKind::Component)) {
             if (kind == ObjectKind::Component)
                 RequireComponent();
@@ -356,98 +359,99 @@ struct SceneObject final : ScriptObject {
         }
         if (kind == ObjectKind::Entity) {
             const auto& entity = RequireEntity();
-            if (name == "Transform" || name == "transform")
+            if (property == SceneProperty::Transform)
                 return Wrap(context, ObjectKind::Transform, entityId);
-            if (name == "Parent" || name == "parent")
+            if (property == SceneProperty::Parent)
                 return WrapEntity(context, entity.GetParent());
-            if (name == "name")
+            if (property == SceneProperty::Name)
                 return entity.GetName();
-            if (name == "id")
+            if (property == SceneProperty::Id)
                 return std::to_string(static_cast<std::uint64_t>(entityId));
-            if (name == "active")
+            if (property == SceneProperty::Active)
                 return entity.IsActiveSelf();
-            if (name == "activeInHierarchy")
+            if (property == SceneProperty::ActiveInHierarchy)
                 return entity.IsActiveInHierarchy();
-            if (name == "layer")
+            if (property == SceneProperty::Layer)
                 return static_cast<double>(entity.GetLayer());
             if (!name.empty() && name.front() >= 'A' && name.front() <= 'Z')
                 return ComponentNamed(name);
         } else if (kind == ObjectKind::Transform) {
             const auto& transform = RequireEntity().GetTransform();
-            if (name == "Entity" || name == "entity")
+            if (property == SceneProperty::Entity)
                 return Wrap(context, ObjectKind::Entity, entityId);
-            if (name == "position")
+            if (property == SceneProperty::Position)
                 return transform.GetPosition();
-            if (name == "worldPosition")
+            if (property == SceneProperty::WorldPosition)
                 return transform.GetWorldPosition();
-            if (name == "scale")
+            if (property == SceneProperty::Scale)
                 return transform.GetScale();
-            if (name == "rotation")
+            if (property == SceneProperty::Rotation)
                 return ToEuler(transform.GetRotation());
-            if (name == "worldRotation")
+            if (property == SceneProperty::WorldRotation)
                 return ToEuler(transform.GetWorldRotation());
-            if (name == "rotation2D")
+            if (property == SceneProperty::Rotation2D)
                 return static_cast<double>(transform.GetRotation2D());
         } else if (kind == ObjectKind::Component) {
             const auto& component = RequireComponent();
-            if (name == "transform")
+            if (property == SceneProperty::Transform)
                 return Wrap(context, ObjectKind::Transform, entityId);
-            if (name == "Entity" || name == "entity")
+            if (property == SceneProperty::Entity)
                 return Wrap(context, ObjectKind::Entity, entityId);
-            if (name == "id")
+            if (property == SceneProperty::Id)
                 return componentId.ToString();
-            if (name == "enabled")
+            if (property == SceneProperty::Enabled)
                 return component.IsEnabled();
-            if (name == "active")
+            if (property == SceneProperty::Active)
                 return component.IsActiveAndEnabled();
-            if (name == "faulted")
+            if (property == SceneProperty::Faulted)
                 return component.IsFaulted();
             if (!HasScriptProperty(component, name)) {
-                if (const auto script = ForwardedScript(component); script && script->HasProperty(name))
-                    return script->Get(name);
+                if (HasScriptMethod(component, name))
+                    return ScriptObject::Get(name);
+                if (const auto script = ForwardedScript(component)) {
+                    if (script->HasMethod(name))
+                        return ScriptObject::Get(name);
+                    if (script->HasProperty(name))
+                        return script->Get(name);
+                }
             }
             return GetScriptProperty(component, name);
         } else if (kind == ObjectKind::Time) {
-            if (name == "deltaTime")
-                return static_cast<double>(Time::GetDeltaTime());
-            if (name == "unscaledDeltaTime")
-                return static_cast<double>(Time::GetUnscaledDeltaTime());
-            if (name == "time")
-                return Time::GetTime();
-            if (name == "unscaledTime")
-                return Time::GetUnscaledTime();
-            if (name == "frameCount")
-                return ToScriptValue(Time::GetFrameCount());
-            if (name == "fixedDeltaTime")
+            if (property == SceneProperty::FixedDeltaTime)
                 return static_cast<double>(CurrentScene().GetFixedTimeStep());
-            if (name == "timeScale")
-                return static_cast<double>(Time::GetTimeScale());
+            return GetScriptTime(property, name);
         } else if (kind == ObjectKind::Input) {
-            if (name == "mousePosition")
-                return Input::GetMousePosition();
-            if (name == "mouseDelta")
-                return Input::GetMouseDelta();
-            if (name == "scrollDelta")
-                return Input::GetScrollDelta();
-            if (name == "gamepadCount")
-                return static_cast<double>(Input::GetGamepadCount());
-            if (name == "cursorLocked")
-                return Input::IsCursorLocked();
+            return GetScriptInput(property, name);
         }
         return ScriptObject::Get(name);
     }
     void Set(std::string_view name, const ScriptValue& value) override {
+        SetResolved(ResolveProperty(name), name, value);
+    }
+    void SetResolved(std::size_t id, std::string_view name, const ScriptValue& value) override {
+        if (kind == ObjectKind::Component && id >= static_cast<std::size_t>(SceneProperty::Count)) {
+            auto& component = RequireComponent();
+            if (const auto property = FindResolvedScriptProperty(id - static_cast<std::size_t>(SceneProperty::Count))) {
+                if (!property->set)
+                    throw std::runtime_error("Read-only script property '" + std::string(name) + "'");
+                property->set(component, value);
+            } else {
+                Set(name, value);
+            }
+            return;
+        }
+        const auto property = static_cast<SceneProperty>(id);
         if (kind == ObjectKind::Entity) {
             auto& entity = RequireEntity();
-            if (name == "name") {
+            if (property == SceneProperty::Name) {
                 entity.SetName(Argument<std::string>(value));
                 return;
             }
-            if (name == "active") {
+            if (property == SceneProperty::Active) {
                 entity.SetActive(Argument<bool>(value));
                 return;
             }
-            if (name == "layer") {
+            if (property == SceneProperty::Layer) {
                 const auto layer = Argument<int>(value);
                 if (layer < 0 || layer >= Entity::LayerCount)
                     throw std::runtime_error("Entity layer must be between 0 and 31");
@@ -456,38 +460,39 @@ struct SceneObject final : ScriptObject {
             }
         } else if (kind == ObjectKind::Transform) {
             auto& transform = RequireEntity().GetTransform();
-            if (name == "position") {
+            if (property == SceneProperty::Position) {
                 transform.SetPosition(Argument<Vector3>(value));
                 return;
             }
-            if (name == "worldPosition") {
+            if (property == SceneProperty::WorldPosition) {
                 transform.SetWorldPosition(Argument<Vector3>(value));
                 return;
             }
-            if (name == "scale") {
+            if (property == SceneProperty::Scale) {
                 transform.SetScale(Argument<Vector3>(value));
                 return;
             }
-            if (name == "rotation") {
+            if (property == SceneProperty::Rotation) {
                 transform.SetRotation(Quaternion::FromEuler(Argument<Vector3>(value)));
                 return;
             }
-            if (name == "worldRotation") {
+            if (property == SceneProperty::WorldRotation) {
                 transform.SetWorldRotation(Quaternion::FromEuler(Argument<Vector3>(value)));
                 return;
             }
-            if (name == "rotation2D") {
+            if (property == SceneProperty::Rotation2D) {
                 transform.SetRotation2D(Argument<float>(value));
                 return;
             }
         } else if (kind == ObjectKind::Component) {
             auto& component = RequireComponent();
-            if (name == "enabled") {
+            if (property == SceneProperty::Enabled) {
                 component.SetEnabled(Argument<bool>(value));
                 return;
             }
-            if (name == "active" || name == "faulted" || name == "id" || name == "Entity" || name == "entity" ||
-                name == "scene" || name == "transform")
+            if (property == SceneProperty::Active || property == SceneProperty::Faulted ||
+                property == SceneProperty::Id || property == SceneProperty::Entity ||
+                property == SceneProperty::Scene || property == SceneProperty::Transform)
                 throw std::runtime_error("Component property is read-only");
             if (!HasScriptProperty(component, name)) {
                 if (const auto script = ForwardedScript(component); script && script->HasProperty(name)) {
@@ -497,12 +502,11 @@ struct SceneObject final : ScriptObject {
             }
             WriteScriptProperty(component, name, value);
             return;
-        } else if (kind == ObjectKind::Time && name == "timeScale") {
-            if (!Time::SetTimeScale(Argument<float>(value)))
-                throw std::runtime_error("Time scale must be finite and not negative");
+        } else if (kind == ObjectKind::Time && property == SceneProperty::TimeScale) {
+            SetScriptTimeScale(value);
             return;
-        } else if (kind == ObjectKind::Input && name == "cursorLocked") {
-            Input::SetCursorLocked(Argument<bool>(value));
+        } else if (kind == ObjectKind::Input && property == SceneProperty::CursorLocked) {
+            SetScriptCursorLocked(value);
             return;
         }
         ScriptObject::Set(name, value);
@@ -536,9 +540,9 @@ struct SceneObject final : ScriptObject {
             (kind == ObjectKind::Entity && Contains(EntityStructure, name)))
             return CallStructure(name, arguments);
         if (kind == ObjectKind::Physics && Contains(PhysicsQueries, name))
-            return CallPhysics(name, arguments);
-        if (kind == ObjectKind::Input && !Contains(KeyQueries, name))
-            return CallInput(name, arguments);
+            return CallScriptPhysics(CurrentScene(), context->shared_from_this(), name, arguments);
+        if (kind == ObjectKind::Input)
+            return CallScriptInput(name, arguments);
         if (kind == ObjectKind::Scene && (name == "FindEntity" || name == "FindEntityWithTag")) {
             Count(arguments, 1);
             const auto query = Argument<std::string>(arguments[0]);
@@ -584,116 +588,9 @@ struct SceneObject final : ScriptObject {
             }
             return CallScriptMethod(component, name, arguments);
         }
-        if (kind == ObjectKind::Input && (name == "IsKeyDown" || name == "IsKeyPressed" || name == "IsKeyReleased")) {
-            Count(arguments, 1);
-            const auto keyName = Argument<std::string>(arguments[0]);
-            for (int i = 1; i <= static_cast<int>(Key::RightSuper); ++i) {
-                const auto key = static_cast<Key>(i);
-                if (GetKeyName(key) == keyName) {
-                    if (name == "IsKeyDown")
-                        return Input::IsKeyDown(key);
-                    if (name == "IsKeyPressed")
-                        return Input::IsKeyPressed(key);
-                    return Input::IsKeyReleased(key);
-                }
-            }
-            throw std::runtime_error("Unknown key name '" + keyName + "'");
-        }
         return ScriptObject::Call(name, arguments);
     }
 };
-
-ScriptValue SceneObject::CallInput(std::string_view name, std::span<const ScriptValue> arguments) const {
-    if (Contains(MouseQueries, name)) {
-        Count(arguments, 1);
-        const auto button =
-            ParseName<MouseButton>(Argument<std::string>(arguments[0]), 0, static_cast<int>(MouseButton::X2),
-                                   GetMouseButtonName, "mouse button");
-        if (name == "IsMouseButtonDown")
-            return Input::IsMouseButtonDown(button);
-        if (name == "IsMouseButtonPressed")
-            return Input::IsMouseButtonPressed(button);
-        return Input::IsMouseButtonReleased(button);
-    }
-    // Gamepad queries take an optional zero-based gamepad index; without it they look at every gamepad.
-    const auto gamepad = [&](std::size_t index) {
-        if (arguments.size() < index + 1 || arguments.size() > index + 2)
-            throw std::runtime_error("Incorrect argument count");
-        return arguments.size() == index + 2 ? Argument<int>(arguments[index + 1]) : Input::AnyGamepad;
-    };
-    if (Contains(GamepadQueries, name)) {
-        const auto index = gamepad(0);
-        const auto button =
-            ParseName<GamepadButton>(Argument<std::string>(arguments[0]), 0, static_cast<int>(GamepadButton::Count) - 1,
-                                     GetGamepadButtonName, "gamepad button");
-        if (name == "IsGamepadButtonDown")
-            return Input::IsGamepadButtonDown(button, index);
-        if (name == "IsGamepadButtonPressed")
-            return Input::IsGamepadButtonPressed(button, index);
-        return Input::IsGamepadButtonReleased(button, index);
-    }
-    if (name == "GetGamepadAxis") {
-        const auto index = gamepad(0);
-        const auto axis =
-            ParseName<GamepadAxis>(Argument<std::string>(arguments[0]), 0, static_cast<int>(GamepadAxis::Count) - 1,
-                                   GetGamepadAxisName, "gamepad axis");
-        return static_cast<double>(Input::GetGamepadAxis(axis, index));
-    }
-    Count(arguments, 1);
-    const auto action = Argument<std::string>(arguments[0]);
-    if (name == "IsActionDown")
-        return Input::IsActionDown(action);
-    if (name == "IsActionPressed")
-        return Input::IsActionPressed(action);
-    if (name == "IsActionReleased")
-        return Input::IsActionReleased(action);
-    if (name == "GetActionValue")
-        return static_cast<double>(Input::GetActionValue(action));
-    return Input::GetActionVector2(action);
-}
-
-template <typename Hit>
-ScriptValue SceneObject::MakeHit(const std::optional<Hit>& hit) const {
-    if (!hit)
-        return {};
-    auto record = std::make_shared<ScriptRecord>();
-    record->properties.emplace("entity", Wrap(context, ObjectKind::Entity, hit->entity));
-    record->properties.emplace("collider",
-                               hit->collider ? Wrap(context, ObjectKind::Component, hit->entity, hit->collider->GetId())
-                                             : ScriptValue{});
-    record->properties.emplace("point", hit->point);
-    record->properties.emplace("normal", hit->normal);
-    record->properties.emplace("distance", static_cast<double>(hit->distance));
-    return ScriptObjectRef(record);
-}
-
-ScriptValue SceneObject::CallPhysics(std::string_view name, std::span<const ScriptValue> arguments) const {
-    // Raycast(origin, direction, maxDistance[, ignore, layerMask, includeTriggers]); casts take a radius after
-    // the origin. Results are hit objects, or null when nothing is met.
-    const bool cast = name == "SphereCast" || name == "CircleCast2D";
-    const std::size_t required = cast ? 4 : 3;
-    if (arguments.size() < required || arguments.size() > required + 3)
-        throw std::runtime_error("Incorrect argument count");
-    const auto filter = Filter(arguments, required);
-    const auto distance = Argument<float>(arguments[required - 1]);
-    if (!(distance >= 0))
-        throw std::runtime_error("Query distance cannot be negative");
-    const auto radius = cast ? Argument<float>(arguments[1]) : 0.0f;
-    if (cast && !(radius > 0))
-        throw std::runtime_error("Cast radius must be positive");
-    if (name == "Raycast" || name == "SphereCast") {
-        auto& physics = CurrentScene().GetOrAddSystem<Spot::PhysicsWorld>();
-        const auto origin = Argument<Vector3>(arguments[0]);
-        const auto direction = Argument<Vector3>(arguments[cast ? 2 : 1]);
-        return MakeHit(cast ? physics.SphereCast(origin, radius, direction, distance, filter)
-                            : physics.Raycast(origin, direction, distance, filter));
-    }
-    auto& physics = CurrentScene().GetOrAddSystem<Spot::PhysicsWorld2D>();
-    const auto origin = Argument<Vector2>(arguments[0]);
-    const auto direction = Argument<Vector2>(arguments[cast ? 2 : 1]);
-    return MakeHit(cast ? physics.CircleCast(origin, radius, direction, distance, filter)
-                        : physics.Raycast(origin, direction, distance, filter));
-}
 
 // What On() returns: Cancel() ends the subscription early; `active` tells whether it still exists.
 struct SubscriptionObject final : ScriptObject {
@@ -887,19 +784,17 @@ ScriptValue SceneObject::CallStructure(std::string_view name, std::span<const Sc
 
 ScriptValue Wrap(const std::shared_ptr<ScriptSceneContext>& context, ObjectKind kind, EntityId entity,
                  ComponentId component) {
-    const auto key = std::to_string(static_cast<int>(kind)) + ":" + std::to_string(static_cast<std::uint64_t>(entity)) +
-                     ":" + component.ToString();
-    if (const auto found = context->objects.find(key); found != context->objects.end()) {
-        if (auto existing = found->second.lock())
-            return existing;
-    }
-    auto object = std::make_shared<SceneObject>();
-    object->context = context;
+    const ScriptObjectKey key{static_cast<int>(kind), entity, component};
+    if (const auto found = context->objects.find(key); found != context->objects.end())
+        return ScriptObjectRef(context, found->second.get());
+    auto object = std::make_unique<SceneObject>();
+    object->context = context.get();
     object->kind = kind;
     object->entityId = entity;
     object->componentId = component;
-    context->objects.insert_or_assign(key, object);
-    return ScriptObjectRef(object);
+    auto* result = object.get();
+    context->objects.emplace(key, std::move(object));
+    return ScriptObjectRef(context, result);
 }
 
 template <typename CollisionType>
@@ -923,123 +818,22 @@ ScriptValue MakeTrigger(const std::shared_ptr<ScriptSceneContext>& context, cons
     return ScriptObjectRef(record);
 }
 
-template <typename T>
-void PropertyMethods(std::string_view property, std::string_view getter, std::string_view setter = {}) {
-    SetScriptMethod(
-        typeid(T), std::string(getter),
-        [name = std::string(property)](Component& component, std::span<const ScriptValue> arguments) {
-            Count(arguments, 0);
-            return GetScriptProperty(component, name);
-        },
-        GetScriptPropertyType(typeid(T), property));
-    if (!setter.empty())
-        SetScriptMethod(
-            typeid(T), std::string(setter),
-            [name = std::string(property)](Component& component,
-                                           std::span<const ScriptValue> arguments) -> ScriptValue {
-                Count(arguments, 1);
-                WriteScriptProperty(component, name, arguments[0]);
-                return {};
-            },
-            "");
-}
-
-void RegisterBuiltins() {
-    ScriptBindings<SpriteRenderer>(BuiltinScriptBindingsTag{})
-        .Property("color", &SpriteRenderer::GetColor, &SpriteRenderer::SetColor)
-        .Property("size", &SpriteRenderer::GetSize,
-                  [](SpriteRenderer& sprite, Vector2 value) {
-                      if (value.x < 0 || value.y < 0)
-                          throw std::runtime_error("Sprite size cannot be negative");
-                      sprite.SetSize(value);
-                  })
-        .Property("frame", &SpriteRenderer::GetFrame, &SpriteRenderer::SetFrame)
-        .Property("flippedX", &SpriteRenderer::IsFlippedX, &SpriteRenderer::SetFlippedX)
-        .Property("flippedY", &SpriteRenderer::IsFlippedY, &SpriteRenderer::SetFlippedY)
-        .Property("order", &SpriteRenderer::GetOrder, &SpriteRenderer::SetOrder);
-    ScriptBindings<Camera>(BuiltinScriptBindingsTag{})
-        .Property(
-            "projection",
-            [](const Camera& camera) {
-                return std::string(camera.GetProjection() == CameraProjection::Perspective ? "Perspective"
-                                                                                           : "Orthographic");
-            },
-            [](Camera& camera, const std::string& value) {
-                if (value != "Perspective" && value != "Orthographic")
-                    throw std::runtime_error("Unknown camera projection");
-                camera.SetProjection(value == "Perspective" ? CameraProjection::Perspective
-                                                            : CameraProjection::Orthographic);
-            })
-        .Property("fieldOfView", &Camera::GetFieldOfView,
-                  [](Camera& camera, float value) {
-                      if (value <= 0 || value >= ToRadians(180.0f))
-                          throw std::runtime_error("Field of view must be between 0 and pi radians");
-                      camera.SetFieldOfView(value);
-                  })
-        .Property("orthographicSize", &Camera::GetOrthographicSize,
-                  [](Camera& camera, float value) {
-                      if (value <= 0)
-                          throw std::runtime_error("Orthographic size must be positive");
-                      camera.SetOrthographicSize(value);
-                  })
-        .Property("nearPlane", &Camera::GetNearPlane,
-                  [](Camera& camera, float value) {
-                      if (value <= 0 || value >= camera.GetFarPlane())
-                          throw std::runtime_error("Near plane must be positive and below far plane");
-                      camera.SetNearPlane(value);
-                  })
-        .Property("farPlane", &Camera::GetFarPlane,
-                  [](Camera& camera, float value) {
-                      if (value <= camera.GetNearPlane())
-                          throw std::runtime_error("Far plane must exceed near plane");
-                      camera.SetFarPlane(value);
-                  })
-        .Property("background", &Camera::GetBackground, &Camera::SetBackground);
-    ScriptBindings<AudioSource>(BuiltinScriptBindingsTag{})
-        .Property(
-            "volume", [](const AudioSource& audio) { return audio.volume; },
-            [](AudioSource& audio, float value) {
-                if (value < 0)
-                    throw std::runtime_error("Volume cannot be negative");
-                audio.volume = value;
-            })
-        .Property(
-            "pitch", [](const AudioSource& audio) { return audio.pitch; },
-            [](AudioSource& audio, float value) {
-                if (value <= 0)
-                    throw std::runtime_error("Pitch must be positive");
-                audio.pitch = value;
-            })
-        .Field("loop", &AudioSource::loop)
-        .Field("spatial", &AudioSource::spatial)
-        .Field("playOnStart", &AudioSource::playOnStart)
-        .Field("bus", &AudioSource::bus)
-        .ReadOnly("playing", &AudioSource::IsPlaying)
-        .ReadOnly("paused", &AudioSource::IsPaused)
-        .Method("Play", &AudioSource::Play)
-        .Method("Pause", &AudioSource::Pause)
-        .Method("Stop", &AudioSource::Stop);
-    PropertyMethods<SpriteRenderer>("color", "GetColor", "SetColor");
-    PropertyMethods<SpriteRenderer>("size", "GetSize", "SetSize");
-    PropertyMethods<SpriteRenderer>("frame", "GetFrame", "SetFrame");
-    PropertyMethods<SpriteRenderer>("flippedX", "IsFlippedX", "SetFlippedX");
-    PropertyMethods<SpriteRenderer>("flippedY", "IsFlippedY", "SetFlippedY");
-    PropertyMethods<SpriteRenderer>("order", "GetOrder", "SetOrder");
-    PropertyMethods<Camera>("projection", "GetProjection", "SetProjection");
-    PropertyMethods<Camera>("fieldOfView", "GetFieldOfView", "SetFieldOfView");
-    PropertyMethods<Camera>("orthographicSize", "GetOrthographicSize", "SetOrthographicSize");
-    PropertyMethods<Camera>("nearPlane", "GetNearPlane", "SetNearPlane");
-    PropertyMethods<Camera>("farPlane", "GetFarPlane", "SetFarPlane");
-    PropertyMethods<Camera>("background", "GetBackground", "SetBackground");
-    PropertyMethods<AudioSource>("playing", "IsPlaying");
-    PropertyMethods<AudioSource>("paused", "IsPaused");
-}
-
 } // namespace
+
+EntityId ReadScriptEntityId(const ScriptValue& value) {
+    return SceneObject::EntityArgument(value);
+}
+ScriptValue MakeScriptReference(const std::shared_ptr<ScriptSceneContext>& context, EntityId entity,
+                                ComponentId component) {
+    return Wrap(context, component.IsValid() ? ObjectKind::Component : ObjectKind::Entity, entity, component);
+}
 
 void EnsureBuiltinScriptBindings() {
     static std::once_flag builtins;
-    std::call_once(builtins, RegisterBuiltins);
+    std::call_once(builtins, [] {
+        RegisterRenderingScriptBindings();
+        RegisterAudioScriptBindings();
+    });
 }
 
 ScriptValue MakeScriptContact(const std::shared_ptr<ScriptSceneContext>& context, const Collision& collision) {
@@ -1065,6 +859,7 @@ void BindSceneScript(ScriptRuntime& runtime, const std::shared_ptr<ScriptSceneCo
     context->ownerComponent = component;
     struct SceneLibrary final : ScriptObject {
         std::unordered_map<std::string, ScriptValue> exports;
+        bool IsPersistentReference() const override { return true; }
         bool HasMethod(std::string_view) const override { return false; }
         ScriptValue Get(std::string_view name) const override {
             const auto found = exports.find(std::string(name));
@@ -1101,8 +896,6 @@ ScriptSceneScope::ScriptSceneScope(ScriptSceneContext& context, Scene& scene, Co
       m_previousActive(t_activeContext) {
     if (context.scene && (context.scene != &scene || context.component != component))
         throw std::logic_error("Scene script scope is already active for another context");
-    if (!context.scene)
-        std::erase_if(context.objects, [](const auto& item) { return item.second.expired(); });
     context.scene = &scene;
     context.component = component;
     t_activeContext = &context;

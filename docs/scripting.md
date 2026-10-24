@@ -1,7 +1,7 @@
 # Scripting
 
 Spot's scripting language is **[Luau](https://luau.org)**, a sandboxed and typed descendant of Lua. Scripts are
-`.luau` assets run by `ScriptComponent`s, one isolated Luau state per component (`SPOT_ENABLE_LUAU=ON` by default,
+`.luau` assets run by `ScriptComponent`s, one isolated Luau state per component (`SPOT_SCRIPTING=ON` and `SPOT_ENABLE_LUAU=ON` by default,
 `scene/scripting/luau_runtime.cpp`). The engine side does not depend on Luau: it is one scene API for any language,
 starting at `scene/scripting/script_runtime.h` for a language's adapter and `scene/scripting/script_component.h` for the
 component's lifecycle.
@@ -30,9 +30,45 @@ function OnCollisionEnter(collision)
 end
 ```
 
+## Optional support
+
+`SPOT_SCRIPTING` controls the complete scene scripting module. With it off, no scripting components, bindings,
+runtimes or `ScriptingModule` are compiled, and Luau is neither fetched nor linked, even if `SPOT_ENABLE_LUAU`
+remains on. The text-only `ScriptSource` asset format and its loader remain usable independently of a runtime.
+With scripting on, `SPOT_ENABLE_LUAU=OFF` still supports custom language adapters without Luau.
+
+`<spot.h>` includes no scripting headers. Include only the API you use, such as
+`<spot/scene/scripting/script_component.h>`, `<spot/scene/scripting/script_bindings.h>` or
+`<spot/scene/scripting/scripting_module.h>`. Applications add `ScriptingModule` explicitly; standalone scenes call
+`RegisterScriptComponents()` from `scripting_components.h`, and register script assets when needed. Both static and
+shared consumers inherit `SPOT_SCRIPTING=1` only in enabled builds; exported `Spot::Shared` packages carry the same
+feature definitions.
+
+The bundled editor, player, sandbox and integration tests require scripting support and build with it on. To build
+only the engine without scripting:
+
+```powershell
+cmake --preset msvc -DSPOT_SCRIPTING=OFF -DSPOT_BUILD_EDITOR=OFF -DSPOT_BUILD_SANDBOX=OFF -DSPOT_BUILD_TESTS=OFF
+cmake --build --preset msvc-debug --target spot spot_shared
+```
+
+The standalone consumer test deliberately requests Luau while disabling scripting, verifies that no Luau targets
+exist and no scripting definitions reach its translation unit, then updates a native C++ scene through both static and shared libraries:
+
+```powershell
+cmake -S tests/cmake/scripting_disabled -B build/scripting-disabled -G "Visual Studio 18 2026" -A x64
+cmake --build build/scripting-disabled --config Debug --target spot_no_scripting_smoke spot_no_scripting_shared_smoke
+ctest --test-dir build/scripting-disabled -C Debug --output-on-failure
+```
+
+The MSVC Debug enabled build and all 945 headless cases passed (the long falling/respawn case ran separately with
+one worker). Both static and shared scripting-disabled consumers built and passed their native-scene tests.
+
 ## Scripts and components
 
 ```cpp
+#include <spot/scene/scripting/script_component.h>
+
 auto& script = entity.AddComponent<Spot::ScriptComponent>();
 script.script = Spot::Assets::Load<Spot::ScriptSource>("scripts/player.luau");
 
@@ -190,7 +226,7 @@ gives the same object.
 
 ## Exposing game components
 
-`ScriptBindings<T>` (`scene/scripting/script_bindings.h`, included by `<spot.h>`) describes a C++ component's fields,
+`ScriptBindings<T>` (`scene/scripting/script_bindings.h`, included explicitly) describes a C++ component's fields,
 validated properties and methods once, with engine values; every language dispatches through these descriptors. To
 expose a game's `Health` component:
 
@@ -294,3 +330,105 @@ supplies the code. Map the extension to `AssetType::Script` in `assets/asset_typ
 
 `tests/script_runtime_tests.cpp` exercises the engine side with a test runtime of its own; the `luau_*_tests.cpp` run
 the Luau adapter against the same API, with both the static and the shared engine libraries.
+
+## Host property access
+
+Scene references are cached by object kind, entity id and component id in each script context. Repeated traversal
+of `entity.transform` reuses the wrapper even when a script keeps no reference between hooks. Returned references
+share the context's lifetime; cached wrappers do not own it, so releasing the runtime and all exported references
+releases the cache. References still resolve ids inside the current execution scope and reject destroyed objects. Luau
+retains the userdata and property-token cache of context references until the runtime closes, so a garbage
+collection between hooks does not recreate them. Transient records and ordinary host objects keep weak runtime
+caches; custom context-backed objects can opt in through `IsPersistentReference()`.
+
+Luau caches property tokens per host wrapper. Built-in scene properties dispatch through these tokens instead of
+repeating name comparisons. Registered component properties receive numeric registry tokens too. Replacing a
+binding keeps its token and updates the descriptor; unregistering a component removes its tokens and callbacks.
+Wrappers cache only tokens, and an invalidated token falls back to resolving the current binding by name. Property
+names that overlap another object's fields remain component bindings, including the uppercase `Transform` name.
+Custom runtime adapters can use `ScriptObject::ResolveProperty`, `GetResolved` and
+`SetResolved`; dynamic objects retain their named fallback. Warm scalar and reference reads avoid wrapper/key
+allocations; strings and value snapshots can still allocate. Component bindings use heterogeneous name lookup and
+retain an immutable property descriptor only for the invocation, avoiding copies of heap-backed callbacks without
+caching callbacks in entity wrappers after component-type unregistration.
+
+The completed native-token and persistent-wrapper paths passed all 17 native-runtime and 32 Luau cases against
+both libraries, including binding replacement/unregistration and allocation pressure, plus the three real-scene
+sandbox Luau cases. The benchmark now adds its system modules explicitly, preserving its workload after Phase 6.2.
+
+## Binding layout
+
+`scene/scripting/script_scene.cpp` owns scene scopes, cached entity/component references, structural operations,
+events and coroutines. System-specific built-ins live beside it: `script_render.cpp` and `script_audio.cpp` register
+component members; `script_input.cpp`, `script_time.cpp` and `script_physics.cpp` implement their libraries. Shared
+conversion, validation, property tokens and read-only result records stay in the private `script_module_bindings.h`.
+Physics resolves entity arguments and creates result references through the scene facade, retaining ids rather than
+engine pointers. The public script API remains described once in `script_api.h`; the binding files implement it.
+
+## Phase 9.1 measurements
+
+### Initial implementation
+
+Captured on 2026-10-24 from `658c7ac`, before the binding split, on the Phase 2.1 Windows/MSVC machine with Vulkan
+(NVRHI), Release, the unchanged benchmark and workload: 500 crates, 50 lamps, 934 bodies, High quality, 1600x900,
+vsync/validation off, orbit camera, 240 warm-up frames and 1,200 measured frames in each fresh process.
+
+```powershell
+cmake --build --preset msvc-release --target spot_sandbox_benchmark
+./build/msvc/tests/Release/spot_sandbox_benchmark --props 500 --lamps 50 --warmup 240 --frames 1200 --quality 2
+```
+
+| Measurement (ms) | Capture 1 | Capture 2 | Capture 3 |
+|---|---:|---:|---:|
+| Frame mean | 10.146 | 9.949 | 9.919 |
+| Frame median | 10.128 | 9.885 | 9.890 |
+| Frame p95 | 11.533 | 10.822 | 10.837 |
+| Startup scene load | 147.239 | 155.258 | 135.412 |
+| Prefab spawn mean | 0.060455 | 0.053784 | 0.048319 |
+| Script update mean per frame | 0.034147 | 0.029936 | 0.030898 |
+| Script update median per frame | 0.031500 | 0.028600 | 0.029700 |
+| Script update p95 per frame | 0.047600 | 0.042300 | 0.042100 |
+
+The median of the three script-update means is **0.030898 ms/frame**, 15.1% below Phase 2.1's **0.036402 ms/frame**.
+Each capture records 3,600 hooks without dropped samples; resident memory is 212.4 / 212.9 / 213.1 MiB. Compiler,
+linker and test processes were monitored throughout; a capture overlapping another session's GPU tests was
+rejected. Assets start uncached in each process; the OS cache is warm. These figures compare historical revisions
+across intervening phases, so they do not isolate this change's contribution. Frame means increased relative to
+Phase 2.1; the script gain is not a claim of whole-frame improvement.
+
+Validation: the full MSVC Debug build succeeded. The headless run passed 941 of 942 cases, with the falling/respawn
+sandbox case timing out under concurrent build load; its isolated repeat passed in 134.30 seconds. After the final
+property fast-path adjustment and getter-copy regression test, all 16 native-runtime and 32 Luau cases passed
+against both static and shared libraries. The binding split also passed those cases and six tooling/API checks.
+
+### Final integrated implementation
+
+Three new fresh-process captures from `a1ee0e8` include the completed native property-token path and persistent
+Lua reference wrappers, plus the application and asset-reload refactors integrated from `main`. The sandbox
+benchmark adds the required system/game modules explicitly; its workload and measured scopes remain the same.
+Both scripting options are on. No compiler, linker or test process overlapped any capture.
+
+| Measurement (ms) | Capture 1 | Capture 2 | Capture 3 |
+|---|---:|---:|---:|
+| Frame mean | 9.418 | 9.438 | 9.397 |
+| Frame median | 9.374 | 9.361 | 9.351 |
+| Frame p95 | 10.139 | 10.178 | 10.166 |
+| Frame worst | 27.327 | 44.085 | 13.157 |
+| Startup scene load | 404.369 | 130.342 | 127.761 |
+| Prefab spawn mean | 0.049626 | 0.047834 | 0.047877 |
+| Script update mean per frame | 0.027866 | 0.027207 | 0.027476 |
+| Script update median per frame | 0.027200 | 0.026600 | 0.026900 |
+| Script update p95 per frame | 0.040900 | 0.041200 | 0.040700 |
+
+The median of run means is **0.027476 ms/frame**, **24.5% below** the historical baseline's 0.036402. All runs have
+934 bodies, 3,600 measured script hooks and zero dropped samples. Resident memory is 211.3 / 211.8 / 237.1 MiB.
+Each process starts with empty asset caches; the OS file cache was not flushed. The first scene-load result is an
+outlier, retained rather than interpreted as a scripting effect. Frame time is still above the historical 9.200 ms
+baseline. Intervening refactors and run variance mean these figures do not isolate the scripting change's effect.
+
+Final validation on Windows/MSVC Debug: all **947 headless cases** passed after integrating the complete Phase 6,
+with the long falling/respawn case run separately (125.44 seconds). After integrating `main`'s subsequent reload
+commit, the full build and **257 affected integration cases** passed, followed by all **98 scripting cases**
+(17 native-runtime and 32 Luau cases against each library). The enabled Release benchmark built and completed
+three valid captures. Both static and shared scripting-disabled consumers also rebuilt and passed, with Luau
+still requested in CMake but absent from the target graph and consumer definitions. The layer check passes.

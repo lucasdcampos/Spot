@@ -11,6 +11,7 @@
 #include "world_save.h"
 
 #include <spot.h>
+#include <spot/scene/scripting/scripting_module.h>
 
 #include <cstdlib>
 #include <filesystem>

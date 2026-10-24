@@ -309,8 +309,6 @@ add_library(spot_objects OBJECT
     spot/scene/rendering/rendering_components.cpp
     spot/scene/ui/ui_components.h
     spot/scene/ui/ui_components.cpp
-    spot/scene/scripting/scripting_components.h
-    spot/scene/scripting/scripting_components.cpp
     spot/scene/animation/animation_module.h
     spot/scene/animation/animation_module.cpp
     spot/scene/audio/audio_module.h
@@ -325,8 +323,6 @@ add_library(spot_objects OBJECT
     spot/scene/rendering/render_module.cpp
     spot/scene/ui/ui_module.h
     spot/scene/ui/ui_module.cpp
-    spot/scene/scripting/scripting_module.h
-    spot/scene/scripting/scripting_module.cpp
     spot/scene/component_registry.cpp
     spot/scene/entity.h
     spot/scene/entity.cpp
@@ -691,41 +687,54 @@ else()
     target_link_libraries(spot_objects PUBLIC ${CMAKE_DL_LIBS})
 endif()
 
-target_sources(spot_objects PRIVATE
-    spot/scene/scripting/script_bindings.h
-    spot/scene/scripting/script_api.h
-    spot/scene/scripting/script_bindings.cpp
-    spot/scene/scripting/script_runtime.h
-    spot/scene/scripting/script_runtime.cpp
-    spot/scene/scripting/script_scene.h
-    spot/scene/scripting/script_events.h
-    spot/scene/scripting/script_scene.cpp
-    spot/scene/scripting/script_component.h
-    spot/scene/scripting/script_component.cpp
-)
-if(SPOT_ENABLE_LUAU)
-    # Only Luau's parser, compiler and VM are built, as their targets are linked: scripts are compiled as they load,
-    # and nothing needs the type checker or native code generation. Luau reports errors with C++ exceptions.
-    set(LUAU_BUILD_CLI OFF CACHE BOOL "" FORCE)
-    set(LUAU_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-    FetchContent_Declare(luau
-        GIT_REPOSITORY https://github.com/luau-lang/luau.git
-        GIT_TAG 0.743
-        GIT_SHALLOW TRUE
-        SOURCE_SUBDIR none
-    )
-    FetchContent_MakeAvailable(luau)
-    add_subdirectory(${luau_SOURCE_DIR} ${luau_BINARY_DIR} EXCLUDE_FROM_ALL SYSTEM)
-    foreach(target Luau.Common Luau.Ast Luau.Bytecode Luau.Compiler Luau.VM)
-        target_compile_options(${target} PRIVATE $<IF:$<CXX_COMPILER_ID:MSVC>,/W0,-w>)
-    endforeach()
-
+if(SPOT_SCRIPTING)
+    target_compile_definitions(spot_objects PUBLIC SPOT_SCRIPTING=1)
     target_sources(spot_objects PRIVATE
-        spot/scene/scripting/luau_runtime.h
-        spot/scene/scripting/luau_runtime.cpp
+        spot/scene/scripting/scripting_components.h
+        spot/scene/scripting/scripting_components.cpp
+        spot/scene/scripting/scripting_module.h
+        spot/scene/scripting/scripting_module.cpp
+        spot/scene/scripting/script_bindings.h
+        spot/scene/scripting/script_api.h
+        spot/scene/scripting/script_bindings.cpp
+        spot/scene/scripting/script_runtime.h
+        spot/scene/scripting/script_runtime.cpp
+        spot/scene/scripting/script_scene.h
+        spot/scene/scripting/script_events.h
+        spot/scene/scripting/script_scene.cpp
+        spot/scene/scripting/script_module_bindings.h
+        spot/scene/scripting/script_audio.cpp
+        spot/scene/scripting/script_render.cpp
+        spot/scene/scripting/script_input.cpp
+        spot/scene/scripting/script_time.cpp
+        spot/scene/scripting/script_physics.cpp
+        spot/scene/scripting/script_component.h
+        spot/scene/scripting/script_component.cpp
     )
-    target_link_libraries(spot_objects PRIVATE Luau.Compiler Luau.VM)
-    target_compile_definitions(spot_objects PUBLIC SPOT_ENABLE_LUAU=1)
+    if(SPOT_ENABLE_LUAU)
+        # Only Luau's parser, compiler and VM are built, as their targets are linked: scripts are compiled as they load,
+        # and nothing needs the type checker or native code generation. Luau reports errors with C++ exceptions.
+        set(LUAU_BUILD_CLI OFF CACHE BOOL "" FORCE)
+        set(LUAU_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+        FetchContent_Declare(luau
+            GIT_REPOSITORY https://github.com/luau-lang/luau.git
+            GIT_TAG 0.743
+            GIT_SHALLOW TRUE
+            SOURCE_SUBDIR none
+        )
+        FetchContent_MakeAvailable(luau)
+        add_subdirectory(${luau_SOURCE_DIR} ${luau_BINARY_DIR} EXCLUDE_FROM_ALL SYSTEM)
+        foreach(target Luau.Common Luau.Ast Luau.Bytecode Luau.Compiler Luau.VM)
+            target_compile_options(${target} PRIVATE $<IF:$<CXX_COMPILER_ID:MSVC>,/W0,-w>)
+        endforeach()
+
+        target_sources(spot_objects PRIVATE
+            spot/scene/scripting/luau_runtime.h
+            spot/scene/scripting/luau_runtime.cpp
+        )
+        target_link_libraries(spot_objects PRIVATE Luau.Compiler Luau.VM)
+        target_compile_definitions(spot_objects PUBLIC SPOT_ENABLE_LUAU=1)
+    endif()
 endif()
 
 target_compile_features(spot_objects PUBLIC cxx_std_20)
@@ -761,8 +770,11 @@ elseif(UNIX)
 endif()
 add_library(spot::shared ALIAS spot_shared)
 
-if(SPOT_ENABLE_LUAU)
-    target_compile_definitions(spot_shared PUBLIC SPOT_ENABLE_LUAU=1)
+if(SPOT_SCRIPTING)
+    target_compile_definitions(spot_shared PUBLIC SPOT_SCRIPTING=1)
+    if(SPOT_ENABLE_LUAU)
+        target_compile_definitions(spot_shared PUBLIC SPOT_ENABLE_LUAU=1)
+    endif()
 endif()
 
 # A CMake package for game modules, which link the shared library of this build: find_package(Spot CONFIG) with

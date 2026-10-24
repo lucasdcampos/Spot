@@ -5,6 +5,10 @@
 #include <spot/assets/asset_pak.h>
 
 #include <spot.h>
+#include <spot/assets/script_source.h>
+#include <spot/scene/scripting/script_bindings.h>
+#include <spot/scene/scripting/script_component.h>
+#include <spot/scene/scripting/script_runtime.h>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -485,4 +489,65 @@ TEST_CASE("Luau built-ins are read only and cannot be shadowed by script globals
     scene.Update(0.1f);
     CHECK_FALSE(component.IsFaulted());
     CHECK(console.Messages() == std::vector<std::string>{"2 2"});
+}
+
+TEST_CASE("Luau resolves host property tokens once and keeps values live", "[luau][scene]") {
+    struct Counter final : Spot::ScriptObject {
+        mutable int resolutions = 0;
+        double value = 0;
+        bool persistent = false;
+        bool IsPersistentReference() const override { return persistent; }
+        bool HasMethod(std::string_view) const override { return false; }
+        std::size_t ResolveProperty(std::string_view name) const override {
+            ++resolutions;
+            REQUIRE(name == "value");
+            return 1;
+        }
+        Spot::ScriptValue GetResolved(std::size_t id, std::string_view) const override {
+            REQUIRE(id == 1);
+            return value;
+        }
+        void SetResolved(std::size_t id, std::string_view, const Spot::ScriptValue& updated) override {
+            REQUIRE(id == 1);
+            value = std::get<double>(updated);
+        }
+    };
+    bool persistent = false;
+    SECTION("A script retains a host object") {
+    }
+    SECTION("Context references survive allocation pressure") {
+        persistent = true;
+    }
+    auto counter = std::make_shared<Counter>();
+    counter->persistent = persistent;
+    Spot::RegisterScriptLibrary("property_counter", [counter] { return counter; });
+    struct Cleanup {
+        ~Cleanup() { Spot::UnregisterScriptLibrary("property_counter"); }
+    } cleanup;
+    Spot::Scene scene;
+    auto& script = scene.CreateEntity().AddComponent<Spot::ScriptComponent>();
+    script.language = "luau";
+    script.source = persistent ? R"(
+        function OnUpdate(dt)
+            for i = 1, 100 do
+                local garbage = table.create(128, i)
+                assert(#garbage == 128)
+                require("@property_counter").value += 1
+            end
+        end
+    )"
+                               : R"(
+        local counter = require("@property_counter")
+        function OnUpdate(dt)
+            for i = 1, 100 do
+                counter.value += 1
+            end
+        end
+    )";
+    const int frames = persistent ? 20 : 2;
+    for (int frame = 0; frame < frames; ++frame)
+        scene.Update(0.01f);
+    CHECK_FALSE(script.IsFaulted());
+    CHECK(counter->value == frames * 100);
+    CHECK(counter->resolutions == 1);
 }

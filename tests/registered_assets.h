@@ -1,6 +1,7 @@
 #pragma once
 
 #include <spot.h>
+#include <spot/assets/script_assets.h>
 
 namespace Spot::Tests {
 class RegisteredAssetManager : public Spot::AssetManager {

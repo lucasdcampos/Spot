@@ -1,6 +1,7 @@
 #include "smoke_test.h"
 
 #include <spot.h>
+#include <spot/scene/scripting/scripting_module.h>
 
 #include <cstdio>
 #include <cstdlib>

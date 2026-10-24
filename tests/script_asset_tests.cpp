@@ -1,3 +1,6 @@
+
+#include <spot/assets/script_source.h>
+
 #include "log_capture.h"
 #include "registered_assets.h"
 #include "script_asset_fixture.h"

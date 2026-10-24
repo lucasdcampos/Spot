@@ -9,7 +9,16 @@ project(spot
 option(SPOT_BUILD_SANDBOX "Build the sandbox application" ${PROJECT_IS_TOP_LEVEL})
 option(SPOT_BUILD_EDITOR "Build the Spot editor" ${PROJECT_IS_TOP_LEVEL})
 option(SPOT_BUILD_TESTS "Build the Spot test suite" ${PROJECT_IS_TOP_LEVEL})
+option(SPOT_SCRIPTING "Build scripting components, bindings and runtime support" ON)
 option(SPOT_ENABLE_LUAU "Build Luau scripting support" ON)
+
+# The bundled programs and their integration tests run scripted projects. Library-only consumers can omit it.
+if(NOT SPOT_SCRIPTING AND (SPOT_BUILD_EDITOR OR SPOT_BUILD_SANDBOX OR SPOT_BUILD_TESTS))
+    message(FATAL_ERROR
+        "The bundled applications and tests require SPOT_SCRIPTING=ON. "
+        "For a library-only build, set SPOT_BUILD_EDITOR, SPOT_BUILD_SANDBOX and SPOT_BUILD_TESTS to OFF."
+    )
+endif()
 
 # Set globally so fetched dependencies are built with the same standard as the engine;
 # Catch2 built as C++14 omits its std::string_view support and the tests fail to link.

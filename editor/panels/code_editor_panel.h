@@ -3,6 +3,7 @@
 #include "panels/panel.h"
 
 #include <spot.h>
+#include <spot/scene/scripting/script_runtime.h>
 
 #include <functional>
 #include <map>

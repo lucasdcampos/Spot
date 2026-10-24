@@ -1,3 +1,6 @@
+
+#include <spot/scene/scripting/scripting_module.h>
+
 #include "app/editor_application.h"
 
 #include "app/editor_layout.h"
