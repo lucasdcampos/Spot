@@ -40,7 +40,7 @@ void WriteCode(const std::filesystem::path& file, std::string_view code) {
     std::ofstream(file, std::ios::binary) << code;
 }
 
-std::vector<std::string> GetTypes(const Spot::GameModule& module) {
+std::vector<std::string> GetTypes(const Spot::GameLibrary& module) {
     return {module.GetComponentTypes().begin(), module.GetComponentTypes().end()};
 }
 

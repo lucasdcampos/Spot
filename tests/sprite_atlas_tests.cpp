@@ -125,7 +125,7 @@ TEST_CASE("Sprite atlas import caches metadata and loads from shipped assets", "
     CHECK(loaded->texture.GetId() == *texture);
     CHECK(loaded->sprites.size() == 2);
     std::array changed{*texture};
-    auto invalidated = manager.Reload(changed);
+    auto invalidated = Spot::DevToolsModule::ReloadAssets(manager, changed);
     CHECK(std::ranges::find(invalidated, *id) != invalidated.end());
     auto next = manager.Load<SpriteAtlas>(*id);
     REQUIRE(next);

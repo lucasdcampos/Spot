@@ -975,7 +975,7 @@ TEST_CASE("Sandbox prefab edits propagate while instance overrides survive", "[s
     REQUIRE(authored.SaveToFile(sourceFile));
     REQUIRE(database.Reimport(id));
     const std::array changed{id};
-    assets.Reload(changed);
+    Spot::DevToolsModule::ReloadAssets(assets, changed);
     Scene refreshed;
     REQUIRE_FALSE(refreshed.Instantiate(saved, {.keepIds = true, .assets = &assets}).empty());
     first = refreshed.GetEntity(firstId);

@@ -204,7 +204,7 @@ Depends on: phases 1 and 2. Task 7.3 also waits for 6.4 and 6.5.
   prefabs are flattened when imported.
 - [x] **7.2 Unknown components (S).** `MissingComponent` keeps unknown components only when tools ask for it (an option
   of `InstantiateOptions`); games log a warning and skip them.
-- [ ] **7.3 Reloads in the developer tools (S).** `GameModule`, renamed `GameLibrary` so "module" has one meaning,
+- [x] **7.3 Reloads in the developer tools (S).** `GameModule`, renamed `GameLibrary` so "module" has one meaning,
   `ReloadAssetReferences()` and `AssetManager::Reload()` move into `DevToolsModule`.
 
 ## Phase 8 – Graphics and rendering

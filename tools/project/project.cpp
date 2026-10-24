@@ -137,7 +137,7 @@ std::filesystem::path Project::GetBuildDirectory() const {
 }
 
 std::filesystem::path Project::GetModuleFile() const {
-    return GetBuildDirectory() / "module" / ("game" + std::string(GameModule::FileExtension));
+    return GetBuildDirectory() / "module" / ("game" + std::string(GameLibrary::FileExtension));
 }
 
 std::filesystem::path Project::GetGameExecutable() const {

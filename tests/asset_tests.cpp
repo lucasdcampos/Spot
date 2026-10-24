@@ -430,7 +430,7 @@ TEST_CASE("Changed assets load anew, with the loaded assets that refer to them",
     REQUIRE(database.Reimport(texture));
     CHECK(std::vector(database.GetChanged().begin(), database.GetChanged().end()) == std::vector{texture});
     manager.RefreshManifest();
-    const std::vector<AssetId> reloaded = manager.Reload(database.GetChanged());
+    const std::vector<AssetId> reloaded = Spot::DevToolsModule::ReloadAssets(manager, database.GetChanged());
     CHECK(std::ranges::find(reloaded, texture) != reloaded.end());
     CHECK(std::ranges::find(reloaded, paint) != reloaded.end());
     CHECK(std::ranges::find(reloaded, plain) == reloaded.end());
@@ -464,14 +464,15 @@ TEST_CASE("Components load their references to changed assets again", "[assets]"
     std::filesystem::last_write_time(file, std::filesystem::last_write_time(file) + std::chrono::hours(1));
     database.Refresh();
     manager.RefreshManifest();
-    Spot::ReloadAssetReferences(renderer, manager.Reload(database.GetChanged()), &manager);
+    Spot::DevToolsModule::ReloadAssetReferences(
+        renderer, Spot::DevToolsModule::ReloadAssets(manager, database.GetChanged()), &manager);
     REQUIRE(renderer.GetMaterial());
     CHECK(renderer.GetMaterial().GetId() == paint);
     CHECK(renderer.GetMaterial()->baseColor.b == 1.0f);
 
     // References to other assets are left as they are.
     const auto* material = renderer.GetMaterial().Get();
-    Spot::ReloadAssetReferences(renderer, std::vector{AssetId::Generate()}, &manager);
+    Spot::DevToolsModule::ReloadAssetReferences(renderer, std::vector{AssetId::Generate()}, &manager);
     CHECK(renderer.GetMaterial().Get() == material);
 }
 

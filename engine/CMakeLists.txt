@@ -86,6 +86,8 @@ add_library(spot_objects OBJECT
     spot/core/debug/diagnostics.cpp
     spot/runtime/game_module.h
     spot/runtime/game_module.cpp
+    spot/runtime/game_library.h
+    spot/runtime/game_library.cpp
     spot/runtime/game_settings.h
     spot/runtime/module.h
     spot/runtime/game_settings.cpp

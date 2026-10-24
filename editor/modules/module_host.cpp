@@ -166,7 +166,7 @@ bool ModuleHost::SwapModule() {
         std::filesystem::remove(previous, error);
     }
     m_loadedTime = time;
-    m_module = GameModule::Load(copy);
+    m_module = GameLibrary::Load(copy);
     m_loadDuration = std::chrono::steady_clock::now() - started;
     if (!m_module) {
         std::filesystem::remove(copy, error);

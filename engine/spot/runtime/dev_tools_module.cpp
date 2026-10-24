@@ -1,7 +1,9 @@
 #include "spot/runtime/dev_tools_module.h"
 
+#include "spot/assets/asset_manager.h"
 #include "spot/core/debug/log.h"
 #include "spot/core/debug/profiler.h"
+#include "spot/core/io/archive.h"
 #include "spot/core/io/paths.h"
 #include "spot/graphics/graphics_device.h"
 #include "spot/graphics/screenshot.h"
@@ -14,11 +16,15 @@
 #include "spot/runtime/console_overlay.h"
 #include "spot/runtime/profile_stream.h"
 #include "spot/runtime/runtime_stats.h"
+#include "spot/scene/component_serialization.h"
 
 #include <algorithm>
 #include <chrono>
 #include <format>
+#include <optional>
+#include <span>
 #include <string>
+#include <typeinfo>
 #include <utility>
 
 namespace Spot {
@@ -47,6 +53,60 @@ ConsoleRegistration BindBool(Console& console, std::string name, std::string des
         [&value](std::string_view text) { return ParseConsoleValue(text, value); });
 }
 
+// Goes through a component's fields twice: first it clears its references to the assets, then it puts back the ids
+// they had, which makes the archive load them again.
+class AssetReloadBackend final : public ArchiveBackend {
+public:
+    AssetReloadBackend(std::span<const AssetId> assets, std::vector<AssetId>& ids, bool restoring,
+                       AssetManager* manager)
+        : m_assets(assets), m_ids(ids), m_restoring(restoring), m_manager(manager) {}
+
+    bool IsLoading() const override { return true; }
+
+    void Field(std::string_view, bool&, const FieldOptions&) override {}
+    void Field(std::string_view, int&, const FieldOptions&) override {}
+    void Field(std::string_view, std::uint32_t&, const FieldOptions&) override {}
+    void Field(std::string_view, std::int64_t&, const FieldOptions&) override {}
+    void Field(std::string_view, std::uint64_t&, const FieldOptions&) override {}
+    void Field(std::string_view, float&, const FieldOptions&) override {}
+    void Field(std::string_view, double&, const FieldOptions&) override {}
+    void Field(std::string_view, std::string&, const FieldOptions&) override {}
+    void Field(std::string_view, Vector2&, const FieldOptions&) override {}
+    void Field(std::string_view, Vector3&, const FieldOptions&) override {}
+    void Field(std::string_view, Vector4&, const FieldOptions&) override {}
+    void Field(std::string_view, Quaternion&, const FieldOptions&) override {}
+    void Field(std::string_view, Color&, const FieldOptions&) override {}
+    void Field(std::string_view, EntityId&, const FieldOptions&) override {}
+
+    void Field(std::string_view, AssetId& value, std::optional<AssetType>, const FieldOptions&) override {
+        if (m_restoring) {
+            value = m_next < m_ids.size() ? m_ids[m_next++] : value;
+            return;
+        }
+        m_ids.push_back(value);
+        if (std::ranges::find(m_assets, value) != m_assets.end()) {
+            value = {};
+        }
+    }
+
+    bool BeginObject(std::string_view, const FieldOptions&) override { return true; }
+    void EndObject() override {}
+    bool BeginArray(std::string_view, std::size_t&, const FieldOptions&) override { return true; }
+    void BeginElement(std::size_t) override {}
+    void EndElement() override {}
+    void EndArray() override {}
+    void* GetContext(const std::type_info& type) const override {
+        return type == typeid(AssetManager) ? m_manager : nullptr;
+    }
+
+private:
+    std::span<const AssetId> m_assets;
+    std::vector<AssetId>& m_ids;
+    bool m_restoring;
+    AssetManager* m_manager;
+    std::size_t m_next = 0;
+};
+
 } // namespace
 
 DevToolsModule::DevToolsModule(DevToolsConfig config) : m_config(config) {
@@ -57,6 +117,42 @@ DevToolsModule::DevToolsModule(DevToolsConfig config) : m_config(config) {
 }
 
 DevToolsModule::~DevToolsModule() = default;
+
+std::vector<AssetId> DevToolsModule::ReloadAssets(AssetManager& assets, std::span<const AssetId> changed) {
+    std::vector<AssetId> stale(changed.begin(), changed.end());
+    std::ranges::sort(stale);
+    for (bool grew = true; grew;) {
+        grew = false;
+        for (const AssetId id : assets.GetDependents(stale)) {
+            if (!std::ranges::binary_search(stale, id)) {
+                stale.insert(std::ranges::upper_bound(stale, id), id);
+                grew = true;
+            }
+        }
+    }
+    for (const AssetId id : stale) {
+        assets.Forget(id);
+    }
+    stale.erase(std::unique(stale.begin(), stale.end()), stale.end());
+    return stale;
+}
+
+void DevToolsModule::ReloadAssetReferences(Component& component, std::span<const AssetId> assets,
+                                           AssetManager* manager) {
+    if (assets.empty()) {
+        return;
+    }
+    std::vector<AssetId> ids;
+    AssetReloadBackend clearing(assets, ids, false, manager);
+    Archive clear(clearing);
+    SerializeComponent(component, clear);
+    if (std::ranges::none_of(ids, [&](AssetId id) { return std::ranges::find(assets, id) != assets.end(); })) {
+        return;
+    }
+    AssetReloadBackend restoring(assets, ids, true, manager);
+    Archive restore(restoring);
+    SerializeComponent(component, restore);
+}
 
 void DevToolsModule::OnStart() {
     Application& application = GetApplication();

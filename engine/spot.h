@@ -98,6 +98,7 @@
 #include "spot/runtime/console_overlay.h"
 #include "spot/runtime/dev_tools_module.h"
 #include "spot/runtime/engine_console.h"
+#include "spot/runtime/game_library.h"
 #include "spot/runtime/game_module.h"
 #include "spot/runtime/game_settings.h"
 #include "spot/runtime/module.h"
