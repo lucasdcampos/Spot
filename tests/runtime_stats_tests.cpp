@@ -34,17 +34,19 @@ TEST_CASE("Runtime statistics combine frame counters and use unscaled measured f
     CHECK(empty.bodies == 0);
 }
 
-TEST_CASE("Runtime statistics sample live bodies, silent audio voices and resident memory without a GPU", "[stats]") {
-    Spot::Scene scene;
-    auto& prop = scene.CreateEntity();
-    prop.AddComponent<Spot::BoxCollider>();
-    prop.AddComponent<Spot::Rigidbody>();
-    scene.Update(0.02f);
-    Spot::AudioDevice audio({.manualMix = true});
-    Spot::Scene* scenes[] = {&scene};
-    const auto stats = Spot::RuntimeStats::Sample(scenes, &audio);
+TEST_CASE("Runtime statistics sample the bodies and voices the modules counted, and resident memory", "[stats]") {
+    const bool enabled = Spot::Profiler::IsEnabled();
+    Spot::Profiler::SetEnabled(true);
+    Spot::Profiler::Clear();
+    Spot::Profiler::BeginFrame();
+    Spot::Profiler::Count("Bodies", 1.0);
+    Spot::Profiler::Count("Voices", 2.0);
+    Spot::Profiler::EndFrame();
+    const auto stats = Spot::RuntimeStats::Sample();
+    Spot::Profiler::Clear();
+    Spot::Profiler::SetEnabled(enabled);
     CHECK(stats.bodies == 1);
-    CHECK(stats.voices == 0);
+    CHECK(stats.voices == 2);
     CHECK(stats.memoryBytes > 0);
     CHECK(Spot::Process::GetResidentMemoryBytes() > 0);
 }
@@ -58,7 +60,7 @@ TEST_CASE("Runtime FPS remains unscaled while simulation is paused and recording
     clock.Start({});
     clock.Tick(Spot::FrameClock::TimePoint{} + std::chrono::milliseconds(50));
     Spot::Profiler::SetEnabled(false);
-    const auto stats = Spot::RuntimeStats::Sample({});
+    const auto stats = Spot::RuntimeStats::Sample();
     CHECK(stats.fps == Catch::Approx(20.0));
     CHECK(stats.frameMilliseconds == Catch::Approx(50.0));
     CHECK(stats.drawCalls == 0);

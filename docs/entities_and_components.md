@@ -186,7 +186,8 @@ Animation, audio, particles, 2D physics, UI and scripting provide `RegisterAnima
 `RegisterAudioComponents()`, `RegisterParticleComponents()`, `RegisterPhysics2DComponents()`, `RegisterUiComponents()`
 and `RegisterScriptComponents()` in their respective `scene/<system>/<system>_components.h` headers. Each group
 registers its existing serialized names, so saved scenes keep the same format. A group can be registered again;
-custom component registration continues to use `RegisterComponent<T>()`.
+custom component registration continues to use `RegisterComponent<T>()`. An application registers them through
+the modules it adds (`RenderModule`, `PhysicsModule`…; see [Application and scenes](application_and_scenes.md#modules)).
 
 System callbacks are opt-in interfaces alongside `Component`: derive from `CollisionListener`,
 `TriggerListener`, `CollisionListener2D`, `TriggerListener2D`, `JointBreakListener`,

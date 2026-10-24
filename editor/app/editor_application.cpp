@@ -53,8 +53,6 @@ ApplicationConfig MakeConfig(const EditorOptions& options) {
         .graphics = {.linearWindow = false},
         .logFile = settings.empty() ? std::filesystem::path() : settings / "editor.log",
         .showCrashMessage = options.showCrashMessage,
-        // The scenes show in the editor's views, which draw them themselves.
-        .renderScenes = false,
         .consoleOverlay = false,
     };
 }
@@ -117,6 +115,15 @@ EditorApplication::EditorApplication(EditorOptions options)
                                                                     : m_options.settingsDirectory / "settings.json");
     // Added before Run() so the console also shows how the devices started.
     Log::AddSink(m_consoleLog);
+    AddModule<UiModule>();
+    // The scenes show in the editor's views, which draw them themselves.
+    AddModule<RenderModule>(RenderModuleConfig{.drawScene = false});
+    AddModule<AudioModule>();
+    AddModule<PhysicsModule>();
+    AddModule<Physics2DModule>();
+    AddModule<AnimationModule>();
+    AddModule<ParticlesModule>();
+    AddModule<ScriptingModule>();
 }
 
 EditorApplication::~EditorApplication() {
@@ -147,7 +154,7 @@ void EditorApplication::OnStart() {
 
     m_context = std::make_unique<EditorContext>(GetWindow(), &GetGraphicsDevice(), m_settings);
     m_context->SetInput(&GetInputState());
-    m_context->SetAudioDevice(&GetAudioDevice());
+    m_context->SetAudioDevice(&GetModule<AudioModule>()->GetDevice());
     m_thumbnails = std::make_unique<ThumbnailCache>(GetGraphicsDevice());
     m_game = std::make_unique<GameRunner>();
     m_context->SetThumbnails(m_thumbnails.get());

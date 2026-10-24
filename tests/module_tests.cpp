@@ -19,7 +19,7 @@ const std::filesystem::path TestModule = SPOT_TEST_MODULE;
 
 class QuittingApplication final : public Spot::Application {
 public:
-    QuittingApplication() : Application({.graphics = {.enabled = false}, .audio = {.enabled = false}}) {}
+    QuittingApplication() : Application({.graphics = {.enabled = false}}) {}
 
 protected:
     void OnStart() override { Quit(); }

@@ -21,7 +21,6 @@ namespace {
 struct Observed {
     std::vector<std::string> calls;
     std::string windowTitle;
-    bool hasAudioOutput = true;
     float smallestDelta = 1.0f;
 };
 
@@ -36,7 +35,6 @@ protected:
         m_observed.calls.emplace_back("start");
         m_framesLeft = m_framesPerRun;
         m_observed.windowTitle = GetWindow().GetTitle();
-        m_observed.hasAudioOutput = GetAudioDevice().HasOutput();
         Spot::Log::Info("started");
     }
 
@@ -131,7 +129,9 @@ public:
 // Retained children detach, carry their descendants, and keep their identity and component state.
 class RetainingApplication final : public Spot::Application {
 public:
-    explicit RetainingApplication(Spot::ApplicationConfig config) : Application(std::move(config)) {}
+    explicit RetainingApplication(Spot::ApplicationConfig config) : Application(std::move(config)) {
+        AddModule<Spot::AudioModule>(Spot::AudioConfig{.manualMix = true});
+    }
 
 protected:
     void OnStart() override { LoadScene<Spot::Scene>(); }
@@ -183,9 +183,7 @@ private:
 };
 
 Spot::ApplicationConfig MakeConfig() {
-    return {.window = {.title = "Application Tests", .width = 320, .height = 240},
-            .graphics = {.enabled = false},
-            .audio = {.enabled = false}};
+    return {.window = {.title = "Application Tests", .width = 320, .height = 240}, .graphics = {.enabled = false}};
 }
 
 } // namespace
@@ -198,9 +196,74 @@ TEST_CASE("Application runs frames between start and stop until Quit is called",
 
     CHECK(observed.calls == std::vector<std::string>{"start", "update", "update", "update", "stop"});
     CHECK(observed.windowTitle == "Application Tests");
-    CHECK_FALSE(observed.hasAudioOutput);
     CHECK(observed.smallestDelta >= 0.0f);
     CHECK_FALSE(application.IsRunning());
+}
+
+namespace {
+
+class RecordingModule : public Spot::Module {
+public:
+    RecordingModule(std::vector<std::string>& calls, std::string label, bool consumes = false)
+        : m_calls(calls), m_label(std::move(label)), m_consumes(consumes) {}
+
+protected:
+    void OnStart() override { m_calls.push_back(m_label + ".start"); }
+    void OnStop() override { m_calls.push_back(m_label + ".stop"); }
+    bool OnEvent(const Spot::Event& event) override {
+        if (event.Is<Spot::KeyPressedEvent>())
+            m_calls.push_back(m_label + ".event");
+        return m_consumes && event.Is<Spot::KeyPressedEvent>();
+    }
+    void OnUpdate(float) override { m_calls.push_back(m_label + ".update"); }
+
+private:
+    std::vector<std::string>& m_calls;
+    std::string m_label;
+    bool m_consumes;
+};
+
+class FirstModule final : public RecordingModule {
+    using RecordingModule::RecordingModule;
+};
+class SecondModule final : public RecordingModule {
+    using RecordingModule::RecordingModule;
+};
+
+class ModuleApplication final : public Spot::Application {
+public:
+    explicit ModuleApplication(std::vector<std::string>& calls) : Application(MakeConfig()), m_calls(calls) {}
+
+protected:
+    void OnStart() override { m_calls.emplace_back("app.start"); }
+    void OnUpdate(float) override {
+        m_calls.emplace_back("app.update");
+        DispatchEvent(Spot::Event(Spot::KeyPressedEvent{.key = Spot::Key::A, .repeat = false}));
+        m_calls.emplace_back(GetInputState().IsKeyDown(Spot::Key::A) ? "key.down" : "key.up");
+        Quit();
+    }
+    void OnStop() override { m_calls.emplace_back("app.stop"); }
+
+private:
+    std::vector<std::string>& m_calls;
+};
+
+} // namespace
+
+TEST_CASE("Application starts its modules in order, stops them in reverse and calls their hooks", "[application]") {
+    std::vector<std::string> calls;
+    ModuleApplication application(calls);
+    auto& first = application.AddModule<FirstModule>(calls, "first");
+    application.AddModule<SecondModule>(calls, "second", true);
+
+    CHECK(application.GetModule<FirstModule>() == &first);
+    CHECK(&first.GetApplication() == &application);
+    CHECK(application.GetModule<RecordingModule>() == nullptr);
+    CHECK(application.Run() == EXIT_SUCCESS);
+
+    CHECK(calls == std::vector<std::string>{"first.start", "second.start", "app.start", "app.update", "first.event",
+                                            "second.event", "key.up", "first.update", "second.update", "app.stop",
+                                            "second.stop", "first.stop"});
 }
 
 TEST_CASE("Application can run again after it stopped", "[application]") {
@@ -320,9 +383,7 @@ TEST_CASE("Application pauses its scenes, steps them, and keeps events from them
 
 TEST_CASE("Application retains entity subtrees through replacements and destroys them on explicit unload",
           "[application]") {
-    auto config = MakeConfig();
-    config.audio.manualMix = true;
-    RetainingApplication application(config);
+    RetainingApplication application(MakeConfig());
     CHECK(application.Run() == EXIT_SUCCESS);
     CHECK(application.GetScene() == nullptr);
 }

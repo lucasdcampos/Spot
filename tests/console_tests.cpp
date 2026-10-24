@@ -104,24 +104,20 @@ TEST_CASE("Only saved cvars persist through Archive and SaveData", "[console]") 
     CHECK(temporary.Get() == 10);
 }
 
-TEST_CASE("Engine console bindings change public application, audio and time settings", "[console]") {
+TEST_CASE("Engine console bindings change public application and time settings", "[console]") {
     Spot::Console console;
-    Spot::Application application(
-        {.graphics = {.enabled = false}, .audio = {.enabled = false}, .showCrashMessage = false});
+    Spot::Application application({.graphics = {.enabled = false}, .showCrashMessage = false});
     const auto previousScale = Spot::Time::GetTimeScale();
     {
         Spot::EngineConsole bindings(console, application);
         REQUIRE(console.Execute("console.cheats true"));
         REQUIRE(console.Execute("time.scale 0.25"));
         CHECK(Spot::Time::GetTimeScale() == 0.25f);
-        REQUIRE(console.Execute("render.enabled false"));
-        CHECK_FALSE(application.IsSceneRenderingEnabled());
         REQUIRE(console.Execute("render.max_fps 90"));
         CHECK(application.GetMaxFrameRate() == 90);
         REQUIRE(console.Execute("stats true"));
         CHECK(application.IsStatsVisible());
         CHECK_FALSE(console.Execute("render.max_fps -1"));
-        CHECK_FALSE(console.Execute("audio.volume -1"));
         CHECK(console.Execute("help render.").message.find("render.max_fps") != std::string::npos);
     }
     CHECK(console.Complete("").empty());
@@ -132,9 +128,10 @@ TEST_CASE("Applications persist saved cvars and remove engine bindings when they
     class SettingsApplication final : public Spot::Application {
     public:
         SettingsApplication(const std::filesystem::path& directory, bool write)
-            : Application(
-                  {.graphics = {.enabled = false}, .audio = {.enabled = false}, .userDataDirectory = directory}),
-              m_write(write) {}
+            : Application({.graphics = {.enabled = false}, .userDataDirectory = directory}), m_write(write) {
+            AddModule<Spot::AudioModule>(Spot::AudioConfig{.enabled = false});
+            AddModule<Spot::RenderModule>();
+        }
 
     protected:
         void OnStart() override {
@@ -142,9 +139,12 @@ TEST_CASE("Applications persist saved cvars and remove engine bindings when they
             if (m_write) {
                 REQUIRE(console.Execute("render.max_fps 72"));
                 REQUIRE(console.Execute("audio.volume 0.3"));
+                CHECK_FALSE(console.Execute("audio.volume -1"));
+                REQUIRE(console.Execute("render.enabled false"));
+                CHECK_FALSE(GetModule<Spot::RenderModule>()->IsSceneDrawingEnabled());
             } else {
                 CHECK(GetMaxFrameRate() == 72);
-                CHECK(GetAudioDevice().GetMasterVolume() == 0.3f);
+                CHECK(GetModule<Spot::AudioModule>()->GetDevice().GetMasterVolume() == 0.3f);
             }
         }
         void OnUpdate(float) override { Quit(); }

@@ -21,11 +21,19 @@ class SmokeTest final : public Spot::Application {
 public:
     explicit SmokeTest(const std::filesystem::path& directory)
         : Application({.graphics = {.enabled = false},
-                       .audio = {.enabled = false},
                        .logFile = directory / "smoke.log",
                        .userDataDirectory = directory,
                        .maxFrameRate = 60,
-                       .consoleOverlay = false}) {}
+                       .consoleOverlay = false}) {
+        AddModule<Spot::UiModule>();
+        AddModule<Spot::RenderModule>();
+        AddModule<Spot::AudioModule>(Spot::AudioConfig{.enabled = false});
+        AddModule<Spot::PhysicsModule>();
+        AddModule<Spot::Physics2DModule>();
+        AddModule<Spot::AnimationModule>();
+        AddModule<Spot::ParticlesModule>();
+        AddModule<Spot::ScriptingModule>();
+    }
     bool IsPassed() const { return m_passed; }
 
 protected:

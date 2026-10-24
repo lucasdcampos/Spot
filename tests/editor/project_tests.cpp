@@ -173,7 +173,7 @@ TEST_CASE("The 3D with C++ template adds the game's code, whose component the sc
     CHECK(std::filesystem::is_regular_file(directory / "src" / "game.cpp"));
     std::ifstream main(directory / "src" / "main.cpp");
     const std::string mainText{std::istreambuf_iterator<char>(main), std::istreambuf_iterator<char>()};
-    CHECK(mainText.find("return Spot::Application().Run();") != std::string::npos);
+    CHECK(mainText.find("application.AddModule<Spot::RenderModule>();") != std::string::npos);
 
     const auto project = Spot::Editor::EditorProject::Open(*file, nullptr);
     REQUIRE(project != nullptr);

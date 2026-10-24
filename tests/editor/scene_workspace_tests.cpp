@@ -638,9 +638,8 @@ TEST_CASE("The gizmo of a docked view still moves the selection after the scene 
     class PlayApplication final : public Spot::Application {
     public:
         explicit PlayApplication(std::function<void(Spot::Application&)> frame)
-            : Application({.window = {.title = "Play Tests", .width = 320, .height = 240},
-                           .graphics = {.enabled = false},
-                           .audio = {.enabled = false}}),
+            : Application(
+                  {.window = {.title = "Play Tests", .width = 320, .height = 240}, .graphics = {.enabled = false}}),
               m_frame(std::move(frame)) {}
 
     protected:
@@ -793,9 +792,8 @@ TEST_CASE("Views show their scene again as soon as it stops playing", "[editor][
     class PlayApplication final : public Spot::Application {
     public:
         explicit PlayApplication(std::function<void(Spot::Application&)> frame)
-            : Application({.window = {.title = "Play Tests", .width = 320, .height = 240},
-                           .graphics = {.enabled = false},
-                           .audio = {.enabled = false}}),
+            : Application(
+                  {.window = {.title = "Play Tests", .width = 320, .height = 240}, .graphics = {.enabled = false}}),
               m_frame(std::move(frame)) {}
 
     protected:

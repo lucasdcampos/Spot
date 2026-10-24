@@ -2,13 +2,9 @@
 
 #include "spot/core/debug/profiler.h"
 
-#include <span>
 #include <string>
 
 namespace Spot {
-
-class Scene;
-class AudioDevice;
 
 struct RuntimeStats {
     double fps = 0.0;
@@ -21,7 +17,9 @@ struct RuntimeStats {
     std::uint64_t memoryBytes = 0;
 
     static RuntimeStats FromFrame(const ProfileFrame& frame);
-    static RuntimeStats Sample(std::span<Scene* const> scenes, const AudioDevice* audio = nullptr);
+    // The latest profiled frame's statistics, with the frame time and memory of now. The modules count bodies and
+    // voices for the profiler, so without it they are zero.
+    static RuntimeStats Sample();
     std::string Format() const;
 };
 

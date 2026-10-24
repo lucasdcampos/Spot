@@ -96,7 +96,7 @@ TEST_CASE("Applications route console events before gameplay and toggle platform
     };
     class ConsoleApplication final : public Spot::Application {
     public:
-        ConsoleApplication() : Application({.graphics = {.enabled = false}, .audio = {.enabled = false}}) {}
+        ConsoleApplication() : Application({.graphics = {.enabled = false}}) {}
 
     protected:
         void OnStart() override { LoadScene<InputScene>(); }

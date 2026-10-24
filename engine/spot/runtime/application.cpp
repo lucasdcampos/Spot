@@ -1,19 +1,5 @@
 #include "spot/runtime/application.h"
-#include "spot/animation/animation_assets.h"
-#include "spot/assets/script_assets.h"
-#include "spot/audio/audio_assets.h"
-#include "spot/graphics/graphics_assets.h"
-#include "spot/render/render_assets.h"
-#include "spot/scene/animation/animation_components.h"
-#include "spot/scene/audio/audio_components.h"
-#include "spot/scene/particles/particles_components.h"
-#include "spot/scene/physics/physics_components.h"
-#include "spot/scene/physics2d/physics2d_components.h"
-#include "spot/scene/rendering/rendering_components.h"
 #include "spot/scene/scene_assets.h"
-#include "spot/scene/scripting/scripting_components.h"
-#include "spot/scene/ui/ui_components.h"
-#include "spot/scene/ui/ui_input_system.h"
 
 #include "spot/assets/assets.h"
 #include "spot/core/debug/assert.h"
@@ -37,8 +23,6 @@
 #include "spot/runtime/profile_stream.h"
 #include "spot/runtime/runtime_stats.h"
 #include "spot/runtime/save_data.h"
-#include "spot/scene/audio/audio_system.h"
-#include "spot/scene/rendering/scene_renderer.h"
 #include "spot/scene/scene_assets.h"
 
 #include <algorithm>
@@ -46,6 +30,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <format>
+#include <ranges>
 #include <system_error>
 #include <utility>
 
@@ -131,35 +116,16 @@ int Application::Run() {
         }
     }
 
-    m_audio = std::make_unique<AudioDevice>(m_config.audio);
-    if (m_config.game) {
-        m_config.game->sections.audio.Apply(*m_audio);
-    }
-
     std::filesystem::path importDirectory = m_config.assets.importDirectory;
     if (importDirectory.empty()) {
         importDirectory = Utf8ToPath(m_config.game ? m_config.game->importDirectory : "imported");
     }
     m_assets = std::make_unique<AssetManager>(GetExecutableDirectory() / importDirectory);
-    RegisterGraphicsAssets(*m_assets, m_graphics.get());
-    RegisterRenderAssets(*m_assets, m_graphics.get());
-    RegisterAudioAssets(*m_assets);
-    RegisterAnimationAssets(*m_assets);
-    RegisterScriptAssets(*m_assets);
     RegisterSceneAssets(*m_assets);
-    RegisterAnimationComponents();
-    RegisterAudioComponents();
-    RegisterParticleComponents();
-    RegisterPhysicsComponents();
-    RegisterPhysics2DComponents();
-    RegisterRenderComponents();
-    RegisterUiComponents();
-    RegisterScriptComponents();
     Detail::SetAssetManager(m_assets.get());
 
     Input::SetState(&m_input);
     Input::SetActionMap(&m_actions);
-    Audio::SetDevice(m_audio.get());
     Time::SetClock(&m_clock);
     m_limiter = FrameLimiter(m_config.maxFrameRate);
     m_clock.Start(std::chrono::steady_clock::now());
@@ -177,6 +143,14 @@ int Application::Run() {
     if (m_config.consoleOverlay) {
         m_consoleInput = std::make_unique<ConsoleInput>(Console::Get(), m_input);
     }
+    m_running = true;
+    m_failed = false;
+    // The game's components are known before its scenes load.
+    Detail::GameCode::Load();
+    for (auto& [type, module] : m_modules) {
+        module->OnStart();
+    }
+    // Once the modules registered their console settings.
     if (const auto directory = GetUserDataDirectory(); !directory.empty()) {
         const auto result = SaveData(directory).Load(
             "console.json", 1, [](Archive& archive, std::uint32_t) { Console::Get().Serialize(archive); });
@@ -184,10 +158,6 @@ int Application::Run() {
             Log::GetEngineLogger().Warning("Could not load console settings: {}", result.message);
         }
     }
-    m_running = true;
-    m_failed = false;
-    // The game's components are known before its scenes load.
-    Detail::GameCode::Load();
     OnStart();
     if (m_running && !m_scene && !m_sceneChangePending && !LoadStartupScene()) {
         m_failed = true;
@@ -231,14 +201,12 @@ int Application::Run() {
             if (m_scene)
                 m_scene->Update(m_clock.GetDeltaTime());
         }
-        if (Profiler::IsEnabled()) {
-            SPOT_PROFILE_SCOPE("Developer::Stats");
-            const auto stats = GetRuntimeStats();
-            Profiler::Count("Bodies", static_cast<double>(stats.bodies));
-            Profiler::Count("Voices", static_cast<double>(stats.voices));
-            Profiler::Count("Resident memory", static_cast<double>(stats.memoryBytes));
+        for (auto& [type, module] : m_modules) {
+            module->OnUpdate(m_clock.GetDeltaTime());
         }
-        UpdateUiTextInput();
+        if (Profiler::IsEnabled()) {
+            Profiler::Count("Resident memory", static_cast<double>(Process::GetResidentMemoryBytes()));
+        }
         // Only changes are applied, so applications can still capture the mouse themselves.
         if (m_input.IsCursorLockApplied() != m_cursorLocked) {
             m_cursorLocked = m_input.IsCursorLockApplied();
@@ -250,14 +218,22 @@ int Application::Run() {
             if (RenderContext* context = m_graphics->BeginFrame()) {
                 context->BeginGpuTimer("Frame");
                 const bool screenshot = PrepareScreenshot(*context);
+                for (auto& [type, module] : m_modules) {
+                    module->OnBeginRender(*context);
+                }
                 if (m_scene) {
                     m_scene->PrepareToRender();
                     m_scene->OnRender(*context);
                 }
-                RenderScenes(*context);
+                for (auto& [type, module] : m_modules) {
+                    module->OnRender(*context);
+                }
                 {
                     SPOT_PROFILE_SCOPE("Application::OnRender");
                     OnRender(*context);
+                }
+                for (auto& module : std::views::reverse(m_modules)) {
+                    module.second->OnEndRender(*context);
                 }
                 RenderDeveloperOverlay(*context);
                 if (screenshot) {
@@ -299,6 +275,9 @@ int Application::Run() {
         }
     }
     OnStop();
+    for (auto& module : std::views::reverse(m_modules)) {
+        module.second->OnStop();
+    }
     m_consoleInput.reset();
     m_developerRenderer.reset();
     m_developerFont = {};
@@ -307,15 +286,12 @@ int Application::Run() {
     RemoveScene();
     m_pendingScene.reset();
     m_sceneChangePending = false;
-    m_sceneRenderer.reset();
     Detail::SetAssetManager(nullptr);
     m_engineConsole.reset();
     m_assets.reset();
     Time::SetClock(nullptr);
     Input::SetState(nullptr);
     Input::SetActionMap(nullptr);
-    Audio::SetDevice(nullptr);
-    m_audio.reset();
     m_screenshotTexture.reset();
     m_screenshotPath.clear();
     m_graphics.reset();
@@ -324,26 +300,26 @@ int Application::Run() {
     return m_failed ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
-void Application::SetScenesPaused(bool paused) {
-    m_scenesPaused = paused;
-    if (m_scene) {
-        if (auto* audio = m_scene->GetSystem<AudioSystem>())
-            audio->SetPaused(paused);
-    }
+void Application::AddModule(std::type_index type, std::unique_ptr<Module> module) {
+    SPOT_ASSERT(!m_running, "Modules are added before Run()");
+    SPOT_ASSERT(!FindModule(type), "An application has one module of each type");
+    module->m_application = this;
+    m_modules.emplace_back(type, std::move(module));
+}
+
+Module* Application::FindModule(std::type_index type) const {
+    const auto found = std::ranges::find(m_modules, type, [](const auto& entry) { return entry.first; });
+    return found != m_modules.end() ? found->second.get() : nullptr;
 }
 
 void Application::SetGameSettings(std::optional<GameSettings> game) {
     m_config.game = std::move(game);
     m_runtimeRendering.reset();
     ++m_renderingRevision;
-    // Made again with the game's rendering settings when next needed.
-    m_sceneRenderer.reset();
+    ++m_gameSettingsRevision;
     m_actions = {};
     if (m_config.game) {
         m_config.game->sections.input.Apply(m_actions);
-        if (m_audio) {
-            m_config.game->sections.audio.Apply(*m_audio);
-        }
     }
     // Tools play games with the project's bindings, not a player's.
     m_actions.SetDefaults();
@@ -357,7 +333,6 @@ RenderingSettings Application::GetRenderingSettings() const {
 void Application::SetRenderingSettings(RenderingSettings rendering) {
     m_runtimeRendering = std::move(rendering);
     ++m_renderingRevision;
-    m_renderingDirty = true;
 }
 
 bool Application::SaveInputRebinds() {
@@ -406,17 +381,21 @@ AssetManager& Application::GetAssets() {
     return *m_assets;
 }
 
-AudioDevice& Application::GetAudioDevice() {
-    SPOT_ASSERT(m_audio, "The audio device only exists while Run() is running");
-    return *m_audio;
-}
-
 void Application::LoadScene(std::unique_ptr<Scene> scene) {
     m_pendingScene = std::move(scene);
     m_sceneChangePending = true;
 }
 
 void Application::DispatchEvent(const Event& event) {
+    for (auto& [type, module] : m_modules) {
+        if (module->OnEvent(event)) {
+            OnEvent(event);
+            if (event.Is<WindowCloseEvent>() && OnCloseRequested()) {
+                Quit();
+            }
+            return;
+        }
+    }
     const bool wasOpen = m_consoleInput && m_consoleInput->IsOpen();
     bool consumed = m_consoleInput && m_consoleInput->OnEvent(event);
     if (m_window && m_consoleInput && wasOpen != m_consoleInput->IsOpen()) {
@@ -426,28 +405,9 @@ void Application::DispatchEvent(const Event& event) {
             m_window->StopTextInput();
         }
     }
-    if (!consumed && DeliversToScenes(event) && m_window) {
-        Event uiEvent = event;
-        if (const auto* moved = event.GetIf<MouseMovedEvent>()) {
-            auto pixel = *moved;
-            const float xScale =
-                static_cast<float>(m_window->GetPixelWidth()) / static_cast<float>(std::max(1, m_window->GetWidth()));
-            const float yScale =
-                static_cast<float>(m_window->GetPixelHeight()) / static_cast<float>(std::max(1, m_window->GetHeight()));
-            pixel.position = {pixel.position.x * xScale, pixel.position.y * yScale};
-            uiEvent = Event(pixel);
-        }
-        const Vector2 size{static_cast<float>(m_window->GetPixelWidth()),
-                           static_cast<float>(m_window->GetPixelHeight())};
-        if (m_scene)
-            consumed = m_scene->GetOrAddSystem<Spot::UiInputSystem>().HandleUiEvent(uiEvent, size, &m_input);
-        if (consumed)
-            m_input.ConsumeEvent(event);
-    }
     if (!consumed) {
         m_input.OnEvent(event);
     }
-    UpdateUiTextInput();
     OnEvent(event);
     if (!consumed && DeliversToScenes(event) && m_scene) {
         m_scene->OnEvent(event);
@@ -456,17 +416,6 @@ void Application::DispatchEvent(const Event& event) {
     if (event.Is<WindowCloseEvent>() && OnCloseRequested()) {
         Quit();
     }
-}
-
-void Application::UpdateUiTextInput() {
-    if (!m_window)
-        return;
-    const bool wanted = UiInputSystem::IsTextInputCaptured(m_input);
-    if (wanted && !m_window->IsTextInputActive())
-        m_window->StartTextInput();
-    else if (m_uiTextInput && !wanted && !(m_consoleInput && m_consoleInput->IsOpen()))
-        m_window->StopTextInput();
-    m_uiTextInput = wanted;
 }
 
 void Application::ApplySceneChanges() {
@@ -503,7 +452,6 @@ void Application::ApplySceneChanges() {
     if (m_scene) {
         m_scene->m_application = this;
         m_scene->OnLoad();
-        SetScenesPaused(m_scenesPaused);
     }
 }
 
@@ -517,8 +465,7 @@ void Application::RemoveScene() {
 }
 
 RuntimeStats Application::GetRuntimeStats() const {
-    const std::array<Scene*, 1> scenes{m_scene.get()};
-    return RuntimeStats::Sample(m_scene ? std::span<Scene* const>(scenes) : std::span<Scene* const>{}, m_audio.get());
+    return RuntimeStats::Sample();
 }
 
 std::filesystem::path Application::GetCaptureDirectory() {
@@ -592,8 +539,7 @@ void Application::RenderDeveloperOverlay(RenderContext& context) {
         return;
     }
     const Vector2 size{static_cast<float>(context.GetWidth()), static_cast<float>(context.GetHeight())};
-    auto pass =
-        context.BeginRenderPass({.clearColor = m_config.renderScenes ? std::nullopt : std::optional(Color::Black)});
+    auto pass = context.BeginRenderPass({});
     m_developerRenderer->Begin(pass, Camera2D{.position = size * 0.5f}, size);
     if (m_statsVisible) {
         DrawStatsOverlay(GetRuntimeStats(), *m_developerFont, *m_developerRenderer, size);
@@ -602,22 +548,6 @@ void Application::RenderDeveloperOverlay(RenderContext& context) {
         DrawConsoleOverlay(Console::Get(), *m_consoleInput, *m_developerFont, *m_developerRenderer, size);
     }
     m_developerRenderer->End();
-}
-
-void Application::RenderScenes(RenderContext& context) {
-    if (!m_config.renderScenes || !m_scene) {
-        return;
-    }
-    if (m_renderingDirty) {
-        m_sceneRenderer.reset();
-        m_renderingDirty = false;
-    }
-    if (!m_sceneRenderer) {
-        SceneRendererConfig config;
-        GetRenderingSettings().Apply(config);
-        m_sceneRenderer = std::make_unique<SceneRenderer>(*m_graphics, config);
-    }
-    m_sceneRenderer->Render(context, *m_scene);
 }
 
 bool Application::LoadStartupScene() {

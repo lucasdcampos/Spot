@@ -11,7 +11,7 @@ class BuiltInGameComponent final : public Spot::Component {};
 
 class QuittingApplication final : public Spot::Application {
 public:
-    QuittingApplication() : Application({.graphics = {.enabled = false}, .audio = {.enabled = false}}) {}
+    QuittingApplication() : Application({.graphics = {.enabled = false}}) {}
 
     bool registeredAtStart = false;
 

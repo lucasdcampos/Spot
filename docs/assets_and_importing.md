@@ -154,7 +154,8 @@ An `AssetManager` starts without system loaders. Call `RegisterGraphicsAssets(as
 `RegisterRenderAssets(assets, device)`, `RegisterAudioAssets(assets)`, `RegisterAnimationAssets(assets)`,
 `RegisterScriptAssets(assets)` and `RegisterSceneAssets(assets)` for the systems in use. A graphics device is optional
 for registration; GPU assets fail to load without one. CPU mesh data remains available without rendering.
-`Application` and editor projects perform these registrations during setup. Registrations never affect another manager.
+`Application` registers scene assets, and each module it runs registers its system's loaders when it starts;
+editor projects register them all. Registrations never affect another manager.
 
 A custom `AssetLoader` has a worker-safe `prepare` callback and a `create` callback that runs on the thread calling
 `Load()`, `Update()` or `FinishPreload()`. `MakeAssetLoader<T>()` wraps a decoder returning `optional<T>` and a factory
