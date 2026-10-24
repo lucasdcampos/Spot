@@ -44,7 +44,7 @@ allocate no memory. Profiling records the simulation scope.
 
 ## Rendering
 
-`ParticleBatch` converts particles into billboard instances and sorts alpha particles globally, back
+`ParticleBatch` converts plain `Particle` arrays and `ParticleDrawSettings` into billboard instances and sorts alpha particles globally, back
 to front along the camera axis, with stable ties. Additive particles follow. Velocity stretching
 projects velocity onto the camera plane; stationary or head-on particles retain a valid billboard.
 Local particles inherit emitter position and the largest scale axis. Rotation turns normal billboards.
@@ -52,7 +52,7 @@ Horizontal particles lie flat in the world's XZ plane, facing up whatever the ca
 Y: ripples on water and marks on the ground.
 Flipbooks use row-major cells, normalized lifetime and an optional number of cycles.
 
-`ParticleRenderer` has a code-only `Begin/Draw/End` API; `DrawScene(ParticleRenderer&, Scene&)` draws a scene's systems. It uploads one instance per
+`ParticleRenderer` has a code-only `Begin/Draw/End` API over plain `Particle` spans, independent of `ParticleSimulation`; `DrawScene(ParticleRenderer&, Scene&)` draws a scene's systems. It uploads one instance per
 particle and merges consecutive draws that share texture and blend mode. Buffers and staging vectors
 retain capacity. No texture produces an analytic soft disc; an assigned imported texture provides its
 own coverage. Alpha and additive colors remain linear HDR through bloom and tonemapping.

@@ -157,7 +157,7 @@ TEST_CASE("Particle settings contain malformed serialized values", "[particles]"
 }
 
 TEST_CASE("Particle batches sort across emitters and preserve alpha order", "[particles][rendering]") {
-    auto settings = Settings();
+    Spot::ParticleDrawSettings settings;
     Spot::Particle near, far;
     near.position = {0, 0, -2};
     far.position = {0, 0, -5};
@@ -167,17 +167,16 @@ TEST_CASE("Particle batches sort across emitters and preserve alpha order", "[pa
     Spot::ParticleBatch batch;
     batch.Add(std::span(&near, 1), settings, {});
     batch.Add(std::span(&far, 1), settings, {});
-    settings.blend = Spot::ParticleBlend::Additive;
+    settings.blend = Spot::ParticleDrawBlend::Additive;
     batch.Add(std::span(&far, 1), settings, {});
     batch.Sort();
     REQUIRE(batch.GetDraws().size() == 3);
     CHECK(batch.GetDraws()[0].instance.color == Spot::Color::Blue);
     CHECK(batch.GetDraws()[1].instance.color == Spot::Color::Red);
-    CHECK(batch.GetDraws()[2].blend == Spot::ParticleBlend::Additive);
+    CHECK(batch.GetDraws()[2].blend == Spot::ParticleDrawBlend::Additive);
 }
 TEST_CASE("Particle billboards stretch rotate and address flipbooks", "[particles][rendering]") {
-    auto settings = Settings();
-    settings.space = Spot::ParticleSpace::Local;
+    Spot::ParticleDrawSettings settings;
     settings.flipbookColumns = 2;
     settings.flipbookRows = 2;
     Spot::Particle p;
@@ -194,18 +193,18 @@ TEST_CASE("Particle billboards stretch rotate and address flipbooks", "[particle
     CHECK(batch.GetDraws()[0].instance.centerAndSize.x == 2);
     CHECK(batch.GetDraws()[0].instance.uvRect == Spot::Vector4{0.5f, 0.5f, 1, 1});
     batch.Clear();
-    settings.facing = Spot::ParticleFacing::Stretched;
+    settings.facing = Spot::ParticleDrawFacing::Stretched;
     batch.Add(std::span(&p, 1), settings, {}, emitter);
     CHECK(batch.GetDraws()[0].instance.up.x > 1);
     CHECK(batch.GetDraws()[0].instance.rightAndSoftDistance.y == Approx(-1));
     batch.Clear();
-    settings.facing = Spot::ParticleFacing::Billboard;
+    settings.facing = Spot::ParticleDrawFacing::Billboard;
     p.rotation = Spot::ToRadians(90);
     batch.Add(std::span(&p, 1), settings, {}, emitter);
     CHECK(batch.GetDraws()[0].instance.rightAndSoftDistance.y == Approx(1));
     // Horizontal particles lie flat whatever the camera, facing up, and turn around it.
     batch.Clear();
-    settings.facing = Spot::ParticleFacing::Horizontal;
+    settings.facing = Spot::ParticleDrawFacing::Horizontal;
     batch.Add(std::span(&p, 1), settings, {}, emitter);
     const auto& flat = batch.GetDraws()[0].instance;
     const Spot::Vector3 right{flat.rightAndSoftDistance.x, flat.rightAndSoftDistance.y, flat.rightAndSoftDistance.z};

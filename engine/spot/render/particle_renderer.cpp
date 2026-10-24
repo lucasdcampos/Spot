@@ -62,7 +62,7 @@ void ParticleRenderer::Begin(RenderContext& context, const RenderPassDesc& targe
     m_instances.clear();
     m_stats = {};
 }
-void ParticleRenderer::Draw(std::span<const Particle> particles, const ParticleSettings& settings,
+void ParticleRenderer::Draw(std::span<const Particle> particles, const ParticleDrawSettings& settings,
                             const Matrix4& emitter, const Texture* texture) {
     SPOT_ASSERT(m_context, "ParticleRenderer must be begun");
     m_batch.Add(particles, settings, m_camera, emitter, texture);
@@ -104,7 +104,7 @@ void ParticleRenderer::End() {
                draws[end].blend == draws[first].blend)
             ++end;
         const auto& draw = draws[first];
-        pass.BindPipeline(draw.blend == ParticleBlend::Alpha ? *m_alpha : *m_additive);
+        pass.BindPipeline(draw.blend == ParticleDrawBlend::Alpha ? *m_alpha : *m_additive);
         pass.BindFragmentTexture(0, draw.texture ? *draw.texture : *m_white, *m_sampler);
         auto values = uniforms;
         values.view.z = draw.texture ? 1.0f : 0.0f;

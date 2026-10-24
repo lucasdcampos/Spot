@@ -124,7 +124,7 @@ Depends on: Phase 1.
   `RegisterAudioAssets()`, `RegisterAnimationAssets()`), decoding on workers and creating on the main thread. Loaders
   belong to a manager instead of being static. Asset references load only through the archive's manager, never
   through `Assets::GetManager()`. `Application` calls the registrations until 6.2 moves them into modules.
-- [ ] **3.4 Models and particles (S).** `render/` includes animation only for models' skeletons and clips, the listed
+- [x] **3.4 Models and particles (S).** `render/` includes animation only for models' skeletons and clips, the listed
   exception, and particles not at all: `ParticleRenderer` draws plain particle arrays instead of a
   `ParticleSimulation`.
 - [ ] **3.5 3D physics public (M).** `Detail::PhysicsSimulation` becomes `Spot::Physics3D`, beside `Spot::Physics2D`,

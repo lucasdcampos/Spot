@@ -5,7 +5,7 @@
 #include <span>
 
 namespace Spot {
-struct Particle {
+struct SimulatedParticle {
     Vector3 position;
     Vector3 velocity;
     float age = 0;
@@ -32,7 +32,7 @@ public:
     bool IsEmitting() const { return m_emitting; }
     bool IsAlive() const { return m_emitting || !m_particles.empty(); }
     double GetTime() const { return m_time; }
-    std::span<const Particle> GetParticles() const { return m_particles; }
+    std::span<const SimulatedParticle> GetParticles() const { return m_particles; }
     std::uint64_t GetDroppedCount() const { return m_dropped; }
     void Emit(std::uint32_t count, const Matrix4& emitter = {});
     // At most one second per call; excess time is dropped to bound stalled-frame work.
@@ -44,9 +44,9 @@ private:
     float Random();
     float Sample(ParticleRange range);
     void Step(const Matrix4& emitter);
-    void Integrate(Particle& particle, float seconds);
+    void Integrate(SimulatedParticle& particle, float seconds);
     ParticleSettings m_settings;
-    std::vector<Particle> m_particles;
+    std::vector<SimulatedParticle> m_particles;
     std::uint32_t m_random = 1;
     std::uint64_t m_dropped = 0;
     std::uint64_t m_step = 0;

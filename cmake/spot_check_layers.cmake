@@ -29,7 +29,7 @@ set(SPOT_LEVEL_EXCEPTIONS
 
 # Today's violations, each fixed by a task of the refactor: the commit that fixes one removes its line.
 set(SPOT_LEVEL_ALLOWLIST
-    "render/particle_batch.h>particles/particle_simulation.h"
+
     "runtime/application.cpp>scene/audio/audio_system.h"
     "runtime/application.cpp>scene/rendering/scene_renderer.h"
     "runtime/application.cpp>scene/ui/ui_input_system.h"

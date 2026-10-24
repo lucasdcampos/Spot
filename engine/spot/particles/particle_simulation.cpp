@@ -69,7 +69,7 @@ void ParticleSimulation::Emit(std::uint32_t count, const Matrix4& emitter) {
             position = Apply(emitter, position, 1);
             velocity = Apply(emitter, velocity, 0);
         }
-        Particle particle;
+        SimulatedParticle particle;
         particle.position = position;
         particle.initialVelocity = particle.velocity = velocity;
         particle.lifetime = Sample(m_settings.lifetime);
@@ -79,7 +79,7 @@ void ParticleSimulation::Emit(std::uint32_t count, const Matrix4& emitter) {
         m_particles.push_back(particle);
     }
 }
-void ParticleSimulation::Integrate(Particle& particle, float seconds) {
+void ParticleSimulation::Integrate(SimulatedParticle& particle, float seconds) {
     particle.age += seconds;
     const float age = std::clamp(particle.age / particle.lifetime, 0.0f, 1.0f);
     const float speed = m_settings.speedOverLifetime.Evaluate(age);
@@ -140,7 +140,7 @@ void ParticleSimulation::Step(const Matrix4& emitter) {
             Integrate(m_particles.back(), static_cast<float>(std::max(0.0, m_time - at)));
         }
     }
-    std::erase_if(m_particles, [](const Particle& p) { return p.age >= p.lifetime; });
+    std::erase_if(m_particles, [](const SimulatedParticle& p) { return p.age >= p.lifetime; });
     if (!m_settings.loop && m_time >= duration)
         m_emitting = false;
 }
