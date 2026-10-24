@@ -205,7 +205,7 @@ spot_add_shaders(game_code terrain.vert.hlsl terrain.frag.hlsl)
 |---|---|
 | `Renderer2D` | Colored and textured quads and text, batched, in the order given, with alpha blending, inside a pass the caller opens; `SetTransform()` places what follows, as world text and sprites at a depth need |
 | `Renderer3D` | Lit, textured, shadowed meshes and models with a sky; it opens the pass described to `Begin()` in `End()`, after drawing shadow maps |
-| `LineRenderer` | One-pixel lines in 3D, depth-tested or over everything, inside a pass the caller opens; `DrawDebugLines()` draws the `DebugDraw` queue |
+| `LineRenderer` | One-pixel lines in 3D, depth-tested or over everything, inside a pass the caller opens; it draws the lines it is given, and `SceneRenderer` gives it the `DebugDraw` queue |
 | `SceneRenderer` | Whole scenes as games show them, through their main camera (`engine/spot/scene/rendering/`) |
 
 The renderers know nothing of scenes. `engine/spot/scene/rendering/scene_drawing.h` draws a scene's components with them:

@@ -34,7 +34,7 @@ struct LineRendererConfig {
 //
 //     renderer.Begin(pass, camera.GetViewProjection(viewSize));
 //     renderer.DrawLine({0, 0, 0}, {0, 1, 0}, Spot::Color::Green);
-//     renderer.DrawDebugLines();
+//     renderer.DrawLines(Spot::DebugDraw::GetLines());
 //     renderer.End();
 class LineRenderer {
 public:
@@ -51,9 +51,8 @@ public:
     void End();
 
     void DrawLine(Vector3 from, Vector3 to, Color color, bool depthTest = true);
+    // Such as DebugDraw::GetLines(), which SceneRenderer passes.
     void DrawLines(std::span<const DebugLine> lines);
-    // Draws the lines queued with DebugDraw for this frame.
-    void DrawDebugLines();
 
     // The lines the last End() drew.
     std::uint32_t GetLineCount() const { return m_lineCount; }

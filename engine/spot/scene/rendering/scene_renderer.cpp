@@ -62,7 +62,7 @@ SceneRenderer::SceneRenderer(GraphicsDevice& device, const SceneRendererConfig& 
         }
         auto pass = stage.context.BeginRenderPass(stage.pass);
         m_lines->Begin(pass, stage.viewProjection);
-        m_lines->DrawDebugLines();
+        m_lines->DrawLines(DebugDraw::GetLines());
         m_lines->End();
     });
 }

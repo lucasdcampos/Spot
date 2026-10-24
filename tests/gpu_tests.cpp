@@ -3468,7 +3468,7 @@ TEST_CASE("LineRenderer draws lines hidden by meshes, and debug lines over every
             auto pass = context.BeginRenderPass(over);
             lines.Begin(pass, camera.GetViewProjection({32.0f, 32.0f}));
             lines.DrawLine({-5.0f, 0.0f, -2.0f}, {5.0f, 0.0f, -2.0f}, Spot::Color::Green);
-            lines.DrawDebugLines();
+            lines.DrawLines(Spot::DebugDraw::GetLines());
             lines.End();
             lineCount = lines.GetLineCount();
         });
