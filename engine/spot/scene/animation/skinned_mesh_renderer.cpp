@@ -1,7 +1,7 @@
 #include "spot/scene/animation/skinned_mesh_renderer.h"
 
 #include "spot/assets/asset_archive.h"
-#include "spot/core/archive.h"
+#include "spot/core/io/archive.h"
 
 #include <algorithm>
 #include <cmath>

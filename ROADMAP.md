@@ -32,7 +32,7 @@ Depends on: nothing. Done first and quickly, since moving folders conflicts with
 in order, as each moves files the next one touches.
 
 - [x] **1.1 A `spot/` prefix for the engine's headers (S).** The modules move into `engine/spot/`, so games include
-  `<spot/core/log.h>` instead of `<core/log.h>`, which could collide with their own folders; `<spot.h>` stays where it
+  `<spot/core/debug/log.h>` instead of `<core/log.h>`, which could collide with their own folders; `<spot.h>` stays where it
   is. Every include in the engine, the editor, the tools, the tests and the sandbox follows, and so do the layer
   check, `AGENTS.md` and `docs/`.
 - [x] **1.2 Merge folders (S).** `math/` into `core/`; `window/`, `events/` and `input/` into `platform/`; `physics2d/`
@@ -156,9 +156,9 @@ Depends on: Phase 1.
 
 Depends on: Phase 1.
 
-- [ ] **5.1 Chunks (M).** A scene loads a scene asset into itself, under a root entity it returns, in the background;
+- [x] **5.1 Chunks (M).** A scene loads a scene asset into itself, under a root entity it returns, in the background;
   unloading the chunk destroys its root.
-- [ ] **5.2 One scene per application (L).** Waits for 5.1. `Application` runs one active scene: the persistent scene,
+- [x] **5.2 One scene per application (L).** Waits for 5.1. `Application` runs one active scene: the persistent scene,
   the additive scene list, per-scene event routing and drawing several scenes go. Entities marked with
   `Entity::SetKeepOnSceneChange()` move into the next scene. `SceneRenderer` draws one scene, so the whole world is one
   physics simulation. The editor's play mode follows; `docs/application_and_scenes.md` describes it.

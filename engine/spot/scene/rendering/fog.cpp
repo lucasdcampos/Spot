@@ -1,7 +1,7 @@
 #include "spot/scene/rendering/fog.h"
 
 #include "spot/assets/asset_archive.h"
-#include "spot/core/archive.h"
+#include "spot/core/io/archive.h"
 #include "spot/scene/entity.h"
 
 namespace Spot {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/core/asset_id.h"
+#include "spot/core/ids/asset_id.h"
 
 // Assets every asset manager has without any file, under fixed ids, so scenes can save references to them. Their
 // paths are "builtin/cube", "builtin/sphere", "builtin/plane", "builtin/grid" and "builtin/checker".

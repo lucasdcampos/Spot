@@ -71,7 +71,7 @@ systems get a page, linked from `docs/index.md`. Headers stay the reference for 
 `.clang-format` formats C++ files; run clang-format before committing.
 
 - Files and folders `snake_case`; headers `.h` starting with `#pragma once`, sources `.cpp`. Include with quotes
-  inside the engine (`"spot/core/log.h"`), `<spot.h>` or `<spot/core/log.h>` outside.
+  inside the engine (`"spot/core/debug/log.h"`), `<spot.h>` or `<spot/core/debug/log.h>` outside.
 - Types, functions and methods `PascalCase`; getters `Get…`, boolean queries `Is…`/`Has…`.
 - Private and protected members `m_camelCase`, static members `s_camelCase`; public fields of plain structs, locals
   and parameters `camelCase`.

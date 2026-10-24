@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/core/archive.h"
+#include "spot/core/io/archive.h"
 #include "spot/scene/component_registry.h"
 #include "spot/scene/entity.h"
 #include "spot/scene/scene.h"

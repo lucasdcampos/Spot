@@ -4,7 +4,7 @@
 #include <spot/assets/asset_file.h>
 #include <spot/assets/asset_manifest.h>
 #include <spot/assets/assets.h>
-#include <spot/core/archive_state.h>
+#include <spot/core/io/archive_state.h>
 
 #include <catch2/catch_test_macros.hpp>
 

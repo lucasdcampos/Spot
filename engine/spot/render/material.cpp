@@ -1,7 +1,7 @@
 #include "spot/render/material.h"
 
 #include "spot/assets/asset_archive.h"
-#include "spot/core/archive.h"
+#include "spot/core/io/archive.h"
 
 #include <array>
 #include <string_view>

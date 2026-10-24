@@ -1,7 +1,7 @@
 #include "spot/platform/platform.h"
 
-#include "spot/core/assert.h"
-#include "spot/core/log.h"
+#include "spot/core/debug/assert.h"
+#include "spot/core/debug/log.h"
 
 #include <SDL3/SDL.h>
 

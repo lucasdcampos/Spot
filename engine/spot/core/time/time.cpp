@@ -1,4 +1,4 @@
-#include "spot/core/time.h"
+#include "spot/core/time/time.h"
 
 #include <algorithm>
 #include <cmath>

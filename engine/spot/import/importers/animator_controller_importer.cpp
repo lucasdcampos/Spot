@@ -1,6 +1,6 @@
 #include "spot/animation/animator_controller.h"
 #include "spot/assets/asset_formats.h"
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
 #include "spot/import/importers/importer.h"
 
 namespace Spot::Detail {

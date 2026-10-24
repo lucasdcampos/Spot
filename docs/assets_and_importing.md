@@ -140,7 +140,7 @@ each time, which `AssetManager::ReadImportedData()` gives.
 
 ## Foundation references and archive context
 
-`AssetRef<T>` lives in `spot/core/asset_ref.h`, beside `AssetId`. It retains shared ownership and an optional
+`AssetRef<T>` lives in `spot/core/ids/asset_ref.h`, beside `AssetId`. It retains shared ownership and an optional
 persistent id without depending on a manager or on any system. `AssetType` is also foundation metadata; loading
 and source-format helpers remain in `assets/`. Unresolved references keep their ids when saved.
 

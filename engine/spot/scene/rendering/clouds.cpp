@@ -1,6 +1,6 @@
 #include "spot/scene/rendering/clouds.h"
 
-#include "spot/core/archive.h"
+#include "spot/core/io/archive.h"
 
 #include <algorithm>
 #include <cmath>

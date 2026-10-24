@@ -1,7 +1,7 @@
 #include "spot/physics/jolt/jolt_shapes.h"
 #include "spot/physics/jolt/jolt_simulation_impl.h"
 
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
 
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 

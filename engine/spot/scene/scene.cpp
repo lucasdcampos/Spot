@@ -1,10 +1,10 @@
 #include "spot/scene/scene.h"
 #include "spot/scene/prefab.h"
 
-#include "spot/core/assert.h"
-#include "spot/core/diagnostics.h"
-#include "spot/core/log.h"
-#include "spot/core/profiler.h"
+#include "spot/core/debug/assert.h"
+#include "spot/core/debug/diagnostics.h"
+#include "spot/core/debug/log.h"
+#include "spot/core/debug/profiler.h"
 #include "spot/platform/input.h"
 #include "spot/render/renderer_2d.h"
 #include "spot/scene/audio/audio_system.h"
@@ -200,6 +200,7 @@ void Scene::DestroyEntity(Entity& entity) {
 }
 
 void Scene::Clear() {
+    CancelChunkLoads();
     ForEachEntity([this](Entity& entity) {
         if (!entity.m_parent) {
             DestroyEntity(entity);
@@ -256,6 +257,7 @@ std::size_t Scene::GetEntityCount() const {
 
 void Scene::Update(float deltaTime) {
     SPOT_ASSERT(!m_deferRemovals, "Update() cannot be called while the scene walks its entities");
+    FinishChunkLoads();
     ++m_updateCount;
     if (!std::isfinite(deltaTime) || deltaTime < 0.0f) {
         deltaTime = 0.0f;
@@ -535,6 +537,9 @@ std::unique_ptr<Entity> Scene::Release(Entity& entity) {
 }
 
 void Scene::Adopt(std::unique_ptr<Entity> entity, bool moved) {
+    if (moved && entity->m_scene->m_audio) {
+        entity->m_scene->m_audio->MoveSources(*entity, *this);
+    }
     entity->m_scene = this;
     entity->m_slot = m_entities.size();
     m_entitiesById.emplace(entity->m_id, entity.get());

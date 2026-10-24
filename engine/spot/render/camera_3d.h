@@ -1,9 +1,9 @@
 #pragma once
 
-#include "spot/core/angles.h"
-#include "spot/core/matrix.h"
-#include "spot/core/quaternion.h"
-#include "spot/core/vector.h"
+#include "spot/core/math/angles.h"
+#include "spot/core/math/matrix.h"
+#include "spot/core/math/quaternion.h"
+#include "spot/core/math/vector.h"
 #include "spot/render/pixel_perfect.h"
 
 #include <cstdint>

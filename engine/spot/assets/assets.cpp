@@ -1,7 +1,7 @@
 #include "spot/assets/assets.h"
 #include "spot/assets/asset_archive.h"
 
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
 
 namespace Spot {
 

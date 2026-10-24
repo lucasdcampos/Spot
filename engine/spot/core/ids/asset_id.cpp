@@ -1,4 +1,4 @@
-#include "spot/core/asset_id.h"
+#include "spot/core/ids/asset_id.h"
 
 #include <format>
 #include <random>

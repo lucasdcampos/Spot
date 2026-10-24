@@ -1,6 +1,6 @@
-#include "spot/core/memory.h"
+#include "spot/core/memory/memory.h"
 
-#include "spot/core/assert.h"
+#include "spot/core/debug/assert.h"
 
 #include <algorithm>
 #include <bit>

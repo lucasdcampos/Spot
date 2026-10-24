@@ -1,5 +1,5 @@
-#include "spot/core/assert.h"
-#include "spot/core/log.h"
+#include "spot/core/debug/assert.h"
+#include "spot/core/debug/log.h"
 #include "spot/graphics/sdl_gpu/sdl_gpu_internal.h"
 
 #include <algorithm>

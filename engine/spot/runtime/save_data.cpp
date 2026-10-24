@@ -1,10 +1,10 @@
 #include "spot/runtime/save_data.h"
 
-#include "spot/core/archive.h"
-#include "spot/core/archive_state.h"
-#include "spot/core/asset_id.h"
-#include "spot/core/diagnostics.h"
-#include "spot/core/paths.h"
+#include "spot/core/debug/diagnostics.h"
+#include "spot/core/ids/asset_id.h"
+#include "spot/core/io/archive.h"
+#include "spot/core/io/archive_state.h"
+#include "spot/core/io/paths.h"
 
 #include <fstream>
 #include <iterator>

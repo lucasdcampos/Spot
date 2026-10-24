@@ -1,6 +1,6 @@
 #include "spot/scene/rendering/rendering_settings.h"
 
-#include "spot/core/archive.h"
+#include "spot/core/io/archive.h"
 #include "spot/scene/rendering/scene_renderer.h"
 
 #include <algorithm>

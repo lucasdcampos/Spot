@@ -1,7 +1,7 @@
 #include "spot/graphics/graphics_assets.h"
 #include "spot/assets/asset_manager.h"
 #include "spot/assets/built_in_assets.h"
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
 #include "spot/graphics/graphics_device.h"
 #include "spot/graphics/texture_asset_format.h"
 

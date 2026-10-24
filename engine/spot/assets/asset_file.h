@@ -4,8 +4,8 @@
 // Each starts with a header naming the format version and asset type, followed by the type's own data.
 
 #include "spot/assets/asset_type.h"
-#include "spot/core/asset_id.h"
-#include "spot/core/file_io.h"
+#include "spot/core/ids/asset_id.h"
+#include "spot/core/io/file_io.h"
 
 #include <cstddef>
 #include <cstdint>

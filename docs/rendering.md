@@ -317,15 +317,15 @@ draws are their own: Renderer3D's statistics do not count them.
 
 ### SceneRenderer
 
-`SceneRenderer::Render()` draws scenes over each other into the window or a texture: their meshes through the first
-main camera among them (`FindMainCamera()`), then the shapes queued with `DebugDraw` (see
-[Diagnostics](diagnostics.md)), then their sprites, all as light into an HDR image (`Rgba16Float`, multisampled where
-the GPU allows), which a tonemapper turns into the target's colors; then their interfaces over it, as they are
-(`Scene::DrawUi()`, which calls each active component's `OnDrawUi()` with a renderer in pixels from the view's
-bottom-left corner). The application draws its scenes with one unless `ApplicationConfig::renderScenes` is off, and
-the editor's views draw the same way. Each frame is a render graph (see [Render graphs](#render-graphs)): scene,
-sprites, particles, post-processing, FXAA and interface passes, whose HDR, depth and tonemapped targets the graph
-keeps at the frame's size.
+`SceneRenderer::Render(context, scene, target)` draws one scene into the window or a texture. It draws meshes
+through the first main camera (`FindMainCamera()`), then the shapes queued with `DebugDraw` (see
+[Diagnostics](diagnostics.md)), then sprites and particles, all as light into an HDR image (`Rgba16Float`,
+multisampled where the GPU allows). A tonemapper turns it into the target's colors, and the scene's interfaces
+go over it (`Scene::DrawUi()`, which calls each active component's `OnDrawUi()` in pixels from the view's
+bottom-left corner). The application draws its active scene this way unless `ApplicationConfig::renderScenes`
+is off; the editor's game view uses the same renderer. Each frame is a render graph (see
+[Render graphs](#render-graphs)): scene, sprites, particles, post-processing, FXAA and interface passes, whose
+HDR, depth and tonemapped targets the graph keeps at the frame's size.
 
 ### Render hooks
 
@@ -380,7 +380,7 @@ as an `Rgba8` texture, which keeps its values as they are. `SceneRendererConfig:
 
 ### The look and the rendering settings
 
-The look of a game comes from the first active `PostProcessing` component among the scenes drawn: its tonemapper
+The look of a game comes from the first active `PostProcessing` component in the scene: its tonemapper
 and exposure, bloom and grading, LUT included (a texture asset imported with `srgb` off in its import settings, so
 its values are read as they are). Without one, the rendering settings section of the project (`RenderingSettings`,
 "rendering") gives the defaults, along with the quality the application draws at: FXAA, MSAA samples, and the

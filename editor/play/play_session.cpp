@@ -40,7 +40,7 @@ PlaySession::~PlaySession() {
         SelectPaths(m_source.GetScene(), m_source.GetSelection(),
                     GetSelectedPaths(m_document->GetScene(), m_document->GetSelection()));
     }
-    for (auto* scene : m_application.GetScenes()) {
+    if (auto* scene = m_application.GetScene()) {
         if (auto* ui = scene->GetSystem<UiInputSystem>())
             ui->SetInputState(nullptr);
     }
@@ -48,7 +48,6 @@ PlaySession::~PlaySession() {
         m_application.GetWindow().StopTextInput();
     m_document.reset();
     m_application.LoadScene(nullptr);
-    m_application.GetPersistentScene().Clear();
     m_application.SetScenesPaused(false);
     if (m_cursorCaptured) {
         m_application.GetWindow().SetMouseCaptured(false);

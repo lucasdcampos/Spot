@@ -1,7 +1,7 @@
 #include "spot/scene/scene_system.h"
 
-#include "spot/core/diagnostics.h"
-#include "spot/core/log.h"
+#include "spot/core/debug/diagnostics.h"
+#include "spot/core/debug/log.h"
 
 #include <typeinfo>
 

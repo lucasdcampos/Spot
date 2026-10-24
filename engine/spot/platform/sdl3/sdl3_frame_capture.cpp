@@ -1,6 +1,6 @@
 #include "spot/platform/frame_capture.h"
 
-#include "spot/core/paths.h"
+#include "spot/core/io/paths.h"
 #include "spot/platform/process.h"
 
 #include <SDL3/SDL_loadso.h>

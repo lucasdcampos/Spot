@@ -1,6 +1,6 @@
 #include "spot/scene/scene.h"
 
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
 #include "spot/scene/prefab.h"
 #include "spot/scene/scene_serializer.h"
 

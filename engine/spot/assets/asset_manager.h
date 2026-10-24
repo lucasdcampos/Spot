@@ -2,8 +2,8 @@
 
 #include "spot/assets/asset_loader.h"
 #include "spot/assets/asset_type.h"
-#include "spot/core/asset_id.h"
-#include "spot/core/asset_ref.h"
+#include "spot/core/ids/asset_id.h"
+#include "spot/core/ids/asset_ref.h"
 
 #include <atomic>
 #include <cstddef>

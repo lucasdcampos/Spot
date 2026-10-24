@@ -1,7 +1,7 @@
 #include "spot/scene/rendering/text_renderer.h"
 
 #include "spot/assets/asset_archive.h"
-#include "spot/core/archive.h"
+#include "spot/core/io/archive.h"
 #include "spot/render/camera_3d.h"
 #include "spot/render/font.h"
 #include "spot/scene/entity.h"

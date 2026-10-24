@@ -1,7 +1,7 @@
 #pragma once
 
 #include "spot/animation/animation_data.h"
-#include "spot/core/asset_ref.h"
+#include "spot/core/ids/asset_ref.h"
 
 #include <span>
 #include <string>

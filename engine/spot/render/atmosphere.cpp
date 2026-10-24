@@ -1,6 +1,6 @@
 #include "spot/render/atmosphere.h"
 
-#include "spot/core/angles.h"
+#include "spot/core/math/angles.h"
 
 #include <algorithm>
 #include <cmath>

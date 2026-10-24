@@ -1,6 +1,6 @@
 #include "spot/scene/scene.h"
 
-#include "spot/core/profiler.h"
+#include "spot/core/debug/profiler.h"
 #include "spot/render/model.h"
 #include "spot/scene/animation/animator.h"
 #include "spot/scene/animation/bone_attachment.h"

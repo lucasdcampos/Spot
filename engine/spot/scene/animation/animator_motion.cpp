@@ -1,7 +1,7 @@
 #include "spot/scene/animation/animator.h"
 
 #include "spot/animation/animation_motion.h"
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
 #include "spot/scene/entity.h"
 #include "spot/scene/physics/character_controller.h"
 #include "spot/scene/transform.h"

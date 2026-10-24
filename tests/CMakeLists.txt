@@ -444,5 +444,6 @@ if(TARGET sandbox)
     add_dependencies(spot_sandbox_tests sandbox_assets)
     spot_set_compile_options(spot_sandbox_tests)
     spot_precompile_engine_header(spot_sandbox_tests <catch2/catch_test_macros.hpp>)
-    catch_discover_tests(spot_sandbox_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 60)
+    # Full-scene Debug physics and tests with several sections can take over a minute.
+    catch_discover_tests(spot_sandbox_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 180)
 endif()

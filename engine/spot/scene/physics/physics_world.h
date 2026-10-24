@@ -1,7 +1,7 @@
 #pragma once
 
-#include "spot/core/quaternion.h"
-#include "spot/core/vector.h"
+#include "spot/core/math/quaternion.h"
+#include "spot/core/math/vector.h"
 #include "spot/physics/physics_3d.h"
 #include "spot/scene/entity.h"
 #include "spot/scene/physics/collision.h"

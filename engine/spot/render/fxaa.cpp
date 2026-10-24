@@ -1,7 +1,7 @@
 #include "spot/render/fxaa.h"
 
-#include "spot/core/log.h"
-#include "spot/core/vector.h"
+#include "spot/core/debug/log.h"
+#include "spot/core/math/vector.h"
 #include "spot/graphics/graphics_device.h"
 #include "spot/graphics/render_context.h"
 

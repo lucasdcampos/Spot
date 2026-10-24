@@ -139,7 +139,7 @@ void Serialize(Spot::Archive& archive) override {
 }
 ```
 
-`Archive` is in the core (`engine/spot/core/archive.h`), so every layer describes its data with it; the core only names
+`Archive` is in the core (`engine/spot/core/io/archive.h`), so every layer describes its data with it; the core only names
 entity and asset ids. Types of higher layers add themselves with a `SerializeField()` free function found by
 argument-dependent lookup, as `AssetRef` does in `assets/asset_archive.h` and `ComponentRef` in its own header.
 
@@ -161,7 +161,7 @@ editor previews do not send gameplay events; see [animation](animation.md).
 
 ## Entity ids in the foundation
 
-`spot/core/entity_id.h` defines `EntityId`, so code can store, compare and serialize entity handles without
+`spot/core/ids/entity_id.h` defines `EntityId`, so code can store, compare and serialize entity handles without
 including a scene. Only a scene resolves an id into an entity. `FieldOptions::entityFilter` accepts an id,
 allowing tools to choose the resolution scope. Typed component references obtain the inspector's scene through
 its archive context and build a filter that resolves each candidate id there, without retaining entity pointers.

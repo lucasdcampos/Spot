@@ -63,10 +63,9 @@ TEST_CASE("The cooked sandbox draws explosions, muzzle flashes and splashes", "[
         }
     };
     const auto draw = [&](const std::string& name) {
-        const std::array scenes{scene.get()};
         auto* context = device->BeginOffscreenFrame(*target);
         REQUIRE(context);
-        renderer.Render(*context, scenes, target.get());
+        renderer.Render(*context, *scene, target.get());
         device->EndFrame();
         auto pixels = device->DownloadTexture(*target);
         REQUIRE(pixels.size() == 960 * 540 * 4);

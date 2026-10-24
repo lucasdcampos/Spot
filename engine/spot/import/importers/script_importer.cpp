@@ -1,6 +1,6 @@
 #include "spot/import/importers/importer.h"
 
-#include "spot/core/file_io.h"
+#include "spot/core/io/file_io.h"
 
 #include <string_view>
 

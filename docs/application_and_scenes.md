@@ -1,7 +1,7 @@
 # Application and scenes
 
 `Application` (`engine/spot/runtime/application.h`) owns the window, the graphics and audio devices, the asset manager, the
-input state and the scenes, and runs the frame loop. `Scene` (`engine/spot/scene/scene.h`) owns a hierarchy of entities
+input state and one active scene, and runs the frame loop. `Scene` (`engine/spot/scene/scene.h`) owns a hierarchy of entities
 and drives their components and its systems.
 
 Both are the default model, not a requirement: a game can run a loop of its own on the layers below them (see
@@ -41,13 +41,11 @@ Each iteration of `Application::Run()`:
 
 1. Begins a profiler frame, waits for the frame rate cap (`Application::Wait`) and makes the assets whose background
    loads finished reading (`AssetManager::Update()`).
-2. Polls events and dispatches them to the input state, `OnEvent()` and the scenes (`DeliversToScenes()` filters
-   them).
-3. Queues the scenes loading in the background whose files are read, instantiated now, then applies the scene
-   changes queued since the last frame (`LoadScene()`, `LoadSceneAdditive()`, `UnloadScene()`).
-4. Calls `OnUpdate()`, then updates the persistent scene and the loaded scenes in load order, unless they are paused
-   (`SetScenesPaused()`, `StepScenes()`).
-5. On frames that can be drawn: runs each scene's `PrepareToRender()`, their `OnRender()`, draws them with a
+2. Polls events and dispatches them to the input state, `OnEvent()` and the active scene (`DeliversToScenes()`
+   filters them).
+3. Applies the scene replacement queued since the last frame with `LoadScene()`, then finishes ready chunks.
+4. Calls `OnUpdate()`, then updates the active scene unless paused (`SetScenesPaused()`, `StepScenes()`).
+5. On frames that can be drawn: runs the scene's `PrepareToRender()` and `OnRender()`, draws it with a
    `SceneRenderer` (unless `ApplicationConfig::renderScenes` is off), calls `OnRender()` and submits the frame.
 6. Ages the shapes queued with `DebugDraw` by the frame's time.
 
@@ -56,21 +54,23 @@ Scene changes are applied between frames, so a scene that asks to be replaced is
 ## Scenes
 
 A scene is usually derived per level, and builds its entities in `OnLoad()`; scenes saved by the editor load with
-`Scene::LoadFromFile()` or as assets. The application also keeps a **persistent scene** for its whole run:
-`Application::MakePersistent()` moves an entity there so it survives scene changes.
+`Scene::LoadFromFile()` or as assets. `Application::GetScene()` returns the active scene, or null. `LoadScene()`
+queues a replacement; the last request before the next frame wins. Requests from `OnLoad()` or `OnUnload()` wait
+for the following frame. `LoadScene(nullptr)` unloads the scene. Shutdown calls `OnStop()` before unloading it.
 
-Scenes also work on their own, without an application, by calling `Update()` directly, which is how most tests run.
+`entity.SetKeepOnSceneChange()` retains an entity and its descendants across replacements, keeping their ids,
+component instances and state. After the old scene's `OnUnload()`, retained subtrees move into the next scene,
+before its `OnLoad()`. A retained child detaches from an ordinary parent with its world pose. Nested retained
+entities move once, with their retained ancestor. `SetKeepOnSceneChange(false)` clears the entity's own flag.
+Explicit unloading and shutdown destroy all entities, including retained ones. The editor's Play session uses
+these same transitions; stopping Play unloads the game, so retained entities never leak into another session.
 
-Worlds too large to load at once stream their parts in as scenes: `LoadSceneAdditiveAsync(sceneId)` returns a
-`SceneLoad` at once, reads and decodes the scene's file and those of the assets it names on the job system's threads
-while the game runs (`AssetManager::StartPreload()`), then, at the start of the frame after that is done, makes the
-assets and instantiates and loads the scene next to the others. `IsDone()` tells when it is loaded, and `GetScene()`
-gives it, or null when it failed; `UnloadScene()` unloads it like any other. Making the scene's entities still takes
-that one frame.
+A scene also works without an application, by calling `Update()` directly. Stream large worlds into it with
+chunks (below): all loaded entities share one hierarchy, one set of systems and one physics simulation.
 
 ### What `Scene::Update()` does
 
-1. `OnStart()` for components that have not started, then `OnEnable()`.
+1. Finishes ready chunks, then `OnStart()` for components that have not started, then `OnEnable()`.
 2. The systems' `OnBeforeFixedSteps()`.
 3. The fixed steps due since the last update. Each runs every active component's `OnFixedUpdate()`, then every
    system's `OnFixedUpdate()`, which is where physics steps.
@@ -140,3 +140,15 @@ action map.
 Sections a build does not know are kept as they are (`SettingsSections::unknown`), so an older build never loses a
 newer one's settings. A new section is a struct with those members, a field in `SettingsSections` and a line in its
 `ForEach()`.
+
+### Streaming chunks
+
+`scene.LoadChunkAsync(assets, sceneId)` reads a scene asset and preloads its dependencies on worker threads.
+`Scene::Update()` finishes ready requests before starting components. Applications also finish requests while
+paused. Entity creation and GPU asset creation happen on the main thread; they can still take part of a frame.
+The asset manager must outlive the scene and its background reads.
+
+The returned `ChunkLoad` reports completion with `IsDone()`. `GetRoot()` returns the new root entity, or null on
+failure, after the root is destroyed, or after the scene is cleared. The imported scene's roots become children
+of that root, with fresh ids and remapped internal references. Destroy the root to unload the whole chunk.
+Chunks share the host scene's systems, including its physics world. Clearing a scene cancels unfinished chunks.

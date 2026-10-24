@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/core/asset_type.h"
+#include "spot/core/ids/asset_type.h"
 
 #include <filesystem>
 #include <optional>

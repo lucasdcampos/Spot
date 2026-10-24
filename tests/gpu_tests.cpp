@@ -3396,7 +3396,7 @@ TEST_CASE("SceneRenderer draws scenes through their first camera, with their int
     std::vector<std::uint8_t> withCamera;
     std::vector<std::uint8_t> withoutCamera;
     Spot::Scene world;
-    Spot::Scene interface;
+    Spot::Scene& interface = world;
     int frame = 0;
 
     RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
@@ -3417,13 +3417,12 @@ TEST_CASE("SceneRenderer draws scenes through their first camera, with their int
             world.CreateEntity("Camera").AddComponent<Spot::Camera>().SetBackground(Spot::Color::Red);
         } else if (frame == 2) {
             withCamera = device.DownloadTexture(*target);
-            world.Clear();
+            world.FindEntity("Camera")->Destroy();
         } else {
             withoutCamera = device.DownloadTexture(*target);
             return;
         }
-        const std::array<Spot::Scene*, 2> scenes{&world, &interface};
-        renderer->Render(context, scenes, target.get());
+        renderer->Render(context, world, target.get());
     });
 
     REQUIRE(application.Run() == EXIT_SUCCESS);
@@ -3721,8 +3720,7 @@ TEST_CASE("SceneRenderer draws light into an HDR image, which its tonemapper bri
                 device, Spot::SceneRendererConfig{
                             .targetFormat = Spot::TextureFormat::Rgba8, .tonemapping = tonemapping, .fxaa = fxaa});
             REQUIRE(renderer->IsValid());
-            const std::array<Spot::Scene*, 1> scenes{&scene};
-            renderer->Render(context, scenes, target.get());
+            renderer->Render(context, scene, target.get());
             return target.get();
         });
         REQUIRE(pixels.size() == 4 * 4 * 4);
@@ -4022,8 +4020,7 @@ TEST_CASE("SceneRenderer takes its look from the scenes' first active PostProces
                 device, Spot::SceneRendererConfig{.targetFormat = Spot::TextureFormat::Rgba8,
                                                   .tonemapping = {.op = Spot::TonemapOperator::Linear, .dither = false},
                                                   .bloom = {.intensity = 0.0f}});
-            const std::array<Spot::Scene*, 1> scenes{&scene};
-            renderer->Render(context, scenes, target.get());
+            renderer->Render(context, scene, target.get());
             return target.get();
         });
         REQUIRE(pixels.size() == 4 * 4 * 4);
@@ -4098,8 +4095,7 @@ TEST_CASE("SceneRenderer runs render hooks at their stages, its own before the s
             second = device.DownloadTexture(*target);
             return;
         }
-        const std::array<Spot::Scene*, 1> scenes{&scene};
-        renderer->Render(context, scenes, target.get());
+        renderer->Render(context, scene, target.get());
     });
     REQUIRE(application.Run() == EXIT_SUCCESS);
 
@@ -4413,8 +4409,7 @@ TEST_CASE("The generated robot renders animated poses, a held pistol and ragdoll
         scene.PrepareToRender();
         auto* context = device->BeginOffscreenFrame(*target);
         REQUIRE(context);
-        const std::array scenes{&scene};
-        renderer.Render(*context, scenes, target.get());
+        renderer.Render(*context, scene, target.get());
         device->EndFrame();
         auto pixels = device->DownloadTexture(*target);
         REQUIRE(pixels.size() == 640 * 480 * 4);
@@ -4543,8 +4538,7 @@ TEST_CASE("Authored sandbox menus render their labels and controls offscreen", "
                                            .localShadowMapSize = 0});
     auto* context = device->BeginOffscreenFrame(*target);
     REQUIRE(context);
-    const std::array scenes{&scene};
-    renderer.Render(*context, scenes, target.get());
+    renderer.Render(*context, scene, target.get());
     device->EndFrame();
     const auto pixels = device->DownloadTexture(*target);
     REQUIRE(pixels.size() == 1280 * 720 * 4);

@@ -1,7 +1,7 @@
 #include "spot/graphics/nvrhi/nvrhi_internal.h"
 
-#include "spot/core/assert.h"
-#include "spot/core/log.h"
+#include "spot/core/debug/assert.h"
+#include "spot/core/debug/log.h"
 
 #include "fullscreen.vert.h"
 #include "mip_downsample.frag.h"

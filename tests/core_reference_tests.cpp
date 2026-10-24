@@ -1,8 +1,8 @@
-#include <spot/core/archive.h>
-#include <spot/core/archive_state.h>
-#include <spot/core/asset_ref.h>
-#include <spot/core/entity_id.h>
 #include <spot/core/geometry/mesh_data.h>
+#include <spot/core/ids/asset_ref.h>
+#include <spot/core/ids/entity_id.h>
+#include <spot/core/io/archive.h>
+#include <spot/core/io/archive_state.h>
 
 #include <catch2/catch_test_macros.hpp>
 

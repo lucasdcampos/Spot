@@ -1,7 +1,7 @@
 #pragma once
 
 #include "spot/assets/asset_type.h"
-#include "spot/core/asset_id.h"
+#include "spot/core/ids/asset_id.h"
 #include "spot/import/asset_meta.h"
 
 #include <cstdint>

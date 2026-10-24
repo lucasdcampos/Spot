@@ -1,8 +1,8 @@
 #include "spot/scene/scripting/script_scene.h"
 
 #include "spot/assets/assets.h"
-#include "spot/core/quaternion.h"
-#include "spot/core/time.h"
+#include "spot/core/math/quaternion.h"
+#include "spot/core/time/time.h"
 #include "spot/platform/input.h"
 #include "spot/scene/audio/audio_source.h"
 #include "spot/scene/component_registry.h"

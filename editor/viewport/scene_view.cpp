@@ -670,8 +670,7 @@ void SceneView::Render(RenderContext& context, ViewportRenderer& renderer) {
             m_gameRenderer = std::make_unique<SceneRenderer>(renderer.GetDevice(), config);
             m_gameRenderingRevision = revision;
         }
-        const std::array scenes{&scene};
-        m_gameRenderer->Render(context, scenes, m_targets.GetColor());
+        m_gameRenderer->Render(context, scene, m_targets.GetColor());
         return;
     }
     const Camera3D camera = m_camera.GetCamera();

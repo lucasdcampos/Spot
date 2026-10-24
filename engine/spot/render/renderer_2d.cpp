@@ -1,9 +1,9 @@
 #include "spot/render/renderer_2d.h"
 
-#include "spot/core/profiler.h"
+#include "spot/core/debug/profiler.h"
 
-#include "spot/core/assert.h"
-#include "spot/core/log.h"
+#include "spot/core/debug/assert.h"
+#include "spot/core/debug/log.h"
 #include "spot/graphics/graphics_device.h"
 #include "spot/graphics/render_context.h"
 #include "spot/render/font.h"

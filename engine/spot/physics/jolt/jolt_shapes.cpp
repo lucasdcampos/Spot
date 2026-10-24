@@ -1,6 +1,6 @@
 #include "spot/physics/jolt/jolt_shapes.h"
 
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
 
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>

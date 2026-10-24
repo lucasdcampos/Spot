@@ -1,7 +1,7 @@
-#include "spot/core/job_system.h"
+#include "spot/core/jobs/job_system.h"
 
-#include "spot/core/assert.h"
-#include "spot/core/log.h"
+#include "spot/core/debug/assert.h"
+#include "spot/core/debug/log.h"
 
 #include <chrono>
 #include <exception>

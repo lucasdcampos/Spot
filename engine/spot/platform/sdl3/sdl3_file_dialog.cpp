@@ -1,7 +1,7 @@
 #include "spot/platform/file_dialog.h"
 
-#include "spot/core/log.h"
-#include "spot/core/paths.h"
+#include "spot/core/debug/log.h"
+#include "spot/core/io/paths.h"
 #include "spot/platform/platform.h"
 #include "spot/platform/window.h"
 

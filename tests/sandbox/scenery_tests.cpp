@@ -62,11 +62,10 @@ TEST_CASE("The cooked playground renders its grass and trees up close", "[gpu][s
         camera.GetTransform().SetPosition(view.position);
         camera.GetTransform().SetRotation(Spot::Quaternion::LookRotation(view.target - view.position));
         scene->Update(0.0f);
-        std::array scenes{scene.get()};
         for (int frame = 0; frame < 2; ++frame) {
             auto* context = device->BeginOffscreenFrame(*target);
             REQUIRE(context);
-            renderer.Render(*context, scenes, target.get());
+            renderer.Render(*context, *scene, target.get());
             device->EndFrame();
         }
         auto pixels = device->DownloadTexture(*target);

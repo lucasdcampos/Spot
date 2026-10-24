@@ -3,8 +3,8 @@
 // Backend-internal: conversions between the engine's types and Jolt's, and how the entities' layers become Jolt's
 // object layers. Only the Jolt backend includes it.
 
-#include "spot/core/quaternion.h"
-#include "spot/core/vector.h"
+#include "spot/core/math/quaternion.h"
+#include "spot/core/math/vector.h"
 #include "spot/physics/physics_3d.h"
 
 // Jolt.h comes before every other Jolt header.

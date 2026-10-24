@@ -5,10 +5,10 @@
 #include "spot/assets/asset_manifest.h"
 #include "spot/assets/asset_pak.h"
 #include "spot/assets/built_in_assets.h"
-#include "spot/core/job_system.h"
-#include "spot/core/log.h"
-#include "spot/core/paths.h"
-#include "spot/core/profiler.h"
+#include "spot/core/debug/log.h"
+#include "spot/core/debug/profiler.h"
+#include "spot/core/io/paths.h"
+#include "spot/core/jobs/job_system.h"
 
 #include <algorithm>
 #include <array>

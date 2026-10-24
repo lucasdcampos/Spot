@@ -1,6 +1,6 @@
-#include "spot/core/matrix.h"
+#include "spot/core/math/matrix.h"
 
-#include "spot/core/glm_conversions.h"
+#include "spot/core/math/glm_conversions.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>

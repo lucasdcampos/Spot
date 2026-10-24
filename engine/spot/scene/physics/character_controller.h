@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/core/vector.h"
+#include "spot/core/math/vector.h"
 #include "spot/scene/component.h"
 #include "spot/scene/entity.h"
 

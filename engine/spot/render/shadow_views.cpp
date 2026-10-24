@@ -1,7 +1,7 @@
 #include "spot/render/shadow_views.h"
 
-#include "spot/core/angles.h"
-#include "spot/core/quaternion.h"
+#include "spot/core/math/angles.h"
+#include "spot/core/math/quaternion.h"
 
 #include <algorithm>
 #include <cmath>

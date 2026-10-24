@@ -1,8 +1,8 @@
 #pragma once
 
-#include "spot/core/color.h"
-#include "spot/core/quaternion.h"
-#include "spot/core/vector.h"
+#include "spot/core/math/color.h"
+#include "spot/core/math/quaternion.h"
+#include "spot/core/math/vector.h"
 
 #include <cstddef>
 #include <span>

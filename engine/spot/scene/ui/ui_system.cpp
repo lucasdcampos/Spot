@@ -1,6 +1,6 @@
 #include "spot/scene/ui/ui_system.h"
 
-#include "spot/core/profiler.h"
+#include "spot/core/debug/profiler.h"
 #include "spot/graphics/texture.h"
 #include "spot/scene/entity.h"
 #include "spot/scene/scene.h"

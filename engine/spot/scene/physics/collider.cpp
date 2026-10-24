@@ -1,7 +1,7 @@
 #include "spot/scene/physics/collider.h"
 
 #include "spot/assets/asset_archive.h"
-#include "spot/core/archive.h"
+#include "spot/core/io/archive.h"
 #include "spot/scene/physics/physics_world.h"
 #include "spot/scene/scene.h"
 

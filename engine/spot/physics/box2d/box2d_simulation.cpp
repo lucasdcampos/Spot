@@ -1,7 +1,7 @@
 #include "spot/physics/physics_2d.h"
 
-#include "spot/core/log.h"
-#include "spot/core/profiler.h"
+#include "spot/core/debug/log.h"
+#include "spot/core/debug/profiler.h"
 
 #include <box2d/box2d.h>
 

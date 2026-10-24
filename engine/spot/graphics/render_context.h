@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/core/color.h"
+#include "spot/core/math/color.h"
 #include "spot/graphics/buffer.h"
 #include "spot/graphics/compute.h"
 #include "spot/graphics/texture.h"

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "spot/core/angles.h"
-#include "spot/core/color.h"
+#include "spot/core/math/angles.h"
+#include "spot/core/math/color.h"
 #include "spot/render/camera_3d.h"
 #include "spot/scene/component.h"
 

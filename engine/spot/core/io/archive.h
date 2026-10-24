@@ -1,13 +1,13 @@
 #pragma once
 
-#include "spot/core/asset_id.h"
-#include "spot/core/asset_type.h"
-#include "spot/core/color.h"
-#include "spot/core/curve.h"
-#include "spot/core/entity_id.h"
-#include "spot/core/gradient.h"
-#include "spot/core/quaternion.h"
-#include "spot/core/vector.h"
+#include "spot/core/ids/asset_id.h"
+#include "spot/core/ids/asset_type.h"
+#include "spot/core/ids/entity_id.h"
+#include "spot/core/math/color.h"
+#include "spot/core/math/curve.h"
+#include "spot/core/math/gradient.h"
+#include "spot/core/math/quaternion.h"
+#include "spot/core/math/vector.h"
 
 #include <concepts>
 #include <cstddef>

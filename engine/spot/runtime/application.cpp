@@ -8,11 +8,11 @@
 #include "spot/scene/ui/ui_input_system.h"
 
 #include "spot/assets/assets.h"
-#include "spot/core/assert.h"
-#include "spot/core/log.h"
-#include "spot/core/log_sinks.h"
-#include "spot/core/paths.h"
-#include "spot/core/profiler.h"
+#include "spot/core/debug/assert.h"
+#include "spot/core/debug/log.h"
+#include "spot/core/debug/log_sinks.h"
+#include "spot/core/debug/profiler.h"
+#include "spot/core/io/paths.h"
 #include "spot/graphics/screenshot.h"
 #include "spot/platform/crash_handler.h"
 #include "spot/platform/frame_capture.h"
@@ -147,10 +147,7 @@ int Application::Run() {
     Time::SetClock(&m_clock);
     m_limiter = FrameLimiter(m_config.maxFrameRate);
     m_clock.Start(std::chrono::steady_clock::now());
-    m_persistentScene = std::make_unique<Scene>();
-    m_persistentScene->m_application = this;
     if (m_config.game) {
-        m_config.game->sections.Apply(*m_persistentScene);
         m_config.game->sections.input.Apply(m_actions);
     }
     m_actions.SetDefaults();
@@ -176,7 +173,7 @@ int Application::Run() {
     // The game's components are known before its scenes load.
     Detail::GameCode::Load();
     OnStart();
-    if (m_running && m_scenes.empty() && m_sceneChanges.empty() && !LoadStartupScene()) {
+    if (m_running && !m_scene && !m_sceneChangePending && !LoadStartupScene()) {
         m_failed = true;
         Quit();
     }
@@ -206,18 +203,17 @@ int Application::Run() {
 
         {
             SPOT_PROFILE_SCOPE("Application::LoadScenes");
-            FinishSceneLoads();
             ApplySceneChanges();
+            if (m_scene)
+                m_scene->FinishChunkLoads();
         }
         {
             SPOT_PROFILE_SCOPE("Application::OnUpdate");
             OnUpdate(m_clock.GetDeltaTime());
         }
         if (!m_scenesPaused || std::exchange(m_stepScenes, false)) {
-            m_persistentScene->Update(m_clock.GetDeltaTime());
-            for (const auto& scene : m_scenes) {
-                scene->Update(m_clock.GetDeltaTime());
-            }
+            if (m_scene)
+                m_scene->Update(m_clock.GetDeltaTime());
         }
         if (Profiler::IsEnabled()) {
             SPOT_PROFILE_SCOPE("Developer::Stats");
@@ -238,13 +234,9 @@ int Application::Run() {
             if (RenderContext* context = m_graphics->BeginFrame()) {
                 context->BeginGpuTimer("Frame");
                 const bool screenshot = PrepareScreenshot(*context);
-                m_persistentScene->PrepareToRender();
-                for (const auto& scene : m_scenes) {
-                    scene->PrepareToRender();
-                }
-                m_persistentScene->OnRender(*context);
-                for (const auto& scene : m_scenes) {
-                    scene->OnRender(*context);
+                if (m_scene) {
+                    m_scene->PrepareToRender();
+                    m_scene->OnRender(*context);
                 }
                 RenderScenes(*context);
                 {
@@ -294,10 +286,11 @@ int Application::Run() {
     m_consoleInput.reset();
     m_developerRenderer.reset();
     m_developerFont = {};
-    m_sceneChanges.clear();
-    RemoveAllScenes();
-    m_persistentScene->Clear();
-    m_persistentScene.reset();
+    m_pendingScene.reset();
+    m_sceneChangePending = false;
+    RemoveScene();
+    m_pendingScene.reset();
+    m_sceneChangePending = false;
     m_sceneRenderer.reset();
     Detail::SetAssetManager(nullptr);
     m_engineConsole.reset();
@@ -317,15 +310,9 @@ int Application::Run() {
 
 void Application::SetScenesPaused(bool paused) {
     m_scenesPaused = paused;
-    if (m_persistentScene) {
-        if (auto* audio = m_persistentScene->GetSystem<AudioSystem>()) {
+    if (m_scene) {
+        if (auto* audio = m_scene->GetSystem<AudioSystem>())
             audio->SetPaused(paused);
-        }
-    }
-    for (const auto& scene : m_scenes) {
-        if (auto* audio = scene->GetSystem<AudioSystem>()) {
-            audio->SetPaused(paused);
-        }
     }
 }
 
@@ -409,84 +396,8 @@ AudioDevice& Application::GetAudioDevice() {
 }
 
 void Application::LoadScene(std::unique_ptr<Scene> scene) {
-    m_sceneChanges.clear();
-    m_sceneChanges.push_back({.kind = SceneChangeKind::Replace, .scene = std::move(scene)});
-}
-
-SceneLoad Application::LoadSceneAdditiveAsync(AssetId scene) {
-    auto state = std::make_shared<SceneLoad::State>();
-    if (!m_assets) {
-        Log::GetEngineLogger().Error("Scenes load in the background only while the application runs");
-        state->done = true;
-        return SceneLoad(state);
-    }
-    const std::array ids{scene};
-    m_sceneLoads.push_back({scene, m_assets->StartPreload(ids), state});
-    return SceneLoad(state);
-}
-
-void Application::FinishSceneLoads() {
-    for (auto it = m_sceneLoads.begin(); it != m_sceneLoads.end();) {
-        if (!AssetManager::IsReady(*it->task)) {
-            ++it;
-            continue;
-        }
-        // Kept until the scene is made, which finds them loaded.
-        const auto preloaded = m_assets->FinishPreload(*it->task);
-        auto scene = InstantiateScene(*m_assets, it->scene);
-        it->state->scene = scene.get();
-        it->state->done = true;
-        if (scene) {
-            LoadSceneAdditive(std::move(scene));
-        }
-        it = m_sceneLoads.erase(it);
-    }
-}
-
-void Application::LoadSceneAdditive(std::unique_ptr<Scene> scene) {
-    SPOT_ASSERT(scene, "Only a scene can be loaded");
-    m_sceneChanges.push_back({.kind = SceneChangeKind::Add, .scene = std::move(scene)});
-}
-
-void Application::UnloadScene(Scene& scene) {
-    SPOT_ASSERT(&scene != m_persistentScene.get(), "The persistent scene cannot be unloaded");
-    const auto pending = std::ranges::find_if(
-        m_sceneChanges, [&scene](const SceneChange& change) { return change.scene.get() == &scene; });
-    if (pending != m_sceneChanges.end()) {
-        if (pending->kind == SceneChangeKind::Replace) {
-            pending->scene.reset();
-        } else {
-            m_sceneChanges.erase(pending);
-        }
-        return;
-    }
-
-    // The scene is loaded. A queued replacement unloads it anyway, and it may already be queued for unloading.
-    const bool unloading = std::ranges::any_of(m_sceneChanges, [&scene](const SceneChange& change) {
-        return change.kind == SceneChangeKind::Replace ||
-               (change.kind == SceneChangeKind::Remove && change.target == &scene);
-    });
-    if (!unloading) {
-        m_sceneChanges.push_back({.kind = SceneChangeKind::Remove, .scene = nullptr, .target = &scene});
-    }
-}
-
-std::vector<Scene*> Application::GetScenes() const {
-    std::vector<Scene*> scenes;
-    scenes.reserve(m_scenes.size());
-    for (const auto& scene : m_scenes) {
-        scenes.push_back(scene.get());
-    }
-    return scenes;
-}
-
-Scene& Application::GetPersistentScene() {
-    SPOT_ASSERT(m_persistentScene, "The persistent scene only exists while Run() is running");
-    return *m_persistentScene;
-}
-
-void Application::MakePersistent(Entity& entity) {
-    entity.MoveToScene(GetPersistentScene());
+    m_pendingScene = std::move(scene);
+    m_sceneChangePending = true;
 }
 
 void Application::DispatchEvent(const Event& event) {
@@ -512,10 +423,8 @@ void Application::DispatchEvent(const Event& event) {
         }
         const Vector2 size{static_cast<float>(m_window->GetPixelWidth()),
                            static_cast<float>(m_window->GetPixelHeight())};
-        for (auto scene = m_scenes.rbegin(); scene != m_scenes.rend() && !consumed; ++scene)
-            consumed = (*scene)->HandleUiEvent(uiEvent, size, &m_input);
-        if (!consumed && m_persistentScene)
-            consumed = m_persistentScene->HandleUiEvent(uiEvent, size, &m_input);
+        if (m_scene)
+            consumed = m_scene->HandleUiEvent(uiEvent, size, &m_input);
         if (consumed)
             m_input.ConsumeEvent(event);
     }
@@ -524,13 +433,8 @@ void Application::DispatchEvent(const Event& event) {
     }
     UpdateUiTextInput();
     OnEvent(event);
-    if (!consumed && DeliversToScenes(event)) {
-        if (m_persistentScene) {
-            m_persistentScene->OnEvent(event);
-        }
-        for (const auto& scene : m_scenes) {
-            scene->OnEvent(event);
-        }
+    if (!consumed && DeliversToScenes(event) && m_scene) {
+        m_scene->OnEvent(event);
     }
 
     if (event.Is<WindowCloseEvent>() && OnCloseRequested()) {
@@ -550,55 +454,55 @@ void Application::UpdateUiTextInput() {
 }
 
 void Application::ApplySceneChanges() {
-    // Taken out first, so changes asked for by OnLoad() and OnUnload() wait for the next frame.
-    auto changes = std::exchange(m_sceneChanges, {});
-    for (SceneChange& change : changes) {
-        switch (change.kind) {
-        case SceneChangeKind::Replace:
-            RemoveAllScenes();
-            if (change.scene) {
-                AddScene(std::move(change.scene));
-            }
-            break;
-        case SceneChangeKind::Add:
-            AddScene(std::move(change.scene));
-            break;
-        case SceneChangeKind::Remove:
-            RemoveScene(change.target);
-            break;
-        }
-    }
-}
-
-void Application::AddScene(std::unique_ptr<Scene> scene) {
-    Scene& added = *scene;
-    added.m_application = this;
-    if (m_config.game) {
-        m_config.game->sections.Apply(added);
-    }
-    m_scenes.push_back(std::move(scene));
-    added.OnLoad();
-}
-
-void Application::RemoveScene(const Scene* scene) {
-    // Only compared until found, since the scene may have been unloaded by an earlier change.
-    const auto found = std::ranges::find_if(m_scenes, [scene](const auto& loaded) { return loaded.get() == scene; });
-    if (found == m_scenes.end()) {
+    if (!std::exchange(m_sceneChangePending, false))
         return;
+    auto next = std::move(m_pendingScene);
+    if (next && m_config.game) {
+        m_config.game->sections.Apply(*next);
     }
-    Scene& removed = **found;
-    removed.OnUnload();
-    removed.Clear();
-    removed.m_application = nullptr;
-    m_scenes.erase(found);
+    if (m_scene) {
+        m_scene->OnUnload();
+        if (next) {
+            // The first retained ancestor carries its whole subtree, so each entity moves once.
+            std::vector<EntityId> retained;
+            m_scene->ForEachEntity([&](Entity& entity) {
+                if (!entity.IsKeptOnSceneChange())
+                    return;
+                for (auto* parent = entity.GetParent(); parent; parent = parent->GetParent()) {
+                    if (parent->IsKeptOnSceneChange())
+                        return;
+                }
+                retained.push_back(entity.GetId());
+            });
+            for (const EntityId id : retained) {
+                if (auto* entity = m_scene->GetEntity(id))
+                    entity->MoveToScene(*next);
+            }
+        }
+        m_scene->Clear();
+        m_scene->m_application = nullptr;
+        m_scene.reset();
+    }
+    m_scene = std::move(next);
+    if (m_scene) {
+        m_scene->m_application = this;
+        m_scene->OnLoad();
+        SetScenesPaused(m_scenesPaused);
+    }
+}
+
+void Application::RemoveScene() {
+    if (!m_scene)
+        return;
+    m_scene->OnUnload();
+    m_scene->Clear();
+    m_scene->m_application = nullptr;
+    m_scene.reset();
 }
 
 RuntimeStats Application::GetRuntimeStats() const {
-    auto scenes = GetScenes();
-    if (m_persistentScene) {
-        scenes.push_back(m_persistentScene.get());
-    }
-    return RuntimeStats::Sample(scenes, m_audio.get());
+    const std::array<Scene*, 1> scenes{m_scene.get()};
+    return RuntimeStats::Sample(m_scene ? std::span<Scene* const>(scenes) : std::span<Scene* const>{}, m_audio.get());
 }
 
 std::filesystem::path Application::GetCaptureDirectory() {
@@ -685,7 +589,7 @@ void Application::RenderDeveloperOverlay(RenderContext& context) {
 }
 
 void Application::RenderScenes(RenderContext& context) {
-    if (!m_config.renderScenes || (m_scenes.empty() && m_persistentScene->GetEntityCount() == 0)) {
+    if (!m_config.renderScenes || !m_scene) {
         return;
     }
     if (m_renderingDirty) {
@@ -697,9 +601,7 @@ void Application::RenderScenes(RenderContext& context) {
         GetRenderingSettings().Apply(config);
         m_sceneRenderer = std::make_unique<SceneRenderer>(*m_graphics, config);
     }
-    std::vector<Scene*> scenes = GetScenes();
-    scenes.insert(scenes.begin(), m_persistentScene.get());
-    m_sceneRenderer->Render(context, scenes);
+    m_sceneRenderer->Render(context, *m_scene);
 }
 
 bool Application::LoadStartupScene() {
@@ -718,13 +620,6 @@ bool Application::LoadStartupScene() {
     }
     LoadScene(std::move(scene));
     return true;
-}
-
-void Application::RemoveAllScenes() {
-    // The newest first, like destructors, so later scenes can still rely on earlier ones.
-    while (!m_scenes.empty()) {
-        RemoveScene(m_scenes.back().get());
-    }
 }
 
 } // namespace Spot

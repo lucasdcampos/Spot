@@ -1,7 +1,7 @@
 #include "spot/scene/rendering/sprite_animator.h"
 #include "spot/assets/asset_archive.h"
-#include "spot/core/archive.h"
-#include "spot/core/profiler.h"
+#include "spot/core/debug/profiler.h"
+#include "spot/core/io/archive.h"
 #include "spot/scene/entity.h"
 #include "spot/scene/rendering/sprite_renderer.h"
 #include <cmath>

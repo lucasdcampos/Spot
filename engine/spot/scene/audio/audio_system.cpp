@@ -2,7 +2,7 @@
 
 #include "spot/assets/asset_archive.h"
 #include "spot/audio/audio_device.h"
-#include "spot/core/archive.h"
+#include "spot/core/io/archive.h"
 #include "spot/scene/entity.h"
 #include "spot/scene/rendering/camera.h"
 #include "spot/scene/scene.h"
@@ -156,6 +156,15 @@ void AudioSystem::Register(AudioSource& source) {
 
 void AudioSystem::Unregister(AudioSource& source) {
     std::erase(m_sources, &source);
+}
+
+void AudioSystem::MoveSources(const Entity& entity, Scene& destination) {
+    std::erase_if(m_sources, [&](AudioSource* source) {
+        if (&source->GetEntity() != &entity)
+            return false;
+        destination.GetAudio().Register(*source);
+        return true;
+    });
 }
 
 namespace Audio {

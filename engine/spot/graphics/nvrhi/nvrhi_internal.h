@@ -3,7 +3,7 @@
 // Backend-internal definitions shared by the NVRHI sources. NVRHI runs the device; the Vulkan instance, device and
 // swapchain it needs are made in nvrhi_vulkan.cpp.
 
-#include "spot/core/assert.h"
+#include "spot/core/debug/assert.h"
 #include "spot/graphics/graphics_backend.h"
 
 #include <nvrhi/nvrhi.h>

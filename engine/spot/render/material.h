@@ -1,8 +1,8 @@
 #pragma once
 
 #include "spot/assets/alpha_mode.h"
-#include "spot/core/asset_ref.h"
-#include "spot/core/color.h"
+#include "spot/core/ids/asset_ref.h"
+#include "spot/core/math/color.h"
 
 namespace Spot {
 

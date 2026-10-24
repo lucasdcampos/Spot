@@ -4,7 +4,7 @@
 // database writes it, and the asset manager reads it, so a game can ship with the import directory alone.
 
 #include "spot/assets/asset_type.h"
-#include "spot/core/asset_id.h"
+#include "spot/core/ids/asset_id.h"
 
 #include <cstdint>
 #include <filesystem>

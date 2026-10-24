@@ -1,6 +1,6 @@
 #include "spot/render/text_layout.h"
 
-#include "spot/core/utf8.h"
+#include "spot/core/io/utf8.h"
 #include "spot/render/font_atlas.h"
 
 #include <algorithm>

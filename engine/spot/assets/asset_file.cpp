@@ -1,7 +1,7 @@
 #include "spot/assets/asset_file.h"
 
-#include "spot/core/log.h"
-#include "spot/core/paths.h"
+#include "spot/core/debug/log.h"
+#include "spot/core/io/paths.h"
 
 #include <algorithm>
 #include <array>

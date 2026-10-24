@@ -1,7 +1,7 @@
 #include "spot/audio/audio_output.h"
 
 #include "spot/audio/mixer.h"
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
 #include "spot/platform/platform.h"
 
 #include <SDL3/SDL.h>

@@ -1,7 +1,7 @@
 #include "spot/scene/rendering/mesh_renderer.h"
 
 #include "spot/assets/asset_archive.h"
-#include "spot/core/archive.h"
+#include "spot/core/io/archive.h"
 #include "spot/scene/scene.h"
 
 namespace Spot {

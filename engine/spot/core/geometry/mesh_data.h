@@ -1,7 +1,7 @@
 #pragma once
 
 #include "spot/core/geometry/bounds.h"
-#include "spot/core/vector.h"
+#include "spot/core/math/vector.h"
 
 #include <array>
 #include <cstdint>

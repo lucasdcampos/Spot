@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/core/asset_ref.h"
+#include "spot/core/ids/asset_ref.h"
 #include "spot/render/quad_batch.h"
 
 #include <optional>

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "spot/assets/asset_manager.h"
-#include "spot/core/archive.h"
-#include "spot/core/asset_ref.h"
+#include "spot/core/ids/asset_ref.h"
+#include "spot/core/io/archive.h"
 
 #include <string_view>
 

@@ -2,8 +2,8 @@
 
 #include "spot/audio/playback.h"
 #include "spot/audio/sound.h"
-#include "spot/core/quaternion.h"
-#include "spot/core/vector.h"
+#include "spot/core/math/quaternion.h"
+#include "spot/core/math/vector.h"
 #include "spot/scene/audio/audio_source.h"
 #include "spot/scene/scene_system.h"
 
@@ -73,6 +73,7 @@ private:
 
     void Register(AudioSource& source);
     void Unregister(AudioSource& source);
+    void MoveSources(const Entity& entity, Scene& destination);
 
     std::vector<AudioSource*> m_sources;
     std::vector<OneShot> m_oneShots;

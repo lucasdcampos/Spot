@@ -2,7 +2,7 @@
 
 // Backend-internal: Jolt's global state, shared by every simulation.
 
-#include "spot/core/job_system.h"
+#include "spot/core/jobs/job_system.h"
 #include "spot/physics/jolt/jolt_common.h"
 #include "spot/physics/jolt/jolt_job_system.h"
 

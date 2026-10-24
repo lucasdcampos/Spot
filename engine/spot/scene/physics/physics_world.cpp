@@ -1,6 +1,6 @@
 #include "spot/scene/physics/physics_world.h"
 
-#include "spot/core/assert.h"
+#include "spot/core/debug/assert.h"
 #include "spot/scene/physics/character_controller.h"
 #include "spot/scene/physics/collider.h"
 #include "spot/scene/physics/rigidbody.h"

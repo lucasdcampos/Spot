@@ -1,4 +1,4 @@
-#include "spot/core/profiler.h"
+#include "spot/core/debug/profiler.h"
 
 #include <algorithm>
 #include <array>

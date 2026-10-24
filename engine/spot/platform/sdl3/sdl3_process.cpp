@@ -1,7 +1,7 @@
 #include "spot/platform/process.h"
 
-#include "spot/core/log.h"
-#include "spot/core/paths.h"
+#include "spot/core/debug/log.h"
+#include "spot/core/io/paths.h"
 
 #include <SDL3/SDL_iostream.h>
 #include <SDL3/SDL_process.h>

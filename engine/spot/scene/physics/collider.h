@@ -1,8 +1,8 @@
 #pragma once
 
-#include "spot/core/asset_ref.h"
 #include "spot/core/geometry/mesh_data.h"
-#include "spot/core/vector.h"
+#include "spot/core/ids/asset_ref.h"
+#include "spot/core/math/vector.h"
 #include "spot/physics/physics_3d.h"
 #include "spot/scene/component.h"
 

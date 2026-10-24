@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spot/core/color.h"
+#include "spot/core/math/color.h"
 #include "spot/render/camera_3d.h"
 #include <cstddef>
 #include <cstdint>

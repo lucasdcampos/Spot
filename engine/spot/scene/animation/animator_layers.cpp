@@ -1,7 +1,7 @@
 #include "spot/scene/animation/animator.h"
 
 #include "spot/animation/pose.h"
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
 
 #include <algorithm>
 #include <cmath>

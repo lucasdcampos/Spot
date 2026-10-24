@@ -1,6 +1,6 @@
 #include "spot/scene/scripting/script_runtime.h"
 
-#include "spot/core/log.h"
+#include "spot/core/debug/log.h"
 
 #ifdef SPOT_ENABLE_LUAU
 #include "spot/scene/scripting/luau_runtime.h"

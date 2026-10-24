@@ -1,5 +1,5 @@
 #pragma once
-#include "spot/core/vector.h"
+#include "spot/core/math/vector.h"
 
 namespace Spot {
 class Archive;

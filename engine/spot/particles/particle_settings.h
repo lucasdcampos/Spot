@@ -1,8 +1,8 @@
 #pragma once
 
-#include "spot/core/curve.h"
-#include "spot/core/gradient.h"
-#include "spot/core/vector.h"
+#include "spot/core/math/curve.h"
+#include "spot/core/math/gradient.h"
+#include "spot/core/math/vector.h"
 #include <cstdint>
 #include <vector>
 

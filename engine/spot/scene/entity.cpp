@@ -1,9 +1,9 @@
 #include "spot/scene/entity.h"
 #include "spot/scene/ui/ui_widgets.h"
 
-#include "spot/core/assert.h"
-#include "spot/core/diagnostics.h"
-#include "spot/core/log.h"
+#include "spot/core/debug/assert.h"
+#include "spot/core/debug/diagnostics.h"
+#include "spot/core/debug/log.h"
 #include "spot/scene/component_registry.h"
 #include "spot/scene/physics/character_controller.h"
 #include "spot/scene/physics/collider.h"
