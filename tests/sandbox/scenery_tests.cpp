@@ -22,7 +22,7 @@ TEST_CASE("The cooked playground renders its grass and trees up close", "[gpu][s
         Spot::AssetManager* previous;
         ~RestoreAssets() { Spot::Detail::SetAssetManager(previous); }
     } restore{previousAssets};
-    Spot::Detail::GameCode::Load();
+    Spot::Detail::LoadGameCode();
     const auto settings = Spot::GameSettings::LoadFromFile(std::filesystem::path(SANDBOX_IMPORTED_DIR).parent_path() /
                                                            Spot::GameSettings::FileName);
     REQUIRE(settings);

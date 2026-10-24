@@ -53,7 +53,11 @@ constexpr std::string_view MainCode = R"(#include <spot.h>
 
 // Runs the game from its startup scene, as the settings the tools write beside the executable say.
 int main() {
-    Spot::Application application;
+    Spot::Application application({.game = Spot::GameSettings::LoadBesideExecutable()});
+#ifndef NDEBUG
+    // The developer console (the Grave key), statistics and screenshots, in development builds.
+    application.AddModule<Spot::DevToolsModule>();
+#endif
     application.AddModule<Spot::UiModule>();
     application.AddModule<Spot::RenderModule>();
     application.AddModule<Spot::AudioModule>();
@@ -62,6 +66,8 @@ int main() {
     application.AddModule<Spot::AnimationModule>();
     application.AddModule<Spot::ParticlesModule>();
     application.AddModule<Spot::ScriptingModule>();
+    // The game's own code, which SPOT_GAME_MODULE() names.
+    application.AddModule(Spot::CreateGameModule());
     return application.Run();
 }
 )";
@@ -95,19 +101,19 @@ protected:
 
 } // namespace
 
-// Registers the component when the game runs, and when the editor loads the game's code.
+// Registers the component when the game's module starts: when the game runs, and when the editor loads its code.
 SPOT_COMPONENT(Rotator);
 
-// Marks the game's code, which the game's executable runs and the editor loads.
+// Marks the game's code, whose module the game's executable runs and the editor loads.
 SPOT_GAME_MODULE()
 )";
 
 // The code every project starts with, which components are added to.
 constexpr std::string_view ModuleCode = R"(#include <spot.h>
 
-// Marks the game's code, which the game's executable runs and the editor loads. Components marked with SPOT_COMPONENT
-// register themselves; anything else to do when the code loads goes in a function given here, as in
-// SPOT_GAME_MODULE(RegisterGame).
+// Marks the game's code, whose module the game's executable runs and the editor loads. Components marked with
+// SPOT_COMPONENT register themselves when it starts; a game with more to do names a module of its own deriving from
+// Spot::GameCodeModule, as in SPOT_GAME_MODULE(Game).
 SPOT_GAME_MODULE()
 )";
 

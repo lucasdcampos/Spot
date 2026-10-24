@@ -11,7 +11,7 @@ class BuiltInGameComponent final : public Spot::Component {};
 
 class QuittingApplication final : public Spot::Application {
 public:
-    QuittingApplication() : Application({.graphics = {.enabled = false}}) {}
+    QuittingApplication() : Application({.graphics = {.enabled = false}}) { AddModule(Spot::CreateGameModule()); }
 
     bool registeredAtStart = false;
 
@@ -28,7 +28,7 @@ SPOT_COMPONENT(BuiltInGameComponent);
 
 SPOT_GAME_MODULE()
 
-TEST_CASE("Game code built into the program registers its components when the application runs", "[application]") {
+TEST_CASE("Game code built into the program registers its components when its module starts", "[application]") {
     Spot::UnregisterComponent("BuiltInGameComponent");
     REQUIRE_FALSE(Spot::CreateComponent("BuiltInGameComponent"));
 

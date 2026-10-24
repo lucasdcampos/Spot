@@ -68,6 +68,9 @@ struct GameSettings {
     // Null, after logging why, when the file cannot be read or holds no game settings.
     static std::optional<GameSettings> LoadFromFile(const std::filesystem::path& file);
     static std::optional<GameSettings> LoadFromString(std::string_view text);
+    // The settings in FileName beside the executable, as games built by the tools have them, for their main() and
+    // the player's to give the application. Null without that file, silently, or after logging why it cannot be read.
+    static std::optional<GameSettings> LoadBesideExecutable();
     bool SaveToFile(const std::filesystem::path& file) const;
     std::string SaveToString() const;
 };

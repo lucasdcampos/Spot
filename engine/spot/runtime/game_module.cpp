@@ -10,27 +10,12 @@
 
 namespace Spot {
 
-namespace {
-
-Detail::GameCode::Function s_gameCode = nullptr;
-
-} // namespace
-
-Detail::GameCode::GameCode(Function load) : m_load(load) {
-    s_gameCode = load;
+void Detail::StartModule(Module& module) {
+    module.OnStart();
 }
 
-Detail::GameCode::~GameCode() {
-    // A module that unloads takes its code with it.
-    if (s_gameCode == m_load) {
-        s_gameCode = nullptr;
-    }
-}
-
-void Detail::GameCode::Load() {
-    if (s_gameCode) {
-        s_gameCode();
-    }
+void Detail::StopModule(Module& module) {
+    module.OnStop();
 }
 
 std::unique_ptr<GameModule> GameModule::Load(const std::filesystem::path& path) {
@@ -38,24 +23,27 @@ std::unique_ptr<GameModule> GameModule::Load(const std::filesystem::path& path) 
     if (!library) {
         return nullptr;
     }
-    using LoadFunction = void (*)();
-    const auto load = reinterpret_cast<LoadFunction>(library->GetFunction("SpotLoadGameModule"));
-    if (!load) {
+    using CreateFunction = Module* (*)();
+    const auto create = reinterpret_cast<CreateFunction>(library->GetFunction("SpotCreateGameModule"));
+    if (!create) {
         Log::GetEngineLogger().Error("'{}' is not a game module: it has no SPOT_GAME_MODULE", PathToUtf8(path));
         return nullptr;
     }
     // What the module registers is what it adds to the types known before.
     const std::vector<std::string> before = GetComponentTypeNames();
-    load();
+    std::unique_ptr<Module> module(create());
+    Detail::StartModule(*module);
     const std::vector<std::string> after = GetComponentTypeNames();
     std::vector<std::string> added;
     std::ranges::set_difference(after, before, std::back_inserter(added));
     Log::GetEngineLogger().Info("Loaded the game module '{}' with {} component types", PathToUtf8(path.filename()),
                                 added.size());
-    return std::unique_ptr<GameModule>(new GameModule(std::move(library), std::move(added)));
+    return std::unique_ptr<GameModule>(new GameModule(std::move(library), std::move(module), std::move(added)));
 }
 
 GameModule::~GameModule() {
+    Detail::StopModule(*m_module);
+    m_module.reset();
     for (const std::string& type : m_componentTypes) {
         UnregisterComponent(type);
     }

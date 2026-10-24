@@ -21,11 +21,6 @@
 namespace Spot {
 
 class EngineConsole;
-class ConsoleInput;
-class Font;
-class Renderer2D;
-class FrameCapture;
-struct RuntimeStats;
 
 class LogSink;
 
@@ -37,9 +32,10 @@ struct AssetConfig {
 };
 
 struct ApplicationConfig {
-    // The game the application runs, whose startup scene it loads after OnStart() unless OnStart() loaded a scene
-    // itself. When unset, it is read from GameSettings::FileName beside the executable, as games built by the tools
-    // have it; without that file, the application starts with no scene.
+    // The game the application runs: the only way game settings reach it. Run() applies its input actions, the
+    // player's rebinds and its sections, and loads its start scene after OnStart() unless OnStart() loaded a scene
+    // itself. Games built by the tools read it in main() with GameSettings::LoadBesideExecutable(); without one,
+    // the application starts with no scene.
     std::optional<GameSettings> game = std::nullopt;
     WindowConfig window = {};
     GraphicsConfig graphics = {};
@@ -58,14 +54,17 @@ struct ApplicationConfig {
     bool showCrashMessage = false;
     // Caps how many frames run per second; 0 means unlimited.
     int maxFrameRate = 0;
-    // The Grave key opens an event-driven developer console. Tools with their own console turn it off.
-    bool consoleOverlay = true;
 };
 
 class Application {
 public:
     explicit Application(ApplicationConfig config = {});
     virtual ~Application();
+
+    // The application that is running, as game code reaches it. Only available while Run() is running.
+    static Application& Get();
+    // Null while no application runs.
+    static Application* TryGet() { return s_running; }
 
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;
@@ -89,6 +88,8 @@ public:
         AddModule(typeid(T), std::move(module));
         return added;
     }
+    // Adds a module made elsewhere, such as the game's (see CreateGameModule()), under its dynamic type.
+    Module& AddModule(std::unique_ptr<Module> module);
     // The module of that exact type, or null when none was added.
     template <std::derived_from<Module> T>
     T* GetModule() const {
@@ -96,10 +97,6 @@ public:
     }
     // Null when the application runs no game; see ApplicationConfig::game.
     const GameSettings* GetGameSettings() const { return m_config.game ? &*m_config.game : nullptr; }
-    // Changes the game the application runs, as tools that run games inside them do. Its sections apply to the
-    // scenes loaded from then on; what the application set up when it started, such as its window and where its
-    // assets are, stays. The action map is emptied and given the game's actions.
-    void SetGameSettings(std::optional<GameSettings> game);
     RenderingSettings GetRenderingSettings() const;
     // Applies at the next scene render; input bindings and project defaults are retained.
     void SetRenderingSettings(RenderingSettings rendering);
@@ -111,18 +108,6 @@ public:
     // Caps how many frames run per second from the next frame on; 0 means unlimited.
     int GetMaxFrameRate() const { return m_config.maxFrameRate; }
     void SetMaxFrameRate(int maxFrameRate);
-    // A game's imported UI font; keep the asset reference so it stays loaded for the developer overlays.
-    void SetDeveloperFont(AssetRef<Font> font) { m_developerFont = std::move(font); }
-    ConsoleInput* GetConsoleInput() const { return m_consoleInput.get(); }
-    bool IsStatsVisible() const { return m_statsVisible; }
-    void SetStatsVisible(bool visible) { m_statsVisible = visible; }
-    RuntimeStats GetRuntimeStats() const;
-    bool IsProfileStreamEnabled() const { return m_profileStreamEnabled; }
-    void SetProfileStreamEnabled(bool enabled) { m_profileStreamEnabled = enabled; }
-    // Queues the next complete frame as a PNG in the user's screenshots folder; rejects paths and pending requests.
-    bool RequestScreenshot(std::string_view fileName = {});
-    // Requests a RenderDoc frame when its optional runtime connected before graphics creation.
-    bool RequestFrameCapture(std::string_view fileName = {});
 
     // Only available while Run() is running.
     Window& GetWindow();
@@ -165,12 +150,6 @@ public:
     // The active scene, or null when none is loaded.
     Scene* GetScene() const { return m_scene.get(); }
 
-    // Pauses simulation and sounds; events, rendering and chunk completion continue.
-    // StepScenes() advances one frame while paused.
-    void SetScenesPaused(bool paused) { m_scenesPaused = paused; }
-    bool AreScenesPaused() const { return m_scenesPaused; }
-    void StepScenes() { m_stepScenes = true; }
-
 protected:
     virtual void OnStart() {}
     virtual void OnEvent(const Event&) {}
@@ -181,6 +160,11 @@ protected:
     // Called after a WindowCloseEvent has reached OnEvent() and the scenes. Returning false keeps the application
     // running, such as to ask about unsaved changes first.
     virtual bool OnCloseRequested() { return true; }
+
+    // Changes the game the application runs, as tools that run games inside them do, from their own subclass. Its
+    // sections apply to the scenes loaded from then on; what the application set up when it started, such as its
+    // window and where its assets are, stays. The action map is emptied and given the game's actions.
+    void SetGameSettings(std::optional<GameSettings> game);
 
     // Sends the event as the platform's are sent: to the input state, OnEvent() and the scenes; and closes the
     // application on a WindowCloseEvent that OnCloseRequested() allows.
@@ -193,31 +177,33 @@ private:
     std::uint64_t m_renderingRevision = 1;
     std::uint64_t m_gameSettingsRevision = 1;
     std::unique_ptr<EngineConsole> m_engineConsole;
+    void StartLog();
+    void StopLog();
+    WindowConfig GetWindowConfig() const;
+    bool StartWindow();
+    bool StartGraphics();
+    void StartAssets();
+    void StartInput();
+    void StartModules();
+    void RunFrame();
+    void Stop();
     void ApplySceneChanges();
     void RemoveScene();
-    void RenderDeveloperOverlay(RenderContext& context);
-    void StreamProfileFrame();
-    bool PrepareScreenshot(RenderContext& context);
-    std::filesystem::path GetCaptureDirectory();
     // Returns false, after logging why, when the game's startup scene cannot be loaded.
     bool LoadStartupScene();
+
+    static inline Application* s_running = nullptr;
 
     ApplicationConfig m_config;
     std::vector<std::pair<std::type_index, std::unique_ptr<Module>>> m_modules;
     std::shared_ptr<LogSink> m_logFile;
     std::unique_ptr<Window> m_window;
     std::unique_ptr<GraphicsDevice> m_graphics;
-    std::unique_ptr<FrameCapture> m_frameCapture;
-    std::unique_ptr<Texture> m_screenshotTexture;
-    std::filesystem::path m_screenshotPath;
     std::unique_ptr<AssetManager> m_assets;
     std::unique_ptr<Scene> m_scene;
     std::unique_ptr<Scene> m_pendingScene;
     bool m_sceneChangePending = false;
     InputState m_input;
-    std::unique_ptr<ConsoleInput> m_consoleInput;
-    AssetRef<Font> m_developerFont;
-    std::unique_ptr<Renderer2D> m_developerRenderer;
     InputActionMap m_actions;
     std::filesystem::path m_userDataDirectory;
     FrameClock m_clock;
@@ -226,11 +212,6 @@ private:
     bool m_failed = false;
     // The cursor lock last applied to the window, which follows the input state's when it changes.
     bool m_cursorLocked = false;
-    bool m_scenesPaused = false;
-    bool m_stepScenes = false;
-    bool m_statsVisible = false;
-    bool m_profileStreamEnabled = false;
-    std::optional<std::uint64_t> m_lastStreamedFrame;
 };
 
 } // namespace Spot

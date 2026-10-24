@@ -16,7 +16,8 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "Usage: Sandbox [--smoke-test]\n");
         return EXIT_FAILURE;
     }
-    Spot::Application application;
+    Spot::Application application({.game = Spot::GameSettings::LoadBesideExecutable()});
+    application.AddModule<Spot::DevToolsModule>();
     application.AddModule<Spot::UiModule>();
     application.AddModule<Spot::RenderModule>();
     application.AddModule<Spot::AudioModule>();
@@ -25,5 +26,6 @@ int main(int argc, char** argv) {
     application.AddModule<Spot::AnimationModule>();
     application.AddModule<Spot::ParticlesModule>();
     application.AddModule<Spot::ScriptingModule>();
+    application.AddModule(Spot::CreateGameModule());
     return application.Run();
 }

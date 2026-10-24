@@ -16,7 +16,10 @@ A game's executable runs an application with the modules of the systems it uses:
 #include <spot/scene/scripting/scripting_module.h>
 
 int main() {
-    Spot::Application application;
+    Spot::Application application({.game = Spot::GameSettings::LoadBesideExecutable()});
+#ifndef NDEBUG
+    application.AddModule<Spot::DevToolsModule>();
+#endif
     application.AddModule<Spot::UiModule>();
     application.AddModule<Spot::RenderModule>();
     application.AddModule<Spot::AudioModule>();
@@ -25,20 +28,41 @@ int main() {
     application.AddModule<Spot::AnimationModule>();
     application.AddModule<Spot::ParticlesModule>();
     application.AddModule<Spot::ScriptingModule>();
+    application.AddModule(Spot::CreateGameModule());
     return application.Run();
 }
 ```
 
-Without a configured game, the application reads `game.json` beside the executable (`GameSettings`, written by the
-tools), loads the startup scene it names and loads assets from the import directory it names. Applications can also
+`ApplicationConfig::game` is the only way game settings reach an application. `GameSettings::LoadBesideExecutable()`
+reads the `game.json` the tools write beside a game's executable, as games and the player do in `main()`; nothing
+else looks for it. `Run()` applies the game's input actions, the player's rebinds and console settings, loads the
+startup scene it names and loads assets from the import directory it names. Applications can also
 derive from `Application` and override `OnStart()`, `OnUpdate()`, `OnEvent()`, `OnRender()` and `OnStop()`, and
 configure it with `ApplicationConfig` (window, graphics, frame rate cap, log file, crash reports).
 
-The game's code marks itself once with `SPOT_GAME_MODULE()` and registers its components with `SPOT_COMPONENT()`
-(see [Entities and components](entities_and_components.md)). Built into the executable, the registrations run when
-`Run()` starts; built into a shared library, they run when the editor loads it (see [Editor](editor.md)).
+The game's code is a `Module`, which registers its components in `OnStart()`. The code names it once with
+`SPOT_GAME_MODULE(Type)`; without a type it is a `GameCodeModule`, which registers the components marked with
+`SPOT_COMPONENT()` (see [Entities and components](entities_and_components.md)), and games with more to do derive from
+it. Built into the executable, `main()` adds it with `CreateGameModule()`; built into a shared library, the
+macro exports the function that makes it, and the editor starts it when it loads the library (see
+[Editor](editor.md)).
 
-## The frame
+## Startup
+
+The constructor only keeps the configuration; `Run()` does the work, as a sequence read top to bottom, each step
+needing only the ones before it:
+
+1. The log file and crash reports, when configured (`ApplicationConfig::logFile`, `crashReportDirectory`).
+2. The platform and the window (`StartWindow()`); `Run()` fails if it cannot be opened.
+3. The graphics device, unless graphics are disabled.
+4. The asset manager, on the import directory, with scene assets registered.
+5. The input: the input state, the game's actions and the player's rebinds, and the frame clock.
+6. The modules, in the order they were added, then the console settings they registered are loaded.
+7. `OnStart()`.
+8. The game's start scene, unless `OnStart()` loaded a scene.
+
+Stopping runs the other way: `OnStop()`, the modules in reverse, the scene, then the assets, devices and log.
+
 
 `Time::SetTimeScale(scale)` controls simulation time globally: zero pauses time, values below one slow it down,
 and values above one speed it up. Negative and non-finite values are rejected. `Time::GetDeltaTime()` and
@@ -54,13 +78,18 @@ Each iteration of `Application::Run()`:
 2. Polls events and dispatches them to the modules, the input state, `OnEvent()` and the active scene
    (`DeliversToScenes()` filters them). A module that consumes an event keeps it from the rest but `OnEvent()`.
 3. Applies the scene replacement queued since the last frame with `LoadScene()`, then finishes ready chunks.
-4. Calls `OnUpdate()`, then updates the active scene unless paused (`SetScenesPaused()`, `StepScenes()`), then the
+4. Calls `OnUpdate()`, then updates the active scene (which does nothing while paused: `Scene::SetPaused()`, `Scene::Step()`), then the
    modules' `OnUpdate()`.
 5. On frames that can be drawn: calls the modules' `OnBeginRender()`, runs the scene's `PrepareToRender()` and
    `OnRender()`, calls the modules' `OnRender()` (where `RenderModule` draws the scene), then `OnRender()`, then the modules' `OnEndRender()` in reverse, and submits the frame.
 6. Ages the shapes queued with `DebugDraw` by the frame's time.
 
 Scene changes are applied between frames, so a scene that asks to be replaced is never destroyed while it runs.
+
+Game code reaches the running application with `Application::Get()`; scenes do not know it (`Scene::IsLoaded()`
+only tells whether one is the application's current scene). What only tools that run games inside them need, such as
+switching the game's settings (`SetGameSettings()`, protected), they reach through a subclass of their own: the
+editor's `PlayHost`, which also keeps input from the game unless its view has focus (`DeliversToScenes()`).
 
 ## Modules
 
@@ -80,6 +109,7 @@ starts, so `runtime/` includes no system:
 | `UiModule` | Registers the UI components, routes events to the scene's canvases before the game sees them, and starts text input for focused fields; canvases draw with the scene, inside `SceneRenderer`, so the editor's game view shows them too |
 | `PhysicsModule`, `Physics2DModule` | Register the physics components; 3D adds the `physics.*` console settings and counts bodies |
 | `AnimationModule`, `ParticlesModule`, `ScriptingModule` | Register their components, and animation and script loaders |
+| `DevToolsModule` (`runtime/`) | The console and statistics overlays, screenshots, RenderDoc captures and profile streaming; development builds and the editor add it first (see [Developer tools](developer_tools.md)) |
 
 The console settings of a system (`render.enabled`, `audio.volume`, `physics.gravity`…) come with its module, and the
 statistics overlay reads the bodies and voices the modules count for the profiler.

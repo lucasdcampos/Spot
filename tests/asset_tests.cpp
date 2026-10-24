@@ -1216,7 +1216,7 @@ TEST_CASE("Scenes load chunks in the background into their own hierarchy", "[ass
         void OnUpdate(float) override {
             if (!m_load.IsValid()) {
                 m_load = GetScene()->LoadChunkAsync(GetAssets(), m_district);
-                SetScenesPaused(true);
+                GetScene()->SetPaused(true);
                 return;
             }
             if (!m_load.IsDone()) {

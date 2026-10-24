@@ -1,5 +1,6 @@
 #pragma once
 
+#include "play/play_host.h"
 #include "scene/scene_document.h"
 
 #include <spot.h>
@@ -16,7 +17,7 @@ class PlaySession {
 public:
     // The scene is copied through the asset manager, which loads what it refers to. The game's settings, such as
     // its project's, are the application's while it plays.
-    PlaySession(Application& application, SceneDocument& source, AssetManager& assets,
+    PlaySession(PlayHost& application, SceneDocument& source, AssetManager& assets,
                 std::optional<GameSettings> game = std::nullopt);
     ~PlaySession();
 
@@ -45,7 +46,7 @@ public:
     void Feed(const Event& event);
 
 private:
-    Application& m_application;
+    PlayHost& m_application;
     SceneDocument& m_source;
     Scene* m_scene = nullptr;
     bool m_loaded = false;
@@ -54,6 +55,7 @@ private:
     InputState* m_previousInput = nullptr;
     std::optional<GameSettings> m_previousGame;
     bool m_focused = false;
+    bool m_paused = false;
     InputCaptureId m_editorCapture = InputCaptureId::None;
     bool m_cursorCaptured = false;
     Vector2 m_viewOrigin;

@@ -635,10 +635,10 @@ TEST_CASE("The gizmo of a docked view still moves the selection after the scene 
     fixture.imgui.Frame();
     fixture.imgui.Frame();
 
-    class PlayApplication final : public Spot::Application {
+    class PlayApplication final : public Spot::Editor::PlayHost {
     public:
-        explicit PlayApplication(std::function<void(Spot::Application&)> frame)
-            : Application(
+        explicit PlayApplication(std::function<void(Spot::Editor::PlayHost&)> frame)
+            : PlayHost(
                   {.window = {.title = "Play Tests", .width = 320, .height = 240}, .graphics = {.enabled = false}}),
               m_frame(std::move(frame)) {}
 
@@ -649,9 +649,9 @@ TEST_CASE("The gizmo of a docked view still moves the selection after the scene 
         }
 
     private:
-        std::function<void(Spot::Application&)> m_frame;
+        std::function<void(Spot::Editor::PlayHost&)> m_frame;
     };
-    PlayApplication application([&](Spot::Application& app) {
+    PlayApplication application([&](Spot::Editor::PlayHost& app) {
         fixture.workspace->Play(app);
         fixture.imgui.Frame();
         fixture.workspace->StopPlaying();
@@ -789,10 +789,10 @@ TEST_CASE("Views show their scene again as soon as it stops playing", "[editor][
     bool showedDocument = false;
 
     // Playing needs the application running.
-    class PlayApplication final : public Spot::Application {
+    class PlayApplication final : public Spot::Editor::PlayHost {
     public:
-        explicit PlayApplication(std::function<void(Spot::Application&)> frame)
-            : Application(
+        explicit PlayApplication(std::function<void(Spot::Editor::PlayHost&)> frame)
+            : PlayHost(
                   {.window = {.title = "Play Tests", .width = 320, .height = 240}, .graphics = {.enabled = false}}),
               m_frame(std::move(frame)) {}
 
@@ -803,9 +803,9 @@ TEST_CASE("Views show their scene again as soon as it stops playing", "[editor][
         }
 
     private:
-        std::function<void(Spot::Application&)> m_frame;
+        std::function<void(Spot::Editor::PlayHost&)> m_frame;
     };
-    PlayApplication application([&](Spot::Application& app) {
+    PlayApplication application([&](Spot::Editor::PlayHost& app) {
         fixture.workspace->Play(app);
         fixture.Frame();
         showedCopy = &view.GetShownDocument() != &document && view.IsShowingGame();

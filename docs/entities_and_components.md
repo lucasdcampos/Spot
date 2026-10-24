@@ -148,7 +148,7 @@ is saved and edited the same way. Fields added later keep their defaults when ol
 
 ### Registering types
 
-`SPOT_COMPONENT(Type)` registers a type under its name when the game's code loads; `RegisterComponent<T>("Name")`
+`SPOT_COMPONENT(Type)` registers a type under its name when the game's module starts; `RegisterComponent<T>("Name")`
 does it by hand under another name. The name is written to files, so it must stay the same. Components whose type is
 not registered when a scene loads are skipped with a warning. Tools that save what they load, such as the editor
 while the game's code is not loaded, set `InstantiateOptions::keepUnknownComponents`: those components become

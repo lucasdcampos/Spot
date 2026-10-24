@@ -27,7 +27,7 @@ struct Playground {
     Spot::Scene scene;
 
     explicit Playground(bool withAudio = false) {
-        Spot::Detail::GameCode::Load();
+        Spot::Detail::LoadGameCode();
         Spot::Time::SetTimeScale(1);
         Spot::Input::SetState(&input);
         Spot::Input::SetActionMap(&actions);

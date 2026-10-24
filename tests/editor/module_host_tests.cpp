@@ -58,14 +58,18 @@ protected:
 
 class Pulse final : public Spot::Component {};
 
-void RegisterGame() {
-    Spot::RegisterComponent<Rotator>("Rotator");
-    Spot::RegisterComponent<Pulse>("Pulse");
-}
+class Game final : public Spot::GameCodeModule {
+protected:
+    void OnStart() override {
+        GameCodeModule::OnStart();
+        Spot::RegisterComponent<Rotator>("Rotator");
+        Spot::RegisterComponent<Pulse>("Pulse");
+    }
+};
 
 } // namespace
 
-SPOT_GAME_MODULE(RegisterGame)
+SPOT_GAME_MODULE(Game)
 )";
 
 constexpr std::string_view BlinkComponent = R"(#include <spot.h>
@@ -84,7 +88,10 @@ namespace {
 
 class TestGame final : public Spot::Application {
 public:
-    TestGame() : Application({.graphics = {.enabled = false}}) { AddModule<Spot::RenderModule>(); }
+    TestGame() : Application({.game = Spot::GameSettings::LoadBesideExecutable(), .graphics = {.enabled = false}}) {
+        AddModule<Spot::RenderModule>();
+        AddModule(Spot::CreateGameModule());
+    }
 
 protected:
     void OnUpdate(float) override {

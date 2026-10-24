@@ -4,7 +4,13 @@ namespace Spot {
 
 class Application;
 class Event;
+class Module;
 class RenderContext;
+
+namespace Detail {
+void StartModule(Module& module);
+void StopModule(Module& module);
+} // namespace Detail
 
 // A part of an application that hooks into its frame, such as a system that draws the scene or plays its sounds.
 // Applications add them before Run() (see Application::AddModule()), which starts them in the order they were added,
@@ -43,6 +49,8 @@ protected:
 
 private:
     friend class Application;
+    friend void Detail::StartModule(Module&);
+    friend void Detail::StopModule(Module&);
 
     Application* m_application = nullptr;
 };

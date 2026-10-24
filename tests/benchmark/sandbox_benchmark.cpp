@@ -46,6 +46,7 @@ Spot::ApplicationConfig Config() {
 class Benchmark final : public Spot::Application {
 public:
     explicit Benchmark(Options options) : Application(Config()), m_options(options) {
+        m_times.reserve(static_cast<std::size_t>(options.frames));
         AddModule<Spot::UiModule>();
         AddModule<Spot::RenderModule>();
         AddModule<Spot::AudioModule>();
@@ -54,7 +55,7 @@ public:
         AddModule<Spot::AnimationModule>();
         AddModule<Spot::ParticlesModule>();
         AddModule<Spot::ScriptingModule>();
-        m_times.reserve(static_cast<std::size_t>(options.frames));
+        AddModule(Spot::CreateGameModule());
     }
     int GetResult() const { return m_result; }
 
@@ -208,7 +209,7 @@ private:
                     percentile(.5), percentile(.95), m_times.back());
         std::printf("Bodies: %zu, resident memory: %.1f MiB\n",
                     scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount(),
-                    static_cast<double>(GetRuntimeStats().memoryBytes) / (1024 * 1024));
+                    static_cast<double>(Spot::RuntimeStats::Sample().memoryBytes) / (1024 * 1024));
         std::printf("Scene load: %.3f ms (startup InstantiateScene, assets initially uncached)\n", m_sceneLoadMs);
         const auto print = [](const char* label, std::vector<double> values) {
             if (values.empty()) {

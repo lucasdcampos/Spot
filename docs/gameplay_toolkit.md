@@ -149,7 +149,7 @@ persistent storage, or an explicit directory for tools and tests. Save names are
 the store creates its directory as needed.
 
 ```cpp
-Spot::SaveData saves(GetScene().GetApplication().GetUserDataDirectory());
+Spot::SaveData saves(Spot::Application::Get().GetUserDataDirectory());
 const auto serialize = [&](Spot::Archive& archive, std::uint32_t version) {
     archive.Field("score", score);
     // When loading an older version, migrate its fields here.

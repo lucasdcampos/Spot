@@ -11,8 +11,8 @@ namespace Spot {
 class ConsoleRegistration;
 
 // Audio for an application: owns the AudioDevice, which Audio::GetDevice() then returns, given the game's audio
-// settings; registers the audio asset loaders and components; and pauses the scene's sounds while the application
-// pauses its scene.
+// settings; registers the audio asset loaders and components; and pauses the scene's sounds while the scene is
+// paused.
 class AudioModule final : public Module {
 public:
     explicit AudioModule(AudioConfig config = {});
