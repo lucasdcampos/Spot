@@ -131,7 +131,9 @@ and supported on the machine, each on an offscreen device.
   rest after logging why; each capability's test runs where the device reports it and warns where it does not.
 
 The engine's renderers use only the baseline, or take a fallback when a capability is off, so every game runs on
-every backend. A new backend implements `graphics_backend.h` and passes `rhi_tests.cpp`; a new capability gets a
+every backend. `GraphicsConfig::baselineOnly` makes a device report no capability, whatever its GPU does: GPU
+tests make every engine renderer on such a device, and golden-image tests render a scene with and without it to see
+that the fallbacks look the same. A new backend implements `graphics_backend.h` and passes `rhi_tests.cpp`; a new capability gets a
 field, a refusal where it is off and a test.
 
 Renderer and golden-image tests run on each platform's default backend (`ctest --preset msvc-debug-gpu`). When a

@@ -55,28 +55,16 @@ bool IsUpdating() {
     return !update.empty() && update != "0";
 }
 
-// Compares the render with tests/golden/<name>.png. A missing or mismatched golden image fails the test, and leaves
-// the render and, for mismatches, an image of the differences in the build's golden_output folder.
-void CheckGolden(std::string_view name, const Spot::Image& render, const Tolerance& tolerance = {}) {
-    const std::filesystem::path golden = std::filesystem::path(SPOT_GOLDEN_DIR) / std::format("{}.png", name);
+// Whether the render stays within the tolerance of the expected image; when not, leaves the render and an image of
+// the differences in the build's golden_output folder, under the name.
+bool CompareImages(std::string_view name, const Spot::Image& expected, const Spot::Image& render,
+                   const Tolerance& tolerance) {
     const std::filesystem::path output = SPOT_GOLDEN_OUTPUT_DIR;
-    if (IsUpdating()) {
-        std::filesystem::create_directories(golden.parent_path());
-        REQUIRE(render.SavePng(golden));
-        WARN("Updated the golden image " << golden.string());
-        return;
-    }
     std::filesystem::create_directories(output);
-    const auto expected = std::filesystem::exists(golden) ? Spot::Image::Load(golden) : std::nullopt;
-    if (!expected) {
-        render.SavePng(output / std::format("{}.png", name));
-        FAIL("No golden image " << golden.string() << "; the render is in " << output.string()
-                                << ". Run with SPOT_UPDATE_GOLDEN=1 to store it.");
-    }
-    REQUIRE(expected->GetWidth() == render.GetWidth());
-    REQUIRE(expected->GetHeight() == render.GetHeight());
+    REQUIRE(expected.GetWidth() == render.GetWidth());
+    REQUIRE(expected.GetHeight() == render.GetHeight());
 
-    const auto a = expected->GetPixels();
+    const auto a = expected.GetPixels();
     const auto b = render.GetPixels();
     std::vector<std::uint8_t> difference(a.size());
     std::size_t differing = 0;
@@ -104,12 +92,34 @@ void CheckGolden(std::string_view name, const Spot::Image& render, const Toleran
             .SavePng(output / std::format("{}_difference.png", name));
         UNSCOPED_INFO("The render and its differences are in " << output.string());
     }
-    CHECK(matches);
+    return matches;
+}
+
+// Compares the render with tests/golden/<name>.png. A missing or mismatched golden image fails the test, and leaves
+// the render and, for mismatches, an image of the differences in the build's golden_output folder.
+void CheckGolden(std::string_view name, const Spot::Image& render, const Tolerance& tolerance = {}) {
+    const std::filesystem::path golden = std::filesystem::path(SPOT_GOLDEN_DIR) / std::format("{}.png", name);
+    const std::filesystem::path output = SPOT_GOLDEN_OUTPUT_DIR;
+    if (IsUpdating()) {
+        std::filesystem::create_directories(golden.parent_path());
+        REQUIRE(render.SavePng(golden));
+        WARN("Updated the golden image " << golden.string());
+        return;
+    }
+    std::filesystem::create_directories(output);
+    const auto expected = std::filesystem::exists(golden) ? Spot::Image::Load(golden) : std::nullopt;
+    if (!expected) {
+        render.SavePng(output / std::format("{}.png", name));
+        FAIL("No golden image " << golden.string() << "; the render is in " << output.string()
+                                << ". Run with SPOT_UPDATE_GOLDEN=1 to store it.");
+    }
+    CHECK(CompareImages(name, *expected, render, tolerance));
 }
 
 // Renders the scene, as built by the setup, through SceneRenderer into an image. Multisampling, dithering and bloom
 // are left out, which vary the most between GPUs without telling more about how things look.
-std::optional<Spot::Image> RenderScene(const std::function<void(Spot::GraphicsDevice&, Spot::Scene&)>& setup) {
+std::optional<Spot::Image> RenderScene(const std::function<void(Spot::GraphicsDevice&, Spot::Scene&)>& setup,
+                                       const Spot::GraphicsConfig& graphics = {}) {
     std::unique_ptr<Spot::Texture> target;
     std::unique_ptr<Spot::SceneRenderer> renderer;
     Spot::Scene scene;
@@ -133,7 +143,7 @@ std::optional<Spot::Image> RenderScene(const std::function<void(Spot::GraphicsDe
         } else if (frame == 2) {
             pixels = device.DownloadTexture(*target);
         }
-    });
+    }, {}, graphics);
     REQUIRE(application.Run() == EXIT_SUCCESS);
     if (pixels.size() != std::size_t{Width} * Height * 4) {
         return std::nullopt;
@@ -311,4 +321,29 @@ TEST_CASE("Golden: glTF sample models", "[gpu][golden]") {
         REQUIRE(render);
         CheckGolden("alpha_blend_mode_test", *render);
     }
+}
+
+TEST_CASE("Renderers draw scenes on the baseline as they do with every capability", "[gpu][golden][baseline]") {
+    RequireGpu();
+    const auto setup = [](Spot::GraphicsDevice& device, Spot::Scene& scene) {
+        const Spot::AssetRef<Spot::Mesh> sphere = Spot::Mesh::Create(device, Spot::MeshData::CreateSphere(0.4f));
+        const Spot::AssetRef<Spot::Mesh> floor = Spot::Mesh::Create(device, Spot::MeshData::CreatePlane(20.0f));
+        REQUIRE((sphere && floor));
+        for (int column = 0; column < 5; ++column) {
+            AddMesh(scene, sphere, {.baseColor = {0.8f, 0.3f, 0.1f}, .roughness = static_cast<float>(column) / 4.0f},
+                    {static_cast<float>(column) - 2.0f, 0.5f, 0.0f});
+        }
+        AddMesh(scene, sphere, {.baseColor = {0.2f, 0.6f, 0.9f, 0.5f}, .alphaMode = Spot::AlphaMode::Transparent},
+                {0.0f, 1.3f, 1.0f});
+        AddMesh(scene, floor, {.baseColor = {0.5f, 0.5f, 0.5f}}, {0.0f, 0.0f, 0.0f});
+        auto& lamp = scene.CreateEntity("Lamp");
+        lamp.GetTransform().SetPosition({1.0f, 1.5f, 1.5f});
+        lamp.AddComponent<Spot::PointLight>(Spot::Color{1.0f, 0.8f, 0.6f}, 4.0f);
+        AddCameraAndSky(scene, {0.0f, 1.5f, 6.0f}, {0.0f, 0.6f, 0.0f}, {-0.5f, -0.7f, -0.5f});
+    };
+    const auto full = RenderScene(setup);
+    const auto baseline = RenderScene(setup, {.baselineOnly = true});
+    REQUIRE((full && baseline));
+    INFO("Compares the baseline's render with the full device's");
+    CHECK(CompareImages("baseline", *full, *baseline, {}));
 }

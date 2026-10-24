@@ -4698,3 +4698,36 @@ TEST_CASE("Renderer3D draws clouds over the day sky, and stars and the moon at n
     INFO("Moon " << int{moon[0]} << ", " << int{moon[1]} << ", " << int{moon[2]});
     CHECK(moon[1] > moonless[1] + 80);
 }
+
+TEST_CASE("Every engine renderer is made and draws on a device with only the baseline", "[gpu][baseline]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.baselineOnly = true, .debug = false});
+    REQUIRE(device);
+    const Spot::GraphicsCapabilities& capabilities = device->GetCapabilities();
+    REQUIRE_FALSE((capabilities.compute || capabilities.indirectDraws || capabilities.timestamps ||
+                   capabilities.bindlessTextures || capabilities.compressedTextures));
+    REQUIRE(capabilities.maxColorTargets == 1);
+
+    const Spot::TextureFormat format = Spot::TextureFormat::Rgba8;
+    CHECK(Spot::Renderer2D(*device, {.targetFormat = format}).IsValid());
+    CHECK(Spot::Renderer3D(*device, {.targetFormat = format}).IsValid());
+    CHECK(Spot::LineRenderer(*device, {.targetFormat = format}).IsValid());
+    CHECK(Spot::ParticleRenderer(*device, {.targetFormat = format}).IsValid());
+    CHECK(Spot::SceneRenderer(*device, {.targetFormat = format}).IsValid());
+
+    auto target = device->CreateTexture({.width = 4, .height = 4, .renderTarget = true});
+    REQUIRE(target);
+    Spot::Renderer2D renderer(*device, {.targetFormat = format});
+    auto* context = device->BeginOffscreenFrame(*target);
+    REQUIRE(context);
+    {
+        auto pass = context->BeginRenderPass({.clearColor = Spot::Color::Black});
+        renderer.Begin(pass, Spot::Camera2D{}, {4.0f, 4.0f});
+        renderer.DrawQuad({0.0f, 0.0f}, {4.0f, 4.0f}, Spot::Color::Green);
+        renderer.End();
+    }
+    device->EndFrame();
+    const auto pixels = device->DownloadTexture(*target);
+    REQUIRE(pixels.size() == 4 * 4 * 4);
+    CHECK(pixels[1] == 255);
+}

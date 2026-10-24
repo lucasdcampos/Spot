@@ -210,7 +210,7 @@ Depends on: phases 1 and 2.
   capability a backend reports, on every backend built. Renderer and golden tests run on each platform's default
   backend; the whole GPU suite runs on every backend when a backend or a shader changes (test presets and
   `AGENTS.md`). `docs/rendering.md` writes the contract down.
-- [ ] **8.2 Renderers on the baseline (S).** GPU tests draw each engine renderer with every capability off, so none
+- [x] **8.2 Renderers on the baseline (S).** GPU tests draw each engine renderer with every capability off, so none
   needs one without a fallback.
 - [ ] **8.3 Split `Renderer3D` (L).** A small public header (pimpl) over internal classes: mesh batching and drawing,
   shadows, sky lighting and world culling.
