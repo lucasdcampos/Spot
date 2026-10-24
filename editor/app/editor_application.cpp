@@ -446,7 +446,8 @@ void EditorApplication::DrawUi() {
         for (const ImGuiCol color : Tinted) {
             const ImVec4 base = style.Colors[color];
             const ImVec4 tint = EditorColors::Accent;
-            constexpr float Amount = 0.14f;
+            // No tint for now; raise it to bring the tint back.
+            constexpr float Amount = 0.0f;
             ImGui::PushStyleColor(color,
                                   ImVec4(base.x + (tint.x - base.x) * Amount, base.y + (tint.y - base.y) * Amount,
                                          base.z + (tint.z - base.z) * Amount, base.w));
