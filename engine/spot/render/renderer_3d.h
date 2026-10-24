@@ -52,6 +52,12 @@ struct Renderer3DConfig {
     // The size in pixels of each of the MaxShadowTiles tiles that point and spot light shadows are drawn in, which
     // are created the first time one is needed. 0 turns these shadows off.
     std::uint32_t localShadowMapSize = 512;
+
+    // Keeps the render worlds it draws on the GPU, in batches of nearby objects drawn the same way, whose instances
+    // the GPU culls against the view and by level of detail, and, where the device has compute and indirect draws,
+    // against what the last frame of the view hid. For worlds of many objects, where it spares the CPU a command per
+    // object; off, worlds are drawn object by object, culled and given their levels of detail on the CPU.
+    bool gpuCulling = false;
 };
 
 struct Renderer3DStats {

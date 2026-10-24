@@ -293,21 +293,25 @@ when drawn, so edits to them show at once. Objects are kept side by side and ids
 keeping its objects elsewhere, such as in an ECS, fills one the same way. Skinned meshes, whose poses change every
 frame, are still handed over each frame with `DrawSkinnedMesh()`.
 
-Renderers keep each world they draw on the GPU: its instances in a buffer of their own, in batches of up to 128
-objects drawn the same way (same layer, material, mesh and range, mirroring and shadows) and near each other, along a
-Morton curve through the world. A frame then costs the CPU a command per batch, not per object: views leave out the
-batches they cannot see, and the GPU culls the instances of the others. Where compute shaders and indirect draws are
-available, a compute pass (`world_cull.comp.hlsl`) runs a group per batch that keeps the instances in view, of the
-level of detail their screen size picks, and not hidden behind what the last frame of the same view drew, writes them
-side by side in their order, so the image does not change from frame to frame, and writes the batch's indirect draw,
-which the view's pass then draws: instances culled cost the GPU nothing. Hidden means behind the farthest depth of
-every 16-pixel tile the instance covers in the last frame's depth (`hiz_reduce.frag.hlsl`), as that frame's view saw
-it; an object a frame reveals shows from the next. Elsewhere the mesh shaders cull the instances themselves
-(`Instance::bounds` and the frame's `cullPlanes`), drawing those outside as nothing. Shadow views cull the instances of the batches they
-reach on the CPU into their casters, since small views, such as a point light's faces, see few of them. Only what
-changed goes up again, in runs of neighbors, as the world's change stamps tell; adding, removing or restyling objects
-rebuilds the batches. Transparent materials are drawn object by object, sorted, as `DrawMesh()` does, and a renderer
-lets go of worlds it has not drawn for 120 frames. A batch the CPU keeps counts whole in `visibleMeshes`.
+With `Renderer3DConfig::gpuCulling` (`SceneRendererConfig::gpuCulling`, or `gpuCulling` in the game's rendering
+settings), off by default, renderers keep each world they draw on the GPU: its instances in a buffer of their own, in
+batches of up to 128 objects drawn the same way (same layer, material, mesh and range, mirroring and shadows) and near
+each other, along a Morton curve through the world. A frame then costs the CPU a command per batch, not per object:
+views leave out the batches they cannot see, and the GPU culls the instances of the others. Where compute shaders and
+indirect draws are available, a compute pass (`world_cull.comp.hlsl`) runs a group per batch that keeps the instances in
+view, of the level of detail their screen size picks, and not hidden behind what the last frame of the same view drew,
+writes them side by side in their order, so the image does not change from frame to frame, and writes the batch's
+indirect draw, which the view's pass then draws: instances culled cost the GPU nothing. Hidden means behind the farthest
+depth of every 16-pixel tile the instance covers in the last frame's depth (`hiz_reduce.frag.hlsl`), as that frame's
+view saw it; an object a frame reveals shows from the next. Elsewhere the mesh shaders cull the instances themselves
+(`Instance::bounds` and the frame's `cullPlanes`), drawing those outside as nothing. Shadow views cull the instances of
+the batches they reach on the CPU into their casters, since small views, such as a point light's faces, see few of them.
+Only what changed goes up again, in runs of neighbors, as the world's change stamps tell; adding, removing or restyling
+objects rebuilds the batches. Transparent materials are drawn object by object, sorted, as `DrawMesh()` does, and a
+renderer lets go of worlds it has not drawn for 120 frames. A batch the CPU keeps counts whole in `visibleMeshes`.
+Without it, a world's objects are drawn one by one, as `DrawMesh()` draws, culled and given their level of detail on the
+CPU: simpler and as fast for the few hundred objects most scenes hold, while GPU culling spares the CPU a command per
+object in scenes of thousands.
 
 Objects of a world can have levels of detail (`RenderMeshDesc::lods`, `MeshRenderer::SetLods()`): up to three
 simpler meshes, each shown once the object's screen size (`GetScreenSize()`: the height of its bounds as a fraction
@@ -487,11 +491,11 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
 
 `spot_benchmark` (`tests/benchmark/`) renders a scene of 10,000 meshes and 200 lights under the sky, its sun and a few
 shadowed point and spot lights, through a camera circling it, as games draw scenes, without vsync. After warming up it
-times 600 frames and prints their mean, median, 95th percentile and worst times, the last frame's counts of meshes,
-draw calls and lights, the GPU's time for shadows and the opaque pass (`Renderer3D` times them with GPU timers), and
-the costliest profiler scopes. `--grid 316` makes it about 100,000 meshes, and `--lods 1` gives its spheres a coarser
-level of detail. Run its Release build when rendering changes, and compare
-with the times of the build before the change:
+times 600 frames and prints their mean, median, 95th percentile and worst times, the last frame's counts of meshes, draw
+calls and lights, the GPU's time for shadows and the opaque pass (`Renderer3D` times them with GPU timers), and the
+costliest profiler scopes. `--grid 316` makes it about 100,000 meshes, and `--lods 1` gives its spheres a coarser level
+of detail. It culls on the GPU (`Renderer3DConfig::gpuCulling`), and `--gpu-culling 0` on the CPU. Run its Release build
+when rendering changes, and compare with the times of the build before the change:
 
 ```sh
 cmake --build --preset msvc-release --target spot_benchmark

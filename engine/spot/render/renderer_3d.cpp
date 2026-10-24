@@ -488,7 +488,7 @@ void Renderer3D::DrawWorld(const RenderWorld& world) {
             }
         }
     };
-    Detail::WorldCache* cache = m_impl->worlds.Update(world);
+    Detail::WorldCache* cache = state.config.gpuCulling ? m_impl->worlds.Update(world) : nullptr;
     if (!cache) {
         for (const RenderMeshObject& object : objects) {
             if (object.desc.mesh && sees(object.desc.layer)) {

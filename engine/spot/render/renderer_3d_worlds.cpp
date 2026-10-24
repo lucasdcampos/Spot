@@ -46,7 +46,7 @@ WorldCuller::WorldCuller(Renderer3DState& state) : m_state(state) {
     // Occlusion culling needs compute shaders, indirect draws and depth tiles it can draw; without them the worlds'
     // instances are culled in the vertex shader against the view alone, and every one in view shows.
     GraphicsDevice& device = *state.device;
-    if (!device.GetCapabilities().compute || !device.GetCapabilities().indirectDraws ||
+    if (!state.config.gpuCulling || !device.GetCapabilities().compute || !device.GetCapabilities().indirectDraws ||
         !device.SupportsRenderTarget(TextureFormat::R32Float)) {
         return;
     }

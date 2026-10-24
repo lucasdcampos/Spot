@@ -214,7 +214,7 @@ Depends on: phases 1 and 2.
   needs one without a fallback.
 - [x] **8.3 Split `Renderer3D` (L).** A small public header (pimpl) over internal classes: mesh batching and drawing,
   shadows, sky lighting and world culling.
-- [ ] **8.4 GPU culling optional (S).** Waits for 8.3. GPU culling with Hi-Z occlusion and LODs becomes an option, off
+- [x] **8.4 GPU culling optional (S).** Waits for 8.3. GPU culling with Hi-Z occlusion and LODs becomes an option, off
   by default. `RenderWorld` stays public at rendering level 2, documented for scenes with many objects.
 - [x] **8.5 Debug lines given, not read (S).** `LineRenderer` draws the lines it is given instead of reading
   `DebugDraw::GetLines()`; `SceneRenderer` passes them.

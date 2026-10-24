@@ -78,7 +78,9 @@ struct RenderMeshObject {
 //     world.SetTransform(crate, movedTo);
 //     renderer.DrawWorld(world);
 //
-// Not for the scene's own use only: games keeping their objects elsewhere fill one the same way.
+// Not for the scene's own use only: games keeping their objects elsewhere fill one the same way. For scenes of many
+// objects, thousands and more, a Renderer3D made with Renderer3DConfig::gpuCulling keeps the world on the GPU in
+// batches and culls it there, so drawing it costs the CPU a command per batch instead of per object.
 class RenderWorld {
 public:
     RenderWorld();
