@@ -1,5 +1,4 @@
 #include "spot/scene/entity.h"
-#include "spot/scene/ui/ui_widgets.h"
 
 #include "spot/core/debug/assert.h"
 #include "spot/core/debug/diagnostics.h"
@@ -315,13 +314,6 @@ void Entity::RefreshActivity() {
     }
     for (std::size_t i = 0; i < m_children.size(); ++i) {
         m_children[i]->RefreshActivity();
-    }
-}
-
-void Entity::DrawUiComponent(Component& component, Renderer2D& renderer, Vector2 viewSize) {
-    // Widgets draw before they start, so an interface shows from its first frame.
-    if (component.m_active || (Detail::IsComponentOf<UiWidget>(component) && component.IsActiveAndEnabled())) {
-        component.InvokeHook("OnDrawUi", [&] { component.OnDrawUi(renderer, viewSize); });
     }
 }
 

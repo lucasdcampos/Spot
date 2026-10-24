@@ -51,7 +51,6 @@ set(SPOT_LEVEL_ALLOWLIST
     "runtime/game_settings.h>scene/rendering/rendering_settings.h"
     "runtime/runtime_stats.cpp>scene/physics/physics_world.h"
     "scene/audio/audio_system.cpp>scene/rendering/camera.h"
-    "scene/entity.cpp>scene/ui/ui_widgets.h"
     "scene/physics/physics_settings.cpp>scene/physics2d/physics_world_2d.h"
     "scene/physics2d/physics_world_2d.h>scene/physics/physics_query.h"
     "scene/physics2d/tilemap_collider_2d.cpp>scene/rendering/tilemap.h"
