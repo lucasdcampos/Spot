@@ -165,13 +165,11 @@ void Entity::MoveToScene(Scene& scene) {
 }
 
 void Entity::MoveSubtree(Scene& scene) {
-    // Its body, if any, moves along with it. Without physics in its scene, it has none.
-    if (PhysicsWorld* physics = m_scene->GetSystem<PhysicsWorld>()) {
-        physics->MarkChanged(m_id);
-        scene.GetOrAddSystem<Spot::PhysicsWorld>().MarkChanged(m_id);
-    }
+    Scene& source = *m_scene;
+    source.NotifyEntityMoved(*this, source, scene);
     // Components already removed but not yet destroyed are now the other scene's to process.
-    scene.Adopt(m_scene->Release(*this), true);
+    scene.Adopt(source.Release(*this), true);
+    scene.NotifyEntityMoved(*this, source, scene);
     for (Entity* child : m_children) {
         child->MoveSubtree(scene);
     }
