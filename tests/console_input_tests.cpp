@@ -96,7 +96,9 @@ TEST_CASE("Applications route console events before gameplay and toggle platform
     };
     class ConsoleApplication final : public Spot::Application {
     public:
-        ConsoleApplication() : Application({.graphics = {.enabled = false}, .audio = {.enabled = false}}) {}
+        ConsoleApplication() : Application({.graphics = {.enabled = false}}) {
+            m_tools = &AddModule<Spot::DevToolsModule>(Spot::DevToolsConfig{.frameCapture = false});
+        }
 
     protected:
         void OnStart() override { LoadScene<InputScene>(); }
@@ -106,12 +108,12 @@ TEST_CASE("Applications route console events before gameplay and toggle platform
             scene->keys = 0;
             Spot::Input::SetCursorLocked(true);
             DispatchEvent(Spot::KeyPressedEvent{Spot::Key::Grave, false});
-            REQUIRE(GetConsoleInput());
-            CHECK(GetConsoleInput()->IsOpen());
+            REQUIRE(m_tools->GetConsoleInput());
+            CHECK(m_tools->GetConsoleInput()->IsOpen());
             CHECK(GetWindow().IsTextInputActive());
             CHECK(GetInputState().IsCaptured());
             DispatchEvent(Spot::KeyPressedEvent{Spot::Key::Escape, false});
-            CHECK_FALSE(GetConsoleInput()->IsOpen());
+            CHECK_FALSE(m_tools->GetConsoleInput()->IsOpen());
             CHECK_FALSE(GetWindow().IsTextInputActive());
             CHECK_FALSE(GetInputState().IsKeyPressed(Spot::Key::Escape));
             CHECK(scene->keys == 0);
@@ -120,6 +122,9 @@ TEST_CASE("Applications route console events before gameplay and toggle platform
             CHECK(GetInputState().IsKeyDown(Spot::Key::W));
             Quit();
         }
+
+    private:
+        Spot::DevToolsModule* m_tools = nullptr;
     } application;
     CHECK(application.Run() == EXIT_SUCCESS);
 }

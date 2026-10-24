@@ -6,8 +6,8 @@ and reloading a one-line change about a second after it), and plays scenes. Ever
 `spot_editor_core` library, which the editor's tests link.
 
 It follows the rules games do: it uses only the engine's public API and never reaches a backend, and ImGui stays in
-the editor, so the runtime never depends on it. It is itself an `Application` (with `renderScenes` off, since it
-shows scenes in its own views).
+the editor, so the runtime never depends on it. It is itself an `Application`, with the engine's modules and its
+`RenderModule` drawing no scene, since it shows scenes in its own views.
 
 ## Projects
 

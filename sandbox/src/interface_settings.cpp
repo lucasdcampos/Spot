@@ -67,7 +67,7 @@ void InterfaceSettings::Apply(Spot::Scene& scene) const {
         volume("Interface", settings.interfaceVolume);
     }
     if (scene.IsLoaded()) {
-        const auto previous = scene.GetApplication().GetRenderingSettings();
+        const auto previous = Spot::Application::Get().GetRenderingSettings();
         auto rendering = previous;
         rendering.msaaSamples = settings.graphicsQuality == 0 ? 1u : settings.graphicsQuality == 1 ? 2u : 4u;
         rendering.shadowMapSize = settings.graphicsQuality == 0 ? 0u : settings.graphicsQuality == 1 ? 1024u : 2048u;
@@ -77,6 +77,6 @@ void InterfaceSettings::Apply(Spot::Scene& scene) const {
         if (rendering.msaaSamples != previous.msaaSamples || rendering.shadowMapSize != previous.shadowMapSize ||
             rendering.shadowCascadeCount != previous.shadowCascadeCount ||
             rendering.localShadowMapSize != previous.localShadowMapSize || rendering.fxaa != previous.fxaa)
-            scene.GetApplication().SetRenderingSettings(rendering);
+            Spot::Application::Get().SetRenderingSettings(rendering);
     }
 }

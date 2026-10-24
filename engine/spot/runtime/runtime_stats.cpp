@@ -1,10 +1,7 @@
 #include "spot/runtime/runtime_stats.h"
 
-#include "spot/audio/audio_device.h"
 #include "spot/core/time/time.h"
 #include "spot/platform/process.h"
-#include "spot/scene/physics/physics_world.h"
-#include "spot/scene/scene.h"
 
 #include <algorithm>
 #include <cmath>
@@ -34,7 +31,7 @@ RuntimeStats RuntimeStats::FromFrame(const ProfileFrame& frame) {
     return stats;
 }
 
-RuntimeStats RuntimeStats::Sample(std::span<Scene* const> scenes, const AudioDevice* audio) {
+RuntimeStats RuntimeStats::Sample() {
     const auto frames = Profiler::GetFrames();
     auto stats = frames.empty() ? RuntimeStats{} : FromFrame(*frames.back());
     if (frames.empty() || !Profiler::IsEnabled()) {
@@ -42,16 +39,9 @@ RuntimeStats RuntimeStats::Sample(std::span<Scene* const> scenes, const AudioDev
         stats.fps = stats.frameMilliseconds > 0.0 ? 1000.0 / stats.frameMilliseconds : 0.0;
         stats.drawCalls = 0;
         stats.triangles = 0;
+        stats.bodies = 0;
+        stats.voices = 0;
     }
-    stats.bodies = 0;
-    for (const auto* scene : scenes) {
-        if (scene) {
-            if (const auto* physics = scene->GetSystem<PhysicsWorld>()) {
-                stats.bodies += physics->GetBodyCount();
-            }
-        }
-    }
-    stats.voices = audio ? static_cast<std::uint64_t>(std::max(0, audio->GetVoiceCount())) : 0;
     stats.memoryBytes = Process::GetResidentMemoryBytes();
     return stats;
 }

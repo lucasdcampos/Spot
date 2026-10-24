@@ -40,7 +40,7 @@ void RuntimeInterface::Initialize() {
         m_settings.interfaceVolume = volume("Interface", m_settings.interfaceVolume);
     }
     if (m_settingsDirectory.empty() && GetScene().IsLoaded())
-        m_settingsDirectory = GetScene().GetApplication().GetUserDataDirectory();
+        m_settingsDirectory = Spot::Application::Get().GetUserDataDirectory();
     if (!m_settingsDirectory.empty()) {
         const auto result = m_settings.Load(m_settingsDirectory);
         if (!result && result.status != Spot::SaveDataStatus::NotFound)
@@ -60,7 +60,7 @@ void RuntimeInterface::Initialize() {
     ConnectButton(pauseQuit, [this] {
         CloseMenus();
         if (GetScene().IsLoaded())
-            GetScene().GetApplication().QuitGame();
+            Spot::Application::Get().QuitGame();
     });
     ConnectButton(cleanup, [this] {
         if (auto* spawner = GetScene().FindComponent<PropSpawner>())

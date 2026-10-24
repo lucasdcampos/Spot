@@ -172,26 +172,26 @@ Depends on: Phase 1.
 
 Depends on: phases 4 and 5. Task 6.2 also waits for 3.3 to move asset loader registrations.
 
-- [ ] **6.1 `Module` (M).** The interface (`OnStart`, `OnStop`, `OnEvent`, `OnUpdate`, `OnRender`),
+- [x] **6.1 `Module` (M).** The interface (`OnStart`, `OnStop`, `OnEvent`, `OnUpdate`, `OnRender`),
   `Application::AddModule<T>()` and `GetModule<T>()`. `Run()` starts modules in the order they were added, stops them
   in reverse, and calls their hooks at fixed points of the frame. Only `Application` uses `Module`: no system's
   low-level API depends on it.
-- [ ] **6.2 A module per system (M).** Waits for 6.1. `RenderModule` owns the `SceneRenderer` and draws the scene,
+- [x] **6.2 A module per system (M).** Waits for 6.1. `RenderModule` owns the `SceneRenderer` and draws the scene,
   `AudioModule` owns the `AudioDevice`, `UiModule` routes events to canvases and draws them; physics, animation,
   particles and scripting get theirs. Each registers its components and asset loaders. `runtime/` includes no system.
   The sandbox, the player and the editor add the modules they use.
-- [ ] **6.3 Startup written down (M).** Waits for 6.2. The constructor does no work; `Run()` is a sequence read top to
+- [x] **6.3 Startup written down (M).** Waits for 6.2. The constructor does no work; `Run()` is a sequence read top to
   bottom: log file and crash reports when configured, platform, window, graphics device, assets, input, modules,
   `OnStart()`, the start scene. `docs/application_and_scenes.md` describes it.
-- [ ] **6.4 Data-driven games through `Run()` (M).** Waits for 6.1. `ApplicationConfig::game` is the only way game
+- [x] **6.4 Data-driven games through `Run()` (M).** Waits for 6.1. `ApplicationConfig::game` is the only way game
   settings reach an application, and `Run()` applies their rebinds, console settings and start scene. Only
   `GameSettings::LoadBesideExecutable()`, which the player and games call in `main()`, looks for `game.json`. The
   game's code is a `Module` that registers its components in `OnStart()` (`SPOT_COMPONENT` stays as a shorthand it
   runs); `SPOT_GAME_MODULE(Type)` exports a function that makes it, for the editor; `Detail::GameCode` goes. The
   project templates and the sandbox write the new `main()`.
-- [ ] **6.5 Developer tools module (M).** Waits for 6.1. The console overlay, stats overlay, screenshots, RenderDoc
+- [x] **6.5 Developer tools module (M).** Waits for 6.1. The console overlay, stats overlay, screenshots, RenderDoc
   capture and profile streaming move into `DevToolsModule`, which development builds and the editor add.
-- [ ] **6.6 Editor hooks off `Application` (M).** Waits for 6.1. Pausing and stepping move to the scene, event filtering
+- [x] **6.6 Editor hooks off `Application` (M).** Waits for 6.1. Pausing and stepping move to the scene, event filtering
   and game settings switching to the editor's own subclass. `Scene::GetApplication()` goes; game code reaches the
   application through `Application::Get()`.
 

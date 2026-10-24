@@ -97,10 +97,15 @@ public:
     Scene(const Scene&) = delete;
     Scene& operator=(const Scene&) = delete;
 
-    // Whether the scene is an application's current scene.
-    bool IsLoaded() const { return m_application != nullptr; }
-    // Only available while the scene is loaded.
-    Application& GetApplication() const;
+    // Whether the scene is an application's current scene; game code reaches the application with
+    // Application::Get().
+    bool IsLoaded() const { return m_loaded; }
+
+    // While paused, Update() does nothing: no components, systems or sounds advance. Events and drawing continue.
+    void SetPaused(bool paused) { m_paused = paused; }
+    bool IsPaused() const { return m_paused; }
+    // Runs the next Update() while paused, to advance one frame.
+    void Step() { m_stepPending = true; }
 
     // Creates an entity at the root of the hierarchy.
     Entity& CreateEntity(std::string name = {});
@@ -431,7 +436,9 @@ private:
     std::unordered_map<EntityId, Entity*> m_entitiesById;
     // The entities without a parent, in sibling order, which can differ from m_entities' creation order.
     std::vector<Entity*> m_roots;
-    Application* m_application = nullptr;
+    bool m_loaded = false;
+    bool m_paused = false;
+    bool m_stepPending = false;
     // Set while the scene walks its entities, so removals asked for meanwhile wait until it is done.
     bool m_deferRemovals = false;
     bool m_hasPendingRemovals = false;

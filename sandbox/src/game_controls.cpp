@@ -44,7 +44,8 @@ void GameControls::OnStart() {
     }
     if (GetScene().IsLoaded()) {
         if (const auto* hud = GetScene().FindComponent<Hud>()) {
-            GetScene().GetApplication().SetDeveloperFont(hud->font);
+            if (auto* tools = Spot::Application::Get().GetModule<Spot::DevToolsModule>())
+                tools->SetFont(hud->font);
         }
     }
 }
@@ -56,7 +57,7 @@ void GameControls::OnUpdate(float /*deltaTime*/) {
     const bool load = Input::IsActionPressed("Quick Load");
     if (save || load) {
         const auto directory = !m_saveDirectory.empty() ? m_saveDirectory
-                               : GetScene().IsLoaded()  ? GetScene().GetApplication().GetUserDataDirectory()
+                               : GetScene().IsLoaded()  ? Spot::Application::Get().GetUserDataDirectory()
                                                         : std::filesystem::path{};
         if (!directory.empty()) {
             const auto result = save ? WorldSave::Save(GetScene(), directory / "world.json")
@@ -76,12 +77,12 @@ void GameControls::OnUpdate(float /*deltaTime*/) {
         } else if (Input::IsCursorLocked()) {
             Input::SetCursorLocked(false);
         } else {
-            GetScene().GetApplication().QuitGame();
+            Spot::Application::Get().QuitGame();
         }
     }
     if (Input::IsActionPressed("Restart") && restartScene.IsValid()) {
         if (auto scene = Spot::InstantiateScene(*Spot::Assets::GetManager(), restartScene)) {
-            GetScene().GetApplication().LoadScene(std::move(scene));
+            Spot::Application::Get().LoadScene(std::move(scene));
         }
     }
 }

@@ -20,12 +20,21 @@ namespace {
 class SmokeTest final : public Spot::Application {
 public:
     explicit SmokeTest(const std::filesystem::path& directory)
-        : Application({.graphics = {.enabled = false},
-                       .audio = {.enabled = false},
+        : Application({.game = Spot::GameSettings::LoadBesideExecutable(),
+                       .graphics = {.enabled = false},
                        .logFile = directory / "smoke.log",
                        .userDataDirectory = directory,
-                       .maxFrameRate = 60,
-                       .consoleOverlay = false}) {}
+                       .maxFrameRate = 60}) {
+        AddModule<Spot::UiModule>();
+        AddModule<Spot::RenderModule>();
+        AddModule<Spot::AudioModule>(Spot::AudioConfig{.enabled = false});
+        AddModule<Spot::PhysicsModule>();
+        AddModule<Spot::Physics2DModule>();
+        AddModule<Spot::AnimationModule>();
+        AddModule<Spot::ParticlesModule>();
+        AddModule<Spot::ScriptingModule>();
+        AddModule(Spot::CreateGameModule());
+    }
     bool IsPassed() const { return m_passed; }
 
 protected:

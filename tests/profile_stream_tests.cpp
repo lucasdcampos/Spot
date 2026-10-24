@@ -42,8 +42,8 @@ TEST_CASE("Malformed profile records are ignored instead of entering profiler hi
 TEST_CASE("Application streams its first completed frame and shutdown frame exactly once", "[profiler][stream]") {
     class ProfileApplication final : public Spot::Application {
     public:
-        ProfileApplication() : Application({.graphics = {.enabled = false}, .audio = {.enabled = false}}) {
-            SetProfileStreamEnabled(true);
+        ProfileApplication() : Application({.graphics = {.enabled = false}}) {
+            AddModule<Spot::DevToolsModule>(Spot::DevToolsConfig{.frameCapture = false}).SetProfileStreamEnabled(true);
         }
 
     protected:

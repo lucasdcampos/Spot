@@ -7,9 +7,9 @@ namespace {
 class UiApplication final : public Spot::Application {
 public:
     UiApplication()
-        : Application({.window = {.title = "UI tests", .width = 320, .height = 240},
-                       .graphics = {.enabled = false},
-                       .audio = {.enabled = false}}) {}
+        : Application({.window = {.title = "UI tests", .width = 320, .height = 240}, .graphics = {.enabled = false}}) {
+        AddModule<Spot::UiModule>();
+    }
     int clicks = 0;
 
 protected:

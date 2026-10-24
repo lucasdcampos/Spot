@@ -32,13 +32,24 @@ TEST_CASE("Frame capture loads the SDK ABI, sets the destination and requests a 
 #endif
 
 TEST_CASE("Capture commands report unavailable graphics and reject extra arguments headlessly", "[capture][console]") {
-    Spot::Console console;
-    Spot::Application application({.graphics = {.enabled = false}, .audio = {.enabled = false}});
-    Spot::EngineConsole commands(console, application);
-    CHECK_FALSE(console.Execute("screenshot"));
-    CHECK_FALSE(console.Execute("capture"));
-    CHECK_FALSE(console.Execute("screenshot ../outside.png"));
-    CHECK_FALSE(console.Execute("capture ../outside"));
-    CHECK(console.Execute("screenshot one.png two.png").message == "Usage: screenshot [name.png]");
-    CHECK(console.Execute("capture one two").message == "Usage: capture [name]");
+    class CaptureApplication final : public Spot::Application {
+    public:
+        CaptureApplication() : Application({.graphics = {.enabled = false}}) {
+            AddModule<Spot::DevToolsModule>(Spot::DevToolsConfig{.frameCapture = false});
+        }
+
+    protected:
+        void OnStart() override {
+            Spot::Console& console = Spot::Console::Get();
+            CHECK_FALSE(console.Execute("screenshot"));
+            CHECK_FALSE(console.Execute("capture"));
+            CHECK_FALSE(console.Execute("screenshot ../outside.png"));
+            CHECK_FALSE(console.Execute("capture ../outside"));
+            CHECK(console.Execute("screenshot one.png two.png").message == "Usage: screenshot [name.png]");
+            CHECK(console.Execute("capture one two").message == "Usage: capture [name]");
+            Quit();
+        }
+    };
+    CaptureApplication application;
+    CHECK(application.Run() == EXIT_SUCCESS);
 }

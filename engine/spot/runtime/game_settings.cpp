@@ -82,6 +82,15 @@ void GameSettings::Serialize(Archive& archive) {
     archive.Field("importDirectory", importDirectory);
 }
 
+std::optional<GameSettings> GameSettings::LoadBesideExecutable() {
+    const auto file = GetExecutableDirectory() / FileName;
+    std::error_code error;
+    if (!std::filesystem::is_regular_file(file, error)) {
+        return std::nullopt;
+    }
+    return LoadFromFile(file);
+}
+
 std::optional<GameSettings> GameSettings::LoadFromString(std::string_view text) {
     json document = json::parse(text.begin(), text.end(), nullptr, false);
     if (!document.is_object()) {

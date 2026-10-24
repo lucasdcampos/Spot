@@ -19,7 +19,7 @@ const std::filesystem::path TestModule = SPOT_TEST_MODULE;
 
 class QuittingApplication final : public Spot::Application {
 public:
-    QuittingApplication() : Application({.graphics = {.enabled = false}, .audio = {.enabled = false}}) {}
+    QuittingApplication() : Application({.graphics = {.enabled = false}}) {}
 
 protected:
     void OnStart() override { Quit(); }
@@ -32,7 +32,7 @@ constexpr const char* SpinnerText = R"({"type":"TestSpinner","enabled":true,"dat
 TEST_CASE("Shared libraries load and give their functions", "[module]") {
     const auto library = Spot::SharedLibrary::Load(TestModule);
     REQUIRE(library);
-    CHECK(library->GetFunction("SpotLoadGameModule") != nullptr);
+    CHECK(library->GetFunction("SpotCreateGameModule") != nullptr);
     CHECK(library->GetFunction("NoSuchFunction") == nullptr);
     CHECK_FALSE(Spot::SharedLibrary::Load(TestModule.parent_path() / "no_such_library.dll"));
 }

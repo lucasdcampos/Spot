@@ -33,12 +33,10 @@ protected:
 };
 
 // Runs a function on each frame, after the scenes updated in the frame before, until it returns false.
-class FrameApplication final : public Spot::Application {
+class FrameApplication final : public Spot::Editor::PlayHost {
 public:
     explicit FrameApplication(std::function<bool(FrameApplication&, int)> frame)
-        : Application({.window = {.title = "Play Tests", .width = 320, .height = 240},
-                       .graphics = {.enabled = false},
-                       .audio = {.enabled = false}}),
+        : PlayHost({.window = {.title = "Play Tests", .width = 320, .height = 240}, .graphics = {.enabled = false}}),
           m_frame(std::move(frame)) {}
 
     using Application::DispatchEvent;

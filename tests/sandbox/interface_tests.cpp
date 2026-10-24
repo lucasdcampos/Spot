@@ -34,7 +34,7 @@ struct InterfaceGame {
     Spot::Scene scene;
     InterfaceGame() {
         Spot::Time::SetTimeScale(1);
-        Spot::Detail::GameCode::Load();
+        Spot::Detail::LoadGameCode();
         Spot::Input::SetState(&input);
         Spot::Input::SetActionMap(&actions);
         Spot::Detail::SetAssetManager(&assets);

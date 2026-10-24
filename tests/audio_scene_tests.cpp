@@ -235,9 +235,13 @@ protected:
     void OnStart() override { LoadScene<Spot::Scene>(); }
 
     void OnUpdate(float /*deltaTime*/) override {
-        usedItsDevice = Spot::Audio::GetDevice() == &GetAudioDevice();
-        GetScene()->GetOrAddSystem<Spot::AudioSystem>();
-        SetScenesPaused(true);
+        // The audio module pauses the scene's sounds after the frame's update.
+        if (!GetScene()->IsPaused()) {
+            usedItsDevice = Spot::Audio::GetDevice() == &GetModule<Spot::AudioModule>()->GetDevice();
+            GetScene()->GetOrAddSystem<Spot::AudioSystem>();
+            GetScene()->SetPaused(true);
+            return;
+        }
         audioPaused = GetScene()->GetOrAddSystem<Spot::AudioSystem>().IsPaused();
         Quit();
     }
@@ -249,8 +253,8 @@ TEST_CASE("Applications play through their device, and pause their scenes' sound
     const TempDirectory temp;
     PausingAudioApplication application({.window = {.width = 320, .height = 240},
                                          .graphics = {.enabled = false},
-                                         .audio = {.manualMix = true},
                                          .logFile = temp.GetPath() / "game.log"});
+    application.AddModule<Spot::AudioModule>(Spot::AudioConfig{.manualMix = true});
     CHECK(application.Run() == EXIT_SUCCESS);
     CHECK(application.usedItsDevice);
     CHECK(application.audioPaused);

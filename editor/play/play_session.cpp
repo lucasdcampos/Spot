@@ -8,7 +8,7 @@
 
 namespace Spot::Editor {
 
-PlaySession::PlaySession(Application& application, SceneDocument& source, AssetManager& assets,
+PlaySession::PlaySession(PlayHost& application, SceneDocument& source, AssetManager& assets,
                          std::optional<GameSettings> game)
     : m_application(application), m_source(source) {
     if (const GameSettings* previous = application.GetGameSettings()) {
@@ -49,7 +49,6 @@ PlaySession::~PlaySession() {
         m_application.GetWindow().StopTextInput();
     m_document.reset();
     m_application.LoadScene(nullptr);
-    m_application.SetScenesPaused(false);
     if (m_cursorCaptured) {
         m_application.GetWindow().SetMouseCaptured(false);
     }
@@ -64,27 +63,34 @@ void PlaySession::Update() {
     Scene* current = m_application.GetScene();
     if (!m_loaded) {
         m_loaded = current == m_scene;
+        if (m_loaded)
+            current->SetPaused(m_paused);
         return;
     }
     if (current == m_scene) {
         return;
     }
-    // The game loaded another scene, which windows show from now on.
+    // The game loaded another scene, which windows show from now on, paused if the game was.
     m_scene = current;
+    if (current)
+        current->SetPaused(m_paused);
     m_document = current ? std::make_unique<SceneDocument>(m_source.GetName(), *current) : nullptr;
 }
 
 bool PlaySession::IsPaused() const {
-    return m_application.AreScenesPaused();
+    return m_paused;
 }
 
 void PlaySession::SetPaused(bool paused) {
-    m_application.SetScenesPaused(paused);
+    m_paused = paused;
+    if (Scene* scene = m_application.GetScene())
+        scene->SetPaused(paused);
 }
 
 void PlaySession::Step() {
-    m_application.SetScenesPaused(true);
-    m_application.StepScenes();
+    SetPaused(true);
+    if (Scene* scene = m_application.GetScene())
+        scene->Step();
 }
 
 void PlaySession::SetView(bool focused, Vector2 origin, Vector2 viewSize, Vector2 scale) {

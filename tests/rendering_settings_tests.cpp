@@ -5,8 +5,7 @@
 TEST_CASE("Runtime rendering changes preserve game input rebinds and project defaults", "[ui][settings]") {
     Spot::GameSettings game;
     game.sections.rendering.msaaSamples = 4;
-    Spot::Application app({.graphics = {.enabled = false}, .audio = {.enabled = false}});
-    app.SetGameSettings(game);
+    Spot::Application app({.game = game, .graphics = {.enabled = false}});
     app.GetInputActions().Add("Jump", Spot::InputActionType::Button).Bind(Spot::InputControl::Of(Spot::Key::Space));
     app.GetInputActions().SetDefaults();
     REQUIRE(app.GetInputActions().Rebind("Jump", 0, Spot::InputControl::Of(Spot::Key::J)));

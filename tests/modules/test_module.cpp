@@ -18,10 +18,14 @@ protected:
     void Serialize(Spot::Archive& archive) override { archive.Field("speed", speed); }
 };
 
-void RegisterTestModule() {
-    Spot::RegisterComponent<Spinner>("TestSpinner");
-}
+class TestGame final : public Spot::GameCodeModule {
+protected:
+    void OnStart() override {
+        GameCodeModule::OnStart();
+        Spot::RegisterComponent<Spinner>("TestSpinner");
+    }
+};
 
 } // namespace
 
-SPOT_GAME_MODULE(RegisterTestModule)
+SPOT_GAME_MODULE(TestGame)

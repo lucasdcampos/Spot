@@ -8,9 +8,29 @@
 #include <string_view>
 #include <utility>
 
+namespace {
+
+int Run(Spot::ApplicationConfig config) {
+    Spot::Application application(std::move(config));
+#ifndef NDEBUG
+    application.AddModule<Spot::DevToolsModule>();
+#endif
+    application.AddModule<Spot::UiModule>();
+    application.AddModule<Spot::RenderModule>();
+    application.AddModule<Spot::AudioModule>();
+    application.AddModule<Spot::PhysicsModule>();
+    application.AddModule<Spot::Physics2DModule>();
+    application.AddModule<Spot::AnimationModule>();
+    application.AddModule<Spot::ParticlesModule>();
+    application.AddModule<Spot::ScriptingModule>();
+    return application.Run();
+}
+
+} // namespace
+
 int main(int argc, char** argv) {
     if (argc == 1) {
-        return Spot::Application().Run();
+        return Run({.game = Spot::GameSettings::LoadBesideExecutable()});
     }
     if (argc != 3 || std::string_view(argv[1]) != "--game") {
         std::fprintf(stderr, "Usage: spot_player [--game <folder with %s>]\n", Spot::GameSettings::FileName.data());
@@ -28,5 +48,5 @@ int main(int argc, char** argv) {
     config.assets.importDirectory = folder / Spot::Utf8ToPath(game->importDirectory);
     config.logFile = folder / "game.log";
     config.game = std::move(game);
-    return Spot::Application(std::move(config)).Run();
+    return Run(std::move(config));
 }

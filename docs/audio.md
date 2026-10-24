@@ -19,8 +19,8 @@ the thread fall behind, the playback waits where it is rather than skip.
 
 ## Playing
 
-`AudioDevice` (`engine/spot/audio/audio_device.h`) plays sounds on the default output device. The application owns one,
-reached with `Application::GetAudioDevice()`:
+`AudioDevice` (`engine/spot/audio/audio_device.h`) plays sounds on the default output device. An application's
+`AudioModule` owns one, reached with `GetModule<AudioModule>()->GetDevice()` or `Audio::GetDevice()`:
 
 ```cpp
 auto shot = Spot::Assets::Load<Spot::Sound>("sounds/shot.wav");

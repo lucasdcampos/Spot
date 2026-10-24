@@ -17,7 +17,16 @@ public:
         : Application({.window = {.title = "Spot GPU Tests", .width = 320, .height = 240},
                        .graphics = graphics,
                        .assets = std::move(assets)}),
-          m_render(std::move(render)) {}
+          m_render(std::move(render)) {
+        AddModule<Spot::UiModule>();
+        AddModule<Spot::RenderModule>();
+        AddModule<Spot::AudioModule>(Spot::AudioConfig{.enabled = false});
+        AddModule<Spot::PhysicsModule>();
+        AddModule<Spot::Physics2DModule>();
+        AddModule<Spot::AnimationModule>();
+        AddModule<Spot::ParticlesModule>();
+        AddModule<Spot::ScriptingModule>();
+    }
 
     int GetRenderedFrames() const { return m_renderedFrames; }
 

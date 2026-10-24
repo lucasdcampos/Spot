@@ -75,6 +75,8 @@ add_library(spot_objects OBJECT
     spot/runtime/runtime_stats.cpp
     spot/runtime/profile_stream.cpp
     spot/runtime/engine_console.cpp
+    spot/runtime/dev_tools_module.h
+    spot/runtime/dev_tools_module.cpp
     spot/core/debug/assert.h
     spot/core/debug/assert.cpp
     spot/platform/crash_handler.h
@@ -85,6 +87,7 @@ add_library(spot_objects OBJECT
     spot/runtime/game_module.h
     spot/runtime/game_module.cpp
     spot/runtime/game_settings.h
+    spot/runtime/module.h
     spot/runtime/game_settings.cpp
     spot/core/debug/log.h
     spot/core/memory/spsc_queue.h
@@ -306,6 +309,22 @@ add_library(spot_objects OBJECT
     spot/scene/ui/ui_components.cpp
     spot/scene/scripting/scripting_components.h
     spot/scene/scripting/scripting_components.cpp
+    spot/scene/animation/animation_module.h
+    spot/scene/animation/animation_module.cpp
+    spot/scene/audio/audio_module.h
+    spot/scene/audio/audio_module.cpp
+    spot/scene/particles/particles_module.h
+    spot/scene/particles/particles_module.cpp
+    spot/scene/physics/physics_module.h
+    spot/scene/physics/physics_module.cpp
+    spot/scene/physics2d/physics2d_module.h
+    spot/scene/physics2d/physics2d_module.cpp
+    spot/scene/rendering/render_module.h
+    spot/scene/rendering/render_module.cpp
+    spot/scene/ui/ui_module.h
+    spot/scene/ui/ui_module.cpp
+    spot/scene/scripting/scripting_module.h
+    spot/scene/scripting/scripting_module.cpp
     spot/scene/component_registry.cpp
     spot/scene/entity.h
     spot/scene/entity.cpp
