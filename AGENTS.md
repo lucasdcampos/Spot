@@ -11,6 +11,7 @@ layers, each usable from code on its own; the editor and the tools are programs 
 - `tools/` – `spot_tools`, which makes games out of projects, for the editor and the command line
 - `cli/` – `spot`, the command line: `new`, `cook`, `build`, `run` and `export`
 - `player/` – `spot_player`, which runs games without C++ code from their `game.json`
+- `examples/` – one small program per way of using the engine, run by the tests
 - `sandbox/` – the sample project (`Sandbox.spot`), built into the `sandbox` executable
 - `tests/` – Catch2 tests
 - `docs/` – a page per system, starting from `docs/index.md`

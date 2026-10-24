@@ -14,6 +14,7 @@ library with a loop of its own ([`own_loop`](../examples/own_loop/main.cpp)), as
 
 | Page | What it covers |
 |---|---|
+| [Architecture](architecture.md) | The levels, `Application` and `Module`, the three rendering levels and the graphics contract |
 | [Memory](memory.md) | Linear and pool allocators, and memory counted by what it is for |
 | [Job system](job_system.md) | Worker threads, jobs, counters and parallel loops, shared by every layer |
 | [Application and scenes](application_and_scenes.md) | The application loop, scenes, the update order, scene systems, settings sections, game modules |

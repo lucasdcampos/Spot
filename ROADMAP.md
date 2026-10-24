@@ -254,7 +254,7 @@ Depends on: phases 3 to 9.
   all.
 - [x] **10.2 One example per level (S).** Small programs using the engine as a library with a loop of their own, as an
   application in code, and as a data-driven game, built and run by the tests; the docs link them as where to start.
-- [ ] **10.3 Architecture page (S).** `docs/architecture.md`, linked from `docs/index.md`: the levels, modules and
+- [x] **10.3 Architecture page (S).** `docs/architecture.md`, linked from `docs/index.md`: the levels, modules and
   `Module`, the three rendering levels and the graphics contract.
 
 ## Phase 11 – Example game
