@@ -52,7 +52,7 @@ void Collider::Serialize(Archive& archive) {
 }
 
 void Collider::MarkChanged() {
-    GetScene().GetPhysics().MarkChanged(GetEntity().GetId());
+    GetScene().GetOrAddSystem<Spot::PhysicsWorld>().MarkChanged(GetEntity().GetId());
 }
 
 void BoxCollider::SetSize(Vector3 size) {

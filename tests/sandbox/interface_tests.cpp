@@ -5,6 +5,8 @@
 #include "player_controller.h"
 #include "prop_spawner.h"
 #include "runtime_interface.h"
+#include "spot/scene/ui/ui_input_system.h"
+#include "spot/scene/ui/ui_system.h"
 #include "temp_directory.h"
 #include "undo_list.h"
 #include "weapon.h"
@@ -66,7 +68,7 @@ struct InterfaceGame {
         input.BeginFrame();
     }
     bool Send(const Spot::Event& event) {
-        const bool used = scene.HandleUiEvent(event, {1280, 720}, &input);
+        const bool used = scene.GetOrAddSystem<Spot::UiInputSystem>().HandleUiEvent(event, {1280, 720}, &input);
         if (!used)
             input.OnEvent(event);
         return used;
@@ -76,7 +78,7 @@ struct InterfaceGame {
 
 TEST_CASE("Sandbox authored HUD and spawn menu route Q and gamepad tabs", "[sandbox][ui]") {
     InterfaceGame game;
-    auto& ui = game.GetUi();
+    auto& ui = game.GetOrAddSystem<Spot::UiSystem>();
     CHECK(game.scene.GetEntity(ui.handText)->GetComponent<Spot::UiText>()->text == "PHYSICS GUN");
     CHECK(game.scene.GetEntity(ui.statusText)->GetComponent<Spot::UiText>()->text.find("bodies") != std::string::npos);
     REQUIRE(ui.GetSpawnButtons().size() == game.scene.FindComponent<PropSpawner>()->GetSpawnables().size());
@@ -89,10 +91,10 @@ TEST_CASE("Sandbox authored HUD and spawn menu route Q and gamepad tabs", "[sand
     REQUIRE(first);
     CHECK(first->GetComponent<Spot::UiButton>());
     CHECK(first->FindChild("Thumbnail")->GetComponent<Spot::UiImage>());
-    game.scene.GetUiInput().Focus(ui.weaponsTab);
+    game.scene.GetOrAddSystem<Spot::UiInputSystem>().Focus(ui.weaponsTab);
     game.Send(Spot::GamepadButtonPressedEvent{Spot::GamepadId{1}, Spot::GamepadButton::South});
     CHECK_FALSE(first->IsActiveInHierarchy());
-    CHECK(game.scene.GetUiInput().GetFocusedEntity() == ui.weaponsTab);
+    CHECK(game.scene.GetOrAddSystem<Spot::UiInputSystem>().GetFocusedEntity() == ui.weaponsTab);
     CHECK(game.Send(Spot::KeyPressedEvent{Spot::Key::Q, false}));
     game.Step();
     CHECK(ui.GetMenu() == RuntimeInterface::Menu::Closed);
@@ -103,7 +105,7 @@ TEST_CASE("Sandbox authored HUD and spawn menu route Q and gamepad tabs", "[sand
 TEST_CASE("The sandbox HUD shows rounds, reloads, sights, the item's name and statistics like a game",
           "[sandbox][ui][hud]") {
     InterfaceGame game;
-    auto& ui = game.GetUi();
+    auto& ui = game.GetOrAddSystem<Spot::UiSystem>();
     const auto text = [&](Spot::EntityId id) { return game.scene.GetEntity(id)->GetComponent<Spot::UiText>()->text; };
     const auto active = [&](Spot::EntityId id) { return game.scene.GetEntity(id)->IsActiveInHierarchy(); };
     const auto nameOpacity = [&] { return game.scene.GetEntity(ui.handText)->GetComponent<Spot::UiText>()->color.a; };
@@ -159,12 +161,12 @@ TEST_CASE("The sandbox HUD shows rounds, reloads, sights, the item's name and st
 
 TEST_CASE("Sandbox menu clicks spawn real prefabs and offer undo and cleanup", "[sandbox][ui]") {
     InterfaceGame game;
-    auto& ui = game.GetUi();
+    auto& ui = game.GetOrAddSystem<Spot::UiSystem>();
     ui.OpenSpawnMenu();
     auto& spawner = *game.scene.FindComponent<PropSpawner>();
     auto* button = game.scene.GetEntity(ui.GetSpawnButtons().front())->GetComponent<Spot::UiButton>();
     REQUIRE(button);
-    const auto* layout = game.scene.GetUi().Find(button->GetEntity().GetId());
+    const auto* layout = game.scene.GetOrAddSystem<Spot::UiSystem>().Find(button->GetEntity().GetId());
     REQUIRE(layout);
     const auto center = layout->bounds.GetCenter();
     game.Send(Spot::MouseMovedEvent{{center.x, 720 - center.y}, {}});
@@ -183,7 +185,7 @@ TEST_CASE("Sandbox menu clicks spawn real prefabs and offer undo and cleanup", "
 TEST_CASE("Sandbox pause settings persist sensitivity FOV volumes quality and bindings", "[sandbox][ui]") {
     InterfaceGame game;
     TempDirectory directory;
-    auto& ui = game.GetUi();
+    auto& ui = game.GetOrAddSystem<Spot::UiSystem>();
     ui.SetSettingsDirectory(directory.GetPath());
     Spot::Time::SetTimeScale(0.5f);
     ui.OpenPauseMenu();

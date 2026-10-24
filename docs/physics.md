@@ -176,7 +176,7 @@ rebuilt first where colliders or rigidbodies changed since, and never wake bodie
 ## The physics world
 
 `PhysicsWorld` (`engine/spot/physics/physics_world.h`) is the scene's physics system (see
-[Application and scenes](application_and_scenes.md)): `Scene::GetPhysics()` creates it the first time it is needed,
+[Application and scenes](application_and_scenes.md)): `Scene::GetOrAddSystem<PhysicsWorld>()` creates it the first time it is needed,
 which colliders and rigidbodies do, so scenes without physics never pay for it. It has the scene's gravity
 (`SetGravity()`) and reports how many bodies it simulates.
 

@@ -33,13 +33,13 @@ void Rigidbody::SetAngularDamping(float damping) {
 }
 
 Vector3 Rigidbody::GetLinearVelocity() const {
-    PhysicsWorld& physics = GetScene().GetPhysics();
+    PhysicsWorld& physics = GetScene().GetOrAddSystem<Spot::PhysicsWorld>();
     const auto* body = physics.FindMovingBody(GetEntity().GetId());
     return body ? physics.GetSimulation().GetLinearVelocity(body->id) : m_linearVelocity;
 }
 
 void Rigidbody::SetLinearVelocity(Vector3 velocity) {
-    PhysicsWorld& physics = GetScene().GetPhysics();
+    PhysicsWorld& physics = GetScene().GetOrAddSystem<Spot::PhysicsWorld>();
     if (const auto* body = physics.FindMovingBody(GetEntity().GetId())) {
         physics.GetSimulation().SetLinearVelocity(body->id, velocity);
     } else {
@@ -48,13 +48,13 @@ void Rigidbody::SetLinearVelocity(Vector3 velocity) {
 }
 
 Vector3 Rigidbody::GetAngularVelocity() const {
-    PhysicsWorld& physics = GetScene().GetPhysics();
+    PhysicsWorld& physics = GetScene().GetOrAddSystem<Spot::PhysicsWorld>();
     const auto* body = physics.FindMovingBody(GetEntity().GetId());
     return body ? physics.GetSimulation().GetAngularVelocity(body->id) : m_angularVelocity;
 }
 
 void Rigidbody::SetAngularVelocity(Vector3 velocity) {
-    PhysicsWorld& physics = GetScene().GetPhysics();
+    PhysicsWorld& physics = GetScene().GetOrAddSystem<Spot::PhysicsWorld>();
     if (const auto* body = physics.FindMovingBody(GetEntity().GetId())) {
         physics.GetSimulation().SetAngularVelocity(body->id, velocity);
     } else {
@@ -63,14 +63,14 @@ void Rigidbody::SetAngularVelocity(Vector3 velocity) {
 }
 
 void Rigidbody::AddForce(Vector3 force) {
-    PhysicsWorld& physics = GetScene().GetPhysics();
+    PhysicsWorld& physics = GetScene().GetOrAddSystem<Spot::PhysicsWorld>();
     if (const auto* body = physics.FindMovingBody(GetEntity().GetId()); body && body->motion == BodyMotion3D::Dynamic) {
         physics.GetSimulation().AddForce(body->id, force);
     }
 }
 
 void Rigidbody::AddImpulse(Vector3 impulse) {
-    PhysicsWorld& physics = GetScene().GetPhysics();
+    PhysicsWorld& physics = GetScene().GetOrAddSystem<Spot::PhysicsWorld>();
     if (const auto* body = physics.FindMovingBody(GetEntity().GetId())) {
         if (body->motion == BodyMotion3D::Dynamic) {
             physics.GetSimulation().AddImpulse(body->id, impulse);
@@ -81,14 +81,14 @@ void Rigidbody::AddImpulse(Vector3 impulse) {
 }
 
 void Rigidbody::AddForceAtPosition(Vector3 force, Vector3 position) {
-    PhysicsWorld& physics = GetScene().GetPhysics();
+    PhysicsWorld& physics = GetScene().GetOrAddSystem<Spot::PhysicsWorld>();
     if (const auto* body = physics.FindMovingBody(GetEntity().GetId()); body && body->motion == BodyMotion3D::Dynamic) {
         physics.GetSimulation().AddForceAtPosition(body->id, force, position);
     }
 }
 
 void Rigidbody::AddImpulseAtPosition(Vector3 impulse, Vector3 position) {
-    PhysicsWorld& physics = GetScene().GetPhysics();
+    PhysicsWorld& physics = GetScene().GetOrAddSystem<Spot::PhysicsWorld>();
     if (const auto* body = physics.FindMovingBody(GetEntity().GetId())) {
         if (body->motion == BodyMotion3D::Dynamic) {
             physics.GetSimulation().AddImpulseAtPosition(body->id, impulse, position);
@@ -99,7 +99,7 @@ void Rigidbody::AddImpulseAtPosition(Vector3 impulse, Vector3 position) {
 }
 
 void Rigidbody::AddTorque(Vector3 torque) {
-    PhysicsWorld& physics = GetScene().GetPhysics();
+    PhysicsWorld& physics = GetScene().GetOrAddSystem<Spot::PhysicsWorld>();
     if (const auto* body = physics.FindMovingBody(GetEntity().GetId()); body && body->motion == BodyMotion3D::Dynamic) {
         physics.GetSimulation().AddTorque(body->id, torque);
     }
@@ -116,20 +116,20 @@ void Rigidbody::SetContinuous(bool continuous) {
 }
 
 bool Rigidbody::IsSleeping() const {
-    PhysicsWorld& physics = GetScene().GetPhysics();
+    PhysicsWorld& physics = GetScene().GetOrAddSystem<Spot::PhysicsWorld>();
     const auto* body = physics.FindMovingBody(GetEntity().GetId());
     return body && !physics.GetSimulation().IsAwake(body->id);
 }
 
 void Rigidbody::WakeUp() {
-    PhysicsWorld& physics = GetScene().GetPhysics();
+    PhysicsWorld& physics = GetScene().GetOrAddSystem<Spot::PhysicsWorld>();
     if (const auto* body = physics.FindMovingBody(GetEntity().GetId())) {
         physics.GetSimulation().WakeUp(body->id);
     }
 }
 
 void Rigidbody::Sleep() {
-    PhysicsWorld& physics = GetScene().GetPhysics();
+    PhysicsWorld& physics = GetScene().GetOrAddSystem<Spot::PhysicsWorld>();
     if (const auto* body = physics.FindMovingBody(GetEntity().GetId())) {
         physics.GetSimulation().Sleep(body->id);
     }
@@ -179,7 +179,7 @@ void Rigidbody::Serialize(Archive& archive) {
 }
 
 void Rigidbody::MarkChanged() {
-    GetScene().GetPhysics().MarkChanged(GetEntity().GetId());
+    GetScene().GetOrAddSystem<Spot::PhysicsWorld>().MarkChanged(GetEntity().GetId());
 }
 
 } // namespace Spot

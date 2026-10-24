@@ -1,4 +1,5 @@
 #include "physics_debug_view.h"
+#include "spot/scene/physics/physics_world.h"
 
 SPOT_COMPONENT(PhysicsDebugView);
 
@@ -14,11 +15,12 @@ void PhysicsDebugView::OnUpdate(float /*deltaTime*/) {
 }
 
 void PhysicsDebugView::OnDisable() {
-    GetScene().GetPhysics().SetDebugDraw(Spot::PhysicsDebugFlags::None);
+    GetScene().GetOrAddSystem<Spot::PhysicsWorld>().SetDebugDraw(Spot::PhysicsDebugFlags::None);
 }
 
 void PhysicsDebugView::Apply() {
-    GetScene().GetPhysics().SetDebugDraw(visible ? Spot::PhysicsDebugFlags::All : Spot::PhysicsDebugFlags::None);
+    GetScene().GetOrAddSystem<Spot::PhysicsWorld>().SetDebugDraw(visible ? Spot::PhysicsDebugFlags::All
+                                                                         : Spot::PhysicsDebugFlags::None);
 }
 
 void PhysicsDebugView::Serialize(Spot::Archive& archive) {

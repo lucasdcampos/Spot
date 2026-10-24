@@ -1,4 +1,6 @@
 #include "spot/scene/ui/ui_system.h"
+#include "spot/render/renderer_2d.h"
+#include "spot/scene/ui/ui_draw_listener.h"
 
 #include "spot/core/debug/profiler.h"
 #include "spot/graphics/texture.h"
@@ -134,4 +136,32 @@ void UiSystem::LayoutChildren(Entity& parent, EntityId canvas, UiBounds bounds, 
     });
 }
 
+} // namespace Spot
+
+namespace Spot {
+Camera2D UiSystem::ScreenCamera(Vector2 viewSize) {
+    return {.position = viewSize * 0.5f};
+}
+void UiSystem::DrawUi(Renderer2D& renderer, Vector2 viewSize) {
+    Scene& scene = GetScene();
+    const Detail::DeferRemovalsScope defer(scene);
+    Layout(viewSize);
+    auto draw = [&](Entity& entity) {
+        entity.ForEachComponent<Component>([&](Component& component) {
+            if (auto* listener = dynamic_cast<UiDrawListener*>(&component);
+                listener && component.IsActiveAndEnabled()) {
+                component.RunGuarded("OnDrawUi", [&] { listener->OnDrawUi(renderer, viewSize); });
+            }
+        });
+    };
+    scene.ForEachEntity([&](Entity& entity) {
+        if (entity.IsActiveInHierarchy() && !entity.GetComponentInParent<Canvas>())
+            draw(entity);
+    });
+    for (const auto& entry : GetEntries()) {
+        if (auto* entity = scene.GetEntity(entry.entity))
+            draw(*entity);
+    }
+    renderer.SetScissor({0, 0, static_cast<std::int32_t>(viewSize.x), static_cast<std::int32_t>(viewSize.y)});
+}
 } // namespace Spot

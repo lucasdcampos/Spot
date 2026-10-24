@@ -1,3 +1,4 @@
+#include "spot/scene/ui/ui_input_system.h"
 #include <spot.h>
 
 #include <catch2/catch_test_macros.hpp>
@@ -40,7 +41,7 @@ protected:
         CHECK(clicks == 1);
         CHECK_FALSE(Spot::Input::IsActionPressed("Fire"));
         CHECK_FALSE(GetInputState().IsMouseButtonPressed(Spot::MouseButton::Left));
-        CHECK(GetScene()->GetUiInput().Focus(m_field));
+        CHECK(GetScene()->GetOrAddSystem<Spot::UiInputSystem>().Focus(m_field));
         DispatchEvent(Spot::TextInputEvent{"Hello"});
         CHECK(GetWindow().IsTextInputActive());
         CHECK(GetScene()->GetEntity(m_field)->GetComponent<Spot::UiInputField>()->GetText() == "Hello");

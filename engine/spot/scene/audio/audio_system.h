@@ -35,7 +35,8 @@ struct AudioListenerPose {
 
 // The sounds of a scene: each frame, once everything moved, it works out how its listener hears every spatial sound
 // of the scene, and gives the playing sounds their volume and pan. Created when the scene first needs it (see
-// Scene::GetAudio()). Its sounds pause while the application pauses the scenes, and stop when the scene goes.
+// Scene::GetOrAddSystem<AudioSystem>()). Its sounds pause while the application pauses the scenes, and stop when the
+// scene goes.
 class AudioSystem final : public SceneSystem {
 public:
     ~AudioSystem() override;

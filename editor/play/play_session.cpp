@@ -1,4 +1,5 @@
 #include "play/play_session.h"
+#include "spot/scene/ui/ui_input_system.h"
 
 #include "core/editor_log.h"
 #include <imgui.h>
@@ -120,7 +121,8 @@ void PlaySession::Feed(const Event& event) {
         uiEvent = Event(pixel);
     }
     const bool consumed =
-        m_application.GetScene() && m_application.GetScene()->HandleUiEvent(uiEvent, m_viewSize, &m_input);
+        m_application.GetScene() &&
+        m_application.GetScene()->GetOrAddSystem<Spot::UiInputSystem>().HandleUiEvent(uiEvent, m_viewSize, &m_input);
     const bool text = UiInputSystem::IsTextInputCaptured(m_input);
     if (text && !m_application.GetWindow().IsTextInputActive())
         m_application.GetWindow().StartTextInput();

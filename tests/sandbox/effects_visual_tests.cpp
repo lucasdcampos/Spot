@@ -3,6 +3,7 @@
 #include "explosion.h"
 #include "flash.h"
 #include "particle_effects.h"
+#include "spot/scene/physics/physics_world.h"
 #include "water.h"
 
 #include <spot.h>
@@ -81,7 +82,7 @@ TEST_CASE("The cooked sandbox draws explosions, muzzle flashes and splashes", "[
     };
 
     // An explosion on the firing range's ground, as it unfolds.
-    const auto ground = scene->GetPhysics().Raycast({40, 30, 6}, {0, -1, 0}, 60);
+    const auto ground = scene->GetOrAddSystem<Spot::PhysicsWorld>().Raycast({40, 30, 6}, {0, -1, 0}, 60);
     REQUIRE(ground);
     const Spot::Vector3 blast = ground->point + Spot::Vector3{0, 0.5f, 0};
     look(blast + Spot::Vector3{-16, 4, 0}, blast + Spot::Vector3{0, 3, 0});

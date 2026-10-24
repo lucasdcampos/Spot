@@ -1,3 +1,4 @@
+#include "spot/scene/physics2d/physics_world_2d.h"
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <cmath>
@@ -62,7 +63,7 @@ TEST_CASE("Tilemap colliders rebuild after painting and follow transforms and ac
     REQUIRE(map.SetData(data));
     entity.GetTransform().SetPosition({2, 3, 0});
     entity.GetTransform().SetScale({2, 2, 1});
-    auto& world = scene.GetPhysics2D();
+    auto& world = scene.GetOrAddSystem<Spot::PhysicsWorld2D>();
     auto hit = world.Raycast({0, 4}, {1, 0}, 10);
     REQUIRE(hit);
     CHECK(hit->collider == &collider);
@@ -86,7 +87,7 @@ TEST_CASE("Tilemap colliders rebuild after painting and follow transforms and ac
     auto* restoredMap = restored.FindEntity("Map");
     REQUIRE(restoredMap);
     CHECK(restoredMap->GetComponent<Tilemap>()->GetCell(1, 0) == 0);
-    CHECK(restored.GetPhysics2D().Raycast({0, 4}, {1, 0}, 10));
+    CHECK(restored.GetOrAddSystem<Spot::PhysicsWorld2D>().Raycast({0, 4}, {1, 0}, 10));
 }
 TEST_CASE("A falling 2D body rests on tiles and falls through erased tiles", "[tilemap][physics2d]") {
     Scene scene;

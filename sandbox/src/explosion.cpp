@@ -1,4 +1,6 @@
 #include "explosion.h"
+#include "spot/scene/audio/audio_system.h"
+#include "spot/scene/physics/physics_world.h"
 
 #include "explosive_barrel.h"
 #include "flash.h"
@@ -40,8 +42,9 @@ void HurtPlayers(Spot::Scene& scene, Spot::Vector3 center, float radius, float i
         const Spot::Vector3 direction = toAxis > 0.01f ? (axis - center) / toAxis : Up;
         // From a little out of the center, past what exploded, to the player: anything between shields it.
         const float start = std::min(0.5f, distance);
-        if (distance - start > 0.05f && scene.GetPhysics().Raycast(center + direction * start, direction,
-                                                                   distance - start, {.ignore = player.GetId()})) {
+        if (distance - start > 0.05f &&
+            scene.GetOrAddSystem<Spot::PhysicsWorld>().Raycast(center + direction * start, direction, distance - start,
+                                                               {.ignore = player.GetId()})) {
             share *= 0.35f;
         }
         health.Damage(damage * share);
@@ -78,8 +81,8 @@ void Explode(Spot::Scene& scene, Spot::Vector3 center, float radius, float impul
     std::optional<Spot::Vector3> ground;
     if (!atWater) {
         const float above = 0.3f;
-        if (const auto hit = scene.GetPhysics().Raycast(center + Up * above, Spot::Vector3{0.0f, -1.0f, 0.0f},
-                                                        radius * 0.6f + above, {.ignore = ignore})) {
+        if (const auto hit = scene.GetOrAddSystem<Spot::PhysicsWorld>().Raycast(
+                center + Up * above, Spot::Vector3{0.0f, -1.0f, 0.0f}, radius * 0.6f + above, {.ignore = ignore})) {
             ground = hit->point;
         }
     }
@@ -100,16 +103,18 @@ void Explode(Spot::Scene& scene, Spot::Vector3 center, float radius, float impul
     }
     if (const SoundBank* bank = SoundBank::Find(scene); bank && bank->explosion) {
         // Heard from afar, and never the one sound dropped when voices run out; muffled by the water over it.
-        scene.GetAudio().PlayOneShot(bank->explosion.GetShared(), center,
-                                     {.volume = underwater ? 0.5f : 1.0f,
-                                      .bus = "Effects",
-                                      .spatialSettings = {.minDistance = 6.0f, .maxDistance = 150.0f},
-                                      .priority = 10,
-                                      .maxInstances = 4});
+        scene.GetOrAddSystem<Spot::AudioSystem>().PlayOneShot(
+            bank->explosion.GetShared(), center,
+            {.volume = underwater ? 0.5f : 1.0f,
+             .bus = "Effects",
+             .spatialSettings = {.minDistance = 6.0f, .maxDistance = 150.0f},
+             .priority = 10,
+             .maxInstances = 4});
         Spot::Input::RumbleGamepad(0.8f, 0.6f, 0.3f);
     }
 
-    for (const Spot::OverlapHit& hit : scene.GetPhysics().OverlapSphere(center, radius, {.ignore = ignore})) {
+    for (const Spot::OverlapHit& hit :
+         scene.GetOrAddSystem<Spot::PhysicsWorld>().OverlapSphere(center, radius, {.ignore = ignore})) {
         Spot::Entity* entity = scene.GetEntity(hit.entity);
         if (!entity) {
             continue;

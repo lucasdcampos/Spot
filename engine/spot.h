@@ -192,3 +192,5 @@
 #include "spot/scene/rendering/rendering_components.h"
 #include "spot/scene/scripting/scripting_components.h"
 #include "spot/scene/ui/ui_components.h"
+
+#include "spot/scene/rendering/render_hook_system.h"

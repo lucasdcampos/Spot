@@ -1,4 +1,6 @@
 #include "robot.h"
+#include "spot/scene/audio/audio_system.h"
+#include "spot/scene/physics/physics_world.h"
 
 #include "sound_bank.h"
 
@@ -36,7 +38,7 @@ void Robot::OnUpdate(float deltaTime) {
     }
     m_pause = std::max(m_pause - deltaTime, 0.0f);
     animator->SetFloat("speed", m_pause > 0 ? 0.0f : distance > 2 ? 2.0f : 1.0f);
-    if (const auto listener = GetScene().GetAudio().FindListener()) {
+    if (const auto listener = GetScene().GetOrAddSystem<Spot::AudioSystem>().FindListener()) {
         const float away = Spot::Distance(listener->position, GetEntity().GetTransform().GetWorldPosition());
         animator->SetUpdateInterval(away < animationNear ? 0.0f : away < animationFar ? 1.0f / 30.0f : 1.0f / 12.0f);
     }
@@ -52,7 +54,9 @@ void Robot::OnFixedUpdate(float deltaTime) {
     if (m_dead || !character || !character->IsActiveAndEnabled()) {
         return;
     }
-    m_fall = character->IsGrounded() ? 0 : m_fall + GetScene().GetPhysics().GetGravity().y * deltaTime;
+    m_fall = character->IsGrounded()
+                 ? 0
+                 : m_fall + GetScene().GetOrAddSystem<Spot::PhysicsWorld>().GetGravity().y * deltaTime;
     character->Move({0, m_fall, 0}, deltaTime);
 }
 
@@ -65,11 +69,12 @@ void Robot::OnAnimationEvent(const Spot::AnimationEvent& event) {
     const auto* sounds = bank ? bank->GetSurface(SurfaceKind::Metal) : nullptr;
     if (sounds && !sounds->footsteps.empty()) {
         const auto& sound = sounds->footsteps[(m_footsteps - 1) % sounds->footsteps.size()];
-        GetScene().GetAudio().PlayOneShot(sound.GetShared(), GetEntity().GetTransform().GetWorldPosition(),
-                                          {.volume = 0.25f,
-                                           .bus = "Effects",
-                                           .spatialSettings = {.minDistance = 1, .maxDistance = 20},
-                                           .maxInstances = 3});
+        GetScene().GetOrAddSystem<Spot::AudioSystem>().PlayOneShot(
+            sound.GetShared(), GetEntity().GetTransform().GetWorldPosition(),
+            {.volume = 0.25f,
+             .bus = "Effects",
+             .spatialSettings = {.minDistance = 1, .maxDistance = 20},
+             .maxInstances = 3});
     }
 }
 

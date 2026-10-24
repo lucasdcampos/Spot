@@ -1,12 +1,13 @@
 #include "day_cycle.h"
 #include "player_controller.h"
 #include "playground_fixture.h"
+#include "spot/scene/physics/physics_world.h"
 
 #include <catch2/catch_approx.hpp>
 
 TEST_CASE("The workshop has a wide entrance, glass windows and steel stairs up to its roof", "[sandbox][level]") {
     SandboxTests::Playground game;
-    auto& physics = game.scene.GetPhysics();
+    auto& physics = game.scene.GetOrAddSystem<Spot::PhysicsWorld>();
     auto* workshop = game.scene.FindEntity("Workshop");
     REQUIRE(workshop);
     CHECK(game.scene.FindEntitiesWithTag("SpawnArea").size() == 3);

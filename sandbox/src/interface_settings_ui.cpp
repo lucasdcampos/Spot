@@ -1,4 +1,5 @@
 #include "runtime_interface.h"
+#include "spot/scene/ui/ui_input_system.h"
 
 #include <algorithm>
 #include <array>
@@ -191,7 +192,7 @@ void RuntimeInterface::HandleRawEvent(const Spot::Event& event, bool& consumed) 
         }
         return;
     }
-    if (!GetScene().GetUiInput().WantsTextInput() &&
+    if (!GetScene().GetOrAddSystem<Spot::UiInputSystem>().WantsTextInput() &&
         matches(actions->Find(m_menu == Menu::Spawn ? "Spawn Menu" : "Pause"))) {
         CloseMenus();
         consumed = true;

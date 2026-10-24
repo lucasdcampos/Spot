@@ -1,4 +1,5 @@
 #include "view_model.h"
+#include "spot/scene/physics/physics_world.h"
 
 #include "physics_gun.h"
 #include "player_controller.h"
@@ -189,8 +190,8 @@ void ViewModel::UpdateObstruction(float deltaTime) {
     // What the player carries or grabs is in front of it on purpose.
     if (player && m_shown && !(carrier && carrier->IsHolding()) && !(gun && gun->IsGrabbing())) {
         const float reach = m_hip.z - offset.z - m_muzzle.z + 0.05f;
-        const auto hit = GetScene().GetPhysics().Raycast(player->GetEyePosition(), player->GetAimDirection(), reach,
-                                                         {.ignore = GetEntity().GetId()});
+        const auto hit = GetScene().GetOrAddSystem<Spot::PhysicsWorld>().Raycast(
+            player->GetEyePosition(), player->GetAimDirection(), reach, {.ignore = GetEntity().GetId()});
         if (hit) {
             target = std::clamp((reach - hit->distance) / (reach * 0.6f), 0.0f, 1.0f);
         }

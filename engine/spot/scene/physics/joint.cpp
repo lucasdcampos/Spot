@@ -39,16 +39,16 @@ void Joint::SetBreakForce(float force) {
 }
 
 float Joint::GetForce() const {
-    return GetScene().GetPhysics().GetJointForce(*this);
+    return GetScene().GetOrAddSystem<Spot::PhysicsWorld>().GetJointForce(*this);
 }
 
 void Joint::OnEnable() {
     m_broken = false;
-    GetScene().GetPhysics().MarkJointChanged(*this);
+    GetScene().GetOrAddSystem<Spot::PhysicsWorld>().MarkJointChanged(*this);
 }
 
 void Joint::OnDisable() {
-    GetScene().GetPhysics().ForgetJoint(*this);
+    GetScene().GetOrAddSystem<Spot::PhysicsWorld>().ForgetJoint(*this);
 }
 
 void Joint::Serialize(Archive& archive) {
@@ -60,12 +60,12 @@ void Joint::Serialize(Archive& archive) {
 
 void Joint::MarkChanged() {
     if (IsActiveAndEnabled()) {
-        GetScene().GetPhysics().MarkJointChanged(*this);
+        GetScene().GetOrAddSystem<Spot::PhysicsWorld>().MarkJointChanged(*this);
     }
 }
 
 JointId3D Joint::GetJointId() const {
-    return GetScene().GetPhysics().FindJoint(*this);
+    return GetScene().GetOrAddSystem<Spot::PhysicsWorld>().FindJoint(*this);
 }
 
 void FixedJoint::Describe(JointDesc3D& desc, const Transform& transform, const Transform* /*connected*/) const {
@@ -90,11 +90,11 @@ void HingeJoint::SetMotor(bool motor, float speed, float maxTorque) {
     m_motorSpeed = speed;
     m_motorTorque = maxTorque;
     // Changed in place, so the hinge keeps counting its angle from where it was made.
-    GetScene().GetPhysics().SetHingeMotor(*this, motor, speed, maxTorque);
+    GetScene().GetOrAddSystem<Spot::PhysicsWorld>().SetHingeMotor(*this, motor, speed, maxTorque);
 }
 
 float HingeJoint::GetAngle() const {
-    return GetScene().GetPhysics().GetHingeAngle(*this);
+    return GetScene().GetOrAddSystem<Spot::PhysicsWorld>().GetHingeAngle(*this);
 }
 
 void HingeJoint::Serialize(Archive& archive) {

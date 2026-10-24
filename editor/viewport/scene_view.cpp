@@ -1,4 +1,5 @@
 #include "viewport/scene_view.h"
+#include "spot/scene/ui/ui_system.h"
 
 #include "app/editor_context.h"
 #include "imgui/drag_payloads.h"
@@ -261,7 +262,7 @@ void SceneView::HandleClick(const ImVec2& origin, const ImVec2& scale) {
         .add = io.KeyShift,
     };
     if (m_options.drawUi) {
-        auto& ui = m_shown->GetScene().GetUi();
+        auto& ui = m_shown->GetScene().GetOrAddSystem<Spot::UiSystem>();
         ui.Layout({static_cast<float>(m_width), static_cast<float>(m_height)});
         const Vector2 point{request.pixel.x, static_cast<float>(m_height) - request.pixel.y};
         const auto entries = ui.GetEntries();

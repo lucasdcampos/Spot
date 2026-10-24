@@ -1,4 +1,5 @@
 #include "hud.h"
+#include "spot/scene/physics/physics_world.h"
 
 #include "day_cycle.h"
 #include "physics_gun.h"
@@ -99,7 +100,8 @@ void Hud::OnLateUpdate(float) {
 
 void Hud::UpdateStatus() {
     m_status = std::format("{} FPS   {} bodies   update {:.2f} ms   render {:.2f} ms",
-                           static_cast<int>(std::lround(m_frameRate)), GetScene().GetPhysics().GetBodyCount(),
+                           static_cast<int>(std::lround(m_frameRate)),
+                           GetScene().GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount(),
                            GetAverageMilliseconds("Scene::Update"), GetAverageMilliseconds("Application::Render"));
 }
 

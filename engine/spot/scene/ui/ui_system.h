@@ -1,5 +1,6 @@
 #pragma once
 
+#include "spot/render/camera_2d.h"
 #include "spot/scene/entity.h"
 #include "spot/scene/scene_system.h"
 #include "spot/scene/ui/ui_layout.h"
@@ -24,6 +25,8 @@ struct UiLayoutEntry {
 class UiSystem final : public SceneSystem {
 public:
     void Layout(Vector2 viewSize);
+    void DrawUi(Renderer2D& renderer, Vector2 viewSize);
+    static Camera2D ScreenCamera(Vector2 viewSize);
     std::span<const UiLayoutEntry> GetEntries() const { return m_entries; }
     const UiLayoutEntry* Find(EntityId entity) const;
     Vector2 GetViewSize() const { return m_viewSize; }

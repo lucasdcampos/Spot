@@ -1,4 +1,6 @@
 #include "physics_gun.h"
+#include "spot/scene/physics/physics_world.h"
+#include "spot/scene/rendering/render_hook_system.h"
 
 #include "particle_effects.h"
 #include "player_controller.h"
@@ -66,8 +68,8 @@ bool PhysicsGun::IsActive() const {
 
 void PhysicsGun::Grab() {
     const auto* player = GetEntity().GetComponent<PlayerController>();
-    const auto hit = GetScene().GetPhysics().Raycast(player->GetEyePosition(), player->GetAimDirection(), range,
-                                                     {.ignore = GetEntity().GetId()});
+    const auto hit = GetScene().GetOrAddSystem<Spot::PhysicsWorld>().Raycast(
+        player->GetEyePosition(), player->GetAimDirection(), range, {.ignore = GetEntity().GetId()});
     Spot::Entity* prop = hit ? GetScene().GetEntity(hit->entity) : nullptr;
     auto* body = prop ? prop->GetComponent<Spot::Rigidbody>() : nullptr;
     if (!body || (body->IsKinematic() && !prop->HasTag(FrozenTag))) {
@@ -133,14 +135,14 @@ void PhysicsGun::OnFixedUpdate(float fixedDeltaTime) {
 }
 
 void PhysicsGun::OnEnable() {
-    m_beamHook =
-        GetScene().AddRenderHook(Spot::RenderStage::AfterOpaque,
-                                 [this](const Spot::RenderStageContext& stage) { m_beamLines.Draw(stage, m_beam); });
+    m_beamHook = GetScene().GetOrAddSystem<Spot::RenderHookSystem>().AddRenderHook(
+        Spot::RenderStage::AfterOpaque,
+        [this](const Spot::RenderStageContext& stage) { m_beamLines.Draw(stage, m_beam); });
 }
 
 void PhysicsGun::OnDisable() {
     Release();
-    GetScene().RemoveRenderHook(m_beamHook);
+    GetScene().GetOrAddSystem<Spot::RenderHookSystem>().RemoveRenderHook(m_beamHook);
     m_beamHook = Spot::RenderHookId::Invalid;
     m_beam.clear();
     m_particleEmission = 0;

@@ -1,4 +1,5 @@
 #include "../registered_assets.h"
+#include "spot/scene/physics/physics_world.h"
 // The sandbox's game code, run headless on its real scenes: the engine's integration test, which shows a regression
 // as something broken in the game.
 #include "day_cycle.h"
@@ -1488,16 +1489,16 @@ TEST_CASE("Sandbox commands gate cheats, resolve scene settings and clean spawne
     REQUIRE(spawner);
     REQUIRE(movement);
     REQUIRE_FALSE(spawner->GetSpawnables().empty());
-    const auto bodies = game.scene.GetPhysics().GetBodyCount();
+    const auto bodies = game.scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount();
     Spot::Console console;
     {
         SandboxCommands commands(console, game.scene);
         CHECK_FALSE(console.Execute("spawn crate"));
         CHECK(spawner->GetSpawnedCount() == 0);
         console.SetCheatsEnabled(true);
-        game.scene.GetPhysics().SetGravity({1.0f, -9.81f, 2.0f});
+        game.scene.GetOrAddSystem<Spot::PhysicsWorld>().SetGravity({1.0f, -9.81f, 2.0f});
         REQUIRE(console.Execute("gravity 0"));
-        CHECK(game.scene.GetPhysics().GetGravity() == Spot::Vector3{1.0f, 0.0f, 2.0f});
+        CHECK(game.scene.GetOrAddSystem<Spot::PhysicsWorld>().GetGravity() == Spot::Vector3{1.0f, 0.0f, 2.0f});
         CHECK_FALSE(console.Execute("gravity nan"));
         CHECK_FALSE(console.Execute("gravity 1001"));
         REQUIRE(console.Execute("timescale 0.25"));
@@ -1518,7 +1519,7 @@ TEST_CASE("Sandbox commands gate cheats, resolve scene settings and clean spawne
         REQUIRE(console.Execute("cleanup"));
         game.Run(Step);
         CHECK(spawner->GetSpawnedCount() == 0);
-        CHECK(game.scene.GetPhysics().GetBodyCount() == bodies);
+        CHECK(game.scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == bodies);
         CHECK_FALSE(console.Execute("give crate"));
     }
     CHECK(console.Complete("spawn").empty());
@@ -1550,7 +1551,7 @@ TEST_CASE("Giving weapons refills existing inventory and creates missing held we
     const auto removedId = pistol->GetEntity().GetId();
     pistol->GetEntity().Destroy();
     game.Run(Step);
-    const auto bodies = game.scene.GetPhysics().GetBodyCount();
+    const auto bodies = game.scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount();
     REQUIRE(console.Execute("give \"" + name + "\""));
     auto* given = holder->GetWeapon();
     REQUIRE(given);
@@ -1563,7 +1564,7 @@ TEST_CASE("Giving weapons refills existing inventory and creates missing held we
     game.Run(Step);
     CHECK(holder->GetWeapons().size() == original.size());
     CHECK(given->GetAmmo() == given->magazineSize);
-    CHECK(game.scene.GetPhysics().GetBodyCount() == bodies);
+    CHECK(game.scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == bodies);
 }
 
 TEST_CASE("Sandbox stress piles record physics scopes and cleanup removes their live bodies",
@@ -1579,7 +1580,7 @@ TEST_CASE("Sandbox stress piles record physics scopes and cleanup removes their 
         CHECK_FALSE(console.Execute(invalid));
     }
     CHECK(spawner->GetSpawnedCount() == 0);
-    const auto bodies = game.scene.GetPhysics().GetBodyCount();
+    const auto bodies = game.scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount();
     REQUIRE(console.Execute("stress 16"));
     CHECK(spawner->GetSpawnedCount() == 16);
     Spot::Profiler::Clear();
@@ -1598,7 +1599,7 @@ TEST_CASE("Sandbox stress piles record physics scopes and cleanup removes their 
     REQUIRE(console.Execute("cleanup"));
     game.Run(Step);
     CHECK(spawner->GetSpawnedCount() == 0);
-    CHECK(game.scene.GetPhysics().GetBodyCount() == bodies);
+    CHECK(game.scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == bodies);
     Spot::Profiler::Clear();
 }
 
@@ -1667,7 +1668,7 @@ TEST_CASE("Sandbox surface impacts and explosions select authored particle defin
         CHECK(ParticleCount(playground.scene, effect->settings.startColor) == 0);
     // Close above the ground, it kicks dust up from it.
     const Spot::Vector3 above = playground.PlayerPosition() + Spot::Vector3{0, 20, -10};
-    const auto ground = playground.scene.GetPhysics().Raycast(above, {0, -1, 0}, 40);
+    const auto ground = playground.scene.GetOrAddSystem<Spot::PhysicsWorld>().Raycast(above, {0, -1, 0}, 40);
     REQUIRE(ground);
     Explosion::Explode(playground.scene, ground->point + Spot::Vector3{0, 0.5f, 0}, 5, 0, 0);
     CHECK(ParticleCount(playground.scene, bank->groundDust.settings.startColor) == bank->groundDust.count);

@@ -1,4 +1,5 @@
 #include "viewport/ui_rect_gizmo.h"
+#include "spot/scene/ui/ui_system.h"
 
 #include "scene/scene_commands.h"
 
@@ -55,7 +56,7 @@ bool SetUiAnchorPreset(SceneDocument& document, EntityId id, Vector2 viewSize, V
     auto* rect = entity ? entity->GetComponent<UiRect>() : nullptr;
     if (!rect || IsManaged(*entity) || entity->GetComponent<Canvas>())
         return false;
-    auto& ui = document.GetScene().GetUi();
+    auto& ui = document.GetScene().GetOrAddSystem<Spot::UiSystem>();
     ui.Layout(viewSize);
     const auto* entry = ui.Find(id);
     if (!entry)
@@ -82,7 +83,7 @@ bool UiRectGizmo::Begin(SceneDocument& document, EntityId entity, Vector2 viewSi
     auto* rect = target ? target->GetComponent<UiRect>() : nullptr;
     if (!rect || IsManaged(*target) || target->GetComponent<Canvas>())
         return false;
-    auto& ui = document.GetScene().GetUi();
+    auto& ui = document.GetScene().GetOrAddSystem<Spot::UiSystem>();
     ui.Layout(viewSize);
     const auto* entry = ui.Find(entity);
     if (!entry)
@@ -140,7 +141,7 @@ void UiRectGizmo::Cancel(SceneDocument& document) {
 bool UiRectGizmo::Draw(SceneDocument& document, ImVec2 origin, ImVec2 size, Vector2 pixels) {
     if (pixels.x <= 0 || pixels.y <= 0)
         return false;
-    auto& ui = document.GetScene().GetUi();
+    auto& ui = document.GetScene().GetOrAddSystem<Spot::UiSystem>();
     ui.Layout(pixels);
     const auto toScreen = [&](Vector2 point) {
         return ImVec2{origin.x + point.x / pixels.x * size.x, origin.y + (1 - point.y / pixels.y) * size.y};

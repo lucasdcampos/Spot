@@ -19,6 +19,7 @@ public:
     ~UiInputSystem() override;
     // The state must outlive this binding; detach before destroying a state (as editor play sessions do).
     void SetInputState(InputState* input);
+    bool HandleUiEvent(const Event& event, Vector2 viewSize, InputState* input);
     bool OnEvent(const Event& event, Vector2 viewSize);
     void Refresh(Vector2 viewSize);
     bool Focus(EntityId entity);

@@ -1,3 +1,5 @@
+#include "spot/scene/ui/ui_input_system.h"
+#include "spot/scene/ui/ui_system.h"
 #include <spot.h>
 
 #include <catch2/catch_test_macros.hpp>
@@ -24,7 +26,9 @@ TEST_CASE("UI pointer routing respects topmost draw order and drag cancellation"
     int backClicks = 0, frontClicks = 0;
     auto a = back.GetComponent<Spot::UiButton>()->OnClick.Connect([&] { ++backClicks; });
     auto b = front.GetComponent<Spot::UiButton>()->OnClick.Connect([&] { ++frontClicks; });
-    auto send = [&](const Spot::Event& event) { return scene.HandleUiEvent(event, {800, 600}, &input); };
+    auto send = [&](const Spot::Event& event) {
+        return scene.GetOrAddSystem<Spot::UiInputSystem>().HandleUiEvent(event, {800, 600}, &input);
+    };
     send(Spot::MouseMovedEvent{{20, 580}, {}});
     CHECK(send(Spot::MouseButtonPressedEvent{Spot::MouseButton::Left}));
     CHECK(send(Spot::MouseButtonReleasedEvent{Spot::MouseButton::Left}));
@@ -51,7 +55,9 @@ TEST_CASE("Keyboard and gamepad navigate activate and reclaim focus after deleti
     auto& right = Button(root, "Right", {200, 100});
     int clicks = 0;
     auto connection = right.GetComponent<Spot::UiButton>()->OnClick.Connect([&] { ++clicks; });
-    auto send = [&](const Spot::Event& event) { return scene.HandleUiEvent(event, {800, 600}, &input); };
+    auto send = [&](const Spot::Event& event) {
+        return scene.GetOrAddSystem<Spot::UiInputSystem>().HandleUiEvent(event, {800, 600}, &input);
+    };
     CHECK(send(Spot::KeyPressedEvent{Spot::Key::Tab, false}));
     auto& ui = *scene.GetSystem<Spot::UiInputSystem>();
     CHECK(ui.GetFocusedEntity() == left.GetId());
@@ -77,12 +83,13 @@ TEST_CASE("Text focus and modal canvases own input and restore the requested cur
     auto& entity = root.CreateChild("Field");
     entity.AddComponent<Spot::UiRect>();
     auto& field = entity.AddComponent<Spot::UiInputField>();
-    scene.HandleUiEvent(Spot::KeyPressedEvent{Spot::Key::Tab, false}, {800, 600}, &input);
+    scene.GetOrAddSystem<Spot::UiInputSystem>().HandleUiEvent(Spot::KeyPressedEvent{Spot::Key::Tab, false}, {800, 600},
+                                                              &input);
     auto& ui = *scene.GetSystem<Spot::UiInputSystem>();
     CHECK(ui.WantsTextInput());
     CHECK(input.IsCaptured());
     CHECK_FALSE(input.IsCursorLockApplied());
-    CHECK(scene.HandleUiEvent(Spot::TextInputEvent{"Hello"}, {800, 600}, &input));
+    CHECK(scene.GetOrAddSystem<Spot::UiInputSystem>().HandleUiEvent(Spot::TextInputEvent{"Hello"}, {800, 600}, &input));
     CHECK(field.GetText() == "Hello");
     CHECK(input.GetTypedText().empty());
     ui.ClearFocus();
@@ -95,7 +102,8 @@ TEST_CASE("Text focus and modal canvases own input and restore the requested cur
         CHECK(id == root.GetId());
         root.SetActive(false);
     });
-    CHECK(scene.HandleUiEvent(Spot::KeyPressedEvent{Spot::Key::Escape, false}, {800, 600}, &input));
+    CHECK(scene.GetOrAddSystem<Spot::UiInputSystem>().HandleUiEvent(Spot::KeyPressedEvent{Spot::Key::Escape, false},
+                                                                    {800, 600}, &input));
     CHECK_FALSE(input.IsCaptured());
     CHECK(input.IsCursorLockApplied());
 }
@@ -113,17 +121,20 @@ TEST_CASE("Navigation reveals offscreen scroll children and clipped pointers can
     auto& button = Button(panel, "Bottom", {10, 10});
     int clicks = 0;
     auto click = button.GetComponent<Spot::UiButton>()->OnClick.Connect([&] { ++clicks; });
-    scene.HandleUiEvent(Spot::MouseMovedEvent{{310, 535}, {}}, {800, 600}, &input);
-    scene.HandleUiEvent(Spot::MouseButtonPressedEvent{Spot::MouseButton::Left}, {800, 600}, &input);
-    scene.HandleUiEvent(Spot::MouseButtonReleasedEvent{Spot::MouseButton::Left}, {800, 600}, &input);
+    scene.GetOrAddSystem<Spot::UiInputSystem>().HandleUiEvent(Spot::MouseMovedEvent{{310, 535}, {}}, {800, 600},
+                                                              &input);
+    scene.GetOrAddSystem<Spot::UiInputSystem>().HandleUiEvent(Spot::MouseButtonPressedEvent{Spot::MouseButton::Left},
+                                                              {800, 600}, &input);
+    scene.GetOrAddSystem<Spot::UiInputSystem>().HandleUiEvent(Spot::MouseButtonReleasedEvent{Spot::MouseButton::Left},
+                                                              {800, 600}, &input);
     CHECK(clicks == 0);
     auto& ui = *scene.GetSystem<Spot::UiInputSystem>();
     REQUIRE(ui.Focus(button.GetId()));
     CHECK(scroll.GetOffset().y > 200);
     const auto* layout = scene.GetSystem<Spot::UiSystem>()->Find(button.GetId());
     CHECK(layout->clip.Contains(layout->bounds.GetCenter()));
-    scene.HandleUiEvent(Spot::GamepadButtonPressedEvent{Spot::GamepadId{1}, Spot::GamepadButton::South}, {800, 600},
-                        &input);
+    scene.GetOrAddSystem<Spot::UiInputSystem>().HandleUiEvent(
+        Spot::GamepadButtonPressedEvent{Spot::GamepadId{1}, Spot::GamepadButton::South}, {800, 600}, &input);
     CHECK(clicks == 1);
 }
 
@@ -133,14 +144,15 @@ TEST_CASE("UI systems are created once across repeated events and layout passes"
     auto& canvas = scene.CreateEntity("Canvas");
     canvas.AddComponent<Spot::Canvas>();
     Button(canvas, "Button", {0, 0});
-    auto* layout = &scene.GetUi();
-    auto* ui = &scene.GetUiInput();
+    auto* layout = &scene.GetOrAddSystem<Spot::UiSystem>();
+    auto* ui = &scene.GetOrAddSystem<Spot::UiInputSystem>();
     for (int frame = 0; frame < 3; ++frame) {
-        scene.GetUi().Layout({800, 600});
-        scene.HandleUiEvent(Spot::KeyPressedEvent{Spot::Key::Tab, false}, {800, 600}, &input);
+        scene.GetOrAddSystem<Spot::UiSystem>().Layout({800, 600});
+        scene.GetOrAddSystem<Spot::UiInputSystem>().HandleUiEvent(Spot::KeyPressedEvent{Spot::Key::Tab, false},
+                                                                  {800, 600}, &input);
         scene.Update(0);
-        CHECK(&scene.GetUi() == layout);
-        CHECK(&scene.GetUiInput() == ui);
+        CHECK(&scene.GetOrAddSystem<Spot::UiSystem>() == layout);
+        CHECK(&scene.GetOrAddSystem<Spot::UiInputSystem>() == ui);
     }
 }
 
@@ -151,7 +163,7 @@ TEST_CASE("Consumed controls keep ownership through release after UI closes", "[
     root.AddComponent<Spot::Canvas>().settings.modal = true;
     Button(root, "Button", {10, 10});
     auto send = [&](const Spot::Event& event) {
-        const bool used = scene.HandleUiEvent(event, {800, 600}, &input);
+        const bool used = scene.GetOrAddSystem<Spot::UiInputSystem>().HandleUiEvent(event, {800, 600}, &input);
         if (!used)
             input.OnEvent(event);
         return used;

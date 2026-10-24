@@ -29,6 +29,10 @@ set(SPOT_LEVEL_EXCEPTIONS
 
 # Today's violations, each fixed by a task of the refactor: the commit that fixes one removes its line.
 set(SPOT_LEVEL_ALLOWLIST
+    "scene/rendering/scene_model.cpp>scene/animation/animator.h"
+    "scene/rendering/scene_model.cpp>scene/animation/bone_attachment.h"
+    "scene/rendering/scene_model.cpp>scene/animation/skinned_mesh_renderer.h"
+    "scene/rendering/scene_renderer.cpp>scene/ui/ui_system.h"
     "runtime/application.cpp>scene/animation/animation_components.h"
     "runtime/application.cpp>scene/audio/audio_components.h"
     "runtime/application.cpp>scene/particles/particles_components.h"

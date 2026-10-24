@@ -1,4 +1,5 @@
 #include "prop_carrier.h"
+#include "spot/scene/physics/physics_world.h"
 
 #include "physics_gun.h"
 #include "player_controller.h"
@@ -9,8 +10,9 @@ SPOT_COMPONENT(PropCarrier);
 
 Spot::Entity* PropCarrier::FindCarryable() const {
     const auto* player = GetEntity().GetComponent<PlayerController>();
-    const auto hit = player ? GetScene().GetPhysics().Raycast(player->GetEyePosition(), player->GetAimDirection(),
-                                                              reach, {.ignore = GetEntity().GetId()})
+    const auto hit = player ? GetScene().GetOrAddSystem<Spot::PhysicsWorld>().Raycast(player->GetEyePosition(),
+                                                                                      player->GetAimDirection(), reach,
+                                                                                      {.ignore = GetEntity().GetId()})
                             : std::nullopt;
     Spot::Entity* prop = hit ? GetScene().GetEntity(hit->entity) : nullptr;
     const auto* body = prop ? prop->GetComponent<Spot::Rigidbody>() : nullptr;
