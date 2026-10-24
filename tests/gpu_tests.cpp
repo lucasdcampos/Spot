@@ -3342,6 +3342,16 @@ private:
     Spot::Color m_color;
 };
 
+class UiDrawRecorder final : public Spot::Component, public Spot::UiDrawListener {
+public:
+    UiDrawRecorder(std::vector<int>& calls, int value) : m_calls(calls), m_value(value) {}
+    void OnDrawUi(Spot::Renderer2D&, Spot::Vector2) override { m_calls.push_back(m_value); }
+
+private:
+    std::vector<int>& m_calls;
+    int m_value;
+};
+
 } // namespace
 
 TEST_CASE("Scenes draw their active components' interfaces in pixels from the view's bottom-left corner", "[gpu]") {
@@ -3350,6 +3360,7 @@ TEST_CASE("Scenes draw their active components' interfaces in pixels from the vi
     std::vector<std::uint8_t> result;
     Spot::Scene scene;
     int frame = 0;
+    std::vector<int> drawCalls;
 
     RenderingApplication application([&](Spot::Application& app, Spot::RenderContext& context) {
         auto& device = app.GetGraphicsDevice();
@@ -3364,8 +3375,9 @@ TEST_CASE("Scenes draw their active components' interfaces in pixels from the vi
         REQUIRE(target);
         scene.CreateEntity("Square").AddComponent<UiSquare>(2.0f, Spot::Color::Green);
         scene.CreateEntity("Disabled").AddComponent<UiSquare>(4.0f, Spot::Color::Blue).SetEnabled(false);
-        // Components draw once they started, as they update.
-        scene.Update(0.0f);
+        auto& firstEntity = scene.CreateEntity("Earlier entity");
+        scene.CreateEntity("Later entity").AddComponent<UiDrawRecorder>(drawCalls, 1);
+        firstEntity.AddComponent<UiDrawRecorder>(drawCalls, 2);
 
         Spot::Renderer2D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
         REQUIRE(renderer.IsValid());
@@ -3373,6 +3385,11 @@ TEST_CASE("Scenes draw their active components' interfaces in pixels from the vi
         auto pass = context.BeginRenderPass({.target = target.get(), .clearColor = Spot::Color::Black});
         renderer.Begin(pass, Spot::UiSystem::ScreenCamera(size), size);
         scene.GetOrAddSystem<Spot::UiSystem>().DrawUi(renderer, size);
+        CHECK(drawCalls.empty());
+        // Custom overlays wait for OnStart; component addition order determines drawing order.
+        scene.Update(0.0f);
+        scene.GetOrAddSystem<Spot::UiSystem>().DrawUi(renderer, size);
+        CHECK(drawCalls == std::vector<int>{1, 2});
         renderer.End();
     });
 
@@ -4073,6 +4090,22 @@ TEST_CASE("SceneRenderer runs render hooks at their stages, its own before the s
     scene.GetOrAddSystem<Spot::RenderHookSystem>().AddRenderHook(
         Spot::RenderStage::Overlay, [](const Spot::RenderStageContext&) { throw std::runtime_error("Broken hook"); });
 
+    auto& hooks = scene.GetOrAddSystem<Spot::RenderHookSystem>();
+    std::vector<std::string> mutations;
+    auto self = Spot::RenderHookId::Invalid;
+    auto removed = Spot::RenderHookId::Invalid;
+    self = hooks.AddRenderHook(Spot::RenderStage::Overlay, [&](const Spot::RenderStageContext&) {
+        mutations.push_back("self");
+        hooks.RemoveRenderHook(self);
+        hooks.RemoveRenderHook(removed);
+        hooks.AddRenderHook(Spot::RenderStage::Overlay,
+                            [&](const Spot::RenderStageContext&) { mutations.push_back("added"); });
+    });
+    removed = hooks.AddRenderHook(Spot::RenderStage::Overlay,
+                                  [&](const Spot::RenderStageContext&) { mutations.push_back("removed"); });
+    hooks.AddRenderHook(Spot::RenderStage::Overlay,
+                        [&](const Spot::RenderStageContext&) { mutations.push_back("survivor"); });
+
     std::vector<std::uint8_t> first;
     std::vector<std::uint8_t> second;
     int frame = 0;
@@ -4104,6 +4137,8 @@ TEST_CASE("SceneRenderer runs render hooks at their stages, its own before the s
     });
     REQUIRE(application.Run() == EXIT_SUCCESS);
 
+    CHECK(mutations == std::vector<std::string>{"self", "survivor", "survivor", "added"});
+    CHECK_FALSE(hooks.IsFaulted());
     CHECK(calls == std::vector<std::string>{"0", "renderer", "1", "2", "3", "4", "5"});
     REQUIRE(first.size() == 4 * 4 * 4);
     REQUIRE(second.size() == 4 * 4 * 4);

@@ -146,21 +146,20 @@ void UiSystem::DrawUi(Renderer2D& renderer, Vector2 viewSize) {
     Scene& scene = GetScene();
     const Detail::DeferRemovalsScope defer(scene);
     Layout(viewSize);
-    auto draw = [&](Entity& entity) {
-        entity.ForEachComponent<Component>([&](Component& component) {
-            if (auto* listener = dynamic_cast<UiDrawListener*>(&component);
-                listener && component.IsActiveAndEnabled()) {
-                component.RunGuarded("OnDrawUi", [&] { listener->OnDrawUi(renderer, viewSize); });
-            }
-        });
+    auto draw = [&](Component& component) {
+        if (!component.IsActiveAndEnabled() || (!component.HasStarted() && !dynamic_cast<UiWidget*>(&component)))
+            return;
+        if (auto* listener = dynamic_cast<UiDrawListener*>(&component)) {
+            component.RunGuarded("OnDrawUi", [&] { listener->OnDrawUi(renderer, viewSize); });
+        }
     };
-    scene.ForEachEntity([&](Entity& entity) {
-        if (entity.IsActiveInHierarchy() && !entity.GetComponentInParent<Canvas>())
-            draw(entity);
+    scene.ForEachComponent<Component>([&](Component& component) {
+        if (!component.GetEntity().GetComponentInParent<Canvas>())
+            draw(component);
     });
     for (const auto& entry : GetEntries()) {
         if (auto* entity = scene.GetEntity(entry.entity))
-            draw(*entity);
+            entity->ForEachComponent<Component>(draw);
     }
     renderer.SetScissor({0, 0, static_cast<std::int32_t>(viewSize.x), static_cast<std::int32_t>(viewSize.y)});
 }

@@ -153,3 +153,7 @@ input bindings and project defaults; both standalone and editor game rendering f
 
 Custom component overlays derive from `UiDrawListener` (`scene/ui/ui_draw_listener.h`) and
 override `OnDrawUi(Renderer2D&, Vector2)`. `UiWidget` implements this interface for built-in widgets.
+
+Custom UI listeners draw after `HasStarted()` becomes true, in component addition order outside
+canvases and in canvas layout order inside them. Widgets may draw before their first update so
+interfaces are visible immediately; disabled, removed and faulted components are skipped.

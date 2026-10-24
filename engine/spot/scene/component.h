@@ -85,6 +85,8 @@ public:
     void Destroy();
     ComponentId GetId() const { return m_id; }
 
+    // Whether OnStart() has run and the component has not been destroyed.
+    bool HasStarted() const { return m_started; }
     bool IsEnabled() const { return m_enabled; }
     void SetEnabled(bool enabled);
     // Whether the component is enabled, on an entity active in the hierarchy, and neither is being removed.
