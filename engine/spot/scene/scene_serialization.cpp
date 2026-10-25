@@ -174,9 +174,16 @@ public:
                 names += (i == 0 ? "'" : ", '") + found.entities[i] + "'";
             if (found.entities.size() > Listed)
                 names += " and " + std::to_string(found.entities.size() - Listed) + " more";
-            Log::GetEngineLogger().Warning("{} component{} of type '{}', which is not registered, {} (on {})",
-                                           found.count, found.count == 1 ? "" : "s", type,
-                                           found.kept ? "keep their data as it is" : "are skipped", names);
+            // Kept components lose nothing: whoever keeps them, such as the editor before the game's code loads,
+            // expects types it does not know yet, so only skipped ones are worth a warning.
+            if (found.kept) {
+                Log::GetEngineLogger().Debug("{} component{} of type '{}', which is not registered, keep their data "
+                                             "as it is (on {})",
+                                             found.count, found.count == 1 ? "" : "s", type, names);
+            } else {
+                Log::GetEngineLogger().Warning("{} component{} of type '{}', which is not registered, are skipped (on {})",
+                                               found.count, found.count == 1 ? "" : "s", type, names);
+            }
         }
     }
     UnregisteredScope(const UnregisteredScope&) = delete;
@@ -189,8 +196,14 @@ private:
 
 void ReportUnregistered(const std::string& entity, const std::string& type, bool kept) {
     if (!t_unregistered) {
-        Log::GetEngineLogger().Warning("A component of entity '{}' is of type '{}', which is not registered; {}",
-                                       entity, type, kept ? "its data is kept as it is" : "it is skipped");
+        if (kept) {
+            Log::GetEngineLogger().Debug(
+                "A component of entity '{}' is of type '{}', which is not registered; its data is kept as it is",
+                entity, type);
+        } else {
+            Log::GetEngineLogger().Warning(
+                "A component of entity '{}' is of type '{}', which is not registered; it is skipped", entity, type);
+        }
         return;
     }
     auto& found = t_unregistered->types[type];
