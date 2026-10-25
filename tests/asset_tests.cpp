@@ -24,6 +24,7 @@
 #include <memory>
 #include <span>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <unordered_set>
 #include <vector>
@@ -389,6 +390,35 @@ TEST_CASE("Sources whose files were only touched are not imported again", "[asse
     std::filesystem::last_write_time(file, std::filesystem::last_write_time(file) - std::chrono::hours(1));
     CHECK(database.Refresh() == 0);
     CHECK(database.Refresh() == 0);
+}
+
+TEST_CASE("Refreshing tells of each source it imports, from any thread", "[assets]") {
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    CreateProject(sources);
+    AssetDatabase database(sources, project.GetPath() / "imported");
+    std::vector<std::string> told;
+    std::size_t sourceCount = 0;
+    bool inOrder = true;
+    // Checked after, as Catch's checks are for the test's thread.
+    const auto observer = [&](std::string_view path, std::size_t index, std::size_t count) {
+        inOrder = inOrder && index < count;
+        told.emplace_back(path);
+        sourceCount = count;
+    };
+    // As the editor imports while it keeps drawing.
+    std::size_t imported = 0;
+    std::thread([&] { imported = database.Refresh(observer); }).join();
+    CHECK(imported == 3);
+    CHECK(told.size() == 3);
+    CHECK(inOrder);
+    CHECK(sourceCount >= told.size());
+    CHECK(std::ranges::is_sorted(told));
+
+    // Up to date, nothing is imported, so nothing is told.
+    told.clear();
+    CHECK(database.Refresh(observer) == 0);
+    CHECK(told.empty());
 }
 
 TEST_CASE("Sources changed again within a tick of the file system's clock are imported again", "[assets]") {

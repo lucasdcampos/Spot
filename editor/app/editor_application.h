@@ -65,7 +65,9 @@ protected:
     bool OnCloseRequested() override;
 
 private:
+    // Starts opening the project, whose assets import meanwhile; FinishOpeningProject() opens it once they are.
     void OpenProject(const std::filesystem::path& file);
+    void FinishOpeningProject();
     void CloseProject();
     void ConfirmUnsavedChanges(std::function<void()> proceed);
     void BrowseForProject();
@@ -102,6 +104,8 @@ private:
     void Redo();
     void DrawEntityMenu(SceneDocument& document);
     void DrawAboutWindow();
+    // While a project opens: what is importing, and for how long.
+    void DrawOpeningWindow();
     void DrawErrorWindow();
 
     EditorOptions m_options;
@@ -132,6 +136,7 @@ private:
     std::unique_ptr<Texture> m_screenshotTarget;
 
     std::optional<std::filesystem::path> m_projectToOpen;
+    std::unique_ptr<EditorProject::Opening> m_opening;
     bool m_closeProjectRequested = false;
     // Set once the user agreed to quit, after being asked about unsaved changes.
     bool m_quitConfirmed = false;

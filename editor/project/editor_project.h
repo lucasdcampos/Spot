@@ -5,9 +5,15 @@
 #include <spot.h>
 #include <spot_tools.h>
 
+#include <atomic>
+#include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -16,8 +22,51 @@ namespace Spot::Editor {
 // A project open in the editor, with its source assets imported and its assets ready to load.
 class EditorProject {
 public:
-    // Loads the project and imports what changed in its assets. Returns null, after logging why, when the file is
-    // not a project. Without a graphics device, textures, meshes and fonts cannot load.
+    // A project being opened: what changed in its assets imports on a thread of its own, which can take long after
+    // many sources changed, so the editor keeps drawing and shows how far it got.
+    class Opening {
+    public:
+        struct Progress {
+            // The source file being imported, empty until the first one.
+            std::string path;
+            std::size_t index = 0;
+            // How many sources there are, imported or found unchanged.
+            std::size_t count = 0;
+        };
+
+        // Waits for the import to end.
+        ~Opening();
+
+        Opening(const Opening&) = delete;
+        Opening& operator=(const Opening&) = delete;
+
+        const Project& GetProject() const { return m_project; }
+        bool IsDone() const { return m_done; }
+        Progress GetProgress() const;
+        std::chrono::duration<float> GetDuration() const;
+        // The project, ready to edit, once its assets are imported, which it waits for. Call it once. Without a
+        // graphics device, textures, meshes and fonts cannot load.
+        std::unique_ptr<EditorProject> Finish(GraphicsDevice* device);
+
+    private:
+        friend class EditorProject;
+        explicit Opening(Project project);
+
+        Project m_project;
+        std::unique_ptr<AssetDatabase> m_database;
+        std::size_t m_imported = 0;
+        std::chrono::steady_clock::time_point m_started = std::chrono::steady_clock::now();
+        std::atomic<bool> m_done = false;
+        mutable std::mutex m_mutex;
+        Progress m_progress;
+        // Last, so it starts once the rest is there.
+        std::thread m_thread;
+    };
+
+    // Loads the project and starts importing what changed in its assets. Returns null, after logging why, when the
+    // file is not a project.
+    static std::unique_ptr<Opening> BeginOpen(const std::filesystem::path& file);
+    // As BeginOpen(), then Finish() once the assets are imported.
     static std::unique_ptr<EditorProject> Open(const std::filesystem::path& file, GraphicsDevice* device);
 
     EditorProject(const EditorProject&) = delete;
@@ -41,7 +90,8 @@ public:
     std::vector<AssetId> TakeReloadedAssets() { return std::exchange(m_reloaded, {}); }
 
 private:
-    EditorProject(Project project, GraphicsDevice* device);
+    EditorProject(Project project, std::unique_ptr<AssetDatabase> database, std::size_t imported,
+                  GraphicsDevice* device);
 
     Project m_project;
     std::unique_ptr<AssetDatabase> m_database;

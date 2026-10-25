@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <optional>
 #include <span>
 #include <string>
@@ -43,10 +44,15 @@ public:
     const std::filesystem::path& GetSourceDirectory() const { return m_sourceDirectory; }
     const std::filesystem::path& GetImportDirectory() const { return m_importDirectory; }
 
+    // Told of each source file before it is imported, by its path, with its place among the sources looked at and
+    // their count, so tools can show what takes long. Called on the thread that imports.
+    using ImportObserver = std::function<void(std::string_view path, std::size_t index, std::size_t count)>;
+
     // Finds the source files again and imports the ones that changed. Files without a meta file get one with a new
     // id, and ids that clash, such as from a file copied with its meta file, are replaced in the copy. Imported
-    // files of assets that are gone are deleted. Returns how many sources were imported.
-    std::size_t Refresh();
+    // files of assets that are gone are deleted. Returns how many sources were imported. Any thread may refresh,
+    // while nothing else uses the database.
+    std::size_t Refresh(const ImportObserver& observer = {});
     // Imports the source again, such as after its settings changed, even if nothing else did.
     bool Reimport(AssetId id);
     // The assets that the last Refresh() or Reimport() imported again or removed, sub-assets included, whose loaded
@@ -104,7 +110,7 @@ private:
     // False when the source directory cannot be read.
     bool Scan();
     // Imports the sources that changed, or are forced to; returns how many were imported.
-    std::size_t Import(const AssetId* forced);
+    std::size_t Import(const AssetId* forced, const ImportObserver& observer = {});
     std::uint64_t HashSource(const Source& source, const std::vector<std::string>& dependencies,
                              std::uint32_t importerVersion) const;
     // As HashSource(), from the files' sizes and times of last change instead of their contents, which is much

@@ -33,14 +33,14 @@ AssetDatabase::AssetDatabase(std::filesystem::path sourceDirectory, std::filesys
     : m_sourceDirectory(std::move(sourceDirectory)), m_importDirectory(std::move(importDirectory)) {
 }
 
-std::size_t AssetDatabase::Refresh() {
+std::size_t AssetDatabase::Refresh(const ImportObserver& observer) {
     // Without sources, importing would delete every imported asset, which may be all a game has.
     if (!Scan()) {
         m_assets.clear();
         m_assetIndices.clear();
         return 0;
     }
-    return Import(nullptr);
+    return Import(nullptr, observer);
 }
 
 bool AssetDatabase::Reimport(AssetId id) {
@@ -170,7 +170,7 @@ std::optional<AssetId> AssetDatabase::ExtractMaterial(AssetId material, std::str
     return meta.id;
 }
 
-std::size_t AssetDatabase::Import(const AssetId* forced) {
+std::size_t AssetDatabase::Import(const AssetId* forced, const ImportObserver& observer) {
     std::error_code error;
     std::filesystem::create_directories(m_importDirectory, error);
     if (error) {
@@ -191,7 +191,8 @@ std::size_t AssetDatabase::Import(const AssetId* forced) {
     std::size_t importedCount = 0;
     m_changed.clear();
     const std::int64_t now = std::filesystem::file_time_type::clock::now().time_since_epoch().count();
-    for (auto& source : m_sources) {
+    for (std::size_t index = 0; index < m_sources.size(); ++index) {
+        Source& source = m_sources[index];
         const Detail::ImporterInfo importer = Detail::FindImporter(source.meta.type);
         Detail::ManifestEntry sourceEntry;
         sourceEntry.id = source.meta.id;
@@ -241,6 +242,9 @@ std::size_t AssetDatabase::Import(const AssetId* forced) {
                     m_changed.push_back(entry.id);
                 }
             }
+        }
+        if (observer) {
+            observer(source.relativePath, index, m_sources.size());
         }
         const std::size_t knownSubAssets = source.meta.subAssets.size();
         Detail::ImportContext context(source.path, source.meta, m_importDirectory);

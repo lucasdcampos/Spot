@@ -15,6 +15,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <thread>
 
 using namespace std::chrono_literals;
 
@@ -154,6 +155,37 @@ TEST_CASE("The 3D template makes a project that opens on a lit scene", "[editor]
     const auto* renderer = cube->GetComponent<Spot::MeshRenderer>();
     REQUIRE(renderer != nullptr);
     CHECK(renderer->GetMesh().GetId() == Spot::BuiltInAssets::CubeMesh);
+}
+
+TEST_CASE("Projects import their assets in the background while they open, and tell what they import",
+          "[editor][project]") {
+    const TempDirectory temp;
+    const auto file = Spot::CreateProject(temp.GetPath(), "Demo", Spot::ProjectTemplate::Basic3D);
+    REQUIRE(file.has_value());
+    CHECK_FALSE(Spot::Editor::EditorProject::BeginOpen(temp.GetPath() / "missing.spot"));
+    // Never imported, as after its import folder is deleted.
+    std::filesystem::remove_all(Spot::Project::Load(*file)->GetImportDirectory());
+
+    const auto opening = Spot::Editor::EditorProject::BeginOpen(*file);
+    REQUIRE(opening);
+    CHECK(opening->GetProject().GetSettings().name == "Demo");
+    // The editor keeps drawing meanwhile, as this thread waits.
+    const auto started = std::chrono::steady_clock::now();
+    while (!opening->IsDone() && std::chrono::steady_clock::now() - started < 60s) {
+        std::this_thread::sleep_for(5ms);
+    }
+    REQUIRE(opening->IsDone());
+    const auto progress = opening->GetProgress();
+    // The last source imported, among those found.
+    CHECK_FALSE(progress.path.empty());
+    CHECK(progress.index < progress.count);
+    CHECK(opening->GetDuration().count() > 0.0f);
+
+    const auto project = opening->Finish(nullptr);
+    REQUIRE(project);
+    const Spot::AssetId startup = project->GetProject().GetSettings().startupScene;
+    REQUIRE(project->GetAssetDatabase().Find(startup));
+    CHECK(Spot::InstantiateScene(project->GetAssets(), startup));
 }
 
 TEST_CASE("The 3D with C++ template adds the game's code, whose component the scene keeps until it is built",

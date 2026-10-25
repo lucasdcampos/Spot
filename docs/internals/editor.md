@@ -24,6 +24,13 @@ with code need. An open project (`EditorProject`) has its `Project` (see
 an `AssetManager` that loads the imports, and, for projects with code, a `ModuleHost` that builds and loads the
 game's code.
 
+Opening a project imports what changed in its assets since it was last open, which takes minutes when large sources
+changed, such as a regenerated level. So `EditorProject::BeginOpen()` loads the project and imports on a thread of
+its own (`AssetDatabase::Refresh()` tells which source it imports), while the editor keeps drawing a modal window with
+the file being imported and the time so far; the project opens once the import ends (`Opening::Finish()`). The
+project open before closes first, as its changes were asked about already and nothing else may use the import folder
+meanwhile. Later imports, when the editor regains focus or a tool changes the sources, still run on the main thread.
+
 ## Documents, undo and ids
 
 Each open scene is a `SceneDocument` in the `SceneWorkspace`, with its own view, selection and history. Every change

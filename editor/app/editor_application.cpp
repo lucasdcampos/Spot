@@ -43,6 +43,7 @@ namespace {
 
 constexpr const char* SceneAreaId = "Scene";
 constexpr const char* ErrorPopupId = "##EditorError";
+constexpr const char* OpeningPopupId = "##OpeningProject";
 // Frames per second while the editor is in the background, so it stays live without using the GPU fully.
 constexpr int BackgroundFrameRate = 20;
 const std::array ProjectFilters{FileFilter{"Spot projects", "spot"}};
@@ -214,7 +215,7 @@ void EditorApplication::OnEvent(const Event& event) {
     } else if (const auto* focus = event.GetIf<WindowFocusEvent>()) {
         SetMaxFrameRate(focus->focused ? 0 : BackgroundFrameRate);
         // Files may have changed in other applications meanwhile.
-        if (EditorProject* project = m_context->GetProject(); project && focus->focused) {
+        if (EditorProject* project = m_context->GetProject(); project && focus->focused && !m_opening) {
             project->Refresh();
         }
     } else if (const auto* drop = event.GetIf<FileDropEvent>()) {
@@ -235,6 +236,9 @@ void EditorApplication::OnUpdate(float /*deltaTime*/) {
         const std::filesystem::path file = std::move(*m_projectToOpen);
         m_projectToOpen.reset();
         OpenProject(file);
+    }
+    if (m_opening && m_opening->IsDone()) {
+        FinishOpeningProject();
     }
     if (std::exchange(m_stopPlayingRequested, false) && m_workspace->GetPlaySession()) {
         m_workspace->StopPlaying();
@@ -305,7 +309,10 @@ void EditorApplication::OnRender(RenderContext& context) {
         auto pass = context.BeginRenderPass({.clearColor = Color{0.078f, 0.082f, 0.090f, 1.0f}});
         m_imgui->Render(pass);
     }
-    ++m_frame;
+    // Screenshots wait for the project to open, however long its assets take to import.
+    if (!m_opening) {
+        ++m_frame;
+    }
     if (!m_options.screenshot.empty()) {
         UpdateScreenshot(context);
     }
@@ -341,6 +348,8 @@ void EditorApplication::UpdateScreenshot(RenderContext& context) {
 }
 
 void EditorApplication::OnStop() {
+    // A project still opening waits for its import to end.
+    m_opening.reset();
     CloseProject();
     m_settings.Save();
     m_inspector = nullptr;
@@ -373,17 +382,25 @@ bool EditorApplication::OnCloseRequested() {
 }
 
 void EditorApplication::OpenProject(const std::filesystem::path& path) {
+    if (m_opening) {
+        return;
+    }
     const std::filesystem::path file = FindProjectFile(path);
-    auto project = EditorProject::Open(file, &GetGraphicsDevice());
-    if (!project) {
+    m_opening = EditorProject::BeginOpen(file);
+    if (!m_opening) {
         ShowError("Could not open the project",
                   std::format("'{}' is not a Spot project, or it could not be read.", PathToUtf8(file)));
         m_settings.RemoveRecentProject(file);
         m_settings.Save();
         return;
     }
-
+    // Its changes were asked about before, and nothing may use the import folder while the new project imports,
+    // which it shares when the same project opens again.
     CloseProject();
+}
+
+void EditorApplication::FinishOpeningProject() {
+    auto project = std::exchange(m_opening, nullptr)->Finish(&GetGraphicsDevice());
     Detail::SetAssetManager(&project->GetAssets());
     m_settings.AddRecentProject(project->GetProject().GetFile(), project->GetProject().GetSettings().name);
     m_settings.Save();
@@ -501,6 +518,7 @@ void EditorApplication::DrawUi() {
     m_preferences->Draw();
     m_shortcuts.Draw();
     DrawAboutWindow();
+    DrawOpeningWindow();
     DrawErrorWindow();
     if (m_showImGuiDemo) {
         ImGui::ShowDemoWindow(&m_showImGuiDemo);
@@ -1195,6 +1213,59 @@ void EditorApplication::DrawAboutWindow() {
     if (ImGui::Button("Close", {buttonWidth, 0.0f}) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
         ImGui::CloseCurrentPopup();
     }
+    ImGui::EndPopup();
+}
+
+void EditorApplication::DrawOpeningWindow() {
+    // Modal, so nothing else is done until the project is open, and without a way to close it: the import ends.
+    const bool open = ImGui::IsPopupOpen(OpeningPopupId);
+    if (!m_opening && !open) {
+        return;
+    }
+    if (m_opening && !open) {
+        ImGui::OpenPopup(OpeningPopupId);
+    }
+    ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Always, {0.5f, 0.5f});
+    ImGui::SetNextWindowSize({ImGui::GetFontSize() * 30.0f, 0.0f});
+    if (!ImGui::BeginPopupModal(OpeningPopupId, nullptr,
+                                ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar |
+                                    ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize)) {
+        return;
+    }
+    if (!m_opening) {
+        ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+        return;
+    }
+    const EditorProject::Opening::Progress progress = m_opening->GetProgress();
+    // It turns, so the editor is seen not to hang while a large asset imports.
+    const float radius = ImGui::GetFontSize() * 0.55f;
+    const ImVec2 corner = ImGui::GetCursorScreenPos();
+    const ImVec2 center{corner.x + radius, corner.y + ImGui::GetTextLineHeight() * 0.5f + 1.0f};
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    const float thickness = std::max(2.0f, ImGui::GetFontSize() * 0.13f);
+    drawList->AddCircle(center, radius, IM_COL32(255, 255, 255, 40), 32, thickness);
+    const auto angle = static_cast<float>(ImGui::GetTime() * 5.0);
+    drawList->PathArcTo(center, radius, angle, angle + 5.0f, 32);
+    drawList->PathStroke(ImGui::GetColorU32(EditorColors::Accent), thickness);
+    ImGui::Dummy({radius * 2.0f, ImGui::GetTextLineHeight()});
+    ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x * 2.0f);
+    ImGui::PushFont(GetBoldFont(), 0.0f);
+    const std::string title = std::format("Opening '{}'", m_opening->GetProject().GetSettings().name);
+    ImGui::TextUnformatted(title.c_str());
+    ImGui::PopFont();
+
+    ImGui::Spacing();
+    const std::string detail =
+        progress.path.empty()
+            ? std::string("Looking for changed assets")
+            : std::format("Importing {}", Widgets::EllipsizeStart(progress.path, ImGui::GetContentRegionAvail().x -
+                                                                                     ImGui::GetFontSize() * 5.0f));
+    ImGui::TextColored(EditorColors::TextMuted, "%s", detail.c_str());
+    const float fraction =
+        progress.count == 0 ? 0.0f : static_cast<float>(progress.index) / static_cast<float>(progress.count);
+    const std::string overlay = std::format("{:.0f} s", m_opening->GetDuration().count());
+    ImGui::ProgressBar(fraction, {-FLT_MIN, 0.0f}, overlay.c_str());
     ImGui::EndPopup();
 }
 

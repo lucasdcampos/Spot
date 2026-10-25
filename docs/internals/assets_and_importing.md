@@ -33,7 +33,8 @@ which get ids of their own under a key that names the part (`models/house.glb#Ro
 
 - `Refresh()` finds the sources, gives new ones a `.meta` file and imports the ones that changed into the import
   directory, along with a manifest of what it holds. Ids that clash, as from a file copied with its `.meta`, are
-  replaced in the copy.
+  replaced in the copy. An observer it is given hears of each source before it imports; the editor refreshes on a
+  thread of its own while a project opens, and shows which file takes the time.
 - Shipped games hold their imported assets in one pak, `assets.pak` in the import directory
   (`engine/spot/assets/asset_pak.h`), which `spot export` and `spot pack` write: a table of the assets, then each one,
   compressed with LZ4 when that saves enough. `AssetManager` reads from it whenever it is there, and from a file per

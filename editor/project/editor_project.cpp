@@ -11,22 +11,63 @@
 #include "core/editor_log.h"
 
 #include <algorithm>
+#include <string_view>
 #include <utility>
 
 namespace Spot::Editor {
 
-std::unique_ptr<EditorProject> EditorProject::Open(const std::filesystem::path& file, GraphicsDevice* device) {
+EditorProject::Opening::Opening(Project project)
+    : m_project(std::move(project)),
+      m_database(std::make_unique<AssetDatabase>(m_project.GetAssetsDirectory(), m_project.GetImportDirectory())),
+      m_thread([this] {
+          m_imported = m_database->Refresh([this](std::string_view path, std::size_t index, std::size_t count) {
+              const std::scoped_lock lock(m_mutex);
+              m_progress = {std::string(path), index, count};
+          });
+          m_done = true;
+      }) {
+}
+
+EditorProject::Opening::~Opening() {
+    if (m_thread.joinable()) {
+        m_thread.join();
+    }
+}
+
+EditorProject::Opening::Progress EditorProject::Opening::GetProgress() const {
+    const std::scoped_lock lock(m_mutex);
+    return m_progress;
+}
+
+std::chrono::duration<float> EditorProject::Opening::GetDuration() const {
+    return std::chrono::steady_clock::now() - m_started;
+}
+
+std::unique_ptr<EditorProject> EditorProject::Opening::Finish(GraphicsDevice* device) {
+    if (m_thread.joinable()) {
+        m_thread.join();
+    }
+    return std::unique_ptr<EditorProject>(
+        new EditorProject(std::move(m_project), std::move(m_database), m_imported, device));
+}
+
+std::unique_ptr<EditorProject::Opening> EditorProject::BeginOpen(const std::filesystem::path& file) {
     auto project = Project::Load(file);
     if (!project) {
         return nullptr;
     }
     UpdateProjectLayout(*project);
-    return std::unique_ptr<EditorProject>(new EditorProject(std::move(*project), device));
+    return std::unique_ptr<Opening>(new Opening(std::move(*project)));
 }
 
-EditorProject::EditorProject(Project project, GraphicsDevice* device) : m_project(std::move(project)) {
-    m_database = std::make_unique<AssetDatabase>(m_project.GetAssetsDirectory(), m_project.GetImportDirectory());
-    const std::size_t imported = m_database->Refresh();
+std::unique_ptr<EditorProject> EditorProject::Open(const std::filesystem::path& file, GraphicsDevice* device) {
+    const auto opening = BeginOpen(file);
+    return opening ? opening->Finish(device) : nullptr;
+}
+
+EditorProject::EditorProject(Project project, std::unique_ptr<AssetDatabase> database, std::size_t imported,
+                             GraphicsDevice* device)
+    : m_project(std::move(project)), m_database(std::move(database)) {
     m_assets = std::make_unique<AssetManager>(m_project.GetImportDirectory());
     RegisterGraphicsAssets(*m_assets, device);
     RegisterRenderAssets(*m_assets, device);
