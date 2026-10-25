@@ -2,7 +2,9 @@
 
 #include "spot/core/math/vector.h"
 
+#include <cstdint>
 #include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 
@@ -63,6 +65,9 @@ public:
 
     const std::string& GetTitle() const;
     void SetTitle(std::string_view title);
+    // The icon the OS shows for the window, from 8-bit RGBA pixels with rows from top to bottom. Platforms without
+    // window icons ignore it.
+    void SetIcon(std::span<const std::uint8_t> rgba, int width, int height);
 
     // A captured mouse is hidden and kept inside the window, and still reports how far it moves, as first-person
     // cameras need. Returns false, after logging why, when the platform cannot capture it.

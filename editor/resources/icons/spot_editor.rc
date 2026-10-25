@@ -1,0 +1,2 @@
+// The icon Windows shows for the executable, in Explorer and the taskbar.
+IDI_ICON1 ICON "spot_editor.ico"

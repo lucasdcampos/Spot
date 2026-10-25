@@ -207,13 +207,16 @@ spot_embed_files(spot_editor_core
     resources/fonts/fa_solid_900.ttf
     resources/fonts/inter_regular.ttf
     resources/fonts/inter_semibold.ttf
+    resources/icons/icon.png
 )
 spot_set_compile_options(spot_editor_core)
 spot_precompile_engine_header(spot_editor_core <imgui.h>)
 
 
+# The icons in resources/icons are logo.png, at the repository's root, scaled down.
 add_executable(spot_editor
     main.cpp
+    $<$<PLATFORM_ID:Windows>:resources/icons/spot_editor.rc>
 )
 target_link_libraries(spot_editor PRIVATE spot_editor_core)
 spot_set_compile_options(spot_editor)

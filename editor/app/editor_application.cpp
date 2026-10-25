@@ -1,4 +1,5 @@
 
+#include <spot/graphics/image.h>
 #include <spot/scene/scripting/scripting_module.h>
 
 #include "app/editor_application.h"
@@ -22,6 +23,8 @@
 #include <imgui_internal.h>
 
 #include <ImGuizmo.h>
+
+#include "icon.png.h"
 
 #include <algorithm>
 #include <array>
@@ -151,6 +154,9 @@ void EditorApplication::ConfirmUnsavedChanges(std::function<void()> proceed) {
 
 void EditorApplication::OnStart() {
     m_settings.Load();
+    if (const auto icon = Image::LoadFromMemory(std::as_bytes(std::span(Resources::IconPng)))) {
+        GetWindow().SetIcon(icon->GetPixels(), static_cast<int>(icon->GetWidth()), static_cast<int>(icon->GetHeight()));
+    }
     m_imgui = std::make_unique<ImGuiLayer>(GetWindow(), GetGraphicsDevice());
     if (!m_options.settingsDirectory.empty()) {
         m_imgui->SetSettingsFile(m_options.settingsDirectory / "layout.ini");

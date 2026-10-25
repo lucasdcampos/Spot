@@ -165,6 +165,24 @@ void Window::SetTitle(std::string_view title) {
     SDL_SetWindowTitle(m_impl->handle, m_impl->title.c_str());
 }
 
+void Window::SetIcon(std::span<const std::uint8_t> rgba, int width, int height) {
+    if (width <= 0 || height <= 0 || rgba.size() < static_cast<std::size_t>(width) * height * 4) {
+        Log::GetEngineLogger().Error("Window icon pixels do not match its size {}x{}", width, height);
+        return;
+    }
+    // SDL copies the pixels into the window, so the surface only wraps them for the call.
+    SDL_Surface* surface = SDL_CreateSurfaceFrom(width, height, SDL_PIXELFORMAT_ABGR8888,
+                                                 const_cast<std::uint8_t*>(rgba.data()), width * 4);
+    if (!surface) {
+        Log::GetEngineLogger().Error("Failed to create the window icon: {}", SDL_GetError());
+        return;
+    }
+    if (!SDL_SetWindowIcon(m_impl->handle, surface)) {
+        Log::GetEngineLogger().Error("Failed to set the window icon: {}", SDL_GetError());
+    }
+    SDL_DestroySurface(surface);
+}
+
 bool Window::IsMouseCaptured() const {
     return SDL_GetWindowRelativeMouseMode(m_impl->handle);
 }
