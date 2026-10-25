@@ -41,7 +41,8 @@ public:
     // editor holds a capture of the game's input (see InputState::PushCapture()), so the game gets nothing and its
     // cursor lock waits; with focus, the window's mouse is captured whenever the game locks the cursor.
     void SetView(bool focused, Vector2 origin, Vector2 viewSize = {}, Vector2 scale = {1, 1});
-    // Gives the game an input event, with positions relative to its view. Escape stays the editor's, which takes the
+    // Gives the game an input event, with positions relative to its view: its canvases first, then its input. This is
+    // the only way input reaches it (see PlayHost::DeliversToScenes()). Shift+F1 stays the editor's, which takes the
     // keys and the mouse back with it, so games never see it.
     void Feed(const Event& event);
 

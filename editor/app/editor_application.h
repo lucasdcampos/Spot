@@ -62,7 +62,6 @@ protected:
     void OnRender(RenderContext& context) override;
     void OnStop() override;
     bool OnCloseRequested() override;
-    bool DeliversToScenes(const Event& event) override;
 
 private:
     void OpenProject(const std::filesystem::path& file);

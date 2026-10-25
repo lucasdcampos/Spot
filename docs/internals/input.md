@@ -127,7 +127,7 @@ player left alone. Games played in the editor use the project's bindings.
 
 `Input::SetCursorLocked(true)` hides the cursor and keeps it in place, so the mouse only moves things, as first-person
 views need. The application applies the lock to its window when it changes; the editor applies it only while the
-game's view has focus, and takes it back with Escape. The mouse delta is zero on the frame the lock changes and the
+game's view has focus, and takes it back with Shift+F1. The mouse delta is zero on the frame the lock changes and the
 next, so the cursor's jump is never taken for a movement.
 
 ## Input ownership

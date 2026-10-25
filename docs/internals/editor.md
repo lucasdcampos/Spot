@@ -128,8 +128,11 @@ command on its own (`Process::Launch()`), so it keeps running after the editor e
 
 Playing a document (`PlaySession`) copies its scene and loads the copy into the application, which updates it every
 frame with the project's settings sections, while the editor's windows show and can edit the copy. The game's view
-gets the keyboard and mouse while it has focus; Escape takes them back. Playing can be paused and stepped a frame at
-a time. Stopping throws the copy away, so the document is as it was.
+gets the keyboard and mouse while it has focus, Escape included, so the game's menus work as they do in its own
+window; Shift+F1 takes them back. Input reaches the game only through `PlaySession::Feed()`, relative to the view:
+`PlayHost::DeliversToScenes()` keeps it from the scene and from `UiModule`, which would otherwise hand each event to
+the canvases a second time, in window coordinates. Playing can be paused and stepped a frame at a time. Stopping
+throws the copy away, so the document is as it was.
 
 ## Testing the editor
 

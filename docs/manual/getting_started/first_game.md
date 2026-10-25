@@ -63,7 +63,7 @@ What this does:
 - `speed` is a global with a constant value, so it is a **field**: the Inspector shows it, and a value set there is
   saved with the scene. Variables the Inspector should not show are `local`.
 
-Press **Play** (Ctrl+P) and walk with WASD. Escape gives the mouse back to the editor; Play again stops.
+Press **Play** (Ctrl+P) and walk with WASD. Shift+F1 gives the mouse back to the editor; Play again stops.
 
 ## 3. Add the coins
 

@@ -845,15 +845,6 @@ void EditorApplication::TogglePlaying() {
     m_workspace->Play(*this);
 }
 
-bool EditorApplication::DeliversToScenes(const Event& event) {
-    // A game playing in a view gets the keyboard and the mouse only while that view has focus.
-    const bool input = event.Is<KeyPressedEvent>() || event.Is<KeyReleasedEvent>() || event.Is<TextInputEvent>() ||
-                       event.Is<MouseMovedEvent>() || event.Is<MouseButtonPressedEvent>() ||
-                       event.Is<MouseButtonReleasedEvent>() || event.Is<MouseScrolledEvent>();
-    const PlaySession* play = m_workspace ? m_workspace->GetPlaySession() : nullptr;
-    return !input || (play && play->HasFocus());
-}
-
 void EditorApplication::DrawGizmoTools() {
     GizmoSettings& gizmo = m_settings.GetGizmo();
     const auto tool = [&](const char* icon, const char* tooltip, GizmoTool value) {
@@ -1049,9 +1040,9 @@ void EditorApplication::HandleShortcuts() {
     if (play && ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiMod_Alt | ImGuiKey_P, Global)) {
         play->Step();
     }
-    // While the game's view has focus, the keys are the game's; Escape hands them back to the editor.
+    // While the game's view has focus, the keys are the game's, Escape too; Shift+F1 hands them back to the editor.
     if (play && play->HasFocus()) {
-        if (ImGui::Shortcut(ImGuiKey_Escape, Global)) {
+        if (ImGui::Shortcut(ImGuiMod_Shift | ImGuiKey_F1, Global)) {
             ImGui::SetWindowFocus(nullptr);
         }
         return;

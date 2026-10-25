@@ -1,6 +1,7 @@
 #include "play/play_session.h"
 
 #include <spot.h>
+#include <spot/scene/ui/ui_input_system.h>
 #include <spot_tools.h>
 
 #include <catch2/catch_test_macros.hpp>
@@ -40,8 +41,14 @@ public:
           m_frame(std::move(frame)) {}
 
     using Application::DispatchEvent;
+    // Given every event after the modules, as the editor gives them to its play session.
+    std::function<void(const Spot::Event&)> onEvent;
 
 protected:
+    void OnEvent(const Spot::Event& event) override {
+        if (onEvent)
+            onEvent(event);
+    }
     void OnUpdate(float /*deltaTime*/) override {
         if (!m_frame(*this, ++m_count) || m_count > 50) {
             Quit();
@@ -131,15 +138,17 @@ TEST_CASE("Playing runs a copy of the scene as a game, and stopping leaves the s
 
 namespace {
 
-// Locks the cursor, as first-person games do, and remembers whether it ever saw Escape.
+// Locks the cursor, as first-person games do, and remembers whether it ever saw Escape or F1.
 class CursorLocker final : public Spot::Component {
 public:
     bool sawEscape = false;
+    bool sawF1 = false;
 
 protected:
     void OnUpdate(float /*deltaTime*/) override {
         Spot::Input::SetCursorLocked(true);
         sawEscape = sawEscape || Spot::Input::IsKeyDown(Spot::Key::Escape);
+        sawF1 = sawF1 || Spot::Input::IsKeyDown(Spot::Key::F1);
     }
 
     void Serialize(Spot::Archive&) override {}
@@ -147,14 +156,15 @@ protected:
 
 } // namespace
 
-TEST_CASE("The game captures the mouse while its view has focus, and Escape stays the editor's", "[editor][play]") {
+TEST_CASE("The game captures the mouse while its view has focus, and Shift+F1 stays the editor's", "[editor][play]") {
     Spot::RegisterComponent<CursorLocker>("CursorLocker");
     Spot::Editor::SceneDocument source("Level");
     source.GetScene().CreateEntity("Player").AddComponent<CursorLocker>();
 
     std::unique_ptr<Spot::Editor::PlaySession> play;
     std::vector<bool> captured;
-    bool sawEscape = true;
+    bool sawEscape = false;
+    bool sawF1 = true;
 
     FrameApplication application([&](FrameApplication& app, int frame) {
         switch (frame) {
@@ -168,13 +178,17 @@ TEST_CASE("The game captures the mouse while its view has focus, and Escape stay
             captured.push_back(app.GetWindow().IsMouseCaptured());
             play->SetView(true, {});
             captured.push_back(app.GetWindow().IsMouseCaptured());
+            // Escape is the game's, for its menus, while Shift+F1 is the editor's.
             play->Feed(Spot::KeyPressedEvent{.key = Spot::Key::Escape, .repeat = false});
+            play->Feed(Spot::KeyPressedEvent{.key = Spot::Key::LeftShift, .repeat = false});
+            play->Feed(Spot::KeyPressedEvent{.key = Spot::Key::F1, .repeat = false});
             break;
         case 4: {
             play->Update();
             const auto* locker = play->GetDocument()->GetScene().FindComponent<CursorLocker>();
             REQUIRE(locker);
             sawEscape = locker->sawEscape;
+            sawF1 = locker->sawF1;
             play->SetView(false, {});
             captured.push_back(app.GetWindow().IsMouseCaptured());
             play->SetView(true, {});
@@ -190,7 +204,8 @@ TEST_CASE("The game captures the mouse while its view has focus, and Escape stay
     REQUIRE(application.Run() == EXIT_SUCCESS);
 
     CHECK(captured == std::vector<bool>{false, true, false, false});
-    CHECK_FALSE(sawEscape);
+    CHECK(sawEscape);
+    CHECK_FALSE(sawF1);
     Spot::UnregisterComponent("CursorLocker");
 }
 
@@ -244,4 +259,34 @@ TEST_CASE("Played UI routes scaled viewport pointers without firing gameplay inp
     });
     CHECK(application.Run() == 0);
     CHECK(source.GetHistory().GetUndoCount() == 0);
+}
+
+TEST_CASE("Played games get each input event once, through their view", "[editor][play][ui]") {
+    Spot::Editor::SceneDocument source("Interface");
+    source.GetScene().CreateEntity("Canvas").AddComponent<Spot::Canvas>();
+    std::unique_ptr<Spot::Editor::PlaySession> play;
+    Spot::SignalConnection connection;
+    int presses = 0;
+    FrameApplication application([&](FrameApplication& app, int frame) {
+        if (frame == 1)
+            play = std::make_unique<Spot::Editor::PlaySession>(app, source, app.GetAssets());
+        if (frame == 3) {
+            play->Update();
+            auto& input = play->GetDocument()->GetScene().GetOrAddSystem<Spot::UiInputSystem>();
+            connection = input.OnRawEvent.Connect(
+                [&](const Spot::Event& event, bool& /*consumed*/) { presses += event.Is<Spot::KeyPressedEvent>(); });
+            play->SetView(true, {}, {320, 240});
+            // A key that toggles a menu, which the canvases handled twice would open and close at once.
+            app.DispatchEvent(Spot::KeyPressedEvent{.key = Spot::Key::Q, .repeat = false});
+            play.reset();
+        }
+        return frame < 5;
+    });
+    application.onEvent = [&](const Spot::Event& event) {
+        if (play)
+            play->Feed(event);
+    };
+    application.AddModule<Spot::UiModule>();
+    CHECK(application.Run() == 0);
+    CHECK(presses == 1);
 }

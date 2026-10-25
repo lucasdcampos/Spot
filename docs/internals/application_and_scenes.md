@@ -89,7 +89,8 @@ Scene changes are applied between frames, so a scene that asks to be replaced is
 Game code reaches the running application with `Application::Get()`; scenes do not know it (`Scene::IsLoaded()`
 only tells whether one is the application's current scene). What only tools that run games inside them need, such as
 switching the game's settings (`SetGameSettings()`, protected), they reach through a subclass of their own: the
-editor's `PlayHost`, which also keeps input from the game unless its view has focus (`DeliversToScenes()`).
+editor's `PlayHost`, which keeps input from the game's scene (`DeliversToScenes()`) and gives it instead through its
+play session, relative to the game's view and only while that view has focus.
 
 ## Modules
 
@@ -111,7 +112,7 @@ starts, so `runtime/` includes no system:
 | `AnimationModule`, `ParticlesModule`, `ScriptingModule` | Register their components, and animation and script loaders |
 | `DevToolsModule` (`runtime/`) | The console and statistics overlays, screenshots, RenderDoc captures and profile streaming; development builds and the editor add it first (see [Developer tools](developer_tools.md)) |
 
-The console settings of a system (`render.enabled`, `audio.volume`, `physics.gravity`…) come with its module, and the
+The console settings of a system (`render.enabled`, `audio.volume`, `physics.gravity`â€¦) come with its module, and the
 statistics overlay reads the bodies and voices the modules count for the profiler.
 
 ## Scenes

@@ -126,9 +126,12 @@ void PlaySession::Feed(const Event& event) {
         pixel.position = {pixel.position.x * m_viewScale.x, pixel.position.y * m_viewScale.y};
         uiEvent = Event(pixel);
     }
+    const auto* pressed = event.GetIf<KeyPressedEvent>();
+    if (pressed && pressed->key == Key::F1 && (m_input.IsKeyDown(Key::LeftShift) || m_input.IsKeyDown(Key::RightShift)))
+        return;
+    Scene* scene = m_application.GetScene();
     const bool consumed =
-        m_application.GetScene() &&
-        m_application.GetScene()->GetOrAddSystem<Spot::UiInputSystem>().HandleUiEvent(uiEvent, m_viewSize, &m_input);
+        scene && scene->GetOrAddSystem<Spot::UiInputSystem>().HandleUiEvent(uiEvent, m_viewSize, &m_input);
     const bool text = UiInputSystem::IsTextInputCaptured(m_input);
     if (text && !m_application.GetWindow().IsTextInputActive())
         m_application.GetWindow().StartTextInput();
@@ -139,10 +142,6 @@ void PlaySession::Feed(const Event& event) {
         m_input.ConsumeEvent(localEvent);
         return;
     }
-    const auto* pressed = event.GetIf<KeyPressedEvent>();
-    const auto* released = event.GetIf<KeyReleasedEvent>();
-    if ((pressed && pressed->key == Key::Escape) || (released && released->key == Key::Escape))
-        return;
     m_input.OnEvent(localEvent);
 }
 

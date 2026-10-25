@@ -576,8 +576,8 @@ void SceneView::DrawOverlay(const ImVec2& origin) {
             m_gameView = !m_gameView;
         }
         ImGui::SetItemTooltip(m_gameView ? "Showing the game through its main camera; it gets the keyboard and the "
-                                           "mouse while this view has focus\nClick to look around with the editor's "
-                                           "camera"
+                                           "mouse while this view has focus, and Shift+F1 takes them back\nClick to "
+                                           "look around with the editor's camera"
                                          : "Showing the game through the editor's camera\nClick to show it as the "
                                            "game does");
         if (m_gameView) {
