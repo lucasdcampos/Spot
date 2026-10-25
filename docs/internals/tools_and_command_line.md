@@ -111,11 +111,16 @@ beside it, so the engine is tried out and debugged with a game: `./run.ps1` or `
 
 The sandbox's props are made by code: `sandbox_generator` (`sandbox/generator/`, built with the engine) writes their
 glTF models (with cgltf's writer, from `MeshData`) and PNG textures (painted pixel by pixel, encoded with
-`Image::EncodePng()`) into `sandbox/assets/generated/`: the props, each colored by its own texture with the normal and
-ORM maps of its surface; a PBR texture set per surface (wood, painted metal, rusty metal, concrete, rubber, glass),
-whose ORM texture packs occlusion, roughness and metallic as glTF allows; and the low-poly models of what the player
-holds, made of boxes and cylinders of those surfaces. Fixed seeds make every run write the same files, and it only
-rewrites files whose content changed. The sandbox's build runs it (`sandbox_generated_assets`, before its assets are
+`Image::EncodePng()`) into `sandbox/assets/generated/`: the props, each with a PBR texture set of its own painted for
+its shape (`generator/prop_textures.cpp`), so its relief, roughness and metal follow its paint, as a crate's frame,
+nails and gaps do, but for the ramp and the stairs, which are of the concrete surface; a PBR texture set per surface
+(wood, painted metal, rusty metal, concrete, rubber, glass, and the weapons' polymer, gunmetal and walnut), whose ORM
+texture packs occlusion, roughness and metallic as glTF allows; and the models of what the player holds, made of
+beveled side views (`Shapes::BeveledExtrude()`), parts turned on a lathe (`Shapes::Lathe()`) and beveled blocks of
+those surfaces. Surfaces are painted from gradient noise and cells (`generator/texture_painting.h`), then weathered:
+dirt darkens what lies below the surface around it and wear lightens what stands out (`Weathering`). They are painted
+at 1024 pixels for what is seen up close, 2048 for the grass and the concrete slabs that cover most of the ground.
+Fixed seeds make every run write the same files, and it only rewrites files whose content changed. The sandbox's build runs it (`sandbox_generated_assets`, before its assets are
 imported) whenever the generator is rebuilt, so changing its code is all it takes. Its files are imported like any
 artist's assets, but only their `.meta` files are committed: the files themselves are ignored by git, since the
 generator makes them again exactly, and keeping every version of its images would swell the repository. The `.meta`

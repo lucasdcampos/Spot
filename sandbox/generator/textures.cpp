@@ -13,92 +13,6 @@ namespace Generator::Textures {
 
 namespace {
 
-template <typename F>
-Spot::Image Paint(F&& color) {
-    std::vector<std::uint8_t> pixels(static_cast<std::size_t>(Size) * Size * 4);
-    for (std::uint32_t y = 0; y < Size; ++y) {
-        for (std::uint32_t x = 0; x < Size; ++x) {
-            const Rgb rgb = color(static_cast<int>(x), static_cast<int>(y));
-            std::uint8_t* pixel = &pixels[(static_cast<std::size_t>(y) * Size + x) * 4];
-            const auto byte = [](float value) {
-                return static_cast<std::uint8_t>(std::clamp(value, 0.0f, 1.0f) * 255.0f + 0.5f);
-            };
-            pixel[0] = byte(rgb.r);
-            pixel[1] = byte(rgb.g);
-            pixel[2] = byte(rgb.b);
-            pixel[3] = 255;
-        }
-    }
-    return {Size, Size, std::move(pixels)};
-}
-
-// The texture's coordinates, from 0 to 1, at the pixel's center.
-float U(int x) {
-    return (static_cast<float>(x) + 0.5f) / static_cast<float>(Size);
-}
-
-float Distance(int x, int y, float cx, float cy) {
-    const float dx = static_cast<float>(x) + 0.5f - cx;
-    const float dy = static_cast<float>(y) + 0.5f - cy;
-    return std::sqrt(dx * dx + dy * dy);
-}
-
-// Pixels of the round props' ends, as Generator::Shapes lays them out.
-constexpr float CapRadius = 0.24f * static_cast<float>(Size);
-constexpr float TopCapX = 0.25f * static_cast<float>(Size);
-constexpr float BottomCapX = 0.75f * static_cast<float>(Size);
-constexpr float CapY = 0.75f * static_cast<float>(Size);
-constexpr int SideHeight = static_cast<int>(Size) / 2;
-
-// How far the pixel is from the center of the nearest end, in pixels.
-float CapDistance(int x, int y) {
-    return std::min(Distance(x, y, TopCapX, CapY), Distance(x, y, BottomCapX, CapY));
-}
-
-Rgb Wood(int x, int y, Rgb dark, Rgb light, std::uint32_t seed) {
-    // Grain runs along X: the noise changes slowly across it and quickly down it.
-    const float grain = Fractal(U(x), U(y), 2, 24, 3, seed);
-    const float rings = grain * 6.0f - std::floor(grain * 6.0f);
-    return Mix(dark, light, grain * 0.7f + rings * 0.3f);
-}
-
-// The props' painted metal: a coat of the color, worn through to the steel in places.
-Rgb PaintedMetal(int x, int y, Rgb paint, std::uint32_t seed) {
-    const float variation = Fractal(U(x), U(y), 8, 8, 4, seed);
-    const float wear = Fractal(U(x), U(y), 16, 16, 3, seed + 100);
-    const Rgb painted = paint * (0.85f + variation * 0.3f);
-    return wear > 0.72f ? Mix(painted, Rgb{0.32f, 0.32f, 0.34f}, std::min((wear - 0.72f) * 8.0f, 1.0f)) : painted;
-}
-
-// The raised hoops around a barrel's side.
-Rgb Hoops(int y, Rgb color) {
-    for (const int center : {22, SideHeight - 22}) {
-        const int offset = y - center;
-        if (offset >= -5 && offset <= 5) {
-            return color * (offset == -5 || offset == 5 ? 0.55f : 1.15f);
-        }
-    }
-    return color;
-}
-
-// A barrel's lid: a rim, a ring pressed into it and a bung.
-Rgb Lid(int x, int y, Rgb paint, std::uint32_t seed) {
-    const bool top = x < static_cast<int>(Size) / 2;
-    const float cx = top ? TopCapX : BottomCapX;
-    const float distance = Distance(x, y, cx, CapY);
-    Rgb color = PaintedMetal(x, y, paint, seed) * 0.9f;
-    if (distance > CapRadius - 8.0f) {
-        color = color * 0.7f;
-    } else if (std::abs(distance - CapRadius * 0.62f) < 1.5f) {
-        color = color * 0.6f;
-    }
-    const float bung = Distance(x, y, cx + CapRadius * 0.4f, CapY - CapRadius * 0.4f);
-    if (top && bung < 7.0f) {
-        color = bung < 4.5f ? Rgb{0.08f, 0.08f, 0.08f} : color * 1.25f;
-    }
-    return color;
-}
-
 // White, with the coverage the function gives each pixel, from 0 to 1, as alpha.
 template <typename F>
 Spot::Image PaintCoverage(std::uint32_t size, F&& coverage) {
@@ -200,278 +114,201 @@ Spot::Image ChainLink() {
     });
 }
 
-Spot::Image TargetDummy() {
-    return Paint([](int x, int y) {
-        const float radius =
-            Distance(x, y, static_cast<float>(Size) * .5f, static_cast<float>(Size) * .5f) / static_cast<float>(Size);
-        if (radius < .06f) {
-            return Rgb{.8f, .06f, .04f};
-        }
-        if (radius < .43f) {
-            const int ring = static_cast<int>(radius * 16);
-            return ring % 2 == 0 ? Rgb{.12f, .12f, .12f} : Rgb{.9f, .87f, .78f};
-        }
-        return Wood(x, y, {.35f, .19f, .08f}, {.65f, .44f, .22f}, 67);
-    });
-}
-
-Spot::Image Crate() {
-    constexpr Rgb Dark{0.45f, 0.30f, 0.16f};
-    constexpr Rgb Light{0.72f, 0.53f, 0.30f};
-    constexpr int Frame = 26;
-    return Paint([&](int x, int y) {
-        const int size = static_cast<int>(Size);
-        Rgb color = Wood(x, y, Dark, Light, 11);
-        // Planks of a quarter of the side each, with a dark seam between them.
-        if (y % (size / 4) < 2) {
-            color = color * 0.5f;
-        }
-        const int edge = std::min({x, y, size - 1 - x, size - 1 - y});
-        const float brace = std::abs(static_cast<float>(x - y)) / std::sqrt(2.0f);
-        const bool onFrame = edge < Frame;
-        const bool onBrace = !onFrame && brace < 16.0f;
-        if (onFrame || onBrace) {
-            color = Wood(y, x, Dark, Light, 12) * 0.85f;
-            const bool outline = onFrame ? (edge < 2 || edge >= Frame - 2) : brace >= 14.0f;
-            if (outline) {
-                color = color * 0.45f;
-            }
-        }
-        // Nails at the corners of the frame.
-        for (const int nx : {Frame / 2, size - Frame / 2}) {
-            for (const int ny : {Frame / 2, size - Frame / 2}) {
-                if (Distance(x, y, static_cast<float>(nx), static_cast<float>(ny)) < 4.0f) {
-                    color = Rgb{0.25f, 0.25f, 0.27f};
-                }
-            }
-        }
-        return color;
-    });
-}
-
-Spot::Image Barrel() {
-    constexpr Rgb Coat{0.22f, 0.36f, 0.55f};
-    return Paint([&](int x, int y) {
-        if (y < SideHeight) {
-            return Hoops(y, PaintedMetal(x, y, Coat, 21));
-        }
-        return CapDistance(x, y) <= CapRadius + 2.0f ? Lid(x, y, Coat, 22) : PaintedMetal(x, y, Coat, 21);
-    });
-}
-
-Spot::Image ExplosiveBarrel() {
-    constexpr Rgb Coat{0.70f, 0.09f, 0.07f};
-    return Paint([&](int x, int y) {
-        if (y < SideHeight) {
-            Rgb color = PaintedMetal(x, y, Coat, 31);
-            // A band of hazard stripes around the middle.
-            if (y >= 48 && y < 80) {
-                const bool yellow = ((x + y) / 16) % 2 == 0;
-                color = yellow ? Rgb{0.95f, 0.75f, 0.08f} : Rgb{0.08f, 0.08f, 0.08f};
-                if (y == 48 || y == 79) {
-                    color = Rgb{0.05f, 0.05f, 0.05f};
-                }
-            }
-            return Hoops(y, color);
-        }
-        return CapDistance(x, y) <= CapRadius + 2.0f ? Lid(x, y, Coat, 32) : PaintedMetal(x, y, Coat, 31);
-    });
-}
-
-Spot::Image Plank() {
-    return Paint([](int x, int y) {
-        Rgb color = Wood(x, y, {0.62f, 0.44f, 0.26f}, {0.84f, 0.67f, 0.44f}, 41);
-        // Knots, where the grain darkens around a point.
-        for (const auto [kx, ky] : {std::pair{70.0f, 90.0f}, std::pair{190.0f, 180.0f}}) {
-            const float dx = (static_cast<float>(x) - kx) / 18.0f;
-            const float dy = (static_cast<float>(y) - ky) / 7.0f;
-            const float knot = dx * dx + dy * dy;
-            if (knot < 1.0f) {
-                color = color * (0.55f + knot * 0.45f);
-            }
-        }
-        return color;
-    });
-}
-
-Spot::Image Beam() {
-    return Paint([](int x, int y) {
-        const float brushed = Fractal(U(x), U(y), 2, 64, 3, 51);
-        Rgb color = Rgb{0.42f, 0.44f, 0.47f} * (0.85f + brushed * 0.3f);
-        const int size = static_cast<int>(Size);
-        if (y < 4 || y >= size - 4) {
-            color = color * 0.6f;
-        }
-        // Rivets in a row along the top and the bottom, lit from above.
-        for (const int ry : {24, size - 24}) {
-            for (int rx = 32; rx < size; rx += 64) {
-                const float distance = Distance(x, y, static_cast<float>(rx), static_cast<float>(ry));
-                if (distance < 7.0f) {
-                    const float shade = static_cast<float>(ry - y) / 7.0f;
-                    color = Rgb{0.55f, 0.57f, 0.6f} * (1.0f + shade * 0.3f);
-                }
-            }
-        }
-        return color;
-    });
-}
-
-Spot::Image Ball() {
-    constexpr Rgb Slices[] = {{0.9f, 0.15f, 0.12f}, {0.98f, 0.82f, 0.15f}, {0.15f, 0.45f, 0.9f},
-                              {0.2f, 0.75f, 0.3f},  {0.98f, 0.5f, 0.1f},   {0.95f, 0.95f, 0.95f}};
-    return Paint([&](int x, int y) {
-        const float v = U(y);
-        if (v < 0.1f || v > 0.9f) {
-            return Rgb{0.96f, 0.96f, 0.96f};
-        }
-        const int slice = x * 6 / static_cast<int>(Size);
-        return Slices[slice] * (0.92f + Fractal(U(x), v, 8, 8, 2, 61) * 0.08f);
-    });
-}
-
-Spot::Image Cone() {
-    return Paint([](int x, int y) {
-        if (y < SideHeight) {
-            // The tip is at the top of the side, the base at its bottom: two white stripes around the middle.
-            const bool stripe = (y >= 44 && y < 58) || (y >= 76 && y < 88);
-            const Rgb color = stripe ? Rgb{0.95f, 0.95f, 0.92f} : Rgb{1.0f, 0.42f, 0.05f};
-            return color * (0.9f + Fractal(U(x), U(y), 8, 8, 3, 71) * 0.1f);
-        }
-        return Rgb{0.12f, 0.12f, 0.13f} * (0.9f + Fractal(U(x), U(y), 8, 8, 3, 72) * 0.2f);
-    });
-}
-
-Spot::Image Concrete() {
-    return Paint([](int x, int y) {
-        const float coarse = Fractal(U(x), U(y), 4, 4, 5, 81);
-        const float speckle = Random(x, y, 82);
-        Rgb color = Rgb{0.56f, 0.56f, 0.54f} * (0.8f + coarse * 0.35f + speckle * 0.06f);
-        // Grooves across, so feet do not slip.
-        if (y % 32 < 3) {
-            color = color * 0.72f;
-        }
-        return color;
-    });
-}
-
-Spot::Image Wheel() {
-    constexpr Rgb Rubber{0.09f, 0.09f, 0.1f};
-    return Paint([&](int x, int y) {
-        if (y < SideHeight) {
-            // Tread blocks in chevrons around the tire.
-            const int chevron = (x * 2 + std::abs(y - SideHeight / 2)) % 32;
-            return Rubber * (chevron < 20 ? 1.6f : 0.8f);
-        }
-        const bool top = x < static_cast<int>(Size) / 2;
-        const float cx = top ? TopCapX : BottomCapX;
-        const float distance = Distance(x, y, cx, CapY);
-        if (distance > CapRadius * 0.56f) {
-            const bool ring = std::abs(distance - CapRadius * 0.8f) < 1.5f;
-            return Rubber * (ring ? 0.6f : 1.3f);
-        }
-        // The hub: steel with five bolts around a cap.
-        Rgb color = Rgb{0.62f, 0.63f, 0.66f} * (0.9f + Fractal(U(x), U(y), 16, 16, 2, 91) * 0.1f);
-        if (distance < 9.0f) {
-            color = color * 0.75f;
-        }
-        constexpr float Bolts[5][2] = {
-            {0.0f, -1.0f}, {0.951f, -0.309f}, {0.588f, 0.809f}, {-0.588f, 0.809f}, {-0.951f, -0.309f}};
-        for (const auto& bolt : Bolts) {
-            if (Distance(x, y, cx + bolt[0] * 20.0f, CapY + bolt[1] * 20.0f) < 4.0f) {
-                color = Rgb{0.2f, 0.2f, 0.22f};
-            }
-        }
-        return color;
-    });
-}
-
 namespace {
 
-template <typename F>
-SurfaceTextures PaintSurfacePoints(F&& surface) {
-    return PaintSurfaceTexels(Size, [&](int x, int y, float) { return surface(x, y); });
-}
+// Deck boards along u, eight across, each in two lengths butted end to end, nailed down at their ends, weathering
+// toward silver, with gaps between them.
+SurfacePoint WoodPoint(int x, int y, float scale) {
+    const float u = Coordinate(x, scale);
+    const float v = Coordinate(y, scale);
+    constexpr int Boards = 8;
+    const float across = v * Boards;
+    const int board = static_cast<int>(std::floor(across));
+    const float inBoard = across - static_cast<float>(board);
+    const float joint = Random(board, 0, 901);
+    const float along = u - joint - std::floor(u - joint);
+    const int piece = board * 2 + (along < 0.5f ? 0 : 1);
+    const auto seed = static_cast<std::uint32_t>(910 + piece * 16);
+    const float fromEnd = std::min(along < 0.5f ? along : along - 0.5f, along < 0.5f ? 0.5f - along : 1.0f - along);
+    const float fromSide = std::min(inBoard, 1.0f - inBoard);
 
-// Boards along X, eight across, with gaps between them and grain along them.
-SurfacePoint WoodPoint(int x, int y) {
-    const int board = y / 32;
-    const int inBoard = y % 32;
-    const auto seed = static_cast<std::uint32_t>(900 + board);
-    const float grain = Fractal(U(x), U(y), 2, 24, 3, seed);
-    SurfacePoint point{.color = Wood(x, y, {0.5f, 0.33f, 0.18f}, {0.78f, 0.58f, 0.36f}, seed),
-                       .height = grain * 1.5f,
-                       .roughness = 0.55f + grain * 0.2f};
-    if (inBoard < 2) {
-        point.color = point.color * 0.45f;
-        point.height = -2.0f;
-        point.occlusion = 0.55f;
-        point.roughness = 0.9f;
+    const WoodFigure figure = WoodGrain(u + Random(piece, 1, 902), v, 90, seed);
+    const float silver = Smooth(0.45f, 0.75f, Noise(u, v, 3, 6, 3, seed + 5)) * 0.45f;
+    Rgb color = Mix(Rgb{0.63f, 0.47f, 0.31f}, Rgb{0.36f, 0.23f, 0.13f}, figure.tone);
+    color = color * ((0.84f + Random(piece, 2, 903) * 0.26f) * (1.0f - figure.pores * 0.22f));
+    color = Mix(color, Rgb{0.52f, 0.5f, 0.47f} * (0.85f + figure.fibers * 0.25f), silver);
+    // Each board is rounded off along its sides and ends, and cupped a little across.
+    const float rounded = Smooth(0.0f, 0.1f, fromSide) * Smooth(0.0f, 0.012f, fromEnd);
+    SurfacePoint point{.color = color,
+                       .height = rounded * 2.0f - (fromSide - 0.5f) * (fromSide - 0.5f) * 1.2f + figure.tone * 0.35f -
+                                 figure.pores * 0.4f,
+                       .roughness = 0.68f + figure.pores * 0.12f + silver * 0.15f};
+    // Two nails at each end of each length, in a rust stain.
+    for (const float end : {0.025f, 0.475f, 0.525f, 0.975f}) {
+        for (const float side : {0.27f, 0.73f}) {
+            const float du = (along - end) * 6.0f;
+            const float dv = (inBoard - side) * 0.75f;
+            const float distance = std::sqrt(du * du + dv * dv);
+            if (distance < 0.05f) {
+                const float stain = Smooth(0.05f, 0.02f, distance);
+                point.color = Mix(point.color, Rgb{0.3f, 0.17f, 0.09f}, stain * 0.6f);
+                if (distance < 0.022f) {
+                    point.color = Rgb{0.2f, 0.19f, 0.18f} * (0.8f + Random(x, y, 904) * 0.3f);
+                    point.height -= 0.4f;
+                    point.roughness = 0.55f;
+                    point.metallic = 0.6f;
+                }
+            }
+        }
+    }
+    if (fromSide < 0.035f || fromEnd < 0.0025f) {
+        point.color = Rgb{0.09f, 0.07f, 0.05f};
+        point.height = -4.0f;
+        point.occlusion = 0.3f;
+        point.roughness = 0.95f;
+        point.metallic = 0.0f;
     }
     return point;
 }
 
-// Paint over steel, chipped where it wears, with the slight ripples of a sprayed coat.
-SurfacePoint PaintedMetalPoint(int x, int y) {
-    const float ripple = Fractal(U(x), U(y), 16, 16, 3, 910);
-    const float wear = Fractal(U(x), U(y), 12, 12, 4, 911);
-    SurfacePoint point{.color = Rgb{0.82f, 0.82f, 0.8f} * (0.92f + ripple * 0.1f),
-                       .height = ripple * 0.6f,
-                       .roughness = 0.38f + ripple * 0.1f};
-    if (wear > 0.8f) {
-        // The chip's edge is a step down to the steel.
-        point.color = Rgb{0.62f, 0.62f, 0.64f};
-        point.height = -1.0f;
-        point.roughness = 0.3f;
-        point.metallic = 1.0f;
+// Walnut, oiled smooth: fine grain without joints, as gun stocks and handles are carved from.
+SurfacePoint WalnutPoint(int x, int y, float scale) {
+    const float u = Coordinate(x, scale);
+    const float v = Coordinate(y, scale);
+    const WoodFigure figure = WoodGrain(u, v, 40, 1950);
+    // Curl across the grain catches the light in bands.
+    const float curl = Noise(u, v, 24, 3, 2, 1951);
+    Rgb color = Mix(Rgb{0.5f, 0.3f, 0.17f}, Rgb{0.2f, 0.1f, 0.05f}, figure.tone);
+    color = color * ((0.9f + curl * 0.15f) * (1.0f - figure.pores * 0.3f));
+    return {.color = color,
+            .height = figure.tone * 0.25f - figure.pores * 0.35f + curl * 0.2f,
+            .roughness = 0.32f + figure.pores * 0.25f + Random(x, y, 1952) * 0.04f};
+}
+
+// Paint over steel: the ripples of a sprayed coat, fine scratches, and chips worn through to the bare metal.
+SurfacePoint PaintedMetalPoint(int x, int y, float scale) {
+    const float u = Coordinate(x, scale);
+    const float v = Coordinate(y, scale);
+    const float peel = GradientNoise(u * 160.0f, v * 160.0f, 160, 160, 910);
+    const float shade = Noise(u, v, 4, 4, 4, 911);
+    const float wear = Noise(u, v, 6, 6, 5, 912);
+    // Scratches run every way: along both diagonals as well as straight.
+    const float scratched = Smooth(0.55f, 0.7f, Noise(u, v, 5, 5, 2, 913));
+    const float scratches = std::max({Smooth(0.975f, 0.995f, Ridges(u + v, u - v, 3, 48, 1, 914)),
+                                      Smooth(0.975f, 0.995f, Ridges(u - v, u + v, 3, 40, 1, 915)),
+                                      Smooth(0.98f, 0.997f, Ridges(u, v, 4, 56, 1, 916))}) *
+                            scratched;
+    SurfacePoint point{.color = Rgb{0.8f, 0.8f, 0.78f} * (0.93f + shade * 0.1f + peel * 0.03f),
+                       .height = peel * 0.35f + shade * 0.4f,
+                       .roughness = 0.4f + shade * 0.1f + peel * 0.04f};
+    if (wear > 0.8f || scratches > 0.3f) {
+        // The chip's edge is a step down to the steel, which is dark at the edge of the paint.
+        const float bare = std::max(Smooth(0.8f, 0.84f, wear), scratches);
+        point.color = Mix(point.color * 0.7f, Rgb{0.6f, 0.6f, 0.62f} * (0.9f + peel * 0.2f), bare);
+        point.height -= bare * 0.8f;
+        point.roughness = 0.4f - bare * 0.12f;
+        point.metallic = bare;
     }
     return point;
 }
 
-// Steel eaten by patches of rust, which is rough, bumpy and not a metal any more.
-SurfacePoint RustyMetalPoint(int x, int y) {
-    const float rust = Fractal(U(x), U(y), 6, 6, 5, 920);
-    const float pits = Fractal(U(x), U(y), 32, 32, 2, 921);
-    const float brushed = Fractal(U(x), U(y), 2, 64, 3, 922);
-    if (rust > 0.52f) {
-        const float depth = std::min((rust - 0.52f) * 6.0f, 1.0f);
-        return {.color = Mix(Rgb{0.55f, 0.27f, 0.12f}, Rgb{0.36f, 0.16f, 0.08f}, pits),
-                .height = 1.0f + pits * 2.0f * depth,
-                .occlusion = 0.85f + pits * 0.15f,
-                .roughness = 0.85f + pits * 0.1f,
-                .metallic = 0.0f};
-    }
-    return {.color = Rgb{0.6f, 0.61f, 0.63f} * (0.9f + brushed * 0.15f),
-            .height = brushed * 0.4f,
-            .roughness = 0.32f + brushed * 0.1f,
-            .metallic = 1.0f};
+// Steel eaten by rust: blue-grey mill scale, then rust in layers, flaking and pitted, running down in streaks.
+SurfacePoint RustyMetalPoint(int x, int y, float scale) {
+    const float u = Coordinate(x, scale);
+    const float v = Coordinate(y, scale);
+    const float body = Noise(u, v, 4, 4, 5, 920);
+    const float streaks = Noise(u, v, 24, 3, 3, 921);
+    const float pits = Smooth(0.6f, 0.8f, GradientNoise(u * 120.0f, v * 120.0f, 120, 120, 922));
+    const float millScale = Noise(u, v, 10, 10, 3, 923);
+    const float rust = Smooth(0.42f, 0.58f, body * 0.75f + streaks * 0.35f);
+    const float flake = Smooth(0.6f, 0.7f, Noise(u, v, 12, 12, 3, 924)) * rust;
+    const Rgb mill = Mix(Rgb{0.27f, 0.29f, 0.31f}, Rgb{0.45f, 0.46f, 0.47f}, millScale);
+    Rgb rusted = Mix(Rgb{0.56f, 0.29f, 0.12f}, Rgb{0.3f, 0.14f, 0.07f}, pits * 0.7f + streaks * 0.3f);
+    rusted = Mix(rusted, Rgb{0.68f, 0.42f, 0.2f}, flake * 0.6f);
+    return {.color = Mix(mill, rusted, rust) * (0.9f + Random(x, y, 925) * 0.1f),
+            .height = rust * (1.0f + flake * 1.5f) - pits * rust * 1.2f + millScale * 0.3f,
+            .occlusion = 1.0f - pits * rust * 0.25f,
+            .roughness = 0.45f + millScale * 0.1f + rust * 0.45f,
+            .metallic = 1.0f - rust};
 }
 
-// The props' concrete, with pores and the grooves across it.
-SurfacePoint ConcretePoint(int x, int y) {
-    const float coarse = Fractal(U(x), U(y), 4, 4, 5, 81);
-    const float speckle = Random(x, y, 82);
-    SurfacePoint point{.color = Rgb{0.56f, 0.56f, 0.54f} * (0.8f + coarse * 0.35f + speckle * 0.06f),
-                       .height = coarse * 3.0f + speckle * 0.6f,
-                       .roughness = 0.85f + speckle * 0.1f};
-    if (y % 32 < 3) {
-        point.color = point.color * 0.72f;
-        point.height -= 3.0f;
-        point.occlusion = 0.6f;
-    }
-    return point;
+// Cast concrete, as of barriers, ramps and steps: mottled, with sand and the odd stone showing, air bubbles left by
+// the form, hairline cracks, and streaks where rain ran down it.
+SurfacePoint ConcretePoint(int x, int y, float scale) {
+    const float u = Coordinate(x, scale);
+    const float v = Coordinate(y, scale);
+    const float mottle = Noise(u, v, 3, 3, 5, 930);
+    const float fine = Noise(u, v, 24, 24, 3, 931);
+    const float sand = Random(x, y, 932);
+    const float streaks =
+        Smooth(0.55f, 0.8f, Noise(u, v, 18, 2, 3, 933)) * Smooth(0.4f, 0.7f, Noise(u, v, 2, 2, 2, 934));
+    const CellSample stones = Cells(u * 70.0f, v * 70.0f, 70, 935);
+    const float stone = Smooth(0.22f, 0.14f, stones.nearest) * Smooth(0.72f, 0.78f, stones.id);
+    const CellSample bubbles = Cells(u * 36.0f, v * 36.0f, 36, 936);
+    const float bubbleRadius = 0.06f + Random(static_cast<int>(bubbles.id * 65536.0f), 0, 937) * 0.1f;
+    const float bubble = Smooth(bubbleRadius, bubbleRadius * 0.5f, bubbles.nearest) * Smooth(0.8f, 0.84f, bubbles.id);
+    const float warpU = (Noise(u, v, 5, 5, 3, 938) - 0.5f) * 0.4f;
+    const float warpV = (Noise(u, v, 5, 5, 3, 939) - 0.5f) * 0.4f;
+    const CellSample plates = Cells(u * 3.0f + warpU, v * 3.0f + warpV, 3, 940);
+    const float crack =
+        (1.0f - Smooth(0.0f, 0.012f, plates.second - plates.nearest)) * Smooth(0.55f, 0.7f, Noise(u, v, 4, 4, 3, 941));
+    Rgb color = Rgb{0.62f, 0.61f, 0.58f} * (0.8f + mottle * 0.28f + fine * 0.08f + sand * 0.06f);
+    color = Mix(color, Rgb{0.7f, 0.67f, 0.6f} * (0.8f + stones.id * 0.3f), stone * 0.5f);
+    color = color * (1.0f - streaks * 0.14f);
+    color = Mix(color, Rgb{0.22f, 0.21f, 0.2f}, std::max(bubble * 0.75f, crack * 0.7f));
+    return {.color = color,
+            .height = mottle * 1.5f + fine * 0.8f + sand * 0.4f + stone * 0.6f - bubble * 2.5f - crack * 1.2f,
+            .occlusion = 1.0f - bubble * 0.5f - crack * 0.3f,
+            .roughness = 0.84f + sand * 0.08f + streaks * 0.04f - stone * 0.1f};
 }
 
-// Dark rubber with a fine grain.
-SurfacePoint RubberPoint(int x, int y) {
-    const float grain = Fractal(U(x), U(y), 32, 32, 3, 940);
-    return {.color = Rgb{0.1f, 0.1f, 0.11f} * (0.9f + grain * 0.2f), .height = grain * 0.8f, .roughness = 0.8f};
+// Dark rubber: a fine grain from the mold, with smoother patches where it rubs.
+SurfacePoint RubberPoint(int x, int y, float scale) {
+    const float u = Coordinate(x, scale);
+    const float v = Coordinate(y, scale);
+    const float grain = GradientNoise(u * 200.0f, v * 200.0f, 200, 200, 940);
+    const float rubbed = Smooth(0.5f, 0.75f, Noise(u, v, 6, 6, 3, 941));
+    const float scuffs = Smooth(0.97f, 0.99f, Ridges(u + v, u - v, 4, 24, 1, 942)) * rubbed;
+    return {.color = Rgb{0.1f, 0.1f, 0.105f} * (0.9f + grain * 0.15f + scuffs * 0.6f),
+            .height = grain * 0.5f * (1.0f - rubbed * 0.6f),
+            .roughness = 0.82f - rubbed * 0.18f + grain * 0.05f};
 }
 
 // Clear glass, with faint smudges that scatter a little light and gentle waves in the pane.
-SurfacePoint GlassPoint(int x, int y) {
-    const float smudge = Fractal(U(x), U(y), 4, 4, 4, 950);
-    const float wave = Fractal(U(x), U(y), 3, 3, 2, 951);
+SurfacePoint GlassPoint(int x, int y, float scale) {
+    const float u = Coordinate(x, scale);
+    const float v = Coordinate(y, scale);
+    const float smudge = Fractal(u, v, 4, 4, 4, 950);
+    const float wave = Fractal(u, v, 3, 3, 2, 951);
     return {.color = Rgb{0.95f, 0.97f, 0.98f}, .height = wave * 1.5f, .roughness = 0.04f + smudge * smudge * 0.25f};
+}
+
+// The stippled polymer of grips and frames: small rounded bumps packed close, for a hold that does not slip.
+SurfacePoint PolymerPoint(int x, int y, float scale) {
+    const float u = Coordinate(x, scale);
+    const float v = Coordinate(y, scale);
+    const CellSample stipple = Cells(u * 110.0f, v * 110.0f, 110, 960);
+    const float bump = Smooth(0.0f, 0.4f, stipple.second - stipple.nearest);
+    const float rubbed = Smooth(0.55f, 0.8f, Noise(u, v, 5, 5, 3, 961));
+    return {.color = Rgb{0.11f, 0.11f, 0.115f} * (0.88f + bump * 0.18f + stipple.id * 0.05f),
+            .height = std::sqrt(bump) * 1.4f * (1.0f - rubbed * 0.4f),
+            .occlusion = 0.8f + bump * 0.2f,
+            .roughness = 0.72f - bump * 0.12f - rubbed * 0.12f};
+}
+
+// A gun's metal finish: bead-blasted to a fine even speckle, with faint tool marks along it and polished patches
+// where hands and holsters rub.
+SurfacePoint GunmetalPoint(int x, int y, float scale) {
+    const float u = Coordinate(x, scale);
+    const float v = Coordinate(y, scale);
+    const float speckle = Random(x, y, 970);
+    const float blast = GradientNoise(u * 240.0f, v * 240.0f, 240, 240, 971);
+    const float tooling = Ridges(u, v, 2, 90, 2, 972);
+    const float polished = Smooth(0.62f, 0.85f, Noise(u, v, 4, 4, 4, 973));
+    return {.color = Rgb{0.56f, 0.56f, 0.57f} * (0.92f + blast * 0.08f + speckle * 0.04f + polished * 0.12f),
+            .height = blast * 0.3f + tooling * 0.12f,
+            .roughness = 0.5f + blast * 0.08f + speckle * 0.05f - polished * 0.2f - tooling * 0.04f,
+            .metallic = 0.85f + polished * 0.15f};
 }
 
 } // namespace
@@ -516,38 +353,67 @@ std::string_view GetSurfaceName(Surface surface) {
         return "slab";
     case Surface::Needles:
         return "needles";
+    case Surface::Polymer:
+        return "polymer";
+    case Surface::Gunmetal:
+        return "gunmetal";
+    case Surface::Walnut:
+        return "walnut";
     }
     return "";
 }
 
 std::uint32_t GetSurfaceSize(Surface surface) {
-    if (surface == Surface::Grass) {
+    switch (surface) {
+    case Surface::Grass:
+    case Surface::Slab:
+        return 2048;
+    case Surface::Wood:
+    case Surface::PaintedMetal:
+    case Surface::RustyMetal:
+    case Surface::Concrete:
+    case Surface::Rubber:
+    case Surface::Polymer:
+    case Surface::Gunmetal:
+    case Surface::Walnut:
+    case Surface::Rock:
+    case Surface::Asphalt:
+    case Surface::Bark:
         return 1024;
+    case Surface::Glass:
+        return 256;
+    default:
+        return 512;
     }
-    return surface == Surface::Rock || surface == Surface::Asphalt || surface == Surface::Slab ||
-                   surface == Surface::Bark || surface == Surface::Leaves || surface == Surface::Needles
-               ? 512
-               : Size;
 }
 
-SurfaceTextures PaintSurface(Surface surface) {
+SurfaceTextures PaintSurface(Surface surface, std::uint32_t size) {
     switch (surface) {
     case Surface::Wood:
-        return PaintSurfacePoints(WoodPoint);
+        return PaintSurfaceTexels(size, WoodPoint, {{.radius = 3.0f, .depth = 2.0f, .dirt = 0.35f, .occlusion = 0.4f}});
+    case Surface::Walnut:
+        return PaintSurfaceTexels(size, WalnutPoint);
     case Surface::PaintedMetal:
-        return PaintSurfacePoints(PaintedMetalPoint);
+        return PaintSurfaceTexels(size, PaintedMetalPoint, {{.radius = 2.0f, .depth = 0.6f, .dirt = 0.3f}});
     case Surface::RustyMetal:
-        return PaintSurfacePoints(RustyMetalPoint);
+        return PaintSurfaceTexels(size, RustyMetalPoint,
+                                  {{.radius = 3.0f, .depth = 1.0f, .dirt = 0.3f, .occlusion = 0.3f, .wear = 0.1f}});
     case Surface::Concrete:
-        return PaintSurfacePoints(ConcretePoint);
+        return PaintSurfaceTexels(size, ConcretePoint,
+                                  {{.radius = 2.0f, .depth = 1.5f, .dirt = 0.35f, .occlusion = 0.4f}});
     case Surface::Rubber:
-        return PaintSurfacePoints(RubberPoint);
+        return PaintSurfaceTexels(size, RubberPoint);
     case Surface::Glass:
-        return PaintSurfacePoints(GlassPoint);
+        return PaintSurfaceTexels(size, GlassPoint);
+    case Surface::Polymer:
+        return PaintSurfaceTexels(size, PolymerPoint,
+                                  {{.radius = 1.5f, .depth = 0.8f, .dirt = 0.25f, .occlusion = 0.3f}});
+    case Surface::Gunmetal:
+        return PaintSurfaceTexels(size, GunmetalPoint);
     default:
         break;
     }
-    return PaintLevelSurface(surface, GetSurfaceSize(surface));
+    return PaintLevelSurface(surface, size);
 }
 
 } // namespace Generator::Textures

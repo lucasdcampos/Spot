@@ -7,9 +7,10 @@
 
 #include <cmath>
 
+// The robot is what is looked at, so the textures are painted an eighth as wide, to be quick.
 TEST_CASE("The generated robot has a valid skin, bind palettes and animation clips", "[animation][generator]") {
     TempDirectory directory;
-    const auto first = Generator::GenerateSandboxAssets(directory.GetPath());
+    const auto first = Generator::GenerateSandboxAssets(directory.GetPath(), 8);
     REQUIRE(first.failed == 0);
     for (const auto name : Generator::GetRigModelNames()) {
         CAPTURE(name);
@@ -53,7 +54,7 @@ TEST_CASE("The generated robot has a valid skin, bind palettes and animation cli
         CHECK(data->animations[1].events.size() == 2);
         CHECK(data->animations[2].events.size() == 2);
     }
-    const auto second = Generator::GenerateSandboxAssets(directory.GetPath());
+    const auto second = Generator::GenerateSandboxAssets(directory.GetPath(), 8);
     CHECK(second.failed == 0);
     CHECK(second.written == 0);
     CHECK(second.unchanged == first.written);

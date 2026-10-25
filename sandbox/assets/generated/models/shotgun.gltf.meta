@@ -97,6 +97,18 @@
     {
       "id": "87644a08240598c934eb7108326a4c3a",
       "key": "mesh:6"
+    },
+    {
+      "id": "c749b8db546322d4eb1e7d6b797b59d0",
+      "key": "texture:9"
+    },
+    {
+      "id": "1166dd560296f883a504fa632bc562d4",
+      "key": "texture:10"
+    },
+    {
+      "id": "a6d2ef33b7ed8fe111f3455f43974335",
+      "key": "texture:11"
     }
   ],
   "type": "Model"

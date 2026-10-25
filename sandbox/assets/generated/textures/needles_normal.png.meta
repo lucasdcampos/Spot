@@ -1,7 +1,7 @@
 {
   "id": "6bc0a8736801d78820825784aebe5f4c",
   "settings": {
-    "compress": true,
+    "compress": false,
     "keepAlphaCoverage": false,
     "mipmaps": true,
     "srgb": false

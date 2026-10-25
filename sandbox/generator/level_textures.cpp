@@ -7,12 +7,6 @@ namespace Generator::Textures {
 
 namespace {
 
-// The texture's coordinates, from 0 to 1, at the pixel's center, for a texture of the size given by the scale of a
-// 256-pixel one's pixels.
-float Coordinate(int pixel, float scale) {
-    return (static_cast<float>(pixel) + 0.5f) * scale / 256.0f;
-}
-
 // Gravel: pebbles of several sizes and stones (greys, buff and brown) packed together, each rounded on top, with
 // dark grit showing between them.
 SurfacePoint GravelPoint(int x, int y, float scale) {
@@ -181,23 +175,56 @@ SurfacePoint TreadPlatePoint(int x, int y, float scale) {
             .metallic = 1.0f};
 }
 
-// A poured concrete slab: troweled, stained in broad patches, with fine pores and a saw-cut joint along two of its
-// edges, so slabs tile into a grid.
+// A poured concrete slab, four meters square: power-floated, its swirls a little glossier, mottled in broad patches
+// and darker where damp lingers, with sand and fine stones in it, pores, a few hairline cracks and oil stains, and a
+// saw-cut joint along two of its edges, chipped along its lips, so slabs tile into a grid.
 SurfacePoint SlabPoint(int x, int y, float scale) {
     const float u = Coordinate(x, scale);
     const float v = Coordinate(y, scale);
-    const float stains = Fractal(u, v, 3, 3, 5, 2101);
-    const float trowel = Fractal(u, v, 12, 12, 3, 2102);
-    const float pores = Random(x, y, 2103);
-    const float joint = std::min(u, v) * 256.0f / scale;
-    Rgb color = Rgb{0.6f, 0.6f, 0.58f} * (0.82f + stains * 0.25f + trowel * 0.06f + pores * 0.04f);
-    if (joint < 1.5f) {
-        return {.color = color * 0.55f, .height = -2.0f, .occlusion = 0.6f, .roughness = 0.95f};
+    const float broad = Noise(u, v, 2, 2, 4, 2101);
+    const float mottle = Noise(u, v, 7, 7, 4, 2102);
+    const float damp = Smooth(0.55f, 0.75f, Noise(u, v, 3, 3, 4, 2103));
+    const float sand = Random(x, y, 2104);
+    // The float's blades leave overlapping arcs: crests of noise bent by noise.
+    const float warp = Noise(u, v, 4, 4, 3, 2105);
+    const float swirls = Smooth(0.75f, 0.95f, Ridges(u + warp * 0.08f, v - warp * 0.08f, 14, 14, 2, 2106));
+    const CellSample grains = Cells(u * 520.0f, v * 520.0f, 520, 2107);
+    const float grain = Smooth(0.35f, 0.2f, grains.nearest) * Smooth(0.55f, 0.6f, grains.id);
+    const CellSample pores = Cells(u * 260.0f, v * 260.0f, 260, 2108);
+    const float pore = Smooth(0.16f, 0.08f, pores.nearest) * Smooth(0.86f, 0.9f, pores.id);
+    const float warpU = (Noise(u, v, 6, 6, 3, 2109) - 0.5f) * 0.3f;
+    const float warpV = (Noise(u, v, 6, 6, 3, 2110) - 0.5f) * 0.3f;
+    const CellSample plates = Cells(u * 5.0f + warpU, v * 5.0f + warpV, 5, 2111);
+    const float crack = (1.0f - Smooth(0.0f, 0.004f + mottle * 0.003f, plates.second - plates.nearest)) *
+                        Smooth(0.6f, 0.72f, Noise(u, v, 4, 4, 3, 2112));
+    const CellSample spills = Cells(u * 4.0f, v * 4.0f, 4, 2113);
+    const float spillRadius = 0.12f + spills.id * 0.15f;
+    const float oil = Smooth(spillRadius, spillRadius * 0.3f, spills.nearest + (mottle - 0.5f) * 0.12f) *
+                      Smooth(0.8f, 0.82f, spills.id);
+
+    Rgb color = Rgb{0.62f, 0.61f, 0.58f} * (0.84f + broad * 0.16f + mottle * 0.1f + sand * 0.05f);
+    color = Mix(color, Rgb{0.74f, 0.71f, 0.66f}, grain * 0.35f * (0.5f + grains.id));
+    color = color * ((1.0f - damp * 0.12f) * (1.0f + swirls * 0.03f));
+    color = Mix(color, Rgb{0.2f, 0.2f, 0.19f}, oil * 0.5f);
+    color = Mix(color, Rgb{0.22f, 0.21f, 0.2f}, std::max(pore * 0.7f, crack * 0.75f));
+    SurfacePoint point{.color = color,
+                       .height =
+                           broad * 1.2f + mottle * 0.6f + sand * 0.25f + grain * 0.3f - pore * 1.5f - crack * 1.2f,
+                       .occlusion = 1.0f - pore * 0.4f - crack * 0.3f,
+                       .roughness = 0.78f + sand * 0.06f - swirls * 0.12f - oil * 0.3f + damp * 0.04f};
+    // The joint, half on each side of the texture's edges, about half a centimeter wide, its lips chipped where the
+    // saw tore them. Distances are in the pixels of a 256-pixel texture, each about 1.6 centimeters.
+    const float joint = std::min(std::min(u, 1.0f - u), std::min(v, 1.0f - v)) * 256.0f;
+    const float spall = Smooth(0.6f, 0.85f, Noise(u, v, 90, 90, 2, 2114)) * 0.6f;
+    if (joint < 0.18f + spall) {
+        const bool cut = joint < 0.18f;
+        const float depth = Smooth(0.18f + spall, 0.12f, joint);
+        point.color = Mix(point.color, cut ? Rgb{0.12f, 0.12f, 0.11f} : point.color * 0.75f, depth);
+        point.height -= cut ? 3.0f : depth * 1.0f;
+        point.occlusion = cut ? 0.35f : point.occlusion * (1.0f - depth * 0.3f);
+        point.roughness = std::max(point.roughness, 0.9f);
     }
-    return {.color = color,
-            .height = trowel * 0.8f + pores * 0.3f,
-            .occlusion = 0.9f + stains * 0.1f,
-            .roughness = 0.68f + trowel * 0.15f + pores * 0.08f - stains * 0.08f};
+    return point;
 }
 
 // Weathered rock: strata, a few deep cracks and patches of lichen.
@@ -297,7 +324,7 @@ SurfaceTextures PaintLevelSurface(Surface surface, std::uint32_t size) {
     case Surface::Needles:
         return PaintNeedles(size);
     case Surface::Slab:
-        return PaintSurfaceTexels(size, SlabPoint);
+        return PaintSurfaceTexels(size, SlabPoint, {{.radius = 2.0f, .depth = 1.2f, .dirt = 0.4f, .occlusion = 0.4f}});
     default:
         break;
     }

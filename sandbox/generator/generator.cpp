@@ -4,6 +4,7 @@
 #include "gltf_writer.h"
 #include "icons.h"
 #include "level_models.h"
+#include "prop_textures.h"
 #include "rigs.h"
 #include "shapes.h"
 #include "sounds.h"
@@ -24,9 +25,8 @@ namespace {
 struct Prop {
     PropInfo info;
     std::function<Spot::MeshData()> mesh;
-    // As in glTF, multiplying the ORM texture's channels.
-    float metallic = 1.0f;
-    float roughness = 1.0f;
+    // Paints the prop's own textures; none for a prop of a surface's.
+    Textures::SurfaceTextures (*paint)(std::uint32_t size) = nullptr;
 };
 
 struct Texture {
@@ -34,36 +34,36 @@ struct Texture {
     std::function<Spot::Image()> paint;
 };
 
+// A crate's edges are beveled, so they catch the light; each face shows the whole texture, as a box's does.
+Spot::MeshData CrateMesh() {
+    Spot::MeshData mesh = Shapes::BeveledBox({1.0f, 1.0f, 1.0f}, 0.015f, 1.0f);
+    for (Spot::MeshVertex& vertex : mesh.vertices) {
+        vertex.uv = vertex.uv + Spot::Vector2{0.5f, 0.5f};
+    }
+    return mesh;
+}
+
 // Sizes are in meters, as the player is about 1.8 tall.
 std::vector<Prop> MakeProps() {
     return {
-        // Their colors are painted for their shapes; their surfaces' maps add relief, roughness and metal.
-        {{"crate", "crate", "wood"}, [] { return Shapes::Box({1.0f, 1.0f, 1.0f}, 1.0f); }},
-        {{"barrel", "barrel", "painted_metal"}, [] { return Shapes::Cylinder(0.3f, 0.9f, 24); }},
-        {{"explosive_barrel", "explosive_barrel", "painted_metal"}, [] { return Shapes::Cylinder(0.3f, 0.9f, 24); }},
-        {{"plank", "plank", "wood"}, [] { return Shapes::Box({2.0f, 0.06f, 0.3f}, 1.0f); }},
-        {{"beam", "beam", "rusty_metal"}, [] { return Shapes::Box({3.0f, 0.2f, 0.2f}, 0.75f); }},
-        {{"ball", "ball", "rubber"}, [] { return Spot::PrimitiveMeshes::CreateSphere(0.3f, 32, 16); }, 0.0f, 0.7f},
-        {{"cone", "cone", "rubber"}, [] { return Shapes::Cone(0.3f, 0.7f, 24); }},
-        {{"ramp", "concrete", "concrete"}, [] { return Shapes::Ramp(2.0f, 1.0f, 3.0f, 1.0f); }},
-        {{"stairs", "concrete", "concrete"}, [] { return Shapes::Stairs(2.0f, 0.2f, 0.3f, 10, 1.0f); }},
-        {{"wheel", "wheel", "rubber"}, [] { return Shapes::Wheel(0.4f, 0.2f, 32); }},
-        {{"target_dummy", "target_dummy", "wood"}, Shapes::TargetDummy, 0.0f, 0.85f},
+        {{"crate", "crate"}, CrateMesh, Textures::Crate},
+        {{"barrel", "barrel"}, [] { return Shapes::Drum(0.3f, 0.9f, 48); }, Textures::Barrel},
+        {{"explosive_barrel", "explosive_barrel"},
+         [] { return Shapes::Drum(0.3f, 0.9f, 48); },
+         Textures::ExplosiveBarrel},
+        {{"plank", "plank"}, [] { return Shapes::Box({2.0f, 0.06f, 0.3f}, 1.0f); }, Textures::Plank},
+        {{"beam", "beam"}, [] { return Shapes::Box({3.0f, 0.2f, 0.2f}, 0.75f); }, Textures::Beam},
+        {{"ball", "ball"}, [] { return Spot::PrimitiveMeshes::CreateSphere(0.3f, 48, 24); }, Textures::Ball},
+        {{"cone", "cone"}, [] { return Shapes::TrafficCone(0.3f, 0.7f, 0.64f, 0.03f, 48); }, Textures::Cone},
+        {{"ramp", "concrete"}, [] { return Shapes::Ramp(2.0f, 1.0f, 3.0f, 1.0f); }},
+        {{"stairs", "concrete"}, [] { return Shapes::Stairs(2.0f, 0.2f, 0.3f, 10, 1.0f); }},
+        {{"wheel", "wheel"}, [] { return Shapes::Wheel(0.4f, 0.2f, 48); }, Textures::Wheel},
+        {{"target_dummy", "target_dummy"}, Shapes::TargetDummy, Textures::TargetDummy},
     };
 }
 
 const std::vector<Texture>& GetTextures() {
     static const std::vector<Texture> textures = {
-        {"crate", Textures::Crate},
-        {"barrel", Textures::Barrel},
-        {"explosive_barrel", Textures::ExplosiveBarrel},
-        {"plank", Textures::Plank},
-        {"beam", Textures::Beam},
-        {"ball", Textures::Ball},
-        {"cone", Textures::Cone},
-        {"concrete", Textures::Concrete},
-        {"wheel", Textures::Wheel},
-        {"target_dummy", Textures::TargetDummy},
         {"ui_panel", Textures::UiPanel},
         {"ui_outline", Textures::UiOutline},
         {"ui_shadow", Textures::UiShadow},
@@ -182,7 +182,7 @@ std::vector<PropInfo> GetProps() {
     return props;
 }
 
-OutputCounts GenerateSandboxAssets(const std::filesystem::path& directory) {
+OutputCounts GenerateSandboxAssets(const std::filesystem::path& directory, std::uint32_t textureDivisor) {
     OutputCounts counts;
     // Painting and encoding images is most of the work, and each is on its own, so they are painted on threads of
     // their own and written in order as they are done.
@@ -195,15 +195,25 @@ OutputCounts GenerateSandboxAssets(const std::filesystem::path& directory) {
         images.push_back({std::string(texture.name),
                           std::async(std::launch::async, [&texture] { return texture.paint().EncodePng(); })});
     }
-    for (const Textures::Surface surface : Textures::Surfaces) {
-        const std::string name(Textures::GetSurfaceName(surface));
-        auto textures = std::async(std::launch::async, [surface] { return Textures::PaintSurface(surface); }).share();
+    const auto paintSet = [&](const std::string& name, std::function<Textures::SurfaceTextures()> paint) {
+        auto textures = std::async(std::launch::async, std::move(paint)).share();
         images.push_back(
             {name + "_color", std::async(std::launch::async, [textures] { return textures.get().color.EncodePng(); })});
         images.push_back({name + "_normal",
                           std::async(std::launch::async, [textures] { return textures.get().normal.EncodePng(); })});
         images.push_back(
             {name + "_orm", std::async(std::launch::async, [textures] { return textures.get().orm.EncodePng(); })});
+    };
+    for (const Textures::Surface surface : Textures::Surfaces) {
+        paintSet(std::string(Textures::GetSurfaceName(surface)), [surface, textureDivisor] {
+            return Textures::PaintSurface(surface, Textures::GetSurfaceSize(surface) / textureDivisor);
+        });
+    }
+    for (const Prop& prop : MakeProps()) {
+        if (prop.paint) {
+            paintSet(std::string(prop.info.textures),
+                     [paint = prop.paint, textureDivisor] { return paint(Textures::PropSize / textureDivisor); });
+        }
     }
     for (PaintedImage& image : images) {
         WriteIfChanged(directory / "textures" / (image.name + ".png"), image.png.get(), counts);
@@ -215,14 +225,14 @@ OutputCounts GenerateSandboxAssets(const std::filesystem::path& directory) {
     };
     for (const Prop& prop : MakeProps()) {
         const std::string name(prop.info.name);
-        const std::string surface = "../textures/" + std::string(prop.info.surface);
+        const std::string textures = "../textures/" + std::string(prop.info.textures);
         GltfModel model;
         model.materials.push_back({.name = name,
-                                   .baseColorImage = "../textures/" + std::string(prop.info.texture) + ".png",
-                                   .metallic = prop.metallic,
-                                   .roughness = prop.roughness,
-                                   .normalImage = surface + "_normal.png",
-                                   .ormImage = surface + "_orm.png"});
+                                   .baseColorImage = textures + "_color.png",
+                                   .metallic = 1.0f,
+                                   .roughness = 1.0f,
+                                   .normalImage = textures + "_normal.png",
+                                   .ormImage = textures + "_orm.png"});
         model.parts.push_back({.name = name, .mesh = prop.mesh(), .material = 0});
         writeModel(name, model);
     }

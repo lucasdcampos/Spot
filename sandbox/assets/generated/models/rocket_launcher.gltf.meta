@@ -77,6 +77,18 @@
     {
       "id": "4e37577f6deadd8d5f8f0c30a98bece0",
       "key": "mesh:5"
+    },
+    {
+      "id": "83a15fc86df2dbae22535a41b5a6555e",
+      "key": "texture:6"
+    },
+    {
+      "id": "7b0fad04dc91d2c80820a1becf2b60d4",
+      "key": "texture:7"
+    },
+    {
+      "id": "aec25eda3dcc6113b9fe6893d5ba1dd9",
+      "key": "texture:8"
     }
   ],
   "type": "Model"

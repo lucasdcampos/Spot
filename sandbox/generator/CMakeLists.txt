@@ -3,6 +3,18 @@
 # like any artist's assets; only their .meta files, which hold their ids, are committed. It can also be run by hand:
 #
 #     sandbox_generator [<output folder>]
+
+# Painting is pure arithmetic, and unoptimized it takes minutes of every Debug build of the sandbox and of its tests,
+# so the generator is optimized in Debug builds too; MSVC's run-time checks, which forbid that, are left out of this
+# folder's flags.
+if(MSVC)
+    string(REGEX REPLACE "/RTC[1csu]+" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+    string(REPLACE "/Od" "/O2" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+    string(REPLACE "/Ob0" "/Ob2" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+else()
+    string(APPEND CMAKE_CXX_FLAGS_DEBUG " -O2")
+endif()
+
 add_library(sandbox_generator_core STATIC
     rigs.h
     rigs.cpp
@@ -26,6 +38,8 @@ add_library(sandbox_generator_core STATIC
     shapes.h
     sounds.cpp
     sounds.h
+    prop_textures.cpp
+    prop_textures.h
     texture_painting.h
     textures.cpp
     textures.h

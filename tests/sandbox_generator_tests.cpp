@@ -8,13 +8,21 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <format>
 #include <string>
 #include <string_view>
 
+namespace {
+
+// Textures painted a quarter as wide on each side as the sandbox's, which are the same but take a sixteenth as long.
+constexpr std::uint32_t TextureDivisor = 4;
+
+} // namespace
+
 TEST_CASE("The sandbox's generated props load back, wound outward and centered", "[sandbox]") {
     const TempDirectory temp;
-    const Generator::OutputCounts first = Generator::GenerateSandboxAssets(temp.GetPath());
+    const Generator::OutputCounts first = Generator::GenerateSandboxAssets(temp.GetPath(), TextureDivisor);
     CHECK(first.failed == 0);
     CHECK(first.unchanged == 0);
 
@@ -25,9 +33,10 @@ TEST_CASE("The sandbox's generated props load back, wound outward and centered",
         REQUIRE(model.has_value());
         REQUIRE(model->meshes.size() == 1);
         REQUIRE(model->materials.size() == 1);
-        // Its painted colors, then its surface's normals and occlusion, roughness and metallic.
+        // Its colors, normals, and occlusion, roughness and metallic, its own or a surface's, painted for close looks.
         REQUIRE(model->images.size() == 3);
-        CHECK(model->images[0].GetWidth() == 256);
+        CHECK(model->images[0].GetWidth() == 1024 / TextureDivisor);
+        CHECK(model->images[1].GetWidth() == model->images[0].GetWidth());
         const Spot::MaterialData& material = model->materials[0];
         CHECK(material.baseColorImage == 0u);
         CHECK(material.normalImage == 1u);
@@ -113,43 +122,44 @@ TEST_CASE("The sandbox's generated props load back, wound outward and centered",
         CHECK(pointless == 0);
     }
 
-    // Each surface's textures tile, square, at least as large as the props'.
+    // Each surface's textures tile, square, at least as large as glass's, the smallest.
     for (const std::string_view surface : Generator::GetSurfaceNames()) {
         for (const std::string_view kind : {"color", "normal", "orm"}) {
             const auto path = temp.GetPath() / "textures" / std::format("{}_{}.png", surface, kind);
             CAPTURE(path);
             const auto image = Spot::Image::Load(path);
             REQUIRE(image.has_value());
-            CHECK(image->GetWidth() >= 256);
+            CHECK(image->GetWidth() >= 256 / TextureDivisor);
             CHECK(image->GetWidth() == image->GetHeight());
         }
     }
 
     // Running again writes nothing, as every file comes out the same.
-    const Generator::OutputCounts second = Generator::GenerateSandboxAssets(temp.GetPath());
+    const Generator::OutputCounts second = Generator::GenerateSandboxAssets(temp.GetPath(), TextureDivisor);
     CHECK(second.written == 0);
     CHECK(second.unchanged == first.written);
 }
 
 TEST_CASE("The target dummy generator paints a reproducible bullseye", "[sandbox][generator][target]") {
     const TempDirectory temp;
-    const auto first = Generator::GenerateSandboxAssets(temp.GetPath());
+    const auto first = Generator::GenerateSandboxAssets(temp.GetPath(), TextureDivisor);
     REQUIRE(first.failed == 0);
-    const auto image = Spot::Image::Load(temp.GetPath() / "textures/target_dummy.png");
+    const auto image = Spot::Image::Load(temp.GetPath() / "textures/target_dummy_color.png");
     REQUIRE(image);
     const auto pixels = image->GetPixels();
-    const auto center = static_cast<std::size_t>((128 * 256 + 128) * 4);
+    const std::size_t width = image->GetWidth();
+    const std::size_t center = ((width / 2) * width + width / 2) * 4;
     CHECK(pixels[center] > 150);
     CHECK(pixels[center + 1] < 30);
     CHECK(pixels[center + 2] < 30);
     CHECK(pixels[0] > pixels[1]);
     CHECK(pixels[1] > pixels[2]);
-    CHECK(Generator::GenerateSandboxAssets(temp.GetPath()).written == 0);
+    CHECK(Generator::GenerateSandboxAssets(temp.GetPath(), TextureDivisor).written == 0);
 }
 
 TEST_CASE("The sandbox's generated sounds load back, loud enough and never clipping", "[sandbox]") {
     const TempDirectory temp;
-    CHECK(Generator::GenerateSandboxAssets(temp.GetPath()).failed == 0);
+    CHECK(Generator::GenerateSandboxAssets(temp.GetPath(), TextureDivisor).failed == 0);
 
     for (const std::string_view name : Generator::GetSoundNames()) {
         CAPTURE(name);

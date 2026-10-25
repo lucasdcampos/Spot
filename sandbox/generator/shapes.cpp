@@ -59,6 +59,83 @@ void AddCap(MeshData& mesh, float radius, float y, bool top, std::uint32_t segme
     }
 }
 
+// How the texture maps onto a turned profile's side from a point to the next: around the side's half of the round
+// shapes' layout, or onto one of their ends' discs.
+enum class Mapping {
+    Side,
+    TopCap,
+    BottomCap,
+};
+
+struct TurnedPoint {
+    float radius;
+    float y;
+    bool smooth = false;
+    Mapping mapping = Mapping::Side;
+};
+
+// Turns the profile, from the top to the bottom, around Y. uv gives each vertex's texture coordinates from the index
+// of its point, the mapping of the side it is on, how far around it is, from 0 to 1, and its direction's cosine and
+// sine.
+template <typename Uv>
+MeshData Turn(std::span<const TurnedPoint> profile, std::uint32_t segments, Uv&& uv) {
+    MeshData mesh;
+    const std::size_t sides = profile.size() - 1;
+    // Each side's outward normal, out from the axis and up: going down the profile, outward is to its left.
+    std::vector<Vector2> normals(sides);
+    for (std::size_t i = 0; i < sides; ++i) {
+        const Vector2 along{profile[i + 1].radius - profile[i].radius, profile[i + 1].y - profile[i].y};
+        normals[i] = Spot::Normalize(Vector2{-along.y, along.x});
+    }
+    for (std::size_t i = 0; i < sides; ++i) {
+        const auto normalAt = [&](std::size_t point) {
+            if (!profile[point].smooth || (point == i && i == 0) || (point == i + 1 && i + 1 >= sides)) {
+                return normals[i];
+            }
+            return Spot::Normalize(normals[i] + normals[point == i ? i - 1 : i + 1]);
+        };
+        const Vector2 normalA = normalAt(i);
+        const Vector2 normalB = normalAt(i + 1);
+        const auto vertex = [&](std::size_t point, Vector2 normal, std::uint32_t k) {
+            const float angle = Angle(k, segments);
+            const float c = std::cos(angle);
+            const float s = std::sin(angle);
+            return MeshVertex{
+                {profile[point].radius * c, profile[point].y, profile[point].radius * s},
+                Spot::Normalize(Vector3{normal.x * c, normal.y, normal.x * s}),
+                uv(point, profile[i].mapping, static_cast<float>(k) / static_cast<float>(segments), c, s)};
+        };
+        for (std::uint32_t j = 0; j < segments; ++j) {
+            const float middle = (Angle(j, segments) + Angle(j + 1, segments)) * 0.5f;
+            const Vector3 facing{normals[i].x * std::cos(middle), normals[i].y, normals[i].x * std::sin(middle)};
+            // Sides meeting the axis are fans of triangles.
+            if (profile[i].radius <= 0.0f) {
+                AddTriangle(mesh, vertex(i, normalA, j), vertex(i + 1, normalB, j + 1), vertex(i + 1, normalB, j),
+                            facing);
+            } else if (profile[i + 1].radius <= 0.0f) {
+                AddTriangle(mesh, vertex(i, normalA, j), vertex(i, normalA, j + 1), vertex(i + 1, normalB, j), facing);
+            } else {
+                AddQuad(mesh, vertex(i, normalA, j), vertex(i, normalA, j + 1), vertex(i + 1, normalB, j + 1),
+                        vertex(i + 1, normalB, j), facing);
+            }
+        }
+    }
+    return mesh;
+}
+
+// Texture coordinates in the round shapes' layout: the side from sideTop down to sideBottom over the side's half, and
+// the ends' discs out to capRadius.
+auto RoundLayout(std::span<const TurnedPoint> profile, float sideTop, float sideBottom, float capRadius) {
+    return [=](std::size_t point, Mapping mapping, float around, float c, float s) {
+        if (mapping == Mapping::Side) {
+            return Vector2{around,
+                           std::clamp((sideTop - profile[point].y) / (sideTop - sideBottom), 0.0f, 1.0f) * 0.5f};
+        }
+        const Vector2 center = mapping == Mapping::TopCap ? TopCapCenter : BottomCapCenter;
+        return center + Vector2{c, s} * (CapRadius * profile[point].radius / capRadius);
+    };
+}
+
 } // namespace
 
 MeshData Box(Vector3 size, float uvRepeat) {
@@ -158,9 +235,53 @@ MeshData Cylinder(float radius, float height, std::uint32_t segments) {
     return mesh;
 }
 
+MeshData Drum(float radius, float height, std::uint32_t segments) {
+    const float top = height * 0.5f;
+    // How far the lids sink inside the chimes and how far in from the side they start, how far the chimes roll over,
+    // and how far the hoops stand out and half how high they are.
+    constexpr float Sink = 0.012f;
+    constexpr float Inset = 0.01f;
+    constexpr float Roll = 0.004f;
+    constexpr float Hoop = 0.008f;
+    constexpr float HoopHalf = 0.016f;
+    std::vector<TurnedPoint> profile = {{0.0f, top - Sink, false, Mapping::TopCap},
+                                        {radius - Inset, top - Sink, false, Mapping::TopCap},
+                                        {radius - Inset * 0.3f, top, true, Mapping::TopCap},
+                                        {radius, top - Roll, true, Mapping::Side}};
+    for (const float hoop : {top - height / 3.0f, top - height * 2.0f / 3.0f}) {
+        profile.push_back({radius, hoop + HoopHalf});
+        profile.push_back({radius + Hoop, hoop + HoopHalf * 0.35f, true});
+        profile.push_back({radius + Hoop, hoop - HoopHalf * 0.35f, true});
+        profile.push_back({radius, hoop - HoopHalf});
+    }
+    profile.push_back({radius, -top + Roll, true, Mapping::BottomCap});
+    profile.push_back({radius - Inset * 0.3f, -top, true, Mapping::BottomCap});
+    profile.push_back({radius - Inset, -top + Sink, false, Mapping::BottomCap});
+    profile.push_back({0.0f, -top + Sink, false, Mapping::BottomCap});
+    return Turn(profile, segments, RoundLayout(profile, top - Roll, -top + Roll, radius));
+}
+
 MeshData Wheel(float radius, float width, std::uint32_t segments) {
-    MeshData mesh = Cylinder(radius, width, segments);
-    // Turning a quarter around Z lays the cylinder's axis along X, and keeps its faces' winding.
+    const float side = width * 0.5f;
+    const std::vector<TurnedPoint> profile = {
+        {0.0f, side - width * 0.1f, false, Mapping::TopCap},
+        {radius * 0.53f, side - width * 0.1f, false, Mapping::TopCap},
+        {radius * 0.58f, side - width * 0.02f, false, Mapping::TopCap},
+        {radius * 0.76f, side, true, Mapping::TopCap},
+        {radius * 0.93f, side - width * 0.03f, true, Mapping::TopCap},
+        {radius * 0.985f, side - width * 0.15f, true, Mapping::Side},
+        {radius, side - width * 0.3f, true, Mapping::Side},
+        {radius, -side + width * 0.3f, true, Mapping::Side},
+        {radius * 0.985f, -side + width * 0.15f, true, Mapping::BottomCap},
+        {radius * 0.93f, -side + width * 0.03f, true, Mapping::BottomCap},
+        {radius * 0.76f, -side, true, Mapping::BottomCap},
+        {radius * 0.58f, -side + width * 0.02f, false, Mapping::BottomCap},
+        {radius * 0.53f, -side + width * 0.1f, false, Mapping::BottomCap},
+        {0.0f, -side + width * 0.1f, false, Mapping::BottomCap},
+    };
+    MeshData mesh =
+        Turn(profile, segments, RoundLayout(profile, side - width * 0.15f, -side + width * 0.15f, radius * 0.985f));
+    // Turning a quarter around Z lays the axis along X, and keeps its faces' winding.
     const auto turn = [](Vector3 v) { return Vector3{v.y, -v.x, v.z}; };
     for (MeshVertex& vertex : mesh.vertices) {
         vertex.position = turn(vertex.position);
@@ -189,6 +310,16 @@ MeshData Cone(float radius, float height, std::uint32_t segments) {
         AddTriangle(mesh, tip, rim(i), rim(i + 1), slantNormal(middle));
     }
     AddCap(mesh, radius, -top, false, segments);
+    return mesh;
+}
+
+MeshData TrafficCone(float radius, float height, float plateWidth, float plateHeight, std::uint32_t segments) {
+    MeshData mesh = Cone(radius, height, segments);
+    MeshData plate = Box({plateWidth, plateHeight, plateWidth}, plateWidth);
+    for (MeshVertex& vertex : plate.vertices) {
+        vertex.uv = Vector2{0.01f, 0.51f} + vertex.uv * 0.48f;
+    }
+    Append(mesh, plate, Spot::Matrix4::Translation({0.0f, (plateHeight - height) * 0.5f, 0.0f}));
     return mesh;
 }
 
@@ -383,6 +514,92 @@ MeshData Extrude(std::span<const ProfilePoint> profile, float length, float uvRe
         }
     }
     return mesh;
+}
+
+MeshData BeveledExtrude(std::span<const ProfilePoint> profile, float length, float bevel, float uvRepeat) {
+    MeshData mesh;
+    const float half = length * 0.5f;
+    const float inner = half - bevel;
+    const std::size_t count = profile.size();
+    std::vector<Vector3> normals(count);
+    for (std::size_t i = 0; i < count; ++i) {
+        const ProfilePoint& a = profile[i];
+        const ProfilePoint& b = profile[(i + 1) % count];
+        normals[i] = Spot::Normalize(Vector3{0.0f, -(b.z - a.z), b.y - a.y});
+    }
+    // The profile drawn in by the bevel at the ends: each point moves in along both its sides' normals, as far as
+    // keeps both sides the bevel in from where they were.
+    std::vector<ProfilePoint> insets(count);
+    for (std::size_t i = 0; i < count; ++i) {
+        const Vector3& before = normals[(i + count - 1) % count];
+        const Vector3& after = normals[i];
+        const Vector3 miter = (before + after) * (bevel / std::max(1.0f + Spot::Dot(before, after), 0.2f));
+        insets[i] = {profile[i].z - miter.z, profile[i].y - miter.y, profile[i].smooth};
+    }
+    const auto pointNormal = [&](std::size_t point, std::size_t side) {
+        if (!profile[point].smooth) {
+            return normals[side];
+        }
+        return Spot::Normalize(normals[(point + count - 1) % count] + normals[point]);
+    };
+    // Projected along X, as Extrude() maps its caps.
+    const auto projected = [&](const ProfilePoint& point) { return Vector2{point.z / uvRepeat, -point.y / uvRepeat}; };
+    float around = 0.0f;
+    for (std::size_t i = 0; i < count; ++i) {
+        const std::size_t next = (i + 1) % count;
+        const ProfilePoint& a = profile[i];
+        const ProfilePoint& b = profile[next];
+        const Vector3 na = pointNormal(i, i);
+        const Vector3 nb = pointNormal(next, i);
+        const float step = std::sqrt((b.z - a.z) * (b.z - a.z) + (b.y - a.y) * (b.y - a.y));
+        const float v0 = around / uvRepeat;
+        const float v1 = (around + step) / uvRepeat;
+        around += step;
+        const float u0 = (half - inner) / uvRepeat;
+        const float u1 = (half + inner) / uvRepeat;
+        AddQuad(mesh, {{-inner, a.y, a.z}, na, {u0, v0}}, {{inner, a.y, a.z}, na, {u1, v0}},
+                {{inner, b.y, b.z}, nb, {u1, v1}}, {{-inner, b.y, b.z}, nb, {u0, v1}}, normals[i]);
+        for (const float end : {-1.0f, 1.0f}) {
+            const Vector3 out{end, 0.0f, 0.0f};
+            const Vector3 ma = Spot::Normalize(na + out);
+            const Vector3 mb = Spot::Normalize(nb + out);
+            AddQuad(mesh, {{end * inner, a.y, a.z}, ma, projected(a)}, {{end * inner, b.y, b.z}, mb, projected(b)},
+                    {{end * half, insets[next].y, insets[next].z}, mb, projected(insets[next])},
+                    {{end * half, insets[i].y, insets[i].z}, ma, projected(insets[i])},
+                    Spot::Normalize(normals[i] + out));
+        }
+    }
+    for (const float end : {-1.0f, 1.0f}) {
+        const Vector3 normal{end, 0.0f, 0.0f};
+        const auto cap = [&](const ProfilePoint& point) {
+            return MeshVertex{{end * half, point.y, point.z}, normal, projected(point)};
+        };
+        for (std::size_t i = 1; i + 1 < count; ++i) {
+            AddTriangle(mesh, cap(insets[0]), cap(insets[i]), cap(insets[i + 1]), normal);
+        }
+    }
+    return mesh;
+}
+
+MeshData Lathe(std::span<const LathePoint> profile, std::uint32_t segments, float uvRepeat) {
+    std::vector<TurnedPoint> turned;
+    std::vector<float> along;
+    float widest = 0.0f;
+    float distance = 0.0f;
+    for (std::size_t i = 0; i < profile.size(); ++i) {
+        if (i > 0) {
+            const float dr = profile[i].radius - profile[i - 1].radius;
+            const float dy = profile[i].y - profile[i - 1].y;
+            distance += std::sqrt(dr * dr + dy * dy);
+        }
+        turned.push_back({profile[i].radius, profile[i].y, profile[i].smooth});
+        along.push_back(distance);
+        widest = std::max(widest, profile[i].radius);
+    }
+    const float aroundRepeat = 2.0f * Spot::Pi * widest / uvRepeat;
+    return Turn(turned, segments, [&](std::size_t point, Mapping, float around, float, float) {
+        return Vector2{around * aroundRepeat, along[point] / uvRepeat};
+    });
 }
 
 void Append(MeshData& to, const MeshData& from, const Spot::Matrix4& transform) {

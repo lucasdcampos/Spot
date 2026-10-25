@@ -2,7 +2,8 @@
   "id": "a01fb2b5b01ca2dbffe9dcd1975cbcc0",
   "settings": {
     "mipmaps": true,
-    "srgb": false
+    "srgb": false,
+    "compress": false
   },
   "type": "Texture"
 }

@@ -210,6 +210,35 @@ SurfaceTextures PaintGrass(std::uint32_t size) {
              });
     }
 
+    // Broadleaf weeds lying flat among the roots, as plantain and dandelion grow: rosettes of long, glossy leaves
+    // with a pale vein down each.
+    const int rosettes = static_cast<int>(36.0f * k * k);
+    for (int r = 0; r < rosettes; ++r) {
+        const Vector2 center{RandomOf(r, 1071) * extent, RandomOf(r, 1072) * extent};
+        const int leaves = 5 + static_cast<int>(RandomOf(r, 1073) * 4.0f);
+        const Rgb color = Mix(Rgb{0.13f, 0.24f, 0.07f}, Rgb{0.2f, 0.32f, 0.09f}, RandomOf(r, 1074));
+        Vector2 direction = RandomDirection(RandomOf(r, 1075), RandomOf(r, 1076));
+        for (int leaf = 0; leaf < leaves; ++leaf) {
+            const int i = r * 16 + leaf;
+            const float length = (22.0f + RandomOf(i, 1077) * 18.0f) * k;
+            const float width = length * (0.3f + RandomOf(i, 1078) * 0.12f);
+            // Spread evenly around: Turned() takes the tangent of the angle between leaves, a turn over their count.
+            constexpr float Spread[] = {3.0777f, 1.7321f, 1.254f, 1.0f};
+            direction = Turned(direction, Spread[leaves - 5]);
+            Draw(
+                canvas,
+                {.root = center, .direction = direction, .length = length, .bend = (RandomOf(i, 1079) - 0.5f) * 0.3f},
+                [&](float s) { return width * std::sqrt(std::max(s * (1.0f - s) * 4.0f, 0.0f)) * (1.1f - s * 0.4f); },
+                [&](float s, float across, float) {
+                    const float vein = Smooth(0.18f, 0.0f, std::abs(across)) * (1.0f - s);
+                    return SurfacePoint{.color = Mix(color * (0.85f + s * 0.25f), Rgb{0.42f, 0.5f, 0.3f}, vein * 0.5f),
+                                        .height = 1.2f + s * 0.8f + (1.0f - across * across) * 0.5f - vein * 0.3f,
+                                        .occlusion = 0.45f + s * 0.15f,
+                                        .roughness = 0.5f};
+                });
+        }
+    }
+
     // The living blades, gathered so the lowest are painted first.
     struct Blade {
         Stroke stroke;
@@ -272,10 +301,13 @@ SurfaceTextures PaintGrass(std::uint32_t size) {
     for (const Blade& blade : blades) {
         Draw(canvas, blade.stroke, BladeWidth(blade.width), [&](float s, float across, float) {
             const float height = blade.rootHeight + (blade.tipHeight - blade.rootHeight) * s;
-            // Rounded across and lighter toward the tip; lower down, in the shade of the others.
+            // Rounded across and lighter toward the tip, with a paler midrib down it; lower down, in the shade of the
+            // others.
             const float round = 1.0f - across * across;
-            return SurfacePoint{.color = blade.color * ((0.7f + height * 0.5f) * (0.86f + round * 0.14f + s * 0.1f)),
-                                .height = height * Canopy + round * 0.6f,
+            const float midrib = Smooth(0.25f, 0.0f, std::abs(across)) * (1.0f - s * 0.5f);
+            return SurfacePoint{.color = blade.color * ((0.7f + height * 0.5f) * (0.86f + round * 0.14f + s * 0.1f) *
+                                                        (1.0f + midrib * 0.12f)),
+                                .height = height * Canopy + round * 0.6f + midrib * 0.2f,
                                 .occlusion = 0.35f + height * 0.65f,
                                 .roughness = blade.roughness};
         });
@@ -306,6 +338,38 @@ SurfaceTextures PaintGrass(std::uint32_t size) {
                                         .roughness = 0.6f};
                 });
         }
+    }
+    // A few small flowers over the blades: daisies, white around a yellow middle, and yellow buttercups.
+    const int flowers = static_cast<int>(10.0f * k * k);
+    for (int f = 0; f < flowers; ++f) {
+        const Vector2 center{RandomOf(f, 1081) * extent, RandomOf(f, 1082) * extent};
+        const bool daisy = RandomOf(f, 1083) < 0.6f;
+        const Rgb petal = daisy ? Rgb{0.92f, 0.91f, 0.86f} : Rgb{0.95f, 0.78f, 0.12f};
+        const int petals = daisy ? 11 : 5;
+        const float reach = (daisy ? 4.5f : 3.5f) * k;
+        Vector2 direction = RandomDirection(RandomOf(f, 1084), RandomOf(f, 1085));
+        for (int p = 0; p < petals; ++p) {
+            // The tangents of a fifth and of an eleventh of a turn.
+            direction = Turned(direction, daisy ? 0.6427f : 3.0777f);
+            Draw(
+                canvas, {.root = center, .direction = direction, .length = reach},
+                [&](float s) { return (daisy ? 1.6f : 2.6f) * k * std::sqrt(std::max(s * (1.0f - s) * 4.0f, 0.0f)); },
+                [&](float s, float, float) {
+                    return SurfacePoint{.color = petal * (0.85f + s * 0.15f),
+                                        .height = Canopy * 1.05f + s * 0.3f,
+                                        .occlusion = 1.0f,
+                                        .roughness = 0.6f};
+                });
+        }
+        Draw(
+            canvas, {.root = center - Vector2{0.5f, 0.0f} * k, .direction = {1.0f, 0.0f}, .length = 1.0f * k},
+            [&](float) { return (daisy ? 2.2f : 1.6f) * k; },
+            [&](float, float, float) {
+                return SurfacePoint{.color = daisy ? Rgb{0.9f, 0.68f, 0.1f} : Rgb{0.7f, 0.55f, 0.08f},
+                                    .height = Canopy * 1.1f,
+                                    .occlusion = 1.0f,
+                                    .roughness = 0.7f};
+            });
     }
     return canvas.Encode();
 }
