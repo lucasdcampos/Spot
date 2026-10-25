@@ -19,8 +19,8 @@ struct Instance {
 StructuredBuffer<Instance> instances : register(t0, space0);
 StructuredBuffer<uint> casters : register(t1, space0);
 
-// x is the first of the batch's casters; y is set for batches whose instances are culled here, against the view,
-// and read straight from the instances, from x on, rather than through the casters.
+// x is the first of the batch's casters. In y, bit 0 reads instances directly and culls them here; bit 1 reads
+// the compact visible list of an indirect camera-depth draw. Shadow passes use their own caster lists.
 cbuffer Batch : register(b1, space1) {
     uint4 firstInstance;
 };
@@ -56,10 +56,10 @@ struct Output {
 };
 
 Output main(Input input, uint instanceId : SV_InstanceID) {
-    const uint index = firstInstance.y != 0 ? firstInstance.x + instanceId : casters[firstInstance.x + instanceId];
+    const uint index = (firstInstance.y & 1) != 0 ? firstInstance.x + instanceId : casters[firstInstance.x + instanceId];
     const Instance instance = instances[index];
     Output output;
-    if (firstInstance.y != 0 && (!IsInView(instance.bounds) || !InSizeRange(instance.bounds, instance.skin))) {
+    if ((firstInstance.y & 1) != 0 && (!IsInView(instance.bounds) || !InSizeRange(instance.bounds, instance.skin))) {
         // Every vertex at the same point, so its triangles cover nothing.
         output.position = float4(2.0, 2.0, 2.0, 1.0);
         output.uv = float2(0.0, 0.0);

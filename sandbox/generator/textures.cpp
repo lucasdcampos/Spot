@@ -367,6 +367,7 @@ std::uint32_t GetSurfaceSize(Surface surface) {
     switch (surface) {
     case Surface::Grass:
     case Surface::Slab:
+    case Surface::Bark:
         return 2048;
     case Surface::Wood:
     case Surface::PaintedMetal:
@@ -378,7 +379,8 @@ std::uint32_t GetSurfaceSize(Surface surface) {
     case Surface::Walnut:
     case Surface::Rock:
     case Surface::Asphalt:
-    case Surface::Bark:
+    case Surface::Leaves:
+    case Surface::Needles:
         return 1024;
     case Surface::Glass:
         return 256;

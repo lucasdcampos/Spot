@@ -52,9 +52,34 @@ bench, the quarter pipe and the fence panel. The terrain also contains sparse gr
 tapered grass blades in two greens and dry straw, small stones and fallen twigs. Fixed seeds and broad noise patches
 leave open ground between clusters. Placement excludes the road, paved yards, workshop, central plaza, spawn path
 and pond; blade roots follow the terrain's actual triangulated surface. These extra meshes are renderer-only children
-of Ground in the playground, using the model's imported materials; only the original grass and rock surfaces collide. The trees are grown by `generator/trees.cpp`: branches as tapering tubes
+of Ground in the playground, using the model's imported materials; only the original grass and rock surfaces collide.
+Each of the three grass renderers has `GrassVisibility`: when the game has a graphics device, it partitions the
+original triangles into eight-meter cells once and creates a renderer for each occupied cell. Only cells whose
+bounds reach within `drawDistance` (25 meters by default) of its referenced player are active, with two meters of
+hysteresis at the boundary. With no player reference it follows the main camera. Distant cells submit no color,
+depth or shadow draws; the ground's grass texture remains visible. The original renderer stays available for
+authoring and is restored if the component is disabled. Generated chunk entities keep no persistent ids or physics.
+The trees are grown by `generator/trees.cpp`: branches as tapering tubes
 that split into smaller ones, with buttress roots at the trunk's foot, and foliage as double-sided cards whose normals
-point out of the crown, so it is lit as a whole. GPU acceptance captures of every yard by day, at sunset and at night,
+point out of the crown, so it is lit as a whole. The sprays bend along their length, oaks carry fuller clusters, and
+pines have alternating side shoots and irregular branch lengths. Leaf and needle PBR maps are 1024 pixels wide,
+with mottled leaf blades, worn edges, fresh needle tips and varied roughness. Bark uses 2048-pixel PBR maps with
+longitudinal fissures, fine fibers and pores, weathered grey-brown ridges, sparse lichen and healed branch scars.
+Its relief comes from the normal map, with restrained color contrast and roughness varying between worn surfaces
+and crevices. Branch UVs have separate offsets and repeat every two meters to reduce recognizable repetition.
+
+`LevelModels::GetForestTrees()` places 180 trees around the hills using fixed seeds, varied scales, a minimum
+distance between trunks and a slope limit. The paved playground remains clear. The forest still merges into three
+material meshes for its 104 pines and boulders; the remaining 76 placements are `Forest Oak` entities in the scene,
+sharing the existing oak bark and leaf mesh assets. Species selection uses a separate seed so it preserves spacing
+and placement. `Forest Bark` in `playground.scene` has two narrow capsule colliders per pine trunk, tapering from the
+lower to the upper section, instead of colliding with the rendered branches. Needles and branches have no collision;
+each oak has its own short trunk capsule. `Forest Rock` retains its triangle collider. The capsule centers and
+sizes and the oak entities are authored from these placements, so changes to the placement rules, species selection,
+terrain height or trunk dimensions must update the scene together.
+Rebuilding the sandbox generator regenerates the models and textures; no asset ids need to change.
+
+GPU acceptance captures of every yard by day, at sunset and at night,
 and of the grass and trees up close, are written to the test build's `tests/sandbox_captures/` directory.
 
 ## Spawnable prefabs

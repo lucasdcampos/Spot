@@ -26,7 +26,8 @@ public:
     bool UploadInstances();
     // Draws the commands in view into the pass, which has the frame's lighting bound.
     void Flush(RenderPass& pass);
-    // Draws what the view's pass drew, but transparent surfaces, into readable single-sample depth.
+    // Draws what the view's pass drew, but transparent surfaces, into readable single-sample depth. Repeated meshes
+    // share instanced draws; GPU worlds reuse their compact visible lists when available.
     const Texture* RenderCameraDepth(RenderContext& context);
     // What RenderCameraDepth() drew last.
     const Texture* GetCameraDepth() const { return m_cameraDepth.get(); }

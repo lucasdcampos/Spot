@@ -61,7 +61,7 @@ float2 GetWorldUv(float3 position, float3 normal) {
 
 // Tilts the normal as the normal map says, in the tangent space of the surface: along the mesh's tangents, or for
 // projected textures along the axes GetWorldUv() lays them out on, with the bitangent toward lower v as on meshes.
-float3 ApplyNormalMap(float3 normal, float4 tangent, float2 uv, Input input) {
+float3 ApplyNormalMap(float3 normal, float4 tangent, float2 uv, float2 uvDx, float2 uvDy, Input input) {
     if (normalScale <= 0.0) {
         return normal;
     }
@@ -94,7 +94,7 @@ float3 ApplyNormalMap(float3 normal, float4 tangent, float2 uv, Input input) {
         t = normalize(tangent.xyz - normal * dot(normal, tangent.xyz));
         b = cross(normal, t) * (tangent.w < 0.0 ? -1.0 : 1.0);
     }
-    float3 mapped = normalTexture.Sample(normalSampler, uv).xyz * 2.0 - 1.0;
+    float3 mapped = normalTexture.SampleGrad(normalSampler, uv, uvDx, uvDy).xyz * 2.0 - 1.0;
     mapped.xy *= normalScale;
     return normalize(t * mapped.x + b * mapped.y + normal * mapped.z);
 }
@@ -103,11 +103,14 @@ float4 main(Input input) : SV_Target0 {
     const float3 surfaceNormal = normalize(input.normal);
     const float2 uv =
         worldTextureSize > 0.0 ? GetWorldUv(input.texturePosition, normalize(input.textureNormal)) : input.uv;
-    const float3 normal = ApplyNormalMap(surfaceNormal, input.tangent, uv, input);
+    // Preserve derivatives before alpha clipping so surviving leaf edges use the same normal-map mip levels.
+    const float2 uvDx = ddx(uv);
+    const float2 uvDy = ddy(uv);
     const float4 albedo = baseColorTexture.Sample(baseColorSampler, uv) * baseColor;
     if (alphaMode > 0.5 && alphaMode < 1.5 && albedo.a < alphaCutoff) {
         discard;
     }
+    const float3 normal = ApplyNormalMap(surfaceNormal, input.tangent, uv, uvDx, uvDy, input);
     const float4 metallicRoughness = metallicRoughnessTexture.Sample(metallicRoughnessSampler, uv);
     const float metalness = saturate(metallic * metallicRoughness.b);
     const float occlusion = lerp(1.0, occlusionTexture.Sample(occlusionSampler, uv).r, occlusionStrength);

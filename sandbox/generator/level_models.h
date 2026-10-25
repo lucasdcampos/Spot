@@ -2,6 +2,7 @@
 
 #include "gltf_writer.h"
 
+#include <cstddef>
 #include <string_view>
 #include <vector>
 
@@ -19,6 +20,19 @@ struct LevelModel {
 GltfModel Terrain();
 // The terrain's height at a point, so the level can stand things on it.
 float GetTerrainHeight(float x, float z);
+
+enum class ForestSpecies { Pine, Oak };
+
+struct ForestTree {
+    Spot::Vector3 position;
+    float yaw;
+    float scale;
+    std::size_t kind;
+    ForestSpecies species;
+};
+
+// Fixed placements shared by the forest meshes and the playground's authored trunk capsules.
+std::vector<ForestTree> GetForestTrees();
 
 // Every model, in the order they are written: the terrain, rocks, trees, a shipping container, a street lamp, a
 // concrete barrier, a bench, a quarter pipe, a fence panel, the forest on the hills, the road's markings and the neon

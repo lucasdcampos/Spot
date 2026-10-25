@@ -2433,6 +2433,53 @@ TEST_CASE("Renderer3D draws custom surfaces into the camera's depth", "[gpu]") {
     CHECK(depthDraws == 1);
 }
 
+TEST_CASE("Camera depth batches repeated meshes while preserving their alpha masks", "[gpu]") {
+    RequireGpu();
+    const bool gpuCulling = GENERATE(false, true);
+    const bool cutout = GENERATE(false, true);
+    const bool differentCutoff = GENERATE(false, true);
+    CAPTURE(gpuCulling, cutout, differentCutoff);
+    double draws = 0.0;
+    const TargetRender render(
+        32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8,
+                                               .shadowMapSize = 0,
+                                               .localShadowMapSize = 0,
+                                               .gpuCulling = gpuCulling});
+            const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
+            REQUIRE(cube);
+            Spot::Material red{.baseColor = {1, 0, 0, 0.5f}};
+            red.alphaMode = cutout ? Spot::AlphaMode::Cutout : Spot::AlphaMode::Opaque;
+            red.alphaCutoff = 0.25f;
+            Spot::Material green = red;
+            green.baseColor = {0, 1, 0, 0.5f};
+            green.alphaCutoff = differentCutoff ? 0.75f : red.alphaCutoff;
+            Spot::RenderWorld world;
+            Spot::Profiler::BeginFrame();
+            renderer.Begin(context, target, MakeFrontCamera());
+            for (int i = 0; i < 4; ++i) {
+                const Spot::Matrix4 transform =
+                    Spot::Matrix4::Translation({-0.6f + static_cast<float>(i) * 0.4f, 0, 0}) *
+                    Spot::Matrix4::Scale({0.3f, 0.3f, 0.3f});
+                const Spot::Material& material = i % 2 == 0 ? red : green;
+                if (gpuCulling) {
+                    world.AddMesh({.mesh = cube.get(), .material = &material, .transform = transform});
+                } else {
+                    renderer.DrawMesh(*cube, material, transform);
+                }
+            }
+            if (gpuCulling) {
+                renderer.DrawWorld(world);
+            }
+            renderer.End();
+            REQUIRE(renderer.RenderCameraDepth(context));
+            Spot::Profiler::EndFrame();
+            draws = Spot::Profiler::GetCounter(*Spot::Profiler::GetFrames().back(), "Camera depth draw calls");
+        });
+    // GPU worlds already have one batch per material; direct meshes can also share depth across opaque colors.
+    CHECK(draws == (gpuCulling || (cutout && differentCutoff) ? 2.0 : 1.0));
+}
+
 TEST_CASE("Renderer3D prepares custom surfaces with compute before every view", "[gpu]") {
     RequireGpu();
     const auto render = [](bool indirect) {

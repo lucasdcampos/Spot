@@ -81,12 +81,17 @@ Branch Grow(Rng& rng, Vector3 start, Vector3 direction, float length, float radi
 }
 
 // A tube around the branch, its rings turned along it so they do not twist. Its bark wraps around it a whole number
-// of times, about a meter each, and repeats every meter along it. The flare swells its first meter into buttress
+// of times, about a meter each, and repeats every two meters along it. The flare swells its first meter into buttress
 // roots, five of them, as a trunk's foot.
 void AddTube(MeshData& mesh, const Branch& branch, int sides, float flare = 0.0f) {
     const std::vector<Knot>& knots = branch.knots;
     const auto first = static_cast<std::uint32_t>(mesh.vertices.size());
     const float around = std::max(1.0f, std::round(2.0f * Spot::Pi * knots[0].radius));
+    const int rootX = static_cast<int>(knots.front().position.x * 100.0f);
+    const int rootY = static_cast<int>(knots.front().position.y * 100.0f);
+    const int rootZ = static_cast<int>(knots.front().position.z * 100.0f);
+    const float offsetU = Textures::Random(rootX, rootZ, 1851);
+    const float offsetV = Textures::Random(rootY, rootZ, 1852);
     Vector3 normal = Perpendicular(Spot::Normalize(knots[1].position - knots[0].position));
     float distance = 0.0f;
     for (std::size_t i = 0; i < knots.size(); ++i) {
@@ -103,9 +108,10 @@ void AddTube(MeshData& mesh, const Branch& branch, int sides, float flare = 0.0f
             const float angle = 2.0f * Spot::Pi * static_cast<float>(j) / static_cast<float>(sides);
             const Vector3 out = normal * std::cos(angle) + binormal * std::sin(angle);
             const float swell = 1.0f + flare * foot * foot * (0.55f + 0.45f * std::cos(angle * 5.0f));
-            mesh.vertices.push_back({knots[i].position + out * (knots[i].radius * swell),
-                                     out,
-                                     {static_cast<float>(j) / static_cast<float>(sides) * around, distance}});
+            mesh.vertices.push_back(
+                {knots[i].position + out * (knots[i].radius * swell),
+                 out,
+                 {static_cast<float>(j) / static_cast<float>(sides) * around + offsetU, distance * 0.5f + offsetV}});
         }
     }
     const auto ring = static_cast<std::uint32_t>(sides + 1);
@@ -118,8 +124,7 @@ void AddTube(MeshData& mesh, const Branch& branch, int sides, float flare = 0.0f
     }
 }
 
-// A square card of foliage, as wide as long, from its root along the direction, turned about it to face as near the
-// facing as it can; the texture's bottom middle, where its twig starts, is at the root. Its normals are set later.
+// A folded spray keeps its silhouette from grazing angles. The texture's twig starts at the bottom middle.
 void AddCard(MeshData& mesh, Vector3 root, Vector3 direction, Vector3 facing, float size) {
     Vector3 width = Spot::Cross(direction, facing);
     if (Spot::Length(width) < 1e-4f) {
@@ -127,13 +132,17 @@ void AddCard(MeshData& mesh, Vector3 root, Vector3 direction, Vector3 facing, fl
     }
     width = Spot::Normalize(width) * (size * 0.5f);
     const Vector3 normal = Spot::Normalize(Spot::Cross(width, direction));
-    const Vector3 tip = root + direction * size;
+    const Vector3 middle = root + direction * (size * 0.5f) + normal * (size * 0.12f);
+    const Vector3 tip = root + direction * size - normal * (size * 0.06f);
     const auto first = static_cast<std::uint32_t>(mesh.vertices.size());
     mesh.vertices.push_back({root - width, normal, {0.0f, 1.0f}});
     mesh.vertices.push_back({root + width, normal, {1.0f, 1.0f}});
-    mesh.vertices.push_back({tip + width, normal, {1.0f, 0.0f}});
+    mesh.vertices.push_back({middle - width, normal, {0.0f, 0.5f}});
+    mesh.vertices.push_back({middle + width, normal, {1.0f, 0.5f}});
     mesh.vertices.push_back({tip - width, normal, {0.0f, 0.0f}});
-    mesh.indices.insert(mesh.indices.end(), {first, first + 1, first + 2, first, first + 2, first + 3});
+    mesh.vertices.push_back({tip + width, normal, {1.0f, 0.0f}});
+    mesh.indices.insert(mesh.indices.end(), {first, first + 1, first + 2, first + 1, first + 3, first + 2, first + 2,
+                                             first + 3, first + 4, first + 3, first + 5, first + 4});
 }
 
 // Turns the foliage's normals toward the outward one of each point, which the function gives, keeping a little of
@@ -212,14 +221,14 @@ private:
             }
         }
         if (level >= 2) {
-            const int cards = level == 3 ? 4 : 2;
+            const int cards = level == 3 ? 5 : 3;
             for (int card = 0; card < cards; ++card) {
                 const float s = level == 3 ? 0.3f + 0.7f * static_cast<float>(card + 1) / cards
                                            : 0.75f + 0.25f * static_cast<float>(card) / cards;
                 const BranchPoint at = Along(branch, s);
                 const Vector3 out = Spot::Normalize(at.direction + m_rng.Jitter() * 0.6f + Up * 0.15f);
                 AddCard(m_tree.foliage, at.position, out, Spot::Normalize(Up + m_rng.Jitter() * 0.8f),
-                        m_rng.Range(0.65f, 0.85f));
+                        m_rng.Range(0.7f, 0.95f));
             }
         }
     }
@@ -238,12 +247,13 @@ TreeMeshes Pine(std::uint32_t seed, bool sparse) {
     Rng rng(seed);
     TreeMeshes tree;
     constexpr float Height = 9.0f;
-    const Branch trunk = Grow(rng, {0.0f, -0.4f, 0.0f}, Up, Height + 0.4f, 0.24f, 0.025f, 0.015f, 0.02f, 10);
+    // Keep the lower trunk straight so its narrow capsule follows the wood, even on the largest trees.
+    const Branch trunk = Grow(rng, {0.0f, -0.4f, 0.0f}, Up, Height + 0.4f, 0.24f, 0.025f, 0.0f, 0.0f, 14);
     AddTube(tree.bark, trunk, sparse ? 8 : 10, 0.45f);
     // Whorls of branches from a little above head height to near the top, each branch the longer the lower it is.
-    constexpr float Lowest = 1.7f;
+    constexpr float Lowest = 2.1f;
     constexpr float Highest = Height - 0.7f;
-    const float spacing = sparse ? 0.5f : 0.4f;
+    const float spacing = sparse ? 0.65f : 0.48f;
     const int branches = sparse ? 5 : 6;
     float azimuth = rng.Range(0.0f, 2.0f * Spot::Pi);
     for (float y = Lowest; y < Highest; y += spacing * rng.Range(0.85f, 1.15f)) {
@@ -252,12 +262,27 @@ TreeMeshes Pine(std::uint32_t seed, bool sparse) {
         for (int b = 0; b < branches; ++b) {
             azimuth += 2.0f * Spot::Pi / static_cast<float>(branches) + rng.Range(-0.35f, 0.35f);
             const Vector3 out{std::cos(azimuth), 0.0f, std::sin(azimuth)};
-            const float length = (0.4f + 2.5f * (1.0f - t)) * rng.Range(0.85f, 1.1f);
+            const float length = (0.3f + 2.7f * (1.0f - t)) * rng.Range(0.72f, 1.15f);
             // Branches near the top reach up; lower ones start level and sag.
             const Vector3 direction = Spot::Normalize(out + Up * (0.35f - 0.45f * (1.0f - t)));
             const Branch branch = Grow(rng, at.position, direction, length, 0.018f + 0.028f * (1.0f - t), 0.006f, 0.06f,
                                        -0.06f * (1.0f - t), 3);
             AddTube(tree.bark, branch, sparse ? 4 : 5);
+            // Alternating side shoots break up the stacked whorls and give the crown depth between its sprays.
+            const int shoots = sparse ? 2 : 4;
+            for (int shoot = 0; shoot < shoots; ++shoot) {
+                const float s = 0.3f + 0.55f * static_cast<float>(shoot) / static_cast<float>(shoots);
+                const BranchPoint on = Along(branch, s);
+                const Vector3 side{-out.z, 0.0f, out.x};
+                const float sign = shoot % 2 == 0 ? -1.0f : 1.0f;
+                const Vector3 reach = Spot::Normalize(on.direction * 0.45f + side * sign + Up * 0.12f);
+                const float shootLength = length * (1.0f - s) * rng.Range(0.45f, 0.7f);
+                const Branch twig =
+                    Grow(rng, on.position, reach, shootLength, on.radius * 0.45f, 0.003f, 0.08f, -0.025f, 2);
+                AddTube(tree.bark, twig, 4);
+                AddCard(tree.foliage, Along(twig, 0.3f).position, reach, Spot::Normalize(Up + side * (sign * 0.6f)),
+                        std::max(0.4f, shootLength * 1.1f));
+            }
             // Sprays along the branch in crossed pairs, each rolled to a side of it, so they show from any side
             // rather than vanishing edge-on, as flat ones would from the ground.
             const float size = std::min(0.65f + length * 0.3f, 1.3f);

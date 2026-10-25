@@ -454,12 +454,18 @@ SurfaceTextures PaintLeaves(std::uint32_t size) {
             const float vein = Smooth(0.07f, 0.0f, std::abs(phase - std::floor(phase + 0.5f))) *
                                (1.0f - Smooth(0.7f, 0.95f, std::abs(across)));
             const float round = 1.0f - across * across;
+            const float mottling =
+                ValueNoise(b * 32.0f, across * 8.0f + 8.0f, 32, 16, 1921u + static_cast<std::uint32_t>(n));
+            const float edge = Smooth(0.78f, 1.0f, std::abs(across));
             Rgb shade = color * ((0.62f + depth * 0.38f) * (0.84f + round * 0.18f));
+            shade = shade * (0.91f + mottling * 0.18f);
+            shade = Mix(shade, Rgb{0.38f, 0.36f, 0.12f}, edge * (0.08f + RandomOf(n, 1922) * 0.16f));
             shade = Mix(shade, Rgb{0.52f, 0.56f, 0.3f}, midrib * 0.55f + vein * 0.12f);
             return SurfacePoint{.color = shade,
-                                .height = 2.0f + depth * 2.0f + round * 2.5f - midrib * 0.8f - vein * 0.3f,
+                                .height =
+                                    2.0f + depth * 2.0f + round * 2.5f - midrib * 0.8f - vein * 0.3f + mottling * 0.2f,
                                 .occlusion = 0.55f + depth * 0.45f,
-                                .roughness = 0.5f + (1.0f - round) * 0.1f + vein * 0.1f};
+                                .roughness = 0.43f + edge * 0.16f + vein * 0.1f + mottling * 0.06f};
         });
     }
     return canvas.Encode();
@@ -501,8 +507,8 @@ SurfaceTextures PaintNeedles(std::uint32_t size) {
             const Vector2 tangent = DirectionAlong(twig, t);
             for (const float side : {-1.0f, 1.0f}) {
                 ++index;
-                Rgb color = Mix(Rgb{0.07f, 0.16f, 0.08f}, Rgb{0.15f, 0.27f, 0.12f}, RandomOf(index, 2211));
-                color = Mix(color, Rgb{0.3f, 0.45f, 0.17f}, Smooth(0.7f, 1.0f, t) * 0.7f);
+                Rgb color = Mix(Rgb{0.08f, 0.18f, 0.12f}, Rgb{0.2f, 0.32f, 0.15f}, RandomOf(index, 2211));
+                color = Mix(color, Rgb{0.36f, 0.46f, 0.2f}, Smooth(0.65f, 1.0f, t) * 0.65f);
                 const float lift = RandomOf(index, 2213);
                 Draw(
                     canvas,
@@ -510,13 +516,15 @@ SurfaceTextures PaintNeedles(std::uint32_t size) {
                      .direction = Turned(tangent, side * (1.3f + (RandomOf(index, 2214) - 0.5f) * 0.8f)),
                      .length = (18.0f + RandomOf(index, 2212) * 10.0f) * k * (1.0f - t * 0.35f),
                      .bend = (RandomOf(index, 2215) - 0.5f) * 0.3f},
-                    [k](float s) { return 2.4f * k * (1.0f - s * 0.7f); },
+                    [k](float s) { return 2.8f * k * (1.0f - s * 0.75f); },
                     [&](float s, float across, float) {
                         const float round = 1.0f - across * across;
-                        return SurfacePoint{.color = color * (0.7f + lift * 0.3f + round * 0.15f + s * 0.1f),
+                        const float ridge = Smooth(0.3f, 0.0f, std::abs(across));
+                        return SurfacePoint{.color = color *
+                                                     (0.75f + lift * 0.25f + round * 0.12f + s * 0.12f + ridge * 0.06f),
                                             .height = 2.0f + lift * 1.5f + round * 0.8f,
                                             .occlusion = 0.6f + lift * 0.4f,
-                                            .roughness = 0.55f};
+                                            .roughness = 0.4f + (1.0f - round) * 0.16f + lift * 0.08f};
                     });
             }
         }

@@ -43,6 +43,21 @@ bool HaveSameLook(const auto& a, const auto& b) {
            (a.skinCount != 0) == (b.skinCount != 0);
 }
 
+// Depth needs only the shape and alpha mask; opaque surfaces can share a draw even with different materials.
+bool HaveSameDepth(const DrawCommand& a, const DrawCommand& b) {
+    if (a.instanceBuffer || b.instanceBuffer || a.mesh != b.mesh || a.firstIndex != b.firstIndex ||
+        a.indexCount != b.indexCount || a.mirrored != b.mirrored || a.doubleSided != b.doubleSided ||
+        (a.skinCount != 0) != (b.skinCount != 0)) {
+        return false;
+    }
+    const bool cutout = a.alphaMode == AlphaMode::Cutout;
+    if (cutout != (b.alphaMode == AlphaMode::Cutout)) {
+        return false;
+    }
+    return !cutout || (a.textures[0] == b.textures[0] && a.color.a == b.color.a && a.alphaCutoff == b.alphaCutoff &&
+                       a.nearestFiltering == b.nearestFiltering);
+}
+
 } // namespace
 
 MeshBatcher::MeshBatcher(Renderer3DState& state) : m_state(state) {
@@ -446,34 +461,73 @@ const Texture* MeshBatcher::RenderCameraDepth(RenderContext& context) {
             Vector4 lodView;
         } view{m_state.viewProjection, Frustum(m_state.viewProjection).GetPlanes(), GetLodView(m_state.camera)};
         pass.PushVertexUniforms(0, view);
-        for (std::size_t i = 0; i < m_cameraDepthOrder.size(); ++i) {
+        const Pipeline* boundPipeline = nullptr;
+        const Mesh* boundMesh = nullptr;
+        const Texture* boundTexture = nullptr;
+        const Sampler* boundSampler = nullptr;
+        std::optional<Vector4> boundCutout;
+        std::uint32_t draws = 0;
+        for (std::size_t i = 0; i < m_cameraDepthOrder.size();) {
             const auto& command = m_state.commands[m_cameraDepthOrder[i]];
+            std::size_t end = i + 1;
+            while (end < m_cameraDepthOrder.size() &&
+                   HaveSameDepth(command, m_state.commands[m_cameraDepthOrder[end]])) {
+                ++end;
+            }
             const bool cutout = command.alphaMode == AlphaMode::Cutout;
             const auto variant = static_cast<std::size_t>((cutout ? 3 : 0) + (command.doubleSided ? 2
                                                                               : command.mirrored  ? 1
                                                                                                   : 0));
-            pass.BindPipeline(*m_cameraDepthPipelines[variant + (command.skinCount ? 6 : 0)]);
+            const Pipeline* pipeline = m_cameraDepthPipelines[variant + (command.skinCount ? 6 : 0)].get();
+            if (pipeline != boundPipeline) {
+                pass.BindPipeline(*pipeline);
+                boundPipeline = pipeline;
+            }
             if (command.skinCount) {
                 pass.BindVertexStorageBuffer(2, *m_state.palettes);
                 pass.BindVertexBuffer(1, *command.mesh->GetSkinBuffer());
             }
             if (cutout) {
-                pass.BindFragmentTexture(0, command.textures[0] ? *command.textures[0] : *m_state.whiteTexture,
-                                         command.nearestFiltering ? *m_state.nearestSampler : *m_state.sampler);
-                pass.PushFragmentUniforms(0, Vector4{command.color.a, command.alphaCutoff, 0, 0});
+                const Texture* texture = command.textures[0] ? command.textures[0] : m_state.whiteTexture.get();
+                const Sampler* sampler =
+                    command.nearestFiltering ? m_state.nearestSampler.get() : m_state.sampler.get();
+                if (texture != boundTexture || sampler != boundSampler) {
+                    pass.BindFragmentTexture(0, *texture, *sampler);
+                    boundTexture = texture;
+                    boundSampler = sampler;
+                }
+                const Vector4 alpha{command.color.a, command.alphaCutoff, 0, 0};
+                if (!boundCutout || *boundCutout != alpha) {
+                    pass.PushFragmentUniforms(0, alpha);
+                    boundCutout = alpha;
+                }
             }
-            pass.BindVertexBuffer(0, command.mesh->GetVertexBuffer());
-            pass.BindIndexBuffer(command.mesh->GetIndexBuffer(), IndexType::UInt32);
+            if (command.mesh != boundMesh) {
+                pass.BindVertexBuffer(0, command.mesh->GetVertexBuffer());
+                pass.BindIndexBuffer(command.mesh->GetIndexBuffer(), IndexType::UInt32);
+                boundMesh = command.mesh;
+            }
             if (command.instanceBuffer) {
                 pass.BindVertexStorageBuffer(0, *command.instanceBuffer);
-                pass.PushVertexUniforms(1, std::array<std::uint32_t, 4>{command.instanceFirst, 1, 0, 0});
-                pass.DrawIndexed(command.indexCount, command.instanceCount, command.firstIndex);
+                if (command.arguments) {
+                    pass.BindVertexStorageBuffer(1, *command.keptInstances);
+                    pass.PushVertexUniforms(1, BatchUniforms{{command.instanceFirst, 2, 0, 0}});
+                    pass.DrawIndexedIndirect(*command.arguments, command.batch * static_cast<std::uint32_t>(sizeof(
+                                                                                     DrawIndexedIndirectArguments)));
+                    pass.BindVertexStorageBuffer(1, *m_cameraDepthIndices);
+                } else {
+                    pass.PushVertexUniforms(1, BatchUniforms{{command.instanceFirst, 1, 0, 0}});
+                    pass.DrawIndexed(command.indexCount, command.instanceCount, command.firstIndex);
+                }
                 pass.BindVertexStorageBuffer(0, *m_state.instances);
             } else {
                 pass.PushVertexUniforms(1, std::array<std::uint32_t, 4>{static_cast<std::uint32_t>(i), 0, 0, 0});
-                pass.DrawIndexed(command.indexCount, 1, command.firstIndex);
+                pass.DrawIndexed(command.indexCount, static_cast<std::uint32_t>(end - i), command.firstIndex);
             }
+            ++draws;
+            i = end;
         }
+        Profiler::Count("Camera depth draw calls", draws);
     }
     m_state.DrawSurfaces(pass, SurfacePass::Depth, m_state.viewProjection, false, surfaceView);
     return m_cameraDepth.get();

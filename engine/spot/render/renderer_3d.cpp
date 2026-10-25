@@ -308,6 +308,11 @@ void Renderer3D::Impl::DrawView(Detail::SelectedLights lights, bool main) {
     if (!UploadLights(lights)) {
         state.commands.clear();
     }
+    if (main) {
+        state.context->BeginGpuTimer("Visibility");
+        worlds.Cull();
+        state.context->EndGpuTimer();
+    }
     const Texture* occlusion = nullptr;
     if (main && ambientOcclusion && state.config.ambientOcclusion.intensity > 0.0f) {
         state.context->BeginGpuTimer("Ambient occlusion");
@@ -318,9 +323,6 @@ void Renderer3D::Impl::DrawView(Detail::SelectedLights lights, bool main) {
         state.context->EndGpuTimer();
     }
     state.context->BeginGpuTimer("Opaque");
-    if (main) {
-        worlds.Cull();
-    }
     const std::uint32_t surfaceView =
         state.PrepareSurfaces(*state.context, SurfacePass::Lit, state.viewProjection, false);
     {

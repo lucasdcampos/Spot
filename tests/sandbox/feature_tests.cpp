@@ -1,3 +1,4 @@
+#include "grass_visibility.h"
 #include "physics_gun.h"
 #include "player_controller.h"
 #include "playground_fixture.h"
@@ -8,6 +9,33 @@
 #include "world_save.h"
 
 #include <catch2/catch_approx.hpp>
+
+TEST_CASE("Grass chunks keep triangles crossing cell boundaries and their shading", "[sandbox]") {
+    Spot::MeshData source;
+    source.vertices = {{{-9, 0, -1}, {0, 1, 0}, {0, 0}, {1, 0, 0, -1}},
+                       {{-7, 0, -1}, {0, 1, 0}, {1, 0}, {1, 0, 0, -1}},
+                       {{-9, 1, 1}, {0, 1, 0}, {0, 1}, {1, 0, 0, -1}},
+                       {{9, 0, 1}, {0, 1, 0}, {1, 1}, {1, 0, 0, -1}}};
+    source.indices = {0, 1, 2, 1, 3, 2};
+    const auto chunks = GrassChunks::Partition(source, 8.0f);
+    REQUIRE(chunks.size() == 2);
+    std::size_t index = 0;
+    for (const auto& chunk : chunks) {
+        REQUIRE(chunk.indices.size() == 3);
+        for (const auto localIndex : chunk.indices) {
+            REQUIRE(localIndex < chunk.vertices.size());
+            const auto& actual = chunk.vertices[localIndex];
+            const auto& expected = source.vertices[source.indices[index++]];
+            CHECK(actual.position == expected.position);
+            CHECK(actual.normal == expected.normal);
+            CHECK(actual.uv == expected.uv);
+            CHECK(actual.tangent == expected.tangent);
+        }
+    }
+    CHECK(index == source.indices.size());
+    CHECK(GrassChunks::Partition({}, 8.0f).empty());
+    CHECK(GrassChunks::Partition(source, 0.0f).empty());
+}
 
 TEST_CASE("The physics gun preserves the grabbed surface of scaled props and releases when disabled",
           "[sandbox][acceptance]") {

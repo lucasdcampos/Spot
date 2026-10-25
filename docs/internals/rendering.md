@@ -367,6 +367,17 @@ instance of its own, batched with the others of its mesh, and the shaders draw t
 as the view's camera sees it, in shadows too, so they fall from the same mesh. Levels draw their whole mesh, and are
 chosen by the bounds of the object's own.
 
+The camera-depth pass batches repeated meshes too, through its list of command indices. Opaque instances can share
+a depth draw across different colors and PBR materials; cutout instances also require matching alpha textures,
+alpha values, cutoffs and filtering. It keeps pipeline, mesh and alpha bindings between draws, and the profiler's
+`Camera depth draw calls` counter records its mesh draws. Main-view GPU culling runs before ambient occlusion, so
+camera depth and color reuse the same compact visible-instance lists and indirect arguments instead of processing
+rejected instances again in the depth vertex shader. Shadow views keep their own caster lists.
+
+The mesh fragment shader checks the base-color alpha before reading the normal map or evaluating its tangent
+frame. UV gradients are taken before clipping and passed to the normal-map sample explicitly, preserving mip
+selection at cutout edges while avoiding that work for the empty parts of foliage cards.
+
 Scenes keep theirs in a `RenderWorldSystem` (`engine/spot/scene/rendering/render_world_system.h`), which `DrawScene()`
 creates and syncs: it visits the scene's `MeshRenderer`s, and takes from each only what changed since the last sync,
 as `Transform::GetVersion()` (which changes when the transform or an ancestor moves) and the renderer's own changes

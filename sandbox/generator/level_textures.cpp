@@ -260,28 +260,41 @@ SurfacePoint RockPoint(int x, int y, float scale) {
 
 // Furrowed bark, as an old oak's or pine's: long rounded plates along v, split by deep furrows that wander and join,
 // grey-brown on their worn faces with a little lichen and dark in the furrows. Its v runs along the branch, about a
-// meter per repeat.
+// two meters per repeat.
 SurfacePoint BarkPoint(int x, int y, float scale) {
     const float u = Coordinate(x, scale);
     const float v = Coordinate(y, scale);
-    // Plates are cells four times as long as they are wide, their edges warped so the furrows wander.
-    const float warpU = (Fractal(u, v, 4, 8, 3, 1801) - 0.5f) * 0.6f;
-    const float warpV = (Fractal(u, v, 4, 8, 3, 1802) - 0.5f) * 0.6f;
-    const CellSample plates = Cells(u * 12.0f + warpU, v * 3.0f + warpV, 12, 3, 1803);
+    // Long, broken ridges follow the trunk; smaller flakes interrupt them instead of forming uniform scales.
+    const float warpU = (Noise(u, v, 4, 6, 3, 1801) - 0.5f) * 0.85f;
+    const float warpV = (Noise(u, v, 4, 8, 2, 1802) - 0.5f) * 0.45f;
+    const CellSample plates = Cells(u * 15.0f + warpU, v * 3.0f + warpV, 15, 3, 1803);
     const float gap = plates.second - plates.nearest;
     // Each plate is rounded, worn smooth on top and falling away into the furrows around it.
-    const float raised = Smooth(0.02f, 0.45f, gap);
-    const float fibers = Fractal(u, v, 64, 8, 3, 1805);
+    const float raised = Smooth(0.012f, 0.32f, gap);
+    const float fibers = Noise(u + warpU * 0.012f, v, 128, 8, 2, 1805);
+    const float splits = Smooth(0.78f, 0.94f, Ridges(u + warpU * 0.025f, v, 48, 6, 3, 1808)) * raised;
+    const float flakes = Noise(u, v, 36, 48, 2, 1809);
+    const float weathering = Noise(u, v, 5, 7, 3, 1810);
+    const float pores = Smooth(0.65f, 0.85f, Noise(u, v, 192, 24, 2, 1811)) * raised;
     const float grain = Random(x, y, 1806);
-    const float lichen = Smooth(0.62f, 0.78f, Fractal(u, v, 5, 5, 3, 1807)) * raised;
-    Rgb face = Mix(Rgb{0.27f, 0.22f, 0.17f}, Rgb{0.44f, 0.39f, 0.33f}, plates.id * 0.6f + fibers * 0.4f);
-    face = face * (0.7f + raised * 0.25f + fibers * 0.2f + grain * 0.08f);
-    face = Mix(face, Rgb{0.46f, 0.49f, 0.37f}, lichen * 0.45f);
-    const Rgb furrow = Rgb{0.12f, 0.09f, 0.07f} * (0.8f + fibers * 0.4f);
+    const float lichen = Smooth(0.72f, 0.9f, Noise(u, v, 7, 9, 3, 1807)) * raised;
+    // A healed branch scar: periodic distances keep its rings seamless at the texture edges.
+    const float du = u - 0.36f - std::round(u - 0.36f);
+    const float dv = v - 0.58f - std::round(v - 0.58f);
+    const float scarDistance = std::sqrt(du * du * 625.0f + dv * dv * 100.0f);
+    const float scar = 1.0f - Smooth(0.65f, 1.25f, scarDistance);
+    const float scarRings = (Wave(scarDistance * 6.0f + fibers * 0.15f) * 0.5f + 0.5f) * scar;
+    Rgb face = Mix(Rgb{0.28f, 0.21f, 0.15f}, Rgb{0.43f, 0.4f, 0.35f}, weathering * 0.7f + plates.id * 0.3f);
+    face = face * (0.88f + fibers * 0.14f + flakes * 0.08f + grain * 0.025f);
+    face = Mix(face, Rgb{0.42f, 0.44f, 0.32f}, lichen * 0.3f);
+    face = Mix(face, Rgb{0.19f, 0.14f, 0.1f}, splits * 0.4f + pores * 0.15f);
+    face = Mix(face, Mix(Rgb{0.21f, 0.15f, 0.1f}, Rgb{0.37f, 0.28f, 0.19f}, scarRings), scar * 0.7f);
+    const Rgb furrow = Mix(Rgb{0.14f, 0.105f, 0.08f}, Rgb{0.23f, 0.18f, 0.13f}, weathering);
     return {.color = Mix(furrow, face, Smooth(0.0f, 0.35f, raised)),
-            .height = raised * 10.0f + fibers * 1.5f + grain * 0.3f,
-            .occlusion = 0.35f + raised * 0.65f,
-            .roughness = 0.88f + grain * 0.08f - lichen * 0.05f};
+            .height = raised * 9.0f + fibers * 0.65f + flakes * 0.6f + grain * 0.08f - splits * 1.4f - pores * 0.35f +
+                      scarRings * 0.8f - scar * 0.6f,
+            .occlusion = (0.55f + raised * 0.45f) * (1.0f - splits * 0.12f - pores * 0.05f),
+            .roughness = 0.8f + flakes * 0.1f + weathering * 0.06f - scar * 0.08f};
 }
 
 // Calm water: gentle swells and ripples in its normals, smooth enough to mirror the sky.

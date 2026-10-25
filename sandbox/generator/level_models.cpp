@@ -400,8 +400,8 @@ float GetDistanceOutside(float x, float z) {
     return std::sqrt(dx * dx + dz * dz) - 12.0f;
 }
 
-// The pines and boulders scattered over the hills, merged into one mesh per material so the whole forest draws as a
-// handful of meshes. Trunks and rocks collide by their triangles.
+// Pines and boulders merge by material; the scene instances oaks at the remaining forest placements.
+// The scene uses narrow trunk capsules; only the rocks collide by their triangles.
 GltfModel Forest() {
     Builder builder;
     const std::size_t bark = builder.AddMaterial(SurfaceMaterial("Bark", Surface::Bark));
@@ -420,21 +420,13 @@ GltfModel Forest() {
         }
         builder.Add(part, scaled, At(position, Turn({0, 1, 0}, yaw)));
     };
-    int pines = 0;
-    for (int i = 0; i < 4000 && pines < 70; ++i) {
-        const float x = -120.0f + random(i, 5001) * 240.0f;
-        const float z = -115.0f + random(i, 5002) * 230.0f;
-        const float outside = GetDistanceOutside(x, z);
-        if (outside < 2.0f || outside > 55.0f) {
+    for (const ForestTree& tree : GetForestTrees()) {
+        if (tree.species == ForestSpecies::Oak) {
             continue;
         }
-        const float scale = 0.9f + random(i, 5003) * 0.6f;
-        const Vector3 base{x, GetTerrainHeight(x, z) - 0.4f, z};
-        const float yaw = random(i, 5004) * 360.0f;
-        const Trees::TreeMeshes& pine = kinds[static_cast<std::size_t>(random(i, 5005) * 2.999f)];
-        place(bark, pine.bark, base, yaw, scale);
-        place(needles, pine.foliage, base, yaw, scale);
-        ++pines;
+        const Trees::TreeMeshes& pine = kinds[tree.kind];
+        place(bark, pine.bark, tree.position, tree.yaw, tree.scale);
+        place(needles, pine.foliage, tree.position, tree.yaw, tree.scale);
     }
     int boulders = 0;
     for (int i = 0; i < 4000 && boulders < 26; ++i) {
@@ -562,6 +554,42 @@ void AddGroundCover(Builder& builder) {
 }
 
 } // namespace
+
+std::vector<ForestTree> GetForestTrees() {
+    std::vector<ForestTree> trees;
+    trees.reserve(180);
+    const auto random = [](int i, std::uint32_t seed) { return Textures::Random(i, 0, seed); };
+    for (int i = 0; i < 12000 && trees.size() < 180; ++i) {
+        const float x = -120.0f + random(i, 5001) * 240.0f;
+        const float z = -115.0f + random(i, 5002) * 230.0f;
+        const float outside = GetDistanceOutside(x, z);
+        if (outside < 2.0f || outside > 60.0f) {
+            continue;
+        }
+        const float slopeX = GetTerrainHeight(x + 1.0f, z) - GetTerrainHeight(x - 1.0f, z);
+        const float slopeZ = GetTerrainHeight(x, z + 1.0f) - GetTerrainHeight(x, z - 1.0f);
+        if (slopeX * slopeX + slopeZ * slopeZ > 2.25f) {
+            continue;
+        }
+        const float scale = 0.8f + random(i, 5003) * 0.75f;
+        // Separate trunks while allowing their crowns to overlap into small groves.
+        const bool crowded = std::any_of(trees.begin(), trees.end(), [&](const ForestTree& tree) {
+            const float dx = tree.position.x - x;
+            const float dz = tree.position.z - z;
+            const float spacing = 2.2f * (scale + tree.scale);
+            return dx * dx + dz * dz < spacing * spacing;
+        });
+        if (crowded) {
+            continue;
+        }
+        trees.push_back({{x, GetTerrainHeight(x, z) - 0.15f, z},
+                         random(i, 5004) * 360.0f,
+                         scale,
+                         static_cast<std::size_t>(random(i, 5005) * 2.999f),
+                         random(i, 5006) < 0.4f ? ForestSpecies::Oak : ForestSpecies::Pine});
+    }
+    return trees;
+}
 
 float GetTerrainHeight(float x, float z) {
     // Outside the level's rounded rectangle, the ground rises into hills, steeper and higher farther out.
