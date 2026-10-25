@@ -2,6 +2,7 @@
 #include "day_cycle.h"
 #include "player_controller.h"
 #include "player_health.h"
+#include "prop_spawner.h"
 #include "runtime_interface.h"
 #include "view_model.h"
 #include "weapon.h"
@@ -375,8 +376,28 @@ TEST_CASE("The cooked sandbox draws its HUD over the game: in hand, the wheel, h
     ui->SelectCategory(Spawnable::Category::Weapon);
     step();
     draw("menu_spawn_weapons.png");
+    ui->SelectCategory(Spawnable::Category::Prop);
+    ui->Search("barrel");
+    step();
+    draw("menu_spawn_search.png");
+    ui->Search("");
+    ui->SetCompactView(true);
+    step();
+    draw("menu_spawn_compact.png");
+    ui->SetCompactView(false);
     ui->OpenPauseMenu();
     step();
     draw("menu_pause.png");
     ui->CloseMenus();
+
+    // Placing what the menu gave, and the controls on Help.
+    auto* spawner = scene->FindComponent<PropSpawner>();
+    REQUIRE(spawner);
+    REQUIRE(spawner->BeginPlacement(0));
+    run(2);
+    draw("hud_placing.png");
+    spawner->CancelPlacement();
+    tap(Spot::Key::H);
+    draw("hud_help.png");
+    tap(Spot::Key::H);
 }

@@ -7,6 +7,7 @@
 #include "player_health.h"
 #include "player_movement.h"
 #include "prop_carrier.h"
+#include "prop_spawner.h"
 #include "tool_gun.h"
 #include "weapon.h"
 #include "weapon_holder.h"
@@ -45,6 +46,9 @@ std::string Upper(std::string_view text) {
 
 constexpr const char* ToolModes[] = {"Weld", "Rope", "Remover", "Color", "Material", "Lamp"};
 
+// Seconds to fade the HUD's transient lines in or out.
+constexpr float FadeTime = 0.18f;
+
 } // namespace
 
 void Hud::OnUpdate(float deltaTime) {
@@ -55,6 +59,9 @@ void Hud::OnUpdate(float deltaTime) {
     if (Spot::Input::IsActionPressed("Statistics")) {
         m_showStatistics = !m_showStatistics;
         UpdateStatus();
+    }
+    if (Spot::Input::IsActionPressed("Help")) {
+        m_showHelp = !m_showHelp;
     }
     m_nameLeft = std::max(m_nameLeft - elapsed, 0.0f);
     m_time += elapsed;
@@ -93,6 +100,10 @@ void Hud::OnLateUpdate(float) {
     m_state.day = minutes >= 6 * 60 && minutes < 18 * 60;
     DescribeHand();
     DescribeHealth();
+    const float intro = std::clamp((introTime - m_time) / FadeTime, 0.0f, 1.0f);
+    m_state.hintOpacity = std::max({m_state.itemOpacity, intro, m_hintsMatter ? 1.0f : 0.0f});
+    m_state.showHelp = m_showHelp;
+    m_state.helpHintOpacity = m_showHelp ? 0.0f : intro;
     auto* root = GetScene().GetEntity(m_interface);
     if (auto* ui = root ? root->GetComponent<RuntimeInterface>() : nullptr)
         ui->UpdateHud(m_state);
@@ -138,6 +149,7 @@ void Hud::DescribeHand() {
     state.item.clear();
     state.icon = {};
     state.wheelOpen = false;
+    m_hintsMatter = false;
     const WeaponHolder* holder = GetScene().FindComponent<WeaponHolder>();
     if (!holder) {
         state.itemOpacity = 0.0f;
@@ -168,7 +180,7 @@ void Hud::DescribeHand() {
         m_nameLeft = m_lastSlot < 0 ? 0.0f : nameTime;
         m_lastSlot = state.selectedSlot;
     }
-    state.itemOpacity = std::clamp(m_nameLeft / 0.4f, 0.0f, 1.0f);
+    state.itemOpacity = std::clamp(m_nameLeft / FadeTime, 0.0f, 1.0f);
     if (state.selectedSlot >= 0 && state.selectedSlot < static_cast<int>(state.slots.size())) {
         state.icon = state.slots[static_cast<std::size_t>(state.selectedSlot)].icon;
         state.item = Upper(state.slots[static_cast<std::size_t>(state.selectedSlot)].name);
@@ -186,13 +198,21 @@ void Hud::DescribeHand() {
     }
     state.spread += (std::min(spread, 1.0f) - state.spread) * 0.25f;
     state.hitMarker = holder->GetHitMarker();
-    state.crosshair = holder->CanUseItem();
+    // While placing what the spawn menu gave, the crosshair marks where it goes.
+    const auto* spawner = player.GetComponent<PropSpawner>();
+    const bool placing = spawner && spawner->IsPlacing();
+    state.crosshair = holder->CanUseItem() || placing;
 
     const auto* carrier = player.GetComponent<PropCarrier>();
-    if (carrier && carrier->IsHolding()) {
-        state.prompt = "LMB  Throw      E  Drop      RMB  Rotate";
+    if (placing) {
+        const auto spawnables = spawner->GetSpawnables();
+        const std::size_t index = *spawner->GetPlacingIndex();
+        state.prompt = std::format("[LMB]  Place {}      [RMB]  Cancel",
+                                   index < spawnables.size() ? spawnables[index].name : std::string());
+    } else if (carrier && carrier->IsHolding()) {
+        state.prompt = "[LMB]  Throw      [E]  Drop      [RMB]  Rotate";
     } else if (!(gun && gun->IsGrabbing()) && carrier && carrier->FindCarryable()) {
-        state.prompt = "E  Pick up";
+        state.prompt = "[E]  Pick up";
     }
 
     if (holder->IsToolGunSelected()) {
@@ -210,26 +230,32 @@ void Hud::DescribeHand() {
         }
         const bool options = tool->mode == ToolGun::Mode::Color || tool->mode == ToolGun::Mode::Material ||
                              tool->mode == ToolGun::Mode::Lamp;
-        state.hints = options ? "LMB Use    RMB Option    R Mode" : "LMB Use    R Mode    Z Undo";
+        state.hints =
+            options ? "[LMB]  Use      [RMB]  Option      [R]  Mode" : "[LMB]  Use      [R]  Mode      [Z]  Undo";
         return;
     }
     const Weapon* weapon = holder->GetWeapon();
     if (!weapon) {
         state.countIsWord = true;
         state.count = gun && gun->IsGrabbing() ? "Holding" : "Ready";
-        state.hints =
-            gun && gun->IsGrabbing() ? "Wheel Distance    E Rotate    RMB Freeze" : "Hold LMB Grab    U Unfreeze all";
+        m_hintsMatter = gun && gun->IsGrabbing();
+        state.hints = m_hintsMatter ? "[Wheel]  Distance      [E]  Rotate      [RMB]  Freeze"
+                                    : "[LMB]  Hold to grab      [U]  Unfreeze all";
         return;
     }
     state.count = std::to_string(weapon->GetAmmo());
     state.detail = std::format("/ {}", weapon->GetReserve());
     state.lowAmmo = weapon->magazineSize > 3 && weapon->GetAmmo() <= weapon->magazineSize / 4 && !weapon->IsReloading();
-    state.hints = "R Reload    RMB Aim";
+    state.hints = "[R]  Reload      [RMB]  Aim";
     if (weapon->IsReloading()) {
         state.reload = weapon->GetReloadProgress();
         state.hints = "Reloading";
+        m_hintsMatter = true;
     } else if (weapon->GetAmmo() == 0 && weapon->GetReserve() == 0) {
         state.hints = "Out of ammunition";
+        m_hintsMatter = true;
+    } else if (state.lowAmmo) {
+        m_hintsMatter = true;
     }
     // Down the sights, the sights are the crosshair.
     state.crosshair = state.crosshair && !holder->IsAiming();
@@ -254,4 +280,6 @@ void Hud::Serialize(Spot::Archive& archive) {
     archive.Field("font", font);
     archive.Field("nameTime", nameTime,
                   {.min = 0, .max = 10, .speed = .05f, .tooltip = "Seconds the name of what is in hand shows"});
+    archive.Field("introTime", introTime,
+                  {.min = 0, .max = 60, .speed = .05f, .tooltip = "Seconds the controls show as the game starts"});
 }

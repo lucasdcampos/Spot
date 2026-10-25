@@ -102,7 +102,15 @@ TEST_CASE("Text focus and modal canvases own input and restore the requested cur
         CHECK(id == root.GetId());
         root.SetActive(false);
     });
-    CHECK(scene.GetOrAddSystem<Spot::UiInputSystem>().HandleUiEvent(Spot::KeyPressedEvent{Spot::Key::Escape, false},
+    // A letter that dismisses the canvas types into a focused field; Escape leaves the field first.
+    canvas.settings.dismissKey = Spot::Key::Q;
+    ui.Focus(entity.GetId());
+    CHECK(ui.HandleUiEvent(Spot::KeyPressedEvent{Spot::Key::Q, false}, {800, 600}, &input));
+    CHECK(root.IsActiveSelf());
+    CHECK(ui.HandleUiEvent(Spot::KeyPressedEvent{Spot::Key::Escape, false}, {800, 600}, &input));
+    CHECK(root.IsActiveSelf());
+    CHECK_FALSE(ui.WantsTextInput());
+    CHECK(scene.GetOrAddSystem<Spot::UiInputSystem>().HandleUiEvent(Spot::KeyPressedEvent{Spot::Key::Q, false},
                                                                     {800, 600}, &input));
     CHECK_FALSE(input.IsCaptured());
     CHECK(input.IsCursorLockApplied());

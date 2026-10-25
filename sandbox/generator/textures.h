@@ -27,11 +27,17 @@ Spot::Image Concrete();
 Spot::Image Wheel();
 Spot::Image TargetDummy();
 
-// The interface's images, 64 pixels square, white with smooth edges in their alpha, for tinting: a rounded panel to
-// nine-slice with borders of 12 pixels, a dot, and the cross of a hit marker.
+// The interface's images, 64 pixels square, white with smooth edges in their alpha, for tinting: a panel with corners
+// rounded by 4 pixels to nine-slice with borders of 6 pixels, its 1 pixel outline to lay over it, the soft shadow to
+// lay under it, 16 pixels wider on each side, to nine-slice with borders of 24, a dot, and the cross of a hit marker.
 Spot::Image UiPanel();
+Spot::Image UiOutline();
+Spot::Image UiShadow();
 Spot::Image UiDot();
 Spot::Image UiHitMarker();
+// Opaque in the middle and fading out to its edges, 128 pixels square: tinted dark and stretched behind the HUD's
+// corners, it keeps their text legible over a bright sky without a box around it.
+Spot::Image UiScrim();
 // Galvanized chain link: wires along both diagonals, white in color and alpha, for cutout fences.
 Spot::Image ChainLink();
 

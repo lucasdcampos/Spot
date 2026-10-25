@@ -74,6 +74,7 @@ TEST_CASE("Spawn, freeze, checkpoint, pause and cleanup preserve the permanent l
     ui->OpenSpawnMenu();
     REQUIRE(!ui->GetSpawnButtons().empty());
     game.scene.GetEntity(ui->GetSpawnButtons().front())->GetComponent<Spot::UiButton>()->Click();
+    REQUIRE(spawner->ConfirmPlacement());
     game.Run(2);
     REQUIRE(spawner->GetSpawnedCount() == 1);
     Spot::EntityId spawned = Spot::EntityId::Invalid;

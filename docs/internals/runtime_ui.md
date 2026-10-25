@@ -105,7 +105,8 @@ input; their capture releases the cursor while retaining the game's requested lo
 
 A canvas with `settings.modal` owns input until disabled or hidden; only its controls can receive
 focus. `dismissKey` defaults to Escape. `UiInputSystem::OnCancel` identifies the modal canvas,
-allowing game code to close it. Escape first releases text focus; gamepad East/Start cancels a modal.
+allowing game code to close it. Escape first releases text focus; gamepad East/Start cancels a modal. A dismissal key
+other than Escape, such as a letter, is typed into a focused field instead of closing its canvas.
 The code-only input system can bind a state with `SetInputState()`. That state must outlive the
 binding; detach it before destruction. UI input and component callbacks are fault-contained.
 
@@ -135,10 +136,11 @@ normal editable UI tree with bound widget ids, label children and inactive catal
 Open it as a prefab in the editor, enable a menu canvas to preview it, and use the same rectangle
 handles and inspector. `RuntimeInterface` fills the templates from the spawn manifest and input
 map. The HUD shows a spreading crosshair, hit marker, the item in hand with its rounds or tool mode, a reload
-bar, context controls, a slot bar while switching, the clock and, on F11, statistics; see [Sandbox](sandbox.md).
+bar, context controls, the clock, the controls on H and, on F11, statistics; see [Sandbox](sandbox.md).
 
-Q or gamepad Back opens the spawn menu; Props/Lamps/Weapons tabs filter its catalog. Clicking a
-thumbnail spawns the actual prefab through PropSpawner; footer buttons undo and clean up.
+Q or gamepad Back opens the spawn menu; a sidebar of Props/Lamps/Weapons and a search field filter its catalog.
+Clicking a thumbnail closes the menu and shows the prefab, translucent, where it would go; PropSpawner places it on
+Fire and cancels on Aim. Footer buttons undo and clean up.
 `MenuThumbnails` renders the prefab's mesh tree through public SceneRenderer into a cached texture,
 with a two-item budget per frame and no gameplay simulation. Escape/Start opens pause; Resume,
 Escape or gamepad East/Start closes it and restores the previous time scale and cursor request.

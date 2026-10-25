@@ -18,6 +18,8 @@ public:
     };
 
     Spot::AssetRef<Spot::Font> font;
+    // For the number keys and the rounds; the font when unset.
+    Spot::AssetRef<Spot::Font> monoFont;
     // One sector of the ring pointing up, as the generator paints ui_wheel_sector.
     Spot::AssetRef<Spot::Texture> sector;
     // The round middle, as ui_dot.
@@ -34,6 +36,6 @@ protected:
 
 private:
     // Draws the text centered on the point, at the size in canvas pixels.
-    void DrawCentered(Spot::Renderer2D& renderer, std::string_view text, Spot::Vector2 center, float size,
-                      Spot::Color color, float scale) const;
+    void DrawCentered(Spot::Renderer2D& renderer, const Spot::AssetRef<Spot::Font>& textFont, std::string_view text,
+                      Spot::Vector2 center, float size, Spot::Color color, float scale) const;
 };

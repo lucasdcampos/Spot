@@ -103,6 +103,14 @@ Spot::Image Paint(std::uint32_t width, std::uint32_t height, F&& shape) {
 constexpr std::uint32_t ItemWidth = 256;
 constexpr std::uint32_t ItemHeight = 128;
 constexpr std::uint32_t SymbolSize = 128;
+constexpr std::uint32_t GlyphSize = 64;
+// Half the width of a glyph's strokes.
+constexpr float Stroke = 2.5f;
+
+// The outline of a shape, a stroke wide, centered on its edge.
+float Outline(float distance) {
+    return std::abs(distance) - Stroke;
+}
 
 } // namespace
 
@@ -224,6 +232,56 @@ Spot::Image Moon() {
 Spot::Image Health() {
     return Paint(SymbolSize, SymbolSize,
                  [](Point p) { return Union({Box(p, {48, 14}, {80, 114}, 7.0f), Box(p, {14, 48}, {114, 80}, 7.0f)}); });
+}
+
+Spot::Image Search() {
+    return Paint(GlyphSize, GlyphSize, [](Point p) {
+        return Union({Outline(Circle(p, {27, 27}, 15.0f)), Capsule(p, {38.5f, 38.5f}, {52, 52}, Stroke + 0.5f)});
+    });
+}
+
+Spot::Image ViewGrid() {
+    return Paint(GlyphSize, GlyphSize, [](Point p) {
+        return Union({Box(p, {10, 10}, {29, 29}, 2.0f), Box(p, {35, 10}, {54, 29}, 2.0f),
+                      Box(p, {10, 35}, {29, 54}, 2.0f), Box(p, {35, 35}, {54, 54}, 2.0f)});
+    });
+}
+
+Spot::Image ViewCompact() {
+    return Paint(GlyphSize, GlyphSize, [](Point p) {
+        float distance = 1e9f;
+        for (const float y : {10.0f, 27.0f, 44.0f}) {
+            for (const float x : {10.0f, 27.0f, 44.0f}) {
+                distance = std::min(distance, Box(p, {x, y}, {x + 10.0f, y + 10.0f}, 1.5f));
+            }
+        }
+        return distance;
+    });
+}
+
+Spot::Image CategoryProps() {
+    return Paint(GlyphSize, GlyphSize, [](Point p) {
+        // A box seen from above a corner: its outline, and the edges that meet at the near top corner.
+        const Point top{32, 10}, left{10, 21}, right{54, 21}, middle{32, 32};
+        const float outline = Outline(Polygon(p, {top, right, {54, 45}, {32, 56}, {10, 45}, left}));
+        return Union({outline, Capsule(p, left, middle, Stroke), Capsule(p, right, middle, Stroke),
+                      Capsule(p, middle, {32, 56}, Stroke)});
+    });
+}
+
+Spot::Image CategoryLamps() {
+    return Paint(GlyphSize, GlyphSize, [](Point p) {
+        const float glass = Union({Circle(p, {32, 25}, 15.0f), Polygon(p, {{22, 33}, {42, 33}, {39, 43}, {25, 43}})});
+        return Union({Outline(glass), Capsule(p, {25, 49}, {39, 49}, Stroke), Capsule(p, {28, 55}, {36, 55}, Stroke)});
+    });
+}
+
+Spot::Image CategoryWeapons() {
+    return Paint(GlyphSize, GlyphSize, [](Point p) {
+        return Union({Outline(Circle(p, {32, 32}, 18.0f)), Capsule(p, {32, 6}, {32, 20}, Stroke),
+                      Capsule(p, {32, 44}, {32, 58}, Stroke), Capsule(p, {6, 32}, {20, 32}, Stroke),
+                      Capsule(p, {44, 32}, {58, 32}, Stroke), Circle(p, {32, 32}, 3.5f)});
+    });
 }
 
 Spot::Image WheelSector() {

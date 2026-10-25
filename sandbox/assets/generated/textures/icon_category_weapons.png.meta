@@ -1,0 +1,10 @@
+{
+  "id": "dba05f5fa2b3fac804040279766126fa",
+  "settings": {
+    "compress": true,
+    "keepAlphaCoverage": false,
+    "mipmaps": true,
+    "srgb": true
+  },
+  "type": "Texture"
+}

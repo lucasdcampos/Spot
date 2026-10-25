@@ -22,13 +22,15 @@ struct HudState {
     bool day = true;
     // What is in hand: its icon, its name, shown a moment after switching (from 1 to 0 as it fades), a large line
     // (rounds left, or the tool's mode), a smaller one beside it (rounds in reserve, or the mode's option) and the
-    // controls that matter for it.
+    // controls that matter for it, shown as strongly as hintOpacity says: after switching, early on, and while they
+    // matter, such as while reloading.
     Spot::AssetRef<Spot::Texture> icon;
     std::string item;
     float itemOpacity = 0.0f;
     std::string count;
     std::string detail;
     std::string hints;
+    float hintOpacity = 0.0f;
     // Large lines that are words rather than numbers are set smaller.
     bool countIsWord = false;
     bool lowAmmo = false;
@@ -39,7 +41,8 @@ struct HudState {
     bool crosshair = true;
     float spread = 0.0f;
     float hitMarker = 0.0f;
-    // What Use would do with what is under the crosshair, such as picking it up; empty for nothing.
+    // What Use would do with what is under the crosshair, such as picking it up, or how to place the prop chosen in
+    // the spawn menu; empty for nothing.
     std::string prompt;
     // The player's health out of its most; low health turns it red and pulses the edges of the screen, which flash as
     // it is hurt, as strongly as damage says, from 0 to 1.
@@ -55,12 +58,17 @@ struct HudState {
     int selectedSlot = 0;
     bool wheelOpen = false;
     int wheelSlot = 0;
+    // The controls, on Help; until then, how strongly the line that says which key shows them shows.
+    bool showHelp = false;
+    float helpHintOpacity = 0.0f;
 };
 
 class RuntimeInterface final : public Spot::Component {
 public:
     enum class Menu { Closed, Spawn, Pause };
-    Spot::AssetRef<Spot::Font> font;
+    // Text, numbers and titles: Inter, JetBrains Mono and Inter SemiBold in the authored interface.
+    Spot::AssetRef<Spot::Font> font, monoFont, titleFont;
+    Spot::Color accent = {1.0f, 0.68f, 0.22f, 1.0f};
     Spot::EntityId spawnCanvas = Spot::EntityId::Invalid, pauseCanvas = Spot::EntityId::Invalid;
     Spot::EntityId spawnGrid = Spot::EntityId::Invalid, spawnScroll = Spot::EntityId::Invalid,
                    spawnTemplate = Spot::EntityId::Invalid;
@@ -68,6 +76,10 @@ public:
                    weaponsTab = Spot::EntityId::Invalid;
     Spot::EntityId spawnClose = Spot::EntityId::Invalid, cleanup = Spot::EntityId::Invalid,
                    undoSpawn = Spot::EntityId::Invalid;
+    // The search field, the frame drawn around it, the number of objects shown and the buttons of the two views.
+    Spot::EntityId spawnSearch = Spot::EntityId::Invalid, spawnSearchFrame = Spot::EntityId::Invalid,
+                   spawnCount = Spot::EntityId::Invalid;
+    Spot::EntityId gridView = Spot::EntityId::Invalid, compactView = Spot::EntityId::Invalid;
     Spot::EntityId pauseResume = Spot::EntityId::Invalid, pauseQuit = Spot::EntityId::Invalid;
     Spot::EntityId qualityButton = Spot::EntityId::Invalid, qualityLabel = Spot::EntityId::Invalid;
     Spot::EntityId bindingContent = Spot::EntityId::Invalid, bindingScroll = Spot::EntityId::Invalid,
@@ -89,6 +101,9 @@ public:
     Spot::EntityId damageOverlay = Spot::EntityId::Invalid, deathOverlay = Spot::EntityId::Invalid,
                    deathTimer = Spot::EntityId::Invalid;
     Spot::EntityId wheelOverlay = Spot::EntityId::Invalid, weaponWheel = Spot::EntityId::Invalid;
+    // The controls panel, its rows, made from the action map, their template, and the line saying how to show it.
+    Spot::EntityId helpPanel = Spot::EntityId::Invalid, helpContent = Spot::EntityId::Invalid,
+                   helpTemplate = Spot::EntityId::Invalid, helpHint = Spot::EntityId::Invalid;
     // What the clock shows beside the time by day and by night.
     Spot::AssetRef<Spot::Texture> sunIcon, moonIcon;
     // The reload and health bars' widths when full, in canvas pixels.
@@ -103,6 +118,14 @@ public:
     void OpenPauseMenu();
     void CloseMenus();
     void SelectCategory(Spawnable::Category category);
+    Spawnable::Category GetCategory() const { return m_category; }
+    // Shows only the objects whose names hold the text, ignoring case; the categories count them.
+    void Search(std::string_view text);
+    // Smaller cards, more to a row.
+    void SetCompactView(bool compact);
+    bool IsCompactView() const { return m_compact; }
+    // The object last chosen, which the spawn menu marks; none before the first.
+    std::optional<std::size_t> GetChosenSpawn() const { return m_chosen; }
     void UpdateHud(const HudState& state);
     std::span<const Spot::EntityId> GetSpawnButtons() const { return m_spawnButtons; }
 
@@ -119,14 +142,26 @@ private:
         auto* entity = GetScene().GetEntity(id);
         return entity ? entity->GetComponent<T>() : nullptr;
     }
+    template <typename T>
+    T* GetChild(Spot::EntityId id, std::string_view name) const {
+        auto* entity = GetScene().GetEntity(id);
+        auto* child = entity ? entity->FindChild(name) : nullptr;
+        return child ? child->GetComponent<T>() : nullptr;
+    }
     void Initialize();
     void Open(Menu menu);
     void BuildSpawnMenu();
+    void ChooseSpawn(std::size_t index);
+    void ApplySpawnFilter();
     void BuildBindings();
+    void BuildHelp();
     void BindSettings();
     void UpdateSettingsLabels();
     void UpdateBindingLabels();
+    void UpdateHelpLabels();
     void SettingsChanged();
+    // Eases the open menu in, and the outlines, labels and icons of its controls toward what their state calls for.
+    void AnimateMenu(float elapsed);
     void HandleRawEvent(const Spot::Event& event, bool& consumed);
     void ConnectButton(Spot::EntityId id, std::function<void()> callback);
     void RefreshInput();
@@ -136,21 +171,40 @@ private:
         int part;
         Spot::EntityId entity;
     };
+    struct HelpRow {
+        std::string action;
+        Spot::EntityId entity;
+    };
+    // Where a menu's panels sit and how dark its backdrop is, as authored, which it eases in from.
+    struct MenuLayout {
+        std::vector<std::pair<Spot::EntityId, Spot::Vector2>> offsets;
+        float backdrop = 0;
+    };
     Menu m_menu = Menu::Closed;
     bool m_initialized = false;
     bool m_settingsDirty = false;
     bool m_paused = false;
     float m_previousTimeScale = 1;
     float m_saveDelay = 0;
+    float m_menuTime = 0;
     InterfaceSettings m_settings;
     std::filesystem::path m_settingsDirectory;
     std::vector<Spot::SignalConnection> m_connections;
     std::vector<Spot::EntityId> m_spawnButtons;
     std::vector<Spawnable::Category> m_categories;
+    // The objects' names in lower case, to search.
+    std::vector<std::string> m_searchNames;
+    std::string m_search;
+    Spawnable::Category m_category = Spawnable::Category::Prop;
+    std::optional<std::size_t> m_chosen;
+    bool m_compact = false;
+    // The grid as authored, for the larger view.
+    std::optional<Spot::UiLayoutGroupSettings> m_gridSettings;
     std::vector<BindingRow> m_bindingRows;
+    std::vector<HelpRow> m_helpRows;
     int m_rebinding = -1;
+    MenuLayout m_spawnLayout, m_pauseLayout;
+    float m_healthShown = -1;
     MenuThumbnails m_thumbnails;
-    // The tabs' style as authored, which the selected one trades for the accent.
-    std::optional<Spot::UiControlStyle> m_tabStyle;
     Spot::RenderHookId m_thumbnailHook = Spot::RenderHookId::Invalid;
 };

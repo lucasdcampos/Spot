@@ -1,5 +1,6 @@
 #include "weapon_wheel.h"
 
+#include "interface_palette.h"
 #include "weapon_holder.h"
 
 #include <algorithm>
@@ -18,14 +19,15 @@ constexpr float SectorImageSize = 256.0f;
 
 } // namespace
 
-void WeaponWheel::DrawCentered(Spot::Renderer2D& renderer, std::string_view text, Spot::Vector2 center, float size,
-                               Spot::Color color, float scale) const {
-    if (!font || text.empty()) {
+void WeaponWheel::DrawCentered(Spot::Renderer2D& renderer, const Spot::AssetRef<Spot::Font>& textFont,
+                               std::string_view text, Spot::Vector2 center, float size, Spot::Color color,
+                               float scale) const {
+    if (!textFont || text.empty()) {
         return;
     }
-    const float factor = size / font->GetPixelSize() * scale;
-    const Spot::Vector2 measured = font->MeasureText(text) * factor;
-    renderer.DrawString(*font, text,
+    const float factor = size / textFont->GetPixelSize() * scale;
+    const Spot::Vector2 measured = textFont->MeasureText(text) * factor;
+    renderer.DrawString(*textFont, text,
                         {std::round(center.x - measured.x * 0.5f), std::round(center.y + measured.y * 0.5f)}, color,
                         factor);
 }
@@ -38,7 +40,9 @@ void WeaponWheel::DrawWidget(Spot::Renderer2D& renderer, const Spot::UiLayoutEnt
     }
     const float pixel = radius / SectorOuter;
     const int count = static_cast<int>(slots.size());
-    const Spot::Color dark{0.035f, 0.045f, 0.06f, 1.0f};
+    namespace Palette = InterfacePalette;
+    const Spot::Color dark = Palette::Graphite;
+    const Spot::AssetRef<Spot::Font>& numbers = monoFont ? monoFont : font;
     for (int index = 0; index < WeaponHolder::WheelSlots; ++index) {
         // Clockwise from the top; the renderer turns counterclockwise.
         const float angle = 2.0f * Spot::Pi * static_cast<float>(index) / WeaponHolder::WheelSlots;
@@ -48,7 +52,7 @@ void WeaponWheel::DrawWidget(Spot::Renderer2D& renderer, const Spot::UiLayoutEnt
         if (sector) {
             const Spot::Color tint = lit                 ? accent
                                      : !used             ? Spot::Color{dark.r, dark.g, dark.b, 0.3f}
-                                     : index == selected ? Spot::Color{0.13f, 0.15f, 0.19f, 0.86f}
+                                     : index == selected ? Palette::WithAlpha(Palette::GraphiteRaised, 0.9f)
                                                          : Spot::Color{dark.r, dark.g, dark.b, 0.74f};
             renderer.DrawRotatedQuad(center + out * (SectorImageCenter * pixel),
                                      {SectorImageSize * pixel, SectorImageSize * pixel}, -angle, *sector, tint);
@@ -57,7 +61,7 @@ void WeaponWheel::DrawWidget(Spot::Renderer2D& renderer, const Spot::UiLayoutEnt
             continue;
         }
         const Slot& slot = slots[static_cast<std::size_t>(index)];
-        const Spot::Color ink = lit ? Spot::Color{0.07f, 0.06f, 0.04f, 1.0f} : Spot::Color{0.93f, 0.95f, 1.0f, 0.92f};
+        const Spot::Color ink = lit ? Palette::Ink : Palette::WithAlpha(Palette::Text, 0.92f);
         const Spot::Vector2 middle = center + out * ((SectorOuter + SectorInner) * 0.5f * pixel);
         if (slot.icon) {
             // As wide as the sector allows at its middle, keeping the icon's proportions.
@@ -66,8 +70,8 @@ void WeaponWheel::DrawWidget(Spot::Renderer2D& renderer, const Spot::UiLayoutEnt
                                  static_cast<float>(std::max(slot.icon->GetWidth(), 1u));
             renderer.DrawQuad(middle, {width, height}, *slot.icon, ink);
         }
-        DrawCentered(renderer, std::to_string(index + 1), center + out * ((SectorOuter - 22.0f) * pixel), 11.0f,
-                     {ink.r, ink.g, ink.b, lit ? 0.8f : 0.5f}, entry.scale);
+        DrawCentered(renderer, numbers, std::to_string(index + 1), center + out * ((SectorOuter - 22.0f) * pixel),
+                     10.0f, {ink.r, ink.g, ink.b, lit ? 0.8f : 0.5f}, entry.scale);
     }
 
     if (disc) {
@@ -76,16 +80,17 @@ void WeaponWheel::DrawWidget(Spot::Renderer2D& renderer, const Spot::UiLayoutEnt
     }
     if (highlighted >= 0 && highlighted < count) {
         const Slot& slot = slots[static_cast<std::size_t>(highlighted)];
-        DrawCentered(renderer, slot.name, center + Spot::Vector2{0.0f, 10.0f * entry.scale}, 15.0f, accent,
+        DrawCentered(renderer, font, slot.name, center + Spot::Vector2{0.0f, 10.0f * entry.scale}, 14.0f, accent,
                      entry.scale);
-        DrawCentered(renderer, slot.detail, center - Spot::Vector2{0.0f, 12.0f * entry.scale}, 13.0f,
-                     {0.78f, 0.82f, 0.9f, 1.0f}, entry.scale);
+        DrawCentered(renderer, numbers, slot.detail, center - Spot::Vector2{0.0f, 12.0f * entry.scale}, 12.0f,
+                     Palette::TextSecondary, entry.scale);
     }
 }
 
 void WeaponWheel::Serialize(Spot::Archive& archive) {
     SerializeWidget(archive);
     archive.Field("font", font);
+    archive.Field("monoFont", monoFont, {.tooltip = "For the number keys and the rounds"});
     archive.Field("sector", sector, {.tooltip = "One sector of the ring pointing up, as ui_wheel_sector"});
     archive.Field("disc", disc, {.tooltip = "The round middle"});
     archive.Field("accent", accent);

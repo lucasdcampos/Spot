@@ -122,15 +122,37 @@ float Coverage(float distance) {
 
 } // namespace
 
+// The signed distance to the edge of the rectangle inset from a square image, its corners rounded by the radius.
+float RoundedInset(float x, float y, float size, float inset, float radius) {
+    const float half = size * 0.5f;
+    const float dx = std::abs(x - half) - (half - inset - radius);
+    const float dy = std::abs(y - half) - (half - inset - radius);
+    return std::sqrt(std::max(dx, 0.0f) * std::max(dx, 0.0f) + std::max(dy, 0.0f) * std::max(dy, 0.0f)) +
+           std::min(std::max(dx, dy), 0.0f) - radius;
+}
+
 Spot::Image UiPanel() {
     constexpr std::uint32_t PanelSize = 64;
-    constexpr float Radius = 10.0f;
-    const float half = static_cast<float>(PanelSize) * 0.5f;
+    // Straight edges on whole pixels stay crisp; the corners are smooth.
     return PaintCoverage(PanelSize, [&](float x, float y) {
-        // A rounded rectangle filling the image, half a pixel in, so its edge is smooth.
-        const float dx = std::max(std::abs(x - half) - (half - 0.5f - Radius), 0.0f);
-        const float dy = std::max(std::abs(y - half) - (half - 0.5f - Radius), 0.0f);
-        return Coverage(std::sqrt(dx * dx + dy * dy) - Radius);
+        return Coverage(RoundedInset(x, y, static_cast<float>(PanelSize), 0.0f, 4.0f));
+    });
+}
+
+Spot::Image UiOutline() {
+    constexpr std::uint32_t PanelSize = 64;
+    // The panel's outermost pixels.
+    return PaintCoverage(PanelSize, [&](float x, float y) {
+        return Coverage(std::abs(RoundedInset(x, y, static_cast<float>(PanelSize), 0.0f, 4.0f) + 0.5f) - 0.5f);
+    });
+}
+
+Spot::Image UiShadow() {
+    constexpr std::uint32_t ShadowSize = 64;
+    return PaintCoverage(ShadowSize, [&](float x, float y) {
+        const float outside = std::max(RoundedInset(x, y, static_cast<float>(ShadowSize), 16.0f, 4.0f), 0.0f);
+        const float t = 1.0f - std::min(outside / 16.0f, 1.0f);
+        return t * t * (3.0f - 2.0f * t);
     });
 }
 
@@ -152,6 +174,15 @@ Spot::Image UiHitMarker() {
         const float along = (u + v) / std::sqrt(2.0f);
         const float across = std::abs(u - v) / std::sqrt(2.0f);
         return Coverage(std::max({across - 2.5f, half * 0.4f - along, along - (half - 3.0f)}));
+    });
+}
+
+Spot::Image UiScrim() {
+    constexpr std::uint32_t ScrimSize = 128;
+    const float half = static_cast<float>(ScrimSize) * 0.5f;
+    return PaintCoverage(ScrimSize, [&](float x, float y) {
+        const float t = 1.0f - std::min(std::sqrt((x - half) * (x - half) + (y - half) * (y - half)) / half, 1.0f);
+        return t * t * (3.0f - 2.0f * t);
     });
 }
 

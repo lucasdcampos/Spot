@@ -11,6 +11,7 @@
 #include "player_movement.h"
 #include "projectile.h"
 #include "prop_carrier.h"
+#include "prop_spawner.h"
 #include "robot.h"
 #include "sound_bank.h"
 #include "view_model.h"
@@ -36,7 +37,10 @@ void WeaponHolder::Select(int slot) {
 bool WeaponHolder::CanUseItem() const {
     const auto* movement = GetEntity().GetComponent<PlayerMovement>();
     const auto* health = GetEntity().GetComponent<PlayerHealth>();
-    return !m_wheelOpen && !(movement && movement->IsSprinting()) && !(health && health->IsDead());
+    // Placing a prop from the spawn menu takes the buttons.
+    const auto* spawner = GetEntity().GetComponent<PropSpawner>();
+    return !m_wheelOpen && !(movement && movement->IsSprinting()) && !(health && health->IsDead()) &&
+           !(spawner && spawner->HasClick());
 }
 
 void WeaponHolder::OpenWheel() {
@@ -282,8 +286,9 @@ void WeaponHolder::OnUpdate(float deltaTime) {
     const auto* carrier = GetEntity().GetComponent<PropCarrier>();
     // Both hands are busy reloading.
     const auto* health = GetEntity().GetComponent<PlayerHealth>();
+    const auto* spawner = GetEntity().GetComponent<PropSpawner>();
     m_aiming = weapon && Input::IsActionDown("Aim") && !(carrier && carrier->IsHolding()) && !weapon->IsReloading() &&
-               !m_wheelOpen && !(health && health->IsDead());
+               !m_wheelOpen && !(health && health->IsDead()) && !(spawner && spawner->HasClick());
     if (!weapon) {
         return;
     }

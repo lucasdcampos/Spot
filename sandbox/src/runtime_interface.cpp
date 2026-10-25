@@ -3,6 +3,7 @@
 #include <spot/scene/ui/ui_input_system.h>
 #include <spot/scene/ui/ui_system.h>
 
+#include "interface_palette.h"
 #include "player_controller.h"
 #include "prop_spawner.h"
 #include "sound_bank.h"
@@ -14,6 +15,23 @@
 #include <format>
 
 SPOT_COMPONENT(RuntimeInterface);
+
+namespace {
+
+namespace Palette = InterfacePalette;
+
+// Menus ease in over this many seconds, rising this many canvas pixels into place as their backdrop darkens.
+constexpr float OpenDuration = 0.16f;
+constexpr float OpenRise = 10.0f;
+// Controls change state in about 120 milliseconds: three of these.
+constexpr float StateTime = 0.04f;
+
+void Approach(Spot::Color& color, Spot::Color target, float blend) {
+    color = {std::lerp(color.r, target.r, blend), std::lerp(color.g, target.g, blend),
+             std::lerp(color.b, target.b, blend), std::lerp(color.a, target.a, blend)};
+}
+
+} // namespace
 
 void RuntimeInterface::ConnectButton(Spot::EntityId id, std::function<void()> callback) {
     if (auto* button = Get<Spot::UiButton>(id))
@@ -51,10 +69,25 @@ void RuntimeInterface::Initialize() {
     m_settings.Apply(GetScene());
     BuildSpawnMenu();
     BuildBindings();
+    BuildHelp();
     BindSettings();
     ConnectButton(propsTab, [this] { SelectCategory(Spawnable::Category::Prop); });
     ConnectButton(lampsTab, [this] { SelectCategory(Spawnable::Category::Lamp); });
     ConnectButton(weaponsTab, [this] { SelectCategory(Spawnable::Category::Weapon); });
+    ConnectButton(gridView, [this] { SetCompactView(false); });
+    ConnectButton(compactView, [this] { SetCompactView(true); });
+    if (auto* field = Get<Spot::UiInputField>(spawnSearch)) {
+        m_connections.push_back(field->OnValueChanged.Connect([this](std::string_view text) { Search(text); }));
+        // Return takes the first object found.
+        m_connections.push_back(field->OnSubmit.Connect([this](std::string_view) {
+            for (std::size_t index = 0; index < m_spawnButtons.size(); ++index) {
+                if (const auto* card = GetScene().GetEntity(m_spawnButtons[index]); card && card->IsActiveSelf()) {
+                    ChooseSpawn(index);
+                    return;
+                }
+            }
+        }));
+    }
     ConnectButton(spawnClose, [this] { CloseMenus(); });
     ConnectButton(pauseResume, [this] { CloseMenus(); });
     ConnectButton(pauseQuit, [this] {
@@ -101,9 +134,25 @@ void RuntimeInterface::Open(Menu menu) {
     // Before pausing takes the time scale, which the wheel slows while it is open.
     if (auto* holder = GetScene().FindComponent<WeaponHolder>())
         holder->CloseWheel(false);
+    // Back in the menu, the prop being placed is put away; the menu still marks it.
+    if (auto* spawner = GetScene().FindComponent<PropSpawner>(); spawner && menu == Menu::Spawn)
+        spawner->CancelPlacement();
     m_menu = menu;
-    if (auto* canvas = Get<Spot::Canvas>(menu == Menu::Spawn ? spawnCanvas : pauseCanvas))
+    const Spot::EntityId canvasId = menu == Menu::Spawn ? spawnCanvas : pauseCanvas;
+    if (auto* canvas = Get<Spot::Canvas>(canvasId)) {
         canvas->GetEntity().SetActive(true);
+        MenuLayout& layout = menu == Menu::Spawn ? m_spawnLayout : m_pauseLayout;
+        if (layout.offsets.empty()) {
+            canvas->GetEntity().ForEachChild([&](Spot::Entity& child) {
+                if (const auto* rect = child.GetComponent<Spot::UiRect>())
+                    layout.offsets.emplace_back(child.GetId(), rect->layout.offset);
+            });
+            if (const auto* backdrop = canvas->GetEntity().GetComponent<Spot::UiImage>())
+                layout.backdrop = backdrop->tint.a;
+        }
+    }
+    m_menuTime = 0;
+    AnimateMenu(0);
     if (menu == Menu::Pause) {
         m_previousTimeScale = Spot::Time::GetTimeScale();
         m_paused = true;
@@ -114,7 +163,9 @@ void RuntimeInterface::Open(Menu menu) {
     if (menu == Menu::Pause)
         GetScene().GetOrAddSystem<Spot::UiInputSystem>().Focus(pauseResume);
     else
-        GetScene().GetOrAddSystem<Spot::UiInputSystem>().Focus(propsTab);
+        GetScene().GetOrAddSystem<Spot::UiInputSystem>().Focus(m_category == Spawnable::Category::Prop   ? propsTab
+                                                               : m_category == Spawnable::Category::Lamp ? lampsTab
+                                                                                                         : weaponsTab);
     SoundBank::PlayClick(GetScene());
 }
 void RuntimeInterface::OpenSpawnMenu() {
@@ -145,11 +196,73 @@ void RuntimeInterface::CloseMenus() {
 void RuntimeInterface::OnUpdate(float deltaTime) {
     if (Spot::Input::IsActionPressed("Spawn Menu") && m_menu == Menu::Closed)
         OpenSpawnMenu();
+    // Menus pause the game, so they keep time unscaled.
+    const float elapsed = Spot::Time::GetUnscaledDeltaTime() > 0 ? Spot::Time::GetUnscaledDeltaTime() : deltaTime;
+    if (m_menu != Menu::Closed) {
+        m_menuTime += elapsed;
+        AnimateMenu(elapsed);
+    }
     if (m_settingsDirty) {
-        const float elapsed = Spot::Time::GetUnscaledDeltaTime() > 0 ? Spot::Time::GetUnscaledDeltaTime() : deltaTime;
         m_saveDelay -= elapsed;
         if (m_saveDelay <= 0)
             SaveSettings();
+    }
+}
+void RuntimeInterface::AnimateMenu(float elapsed) {
+    const bool spawn = m_menu == Menu::Spawn;
+    const MenuLayout& layout = spawn ? m_spawnLayout : m_pauseLayout;
+    const float t = std::clamp(m_menuTime / OpenDuration, 0.0f, 1.0f);
+    const float eased = 1.0f - (1.0f - t) * (1.0f - t) * (1.0f - t);
+    for (const auto& [id, offset] : layout.offsets) {
+        if (auto* rect = Get<Spot::UiRect>(id))
+            rect->layout.offset = offset - Spot::Vector2{0.0f, OpenRise * (1.0f - eased)};
+    }
+    if (auto* backdrop = Get<Spot::UiImage>(spawn ? spawnCanvas : pauseCanvas))
+        backdrop->tint.a = layout.backdrop * eased;
+
+    // The selected control is outlined in the accent, the focused one in white, the one under the pointer faintly.
+    const float blend = elapsed > 0 ? 1.0f - std::exp(-elapsed / StateTime) : 0.0f;
+    const auto style = [&](Spot::EntityId id, bool selected, Spot::Color rest) {
+        const auto* widget = Get<Spot::UiWidget>(id);
+        if (!widget || !widget->GetEntity().IsActiveInHierarchy())
+            return;
+        const auto state = widget->GetUiState();
+        const bool hot = state == Spot::UiControlState::Hovered || state == Spot::UiControlState::Pressed;
+        const bool focused = state == Spot::UiControlState::Focused;
+        if (auto* outline = GetChild<Spot::UiImage>(id, "Outline"))
+            Approach(outline->tint,
+                     selected  ? accent
+                     : focused ? Palette::LineFocused
+                     : hot     ? Palette::LineHovered
+                               : Palette::Line,
+                     blend);
+        if (auto* label = GetChild<Spot::UiText>(id, "Label"))
+            Approach(label->color, selected || hot || focused ? Palette::Text : rest, blend);
+        if (auto* icon = GetChild<Spot::UiImage>(id, "Icon"))
+            Approach(icon->tint, selected ? accent : hot || focused ? Palette::Text : Palette::TextSecondary, blend);
+    };
+    if (spawn) {
+        for (std::size_t index = 0; index < m_spawnButtons.size(); ++index)
+            style(m_spawnButtons[index], m_chosen == index, Palette::Text);
+        style(propsTab, m_category == Spawnable::Category::Prop, Palette::TextSecondary);
+        style(lampsTab, m_category == Spawnable::Category::Lamp, Palette::TextSecondary);
+        style(weaponsTab, m_category == Spawnable::Category::Weapon, Palette::TextSecondary);
+        style(gridView, !m_compact, Palette::TextSecondary);
+        style(compactView, m_compact, Palette::TextSecondary);
+        for (const auto id : {undoSpawn, cleanup, spawnClose})
+            style(id, false, Palette::TextSecondary);
+        const auto* field = Get<Spot::UiWidget>(spawnSearch);
+        const bool typing = field && field->GetUiState() == Spot::UiControlState::Focused;
+        const bool hot = field && field->GetUiState() == Spot::UiControlState::Hovered;
+        if (auto* outline = GetChild<Spot::UiImage>(spawnSearchFrame, "Outline"))
+            Approach(outline->tint, typing ? Palette::LineFocused : hot ? Palette::LineHovered : Palette::Line, blend);
+        if (auto* icon = GetChild<Spot::UiImage>(spawnSearchFrame, "Icon"))
+            Approach(icon->tint, typing ? Palette::Text : Palette::TextMuted, blend);
+    } else {
+        for (const auto& row : m_bindingRows)
+            style(row.entity, false, Palette::TextSecondary);
+        style(qualityButton, false, Palette::Text);
+        style(pauseQuit, false, Palette::TextSecondary);
     }
 }
 void RuntimeInterface::OnDisable() {
@@ -170,21 +283,21 @@ void RuntimeInterface::UpdateHud(const HudState& state) {
         if (auto* entity = GetScene().GetEntity(id); entity && entity->IsActiveSelf() != active)
             entity->SetActive(active);
     };
-    constexpr Spot::Color Ink{0.95f, 0.97f, 1.0f, 1.0f};
-    constexpr Spot::Color Warning{1.0f, 0.36f, 0.26f, 1.0f};
-    constexpr Spot::Color Accent{1.0f, 0.68f, 0.22f, 1.0f};
+    const auto setOpacity = [this](Spot::EntityId id, float opacity) {
+        if (auto* text = Get<Spot::UiText>(id))
+            text->color.a = std::clamp(opacity, 0.0f, 1.0f);
+    };
+    const float elapsed = Spot::Time::GetUnscaledDeltaTime();
     setText(statusText, state.statistics);
     setActive(statsPanel, state.showStatistics);
     setText(clockText, state.clock);
-    if (auto* icon = Get<Spot::UiImage>(clockIcon)) {
+    if (auto* icon = Get<Spot::UiImage>(clockIcon))
         icon->texture = state.day ? sunIcon : moonIcon;
-        icon->tint = state.day ? Spot::Color{1.0f, 0.8f, 0.36f, 1.0f} : Spot::Color{0.76f, 0.83f, 1.0f, 1.0f};
-    }
 
-    // What is in hand, its name a moment after switching.
+    // What is in hand, its name a moment after switching, and its controls while they matter.
     setText(handText, state.item);
     if (auto* name = Get<Spot::UiText>(handText))
-        name->color = {Accent.r, Accent.g, Accent.b, std::clamp(state.itemOpacity, 0.0f, 1.0f)};
+        name->color = Palette::WithAlpha(accent, std::clamp(state.itemOpacity, 0.0f, 1.0f));
     // Without its texture, an image would fill its rectangle.
     setActive(itemIcon, static_cast<bool>(state.icon));
     if (auto* icon = Get<Spot::UiImage>(itemIcon); icon && icon->texture != state.icon)
@@ -192,26 +305,31 @@ void RuntimeInterface::UpdateHud(const HudState& state) {
     setText(countText, state.count);
     setText(detailText, state.detail);
     setText(hintText, state.hints);
+    setOpacity(hintText, state.hintOpacity);
     setText(promptText, state.prompt);
     if (auto* count = Get<Spot::UiText>(countText)) {
-        count->fontSize = state.countIsWord ? 16.0f : 28.0f;
-        count->color = state.lowAmmo ? Warning : Ink;
+        count->fontSize = state.countIsWord ? 15.0f : 28.0f;
+        count->color = state.lowAmmo ? Palette::Warning : Palette::Text;
     }
     setActive(reloadTrack, state.reload >= 0.0f);
     if (auto* fill = Get<Spot::UiRect>(reloadFill); fill && state.reload >= 0.0f)
         fill->layout.sizeDelta.x = std::clamp(state.reload, 0.0f, 1.0f) * reloadWidth;
 
-    // Health, red when low; the edges of the screen flash as the player is hurt.
+    // Health, red when low, its bar easing to the new value; the edges of the screen flash as the player is hurt.
     const float health = state.maxHealth > 0.0f ? std::clamp(state.health / state.maxHealth, 0.0f, 1.0f) : 0.0f;
+    m_healthShown = m_healthShown < 0.0f || elapsed <= 0.0f
+                        ? health
+                        : std::lerp(m_healthShown, health, 1.0f - std::exp(-elapsed / StateTime));
     setText(healthText, std::to_string(static_cast<int>(std::ceil(std::max(state.health, 0.0f)))));
+    const Spot::Color healthColor = state.lowHealth ? Palette::Warning : Palette::Text;
     if (auto* text = Get<Spot::UiText>(healthText))
-        text->color = state.lowHealth ? Warning : Ink;
+        text->color = healthColor;
     if (auto* icon = Get<Spot::UiImage>(healthIcon))
-        icon->tint = state.lowHealth ? Warning : Ink;
+        icon->tint = healthColor;
     if (auto* fill = Get<Spot::UiRect>(healthFill))
-        fill->layout.sizeDelta.x = health * healthWidth;
+        fill->layout.sizeDelta.x = m_healthShown * healthWidth;
     if (auto* fill = Get<Spot::UiImage>(healthFill))
-        fill->tint = state.lowHealth ? Warning : Ink;
+        fill->tint = healthColor;
     setActive(damageOverlay, state.damage > 0.01f);
     if (auto* overlay = Get<Spot::UiImage>(damageOverlay))
         overlay->tint.a = std::clamp(state.damage, 0.0f, 1.0f);
@@ -241,9 +359,16 @@ void RuntimeInterface::UpdateHud(const HudState& state) {
         wheel->highlighted = state.wheelSlot;
         wheel->selected = state.selectedSlot;
     }
+
+    setActive(helpPanel, state.showHelp);
+    setActive(helpHint, state.helpHintOpacity > 0.0f);
+    setOpacity(helpHint, state.helpHintOpacity);
 }
 void RuntimeInterface::Serialize(Spot::Archive& archive) {
     archive.Field("font", font);
+    archive.Field("monoFont", monoFont, {.tooltip = "For numbers and keys"});
+    archive.Field("titleFont", titleFont, {.tooltip = "For titles and the selected category"});
+    archive.Field("accent", accent, {.tooltip = "What is selected: the object last chosen, the category shown"});
     archive.Field("spawnCanvas", spawnCanvas);
     archive.Field("pauseCanvas", pauseCanvas);
     archive.Field("spawnGrid", spawnGrid);
@@ -255,6 +380,11 @@ void RuntimeInterface::Serialize(Spot::Archive& archive) {
     archive.Field("spawnClose", spawnClose);
     archive.Field("cleanup", cleanup);
     archive.Field("undoSpawn", undoSpawn);
+    archive.Field("spawnSearch", spawnSearch);
+    archive.Field("spawnSearchFrame", spawnSearchFrame);
+    archive.Field("spawnCount", spawnCount);
+    archive.Field("gridView", gridView);
+    archive.Field("compactView", compactView);
     archive.Field("pauseResume", pauseResume);
     archive.Field("pauseQuit", pauseQuit);
     archive.Field("qualityButton", qualityButton);
@@ -295,4 +425,8 @@ void RuntimeInterface::Serialize(Spot::Archive& archive) {
     archive.Field("deathTimer", deathTimer);
     archive.Field("wheelOverlay", wheelOverlay);
     archive.Field("weaponWheel", weaponWheel);
+    archive.Field("helpPanel", helpPanel);
+    archive.Field("helpContent", helpContent);
+    archive.Field("helpTemplate", helpTemplate);
+    archive.Field("helpHint", helpHint);
 }

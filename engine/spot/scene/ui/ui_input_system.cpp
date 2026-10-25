@@ -322,7 +322,8 @@ bool UiInputSystem::HandleEvent(const Event& event) {
         Key dismiss = Key::Escape;
         if (modal)
             dismiss = GetScene().GetEntity(m_modal)->GetComponent<Canvas>()->settings.dismissKey;
-        if (key->key == Key::Escape || (modal && key->key == dismiss)) {
+        // A letter that dismisses the canvas is typed into a focused field instead.
+        if (key->key == Key::Escape || (modal && key->key == dismiss && !WantsTextInput())) {
             const bool hadFocus = m_focused != EntityId::Invalid;
             if (WantsTextInput() && key->key == Key::Escape)
                 ClearFocus();

@@ -335,33 +335,47 @@ while preserving concurrent editor changes. Imported assets still come from the 
 
 ## Runtime interface
 
-Q (gamepad Back) opens the spawn menu: a rounded panel with a title, pill tabs for Props, Lamps and Weapons (the
-one shown lit in the accent, `RuntimeInterface::SelectCategory()`), five rounded cards to a row and Undo, Clean up
-and Close at the bottom. Select a card to spawn that prefab at the aim point; Undo and Cleanup use the normal gameplay
-operations. Thumbnails are rendered from the real prefab meshes into cached textures, two per frame, and stay hidden
-until drawn. Buttons, cards, sliders and scroll areas draw the generated `ui_panel` through their style's `texture`
-(see [Runtime UI](runtime_ui.md)), so the pause menu matches. Escape (gamepad Start)
-opens pause. Resume, Escape or gamepad East/Start closes it; the previous time scale and requested
-cursor lock return. Tab/Shift-Tab, arrows, D-pad and left-stick threshold crossings navigate; Return,
-Space or South activate. Arrow/D-pad input adjusts sliders; offscreen entries scroll into view.
+Q (gamepad Back) opens the spawn menu, laid out as an asset browser: a header with its title, how many objects it
+shows, a search field and two views (larger cards, six to a row, or compact ones, eight), a sidebar of categories
+(Props, Lamps and Weapons, each counting what matches the search; the one shown is raised and marked in the accent,
+`RuntimeInterface::SelectCategory()`), the grid of cards, and Undo, Clean Up and Close at the bottom, as quiet text
+buttons. Selecting a card closes the menu and starts placing that prefab (`PropSpawner::BeginPlacement()`): a
+translucent copy of its meshes, with no body or behavior, follows the aim where it would spawn; Fire places it and
+Aim cancels. Until both are released, `PropSpawner::HasClick()` keeps the held item from firing or aiming on the same
+press. The menu marks the card last chosen in the accent; Return in the search takes the first object found. Undo and
+Cleanup use the normal gameplay operations. Thumbnails are rendered from the real prefab meshes into cached textures,
+two per frame, and stay hidden until drawn. Escape (gamepad Start) opens pause. Resume, Escape or gamepad East/Start
+closes it; the previous time scale and requested cursor lock return. Tab/Shift-Tab, arrows, D-pad and left-stick
+threshold crossings navigate; Return, Space or South activate. Arrow/D-pad input adjusts sliders; offscreen entries
+scroll into view.
 
 Pause stores sensitivity, field of view, volumes, input bindings and Low/Medium/High graphics quality
 in the game's per-user `interface.json`. Select any binding row and press its new control; Escape
 cancels. Composite directions have individual rows. Graphics changes rebuild the renderer on the
 next frame, in both the standalone game and the editor's game view, while keeping rebinds.
 
-The HUD is laid out like a game's rather than a debugging overlay. A small crosshair (a dot and four lines) opens
-up while moving, in the air and under recoil, gives way to the sights while aiming, hides while nothing in hand can
-be used, and flashes a hit marker when a shot moves a prop or knocks down a robot. The bottom-right panel shows the
-icon of what is in hand with its rounds and reserve, which turn red when low, or the tool's mode and option, with a
-thin reload line; the controls that matter for it sit above it, its name shows there for a moment after switching,
-and what Use would do appears under the crosshair. Health is at the bottom left, as a number and a bar that turn red
-below 30%. The clock at the top right shows the sun from 6:00 to 18:00 and the moon otherwise; small key caps in a
-panel at the top left list the menus. Frame rate, body count and update and render times appear only on the
-Statistics action (F11). `Hud` works the state out each frame (`HudState`) and `RuntimeInterface::UpdateHud()` applies
-it to the widgets it references by id. Panels use the generated rounded `ui_panel` texture as nine-slice images; key
-caps and their labels size themselves with layout groups and fitters, and texts center vertically in their panels
-(`verticalAlignment`).
+The HUD is laid out like a modern shooter's: nothing is boxed, and it keeps to the corners. A small crosshair (a dot
+and four lines) opens up while moving, in the air and under recoil, gives way to the sights while aiming, hides while
+nothing in hand can be used, and flashes a hit marker when a shot moves a prop or knocks down a robot. At the bottom
+right, the silhouette of what is in hand sits beside its rounds, the magazine large and the reserve smaller (`30 /
+240`), which turn red when low, or the tool's mode and option, with a thin reload line under them; its name shows
+above for a moment after switching. Its controls show there only while they matter: after switching, for the first
+`Hud::introTime` seconds, while reloading or low, and while the physics gun holds something. What Use would do, or how
+to place what the spawn menu gave, appears under the crosshair. Health is at the bottom left, a small cross, the number
+and a thin bar, which turn red below 30%. The clock at the top right is the time and a small sun or moon. Instead of a
+permanent list of keys, a line at the bottom left names the key of the controls panel as the game starts; the Help
+action (H) shows or hides that panel, its rows made from the action map, so they follow rebinding. Frame rate, body
+count and update and render times appear only on the Statistics action (F11). `Hud` works the state out each frame
+(`HudState`) and `RuntimeInterface::UpdateHud()` applies it to the widgets it references by id.
+
+The interface has one visual language, in `interface.prefab` and `interface_palette.h`: graphite surfaces, slate text
+in three strengths and one amber accent (`RuntimeInterface::accent`) for what is selected; Inter for text, Inter
+SemiBold for titles and JetBrains Mono for numbers and keys (`assets/fonts`, under the OFL); corners rounded by 4
+pixels, 1 pixel outlines and a soft shadow under menus, all generated (`ui_panel`, `ui_outline`, `ui_shadow`), and soft
+`ui_scrim` gradients behind the HUD's corners for legibility over a bright sky. Menus ease in over 160 ms, and their
+controls' outlines, labels and icons follow hover, focus and selection over about 120 ms
+(`RuntimeInterface::AnimateMenu()`): the selected one in the accent, the focused one in white. The prefab is laid out
+on a 4 pixel grid at the 1280 by 720 reference resolution.
 
 Holding Tab opens the weapon wheel, a GTA-style ring of eight sectors clockwise from the top, one per slot, each with
 the item's icon and number key, and slows time to `WeaponHolder::wheelTimeScale`. Moving the mouse (or the right
@@ -370,7 +384,8 @@ keep the slot pointed at; the number keys and the mouse wheel still switch at on
 closes it without choosing, before the pause takes the time scale. `WeaponWheel` is a `UiWidget` of the sandbox that
 only draws: it rotates the generated `ui_wheel_sector` texture around its center for each sector. Every item names
 its icon: `Weapon::icon` in the weapon prefabs, `PhysicsGun::icon` and `ToolGun::icon` on the player. The generator
-paints the icons (`generator/icons.cpp`) as white silhouettes from signed distances, so they tint and stay sharp.
+paints the icons (`generator/icons.cpp`), and the spawn menu's search, view and category glyphs, as white silhouettes
+from signed distances, so they tint and stay sharp.
 
 ### Running, health and damage
 

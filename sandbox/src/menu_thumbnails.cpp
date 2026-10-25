@@ -46,7 +46,8 @@ std::unique_ptr<Spot::Scene> Preview(const Spot::AssetRef<Spot::Prefab>& prefab)
     camera.SetOrthographicSize(radius * 1.2f);
     camera.SetNearPlane(0.01f);
     camera.SetFarPlane(radius * 20 + 10);
-    camera.SetBackground({0.06f, 0.075f, 0.1f, 1});
+    // A well a little darker than the card around it.
+    camera.SetBackground({0.0068f, 0.0078f, 0.0096f, 1});
     scene->CreateEntity("Thumbnail Ambient").AddComponent<Spot::AmbientLight>(Spot::Color::White, 0.6f);
     auto& light = scene->CreateEntity("Thumbnail Light");
     light.GetTransform().SetRotation(Spot::Quaternion::LookRotation({-0.5f, -1, -0.6f}));

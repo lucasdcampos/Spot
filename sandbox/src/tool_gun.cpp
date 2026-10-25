@@ -4,6 +4,7 @@
 
 #include "player_controller.h"
 #include "prop_carrier.h"
+#include "prop_spawner.h"
 #include "sound_bank.h"
 #include "undo_list.h"
 #include "view_model.h"
@@ -222,7 +223,9 @@ void ToolGun::OnUpdate(float /*deltaTime*/) {
         mode = static_cast<Mode>((static_cast<int>(mode) + 1) % 6);
         m_first.reset();
     }
-    if (Input::IsActionPressed("Aim") && (mode == Mode::Color || mode == Mode::Material || mode == Mode::Lamp)) {
+    const auto* spawner = GetEntity().GetComponent<PropSpawner>();
+    if (Input::IsActionPressed("Aim") && (mode == Mode::Color || mode == Mode::Material || mode == Mode::Lamp) &&
+        !(spawner && spawner->HasClick())) {
         SoundBank::PlayClick(GetScene());
         if (mode == Mode::Color) {
             color = (color + 1) % static_cast<int>(Palette.size());

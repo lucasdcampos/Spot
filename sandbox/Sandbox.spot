@@ -973,6 +973,19 @@
           "name": "Statistics",
           "pressPoint": 0.5,
           "type": 0
+        },
+        {
+          "name": "Help",
+          "type": 0,
+          "pressPoint": 0.5,
+          "bindings": [
+            {
+              "control": {
+                "source": 0,
+                "code": 8
+              }
+            }
+          ]
         }
       ]
     }
