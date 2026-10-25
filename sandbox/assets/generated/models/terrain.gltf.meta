@@ -45,6 +45,58 @@
     {
       "id": "cc751deb0057bb392439f22017f2a550",
       "key": "mesh:1"
+    },
+    {
+      "id": "dca5f04c30806c70ba60c7b7bdfcb9af",
+      "key": "texture:6"
+    },
+    {
+      "id": "bedec394a4d7f2b427c90543f6eff65f",
+      "key": "texture:7"
+    },
+    {
+      "id": "e1e364b61c048d1902ab0d860d12ada2",
+      "key": "texture:8"
+    },
+    {
+      "id": "f02a6d190b609a84be9491ffdca69754",
+      "key": "material:2"
+    },
+    {
+      "id": "58f3b95145ccfdff3adc71a8bbc05ca2",
+      "key": "material:3"
+    },
+    {
+      "id": "7afa8192ca0b038eeb4804862bb553b8",
+      "key": "material:4"
+    },
+    {
+      "id": "c37f93452b8e1d3fc603227c06d5c787",
+      "key": "material:5"
+    },
+    {
+      "id": "f94446396d190290972af277035b4ec4",
+      "key": "material:6"
+    },
+    {
+      "id": "4eb0c1c004d220341f820ffb06f0df07",
+      "key": "mesh:2"
+    },
+    {
+      "id": "1ee2d3b504f93daffc436ecf6d028e72",
+      "key": "mesh:3"
+    },
+    {
+      "id": "05152c04c005a13ffd94baf15ca7d35c",
+      "key": "mesh:4"
+    },
+    {
+      "id": "4f77a973c7af86541cd982704c7d1a93",
+      "key": "mesh:5"
+    },
+    {
+      "id": "8bed826755e8961686892726cd5a393f",
+      "key": "mesh:6"
     }
   ],
   "type": "Model"

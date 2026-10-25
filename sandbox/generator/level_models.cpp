@@ -452,6 +452,108 @@ GltfModel Forest() {
     return builder.Build();
 }
 
+// Decorations stay separate from the two collision surfaces of the terrain.
+void AddGroundCover(Builder& builder) {
+    const auto material = [&](std::string name, Spot::Color color) {
+        return builder.AddMaterial(
+            {.name = std::move(name), .baseColor = color, .roughness = 0.92f, .doubleSided = true});
+    };
+    const std::size_t greens[] = {material("Meadow Blades", {0.19f, 0.28f, 0.065f, 1.0f}),
+                                  material("Young Blades", {0.29f, 0.37f, 0.10f, 1.0f}),
+                                  material("Dry Blades", {0.43f, 0.35f, 0.18f, 1.0f})};
+    const std::size_t stone = builder.AddMaterial(SurfaceMaterial("Ground Pebbles", Surface::Rock));
+    const std::size_t wood = builder.AddMaterial(SurfaceMaterial("Fallen Twigs", Surface::Bark));
+    const auto random = [](int i, std::uint32_t seed) { return Textures::Random(i, 0, seed); };
+    const auto allowed = [](float x, float z) {
+        const auto box = [=](float cx, float cz, float hx, float hz) {
+            return std::abs(x - cx) < hx && std::abs(z - cz) < hz;
+        };
+        if (box(0, 26, 63, 5) || box(-36, -7, 18, 23) || box(38, 1, 18, 15) || box(-35, 41, 23, 11) ||
+            box(19, -37, 13, 11) || box(0, -10, 15, 18) || box(0, 8, 6, 13) || box(30, 32, 4, 8)) {
+            return false;
+        }
+        const float dx = x - PondCenter.x;
+        const float dz = z - PondCenter.z;
+        if (dx * dx + dz * dz < 12.0f * 12.0f) {
+            return false;
+        }
+        return std::abs(GetTerrainHeight(x + 0.5f, z) - GetTerrainHeight(x - 0.5f, z)) < 0.55f &&
+               std::abs(GetTerrainHeight(x, z + 0.5f) - GetTerrainHeight(x, z - 0.5f)) < 0.55f;
+    };
+    // Match the rendered grid's triangles, including on the hills between sample points.
+    const auto ground = [](float x, float z) {
+        const float x0 = std::floor(x / TerrainCell) * TerrainCell;
+        const float z0 = std::floor(z / TerrainCell) * TerrainCell;
+        const float u = (x - x0) / TerrainCell;
+        const float v = (z - z0) / TerrainCell;
+        const float a = GetTerrainHeight(x0, z0);
+        const float c = GetTerrainHeight(x0 + TerrainCell, z0 + TerrainCell);
+        if (u >= v) {
+            return a * (1.0f - u) + GetTerrainHeight(x0 + TerrainCell, z0) * (u - v) + c * v;
+        }
+        return a * (1.0f - v) + GetTerrainHeight(x0, z0 + TerrainCell) * (v - u) + c * u;
+    };
+    const MeshData pebble = Shapes::Icosphere(1.0f, 1, [](Vector3 p) { return Lumps(p, 3, 9201) * 0.35f; });
+    const MeshData twig = Shapes::Frustum(0.018f, 0.007f, 0.65f, 6);
+    for (int i = 0; i < 1800; ++i) {
+        const float x = -95.0f + random(i, 9101) * 190.0f;
+        const float z = -90.0f + random(i, 9102) * 180.0f;
+        // Broad patches leave the lawn readable, with smaller satellite tufts around their edges.
+        const float patch = Textures::Fractal(x / 190.0f + 0.5f, z / 180.0f + 0.5f, 17, 17, 2, 9103);
+        if (patch < 0.46f || !allowed(x, z)) {
+            continue;
+        }
+        const int tufts = 2 + static_cast<int>(random(i, 9104) * 5.0f);
+        for (int t = 0; t < tufts; ++t) {
+            const int key = i * 7 + t;
+            const float tx = x + (random(key, 9110) - 0.5f) * 3.0f;
+            const float tz = z + (random(key, 9111) - 0.5f) * 3.0f;
+            if (!allowed(tx, tz)) {
+                continue;
+            }
+            const float size = 0.65f + random(key, 9112) * 0.8f;
+            for (int b = 0; b < 23; ++b) {
+                const int blade = key * 23 + b;
+                const float angle = random(blade, 9120) * 6.2831853f;
+                const Vector3 out{std::cos(angle), 0, std::sin(angle)};
+                const Vector3 side{-out.z, 0, out.x};
+                const float radius = random(blade, 9121) * 0.16f * size;
+                const float bx = tx + out.x * radius;
+                const float bz = tz + out.z * radius;
+                const Vector3 root{bx, ground(bx, bz) - 0.015f, bz};
+                const float height = (0.16f + random(blade, 9122) * 0.32f) * size;
+                const float lean = (0.10f + random(blade, 9123) * 0.28f) * size;
+                const float width = (0.006f + random(blade, 9124) * 0.009f) * size;
+                MeshData& mesh = builder.GetMesh(greens[random(blade, 9125) < 0.15f ? 2 : b % 2]);
+                const auto first = static_cast<std::uint32_t>(mesh.vertices.size());
+                for (int segment = 0; segment <= 4; ++segment) {
+                    const float u = static_cast<float>(segment) / 4.0f;
+                    const Vector3 center = root + Vector3{0, height * (u - 0.18f * u * u), 0} + out * (lean * u * u);
+                    const Vector3 normal = Spot::Normalize(
+                        Spot::Cross(side, Vector3{0, height * (1.0f - 0.36f * u), 0} + out * (2.0f * lean * u)));
+                    const float halfWidth = width * (1.0f - u) * 0.5f;
+                    mesh.vertices.push_back({center - side * halfWidth, normal, {0, u}});
+                    mesh.vertices.push_back({center + side * halfWidth, normal, {1, u}});
+                    if (segment < 4) {
+                        const auto a = first + static_cast<std::uint32_t>(segment * 2);
+                        mesh.indices.insert(mesh.indices.end(), {a, a + 1, a + 2, a + 1, a + 3, a + 2});
+                    }
+                }
+            }
+        }
+        if (i % 4 == 0) {
+            const float size = 0.045f + random(i, 9130) * 0.14f;
+            builder.Add(stone, Scaled(pebble, {size * 1.4f, size * 0.65f, size}),
+                        At({x, ground(x, z), z}, Turn({0, 1, 0}, random(i, 9131) * 360.0f)));
+        }
+        if (i % 13 == 0) {
+            builder.Add(
+                wood, twig,
+                At({x, ground(x, z) + 0.025f, z}, Turn({0, 1, 0}, random(i, 9132) * 360.0f) * Turn({0, 0, 1}, 88.0f)));
+        }
+    }
+}
+
 } // namespace
 
 float GetTerrainHeight(float x, float z) {
@@ -519,6 +621,7 @@ GltfModel Terrain() {
             }
         }
     }
+    AddGroundCover(builder);
     return builder.Build();
 }
 

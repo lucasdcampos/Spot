@@ -47,7 +47,11 @@ and needles are painted stroke by stroke (`generator/foliage_textures.cpp`): the
 blades in tufts over straw and soil, repeating every four meters, and the foliage as a twig of oak leaves and a spray
 of spruce needles cut out by their alpha, imported with `keepAlphaCoverage` so they do not thin out from afar. Its
 models (`generator/level_models.cpp`) are the terrain, rocks, trees, the container, the street lamp, the barrier, the
-bench, the quarter pipe and the fence panel. The trees are grown by `generator/trees.cpp`: branches as tapering tubes
+bench, the quarter pipe and the fence panel. The terrain also contains sparse ground-cover meshes: curved,
+tapered grass blades in two greens and dry straw, small stones and fallen twigs. Fixed seeds and broad noise patches
+leave open ground between clusters. Placement excludes the road, paved yards, workshop, central plaza, spawn path
+and pond; blade roots follow the terrain's actual triangulated surface. These extra meshes are renderer-only children
+of Ground in the playground, using the model's imported materials; only the original grass and rock surfaces collide. The trees are grown by `generator/trees.cpp`: branches as tapering tubes
 that split into smaller ones, with buttress roots at the trunk's foot, and foliage as double-sided cards whose normals
 point out of the crown, so it is lit as a whole. GPU acceptance captures of every yard by day, at sunset and at night,
 and of the grass and trees up close, are written to the test build's `tests/sandbox_captures/` directory.
