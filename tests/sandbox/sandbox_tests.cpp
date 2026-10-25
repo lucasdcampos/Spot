@@ -834,7 +834,7 @@ TEST_CASE("The playground uses linked spawnable prefabs with its authored overri
                 [&](Spot::MeshRenderer& renderer) { CHECK_FALSE(renderer.GetEntity().IsDescendantOf(entity)); });
         }
     });
-    CHECK(linked == 70);
+    CHECK(linked == 71);
     const Entity* cone = playground.scene.FindEntity("Cone");
     REQUIRE(cone != nullptr);
     CHECK(cone->HasComponent<Spot::BoxCollider>());
@@ -850,7 +850,7 @@ TEST_CASE("Every catalog entry spawns its complete prefab and undo removes its t
     playground.Run(Step);
     auto& spawner = *playground.player->GetComponent<PropSpawner>();
     auto& undo = *playground.player->GetComponent<UndoList>();
-    REQUIRE(spawner.GetSpawnables().size() == 16);
+    REQUIRE(spawner.GetSpawnables().size() == 17);
     const std::vector<std::string> shortcuts{"Crate", "Barrel", "Explosive Barrel", "Ball", "Plank", "Beam",
                                              "Cone",  "Wheel"};
     for (std::size_t i = 0; i < spawner.GetSpawnables().size(); ++i) {
@@ -934,7 +934,7 @@ TEST_CASE("Adding a marked prefab asset extends the sandbox catalog without code
     spawner.Cleanup();
     CHECK(playground.scene.GetEntity(childId) == nullptr);
     spawner.RefreshSpawnables();
-    CHECK(spawner.GetSpawnables().size() == 16);
+    CHECK(spawner.GetSpawnables().size() == 17);
 }
 
 TEST_CASE("Sandbox prefab edits propagate while instance overrides survive", "[sandbox][prefab]") {

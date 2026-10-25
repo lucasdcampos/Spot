@@ -1,6 +1,7 @@
 #include "prop_carrier.h"
 #include <spot/scene/physics/physics_world.h>
 
+#include "car_driver.h"
 #include "physics_gun.h"
 #include "player_controller.h"
 #include "player_health.h"
@@ -52,7 +53,8 @@ void PropCarrier::OnUpdate(float /*deltaTime*/) {
     }
 
     const auto* health = GetEntity().GetComponent<PlayerHealth>();
-    if (Input::IsActionPressed("Use") && !(health && health->IsDead())) {
+    const auto* driver = GetEntity().GetComponent<CarDriver>();
+    if (Input::IsActionPressed("Use") && !(health && health->IsDead()) && !(driver && driver->TookUse())) {
         if (IsHolding()) {
             Drop();
         } else if (Spot::Entity* prop = FindCarryable()) {

@@ -29,6 +29,46 @@ void AddTriangle(MeshData& mesh, MeshVertex a, MeshVertex b, MeshVertex c, Vecto
     mesh.indices.insert(mesh.indices.end(), {first, first + 1, first + 2});
 }
 
+// Cuts a profile going around counterclockwise, which does not cross itself, into triangles, ear by ear: each time, the
+// first corner after the first point whose triangle with its neighbors turns the profile's way and holds no other
+// point. Convex profiles become a fan from their first point. Returns the points' indices, three per triangle.
+std::vector<std::size_t> Triangulate(std::span<const ProfilePoint> profile) {
+    const auto turn = [&](std::size_t a, std::size_t b, std::size_t c) {
+        const ProfilePoint& p = profile[a];
+        const ProfilePoint& q = profile[b];
+        const ProfilePoint& r = profile[c];
+        return (q.z - p.z) * (r.y - p.y) - (q.y - p.y) * (r.z - p.z);
+    };
+    std::vector<std::size_t> left(profile.size());
+    for (std::size_t i = 0; i < left.size(); ++i) {
+        left[i] = i;
+    }
+    std::vector<std::size_t> triangles;
+    bool cut = true;
+    while (left.size() > 2 && cut) {
+        cut = false;
+        const std::size_t count = left.size();
+        for (std::size_t i = 1; i <= count && !cut; ++i) {
+            const std::size_t a = left[i - 1];
+            const std::size_t b = left[i % count];
+            const std::size_t c = left[(i + 1) % count];
+            if (turn(a, b, c) <= 0.0f) {
+                continue;
+            }
+            const bool empty = std::ranges::none_of(left, [&](std::size_t p) {
+                return p != a && p != b && p != c && turn(a, b, p) >= 0.0f && turn(b, c, p) >= 0.0f &&
+                       turn(c, a, p) >= 0.0f;
+            });
+            if (empty) {
+                triangles.insert(triangles.end(), {a, b, c});
+                left.erase(left.begin() + static_cast<std::ptrdiff_t>(i % count));
+                cut = true;
+            }
+        }
+    }
+    return triangles;
+}
+
 // The corners go around the quad, in either direction.
 void AddQuad(MeshData& mesh, MeshVertex a, MeshVertex b, MeshVertex c, MeshVertex d, Vector3 facing) {
     if (Spot::Dot(Spot::Cross(b.position - a.position, c.position - a.position), facing) < 0.0f) {
@@ -509,8 +549,10 @@ MeshData Extrude(std::span<const ProfilePoint> profile, float length, float uvRe
         const auto cap = [&](const ProfilePoint& point) {
             return MeshVertex{{side * half, point.y, point.z}, normal, {point.z / uvRepeat, -point.y / uvRepeat}};
         };
-        for (std::size_t i = 1; i + 1 < count; ++i) {
-            AddTriangle(mesh, cap(profile[0]), cap(profile[i]), cap(profile[i + 1]), normal);
+        const std::vector<std::size_t> triangles = Triangulate(profile);
+        for (std::size_t i = 0; i + 2 < triangles.size(); i += 3) {
+            AddTriangle(mesh, cap(profile[triangles[i]]), cap(profile[triangles[i + 1]]),
+                        cap(profile[triangles[i + 2]]), normal);
         }
     }
     return mesh;

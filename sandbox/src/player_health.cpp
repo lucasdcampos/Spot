@@ -1,5 +1,6 @@
 #include "player_health.h"
 
+#include "car_driver.h"
 #include "physics_gun.h"
 #include "player_controller.h"
 #include "player_movement.h"
@@ -40,6 +41,9 @@ float PlayerHealth::Land(float speed) {
 
 void PlayerHealth::Die() {
     m_health = 0.0f;
+    if (auto* driver = GetEntity().GetComponent<CarDriver>()) {
+        driver->Exit();
+    }
     if (auto* carrier = GetEntity().GetComponent<PropCarrier>()) {
         carrier->Drop();
     }

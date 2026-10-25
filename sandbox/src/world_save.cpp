@@ -1,5 +1,6 @@
 #include "world_save.h"
 
+#include "car_driver.h"
 #include "physics_gun.h"
 #include "projectile.h"
 #include "prop_carrier.h"
@@ -81,6 +82,7 @@ Spot::SaveDataResult Load(Spot::Scene& scene, const std::filesystem::path& path,
             return {Spot::SaveDataStatus::InvalidFile, Version, "The world snapshot has invalid roots"};
         }
     }
+    scene.ForEachComponent<CarDriver>([](CarDriver& driver) { driver.Exit(); });
     scene.ForEachComponent<PropCarrier>([](PropCarrier& carrier) { carrier.Drop(); });
     scene.ForEachComponent<PhysicsGun>([](PhysicsGun& gun) { gun.Release(); });
     scene.ForEachComponent<UndoList>([](UndoList& undo) { undo.Clear(); });

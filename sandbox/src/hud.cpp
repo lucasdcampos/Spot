@@ -1,6 +1,8 @@
 #include "hud.h"
 #include <spot/scene/physics/physics_world.h>
 
+#include "car.h"
+#include "car_driver.h"
 #include "day_cycle.h"
 #include "physics_gun.h"
 #include "player_controller.h"
@@ -161,6 +163,12 @@ void Hud::DescribeHand() {
     const auto* body = player.GetComponent<Spot::CharacterController>();
     const auto* gun = player.GetComponent<PhysicsGun>();
     const auto* tool = player.GetComponent<ToolGun>();
+    const auto* driver = player.GetComponent<CarDriver>();
+    if (const Car* car = driver ? driver->GetCar() : nullptr) {
+        DescribeCar(*car);
+        return;
+    }
+    m_wasDriving = false;
 
     // Every slot, with its icon and what the wheel says under its name.
     state.slots.clear();
@@ -213,6 +221,8 @@ void Hud::DescribeHand() {
         state.prompt = "[LMB]  Throw      [E]  Drop      [RMB]  Rotate";
     } else if (!(gun && gun->IsGrabbing()) && carrier && carrier->FindCarryable()) {
         state.prompt = "[E]  Pick up";
+    } else if (!(gun && gun->IsGrabbing()) && driver && driver->FindCar()) {
+        state.prompt = "[E]  Drive";
     }
 
     if (holder->IsToolGunSelected()) {
@@ -259,6 +269,22 @@ void Hud::DescribeHand() {
     }
     // Down the sights, the sights are the crosshair.
     state.crosshair = state.crosshair && !holder->IsAiming();
+}
+
+void Hud::DescribeCar(const Car& car) {
+    HudState& state = m_state;
+    // Its name and controls show for a moment after getting in.
+    if (!m_wasDriving) {
+        m_wasDriving = true;
+        m_nameLeft = nameTime;
+    }
+    state.itemOpacity = std::clamp(m_nameLeft / FadeTime, 0.0f, 1.0f);
+    state.item = Upper(car.GetEntity().GetName());
+    state.crosshair = false;
+    state.count = std::to_string(std::lround(std::abs(car.GetSpeed()) * 3.6f));
+    const int gear = car.GetGear();
+    state.detail = std::format("km/h   {}", gear < 0 ? std::string("R") : std::to_string(gear));
+    state.hints = "[W/S]  Drive      [Space]  Handbrake      [E]  Exit";
 }
 
 void Hud::OnDrawUi(Spot::Renderer2D& renderer, Spot::Vector2 viewSize) {

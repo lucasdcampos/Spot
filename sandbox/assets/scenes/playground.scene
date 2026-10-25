@@ -3150,6 +3150,14 @@
           "enabled": true,
           "id": "5f0d3c1e9a7b42d6b8e14c2a7d903f61",
           "type": "PlayerHealth"
+        },
+        {
+          "data": {
+            "reach": 3.0
+          },
+          "enabled": true,
+          "id": "7cfc9f3d7fcca86431707ea39443e837",
+          "type": "CarDriver"
         }
       ],
       "id": 117,
@@ -9529,6 +9537,37 @@
         ]
       },
       "prefab": "bb6fa1214bc7197670dd177dd91c2c0f",
+      "removedEntities": []
+    },
+    {
+      "entityIds": {
+        "1": 200680
+      },
+      "id": 200680,
+      "overrides": {
+        "1": [
+          {
+            "op": "replace",
+            "path": "/position",
+            "value": [
+              5.5,
+              0.0,
+              4.5
+            ]
+          },
+          {
+            "op": "replace",
+            "path": "/rotation",
+            "value": [
+              0.0,
+              0.19866932928562164,
+              0.0,
+              0.9800665974617004
+            ]
+          }
+        ]
+      },
+      "prefab": "49f0472ef190b4560ab61c70fe83031b",
       "removedEntities": []
     },
     {

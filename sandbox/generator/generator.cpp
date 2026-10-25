@@ -9,6 +9,7 @@
 #include "shapes.h"
 #include "sounds.h"
 #include "textures.h"
+#include "vehicles.h"
 #include "weapons.h"
 
 #include <spot.h>
@@ -129,6 +130,8 @@ const std::vector<GeneratedSound>& GetSounds() {
         {"footstep_metal_3", [] { return Sounds::FootstepMetal(2); }},
         {"footstep_metal_4", [] { return Sounds::FootstepMetal(3); }},
         {"physics_gun_hum", Sounds::PhysicsGunHum},
+        {"engine", Sounds::Engine},
+        {"tire_squeal", Sounds::TireSqueal},
         {"wind", Sounds::Wind},
         {"music", Sounds::Music},
         {"click", Sounds::Click},
@@ -243,6 +246,7 @@ OutputCounts GenerateSandboxAssets(const std::filesystem::path& directory, std::
         writeModel(std::string(level.name), level.model);
     }
     writeModel("robot", Rigs::Robot());
+    writeModel("car", Vehicles::Car());
     for (const GeneratedSound& sound : GetSounds()) {
         const std::vector<std::byte> wav = Sounds::EncodeWav(sound.make());
         WriteIfChanged(directory / "sounds" / (std::string(sound.name) + ".wav"), wav, counts);

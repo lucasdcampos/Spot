@@ -21,6 +21,11 @@ Spot::Quaternion PlayerController::GetViewRotation() const {
            Spot::Quaternion::FromAxisAngle({1.0f, 0.0f, 0.0f}, std::clamp(m_pitch + m_recoil, -1.5f, 1.5f));
 }
 
+void PlayerController::SetLook(float yaw, float pitch) {
+    m_yaw = yaw;
+    m_pitch = std::clamp(pitch, -1.5f, 1.5f);
+}
+
 Spot::Vector3 PlayerController::GetEyePosition() const {
     const Spot::Entity* eye = GetHead();
     return (eye ? eye : &GetEntity())->GetTransform().GetWorldPosition();

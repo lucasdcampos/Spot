@@ -34,6 +34,9 @@ Samples FootstepWood(int variant);
 Samples FootstepMetal(int variant);
 // Loops: each ends where it starts.
 Samples PhysicsGunHum();
+// A four-cylinder engine at 3000 revolutions a minute, which the car pitches to its own, and its tires squealing.
+Samples Engine();
+Samples TireSqueal();
 Samples Wind();
 Samples Music();
 Samples Click();

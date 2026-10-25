@@ -32,7 +32,8 @@ public:
     // Every slot: the physics gun, the weapons and the tool gun.
     int GetSlotCount() const { return GetWeaponCount() + 2; }
 
-    // Whether the item in hand can be used now: not while running, choosing in the wheel or dead.
+    // Whether the item in hand can be used now: not while running, choosing in the wheel, dead or put away, as while
+    // driving.
     bool CanUseItem() const;
     bool IsWheelOpen() const { return m_wheelOpen; }
     // The slot the wheel points at, which letting go selects.

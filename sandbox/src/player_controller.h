@@ -17,6 +17,8 @@ public:
 
     // Where the player looks: the yaw turns around Y, and the view adds the pitch.
     float GetYaw() const { return m_yaw; }
+    // Looks that way at once, as on getting out of a car.
+    void SetLook(float yaw, float pitch);
     Spot::Quaternion GetViewRotation() const;
     // Where the player's eyes are, at its head, and the unit vector they look along.
     Spot::Vector3 GetEyePosition() const;

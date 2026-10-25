@@ -4,8 +4,8 @@
 
 // The player's health. Landing faster than a safe speed hurts (PlayerMovement tells it), and so do explosions nearby
 // (Explosion::Explode()); health comes back on its own a few seconds after the last hurt. At none the player dies:
-// what it holds drops, it can no longer move or use anything, and after respawnTime it comes back at the start with
-// full health.
+// it gets out of the car it drives, what it holds drops, it can no longer move or use anything, and after respawnTime
+// it comes back at the start with full health.
 class PlayerHealth final : public Spot::Component {
 public:
     float maxHealth = 100.0f;

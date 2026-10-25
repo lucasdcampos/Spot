@@ -46,8 +46,8 @@ Spot::MeshData Icosphere(float radius, int subdivisions, const std::function<flo
 // A cylinder narrowing from the bottom radius to the top one, standing along Y, centered like the others.
 Spot::MeshData Frustum(float bottomRadius, float topRadius, float height, std::uint32_t segments);
 // A profile in the YZ plane pushed along X for the length, centered on X, with caps at both ends. The profile goes
-// around counterclockwise with Z to the right and Y up; caps fan out from its first point, which must see every other
-// one. Points marked smooth share their two sides' normal, as along a curve.
+// around counterclockwise with Z to the right and Y up, and may take any shape that does not cross itself, such as a
+// car's side around its wheel arches. Points marked smooth share their two sides' normal, as along a curve.
 struct ProfilePoint {
     float z;
     float y;
@@ -55,7 +55,8 @@ struct ProfilePoint {
 };
 Spot::MeshData Extrude(std::span<const ProfilePoint> profile, float length, float uvRepeat);
 // The profile pushed along X as Extrude() pushes it, its edges around both ends cut off by the bevel, so they catch
-// the light as machined and molded parts' do. The bevel must be smaller than the profile's narrowest part.
+// the light as machined and molded parts' do. The bevel must be smaller than the profile's narrowest part, and caps fan
+// out from the profile's first point, which must see every other one.
 Spot::MeshData BeveledExtrude(std::span<const ProfilePoint> profile, float length, float bevel, float uvRepeat);
 
 // A point of a profile turned around Y: its radius and height, and whether the sides on either side of it share their

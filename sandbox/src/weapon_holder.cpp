@@ -39,8 +39,8 @@ bool WeaponHolder::CanUseItem() const {
     const auto* health = GetEntity().GetComponent<PlayerHealth>();
     // Placing a prop from the spawn menu takes the buttons.
     const auto* spawner = GetEntity().GetComponent<PropSpawner>();
-    return !m_wheelOpen && !(movement && movement->IsSprinting()) && !(health && health->IsDead()) &&
-           !(spawner && spawner->HasClick());
+    return IsActiveAndEnabled() && !m_wheelOpen && !(movement && movement->IsSprinting()) &&
+           !(health && health->IsDead()) && !(spawner && spawner->HasClick());
 }
 
 void WeaponHolder::OpenWheel() {

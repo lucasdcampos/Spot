@@ -18,7 +18,7 @@ remain outside world checkpoints and cleanup.
 
 - **Plaza** (spawn): paved, with benches, planted oaks, street lamps, the build pad and a monument whose neon
   "SPOT ENGINE" sign glows through bloom under a mirror sphere and gold, copper, plastic and glass samples, for PBR
-  and reflections. The robots patrol here.
+  and reflections. The robots patrol here, and a red hatchback is parked by the spawn (see [Driving](#driving)).
 - **Workshop** (north-east): a brick hangar with a ten-meter door, glass windows, four shadowed ceiling lamps, a
   workbench, shelving, the lamp pad and a neon sign. Steel stairs up the west wall lead onto the parapeted roof.
 - **Proving yard** (west): a quarter pipe, a jump ramp, a platform with steps, a nine-meter drop tower with
@@ -99,7 +99,7 @@ controls are:
 | Hold Tab, mouse | Weapon wheel: point at a slot, release to take it |
 | Left mouse, right mouse | Fire/use the tool, aim or turn a held prop |
 | R | Reload; cycle the tool gun's mode |
-| E | Carry or drop a nearby light prop |
+| E | Carry or drop a nearby light prop; get into the car looked at, or out of it |
 | F | Toggle the flashlight |
 | F1–F8 | Spawn crate, barrel, explosive barrel, ball, plank, beam, cone or wheel |
 | Q | Open the spawn menu |
@@ -115,6 +115,40 @@ pitch. Keep these references assigned in the scene so movement, aiming and the r
 
 Gamepad bindings are in the same settings. Spawn cycles through the catalog rather than requiring a separate
 button per entry. The tool gun's right mouse/Aim action cycles colors, materials or lamp kinds in those modes.
+
+## Driving
+
+`prefabs/spawnables/props/car.prefab` is a car, parked in the plaza and in the spawn menu's Props. Use (E) on it gets
+in: `CarDriver`, on the player, puts away what the player does on foot (its movement, look, hands, tools and the eyes'
+camera) and seats it, and the car's own camera, a `CarCamera` on its inactive Camera child, takes over in the third
+person: it swings around behind the car as it turns, Look orbits it, and it comes back behind a moving car a moment
+after the mouse rests, keeping out of walls and widening at speed. Move drives (forward accelerates, back brakes and,
+once stopped, reverses), Jump pulls the handbrake, and Use gets out beside the driver's door, or wherever around the car
+there is room, looking the way the car faces. Dying or loading a checkpoint gets the player out first. The HUD shows the
+speed and gear in place of what is in hand.
+
+`Car` simulates a car on its Rigidbody with the public physics API alone. Each physics step, each wheel is cast down
+from the top of its travel (a sphere as wide as the tire, at its bottom) and holds the body up with a spring, preloaded
+so the car rests where its wheels are placed, a damper, a bump stop and an anti-roll bar per axle. The tires grip by how
+far they slip, along (slip ratio) and across (slip angle), combined within their friction circle on Pacejka's curve:
+rising steeply, peaking at `peakSlipRatio` and `peakSlipAngle` and falling as they slide, with less grip per newton as
+they are loaded more (`loadSensitivity`). Their forces reach the body at `rollCenterHeight`, as a suspension's links
+take them, and push back on dynamic bodies they stand on. The wheels' spin is stepped four times a physics step and
+implicitly, since the road couples it stiffly; forces never exceed what stops a tire sliding within the step, so a
+stopped car neither jitters nor creeps. An engine with a torque curve and engine braking turns the driven wheels
+(`drive`: front, rear or all) through a clutch that slips at launch, an automatic gearbox shifting by revolutions and
+throttle, a final drive and an open differential, its inertia added to theirs. Brakes, biased to the front and with
+anti-lock, and the handbrake on the rear wheels stop them; the air drags as the square of the speed. The front wheels
+steer with Ackermann geometry, less at speed. Parked, its brakes hold it and it sleeps once still. Every value is a
+field of the component, in SI units. The engine's loop is pitched to the revolutions and the tires squeal past their
+peak, both generated (`generator/sounds.cpp`), as is the model (`generator/vehicles.cpp`): an extruded body with
+rounded wheel arches, glass, trim, interior, lights and a wheel that the car's four wheel entities show, steered and
+spun.
+
+`tests/sandbox/car_tests.cpp` drives the playground's car with simulated input: resting at its ride height, getting in
+and out with the cameras switching, accelerating through the gears, braking, reversing, steering and the handbrake.
+The GPU test `The cooked playground's car shows its paint, glass, lights and wheels` captures it from the front, the
+side and behind into `tests/sandbox_captures/car_*.png`.
 
 ## Luau script demonstrations
 
@@ -271,6 +305,8 @@ worst in High quality with that population, and 148.9 FPS (8.45 ms p95) on its o
 - Watch dusk fall over the pond: street lamps come on, neon signs glow and the workshop stays lit.
 - Fire and reload all four firearms, aim, push props and trigger an explosive barrel's fuse and chain reaction.
 - Grab, move, rotate and freeze a prop with the physics gun, then release it.
+- Get into the car, drive it around the valley through the gears, brake, reverse, slide it with the handbrake, orbit
+  its camera, jump the ramp and get out; check the cameras switch and the engine and tires sound.
 - Weld and rope props, paint and change their materials, remove them and undo the operations.
 - Place point and spot lamps with and without shadows, change their color, attach one to a moving prop and undo.
 - Spawn every catalog entry; verify firearm model trees, lamp lighting, convex cone/wheel collisions and cleanup.

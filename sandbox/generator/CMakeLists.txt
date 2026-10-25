@@ -45,6 +45,8 @@ add_library(sandbox_generator_core STATIC
     textures.h
     trees.cpp
     trees.h
+    vehicles.cpp
+    vehicles.h
     weapons.cpp
     weapons.h
 )

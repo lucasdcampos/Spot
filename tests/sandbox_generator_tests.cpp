@@ -107,6 +107,30 @@ TEST_CASE("The sandbox's generated props load back, wound outward and centered",
             CHECK_FALSE(node->mesh.has_value());
         }
     }
+    // The car is a body of several parts around a wheel at the origin, its tire and rim, all wound outward.
+    const auto car = Spot::ModelData::Load(temp.GetPath() / "models" / "car.gltf");
+    REQUIRE(car.has_value());
+    REQUIRE(car->meshes.size() == 8);
+    for (const Spot::ModelMeshData& part : car->meshes) {
+        CAPTURE(part.name);
+        REQUIRE(!part.mesh.indices.empty());
+        const bool wheel = part.name == "Tire" || part.name == "Rim";
+        int inward = 0;
+        int outside = 0;
+        for (std::size_t i = 0; i + 2 < part.mesh.indices.size(); i += 3) {
+            const Spot::MeshVertex& a = part.mesh.vertices[part.mesh.indices[i]];
+            const Spot::MeshVertex& b = part.mesh.vertices[part.mesh.indices[i + 1]];
+            const Spot::MeshVertex& c = part.mesh.vertices[part.mesh.indices[i + 2]];
+            const Spot::Vector3 face = Spot::Cross(b.position - a.position, c.position - a.position);
+            if (Spot::Length(face) > 1e-9f) {
+                inward += Spot::Dot(face, a.normal + b.normal + c.normal) <= 0.0f ? 1 : 0;
+            }
+            outside += (wheel ? Spot::Length(a.position) > 0.4f : std::abs(a.position.z) > 2.2f) ? 1 : 0;
+        }
+        CHECK(inward == 0);
+        CHECK(outside == 0);
+    }
+
     // The terrain's grass blades end in a point, without triangles of no area, which would slow its import.
     const auto terrain = Spot::ModelData::Load(temp.GetPath() / "models" / "terrain.gltf");
     REQUIRE(terrain.has_value());

@@ -466,6 +466,51 @@ Samples PhysicsGunHum() {
     return Normalize(std::move(samples), 0.5f);
 }
 
+Samples Engine() {
+    // It fires 100 times a second, so every part makes whole cycles in the second it loops over.
+    Samples samples = Make(1.25f, 22050);
+    const auto rate = static_cast<float>(samples.sampleRate);
+    Noise noise(141);
+    Noise beats(142);
+    LowPass rumble(900.0f, samples.sampleRate);
+    LowPass exhaust(1800.0f, samples.sampleRate);
+    int cycle = -1;
+    float strength = 1.0f;
+    for (std::size_t i = 0; i < samples.data.size(); ++i) {
+        const float t = static_cast<float>(i) / rate;
+        const float firing = t * 100.0f;
+        // Each firing is a little stronger or weaker than the one before, and dies down before the next.
+        if (static_cast<int>(firing) != cycle) {
+            cycle = static_cast<int>(firing);
+            strength = 0.8f + 0.2f * beats.Next();
+        }
+        const float left = 1.0f - (firing - static_cast<float>(cycle));
+        const float pulse = left * left * left * strength;
+        const float tone = 0.45f * Sine(t * 100.0f) + 0.3f * Sine(t * 200.0f) + 0.12f * Sine(t * 50.0f);
+        const float bang =
+            pulse * (0.5f * Sine(t * 300.0f) + 0.25f * Sine(t * 700.0f) + 0.35f * rumble.Process(noise.Next()));
+        samples.data[i] = exhaust.Process(tone + bang);
+    }
+    return Normalize(Loop(std::move(samples), 0.25f), 0.5f);
+}
+
+Samples TireSqueal() {
+    Samples samples = Make(1.25f, 22050);
+    const auto rate = static_cast<float>(samples.sampleRate);
+    Noise noise(151);
+    LowPass high(2600.0f, samples.sampleRate);
+    LowPass low(700.0f, samples.sampleRate);
+    for (std::size_t i = 0; i < samples.data.size(); ++i) {
+        const float t = static_cast<float>(i) / rate;
+        const float hiss = noise.Next();
+        // Rubber hissing on the road between the two cutoffs, under a whine that wavers.
+        const float band = high.Process(hiss) - low.Process(hiss);
+        const float whine = Sine(t * 920.0f + 0.004f * Sine(t * 7.0f)) * (0.6f + 0.4f * Sine(t * 13.0f));
+        samples.data[i] = band * 0.6f + whine * 0.35f;
+    }
+    return Normalize(Loop(std::move(samples), 0.25f), 0.4f);
+}
+
 Samples Wind() {
     Samples samples = Make(6.5f, 22050);
     Noise noise(131);
