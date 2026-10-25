@@ -85,6 +85,14 @@ next build can replace the file meanwhile. Before loading a new module, the open
 components destroyed; after, they load again with the new types. Components whose type the module no longer has stay
 as `MissingComponent`s that keep their data: the editor loads every scene with `keepUnknownComponents`.
 
+A module built before the engine library changed, or for another editor, is not loaded: its components would call
+the engine where it no longer is, so the code builds again when the project opens, which takes a while after every
+change to the engine. Played meanwhile, a scene would run without the game's components, skipping each with a
+warning. So while `ModuleHost::IsLoading()`, Play waits instead (`SceneWorkspace::IsPlayPending()`): the button
+shows an hourglass and cancels, the toolbar says "Building, then playing", and the scene's view shows a spinner with
+the build's time. The scene plays once the module loads, or the editor says why not when the build fails or the module
+does not load. With a module loaded, Play runs it while a newer one builds, and the new one loads when the game stops.
+
 Scene documents preserve saved entity ids when first opened, including while the game's module is still building.
 Missing components keep opaque fields, so changing those ids before their types load would leave references such
 as the player's camera pointing at missing entities. Saving and reloading the module keep those references valid.

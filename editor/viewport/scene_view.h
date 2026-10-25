@@ -93,6 +93,8 @@ private:
     void DrawViewCube(const ImVec2& origin, const ImVec2& size);
     void DrawOverlay(const ImVec2& origin);
     void DrawSpeedButton();
+    // Over a view whose scene waits for the game's code to play: that it does, and how long the build has taken.
+    void DrawPlayPending(EditorContext& context, const ImVec2& origin, const ImVec2& size);
     void HandleClick(const ImVec2& origin, const ImVec2& scale);
     void HandleAssetDrop(EditorContext& context, std::span<const AssetId> assets, const ImVec2& origin,
                          const ImVec2& size, const ImVec2& scale);

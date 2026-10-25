@@ -59,6 +59,9 @@ public:
     std::chrono::duration<float> GetLoadDuration() const { return m_loadDuration; }
     // Null while none is loaded.
     const GameLibrary* GetModule() const { return m_module.get(); }
+    // Whether the game's code is on its way: none is loaded yet, and a build runs or its module waits to load. Scenes
+    // played meanwhile would have none of the game's components.
+    bool IsLoading() const { return !m_module && (m_build.IsRunning() || m_newModule) && HasCode(); }
 
 private:
     // Changes with any change to the code: its files, their sizes and times.

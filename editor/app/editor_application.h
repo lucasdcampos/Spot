@@ -7,6 +7,7 @@
 #include "core/console_log.h"
 #include "core/editor_settings.h"
 #include "imgui/imgui_layer.h"
+#include "modules/module_host.h"
 #include "panels/asset_browser_panel.h"
 #include "panels/code_editor_panel.h"
 #include "panels/hierarchy_panel.h"
@@ -84,8 +85,11 @@ private:
     void OpenConsole();
     // Builds the game's code when it changed, and loads it once built and nothing plays.
     void UpdateModules();
-    // Plays the active scene, or stops playing.
+    // Plays the active scene, once the game's code loads when it is still to, or stops playing or waiting to.
     void TogglePlaying();
+    void StartPlaying();
+    // Tells why the scene does not play: the game's code did not build, or did not load.
+    void ShowPlayError(const ModuleHost& modules);
     // Runs the game in its own window, once its scenes are saved and its code is built.
     void RunGame();
     void DrawStatusBar();

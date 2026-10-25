@@ -819,6 +819,28 @@ TEST_CASE("Views show their scene again as soon as it stops playing", "[editor][
     CHECK(showedDocument);
 }
 
+TEST_CASE("A scene waiting for the game's code to play says so in its view until it is cancelled",
+          "[editor][workspace][play]") {
+    WorkspaceFixture fixture;
+    fixture.workspace->RestoreState();
+    fixture.Frame();
+    Spot::Editor::SceneDocument& document = *fixture.workspace->GetActiveDocument();
+    const std::string before = document.GetScene().SaveToString();
+
+    fixture.workspace->SetPlayPending(true);
+    fixture.Frame();
+    fixture.Frame();
+    // Waiting plays nothing yet, and leaves the scene as it was.
+    CHECK(fixture.workspace->IsPlayPending());
+    CHECK_FALSE(fixture.workspace->GetPlaySession());
+    CHECK(document.GetScene().SaveToString() == before);
+    CHECK_FALSE(document.IsDirty());
+
+    fixture.workspace->StopPlaying();
+    CHECK_FALSE(fixture.workspace->IsPlayPending());
+    fixture.Frame();
+}
+
 TEST_CASE("Scenes with unsaved changes are backed up until they are saved", "[editor][workspace][backup]") {
     WorkspaceFixture fixture;
     fixture.workspace->RestoreState();

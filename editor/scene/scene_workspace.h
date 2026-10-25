@@ -85,9 +85,13 @@ public:
     // Plays the active document in the application: a copy of it runs as the game would, in the document's view.
     // Does nothing without an active document.
     void Play(PlayHost& application);
+    // Stops playing, or waiting to play.
     void StopPlaying();
     // Null while nothing plays.
     PlaySession* GetPlaySession() { return m_play.get(); }
+    // Set while the active document waits for the game's code to load before it plays; its view shows that it does.
+    bool IsPlayPending() const { return m_playPending; }
+    void SetPlayPending(bool pending) { m_playPending = pending; }
 
     // Saves every open scene and clears it, runs between, then loads the scenes back with the same entity ids, so
     // their components are made anew while selections and histories stay as they were; this is how the game's code
@@ -148,6 +152,7 @@ private:
     // Backups left behind wait for the user to say what to do with them, and none are made meanwhile.
     std::vector<SceneBackup> m_recovery;
     bool m_openRecovery = false;
+    bool m_playPending = false;
     // After the documents, so it goes first, as it refers to one of them.
     std::unique_ptr<PlaySession> m_play;
 };

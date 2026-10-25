@@ -19,6 +19,7 @@
 #include <cmath>
 #include <format>
 #include <limits>
+#include <numbers>
 #include <utility>
 
 namespace Spot::Editor {
@@ -252,6 +253,11 @@ void SceneView::DrawViewport(EditorContext& context, ViewportRenderer* renderer)
         HandleClick(origin, scale);
     }
     DrawOverlay(origin);
+    if (SceneWorkspace* workspace = context.GetWorkspace(); workspace && context.GetProject() &&
+                                                            workspace->IsPlayPending() &&
+                                                            workspace->GetActiveDocument() == &m_document) {
+        DrawPlayPending(context, origin, size);
+    }
 }
 
 void SceneView::HandleClick(const ImVec2& origin, const ImVec2& scale) {
@@ -652,6 +658,47 @@ void SceneView::DrawSpeedButton() {
         }
         ImGui::EndPopup();
     }
+}
+
+void SceneView::DrawPlayPending(EditorContext& context, const ImVec2& origin, const ImVec2& size) {
+    const CodeBuild& build = context.GetProject()->GetModules().GetBuild();
+    const std::string title = build.IsRunning()
+                                  ? std::format("Building the game's code  {:.0f} s", build.GetDuration().count())
+                                  : std::string("Loading the game's code");
+    constexpr const char* Detail = "The scene plays as soon as it is ready; Ctrl+P cancels";
+
+    const float fontSize = ImGui::GetFontSize();
+    const float padding = fontSize;
+    const float radius = fontSize * 0.6f;
+    const float gap = fontSize * 0.75f;
+    const float spacing = ImGui::GetStyle().ItemSpacing.y;
+    const ImVec2 titleSize = ImGui::CalcTextSize(title.c_str());
+    const ImVec2 detailSize = ImGui::CalcTextSize(Detail);
+    const ImVec2 card{padding * 2.0f + radius * 2.0f + gap + std::max(titleSize.x, detailSize.x),
+                      padding * 2.0f + titleSize.y + spacing + detailSize.y};
+    const ImVec2 min{std::round(origin.x + (size.x - card.x) * 0.5f), std::round(origin.y + (size.y - card.y) * 0.5f)};
+    const ImVec2 max{min.x + card.x, min.y + card.y};
+
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    drawList->PushClipRect(origin, {origin.x + size.x, origin.y + size.y}, true);
+    drawList->AddRectFilled(origin, {origin.x + size.x, origin.y + size.y}, IM_COL32(0, 0, 0, 90));
+    const float rounding = 6.0f * ImGui::GetStyle().FontScaleDpi;
+    drawList->AddRectFilled(min, max, IM_COL32(26, 28, 33, 235), rounding);
+    drawList->AddRect(min, max, IM_COL32(255, 255, 255, 30), rounding);
+
+    // It turns, so the editor is seen not to hang while the build takes its time.
+    const ImVec2 center{min.x + padding + radius, (min.y + max.y) * 0.5f};
+    const float thickness = std::max(2.0f, fontSize * 0.15f);
+    drawList->AddCircle(center, radius, IM_COL32(255, 255, 255, 40), 32, thickness);
+    const auto angle = static_cast<float>(ImGui::GetTime() * 5.0);
+    drawList->PathArcTo(center, radius, angle, angle + 1.6f * std::numbers::pi_v<float>, 32);
+    drawList->PathStroke(ImGui::GetColorU32(EditorColors::Accent), thickness);
+
+    const float textX = center.x + radius + gap;
+    drawList->AddText({textX, min.y + padding}, ImGui::GetColorU32(ImGuiCol_Text), title.c_str());
+    drawList->AddText({textX, min.y + padding + titleSize.y + spacing}, ImGui::GetColorU32(EditorColors::TextMuted),
+                      Detail);
+    drawList->PopClipRect();
 }
 
 void SceneView::Render(RenderContext& context, ViewportRenderer& renderer) {

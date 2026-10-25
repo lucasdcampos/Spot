@@ -270,6 +270,7 @@ TEST_CASE("A project's code builds into a module that loads, and loads again whe
         CHECK(host.GetBuild().GetErrorCount() > 0);
         CHECK_FALSE(host.HasNewModule());
         CHECK(host.GetModule());
+        CHECK_FALSE(host.IsLoading());
 
         // The module's components go before it.
         scene.Clear();
@@ -371,16 +372,38 @@ TEST_CASE("Modules built before the engine changed are built again before they l
         CHECK_FALSE(host.LoadBuilt());
         CHECK_FALSE(host.GetModule());
         CHECK(host.GetBuild().IsRunning());
+        // Scenes played meanwhile would have none of the game's components, so playing waits for it.
+        CHECK(host.IsLoading());
         WaitForBuild(host);
         REQUIRE(host.GetBuild().GetState() == CodeBuildState::Succeeded);
         REQUIRE(host.HasNewModule());
+        CHECK(host.IsLoading());
         CHECK(host.SwapModule());
+        CHECK_FALSE(host.IsLoading());
     }
 
     // Built for this engine now, it loads at once.
     Spot::Editor::ModuleHost host(*project, {.toolchain = rebuilt, .watchInterval = 0ms});
     CHECK(host.LoadBuilt());
     CHECK_FALSE(host.GetBuild().IsRunning());
+    CHECK_FALSE(host.IsLoading());
+}
+
+TEST_CASE("Code that never built is loading until its build fails", "[editor][module]") {
+    const TempDirectory temp;
+    const auto file = Spot::CreateProject(temp.GetPath(), "Broken", Spot::ProjectTemplate::Code3D);
+    REQUIRE(file);
+    const auto project = Spot::Project::Load(*file);
+    REQUIRE(project);
+    std::ofstream(project->GetDirectory() / "src" / "game.cpp", std::ios::binary) << BrokenCode;
+    Spot::Editor::ModuleHost host(*project, {.watchInterval = 0ms});
+    CHECK_FALSE(host.LoadBuilt());
+    CHECK(host.IsLoading());
+    WaitForBuild(host);
+    CHECK(host.GetBuild().GetState() == CodeBuildState::Failed);
+    // Nothing is on its way any more: playing tells why instead of waiting.
+    CHECK_FALSE(host.IsLoading());
+    CHECK_FALSE(host.GetModule());
 }
 
 TEST_CASE("New source files are in the first build after they are added", "[editor][module]") {

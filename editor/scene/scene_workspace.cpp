@@ -107,6 +107,7 @@ void SceneWorkspace::Play(PlayHost& application) {
 }
 
 void SceneWorkspace::StopPlaying() {
+    m_playPending = false;
     if (!m_play) {
         return;
     }

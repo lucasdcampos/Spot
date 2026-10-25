@@ -278,6 +278,14 @@ void EditorApplication::UpdateModules() {
                                std::chrono::duration<float, std::milli>(modules.GetLoadDuration()).count(),
                                std::chrono::duration<float>(now - modules.GetChangeTime()).count());
     }
+    if (m_workspace->IsPlayPending() && !modules.IsLoading()) {
+        m_workspace->SetPlayPending(false);
+        if (modules.GetModule()) {
+            StartPlaying();
+        } else {
+            ShowPlayError(modules);
+        }
+    }
 }
 
 void EditorApplication::OnRender(RenderContext& context) {
@@ -714,10 +722,16 @@ void EditorApplication::DrawPlayControls() {
     // Centered on the play, pause and step buttons; running the game in its own window comes after them.
     const float playWidth = ImGui::GetFrameHeight() * 1.2f * 3.0f + ImGui::GetStyle().ItemSpacing.x * 2.0f;
     ImGui::SameLine((ImGui::GetWindowWidth() - playWidth) * 0.5f);
+    const bool pending = m_workspace->IsPlayPending();
     ImGui::BeginDisabled(!play && !m_workspace->GetActiveDocument());
-    if (ToolbarButton(play ? ICON_FA_STOP : ICON_FA_PLAY,
-                      play ? "Stop (Ctrl+P): what changed while playing is undone" : "Play the scene (Ctrl+P)",
-                      play != nullptr)) {
+    if (ToolbarButton(play      ? ICON_FA_STOP
+                      : pending ? ICON_FA_HOURGLASS_HALF
+                                : ICON_FA_PLAY,
+                      play      ? "Stop (Ctrl+P): what changed while playing is undone"
+                      : pending ? "The scene plays as soon as the game's code is built and loaded; click to cancel "
+                                  "(Ctrl+P)"
+                                : "Play the scene (Ctrl+P)",
+                      play != nullptr || pending)) {
         TogglePlaying();
         // Stopping ends the session.
         play = m_workspace->GetPlaySession();
@@ -785,9 +799,13 @@ void EditorApplication::DrawBuildControls() {
     if (build.IsRunning()) {
         // The dots move so it shows that something happens.
         const auto dots = static_cast<std::size_t>(ImGui::GetTime() * 3.0) % 4;
-        status = ICON_FA_GEARS "  Building" + std::string(dots, '.');
-        widest = ICON_FA_GEARS "  Building...";
-        tooltip = "The game's code is building; the editor keeps the code it has until it is done.";
+        const char* building =
+            m_workspace->IsPlayPending() ? ICON_FA_GEARS "  Building, then playing" : ICON_FA_GEARS "  Building";
+        status = building + std::string(dots, '.');
+        widest = building + std::string("...");
+        tooltip = m_workspace->IsPlayPending()
+                      ? "The game's code is building; the scene plays as soon as it is built and loaded."
+                      : "The game's code is building; the editor keeps the code it has until it is done.";
     } else if (modules.HasNewModule()) {
         status = ICON_FA_CLOCK "  New code loads when the game stops";
     } else if (modules.HasUnbuiltChanges()) {
@@ -839,10 +857,45 @@ void EditorApplication::TogglePlaying() {
         m_workspace->StopPlaying();
         return;
     }
+    if (m_workspace->IsPlayPending()) {
+        m_workspace->SetPlayPending(false);
+        return;
+    }
+    // Played before the game's code loads, as while it builds after the engine changed, the scene would have none of
+    // its components: it plays once the code loads instead.
+    EditorProject* project = m_context->GetProject();
+    if (!project) {
+        return;
+    }
+    ModuleHost& modules = project->GetModules();
+    if (modules.HasCode() && !modules.GetModule()) {
+        if (!modules.IsLoading()) {
+            if (modules.GetBuild().GetState() == CodeBuildState::Failed && !modules.HasUnbuiltChanges()) {
+                ShowPlayError(modules);
+                return;
+            }
+            modules.Build();
+        }
+        m_workspace->SetPlayPending(true);
+        return;
+    }
+    StartPlaying();
+}
+
+void EditorApplication::StartPlaying() {
     if (m_settings.GetPreferences().clearConsoleOnPlay) {
         m_consoleLog->Clear();
     }
     m_workspace->Play(*this);
+}
+
+void EditorApplication::ShowPlayError(const ModuleHost& modules) {
+    if (modules.GetBuild().GetState() == CodeBuildState::Failed) {
+        ShowError("The game did not build", "The game's code has errors, which the console shows. Play the scene "
+                                            "again once they are fixed.");
+    } else {
+        ShowError("The game's code did not load", "The game's code built but did not load; the console shows why.");
+    }
 }
 
 void EditorApplication::DrawGizmoTools() {
