@@ -10,6 +10,8 @@ add_library(spot_tools STATIC
     build/code_build.h
     build/game_build.cpp
     build/game_build.h
+    install/installation.cpp
+    install/installation.h
     prefabs/prefab_editing.cpp
     prefabs/prefab_editing.h
     project/luau_tooling.cpp
@@ -51,6 +53,12 @@ set_property(SOURCE build/build_info.cpp APPEND PROPERTY COMPILE_DEFINITIONS
     SPOT_TOOLCHAIN_PACKAGE="${PROJECT_BINARY_DIR}/package/$<CONFIG>"
     SPOT_TOOLCHAIN_ENGINE_LIBRARY="$<TARGET_FILE:spot_shared>"
     SPOT_TOOLCHAIN_PLAYER="$<TARGET_FILE:spot_player>"
+)
+# Installed, they are found by name beside the tools (see cmake/spot_install.cmake).
+set_property(SOURCE install/installation.cpp APPEND PROPERTY COMPILE_DEFINITIONS
+    SPOT_INSTALLED_ENGINE_LIBRARY="$<TARGET_FILE_NAME:spot_shared>"
+    SPOT_INSTALLED_PLAYER="$<TARGET_FILE_NAME:spot_player>"
+    SPOT_INSTALLED_EDITOR="spot_editor${CMAKE_EXECUTABLE_SUFFIX}"
 )
 # What the tools build games against, and run games without code with, comes with them.
 add_dependencies(spot_tools spot_shared spot_player)

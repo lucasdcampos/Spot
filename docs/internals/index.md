@@ -39,6 +39,7 @@ library with a loop of its own ([`own_loop`](../../examples/own_loop/main.cpp)),
 | [Tools and the command line](tools_and_command_line.md) | Projects, cooking, building, running and exporting games with `spot` |
 | [Sandbox](sandbox.md) | Running the playground, prefab spawnables, controls and a play-test checklist |
 | [Sandbox release](sandbox_release.md) | Release exports, runtime libraries, relocation checks and platform acceptance |
+| [Releases and installation](releases.md) | The installed engine's layout, the release workflow, the installers and `spot update` |
 
 Building, testing and the code rules are in [`CONTRIBUTING.md`](../../CONTRIBUTING.md) and [`AGENTS.md`](../../AGENTS.md).
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "install/installation.h"
+
 #include <spot.h>
 
 #include <chrono>
@@ -14,9 +16,12 @@
 namespace Spot {
 
 // How a game's code is built so it works with these tools, and the editor built with them: with the compiler,
-// generator and configuration that built them, against their own build of the shared engine library.
+// generator and configuration that built them, against their own build of the shared engine library. Installed tools
+// build against the engine installed with them, and with the CMake and compiler of the machine they are on when those
+// that built them are not there, as for released tools.
 struct Toolchain {
     std::string cmake;
+    // Empty for CMake's default, which picks the compiler too.
     std::string generator;
     // The generator's platform, toolset and instance, as Visual Studio's have; empty for others.
     std::string platform;
@@ -36,8 +41,16 @@ struct Toolchain {
     // beside it.
     std::filesystem::path player;
 
-    // The toolchain that built the tools.
+    // The toolchain that built the tools, with their build of the engine.
     static Toolchain GetBuilt();
+    // The toolchain of tools installed there: the one that built them if it is on this machine, or else the CMake
+    // found on it, with the installed engine.
+    static Toolchain GetInstalled(const Installation& installation);
+    // The toolchain these tools build with: installed, if they run from an installation, or else the one that built
+    // them.
+    static Toolchain GetCurrent();
+    // The generator, or what stands for CMake's default.
+    std::string GetGeneratorName() const;
     // Changes with anything that needs a project's build directory made again.
     std::string GetKey() const;
     // Whether its CMake, and its compiler for generators that need one named, are still where they were, so it can

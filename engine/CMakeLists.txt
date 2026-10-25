@@ -758,7 +758,7 @@ target_compile_definitions(spot_objects PRIVATE
     SPOT_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
     SPOT_VERSION_MINOR=${PROJECT_VERSION_MINOR}
     SPOT_VERSION_PATCH=${PROJECT_VERSION_PATCH}
-    SPOT_VERSION_STRING="${PROJECT_VERSION}"
+    SPOT_VERSION_STRING="${SPOT_VERSION}"
 )
 
 spot_set_compile_options(spot_objects)
@@ -795,8 +795,6 @@ endif()
 # A CMake package for game modules, which link the shared library of this build: find_package(Spot CONFIG) with
 # Spot_DIR set to package/<configuration> in the build directory.
 set(SPOT_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-include("${PROJECT_SOURCE_DIR}/cmake/spot_runtime_libraries.cmake")
-spot_get_runtime_libraries(SPOT_GAME_RUNTIME_LIBRARIES)
 configure_file("${PROJECT_SOURCE_DIR}/cmake/SpotConfig.cmake.in" "${CMAKE_CURRENT_BINARY_DIR}/SpotConfig.cmake.in" @ONLY)
 file(GENERATE
     OUTPUT "${PROJECT_BINARY_DIR}/package/$<CONFIG>/SpotConfig.cmake"

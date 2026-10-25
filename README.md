@@ -7,6 +7,21 @@ or ship a data-driven game without C++. The editor and command-line tools are bu
 
 ## Getting started
 
+Install the newest release, with `spot` on your PATH:
+
+```powershell
+irm https://raw.githubusercontent.com/lucasdcampos/Spot/main/scripts/install.ps1 | iex    # Windows
+```
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/lucasdcampos/Spot/main/scripts/install.sh | sh    # Linux, macOS
+```
+
+Then `spot new MyGame --code none` and `spot editor MyGame`. The [installation guide](docs/manual/getting_started/install.md)
+has the options, updating and installing from source.
+
+### Building from source
+
 Requirements: CMake 3.25+ and a C++20 compiler. Dependencies are fetched and built by CMake. On Linux, install the
 X11 and Wayland development packages ([SDL's Linux notes](https://github.com/libsdl-org/SDL/blob/main/docs/README-linux.md)).
 

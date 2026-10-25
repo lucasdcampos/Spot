@@ -1,0 +1,15 @@
+# The Spot engine as games link it, from an installed engine (see cmake/spot_install.cmake): everything is found
+# from where this file is, lib/cmake/Spot, so the installation works wherever it is put.
+
+get_filename_component(SPOT_PREFIX "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
+set(SPOT_LIBRARY "${SPOT_PREFIX}/bin/$<TARGET_FILE_NAME:spot_shared>")
+set(SPOT_IMPORT_LIBRARY "${SPOT_PREFIX}/lib/$<TARGET_LINKER_FILE_NAME:spot_shared>")
+set(SPOT_INCLUDE_DIR "${SPOT_PREFIX}/include")
+set(SPOT_WITH_SCRIPTING @SPOT_SCRIPTING@)
+set(SPOT_WITH_LUAU @SPOT_ENABLE_LUAU@)
+set(SPOT_SHADER_GLSLANG "${SPOT_PREFIX}/libexec/spot/$<TARGET_FILE_NAME:glslang-standalone>")
+set(SPOT_SHADER_SPIRV_CROSS "${SPOT_PREFIX}/libexec/spot/$<TARGET_FILE_NAME:spirv-cross>")
+set(SPOT_SHADER_INCLUDE_DIR "${SPOT_PREFIX}/share/spot/shaders")
+# The DXC of the machine that builds the game, as the engine's build finds its own.
+include("${CMAKE_CURRENT_LIST_DIR}/spot_find_dxc.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/spot_game.cmake")

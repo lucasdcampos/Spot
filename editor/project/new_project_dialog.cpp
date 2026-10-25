@@ -36,7 +36,7 @@ void NewProjectDialog::Open() {
     m_location = PathToUtf8(m_settings.GetProjectsLocation());
     m_name = MakeUniqueName(m_settings.GetProjectsLocation());
     m_error.clear();
-    m_canBuildCode = Toolchain::GetBuilt().IsAvailable();
+    m_canBuildCode = Toolchain::GetCurrent().IsAvailable();
 }
 
 std::optional<std::filesystem::path> NewProjectDialog::Draw() {

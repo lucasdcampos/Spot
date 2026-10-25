@@ -1138,8 +1138,8 @@ void EditorApplication::DrawAboutWindow() {
     ImGui::TextColored(EditorColors::TextMuted, "Engine %s  |  Dear ImGui %s  |  %s", GetVersionString().data(),
                        ImGui::GetVersion(), GetGraphicsDevice().GetBackendName().data());
     // Game code must be built as the editor was, so this says how.
-    const Toolchain toolchain = Toolchain::GetBuilt();
-    ImGui::TextColored(EditorColors::TextMuted, "Game code builds with %s, %s", toolchain.generator.c_str(),
+    const Toolchain toolchain = Toolchain::GetCurrent();
+    ImGui::TextColored(EditorColors::TextMuted, "Game code builds with %s, %s", toolchain.GetGeneratorName().c_str(),
                        toolchain.configuration.c_str());
     ImGui::Separator();
     ImGui::TextUnformatted("Built with Dear ImGui, ImGuizmo and ImGuiColorTextEdit (MIT),\n"

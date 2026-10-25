@@ -33,14 +33,17 @@ starts with, as adding a C++ component does; deleting `src/` makes it a project 
 
 The player runs the game whose `game.json` is beside it, as a shipped game, or the one in the folder after `--game`,
 whose import directory is relative to that folder. The tools find it beside their build of the engine
-(`Toolchain::player`), with the engine library and compiler runtime libraries beside it.
+(`Toolchain::player`), with the engine library and compiler runtime libraries beside it, or in the `player/` folder
+of an installed engine (see [Releases and installation](releases.md)).
 
 ## From a project to a game
 
 - **Importing**: `ImportProjectAssets()` imports the sources that changed into `.spot/imported` (see
   [Assets and importing](assets_and_importing.md)).
 - **Building**: `CodeBuild` builds the game's code with CMake, in the background, with the compiler, generator and
-  configuration that built the tools, against their own build of the shared engine library. The code's
+  configuration that built the tools, against their own build of the shared engine library; installed tools build
+  against the installed engine, with the CMake of the machine they are on when what built them is not there
+  (`Toolchain::GetCurrent()`, see [Releases and installation](releases.md#how-installed-tools-find-the-engine)). The code's
   `CMakeLists.txt` calls `spot_add_game()`, from the engine's CMake package, which builds both the game's executable
   and the game module the editor loads, precompiling `<spot.h>` once for every file of the game's code, and
   compiling through sccache or ccache when one is installed and the generator runs one (Ninja and Makefiles do,
@@ -62,6 +65,9 @@ whose import directory is relative to that folder. The tools find it beside thei
 
 ## The command line
 
+From a checkout, `./run.ps1 cli <arguments>` or `./run.sh cli <arguments>` builds `spot` and runs it with them, in
+the current folder (`debug` and `no-build` go before `cli`).
+
 ```
 spot new <name> [--path <folder>] [--template 3d|component|empty] [--code cpp|none]
 spot cook [<project>] [--out <folder>]
@@ -69,6 +75,10 @@ spot build [<project>]
 spot run [<project>]
 spot export [<project>] [--out <folder>]
 spot pack <imported folder>
+spot editor [<project>]
+spot version
+spot doctor
+spot update [--channel stable|nightly]
 spot help
 ```
 
@@ -78,7 +88,10 @@ changed and writes the engine's API for Luau's language server into `.spot/luau/
 does nothing for a game without code; `run` and `export` skip building those too. `run`
 builds, imports and runs the game. `export` builds the game and makes its shipping folder, `builds/<platform>` by
 default, with the imported assets packed into one `assets.pak` beside their manifest. `pack` packs a folder of
-imported assets the same way (see [Assets and importing](assets_and_importing.md)).
+imported assets the same way (see [Assets and importing](assets_and_importing.md)). `editor` launches the editor
+installed beside `spot`, or the one of its build, on the project given (its file, or the folder that has it) or on its
+hub. `version` and `doctor` tell what the tools are, where they are and what building games needs; `update` runs the
+installer again (see [Releases and installation](releases.md#the-installers)).
 
 Use the Release build of the tools for shipping: it builds the game's code against that same Release engine.
 The generated game CMake package copies the MSVC redistributable runtime or the GCC runtime libraries beside

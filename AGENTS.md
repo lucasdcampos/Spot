@@ -14,6 +14,7 @@ layers, each usable from code on its own; the editor and the tools are programs 
 - `examples/` – one small program per way of using the engine, run by the tests
 - `sandbox/` – the sample project (`Sandbox.spot`), built into the `sandbox` executable
 - `tests/` – Catch2 tests
+- `scripts/` – the installers, which install releases or builds of the source (`cmake/spot_install.cmake`)
 - `docs/` – `manual/` for making games with Spot, `internals/` a page per system for working on it
 
 ## Build and test
@@ -29,7 +30,7 @@ GPU tests open real windows and run one at a time: run the relevant ones (`-R <p
 affect what is drawn, and never two GPU suites at once. When a graphics backend or a shader changes, run the whole GPU
 suite on each backend (`msvc-debug-gpu-sdl-gpu`, `msvc-debug-gpu-vulkan`). The `-all` presets run everything; Release
 presets have the same variants. `./run.ps1` or `./run.sh` build and run the sandbox (`editor` runs the editor, `debug` a
-Debug build, `no-build` skips building).
+Debug build, `no-build` skips building, `cli <arguments>` runs `spot` with them in the current folder).
 
 Shaders are HLSL (`*.vert.hlsl`, `*.frag.hlsl`), compiled by `spot_add_shaders()` (`cmake/spot_shaders.cmake`) into
 a header per shader with a ready-to-use `Spot::ShaderDesc`.

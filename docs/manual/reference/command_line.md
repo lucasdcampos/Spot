@@ -1,7 +1,8 @@
 # Command line
 
-`spot` (`build/msvc/cli/Release/spot`) does to projects what the editor does, for scripts, CI and editors of your
-own. A project is its `.spot` file or the folder that has one; the current folder by default.
+`spot` does to projects what the editor does, for scripts, CI and editors of your own; the installer puts it on your
+PATH (see [Installing Spot](../getting_started/install.md)). A project is its `.spot` file or the folder that has
+one; the current folder by default.
 
 | Command | What it does |
 |---|---|
@@ -11,6 +12,10 @@ own. A project is its `.spot` file or the folder that has one; the current folde
 | `spot run [<project>]` | Builds, imports and runs the game |
 | `spot export [<project>] [--out <folder>]` | Makes the folder the game ships in, `builds/<platform>` by default, with its assets packed into `assets.pak` |
 | `spot pack <imported folder>` | Packs a folder of imported assets into its `assets.pak`, as `export` does |
+| `spot editor [<project>]` | Opens the editor on the project, or on its hub without one |
+| `spot version` | Shows Spot's version and where it is installed |
+| `spot doctor` | Checks what making games needs: Spot's own files, and CMake for games with C++ |
+| `spot update [--channel stable\|nightly]` | Installs the newest release of the channel you installed from, or of the one given |
 | `spot help` | Lists the commands |
 
 ## Templates
@@ -23,6 +28,6 @@ own. A project is its `.spot` file or the folder that has one; the current folde
 
 ## Shipping
 
-Export with the Release build of the tools. The exported folder has everything the game needs, the engine and its
-runtime libraries included, and keeps working when moved; players need nothing else besides their graphics and audio
-drivers.
+Export with an installed Spot or the Release build of the tools. The exported folder has everything the game needs,
+the engine and its runtime libraries included, and keeps working when moved; players need nothing else besides their
+graphics and audio drivers.

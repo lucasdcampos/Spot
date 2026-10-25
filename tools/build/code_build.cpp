@@ -56,6 +56,10 @@ std::string Toolchain::GetKey() const {
                        makeProgram, configuration, PathToUtf8(package));
 }
 
+std::string Toolchain::GetGeneratorName() const {
+    return generator.empty() ? "CMake's default generator" : generator;
+}
+
 bool Toolchain::IsAvailable() const {
     std::error_code error;
     return !cmake.empty() && std::filesystem::is_regular_file(Utf8ToPath(cmake), error) &&
@@ -99,7 +103,7 @@ void CodeBuild::Start(std::string_view target) {
     std::error_code error;
     std::filesystem::remove_all(m_build, error);
     std::filesystem::create_directories(m_build, error);
-    GetBuildLogger().Info("Configuring the game's code for {}", m_toolchain.generator);
+    GetBuildLogger().Info("Configuring the game's code for {}", m_toolchain.GetGeneratorName());
     StartStep(Step::Configure);
 }
 
@@ -111,8 +115,10 @@ void CodeBuild::StartStep(Step step) {
     }
     std::vector<std::string> arguments{m_toolchain.cmake};
     if (step == Step::Configure) {
-        arguments.insert(arguments.end(),
-                         {"-S", PathToUtf8(m_source), "-B", PathToUtf8(m_build), "-G", m_toolchain.generator});
+        arguments.insert(arguments.end(), {"-S", PathToUtf8(m_source), "-B", PathToUtf8(m_build)});
+        if (!m_toolchain.generator.empty()) {
+            arguments.insert(arguments.end(), {"-G", m_toolchain.generator});
+        }
         if (!m_toolchain.platform.empty()) {
             arguments.insert(arguments.end(), {"-A", m_toolchain.platform});
         }

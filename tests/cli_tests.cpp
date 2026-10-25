@@ -97,3 +97,30 @@ TEST_CASE("The command line creates projects without code, which build nothing",
     CHECK(rejected.exitCode != 0);
     CHECK(RunSpot({"new", "Other", "--path", location, "--code", "rust"}).exitCode != 0);
 }
+
+TEST_CASE("The command line tells its version and what making games needs", "[cli]") {
+    const Result version = RunSpot({"version"});
+    CHECK(version.exitCode == 0);
+    CHECK(version.Says(std::string("Spot ") + std::string(Spot::GetVersionString())));
+    // Tests run it from the engine's build.
+    CHECK_FALSE(version.Says("Installed in"));
+
+    const Result doctor = RunSpot({"doctor"});
+    CHECK(doctor.exitCode == 0);
+    CHECK(doctor.Says("Running from a build of the engine"));
+    CHECK(doctor.Says("Engine package"));
+    CHECK(doctor.Says("CMake"));
+
+    // Only installations update; builds of the engine update with its source.
+    const Result update = RunSpot({"update"});
+    CHECK(update.exitCode != 0);
+    CHECK(update.Says("not installed"));
+}
+
+TEST_CASE("The command line opens the editor only on projects there are", "[cli]") {
+    const TempDirectory temp;
+    const Result missing = RunSpot({"editor", Spot::PathToUtf8(temp.GetPath() / "Missing.spot")});
+    CHECK(missing.exitCode != 0);
+    CHECK(missing.Says("There is no project"));
+    CHECK(RunSpot({"editor", Spot::PathToUtf8(temp.GetPath())}).exitCode != 0);
+}

@@ -39,7 +39,7 @@ std::filesystem::path GetGameExecutable(const Project& project, const std::files
 // without runs the player, told the folder in the project's cache directory where they are written. Returns null,
 // after logging why, when the executable was not built or the settings cannot be written.
 std::optional<GameLaunch> PrepareGameRun(const Project& project,
-                                         const std::filesystem::path& player = Toolchain::GetBuilt().player);
+                                         const std::filesystem::path& player = Toolchain::GetCurrent().player);
 
 // Where ExportGame() puts the project's game by default: builds/<platform> in the project's folder.
 std::filesystem::path GetExportDirectory(const Project& project);
@@ -49,6 +49,6 @@ std::filesystem::path GetExportDirectory(const Project& project);
 // the player as their executable, with what is beside it. What the folder held before is replaced. Returns false,
 // after logging why, when the game was not built or the folder cannot be written.
 bool ExportGame(const Project& project, const std::filesystem::path& directory,
-                const std::filesystem::path& player = Toolchain::GetBuilt().player);
+                const std::filesystem::path& player = Toolchain::GetCurrent().player);
 
 } // namespace Spot

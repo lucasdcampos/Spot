@@ -57,10 +57,11 @@ desktop integration, audible output, physical gamepads or pixels on a platform w
 
 ## Automated platform exports
 
-Run the repository's **Sandbox release** workflow manually. Its Windows, Linux and macOS jobs build Release,
-run headless regressions, invoke `spot export`, relocate the result and execute its smoke test. Each exports a
-tar artifact, preserving executable permissions on Unix. A failing build, regression, export or smoke test
-prevents a successful artifact for that platform. The workflow does not replace the interactive checklist.
+The [release workflow](releases.md#the-release-workflow) exports the sandbox on Windows, Linux and macOS with
+each release: its jobs build Release, run headless regressions, install the engine, invoke the installed
+`spot export`, relocate the result and execute its smoke test. Each release then has the sandbox of each
+platform, as `sandbox-<platform>.zip` or `.tar.gz`, preserving executable permissions on Unix. A failing build,
+regression, export or smoke test fails the release. The workflow does not replace the interactive checklist.
 
 Local validation on 2026-10-13:
 

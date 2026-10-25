@@ -26,6 +26,7 @@ add_executable(spot_tests
     game_code_tests.cpp
     graphics_tests.cpp
     image_tests.cpp
+    installation_tests.cpp
     job_system_tests.cpp
     memory_tests.cpp
     input_tests.cpp
@@ -322,6 +323,25 @@ add_dependencies(spot_module_tests spot_test_module)
 spot_set_compile_options(spot_module_tests)
 spot_copy_runtime_dlls(spot_module_tests)
 catch_discover_tests(spot_module_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 60)
+
+# Installing the engine, then building a game's code against the installation, takes a while, so it runs on its own,
+# with more time. It installs what this build made, so it needs everything that installs.
+add_executable(spot_install_tests install_tests.cpp temp_directory.h)
+target_link_libraries(spot_install_tests PRIVATE spot::shared Catch2::Catch2WithMain)
+target_compile_definitions(spot_install_tests PRIVATE
+    SPOT_CMAKE_COMMAND="${CMAKE_COMMAND}"
+    SPOT_BUILD_DIRECTORY="${PROJECT_BINARY_DIR}"
+    SPOT_BUILD_CONFIGURATION="$<CONFIG>"
+    SPOT_EXECUTABLE_SUFFIX="${CMAKE_EXECUTABLE_SUFFIX}"
+    SPOT_ENGINE_LIBRARY_NAME="$<TARGET_FILE_NAME:spot_shared>"
+)
+add_dependencies(spot_install_tests spot_cli spot_player glslang-standalone spirv-cross)
+if(TARGET spot_editor)
+    add_dependencies(spot_install_tests spot_editor)
+endif()
+spot_set_compile_options(spot_install_tests)
+spot_copy_runtime_dlls(spot_install_tests)
+catch_discover_tests(spot_install_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 900)
 
 # Editor tests link the editor's code, everything but its main().
 if(TARGET spot_editor_core)

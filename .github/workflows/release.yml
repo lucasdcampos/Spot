@@ -1,0 +1,170 @@
+# Releases the engine on each platform (see docs/internals/releases.md): a stable release for each version tag,
+# v<version>, and a nightly prerelease, replaced each night that main changed, or when run by hand.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      build: ${{ steps.plan.outputs.build }}
+      tag: ${{ steps.plan.outputs.tag }}
+      version: ${{ steps.plan.outputs.version }}
+      suffix: ${{ steps.plan.outputs.suffix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: plan
+        run: |
+          project_version=$(sed -n 's/^    VERSION \([0-9.]*\)$/\1/p' CMakeLists.txt)
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            if [ "$GITHUB_REF_NAME" != "v$project_version" ]; then
+              echo "::error::The tag $GITHUB_REF_NAME is not the project's version, v$project_version"
+              exit 1
+            fi
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+            echo "version=$project_version" >> "$GITHUB_OUTPUT"
+            echo "suffix=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "::error::Nightly releases are of main, not $GITHUB_REF"
+            exit 1
+          fi
+          published=$(git ls-remote origin refs/tags/nightly | cut -f 1)
+          if [ "$GITHUB_EVENT_NAME" = schedule ] && [ "$published" = "$GITHUB_SHA" ]; then
+            echo "The nightly release is of $GITHUB_SHA already"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          suffix="-nightly.$(date -u +%Y%m%d)+$(git rev-parse --short=7 HEAD)"
+          echo "build=true" >> "$GITHUB_OUTPUT"
+          echo "tag=nightly" >> "$GITHUB_OUTPUT"
+          echo "version=$project_version$suffix" >> "$GITHUB_OUTPUT"
+          echo "suffix=$suffix" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows-x64
+            executable: .exe
+            archive: zip
+          - os: ubuntu-24.04
+            platform: linux-x64
+            executable: ''
+            archive: tar.gz
+          - os: macos-latest
+            platform: macos-arm64
+            executable: ''
+            archive: tar.gz
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install build tools
+        run: python -m pip install cmake ninja
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxss-dev libxkbcommon-dev libwayland-dev libasound2-dev libpulse-dev libudev-dev
+      # macOS 14 is the oldest the engine's use of the C++ library allows, which games then run on.
+      - name: Configure
+        run: >
+          cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=Release -DSPOT_DOWNLOAD_SAMPLE_MODELS=OFF
+          "-DSPOT_VERSION_SUFFIX=${{ needs.plan.outputs.suffix }}"
+          ${{ runner.os == 'macOS' && '-DCMAKE_OSX_DEPLOYMENT_TARGET=14.0' || '' }}
+      - name: Build
+        run: cmake --build build/release --parallel
+      - name: Headless tests
+        run: ctest --test-dir build/release -LE gpu --parallel 2 --output-on-failure
+      - name: Install
+        run: cmake --install build/release --component spot --prefix stage/spot
+      # The installed engine exports the sandbox, building its code against the installation, and the game runs moved
+      # elsewhere, as players get it.
+      - name: Export the sandbox with the installed engine
+        run: |
+          stage/spot/bin/spot${{ matrix.executable }} version
+          stage/spot/bin/spot${{ matrix.executable }} doctor
+          stage/spot/bin/spot${{ matrix.executable }} export sandbox/Sandbox.spot --out build/export/sandbox
+          cmake -E make_directory build/relocated
+          cmake -E rename build/export/sandbox build/relocated/sandbox
+      - name: Smoke-test the relocated sandbox
+        env:
+          SDL_VIDEO_DRIVER: dummy
+          SDL_AUDIO_DRIVER: dummy
+        working-directory: build/relocated/sandbox
+        run: ./Sandbox${{ matrix.executable }} --smoke-test
+      - name: Package
+        run: |
+          mkdir dist
+          if [ "${{ matrix.archive }}" = zip ]; then
+            (cd stage && cmake -E tar cf "../dist/spot-${{ matrix.platform }}.zip" --format=zip spot)
+            (cd build/relocated && cmake -E tar cf "../../dist/sandbox-${{ matrix.platform }}.zip" --format=zip sandbox)
+          else
+            tar -czf "dist/spot-${{ matrix.platform }}.tar.gz" -C stage spot
+            tar -czf "dist/sandbox-${{ matrix.platform }}.tar.gz" -C build/relocated sandbox
+          fi
+          cd dist
+          for file in *; do
+            if command -v sha256sum > /dev/null; then sha256sum "$file" > "$file.sha256"; else shasum -a 256 "$file" > "$file.sha256"; fi
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.platform }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    needs: [plan, build]
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.plan.outputs.tag }}
+      VERSION: ${{ needs.plan.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+      # The installers read version.txt to tell whether there is something newer than what is installed.
+      - name: Add the installers and the version
+        run: |
+          echo "$VERSION" > dist/version.txt
+          cp scripts/install.ps1 scripts/install.sh dist/
+      - name: Publish
+        run: |
+          if [ "$TAG" = nightly ]; then
+            gh release delete nightly --cleanup-tag --yes || true
+            gh release create nightly dist/* --prerelease --target "$GITHUB_SHA" --title "Spot nightly" \
+              --notes "Spot $VERSION, built from $GITHUB_SHA. Nightly builds are of main as it is: they may break."
+          else
+            gh release create "$TAG" dist/* --verify-tag --title "Spot $VERSION" --generate-notes
+          fi

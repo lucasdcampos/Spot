@@ -12,6 +12,9 @@ option(SPOT_BUILD_TESTS "Build the Spot test suite" ${PROJECT_IS_TOP_LEVEL})
 option(SPOT_BUILD_EXAMPLES "Build the examples of using the engine" ${PROJECT_IS_TOP_LEVEL})
 option(SPOT_SCRIPTING "Build scripting components, bindings and runtime support" ON)
 option(SPOT_ENABLE_LUAU "Build Luau scripting support" ON)
+# Releases are the version alone; nightly builds add what tells them apart, as -nightly.<date>+<commit>.
+set(SPOT_VERSION_SUFFIX "" CACHE STRING "Appended to the engine's version")
+set(SPOT_VERSION "${PROJECT_VERSION}${SPOT_VERSION_SUFFIX}")
 
 # The bundled programs and their integration tests run scripted projects. Library-only consumers can omit it.
 if(NOT SPOT_SCRIPTING AND (SPOT_BUILD_EDITOR OR SPOT_BUILD_SANDBOX OR SPOT_BUILD_TESTS))
@@ -90,4 +93,9 @@ endif()
 if(SPOT_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
+endif()
+
+# What releases ship and the installers install: the tools, the editor and what games build against.
+if(TARGET spot_cli)
+    include(cmake/spot_install.cmake)
 endif()

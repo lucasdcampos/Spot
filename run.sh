@@ -1,22 +1,29 @@
 #!/bin/sh
 # Builds and runs: ./run.sh [sandbox|editor] [debug|release] [no-build]
+#                  ./run.sh [debug|release] [no-build] cli <arguments>
+# Everything after cli goes to the command line, which runs in the current folder, as installed it would.
 set -e
-cd "$(dirname "$0")"
+caller=$(pwd)
+root=$(cd "$(dirname "$0")" && pwd)
+cd "$root"
 
 target=sandbox
 config=release
 build=true
-for arg in "$@"; do
-    case "$arg" in
-        sandbox | editor) target="$arg" ;;
-        debug | release) config="$arg" ;;
+while [ $# -gt 0 ]; do
+    case "$1" in
+        cli) target=cli; shift; break ;;
+        sandbox | editor) target="$1" ;;
+        debug | release) config="$1" ;;
         no-build) build=false ;;
-        *) echo "Unknown argument '$arg': expected sandbox, editor, debug, release or no-build" >&2; exit 1 ;;
+        *) echo "Unknown argument '$1': expected sandbox, editor, cli, debug, release or no-build" >&2; exit 1 ;;
     esac
+    shift
 done
 case "$target" in
-    editor) cmakeTarget=spot_editor ;;
-    *) cmakeTarget=sandbox ;;
+    editor) cmakeTarget=spot_editor; executableName=spot_editor ;;
+    cli) cmakeTarget=spot_cli; executableName=spot ;;
+    *) cmakeTarget=sandbox; executableName=sandbox ;;
 esac
 
 case "$(uname -s)" in
@@ -34,9 +41,12 @@ case "$config" in
     release) configDir=Release ;;
     *) configDir=Debug ;;
 esac
-executable="./build/$preset/$target/$configDir/$cmakeTarget"
+executable="$root/build/$preset/$target/$configDir/$executableName"
 if [ ! -x "$executable" ]; then
-    echo "Executable '$executable' not found or not executable. Run './run.sh $target $config' to build it first." >&2
+    echo "Executable '$executable' not found or not executable. Run './run.sh $config $target' to build it first." >&2
     exit 1
 fi
-exec "$executable"
+if [ "$target" = cli ]; then
+    cd "$caller"
+fi
+exec "$executable" "$@"

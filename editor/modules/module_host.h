@@ -15,7 +15,7 @@ namespace Spot::Editor {
 class ModuleHost {
 public:
     struct Options {
-        Toolchain toolchain = Toolchain::GetBuilt();
+        Toolchain toolchain = Toolchain::GetCurrent();
         // How often the code is looked at for changes, which delays every reload by half of it on average.
         std::chrono::milliseconds watchInterval = std::chrono::milliseconds(250);
     };
