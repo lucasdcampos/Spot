@@ -531,10 +531,17 @@ void AddGroundCover(Builder& builder) {
                     const Vector3 center = root + Vector3{0, height * (u - 0.18f * u * u), 0} + out * (lean * u * u);
                     const Vector3 normal = Spot::Normalize(
                         Spot::Cross(side, Vector3{0, height * (1.0f - 0.36f * u), 0} + out * (2.0f * lean * u)));
+                    // The tip is a single point, so the last segment is one triangle, not one and another of no area.
+                    if (segment == 4) {
+                        mesh.vertices.push_back({center, normal, {0.5f, u}});
+                        const auto a = first + 6;
+                        mesh.indices.insert(mesh.indices.end(), {a, a + 1, a + 2});
+                        break;
+                    }
                     const float halfWidth = width * (1.0f - u) * 0.5f;
                     mesh.vertices.push_back({center - side * halfWidth, normal, {0, u}});
                     mesh.vertices.push_back({center + side * halfWidth, normal, {1, u}});
-                    if (segment < 4) {
+                    if (segment < 3) {
                         const auto a = first + static_cast<std::uint32_t>(segment * 2);
                         mesh.indices.insert(mesh.indices.end(), {a, a + 1, a + 2, a + 1, a + 3, a + 2});
                     }

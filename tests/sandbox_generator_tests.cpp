@@ -98,6 +98,21 @@ TEST_CASE("The sandbox's generated props load back, wound outward and centered",
             CHECK_FALSE(node->mesh.has_value());
         }
     }
+    // The terrain's grass blades end in a point, without triangles of no area, which would slow its import.
+    const auto terrain = Spot::ModelData::Load(temp.GetPath() / "models" / "terrain.gltf");
+    REQUIRE(terrain.has_value());
+    for (const Spot::ModelMeshData& part : terrain->meshes) {
+        CAPTURE(part.name);
+        int pointless = 0;
+        for (std::size_t i = 0; i + 2 < part.mesh.indices.size(); i += 3) {
+            const Spot::Vector3& a = part.mesh.vertices[part.mesh.indices[i]].position;
+            const Spot::Vector3& b = part.mesh.vertices[part.mesh.indices[i + 1]].position;
+            const Spot::Vector3& c = part.mesh.vertices[part.mesh.indices[i + 2]].position;
+            pointless += a == b || a == c || b == c ? 1 : 0;
+        }
+        CHECK(pointless == 0);
+    }
+
     // Each surface's textures tile, square, at least as large as the props'.
     for (const std::string_view surface : Generator::GetSurfaceNames()) {
         for (const std::string_view kind : {"color", "normal", "orm"}) {
