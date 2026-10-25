@@ -5,19 +5,25 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 namespace Spot {
 
 namespace {
 
-// MikkTSpace's view of a mesh: its triangles, and the tangent of each of their corners.
+// MikkTSpace's view of a mesh: the triangles it is given, by their index in the mesh, and the tangent of each corner
+// of the mesh's triangles.
 struct TangentMesh {
     const MeshData& mesh;
+    std::vector<std::uint32_t> faces;
     std::vector<Vector4> cornerTangents;
 
+    std::size_t GetCorner(int face, int corner) const {
+        return static_cast<std::size_t>(faces[static_cast<std::size_t>(face)]) * 3 + static_cast<std::size_t>(corner);
+    }
     const MeshVertex& Corner(int face, int corner) const {
-        return mesh.vertices[mesh.indices[static_cast<std::size_t>(face) * 3 + static_cast<std::size_t>(corner)]];
+        return mesh.vertices[mesh.indices[GetCorner(face, corner)]];
     }
 };
 
@@ -38,10 +44,25 @@ void MeshData::GenerateTangents() {
     if (indices.empty()) {
         return;
     }
-    TangentMesh tangents{*this, std::vector<Vector4>(indices.size())};
+    // Triangles with two corners in one place are left out: MikkTSpace would give them their neighbors' tangents
+    // after searching every triangle for each of them, which takes minutes for meshes with many of them, such as
+    // grass whose blades end in a point. Their corners take the tangents of their vertices instead.
+    TangentMesh tangents{*this, {}, std::vector<Vector4>(indices.size())};
+    const std::size_t faceCount = indices.size() / 3;
+    // One more, for the corners past the last whole triangle that malformed meshes have.
+    std::vector<bool> degenerate(faceCount + 1, false);
+    for (std::size_t face = 0; face < faceCount; ++face) {
+        const Vector3& a = vertices[indices[face * 3]].position;
+        const Vector3& b = vertices[indices[face * 3 + 1]].position;
+        const Vector3& c = vertices[indices[face * 3 + 2]].position;
+        degenerate[face] = a == b || a == c || b == c;
+        if (!degenerate[face]) {
+            tangents.faces.push_back(static_cast<std::uint32_t>(face));
+        }
+    }
     SMikkTSpaceInterface callbacks{};
     callbacks.m_getNumFaces = [](const SMikkTSpaceContext* context) {
-        return static_cast<int>(GetTangentMesh(context).mesh.indices.size() / 3);
+        return static_cast<int>(GetTangentMesh(context).faces.size());
     };
     callbacks.m_getNumVerticesOfFace = [](const SMikkTSpaceContext*, int) { return 3; };
     callbacks.m_getPosition = [](const SMikkTSpaceContext* context, float out[], int face, int corner) {
@@ -64,8 +85,9 @@ void MeshData::GenerateTangents() {
     };
     callbacks.m_setTSpaceBasic = [](const SMikkTSpaceContext* context, const float tangent[], float sign, int face,
                                     int corner) {
-        GetTangentMesh(context).cornerTangents[static_cast<std::size_t>(face) * 3 + static_cast<std::size_t>(corner)] =
-            {tangent[0], tangent[1], tangent[2], sign < 0.0f ? -1.0f : 1.0f};
+        TangentMesh& mesh = GetTangentMesh(context);
+        mesh.cornerTangents[mesh.GetCorner(face, corner)] = {tangent[0], tangent[1], tangent[2],
+                                                             sign < 0.0f ? -1.0f : 1.0f};
     };
     SMikkTSpaceContext context{&callbacks, &tangents};
     const bool generated = genTangSpaceDefault(&context) != 0;
@@ -74,6 +96,9 @@ void MeshData::GenerateTangents() {
     std::vector<bool> given(vertices.size(), false);
     for (std::size_t i = 0; i < indices.size(); ++i) {
         const std::uint32_t index = indices[i];
+        if (degenerate[i / 3]) {
+            continue;
+        }
         Vector4 tangent = generated ? tangents.cornerTangents[i] : MakeAnyTangent(vertices[index].normal);
         if (LengthSquared(Vector3{tangent.x, tangent.y, tangent.z}) < 1e-12f) {
             tangent = MakeAnyTangent(vertices[index].normal);
@@ -95,6 +120,12 @@ void MeshData::GenerateTangents() {
                 skin.push_back(skin[index]);
             }
             given.push_back(true);
+        }
+    }
+    for (std::size_t i = 0; i < indices.size(); ++i) {
+        if (const std::uint32_t index = indices[i]; degenerate[i / 3] && !given[index]) {
+            vertices[index].tangent = MakeAnyTangent(vertices[index].normal);
+            given[index] = true;
         }
     }
 }

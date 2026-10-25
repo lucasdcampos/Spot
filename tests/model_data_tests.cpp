@@ -5,8 +5,10 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -213,6 +215,50 @@ TEST_CASE("Tangents split vertices whose triangles need different ones", "[mesh]
     const Spot::Vector3 second = Xyz(mesh.vertices[mesh.indices[3]].tangent);
     CHECK(Spot::Dot(first, Xyz(mesh.vertices[mesh.indices[2]].tangent)) > 0.99f);
     CHECK(Spot::Dot(first, second) < -0.99f);
+}
+
+TEST_CASE("Tangents of meshes with many triangles of no area take no longer than without them", "[mesh]") {
+    // Blades of grass, as strips of quads up to a tip as wide as the given width: none makes the last triangle of
+    // each blade one with two corners in one place.
+    const auto blades = [](float tipWidth) {
+        Spot::MeshData mesh;
+        for (int blade = 0; blade < 10000; ++blade) {
+            const Vector3 root{static_cast<float>(blade % 100) * 0.1f, 0.0f, static_cast<float>(blade / 100) * 0.1f};
+            const auto first = static_cast<std::uint32_t>(mesh.vertices.size());
+            for (int segment = 0; segment <= 4; ++segment) {
+                const float u = static_cast<float>(segment) / 4.0f;
+                const float halfWidth = (0.01f * (1.0f - u) + tipWidth * u) * 0.5f;
+                const Vector3 center = root + Vector3{0.0f, 0.3f * u, 0.0f};
+                mesh.vertices.push_back({center - Vector3{halfWidth, 0, 0}, {0.0f, 0.0f, 1.0f}, {0.0f, u}});
+                mesh.vertices.push_back({center + Vector3{halfWidth, 0, 0}, {0.0f, 0.0f, 1.0f}, {1.0f, u}});
+                if (segment < 4) {
+                    const auto a = first + static_cast<std::uint32_t>(segment * 2);
+                    mesh.indices.insert(mesh.indices.end(), {a, a + 1, a + 2, a + 1, a + 3, a + 2});
+                }
+            }
+        }
+        return mesh;
+    };
+    const auto time = [](Spot::MeshData& mesh) {
+        const auto start = std::chrono::steady_clock::now();
+        mesh.GenerateTangents();
+        return std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+    };
+    Spot::MeshData pointed = blades(0.0f);
+    Spot::MeshData blunt = blades(0.001f);
+    const double bluntTime = time(blunt);
+    const double pointedTime = time(pointed);
+    // MikkTSpace alone searches every triangle for each one of no area, which takes seconds here.
+    CHECK(pointedTime < bluntTime * 3.0 + 0.2);
+
+    // Every vertex still gets a tangent along the surface, the blades' u, but where only a pointless triangle used it.
+    for (std::size_t i = 0; i < pointed.vertices.size(); ++i) {
+        const Spot::MeshVertex& vertex = pointed.vertices[i];
+        CHECK(std::abs(Spot::Length(Xyz(vertex.tangent)) - 1.0f) < 1e-3f);
+        CHECK(std::abs(Spot::Dot(Xyz(vertex.tangent), vertex.normal)) < 1e-3f);
+    }
+    CHECK(Spot::Dot(Xyz(pointed.vertices[pointed.indices[0]].tangent), Vector3{1.0f, 0.0f, 0.0f}) > 0.99f);
+    CHECK(Spot::Dot(Xyz(pointed.vertices[8].tangent), Vector3{1.0f, 0.0f, 0.0f}) > 0.99f);
 }
 
 TEST_CASE("Tangents a glTF file gives stay in mesh space", "[mesh][model]") {

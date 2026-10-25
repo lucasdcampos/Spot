@@ -463,7 +463,10 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
   texture's u grows along the surface, with in `w` the side its v grows on (the bitangent is
   `cross(normal, tangent.xyz) * w`), in which normal maps are read. Models use the tangents their glTF files give,
   and `GenerateTangents()` makes the others with MikkTSpace, as normal maps are baked, splitting vertices that need
-  two; `PrimitiveMeshes` call it, and so must code that builds meshes itself and uses normal maps.
+  two; `PrimitiveMeshes` call it, and so must code that builds meshes itself and uses normal maps. Triangles with
+  two corners in one place are left out of MikkTSpace, which searches every triangle for each of them, and their
+  corners take their vertices' tangents: a mesh with many, as grass whose blades end in a point, would otherwise take
+  minutes to import.
 - `TextRenderer`: SDF text in its entity XY plane, optionally camera-facing; see [Runtime UI and text](runtime_ui.md).
 - `SpriteRenderer`: a texture or color on a rectangle in its entity's XY plane, for 2D.
 - Lights: `AmbientLight`, `DirectionalLight`, `PointLight` and `SpotLight`. Up to `Renderer3D::MaxLights` (see Clustered
