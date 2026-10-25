@@ -117,6 +117,7 @@ void MeshBatcher::AddCommand(const RenderMeshObject& object, const Material& mat
          material.alphaCutoff,
          material.doubleSided,
          material.worldTextureSize,
+         object.desc.textureSpace,
          object.desc.transform,
          object.bounds,
          object.desc.castsShadows});
@@ -248,7 +249,7 @@ bool MeshBatcher::UploadInstances() {
     instances.reserve(m_state.commands.size());
     for (const DrawCommand& command : m_state.commands) {
         instances.push_back({command.transform,
-                             GetNormalMatrix(command.transform),
+                             GetNormalMatrix(command.transform, command.textureSpace),
                              {command.skinOffset, command.skinCount, 0, 0},
                              ToVector4(command.bounds.center, command.bounds.radius)});
     }

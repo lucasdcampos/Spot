@@ -26,6 +26,16 @@ struct MeshLod {
 // How large a sphere looks to the camera: the height it covers as a fraction of the view's, 1 when it fills it.
 float GetScreenSize(const Camera3D& camera, const BoundingSphere& bounds);
 
+// Where a mesh whose material projects its textures (Material::worldTextureSize) projects them from.
+enum class TextureSpace : std::uint8_t {
+    // The world's axes: blocks side by side continue each other's pattern, but the textures stay where they are when
+    // the mesh moves, so they slide across it.
+    World,
+    // The mesh's own, at the world's scale, from its origin: the textures move and turn with it, as they should on
+    // what moves, and keep their size however it is scaled.
+    Object,
+};
+
 struct RenderMeshDesc {
     // Must stay alive while the object shows it; nothing shows without a mesh.
     const Mesh* mesh = nullptr;
@@ -34,6 +44,7 @@ struct RenderMeshDesc {
     Matrix4 transform = {};
     std::uint32_t submesh = Mesh::AllSubmeshes;
     bool castsShadows = true;
+    TextureSpace textureSpace = TextureSpace::World;
     // Of the 32 that cameras' culling masks pick from.
     std::uint32_t layer = 0;
     // Levels of detail, from the most detailed down, each with a smaller screenSize; the first without a mesh ends

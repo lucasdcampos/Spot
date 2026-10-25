@@ -451,7 +451,12 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
   above 1. Dielectrics scatter their color and reflect about 4% of the light untinted; metals scatter nothing and
   reflect in their color. Highlights are GGX microfacets, as wide as the roughness says. Materials can also be
   double-sided, and project their textures from world space (`worldTextureSize`), their normal maps then tilting
-  the surface along the world axes the texture is laid out on.
+  the surface along the world axes the texture is laid out on. Projected from the world, blocks side by side continue
+  each other's pattern, but the textures stay put as a mesh moves and slide across it, so meshes that move project
+  from their own space instead (`MeshRenderer::SetTextureSpace()`, `RenderMeshDesc::textureSpace`): along their axes
+  from their origin, at the world's scale, so the textures keep their size however the mesh is scaled. The instance
+  data says which, in the normal matrix's last column, which turns nothing (see `GetNormalMatrix()`), and the vertex
+  shaders hand the fragment shader the position, normal and axes the textures are projected by.
   Normal, metallic-roughness and occlusion textures hold data, so they are imported with `srgb` off; models do this
   for the images they use only that way. A material's `alphaMode` says what its alpha does: `Opaque` ignores it,
   `Cutout` drops pixels below `alphaCutoff` (in shadows too) for leaves and grates, and `Transparent` lets what is

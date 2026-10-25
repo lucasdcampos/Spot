@@ -1450,6 +1450,46 @@ TEST_CASE("Renderer3D projects textures from world space when asked", "[gpu]") {
     }
 }
 
+TEST_CASE("Meshes that project their textures from their own space carry them as they move", "[gpu]") {
+    RequireGpu();
+
+    // The plane of the test above, moved half a unit right: projected from the world, the stripes stay where they
+    // were, while projected from the plane's own space they move with it, half a repeat, so black and white swap.
+    for (const Spot::TextureSpace space : {Spot::TextureSpace::World, Spot::TextureSpace::Object}) {
+        const TargetRender render(
+            64, 64,
+            [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+                Spot::Renderer3D renderer(
+                    device, {.filter = Spot::TextureFilter::Nearest, .targetFormat = Spot::TextureFormat::Rgba8});
+                const auto plane = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreatePlane());
+                const std::shared_ptr<Spot::Texture> texture =
+                    device.CreateTexture(Spot::Image(2, 1, {255, 255, 255, 255, 0, 0, 0, 255}));
+                REQUIRE((plane && texture));
+
+                const Spot::Material material{.baseColorTexture = Spot::AssetRef<Spot::Texture>(texture),
+                                              .worldTextureSize = 1.0f};
+                Spot::RenderWorld world;
+                world.AddMesh(
+                    {.mesh = plane.get(),
+                     .material = &material,
+                     .transform = Spot::Matrix4::Translation({0.5f, 0.0f, 0.0f}) *
+                                  Spot::Matrix4::Rotation(Spot::Quaternion::FromAxisAngle({1, 0, 0}, Spot::Pi / 2.0f)) *
+                                  Spot::Matrix4::Scale({2.0f, 1.0f, 2.0f}),
+                     .textureSpace = space});
+                renderer.Begin(context, target, MakeFrontCamera());
+                renderer.DrawLight(FrontLight);
+                renderer.DrawWorld(world);
+                renderer.End();
+            });
+
+        const Pixel white{255, 255, 255, 255};
+        const Pixel black{0, 0, 0, 255};
+        const bool moved = space == Spot::TextureSpace::Object;
+        CHECK(IsNear(render.At(27, 32), moved ? white : black));
+        CHECK(IsNear(render.At(37, 32), moved ? black : white));
+    }
+}
+
 TEST_CASE("Renderer3D samples mipmaps, anisotropically when asked", "[gpu]") {
     RequireGpu();
 

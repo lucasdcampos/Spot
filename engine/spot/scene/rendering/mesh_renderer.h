@@ -84,6 +84,16 @@ public:
         MarkChanged();
     }
 
+    // Where a material that projects its textures (Material::worldTextureSize) projects them from: the world, as level
+    // blocks side by side need to continue each other's pattern, or the entity, as what moves needs them to move with
+    // it rather than slide across it.
+    TextureSpace GetTextureSpace() const { return m_textureSpace; }
+    void SetTextureSpace(TextureSpace textureSpace) {
+        m_textureSpace = textureSpace;
+        ++m_version;
+        MarkChanged();
+    }
+
     // Levels of detail, from the most detailed down, each with a smaller screen size; up to three are drawn.
     const std::vector<MeshRendererLod>& GetLods() const { return m_lods; }
     void SetLods(std::vector<MeshRendererLod> lods) {
@@ -108,6 +118,7 @@ private:
     AssetRef<Mesh> m_mesh;
     AssetRef<Material> m_material;
     bool m_castingShadows = true;
+    TextureSpace m_textureSpace = TextureSpace::World;
     std::uint32_t m_submesh = Mesh::AllSubmeshes;
     std::vector<MeshRendererLod> m_lods;
     float m_cullScreenSize = 0.0f;

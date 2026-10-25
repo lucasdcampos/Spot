@@ -4,6 +4,9 @@
 #include "spot/core/io/archive.h"
 #include "spot/scene/scene.h"
 
+#include <array>
+#include <string_view>
+
 namespace Spot {
 
 void MeshRendererLod::Serialize(Archive& archive) {
@@ -36,6 +39,11 @@ void MeshRenderer::Serialize(Archive& archive) {
         SetMaterial(std::move(assetMaterial));
     }
     archive.Field("castsShadows", m_castingShadows, {.tooltip = "Whether the mesh blocks lights that cast shadows"});
+    static constexpr std::array<std::string_view, 2> TextureSpaces{"World", "Object"};
+    archive.Field("textureSpace", m_textureSpace,
+                  {.enumNames = TextureSpaces,
+                   .tooltip = "Where a material's projected textures come from: the world, so blocks continue each "
+                              "other's pattern, or the entity, so they move with it"});
     // Saved as -1 for all of the mesh, which reads better than the largest number.
     int submesh = m_submesh == Mesh::AllSubmeshes ? -1 : static_cast<int>(m_submesh);
     archive.Field("submesh", submesh,

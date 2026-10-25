@@ -77,7 +77,7 @@ WorldCache* WorldCuller::Update(const RenderWorld& world) {
     const auto makeInstance = [](const RenderMeshObject& object, std::uint32_t level) {
         const RenderMeshLevel& range = object.levels[level];
         return InstanceData{object.desc.transform,
-                            GetNormalMatrix(object.desc.transform),
+                            GetNormalMatrix(object.desc.transform, object.desc.textureSpace),
                             {0, 0, std::bit_cast<std::uint32_t>(range.minScreenSize),
                              std::bit_cast<std::uint32_t>(range.maxScreenSize)},
                             ToVector4(object.bounds.center, object.bounds.radius)};

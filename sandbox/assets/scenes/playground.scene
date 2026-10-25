@@ -25106,7 +25106,8 @@
             "lods": [],
             "material": "0bdd2394ebedf97c8bf579c82dd42cc8",
             "mesh": "00000000000000000000000000000002",
-            "submesh": -1
+            "submesh": -1,
+            "textureSpace": 1
           },
           "enabled": true,
           "id": "b0d57d908112f1a0adf741bd4ae18128",
@@ -25442,7 +25443,8 @@
             "lods": [],
             "material": "ebbf0423ec211933e3883368889bc13f",
             "mesh": "00000000000000000000000000000001",
-            "submesh": -1
+            "submesh": -1,
+            "textureSpace": 1
           },
           "enabled": true,
           "id": "e73c4ce9391a453e4ba1594bafdeb209",
@@ -25564,7 +25566,8 @@
             "lods": [],
             "material": "ebbf0423ec211933e3883368889bc13f",
             "mesh": "00000000000000000000000000000001",
-            "submesh": -1
+            "submesh": -1,
+            "textureSpace": 1
           },
           "enabled": true,
           "id": "e94771a3ad5f1d950139107f83809306",
@@ -25686,7 +25689,8 @@
             "lods": [],
             "material": "ebbf0423ec211933e3883368889bc13f",
             "mesh": "00000000000000000000000000000001",
-            "submesh": -1
+            "submesh": -1,
+            "textureSpace": 1
           },
           "enabled": true,
           "id": "40ae18e2e420dc23920ae8ec1116c167",
@@ -25808,7 +25812,8 @@
             "lods": [],
             "material": "ebbf0423ec211933e3883368889bc13f",
             "mesh": "00000000000000000000000000000001",
-            "submesh": -1
+            "submesh": -1,
+            "textureSpace": 1
           },
           "enabled": true,
           "id": "4b6010c76c4681dbf2c91b1f32d60c5e",
@@ -25930,7 +25935,8 @@
             "lods": [],
             "material": "ebbf0423ec211933e3883368889bc13f",
             "mesh": "00000000000000000000000000000001",
-            "submesh": -1
+            "submesh": -1,
+            "textureSpace": 1
           },
           "enabled": true,
           "id": "58816514ff700b30e36b8afecb3f1a33",
@@ -26052,7 +26058,8 @@
             "lods": [],
             "material": "ebbf0423ec211933e3883368889bc13f",
             "mesh": "00000000000000000000000000000001",
-            "submesh": -1
+            "submesh": -1,
+            "textureSpace": 1
           },
           "enabled": true,
           "id": "d3ce63e0532ddaab85d833c210bd7dcc",
@@ -26174,7 +26181,8 @@
             "lods": [],
             "material": "ebbf0423ec211933e3883368889bc13f",
             "mesh": "00000000000000000000000000000001",
-            "submesh": -1
+            "submesh": -1,
+            "textureSpace": 1
           },
           "enabled": true,
           "id": "e36d1745ccdd0413db239eabf4fbe77b",
@@ -26296,7 +26304,8 @@
             "lods": [],
             "material": "ebbf0423ec211933e3883368889bc13f",
             "mesh": "00000000000000000000000000000001",
-            "submesh": -1
+            "submesh": -1,
+            "textureSpace": 1
           },
           "enabled": true,
           "id": "e0e7eaaa7cb327666609192c8a71a133",
@@ -26418,7 +26427,8 @@
             "lods": [],
             "material": "ebbf0423ec211933e3883368889bc13f",
             "mesh": "00000000000000000000000000000001",
-            "submesh": -1
+            "submesh": -1,
+            "textureSpace": 1
           },
           "enabled": true,
           "id": "62d28d56eaa233e999cc5e72432af1ce",
@@ -26540,7 +26550,8 @@
             "lods": [],
             "material": "ebbf0423ec211933e3883368889bc13f",
             "mesh": "00000000000000000000000000000001",
-            "submesh": -1
+            "submesh": -1,
+            "textureSpace": 1
           },
           "enabled": true,
           "id": "a81a8d7d75db8638928ea4b54f701304",
@@ -26662,7 +26673,8 @@
             "lods": [],
             "material": "ebbf0423ec211933e3883368889bc13f",
             "mesh": "00000000000000000000000000000001",
-            "submesh": -1
+            "submesh": -1,
+            "textureSpace": 1
           },
           "enabled": true,
           "id": "ea51c0c6fbbfd9c6a29f27c9499d4e48",
@@ -26784,7 +26796,8 @@
             "lods": [],
             "material": "ebbf0423ec211933e3883368889bc13f",
             "mesh": "00000000000000000000000000000001",
-            "submesh": -1
+            "submesh": -1,
+            "textureSpace": 1
           },
           "enabled": true,
           "id": "c5b61b53fd2535090d2fb31ba7c26d91",
@@ -26906,7 +26919,8 @@
             "lods": [],
             "material": "ebbf0423ec211933e3883368889bc13f",
             "mesh": "00000000000000000000000000000001",
-            "submesh": -1
+            "submesh": -1,
+            "textureSpace": 1
           },
           "enabled": true,
           "id": "4be00ed304f227afb52d1d3fbebef46b",
@@ -27028,7 +27042,8 @@
             "lods": [],
             "material": "ebbf0423ec211933e3883368889bc13f",
             "mesh": "00000000000000000000000000000001",
-            "submesh": -1
+            "submesh": -1,
+            "textureSpace": 1
           },
           "enabled": true,
           "id": "4cca27449d2c52a5a00a46d2948c1ba9",
@@ -27150,7 +27165,8 @@
             "lods": [],
             "material": "ebbf0423ec211933e3883368889bc13f",
             "mesh": "00000000000000000000000000000001",
-            "submesh": -1
+            "submesh": -1,
+            "textureSpace": 1
           },
           "enabled": true,
           "id": "de187581912490148796ed731d9cc7fb",
@@ -27272,7 +27288,8 @@
             "lods": [],
             "material": "ebbf0423ec211933e3883368889bc13f",
             "mesh": "00000000000000000000000000000001",
-            "submesh": -1
+            "submesh": -1,
+            "textureSpace": 1
           },
           "enabled": true,
           "id": "4f834c95acca0059c84a719b3d62e38a",
@@ -27394,7 +27411,8 @@
             "lods": [],
             "material": "ebbf0423ec211933e3883368889bc13f",
             "mesh": "00000000000000000000000000000001",
-            "submesh": -1
+            "submesh": -1,
+            "textureSpace": 1
           },
           "enabled": true,
           "id": "0a96588a37846a5f7de332cab76d8066",
@@ -30186,7 +30204,8 @@
             "lods": [],
             "material": "a4e93e1575601753da59d723b1e059a0",
             "mesh": "00000000000000000000000000000001",
-            "submesh": -1
+            "submesh": -1,
+            "textureSpace": 1
           },
           "enabled": true,
           "id": "90c847f0928c6a3555f64d54f0a03e6c",
@@ -30333,7 +30352,8 @@
             "lods": [],
             "material": "a4e93e1575601753da59d723b1e059a0",
             "mesh": "00000000000000000000000000000001",
-            "submesh": -1
+            "submesh": -1,
+            "textureSpace": 1
           },
           "enabled": true,
           "id": "455931fd5927df70a4b57a1949f89385",
@@ -30480,7 +30500,8 @@
             "lods": [],
             "material": "a4e93e1575601753da59d723b1e059a0",
             "mesh": "00000000000000000000000000000001",
-            "submesh": -1
+            "submesh": -1,
+            "textureSpace": 1
           },
           "enabled": true,
           "id": "0fd49e83caf89cbb2e430c0753042d22",

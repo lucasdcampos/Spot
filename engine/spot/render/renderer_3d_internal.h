@@ -49,6 +49,7 @@ struct DrawCommand {
     float alphaCutoff;
     bool doubleSided;
     float worldTextureSize;
+    TextureSpace textureSpace = TextureSpace::World;
     Matrix4 transform;
     // Around the mesh, in world space.
     BoundingSphere bounds;
@@ -108,8 +109,9 @@ struct FogUniforms {
 FogUniforms GetFogUniforms(const std::optional<FogData>& fog, Vector3 cameraPosition);
 
 // The inverse transpose of the model matrix's rotation and scale, which keeps normals perpendicular under non-uniform
-// scale.
-Matrix4 GetNormalMatrix(const Matrix4& m);
+// scale. Its last column, which turns nothing as normals have no w, tells the shaders more: its last element is -1 for
+// transforms that mirror, and its first 1 for meshes that project their textures from their own space.
+Matrix4 GetNormalMatrix(const Matrix4& m, TextureSpace textureSpace = TextureSpace::World);
 
 inline Vector4 ToVector4(Vector3 v, float w = 0.0f) {
     return {v.x, v.y, v.z, w};

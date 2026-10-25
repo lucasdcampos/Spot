@@ -29,6 +29,7 @@ void RenderWorldSystem::SyncRenderer(MeshRenderer& renderer) {
                         .transform = worldMatrix,
                         .submesh = renderer.m_submesh,
                         .castsShadows = renderer.m_castingShadows,
+                        .textureSpace = renderer.m_textureSpace,
                         .layer = static_cast<std::uint32_t>(entity.GetLayer()),
                         .cullScreenSize = renderer.m_cullScreenSize};
     for (std::size_t i = 0; i < std::min(renderer.m_lods.size(), desc.lods.size()); ++i) {

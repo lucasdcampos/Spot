@@ -23,7 +23,7 @@ namespace Spot {
 
 namespace Detail {
 
-Matrix4 GetNormalMatrix(const Matrix4& m) {
+Matrix4 GetNormalMatrix(const Matrix4& m, TextureSpace textureSpace) {
     // Its cofactors, signed by its determinant, since the shader normalizes the normals anyway.
     const Vector3 x{m.columns[0].x, m.columns[0].y, m.columns[0].z};
     const Vector3 y{m.columns[1].x, m.columns[1].y, m.columns[1].z};
@@ -36,7 +36,7 @@ Matrix4 GetNormalMatrix(const Matrix4& m) {
     Matrix4 normal;
     // Its last element is the sign, which flips the side of the tangent the bitangent is on in a mirror.
     normal.columns = {Vector4{a.x, a.y, a.z, 0.0f}, Vector4{b.x, b.y, b.z, 0.0f}, Vector4{c.x, c.y, c.z, 0.0f},
-                      Vector4{0.0f, 0.0f, 0.0f, sign}};
+                      Vector4{textureSpace == TextureSpace::Object ? 1.0f : 0.0f, 0.0f, 0.0f, sign}};
     return normal;
 }
 

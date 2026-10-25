@@ -23,7 +23,8 @@ cbuffer Material : register(b1, space3) {
     float occlusionStrength;
     // 1 for double-sided materials.
     float doubleSided;
-    // Positive to project the textures from world space, repeating every this many units, instead of using the UVs.
+    // Positive to project the textures from world space, or the mesh's (see TextureSpace), repeating every this many
+    // units, instead of using the UVs.
     float worldTextureSize;
     // 0 for opaque, 1 for cutout and 2 for transparent surfaces, and the alpha below which cutout pixels are dropped.
     float alphaMode;
@@ -36,9 +37,16 @@ struct Input {
     float2 uv : TEXCOORD1;
     float3 worldPosition : TEXCOORD2;
     float4 tangent : TEXCOORD3;
+    // What projected textures are projected by, and the world directions of the axes they are projected along.
+    float3 texturePosition : TEXCOORD4;
+    float3 textureNormal : TEXCOORD5;
+    float3 textureAxisX : TEXCOORD6;
+    float3 textureAxisY : TEXCOORD7;
+    float3 textureAxisZ : TEXCOORD8;
 };
 
-// Projects along the world axis the surface faces most, with texture rows going down on walls like on screen.
+// Projects along the axis the surface faces most, of the world or of the mesh, with texture rows going down on walls
+// like on screen.
 float2 GetWorldUv(float3 position, float3 normal) {
     const float3 facing = abs(normal);
     const float3 p = position / worldTextureSize;
@@ -52,15 +60,15 @@ float2 GetWorldUv(float3 position, float3 normal) {
 }
 
 // Tilts the normal as the normal map says, in the tangent space of the surface: along the mesh's tangents, or for
-// projected textures along the world axes GetWorldUv() lays them out on, with the bitangent toward lower v as on meshes.
-float3 ApplyNormalMap(float3 normal, float4 tangent, float2 uv) {
+// projected textures along the axes GetWorldUv() lays them out on, with the bitangent toward lower v as on meshes.
+float3 ApplyNormalMap(float3 normal, float4 tangent, float2 uv, Input input) {
     if (normalScale <= 0.0) {
         return normal;
     }
     float3 t;
     float3 b;
     if (worldTextureSize > 0.0) {
-        const float3 facing = abs(normal);
+        const float3 facing = abs(input.textureNormal);
         if (facing.x >= facing.y && facing.x >= facing.z) {
             t = float3(0.0, 0.0, 1.0);
             b = float3(0.0, 1.0, 0.0);
@@ -71,7 +79,11 @@ float3 ApplyNormalMap(float3 normal, float4 tangent, float2 uv) {
             t = float3(1.0, 0.0, 0.0);
             b = float3(0.0, 1.0, 0.0);
         }
-        // On slopes the axes lean out of the surface, so they are laid onto it.
+        // Turned from the projection's axes to the world's, then laid onto the surface, which they lean out of on
+        // slopes.
+        const float3x3 axes = float3x3(input.textureAxisX, input.textureAxisY, input.textureAxisZ);
+        t = mul(t, axes);
+        b = mul(b, axes);
         t = normalize(t - normal * dot(normal, t));
         b = normalize(b - normal * dot(normal, b));
     } else {
@@ -89,8 +101,9 @@ float3 ApplyNormalMap(float3 normal, float4 tangent, float2 uv) {
 
 float4 main(Input input) : SV_Target0 {
     const float3 surfaceNormal = normalize(input.normal);
-    const float2 uv = worldTextureSize > 0.0 ? GetWorldUv(input.worldPosition, surfaceNormal) : input.uv;
-    const float3 normal = ApplyNormalMap(surfaceNormal, input.tangent, uv);
+    const float2 uv =
+        worldTextureSize > 0.0 ? GetWorldUv(input.texturePosition, normalize(input.textureNormal)) : input.uv;
+    const float3 normal = ApplyNormalMap(surfaceNormal, input.tangent, uv, input);
     const float4 albedo = baseColorTexture.Sample(baseColorSampler, uv) * baseColor;
     if (alphaMode > 0.5 && alphaMode < 1.5 && albedo.a < alphaCutoff) {
         discard;
