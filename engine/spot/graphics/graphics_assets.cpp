@@ -23,6 +23,10 @@ void RegisterGraphicsAssets(AssetManager& assets, GraphicsDevice* device) {
                                                                                          : Image::CreateChecker(),
                                                .srgb = false};
                 }
+                // Without a device the texture is not made, so decoding it, which is most of loading it, is skipped.
+                if (!device) {
+                    return Detail::TextureFile{.image = Image(1, 1, {0, 0, 0, 0})};
+                }
                 auto texture = Detail::DecodeTexture(data);
                 if (texture && texture->compressedFormat) {
                     const auto format = *texture->compressedFormat;
