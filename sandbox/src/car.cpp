@@ -1,6 +1,10 @@
 #include "car.h"
 #include <spot/scene/physics/physics_world.h>
 
+#include "explosive_barrel.h"
+#include "player_health.h"
+#include "robot.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -117,6 +121,24 @@ void Car::OnDisable() {
         if (Spot::AudioSource* source = GetSound(id)) {
             source->Stop();
         }
+    }
+}
+
+void Car::OnCollisionEnter(const Spot::Collision& collision) {
+    const float speed = std::max(-Spot::Dot(collision.relativeVelocity, collision.normal), 0.0f);
+    Spot::Entity* entity = GetScene().GetEntity(collision.other);
+    if (!entity || collision.other == m_driver || speed < 2.0f) {
+        return;
+    }
+    const Spot::Vector3 point =
+        collision.pointCount > 0 ? collision.points[0] : entity->GetTransform().GetWorldPosition();
+    const Spot::Vector3 impulse = -collision.normal * std::max(collision.impulse, speed * 80.0f);
+    Robots::Hit(GetScene(), collision.other, impulse, point);
+    if (auto* barrel = entity->GetComponentInParent<ExplosiveBarrel>()) {
+        barrel->Ignite();
+    }
+    if (auto* health = entity->GetComponentInParent<PlayerHealth>()) {
+        health->Damage(speed * 10.0f);
     }
 }
 

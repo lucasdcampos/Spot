@@ -84,6 +84,60 @@
           "bindings": [
             {
               "control": {
+                "code": 23,
+                "source": 0
+              },
+              "deadZone": 0.0,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1.0
+            },
+            {
+              "control": {
+                "code": 5,
+                "source": 5
+              },
+              "deadZone": 0.0,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1.0
+            }
+          ],
+          "name": "Accelerate",
+          "pressPoint": 0.5,
+          "type": 1
+        },
+        {
+          "bindings": [
+            {
+              "control": {
+                "code": 19,
+                "source": 0
+              },
+              "deadZone": 0.0,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1.0
+            },
+            {
+              "control": {
+                "code": 4,
+                "source": 5
+              },
+              "deadZone": 0.0,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1.0
+            }
+          ],
+          "name": "Brake",
+          "pressPoint": 0.5,
+          "type": 1
+        },
+        {
+          "bindings": [
+            {
+              "control": {
                 "code": 0,
                 "source": 2
               },

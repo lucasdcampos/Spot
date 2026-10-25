@@ -122,10 +122,14 @@ button per entry. The tool gun's right mouse/Aim action cycles colors, materials
 in: `CarDriver`, on the player, puts away what the player does on foot (its movement, look, hands, tools and the eyes'
 camera) and seats it, and the car's own camera, a `CarCamera` on its inactive Camera child, takes over in the third
 person: it swings around behind the car as it turns, Look orbits it, and it comes back behind a moving car a moment
-after the mouse rests, keeping out of walls and widening at speed. Move drives (forward accelerates, back brakes and,
-once stopped, reverses), Jump pulls the handbrake, and Use gets out beside the driver's door, or wherever around the car
+after the mouse rests, keeping out of walls and widening at speed. Accelerate (W / right trigger) drives forward;
+Brake (S / left trigger) brakes and, once stopped, reverses. Move steers with A/D or the left stick. Jump pulls the
+handbrake, and Use gets out beside the driver's door, or wherever around the car
 there is room, looking the way the car faces. Dying or loading a checkpoint gets the player out first. The HUD shows the
 speed and gear in place of what is in hand.
+
+Car collisions at a closing speed of at least 2 m/s ignite explosive barrels, knock robots into ragdoll with the
+impact impulse and deal 10 damage per m/s to players other than the driver.
 
 `Car` simulates a car on its Rigidbody with the public physics API alone. Each physics step, each wheel is cast down
 from the top of its travel (a sphere as wide as the tire, at its bottom) and holds the body up with a spring, preloaded

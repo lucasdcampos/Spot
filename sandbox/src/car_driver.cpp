@@ -146,7 +146,9 @@ void CarDriver::OnUpdate(float /*deltaTime*/) {
             return;
         }
         const Spot::Vector2 move = Input::GetActionVector2("Move");
-        car->SetControls({.drive = move.y, .steer = move.x, .handbrake = Input::IsActionDown("Jump")});
+        car->SetControls({.drive = Input::GetActionValue("Accelerate") - Input::GetActionValue("Brake"),
+                          .steer = move.x,
+                          .handbrake = Input::IsActionDown("Jump")});
         if (use) {
             m_tookUse = true;
             Exit();

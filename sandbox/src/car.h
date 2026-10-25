@@ -1,6 +1,7 @@
 #pragma once
 
 #include <spot.h>
+#include <spot/scene/physics/collision_listener.h>
 
 #include <array>
 #include <vector>
@@ -23,7 +24,7 @@ struct CarControls {
 // The car's origin is on the ground under it, -Z forward. Its wheel entities, children of it, only show where the
 // wheels are; the wheels' positions are frontWheel and rearWheel, those on the left mirrored. Without a driver, its
 // brakes hold it and its engine stops. The driver's controls come from SetControls().
-class Car final : public Spot::Component {
+class Car final : public Spot::Component, public Spot::CollisionListener {
 public:
     enum class Drive { Front, Rear, All };
 
@@ -121,6 +122,7 @@ public:
 protected:
     void OnStart() override;
     void OnDisable() override;
+    void OnCollisionEnter(const Spot::Collision& collision) override;
     void OnFixedUpdate(float fixedDeltaTime) override;
     void OnUpdate(float deltaTime) override;
     void OnLateUpdate(float deltaTime) override;
