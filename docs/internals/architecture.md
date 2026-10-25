@@ -7,13 +7,14 @@ system pages linked from the [index](index.md) go into each part.
 
 ## Three ways to use the engine
 
-The [examples](../examples/) are where to start, one per way of using the engine, each built and run by the tests:
+The [examples](../../examples/) are where to start, one per way of using the engine, each built and run by the tests:
 
 | Example | Uses the engine | Builds on |
 |---|---|---|
-| [`own_loop`](../examples/own_loop/main.cpp) | As a library, with a loop of its own: a window, events, input, a graphics device and `Renderer2D`, without `Application` or scenes | `<spot/platform.h>`, `<spot/graphics.h>`, `<spot/render.h>` |
-| [`application`](../examples/application/main.cpp) | As an application in code: `Application` runs the loop, `RenderModule` draws, the scene is built from components in `OnStart()` | `<spot/runtime.h>`, `<spot/scene.h>`, `<spot/modules.h>` |
-| [`data_driven`](../examples/data_driven/) | As a data-driven game: a project with a scene and a Luau script and no C++, which the tools cook and `spot_player` runs from its `game.json` | The tools and the player |
+| [`own_loop`](../../examples/own_loop/main.cpp) | As a library, with a loop of its own: a window, events, input, a graphics device and `Renderer2D`, without `Application` or scenes | `<spot/platform.h>`, `<spot/graphics.h>`, `<spot/render.h>` |
+| [`application`](../../examples/application/main.cpp) | As an application in code: `Application` runs the loop, `RenderModule` draws, the scene is built from components in `OnStart()` | `<spot/runtime.h>`, `<spot/scene.h>`, `<spot/modules.h>` |
+| [`data_driven`](../../examples/data_driven/) | As a data-driven game: a project with a scene and a Luau script and no C++, which the tools cook and `spot_player` runs from its `game.json` | The tools and the player |
+| [`first_game`](../../examples/first_game/) | The manual's [first game](../manual/getting_started/first_game.md), finished: three scripts that the headless tests play with simulated input | The tools and the player |
 
 A game picks the simplest way that does what it needs. One with its own model of the world, such as an ECS for a
 large world, stays below the scene ([Games without scenes](index.md#games-without-scenes)); most games are an
@@ -85,9 +86,9 @@ backend; [Rendering](rendering.md#the-contract) has the details.
 
 ## Where to start
 
-- Using the engine: the [examples](../examples/), then [Application and scenes](application_and_scenes.md) and
+- Using the engine: the [examples](../../examples/), then [Application and scenes](application_and_scenes.md) and
   [Entities and components](entities_and_components.md).
 - Drawing: [Rendering](rendering.md), from the graphics API to `SceneRenderer`.
 - Adding a system: a folder for its API, without scenes, its components and `Module` in `scene/<system>/`, its
   header in `engine/spot/`, a page here.
-- Building and the code rules: [`AGENTS.md`](../AGENTS.md).
+- Building and the code rules: [`AGENTS.md`](../../AGENTS.md).

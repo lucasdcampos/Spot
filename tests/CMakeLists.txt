@@ -65,6 +65,7 @@ add_executable(spot_tests
     text_tests.cpp
     time_tests.cpp
     version_tests.cpp
+    script_reference_tests.cpp
     window_tests.cpp
 )
 
@@ -99,6 +100,7 @@ endif()
 
 target_compile_definitions(spot_tests PRIVATE
     SPOT_TEST_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets"
+    SPOT_DOCS_DIR="${PROJECT_SOURCE_DIR}/docs"
     SPOT_EXPECTED_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
     SPOT_EXPECTED_VERSION_MINOR=${PROJECT_VERSION_MINOR}
     SPOT_EXPECTED_VERSION_PATCH=${PROJECT_VERSION_PATCH}
@@ -292,6 +294,13 @@ if(SPOT_BUILD_EXAMPLES)
     target_compile_definitions(spot_gpu_tests PRIVATE
         SPOT_DATA_DRIVEN_EXAMPLE_DIR="${PROJECT_BINARY_DIR}/examples/data_driven")
     add_dependencies(spot_gpu_tests example_data_driven)
+    if(SPOT_ENABLE_LUAU)
+        target_sources(spot_tests PRIVATE first_game_tests.cpp)
+        target_compile_definitions(spot_tests PRIVATE
+            SPOT_FIRST_GAME_EXAMPLE_DIR="${PROJECT_BINARY_DIR}/examples/first_game"
+            SPOT_FIRST_GAME_SOURCE_DIR="${PROJECT_SOURCE_DIR}/examples/first_game")
+        add_dependencies(spot_tests example_first_game)
+    endif()
 endif()
 
 # What runs in the shared engine library, as the editor and game modules use it: loading modules, such as this one,

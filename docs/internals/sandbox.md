@@ -253,8 +253,7 @@ cmake --build --preset msvc-release --target spot_sandbox_benchmark
 ```
 
 Run each capture in a fresh process; keep the cooked assets, backend, quality, resolution and population
-fixed when comparing later phases. The measurements and machine configuration are recorded under Phase 2
-in `ROADMAP.md`.
+fixed when comparing later phases.
 
 Run without concurrent builds or tests. `--walk 1` instead walks the player through the plaza into the workshop,
 seen through its own eyes with its weapon, as a game plays: 150.6 FPS in Release and about 71 FPS in Debug. On an i5-11600K / GTX 1660 the valley playground measures 99.0 FPS average, 11.83 ms p95 and 19.92 ms

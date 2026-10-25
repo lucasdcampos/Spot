@@ -14,7 +14,7 @@ layers, each usable from code on its own; the editor and the tools are programs 
 - `examples/` – one small program per way of using the engine, run by the tests
 - `sandbox/` – the sample project (`Sandbox.spot`), built into the `sandbox` executable
 - `tests/` – Catch2 tests
-- `docs/` – a page per system, starting from `docs/index.md`
+- `docs/` – `manual/` for making games with Spot, `internals/` a page per system for working on it
 
 ## Build and test
 
@@ -39,7 +39,7 @@ a header per shader with a ready-to-use `Spot::ShaderDesc`.
 - Everything in the repository is in English: code, comments, docs and commit messages.
 - Code builds on Windows, macOS and Linux without warnings. Platform-specific code stays isolated.
 - The modules of `engine/spot/` may depend on each other, but only where they need to: keep them as loosely coupled
-  as makes sense, and put each thing where its concept belongs (see "Modules" in `docs/index.md`). Systems work
+  as makes sense, and put each thing where its concept belongs (see "Modules" in `docs/internals/index.md`). Systems work
   without scenes; their components go in `scene/<system>/`.
 - Backends (SDL3, SDL_GPU, NVRHI, Jolt, Box2D) are used only in their system's folder, `engine/<system>/<backend>/`.
   Public headers never expose backend types.
@@ -51,7 +51,8 @@ a header per shader with a ready-to-use `Spot::ShaderDesc`.
 - Every source asset has a `.meta` file beside it, committed with it; never edit its ids by hand. New source formats
   get an importer in `engine/spot/import/importers/`, and a change to an imported format bumps its importer's version.
 - Scripting API changes update `ScriptApi::Types` (`engine/spot/scene/scripting/script_api.h`), the editor's Luau
-  highlighting and its tests, and the scripts they affect, the sandbox's included, in the same change.
+  highlighting and its tests, the scripts they affect, the sandbox's included, and the generated scripting reference
+  (run the tests with `SPOT_UPDATE_DOCS=1`), in the same change.
 
 ## Tests
 
@@ -65,8 +66,11 @@ a header per shader with a ready-to-use `Spot::ShaderDesc`.
 
 ## Documentation
 
-A change to a system updates its page in `docs/` in the same commit: how it works, why, and where to start. New
-systems get a page, linked from `docs/index.md`. Headers stay the reference for each function.
+`docs/manual/` is for people making games: tutorials, guides by task and reference, in terms of what they do, not
+of the engine's code. `docs/internals/` is for people working on Spot: how each system works, why, and where to
+start. A change to a system updates its internals page in the same commit, and the manual when it changes what games
+see; new systems get a page, linked from `docs/internals/index.md`. Tutorials have their finished project in
+`examples/`, played by the tests. Headers stay the reference for each function.
 
 ## Code style
 

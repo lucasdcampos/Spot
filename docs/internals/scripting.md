@@ -155,7 +155,9 @@ when opening a project or a file in the external editor (see [the editor](editor
 `require("@spot")` gives `Input`, `Scene`, `Time`, `Physics`, the script's own `entity`, and `Component`, its own
 component. Engine methods keep their C++ PascalCase names; data fields use camelCase. Every member is described once,
 with its type, in `ScriptApi::Types` (`engine/spot/scene/scripting/script_api.h`), which the scene bindings dispatch through
-and the Luau types are written from; a test checks every member it describes is one the bindings answer to.
+and the Luau types and the manual's [scripting API](../manual/reference/scripting_api.md) are written from
+(`MakeScriptReference()`, written again by running the tests with `SPOT_UPDATE_DOCS=1`); a test checks every member
+it describes is one the bindings answer to.
 
 | Object | Members |
 | --- | --- |

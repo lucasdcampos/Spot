@@ -1,0 +1,437 @@
+{
+  "entities": [
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "background": [
+              0.11999999731779099,
+              0.12999999523162842,
+              0.15000000596046448,
+              1.0
+            ],
+            "cullingMask": 4294967295,
+            "farPlane": 1000.0,
+            "fieldOfView": 1.0471975803375244,
+            "nearPlane": 0.10000000149011612,
+            "orthographicSize": 5.0,
+            "pixelPerfect": {
+              "enabled": false,
+              "pixelsPerUnit": 100.0,
+              "referenceResolution": [
+                320.0,
+                180.0
+              ]
+            },
+            "projection": 0
+          },
+          "enabled": true,
+          "id": "38e416936dc1029231a9703735525327",
+          "type": "Camera"
+        }
+      ],
+      "id": 1,
+      "layer": 0,
+      "name": "Camera",
+      "position": [
+        0.0,
+        2.0,
+        6.0
+      ],
+      "rotation": [
+        -0.12218326330184937,
+        0.0,
+        0.0,
+        0.9925075173377991
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "intensity": 1.0
+          },
+          "enabled": true,
+          "id": "8855f2f1a57273bc91b4a5d0b29a1c97",
+          "type": "DirectionalLight"
+        }
+      ],
+      "id": 2,
+      "layer": 0,
+      "name": "Sun",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        -0.43602994084358215,
+        0.2579646706581116,
+        0.13201923668384552,
+        0.8519994616508484
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "ambientIntensity": 1.0,
+            "atmosphereThickness": 1.0,
+            "exposure": 1.0,
+            "groundColor": [
+              0.20000000298023224,
+              0.20000000298023224,
+              0.20999999344348907,
+              1.0
+            ],
+            "moonBrightness": 1.0,
+            "moonSize": 0.027925267815589905,
+            "nightColor": [
+              0.004000000189989805,
+              0.006000000052154064,
+              0.014000000432133675,
+              1.0
+            ],
+            "skyTint": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "starAxis": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "starBrightness": 1.0,
+            "starDensity": 0.5,
+            "starRotation": 0.0,
+            "sunSize": 0.04363323003053665
+          },
+          "enabled": true,
+          "id": "55658a1afe53c133720a05b2763552e3",
+          "type": "Sky"
+        }
+      ],
+      "id": 3,
+      "layer": 0,
+      "name": "Sky",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "cullScreenSize": 0.0,
+            "inlineMaterial": false,
+            "lods": [],
+            "material": null,
+            "mesh": "00000000000000000000000000000003",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "8d05e81abc37abc7491401495bd97423",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 4,
+      "layer": 0,
+      "name": "Ground",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        20.0,
+        1.0,
+        20.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "cullScreenSize": 0.0,
+            "inlineMaterial": false,
+            "lods": [],
+            "material": null,
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "2e8e7942a4de3e982a37cacdbf60dcf0",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "language": "",
+            "script": "7e02912eaf44fd337f8b6eb96ac021ec",
+            "source": "",
+            "sourceName": "<ScriptComponent>"
+          },
+          "enabled": true,
+          "id": "bb608553d0df4876a8f2fb1e93a28973",
+          "type": "ScriptComponent"
+        }
+      ],
+      "id": 5,
+      "layer": 0,
+      "name": "Player",
+      "position": [
+        0.0,
+        0.5,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "cullScreenSize": 0.0,
+            "inlineMaterial": false,
+            "lods": [],
+            "material": null,
+            "mesh": "00000000000000000000000000000002",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "105d3dc8586249e1a0b49dd91b75ff47",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "language": "",
+            "script": "48d809831ecc8e5cd09528b630827250",
+            "source": "",
+            "sourceName": "<ScriptComponent>"
+          },
+          "enabled": true,
+          "id": "ccc19407ba2f4b0ea62a93159f289e0d",
+          "type": "ScriptComponent"
+        }
+      ],
+      "id": 6,
+      "layer": 0,
+      "name": "Coin 1",
+      "position": [
+        2.0,
+        0.5,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "cullScreenSize": 0.0,
+            "inlineMaterial": false,
+            "lods": [],
+            "material": null,
+            "mesh": "00000000000000000000000000000002",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "0e587b4b42174d629e5c443e6c7e938c",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "language": "",
+            "script": "48d809831ecc8e5cd09528b630827250",
+            "source": "",
+            "sourceName": "<ScriptComponent>"
+          },
+          "enabled": true,
+          "id": "f9f790dc12f74aa7b6a88d16356a8731",
+          "type": "ScriptComponent"
+        }
+      ],
+      "id": 7,
+      "layer": 0,
+      "name": "Coin 2",
+      "position": [
+        4.0,
+        0.5,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "cullScreenSize": 0.0,
+            "inlineMaterial": false,
+            "lods": [],
+            "material": null,
+            "mesh": "00000000000000000000000000000002",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "cced154f301d4e4a84a8fe18a1b17d06",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "language": "",
+            "script": "48d809831ecc8e5cd09528b630827250",
+            "source": "",
+            "sourceName": "<ScriptComponent>"
+          },
+          "enabled": true,
+          "id": "620f7948ef294b4cbc71530c125d1c87",
+          "type": "ScriptComponent"
+        }
+      ],
+      "id": 8,
+      "layer": 0,
+      "name": "Coin 3",
+      "position": [
+        6.0,
+        0.5,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "language": "",
+            "script": "1646b55ad5296c96f34f31c34413527b",
+            "source": "",
+            "sourceName": "<ScriptComponent>"
+          },
+          "enabled": true,
+          "id": "7a087c6d94e14e71b0aecaf17a4e0858",
+          "type": "ScriptComponent"
+        }
+      ],
+      "id": 9,
+      "layer": 0,
+      "name": "Game",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    }
+  ],
+  "format": "spot-scene",
+  "version": 2
+}

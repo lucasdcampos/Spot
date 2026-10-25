@@ -12,6 +12,9 @@ std::string MakeLuauModule();
 // Luau's definition file syntax for the globals the engine gives scripts, the value constructors (Vector3()...).
 // Language servers load it as their editor's settings say, such as luau-lsp's definition files.
 std::string MakeLuauDefinitions();
+// The scripting reference of the manual, in Markdown: the hooks, the globals, every engine object and the members
+// the script bindings of each registered component type describe. docs/manual/reference/scripting_api.md is this.
+std::string MakeScriptReference();
 
 // Writes both into the project's generated files: .spot/luau/spot.luau and .spot/luau/spot.d.luau. Returns false,
 // after logging why, when they cannot be written.

@@ -1,0 +1,297 @@
+{
+  "engineVersion": "0.1.0",
+  "format": "spot-project",
+  "formatVersion": 1,
+  "name": "Coins",
+  "sections": {
+    "audio": {
+      "buses": [
+        {
+          "muted": false,
+          "name": "Music",
+          "parent": "",
+          "volume": 1.0
+        },
+        {
+          "muted": false,
+          "name": "Effects",
+          "parent": "",
+          "volume": 1.0
+        },
+        {
+          "muted": false,
+          "name": "Ambience",
+          "parent": "",
+          "volume": 1.0
+        },
+        {
+          "muted": false,
+          "name": "Interface",
+          "parent": "",
+          "volume": 1.0
+        }
+      ],
+      "masterVolume": 1.0
+    },
+    "input": {
+      "actions": [
+        {
+          "bindings": [
+            {
+              "control": {
+                "code": 0,
+                "source": 7
+              },
+              "deadZone": 0.0,
+              "invertX": false,
+              "invertY": false,
+              "parts": [
+                {
+                  "code": 23,
+                  "source": 0
+                },
+                {
+                  "code": 19,
+                  "source": 0
+                },
+                {
+                  "code": 1,
+                  "source": 0
+                },
+                {
+                  "code": 4,
+                  "source": 0
+                }
+              ],
+              "scale": 1.0
+            },
+            {
+              "control": {
+                "code": 0,
+                "source": 6
+              },
+              "deadZone": 0.20000000298023224,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1.0
+            }
+          ],
+          "name": "Move",
+          "pressPoint": 0.5,
+          "type": 2
+        },
+        {
+          "bindings": [
+            {
+              "control": {
+                "code": 0,
+                "source": 2
+              },
+              "deadZone": 0.0,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1.0
+            },
+            {
+              "control": {
+                "code": 1,
+                "source": 6
+              },
+              "deadZone": 0.15000000596046448,
+              "invertX": false,
+              "invertY": false,
+              "scale": 10.0
+            }
+          ],
+          "name": "Look",
+          "pressPoint": 0.5,
+          "type": 2
+        },
+        {
+          "bindings": [
+            {
+              "control": {
+                "code": 41,
+                "source": 0
+              },
+              "deadZone": 0.0,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1.0
+            },
+            {
+              "control": {
+                "code": 0,
+                "source": 4
+              },
+              "deadZone": 0.0,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1.0
+            }
+          ],
+          "name": "Jump",
+          "pressPoint": 0.5,
+          "type": 0
+        },
+        {
+          "bindings": [
+            {
+              "control": {
+                "code": 0,
+                "source": 1
+              },
+              "deadZone": 0.0,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1.0
+            },
+            {
+              "control": {
+                "code": 5,
+                "source": 5
+              },
+              "deadZone": 0.0,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1.0
+            }
+          ],
+          "name": "Fire",
+          "pressPoint": 0.5,
+          "type": 0
+        },
+        {
+          "bindings": [
+            {
+              "control": {
+                "code": 37,
+                "source": 0
+              },
+              "deadZone": 0.0,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1.0
+            },
+            {
+              "control": {
+                "code": 6,
+                "source": 4
+              },
+              "deadZone": 0.0,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1.0
+            }
+          ],
+          "name": "Pause",
+          "pressPoint": 0.5,
+          "type": 0
+        }
+      ]
+    },
+    "physics": {
+      "fixedTimeStep": 0.01666666753590107,
+      "gravity": [
+        0.0,
+        -9.8100004196167,
+        0.0
+      ],
+      "gravity2D": [
+        0.0,
+        -9.8100004196167
+      ],
+      "layerCollisions": [
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295,
+        4294967295
+      ],
+      "layerNames": [
+        "Default",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    "rendering": {
+      "bloomIntensity": 0.30000001192092896,
+      "bloomScatter": 0.699999988079071,
+      "bloomThreshold": 1.0,
+      "contrast": 1.0,
+      "dither": true,
+      "exposure": 1.0,
+      "fxaa": false,
+      "gpuCulling": false,
+      "localShadowMapSize": 512,
+      "msaaSamples": 4,
+      "saturation": 1.0,
+      "shadowCascadeCount": 4,
+      "shadowDistance": 60.0,
+      "shadowMapSize": 2048,
+      "temperature": 0.0,
+      "tint": 0.0,
+      "tonemapper": 0,
+      "vignette": 0.0,
+      "vignetteStart": 0.4000000059604645
+    }
+  },
+  "startupScene": "77b665d2103b848546be2e84d8cbf6fc",
+  "version": "0.1.0"
+}
