@@ -9,6 +9,10 @@ It follows the rules games do: it uses only the engine's public API and never re
 the editor, so the runtime never depends on it. It is itself an `Application`, with the engine's modules and its
 `RenderModule` drawing no scene, since it shows scenes in its own views.
 
+Its icon is `logo.png`, at the repository's root, scaled down into `editor/resources/icons/`: embedded and set on
+the window with `Window::SetIcon()`, which any game can call with RGBA pixels, and on Windows also the executable's
+icon (`spot_editor.rc`).
+
 ## Projects
 
 Without a project open, the **hub** lists recent projects and creates or opens one (from the templates in
