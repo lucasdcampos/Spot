@@ -2,6 +2,7 @@
 
 // The code-only renderers, cameras, fonts and debug drawing (rendering level 2).
 
+#include "spot/render/ambient_occlusion.h"
 #include "spot/render/bloom.h"
 #include "spot/render/camera_2d.h"
 #include "spot/render/camera_3d.h"
@@ -21,6 +22,7 @@
 #include "spot/render/particle_batch.h"
 #include "spot/render/particle_renderer.h"
 #include "spot/render/quad_batch.h"
+#include "spot/render/reflection_probe_data.h"
 #include "spot/render/render_assets.h"
 #include "spot/render/render_stage.h"
 #include "spot/render/render_world.h"

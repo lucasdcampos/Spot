@@ -41,6 +41,7 @@
 #include "spot/scene/rendering/light.h"
 #include "spot/scene/rendering/mesh_renderer.h"
 #include "spot/scene/rendering/post_processing.h"
+#include "spot/scene/rendering/reflection_probe.h"
 #include "spot/scene/rendering/render_hook_system.h"
 #include "spot/scene/rendering/render_module.h"
 #include "spot/scene/rendering/render_world_system.h"

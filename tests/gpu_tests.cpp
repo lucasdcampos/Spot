@@ -3010,6 +3010,146 @@ TEST_CASE("Renderer3D captures the sky's light again only when the sky changes",
     CHECK(updates == std::vector<std::uint32_t>{1, 0, 1, 0});
 }
 
+TEST_CASE("Renderer3D keeps the sky's light from what is under cover", "[gpu]") {
+    RequireGpu();
+
+    // A floor seen from under a roof, which the camera is below; without sky occlusion the roof changes nothing.
+    Spot::Camera3D camera;
+    camera.position = {0.0f, 2.0f, 0.0f};
+    camera.rotation = Spot::Quaternion::LookRotation({0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, -1.0f});
+    const auto renderFloor = [&](bool roof, std::uint32_t skyOcclusionSize) {
+        return TargetRender(
+                   32, 32,
+                   [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+                       Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8,
+                                                          .skyOcclusionSize = skyOcclusionSize,
+                                                          .skyOcclusionDistance = 32.0f});
+                       const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
+                       REQUIRE(cube != nullptr);
+                       renderer.Begin(context, target, camera);
+                       renderer.DrawSky(PlainSky);
+                       renderer.DrawMesh(*cube, {}, Spot::Matrix4::Scale({20.0f, 1.0f, 20.0f}));
+                       if (roof) {
+                           renderer.DrawMesh(*cube, {},
+                                             Spot::Matrix4::Translation({0.0f, 4.0f, 0.0f}) *
+                                                 Spot::Matrix4::Scale({20.0f, 1.0f, 20.0f}));
+                       }
+                       renderer.End();
+                   })
+            .At(16, 16);
+    };
+    const Pixel open = renderFloor(false, 128);
+    const Pixel covered = renderFloor(true, 128);
+    const Pixel ignored = renderFloor(true, 0);
+    INFO("Open " << int{open[2]} << ", covered " << int{covered[2]} << ", without occlusion " << int{ignored[2]});
+    CHECK(open[2] > 235);
+    CHECK(covered[2] < open[2] / 4);
+    CHECK(IsNear(ignored, open));
+}
+
+TEST_CASE("Renderer3D darkens creases with ambient occlusion from the camera's depth", "[gpu]") {
+    RequireGpu();
+
+    // A wall standing on a floor, lit by ambient light only, seen from above the floor with the crease where they
+    // meet in the middle.
+    Spot::Camera3D camera;
+    camera.position = {0.0f, 3.0f, 3.0f};
+    camera.LookAt({0.0f, 0.5f, 0.0f});
+    const auto renderCrease = [&](bool occlusion) {
+        return TargetRender(
+            64, 64,
+            [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+                Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8,
+                                                   .ambientOcclusion = {.enabled = occlusion, .radius = 1.0f}});
+                REQUIRE(renderer.IsValid());
+                const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
+                REQUIRE(cube != nullptr);
+                renderer.Begin(context, target, camera);
+                renderer.DrawLight({.type = Spot::LightType::Ambient, .intensity = 0.5f});
+                renderer.DrawMesh(*cube, {}, Spot::Matrix4::Scale({20.0f, 1.0f, 20.0f}));
+                renderer.DrawMesh(*cube, {},
+                                  Spot::Matrix4::Translation({0.0f, 1.5f, -0.5f}) *
+                                      Spot::Matrix4::Scale({20.0f, 2.0f, 1.0f}));
+                renderer.End();
+                // The depth it worked from is the camera's, given without drawing it again.
+                CHECK(renderer.RenderCameraDepth(context) != nullptr);
+            });
+    };
+    const TargetRender plain = renderCrease(false);
+    const TargetRender occluded = renderCrease(true);
+    const int nearCrease = plain.At(32, 36)[0] - occluded.At(32, 36)[0];
+    const int farFromIt = plain.At(32, 62)[0] - occluded.At(32, 62)[0];
+    INFO("Darker by " << nearCrease << " near the crease, " << farFromIt << " far from it");
+    CHECK(nearCrease > 20);
+    CHECK(std::abs(farFromIt) <= 6);
+}
+
+namespace {
+
+// A white floor inside a room whose walls glow red, with no light of its own: only light from all around can reach
+// it, which the sky does not give.
+TargetRender RenderGlowingRoom(bool probe) {
+    return TargetRender(
+        32, 32, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
+            REQUIRE(cube != nullptr);
+            Spot::Camera3D camera;
+            camera.position = {0.0f, 2.0f, 0.0f};
+            camera.rotation = Spot::Quaternion::LookRotation({0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, -1.0f});
+            renderer.Begin(context, target, camera);
+            renderer.DrawMesh(*cube,
+                              {.baseColor = Spot::Color::Black, .emissive = Spot::Color::Red, .doubleSided = true},
+                              Spot::Matrix4::Scale({10.0f, 10.0f, 10.0f}));
+            renderer.DrawMesh(
+                *cube, {}, Spot::Matrix4::Translation({0.0f, -1.0f, 0.0f}) * Spot::Matrix4::Scale({4.0f, 0.2f, 4.0f}));
+            if (probe) {
+                renderer.DrawReflectionProbe({.id = 1});
+            }
+            renderer.End();
+            CHECK(renderer.GetStats().reflectionProbeCaptures == (probe ? 1u : 0u));
+            CHECK(renderer.GetStats().reflectionProbes == (probe ? 1u : 0u));
+        });
+}
+
+} // namespace
+
+TEST_CASE("Renderer3D lights what is inside a reflection probe's box with its capture of the scene", "[gpu]") {
+    RequireGpu();
+
+    const Pixel without = RenderGlowingRoom(false).At(16, 16);
+    const Pixel with = RenderGlowingRoom(true).At(16, 16);
+    INFO("Without " << int{without[0]} << ", " << int{without[1]} << ", " << int{without[2]} << "; with "
+                    << int{with[0]} << ", " << int{with[1]} << ", " << int{with[2]});
+    CHECK(without[0] < 10);
+    CHECK(with[0] > 100);
+    CHECK(with[1] < 30);
+    CHECK(with[2] < 30);
+}
+
+TEST_CASE("Renderer3D captures a reflection probe again only when it moves or changes version", "[gpu]") {
+    RequireGpu();
+    std::vector<std::uint32_t> captures;
+    const TargetRender render(
+        8, 8, [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+            Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+            Spot::ReflectionProbeData probe{.id = 7};
+            for (int frame = 0; frame < 6; ++frame) {
+                if (frame == 2) {
+                    probe.version = 1;
+                }
+                if (frame == 4) {
+                    probe.position = {1.0f, 0.0f, 0.0f};
+                }
+                renderer.Begin(context, target, MakeFrontCamera());
+                renderer.DrawReflectionProbe(probe);
+                renderer.End();
+                captures.push_back(renderer.GetStats().reflectionProbeCaptures);
+            }
+        });
+    CHECK(captures == std::vector<std::uint32_t>{1, 0, 1, 0, 1, 0});
+}
+
 TEST_CASE("Renderer3D draws the sky behind meshes", "[gpu]") {
     RequireGpu();
 

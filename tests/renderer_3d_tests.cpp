@@ -201,6 +201,34 @@ TEST_CASE("Shadow cascades see their slice of the view and move in whole texels"
     CHECK(view.texelSize == Catch::Approx(movedView.texelSize));
 }
 
+TEST_CASE("The sky's occlusion sees down on what is around its position, higher things nearer", "[renderer3d]") {
+    constexpr std::uint32_t Size = 256;
+    const Vector3 position{10.3f, 5.0f, -7.6f};
+    const auto view = Spot::Detail::GetSkyOcclusionView(position, 32.0f, Size);
+    CHECK(view.texelSize == Catch::Approx(0.25f));
+
+    // What is around the position, up to the distance in every direction, falls inside it; what is higher has less
+    // depth.
+    for (const Vector3 offset :
+         {Vector3{-31.0f, 0.0f, 31.0f}, Vector3{31.0f, -31.0f, -31.0f}, Vector3{0.0f, 31.0f, 0.0f}}) {
+        const Vector3 clip = ToClip(view.viewProjection, position + offset);
+        CHECK(std::abs(clip.x) <= 1.0f);
+        CHECK(std::abs(clip.y) <= 1.0f);
+        CHECK(clip.z >= 0.0f);
+        CHECK(clip.z <= 1.0f);
+    }
+    const Vector3 low = ToClip(view.viewProjection, position);
+    const Vector3 high = ToClip(view.viewProjection, position + Vector3{0.0f, 4.0f, 0.0f});
+    CHECK(high.z < low.z);
+    CHECK(high.z == Catch::Approx(low.z - 4.0f / 64.0f));
+
+    // It moves in whole texels.
+    const auto moved = Spot::Detail::GetSkyOcclusionView(position + Vector3{0.6f, 0.0f, 0.3f}, 32.0f, Size);
+    const Vector3 point{1.0f, 0.0f, 2.0f};
+    const float texels = (ToClip(moved.viewProjection, point).x - ToClip(view.viewProjection, point).x) * Size / 2.0f;
+    CHECK(std::abs(texels - std::round(texels)) < 0.01f);
+}
+
 TEST_CASE("Point light shadows see every direction from one of their faces", "[renderer3d]") {
     const Spot::LightData light{.type = Spot::LightType::Point, .position = {1.0f, 2.0f, 3.0f}, .range = 10.0f};
     const std::array<Vector3, 6> directions{

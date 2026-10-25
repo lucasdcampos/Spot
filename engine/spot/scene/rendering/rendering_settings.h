@@ -1,5 +1,6 @@
 #pragma once
 
+#include "spot/render/ambient_occlusion.h"
 #include "spot/render/bloom.h"
 #include "spot/render/tonemapper.h"
 
@@ -29,6 +30,10 @@ struct RenderingSettings {
     float shadowDistance = 60.0f;
     std::uint32_t localShadowMapSize = 512;
     bool gpuCulling = false;
+    // See Renderer3DConfig.
+    AmbientOcclusionSettings ambientOcclusion = {.enabled = true};
+    std::uint32_t skyOcclusionSize = 512;
+    float skyOcclusionDistance = 64.0f;
 
     void Serialize(Archive& archive);
     // Sets the config's look and quality from the settings.

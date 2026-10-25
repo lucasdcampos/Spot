@@ -137,6 +137,8 @@ add_library(spot_objects OBJECT
     spot/graphics/compute.h
     spot/render/custom_surface.h
     spot/render/camera_2d.h
+    spot/render/ambient_occlusion.cpp
+    spot/render/ambient_occlusion.h
     spot/render/bloom.cpp
     spot/render/bloom.h
     spot/render/camera_2d.cpp
@@ -224,6 +226,8 @@ add_library(spot_objects OBJECT
     spot/render/renderer_3d_internal.h
     spot/render/renderer_3d_meshes.h
     spot/render/renderer_3d_meshes.cpp
+    spot/render/renderer_3d_probes.h
+    spot/render/renderer_3d_probes.cpp
     spot/render/renderer_3d_shadows.h
     spot/render/renderer_3d_shadows.cpp
     spot/render/renderer_3d_sky.h
@@ -238,6 +242,7 @@ add_library(spot_objects OBJECT
     spot/graphics/shader.h
     spot/render/shadow_views.h
     spot/render/shadow_views.cpp
+    spot/render/reflection_probe_data.h
     spot/render/sky_data.h
     spot/render/text_layout.h
     spot/render/text_layout.cpp
@@ -347,6 +352,8 @@ add_library(spot_objects OBJECT
     spot/scene/rendering/light.cpp
     spot/scene/rendering/post_processing.cpp
     spot/scene/rendering/post_processing.h
+    spot/scene/rendering/reflection_probe.cpp
+    spot/scene/rendering/reflection_probe.h
     spot/scene/prefab.h
     spot/scene/prefab_document.h
     spot/scene/prefab.cpp
@@ -398,6 +405,8 @@ add_library(spot_objects OBJECT
 )
 
 spot_add_shaders(spot_objects NAMESPACE Spot::Detail::Shaders
+    spot/render/shaders/ambient_occlusion.frag.hlsl
+    spot/render/shaders/ambient_occlusion_blur.frag.hlsl
     spot/render/shaders/particle.vert.hlsl
     spot/render/shaders/particle.frag.hlsl
     spot/render/shaders/bloom_down.frag.hlsl
@@ -414,6 +423,8 @@ spot_add_shaders(spot_objects NAMESPACE Spot::Detail::Shaders
     spot/render/shaders/skinned_mesh.vert.hlsl
     spot/render/shaders/skinned_shadow.vert.hlsl
     spot/render/shaders/mesh.vert.hlsl
+    spot/render/shaders/probe_face.frag.hlsl
+    spot/render/shaders/probe_prefilter.frag.hlsl
     spot/render/shaders/shadow.frag.hlsl
     spot/render/shaders/shadow.vert.hlsl
     spot/render/shaders/shadow_cutout.frag.hlsl

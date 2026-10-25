@@ -94,9 +94,10 @@ bool ShadowRenderer::IsValid() const {
 void ShadowRenderer::Bind(RenderPass& pass) const {
     pass.BindFragmentTexture(1, m_cascadeShadows ? *m_cascadeShadows : *m_noShadows, *m_sampler);
     pass.BindFragmentTexture(2, m_localShadows ? *m_localShadows : *m_noShadows, *m_sampler);
+    pass.BindFragmentTexture(9, m_skyOcclusionDrawn ? *m_skyOcclusion : *m_noShadows, *m_sampler);
 }
 
-void ShadowRenderer::Draw(SelectedLights& lights, ShadowUniforms& shadows) {
+void ShadowRenderer::Draw(SelectedLights& lights, ShadowUniforms& shadows, bool skyOcclusion) {
     SPOT_PROFILE_SCOPE("Renderer3D::DrawShadows");
     // Shadow views go through the casters in one order, kept for the frame.
     m_order.clear();
@@ -120,7 +121,8 @@ void ShadowRenderer::Draw(SelectedLights& lights, ShadowUniforms& shadows) {
     for (const std::uint32_t index : m_order) {
         shadowInstances += m_state.commands[index].instanceCount;
     }
-    const std::size_t maxCasters = (MaxShadowCascades + Renderer3D::MaxShadowTiles) * shadowInstances + 1;
+    // The sky's occlusion is one more view.
+    const std::size_t maxCasters = (MaxShadowCascades + Renderer3D::MaxShadowTiles + 1) * shadowInstances + 1;
     if (!m_casters || m_casters->GetSize() < maxCasters * sizeof(std::uint32_t)) {
         m_casters = m_state.device->CreateBuffer(
             {.usage = BufferUsage::Storage, .size = static_cast<std::uint32_t>(maxCasters * sizeof(std::uint32_t))});
@@ -129,20 +131,24 @@ void ShadowRenderer::Draw(SelectedLights& lights, ShadowUniforms& shadows) {
         return;
     }
     m_state.device->UploadToBuffer(*m_casters, std::array<std::uint32_t, 1>{}, 0, UploadMode::Discard);
-    DrawViews(lights, shadows);
+    DrawViews(lights, shadows, skyOcclusion);
     // Smaller than the buffer, so it fills the memory the draws were recorded with instead of moving to new memory.
     if (!m_frameCasters.empty()) {
         m_state.device->UploadToBuffer(*m_casters, m_frameCasters, 0, UploadMode::Preserve);
     }
 }
 
-void ShadowRenderer::DrawViews(SelectedLights& lights, ShadowUniforms& shadows) {
+void ShadowRenderer::DrawViews(SelectedLights& lights, ShadowUniforms& shadows, bool skyOcclusion) {
     if (!m_noShadowsCleared) {
         m_state.context->BeginRenderPass({.depthTarget = m_noShadows.get(), .clearDepth = 1.0f, .depthOnly = true});
         m_noShadowsCleared = true;
     }
+    m_skyOcclusionDrawn = false;
     if (m_state.commands.empty() && m_state.surfaces.empty()) {
         return;
+    }
+    if (skyOcclusion && m_state.config.skyOcclusionSize > 0) {
+        m_skyOcclusionDrawn = DrawSkyOcclusion(shadows);
     }
     if (m_state.config.shadowMapSize > 0) {
         for (std::size_t i = 0; i < lights.lights.size(); ++i) {
@@ -291,6 +297,31 @@ void ShadowRenderer::DrawLocalShadows(SelectedLights& lights, ShadowUniforms& sh
             m_state.DrawSurfaces(pass, SurfacePass::Shadow, view.viewProjection, false, surfaceViews[tile]);
         }
     }
+}
+
+bool ShadowRenderer::DrawSkyOcclusion(ShadowUniforms& shadows) {
+    const std::uint32_t size = m_state.config.skyOcclusionSize;
+    if (!m_skyOcclusion || m_skyOcclusion->GetWidth() != size) {
+        m_skyOcclusion = m_state.device->CreateTexture(
+            {.width = size, .height = size, .format = TextureFormat::Depth32Float, .renderTarget = true});
+        if (!m_skyOcclusion) {
+            return false;
+        }
+    }
+    const float distance = std::max(m_state.config.skyOcclusionDistance, 1.0f);
+    const ShadowView view = GetSkyOcclusionView(m_state.camera.position, distance, size);
+    // What is above the view still covers what is under it, as its depth is clamped to the top.
+    const std::uint32_t surfaceView =
+        m_state.PrepareSurfaces(*m_state.context, SurfacePass::Shadow, view.viewProjection, true);
+    auto pass =
+        m_state.context->BeginRenderPass({.depthTarget = m_skyOcclusion.get(), .clearDepth = 1.0f, .depthOnly = true});
+    DrawCasters(pass, view.viewProjection, true);
+    m_state.DrawSurfaces(pass, SurfacePass::Shadow, view.viewProjection, true, surfaceView);
+    shadows.skyOcclusionView = TileFromClip * view.viewProjection;
+    // Cover is looked for over a couple of meters, enough to see past the edge of a roof, and a few texels at least.
+    shadows.skyOcclusionParams = {1.0f, std::max(2.0f, 4.0f * view.texelSize), 1.0f / (2.0f * distance),
+                                  view.texelSize};
+    return true;
 }
 
 void ShadowRenderer::BindCutout(RenderPass& pass, const DrawCommand& command, const Texture*& boundTexture,

@@ -100,6 +100,38 @@ TEST_CASE("Lights are saved with their scene", "[light][serialization]") {
     CHECK_FALSE(loadedSpot->IsCastingShadows());
 }
 
+TEST_CASE("Reflection probes light the box around their entity, and are saved with their scene", "[light]") {
+    Scene scene;
+    auto& entity = scene.CreateEntity("Probe");
+    entity.GetTransform().SetPosition({1.0f, 2.0f, 3.0f});
+    auto& probe = entity.AddComponent<Spot::ReflectionProbe>();
+    probe.size = {4.0f, 2.0f, 6.0f};
+    probe.blendDistance = 0.5f;
+    probe.intensity = 2.0f;
+
+    const Spot::ReflectionProbeData data = probe.GetProbeData();
+    CHECK(IsNear(data.position, {1.0f, 2.0f, 3.0f}));
+    CHECK(IsNear(data.boxMin, {-1.0f, 1.0f, 0.0f}));
+    CHECK(IsNear(data.boxMax, {3.0f, 3.0f, 6.0f}));
+    CHECK(data.blendDistance == 0.5f);
+    CHECK(data.intensity == 2.0f);
+    // Each probe has an id of its own, which keeps its capture, and refreshing it asks for another capture.
+    CHECK(scene.CreateEntity().AddComponent<Spot::ReflectionProbe>().GetProbeData().id != data.id);
+    probe.Refresh();
+    CHECK(probe.GetProbeData().version != data.version);
+    CHECK(probe.GetProbeData().id == data.id);
+
+    Scene loaded;
+    REQUIRE(loaded.LoadFromString(scene.SaveToString()));
+    const Entity* copy = loaded.FindEntity("Probe");
+    REQUIRE(copy);
+    const auto* loadedProbe = copy->GetComponent<Spot::ReflectionProbe>();
+    REQUIRE(loadedProbe);
+    CHECK(IsNear(loadedProbe->size, {4.0f, 2.0f, 6.0f}));
+    CHECK(loadedProbe->blendDistance == 0.5f);
+    CHECK(loadedProbe->intensity == 2.0f);
+}
+
 TEST_CASE("Directional lights cast shadows unless told not to, and other lights only when told to", "[light]") {
     Scene scene;
     auto& entity = scene.CreateEntity("Lights");

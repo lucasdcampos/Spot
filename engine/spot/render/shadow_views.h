@@ -42,6 +42,11 @@ ShadowView GetSpotShadowView(const LightData& light, std::uint32_t mapSize);
 // filtering there stays inside its tile.
 ShadowView GetPointShadowView(const LightData& light, std::uint32_t face, std::uint32_t mapSize);
 
+// The sky's occlusion around a position: a view straight down, along -Y with -Z up the map, distance to each side of
+// the position and as far above and below it, which moves in whole texels, so what it finds under cover does not
+// crawl as the position moves. Its depth grows downward, over twice the distance.
+ShadowView GetSkyOcclusionView(Vector3 position, float distance, std::uint32_t mapSize);
+
 // The near plane of shadow views of local lights, a share of their range.
 float GetLocalShadowNearPlane(float range);
 

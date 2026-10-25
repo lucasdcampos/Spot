@@ -47,7 +47,10 @@ SceneRenderer::SceneRenderer(GraphicsDevice& device, const SceneRendererConfig& 
                                                               .shadowCascadeCount = config.shadowCascadeCount,
                                                               .shadowDistance = config.shadowDistance,
                                                               .localShadowMapSize = config.localShadowMapSize,
-                                                              .gpuCulling = config.gpuCulling});
+                                                              .gpuCulling = config.gpuCulling,
+                                                              .ambientOcclusion = config.ambientOcclusion,
+                                                              .skyOcclusionSize = config.skyOcclusionSize,
+                                                              .skyOcclusionDistance = config.skyOcclusionDistance});
     m_sprites =
         std::make_unique<Renderer2D>(device, Renderer2DConfig{.targetFormat = HdrFormat, .sampleCount = m_sampleCount});
     m_particles = std::make_unique<ParticleRenderer>(

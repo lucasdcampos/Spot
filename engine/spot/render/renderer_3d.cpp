@@ -10,6 +10,7 @@
 #include "spot/render/render_world.h"
 #include "spot/render/renderer_3d_internal.h"
 #include "spot/render/renderer_3d_meshes.h"
+#include "spot/render/renderer_3d_probes.h"
 #include "spot/render/renderer_3d_shadows.h"
 #include "spot/render/renderer_3d_sky.h"
 #include "spot/render/renderer_3d_worlds.h"
@@ -62,6 +63,7 @@ Renderer3DState::Renderer3DState(GraphicsDevice& graphicsDevice, const Renderer3
         {.filter = config.filter, .addressMode = TextureAddressMode::Repeat, .maxAnisotropy = config.maxAnisotropy});
     nearestSampler =
         device->CreateSampler({.filter = TextureFilter::Nearest, .addressMode = TextureAddressMode::Repeat});
+    clampSampler = device->CreateSampler();
     whiteTexture = device->CreateTexture({.width = 1, .height = 1});
     if (whiteTexture) {
         device->UploadToTexture(*whiteTexture, std::array<std::uint8_t, 4>{255, 255, 255, 255});
@@ -141,6 +143,7 @@ struct LightingUniforms {
     // The near plane's depth, the scale of the slices' logarithm, and the view's size in pixels.
     Vector4 clusterDepth;
     Vector4 viewForward;
+    Vector4 probeAtlas;
 };
 
 // Ambient lights are summed. Past MaxLights, the other lights that matter least to what is near the camera are dropped.
@@ -200,29 +203,52 @@ std::vector<LightUniforms> GetLightUniforms(const Detail::SelectedLights& select
 } // namespace
 
 // Draws the frame: lights it, culls and sorts its meshes through the mesh batcher, has the shadow renderer and the
-// sky renderer draw their parts, and the world culler cull the worlds' instances, then opens the view's pass.
+// sky renderer draw their parts, the probe renderer capture the reflection probes, and the world culler cull the
+// worlds' instances, then opens the view's pass.
 struct Renderer3D::Impl {
     Impl(GraphicsDevice& device, const Renderer3DConfig& config)
-        : state(device, config), meshes(state), shadows(state), sky(state), worlds(state) {}
+        : state(device, config), meshes(state), shadows(state), sky(state), worlds(state), probes(state) {
+        if (config.ambientOcclusion.enabled) {
+            ambientOcclusion = AmbientOcclusion::Create(device);
+        }
+    }
 
-    bool IsValid() const { return state.IsValid() && meshes.IsValid() && shadows.IsValid() && sky.IsValid(); }
+    bool IsValid() const {
+        return state.IsValid() && meshes.IsValid() && shadows.IsValid() && sky.IsValid() && probes.IsValid() &&
+               (!state.config.ambientOcclusion.enabled || ambientOcclusion);
+    }
 
     void End();
+    // Makes the camera the one the frame is drawn through, into the target, of the size.
+    void SetView(const Camera3D& camera, const RenderPassDesc& target, Vector2 viewSize);
+    // Draws the frame's sky, surfaces and meshes into the target as the camera sees them, after the shadows of that
+    // view. The main view also culls the worlds on the GPU, is darkened by ambient occlusion and lit by the reflection
+    // probes; the faces of a probe's capture are not, so they hold the light that reaches the probe from outside.
+    void DrawView(Detail::SelectedLights lights, bool main);
+    // Draws the six faces of the probe and blurs them into the light it gives, then goes back to the main view.
+    void CaptureProbe(const ReflectionProbeData& probe, const Detail::SelectedLights& lights);
     // Sends the lights and the view's clusters of them to their buffers.
     bool UploadLights(const Detail::SelectedLights& lights);
-    void BindLighting(RenderPass& pass, const Detail::SelectedLights& lights, const Detail::ShadowUniforms& shadows);
+    void BindLighting(RenderPass& pass, const Detail::SelectedLights& lights, const Detail::ShadowUniforms& shadows,
+                      bool main, const Texture* occlusion);
 
     Detail::Renderer3DState state;
     Detail::MeshBatcher meshes;
     Detail::ShadowRenderer shadows;
     Detail::SkyRenderer sky;
     Detail::WorldCuller worlds;
+    Detail::ProbeRenderer probes;
+    std::unique_ptr<AmbientOcclusion> ambientOcclusion;
 
     std::vector<LightData> lights;
+    std::vector<ReflectionProbeData> probeData;
     std::optional<SkyData> skyData;
+    std::optional<Detail::SkyLighting> skyLighting;
     // Of the camera's rotation and projection only, which turns clip-space positions into directions.
     Matrix4 inverseSkyViewProjection;
     bool warnedAboutLights = false;
+    // Whether End() drew the camera's depth, for ambient occlusion, which RenderCameraDepth() then gives.
+    bool cameraDepthDrawn = false;
     // The frame's lights, the view's clusters and their lists of lights.
     std::unique_ptr<Buffer> lightBuffer;
     std::unique_ptr<Buffer> clusterBuffer;
@@ -233,7 +259,7 @@ struct Renderer3D::Impl {
 };
 
 void Renderer3D::Impl::End() {
-    std::optional<Detail::SkyLighting> skyLighting;
+    skyLighting.reset();
     sky.SetLit(false);
     if (skyData) {
         skyLighting = Detail::GetSkyLighting(*skyData);
@@ -250,22 +276,51 @@ void Renderer3D::Impl::End() {
             }
         }
     }
-    Detail::SelectedLights selected = SelectLights(lights, state.camera.position, warnedAboutLights);
+    const Detail::SelectedLights selected = SelectLights(lights, state.camera.position, warnedAboutLights);
 
+    probes.Select(probeData);
+    if (const std::optional<ReflectionProbeData> capture = probes.GetPendingCapture()) {
+        CaptureProbe(*capture, selected);
+    }
+    probes.Upload();
+    DrawView(selected, true);
+}
+
+void Renderer3D::Impl::SetView(const Camera3D& camera, const RenderPassDesc& target, Vector2 viewSize) {
+    state.target = target;
+    state.viewProjection = camera.GetViewProjection(viewSize);
+    inverseSkyViewProjection = Inverse(camera.GetProjection(viewSize) * Matrix4::Rotation(Inverse(camera.rotation)));
+    state.camera = camera;
+    state.viewSize = viewSize;
+    state.aspectRatio = viewSize.y > 0.0f ? viewSize.x / viewSize.y : 1.0f;
+}
+
+void Renderer3D::Impl::DrawView(Detail::SelectedLights lights, bool main) {
     meshes.Prepare();
     if (!meshes.UploadInstances()) {
         state.commands.clear();
     }
     Detail::ShadowUniforms shadowUniforms{};
     state.context->BeginGpuTimer("Shadows");
-    shadows.Draw(selected, shadowUniforms);
+    shadows.Draw(lights, shadowUniforms, sky.IsLit());
     state.context->EndGpuTimer();
 
-    if (!UploadLights(selected)) {
+    if (!UploadLights(lights)) {
         state.commands.clear();
     }
+    const Texture* occlusion = nullptr;
+    if (main && ambientOcclusion && state.config.ambientOcclusion.intensity > 0.0f) {
+        state.context->BeginGpuTimer("Ambient occlusion");
+        if (const Texture* depth = meshes.RenderCameraDepth(*state.context)) {
+            cameraDepthDrawn = true;
+            occlusion = ambientOcclusion->Render(*state.context, *depth, state.camera, state.config.ambientOcclusion);
+        }
+        state.context->EndGpuTimer();
+    }
     state.context->BeginGpuTimer("Opaque");
-    worlds.Cull();
+    if (main) {
+        worlds.Cull();
+    }
     const std::uint32_t surfaceView =
         state.PrepareSurfaces(*state.context, SurfacePass::Lit, state.viewProjection, false);
     {
@@ -275,12 +330,40 @@ void Renderer3D::Impl::End() {
         }
         // Surfaces draw before the meshes, as they are mostly large and in front, such as terrain, and so hide much
         // of what comes after them; transparent meshes, last, blend over them.
-        BindLighting(pass, selected, shadowUniforms);
+        BindLighting(pass, lights, shadowUniforms, main, occlusion);
         state.DrawSurfaces(pass, SurfacePass::Lit, state.viewProjection, false, surfaceView);
         meshes.Flush(pass);
     }
-    worlds.UpdateOcclusionTiles();
+    if (main) {
+        worlds.UpdateOcclusionTiles();
+    }
     state.context->EndGpuTimer();
+}
+
+void Renderer3D::Impl::CaptureProbe(const ReflectionProbeData& probe, const Detail::SelectedLights& lights) {
+    SPOT_PROFILE_SCOPE("Renderer3D::CaptureReflectionProbe");
+    const std::optional<RenderPassDesc> faceTarget = probes.GetFaceTarget();
+    if (!faceTarget) {
+        return;
+    }
+    const Camera3D camera = state.camera;
+    const RenderPassDesc target = state.target;
+    const Vector2 viewSize = state.viewSize;
+    constexpr auto FaceSize = static_cast<float>(Detail::ProbeCaptureSize);
+    state.context->BeginGpuTimer("Reflection probe");
+    for (std::uint32_t face = 0; face < 6; ++face) {
+        SetView(Detail::ProbeRenderer::GetFaceCamera(probe, face, camera), *faceTarget, {FaceSize, FaceSize});
+        DrawView(lights, false);
+        probes.FinishFace(face);
+    }
+    probes.FinishCapture(probe);
+    state.context->EndGpuTimer();
+    SetView(camera, target, viewSize);
+    // The stats are the main view's.
+    const std::uint32_t skyLightingUpdates = state.stats.skyLightingUpdates;
+    state.stats = {};
+    state.stats.skyLightingUpdates = skyLightingUpdates;
+    state.stats.reflectionProbeCaptures = 1;
 }
 
 bool Renderer3D::Impl::UploadLights(const Detail::SelectedLights& selected) {
@@ -307,18 +390,19 @@ bool Renderer3D::Impl::UploadLights(const Detail::SelectedLights& selected) {
 }
 
 void Renderer3D::Impl::BindLighting(RenderPass& pass, const Detail::SelectedLights& selected,
-                                    const Detail::ShadowUniforms& shadowUniforms) {
+                                    const Detail::ShadowUniforms& shadowUniforms, bool main, const Texture* occlusion) {
     pass.PushVertexUniforms(0, Detail::MakeFrameUniforms(state.viewProjection, state.camera));
     const Vector3 forward = state.camera.GetForward();
     const LightingUniforms lighting{
         .ambient = selected.ambient,
         .cameraPosition = Detail::ToVector4(state.camera.position, 1.0f),
-        .lightCount = {directionalLightCount, 0, 0, 0},
+        .lightCount = {directionalLightCount, main ? probes.GetCount() : 0u, 0, 0},
         .skyLighting = {sky.IsLit() ? 1.0f : 0.0f, static_cast<float>(Detail::SkyRenderer::ReflectionLevels - 1), 0.0f,
                         0.0f},
         .clusterGrid = {Detail::ClusterTilesX, Detail::ClusterTilesY, Detail::ClusterSlices, 0},
         .clusterDepth = {clusterNear, clusterScale, state.viewSize.x, state.viewSize.y},
         .viewForward = Detail::ToVector4(forward),
+        .probeAtlas = probes.GetAtlasUniforms(),
     };
     pass.PushFragmentUniforms(0, lighting);
     if (lightBuffer && clusterBuffer && lightIndexBuffer) {
@@ -330,6 +414,8 @@ void Renderer3D::Impl::BindLighting(RenderPass& pass, const Detail::SelectedLigh
     pass.PushFragmentUniforms(3, Detail::GetFogUniforms(state.fog, state.camera.position));
     shadows.Bind(pass);
     sky.Bind(pass);
+    pass.BindFragmentTexture(10, occlusion ? *occlusion : *state.whiteTexture, *state.clampSampler);
+    probes.Bind(pass, main);
     // The surfaces' own texture slots, white until a surface binds its own.
     for (const std::uint32_t slot : {0u, 3u, 4u, 5u, 6u}) {
         pass.BindFragmentTexture(slot, *state.whiteTexture, *state.sampler);
@@ -362,24 +448,20 @@ void Renderer3D::Begin(RenderContext& context, const RenderPassDesc& target, con
     SPOT_ASSERT(!state.context, "Renderer3D::Begin() called twice without End()");
     SPOT_ASSERT(target.depthTarget && !target.depthOnly, "Renderer3D draws in passes with a color and a depth target");
     state.context = &context;
-    state.target = target;
     const Vector2 viewSize =
         target.target
             ? Vector2{static_cast<float>(target.target->GetWidth()), static_cast<float>(target.target->GetHeight())}
             : Vector2{static_cast<float>(context.GetWidth()), static_cast<float>(context.GetHeight())};
-    state.viewProjection = camera.GetViewProjection(viewSize);
-    m_impl->inverseSkyViewProjection =
-        Inverse(camera.GetProjection(viewSize) * Matrix4::Rotation(Inverse(camera.rotation)));
-    state.camera = camera;
-    state.viewSize = viewSize;
-    state.aspectRatio = viewSize.y > 0.0f ? viewSize.x / viewSize.y : 1.0f;
+    m_impl->SetView(camera, target, viewSize);
     state.commands.clear();
     state.surfaces.clear();
     state.surfaceViewIndex = 0;
     state.paletteData.clear();
     state.fog.reset();
     m_impl->lights.clear();
+    m_impl->probeData.clear();
     m_impl->skyData.reset();
+    m_impl->cameraDepthDrawn = false;
 }
 
 void Renderer3D::End() {
@@ -404,7 +486,10 @@ void Renderer3D::End() {
 const Texture* Renderer3D::RenderCameraDepth(RenderContext& context) {
     SPOT_PROFILE_SCOPE("Renderer3D::RenderCameraDepth");
     SPOT_ASSERT(!m_impl->state.context, "Camera depth is drawn after Renderer3D::End()");
-    return IsValid() ? m_impl->meshes.RenderCameraDepth(context) : nullptr;
+    if (!IsValid()) {
+        return nullptr;
+    }
+    return m_impl->cameraDepthDrawn ? m_impl->meshes.GetCameraDepth() : m_impl->meshes.RenderCameraDepth(context);
 }
 
 void Renderer3D::DrawLight(const LightData& light) {
@@ -420,6 +505,11 @@ void Renderer3D::DrawSky(const SkyData& sky) {
 void Renderer3D::DrawFog(const FogData& fog) {
     SPOT_ASSERT(m_impl->state.context, "Draw calls must come between Begin() and End()");
     m_impl->state.fog = fog;
+}
+
+void Renderer3D::DrawReflectionProbe(const ReflectionProbeData& probe) {
+    SPOT_ASSERT(m_impl->state.context, "Draw calls must come between Begin() and End()");
+    m_impl->probeData.push_back(probe);
 }
 
 void Renderer3D::DrawMesh(const Mesh& mesh, const Material& material, const Matrix4& transform, bool castsShadows,

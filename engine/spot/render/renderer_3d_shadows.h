@@ -19,17 +19,19 @@ public:
     bool IsValid() const;
 
     // Draws the shadows of the frame's lights that cast them, as long as there is room, marking those lights' shadows
-    // and filling the uniforms the lit shaders read them with. The frame's commands must be sorted and their
-    // instances uploaded.
-    void Draw(SelectedLights& lights, ShadowUniforms& shadows);
-    // The shadow maps, or a map that shadows nothing, where the lit shaders read them.
+    // and filling the uniforms the lit shaders read them with, and the sky's occlusion when asked and configured. The
+    // frame's commands must be sorted and their instances uploaded.
+    void Draw(SelectedLights& lights, ShadowUniforms& shadows, bool skyOcclusion);
+    // The shadow maps and the sky's occlusion, or a map that shadows nothing, where the lit shaders read them.
     void Bind(RenderPass& pass) const;
 
 private:
-    void DrawViews(SelectedLights& lights, ShadowUniforms& shadows);
+    void DrawViews(SelectedLights& lights, ShadowUniforms& shadows, bool skyOcclusion);
     // Whether the shadow map could be created.
     bool DrawCascades(const LightData& light, ShadowUniforms& shadows);
     void DrawLocalShadows(SelectedLights& lights, ShadowUniforms& shadows);
+    // The depth of the highest casters around the camera, seen from above; whether it could be created.
+    bool DrawSkyOcclusion(ShadowUniforms& shadows);
     void DrawCasters(RenderPass& pass, const Matrix4& viewProjection, bool ignoreNear);
     const Pipeline* GetPipeline(const DrawCommand& command) const;
     // Binds what cutout casters sample, when it changed.
@@ -51,6 +53,9 @@ private:
     bool m_noShadowsCleared = false;
     std::unique_ptr<Texture> m_cascadeShadows;
     std::unique_ptr<Texture> m_localShadows;
+    std::unique_ptr<Texture> m_skyOcclusion;
+    // Whether the sky's occlusion was drawn for the view being drawn, and so holds what the lit shaders read.
+    bool m_skyOcclusionDrawn = false;
     // The commands each shadow view draws, as indices into the instances.
     std::unique_ptr<Buffer> m_casters;
     // The commands that may cast shadows, in the order that keeps those that cast the same shadow side by side, which

@@ -8,6 +8,7 @@
 #include "spot/scene/rendering/light.h"
 #include "spot/scene/rendering/mesh_renderer.h"
 #include "spot/scene/rendering/post_processing.h"
+#include "spot/scene/rendering/reflection_probe.h"
 #include "spot/scene/rendering/sky.h"
 #include "spot/scene/rendering/sprite_animator.h"
 #include "spot/scene/rendering/sprite_renderer.h"
@@ -27,6 +28,7 @@ void RegisterRenderComponents() {
     RegisterComponent<Sky>("Sky");
     RegisterComponent<Clouds>("Clouds");
     RegisterComponent<Fog>("Fog");
+    RegisterComponent<ReflectionProbe>("ReflectionProbe");
     RegisterComponent<PostProcessing>("PostProcessing");
     RegisterComponent<TextRenderer>("TextRenderer");
     RegisterComponent<SpriteRenderer>("SpriteRenderer");

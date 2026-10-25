@@ -8,6 +8,8 @@
 #ifndef SPOT_SURFACE_LIGHTING_HLSL
 #define SPOT_SURFACE_LIGHTING_HLSL
 
+#include "environment.hlsl"
+
 Texture2D<float4> surfaceTexture0 : register(t0, space2);
 SamplerState surfaceSampler0 : register(s0, space2);
 // The shadow cascades of the directional light, and the tiles of the other lights' shadows.
@@ -29,10 +31,25 @@ TextureCube<float4> skyReflections : register(t7, space2);
 SamplerState skyReflectionsSampler : register(s7, space2);
 Texture2D<float4> skyIrradiance : register(t8, space2);
 SamplerState skyIrradianceSampler : register(s8, space2);
+// The depth of the highest surfaces around the camera, seen from straight above, which tells what lies under cover
+// from the sky.
+Texture2D<float> skyOcclusion : register(t9, space2);
+SamplerComparisonState skyOcclusionSampler : register(s9, space2);
+// The view's ambient occlusion, by pixel, white where it is off.
+Texture2D<float> screenOcclusion : register(t10, space2);
+SamplerState screenOcclusionSampler : register(s10, space2);
+// The reflection probes' light: their reflections, blurred for each roughness, in tiles of an atlas (see
+// GetProbeReflection()), and their irradiance as nine spherical harmonics, a row per probe, as the sky's.
+Texture2D<float4> probeReflections : register(t11, space2);
+SamplerState probeReflectionsSampler : register(s11, space2);
+Texture2D<float4> probeIrradiance : register(t12, space2);
+SamplerState probeIrradianceSampler : register(s12, space2);
 
 // Must match Detail::MaxShadowCascades and Renderer3D::MaxShadowTiles.
 #define MAX_CASCADES 4
 #define MAX_SHADOW_TILES 32
+// Must match Detail::ProbeLevels.
+#define PROBE_LEVELS 5
 
 struct Light {
     // w is the type: 0 for directional, 1 for point and 2 for spot.
@@ -47,16 +64,26 @@ struct Light {
     float4 cone;
 };
 
+struct Probe {
+    // The box it lights, with in w how far inside it its light fades in, and its intensity.
+    float4 boxMin;
+    float4 boxMax;
+    // Where it captured the scene from, and in w its tile in the atlas.
+    float4 position;
+};
+
 // The frame's lights, directional ones first; the view's clusters, each the first of its lights in lightIndices and
-// how many there are; and those lists of lights, by their index in lights. See Detail::BuildLightClusters().
-StructuredBuffer<Light> lights : register(t9, space2);
-StructuredBuffer<uint2> clusters : register(t10, space2);
-StructuredBuffer<uint> lightIndices : register(t11, space2);
+// how many there are; and those lists of lights, by their index in lights. See Detail::BuildLightClusters(). Then the
+// reflection probes, the smallest first, so a probe inside another lights what it holds.
+StructuredBuffer<Light> lights : register(t13, space2);
+StructuredBuffer<uint2> clusters : register(t14, space2);
+StructuredBuffer<uint> lightIndices : register(t15, space2);
+StructuredBuffer<Probe> probes : register(t16, space2);
 
 cbuffer Lighting : register(b0, space3) {
     float4 ambientColor;
     float4 cameraPosition;
-    // x is the number of directional lights, which reach every pixel.
+    // x is the number of directional lights, which reach every pixel; y the number of reflection probes.
     uint4 lightCount;
     // 1 in x when the sky lights the scene, and in y the mip level of its reflections for a roughness of 1.
     float4 skyLighting;
@@ -66,6 +93,8 @@ cbuffer Lighting : register(b0, space3) {
     float4 clusterDepth;
     // The camera's forward axis, along which depth goes.
     float4 viewForward;
+    // The size of a probe's tile at its first level, the tiles across the atlas, and the inverse of its size.
+    float4 probeAtlas;
 };
 
 // The list of lights that may reach the pixel at the position, at the depth along the camera's forward axis.
@@ -89,6 +118,12 @@ cbuffer Shadows : register(b2, space3) {
     // The columns and rows of tiles in each shadow map, and the size of their texels in UVs.
     float4 cascadeLayout;
     float4 tileLayout;
+    // Takes world positions to the UVs of the sky's occlusion, Y down, and to the depth it holds, which grows
+    // downward.
+    float4x4 skyOcclusionView;
+    // 1 in x when there is sky occlusion; the radius around a point it looks for cover in, in world units; the depth a
+    // world unit of height spans; and the size of its texels in world units.
+    float4 skyOcclusionParams;
 };
 
 // The fog's color, with 1 in w when there is fog; its density, start, height falloff and base height; and the camera's
@@ -270,11 +305,11 @@ Lit GetLight(Light light, float3 position, float3 normal, float3 toViewer, float
     return lit;
 }
 
-// The light a surface facing the direction receives from the sky.
-float3 GetSkyIrradiance(float3 n) {
+// The light a surface facing the direction receives from what the nine spherical harmonics in the row hold.
+float3 GetIrradiance(Texture2D<float4> harmonics, int row, float3 n) {
     float3 sh[9];
     [unroll] for (int i = 0; i < 9; ++i) {
-        sh[i] = skyIrradiance.Load(int3(i, 0, 0)).rgb;
+        sh[i] = harmonics.Load(int3(i, row, 0)).rgb;
     }
     return max(sh[0] * 0.282095 + (sh[1] * n.y + sh[2] * n.z + sh[3] * n.x) * 0.488603 +
                    (sh[4] * n.x * n.y + sh[5] * n.y * n.z + sh[7] * n.x * n.z) * 1.092548 +
@@ -282,15 +317,90 @@ float3 GetSkyIrradiance(float3 n) {
                0.0);
 }
 
-// The share of light from all around that a surface reflects toward the viewer: the integral of the GGX lobe over the
-// environment, fitted analytically (Karis 2014) instead of read from a table.
-float3 GetEnvironmentReflectance(float3 reflectance, float perceived, float nv) {
+// The light a surface facing the direction receives from the sky.
+float3 GetSkyIrradiance(float3 n) {
+    return GetIrradiance(skyIrradiance, 0, n);
+}
+
+// How much of the sky a point sees past what covers it, from 0 under a roof or in a cave to 1 in the open: the share
+// of a disc around it, in the sky's occlusion, where no surface is higher than it. The disc is moved off the surface
+// the way it faces along the ground, so walls look into the air in front of them, but not up, so a floor still finds
+// the ceiling over it however low; and a sloping surface counts as higher only what rises above its own slope, so
+// hillsides do not hide themselves.
+float GetSkyVisibility(float3 position, float3 normal) {
+    if (skyOcclusionParams.x < 0.5) {
+        return 1.0;
+    }
+    const float radius = skyOcclusionParams.y;
+    const float3 center = position + float3(normal.x, 0.0, normal.z) * radius;
+    // A couple of texels, so surfaces that are the highest where they are are not hidden by their own depth.
+    const float bias = 2.0 * skyOcclusionParams.w + 0.05;
+    float visible = 0.0;
+    [unroll] for (int i = 0; i < 16; ++i) {
+        const float2 offset = ShadowTaps[i] * radius;
+        const float rise = normal.y > 0.3 ? max(-(normal.x * offset.x + normal.z * offset.y) / normal.y, 0.0) : 0.0;
+        const float4 clip = mul(skyOcclusionView, float4(center + float3(offset.x, 0.0, offset.y), 1.0));
+        const float3 projected = clip.xyz / clip.w;
+        if (any(projected.xy < 0.0) || any(projected.xy > 1.0)) {
+            visible += 1.0;
+        } else {
+            const float depth = projected.z - (rise + bias) * skyOcclusionParams.z;
+            visible += skyOcclusion.SampleCmpLevelZero(skyOcclusionSampler, projected.xy, depth);
+        }
+    }
+    return visible / 16.0;
+}
+
+// The view's ambient occlusion at the pixel, SV_Position.xy, from 1 for none. It is worked out from the camera's
+// depth, which holds only what hides what is behind it, so transparent surfaces leave it out.
+float GetScreenOcclusion(float2 pixel) {
+    return screenOcclusion.SampleLevel(screenOcclusionSampler, pixel / clusterDepth.zw, 0.0);
+}
+
+// How much the probe lights the position: fully inside its box, fading in over its blend distance from the box's
+// faces, and not at all outside it.
+float GetProbeWeight(Probe probe, float3 position) {
+    const float3 inside = min(position - probe.boxMin.xyz, probe.boxMax.xyz - position);
+    const float depth = min(inside.x, min(inside.y, inside.z));
+    return depth <= 0.0 ? 0.0 : saturate(depth / max(probe.boxMin.w, 1e-4));
+}
+
+// The probe's reflections at one of their levels, in the tile's place in the atlas: the first level fills the top of
+// the tile, a square, and each of the next, half the size of the one before, follows the one before under it, left to
+// right. Each square has a border of a texel that repeats its edge.
+float3 GetProbeLevel(uint tile, float3 direction, float level) {
+    const float size = probeAtlas.x;
+    const uint columns = (uint)probeAtlas.y;
+    const float2 tileOrigin = float2(tile % columns, tile / columns) * float2(size, size * 1.5);
+    const float levelSize = size / exp2(level);
+    const float2 levelOrigin = level < 0.5 ? float2(0.0, 0.0) : float2(size - 2.0 * levelSize, size);
+    const float2 texel = tileOrigin + levelOrigin + 1.0 + EncodeOctahedral(direction) * (levelSize - 2.0);
+    return probeReflections.SampleLevel(probeReflectionsSampler, texel * probeAtlas.zw, 0.0).rgb;
+}
+
+// What the probe reflects along the direction from the position, blurred for the roughness. Probes capture what is
+// around them as if it were infinitely far, so the direction is turned toward where it meets the probe's box, which
+// stands for the walls of the room it lights (Lagarde and Zanuttini 2012).
+float3 GetProbeReflection(Probe probe, float3 position, float3 direction, float roughness) {
+    const float3 safe = (1.0 - 2.0 * step(direction, 0.0)) * max(abs(direction), 1e-5);
+    const float3 exits = max((probe.boxMax.xyz - position) / safe, (probe.boxMin.xyz - position) / safe);
+    const float3 projected = position + direction * min(exits.x, min(exits.y, exits.z)) - probe.position.xyz;
+    const uint tile = (uint)probe.position.w;
+    const float level = roughness * (PROBE_LEVELS - 1);
+    const float lower = floor(level);
+    return lerp(GetProbeLevel(tile, projected, lower), GetProbeLevel(tile, projected, min(lower + 1.0, PROBE_LEVELS - 1)),
+                level - lower);
+}
+
+// The integral of the GGX lobe over the environment, as the scale and bias of the reflectance that give the share of
+// light from all around a surface reflects toward the viewer, fitted analytically (Karis 2014) instead of read from a
+// table. Their sum is the share a surface reflecting everything keeps, when its light bounces off a single microfacet.
+float2 GetEnvironmentBrdf(float perceived, float nv) {
     const float4 c0 = float4(-1.0, -0.0275, -0.572, 0.022);
     const float4 c1 = float4(1.0, 0.0425, 1.04, -0.04);
     const float4 r = perceived * c0 + c1;
     const float a004 = min(r.x * r.x, exp2(-9.28 * nv)) * r.x + r.y;
-    const float2 ab = float2(-1.04, 1.04) * a004 + r.zw;
-    return reflectance * ab.x + ab.y;
+    return float2(-1.04, 1.04) * a004 + r.zw;
 }
 
 // A point of a surface as lighting needs it.
@@ -339,27 +449,67 @@ SurfaceLight LightSurface(SurfacePoint surface) {
         light.diffuse += lit.diffuse;
         light.highlights += lit.specular;
     }
-    // Light from all around: ambient lights, the same from every direction, and the sky's, scattered by the
-    // irradiance and reflected from the blurred sky along the mirror direction.
+    // Light from all around: ambient lights, the same from every direction; the reflection probes whose boxes hold the
+    // point, scattered by their irradiance and reflected from their blurred captures; and the sky's light for what
+    // they leave, likewise, as much as the point is not under cover.
     light.surroundings = ambientColor.rgb;
     light.reflectedSurroundings = ambientColor.rgb;
     const float3 seenNormal = dot(surface.normal, toViewer) < 0.0 && surface.doubleSided ? -surface.normal : surface.normal;
-    if (skyLighting.x > 0.5) {
-        light.surroundings += GetSkyIrradiance(seenNormal);
-        const float3 mirrored = reflect(-toViewer, seenNormal);
+    const float3 mirrored = reflect(-toViewer, seenNormal);
+    float remaining = 1.0;
+    for (uint p = 0; p < lightCount.y && remaining > 0.0; ++p) {
+        const Probe probe = probes[p];
+        const float weight = GetProbeWeight(probe, surface.position) * remaining;
+        if (weight > 0.0) {
+            const float scale = weight * probe.boxMax.w;
+            light.surroundings += GetIrradiance(probeIrradiance, (int)probe.position.w, seenNormal) * scale;
+            light.reflectedSurroundings +=
+                GetProbeReflection(probe, surface.position, mirrored, surface.roughness) * scale;
+            remaining -= weight;
+        }
+    }
+    if (skyLighting.x > 0.5 && remaining > 0.0) {
+        const float sky = GetSkyVisibility(surface.position, seenNormal) * remaining;
+        light.surroundings += GetSkyIrradiance(seenNormal) * sky;
         light.reflectedSurroundings +=
-            skyReflections.SampleLevel(skyReflectionsSampler, mirrored, surface.roughness * skyLighting.y).rgb;
+            skyReflections.SampleLevel(skyReflectionsSampler, mirrored, surface.roughness * skyLighting.y).rgb * sky;
     }
     const float nv = saturate(dot(seenNormal, toViewer));
-    light.environmentReflectance = GetEnvironmentReflectance(surface.reflectance, surface.roughness, nv);
+    const float2 brdf = GetEnvironmentBrdf(surface.roughness, nv);
+    const float3 singleScattering = surface.reflectance * brdf.x + brdf.y;
+    // Light that bounces between microfacets before it leaves is lost to single scattering, which darkens rough
+    // surfaces, rough metals most; it is added back as Fdez-Aguera (2019) and Filament do.
+    const float kept = max(brdf.x + brdf.y, 0.05);
+    const float3 average = surface.reflectance + (1.0 - surface.reflectance) / 21.0;
+    light.highlights *= 1.0 + surface.reflectance * (1.0 / kept - 1.0);
+    light.environmentReflectance =
+        singleScattering + singleScattering * average * (1.0 - kept) / (1.0 - (1.0 - kept) * average);
     return light;
 }
 
-// The color of an opaque surface as Renderer3D shades its meshes: lit by the frame's lights, shadows and sky, giving
-// off its emitted light, and fogged. Metalness and roughness are from 0 to 1, as in glTF; occlusion darkens the light
-// from all around, from 1 for none.
-float3 ShadeOpaqueSurface(float3 position, float3 normal, float2 pixel, float3 albedo, float metalness, float roughness,
-                          float occlusion, float3 emitted, bool doubleSided) {
+// How much of the light from all around a surface reflects reaches it, past what darkens it (occlusion, from 1 for
+// none) and the surface itself. Occlusion hides more of the reflections of smooth surfaces and at grazing angles
+// (Lagarde 2014). Normal maps can tilt the mirror direction below the horizon of the surface they are on, whose
+// geometric normal is surfaceNormal, where it would reflect the surface's own inside.
+float GetReflectionOcclusion(SurfacePoint surface, float3 surfaceNormal, float occlusion) {
+    const float3 toViewer = normalize(cameraPosition.xyz - surface.position);
+    const bool backFace = surface.doubleSided && dot(surface.normal, toViewer) < 0.0;
+    const float3 normal = backFace ? -surface.normal : surface.normal;
+    const float3 horizonNormal = backFace ? -surfaceNormal : surfaceNormal;
+    const float nv = saturate(dot(normal, toViewer));
+    const float alpha = surface.roughness * surface.roughness;
+    const float occluded = saturate(pow(nv + occlusion, exp2(-16.0 * alpha - 1.0)) - 1.0 + occlusion);
+    const float horizon = saturate(1.0 + dot(reflect(-toViewer, normal), horizonNormal));
+    return occluded * horizon * horizon;
+}
+
+// The color of an opaque surface as Renderer3D shades its meshes: lit by the frame's lights, shadows, probes and sky,
+// giving off its emitted light, and fogged. Metalness and roughness are from 0 to 1, as in glTF; occlusion darkens the
+// light from all around, from 1 for none, along with the view's ambient occlusion. The normal may be tilted by a normal
+// map, and surfaceNormal is then the geometric normal it was tilted from.
+float3 ShadeOpaqueSurface(float3 position, float3 normal, float3 surfaceNormal, float2 pixel, float3 albedo,
+                          float metalness, float roughness, float occlusion, float3 emitted, bool doubleSided) {
+    occlusion *= GetScreenOcclusion(pixel);
     SurfacePoint surface;
     surface.position = position;
     surface.normal = normal;
@@ -372,9 +522,17 @@ float3 ShadeOpaqueSurface(float3 position, float3 normal, float2 pixel, float3 a
     surface.reflectance = lerp(float3(0.04, 0.04, 0.04), albedo, metalness);
     const SurfaceLight light = LightSurface(surface);
     const float3 scattered = albedo * (1.0 - metalness);
-    const float3 ambient = scattered * light.surroundings + light.reflectedSurroundings * light.environmentReflectance;
-    const float3 color = scattered * light.diffuse + ambient * occlusion + light.highlights + emitted;
+    const float3 ambient =
+        scattered * light.surroundings * occlusion + light.reflectedSurroundings * light.environmentReflectance *
+                                                         GetReflectionOcclusion(surface, surfaceNormal, occlusion);
+    const float3 color = scattered * light.diffuse + ambient + light.highlights + emitted;
     return lerp(color, fogColor.rgb, GetFogAmount(position - fogCamera.xyz));
+}
+
+float3 ShadeOpaqueSurface(float3 position, float3 normal, float2 pixel, float3 albedo, float metalness, float roughness,
+                          float occlusion, float3 emitted, bool doubleSided) {
+    return ShadeOpaqueSurface(position, normal, normal, pixel, albedo, metalness, roughness, occlusion, emitted,
+                              doubleSided);
 }
 
 #endif

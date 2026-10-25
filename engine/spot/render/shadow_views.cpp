@@ -99,6 +99,16 @@ ShadowView GetPointShadowView(const LightData& light, std::uint32_t face, std::u
     return GetLocalShadowView(light.position, Axes[std::min<std::size_t>(face, 5)], tanHalfFov, light.range, mapSize);
 }
 
+ShadowView GetSkyOcclusionView(Vector3 position, float distance, std::uint32_t mapSize) {
+    distance = std::max(distance, 0.01f);
+    const float texelSize = 2.0f * distance / static_cast<float>(std::max(mapSize, 1u));
+    const Vector3 center{std::floor(position.x / texelSize) * texelSize, position.y + distance,
+                         std::floor(position.z / texelSize) * texelSize};
+    const Matrix4 view = Matrix4::LookAt(center, center - Vector3{0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, -1.0f});
+    const Matrix4 projection = Matrix4::Orthographic(-distance, distance, -distance, distance, 0.0f, 2.0f * distance);
+    return {.viewProjection = projection * view, .texelSize = texelSize};
+}
+
 float GetLocalShadowNearPlane(float range) {
     return std::max(range * 0.005f, 0.01f);
 }

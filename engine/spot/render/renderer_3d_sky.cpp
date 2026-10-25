@@ -53,16 +53,6 @@ constexpr std::uint32_t CubeSize = 64;
 // The sky's irradiance is projected from its faces at this size.
 constexpr std::uint32_t IrradianceSamples = 16;
 
-// The directions of each face of a cube texture, as TextureType::Cube lays them out: forward, right and up.
-constexpr std::array<std::array<Vector3, 3>, 6> CubeFaces{{
-    {{{1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}}},
-    {{{-1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}}},
-    {{{0.0f, 1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}}},
-    {{{0.0f, -1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}},
-    {{{0.0f, 0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}}},
-    {{{0.0f, 0.0f, -1.0f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}}},
-}};
-
 Color operator*(Color color, float scale) {
     return {color.r * scale, color.g * scale, color.b * scale, color.a};
 }

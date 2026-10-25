@@ -3,6 +3,7 @@
 #include "spot/core/math/color.h"
 #include "spot/graphics/render_graph.h"
 #include "spot/graphics/texture.h"
+#include "spot/render/ambient_occlusion.h"
 #include "spot/render/bloom.h"
 #include "spot/render/fxaa.h"
 #include "spot/render/render_stage.h"
@@ -43,6 +44,10 @@ struct SceneRendererConfig {
     float shadowDistance = 60.0f;
     std::uint32_t localShadowMapSize = 512;
     bool gpuCulling = false;
+    // See Renderer3DConfig; games draw scenes with both on.
+    AmbientOcclusionSettings ambientOcclusion = {.enabled = true};
+    std::uint32_t skyOcclusionSize = 512;
+    float skyOcclusionDistance = 64.0f;
 };
 
 // Draws a scene through its first main camera: meshes, debug shapes, sprites and particles into HDR,

@@ -227,6 +227,11 @@ uses it. The `Impl` (`renderer_3d.cpp`) selects the frame's lights, uploads them
 - `SkyRenderer` (`renderer_3d_sky.cpp`) draws the sky and captures the light it gives surfaces.
 - `WorldCuller` (`renderer_3d_worlds.cpp`) keeps render worlds on the GPU in batches and, where the device has compute
   and indirect draws, culls their instances there.
+- `ProbeRenderer` (`renderer_3d_probes.cpp`) keeps the reflection probes' captures in an atlas and captures them.
+
+`End()` draws a view through `DrawView()`: shadows, then the lit pass. A frame's main view is drawn once; a probe's
+capture draws six more views first, one per face of a cube around it, with the same meshes, surfaces and lights, so
+everything that draws a view takes the view from the `Renderer3DState` rather than assuming the main camera.
 
 ### Models and submeshes
 
@@ -272,6 +277,48 @@ may reach it (`Detail::BuildLightClusters()`), and the lights and lists go to th
 finds its cluster from its position and depth and goes through the directional lights, which reach everything, and
 its cluster's lights. Shadows keep their own budget: the first directional light's cascades, and
 `Renderer3D::MaxShadowTiles` tiles for point and spot lights, given to those nearest the camera.
+
+### Light from all around
+
+Besides its lights, a surface gets light from all around: what bounces off everything else, which lights the sides
+facing away from the lights. `LightSurface()` (`surface_lighting.hlsl`) adds it up from three places, each scattered
+by an irradiance along the normal (nine spherical harmonics) and reflected from a blurred capture along the mirror
+direction, the blur picked by the roughness (split-sum image-based lighting):
+
+- **Ambient lights**, the same from every direction, which the game places by hand.
+- **Reflection probes** (`Renderer3D::DrawReflectionProbe()`, `ReflectionProbeData`): the scene captured around a
+  point, which lights what is inside the probe's box in place of the sky. That is the light that bounces off the
+  walls of a room or a cave, where the sky does not reach. `ProbeRenderer` captures a probe the first time it is
+  drawn, and again when it moves or its `version` changes, one probe a frame, the nearest the camera first: six
+  views of 128 pixels around it, through `DrawView()` with what the frame draws, lit by everything but probes, so a
+  capture holds the light that reaches the probe from outside it. Each face is drawn by a camera, whose axes are
+  right-handed, and copied mirrored into a cube map, whose faces are not; the cube is blurred for five roughnesses
+  into the probe's tile of an atlas (`MaxReflectionProbes`, 16, tiles, octahedral, each level under the one before,
+  with a border of a texel so filtering stays inside), and its irradiance projected into a row of nine harmonics,
+  as the sky's is. Surfaces go through the frame's probes from the smallest box, each taking the share of the light
+  that the probes before left, faded in over `blendDistance` from the box's faces; reflections are turned toward
+  where they meet the box (box projection), so they line up with the walls they reflect. The sky lights what the
+  probes leave.
+- **The sky**, captured as the `Sky` component describes below, as much as the point is in the open: the **sky's
+  occlusion** (`Renderer3DConfig::skyOcclusionSize`) is the depth of the highest casters around the camera, seen
+  from straight above through `ShadowRenderer` like one more shadow view, which moves in whole texels.
+  `GetSkyVisibility()` counts the share of a disc of a couple of meters around the point where nothing is higher
+  than it: a floor under a roof or in a cave sees none of the sky, the ground under a tree some. The disc moves off
+  the surface the way it faces along the ground, so walls look into the air in front of them, and a sloping surface
+  only counts what rises above its own slope, so hillsides do not hide themselves. It reaches
+  `skyOcclusionDistance` around the camera, past which everything is in the open.
+
+**Ambient occlusion** (`Renderer3DConfig::ambientOcclusion`, `AmbientOcclusion`) darkens all three in creases,
+corners and where things touch, on top of the materials' occlusion maps. Before the lit pass, `End()` draws the
+camera's depth (`MeshBatcher::RenderCameraDepth()`, which `RenderCameraDepth()` then gives as it is) and
+`AmbientOcclusion` works out the occlusion of each pixel from it, scalable ambient obscurance (McGuire et al. 2012):
+points on a spiral within `radius` of the pixel, the spiral turned differently at each pixel, compared with the plane
+of the pixel's surface, whose normal the depth gives too, then blurred along each axis across pixels at about the
+same depth. Opaque surfaces read it by pixel (`GetScreenOcclusion()`, which `ShadeOpaqueSurface()` multiplies their
+occlusion by); transparent ones, which the depth does not hold, do not. Occlusion also hides more of the reflections
+of smooth surfaces and at grazing angles (`GetReflectionOcclusion()`). Only what the camera's depth holds hides
+anything, so custom surfaces take part through `CustomSurface::DrawDepth()`, as they cover the sky through
+`DrawShadow()`.
 
 ### Instancing
 
@@ -339,12 +386,15 @@ view and its frustum planes for culling, and what pipelines must match there.
 - **Lit**: in the view's pass, after the sky and before the meshes, with the view and the frame's lighting already
   bound, so a surface binds only its pipeline, buffers, textures and uniforms of its own. Its vertex shader reads the
   view from `surface_frame.hlsl`; its fragment shader includes `surface_lighting.hlsl`, which declares every resource
-  of the pass at the registers Renderer3D binds and shades a point as the meshes are (`ShadeOpaqueSurface()`, or
-  `LightSurface()` for shading of its own). Five texture slots and the fragment uniforms at `b1` are the surface's
-  own; `mesh.frag.hlsl` is itself built this way.
+  of the pass at the registers Renderer3D binds and shades a point as the meshes are (`ShadeOpaqueSurface()`, which
+  also takes the geometric normal when a normal map tilts the one shaded, or `LightSurface()` and
+  `GetReflectionOcclusion()` for shading of its own). Five texture slots and the fragment uniforms at `b1` are the
+  surface's own; `mesh.frag.hlsl` is itself built this way. A surface drawn into the faces of a reflection probe's
+  capture gets a `viewIndex` and a pass for each, like any view.
 - **Shadow**: each view of a shadow-casting light, depth only, with the depth clamp and bias of Renderer3D's own
   casters (`GetShadowDepthState()`).
-- **Depth**: the camera's depth, when `RenderCameraDepth()` draws it for effects that read it.
+- **Depth**: the camera's depth, when `RenderCameraDepth()` draws it for effects that read it, and for ambient
+  occlusion before the view's pass.
 
 Before opening a pass, Renderer3D calls `CustomSurface::Prepare()` with a `SurfacePrepareContext`: the render
 context, the view's kind, matrix and frustum planes, and its `viewIndex`. A surface can dispatch compute here to
@@ -424,8 +474,9 @@ as an `Rgba8` texture, which keeps its values as they are. `SceneRendererConfig:
 The look of a game comes from the first active `PostProcessing` component in the scene: its tonemapper
 and exposure, bloom and grading, LUT included (a texture asset imported with `srgb` off in its import settings, so
 its values are read as they are). Without one, the rendering settings section of the project (`RenderingSettings`,
-"rendering") gives the defaults, along with the quality the application draws at: FXAA, MSAA samples, and the
-sizes and distance of shadows. The editor's views use the same, and the Project Settings panel and the inspector
+"rendering") gives the defaults, along with the quality the application draws at: FXAA, MSAA samples, the
+sizes and distance of shadows, ambient occlusion and the sky's occlusion, both on for games and off by default in
+`Renderer3DConfig`. The editor's views use the same, and the Project Settings panel and the inspector
 edit both.
 
 ### Antialiasing
@@ -449,14 +500,18 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
   them); a tangent-space normal map with its `normalScale`; an occlusion map, which darkens ambient light by
   `occlusionStrength`; and an `emissive` color and texture the surface gives off itself, which glow through bloom
   above 1. Dielectrics scatter their color and reflect about 4% of the light untinted; metals scatter nothing and
-  reflect in their color. Highlights are GGX microfacets, as wide as the roughness says. Materials can also be
-  double-sided, and project their textures from world space (`worldTextureSize`), their normal maps then tilting
-  the surface along the world axes the texture is laid out on. Projected from the world, blocks side by side continue
-  each other's pattern, but the textures stay put as a mesh moves and slide across it, so meshes that move project
-  from their own space instead (`MeshRenderer::SetTextureSpace()`, `RenderMeshDesc::textureSpace`): along their axes
-  from their origin, at the world's scale, so the textures keep their size however the mesh is scaled. The instance
-  data says which, in the normal matrix's last column, which turns nothing (see `GetNormalMatrix()`), and the vertex
-  shaders hand the fragment shader the position, normal and axes the textures are projected by.
+  reflect in their color. Highlights are GGX microfacets, as wide as the roughness says, with the light that bounces
+  between microfacets added back (Fdez-Aguera 2019), without which rough metals look too dark. Occlusion hides more
+  of the reflections of the surroundings on smooth surfaces and at grazing angles (Lagarde 2014), and reflections a
+  normal map tilts below the surface's geometric horizon fade out, as the surface itself hides them
+  (`GetReflectionOcclusion()`). Materials can also be double-sided, and project their textures from world space
+  (`worldTextureSize`), their normal maps then tilting the surface along the world axes the texture is laid out on.
+  Projected from the world, blocks side by side continue each other's pattern, but the textures stay put as a mesh moves
+  and slide across it, so meshes that move project from their own space instead (`MeshRenderer::SetTextureSpace()`,
+  `RenderMeshDesc::textureSpace`): along their axes from their origin, at the world's scale, so the textures keep their
+  size however the mesh is scaled. The instance data says which, in the normal matrix's last column, which turns nothing
+  (see `GetNormalMatrix()`), and the vertex shaders hand the fragment shader the position, normal and axes the textures
+  are projected by.
   Normal, metallic-roughness and occlusion textures hold data, so they are imported with `srgb` off; models do this
   for the images they use only that way. A material's `alphaMode` says what its alpha does: `Opaque` ignores it,
   `Cutout` drops pixels below `alphaCutoff` (in shadows too) for leaves and grates, and `Transparent` lets what is
@@ -489,7 +544,11 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
   lighting does) and projects its irradiance onto nine spherical harmonics. Surfaces then scatter the irradiance
   along their normal and reflect the blurred sky along their mirror direction, so the ground's color lights
   undersides and metals mirror the sky. `GetStats().skyLightingUpdates` tells when a capture happened; a sky that
-  turns all the time, as the sandbox's does, is captured every frame, which costs a few small passes.
+  turns all the time, as the sandbox's does, is captured every frame, which costs a few small passes. What lies
+  under cover gets less of it (see [Light from all around](#light-from-all-around)).
+- `ReflectionProbe`: a reflection probe at its entity, lighting a box of `size` centered on it, along the world's
+  axes, with its `blendDistance` and `intensity`; each component has an id of its own, which keeps its capture, and
+  `Refresh()` captures it again, as when the time of day changed around it.
 - `Fog`: exponential height fog from its entity's height, thick below it and thinning above it as `heightFalloff`
   says, clear up to `start`; `density` is how much light it takes per unit of distance. Surfaces fade into its color
   (which may be above 1, as lit fog is) before tonemapping, and so does the sky toward the horizon, so the two meet

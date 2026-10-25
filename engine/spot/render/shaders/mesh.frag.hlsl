@@ -113,8 +113,9 @@ float4 main(Input input) : SV_Target0 {
     const float occlusion = lerp(1.0, occlusionTexture.Sample(occlusionSampler, uv).r, occlusionStrength);
     const float3 emitted = emissive.rgb * emissiveTexture.Sample(emissiveSampler, uv).rgb;
     if (alphaMode < 1.5) {
-        return float4(ShadeOpaqueSurface(input.worldPosition, normal, input.position.xy, albedo.rgb, metalness,
-                                         roughness * metallicRoughness.g, occlusion, emitted, doubleSided > 0.5),
+        return float4(ShadeOpaqueSurface(input.worldPosition, normal, surfaceNormal, input.position.xy, albedo.rgb,
+                                         metalness, roughness * metallicRoughness.g, occlusion, emitted,
+                                         doubleSided > 0.5),
                       1.0);
     }
 
@@ -131,8 +132,9 @@ float4 main(Input input) : SV_Target0 {
     // Premultiplied: what the surface scatters covers what is behind it as much as its alpha says, while what it
     // reflects and gives off is added at full strength. Fog covers it all, as much as the surface is there.
     const float3 scatteredLight = scattered * (light.diffuse + light.surroundings * occlusion);
-    const float3 reflectedLight =
-        light.reflectedSurroundings * light.environmentReflectance * occlusion + light.highlights + emitted;
+    const float3 reflectedLight = light.reflectedSurroundings * light.environmentReflectance *
+                                      GetReflectionOcclusion(surface, surfaceNormal, occlusion) +
+                                  light.highlights + emitted;
     const float3 premultiplied = scatteredLight * albedo.a + reflectedLight;
     return float4(lerp(premultiplied, fogColor.rgb * albedo.a, fog), albedo.a);
 }

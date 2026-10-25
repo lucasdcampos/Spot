@@ -38,6 +38,19 @@ void RenderingSettings::Serialize(Archive& archive) {
         {.min = 0.0f, .max = 4096.0f, .tooltip = "Pixels of each point and spot light shadow; 0 turns them off"});
     archive.Field("gpuCulling", gpuCulling,
                   {.tooltip = "Culls the scene's meshes on the GPU, for scenes of many objects"});
+    archive.Field("ambientOcclusion", ambientOcclusion.enabled,
+                  {.tooltip = "Darkens the light from all around in creases and corners"});
+    archive.Field(
+        "ambientOcclusionRadius", ambientOcclusion.radius,
+        {.min = 0.01f, .max = 10.0f, .speed = 0.01f, .tooltip = "How far apart surfaces still darken each other"});
+    archive.Field("ambientOcclusionIntensity", ambientOcclusion.intensity, {.min = 0.0f, .max = 4.0f, .speed = 0.01f});
+    archive.Field(
+        "skyOcclusionSize", skyOcclusionSize,
+        {.min = 0.0f,
+         .max = 4096.0f,
+         .tooltip = "Pixels of the map that keeps the sky's light out of what is under cover; 0 turns it off"});
+    archive.Field("skyOcclusionDistance", skyOcclusionDistance,
+                  {.min = 1.0f, .max = 10000.0f, .speed = 0.5f, .tooltip = "How far from the camera it reaches"});
     if (archive.IsLoading()) {
         grading.lut = nullptr;
     }
@@ -55,6 +68,9 @@ void RenderingSettings::Apply(SceneRendererConfig& config) const {
     config.shadowDistance = std::max(shadowDistance, 1.0f);
     config.localShadowMapSize = localShadowMapSize;
     config.gpuCulling = gpuCulling;
+    config.ambientOcclusion = ambientOcclusion;
+    config.skyOcclusionSize = skyOcclusionSize;
+    config.skyOcclusionDistance = std::max(skyOcclusionDistance, 1.0f);
 }
 
 } // namespace Spot

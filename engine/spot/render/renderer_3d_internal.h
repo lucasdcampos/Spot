@@ -148,7 +148,21 @@ struct ShadowUniforms {
     // The columns and rows of tiles in each shadow map, and the size of their texels in UVs.
     Vector4 cascadeLayout;
     Vector4 tileLayout;
+    Matrix4 skyOcclusionView;
+    // 1 when there is sky occlusion, the radius its lookups spread over, the depth a unit of height spans, and the size
+    // of its texels, in world units.
+    Vector4 skyOcclusionParams;
 };
+
+// The directions of each face of a cube texture, as TextureType::Cube lays them out: forward, right and up.
+inline constexpr std::array<std::array<Vector3, 3>, 6> CubeFaces{{
+    {{{1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}}},
+    {{{-1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}}},
+    {{{0.0f, 1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}}},
+    {{{0.0f, -1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}},
+    {{{0.0f, 0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}}},
+    {{{0.0f, 0.0f, -1.0f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}}},
+}};
 
 // Uploads the elements, growing the buffer to the next power of two when they do not fit. Buffers are never empty,
 // so they can be bound when there is nothing to put in them.
@@ -177,7 +191,7 @@ bool UploadStorage(GraphicsDevice& device, std::unique_ptr<Buffer>& buffer, cons
 struct Renderer3DState {
     Renderer3DState(GraphicsDevice& device, const Renderer3DConfig& config);
 
-    bool IsValid() const { return sampler && nearestSampler && whiteTexture; }
+    bool IsValid() const { return sampler && nearestSampler && clampSampler && whiteTexture; }
 
     // Gives the frame's custom surfaces the view, before its pass opens, and returns the view's index.
     std::uint32_t PrepareSurfaces(RenderContext& renderContext, SurfacePass kind, const Matrix4& view, bool ignoreNear);
@@ -188,6 +202,8 @@ struct Renderer3DState {
     Renderer3DConfig config;
     std::unique_ptr<Sampler> sampler;
     std::unique_ptr<Sampler> nearestSampler;
+    // Linear, clamped to the edge, for images of the view and atlases.
+    std::unique_ptr<Sampler> clampSampler;
     // Untextured materials sample this, so one shader serves both kinds.
     std::unique_ptr<Texture> whiteTexture;
     // The transforms of every command of the frame, which instanced draws read from the first of their batch on, and

@@ -11,6 +11,7 @@
 #include "spot/scene/rendering/fog.h"
 #include "spot/scene/rendering/light.h"
 #include "spot/scene/rendering/mesh_renderer.h"
+#include "spot/scene/rendering/reflection_probe.h"
 #include "spot/scene/rendering/render_world_system.h"
 #include "spot/scene/rendering/sky.h"
 #include "spot/scene/rendering/sprite_renderer.h"
@@ -60,6 +61,8 @@ void DrawScene(Renderer3D& meshes, Scene& scene) {
     if (fog) {
         meshes.DrawFog(fog->GetFogData());
     }
+    scene.ForEachComponent<ReflectionProbe>(
+        [&meshes](const ReflectionProbe& probe) { meshes.DrawReflectionProbe(probe.GetProbeData()); });
     scene.ForEachComponent<SkinnedMeshRenderer>([&meshes](const SkinnedMeshRenderer& renderer) {
         if (renderer.GetMesh() && !renderer.GetPalette().empty() &&
             ((meshes.GetCamera().cullingMask >> renderer.GetEntity().GetLayer()) & 1u)) {

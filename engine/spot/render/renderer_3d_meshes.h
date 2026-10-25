@@ -28,6 +28,8 @@ public:
     void Flush(RenderPass& pass);
     // Draws what the view's pass drew, but transparent surfaces, into readable single-sample depth.
     const Texture* RenderCameraDepth(RenderContext& context);
+    // What RenderCameraDepth() drew last.
+    const Texture* GetCameraDepth() const { return m_cameraDepth.get(); }
 
 private:
     // Gives the commands their looks.
