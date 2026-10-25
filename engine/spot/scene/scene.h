@@ -274,21 +274,26 @@ public:
     template <std::derived_from<Component> T, typename F>
     void ForEachComponent(F&& fn) {
         const Detail::DeferRemovalsScope defer(*this);
-        // The ends are taken now, so components that fn adds wait for the next call.
+        // The ends are taken now, so components that fn adds wait for the next call. Lists are found by type each time,
+        // since fn adding the first component of a type can move them.
         struct Cursor {
-            const std::vector<Component*>* components;
+            std::size_t type;
             std::size_t next;
             std::size_t end;
+        };
+        const auto at = [this](const Cursor& cursor, std::size_t i) {
+            return m_componentsByType[cursor.type].components[i];
         };
         Cursor cursors[8];
         std::vector<Cursor> moreCursors;
         std::size_t cursorCount = 0;
-        for (const TypeList& list : m_componentsByType) {
-            const auto found = std::ranges::find_if(list.components, [](const Component* c) { return c != nullptr; });
-            if (found == list.components.end() || !Detail::IsComponentOf<T>(**found)) {
+        for (std::size_t type = 0; type < m_componentsByType.size(); ++type) {
+            const std::vector<Component*>& list = m_componentsByType[type].components;
+            const auto found = std::ranges::find_if(list, [](const Component* c) { return c != nullptr; });
+            if (found == list.end() || !Detail::IsComponentOf<T>(**found)) {
                 continue;
             }
-            const Cursor cursor{&list.components, 0, list.components.size()};
+            const Cursor cursor{type, 0, list.size()};
             if (cursorCount < std::size(cursors)) {
                 cursors[cursorCount++] = cursor;
             } else {
@@ -298,7 +303,7 @@ public:
         if (cursorCount == 1) {
             const Cursor& only = cursors[0];
             for (std::size_t i = 0; i < only.end; ++i) {
-                if (Component* component = (*only.components)[i]; component && IsIncluded(*component)) {
+                if (Component* component = at(only, i); component && IsIncluded(*component)) {
                     fn(static_cast<T&>(*component));
                 }
             }
@@ -310,19 +315,18 @@ public:
         while (true) {
             Cursor* earliest = nullptr;
             for (Cursor& cursor : all) {
-                while (cursor.next < cursor.end && !(*cursor.components)[cursor.next]) {
+                while (cursor.next < cursor.end && !at(cursor, cursor.next)) {
                     ++cursor.next;
                 }
                 if (cursor.next < cursor.end &&
-                    (!earliest || (*cursor.components)[cursor.next]->m_sequence <
-                                      (*earliest->components)[earliest->next]->m_sequence)) {
+                    (!earliest || at(cursor, cursor.next)->m_sequence < at(*earliest, earliest->next)->m_sequence)) {
                     earliest = &cursor;
                 }
             }
             if (!earliest) {
                 return;
             }
-            Component* component = (*earliest->components)[earliest->next++];
+            Component* component = at(*earliest, earliest->next++);
             if (IsIncluded(*component)) {
                 fn(static_cast<T&>(*component));
             }

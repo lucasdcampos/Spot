@@ -739,3 +739,43 @@ TEST_CASE("ForEachComponent follows components and entities as they change betwe
     CHECK(calls == 1);
     CHECK(visit().size() == 2);
 }
+
+template <int N>
+class Marker final : public Spot::Component {};
+
+TEST_CASE("ForEachComponent goes on when fn adds the first components of new types", "[scene]") {
+    Scene scene;
+    auto& a = scene.CreateEntity().AddComponent<Mover>();
+    auto& b = scene.CreateEntity().AddComponent<FastMover>();
+    auto& c = scene.CreateEntity().AddComponent<Mover>();
+
+    // Types never added before grow the scene's lists of components by type, which may move them.
+    std::vector<Mover*> visited;
+    scene.ForEachComponent<Mover>([&](Mover& mover) {
+        visited.push_back(&mover);
+        if (visited.size() == 1) {
+            Entity& entity = scene.CreateEntity();
+            entity.AddComponent<Marker<0>>();
+            entity.AddComponent<Marker<1>>();
+            entity.AddComponent<Marker<2>>();
+            entity.AddComponent<Marker<3>>();
+        }
+    });
+    CHECK(visited == std::vector<Mover*>{&a, &b, &c});
+
+    // The same with a single type, which takes another path.
+    std::vector<Health*> healths;
+    auto& d = scene.CreateEntity().AddComponent<Health>(1);
+    auto& e = scene.CreateEntity().AddComponent<Health>(2);
+    scene.ForEachComponent<Health>([&](Health& health) {
+        healths.push_back(&health);
+        if (healths.size() == 1) {
+            Entity& entity = scene.CreateEntity();
+            entity.AddComponent<Marker<4>>();
+            entity.AddComponent<Marker<5>>();
+            entity.AddComponent<Marker<6>>();
+            entity.AddComponent<Marker<7>>();
+        }
+    });
+    CHECK(healths == std::vector<Health*>{&d, &e});
+}
