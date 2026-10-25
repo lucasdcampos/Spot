@@ -417,8 +417,8 @@ weapon, pause freezes the world, cursor ownership returns and every thumbnail sh
 ## Animated assets
 
 The generator writes `generated/models/robot.gltf` with skin streams, inverse bind matrices, clip channels and
-events: Idle, Walk and Run. It is an ordinary imported source asset. Run `sandbox_generator` to reproduce it;
-unchanged bytes are not rewritten.
+events: Idle, Walk and Run. It is an ordinary imported source asset, which the build writes like the generator's
+other files (see [Generated assets](tools_and_command_line.md#generated-assets)); unchanged bytes are not rewritten.
 
 `animation/robot.controller` blends Idle/Walk/Run through its float `speed` parameter.
 The `Robot` component chooses a patrol direction and turns the actor; the Animator

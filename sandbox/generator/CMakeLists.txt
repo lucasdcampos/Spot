@@ -1,6 +1,6 @@
 # The sandbox's asset generator: writes the models, textures and sounds of sandbox/assets/generated/ from code, with
-# fixed seeds, so they are the same on every run. Its output is committed and imported like any artist's assets;
-# run it again after changing it:
+# fixed seeds, so they are the same on every run. The build runs it whenever it changes, and its output is imported
+# like any artist's assets; only their .meta files, which hold their ids, are committed. It can also be run by hand:
 #
 #     sandbox_generator [<output folder>]
 add_library(sandbox_generator_core STATIC
@@ -47,3 +47,15 @@ target_link_libraries(sandbox_generator PRIVATE sandbox_generator_core)
 target_compile_definitions(sandbox_generator PRIVATE
     SANDBOX_GENERATED_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/../assets/generated")
 spot_set_compile_options(sandbox_generator)
+
+# Runs again only when the generator is rebuilt; delete the stamp to write the assets again without changing it.
+set(sandbox_generated_stamp "${CMAKE_CURRENT_BINARY_DIR}/sandbox_generated.stamp")
+add_custom_command(
+    OUTPUT "${sandbox_generated_stamp}"
+    COMMAND sandbox_generator
+    COMMAND "${CMAKE_COMMAND}" -E touch "${sandbox_generated_stamp}"
+    DEPENDS sandbox_generator
+    COMMENT "Generating the sandbox's models, textures and sounds"
+    VERBATIM
+)
+add_custom_target(sandbox_generated_assets DEPENDS "${sandbox_generated_stamp}")

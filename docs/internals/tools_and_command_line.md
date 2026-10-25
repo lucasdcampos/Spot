@@ -115,11 +115,15 @@ glTF models (with cgltf's writer, from `MeshData`) and PNG textures (painted pix
 ORM maps of its surface; a PBR texture set per surface (wood, painted metal, rusty metal, concrete, rubber, glass),
 whose ORM texture packs occlusion, roughness and metallic as glTF allows; and the low-poly models of what the player
 holds, made of boxes and cylinders of those surfaces. Fixed seeds make every run write the same files, and it only
-rewrites files whose content changed. The files are committed and imported like any artist's assets; their `.meta`
-files come from the import, and the generator never touches them. Models import their images as colors or data by
-how their materials use them, but the surfaces' normal and ORM textures are also imported on their own, for the
-level's `.material` files, so their `.meta` files have `srgb` off. After changing the generator, run it and let the
-sandbox's build import what changed:
+rewrites files whose content changed. The sandbox's build runs it (`sandbox_generated_assets`, before its assets are
+imported) whenever the generator is rebuilt, so changing its code is all it takes. Its files are imported like any
+artist's assets, but only their `.meta` files are committed: the files themselves are ignored by git, since the
+generator makes them again exactly, and keeping every version of its images would swell the repository. The `.meta`
+files hold the ids that materials, prefabs and scenes refer to; they come from the import, the generator never touches
+them, and the asset database keeps one whose file is missing until the file comes back. Models import their images as
+colors or data by how their materials use them, but the surfaces' normal and ORM textures are also imported on their
+own, for the level's `.material` files, so their `.meta` files have `srgb` off. The generator can also be run by hand,
+as after deleting its files, whose stamp in the build would otherwise keep it from running:
 
 ```sh
 ./build/msvc/sandbox/generator/Debug/sandbox_generator    # or with a folder to write into

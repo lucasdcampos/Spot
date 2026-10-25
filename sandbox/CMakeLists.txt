@@ -9,6 +9,9 @@ target_include_directories(sandbox PRIVATE src)
 spot_set_compile_options(sandbox)
 spot_precompile_engine_header(sandbox)
 
+# Writes the models, textures and sounds of assets/generated/ before they are imported (see generator/CMakeLists.txt).
+add_subdirectory(generator)
+
 # The game runs from its imported assets and settings beside the executable, as a shipped game does. The tools
 # import what changed every build, so assets edited in the editor or not need no other step.
 add_custom_target(sandbox_assets ALL
@@ -16,7 +19,5 @@ add_custom_target(sandbox_assets ALL
     COMMENT "Importing the sandbox's assets"
     VERBATIM
 )
+add_dependencies(sandbox_assets sandbox_generated_assets)
 add_dependencies(sandbox sandbox_assets)
-
-# Writes the sandbox's generated assets, which are committed, so it only runs when asked to.
-add_subdirectory(generator)
