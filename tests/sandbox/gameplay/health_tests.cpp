@@ -11,6 +11,7 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -23,6 +24,12 @@ class Recorder final : public Spot::Component, public Gameplay::DamageReceiver {
 public:
     std::vector<Gameplay::DamageInfo> taken;
     void OnDamage(const Gameplay::DamageInfo& damage) override { taken.push_back(damage); }
+};
+
+class ContactCounter final : public Spot::Component, public Spot::CollisionListener {
+public:
+    int count = 0;
+    void OnCollisionEnter(const Spot::Collision&) override { ++count; }
 };
 
 // Health with armor: a game changing how damage hurts, which no source notices.
@@ -161,4 +168,48 @@ TEST_CASE("Falls and impacts hurt by speed", "[sandbox][gameplay]") {
     CHECK(recorder.taken[0].type == "Impact");
     CHECK(recorder.taken[0].amount > 20.0f);
     CHECK(recorder.taken[0].source == ram.GetId());
+}
+
+TEST_CASE("Impact damage requires its source to approach the target fast enough", "[sandbox][gameplay][impact]") {
+    GameplayTests::World world;
+    auto& ram = AddBody(world.scene, "Ram", {0.0f, 2.0f, 0.0f});
+    ram.AddComponent<Gameplay::ImpactDamage>();
+    auto& contacts = ram.AddComponent<ContactCounter>();
+    auto& body = *ram.GetComponent<Spot::Rigidbody>();
+    body.SetMass(1000.0f);
+
+    SECTION("The source is parked") {
+        body.SetLinearVelocity({});
+    }
+    SECTION("The source approaches below the damage threshold") {
+        body.SetLinearVelocity({0.0f, 0.0f, -1.0f});
+    }
+    SECTION("The source moves away from a faster target") {
+        body.SetLinearVelocity({0.0f, 0.0f, 3.0f});
+    }
+
+    auto& target = AddBody(world.scene, "Target", {0.0f, 2.0f, -4.0f});
+    auto& recorder = target.AddComponent<Recorder>();
+    target.GetComponent<Spot::Rigidbody>()->SetLinearVelocity({0.0f, 0.0f, 9.0f});
+    world.Run(0.75f);
+
+    REQUIRE(contacts.count > 0);
+    CHECK(recorder.taken.empty());
+}
+
+TEST_CASE("An impact still hurts when the collision stops its source", "[sandbox][gameplay][impact]") {
+    GameplayTests::World world;
+    auto& target = world.scene.CreateEntity("Target");
+    target.GetTransform().SetPosition({0.0f, 2.0f, -4.0f});
+    target.AddComponent<Spot::BoxCollider>();
+    auto& recorder = target.AddComponent<Recorder>();
+    auto& ram = AddBody(world.scene, "Ram", {0.0f, 2.0f, 0.0f});
+    ram.AddComponent<Gameplay::ImpactDamage>();
+    auto& body = *ram.GetComponent<Spot::Rigidbody>();
+    body.SetLinearVelocity({0.0f, 0.0f, -10.0f});
+    world.Run(0.5f);
+
+    REQUIRE(recorder.taken.size() == 1);
+    CHECK(recorder.taken[0].amount == Approx(100.0f).margin(5.0f));
+    CHECK(std::abs(body.GetLinearVelocity().z) < 0.1f);
 }

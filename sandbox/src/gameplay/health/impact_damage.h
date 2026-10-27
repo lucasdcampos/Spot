@@ -11,7 +11,7 @@ namespace Gameplay {
 // target's receivers decide what that does, whether it hurts, sets it off or throws it down.
 class ImpactDamage : public Spot::Component, public Spot::CollisionListener {
 public:
-    // Meters per second along the contact's normal below which it does nothing.
+    // Both the closing speed and this body's speed toward the target must reach this, in meters per second.
     float minSpeed = 2.0f;
     // Damage, and newton seconds of push at least, per meter per second.
     float damagePerSpeed = 10.0f;
@@ -19,8 +19,12 @@ public:
     std::string damageType = "Impact";
 
 protected:
+    void OnFixedUpdate(float deltaTime) override;
     void OnCollisionEnter(const Spot::Collision& collision) override;
     void Serialize(Spot::Archive& archive) override;
+
+private:
+    Spot::Vector3 m_velocity = {};
 };
 
 } // namespace Gameplay

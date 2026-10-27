@@ -8,10 +8,17 @@ namespace Gameplay {
 
 SPOT_COMPONENT(ImpactDamage);
 
+void ImpactDamage::OnFixedUpdate(float /*deltaTime*/) {
+    // Keep the approach velocity before the collision can stop or push the source.
+    const auto* body = GetEntity().GetComponent<Spot::Rigidbody>();
+    m_velocity = body && body->IsActiveAndEnabled() ? body->GetLinearVelocity() : Spot::Vector3{};
+}
+
 void ImpactDamage::OnCollisionEnter(const Spot::Collision& collision) {
     const float speed = std::max(-Spot::Dot(collision.relativeVelocity, collision.normal), 0.0f);
+    const float approach = -Spot::Dot(m_velocity, collision.normal);
     const Spot::Entity* other = GetScene().GetEntity(collision.other);
-    if (!other || speed < minSpeed || other->IsDescendantOf(GetEntity())) {
+    if (!other || speed < minSpeed || approach < minSpeed || approach <= 0.0f || other->IsDescendantOf(GetEntity())) {
         return;
     }
     Damage::Apply(GetScene(), collision.other,
@@ -25,7 +32,10 @@ void ImpactDamage::OnCollisionEnter(const Spot::Collision& collision) {
 
 void ImpactDamage::Serialize(Spot::Archive& archive) {
     archive.Field("minSpeed", minSpeed,
-                  {.min = 0.0f, .max = 100.0f, .speed = 0.05f, .tooltip = "Meters per second along the contact"});
+                  {.min = 0.0f,
+                   .max = 100.0f,
+                   .speed = 0.05f,
+                   .tooltip = "Minimum closing speed and body speed toward the target, in meters per second"});
     archive.Field("damagePerSpeed", damagePerSpeed, {.min = 0.0f, .max = 1000.0f, .speed = 0.1f});
     archive.Field("impulsePerSpeed", impulsePerSpeed,
                   {.min = 0.0f, .max = 10000.0f, .speed = 1.0f, .tooltip = "Newton seconds of push at least"});

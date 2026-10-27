@@ -94,6 +94,45 @@ TEST_CASE("The parked car rests on its springs at its ride height and stays wher
     CHECK(driving.car.GetEntity().GetComponent<Spot::Rigidbody>()->IsSleeping());
 }
 
+TEST_CASE("Walking or sprinting into a parked car does not hurt the player", "[sandbox][car][impact]") {
+    Playground game;
+    Driving driving{game};
+    driving.LookAtCar();
+    auto& health = *driving.player.GetEntity().GetComponent<Gameplay::Health>();
+    health.regenerationRate = 0.0f;
+    int hits = 0;
+    auto damaged = health.OnDamaged.Connect([&](const Gameplay::DamageInfo&, float) { ++hits; });
+
+    SECTION("Walking") {
+    }
+    SECTION("Sprinting") {
+        driving.Press(Spot::Key::LeftShift);
+    }
+    const Spot::Vector3 right = driving.GetCarTransform().GetWorldRotation() * Spot::Vector3{1.0f, 0.0f, 0.0f};
+    driving.player.SetLook(std::atan2(right.x, right.z), 0.0f);
+    driving.Press(Spot::Key::W);
+    driving.Run(1.5f);
+
+    const Spot::Vector3 fromCar =
+        driving.player.GetEntity().GetTransform().GetWorldPosition() - driving.GetCarTransform().GetWorldPosition();
+    CHECK(Spot::Dot(fromCar, right) < 1.5f);
+    CHECK(hits == 0);
+    CHECK(health.GetHealth() == health.maxHealth);
+}
+
+TEST_CASE("A car moving into the player still causes impact damage", "[sandbox][car][impact]") {
+    Playground game;
+    Driving driving{game};
+    driving.LookAtCar();
+    auto& health = *driving.player.GetEntity().GetComponent<Gameplay::Health>();
+    health.regenerationRate = 0.0f;
+    const Spot::Vector3 right = driving.GetCarTransform().GetWorldRotation() * Spot::Vector3{1.0f, 0.0f, 0.0f};
+    driving.car.GetEntity().GetComponent<Spot::Rigidbody>()->SetLinearVelocity(right * 8.0f);
+    driving.Run(0.5f);
+
+    CHECK(health.GetHealth() < health.maxHealth);
+}
+
 TEST_CASE("Use gets into the car looked at, its camera takes over, and Use again gets out on foot", "[sandbox][car]") {
     Playground game;
     Driving driving{game};

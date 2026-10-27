@@ -189,8 +189,9 @@ handbrake, and Use gets out beside the driver's door, or wherever around the car
 there is room, looking the way the car faces. Dying or loading a checkpoint gets the player out first. The HUD shows the
 speed and gear in place of what is in hand.
 
-Car collisions at a closing speed of at least 2 m/s ignite explosive barrels, knock robots into ragdoll with the
-impact impulse and deal 10 damage per m/s to players other than the driver.
+Car collisions at a closing speed of at least 2 m/s, with the car itself moving toward the target at least that
+fast, ignite explosive barrels, knock robots into ragdoll with the impact impulse and deal 10 damage per m/s to
+players other than the driver. Walking or sprinting into a parked car does not deal damage.
 
 `WheeledVehicle` simulates a car on its Rigidbody with the public physics API alone. Each physics step, each wheel is cast down
 from the top of its travel (a sphere as wide as the tire, at its bottom) and holds the body up with a spring, preloaded

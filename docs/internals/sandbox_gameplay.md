@@ -206,8 +206,10 @@ damage that reached something is told by `DamageSystem::OnDamageApplied`, as the
   restores full health, clears "Dead" and emits `OnRestored`. Parts that react to death listen to `OnDied` or read
   "Dead"; health owns no respawn policy or timer.
 - **`FallDamage`** hurts its entity's Health as landing at a speed does, between a safe and a lethal speed; whatever
-  moves the entity calls `Land()`. **`ImpactDamage`** damages what its body runs into, by speed, without pushing it
-  again.
+  moves the entity calls `Land()`. **`ImpactDamage`** damages what its body runs into, by closing speed, without
+  pushing it again. Both the closing speed and the source body's velocity toward the target must reach `minSpeed`;
+  walking into a parked or slowly moving vehicle does not hurt. The source velocity is sampled before each physics
+  step, so a collision that stops the source still deals damage.
 - **HUD elements**: `HealthElement` (number, icon and a bar easing toward it, in the warning color when low),
   `DamageFlashElement` (the edges of the screen as the pawn is hurt) and `HitMarkerElement` (when the pawn damages
   something of its `damageTypes`). The death screen belongs to `game/`, which owns its countdown.
