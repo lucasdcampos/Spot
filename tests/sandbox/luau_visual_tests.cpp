@@ -32,7 +32,7 @@ TEST_CASE("Luau scripts change the rendered monument and daylight in the cooked 
     auto settings = Spot::GameSettings::LoadFromFile(std::filesystem::path(SANDBOX_IMPORTED_DIR).parent_path() /
                                                      Spot::GameSettings::FileName);
     REQUIRE(settings);
-    auto scene = Spot::InstantiateScene(assets, settings->startupScene);
+    auto scene = Spot::InstantiateScene(assets, assets.FindByPath("scenes/playground.scene").value());
     REQUIRE(scene);
     scene->Update(0);
     scene->ForEachComponent<Spot::Camera>([](Spot::Camera& camera) { camera.SetEnabled(false); });

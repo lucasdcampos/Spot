@@ -11,6 +11,37 @@ Add `no-build` to launch the last build without configuring, compiling or cookin
 `./run.ps1 no-build` for the sandbox or `./run.ps1 editor no-build` for the editor. The same arguments work
 with `./run.sh`. Run without `no-build` after changing code or sandbox assets to update the executable's files.
 
+## Main menu and maps
+
+The startup scene is `assets/scenes/main_menu.scene`. Its `MainMenu` extends the gameplay `Menu` with Home,
+Play, Settings and Quit pages. Home offers Play, Settings and Quit Game beside a featured view of the playground.
+Play lists the authored `maps`, each with its scene, name, description and preview camera position/target. Selecting
+one updates the large 16:9 preview and details; Start Game instantiates that scene and queues its replacement through
+`Application::LoadScene()`. A failed load displays an error and leaves the menu available. Adding a map means adding
+its button and entry in the scene; map selection is preserved while moving between pages.
+
+Previews use a separate `SceneRenderer` through the public BeforeOpaque render hook. Each selected map is instantiated
+once for its preview with canvases and player cameras disabled and an authored overview camera added. This scene is
+never updated, so its gameplay, audio, input and physics do not start. The resulting texture is cached for the menu's
+lifetime and shared with the home preview for the first map. No source screenshot or generated asset is required.
+
+The same `SettingsMenu` and `BindingsMenu` parts as pause provide sensitivity, FOV, volumes, graphics quality and
+rebinding, using the same per-user `interface.json`. Leaving Settings flushes changes. The modal canvas supports
+mouse, keyboard and gamepad navigation; Escape/East/Start returns to Home, or opens a quit confirmation from Home.
+Escape while rebinding cancels only the rebind. Each page restores a useful focus, and quitting first focuses Stay
+Here. The menu releases the cursor and never pauses simulation time.
+
+Playground remains `assets/scenes/playground.scene`. Empty Map (`assets/scenes/empty.scene`) keeps the same player,
+inventory, tools, effects and HUD, with a single 200 by 200 meter collidable floor, a sky and a directional light.
+Its `materials/debug_grid.material` uses the built-in debug grid at one meter per tile. `GameControls::spawnRobots`
+is false there, so the fallback robot population does not fill the empty map. Its restart scene points to itself
+and its checkpoint is `empty_world.json`, separate from the playground's checkpoint.
+
+Both maps offer Main Menu in the pause menu. Returning closes the pause menu before replacing the scene, restoring
+simulation time; the startup menu releases the cursor again. The executable's `--smoke-test` exercises this route
+through the empty map before checking the playground. Visual acceptance tests and benchmarks load Playground
+explicitly so their coverage stays independent of the startup scene.
+
 ## The playground
 
 The playground is a valley of yards around a central plaza, built to show what the engine draws and simulates. Every
@@ -192,6 +223,15 @@ speed and gear in place of what is in hand.
 Car collisions at a closing speed of at least 2 m/s, with the car itself moving toward the target at least that
 fast, ignite explosive barrels, knock robots into ragdoll with the impact impulse and deal 10 damage per m/s to
 players other than the driver. Walking or sprinting into a parked car does not deal damage.
+
+Both cars and the helicopter have `VehicleHealth`: 300 health, without regeneration. Shots, blasts and
+collisions above 8 m/s accumulate damage. At zero health the vehicle explodes once, damaging and pushing its
+surroundings, ejects its driver and becomes unusable. Its own explosion has a 12-meter radius and deals up to
+600 damage, enough to kill nearby players and the ejected driver. The fireball renders at 2.4 times its base scale.
+An off-center impulse launches and turns the wreck, preserving its existing motion; wrecks release the parking
+brakes, and destroyed helicopters lose flight stabilization and lift. Its body, windows, lights and wheels receive
+`materials/vehicle_burned.material`, a dark, rough soot finish. The wreck keeps its physics body; checkpoints
+preserve both partial damage and destroyed vehicles without replaying the explosion.
 
 `WheeledVehicle` simulates a car on its Rigidbody with the public physics API alone. Each physics step, each wheel is cast down
 from the top of its travel (a sphere as wide as the tire, at its bottom) and holds the body up with a spring, preloaded

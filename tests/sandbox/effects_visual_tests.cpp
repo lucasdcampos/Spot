@@ -39,7 +39,7 @@ TEST_CASE("The cooked sandbox draws explosions, muzzle flashes and splashes", "[
     const auto settings = Spot::GameSettings::LoadFromFile(std::filesystem::path(SANDBOX_IMPORTED_DIR).parent_path() /
                                                            Spot::GameSettings::FileName);
     REQUIRE(settings);
-    auto scene = Spot::InstantiateScene(assets, settings->startupScene);
+    auto scene = Spot::InstantiateScene(assets, assets.FindByPath("scenes/playground.scene").value());
     REQUIRE(scene);
     scene->Update(0.0f);
     scene->ForEachComponent<Spot::Camera>([](Spot::Camera& camera) { camera.SetEnabled(false); });

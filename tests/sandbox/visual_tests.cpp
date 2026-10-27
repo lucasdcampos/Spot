@@ -1,6 +1,7 @@
 #include "../registered_assets.h"
 #include "gameplay/core/players.h"
 #include "gameplay/game/game_mode.h"
+#include "main_menu.h"
 #include "prop_spawner.h"
 #include "spawn_menu.h"
 
@@ -23,6 +24,123 @@
 
 using Gameplay::DayCycle;
 
+TEST_CASE("Sandbox map selection and empty debug floor render", "[gpu][sandbox][maps][offscreen]") {
+    if (!Spot::GraphicsDevice::IsSupported()) {
+        SKIP("No usable graphics device");
+    }
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    Spot::Tests::RegisteredAssetManager assets(SANDBOX_IMPORTED_DIR, device.get());
+    Spot::InputState input;
+    Spot::InputActionMap actions;
+    struct Restore {
+        Spot::AssetManager* assets = Spot::Assets::GetManager();
+        Spot::InputState* input = Spot::Input::GetState();
+        Spot::InputActionMap* actions = Spot::Input::GetActionMap();
+        ~Restore() {
+            Spot::Detail::SetAssetManager(assets);
+            Spot::Input::SetState(input);
+            Spot::Input::SetActionMap(actions);
+        }
+    } restore;
+    Spot::Detail::SetAssetManager(&assets);
+    Spot::Input::SetState(&input);
+    Spot::Input::SetActionMap(&actions);
+    const auto game =
+        Spot::GameSettings::LoadFromFile(std::filesystem::path(SANDBOX_IMPORTED_DIR).parent_path() / "game.json");
+    REQUIRE(game);
+    game->sections.input.Apply(actions);
+    actions.SetDefaults();
+    Spot::Detail::LoadGameCode();
+    auto target = device->CreateTexture(
+        {.width = 1280, .height = 720, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
+    REQUIRE(target);
+    Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb});
+    REQUIRE(renderer.IsValid());
+    const std::filesystem::path output(SPOT_SANDBOX_CAPTURE_DIR);
+    std::filesystem::create_directories(output);
+    for (const auto* name : {"main_menu", "empty"}) {
+        CAPTURE(name);
+        const auto path = std::string("scenes/") + name + ".scene";
+        const auto id = assets.FindByPath(path);
+        REQUIRE(id);
+        auto scene = Spot::InstantiateScene(assets, *id);
+        REQUIRE(scene);
+        for (int frame = 0; frame < 3; ++frame) {
+            scene->Update(std::string_view(name) == "main_menu" ? 0.1f : 0.0f);
+            auto* context = device->BeginOffscreenFrame(*target);
+            REQUIRE(context);
+            renderer.Render(*context, *scene, target.get());
+            device->EndFrame();
+        }
+        const auto pixels = device->DownloadTexture(*target);
+        REQUIRE(pixels.size() == 1280 * 720 * 4);
+        std::size_t visible = 0;
+        for (std::size_t pixel = 0; pixel < pixels.size(); pixel += 4) {
+            visible += pixels[pixel] > 60 || pixels[pixel + 1] > 60 || pixels[pixel + 2] > 60;
+        }
+        CHECK(visible > 10000);
+        CHECK(Spot::Image(1280, 720, pixels).SavePng(output / (std::string(name) + ".png")));
+        if (auto* menu = scene->FindComponent<MainMenu>()) {
+            const auto* featured = scene->GetEntity(menu->homePreview)->GetComponent<Spot::UiImage>();
+            REQUIRE(featured->texture);
+            const auto homeTexture = featured->texture;
+            menu->ShowPage(MainMenu::Page::Play);
+            std::vector<std::uint8_t> previousPreview;
+            for (std::size_t map = 0; map < menu->maps.size(); ++map) {
+                menu->SelectMap(map);
+                scene->Update(0.2f);
+                auto* context = device->BeginOffscreenFrame(*target);
+                REQUIRE(context);
+                renderer.Render(*context, *scene, target.get());
+                device->EndFrame();
+                const auto* preview = scene->GetEntity(menu->previewImage)->GetComponent<Spot::UiImage>();
+                REQUIRE(preview->texture);
+                const auto previewPixels = device->DownloadTexture(*preview->texture);
+                REQUIRE(previewPixels.size() == 960 * 540 * 4);
+                if (map == 0)
+                    CHECK(preview->texture == homeTexture);
+                else
+                    CHECK(previewPixels != previousPreview);
+                previousPreview = previewPixels;
+                const auto pagePixels = device->DownloadTexture(*target);
+                CHECK(Spot::Image(1280, 720, pagePixels)
+                          .SavePng(output / ("main_menu_map_" + std::to_string(map) + ".png")));
+            }
+            menu->ShowPage(MainMenu::Page::Settings);
+            scene->Update(0.2f);
+            auto* context = device->BeginOffscreenFrame(*target);
+            REQUIRE(context);
+            renderer.Render(*context, *scene, target.get());
+            device->EndFrame();
+            const auto settingsPixels = device->DownloadTexture(*target);
+            CHECK(Spot::Image(1280, 720, settingsPixels).SavePng(output / "main_menu_settings.png"));
+            menu->ShowPage(MainMenu::Page::Quit);
+            scene->Update(0.2f);
+            context = device->BeginOffscreenFrame(*target);
+            REQUIRE(context);
+            renderer.Render(*context, *scene, target.get());
+            device->EndFrame();
+            const auto quitPixels = device->DownloadTexture(*target);
+            CHECK(Spot::Image(1280, 720, quitPixels).SavePng(output / "main_menu_quit.png"));
+            CHECK(Spot::Input::IsCursorLocked() == false);
+        }
+        if (auto* pause = scene->FindComponent<Gameplay::PauseMenu>()) {
+            pause->Open();
+            scene->Update(0.2f);
+            auto* context = device->BeginOffscreenFrame(*target);
+            REQUIRE(context);
+            renderer.Render(*context, *scene, target.get());
+            device->EndFrame();
+            const auto paused = device->DownloadTexture(*target);
+            REQUIRE(paused.size() == pixels.size());
+            CHECK(paused != pixels);
+            CHECK(Spot::Image(1280, 720, paused).SavePng(output / "empty_pause.png"));
+            pause->Close();
+        }
+    }
+}
+
 TEST_CASE("The cooked playground renders its yards by day, at sunset and at night", "[gpu][sandbox][offscreen]") {
     if (!Spot::GraphicsDevice::IsSupported()) {
         SKIP("No usable graphics device");
@@ -40,7 +158,7 @@ TEST_CASE("The cooked playground renders its yards by day, at sunset and at nigh
     const auto settings = Spot::GameSettings::LoadFromFile(std::filesystem::path(SANDBOX_IMPORTED_DIR).parent_path() /
                                                            Spot::GameSettings::FileName);
     REQUIRE(settings);
-    auto scene = Spot::InstantiateScene(assets, settings->startupScene);
+    auto scene = Spot::InstantiateScene(assets, assets.FindByPath("scenes/playground.scene").value());
     REQUIRE(scene);
     REQUIRE(scene->FindEntity("Workshop"));
     // The HUD, made as the game starts, would cover the views.
@@ -167,7 +285,7 @@ TEST_CASE("The cooked sandbox renders held items, recoil, sights and reloads", "
                                                            Spot::GameSettings::FileName);
     REQUIRE(settings);
     settings->sections.input.Apply(actions);
-    auto scene = Spot::InstantiateScene(assets, settings->startupScene);
+    auto scene = Spot::InstantiateScene(assets, assets.FindByPath("scenes/playground.scene").value());
     REQUIRE(scene);
     auto step = [&] {
         actions.Update(input);
@@ -285,7 +403,7 @@ TEST_CASE("The cooked sandbox draws its HUD over the game: in hand, the wheel, h
                                                            Spot::GameSettings::FileName);
     REQUIRE(settings);
     settings->sections.input.Apply(actions);
-    auto scene = Spot::InstantiateScene(assets, settings->startupScene);
+    auto scene = Spot::InstantiateScene(assets, assets.FindByPath("scenes/playground.scene").value());
     REQUIRE(scene);
     auto step = [&] {
         actions.Update(input);

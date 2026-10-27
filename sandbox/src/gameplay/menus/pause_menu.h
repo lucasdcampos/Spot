@@ -4,12 +4,14 @@
 
 namespace Gameplay {
 
-// Pauses the game over it, with a button to resume and one to quit; its parts, such as the settings and the bindings,
-// are on its entity.
+// Pauses the game, with resume, quit and an optional return to a menu scene. Its parts, such as the settings and
+// bindings, are on its entity.
 class PauseMenu : public Menu {
 public:
     Spot::EntityId resumeButton = Spot::EntityId::Invalid;
     Spot::EntityId quitButton = Spot::EntityId::Invalid;
+    Spot::EntityId mainMenuButton = Spot::EntityId::Invalid;
+    Spot::AssetId mainMenuScene;
 
     PauseMenu();
 

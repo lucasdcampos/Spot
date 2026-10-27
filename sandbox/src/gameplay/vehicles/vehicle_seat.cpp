@@ -36,7 +36,8 @@ Spot::Vector3 VehicleSeat::GetSeatPosition() const {
 
 bool VehicleSeat::CanInteract(const Interactor& /*interactor*/) const {
     const Vehicle* vehicle = GetVehicle();
-    return vehicle && vehicle->IsActiveAndEnabled() && !IsOccupied() && !vehicle->HasDriver();
+    return vehicle && vehicle->IsActiveAndEnabled() && vehicle->IsOperational() && !IsOccupied() &&
+           !vehicle->HasDriver();
 }
 
 void VehicleSeat::Interact(Interactor& interactor) {
@@ -48,8 +49,8 @@ void VehicleSeat::Interact(Interactor& interactor) {
 bool VehicleSeat::Enter(Pawn& occupant) {
     Vehicle* vehicle = GetVehicle();
     Controller* controller = occupant.GetController();
-    if (!IsActiveAndEnabled() || !vehicle || !vehicle->IsActiveAndEnabled() || !controller || IsOccupied() ||
-        vehicle->HasDriver() || &occupant == vehicle || occupant.HasState("Seated") ||
+    if (!IsActiveAndEnabled() || !vehicle || !vehicle->IsActiveAndEnabled() || !vehicle->IsOperational() ||
+        !controller || IsOccupied() || vehicle->HasDriver() || &occupant == vehicle || occupant.HasState("Seated") ||
         occupant.HasAnyState(ejectWhen)) {
         return false;
     }

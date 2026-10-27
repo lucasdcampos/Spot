@@ -68,8 +68,8 @@ protected:
     void OnStart() override {
         Spot::Profiler::SetEnabled(true);
         const auto start = std::chrono::steady_clock::now();
-        const auto* game = GetGameSettings();
-        auto scene = game ? Spot::InstantiateScene(GetAssets(), game->startupScene) : nullptr;
+        const auto playground = GetAssets().FindByPath("scenes/playground.scene");
+        auto scene = playground ? Spot::InstantiateScene(GetAssets(), *playground) : nullptr;
         m_sceneLoadMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
         if (!scene) {
             Quit();

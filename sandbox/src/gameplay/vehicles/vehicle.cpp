@@ -64,6 +64,11 @@ void Vehicle::OnUnpossess() {
 }
 
 void Vehicle::OnPlayerInput(PlayerController& player) {
+    if (!IsOperational()) {
+        m_input = {};
+        m_context.Deactivate();
+        return;
+    }
     VehicleSeat* seat = GetSeat();
     std::vector<std::string> actions = controls.GetActions();
     if (seat) {

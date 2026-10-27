@@ -1,4 +1,5 @@
 #include "../registered_assets.h"
+#include "gameplay/vehicles/vehicle_health.h"
 #include "gameplay/vehicles/wheeled_vehicle.h"
 
 #include "gameplay/environment/day_cycle.h"
@@ -8,6 +9,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <array>
+#include <cstdlib>
 #include <filesystem>
 #include <functional>
 #include <memory>
@@ -41,7 +43,7 @@ struct OffscreenPlayground {
         const auto settings = Spot::GameSettings::LoadFromFile(
             std::filesystem::path(SANDBOX_IMPORTED_DIR).parent_path() / Spot::GameSettings::FileName);
         REQUIRE(settings);
-        scene = Spot::InstantiateScene(assets, settings->startupScene);
+        scene = Spot::InstantiateScene(assets, assets.FindByPath("scenes/playground.scene").value());
         REQUIRE(scene);
         // The HUD, made as the game starts, would cover the views.
         scene->Update(0.0f);
@@ -139,4 +141,59 @@ TEST_CASE("The cooked playground's car shows its paint, glass, lights and wheels
         }
         CHECK(red > 960 * 540 / 40);
     });
+}
+
+TEST_CASE("The exploded car renders as a dark burned wreck", "[gpu][sandbox][offscreen][vehicles][damage]") {
+    if (!Spot::GraphicsDevice::IsSupported()) {
+        SKIP("No usable graphics device");
+    }
+    OffscreenPlayground playground;
+    auto* car = playground.scene->FindComponent<Gameplay::WheeledVehicle>();
+    REQUIRE(car);
+    auto* health = car->GetEntity().GetComponent<Gameplay::VehicleHealth>();
+    REQUIRE(health);
+    const auto at = car->GetTransform().GetWorldPosition();
+    const auto rotation = car->GetTransform().GetWorldRotation();
+    const auto position = at + rotation * Spot::Vector3{-3.6f, 1.5f, -4.6f};
+    const auto middle = at + Spot::Vector3{0.0f, 0.7f, 0.0f};
+    const auto redPixels = [](const std::vector<std::uint8_t>& pixels) {
+        std::size_t red = 0;
+        for (std::size_t i = 0; i < pixels.size(); i += 4) {
+            red += pixels[i] > 2 * pixels[i + 1] && pixels[i] > 2 * pixels[i + 2] && pixels[i] > 40;
+        }
+        return red;
+    };
+    std::size_t paint = 0;
+    const std::array before{View{"car_before_explosion.png", position, middle}};
+    playground.Capture(before, [&](const auto& pixels) { paint = redPixels(pixels); });
+    REQUIRE(paint > 960 * 540 / 40);
+    const auto blastPosition = at + rotation * Spot::Vector3{-13.0f, 5.0f, -15.0f};
+    const auto blastTarget = at + Spot::Vector3{0.0f, 2.0f, 0.0f};
+    std::vector<std::uint8_t> background;
+    const std::array beforeBlast{View{"car_before_blast.png", blastPosition, blastTarget}};
+    playground.Capture(beforeBlast, [&](const auto& pixels) { background = pixels; });
+    health->TakeDamage({.amount = health->maxHealth});
+    REQUIRE(health->IsDestroyed());
+    for (int frame = 0; frame < 10; ++frame) {
+        playground.scene->Update(Spot::Scene::DefaultFixedTimeStep);
+    }
+    const std::array explosion{View{"car_explosion.png", blastPosition, blastTarget}};
+    playground.Capture(explosion, [&](const auto& pixels) {
+        std::size_t changed = 0;
+        for (std::size_t i = 0; i < pixels.size(); i += 4) {
+            changed += std::abs(int(pixels[i]) - int(background[i])) +
+                           std::abs(int(pixels[i + 1]) - int(background[i + 1])) +
+                           std::abs(int(pixels[i + 2]) - int(background[i + 2])) >
+                       60;
+        }
+        CHECK(changed > 960 * 540 / 60);
+    });
+    for (int frame = 0; frame < 230; ++frame) {
+        playground.scene->Update(Spot::Scene::DefaultFixedTimeStep);
+    }
+    const auto wreckMiddle = car->GetTransform().GetWorldPosition() +
+                             car->GetTransform().GetWorldRotation() * Spot::Vector3{0.0f, 0.7f, 0.0f};
+    const std::array after{
+        View{"car_burned.png", wreckMiddle + rotation * Spot::Vector3{-3.6f, 1.5f, -4.6f}, wreckMiddle}};
+    playground.Capture(after, [&](const auto& pixels) { CHECK(redPixels(pixels) < paint / 5); });
 }

@@ -1,6 +1,7 @@
 #include "smoke_test.h"
 #include "gameplay/core/players.h"
 
+#include "main_menu.h"
 #include "prop_spawner.h"
 #include "robot.h"
 #include "spawn_menu.h"
@@ -45,6 +46,29 @@ public:
 protected:
     void OnUpdate(float) override {
         auto* scene = GetScene();
+        if (m_menuFrame < 6) {
+            const int frame = m_menuFrame++;
+            if (frame == 1 || frame == 5) {
+                auto* menu = scene ? scene->FindComponent<MainMenu>() : nullptr;
+                if (!Require(menu && !Spot::Input::IsCursorLocked(), "The map selection menu is missing")) {
+                    return;
+                }
+                scene->GetEntity(menu->playButton)->GetComponent<Spot::UiButton>()->Click();
+                menu->SelectMap(frame == 1 ? 1 : 0);
+                scene->GetEntity(menu->startButton)->GetComponent<Spot::UiButton>()->Click();
+            } else if (frame == 3) {
+                auto* pause = scene ? scene->FindComponent<Gameplay::PauseMenu>() : nullptr;
+                if (!Require(scene && scene->FindEntity("Debug Floor") && !scene->FindComponent<Robot>() && pause &&
+                                 Spot::Input::IsCursorLocked(),
+                             "The empty map did not start with its floor and player")) {
+                    return;
+                }
+                pause->Open();
+                scene->GetEntity(pause->mainMenuButton)->GetComponent<Spot::UiButton>()->Click();
+                Require(Spot::Time::GetTimeScale() == 1.0f, "Returning to the menu left the game paused");
+            }
+            return;
+        }
         if (++m_frame < 4) {
             return;
         }
@@ -158,6 +182,7 @@ private:
         return condition;
     }
     int m_frame = 0;
+    int m_menuFrame = 0;
     bool m_passed = false;
 };
 

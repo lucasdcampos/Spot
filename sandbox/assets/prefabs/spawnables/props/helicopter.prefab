@@ -5,6 +5,18 @@
       "components": [
         {
           "data": {
+            "maxHealth": 300.0,
+            "regenerationRate": 0.0,
+            "safeImpactSpeed": 8.0,
+            "damagePerSpeed": 15.0,
+            "burnedMaterial": "75489f82e7075e24d441dc3a6b5abe15"
+          },
+          "enabled": true,
+          "id": "fe207334336f4bb9b1af036c1a9ed223",
+          "type": "VehicleHealth"
+        },
+        {
+          "data": {
             "viewCamera": 20,
             "mainRotor": 30,
             "tailRotor": 31,

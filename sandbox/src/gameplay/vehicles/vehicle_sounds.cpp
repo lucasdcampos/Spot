@@ -22,7 +22,7 @@ void VehicleEngineSound::OnUpdate(float /*deltaTime*/) {
     if (!source) {
         return;
     }
-    if (!vehicle || !vehicle->HasDriver()) {
+    if (!vehicle || !vehicle->HasDriver() || !vehicle->IsOperational()) {
         source->Stop();
         return;
     }

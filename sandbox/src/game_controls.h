@@ -11,6 +11,7 @@ public:
     ~GameControls() override;
     Spot::AssetRef<Spot::Prefab> robots;
     bool cheats = true;
+    bool spawnRobots = true;
 
 protected:
     void OnEnable() override;

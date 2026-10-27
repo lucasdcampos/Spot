@@ -8,6 +8,7 @@
 #include "gameplay/health/health.h"
 #include "gameplay/inventory/inventory.h"
 #include "gameplay/inventory/view_model.h"
+#include "gameplay/vehicles/vehicle_health.h"
 #include "gameplay/vehicles/vehicle_seat.h"
 #include "gameplay/vehicles/vehicle_wheel.h"
 #include "gameplay/vehicles/wheeled_vehicle.h"
@@ -254,4 +255,51 @@ TEST_CASE("Dying in the car gets the player out", "[sandbox][car]") {
     const Spot::Entity* camera = driving.GetMainCameraEntity();
     REQUIRE(camera);
     CHECK(camera->GetId() == driving.player.head);
+}
+
+TEST_CASE("Every authored vehicle has health and becomes a burned unusable wreck", "[sandbox][car][damage]") {
+    Playground game;
+    int vehicles = 0;
+    game.scene.ForEachComponent<Gameplay::Vehicle>([&](Gameplay::Vehicle& vehicle) {
+        auto& entity = vehicle.GetEntity();
+        auto* health = entity.GetComponent<Gameplay::VehicleHealth>();
+        REQUIRE(health);
+        CAPTURE(entity.GetName());
+        CHECK(health->GetHealth() == 300.0f);
+        CHECK(health->regenerationRate == 0.0f);
+        REQUIRE(health->burnedMaterial);
+        CHECK(health->burnedMaterial->roughness > 0.9f);
+        CHECK(health->burnedMaterial->alphaMode == Spot::AlphaMode::Opaque);
+        REQUIRE(Gameplay::Damage::Apply(game.scene, entity.GetId(), {.amount = 300.0f, .type = "Bullet"}));
+        CHECK(health->IsDestroyed());
+        CHECK_FALSE(vehicle.IsOperational());
+        CHECK(entity.IsActiveInHierarchy());
+        auto* renderer = entity.GetComponentInChildren<Spot::MeshRenderer>();
+        REQUIRE(renderer);
+        CHECK(renderer->GetMaterial() == health->burnedMaterial);
+        ++vehicles;
+    });
+    CHECK(vehicles == 3);
+}
+
+TEST_CASE("The authored car's own explosion kills its driver and launches the wreck", "[sandbox][car][damage]") {
+    Playground game;
+    Driving driving{game};
+    driving.Enter();
+    auto* driverHealth = driving.pawn.GetEntity().GetComponent<Gameplay::Health>();
+    REQUIRE(driverHealth);
+    REQUIRE_FALSE(driverHealth->IsDead());
+    auto& entity = driving.car.GetEntity();
+    auto* health = entity.GetComponent<Gameplay::VehicleHealth>();
+    REQUIRE(health);
+    auto& body = *entity.GetComponent<Spot::Rigidbody>();
+    const auto start = driving.GetCarTransform().GetWorldPosition();
+    REQUIRE(Gameplay::Damage::Apply(game.scene, entity.GetId(), {.amount = health->maxHealth, .type = "Bullet"}));
+    CHECK(driverHealth->IsDead());
+    CHECK_FALSE(driving.seat.IsOccupied());
+    CHECK_FALSE(driving.car.HasDriver());
+    CHECK(body.GetLinearVelocity().y > 5.0f);
+    CHECK(Spot::Length(body.GetAngularVelocity()) > 0.5f);
+    driving.Run(0.2f);
+    CHECK(driving.GetCarTransform().GetWorldPosition().y > start.y + 0.5f);
 }

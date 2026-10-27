@@ -68,7 +68,9 @@
                 1.0
               ]
             },
-            "toggleAction": "Pause"
+            "toggleAction": "Pause",
+            "mainMenuButton": 700,
+            "mainMenuScene": "dda645341510776ada0d8f9cf303f29d"
           },
           "enabled": true,
           "id": "c032514f6e6cafbe9f4b06c0c65c3189",
@@ -12241,6 +12243,184 @@
         1
       ],
       "tags": []
+    },
+    {
+      "id": 700,
+      "name": "Main Menu",
+      "active": true,
+      "components": [
+        {
+          "id": "7100a8d4de954337b6883a39fe97994c",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              92,
+              26
+            ]
+          }
+        },
+        {
+          "id": "08538288a84f44b8a01ca2234f79514f",
+          "type": "UiButton",
+          "enabled": true,
+          "data": {
+            "style": {
+              "normal": [
+                0.0144,
+                0.0176,
+                0.0232,
+                0
+              ],
+              "hovered": [
+                0.0144,
+                0.0176,
+                0.0232,
+                1.0
+              ],
+              "pressed": [
+                0.007,
+                0.008,
+                0.0097,
+                1.0
+              ],
+              "focused": [
+                0.0144,
+                0.0176,
+                0.0232,
+                1.0
+              ],
+              "disabled": [
+                0.0091,
+                0.011,
+                0.0137,
+                0.5
+              ],
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                6,
+                6,
+                6,
+                6
+              ]
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 69
+    },
+    {
+      "id": 701,
+      "name": "Label",
+      "active": true,
+      "components": [
+        {
+          "id": "6223b3dae7c1414883ed8d3bd168c5c4",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "id": "6e7f46252e1d41baa3c08ee4a628779e",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "text": "Main Menu",
+            "fontSize": 12,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1.0
+            ],
+            "layout": {
+              "alignment": 1,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 700
     }
   ]
 }

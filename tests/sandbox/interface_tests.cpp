@@ -2,13 +2,17 @@
 #include "gameplay/core/players.h"
 #include "interface_lookup.h"
 #include "log_capture.h"
+#include "main_menu.h"
 #include "playground_fixture.h"
 #include "prop_spawner.h"
+#include "robot_spawner.h"
 #include "spawnable.h"
 #include "temp_directory.h"
 #include "undo_list.h"
 
 #include "gameplay/camera/first_person_view.h"
+#include "gameplay/game/game_mode.h"
+#include "gameplay/game/session_controls.h"
 #include "gameplay/inventory/inventory.h"
 #include "gameplay/weapons/firearm.h"
 #include <spot/scene/ui/ui_input_system.h>
@@ -36,7 +40,7 @@ struct InterfaceGame {
     Spot::AssetManager* previousAssets = Spot::Assets::GetManager();
     float previousScale = Spot::Time::GetTimeScale();
     Spot::Scene scene;
-    InterfaceGame() {
+    explicit InterfaceGame(std::string_view scenePath = "scenes/playground.scene") {
         Spot::Time::SetTimeScale(1);
         Spot::Detail::LoadGameCode();
         Spot::Input::SetState(&input);
@@ -50,11 +54,10 @@ struct InterfaceGame {
         const auto snapshot = Spot::Process::GetEnvironmentValue("SPOT_SANDBOX_TEST_ASSETS");
         const auto path = snapshot && !snapshot->empty() ? std::filesystem::path(*snapshot)
                                                          : std::filesystem::path(SANDBOX_ASSETS_DIR);
-        REQUIRE(scene.LoadFromFile(path / "scenes/playground.scene", &assets));
+        REQUIRE(scene.LoadFromFile(path / scenePath, &assets));
         Step();
         Step();
         Step();
-        REQUIRE(scene.FindComponent<SpawnMenu>());
     }
     ~InterfaceGame() {
         scene.Clear();
@@ -79,6 +82,133 @@ struct InterfaceGame {
     }
 };
 } // namespace
+
+TEST_CASE("Sandbox main menu selects maps and navigates pages with keyboard mouse and gamepad", "[sandbox][ui][maps]") {
+    InterfaceGame game("scenes/main_menu.scene");
+    auto* menu = game.scene.FindComponent<MainMenu>();
+    REQUIRE(menu);
+    const auto settings =
+        Spot::GameSettings::LoadFromFile(std::filesystem::path(SANDBOX_IMPORTED_DIR).parent_path() / "game.json");
+    REQUIRE(settings);
+    CHECK(settings->startupScene == game.assets.FindByPath("scenes/main_menu.scene").value());
+    REQUIRE(menu->maps.size() == 2);
+    CHECK(menu->maps[0].scene == game.assets.FindByPath("scenes/playground.scene").value());
+    CHECK(menu->maps[1].scene == game.assets.FindByPath("scenes/empty.scene").value());
+    CHECK_FALSE(Spot::Input::IsCursorLocked());
+    CHECK(menu->IsOpen());
+    CHECK(menu->GetPage() == MainMenu::Page::Home);
+    auto& input = game.scene.GetOrAddSystem<Spot::UiInputSystem>();
+    const auto click = [&](Spot::EntityId id) { game.scene.GetEntity(id)->GetComponent<Spot::UiButton>()->Click(); };
+    CHECK(input.GetFocusedEntity() == menu->playButton);
+    CHECK(game.Send(Spot::KeyPressedEvent{Spot::Key::Enter, false}));
+    CHECK(game.Send(Spot::KeyReleasedEvent{Spot::Key::Enter}));
+    CHECK(menu->GetPage() == MainMenu::Page::Play);
+    CHECK(input.GetFocusedEntity() == menu->maps[0].button);
+    CHECK_FALSE(game.scene.GetEntity(menu->homePanel)->IsActiveInHierarchy());
+    CHECK(game.Send(Spot::KeyPressedEvent{Spot::Key::Down, false}));
+    CHECK(game.Send(Spot::KeyReleasedEvent{Spot::Key::Down}));
+    CHECK(input.GetFocusedEntity() == menu->maps[1].button);
+    CHECK(game.Send(Spot::KeyPressedEvent{Spot::Key::Enter, false}));
+    CHECK(game.Send(Spot::KeyReleasedEvent{Spot::Key::Enter}));
+    CHECK(menu->GetSelectedMap() == 1);
+    CHECK(game.scene.GetEntity(menu->mapTitle)->GetComponent<Spot::UiText>()->text == "Empty Map");
+    // Selecting a map changes its details, and starting it is a separate action.
+    CHECK(menu->IsOpen());
+    CHECK(game.scene.GetEntity(menu->playPanel)->IsActiveInHierarchy());
+    CHECK(game.Send(Spot::KeyPressedEvent{Spot::Key::Escape, false}));
+    CHECK(game.Send(Spot::KeyReleasedEvent{Spot::Key::Escape}));
+    CHECK(menu->GetPage() == MainMenu::Page::Home);
+    CHECK(input.GetModalCanvas() == menu->canvas);
+    click(menu->playButton);
+    CHECK(input.GetFocusedEntity() == menu->maps[1].button);
+    game.Send(Spot::GamepadButtonPressedEvent{Spot::GamepadId{0}, Spot::GamepadButton::DPadUp});
+    CHECK(input.GetFocusedEntity() == menu->maps[0].button);
+    game.Send(Spot::GamepadButtonPressedEvent{Spot::GamepadId{0}, Spot::GamepadButton::South});
+    CHECK(menu->GetSelectedMap() == 0);
+    const auto* entry = game.scene.GetOrAddSystem<Spot::UiSystem>().Find(menu->maps[1].button);
+    REQUIRE(entry);
+    const auto center = entry->bounds.GetCenter();
+    game.Send(Spot::MouseMovedEvent{{center.x, 720 - center.y}, {}});
+    CHECK(game.Send(Spot::MouseButtonPressedEvent{Spot::MouseButton::Left}));
+    CHECK(game.Send(Spot::MouseButtonReleasedEvent{Spot::MouseButton::Left}));
+    CHECK(menu->GetSelectedMap() == 1);
+    menu->SelectMap(menu->maps.size());
+    CHECK(menu->GetSelectedMap() == 1);
+    click(menu->backButton);
+    click(menu->quitButton);
+    CHECK(menu->GetPage() == MainMenu::Page::Quit);
+    CHECK(input.GetFocusedEntity() == menu->cancelQuitButton);
+    game.Send(Spot::GamepadButtonPressedEvent{Spot::GamepadId{0}, Spot::GamepadButton::East});
+    CHECK(menu->GetPage() == MainMenu::Page::Home);
+    CHECK(menu->IsOpen());
+    CHECK(input.GetFocusedEntity() == menu->quitButton);
+    CHECK(Spot::Time::GetTimeScale() == 1.0f);
+}
+
+TEST_CASE("Main menu settings save and rebinding Escape stays in settings", "[sandbox][ui][maps][settings]") {
+    InterfaceGame game("scenes/main_menu.scene");
+    auto* menu = game.scene.FindComponent<MainMenu>();
+    REQUIRE(menu);
+    auto* settings = menu->GetEntity().GetComponent<Gameplay::SettingsMenu>();
+    auto* bindings = menu->GetEntity().GetComponent<Gameplay::BindingsMenu>();
+    REQUIRE(settings);
+    REQUIRE(bindings);
+    TempDirectory directory;
+    settings->SetSettingsDirectory(directory.GetPath());
+    game.scene.GetEntity(menu->settingsButton)->GetComponent<Spot::UiButton>()->Click();
+    CHECK(menu->GetPage() == MainMenu::Page::Settings);
+    auto* slider = game.scene.GetEntity(settings->fieldOfViewSlider)->GetComponent<Spot::UiSlider>();
+    REQUIRE(slider);
+    slider->SetValue(92.0f, true);
+    CHECK(settings->GetSettings().fieldOfView == 92.0f);
+    REQUIRE_FALSE(bindings->GetRows().empty());
+    game.scene.GetEntity(bindings->GetRows().front())->GetComponent<Spot::UiButton>()->Click();
+    CHECK(bindings->IsRebinding());
+    game.Send(Spot::KeyPressedEvent{Spot::Key::Escape, false});
+    game.Send(Spot::KeyReleasedEvent{Spot::Key::Escape});
+    CHECK_FALSE(bindings->IsRebinding());
+    CHECK(menu->GetPage() == MainMenu::Page::Settings);
+    game.scene.GetEntity(menu->settingsBackButton)->GetComponent<Spot::UiButton>()->Click();
+    CHECK(menu->GetPage() == MainMenu::Page::Home);
+    Gameplay::UserSettings saved;
+    REQUIRE(saved.Load(directory.GetPath()));
+    CHECK(saved.fieldOfView == 92.0f);
+    CHECK(game.scene.GetOrAddSystem<Spot::UiInputSystem>().GetFocusedEntity() == menu->settingsButton);
+}
+
+TEST_CASE("Sandbox empty map has a collidable debug floor and working player tools", "[sandbox][ui][maps]") {
+    InterfaceGame game("scenes/empty.scene");
+    auto* floor = game.scene.FindEntity("Debug Floor");
+    REQUIRE(floor);
+    REQUIRE(floor->GetComponent<Spot::BoxCollider>());
+    auto* renderer = floor->GetComponent<Spot::MeshRenderer>();
+    REQUIRE(renderer);
+    CHECK(renderer->GetMaterial().GetId() == game.assets.FindByPath("materials/debug_grid.material").value());
+    CHECK_FALSE(game.scene.FindComponent<RobotSpawner>());
+    CHECK_FALSE(game.scene.FindEntity("Workshop"));
+    REQUIRE(game.scene.FindComponent<Gameplay::GameMode>());
+    CHECK(game.scene.FindComponent<Gameplay::GameMode>()->restartScene ==
+          game.assets.FindByPath("scenes/empty.scene").value());
+    REQUIRE(game.scene.FindComponent<Gameplay::SessionControls>());
+    CHECK(game.scene.FindComponent<Gameplay::SessionControls>()->checkpoint == "empty_world.json");
+    auto* inventory = Gameplay::Players::FindComponent<Gameplay::Inventory>(game.scene);
+    REQUIRE(inventory);
+    CHECK(inventory->GetItems().size() == 6);
+    for (int frame = 0; frame < 120; ++frame) {
+        game.Step();
+    }
+    auto* player = game.scene.FindEntity("Player");
+    REQUIRE(player);
+    CHECK(player->GetTransform().GetWorldPosition().y > 0.5f);
+    CHECK(player->GetTransform().GetWorldPosition().y < 2.0f);
+    auto ui = game.GetUi();
+    ui.pause.Open();
+    CHECK(Spot::Time::GetTimeScale() == 0.0f);
+    REQUIRE(game.scene.GetEntity(ui.pause.mainMenuButton)->GetComponent<Spot::UiButton>());
+    CHECK(ui.pause.mainMenuScene == game.assets.FindByPath("scenes/main_menu.scene").value());
+    game.scene.GetEntity(ui.pause.resumeButton)->GetComponent<Spot::UiButton>()->Click();
+    CHECK(Spot::Time::GetTimeScale() == 1.0f);
+}
 
 TEST_CASE("Sandbox authored HUD and spawn menu route Q and gamepad tabs", "[sandbox][ui]") {
     InterfaceGame game;

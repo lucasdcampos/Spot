@@ -1,0 +1,108 @@
+#include "gameplay/vehicles/vehicle_health.h"
+
+#include "gameplay/core/controller.h"
+#include "gameplay/vehicles/vehicle.h"
+#include "gameplay/vehicles/vehicle_seat.h"
+
+#include <algorithm>
+#include <memory>
+
+namespace Gameplay {
+
+SPOT_COMPONENT(VehicleHealth);
+
+namespace {
+
+void Burn(Spot::Entity& entity, const Spot::AssetRef<Spot::Material>& material) {
+    entity.ForEachComponent<Spot::MeshRenderer>([&](Spot::MeshRenderer& renderer) {
+        renderer.SetMaterial(material);
+        renderer.SetTextureSpace(Spot::TextureSpace::Object);
+    });
+    entity.ForEachChild([&](Spot::Entity& child) { Burn(child, material); });
+}
+
+} // namespace
+
+VehicleHealth::VehicleHealth() {
+    maxHealth = 300.0f;
+    regenerationRate = 0.0f;
+}
+
+void VehicleHealth::OnStart() {
+    Health::OnStart();
+    m_died = OnDied.Connect([this](const DamageInfo& damage) { Explode(damage); });
+    if (m_destroyed) {
+        TakeDamage({.amount = maxHealth});
+    } else if (m_savedHealth >= 0.0f) {
+        TakeDamage({.amount = std::max(maxHealth - m_savedHealth, 0.0f)});
+    }
+}
+
+void VehicleHealth::OnCollisionEnter(const Spot::Collision& collision) {
+    const float speed = std::max(-Spot::Dot(collision.relativeVelocity, collision.normal), 0.0f);
+    const Spot::Entity* other = GetScene().GetEntity(collision.other);
+    if (m_destroyed || !other || other->IsDescendantOf(GetEntity()) || speed <= safeImpactSpeed) {
+        return;
+    }
+    Damage::Apply(GetScene(), GetEntity().GetId(),
+                  {.amount = (speed - safeImpactSpeed) * damagePerSpeed,
+                   .type = "Impact",
+                   .point = collision.pointCount > 0 ? collision.points[0] : GetTransform().GetWorldPosition(),
+                   .source = collision.other,
+                   .pushesBody = false});
+}
+
+void VehicleHealth::ApplyWreck() {
+    if (auto* vehicle = GetEntity().GetComponent<Vehicle>()) {
+        vehicle->SetState("Destroyed", true);
+        vehicle->SetInput({});
+        if (auto* seat = vehicle->GetSeat()) {
+            seat->Exit();
+        }
+        if (auto* controller = vehicle->GetController()) {
+            controller->Unpossess();
+        }
+    }
+    auto material = burnedMaterial;
+    if (!material) {
+        material = std::make_shared<const Spot::Material>(
+            Spot::Material{.baseColor = {0.09f, 0.075f, 0.06f}, .metallic = 0.05f, .roughness = 0.98f});
+    }
+    Burn(GetEntity(), material);
+}
+
+void VehicleHealth::Explode(const DamageInfo& damage) {
+    const bool exploded = m_destroyed;
+    m_destroyed = true;
+    ApplyWreck();
+    if (!exploded) {
+        if (auto* body = GetEntity().GetComponent<Spot::Rigidbody>(); body && !body->IsKinematic()) {
+            const auto& transform = GetTransform();
+            body->WakeUp();
+            body->AddImpulseAtPosition(Spot::Vector3{0.0f, body->GetMass() * std::max(wreckLaunchSpeed, 0.0f), 0.0f},
+                                       transform.GetWorldPosition() +
+                                           transform.GetWorldRotation() * Spot::Vector3{0.2f, 0.5f, -0.6f});
+        }
+        // The static blast keeps the source entity and ignores it while damaging its surroundings.
+        Explosive::Explode(GetScene(), GetTransform().GetWorldPosition() + Spot::Vector3{0.0f, 0.8f, 0.0f}, blast,
+                           GetEntity().GetId(), damage.instigator);
+    }
+}
+
+void VehicleHealth::Serialize(Spot::Archive& archive) {
+    Health::Serialize(archive);
+    archive.Field("blast", blast);
+    archive.Field(
+        "wreckLaunchSpeed", wreckLaunchSpeed,
+        {.min = 0.0f, .max = 50.0f, .speed = 0.1f, .tooltip = "Upward speed added once when it explodes, in m/s"});
+    archive.Field("burnedMaterial", burnedMaterial);
+    archive.Field("safeImpactSpeed", safeImpactSpeed, {.min = 0.0f, .max = 100.0f, .speed = 0.1f});
+    archive.Field("damagePerSpeed", damagePerSpeed, {.min = 0.0f, .max = 1000.0f, .speed = 0.5f});
+    if (archive.IsSaving() && HasStarted()) {
+        m_savedHealth = GetHealth();
+    }
+    archive.Field("health", m_savedHealth, {.hidden = true});
+    archive.Field("destroyed", m_destroyed, {.hidden = true});
+}
+
+} // namespace Gameplay

@@ -60,8 +60,9 @@ public:
     VehicleControls controls;
 
     // What it does when no player drives it; a player's controls replace it each frame.
-    void SetInput(const VehicleInput& input) { m_input = input; }
+    void SetInput(const VehicleInput& input) { m_input = IsOperational() ? input : VehicleInput{}; }
     const VehicleInput& GetInput() const { return m_input; }
+    bool IsOperational() const { return !HasState("Dead") && !HasState("Destroyed"); }
     // Whether someone drives it, possessing it.
     bool HasDriver() const { return IsPossessed(); }
     // The seat its driver sits in; null when it has none.

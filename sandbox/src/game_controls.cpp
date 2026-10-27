@@ -27,7 +27,7 @@ void GameControls::OnDisable() {
 }
 
 void GameControls::OnStart() {
-    if (!GetScene().FindComponent<RobotSpawner>()) {
+    if (spawnRobots && !GetScene().FindComponent<RobotSpawner>()) {
         auto population = robots;
         if (!population) {
             if (auto* assets = Spot::Assets::GetManager();
@@ -51,4 +51,5 @@ void GameControls::Serialize(Spot::Archive& archive) {
     archive.Field("robots", robots,
                   {.tooltip = "The robot population prefab; the default population is used when empty"});
     archive.Field("cheats", cheats, {.tooltip = "Permits the console's cheat commands while the game runs"});
+    archive.Field("spawnRobots", spawnRobots, {.tooltip = "Adds the sandbox's default robot population"});
 }

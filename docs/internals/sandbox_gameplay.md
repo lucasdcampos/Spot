@@ -30,7 +30,7 @@ so those systems also bring `hud` even when a particular game does not author th
 | `character` | `camera`, `core`, `effects`, `health`, `hud`, `persistence` |
 | `inventory` | `core`, `hud`, `menus` |
 | `weapons` | `camera`, `core`, `effects`, `health`, `inventory` |
-| `vehicles` | `core`, `hud`, `persistence` |
+| `vehicles` | `core`, `environment`, `health`, `hud`, `persistence`, `weapons` |
 | `environment` | `core`, `effects`, `hud` |
 | `menus` | `core`, `hud` |
 | `game` | `core`, `health`, `hud`, `menus`, `persistence` |
@@ -143,8 +143,8 @@ parts in their prefabs. No damage source names the sandbox's robots or barrels. 
 
 ## Vehicles
 
-`gameplay/vehicles/` needs `core`, `environment`, `hud` and `persistence`. `Vehicle` is a pawn driven by `VehicleInput`; its
-`controls` map a player's actions, and other controllers call `SetInput()`. A `VehicleSeat` gets an existing pawn
+`gameplay/vehicles/` needs `core`, `environment`, `health`, `hud`, `persistence` and `weapons`.
+`Vehicle` is a pawn driven by `VehicleInput`; its `controls` map a player's actions, and other controllers call `SetInput()`. A `VehicleSeat` gets an existing pawn
 in, marks it "Seated", transfers possession and keeps it at the seat's position. Exiting finds room at authored
 exits or around the body's boxes, then restores possession and places the pawn facing and moving with the vehicle.
 Death and checkpoint loading get it out too. The vehicle exposes its occupant through the pawn contract so the HUD
@@ -190,6 +190,26 @@ Squared rotor speed and distance falloff control opacity, including spin-up and 
 no water or effect library. The companion uses `Water::Ripple()` and the bounded effect pool, leaving impact
 spray and splash sounds to collisions. Headless tests cover placement, fading, range, cadence and shutdown; the
 effects GPU test captures `helicopter_downwash.png` from the authored helicopter over the pond.
+
+`VehicleHealth` extends `Health`: the authored cars, coupe and helicopter start with 300 health and no
+regeneration. Bullets and nearby blasts use the existing damage receivers; collisions above `safeImpactSpeed`
+(default 8 m/s) take `(closingSpeed - safeImpactSpeed) * damagePerSpeed` health. At zero health it marks the pawn
+"Destroyed", clears its input, ejects the driver and unpossesses any remaining controller. Seats refuse dead or
+destroyed vehicles, and the drivetrain, flight controls and engine audio require `Vehicle::IsOperational()`.
+The rigidbody and colliders remain, so the wreck still interacts with physics.
+
+Its own configurable `blast` has a 12-meter radius, 600 damage at the center and a 4,000 Ns impulse. It uses the
+static `Explosive::Explode()` to damage and push surroundings, play the existing explosion particles at 2.4 times
+the base scale, and shake cameras, without deleting the wreck. The damage kills a nearby full-health player,
+including the ejected driver even with the wreck shielding part of the blast.
+A separate off-center impulse adds `wreckLaunchSpeed` (6 m/s by default) upward while preserving existing momentum
+and turning the body. It is applied once and is not repeated on checkpoint load. Destroyed wheeled vehicles release
+their parking brakes; destroyed helicopters stop lift, stabilization and flight drag while their rotors coast down.
+Every descendant mesh receives `burnedMaterial`, including glass, lights and wheels; the sandbox authors `materials/vehicle_burned.material`, a
+dark, rough, non-emissive soot material with object-space texture projection. A plain charred fallback works in
+games without that asset. Health and the destroyed flag survive world saves; loading a wreck reapplies its state
+and material without another blast. `Health::Restore()` alone does not make a destroyed vehicle usable.
+Tests: `vehicle_health_tests.cpp`, the authored prefabs in `car_tests.cpp`, and the burned-car offscreen capture.
 
 ## Health
 
@@ -273,6 +293,8 @@ toggle action opens it while no other menu is open and closes it, and the canvas
 draws its controls' states in its `MenuStyle`, may pause the game, and tells `MenuSystem::OnOpening` first, so a tool
 that slows time, as the weapon wheel, closes before. `MenuPart`s on its entity take part: `PauseMenu` has
 `SettingsMenu`, which loads, applies and saves the player's `UserSettings`, and `BindingsMenu`, which rebinds controls.
+`PauseMenu::mainMenuButton` optionally loads `mainMenuScene`, closing the menu first to restore simulation time.
+An unassigned button leaves games without a main menu unaffected.
 `UserSettings::Apply()` reaches the `UserSettingsListener`s of each player's controller, pawn and its children,
 including the occupant while driving, stopping at nested pawns. The view takes sensitivity and field of view; the
 carrier and held physics gun take rotation sensitivity without reading the view. `HelpPanel` is the HUD's controls panel. The sandbox's
@@ -331,7 +353,7 @@ Derive `Gameplay::Vehicle`, implement `GetForwardSpeed()` and its simulation usi
 `OnFixedUpdate()`. Override `DescribeTelemetry()` for its gauges and, if needed, `DescribeHints()` for additional
 controls. A player's controller translates the authored `controls`; another controller calls `SetInput()`.
 Register the subclass with `SPOT_COMPONENT()` and author a prefab with its body, a `VehicleSeat` on a collider root,
-a referenced camera and `ChaseCamera`. Add `Health` or a different `DamageReceiver` if it takes damage, and
+a referenced camera and `ChaseCamera`. Add `VehicleHealth` for cumulative damage, a blast and a persistent burned wreck, or another `DamageReceiver`, and
 `Persistent` if a checkpoint should save it. Entering, exiting, the camera, HUD and checkpoint ejection use the
 existing contracts and require no branch for the new type. Optional engine and tire sound components consume the
 virtual RPM, throttle and slip queries.
@@ -392,7 +414,8 @@ what it hits, pushes bodies and tells who listens" demonstrate a receiver that h
 ### Taking a system into another project
 
 Copy the selected folder under the other game's `src/gameplay/`, plus the dependency closure in the table above.
-For example, vehicles need `vehicles`, `core`, `hud` and `persistence`; effects need only `effects`. Preserve the
+For example, vehicles bring `camera`, `core`, `effects`, `environment`, `health`, `hud`, `inventory`, `menus`,
+`persistence` and `weapons` through their dependency closure; effects need only `effects`. Preserve the
 `gameplay/` include prefix and make `src/` an include directory. The game builds these sources and links Spot using
 its normal setup; [sandbox/src/CMakeLists.txt](../../sandbox/src/CMakeLists.txt) shows recursive sources with
 `spot_add_game()` and `target_include_directories(game_code PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})`.

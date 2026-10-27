@@ -1,0 +1,9169 @@
+{
+  "entities": [
+    {
+      "id": 1,
+      "name": "Main Menu Controller",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "MainMenu",
+          "id": "92ed1cf3eaa74cecacbd6b1eaa1597aa",
+          "enabled": true,
+          "data": {
+            "canvas": 2,
+            "firstFocus": 109,
+            "pausesGame": false,
+            "clickSound": "740b4adc271ec8e9467bedbd8163a294",
+            "toggleAction": "",
+            "style": {
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1
+              ]
+            },
+            "homePanel": 10,
+            "playPanel": 20,
+            "settingsPanel": 40,
+            "quitPanel": 50,
+            "playButton": 109,
+            "settingsButton": 112,
+            "quitButton": 115,
+            "startButton": 146,
+            "backButton": 137,
+            "settingsBackButton": 150,
+            "cancelQuitButton": 155,
+            "confirmQuitButton": 158,
+            "previewImage": 142,
+            "homePreview": 121,
+            "mapTitle": 143,
+            "mapDescription": 144,
+            "mapDetails": 145,
+            "statusLabel": 149,
+            "maps": [
+              {
+                "button": 128,
+                "scene": "72c16925ad8b47f25561eaf729da4319",
+                "name": "Playground",
+                "description": "Discover the valley, drive vehicles and experiment with physics in a world built for play.",
+                "details": "EXPLORATION   /   VEHICLES   /   PHYSICS",
+                "previewPosition": [
+                  38,
+                  28,
+                  45
+                ],
+                "previewTarget": [
+                  0,
+                  1,
+                  -6
+                ]
+              },
+              {
+                "button": 132,
+                "scene": "3dceea274fe47c7dde67be51b8e042b4",
+                "name": "Empty Map",
+                "description": "An open 200 x 200 meter space. Bring your tools, spawn your ideas and build from the ground up.",
+                "details": "200 x 200 M   /   OPEN SPACE   /   ALL TOOLS",
+                "previewPosition": [
+                  24,
+                  18,
+                  28
+                ],
+                "previewTarget": [
+                  0,
+                  0,
+                  0
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "data": {
+            "ambienceSlider": 1057,
+            "effectsSlider": 1049,
+            "fieldOfViewSlider": 1041,
+            "interfaceSlider": 1061,
+            "masterSlider": 1045,
+            "musicSlider": 1053,
+            "qualityButton": 1062,
+            "qualityLabel": 1063,
+            "sensitivitySlider": 1037
+          },
+          "enabled": true,
+          "id": "c6fdb08d662a4b28bb68335137d04757",
+          "type": "SettingsMenu"
+        },
+        {
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "monoFont": "765534ac9cdf585cba22b54d61df0209",
+            "rowSize": [
+              540,
+              32
+            ],
+            "rowTemplate": 1067,
+            "rows": 1066,
+            "scroll": 1065
+          },
+          "enabled": true,
+          "id": "c2edeb92d7d14794a1a52aef087c7054",
+          "type": "BindingsMenu"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Main Menu",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "Canvas",
+          "id": "dd1f2339fb1a47bebfbd7b6b4e93e096",
+          "enabled": true,
+          "data": {
+            "referenceResolution": [
+              1280,
+              720
+            ],
+            "scale": 1,
+            "scaleMode": 1,
+            "modal": true,
+            "order": 0,
+            "dismissKey": 37
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "4862deff273a466c95bd815200546136",
+          "enabled": true,
+          "data": {
+            "texture": null,
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "tint": [
+              0.0052,
+              0.006,
+              0.0075,
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 100,
+      "name": "Brand",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "277ca8d64e5042abad76e03797cb5045",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              -350,
+              304
+            ],
+            "sizeDelta": [
+              452,
+              32
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "e41764830c0e4a00bc316320bde835bd",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "fontSize": 14,
+            "color": [
+              0.807,
+              0.3663,
+              0.0467,
+              1
+            ],
+            "text": "S P O T   /   S A N D B O X",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 2
+    },
+    {
+      "id": 101,
+      "name": "Header Detail",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "2bfae869bd7a4afeace6cedb288a6ac5",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              350,
+              304
+            ],
+            "sizeDelta": [
+              452,
+              32
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "854ee03823e54735821eb8632cda411b",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "fontSize": 12,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "PHYSICS. CREATIVITY. FREEDOM.",
+            "layout": {
+              "alignment": 2,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 2
+    },
+    {
+      "id": 102,
+      "name": "Header Rule",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "3095219fc8294e15b04a38a92b8f40e5",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              276
+            ],
+            "sizeDelta": [
+              1152,
+              1
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "144f517b9c3346018c5f26d614c3ba81",
+          "enabled": true,
+          "data": {
+            "texture": null,
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "tint": [
+              1,
+              1,
+              1,
+              0.09
+            ]
+          }
+        }
+      ],
+      "parent": 2
+    },
+    {
+      "id": 103,
+      "name": "Footer Rule",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "4e2f215bed2d4e328871d485faddfc56",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              -296
+            ],
+            "sizeDelta": [
+              1152,
+              1
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "069fce1b59f74495b0e0115862d93ce5",
+          "enabled": true,
+          "data": {
+            "texture": null,
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "tint": [
+              1,
+              1,
+              1,
+              0.09
+            ]
+          }
+        }
+      ],
+      "parent": 2
+    },
+    {
+      "id": 104,
+      "name": "Navigation Hint",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "253e36a656c644e9bca8b0b4d24b6451",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              -130,
+              -324
+            ],
+            "sizeDelta": [
+              892,
+              24
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "ed684d9ad72b4daba65a2c7c482dcd6b",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "fontSize": 12,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "ARROWS / D-PAD  Navigate     ENTER / A  Select     ESC / B  Back",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 2
+    },
+    {
+      "id": 105,
+      "name": "Footer Brand",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "0698c2cec44240f184a04b93dcbd8dc8",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              450,
+              -324
+            ],
+            "sizeDelta": [
+              252,
+              24
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "2b90836098224c68af85bd7a301bf971",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "fontSize": 12,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "SPOT SANDBOX",
+            "layout": {
+              "alignment": 2,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 2
+    },
+    {
+      "id": 10,
+      "name": "Home",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "80ae8e37feba4e83b0dbb15951080d52",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              -12
+            ],
+            "sizeDelta": [
+              1152,
+              536
+            ]
+          }
+        }
+      ],
+      "parent": 2
+    },
+    {
+      "id": 106,
+      "name": "Home Eyebrow",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "f593d90e0af94033870fff66b4446153",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              -400,
+              206
+            ],
+            "sizeDelta": [
+              352,
+              24
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "9715bbbd1afa46bd9529276dd32f8657",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "fontSize": 12,
+            "color": [
+              0.807,
+              0.3663,
+              0.0467,
+              1
+            ],
+            "text": "YOUR NEXT GREAT IDEA STARTS HERE",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 10
+    },
+    {
+      "id": 107,
+      "name": "Home Title",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "3aa43400575d4de99a41634067c15427",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              -400,
+              147
+            ],
+            "sizeDelta": [
+              352,
+              94
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "ea1b23d44ec2491598332ae6fff858f2",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 64,
+            "color": [
+              0.807,
+              0.823,
+              0.847,
+              1
+            ],
+            "text": "Sandbox",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 10
+    },
+    {
+      "id": 108,
+      "name": "Home Description",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "e51c9f422cad4f15b9b98dd1bcec74d0",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              -400,
+              68
+            ],
+            "sizeDelta": [
+              352,
+              64
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "7935171c29824959965e4c384471ccbc",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 17,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "Build something unexpected.\nExplore, experiment and make it yours.",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": true
+            }
+          }
+        }
+      ],
+      "parent": 10
+    },
+    {
+      "id": 109,
+      "name": "Play",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "c97139f9958444218fb1219dbcd18bf2",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              -420,
+              -30
+            ],
+            "sizeDelta": [
+              312,
+              64
+            ]
+          }
+        },
+        {
+          "type": "UiButton",
+          "id": "89ff184482f047ef9393c46f6eae0812",
+          "enabled": true,
+          "data": {
+            "interactable": true,
+            "style": {
+              "normal": [
+                0.28,
+                0.115,
+                0.015,
+                1
+              ],
+              "hovered": [
+                0.4,
+                0.18,
+                0.024,
+                1
+              ],
+              "pressed": [
+                0.2,
+                0.08,
+                0.01,
+                1
+              ],
+              "focused": [
+                0.4,
+                0.18,
+                0.024,
+                1
+              ],
+              "disabled": [
+                0.0091,
+                0.011,
+                0.0137,
+                0.5
+              ],
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                6,
+                6,
+                6,
+                6
+              ]
+            }
+          }
+        }
+      ],
+      "parent": 10
+    },
+    {
+      "id": 110,
+      "name": "Outline",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "a48ca78f7b44437daa4282ba45ff2ef3",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              312,
+              64
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "ca55b9e3b26040eb88a9ad75ddde3333",
+          "enabled": true,
+          "data": {
+            "tint": [
+              1,
+              1,
+              1,
+              0.12
+            ],
+            "borders": [
+              6,
+              6,
+              6,
+              6
+            ],
+            "texture": "0f55bac8e0df083139b84827ade249fe"
+          }
+        }
+      ],
+      "parent": 109
+    },
+    {
+      "id": 111,
+      "name": "Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "a56ba296f7d440b7ad86ff32c608ad15",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              272,
+              64
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "547da43d770c43009d868cacb93e7dad",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 20,
+            "color": [
+              0.807,
+              0.823,
+              0.847,
+              1
+            ],
+            "text": "Play",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 109
+    },
+    {
+      "id": 112,
+      "name": "Settings",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "ceb154b59b344e389a295d818b557a3a",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              -420,
+              -108
+            ],
+            "sizeDelta": [
+              312,
+              52
+            ]
+          }
+        },
+        {
+          "type": "UiButton",
+          "id": "e264db2358d242c3be8c259b39b8252b",
+          "enabled": true,
+          "data": {
+            "interactable": true,
+            "style": {
+              "normal": [
+                0.0091,
+                0.011,
+                0.0137,
+                1.0
+              ],
+              "hovered": [
+                0.0144,
+                0.0176,
+                0.0232,
+                1.0
+              ],
+              "pressed": [
+                0.007,
+                0.008,
+                0.0097,
+                1.0
+              ],
+              "focused": [
+                0.0144,
+                0.0176,
+                0.0232,
+                1.0
+              ],
+              "disabled": [
+                0.0091,
+                0.011,
+                0.0137,
+                0.5
+              ],
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                6,
+                6,
+                6,
+                6
+              ]
+            }
+          }
+        }
+      ],
+      "parent": 10
+    },
+    {
+      "id": 113,
+      "name": "Outline",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "19e31bb7e93a4e17b8a89efe9b15ae5f",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              312,
+              52
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "c5717a3c243542d6a4c40ed597b0da93",
+          "enabled": true,
+          "data": {
+            "tint": [
+              1,
+              1,
+              1,
+              0.12
+            ],
+            "borders": [
+              6,
+              6,
+              6,
+              6
+            ],
+            "texture": "0f55bac8e0df083139b84827ade249fe"
+          }
+        }
+      ],
+      "parent": 112
+    },
+    {
+      "id": 114,
+      "name": "Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "1366b2a46a0f4781b5142f88fa153958",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              272,
+              52
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "d710ff55cc304694979ed3d1bc651137",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 20,
+            "color": [
+              0.807,
+              0.823,
+              0.847,
+              1
+            ],
+            "text": "Settings",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 112
+    },
+    {
+      "id": 115,
+      "name": "Quit",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "9350e1a527f245278c5522b216e90549",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              -420,
+              -174
+            ],
+            "sizeDelta": [
+              312,
+              52
+            ]
+          }
+        },
+        {
+          "type": "UiButton",
+          "id": "27f26b122e4e426ca4d32c1099288a45",
+          "enabled": true,
+          "data": {
+            "interactable": true,
+            "style": {
+              "normal": [
+                0.0091,
+                0.011,
+                0.0137,
+                1.0
+              ],
+              "hovered": [
+                0.0144,
+                0.0176,
+                0.0232,
+                1.0
+              ],
+              "pressed": [
+                0.007,
+                0.008,
+                0.0097,
+                1.0
+              ],
+              "focused": [
+                0.0144,
+                0.0176,
+                0.0232,
+                1.0
+              ],
+              "disabled": [
+                0.0091,
+                0.011,
+                0.0137,
+                0.5
+              ],
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                6,
+                6,
+                6,
+                6
+              ]
+            }
+          }
+        }
+      ],
+      "parent": 10
+    },
+    {
+      "id": 116,
+      "name": "Outline",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "4331a0a95dae451eb6bac338745e82f1",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              312,
+              52
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "75bba834a60c4374b7b90ccdf822b8b3",
+          "enabled": true,
+          "data": {
+            "tint": [
+              1,
+              1,
+              1,
+              0.12
+            ],
+            "borders": [
+              6,
+              6,
+              6,
+              6
+            ],
+            "texture": "0f55bac8e0df083139b84827ade249fe"
+          }
+        }
+      ],
+      "parent": 115
+    },
+    {
+      "id": 117,
+      "name": "Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "dd34fb6a363147c0bb5ba7a8ee074179",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              272,
+              52
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "0c6f07f8b80b4b0aaa0b78097e38205a",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 20,
+            "color": [
+              0.807,
+              0.823,
+              0.847,
+              1
+            ],
+            "text": "Quit Game",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 115
+    },
+    {
+      "id": 118,
+      "name": "Home Map Count",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "0db21edbd2454658869fee58120f5d93",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              -400,
+              -236
+            ],
+            "sizeDelta": [
+              352,
+              24
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "43720014767c424aaa9e973101bf9af4",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "fontSize": 12,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "02 MAPS   /   LIMITLESS POSSIBILITIES",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 10
+    },
+    {
+      "id": 119,
+      "name": "Featured Map",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "832e4947fdd74e7a9555b2342973bb63",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              208,
+              38
+            ],
+            "sizeDelta": [
+              736,
+              414
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "725a9abfb88742e5b59e4eb85542b746",
+          "enabled": true,
+          "data": {
+            "tint": [
+              0.0091,
+              0.011,
+              0.0137,
+              1
+            ],
+            "borders": [
+              6,
+              6,
+              6,
+              6
+            ],
+            "texture": "88686c16704f97f193d65bdd3af0d1d8"
+          }
+        }
+      ],
+      "parent": 10
+    },
+    {
+      "id": 120,
+      "name": "Preview Fallback",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "d7f35e81510d4449897ff9093ccbc0a0",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              660,
+              100
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "c6a23319302d4c74b59c8b2cf4d389af",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 24,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "SANDBOX\nExplore your possibilities",
+            "layout": {
+              "alignment": 1,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": true
+            }
+          }
+        }
+      ],
+      "parent": 119
+    },
+    {
+      "id": 121,
+      "name": "Featured Preview",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "cdb28478e08248bebaabc0e76dd1369c",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              736,
+              414
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "8acecf0fb9ea40efa2aaf8613e501e8d",
+          "enabled": true,
+          "data": {
+            "texture": null,
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "tint": [
+              1,
+              1,
+              1,
+              0
+            ]
+          }
+        }
+      ],
+      "parent": 119
+    },
+    {
+      "id": 122,
+      "name": "Featured Eyebrow",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "f69c6b80d90340459dae354e8b0c9558",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              208,
+              -196
+            ],
+            "sizeDelta": [
+              736,
+              22
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "3a193ee1e05b4a0a8212e2390aef2ee6",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "fontSize": 12,
+            "color": [
+              0.807,
+              0.3663,
+              0.0467,
+              1
+            ],
+            "text": "FEATURED WORLD",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 10
+    },
+    {
+      "id": 123,
+      "name": "Featured Title",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "9707a5618da7402ca5233c7855203246",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              208,
+              -226
+            ],
+            "sizeDelta": [
+              736,
+              36
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "e7fefa8b06a44201a8637954f82c33c5",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 24,
+            "color": [
+              0.807,
+              0.823,
+              0.847,
+              1
+            ],
+            "text": "The Playground",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 10
+    },
+    {
+      "id": 124,
+      "name": "Featured Detail",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "9d9f7ccfa3e441218091037517fd6669",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              208,
+              -254
+            ],
+            "sizeDelta": [
+              736,
+              22
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "bfbad49c1eb144f0a05b80fc5c844790",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 14,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "A valley full of things to discover. Choose a map in Play.",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 10
+    },
+    {
+      "id": 20,
+      "name": "Map Selection",
+      "active": false,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "495086a7f946486f87134a4c40d7e573",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              -12
+            ],
+            "sizeDelta": [
+              1152,
+              536
+            ]
+          }
+        }
+      ],
+      "parent": 2
+    },
+    {
+      "id": 125,
+      "name": "Play Eyebrow",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "398e4869c4414397b55a226004cb4635",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              -400,
+              238
+            ],
+            "sizeDelta": [
+              352,
+              24
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "2301db53d801462c82f25d1573dc4f59",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "fontSize": 12,
+            "color": [
+              0.807,
+              0.3663,
+              0.0467,
+              1
+            ],
+            "text": "SINGLE PLAYER",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 20
+    },
+    {
+      "id": 126,
+      "name": "Play Title",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "0c8058f3e0df4929980598ff3bb674c3",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              -370,
+              194
+            ],
+            "sizeDelta": [
+              412,
+              56
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "4d9857979b5d4634b9916ed289ab8055",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 36,
+            "color": [
+              0.807,
+              0.823,
+              0.847,
+              1
+            ],
+            "text": "Choose a map",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 20
+    },
+    {
+      "id": 127,
+      "name": "Play Hint",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "d0142a51686341b4a5d945c627223d23",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              -400,
+              145
+            ],
+            "sizeDelta": [
+              352,
+              28
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "08d4261c90084c7fba7d189774519e3e",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 15,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "Your world. Your rules.",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 20
+    },
+    {
+      "id": 128,
+      "name": "Playground",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "e157c11281774001ab808c356a94075c",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              -420,
+              54
+            ],
+            "sizeDelta": [
+              312,
+              100
+            ]
+          }
+        },
+        {
+          "type": "UiButton",
+          "id": "872976588c714b38aa1b620e432cca16",
+          "enabled": true,
+          "data": {
+            "interactable": true,
+            "style": {
+              "normal": [
+                0.0091,
+                0.011,
+                0.0137,
+                1.0
+              ],
+              "hovered": [
+                0.0144,
+                0.0176,
+                0.0232,
+                1.0
+              ],
+              "pressed": [
+                0.007,
+                0.008,
+                0.0097,
+                1.0
+              ],
+              "focused": [
+                0.0144,
+                0.0176,
+                0.0232,
+                1.0
+              ],
+              "disabled": [
+                0.0091,
+                0.011,
+                0.0137,
+                0.5
+              ],
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                6,
+                6,
+                6,
+                6
+              ]
+            }
+          }
+        }
+      ],
+      "parent": 20
+    },
+    {
+      "id": 129,
+      "name": "Outline",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "908186d832534f2eac14c4d86ea0b22c",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              312,
+              100
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "e1a5eafadba44294b1ac8d5296f79d56",
+          "enabled": true,
+          "data": {
+            "tint": [
+              1,
+              1,
+              1,
+              0.12
+            ],
+            "borders": [
+              6,
+              6,
+              6,
+              6
+            ],
+            "texture": "0f55bac8e0df083139b84827ade249fe"
+          }
+        }
+      ],
+      "parent": 128
+    },
+    {
+      "id": 130,
+      "name": "Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "3874b8b371624968a5d9702cd8ad8dbe",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              16
+            ],
+            "sizeDelta": [
+              272,
+              100
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "fcd25f1147ac47599d3a6ec38465f33c",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 20,
+            "color": [
+              0.807,
+              0.823,
+              0.847,
+              1
+            ],
+            "text": "Playground",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 128
+    },
+    {
+      "id": 131,
+      "name": "Description",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "24f58af26d1349b59129e1885f8eee71",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              -24
+            ],
+            "sizeDelta": [
+              272,
+              28
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "aabbd4d82f0648ce9cfe83691a3a67e2",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 12,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "Explore a living physics playground.",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 128
+    },
+    {
+      "id": 132,
+      "name": "Empty Map",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "ebd6563d85ab42a89792479a2cc714e5",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              -420,
+              -64
+            ],
+            "sizeDelta": [
+              312,
+              100
+            ]
+          }
+        },
+        {
+          "type": "UiButton",
+          "id": "c6067e48d9624935be4253b42b5691c3",
+          "enabled": true,
+          "data": {
+            "interactable": true,
+            "style": {
+              "normal": [
+                0.0091,
+                0.011,
+                0.0137,
+                1.0
+              ],
+              "hovered": [
+                0.0144,
+                0.0176,
+                0.0232,
+                1.0
+              ],
+              "pressed": [
+                0.007,
+                0.008,
+                0.0097,
+                1.0
+              ],
+              "focused": [
+                0.0144,
+                0.0176,
+                0.0232,
+                1.0
+              ],
+              "disabled": [
+                0.0091,
+                0.011,
+                0.0137,
+                0.5
+              ],
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                6,
+                6,
+                6,
+                6
+              ]
+            }
+          }
+        }
+      ],
+      "parent": 20
+    },
+    {
+      "id": 133,
+      "name": "Outline",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "f12b1e786db54733848e26b58cf5fae1",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              312,
+              100
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "d92cec3754a14223aede13140ea29b01",
+          "enabled": true,
+          "data": {
+            "tint": [
+              1,
+              1,
+              1,
+              0.12
+            ],
+            "borders": [
+              6,
+              6,
+              6,
+              6
+            ],
+            "texture": "0f55bac8e0df083139b84827ade249fe"
+          }
+        }
+      ],
+      "parent": 132
+    },
+    {
+      "id": 134,
+      "name": "Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "f79a9b5eb1db46f49b28edf681db5447",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              16
+            ],
+            "sizeDelta": [
+              272,
+              100
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "5b93196fcc034320ac96031ce68ad5e3",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 20,
+            "color": [
+              0.807,
+              0.823,
+              0.847,
+              1
+            ],
+            "text": "Empty Map",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 132
+    },
+    {
+      "id": 135,
+      "name": "Description",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "84b31342c8e64964a1efa31f67a33d29",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              -24
+            ],
+            "sizeDelta": [
+              272,
+              28
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "a76e620f9fd64aa8b47516c68ea8e658",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 12,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "A clean slate for your next idea.",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 132
+    },
+    {
+      "id": 136,
+      "name": "Map Count",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "d67fd3894c08480eb95f2c348d6d3899",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              -400,
+              -140
+            ],
+            "sizeDelta": [
+              352,
+              24
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "451a3ddd47a0434994de740a38f76b04",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "fontSize": 12,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "2 AVAILABLE MAPS",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 20
+    },
+    {
+      "id": 137,
+      "name": "Back",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "30e2151aec5d4faba995743ae957b57a",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              -492,
+              -232
+            ],
+            "sizeDelta": [
+              168,
+              44
+            ]
+          }
+        },
+        {
+          "type": "UiButton",
+          "id": "46df0015552e4d19b9f312976e6794a4",
+          "enabled": true,
+          "data": {
+            "interactable": true,
+            "style": {
+              "normal": [
+                0.0091,
+                0.011,
+                0.0137,
+                1.0
+              ],
+              "hovered": [
+                0.0144,
+                0.0176,
+                0.0232,
+                1.0
+              ],
+              "pressed": [
+                0.007,
+                0.008,
+                0.0097,
+                1.0
+              ],
+              "focused": [
+                0.0144,
+                0.0176,
+                0.0232,
+                1.0
+              ],
+              "disabled": [
+                0.0091,
+                0.011,
+                0.0137,
+                0.5
+              ],
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                6,
+                6,
+                6,
+                6
+              ]
+            }
+          }
+        }
+      ],
+      "parent": 20
+    },
+    {
+      "id": 138,
+      "name": "Outline",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "0796e19c78334c579c291149224c7dd7",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              168,
+              44
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "c47133fc86a94903ab3157177e49dd2f",
+          "enabled": true,
+          "data": {
+            "tint": [
+              1,
+              1,
+              1,
+              0.12
+            ],
+            "borders": [
+              6,
+              6,
+              6,
+              6
+            ],
+            "texture": "0f55bac8e0df083139b84827ade249fe"
+          }
+        }
+      ],
+      "parent": 137
+    },
+    {
+      "id": 139,
+      "name": "Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "c21a6a5a5d3a4fdf828d296ae26a68f9",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              128,
+              44
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "8ce8e2a425ff45999991eaf092b84e30",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 20,
+            "color": [
+              0.807,
+              0.823,
+              0.847,
+              1
+            ],
+            "text": "Back",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 137
+    },
+    {
+      "id": 140,
+      "name": "Map Preview Well",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "719c4b7d01d44be38bf5274ea6b980df",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              208,
+              46
+            ],
+            "sizeDelta": [
+              736,
+              414
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "c7146c7289ec43ec87f0f927490b0a97",
+          "enabled": true,
+          "data": {
+            "tint": [
+              0.0091,
+              0.011,
+              0.0137,
+              1
+            ],
+            "borders": [
+              6,
+              6,
+              6,
+              6
+            ],
+            "texture": "88686c16704f97f193d65bdd3af0d1d8"
+          }
+        }
+      ],
+      "parent": 20
+    },
+    {
+      "id": 141,
+      "name": "Preview Fallback",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "9fe22c57608f4d7da6815b56070365e8",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              600,
+              60
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "0d1c716e72bd4eb89568c33ff63e4b94",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "fontSize": 20,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "MAP PREVIEW",
+            "layout": {
+              "alignment": 1,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 140
+    },
+    {
+      "id": 142,
+      "name": "Map Preview",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "c951a1dc2f724ed48628297bc1067657",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              736,
+              414
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "76624a98be16455d94a594f3a01152c7",
+          "enabled": true,
+          "data": {
+            "texture": null,
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "tint": [
+              1,
+              1,
+              1,
+              0
+            ]
+          }
+        }
+      ],
+      "parent": 140
+    },
+    {
+      "id": 143,
+      "name": "Selected Map Title",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "787447e63b8e46dea482868662473399",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              62,
+              -194
+            ],
+            "sizeDelta": [
+              444,
+              38
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "267be86cd7334cabaa0d7ebd4f717398",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 26,
+            "color": [
+              0.807,
+              0.823,
+              0.847,
+              1
+            ],
+            "text": "",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 20
+    },
+    {
+      "id": 144,
+      "name": "Selected Map Description",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "fe0a9cfd86fb4c419b1b191fbf97702d",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              62,
+              -232
+            ],
+            "sizeDelta": [
+              444,
+              44
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "561a84ec99714a5e82cc4b6f943969b0",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 14,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": true
+            }
+          }
+        }
+      ],
+      "parent": 20
+    },
+    {
+      "id": 145,
+      "name": "Selected Map Details",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "139a6e07fd2548b79416eef721002e0c",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              208,
+              266
+            ],
+            "sizeDelta": [
+              736,
+              22
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "4a4e6799e15548b7b97d5e17a03f824f",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "fontSize": 12,
+            "color": [
+              0.807,
+              0.3663,
+              0.0467,
+              1
+            ],
+            "text": "",
+            "layout": {
+              "alignment": 2,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 20
+    },
+    {
+      "id": 146,
+      "name": "Start Game",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "ab90ce84936c468f9d4bb50b7c5856a4",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              464,
+              -220
+            ],
+            "sizeDelta": [
+              224,
+              64
+            ]
+          }
+        },
+        {
+          "type": "UiButton",
+          "id": "b1e33c5471564a5cbe45c8430d578834",
+          "enabled": true,
+          "data": {
+            "interactable": true,
+            "style": {
+              "normal": [
+                0.28,
+                0.115,
+                0.015,
+                1
+              ],
+              "hovered": [
+                0.4,
+                0.18,
+                0.024,
+                1
+              ],
+              "pressed": [
+                0.2,
+                0.08,
+                0.01,
+                1
+              ],
+              "focused": [
+                0.4,
+                0.18,
+                0.024,
+                1
+              ],
+              "disabled": [
+                0.0091,
+                0.011,
+                0.0137,
+                0.5
+              ],
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                6,
+                6,
+                6,
+                6
+              ]
+            }
+          }
+        }
+      ],
+      "parent": 20
+    },
+    {
+      "id": 147,
+      "name": "Outline",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "dd016528fb724374bbfce86705d5186f",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              224,
+              64
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "324a9b1d6dea4ff9b32ed5e0d8837ee0",
+          "enabled": true,
+          "data": {
+            "tint": [
+              1,
+              1,
+              1,
+              0.12
+            ],
+            "borders": [
+              6,
+              6,
+              6,
+              6
+            ],
+            "texture": "0f55bac8e0df083139b84827ade249fe"
+          }
+        }
+      ],
+      "parent": 146
+    },
+    {
+      "id": 148,
+      "name": "Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "09778923b30447a2b8aa7ee2c66159ea",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              184,
+              64
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "251f7671a89d48a7aa476390d40bc4fe",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 20,
+            "color": [
+              0.807,
+              0.823,
+              0.847,
+              1
+            ],
+            "text": "Start Game",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 146
+    },
+    {
+      "id": 149,
+      "name": "Map Status",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "37e8ed0478b94c939df570e0df6d2a51",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              208,
+              -278
+            ],
+            "sizeDelta": [
+              736,
+              22
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "26e8af935b8547cd918b1a0b9c61d5ae",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 12,
+            "color": [
+              0.807,
+              0.3663,
+              0.0467,
+              1
+            ],
+            "text": "",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 20
+    },
+    {
+      "id": 40,
+      "name": "Settings",
+      "active": false,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "a7e5f58a29ce4e15b17ef84ba3c9de54",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              -12
+            ],
+            "sizeDelta": [
+              1152,
+              536
+            ]
+          }
+        }
+      ],
+      "parent": 2
+    },
+    {
+      "id": 1031,
+      "name": "Pause Panel",
+      "active": true,
+      "components": [
+        {
+          "id": "dad73dc03f2b46eb8425bc633ef745da",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              1152,
+              536
+            ]
+          }
+        },
+        {
+          "id": "8166605f45d449e7870b659b775c1e2b",
+          "type": "UiImage",
+          "enabled": true,
+          "data": {
+            "tint": [
+              0.0052,
+              0.006,
+              0.0075,
+              0.97
+            ],
+            "borders": [
+              6,
+              6,
+              6,
+              6
+            ],
+            "texture": "88686c16704f97f193d65bdd3af0d1d8"
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 40
+    },
+    {
+      "id": 1391,
+      "name": "Outline",
+      "active": true,
+      "components": [
+        {
+          "id": "bd62f1d00b6b4e7b8d1a97a530e75cf6",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "id": "e0af001eb6fb4f1ca2edc46e17c0c76a",
+          "type": "UiImage",
+          "enabled": true,
+          "data": {
+            "tint": [
+              1,
+              1,
+              1,
+              0.07
+            ],
+            "borders": [
+              6,
+              6,
+              6,
+              6
+            ],
+            "texture": "0f55bac8e0df083139b84827ade249fe"
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1031
+    },
+    {
+      "id": 1032,
+      "name": "Pause Title",
+      "active": true,
+      "components": [
+        {
+          "id": "724551f8a89f49c4a453fcce4d49b50c",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              1
+            ],
+            "anchorMax": [
+              0,
+              1
+            ],
+            "pivot": [
+              0,
+              1
+            ],
+            "offset": [
+              16,
+              0
+            ],
+            "sizeDelta": [
+              200,
+              44
+            ]
+          }
+        },
+        {
+          "id": "318394f6841d41188ed4bef6422b3a84",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "text": "Settings",
+            "fontSize": 24,
+            "color": [
+              0.807,
+              0.8228,
+              0.8469,
+              1.0
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1031
+    },
+    {
+      "id": 1392,
+      "name": "Pause Subtitle",
+      "active": true,
+      "components": [
+        {
+          "id": "f82dbf42578c4f8d8797b8587387d386",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              1
+            ],
+            "anchorMax": [
+              0,
+              1
+            ],
+            "pivot": [
+              0,
+              1
+            ],
+            "offset": [
+              188,
+              0
+            ],
+            "sizeDelta": [
+              400,
+              44
+            ]
+          }
+        },
+        {
+          "id": "81e7b73658fa410389a04011f2f914e2",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "text": "Make yourself at home",
+            "fontSize": 12,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1031
+    },
+    {
+      "id": 1393,
+      "name": "Pause Header Rule",
+      "active": true,
+      "components": [
+        {
+          "id": "be7e97f0e7804d0d94a48d5d528d07fa",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              1
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              1
+            ],
+            "offset": [
+              0,
+              -44
+            ],
+            "sizeDelta": [
+              0,
+              1
+            ]
+          }
+        },
+        {
+          "id": "a1f3e3f13a8b427184cf1dac11d8d205",
+          "type": "UiImage",
+          "enabled": true,
+          "data": {
+            "tint": [
+              1,
+              1,
+              1,
+              0.06
+            ],
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "texture": null
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1031
+    },
+    {
+      "id": 1033,
+      "name": "Settings Rows",
+      "active": true,
+      "components": [
+        {
+          "id": "bdd7195f4c4a45099e1ab321984a1cc3",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              1
+            ],
+            "anchorMax": [
+              0,
+              1
+            ],
+            "pivot": [
+              0,
+              1
+            ],
+            "offset": [
+              20,
+              -76
+            ],
+            "sizeDelta": [
+              500,
+              440
+            ]
+          }
+        },
+        {
+          "id": "4225677cbc834e72b6971f395064d08f",
+          "type": "UiLayoutGroup",
+          "enabled": true,
+          "data": {
+            "direction": 1,
+            "padding": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "spacing": [
+              4,
+              4
+            ],
+            "cellSize": [
+              100,
+              30
+            ],
+            "columns": 2,
+            "alignment": 0,
+            "expandWidth": true,
+            "expandHeight": false
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1031
+    },
+    {
+      "id": 1600,
+      "name": "Mouse and view Section",
+      "active": true,
+      "components": [
+        {
+          "id": "cc7fe5db65c9432cbe054e6fbdbb525d",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              400,
+              22
+            ]
+          }
+        },
+        {
+          "id": "d9c3291fade6436fab07c33a76b98337",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "text": "MOUSE AND VIEW",
+            "fontSize": 12,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 2
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1033
+    },
+    {
+      "id": 1034,
+      "name": "Sensitivity Row",
+      "active": true,
+      "components": [
+        {
+          "id": "85bd99ebaa76423283860e895915dd9d",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              400,
+              38
+            ]
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1033
+    },
+    {
+      "id": 1035,
+      "name": "Label",
+      "active": true,
+      "components": [
+        {
+          "id": "29f7099ec4e64fc7a63349edf2514075",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              1
+            ],
+            "anchorMax": [
+              0,
+              1
+            ],
+            "pivot": [
+              0,
+              1
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              250,
+              20
+            ]
+          }
+        },
+        {
+          "id": "016d7d1862204a7fa0f9c99f8798dfb3",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "text": "Sensitivity",
+            "fontSize": 14,
+            "color": [
+              0.807,
+              0.8228,
+              0.8469,
+              1.0
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1034
+    },
+    {
+      "id": 1036,
+      "name": "Value",
+      "active": true,
+      "components": [
+        {
+          "id": "c4de863722554809836578db087168c3",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              1,
+              1
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              1,
+              1
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              150,
+              20
+            ]
+          }
+        },
+        {
+          "id": "53485be5a2474ddc83e9ba8c39b532db",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "text": "0.0025",
+            "fontSize": 14,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1.0
+            ],
+            "layout": {
+              "alignment": 2,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1034
+    },
+    {
+      "id": 1037,
+      "name": "Sensitivity Slider",
+      "active": true,
+      "components": [
+        {
+          "id": "ad8259f6e20946b58b32b7bd44f417ce",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              0
+            ],
+            "pivot": [
+              0,
+              0
+            ],
+            "offset": [
+              0,
+              8
+            ],
+            "sizeDelta": [
+              0,
+              4
+            ]
+          }
+        },
+        {
+          "id": "6bcbcc85bc074d89aa4395ba74e9e690",
+          "type": "UiSlider",
+          "enabled": true,
+          "data": {
+            "minimum": 0.0002,
+            "maximum": 0.02,
+            "value": 0.0025,
+            "step": 0.00025,
+            "style": {
+              "normal": [
+                1,
+                1,
+                1,
+                0.1
+              ],
+              "hovered": [
+                1,
+                1,
+                1,
+                0.14
+              ],
+              "pressed": [
+                1,
+                1,
+                1,
+                0.14
+              ],
+              "focused": [
+                1,
+                1,
+                1,
+                0.16
+              ],
+              "disabled": [
+                0.0091,
+                0.011,
+                0.0137,
+                0.5
+              ],
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ],
+              "texture": null,
+              "borders": [
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1034
+    },
+    {
+      "id": 1038,
+      "name": "Field of view Row",
+      "active": true,
+      "components": [
+        {
+          "id": "7aaa071213564dfd9a102375685e7b14",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              400,
+              38
+            ]
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1033
+    },
+    {
+      "id": 1039,
+      "name": "Label",
+      "active": true,
+      "components": [
+        {
+          "id": "a7bb29861cb04a9c924cba21f55af82b",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              1
+            ],
+            "anchorMax": [
+              0,
+              1
+            ],
+            "pivot": [
+              0,
+              1
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              250,
+              20
+            ]
+          }
+        },
+        {
+          "id": "12e0082fe5744ec2a78932af58a095dd",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "text": "Field of view",
+            "fontSize": 14,
+            "color": [
+              0.807,
+              0.8228,
+              0.8469,
+              1.0
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1038
+    },
+    {
+      "id": 1040,
+      "name": "Value",
+      "active": true,
+      "components": [
+        {
+          "id": "43dd5bbd7e4d4628aedd5afe067348a4",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              1,
+              1
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              1,
+              1
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              150,
+              20
+            ]
+          }
+        },
+        {
+          "id": "77b61c2d3cd74b6887fa5cd9fbbe773f",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "text": "60",
+            "fontSize": 14,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1.0
+            ],
+            "layout": {
+              "alignment": 2,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1038
+    },
+    {
+      "id": 1041,
+      "name": "Field of view Slider",
+      "active": true,
+      "components": [
+        {
+          "id": "0927fa6f184e430c91d96439ddd9343f",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              0
+            ],
+            "pivot": [
+              0,
+              0
+            ],
+            "offset": [
+              0,
+              8
+            ],
+            "sizeDelta": [
+              0,
+              4
+            ]
+          }
+        },
+        {
+          "id": "f46ab050494046e58448f41019f62009",
+          "type": "UiSlider",
+          "enabled": true,
+          "data": {
+            "minimum": 45,
+            "maximum": 120,
+            "value": 60,
+            "step": 1,
+            "style": {
+              "normal": [
+                1,
+                1,
+                1,
+                0.1
+              ],
+              "hovered": [
+                1,
+                1,
+                1,
+                0.14
+              ],
+              "pressed": [
+                1,
+                1,
+                1,
+                0.14
+              ],
+              "focused": [
+                1,
+                1,
+                1,
+                0.16
+              ],
+              "disabled": [
+                0.0091,
+                0.011,
+                0.0137,
+                0.5
+              ],
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ],
+              "texture": null,
+              "borders": [
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1038
+    },
+    {
+      "id": 1601,
+      "name": "Audio Section",
+      "active": true,
+      "components": [
+        {
+          "id": "c937948130e94b15bb1c127cd6d8fcac",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              400,
+              22
+            ]
+          }
+        },
+        {
+          "id": "a6ed45b787bd4f70ab39e9c5318b4a18",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "text": "AUDIO",
+            "fontSize": 12,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 2
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1033
+    },
+    {
+      "id": 1042,
+      "name": "Master Row",
+      "active": true,
+      "components": [
+        {
+          "id": "c3e41afdb0ed4ba88ad281bed65bca72",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              400,
+              38
+            ]
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1033
+    },
+    {
+      "id": 1043,
+      "name": "Label",
+      "active": true,
+      "components": [
+        {
+          "id": "cd4bff3a2c664f1aba8629cfe091c71e",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              1
+            ],
+            "anchorMax": [
+              0,
+              1
+            ],
+            "pivot": [
+              0,
+              1
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              250,
+              20
+            ]
+          }
+        },
+        {
+          "id": "15acd7fe2dc54fcc926b443661b8d6e0",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "text": "Master",
+            "fontSize": 14,
+            "color": [
+              0.807,
+              0.8228,
+              0.8469,
+              1.0
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1042
+    },
+    {
+      "id": 1044,
+      "name": "Value",
+      "active": true,
+      "components": [
+        {
+          "id": "a9152a33296a4df3bbf9c9f0df9e152a",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              1,
+              1
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              1,
+              1
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              150,
+              20
+            ]
+          }
+        },
+        {
+          "id": "d960522c52d24e56acf15dd7ad9883b0",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "text": "1",
+            "fontSize": 14,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1.0
+            ],
+            "layout": {
+              "alignment": 2,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1042
+    },
+    {
+      "id": 1045,
+      "name": "Master Slider",
+      "active": true,
+      "components": [
+        {
+          "id": "713ef97253954d879ec2b219b1967e2c",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              0
+            ],
+            "pivot": [
+              0,
+              0
+            ],
+            "offset": [
+              0,
+              8
+            ],
+            "sizeDelta": [
+              0,
+              4
+            ]
+          }
+        },
+        {
+          "id": "615811fa283e4042a3daf519e9bb05c7",
+          "type": "UiSlider",
+          "enabled": true,
+          "data": {
+            "minimum": 0,
+            "maximum": 1,
+            "value": 1,
+            "step": 0.05,
+            "style": {
+              "normal": [
+                1,
+                1,
+                1,
+                0.1
+              ],
+              "hovered": [
+                1,
+                1,
+                1,
+                0.14
+              ],
+              "pressed": [
+                1,
+                1,
+                1,
+                0.14
+              ],
+              "focused": [
+                1,
+                1,
+                1,
+                0.16
+              ],
+              "disabled": [
+                0.0091,
+                0.011,
+                0.0137,
+                0.5
+              ],
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ],
+              "texture": null,
+              "borders": [
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1042
+    },
+    {
+      "id": 1046,
+      "name": "Effects Row",
+      "active": true,
+      "components": [
+        {
+          "id": "aaa8756f66794754aac9887184a3285e",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              400,
+              38
+            ]
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1033
+    },
+    {
+      "id": 1047,
+      "name": "Label",
+      "active": true,
+      "components": [
+        {
+          "id": "1192f863087e4e74b950cba45053965e",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              1
+            ],
+            "anchorMax": [
+              0,
+              1
+            ],
+            "pivot": [
+              0,
+              1
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              250,
+              20
+            ]
+          }
+        },
+        {
+          "id": "9d84e9111e204ede9deeb4012cda43c5",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "text": "Effects",
+            "fontSize": 14,
+            "color": [
+              0.807,
+              0.8228,
+              0.8469,
+              1.0
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1046
+    },
+    {
+      "id": 1048,
+      "name": "Value",
+      "active": true,
+      "components": [
+        {
+          "id": "d0d6413589764ee1bb4565d0df4921c4",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              1,
+              1
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              1,
+              1
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              150,
+              20
+            ]
+          }
+        },
+        {
+          "id": "34945d18e465484aa6f8fb1274b2dfea",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "text": "1",
+            "fontSize": 14,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1.0
+            ],
+            "layout": {
+              "alignment": 2,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1046
+    },
+    {
+      "id": 1049,
+      "name": "Effects Slider",
+      "active": true,
+      "components": [
+        {
+          "id": "667eba7a894b4434a35fd263ed0acaad",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              0
+            ],
+            "pivot": [
+              0,
+              0
+            ],
+            "offset": [
+              0,
+              8
+            ],
+            "sizeDelta": [
+              0,
+              4
+            ]
+          }
+        },
+        {
+          "id": "638a4a27fca8466c8570928b929df25b",
+          "type": "UiSlider",
+          "enabled": true,
+          "data": {
+            "minimum": 0,
+            "maximum": 1,
+            "value": 1,
+            "step": 0.05,
+            "style": {
+              "normal": [
+                1,
+                1,
+                1,
+                0.1
+              ],
+              "hovered": [
+                1,
+                1,
+                1,
+                0.14
+              ],
+              "pressed": [
+                1,
+                1,
+                1,
+                0.14
+              ],
+              "focused": [
+                1,
+                1,
+                1,
+                0.16
+              ],
+              "disabled": [
+                0.0091,
+                0.011,
+                0.0137,
+                0.5
+              ],
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ],
+              "texture": null,
+              "borders": [
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1046
+    },
+    {
+      "id": 1050,
+      "name": "Music Row",
+      "active": true,
+      "components": [
+        {
+          "id": "ce615518f66940189efb66f61dbaff55",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              400,
+              38
+            ]
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1033
+    },
+    {
+      "id": 1051,
+      "name": "Label",
+      "active": true,
+      "components": [
+        {
+          "id": "8b6da86140f14bd294685f9a0aad8611",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              1
+            ],
+            "anchorMax": [
+              0,
+              1
+            ],
+            "pivot": [
+              0,
+              1
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              250,
+              20
+            ]
+          }
+        },
+        {
+          "id": "a18f93c4fc104244a78b6e56a710ec78",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "text": "Music",
+            "fontSize": 14,
+            "color": [
+              0.807,
+              0.8228,
+              0.8469,
+              1.0
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1050
+    },
+    {
+      "id": 1052,
+      "name": "Value",
+      "active": true,
+      "components": [
+        {
+          "id": "8dc05ab73560451ca1dda025c6766342",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              1,
+              1
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              1,
+              1
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              150,
+              20
+            ]
+          }
+        },
+        {
+          "id": "7fca5ee87b1c4e87a20bb2673336887c",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "text": "0.7",
+            "fontSize": 14,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1.0
+            ],
+            "layout": {
+              "alignment": 2,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1050
+    },
+    {
+      "id": 1053,
+      "name": "Music Slider",
+      "active": true,
+      "components": [
+        {
+          "id": "f4edcfd229d642da9ee9c270c9584d66",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              0
+            ],
+            "pivot": [
+              0,
+              0
+            ],
+            "offset": [
+              0,
+              8
+            ],
+            "sizeDelta": [
+              0,
+              4
+            ]
+          }
+        },
+        {
+          "id": "503f167d0a694669ad51df01c7188d8a",
+          "type": "UiSlider",
+          "enabled": true,
+          "data": {
+            "minimum": 0,
+            "maximum": 1,
+            "value": 0.7,
+            "step": 0.05,
+            "style": {
+              "normal": [
+                1,
+                1,
+                1,
+                0.1
+              ],
+              "hovered": [
+                1,
+                1,
+                1,
+                0.14
+              ],
+              "pressed": [
+                1,
+                1,
+                1,
+                0.14
+              ],
+              "focused": [
+                1,
+                1,
+                1,
+                0.16
+              ],
+              "disabled": [
+                0.0091,
+                0.011,
+                0.0137,
+                0.5
+              ],
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ],
+              "texture": null,
+              "borders": [
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1050
+    },
+    {
+      "id": 1054,
+      "name": "Ambience Row",
+      "active": true,
+      "components": [
+        {
+          "id": "b1160e2244d74d7ea7fa7f2d6ffed9f5",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              400,
+              38
+            ]
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1033
+    },
+    {
+      "id": 1055,
+      "name": "Label",
+      "active": true,
+      "components": [
+        {
+          "id": "121faae52dc4467089c6a84366595b62",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              1
+            ],
+            "anchorMax": [
+              0,
+              1
+            ],
+            "pivot": [
+              0,
+              1
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              250,
+              20
+            ]
+          }
+        },
+        {
+          "id": "2f19cf374ede4e46bbd1070826e197d1",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "text": "Ambience",
+            "fontSize": 14,
+            "color": [
+              0.807,
+              0.8228,
+              0.8469,
+              1.0
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1054
+    },
+    {
+      "id": 1056,
+      "name": "Value",
+      "active": true,
+      "components": [
+        {
+          "id": "7ed1e14c680d461c88c1f7188a2d9483",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              1,
+              1
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              1,
+              1
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              150,
+              20
+            ]
+          }
+        },
+        {
+          "id": "0db5ed11ab0a421b9d6a2a8bddbda45b",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "text": "0.8",
+            "fontSize": 14,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1.0
+            ],
+            "layout": {
+              "alignment": 2,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1054
+    },
+    {
+      "id": 1057,
+      "name": "Ambience Slider",
+      "active": true,
+      "components": [
+        {
+          "id": "45a3825aa2de4ddb93bcfd449f715288",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              0
+            ],
+            "pivot": [
+              0,
+              0
+            ],
+            "offset": [
+              0,
+              8
+            ],
+            "sizeDelta": [
+              0,
+              4
+            ]
+          }
+        },
+        {
+          "id": "c431be4b048844a189dc8d411affee96",
+          "type": "UiSlider",
+          "enabled": true,
+          "data": {
+            "minimum": 0,
+            "maximum": 1,
+            "value": 0.8,
+            "step": 0.05,
+            "style": {
+              "normal": [
+                1,
+                1,
+                1,
+                0.1
+              ],
+              "hovered": [
+                1,
+                1,
+                1,
+                0.14
+              ],
+              "pressed": [
+                1,
+                1,
+                1,
+                0.14
+              ],
+              "focused": [
+                1,
+                1,
+                1,
+                0.16
+              ],
+              "disabled": [
+                0.0091,
+                0.011,
+                0.0137,
+                0.5
+              ],
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ],
+              "texture": null,
+              "borders": [
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1054
+    },
+    {
+      "id": 1058,
+      "name": "Interface Row",
+      "active": true,
+      "components": [
+        {
+          "id": "f7661b4aca2e485a92ca54c204423410",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              400,
+              38
+            ]
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1033
+    },
+    {
+      "id": 1059,
+      "name": "Label",
+      "active": true,
+      "components": [
+        {
+          "id": "3e3689e08eee4cda864424a173e2e8c2",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              1
+            ],
+            "anchorMax": [
+              0,
+              1
+            ],
+            "pivot": [
+              0,
+              1
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              250,
+              20
+            ]
+          }
+        },
+        {
+          "id": "9e330ae806e8498b87003c4ae4383844",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "text": "Interface",
+            "fontSize": 14,
+            "color": [
+              0.807,
+              0.8228,
+              0.8469,
+              1.0
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1058
+    },
+    {
+      "id": 1060,
+      "name": "Value",
+      "active": true,
+      "components": [
+        {
+          "id": "9ff8dd3f3fb844afaf62efb9984b984d",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              1,
+              1
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              1,
+              1
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              150,
+              20
+            ]
+          }
+        },
+        {
+          "id": "ad6e3ce7dc874629882295c604ee575c",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "text": "1",
+            "fontSize": 14,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1.0
+            ],
+            "layout": {
+              "alignment": 2,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1058
+    },
+    {
+      "id": 1061,
+      "name": "Interface Slider",
+      "active": true,
+      "components": [
+        {
+          "id": "3eb477f9147d4a8b8c07d177de236ea5",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              0
+            ],
+            "pivot": [
+              0,
+              0
+            ],
+            "offset": [
+              0,
+              8
+            ],
+            "sizeDelta": [
+              0,
+              4
+            ]
+          }
+        },
+        {
+          "id": "3fdc97a38acc4e4099c58b88458b2f72",
+          "type": "UiSlider",
+          "enabled": true,
+          "data": {
+            "minimum": 0,
+            "maximum": 1,
+            "value": 1,
+            "step": 0.05,
+            "style": {
+              "normal": [
+                1,
+                1,
+                1,
+                0.1
+              ],
+              "hovered": [
+                1,
+                1,
+                1,
+                0.14
+              ],
+              "pressed": [
+                1,
+                1,
+                1,
+                0.14
+              ],
+              "focused": [
+                1,
+                1,
+                1,
+                0.16
+              ],
+              "disabled": [
+                0.0091,
+                0.011,
+                0.0137,
+                0.5
+              ],
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ],
+              "texture": null,
+              "borders": [
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1058
+    },
+    {
+      "id": 1602,
+      "name": "Graphics Section",
+      "active": true,
+      "components": [
+        {
+          "id": "3f655ae57f41485da688fb67bbac2276",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              400,
+              22
+            ]
+          }
+        },
+        {
+          "id": "138adfe6a70d4f16934f3d12c1bb4c36",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "text": "GRAPHICS",
+            "fontSize": 12,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 2
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1033
+    },
+    {
+      "id": 1062,
+      "name": "Graphics Quality",
+      "active": true,
+      "components": [
+        {
+          "id": "202da1f358d94f099015dfd1d8412d00",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              400,
+              30
+            ]
+          }
+        },
+        {
+          "id": "8c1d4689b34a45448be3a75486c1a903",
+          "type": "UiButton",
+          "enabled": true,
+          "data": {
+            "style": {
+              "normal": [
+                0.0091,
+                0.011,
+                0.0137,
+                1.0
+              ],
+              "hovered": [
+                0.0144,
+                0.0176,
+                0.0232,
+                1.0
+              ],
+              "pressed": [
+                0.007,
+                0.008,
+                0.0097,
+                1.0
+              ],
+              "focused": [
+                0.0144,
+                0.0176,
+                0.0232,
+                1.0
+              ],
+              "disabled": [
+                0.0091,
+                0.011,
+                0.0137,
+                0.5
+              ],
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                6,
+                6,
+                6,
+                6
+              ]
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1033
+    },
+    {
+      "id": 1610,
+      "name": "Caption",
+      "active": true,
+      "components": [
+        {
+          "id": "9286606e75664e90a5632e0094b789cf",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              12,
+              0
+            ],
+            "sizeDelta": [
+              -24,
+              0
+            ]
+          }
+        },
+        {
+          "id": "8c0c8a95f7fc4863a0a743fc9155b36f",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "text": "Quality",
+            "fontSize": 14,
+            "color": [
+              0.807,
+              0.8228,
+              0.8469,
+              1.0
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1062
+    },
+    {
+      "id": 1063,
+      "name": "Label",
+      "active": true,
+      "components": [
+        {
+          "id": "585f10fce7c74a278c279e9d8f7f5ea8",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              -12,
+              0
+            ],
+            "sizeDelta": [
+              -24,
+              0
+            ]
+          }
+        },
+        {
+          "id": "5dd73aeb471d42ab92b672dc0de793d8",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "text": "High",
+            "fontSize": 14,
+            "color": [
+              0.807,
+              0.3663,
+              0.0467,
+              1.0
+            ],
+            "layout": {
+              "alignment": 2,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1062
+    },
+    {
+      "id": 1611,
+      "name": "Outline",
+      "active": true,
+      "components": [
+        {
+          "id": "4af7fb7bbbd8476db2e1f001e79770fd",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "id": "75df74c9b521484090b78695df76a5a6",
+          "type": "UiImage",
+          "enabled": true,
+          "data": {
+            "tint": [
+              1,
+              1,
+              1,
+              0.07
+            ],
+            "borders": [
+              6,
+              6,
+              6,
+              6
+            ],
+            "texture": "0f55bac8e0df083139b84827ade249fe"
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1062
+    },
+    {
+      "id": 1064,
+      "name": "Bindings Title",
+      "active": true,
+      "components": [
+        {
+          "id": "83f1e129860042cb843d7f8c9b92a1dd",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              1,
+              1
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              1,
+              1
+            ],
+            "offset": [
+              -20,
+              -76
+            ],
+            "sizeDelta": [
+              548,
+              22
+            ]
+          }
+        },
+        {
+          "id": "f655af0249694d70a2c47c963e1e2749",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "text": "CONTROLS",
+            "fontSize": 12,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 2
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1031
+    },
+    {
+      "id": 1394,
+      "name": "Bindings Hint",
+      "active": true,
+      "components": [
+        {
+          "id": "fb93eebe66694d6090e8c0ca6c88ad82",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              1,
+              1
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              1,
+              1
+            ],
+            "offset": [
+              -20,
+              -76
+            ],
+            "sizeDelta": [
+              548,
+              22
+            ]
+          }
+        },
+        {
+          "id": "407785eb0e714f3d852f7cd85e6fdbe6",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "text": "Select one, then press a key or button",
+            "fontSize": 12,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "layout": {
+              "alignment": 2,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 2
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1031
+    },
+    {
+      "id": 1065,
+      "name": "Bindings Scroll",
+      "active": true,
+      "components": [
+        {
+          "id": "5c48220cf9394360802fbbfa7afa0887",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              1,
+              1
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              1,
+              1
+            ],
+            "offset": [
+              -20,
+              -104
+            ],
+            "sizeDelta": [
+              548,
+              380
+            ]
+          }
+        },
+        {
+          "id": "af78e3b9556d4efb8e4dce676e48598a",
+          "type": "UiScrollView",
+          "enabled": true,
+          "data": {
+            "contentSize": [
+              0,
+              600
+            ],
+            "vertical": true,
+            "style": {
+              "normal": [
+                0.0033,
+                0.0037,
+                0.0044,
+                1.0
+              ],
+              "hovered": [
+                0.0033,
+                0.0037,
+                0.0044,
+                1.0
+              ],
+              "pressed": [
+                0.0033,
+                0.0037,
+                0.0044,
+                1.0
+              ],
+              "focused": [
+                0.0033,
+                0.0037,
+                0.0044,
+                1.0
+              ],
+              "disabled": [
+                0.0091,
+                0.011,
+                0.0137,
+                0.5
+              ],
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                6,
+                6,
+                6,
+                6
+              ]
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1031
+    },
+    {
+      "id": 1066,
+      "name": "Binding Rows",
+      "active": true,
+      "components": [
+        {
+          "id": "7993e65f6b024d31bcb66195ece4e3ac",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              1
+            ],
+            "anchorMax": [
+              0,
+              1
+            ],
+            "pivot": [
+              0,
+              1
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              548,
+              600
+            ]
+          }
+        },
+        {
+          "id": "3dec87c2009b4eafb6a4f2250ad94fd7",
+          "type": "UiLayoutGroup",
+          "enabled": true,
+          "data": {
+            "direction": 1,
+            "padding": [
+              4,
+              4,
+              4,
+              4
+            ],
+            "spacing": [
+              2,
+              2
+            ],
+            "cellSize": [
+              100,
+              30
+            ],
+            "columns": 2,
+            "alignment": 0,
+            "expandWidth": true,
+            "expandHeight": false
+          }
+        },
+        {
+          "id": "88e105a902064adeba523d5346c52f25",
+          "type": "UiSizeFitter",
+          "enabled": true,
+          "data": {
+            "fitWidth": false,
+            "fitHeight": true
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1065
+    },
+    {
+      "id": 1067,
+      "name": "Binding Template",
+      "active": false,
+      "components": [
+        {
+          "id": "5dd15b67b6fd47a4a028c50f795890c6",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              540,
+              32
+            ]
+          }
+        },
+        {
+          "id": "b808ba803da740f9a353bc21a6a25e2c",
+          "type": "UiButton",
+          "enabled": true,
+          "data": {
+            "style": {
+              "normal": [
+                0.0144,
+                0.0176,
+                0.0232,
+                0
+              ],
+              "hovered": [
+                0.0144,
+                0.0176,
+                0.0232,
+                1.0
+              ],
+              "pressed": [
+                0.007,
+                0.008,
+                0.0097,
+                1.0
+              ],
+              "focused": [
+                0.0144,
+                0.0176,
+                0.0232,
+                1.0
+              ],
+              "disabled": [
+                0.0091,
+                0.011,
+                0.0137,
+                0.5
+              ],
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                6,
+                6,
+                6,
+                6
+              ]
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1066
+    },
+    {
+      "id": 1068,
+      "name": "Label",
+      "active": true,
+      "components": [
+        {
+          "id": "5c8b695f13b347ea9cc80f6d238e9691",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              -50,
+              0
+            ],
+            "sizeDelta": [
+              -120,
+              0
+            ]
+          }
+        },
+        {
+          "id": "a440e244818a419faeff020ce6b33b38",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "text": "Action",
+            "fontSize": 14,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1.0
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1067
+    },
+    {
+      "id": 1620,
+      "name": "Key",
+      "active": true,
+      "components": [
+        {
+          "id": "63469933e3f446a7a47f74d9d1a57cc5",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              1,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              1,
+              0.5
+            ],
+            "offset": [
+              -10,
+              0
+            ],
+            "sizeDelta": [
+              180,
+              0
+            ]
+          }
+        },
+        {
+          "id": "3c1670106dec4b31989995c386e8ee91",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "text": "Key",
+            "fontSize": 14,
+            "color": [
+              0.807,
+              0.8228,
+              0.8469,
+              1.0
+            ],
+            "layout": {
+              "alignment": 2,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1067
+    },
+    {
+      "id": 1395,
+      "name": "Pause Footer Rule",
+      "active": true,
+      "components": [
+        {
+          "id": "763e1bebbefa436591ded5ff485ae052",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              0
+            ],
+            "pivot": [
+              0.5,
+              0
+            ],
+            "offset": [
+              0,
+              40
+            ],
+            "sizeDelta": [
+              0,
+              1
+            ]
+          }
+        },
+        {
+          "id": "54d98d2598074e82a14e0e90932ed134",
+          "type": "UiImage",
+          "enabled": true,
+          "data": {
+            "tint": [
+              1,
+              1,
+              1,
+              0.06
+            ],
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "texture": null
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1031
+    },
+    {
+      "id": 1396,
+      "name": "Pause Hint",
+      "active": true,
+      "components": [
+        {
+          "id": "ed7ddd37760a428a8748521828dfa216",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              0,
+              0
+            ],
+            "pivot": [
+              0,
+              0
+            ],
+            "offset": [
+              16,
+              0
+            ],
+            "sizeDelta": [
+              400,
+              40
+            ]
+          }
+        },
+        {
+          "id": "7f034a5cacac47069a78e96cd1933303",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "text": "Changes are saved automatically",
+            "fontSize": 12,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1031
+    },
+    {
+      "id": 150,
+      "name": "Settings Back",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "c937f320cf844240a2d0fa73fbe279bb",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              472,
+              -244
+            ],
+            "sizeDelta": [
+              168,
+              34
+            ]
+          }
+        },
+        {
+          "type": "UiButton",
+          "id": "bc6194c093b045c285079c9c9ecfc3e7",
+          "enabled": true,
+          "data": {
+            "interactable": true,
+            "style": {
+              "normal": [
+                0.28,
+                0.115,
+                0.015,
+                1
+              ],
+              "hovered": [
+                0.4,
+                0.18,
+                0.024,
+                1
+              ],
+              "pressed": [
+                0.2,
+                0.08,
+                0.01,
+                1
+              ],
+              "focused": [
+                0.4,
+                0.18,
+                0.024,
+                1
+              ],
+              "disabled": [
+                0.0091,
+                0.011,
+                0.0137,
+                0.5
+              ],
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                6,
+                6,
+                6,
+                6
+              ]
+            }
+          }
+        }
+      ],
+      "parent": 1031
+    },
+    {
+      "id": 151,
+      "name": "Outline",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "b16c6776a39143928e04af119ae3f6ee",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              168,
+              34
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "73e4b92b5c7f4c6cb8e940b56db64c50",
+          "enabled": true,
+          "data": {
+            "tint": [
+              1,
+              1,
+              1,
+              0.12
+            ],
+            "borders": [
+              6,
+              6,
+              6,
+              6
+            ],
+            "texture": "0f55bac8e0df083139b84827ade249fe"
+          }
+        }
+      ],
+      "parent": 150
+    },
+    {
+      "id": 152,
+      "name": "Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "3b4bb6e06853465ea1f5f822ff045913",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              128,
+              34
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "f7c8b620b870425499ae059caa9a109d",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 14,
+            "color": [
+              0.807,
+              0.823,
+              0.847,
+              1
+            ],
+            "text": "Done",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 150
+    },
+    {
+      "id": 50,
+      "name": "Quit Confirmation",
+      "active": false,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "600b07d84d4a48ae9ce9ad75f9902e1a",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              -12
+            ],
+            "sizeDelta": [
+              620,
+              280
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "d93e494db4d745578c64f0e0130ca604",
+          "enabled": true,
+          "data": {
+            "tint": [
+              0.0091,
+              0.011,
+              0.0137,
+              1
+            ],
+            "borders": [
+              6,
+              6,
+              6,
+              6
+            ],
+            "texture": "88686c16704f97f193d65bdd3af0d1d8"
+          }
+        }
+      ],
+      "parent": 2
+    },
+    {
+      "id": 153,
+      "name": "Quit Title",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "22068064e1074a0693652c8a14462d61",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              76
+            ],
+            "sizeDelta": [
+              524,
+              48
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "079cad8956124c24998211e806fc12ba",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 32,
+            "color": [
+              0.807,
+              0.823,
+              0.847,
+              1
+            ],
+            "text": "Leaving so soon?",
+            "layout": {
+              "alignment": 1,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 50
+    },
+    {
+      "id": 154,
+      "name": "Quit Description",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "71ccc370fc7e40bab7a07605336da72c",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              20
+            ],
+            "sizeDelta": [
+              524,
+              44
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "c5b6ac07e7db41f49e127a8a3d3f6b3f",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 16,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "Quit Sandbox and return to your desktop?",
+            "layout": {
+              "alignment": 1,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 50
+    },
+    {
+      "id": 155,
+      "name": "Keep Playing",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "a9dcf9518fb84d9a8312c0ad9b583fce",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              -140,
+              -76
+            ],
+            "sizeDelta": [
+              240,
+              52
+            ]
+          }
+        },
+        {
+          "type": "UiButton",
+          "id": "3ca5e57c55de43a69667fa520abfa787",
+          "enabled": true,
+          "data": {
+            "interactable": true,
+            "style": {
+              "normal": [
+                0.28,
+                0.115,
+                0.015,
+                1
+              ],
+              "hovered": [
+                0.4,
+                0.18,
+                0.024,
+                1
+              ],
+              "pressed": [
+                0.2,
+                0.08,
+                0.01,
+                1
+              ],
+              "focused": [
+                0.4,
+                0.18,
+                0.024,
+                1
+              ],
+              "disabled": [
+                0.0091,
+                0.011,
+                0.0137,
+                0.5
+              ],
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                6,
+                6,
+                6,
+                6
+              ]
+            }
+          }
+        }
+      ],
+      "parent": 50
+    },
+    {
+      "id": 156,
+      "name": "Outline",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "372b21f3886c43a4bcadd04acdd1a2b8",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              240,
+              52
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "54869c375d244f7b9bebbf8ab759dd33",
+          "enabled": true,
+          "data": {
+            "tint": [
+              1,
+              1,
+              1,
+              0.12
+            ],
+            "borders": [
+              6,
+              6,
+              6,
+              6
+            ],
+            "texture": "0f55bac8e0df083139b84827ade249fe"
+          }
+        }
+      ],
+      "parent": 155
+    },
+    {
+      "id": 157,
+      "name": "Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "9689de7d70684315afce16f4b0658ec0",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              200,
+              52
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "5237fdcde37f47f3b807570e63825a7d",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 20,
+            "color": [
+              0.807,
+              0.823,
+              0.847,
+              1
+            ],
+            "text": "Stay Here",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 155
+    },
+    {
+      "id": 158,
+      "name": "Confirm Quit",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "2128176ea2a04d76b67d8270f6609ca4",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              140,
+              -76
+            ],
+            "sizeDelta": [
+              240,
+              52
+            ]
+          }
+        },
+        {
+          "type": "UiButton",
+          "id": "b7afc776ddb24fb9b4a26130447f29d3",
+          "enabled": true,
+          "data": {
+            "interactable": true,
+            "style": {
+              "normal": [
+                0.0091,
+                0.011,
+                0.0137,
+                1.0
+              ],
+              "hovered": [
+                0.0144,
+                0.0176,
+                0.0232,
+                1.0
+              ],
+              "pressed": [
+                0.007,
+                0.008,
+                0.0097,
+                1.0
+              ],
+              "focused": [
+                0.0144,
+                0.0176,
+                0.0232,
+                1.0
+              ],
+              "disabled": [
+                0.0091,
+                0.011,
+                0.0137,
+                0.5
+              ],
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                6,
+                6,
+                6,
+                6
+              ]
+            }
+          }
+        }
+      ],
+      "parent": 50
+    },
+    {
+      "id": 159,
+      "name": "Outline",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "b3320c8322d14bd7aae566bbcde2f138",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              240,
+              52
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "ebe0f7c2c5c142b49a9fed6bc7e3ec4e",
+          "enabled": true,
+          "data": {
+            "tint": [
+              1,
+              1,
+              1,
+              0.12
+            ],
+            "borders": [
+              6,
+              6,
+              6,
+              6
+            ],
+            "texture": "0f55bac8e0df083139b84827ade249fe"
+          }
+        }
+      ],
+      "parent": 158
+    },
+    {
+      "id": 160,
+      "name": "Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "d55b2be0831e45c9a74f29e492cc6fa1",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              200,
+              52
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "d6ca9509a6e54ef6a9a00979693b8dde",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 20,
+            "color": [
+              0.807,
+              0.823,
+              0.847,
+              1
+            ],
+            "text": "Quit Game",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 158
+    }
+  ],
+  "format": "spot-scene",
+  "version": 2
+}

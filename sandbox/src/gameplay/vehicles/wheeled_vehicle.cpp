@@ -222,10 +222,10 @@ void WheeledVehicle::UpdateSteering(float deltaTime, const std::vector<VehicleWh
 }
 
 void WheeledVehicle::UpdateGearbox(float deltaTime, float& brake, const std::vector<VehicleWheel*>& wheels) {
-    // Parked, its wheels are held.
-    brake = HasDriver() ? 0.0f : 1.0f;
+    // Wrecks stay free to roll after the blast instead of applying the parking brakes.
+    brake = !HasState("Destroyed") && (!HasDriver() || !IsOperational()) ? 1.0f : 0.0f;
     m_throttle = 0.0f;
-    if (!HasDriver()) {
+    if (!HasDriver() || !IsOperational()) {
         return;
     }
     if (m_shiftLeft > 0.0f) {
@@ -348,7 +348,7 @@ void WheeledVehicle::OnFixedUpdate(float deltaTime) {
     const float clutchRpm = drivetrain.idleRpm + m_throttle * 1600.0f;
     const bool coupled = ratio != 0.0f && wheelRpm > clutchRpm;
     float engineTorque = 0.0f;
-    if (!HasDriver()) {
+    if (!HasDriver() || !IsOperational()) {
         m_rpm = 0.0f;
     } else if (ratio == 0.0f) {
         // Free while shifting, falling toward what the next gear will turn it at.

@@ -5,6 +5,18 @@
       "components": [
         {
           "data": {
+            "maxHealth": 300.0,
+            "regenerationRate": 0.0,
+            "safeImpactSpeed": 8.0,
+            "damagePerSpeed": 15.0,
+            "burnedMaterial": "75489f82e7075e24d441dc3a6b5abe15"
+          },
+          "enabled": true,
+          "id": "9230afe9bed84e9aaf1ed691f207a7ec",
+          "type": "VehicleHealth"
+        },
+        {
+          "data": {
             "viewCamera": 17
           },
           "enabled": true,

@@ -62,11 +62,11 @@ void Helicopter::OnFixedUpdate(float deltaTime) {
     if (!body || body->IsKinematic() || deltaTime <= 0.0f) {
         return;
     }
-    const bool powered = HasDriver() && !HasState("Dead");
+    const bool powered = HasDriver() && IsOperational();
     const float target = powered ? 1.0f : 0.0f;
     const float step = deltaTime / std::max(spoolTime, 0.1f);
     m_rotorSpeed += std::clamp(target - m_rotorSpeed, -step, step);
-    if (m_rotorSpeed <= 0.0f) {
+    if (m_rotorSpeed <= 0.0f || HasState("Destroyed")) {
         return;
     }
     body->WakeUp();
