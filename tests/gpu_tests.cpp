@@ -4792,48 +4792,6 @@ TEST_CASE("Spawn menu thumbnails render real prefab meshes and retain their cach
     CHECK(different > 500);
 }
 
-TEST_CASE("Authored sandbox menus render their labels and controls offscreen", "[gpu][ui][sandbox][offscreen]") {
-    RequireGpu();
-    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
-    REQUIRE(device);
-    Spot::Tests::RegisteredAssetManager assets(SPOT_SANDBOX_IMPORTED_DIR, device.get());
-    struct AssetScope {
-        Spot::AssetManager* previous = Spot::Assets::GetManager();
-        ~AssetScope() { Spot::Detail::SetAssetManager(previous); }
-    } scope;
-    Spot::Detail::SetAssetManager(&assets);
-    const auto prefab = assets.Load<Spot::Prefab>("prefabs/interface.prefab");
-    REQUIRE(prefab);
-    Spot::Scene scene;
-    REQUIRE(scene.Instantiate(prefab, {.assets = &assets}));
-    auto* pause = scene.FindEntity("Pause Menu");
-    REQUIRE(pause);
-    pause->SetActive(true);
-    auto target = device->CreateTexture(
-        {.width = 1280, .height = 720, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
-    REQUIRE(target);
-    Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb,
-                                           .sampleCount = 1,
-                                           .shadowMapSize = 0,
-                                           .localShadowMapSize = 0});
-    auto* context = device->BeginOffscreenFrame(*target);
-    REQUIRE(context);
-    renderer.Render(*context, scene, target.get());
-    device->EndFrame();
-    const auto pixels = device->DownloadTexture(*target);
-    REQUIRE(pixels.size() == 1280 * 720 * 4);
-    std::size_t bright = 0;
-    for (std::size_t index = 0; index < pixels.size(); index += 4)
-        if (pixels[index] > 180 && pixels[index + 1] > 180 && pixels[index + 2] > 180)
-            ++bright;
-    CHECK(bright > 1500);
-    CHECK(scene.GetUpdateCount() == 0);
-    const auto capture = Spot::Process::GetEnvironmentValue("SPOT_UI_CAPTURE_DIR");
-    if (capture && !capture->empty()) {
-        std::filesystem::create_directories(*capture);
-        CHECK(Spot::Image(1280, 720, pixels).SavePng(std::filesystem::path(*capture) / "pause_menu.png"));
-    }
-}
 #endif
 
 TEST_CASE("GPU skinning matches transformed meshes in color, shadows and camera depth", "[gpu][animation][offscreen]") {

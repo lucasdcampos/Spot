@@ -159,3 +159,7 @@ override `OnDrawUi(Renderer2D&, Vector2)`. `UiWidget` implements this interface 
 Custom UI listeners draw after `HasStarted()` becomes true, in component addition order outside
 canvases and in canvas layout order inside them. Widgets may draw before their first update so
 interfaces are visible immediately; disabled, removed and faulted components are skipped.
+
+The custom-overlay pass checks UiDrawListener before finding a component's ancestor canvas. Non-UI gameplay and
+physics components therefore incur no hierarchy search during interface drawing. Canvas widgets retain layout
+order; custom overlays outside canvases retain component addition order.

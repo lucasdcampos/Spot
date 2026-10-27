@@ -2,7 +2,11 @@
 
 #include "hook_lines.h"
 
+#include "gameplay/inventory/held_item.h"
+
 #include <spot.h>
+
+class UndoList;
 
 #include <array>
 #include <optional>
@@ -10,16 +14,18 @@
 #include <string_view>
 #include <vector>
 
-// The last item in hand (see WeaponHolder), whose mode Reload changes. Weld joins two props with a FixedJoint, and
+// An item in hand, the last of the player's, whose mode Reload changes. Weld joins two props with a FixedJoint, and
 // rope with a DistanceJoint as long as the gap between the two points clicked; each takes a click (Fire) on each prop,
 // the second of which may be the level. Remover takes the prop or the lamp clicked away. Color paints the prop clicked
 // in one of the palette's colors, and Material gives it one of the surfaces' materials. Lamp places a lamp where it
 // is clicked, facing out of the surface, on the prop clicked so it moves with it: a point or a spot light, casting
 // shadows or not, in the palette's color. Aim picks the next color, material or lamp. Everything it does goes on the
 // UndoList.
-class ToolGun final : public Spot::Component {
+class ToolGun final : public Gameplay::HeldItem {
 public:
     enum class Mode { Weld, Rope, Remover, Color, Material, Lamp };
+    static constexpr std::array<std::string_view, 6> ModeNames = {"Weld",  "Rope",     "Remover",
+                                                                  "Color", "Material", "Lamp"};
     enum class LampKind { Point, ShadowedPoint, Spot, ShadowedSpot };
     static constexpr std::array<std::string_view, 4> LampNames = {"Point", "Point, Shadowed", "Spot", "Spot, Shadowed"};
     // Lamps carry this tag, which the remover looks for.
@@ -50,12 +56,12 @@ public:
     std::vector<ToolMaterial> materials;
     Spot::AssetRef<Spot::Prefab> pointLamp;
     Spot::AssetRef<Spot::Prefab> spotLamp;
-    // What the HUD and the weapon wheel show for it.
-    Spot::AssetRef<Spot::Texture> icon;
     // The palette color, the material and the kind of lamp clicks give.
     int color = 0;
     int material = 0;
     LampKind lamp = LampKind::Point;
+
+    ToolGun();
 
     // The prop and point clicked first, waiting for the second click of a weld or a rope.
     bool HasFirst() const { return m_first.has_value(); }
@@ -81,8 +87,11 @@ public:
     // The color lamps shine in: the palette's, as bright as a light can be, or white for the darkest.
     Spot::Color GetLampColor() const;
 
+    Gameplay::ItemStatus DescribeStatus() const override;
+
 protected:
-    void OnUpdate(float deltaTime) override;
+    void OnUse(const Gameplay::ItemInput& input) override;
+    void OnUnequip() override { m_first.reset(); }
     void OnEnable() override;
     void OnDisable() override;
     void OnLateUpdate(float deltaTime) override;
@@ -94,8 +103,8 @@ private:
         Spot::Vector3 point;
     };
 
-    bool IsInHand() const;
-
+    // What it does goes on the UndoList of whoever holds it.
+    UndoList* GetUndo() const;
     std::optional<Pick> m_first;
     // The ropes of the scene, drawn after its surfaces.
     std::vector<Spot::DebugLine> m_ropes;

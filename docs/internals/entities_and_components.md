@@ -64,6 +64,11 @@ moved and freed, so `ForEachComponent<T>()` goes through the lists of the types 
 component was added, and `FindComponent<T>()` looks at the head of those lists. Freeing a component or an entity
 empties its slots, which are compacted once they are many, and costs the same in a scene of any size.
 
+Queries spanning up to eight concrete types use a linear merge. Broader queries use a min-heap of each list's next
+component sequence, reducing selection from O(components * types) to O(components * log(types)). Captured list ends
+defer additions until the next query; removed queued heads are skipped when popped. Type indices survive callbacks
+adding new types. The many-type mutation test in `tests/scene_tests.cpp` covers this path.
+
 ### Components that need others
 
 A component can declare the components it needs on its entity, which is how an entity gets the shape of a class,

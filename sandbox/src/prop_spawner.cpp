@@ -1,10 +1,10 @@
 #include "prop_spawner.h"
 #include <spot/scene/physics/physics_world.h>
 
-#include "player_controller.h"
-#include "player_health.h"
-#include "prop_carrier.h"
 #include "undo_list.h"
+
+#include "gameplay/core/pawn.h"
+#include "gameplay/core/physics_drive.h"
 
 #include <algorithm>
 #include <array>
@@ -51,17 +51,18 @@ void PropSpawner::RefreshSpawnables(Spot::AssetManager* assets) {
 }
 
 std::optional<PropSpawner::Placement> PropSpawner::FindPlacement(const SpawnableItem& item) const {
-    const auto* player = GetEntity().GetComponent<PlayerController>();
-    if (!player) {
+    const auto* pawn = Gameplay::Pawn::Of(GetEntity());
+    if (!pawn) {
         return std::nullopt;
     }
     // Where the player looks, on what it looks at, lifted so the prop rests on it; or in the air ahead.
-    const Spot::Vector3 eye = player->GetEyePosition();
-    const Spot::Vector3 aim = player->GetAimDirection();
+    const Gameplay::ViewPoint view = pawn->GetViewPoint();
+    const Spot::Vector3 eye = view.position;
+    const Spot::Vector3 aim = view.direction;
     const auto hit =
         GetScene().GetOrAddSystem<Spot::PhysicsWorld>().Raycast(eye, aim, reach, {.ignore = GetEntity().GetId()});
     return Placement{hit ? hit->point + hit->normal * item.clearance : eye + aim * reach,
-                     Spot::Quaternion::FromAxisAngle({0.0f, 1.0f, 0.0f}, player->GetYaw())};
+                     Gameplay::PhysicsDrive::GetFacing(Gameplay::PhysicsDrive::GetYaw(aim))};
 }
 
 Spot::Entity* PropSpawner::Spawn(std::size_t index) {
@@ -79,6 +80,10 @@ Spot::Entity* PropSpawner::Spawn(std::size_t index) {
     }
     entity->GetTransform().SetPosition(placement->position);
     entity->GetTransform().SetRotation(placement->facing * entity->GetTransform().GetRotation());
+    if (!entity->HasComponent<Gameplay::Persistent>()) {
+        entity->AddComponent<Gameplay::Persistent>();
+    }
+    entity->AddTag(SpawnedTag);
     m_spawned.push_back(entity->GetId());
     if (auto* undo = GetEntity().GetComponent<UndoList>()) {
         undo->PushSpawn(entity->GetId());
@@ -88,7 +93,7 @@ Spot::Entity* PropSpawner::Spawn(std::size_t index) {
 
 bool PropSpawner::BeginPlacement(std::size_t index) {
     CancelPlacement();
-    if (index >= m_spawnables.size() || !GetEntity().GetComponent<PlayerController>()) {
+    if (index >= m_spawnables.size() || !Gameplay::Pawn::Of(GetEntity())) {
         return false;
     }
     // Only the prop's meshes, from a copy of it in a scene of its own: the preview has no body and no behavior, and
@@ -107,7 +112,7 @@ bool PropSpawner::BeginPlacement(std::size_t index) {
     material.doubleSided = true;
     auto& preview = GetScene().CreateEntity("Spawn Preview");
     source.ForEachComponent<Spot::MeshRenderer>([&](Spot::MeshRenderer& renderer) {
-        if (!renderer.GetMesh()) {
+        if (!renderer.GetMesh() && !renderer.GetMesh().GetId().IsValid()) {
             return;
         }
         const Spot::TransformComponents pose = Spot::Decompose(renderer.GetEntity().GetTransform().GetWorldMatrix());
@@ -121,10 +126,9 @@ bool PropSpawner::BeginPlacement(std::size_t index) {
     });
     m_placing = index;
     m_preview = preview.GetId();
-    // The click that places it would throw what is carried.
-    if (auto* carrier = GetEntity().GetComponent<PropCarrier>()) {
-        carrier->Drop();
-    }
+    // Now rather than on the next update, so nothing that updates before it uses the click that places the prop.
+    m_place.Activate(Gameplay::Pawn::GetControllerOf(GetEntity()));
+    SetPlacing(true);
     UpdatePreview();
     return true;
 }
@@ -144,6 +148,13 @@ void PropSpawner::CancelPlacement() {
     }
     m_preview = Spot::EntityId::Invalid;
     m_placing.reset();
+    SetPlacing(false);
+}
+
+void PropSpawner::SetPlacing(bool placing) {
+    if (auto* pawn = Gameplay::Pawn::Of(GetEntity())) {
+        pawn->SetState("Placing", placing);
+    }
 }
 
 void PropSpawner::UpdatePreview() {
@@ -181,34 +192,51 @@ void PropSpawner::TrackSpawned(Spot::EntityId id) {
     }
 }
 
+void PropSpawner::OnAfterLoad(std::span<Spot::Entity* const> roots) {
+    ClearTracked();
+    for (const Spot::Entity* root : roots) {
+        if (root->HasTag(SpawnedTag)) {
+            TrackSpawned(root->GetId());
+        }
+    }
+}
+
 void PropSpawner::OnUpdate(float /*deltaTime*/) {
     namespace Input = Spot::Input;
-    m_holdingClick = m_holdingClick && (Input::IsActionDown("Fire") || Input::IsActionDown("Aim"));
+    Gameplay::Controller* controller = Gameplay::Pawn::GetControllerOf(GetEntity());
+    m_input.Activate(controller);
+    if (m_placing || m_holdingClick) {
+        m_place.Activate(controller);
+    }
+    m_holdingClick = m_holdingClick && (m_place.IsDown("Fire") || m_place.IsDown("Aim"));
     if (m_placing) {
-        const auto* health = GetEntity().GetComponent<PlayerHealth>();
-        if (*m_placing >= m_spawnables.size() || (health && health->IsDead())) {
+        const auto* pawn = Gameplay::Pawn::Of(GetEntity());
+        if (*m_placing >= m_spawnables.size() || (pawn && (pawn->HasState("Dead") || pawn->HasState("Seated")))) {
             CancelPlacement();
-        } else if (Input::IsActionPressed("Fire") && Input::IsCursorLocked()) {
+        } else if (m_place.IsPressed("Fire") && Input::IsCursorLocked()) {
             ConfirmPlacement();
             m_holdingClick = true;
-        } else if (Input::IsActionPressed("Aim")) {
+        } else if (m_place.IsPressed("Aim")) {
             CancelPlacement();
             m_holdingClick = true;
         }
+    }
+    if (!m_placing && !m_holdingClick) {
+        m_place.Deactivate();
     }
     static constexpr std::array<std::string_view, 8> Actions = {"Spawn 1", "Spawn 2", "Spawn 3", "Spawn 4",
                                                                 "Spawn 5", "Spawn 6", "Spawn 7", "Spawn 8"};
     for (std::size_t i = 0; i < Actions.size(); ++i) {
-        if (Input::IsActionPressed(Actions[i])) {
+        if (m_input.IsPressed(Actions[i])) {
             Spawn(i);
         }
     }
     // One button for every prop, as gamepads have no buttons to spare: each press spawns the next.
-    if (Input::IsActionPressed("Spawn") && !m_spawnables.empty()) {
+    if (m_input.IsPressed("Spawn") && !m_spawnables.empty()) {
         Spawn(m_next);
         m_next = (m_next + 1) % m_spawnables.size();
     }
-    if (Input::IsActionPressed("Clean Up")) {
+    if (m_input.IsPressed("Clean Up")) {
         Cleanup();
     }
 }
@@ -221,6 +249,8 @@ void PropSpawner::OnLateUpdate(float /*deltaTime*/) {
 void PropSpawner::OnDisable() {
     CancelPlacement();
     m_holdingClick = false;
+    m_input.Deactivate();
+    m_place.Deactivate();
 }
 
 void PropSpawner::Serialize(Spot::Archive& archive) {

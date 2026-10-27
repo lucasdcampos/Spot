@@ -154,7 +154,7 @@ void UiSystem::DrawUi(Renderer2D& renderer, Vector2 viewSize) {
         }
     };
     scene.ForEachComponent<Component>([&](Component& component) {
-        if (!component.GetEntity().GetComponentInParent<Canvas>())
+        if (dynamic_cast<UiDrawListener*>(&component) && !component.GetEntity().GetComponentInParent<Canvas>())
             draw(component);
     });
     for (const auto& entry : GetEntries()) {

@@ -779,3 +779,41 @@ TEST_CASE("ForEachComponent goes on when fn adds the first components of new typ
     });
     CHECK(healths == std::vector<Health*>{&d, &e});
 }
+
+namespace {
+class MergePartBase : public Spot::Component {
+public:
+    explicit MergePartBase(int value) : value(value) {}
+    int value;
+};
+
+template <std::size_t Index>
+class MergePart final : public MergePartBase {
+public:
+    using MergePartBase::MergePartBase;
+};
+} // namespace
+
+TEST_CASE("Broad component queries retain addition order across many types and callback mutations", "[scene]") {
+    Scene scene;
+    auto& first = scene.CreateEntity("First");
+    auto& second = scene.CreateEntity("Second");
+    [&]<std::size_t... Index>(std::index_sequence<Index...>) {
+        (first.AddComponent<MergePart<Index>>(static_cast<int>(Index)), ...);
+        (second.AddComponent<MergePart<9 - Index>>(19 - static_cast<int>(Index)), ...);
+    }(std::make_index_sequence<10>{});
+    std::vector<int> visited;
+    scene.ForEachComponent<MergePartBase>([&](MergePartBase& part) {
+        visited.push_back(part.value);
+        if (part.value == 0) {
+            first.RemoveComponent<MergePart<2>>();
+            second.RemoveComponent<MergePart<8>>();
+            first.AddComponent<MergePart<12>>(99);
+            first.AddComponent<MergePart<1>>(100);
+        }
+    });
+    CHECK(visited == std::vector<int>{0, 1, 3, 4, 5, 6, 7, 8, 9, 19, 17, 16, 15, 14, 13, 12, 11, 10});
+    visited.clear();
+    scene.ForEachComponent<MergePartBase>([&](MergePartBase& part) { visited.push_back(part.value); });
+    CHECK(visited == std::vector<int>{0, 1, 3, 4, 5, 6, 7, 8, 9, 19, 17, 16, 15, 14, 13, 12, 11, 10, 99, 100});
+}

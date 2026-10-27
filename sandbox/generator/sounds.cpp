@@ -494,6 +494,23 @@ Samples Engine() {
     return Normalize(Loop(std::move(samples), 0.25f), 0.5f);
 }
 
+Samples HelicopterRotor() {
+    Samples samples = Make(2.25f, 22050);
+    const auto rate = static_cast<float>(samples.sampleRate);
+    Noise noise(161);
+    LowPass air(1200.0f, samples.sampleRate);
+    LowPass rumble(180.0f, samples.sampleRate);
+    for (std::size_t i = 0; i < samples.data.size(); ++i) {
+        const float t = static_cast<float>(i) / rate;
+        const float beat = 0.5f + 0.5f * Sine(t * 28.0f);
+        const float pulse = beat * beat * beat;
+        const float hiss = noise.Next();
+        samples.data[i] = pulse * (0.55f * Sine(t * 56.0f) + 0.25f * rumble.Process(hiss)) +
+                          (0.08f + pulse * 0.3f) * air.Process(hiss) + 0.08f * Sine(t * 224.0f);
+    }
+    return Normalize(Loop(std::move(samples), 0.25f), 0.55f);
+}
+
 Samples TireSqueal() {
     Samples samples = Make(1.25f, 22050);
     const auto rate = static_cast<float>(samples.sampleRate);

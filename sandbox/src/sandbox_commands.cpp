@@ -1,12 +1,14 @@
 #include "sandbox_commands.h"
+#include "gameplay/core/players.h"
 #include <spot/scene/physics/physics_world.h>
 
-#include "player_controller.h"
-#include "player_movement.h"
 #include "prop_spawner.h"
 #include "undo_list.h"
-#include "weapon.h"
-#include "weapon_holder.h"
+
+#include "gameplay/character/character_movement.h"
+#include "gameplay/core/pawn.h"
+#include "gameplay/inventory/inventory.h"
+#include "gameplay/weapons/firearm.h"
 
 #include <algorithm>
 #include <cctype>
@@ -42,17 +44,12 @@ const SpawnableItem* FindItem(const PropSpawner& spawner, std::string_view name)
     return found == items.end() ? nullptr : &*found;
 }
 
-void PrepareHeldWeapon(Spot::Entity& entity) {
-    while (entity.RemoveComponent<Spot::Rigidbody>()) {
-    }
-    while (entity.RemoveComponent<Spot::Collider>()) {
-    }
-    while (entity.RemoveComponent<Spot::MeshRenderer>()) {
-    }
+// A weapon in hand is out of the catalog's world.
+void RemoveSpawnable(Spot::Entity& entity) {
     while (entity.RemoveComponent<Spawnable>()) {
     }
     for (auto* child : entity.GetChildren()) {
-        PrepareHeldWeapon(*child);
+        RemoveSpawnable(*child);
     }
 }
 } // namespace
@@ -93,7 +90,7 @@ SandboxCommands::SandboxCommands(Spot::Console& console, Spot::Scene& scene) : m
     m_registrations.push_back(console.Register(
         {"noclip", "Toggle flying, or set true/false", ConsoleFlags::Cheat,
          [this](std::span<const std::string> arguments) -> ConsoleResult {
-             auto* movement = m_scene.FindComponent<PlayerMovement>();
+             auto* movement = Gameplay::Players::FindComponent<Gameplay::CharacterMovement>(m_scene);
              if (!movement) {
                  return {false, "No player movement in this scene"};
              }
@@ -109,7 +106,8 @@ SandboxCommands::SandboxCommands(Spot::Console& console, Spot::Scene& scene) : m
                                                     if (!arguments.empty()) {
                                                         return {false, "Usage: cleanup"};
                                                     }
-                                                    auto* spawner = m_scene.FindComponent<PropSpawner>();
+                                                    auto* spawner =
+                                                        Gameplay::Players::FindComponent<PropSpawner>(m_scene);
                                                     if (!spawner) {
                                                         return {false, "No prop spawner in this scene"};
                                                     }
@@ -131,7 +129,7 @@ SandboxCommands::SandboxCommands(Spot::Console& console, Spot::Scene& scene) : m
 }
 
 Spot::ConsoleResult SandboxCommands::Spawn(std::span<const std::string> arguments) {
-    auto* spawner = m_scene.FindComponent<PropSpawner>();
+    auto* spawner = Gameplay::Players::FindComponent<PropSpawner>(m_scene);
     if (!spawner) {
         return {false, "No prop spawner in this scene"};
     }
@@ -154,10 +152,10 @@ Spot::ConsoleResult SandboxCommands::Spawn(std::span<const std::string> argument
 }
 
 Spot::ConsoleResult SandboxCommands::Give(std::span<const std::string> arguments) {
-    auto* spawner = m_scene.FindComponent<PropSpawner>();
-    auto* holder = m_scene.FindComponent<WeaponHolder>();
-    if (!holder || !spawner) {
-        return {false, "No player weapon holder or catalog in this scene"};
+    auto* spawner = Gameplay::Players::FindComponent<PropSpawner>(m_scene);
+    auto* inventory = Gameplay::Players::FindComponent<Gameplay::Inventory>(m_scene);
+    if (!inventory || !spawner) {
+        return {false, "No player inventory or catalog in this scene"};
     }
     if (arguments.empty()) {
         return {false, "Usage: give <weapon>"};
@@ -166,31 +164,26 @@ Spot::ConsoleResult SandboxCommands::Give(std::span<const std::string> arguments
     if (!item || item->category != Spawnable::Category::Weapon) {
         return {false, "Unknown weapon: " + ItemName(arguments)};
     }
-    auto weapons = holder->GetWeapons();
-    const auto owned = std::ranges::find_if(weapons, [&](const auto* weapon) {
-        return weapon->GetEntity().GetPrefabAssetId() == item->prefab.GetId() ||
-               ItemKey(weapon->displayName) == ItemKey(item->name);
-    });
-    if (owned != weapons.end()) {
-        (*owned)->Refill();
-        holder->Select(static_cast<int>(owned - weapons.begin()) + 1);
-    } else {
-        auto* entity = m_scene.Instantiate(item->prefab);
-        auto* weapon = entity ? entity->GetComponent<Weapon>() : nullptr;
-        if (!weapon) {
-            if (entity) {
-                entity->Destroy();
-            }
-            return {false, "Catalog item contains no weapon"};
+    for (Gameplay::HeldItem* held : inventory->GetItems()) {
+        auto* weapon = dynamic_cast<Gameplay::Firearm*>(held);
+        if (weapon && (weapon->GetEntity().GetPrefabAssetId() == item->prefab.GetId() ||
+                       ItemKey(weapon->displayName) == ItemKey(item->name))) {
+            weapon->Refill();
+            inventory->Select(*weapon);
+            return {true, "Equipped and refilled " + item->name};
         }
-        PrepareHeldWeapon(*entity);
-        entity->SetParent(&holder->GetEntity());
-        entity->GetTransform().SetPosition({});
-        weapon->Refill();
-        weapons = holder->GetWeapons();
-        const auto found = std::ranges::find(weapons, weapon);
-        holder->Select(static_cast<int>(found - weapons.begin()) + 1);
     }
+    Gameplay::HeldItem* added = inventory->AddFromPrefab(item->prefab);
+    auto* weapon = dynamic_cast<Gameplay::Firearm*>(added);
+    if (!weapon) {
+        if (added) {
+            added->GetEntity().Destroy();
+        }
+        return {false, "Catalog item contains no weapon"};
+    }
+    RemoveSpawnable(weapon->GetEntity());
+    weapon->Refill();
+    inventory->Select(*weapon);
     return {true, "Equipped and refilled " + item->name};
 }
 
@@ -199,8 +192,8 @@ Spot::ConsoleResult SandboxCommands::Stress(std::span<const std::string> argumen
     if (arguments.size() != 1 || !Spot::ParseConsoleValue(arguments[0], count) || count < 1 || count > 2000) {
         return {false, "Usage: stress <1..2000>"};
     }
-    auto* spawner = m_scene.FindComponent<PropSpawner>();
-    auto* player = m_scene.FindComponent<PlayerController>();
+    auto* spawner = Gameplay::Players::FindComponent<PropSpawner>(m_scene);
+    const auto* player = spawner ? Gameplay::Pawn::Of(spawner->GetEntity()) : nullptr;
     if (!spawner || !player) {
         return {false, "No player or prop spawner in this scene"};
     }
@@ -211,7 +204,8 @@ Spot::ConsoleResult SandboxCommands::Stress(std::span<const std::string> argumen
     const auto index = static_cast<std::size_t>(item - spawner->GetSpawnables().data());
     const int side = static_cast<int>(std::ceil(std::cbrt(static_cast<double>(count))));
     const float spacing = std::max(1.1f, item->clearance * 2.0f + 0.1f);
-    const auto center = player->GetEyePosition() + player->GetAimDirection() * 6.0f;
+    const Gameplay::ViewPoint view = player->GetViewPoint();
+    const auto center = view.position + view.direction * 6.0f;
     for (int i = 0; i < count; ++i) {
         auto* prop = spawner->Spawn(index);
         if (!prop) {

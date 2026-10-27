@@ -1,15 +1,16 @@
 #include "../registered_assets.h"
-#include "hud.h"
-#include "interface_settings.h"
+#include "gameplay/core/players.h"
+#include "interface_lookup.h"
 #include "log_capture.h"
-#include "player_controller.h"
+#include "playground_fixture.h"
 #include "prop_spawner.h"
-#include "runtime_interface.h"
 #include "spawnable.h"
 #include "temp_directory.h"
 #include "undo_list.h"
-#include "weapon.h"
-#include "weapon_holder.h"
+
+#include "gameplay/camera/first_person_view.h"
+#include "gameplay/inventory/inventory.h"
+#include "gameplay/weapons/firearm.h"
 #include <spot/scene/ui/ui_input_system.h>
 #include <spot/scene/ui/ui_system.h>
 
@@ -53,7 +54,7 @@ struct InterfaceGame {
         Step();
         Step();
         Step();
-        REQUIRE(scene.FindComponent<RuntimeInterface>());
+        REQUIRE(scene.FindComponent<SpawnMenu>());
     }
     ~InterfaceGame() {
         scene.Clear();
@@ -64,7 +65,7 @@ struct InterfaceGame {
         for (const auto& record : log->GetRecords())
             CHECK(record.message.find(" threw in ") == std::string::npos);
     }
-    RuntimeInterface& GetUi() { return *scene.FindComponent<RuntimeInterface>(); }
+    SandboxTests::Interface GetUi() { return {scene}; }
     void Step() {
         actions.Update(input);
         scene.Update(1.0f / 60 * Spot::Time::GetTimeScale());
@@ -81,16 +82,18 @@ struct InterfaceGame {
 
 TEST_CASE("Sandbox authored HUD and spawn menu route Q and gamepad tabs", "[sandbox][ui]") {
     InterfaceGame game;
-    auto& ui = game.GetUi();
+    auto ui = game.GetUi();
+    CHECK(&ui.spawn.GetEntity() != &ui.pause.GetEntity());
     CHECK(game.scene.GetEntity(ui.handText)->GetComponent<Spot::UiText>()->text == "PHYSICS GUN");
     CHECK(game.scene.GetEntity(ui.statusText)->GetComponent<Spot::UiText>()->text.find("bodies") != std::string::npos);
-    REQUIRE(ui.GetSpawnButtons().size() == game.scene.FindComponent<PropSpawner>()->GetSpawnables().size());
+    REQUIRE(ui.spawn.GetSpawnButtons().size() ==
+            Gameplay::Players::FindComponent<PropSpawner>(game.scene)->GetSpawnables().size());
     CHECK(game.Send(Spot::KeyPressedEvent{Spot::Key::Q, false}));
     game.Step();
-    CHECK(ui.GetMenu() == RuntimeInterface::Menu::Spawn);
+    CHECK(ui.spawn.IsOpen());
     CHECK(game.input.IsCaptured());
     game.Send(Spot::KeyReleasedEvent{Spot::Key::Q});
-    const auto* first = game.scene.GetEntity(ui.GetSpawnButtons().front());
+    const auto* first = game.scene.GetEntity(ui.spawn.GetSpawnButtons().front());
     REQUIRE(first);
     CHECK(first->GetComponent<Spot::UiButton>());
     CHECK(first->FindChild("Thumbnail")->GetComponent<Spot::UiImage>());
@@ -100,7 +103,7 @@ TEST_CASE("Sandbox authored HUD and spawn menu route Q and gamepad tabs", "[sand
     CHECK(game.scene.GetOrAddSystem<Spot::UiInputSystem>().GetFocusedEntity() == ui.weaponsTab);
     CHECK(game.Send(Spot::KeyPressedEvent{Spot::Key::Q, false}));
     game.Step();
-    CHECK(ui.GetMenu() == RuntimeInterface::Menu::Closed);
+    CHECK(ui.IsClosed());
     CHECK_FALSE(game.input.IsCaptured());
     CHECK(game.Send(Spot::KeyReleasedEvent{Spot::Key::Q}));
 }
@@ -108,7 +111,7 @@ TEST_CASE("Sandbox authored HUD and spawn menu route Q and gamepad tabs", "[sand
 TEST_CASE("The sandbox HUD shows rounds, reloads, sights, the item's name and statistics like a game",
           "[sandbox][ui][hud]") {
     InterfaceGame game;
-    auto& ui = game.GetUi();
+    auto ui = game.GetUi();
     const auto text = [&](Spot::EntityId id) { return game.scene.GetEntity(id)->GetComponent<Spot::UiText>()->text; };
     const auto active = [&](Spot::EntityId id) { return game.scene.GetEntity(id)->IsActiveInHierarchy(); };
     const auto nameOpacity = [&] { return game.scene.GetEntity(ui.handText)->GetComponent<Spot::UiText>()->color.a; };
@@ -120,16 +123,16 @@ TEST_CASE("The sandbox HUD shows rounds, reloads, sights, the item's name and st
     // By day the clock shows the sun.
     CHECK(game.scene.GetEntity(ui.clockIcon)->GetComponent<Spot::UiImage>()->texture == ui.sunIcon);
 
-    auto& holder = *game.scene.FindComponent<WeaponHolder>();
+    auto& holder = *Gameplay::Players::FindComponent<Gameplay::Inventory>(game.scene);
     game.input.OnEvent(Spot::KeyPressedEvent{Spot::Key::Digit2, false});
     game.Step();
     game.input.OnEvent(Spot::KeyReleasedEvent{Spot::Key::Digit2});
     game.Step();
-    REQUIRE(holder.GetWeapon());
+    REQUIRE(SandboxTests::GetFirearm(holder));
     CHECK(nameOpacity() == 1.0f);
     CHECK(text(ui.handText) == "PISTOL");
-    CHECK(text(ui.countText) == std::to_string(holder.GetWeapon()->GetAmmo()));
-    CHECK(text(ui.detailText) == "/ " + std::to_string(holder.GetWeapon()->GetReserve()));
+    CHECK(text(ui.countText) == std::to_string(SandboxTests::GetFirearm(holder)->GetAmmo()));
+    CHECK(text(ui.detailText) == "/ " + std::to_string(SandboxTests::GetFirearm(holder)->GetReserve()));
     for (int i = 0; i < 180; ++i)
         game.Step();
     CHECK(nameOpacity() == 0.0f);
@@ -143,8 +146,8 @@ TEST_CASE("The sandbox HUD shows rounds, reloads, sights, the item's name and st
     CHECK(active(ui.crosshair));
 
     // Reloading fills a bar.
-    holder.Fire();
-    REQUIRE(holder.GetWeapon()->StartReload());
+    SandboxTests::Fire(holder);
+    REQUIRE(SandboxTests::GetFirearm(holder)->StartReload());
     for (int i = 0; i < 30; ++i)
         game.Step();
     CHECK(active(ui.reloadTrack));
@@ -159,15 +162,15 @@ TEST_CASE("The sandbox HUD shows rounds, reloads, sights, the item's name and st
     game.Step();
     CHECK(active(ui.statsPanel));
     CHECK(text(ui.statusText).find("FPS") != std::string::npos);
-    CHECK(game.scene.FindComponent<Hud>()->IsShowingStatistics());
+    CHECK(ui.statistics.IsToggled());
 }
 
 TEST_CASE("Sandbox menu clicks preview real prefabs to place and offer undo and cleanup", "[sandbox][ui]") {
     InterfaceGame game;
-    auto& ui = game.GetUi();
-    ui.OpenSpawnMenu();
-    auto& spawner = *game.scene.FindComponent<PropSpawner>();
-    auto* button = game.scene.GetEntity(ui.GetSpawnButtons().front())->GetComponent<Spot::UiButton>();
+    auto ui = game.GetUi();
+    ui.spawn.Open();
+    auto& spawner = *Gameplay::Players::FindComponent<PropSpawner>(game.scene);
+    auto* button = game.scene.GetEntity(ui.spawn.GetSpawnButtons().front())->GetComponent<Spot::UiButton>();
     REQUIRE(button);
     const auto* layout = game.scene.GetOrAddSystem<Spot::UiSystem>().Find(button->GetEntity().GetId());
     REQUIRE(layout);
@@ -177,32 +180,34 @@ TEST_CASE("Sandbox menu clicks preview real prefabs to place and offer undo and 
     CHECK(game.Send(Spot::MouseButtonReleasedEvent{Spot::MouseButton::Left}));
     CHECK_FALSE(game.input.IsMouseButtonPressed(Spot::MouseButton::Left));
     // Choosing closes the menu and shows the object where it would go, marked in the menu as chosen.
-    CHECK(ui.GetMenu() == RuntimeInterface::Menu::Closed);
+    CHECK(ui.IsClosed());
     CHECK(spawner.IsPlacing());
-    CHECK(ui.GetChosenSpawn() == std::optional<std::size_t>(0));
+    CHECK(ui.spawn.GetChosenSpawn() == std::optional<std::size_t>(0));
     CHECK(spawner.GetSpawnedCount() == 0);
     REQUIRE(spawner.ConfirmPlacement());
     CHECK(spawner.GetSpawnedCount() == 1);
     CHECK_FALSE(spawner.IsPlacing());
+    ui.spawn.Open();
     game.scene.GetEntity(ui.undoSpawn)->GetComponent<Spot::UiButton>()->Click();
     CHECK(spawner.GetSpawnedCount() == 0);
     button->Click();
     REQUIRE(spawner.ConfirmPlacement());
     CHECK(spawner.GetSpawnedCount() == 1);
+    ui.spawn.Open();
     game.scene.GetEntity(ui.cleanup)->GetComponent<Spot::UiButton>()->Click();
     CHECK(spawner.GetSpawnedCount() == 0);
 }
 
 TEST_CASE("The spawn preview follows the aim, places on Fire without firing and cancels on Aim", "[sandbox][ui]") {
     InterfaceGame game;
-    auto& spawner = *game.scene.FindComponent<PropSpawner>();
-    auto& holder = *game.scene.FindComponent<WeaponHolder>();
+    auto& spawner = *Gameplay::Players::FindComponent<PropSpawner>(game.scene);
+    auto& holder = *Gameplay::Players::FindComponent<Gameplay::Inventory>(game.scene);
     Spot::Input::SetCursorLocked(true);
     holder.Select(1);
     game.Step();
-    REQUIRE(holder.GetWeapon());
-    holder.GetWeapon()->Refill();
-    const int rounds = holder.GetWeapon()->GetAmmo();
+    REQUIRE(SandboxTests::GetFirearm(holder));
+    SandboxTests::GetFirearm(holder)->Refill();
+    const int rounds = SandboxTests::GetFirearm(holder)->GetAmmo();
     REQUIRE(spawner.BeginPlacement(0));
     game.Step();
     auto* preview = game.scene.GetEntity(spawner.GetPreview());
@@ -221,7 +226,7 @@ TEST_CASE("The spawn preview follows the aim, places on Fire without firing and 
     CHECK(translucent);
     CHECK_FALSE(preview->HasComponent<Spot::Rigidbody>());
     CHECK_FALSE(holder.CanUseItem());
-    CHECK(game.scene.FindComponent<Hud>()->GetState().prompt.find("Place") != std::string::npos);
+    CHECK(game.GetUi().GetText(game.GetUi().promptText).find("Place") != std::string::npos);
     const Spot::Vector3 shown = preview->GetTransform().GetPosition();
 
     game.input.OnEvent(Spot::MouseButtonPressedEvent{Spot::MouseButton::Left});
@@ -238,7 +243,7 @@ TEST_CASE("The spawn preview follows the aim, places on Fire without firing and 
     CHECK(Spot::Length(placed->GetTransform().GetPosition() - shown) < 0.05f);
     // The press that placed it fired nothing, even held.
     game.Step();
-    CHECK(holder.GetWeapon()->GetAmmo() == rounds);
+    CHECK(SandboxTests::GetFirearm(holder)->GetAmmo() == rounds);
     game.input.OnEvent(Spot::MouseButtonReleasedEvent{Spot::MouseButton::Left});
     game.Step();
     CHECK(holder.CanUseItem());
@@ -248,25 +253,25 @@ TEST_CASE("The spawn preview follows the aim, places on Fire without firing and 
     game.Step();
     CHECK_FALSE(spawner.IsPlacing());
     CHECK(spawner.GetSpawnedCount() == 1);
-    CHECK_FALSE(holder.IsAiming());
+    CHECK_FALSE(SandboxTests::GetFirearm(holder)->IsAiming());
     game.input.OnEvent(Spot::MouseButtonReleasedEvent{Spot::MouseButton::Right});
     game.Step();
 
     // Opening the menu again puts the preview away.
     REQUIRE(spawner.BeginPlacement(0));
-    game.GetUi().OpenSpawnMenu();
+    game.GetUi().spawn.Open();
     CHECK_FALSE(spawner.IsPlacing());
-    game.GetUi().CloseMenus();
+    Gameplay::Menu::CloseAll(game.scene);
 }
 
 TEST_CASE("The spawn menu searches, counts each category and switches to a compact view", "[sandbox][ui]") {
     InterfaceGame game;
-    auto& ui = game.GetUi();
-    const auto& spawnables = game.scene.FindComponent<PropSpawner>()->GetSpawnables();
-    ui.OpenSpawnMenu();
+    auto ui = game.GetUi();
+    const auto& spawnables = Gameplay::Players::FindComponent<PropSpawner>(game.scene)->GetSpawnables();
+    ui.spawn.Open();
     const auto shown = [&] {
         std::vector<std::string> names;
-        for (const auto id : ui.GetSpawnButtons()) {
+        for (const auto id : ui.spawn.GetSpawnButtons()) {
             if (const auto* card = game.scene.GetEntity(id); card->IsActiveSelf())
                 names.push_back(card->GetName());
         }
@@ -288,36 +293,36 @@ TEST_CASE("The spawn menu searches, counts each category and switches to a compa
     CHECK(game.Send(Spot::KeyPressedEvent{Spot::Key::B, false}));
     CHECK(game.Send(Spot::TextInputEvent{"B"}));
     CHECK(game.Send(Spot::KeyPressedEvent{Spot::Key::Q, false}));
-    CHECK(ui.GetMenu() == RuntimeInterface::Menu::Spawn);
+    CHECK(ui.spawn.IsOpen());
     game.Send(Spot::KeyPressedEvent{Spot::Key::Backspace, false});
-    ui.Search("BARREL");
+    ui.spawn.Search("BARREL");
     const auto barrels = shown();
     REQUIRE(!barrels.empty());
     for (const auto& name : barrels)
         CHECK(name.find("arrel") != std::string::npos);
     CHECK(count(ui.weaponsTab) == "0");
-    ui.Search("pistol");
+    ui.spawn.Search("pistol");
     CHECK(shown().empty());
     CHECK(count(ui.weaponsTab) == "1");
-    ui.SelectCategory(Spawnable::Category::Weapon);
+    ui.spawn.SelectCategory(Spawnable::Category::Weapon);
     CHECK(shown() == std::vector<std::string>{"Pistol"});
-    ui.Search("");
-    CHECK(ui.GetCategory() == Spawnable::Category::Weapon);
+    ui.spawn.Search("");
+    CHECK(ui.spawn.GetCategory() == Spawnable::Category::Weapon);
 
-    ui.SetCompactView(true);
+    ui.spawn.SetCompactView(true);
     const auto* grid = game.scene.GetEntity(ui.spawnGrid)->GetComponent<Spot::UiLayoutGroup>();
     const Spot::Vector2 compact = grid->settings.cellSize;
-    CHECK(ui.IsCompactView());
+    CHECK(ui.spawn.IsCompactView());
     game.scene.GetEntity(ui.gridView)->GetComponent<Spot::UiButton>()->Click();
-    CHECK_FALSE(ui.IsCompactView());
+    CHECK_FALSE(ui.spawn.IsCompactView());
     CHECK(grid->settings.cellSize.x > compact.x);
     CHECK(grid->settings.columns < 8);
-    ui.CloseMenus();
+    Gameplay::Menu::CloseAll(game.scene);
 }
 
 TEST_CASE("Help shows the controls from the action map, which a line names as the game starts", "[sandbox][ui]") {
     InterfaceGame game;
-    auto& ui = game.GetUi();
+    auto ui = game.GetUi();
     const auto active = [&](Spot::EntityId id) { return game.scene.GetEntity(id)->IsActiveInHierarchy(); };
     CHECK_FALSE(active(ui.helpPanel));
     CHECK(active(ui.helpHint));
@@ -338,7 +343,7 @@ TEST_CASE("Help shows the controls from the action map, which a line names as th
     CHECK_FALSE(active(ui.helpHint));
     // Rebinding renames the key it shows.
     game.actions.Rebind("Spawn Menu", 0, Spot::InputControl::Of(Spot::Key::G));
-    ui.CloseMenus();
+    game.Step();
     CHECK(row("Spawn Menu") == "G");
     game.input.OnEvent(Spot::KeyPressedEvent{Spot::Key::H, false});
     game.Step();
@@ -352,18 +357,18 @@ TEST_CASE("Help shows the controls from the action map, which a line names as th
 TEST_CASE("Sandbox pause settings persist sensitivity FOV volumes quality and bindings", "[sandbox][ui]") {
     InterfaceGame game;
     TempDirectory directory;
-    auto& ui = game.GetUi();
-    ui.SetSettingsDirectory(directory.GetPath());
+    auto ui = game.GetUi();
+    ui.settings.SetSettingsDirectory(directory.GetPath());
     Spot::Time::SetTimeScale(0.5f);
-    ui.OpenPauseMenu();
+    ui.pause.Open();
     CHECK(Spot::Time::GetTimeScale() == 0);
     CHECK(game.input.IsCaptured());
     game.scene.GetEntity(ui.sensitivitySlider)->GetComponent<Spot::UiSlider>()->SetValue(0.004f, true);
     game.scene.GetEntity(ui.fovSlider)->GetComponent<Spot::UiSlider>()->SetValue(90, true);
     game.scene.GetEntity(ui.masterSlider)->GetComponent<Spot::UiSlider>()->SetValue(0.4f, true);
     game.scene.GetEntity(ui.qualityButton)->GetComponent<Spot::UiButton>()->Click();
-    CHECK(ui.GetSettings().graphicsQuality == 0);
-    const auto* player = game.scene.FindComponent<PlayerController>();
+    CHECK(ui.settings.GetSettings().graphicsQuality == 0);
+    const auto* player = Gameplay::Players::FindComponent<Gameplay::FirstPersonView>(game.scene);
     REQUIRE(player);
     CHECK(player->lookSensitivity == Catch::Approx(0.004f));
     CHECK(Spot::ToDegrees(player->GetFieldOfView()) == Catch::Approx(90));
@@ -380,10 +385,10 @@ TEST_CASE("Sandbox pause settings persist sensitivity FOV volumes quality and bi
     CHECK(game.actions.Find("Jump")->bindings.front().control == Spot::InputControl::Of(Spot::Key::J));
     CHECK_FALSE(game.input.IsKeyPressed(Spot::Key::J));
     game.Send(Spot::KeyPressedEvent{Spot::Key::Escape, false});
-    CHECK(ui.GetMenu() == RuntimeInterface::Menu::Closed);
+    CHECK(ui.IsClosed());
     CHECK(Spot::Time::GetTimeScale() == 0.5f);
     CHECK_FALSE(game.input.IsCaptured());
-    InterfaceSettings loaded;
+    Gameplay::UserSettings loaded;
     REQUIRE(loaded.Load(directory.GetPath()));
     CHECK(loaded.sensitivity == Catch::Approx(0.004f));
     CHECK(loaded.fieldOfView == 90);
@@ -398,13 +403,13 @@ TEST_CASE("Sandbox pause settings persist sensitivity FOV volumes quality and bi
 
 TEST_CASE("Interface settings validate data and preserve previous values on failed loads", "[sandbox][ui]") {
     TempDirectory directory;
-    InterfaceSettings settings;
+    Gameplay::UserSettings settings;
     settings.sensitivity = std::numeric_limits<float>::quiet_NaN();
     settings.fieldOfView = 500;
     settings.masterVolume = -1;
     settings.graphicsQuality = 99;
     REQUIRE(settings.Save(directory.GetPath()));
-    InterfaceSettings loaded;
+    Gameplay::UserSettings loaded;
     REQUIRE(loaded.Load(directory.GetPath()));
     CHECK(std::isfinite(loaded.sensitivity));
     CHECK(loaded.fieldOfView == 120);

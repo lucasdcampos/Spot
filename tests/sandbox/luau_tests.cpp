@@ -1,12 +1,15 @@
 
 #include <spot/scene/scripting/script_component.h>
 
-#include "day_cycle.h"
 #include "playground_fixture.h"
+
+#include "gameplay/environment/day_cycle.h"
 
 #include <catch2/catch_approx.hpp>
 
 #include <array>
+
+using Gameplay::DayCycle;
 
 TEST_CASE("The sandbox Luau scripts animate the real monument and toggle its neon", "[sandbox][luau]") {
     SandboxTests::Playground game;

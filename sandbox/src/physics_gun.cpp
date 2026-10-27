@@ -2,18 +2,20 @@
 #include <spot/scene/physics/physics_world.h>
 #include <spot/scene/rendering/render_hook_system.h>
 
-#include "particle_effects.h"
-#include "player_controller.h"
-#include "prop_carrier.h"
-#include "prop_drive.h"
-#include "view_model.h"
-#include "weapon_holder.h"
+#include "gameplay/core/pawn.h"
+#include "gameplay/core/physics_drive.h"
+#include "gameplay/effects/effect_library.h"
+#include "gameplay/inventory/view_model.h"
 
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
 
 SPOT_COMPONENT(PhysicsGun);
 
 namespace {
+
+namespace Drive = Gameplay::PhysicsDrive;
 
 Spot::Vector3 ToWorld(const Spot::Transform& transform, Spot::Vector3 point) {
     const Spot::Vector4 world = transform.GetWorldMatrix() * Spot::Vector4{point.x, point.y, point.z, 1.0f};
@@ -27,6 +29,15 @@ Spot::Vector3 ToLocal(const Spot::Transform& transform, Spot::Vector3 point) {
 
 } // namespace
 
+PhysicsGun::PhysicsGun() : HeldItem({"Fire", "Unfreeze"}) {
+    displayName = "Physics Gun";
+}
+
+Spot::Entity* PhysicsGun::GetHolder() const {
+    Gameplay::Pawn* pawn = GetPawn();
+    return pawn ? &pawn->GetEntity() : nullptr;
+}
+
 void PhysicsGun::Freeze() {
     if (Spot::Rigidbody* body = GetGrabbedBody()) {
         body->SetLinearVelocity({});
@@ -38,8 +49,14 @@ void PhysicsGun::Freeze() {
 }
 
 void PhysicsGun::Release() {
+    if (IsGrabbing()) {
+        if (Gameplay::Pawn* pawn = GetPawn()) {
+            pawn->SetState("HandsBusy", false);
+        }
+    }
     m_grabbed = Spot::EntityId::Invalid;
-    m_turning = false;
+    m_grab.Deactivate();
+    m_turn.Deactivate();
     m_particleEmission = 0;
     if (Spot::AudioSource* source = GetHum()) {
         source->Stop();
@@ -61,15 +78,14 @@ void PhysicsGun::UnfreezeAll() {
     }
 }
 
-bool PhysicsGun::IsActive() const {
-    const auto* holder = GetEntity().GetComponent<WeaponHolder>();
-    return holder && holder->IsPhysicsGunSelected();
-}
-
 void PhysicsGun::Grab() {
-    const auto* player = GetEntity().GetComponent<PlayerController>();
-    const auto hit = GetScene().GetOrAddSystem<Spot::PhysicsWorld>().Raycast(
-        player->GetEyePosition(), player->GetAimDirection(), range, {.ignore = GetEntity().GetId()});
+    Gameplay::Pawn* pawn = GetPawn();
+    if (!pawn) {
+        return;
+    }
+    const Gameplay::ViewPoint view = pawn->GetViewPoint();
+    const auto hit = GetScene().GetOrAddSystem<Spot::PhysicsWorld>().Raycast(view.position, view.direction, range,
+                                                                             {.ignore = pawn->GetEntity().GetId()});
     Spot::Entity* prop = hit ? GetScene().GetEntity(hit->entity) : nullptr;
     auto* body = prop ? prop->GetComponent<Spot::Rigidbody>() : nullptr;
     if (!body || (body->IsKinematic() && !prop->HasTag(FrozenTag))) {
@@ -84,54 +100,64 @@ void PhysicsGun::Grab() {
     m_grabbed = prop->GetId();
     m_grabPoint = ToLocal(transform, hit->point);
     m_distance = std::max(hit->distance, minDistance);
-    const Spot::Quaternion facing = PropDrive::GetFacing(player->GetYaw());
+    const Spot::Quaternion facing = Drive::GetFacing(Drive::GetYaw(view.direction));
     m_rotation = Spot::Quaternion{-facing.x, -facing.y, -facing.z, facing.w} * transform.GetWorldRotation();
+    m_grab.Activate(Gameplay::Pawn::GetControllerOf(GetEntity()));
+    pawn->SetState("HandsBusy", true);
 }
 
-void PhysicsGun::OnUpdate(float /*deltaTime*/) {
-    namespace Input = Spot::Input;
-    const auto* player = GetEntity().GetComponent<PlayerController>();
-    if (!IsActive() || !player) {
+void PhysicsGun::OnStart() {
+    if (auto* pawn = GetPawn()) {
+        m_states = pawn->OnStateChanged.Connect([this](std::string_view state, bool on) {
+            if (on && state == "Dead") {
+                Release();
+            }
+        });
+    }
+}
+
+void PhysicsGun::OnUse(const Gameplay::ItemInput& input) {
+    if (!input.active || !GetPawn()) {
         Release();
         return;
     }
-    if (Input::IsActionPressed("Unfreeze")) {
+    if (input.IsPressed("Unfreeze")) {
         UnfreezeAll();
     }
-    if (IsGrabbing() && (!GetGrabbedBody() || !Input::IsActionDown("Fire"))) {
+    if (IsGrabbing() && (!GetGrabbedBody() || !m_grab.IsDown("Fire"))) {
         Release();
     }
-    const auto* carrier = GetEntity().GetComponent<PropCarrier>();
-    const auto* holder = GetEntity().GetComponent<WeaponHolder>();
-    if (!IsGrabbing() && Input::IsActionPressed("Fire") && !(carrier && carrier->HasClick()) &&
-        !(holder && !holder->CanUseItem())) {
+    if (!IsGrabbing() && input.IsPressed("Fire") && input.canUse) {
         Grab();
     }
     if (!IsGrabbing()) {
         return;
     }
-    if (Input::IsActionPressed("Aim")) {
+    if (m_grab.IsPressed("Aim")) {
         Freeze();
         return;
     }
-    // Switch Weapon goes to the next weapon as the wheel turns toward the player, which pulls the prop closer.
-    m_distance = std::clamp(m_distance - Input::GetActionValue("Switch Weapon") * scrollStep, minDistance, range);
-    m_turning = Input::IsActionDown("Use");
-    if (m_turning) {
-        m_rotation = PropDrive::TurnByLook(m_rotation, Input::GetActionVector2("Look"), player->lookSensitivity);
+    // Switch Weapon goes to the next item as the wheel turns toward the player, which pulls the prop closer.
+    m_distance = std::clamp(m_distance - m_grab.GetValue("Switch Weapon") * scrollStep, minDistance, range);
+    if (!m_grab.IsDown("Use")) {
+        m_turn.Deactivate();
+        return;
     }
+    m_turn.Activate(Gameplay::Pawn::GetControllerOf(GetEntity()));
+    m_rotation = Drive::TurnByLook(m_rotation, m_turn.GetVector2("Look"), m_lookSensitivity);
 }
 
 void PhysicsGun::OnFixedUpdate(float fixedDeltaTime) {
     Spot::Rigidbody* body = GetGrabbedBody();
-    const auto* player = GetEntity().GetComponent<PlayerController>();
-    if (!body || !player) {
+    const Gameplay::Pawn* pawn = GetPawn();
+    if (!body || !pawn) {
         return;
     }
+    const Gameplay::ViewPoint view = pawn->GetViewPoint();
     const Spot::Transform& transform = body->GetEntity().GetTransform();
-    const Spot::Vector3 target = player->GetEyePosition() + player->GetAimDirection() * m_distance;
-    const Spot::Quaternion rotation = PropDrive::GetFacing(player->GetYaw()) * m_rotation;
-    PropDrive::Toward(*body, ToWorld(transform, m_grabPoint), target, rotation, fixedDeltaTime, maxSpeed);
+    const Spot::Vector3 target = view.position + view.direction * m_distance;
+    const Spot::Quaternion rotation = Drive::GetFacing(Drive::GetYaw(view.direction)) * m_rotation;
+    Drive::Toward(*body, ToWorld(transform, m_grabPoint), target, rotation, fixedDeltaTime, maxSpeed);
 }
 
 void PhysicsGun::OnEnable() {
@@ -151,8 +177,8 @@ void PhysicsGun::OnDisable() {
 void PhysicsGun::OnLateUpdate(float deltaTime) {
     m_beam.clear();
     const Spot::Rigidbody* body = GetGrabbedBody();
-    const auto* player = GetEntity().GetComponent<PlayerController>();
-    if (!body || !player) {
+    const Gameplay::Pawn* pawn = GetPawn();
+    if (!body || !pawn) {
         return;
     }
     if (Spot::AudioSource* source = GetHum()) {
@@ -162,20 +188,43 @@ void PhysicsGun::OnLateUpdate(float deltaTime) {
         source->pitch = 1.0f + std::min(Spot::Length(body->GetLinearVelocity()) / 20.0f, 1.0f);
     }
     // Brighter than white, so it glows through bloom.
-    const auto* view = GetEntity().GetComponent<ViewModel>();
+    const Gameplay::ViewPoint eyes = pawn->GetViewPoint();
+    const auto* view = pawn->GetEntity().GetComponent<Gameplay::ViewModel>();
     const Spot::Vector3 muzzle =
-        view ? view->GetMuzzlePosition()
-             : player->GetEyePosition() + player->GetViewRotation() * Spot::Vector3{0.25f, -0.2f, -0.4f};
-    ParticleEffects::Beam(GetScene(), muzzle, ToWorld(body->GetEntity().GetTransform(), m_grabPoint), deltaTime,
-                          m_particleEmission);
+        view ? view->GetMuzzlePosition() : eyes.position + eyes.rotation * Spot::Vector3{0.25f, -0.2f, -0.4f};
+    // Births spread along the whole beam; what is left of a particle waits for the next frame.
+    m_particleEmission +=
+        std::isfinite(deltaTime) ? std::clamp(deltaTime, 0.0f, 0.1f) * std::clamp(beamRate, 0.0f, 2000.0f) : 0.0f;
+    const auto count = static_cast<std::uint32_t>(m_particleEmission);
+    m_particleEmission -= static_cast<float>(count);
+    Gameplay::EffectLibrary::PlayAlong(GetScene(), "beam", muzzle,
+                                       ToWorld(body->GetEntity().GetTransform(), m_grabPoint), count);
     m_beam.push_back({.from = muzzle,
                       .to = ToWorld(body->GetEntity().GetTransform(), m_grabPoint),
                       .color = {1.2f, 2.8f, 4.0f, 1.0f}});
 }
 
+Gameplay::ItemStatus PhysicsGun::DescribeStatus() const {
+    Gameplay::ItemStatus status = HeldItem::DescribeStatus();
+    const bool grabbing = IsGrabbing();
+    status.count = grabbing ? "Holding" : "Ready";
+    status.countIsWord = true;
+    status.summary = grabbing ? "Holding" : "Grab and move props";
+    status.urgent = grabbing;
+    status.hints =
+        grabbing ? std::vector<Gameplay::InputHint>{{"Switch Weapon", "Distance"}, {"Use", "Rotate"}, {"Aim", "Freeze"}}
+                 : std::vector<Gameplay::InputHint>{{"Fire", "Hold to grab"}, {"Unfreeze", "Unfreeze all"}};
+    return status;
+}
+
+Gameplay::ItemPose PhysicsGun::DescribePose() const {
+    return {.active = IsGrabbing()};
+}
+
 void PhysicsGun::Serialize(Spot::Archive& archive) {
-    archive.Field("icon", icon, {.tooltip = "What the HUD and the weapon wheel show for it"});
+    HeldItem::Serialize(archive);
     archive.Field("range", range, {.min = 0.0f, .max = 1000.0f, .speed = 0.5f});
+    archive.Field("beamRate", beamRate, {.min = 0.0f, .max = 2000.0f, .tooltip = "Particles a second along the beam"});
     archive.Field("minDistance", minDistance, {.min = 0.0f, .max = 100.0f, .speed = 0.05f});
     archive.Field("scrollStep", scrollStep, {.min = 0.0f, .max = 10.0f, .speed = 0.05f});
     archive.Field("hum", hum, {.tooltip = "The entity whose AudioSource hums while holding a prop"});

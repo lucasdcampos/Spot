@@ -21,80 +21,58 @@
           }
         },
         {
-          "id": "00000000000000010000000000000002",
-          "type": "RuntimeInterface",
-          "enabled": true,
           "data": {
             "font": "7d86b4e529829ceeab7f66ef8cded958",
             "monoFont": "765534ac9cdf585cba22b54d61df0209",
-            "titleFont": "fb0b65834232ec853f94b211b7d0263e",
-            "statusText": 3,
-            "handText": 6,
-            "spawnCanvas": 8,
-            "propsTab": 12,
-            "lampsTab": 14,
-            "weaponsTab": 16,
-            "spawnScroll": 18,
-            "spawnGrid": 19,
-            "spawnTemplate": 20,
-            "undoSpawn": 24,
-            "cleanup": 26,
-            "spawnClose": 28,
-            "spawnSearch": 361,
-            "spawnSearchFrame": 360,
-            "spawnCount": 350,
-            "gridView": 362,
-            "compactView": 364,
-            "pauseCanvas": 30,
-            "sensitivitySlider": 37,
-            "fovSlider": 41,
-            "masterSlider": 45,
-            "effectsSlider": 49,
-            "musicSlider": 53,
+            "rowSize": [
+              412.0,
+              28.0
+            ],
+            "rowTemplate": 67,
+            "rows": 66,
+            "scroll": 65
+          },
+          "enabled": true,
+          "id": "3ad3d632360adcc73680af675d58c2bc",
+          "type": "BindingsMenu"
+        },
+        {
+          "data": {
             "ambienceSlider": 57,
+            "effectsSlider": 49,
+            "fieldOfViewSlider": 41,
             "interfaceSlider": 61,
+            "masterSlider": 45,
+            "musicSlider": 53,
             "qualityButton": 62,
             "qualityLabel": 63,
-            "bindingScroll": 65,
-            "bindingContent": 66,
-            "bindingTemplate": 67,
-            "pauseResume": 70,
-            "pauseQuit": 72,
-            "statsPanel": 200,
-            "clockText": 202,
-            "crosshair": 203,
-            "hitMarker": 214,
-            "promptText": 215,
-            "countText": 217,
-            "detailText": 218,
-            "reloadTrack": 219,
-            "reloadFill": 220,
-            "hintText": 221,
-            "reloadWidth": 156,
-            "healthWidth": 168,
-            "itemIcon": 304,
-            "clockIcon": 302,
-            "sunIcon": "826f4551dbdabe265e1fc61c53fdc198",
-            "moonIcon": "0c2c9f75ea193e1cbe63e68a0cff1e97",
-            "healthIcon": 311,
-            "healthText": 312,
-            "healthFill": 314,
-            "damageOverlay": 300,
-            "deathOverlay": 320,
-            "deathTimer": 322,
-            "wheelOverlay": 330,
-            "weaponWheel": 331,
-            "helpPanel": 410,
-            "helpContent": 414,
-            "helpTemplate": 415,
-            "helpHint": 404,
-            "accent": [
-              0.807,
-              0.3663,
-              0.0467,
-              1.0
-            ]
-          }
+            "sensitivitySlider": 37
+          },
+          "enabled": true,
+          "id": "48963a27a7b72e101e5599c64678e02e",
+          "type": "SettingsMenu"
+        },
+        {
+          "data": {
+            "canvas": 30,
+            "clickSound": "740b4adc271ec8e9467bedbd8163a294",
+            "firstFocus": 70,
+            "pausesGame": true,
+            "quitButton": 72,
+            "resumeButton": 70,
+            "style": {
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ]
+            },
+            "toggleAction": "Pause"
+          },
+          "enabled": true,
+          "id": "c032514f6e6cafbe9f4b06c0c65c3189",
+          "type": "PauseMenu"
         }
       ],
       "position": [
@@ -166,6 +144,16 @@
             ],
             "texture": "e153cd08a5cc02d932044daddae905a0"
           }
+        },
+        {
+          "data": {
+            "hideWhen": [],
+            "lowShare": 0.3,
+            "showWhen": []
+          },
+          "enabled": true,
+          "id": "c276199a0fb212cdda482430de98f714",
+          "type": "DamageFlashElement"
         }
       ],
       "position": [
@@ -434,6 +422,17 @@
               16
             ]
           }
+        },
+        {
+          "data": {
+            "hideWhen": [],
+            "showWhen": [],
+            "text": 3,
+            "toggleAction": "Statistics"
+          },
+          "enabled": true,
+          "id": "af71ece808711c52b8269513c505e847",
+          "type": "StatisticsElement"
         }
       ],
       "position": [
@@ -560,6 +559,19 @@
               16
             ]
           }
+        },
+        {
+          "data": {
+            "hideWhen": [],
+            "icon": 302,
+            "moonIcon": "0c2c9f75ea193e1cbe63e68a0cff1e97",
+            "showWhen": [],
+            "sunIcon": "826f4551dbdabe265e1fc61c53fdc198",
+            "text": 202
+          },
+          "enabled": true,
+          "id": "85e7339f5e05fd9a7544185194c82460",
+          "type": "ClockElement"
         }
       ],
       "position": [
@@ -758,6 +770,17 @@
               0
             ]
           }
+        },
+        {
+          "data": {
+            "hideWhen": [
+              "InVehicle"
+            ],
+            "showWhen": []
+          },
+          "enabled": true,
+          "id": "5c2da333bbb54413c8dc41308f262e0b",
+          "type": "CrosshairElement"
         }
       ],
       "position": [
@@ -1550,6 +1573,19 @@
             ],
             "texture": "6781cd989076602fcf29c265272e26a2"
           }
+        },
+        {
+          "data": {
+            "damageTypes": [
+              "Bullet"
+            ],
+            "fadeSpeed": 4.0,
+            "hideWhen": [],
+            "showWhen": []
+          },
+          "enabled": true,
+          "id": "88d13cb954b54bc39d9c0efc363bd6c0",
+          "type": "HitMarkerElement"
         }
       ],
       "position": [
@@ -1624,6 +1660,17 @@
               "verticalAlignment": 1
             }
           }
+        },
+        {
+          "data": {
+            "hideWhen": [
+              "InVehicle"
+            ],
+            "showWhen": []
+          },
+          "enabled": true,
+          "id": "dc31ee0db2107cd47d907e28eb436fff",
+          "type": "SandboxPromptElement"
         }
       ],
       "position": [
@@ -1676,6 +1723,32 @@
               36
             ]
           }
+        },
+        {
+          "data": {
+            "color": [
+              0.807,
+              0.8228,
+              0.8469,
+              1.0
+            ],
+            "fill": 314,
+            "fillWidth": 168,
+            "hideWhen": [],
+            "icon": 311,
+            "lowColor": [
+              0.7835,
+              0.0865,
+              0.0704,
+              1.0
+            ],
+            "lowShare": 0.3,
+            "showWhen": [],
+            "text": 312
+          },
+          "enabled": true,
+          "id": "ad5b7f141e54e8b6cf9d4330258e53d8",
+          "type": "HealthElement"
         }
       ],
       "position": [
@@ -2092,6 +2165,56 @@
               40
             ]
           }
+        },
+        {
+          "data": {
+            "accent": [
+              0.807,
+              0.3663,
+              0.0467,
+              1.0
+            ],
+            "count": 217,
+            "detail": 218,
+            "hideWhen": [
+              "InVehicle"
+            ],
+            "hints": 221,
+            "icon": 304,
+            "name": 6,
+            "nameTime": 2.5,
+            "reloadFill": 220,
+            "reloadTrack": 219,
+            "reloadWidth": 156,
+            "showWhen": []
+          },
+          "enabled": true,
+          "id": "e26d00864f5d5e35c541c858b8ad38fb",
+          "type": "ItemPanelElement"
+        },
+        {
+          "data": {
+            "accent": [
+              0.807,
+              0.3663,
+              0.0467,
+              1.0
+            ],
+            "count": 217,
+            "detail": 218,
+            "hideWhen": [],
+            "hints": 221,
+            "icon": 304,
+            "name": 6,
+            "nameTime": 2.5,
+            "reloadTrack": 219,
+            "showWhen": [
+              "InVehicle"
+            ]
+          },
+          "enabled": true,
+          "id": "be8bd4f3728265a6d5aa1e53dd5a3367",
+          "type": "VehicleElement"
         }
       ],
       "position": [
@@ -2676,6 +2799,42 @@
             ],
             "texture": "88686c16704f97f193d65bdd3af0d1d8"
           }
+        },
+        {
+          "data": {
+            "actions": [
+              "Move",
+              "Jump",
+              "Sprint",
+              "Crouch",
+              "Fire",
+              "Aim",
+              "Reload",
+              "Use",
+              "Weapon Wheel",
+              "Spawn Menu",
+              "Undo",
+              "Clean Up",
+              "Unfreeze",
+              "Flashlight",
+              "Noclip",
+              "Pause",
+              "Statistics",
+              "Help"
+            ],
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "hideWhen": [],
+            "hint": 404,
+            "monoFont": "765534ac9cdf585cba22b54d61df0209",
+            "rowHeight": 20.0,
+            "rowTemplate": 415,
+            "rows": 414,
+            "showWhen": [],
+            "toggleAction": "Help"
+          },
+          "enabled": true,
+          "id": "09ed485f41afb1f4491fcfa806145741",
+          "type": "HelpPanel"
         }
       ],
       "position": [
@@ -3318,6 +3477,19 @@
             ],
             "texture": null
           }
+        },
+        {
+          "data": {
+            "hideWhen": [],
+            "showWhen": [
+              "Dead"
+            ],
+            "timer": 322,
+            "timerText": "Respawning in {}"
+          },
+          "enabled": true,
+          "id": "39e5a747bbefd29f19c1b06df47b7c1e",
+          "type": "DeathScreenElement"
         }
       ],
       "position": [
@@ -3538,6 +3710,16 @@
             ],
             "texture": "e153cd08a5cc02d932044daddae905a0"
           }
+        },
+        {
+          "data": {
+            "hideWhen": [],
+            "showWhen": [],
+            "wheel": 331
+          },
+          "enabled": true,
+          "id": "453531204a2905310f7979b71330d858",
+          "type": "WheelElement"
         }
       ],
       "position": [
@@ -11998,6 +12180,67 @@
       ],
       "tags": [],
       "parent": 70
+    },
+    {
+      "id": 621,
+      "name": "Spawn Menu Controller",
+      "active": true,
+      "parent": 1,
+      "components": [
+        {
+          "data": {
+            "canvas": 8,
+            "cleanupButton": 26,
+            "clickSound": "740b4adc271ec8e9467bedbd8163a294",
+            "closeButton": 28,
+            "compactView": 364,
+            "count": 350,
+            "firstFocus": 0,
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "grid": 19,
+            "gridView": 362,
+            "itemTemplate": 20,
+            "lampsTab": 14,
+            "pausesGame": false,
+            "propsTab": 12,
+            "scroll": 18,
+            "search": 361,
+            "searchFrame": 360,
+            "style": {
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ]
+            },
+            "titleFont": "fb0b65834232ec853f94b211b7d0263e",
+            "toggleAction": "Spawn Menu",
+            "undoButton": 24,
+            "weaponsTab": 16
+          },
+          "enabled": true,
+          "id": "d338855c583b0a49e7fc6b401673b980",
+          "type": "SpawnMenu"
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": []
     }
   ]
 }

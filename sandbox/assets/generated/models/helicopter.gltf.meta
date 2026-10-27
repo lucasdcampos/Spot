@@ -1,0 +1,123 @@
+{
+  "id": "abb55b13f96dd45e2d6fc017dfae7422",
+  "settings": {
+    "animations": [],
+    "materials": [],
+    "scale": 1.0
+  },
+  "subAssets": [
+    {
+      "id": "b1df9c72db1b8d84ad1e924f645f46eb",
+      "key": "texture:0"
+    },
+    {
+      "id": "135abae4346a8989d71c282ed6fc7602",
+      "key": "texture:1"
+    },
+    {
+      "id": "e29df94dc8042eef8ace9a434b9f86fc",
+      "key": "texture:2"
+    },
+    {
+      "id": "bbcd90ccfa5236b5c5048deee48dbd5b",
+      "key": "texture:3"
+    },
+    {
+      "id": "4692a08da52808033655af55b9258a67",
+      "key": "texture:4"
+    },
+    {
+      "id": "33586d0453406e72b1e2224523fa087c",
+      "key": "texture:5"
+    },
+    {
+      "id": "b8fe81a160a48d4d576e8e325c572666",
+      "key": "material:0"
+    },
+    {
+      "id": "f1a5942c5bfc210258a93d90e8d92ec3",
+      "key": "material:1"
+    },
+    {
+      "id": "5319e3d2b2151b2deead1430d97b904c",
+      "key": "material:2"
+    },
+    {
+      "id": "58861f3ad10083552fe10ac7aa69d7ea",
+      "key": "material:3"
+    },
+    {
+      "id": "e5b439c7103f9ebf8ae7ed14c3ebad53",
+      "key": "material:4"
+    },
+    {
+      "id": "73bc8ce41e227f023e4d8bee8cd4ead5",
+      "key": "material:5"
+    },
+    {
+      "id": "f94d05c166d955579e05621703192793",
+      "key": "material:6"
+    },
+    {
+      "id": "519be8502be448df36652cde6f1d828a",
+      "key": "material:7"
+    },
+    {
+      "id": "fef7cb78711638bc006af2d6b0f748c2",
+      "key": "material:8"
+    },
+    {
+      "id": "159ee013ee5e3b4d3de1facbb4f723e1",
+      "key": "material:9"
+    },
+    {
+      "id": "50894ec2563ad643e43ba19af040211c",
+      "key": "material:10"
+    },
+    {
+      "id": "852fbc4774f984f61bf8f1d0217ae935",
+      "key": "mesh:0"
+    },
+    {
+      "id": "1408311082a249f9ca4652b94136da0d",
+      "key": "mesh:1"
+    },
+    {
+      "id": "cccd4b81626f7295803dd4806cd9c169",
+      "key": "mesh:2"
+    },
+    {
+      "id": "5762fb09c8ebb368f7505c50deb78c04",
+      "key": "mesh:3"
+    },
+    {
+      "id": "55e05d7285399ca537869a76060ac4e2",
+      "key": "mesh:4"
+    },
+    {
+      "id": "c60647891e7433b1571ba1d2cbf20358",
+      "key": "mesh:5"
+    },
+    {
+      "id": "a2d796096c932b3cbcb5c4f3c7b24347",
+      "key": "mesh:6"
+    },
+    {
+      "id": "76912c4819377be9799e0b6c256da2ca",
+      "key": "mesh:7"
+    },
+    {
+      "id": "e961c3997e797633675c66223391e915",
+      "key": "mesh:8"
+    },
+    {
+      "id": "574a03cf08dae52c4b1c0b9aa244c3a6",
+      "key": "mesh:9"
+    },
+    {
+      "id": "b3ac9736dab407390a0e5116acec60c9",
+      "key": "mesh:10"
+    }
+  ],
+  "type": "Model"
+}

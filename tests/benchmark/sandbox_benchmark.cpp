@@ -1,8 +1,10 @@
-#include "interface_settings.h"
-#include "player_movement.h"
+#include "gameplay/core/players.h"
 #include "prop_spawner.h"
-#include "runtime_interface.h"
-#include "view_model.h"
+
+#include "gameplay/character/character_movement.h"
+#include "gameplay/inventory/view_model.h"
+#include "gameplay/menus/settings_menu.h"
+#include "gameplay/vehicles/vehicle.h"
 #include <spot/scene/physics/physics_world.h>
 
 #include <spot.h>
@@ -19,6 +21,7 @@
 #include <map>
 #include <numeric>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -31,6 +34,8 @@ struct Options {
     int quality = 2;
     // Walks the player through the level, seen through its own eyes with what it holds, as a game plays.
     int walk = 0;
+    // Limits authored world vehicles, leaving the original addition order; -1 keeps the complete scene.
+    int vehicles = -1;
 };
 
 Spot::ApplicationConfig Config() {
@@ -73,7 +78,10 @@ protected:
         LoadScene(std::move(scene));
     }
 
+    void OnRender(Spot::RenderContext&) override { m_rendered = true; }
+
     void OnUpdate(float) override {
+        const bool rendered = std::exchange(m_rendered, false);
         auto* scene = GetScene();
         if (!scene) {
             Quit();
@@ -94,6 +102,12 @@ protected:
         }
         const auto now = std::chrono::steady_clock::now();
         if (m_frame >= m_options.warmup) {
+            if (!rendered) {
+                std::fprintf(stderr,
+                             "Invalid capture: a measured frame did not render. Keep the benchmark window visible.\n");
+                Quit();
+                return;
+            }
             m_times.push_back(std::chrono::duration<double, std::milli>(now - m_last).count());
             const auto frames = Spot::Profiler::GetFrames();
             if (!frames.empty()) {
@@ -132,23 +146,31 @@ private:
 
     // From the plaza's south edge north into the workshop, again and again, holding Forward.
     void Walk(Spot::Scene& scene) {
-        auto* movement = scene.FindComponent<PlayerMovement>();
+        auto* movement = Gameplay::Players::FindComponent<Gameplay::CharacterMovement>(scene);
         if (!movement) {
             return;
         }
         if (m_frame % 600 == 0) {
             movement->GetEntity().GetTransform().SetWorldPosition({19.0f, 1.0f, 16.0f});
         }
-        if (m_frame == 0) {
-            if (auto* input = Spot::Input::GetState()) {
-                input->OnEvent(Spot::KeyPressedEvent{.key = Spot::Key::W, .repeat = false});
-            }
+        // Losing window focus clears held keys; the scripted walk must keep the same route regardless of focus.
+        if (auto* input = Spot::Input::GetState(); input && !input->IsKeyDown(Spot::Key::W)) {
+            input->OnEvent(Spot::KeyPressedEvent{.key = Spot::Key::W, .repeat = false});
+            Spot::Input::UpdateActions();
         }
     }
 
     bool Populate(Spot::Scene& scene) {
-        auto* spawner = scene.FindComponent<PropSpawner>();
-        auto* ui = scene.FindComponent<RuntimeInterface>();
+        if (m_options.vehicles >= 0) {
+            int count = 0;
+            scene.ForEachComponent<Gameplay::Vehicle>([&](Gameplay::Vehicle& vehicle) {
+                if (count++ >= m_options.vehicles) {
+                    vehicle.GetEntity().Destroy();
+                }
+            });
+        }
+        auto* spawner = Gameplay::Players::FindComponent<PropSpawner>(scene);
+        auto* ui = scene.FindComponent<Gameplay::SettingsMenu>();
         if (!spawner || !ui) {
             return false;
         }
@@ -184,8 +206,9 @@ private:
         }
         if (!m_options.walk) {
             scene.ForEachComponent<Spot::Camera>([](Spot::Camera& camera) { camera.SetEnabled(false); });
-            scene.ForEachComponent<PlayerMovement>([](PlayerMovement& movement) { movement.SetFlying(true); });
-            scene.ForEachComponent<ViewModel>([](ViewModel& view) { view.SetEnabled(false); });
+            scene.ForEachComponent<Gameplay::CharacterMovement>(
+                [](Gameplay::CharacterMovement& movement) { movement.SetFlying(true); });
+            scene.ForEachComponent<Gameplay::ViewModel>([](Gameplay::ViewModel& view) { view.SetEnabled(false); });
             auto& camera = scene.CreateEntity("Benchmark Camera");
             camera.AddComponent<Spot::Camera>();
             m_camera = camera.GetId();
@@ -205,6 +228,9 @@ private:
         std::printf("Sandbox benchmark: %d spawned props, %d added lamps, %zu frames, quality %d, 1600x900, %s%s\n",
                     m_options.props, m_options.lamps, m_times.size(), m_options.quality,
                     std::string(GetGraphicsDevice().GetBackendName()).c_str(), m_options.walk ? ", walking" : "");
+        if (m_options.vehicles >= 0) {
+            std::printf("Authored vehicle limit: %d\n", m_options.vehicles);
+        }
         std::printf("Frame: mean %.3f ms (%.1f FPS), median %.3f ms, p95 %.3f ms, worst %.3f ms\n", mean, 1000 / mean,
                     percentile(.5), percentile(.95), m_times.back());
         std::printf("Bodies: %zu, resident memory: %.1f MiB\n",
@@ -241,6 +267,7 @@ private:
     Options m_options;
     int m_frame = 0;
     bool m_ready = false;
+    bool m_rendered = false;
     int m_result = EXIT_FAILURE;
     Spot::EntityId m_camera = Spot::EntityId::Invalid;
     std::chrono::steady_clock::time_point m_last;
@@ -263,20 +290,21 @@ int main(int argc, char** argv) {
             return EXIT_FAILURE;
         }
         const std::string_view flag(argv[i]);
-        int* value = flag == "--props"     ? &options.props
-                     : flag == "--lamps"   ? &options.lamps
-                     : flag == "--warmup"  ? &options.warmup
-                     : flag == "--frames"  ? &options.frames
-                     : flag == "--quality" ? &options.quality
-                     : flag == "--walk"    ? &options.walk
-                                           : nullptr;
+        int* value = flag == "--props"      ? &options.props
+                     : flag == "--lamps"    ? &options.lamps
+                     : flag == "--warmup"   ? &options.warmup
+                     : flag == "--frames"   ? &options.frames
+                     : flag == "--quality"  ? &options.quality
+                     : flag == "--vehicles" ? &options.vehicles
+                     : flag == "--walk"     ? &options.walk
+                                            : nullptr;
         const std::string_view argument(argv[i + 1]);
         int parsed = 0;
         const auto result = std::from_chars(argument.data(), argument.data() + argument.size(), parsed);
-        const int maximum = flag == "--quality"                      ? 2
-                            : flag == "--walk"                       ? 1
-                            : flag == "--props" || flag == "--lamps" ? 2000
-                                                                     : 100000;
+        const int maximum = flag == "--quality"                                              ? 2
+                            : flag == "--walk"                                               ? 1
+                            : flag == "--props" || flag == "--lamps" || flag == "--vehicles" ? 2000
+                                                                                             : 100000;
         if (!value || result.ec != std::errc{} || result.ptr != argument.data() + argument.size() || parsed < 0 ||
             parsed > maximum || (flag == "--frames" && parsed == 0)) {
             std::fprintf(stderr, "Invalid benchmark option: %s %s\n", argv[i], argv[i + 1]);

@@ -8,3 +8,5 @@ find_package(Spot CONFIG REQUIRED)
 
 file(GLOB_RECURSE sources CONFIGURE_DEPENDS *.cpp *.h)
 spot_add_game(${sources})
+# Files include each other by their path from here, such as "gameplay/core/pawn.h", from any folder.
+target_include_directories(game_code PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

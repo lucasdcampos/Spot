@@ -1,0 +1,82 @@
+{
+  "entities": [
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "mesh": "00000000000000000000000000000002"
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000001",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {},
+          "enabled": true,
+          "id": "00000000000000010000000000000002",
+          "type": "SphereCollider"
+        },
+        {
+          "data": {
+            "continuous": true,
+            "gravityScale": 0.0
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000003",
+          "type": "Rigidbody"
+        },
+        {
+          "data": {},
+          "enabled": true,
+          "id": "00000000000000010000000000000004",
+          "type": "Transient"
+        },
+        {
+          "data": {
+            "lifetime": 5.0
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000005",
+          "type": "Projectile"
+        },
+        {
+          "data": {
+            "damage": 110.0,
+            "damageType": "Explosion",
+            "effect": "explosion",
+            "impulse": 500.0,
+            "radius": 5.0,
+            "shake": 0.05
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000006",
+          "type": "Explosive"
+        }
+      ],
+      "id": 1,
+      "layer": 0,
+      "name": "Rocket",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.25,
+        0.25,
+        0.25
+      ],
+      "tags": []
+    }
+  ],
+  "format": "spot-scene",
+  "version": 2
+}

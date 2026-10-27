@@ -1,6 +1,7 @@
 #include "../registered_assets.h"
-#include "car.h"
-#include "day_cycle.h"
+#include "gameplay/vehicles/wheeled_vehicle.h"
+
+#include "gameplay/environment/day_cycle.h"
 
 #include <spot.h>
 
@@ -12,6 +13,8 @@
 #include <memory>
 #include <span>
 #include <vector>
+
+using Gameplay::DayCycle;
 
 namespace {
 
@@ -40,9 +43,9 @@ struct OffscreenPlayground {
         REQUIRE(settings);
         scene = Spot::InstantiateScene(assets, settings->startupScene);
         REQUIRE(scene);
-        scene->ForEachComponent<Spot::Camera>([](Spot::Camera& camera) { camera.SetEnabled(false); });
         // The HUD, made as the game starts, would cover the views.
         scene->Update(0.0f);
+        scene->ForEachComponent<Spot::Camera>([](Spot::Camera& camera) { camera.SetEnabled(false); });
         if (auto* game = scene->FindEntity("Game")) {
             game->ForEachChild([](Spot::Entity& child) { child.SetActive(false); });
         }
@@ -116,7 +119,7 @@ TEST_CASE("The cooked playground's car shows its paint, glass, lights and wheels
         SKIP("No usable graphics device");
     }
     OffscreenPlayground playground;
-    const Car* car = playground.scene->FindComponent<Car>();
+    const auto* car = playground.scene->FindComponent<Gameplay::WheeledVehicle>();
     REQUIRE(car);
     const Spot::Vector3 at = car->GetEntity().GetTransform().GetWorldPosition();
     const Spot::Quaternion rotation = car->GetEntity().GetTransform().GetWorldRotation();

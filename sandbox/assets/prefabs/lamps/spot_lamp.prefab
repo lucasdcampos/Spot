@@ -53,6 +53,12 @@
             "castsShadows": false,
             "material": "d253e59ae9d610490ba12dfb0d268ea9"
           }
+        },
+        {
+          "data": {},
+          "enabled": true,
+          "id": "f9de67c5b84254c2813968ce987e4164",
+          "type": "Persistent"
         }
       ]
     }

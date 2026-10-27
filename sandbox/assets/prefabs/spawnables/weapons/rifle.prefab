@@ -7,12 +7,9 @@
           "data": {
             "automatic": true,
             "displayName": "Rifle",
-            "explosionImpulse": 0.0,
-            "explosionRadius": 0.0,
             "fireInterval": 0.1,
             "fireSound": "e33934b1d5907db157907a77b9b548fa",
             "impulse": 30.0,
-            "kind": 0,
             "magazineSize": 30,
             "muzzleFlash": 1.0,
             "model": "c65ed8a1d3da765335135a76e0e84519",
@@ -30,7 +27,7 @@
           },
           "enabled": true,
           "id": "ee86e41d266e61aff13d0505bb077ffa",
-          "type": "Weapon"
+          "type": "Firearm"
         },
         {
           "data": {
@@ -105,6 +102,12 @@
           "data": {
             "minSpeed": 1.5
           }
+        },
+        {
+          "data": {},
+          "enabled": true,
+          "id": "d559febb634784ad47151661f3ac3b2b",
+          "type": "Persistent"
         }
       ],
       "id": 1,

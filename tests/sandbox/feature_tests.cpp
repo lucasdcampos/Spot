@@ -1,14 +1,19 @@
+#include "gameplay/core/players.h"
 #include "grass_visibility.h"
 #include "physics_gun.h"
-#include "player_controller.h"
 #include "playground_fixture.h"
-#include "prop_carrier.h"
 #include "prop_spawner.h"
+#include "spawn_menu.h"
 #include "tool_gun.h"
 #include "undo_list.h"
-#include "world_save.h"
+
+#include "gameplay/camera/first_person_view.h"
+#include "gameplay/character/carrier.h"
+#include "gameplay/persistence/world_save.h"
 
 #include <catch2/catch_approx.hpp>
+
+namespace WorldSave = Gameplay::WorldSave;
 
 TEST_CASE("Grass chunks keep triangles crossing cell boundaries and their shading", "[sandbox]") {
     Spot::MeshData source;
@@ -43,8 +48,8 @@ TEST_CASE("The physics gun preserves the grabbed surface of scaled props and rel
     game.Run(90);
     auto* player = game.scene.FindEntity("Player");
     REQUIRE(player);
-    auto* control = player->GetComponent<PlayerController>();
-    auto* gun = player->GetComponent<PhysicsGun>();
+    auto* control = player->GetComponent<Gameplay::FirstPersonView>();
+    auto* gun = player->GetComponentInChildren<PhysicsGun>();
     REQUIRE(control);
     REQUIRE(gun);
     auto& prop = game.scene.CreateEntity("Scaled Prop");
@@ -75,8 +80,8 @@ TEST_CASE("The physics gun preserves the grabbed surface of scaled props and rel
 TEST_CASE("Disabling a carrier releases its prop instead of resuming a stale hold", "[sandbox][acceptance]") {
     SandboxTests::Playground game;
     auto* player = game.scene.FindEntity("Player");
-    auto* carrier = player->GetComponent<PropCarrier>();
-    auto* control = player->GetComponent<PlayerController>();
+    auto* carrier = player->GetComponent<Gameplay::Carrier>();
+    auto* control = player->GetComponent<Gameplay::FirstPersonView>();
     auto& prop = game.scene.CreateEntity("Carry Prop");
     prop.GetTransform().SetWorldPosition(control->GetEyePosition() + control->GetAimDirection() * 1.5f);
     prop.AddComponent<Spot::BoxCollider>();
@@ -93,13 +98,13 @@ TEST_CASE("Disabling a carrier releases its prop instead of resuming a stale hol
 
 TEST_CASE("Spawn, freeze, checkpoint, pause and cleanup preserve the permanent level", "[sandbox][acceptance]") {
     SandboxTests::Playground game;
-    auto* spawner = game.scene.FindComponent<PropSpawner>();
-    auto* ui = game.scene.FindComponent<RuntimeInterface>();
+    auto* spawner = Gameplay::Players::FindComponent<PropSpawner>(game.scene);
+    auto* ui = game.scene.FindComponent<SpawnMenu>();
     REQUIRE(spawner);
     REQUIRE(ui);
     const auto workshop = game.scene.FindEntity("Workshop")->GetId();
     const auto ground = game.scene.FindEntity("Ground")->GetId();
-    ui->OpenSpawnMenu();
+    ui->Open();
     REQUIRE(!ui->GetSpawnButtons().empty());
     game.scene.GetEntity(ui->GetSpawnButtons().front())->GetComponent<Spot::UiButton>()->Click();
     REQUIRE(spawner->ConfirmPlacement());
@@ -115,10 +120,10 @@ TEST_CASE("Spawn, freeze, checkpoint, pause and cleanup preserve the permanent l
         }
     });
     REQUIRE(spawned != Spot::EntityId::Invalid);
-    ui->CloseMenus();
+    Gameplay::Menu::CloseAll(game.scene);
     const auto save = game.userData.GetPath() / "world.json";
     REQUIRE(WorldSave::Save(game.scene, save));
-    ui->OpenPauseMenu();
+    game.scene.FindComponent<Gameplay::PauseMenu>()->Open();
     CHECK(Spot::Time::GetTimeScale() == 0);
     REQUIRE(WorldSave::Load(game.scene, save));
     auto* restored = game.scene.FindEntity("Saved Construction");
@@ -128,7 +133,7 @@ TEST_CASE("Spawn, freeze, checkpoint, pause and cleanup preserve the permanent l
     CHECK(spawner->IsSpawned(restored->GetId()));
     CHECK(game.scene.GetEntity(workshop));
     CHECK(game.scene.GetEntity(ground));
-    ui->CloseMenus();
+    Gameplay::Menu::CloseAll(game.scene);
     spawner->Cleanup();
     game.Run(2);
     CHECK(spawner->GetSpawnedCount() == 0);

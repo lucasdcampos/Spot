@@ -30,6 +30,17 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Incremental linking keeps a file beside each program as large as its debug information, to relink it faster; with
+# the engine linked into every test program, those came to gigabytes.
+if(MSVC)
+    foreach(kind IN ITEMS EXE SHARED MODULE)
+        foreach(config IN ITEMS DEBUG RELWITHDEBINFO)
+            string(REGEX REPLACE "/INCREMENTAL[^ ]*" "" flags "${CMAKE_${kind}_LINKER_FLAGS_${config}}")
+            set(CMAKE_${kind}_LINKER_FLAGS_${config} "${flags} /INCREMENTAL:NO")
+        endforeach()
+    endforeach()
+endif()
+
 function(spot_set_compile_options target)
     if(MSVC)
         # Without /utf-8, MSVC reads sources in the system code page and garbles non-ASCII text.

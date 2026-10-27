@@ -1,12 +1,16 @@
 #include "../registered_assets.h"
-#include "day_cycle.h"
-#include "player_controller.h"
-#include "player_health.h"
+#include "gameplay/core/players.h"
+#include "gameplay/game/game_mode.h"
 #include "prop_spawner.h"
-#include "runtime_interface.h"
-#include "view_model.h"
-#include "weapon.h"
-#include "weapon_holder.h"
+#include "spawn_menu.h"
+
+#include "gameplay/camera/first_person_view.h"
+#include "gameplay/environment/day_cycle.h"
+#include "gameplay/health/health.h"
+#include "gameplay/inventory/inventory.h"
+#include "gameplay/inventory/view_model.h"
+#include "gameplay/menus/pause_menu.h"
+#include "gameplay/weapons/firearm.h"
 #include <spot/scene/ui/ui_system.h>
 
 #include <spot.h>
@@ -16,6 +20,8 @@
 #include <array>
 #include <filesystem>
 #include <vector>
+
+using Gameplay::DayCycle;
 
 TEST_CASE("The cooked playground renders its yards by day, at sunset and at night", "[gpu][sandbox][offscreen]") {
     if (!Spot::GraphicsDevice::IsSupported()) {
@@ -37,9 +43,9 @@ TEST_CASE("The cooked playground renders its yards by day, at sunset and at nigh
     auto scene = Spot::InstantiateScene(assets, settings->startupScene);
     REQUIRE(scene);
     REQUIRE(scene->FindEntity("Workshop"));
-    scene->ForEachComponent<Spot::Camera>([](Spot::Camera& camera) { camera.SetEnabled(false); });
     // The HUD, made as the game starts, would cover the views.
     scene->Update(0.0f);
+    scene->ForEachComponent<Spot::Camera>([](Spot::Camera& camera) { camera.SetEnabled(false); });
     if (auto* game = scene->FindEntity("Game")) {
         game->ForEachChild([](Spot::Entity& child) { child.SetActive(false); });
     }
@@ -171,10 +177,11 @@ TEST_CASE("The cooked sandbox renders held items, recoil, sights and reloads", "
     for (int i = 0; i < 90; ++i) {
         step();
     }
-    auto* holder = scene->FindComponent<WeaponHolder>();
-    auto* view = scene->FindComponent<ViewModel>();
+    auto* holder = Gameplay::Players::FindComponent<Gameplay::Inventory>(*scene);
+    auto* view = Gameplay::Players::FindComponent<Gameplay::ViewModel>(*scene);
     REQUIRE(holder);
     REQUIRE(view);
+    const auto firearm = [&] { return dynamic_cast<Gameplay::Firearm*>(holder->GetEquipped()); };
     holder->Select(1);
     for (int i = 0; i < 30; ++i) {
         step();
@@ -185,7 +192,7 @@ TEST_CASE("The cooked sandbox renders held items, recoil, sights and reloads", "
     auto* dummy = scene->Instantiate(targetPrefab);
     REQUIRE(dummy);
     REQUIRE(dummy->GetComponent<Spot::MeshRenderer>()->GetMesh());
-    const auto* player = scene->FindComponent<PlayerController>();
+    const auto* player = Gameplay::Players::FindComponent<Gameplay::FirstPersonView>(*scene);
     dummy->GetTransform().SetWorldPosition(player->GetEyePosition() + player->GetAimDirection() * 5 -
                                            Spot::Vector3{0, .19f, 0});
     auto target = device->CreateTexture(
@@ -204,15 +211,15 @@ TEST_CASE("The cooked sandbox renders held items, recoil, sights and reloads", "
     };
     std::filesystem::create_directories(SPOT_SANDBOX_CAPTURE_DIR);
     const auto idle = draw("pistol_idle.png");
-    holder->Fire();
+    firearm()->Fire();
     step();
-    CHECK(scene->FindComponent<PlayerController>()->GetRecoil() > 0);
+    CHECK(Gameplay::Players::FindComponent<Gameplay::FirstPersonView>(*scene)->GetRecoil() > 0);
     CHECK(draw("pistol_fire.png") != idle);
     input.OnEvent(Spot::MouseButtonPressedEvent{Spot::MouseButton::Right});
     for (int i = 0; i < 30; ++i) {
         step();
     }
-    CHECK(holder->IsAiming());
+    CHECK(firearm()->IsAiming());
     CHECK(draw("pistol_sights.png") != idle);
     input.OnEvent(Spot::MouseButtonReleasedEvent{Spot::MouseButton::Right});
 
@@ -224,7 +231,7 @@ TEST_CASE("The cooked sandbox renders held items, recoil, sights and reloads", "
             step();
         }
         const auto hip = draw(std::string(names[static_cast<std::size_t>(slot)]) + "_hip.png");
-        if (holder->GetWeapon()) {
+        if (firearm()) {
             input.OnEvent(Spot::MouseButtonPressedEvent{Spot::MouseButton::Right});
             for (int i = 0; i < 30; ++i) {
                 step();
@@ -240,9 +247,9 @@ TEST_CASE("The cooked sandbox renders held items, recoil, sights and reloads", "
     for (int i = 0; i < 40; ++i) {
         step();
     }
-    holder->Fire();
-    REQUIRE(holder->GetWeapon()->StartReload());
-    while (holder->GetWeapon()->GetReloadProgress() < 0.45f) {
+    firearm()->Fire();
+    REQUIRE(firearm()->StartReload());
+    while (firearm()->GetReloadProgress() < 0.45f) {
         step();
     }
     draw("rifle_reload.png");
@@ -291,8 +298,8 @@ TEST_CASE("The cooked sandbox draws its HUD over the game: in hand, the wheel, h
         }
     };
     run(90);
-    auto* holder = scene->FindComponent<WeaponHolder>();
-    auto* health = scene->FindComponent<PlayerHealth>();
+    auto* holder = Gameplay::Players::FindComponent<Gameplay::Inventory>(*scene);
+    auto* health = Gameplay::Players::FindComponent<Gameplay::Health>(*scene);
     auto* day = scene->FindComponent<DayCycle>();
     REQUIRE(holder);
     REQUIRE(health);
@@ -353,22 +360,22 @@ TEST_CASE("The cooked sandbox draws its HUD over the game: in hand, the wheel, h
 
     tap(Spot::Key::Digit6);
     day->timeOfDay = 0.92f;
-    health->Damage(78.0f);
+    health->TakeDamage({.amount = 78.0f});
     run(6);
     draw("hud_hurt_night.png");
 
-    health->Damage(100.0f);
+    health->TakeDamage({.amount = 100.0f});
     run(30);
     REQUIRE(health->IsDead());
     draw("hud_dead.png");
-    run(static_cast<int>(health->respawnTime * 60.0f) + 10);
+    run(static_cast<int>(Gameplay::GameMode::Get(*scene)->respawnTime * 60.0f) + 10);
     REQUIRE_FALSE(health->IsDead());
 
     // The menus, once the spawn menu's thumbnails, two a frame, are all drawn.
-    auto* ui = scene->FindComponent<RuntimeInterface>();
+    auto* ui = scene->FindComponent<SpawnMenu>();
     REQUIRE(ui);
     day->timeOfDay = 0.45f;
-    ui->OpenSpawnMenu();
+    ui->Open();
     for (int frame = 0; frame < 30; ++frame) {
         step();
         draw("menu_spawn.png");
@@ -385,13 +392,13 @@ TEST_CASE("The cooked sandbox draws its HUD over the game: in hand, the wheel, h
     step();
     draw("menu_spawn_compact.png");
     ui->SetCompactView(false);
-    ui->OpenPauseMenu();
+    scene->FindComponent<Gameplay::PauseMenu>()->Open();
     step();
     draw("menu_pause.png");
-    ui->CloseMenus();
+    Gameplay::Menu::CloseAll(*scene);
 
     // Placing what the menu gave, and the controls on Help.
-    auto* spawner = scene->FindComponent<PropSpawner>();
+    auto* spawner = Gameplay::Players::FindComponent<PropSpawner>(*scene);
     REQUIRE(spawner);
     REQUIRE(spawner->BeginPlacement(0));
     run(2);
@@ -400,4 +407,66 @@ TEST_CASE("The cooked sandbox draws its HUD over the game: in hand, the wheel, h
     tap(Spot::Key::H);
     draw("hud_help.png");
     tap(Spot::Key::H);
+}
+
+TEST_CASE("Authored sandbox menus render their labels and controls offscreen", "[gpu][ui][sandbox][offscreen]") {
+    if (!Spot::GraphicsDevice::IsSupported()) {
+        SKIP("No usable graphics device");
+    }
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    Spot::Tests::RegisteredAssetManager assets(SANDBOX_IMPORTED_DIR, device.get());
+    Spot::InputState input;
+    Spot::InputActionMap actions;
+    struct AssetScope {
+        Spot::AssetManager* previous = Spot::Assets::GetManager();
+        Spot::InputState* input = Spot::Input::GetState();
+        Spot::InputActionMap* actions = Spot::Input::GetActionMap();
+        float timeScale = Spot::Time::GetTimeScale();
+        ~AssetScope() {
+            Spot::Detail::SetAssetManager(previous);
+            Spot::Input::SetState(input);
+            Spot::Input::SetActionMap(actions);
+            Spot::Time::SetTimeScale(timeScale);
+        }
+    } scope;
+    Spot::Detail::SetAssetManager(&assets);
+    Spot::Input::SetState(&input);
+    Spot::Input::SetActionMap(&actions);
+    Spot::Detail::LoadGameCode();
+    const auto settings = Spot::GameSettings::LoadFromFile(std::filesystem::path(SANDBOX_IMPORTED_DIR).parent_path() /
+                                                           Spot::GameSettings::FileName);
+    REQUIRE(settings);
+    settings->sections.input.Apply(actions);
+    const auto prefab = assets.Load<Spot::Prefab>("prefabs/interface.prefab");
+    REQUIRE(prefab);
+    Spot::Scene scene;
+    REQUIRE(scene.Instantiate(prefab, {.assets = &assets}));
+    auto* pause = scene.FindComponent<Gameplay::PauseMenu>();
+    REQUIRE(pause);
+    pause->Open();
+    auto target = device->CreateTexture(
+        {.width = 1280, .height = 720, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
+    REQUIRE(target);
+    Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb,
+                                           .sampleCount = 1,
+                                           .shadowMapSize = 0,
+                                           .localShadowMapSize = 0});
+    auto* context = device->BeginOffscreenFrame(*target);
+    REQUIRE(context);
+    renderer.Render(*context, scene, target.get());
+    device->EndFrame();
+    const auto pixels = device->DownloadTexture(*target);
+    REQUIRE(pixels.size() == 1280 * 720 * 4);
+    std::size_t bright = 0;
+    for (std::size_t index = 0; index < pixels.size(); index += 4)
+        if (pixels[index] > 180 && pixels[index + 1] > 180 && pixels[index + 2] > 180)
+            ++bright;
+    CHECK(bright > 1500);
+    CHECK(scene.GetUpdateCount() == 0);
+    const auto capture = Spot::Process::GetEnvironmentValue("SPOT_UI_CAPTURE_DIR");
+    if (capture && !capture->empty()) {
+        std::filesystem::create_directories(*capture);
+        CHECK(Spot::Image(1280, 720, pixels).SavePng(std::filesystem::path(*capture) / "pause_menu.png"));
+    }
 }

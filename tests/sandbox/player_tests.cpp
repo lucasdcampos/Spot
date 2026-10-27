@@ -1,12 +1,17 @@
-#include "explosion.h"
-#include "player_controller.h"
-#include "player_health.h"
-#include "player_movement.h"
+#include "gameplay/core/players.h"
+#include "gameplay/game/game_mode.h"
+#include "interface_lookup.h"
 #include "playground_fixture.h"
-#include "view_model.h"
-#include "weapon.h"
-#include "weapon_holder.h"
-#include "weapon_wheel.h"
+#include "tool_gun.h"
+
+#include "gameplay/camera/first_person_view.h"
+#include "gameplay/character/character_movement.h"
+#include "gameplay/health/health.h"
+#include "gameplay/inventory/inventory.h"
+#include "gameplay/inventory/view_model.h"
+#include "gameplay/inventory/weapon_wheel.h"
+#include "gameplay/weapons/explosive.h"
+#include "gameplay/weapons/firearm.h"
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -17,11 +22,11 @@ namespace {
 
 struct Player {
     Playground& game;
-    WeaponHolder& holder = *game.scene.FindComponent<WeaponHolder>();
-    PlayerMovement& movement = *game.scene.FindComponent<PlayerMovement>();
-    PlayerHealth& health = *game.scene.FindComponent<PlayerHealth>();
-    ViewModel& view = *game.scene.FindComponent<ViewModel>();
-    PlayerController& controller = *game.scene.FindComponent<PlayerController>();
+    Gameplay::Inventory& holder = *Gameplay::Players::FindComponent<Gameplay::Inventory>(game.scene);
+    Gameplay::CharacterMovement& movement = *Gameplay::Players::FindComponent<Gameplay::CharacterMovement>(game.scene);
+    Gameplay::Health& health = *Gameplay::Players::FindComponent<Gameplay::Health>(game.scene);
+    Gameplay::ViewModel& view = *Gameplay::Players::FindComponent<Gameplay::ViewModel>(game.scene);
+    Gameplay::FirstPersonView& controller = *Gameplay::Players::FindComponent<Gameplay::FirstPersonView>(game.scene);
 
     void Press(Spot::Key key) { game.input.OnEvent(Spot::KeyPressedEvent{key, false}); }
     void Release(Spot::Key key) { game.input.OnEvent(Spot::KeyReleasedEvent{key}); }
@@ -59,7 +64,7 @@ TEST_CASE("Running forward lowers what is in hand, which cannot fire until the r
     Playground game;
     Player player{game};
     player.Tap(Spot::Key::Digit2);
-    Weapon* pistol = player.holder.GetWeapon();
+    Gameplay::Firearm* pistol = SandboxTests::GetFirearm(player.holder);
     REQUIRE(pistol);
     game.Run(30);
 
@@ -70,7 +75,7 @@ TEST_CASE("Running forward lowers what is in hand, which cannot fire until the r
     CHECK(player.view.GetSprint() > 0.9f);
     CHECK_FALSE(player.holder.CanUseItem());
     const int rounds = pistol->GetAmmo();
-    player.holder.Fire();
+    SandboxTests::Fire(player.holder);
     game.input.OnEvent(Spot::MouseButtonPressedEvent{Spot::MouseButton::Left});
     game.Run(2);
     game.input.OnEvent(Spot::MouseButtonReleasedEvent{Spot::MouseButton::Left});
@@ -89,7 +94,7 @@ TEST_CASE("Running forward lowers what is in hand, which cannot fire until the r
     REQUIRE(player.movement.IsSprinting());
     game.input.OnEvent(Spot::MouseButtonPressedEvent{Spot::MouseButton::Right});
     game.Run(30);
-    CHECK(player.holder.IsAiming());
+    CHECK(pistol->IsAiming());
     CHECK_FALSE(player.movement.IsSprinting());
     CHECK(player.view.GetSprint() < 0.1f);
     game.input.OnEvent(Spot::MouseButtonReleasedEvent{Spot::MouseButton::Right});
@@ -97,7 +102,7 @@ TEST_CASE("Running forward lowers what is in hand, which cannot fire until the r
     player.Release(Spot::Key::W);
     game.Run(30);
     CHECK(player.holder.CanUseItem());
-    player.holder.Fire();
+    SandboxTests::Fire(player.holder);
     CHECK(pistol->GetAmmo() == rounds - 1);
 }
 
@@ -105,9 +110,9 @@ TEST_CASE("Holding Tab opens the weapon wheel: the mouse points at a slot and le
           "[sandbox][player][ui]") {
     Playground game;
     Player player{game};
-    auto& ui = *game.scene.FindComponent<RuntimeInterface>();
+    auto ui = SandboxTests::Interface{game.scene};
     REQUIRE(Spot::Input::IsCursorLocked());
-    REQUIRE(player.holder.GetSlotCount() == 6);
+    REQUIRE(player.holder.GetItemCount() == 6);
     CHECK_FALSE(Find(game, ui.wheelOverlay)->IsActiveSelf());
 
     const float yaw = player.controller.GetYaw();
@@ -118,11 +123,11 @@ TEST_CASE("Holding Tab opens the weapon wheel: the mouse points at a slot and le
     CHECK(Spot::Time::GetTimeScale() == Catch::Approx(player.holder.wheelTimeScale));
     game.Step();
     CHECK(Find(game, ui.wheelOverlay)->IsActiveSelf());
-    auto* wheel = Find(game, ui.weaponWheel)->GetComponent<WeaponWheel>();
+    auto* wheel = Find(game, ui.weaponWheel)->GetComponent<Gameplay::WeaponWheel>();
     REQUIRE(wheel);
     CHECK(wheel->slots.size() == 6);
     // Headless, textures do not load, but every slot names its icon.
-    for (const WeaponWheel::Slot& slot : wheel->slots) {
+    for (const Gameplay::WeaponWheel::Slot& slot : wheel->slots) {
         CHECK(slot.icon.GetId().IsValid());
     }
 
@@ -145,7 +150,7 @@ TEST_CASE("Holding Tab opens the weapon wheel: the mouse points at a slot and le
     player.Release(Spot::Key::Tab);
     game.Run(2);
     CHECK_FALSE(player.holder.IsWheelOpen());
-    CHECK(player.holder.IsToolGunSelected());
+    CHECK(SandboxTests::IsEquipped<ToolGun>(player.holder));
     CHECK(Spot::Time::GetTimeScale() == Catch::Approx(1.0f));
     CHECK_FALSE(Find(game, ui.wheelOverlay)->IsActiveSelf());
 
@@ -153,18 +158,18 @@ TEST_CASE("Holding Tab opens the weapon wheel: the mouse points at a slot and le
     player.Tap(Spot::Key::Digit4);
     CHECK(player.holder.GetSelected() == 3);
     CHECK(Find(game, ui.itemIcon)->GetComponent<Spot::UiImage>()->texture.GetId() ==
-          player.holder.GetWeapon()->icon.GetId());
+          SandboxTests::GetFirearm(player.holder)->icon.GetId());
 
     // Pausing over the wheel closes it without choosing.
     player.Press(Spot::Key::Tab);
     game.Step();
     game.input.OnEvent(Spot::MouseMovedEvent{{700, 360}, {0, 100}});
     game.Step();
-    ui.OpenPauseMenu();
+    ui.pause.Open();
     game.Step();
     CHECK_FALSE(player.holder.IsWheelOpen());
     CHECK(player.holder.GetSelected() == 3);
-    ui.CloseMenus();
+    ui.pause.Close();
     player.Release(Spot::Key::Tab);
     game.Step();
     CHECK(Spot::Time::GetTimeScale() == Catch::Approx(1.0f));
@@ -173,7 +178,7 @@ TEST_CASE("Holding Tab opens the weapon wheel: the mouse points at a slot and le
 TEST_CASE("Long falls and explosions hurt the player, who heals, dies and comes back", "[sandbox][player]") {
     Playground game;
     Player player{game};
-    auto& ui = *game.scene.FindComponent<RuntimeInterface>();
+    auto ui = SandboxTests::Interface{game.scene};
     const auto text = [&](Spot::EntityId id) { return Find(game, id)->GetComponent<Spot::UiText>()->text; };
     REQUIRE(player.health.GetHealth() == player.health.maxHealth);
     CHECK(text(ui.healthText) == "100");
@@ -203,7 +208,8 @@ TEST_CASE("Long falls and explosions hurt the player, who heals, dies and comes 
     const Spot::Vector3 forward = player.controller.GetAimDirection();
     const Spot::Vector3 flat = Spot::Normalize(Spot::Vector3{forward.x, 0.0f, forward.z});
     const Spot::Vector3 before = player.GetPosition();
-    Explosion::Explode(game.scene, before + flat * 2.0f, 5.0f, 500.0f, 100.0f);
+    Gameplay::Explosive::Explode(game.scene, before + flat * 2.0f,
+                                 {.radius = 5.0f, .impulse = 500.0f, .damage = 100.0f});
     CHECK(player.health.GetHealth() < player.health.maxHealth - 30.0f);
     CHECK_FALSE(player.health.IsDead());
     game.Run(20);
@@ -211,19 +217,20 @@ TEST_CASE("Long falls and explosions hurt the player, who heals, dies and comes 
     CHECK(body->IsEnabled());
     // Far ones do not.
     const float health = player.health.GetHealth();
-    Explosion::Explode(game.scene, before + flat * 40.0f, 5.0f, 500.0f, 100.0f);
+    Gameplay::Explosive::Explode(game.scene, before + flat * 40.0f,
+                                 {.radius = 5.0f, .impulse = 500.0f, .damage = 100.0f});
     CHECK(player.health.GetHealth() == health);
 
     // Dead, the player drops what is in hand, sees how long until it comes back, and comes back at the start.
-    player.health.Damage(1000.0f);
+    player.health.TakeDamage({.amount = 1000.0f});
     CHECK(player.health.IsDead());
     CHECK_FALSE(player.holder.CanUseItem());
     game.Run(2);
     CHECK(Find(game, ui.deathOverlay)->IsActiveSelf());
     CHECK(text(ui.deathTimer).starts_with("Respawning in "));
     CHECK(player.view.GetShownModel().Get() == nullptr);
-    CHECK(player.health.Damage(10.0f) == 0.0f);
-    game.Run(static_cast<int>((player.health.respawnTime + 0.5f) * 60.0f));
+    CHECK(player.health.TakeDamage({.amount = 10.0f}) == 0.0f);
+    game.Run(static_cast<int>((Gameplay::GameMode::Get(game.scene)->respawnTime + 0.5f) * 60.0f));
     CHECK_FALSE(player.health.IsDead());
     CHECK(player.health.GetHealth() == player.health.maxHealth);
     CHECK(Spot::Distance(player.GetPosition(), start) < 1.0f);

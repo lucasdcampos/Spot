@@ -75,6 +75,12 @@
           "data": {
             "minSpeed": 1.5
           }
+        },
+        {
+          "data": {},
+          "enabled": true,
+          "id": "8c24a19649e9d6499857a94df65ed450",
+          "type": "Persistent"
         }
       ],
       "id": 1,

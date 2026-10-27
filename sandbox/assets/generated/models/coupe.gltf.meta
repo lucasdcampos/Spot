@@ -1,0 +1,111 @@
+{
+  "id": "3b0db138fb56456c6347c5ae3097ade9",
+  "settings": {
+    "animations": [],
+    "materials": [],
+    "scale": 1.0
+  },
+  "subAssets": [
+    {
+      "id": "911732f2f5855247a76a04be2b7cd8f7",
+      "key": "texture:0"
+    },
+    {
+      "id": "64ed9698de1b77128094c951db039410",
+      "key": "texture:1"
+    },
+    {
+      "id": "e315a4aff19d1c0a517772b1af9bb8e8",
+      "key": "texture:2"
+    },
+    {
+      "id": "a7abd1d3cb42abafa28e9a728f8b0c0d",
+      "key": "texture:3"
+    },
+    {
+      "id": "4f4b8dde1882b13f2cd2b7907e689ae4",
+      "key": "texture:4"
+    },
+    {
+      "id": "03978eb2736800d6e56393bc1c3a62f2",
+      "key": "texture:5"
+    },
+    {
+      "id": "8cb0a224b1dcdee13c7dc907b48f3c90",
+      "key": "texture:6"
+    },
+    {
+      "id": "b35e02b9e93de60a2980295b3ca5b832",
+      "key": "texture:7"
+    },
+    {
+      "id": "53992eb148750310bd33633d666f886b",
+      "key": "texture:8"
+    },
+    {
+      "id": "2623653afcbdfb6f88916d431d853668",
+      "key": "material:0"
+    },
+    {
+      "id": "4d52fefb864fe85d4e5702faa1485f9b",
+      "key": "material:1"
+    },
+    {
+      "id": "5337a3077e3e21f615620c754d157701",
+      "key": "material:2"
+    },
+    {
+      "id": "6d5ae2fc1b054a7159331780e342ed47",
+      "key": "material:3"
+    },
+    {
+      "id": "e7d6932ad1c64ba4e1da1dff8067f308",
+      "key": "material:4"
+    },
+    {
+      "id": "9fb1bcf3f9ff8bf5abc058ec4e64a5dc",
+      "key": "material:5"
+    },
+    {
+      "id": "abc34b6a42e42fa750156ee8874cbd11",
+      "key": "material:6"
+    },
+    {
+      "id": "6d6fb19b5ff5d790620d656b92fe93b4",
+      "key": "material:7"
+    },
+    {
+      "id": "b3154f2aa3f16ad91b58bde35498d43e",
+      "key": "mesh:0"
+    },
+    {
+      "id": "3a9fde2b1cde897d9eaf3ae9fcabb12c",
+      "key": "mesh:1"
+    },
+    {
+      "id": "d50167aefd76322d51baf0a7206bc56b",
+      "key": "mesh:2"
+    },
+    {
+      "id": "a4d7cd9a028bb6d3a507327de357446f",
+      "key": "mesh:3"
+    },
+    {
+      "id": "00d7602501ce89af36b76f27f6c408cf",
+      "key": "mesh:4"
+    },
+    {
+      "id": "e88c6030f3ffab25b6291c243d0af3ac",
+      "key": "mesh:5"
+    },
+    {
+      "id": "290a04cf65304858e640a1a6733a40b9",
+      "key": "mesh:6"
+    },
+    {
+      "id": "d9b4bfd619cffde593122ffeeb0e7175",
+      "key": "mesh:7"
+    }
+  ],
+  "type": "Model"
+}

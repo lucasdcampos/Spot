@@ -3,7 +3,7 @@
 #include <spot.h>
 
 // The colors of the sandbox's interface, linear, as the authored interface (prefabs/interface.prefab) uses them:
-// graphite surfaces and slate text in three strengths; the amber accent is RuntimeInterface::accent.
+// graphite surfaces and slate text in three strengths; the amber accent is the menus' style.accent.
 namespace InterfacePalette {
 
 inline constexpr Spot::Color Text{0.8070f, 0.8228f, 0.8469f, 1.0f};

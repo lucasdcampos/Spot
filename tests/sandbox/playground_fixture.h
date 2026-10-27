@@ -2,14 +2,62 @@
 #pragma once
 
 #include "log_capture.h"
-#include "runtime_interface.h"
 #include "temp_directory.h"
+
+#include "gameplay/inventory/held_item.h"
+#include "gameplay/inventory/inventory.h"
+#include "gameplay/menus/pause_menu.h"
+#include "gameplay/menus/settings_menu.h"
+#include "gameplay/weapons/firearm.h"
 
 #include <spot.h>
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <vector>
+
 namespace SandboxTests {
+
+// The firearm in hand; null when what is in hand is not one.
+inline Gameplay::Firearm* GetFirearm(const Gameplay::Inventory& inventory) {
+    return dynamic_cast<Gameplay::Firearm*>(inventory.GetEquipped());
+}
+
+// The inventory's firearms, in their order.
+inline std::vector<Gameplay::Firearm*> GetFirearms(const Gameplay::Inventory& inventory) {
+    std::vector<Gameplay::Firearm*> firearms;
+    for (Gameplay::HeldItem* item : inventory.GetItems()) {
+        if (auto* firearm = dynamic_cast<Gameplay::Firearm*>(item)) {
+            firearms.push_back(firearm);
+        }
+    }
+    return firearms;
+}
+
+// The first of the inventory's items of the type; null when it has none.
+template <typename T>
+T* GetItem(const Gameplay::Inventory& inventory) {
+    for (Gameplay::HeldItem* item : inventory.GetItems()) {
+        if (auto* found = dynamic_cast<T*>(item)) {
+            return found;
+        }
+    }
+    return nullptr;
+}
+
+// Whether the item of the type is in hand.
+template <typename T>
+bool IsEquipped(const Gameplay::Inventory& inventory) {
+    const T* item = GetItem<T>(inventory);
+    return item && inventory.GetEquipped() == item;
+}
+
+// Fires the firearm in hand, if it is one and it can.
+inline void Fire(const Gameplay::Inventory& inventory) {
+    if (Gameplay::Firearm* firearm = GetFirearm(inventory)) {
+        firearm->Fire();
+    }
+}
 
 struct Playground {
     std::shared_ptr<Spot::Tests::CaptureSink> log = std::make_shared<Spot::Tests::CaptureSink>();
@@ -47,9 +95,9 @@ struct Playground {
                                                             : std::filesystem::path(SANDBOX_ASSETS_DIR);
         REQUIRE(scene.LoadFromFile(sources / "scenes/playground.scene", &assets));
         Step();
-        auto* ui = scene.FindComponent<RuntimeInterface>();
-        REQUIRE(ui);
-        ui->SetSettingsDirectory(userData.GetPath());
+        auto* settings = scene.FindComponent<Gameplay::SettingsMenu>();
+        REQUIRE(settings);
+        settings->SetSettingsDirectory(userData.GetPath());
         Step();
     }
 

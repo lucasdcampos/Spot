@@ -123,6 +123,12 @@
               0
             ]
           }
+        },
+        {
+          "data": {},
+          "enabled": true,
+          "id": "8e15e203660f2d6bc34709ae937b7b10",
+          "type": "Persistent"
         }
       ],
       "id": 1,

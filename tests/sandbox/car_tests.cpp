@@ -1,16 +1,22 @@
-#include "car.h"
-#include "car_driver.h"
-#include "hud.h"
-#include "player_controller.h"
-#include "player_health.h"
+#include "gameplay/core/players.h"
+#include "interface_lookup.h"
 #include "playground_fixture.h"
-#include "view_model.h"
-#include "weapon_holder.h"
+
+#include "gameplay/camera/first_person_view.h"
+#include "gameplay/core/interactor.h"
+#include "gameplay/core/pawn.h"
+#include "gameplay/health/health.h"
+#include "gameplay/inventory/inventory.h"
+#include "gameplay/inventory/view_model.h"
+#include "gameplay/vehicles/vehicle_seat.h"
+#include "gameplay/vehicles/vehicle_wheel.h"
+#include "gameplay/vehicles/wheeled_vehicle.h"
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <cmath>
+#include <cstddef>
 
 using SandboxTests::Playground;
 
@@ -20,9 +26,10 @@ constexpr Spot::Vector3 Up = {0.0f, 1.0f, 0.0f};
 
 struct Driving {
     Playground& game;
-    Car& car = *game.scene.FindComponent<Car>();
-    CarDriver& driver = *game.scene.FindComponent<CarDriver>();
-    PlayerController& player = *game.scene.FindComponent<PlayerController>();
+    Gameplay::WheeledVehicle& car = *game.scene.FindComponent<Gameplay::WheeledVehicle>();
+    Gameplay::VehicleSeat& seat = *car.GetSeat();
+    Gameplay::FirstPersonView& player = *Gameplay::Players::FindComponent<Gameplay::FirstPersonView>(game.scene);
+    Gameplay::Pawn& pawn = *Gameplay::Pawn::Of(player.GetEntity());
 
     void Press(Spot::Key key) { game.input.OnEvent(Spot::KeyPressedEvent{key, false}); }
     void Release(Spot::Key key) { game.input.OnEvent(Spot::KeyReleasedEvent{key}); }
@@ -54,6 +61,14 @@ struct Driving {
         player.SetLook(std::atan2(-look.x, -look.z), std::asin(look.y / Spot::Length(look)));
         game.Step();
     }
+    void Enter() { REQUIRE(seat.Enter(pawn)); }
+    const Gameplay::VehicleWheel& GetWheel(std::size_t wheel) const { return *car.GetWheels().at(wheel); }
+    // What Use would get into: the seat of the vehicle the interactor looks at.
+    const Gameplay::VehicleSeat* GetFocusedSeat() const {
+        const auto* interactor = player.GetEntity().GetComponent<Gameplay::Interactor>();
+        const Spot::Entity* focus = interactor ? game.scene.GetEntity(interactor->GetFocus()) : nullptr;
+        return focus ? focus->GetComponentInParent<Gameplay::VehicleSeat>() : nullptr;
+    }
     const Spot::Entity* GetMainCameraEntity() const {
         const Spot::Camera* camera = Spot::FindMainCamera(game.scene);
         return camera ? &camera->GetEntity() : nullptr;
@@ -70,8 +85,9 @@ TEST_CASE("The parked car rests on its springs at its ride height and stays wher
     const Spot::Vector3 rest = driving.GetCarTransform().GetWorldPosition();
     CHECK(std::abs(rest.y - start.y) < 0.03f);
     CHECK(Spot::Length(Spot::Vector3{rest.x - start.x, 0.0f, rest.z - start.z}) < 0.02f);
-    for (int wheel = 0; wheel < 4; ++wheel) {
-        CHECK(driving.car.IsWheelGrounded(wheel));
+    REQUIRE(driving.car.GetWheels().size() == 4);
+    for (std::size_t wheel = 0; wheel < 4; ++wheel) {
+        CHECK(driving.GetWheel(wheel).IsGrounded());
     }
     CHECK_FALSE(driving.car.HasDriver());
     // Parked and still, it sleeps.
@@ -82,29 +98,31 @@ TEST_CASE("Use gets into the car looked at, its camera takes over, and Use again
     Playground game;
     Driving driving{game};
     driving.LookAtCar();
-    REQUIRE(driving.driver.FindCar() == &driving.car);
     game.Step();
-    CHECK(game.scene.FindComponent<Hud>()->GetState().prompt == "[E]  Drive");
+    REQUIRE(driving.GetFocusedSeat() == &driving.seat);
+    const SandboxTests::Interface ui{game.scene};
+    CHECK(ui.GetText(ui.promptText) == "[E]  Drive");
 
     driving.Tap(Spot::Key::E);
-    REQUIRE(driving.driver.IsDriving());
-    CHECK(driving.car.GetDriver() == driving.player.GetEntity().GetId());
+    REQUIRE(driving.seat.IsOccupied());
+    CHECK(driving.seat.GetOccupant() == &driving.pawn);
+    CHECK(driving.car.GetController() != nullptr);
     // Seen from behind the car, in the third person, with nothing in hand.
     const Spot::Entity* camera = driving.GetMainCameraEntity();
     REQUIRE(camera);
-    CHECK(camera->GetId() == driving.car.camera);
+    CHECK(camera->GetId() == driving.car.viewCamera);
     const Spot::Vector3 fromCar =
         camera->GetTransform().GetWorldPosition() - driving.GetCarTransform().GetWorldPosition();
     CHECK(Spot::Dot(fromCar, driving.GetForward()) < -3.0f);
     CHECK_FALSE(driving.player.GetEntity().GetComponent<Spot::CharacterController>()->IsEnabled());
-    CHECK_FALSE(driving.player.GetEntity().GetComponent<WeaponHolder>()->CanUseItem());
-    CHECK_FALSE(driving.player.GetEntity().GetComponent<ViewModel>()->GetShownModel());
-    CHECK(Spot::Distance(driving.player.GetEntity().GetTransform().GetWorldPosition(), driving.car.GetSeatPosition()) <
+    CHECK_FALSE(driving.player.GetEntity().GetComponent<Gameplay::Inventory>()->CanUseItem());
+    CHECK_FALSE(driving.player.GetEntity().GetComponent<Gameplay::ViewModel>()->GetShownModel());
+    CHECK(Spot::Distance(driving.player.GetEntity().GetTransform().GetWorldPosition(), driving.seat.GetSeatPosition()) <
           0.01f);
-    CHECK(game.scene.FindComponent<Hud>()->GetState().count == "0");
+    CHECK(ui.GetText(ui.countText) == "0");
 
     driving.Tap(Spot::Key::E);
-    REQUIRE_FALSE(driving.driver.IsDriving());
+    REQUIRE_FALSE(driving.seat.IsOccupied());
     CHECK_FALSE(driving.car.HasDriver());
     camera = driving.GetMainCameraEntity();
     REQUIRE(camera);
@@ -118,20 +136,20 @@ TEST_CASE("Use gets into the car looked at, its camera takes over, and Use again
     CHECK(Spot::Length(out) < 3.0f);
     CHECK(Spot::Dot(driving.player.GetAimDirection(), driving.GetForward()) > 0.95f);
     driving.Run(0.5f);
-    CHECK(driving.player.GetEntity().GetComponent<WeaponHolder>()->CanUseItem());
+    CHECK(driving.player.GetEntity().GetComponent<Gameplay::Inventory>()->CanUseItem());
 }
 
 TEST_CASE("The car accelerates through its gears, brakes to a stop and reverses", "[sandbox][car]") {
     Playground game;
     Driving driving{game};
     driving.PlaceOnRoad(-55.0f);
-    driving.driver.Enter(driving.car);
+    driving.Enter();
     const Spot::Vector3 start = driving.GetCarTransform().GetWorldPosition();
 
     driving.Press(Spot::Key::W);
     driving.Run(5.0f);
     driving.Release(Spot::Key::W);
-    const float speed = driving.car.GetSpeed();
+    const float speed = driving.car.GetForwardSpeed();
     CAPTURE(speed, driving.car.GetGear(), driving.car.GetRpm());
     // A brisk hatchback reaches about 85 km/h in five seconds, spinning its rear wheels at first.
     CHECK(speed > 19.0f);
@@ -146,7 +164,7 @@ TEST_CASE("The car accelerates through its gears, brakes to a stop and reverses"
     float stopped = -1.0f;
     for (int frame = 0; frame < 6 * 60 && stopped < 0.0f; ++frame) {
         game.Step();
-        stopped = driving.car.GetSpeed() < 0.3f ? static_cast<float>(frame) / 60.0f : -1.0f;
+        stopped = driving.car.GetForwardSpeed() < 0.3f ? static_cast<float>(frame) / 60.0f : -1.0f;
     }
     CAPTURE(stopped);
     // Braking at most about 1 g, as tires on asphalt allow.
@@ -155,7 +173,7 @@ TEST_CASE("The car accelerates through its gears, brakes to a stop and reverses"
     // Held on, back reverses.
     driving.Run(2.5f);
     CHECK(driving.car.GetGear() == -1);
-    CHECK(driving.car.GetSpeed() < -2.0f);
+    CHECK(driving.car.GetForwardSpeed() < -2.0f);
     driving.Release(Spot::Key::S);
 }
 
@@ -163,7 +181,7 @@ TEST_CASE("Steering turns the car the way it is steered, and the handbrake locks
     Playground game;
     Driving driving{game};
     driving.PlaceOnRoad(-20.0f);
-    driving.driver.Enter(driving.car);
+    driving.Enter();
     driving.Press(Spot::Key::W);
     driving.Run(2.0f);
     const Spot::Vector3 before = driving.GetForward();
@@ -180,18 +198,18 @@ TEST_CASE("Steering turns the car the way it is steered, and the handbrake locks
     driving.Run(0.5f);
     driving.Press(Spot::Key::Space);
     driving.Run(0.4f);
-    CHECK(driving.car.GetWheelSpin(2) == Catch::Approx(0.0f).margin(0.5f));
-    CHECK(driving.car.GetWheelSlip(2) > 1.0f);
+    CHECK(driving.GetWheel(2).GetSpin() == Catch::Approx(0.0f).margin(0.5f));
+    CHECK(driving.GetWheel(2).GetSlip() > 1.0f);
     driving.Release(Spot::Key::Space);
 }
 
 TEST_CASE("Dying in the car gets the player out", "[sandbox][car]") {
     Playground game;
     Driving driving{game};
-    driving.driver.Enter(driving.car);
-    REQUIRE(driving.driver.IsDriving());
-    game.scene.FindComponent<PlayerHealth>()->Damage(1000.0f);
-    CHECK_FALSE(driving.driver.IsDriving());
+    driving.Enter();
+    REQUIRE(driving.seat.IsOccupied());
+    Gameplay::Players::FindComponent<Gameplay::Health>(game.scene)->TakeDamage({.amount = 1000.0f});
+    CHECK_FALSE(driving.seat.IsOccupied());
     CHECK_FALSE(driving.car.HasDriver());
     game.Step();
     const Spot::Entity* camera = driving.GetMainCameraEntity();

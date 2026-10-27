@@ -48,6 +48,12 @@
               ]
             ]
           }
+        },
+        {
+          "data": {},
+          "enabled": true,
+          "id": "b62fa7c5dc4a7abda8a1a2882786d81b",
+          "type": "Persistent"
         }
       ]
     }

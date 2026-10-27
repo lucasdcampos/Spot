@@ -1,5 +1,6 @@
 #include "../registered_assets.h"
-#include "day_cycle.h"
+
+#include "gameplay/environment/day_cycle.h"
 
 #include <spot.h>
 #include <spot/scene/scripting/script_component.h>
@@ -7,6 +8,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <array>
+
+using Gameplay::DayCycle;
 
 TEST_CASE("Luau scripts change the rendered monument and daylight in the cooked sandbox", "[gpu][sandbox][luau]") {
     if (!Spot::GraphicsDevice::IsSupported())
@@ -31,8 +34,8 @@ TEST_CASE("Luau scripts change the rendered monument and daylight in the cooked 
     REQUIRE(settings);
     auto scene = Spot::InstantiateScene(assets, settings->startupScene);
     REQUIRE(scene);
-    scene->ForEachComponent<Spot::Camera>([](Spot::Camera& camera) { camera.SetEnabled(false); });
     scene->Update(0);
+    scene->ForEachComponent<Spot::Camera>([](Spot::Camera& camera) { camera.SetEnabled(false); });
     scene->FindEntity("Game")->ForEachChild([](Spot::Entity& child) { child.SetActive(false); });
     auto& camera = scene->CreateEntity("Luau Capture Camera");
     camera.AddComponent<Spot::Camera>().SetFarPlane(600);

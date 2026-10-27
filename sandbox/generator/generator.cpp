@@ -131,6 +131,7 @@ const std::vector<GeneratedSound>& GetSounds() {
         {"footstep_metal_4", [] { return Sounds::FootstepMetal(3); }},
         {"physics_gun_hum", Sounds::PhysicsGunHum},
         {"engine", Sounds::Engine},
+        {"helicopter_rotor", Sounds::HelicopterRotor},
         {"tire_squeal", Sounds::TireSqueal},
         {"wind", Sounds::Wind},
         {"music", Sounds::Music},
@@ -247,6 +248,8 @@ OutputCounts GenerateSandboxAssets(const std::filesystem::path& directory, std::
     }
     writeModel("robot", Rigs::Robot());
     writeModel("car", Vehicles::Car());
+    writeModel("coupe", Vehicles::Coupe());
+    writeModel("helicopter", Vehicles::Helicopter());
     for (const GeneratedSound& sound : GetSounds()) {
         const std::vector<std::byte> wav = Sounds::EncodeWav(sound.make());
         WriteIfChanged(directory / "sounds" / (std::string(sound.name) + ".wav"), wav, counts);

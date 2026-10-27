@@ -7,12 +7,9 @@
           "data": {
             "automatic": false,
             "displayName": "Rocket Launcher",
-            "explosionImpulse": 500.0,
-            "explosionRadius": 5.0,
             "fireInterval": 1.0,
             "fireSound": "a40bdc5547181232a3f1aca99a2888fa",
             "impulse": 0.0,
-            "kind": 1,
             "magazineSize": 1,
             "muzzleFlash": 1.4,
             "model": "f27b3975595947e82baeaa312a999887",
@@ -26,11 +23,12 @@
             "cameraRecoil": 0.045,
             "viewRecoil": 0.12,
             "recoilRecovery": 0.35,
-            "icon": "5128381f82fd8ddaca80aa74126f9598"
+            "icon": "5128381f82fd8ddaca80aa74126f9598",
+            "projectile": "c5063c444a5bf6be9cdbeea497293391"
           },
           "enabled": true,
           "id": "1043ac93cc2af29dd325548ec92584ee",
-          "type": "Weapon"
+          "type": "Firearm"
         },
         {
           "data": {
@@ -105,6 +103,12 @@
           "data": {
             "minSpeed": 1.5
           }
+        },
+        {
+          "data": {},
+          "enabled": true,
+          "id": "f04838a0fd841e5c3cc44c2071352553",
+          "type": "Persistent"
         }
       ],
       "id": 1,

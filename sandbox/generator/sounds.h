@@ -36,6 +36,8 @@ Samples FootstepMetal(int variant);
 Samples PhysicsGunHum();
 // A four-cylinder engine at 3000 revolutions a minute, which the car pitches to its own, and its tires squealing.
 Samples Engine();
+// Four blades passing 28 times a second at 420 rotor revolutions a minute.
+Samples HelicopterRotor();
 Samples TireSqueal();
 Samples Wind();
 Samples Music();

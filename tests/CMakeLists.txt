@@ -8,6 +8,14 @@ FetchContent_Declare(Catch2
 )
 FetchContent_MakeAvailable(Catch2)
 
+# A precompiled header takes a few hundred megabytes in Debug, so the test programs, compiled alike, share one. A
+# target of its own makes it, so that building one program never waits for another.
+file(CONFIGURE OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/precompiled_header.cpp CONTENT "")
+add_library(spot_tests_precompiled_header OBJECT ${CMAKE_CURRENT_BINARY_DIR}/precompiled_header.cpp)
+target_link_libraries(spot_tests_precompiled_header PRIVATE spot::spot Catch2::Catch2)
+spot_set_compile_options(spot_tests_precompiled_header)
+spot_precompile_engine_header(spot_tests_precompiled_header <catch2/catch_test_macros.hpp>)
+
 add_executable(spot_tests
     core_reference_tests.cpp
     application_tests.cpp
@@ -109,7 +117,7 @@ target_compile_definitions(spot_tests PRIVATE
 )
 
 spot_set_compile_options(spot_tests)
-spot_precompile_engine_header(spot_tests <catch2/catch_test_macros.hpp>)
+target_precompile_headers(spot_tests REUSE_FROM spot_tests_precompiled_header)
 # These tests also check that the foundation headers work without the engine umbrella.
 set_source_files_properties(core_reference_tests.cpp physics_3d_tests.cpp PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
 
@@ -279,7 +287,7 @@ target_compile_definitions(spot_gpu_tests PRIVATE
 )
 
 spot_set_compile_options(spot_gpu_tests)
-spot_precompile_engine_header(spot_gpu_tests <catch2/catch_test_macros.hpp>)
+target_precompile_headers(spot_gpu_tests REUSE_FROM spot_tests_precompiled_header)
 
 # GPU processes compete for the same device and open windows; run each without other tests alongside it.
 catch_discover_tests(spot_gpu_tests PROPERTIES LABELS gpu RUN_SERIAL TRUE TIMEOUT 60)
@@ -379,7 +387,7 @@ if(TARGET spot_editor_core)
     target_include_directories(spot_editor_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_compile_definitions(spot_editor_tests PRIVATE SPOT_TEST_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets")
     spot_set_compile_options(spot_editor_tests)
-    spot_precompile_engine_header(spot_editor_tests <catch2/catch_test_macros.hpp>)
+    target_precompile_headers(spot_editor_tests REUSE_FROM spot_tests_precompiled_header)
     # Before the tests are listed, which runs them.
     spot_copy_runtime_dlls(spot_editor_tests)
     catch_discover_tests(spot_editor_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
@@ -395,7 +403,7 @@ if(TARGET spot_editor_core)
     )
     target_include_directories(spot_editor_module_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     spot_set_compile_options(spot_editor_module_tests)
-    spot_precompile_engine_header(spot_editor_module_tests <catch2/catch_test_macros.hpp>)
+    target_precompile_headers(spot_editor_module_tests REUSE_FROM spot_tests_precompiled_header)
     spot_copy_runtime_dlls(spot_editor_module_tests)
     catch_discover_tests(spot_editor_module_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 600)
 
@@ -412,7 +420,7 @@ if(TARGET spot_editor_core)
     target_compile_definitions(spot_editor_gpu_tests PRIVATE
         SPOT_TEST_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets")
     spot_set_compile_options(spot_editor_gpu_tests)
-    spot_precompile_engine_header(spot_editor_gpu_tests <catch2/catch_test_macros.hpp>)
+    target_precompile_headers(spot_editor_gpu_tests REUSE_FROM spot_tests_precompiled_header)
     spot_copy_runtime_dlls(spot_editor_gpu_tests)
     catch_discover_tests(spot_editor_gpu_tests PROPERTIES LABELS gpu RUN_SERIAL TRUE TIMEOUT 60)
 endif()
@@ -439,7 +447,7 @@ endif()
 
 # The sandbox's game code on its real scenes, when the sandbox is built: the engine's integration test.
 if(TARGET sandbox)
-    file(GLOB sandbox_game_sources CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/sandbox/src/*.cpp)
+    file(GLOB_RECURSE sandbox_game_sources CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/sandbox/src/*.cpp)
     list(FILTER sandbox_game_sources EXCLUDE REGEX "/main[.]cpp$")
     add_library(spot_sandbox_test_code OBJECT ${sandbox_game_sources})
     target_link_libraries(spot_sandbox_test_code PUBLIC spot::spot)
@@ -456,6 +464,14 @@ if(TARGET sandbox)
         sandbox/player_tests.cpp
         sandbox/water_tests.cpp
         sandbox/car_tests.cpp
+    )
+    # The gameplay framework's systems, each in a world of its own rather than the playground.
+    file(GLOB sandbox_gameplay_tests CONFIGURE_DEPENDS sandbox/gameplay/*.cpp)
+    target_sources(spot_sandbox_tests PRIVATE ${sandbox_gameplay_tests})
+    # The framework includes only the engine and its own folders, so it can be taken out of the sandbox.
+    add_test(NAME "The sandbox's gameplay framework includes only the engine and the folders it needs"
+        COMMAND ${CMAKE_COMMAND} -DGAMEPLAY_DIR=${PROJECT_SOURCE_DIR}/sandbox/src/gameplay
+            -P ${PROJECT_SOURCE_DIR}/sandbox/src/gameplay/check_includes.cmake
     )
     target_link_libraries(spot_sandbox_tests PRIVATE spot::tools spot::import spot::spot Catch2::Catch2WithMain)
     target_include_directories(spot_sandbox_tests PRIVATE ${PROJECT_SOURCE_DIR}/sandbox/src ${CMAKE_CURRENT_SOURCE_DIR})
@@ -476,7 +492,7 @@ if(TARGET sandbox)
         SPOT_SANDBOX_CAPTURE_DIR="${CMAKE_CURRENT_BINARY_DIR}/sandbox_captures")
     add_dependencies(spot_sandbox_gpu_tests sandbox_assets)
     spot_set_compile_options(spot_sandbox_gpu_tests)
-    spot_precompile_engine_header(spot_sandbox_gpu_tests <catch2/catch_test_macros.hpp>)
+    target_precompile_headers(spot_sandbox_gpu_tests REUSE_FROM spot_tests_precompiled_header)
     catch_discover_tests(spot_sandbox_gpu_tests PROPERTIES LABELS gpu RUN_SERIAL TRUE TIMEOUT 120)
     add_executable(spot_sandbox_benchmark benchmark/sandbox_benchmark.cpp)
     target_link_libraries(spot_sandbox_benchmark PRIVATE spot_sandbox_test_code)
@@ -485,13 +501,12 @@ if(TARGET sandbox)
         SPOT_SANDBOX_BENCHMARK_DATA_DIR="${CMAKE_CURRENT_BINARY_DIR}/sandbox_benchmark")
     add_dependencies(spot_sandbox_benchmark sandbox_assets)
     spot_set_compile_options(spot_sandbox_benchmark)
-    spot_precompile_engine_header(spot_sandbox_benchmark)
     target_sources(spot_gpu_tests PRIVATE ${PROJECT_SOURCE_DIR}/sandbox/src/menu_thumbnails.cpp)
     target_compile_definitions(spot_gpu_tests PRIVATE SPOT_SANDBOX_IMPORTED_DIR="$<TARGET_FILE_DIR:sandbox>/imported")
     add_dependencies(spot_gpu_tests sandbox_assets)
     add_dependencies(spot_sandbox_tests sandbox_assets)
     spot_set_compile_options(spot_sandbox_tests)
-    spot_precompile_engine_header(spot_sandbox_tests <catch2/catch_test_macros.hpp>)
+    target_precompile_headers(spot_sandbox_tests REUSE_FROM spot_tests_precompiled_header)
     # Full-scene Debug physics and tests with several sections can take over a minute.
     catch_discover_tests(spot_sandbox_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 180)
 endif()

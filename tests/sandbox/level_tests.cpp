@@ -1,9 +1,12 @@
-#include "day_cycle.h"
-#include "player_controller.h"
 #include "playground_fixture.h"
+
+#include "gameplay/camera/first_person_view.h"
+#include "gameplay/environment/day_cycle.h"
 #include <spot/scene/physics/physics_world.h>
 
 #include <catch2/catch_approx.hpp>
+
+using Gameplay::DayCycle;
 
 TEST_CASE("The workshop has a wide entrance, glass windows and steel stairs up to its roof", "[sandbox][level]") {
     SandboxTests::Playground game;
@@ -75,12 +78,12 @@ TEST_CASE("Workshop lamps keep the interior lit throughout the day and pause fre
         CHECK(lamp->GetIntensity() > 0);
         CHECK(lamp->IsCastingShadows());
     }
-    auto* ui = game.scene.FindComponent<RuntimeInterface>();
+    auto* ui = game.scene.FindComponent<Gameplay::PauseMenu>();
     const float pausedTime = day->timeOfDay;
-    ui->OpenPauseMenu();
+    ui->Open();
     game.Run(30);
     CHECK(day->timeOfDay == pausedTime);
-    ui->CloseMenus();
+    ui->Close();
     game.Run(2);
     CHECK(day->timeOfDay > pausedTime);
 }

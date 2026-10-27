@@ -280,6 +280,7 @@ public:
             std::size_t type;
             std::size_t next;
             std::size_t end;
+            std::uint64_t sequence = 0;
         };
         const auto at = [this](const Cursor& cursor, std::size_t i) {
             return m_componentsByType[cursor.type].components[i];
@@ -312,6 +313,36 @@ public:
         // Several types: their lists are merged by when each component was added.
         std::vector<Cursor> all(cursors, cursors + cursorCount);
         all.insert(all.end(), moreCursors.begin(), moreCursors.end());
+        // A broad base type may span dozens of lists. Keep small merges linear, but avoid scanning every type
+        // for every component in a large merge. Sequence keys survive callbacks removing a queued component.
+        if (all.size() > std::size(cursors)) {
+            const auto later = [](const Cursor& a, const Cursor& b) { return a.sequence > b.sequence; };
+            for (Cursor& cursor : all) {
+                while (cursor.next < cursor.end && !at(cursor, cursor.next)) {
+                    ++cursor.next;
+                }
+                cursor.sequence = at(cursor, cursor.next)->m_sequence;
+            }
+            std::make_heap(all.begin(), all.end(), later);
+            while (!all.empty()) {
+                std::pop_heap(all.begin(), all.end(), later);
+                Cursor cursor = all.back();
+                all.pop_back();
+                Component* component = at(cursor, cursor.next++);
+                while (cursor.next < cursor.end && !at(cursor, cursor.next)) {
+                    ++cursor.next;
+                }
+                if (cursor.next < cursor.end) {
+                    cursor.sequence = at(cursor, cursor.next)->m_sequence;
+                    all.push_back(cursor);
+                    std::push_heap(all.begin(), all.end(), later);
+                }
+                if (component && IsIncluded(*component)) {
+                    fn(static_cast<T&>(*component));
+                }
+            }
+            return;
+        }
         while (true) {
             Cursor* earliest = nullptr;
             for (Cursor& cursor : all) {

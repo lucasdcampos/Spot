@@ -172,3 +172,9 @@ schemas belong to their systems; the serialized layouts and importer versions ar
 Asset fields load through `archive.GetContext<AssetManager>()` exclusively. Without that context they retain the id
 and remain unresolved, even while an application has a global asset manager. Pass the manager explicitly when loading
 scenes, animator controllers and sprite atlases outside the application.
+
+Headless render asset loads preserve the asset id and fail with the existing graphics-device diagnostic, but skip
+GPU-mesh decoding and font-atlas rasterization during preparation. Fonts wrap their optional prepared atlas so a
+headless load still reaches the normal publication diagnostic without doing the expensive rasterization. With a
+graphics device, atlas preparation remains on workers. CPU mesh geometry remains available independently through
+`AssetManager::LoadMeshData()` for physics. `tests/asset_loader_tests.cpp` covers the headless boundary.

@@ -1,0 +1,1215 @@
+{
+  "entities": [
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "viewCamera": 17,
+            "antiRoll": 14500.0,
+            "rollCenterHeight": 0.3,
+            "grip": 1.12,
+            "steerFalloffSpeed": 24.0,
+            "brakeTorque": 7500.0,
+            "dragCoefficient": 0.36,
+            "drivetrain": {
+              "peakTorque": 320.0,
+              "idleRpm": 850.0,
+              "peakTorqueRpm": 4600.0,
+              "redlineRpm": 7200.0,
+              "engineBraking": 65.0,
+              "engineInertia": 0.22,
+              "gears": [
+                3.6,
+                2.2,
+                1.55,
+                1.18,
+                0.95,
+                0.78
+              ],
+              "reverseGear": 3.4,
+              "finalDrive": 3.7,
+              "shiftTime": 0.18
+            }
+          },
+          "enabled": true,
+          "id": "70d210d762ef79a9d1cf412fb9193e96",
+          "type": "WheeledVehicle"
+        },
+        {
+          "data": {
+            "ejectWhen": [
+              "Dead"
+            ],
+            "exitAction": "Use",
+            "exits": [
+              25,
+              26,
+              27,
+              28
+            ],
+            "prompt": "Drive",
+            "seat": 24
+          },
+          "enabled": true,
+          "id": "22aa4a7557f937e9cd8dd710ec420ca4",
+          "type": "VehicleSeat"
+        },
+        {
+          "data": {
+            "damagePerSpeed": 10.0,
+            "damageType": "Impact",
+            "impulsePerSpeed": 80.0,
+            "minSpeed": 2.0
+          },
+          "enabled": true,
+          "id": "487ee130406bd54d95ece2667e495b3b",
+          "type": "ImpactDamage"
+        },
+        {
+          "data": {
+            "center": [
+              0,
+              0.6,
+              0
+            ],
+            "friction": 0.4,
+            "restitution": 0.1,
+            "size": [
+              1.84,
+              0.6,
+              4.48
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "cf30994c844cb398701beb5db100f4b3",
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "center": [
+              0,
+              1.11,
+              0.35
+            ],
+            "friction": 0.4,
+            "restitution": 0.1,
+            "size": [
+              1.48,
+              0.42,
+              1.8
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "ea1dd6785c916546fbb5f7f5f3fc9bc4",
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05,
+            "angularVelocity": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "canSleep": true,
+            "continuous": true,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "linearVelocity": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mass": 1180.0,
+            "rotationLocks": {
+              "x": false,
+              "y": false,
+              "z": false
+            }
+          },
+          "enabled": true,
+          "id": "6302f57849e8ba12a5597e22fd7a6e7d",
+          "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 2
+          },
+          "enabled": true,
+          "id": "279b36c85eba752ebfcac9896755d01f",
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 10.0,
+            "minSpeed": 1.5
+          },
+          "enabled": true,
+          "id": "653d52980c514f78da789f5601d36f62",
+          "type": "ImpactSounds"
+        },
+        {
+          "data": {
+            "minSpeed": 2.0
+          },
+          "enabled": true,
+          "id": "1703bc261a96360cdf6cde07265e49c0",
+          "type": "ImpactParticles"
+        },
+        {
+          "data": {
+            "category": 0,
+            "clearance": 0.05,
+            "order": 16
+          },
+          "enabled": true,
+          "id": "dc6e5396d86aaedeb8c74d1a6bf69e03",
+          "type": "Spawnable"
+        },
+        {
+          "data": {},
+          "enabled": true,
+          "id": "532b9facb6d30d54851a5b3ac6e7d58f",
+          "type": "Persistent"
+        }
+      ],
+      "id": 1,
+      "layer": 0,
+      "name": "Coupe",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [],
+      "id": 2,
+      "layer": 0,
+      "name": "Model",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "2623653afcbdfb6f88916d431d853668",
+            "mesh": "b3154f2aa3f16ad91b58bde35498d43e",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "c0dff686717c5c42f92aa49f68346931",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 3,
+      "layer": 0,
+      "name": "Body",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 2
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": false,
+            "material": "4d52fefb864fe85d4e5702faa1485f9b",
+            "mesh": "3a9fde2b1cde897d9eaf3ae9fcabb12c",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "89cb8778676ad7c161d70e12a80810fa",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 4,
+      "layer": 0,
+      "name": "Glass",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 2
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "5337a3077e3e21f615620c754d157701",
+            "mesh": "d50167aefd76322d51baf0a7206bc56b",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "13a28d1f68bf00df46caff386026c4bf",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 5,
+      "layer": 0,
+      "name": "Trim",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 2
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "6d5ae2fc1b054a7159331780e342ed47",
+            "mesh": "a4d7cd9a028bb6d3a507327de357446f",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "c458241be675f5ccdcc9da5b9d7a959e",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 6,
+      "layer": 0,
+      "name": "Interior",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 2
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "e7d6932ad1c64ba4e1da1dff8067f308",
+            "mesh": "00d7602501ce89af36b76f27f6c408cf",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "3751330acc28258c2385851fd1299842",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 7,
+      "layer": 0,
+      "name": "Headlights",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 2
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "9fb1bcf3f9ff8bf5abc058ec4e64a5dc",
+            "mesh": "e88c6030f3ffab25b6291c243d0af3ac",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "ca2f1a9aaa36ee4e6e4a8034b487c325",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 8,
+      "layer": 0,
+      "name": "Taillights",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 2
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "axle": 0,
+            "brakeShare": 0.325,
+            "driveShare": 0.0,
+            "handbrake": false,
+            "maxSteer": 0.5585053606381855,
+            "visual": 20,
+            "radius": 0.33,
+            "width": 0.22,
+            "springRate": 34000.0,
+            "damping": 3000.0,
+            "bumpTravel": 0.1,
+            "droopTravel": 0.14
+          },
+          "enabled": true,
+          "id": "167b48f7492be9192252802db3c5e60d",
+          "type": "VehicleWheel"
+        }
+      ],
+      "id": 9,
+      "layer": 0,
+      "name": "Wheel Front Left",
+      "position": [
+        -0.83,
+        0.33,
+        -1.3
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "abc34b6a42e42fa750156ee8874cbd11",
+            "mesh": "290a04cf65304858e640a1a6733a40b9",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "646b65c07c07f7f892ce39e7b4907b9f",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 20,
+      "layer": 0,
+      "name": "Visual",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 9
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "6d6fb19b5ff5d790620d656b92fe93b4",
+            "mesh": "d9b4bfd619cffde593122ffeeb0e7175",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "7499437110d53faf550fe26e80f44aac",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 10,
+      "layer": 0,
+      "name": "Rim",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 20
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "axle": 0,
+            "brakeShare": 0.325,
+            "driveShare": 0.0,
+            "handbrake": false,
+            "maxSteer": 0.5585053606381855,
+            "visual": 21,
+            "radius": 0.33,
+            "width": 0.22,
+            "springRate": 34000.0,
+            "damping": 3000.0,
+            "bumpTravel": 0.1,
+            "droopTravel": 0.14
+          },
+          "enabled": true,
+          "id": "63abe70fe25ffc1d26fc7b96cce2614c",
+          "type": "VehicleWheel"
+        }
+      ],
+      "id": 11,
+      "layer": 0,
+      "name": "Wheel Front Right",
+      "position": [
+        0.83,
+        0.33,
+        -1.3
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "abc34b6a42e42fa750156ee8874cbd11",
+            "mesh": "290a04cf65304858e640a1a6733a40b9",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "0fb2e925b78b025872fbfd412b2d434d",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 21,
+      "layer": 0,
+      "name": "Visual",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 11
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "6d6fb19b5ff5d790620d656b92fe93b4",
+            "mesh": "d9b4bfd619cffde593122ffeeb0e7175",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "101e708c46498196d7d285b79fa75e14",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 12,
+      "layer": 0,
+      "name": "Rim",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 21
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "axle": 1,
+            "brakeShare": 0.175,
+            "driveShare": 0.5,
+            "handbrake": true,
+            "maxSteer": 0.0,
+            "visual": 22,
+            "radius": 0.33,
+            "width": 0.22,
+            "springRate": 34000.0,
+            "damping": 3000.0,
+            "bumpTravel": 0.1,
+            "droopTravel": 0.14
+          },
+          "enabled": true,
+          "id": "92e31f40fe445e28fd506a70dcb9ace9",
+          "type": "VehicleWheel"
+        }
+      ],
+      "id": 13,
+      "layer": 0,
+      "name": "Wheel Rear Left",
+      "position": [
+        -0.83,
+        0.33,
+        1.3
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "abc34b6a42e42fa750156ee8874cbd11",
+            "mesh": "290a04cf65304858e640a1a6733a40b9",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "5afd6332c5ce76e9fc8ec7ff9972454c",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 22,
+      "layer": 0,
+      "name": "Visual",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 13
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "6d6fb19b5ff5d790620d656b92fe93b4",
+            "mesh": "d9b4bfd619cffde593122ffeeb0e7175",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "42fc69420795f2bd0cc0e2988f659782",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 14,
+      "layer": 0,
+      "name": "Rim",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 22
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "axle": 1,
+            "brakeShare": 0.175,
+            "driveShare": 0.5,
+            "handbrake": true,
+            "maxSteer": 0.0,
+            "visual": 23,
+            "radius": 0.33,
+            "width": 0.22,
+            "springRate": 34000.0,
+            "damping": 3000.0,
+            "bumpTravel": 0.1,
+            "droopTravel": 0.14
+          },
+          "enabled": true,
+          "id": "8c69e1bcb282596ff6f7e439228d16ee",
+          "type": "VehicleWheel"
+        }
+      ],
+      "id": 15,
+      "layer": 0,
+      "name": "Wheel Rear Right",
+      "position": [
+        0.83,
+        0.33,
+        1.3
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "abc34b6a42e42fa750156ee8874cbd11",
+            "mesh": "290a04cf65304858e640a1a6733a40b9",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "090de92b20dc441fef91c8fa3726fec0",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 23,
+      "layer": 0,
+      "name": "Visual",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 15
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "material": "6d6fb19b5ff5d790620d656b92fe93b4",
+            "mesh": "d9b4bfd619cffde593122ffeeb0e7175",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "af72d2b07ccd821da80ffdbd398de99b",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 16,
+      "layer": 0,
+      "name": "Rim",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 23
+    },
+    {
+      "active": true,
+      "components": [],
+      "id": 24,
+      "layer": 0,
+      "name": "Seat",
+      "position": [
+        -0.38,
+        0.82,
+        0.15
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [],
+      "id": 25,
+      "layer": 0,
+      "name": "Exit Left",
+      "position": [
+        -1.5,
+        0,
+        0.15
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [],
+      "id": 26,
+      "layer": 0,
+      "name": "Exit Right",
+      "position": [
+        1.5,
+        0,
+        0.15
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [],
+      "id": 27,
+      "layer": 0,
+      "name": "Exit Back",
+      "position": [
+        0,
+        0,
+        2.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [],
+      "id": 28,
+      "layer": 0,
+      "name": "Exit Front",
+      "position": [
+        0,
+        0,
+        -2.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "background": [
+              0.12,
+              0.13,
+              0.15,
+              1.0
+            ],
+            "cullingMask": 4294967295,
+            "farPlane": 1000.0,
+            "fieldOfView": 1.1344640254974365,
+            "nearPlane": 0.1,
+            "orthographicSize": 5.0,
+            "pixelPerfect": {
+              "enabled": false,
+              "pixelsPerUnit": 100.0,
+              "referenceResolution": [
+                320.0,
+                180.0
+              ]
+            },
+            "projection": 0
+          },
+          "enabled": false,
+          "id": "b800fb7e6f8e3e4f4d6f47c607ed6fe7",
+          "type": "Camera"
+        },
+        {
+          "data": {},
+          "enabled": true,
+          "id": "e9bf0d86a6d2dbdce46887e2cc83f528",
+          "type": "ChaseCamera"
+        }
+      ],
+      "id": 17,
+      "layer": 0,
+      "name": "Camera",
+      "position": [
+        0.0,
+        2.3,
+        5.8
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "bus": "Effects",
+            "loop": true,
+            "pitch": 1.0,
+            "playOnStart": false,
+            "sound": "48b714adcb13e8ce3f25e47701d983ce",
+            "spatial": true,
+            "spatialSettings": {
+              "maxDistance": 70.0,
+              "minDistance": 3.0,
+              "rolloff": 0
+            },
+            "volume": 0.7
+          },
+          "enabled": true,
+          "id": "396e77467ccaa1baa4db021101829174",
+          "type": "AudioSource"
+        },
+        {
+          "data": {
+            "recordedRpm": 3000.0
+          },
+          "enabled": true,
+          "id": "76193d1e36b70c1cdaeed0aef134aeb8",
+          "type": "VehicleEngineSound"
+        }
+      ],
+      "id": 18,
+      "layer": 0,
+      "name": "Engine Sound",
+      "position": [
+        0.0,
+        0.7,
+        -1.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "bus": "Effects",
+            "loop": true,
+            "pitch": 1.0,
+            "playOnStart": false,
+            "sound": "d089c780a8a2c258b52045a9567e5ee9",
+            "spatial": true,
+            "spatialSettings": {
+              "maxDistance": 50.0,
+              "minDistance": 3.0,
+              "rolloff": 0
+            },
+            "volume": 0.45
+          },
+          "enabled": true,
+          "id": "acfabea685caf1ea4b6bf1416c0e6db5",
+          "type": "AudioSource"
+        },
+        {
+          "data": {},
+          "enabled": true,
+          "id": "22b8a9f628a8fdb436bc3364bcc916ad",
+          "type": "VehicleTireSound"
+        }
+      ],
+      "id": 19,
+      "layer": 0,
+      "name": "Tire Sound",
+      "position": [
+        0.0,
+        0.2,
+        0.0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    }
+  ],
+  "format": "spot-scene",
+  "version": 2
+}

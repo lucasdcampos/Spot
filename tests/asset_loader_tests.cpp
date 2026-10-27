@@ -1,7 +1,9 @@
+#include "log_capture.h"
 #include "temp_directory.h"
 
 #include <spot/assets/asset_archive.h>
 #include <spot/assets/asset_file.h>
+#include <spot/assets/asset_formats.h>
 #include <spot/assets/asset_manifest.h>
 #include <spot/assets/assets.h>
 #include <spot/core/io/archive_state.h>
@@ -196,4 +198,32 @@ TEST_CASE("Registered preload references create dependencies first and propagate
     CHECK_FALSE(manager.IsLoaded(fixture.id));
     REQUIRE(parent);
     CHECK(parent->value == 42);
+}
+
+TEST_CASE("Headless render asset loads skip GPU preparation and retain CPU mesh access", "[assets]") {
+    TempDirectory directory;
+    const auto id = Spot::AssetId::Generate();
+    Spot::Detail::Manifest manifest;
+    manifest.entries.push_back({.id = id, .type = Spot::AssetType::Font, .path = "font.font"});
+    REQUIRE(manifest.SaveToFile(Spot::Detail::Manifest::GetPath(directory.GetPath())));
+    Spot::Detail::BinaryWriter writer;
+    Spot::Detail::Encode(writer, Spot::Detail::FontFile{.pixelSize = 32.0f, .fontData = {}});
+    REQUIRE(Spot::Detail::WriteAssetFile(Spot::Detail::GetImportedAssetPath(directory.GetPath(), id),
+                                         Spot::AssetType::Font, writer.GetData()));
+    const auto sink = std::make_shared<Spot::Tests::CaptureSink>();
+    const Spot::Tests::ScopedSinks sinks{{sink}};
+    Spot::AssetManager manager(directory.GetPath());
+    Spot::RegisterRenderAssets(manager);
+    const auto font = manager.Load<Spot::Font>(id);
+    CHECK_FALSE(font);
+    CHECK(font.GetId() == id);
+    CHECK(std::ranges::any_of(sink->GetRecords(), [](const auto& record) {
+        return record.message.find("Font assets need a graphics device") != std::string::npos;
+    }));
+    const auto mesh = manager.Load<Spot::Mesh>(Spot::BuiltInAssets::CubeMesh);
+    CHECK_FALSE(mesh);
+    CHECK(mesh.GetId() == Spot::BuiltInAssets::CubeMesh);
+    const auto triangles = manager.LoadMeshData(Spot::BuiltInAssets::CubeMesh);
+    REQUIRE(triangles);
+    CHECK_FALSE(triangles->vertices.empty());
 }

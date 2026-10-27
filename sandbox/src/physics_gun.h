@@ -2,39 +2,56 @@
 
 #include "hook_lines.h"
 
+#include "gameplay/core/input_context.h"
+#include "gameplay/core/user_settings.h"
+#include "gameplay/inventory/held_item.h"
+#include "gameplay/persistence/world_save.h"
+
 #include <spot.h>
 
 #include <vector>
 
-// The tool on Weapon 1 (see WeaponHolder). Holding Fire grabs the prop the player aims at, anywhere in range, and
+// An item in hand, the first of the player's. Holding Fire grabs the prop the player aims at, anywhere in range, and
 // drives the point it grabbed toward where it was grabbed in front of the camera, as on a spring; Switch Weapon (the
 // wheel, or the shoulders) pulls it closer or pushes it away, and holding Use turns it with Look. Aim freezes it where
-// it is, as a kinematic body, and Unfreeze unfreezes every frozen prop. Frozen props carry the tag "Frozen".
-class PhysicsGun final : public Spot::Component {
+// it is, as a kinematic body, and Unfreeze unfreezes every frozen prop. Frozen props carry the tag "Frozen". While it
+// holds a prop, its hands are busy, and it takes Fire, Aim, Use and Switch Weapon from everything else, and Look while
+// turning it. The dead let go and grab nothing.
+class PhysicsGun final : public Gameplay::HeldItem,
+                         public Gameplay::SaveListener,
+                         public Gameplay::UserSettingsListener {
 public:
     static constexpr std::string_view FrozenTag = "Frozen";
 
     float range = 60.0f;
+    // Particles a second its beam gives off along it.
+    float beamRate = 240.0f;
     float minDistance = 1.5f;
     // Meters the wheel moves the prop per notch; a shoulder held moves it a tenth of that each frame.
     float scrollStep = 1.0f;
     float maxSpeed = 40.0f;
     // An entity whose AudioSource hums while the gun holds something, higher the faster the prop moves.
     Spot::EntityId hum;
-    // What the HUD and the weapon wheel show for it.
-    Spot::AssetRef<Spot::Texture> icon;
+
+    PhysicsGun();
 
     bool IsGrabbing() const { return m_grabbed != Spot::EntityId::Invalid; }
     Spot::EntityId GetGrabbed() const { return m_grabbed; }
-    bool IsTurning() const { return IsGrabbing() && m_turning; }
 
     // Freezes the grabbed prop and lets it go.
     void Freeze();
     void Release();
     void UnfreezeAll();
 
+    Gameplay::ItemStatus DescribeStatus() const override;
+    Gameplay::ItemPose DescribePose() const override;
+
 protected:
-    void OnUpdate(float deltaTime) override;
+    void ApplySettings(const Gameplay::UserSettings& settings) override { m_lookSensitivity = settings.sensitivity; }
+    void OnUse(const Gameplay::ItemInput& input) override;
+    void OnUnequip() override { Release(); }
+    void OnStart() override;
+    void OnBeforeLoad() override { Release(); }
     void OnFixedUpdate(float fixedDeltaTime) override;
     void OnEnable() override;
     void OnDisable() override;
@@ -42,7 +59,8 @@ protected:
     void Serialize(Spot::Archive& archive) override;
 
 private:
-    bool IsActive() const;
+    // The entity of the pawn holding it, whose view it aims with.
+    Spot::Entity* GetHolder() const;
     Spot::AudioSource* GetHum() const;
     void Grab();
     Spot::Rigidbody* GetGrabbedBody() const;
@@ -53,10 +71,13 @@ private:
     float m_distance = 0.0f;
     // The prop's rotation relative to where the player faces, so it turns with the player.
     Spot::Quaternion m_rotation;
-    bool m_turning = false;
+    Gameplay::InputContext m_grab{{.name = "Grab", .priority = 30, .actions = {"Fire", "Aim", "Use", "Switch Weapon"}}};
+    Gameplay::InputContext m_turn{{.name = "Turn Prop", .priority = 30, .actions = {"Look"}}};
     float m_particleEmission = 0;
     // The beam to the prop held, drawn after the scene's surfaces, bright enough to glow.
     std::vector<Spot::DebugLine> m_beam;
     HookLines m_beamLines;
     Spot::RenderHookId m_beamHook = Spot::RenderHookId::Invalid;
+    float m_lookSensitivity = 0.0025f;
+    Spot::SignalConnection m_states;
 };

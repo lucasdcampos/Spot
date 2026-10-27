@@ -1,33 +1,15 @@
 #include <spot.h>
-#include <spot/scene/scripting/script_bindings.h>
 
-#include "day_cycle.h"
-
-#include <stdexcept>
+#include "gameplay/environment/day_cycle.h"
 
 namespace {
-
-void RegisterScriptBindings() {
-    Spot::ScriptBindings<DayCycle>()
-        .ReadOnly("timeOfDay", [](const DayCycle& cycle) { return cycle.timeOfDay; })
-        .ReadOnly("daylight", &DayCycle::GetDaylight)
-        .Method("GetDaylight", &DayCycle::GetDaylight)
-        .Property(
-            "dayLength", [](const DayCycle& cycle) { return cycle.dayLength; },
-            [](DayCycle& cycle, float seconds) {
-                if (seconds < 0.0f)
-                    throw std::invalid_argument("Day length cannot be negative");
-                cycle.dayLength = seconds;
-            })
-        .Method("SetTimeOfDay", &DayCycle::SetTimeOfDay);
-}
 
 // The sandbox's code: its components, and the script bindings of the day cycle.
 class SandboxGame final : public Spot::GameCodeModule {
 protected:
     void OnStart() override {
         GameCodeModule::OnStart();
-        RegisterScriptBindings();
+        Gameplay::DayCycle::RegisterScriptBindings();
     }
 };
 

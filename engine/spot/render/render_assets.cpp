@@ -12,10 +12,15 @@
 #include "spot/render/sprite_atlas.h"
 
 #include <algorithm>
+#include <optional>
 #include <utility>
 
 namespace Spot {
 namespace {
+struct PreparedFont {
+    std::optional<FontAtlas> atlas;
+};
+
 std::vector<AssetId> MaterialReferences(const MaterialSource& material) {
     return {material.baseColorTexture, material.metallicRoughnessTexture, material.normalTexture,
             material.occlusionTexture, material.emissiveTexture};
@@ -34,7 +39,10 @@ std::vector<AssetId> ModelReferences(const std::vector<Detail::ModelFileNode>& n
 void RegisterRenderAssets(AssetManager& assets, GraphicsDevice* device) {
     assets.RegisterLoader(AssetType::Mesh,
                           MakeAssetLoader<MeshData>(
-                              [](AssetId id, std::span<const std::byte> data) -> std::optional<MeshData> {
+                              [device](AssetId id, std::span<const std::byte> data) -> std::optional<MeshData> {
+                                  if (!device) {
+                                      return MeshData{};
+                                  }
                                   if (id == BuiltInAssets::CubeMesh)
                                       return PrimitiveMeshes::CreateCube();
                                   if (id == BuiltInAssets::SphereMesh)
@@ -124,17 +132,25 @@ void RegisterRenderAssets(AssetManager& assets, GraphicsDevice* device) {
     };
     assets.RegisterLoader(AssetType::Model, std::move(modelLoader));
     assets.RegisterLoader(AssetType::Font,
-                          MakeAssetLoader<FontAtlas>(
-                              [](AssetId, std::span<const std::byte> data) -> std::optional<FontAtlas> {
+                          MakeAssetLoader<PreparedFont>(
+                              [device](AssetId, std::span<const std::byte> data) -> std::optional<PreparedFont> {
+                                  // A headless load is rejected on publication; preparing its atlas would be wasted.
+                                  if (!device) {
+                                      return PreparedFont{};
+                                  }
                                   const auto font = Detail::DecodeFont(data);
-                                  return font ? FontAtlas::Create(font->fontData, font->pixelSize) : std::nullopt;
+                                  if (!font) {
+                                      return std::nullopt;
+                                  }
+                                  auto atlas = FontAtlas::Create(font->fontData, font->pixelSize);
+                                  return atlas ? std::optional(PreparedFont{std::move(atlas)}) : std::nullopt;
                               },
-                              [device](AssetManager&, AssetId, FontAtlas& atlas) -> std::shared_ptr<const void> {
+                              [device](AssetManager&, AssetId, PreparedFont& font) -> std::shared_ptr<const void> {
                                   if (!device) {
                                       Log::GetEngineLogger().Error("Font assets need a graphics device");
                                       return nullptr;
                                   }
-                                  return std::shared_ptr<const Font>(Font::Create(*device, std::move(atlas)));
+                                  return std::shared_ptr<const Font>(Font::Create(*device, std::move(*font.atlas)));
                               }));
     auto atlasLoader = MakeAssetLoader<SpriteAtlas>(
         [](AssetId, std::span<const std::byte> data) -> std::optional<SpriteAtlas> {

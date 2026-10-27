@@ -7,12 +7,9 @@
           "data": {
             "automatic": false,
             "displayName": "Pistol",
-            "explosionImpulse": 0.0,
-            "explosionRadius": 0.0,
             "fireInterval": 0.2,
             "fireSound": "10830339b43ce45f3a140985b7601e5b",
             "impulse": 40.0,
-            "kind": 0,
             "magazineSize": 12,
             "muzzleFlash": 0.8,
             "model": "55141a3bfbcda3452932a1e5dccfb042",
@@ -30,7 +27,7 @@
           },
           "enabled": true,
           "id": "552d23d2bdb7756532df49c2c00f8044",
-          "type": "Weapon"
+          "type": "Firearm"
         },
         {
           "data": {
@@ -105,6 +102,12 @@
           "data": {
             "minSpeed": 1.5
           }
+        },
+        {
+          "data": {},
+          "enabled": true,
+          "id": "bc219662864aa4a6637a9ba544943eca",
+          "type": "Persistent"
         }
       ],
       "id": 1,

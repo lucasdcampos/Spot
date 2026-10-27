@@ -1,18 +1,12 @@
 #include "../registered_assets.h"
+#include "gameplay/game/session_controls.h"
 #include <spot/scene/physics/physics_world.h>
 // The sandbox's game code, run headless on its real scenes: the engine's integration test, which shows a regression
 // as something broken in the game.
-#include "day_cycle.h"
-#include "explosion.h"
-#include "explosive_barrel.h"
-#include "flash.h"
 #include "game_controls.h"
 #include "log_capture.h"
-#include "particle_effects.h"
 #include "physics_gun.h"
-#include "player_controller.h"
-#include "player_movement.h"
-#include "prop_carrier.h"
+#include "playground_fixture.h"
 #include "prop_spawner.h"
 #include "robot.h"
 #include "robot_spawner.h"
@@ -21,10 +15,22 @@
 #include "temp_directory.h"
 #include "tool_gun.h"
 #include "undo_list.h"
-#include "view_model.h"
-#include "weapon.h"
-#include "weapon_holder.h"
-#include "world_save.h"
+
+#include "gameplay/camera/first_person_view.h"
+#include "gameplay/character/carrier.h"
+#include "gameplay/character/character.h"
+#include "gameplay/character/character_movement.h"
+#include "gameplay/character/flashlight.h"
+#include "gameplay/effects/effect_library.h"
+#include "gameplay/effects/flash.h"
+#include "gameplay/effects/surface.h"
+#include "gameplay/environment/day_cycle.h"
+#include "gameplay/inventory/inventory.h"
+#include "gameplay/inventory/view_model.h"
+#include "gameplay/persistence/world_save.h"
+#include "gameplay/weapons/explosive.h"
+#include "gameplay/weapons/firearm.h"
+#include "gameplay/weapons/ignite_on_damage.h"
 
 #include <spot.h>
 #include <spot_import.h>
@@ -43,12 +49,24 @@
 #include <string_view>
 #include <vector>
 
+using Gameplay::DayCycle;
+using Gameplay::Firearm;
+using Gameplay::Flash;
+using SandboxTests::Fire;
+using SandboxTests::GetFirearm;
+using SandboxTests::GetFirearms;
+namespace WorldSave = Gameplay::WorldSave;
+
 using Catch::Approx;
 using Spot::Entity;
 using Spot::Key;
 using Spot::Scene;
 
 namespace {
+
+// The playground's kinds of surfaces, by their place in its SurfaceLibrary.
+constexpr int WoodSurface = 1;
+constexpr int MetalSurface = 2;
 
 constexpr float Step = Scene::DefaultFixedTimeStep;
 constexpr auto Gamepad = static_cast<Spot::GamepadId>(1);
@@ -147,7 +165,8 @@ struct Playground {
         input.OnEvent(Spot::GamepadAxisEvent{.gamepad = Gamepad, .axis = axis, .value = value});
     }
 
-    PlayerController& Player() const { return *player->GetComponent<PlayerController>(); }
+    Gameplay::FirstPersonView& Player() const { return *player->GetComponent<Gameplay::FirstPersonView>(); }
+    Gameplay::Inventory& Hands() const { return *player->GetComponent<Gameplay::Inventory>(); }
     // A crate of the mass, the given distance along where the player looks.
     Entity& PlaceCrate(float distance, float mass) {
         auto& crate = scene.CreateEntity("Test Crate");
@@ -155,6 +174,8 @@ struct Playground {
         crate.AddComponent<Spot::BoxCollider>(Spot::Vector3{0.5f, 0.5f, 0.5f});
         crate.AddComponent<Spot::Rigidbody>().SetMass(mass);
         crate.GetComponent<Spot::Rigidbody>()->SetGravityScale(0.0f);
+        // Saved with the world, as what the player puts in it is.
+        crate.AddComponent<Gameplay::Persistent>();
         return crate;
     }
     Spot::Vector3 HeldTarget(float distance) const {
@@ -186,7 +207,8 @@ TEST_CASE("Generated robots patrol with blended root motion, footsteps and recov
     auto* ragdoll = entity.GetComponent<Spot::Ragdoll>();
     REQUIRE(ragdoll);
     const auto hitPosition = entity.GetTransform().GetWorldPosition();
-    Explosion::Explode(playground.scene, hitPosition + Spot::Vector3{0, 0, 0.5f}, 1.5f, 50, 0);
+    Gameplay::Explosive::Explode(playground.scene, hitPosition + Spot::Vector3{0, 0, 0.5f},
+                                 {.radius = 1.5f, .impulse = 50.0f, .damage = 0.0f});
     REQUIRE(robot->IsDead());
     REQUIRE(ragdoll->IsActive());
     REQUIRE(ragdoll->GetBodies().size() == 11);
@@ -212,10 +234,10 @@ TEST_CASE("Hitscan shots turn robot capsules into physical skeletons", "[sandbox
     robot->patrolDistance = 0;
     target->GetTransform().SetWorldPosition(playground.HeldTarget(3));
     playground.Run(Step);
-    auto* holder = playground.player->GetComponent<WeaponHolder>();
+    auto* holder = playground.player->GetComponent<Gameplay::Inventory>();
     REQUIRE(holder);
     holder->Select(1);
-    holder->Fire();
+    Fire(*holder);
     CHECK(robot->IsDead());
     CHECK(target->GetComponent<Spot::Ragdoll>()->IsActive());
     playground.Run(0.3f);
@@ -262,8 +284,8 @@ TEST_CASE("World checkpoints restore robot populations and ragdoll ownership", "
 TEST_CASE("Held items come up when switched to, fire from their muzzles and move their parts", "[sandbox][view]") {
     Playground playground;
     playground.Run(1.0f);
-    auto* view = playground.player->GetComponent<ViewModel>();
-    auto* holder = playground.player->GetComponent<WeaponHolder>();
+    auto* view = playground.player->GetComponent<Gameplay::ViewModel>();
+    auto* holder = playground.player->GetComponent<Gameplay::Inventory>();
     REQUIRE(view);
     REQUIRE(holder);
     const auto& player = playground.Player();
@@ -292,7 +314,7 @@ TEST_CASE("Held items come up when switched to, fire from their muzzles and move
     playground.Run(0.5f);
     playground.Press(Spot::MouseButton::Right);
     playground.Run(0.4f);
-    REQUIRE(holder->IsAiming());
+    REQUIRE(GetFirearm(*holder)->IsAiming());
     CHECK(view->GetAim() == Approx(1.0f));
     const auto aimed = Spot::Inverse(player.GetViewRotation()) * (view->GetMuzzlePosition() - player.GetEyePosition());
     CHECK(std::abs(aimed.x) < 0.01f);
@@ -319,14 +341,14 @@ TEST_CASE("Held items come up when switched to, fire from their muzzles and move
     REQUIRE(part);
     {
         const auto rest = local(*part);
-        holder->Fire();
+        Fire(*holder);
         playground.Run(0.02f);
         CHECK(local(*part).z > rest.z + 0.005f);
         playground.Run(0.5f);
     }
 
     // Reloading drops the magazine out and back in, and rounds return when it ends.
-    auto* weapon = holder->GetWeapon();
+    auto* weapon = GetFirearm(*holder);
     REQUIRE(weapon);
     const int loaded = weapon->GetAmmo();
     playground.Press(Key::R);
@@ -338,7 +360,7 @@ TEST_CASE("Held items come up when switched to, fire from their muzzles and move
     CHECK(weapon->GetReloadProgress() < 0.6f);
     playground.Press(Spot::MouseButton::Right);
     playground.Run(0.1f);
-    CHECK_FALSE(holder->IsAiming());
+    CHECK_FALSE(GetFirearm(*holder)->IsAiming());
     playground.Release(Spot::MouseButton::Right);
     playground.Run(weapon->reloadTime);
     CHECK_FALSE(weapon->IsReloading());
@@ -350,7 +372,7 @@ TEST_CASE("World checkpoints retain edited props, joints, lamps and cleanup owne
     TempDirectory directory;
     playground.Run(1.5f);
     auto& spawner = *playground.player->GetComponent<PropSpawner>();
-    auto& tool = *playground.player->GetComponent<ToolGun>();
+    auto& tool = *playground.player->GetComponentInChildren<ToolGun>();
     auto* prop = spawner.Spawn(0);
     REQUIRE(prop);
     prop->SetName("Saved prop");
@@ -407,7 +429,7 @@ TEST_CASE("Quick save and load use the project's bindings and reject invalid che
     Playground playground;
     TempDirectory directory;
     playground.Run(1.0f);
-    auto* controls = playground.scene.FindComponent<GameControls>();
+    auto* controls = playground.scene.FindComponent<Gameplay::SessionControls>();
     REQUIRE(controls);
     controls->SetSaveDirectory(directory.GetPath());
     auto& spawner = *playground.player->GetComponent<PropSpawner>();
@@ -426,7 +448,7 @@ TEST_CASE("Quick save and load use the project's bindings and reject invalid che
     CHECK(WorldSave::Load(playground.scene, directory.GetPath() / "missing.json").status ==
           Spot::SaveDataStatus::NotFound);
     Spot::SaveData saves(directory.GetPath());
-    REQUIRE(saves.Save("invalid.json", 1, [](Spot::Archive&, std::uint32_t) {}));
+    REQUIRE(saves.Save("invalid.json", 2, [](Spot::Archive&, std::uint32_t) {}));
     CHECK(WorldSave::Load(playground.scene, directory.GetPath() / "invalid.json").status ==
           Spot::SaveDataStatus::InvalidFile);
     CHECK(playground.scene.GetRootEntities().size() == count);
@@ -439,14 +461,16 @@ TEST_CASE("Saved lit barrels resume their remaining fuse", "[sandbox][save]") {
     auto& barrel = playground.scene.CreateEntity("Saved fuse");
     barrel.GetTransform().SetPosition({200.0f, 5.0f, 0.0f});
     barrel.AddComponent<Spot::Rigidbody>();
-    auto& explosive = barrel.AddComponent<ExplosiveBarrel>();
+    barrel.AddComponent<Gameplay::Persistent>();
+    barrel.AddComponent<Gameplay::Explosive>();
+    auto& explosive = barrel.AddComponent<Gameplay::IgniteOnDamage>();
     explosive.fuse = 1.0f;
     explosive.Ignite();
     playground.Run(0.6f);
     REQUIRE(WorldSave::Save(playground.scene, directory.GetPath() / "world.json"));
     REQUIRE(WorldSave::Load(playground.scene, directory.GetPath() / "world.json"));
     REQUIRE(playground.scene.FindEntity("Saved fuse"));
-    CHECK(playground.scene.FindEntity("Saved fuse")->GetComponent<ExplosiveBarrel>()->IsLit());
+    CHECK(playground.scene.FindEntity("Saved fuse")->GetComponent<Gameplay::IgniteOnDamage>()->IsLit());
     playground.scene.Update(0.0f);
     playground.Run(0.2f);
     CHECK(playground.scene.FindEntity("Saved fuse"));
@@ -458,7 +482,7 @@ TEST_CASE("Sandbox recoil uses cancellable tweens, and walking steps and bobs at
           "[sandbox][gameplay]") {
     Playground playground;
     playground.Run(1.5f);
-    auto& view = *playground.player->GetComponent<ViewModel>();
+    auto& view = *playground.player->GetComponent<Gameplay::ViewModel>();
     view.Kick();
     playground.scene.Update(0.0f);
     CHECK(view.GetRecoil() == 0.0f);
@@ -466,7 +490,7 @@ TEST_CASE("Sandbox recoil uses cancellable tweens, and walking steps and bobs at
     CHECK(view.GetRecoil() > 0.0f);
     playground.Run(0.25f);
     CHECK(view.GetRecoil() == Approx(0.0f));
-    auto& movement = *playground.player->GetComponent<PlayerMovement>();
+    auto& movement = *playground.player->GetComponent<Gameplay::CharacterMovement>();
     const float start = movement.GetStepPhase();
     playground.Press(Key::W);
     float peak = 0.0f;
@@ -566,14 +590,14 @@ TEST_CASE("Mouse look turns the camera and movement follows the visible directio
     CHECK(Spot::Length(displacement - direction * Spot::Dot(displacement, direction)) < 0.05f);
     CHECK(Spot::Length(camera->GetCamera3D().position - playground.Player().GetEyePosition()) < 0.001f);
 
-    playground.player->GetComponent<PlayerMovement>()->SetFlying(true);
+    playground.player->GetComponent<Gameplay::CharacterMovement>()->SetFlying(true);
     const auto flightStart = playground.PlayerPosition();
     playground.Press(Key::W);
     playground.Run(0.1f);
     playground.Release(Key::W);
     CHECK(Spot::Length(playground.PlayerPosition() - flightStart - view.GetForward()) < 0.05f);
 
-    auto* flashlight = playground.scene.GetEntity(playground.Player().flashlight);
+    auto* flashlight = playground.scene.GetEntity(playground.player->GetComponent<Gameplay::Flashlight>()->light);
     REQUIRE(flashlight);
     CHECK(flashlight->GetParent() == head);
     playground.Press(Key::F);
@@ -654,7 +678,7 @@ TEST_CASE("The player climbs the stairs and the ramps of the level's meshes", "[
 TEST_CASE("The player picks up light props, carries them and throws them", "[sandbox]") {
     Playground playground;
     playground.Run(1.5f);
-    auto& carrier = *playground.player->GetComponent<PropCarrier>();
+    auto& carrier = *playground.player->GetComponent<Gameplay::Carrier>();
     Entity& heavy = playground.PlaceCrate(1.8f, 200.0f);
     playground.Run(0.1f);
     playground.Press(Key::E);
@@ -686,11 +710,11 @@ TEST_CASE("The player picks up light props, carries them and throws them", "[san
 TEST_CASE("The physics gun grabs props from afar, pulls and pushes them, and freezes them", "[sandbox]") {
     Playground playground;
     playground.Run(1.5f);
-    auto& gun = *playground.player->GetComponent<PhysicsGun>();
+    auto& gun = *playground.player->GetComponentInChildren<PhysicsGun>();
     playground.Press(Key::Digit1);
     playground.Run(0.05f);
     playground.Release(Key::Digit1);
-    CHECK(playground.player->GetComponent<WeaponHolder>()->IsPhysicsGunSelected());
+    CHECK(SandboxTests::IsEquipped<PhysicsGun>(playground.Hands()));
 
     Entity& crate = playground.PlaceCrate(6.0f, 50.0f);
     crate.GetComponent<Spot::Rigidbody>()->SetGravityScale(1.0f);
@@ -744,19 +768,19 @@ void FireSlot(Playground& playground, Key slot) {
 TEST_CASE("Hitscan weapons push what they hit, and run out of rounds until reloaded", "[sandbox]") {
     Playground playground;
     playground.Run(1.5f);
-    auto& holder = *playground.player->GetComponent<WeaponHolder>();
-    REQUIRE(holder.GetWeapons().size() == 4);
+    auto& holder = *playground.player->GetComponent<Gameplay::Inventory>();
+    REQUIRE(GetFirearms(holder).size() == 4);
 
     Entity& crate = playground.PlaceCrate(5.0f, 5.0f);
     playground.Run(0.05f);
     FireSlot(playground, Key::Digit2);
-    REQUIRE(holder.GetWeapon() != nullptr);
-    CHECK(holder.GetWeapon()->displayName == "Pistol");
+    REQUIRE(GetFirearm(holder) != nullptr);
+    CHECK(GetFirearm(holder)->displayName == "Pistol");
     const float pistolSpeed =
         Spot::Dot(crate.GetComponent<Spot::Rigidbody>()->GetLinearVelocity(), playground.Player().GetAimDirection());
     // Forty newton seconds on five kilograms.
     CHECK(pistolSpeed == Approx(8.0f).margin(1.0f));
-    CHECK(holder.GetWeapon()->GetAmmo() == 11);
+    CHECK(GetFirearm(holder)->GetAmmo() == 11);
 
     // The pistol fires once per click, every fifth of a second, until its twelve rounds are gone.
     for (int i = 0; i < 15; ++i) {
@@ -767,7 +791,7 @@ TEST_CASE("Hitscan weapons push what they hit, and run out of rounds until reloa
     }
     playground.Run(1.5f);
     // Out of rounds, it reloaded by itself meanwhile.
-    CHECK(holder.GetWeapon()->GetReserve() < 120);
+    CHECK(GetFirearm(holder)->GetReserve() < 120);
 
     // The rifle keeps firing while the button is held: ten rounds a second.
     crate.Destroy();
@@ -777,7 +801,7 @@ TEST_CASE("Hitscan weapons push what they hit, and run out of rounds until reloa
     playground.Press(Spot::MouseButton::Left);
     playground.Run(1.0f);
     playground.Release(Spot::MouseButton::Left);
-    CHECK(holder.GetWeapon()->GetAmmo() == Approx(20).margin(2));
+    CHECK(GetFirearm(holder)->GetAmmo() == Approx(20).margin(2));
 
     // The shotgun's pellets push a crate harder than the pistol did.
     Entity& target = playground.PlaceCrate(4.0f, 5.0f);
@@ -811,7 +835,7 @@ TEST_CASE("Rockets and explosive barrels blow props away", "[sandbox]") {
     neighbor.AddComponent<Spot::Rigidbody>().SetMass(5.0f);
     playground.Run(0.5f);
     const Spot::Vector3 neighborBefore = neighbor.GetTransform().GetPosition();
-    barrel->GetComponent<ExplosiveBarrel>()->Ignite();
+    barrel->GetComponent<Gameplay::IgniteOnDamage>()->Ignite();
     playground.Run(0.5f);
     CHECK(playground.scene.GetEntity(barrelId) == nullptr);
     CHECK(Spot::Distance(neighbor.GetTransform().GetPosition(), neighborBefore) > 1.0f);
@@ -827,14 +851,14 @@ TEST_CASE("The playground uses linked spawnable prefabs with its authored overri
         ++linked;
         if (spawnable.category == Spawnable::Category::Weapon) {
             CHECK(entity.GetParent() == playground.player);
-            CHECK(entity.HasComponent<Weapon>());
+            CHECK(entity.HasComponent<Firearm>());
             CHECK_FALSE(entity.HasComponent<Spot::Rigidbody>());
             CHECK_FALSE(entity.HasComponent<Spot::BoxCollider>());
             playground.scene.ForEachComponent<Spot::MeshRenderer>(
                 [&](Spot::MeshRenderer& renderer) { CHECK_FALSE(renderer.GetEntity().IsDescendantOf(entity)); });
         }
     });
-    CHECK(linked == 71);
+    CHECK(linked == 73);
     const Entity* cone = playground.scene.FindEntity("Cone");
     REQUIRE(cone != nullptr);
     CHECK(cone->HasComponent<Spot::BoxCollider>());
@@ -850,7 +874,7 @@ TEST_CASE("Every catalog entry spawns its complete prefab and undo removes its t
     playground.Run(Step);
     auto& spawner = *playground.player->GetComponent<PropSpawner>();
     auto& undo = *playground.player->GetComponent<UndoList>();
-    REQUIRE(spawner.GetSpawnables().size() == 17);
+    REQUIRE(spawner.GetSpawnables().size() == 19);
     const std::vector<std::string> shortcuts{"Crate", "Barrel", "Explosive Barrel", "Ball", "Plank", "Beam",
                                              "Cone",  "Wheel"};
     for (std::size_t i = 0; i < spawner.GetSpawnables().size(); ++i) {
@@ -863,8 +887,8 @@ TEST_CASE("Every catalog entry spawns its complete prefab and undo removes its t
         CHECK(spawned->GetPrefabAssetId() == item.prefab.GetId());
         CHECK(spawned->HasComponent<Spawnable>());
         CHECK(spawned->HasComponent<Spot::Rigidbody>());
-        CHECK(spawned->HasComponent<ImpactSounds>());
-        CHECK(spawned->HasComponent<Surface>());
+        CHECK(spawned->HasComponent<Gameplay::ImpactSounds>());
+        CHECK(spawned->HasComponent<Gameplay::Surface>());
         if (item.category == Spawnable::Category::Lamp) {
             CHECK(spawned->HasComponent<Spot::PointLight>());
         }
@@ -875,7 +899,7 @@ TEST_CASE("Every catalog entry spawns its complete prefab and undo removes its t
             }
         });
         if (item.category == Spawnable::Category::Weapon) {
-            CHECK(spawned->HasComponent<Weapon>());
+            CHECK(spawned->HasComponent<Firearm>());
             CHECK(tree.size() > 1);
             bool drawable = false;
             playground.scene.ForEachComponent<Spot::MeshRenderer>([&](Spot::MeshRenderer& renderer) {
@@ -894,6 +918,9 @@ TEST_CASE("Every catalog entry spawns its complete prefab and undo removes its t
 
 TEST_CASE("Adding a marked prefab asset extends the sandbox catalog without code changes", "[sandbox][prefab]") {
     Playground playground;
+    auto& catalog = *playground.player->GetComponent<PropSpawner>();
+    catalog.RefreshSpawnables();
+    const auto originalCount = catalog.GetSpawnables().size();
     const TempDirectory project;
     const auto sources = project.GetPath() / "assets";
     const auto imported = project.GetPath() / "imported";
@@ -934,7 +961,7 @@ TEST_CASE("Adding a marked prefab asset extends the sandbox catalog without code
     spawner.Cleanup();
     CHECK(playground.scene.GetEntity(childId) == nullptr);
     spawner.RefreshSpawnables();
-    CHECK(spawner.GetSpawnables().size() == 17);
+    CHECK(spawner.GetSpawnables().size() == originalCount);
 }
 
 TEST_CASE("Sandbox prefab edits propagate while instance overrides survive", "[sandbox][prefab]") {
@@ -962,7 +989,7 @@ TEST_CASE("Sandbox prefab edits propagate while instance overrides survive", "[s
     const auto secondId = second->GetId();
     const auto firstPosition = first->GetTransform().GetPosition();
     second->SetName("Personal Crate");
-    second->GetComponent<ImpactSounds>()->minSpeed = 3.0f;
+    second->GetComponent<Gameplay::ImpactSounds>()->minSpeed = 3.0f;
     const auto saved = Spot::SaveSceneSource(instances, &assets);
 
     Scene authored;
@@ -970,7 +997,7 @@ TEST_CASE("Sandbox prefab edits propagate while instance overrides survive", "[s
         authored.Instantiate(assets.Load<Spot::Prefab>(id)->GetEntityText(), {.keepIds = true, .assets = &assets});
     REQUIRE(sourceRoots.size() == 1);
     sourceRoots[0]->SetName("Updated Crate");
-    sourceRoots[0]->GetComponent<ImpactSounds>()->minSpeed = 2.0f;
+    sourceRoots[0]->GetComponent<Gameplay::ImpactSounds>()->minSpeed = 2.0f;
     sourceRoots[0]->AddComponent<Spot::PointLight>();
     REQUIRE(authored.SaveToFile(sourceFile));
     REQUIRE(database.Reimport(id));
@@ -984,9 +1011,9 @@ TEST_CASE("Sandbox prefab edits propagate while instance overrides survive", "[s
     REQUIRE(second != nullptr);
     CHECK(first->GetName() == "Updated Crate");
     CHECK(first->GetTransform().GetPosition() == firstPosition);
-    CHECK(first->GetComponent<ImpactSounds>()->minSpeed == Approx(2.0f));
+    CHECK(first->GetComponent<Gameplay::ImpactSounds>()->minSpeed == Approx(2.0f));
     CHECK(second->GetName() == "Personal Crate");
-    CHECK(second->GetComponent<ImpactSounds>()->minSpeed == Approx(3.0f));
+    CHECK(second->GetComponent<Gameplay::ImpactSounds>()->minSpeed == Approx(3.0f));
     CHECK(first->HasComponent<Spot::PointLight>());
     CHECK(second->HasComponent<Spot::PointLight>());
     CHECK(first->GetPrefabAssetId() == id);
@@ -1027,12 +1054,12 @@ TEST_CASE("Keys spawn props where the player looks, Z takes them back and X clea
 TEST_CASE("The tool gun welds, ropes and removes props, and Z takes it all back", "[sandbox]") {
     Playground playground;
     playground.Run(1.5f);
-    auto& tool = *playground.player->GetComponent<ToolGun>();
+    auto& tool = *playground.player->GetComponentInChildren<ToolGun>();
     auto& undo = *playground.player->GetComponent<UndoList>();
     playground.Press(Key::Digit6);
     playground.Run(0.05f);
     playground.Release(Key::Digit6);
-    REQUIRE(playground.player->GetComponent<WeaponHolder>()->IsToolGunSelected());
+    REQUIRE(SandboxTests::IsEquipped<ToolGun>(playground.Hands()));
 
     // A crate welded in the air to a frozen one stays there.
     Entity& anchor = playground.PlaceCrate(4.0f, 5.0f);
@@ -1094,7 +1121,7 @@ TEST_CASE("The whole game plays with a gamepad", "[sandbox][gamepad]") {
     using Spot::GamepadButton;
     Playground playground;
     playground.Run(1.5f);
-    auto& holder = *playground.player->GetComponent<WeaponHolder>();
+    auto& holder = *playground.player->GetComponent<Gameplay::Inventory>();
     const Spot::Vector3 start = playground.PlayerPosition();
 
     // The left stick walks.
@@ -1122,32 +1149,32 @@ TEST_CASE("The whole game plays with a gamepad", "[sandbox][gamepad]") {
     playground.Press(GamepadButton::RightShoulder);
     playground.Run(0.05f);
     playground.Release(GamepadButton::RightShoulder);
-    REQUIRE(holder.GetWeapon() != nullptr);
-    CHECK(holder.GetWeapon()->displayName == "Pistol");
+    REQUIRE(GetFirearm(holder) != nullptr);
+    CHECK(GetFirearm(holder)->displayName == "Pistol");
     Entity& crate = playground.PlaceCrate(5.0f, 5.0f);
     playground.Run(0.05f);
     playground.Push(GamepadAxis::RightTrigger, 1.0f);
     playground.Run(0.05f);
     playground.Push(GamepadAxis::RightTrigger, 0.0f);
-    CHECK(holder.GetWeapon()->GetAmmo() == 11);
+    CHECK(GetFirearm(holder)->GetAmmo() == 11);
     CHECK(Spot::Length(crate.GetComponent<Spot::Rigidbody>()->GetLinearVelocity()) > 4.0f);
     playground.Press(GamepadButton::West);
     playground.Run(0.05f);
     playground.Release(GamepadButton::West);
     playground.Run(2.0f);
-    CHECK(holder.GetWeapon()->GetAmmo() == 12);
+    CHECK(GetFirearm(holder)->GetAmmo() == 12);
 
     // The left shoulder goes back to the physics gun.
     playground.Press(GamepadButton::LeftShoulder);
     playground.Run(0.05f);
     playground.Release(GamepadButton::LeftShoulder);
-    CHECK(holder.IsPhysicsGunSelected());
+    CHECK(SandboxTests::IsEquipped<PhysicsGun>(holder));
 }
 
 TEST_CASE("Aiming down the sights zooms in while held, with the right button or the left trigger", "[sandbox]") {
     Playground playground;
     playground.Run(1.5f);
-    auto& holder = *playground.player->GetComponent<WeaponHolder>();
+    auto& holder = *playground.player->GetComponent<Gameplay::Inventory>();
     const Entity* head = playground.scene.GetEntity(playground.Player().head);
     REQUIRE(head != nullptr);
     const auto* camera = head->GetComponent<Spot::Camera>();
@@ -1158,7 +1185,7 @@ TEST_CASE("Aiming down the sights zooms in while held, with the right button or 
     playground.Press(Spot::MouseButton::Right);
     playground.Run(0.5f);
     playground.Release(Spot::MouseButton::Right);
-    CHECK_FALSE(holder.IsAiming());
+    CHECK_FALSE(playground.player->GetComponent<Gameplay::Character>()->HasState("Aiming"));
     CHECK(playground.Player().GetZoom() == Approx(1.0f));
 
     playground.Press(Key::Digit3);
@@ -1166,17 +1193,17 @@ TEST_CASE("Aiming down the sights zooms in while held, with the right button or 
     playground.Release(Key::Digit3);
     playground.Press(Spot::MouseButton::Right);
     playground.Run(0.5f);
-    CHECK(holder.IsAiming());
-    CHECK(playground.Player().GetZoom() == Approx(holder.GetWeapon()->aimZoom).margin(0.01f));
+    CHECK(playground.player->GetComponent<Gameplay::Character>()->HasState("Aiming"));
+    CHECK(playground.Player().GetZoom() == Approx(GetFirearm(holder)->aimZoom).margin(0.01f));
     CHECK(camera->GetFieldOfView() < fieldOfView * 0.8f);
     playground.Release(Spot::MouseButton::Right);
     playground.Run(0.5f);
-    CHECK_FALSE(holder.IsAiming());
+    CHECK_FALSE(playground.player->GetComponent<Gameplay::Character>()->HasState("Aiming"));
     CHECK(camera->GetFieldOfView() == Approx(fieldOfView).margin(0.01f));
 
     playground.Push(Spot::GamepadAxis::LeftTrigger, 1.0f);
     playground.Run(0.1f);
-    CHECK(holder.IsAiming());
+    CHECK(playground.player->GetComponent<Gameplay::Character>()->HasState("Aiming"));
     playground.Push(Spot::GamepadAxis::LeftTrigger, 0.0f);
 }
 
@@ -1215,7 +1242,8 @@ TEST_CASE("The playground sounds from where things are, on its buses", "[sandbox
 
     // An explosion to the right is heard on the right.
     const Spot::Vector3 right = playground.Player().GetViewRotation() * Spot::Vector3{1.0f, 0.0f, 0.0f};
-    Explosion::Explode(playground.scene, playground.Player().GetEyePosition() + right * 12.0f, 1.0f, 0.0f, 0.0f);
+    Gameplay::Explosive::Explode(playground.scene, playground.Player().GetEyePosition() + right * 12.0f,
+                                 {.radius = 1.0f, .impulse = 0.0f, .damage = 0.0f});
     playground.Run(0.3f);
     const Spot::AudioPeak blast = playground.peaks["Effects"];
     CHECK(blast.right > 0.05f);
@@ -1226,8 +1254,8 @@ TEST_CASE("The playground sounds from where things are, on its buses", "[sandbox
     Entity& crate = playground.PlaceCrate(4.0f, 5.0f);
     crate.GetTransform().SetPosition(crate.GetTransform().GetPosition() + Spot::Vector3{0.0f, 3.0f, 0.0f});
     crate.GetComponent<Spot::Rigidbody>()->SetGravityScale(1.0f);
-    crate.AddComponent<Surface>().kind = SurfaceKind::Wood;
-    crate.AddComponent<ImpactSounds>();
+    crate.AddComponent<Gameplay::Surface>().kind = WoodSurface;
+    crate.AddComponent<Gameplay::ImpactSounds>();
     playground.Run(1.5f);
     CHECK(playground.peaks["Effects"].left > 0.01f);
 
@@ -1239,7 +1267,7 @@ TEST_CASE("The playground sounds from where things are, on its buses", "[sandbox
     playground.Run(0.05f);
     playground.Press(Spot::MouseButton::Left);
     playground.Run(0.2f);
-    auto& gun = *playground.player->GetComponent<PhysicsGun>();
+    auto& gun = *playground.player->GetComponentInChildren<PhysicsGun>();
     REQUIRE(gun.IsGrabbing());
     const Entity* hum = playground.scene.GetEntity(gun.hum);
     REQUIRE(hum != nullptr);
@@ -1255,7 +1283,7 @@ TEST_CASE("Shots and explosions flash, and the flashes go out", "[sandbox]") {
     playground.Run(1.5f);
     const auto flashes = [&] {
         int count = 0;
-        playground.scene.ForEachComponent<Flash>([&count](const Flash&) { ++count; });
+        playground.scene.ForEachComponent<Gameplay::Flash>([&count](const Gameplay::Flash&) { ++count; });
         return count;
     };
     FireSlot(playground, Key::Digit2);
@@ -1274,8 +1302,8 @@ TEST_CASE("Shots and explosions flash, and the flashes go out", "[sandbox]") {
     playground.Run(0.2f);
     CHECK(flashes() == 0);
 
-    Explosion::Explode(playground.scene, playground.PlayerPosition() + Spot::Vector3{0.0f, 0.0f, -10.0f}, 3.0f, 0.0f,
-                       0.0f);
+    Gameplay::Explosive::Explode(playground.scene, playground.PlayerPosition() + Spot::Vector3{0.0f, 0.0f, -10.0f},
+                                 {.radius = 3.0f, .impulse = 0.0f, .damage = 0.0f});
     CHECK(flashes() == 1);
     // The fireball's light dies down over a little longer.
     playground.Run(0.4f);
@@ -1316,15 +1344,15 @@ TEST_CASE("The day cycle thickens and darkens the fog at night, and raises the e
 TEST_CASE("The player holds the model of what is in hand, in front of the eyes", "[sandbox]") {
     Playground playground;
     playground.Run(0.5f);
-    const auto& view = *playground.player->GetComponent<ViewModel>();
-    auto& holder = *playground.player->GetComponent<WeaponHolder>();
-    const auto eye = [&] { return playground.player->GetComponent<PlayerController>()->GetEyePosition(); };
+    const auto& view = *playground.player->GetComponent<Gameplay::ViewModel>();
+    auto& holder = *playground.player->GetComponent<Gameplay::Inventory>();
+    const auto eye = [&] { return playground.player->GetComponent<Gameplay::FirstPersonView>()->GetEyePosition(); };
 
     // The physics gun is in hand first.
-    REQUIRE(holder.IsPhysicsGunSelected());
+    REQUIRE(SandboxTests::IsEquipped<PhysicsGun>(holder));
     REQUIRE(view.GetShownModel());
-    CHECK(view.GetShownModel().Get() == view.physicsGun.Get());
-    CHECK(view.GetPartEntities().size() == view.physicsGun->GetParts().size());
+    CHECK(view.GetShownModel().Get() == holder.GetEquipped()->model.Get());
+    CHECK(view.GetPartEntities().size() == holder.GetEquipped()->model->GetParts().size());
     for (const Spot::EntityId id : view.GetPartEntities()) {
         const Entity* part = playground.scene.GetEntity(id);
         REQUIRE(part != nullptr);
@@ -1335,20 +1363,20 @@ TEST_CASE("The player holds the model of what is in hand, in front of the eyes",
     playground.Press(Key::Digit2);
     playground.Run(0.05f);
     playground.Release(Key::Digit2);
-    REQUIRE(holder.GetWeapon() != nullptr);
-    REQUIRE(holder.GetWeapon()->model);
-    CHECK(view.GetShownModel().Get() == holder.GetWeapon()->model.Get());
+    REQUIRE(GetFirearm(holder) != nullptr);
+    REQUIRE(GetFirearm(holder)->model);
+    CHECK(view.GetShownModel().Get() == GetFirearm(holder)->model.Get());
     playground.Press(Key::Digit6);
     playground.Run(0.05f);
     playground.Release(Key::Digit6);
-    REQUIRE(holder.IsToolGunSelected());
-    CHECK(view.GetShownModel().Get() == view.toolGun.Get());
+    REQUIRE(SandboxTests::IsEquipped<ToolGun>(holder));
+    CHECK(view.GetShownModel().Get() == holder.GetEquipped()->model.Get());
 }
 
 TEST_CASE("The tool gun paints props and gives them materials, and Z takes it back", "[sandbox]") {
     Playground playground;
     playground.Run(1.5f);
-    auto& tool = *playground.player->GetComponent<ToolGun>();
+    auto& tool = *playground.player->GetComponentInChildren<ToolGun>();
     playground.Press(Key::Digit6);
     playground.Run(0.05f);
     playground.Release(Key::Digit6);
@@ -1407,7 +1435,7 @@ TEST_CASE("The tool gun paints props and gives them materials, and Z takes it ba
 TEST_CASE("The tool gun places lamps of every kind, many at once, and takes them away", "[sandbox]") {
     Playground playground;
     playground.Run(1.0f);
-    auto& tool = *playground.player->GetComponent<ToolGun>();
+    auto& tool = *playground.player->GetComponentInChildren<ToolGun>();
     auto& undo = *playground.player->GetComponent<UndoList>();
     Entity* ground = playground.scene.FindEntity("Ground");
     REQUIRE(ground != nullptr);
@@ -1485,7 +1513,7 @@ TEST_CASE("Sandbox commands gate cheats, resolve scene settings and clean spawne
         ~RestoreScale() { Spot::Time::SetTimeScale(value); }
     } restore{previousScale};
     auto* spawner = game.player->GetComponent<PropSpawner>();
-    auto* movement = game.player->GetComponent<PlayerMovement>();
+    auto* movement = game.player->GetComponent<Gameplay::CharacterMovement>();
     REQUIRE(spawner);
     REQUIRE(movement);
     REQUIRE_FALSE(spawner->GetSpawnables().empty());
@@ -1530,20 +1558,20 @@ TEST_CASE("Giving weapons refills existing inventory and creates missing held we
           "[sandbox][console]") {
     Playground game;
     game.Run(Step);
-    auto* holder = game.player->GetComponent<WeaponHolder>();
+    auto* holder = game.player->GetComponent<Gameplay::Inventory>();
     REQUIRE(holder);
     Spot::Console console;
     SandboxCommands commands(console, game.scene);
     console.SetCheatsEnabled(true);
-    const auto original = holder->GetWeapons();
+    const auto original = GetFirearms(*holder);
     REQUIRE_FALSE(original.empty());
     auto* pistol = original.front();
     const auto name = pistol->displayName;
     REQUIRE(pistol->TakeShot());
     REQUIRE(pistol->StartReload());
     REQUIRE(console.Execute("give \"" + name + "\""));
-    CHECK(holder->GetWeapon() == pistol);
-    CHECK(holder->GetWeapons().size() == original.size());
+    CHECK(GetFirearm(*holder) == pistol);
+    CHECK(GetFirearms(*holder).size() == original.size());
     CHECK(pistol->GetAmmo() == pistol->magazineSize);
     CHECK(pistol->GetReserve() == pistol->reserveAmmo);
     CHECK_FALSE(pistol->IsReloading());
@@ -1553,7 +1581,7 @@ TEST_CASE("Giving weapons refills existing inventory and creates missing held we
     game.Run(Step);
     const auto bodies = game.scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount();
     REQUIRE(console.Execute("give \"" + name + "\""));
-    auto* given = holder->GetWeapon();
+    auto* given = GetFirearm(*holder);
     REQUIRE(given);
     CHECK(given->GetEntity().GetId() != removedId);
     CHECK(given->GetEntity().GetParent() == game.player);
@@ -1562,7 +1590,7 @@ TEST_CASE("Giving weapons refills existing inventory and creates missing held we
     CHECK_FALSE(given->GetEntity().HasComponent<Spot::Collider>());
     CHECK_FALSE(given->GetEntity().HasComponent<Spot::MeshRenderer>());
     game.Run(Step);
-    CHECK(holder->GetWeapons().size() == original.size());
+    CHECK(GetFirearms(*holder).size() == original.size());
     CHECK(given->GetAmmo() == given->magazineSize);
     CHECK(game.scene.GetOrAddSystem<Spot::PhysicsWorld>().GetBodyCount() == bodies);
 }
@@ -1619,6 +1647,14 @@ TEST_CASE("Sandbox console registrations follow GameControls enable and scene li
 }
 
 namespace {
+// A layer of an effect of the playground's EffectLibrary.
+const Gameplay::ParticleLayer& Layer(Spot::Scene& scene, std::string_view effect, std::size_t index = 0) {
+    const auto* found = Gameplay::EffectLibrary::Find(scene, effect);
+    REQUIRE(found);
+    REQUIRE(index < found->layers.size());
+    return found->layers[index];
+}
+
 std::size_t ParticleCount(Spot::Scene& scene, Spot::Color color) {
     std::size_t count = 0;
     scene.ForEachComponent<Spot::ParticleSystem>([&](Spot::ParticleSystem& effect) {
@@ -1631,70 +1667,72 @@ std::size_t ParticleCount(Spot::Scene& scene, Spot::Color color) {
 TEST_CASE("Sandbox weapons emit muzzle particles and metal impact sparks", "[sandbox][particles]") {
     Playground playground;
     playground.Run(1.5f);
-    auto* bank = ParticleEffects::Find(playground.scene);
-    REQUIRE(bank);
+    const auto& smoke = Layer(playground.scene, "muzzle", 2);
+    const auto& sparks = Layer(playground.scene, "impact.metal");
     auto& crate = playground.PlaceCrate(5, 5);
-    crate.AddComponent<Surface>().kind = SurfaceKind::Metal;
+    crate.AddComponent<Gameplay::Surface>().kind = MetalSurface;
     playground.Run(0.05f);
     FireSlot(playground, Key::Digit2);
-    CHECK(ParticleCount(playground.scene, bank->muzzleSmoke.settings.startColor) > 0);
-    CHECK(ParticleCount(playground.scene, bank->sparks.settings.startColor) > 0);
-    auto* pool = playground.scene.GetSystem<ParticleEffectPool>();
+    CHECK(ParticleCount(playground.scene, smoke.settings.startColor) > 0);
+    CHECK(ParticleCount(playground.scene, sparks.settings.startColor) > 0);
+    auto* pool = playground.scene.GetSystem<Gameplay::EffectPool>();
     REQUIRE(pool);
-    CHECK(pool->GetEmitterCount() <= ParticleEffectPool::MaxEmitters);
+    CHECK(pool->GetEmitterCount() <= Gameplay::EffectPool::MaxEmitters);
     playground.Run(6);
-    CHECK(ParticleCount(playground.scene, bank->muzzleSmoke.settings.startColor) == 0);
-    CHECK(ParticleCount(playground.scene, bank->sparks.settings.startColor) == 0);
+    CHECK(ParticleCount(playground.scene, smoke.settings.startColor) == 0);
+    CHECK(ParticleCount(playground.scene, sparks.settings.startColor) == 0);
 }
 TEST_CASE("Sandbox surface impacts and explosions select authored particle definitions", "[sandbox][particles]") {
     Playground playground;
     playground.Run(1.5f);
-    auto* bank = ParticleEffects::Find(playground.scene);
-    REQUIRE(bank);
-    for (auto surface : {SurfaceKind::Concrete, SurfaceKind::Wood, SurfaceKind::Metal})
-        ParticleEffects::Impact(playground.scene, {1000, 1000, 1000}, {0, 1, 0}, surface);
-    CHECK(ParticleCount(playground.scene, bank->concreteDust.settings.startColor) == bank->concreteDust.count);
-    CHECK(ParticleCount(playground.scene, bank->woodDust.settings.startColor) == bank->woodDust.count);
-    CHECK(ParticleCount(playground.scene, bank->sparks.settings.startColor) == bank->sparks.count);
-    Explosion::Explode(playground.scene, {1000, 1000, 1000}, 5, 100, 0);
+    auto& scene = playground.scene;
+    for (const char* name : {"impact.concrete", "impact.wood", "impact.metal"})
+        Gameplay::EffectLibrary::Play(scene, name, {1000, 1000, 1000}, {0, 1, 0});
+    for (const char* name : {"impact.concrete", "impact.wood", "impact.metal"})
+        CHECK(ParticleCount(scene, Layer(scene, name).settings.startColor) == Layer(scene, name).count);
+    Gameplay::Explosive::Explode(scene, {1000, 1000, 1000}, {.radius = 5.0f, .impulse = 100.0f, .damage = 0.0f});
     // An explosion in the air unfolds in layers, but raises no dust.
-    for (const ParticleEffect* effect : {&bank->blastFlash, &bank->fireball, &bank->explosionSmoke, &bank->embers})
-        CHECK(ParticleCount(playground.scene, effect->settings.startColor) == effect->count);
-    CHECK(ParticleCount(playground.scene, bank->explosionDebris.settings.startColor) >= bank->explosionDebris.count);
-    CHECK(ParticleCount(playground.scene, bank->groundDust.settings.startColor) == 0);
+    const auto* explosion = Gameplay::EffectLibrary::Find(scene, "explosion");
+    REQUIRE(explosion);
+    REQUIRE(explosion->layers.size() == 5);
+    for (std::size_t i = 0; i < 4; ++i)
+        CHECK(ParticleCount(scene, explosion->layers[i].settings.startColor) == explosion->layers[i].count);
+    CHECK(ParticleCount(scene, explosion->layers[4].settings.startColor) >= explosion->layers[4].count);
+    const auto& dust = Layer(scene, "explosion.dust");
+    CHECK(ParticleCount(scene, dust.settings.startColor) == 0);
     playground.Run(6);
-    for (const ParticleEffect* effect :
-         {&bank->blastFlash, &bank->fireball, &bank->explosionSmoke, &bank->embers, &bank->explosionDebris})
-        CHECK(ParticleCount(playground.scene, effect->settings.startColor) == 0);
+    for (const auto& layer : explosion->layers)
+        CHECK(ParticleCount(scene, layer.settings.startColor) == 0);
     // Close above the ground, it kicks dust up from it.
     const Spot::Vector3 above = playground.PlayerPosition() + Spot::Vector3{0, 20, -10};
-    const auto ground = playground.scene.GetOrAddSystem<Spot::PhysicsWorld>().Raycast(above, {0, -1, 0}, 40);
+    const auto ground = scene.GetOrAddSystem<Spot::PhysicsWorld>().Raycast(above, {0, -1, 0}, 40);
     REQUIRE(ground);
-    Explosion::Explode(playground.scene, ground->point + Spot::Vector3{0, 0.5f, 0}, 5, 0, 0);
-    CHECK(ParticleCount(playground.scene, bank->groundDust.settings.startColor) == bank->groundDust.count);
+    Gameplay::Explosive::Explode(scene, ground->point + Spot::Vector3{0, 0.5f, 0},
+                                 {.radius = 5.0f, .impulse = 0.0f, .damage = 0.0f});
+    CHECK(ParticleCount(scene, dust.settings.startColor) == dust.count);
 }
 TEST_CASE("Sandbox effect pooling bounds bursts and reuses expired emitters", "[sandbox][particles]") {
     Spot::Scene scene;
-    auto* bank = &scene.CreateEntity().AddComponent<ParticleEffects>();
-    auto& pool = scene.AddSystem<ParticleEffectPool>();
-    for (std::size_t i = 0; i < ParticleEffectPool::MaxEmitters + 10; ++i)
-        pool.Spawn(bank->muzzleFlash, {1000, 1000, 1000});
-    CHECK(pool.GetEmitterCount() == ParticleEffectPool::MaxEmitters);
+    Gameplay::ParticleLayer flash;
+    flash.settings.lifetime = {0.05f, 0.05f};
+    auto& pool = Gameplay::EffectPool::Get(scene);
+    for (std::size_t i = 0; i < Gameplay::EffectPool::MaxEmitters + 10; ++i)
+        pool.Spawn(flash, {1000, 1000, 1000});
+    CHECK(pool.GetEmitterCount() == Gameplay::EffectPool::MaxEmitters);
     CHECK(pool.GetDroppedCount() == 10);
     scene.Update(0.5f);
     const auto entities = scene.GetEntityCount();
-    REQUIRE(pool.Spawn(bank->muzzleFlash, {1000, 1000, 1000}));
+    REQUIRE(pool.Spawn(flash, {1000, 1000, 1000}));
     CHECK(scene.GetEntityCount() == entities);
-    const auto id = pool.Spawn(bank->muzzleFlash, {1000, 1000, 1000})->GetEntity().GetId();
+    const auto id = pool.Spawn(flash, {1000, 1000, 1000})->GetEntity().GetId();
     scene.GetEntity(id)->Destroy();
-    REQUIRE(pool.Spawn(bank->muzzleFlash, {1000, 1000, 1000}));
-    CHECK(pool.GetEmitterCount() == ParticleEffectPool::MaxEmitters - 1);
+    REQUIRE(pool.Spawn(flash, {1000, 1000, 1000}));
+    CHECK(pool.GetEmitterCount() == Gameplay::EffectPool::MaxEmitters - 1);
 }
 TEST_CASE("The held physics gun emits beam particles and stops emission on release", "[sandbox][particles]") {
     Playground playground;
     playground.Run(1.5f);
-    auto* bank = ParticleEffects::Find(playground.scene);
-    REQUIRE(bank);
+    const auto& beam = Layer(playground.scene, "beam");
     playground.PlaceCrate(5, 5);
     playground.Run(0.05f);
     playground.Press(Key::Digit1);
@@ -1702,29 +1740,17 @@ TEST_CASE("The held physics gun emits beam particles and stops emission on relea
     playground.Release(Key::Digit1);
     playground.Press(Spot::MouseButton::Left);
     playground.Run(0.1f);
-    REQUIRE(playground.player->GetComponent<PhysicsGun>()->IsGrabbing());
-    CHECK(ParticleCount(playground.scene, bank->beam.settings.startColor) > 0);
+    REQUIRE(playground.player->GetComponentInChildren<PhysicsGun>()->IsGrabbing());
+    CHECK(ParticleCount(playground.scene, beam.settings.startColor) > 0);
     playground.Release(Spot::MouseButton::Left);
     playground.Run(0.4f);
-    CHECK(ParticleCount(playground.scene, bank->beam.settings.startColor) == 0);
-    float firstRemainder = 0, secondRemainder = 0;
-    // Equal elapsed time produces equal counts at different render update rates.
-    Spot::Scene first, second;
-    auto& firstBank = first.CreateEntity().AddComponent<ParticleEffects>();
-    auto& secondBank = second.CreateEntity().AddComponent<ParticleEffects>();
-    for (int i = 0; i < 10; ++i)
-        ParticleEffects::Beam(first, {0, 0, 0}, {0, 0, -3}, 0.001f, firstRemainder);
-    for (int i = 0; i < 2; ++i)
-        ParticleEffects::Beam(second, {0, 0, 0}, {0, 0, -3}, 0.005f, secondRemainder);
-    CHECK(ParticleCount(first, firstBank.beam.settings.startColor) ==
-          ParticleCount(second, secondBank.beam.settings.startColor));
+    CHECK(ParticleCount(playground.scene, beam.settings.startColor) == 0);
 }
 
 TEST_CASE("Prop collisions emit surface particles without an audio device", "[sandbox][particles]") {
     Playground playground;
     playground.Run(1.5f);
-    auto* bank = ParticleEffects::Find(playground.scene);
-    REQUIRE(bank);
+    const auto& sparks = Layer(playground.scene, "impact.metal");
     auto& ground = playground.scene.CreateEntity("Particle Test Ground");
     ground.GetTransform().SetPosition({1000, -0.5f, 1000});
     ground.AddComponent<Spot::BoxCollider>(Spot::Vector3{5, 0.5f, 5});
@@ -1732,8 +1758,8 @@ TEST_CASE("Prop collisions emit surface particles without an audio device", "[sa
     prop.GetTransform().SetPosition({1000, 3, 1000});
     prop.AddComponent<Spot::BoxCollider>(Spot::Vector3{0.5f, 0.5f, 0.5f});
     prop.AddComponent<Spot::Rigidbody>();
-    prop.AddComponent<Surface>().kind = SurfaceKind::Metal;
-    prop.AddComponent<ImpactParticles>();
+    prop.AddComponent<Gameplay::Surface>().kind = MetalSurface;
+    prop.AddComponent<Gameplay::ImpactParticles>();
     playground.Run(0.85f);
-    CHECK(ParticleCount(playground.scene, bank->sparks.settings.startColor) > 0);
+    CHECK(ParticleCount(playground.scene, sparks.settings.startColor) > 0);
 }

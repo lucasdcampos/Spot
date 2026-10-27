@@ -38,6 +38,7 @@ library with a loop of its own ([`own_loop`](../../examples/own_loop/main.cpp)),
 | [Editor](editor.md) | The editor's documents, panels, undo, play mode and game code reloading |
 | [Tools and the command line](tools_and_command_line.md) | Projects, cooking, building, running and exporting games with `spot` |
 | [Sandbox](sandbox.md) | Running the playground, prefab spawnables, controls and a play-test checklist |
+| [Sandbox gameplay framework](sandbox_gameplay.md) | The sandbox's gameplay as independent systems that games can take, and its rules |
 | [Sandbox release](sandbox_release.md) | Release exports, runtime libraries, relocation checks and platform acceptance |
 | [Releases and installation](releases.md) | The installed engine's layout, the release workflow, the installers and `spot update` |
 
@@ -61,10 +62,10 @@ leaves it out. A module header compiles on its own (`tests/module_headers/`).
 | `platform/` | `<spot/platform.h>` | Windows, events, the input state and actions, processes, shared libraries, the crash handler, RenderDoc capture; SDL3 behind `platform/sdl3/` |
 | `assets/` | `<spot/assets.h>` | Loading imported assets, the built-in assets and their primitive meshes (`PrimitiveMeshes`) |
 | `graphics/` | `<spot/graphics.h>` | The graphics API and its backends (rendering level 1), and the CPU data it uploads: images and meshes (`MeshData`) |
-| `render/`, `audio/`, `physics/`, `animation/`, `particles/` | `<spot/render.h>`, `<spot/audio.h>`… | The systems' APIs, without scenes: the code-only renderers (rendering level 2), the mixer, the physics simulations, poses and clips, particle simulation |
+| `render/`, `audio/`, `physics/`, `animation/`, `particles/` | `<spot/render.h>`, `<spot/audio.h>`â€¦ | The systems' APIs, without scenes: the code-only renderers (rendering level 2), the mixer, the physics simulations, poses and clips, particle simulation |
 | `scene/` | `<spot/scene.h>` | Entities, components, scenes, scene systems, prefab instancing, tweens, timers, tasks and signals |
 | `runtime/` | `<spot/runtime.h>` | `Application`, the default game loop with scenes, and what runs a game: settings, the console, save data, profile streaming, game modules |
-| `scene/<module>/`: `scene/rendering/`, `scene/physics/`, `scene/audio/`, `scene/ui/`… | `<spot/modules.h>` | Each system's components and scene systems, built on its public API (rendering level 3): `MeshRenderer`, `Rigidbody`, `PhysicsWorld`, `SceneRenderer`, the entity-based UI |
+| `scene/<module>/`: `scene/rendering/`, `scene/physics/`, `scene/audio/`, `scene/ui/`â€¦ | `<spot/modules.h>` | Each system's components and scene systems, built on its public API (rendering level 3): `MeshRenderer`, `Rigidbody`, `PhysicsWorld`, `SceneRenderer`, the entity-based UI |
 | `scene/scripting/` | `<spot/scripting.h>` | Luau scripts and their bindings |
 | `import/`, then `tools/`, `cli/`, `player/` and `editor/` outside the engine | | Importing and making games out of projects, which games never link |
 

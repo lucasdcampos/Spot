@@ -1,0 +1,947 @@
+{
+  "entities": [
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "viewCamera": 20,
+            "mainRotor": 30,
+            "tailRotor": 31,
+            "controls": {
+              "accelerate": "Accelerate",
+              "brake": "Brake",
+              "steer": "Move",
+              "handbrake": "",
+              "ascend": "Jump",
+              "descend": "Crouch"
+            }
+          },
+          "enabled": true,
+          "id": "17181aa71b04487491caa93c5ef63230",
+          "type": "Helicopter"
+        },
+        {
+          "data": {
+            "seat": 21,
+            "exits": [
+              22,
+              23,
+              24
+            ],
+            "exitAction": "Use",
+            "ejectWhen": [
+              "Dead"
+            ],
+            "prompt": "Pilot"
+          },
+          "enabled": true,
+          "id": "84b8528f727d481990185917a4028207",
+          "type": "VehicleSeat"
+        },
+        {
+          "data": {
+            "center": [
+              0,
+              1.5,
+              -0.3
+            ],
+            "size": [
+              1.78,
+              1.8,
+              3.7
+            ],
+            "friction": 0.65,
+            "restitution": 0.05,
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "6eeb9cba1adb4d1a882e6eaf15e6a473",
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "center": [
+              0,
+              1.83,
+              3.9
+            ],
+            "size": [
+              0.4,
+              0.4,
+              4.35
+            ],
+            "friction": 0.65,
+            "restitution": 0.05,
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "9fd43682dd174e12815f0df1fe783221",
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "center": [
+              0,
+              2.45,
+              5.86
+            ],
+            "size": [
+              0.15,
+              1.45,
+              0.85
+            ],
+            "friction": 0.65,
+            "restitution": 0.05,
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "92ae43bfd63540c98162620dc3e21c01",
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "center": [
+              -1.14,
+              0.1,
+              0.05
+            ],
+            "size": [
+              0.14,
+              0.18,
+              3.8
+            ],
+            "friction": 0.65,
+            "restitution": 0.05,
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "73bd7e2966034be6a79b608aa14bc2b3",
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "center": [
+              1.14,
+              0.1,
+              0.05
+            ],
+            "size": [
+              0.14,
+              0.18,
+              3.8
+            ],
+            "friction": 0.65,
+            "restitution": 0.05,
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "17387e4f468f4f9198785b4df69e6195",
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "damagePerSpeed": 10.0,
+            "damageType": "Impact",
+            "impulsePerSpeed": 80.0,
+            "minSpeed": 2.0
+          },
+          "enabled": true,
+          "id": "710147ea996c4224a06fe5be35ecd914",
+          "type": "ImpactDamage"
+        },
+        {
+          "data": {
+            "angularDamping": 0.08,
+            "angularVelocity": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "canSleep": true,
+            "continuous": true,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "linearVelocity": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mass": 900.0,
+            "rotationLocks": {
+              "x": false,
+              "y": false,
+              "z": false
+            }
+          },
+          "enabled": true,
+          "id": "ba5a0e7e42ef42999722f0a3b6050981",
+          "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 2
+          },
+          "enabled": true,
+          "id": "079c5fb689ce49d6b210ce16c1217faf",
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 10.0,
+            "minSpeed": 1.5
+          },
+          "enabled": true,
+          "id": "15ce41bba1a0484e992193d4096ab6ce",
+          "type": "ImpactSounds"
+        },
+        {
+          "data": {
+            "minSpeed": 2.0
+          },
+          "enabled": true,
+          "id": "977c220d7b2a4bdb82270341c604d862",
+          "type": "ImpactParticles"
+        },
+        {
+          "data": {
+            "category": 0,
+            "clearance": 0.05,
+            "order": 17
+          },
+          "enabled": true,
+          "id": "c3cd3a6be32b4eccadc55b5a947eaee4",
+          "type": "Spawnable"
+        },
+        {
+          "data": {},
+          "enabled": true,
+          "id": "c4483e6919fc486e89be58dcf44455d0",
+          "type": "Persistent"
+        }
+      ],
+      "id": 1,
+      "layer": 0,
+      "name": "Helicopter",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [],
+      "id": 2,
+      "layer": 0,
+      "name": "Model",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "mesh": "852fbc4774f984f61bf8f1d0217ae935",
+            "material": "b8fe81a160a48d4d576e8e325c572666",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "e84514fb7f98492eb309ce0355453439",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 3,
+      "layer": 0,
+      "name": "Body",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 2
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": false,
+            "mesh": "1408311082a249f9ca4652b94136da0d",
+            "material": "f1a5942c5bfc210258a93d90e8d92ec3",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "25b11c5097484b00a58cd73b819ad466",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 4,
+      "layer": 0,
+      "name": "Glass",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 2
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "mesh": "cccd4b81626f7295803dd4806cd9c169",
+            "material": "5319e3d2b2151b2deead1430d97b904c",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "6fb3a5bdb84247e0b2616e4735515a7b",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 5,
+      "layer": 0,
+      "name": "Metal",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 2
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "mesh": "5762fb09c8ebb368f7505c50deb78c04",
+            "material": "58861f3ad10083552fe10ac7aa69d7ea",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "f0d1b076de32417091033ae876426c20",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 6,
+      "layer": 0,
+      "name": "Interior",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 2
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "mesh": "55e05d7285399ca537869a76060ac4e2",
+            "material": "e5b439c7103f9ebf8ae7ed14c3ebad53",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "af00d9a47b9641cabeb559131546d0ec",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 7,
+      "layer": 0,
+      "name": "Accent",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 2
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "mesh": "c60647891e7433b1571ba1d2cbf20358",
+            "material": "73bc8ce41e227f023e4d8bee8cd4ead5",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "842252aae3cb4b3b826fcb29aa191562",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 8,
+      "layer": 0,
+      "name": "NavRed",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 2
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "mesh": "a2d796096c932b3cbcb5c4f3c7b24347",
+            "material": "f94d05c166d955579e05621703192793",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "a2944dc01c744ba8a9ea82d0d455db27",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 9,
+      "layer": 0,
+      "name": "NavGreen",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 2
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "mesh": "76912c4819377be9799e0b6c256da2ca",
+            "material": "519be8502be448df36652cde6f1d828a",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "e37d13cac9bd499690610acc6375122a",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 10,
+      "layer": 0,
+      "name": "MainRotor",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 30
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "mesh": "e961c3997e797633675c66223391e915",
+            "material": "fef7cb78711638bc006af2d6b0f748c2",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "01f20a99e3a24e8c824596b0d7a361c5",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 11,
+      "layer": 0,
+      "name": "MainTips",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 30
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "mesh": "574a03cf08dae52c4b1c0b9aa244c3a6",
+            "material": "159ee013ee5e3b4d3de1facbb4f723e1",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "724427e8112546bebe9e5f273d2164c6",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 12,
+      "layer": 0,
+      "name": "TailRotor",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 31
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "mesh": "b3ac9736dab407390a0e5116acec60c9",
+            "material": "50894ec2563ad643e43ba19af040211c",
+            "submesh": 0
+          },
+          "enabled": true,
+          "id": "8422d30c49574b7290e1651f675a506f",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 13,
+      "layer": 0,
+      "name": "TailTips",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 31
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "background": [
+              0.12,
+              0.13,
+              0.15,
+              1.0
+            ],
+            "cullingMask": 4294967295,
+            "farPlane": 1000.0,
+            "fieldOfView": 1.1344640254974365,
+            "nearPlane": 0.1,
+            "orthographicSize": 5.0,
+            "pixelPerfect": {
+              "enabled": false,
+              "pixelsPerUnit": 100.0,
+              "referenceResolution": [
+                320.0,
+                180.0
+              ]
+            },
+            "projection": 0
+          },
+          "enabled": false,
+          "id": "fec47f70c1fd49868e700b1247e91c6d",
+          "type": "Camera"
+        },
+        {
+          "data": {
+            "distance": 10.5,
+            "lookHeight": 1.9,
+            "pitch": 0.24,
+            "speedFieldOfView": 0.1
+          },
+          "enabled": true,
+          "id": "10133c9e9eb948b5a7581b6327958823",
+          "type": "ChaseCamera"
+        }
+      ],
+      "id": 20,
+      "layer": 0,
+      "name": "Camera",
+      "position": [
+        0,
+        4.5,
+        10.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [],
+      "id": 21,
+      "layer": 0,
+      "name": "Pilot Seat",
+      "position": [
+        -0.43,
+        1.05,
+        -0.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [],
+      "id": 22,
+      "layer": 0,
+      "name": "Exit Left",
+      "position": [
+        -1.95,
+        0,
+        -0.6
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [],
+      "id": 23,
+      "layer": 0,
+      "name": "Exit Right",
+      "position": [
+        1.95,
+        0,
+        -0.6
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [],
+      "id": 24,
+      "layer": 0,
+      "name": "Exit Front",
+      "position": [
+        0,
+        0,
+        -3.3
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "bus": "Effects",
+            "loop": true,
+            "pitch": 1.0,
+            "playOnStart": false,
+            "sound": "f73826ed1f78b956e28cf440381b86ac",
+            "spatial": true,
+            "spatialSettings": {
+              "maxDistance": 110.0,
+              "minDistance": 4.0,
+              "rolloff": 0
+            },
+            "volume": 0.8
+          },
+          "enabled": true,
+          "id": "3bc4551e1ac64fafb51637a2194f39ca",
+          "type": "AudioSource"
+        },
+        {
+          "data": {
+            "recordedRpm": 420.0
+          },
+          "enabled": true,
+          "id": "d7824ff11b95464998e6330e0165ca5a",
+          "type": "VehicleEngineSound"
+        }
+      ],
+      "id": 25,
+      "layer": 0,
+      "name": "Rotor Sound",
+      "position": [
+        0,
+        2.5,
+        0.3
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [],
+      "id": 30,
+      "layer": 0,
+      "name": "Main Rotor",
+      "position": [
+        0,
+        3.25,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [],
+      "id": 31,
+      "layer": 0,
+      "name": "Tail Rotor",
+      "position": [
+        0.28,
+        2.1,
+        5.9
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    }
+  ],
+  "format": "spot-scene",
+  "version": 2
+}

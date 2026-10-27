@@ -2,13 +2,12 @@
 #include <spot/scene/physics/physics_world.h>
 #include <spot/scene/rendering/render_hook_system.h>
 
-#include "player_controller.h"
-#include "prop_carrier.h"
-#include "prop_spawner.h"
 #include "sound_bank.h"
 #include "undo_list.h"
-#include "view_model.h"
-#include "weapon_holder.h"
+
+#include "gameplay/core/pawn.h"
+#include "gameplay/inventory/view_model.h"
+#include "gameplay/persistence/world_save.h"
 
 #include <algorithm>
 #include <array>
@@ -36,6 +35,14 @@ bool IsProp(const Spot::Entity& entity) {
 }
 
 } // namespace
+
+ToolGun::ToolGun() : HeldItem({"Fire", "Aim", "Reload"}) {
+    displayName = "Tool Gun";
+}
+
+UndoList* ToolGun::GetUndo() const {
+    return GetEntity().GetComponentInParent<UndoList>();
+}
 
 void ToolGun::Click(Spot::Entity& entity, Spot::Vector3 point, Spot::Vector3 normal) {
     if (mode == Mode::Remover) {
@@ -84,7 +91,7 @@ Spot::FixedJoint* ToolGun::Weld(Spot::Entity& first, Spot::Entity& second) {
     }
     auto& joint = first.AddComponent<Spot::FixedJoint>();
     joint.SetConnectedEntity(second.GetId());
-    if (auto* undo = GetEntity().GetComponent<UndoList>()) {
+    if (auto* undo = GetUndo()) {
         undo->PushJoint(first.GetId(), first.GetComponentIndex(joint));
     }
     return &joint;
@@ -100,7 +107,7 @@ Spot::DistanceJoint* ToolGun::Rope(Spot::Entity& first, Spot::Vector3 firstPoint
     joint.SetConnectedEntity(second.GetId());
     joint.SetConnectedAnchor(ToLocal(second.GetTransform(), secondPoint));
     joint.SetDistance(0.0f, Spot::Distance(firstPoint, secondPoint));
-    if (auto* undo = GetEntity().GetComponent<UndoList>()) {
+    if (auto* undo = GetUndo()) {
         undo->PushJoint(first.GetId(), first.GetComponentIndex(joint));
     }
     return &joint;
@@ -110,7 +117,7 @@ bool ToolGun::Remove(Spot::Entity& entity) {
     if (!IsProp(entity)) {
         return false;
     }
-    if (auto* undo = GetEntity().GetComponent<UndoList>()) {
+    if (auto* undo = GetUndo()) {
         undo->PushRemoval(entity);
     }
     entity.Destroy();
@@ -127,7 +134,7 @@ bool ToolGun::Paint(Spot::Entity& entity, Spot::Color paint) {
     // Glass keeps how much it lets through.
     painted.baseColor = {paint.r, paint.g, paint.b, painted.baseColor.a};
     renderer->SetMaterial(std::move(painted));
-    if (auto* undo = GetEntity().GetComponent<UndoList>()) {
+    if (auto* undo = GetUndo()) {
         undo->PushMaterial(entity.GetId(), previous);
     }
     return true;
@@ -140,7 +147,7 @@ bool ToolGun::ApplyMaterial(Spot::Entity& entity, const Spot::AssetRef<Spot::Mat
     }
     const Spot::AssetRef<Spot::Material> previous = renderer->GetMaterial();
     renderer->SetMaterial(newMaterial);
-    if (auto* undo = GetEntity().GetComponent<UndoList>()) {
+    if (auto* undo = GetUndo()) {
         undo->PushMaterial(entity.GetId(), previous);
     }
     return true;
@@ -169,6 +176,10 @@ Spot::Entity* ToolGun::PlaceLamp(Spot::Entity& surface, Spot::Vector3 point, Spo
     }
     const Spot::Vector3 out = Spot::LengthSquared(normal) > 1e-6f ? Spot::Normalize(normal) : Spot::Vector3{0, 1, 0};
     placed->AddTag(LampTag);
+    // Lamps on the level are saved with the world; those on props, with their props.
+    if (!placed->GetParent() && !placed->HasComponent<Gameplay::Persistent>()) {
+        placed->AddComponent<Gameplay::Persistent>();
+    }
     placed->GetTransform().SetWorldPosition(point + out * 0.12f);
     // Lights shine down their entity's -Z, out of the surface.
     placed->GetTransform().SetWorldRotation(Spot::Quaternion::LookRotation(out));
@@ -181,7 +192,7 @@ Spot::Entity* ToolGun::PlaceLamp(Spot::Entity& surface, Spot::Vector3 point, Spo
                                  bulbMaterial.emissive.b * lampColor.b, bulbMaterial.emissive.a};
         bulb->SetMaterial(bulbMaterial);
     }
-    if (auto* undo = GetEntity().GetComponent<UndoList>()) {
+    if (auto* undo = GetUndo()) {
         undo->PushSpawn(placed->GetId());
     }
     return placed;
@@ -200,32 +211,25 @@ bool ToolGun::RemoveLampNear(Spot::Vector3 point) {
     if (!nearest) {
         return false;
     }
-    if (auto* undo = GetEntity().GetComponent<UndoList>()) {
+    if (auto* undo = GetUndo()) {
         undo->PushRemoval(*nearest);
     }
     nearest->Destroy();
     return true;
 }
 
-bool ToolGun::IsInHand() const {
-    const auto* holder = GetEntity().GetComponent<WeaponHolder>();
-    return holder && holder->IsToolGunSelected();
-}
-
-void ToolGun::OnUpdate(float /*deltaTime*/) {
+void ToolGun::OnUse(const Gameplay::ItemInput& input) {
     namespace Input = Spot::Input;
-    if (!IsInHand()) {
+    if (!input.active) {
         m_first.reset();
         return;
     }
-    if (Input::IsActionPressed("Reload")) {
+    if (input.IsPressed("Reload")) {
         SoundBank::PlayClick(GetScene());
-        mode = static_cast<Mode>((static_cast<int>(mode) + 1) % 6);
+        mode = static_cast<Mode>((static_cast<int>(mode) + 1) % static_cast<int>(ModeNames.size()));
         m_first.reset();
     }
-    const auto* spawner = GetEntity().GetComponent<PropSpawner>();
-    if (Input::IsActionPressed("Aim") && (mode == Mode::Color || mode == Mode::Material || mode == Mode::Lamp) &&
-        !(spawner && spawner->HasClick())) {
+    if (input.IsPressed("Aim") && (mode == Mode::Color || mode == Mode::Material || mode == Mode::Lamp)) {
         SoundBank::PlayClick(GetScene());
         if (mode == Mode::Color) {
             color = (color + 1) % static_cast<int>(Palette.size());
@@ -235,16 +239,14 @@ void ToolGun::OnUpdate(float /*deltaTime*/) {
             material = (material + 1) % std::max(static_cast<int>(materials.size()), 1);
         }
     }
-    const auto* player = GetEntity().GetComponent<PlayerController>();
-    const auto* carrier = GetEntity().GetComponent<PropCarrier>();
-    const auto* holder = GetEntity().GetComponent<WeaponHolder>();
-    if (!player || !Input::IsCursorLocked() || !Input::IsActionPressed("Fire") || (carrier && carrier->HasClick()) ||
-        (holder && !holder->CanUseItem())) {
+    const Gameplay::Pawn* pawn = GetPawn();
+    if (!pawn || !Input::IsCursorLocked() || !input.IsPressed("Fire") || !input.canUse) {
         return;
     }
-    const auto hit = GetScene().GetOrAddSystem<Spot::PhysicsWorld>().Raycast(
-        player->GetEyePosition(), player->GetAimDirection(), range, {.ignore = GetEntity().GetId()});
-    if (auto* view = GetEntity().GetComponent<ViewModel>()) {
+    const Gameplay::ViewPoint eyes = pawn->GetViewPoint();
+    const auto hit = GetScene().GetOrAddSystem<Spot::PhysicsWorld>().Raycast(eyes.position, eyes.direction, range,
+                                                                             {.ignore = pawn->GetEntity().GetId()});
+    if (auto* view = pawn->GetEntity().GetComponent<Gameplay::ViewModel>()) {
         view->Kick(0.015f);
     }
     if (Spot::Entity* entity = hit ? GetScene().GetEntity(hit->entity) : nullptr) {
@@ -259,6 +261,7 @@ void ToolGun::OnEnable() {
 }
 
 void ToolGun::OnDisable() {
+    m_first.reset();
     GetScene().GetOrAddSystem<Spot::RenderHookSystem>().RemoveRenderHook(m_ropeHook);
     m_ropes.clear();
 }
@@ -280,10 +283,27 @@ void ToolGun::ToolMaterial::Serialize(Spot::Archive& archive) {
     archive.Field("material", material);
 }
 
+Gameplay::ItemStatus ToolGun::DescribeStatus() const {
+    Gameplay::ItemStatus status = HeldItem::DescribeStatus();
+    status.count = ModeNames[static_cast<std::size_t>(mode)];
+    status.countIsWord = true;
+    status.summary = status.count;
+    if (mode == Mode::Color) {
+        status.detail = Palette[static_cast<std::size_t>(color) % Palette.size()].name;
+    } else if (mode == Mode::Material && !materials.empty()) {
+        status.detail = materials[static_cast<std::size_t>(material) % materials.size()].name;
+    } else if (mode == Mode::Lamp) {
+        status.detail = LampNames[static_cast<std::size_t>(lamp)];
+    }
+    const bool options = mode == Mode::Color || mode == Mode::Material || mode == Mode::Lamp;
+    status.hints = options ? std::vector<Gameplay::InputHint>{{"Fire", "Use"}, {"Aim", "Option"}, {"Reload", "Mode"}}
+                           : std::vector<Gameplay::InputHint>{{"Fire", "Use"}, {"Reload", "Mode"}, {"Undo", "Undo"}};
+    return status;
+}
+
 void ToolGun::Serialize(Spot::Archive& archive) {
-    archive.Field("icon", icon, {.tooltip = "What the HUD and the weapon wheel show for it"});
-    static constexpr std::array<std::string_view, 6> Modes = {"Weld", "Rope", "Remover", "Color", "Material", "Lamp"};
-    archive.Field("mode", mode, {.enumNames = Modes});
+    HeldItem::Serialize(archive);
+    archive.Field("mode", mode, {.enumNames = ModeNames});
     archive.Field("lamp", lamp, {.enumNames = LampNames, .tooltip = "The lamp Lamp mode places"});
     archive.Field("color", color, {.min = 0.0f, .max = 7.0f, .tooltip = "The palette color Color mode paints in"});
     archive.Field("materials", materials, {.tooltip = "The materials Material mode gives, which Aim goes through"});

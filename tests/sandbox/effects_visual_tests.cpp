@@ -1,9 +1,9 @@
 #include "../registered_assets.h"
-#include "day_cycle.h"
-#include "explosion.h"
-#include "flash.h"
-#include "particle_effects.h"
-#include "water.h"
+#include "gameplay/weapons/explosive.h"
+
+#include "gameplay/effects/effect_library.h"
+#include "gameplay/environment/day_cycle.h"
+#include "gameplay/environment/water.h"
 #include <spot/scene/physics/physics_world.h>
 
 #include <spot.h>
@@ -15,6 +15,9 @@
 #include <filesystem>
 #include <string>
 #include <vector>
+
+using Gameplay::DayCycle;
+using Gameplay::Water;
 
 TEST_CASE("The cooked sandbox draws explosions, muzzle flashes and splashes", "[gpu][sandbox][offscreen]") {
     if (!Spot::GraphicsDevice::IsSupported()) {
@@ -35,8 +38,8 @@ TEST_CASE("The cooked sandbox draws explosions, muzzle flashes and splashes", "[
     REQUIRE(settings);
     auto scene = Spot::InstantiateScene(assets, settings->startupScene);
     REQUIRE(scene);
-    scene->ForEachComponent<Spot::Camera>([](Spot::Camera& camera) { camera.SetEnabled(false); });
     scene->Update(0.0f);
+    scene->ForEachComponent<Spot::Camera>([](Spot::Camera& camera) { camera.SetEnabled(false); });
     // The HUD would cover the views.
     if (auto* game = scene->FindEntity("Game")) {
         game->ForEachChild([](Spot::Entity& child) { child.SetActive(false); });
@@ -88,7 +91,7 @@ TEST_CASE("The cooked sandbox draws explosions, muzzle flashes and splashes", "[
     look(blast + Spot::Vector3{-16, 4, 0}, blast + Spot::Vector3{0, 3, 0});
     run(0.1f);
     const auto before = draw("effects_before.png");
-    Explosion::Explode(*scene, blast, 5.0f, 0.0f, 0.0f);
+    Gameplay::Explosive::Explode(*scene, blast, {.radius = 5.0f, .impulse = 0.0f, .damage = 0.0f});
     const std::array<std::pair<float, const char*>, 4> stages{{{0.05f, "explosion_flash.png"},
                                                                {0.3f, "explosion_fireball.png"},
                                                                {1.0f, "explosion_smoke.png"},
@@ -108,8 +111,7 @@ TEST_CASE("The cooked sandbox draws explosions, muzzle flashes and splashes", "[
     look(muzzle + Spot::Vector3{0, 0.1f, 1.2f}, muzzle + Spot::Vector3{0.3f, 0, 0});
     run(0.05f);
     const auto noFlash = draw("muzzle_before.png");
-    Flash::Spawn(*scene, muzzle, {1.0f, 0.75f, 0.4f, 1.0f}, 5.0f, 12.0f, 0.05f, 0.3f);
-    ParticleEffects::Muzzle(*scene, muzzle, {1, 0, 0}, 1.6f);
+    Gameplay::EffectLibrary::Play(*scene, "muzzle", muzzle, {1, 0, 0}, {.scale = 1.6f});
     run(0.02f);
     CHECK(differs(noFlash, draw("muzzle_flash.png")) > 0);
     run(0.3f);
@@ -127,7 +129,8 @@ TEST_CASE("The cooked sandbox draws explosions, muzzle flashes and splashes", "[
     CHECK(differs(calm, draw("pond_splash.png")) > 0);
     run(0.8f);
     draw("pond_ripples.png");
-    Explosion::Explode(*scene, middle + Spot::Vector3{1, 0, 3}, 5.0f, 0.0f, 0.0f);
+    Gameplay::Explosive::Explode(*scene, middle + Spot::Vector3{1, 0, 3},
+                                 {.radius = 5.0f, .impulse = 0.0f, .damage = 0.0f});
     run(0.4f);
     CHECK(differs(calm, draw("pond_plume.png")) > 960 * 540 / 100);
     run(1.2f);

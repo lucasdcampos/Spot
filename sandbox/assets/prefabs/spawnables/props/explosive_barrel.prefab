@@ -52,13 +52,21 @@
         },
         {
           "data": {
-            "fuse": 0.15,
+            "damage": 120.0,
             "impulse": 600.0,
             "radius": 6.0
           },
           "enabled": true,
           "id": "00000000000000010000000000000006",
-          "type": "ExplosiveBarrel"
+          "type": "Explosive"
+        },
+        {
+          "data": {
+            "fuse": 0.15
+          },
+          "enabled": true,
+          "id": "e491fb9520d026225b589ab09122162f",
+          "type": "IgniteOnDamage"
         },
         {
           "data": {
@@ -77,6 +85,12 @@
           "data": {
             "minSpeed": 1.5
           }
+        },
+        {
+          "data": {},
+          "enabled": true,
+          "id": "44f693b57cb4d6083dc65297bb1a8dd1",
+          "type": "Persistent"
         }
       ],
       "id": 1,

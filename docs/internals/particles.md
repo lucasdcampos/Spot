@@ -87,19 +87,20 @@ entries. Configuration edits still use normal undo and prefab overrides.
 
 ## Sandbox effects
 
-The playground's ParticleEffects component holds serialized definitions for the muzzle's flash, flame and smoke,
+The playground's `EffectLibrary` (in the sandbox's gameplay framework) holds named effects, each of particle layers, a
+light and a sound, for the muzzle's flash, flame and smoke,
 metal sparks, concrete and wood dust, the explosion's flash, fireball, smoke, embers, debris and ground dust, water's
-droplets, spray, mist, ripples and blasts' plume, and the physics-gun beam and tracers. Each definition contains ParticleSettings, a
-count, an optional imported texture and whether it is lit, which dims it with the daylight when spawned. Defaults use
+droplets, spray, mist, ripples and blasts' plume, and the physics-gun beam and tracers. Each layer contains ParticleSettings, a count, an optional imported texture, a scale and offset within the effect and
+whether it is lit, which dims it by the scene's light when spawned. Defaults use
 procedural discs, so effects need no GPU-loaded assets to simulate; the playground assigns generated textures. Tune
 definitions on the Game entity in the editor.
 
-WeaponHolder emits at the muzzle and raycast hit; surface markers select the impact. Explosions
+WeaponHolder plays "muzzle" and the `SurfaceLibrary`'s impact effect of the surface hit. Explosions
 emit their layers beside their light/sound/impulse, and water splashes emit theirs (see [Sandbox](sandbox.md)). Spawnable props carry a separate
 ImpactParticles component with a startup grace period and contact cooldown; it works without audio.
 The physics gun emits along its full held beam with a fractional, configurable rate accumulator.
 
-ParticleEffectPool owns at most 128 transient emitters by entity id. Each is capped at 512 particles
+`Gameplay::EffectPool` owns at most 128 transient emitters by entity id. Each is capped at 512 particles
 and five seconds of lifetime; expired emitters become inactive slots for reuse. Full pools drop new
 effects and expose a counter. Particle storage and per-slot configuration vectors retain capacity
 across resets; reusing configurations avoids recurring copies that allocate on beam updates. A new

@@ -2,6 +2,9 @@
 
 #include "spawnable.h"
 
+#include "gameplay/core/input_context.h"
+#include "gameplay/persistence/world_save.h"
+
 #include <spot.h>
 
 #include <optional>
@@ -19,8 +22,13 @@ struct SpawnableItem {
 // Discovers spawnable prefabs from the imported manifest. Spawn 1 to Spawn 8 choose the first entries, and Spawn
 // cycles through the complete catalog; UndoList can take them back, and Clean Up removes them all. A prop chosen in the
 // spawn menu is placed instead: a translucent preview of it follows the aim until Fire places it there or Aim cancels.
-class PropSpawner final : public Spot::Component {
+// While placing, and after until Fire and Aim are released, so the press that places or cancels uses nothing else, it
+// takes them from everything else, and the player is "Placing"; getting into a vehicle, or dying, cancels it. What it
+// spawns is Persistent, so saves keep it, and tagged as spawned, so it is tracked again after a save loads.
+class PropSpawner final : public Spot::Component, public Gameplay::SaveListener {
 public:
+    static constexpr std::string_view SpawnedTag = "Spawned";
+
     std::string folder = "prefabs/spawnables";
     float reach = 6.0f;
     // The preview's color, in its alpha how much it covers what is behind it.
@@ -35,8 +43,6 @@ public:
     void CancelPlacement();
     bool IsPlacing() const { return m_placing.has_value(); }
     std::optional<std::size_t> GetPlacingIndex() const { return m_placing; }
-    // While placing, and after until Fire and Aim are released, so the press that places or cancels uses nothing else.
-    bool HasClick() const { return IsPlacing() || m_holdingClick; }
     Spot::EntityId GetPreview() const { return m_preview; }
     void Cleanup();
     std::size_t GetSpawnedCount() const;
@@ -48,6 +54,7 @@ public:
     void ClearTracked() { m_spawned.clear(); }
 
 protected:
+    void OnAfterLoad(std::span<Spot::Entity* const> roots) override;
     void OnStart() override;
     void OnUpdate(float deltaTime) override;
     void OnLateUpdate(float deltaTime) override;
@@ -62,6 +69,8 @@ private:
     };
     std::optional<Placement> FindPlacement(const SpawnableItem& item) const;
     void UpdatePreview();
+    // Tells the pawn it is placing, for the crosshair to mark where.
+    void SetPlacing(bool placing);
 
     std::vector<SpawnableItem> m_spawnables;
     Spot::AssetManager* m_assets = nullptr;
@@ -71,5 +80,9 @@ private:
     std::size_t m_next = 0;
     std::optional<std::size_t> m_placing;
     Spot::EntityId m_preview = Spot::EntityId::Invalid;
+    Gameplay::InputContext m_input{{.name = "Spawn",
+                                    .actions = {"Spawn 1", "Spawn 2", "Spawn 3", "Spawn 4", "Spawn 5", "Spawn 6",
+                                                "Spawn 7", "Spawn 8", "Spawn", "Clean Up"}}};
+    Gameplay::InputContext m_place{{.name = "Place", .priority = 40, .actions = {"Fire", "Aim"}}};
     bool m_holdingClick = false;
 };
