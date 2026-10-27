@@ -128,6 +128,22 @@ void Water::Splash(Spot::Vector3 point, float strength) {
     }
 }
 
+void Water::Ripple(Spot::Vector3 point, float strength, float scale) {
+    if (!IsActiveAndEnabled() || !Covers(point) || !std::isfinite(strength) || strength <= 0.0f ||
+        !std::isfinite(scale) || scale <= 0.0f) {
+        return;
+    }
+    const auto* effect = EffectLibrary::Find(GetScene(), splashEffect + ".ripples");
+    if (!effect) {
+        return;
+    }
+    point.y = GetHeight() + 0.025f;
+    for (ParticleLayer layer : effect->layers) {
+        layer.settings.startColor.a *= std::min(strength, 1.0f);
+        EffectPool::Get(GetScene()).Spawn(layer, point, Up, std::clamp(scale, 0.1f, 4.0f) * layer.scale, 1);
+    }
+}
+
 void Water::OnFixedUpdate(float fixedDeltaTime) {
     Spot::Scene& scene = GetScene();
     const Spot::Transform& transform = GetEntity().GetTransform();

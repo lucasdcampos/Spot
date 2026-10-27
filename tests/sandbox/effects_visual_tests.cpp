@@ -1,9 +1,12 @@
 #include "../registered_assets.h"
 #include "gameplay/weapons/explosive.h"
 
+#include "gameplay/core/controller.h"
 #include "gameplay/effects/effect_library.h"
 #include "gameplay/environment/day_cycle.h"
 #include "gameplay/environment/water.h"
+#include "gameplay/vehicles/helicopter.h"
+#include "gameplay/vehicles/helicopter_downwash.h"
 #include <spot/scene/physics/physics_world.h>
 
 #include <spot.h>
@@ -135,4 +138,31 @@ TEST_CASE("The cooked sandbox draws explosions, muzzle flashes and splashes", "[
     CHECK(differs(calm, draw("pond_plume.png")) > 960 * 540 / 100);
     run(1.2f);
     draw("pond_plume_falling.png");
+
+    auto* helicopter = scene->FindComponent<Gameplay::Helicopter>();
+    REQUIRE(helicopter);
+    auto& entity = helicopter->GetEntity();
+    REQUIRE(entity.GetComponent<Gameplay::HelicopterDownwash>());
+    entity.GetTransform().SetPosition(middle + Spot::Vector3{0.0f, 4.0f, 0.0f});
+    entity.GetTransform().SetRotation({});
+    auto& body = *entity.GetComponent<Spot::Rigidbody>();
+    body.SetGravityScale(0.0f);
+    body.SetLinearVelocity({});
+    body.SetAngularVelocity({});
+    scene->CreateEntity("Acceptance Pilot").AddComponent<Gameplay::Controller>().Possess(*helicopter);
+    look(middle + Spot::Vector3{-16.0f, 7.0f, -14.0f}, middle + Spot::Vector3{0.0f, 2.0f, 0.0f});
+    run(4.0f);
+    std::vector<Spot::EntityId> emitters;
+    scene->ForEachComponent<Spot::ParticleSystem>([&](Spot::ParticleSystem& system) {
+        if (!system.GetParticles().empty() && system.GetSettings().facing == Spot::ParticleFacing::Horizontal) {
+            emitters.push_back(system.GetEntity().GetId());
+            system.SetEnabled(false);
+        }
+    });
+    REQUIRE_FALSE(emitters.empty());
+    const auto noWash = draw("helicopter_calm_water.png");
+    for (const auto id : emitters) {
+        scene->GetEntity(id)->GetComponent<Spot::ParticleSystem>()->SetEnabled(true);
+    }
+    CHECK(differs(noWash, draw("helicopter_downwash.png")) > 100);
 }

@@ -157,12 +157,19 @@ lights and independent four-blade main and tail rotors with yellow tips. The gen
 loop; model and sound metadata come from the normal asset import.
 
 Use (E) enters and exits through the existing `VehicleSeat`. W/S pitches forward/backward, A/D turns, Space climbs
-and Left Ctrl descends. On a gamepad these use the drive triggers, steering stick, south and east face buttons.
+and Left Ctrl descends. On a gamepad RT climbs and LT descends proportionally; the left stick pitches and banks,
+and LB/RB turn left/right around the vertical axis. Aircraft use separate flight actions so walking and driving
+keep their own bindings. Both stick axes have a 0.2 dead zone, and diagonal tilt stays within the maximum bank angle.
 The rotor takes three seconds to reach flight speed. Releasing the controls levels the body and holds height while
 horizontal drag slows it. The chase camera, HUD speed/climb/rotor readings, impact components, spawn catalog and
 checkpoint persistence use the same vehicle framework as the cars. `Helicopter` derives `Gameplay::Vehicle`; new
 vehicles must use this base rather than duplicate its shared behavior. Exiting in flight shuts the engine down;
 the body remains under physics and falls as its rotors coast down.
+
+Its `HelicopterDownwash` component sends the main rotor's wind toward water along the rotor axis. Within 18 meters,
+it emits expanding surface rings every 0.2 seconds, with opacity fading with squared rotor speed and distance.
+Tilting the helicopter moves the wind's footprint. The waves continue briefly while the rotor coasts down and
+fade on their own when it stops or moves away. They reuse the water's ripple layer without impact spray or audio.
 
 `prefabs/spawnables/props/coupe.prefab` adds a blue two-seat coupe, parked on the workshop's light pad, facing the
 door, and available in the spawn menu's Props. Its generated model has a lower roof, a sloping rear window, a rear

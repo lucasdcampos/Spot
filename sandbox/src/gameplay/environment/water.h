@@ -43,6 +43,9 @@ public:
     // Splashes the surface at the point: droplets, spray and rings spreading, and a sound. A shot is about 0.25, a
     // crate falling in from a few meters about 1.5, and explosions 4 and more.
     void Splash(Spot::Vector3 point, float strength);
+    // Rings spreading over the surface without an impact or sound. Strength fades their opacity from 0 to 1;
+    // scale multiplies the authored ripple size.
+    void Ripple(Spot::Vector3 point, float strength, float scale = 1.0f);
 
     // Rays from above meet the surface; rays from under it never do.
     std::optional<float> Trace(Spot::Vector3 origin, Spot::Vector3 direction, float maxDistance) const override;

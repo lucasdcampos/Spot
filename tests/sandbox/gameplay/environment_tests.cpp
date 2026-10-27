@@ -1,6 +1,7 @@
 #include "gameplay_world.h"
 
 #include "gameplay/core/trace_volume.h"
+#include "gameplay/effects/effect_library.h"
 #include "gameplay/effects/effect_pool.h"
 #include "gameplay/environment/day_cycle.h"
 #include "gameplay/environment/night_light.h"
@@ -11,7 +12,38 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <limits>
+
 using Catch::Approx;
+
+TEST_CASE("Water ripples stay on the surface and reject inactive water and invalid strengths",
+          "[sandbox][gameplay][water]") {
+    GameplayTests::World world;
+    auto& pond = world.scene.CreateEntity("Pond");
+    pond.GetTransform().SetPosition({0.0f, 1.0f, 0.0f});
+    pond.GetTransform().SetScale({10.0f, 1.0f, 10.0f});
+    auto& water = pond.AddComponent<Gameplay::Water>();
+    Gameplay::ParticleLayer ring;
+    ring.settings.startColor.a = 0.8f;
+    world.scene.CreateEntity("Effects").AddComponent<Gameplay::EffectLibrary>().effects = {
+        {.name = "splash.ripples", .layers = {ring}}};
+    world.Step();
+    water.Ripple({0.0f, 50.0f, 0.0f}, 0.25f, 3.0f);
+    auto* emitter = world.scene.FindComponent<Spot::ParticleSystem>();
+    REQUIRE(emitter);
+    REQUIRE(emitter->GetParticles().size() == 1);
+    CHECK(emitter->GetSettings().startColor.a == Approx(0.2f));
+    CHECK(emitter->GetEntity().GetTransform().GetPosition().y == Approx(1.025f));
+    CHECK(emitter->GetEntity().GetTransform().GetScale().x == Approx(3.0f));
+    water.Ripple({30.0f, 1.0f, 0.0f}, 1.0f);
+    water.Ripple({}, 0.0f);
+    water.Ripple({}, -1.0f);
+    water.Ripple({}, std::numeric_limits<float>::quiet_NaN());
+    water.Ripple({}, 1.0f, std::numeric_limits<float>::infinity());
+    water.SetEnabled(false);
+    water.Ripple({}, 1.0f);
+    CHECK(Gameplay::EffectPool::Get(world.scene).GetEmitterCount() == 1);
+}
 
 TEST_CASE("Water is a volume traces meet at its surface and blasts at or under it", "[sandbox][gameplay]") {
     GameplayTests::World world;

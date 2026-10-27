@@ -23,6 +23,9 @@ std::string GetKeyName(const Spot::InputAction& action) {
         const auto source = binding.control.source;
         if (source == Spot::InputSource::Composite && binding.parts.size() == 4 &&
             binding.parts[0].source == Spot::InputSource::Key) {
+            if (action.type == Spot::InputActionType::Axis) {
+                return GetShortName(binding.parts[0]) + "/" + GetShortName(binding.parts[1]);
+            }
             // Stored up, down, left, right; read as the keys lie.
             return GetShortName(binding.parts[0]) + GetShortName(binding.parts[2]) + GetShortName(binding.parts[1]) +
                    GetShortName(binding.parts[3]);

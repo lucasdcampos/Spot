@@ -23,6 +23,8 @@ struct VehicleInput {
     bool handbrake = false;
     // Vertical intent for aircraft, from -1 down to 1 up.
     float lift = 0.0f;
+    // Lateral intent, from -1 left to 1 right; aircraft bank in this direction.
+    float strafe = 0.0f;
 };
 
 // The actions a player's controls give a vehicle its input from: drive is accelerate less brake, steer is the X of the
@@ -35,6 +37,7 @@ struct VehicleControls {
     // Optional actions for vehicles that move vertically.
     std::string ascend;
     std::string descend;
+    std::string strafe;
 
     std::vector<std::string> GetActions() const;
     VehicleInput Read(const InputContext& input) const;

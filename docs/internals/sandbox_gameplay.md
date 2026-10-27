@@ -143,7 +143,7 @@ parts in their prefabs. No damage source names the sandbox's robots or barrels. 
 
 ## Vehicles
 
-`gameplay/vehicles/` needs `core`, `hud` and `persistence`. `Vehicle` is a pawn driven by `VehicleInput`; its
+`gameplay/vehicles/` needs `core`, `environment`, `hud` and `persistence`. `Vehicle` is a pawn driven by `VehicleInput`; its
 `controls` map a player's actions, and other controllers call `SetInput()`. A `VehicleSeat` gets an existing pawn
 in, marks it "Seated", transfers possession and keeps it at the seat's position. Exiting finds room at authored
 exits or around the body's boxes, then restores possession and places the pawn facing and moving with the vehicle.
@@ -166,18 +166,30 @@ flat ground, and a separate vehicle subclass with the existing seat, chase camer
 
 Every new drivable vehicle derives `Vehicle`; shared possession, input routing, seats, camera, HUD and checkpoint
 handling stay in that base and its companion components. `VehicleInput::lift` adds a vertical axis, read from the
-optional `VehicleControls::ascend` and `descend` actions. Unassigned actions are omitted from the vehicle's input
+optional `VehicleControls::ascend` and `descend` actions. `VehicleInput::strafe` reads the optional `strafe` action
+for lateral intent, which aircraft use to bank. Unassigned actions are omitted from the vehicle's input
 context, so ground vehicles keep their original controls.
 
 `Helicopter` is a second simulation using this contract. Its Rigidbody receives rotor lift, horizontal drag and
-stabilizing torque through public physics APIs. Forward/backward intent tilts the rotor plane, steering commands
-yaw rate, and lift commands climb rate; neutral input levels it and damps vertical velocity. Lift compensates for
+stabilizing torque through public physics APIs. Forward/backward and lateral intent tilt the rotor plane, with
+combined tilt limited to `maxTilt`; steering commands yaw rate, and lift commands climb rate. Neutral input levels
+it and damps vertical velocity. Lift compensates for
 tilt and scales with squared rotor speed during spin-up and coast-down. Without a driver or while dead, the engine
 spools down and gravity brings it down. It does not lock the body's transform or bypass collisions. The authored
 `mainRotor` and `tailRotor` entity references animate around local Y and X; their meshes are centered on those pivots.
 Its gauges and hints override the base descriptions, and `VehicleEngineSound` uses its RPM and throttle queries.
-Flight, neutral hover, yaw, descent, engine shutdown and vertical action routing have authored coverage in
-`tests/sandbox/gameplay/helicopter_tests.cpp`.
+Its separate `FlightPitch`, `FlightRoll`, `FlightYaw`, `FlightAscend` and `FlightDescend` actions keep the keyboard's
+W/S pitch, A/D yaw and Space/Ctrl lift, while the gamepad's left stick pitches and banks, LB/RB command yaw and
+RT/LT command proportional climb/descent. The pitch and roll axes each use a 0.2 dead zone. Axis key composites
+appear as paired keys in HUD hints. Flight, neutral hover, banking, yaw, descent, shutdown and input routing have
+coverage in `tests/sandbox/gameplay/helicopter_tests.cpp`.
+
+`HelicopterDownwash` is an optional companion on the helicopter prefab. It traces from the main rotor along its
+downward axis to the nearest enabled water within `range`, emitting at most one ring per frame at `interval`.
+Squared rotor speed and distance falloff control opacity, including spin-up and coast-down. Flight physics needs
+no water or effect library. The companion uses `Water::Ripple()` and the bounded effect pool, leaving impact
+spray and splash sounds to collisions. Headless tests cover placement, fading, range, cadence and shutdown; the
+effects GPU test captures `helicopter_downwash.png` from the authored helicopter over the pond.
 
 ## Health
 
@@ -226,7 +238,9 @@ and exposure, and lights the effects as the day is; its `RegisterScriptBindings(
 gives scripts the same API as before. `NightLight` lights its lamp as the daylight fades. `Water` is a `TraceVolume`:
 shots go `shotDepth` under its surface, splashing it, and blasts at or under it throw up its water; it slows bodies in
 it and splashes what falls in, bodies and any character controller. Its splashes play the effects named after
-`splashEffect` ("splash", ".ripples", ".mist", ".plume") with its own sounds. `ClockElement` shows the day's time.
+`splashEffect` ("splash", ".ripples", ".mist", ".plume") with its own sounds. `Ripple()` emits only the ring layers,
+projected onto the covered surface with caller-controlled opacity and scale. It rejects inactive water, uncovered
+points and invalid strength/scale. `ClockElement` shows the day's time.
 Tests: `environment_tests.cpp`.
 
 ## Persistence

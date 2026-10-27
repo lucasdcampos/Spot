@@ -9,17 +9,28 @@
             "mainRotor": 30,
             "tailRotor": 31,
             "controls": {
-              "accelerate": "Accelerate",
-              "brake": "Brake",
-              "steer": "Move",
+              "accelerate": "FlightPitch",
+              "brake": "",
+              "steer": "FlightYaw",
               "handbrake": "",
-              "ascend": "Jump",
-              "descend": "Crouch"
+              "ascend": "FlightAscend",
+              "descend": "FlightDescend",
+              "strafe": "FlightRoll"
             }
           },
           "enabled": true,
           "id": "17181aa71b04487491caa93c5ef63230",
           "type": "Helicopter"
+        },
+        {
+          "data": {
+            "range": 18.0,
+            "interval": 0.2,
+            "scale": 4.0
+          },
+          "enabled": true,
+          "id": "aef81885b0584a38bdbcd581d0d97950",
+          "type": "HelicopterDownwash"
         },
         {
           "data": {

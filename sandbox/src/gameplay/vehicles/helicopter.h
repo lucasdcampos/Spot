@@ -4,8 +4,8 @@
 
 namespace Gameplay {
 
-// An assisted helicopter on its Rigidbody: the rotor tilts to fly forward and back, the pedals turn it, and the
-// collective commands a climb rate. Releasing the controls levels it and holds height once the rotor is at speed.
+// An assisted helicopter on its Rigidbody: the rotor tilts to fly forward, back and sideways, the pedals turn it, and
+// the collective commands a climb rate. Releasing the controls levels it and holds height once the rotor is at speed.
 // The origin is on the ground beneath the cabin, with -Z forward. Seats, cameras and saving use Vehicle's contracts.
 class Helicopter : public Vehicle {
 public:

@@ -42,6 +42,185 @@
                 "code": 0,
                 "source": 7
               },
+              "deadZone": 0,
+              "invertX": false,
+              "invertY": false,
+              "parts": [
+                {
+                  "code": 23,
+                  "source": 0
+                },
+                {
+                  "code": 19,
+                  "source": 0
+                },
+                {
+                  "code": 0,
+                  "source": 0
+                },
+                {
+                  "code": 0,
+                  "source": 0
+                }
+              ],
+              "scale": 1
+            },
+            {
+              "control": {
+                "code": 1,
+                "source": 5
+              },
+              "deadZone": 0.2,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1
+            }
+          ],
+          "name": "FlightPitch",
+          "pressPoint": 0.5,
+          "type": 1
+        },
+        {
+          "bindings": [
+            {
+              "control": {
+                "code": 0,
+                "source": 5
+              },
+              "deadZone": 0.2,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1
+            }
+          ],
+          "name": "FlightRoll",
+          "pressPoint": 0.5,
+          "type": 1
+        },
+        {
+          "bindings": [
+            {
+              "control": {
+                "code": 0,
+                "source": 7
+              },
+              "deadZone": 0,
+              "invertX": false,
+              "invertY": false,
+              "parts": [
+                {
+                  "code": 4,
+                  "source": 0
+                },
+                {
+                  "code": 1,
+                  "source": 0
+                },
+                {
+                  "code": 0,
+                  "source": 0
+                },
+                {
+                  "code": 0,
+                  "source": 0
+                }
+              ],
+              "scale": 1
+            },
+            {
+              "control": {
+                "code": 0,
+                "source": 7
+              },
+              "deadZone": 0,
+              "invertX": false,
+              "invertY": false,
+              "parts": [
+                {
+                  "code": 10,
+                  "source": 4
+                },
+                {
+                  "code": 9,
+                  "source": 4
+                },
+                {
+                  "code": 0,
+                  "source": 0
+                },
+                {
+                  "code": 0,
+                  "source": 0
+                }
+              ],
+              "scale": 1
+            }
+          ],
+          "name": "FlightYaw",
+          "pressPoint": 0.5,
+          "type": 1
+        },
+        {
+          "bindings": [
+            {
+              "control": {
+                "code": 41,
+                "source": 0
+              },
+              "deadZone": 0,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1
+            },
+            {
+              "control": {
+                "code": 5,
+                "source": 5
+              },
+              "deadZone": 0,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1
+            }
+          ],
+          "name": "FlightAscend",
+          "pressPoint": 0.5,
+          "type": 1
+        },
+        {
+          "bindings": [
+            {
+              "control": {
+                "code": 100,
+                "source": 0
+              },
+              "deadZone": 0,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1
+            },
+            {
+              "control": {
+                "code": 4,
+                "source": 5
+              },
+              "deadZone": 0,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1
+            }
+          ],
+          "name": "FlightDescend",
+          "pressPoint": 0.5,
+          "type": 1
+        },
+        {
+          "bindings": [
+            {
+              "control": {
+                "code": 0,
+                "source": 7
+              },
               "deadZone": 0.0,
               "invertX": false,
               "invertY": false,

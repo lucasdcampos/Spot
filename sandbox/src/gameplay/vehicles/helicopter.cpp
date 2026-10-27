@@ -19,9 +19,13 @@ constexpr Spot::Vector3 Forward = {0.0f, 0.0f, -1.0f};
 } // namespace
 
 Helicopter::Helicopter() {
+    controls.accelerate = "FlightPitch";
+    controls.brake.clear();
+    controls.steer = "FlightYaw";
     controls.handbrake.clear();
-    controls.ascend = "Jump";
-    controls.descend = "Crouch";
+    controls.ascend = "FlightAscend";
+    controls.descend = "FlightDescend";
+    controls.strafe = "FlightRoll";
 }
 
 float Helicopter::GetForwardSpeed() const {
@@ -42,8 +46,11 @@ std::vector<Gauge> Helicopter::DescribeTelemetry() const {
 }
 
 std::vector<InputHint> Helicopter::DescribeHints() const {
-    std::vector<InputHint> hints = {
-        {controls.steer, "Pitch / turn"}, {controls.ascend, "Ascend"}, {controls.descend, "Descend"}};
+    std::vector<InputHint> hints = {{controls.accelerate, "Pitch"},
+                                    {controls.strafe, "Roll"},
+                                    {controls.steer, "Turn"},
+                                    {controls.ascend, "Ascend"},
+                                    {controls.descend, "Descend"}};
     if (const VehicleSeat* seat = GetSeat()) {
         hints.push_back({seat->exitAction, "Exit"});
     }
@@ -68,8 +75,12 @@ void Helicopter::OnFixedUpdate(float deltaTime) {
     const Spot::Vector3 up = rotation * Up;
     const Spot::Vector3 forward = rotation * Forward;
     const Spot::Vector3 heading = Spot::Normalize(Spot::Vector3{forward.x, 0.0f, forward.z});
-    const Spot::Vector3 desiredUp =
-        Spot::Normalize(Up + heading * (std::clamp(input.drive, -1.0f, 1.0f) * std::tan(maxTilt)));
+    const Spot::Vector3 right = Spot::Cross(heading, Up);
+    Spot::Vector2 tilt = {std::clamp(input.strafe, -1.0f, 1.0f), std::clamp(input.drive, -1.0f, 1.0f)};
+    if (Spot::LengthSquared(tilt) > 1.0f) {
+        tilt = Spot::Normalize(tilt);
+    }
+    const Spot::Vector3 desiredUp = Spot::Normalize(Up + (heading * tilt.y + right * tilt.x) * std::tan(maxTilt));
     const Spot::Vector3 velocity = body->GetLinearVelocity();
     const Spot::Vector3 angular = body->GetAngularVelocity();
     const float mass = body->GetMass();
