@@ -121,10 +121,19 @@ inline Vector4 ToVector4(Vector3 v, float w = 0.0f) {
 float GetLightRank(const LightData& light, Vector3 cameraPosition);
 
 // How a sky lights what is under it: the sun through the air, which dims and reddens it near the horizon and hides it
-// below, and the light the rest of the sky scatters down.
+// below, the moon opposite it once it has set, and the light the rest of the sky scatters down.
 struct SkyLighting {
     std::optional<LightData> sun;
+    // Only while the moon is up and shown.
+    std::optional<LightData> moon;
+    // The moon's light before the air dims it, which the air scatters into a faint moonlit sky.
+    Color moonlight;
     Color ambient;
+    // What reaches open ground: the sun's and the moon's light, and the sky's.
+    Color ground;
+    // What lights a point in place of the sky it is covered from: the ground's light, reflected again by the underside
+    // of what covers it.
+    Color bounce;
 };
 
 SkyLighting GetSkyLighting(const SkyData& sky);

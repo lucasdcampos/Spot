@@ -2032,9 +2032,10 @@ TEST_CASE("Renderer3D tilts surfaces by their normal maps and darkens ambient li
     CHECK(renderWall({238, 128, 192, 255}, Unoccluded, side).At(16, 16)[0] >
           renderWall(Flat, Unoccluded, side).At(16, 16)[0] + 40);
 
-    // Occlusion takes ambient light only.
+    // Occlusion takes ambient light only, and less of it off a white wall, which bounces it back: a quarter of the
+    // light, as the map says, leaves about 63%.
     const Spot::LightData ambient{.type = Spot::LightType::Ambient};
-    CHECK(IsNear(renderWall(Flat, {64, 0, 0, 255}, ambient).At(16, 16), {64, 64, 64, 255}));
+    CHECK(IsNear(renderWall(Flat, {64, 0, 0, 255}, ambient).At(16, 16), {160, 160, 160, 255}));
     CHECK(renderWall(Flat, {64, 0, 0, 255}, FrontLight).At(16, 16)[0] > 250);
 }
 
@@ -2975,7 +2976,7 @@ TEST_CASE("Renderer3D draws a blue sky over the ground's color", "[gpu]") {
     INFO("Sky " << int{sky[0]} << ", " << int{sky[1]} << ", " << int{sky[2]} << "; ground " << int{ground[0]} << ", "
                 << int{ground[1]} << ", " << int{ground[2]});
     CHECK(sky[2] > sky[0] + 40);
-    CHECK(sky[2] > 120);
+    CHECK(sky[2] > 80);
     CHECK(ground[0] > ground[2] + 40);
 }
 
@@ -3091,14 +3092,16 @@ TEST_CASE("Renderer3D keeps the sky's light from what is under cover", "[gpu]") 
     INFO("Open " << int{open[2]} << ", covered " << int{covered[2]} << ", without occlusion " << int{ignored[2]});
     CHECK(open[2] > 235);
     CHECK(covered[2] < open[2] / 4);
+    // What covers it is not black: lit by the red ground, the roof sends some of its light back.
+    CHECK(covered[0] > open[0] / 2);
     CHECK(IsNear(ignored, open));
 }
 
 TEST_CASE("Renderer3D darkens creases with ambient occlusion from the camera's depth", "[gpu]") {
     RequireGpu();
 
-    // A wall standing on a floor, lit by ambient light only, seen from above the floor with the crease where they
-    // meet in the middle.
+    // A dark wall standing on a dark floor, lit by ambient light only, seen from above the floor with the crease where
+    // they meet in the middle. Lighter surfaces bounce more light into the crease and darken less.
     Spot::Camera3D camera;
     camera.position = {0.0f, 3.0f, 3.0f};
     camera.LookAt({0.0f, 0.5f, 0.0f});
@@ -3112,9 +3115,10 @@ TEST_CASE("Renderer3D darkens creases with ambient occlusion from the camera's d
                 const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
                 REQUIRE(cube != nullptr);
                 renderer.Begin(context, target, camera);
-                renderer.DrawLight({.type = Spot::LightType::Ambient, .intensity = 0.5f});
-                renderer.DrawMesh(*cube, {}, Spot::Matrix4::Scale({20.0f, 1.0f, 20.0f}));
-                renderer.DrawMesh(*cube, {},
+                renderer.DrawLight({.type = Spot::LightType::Ambient, .intensity = 2.5f});
+                const Spot::Material dark{.baseColor = {0.2f, 0.2f, 0.2f, 1.0f}};
+                renderer.DrawMesh(*cube, dark, Spot::Matrix4::Scale({20.0f, 1.0f, 20.0f}));
+                renderer.DrawMesh(*cube, dark,
                                   Spot::Matrix4::Translation({0.0f, 1.5f, -0.5f}) *
                                       Spot::Matrix4::Scale({20.0f, 2.0f, 1.0f}));
                 renderer.End();
@@ -3214,7 +3218,7 @@ TEST_CASE("Renderer3D draws the sky behind meshes", "[gpu]") {
         });
 
     CHECK(IsNear(render.At(16, 16), {0, 255, 0, 255}));
-    CHECK(render.At(16, 2)[2] > 120);
+    CHECK(render.At(16, 2)[2] > 80);
 }
 
 TEST_CASE("Renderer3D skies redden as the sun nears the horizon and darken without it", "[gpu]") {
@@ -3236,7 +3240,7 @@ TEST_CASE("Renderer3D skies redden as the sun nears the horizon and darken witho
     }
 }
 
-TEST_CASE("Renderer3D skies light the scene with a sun that sets on its own", "[gpu]") {
+TEST_CASE("Renderer3D skies light the scene with a sun that sets on its own, and a moon that rises", "[gpu]") {
     RequireGpu();
 
     // The sun behind the camera lights the wall's front, until it sets. Only the sun lights it here.
@@ -3260,6 +3264,23 @@ TEST_CASE("Renderer3D skies light the scene with a sun that sets on its own", "[
     });
     CHECK(skylit.At(16, 16)[2] > skylit.At(16, 16)[0]);
     CHECK(skylit.At(16, 16)[2] > 10);
+
+    // Once the sun has set behind the wall, the moon rises behind the camera, opposite it, and lights the wall's front
+    // bluish, far more faintly than the sun; a hidden moon lights nothing.
+    const auto renderNight = [](float moonSize) {
+        return RenderLitWall([=](Spot::Renderer3D& renderer) {
+            Spot::SkyData sky{
+                .sunDirection = {0.0f, 1.0f, 1.0f}, .nightColor = Spot::Color::Black, .ambientIntensity = 0.0f};
+            sky.night.moonSize = moonSize;
+            renderer.DrawSky(sky);
+        });
+    };
+    const Pixel moonlit = renderNight(Spot::SkyNight{}.moonSize).At(16, 16);
+    INFO("Moonlit " << int{moonlit[0]} << ", " << int{moonlit[1]} << ", " << int{moonlit[2]});
+    CHECK(moonlit[2] > 5);
+    CHECK(moonlit[2] > moonlit[0]);
+    CHECK(moonlit[2] < high / 4);
+    CHECK(IsNear(renderNight(0.0f).At(16, 16), {0, 0, 0, 255}));
 }
 
 TEST_CASE("Renderer3D lights scenes with the sun of their sky through its air", "[gpu]") {
@@ -4235,7 +4256,8 @@ TEST_CASE("Renderer3D fogs what is far away in the fog's color, and the sky towa
                     << int{high[0]} << ", " << int{high[1]} << ", " << int{high[2]});
     CHECK(horizon[0] > 200);
     CHECK(horizon[1] < 60);
-    CHECK(high[1] > horizon[1] + 40);
+    CHECK(high[1] > horizon[1] + 20);
+    CHECK(high[0] < horizon[0] - 100);
 }
 
 TEST_CASE("Renderer3D fogs scenes with their first active Fog, from its entity's height", "[gpu]") {

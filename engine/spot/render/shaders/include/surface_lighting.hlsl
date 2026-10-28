@@ -95,6 +95,9 @@ cbuffer Lighting : register(b0, space3) {
     float4 viewForward;
     // The size of a probe's tile at its first level, the tiles across the atlas, and the inverse of its size.
     float4 probeAtlas;
+    // What lights a point in place of the sky it is covered from: the ground's light, reflected again by the underside
+    // of what covers it.
+    float4 skyBounce;
 };
 
 // The list of lights that may reach the pixel at the position, at the depth along the camera's forward axis.
@@ -468,11 +471,15 @@ SurfaceLight LightSurface(SurfacePoint surface) {
             remaining -= weight;
         }
     }
+    // What covers a point from the sky is not black: lit from below, it sends back some of the ground's light.
     if (skyLighting.x > 0.5 && remaining > 0.0) {
-        const float sky = GetSkyVisibility(surface.position, seenNormal) * remaining;
-        light.surroundings += GetSkyIrradiance(seenNormal) * sky;
+        const float visible = GetSkyVisibility(surface.position, seenNormal);
+        const float3 covered = skyBounce.rgb * ((1.0 - visible) * remaining);
+        const float sky = visible * remaining;
+        light.surroundings += GetSkyIrradiance(seenNormal) * sky + covered;
         light.reflectedSurroundings +=
-            skyReflections.SampleLevel(skyReflectionsSampler, mirrored, surface.roughness * skyLighting.y).rgb * sky;
+            skyReflections.SampleLevel(skyReflectionsSampler, mirrored, surface.roughness * skyLighting.y).rgb * sky +
+            covered;
     }
     const float nv = saturate(dot(seenNormal, toViewer));
     const float2 brdf = GetEnvironmentBrdf(surface.roughness, nv);
@@ -485,6 +492,16 @@ SurfaceLight LightSurface(SurfacePoint surface) {
     light.environmentReflectance =
         singleScattering + singleScattering * average * (1.0 - kept) / (1.0 - (1.0 - kept) * average);
     return light;
+}
+
+// How much of the light from all around a surface of the albedo scatters reaches it, past what darkens it (occlusion,
+// from 1 for none). Light also bounces between the surfaces of a crease before it leaves, which occlusion alone leaves
+// out, so bright creases stay lighter than dark ones: Jimenez et al.'s (2016) fit of that.
+float3 GetDiffuseOcclusion(float occlusion, float3 albedo) {
+    const float3 a = 2.0404 * albedo - 0.3324;
+    const float3 b = -4.7951 * albedo + 0.6417;
+    const float3 c = 2.7552 * albedo + 0.6903;
+    return max(occlusion, ((occlusion * a + b) * occlusion + c) * occlusion);
 }
 
 // How much of the light from all around a surface reflects reaches it, past what darkens it (occlusion, from 1 for
@@ -522,9 +539,9 @@ float3 ShadeOpaqueSurface(float3 position, float3 normal, float3 surfaceNormal, 
     surface.reflectance = lerp(float3(0.04, 0.04, 0.04), albedo, metalness);
     const SurfaceLight light = LightSurface(surface);
     const float3 scattered = albedo * (1.0 - metalness);
-    const float3 ambient =
-        scattered * light.surroundings * occlusion + light.reflectedSurroundings * light.environmentReflectance *
-                                                         GetReflectionOcclusion(surface, surfaceNormal, occlusion);
+    const float3 ambient = scattered * light.surroundings * GetDiffuseOcclusion(occlusion, scattered) +
+                           light.reflectedSurroundings * light.environmentReflectance *
+                               GetReflectionOcclusion(surface, surfaceNormal, occlusion);
     const float3 color = scattered * light.diffuse + ambient + light.highlights + emitted;
     return lerp(color, fogColor.rgb, GetFogAmount(position - fogCamera.xyz));
 }

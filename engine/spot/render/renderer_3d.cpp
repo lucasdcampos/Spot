@@ -144,6 +144,8 @@ struct LightingUniforms {
     Vector4 clusterDepth;
     Vector4 viewForward;
     Vector4 probeAtlas;
+    // What lights a point in place of the sky it is covered from.
+    Color skyBounce;
 };
 
 // Ambient lights are summed. Past MaxLights, the other lights that matter least to what is near the camera are dropped.
@@ -264,10 +266,14 @@ void Renderer3D::Impl::End() {
     if (skyData) {
         skyLighting = Detail::GetSkyLighting(*skyData);
         if (skyData->lightsScene) {
-            if (skyLighting->sun) {
-                LightData sun = *skyLighting->sun;
-                sun.castsShadows = skyData->sunCastsShadows;
-                lights.push_back(sun);
+            // The sun casts shadows while it is up, and the moon once it has set: the first directional light that
+            // casts them takes the cascades.
+            for (const std::optional<LightData>& light : {skyLighting->sun, skyLighting->moon}) {
+                if (light && (light->color.r > 0.0f || light->color.g > 0.0f || light->color.b > 0.0f)) {
+                    LightData lit = *light;
+                    lit.castsShadows = skyData->sunCastsShadows;
+                    lights.push_back(lit);
+                }
             }
             // The sky lights from every direction, through its captured light; should that fail, it lights evenly.
             sky.SetLit(sky.Update(*skyData, *skyLighting));
@@ -405,6 +411,7 @@ void Renderer3D::Impl::BindLighting(RenderPass& pass, const Detail::SelectedLigh
         .clusterDepth = {clusterNear, clusterScale, state.viewSize.x, state.viewSize.y},
         .viewForward = Detail::ToVector4(forward),
         .probeAtlas = probes.GetAtlasUniforms(),
+        .skyBounce = sky.IsLit() && skyLighting ? skyLighting->bounce : Color::Black,
     };
     pass.PushFragmentUniforms(0, lighting);
     if (lightBuffer && clusterBuffer && lightIndexBuffer) {

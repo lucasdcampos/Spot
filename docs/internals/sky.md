@@ -30,8 +30,8 @@ Each pixel's ray meets a flat layer at `height` above the viewer; fractal value 
 moved by the wind's `offset`, gives the clouds' shapes, and `coverage` sets how much of the noise counts as cloud,
 with `softness` blurring its edges and `density` making its thick parts opaque. The clouds are lit as the sky is:
 by the sunlight that crossed the air, so they turn orange at sunset, darker where the noise is thicker toward the sun,
-glowing at thin edges in front of it, and by the sky's own light on their shaded sides. At night only the moon's faint
-light and the sky's reach them, so they show as darker shapes that hide the stars. Far toward the horizon they fade
+glowing at thin edges in front of it, and by the sky's own light on their shaded sides. At night the moon lights them
+gray against the dark sky, and they hide the stars. Far toward the horizon they fade
 into the haze, and where a pixel covers more than a cloud, into their average, so they do not shimmer.
 
 `Clouds` moves its offset every update by the wind; `GetOffset()`/`SetOffset()` save and restore where they are, and
@@ -47,8 +47,12 @@ the rotation from the time of day, a turn a day, so they wheel across the night 
 `moonSize` in angular radius, rises opposite the sun with darker seas and a faint glow, and the air near the horizon
 dims both. `starBrightness` or `moonSize` at 0 hides them; a sky without a sun shows stars but no moon.
 
-Clouds, stars and the moon are drawn only: the sky's light that `Renderer3D` captures to light the scene leaves them
-out, so they move every frame without capturing it again.
+The moon also lights the scene, `moonBrightness` times as bright as a full moon looks to eyes used to the dark: a
+directional light from its disc, through the air as the sun's is, so it reddens low and casts the shadows once the sun
+has set, and the faint blue sky its light scatters, drawn and captured as the sun's (`GetSkyRadiance()` gives both).
+
+Clouds, stars and the moon's disc are drawn only: the sky's light that `Renderer3D` captures to light the scene leaves
+them out, so they move every frame without capturing it again.
 
 ## Where to start
 

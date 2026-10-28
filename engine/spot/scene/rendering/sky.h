@@ -20,8 +20,9 @@ class DirectionalLight;
 //     scene.CreateEntity("Sky").AddComponent<Spot::Sky>();
 //
 // Once the sun has set, stars come out, turning with the night sky (SetStarRotation()), and a moon rises opposite the
-// sun. A Clouds component in the scene adds a layer of clouds the wind carries. Only the first active sky of a scene is
-// drawn, and its entity's transform plays no part. See SkyData for what each setting does.
+// sun, which lights the night far more faintly, and bluish. A Clouds component in the scene adds a layer of clouds the
+// wind carries. Only the first active sky of a scene is drawn, and its entity's transform plays no part. See SkyData
+// for what each setting does.
 class Sky final : public Component {
 public:
     // The light that lights the sky, or null when the scene has no active directional light.

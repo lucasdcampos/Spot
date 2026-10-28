@@ -1,6 +1,7 @@
 #include "spot/render/renderer_3d_sky.h"
 
 #include "spot/core/debug/profiler.h"
+#include "spot/core/math/angles.h"
 #include "spot/render/atmosphere.h"
 
 #include "sky.frag.h"
@@ -24,6 +25,8 @@ struct SkyUniforms {
     Color groundColor;
     Color groundLight;
     Color sunLight;
+    // The moon's light before the air dims it, with 1 in w when it lights the air.
+    Color moonlight;
     Color nightColor;
     // The sun's angular radius, the atmosphere's thickness and the exposure.
     Vector4 settings;
@@ -52,6 +55,8 @@ struct PrefilterUniforms {
 constexpr std::uint32_t CubeSize = 64;
 // The sky's irradiance is projected from its faces at this size.
 constexpr std::uint32_t IrradianceSamples = 16;
+// How bright the sky is for a sun of intensity 1; see sky.frag.hlsl, which this must match.
+constexpr float SkyBrightness = 20.0f;
 
 Color operator*(Color color, float scale) {
     return {color.r * scale, color.g * scale, color.b * scale, color.a};
@@ -65,11 +70,33 @@ Color operator+(Color a, Color b) {
     return {a.r + b.r, a.g + b.g, a.b + b.b, a.a};
 }
 
-// What of the sky changes how it lights the scene: not its clouds, stars or moon, which move every frame.
+float Smoothstep(float from, float to, float x) {
+    const float t = std::clamp((x - from) / (to - from), 0.0f, 1.0f);
+    return t * t * (3.0f - 2.0f * t);
+}
+
+bool IsBlack(Color color) {
+    return color.r <= 0.0f && color.g <= 0.0f && color.b <= 0.0f;
+}
+
+// What of the sky changes how it lights the scene: not its clouds or stars, which move every frame, nor how the moon
+// looks, only whether it is shown and how bright it is.
 SkyData GetLightingSky(SkyData sky) {
     sky.clouds = {};
-    sky.night = {};
+    sky.night = {.moonSize = sky.night.moonSize > 0.0f ? 1.0f : 0.0f, .moonBrightness = sky.night.moonBrightness};
     return sky;
+}
+
+// The full moon's light above the air: as bright as it looks to eyes used to the dark, as the real moon's, hundreds of
+// thousands of times fainter than the sun's, would leave nights black at any exposure that shows the day; and bluish,
+// as the dark makes it look. It brightens as the moon rises opposite the sun.
+constexpr Color MoonlightColor = {0.062f, 0.075f, 0.1f, 1.0f};
+
+Color GetMoonlight(const SkyData& sky, Vector3 toMoon) {
+    if (sky.night.moonSize <= 0.0f || sky.night.moonBrightness <= 0.0f) {
+        return Color::Black;
+    }
+    return MoonlightColor * (sky.night.moonBrightness * Smoothstep(-0.05f, 0.1f, toMoon.y));
 }
 
 // Captures are the sky's light for lighting; draws are the sky as seen, into an HDR target or not.
@@ -77,18 +104,16 @@ SkyUniforms GetSkyUniforms(const SkyData& sky, const SkyLighting& lighting, bool
     const Vector3 toSun = -Normalize(sky.sunDirection);
     const bool hasSun = sky.hasSun && toSun != Vector3{};
     const float intensity = hasSun ? sky.sunIntensity : 0.0f;
-    // The ground below the horizon is lit like a surface of the scene facing up.
-    Color groundLight = lighting.ambient;
-    if (lighting.sun) {
-        groundLight = groundLight + lighting.sun->color * std::max(toSun.y, 0.0f);
-    }
     return {
         .sunDirection = {toSun.x, toSun.y, toSun.z, hasSun ? 1.0f : 0.0f},
         .sunColor = {sky.sunColor.r * intensity, sky.sunColor.g * intensity, sky.sunColor.b * intensity, 1.0f},
         .skyTint = sky.skyTint,
         .groundColor = sky.groundColor,
-        .groundLight = groundLight,
+        // The ground below the horizon is lit like a surface of the scene facing up.
+        .groundLight = lighting.ground,
         .sunLight = lighting.sun ? lighting.sun->color : Color::Black,
+        .moonlight = {lighting.moonlight.r, lighting.moonlight.g, lighting.moonlight.b,
+                      IsBlack(lighting.moonlight) ? 0.0f : 1.0f},
         .nightColor = sky.nightColor,
         .settings = {std::max(sky.sunSize, 0.0f), std::max(sky.atmosphereThickness, 0.0f), std::max(sky.exposure, 0.0f),
                      hdr ? 1.0f : 0.0f},
@@ -109,21 +134,36 @@ SkyUniforms GetSkyUniforms(const SkyData& sky, const SkyLighting& lighting, bool
 
 SkyLighting GetSkyLighting(const SkyData& sky) {
     const Vector3 toSun = -Normalize(sky.sunDirection);
-    SkyLighting lighting{.sun = std::nullopt, .ambient = sky.nightColor};
-    if (!sky.hasSun || toSun == Vector3{}) {
-        return lighting;
-    }
-    const Atmosphere atmosphere{.thickness = std::max(sky.atmosphereThickness, 0.0f), .skyTint = sky.skyTint};
-    const Color sunlight = sky.sunColor * sky.sunIntensity;
-    const Color direct = sunlight * atmosphere.GetSunTransmittance(toSun, sky.sunSize);
-    lighting.sun = LightData{.type = LightType::Directional, .color = direct, .direction = sky.sunDirection};
+    SkyLighting lighting{.ambient = sky.nightColor, .ground = sky.nightColor};
+    if (sky.hasSun && toSun != Vector3{}) {
+        const Atmosphere atmosphere{.thickness = std::max(sky.atmosphereThickness, 0.0f), .skyTint = sky.skyTint};
+        const Color sunlight = sky.sunColor * sky.sunIntensity;
+        const Color direct = sunlight * atmosphere.GetSunTransmittance(toSun, sky.sunSize);
+        lighting.sun = LightData{.type = LightType::Directional, .color = direct, .direction = sky.sunDirection};
+        Color skylight = sunlight * atmosphere.GetSkyIrradiance(toSun);
+        Color ground = direct * std::max(toSun.y, 0.0f);
 
-    // The atmosphere is single scattering, which leaves out the light the air scatters more than once, about as much
-    // again near the ground. Surfaces also face the ground about half as much as the sky, and it reflects the sun.
-    constexpr float MultipleScattering = 2.0f;
-    const Color skylight = sunlight * atmosphere.GetSkyIrradiance(toSun) * MultipleScattering;
-    const Color groundBounce = sky.groundColor * direct * (0.5f * std::max(toSun.y, 0.0f));
-    lighting.ambient = lighting.ambient + (skylight + groundBounce) * sky.ambientIntensity;
+        // The moon lights the night the way the sun lights the day, only far more faintly.
+        const Vector3 toMoon = -toSun;
+        lighting.moonlight = GetMoonlight(sky, toMoon);
+        if (!IsBlack(lighting.moonlight)) {
+            const Color moonDirect =
+                lighting.moonlight * atmosphere.GetSunTransmittance(toMoon, std::max(sky.night.moonSize, 0.0f));
+            if (!IsBlack(moonDirect)) {
+                lighting.moon =
+                    LightData{.type = LightType::Directional, .color = moonDirect, .direction = -sky.sunDirection};
+            }
+            skylight = skylight + lighting.moonlight * atmosphere.GetSkyIrradiance(toMoon);
+            ground = ground + moonDirect * std::max(toMoon.y, 0.0f);
+        }
+
+        // The sky lights the scene as brightly as it is drawn; the atmosphere's irradiance already holds its pi.
+        // Surfaces also face the ground about half as much as the sky, and it reflects the sun.
+        const Color groundBounce = sky.groundColor * ground * 0.5f;
+        lighting.ambient = lighting.ambient + (skylight * (SkyBrightness / Pi) + groundBounce) * sky.ambientIntensity;
+        lighting.ground = ground + lighting.ambient;
+    }
+    lighting.bounce = sky.groundColor * sky.groundColor * lighting.ground * std::max(sky.ambientIntensity, 0.0f);
     return lighting;
 }
 

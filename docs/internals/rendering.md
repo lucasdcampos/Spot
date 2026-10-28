@@ -306,7 +306,9 @@ direction, the blur picked by the roughness (split-sum image-based lighting):
   than it: a floor under a roof or in a cave sees none of the sky, the ground under a tree some. The disc moves off
   the surface the way it faces along the ground, so walls look into the air in front of them, and a sloping surface
   only counts what rises above its own slope, so hillsides do not hide themselves. It reaches
-  `skyOcclusionDistance` around the camera, past which everything is in the open.
+  `skyOcclusionDistance` around the camera, past which everything is in the open. What covers a point is not black:
+  in place of the sky it hides, the point gets the sky's **bounce** (`SkyLighting::bounce`, `skyBounce` in the
+  shaders), the light of the ground reflected again by the cover's underside, as dark as the ground's color twice.
 
 **Ambient occlusion** (`Renderer3DConfig::ambientOcclusion`, `AmbientOcclusion`) darkens all three in creases,
 corners and where things touch, on top of the materials' occlusion maps. Before the lit pass, `End()` draws the
@@ -315,7 +317,9 @@ camera's depth (`MeshBatcher::RenderCameraDepth()`, which `RenderCameraDepth()` 
 points on a spiral within `radius` of the pixel, the spiral turned differently at each pixel, compared with the plane
 of the pixel's surface, whose normal the depth gives too, then blurred along each axis across pixels at about the
 same depth. Opaque surfaces read it by pixel (`GetScreenOcclusion()`, which `ShadeOpaqueSurface()` multiplies their
-occlusion by); transparent ones, which the depth does not hold, do not. Occlusion also hides more of the reflections
+occlusion by); transparent ones, which the depth does not hold, do not. Light bounces between the surfaces of a crease
+before it leaves, which occlusion alone leaves out, so the light surfaces scatter is darkened less the brighter they
+are (`GetDiffuseOcclusion()`, Jimenez et al. 2016): a white crease stays light, a dark one goes dark. Occlusion also hides more of the reflections
 of smooth surfaces and at grazing angles (`GetReflectionOcclusion()`). Only what the camera's depth holds hides
 anything, so custom surfaces take part through `CustomSurface::DrawDepth()`, as they cover the sky through
 `DrawShadow()`.
@@ -554,7 +558,11 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
   light already is), blurs it into the mip levels of a second cube for each roughness (GGX, as split-sum image-based
   lighting does) and projects its irradiance onto nine spherical harmonics. Surfaces then scatter the irradiance
   along their normal and reflect the blurred sky along their mirror direction, so the ground's color lights
-  undersides and metals mirror the sky. `GetStats().skyLightingUpdates` tells when a capture happened; a sky that
+  undersides and metals mirror the sky. The sky is drawn as bright as it lights the scene (`SkyBrightness`, in
+  `sky.frag.hlsl` and `renderer_3d_sky.cpp`), so what is in the shade looks lit by the sky above it. Once the sun has
+  set, the moon opposite it lights the night the same way, as a directional light that casts the shadows in the
+  sun's place and as the faint blue sky it scatters (`GetMoonlight()`), far brighter than the real moon so that nights
+  are dark but not black. `GetStats().skyLightingUpdates` tells when a capture happened; a sky that
   turns all the time, as the sandbox's does, is captured every frame, which costs a few small passes. What lies
   under cover gets less of it (see [Light from all around](#light-from-all-around)).
 - `ReflectionProbe`: a reflection probe at its entity, lighting a box of `size` centered on it, along the world's

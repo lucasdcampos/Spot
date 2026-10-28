@@ -9,6 +9,8 @@ cbuffer Sky : register(b0, space3) {
     float4 groundLight;
     // The sunlight that crosses the air to the viewer, which fades out as the sun sets.
     float4 sunLight;
+    // The moon's light before the air dims it, with 1 in w when it lights the air; the moon is opposite the sun.
+    float4 moonlight;
     float4 nightColor;
     // The sun's angular radius in radians, the atmosphere's thickness, the exposure, and 1 in w when drawing into an
     // HDR target, which a tonemapper brings within the display's range later.
@@ -79,8 +81,12 @@ static const float3 RayleighScattering = float3(5.802e-3, 13.558e-3, 33.1e-3);
 static const float MieScattering = 3.996e-3;
 static const float MieExtinction = 4.44e-3;
 static const float MieAnisotropy = 0.8;
-// How bright the sky is drawn for a sun of intensity 1, before the exposure.
-static const float SkyBrightness = 40.0;
+// How bright the sky is for a sun of intensity 1, before the exposure, in the units surfaces are shown in, where a white
+// matte surface receiving an irradiance of 1 shows 1. It is drawn as bright as it lights the scene, so what is in the
+// shade looks lit by the sky it sees. Radiance takes pi to those units; the rest makes up for the light the air
+// scatters more than once and the haze of real air, which single scattering leaves out. Must match SkyBrightness in
+// renderer_3d_sky.cpp.
+static const float SkyBrightness = 20.0;
 // The sun is far brighter than anything else in view, so, as in a camera or the eye, its light spills over what is
 // around it: a blinding core, an intense glow a few radii wide and a faint halo far beyond. All of it is light
 // that crossed the air, so it turns into an orange ball of fire at sunset. The core shows the hue of that light at
@@ -139,32 +145,47 @@ float3 GetTransmittance(float2 depth) {
     return exp(-(RayleighScattering * depth.x + MieExtinction * depth.y) * thickness);
 }
 
-// The sunlight the air scatters toward the viewer from a direction at or above the horizon, for a sun of irradiance
-// 1, and how much of what lies beyond the air gets through it.
-float3 GetSkyRadiance(float3 direction, float3 toSun, out float3 transmittance) {
+// Below this, as the sine of its height, a light leaves even the top of the air in the planet's shadow.
+static const float ShadowedLightHeight = -0.15;
+
+// The light the air scatters toward the viewer from a direction at or above the horizon, from the sun and from the
+// moon opposite it, each for an irradiance of 1, and how much of what lies beyond the air gets through it. Both share
+// the way through the air; a light it cannot reach is left out.
+void GetSkyRadiance(float3 direction, float3 toSun, out float3 sunRadiance, out float3 moonRadiance,
+                    out float3 transmittance) {
     const float r0 = PlanetRadius + ViewerHeight;
     const float mu = max(direction.y, 0.0);
     const float muSun = toSun.y;
     const float nu = dot(direction, toSun);
     const float thickness = settings.y;
     const float distance = GetExitDistance(r0, mu, AtmosphereRadius);
+    const bool sunLit = sunDirection.w > 0.5 && muSun > ShadowedLightHeight;
+    const bool moonLit = moonlight.w > 0.5 && -muSun > ShadowedLightHeight;
 
     // Rays along the ground cross hundreds of kilometers of dense air, so the steps start short near the viewer, and
     // each point is dimmed only by the air up to it, not by its whole step.
     float2 viewDepth = 0.0;
-    float3 rayleighSum = 0.0;
-    float3 mieSum = 0.0;
+    float3 sunRayleigh = 0.0;
+    float3 sunMie = 0.0;
+    float3 moonRayleigh = 0.0;
+    float3 moonMie = 0.0;
     for (int i = 0; i < VIEW_SAMPLES; ++i) {
         const float start = distance * pow(float(i) / VIEW_SAMPLES, 2.0);
         const float end = distance * pow(float(i + 1) / VIEW_SAMPLES, 2.0);
         const float t = (start + end) * 0.5;
         const float r = sqrt(r0 * r0 + t * t + 2.0 * r0 * t * mu);
         const float2 density = GetDensity(r) * (end - start);
-        float2 sunDepth;
-        if (GetSunOpticalDepth(r, (r0 * muSun + t * nu) / r, sunDepth)) {
-            const float3 pathTransmittance = GetTransmittance(viewDepth + density * 0.5 + sunDepth);
-            rayleighSum += density.x * pathTransmittance;
-            mieSum += density.y * pathTransmittance;
+        const float2 depth = viewDepth + density * 0.5;
+        float2 lightDepth;
+        if (sunLit && GetSunOpticalDepth(r, (r0 * muSun + t * nu) / r, lightDepth)) {
+            const float3 pathTransmittance = GetTransmittance(depth + lightDepth);
+            sunRayleigh += density.x * pathTransmittance;
+            sunMie += density.y * pathTransmittance;
+        }
+        if (moonLit && GetSunOpticalDepth(r, -(r0 * muSun + t * nu) / r, lightDepth)) {
+            const float3 pathTransmittance = GetTransmittance(depth + lightDepth);
+            moonRayleigh += density.x * pathTransmittance;
+            moonMie += density.y * pathTransmittance;
         }
         viewDepth += density;
     }
@@ -172,16 +193,21 @@ float3 GetSkyRadiance(float3 direction, float3 toSun, out float3 transmittance) 
 
     const float rayleighPhase = 3.0 / (16.0 * Pi) * (1.0 + nu * nu);
     const float g2 = MieAnisotropy * MieAnisotropy;
-    const float miePhase = 3.0 / (8.0 * Pi) * (1.0 - g2) * (1.0 + nu * nu) /
-                           ((2.0 + g2) * pow(max(1.0 + g2 - 2.0 * MieAnisotropy * nu, 1e-4), 1.5));
-    return (rayleighSum * RayleighScattering * rayleighPhase * skyTint.rgb + mieSum * MieScattering * miePhase) *
-           thickness;
+    const float mieScale = 3.0 / (8.0 * Pi) * (1.0 - g2) * (1.0 + nu * nu) / (2.0 + g2);
+    const float sunMiePhase = mieScale / pow(max(1.0 + g2 - 2.0 * MieAnisotropy * nu, 1e-4), 1.5);
+    const float moonMiePhase = mieScale / pow(max(1.0 + g2 + 2.0 * MieAnisotropy * nu, 1e-4), 1.5);
+    const float3 rayleigh = RayleighScattering * rayleighPhase * skyTint.rgb;
+    sunRadiance = (sunRayleigh * rayleigh + sunMie * MieScattering * sunMiePhase) * thickness;
+    moonRadiance = (moonRayleigh * rayleigh + moonMie * MieScattering * moonMiePhase) * thickness;
 }
 
 // The light of the sky toward the direction, as drawn before the exposure.
 float3 GetSkyLight(float3 direction, float3 toSun, out float3 transmittance) {
-    const float3 sunlight = sunColor.rgb * sunDirection.w * SkyBrightness;
-    return GetSkyRadiance(direction, toSun, transmittance) * sunlight + nightColor.rgb;
+    float3 sunRadiance;
+    float3 moonRadiance;
+    GetSkyRadiance(direction, toSun, sunRadiance, moonRadiance, transmittance);
+    return (sunRadiance * sunColor.rgb * sunDirection.w + moonRadiance * moonlight.rgb) * SkyBrightness +
+           nightColor.rgb;
 }
 
 // Maps unbounded light to what the target can show by its brightness alone, keeping its hue: the glow of a sunset
@@ -202,21 +228,13 @@ float3 Expose(float3 light) {
     return color / pow(1.0 + pow(brightest, 8.0), 1.0 / 8.0);
 }
 
-// The atmosphere is single scattering, which leaves out the light the air scatters more than once, about as much again
-// near the ground; must match MultipleScattering in renderer_3d.cpp.
-static const float MultipleScattering = 2.0;
-
-// The light from the direction in the units surfaces are shown in, where a white matte surface receiving an
-// irradiance of 1 shows 1, so that the sky lights the scene as GetSkyLighting() says on the CPU: radiance times pi.
-// There is no sun, which the scene's directional light already is, nor fog, which surfaces get on their own.
+// The light from the direction, as the sky lights the scene with it, and as GetSkyLighting() says on the CPU. There is
+// no sun, which the scene's directional light already is, nor fog, which surfaces get on their own.
 float3 GetCapturedLight(float3 direction, float3 toSun) {
     float3 transmittance;
     const float3 level = float3(direction.x, 0.0, direction.z);
     const float3 horizon = dot(level, level) > 1e-8 ? normalize(level) : float3(1.0, 0.0, 0.0);
-    const float3 sunlight = sunColor.rgb * sunDirection.w;
-    const float3 air = Pi * MultipleScattering * sunlight *
-                           GetSkyRadiance(direction.y >= 0.0 ? direction : horizon, toSun, transmittance) +
-                       nightColor.rgb;
+    const float3 air = GetSkyLight(direction.y >= 0.0 ? direction : horizon, toSun, transmittance);
     float3 light = air;
     if (direction.y < 0.0) {
         light = lerp(air, groundColor.rgb * groundLight.rgb, 1.0 - exp(direction.y / HorizonFade));
@@ -291,8 +309,9 @@ float4 GetClouds(float3 direction, float3 toSun, float3 sky) {
     const float lit = 0.3 + 0.7 * exp(-shade * 2.0);
     const float forward = pow(saturate(dot(direction, toSun)), 8.0) * (1.0 - thickness);
     const float3 sunlight = sunLight.rgb * lit * (1.3 + 2.0 * forward);
-    const float3 moonlight = nightColor.rgb * moon.y * 3.0 * lit;
-    const float3 light = cloudColor.rgb * (sunlight + moonlight + sky * (0.75 - 0.3 * thickness));
+    // Moonlit clouds stand out gray against the night sky.
+    const float3 moonlit = (nightColor.rgb * moon.y * 3.0 + moonlight.rgb * 0.6) * lit;
+    const float3 light = cloudColor.rgb * (sunlight + moonlit + sky * (0.75 - 0.3 * thickness));
     return float4(light, opacity);
 }
 

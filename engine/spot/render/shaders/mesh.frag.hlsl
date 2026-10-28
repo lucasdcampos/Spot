@@ -134,7 +134,8 @@ float4 main(Input input) : SV_Target0 {
     const float fog = GetFogAmount(input.worldPosition - fogCamera.xyz);
     // Premultiplied: what the surface scatters covers what is behind it as much as its alpha says, while what it
     // reflects and gives off is added at full strength. Fog covers it all, as much as the surface is there.
-    const float3 scatteredLight = scattered * (light.diffuse + light.surroundings * occlusion);
+    const float3 scatteredLight =
+        scattered * (light.diffuse + light.surroundings * GetDiffuseOcclusion(occlusion, scattered));
     const float3 reflectedLight = light.reflectedSurroundings * light.environmentReflectance *
                                       GetReflectionOcclusion(surface, surfaceNormal, occlusion) +
                                   light.highlights + emitted;

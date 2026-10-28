@@ -28,7 +28,8 @@ struct SkyClouds {
 };
 
 // What the sky shows once the sun has set: stars, which turn with the sky and twinkle, and a moon opposite the sun,
-// which rises as it sets. Both fade in as the sun goes down and are hidden by clouds.
+// which rises as it sets. Both fade in as the sun goes down and are hidden by clouds. The moon also lights the scene
+// when the sky does, casting the shadows in the sun's place and brightening the sky around it.
 struct SkyNight {
     // How bright the stars are; 0 hides them.
     float starBrightness = 1.0f;
@@ -40,7 +41,8 @@ struct SkyNight {
     float starRotation = 0.0f;
     // Seconds that drive the stars' twinkling.
     float time = 0.0f;
-    // The moon's angular radius, in radians, and its brightness; a size of 0 hides it.
+    // The moon's angular radius, in radians, and its brightness, which scales the light it casts too; a size of 0 hides
+    // it, and its light.
     float moonSize = ToRadians(1.6f);
     float moonBrightness = 1.0f;
 
@@ -67,8 +69,8 @@ struct SkyData {
     // The color of the ground seen below the horizon, which the sun and sky light like a surface of the scene, seen
     // through the haze near the horizon: a neutral gray by default.
     Color groundColor = {0.2f, 0.2f, 0.21f};
-    // Faint light the sky keeps where sunlight does not reach it, as from the moon and stars, so nights are not
-    // pitch black. It also lights the scene.
+    // Faint light the sky keeps where neither sunlight nor moonlight reaches it, as from the stars, so moonless nights
+    // are not pitch black. It also lights the scene.
     Color nightColor = {0.004f, 0.006f, 0.014f};
     // Brightens or darkens the whole sky.
     float exposure = 1.0f;

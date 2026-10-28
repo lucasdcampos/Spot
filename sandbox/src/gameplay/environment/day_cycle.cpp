@@ -105,7 +105,10 @@ void DayCycle::UpdateAtmosphere(float sunHeight) {
     }
     if (auto* look = GetEntity().GetComponent<Spot::PostProcessing>()) {
         look->temperature = sunset * 0.35f - (1.0f - day) * 0.25f;
-        look->exposure = 1.0f + (1.0f - day) * 0.8f;
+        // Eyes adjust to less light: to a low sun a little, and much more to the moon.
+        const float dayExposure = 1.0f + 0.5f * (1.0f - SmoothStep(0.05f, 0.5f, sunHeight));
+        constexpr float NightExposure = 2.6f;
+        look->exposure = dayExposure + (NightExposure - dayExposure) * (1.0f - day);
         look->saturation = 0.85f + day * 0.2f;
     }
 }
