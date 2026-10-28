@@ -4646,7 +4646,7 @@ TEST_CASE("Authored UI previews and scroll clipping render offscreen", "[gpu][ui
 }
 
 #ifdef SPOT_SANDBOX_IMPORTED_DIR
-TEST_CASE("The generated robot renders animated poses, a held pistol and ragdolls",
+TEST_CASE("The generated humanoid renders animated poses, a held pistol and ragdolls",
           "[gpu][animation][sandbox][offscreen]") {
     RequireGpu();
     auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
@@ -4657,13 +4657,13 @@ TEST_CASE("The generated robot renders animated poses, a held pistol and ragdoll
         ~AssetScope() { Spot::Detail::SetAssetManager(previous); }
     } scope;
     Spot::Detail::SetAssetManager(&assets);
-    const auto prefab = assets.Load<Spot::Prefab>("prefabs/actors/robot.prefab");
+    const auto prefab = assets.Load<Spot::Prefab>("prefabs/actors/npc.prefab");
     const auto weapon = assets.Load<Spot::Model>("generated/models/pistol.gltf");
     REQUIRE(prefab);
     REQUIRE(weapon);
     Spot::Scene scene;
-    auto* robot = scene.Instantiate(prefab);
-    REQUIRE(robot);
+    auto* npc = scene.Instantiate(prefab);
+    REQUIRE(npc);
     auto& floor = scene.CreateEntity("Floor");
     floor.GetTransform().SetPosition({0, -0.95f, 0});
     floor.AddComponent<Spot::BoxCollider>(Spot::Vector3{10, 0.1f, 10});
@@ -4707,35 +4707,36 @@ TEST_CASE("The generated robot renders animated poses, a held pistol and ragdoll
         }
         return count;
     };
-    // The pistol in the robot's right hand follows the animated bone.
+    // The pistol follows the hand through the authored holding pose and locomotion.
     auto& pistol = scene.Instantiate(*weapon, "Pistol");
     auto& attachment = pistol.AddComponent<Spot::BoneAttachment>();
-    attachment.SetAnimator(robot->GetId());
+    attachment.SetAnimator(npc->GetId());
     attachment.SetBone("RightHand");
     scene.Update(0);
-    auto* animator = robot->GetComponent<Spot::Animator>();
+    auto* animator = npc->GetComponent<Spot::Animator>();
     REQUIRE(animator);
+    REQUIRE(animator->SetLayerWeight("Holding", 1));
     REQUIRE(animator->SetFloat("speed", 0));
     animator->Seek(0);
     animator->RefreshRenderers();
     attachment.Synchronize();
     const auto held = pistol.GetTransform().GetWorldPosition();
-    const auto idle = render("robot_idle");
+    const auto idle = render("humanoid_armed_idle");
     REQUIRE(animator->SetFloat("speed", 2));
     animator->Seek(0.15f);
     animator->RefreshRenderers();
     attachment.Synchronize();
     CHECK(Spot::Distance(pistol.GetTransform().GetWorldPosition(), held) > 0.01f);
-    const auto run = render("robot_run");
+    const auto run = render("humanoid_armed_run");
     CHECK(changed(idle, run) > 500);
-    auto* ragdoll = robot->GetComponent<Spot::Ragdoll>();
+    auto* ragdoll = npc->GetComponent<Spot::Ragdoll>();
     REQUIRE(ragdoll);
     REQUIRE(ragdoll->SetActive(true));
     ragdoll->AddImpulse({10, 0, 10}, {0, 0.5f, 0});
     for (int i = 0; i < 90; ++i) {
         scene.Update(1.0f / 60);
     }
-    const auto fallen = render("robot_ragdoll");
+    const auto fallen = render("humanoid_ragdoll");
     CHECK(changed(run, fallen) > 500);
 }
 

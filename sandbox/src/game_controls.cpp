@@ -1,6 +1,6 @@
 #include "game_controls.h"
 
-#include "robot_spawner.h"
+#include "npc_spawner.h"
 #include "sandbox_commands.h"
 
 #include "gameplay/hud/hud.h"
@@ -27,12 +27,12 @@ void GameControls::OnDisable() {
 }
 
 void GameControls::OnStart() {
-    if (spawnRobots && !GetScene().FindComponent<RobotSpawner>()) {
-        auto population = robots;
+    if (spawnNpcs && !GetScene().FindComponent<NpcSpawner>()) {
+        auto population = npcs;
         if (!population) {
             if (auto* assets = Spot::Assets::GetManager();
-                assets && assets->FindByPath("prefabs/actors/robot_spawner.prefab")) {
-                population = assets->Load<Spot::Prefab>("prefabs/actors/robot_spawner.prefab");
+                assets && assets->FindByPath("prefabs/actors/npc_spawner.prefab")) {
+                population = assets->Load<Spot::Prefab>("prefabs/actors/npc_spawner.prefab");
             }
         }
         if (population) {
@@ -48,8 +48,7 @@ void GameControls::OnStart() {
 }
 
 void GameControls::Serialize(Spot::Archive& archive) {
-    archive.Field("robots", robots,
-                  {.tooltip = "The robot population prefab; the default population is used when empty"});
+    archive.Field("npcs", npcs, {.tooltip = "The NPC population prefab; the default population is used when empty"});
     archive.Field("cheats", cheats, {.tooltip = "Permits the console's cheat commands while the game runs"});
-    archive.Field("spawnRobots", spawnRobots, {.tooltip = "Adds the sandbox's default robot population"});
+    archive.Field("spawnNpcs", spawnNpcs, {.tooltip = "Adds the sandbox's default NPC population"});
 }

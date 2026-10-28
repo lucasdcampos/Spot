@@ -34,6 +34,16 @@ Spot::Vector3 VehicleSeat::GetSeatPosition() const {
     return (entity ? *entity : GetEntity()).GetTransform().GetWorldPosition();
 }
 
+Spot::Quaternion VehicleSeat::GetSeatRotation() const {
+    const Spot::Entity* entity = GetScene().GetEntity(seat);
+    return (entity ? *entity : GetEntity()).GetTransform().GetWorldRotation();
+}
+
+void VehicleSeat::PlaceOccupant(Pawn& occupant) const {
+    occupant.GetEntity().GetTransform().SetWorldPosition(GetSeatPosition());
+    occupant.GetEntity().GetTransform().SetWorldRotation(GetSeatRotation());
+}
+
 bool VehicleSeat::CanInteract(const Interactor& /*interactor*/) const {
     const Vehicle* vehicle = GetVehicle();
     return vehicle && vehicle->IsActiveAndEnabled() && vehicle->IsOperational() && !IsOccupied() &&
@@ -56,7 +66,10 @@ bool VehicleSeat::Enter(Pawn& occupant) {
     }
     m_occupant = occupant.GetEntity().GetId();
     occupant.SetState("Seated", true);
-    occupant.GetEntity().GetTransform().SetWorldPosition(GetSeatPosition());
+    if (!poseState.empty()) {
+        occupant.SetState(poseState, true);
+    }
+    PlaceOccupant(occupant);
     vehicle->SetOccupant(&occupant);
     // What gets the driver out at once, as dying.
     m_states = occupant.OnStateChanged.Connect([this](std::string_view state, bool on) {
@@ -91,6 +104,9 @@ void VehicleSeat::Exit() {
     }
     Controller* controller = vehicle ? vehicle->GetController() : nullptr;
     occupant->SetState("Seated", false);
+    if (!poseState.empty()) {
+        occupant->SetState(poseState, false);
+    }
     if (vehicle) {
         const Spot::Transform& transform = vehicle->GetEntity().GetTransform();
         const auto* body = vehicle->GetEntity().GetComponent<Spot::Rigidbody>();
@@ -156,7 +172,7 @@ Spot::Vector3 VehicleSeat::FindExit(const Vehicle& vehicle, const Pawn& occupant
 
 void VehicleSeat::OnLateUpdate(float /*deltaTime*/) {
     if (Pawn* occupant = GetOccupant()) {
-        occupant->GetEntity().GetTransform().SetWorldPosition(GetSeatPosition());
+        PlaceOccupant(*occupant);
     } else if (m_occupant != Spot::EntityId::Invalid) {
         Exit();
     }
@@ -172,6 +188,7 @@ void VehicleSeat::Serialize(Spot::Archive& archive) {
     archive.Field("exits", exits, {.tooltip = "Where the driver gets out, on the ground, the first tried first"});
     archive.Field("exitAction", exitAction);
     archive.Field("ejectWhen", ejectWhen, {.tooltip = "States of the driver that get it out at once"});
+    archive.Field("poseState", poseState, {.tooltip = "Optional occupant state for the seat's presentation pose"});
 }
 
 } // namespace Gameplay

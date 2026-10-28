@@ -1,17 +1,23 @@
 #include "gameplay_world.h"
 
+#include "gameplay/camera/chase_camera.h"
 #include "gameplay/camera/first_person_view.h"
 #include "gameplay/character/carrier.h"
 #include "gameplay/character/character.h"
 #include "gameplay/character/character_movement.h"
+#include "gameplay/character/character_visual.h"
 #include "gameplay/character/flashlight.h"
 #include "gameplay/character/footsteps.h"
 #include "gameplay/core/player_controller.h"
 #include "gameplay/health/fall_damage.h"
 #include "gameplay/health/health.h"
+#include <spot/scene/physics/physics_world.h>
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+
+#include <array>
+#include <memory>
 
 using Catch::Approx;
 
@@ -60,6 +66,119 @@ TEST_CASE("A character walks and runs from intents without a local player", "[sa
     CHECK_FALSE(world.character.HasState("Sprinting"));
     CHECK(ran.z - world.entity.GetTransform().GetWorldPosition().z ==
           Approx(world.movement.walkSpeed * 0.5f).margin(0.15f));
+}
+
+TEST_CASE("An inspection camera changes presentation without changing the character's eyes or aim",
+          "[sandbox][gameplay][character][thirdperson]") {
+    CharacterWorld world;
+    auto& cameraEntity = world.entity.CreateChild("Inspection");
+    auto& camera = cameraEntity.AddComponent<Spot::Camera>();
+    camera.SetEnabled(false);
+    auto& chase = cameraEntity.AddComponent<Gameplay::ChaseCamera>();
+    chase.followView = true;
+    chase.orbit = false;
+    chase.distance = 3;
+    chase.lookHeight = 0.05f;
+    chase.shoulderOffset = 0.65f;
+    chase.followRate = 14;
+    world.character.thirdPersonCamera = cameraEntity.GetId();
+    auto& player = world.scene.CreateEntity("Player").AddComponent<Gameplay::PlayerController>();
+    player.pawn = world.entity.GetId();
+    world.Step();
+    const auto before = world.character.GetViewPoint();
+    REQUIRE(world.character.SetThirdPerson(true));
+    world.Step();
+    CHECK(Spot::FindMainCamera(world.scene) == &camera);
+    CHECK(world.character.HasState("ThirdPerson"));
+    CHECK(world.character.GetViewPoint().position == before.position);
+    CHECK(world.character.GetViewPoint().direction == before.direction);
+    CHECK(cameraEntity.GetTransform().GetWorldPosition().z > before.position.z + 1);
+    CHECK(cameraEntity.GetTransform().GetWorldPosition().x > before.position.x + 0.6f);
+    auto* view = world.entity.GetComponent<Gameplay::FirstPersonView>();
+    view->SetLook(1.0f, 0.2f);
+    world.Run(0.2f);
+    const auto cameraForward = cameraEntity.GetTransform().GetWorldRotation() * Spot::Vector3{0, 0, -1};
+    CHECK(Spot::Dot(Spot::Normalize(Spot::Vector3{cameraForward.x, 0, cameraForward.z}),
+                    Spot::Normalize(Spot::Vector3{view->GetAimDirection().x, 0, view->GetAimDirection().z})) > 0.99f);
+    view->SetLook(0, 0.45f);
+    world.Step();
+    CHECK((cameraEntity.GetTransform().GetWorldRotation() * Spot::Vector3{0, 0, -1}).y > 0.3f);
+    view->SetLook(0, -0.45f);
+    world.Step();
+    CHECK((cameraEntity.GetTransform().GetWorldRotation() * Spot::Vector3{0, 0, -1}).y < -0.3f);
+    const auto eyes = world.character.GetViewPoint();
+    auto& physics = world.scene.GetOrAddSystem<Spot::PhysicsWorld>();
+    const auto eyeHit = physics.Raycast(eyes.position, eyes.direction, 30, {.ignore = world.entity.GetId()});
+    REQUIRE(eyeHit);
+    const auto cameraHit = physics.Raycast(cameraEntity.GetTransform().GetWorldPosition(),
+                                           cameraEntity.GetTransform().GetWorldRotation() * Spot::Vector3{0, 0, -1}, 30,
+                                           {.ignore = world.entity.GetId()});
+    REQUIRE(cameraHit);
+    CHECK(Spot::Distance(eyeHit->point, cameraHit->point) < 0.01f);
+    view->SetLook(0, 0);
+    auto& wall = world.scene.CreateEntity("Wall behind the shoulder");
+    wall.GetTransform().SetPosition({0, 1.5f, 1});
+    wall.AddComponent<Spot::BoxCollider>(Spot::Vector3{2, 3, .2f});
+    world.Step();
+    CHECK(cameraEntity.GetTransform().GetWorldPosition().z < 0.8f);
+    REQUIRE(world.character.SetThirdPerson(false));
+    CHECK_FALSE(camera.IsEnabled());
+    CHECK_FALSE(world.character.HasState("ThirdPerson"));
+    CHECK(Spot::FindMainCamera(world.scene)->GetEntity().GetId() == world.character.eye);
+}
+
+TEST_CASE("Character presentation uses configurable pose layers on an unrelated rig without moving its body",
+          "[sandbox][gameplay][character][character_visual]") {
+    CharacterWorld world;
+    auto& model = world.entity.CreateChild("Custom model");
+    auto& animator = model.AddComponent<Spot::Animator>();
+    animator.SetSkeleton(std::make_shared<const Spot::Skeleton>(
+        Spot::Skeleton{"Other rig", {{"Joint", -1, {}}}, {0}, {Spot::Matrix4{}}}));
+    const auto clip =
+        std::make_shared<const Spot::AnimationClip>(Spot::AnimationClip{"Pose",
+                                                                        1,
+                                                                        {{0,
+                                                                          Spot::AnimationPath::Rotation,
+                                                                          Spot::AnimationInterpolation::Linear,
+                                                                          {0, 1},
+                                                                          {{0, 0, 0, 1}, {0, 0, 0, 1}}}}});
+    auto controller = std::make_shared<Spot::AnimatorController>();
+    controller->parameters = {{"Pace"}};
+    controller->states = {{.name = "Idle", .clip = clip}};
+    REQUIRE(animator.SetController(controller));
+    const std::array layers{Spot::AnimationLayer{.name = "Bench", .clip = clip, .weight = 0},
+                            Spot::AnimationLayer{.name = "Special seat", .clip = clip, .weight = 0}};
+    REQUIRE(animator.SetLayers(layers));
+    auto& visual = world.entity.AddComponent<Gameplay::CharacterVisual>();
+    visual.modelRoot = model.GetId();
+    visual.animator.Set(&animator);
+    visual.speedParameter = "Pace";
+    visual.seatedLayer = "Bench";
+    visual.stateLayers = {{"Custom pose", "Special seat"}};
+    visual.standingOffset = {0, 0.04f, 0};
+    const auto position = world.entity.GetTransform().GetWorldPosition();
+    world.entity.GetComponent<Gameplay::FirstPersonView>()->SetLook(0.8f, 0.3f);
+    world.Step();
+    CHECK(Spot::Distance(model.GetTransform().GetWorldRotation() * Spot::Vector3{0, 0, -1},
+                         Spot::Quaternion::FromAxisAngle({0, 1, 0}, 0.8f) * Spot::Vector3{0, 0, -1}) < 0.001f);
+    CHECK(world.entity.GetTransform().GetWorldPosition() == position);
+    CHECK(animator.GetLayers()[0].weight == 0);
+    world.character.SetState("Seated", true);
+    world.character.SetState("Custom pose", true);
+    world.entity.GetTransform().SetWorldRotation(Spot::Quaternion::FromEuler({0.1f, 1.1f, 0.2f}));
+    world.Step();
+    CHECK(animator.GetLayers()[0].weight == 1);
+    CHECK(animator.GetLayers()[1].weight == 1);
+    CHECK(model.GetTransform().GetPosition() == visual.seatedOffset);
+    CHECK(model.GetTransform().GetRotation() == Spot::Quaternion{});
+    CHECK(animator.GetControllerRuntime().GetParameter("Pace").value() == 0);
+    world.character.SetState("Seated", false);
+    world.character.SetState("Custom pose", false);
+    world.movement.SetIntent({.move = {0, 1}});
+    world.Run(0.2f);
+    CHECK(animator.GetLayers()[0].weight == 0);
+    CHECK(animator.GetLayers()[1].weight == 0);
+    CHECK(animator.GetControllerRuntime().GetParameter("Pace").value() > 0.5f);
 }
 
 TEST_CASE("Character states suspend its body and block movement including noclip", "[sandbox][gameplay][character]") {

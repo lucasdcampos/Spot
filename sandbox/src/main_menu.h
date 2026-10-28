@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -18,7 +19,8 @@ struct MainMenuMap {
     void Serialize(Spot::Archive& archive);
 };
 
-// The startup interface, authored in main_menu.scene. Preview scenes are rendered without starting gameplay.
+// The startup interface, authored in main_menu.scene: text-only pages over a full-screen view of the selected map,
+// rendered from its scene without starting gameplay.
 class MainMenu final : public Gameplay::Menu {
 public:
     enum class Page { Home, Play, Settings, Quit };
@@ -29,7 +31,7 @@ public:
                    quitButton = Spot::EntityId::Invalid, startButton = Spot::EntityId::Invalid;
     Spot::EntityId backButton = Spot::EntityId::Invalid, settingsBackButton = Spot::EntityId::Invalid,
                    cancelQuitButton = Spot::EntityId::Invalid, confirmQuitButton = Spot::EntityId::Invalid;
-    Spot::EntityId previewImage = Spot::EntityId::Invalid, homePreview = Spot::EntityId::Invalid,
+    Spot::EntityId previewImage = Spot::EntityId::Invalid, shade = Spot::EntityId::Invalid,
                    mapTitle = Spot::EntityId::Invalid, mapDescription = Spot::EntityId::Invalid,
                    mapDetails = Spot::EntityId::Invalid, statusLabel = Spot::EntityId::Invalid;
     std::vector<MainMenuMap> maps;
@@ -49,6 +51,7 @@ protected:
 
 private:
     void Play();
+    void StyleText(Spot::EntityId control, std::optional<bool> selected, float blend);
     void RenderPreview(const Spot::RenderStageContext& stage);
     void SetStatus(std::string text);
 

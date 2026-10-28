@@ -5,6 +5,7 @@
 #include "prop_spawner.h"
 #include "undo_list.h"
 
+#include "gameplay/character/character.h"
 #include "gameplay/character/character_movement.h"
 #include "gameplay/core/pawn.h"
 #include "gameplay/inventory/inventory.h"
@@ -101,6 +102,35 @@ SandboxCommands::SandboxCommands(Spot::Console& console, Spot::Scene& scene) : m
              movement->SetFlying(enabled);
              return {true, enabled ? "Noclip enabled" : "Noclip disabled"};
          }}));
+    m_registrations.push_back(console.Register(
+        {"thirdperson", "Toggle the character inspection camera, or set true/false", ConsoleFlags::Cheat,
+         [this](std::span<const std::string> arguments) -> ConsoleResult {
+             auto* character = Gameplay::Players::FindComponent<Gameplay::Character>(m_scene);
+             if (!character) {
+                 return {false, "No player character in this scene"};
+             }
+             bool enabled = !character->IsThirdPerson();
+             if (arguments.size() > 1 || (!arguments.empty() && !Spot::ParseConsoleValue(arguments[0], enabled))) {
+                 return {false, "Usage: thirdperson [true/false]"};
+             }
+             if (!character->SetThirdPerson(enabled)) {
+                 return {false, "The character has no inspection camera"};
+             }
+             return {true, enabled ? "Third person enabled" : "First person enabled"};
+         }}));
+    m_registrations.push_back(
+        console.Register({"firstperson", "Return to the character's first-person camera", ConsoleFlags::Cheat,
+                          [this](std::span<const std::string> arguments) -> ConsoleResult {
+                              if (!arguments.empty()) {
+                                  return {false, "Usage: firstperson"};
+                              }
+                              auto* character = Gameplay::Players::FindComponent<Gameplay::Character>(m_scene);
+                              if (!character) {
+                                  return {false, "No player character in this scene"};
+                              }
+                              character->SetThirdPerson(false);
+                              return {true, "First person enabled"};
+                          }}));
     m_registrations.push_back(console.Register({"cleanup", "Remove spawned props", ConsoleFlags::Cheat,
                                                 [this](std::span<const std::string> arguments) -> ConsoleResult {
                                                     if (!arguments.empty()) {

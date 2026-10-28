@@ -115,9 +115,11 @@ GltfModel Tree(const Trees::TreeMeshes& meshes, std::string foliage, Surface sur
     Builder builder;
     const std::size_t bark = builder.AddMaterial(SurfaceMaterial("Bark", Surface::Bark));
     const std::size_t leaves = builder.AddMaterial(FoliageMaterial(std::move(foliage), surface));
-    builder.Add(bark, meshes.bark);
-    builder.Add(leaves, meshes.foliage);
-    return builder.Build();
+    builder.GetMesh(bark) = meshes.bark;
+    builder.GetMesh(leaves) = meshes.foliage;
+    auto model = builder.Build();
+    model.skeleton = meshes.skeleton;
+    return model;
 }
 
 GltfModel Oak() {
@@ -668,6 +670,9 @@ std::vector<LevelModel> MakeLevelModels() {
     models.push_back({"rock_spire", Rock(4003, {0.9f, 1.9f, 1.0f})});
     models.push_back({"tree_oak", Oak()});
     models.push_back({"tree_pine", Pine()});
+    models.push_back({"tree_pine_sparse_1", Tree(Trees::Pine(7301, true), "Needles", Surface::Needles)});
+    models.push_back({"tree_pine_sparse_2", Tree(Trees::Pine(7302, true), "Needles", Surface::Needles)});
+    models.push_back({"tree_pine_sparse_3", Tree(Trees::Pine(7303, true), "Needles", Surface::Needles)});
     models.push_back({"container", Container()});
     models.push_back({"street_lamp", StreetLamp()});
     models.push_back({"barrier", Barrier()});

@@ -4,8 +4,8 @@
 
 namespace Gameplay {
 
-// The helicopter on this entity or a parent disturbs water below its main rotor, fading with distance and rotor
-// speed. This visual effect is separate from flight physics and needs the water's ripple effect in the scene.
+// The helicopter on this entity or a parent drives branch wind and water ripples below its rotor.
+// Both fade with distance and rotor speed; water ripples use the scene's water effect.
 class HelicopterDownwash : public Spot::Component {
 public:
     float range = 18.0f;
@@ -13,7 +13,7 @@ public:
     float scale = 4.0f;
 
 protected:
-    void OnLateUpdate(float deltaTime) override;
+    void OnUpdate(float deltaTime) override;
     void Serialize(Spot::Archive& archive) override;
 
 private:

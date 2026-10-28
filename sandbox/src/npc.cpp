@@ -1,15 +1,16 @@
-#include "robot.h"
+#include "npc.h"
 #include <spot/scene/audio/audio_system.h>
 #include <spot/scene/physics/physics_world.h>
 
 #include "gameplay/effects/surface.h"
+#include "gameplay/inventory/inventory.h"
 
 #include <algorithm>
 #include <cmath>
 
-SPOT_COMPONENT(Robot);
+SPOT_COMPONENT(Npc);
 
-void Robot::OnStart() {
+void Npc::OnStart() {
     if (!m_hasHome) {
         m_home = GetEntity().GetTransform().GetWorldPosition();
         m_hasHome = true;
@@ -17,9 +18,16 @@ void Robot::OnStart() {
     if (const auto* ragdoll = GetEntity().GetComponent<Spot::Ragdoll>()) {
         m_dead = m_dead || ragdoll->IsActive();
     }
+    SetState("Dead", m_dead);
+    if (auto* inventory = GetEntity().GetComponent<Gameplay::Inventory>();
+        inventory && inventory->GetItemCount() == 0) {
+        for (const auto& item : loadout) {
+            inventory->AddFromPrefab(item);
+        }
+    }
 }
 
-void Robot::OnUpdate(float deltaTime) {
+void Npc::OnUpdate(float deltaTime) {
     auto* animator = GetEntity().GetComponent<Spot::Animator>();
     if (!animator || m_dead) {
         return;
@@ -37,7 +45,7 @@ void Robot::OnUpdate(float deltaTime) {
         m_pause = 0.6f;
     }
     m_pause = std::max(m_pause - deltaTime, 0.0f);
-    animator->SetFloat("speed", m_pause > 0 ? 0.0f : distance > 2 ? 2.0f : 1.0f);
+    animator->SetFloat("speed", patrolDistance <= 0 || m_pause > 0 ? 0.0f : distance > 2 ? 2.0f : 1.0f);
     if (const auto listener = GetScene().GetOrAddSystem<Spot::AudioSystem>().FindListener()) {
         const float away = Spot::Distance(listener->position, GetEntity().GetTransform().GetWorldPosition());
         animator->SetUpdateInterval(away < animationNear ? 0.0f : away < animationFar ? 1.0f / 30.0f : 1.0f / 12.0f);
@@ -49,7 +57,7 @@ void Robot::OnUpdate(float deltaTime) {
     }
 }
 
-void Robot::OnFixedUpdate(float deltaTime) {
+void Npc::OnFixedUpdate(float deltaTime) {
     auto* character = GetEntity().GetComponent<Spot::CharacterController>();
     if (m_dead || !character || !character->IsActiveAndEnabled()) {
         return;
@@ -60,7 +68,7 @@ void Robot::OnFixedUpdate(float deltaTime) {
     character->Move({0, m_fall, 0}, deltaTime);
 }
 
-void Robot::OnAnimationEvent(const Spot::AnimationEvent& event) {
+void Npc::OnAnimationEvent(const Spot::AnimationEvent& event) {
     if (event.name != "Footstep" || m_dead) {
         return;
     }
@@ -78,26 +86,30 @@ void Robot::OnAnimationEvent(const Spot::AnimationEvent& event) {
     }
 }
 
-void Robot::Hit(Spot::Vector3 impulse, Spot::Vector3 point) {
+void Npc::Hit(Spot::Vector3 impulse, Spot::Vector3 point) {
     auto* ragdoll = GetEntity().GetComponent<Spot::Ragdoll>();
     if (!ragdoll || (!ragdoll->IsActive() && !ragdoll->SetActive(true))) {
         return;
     }
     m_dead = true;
+    SetState("Dead", true);
     ragdoll->AddImpulse(impulse, point);
 }
-void Robot::OnDamage(const Gameplay::DamageInfo& damage) {
+void Npc::OnDamage(const Gameplay::DamageInfo& damage) {
     Hit(damage.impulse, damage.point);
 }
 
-void Robot::Revive() {
+void Npc::Revive() {
     if (auto* ragdoll = GetEntity().GetComponent<Spot::Ragdoll>(); ragdoll && ragdoll->SetActive(false, 0.35f)) {
         m_dead = false;
+        SetState("Dead", false);
         m_fall = 0;
         m_pause = 0.6f;
     }
 }
-void Robot::Serialize(Spot::Archive& archive) {
+void Npc::Serialize(Spot::Archive& archive) {
+    Pawn::Serialize(archive);
+    archive.Field("loadout", loadout, {.tooltip = "Items carried by a newly spawned NPC"});
     archive.Field("patrolAxis", patrolAxis);
     archive.Field("patrolDistance", patrolDistance);
     archive.Field("turnSpeed", turnSpeed);

@@ -53,8 +53,7 @@
             "settingsBackButton": 150,
             "cancelQuitButton": 155,
             "confirmQuitButton": 158,
-            "previewImage": 142,
-            "homePreview": 121,
+            "previewImage": 200,
             "mapTitle": 143,
             "mapDescription": 144,
             "mapDetails": 145,
@@ -94,7 +93,8 @@
                   0
                 ]
               }
-            ]
+            ],
+            "shade": 201
           }
         },
         {
@@ -193,8 +193,8 @@
       ]
     },
     {
-      "id": 100,
-      "name": "Brand",
+      "id": 200,
+      "name": "Map View",
       "active": true,
       "layer": 0,
       "position": [
@@ -217,166 +217,16 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "277ca8d64e5042abad76e03797cb5045",
+          "id": "97b9b4e141c94e34a643dfdd845390b8",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
-              0.5
+              0,
+              0
             ],
             "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              -350,
-              304
-            ],
-            "sizeDelta": [
-              452,
-              32
-            ]
-          }
-        },
-        {
-          "type": "UiText",
-          "id": "e41764830c0e4a00bc316320bde835bd",
-          "enabled": true,
-          "data": {
-            "font": "765534ac9cdf585cba22b54d61df0209",
-            "fontSize": 14,
-            "color": [
-              0.807,
-              0.3663,
-              0.0467,
+              1,
               1
-            ],
-            "text": "S P O T   /   S A N D B O X",
-            "layout": {
-              "alignment": 0,
-              "verticalAlignment": 1,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "parent": 2
-    },
-    {
-      "id": 101,
-      "name": "Header Detail",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "2bfae869bd7a4afeace6cedb288a6ac5",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              350,
-              304
-            ],
-            "sizeDelta": [
-              452,
-              32
-            ]
-          }
-        },
-        {
-          "type": "UiText",
-          "id": "854ee03823e54735821eb8632cda411b",
-          "enabled": true,
-          "data": {
-            "font": "765534ac9cdf585cba22b54d61df0209",
-            "fontSize": 12,
-            "color": [
-              0.3231,
-              0.3663,
-              0.4233,
-              1
-            ],
-            "text": "PHYSICS. CREATIVITY. FREEDOM.",
-            "layout": {
-              "alignment": 2,
-              "verticalAlignment": 1,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "parent": 2
-    },
-    {
-      "id": 102,
-      "name": "Header Rule",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "3095219fc8294e15b04a38a92b8f40e5",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
             ],
             "pivot": [
               0.5,
@@ -384,17 +234,17 @@
             ],
             "offset": [
               0,
-              276
+              0
             ],
             "sizeDelta": [
-              1152,
-              1
+              32,
+              32
             ]
           }
         },
         {
           "type": "UiImage",
-          "id": "144f517b9c3346018c5f26d614c3ba81",
+          "id": "7e21cba64d02445f8768340b0e3813c6",
           "enabled": true,
           "data": {
             "texture": null,
@@ -408,7 +258,7 @@
               1,
               1,
               1,
-              0.09
+              0
             ]
           }
         }
@@ -416,8 +266,8 @@
       "parent": 2
     },
     {
-      "id": 103,
-      "name": "Footer Rule",
+      "id": 201,
+      "name": "Shade",
       "active": true,
       "layer": 0,
       "position": [
@@ -440,16 +290,16 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "4e2f215bed2d4e328871d485faddfc56",
+          "id": "a7d0169e97e34401b3882cb01b162598",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
-              0.5
+              0,
+              0
             ],
             "anchorMax": [
-              0.5,
-              0.5
+              1,
+              1
             ],
             "pivot": [
               0.5,
@@ -457,17 +307,17 @@
             ],
             "offset": [
               0,
-              -296
+              0
             ],
             "sizeDelta": [
-              1152,
-              1
+              32,
+              32
             ]
           }
         },
         {
           "type": "UiImage",
-          "id": "069fce1b59f74495b0e0115862d93ce5",
+          "id": "adb2802a9c704fb3924dbe76a15a8394",
           "enabled": true,
           "data": {
             "texture": null,
@@ -478,10 +328,10 @@
               0
             ],
             "tint": [
-              1,
-              1,
-              1,
-              0.09
+              0.0052,
+              0.006,
+              0.0075,
+              0.72
             ]
           }
         }
@@ -489,8 +339,8 @@
       "parent": 2
     },
     {
-      "id": 104,
-      "name": "Navigation Hint",
+      "id": 202,
+      "name": "Hints",
       "active": true,
       "layer": 0,
       "position": [
@@ -513,37 +363,37 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "253e36a656c644e9bca8b0b4d24b6451",
+          "id": "567a0e1616e448658df737dffa5bd1b6",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
-              0.5
+              0,
+              0
             ],
             "anchorMax": [
-              0.5,
-              0.5
+              0,
+              0
             ],
             "pivot": [
-              0.5,
-              0.5
+              0,
+              0
             ],
             "offset": [
-              -130,
-              -324
+              96,
+              36
             ],
             "sizeDelta": [
-              892,
-              24
+              800,
+              20
             ]
           }
         },
         {
           "type": "UiText",
-          "id": "ed684d9ad72b4daba65a2c7c482dcd6b",
+          "id": "cf8a48ebc39b4fd6a7133e26f0305e80",
           "enabled": true,
           "data": {
-            "font": "765534ac9cdf585cba22b54d61df0209",
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
             "fontSize": 12,
             "color": [
               0.3231,
@@ -551,84 +401,9 @@
               0.4233,
               1
             ],
-            "text": "ARROWS / D-PAD  Navigate     ENTER / A  Select     ESC / B  Back",
+            "text": "Enter  Select          Esc  Back",
             "layout": {
               "alignment": 0,
-              "verticalAlignment": 1,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "parent": 2
-    },
-    {
-      "id": 105,
-      "name": "Footer Brand",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "0698c2cec44240f184a04b93dcbd8dc8",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              450,
-              -324
-            ],
-            "sizeDelta": [
-              252,
-              24
-            ]
-          }
-        },
-        {
-          "type": "UiText",
-          "id": "2b90836098224c68af85bd7a301bf971",
-          "enabled": true,
-          "data": {
-            "font": "765534ac9cdf585cba22b54d61df0209",
-            "fontSize": 12,
-            "color": [
-              0.3231,
-              0.3663,
-              0.4233,
-              1
-            ],
-            "text": "SPOT SANDBOX",
-            "layout": {
-              "alignment": 2,
               "verticalAlignment": 1,
               "overflow": 0,
               "wrap": false
@@ -663,16 +438,16 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "80ae8e37feba4e83b0dbb15951080d52",
+          "id": "67827fe60aa142fdbb1a3b77086198ae",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
-              0.5
+              0,
+              0
             ],
             "anchorMax": [
-              0.5,
-              0.5
+              1,
+              1
             ],
             "pivot": [
               0.5,
@@ -680,11 +455,11 @@
             ],
             "offset": [
               0,
-              -12
+              0
             ],
             "sizeDelta": [
-              1152,
-              536
+              0,
+              0
             ]
           }
         }
@@ -692,8 +467,8 @@
       "parent": 2
     },
     {
-      "id": 106,
-      "name": "Home Eyebrow",
+      "id": 300,
+      "name": "Title",
       "active": true,
       "layer": 0,
       "position": [
@@ -716,113 +491,38 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "f593d90e0af94033870fff66b4446153",
+          "id": "ab44fbcf0b954cc78d3b7f746ca25b5d",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
+              0,
               0.5
             ],
             "anchorMax": [
-              0.5,
+              0,
               0.5
             ],
             "pivot": [
-              0.5,
+              0,
               0.5
             ],
             "offset": [
-              -400,
-              206
+              96,
+              118
             ],
             "sizeDelta": [
-              352,
-              24
+              640,
+              72
             ]
           }
         },
         {
           "type": "UiText",
-          "id": "9715bbbd1afa46bd9529276dd32f8657",
-          "enabled": true,
-          "data": {
-            "font": "765534ac9cdf585cba22b54d61df0209",
-            "fontSize": 12,
-            "color": [
-              0.807,
-              0.3663,
-              0.0467,
-              1
-            ],
-            "text": "YOUR NEXT GREAT IDEA STARTS HERE",
-            "layout": {
-              "alignment": 0,
-              "verticalAlignment": 1,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "parent": 10
-    },
-    {
-      "id": 107,
-      "name": "Home Title",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "3aa43400575d4de99a41634067c15427",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              -400,
-              147
-            ],
-            "sizeDelta": [
-              352,
-              94
-            ]
-          }
-        },
-        {
-          "type": "UiText",
-          "id": "ea1b23d44ec2491598332ae6fff858f2",
+          "id": "eaadb6f2f41d426ab448d861c4e14ff4",
           "enabled": true,
           "data": {
             "font": "fb0b65834232ec853f94b211b7d0263e",
-            "fontSize": 64,
+            "fontSize": 60,
             "color": [
               0.807,
               0.823,
@@ -842,8 +542,8 @@
       "parent": 10
     },
     {
-      "id": 108,
-      "name": "Home Description",
+      "id": 301,
+      "name": "Subtitle",
       "active": true,
       "layer": 0,
       "position": [
@@ -866,50 +566,50 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "e51c9f422cad4f15b9b98dd1bcec74d0",
+          "id": "1fb46c6ba89647cc9b932248fed1ec41",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
+              0,
               0.5
             ],
             "anchorMax": [
-              0.5,
+              0,
               0.5
             ],
             "pivot": [
-              0.5,
+              0,
               0.5
             ],
             "offset": [
-              -400,
-              68
+              99,
+              70
             ],
             "sizeDelta": [
-              352,
-              64
+              640,
+              24
             ]
           }
         },
         {
           "type": "UiText",
-          "id": "7935171c29824959965e4c384471ccbc",
+          "id": "e24b9ab9b67643d5a2a21c2d9e619682",
           "enabled": true,
           "data": {
             "font": "7d86b4e529829ceeab7f66ef8cded958",
-            "fontSize": 17,
+            "fontSize": 15,
             "color": [
               0.3231,
               0.3663,
               0.4233,
               1
             ],
-            "text": "Build something unexpected.\nExplore, experiment and make it yours.",
+            "text": "A physics playground made with Spot",
             "layout": {
               "alignment": 0,
               "verticalAlignment": 1,
               "overflow": 0,
-              "wrap": true
+              "wrap": false
             }
           }
         }
@@ -941,28 +641,28 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "c97139f9958444218fb1219dbcd18bf2",
+          "id": "86e765e0303d4039bca8abdbea8a2e99",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
+              0,
               0.5
             ],
             "anchorMax": [
-              0.5,
+              0,
               0.5
             ],
             "pivot": [
-              0.5,
+              0,
               0.5
             ],
             "offset": [
-              -420,
-              -30
+              96,
+              -6
             ],
             "sizeDelta": [
-              312,
-              64
+              320,
+              40
             ]
           }
         },
@@ -974,47 +674,47 @@
             "interactable": true,
             "style": {
               "normal": [
-                0.28,
-                0.115,
-                0.015,
-                1
+                0,
+                0,
+                0,
+                0
               ],
               "hovered": [
-                0.4,
-                0.18,
-                0.024,
-                1
+                0,
+                0,
+                0,
+                0
               ],
               "pressed": [
-                0.2,
-                0.08,
-                0.01,
-                1
+                0,
+                0,
+                0,
+                0
               ],
               "focused": [
-                0.4,
-                0.18,
-                0.024,
-                1
+                0,
+                0,
+                0,
+                0
               ],
               "disabled": [
-                0.0091,
-                0.011,
-                0.0137,
-                0.5
+                0,
+                0,
+                0,
+                0
               ],
               "accent": [
-                0.807,
-                0.3663,
-                0.0467,
-                1.0
+                0,
+                0,
+                0,
+                0
               ],
-              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "texture": null,
               "borders": [
-                6,
-                6,
-                6,
-                6
+                0,
+                0,
+                0,
+                0
               ]
             }
           }
@@ -1023,80 +723,7 @@
       "parent": 10
     },
     {
-      "id": 110,
-      "name": "Outline",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "a48ca78f7b44437daa4282ba45ff2ef3",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              0,
-              0
-            ],
-            "sizeDelta": [
-              312,
-              64
-            ]
-          }
-        },
-        {
-          "type": "UiImage",
-          "id": "ca55b9e3b26040eb88a9ad75ddde3333",
-          "enabled": true,
-          "data": {
-            "tint": [
-              1,
-              1,
-              1,
-              0.12
-            ],
-            "borders": [
-              6,
-              6,
-              6,
-              6
-            ],
-            "texture": "0f55bac8e0df083139b84827ade249fe"
-          }
-        }
-      ],
-      "parent": 109
-    },
-    {
-      "id": 111,
+      "id": 3000,
       "name": "Label",
       "active": true,
       "layer": 0,
@@ -1120,16 +747,16 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "a56ba296f7d440b7ad86ff32c608ad15",
+          "id": "278925dd72e844be85a563305b527203",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
-              0.5
+              0,
+              0
             ],
             "anchorMax": [
-              0.5,
-              0.5
+              1,
+              1
             ],
             "pivot": [
               0.5,
@@ -1140,22 +767,22 @@
               0
             ],
             "sizeDelta": [
-              272,
-              64
+              0,
+              0
             ]
           }
         },
         {
           "type": "UiText",
-          "id": "547da43d770c43009d868cacb93e7dad",
+          "id": "bc3c352ede004eb1bf97db73df815753",
           "enabled": true,
           "data": {
             "font": "fb0b65834232ec853f94b211b7d0263e",
-            "fontSize": 20,
+            "fontSize": 22,
             "color": [
-              0.807,
-              0.823,
-              0.847,
+              0.3231,
+              0.3663,
+              0.4233,
               1
             ],
             "text": "Play",
@@ -1165,6 +792,79 @@
               "overflow": 0,
               "wrap": false
             }
+          }
+        }
+      ],
+      "parent": 109
+    },
+    {
+      "id": 3001,
+      "name": "Marker",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "c5151fb825f9494aa5f48eaec0b9521f",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              -18,
+              0
+            ],
+            "sizeDelta": [
+              3,
+              18
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "f7194e1459284de4ac4e13c969a937f3",
+          "enabled": true,
+          "data": {
+            "texture": null,
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "tint": [
+              0.807,
+              0.3663,
+              0.0467,
+              0
+            ]
           }
         }
       ],
@@ -1195,28 +895,28 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "ceb154b59b344e389a295d818b557a3a",
+          "id": "60ad69c1e6664eb28d89ff05ecd7aad1",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
+              0,
               0.5
             ],
             "anchorMax": [
-              0.5,
+              0,
               0.5
             ],
             "pivot": [
-              0.5,
+              0,
               0.5
             ],
             "offset": [
-              -420,
-              -108
+              96,
+              -54
             ],
             "sizeDelta": [
-              312,
-              52
+              320,
+              40
             ]
           }
         },
@@ -1228,47 +928,47 @@
             "interactable": true,
             "style": {
               "normal": [
-                0.0091,
-                0.011,
-                0.0137,
-                1.0
+                0,
+                0,
+                0,
+                0
               ],
               "hovered": [
-                0.0144,
-                0.0176,
-                0.0232,
-                1.0
+                0,
+                0,
+                0,
+                0
               ],
               "pressed": [
-                0.007,
-                0.008,
-                0.0097,
-                1.0
+                0,
+                0,
+                0,
+                0
               ],
               "focused": [
-                0.0144,
-                0.0176,
-                0.0232,
-                1.0
+                0,
+                0,
+                0,
+                0
               ],
               "disabled": [
-                0.0091,
-                0.011,
-                0.0137,
-                0.5
+                0,
+                0,
+                0,
+                0
               ],
               "accent": [
-                0.807,
-                0.3663,
-                0.0467,
-                1.0
+                0,
+                0,
+                0,
+                0
               ],
-              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "texture": null,
               "borders": [
-                6,
-                6,
-                6,
-                6
+                0,
+                0,
+                0,
+                0
               ]
             }
           }
@@ -1277,80 +977,7 @@
       "parent": 10
     },
     {
-      "id": 113,
-      "name": "Outline",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "19e31bb7e93a4e17b8a89efe9b15ae5f",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              0,
-              0
-            ],
-            "sizeDelta": [
-              312,
-              52
-            ]
-          }
-        },
-        {
-          "type": "UiImage",
-          "id": "c5717a3c243542d6a4c40ed597b0da93",
-          "enabled": true,
-          "data": {
-            "tint": [
-              1,
-              1,
-              1,
-              0.12
-            ],
-            "borders": [
-              6,
-              6,
-              6,
-              6
-            ],
-            "texture": "0f55bac8e0df083139b84827ade249fe"
-          }
-        }
-      ],
-      "parent": 112
-    },
-    {
-      "id": 114,
+      "id": 3002,
       "name": "Label",
       "active": true,
       "layer": 0,
@@ -1374,16 +1001,16 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "1366b2a46a0f4781b5142f88fa153958",
+          "id": "dff29b43b44042f08e7b7451e822f98f",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
-              0.5
+              0,
+              0
             ],
             "anchorMax": [
-              0.5,
-              0.5
+              1,
+              1
             ],
             "pivot": [
               0.5,
@@ -1394,22 +1021,22 @@
               0
             ],
             "sizeDelta": [
-              272,
-              52
+              0,
+              0
             ]
           }
         },
         {
           "type": "UiText",
-          "id": "d710ff55cc304694979ed3d1bc651137",
+          "id": "cfd2f1bb753048c5958afb31b930be05",
           "enabled": true,
           "data": {
-            "font": "7d86b4e529829ceeab7f66ef8cded958",
-            "fontSize": 20,
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 22,
             "color": [
-              0.807,
-              0.823,
-              0.847,
+              0.3231,
+              0.3663,
+              0.4233,
               1
             ],
             "text": "Settings",
@@ -1419,6 +1046,79 @@
               "overflow": 0,
               "wrap": false
             }
+          }
+        }
+      ],
+      "parent": 112
+    },
+    {
+      "id": 3003,
+      "name": "Marker",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "860670b596f643f2b70f7a5936504852",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              -18,
+              0
+            ],
+            "sizeDelta": [
+              3,
+              18
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "984ae451ad3546a4ba2c495236900b44",
+          "enabled": true,
+          "data": {
+            "texture": null,
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "tint": [
+              0.807,
+              0.3663,
+              0.0467,
+              0
+            ]
           }
         }
       ],
@@ -1449,28 +1149,28 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "9350e1a527f245278c5522b216e90549",
+          "id": "c465ac548a1049f6917df44b0a28cdce",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
+              0,
               0.5
             ],
             "anchorMax": [
-              0.5,
+              0,
               0.5
             ],
             "pivot": [
-              0.5,
+              0,
               0.5
             ],
             "offset": [
-              -420,
-              -174
+              96,
+              -102
             ],
             "sizeDelta": [
-              312,
-              52
+              320,
+              40
             ]
           }
         },
@@ -1482,47 +1182,47 @@
             "interactable": true,
             "style": {
               "normal": [
-                0.0091,
-                0.011,
-                0.0137,
-                1.0
+                0,
+                0,
+                0,
+                0
               ],
               "hovered": [
-                0.0144,
-                0.0176,
-                0.0232,
-                1.0
+                0,
+                0,
+                0,
+                0
               ],
               "pressed": [
-                0.007,
-                0.008,
-                0.0097,
-                1.0
+                0,
+                0,
+                0,
+                0
               ],
               "focused": [
-                0.0144,
-                0.0176,
-                0.0232,
-                1.0
+                0,
+                0,
+                0,
+                0
               ],
               "disabled": [
-                0.0091,
-                0.011,
-                0.0137,
-                0.5
+                0,
+                0,
+                0,
+                0
               ],
               "accent": [
-                0.807,
-                0.3663,
-                0.0467,
-                1.0
+                0,
+                0,
+                0,
+                0
               ],
-              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "texture": null,
               "borders": [
-                6,
-                6,
-                6,
-                6
+                0,
+                0,
+                0,
+                0
               ]
             }
           }
@@ -1531,80 +1231,7 @@
       "parent": 10
     },
     {
-      "id": 116,
-      "name": "Outline",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "4331a0a95dae451eb6bac338745e82f1",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              0,
-              0
-            ],
-            "sizeDelta": [
-              312,
-              52
-            ]
-          }
-        },
-        {
-          "type": "UiImage",
-          "id": "75bba834a60c4374b7b90ccdf822b8b3",
-          "enabled": true,
-          "data": {
-            "tint": [
-              1,
-              1,
-              1,
-              0.12
-            ],
-            "borders": [
-              6,
-              6,
-              6,
-              6
-            ],
-            "texture": "0f55bac8e0df083139b84827ade249fe"
-          }
-        }
-      ],
-      "parent": 115
-    },
-    {
-      "id": 117,
+      "id": 3004,
       "name": "Label",
       "active": true,
       "layer": 0,
@@ -1628,16 +1255,16 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "dd34fb6a363147c0bb5ba7a8ee074179",
+          "id": "9288ee8db774493eae29ec8e902d0ffd",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
-              0.5
+              0,
+              0
             ],
             "anchorMax": [
-              0.5,
-              0.5
+              1,
+              1
             ],
             "pivot": [
               0.5,
@@ -1648,25 +1275,25 @@
               0
             ],
             "sizeDelta": [
-              272,
-              52
+              0,
+              0
             ]
           }
         },
         {
           "type": "UiText",
-          "id": "0c6f07f8b80b4b0aaa0b78097e38205a",
+          "id": "03ee17d10d0d49c0b0503ca397ae9a2e",
           "enabled": true,
           "data": {
-            "font": "7d86b4e529829ceeab7f66ef8cded958",
-            "fontSize": 20,
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 22,
             "color": [
-              0.807,
-              0.823,
-              0.847,
+              0.3231,
+              0.3663,
+              0.4233,
               1
             ],
-            "text": "Quit Game",
+            "text": "Quit",
             "layout": {
               "alignment": 0,
               "verticalAlignment": 1,
@@ -1679,8 +1306,8 @@
       "parent": 115
     },
     {
-      "id": 118,
-      "name": "Home Map Count",
+      "id": 3005,
+      "name": "Marker",
       "active": true,
       "layer": 0,
       "position": [
@@ -1703,257 +1330,34 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "0db21edbd2454658869fee58120f5d93",
+          "id": "c9d886c4c25246fca84f1870345d98ee",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
+              0,
               0.5
             ],
             "anchorMax": [
-              0.5,
+              0,
               0.5
             ],
             "pivot": [
-              0.5,
+              0,
               0.5
             ],
             "offset": [
-              -400,
-              -236
+              -18,
+              0
             ],
             "sizeDelta": [
-              352,
-              24
-            ]
-          }
-        },
-        {
-          "type": "UiText",
-          "id": "43720014767c424aaa9e973101bf9af4",
-          "enabled": true,
-          "data": {
-            "font": "765534ac9cdf585cba22b54d61df0209",
-            "fontSize": 12,
-            "color": [
-              0.3231,
-              0.3663,
-              0.4233,
-              1
-            ],
-            "text": "02 MAPS   /   LIMITLESS POSSIBILITIES",
-            "layout": {
-              "alignment": 0,
-              "verticalAlignment": 1,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "parent": 10
-    },
-    {
-      "id": 119,
-      "name": "Featured Map",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "832e4947fdd74e7a9555b2342973bb63",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              208,
-              38
-            ],
-            "sizeDelta": [
-              736,
-              414
+              3,
+              18
             ]
           }
         },
         {
           "type": "UiImage",
-          "id": "725a9abfb88742e5b59e4eb85542b746",
-          "enabled": true,
-          "data": {
-            "tint": [
-              0.0091,
-              0.011,
-              0.0137,
-              1
-            ],
-            "borders": [
-              6,
-              6,
-              6,
-              6
-            ],
-            "texture": "88686c16704f97f193d65bdd3af0d1d8"
-          }
-        }
-      ],
-      "parent": 10
-    },
-    {
-      "id": 120,
-      "name": "Preview Fallback",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "d7f35e81510d4449897ff9093ccbc0a0",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              0,
-              0
-            ],
-            "sizeDelta": [
-              660,
-              100
-            ]
-          }
-        },
-        {
-          "type": "UiText",
-          "id": "c6a23319302d4c74b59c8b2cf4d389af",
-          "enabled": true,
-          "data": {
-            "font": "fb0b65834232ec853f94b211b7d0263e",
-            "fontSize": 24,
-            "color": [
-              0.3231,
-              0.3663,
-              0.4233,
-              1
-            ],
-            "text": "SANDBOX\nExplore your possibilities",
-            "layout": {
-              "alignment": 1,
-              "verticalAlignment": 1,
-              "overflow": 0,
-              "wrap": true
-            }
-          }
-        }
-      ],
-      "parent": 119
-    },
-    {
-      "id": 121,
-      "name": "Featured Preview",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "cdb28478e08248bebaabc0e76dd1369c",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              0,
-              0
-            ],
-            "sizeDelta": [
-              736,
-              414
-            ]
-          }
-        },
-        {
-          "type": "UiImage",
-          "id": "8acecf0fb9ea40efa2aaf8613e501e8d",
+          "id": "04ea23f273894bb89e6c5cbe2891dfa1",
           "enabled": true,
           "data": {
             "texture": null,
@@ -1964,240 +1368,15 @@
               0
             ],
             "tint": [
-              1,
-              1,
-              1,
+              0.807,
+              0.3663,
+              0.0467,
               0
             ]
           }
         }
       ],
-      "parent": 119
-    },
-    {
-      "id": 122,
-      "name": "Featured Eyebrow",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "f69c6b80d90340459dae354e8b0c9558",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              208,
-              -196
-            ],
-            "sizeDelta": [
-              736,
-              22
-            ]
-          }
-        },
-        {
-          "type": "UiText",
-          "id": "3a193ee1e05b4a0a8212e2390aef2ee6",
-          "enabled": true,
-          "data": {
-            "font": "765534ac9cdf585cba22b54d61df0209",
-            "fontSize": 12,
-            "color": [
-              0.807,
-              0.3663,
-              0.0467,
-              1
-            ],
-            "text": "FEATURED WORLD",
-            "layout": {
-              "alignment": 0,
-              "verticalAlignment": 1,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "parent": 10
-    },
-    {
-      "id": 123,
-      "name": "Featured Title",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "9707a5618da7402ca5233c7855203246",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              208,
-              -226
-            ],
-            "sizeDelta": [
-              736,
-              36
-            ]
-          }
-        },
-        {
-          "type": "UiText",
-          "id": "e7fefa8b06a44201a8637954f82c33c5",
-          "enabled": true,
-          "data": {
-            "font": "fb0b65834232ec853f94b211b7d0263e",
-            "fontSize": 24,
-            "color": [
-              0.807,
-              0.823,
-              0.847,
-              1
-            ],
-            "text": "The Playground",
-            "layout": {
-              "alignment": 0,
-              "verticalAlignment": 1,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "parent": 10
-    },
-    {
-      "id": 124,
-      "name": "Featured Detail",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "9d9f7ccfa3e441218091037517fd6669",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              208,
-              -254
-            ],
-            "sizeDelta": [
-              736,
-              22
-            ]
-          }
-        },
-        {
-          "type": "UiText",
-          "id": "bfbad49c1eb144f0a05b80fc5c844790",
-          "enabled": true,
-          "data": {
-            "font": "7d86b4e529829ceeab7f66ef8cded958",
-            "fontSize": 14,
-            "color": [
-              0.3231,
-              0.3663,
-              0.4233,
-              1
-            ],
-            "text": "A valley full of things to discover. Choose a map in Play.",
-            "layout": {
-              "alignment": 0,
-              "verticalAlignment": 1,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "parent": 10
+      "parent": 115
     },
     {
       "id": 20,
@@ -2224,16 +1403,16 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "495086a7f946486f87134a4c40d7e573",
+          "id": "5070f0e2919b4213b3e641b1bcbd7ee8",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
-              0.5
+              0,
+              0
             ],
             "anchorMax": [
-              0.5,
-              0.5
+              1,
+              1
             ],
             "pivot": [
               0.5,
@@ -2241,1449 +1420,16 @@
             ],
             "offset": [
               0,
-              -12
+              0
             ],
             "sizeDelta": [
-              1152,
-              536
+              0,
+              0
             ]
           }
         }
       ],
       "parent": 2
-    },
-    {
-      "id": 125,
-      "name": "Play Eyebrow",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "398e4869c4414397b55a226004cb4635",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              -400,
-              238
-            ],
-            "sizeDelta": [
-              352,
-              24
-            ]
-          }
-        },
-        {
-          "type": "UiText",
-          "id": "2301db53d801462c82f25d1573dc4f59",
-          "enabled": true,
-          "data": {
-            "font": "765534ac9cdf585cba22b54d61df0209",
-            "fontSize": 12,
-            "color": [
-              0.807,
-              0.3663,
-              0.0467,
-              1
-            ],
-            "text": "SINGLE PLAYER",
-            "layout": {
-              "alignment": 0,
-              "verticalAlignment": 1,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "parent": 20
-    },
-    {
-      "id": 126,
-      "name": "Play Title",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "0c8058f3e0df4929980598ff3bb674c3",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              -370,
-              194
-            ],
-            "sizeDelta": [
-              412,
-              56
-            ]
-          }
-        },
-        {
-          "type": "UiText",
-          "id": "4d9857979b5d4634b9916ed289ab8055",
-          "enabled": true,
-          "data": {
-            "font": "fb0b65834232ec853f94b211b7d0263e",
-            "fontSize": 36,
-            "color": [
-              0.807,
-              0.823,
-              0.847,
-              1
-            ],
-            "text": "Choose a map",
-            "layout": {
-              "alignment": 0,
-              "verticalAlignment": 1,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "parent": 20
-    },
-    {
-      "id": 127,
-      "name": "Play Hint",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "d0142a51686341b4a5d945c627223d23",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              -400,
-              145
-            ],
-            "sizeDelta": [
-              352,
-              28
-            ]
-          }
-        },
-        {
-          "type": "UiText",
-          "id": "08d4261c90084c7fba7d189774519e3e",
-          "enabled": true,
-          "data": {
-            "font": "7d86b4e529829ceeab7f66ef8cded958",
-            "fontSize": 15,
-            "color": [
-              0.3231,
-              0.3663,
-              0.4233,
-              1
-            ],
-            "text": "Your world. Your rules.",
-            "layout": {
-              "alignment": 0,
-              "verticalAlignment": 1,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "parent": 20
-    },
-    {
-      "id": 128,
-      "name": "Playground",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "e157c11281774001ab808c356a94075c",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              -420,
-              54
-            ],
-            "sizeDelta": [
-              312,
-              100
-            ]
-          }
-        },
-        {
-          "type": "UiButton",
-          "id": "872976588c714b38aa1b620e432cca16",
-          "enabled": true,
-          "data": {
-            "interactable": true,
-            "style": {
-              "normal": [
-                0.0091,
-                0.011,
-                0.0137,
-                1.0
-              ],
-              "hovered": [
-                0.0144,
-                0.0176,
-                0.0232,
-                1.0
-              ],
-              "pressed": [
-                0.007,
-                0.008,
-                0.0097,
-                1.0
-              ],
-              "focused": [
-                0.0144,
-                0.0176,
-                0.0232,
-                1.0
-              ],
-              "disabled": [
-                0.0091,
-                0.011,
-                0.0137,
-                0.5
-              ],
-              "accent": [
-                0.807,
-                0.3663,
-                0.0467,
-                1.0
-              ],
-              "texture": "88686c16704f97f193d65bdd3af0d1d8",
-              "borders": [
-                6,
-                6,
-                6,
-                6
-              ]
-            }
-          }
-        }
-      ],
-      "parent": 20
-    },
-    {
-      "id": 129,
-      "name": "Outline",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "908186d832534f2eac14c4d86ea0b22c",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              0,
-              0
-            ],
-            "sizeDelta": [
-              312,
-              100
-            ]
-          }
-        },
-        {
-          "type": "UiImage",
-          "id": "e1a5eafadba44294b1ac8d5296f79d56",
-          "enabled": true,
-          "data": {
-            "tint": [
-              1,
-              1,
-              1,
-              0.12
-            ],
-            "borders": [
-              6,
-              6,
-              6,
-              6
-            ],
-            "texture": "0f55bac8e0df083139b84827ade249fe"
-          }
-        }
-      ],
-      "parent": 128
-    },
-    {
-      "id": 130,
-      "name": "Label",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "3874b8b371624968a5d9702cd8ad8dbe",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              0,
-              16
-            ],
-            "sizeDelta": [
-              272,
-              100
-            ]
-          }
-        },
-        {
-          "type": "UiText",
-          "id": "fcd25f1147ac47599d3a6ec38465f33c",
-          "enabled": true,
-          "data": {
-            "font": "7d86b4e529829ceeab7f66ef8cded958",
-            "fontSize": 20,
-            "color": [
-              0.807,
-              0.823,
-              0.847,
-              1
-            ],
-            "text": "Playground",
-            "layout": {
-              "alignment": 0,
-              "verticalAlignment": 1,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "parent": 128
-    },
-    {
-      "id": 131,
-      "name": "Description",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "24f58af26d1349b59129e1885f8eee71",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              0,
-              -24
-            ],
-            "sizeDelta": [
-              272,
-              28
-            ]
-          }
-        },
-        {
-          "type": "UiText",
-          "id": "aabbd4d82f0648ce9cfe83691a3a67e2",
-          "enabled": true,
-          "data": {
-            "font": "7d86b4e529829ceeab7f66ef8cded958",
-            "fontSize": 12,
-            "color": [
-              0.3231,
-              0.3663,
-              0.4233,
-              1
-            ],
-            "text": "Explore a living physics playground.",
-            "layout": {
-              "alignment": 0,
-              "verticalAlignment": 1,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "parent": 128
-    },
-    {
-      "id": 132,
-      "name": "Empty Map",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "ebd6563d85ab42a89792479a2cc714e5",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              -420,
-              -64
-            ],
-            "sizeDelta": [
-              312,
-              100
-            ]
-          }
-        },
-        {
-          "type": "UiButton",
-          "id": "c6067e48d9624935be4253b42b5691c3",
-          "enabled": true,
-          "data": {
-            "interactable": true,
-            "style": {
-              "normal": [
-                0.0091,
-                0.011,
-                0.0137,
-                1.0
-              ],
-              "hovered": [
-                0.0144,
-                0.0176,
-                0.0232,
-                1.0
-              ],
-              "pressed": [
-                0.007,
-                0.008,
-                0.0097,
-                1.0
-              ],
-              "focused": [
-                0.0144,
-                0.0176,
-                0.0232,
-                1.0
-              ],
-              "disabled": [
-                0.0091,
-                0.011,
-                0.0137,
-                0.5
-              ],
-              "accent": [
-                0.807,
-                0.3663,
-                0.0467,
-                1.0
-              ],
-              "texture": "88686c16704f97f193d65bdd3af0d1d8",
-              "borders": [
-                6,
-                6,
-                6,
-                6
-              ]
-            }
-          }
-        }
-      ],
-      "parent": 20
-    },
-    {
-      "id": 133,
-      "name": "Outline",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "f12b1e786db54733848e26b58cf5fae1",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              0,
-              0
-            ],
-            "sizeDelta": [
-              312,
-              100
-            ]
-          }
-        },
-        {
-          "type": "UiImage",
-          "id": "d92cec3754a14223aede13140ea29b01",
-          "enabled": true,
-          "data": {
-            "tint": [
-              1,
-              1,
-              1,
-              0.12
-            ],
-            "borders": [
-              6,
-              6,
-              6,
-              6
-            ],
-            "texture": "0f55bac8e0df083139b84827ade249fe"
-          }
-        }
-      ],
-      "parent": 132
-    },
-    {
-      "id": 134,
-      "name": "Label",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "f79a9b5eb1db46f49b28edf681db5447",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              0,
-              16
-            ],
-            "sizeDelta": [
-              272,
-              100
-            ]
-          }
-        },
-        {
-          "type": "UiText",
-          "id": "5b93196fcc034320ac96031ce68ad5e3",
-          "enabled": true,
-          "data": {
-            "font": "7d86b4e529829ceeab7f66ef8cded958",
-            "fontSize": 20,
-            "color": [
-              0.807,
-              0.823,
-              0.847,
-              1
-            ],
-            "text": "Empty Map",
-            "layout": {
-              "alignment": 0,
-              "verticalAlignment": 1,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "parent": 132
-    },
-    {
-      "id": 135,
-      "name": "Description",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "84b31342c8e64964a1efa31f67a33d29",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              0,
-              -24
-            ],
-            "sizeDelta": [
-              272,
-              28
-            ]
-          }
-        },
-        {
-          "type": "UiText",
-          "id": "a76e620f9fd64aa8b47516c68ea8e658",
-          "enabled": true,
-          "data": {
-            "font": "7d86b4e529829ceeab7f66ef8cded958",
-            "fontSize": 12,
-            "color": [
-              0.3231,
-              0.3663,
-              0.4233,
-              1
-            ],
-            "text": "A clean slate for your next idea.",
-            "layout": {
-              "alignment": 0,
-              "verticalAlignment": 1,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "parent": 132
-    },
-    {
-      "id": 136,
-      "name": "Map Count",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "d67fd3894c08480eb95f2c348d6d3899",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              -400,
-              -140
-            ],
-            "sizeDelta": [
-              352,
-              24
-            ]
-          }
-        },
-        {
-          "type": "UiText",
-          "id": "451a3ddd47a0434994de740a38f76b04",
-          "enabled": true,
-          "data": {
-            "font": "765534ac9cdf585cba22b54d61df0209",
-            "fontSize": 12,
-            "color": [
-              0.3231,
-              0.3663,
-              0.4233,
-              1
-            ],
-            "text": "2 AVAILABLE MAPS",
-            "layout": {
-              "alignment": 0,
-              "verticalAlignment": 1,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "parent": 20
-    },
-    {
-      "id": 137,
-      "name": "Back",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "30e2151aec5d4faba995743ae957b57a",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              -492,
-              -232
-            ],
-            "sizeDelta": [
-              168,
-              44
-            ]
-          }
-        },
-        {
-          "type": "UiButton",
-          "id": "46df0015552e4d19b9f312976e6794a4",
-          "enabled": true,
-          "data": {
-            "interactable": true,
-            "style": {
-              "normal": [
-                0.0091,
-                0.011,
-                0.0137,
-                1.0
-              ],
-              "hovered": [
-                0.0144,
-                0.0176,
-                0.0232,
-                1.0
-              ],
-              "pressed": [
-                0.007,
-                0.008,
-                0.0097,
-                1.0
-              ],
-              "focused": [
-                0.0144,
-                0.0176,
-                0.0232,
-                1.0
-              ],
-              "disabled": [
-                0.0091,
-                0.011,
-                0.0137,
-                0.5
-              ],
-              "accent": [
-                0.807,
-                0.3663,
-                0.0467,
-                1.0
-              ],
-              "texture": "88686c16704f97f193d65bdd3af0d1d8",
-              "borders": [
-                6,
-                6,
-                6,
-                6
-              ]
-            }
-          }
-        }
-      ],
-      "parent": 20
-    },
-    {
-      "id": 138,
-      "name": "Outline",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "0796e19c78334c579c291149224c7dd7",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              0,
-              0
-            ],
-            "sizeDelta": [
-              168,
-              44
-            ]
-          }
-        },
-        {
-          "type": "UiImage",
-          "id": "c47133fc86a94903ab3157177e49dd2f",
-          "enabled": true,
-          "data": {
-            "tint": [
-              1,
-              1,
-              1,
-              0.12
-            ],
-            "borders": [
-              6,
-              6,
-              6,
-              6
-            ],
-            "texture": "0f55bac8e0df083139b84827ade249fe"
-          }
-        }
-      ],
-      "parent": 137
-    },
-    {
-      "id": 139,
-      "name": "Label",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "c21a6a5a5d3a4fdf828d296ae26a68f9",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              0,
-              0
-            ],
-            "sizeDelta": [
-              128,
-              44
-            ]
-          }
-        },
-        {
-          "type": "UiText",
-          "id": "8ce8e2a425ff45999991eaf092b84e30",
-          "enabled": true,
-          "data": {
-            "font": "7d86b4e529829ceeab7f66ef8cded958",
-            "fontSize": 20,
-            "color": [
-              0.807,
-              0.823,
-              0.847,
-              1
-            ],
-            "text": "Back",
-            "layout": {
-              "alignment": 0,
-              "verticalAlignment": 1,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "parent": 137
-    },
-    {
-      "id": 140,
-      "name": "Map Preview Well",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "719c4b7d01d44be38bf5274ea6b980df",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              208,
-              46
-            ],
-            "sizeDelta": [
-              736,
-              414
-            ]
-          }
-        },
-        {
-          "type": "UiImage",
-          "id": "c7146c7289ec43ec87f0f927490b0a97",
-          "enabled": true,
-          "data": {
-            "tint": [
-              0.0091,
-              0.011,
-              0.0137,
-              1
-            ],
-            "borders": [
-              6,
-              6,
-              6,
-              6
-            ],
-            "texture": "88686c16704f97f193d65bdd3af0d1d8"
-          }
-        }
-      ],
-      "parent": 20
-    },
-    {
-      "id": 141,
-      "name": "Preview Fallback",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "9fe22c57608f4d7da6815b56070365e8",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              0,
-              0
-            ],
-            "sizeDelta": [
-              600,
-              60
-            ]
-          }
-        },
-        {
-          "type": "UiText",
-          "id": "0d1c716e72bd4eb89568c33ff63e4b94",
-          "enabled": true,
-          "data": {
-            "font": "765534ac9cdf585cba22b54d61df0209",
-            "fontSize": 20,
-            "color": [
-              0.3231,
-              0.3663,
-              0.4233,
-              1
-            ],
-            "text": "MAP PREVIEW",
-            "layout": {
-              "alignment": 1,
-              "verticalAlignment": 1,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "parent": 140
-    },
-    {
-      "id": 142,
-      "name": "Map Preview",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "c951a1dc2f724ed48628297bc1067657",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              0,
-              0
-            ],
-            "sizeDelta": [
-              736,
-              414
-            ]
-          }
-        },
-        {
-          "type": "UiImage",
-          "id": "76624a98be16455d94a594f3a01152c7",
-          "enabled": true,
-          "data": {
-            "texture": null,
-            "borders": [
-              0,
-              0,
-              0,
-              0
-            ],
-            "tint": [
-              1,
-              1,
-              1,
-              0
-            ]
-          }
-        }
-      ],
-      "parent": 140
     },
     {
       "id": 143,
@@ -3710,38 +1456,38 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "787447e63b8e46dea482868662473399",
+          "id": "e331d76b39994ad5bd7967d139329d86",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
+              0,
               0.5
             ],
             "anchorMax": [
-              0.5,
+              0,
               0.5
             ],
             "pivot": [
-              0.5,
+              0,
               0.5
             ],
             "offset": [
-              62,
-              -194
+              96,
+              -66
             ],
             "sizeDelta": [
-              444,
-              38
+              640,
+              40
             ]
           }
         },
         {
           "type": "UiText",
-          "id": "267be86cd7334cabaa0d7ebd4f717398",
+          "id": "bdc02b070943440c93618a8edf1411cc",
           "enabled": true,
           "data": {
             "font": "fb0b65834232ec853f94b211b7d0263e",
-            "fontSize": 26,
+            "fontSize": 30,
             "color": [
               0.807,
               0.823,
@@ -3785,38 +1531,38 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "fe0a9cfd86fb4c419b1b191fbf97702d",
+          "id": "4cef35d188034632a5cf3946bd0051bb",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
+              0,
               0.5
             ],
             "anchorMax": [
-              0.5,
+              0,
               0.5
             ],
             "pivot": [
-              0.5,
+              0,
               0.5
             ],
             "offset": [
-              62,
-              -232
+              98,
+              -112
             ],
             "sizeDelta": [
-              444,
+              480,
               44
             ]
           }
         },
         {
           "type": "UiText",
-          "id": "561a84ec99714a5e82cc4b6f943969b0",
+          "id": "a6339ffc83af45e29400589857e27495",
           "enabled": true,
           "data": {
             "font": "7d86b4e529829ceeab7f66ef8cded958",
-            "fontSize": 14,
+            "fontSize": 15,
             "color": [
               0.3231,
               0.3663,
@@ -3826,7 +1572,7 @@
             "text": "",
             "layout": {
               "alignment": 0,
-              "verticalAlignment": 1,
+              "verticalAlignment": 0,
               "overflow": 0,
               "wrap": true
             }
@@ -3860,299 +1606,45 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "139a6e07fd2548b79416eef721002e0c",
+          "id": "98dc5bce8f8b4577a20629d96bd3e56f",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
+              0,
               0.5
             ],
             "anchorMax": [
-              0.5,
+              0,
               0.5
             ],
             "pivot": [
-              0.5,
+              0,
               0.5
             ],
             "offset": [
-              208,
-              266
+              98,
+              -24
             ],
             "sizeDelta": [
-              736,
-              22
+              640,
+              20
             ]
           }
         },
         {
           "type": "UiText",
-          "id": "4a4e6799e15548b7b97d5e17a03f824f",
+          "id": "cdb1587a7a4c42bb85356bde8e81f6de",
           "enabled": true,
           "data": {
-            "font": "765534ac9cdf585cba22b54d61df0209",
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
             "fontSize": 12,
             "color": [
-              0.807,
+              0.3231,
               0.3663,
-              0.0467,
+              0.4233,
               1
             ],
             "text": "",
-            "layout": {
-              "alignment": 2,
-              "verticalAlignment": 1,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "parent": 20
-    },
-    {
-      "id": 146,
-      "name": "Start Game",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "ab90ce84936c468f9d4bb50b7c5856a4",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              464,
-              -220
-            ],
-            "sizeDelta": [
-              224,
-              64
-            ]
-          }
-        },
-        {
-          "type": "UiButton",
-          "id": "b1e33c5471564a5cbe45c8430d578834",
-          "enabled": true,
-          "data": {
-            "interactable": true,
-            "style": {
-              "normal": [
-                0.28,
-                0.115,
-                0.015,
-                1
-              ],
-              "hovered": [
-                0.4,
-                0.18,
-                0.024,
-                1
-              ],
-              "pressed": [
-                0.2,
-                0.08,
-                0.01,
-                1
-              ],
-              "focused": [
-                0.4,
-                0.18,
-                0.024,
-                1
-              ],
-              "disabled": [
-                0.0091,
-                0.011,
-                0.0137,
-                0.5
-              ],
-              "accent": [
-                0.807,
-                0.3663,
-                0.0467,
-                1.0
-              ],
-              "texture": "88686c16704f97f193d65bdd3af0d1d8",
-              "borders": [
-                6,
-                6,
-                6,
-                6
-              ]
-            }
-          }
-        }
-      ],
-      "parent": 20
-    },
-    {
-      "id": 147,
-      "name": "Outline",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "dd016528fb724374bbfce86705d5186f",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              0,
-              0
-            ],
-            "sizeDelta": [
-              224,
-              64
-            ]
-          }
-        },
-        {
-          "type": "UiImage",
-          "id": "324a9b1d6dea4ff9b32ed5e0d8837ee0",
-          "enabled": true,
-          "data": {
-            "tint": [
-              1,
-              1,
-              1,
-              0.12
-            ],
-            "borders": [
-              6,
-              6,
-              6,
-              6
-            ],
-            "texture": "0f55bac8e0df083139b84827ade249fe"
-          }
-        }
-      ],
-      "parent": 146
-    },
-    {
-      "id": 148,
-      "name": "Label",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "09778923b30447a2b8aa7ee2c66159ea",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              0,
-              0
-            ],
-            "sizeDelta": [
-              184,
-              64
-            ]
-          }
-        },
-        {
-          "type": "UiText",
-          "id": "251f7671a89d48a7aa476390d40bc4fe",
-          "enabled": true,
-          "data": {
-            "font": "fb0b65834232ec853f94b211b7d0263e",
-            "fontSize": 20,
-            "color": [
-              0.807,
-              0.823,
-              0.847,
-              1
-            ],
-            "text": "Start Game",
             "layout": {
               "alignment": 0,
               "verticalAlignment": 1,
@@ -4162,7 +1654,7 @@
           }
         }
       ],
-      "parent": 146
+      "parent": 20
     },
     {
       "id": 149,
@@ -4189,38 +1681,38 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "37e8ed0478b94c939df570e0df6d2a51",
+          "id": "7ae86a97244341beb7d4ce08d74e72c4",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
+              0,
               0.5
             ],
             "anchorMax": [
-              0.5,
+              0,
               0.5
             ],
             "pivot": [
-              0.5,
+              0,
               0.5
             ],
             "offset": [
-              208,
-              -278
+              98,
+              -248
             ],
             "sizeDelta": [
-              736,
-              22
+              640,
+              20
             ]
           }
         },
         {
           "type": "UiText",
-          "id": "26e8af935b8547cd918b1a0b9c61d5ae",
+          "id": "5e5cf002f39c40b396945e50db5eddd4",
           "enabled": true,
           "data": {
             "font": "7d86b4e529829ceeab7f66ef8cded958",
-            "fontSize": 12,
+            "fontSize": 13,
             "color": [
               0.807,
               0.3663,
@@ -4238,6 +1730,1172 @@
         }
       ],
       "parent": 20
+    },
+    {
+      "id": 310,
+      "name": "Title",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "d21cf63491db47e6b536444327908ca0",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              96,
+              244
+            ],
+            "sizeDelta": [
+              640,
+              56
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "f0255bd1eecf442f888f7b2c5ec53ca8",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 44,
+            "color": [
+              0.807,
+              0.823,
+              0.847,
+              1
+            ],
+            "text": "Play",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 20
+    },
+    {
+      "id": 311,
+      "name": "Subtitle",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "72adcfef6539492db7abbdc304b79305",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              99,
+              204
+            ],
+            "sizeDelta": [
+              640,
+              24
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "18765bb3ca464380bb18ab3dd86061a2",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 15,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "Choose a map",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 20
+    },
+    {
+      "id": 128,
+      "name": "Playground",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "005c28f96674424187f85e8b1a50191f",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              96,
+              136
+            ],
+            "sizeDelta": [
+              320,
+              40
+            ]
+          }
+        },
+        {
+          "type": "UiButton",
+          "id": "872976588c714b38aa1b620e432cca16",
+          "enabled": true,
+          "data": {
+            "interactable": true,
+            "style": {
+              "normal": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "hovered": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "pressed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "focused": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "disabled": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "accent": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "texture": null,
+              "borders": [
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        }
+      ],
+      "parent": 20
+    },
+    {
+      "id": 3006,
+      "name": "Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "843e6e17a54f4d75aec400b0cf55a157",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "5ca40a6369d644e384ec4b2681033e37",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 22,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "Playground",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 128
+    },
+    {
+      "id": 3007,
+      "name": "Marker",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "4a7a4aa7b72b4c6fa18adfa183e019c6",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              -18,
+              0
+            ],
+            "sizeDelta": [
+              3,
+              18
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "dfd0c1ac96ec4000adba5e6e2b27718b",
+          "enabled": true,
+          "data": {
+            "texture": null,
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "tint": [
+              0.807,
+              0.3663,
+              0.0467,
+              0
+            ]
+          }
+        }
+      ],
+      "parent": 128
+    },
+    {
+      "id": 132,
+      "name": "Empty Map",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "8b967471087a4cce9646503b357eafb5",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              96,
+              88
+            ],
+            "sizeDelta": [
+              320,
+              40
+            ]
+          }
+        },
+        {
+          "type": "UiButton",
+          "id": "c6067e48d9624935be4253b42b5691c3",
+          "enabled": true,
+          "data": {
+            "interactable": true,
+            "style": {
+              "normal": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "hovered": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "pressed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "focused": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "disabled": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "accent": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "texture": null,
+              "borders": [
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        }
+      ],
+      "parent": 20
+    },
+    {
+      "id": 3008,
+      "name": "Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "035fe3cb6cf14ea1838827877b58de7f",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "18de15bbe52b44bebbb666d60ef50da4",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 22,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "Empty Map",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 132
+    },
+    {
+      "id": 3009,
+      "name": "Marker",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "dd75637750a24d35a4936bfc7d1a31cf",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              -18,
+              0
+            ],
+            "sizeDelta": [
+              3,
+              18
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "0c10f39046ef4fd4ae1b9ca6aa0a1b4c",
+          "enabled": true,
+          "data": {
+            "texture": null,
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "tint": [
+              0.807,
+              0.3663,
+              0.0467,
+              0
+            ]
+          }
+        }
+      ],
+      "parent": 132
+    },
+    {
+      "id": 146,
+      "name": "Start",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "d0380ca13b6e481baeead7723b20cb41",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              96,
+              -196
+            ],
+            "sizeDelta": [
+              140,
+              40
+            ]
+          }
+        },
+        {
+          "type": "UiButton",
+          "id": "b1e33c5471564a5cbe45c8430d578834",
+          "enabled": true,
+          "data": {
+            "interactable": true,
+            "style": {
+              "normal": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "hovered": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "pressed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "focused": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "disabled": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "accent": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "texture": null,
+              "borders": [
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        }
+      ],
+      "parent": 20
+    },
+    {
+      "id": 3010,
+      "name": "Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "5407a1fb532d4a5a8c62835f6ab795ce",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "4db3781d3c944276a6407886437dd05a",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 22,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "Start",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 146
+    },
+    {
+      "id": 3011,
+      "name": "Marker",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "96ad11c8f29941758c040b2d5f9c1908",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              -18,
+              0
+            ],
+            "sizeDelta": [
+              3,
+              18
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "6a4b71aa522b4bb9ab56470d7b3a4a60",
+          "enabled": true,
+          "data": {
+            "texture": null,
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "tint": [
+              0.807,
+              0.3663,
+              0.0467,
+              0
+            ]
+          }
+        }
+      ],
+      "parent": 146
+    },
+    {
+      "id": 137,
+      "name": "Back",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "5f994600d6c34c739092012610e88b6d",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              256,
+              -196
+            ],
+            "sizeDelta": [
+              140,
+              40
+            ]
+          }
+        },
+        {
+          "type": "UiButton",
+          "id": "46df0015552e4d19b9f312976e6794a4",
+          "enabled": true,
+          "data": {
+            "interactable": true,
+            "style": {
+              "normal": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "hovered": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "pressed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "focused": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "disabled": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "accent": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "texture": null,
+              "borders": [
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        }
+      ],
+      "parent": 20
+    },
+    {
+      "id": 3012,
+      "name": "Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "5ffe8096e98940149840f4a04c670cd4",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "f671f714b8e946a498105b5ed8e00459",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 22,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "Back",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 137
+    },
+    {
+      "id": 3013,
+      "name": "Marker",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "a087b78864fa44ca8ca1d3395147b5a0",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              -18,
+              0
+            ],
+            "sizeDelta": [
+              3,
+              18
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "8eea520575ce4cb88ac9c28a3e60acf7",
+          "enabled": true,
+          "data": {
+            "texture": null,
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "tint": [
+              0.807,
+              0.3663,
+              0.0467,
+              0
+            ]
+          }
+        }
+      ],
+      "parent": 137
     },
     {
       "id": 40,
@@ -4264,16 +2922,16 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "a7e5f58a29ce4e15b17ef84ba3c9de54",
+          "id": "6a4b35cb0d6748dd8da5514136f4a5f5",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
-              0.5
+              0,
+              0
             ],
             "anchorMax": [
-              0.5,
-              0.5
+              1,
+              1
             ],
             "pivot": [
               0.5,
@@ -4281,11 +2939,11 @@
             ],
             "offset": [
               0,
-              -12
+              0
             ],
             "sizeDelta": [
-              1152,
-              536
+              0,
+              0
             ]
           }
         }
@@ -4298,8 +2956,8 @@
       "active": true,
       "components": [
         {
-          "id": "dad73dc03f2b46eb8425bc633ef745da",
           "type": "UiRect",
+          "id": "c3447e4b0afe4328a7c030bbdeb292c6",
           "enabled": true,
           "data": {
             "anchorMin": [
@@ -4316,32 +2974,12 @@
             ],
             "offset": [
               0,
-              0
+              -14
             ],
             "sizeDelta": [
-              1152,
-              536
+              1088,
+              572
             ]
-          }
-        },
-        {
-          "id": "8166605f45d449e7870b659b775c1e2b",
-          "type": "UiImage",
-          "enabled": true,
-          "data": {
-            "tint": [
-              0.0052,
-              0.006,
-              0.0075,
-              0.97
-            ],
-            "borders": [
-              6,
-              6,
-              6,
-              6
-            ],
-            "texture": "88686c16704f97f193d65bdd3af0d1d8"
           }
         }
       ],
@@ -4365,85 +3003,13 @@
       "parent": 40
     },
     {
-      "id": 1391,
-      "name": "Outline",
-      "active": true,
-      "components": [
-        {
-          "id": "bd62f1d00b6b4e7b8d1a97a530e75cf6",
-          "type": "UiRect",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0,
-              0
-            ],
-            "anchorMax": [
-              1,
-              1
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              0,
-              0
-            ],
-            "sizeDelta": [
-              0,
-              0
-            ]
-          }
-        },
-        {
-          "id": "e0af001eb6fb4f1ca2edc46e17c0c76a",
-          "type": "UiImage",
-          "enabled": true,
-          "data": {
-            "tint": [
-              1,
-              1,
-              1,
-              0.07
-            ],
-            "borders": [
-              6,
-              6,
-              6,
-              6
-            ],
-            "texture": "0f55bac8e0df083139b84827ade249fe"
-          }
-        }
-      ],
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "parent": 1031
-    },
-    {
       "id": 1032,
       "name": "Pause Title",
       "active": true,
       "components": [
         {
-          "id": "724551f8a89f49c4a453fcce4d49b50c",
           "type": "UiRect",
+          "id": "80df74f27f5647d9a8219b9f78c95eb4",
           "enabled": true,
           "data": {
             "anchorMin": [
@@ -4459,34 +3025,34 @@
               1
             ],
             "offset": [
-              16,
+              0,
               0
             ],
             "sizeDelta": [
-              200,
-              44
+              400,
+              56
             ]
           }
         },
         {
-          "id": "318394f6841d41188ed4bef6422b3a84",
           "type": "UiText",
+          "id": "02e79a3cd1f144f8bd33b954d987d51f",
           "enabled": true,
           "data": {
             "font": "fb0b65834232ec853f94b211b7d0263e",
-            "text": "Settings",
-            "fontSize": 24,
+            "fontSize": 44,
             "color": [
               0.807,
-              0.8228,
-              0.8469,
-              1.0
+              0.823,
+              0.847,
+              1
             ],
+            "text": "Settings",
             "layout": {
               "alignment": 0,
+              "verticalAlignment": 1,
               "overflow": 0,
-              "wrap": false,
-              "verticalAlignment": 1
+              "wrap": false
             }
           }
         }
@@ -4516,8 +3082,8 @@
       "active": true,
       "components": [
         {
-          "id": "f82dbf42578c4f8d8797b8587387d386",
           "type": "UiRect",
+          "id": "efe5d797a253469ca2a6b5ef54575786",
           "enabled": true,
           "data": {
             "anchorMin": [
@@ -4533,107 +3099,35 @@
               1
             ],
             "offset": [
-              188,
-              0
+              3,
+              -58
             ],
             "sizeDelta": [
-              400,
-              44
+              500,
+              24
             ]
           }
         },
         {
-          "id": "81e7b73658fa410389a04011f2f914e2",
           "type": "UiText",
+          "id": "9e8e902c083843bb97c0deb8acb6380c",
           "enabled": true,
           "data": {
             "font": "7d86b4e529829ceeab7f66ef8cded958",
-            "text": "Make yourself at home",
-            "fontSize": 12,
+            "fontSize": 15,
             "color": [
               0.3231,
               0.3663,
               0.4233,
               1
             ],
+            "text": "Changes are saved as you make them",
             "layout": {
               "alignment": 0,
+              "verticalAlignment": 1,
               "overflow": 0,
-              "wrap": false,
-              "verticalAlignment": 1
+              "wrap": false
             }
-          }
-        }
-      ],
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "parent": 1031
-    },
-    {
-      "id": 1393,
-      "name": "Pause Header Rule",
-      "active": true,
-      "components": [
-        {
-          "id": "be7e97f0e7804d0d94a48d5d528d07fa",
-          "type": "UiRect",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0,
-              1
-            ],
-            "anchorMax": [
-              1,
-              1
-            ],
-            "pivot": [
-              0.5,
-              1
-            ],
-            "offset": [
-              0,
-              -44
-            ],
-            "sizeDelta": [
-              0,
-              1
-            ]
-          }
-        },
-        {
-          "id": "a1f3e3f13a8b427184cf1dac11d8d205",
-          "type": "UiImage",
-          "enabled": true,
-          "data": {
-            "tint": [
-              1,
-              1,
-              1,
-              0.06
-            ],
-            "borders": [
-              0,
-              0,
-              0,
-              0
-            ],
-            "texture": null
           }
         }
       ],
@@ -4679,8 +3173,8 @@
               1
             ],
             "offset": [
-              20,
-              -76
+              0,
+              -116
             ],
             "sizeDelta": [
               500,
@@ -7459,8 +5953,8 @@
               1
             ],
             "offset": [
-              -20,
-              -76
+              0,
+              -116
             ],
             "sizeDelta": [
               548,
@@ -7533,8 +6027,8 @@
               1
             ],
             "offset": [
-              -20,
-              -76
+              0,
+              -116
             ],
             "sizeDelta": [
               548,
@@ -7607,8 +6101,8 @@
               1
             ],
             "offset": [
-              -20,
-              -104
+              0,
+              -144
             ],
             "sizeDelta": [
               548,
@@ -8033,154 +6527,8 @@
       "parent": 1067
     },
     {
-      "id": 1395,
-      "name": "Pause Footer Rule",
-      "active": true,
-      "components": [
-        {
-          "id": "763e1bebbefa436591ded5ff485ae052",
-          "type": "UiRect",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0,
-              0
-            ],
-            "anchorMax": [
-              1,
-              0
-            ],
-            "pivot": [
-              0.5,
-              0
-            ],
-            "offset": [
-              0,
-              40
-            ],
-            "sizeDelta": [
-              0,
-              1
-            ]
-          }
-        },
-        {
-          "id": "54d98d2598074e82a14e0e90932ed134",
-          "type": "UiImage",
-          "enabled": true,
-          "data": {
-            "tint": [
-              1,
-              1,
-              1,
-              0.06
-            ],
-            "borders": [
-              0,
-              0,
-              0,
-              0
-            ],
-            "texture": null
-          }
-        }
-      ],
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "parent": 1031
-    },
-    {
-      "id": 1396,
-      "name": "Pause Hint",
-      "active": true,
-      "components": [
-        {
-          "id": "ed7ddd37760a428a8748521828dfa216",
-          "type": "UiRect",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0,
-              0
-            ],
-            "anchorMax": [
-              0,
-              0
-            ],
-            "pivot": [
-              0,
-              0
-            ],
-            "offset": [
-              16,
-              0
-            ],
-            "sizeDelta": [
-              400,
-              40
-            ]
-          }
-        },
-        {
-          "id": "7f034a5cacac47069a78e96cd1933303",
-          "type": "UiText",
-          "enabled": true,
-          "data": {
-            "font": "7d86b4e529829ceeab7f66ef8cded958",
-            "text": "Changes are saved automatically",
-            "fontSize": 12,
-            "color": [
-              0.3231,
-              0.3663,
-              0.4233,
-              1
-            ],
-            "layout": {
-              "alignment": 0,
-              "overflow": 0,
-              "wrap": false,
-              "verticalAlignment": 1
-            }
-          }
-        }
-      ],
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "parent": 1031
-    },
-    {
       "id": 150,
-      "name": "Settings Back",
+      "name": "Back",
       "active": true,
       "layer": 0,
       "position": [
@@ -8203,28 +6551,28 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "c937f320cf844240a2d0fa73fbe279bb",
+          "id": "9d246797898141a48f1e8d7b8ec44a55",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
-              0.5
+              1,
+              1
             ],
             "anchorMax": [
-              0.5,
-              0.5
+              1,
+              1
             ],
             "pivot": [
-              0.5,
-              0.5
+              1,
+              1
             ],
             "offset": [
-              472,
-              -244
+              0,
+              -8
             ],
             "sizeDelta": [
-              168,
-              34
+              80,
+              40
             ]
           }
         },
@@ -8236,47 +6584,47 @@
             "interactable": true,
             "style": {
               "normal": [
-                0.28,
-                0.115,
-                0.015,
-                1
+                0,
+                0,
+                0,
+                0
               ],
               "hovered": [
-                0.4,
-                0.18,
-                0.024,
-                1
+                0,
+                0,
+                0,
+                0
               ],
               "pressed": [
-                0.2,
-                0.08,
-                0.01,
-                1
+                0,
+                0,
+                0,
+                0
               ],
               "focused": [
-                0.4,
-                0.18,
-                0.024,
-                1
+                0,
+                0,
+                0,
+                0
               ],
               "disabled": [
-                0.0091,
-                0.011,
-                0.0137,
-                0.5
+                0,
+                0,
+                0,
+                0
               ],
               "accent": [
-                0.807,
-                0.3663,
-                0.0467,
-                1.0
+                0,
+                0,
+                0,
+                0
               ],
-              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "texture": null,
               "borders": [
-                6,
-                6,
-                6,
-                6
+                0,
+                0,
+                0,
+                0
               ]
             }
           }
@@ -8285,80 +6633,7 @@
       "parent": 1031
     },
     {
-      "id": 151,
-      "name": "Outline",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "b16c6776a39143928e04af119ae3f6ee",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              0,
-              0
-            ],
-            "sizeDelta": [
-              168,
-              34
-            ]
-          }
-        },
-        {
-          "type": "UiImage",
-          "id": "73e4b92b5c7f4c6cb8e940b56db64c50",
-          "enabled": true,
-          "data": {
-            "tint": [
-              1,
-              1,
-              1,
-              0.12
-            ],
-            "borders": [
-              6,
-              6,
-              6,
-              6
-            ],
-            "texture": "0f55bac8e0df083139b84827ade249fe"
-          }
-        }
-      ],
-      "parent": 150
-    },
-    {
-      "id": 152,
+      "id": 3014,
       "name": "Label",
       "active": true,
       "layer": 0,
@@ -8382,16 +6657,16 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "3b4bb6e06853465ea1f5f822ff045913",
+          "id": "5851cf84628d4b8aa06c137f6931ecb1",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
-              0.5
+              0,
+              0
             ],
             "anchorMax": [
-              0.5,
-              0.5
+              1,
+              1
             ],
             "pivot": [
               0.5,
@@ -8402,31 +6677,104 @@
               0
             ],
             "sizeDelta": [
-              128,
-              34
+              0,
+              0
             ]
           }
         },
         {
           "type": "UiText",
-          "id": "f7c8b620b870425499ae059caa9a109d",
+          "id": "fe25ef8b69e843cfb07b7ef160165a5a",
           "enabled": true,
           "data": {
             "font": "fb0b65834232ec853f94b211b7d0263e",
-            "fontSize": 14,
+            "fontSize": 22,
             "color": [
-              0.807,
-              0.823,
-              0.847,
+              0.3231,
+              0.3663,
+              0.4233,
               1
             ],
-            "text": "Done",
+            "text": "Back",
             "layout": {
               "alignment": 0,
               "verticalAlignment": 1,
               "overflow": 0,
               "wrap": false
             }
+          }
+        }
+      ],
+      "parent": 150
+    },
+    {
+      "id": 3015,
+      "name": "Marker",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "bcae0763ca9b4a479405f4a81f282c10",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              -18,
+              0
+            ],
+            "sizeDelta": [
+              3,
+              18
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "b255076ecb28459fb0b1951c734a1619",
+          "enabled": true,
+          "data": {
+            "texture": null,
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "tint": [
+              0.807,
+              0.3663,
+              0.0467,
+              0
+            ]
           }
         }
       ],
@@ -8457,16 +6805,16 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "600b07d84d4a48ae9ce9ad75f9902e1a",
+          "id": "0d88143ea93c4431b00b453d7d02fd69",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
-              0.5
+              0,
+              0
             ],
             "anchorMax": [
-              0.5,
-              0.5
+              1,
+              1
             ],
             "pivot": [
               0.5,
@@ -8474,40 +6822,20 @@
             ],
             "offset": [
               0,
-              -12
+              0
             ],
             "sizeDelta": [
-              620,
-              280
+              0,
+              0
             ]
-          }
-        },
-        {
-          "type": "UiImage",
-          "id": "d93e494db4d745578c64f0e0130ca604",
-          "enabled": true,
-          "data": {
-            "tint": [
-              0.0091,
-              0.011,
-              0.0137,
-              1
-            ],
-            "borders": [
-              6,
-              6,
-              6,
-              6
-            ],
-            "texture": "88686c16704f97f193d65bdd3af0d1d8"
           }
         }
       ],
       "parent": 2
     },
     {
-      "id": 153,
-      "name": "Quit Title",
+      "id": 320,
+      "name": "Title",
       "active": true,
       "layer": 0,
       "position": [
@@ -8530,122 +6858,47 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "22068064e1074a0693652c8a14462d61",
+          "id": "1f34fe1f440644c2b22f9cd2deeb55a9",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
+              0,
               0.5
             ],
             "anchorMax": [
-              0.5,
+              0,
               0.5
             ],
             "pivot": [
-              0.5,
+              0,
               0.5
             ],
             "offset": [
-              0,
-              76
+              96,
+              92
             ],
             "sizeDelta": [
-              524,
-              48
+              640,
+              56
             ]
           }
         },
         {
           "type": "UiText",
-          "id": "079cad8956124c24998211e806fc12ba",
+          "id": "7c8d8123fc024a95a169857faaa98d2e",
           "enabled": true,
           "data": {
             "font": "fb0b65834232ec853f94b211b7d0263e",
-            "fontSize": 32,
+            "fontSize": 44,
             "color": [
               0.807,
               0.823,
               0.847,
               1
             ],
-            "text": "Leaving so soon?",
+            "text": "Quit to desktop?",
             "layout": {
-              "alignment": 1,
-              "verticalAlignment": 1,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "parent": 50
-    },
-    {
-      "id": 154,
-      "name": "Quit Description",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "71ccc370fc7e40bab7a07605336da72c",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              0,
-              20
-            ],
-            "sizeDelta": [
-              524,
-              44
-            ]
-          }
-        },
-        {
-          "type": "UiText",
-          "id": "c5b6ac07e7db41f49e127a8a3d3f6b3f",
-          "enabled": true,
-          "data": {
-            "font": "7d86b4e529829ceeab7f66ef8cded958",
-            "fontSize": 16,
-            "color": [
-              0.3231,
-              0.3663,
-              0.4233,
-              1
-            ],
-            "text": "Quit Sandbox and return to your desktop?",
-            "layout": {
-              "alignment": 1,
+              "alignment": 0,
               "verticalAlignment": 1,
               "overflow": 0,
               "wrap": false
@@ -8657,7 +6910,7 @@
     },
     {
       "id": 155,
-      "name": "Keep Playing",
+      "name": "Cancel",
       "active": true,
       "layer": 0,
       "position": [
@@ -8680,28 +6933,28 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "a9dcf9518fb84d9a8312c0ad9b583fce",
+          "id": "e756518ead3f419fa6f7eb73cd54fa23",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
+              0,
               0.5
             ],
             "anchorMax": [
-              0.5,
+              0,
               0.5
             ],
             "pivot": [
-              0.5,
+              0,
               0.5
             ],
             "offset": [
-              -140,
-              -76
+              96,
+              6
             ],
             "sizeDelta": [
-              240,
-              52
+              320,
+              40
             ]
           }
         },
@@ -8713,47 +6966,47 @@
             "interactable": true,
             "style": {
               "normal": [
-                0.28,
-                0.115,
-                0.015,
-                1
+                0,
+                0,
+                0,
+                0
               ],
               "hovered": [
-                0.4,
-                0.18,
-                0.024,
-                1
+                0,
+                0,
+                0,
+                0
               ],
               "pressed": [
-                0.2,
-                0.08,
-                0.01,
-                1
+                0,
+                0,
+                0,
+                0
               ],
               "focused": [
-                0.4,
-                0.18,
-                0.024,
-                1
+                0,
+                0,
+                0,
+                0
               ],
               "disabled": [
-                0.0091,
-                0.011,
-                0.0137,
-                0.5
+                0,
+                0,
+                0,
+                0
               ],
               "accent": [
-                0.807,
-                0.3663,
-                0.0467,
-                1.0
+                0,
+                0,
+                0,
+                0
               ],
-              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "texture": null,
               "borders": [
-                6,
-                6,
-                6,
-                6
+                0,
+                0,
+                0,
+                0
               ]
             }
           }
@@ -8762,80 +7015,7 @@
       "parent": 50
     },
     {
-      "id": 156,
-      "name": "Outline",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "372b21f3886c43a4bcadd04acdd1a2b8",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              0,
-              0
-            ],
-            "sizeDelta": [
-              240,
-              52
-            ]
-          }
-        },
-        {
-          "type": "UiImage",
-          "id": "54869c375d244f7b9bebbf8ab759dd33",
-          "enabled": true,
-          "data": {
-            "tint": [
-              1,
-              1,
-              1,
-              0.12
-            ],
-            "borders": [
-              6,
-              6,
-              6,
-              6
-            ],
-            "texture": "0f55bac8e0df083139b84827ade249fe"
-          }
-        }
-      ],
-      "parent": 155
-    },
-    {
-      "id": 157,
+      "id": 3016,
       "name": "Label",
       "active": true,
       "layer": 0,
@@ -8859,16 +7039,16 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "9689de7d70684315afce16f4b0658ec0",
+          "id": "c3cd0de910dd4e569fbee140a21fa069",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
-              0.5
+              0,
+              0
             ],
             "anchorMax": [
-              0.5,
-              0.5
+              1,
+              1
             ],
             "pivot": [
               0.5,
@@ -8879,25 +7059,25 @@
               0
             ],
             "sizeDelta": [
-              200,
-              52
+              0,
+              0
             ]
           }
         },
         {
           "type": "UiText",
-          "id": "5237fdcde37f47f3b807570e63825a7d",
+          "id": "79565d6b068c4f9eb5951e5578801f8e",
           "enabled": true,
           "data": {
             "font": "fb0b65834232ec853f94b211b7d0263e",
-            "fontSize": 20,
+            "fontSize": 22,
             "color": [
-              0.807,
-              0.823,
-              0.847,
+              0.3231,
+              0.3663,
+              0.4233,
               1
             ],
-            "text": "Stay Here",
+            "text": "Cancel",
             "layout": {
               "alignment": 0,
               "verticalAlignment": 1,
@@ -8910,8 +7090,8 @@
       "parent": 155
     },
     {
-      "id": 158,
-      "name": "Confirm Quit",
+      "id": 3017,
+      "name": "Marker",
       "active": true,
       "layer": 0,
       "position": [
@@ -8934,28 +7114,101 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "2128176ea2a04d76b67d8270f6609ca4",
+          "id": "9cba96c6779e49419491893151d64b81",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
+              0,
               0.5
             ],
             "anchorMax": [
-              0.5,
+              0,
               0.5
             ],
             "pivot": [
-              0.5,
+              0,
               0.5
             ],
             "offset": [
-              140,
-              -76
+              -18,
+              0
             ],
             "sizeDelta": [
-              240,
-              52
+              3,
+              18
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "14a4a55de81f49ca820e16ec177de181",
+          "enabled": true,
+          "data": {
+            "texture": null,
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "tint": [
+              0.807,
+              0.3663,
+              0.0467,
+              0
+            ]
+          }
+        }
+      ],
+      "parent": 155
+    },
+    {
+      "id": 158,
+      "name": "Quit",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "885f19fc2b8e49a5a4388049085cc365",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              96,
+              -42
+            ],
+            "sizeDelta": [
+              320,
+              40
             ]
           }
         },
@@ -8967,47 +7220,47 @@
             "interactable": true,
             "style": {
               "normal": [
-                0.0091,
-                0.011,
-                0.0137,
-                1.0
+                0,
+                0,
+                0,
+                0
               ],
               "hovered": [
-                0.0144,
-                0.0176,
-                0.0232,
-                1.0
+                0,
+                0,
+                0,
+                0
               ],
               "pressed": [
-                0.007,
-                0.008,
-                0.0097,
-                1.0
+                0,
+                0,
+                0,
+                0
               ],
               "focused": [
-                0.0144,
-                0.0176,
-                0.0232,
-                1.0
+                0,
+                0,
+                0,
+                0
               ],
               "disabled": [
-                0.0091,
-                0.011,
-                0.0137,
-                0.5
+                0,
+                0,
+                0,
+                0
               ],
               "accent": [
-                0.807,
-                0.3663,
-                0.0467,
-                1.0
+                0,
+                0,
+                0,
+                0
               ],
-              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "texture": null,
               "borders": [
-                6,
-                6,
-                6,
-                6
+                0,
+                0,
+                0,
+                0
               ]
             }
           }
@@ -9016,80 +7269,7 @@
       "parent": 50
     },
     {
-      "id": 159,
-      "name": "Outline",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "b3320c8322d14bd7aae566bbcde2f138",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0.5,
-              0.5
-            ],
-            "anchorMax": [
-              0.5,
-              0.5
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              0,
-              0
-            ],
-            "sizeDelta": [
-              240,
-              52
-            ]
-          }
-        },
-        {
-          "type": "UiImage",
-          "id": "ebe0f7c2c5c142b49a9fed6bc7e3ec4e",
-          "enabled": true,
-          "data": {
-            "tint": [
-              1,
-              1,
-              1,
-              0.12
-            ],
-            "borders": [
-              6,
-              6,
-              6,
-              6
-            ],
-            "texture": "0f55bac8e0df083139b84827ade249fe"
-          }
-        }
-      ],
-      "parent": 158
-    },
-    {
-      "id": 160,
+      "id": 3018,
       "name": "Label",
       "active": true,
       "layer": 0,
@@ -9113,16 +7293,16 @@
       "components": [
         {
           "type": "UiRect",
-          "id": "d55b2be0831e45c9a74f29e492cc6fa1",
+          "id": "1f0d80d1ecc8421d8634bc5985692074",
           "enabled": true,
           "data": {
             "anchorMin": [
-              0.5,
-              0.5
+              0,
+              0
             ],
             "anchorMax": [
-              0.5,
-              0.5
+              1,
+              1
             ],
             "pivot": [
               0.5,
@@ -9133,31 +7313,104 @@
               0
             ],
             "sizeDelta": [
-              200,
-              52
+              0,
+              0
             ]
           }
         },
         {
           "type": "UiText",
-          "id": "d6ca9509a6e54ef6a9a00979693b8dde",
+          "id": "c32da31f16fb46c88673fb2e37e54aa3",
           "enabled": true,
           "data": {
-            "font": "7d86b4e529829ceeab7f66ef8cded958",
-            "fontSize": 20,
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 22,
             "color": [
-              0.807,
-              0.823,
-              0.847,
+              0.3231,
+              0.3663,
+              0.4233,
               1
             ],
-            "text": "Quit Game",
+            "text": "Quit",
             "layout": {
               "alignment": 0,
               "verticalAlignment": 1,
               "overflow": 0,
               "wrap": false
             }
+          }
+        }
+      ],
+      "parent": 158
+    },
+    {
+      "id": 3019,
+      "name": "Marker",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "0c0f87f97e874aadbe222819fb8e04ef",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              -18,
+              0
+            ],
+            "sizeDelta": [
+              3,
+              18
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "18684fc7d3a442c584e7aff15b02f05e",
+          "enabled": true,
+          "data": {
+            "texture": null,
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "tint": [
+              0.807,
+              0.3663,
+              0.0467,
+              0
+            ]
           }
         }
       ],

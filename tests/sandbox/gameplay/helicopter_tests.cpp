@@ -4,6 +4,7 @@
 #include "gameplay/core/player_controller.h"
 #include "gameplay/effects/effect_library.h"
 #include "gameplay/environment/water.h"
+#include "gameplay/environment/wind_sway.h"
 #include "gameplay/vehicles/helicopter.h"
 #include "gameplay/vehicles/helicopter_downwash.h"
 
@@ -304,4 +305,38 @@ TEST_CASE("Helicopter banking follows its heading limits diagonal tilt and level
     const auto leveledUp = entity.GetTransform().GetWorldRotation() * Spot::Vector3{0.0f, 1.0f, 0.0f};
     CHECK(leveledUp.y > 0.999f);
     CHECK(std::abs(body.GetLinearVelocity().y) < 0.3f);
+}
+
+TEST_CASE("Rotor wind sways nearby trees and lets them settle", "[sandbox][gameplay][helicopter][wind]") {
+    GameplayTests::World world;
+    auto& tree = world.scene.CreateEntity("Tree");
+    tree.GetTransform().SetPosition({3.0f, 0.0f, 0.0f});
+    auto rig = std::make_shared<Spot::Skeleton>();
+    rig->bones = {{"Trunk", -1, {}}, {"BranchA", 0, {}}, {"BranchB", 0, {}}};
+    rig->joints = {0, 1, 2};
+    rig->inverseBindMatrices.resize(3);
+    tree.AddComponent<Gameplay::WindSway>().skeleton = rig;
+    auto& crown = tree.CreateChild("Crown");
+    crown.AddComponent<Spot::MeshRenderer>();
+    auto& helicopter = MakeHelicopter(world.scene);
+    helicopter.GetEntity().GetTransform().SetPosition({0.0f, 5.0f, 0.0f});
+    helicopter.GetEntity().GetComponent<Spot::Rigidbody>()->SetGravityScale(0.0f);
+    auto& wash = helicopter.GetEntity().AddComponent<Gameplay::HelicopterDownwash>();
+    world.Run(0.3f);
+    CHECK(crown.GetTransform().GetRotation() == Spot::Quaternion::Identity());
+    world.scene.CreateEntity("Pilot").AddComponent<Pilot>().Possess(helicopter);
+    world.Run(4.0f);
+    auto* skin = crown.GetComponent<Spot::SkinnedMeshRenderer>();
+    REQUIRE(skin);
+    CHECK(skin->IsEnabled());
+    REQUIRE(skin->GetPalette().size() == 3);
+    const auto a = skin->GetPalette()[1] * Spot::Vector4{0, 1, 0, 0};
+    const auto b = skin->GetPalette()[2] * Spot::Vector4{0, 1, 0, 0};
+    CHECK(std::abs(a.x) + std::abs(a.z) > 0.05f);
+    CHECK(std::abs(a.x - b.x) + std::abs(a.z - b.z) > 0.01f);
+    CHECK(tree.GetTransform().GetRotation() == Spot::Quaternion::Identity());
+    wash.SetEnabled(false);
+    world.Run(3.0f);
+    CHECK_FALSE(skin->IsEnabled());
+    CHECK(crown.GetComponent<Spot::MeshRenderer>()->IsEnabled());
 }

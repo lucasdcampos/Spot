@@ -3,9 +3,9 @@
 #include "interface_lookup.h"
 #include "log_capture.h"
 #include "main_menu.h"
+#include "npc_spawner.h"
 #include "playground_fixture.h"
 #include "prop_spawner.h"
-#include "robot_spawner.h"
 #include "spawnable.h"
 #include "temp_directory.h"
 #include "undo_list.h"
@@ -184,7 +184,7 @@ TEST_CASE("Sandbox empty map has a collidable debug floor and working player too
     auto* renderer = floor->GetComponent<Spot::MeshRenderer>();
     REQUIRE(renderer);
     CHECK(renderer->GetMaterial().GetId() == game.assets.FindByPath("materials/debug_grid.material").value());
-    CHECK_FALSE(game.scene.FindComponent<RobotSpawner>());
+    CHECK_FALSE(game.scene.FindComponent<NpcSpawner>());
     CHECK_FALSE(game.scene.FindEntity("Workshop"));
     REQUIRE(game.scene.FindComponent<Gameplay::GameMode>());
     CHECK(game.scene.FindComponent<Gameplay::GameMode>()->restartScene ==

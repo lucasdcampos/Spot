@@ -3,5 +3,5 @@
 #include "gltf_writer.h"
 
 namespace Generator::Rigs {
-GltfModel Robot();
+GltfModel Humanoid();
 } // namespace Generator::Rigs

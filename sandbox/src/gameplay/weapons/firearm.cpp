@@ -10,6 +10,7 @@
 #include "gameplay/health/damage.h"
 #include "gameplay/inventory/inventory.h"
 #include "gameplay/inventory/view_model.h"
+#include "gameplay/inventory/world_model.h"
 #include "gameplay/weapons/projectile.h"
 
 #include <algorithm>
@@ -115,9 +116,18 @@ void Firearm::Fire() {
     }
     const Spot::Entity& holder = pawn->GetEntity();
     auto* view = holder.GetComponent<ViewModel>();
+    if (view && (!view->IsActiveAndEnabled() || !view->GetShownModel())) {
+        view = nullptr;
+    }
+    auto* world = holder.GetComponent<WorldModel>();
+    if (world && world->IsActiveAndEnabled()) {
+        world->Synchronize();
+    } else {
+        world = nullptr;
+    }
     // Shots aim from the eyes, where the crosshair is, and are seen leaving the muzzle as it is drawn.
     const ViewPoint eyes = pawn->GetViewPoint();
-    const Spot::Vector3 muzzle = view ? view->GetMuzzlePosition() : eyes.position;
+    const Spot::Vector3 muzzle = view ? view->GetMuzzlePosition() : world ? world->GetMuzzlePosition() : eyes.position;
     if (view) {
         view->Kick(viewRecoil);
     }

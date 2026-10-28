@@ -17,7 +17,7 @@ class Pawn;
 class ChaseCamera : public Spot::Component {
 public:
     float distance = 5.8f;
-    // Above the pawn's origin: where it looks, and how far it looks down at it, in radians.
+    // Above the pawn's origin, or its eyes when following the view.
     float lookHeight = 1.1f;
     float pitch = 0.2f;
     // How quickly it swings behind the pawn, per second.
@@ -29,6 +29,11 @@ public:
     // How much wider the view gets at 30 meters per second than standing, in radians.
     float speedFieldOfView = 0.17f;
     std::string lookAction = "Look";
+    // Follow the eyes' position, yaw and pitch, converging on their target.
+    bool followView = false;
+    // To the right of the eyes when following the view; negative puts it over the left shoulder.
+    float shoulderOffset = 0.0f;
+    bool orbit = true;
 
 protected:
     void OnStart() override;
@@ -44,6 +49,7 @@ private:
     float GetPawnSpeed() const;
     // Behind the pawn, as it starts following it.
     void Recenter();
+    void FollowView(const Pawn& pawn);
 
     InputContext m_input{{.name = "Chase Camera", .actions = {"Look"}}};
     // Around Y, the angle it looks from, and how far Look has turned it from behind the pawn.

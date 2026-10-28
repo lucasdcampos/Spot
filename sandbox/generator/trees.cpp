@@ -163,6 +163,12 @@ public:
     TreeMeshes Grow() {
         const Branch trunk = Trees::Grow(m_rng, {0.0f, -0.4f, 0.0f}, Up, 3.3f, 0.32f, 0.2f, 0.05f, 0.0f, 8);
         AddTube(m_tree.bark, trunk, 14, 0.9f);
+        m_tree.skeleton.name = "OakBranches";
+        m_tree.skeleton.bones.push_back({"Trunk", -1, {}});
+        m_tree.skeleton.joints.push_back(0);
+        m_tree.skeleton.inverseBindMatrices.push_back({});
+        m_origins.push_back({});
+        m_tree.bark.skin.resize(m_tree.bark.vertices.size());
         constexpr int Limbs = 5;
         float azimuth = m_rng.Range(0.0f, 2.0f * Spot::Pi);
         for (int limb = 0; limb < Limbs; ++limb) {
@@ -196,14 +202,23 @@ public:
 
 private:
     // Limbs (level 1) split into branches (2) and those into twigs (3); branches and twigs bear the leaves.
-    void AddBranch(Vector3 start, Vector3 direction, float length, float radius, int level) {
+    void AddBranch(Vector3 start, Vector3 direction, float length, float radius, int level, int parent = 0) {
         constexpr int Steps[] = {0, 7, 5, 3};
         constexpr int Sides[] = {0, 9, 6, 4};
         constexpr float Wobble[] = {0.0f, 0.12f, 0.18f, 0.22f};
         constexpr float Tropism[] = {0.0f, 0.05f, 0.03f, -0.01f};
         const Branch branch = Trees::Grow(m_rng, start, direction, length, radius, radius * 0.35f, Wobble[level],
                                           Tropism[level], Steps[level]);
+        const auto joint = static_cast<std::uint32_t>(m_tree.skeleton.bones.size());
+        m_tree.skeleton.bones.push_back(
+            {"Branch" + std::to_string(joint), parent, {start - m_origins[static_cast<std::size_t>(parent)]}});
+        m_tree.skeleton.joints.push_back(joint);
+        m_tree.skeleton.inverseBindMatrices.push_back(Spot::Matrix4::Translation(-start));
+        m_origins.push_back(start);
         AddTube(m_tree.bark, branch, Sides[level]);
+        Spot::SkinVertex weight;
+        weight.joints[0] = joint;
+        m_tree.bark.skin.resize(m_tree.bark.vertices.size(), weight);
         if (level < 3) {
             const int children = level == 1 ? 5 : 4;
             float azimuth = m_rng.Range(0.0f, 2.0f * Spot::Pi);
@@ -214,10 +229,10 @@ private:
                 const Vector3 side = Perpendicular(at.direction);
                 const Vector3 out = side * std::cos(azimuth) + Spot::Cross(at.direction, side) * std::sin(azimuth);
                 const float spread = m_rng.Range(0.6f, 1.0f);
-                AddBranch(at.position,
-                          Spot::Normalize(at.direction * std::cos(spread) + out * std::sin(spread) + Up * 0.2f),
-                          length * m_rng.Range(0.45f, 0.58f) * (1.15f - s * 0.4f),
-                          std::min(at.radius * m_rng.Range(0.55f, 0.7f), radius * 0.6f), level + 1);
+                AddBranch(
+                    at.position, Spot::Normalize(at.direction * std::cos(spread) + out * std::sin(spread) + Up * 0.2f),
+                    length * m_rng.Range(0.45f, 0.58f) * (1.15f - s * 0.4f),
+                    std::min(at.radius * m_rng.Range(0.55f, 0.7f), radius * 0.6f), level + 1, static_cast<int>(joint));
             }
         }
         if (level >= 2) {
@@ -229,12 +244,14 @@ private:
                 const Vector3 out = Spot::Normalize(at.direction + m_rng.Jitter() * 0.6f + Up * 0.15f);
                 AddCard(m_tree.foliage, at.position, out, Spot::Normalize(Up + m_rng.Jitter() * 0.8f),
                         m_rng.Range(0.7f, 0.95f));
+                m_tree.foliage.skin.resize(m_tree.foliage.vertices.size(), weight);
             }
         }
     }
 
     Rng m_rng;
     TreeMeshes m_tree;
+    std::vector<Vector3> m_origins;
 };
 
 } // namespace
@@ -250,6 +267,20 @@ TreeMeshes Pine(std::uint32_t seed, bool sparse) {
     // Keep the lower trunk straight so its narrow capsule follows the wood, even on the largest trees.
     const Branch trunk = Grow(rng, {0.0f, -0.4f, 0.0f}, Up, Height + 0.4f, 0.24f, 0.025f, 0.0f, 0.0f, 14);
     AddTube(tree.bark, trunk, sparse ? 8 : 10, 0.45f);
+    tree.skeleton.name = "PineBranches";
+    tree.skeleton.bones.push_back({"Trunk", -1, {}});
+    tree.skeleton.joints.push_back(0);
+    tree.skeleton.inverseBindMatrices.push_back({});
+    tree.bark.skin.resize(tree.bark.vertices.size());
+    const auto jointAt = [&](Vector3 origin, int parent, Vector3 parentOrigin) {
+        const auto joint = static_cast<std::uint32_t>(tree.skeleton.bones.size());
+        tree.skeleton.bones.push_back({"Branch" + std::to_string(joint), parent, {origin - parentOrigin}});
+        tree.skeleton.joints.push_back(joint);
+        tree.skeleton.inverseBindMatrices.push_back(Spot::Matrix4::Translation(-origin));
+        Spot::SkinVertex weight;
+        weight.joints[0] = joint;
+        return weight;
+    };
     // Whorls of branches from a little above head height to near the top, each branch the longer the lower it is.
     constexpr float Lowest = 2.1f;
     constexpr float Highest = Height - 0.7f;
@@ -267,7 +298,9 @@ TreeMeshes Pine(std::uint32_t seed, bool sparse) {
             const Vector3 direction = Spot::Normalize(out + Up * (0.35f - 0.45f * (1.0f - t)));
             const Branch branch = Grow(rng, at.position, direction, length, 0.018f + 0.028f * (1.0f - t), 0.006f, 0.06f,
                                        -0.06f * (1.0f - t), 3);
+            const auto weight = jointAt(at.position, 0, {});
             AddTube(tree.bark, branch, sparse ? 4 : 5);
+            tree.bark.skin.resize(tree.bark.vertices.size(), weight);
             // Alternating side shoots break up the stacked whorls and give the crown depth between its sprays.
             const int shoots = sparse ? 2 : 4;
             for (int shoot = 0; shoot < shoots; ++shoot) {
@@ -279,9 +312,12 @@ TreeMeshes Pine(std::uint32_t seed, bool sparse) {
                 const float shootLength = length * (1.0f - s) * rng.Range(0.45f, 0.7f);
                 const Branch twig =
                     Grow(rng, on.position, reach, shootLength, on.radius * 0.45f, 0.003f, 0.08f, -0.025f, 2);
+                const auto twigWeight = jointAt(on.position, static_cast<int>(weight.joints[0]), at.position);
                 AddTube(tree.bark, twig, 4);
+                tree.bark.skin.resize(tree.bark.vertices.size(), twigWeight);
                 AddCard(tree.foliage, Along(twig, 0.3f).position, reach, Spot::Normalize(Up + side * (sign * 0.6f)),
                         std::max(0.4f, shootLength * 1.1f));
+                tree.foliage.skin.resize(tree.foliage.vertices.size(), twigWeight);
             }
             // Sprays along the branch in crossed pairs, each rolled to a side of it, so they show from any side
             // rather than vanishing edge-on, as flat ones would from the ground.
@@ -296,16 +332,19 @@ TreeMeshes Pine(std::uint32_t seed, bool sparse) {
                         size * rng.Range(0.85f, 1.05f));
                 AddCard(tree.foliage, on.position, Spot::Normalize(along - Up * 0.25f),
                         Spot::Normalize(Up * 0.5f - side + rng.Jitter() * 0.3f), size * rng.Range(0.7f, 0.9f));
+                tree.foliage.skin.resize(tree.foliage.vertices.size(), weight);
             }
         }
     }
     // The leader: sprays standing around the top.
     const BranchPoint top = Along(trunk, (Highest + 0.4f) / (Height + 0.4f));
+    const auto leaderWeight = jointAt(top.position, 0, {});
     for (int card = 0; card < 3; ++card) {
         const float angle = azimuth + static_cast<float>(card) * 2.0f * Spot::Pi / 3.0f;
         AddCard(tree.foliage, top.position,
                 Spot::Normalize(Up + Vector3{std::cos(angle), 0.0f, std::sin(angle)} * 0.2f),
                 {std::cos(angle), 0.0f, std::sin(angle)}, 1.1f);
+        tree.foliage.skin.resize(tree.foliage.vertices.size(), leaderWeight);
     }
     // Shaded as a cone: out from the trunk and up.
     ShadeAsCrown(tree.foliage, [](Vector3 p) {

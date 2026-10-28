@@ -5,11 +5,11 @@
 // as something broken in the game.
 #include "game_controls.h"
 #include "log_capture.h"
+#include "npc.h"
+#include "npc_spawner.h"
 #include "physics_gun.h"
 #include "playground_fixture.h"
 #include "prop_spawner.h"
-#include "robot.h"
-#include "robot_spawner.h"
 #include "sandbox_commands.h"
 #include "sound_bank.h"
 #include "temp_directory.h"
@@ -20,14 +20,19 @@
 #include "gameplay/character/carrier.h"
 #include "gameplay/character/character.h"
 #include "gameplay/character/character_movement.h"
+#include "gameplay/character/character_visual.h"
 #include "gameplay/character/flashlight.h"
+#include "gameplay/core/interactor.h"
 #include "gameplay/effects/effect_library.h"
 #include "gameplay/effects/flash.h"
 #include "gameplay/effects/surface.h"
 #include "gameplay/environment/day_cycle.h"
 #include "gameplay/inventory/inventory.h"
 #include "gameplay/inventory/view_model.h"
+#include "gameplay/inventory/world_model.h"
 #include "gameplay/persistence/world_save.h"
+#include "gameplay/vehicles/vehicle.h"
+#include "gameplay/vehicles/vehicle_seat.h"
 #include "gameplay/weapons/explosive.h"
 #include "gameplay/weapons/firearm.h"
 #include "gameplay/weapons/ignite_on_damage.h"
@@ -38,6 +43,7 @@
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 
 #include <algorithm>
 #include <array>
@@ -188,14 +194,14 @@ struct Playground {
 
 } // namespace
 
-TEST_CASE("Generated robots patrol with blended root motion, footsteps and recoverable ragdolls",
+TEST_CASE("Generated humanoid NPCs patrol with blended root motion, footsteps and recoverable ragdolls",
           "[sandbox][animation]") {
     Playground playground;
     playground.Run(0.2f);
-    REQUIRE(playground.scene.FindComponent<RobotSpawner>());
-    auto* robot = playground.scene.FindComponent<Robot>();
-    REQUIRE(robot);
-    auto& entity = robot->GetEntity();
+    REQUIRE(playground.scene.FindComponent<NpcSpawner>());
+    auto* npc = playground.scene.FindComponent<Npc>();
+    REQUIRE(npc);
+    auto& entity = npc->GetEntity();
     auto* animator = entity.GetComponent<Spot::Animator>();
     REQUIRE(animator);
     REQUIRE(animator->GetController());
@@ -203,82 +209,288 @@ TEST_CASE("Generated robots patrol with blended root motion, footsteps and recov
     const auto start = entity.GetTransform().GetWorldPosition();
     playground.Run(1.0f);
     CHECK(Spot::Length(entity.GetTransform().GetWorldPosition() - start) > 0.3f);
-    CHECK(robot->GetFootsteps() > 0);
+    CHECK(npc->GetFootsteps() > 0);
     auto* ragdoll = entity.GetComponent<Spot::Ragdoll>();
     REQUIRE(ragdoll);
     const auto hitPosition = entity.GetTransform().GetWorldPosition();
     Gameplay::Explosive::Explode(playground.scene, hitPosition + Spot::Vector3{0, 0, 0.5f},
                                  {.radius = 1.5f, .impulse = 50.0f, .damage = 0.0f});
-    REQUIRE(robot->IsDead());
+    REQUIRE(npc->IsDead());
     REQUIRE(ragdoll->IsActive());
-    REQUIRE(ragdoll->GetBodies().size() == 11);
+    REQUIRE(ragdoll->GetBodies().size() == 17);
     CHECK_FALSE(entity.GetComponent<Spot::CharacterController>()->IsEnabled());
     playground.Run(1.0f);
     CHECK(Spot::Length(entity.GetTransform().GetWorldPosition() - hitPosition) > 0.1f);
-    robot->Revive();
-    CHECK_FALSE(robot->IsDead());
+    npc->Revive();
+    CHECK_FALSE(npc->IsDead());
     CHECK_FALSE(ragdoll->IsActive());
     playground.Run(0.5f);
     CHECK(animator->IsPlaying());
 }
 
-TEST_CASE("Hitscan shots turn robot capsules into physical skeletons", "[sandbox][animation]") {
+TEST_CASE("Hitscan shots turn NPC capsules into physical skeletons", "[sandbox][animation]") {
     Playground playground;
     playground.Run(0.5f);
-    auto prefab = playground.assets.Load<Spot::Prefab>("prefabs/actors/robot.prefab");
+    auto prefab = playground.assets.Load<Spot::Prefab>("prefabs/actors/npc.prefab");
     REQUIRE(prefab);
     auto* target = playground.scene.Instantiate(prefab);
     REQUIRE(target);
-    auto* robot = target->GetComponent<Robot>();
-    REQUIRE(robot);
-    robot->patrolDistance = 0;
+    auto* npc = target->GetComponent<Npc>();
+    REQUIRE(npc);
+    npc->patrolDistance = 0;
     target->GetTransform().SetWorldPosition(playground.HeldTarget(3));
     playground.Run(Step);
     auto* holder = playground.player->GetComponent<Gameplay::Inventory>();
     REQUIRE(holder);
     holder->Select(1);
     Fire(*holder);
-    CHECK(robot->IsDead());
+    CHECK(npc->IsDead());
     CHECK(target->GetComponent<Spot::Ragdoll>()->IsActive());
     playground.Run(0.3f);
 }
 
-TEST_CASE("World checkpoints restore robot populations and ragdoll ownership", "[sandbox][animation][save]") {
+TEST_CASE("World checkpoints restore NPC populations and ragdoll ownership", "[sandbox][animation][save]") {
     Playground playground;
     TempDirectory directory;
     playground.Run(0.5f);
-    auto* robot = playground.scene.FindComponent<Robot>();
-    REQUIRE(robot);
-    robot->GetEntity().SetName("Saved robot");
-    robot->Hit({10, 0, 0}, robot->GetEntity().GetTransform().GetWorldPosition());
+    auto* npc = playground.scene.FindComponent<Npc>();
+    REQUIRE(npc);
+    npc->GetEntity().SetName("Saved npc");
+    npc->Hit({10, 0, 0}, npc->GetEntity().GetTransform().GetWorldPosition());
     playground.Run(0.2f);
-    REQUIRE(robot->IsDead());
-    REQUIRE(WorldSave::Save(playground.scene, directory.GetPath() / "robots.json"));
-    robot->Revive();
-    REQUIRE(WorldSave::Load(playground.scene, directory.GetPath() / "robots.json"));
+    REQUIRE(npc->IsDead());
+    REQUIRE(WorldSave::Save(playground.scene, directory.GetPath() / "npcs.json"));
+    npc->Revive();
+    REQUIRE(WorldSave::Load(playground.scene, directory.GetPath() / "npcs.json"));
     playground.Run(0.2f);
-    auto* restored = playground.scene.FindEntity("Saved robot");
+    auto* restored = playground.scene.FindEntity("Saved npc");
     REQUIRE(restored);
-    CHECK(restored->GetComponent<Robot>()->IsDead());
+    CHECK(restored->GetComponent<Npc>()->IsDead());
     auto* ragdoll = restored->GetComponent<Spot::Ragdoll>();
     REQUIRE(ragdoll);
     REQUIRE(ragdoll->IsActive());
-    REQUIRE(ragdoll->GetBodies().size() == 11);
+    REQUIRE(ragdoll->GetBodies().size() == 17);
     for (auto id : ragdoll->GetBodies()) {
         REQUIRE(playground.scene.GetEntity(id));
         CHECK(ragdoll->OwnsBody(id));
     }
-    int robots = 0, populations = 0, bodies = 0;
-    playground.scene.ForEachComponent<Robot>([&](Robot&) { ++robots; });
-    playground.scene.ForEachComponent<RobotSpawner>([&](RobotSpawner&) { ++populations; });
+    int npcs = 0, populations = 0, bodies = 0;
+    playground.scene.ForEachComponent<Npc>([&](Npc&) { ++npcs; });
+    playground.scene.ForEachComponent<NpcSpawner>([&](NpcSpawner&) { ++populations; });
     playground.scene.ForEachComponent<Spot::Ragdoll>(
         [&](Spot::Ragdoll& component) { bodies += static_cast<int>(component.GetBodies().size()); });
-    CHECK(robots == 3);
+    CHECK(npcs == 3);
     CHECK(populations == 1);
-    CHECK(bodies == 11);
-    restored->GetComponent<Robot>()->Revive();
+    CHECK(bodies == 17);
+    int armed = 0;
+    playground.scene.ForEachComponent<Gameplay::WorldModel>([&](Gameplay::WorldModel& visual) {
+        if (!visual.GetEntity().HasComponent<Npc>()) {
+            return;
+        }
+        const auto* inventory = visual.GetEntity().GetComponent<Gameplay::Inventory>();
+        REQUIRE(inventory);
+        CHECK(inventory->GetItemCount() <= 1);
+        if (inventory->GetItemCount() == 1) {
+            ++armed;
+            REQUIRE(visual.GetModelEntity());
+            CHECK(visual.GetModelEntity()->GetParent() == playground.scene.GetEntity(visual.mount));
+        }
+    });
+    CHECK(armed == 1);
+    restored->GetComponent<Npc>()->Revive();
     playground.Run(0.5f);
     CHECK(restored->GetComponent<Spot::Animator>()->IsPlaying());
+}
+
+TEST_CASE("The player inspection commands show the world body and keep aiming from the eyes",
+          "[sandbox][thirdperson][console]") {
+    Playground game;
+    game.Run(0.2f);
+    auto* character = game.player->GetComponent<Gameplay::Character>();
+    auto* visual = game.player->GetComponent<Gameplay::CharacterVisual>();
+    auto* world = game.player->GetComponent<Gameplay::WorldModel>();
+    auto* view = game.player->GetComponent<Gameplay::ViewModel>();
+    REQUIRE(character);
+    REQUIRE(visual);
+    REQUIRE(world);
+    REQUIRE(view);
+    auto* body = game.scene.GetEntity(visual->modelRoot);
+    REQUIRE(body);
+    const auto* eyes = game.scene.GetEntity(character->eye)->GetComponent<Spot::Camera>();
+    const auto* inspection = game.scene.GetEntity(character->thirdPersonCamera)->GetComponent<Spot::Camera>();
+    REQUIRE(eyes);
+    REQUIRE(inspection);
+    CHECK_FALSE(eyes->SeesLayer(body->GetLayer()));
+    CHECK(inspection->SeesLayer(body->GetLayer()));
+    REQUIRE(world->GetModelEntity());
+    CHECK(world->GetModelEntity()->GetChildren()[0]->GetLayer() == body->GetLayer());
+    const auto aim = character->GetViewPoint();
+    Spot::Console console;
+    SandboxCommands commands(console, game.scene);
+    CHECK_FALSE(console.Execute("thirdperson"));
+    console.SetCheatsEnabled(true);
+    REQUIRE(console.Execute("thirdperson"));
+    CHECK(character->GetViewPoint().position == aim.position);
+    game.Run(Step);
+    CHECK(character->IsThirdPerson());
+    CHECK(Spot::FindMainCamera(game.scene) == inspection);
+    CHECK_FALSE(view->GetShownModel());
+    CHECK(world->GetShownModel());
+    CHECK(character->GetViewPoint().position ==
+          game.scene.GetEntity(character->eye)->GetTransform().GetWorldPosition());
+    CHECK(character->GetViewPoint().direction == aim.direction);
+    CHECK_FALSE(console.Execute("thirdperson maybe"));
+    CHECK_FALSE(console.Execute("firstperson extra"));
+    REQUIRE(console.Execute("firstperson"));
+    game.Run(Step);
+    CHECK(Spot::FindMainCamera(game.scene) == eyes);
+    CHECK(view->GetShownModel());
+    REQUIRE(console.Execute("thirdperson 1"));
+    REQUIRE(console.Execute("thirdperson 0"));
+    CHECK_FALSE(character->IsThirdPerson());
+}
+
+TEST_CASE("The player's visible body sits and rotates with every vehicle seat and returns to its inspection camera",
+          "[sandbox][thirdperson][character_visual][vehicles]") {
+    const auto name = GENERATE("car", "coupe", "helicopter");
+    CAPTURE(name);
+    Playground game;
+    game.Run(0.1f);
+    auto* character = game.player->GetComponent<Gameplay::Character>();
+    auto* visual = game.player->GetComponent<Gameplay::CharacterVisual>();
+    REQUIRE(character);
+    REQUIRE(visual);
+    REQUIRE(character->SetThirdPerson(true));
+    const auto prefab = game.assets.Load<Spot::Prefab>(std::string("prefabs/spawnables/props/") + name + ".prefab");
+    auto* entity = game.scene.Instantiate(prefab);
+    REQUIRE(entity);
+    entity->GetTransform().SetWorldPosition({20, 1, 0});
+    entity->GetComponent<Spot::Rigidbody>()->SetKinematic(true);
+    auto* vehicle = entity->GetComponent<Gameplay::Vehicle>();
+    REQUIRE(vehicle);
+    auto* seat = vehicle->GetSeat();
+    REQUIRE(seat);
+    game.Run(Step);
+    game.player->GetTransform().SetWorldPosition(entity->GetTransform().GetWorldPosition() +
+                                                 Spot::Vector3{2.6f, 0.9f, 0});
+    auto* look = game.player->GetComponent<Gameplay::FirstPersonView>();
+    REQUIRE(look);
+    const float height = std::string_view(name) == "helicopter" ? 1.5f : 0.65f;
+    const auto toward =
+        entity->GetTransform().GetWorldPosition() + Spot::Vector3{0, height, 0} - look->GetEyePosition();
+    look->SetLook(std::atan2(-toward.x, -toward.z), std::asin(toward.y / Spot::Length(toward)));
+    game.scene.Update(0);
+    auto* interactor = game.player->GetComponent<Gameplay::Interactor>();
+    REQUIRE(interactor);
+    REQUIRE(interactor->GetFocus() == entity->GetId());
+    const auto* camera = Spot::FindMainCamera(game.scene);
+    REQUIRE(camera);
+    const auto& cameraTransform = camera->GetEntity().GetTransform();
+    const auto screenHit = game.scene.GetOrAddSystem<Spot::PhysicsWorld>().Raycast(
+        cameraTransform.GetWorldPosition(), cameraTransform.GetWorldRotation() * Spot::Vector3{0, 0, -1}, 20,
+        {.ignore = game.player->GetId()});
+    REQUIRE(screenHit);
+    CHECK(screenHit->entity == interactor->GetFocus());
+    game.input.OnEvent(Spot::KeyPressedEvent{Spot::Key::E, false});
+    game.Run(Step);
+    game.input.OnEvent(Spot::KeyReleasedEvent{Spot::Key::E});
+    game.Run(Step);
+    REQUIRE(seat->IsOccupied());
+    CHECK(seat->GetOccupant() == character);
+    auto* model = game.scene.GetEntity(visual->modelRoot);
+    auto* animator = visual->animator.Get(game.scene);
+    REQUIRE(model);
+    REQUIRE(animator);
+    CHECK(Spot::FindMainCamera(game.scene)->GetEntity().GetId() == vehicle->GetViewCamera());
+    CHECK_FALSE(game.player->GetComponent<Gameplay::WorldModel>()->GetModelEntity());
+    CHECK_FALSE(game.player->GetComponent<Gameplay::ViewModel>()->GetShownModel());
+    CHECK(model->GetTransform().GetPosition() == visual->seatedOffset);
+    const auto hip = *animator->GetSkeleton()->FindBone("LeftUpperLeg");
+    CHECK((animator->GetLocalPose()[hip].rotation * Spot::Vector3{0, -1, 0}).z < -0.7f);
+    if (!seat->poseState.empty()) {
+        CHECK(character->HasState(seat->poseState));
+    }
+    const auto head = *animator->GetSkeleton()->FindBone("Head");
+    const auto foot = *animator->GetSkeleton()->FindBone("LeftFoot");
+    const auto toVehicle =
+        Spot::Inverse(entity->GetTransform().GetWorldMatrix()) * model->GetTransform().GetWorldMatrix();
+    const auto headTop = toVehicle * animator->GetModelPose()[head] * Spot::Vector4{0, 0.23f, 0, 1};
+    const auto footBottom = toVehicle * animator->GetModelPose()[foot] * Spot::Vector4{0, -0.073f, -0.03f, 1};
+    const bool aircraft = std::string_view(name) == "helicopter";
+    CHECK(headTop.y < (aircraft ? 2.5f : std::string_view(name) == "coupe" ? 1.27f : 1.4f));
+    CHECK(footBottom.y > (aircraft ? 0.78f : 0.3f));
+    entity->GetTransform().SetWorldRotation(Spot::Quaternion::FromEuler({0.15f, 0.8f, 0.2f}));
+    game.scene.Update(0);
+    CHECK(Spot::Distance(game.player->GetTransform().GetWorldPosition(), seat->GetSeatPosition()) < 0.001f);
+    CHECK(Spot::Distance(model->GetTransform().GetWorldRotation() * Spot::Vector3{0, 0, -1},
+                         seat->GetSeatRotation() * Spot::Vector3{0, 0, -1}) < 0.001f);
+    CHECK(Spot::Distance(model->GetTransform().GetWorldRotation() * Spot::Vector3{0, 1, 0},
+                         seat->GetSeatRotation() * Spot::Vector3{0, 1, 0}) < 0.001f);
+    REQUIRE(character->SetThirdPerson(false));
+    CHECK(Spot::FindMainCamera(game.scene)->GetEntity().GetId() == vehicle->GetViewCamera());
+    REQUIRE(character->SetThirdPerson(true));
+    game.input.OnEvent(Spot::KeyPressedEvent{Spot::Key::E, false});
+    game.Run(Step);
+    game.input.OnEvent(Spot::KeyReleasedEvent{Spot::Key::E});
+    game.Run(Step);
+    CHECK_FALSE(character->HasState("Seated"));
+    if (!seat->poseState.empty()) {
+        CHECK_FALSE(character->HasState(seat->poseState));
+    }
+    CHECK(Spot::FindMainCamera(game.scene)->GetEntity().GetId() == character->thirdPersonCamera);
+    CHECK(game.player->GetComponent<Gameplay::WorldModel>()->GetModelEntity());
+    CHECK(Spot::Distance(game.scene.GetEntity(character->eye)->GetTransform().GetWorldRotation() *
+                             Spot::Vector3{0, 0, -1},
+                         character->GetViewPoint().direction) < 0.001f);
+}
+
+TEST_CASE("The sandbox population includes an armed humanoid and two unarmed humanoids",
+          "[sandbox][animation][world_model]") {
+    Playground playground;
+    playground.Run(0.2f);
+    int armed = 0, unarmed = 0;
+    playground.scene.ForEachComponent<Npc>([&](Npc& npc) {
+        auto& entity = npc.GetEntity();
+        auto* inventory = entity.GetComponent<Gameplay::Inventory>();
+        auto* visual = entity.GetComponent<Gameplay::WorldModel>();
+        auto* animator = entity.GetComponent<Spot::Animator>();
+        REQUIRE(inventory);
+        REQUIRE(visual);
+        REQUIRE(animator);
+        REQUIRE(animator->GetSkeleton());
+        CHECK(animator->GetSkeleton()->joints.size() == 21);
+        if (inventory->GetItemCount() == 0) {
+            ++unarmed;
+            CHECK_FALSE(visual->GetModelEntity());
+            CHECK(animator->GetLayers()[0].weight == 0);
+            return;
+        }
+        ++armed;
+        REQUIRE(inventory->GetItemCount() == 1);
+        auto* firearm = dynamic_cast<Gameplay::Firearm*>(inventory->GetEquipped());
+        REQUIRE(firearm);
+        REQUIRE(visual->GetModelEntity());
+        const auto* mount = playground.scene.GetEntity(visual->mount);
+        REQUIRE(mount);
+        CHECK(visual->GetModelEntity()->GetParent() == mount);
+        CHECK(Spot::Distance(visual->GetMuzzlePosition(), mount->GetTransform().GetWorldPosition()) > 0.05f);
+        CHECK(animator->GetLayers()[0].weight == 1);
+        const int ammo = firearm->GetAmmo();
+        Gameplay::ItemInput intent;
+        intent.active = intent.canUse = true;
+        intent.Set("Fire", true, true);
+        inventory->Use(intent);
+        CHECK(firearm->GetAmmo() == ammo - 1);
+        npc.Hit({}, entity.GetTransform().GetWorldPosition());
+        visual->Synchronize();
+        CHECK_FALSE(visual->GetModelEntity());
+        CHECK_FALSE(inventory->CanUseItem());
+        npc.Revive();
+        visual->Synchronize();
+        CHECK(visual->GetModelEntity());
+    });
+    CHECK(armed == 1);
+    CHECK(unarmed == 2);
 }
 
 TEST_CASE("Held items come up when switched to, fire from their muzzles and move their parts", "[sandbox][view]") {
@@ -1210,8 +1422,8 @@ TEST_CASE("Aiming down the sights zooms in while held, with the right button or 
 TEST_CASE("The playground sounds from where things are, on its buses", "[sandbox][audio]") {
     Playground playground(true);
     playground.Run(0.1f);
-    // Isolate the player's footsteps from the patrolling robots' animation events.
-    playground.scene.ForEachComponent<Robot>([](Robot& robot) { robot.SetEnabled(false); });
+    // Isolate the player's footsteps from the patrolling npcs' animation events.
+    playground.scene.ForEachComponent<Npc>([](Npc& npc) { npc.SetEnabled(false); });
     playground.Run(1.5f);
     REQUIRE(playground.audio);
 

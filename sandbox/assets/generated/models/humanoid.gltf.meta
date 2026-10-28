@@ -57,6 +57,38 @@
     {
       "id": "0074cf1b60dcb8ec508439c63e54cb28",
       "key": "mesh:2"
+    },
+    {
+      "id": "7e6a69b1baa9a00ef8b55ba470166423",
+      "key": "animation:3"
+    },
+    {
+      "id": "cd374afe5bf6c1b3c3948b8ed7572d0a",
+      "key": "material:3"
+    },
+    {
+      "id": "3bc4ecc310a3018bc2dae05f7be74118",
+      "key": "mesh:3"
+    },
+    {
+      "id": "17827d449af8e8c6d6304636aaaa682d",
+      "key": "animation:4"
+    },
+    {
+      "id": "6c51fb35ebf95828285e0fb3e491d883",
+      "key": "animation:5"
+    },
+    {
+      "id": "8eaaa4cff3dc22e2aa67290ccc661f46",
+      "key": "animation:6"
+    },
+    {
+      "id": "54521162f95965f50240b070e0e57ed7",
+      "key": "animation:7"
+    },
+    {
+      "id": "9cda875ebed4f1efb41dac67b755fd52",
+      "key": "animation:8"
     }
   ],
   "type": "Model"

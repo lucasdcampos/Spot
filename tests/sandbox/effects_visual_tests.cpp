@@ -5,6 +5,7 @@
 #include "gameplay/effects/effect_library.h"
 #include "gameplay/environment/day_cycle.h"
 #include "gameplay/environment/water.h"
+#include "gameplay/environment/wind_sway.h"
 #include "gameplay/vehicles/helicopter.h"
 #include "gameplay/vehicles/helicopter_downwash.h"
 #include <spot/scene/physics/physics_world.h>
@@ -165,4 +166,33 @@ TEST_CASE("The cooked sandbox draws explosions, muzzle flashes and splashes", "[
         scene->GetEntity(id)->GetComponent<Spot::ParticleSystem>()->SetEnabled(true);
     }
     CHECK(differs(noWash, draw("helicopter_downwash.png")) > 100);
+
+    auto* tree = scene->FindComponent<Gameplay::WindSway>();
+    REQUIRE(tree);
+    REQUIRE(tree->skeleton);
+    REQUIRE(tree->skeleton->joints.size() > 100);
+    const auto root = tree->GetEntity().GetTransform().GetWorldPosition();
+    entity.GetTransform().SetPosition(root + Spot::Vector3{-3.0f, 6.0f, 0.0f});
+    body.SetLinearVelocity({});
+    look(root + Spot::Vector3{12.0f, 5.0f, 12.0f}, root + Spot::Vector3{0.0f, 4.0f, 0.0f});
+    run(0.5f);
+    const auto branches = draw("helicopter_branches_wind.png");
+    tree->SetEnabled(false);
+    CHECK(differs(branches, draw("helicopter_branches_rest.png")) > 300);
+    tree->SetEnabled(true);
+    run(0.17f);
+    CHECK(differs(branches, draw("helicopter_branches_gust.png")) > 300);
+    auto* pine = scene->FindEntity("Forest Pine");
+    REQUIRE(pine);
+    auto* pineWind = pine->GetComponent<Gameplay::WindSway>();
+    REQUIRE(pineWind);
+    REQUIRE(pineWind->skeleton);
+    const auto pineRoot = pine->GetTransform().GetWorldPosition();
+    entity.GetTransform().SetPosition(pineRoot + Spot::Vector3{-3.0f, 8.0f, 0.0f});
+    body.SetLinearVelocity({});
+    look(pineRoot + Spot::Vector3{12.0f, 5.0f, 12.0f}, pineRoot + Spot::Vector3{0.0f, 5.0f, 0.0f});
+    run(0.5f);
+    const auto pineBranches = draw("helicopter_pine_wind.png");
+    pineWind->SetEnabled(false);
+    CHECK(differs(pineBranches, draw("helicopter_pine_rest.png")) > 100);
 }

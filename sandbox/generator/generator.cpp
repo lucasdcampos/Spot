@@ -159,7 +159,7 @@ std::vector<std::string_view> GetLevelModelNames() {
 }
 
 std::vector<std::string_view> GetRigModelNames() {
-    return {"robot"};
+    return {"humanoid"};
 }
 
 std::vector<std::string_view> GetWeaponModelNames() {
@@ -246,7 +246,7 @@ OutputCounts GenerateSandboxAssets(const std::filesystem::path& directory, std::
     for (const LevelModels::LevelModel& level : LevelModels::MakeLevelModels()) {
         writeModel(std::string(level.name), level.model);
     }
-    writeModel("robot", Rigs::Robot());
+    writeModel("humanoid", Rigs::Humanoid());
     writeModel("car", Vehicles::Car());
     writeModel("coupe", Vehicles::Coupe());
     writeModel("helicopter", Vehicles::Helicopter());

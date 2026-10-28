@@ -4,14 +4,14 @@
 
 class SandboxCommands;
 
-// The sandbox's rules: console commands and cheats, fallback robot population and the developer tools' font.
+// The sandbox's rules: console commands and cheats, fallback NPC population and the developer tools' font.
 class GameControls final : public Spot::Component {
 public:
     GameControls();
     ~GameControls() override;
-    Spot::AssetRef<Spot::Prefab> robots;
+    Spot::AssetRef<Spot::Prefab> npcs;
     bool cheats = true;
-    bool spawnRobots = true;
+    bool spawnNpcs = true;
 
 protected:
     void OnEnable() override;

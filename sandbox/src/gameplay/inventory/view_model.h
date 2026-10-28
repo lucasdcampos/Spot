@@ -34,7 +34,7 @@ public:
     float motionResponse = 12.0f;
     // Seconds to bring an item up after switching to it.
     float switchTime = 0.4f;
-    std::vector<std::string> hiddenWhen = {"Dead", "Seated"};
+    std::vector<std::string> hiddenWhen = {"Dead", "Seated", "ThirdPerson"};
     std::string aimState = "Aiming";
     std::string runState = "Sprinting";
     std::string busyState = "HandsBusy";

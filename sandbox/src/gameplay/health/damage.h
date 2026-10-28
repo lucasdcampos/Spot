@@ -21,7 +21,7 @@ struct DamageInfo {
     bool pushesBody = true;
 };
 
-// A component that takes damage: health, a barrel that catches fire, a robot falling as a ragdoll, a character thrown
+// A component that takes damage: health, a barrel that catches fire, a npc falling as a ragdoll, a character thrown
 // back. Damage finds receivers on what it hits, so sources know none of them.
 class DamageReceiver {
 public:

@@ -15,6 +15,12 @@ class Character : public Pawn {
 public:
     // Meters per second it landed at, falling.
     Spot::Signal<float> OnLanded;
+    // Optional inspection camera; aiming still uses the first-person eyes.
+    Spot::EntityId thirdPersonCamera = Spot::EntityId::Invalid;
+
+    bool IsThirdPerson() const { return m_thirdPerson; }
+    bool SetThirdPerson(bool enabled);
+    Spot::EntityId GetViewCamera() const override;
 
     ViewPoint GetViewPoint() const override;
     PawnMotion GetMotion() const override;
@@ -23,10 +29,12 @@ public:
 
 protected:
     void OnStart() override;
+    void Serialize(Spot::Archive& archive) override;
 
 private:
     Spot::SignalConnection m_damaged;
     Spot::SignalConnection m_landed;
+    bool m_thirdPerson = false;
 };
 
 } // namespace Gameplay

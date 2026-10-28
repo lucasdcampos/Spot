@@ -2,8 +2,8 @@
 #include "gameplay/core/players.h"
 
 #include "main_menu.h"
+#include "npc.h"
 #include "prop_spawner.h"
-#include "robot.h"
 #include "spawn_menu.h"
 
 #include "gameplay/camera/first_person_view.h"
@@ -58,7 +58,7 @@ protected:
                 scene->GetEntity(menu->startButton)->GetComponent<Spot::UiButton>()->Click();
             } else if (frame == 3) {
                 auto* pause = scene ? scene->FindComponent<Gameplay::PauseMenu>() : nullptr;
-                if (!Require(scene && scene->FindEntity("Debug Floor") && !scene->FindComponent<Robot>() && pause &&
+                if (!Require(scene && scene->FindEntity("Debug Floor") && !scene->FindComponent<Npc>() && pause &&
                                  Spot::Input::IsCursorLocked(),
                              "The empty map did not start with its floor and player")) {
                     return;
@@ -78,8 +78,8 @@ protected:
         auto* spawner = Gameplay::Players::FindComponent<PropSpawner>(*scene);
         auto* ui = scene->FindComponent<SpawnMenu>();
         auto* inventory = Gameplay::Players::FindComponent<Gameplay::Inventory>(*scene);
-        auto* robot = scene->FindComponent<Robot>();
-        if (!Require(spawner && ui && inventory && robot, "Gameplay components or authored interface are missing")) {
+        auto* npc = scene->FindComponent<Npc>();
+        if (!Require(spawner && ui && inventory && npc, "Gameplay components or authored interface are missing")) {
             return;
         }
         switch (m_frame) {
@@ -155,11 +155,11 @@ protected:
                          "Cleanup changed the permanent level")) {
                 return;
             }
-            robot->Hit({10, 0, 0}, robot->GetEntity().GetTransform().GetWorldPosition());
+            npc->Hit({10, 0, 0}, npc->GetEntity().GetTransform().GetWorldPosition());
             break;
         case 12: {
-            const auto* ragdoll = robot->GetEntity().GetComponent<Spot::Ragdoll>();
-            if (!Require(robot->IsDead() && ragdoll && ragdoll->IsActive(), "The robot did not become a ragdoll")) {
+            const auto* ragdoll = npc->GetEntity().GetComponent<Spot::Ragdoll>();
+            if (!Require(npc->IsDead() && ragdoll && ragdoll->IsActive(), "The npc did not become a ragdoll")) {
                 return;
             }
             m_passed = true;

@@ -2,15 +2,21 @@
 #include "gameplay/core/players.h"
 #include "gameplay/game/game_mode.h"
 #include "main_menu.h"
+#include "npc.h"
 #include "prop_spawner.h"
 #include "spawn_menu.h"
 
 #include "gameplay/camera/first_person_view.h"
+#include "gameplay/character/character.h"
+#include "gameplay/character/character_visual.h"
 #include "gameplay/environment/day_cycle.h"
 #include "gameplay/health/health.h"
 #include "gameplay/inventory/inventory.h"
 #include "gameplay/inventory/view_model.h"
+#include "gameplay/inventory/world_model.h"
 #include "gameplay/menus/pause_menu.h"
+#include "gameplay/vehicles/vehicle.h"
+#include "gameplay/vehicles/vehicle_seat.h"
 #include "gameplay/weapons/firearm.h"
 #include <spot/scene/ui/ui_system.h>
 
@@ -19,10 +25,201 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <array>
+#include <cmath>
 #include <filesystem>
 #include <vector>
 
 using Gameplay::DayCycle;
+
+TEST_CASE("The player's inspection body and seated drivers render through the vehicle windows",
+          "[gpu][sandbox][player_body][offscreen]") {
+    if (!Spot::GraphicsDevice::IsSupported()) {
+        SKIP("No usable graphics device");
+    }
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    Spot::Tests::RegisteredAssetManager assets(SANDBOX_IMPORTED_DIR, device.get());
+    Spot::InputState input;
+    Spot::InputActionMap actions;
+    struct Restore {
+        Spot::AssetManager* assets = Spot::Assets::GetManager();
+        Spot::InputState* input = Spot::Input::GetState();
+        Spot::InputActionMap* actions = Spot::Input::GetActionMap();
+        ~Restore() {
+            Spot::Detail::SetAssetManager(assets);
+            Spot::Input::SetState(input);
+            Spot::Input::SetActionMap(actions);
+        }
+    } restore;
+    Spot::Detail::SetAssetManager(&assets);
+    Spot::Input::SetState(&input);
+    Spot::Input::SetActionMap(&actions);
+    Spot::Detail::LoadGameCode();
+    auto scene = Spot::InstantiateScene(assets, assets.FindByPath("scenes/empty.scene").value());
+    REQUIRE(scene);
+    for (int frame = 0; frame < 45; ++frame) {
+        scene->Update(1.0f / 60);
+    }
+    auto* character = Gameplay::Players::FindComponent<Gameplay::Character>(*scene);
+    auto* visual = Gameplay::Players::FindComponent<Gameplay::CharacterVisual>(*scene);
+    REQUIRE(character);
+    REQUIRE(visual);
+    auto* body = scene->GetEntity(visual->modelRoot);
+    REQUIRE(body);
+    auto target = device->CreateTexture(
+        {.width = 1024, .height = 768, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
+    REQUIRE(target);
+    Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb, .sampleCount = 1});
+    const std::filesystem::path output(SPOT_SANDBOX_CAPTURE_DIR);
+    std::filesystem::create_directories(output);
+    const auto render = [&](const std::string& name) {
+        scene->PrepareToRender();
+        auto* context = device->BeginOffscreenFrame(*target);
+        REQUIRE(context);
+        renderer.Render(*context, *scene, target.get());
+        device->EndFrame();
+        auto pixels = device->DownloadTexture(*target);
+        REQUIRE(pixels.size() == 1024 * 768 * 4);
+        if (!name.empty()) {
+            CHECK(Spot::Image(1024, 768, pixels).SavePng(output / (name + ".png")));
+        }
+        return pixels;
+    };
+    const auto difference = [](const auto& a, const auto& b) {
+        std::size_t changed = 0;
+        for (std::size_t i = 0; i < a.size(); i += 4) {
+            changed += std::abs(static_cast<int>(a[i]) - b[i]) + std::abs(static_cast<int>(a[i + 1]) - b[i + 1]) +
+                                   std::abs(static_cast<int>(a[i + 2]) - b[i + 2]) >
+                               12
+                           ? 1
+                           : 0;
+        }
+        return changed;
+    };
+    const auto firstPerson = render("player_firstperson");
+    REQUIRE(character->SetThirdPerson(true));
+    scene->Update(0);
+    const auto thirdPerson = render("player_thirdperson");
+    CHECK(difference(firstPerson, thirdPerson) > 5000);
+    auto* view = character->GetEntity().GetComponent<Gameplay::FirstPersonView>();
+    REQUIRE(view);
+    view->SetLook(0, 0.45f);
+    scene->Update(0);
+    const auto lookingUp = render("player_thirdperson_up");
+    view->SetLook(0, -0.45f);
+    scene->Update(0);
+    const auto lookingDown = render("player_thirdperson_down");
+    CHECK(difference(lookingUp, lookingDown) > 5000);
+    view->SetLook(0, -0.15f);
+    scene->Update(0);
+    auto& observer = scene->CreateEntity("Driver inspection");
+    auto& observerCamera = observer.AddComponent<Spot::Camera>();
+    observerCamera.SetEnabled(false);
+    observerCamera.SetFieldOfView(Spot::ToRadians(55.0f));
+    for (const auto* name : {"car", "coupe", "helicopter"}) {
+        CAPTURE(name);
+        auto* entity =
+            scene->Instantiate(assets.Load<Spot::Prefab>(std::string("prefabs/spawnables/props/") + name + ".prefab"));
+        REQUIRE(entity);
+        entity->GetTransform().SetWorldPosition({0, 0.05f, 0});
+        entity->GetComponent<Spot::Rigidbody>()->SetKinematic(true);
+        auto* vehicle = entity->GetComponent<Gameplay::Vehicle>();
+        REQUIRE(vehicle);
+        scene->Update(0);
+        auto* seat = vehicle->GetSeat();
+        REQUIRE(seat);
+        REQUIRE(seat->Enter(*character));
+        scene->Update(0);
+        auto* vehicleCamera = scene->GetEntity(vehicle->GetViewCamera())->GetComponent<Spot::Camera>();
+        vehicleCamera->SetEnabled(false);
+        observerCamera.SetEnabled(true);
+        const auto focus = seat->GetSeatPosition() + Spot::Vector3{0, 0.45f, 0};
+        observer.GetTransform().SetWorldPosition(focus + Spot::Vector3{-1.9f, 0.35f, -1.3f});
+        observer.GetTransform().SetWorldRotation(
+            Spot::Quaternion::LookRotation(focus - observer.GetTransform().GetWorldPosition()));
+        const auto occupied = render(std::string("player_seated_") + name);
+        body->SetActive(false);
+        const auto empty = render("");
+        CHECK(difference(occupied, empty) > 100);
+        body->SetActive(true);
+        observerCamera.SetEnabled(false);
+        vehicleCamera->SetEnabled(true);
+        seat->Exit();
+        entity->Destroy();
+        scene->Update(0);
+    }
+}
+
+TEST_CASE("Armed and unarmed humanoid prefabs render with articulated bodies and a mounted pistol",
+          "[gpu][sandbox][humanoid][offscreen]") {
+    if (!Spot::GraphicsDevice::IsSupported()) {
+        SKIP("No usable graphics device");
+    }
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    Spot::Tests::RegisteredAssetManager assets(SANDBOX_IMPORTED_DIR, device.get());
+    struct Restore {
+        Spot::AssetManager* assets = Spot::Assets::GetManager();
+        ~Restore() { Spot::Detail::SetAssetManager(assets); }
+    } restore;
+    Spot::Detail::SetAssetManager(&assets);
+    Spot::Detail::LoadGameCode();
+    Spot::Scene scene;
+    auto* unarmed = scene.Instantiate(assets.Load<Spot::Prefab>("prefabs/actors/npc.prefab"));
+    auto* armed = scene.Instantiate(assets.Load<Spot::Prefab>("prefabs/actors/npc_armed.prefab"));
+    REQUIRE(unarmed);
+    REQUIRE(armed);
+    unarmed->GetTransform().SetPosition({-0.6f, 0, 0});
+    armed->GetTransform().SetPosition({0.6f, 0, 0});
+    unarmed->GetComponent<Npc>()->patrolDistance = 0;
+    armed->GetComponent<Npc>()->patrolDistance = 0;
+    auto& floor = scene.CreateEntity("Floor");
+    floor.GetTransform().SetPosition({0, -0.98f, 0});
+    floor.AddComponent<Spot::BoxCollider>(Spot::Vector3{10, 0.1f, 10});
+    floor.AddComponent<Spot::MeshRenderer>(Spot::Mesh::Create(*device, Spot::PrimitiveMeshes::CreatePlane(10)),
+                                           Spot::Material{.baseColor = {0.22f, 0.24f, 0.28f, 1}});
+    auto& camera = scene.CreateEntity("Camera");
+    camera.GetTransform().SetPosition({2.2f, 1.2f, -3.8f});
+    camera.GetTransform().SetRotation(Spot::Quaternion::LookRotation(-camera.GetTransform().GetPosition()));
+    camera.AddComponent<Spot::Camera>().SetBackground({0.08f, 0.09f, 0.12f, 1});
+    auto& light = scene.CreateEntity("Light");
+    light.GetTransform().SetRotation(Spot::Quaternion::LookRotation({-0.5f, -1, 0.5f}));
+    light.AddComponent<Spot::DirectionalLight>();
+    scene.CreateEntity("Ambient").AddComponent<Spot::AmbientLight>();
+    for (int frame = 0; frame < 6; ++frame) {
+        scene.Update(1.0f / 60);
+    }
+    const auto* visual = armed->GetComponent<Gameplay::WorldModel>();
+    REQUIRE(visual);
+    REQUIRE(visual->GetModelEntity());
+    CHECK_FALSE(unarmed->GetComponent<Gameplay::WorldModel>()->GetModelEntity());
+    const auto* animator = armed->GetComponent<Spot::Animator>();
+    REQUIRE(animator);
+    const auto elbow = animator->GetSkeleton()->FindBone("RightForearm");
+    REQUIRE(elbow);
+    CHECK(std::abs(animator->GetLocalPose()[*elbow].rotation.x) > 0.1f);
+    const auto forward = visual->GetModelEntity()->GetTransform().GetWorldRotation() * Spot::Vector3{0, 0, -1};
+    CHECK(Spot::Dot(forward, Spot::Vector3{0, 0, -1}) > 0.99f);
+    auto target = device->CreateTexture(
+        {.width = 1024, .height = 768, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
+    REQUIRE(target);
+    Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb, .sampleCount = 1});
+    scene.PrepareToRender();
+    auto* context = device->BeginOffscreenFrame(*target);
+    REQUIRE(context);
+    renderer.Render(*context, scene, target.get());
+    device->EndFrame();
+    const auto pixels = device->DownloadTexture(*target);
+    REQUIRE(pixels.size() == 1024 * 768 * 4);
+    std::size_t shirtPixels = 0;
+    for (std::size_t i = 0; i < pixels.size(); i += 4) {
+        shirtPixels += pixels[i + 2] > pixels[i] + 20 && pixels[i + 1] > pixels[i] + 10 ? 1 : 0;
+    }
+    CHECK(shirtPixels > 1000);
+    const std::filesystem::path output(SPOT_SANDBOX_CAPTURE_DIR);
+    std::filesystem::create_directories(output);
+    CHECK(Spot::Image(1024, 768, pixels).SavePng(output / "humanoid_npcs.png"));
+}
 
 TEST_CASE("Sandbox map selection and empty debug floor render", "[gpu][sandbox][maps][offscreen]") {
     if (!Spot::GraphicsDevice::IsSupported()) {
@@ -82,9 +279,9 @@ TEST_CASE("Sandbox map selection and empty debug floor render", "[gpu][sandbox][
         CHECK(visible > 10000);
         CHECK(Spot::Image(1280, 720, pixels).SavePng(output / (std::string(name) + ".png")));
         if (auto* menu = scene->FindComponent<MainMenu>()) {
-            const auto* featured = scene->GetEntity(menu->homePreview)->GetComponent<Spot::UiImage>();
-            REQUIRE(featured->texture);
-            const auto homeTexture = featured->texture;
+            const auto* view = scene->GetEntity(menu->previewImage)->GetComponent<Spot::UiImage>();
+            REQUIRE(view->texture);
+            const auto homeTexture = view->texture;
             menu->ShowPage(MainMenu::Page::Play);
             std::vector<std::uint8_t> previousPreview;
             for (std::size_t map = 0; map < menu->maps.size(); ++map) {
@@ -97,7 +294,7 @@ TEST_CASE("Sandbox map selection and empty debug floor render", "[gpu][sandbox][
                 const auto* preview = scene->GetEntity(menu->previewImage)->GetComponent<Spot::UiImage>();
                 REQUIRE(preview->texture);
                 const auto previewPixels = device->DownloadTexture(*preview->texture);
-                REQUIRE(previewPixels.size() == 960 * 540 * 4);
+                REQUIRE(previewPixels.size() == 1600 * 900 * 4);
                 if (map == 0)
                     CHECK(preview->texture == homeTexture);
                 else

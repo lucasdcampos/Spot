@@ -6,8 +6,8 @@
         {
           "data": {
             "cheats": true,
-            "robots": null,
-            "spawnRobots": true
+            "npcs": null,
+            "spawnNpcs": false
           },
           "enabled": true,
           "id": "20bf8bf7e39e62a3eee0d6f3f9eccd7c",
@@ -1803,8 +1803,8 @@
                             "value": 0.5999999046325684
                           },
                           {
-                            "inTangent": 3.0985488891601563,
-                            "outTangent": 3.0985488891601563,
+                            "inTangent": 3.0985488891601562,
+                            "outTangent": 3.0985488891601562,
                             "time": 0.10000000149011612,
                             "value": 0.9343006610870361
                           },
@@ -2972,8 +2972,8 @@
                             "value": 0.5999999046325684
                           },
                           {
-                            "inTangent": 3.0985488891601563,
-                            "outTangent": 3.0985488891601563,
+                            "inTangent": 3.0985488891601562,
+                            "outTangent": 3.0985488891601562,
                             "time": 0.10000000149011612,
                             "value": 0.9343006610870361
                           },
@@ -3671,7 +3671,8 @@
         {
           "data": {
             "eye": 118,
-            "viewCamera": 118
+            "viewCamera": 118,
+            "thirdPersonCamera": 201112
           },
           "enabled": true,
           "id": "3689ed2a2ddddaab6795f5c075c869ce",
@@ -3802,7 +3803,8 @@
             "busyState": "HandsBusy",
             "hiddenWhen": [
               "Dead",
-              "Seated"
+              "Seated",
+              "ThirdPerson"
             ],
             "maxSway": 0.029999999329447746,
             "motionResponse": 12.0,
@@ -3850,6 +3852,39 @@
           "enabled": true,
           "id": "ed84a15aa73e46a1d05b18b44ca3a77f",
           "type": "Interactor"
+        },
+        {
+          "type": "CharacterVisual",
+          "id": "a8c8d68dca2147e1a1532de62f27c686",
+          "enabled": true,
+          "data": {
+            "modelRoot": 201012,
+            "animator": 201012,
+            "standingOffset": [
+              0,
+              0.04,
+              0
+            ],
+            "seatedLayer": "Sitting",
+            "crouchLayer": "Crouching",
+            "stateLayers": [
+              {
+                "state": "CompactSeat",
+                "layer": "CompactSeat"
+              }
+            ]
+          }
+        },
+        {
+          "type": "WorldModel",
+          "id": "f9e9d903e81e42cf99b3467c6a3ac184",
+          "enabled": true,
+          "data": {
+            "mount": 201017,
+            "animator": 201012,
+            "poseLayer": "Holding",
+            "renderLayer": 30
+          }
         }
       ],
       "id": 117,
@@ -3884,7 +3919,7 @@
               0.15000000596046448,
               1.0
             ],
-            "cullingMask": 4294967295,
+            "cullingMask": 3221225471,
             "farPlane": 1000.0,
             "fieldOfView": 1.3089969158172607,
             "nearPlane": 0.029999999329447746,
@@ -4433,7 +4468,7 @@
             "cullScreenSize": 0.0,
             "inlineMaterial": false,
             "lods": [],
-            "material": "42aa08a16cec4f8a8de5dcec9ab67268",
+            "material": "9ea2bc2577fae1f0e80ebfe9f0fe5b34",
             "mesh": "00000000000000000000000000000001",
             "submesh": -1,
             "textureSpace": 0
@@ -4483,6 +4518,69 @@
         200.0
       ],
       "tags": []
+    },
+    {
+      "id": 201012,
+      "parent": 117,
+      "prefab": "b9ddc16921b57bffc49ec82f327eef7a",
+      "entityIds": {
+        "1": 201012,
+        "2": 201013,
+        "3": 201014,
+        "4": 201015,
+        "5": 201016,
+        "6": 201017
+      },
+      "overrides": {},
+      "removedEntities": []
+    },
+    {
+      "id": 201112,
+      "name": "Inspection Camera",
+      "parent": 117,
+      "active": true,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "layer": 0,
+      "components": [
+        {
+          "type": "Camera",
+          "id": "ab793685a6ab4c85940b769fd195e82f",
+          "enabled": false,
+          "data": {
+            "fieldOfView": 1.308996939,
+            "nearPlane": 0.05
+          }
+        },
+        {
+          "type": "ChaseCamera",
+          "id": "44a1cafa6d2a4dbdb0497eca0c8350c4",
+          "enabled": true,
+          "data": {
+            "distance": 2.4,
+            "lookHeight": 0.05,
+            "followView": true,
+            "orbit": false,
+            "speedFieldOfView": 0,
+            "shoulderOffset": 0.65
+          }
+        }
+      ]
     }
   ],
   "format": "spot-scene",

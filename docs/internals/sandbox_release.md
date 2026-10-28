@@ -39,7 +39,7 @@ settings persistence, weapons, tools, physics, sound, animation, particles, savi
 
 `Sandbox --smoke-test` runs a bounded headless integration sequence against the imported startup scene beside
 the executable. It checks the permanent level, camera/aim agreement, inventory and prefab catalog, authored
-spawn menu, firing and recoil, checkpoint load during pause, cleanup and robot ragdoll. It uses temporary user
+spawn menu, firing and recoil, checkpoint load during pause, cleanup and npc ragdoll. It uses temporary user
 data, exits successfully only when every check passes, and cleans up afterward. Headless GPU assets log that
 they need a graphics device; visible rendering is covered separately by the sandbox's offscreen GPU cases.
 

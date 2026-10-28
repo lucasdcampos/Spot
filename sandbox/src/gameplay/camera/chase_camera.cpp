@@ -62,12 +62,38 @@ void ChaseCamera::OnDisable() {
     m_following = false;
 }
 
+void ChaseCamera::FollowView(const Pawn& pawn) {
+    const ViewPoint view = pawn.GetViewPoint();
+    auto& physics = GetScene().GetOrAddSystem<Spot::PhysicsWorld>();
+    const auto query = Spot::QueryFilter{.ignore = pawn.GetEntity().GetId()};
+    const Spot::Vector3 pivot = view.position + Up * lookHeight;
+    const Spot::Vector3 offset = view.rotation * Spot::Vector3{shoulderOffset, 0.0f, distance};
+    const float length = Spot::Length(offset);
+    const Spot::Vector3 back = length > 0.001f ? offset / length : -view.direction;
+    float reach = length;
+    if (const auto hit = physics.SphereCast(pivot, 0.25f, back, length, query)) {
+        reach = std::max(hit->distance - 0.03f, 0.0f);
+    }
+    // Converging on the eye ray keeps the reticle on what interaction and weapons actually target.
+    const auto hit = physics.Raycast(view.position, view.direction, 1000.0f, query);
+    const Spot::Vector3 target = hit ? hit->point : view.position + view.direction * 1000.0f;
+    auto& transform = GetEntity().GetTransform();
+    transform.SetWorldPosition(pivot + back * reach);
+    transform.SetWorldRotation(Spot::Quaternion::LookRotation(target - transform.GetWorldPosition()));
+}
+
 void ChaseCamera::OnLateUpdate(float deltaTime) {
     const Pawn* pawn = GetPawn();
     auto* camera = GetEntity().GetComponent<Spot::Camera>();
     if (!pawn || !camera || !camera->IsEnabled()) {
         m_input.Deactivate();
         m_following = false;
+        return;
+    }
+    if (followView) {
+        m_input.Deactivate();
+        m_following = false;
+        FollowView(*pawn);
         return;
     }
     if (!m_following) {
@@ -77,9 +103,13 @@ void ChaseCamera::OnLateUpdate(float deltaTime) {
     if (!m_input.Takes(lookAction)) {
         m_input.SetActions({lookAction});
     }
-    m_input.Activate(pawn->GetController());
+    if (orbit) {
+        m_input.Activate(pawn->GetController());
+    } else {
+        m_input.Deactivate();
+    }
     m_sinceLook += deltaTime;
-    if (Spot::Input::IsCursorLocked()) {
+    if (orbit && Spot::Input::IsCursorLocked()) {
         // As a head turns: up is positive and looks up, which lowers the camera.
         const Spot::Vector2 look = m_input.GetVector2(lookAction) * lookSensitivity;
         if (Spot::LengthSquared(look) > 0.0f) {
@@ -123,6 +153,9 @@ void ChaseCamera::Serialize(Spot::Archive& archive) {
     archive.Field("recenterDelay", recenterDelay, {.min = 0.0f, .max = 10.0f, .speed = 0.05f});
     archive.Field("speedFieldOfView", speedFieldOfView, {.min = 0.0f, .max = 1.0f, .speed = 0.005f, .angle = true});
     archive.Field("lookAction", lookAction);
+    archive.Field("followView", followView);
+    archive.Field("shoulderOffset", shoulderOffset, {.min = -2.0f, .max = 2.0f, .speed = 0.01f});
+    archive.Field("orbit", orbit);
 }
 
 } // namespace Gameplay

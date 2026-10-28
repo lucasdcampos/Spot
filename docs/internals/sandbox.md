@@ -14,27 +14,32 @@ with `./run.sh`. Run without `no-build` after changing code or sandbox assets to
 ## Main menu and maps
 
 The startup scene is `assets/scenes/main_menu.scene`. Its `MainMenu` extends the gameplay `Menu` with Home,
-Play, Settings and Quit pages. Home offers Play, Settings and Quit Game beside a featured view of the playground.
-Play lists the authored `maps`, each with its scene, name, description and preview camera position/target. Selecting
-one updates the large 16:9 preview and details; Start Game instantiates that scene and queues its replacement through
-`Application::LoadScene()`. A failed load displays an error and leaves the menu available. Adding a map means adding
-its button and entry in the scene; map selection is preserved while moving between pages.
+Play, Settings and Quit pages, all plain text in a column at the left over a full-screen view of the selected map.
+A shade over that view darkens it per page: lightest on Play, where the map is the subject, nearly opaque under the
+settings. Controls have no boxes: the focused one, or the one under the pointer, brightens and steps aside, and a
+short accent bar marks it; in the map list the bar marks the selected map instead (`MainMenu::StyleText`).
+
+Home offers Play, Settings and Quit. Play lists the authored `maps`, each with its scene, name, description, details
+and preview camera position/target. Selecting one changes the view behind the menu and its details; Start
+instantiates that scene and queues its replacement through `Application::LoadScene()`. A failed load displays an
+error and leaves the menu available. Adding a map means adding its text button and entry in the scene; the
+selection is kept while moving between pages, and Home shows it too.
 
 Previews use a separate `SceneRenderer` through the public BeforeOpaque render hook. Each selected map is instantiated
 once for its preview with canvases and player cameras disabled and an authored overview camera added. This scene is
-never updated, so its gameplay, audio, input and physics do not start. The resulting texture is cached for the menu's
-lifetime and shared with the home preview for the first map. No source screenshot or generated asset is required.
+never updated, so its gameplay, audio, input and physics do not start. The 1600x900 texture is cached for the menu's
+lifetime. No source screenshot or generated asset is required.
 
 The same `SettingsMenu` and `BindingsMenu` parts as pause provide sensitivity, FOV, volumes, graphics quality and
 rebinding, using the same per-user `interface.json`. Leaving Settings flushes changes. The modal canvas supports
 mouse, keyboard and gamepad navigation; Escape/East/Start returns to Home, or opens a quit confirmation from Home.
-Escape while rebinding cancels only the rebind. Each page restores a useful focus, and quitting first focuses Stay
-Here. The menu releases the cursor and never pauses simulation time.
+Escape while rebinding cancels only the rebind. Each page restores a useful focus, and quitting first focuses
+Cancel. The menu releases the cursor and never pauses simulation time.
 
 Playground remains `assets/scenes/playground.scene`. Empty Map (`assets/scenes/empty.scene`) keeps the same player,
 inventory, tools, effects and HUD, with a single 200 by 200 meter collidable floor, a sky and a directional light.
-Its `materials/debug_grid.material` uses the built-in debug grid at one meter per tile. `GameControls::spawnRobots`
-is false there, so the fallback robot population does not fill the empty map. Its restart scene points to itself
+Its `materials/debug_grid.material` uses the built-in debug grid at one meter per tile. `GameControls::spawnNpcs`
+is false there, so the fallback NPC population does not fill the empty map. Its restart scene points to itself
 and its checkpoint is `empty_world.json`, separate from the playground's checkpoint.
 
 Both maps offer Main Menu in the pause menu. Returning closes the pause menu before replacing the scene, restoring
@@ -50,7 +55,7 @@ remain outside world checkpoints and cleanup.
 
 - **Plaza** (spawn): paved, with benches, planted oaks, street lamps, the build pad and a monument whose neon
   "SPOT ENGINE" sign glows through bloom under a mirror sphere and gold, copper, plastic and glass samples, for PBR
-  and reflections. The robots patrol here, and a red hatchback is parked by the spawn (see [Driving](#driving)).
+  and reflections. The NPCs patrol here, and a red hatchback is parked by the spawn (see [Driving](#driving)).
 - **Workshop** (north-east): a brick hangar with a ten-meter door, glass windows, four shadowed ceiling lamps, a
   workbench, shelving, the lamp pad and a neon sign. Steel stairs up the west wall lead onto the parapeted roof.
 - **Proving yard** (west): a quarter pipe, a jump ramp, a platform with steps, a nine-meter drop tower with
@@ -173,7 +178,7 @@ the `PlayerController` on the Player Controller entity, through which every part
 yaw, and noclip also follows its pitch. Keep these references assigned in the scene so movement, aiming and the
 rendered view agree. Use goes through the pawn's `Interactor`: the car's `VehicleSeat` and light props (`Carrier`)
 are what it can use. `GameMode` owns starting positions and respawn, and `SessionControls` owns cursor capture,
-Pause, Restart and the quick-save shortcuts. `GameControls` keeps the sandbox's console rules, robot population and
+Pause, Restart and the quick-save shortcuts. `GameControls` keeps the sandbox's console rules, NPC population and
 developer tools font. See [session and game rules](sandbox_gameplay.md#session-and-game-rules).
 
 Gamepad bindings are in the same settings. Spawn cycles through the catalog rather than requiring a separate
@@ -201,6 +206,10 @@ Its `HelicopterDownwash` component sends the main rotor's wind toward water alon
 it emits expanding surface rings every 0.2 seconds, with opacity fading with squared rotor speed and distance.
 Tilting the helicopter moves the wind's footprint. The waves continue briefly while the rotor coasts down and
 fade on their own when it stops or moves away. They reuse the water's ripple layer without impact spray or audio.
+Nearby oaks and forest pines also react to rotor wash (`WindSway`): the oak's 156 articulated branches, and each
+pine's whorl branches, side shoots and leader, flex and twist independently, with faster, stronger motion in the
+smaller twigs. Leaves and needles follow their branches; trunks and their collision stay fixed. Each generated
+branch skeleton is shared, while each affected tree computes its own turbulent pose.
 
 `prefabs/spawnables/props/coupe.prefab` adds a blue two-seat coupe, parked on the workshop's light pad, facing the
 door, and available in the spawn menu's Props. Its generated model has a lower roof, a sloping rear window, a rear
@@ -221,7 +230,7 @@ there is room, looking the way the car faces. Dying or loading a checkpoint gets
 speed and gear in place of what is in hand.
 
 Car collisions at a closing speed of at least 2 m/s, with the car itself moving toward the target at least that
-fast, ignite explosive barrels, knock robots into ragdoll with the impact impulse and deal 10 damage per m/s to
+fast, ignite explosive barrels, knock NPCs into ragdoll with the impact impulse and deal 10 damage per m/s to
 players other than the driver. Walking or sprinting into a parked car does not deal damage.
 
 Both cars and the helicopter have `VehicleHealth`: 300 health, without regeneration. Shots, blasts and
@@ -297,7 +306,7 @@ F9 writes `world.json` in the application's user data directory. F10 validates a
 props and their children: transforms, body velocities, frozen tags and kinematic state, welds, ropes, painted
 materials, lamps, ammo and any remaining reload, cooldown or explosive fuse. References between saved props are
 remapped; references to the unchanged level remain valid. Spawned props stay owned by cleanup after loading.
-Robot populations, patrol state and ragdoll bodies are saved together, including their ownership references.
+NPC populations, patrol state and ragdoll bodies are saved together, including their ownership references.
 The player, level, ambience and day cycle keep running. Loading releases carried props and clears undo history.
 Transient projectiles, flashes and held view models are excluded. Missing or malformed checkpoints leave the
 current world intact. Checkpoints expand prefab instances so later prefab edits do not rewrite a saved world.
@@ -358,6 +367,8 @@ loads do not leave stale entity pointers.
 | `gravity [Y]` | Query/set scene gravity on Y, preserving X/Z; accepts -1000..1000 |
 | `timescale [value]` | Query/set simulation speed, 0..100; zero pauses |
 | `noclip [true/false]` | Toggle flying through collisions, or set it explicitly |
+| `thirdperson [true/false]` | Toggle the player inspection camera; 1/0 also work |
+| `firstperson` | Return to the first-person camera |
 | `cleanup` | Remove spawned props and their undo entries |
 | `spawn <prop>` | Spawn a catalog item where the player aims; no arguments lists names |
 | `give <weapon>` | Equip/refill an owned firearm or add a missing one to the player's inventory |
@@ -379,7 +390,7 @@ stress regression uses sixteen props headlessly; larger counts are explicit inte
 Build `spot_sandbox_benchmark` in Release to measure the complete cooked playground rather than
 isolated rendering. Run it with `--props 500 --lamps 50 --warmup 240 --frames 1200 --quality 2`.
 Quality is 0/1/2 for Low/Medium/High. A camera orbits the level at 1600x900 with vsync and validation
-off; gameplay, physics, robots, particles and the HUD continue. It spawns actual imported crates,
+off; gameplay, physics, NPCs, particles and the HUD continue. It spawns actual imported crates,
 adds point lamps (every eighth shadowed), excludes loading/warmup, then reports frame mean, median,
 p95, worst, body count, memory and inclusive CPU scopes. Exit status is nonzero if setup fails.
 The report also records the startup scene's synchronous `InstantiateScene` time (including asset reads,
@@ -440,11 +451,11 @@ throw it; rotate and wheel a physics-gun prop, freeze with Aim and unfreeze with
 with its glass, climb to its roof and advance T through sunset/night. Spawn and shoot Target Dummy, then undo
 and clean up. Run `gravity`, `timescale`, `noclip`, `spawn`, `give`, `stress` and `cleanup`; capture a screenshot
 and check the file. Play surface impacts and footsteps beside the ambience/music mix. Verify every weapon's
-idle/fire/reload/switch/sights poses and recoil recovery, robot patrol/ragdoll/revival, and wood/metal/concrete
+idle/fire/reload/switch/sights poses and recoil recovery, npc patrol/ragdoll/revival, and wood/metal/concrete
 particles. Complete the runtime-interface checklist below, including a saved rebind and a restart. Export
 instructions, the automated smoke test and the per-platform results are in [Sandbox release](sandbox_release.md).
 
-Watch the robots patrol, shoot one and trigger an explosion nearby; check that the
+Watch the NPCs patrol, shoot one and trigger an explosion nearby; check that the
 animated pose becomes a physical ragdoll. Fire, reload, aim and switch each weapon;
 check that tracers leave the muzzle, that the sights line up with the crosshair and that moving parts cycle.
 
@@ -514,7 +525,7 @@ next frame, in both the standalone game and the editor's game view, while keepin
 
 The HUD is laid out like a modern shooter's: nothing is boxed, and it keeps to the corners. A small crosshair (a dot
 and four lines) opens up while moving, in the air and under recoil, gives way to the sights while aiming, hides while
-nothing in hand can be used, and flashes a hit marker when a shot moves a prop or knocks down a robot. At the bottom
+nothing in hand can be used, and flashes a hit marker when a shot moves a prop or knocks down a npc. At the bottom
 right, the silhouette of what is in hand sits beside its rounds, the magazine large and the reserve smaller (`30 /
 240`), which turn red when low, or the tool's mode and option, with a thin reload line under them; its name shows
 above for a moment after switching. Its controls show there only while they matter: after switching, for the first
@@ -573,27 +584,66 @@ binding; spawn, undo and clean up; adjust FOV/sensitivity, each bus and quality;
 and gamepad control; restart and confirm the values persist. Check that menu clicks never fire a
 weapon, pause freezes the world, cursor ownership returns and every thumbnail shows its actual prop.
 
+## Player body and inspection camera
+
+The player has a visible, articulated body in both playground and empty maps. `thirdperson` toggles an inspection
+camera over the right shoulder; `firstperson` returns to the FPS view. These are cheat commands owned by GameControls,
+like `noclip`. The camera follows the aim's yaw and pitch and avoids walls. Its lateral shoulder offset and height
+are authored on the ChaseCamera. It converges on the eye ray's first hit, keeping the reticle aligned with
+interaction and weapon targeting; movement and shots still use the original eye position and aim.
+
+`prefabs/actors/player_body.prefab` supplies the model, bone attachment and holding, crouching and sitting layers.
+`animation/player.controller` uses in-place versions of Walk/Run so animation never moves the physics capsule.
+The first-person camera excludes the body's authored layer 30, while external/vehicle cameras include it.
+WorldModel puts the equipped item's world meshes on the same layer. The FPS ViewModel is hidden in ThirdPerson
+and Seated states; shooting uses the visible world muzzle when the first-person model is hidden.
+
+`CharacterVisual` follows movement speed and facing, and switches the authored pose layers. On entering any vehicle,
+the player sits at its hip anchor with the seat's full rotation, including aircraft pitch and roll. The normal
+vehicle chase camera shows the driver through the windows. Exiting restores the selected character camera and
+standing/held-item presentation. `thirdperson`/`firstperson` while seated select the view to return to without
+replacing the vehicle camera. The car and coupe hip markers sit below the window sill and select a compact seated-leg pose; the helicopter
+uses the standard seated pose with its own hip height. Head and foot bounds are tested against each cabin.
+
+GPU tests write `player_firstperson.png`, `player_thirdperson.png` and `player_seated_<vehicle>.png` to
+`tests/sandbox_captures/`. They compare occupied and empty cabins to verify the driver renders through the glass. Additional up/down
+captures verify vertical camera movement. Headless tests aim from the shoulder view and press E to enter and exit
+each vehicle, checking both the reticle target and the interaction focus.
+
 ## Animated assets
 
-The generator writes `generated/models/robot.gltf` with skin streams, inverse bind matrices, clip channels and
-events: Idle, Walk and Run. It is an ordinary imported source asset, which the build writes like the generator's
-other files (see [Generated assets](tools_and_command_line.md#generated-assets)); unchanged bytes are not rewritten.
+The generator writes `generated/models/humanoid.gltf`: a roughly 1.86 m tall, beveled low-poly human in a blue
+shirt and dark trousers. Its 21-bone skeleton includes the spine, neck, shoulders, elbows, wrists, knees, ankles
+and toes. Skin weights keep the simple rigid segments attached to their joints. Idle, Walk and Run include basic
+arm swing, elbow and knee bends; HoldPistol is a separate upper-body pose. WalkInPlace, RunInPlace, Seated and
+Crouch and SeatedCompact support the player presentation. These are ordinary imported assets,
+with no special engine loading path or dependency on the generator at runtime.
 
-`animation/robot.controller` blends Idle/Walk/Run through its float `speed` parameter.
-The `Robot` component chooses a patrol direction and turns the actor; the Animator
-moves its CharacterController using root motion. Footstep clip events play metal
-steps. Hitscan hits and explosions damage the `Robot`, which activates the prefab's eleven-body
-Ragdoll and applies the damage's impulse; `Robot::Revive()` blends back to locomotion. Robots within `animationNear` (12 m) of the
-camera animate every frame, then 30 times a second, and 12 times beyond `animationFar` (30 m).
+`animation/humanoid.controller` blends Idle/Walk/Run through its float `speed` parameter. `Npc` is the sandbox's
+patrolling Pawn: it turns toward its destination and the Animator moves its CharacterController with root motion.
+Footstep clip events play concrete steps. Damage activates its 17-body Ragdoll and applies the impact impulse;
+`Npc::Revive()` blends back to locomotion. Nearby NPCs animate every frame, then 30 times a second beyond
+`animationNear` (12 m), and 12 times beyond `animationFar` (30 m).
 
-`prefabs/actors/robot.prefab` contains the controller, skinned renderers and editable
-ragdoll limits. `robot_spawner.prefab` authors patrol starting positions. GameControls
-loads this population when the scene has none, so existing playground scenes work
-without rewriting their authored entities. The spawner preserves instance ids in
-checkpoints. Set GameControls' `robots` reference to use a different population.
+`prefabs/actors/npc.prefab` is unarmed; `npc_armed.prefab` adds the pistol prefab to its editable loadout. Both have
+an Inventory and the framework's WorldModel. The character prefab supplies a BoneAttachment at its right hand,
+the weapon grip offset, and the Holding animation layer and bone mask. WorldModel follows the selected item's
+model and toggles that layer; it knows no skeleton, bone name, weapon class or sandbox asset path. Its muzzle
+position supplies the firearm's effects when there is no first-person ViewModel. NPCs carry weapons without
+reading local input; `Inventory::Use()` accepts controller/test intents for firing and reloading. They do not
+select targets or attack the player automatically.
 
-The sandbox animation tests run the real controller, shots, explosion and weapon
-input headlessly. The offscreen GPU test renders robot idle/run/ragdoll poses with a pistol
-attached to its right hand; set `SPOT_ANIMATION_CAPTURE_DIR` to save its PNG captures. The
-sandbox's GPU acceptance test also captures every held item at the hip and down its sights,
-and a reload, into `tests/sandbox_captures/`.
+`npc_spawner.prefab` places one armed and two unarmed NPCs in the playground.
+Each spawn chooses its prefab and position. GameControls loads this population when none exists; set its `npcs`
+reference to use another population or `spawnNpcs` to disable it. The spawner's instance ids, carried items,
+world-model instance references and ragdoll ownership survive checkpoints without duplicating the loadout.
+
+The animation tests exercise the generated skeleton, patrol, damage, revival, mixed loadouts and weapon intents.
+Framework tests attach arbitrary items to an unrelated skeleton and socket. GPU tests capture the real armed and
+unarmed prefabs, locomotion and ragdolls. Set `SPOT_ANIMATION_CAPTURE_DIR` for the engine's animation test captures;
+the sandbox GPU tests write acceptance captures into `tests/sandbox_captures/`.
+
+Rotor-driven branch flexion and twist now use 40% of their original amplitude. Forest pines are individual
+instances of three sparse, articulated models, preserving the generated placements and original trunk colliders.
+Their main branches, side shoots and leaders have independent joints; needles follow their supporting branches.
+The old merged forest bark and needles renderers are disabled; the rock renderer remains active.

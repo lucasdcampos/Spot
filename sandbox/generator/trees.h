@@ -15,6 +15,7 @@ struct TreeMeshes {
     // Its texture goes around each branch a whole number of times and repeats every two meters along it.
     Spot::MeshData bark;
     Spot::MeshData foliage;
+    Spot::Skeleton skeleton;
 };
 
 // A broadleaf tree about eight meters tall: a trunk flaring into roots at its foot, five limbs leaning out of it and a

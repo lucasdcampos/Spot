@@ -27,6 +27,8 @@ public:
     std::vector<Spot::EntityId> exits;
     std::string exitAction = "Use";
     std::vector<std::string> ejectWhen = {"Dead"};
+    // Optional occupant state for an authored seat-specific pose.
+    std::string poseState;
 
     VehicleSeat() { prompt = "Drive"; }
 
@@ -39,6 +41,7 @@ public:
     void Exit();
     // Where the driver sits, in the world.
     Spot::Vector3 GetSeatPosition() const;
+    Spot::Quaternion GetSeatRotation() const;
 
     bool CanInteract(const Interactor& interactor) const override;
     void Interact(Interactor& interactor) override;
@@ -52,6 +55,7 @@ protected:
 private:
     // Where around the vehicle the occupant fits, standing on the ground.
     Spot::Vector3 FindExit(const Vehicle& vehicle, const Pawn& occupant) const;
+    void PlaceOccupant(Pawn& occupant) const;
 
     Spot::EntityId m_occupant = Spot::EntityId::Invalid;
     Spot::SignalConnection m_states;

@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "parameters": [
+    {
+      "name": "speed",
+      "type": 0,
+      "default": 0
+    }
+  ],
+  "states": [
+    {
+      "name": "Locomotion",
+      "clip": null,
+      "speed": 1.0,
+      "loop": true,
+      "editorPosition": [
+        20,
+        64
+      ],
+      "blendTree": {
+        "type": 1,
+        "parameterX": "speed",
+        "parameterY": "",
+        "motions": [
+          {
+            "clip": "131326f8651d8c95b5f205a45250ddbc",
+            "position": [
+              0,
+              0
+            ],
+            "speed": 1.0
+          },
+          {
+            "clip": "17827d449af8e8c6d6304636aaaa682d",
+            "position": [
+              1,
+              0
+            ],
+            "speed": 1.0
+          },
+          {
+            "clip": "6c51fb35ebf95828285e0fb3e491d883",
+            "position": [
+              2,
+              0
+            ],
+            "speed": 1.0
+          }
+        ]
+      }
+    }
+  ],
+  "transitions": [],
+  "entryState": 0
+}

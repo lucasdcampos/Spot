@@ -1,6 +1,7 @@
 #include "gameplay/vehicles/helicopter_downwash.h"
 
 #include "gameplay/environment/water.h"
+#include "gameplay/environment/wind_sway.h"
 #include "gameplay/vehicles/helicopter.h"
 
 #include <algorithm>
@@ -9,7 +10,7 @@ namespace Gameplay {
 
 SPOT_COMPONENT(HelicopterDownwash);
 
-void HelicopterDownwash::OnLateUpdate(float deltaTime) {
+void HelicopterDownwash::OnUpdate(float deltaTime) {
     if (deltaTime <= 0.0f) {
         return;
     }
@@ -18,6 +19,33 @@ void HelicopterDownwash::OnLateUpdate(float deltaTime) {
         m_untilRipple = 0.0f;
         return;
     }
+    const auto* mainRotor = GetScene().GetEntity(helicopter->mainRotor);
+    const auto& rotorTransform = (mainRotor ? *mainRotor : helicopter->GetEntity()).GetTransform();
+    const auto rotorOrigin = rotorTransform.GetWorldPosition();
+    const auto down = rotorTransform.GetWorldRotation() * Spot::Vector3{0.0f, -1.0f, 0.0f};
+    GetScene().ForEachComponent<WindSway>([&](WindSway& tree) {
+        const auto& treeTransform = tree.GetEntity().GetTransform();
+        const auto crown =
+            treeTransform.GetWorldPosition() + Spot::Vector3{0.0f, 4.0f * treeTransform.GetScale().y, 0.0f};
+        const auto offset = crown - rotorOrigin;
+        const float depth = Spot::Dot(offset, down);
+        if (depth < 0.0f || depth >= range) {
+            return;
+        }
+        const auto radial = offset - down * depth;
+        const float radius = 7.0f + depth * 0.35f;
+        const float distance = Spot::Length(radial);
+        if (distance >= radius) {
+            return;
+        }
+        auto outward = Spot::Vector3{radial.x + down.x, 0.0f, radial.z + down.z};
+        if (Spot::LengthSquared(outward) < 0.001f) {
+            outward = {1.0f, 0.0f, 0.0f};
+        }
+        const float falloff = (1.0f - depth / range) * (1.0f - distance / radius);
+        const float speed = helicopter->GetRotorSpeed();
+        tree.AddWind(Spot::Normalize(outward) * (speed * speed * falloff * 3.0f));
+    });
     m_untilRipple -= deltaTime;
     if (m_untilRipple > 0.0f) {
         return;

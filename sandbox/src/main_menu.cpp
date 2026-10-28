@@ -4,7 +4,34 @@
 #include <spot/scene/rendering/render_hook_system.h>
 #include <spot/scene/ui/ui_input_system.h>
 
+#include <cmath>
+#include <optional>
+
 SPOT_COMPONENT(MainMenu);
+
+namespace {
+
+// How dark the map behind each page is: lighter where it is the subject, dark under the settings' many controls.
+float GetShade(MainMenu::Page page) {
+    switch (page) {
+    case MainMenu::Page::Home:
+        return 0.72f;
+    case MainMenu::Page::Play:
+        return 0.66f;
+    case MainMenu::Page::Settings:
+        return 0.95f;
+    case MainMenu::Page::Quit:
+        return 0.9f;
+    }
+    return 0.72f;
+}
+
+Spot::Color Mix(Spot::Color from, Spot::Color to, float blend) {
+    return {std::lerp(from.r, to.r, blend), std::lerp(from.g, to.g, blend), std::lerp(from.b, to.b, blend),
+            std::lerp(from.a, to.a, blend)};
+}
+
+} // namespace
 
 void MainMenuMap::Serialize(Spot::Archive& archive) {
     archive.Field("button", button);
@@ -141,16 +168,40 @@ void MainMenu::OnRawEvent(const Spot::Event& event, bool& consumed) {
 void MainMenu::AnimateControls(float blend) {
     for (const auto id : {playButton, settingsButton, quitButton, startButton, backButton, settingsBackButton,
                           cancelQuitButton, confirmQuitButton}) {
-        StyleControl(id, false, style.text, blend);
+        StyleText(id, std::nullopt, blend);
     }
     for (std::size_t index = 0; index < maps.size(); ++index)
-        StyleControl(maps[index].button, index == m_selected, style.textSecondary, blend);
+        StyleText(maps[index].button, index == m_selected, blend);
+    if (auto* image = Get<Spot::UiImage>(shade))
+        image->tint.a = std::lerp(image->tint.a, GetShade(m_page), blend);
+}
+
+// The controls are plain text: the one focused or under the pointer brightens and steps aside. A short bar in the
+// accent marks it, or, among choices such as the maps, only the one selected.
+void MainMenu::StyleText(Spot::EntityId control, std::optional<bool> selected, float blend) {
+    const auto* widget = Get<Spot::UiWidget>(control);
+    if (!widget || !widget->GetEntity().IsActiveInHierarchy()) {
+        return;
+    }
+    const auto state = widget->GetUiState();
+    const bool active = state == Spot::UiControlState::Hovered || state == Spot::UiControlState::Pressed ||
+                        state == Spot::UiControlState::Focused;
+    const bool marked = selected.value_or(active);
+    if (auto* label = GetChild<Spot::UiText>(control, "Label"))
+        label->color = Mix(label->color, active || marked ? style.text : style.textSecondary, blend);
+    if (auto* rect = GetChild<Spot::UiRect>(control, "Label"))
+        rect->layout.offset.x = std::lerp(rect->layout.offset.x, active ? 10.0f : 0.0f, blend);
+    if (auto* marker = GetChild<Spot::UiImage>(control, "Marker")) {
+        auto target = style.accent;
+        target.a = marked ? 1.0f : 0.0f;
+        marker->tint = Mix(marker->tint, target, blend);
+    }
 }
 
 void MainMenu::RenderPreview(const Spot::RenderStageContext& stage) {
-    if (!IsOpen() || maps.empty() || (m_page != Page::Home && m_page != Page::Play))
+    if (!IsOpen() || maps.empty())
         return;
-    const std::size_t index = m_page == Page::Home ? 0 : m_selected;
+    const std::size_t index = m_selected;
     if (!m_previewAttempted[index]) {
         m_previewAttempted[index] = true;
         auto* assets = Spot::Assets::GetManager();
@@ -176,7 +227,7 @@ void MainMenu::RenderPreview(const Spot::RenderStageContext& stage) {
                                                             .shadowCascadeCount = 2,
                                                             .localShadowMapSize = 0});
             auto texture = stage.device.CreateTexture(
-                {.width = 960, .height = 540, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
+                {.width = 1600, .height = 900, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
             if (texture && m_previewRenderer->IsValid()) {
                 m_previewRenderer->Render(stage.context, *scene, texture.get());
                 m_previews[index] = Spot::AssetRef<Spot::Texture>(std::move(texture));
@@ -185,7 +236,7 @@ void MainMenu::RenderPreview(const Spot::RenderStageContext& stage) {
         if (!m_previews[index] && m_page == Page::Play)
             SetStatus("Preview unavailable. You can still start this map.");
     }
-    if (auto* image = Get<Spot::UiImage>(m_page == Page::Home ? homePreview : previewImage)) {
+    if (auto* image = Get<Spot::UiImage>(previewImage)) {
         image->texture = m_previews[index];
         image->tint.a = image->texture ? 1.0f : 0.0f;
     }
@@ -212,7 +263,7 @@ void MainMenu::Serialize(Spot::Archive& archive) {
     archive.Field("cancelQuitButton", cancelQuitButton);
     archive.Field("confirmQuitButton", confirmQuitButton);
     archive.Field("previewImage", previewImage);
-    archive.Field("homePreview", homePreview);
+    archive.Field("shade", shade);
     archive.Field("mapTitle", mapTitle);
     archive.Field("mapDescription", mapDescription);
     archive.Field("mapDetails", mapDetails);

@@ -144,7 +144,7 @@ Spot::Entity* FirstPersonView::GetHead() const {
 
 void FirstPersonView::TurnHead(Spot::Quaternion rotation) {
     if (Spot::Entity* entity = GetHead()) {
-        entity->GetTransform().SetRotation(rotation);
+        entity->GetTransform().SetWorldRotation(rotation);
     }
 }
 

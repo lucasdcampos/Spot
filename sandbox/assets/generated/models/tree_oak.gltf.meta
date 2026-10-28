@@ -45,6 +45,10 @@
     {
       "id": "05843e2e570fa052e19f9dfe425dd647",
       "key": "mesh:1"
+    },
+    {
+      "id": "f4e265bf50f243cf6b2a6a9bbedf53dd",
+      "key": "skeleton:0"
     }
   ],
   "type": "Model"

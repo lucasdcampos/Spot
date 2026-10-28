@@ -96,7 +96,12 @@ overlapping shakes winning, for the view to add after where it looks (`GetRotati
 its pawn's view point is, so a blast knows no viewer. `FirstPersonView` turns the head and combines the pawn's zoom,
 running state, recoil and camera shake; its aim remains independent of shake. `ChaseCamera` follows any pawn from
 behind, with orbit, recentering, wall avoidance and a wider view at speed. Possession enables the pawn's camera;
-the camera entity stays active so its follow component can update when enabled.
+the camera entity stays active so its follow component can update when enabled. `followView` instead follows
+the pawn's eye position, yaw and pitch directly, leaving Look to the first-person view. `lookHeight` offsets its
+pivot above the eyes, and `shoulderOffset` moves it laterally (negative for the left shoulder). A sphere sweep
+shortens the complete offset boom at walls. The camera converges on the eye ray's first hit, so its reticle shows
+what the existing interaction and weapon rays target even at close range. The vehicle orbit mode is unchanged. The first-person head uses
+world rotation, so its aim remains independent of a seat's inherited rotation.
 
 ## Character
 
@@ -116,6 +121,17 @@ Its `releaseWhen` states also let another action take the hands without naming t
 `CrosshairElement` shows the aim and movement spread. Movement owns no spawn point or death timer; the session
 calls `Pawn::ResetMotion()`, implemented by `Character` through `CharacterMovement::SetVelocity()`, when returning a
 player to the start. The view direction, crouch and noclip settings remain as they were.
+`Character::thirdPersonCamera` optionally supplies an inspection view. `SetThirdPerson()` switches the local
+camera and the ThirdPerson state, leaving `GetViewPoint()` unchanged for movement, interaction and shooting.
+Possession uses the selected camera on return from a vehicle; changing the selection while seated leaves the
+vehicle camera in control. The console commands themselves belong to the sandbox.
+
+`CharacterVisual` presents an authored `modelRoot` with an animator reference and configurable speed parameter,
+seated/crouching layer names and offsets. It follows aim yaw on foot and the root's full rotation while seated.
+Additional `stateLayers` map arbitrary pawn states to authored pose layers, including seat-specific poses.
+The animator controller must use in-place locomotion; presentation never drives the physics body. Skeletons,
+bone names, masks, clips, culling layers and the model asset remain prefab/scene data. Tests exercise an unrelated
+one-joint rig and custom parameter/layer names.
 Tests: `character_tests.cpp`.
 
 ## Inventory and weapons
@@ -139,13 +155,24 @@ describes cadence, spread, ammunition, aiming and effects. Without a `projectile
 `Traces` and `Damage`; with one it launches that prefab. Games override `FireShot()` to change behavior. Its timers
 keep reloads and cooldowns with the item. `Projectile` handles flight, collision, trace volumes and lifetime;
 `Explosive` provides the blast and `IgniteOnDamage` its delayed fuse. Rockets and explosive barrels compose these
-parts in their prefabs. No damage source names the sandbox's robots or barrels. Tests: `weapons_tests.cpp`.
+parts in their prefabs. No damage source names the sandbox's NPCs or barrels. Tests: `weapons_tests.cpp`.
+
+`WorldModel` presents the same selected item in the world. Give it an entity id for its mount; that entity can
+use the engine's `BoneAttachment`, or any authored transform. An optional animator reference and `poseLayer`
+control the weight of an existing holding layer. Skeletons, bone names, masks, clips and grip offsets belong to
+the character prefab; no humanoid or sandbox model is assumed. Models are instances below the mount and cast
+ordinary world shadows. Switching items replaces the visual; hidden pawn states, a disabled inventory or a
+missing mount clear it. `renderLayer` optionally assigns every world-model node to a presentation layer,
+so the local camera can exclude its own world body and equipment without changing external views. The configurable `muzzleNode` supplies its world muzzle, used by Firearm when no active
+first-person ViewModel exists. Runtime references are serialized with expanded world saves to avoid duplicates.
+Tests use an unrelated one-bone rig and arbitrary item subclasses, without sandbox assets.
 
 ## Vehicles
 
 `gameplay/vehicles/` needs `core`, `environment`, `health`, `hud`, `persistence` and `weapons`.
 `Vehicle` is a pawn driven by `VehicleInput`; its `controls` map a player's actions, and other controllers call `SetInput()`. A `VehicleSeat` gets an existing pawn
-in, marks it "Seated", transfers possession and keeps it at the seat's position. Exiting finds room at authored
+in, marks it "Seated", transfers possession and keeps it at the seat's position and rotation. An optional `poseState` is set on entry and cleared on exit,
+so character presentation can select the seat's authored pose without a vehicle or skeleton dependency. Exiting finds room at authored
 exits or around the body's boxes, then restores possession and places the pawn facing and moving with the vehicle.
 Death and checkpoint loading get it out too. The vehicle exposes its occupant through the pawn contract so the HUD
 can keep showing that occupant's health.
@@ -235,7 +262,7 @@ damage that reached something is told by `DamageSystem::OnDamageApplied`, as the
   something of its `damageTypes`). The death screen belongs to `game/`, which owns its countdown.
 
 The sandbox's player has `Health` and `FallDamage`; its movement is a receiver that throws it back from "Explosion"
-damage, its robots and explosive barrels are receivers, and the car prefab has `ImpactDamage`. A game changes how
+damage, its NPCs and explosive barrels are receivers, and the car prefab has `ImpactDamage`. A game changes how
 damage hurts by subclassing `Health` (armor overriding `AdjustDamage()`) or with a receiver of its own in its place.
 Tests: `health_tests.cpp`.
 
@@ -270,7 +297,7 @@ Tests: `environment_tests.cpp`.
 `gameplay/persistence/` needs only the engine. `WorldSave::Save()` checkpoints the root entities that are
 `Persistent` and not `Transient`, with what is below them; `Load()` replaces them with those saved, telling every
 `SaveListener` before, so it lets go of what will be destroyed, and after, with the roots made. The sandbox marks
-what the player can make, move or break: its props, robots and spawners, and placed lamps; rockets are Transient. The
+what the player can make, move or break: its props, NPCs and spawners, and placed lamps; rockets are Transient. The
 vehicle's seat, the carrier and the physics gun let go, the undo list clears and the spawner finds its props again by
 their "Spawned" tag. Tests: `persistence_tests.cpp`.
 
@@ -322,7 +349,7 @@ and pressing it again quits. Restart calls the mode. The capture click runs in l
 the unlocked cursor, and never captures clicks on an open menu. Its sound is an authored `clickSound` reference.
 
 The playground's Controls entity has `GameMode`, `SessionControls` and the sandbox's `GameControls`. Only console
-commands and cheats, fallback robot population and the developer tools' font remain in `GameControls`. The spawn
+commands and cheats, fallback NPC population and the developer tools' font remain in `GameControls`. The spawn
 menu uses its `playerIndex` to resolve the player's spawner and undo list through `Players`, while sandbox commands
 and the smoke test use the first local player, following that player's body while driving. Tests:
 `tests/sandbox/gameplay/session_tests.cpp`; the playground tests retain their quick-save and death behavior checks.
@@ -439,11 +466,11 @@ framework dependencies serve those responsibilities:
 
 | Sandbox code | Responsibility and framework boundary |
 |---|---|
-| `game`, `game_controls` | Module and day-cycle script registration; console rules, robot population and developer font |
+| `game`, `game_controls` | Module and day-cycle script registration; console rules, NPC population and developer font |
 | `physics_gun`, `tool_gun`, `hook_lines` | Sandbox held items, their physics operations, undo and rendering; item status and pose describe their presentation |
 | `prop_spawner`, `spawnable`, `spawn_menu`, `menu_thumbnails`, `undo_list` | Catalog, placement, previews and editing history; player lookup uses `Players`, placement publishes "Placing" |
 | `sandbox_hud`, `interface_palette`, `sound_bank` | Sandbox prompts, authored UI styling and click sound; generic HUD and menus stay in the framework |
-| `robot`, `robot_spawner` | Sandbox patrols, population and ragdoll damage receiver |
+| `npc`, `npc_spawner` | Sandbox patrols, population and ragdoll damage receiver |
 | `grass_visibility`, `shadow_toggle`, `physics_debug_view` | Level culling and developer switches |
 | `sandbox_commands`, `smoke_test`, `main` | Explicit game composition and entry points; commands and the smoke driver resolve player parts through `Players` |
 
@@ -576,3 +603,14 @@ pre-optimization walking capture (1.952 ms). This is a CPU-scope improvement; it
 improved by that percentage. Final walking means span 15.961–16.016 ms and do not repeat the earlier 16.775–17.098 ms
 results. The historical baseline did not have the final route/render validation, so its comparison still cannot
 isolate the framework's total cost.
+
+`WindSway` uses the generated oak's branch skeleton: each limb and twig rotates around its attachment,
+following its parent while adding its own gust frequency, phase and twist. Foliage follows the branch it grows on.
+The trunk stays fixed. Rotor wash is amplified near the helicopter; smaller branches flex more strongly.
+Only trees receiving wind or settling use skinned rendering, with padded bounds for the moving crown.
+Calm trees use their original static renderers. The authored skeleton is shared; each tree owns its pose.
+
+Rotor-driven branch flexion and twist now use 40% of their original amplitude. Forest pines are individual
+instances of three sparse, articulated models, preserving the generated placements and original trunk colliders.
+Their main branches, side shoots and leaders have independent joints; needles follow their supporting branches.
+The old merged forest bark and needles renderers are disabled; the rock renderer remains active.
