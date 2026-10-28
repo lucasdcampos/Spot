@@ -11,6 +11,17 @@ std::unique_ptr<Spot::Scene> Preview(const Spot::AssetRef<Spot::Prefab>& prefab)
     if (!root)
         return nullptr;
     root->GetTransform().SetPosition({});
+    // Skinned meshes are drawn only once animated; in their bind pose, as plain meshes, they still show.
+    std::vector<Spot::SkinnedMeshRenderer*> skins;
+    scene->ForEachComponent<Spot::SkinnedMeshRenderer>(
+        [&](Spot::SkinnedMeshRenderer& skin) { skins.push_back(&skin); });
+    for (auto* skin : skins) {
+        if (skin->GetMesh() && !skin->GetEntity().HasComponent<Spot::MeshRenderer>()) {
+            skin->GetEntity()
+                .AddComponent<Spot::MeshRenderer>(skin->GetMesh(), skin->GetMaterial())
+                .SetSubmesh(skin->GetSubmesh());
+        }
+    }
     Spot::Vector3 min{}, max{};
     bool first = true;
     scene->ForEachComponent<Spot::MeshRenderer>([&](Spot::MeshRenderer& renderer) {

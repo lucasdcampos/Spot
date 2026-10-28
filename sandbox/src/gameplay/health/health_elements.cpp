@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 #include <string>
 
 namespace Gameplay {
@@ -13,6 +14,7 @@ namespace Gameplay {
 SPOT_COMPONENT(HealthElement);
 SPOT_COMPONENT(DamageFlashElement);
 SPOT_COMPONENT(HitMarkerElement);
+SPOT_COMPONENT(KillFeedElement);
 
 namespace {
 
@@ -112,6 +114,77 @@ void HitMarkerElement::Serialize(Spot::Archive& archive) {
     HudElement::Serialize(archive);
     archive.Field("damageTypes", damageTypes, {.tooltip = "The types of damage that show it; any when empty"});
     archive.Field("fadeSpeed", fadeSpeed, {.min = 0.0f, .max = 100.0f, .speed = 0.1f});
+}
+
+std::string KillFeedElement::Describe(Spot::Scene& scene, const DamageApplied& death) {
+    // Whose pawn did it and what with: the weapon, or the kind of damage when it came straight from them.
+    const auto nameOf = [&scene](Spot::EntityId id) -> std::string {
+        const Spot::Entity* entity = scene.GetEntity(id);
+        if (!entity) {
+            return {};
+        }
+        const Pawn* pawn = Pawn::Of(*entity);
+        return pawn ? pawn->GetEntity().GetName() : entity->GetName();
+    };
+    const std::string victim = nameOf(death.target);
+    const std::string killer = nameOf(death.damage.instigator);
+    const Spot::Entity* source = scene.GetEntity(death.damage.source);
+    const bool weapon = source && death.damage.source != death.damage.instigator && !source->GetName().empty();
+    const std::string how = weapon ? source->GetName() : death.damage.type.empty() ? "Killed" : death.damage.type;
+    if (killer.empty() || killer == victim) {
+        return std::format("{}  [{}]", victim, how);
+    }
+    return std::format("{}  [{}]  {}", killer, how, victim);
+}
+
+bool KillFeedElement::IsWanted(const HudContext& context) {
+    if (!m_killed.IsConnected()) {
+        m_killed = DamageSystem::Get(GetScene()).OnKilled.Connect([this](const DamageApplied& death) {
+            const auto involved = [&](Spot::EntityId id) {
+                return id != Spot::EntityId::Invalid && (id == m_pawn || id == m_occupant);
+            };
+            const Spot::Entity* by = GetScene().GetEntity(death.damage.instigator);
+            const Pawn* killer = by ? Pawn::Of(*by) : nullptr;
+            m_lines.insert(m_lines.begin(),
+                           {Describe(GetScene(), death), 0.0f,
+                            involved(death.target) || (killer && involved(killer->GetEntity().GetId()))});
+            if (m_lines.size() > rows.size()) {
+                m_lines.resize(rows.size());
+            }
+        });
+    }
+    m_pawn = context.pawn ? context.pawn->GetEntity().GetId() : Spot::EntityId::Invalid;
+    m_occupant = context.occupant ? context.occupant->GetEntity().GetId() : Spot::EntityId::Invalid;
+    for (Line& line : m_lines) {
+        line.age += context.deltaTime;
+    }
+    std::erase_if(m_lines, [this](const Line& line) { return line.age >= lifetime; });
+    return true;
+}
+
+void KillFeedElement::Refresh(const HudContext& /*context*/) {
+    for (std::size_t index = 0; index < rows.size(); ++index) {
+        auto* text = Get<Spot::UiText>(rows[index]);
+        if (!text) {
+            continue;
+        }
+        if (index >= m_lines.size()) {
+            text->text.clear();
+            continue;
+        }
+        const Line& line = m_lines[index];
+        text->text = line.text;
+        text->color = line.mine ? accent : color;
+        text->color.a *= std::clamp(lifetime - line.age, 0.0f, 1.0f);
+    }
+}
+
+void KillFeedElement::Serialize(Spot::Archive& archive) {
+    HudElement::Serialize(archive);
+    archive.Field("rows", rows, {.tooltip = "The UiTexts of its lines, newest at the first"});
+    archive.Field("lifetime", lifetime, {.min = 0.5f, .max = 60.0f, .speed = 0.1f, .tooltip = "Seconds a line stays"});
+    archive.Field("color", color);
+    archive.Field("accent", accent, {.tooltip = "For lines the player took part in"});
 }
 
 } // namespace Gameplay

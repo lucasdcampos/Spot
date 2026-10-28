@@ -131,7 +131,10 @@ void Firearm::Fire() {
     if (view) {
         view->Kick(viewRecoil);
     }
-    Spot::Input::RumbleGamepad(0.2f, projectile ? 0.8f : 0.5f, 0.08f);
+    // Only a player's own shots shake their gamepad.
+    if (pawn->IsPossessed()) {
+        Spot::Input::RumbleGamepad(0.2f, projectile ? 0.8f : 0.5f, 0.08f);
+    }
     PlaySound(fireSound, 1.0f);
     EffectLibrary::Play(GetScene(), muzzleEffect, muzzle, eyes.direction,
                         {.scale = std::clamp(muzzleFlash, 0.1f, 4.0f)});
@@ -208,7 +211,8 @@ void Firearm::FirePellets(Spot::Vector3 eye, Spot::Vector3 aim, Spot::Vector3 mu
             }
         }
         Damage::Apply(GetScene(), hit->entity,
-                      {.type = damageType,
+                      {.amount = damage * push,
+                       .type = damageType,
                        .point = hit->point,
                        .impulse = direction * impulse * push,
                        .instigator = shooter,
@@ -304,6 +308,7 @@ void Firearm::Serialize(Spot::Archive& archive) {
     archive.Field("pellets", pellets, {.min = 1.0f, .max = 64.0f});
     archive.Field("spread", spread, {.min = 0.0f, .max = 0.5f, .angle = true, .tooltip = "Half angle of the cone"});
     archive.Field("range", range, {.min = 0.0f, .max = 10000.0f, .speed = 1.0f});
+    archive.Field("damage", damage, {.min = 0.0f, .max = 10000.0f, .tooltip = "Health a pellet's hit takes"});
     archive.Field("impulse", impulse,
                   {.min = 0.0f, .max = 10000.0f, .speed = 0.5f, .tooltip = "Per pellet, in newton seconds"});
     archive.Field("damageType", damageType, {.tooltip = "What its hits are to what they hit"});

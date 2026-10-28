@@ -7,6 +7,7 @@
 
 #include <spot.h>
 
+#include <array>
 #include <optional>
 #include <string>
 #include <vector>
@@ -20,7 +21,7 @@ public:
     Spot::EntityId grid = Spot::EntityId::Invalid, scroll = Spot::EntityId::Invalid,
                    itemTemplate = Spot::EntityId::Invalid;
     Spot::EntityId propsTab = Spot::EntityId::Invalid, lampsTab = Spot::EntityId::Invalid,
-                   weaponsTab = Spot::EntityId::Invalid;
+                   weaponsTab = Spot::EntityId::Invalid, npcsTab = Spot::EntityId::Invalid;
     Spot::EntityId closeButton = Spot::EntityId::Invalid, cleanupButton = Spot::EntityId::Invalid,
                    undoButton = Spot::EntityId::Invalid;
     // The search field, the frame drawn around it, the number of objects shown and the buttons of the two views.
@@ -51,6 +52,8 @@ protected:
     void Serialize(Spot::Archive& archive) override;
 
 private:
+    // The tab of each category, in their order.
+    std::array<Spot::EntityId, 4> GetTabs() const { return {propsTab, lampsTab, weaponsTab, npcsTab}; }
     void Build();
     void ChooseSpawn(std::size_t index);
     void ApplyFilter();

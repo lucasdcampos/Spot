@@ -42,6 +42,7 @@ void SpawnMenu::Initialize() {
     ConnectButton(propsTab, [this] { SelectCategory(Spawnable::Category::Prop); });
     ConnectButton(lampsTab, [this] { SelectCategory(Spawnable::Category::Lamp); });
     ConnectButton(weaponsTab, [this] { SelectCategory(Spawnable::Category::Weapon); });
+    ConnectButton(npcsTab, [this] { SelectCategory(Spawnable::Category::Npc); });
     ConnectButton(gridView, [this] { SetCompactView(false); });
     ConnectButton(compactView, [this] { SetCompactView(true); });
     if (auto* field = Get<Spot::UiInputField>(search)) {
@@ -83,9 +84,7 @@ void SpawnMenu::OnOpen() {
             GetScene(), static_cast<std::size_t>(std::max(playerIndex, 0)))) {
         spawner->CancelPlacement();
     }
-    GetScene().GetOrAddSystem<Spot::UiInputSystem>().Focus(m_category == Spawnable::Category::Prop   ? propsTab
-                                                           : m_category == Spawnable::Category::Lamp ? lampsTab
-                                                                                                     : weaponsTab);
+    GetScene().GetOrAddSystem<Spot::UiInputSystem>().Focus(GetTabs()[static_cast<std::size_t>(m_category)]);
 }
 
 void SpawnMenu::OnDestroy() {
@@ -194,7 +193,7 @@ void SpawnMenu::SetCompactView(bool compact) {
 
 void SpawnMenu::ApplyFilter() {
     // What matches the search in each category, which the tabs count, and of those the ones of the category shown.
-    std::array<std::size_t, 3> found{};
+    std::array<std::size_t, 4> found{};
     std::size_t shown = 0;
     for (std::size_t index = 0; index < m_spawnButtons.size(); ++index) {
         const bool match = m_search.empty() || m_searchNames[index].find(m_search) != std::string::npos;
@@ -206,10 +205,10 @@ void SpawnMenu::ApplyFilter() {
         shown += active ? 1 : 0;
     }
     // The tab shown is raised, marked in the accent and set in the title font.
-    const std::pair<Spot::EntityId, Spawnable::Category> tabs[] = {{propsTab, Spawnable::Category::Prop},
-                                                                   {lampsTab, Spawnable::Category::Lamp},
-                                                                   {weaponsTab, Spawnable::Category::Weapon}};
-    for (const auto& [id, category] : tabs) {
+    const auto tabs = GetTabs();
+    for (std::size_t index = 0; index < tabs.size(); ++index) {
+        const Spot::EntityId id = tabs[index];
+        const auto category = static_cast<Spawnable::Category>(index);
         auto* tab = Get<Spot::UiButton>(id);
         if (!tab) {
             continue;
@@ -244,9 +243,10 @@ void SpawnMenu::AnimateControls(float blend) {
     for (std::size_t index = 0; index < m_spawnButtons.size(); ++index) {
         StyleControl(m_spawnButtons[index], m_chosen == index, style.text, blend);
     }
-    StyleControl(propsTab, m_category == Spawnable::Category::Prop, style.textSecondary, blend);
-    StyleControl(lampsTab, m_category == Spawnable::Category::Lamp, style.textSecondary, blend);
-    StyleControl(weaponsTab, m_category == Spawnable::Category::Weapon, style.textSecondary, blend);
+    const auto tabs = GetTabs();
+    for (std::size_t index = 0; index < tabs.size(); ++index) {
+        StyleControl(tabs[index], m_category == static_cast<Spawnable::Category>(index), style.textSecondary, blend);
+    }
     StyleControl(gridView, !m_compact, style.textSecondary, blend);
     StyleControl(compactView, m_compact, style.textSecondary, blend);
     for (const Spot::EntityId id : {undoButton, cleanupButton, closeButton}) {
@@ -277,6 +277,7 @@ void SpawnMenu::Serialize(Spot::Archive& archive) {
     archive.Field("propsTab", propsTab);
     archive.Field("lampsTab", lampsTab);
     archive.Field("weaponsTab", weaponsTab);
+    archive.Field("npcsTab", npcsTab);
     archive.Field("closeButton", closeButton);
     archive.Field("cleanupButton", cleanupButton);
     archive.Field("undoButton", undoButton);

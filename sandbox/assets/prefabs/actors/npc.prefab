@@ -462,6 +462,16 @@
           }
         },
         {
+          "type": "Health",
+          "id": "84c09b2e236746b59e931dc2feed3250",
+          "enabled": true,
+          "data": {
+            "maxHealth": 100.0,
+            "regenerationDelay": 8.0,
+            "regenerationRate": 4.0
+          }
+        },
+        {
           "type": "Npc",
           "id": "220bcf2e364a468f91c57fc71f8fd236",
           "enabled": true,

@@ -506,7 +506,7 @@ while preserving concurrent editor changes. Imported assets still come from the 
 
 Q (gamepad Back) opens the spawn menu, laid out as an asset browser: a header with its title, how many objects it
 shows, a search field and two views (larger cards, six to a row, or compact ones, eight), a sidebar of categories
-(Props, Lamps and Weapons, each counting what matches the search; the one shown is raised and marked in the accent,
+(Props, Lamps, Weapons and NPCs, each counting what matches the search; the one shown is raised and marked in the accent,
 `SpawnMenu::SelectCategory()`), the grid of cards, and Undo, Clean Up and Close at the bottom, as quiet text
 buttons. Selecting a card closes the menu and starts placing that prefab (`PropSpawner::BeginPlacement()`): a
 translucent copy of its meshes, with no body or behavior, follows the aim where it would spawn; Fire places it and
@@ -621,8 +621,10 @@ with no special engine loading path or dependency on the generator at runtime.
 
 `animation/humanoid.controller` blends Idle/Walk/Run through its float `speed` parameter. `Npc` is the sandbox's
 patrolling Pawn: it turns toward its destination and the Animator moves its CharacterController with root motion.
-Footstep clip events play concrete steps. Damage activates its 17-body Ragdoll and applies the impact impulse;
-`Npc::Revive()` blends back to locomotion. Nearby NPCs animate every frame, then 30 times a second beyond
+Footstep clip events play concrete steps. Damage goes to its Health (100, slowly regenerating); when that runs out
+it activates its 17-body Ragdoll and applies the impact impulse, and later hits push the ragdoll. `Npc::Hit()` kills
+at once; `Npc::Revive()` restores its health and blends back to locomotion. Damage of a `knockdownTypes` type ("Impact", as a car
+running it over) that does not kill it knocks it down as a ragdoll; it gets up after `knockdownTime` (3) seconds. Nearby NPCs animate every frame, then 30 times a second beyond
 `animationNear` (12 m), and 12 times beyond `animationFar` (30 m).
 
 `prefabs/actors/npc.prefab` is unarmed; `npc_armed.prefab` adds the pistol prefab to its editable loadout. Both have
@@ -630,10 +632,29 @@ an Inventory and the framework's WorldModel. The character prefab supplies a Bon
 the weapon grip offset, and the Holding animation layer and bone mask. WorldModel follows the selected item's
 model and toggles that layer; it knows no skeleton, bone name, weapon class or sandbox asset path. Its muzzle
 position supplies the firearm's effects when there is no first-person ViewModel. NPCs carry weapons without
-reading local input; `Inventory::Use()` accepts controller/test intents for firing and reloading. They do not
-select targets or attack the player automatically.
+reading local input; `Inventory::Use()` accepts controller/test intents for firing and reloading.
 
-`npc_spawner.prefab` places one armed and two unarmed NPCs in the playground.
+`Npc::attitude` decides whom it fights. An Enemy fights the players' pawns and Ally NPCs; an Ally fights Enemy NPCs
+and otherwise follows the player within `followDistance`; a Neutral fights nobody. Every NPC also fights back whoever
+hurts it (kept in its saved provokers), unless they are on its side: NPCs of its own attitude, and the player for an
+Ally. A few times a second it picks the nearest hostile pawn it sees within `sightRange` (a physics ray from its eyes);
+it walks closer until within `attackRange`, turns to it and, after `reactionTime`, fires its held Firearm through
+`Inventory::Use()`, aiming with `GetViewPoint()` at the target's chest with up to `aimError` radians of stray and at
+least `shotPause` seconds between shots, refilling an empty weapon. Its shots take `damageScale` (half) of the
+firearm's damage, so NPCs do not take players down as fast as players take them. Without a firearm it hits within `meleeRange`.
+Out of sight, it searches where it last saw the target for a few seconds. Firearms take `Firearm::damage` health per
+pellet; only a possessed pawn's shots rumble the gamepad.
+
+Every Health that runs out also emits `DamageSystem::OnKilled`. The HUD's `KillFeedElement`, under the clock at the
+top right, lists those deaths newest first in five authored rows, as "Killer  [Weapon]  Victim" (the source's name,
+or the damage type when the killer did it directly, and "Victim  [Fall]" for one with no other killer). Each line
+fades out after six seconds; lines the player took part in are in the accent color.
+
+`prefabs/spawnables/npcs/` holds the spawn menu's NPCs: Ally (green shirt, rifle), Neutral (beige, pistol) and Enemy
+(red, rifle), standing where they are placed. Placement previews and menu thumbnails draw skinned meshes in their bind
+pose.
+
+`npc_spawner.prefab` places one armed and two unarmed neutral NPCs in the playground.
 Each spawn chooses its prefab and position. GameControls loads this population when none exists; set its `npcs`
 reference to use another population or `spawnNpcs` to disable it. The spawner's instance ids, carried items,
 world-model instance references and ragdoll ownership survive checkpoints without duplicating the loadout.

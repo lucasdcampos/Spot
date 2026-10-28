@@ -284,6 +284,14 @@ Spot::Image CategoryWeapons() {
     });
 }
 
+Spot::Image CategoryNpcs() {
+    return Paint(GlyphSize, GlyphSize, [](Point p) {
+        // A head over the shoulders, cut off straight at the bottom.
+        const float shoulders = std::max(Box(p, {12, 38}, {52, 66}, 13.0f), p.y - 56.0f);
+        return Union({Outline(Circle(p, {32, 22}, 11.0f)), Outline(shoulders)});
+    });
+}
+
 Spot::Image WheelSector() {
     constexpr std::uint32_t Size = 256;
     return Paint(Size, Size, [](Point p) {

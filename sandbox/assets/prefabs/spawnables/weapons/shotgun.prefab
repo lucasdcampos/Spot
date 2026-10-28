@@ -6,6 +6,7 @@
         {
           "data": {
             "automatic": false,
+            "damage": 9.0,
             "displayName": "Shotgun",
             "fireInterval": 0.8,
             "fireSound": "51d6dca9ada9968c54c3e40b09eda2d4",

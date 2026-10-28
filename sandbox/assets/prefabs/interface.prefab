@@ -742,6 +742,445 @@
       "parent": 201
     },
     {
+      "id": 340,
+      "name": "HUD Kill Feed",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000001540000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              1,
+              1
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              1,
+              1
+            ],
+            "offset": [
+              -24,
+              -44
+            ],
+            "sizeDelta": [
+              420,
+              100
+            ]
+          }
+        },
+        {
+          "data": {
+            "hideWhen": [],
+            "showWhen": [],
+            "rows": [
+              341,
+              342,
+              343,
+              344,
+              345
+            ],
+            "lifetime": 6.0
+          },
+          "enabled": true,
+          "id": "49a7f4b5f10c4d69ae9331d1c0ad4e52",
+          "type": "KillFeedElement"
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "id": 341,
+      "name": "Kill Feed Row 1",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000001550000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              1
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              1
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              0,
+              18
+            ]
+          }
+        },
+        {
+          "id": "00000000000001550000000000000002",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "text": "",
+            "fontSize": 13,
+            "color": [
+              0.807,
+              0.8228,
+              0.8469,
+              1.0
+            ],
+            "layout": {
+              "alignment": 2,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 340
+    },
+    {
+      "id": 342,
+      "name": "Kill Feed Row 2",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000001560000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              1
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              1
+            ],
+            "offset": [
+              0,
+              -20
+            ],
+            "sizeDelta": [
+              0,
+              18
+            ]
+          }
+        },
+        {
+          "id": "00000000000001560000000000000002",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "text": "",
+            "fontSize": 13,
+            "color": [
+              0.807,
+              0.8228,
+              0.8469,
+              1.0
+            ],
+            "layout": {
+              "alignment": 2,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 340
+    },
+    {
+      "id": 343,
+      "name": "Kill Feed Row 3",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000001570000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              1
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              1
+            ],
+            "offset": [
+              0,
+              -40
+            ],
+            "sizeDelta": [
+              0,
+              18
+            ]
+          }
+        },
+        {
+          "id": "00000000000001570000000000000002",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "text": "",
+            "fontSize": 13,
+            "color": [
+              0.807,
+              0.8228,
+              0.8469,
+              1.0
+            ],
+            "layout": {
+              "alignment": 2,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 340
+    },
+    {
+      "id": 344,
+      "name": "Kill Feed Row 4",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000001580000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              1
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              1
+            ],
+            "offset": [
+              0,
+              -60
+            ],
+            "sizeDelta": [
+              0,
+              18
+            ]
+          }
+        },
+        {
+          "id": "00000000000001580000000000000002",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "text": "",
+            "fontSize": 13,
+            "color": [
+              0.807,
+              0.8228,
+              0.8469,
+              1.0
+            ],
+            "layout": {
+              "alignment": 2,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 340
+    },
+    {
+      "id": 345,
+      "name": "Kill Feed Row 5",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000001590000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              1
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              1
+            ],
+            "offset": [
+              0,
+              -80
+            ],
+            "sizeDelta": [
+              0,
+              18
+            ]
+          }
+        },
+        {
+          "id": "00000000000001590000000000000002",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "text": "",
+            "fontSize": 13,
+            "color": [
+              0.807,
+              0.8228,
+              0.8469,
+              1.0
+            ],
+            "layout": {
+              "alignment": 2,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 340
+    },
+    {
       "id": 203,
       "name": "Crosshair",
       "active": true,
@@ -6383,6 +6822,402 @@
       ],
       "tags": [],
       "parent": 16
+    },
+    {
+      "id": 702,
+      "name": "NPCs Tab",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000002be0000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              160,
+              30
+            ]
+          }
+        },
+        {
+          "id": "00000000000002be0000000000000002",
+          "type": "UiButton",
+          "enabled": true,
+          "data": {
+            "style": {
+              "normal": [
+                0.0144,
+                0.0176,
+                0.0232,
+                0
+              ],
+              "hovered": [
+                0.0144,
+                0.0176,
+                0.0232,
+                1.0
+              ],
+              "pressed": [
+                0.007,
+                0.008,
+                0.0097,
+                1.0
+              ],
+              "focused": [
+                0.0144,
+                0.0176,
+                0.0232,
+                1.0
+              ],
+              "disabled": [
+                0.0091,
+                0.011,
+                0.0137,
+                0.5
+              ],
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                6,
+                6,
+                6,
+                6
+              ]
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 11
+    },
+    {
+      "id": 703,
+      "name": "Marker",
+      "active": false,
+      "components": [
+        {
+          "id": "00000000000002bf0000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              2,
+              14
+            ]
+          }
+        },
+        {
+          "id": "00000000000002bf0000000000000002",
+          "type": "UiImage",
+          "enabled": true,
+          "data": {
+            "tint": [
+              0.807,
+              0.3663,
+              0.0467,
+              1.0
+            ],
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "texture": null
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 702
+    },
+    {
+      "id": 704,
+      "name": "Icon",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000002c00000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              12,
+              0
+            ],
+            "sizeDelta": [
+              14,
+              14
+            ]
+          }
+        },
+        {
+          "id": "00000000000002c00000000000000002",
+          "type": "UiImage",
+          "enabled": true,
+          "data": {
+            "tint": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1.0
+            ],
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "texture": "c25b9028c2a54076baea527d41bc74d3"
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 702
+    },
+    {
+      "id": 705,
+      "name": "Label",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000002c10000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              17,
+              0
+            ],
+            "sizeDelta": [
+              -34,
+              0
+            ]
+          }
+        },
+        {
+          "id": "00000000000002c10000000000000002",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "text": "NPCs",
+            "fontSize": 12,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1.0
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 702
+    },
+    {
+      "id": 706,
+      "name": "Count",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000002c20000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              1,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              1,
+              0.5
+            ],
+            "offset": [
+              -10,
+              0
+            ],
+            "sizeDelta": [
+              40,
+              0
+            ]
+          }
+        },
+        {
+          "id": "00000000000002c20000000000000002",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "text": "0",
+            "fontSize": 11,
+            "color": [
+              0.1274,
+              0.15,
+              0.1845,
+              1.0
+            ],
+            "layout": {
+              "alignment": 2,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 702
     },
     {
       "id": 372,
@@ -12219,7 +13054,8 @@
             "titleFont": "fb0b65834232ec853f94b211b7d0263e",
             "toggleAction": "Spawn Menu",
             "undoButton": 24,
-            "weaponsTab": 16
+            "weaponsTab": 16,
+            "npcsTab": 702
           },
           "enabled": true,
           "id": "d338855c583b0a49e7fc6b401673b980",

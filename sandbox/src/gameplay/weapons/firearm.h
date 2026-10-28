@@ -26,6 +26,8 @@ public:
     int pellets = 1;
     float spread = 0.0f;
     float range = 100.0f;
+    // The health a pellet's hit takes.
+    float damage = 20.0f;
     // What a pellet's hit gives a body, in newton seconds.
     float impulse = 30.0f;
     // What its hits are to what they hit (see DamageInfo).

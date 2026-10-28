@@ -124,6 +124,21 @@ bool PropSpawner::BeginPlacement(std::size_t index) {
         mesh.SetSubmesh(renderer.GetSubmesh());
         mesh.SetCastingShadows(false);
     });
+    // Characters, in their bind pose.
+    source.ForEachComponent<Spot::SkinnedMeshRenderer>([&](Spot::SkinnedMeshRenderer& renderer) {
+        if (!renderer.GetMesh()) {
+            return;
+        }
+        const Spot::TransformComponents pose =
+            Spot::Decompose(renderer.GetEntity().GetTransform().GetWorldMatrix() * renderer.GetMeshModel());
+        auto& part = preview.CreateChild(renderer.GetEntity().GetName());
+        part.GetTransform().SetPosition(pose.translation);
+        part.GetTransform().SetRotation(pose.rotation);
+        part.GetTransform().SetScale(pose.scale);
+        auto& mesh = part.AddComponent<Spot::MeshRenderer>(renderer.GetMesh(), material);
+        mesh.SetSubmesh(renderer.GetSubmesh());
+        mesh.SetCastingShadows(false);
+    });
     m_placing = index;
     m_preview = preview.GetId();
     // Now rather than on the next update, so nothing that updates before it uses the click that places the prop.

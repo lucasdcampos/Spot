@@ -57,6 +57,8 @@ public:
 
     // Each time damage reached a receiver or pushed a body.
     Spot::Signal<const DamageApplied&> OnDamageApplied;
+    // Each time damage killed what it reached: the target is the entity of the Health that ran out.
+    Spot::Signal<const DamageApplied&> OnKilled;
 };
 
 namespace Damage {

@@ -28,6 +28,7 @@ void Health::Die(const DamageInfo& damage) {
     m_health = 0.0f;
     SetDead(true);
     OnDied.Emit(damage);
+    DamageSystem::Get(GetScene()).OnKilled.Emit({GetEntity().GetId(), damage});
 }
 
 void Health::Restore() {

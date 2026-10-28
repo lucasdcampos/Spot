@@ -18,13 +18,14 @@ Spot::Image Sun();
 Spot::Image Moon();
 Spot::Image Health();
 // The spawn menu's: a magnifier for its search, its two views, a large grid and a compact one, and its categories, a
-// box for props, a bulb for lamps and a reticle for weapons.
+// box for props, a bulb for lamps, a reticle for weapons and a bust for NPCs.
 Spot::Image Search();
 Spot::Image ViewGrid();
 Spot::Image ViewCompact();
 Spot::Image CategoryProps();
 Spot::Image CategoryLamps();
 Spot::Image CategoryWeapons();
+Spot::Image CategoryNpcs();
 // One of the weapon wheel's eight sectors, pointing up: a ring's eighth between radii of 118 and 252 pixels from a
 // center 4 pixels below the image's bottom edge, with a gap of 6 pixels to its neighbors, on 256 pixels square.
 Spot::Image WheelSector();

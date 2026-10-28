@@ -1,0 +1,852 @@
+{
+  "format": "spot-scene",
+  "version": 2,
+  "entities": [
+    {
+      "id": 1,
+      "name": "Ally",
+      "active": true,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [
+        "NPC"
+      ],
+      "components": [
+        {
+          "type": "Animator",
+          "id": "fe65e9e1beeb4ebb8d4b33139a0a6fa3",
+          "enabled": true,
+          "data": {
+            "skeleton": "3ca2652212898d36f50d1d32c858ca64",
+            "controller": "6659fc27c0859c919e2c9ff4c8905230",
+            "rootMotion": 2,
+            "rootBone": "Pelvis",
+            "speed": 1,
+            "loop": true,
+            "autoPlay": true,
+            "layers": [
+              {
+                "name": "Holding",
+                "clip": "7e6a69b1baa9a00ef8b55ba470166423",
+                "mode": 0,
+                "weight": 0,
+                "speed": 1,
+                "loop": true,
+                "mask": [
+                  {
+                    "bone": "RightShoulder",
+                    "weight": 1,
+                    "descendants": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "type": "CharacterController",
+          "id": "422c835b86e14143b04f5c92216bcf62",
+          "enabled": true,
+          "data": {
+            "radius": 0.25,
+            "height": 1.86,
+            "center": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "data": {},
+          "enabled": true,
+          "id": "f5955f5fa87648e59e45054695d32d90",
+          "type": "Persistent"
+        },
+        {
+          "type": "Ragdoll",
+          "id": "446154384fd24e909c74ba192fc50310",
+          "enabled": true,
+          "data": {
+            "bones": [
+              {
+                "bone": "Pelvis",
+                "size": [
+                  0.29,
+                  0.16,
+                  0.21
+                ],
+                "center": [
+                  0,
+                  -0.015,
+                  0
+                ],
+                "mass": 9,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "Spine",
+                "size": [
+                  0.28,
+                  0.2,
+                  0.2
+                ],
+                "center": [
+                  0,
+                  0.03,
+                  0
+                ],
+                "mass": 6,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "Chest",
+                "size": [
+                  0.36,
+                  0.23,
+                  0.22
+                ],
+                "center": [
+                  0,
+                  0.04,
+                  0
+                ],
+                "mass": 12,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "Neck",
+                "size": [
+                  0.09,
+                  0.09,
+                  0.095
+                ],
+                "center": [
+                  0,
+                  0.01,
+                  0
+                ],
+                "mass": 1,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "Head",
+                "size": [
+                  0.18,
+                  0.235,
+                  0.19
+                ],
+                "center": [
+                  0,
+                  0.105,
+                  0
+                ],
+                "mass": 5,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "LeftUpperArm",
+                "size": [
+                  0.12,
+                  0.27,
+                  0.13
+                ],
+                "center": [
+                  0,
+                  -0.135,
+                  0
+                ],
+                "mass": 2.5,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "LeftForearm",
+                "size": [
+                  0.085,
+                  0.24,
+                  0.09
+                ],
+                "center": [
+                  0,
+                  -0.12,
+                  0
+                ],
+                "mass": 1.5,
+                "twistAxis": [
+                  1,
+                  0,
+                  0
+                ],
+                "swingLimit": 0.12,
+                "twistMin": -0.1,
+                "twistMax": 2.2
+              },
+              {
+                "bone": "LeftHand",
+                "size": [
+                  0.08,
+                  0.13,
+                  0.055
+                ],
+                "center": [
+                  0,
+                  -0.055,
+                  -0.01
+                ],
+                "mass": 0.5,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "LeftUpperLeg",
+                "size": [
+                  0.14,
+                  0.39,
+                  0.16
+                ],
+                "center": [
+                  0,
+                  -0.195,
+                  0
+                ],
+                "mass": 7,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "LeftLowerLeg",
+                "size": [
+                  0.11,
+                  0.37,
+                  0.13
+                ],
+                "center": [
+                  0,
+                  -0.185,
+                  0
+                ],
+                "mass": 4,
+                "twistAxis": [
+                  1,
+                  0,
+                  0
+                ],
+                "swingLimit": 0.12,
+                "twistMin": -2,
+                "twistMax": 0.1
+              },
+              {
+                "bone": "LeftFoot",
+                "size": [
+                  0.13,
+                  0.105,
+                  0.25
+                ],
+                "center": [
+                  0,
+                  -0.02,
+                  -0.06
+                ],
+                "mass": 1,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "RightUpperArm",
+                "size": [
+                  0.12,
+                  0.27,
+                  0.13
+                ],
+                "center": [
+                  0,
+                  -0.135,
+                  0
+                ],
+                "mass": 2.5,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "RightForearm",
+                "size": [
+                  0.085,
+                  0.24,
+                  0.09
+                ],
+                "center": [
+                  0,
+                  -0.12,
+                  0
+                ],
+                "mass": 1.5,
+                "twistAxis": [
+                  1,
+                  0,
+                  0
+                ],
+                "swingLimit": 0.12,
+                "twistMin": -0.1,
+                "twistMax": 2.2
+              },
+              {
+                "bone": "RightHand",
+                "size": [
+                  0.08,
+                  0.13,
+                  0.055
+                ],
+                "center": [
+                  0,
+                  -0.055,
+                  -0.01
+                ],
+                "mass": 0.5,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "RightUpperLeg",
+                "size": [
+                  0.14,
+                  0.39,
+                  0.16
+                ],
+                "center": [
+                  0,
+                  -0.195,
+                  0
+                ],
+                "mass": 7,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "RightLowerLeg",
+                "size": [
+                  0.11,
+                  0.37,
+                  0.13
+                ],
+                "center": [
+                  0,
+                  -0.185,
+                  0
+                ],
+                "mass": 4,
+                "twistAxis": [
+                  1,
+                  0,
+                  0
+                ],
+                "swingLimit": 0.12,
+                "twistMin": -2,
+                "twistMax": 0.1
+              },
+              {
+                "bone": "RightFoot",
+                "size": [
+                  0.13,
+                  0.105,
+                  0.25
+                ],
+                "center": [
+                  0,
+                  -0.02,
+                  -0.06
+                ],
+                "mass": 1,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              }
+            ],
+            "active": false
+          }
+        },
+        {
+          "type": "Health",
+          "id": "1b277adcba454542b66b3f309ad2ff12",
+          "enabled": true,
+          "data": {
+            "maxHealth": 100.0,
+            "regenerationDelay": 8.0,
+            "regenerationRate": 4.0
+          }
+        },
+        {
+          "type": "Npc",
+          "id": "71c245ab7f9244dcb676b3dfd44fc5ce",
+          "enabled": true,
+          "data": {
+            "eye": 7,
+            "attitude": 0,
+            "loadout": [
+              "5024eac3a04ce008179ee71796d55f15"
+            ],
+            "patrolAxis": [
+              0,
+              0,
+              1
+            ],
+            "patrolDistance": 0,
+            "turnSpeed": 4,
+            "footstepSurface": "Concrete",
+            "dead": false
+          }
+        },
+        {
+          "type": "Inventory",
+          "id": "9e00c0130ff84f90ac722740c6efcec0",
+          "enabled": true,
+          "data": {
+            "selected": 0
+          }
+        },
+        {
+          "type": "WorldModel",
+          "id": "da3acd7f401c48e6ab8b1cef20044798",
+          "enabled": true,
+          "data": {
+            "mount": 6,
+            "animator": 1,
+            "poseLayer": "Holding"
+          }
+        },
+        {
+          "type": "Surface",
+          "id": "364edaf479d34022841e07922d34f200",
+          "enabled": true,
+          "data": {
+            "kind": 0
+          }
+        },
+        {
+          "type": "Spawnable",
+          "id": "8efdc08fefe74312b42edd45647a6a42",
+          "enabled": true,
+          "data": {
+            "category": 3,
+            "order": 10,
+            "clearance": 0.95
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Shirt",
+      "active": true,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "SkinnedMeshRenderer",
+          "id": "5377548093f34ce99193cf6d82b815eb",
+          "enabled": true,
+          "data": {
+            "mesh": "7a6bde4fc56b8c1b7d1e9bde47640a6f",
+            "material": "d460b57c937c43a4815977c0f0421cf0",
+            "animator": 1,
+            "submesh": 4294967295,
+            "castsShadows": true,
+            "boundsPadding": 1,
+            "meshTranslation": [
+              0,
+              0,
+              0
+            ],
+            "meshRotation": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "meshScale": [
+              1,
+              1,
+              1
+            ]
+          }
+        }
+      ],
+      "parent": 1
+    },
+    {
+      "id": 3,
+      "name": "Trousers",
+      "active": true,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "SkinnedMeshRenderer",
+          "id": "f198b3cf391d4b3e823d05f2f7af5ded",
+          "enabled": true,
+          "data": {
+            "mesh": "927e4f95d5f088624a7336024bcdcb17",
+            "material": "adc47fe9df84e571ccfe4619b8de7d42",
+            "animator": 1,
+            "submesh": 4294967295,
+            "castsShadows": true,
+            "boundsPadding": 1,
+            "meshTranslation": [
+              0,
+              0,
+              0
+            ],
+            "meshRotation": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "meshScale": [
+              1,
+              1,
+              1
+            ]
+          }
+        }
+      ],
+      "parent": 1
+    },
+    {
+      "id": 4,
+      "name": "Skin",
+      "active": true,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "SkinnedMeshRenderer",
+          "id": "dc577699dd7f41f2a5e1ad7bb3580222",
+          "enabled": true,
+          "data": {
+            "mesh": "0074cf1b60dcb8ec508439c63e54cb28",
+            "material": "972378ebeede33a49d111ad8e4cbe160",
+            "animator": 1,
+            "submesh": 4294967295,
+            "castsShadows": true,
+            "boundsPadding": 1,
+            "meshTranslation": [
+              0,
+              0,
+              0
+            ],
+            "meshRotation": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "meshScale": [
+              1,
+              1,
+              1
+            ]
+          }
+        }
+      ],
+      "parent": 1
+    },
+    {
+      "id": 5,
+      "name": "Details",
+      "active": true,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "SkinnedMeshRenderer",
+          "id": "31abc91a023f4557904553f76038c484",
+          "enabled": true,
+          "data": {
+            "mesh": "3bc4ecc310a3018bc2dae05f7be74118",
+            "material": "cd374afe5bf6c1b3c3948b8ed7572d0a",
+            "animator": 1,
+            "submesh": 4294967295,
+            "castsShadows": true,
+            "boundsPadding": 1,
+            "meshTranslation": [
+              0,
+              0,
+              0
+            ],
+            "meshRotation": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "meshScale": [
+              1,
+              1,
+              1
+            ]
+          }
+        }
+      ],
+      "parent": 1
+    },
+    {
+      "id": 6,
+      "name": "Weapon Mount",
+      "active": true,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "BoneAttachment",
+          "id": "a0fc36b92187432f869ddab6a7c1bdba",
+          "enabled": true,
+          "data": {
+            "animator": 1,
+            "bone": "RightHand",
+            "boneIndex": -1,
+            "offsetPosition": [
+              0,
+              -0.045,
+              -0.015
+            ],
+            "offsetRotation": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "offsetScale": [
+              1,
+              1,
+              1
+            ]
+          }
+        }
+      ],
+      "parent": 1
+    },
+    {
+      "id": 7,
+      "name": "Eyes",
+      "active": true,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "BoneAttachment",
+          "id": "32e56e34ff004e29af2d92a03e8bee2e",
+          "enabled": true,
+          "data": {
+            "animator": 1,
+            "bone": "Head",
+            "boneIndex": -1,
+            "offsetPosition": [
+              0,
+              0.125,
+              -0.11
+            ],
+            "offsetRotation": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "offsetScale": [
+              1,
+              1,
+              1
+            ]
+          }
+        }
+      ],
+      "parent": 1
+    }
+  ]
+}

@@ -6,6 +6,7 @@
         {
           "data": {
             "automatic": true,
+            "damage": 15.0,
             "displayName": "Rifle",
             "fireInterval": 0.1,
             "fireSound": "e33934b1d5907db157907a77b9b548fa",

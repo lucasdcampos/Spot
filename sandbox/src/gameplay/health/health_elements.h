@@ -1,5 +1,7 @@
 #pragma once
 
+#include "gameplay/health/damage.h"
+
 #include "gameplay/hud/hud.h"
 
 #include <spot.h>
@@ -71,6 +73,37 @@ private:
     Spot::EntityId m_pawn = Spot::EntityId::Invalid;
     Spot::EntityId m_occupant = Spot::EntityId::Invalid;
     Spot::SignalConnection m_applied;
+};
+
+// Who killed whom and with what, a line each in the UiTexts of rows, newest first, for every death in the scene. Each
+// line stays for lifetime seconds, fading out over its last one; a line the HUD's player took part in is in the
+// accent color.
+class KillFeedElement : public HudElement {
+public:
+    std::vector<Spot::EntityId> rows;
+    float lifetime = 6.0f;
+    Spot::Color color = {0.8070f, 0.8228f, 0.8469f, 1.0f};
+    Spot::Color accent = {0.807f, 0.3663f, 0.0467f, 1.0f};
+
+    // The line of a death, as "Player  [Rifle]  Enemy", or "Player  [Fall]" for one that killed itself.
+    static std::string Describe(Spot::Scene& scene, const DamageApplied& death);
+
+protected:
+    bool IsWanted(const HudContext& context) override;
+    void Refresh(const HudContext& context) override;
+    void Serialize(Spot::Archive& archive) override;
+
+private:
+    struct Line {
+        std::string text;
+        float age = 0.0f;
+        bool mine = false;
+    };
+    // Newest first.
+    std::vector<Line> m_lines;
+    Spot::EntityId m_pawn = Spot::EntityId::Invalid;
+    Spot::EntityId m_occupant = Spot::EntityId::Invalid;
+    Spot::SignalConnection m_killed;
 };
 
 } // namespace Gameplay

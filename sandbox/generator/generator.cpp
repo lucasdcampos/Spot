@@ -89,6 +89,7 @@ const std::vector<Texture>& GetTextures() {
         {"icon_category_props", Icons::CategoryProps},
         {"icon_category_lamps", Icons::CategoryLamps},
         {"icon_category_weapons", Icons::CategoryWeapons},
+        {"icon_category_npcs", Icons::CategoryNpcs},
         {"fx_smoke", EffectTextures::Smoke},
         {"fx_fire", EffectTextures::Fire},
         {"fx_muzzle_flash", EffectTextures::MuzzleFlash},

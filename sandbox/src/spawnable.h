@@ -5,7 +5,7 @@
 // Marks a prefab for the sandbox's spawn catalog. Its other components define what spawning creates.
 class Spawnable final : public Spot::Component {
 public:
-    enum class Category { Prop, Lamp, Weapon };
+    enum class Category { Prop, Lamp, Weapon, Npc };
 
     Category category = Category::Prop;
     int order = 100;

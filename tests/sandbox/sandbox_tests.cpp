@@ -27,6 +27,8 @@
 #include "gameplay/effects/flash.h"
 #include "gameplay/effects/surface.h"
 #include "gameplay/environment/day_cycle.h"
+#include "gameplay/health/health.h"
+#include "gameplay/health/health_elements.h"
 #include "gameplay/inventory/inventory.h"
 #include "gameplay/inventory/view_model.h"
 #include "gameplay/inventory/world_model.h"
@@ -49,6 +51,7 @@
 #include <array>
 #include <cmath>
 #include <filesystem>
+#include <format>
 #include <map>
 #include <memory>
 #include <string>
@@ -214,7 +217,7 @@ TEST_CASE("Generated humanoid NPCs patrol with blended root motion, footsteps an
     REQUIRE(ragdoll);
     const auto hitPosition = entity.GetTransform().GetWorldPosition();
     Gameplay::Explosive::Explode(playground.scene, hitPosition + Spot::Vector3{0, 0, 0.5f},
-                                 {.radius = 1.5f, .impulse = 50.0f, .damage = 0.0f});
+                                 {.radius = 1.5f, .impulse = 50.0f, .damage = 500.0f});
     REQUIRE(npc->IsDead());
     REQUIRE(ragdoll->IsActive());
     REQUIRE(ragdoll->GetBodies().size() == 17);
@@ -228,7 +231,7 @@ TEST_CASE("Generated humanoid NPCs patrol with blended root motion, footsteps an
     CHECK(animator->IsPlaying());
 }
 
-TEST_CASE("Hitscan shots turn NPC capsules into physical skeletons", "[sandbox][animation]") {
+TEST_CASE("Hitscan shots wear NPC health down until they fall as physical skeletons", "[sandbox][animation]") {
     Playground playground;
     playground.Run(0.5f);
     auto prefab = playground.assets.Load<Spot::Prefab>("prefabs/actors/npc.prefab");
@@ -243,10 +246,143 @@ TEST_CASE("Hitscan shots turn NPC capsules into physical skeletons", "[sandbox][
     auto* holder = playground.player->GetComponent<Gameplay::Inventory>();
     REQUIRE(holder);
     holder->Select(1);
+    auto* health = target->GetComponent<Gameplay::Health>();
+    REQUIRE(health);
     Fire(*holder);
+    CHECK_FALSE(npc->IsDead());
+    CHECK(health->GetHealth() < health->maxHealth);
+    // Hurt, it comes for the player, along the aim.
+    for (int shot = 0; shot < 20 && !npc->IsDead(); ++shot) {
+        playground.Run(0.25f);
+        Fire(*holder);
+    }
     CHECK(npc->IsDead());
     CHECK(target->GetComponent<Spot::Ragdoll>()->IsActive());
     playground.Run(0.3f);
+}
+
+namespace {
+
+Npc& SpawnNpc(Playground& playground, std::string_view kind, Spot::Vector3 position, Spot::Vector3 facing) {
+    auto prefab = playground.assets.Load<Spot::Prefab>(std::format("prefabs/spawnables/npcs/{}.prefab", kind));
+    REQUIRE(prefab);
+    auto* entity = playground.scene.Instantiate(prefab);
+    REQUIRE(entity);
+    entity->GetTransform().SetWorldPosition(position);
+    entity->GetTransform().SetWorldRotation(Spot::Quaternion::LookRotation(facing));
+    auto* npc = entity->GetComponent<Npc>();
+    REQUIRE(npc);
+    return *npc;
+}
+
+// On the ground in front of the player, the given distance away, facing back.
+Spot::Vector3 InFront(const Playground& playground, float distance) {
+    const auto aim = playground.Player().GetAimDirection();
+    const auto flat = Spot::Normalize(Spot::Vector3{aim.x, 0, aim.z});
+    return playground.PlayerPosition() + flat * distance;
+}
+
+} // namespace
+
+TEST_CASE("Enemy NPCs shoot the player, and neutral ones only once hurt", "[sandbox][npc]") {
+    Playground playground;
+    playground.Run(0.5f);
+    auto* health = playground.player->GetComponent<Gameplay::Health>();
+    REQUIRE(health);
+    const auto toward = playground.PlayerPosition() - InFront(playground, 8);
+    auto& neutral = SpawnNpc(playground, "neutral", InFront(playground, 8), toward);
+    CHECK(neutral.attitude == Npc::Attitude::Neutral);
+    playground.Run(3.0f);
+    CHECK(neutral.GetTarget() == Spot::EntityId::Invalid);
+    CHECK(health->GetHealth() == Approx(health->maxHealth));
+
+    Gameplay::Damage::Apply(playground.scene, neutral.GetEntity().GetId(),
+                            {.amount = 10, .type = "Bullet", .instigator = playground.player->GetId()});
+    CHECK_FALSE(neutral.IsDead());
+    playground.Run(0.5f);
+    CHECK(neutral.GetTarget() == playground.player->GetId());
+    playground.Run(3.0f);
+    CHECK(health->GetHealth() < health->maxHealth);
+}
+
+TEST_CASE("Enemy NPCs attack the player on sight", "[sandbox][npc]") {
+    Playground playground;
+    playground.Run(0.5f);
+    auto* health = playground.player->GetComponent<Gameplay::Health>();
+    REQUIRE(health);
+    auto& enemy =
+        SpawnNpc(playground, "enemy", InFront(playground, 10), playground.PlayerPosition() - InFront(playground, 10));
+    CHECK(enemy.IsHostileTo(*playground.player));
+    playground.Run(1.5f);
+    CHECK(enemy.GetTarget() == playground.player->GetId());
+    playground.Run(2.5f);
+    CHECK(health->GetHealth() < health->maxHealth);
+}
+
+TEST_CASE("The kill feed lists who killed whom with what", "[sandbox][npc][hud]") {
+    Playground playground;
+    playground.Run(0.5f);
+    auto& neutral = SpawnNpc(playground, "neutral", InFront(playground, 6), {0, 0, 1});
+    playground.Run(0.1f);
+    std::string described;
+    auto connection =
+        Gameplay::DamageSystem::Get(playground.scene).OnKilled.Connect([&](const Gameplay::DamageApplied& death) {
+            described = Gameplay::KillFeedElement::Describe(playground.scene, death);
+        });
+    Gameplay::Damage::Apply(playground.scene, neutral.GetEntity().GetId(),
+                            {.amount = 500, .type = "Bullet", .instigator = playground.player->GetId()});
+    CHECK(neutral.IsDead());
+    CHECK(described == "Player  [Bullet]  Neutral");
+    playground.Run(0.2f);
+    auto* row = playground.scene.FindEntity("Kill Feed Row 1");
+    REQUIRE(row);
+    CHECK(row->GetComponent<Spot::UiText>()->text == described);
+    playground.Run(7.0f);
+    CHECK(row->GetComponent<Spot::UiText>()->text.empty());
+}
+
+TEST_CASE("Vehicle impacts knock NPCs down as ragdolls, and they get up again", "[sandbox][npc]") {
+    Playground playground;
+    playground.Run(0.5f);
+    auto& npc = SpawnNpc(playground, "neutral", InFront(playground, 6), {0, 0, 1});
+    playground.Run(0.1f);
+    const auto at = npc.GetEntity().GetTransform().GetWorldPosition();
+    Gameplay::Damage::Apply(playground.scene, npc.GetEntity().GetId(),
+                            {.amount = 30, .type = "Impact", .point = at, .impulse = {0, 100, 300}});
+    auto* ragdoll = npc.GetEntity().GetComponent<Spot::Ragdoll>();
+    REQUIRE(ragdoll);
+    CHECK(npc.IsKnockedDown());
+    CHECK_FALSE(npc.IsDead());
+    CHECK(ragdoll->IsActive());
+    playground.Run(1.0f);
+    CHECK(Spot::Distance(npc.GetEntity().GetTransform().GetWorldPosition(), at) > 0.3f);
+    playground.Run(3.0f);
+    CHECK_FALSE(npc.IsKnockedDown());
+    CHECK_FALSE(ragdoll->IsActive());
+    CHECK_FALSE(npc.IsDead());
+}
+
+TEST_CASE("Allied NPCs fight enemies and are not fought by the player's side", "[sandbox][npc]") {
+    Playground playground;
+    playground.Run(0.5f);
+    auto& ally = SpawnNpc(playground, "ally", InFront(playground, 2), {1, 0, 0});
+    auto& enemy = SpawnNpc(playground, "enemy", InFront(playground, 2) + Spot::Vector3{8, 0, 0}, {-1, 0, 0});
+    CHECK_FALSE(ally.IsHostileTo(*playground.player));
+    CHECK(ally.IsHostileTo(enemy.GetEntity()));
+    CHECK(enemy.IsHostileTo(ally.GetEntity()));
+    auto* enemyHealth = enemy.GetEntity().GetComponent<Gameplay::Health>();
+    REQUIRE(enemyHealth);
+    auto* allyHealth = ally.GetEntity().GetComponent<Gameplay::Health>();
+    REQUIRE(allyHealth);
+    const auto hurt = [&] {
+        return enemy.IsDead() || ally.IsDead() || enemyHealth->GetHealth() < enemyHealth->maxHealth ||
+               allyHealth->GetHealth() < allyHealth->maxHealth;
+    };
+    for (int second = 0; second < 15 && !hurt(); ++second) {
+        playground.Run(1.0f);
+    }
+    CHECK(hurt());
+    CHECK(ally.GetTarget() == enemy.GetEntity().GetId());
 }
 
 TEST_CASE("World checkpoints restore NPC populations and ragdoll ownership", "[sandbox][animation][save]") {
@@ -1086,7 +1222,7 @@ TEST_CASE("Every catalog entry spawns its complete prefab and undo removes its t
     playground.Run(Step);
     auto& spawner = *playground.player->GetComponent<PropSpawner>();
     auto& undo = *playground.player->GetComponent<UndoList>();
-    REQUIRE(spawner.GetSpawnables().size() == 19);
+    REQUIRE(spawner.GetSpawnables().size() == 22);
     const std::vector<std::string> shortcuts{"Crate", "Barrel", "Explosive Barrel", "Ball", "Plank", "Beam",
                                              "Cone",  "Wheel"};
     for (std::size_t i = 0; i < spawner.GetSpawnables().size(); ++i) {
@@ -1098,9 +1234,14 @@ TEST_CASE("Every catalog entry spawns its complete prefab and undo removes its t
         REQUIRE(spawned != nullptr);
         CHECK(spawned->GetPrefabAssetId() == item.prefab.GetId());
         CHECK(spawned->HasComponent<Spawnable>());
-        CHECK(spawned->HasComponent<Spot::Rigidbody>());
-        CHECK(spawned->HasComponent<Gameplay::ImpactSounds>());
         CHECK(spawned->HasComponent<Gameplay::Surface>());
+        if (item.category == Spawnable::Category::Npc) {
+            CHECK(spawned->HasComponent<Npc>());
+            CHECK(spawned->HasComponent<Gameplay::Health>());
+        } else {
+            CHECK(spawned->HasComponent<Spot::Rigidbody>());
+            CHECK(spawned->HasComponent<Gameplay::ImpactSounds>());
+        }
         if (item.category == Spawnable::Category::Lamp) {
             CHECK(spawned->HasComponent<Spot::PointLight>());
         }
