@@ -106,8 +106,11 @@ Output main(Input input, uint instanceId : SV_InstanceID) {
         output.position = float4(2.0, 2.0, 2.0, 1.0);
         return output;
     }
-    const float4 worldPosition = mul(model, float4(input.position, 1.0));
-    output.position = mul(viewProjection, worldPosition);
+    // The depth prepass draws with this shader too, and the view's pass then tests for the very same depth: precise
+    // keeps compilers from fusing these steps differently in the two pipelines.
+    precise float4 worldPosition = mul(model, float4(input.position, 1.0));
+    precise float4 position = mul(viewProjection, worldPosition);
+    output.position = position;
     output.worldPosition = worldPosition.xyz;
     output.normal = mul(normalMatrix, float4(input.normal, 0.0)).xyz;
     output.uv = input.uv;

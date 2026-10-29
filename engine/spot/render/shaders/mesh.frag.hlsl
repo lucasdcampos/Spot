@@ -1,3 +1,4 @@
+#include "mesh_input.hlsl"
 #include "surface_lighting.hlsl"
 
 // The material's textures, in the surface's own slots, white where it has none.
@@ -31,37 +32,9 @@ cbuffer Material : register(b1, space3) {
     float alphaCutoff;
 };
 
-struct Input {
-    float4 position : SV_Position;
-    float3 normal : TEXCOORD0;
-    float2 uv : TEXCOORD1;
-    float3 worldPosition : TEXCOORD2;
-    float4 tangent : TEXCOORD3;
-    // What projected textures are projected by, and the world directions of the axes they are projected along.
-    float3 texturePosition : TEXCOORD4;
-    float3 textureNormal : TEXCOORD5;
-    float3 textureAxisX : TEXCOORD6;
-    float3 textureAxisY : TEXCOORD7;
-    float3 textureAxisZ : TEXCOORD8;
-};
-
-// Projects along the axis the surface faces most, of the world or of the mesh, with texture rows going down on walls
-// like on screen.
-float2 GetWorldUv(float3 position, float3 normal) {
-    const float3 facing = abs(normal);
-    const float3 p = position / worldTextureSize;
-    if (facing.x >= facing.y && facing.x >= facing.z) {
-        return float2(p.z, -p.y);
-    }
-    if (facing.y >= facing.z) {
-        return p.xz;
-    }
-    return float2(p.x, -p.y);
-}
-
 // Tilts the normal as the normal map says, in the tangent space of the surface: along the mesh's tangents, or for
 // projected textures along the axes GetWorldUv() lays them out on, with the bitangent toward lower v as on meshes.
-float3 ApplyNormalMap(float3 normal, float4 tangent, float2 uv, float2 uvDx, float2 uvDy, Input input) {
+float3 ApplyNormalMap(float3 normal, float4 tangent, float2 uv, float2 uvDx, float2 uvDy, MeshFragmentInput input) {
     if (normalScale <= 0.0) {
         return normal;
     }
@@ -99,10 +72,9 @@ float3 ApplyNormalMap(float3 normal, float4 tangent, float2 uv, float2 uvDx, flo
     return normalize(t * mapped.x + b * mapped.y + normal * mapped.z);
 }
 
-float4 main(Input input) : SV_Target0 {
+float4 main(MeshFragmentInput input) : SV_Target0 {
     const float3 surfaceNormal = normalize(input.normal);
-    const float2 uv =
-        worldTextureSize > 0.0 ? GetWorldUv(input.texturePosition, normalize(input.textureNormal)) : input.uv;
+    const float2 uv = GetMeshUv(input, worldTextureSize);
     // Preserve derivatives before alpha clipping so surviving leaf edges use the same normal-map mip levels.
     const float2 uvDx = ddx(uv);
     const float2 uvDy = ddy(uv);

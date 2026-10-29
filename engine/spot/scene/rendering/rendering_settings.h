@@ -30,6 +30,7 @@ struct RenderingSettings {
     float shadowDistance = 60.0f;
     std::uint32_t localShadowMapSize = 512;
     bool gpuCulling = false;
+    bool depthPrepass = true;
     // See Renderer3DConfig.
     AmbientOcclusionSettings ambientOcclusion = {.enabled = true};
     std::uint32_t skyOcclusionSize = 512;

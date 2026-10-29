@@ -229,9 +229,10 @@ uses it. The `Impl` (`renderer_3d.cpp`) selects the frame's lights, uploads them
   and indirect draws, culls their instances there.
 - `ProbeRenderer` (`renderer_3d_probes.cpp`) keeps the reflection probes' captures in an atlas and captures them.
 
-`End()` draws a view through `DrawView()`: shadows, then the lit pass. A frame's main view is drawn once; a probe's
-capture draws six more views first, one per face of a cube around it, with the same meshes, surfaces and lights, so
-everything that draws a view takes the view from the `Renderer3DState` rather than assuming the main camera.
+`End()` draws a view through `DrawView()`: shadows, then the depth prepass, then the lit pass. A frame's main view
+is drawn once; a probe's capture draws six more views first, one per face of a cube around it, with the same meshes,
+surfaces and lights, so everything that draws a view takes the view from the `Renderer3DState` rather than assuming
+the main camera.
 
 ### Models and submeshes
 
@@ -256,6 +257,36 @@ profiler count both (`visibleMeshes` and `culledMeshes`). A camera also sees onl
 (`Camera3D::cullingMask`, set on the `Camera` component, which the inspector shows as layers to tick):
 `DrawScene(Renderer3D&, Scene&)` skips the meshes of entities on the others, in its shadows too.
 
+### Depth prepass
+
+The lit pass's fragment shader is by far the costliest part of a frame: every light of the pixel's cluster, their
+shadows, the probes and the sky. Drawn in the order that batches best, the surfaces of a view cover each other several
+times over, and each covered fragment was shaded before the nearer one replaced it. With
+`Renderer3DConfig::depthPrepass` (`depthPrepass` in the rendering settings, on by default), the main view first draws
+the depth of its opaque and cutout meshes into the view's depth target (`MeshBatcher::DrawDepthPrepass()`), applying the
+target's depth clear, which the lit pass then leaves out. The lit pass draws those meshes with pipelines that keep
+fragments at that depth or nearer without writing it, so only the nearest surface of each pixel is shaded, once.
+
+That needs both passes to reach the very same depth. The prepass draws with the lit pass's own vertex shaders
+(`mesh.vert.hlsl`, `skinned_mesh.vert.hlsl`), whose positions are `precise`, so no compiler fuses their steps
+differently in the two pipelines. Opaque meshes write depth alone; cutout ones drop their pixels in
+`mesh_depth_cutout.frag.hlsl` as `mesh.frag.hlsl` does, at the same UVs, own or projected (`mesh_input.hlsl` holds what
+both read). Repeated meshes share a draw through a list of command indices, as in the camera-depth pass; batches of GPU
+worlds draw the instances their culling kept, and skinned meshes share a draw with their neighbors. The draws are
+counted as `Depth prepass draw calls`, and the GPU's time as `Depth prepass`.
+
+The sky lies on the far plane and is tested against the depth, so it is drawn only where nothing is in front of it.
+Custom surfaces are not in the prepass, since their depth is optional and their own shaders may not match it to the
+bit: they draw in the lit pass as before, tested against the meshes' depth, so meshes in front hide them before they
+are shaded. Transparent meshes are tested against it too, as before, and the depth the lit pass leaves is the same as
+without the prepass. A probe's capture, small and drawn once, leaves it out. Ambient occlusion keeps its own
+single-sample camera depth, since it needs the custom surfaces and, under multisampling, a texture it can read.
+
+The prepass costs a pass over the vertices of what is in view, which surfaces covering each other repay, as in most 3D
+views. In the sandbox benchmark (`--props 500 --lamps 50 --quality 2 --vehicles 1`, Release, Vulkan, GTX 1660,
+1600x900 with 4x MSAA, 2026-10-28), it took the lit pass from 8.0 to 3.6 ms of GPU time for 0.5 ms of its own, and
+the frame from 12.1 to 8.5 ms.
+
 ### Shadows
 
 The first directional light that casts shadows draws them into cascades: slices of the view up to
@@ -266,7 +297,20 @@ fades out. Shadow pipelines clamp depth rather than clip it, so what lies betwee
 such as a roof above the camera, still casts its shadow. Point and spot lights draw theirs into tiles of a shared
 atlas, six per point light. Each pass draws only the casters its view sees. Surfaces look shadows up through 16
 comparisons on a small Poisson disk, each blending four texels, so edges fade over about four texels, the same way at
-every pixel, so they do not flicker.
+every pixel, so they do not flicker. The four outermost go first: where they agree, as they do wherever a surface is
+wholly lit or wholly in shadow, the other twelve are left out, so only the edges between take all sixteen. The sky's
+occlusion is looked up the same way.
+
+A point or spot light's tiles keep what they hold from one frame to the next while the tile's view and what it sees of
+the casters are the same: their meshes, transforms, alpha masks and poses, which each view sums up as it gathers them
+(`ShadowLook`, added up so the camera's order of the casters does not matter). Lights keep the tiles they had where
+those are still free, so a lamp that stands still keeps its shadows however the camera moves, and a point light's six
+faces go through only the casters within its reach, gathered once. Tiles drawn again among kept ones are cleared one by
+one with a triangle the viewport's depth range puts at the far plane; with none kept, the whole atlas is cleared at
+once. Custom surfaces draw shadows whose changes Renderer3D cannot tell, so with any in the frame every tile is drawn.
+The profiler counts `Shadow tiles kept`. In the sandbox benchmark, the five shadowed lamps' thirty tiles are all kept
+while nothing moves, and about seventeen while its crates settle and its people walk, taking the shadows from 1.37 to
+0.93 ms of the CPU's time and from 2.0 to 1.5 ms of the GPU's.
 
 ### Clustered lights
 
@@ -275,8 +319,11 @@ of them. The view is cut into clusters, 16 by 9 tiles of the screen by 24 slices
 depth so near slices are thin; each frame the CPU lists, for each cluster, the point and spot lights whose spheres
 may reach it (`Detail::BuildLightClusters()`), and the lights and lists go to the GPU in storage buffers. Each pixel
 finds its cluster from its position and depth and goes through the directional lights, which reach everything, and
-its cluster's lights. Shadows keep their own budget: the first directional light's cascades, and
-`Renderer3D::MaxShadowTiles` tiles for point and spot lights, given to those nearest the camera.
+its cluster's lights, in two loops that each know the kind of light they go through, so neither carries the other's
+falloff and shadows, which keeps the shader small enough for the GPU to run more pixels at once. Clusters hold every
+light that may reach them, so a pixel beyond a light's range stops there, before its highlight. Shadows keep their own
+budget: the first directional light's cascades, and `Renderer3D::MaxShadowTiles` tiles for point and spot lights,
+given to those nearest the camera.
 
 ### Light from all around
 
@@ -398,7 +445,8 @@ A game whose geometry is kept in buffers of its own, such as terrain, draws it w
 layers the camera sees. Renderer3D calls it back in each of its passes with a `SurfaceDrawContext`: the pass, the
 view and its frustum planes for culling, and what pipelines must match there.
 
-- **Lit**: in the view's pass, after the sky and before the meshes, with the view and the frame's lighting already
+- **Lit**: in the view's pass, after the sky and before the meshes, whose depth the depth prepass has drawn already
+  (see [Depth prepass](#depth-prepass)), with the view and the frame's lighting already
   bound, so a surface binds only its pipeline, buffers, textures and uniforms of its own. Its vertex shader reads the
   view from `surface_frame.hlsl`; its fragment shader includes `surface_lighting.hlsl`, which declares every resource
   of the pass at the registers Renderer3D binds and shades a point as the meshes are (`ShadeOpaqueSurface()`, which
@@ -435,12 +483,12 @@ HDR, depth and tonemapped targets the graph keeps at the frame's size.
 
 ### Render hooks
 
-Games and systems draw passes of their own at fixed points of a frame (`RenderStage`): `BeforeOpaque` (into the
-cleared HDR image; a sky draws over it), `AfterOpaque` (with the surfaces' depth; where `DebugDraw`'s shapes are
-drawn), `AfterTransparent`, `BeforePostProcessing`, `AfterPostProcessing` (into the target, in its colors, before the
-interfaces) and `Overlay` (over everything). A hook gets a `RenderStageContext`: the camera and view-projection, a
-`RenderPassDesc` into the stage's targets that keeps what they hold (depth included before post-processing), the
-format and sample count its pipelines must match, the depth target, and the HDR image so far.
+Games and systems draw passes of their own at fixed points of a frame (`RenderStage`): `BeforeOpaque` (into the cleared
+HDR image; a sky draws over what it leaves at the far plane's depth), `AfterOpaque` (with the surfaces' depth; where
+`DebugDraw`'s shapes are drawn), `AfterTransparent`, `BeforePostProcessing`, `AfterPostProcessing` (into the target, in
+its colors, before the interfaces) and `Overlay` (over everything). A hook gets a `RenderStageContext`: the camera and
+view-projection, a `RenderPassDesc` into the stage's targets that keeps what they hold (depth included before
+post-processing), the format and sample count its pipelines must match, the depth target, and the HDR image so far.
 
 ```cpp
 void OnEnable() override {
@@ -486,13 +534,12 @@ as an `Rgba8` texture, which keeps its values as they are. `SceneRendererConfig:
 
 ### The look and the rendering settings
 
-The look of a game comes from the first active `PostProcessing` component in the scene: its tonemapper
-and exposure, bloom and grading, LUT included (a texture asset imported with `srgb` off in its import settings, so
-its values are read as they are). Without one, the rendering settings section of the project (`RenderingSettings`,
-"rendering") gives the defaults, along with the quality the application draws at: FXAA, MSAA samples, the
-sizes and distance of shadows, ambient occlusion and the sky's occlusion, both on for games and off by default in
-`Renderer3DConfig`. The editor's views use the same, and the Project Settings panel and the inspector
-edit both.
+The look of a game comes from the first active `PostProcessing` component in the scene: its tonemapper and exposure,
+bloom and grading, LUT included (a texture asset imported with `srgb` off in its import settings, so its values are read
+as they are). Without one, the rendering settings section of the project (`RenderingSettings`, "rendering") gives the
+defaults, along with the quality the application draws at: FXAA, MSAA samples, the depth prepass, the sizes and distance
+of shadows, ambient occlusion and the sky's occlusion, both on for games and off by default in `Renderer3DConfig`. The
+editor's views use the same, and the Project Settings panel and the inspector edit both.
 
 ### Antialiasing
 

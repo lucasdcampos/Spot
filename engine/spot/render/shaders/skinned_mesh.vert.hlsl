@@ -76,11 +76,14 @@ void SetTextureSpace(inout Output output, float4x4 model, float4x4 normalMatrix,
 Output main(Input input, uint instanceId : SV_InstanceID) {
     // SV_InstanceID starts at 0 for each draw on every backend, whatever its first instance.
     const Instance instance = instances[firstInstance.x + instanceId];
-    const float4x4 skin = palettes[instance.skin.x + input.joints.x] * input.weights.x +
+    // The depth prepass draws with this shader too, and the view's pass then tests for the very same depth: precise
+    // keeps compilers from fusing the steps to the position differently in the two pipelines.
+    precise float4x4 skin = palettes[instance.skin.x + input.joints.x] * input.weights.x +
                           palettes[instance.skin.x + input.joints.y] * input.weights.y +
                           palettes[instance.skin.x + input.joints.z] * input.weights.z +
                           palettes[instance.skin.x + input.joints.w] * input.weights.w;
-    input.position = mul(skin, float4(input.position, 1.0)).xyz;
+    precise float3 skinned = mul(skin, float4(input.position, 1.0)).xyz;
+    input.position = skinned;
     const float3x3 skinLinear = (float3x3)skin;
     const float3 a = skinLinear[0], b = skinLinear[1], c = skinLinear[2];
     const float sign = dot(a, cross(b, c)) < 0.0 ? -1.0 : 1.0;
@@ -90,8 +93,9 @@ Output main(Input input, uint instanceId : SV_InstanceID) {
     const float4x4 model = instance.model;
     const float4x4 normalMatrix = instance.normalMatrix;
     Output output;
-    const float4 worldPosition = mul(model, float4(input.position, 1.0));
-    output.position = mul(viewProjection, worldPosition);
+    precise float4 worldPosition = mul(model, float4(input.position, 1.0));
+    precise float4 position = mul(viewProjection, worldPosition);
+    output.position = position;
     output.worldPosition = worldPosition.xyz;
     output.normal = mul(normalMatrix, float4(input.normal, 0.0)).xyz;
     output.uv = input.uv;

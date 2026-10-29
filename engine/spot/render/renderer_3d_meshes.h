@@ -24,8 +24,13 @@ public:
     void Prepare();
     // Sends every command's transforms, and the skinned meshes' joints, to their buffers, in the commands' order.
     bool UploadInstances();
-    // Draws the commands in view into the pass, which has the frame's lighting bound.
-    void Flush(RenderPass& pass);
+    // Draws the depth of the opaque and cutout commands in view into the view's depth target, with the vertex shaders
+    // of the view's pass, so that pass can test for the very same depth. Returns whether it drew, having then cleared
+    // the depth as the view's target asks; it does not without Renderer3DConfig::depthPrepass or a depth target.
+    bool DrawDepthPrepass(RenderContext& context);
+    // Draws the commands in view into the pass, which has the frame's lighting bound. After DrawDepthPrepass(), opaque
+    // and cutout ones are only tested against its depth, which already holds them.
+    void Flush(RenderPass& pass, bool depthPrepassed);
     // Draws what the view's pass drew, but transparent surfaces, into readable single-sample depth. Repeated meshes
     // share instanced draws; GPU worlds reuse their compact visible lists when available.
     const Texture* RenderCameraDepth(RenderContext& context);
@@ -35,7 +40,7 @@ public:
 private:
     // Gives the commands their looks.
     void AssignLooks();
-    const Pipeline* GetPipeline(const DrawCommand& command) const;
+    const Pipeline* GetPipeline(const DrawCommand& command, bool depthPrepassed) const;
 
     Renderer3DState& m_state;
     std::unique_ptr<Pipeline> m_pipeline;
@@ -46,6 +51,13 @@ private:
     std::unique_ptr<Pipeline> m_mirroredPipeline;
     std::unique_ptr<Pipeline> m_mirroredTransparentPipeline;
     std::array<std::unique_ptr<Pipeline>, 6> m_skinnedPipelines;
+    // The depth prepass's, by cull mode (back, front for mirroring transforms, none for double-sided), then cutout,
+    // then skinned; and the view's pass's for what the prepass drew, tested against it without writing, by cull mode
+    // then skinned. Made with Renderer3DConfig::depthPrepass.
+    std::array<std::unique_ptr<Pipeline>, 12> m_prepassPipelines;
+    std::array<std::unique_ptr<Pipeline>, 6> m_prepassedPipelines;
+    std::unique_ptr<Buffer> m_prepassIndices;
+    std::vector<std::uint32_t> m_prepassOrder;
     // Bound in place of the instances a culling pass kept, for draws without one.
     std::unique_ptr<Buffer> m_noVisible;
 

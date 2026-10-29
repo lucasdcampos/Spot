@@ -420,6 +420,7 @@ spot_add_shaders(spot_objects NAMESPACE Spot::Detail::Shaders
     spot/render/shaders/line.frag.hlsl
     spot/render/shaders/line.vert.hlsl
     spot/render/shaders/mesh.frag.hlsl
+    spot/render/shaders/mesh_depth_cutout.frag.hlsl
     spot/render/shaders/skinned_mesh.vert.hlsl
     spot/render/shaders/skinned_shadow.vert.hlsl
     spot/render/shaders/mesh.vert.hlsl

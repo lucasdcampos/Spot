@@ -61,6 +61,12 @@ struct Renderer3DConfig {
     // object; off, worlds are drawn object by object, culled and given their levels of detail on the CPU.
     bool gpuCulling = false;
 
+    // Draws the depth of the opaque and cutout meshes in view before the view's pass, which then shades only what
+    // shows, each pixel once, rather than every surface drawn over it, and draws the sky only where nothing hides it.
+    // It costs a pass over their vertices, which surfaces covering each other repay, as in most 3D views; the image is
+    // the same either way.
+    bool depthPrepass = true;
+
     // Darkens the light from all around in the creases and corners of what the camera sees, worked out from the
     // camera's depth, which costs a depth pass over the view and a few passes over its pixels (see AmbientOcclusion).
     AmbientOcclusionSettings ambientOcclusion = {};

@@ -38,6 +38,8 @@ void RenderingSettings::Serialize(Archive& archive) {
         {.min = 0.0f, .max = 4096.0f, .tooltip = "Pixels of each point and spot light shadow; 0 turns them off"});
     archive.Field("gpuCulling", gpuCulling,
                   {.tooltip = "Culls the scene's meshes on the GPU, for scenes of many objects"});
+    archive.Field("depthPrepass", depthPrepass,
+                  {.tooltip = "Draws the depth of the meshes first, so each pixel is shaded once"});
     archive.Field("ambientOcclusion", ambientOcclusion.enabled,
                   {.tooltip = "Darkens the light from all around in creases and corners"});
     archive.Field(
@@ -68,6 +70,7 @@ void RenderingSettings::Apply(SceneRendererConfig& config) const {
     config.shadowDistance = std::max(shadowDistance, 1.0f);
     config.localShadowMapSize = localShadowMapSize;
     config.gpuCulling = gpuCulling;
+    config.depthPrepass = depthPrepass;
     config.ambientOcclusion = ambientOcclusion;
     config.skyOcclusionSize = skyOcclusionSize;
     config.skyOcclusionDistance = std::max(skyOcclusionDistance, 1.0f);

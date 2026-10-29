@@ -2481,6 +2481,207 @@ TEST_CASE("Camera depth batches repeated meshes while preserving their alpha mas
     CHECK(draws == (gpuCulling || (cutout && differentCutoff) ? 2.0 : 1.0));
 }
 
+TEST_CASE("The depth prepass leaves the image as it is without it", "[gpu][offscreen]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = false});
+    REQUIRE(device);
+    auto skinnedData = Spot::PrimitiveMeshes::CreateCube(0.5f);
+    skinnedData.skin.resize(skinnedData.vertices.size());
+    for (auto& skin : skinnedData.skin) {
+        skin.joints = {0, 1, 0, 0};
+        skin.weights = {0.25f, 0.75f, 0, 0};
+    }
+    const auto cube = Spot::Mesh::Create(*device, Spot::PrimitiveMeshes::CreateCube());
+    const auto plane = Spot::Mesh::Create(*device, Spot::PrimitiveMeshes::CreatePlane());
+    const auto floor = Spot::Mesh::Create(*device, Spot::PrimitiveMeshes::CreatePlane(8.0f));
+    const auto skinned = Spot::Mesh::Create(*device, skinnedData);
+    // Alpha in a checkerboard four squares wide, so cutout materials drop every other square.
+    std::vector<std::uint8_t> checker;
+    for (int i = 0; i < 16; ++i) {
+        const auto alpha = static_cast<std::uint8_t>((i % 4 + i / 4) % 2 == 0 ? 255 : 0);
+        checker.insert(checker.end(), {255, 255, 255, alpha});
+    }
+    const std::shared_ptr<Spot::Texture> holes = device->CreateTexture(Spot::Image(4, 4, std::move(checker)));
+    REQUIRE((cube && plane && floor && skinned && holes));
+
+    const Spot::Material gray{.baseColor = {0.6f, 0.6f, 0.6f, 1}};
+    const Spot::Material red{.baseColor = {0.9f, 0.2f, 0.1f, 1}, .roughness = 0.4f};
+    const Spot::Material leaves{.baseColor = {0.2f, 0.8f, 0.3f, 1},
+                                .baseColorTexture = Spot::AssetRef<Spot::Texture>(holes),
+                                .alphaMode = Spot::AlphaMode::Cutout,
+                                .doubleSided = true,
+                                .nearestFiltering = true};
+    Spot::Material projected = leaves;
+    projected.baseColor = {0.9f, 0.8f, 0.2f, 1};
+    projected.worldTextureSize = 0.5f;
+    projected.nearestFiltering = false;
+    const Spot::Material glass{.baseColor = {0.3f, 0.5f, 1.0f, 0.4f}, .alphaMode = Spot::AlphaMode::Transparent};
+    // Cards stand facing the camera, which planes do once turned up.
+    const Spot::Matrix4 upright = Spot::Matrix4::Rotation(Spot::Quaternion::FromAxisAngle({1, 0, 0}, Spot::Pi / 2.0f));
+    const std::array palette{Spot::Matrix4{}, Spot::Matrix4::Translation({0.6f, 0.3f, 0})};
+    Spot::Camera3D camera{.position = {0.5f, 2.0f, 5.0f}};
+    camera.LookAt({0, 0, 0});
+
+    for (const std::uint32_t samples : {1u, 4u}) {
+        for (const bool gpuCulling : {false, true}) {
+            CAPTURE(samples, gpuCulling);
+            const auto target = device->CreateTexture(
+                {.width = 96, .height = 96, .format = Spot::TextureFormat::Rgba8, .renderTarget = true});
+            const auto color = samples == 1 ? nullptr
+                                            : device->CreateTexture({.width = 96,
+                                                                     .height = 96,
+                                                                     .format = Spot::TextureFormat::Rgba8,
+                                                                     .renderTarget = true,
+                                                                     .sampleCount = samples});
+            const auto depth = device->CreateTexture({.width = 96,
+                                                      .height = 96,
+                                                      .format = Spot::TextureFormat::Depth32Float,
+                                                      .renderTarget = true,
+                                                      .sampleCount = samples});
+            REQUIRE((target && depth && (color || samples == 1)));
+            const auto render = [&](bool depthPrepass, double& prepassDraws) {
+                Spot::Renderer3D renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8,
+                                                    .sampleCount = samples,
+                                                    .shadowMapSize = 256,
+                                                    .shadowCascadeCount = 1,
+                                                    .localShadowMapSize = 128,
+                                                    .gpuCulling = gpuCulling,
+                                                    .depthPrepass = depthPrepass});
+                REQUIRE(renderer.IsValid());
+                Spot::RenderWorld world;
+                for (int i = 0; i < 3; ++i) {
+                    world.AddMesh(
+                        {.mesh = cube.get(),
+                         .material = &gray,
+                         .transform = Spot::Matrix4::Translation({-1.5f + static_cast<float>(i) * 1.5f, 0, -2}) *
+                                      Spot::Matrix4::Scale({0.6f, 0.6f, 0.6f})});
+                }
+                world.AddMesh({.mesh = plane.get(),
+                               .material = &leaves,
+                               .transform = Spot::Matrix4::Translation({0.3f, 0.2f, -1.2f}) * upright});
+                auto* context = device->BeginOffscreenFrame(*target);
+                REQUIRE(context);
+                Spot::Profiler::BeginFrame();
+                renderer.Begin(*context,
+                               {.target = color ? color.get() : target.get(),
+                                .clearColor = Spot::Color::Black,
+                                .depthTarget = depth.get(),
+                                .clearDepth = 1.0f,
+                                .resolveTarget = color ? target.get() : nullptr},
+                               camera);
+                renderer.DrawSky({});
+                renderer.DrawLight(
+                    {.type = Spot::LightType::Point, .position = {1, 1, 1.5f}, .range = 5, .castsShadows = true});
+                renderer.DrawMesh(*floor, gray, Spot::Matrix4::Translation({0, -0.5f, 0}));
+                renderer.DrawMesh(*cube, red,
+                                  Spot::Matrix4::Rotation(Spot::Quaternion::FromAxisAngle({0, 1, 0}, 0.6f)) *
+                                      Spot::Matrix4::Scale({0.8f, 0.8f, 0.8f}));
+                // Turned inside out, which culls its front faces instead.
+                renderer.DrawMesh(*cube, red,
+                                  Spot::Matrix4::Translation({-1.2f, 0.2f, -0.6f}) *
+                                      Spot::Matrix4::Scale({-0.7f, 0.7f, 0.7f}));
+                renderer.DrawMesh(*plane, leaves,
+                                  Spot::Matrix4::Translation({-0.4f, 0.3f, 0.9f}) * upright *
+                                      Spot::Matrix4::Scale({1.2f, 1.2f, 1.2f}));
+                renderer.DrawMesh(*plane, projected,
+                                  Spot::Matrix4::Translation({0.7f, 0.1f, 1.3f}) * upright *
+                                      Spot::Matrix4::Scale({1.2f, 1.2f, 1.2f}));
+                renderer.DrawSkinnedMesh(*skinned, red, palette, Spot::Matrix4::Translation({-0.9f, -0.2f, 1.0f}));
+                renderer.DrawMesh(*cube, glass,
+                                  Spot::Matrix4::Translation({0.9f, 0.0f, 2.0f}) *
+                                      Spot::Matrix4::Scale({0.5f, 0.5f, 0.5f}));
+                renderer.DrawWorld(world);
+                renderer.End();
+                Spot::Profiler::EndFrame();
+                prepassDraws =
+                    Spot::Profiler::GetCounter(*Spot::Profiler::GetFrames().back(), "Depth prepass draw calls");
+                device->EndFrame();
+                return device->DownloadTexture(*target);
+            };
+            double withDraws = 0.0;
+            double withoutDraws = 0.0;
+            const auto with = render(true, withDraws);
+            const auto without = render(false, withoutDraws);
+            CHECK(withDraws > 0.0);
+            CHECK(withoutDraws == 0.0);
+            REQUIRE(with.size() == without.size());
+            std::size_t different = 0;
+            std::size_t varied = 0;
+            for (std::size_t i = 0; i < with.size(); ++i) {
+                different += std::abs(static_cast<int>(with[i]) - without[i]) > 3 ? 1 : 0;
+                varied += std::abs(static_cast<int>(with[i]) - with[i % 4]) > 10 ? 1 : 0;
+            }
+            CHECK(different == 0);
+            // The sky, the meshes and the holes in the cards, not one color.
+            CHECK(varied > 4000);
+        }
+    }
+}
+
+TEST_CASE("Point light shadows keep the tiles whose light and casters stand still", "[gpu][offscreen]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = false});
+    REQUIRE(device);
+    const auto cube = Spot::Mesh::Create(*device, Spot::PrimitiveMeshes::CreateCube(0.5f));
+    const auto floor = Spot::Mesh::Create(*device, Spot::PrimitiveMeshes::CreatePlane(8.0f));
+    const auto target =
+        device->CreateTexture({.width = 64, .height = 64, .format = Spot::TextureFormat::Rgba8, .renderTarget = true});
+    const auto depth = device->CreateTexture(
+        {.width = 64, .height = 64, .format = Spot::TextureFormat::Depth32Float, .renderTarget = true});
+    REQUIRE((cube && floor && target && depth));
+    Spot::Camera3D camera{.position = {0, 3, 5}};
+    camera.LookAt({0, 0, 0});
+    // A crate beside the light, which only the face of its cube looking along +X sees.
+    const auto render = [&](Spot::Renderer3D& renderer, Spot::Vector3 crate, double& kept) {
+        auto* context = device->BeginOffscreenFrame(*target);
+        REQUIRE(context);
+        Spot::Profiler::BeginFrame();
+        renderer.Begin(
+            *context,
+            {.target = target.get(), .clearColor = Spot::Color::Black, .depthTarget = depth.get(), .clearDepth = 1.0f},
+            camera);
+        renderer.DrawLight({.type = Spot::LightType::Ambient, .intensity = 0.1f});
+        renderer.DrawLight({.type = Spot::LightType::Point, .position = {0, 1, 0}, .range = 6, .castsShadows = true});
+        renderer.DrawMesh(*floor, Spot::Material{}, Spot::Matrix4::Translation({0, -0.5f, 0}));
+        renderer.DrawMesh(*cube, Spot::Material{}, Spot::Matrix4::Translation(crate));
+        renderer.End();
+        Spot::Profiler::EndFrame();
+        kept = Spot::Profiler::GetCounter(*Spot::Profiler::GetFrames().back(), "Shadow tiles kept");
+        device->EndFrame();
+        return device->DownloadTexture(*target);
+    };
+    const auto same = [](const std::vector<std::uint8_t>& a, const std::vector<std::uint8_t>& b) {
+        REQUIRE(a.size() == b.size());
+        for (std::size_t i = 0; i < a.size(); ++i) {
+            if (std::abs(static_cast<int>(a[i]) - b[i]) > 3) {
+                return false;
+            }
+        }
+        return true;
+    };
+    const Spot::Renderer3DConfig config{
+        .targetFormat = Spot::TextureFormat::Rgba8, .shadowMapSize = 0, .localShadowMapSize = 128};
+    Spot::Renderer3D renderer(*device, config);
+    const Spot::Vector3 still{1.5f, 0.3f, 0};
+    const Spot::Vector3 moved{1.5f, 0.3f, 0.4f};
+    double kept = 0;
+    const auto first = render(renderer, still, kept);
+    CHECK(kept == 0);
+    const auto again = render(renderer, still, kept);
+    CHECK(kept == 6);
+    CHECK(same(again, first));
+    // The faces that see the crate move are drawn again, the others kept, and together they cast what all of them
+    // drawn anew would.
+    const auto afterMove = render(renderer, moved, kept);
+    CHECK(kept >= 1);
+    CHECK(kept < 6);
+    CHECK_FALSE(same(afterMove, first));
+    Spot::Renderer3D fresh(*device, config);
+    double freshKept = 0;
+    CHECK(same(afterMove, render(fresh, moved, freshKept)));
+    CHECK(same(render(renderer, still, kept), first));
+}
+
 TEST_CASE("Renderer3D prepares custom surfaces with compute before every view", "[gpu]") {
     RequireGpu();
     const auto render = [](bool indirect) {

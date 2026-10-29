@@ -48,6 +48,7 @@ SceneRenderer::SceneRenderer(GraphicsDevice& device, const SceneRendererConfig& 
                                                               .shadowDistance = config.shadowDistance,
                                                               .localShadowMapSize = config.localShadowMapSize,
                                                               .gpuCulling = config.gpuCulling,
+                                                              .depthPrepass = config.depthPrepass,
                                                               .ambientOcclusion = config.ambientOcclusion,
                                                               .skyOcclusionSize = config.skyOcclusionSize,
                                                               .skyOcclusionDistance = config.skyOcclusionDistance});

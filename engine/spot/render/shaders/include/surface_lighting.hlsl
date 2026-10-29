@@ -161,17 +161,18 @@ float GetFogAmount(float3 toPoint) {
     return 1.0 - exp(-depth);
 }
 
-// Points spread evenly over a disc (a Poisson disk), at which shadow maps are compared around each surface.
+// Points spread evenly over a disc (a Poisson disk), at which shadow maps are compared around each surface. The first
+// four are the outermost, one per quadrant.
 static const float2 ShadowTaps[16] = {
-    float2(-0.9420, -0.3991), float2(0.9456, -0.7689), float2(-0.0942, -0.9294), float2(0.3450, 0.2939),
-    float2(-0.9159, 0.4577),  float2(-0.8154, -0.8791), float2(-0.3828, 0.2768), float2(0.9748, 0.7565),
-    float2(0.4432, -0.9751),  float2(0.5374, -0.4737),  float2(-0.2650, -0.4189), float2(0.7920, 0.1909),
-    float2(-0.2419, 0.9971),  float2(-0.8141, 0.9144),  float2(0.1998, 0.7864),   float2(0.1438, -0.1410)};
+    float2(0.9456, -0.7689),  float2(-0.8154, -0.8791), float2(0.9748, 0.7565),   float2(-0.8141, 0.9144),
+    float2(-0.9420, -0.3991), float2(-0.0942, -0.9294), float2(0.3450, 0.2939),   float2(-0.9159, 0.4577),
+    float2(-0.3828, 0.2768),  float2(0.4432, -0.9751),  float2(0.5374, -0.4737),  float2(-0.2650, -0.4189),
+    float2(0.7920, 0.1909),   float2(-0.2419, 0.9971),  float2(0.1998, 0.7864),   float2(0.1438, -0.1410)};
 
 // Shadow edges are filtered over 16 comparisons on a disc a few texels wide, each blending the four nearest texels,
 // so they fade smoothly over about four texels without the grid of a regular pattern; the disc is the same for every
-// pixel, so edges do not flicker. Surfaces beyond the tile's view are lit, so nothing outside a shadow map is
-// shadowed by it.
+// pixel, so edges do not flicker. Pixels whose four outermost comparisons agree take only those. Surfaces beyond the
+// tile's view are lit, so nothing outside a shadow map is shadowed by it.
 float SampleShadow(Texture2D<float> map, SamplerComparisonState mapSampler, float4x4 view, float4 layout, uint tile,
                    float3 position) {
     const float4 clip = mul(view, float4(position, 1.0));
@@ -183,9 +184,17 @@ float SampleShadow(Texture2D<float> map, SamplerComparisonState mapSampler, floa
     const float2 margin = 3.0 * layout.zw * layout.xy;
     const float2 tileUv = clamp(projected.xy, margin, 1.0 - margin);
     const float2 uv = (float2(tile % (uint)layout.x, tile / (uint)layout.x) + tileUv) / layout.xy;
+    // Where the outermost taps agree, the surface is wholly lit or wholly in shadow, as most are, and the others
+    // would change next to nothing.
     float lit = 0.0;
-    [unroll] for (int i = 0; i < 16; ++i) {
+    [unroll] for (int i = 0; i < 4; ++i) {
         lit += map.SampleCmpLevelZero(mapSampler, uv + ShadowTaps[i] * 1.5 * layout.zw, projected.z);
+    }
+    if (lit <= 0.0 || lit >= 4.0) {
+        return lit / 4.0;
+    }
+    [unroll] for (int j = 4; j < 16; ++j) {
+        lit += map.SampleCmpLevelZero(mapSampler, uv + ShadowTaps[j] * 1.5 * layout.zw, projected.z);
     }
     return lit / 16.0;
 }
@@ -272,12 +281,15 @@ float3 GetHighlight(float3 normal, float3 toLight, float3 toViewer, float alpha,
 
 // The light a surface at the position with the normal scatters, before it takes the surface's color, and the light
 // it reflects toward the viewer as highlights. Double-sided surfaces are lit from either side.
-Lit GetLight(Light light, float3 position, float3 normal, float3 toViewer, float alpha, float3 reflectance,
-             bool doubleSided) {
+//
+// Directional lights come first in the frame's lights and clusters hold only the others, so each loop over them says
+// which kind it goes through as a constant, and leaves out the shadows and falloff of the other kind.
+Lit GetLightOfKind(Light light, float3 position, float3 normal, float3 toViewer, float alpha, float3 reflectance,
+                   bool doubleSided, bool local) {
     const float type = light.positionAndType.w;
     float3 toLight = -light.directionAndRange.xyz;
     float attenuation = 1.0;
-    if (type > 0.5) {
+    if (local) {
         const float3 offset = light.positionAndType.xyz - position;
         const float distanceSquared = dot(offset, offset);
         toLight = offset * rsqrt(max(distanceSquared, 1e-8));
@@ -290,12 +302,16 @@ Lit GetLight(Light light, float3 position, float3 normal, float3 toViewer, float
             const float cone = saturate((dot(-toLight, light.directionAndRange.xyz) - light.cone.x) * light.cone.y);
             attenuation *= cone * cone;
         }
+        // Clusters hold every light that may reach them, so many pixels are beyond the reach of most of theirs.
+        if (attenuation <= 0.0) {
+            return (Lit)0;
+        }
     }
     const float facing = dot(normal, toLight);
     if (light.cone.z >= 0.0 && attenuation > 0.0 && (facing > 0.0 || doubleSided)) {
         // Back faces of double-sided surfaces are offset toward the light too.
         const float3 lightSide = facing < 0.0 ? -normal : normal;
-        attenuation *= type > 0.5 ? GetLocalShadow(light, position, lightSide) : GetDirectionalShadow(position, lightSide);
+        attenuation *= local ? GetLocalShadow(light, position, lightSide) : GetDirectionalShadow(position, lightSide);
     }
     const float3 color = light.color.rgb * attenuation;
     // Back faces of double-sided surfaces have normals pointing away from the viewer, so they are lit as if flipped.
@@ -306,6 +322,12 @@ Lit GetLight(Light light, float3 position, float3 normal, float3 toViewer, float
     lit.diffuse = color * diffuse;
     lit.specular = color * GetHighlight(seenNormal, toLight, toViewer, alpha, reflectance);
     return lit;
+}
+
+Lit GetLight(Light light, float3 position, float3 normal, float3 toViewer, float alpha, float3 reflectance,
+             bool doubleSided) {
+    return GetLightOfKind(light, position, normal, toViewer, alpha, reflectance, doubleSided,
+                          light.positionAndType.w > 0.5);
 }
 
 // The light a surface facing the direction receives from what the nine spherical harmonics in the row hold.
@@ -325,6 +347,17 @@ float3 GetSkyIrradiance(float3 n) {
     return GetIrradiance(skyIrradiance, 0, n);
 }
 
+// Whether nothing is higher than the point the offset moves to across the sky's occlusion, from 0 to 1.
+float GetSkyTap(float3 projectedCenter, float3 projectedX, float3 projectedZ, float3 normal, float2 offset, float bias) {
+    const float rise = normal.y > 0.3 ? max(-(normal.x * offset.x + normal.z * offset.y) / normal.y, 0.0) : 0.0;
+    const float3 projected = projectedCenter + projectedX * offset.x + projectedZ * offset.y;
+    if (any(projected.xy < 0.0) || any(projected.xy > 1.0)) {
+        return 1.0;
+    }
+    const float depth = projected.z - (rise + bias) * skyOcclusionParams.z;
+    return skyOcclusion.SampleCmpLevelZero(skyOcclusionSampler, projected.xy, depth);
+}
+
 // How much of the sky a point sees past what covers it, from 0 under a roof or in a cave to 1 in the open: the share
 // of a disc around it, in the sky's occlusion, where no surface is higher than it. The disc is moved off the surface
 // the way it faces along the ground, so walls look into the air in front of them, but not up, so a floor still finds
@@ -338,18 +371,20 @@ float GetSkyVisibility(float3 position, float3 normal) {
     const float3 center = position + float3(normal.x, 0.0, normal.z) * radius;
     // A couple of texels, so surfaces that are the highest where they are are not hidden by their own depth.
     const float bias = 2.0 * skyOcclusionParams.w + 0.05;
+    // The view is orthographic, so each tap's projection is the center's moved along the view's axes.
+    const float3 projectedCenter = mul(skyOcclusionView, float4(center, 1.0)).xyz;
+    const float3 projectedX = mul(skyOcclusionView, float4(1.0, 0.0, 0.0, 0.0)).xyz;
+    const float3 projectedZ = mul(skyOcclusionView, float4(0.0, 0.0, 1.0, 0.0)).xyz;
+    // Where the outermost taps agree, as in the open or deep under cover, the others would change nothing.
     float visible = 0.0;
-    [unroll] for (int i = 0; i < 16; ++i) {
-        const float2 offset = ShadowTaps[i] * radius;
-        const float rise = normal.y > 0.3 ? max(-(normal.x * offset.x + normal.z * offset.y) / normal.y, 0.0) : 0.0;
-        const float4 clip = mul(skyOcclusionView, float4(center + float3(offset.x, 0.0, offset.y), 1.0));
-        const float3 projected = clip.xyz / clip.w;
-        if (any(projected.xy < 0.0) || any(projected.xy > 1.0)) {
-            visible += 1.0;
-        } else {
-            const float depth = projected.z - (rise + bias) * skyOcclusionParams.z;
-            visible += skyOcclusion.SampleCmpLevelZero(skyOcclusionSampler, projected.xy, depth);
-        }
+    [unroll] for (int i = 0; i < 4; ++i) {
+        visible += GetSkyTap(projectedCenter, projectedX, projectedZ, normal, ShadowTaps[i] * radius, bias);
+    }
+    if (visible <= 0.0 || visible >= 4.0) {
+        return visible / 4.0;
+    }
+    [unroll] for (int j = 4; j < 16; ++j) {
+        visible += GetSkyTap(projectedCenter, projectedX, projectedZ, normal, ShadowTaps[j] * radius, bias);
     }
     return visible / 16.0;
 }
@@ -440,15 +475,15 @@ SurfaceLight LightSurface(SurfacePoint surface) {
     light.diffuse = 0.0;
     light.highlights = 0.0;
     for (uint i = 0; i < lightCount.x; ++i) {
-        const Lit lit = GetLight(lights[i], surface.position, surface.normal, toViewer, alpha, surface.reflectance,
-                                 surface.doubleSided);
+        const Lit lit = GetLightOfKind(lights[i], surface.position, surface.normal, toViewer, alpha,
+                                       surface.reflectance, surface.doubleSided, false);
         light.diffuse += lit.diffuse;
         light.highlights += lit.specular;
     }
     const uint2 cluster = GetCluster(surface.pixel, dot(surface.position - cameraPosition.xyz, viewForward.xyz));
     for (uint j = 0; j < cluster.y; ++j) {
-        const Lit lit = GetLight(lights[lightIndices[cluster.x + j]], surface.position, surface.normal, toViewer, alpha,
-                                 surface.reflectance, surface.doubleSided);
+        const Lit lit = GetLightOfKind(lights[lightIndices[cluster.x + j]], surface.position, surface.normal, toViewer,
+                                       alpha, surface.reflectance, surface.doubleSided, true);
         light.diffuse += lit.diffuse;
         light.highlights += lit.specular;
     }

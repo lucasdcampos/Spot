@@ -176,7 +176,8 @@ SkyRenderer::SkyRenderer(Renderer3DState& state) : m_state(state) {
             .vertexShader = vertexShader.get(),
             .fragmentShader = fragmentShader.get(),
             .targetFormat = state.config.targetFormat,
-            .depth = DepthState{.format = state.config.depthFormat, .test = false, .write = false},
+            // On the far plane, as deep as the cleared depth, so it is drawn only where nothing is in front.
+            .depth = DepthState{.format = state.config.depthFormat, .write = false, .compare = CompareOp::LessOrEqual},
             .sampleCount = state.config.sampleCount,
         });
         m_capturePipeline = device.CreatePipeline({

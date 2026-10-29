@@ -6,6 +6,7 @@
 
 #include "mesh.frag.h"
 #include "mesh.vert.h"
+#include "mesh_depth_cutout.frag.h"
 #include "shadow.frag.h"
 #include "shadow.vert.h"
 #include "shadow_cutout.frag.h"
@@ -58,6 +59,20 @@ bool HaveSameDepth(const DrawCommand& a, const DrawCommand& b) {
                        a.nearestFiltering == b.nearestFiltering);
 }
 
+// The depth prepass cuts out as the view's pass does, so it reads the alpha at the same, possibly projected, UVs.
+bool HaveSamePrepassDepth(const DrawCommand& a, const DrawCommand& b) {
+    return HaveSameDepth(a, b) && (a.alphaMode != AlphaMode::Cutout || a.worldTextureSize == b.worldTextureSize);
+}
+
+// Back faces culled, front faces for transforms that mirror, none for double-sided materials.
+std::size_t GetCullVariant(const DrawCommand& command) {
+    return command.doubleSided ? 2 : command.mirrored ? 1 : 0;
+}
+
+CullMode GetCullMode(std::size_t variant) {
+    return variant % 3 == 0 ? CullMode::Back : variant % 3 == 1 ? CullMode::Front : CullMode::None;
+}
+
 } // namespace
 
 MeshBatcher::MeshBatcher(Renderer3DState& state) : m_state(state) {
@@ -105,6 +120,43 @@ MeshBatcher::MeshBatcher(Renderer3DState& state) : m_state(state) {
                                        .targetFormat = config.targetFormat,
                                        .depth = DepthState{.format = config.depthFormat, .write = i < 3},
                                        .sampleCount = config.sampleCount});
+        }
+    }
+
+    // The prepass draws with the view's vertex shaders, so the depths match exactly, and the view's pass then keeps
+    // only the fragments at that depth: the nearest, shaded once.
+    const auto opaqueDepth = device.CreateShader(Detail::Shaders::ShadowFrag);
+    const auto cutoutDepth = device.CreateShader(Detail::Shaders::MeshDepthCutoutFrag);
+    if (config.depthPrepass && vertexShader && skinnedVertex && fragmentShader && opaqueDepth && cutoutDepth) {
+        for (std::size_t i = 0; i < m_prepassPipelines.size(); ++i) {
+            const bool skinned = i >= 6;
+            std::vector<VertexBufferLayout> layouts{Mesh::GetVertexLayout()};
+            if (skinned) {
+                layouts.push_back(Mesh::GetSkinLayout());
+            }
+            m_prepassPipelines[i] =
+                device.CreatePipeline({.vertexShader = skinned ? skinnedVertex.get() : vertexShader.get(),
+                                       .fragmentShader = i % 6 >= 3 ? cutoutDepth.get() : opaqueDepth.get(),
+                                       .vertexBuffers = layouts,
+                                       .cullMode = GetCullMode(i),
+                                       .depthOnly = true,
+                                       .depth = DepthState{.format = config.depthFormat},
+                                       .sampleCount = config.sampleCount});
+        }
+        for (std::size_t i = 0; i < m_prepassedPipelines.size(); ++i) {
+            const bool skinned = i >= 3;
+            std::vector<VertexBufferLayout> layouts{Mesh::GetVertexLayout()};
+            if (skinned) {
+                layouts.push_back(Mesh::GetSkinLayout());
+            }
+            m_prepassedPipelines[i] = device.CreatePipeline(
+                {.vertexShader = skinned ? skinnedVertex.get() : vertexShader.get(),
+                 .fragmentShader = fragmentShader.get(),
+                 .vertexBuffers = layouts,
+                 .cullMode = GetCullMode(i),
+                 .targetFormat = config.targetFormat,
+                 .depth = DepthState{.format = config.depthFormat, .write = false, .compare = CompareOp::LessOrEqual},
+                 .sampleCount = config.sampleCount});
         }
     }
     m_noVisible = device.CreateBuffer(BufferUsage::Storage, std::array<std::uint32_t, 4>{});
@@ -272,7 +324,10 @@ bool MeshBatcher::UploadInstances() {
            UploadStorage(*m_state.device, m_state.palettes, m_state.paletteData);
 }
 
-const Pipeline* MeshBatcher::GetPipeline(const DrawCommand& command) const {
+const Pipeline* MeshBatcher::GetPipeline(const DrawCommand& command, bool depthPrepassed) const {
+    if (depthPrepassed && command.alphaMode != AlphaMode::Transparent) {
+        return m_prepassedPipelines[GetCullVariant(command) + (command.skinCount ? 3 : 0)].get();
+    }
     if (command.skinCount) {
         const auto variant = (command.alphaMode == AlphaMode::Transparent ? 3u : 0u) + (command.doubleSided ? 2u
                                                                                         : command.mirrored  ? 1u
@@ -289,7 +344,7 @@ const Pipeline* MeshBatcher::GetPipeline(const DrawCommand& command) const {
                                : m_pipeline.get();
 }
 
-void MeshBatcher::Flush(RenderPass& pass) {
+void MeshBatcher::Flush(RenderPass& pass, bool depthPrepassed) {
     SPOT_PROFILE_SCOPE("Renderer3D::Flush");
     if (m_state.commands.empty()) {
         return;
@@ -318,7 +373,7 @@ void MeshBatcher::Flush(RenderPass& pass) {
             ++end;
         }
         const auto instanceCount = static_cast<std::uint32_t>(end - first);
-        const Pipeline* pipeline = GetPipeline(command);
+        const Pipeline* pipeline = GetPipeline(command, depthPrepassed);
         if (pipeline != boundPipeline) {
             pass.BindPipeline(*pipeline);
             boundPipeline = pipeline;
@@ -394,6 +449,118 @@ void MeshBatcher::Flush(RenderPass& pass) {
             command.indexCount / 3 * (command.instanceBuffer ? command.instanceCount : instanceCount);
         first = end;
     }
+}
+
+bool MeshBatcher::DrawDepthPrepass(RenderContext& context) {
+    Texture* depth = m_state.target.depthTarget;
+    const auto made = [](const auto& pipeline) { return pipeline != nullptr; };
+    if (!depth || !std::ranges::all_of(m_prepassPipelines, made) || !std::ranges::all_of(m_prepassedPipelines, made)) {
+        return false;
+    }
+    SPOT_PROFILE_SCOPE("Renderer3D::DrawDepthPrepass");
+    m_prepassOrder.clear();
+    for (std::size_t i = 0; i < m_state.commands.size(); ++i) {
+        if (m_state.commands[i].visible && m_state.commands[i].alphaMode != AlphaMode::Transparent) {
+            m_prepassOrder.push_back(static_cast<std::uint32_t>(i));
+        }
+    }
+    if (m_prepassOrder.empty()) {
+        return false;
+    }
+    const auto bytes = static_cast<std::uint32_t>(m_prepassOrder.size() * sizeof(std::uint32_t));
+    if (!m_prepassIndices || m_prepassIndices->GetSize() < bytes) {
+        m_prepassIndices = m_state.device->CreateBuffer({.usage = BufferUsage::Storage, .size = bytes});
+        if (!m_prepassIndices) {
+            return false;
+        }
+    }
+    m_state.device->UploadToBuffer(*m_prepassIndices, m_prepassOrder, 0, UploadMode::Discard);
+
+    auto pass =
+        context.BeginRenderPass({.depthTarget = depth, .clearDepth = m_state.target.clearDepth, .depthOnly = true});
+    // As the view's pass pushes them, since batches of render worlds cull their instances against the view's planes.
+    pass.PushVertexUniforms(0, MakeFrameUniforms(m_state.viewProjection, m_state.camera));
+    // Slot 1 holds the order, which direct draws read their commands through so repeated meshes share a draw, the
+    // instances a culling pass kept, or the joints of skinned meshes.
+    const Buffer* boundInstances = nullptr;
+    const Buffer* boundSecond = nullptr;
+    const auto bind = [&pass](const Buffer*& bound, std::uint32_t slot, const Buffer& buffer) {
+        if (bound != &buffer) {
+            pass.BindVertexStorageBuffer(slot, buffer);
+            bound = &buffer;
+        }
+    };
+    const Pipeline* boundPipeline = nullptr;
+    const Mesh* boundMesh = nullptr;
+    const Texture* boundTexture = nullptr;
+    const Sampler* boundSampler = nullptr;
+    std::optional<Vector4> boundCutout;
+    std::uint32_t draws = 0;
+    for (std::size_t i = 0; i < m_prepassOrder.size();) {
+        const DrawCommand& command = m_state.commands[m_prepassOrder[i]];
+        std::size_t end = i + 1;
+        // Skinned meshes read their instances in the commands' order, so only neighbors share a draw.
+        while (end < m_prepassOrder.size() && HaveSamePrepassDepth(command, m_state.commands[m_prepassOrder[end]]) &&
+               (!command.skinCount || m_prepassOrder[end] == m_prepassOrder[end - 1] + 1)) {
+            ++end;
+        }
+        const bool cutout = command.alphaMode == AlphaMode::Cutout;
+        const Pipeline* pipeline =
+            m_prepassPipelines[GetCullVariant(command) + (cutout ? 3 : 0) + (command.skinCount ? 6 : 0)].get();
+        if (pipeline != boundPipeline) {
+            pass.BindPipeline(*pipeline);
+            boundPipeline = pipeline;
+        }
+        if (cutout) {
+            const Texture* texture = command.textures[0] ? command.textures[0] : m_state.whiteTexture.get();
+            const Sampler* sampler = command.nearestFiltering ? m_state.nearestSampler.get() : m_state.sampler.get();
+            if (texture != boundTexture || sampler != boundSampler) {
+                pass.BindFragmentTexture(0, *texture, *sampler);
+                boundTexture = texture;
+                boundSampler = sampler;
+            }
+            const Vector4 values{command.color.a, command.alphaCutoff, command.worldTextureSize, 0.0f};
+            if (!boundCutout || *boundCutout != values) {
+                pass.PushFragmentUniforms(0, values);
+                boundCutout = values;
+            }
+        }
+        if (command.mesh != boundMesh) {
+            pass.BindVertexBuffer(0, command.mesh->GetVertexBuffer());
+            pass.BindIndexBuffer(command.mesh->GetIndexBuffer(), IndexType::UInt32);
+            boundMesh = command.mesh;
+        }
+        if (command.skinCount) {
+            pass.BindVertexBuffer(1, *command.mesh->GetSkinBuffer());
+        }
+        if (command.instanceBuffer) {
+            bind(boundInstances, 0, *command.instanceBuffer);
+            if (command.arguments) {
+                bind(boundSecond, 1, *command.keptInstances);
+                pass.PushVertexUniforms(1, BatchUniforms{{command.instanceFirst, 2, 0, 0}});
+                pass.DrawIndexedIndirect(*command.arguments, command.batch * static_cast<std::uint32_t>(
+                                                                                 sizeof(DrawIndexedIndirectArguments)));
+            } else {
+                bind(boundSecond, 1, *m_prepassIndices);
+                pass.PushVertexUniforms(1, BatchUniforms{{command.instanceFirst, 1, 0, 0}});
+                pass.DrawIndexed(command.indexCount, command.instanceCount, command.firstIndex);
+            }
+        } else {
+            bind(boundInstances, 0, *m_state.instances);
+            if (command.skinCount) {
+                bind(boundSecond, 1, *m_state.palettes);
+                pass.PushVertexUniforms(1, BatchUniforms{{m_prepassOrder[i], 0, 0, 0}});
+            } else {
+                bind(boundSecond, 1, *m_prepassIndices);
+                pass.PushVertexUniforms(1, BatchUniforms{{static_cast<std::uint32_t>(i), 2, 0, 0}});
+            }
+            pass.DrawIndexed(command.indexCount, static_cast<std::uint32_t>(end - i), command.firstIndex);
+        }
+        ++draws;
+        i = end;
+    }
+    Profiler::Count("Depth prepass draw calls", draws);
+    return true;
 }
 
 const Texture* MeshBatcher::RenderCameraDepth(RenderContext& context) {

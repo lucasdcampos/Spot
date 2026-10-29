@@ -226,9 +226,9 @@ struct Renderer3D::Impl {
     // Draws the frame's sky, surfaces and meshes into the target as the camera sees them, after the shadows of that
     // view. The main view also culls the worlds on the GPU, is darkened by ambient occlusion and lit by the reflection
     // probes; the faces of a probe's capture are not, so they hold the light that reaches the probe from outside.
-    void DrawView(Detail::SelectedLights lights, bool main);
+    void DrawView(Detail::SelectedLights selected, bool main);
     // Draws the six faces of the probe and blurs them into the light it gives, then goes back to the main view.
-    void CaptureProbe(const ReflectionProbeData& probe, const Detail::SelectedLights& lights);
+    void CaptureProbe(const ReflectionProbeData& probe, const Detail::SelectedLights& selected);
     // Sends the lights and the view's clusters of them to their buffers.
     bool UploadLights(const Detail::SelectedLights& lights);
     void BindLighting(RenderPass& pass, const Detail::SelectedLights& lights, const Detail::ShadowUniforms& shadows,
@@ -301,17 +301,17 @@ void Renderer3D::Impl::SetView(const Camera3D& camera, const RenderPassDesc& tar
     state.aspectRatio = viewSize.y > 0.0f ? viewSize.x / viewSize.y : 1.0f;
 }
 
-void Renderer3D::Impl::DrawView(Detail::SelectedLights lights, bool main) {
+void Renderer3D::Impl::DrawView(Detail::SelectedLights selected, bool main) {
     meshes.Prepare();
     if (!meshes.UploadInstances()) {
         state.commands.clear();
     }
     Detail::ShadowUniforms shadowUniforms{};
     state.context->BeginGpuTimer("Shadows");
-    shadows.Draw(lights, shadowUniforms, sky.IsLit());
+    shadows.Draw(selected, shadowUniforms, sky.IsLit());
     state.context->EndGpuTimer();
 
-    if (!UploadLights(lights)) {
+    if (!UploadLights(selected)) {
         state.commands.clear();
     }
     if (main) {
@@ -328,19 +328,31 @@ void Renderer3D::Impl::DrawView(Detail::SelectedLights lights, bool main) {
         }
         state.context->EndGpuTimer();
     }
+    // The faces of a probe's capture are small and drawn once, so only the main view takes the prepass.
+    bool depthPrepassed = false;
+    if (main && state.config.depthPrepass) {
+        state.context->BeginGpuTimer("Depth prepass");
+        depthPrepassed = meshes.DrawDepthPrepass(*state.context);
+        state.context->EndGpuTimer();
+    }
     state.context->BeginGpuTimer("Opaque");
     const std::uint32_t surfaceView =
         state.PrepareSurfaces(*state.context, SurfacePass::Lit, state.viewProjection, false);
     {
-        auto pass = state.context->BeginRenderPass(state.target);
+        RenderPassDesc target = state.target;
+        // The prepass cleared the depth already, and holds the meshes' now.
+        if (depthPrepassed) {
+            target.clearDepth.reset();
+        }
+        auto pass = state.context->BeginRenderPass(target);
         if (skyData) {
             sky.Draw(pass, *skyData, *skyLighting, inverseSkyViewProjection);
         }
         // Surfaces draw before the meshes, as they are mostly large and in front, such as terrain, and so hide much
         // of what comes after them; transparent meshes, last, blend over them.
-        BindLighting(pass, lights, shadowUniforms, main, occlusion);
+        BindLighting(pass, selected, shadowUniforms, main, occlusion);
         state.DrawSurfaces(pass, SurfacePass::Lit, state.viewProjection, false, surfaceView);
-        meshes.Flush(pass);
+        meshes.Flush(pass, depthPrepassed);
     }
     if (main) {
         worlds.UpdateOcclusionTiles();
@@ -348,7 +360,7 @@ void Renderer3D::Impl::DrawView(Detail::SelectedLights lights, bool main) {
     state.context->EndGpuTimer();
 }
 
-void Renderer3D::Impl::CaptureProbe(const ReflectionProbeData& probe, const Detail::SelectedLights& lights) {
+void Renderer3D::Impl::CaptureProbe(const ReflectionProbeData& probe, const Detail::SelectedLights& selected) {
     SPOT_PROFILE_SCOPE("Renderer3D::CaptureReflectionProbe");
     const std::optional<RenderPassDesc> faceTarget = probes.GetFaceTarget();
     if (!faceTarget) {
@@ -361,7 +373,7 @@ void Renderer3D::Impl::CaptureProbe(const ReflectionProbeData& probe, const Deta
     state.context->BeginGpuTimer("Reflection probe");
     for (std::uint32_t face = 0; face < 6; ++face) {
         SetView(Detail::ProbeRenderer::GetFaceCamera(probe, face, camera), *faceTarget, {FaceSize, FaceSize});
-        DrawView(lights, false);
+        DrawView(selected, false);
         probes.FinishFace(face);
     }
     probes.FinishCapture(probe);

@@ -2,6 +2,7 @@
 
 #include "spot/core/debug/profiler.h"
 
+#include "fullscreen.vert.h"
 #include "shadow.frag.h"
 #include "shadow.vert.h"
 #include "shadow_cutout.frag.h"
@@ -10,6 +11,7 @@
 #include <algorithm>
 #include <bit>
 #include <cstddef>
+#include <cstring>
 #include <limits>
 #include <span>
 #include <tuple>
@@ -29,6 +31,53 @@ bool HaveSameShadow(const auto& a, const auto& b) {
         return false;
     }
     return a.alphaMode != AlphaMode::Cutout || a.look == b.look;
+}
+
+// Sums up what a caster looks like to a shadow, so a view can tell whether any of its casters changed since it was
+// drawn. A view adds up those of its casters, which come in the order of the camera's distance, whatever it is.
+class ShadowLook {
+public:
+    std::uint64_t Get() const { return m_value; }
+
+    void Add(std::uint64_t word) {
+        m_value =
+            std::rotl(m_value ^ (word * 0x9E3779B97F4A7C15ull), 27) * 0xC2B2AE3D27D4EB4Full + 0x165667B19E3779F9ull;
+    }
+    void Add(const void* data, std::size_t size) {
+        const auto* bytes = static_cast<const std::byte*>(data);
+        for (std::size_t i = 0; i < size; i += sizeof(std::uint64_t)) {
+            std::uint64_t word = 0;
+            std::memcpy(&word, bytes + i, std::min(sizeof(word), size - i));
+            Add(word);
+        }
+    }
+    void Add(const void* pointer) { Add(static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(pointer))); }
+
+    // The shape of the command's mesh it casts, and how; its transform is the instance's.
+    void AddShape(const DrawCommand& command) {
+        Add(static_cast<const void*>(command.mesh));
+        Add(command.firstIndex | static_cast<std::uint64_t>(command.indexCount) << 32);
+        Add(static_cast<std::uint64_t>(command.alphaMode) | (command.doubleSided ? 1ull << 8 : 0) |
+            (command.mirrored ? 1ull << 9 : 0) | (command.nearestFiltering ? 1ull << 10 : 0));
+        if (command.alphaMode == AlphaMode::Cutout) {
+            Add(static_cast<const void*>(command.textures[0]));
+            Add(std::bit_cast<std::uint32_t>(command.color.a) |
+                static_cast<std::uint64_t>(std::bit_cast<std::uint32_t>(command.alphaCutoff)) << 32);
+        }
+    }
+
+private:
+    std::uint64_t m_value = 0x84222325CBF29CE4ull;
+};
+
+// Whether the lights see the same views to cast their shadows in.
+bool HaveSameShadowViews(const LightData& a, const LightData& b) {
+    return a.type == b.type && a.position == b.position && a.range == b.range &&
+           (a.type != LightType::Spot || (a.direction == b.direction && a.outerConeAngle == b.outerConeAngle));
+}
+
+std::size_t GetTileCount(const LightData& light) {
+    return light.type == LightType::Point ? 6 : 1;
 }
 
 } // namespace
@@ -80,6 +129,15 @@ ShadowRenderer::ShadowRenderer(Renderer3DState& state) : m_state(state) {
                  .depth = DepthState{.format = TextureFormat::Depth32Float, .biasSlope = 1.5f, .clamp = true}});
         }
     }
+    // A triangle over the viewport, which the viewport's depth range then puts at the far plane.
+    const auto fullscreen = device.CreateShader(Shaders::FullscreenVert);
+    if (fullscreen && shadowFragmentShader) {
+        m_clearTilePipeline = device.CreatePipeline(
+            {.vertexShader = fullscreen.get(),
+             .fragmentShader = shadowFragmentShader.get(),
+             .depthOnly = true,
+             .depth = DepthState{.format = TextureFormat::Depth32Float, .compare = CompareOp::Always}});
+    }
     m_sampler = device.CreateSampler({.compare = CompareOp::LessOrEqual});
     m_noShadows =
         device.CreateTexture({.width = 1, .height = 1, .format = TextureFormat::Depth32Float, .renderTarget = true});
@@ -117,6 +175,7 @@ void ShadowRenderer::Draw(SelectedLights& lights, ShadowUniforms& shadows, bool 
     // room for every view to draw every caster, so it never has to grow while draws refer to it, and starts in fresh
     // memory, so views drawn by an earlier End() in the frame keep their own.
     m_frameCasters.clear();
+    m_worldRuns.clear();
     std::size_t shadowInstances = 0;
     for (const std::uint32_t index : m_order) {
         shadowInstances += m_state.commands[index].instanceCount;
@@ -230,15 +289,16 @@ void ShadowRenderer::DrawLocalShadows(SelectedLights& lights, ShadowUniforms& sh
     }
     std::ranges::stable_sort(order, {},
                              [&](std::size_t i) { return GetLightRank(*lights.lights[i], m_state.camera.position); });
+    std::vector<std::size_t> shadowed;
     std::size_t tileCount = 0;
     for (const std::size_t i : order) {
-        const std::size_t tiles = lights.lights[i]->type == LightType::Point ? 6 : 1;
+        const std::size_t tiles = GetTileCount(*lights.lights[i]);
         if (tileCount + tiles <= Renderer3D::MaxShadowTiles) {
-            lights.shadows[i] = static_cast<float>(tileCount);
+            shadowed.push_back(i);
             tileCount += tiles;
         }
     }
-    if (tileCount == 0) {
+    if (shadowed.empty()) {
         return;
     }
 
@@ -246,56 +306,142 @@ void ShadowRenderer::DrawLocalShadows(SelectedLights& lights, ShadowUniforms& sh
     constexpr std::uint32_t Rows = Renderer3D::MaxShadowTiles / Columns;
     const std::uint32_t size = m_state.config.localShadowMapSize;
     if (!m_localShadows || m_localShadows->GetWidth() != Columns * size) {
+        m_tileContents = {};
         m_localShadows = m_state.device->CreateTexture({.width = Columns * size,
                                                         .height = Rows * size,
                                                         .format = TextureFormat::Depth32Float,
                                                         .renderTarget = true});
         if (!m_localShadows) {
-            lights.shadows.fill(-1.0f);
             return;
         }
     }
+    AssignTiles(lights, shadowed);
     shadows.tileLayout = {static_cast<float>(Columns), static_cast<float>(Rows),
                           1.0f / static_cast<float>(Columns * size), 1.0f / static_cast<float>(Rows * size)};
 
+    // Custom surfaces draw shadows of their own, whose changes Renderer3D cannot tell, so their tiles are always drawn.
+    const bool keepable = m_clearTilePipeline && m_state.surfaces.empty();
     std::array<ShadowView, Renderer3D::MaxShadowTiles> views{};
     std::array<std::uint32_t, Renderer3D::MaxShadowTiles> surfaceViews{};
-    for (std::size_t i = 0; i < lights.lights.size(); ++i) {
-        if (lights.shadows[i] < 0.0f || lights.lights[i]->type == LightType::Directional) {
-            continue;
-        }
+    std::array<ViewCasters, Renderer3D::MaxShadowTiles> casters{};
+    std::array<bool, Renderer3D::MaxShadowTiles> kept{};
+    std::size_t keptCount = 0;
+    for (const std::size_t i : shadowed) {
         const LightData& light = *lights.lights[i];
-        const auto first = static_cast<std::uint32_t>(lights.shadows[i]);
-        const std::uint32_t faces = light.type == LightType::Point ? 6 : 1;
-        for (std::uint32_t face = 0; face < faces; ++face) {
-            const std::uint32_t tile = first + face;
-            views[tile] =
-                light.type == LightType::Point ? GetPointShadowView(light, face, size) : GetSpotShadowView(light, size);
+        const auto first = static_cast<std::size_t>(lights.shadows[i]);
+        // What a point light's six faces see is within its reach, which is quicker to find once than in each face.
+        std::span<const std::uint32_t> candidates = m_order;
+        if (light.type == LightType::Point) {
+            m_lightCasters.clear();
+            for (const std::uint32_t index : m_order) {
+                const BoundingSphere& bounds = m_state.commands[index].bounds;
+                const float reach = bounds.radius + light.range;
+                if (LengthSquared(bounds.center - light.position) <= reach * reach) {
+                    m_lightCasters.push_back(index);
+                }
+            }
+            candidates = m_lightCasters;
+        }
+        for (std::size_t face = 0; face < GetTileCount(light); ++face) {
+            const std::size_t tile = first + face;
+            views[tile] = light.type == LightType::Point
+                              ? GetPointShadowView(light, static_cast<std::uint32_t>(face), size)
+                              : GetSpotShadowView(light, size);
             surfaceViews[tile] =
                 m_state.PrepareSurfaces(*m_state.context, SurfacePass::Shadow, views[tile].viewProjection, false);
+            casters[tile] = GatherCasters(views[tile].viewProjection, false, keepable, candidates);
+            const TileContent& content = m_tileContents[tile];
+            kept[tile] = keepable && content.valid && content.viewProjection == views[tile].viewProjection &&
+                         content.casters == casters[tile].look;
+            keptCount += kept[tile] ? 1 : 0;
         }
     }
-    auto pass =
-        m_state.context->BeginRenderPass({.depthTarget = m_localShadows.get(), .clearDepth = 1.0f, .depthOnly = true});
-    for (std::size_t i = 0; i < lights.lights.size(); ++i) {
-        if (lights.shadows[i] < 0.0f || lights.lights[i]->type == LightType::Directional) {
-            continue;
-        }
+    // With no tile to keep, clearing the whole atlas is quicker than clearing the tiles one by one, and empties the
+    // others.
+    if (keptCount == 0) {
+        m_tileContents = {};
+    }
+    auto pass = m_state.context->BeginRenderPass({.depthTarget = m_localShadows.get(),
+                                                  .clearDepth = keptCount == 0 ? std::optional(1.0f) : std::nullopt,
+                                                  .depthOnly = true});
+    for (const std::size_t i : shadowed) {
         const LightData& light = *lights.lights[i];
-        const auto first = static_cast<std::uint32_t>(lights.shadows[i]);
-        const std::uint32_t faces = light.type == LightType::Point ? 6 : 1;
-        for (std::uint32_t face = 0; face < faces; ++face) {
-            const std::uint32_t tile = first + face;
+        const auto first = static_cast<std::size_t>(lights.shadows[i]);
+        for (std::size_t face = 0; face < GetTileCount(light); ++face) {
+            const std::size_t tile = first + face;
             const ShadowView& view = views[tile];
             shadows.tileViews[tile] = TileFromClip * view.viewProjection;
             lights.shadowTexelSizes[i] = view.texelSize;
-            pass.SetViewport({.x = static_cast<float>(tile % Columns * size),
-                              .y = static_cast<float>(tile / Columns * size),
-                              .width = static_cast<float>(size),
-                              .height = static_cast<float>(size)});
-            DrawCasters(pass, view.viewProjection, false);
+            if (kept[tile]) {
+                continue;
+            }
+            const Viewport viewport{.x = static_cast<float>(tile % Columns * size),
+                                    .y = static_cast<float>(tile / Columns * size),
+                                    .width = static_cast<float>(size),
+                                    .height = static_cast<float>(size)};
+            if (keptCount > 0) {
+                // The depth range puts the triangle over the tile at the far plane.
+                Viewport far = viewport;
+                far.minDepth = 1.0f;
+                pass.SetViewport(far);
+                pass.BindPipeline(*m_clearTilePipeline);
+                pass.Draw(3);
+            }
+            pass.SetViewport(viewport);
+            DrawCasters(pass, view.viewProjection, false, casters[tile]);
             m_state.DrawSurfaces(pass, SurfacePass::Shadow, view.viewProjection, false, surfaceViews[tile]);
+            m_tileContents[tile] = {
+                .valid = keepable, .viewProjection = view.viewProjection, .casters = casters[tile].look};
         }
+    }
+    Profiler::Count("Shadow tiles kept", static_cast<double>(keptCount));
+}
+
+void ShadowRenderer::AssignTiles(SelectedLights& lights, std::span<const std::size_t> shadowed) {
+    std::array<bool, Renderer3D::MaxShadowTiles> used{};
+    const auto isFree = [&](std::size_t first, std::size_t count) {
+        return first + count <= used.size() && std::none_of(used.begin() + static_cast<std::ptrdiff_t>(first),
+                                                            used.begin() + static_cast<std::ptrdiff_t>(first + count),
+                                                            [](bool taken) { return taken; });
+    };
+    const auto take = [&](std::size_t i, std::size_t first) {
+        std::fill_n(used.begin() + static_cast<std::ptrdiff_t>(first), GetTileCount(*lights.lights[i]), true);
+        lights.shadows[i] = static_cast<float>(first);
+    };
+    for (const std::size_t i : shadowed) {
+        const LightData& light = *lights.lights[i];
+        const auto previous = std::ranges::find_if(
+            m_lightTiles, [&](const LightTiles& tiles) { return HaveSameShadowViews(tiles.light, light); });
+        if (previous != m_lightTiles.end() && isFree(previous->first, GetTileCount(light))) {
+            take(i, previous->first);
+        }
+    }
+    bool fitted = true;
+    for (const std::size_t i : shadowed) {
+        if (lights.shadows[i] >= 0.0f) {
+            continue;
+        }
+        std::size_t first = 0;
+        while (first < used.size() && !isFree(first, GetTileCount(*lights.lights[i]))) {
+            ++first;
+        }
+        if (first == used.size()) {
+            fitted = false;
+            break;
+        }
+        take(i, first);
+    }
+    // The tiles lights keep can leave gaps too small for a point light's six; the lights then go side by side again.
+    if (!fitted) {
+        std::size_t next = 0;
+        for (const std::size_t i : shadowed) {
+            lights.shadows[i] = static_cast<float>(next);
+            next += GetTileCount(*lights.lights[i]);
+        }
+    }
+    m_lightTiles.clear();
+    for (const std::size_t i : shadowed) {
+        m_lightTiles.push_back({*lights.lights[i], static_cast<std::size_t>(lights.shadows[i])});
     }
 }
 
@@ -337,29 +483,85 @@ void ShadowRenderer::BindCutout(RenderPass& pass, const DrawCommand& command, co
     pass.PushFragmentUniforms(0, Vector4{command.color.a, command.alphaCutoff, 0.0f, 0.0f});
 }
 
-void ShadowRenderer::DrawCasters(RenderPass& pass, const Matrix4& viewProjection, bool ignoreNear) {
-    SPOT_PROFILE_SCOPE("Renderer3D::DrawShadowCasters");
-    if (m_state.commands.empty()) {
-        return;
-    }
+ShadowRenderer::ViewCasters ShadowRenderer::GatherCasters(const Matrix4& viewProjection, bool ignoreNear, bool withLook,
+                                                          std::span<const std::uint32_t> candidates) {
+    SPOT_PROFILE_SCOPE("Renderer3D::GatherShadowCasters");
     // The view's casters, gathered so those that cast the same shadow are side by side, whatever the view leaves out
     // between them, and read through their indices. Transparent surfaces let light through, so they cast no shadow.
     // The view's casters go after those of the views drawn before, in one list that DrawShadows() uploads once.
+    ViewCasters view{.start = m_frameCasters.size(), .firstRun = m_worldRuns.size()};
     const Frustum frustum(viewProjection, ignoreNear);
-    const std::size_t viewStart = m_frameCasters.size();
+    std::uint64_t look = 0;
     bool worldCasters = false;
-    for (const std::uint32_t index : m_order) {
+    for (const std::uint32_t index : candidates) {
         const DrawCommand& command = m_state.commands[index];
-        if (frustum.Contains(command.bounds.center, command.bounds.radius)) {
-            if (command.instanceBuffer) {
-                worldCasters = true;
-            } else {
-                m_frameCasters.push_back(index);
+        if (!frustum.Contains(command.bounds.center, command.bounds.radius)) {
+            continue;
+        }
+        if (command.instanceBuffer) {
+            worldCasters = true;
+            continue;
+        }
+        m_frameCasters.push_back(index);
+        if (withLook) {
+            ShadowLook caster;
+            caster.AddShape(command);
+            caster.Add(&command.transform, sizeof(command.transform));
+            if (command.skinCount) {
+                caster.Add(m_state.paletteData.data() + command.skinOffset, command.skinCount * sizeof(Matrix4));
             }
+            look += caster.Get();
         }
     }
-    const std::span<const std::uint32_t> casters(m_frameCasters.data() + viewStart, m_frameCasters.size() - viewStart);
-    if (casters.empty() && !worldCasters) {
+    view.commands = m_frameCasters.size() - view.start;
+    // Batches of worlds the view reaches are culled instance by instance into the casters, as those cast into small
+    // views, such as a point light's, are mostly out of them.
+    const auto worldOrder = worldCasters ? candidates : std::span<const std::uint32_t>();
+    for (const std::uint32_t index : worldOrder) {
+        const DrawCommand& command = m_state.commands[index];
+        if (!command.instanceBuffer || !frustum.Contains(command.bounds.center, command.bounds.radius)) {
+            continue;
+        }
+        const auto first = static_cast<std::uint32_t>(m_frameCasters.size());
+        for (std::uint32_t i = command.instanceFirst; i < command.instanceFirst + command.instanceCount; ++i) {
+            const InstanceData& instance = command.instanceData[i];
+            const Vector4& bounds = instance.bounds;
+            if (!frustum.Contains({bounds.x, bounds.y, bounds.z}, bounds.w)) {
+                continue;
+            }
+            // The level of detail the camera sees casts the shadow.
+            const float minSize = std::bit_cast<float>(instance.skin[2]);
+            const float maxSize = std::bit_cast<float>(instance.skin[3]);
+            if (minSize > 0.0f || maxSize < std::numeric_limits<float>::infinity()) {
+                const float size = GetScreenSize(m_state.camera, {{bounds.x, bounds.y, bounds.z}, bounds.w});
+                if (size < minSize || size >= maxSize) {
+                    continue;
+                }
+            }
+            m_frameCasters.push_back(i);
+            if (withLook) {
+                ShadowLook caster;
+                caster.AddShape(command);
+                caster.Add(static_cast<const void*>(command.instanceBuffer));
+                caster.Add(i);
+                caster.Add(&instance.model, sizeof(instance.model));
+                look += caster.Get();
+            }
+        }
+        const auto count = static_cast<std::uint32_t>(m_frameCasters.size()) - first;
+        if (count > 0) {
+            m_worldRuns.push_back({index, first, count});
+        }
+    }
+    view.runs = m_worldRuns.size() - view.firstRun;
+    view.look = look;
+    return view;
+}
+
+void ShadowRenderer::DrawCasters(RenderPass& pass, const Matrix4& viewProjection, bool ignoreNear,
+                                 const ViewCasters& view) {
+    SPOT_PROFILE_SCOPE("Renderer3D::DrawShadowCasters");
+    if (view.commands == 0 && view.runs == 0) {
         return;
     }
     pass.PushVertexUniforms(0, MakeFrameUniforms(viewProjection, m_state.camera, ignoreNear));
@@ -368,6 +570,7 @@ void ShadowRenderer::DrawCasters(RenderPass& pass, const Matrix4& viewProjection
     const Pipeline* boundPipeline = nullptr;
     const Texture* boundTexture = nullptr;
     const Sampler* boundSampler = nullptr;
+    const std::span<const std::uint32_t> casters(m_frameCasters.data() + view.start, view.commands);
     for (std::size_t first = 0; first < casters.size();) {
         const DrawCommand& command = m_state.commands[casters[first]];
         std::size_t end = first + 1;
@@ -388,43 +591,13 @@ void ShadowRenderer::DrawCasters(RenderPass& pass, const Matrix4& viewProjection
         }
         pass.BindVertexBuffer(0, command.mesh->GetVertexBuffer());
         pass.BindIndexBuffer(command.mesh->GetIndexBuffer(), IndexType::UInt32);
-        pass.PushVertexUniforms(1, BatchUniforms{{static_cast<std::uint32_t>(viewStart + first), 0, 0, 0}});
+        pass.PushVertexUniforms(1, BatchUniforms{{static_cast<std::uint32_t>(view.start + first), 0, 0, 0}});
         pass.DrawIndexed(command.indexCount, static_cast<std::uint32_t>(end - first), command.firstIndex);
         ++m_state.stats.shadowDrawCalls;
         first = end;
     }
-    if (!worldCasters) {
-        return;
-    }
-    // Batches of worlds the view reaches are culled instance by instance into the casters, as those cast into small
-    // views, such as a point light's, are mostly out of them.
-    for (const std::uint32_t index : m_order) {
-        const DrawCommand& command = m_state.commands[index];
-        if (!command.instanceBuffer || !frustum.Contains(command.bounds.center, command.bounds.radius)) {
-            continue;
-        }
-        const auto batchStart = static_cast<std::uint32_t>(m_frameCasters.size());
-        for (std::uint32_t i = command.instanceFirst; i < command.instanceFirst + command.instanceCount; ++i) {
-            const InstanceData& instance = command.instanceData[i];
-            const Vector4& bounds = instance.bounds;
-            if (!frustum.Contains({bounds.x, bounds.y, bounds.z}, bounds.w)) {
-                continue;
-            }
-            // The level of detail the camera sees casts the shadow.
-            const float minSize = std::bit_cast<float>(instance.skin[2]);
-            const float maxSize = std::bit_cast<float>(instance.skin[3]);
-            if (minSize > 0.0f || maxSize < std::numeric_limits<float>::infinity()) {
-                const float size = GetScreenSize(m_state.camera, {{bounds.x, bounds.y, bounds.z}, bounds.w});
-                if (size < minSize || size >= maxSize) {
-                    continue;
-                }
-            }
-            m_frameCasters.push_back(i);
-        }
-        const auto visible = static_cast<std::uint32_t>(m_frameCasters.size()) - batchStart;
-        if (visible == 0) {
-            continue;
-        }
+    for (const WorldRun& run : std::span(m_worldRuns).subspan(view.firstRun, view.runs)) {
+        const DrawCommand& command = m_state.commands[run.command];
         const Pipeline* pipeline = GetPipeline(command);
         if (pipeline != boundPipeline) {
             pass.BindPipeline(*pipeline);
@@ -436,8 +609,8 @@ void ShadowRenderer::DrawCasters(RenderPass& pass, const Matrix4& viewProjection
         pass.BindVertexStorageBuffer(0, *command.instanceBuffer);
         pass.BindVertexBuffer(0, command.mesh->GetVertexBuffer());
         pass.BindIndexBuffer(command.mesh->GetIndexBuffer(), IndexType::UInt32);
-        pass.PushVertexUniforms(1, BatchUniforms{{batchStart, 0, 0, 0}});
-        pass.DrawIndexed(command.indexCount, visible, command.firstIndex);
+        pass.PushVertexUniforms(1, BatchUniforms{{run.first, 0, 0, 0}});
+        pass.DrawIndexed(command.indexCount, run.count, command.firstIndex);
         ++m_state.stats.shadowDrawCalls;
     }
 }

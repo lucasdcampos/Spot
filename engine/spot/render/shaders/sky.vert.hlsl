@@ -14,8 +14,8 @@ struct Output {
 Output main(uint vertexId : SV_VertexID) {
     const float2 position = float2((vertexId << 1) & 2, vertexId & 2) * 2.0 - 1.0;
     Output output;
-    // Any depth inside the clip volume does: the sky is drawn first, without depth testing or writing.
-    output.position = float4(position, 0.5, 1.0);
+    // On the far plane, so it shows only where nothing drawn before it, such as the depth prepass, hides it.
+    output.position = float4(position, 1.0, 1.0);
     output.direction = mul(inverseViewProjection, float4(position, 0.5, 1.0));
     return output;
 }
