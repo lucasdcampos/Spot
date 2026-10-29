@@ -85,10 +85,6 @@ float SmoothStep(float from, float to, float value) {
     return t * t * (3.0f - 2.0f * t);
 }
 
-Spot::Color Mix(Spot::Color a, Spot::Color b, float t) {
-    return {a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t, 1.0f};
-}
-
 } // namespace
 
 void DayCycle::UpdateAtmosphere(float sunHeight) {
@@ -96,19 +92,12 @@ void DayCycle::UpdateAtmosphere(float sunHeight) {
     const float day = SmoothStep(-0.08f, 0.25f, sunHeight);
     const float sunset = SmoothStep(0.35f, 0.0f, std::abs(sunHeight)) * SmoothStep(-0.2f, 0.0f, sunHeight);
     m_daylight = day;
+    // The fog takes its color from the sky and the look its exposure; the air is hazier in the cool of dawn and dusk.
     if (auto* fog = GetEntity().GetComponent<Spot::Fog>()) {
-        const Spot::Color night{0.015f, 0.022f, 0.05f, 1.0f};
-        const Spot::Color noon{0.62f, 0.68f, 0.78f, 1.0f};
-        const Spot::Color dusk{0.95f, 0.55f, 0.32f, 1.0f};
-        fog->color = Mix(Mix(night, noon, day), dusk, sunset * 0.7f);
         fog->density = 0.006f + (0.0025f - 0.006f) * day + sunset * 0.0015f;
     }
+    // Eyes lose colors in the dark.
     if (auto* look = GetEntity().GetComponent<Spot::PostProcessing>()) {
-        look->temperature = sunset * 0.35f - (1.0f - day) * 0.25f;
-        // Eyes adjust to less light: to a low sun a little, and much more to the moon.
-        const float dayExposure = 1.0f + 0.5f * (1.0f - SmoothStep(0.05f, 0.5f, sunHeight));
-        constexpr float NightExposure = 2.6f;
-        look->exposure = dayExposure + (NightExposure - dayExposure) * (1.0f - day);
         look->saturation = 0.85f + day * 0.2f;
     }
 }

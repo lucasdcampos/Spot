@@ -43,12 +43,17 @@ Matrix4 GetNormalMatrix(const Matrix4& m, TextureSpace textureSpace) {
 
 FogUniforms GetFogUniforms(const std::optional<FogData>& fog, Vector3 cameraPosition) {
     if (!fog) {
-        return {.color = {0.0f, 0.0f, 0.0f, 0.0f}, .params = {}, .camera = {}};
+        return {
+            .color = {0.0f, 0.0f, 0.0f, 0.0f}, .params = {}, .camera = {}, .glow = Color::Black, .glowDirection = {}};
     }
+    const Vector3 glowDirection =
+        LengthSquared(fog->glowDirection) > 1e-8f ? Normalize(fog->glowDirection) : Vector3{0.0f, 1.0f, 0.0f};
     return {.color = {fog->color.r, fog->color.g, fog->color.b, 1.0f},
             .params = {std::max(fog->density, 0.0f), std::max(fog->start, 0.0f), std::max(fog->heightFalloff, 0.0f),
                        fog->baseHeight},
-            .camera = {cameraPosition.x, cameraPosition.y, cameraPosition.z, 1.0f}};
+            .camera = {cameraPosition.x, cameraPosition.y, cameraPosition.z, 1.0f},
+            .glow = {std::max(fog->glow.r, 0.0f), std::max(fog->glow.g, 0.0f), std::max(fog->glow.b, 0.0f), 1.0f},
+            .glowDirection = ToVector4(glowDirection)};
 }
 
 float GetLightRank(const LightData& light, Vector3 cameraPosition) {
@@ -192,13 +197,18 @@ std::vector<LightUniforms> GetLightUniforms(const Detail::SelectedLights& select
         const float outerCos = std::cos(light.outerConeAngle);
         // An inner angle at or past the outer one gives the cone a hard edge.
         const float innerCos = std::max(std::cos(light.innerConeAngle), outerCos + 0.0001f);
-        const float type = light.type == LightType::Directional ? 0.0f : light.type == LightType::Point ? 1.0f : 2.0f;
+        const bool directional = light.type == LightType::Directional;
+        const float type = directional ? 0.0f : light.type == LightType::Point ? 1.0f : 2.0f;
         uniforms[i] = {
             .positionAndType = {light.position.x, light.position.y, light.position.z, type},
             .directionAndRange = {direction.x, direction.y, direction.z, std::max(light.range, 0.0001f)},
             .color = {light.color.r * light.intensity, light.color.g * light.intensity, light.color.b * light.intensity,
                       1.0f},
-            .cone = {outerCos, 1.0f / (innerCos - outerCos), selected.shadows[i], selected.shadowTexelSizes[i]},
+            // Directional lights have no cone: theirs holds how wide their source looks, which softens their shadows.
+            .cone = directional ? Vector4{std::tan(std::clamp(light.angularRadius, 0.0f, ToRadians(10.0f))), 0.0f,
+                                          selected.shadows[i], selected.shadowTexelSizes[i]}
+                                : Vector4{outerCos, 1.0f / (innerCos - outerCos), selected.shadows[i],
+                                          selected.shadowTexelSizes[i]},
         };
     }
     return uniforms;
@@ -268,6 +278,11 @@ void Renderer3D::Impl::End() {
     sky.SetLit(false);
     if (skyData) {
         skyLighting = Detail::GetSkyLighting(*skyData);
+        // Uploaded outside any pass, before the sky is captured or drawn.
+        sky.PrepareTables(*skyData);
+        if (state.fog && state.fog->colorFromSky) {
+            Detail::SetFogFromSky(*skyData, *state.fog);
+        }
         if (skyData->lightsScene) {
             // The sun casts shadows while it is up, and the moon once it has set: the first directional light that
             // casts them takes the cascades.

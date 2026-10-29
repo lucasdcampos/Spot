@@ -1,4 +1,4 @@
-// The sky's uniforms and its atmosphere, which sky.frag.hlsl draws and clouds.frag.hlsl lights its clouds with.
+// The sky's uniforms and its atmosphere, which sky.frag.hlsl draws and the clouds' shaders light their clouds with.
 
 cbuffer Sky : register(b0, space3) {
     // The direction toward the sun, and 1 in w when there is a sun.
@@ -26,66 +26,53 @@ cbuffer Sky : register(b0, space3) {
     float4 moon;
 };
 
-// The fog's color, with 1 in w when there is fog; its density, start, height falloff and base height; and the camera's
-// position.
-cbuffer Fog : register(b1, space3) {
-    float4 fogColor;
-    float4 fogParams;
-    float4 fogCamera;
-};
+#include "fog.hlsl"
 
-// How much of the light from a point the fog takes on its way to the viewer: exponential height fog, integrated in
-// closed form along the ray from where the fog starts.
-float GetFogAmount(float3 toPoint) {
-    if (fogColor.w < 0.5) {
-        return 0.0;
-    }
-    const float distance = length(toPoint);
-    const float fogged = max(distance - fogParams.y, 0.0);
-    if (fogged <= 0.0) {
-        return 0.0;
-    }
-    const float3 direction = toPoint / max(distance, 1e-5);
-    const float startHeight = fogCamera.y + direction.y * (distance - fogged) - fogParams.w;
-    const float falloff = fogParams.z;
-    float depth = fogParams.x * fogged;
-    if (falloff > 1e-5) {
-        // The fog thins along the ray as it climbs; flat rays see it as it is. The density at each end is taken on
-        // its own, since a ray going far down from high above the fog would multiply a density that rounds to 0 by a
-        // growth that overflows.
-        const float endHeight = startHeight + direction.y * fogged;
-        const float rise = falloff * (endHeight - startHeight);
-        const float startDensity = exp(-falloff * startHeight);
-        depth *= abs(rise) > 1e-4 ? (startDensity - exp(-falloff * endHeight)) / rise : startDensity;
-    }
-    return 1.0 - exp(-depth);
-}
+// The atmosphere's tables (render/atmosphere.h): what crosses the air, and what it scatters more than once. A shader
+// that reads other textures first defines the registers after them; one that needs only the uniforms defines
+// SKY_WITHOUT_TABLES, which leaves out the functions that read them.
+#ifndef SKY_WITHOUT_TABLES
+#ifndef SKY_TABLES_TEXTURE0
+#define SKY_TABLES_TEXTURE0 t0
+#define SKY_TABLES_SAMPLER0 s0
+#define SKY_TABLES_TEXTURE1 t1
+#define SKY_TABLES_SAMPLER1 s1
+#endif
+Texture2D<float4> transmittanceTable : register(SKY_TABLES_TEXTURE0, space2);
+SamplerState transmittanceSampler : register(SKY_TABLES_SAMPLER0, space2);
+Texture2D<float4> scatteringTable : register(SKY_TABLES_TEXTURE1, space2);
+SamplerState scatteringSampler : register(SKY_TABLES_SAMPLER1, space2);
+#endif
 
-// Single scattering in an Earth-like atmosphere (Nishita et al. 1993, with Bruneton's 2017 coefficients), in
-// kilometers. The viewer stands a little above a planet's surface. render/atmosphere.cpp computes the same on the
-// CPU to light the scene, so the constants must match.
+// An Earth-like atmosphere integrated as Hillaire (2020) does, in kilometers: single scattering along the view, with
+// the light scattered more times read from a table. Its coefficients are Bruneton's (2017) for a planet's air a fifth
+// denser, under the haze of an ordinary clear day, five times his cleanest air's, a little wider in height and less
+// forward: a sky that is bright by day, paler toward the horizon, with a wide glow around the sun, rather than the
+// deep blue of air without haze. The viewer stands a little above a planet's surface. render/atmosphere.cpp computes the same on the CPU to light the scene and builds the tables, so
+// the constants and the integration must match.
 static const float PlanetRadius = 6360.0;
 static const float AtmosphereRadius = 6420.0;
 static const float ViewerHeight = 0.05;
 // The heights over which the density of air molecules (Rayleigh) and of haze (Mie) falls by a factor of e.
 static const float RayleighHeight = 8.0;
-static const float MieHeight = 1.2;
+static const float MieHeight = 1.6;
 // Per kilometer at sea level. Air scatters blue the most, which colors the sky; haze scatters all colors alike,
-// mostly forward, which makes the glow around the sun.
-static const float3 RayleighScattering = float3(5.802e-3, 13.558e-3, 33.1e-3);
-static const float MieScattering = 3.996e-3;
-static const float MieExtinction = 4.44e-3;
-static const float MieAnisotropy = 0.8;
-// How bright the sky is for a sun of intensity 1, before the exposure, in the units surfaces are shown in, where a white
-// matte surface receiving an irradiance of 1 shows 1. It is drawn as bright as it lights the scene, so what is in the
-// shade looks lit by the sky it sees. Radiance takes pi to those units; the rest makes up for the light the air
-// scatters more than once and the haze of real air, which single scattering leaves out. Must match SkyBrightness in
-// renderer_3d_sky.cpp.
-static const float SkyBrightness = 20.0;
+// mostly forward, which makes the glow around the sun; ozone, in a layer around 25 km up, scatters nothing but takes
+// orange light, which keeps the sky overhead blue while the sun sets.
+static const float3 RayleighScattering = float3(6.96e-3, 16.27e-3, 39.72e-3);
+static const float MieScattering = 20.0e-3;
+static const float MieExtinction = 22.2e-3;
+static const float MieAnisotropy = 0.75;
+static const float3 OzoneAbsorption = float3(0.650e-3, 1.881e-3, 0.085e-3);
+static const float OzoneCenter = 25.0;
+static const float OzoneWidth = 15.0;
 static const float Pi = 3.14159265;
 
-#define VIEW_SAMPLES 16
-#define SUN_SAMPLES 8
+#define VIEW_SAMPLES 24
+// Must match AtmosphereTables.
+#define TRANSMITTANCE_WIDTH 256.0
+#define TRANSMITTANCE_HEIGHT 64.0
+#define SCATTERING_SIZE 32.0
 
 // The distance to where a ray leaves the sphere of the radius, from a point inside it at the radius r from the
 // planet's center, going in a direction whose cosine with straight up is mu.
@@ -108,33 +95,73 @@ float GetGroundDistance(float r, float mu) {
     return c / (-b + sqrt(discriminant));
 }
 
-float2 GetDensity(float r) {
-    return exp(-(r - PlanetRadius) / float2(RayleighHeight, MieHeight));
+// Texels hold the values at their centers, so the coordinates from 0 to 1 are moved half a texel in from each edge.
+float ToTexel(float x, float size) {
+    return 0.5 / size + x * (1.0 - 1.0 / size);
 }
 
-// The amount of air and haze, weighted by density, between a point and the sun; false when the planet hides the sun.
-bool GetSunOpticalDepth(float r, float muSun, out float2 depth) {
-    depth = 0.0;
-    if (GetGroundDistance(r, muSun) > 0.0) {
-        return false;
+#ifndef SKY_WITHOUT_TABLES
+// Of the light from a direction whose cosine with straight up is mu, what reaches the point at the radius r; none when
+// the planet is in the way.
+float3 GetTransmittance(float r, float mu) {
+    if (GetGroundDistance(r, mu) > 0.0) {
+        return 0.0;
     }
-    const float step = GetExitDistance(r, muSun, AtmosphereRadius) / SUN_SAMPLES;
-    for (int i = 0; i < SUN_SAMPLES; ++i) {
-        const float s = (i + 0.5) * step;
-        depth += GetDensity(sqrt(r * r + s * s + 2.0 * r * s * muSun)) * step;
-    }
-    return true;
+    const float top = sqrt(AtmosphereRadius * AtmosphereRadius - PlanetRadius * PlanetRadius);
+    const float rho = sqrt(max(r * r - PlanetRadius * PlanetRadius, 0.0));
+    const float nearest = AtmosphereRadius - r;
+    const float farthest = rho + top;
+    const float2 uv =
+        float2(ToTexel((GetExitDistance(r, mu, AtmosphereRadius) - nearest) / max(farthest - nearest, 1e-6),
+                       TRANSMITTANCE_WIDTH),
+               ToTexel(rho / top, TRANSMITTANCE_HEIGHT));
+    return transmittanceTable.SampleLevel(transmittanceSampler, uv, 0.0).rgb;
 }
 
-float3 GetTransmittance(float2 depth) {
+float3 GetMultipleScattering(float r, float muSun) {
+    const float2 uv = float2(ToTexel(muSun * 0.5 + 0.5, SCATTERING_SIZE),
+                             ToTexel((r - PlanetRadius) / (AtmosphereRadius - PlanetRadius), SCATTERING_SIZE));
+    return scatteringTable.SampleLevel(scatteringSampler, uv, 0.0).rgb;
+}
+#endif
+
+// What the air scatters by molecules and by haze, and takes, at the radius r.
+void GetMedium(float r, out float3 rayleigh, out float mie, out float3 extinction) {
     const float thickness = settings.y;
-    return exp(-(RayleighScattering * depth.x + MieExtinction * depth.y) * thickness);
+    const float height = max(r - PlanetRadius, 0.0);
+    const float rayleighDensity = exp(-height / RayleighHeight);
+    const float mieDensity = exp(-height / MieHeight);
+    const float ozoneDensity = max(1.0 - abs(height - OzoneCenter) / OzoneWidth, 0.0);
+    rayleigh = RayleighScattering * skyTint.rgb * (rayleighDensity * thickness);
+    mie = MieScattering * mieDensity * thickness;
+    extinction =
+        (RayleighScattering * rayleighDensity + MieExtinction * mieDensity + OzoneAbsorption * ozoneDensity) * thickness;
 }
 
-// Below this, as the sine of its height, a light leaves even the top of the air in the planet's shadow.
-static const float ShadowedLightHeight = -0.15;
+// How much of what is scattered along a step reaches its start, per unit of scattering: the integral of the
+// transmittance over the step.
+float3 GetStepIntegral(float3 extinction, float length) {
+    const float3 safe = max(extinction, 1e-6);
+    return (1.0 - exp(-safe * length)) / safe;
+}
 
-// The light the air scatters toward the viewer from a direction at or above the horizon, from the sun and from the
+float GetRayleighPhase(float nu) {
+    return 3.0 / (16.0 * Pi) * (1.0 + nu * nu);
+}
+
+// Cornette and Shanks's.
+float GetMiePhase(float nu) {
+    const float g2 = MieAnisotropy * MieAnisotropy;
+    return 3.0 / (8.0 * Pi) * (1.0 - g2) * (1.0 + nu * nu) /
+           ((2.0 + g2) * pow(max(1.0 + g2 - 2.0 * MieAnisotropy * nu, 1e-4), 1.5));
+}
+
+// Below this, as the sine of its height, a light leaves the whole sky in the planet's shadow, even what it scatters
+// more than once.
+static const float ShadowedLightHeight = -0.3;
+
+#ifndef SKY_WITHOUT_TABLES
+// The radiance the air scatters toward the viewer from a direction at or above the horizon, from the sun and from the
 // moon opposite it, each for an irradiance of 1, and how much of what lies beyond the air gets through it. Both share
 // the way through the air; a light it cannot reach is left out.
 void GetSkyRadiance(float3 direction, float3 toSun, out float3 sunRadiance, out float3 moonRadiance,
@@ -143,58 +170,54 @@ void GetSkyRadiance(float3 direction, float3 toSun, out float3 sunRadiance, out 
     const float mu = max(direction.y, 0.0);
     const float muSun = toSun.y;
     const float nu = dot(direction, toSun);
-    const float thickness = settings.y;
     const float distance = GetExitDistance(r0, mu, AtmosphereRadius);
     const bool sunLit = sunDirection.w > 0.5 && muSun > ShadowedLightHeight;
     const bool moonLit = moonlight.w > 0.5 && -muSun > ShadowedLightHeight;
+    const float rayleighPhase = GetRayleighPhase(nu);
+    const float sunMiePhase = GetMiePhase(nu);
+    const float moonMiePhase = GetMiePhase(-nu);
 
-    // Rays along the ground cross hundreds of kilometers of dense air, so the steps start short near the viewer, and
-    // each point is dimmed only by the air up to it, not by its whole step.
-    float2 viewDepth = 0.0;
-    float3 sunRayleigh = 0.0;
-    float3 sunMie = 0.0;
-    float3 moonRayleigh = 0.0;
-    float3 moonMie = 0.0;
+    // Rays along the ground cross hundreds of kilometers of dense air, so the steps start short near the viewer.
+    transmittance = 1.0;
+    sunRadiance = 0.0;
+    moonRadiance = 0.0;
     for (int i = 0; i < VIEW_SAMPLES; ++i) {
         const float start = distance * pow(float(i) / VIEW_SAMPLES, 2.0);
         const float end = distance * pow(float(i + 1) / VIEW_SAMPLES, 2.0);
         const float t = (start + end) * 0.5;
         const float r = sqrt(r0 * r0 + t * t + 2.0 * r0 * t * mu);
-        const float2 density = GetDensity(r) * (end - start);
-        const float2 depth = viewDepth + density * 0.5;
-        float2 lightDepth;
-        if (sunLit && GetSunOpticalDepth(r, (r0 * muSun + t * nu) / r, lightDepth)) {
-            const float3 pathTransmittance = GetTransmittance(depth + lightDepth);
-            sunRayleigh += density.x * pathTransmittance;
-            sunMie += density.y * pathTransmittance;
+        const float pointMuSun = clamp((r0 * muSun + t * nu) / r, -1.0, 1.0);
+        float3 rayleigh;
+        float mie;
+        float3 extinction;
+        GetMedium(r, rayleigh, mie, extinction);
+        const float3 reaching = transmittance * GetStepIntegral(extinction, end - start);
+        if (sunLit) {
+            const float3 sun = GetTransmittance(r, pointMuSun);
+            const float3 multiple = GetMultipleScattering(r, pointMuSun);
+            sunRadiance +=
+                reaching * (rayleigh * (sun * rayleighPhase + multiple) + mie * (sun * sunMiePhase + multiple));
         }
-        if (moonLit && GetSunOpticalDepth(r, -(r0 * muSun + t * nu) / r, lightDepth)) {
-            const float3 pathTransmittance = GetTransmittance(depth + lightDepth);
-            moonRayleigh += density.x * pathTransmittance;
-            moonMie += density.y * pathTransmittance;
+        if (moonLit) {
+            const float3 moon = GetTransmittance(r, -pointMuSun);
+            const float3 multiple = GetMultipleScattering(r, -pointMuSun);
+            moonRadiance +=
+                reaching * (rayleigh * (moon * rayleighPhase + multiple) + mie * (moon * moonMiePhase + multiple));
         }
-        viewDepth += density;
+        transmittance *= exp(-extinction * (end - start));
     }
-    transmittance = GetTransmittance(viewDepth);
-
-    const float rayleighPhase = 3.0 / (16.0 * Pi) * (1.0 + nu * nu);
-    const float g2 = MieAnisotropy * MieAnisotropy;
-    const float mieScale = 3.0 / (8.0 * Pi) * (1.0 - g2) * (1.0 + nu * nu) / (2.0 + g2);
-    const float sunMiePhase = mieScale / pow(max(1.0 + g2 - 2.0 * MieAnisotropy * nu, 1e-4), 1.5);
-    const float moonMiePhase = mieScale / pow(max(1.0 + g2 + 2.0 * MieAnisotropy * nu, 1e-4), 1.5);
-    const float3 rayleigh = RayleighScattering * rayleighPhase * skyTint.rgb;
-    sunRadiance = (sunRayleigh * rayleigh + sunMie * MieScattering * sunMiePhase) * thickness;
-    moonRadiance = (moonRayleigh * rayleigh + moonMie * MieScattering * moonMiePhase) * thickness;
 }
 
-// The light of the sky toward the direction, as drawn before the exposure.
+// The light of the sky toward the direction, as drawn before the exposure, in the units surfaces are shown in, where a
+// white matte surface receiving an irradiance of 1 shows 1: radiance times pi. It is as bright as it lights the scene,
+// so what is in the shade looks lit by the sky it sees.
 float3 GetSkyLight(float3 direction, float3 toSun, out float3 transmittance) {
     float3 sunRadiance;
     float3 moonRadiance;
     GetSkyRadiance(direction, toSun, sunRadiance, moonRadiance, transmittance);
-    return (sunRadiance * sunColor.rgb * sunDirection.w + moonRadiance * moonlight.rgb) * SkyBrightness +
-           nightColor.rgb;
+    return (sunRadiance * sunColor.rgb * sunDirection.w + moonRadiance * moonlight.rgb) * Pi + nightColor.rgb;
 }
+#endif
 
 // Maps unbounded light to what the target can show by its brightness alone, keeping its hue: the glow of a sunset
 // stays orange instead of washing out to white as light mapped color by color would.

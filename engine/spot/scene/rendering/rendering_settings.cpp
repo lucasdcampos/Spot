@@ -17,6 +17,8 @@ void RenderingSettings::Serialize(Archive& archive) {
     archive.Field("bloomIntensity", bloom.intensity, {.min = 0.0f, .max = 4.0f, .speed = 0.01f});
     archive.Field("bloomThreshold", bloom.threshold, {.min = 0.0f, .max = 16.0f, .speed = 0.01f});
     archive.Field("bloomScatter", bloom.scatter, {.min = 0.0f, .max = 1.0f, .speed = 0.01f});
+    archive.Field("bloomConservesEnergy", bloom.conserveEnergy,
+                  {.tooltip = "All light glows, as through a lens, and the glow takes its share of the image"});
     archive.Field("contrast", grading.contrast, {.min = 0.0f, .max = 4.0f, .speed = 0.01f});
     archive.Field("saturation", grading.saturation, {.min = 0.0f, .max = 4.0f, .speed = 0.01f});
     archive.Field("temperature", grading.temperature, {.min = -1.0f, .max = 1.0f, .speed = 0.01f});

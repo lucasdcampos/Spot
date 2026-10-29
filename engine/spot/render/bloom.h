@@ -20,6 +20,11 @@ struct BloomSettings {
     float threshold = 1.0f;
     // From 0, a tight glow, to 1, one that spreads over the whole image.
     float scatter = 0.7f;
+    // Whether all light glows, as a lens spreads a share of whatever reaches it, and the glow takes the intensity's
+    // share of the image in place of being added to it, so it brightens nothing on average. The threshold is ignored:
+    // the brighter a light, the wider and brighter its halo looks, so a sun of real brightness gets a soft, gradual
+    // halo and a lamp a faint one. Intensities of a few hundredths look like a camera's lens.
+    bool conserveEnergy = false;
 };
 
 // The glow of light brighter than the display shows, as a camera's lens spreads it: the bright parts of an HDR image

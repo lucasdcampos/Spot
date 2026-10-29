@@ -112,5 +112,6 @@ float4 main(MeshFragmentInput input) : SV_Target0 {
                                       GetReflectionOcclusion(surface, surfaceNormal, occlusion) +
                                   light.highlights + emitted;
     const float3 premultiplied = scatteredLight * albedo.a + reflectedLight;
-    return float4(lerp(premultiplied, fogColor.rgb * albedo.a, fog), albedo.a);
+    const float3 fogLight = GetFogColor(normalize(input.worldPosition - fogCamera.xyz));
+    return float4(lerp(premultiplied, fogLight * albedo.a, fog), albedo.a);
 }

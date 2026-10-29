@@ -37,7 +37,7 @@ std::unique_ptr<Tonemapper> Tonemapper::Create(GraphicsDevice& device, TextureFo
 }
 
 void Tonemapper::Draw(RenderPass& pass, const Texture& hdr, const TonemapSettings& settings,
-                      const GradingSettings& grading, const Texture* bloom, float bloomIntensity) const {
+                      const GradingSettings& grading, const Texture* bloom, const BloomSettings& bloomSettings) const {
     // Warmer light has more red and less blue, magenta less green; scaled back to keep the brightness.
     const float temperature = std::clamp(grading.temperature, -1.0f, 1.0f) * 0.3f;
     const float tint = std::clamp(grading.tint, -1.0f, 1.0f) * 0.3f;
@@ -50,17 +50,18 @@ void Tonemapper::Draw(RenderPass& pass, const Texture& hdr, const TonemapSetting
         Vector4 settings;
         Vector4 balanceAndContrast;
         Vector4 grading;
-        Vector4 lutSize;
+        Vector4 lutSizeAndBloom;
     };
     pass.PushFragmentUniforms(
         0, Uniforms{
                .settings = {std::max(settings.exposure, 0.0f), static_cast<float>(settings.op),
-                            settings.dither ? 1.0f : 0.0f, bloom ? std::max(bloomIntensity, 0.0f) : 0.0f},
+                            settings.dither ? 1.0f : 0.0f, bloom ? std::max(bloomSettings.intensity, 0.0f) : 0.0f},
                .balanceAndContrast = {balance.x, balance.y, balance.z, std::max(grading.contrast, 0.0f)},
                .grading = {std::max(grading.saturation, 0.0f), std::clamp(grading.vignette, 0.0f, 1.0f),
                            std::clamp(grading.vignetteStart, 0.0f, 1.0f),
                            lut ? std::clamp(grading.lutContribution, 0.0f, 1.0f) : 0.0f},
-               .lutSize = {lut ? static_cast<float>(lut->GetHeight()) : 1.0f, 0.0f, 0.0f, 0.0f},
+               .lutSizeAndBloom = {lut ? static_cast<float>(lut->GetHeight()) : 1.0f,
+                                   bloomSettings.conserveEnergy ? 1.0f : 0.0f, 0.0f, 0.0f},
            });
     const std::array inputs{FullscreenInput{&hdr, m_sampler.get()},
                             FullscreenInput{bloom ? bloom : m_black.get(), m_bloomSampler.get()},

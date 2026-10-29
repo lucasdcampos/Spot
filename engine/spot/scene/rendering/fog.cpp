@@ -11,10 +11,13 @@ FogData Fog::GetFogData() const {
             .density = density,
             .start = start,
             .heightFalloff = heightFalloff,
-            .baseHeight = GetEntity().GetTransform().GetWorldPosition().y};
+            .baseHeight = GetEntity().GetTransform().GetWorldPosition().y,
+            .colorFromSky = colorFromSky};
 }
 
 void Fog::Serialize(Archive& archive) {
+    archive.Field("colorFromSky", colorFromSky,
+                  {.tooltip = "Takes the sky's color toward the horizon and glows toward the sun, in place of color"});
     archive.Field("color", color, {.hdr = true, .tooltip = "What far away things fade into; above 1 for lit fog"});
     archive.Field("density", density,
                   {.min = 0.0f, .max = 1.0f, .speed = 0.0005f, .tooltip = "How thick it is at its entity's height"});

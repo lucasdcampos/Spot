@@ -282,8 +282,8 @@ library lacks play nothing, so a game that takes the effects brings its own libr
 
 ## Environment
 
-`gameplay/environment/` needs `core`, `effects` and `hud`. `DayCycle` turns the sun through the day, with the sky, fog
-and exposure, and lights the effects as the day is; its `RegisterScriptBindings()`, which the sandbox's module calls,
+`gameplay/environment/` needs `core`, `effects` and `hud`. `DayCycle` turns the sun through the day, which the sky, the
+fog's color and the exposure follow, thickens the fog at dawn and dusk, and lights the effects as the day is; its `RegisterScriptBindings()`, which the sandbox's module calls,
 gives scripts the same API as before. `NightLight` lights its lamp as the daylight fades. `Water` is a `TraceVolume`:
 shots go `shotDepth` under its surface, splashing it, and blasts at or under it throw up its water; it slows bodies in
 it and splashes what falls in, bodies and any character controller. Its splashes play the effects named after

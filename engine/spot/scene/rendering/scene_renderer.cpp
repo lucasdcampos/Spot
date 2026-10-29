@@ -105,7 +105,7 @@ void SceneRenderer::Render(RenderContext& context, Scene& scene, Texture* target
     const bool pixelPerfect = view.orthographic && view.pixelPerfect.enabled && view.pixelPerfect.IsValid();
 
     const PostProcessing* look = PostProcessing::Find(std::array<Scene*, 1>{&scene});
-    TonemapSettings tonemapping = look ? look->GetTonemapping() : m_tonemapping;
+    TonemapSettings tonemapping = look ? look->GetTonemapping(std::array<Scene*, 1>{&scene}) : m_tonemapping;
     if (pixelPerfect) {
         tonemapping.dither = false;
     }
@@ -239,7 +239,7 @@ void SceneRenderer::Render(RenderContext& context, Scene& scene, Texture* target
             const Texture* glow = pixelPerfect ? nullptr : m_bloom->Render(context, image, bloom);
             // It covers the whole target.
             auto pass = context.BeginRenderPass({.target = resources.GetTexture(fxaa ? tonemapped : output)});
-            m_tonemapper->Draw(pass, image, tonemapping, grading, glow, bloom.intensity);
+            m_tonemapper->Draw(pass, image, tonemapping, grading, glow, bloom);
         });
     if (fxaa) {
         m_graph.AddPass(

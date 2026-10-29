@@ -104,6 +104,8 @@ struct FogUniforms {
     Color color;
     Vector4 params;
     Vector4 camera;
+    Color glow;
+    Vector4 glowDirection;
 };
 
 FogUniforms GetFogUniforms(const std::optional<FogData>& fog, Vector3 cameraPosition);
@@ -140,6 +142,8 @@ struct SkyLighting {
 };
 
 SkyLighting GetSkyLighting(const SkyData& sky);
+// Gives the fog the color of the sky toward the horizon and its glow toward the sun, or the moon at night.
+void SetFogFromSky(const SkyData& sky, FogData& fog);
 
 struct SelectedLights {
     Color ambient = Color::Black;

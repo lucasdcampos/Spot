@@ -2,6 +2,7 @@
 
 #include "spot/graphics/image.h"
 #include "spot/graphics/texture.h"
+#include "spot/render/bloom.h"
 #include "spot/render/fullscreen_pass.h"
 
 #include <cstdint>
@@ -60,10 +61,11 @@ public:
     // The format of the targets it draws into. Null, after logging why, when its resources cannot be created.
     static std::unique_ptr<Tonemapper> Create(GraphicsDevice& device, TextureFormat targetFormat);
 
-    // Draws the HDR texture into the pass's target, which it covers, with the glow of Bloom added at its intensity,
-    // and graded.
+    // Draws the HDR texture into the pass's target, which it covers, with the glow of Bloom added or mixed in as its
+    // settings say, and graded.
     void Draw(RenderPass& pass, const Texture& hdr, const TonemapSettings& settings,
-              const GradingSettings& grading = {}, const Texture* bloom = nullptr, float bloomIntensity = 0.0f) const;
+              const GradingSettings& grading = {}, const Texture* bloom = nullptr,
+              const BloomSettings& bloomSettings = {}) const;
 
 private:
     Tonemapper() = default;

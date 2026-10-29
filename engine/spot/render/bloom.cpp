@@ -39,7 +39,7 @@ const Texture* Bloom::Render(RenderContext& context, const Texture& image, const
 
     // Down: each level halves the one above, the first keeping only light above the threshold.
     const Texture* source = &image;
-    const float threshold = std::max(settings.threshold, 0.0f);
+    const float threshold = settings.conserveEnergy ? 0.0f : std::max(settings.threshold, 0.0f);
     for (std::size_t i = 0; i < m_downLevels.size(); ++i) {
         auto pass = context.BeginRenderPass({.target = m_downLevels[i].get()});
         const Vector2 texel = texelSize(*source);

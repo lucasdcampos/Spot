@@ -62,7 +62,8 @@ struct Light {
     float4 directionAndRange;
     // Premultiplied by the intensity.
     float4 color;
-    // The cosine of the outer cone angle, and the inverse of how much greater the inner one's is. Then, for lights
+    // The cosine of the outer cone angle, and the inverse of how much greater the inner one's is; for directional
+    // lights, the tangent of their source's angular radius instead. Then, for lights
     // that cast shadows, 0 or more: for directional lights, any such value means the cascades are theirs; for the
     // others, the first of their shadow tiles, and in w the size of their texels per unit of distance.
     float4 cone;
@@ -160,40 +161,8 @@ cbuffer Shadows : register(b2, space3) {
     float4 skyOcclusionParams;
 };
 
-// The fog's color, with 1 in w when there is fog; its density, start, height falloff and base height; and the camera's
-// position.
-cbuffer Fog : register(b3, space3) {
-    float4 fogColor;
-    float4 fogParams;
-    float4 fogCamera;
-};
-
-// How much of the light from a point the fog takes on its way to the viewer: exponential height fog, integrated in
-// closed form along the ray from where the fog starts.
-float GetFogAmount(float3 toPoint) {
-    if (fogColor.w < 0.5) {
-        return 0.0;
-    }
-    const float distance = length(toPoint);
-    const float fogged = max(distance - fogParams.y, 0.0);
-    if (fogged <= 0.0) {
-        return 0.0;
-    }
-    const float3 direction = toPoint / max(distance, 1e-5);
-    const float startHeight = fogCamera.y + direction.y * (distance - fogged) - fogParams.w;
-    const float falloff = fogParams.z;
-    float depth = fogParams.x * fogged;
-    if (falloff > 1e-5) {
-        // The fog thins along the ray as it climbs; flat rays see it as it is. The density at each end is taken on
-        // its own, since a ray going far down from high above the fog would multiply a density that rounds to 0 by a
-        // growth that overflows.
-        const float endHeight = startHeight + direction.y * fogged;
-        const float rise = falloff * (endHeight - startHeight);
-        const float startDensity = exp(-falloff * startHeight);
-        depth *= abs(rise) > 1e-4 ? (startDensity - exp(-falloff * endHeight)) / rise : startDensity;
-    }
-    return 1.0 - exp(-depth);
-}
+#define FOG_REGISTER b3
+#include "fog.hlsl"
 
 // Points spread evenly over a disc (a Poisson disk), at which shadow maps are compared around each surface. The first
 // four are the outermost, one per quadrant.
@@ -203,34 +172,103 @@ static const float2 ShadowTaps[16] = {
     float2(-0.3828, 0.2768),  float2(0.4432, -0.9751),  float2(0.5374, -0.4737),  float2(-0.2650, -0.4189),
     float2(0.7920, 0.1909),   float2(-0.2419, 0.9971),  float2(0.1998, 0.7864),   float2(0.1438, -0.1410)};
 
-// Shadow edges are filtered over 16 comparisons on a disc a few texels wide, each blending the four nearest texels,
-// so they fade smoothly over about four texels without the grid of a regular pattern; the disc is the same for every
-// pixel, so edges do not flicker. Pixels whose four outermost comparisons agree take only those. Surfaces beyond the
-// tile's view are lit, so nothing outside a shadow map is shadowed by it.
+// The radius of the disc shadows are filtered over, in texels, at the least, which fades their edges smoothly over
+// about four texels; and at the most, for the wide penumbrae of a sun far above what casts the shadow.
+static const float ShadowFilterTexels = 1.5;
+static const float MaxPenumbraTexels = 12.0;
+
+// Shadow edges are filtered over 16 comparisons on a disc the radius in texels, each blending the four nearest texels,
+// without the grid of a regular pattern; the disc is the same for every pixel, so edges do not flicker. Pixels whose
+// four outermost comparisons agree take only those. Each comparison is at the depth the surface's plane has there,
+// from the gradient of depth across the tile's UVs, so a wide disc on a surface the light grazes does not find the
+// surface itself nearer the light. Surfaces beyond the tile's view are lit, so nothing outside a shadow map is
+// shadowed by it.
 float SampleShadow(Texture2D<float> map, SamplerComparisonState mapSampler, float4x4 view, float4 layout, uint tile,
-                   float3 position) {
+                   float3 position, float radius, float2 depthGradient) {
     const float4 clip = mul(view, float4(position, 1.0));
     const float3 projected = clip.xyz / clip.w;
     if (clip.w <= 0.0 || any(projected.xy < 0.0) || any(projected.xy > 1.0) || projected.z > 1.0) {
         return 1.0;
     }
-    // Filtering stays inside the tile, which views draw with a margin of three texels for it.
+    // Filtering stays inside the tile, which views draw with a margin of three texels for the narrowest disc; wider
+    // ones keep each comparison inside it.
     const float2 margin = 3.0 * layout.zw * layout.xy;
     const float2 tileUv = clamp(projected.xy, margin, 1.0 - margin);
-    const float2 uv = (float2(tile % (uint)layout.x, tile / (uint)layout.x) + tileUv) / layout.xy;
+    const float2 origin = float2(tile % (uint)layout.x, tile / (uint)layout.x) / layout.xy;
+    const float2 uv = origin + tileUv / layout.xy;
+    const float2 lowest = origin + layout.zw;
+    const float2 highest = origin + 1.0 / layout.xy - layout.zw;
     // Where the outermost taps agree, the surface is wholly lit or wholly in shadow, as most are, and the others
     // would change next to nothing.
     float lit = 0.0;
     [unroll] for (int i = 0; i < 4; ++i) {
-        lit += map.SampleCmpLevelZero(mapSampler, uv + ShadowTaps[i] * 1.5 * layout.zw, projected.z);
+        const float2 offset = ShadowTaps[i] * radius * layout.zw;
+        const float depth = projected.z + dot(depthGradient, offset * layout.xy);
+        lit += map.SampleCmpLevelZero(mapSampler, clamp(uv + offset, lowest, highest), depth);
     }
     if (lit <= 0.0 || lit >= 4.0) {
         return lit / 4.0;
     }
     [unroll] for (int j = 4; j < 16; ++j) {
-        lit += map.SampleCmpLevelZero(mapSampler, uv + ShadowTaps[j] * 1.5 * layout.zw, projected.z);
+        const float2 offset = ShadowTaps[j] * radius * layout.zw;
+        const float depth = projected.z + dot(depthGradient, offset * layout.xy);
+        lit += map.SampleCmpLevelZero(mapSampler, clamp(uv + offset, lowest, highest), depth);
     }
     return lit / 16.0;
+}
+
+// How a surface's depth in the view changes across its UVs: the plane through the point with the normal, seen by the
+// view. Surfaces nearly along the light's rays change steeply, up to a limit.
+float2 GetDepthGradient(float4x4 view, float3 normal) {
+    const float3 side = abs(normal.y) < 0.99 ? float3(0.0, 1.0, 0.0) : float3(1.0, 0.0, 0.0);
+    const float3 tangent = normalize(cross(normal, side));
+    const float3 bitangent = cross(normal, tangent);
+    const float3 a = mul((float3x3)view, tangent);
+    const float3 b = mul((float3x3)view, bitangent);
+    const float determinant = a.x * b.y - b.x * a.y;
+    if (abs(determinant) < 1e-6) {
+        return 0.0;
+    }
+    const float2 gradient = float2(a.z * b.y - b.z * a.y, b.z * a.x - a.z * b.x) / determinant;
+    const float steepness = length(gradient);
+    return steepness > 100.0 ? gradient * (100.0 / steepness) : gradient;
+}
+
+// How wide, in texels, the penumbra of a light whose source looks this wide (the tangent of its angular radius) is at
+// the point: as far from what casts the shadow, times the source's width, so shadows are sharp where things touch the
+// ground and soft far from them, as the sun's are (percentage-closer soft shadows, Fernando 2005). The casters are
+// found around the point in the map, as far as the widest penumbra reaches, nearer the light than the surface's plane
+// there, and their depths averaged.
+float GetPenumbraTexels(uint cascade, float3 position, float sourceTan, float2 depthGradient) {
+    const float4 clip = mul(cascadeViews[cascade], float4(position, 1.0));
+    const float3 projected = clip.xyz / clip.w;
+    if (sourceTan <= 0.0 || any(projected.xy < 0.0) || any(projected.xy > 1.0) || projected.z > 1.0) {
+        return ShadowFilterTexels;
+    }
+    const float texelSize = cascadeTexelSizes[cascade];
+    // A cascade's view is a cube, as deep as it is wide, from depth 0 to 1.
+    const float tileTexels = 1.0 / (cascadeLayout.z * cascadeLayout.x);
+    const float depthToWorld = tileTexels * texelSize;
+    const int2 origin = int2(cascade % (uint)cascadeLayout.x, cascade / (uint)cascadeLayout.x) * (int)tileTexels;
+    const float2 center = float2(origin) + projected.xy * tileTexels;
+    // Casters must be at least a couple of texels nearer the light, so the surface does not find itself.
+    const float bias = 2.0 * texelSize / depthToWorld;
+    float blockers = 0.0;
+    float count = 0.0;
+    [unroll] for (int i = 0; i < 16; ++i) {
+        const float2 offset = ShadowTaps[i] * MaxPenumbraTexels;
+        const int2 texel = clamp(int2(center + offset), origin, origin + (int)tileTexels - 1);
+        const float depth = cascadeShadows.Load(int3(texel, 0));
+        if (depth < projected.z + dot(depthGradient, offset / tileTexels) - bias) {
+            blockers += depth;
+            count += 1.0;
+        }
+    }
+    if (count <= 0.0) {
+        return ShadowFilterTexels;
+    }
+    const float distance = (projected.z - blockers / count) * depthToWorld;
+    return clamp(distance * sourceTan / texelSize, ShadowFilterTexels, MaxPenumbraTexels);
 }
 
 // Surfaces are moved toward the light along their normal by about a texel of the shadow map before they are looked up
@@ -240,13 +278,16 @@ float3 OffsetForShadow(float3 position, float3 normal, float texelSize) {
     return position + normal * texelSize * 1.5;
 }
 
-float GetCascadeShadow(uint cascade, float3 position, float3 normal) {
-    return SampleShadow(cascadeShadows, cascadeShadowSampler, cascadeViews[cascade], cascadeLayout, cascade,
-                        OffsetForShadow(position, normal, cascadeTexelSizes[cascade]));
+// The source's tangent is that of the light's angular radius, 0 for evenly soft shadows.
+float GetCascadeShadow(uint cascade, float3 position, float3 normal, float sourceTan) {
+    const float3 offset = OffsetForShadow(position, normal, cascadeTexelSizes[cascade]);
+    const float2 gradient = GetDepthGradient(cascadeViews[cascade], normal);
+    return SampleShadow(cascadeShadows, cascadeShadowSampler, cascadeViews[cascade], cascadeLayout, cascade, offset,
+                        GetPenumbraTexels(cascade, offset, sourceTan, gradient), gradient);
 }
 
 // Each cascade blends into the next over its last tenth, and the last one fades out into no shadow.
-float GetDirectionalShadow(float3 position, float3 normal) {
+float GetDirectionalShadow(float3 position, float3 normal, float sourceTan) {
     const float distance = dot(position - cameraPosition.xyz, cameraForward.xyz);
     const uint count = (uint)cameraForward.w;
     uint cascade = 0;
@@ -260,9 +301,9 @@ float GetDirectionalShadow(float3 position, float3 normal) {
     const float start = cascade == 0 ? 0.0 : cascadeEnds[cascade - 1];
     const float band = 0.1 * (end - start);
     const float blend = saturate((distance - (end - band)) / band);
-    float lit = GetCascadeShadow(cascade, position, normal);
+    float lit = GetCascadeShadow(cascade, position, normal, sourceTan);
     if (blend > 0.0) {
-        const float next = cascade + 1 < count ? GetCascadeShadow(cascade + 1, position, normal) : 1.0;
+        const float next = cascade + 1 < count ? GetCascadeShadow(cascade + 1, position, normal, sourceTan) : 1.0;
         lit = lerp(lit, next, blend);
     }
     return lit;
@@ -284,7 +325,7 @@ float GetLocalShadow(Light light, float3 position, float3 normal) {
     }
     const float texelSize = light.cone.w * length(fromLight);
     return SampleShadow(localShadows, localShadowSampler, tileViews[tile], tileLayout, tile,
-                        OffsetForShadow(position, normal, texelSize));
+                        OffsetForShadow(position, normal, texelSize), ShadowFilterTexels, 0.0);
 }
 
 struct Lit {
@@ -345,7 +386,8 @@ Lit GetLightOfKind(Light light, float3 position, float3 normal, float3 toViewer,
     if (light.cone.z >= 0.0 && attenuation > 0.0 && (facing > 0.0 || doubleSided)) {
         // Back faces of double-sided surfaces are offset toward the light too.
         const float3 lightSide = facing < 0.0 ? -normal : normal;
-        attenuation *= local ? GetLocalShadow(light, position, lightSide) : GetDirectionalShadow(position, lightSide);
+        attenuation *= local ? GetLocalShadow(light, position, lightSide)
+                             : GetDirectionalShadow(position, lightSide, light.cone.x);
     }
     // Directional lights, the sun and the moon, shine through the sky's clouds.
     if (!local) {
@@ -616,7 +658,7 @@ float3 ShadeOpaqueSurface(float3 position, float3 normal, float3 surfaceNormal, 
                            light.reflectedSurroundings * light.environmentReflectance *
                                GetReflectionOcclusion(surface, surfaceNormal, occlusion);
     const float3 color = scattered * light.diffuse + ambient + light.highlights + emitted;
-    return lerp(color, fogColor.rgb, GetFogAmount(position - fogCamera.xyz));
+    return ApplyFog(color, position - fogCamera.xyz);
 }
 
 float3 ShadeOpaqueSurface(float3 position, float3 normal, float2 pixel, float3 albedo, float metalness, float roughness,

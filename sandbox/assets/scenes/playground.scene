@@ -3914,6 +3914,7 @@
               0.7799999713897705,
               1.0
             ],
+            "colorFromSky": true,
             "density": 0.004999999888241291,
             "heightFalloff": 0.05999999865889549,
             "start": 20.0
@@ -3924,7 +3925,9 @@
         },
         {
           "data": {
-            "bloomIntensity": 0.3499999940395355,
+            "autoExposure": true,
+            "bloomConservesEnergy": true,
+            "bloomIntensity": 0.03999999910593033,
             "bloomScatter": 0.699999988079071,
             "bloomThreshold": 1.0,
             "contrast": 1.0499999523162842,
@@ -4000,7 +4003,7 @@
             "starBrightness": 1.0,
             "starDensity": 0.5,
             "starRotation": 0.0,
-            "sunSize": 0.04363323003053665
+            "sunSize": 0.004712388980384689
           },
           "enabled": true,
           "id": "ad876a91fe091c277eeef465e15e1529",

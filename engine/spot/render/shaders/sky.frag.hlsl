@@ -5,13 +5,19 @@ struct Input {
     float4 direction : TEXCOORD0;
 };
 
-// The sun is far brighter than anything else in view, so, as in a camera or the eye, its light spills over what is
-// around it: a blinding core, an intense glow a few radii wide and a faint halo far beyond. All of it is light
-// that crossed the air, so it turns into an orange ball of fire at sunset. The core shows the hue of that light at
-// full brightness, white at noon and orange at sunset, since its brightness alone would burn out to white either way.
-static const float SunCoreBrightness = 8.0;
-static const float SunGlowBrightness = 10.0;
-static const float SunHaloBrightness = 0.5;
+// The sun's disc gives off the sunlight that crossed the air spread over its solid angle, so it is as bright as the
+// real one for its size, far brighter than the sky: in HDR it shows as a small, sharp disc, and the tonemapper's bloom
+// spreads it into a halo as a lens does. Its brightness is capped at this many times the sunlight it lets through,
+// which a disc of the real sun's size would exceed, so half floats and the bloom stay within range.
+static const float SunDiscMaxBrightness = 4000.0;
+// The disc is darker and redder toward its edge, where the light comes from higher, cooler layers of the sun (limb
+// darkening, per channel, as I(mu) = 1 - u (1 - mu)).
+static const float3 SunLimbDarkening = float3(0.5, 0.6, 0.75);
+// Without bloom, into a target that is not HDR, the sun spills over what is around it in a glow of its own, about
+// this wide in radians, and a fainter halo far beyond.
+static const float GlowRadius = 0.0436;
+static const float GlowBrightness = 10.0;
+static const float HaloBrightness = 0.5;
 // How far below the horizon, as the cosine of the angle from level, the ground fades in from the haze.
 static const float HorizonFade = 0.08;
 
@@ -139,20 +145,22 @@ float4 main(Input input) : SV_Target0 {
     float3 color;
     const float sunRadius = settings.x;
     const bool hasSun = sunDirection.w > 0.5 && sunRadius > 0.0;
+    const bool hdr = settings.w > 0.5;
 
-    // The sun's glow, from light that crossed the air toward it, in sun radii from its center. It spills below the
-    // horizon too, over the haze there.
-    const float sunDistance = length(direction - toSun) / max(sunRadius, 1e-6);
+    // Without bloom, the sun's glow, from light that crossed the air toward it, in glow radii from its center. It
+    // spills below the horizon too, over the haze there.
     float3 glow = 0.0;
-    if (hasSun) {
-        glow = sunLight.rgb * (SunGlowBrightness * exp(-sunDistance * sunDistance / 9.0) +
-                               SunHaloBrightness / (1.0 + sunDistance * sunDistance / 16.0));
+    if (hasSun && !hdr) {
+        const float glowDistance = length(direction - toSun) / GlowRadius;
+        glow = sunLight.rgb * (GlowBrightness * exp(-glowDistance * glowDistance / 9.0) +
+                               HaloBrightness / (1.0 + glowDistance * glowDistance / 16.0));
     }
 
     if (direction.y >= 0.0) {
         float3 light = GetSkyLight(direction, toSun, transmittance) + glow;
-        // Stars and the moon come out as the sun sets, dimmed by the air in front of them.
-        const float night = sunDirection.w > 0.5 ? saturate((0.05 - toSun.y) / 0.2) : 1.0;
+        // Stars and the moon come out once the sun has set, as the twilight darkens, dimmed by the air in front of
+        // them.
+        const float night = sunDirection.w > 0.5 ? saturate((-0.035 - toSun.y) / 0.15) : 1.0;
         if (night > 0.0) {
             float disc = 0.0;
             float3 moonLight = 0.0;
@@ -171,21 +179,29 @@ float4 main(Input input) : SV_Target0 {
         color = lerp(haze, ground, 1.0 - exp(direction.y / HorizonFade));
     }
 
-    // The core burns out to white wherever the sunlight has all its colors, so it shows the hue of that light at full
-    // brightness, and fades out with the sunlight as the sun sets, compared to the sun's own brightness.
+    // The disc, with an edge as wide as a pixel, over the sky in front of it. Its light is what crossed the air, so it
+    // reddens and fades as the sun sets.
     const float brightest = max(max(sunLight.r, sunLight.g), sunLight.b);
-    if (hasSun && direction.y >= 0.0 && brightest > 0.0) {
-        // Fading from the center, so it merges into the glow instead of showing as a disc of its own.
-        const float core = 1.0 - smoothstep(0.3, 1.0, sunDistance);
-        const float source = max(max(sunColor.r, sunColor.g), sunColor.b);
-        const float opacity = core * saturate(4.0 * brightest / max(source, 1e-4));
-        const float3 coreLight = sunLight.rgb / brightest * SunCoreBrightness;
-        // HDR keeps the atmosphere and halo as radiance: replacing them by a fixed core could darken the sun's
-        // center when its halo is brighter. Add the core's radiance before bloom and tonemapping instead.
-        color = settings.w > 0.5 ? color + coreLight * settings.z * opacity
-                                : lerp(color, 1.0 - exp(-coreLight), opacity);
+    const float fromCenter = length(direction - toSun) / max(sunRadius, 1e-6);
+    // Outside the branch, where every pixel around takes part in the derivative. A disc only a few pixels wide keeps
+    // its middle solid.
+    const float edge = clamp(fwidth(fromCenter) * 1.5, 1e-3, 0.5);
+    if (hasSun && direction.y >= 0.0 && brightest > 0.0 && fromCenter < 1.5) {
+        const float disc = 1.0 - smoothstep(1.0 - edge, 1.0, fromCenter);
+        const float mu = sqrt(saturate(1.0 - fromCenter * fromCenter));
+        const float3 limb = (1.0 - SunLimbDarkening * (1.0 - mu)) / (1.0 - SunLimbDarkening / 3.0);
+        if (hdr) {
+            const float scale = min(1.0 / (sunRadius * sunRadius), SunDiscMaxBrightness);
+            color += sunLight.rgb * limb * (scale * settings.z * disc);
+        } else {
+            // Its brightness alone would burn out to white, so it shows the hue of its light at full brightness:
+            // white at noon and orange at sunset, fading out with the sunlight compared to the sun's own brightness.
+            const float source = max(max(sunColor.r, sunColor.g), sunColor.b);
+            const float opacity = disc * saturate(4.0 * brightest / max(source, 1e-4));
+            color = lerp(color, 1.0 - exp(-sunLight.rgb / brightest * 8.0), opacity);
+        }
     }
     // Fog toward the horizon, as for a surface infinitely far away.
-    color = lerp(color, fogColor.rgb, GetFogAmount(direction * 1e5));
+    color = ApplyFog(color, direction * 1e5);
     return float4(Dither(color, input.position.xy), 1.0);
 }

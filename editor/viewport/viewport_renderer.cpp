@@ -310,7 +310,7 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
     // The view's colors, with the interfaces over them as they are, in the scene's look when it has one.
     Scene* const shown[] = {&scene};
     const PostProcessing* look = PostProcessing::Find(shown);
-    TonemapSettings tonemapping = look ? look->GetTonemapping() : options.tonemapping;
+    TonemapSettings tonemapping = look ? look->GetTonemapping(shown) : options.tonemapping;
     if (pixelPerfect)
         tonemapping.dither = false;
     const GradingSettings grading = look ? look->GetGrading() : options.grading;
@@ -319,14 +319,14 @@ void ViewportRenderer::Render(RenderContext& context, const ViewportTargets& tar
     const bool fxaa = options.fxaa && !pixelPerfect;
     if (fxaa) {
         auto tonemapped = context.BeginRenderPass({.target = targets.GetTonemapped()});
-        m_tonemapper->Draw(tonemapped, *hdr, tonemapping, grading, glow, bloom.intensity);
+        m_tonemapper->Draw(tonemapped, *hdr, tonemapping, grading, glow, bloom);
     }
     {
         auto pass = context.BeginRenderPass({.target = targets.GetColor()});
         if (fxaa) {
             m_fxaa->Draw(pass, *targets.GetTonemapped());
         } else {
-            m_tonemapper->Draw(pass, *hdr, tonemapping, grading, glow, bloom.intensity);
+            m_tonemapper->Draw(pass, *hdr, tonemapping, grading, glow, bloom);
         }
     }
 

@@ -43,6 +43,10 @@ struct LightData {
     // Renderer3D only draws them for its first directional light that casts them and for as many of the other lights
     // as its shadow tiles hold; the rest light everything as if nothing were in the way.
     bool castsShadows = false;
+    // For directional lights, the angular radius of their source, in radians, as the sun's disc is about a quarter of a
+    // degree: shadows are sharp where the caster touches what it shades and blur as they reach farther from it. 0 keeps
+    // them evenly soft.
+    float angularRadius = 0.0f;
 };
 
 } // namespace Spot

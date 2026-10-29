@@ -74,7 +74,7 @@ Street lamps, the booth and the monument's uplights carry `NightLight`, which li
 daylight fades (`DayCycle::GetDaylight()`). The workshop's lamps stay on. The day lasts eight minutes; hold T to
 advance it quickly. Clouds drift over the valley (a `Clouds` component on the Sky entity, set in the scene), and at
 night stars come out and turn with the sun's path (`DayCycle` sets `Sky::SetStarRotation()`), with a moon opposite the
-sun; see [Clouds, stars and the moon](sky.md). Three tagged pads mark where to build, test lamps and test weapons.
+sun; see [The sky, clouds, stars and the moon](sky.md). Three tagged pads mark where to build, test lamps and test weapons.
 
 The level's surfaces are generated PBR texture sets (grass, gravel, asphalt, paving, concrete slabs, brick,
 corrugated steel, tread plate, rock, bark, leaves, needles and water), used by the materials in `materials/level/`,

@@ -17,7 +17,9 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cmath>
+#include <vector>
 
 namespace Spot::Detail {
 
@@ -72,8 +74,8 @@ struct PrefilterUniforms {
 constexpr std::uint32_t CubeSize = 64;
 // The sky's irradiance is projected from its faces at this size.
 constexpr std::uint32_t IrradianceSamples = 16;
-// How bright the sky is for a sun of intensity 1; see sky.frag.hlsl, which this must match.
-constexpr float SkyBrightness = 20.0f;
+// How much more haze scatters toward the light than its average; see fog.hlsl, which this must match.
+constexpr float FogGlowAnisotropy = 0.6f;
 
 Color operator*(Color color, float scale) {
     return {color.r * scale, color.g * scale, color.b * scale, color.a};
@@ -94,6 +96,43 @@ float Smoothstep(float from, float to, float x) {
 
 bool IsBlack(Color color) {
     return color.r <= 0.0f && color.g <= 0.0f && color.b <= 0.0f;
+}
+
+float GetLuminance(Color color) {
+    return 0.2126f * color.r + 0.7152f * color.g + 0.0722f * color.b;
+}
+
+// An IEEE half float, rounded to the nearest, for the non-negative, finite values of the atmosphere's tables.
+std::uint16_t ToHalf(float value) {
+    const std::uint32_t bits = std::bit_cast<std::uint32_t>(std::max(value, 0.0f));
+    const int exponent = static_cast<int>((bits >> 23) & 0xff) - 127 + 15;
+    const std::uint32_t mantissa = bits & 0x7fffff;
+    if (exponent >= 31) {
+        return 0x7bff;
+    }
+    if (exponent <= 0) {
+        if (exponent < -10) {
+            return 0;
+        }
+        // Too small for the exponent: a subnormal, with the leading 1 shifted into the mantissa.
+        const std::uint32_t shifted = (mantissa | 0x800000) >> (14 - exponent);
+        return static_cast<std::uint16_t>((shifted + 1) >> 1);
+    }
+    const std::uint32_t half = (static_cast<std::uint32_t>(exponent) << 10) | (mantissa >> 13);
+    return static_cast<std::uint16_t>(half + ((mantissa >> 12) & 1));
+}
+
+std::vector<std::uint16_t> ToHalves(const std::vector<Vector3>& texels) {
+    std::vector<std::uint16_t> halves;
+    halves.reserve(texels.size() * 4);
+    for (const Vector3& texel : texels) {
+        halves.insert(halves.end(), {ToHalf(texel.x), ToHalf(texel.y), ToHalf(texel.z), ToHalf(1.0f)});
+    }
+    return halves;
+}
+
+Atmosphere GetAtmosphere(const SkyData& sky) {
+    return {.thickness = std::max(sky.atmosphereThickness, 0.0f), .skyTint = sky.skyTint};
 }
 
 // What of the sky changes how it lights the scene: not its clouds or stars, which move every frame, nor how the moon
@@ -165,10 +204,13 @@ SkyLighting GetSkyLighting(const SkyData& sky) {
     const Vector3 toSun = -Normalize(sky.sunDirection);
     SkyLighting lighting{.ambient = sky.nightColor, .skylight = sky.nightColor, .ground = sky.nightColor};
     if (sky.hasSun && toSun != Vector3{}) {
-        const Atmosphere atmosphere{.thickness = std::max(sky.atmosphereThickness, 0.0f), .skyTint = sky.skyTint};
+        const Atmosphere atmosphere = GetAtmosphere(sky);
         const Color sunlight = sky.sunColor * sky.sunIntensity;
         const Color direct = sunlight * atmosphere.GetSunTransmittance(toSun, sky.sunSize);
-        lighting.sun = LightData{.type = LightType::Directional, .color = direct, .direction = sky.sunDirection};
+        lighting.sun = LightData{.type = LightType::Directional,
+                                 .color = direct,
+                                 .direction = sky.sunDirection,
+                                 .angularRadius = std::max(sky.sunSize, 0.0f)};
         Color skylight = sunlight * atmosphere.GetSkyIrradiance(toSun);
         Color ground = direct * std::max(toSun.y, 0.0f);
 
@@ -179,22 +221,80 @@ SkyLighting GetSkyLighting(const SkyData& sky) {
             const Color moonDirect =
                 lighting.moonlight * atmosphere.GetSunTransmittance(toMoon, std::max(sky.night.moonSize, 0.0f));
             if (!IsBlack(moonDirect)) {
-                lighting.moon =
-                    LightData{.type = LightType::Directional, .color = moonDirect, .direction = -sky.sunDirection};
+                lighting.moon = LightData{.type = LightType::Directional,
+                                          .color = moonDirect,
+                                          .direction = -sky.sunDirection,
+                                          .angularRadius = std::max(sky.night.moonSize, 0.0f)};
             }
             skylight = skylight + lighting.moonlight * atmosphere.GetSkyIrradiance(toMoon);
             ground = ground + moonDirect * std::max(toMoon.y, 0.0f);
         }
 
-        // The sky lights the scene as brightly as it is drawn; the atmosphere's irradiance already holds its pi.
-        // Surfaces also face the ground about half as much as the sky, and it reflects the sun.
+        // The sky lights the scene as brightly as it is drawn. Surfaces also face the ground about half as much as the
+        // sky, and it reflects the sun.
         const Color groundBounce = sky.groundColor * ground * 0.5f;
-        lighting.skylight = lighting.skylight + skylight * (SkyBrightness / Pi);
-        lighting.ambient = lighting.ambient + (skylight * (SkyBrightness / Pi) + groundBounce) * sky.ambientIntensity;
+        lighting.skylight = lighting.skylight + skylight;
+        lighting.ambient = lighting.ambient + (skylight + groundBounce) * sky.ambientIntensity;
         lighting.ground = ground + lighting.ambient;
     }
     lighting.bounce = sky.groundColor * sky.groundColor * lighting.ground * std::max(sky.ambientIntensity, 0.0f);
     return lighting;
+}
+
+namespace {
+
+// The sky's light toward a direction above the horizon, as sky.frag.hlsl draws it before the exposure.
+Color GetSkyLight(const SkyData& sky, const Atmosphere& atmosphere, Vector3 direction) {
+    const Vector3 toSun = -Normalize(sky.sunDirection);
+    Color light = sky.nightColor;
+    if (sky.hasSun && toSun != Vector3{}) {
+        light = light + atmosphere.GetSkyRadiance(direction, toSun) * sky.sunColor * (sky.sunIntensity * Pi);
+        const Color moonlight = GetMoonlight(sky, -toSun);
+        if (!IsBlack(moonlight)) {
+            light = light + atmosphere.GetSkyRadiance(direction, -toSun) * moonlight * Pi;
+        }
+    }
+    return light;
+}
+
+float GetFogGlowPhase(float cosAngle) {
+    constexpr float G = FogGlowAnisotropy;
+    return (1.0f - G * G) / std::pow(std::max(1.0f + G * G - 2.0f * G * cosAngle, 1e-4f), 1.5f);
+}
+
+} // namespace
+
+void SetFogFromSky(const SkyData& sky, FogData& fog) {
+    const Vector3 toSun = -Normalize(sky.sunDirection);
+    if (!sky.hasSun || toSun == Vector3{}) {
+        fog.color = sky.nightColor;
+        fog.glow = Color::Black;
+        return;
+    }
+    // The haze glows toward the sun by day and toward the moon at night. The sky a few degrees above the horizon,
+    // toward the light, away from it and across, gives the fog's color across and the glow that makes the rest.
+    const Vector3 toLight = toSun.y > -0.1f ? toSun : -toSun;
+    Vector3 level = {toLight.x, 0.0f, toLight.z};
+    level = LengthSquared(level) > 1e-6f ? Normalize(level) : Vector3{1.0f, 0.0f, 0.0f};
+    const auto atHorizon = [](Vector3 flat) { return Normalize(Vector3{flat.x, 0.05f, flat.z}); };
+    const Vector3 toward = atHorizon(level);
+    const Vector3 away = atHorizon(-level);
+    const Vector3 across = atHorizon({-level.z, 0.0f, level.x});
+    const Atmosphere atmosphere = GetAtmosphere(sky);
+    const Color towardLight = GetSkyLight(sky, atmosphere, toward);
+    const Color awayLight = GetSkyLight(sky, atmosphere, away);
+    const Color acrossLight = GetSkyLight(sky, atmosphere, across);
+    const float towardPhase = GetFogGlowPhase(Dot(toward, toLight));
+    const float awayPhase = GetFogGlowPhase(Dot(away, toLight));
+    const float acrossPhase = GetFogGlowPhase(Dot(across, toLight));
+    const float spread = std::max(towardPhase - awayPhase, 1e-4f);
+    const auto glow = [spread](float a, float b) { return std::max((a - b) / spread, 0.0f); };
+    fog.glow = {glow(towardLight.r, awayLight.r), glow(towardLight.g, awayLight.g), glow(towardLight.b, awayLight.b),
+                1.0f};
+    fog.color = {std::max(acrossLight.r - fog.glow.r * acrossPhase, 0.0f),
+                 std::max(acrossLight.g - fog.glow.g * acrossPhase, 0.0f),
+                 std::max(acrossLight.b - fog.glow.b * acrossPhase, 0.0f), 1.0f};
+    fog.glowDirection = toLight;
 }
 
 SkyRenderer::SkyRenderer(Renderer3DState& state) : m_state(state) {
@@ -270,11 +370,37 @@ bool SkyRenderer::IsValid() const {
            (!m_volumetric || (m_marchPass && m_resolvePass && m_compositePipeline));
 }
 
+bool SkyRenderer::PrepareTables(const SkyData& sky) {
+    std::shared_ptr<const AtmosphereTables> tables = GetAtmosphere(sky).GetTables();
+    if (tables == m_tables && m_transmittanceTable && m_scatteringTable) {
+        return true;
+    }
+    GraphicsDevice& device = *m_state.device;
+    if (!m_transmittanceTable) {
+        m_transmittanceTable = device.CreateTexture({.width = AtmosphereTables::TransmittanceWidth,
+                                                     .height = AtmosphereTables::TransmittanceHeight,
+                                                     .format = TextureFormat::Rgba16Float});
+        m_scatteringTable = device.CreateTexture({.width = AtmosphereTables::ScatteringSize,
+                                                  .height = AtmosphereTables::ScatteringSize,
+                                                  .format = TextureFormat::Rgba16Float});
+    }
+    if (!m_transmittanceTable || !m_scatteringTable) {
+        return false;
+    }
+    device.UploadToTexture(*m_transmittanceTable, ToHalves(tables->transmittance));
+    device.UploadToTexture(*m_scatteringTable, ToHalves(tables->multipleScattering));
+    m_tables = std::move(tables);
+    return true;
+}
+
 bool SkyRenderer::Update(const SkyData& seen, const SkyLighting& lighting) {
     SPOT_PROFILE_SCOPE("Renderer3D::UpdateSkyLighting");
     const SkyData sky = GetLightingSky(seen);
     if (m_capturedSky == sky) {
         return true;
+    }
+    if (!PrepareTables(sky)) {
+        return false;
     }
     GraphicsDevice& device = *m_state.device;
     RenderContext& context = *m_state.context;
@@ -309,6 +435,8 @@ bool SkyRenderer::Update(const SkyData& seen, const SkyLighting& lighting) {
         pass.PushVertexUniforms(0, directions);
         pass.PushFragmentUniforms(0, uniforms);
         pass.PushFragmentUniforms(1, GetFogUniforms(std::nullopt, {}));
+        pass.BindFragmentTexture(0, *m_transmittanceTable, *m_state.clampSampler);
+        pass.BindFragmentTexture(1, *m_scatteringTable, *m_state.clampSampler);
         pass.Draw(3);
     }
     context.GenerateMipmaps(*m_environment);
@@ -343,7 +471,12 @@ bool SkyRenderer::Update(const SkyData& seen, const SkyLighting& lighting) {
 
 void SkyRenderer::Draw(RenderPass& pass, const SkyData& sky, const SkyLighting& lighting,
                        const Matrix4& inverseViewProjection) {
+    if (!m_transmittanceTable || !m_scatteringTable) {
+        return;
+    }
     pass.BindPipeline(*m_pipeline);
+    pass.BindFragmentTexture(0, *m_transmittanceTable, *m_state.clampSampler);
+    pass.BindFragmentTexture(1, *m_scatteringTable, *m_state.clampSampler);
     pass.PushVertexUniforms(0, inverseViewProjection);
     pass.PushFragmentUniforms(0, GetSkyUniforms(sky, lighting, m_state.config.hdr, false));
     pass.PushFragmentUniforms(1, GetFogUniforms(m_state.fog, m_state.camera.position));
@@ -420,7 +553,7 @@ void SkyRenderer::RenderVolumetricClouds(const SkyData& sky, const SkyLighting& 
         m_resolved = {device.CreateTexture(desc), device.CreateTexture(desc)};
         m_hasHistory = false;
     }
-    if (!m_marched || !m_resolved[0] || !m_resolved[1]) {
+    if (!m_marched || !m_resolved[0] || !m_resolved[1] || !PrepareTables(sky)) {
         return;
     }
 
@@ -453,7 +586,9 @@ void SkyRenderer::RenderVolumetricClouds(const SkyData& sky, const SkyLighting& 
         pass.PushFragmentUniforms(3, m_frame);
         const std::array inputs{FullscreenInput{&cameraDepth, m_state.nearestSampler.get()},
                                 FullscreenInput{m_volumeNoise.get(), m_cloudSampler.get()},
-                                FullscreenInput{m_cloudNoise.get(), m_cloudSampler.get()}};
+                                FullscreenInput{m_cloudNoise.get(), m_cloudSampler.get()},
+                                FullscreenInput{m_transmittanceTable.get(), m_state.clampSampler.get()},
+                                FullscreenInput{m_scatteringTable.get(), m_state.clampSampler.get()}};
         m_marchPass->Draw(pass, inputs);
     }
     const std::uint32_t next = 1 - m_shown;
@@ -492,3 +627,45 @@ void SkyRenderer::Bind(RenderPass& pass) const {
 }
 
 } // namespace Spot::Detail
+
+namespace Spot {
+
+namespace {
+
+// How much a camera makes up for dimmer light: fully at 1, while less leaves dusk dimmer than the day and the night
+// darker still, as eyes see them; and how many times brighter than under a high sun it exposes at most.
+constexpr float ExposureAdaptation = 0.75f;
+constexpr float MaxNightExposure = 16.0f;
+// The moon's light and the night's are already as bright as eyes used to the dark see them, far brighter than the
+// real ones, so they count this many times over: the night is exposed little more than dusk, and looks dark.
+constexpr float NightLightWeight = 7.0f;
+
+} // namespace
+
+float GetSkyExposure(const SkyData& sky) {
+    const Vector3 toSun = -Normalize(sky.sunDirection);
+    const Detail::Atmosphere atmosphere = Detail::GetAtmosphere(sky);
+    // What open ground receives, from the sun and the sky it lights, and from the moon and the night sky.
+    float day = 0.0f;
+    float night = Detail::GetLuminance(sky.nightColor);
+    if (sky.hasSun && toSun != Vector3{}) {
+        const float sunlight = Detail::GetLuminance(sky.sunColor) * sky.sunIntensity;
+        day = sunlight *
+              (Detail::GetLuminance(atmosphere.GetSunTransmittance(toSun, sky.sunSize)) * std::max(toSun.y, 0.0f) +
+               Detail::GetLuminance(atmosphere.GetSkyIrradiance(toSun)));
+        const float moonlight = Detail::GetLuminance(Detail::GetMoonlight(sky, -toSun));
+        if (moonlight > 0.0f) {
+            night += moonlight * (Detail::GetLuminance(atmosphere.GetSunTransmittance(-toSun, sky.night.moonSize)) *
+                                      std::max(-toSun.y, 0.0f) +
+                                  Detail::GetLuminance(atmosphere.GetSkyIrradiance(-toSun)));
+        }
+    }
+    const float illuminance = day + night * NightLightWeight;
+    // Against the sunlight above the air, so a scene with a brighter sun looks as bright, with what it lights
+    // brighter than the rest.
+    const float reference = sky.hasSun ? std::max(Detail::GetLuminance(sky.sunColor) * sky.sunIntensity, 1e-6f) : 1.0f;
+    const float adapted = reference * std::pow(std::max(illuminance, 1e-6f) / reference, ExposureAdaptation);
+    return std::min(1.0f / adapted, MaxNightExposure / reference);
+}
+
+} // namespace Spot

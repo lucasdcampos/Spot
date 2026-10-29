@@ -12,6 +12,8 @@
 
 namespace Spot::Detail {
 
+struct AtmosphereTables;
+
 class SkyRenderer {
 public:
     explicit SkyRenderer(Renderer3DState& state);
@@ -38,6 +40,8 @@ public:
     void RenderVolumetricClouds(const SkyData& sky, const SkyLighting& lighting, const Texture& cameraDepth,
                                 const Matrix4& viewProjection, const Matrix4& inverseViewProjection);
     void CompositeClouds(RenderPass& pass, const Texture& cameraDepth);
+    // Uploads the atmosphere's tables for the sky's thickness and tint when they changed; false when it cannot.
+    bool PrepareTables(const SkyData& sky);
     // The captured light, or black, and the clouds' noise, or white, where the lit shaders read them.
     void Bind(RenderPass& pass) const;
     // The clouds' shadows as the lit shaders read them: their coverage, density, the altitude of the middle of their
@@ -51,6 +55,10 @@ public:
 private:
     Renderer3DState& m_state;
     std::unique_ptr<Pipeline> m_pipeline;
+    // The atmosphere's tables (atmosphere.h) the sky and the clouds' volume read, as uploaded from these.
+    std::shared_ptr<const AtmosphereTables> m_tables;
+    std::unique_ptr<Texture> m_transmittanceTable;
+    std::unique_ptr<Texture> m_scatteringTable;
     // The sky's light, as surfaces show it: captured into a cube, then blurred for each roughness down the mip levels
     // of the reflections, and projected onto spherical harmonics in the irradiance. Black ones stand in without a
     // sky.

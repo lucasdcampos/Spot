@@ -2,6 +2,7 @@
 
 #include "spot/assets/asset_archive.h"
 #include "spot/core/io/archive.h"
+#include "spot/scene/rendering/sky.h"
 #include "spot/scene/scene.h"
 
 #include <array>
@@ -13,8 +14,26 @@ TonemapSettings PostProcessing::GetTonemapping() const {
     return {.op = tonemapper, .exposure = exposure};
 }
 
+TonemapSettings PostProcessing::GetTonemapping(std::span<Scene* const> scenes) const {
+    TonemapSettings settings = GetTonemapping();
+    if (!autoExposure) {
+        return settings;
+    }
+    const Sky* sky = nullptr;
+    for (Scene* scene : scenes) {
+        scene->ForEachComponent<Sky>([&sky](const Sky& found) { sky = sky ? sky : &found; });
+    }
+    if (sky) {
+        settings.exposure *= GetSkyExposure(sky->GetSkyData());
+    }
+    return settings;
+}
+
 BloomSettings PostProcessing::GetBloom() const {
-    return {.intensity = bloomIntensity, .threshold = bloomThreshold, .scatter = bloomScatter};
+    return {.intensity = bloomIntensity,
+            .threshold = bloomThreshold,
+            .scatter = bloomScatter,
+            .conserveEnergy = bloomConservesEnergy};
 }
 
 GradingSettings PostProcessing::GetGrading() const {
@@ -43,6 +62,8 @@ void PostProcessing::Serialize(Archive& archive) {
                   {.enumNames = Operators, .tooltip = "How light beyond what the display shows is brought within it"});
     archive.Field("exposure", exposure,
                   {.min = 0.0f, .max = 16.0f, .speed = 0.01f, .tooltip = "Multiplies the light; 2 is a stop brighter"});
+    archive.Field("autoExposure", autoExposure,
+                  {.tooltip = "Exposes for the sky's light, as a camera would, with the exposure on top"});
     archive.Field("bloomIntensity", bloomIntensity,
                   {.min = 0.0f, .max = 4.0f, .speed = 0.01f, .tooltip = "How much glow is added; 0 turns bloom off"});
     archive.Field("bloomThreshold", bloomThreshold,
@@ -50,6 +71,9 @@ void PostProcessing::Serialize(Archive& archive) {
     archive.Field(
         "bloomScatter", bloomScatter,
         {.min = 0.0f, .max = 1.0f, .speed = 0.01f, .tooltip = "From a tight glow to one over the whole image"});
+    archive.Field("bloomConservesEnergy", bloomConservesEnergy,
+                  {.tooltip = "All light glows, as through a lens, and the glow takes its share of the image; use an "
+                              "intensity of a few hundredths"});
     archive.Field("contrast", contrast, {.min = 0.0f, .max = 4.0f, .speed = 0.01f, .tooltip = "Around middle grey"});
     archive.Field("saturation", saturation, {.min = 0.0f, .max = 4.0f, .speed = 0.01f});
     archive.Field("temperature", temperature,

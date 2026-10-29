@@ -1,16 +1,61 @@
-# Clouds, stars and the moon
+# The sky, clouds, stars and the moon
 
 The `Sky` component draws an atmosphere lit by the scene's sun (see [Rendering](rendering.md)). The same shader
 (`render/shaders/sky.frag.hlsl`) draws stars and a moon at night, and a layer of clouds lies over the land, drawn over
 the scene. None of them needs an asset or a mesh: they are noise and hashes evaluated for each pixel, so any game gets
 a moving sky by adding components and setting them in its scene. The atmosphere, the sky's uniforms and how its light
-is exposed are shared by both shaders, in `render/shaders/include/sky.hlsl`.
+is exposed are shared by the sky's and the clouds' shaders, in `render/shaders/include/sky.hlsl`.
 
-The sun has an atmospheric halo and a bright core. In HDR the core adds radiance over the halo before bloom and
-tonemapping, so stronger sunlight cannot turn the center darker than its surroundings. Display-range rendering
-retains its hue-preserving core blend. The offscreen GPU check `HDR sun cores stay brighter than their halo under
-strong warm sunlight` reads linear HDR pixels at ordinary and high sun intensity; existing sky checks cover the
-display-range sun, sunset color and scene lighting.
+## The atmosphere
+
+The air is an Earth-like atmosphere, 60 km thick over a planet 6360 km across, with Bruneton's (2017) coefficients
+for air a fifth denser and the haze of an ordinary clear day (five times his cleanest air's, which alone leaves the
+sky a deep, almost spacelike blue and the sun bare):
+molecules, which scatter blue the most (Rayleigh); haze, which scatters all colors alike, mostly forward (Mie,
+Cornette-Shanks phase), and makes the glow around the sun; and a layer of ozone around 25 km up, which scatters nothing
+but takes orange light, so the sky overhead stays blue while the sun sets and twilight turns it deep blue rather than
+gray. It is integrated as Hillaire (2020) does:
+
+- Two tables, built on the CPU (`render/atmosphere.cpp`) the first time a thickness and tint are asked for and kept:
+  the **transmittance**, what crosses the air from any height in any direction (256 by 64, Bruneton's
+  parameterization), and the **multiple scattering**, for each height and sun height the light scattered twice or more
+  toward a point (32 by 32): the light scattered once toward it from 64 directions, with the ground's reflection, and
+  the share the air around scatters again, whose series is summed in closed form. `SkyRenderer::PrepareTables()`
+  uploads them as half floats when the sky's thickness or tint changes.
+- Each pixel of the sky marches its ray through the air in 24 steps that start short near the viewer, and at each adds
+  the sunlight that reaches the point (the transmittance table) through each phase, and the multiple scattering,
+  dimmed by the air between it and the viewer, integrated over the step in closed form. The moon lights it the same
+  way, from opposite the sun.
+
+The CPU computes the same from the same tables (`Atmosphere`) to light the scene: the sunlight that reaches the ground,
+the sky's irradiance and, for the fog, its light toward the horizon. So what is drawn and what lights the scene agree,
+and the constants of `atmosphere.cpp` and `sky.hlsl` must match. The sky is drawn as its radiance times pi, in the units
+surfaces are shown in, so its brightness against the sunlit ground is the real one, with nothing scaled to make up
+for light left out.
+
+## The sun
+
+The sun's disc is `sunSize` in angular radius, a quarter of a degree by default as the real sun's. Its light is the
+sunlight that crossed the air spread over its solid angle, so it is as bright as the real one for its size, capped at
+4000 times that sunlight for half floats and the bloom, and darker and redder toward its edge (limb darkening). Its
+edge is a pixel wide. Into an HDR target that is all: the air's haze draws the aureole around it, and the bloom, with
+`BloomSettings::conserveEnergy`, spreads it into a gradual halo as a lens does, as wide and bright as the sun is
+bright, so it is a small, sharp disc in a soft glow rather than a white patch. Targets that are not HDR have no bloom,
+so the sun spills into a glow and a halo of its own there, a few degrees wide, and its disc shows the hue of its light
+at full brightness. As it sets, the light crossing the air reddens and fades, and the disc and the glow with it. The
+offscreen GPU check `HDR sun cores stay brighter than their halo under strong warm sunlight` reads linear HDR pixels at
+ordinary and high sun intensity.
+
+The sun also casts softer shadows the farther they fall from what casts them, as wide as its disc says (see Shadows in
+[Rendering](rendering.md)).
+
+### Comparing changes to the sky
+
+The GPU test `The sky is captured in fixed reference views over a day` renders a gray floor with spheres and a post,
+fogged and exposed by the sky as games set it up, at six times of day (noon, afternoon, golden hour, sunset, twilight
+and night), toward the sun and away from it, and at noon straight up and down onto the shadows, into
+`build/<preset>/tests/sky_references/`. Capturing them before and after a change to the sky, the exposure, the fog or
+the shadows shows what it changed.
 
 ## Clouds
 

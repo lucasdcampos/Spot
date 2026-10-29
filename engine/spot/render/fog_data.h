@@ -1,6 +1,7 @@
 #pragma once
 
 #include "spot/core/math/color.h"
+#include "spot/core/math/vector.h"
 
 namespace Spot {
 
@@ -18,6 +19,16 @@ struct FogData {
     float heightFalloff = 0.05f;
     // The height at which the fog has its density.
     float baseHeight = 0.0f;
+    // Light the fog scatters toward the viewer from a bright light, such as the sun, the more the nearer the view looks
+    // toward it, as haze glows around the sun: what it adds to the color seen straight at the light, divided by about
+    // 2.5. Black adds none.
+    Color glow = Color::Black;
+    // The direction toward that light.
+    Vector3 glowDirection = {0.0f, 1.0f, 0.0f};
+    // Whether the fog takes its color and glow from the sky drawn with it (Renderer3D::DrawSky()) in place of color and
+    // glow: the sky's light toward the horizon, so that far surfaces fade into the sky behind them at any time of day,
+    // warm toward a setting sun and dark at night.
+    bool colorFromSky = false;
 };
 
 } // namespace Spot

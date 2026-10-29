@@ -1666,33 +1666,36 @@ TEST_CASE("Shots and explosions flash, and the flashes go out", "[sandbox]") {
     CHECK(flashes() == 0);
 }
 
-TEST_CASE("The day cycle thickens and darkens the fog at night, and raises the exposure", "[sandbox]") {
+TEST_CASE("The day cycle thickens the fog at night, and the sky raises the exposure", "[sandbox]") {
     Playground playground;
     Entity* sun = playground.scene.FindEntity("Sun");
     REQUIRE(sun != nullptr);
     auto& cycle = *sun->GetComponent<DayCycle>();
     const auto& fog = *sun->GetComponent<Spot::Fog>();
     const auto& look = *sun->GetComponent<Spot::PostProcessing>();
+    Spot::Scene* const scenes[] = {&playground.scene};
     cycle.dayLength = 0.0f;
+    // The fog's color and the exposure follow the sky.
+    CHECK(fog.colorFromSky);
+    CHECK(look.autoExposure);
 
     cycle.timeOfDay = 0.5f;
     playground.Run(Step);
-    const Spot::Color noonColor = fog.color;
     const float noonDensity = fog.density;
-    const float noonExposure = look.exposure;
+    const float noonExposure = look.GetTonemapping(scenes).exposure;
 
-    cycle.timeOfDay = 0.0f;
-    playground.Run(Step);
-    CHECK(fog.color.r < noonColor.r * 0.2f);
-    CHECK(fog.density > noonDensity);
-    CHECK(look.exposure > noonExposure);
-    CHECK(look.temperature < 0.0f);
-
-    // At sunset the light is warm.
     cycle.timeOfDay = 0.75f;
     playground.Run(Step);
-    CHECK(look.temperature > 0.1f);
-    CHECK(fog.color.r > fog.color.b);
+    const float sunsetExposure = look.GetTonemapping(scenes).exposure;
+    CHECK(sunsetExposure > noonExposure);
+
+    // The moonlight is already as bright as eyes used to the dark see it, so the night is exposed for more than the
+    // day, but less than dusk.
+    cycle.timeOfDay = 0.0f;
+    playground.Run(Step);
+    CHECK(fog.density > noonDensity);
+    CHECK(look.GetTonemapping(scenes).exposure > noonExposure);
+    CHECK(look.GetTonemapping(scenes).exposure < sunsetExposure);
 }
 
 TEST_CASE("The player holds the model of what is in hand, in front of the eyes", "[sandbox]") {

@@ -1,3 +1,8 @@
+// The scene's depth and the clouds' noises come first, then the atmosphere's tables.
+#define SKY_TABLES_TEXTURE0 t3
+#define SKY_TABLES_SAMPLER0 s3
+#define SKY_TABLES_TEXTURE1 t4
+#define SKY_TABLES_SAMPLER1 s4
 #include "sky.hlsl"
 #include "clouds.hlsl"
 #define CLOUD_FRAME_REGISTER b3
@@ -253,6 +258,6 @@ float4 main(Input input) : SV_Target0 {
         return 0.0;
     }
     float3 color = Expose(scattered / opacity);
-    color = lerp(color, fogColor.rgb, GetFogAmount(direction * (weightedDistance / weight)));
+    color = ApplyFog(color, direction * (weightedDistance / weight));
     return float4(color * opacity, opacity);
 }

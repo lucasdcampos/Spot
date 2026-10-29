@@ -8,8 +8,8 @@ namespace Gameplay {
 
 // Turns its entity, the sun, across the sky: it rises in the east (+X) at 6:00, peaks at noon and sets in the west at
 // 18:00. The sky follows the sun and lights the scene through the air, so the light dims and reddens on its own as
-// it sets, and the moon rises opposite it. The Fog and the PostProcessing of its entity follow: pale haze by day, warm
-// at sunset and dark blue at night, the exposure rising as eyes adjust to a low sun and to moonlight. The scene's Sky
+// it sets, and the moon rises opposite it; the Fog takes its color from the sky and the PostProcessing its exposure.
+// The fog of its entity thickens at dawn and dusk, and the colors fade at night. The scene's Sky
 // turns its stars with the sun, and its effects are lit as much as the day is (EffectPool::SetLight()). Holding its
 // fast forward action speeds time up.
 class DayCycle : public Spot::Component {

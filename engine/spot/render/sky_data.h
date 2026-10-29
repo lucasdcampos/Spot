@@ -64,9 +64,10 @@ struct SkyData {
     Vector3 sunDirection = {-0.4f, -1.0f, -0.6f};
     Color sunColor = Color::White;
     float sunIntensity = 1.0f;
-    // The angular radius of the sun's bright core, in radians, which its glow spreads well beyond; 0 hides the sun.
-    // The real sun's is about a quarter of a degree, but it is so bright that it looks far larger.
-    float sunSize = ToRadians(2.5f);
+    // The angular radius of the sun's disc, in radians; 0 hides the sun. The real sun's is about a quarter of a degree.
+    // Its light is spread over the disc, so a larger sun is fainter for its size and lights the scene as much, while it
+    // softens shadows more the farther they fall from what casts them.
+    float sunSize = ToRadians(0.27f);
     // How much air the light crosses: more makes the sky hazier and paler and its sunsets redder.
     float atmosphereThickness = 1.0f;
     // Multiplies the color the air scatters, the blue of a clear sky.
@@ -91,5 +92,10 @@ struct SkyData {
 
     bool operator==(const SkyData&) const = default;
 };
+
+// The exposure a camera would choose under the sky, as TonemapSettings::exposure takes it: about 1 under a high sun of
+// intensity 1, more as the light dims at sunset and much more at night, though less than would make the night as
+// bright as the day, so it still looks like night as eyes see it.
+float GetSkyExposure(const SkyData& sky);
 
 } // namespace Spot

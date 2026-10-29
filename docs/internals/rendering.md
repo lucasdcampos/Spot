@@ -235,8 +235,8 @@ uses it. The `Impl` (`renderer_3d.cpp`) selects the frame's lights, uploads them
 - `ProbeRenderer` (`renderer_3d_probes.cpp`) keeps the reflection probes' captures in an atlas and captures them.
 
 `End()` draws a view through `DrawView()`: shadows, then the depth prepass, then the lit pass, which draws the sky,
-the custom surfaces, the opaque and cutout meshes, the sky's clouds at their depth (see [Clouds, stars and the
-moon](sky.md)) and last the transparent meshes, which blend over them. With `Renderer3DConfig::volumetricClouds`, the
+the custom surfaces, the opaque and cutout meshes, the sky's clouds at their depth (see [The sky, clouds, stars and
+the moon](sky.md)) and last the transparent meshes, which blend over them. With `Renderer3DConfig::volumetricClouds`, the
 main view marches the clouds as a volume before that pass, against the camera's depth. A frame's main view
 is drawn once; a probe's capture draws six more views first, one per face of a cube around it, with the same meshes,
 surfaces and lights, so everything that draws a view takes the view from the `Renderer3DState` rather than assuming
@@ -308,6 +308,15 @@ comparisons on a small Poisson disk, each blending four texels, so edges fade ov
 every pixel, so they do not flicker. The four outermost go first: where they agree, as they do wherever a surface is
 wholly lit or wholly in shadow, the other twelve are left out, so only the edges between take all sixteen. The sky's
 occlusion is looked up the same way.
+
+A directional light whose source has a size (`LightData::angularRadius`, which a `Sky` gives its sun and moon from
+their discs) softens its cascades' shadows as the sun's are, sharp where a caster touches what it shades and blurred
+farther from it (percentage-closer soft shadows, `GetPenumbraTexels()` in `surface_lighting.hlsl`): 16 texels of the
+cascade around the point, as far as the widest penumbra reaches, find the casters nearer the light, and their average
+distance from the point, times the tangent of the light's angular radius, is how wide the disc of comparisons is, from
+the usual 1.5 texels up to 12. Each comparison stays inside the cascade's tile. Lights without a size, and point and
+spot lights, keep the narrow disc. The tangent travels in the light's `cone.x`, which directional lights have no use
+for.
 
 A point or spot light's tiles keep what they hold from one frame to the next while the tile's view and what it sees of
 the casters are the same: their meshes, transforms, alpha masks and poses, which each view sums up as it gathers them
@@ -518,7 +527,10 @@ brighter than white. `Tonemapper` brings an HDR image within the display's range
 (`Aces`, contrasty with saturated colors, the default; `AgX`, gentler, turning bright saturated light toward white;
 or `Linear`, which clips, for views that must show colors as they are), an exposure that multiplies the light first,
 and dithering that hides banding. `SceneRendererConfig::tonemapping` and `SceneRenderer::SetTonemapping()` choose
-them. `Renderer3DConfig::hdr` makes Renderer3D draw the sky's light as it is, for the tonemapper, rather than mapping
+them. `GetSkyExposure()` (`sky_data.h`) is the exposure a camera would choose under a sky, from what open ground
+receives of the sun or the moon and of the sky, against the sunlight above the air: about 1 under a high sun, and
+more as the light dims, though only by its 0.75th power and at most 16 times, so dusk stays dimmer than the day and
+night darker still. `PostProcessing::autoExposure`, on by default, multiplies its exposure by it. `Renderer3DConfig::hdr` makes Renderer3D draw the sky's light as it is, for the tonemapper, rather than mapping
 it itself as it does into displayable targets.
 
 ### Bloom
@@ -527,8 +539,12 @@ it itself as it does into displayable targets.
 again and again (a 13-tap filter that keeps small bright details from flickering), then spreads them back up, each
 level blending a wider glow over the one above it. `BloomSettings` has the threshold below which light does not glow
 (fading in over half of it), the scatter, from a tight glow to one over the whole image, and the intensity the
-tonemapper adds the glow with; an intensity of 0 turns it off. `SceneRendererConfig::bloom`, `SceneRenderer::SetBloom()`
-and `ViewportOptions::bloom` choose them.
+tonemapper adds the glow with; an intensity of 0 turns it off. With `conserveEnergy`, all light glows, with no
+threshold, and the tonemapper mixes the glow in at the intensity rather than adding it, so it moves light around
+without adding any, as a lens does: the brighter a light, the brighter and wider its halo, so the sun's disc, drawn as
+bright as the real one for its size, gets a soft halo that fades gradually, and a lamp a faint one. A few hundredths
+look like a camera's lens. `SceneRendererConfig::bloom`, `SceneRenderer::SetBloom()` and `ViewportOptions::bloom`
+choose them.
 
 ### Grading
 
@@ -608,13 +624,15 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
   shadows: the first directional light through cascades, and point and spot lights through tiles of a shared shadow
   atlas.
 - `Sky`: an atmosphere lit by the scene's brightest directional light, which turns from day to sunset to night as
-  that light turns, and lights the scene with the sun through the air and with its own light from all around. When
+  that light turns, and lights the scene with the sun through the air and with its own light from all around (see
+  [The sky, clouds, stars and the moon](sky.md) for how the air is integrated). When
   the sky changes, `Renderer3D` captures that light into a cube map (without the sun's disc, which the directional
   light already is), blurs it into the mip levels of a second cube for each roughness (GGX, as split-sum image-based
   lighting does) and projects its irradiance onto nine spherical harmonics. Surfaces then scatter the irradiance
   along their normal and reflect the blurred sky along their mirror direction, so the ground's color lights
-  undersides and metals mirror the sky. The sky is drawn as bright as it lights the scene (`SkyBrightness`, in
-  `sky.frag.hlsl` and `renderer_3d_sky.cpp`), so what is in the shade looks lit by the sky above it. Once the sun has
+  undersides and metals mirror the sky. The sky is drawn as bright as it lights the scene, its radiance times pi in
+  the units surfaces are shown in, so what is in the shade looks lit by the sky above it, blue under a clear sky, and
+  about a fifth as bright as the sunlit ground under a high sun, as it is outdoors. Once the sun has
   set, the moon opposite it lights the night the same way, as a directional light that casts the shadows in the
   sun's place and as the faint blue sky it scatters (`GetMoonlight()`), far brighter than the real moon so that nights
   are dark but not black. `GetStats().skyLightingUpdates` tells when a capture happened; a sky that
@@ -626,7 +644,12 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
 - `Fog`: exponential height fog from its entity's height, thick below it and thinning above it as `heightFalloff`
   says, clear up to `start`; `density` is how much light it takes per unit of distance. Surfaces fade into its color
   (which may be above 1, as lit fog is) before tonemapping, and so does the sky toward the horizon, so the two meet
-  there in the same color. `Renderer3D::DrawFog()` takes a `FogData` directly.
+  there in the same color. Its glow (`FogData::glow`) adds light toward a direction, through a phase that scatters
+  mostly forward (`include/fog.hlsl`, which every shader that fogs shares), as haze glows around the sun. With
+  `colorFromSky` (on by default in the component), `SetFogFromSky()` gives it both from the sky drawn with it each
+  frame: the sky a few degrees above the horizon toward the sun (or the moon at night), away from it and across, fitted
+  to the color across plus the glow, so far surfaces fade into the sky behind them at every hour.
+  `Renderer3D::DrawFog()` takes a `FogData` directly.
 
 ## The rendering benchmark
 

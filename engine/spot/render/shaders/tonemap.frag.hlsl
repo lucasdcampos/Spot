@@ -6,8 +6,9 @@ cbuffer Tonemap : register(b0, space3) {
     // The saturation, how dark the vignette makes the corners, where it starts from the middle (0) to the corners
     // (1), and how much of the LUT applies.
     float4 grading;
-    // The LUT's size: the side of its cube.
-    float4 lutSize;
+    // The LUT's size: the side of its cube; and 1 in y when the bloom takes its share of the image in place of being
+    // added to it.
+    float4 lutSizeAndBloom;
 };
 
 Texture2D<float4> hdr : register(t0, space2);
@@ -82,7 +83,7 @@ float3 FromSrgb(float3 color) {
 
 // Looks the color up in the strip, between the two blue slices it falls between.
 float3 LookUp(float3 color) {
-    const float size = lutSize.x;
+    const float size = lutSizeAndBloom.x;
     const float3 cell = saturate(color) * (size - 1.0);
     const float slice = floor(cell.b);
     const float2 inSlice = (cell.rg + 0.5) / float2(size * size, size);
@@ -94,8 +95,10 @@ float3 LookUp(float3 color) {
 
 float4 main(Input input) : SV_Target0 {
     const float4 light = hdr.Sample(hdrSampler, input.uv);
-    const float3 glow = bloom.Sample(bloomSampler, input.uv).rgb * settings.w;
-    float3 exposed = max(light.rgb + glow, 0.0) * settings.x;
+    const float3 glow = bloom.Sample(bloomSampler, input.uv).rgb;
+    const float3 bloomed =
+        lutSizeAndBloom.y > 0.5 ? lerp(light.rgb, glow, saturate(settings.w)) : light.rgb + glow * settings.w;
+    float3 exposed = max(bloomed, 0.0) * settings.x;
 
     // Grading on light: white balance, contrast around middle grey in stops, so it keeps what is as bright as it,
     // then saturation.

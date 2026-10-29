@@ -1,5 +1,6 @@
 #include <spot/render/atmosphere.h>
 #include <spot/render/cloud_noise.h>
+#include <spot/render/renderer_3d_internal.h>
 
 #include <spot.h>
 
@@ -110,6 +111,92 @@ TEST_CASE("The sky casts blue light by day and next to none at night", "[sky]") 
     // The sky above the sun is brighter than the sky across from it, for the haze scatters light forward.
     const Vector3 toSun = {0.0f, 0.5f, -1.0f};
     CHECK(atmosphere.GetSkyRadiance(toSun, toSun).r > atmosphere.GetSkyRadiance({0.0f, 0.5f, 1.0f}, toSun).r);
+}
+
+namespace {
+
+float Luminance(Color color) {
+    return 0.2126f * color.r + 0.7152f * color.g + 0.0722f * color.b;
+}
+
+Vector3 Elevated(float degrees, float azimuth = 0.0f) {
+    const float angle = Spot::ToRadians(degrees);
+    return {std::cos(angle) * std::cos(azimuth), std::sin(angle), std::cos(angle) * std::sin(azimuth)};
+}
+
+} // namespace
+
+TEST_CASE("The clear sky is as bright and as blue as a real one, from noon to twilight", "[sky]") {
+    const Spot::Detail::Atmosphere atmosphere;
+    const auto tables = atmosphere.GetTables();
+    REQUIRE(tables->transmittance.size() ==
+            Spot::Detail::AtmosphereTables::TransmittanceWidth * Spot::Detail::AtmosphereTables::TransmittanceHeight);
+    REQUIRE(tables->multipleScattering.size() ==
+            Spot::Detail::AtmosphereTables::ScatteringSize * Spot::Detail::AtmosphereTables::ScatteringSize);
+    // The same thickness and tint share their tables.
+    CHECK(Spot::Detail::Atmosphere{}.GetTables() == tables);
+
+    // Under a high sun, open ground gets about a fifth of its light from the sky, as outdoors.
+    const Vector3 noon = Elevated(65.0f);
+    const float skylight = Luminance(atmosphere.GetSkyIrradiance(noon));
+    const float sunlight = Luminance(atmosphere.GetSunTransmittance(noon, 0.005f)) * noon.y;
+    INFO("Sky " << skylight << ", sun " << sunlight);
+    CHECK(skylight > sunlight * 0.08f);
+    CHECK(skylight < sunlight * 0.35f);
+
+    // The sky overhead is a deeper blue than toward the horizon, which is paler and brighter.
+    const Color zenith = atmosphere.GetSkyRadiance({0.0f, 1.0f, 0.0f}, noon);
+    const Color horizon = atmosphere.GetSkyRadiance(Elevated(3.0f, 3.0f), noon);
+    CHECK(zenith.b > zenith.r * 2.0f);
+    CHECK(horizon.b / horizon.r < zenith.b / zenith.r);
+    CHECK(Luminance(horizon) > Luminance(zenith));
+
+    // As the sun sets, the sky around it turns warm while the sky overhead stays blue, for ozone takes the orange.
+    const Vector3 sunset = Elevated(1.0f);
+    const Color glow = atmosphere.GetSkyRadiance(Elevated(2.0f, 0.1f), sunset);
+    const Color overhead = atmosphere.GetSkyRadiance({0.0f, 1.0f, 0.0f}, sunset);
+    CHECK(glow.r > glow.b);
+    CHECK(overhead.b > overhead.r);
+
+    // Once it has set, the sky still glows faintly from the light the air scatters again, and blue overhead.
+    const Color twilight = atmosphere.GetSkyRadiance({0.0f, 1.0f, 0.0f}, Elevated(-4.0f));
+    CHECK(twilight.b > 0.0f);
+    CHECK(twilight.b > twilight.r);
+    CHECK(Luminance(twilight) < Luminance(overhead) * 0.5f);
+}
+
+TEST_CASE("The exposure under a sky rises as its light dims, though less than the light", "[sky]") {
+    const auto exposure = [](float elevation, float intensity = 1.0f) {
+        return Spot::GetSkyExposure(
+            {.sunDirection = -Elevated(elevation), .sunIntensity = intensity, .nightColor = Color::Black});
+    };
+    const float noon = exposure(65.0f);
+    const float sunset = exposure(2.0f);
+    CHECK(noon == Approx(1.0f).margin(0.35f));
+    CHECK(sunset > noon * 2.0f);
+    // The moonlight is already as bright as eyes used to the dark see it, so the night is exposed for less than
+    // dusk, but more than the day.
+    const float night = exposure(-30.0f);
+    CHECK(night > noon * 1.5f);
+    CHECK(night < sunset);
+    // A sun twice as bright is exposed for.
+    CHECK(exposure(65.0f, 2.0f) == Approx(noon * 0.5f).epsilon(0.01));
+}
+
+TEST_CASE("The fog takes the sky's color toward the horizon, and glows toward the sun", "[sky]") {
+    Spot::FogData fog{.color = Color::Red, .colorFromSky = true};
+    const Vector3 toSun = Elevated(4.0f);
+    Spot::Detail::SetFogFromSky({.sunDirection = -toSun}, fog);
+    // Across from the sun, the fog is the sky's pale blue there; toward it, it glows warm.
+    CHECK(fog.color.b > fog.color.r);
+    CHECK(fog.glow.r > fog.glow.b);
+    CHECK(Spot::Dot(fog.glowDirection, toSun) == Approx(1.0f));
+    // At night it is far darker than by day.
+    Spot::FogData noon{.colorFromSky = true};
+    Spot::Detail::SetFogFromSky({.sunDirection = -Elevated(60.0f)}, noon);
+    Spot::FogData night{.colorFromSky = true};
+    Spot::Detail::SetFogFromSky({.sunDirection = -Elevated(-40.0f)}, night);
+    CHECK(Luminance(night.color) < Luminance(noon.color) * 0.1f);
 }
 
 TEST_CASE("Clouds drift with the wind, and the sky draws them", "[sky]") {

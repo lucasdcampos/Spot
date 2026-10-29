@@ -1,3 +1,5 @@
+// The layer is lit by the uniforms alone, without the sky's light toward each direction.
+#define SKY_WITHOUT_TABLES
 #include "sky.hlsl"
 #include "clouds.hlsl"
 
@@ -148,7 +150,7 @@ Output main(Input input) {
         cloudColor.rgb * (sunlit * (facing + forward) + skylight.rgb * facing + ground * backing);
 
     float3 color = Expose(cloudLight);
-    color = lerp(color, fogColor.rgb, GetFogAmount(direction * distance));
+    color = ApplyFog(color, direction * distance);
     // Far away they fade into the haze, which the sky behind them shows.
     const float haze = exp(-distance * max(settings.y, 0.05) / HazeDistance);
     const float crossing = saturate(abs(camera.y - altitude) / CrossingDistance);

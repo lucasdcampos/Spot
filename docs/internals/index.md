@@ -25,7 +25,7 @@ library with a loop of its own ([`own_loop`](../../examples/own_loop/main.cpp)),
 | [Assets and importing](assets_and_importing.md) | Source assets and `.meta` files, the asset database and importers, loading imported assets |
 | [Prefabs](prefabs.md) | Reusable entity tree assets, import validation and runtime instantiation |
 | [Rendering](rendering.md) | The graphics device, shaders, Renderer2D, Renderer3D, SceneRenderer, lights, skies, shadows |
-| [Clouds, stars and the moon](sky.md) | Drifting clouds configured in the scene, and the night sky's stars and moon |
+| [The sky, clouds, stars and the moon](sky.md) | The atmosphere and the sun, drifting clouds configured in the scene, and the night sky's stars and moon |
 | [Runtime UI and text](runtime_ui.md) | SDF fonts, world text and runtime interfaces |
 | [Animation](animation.md) | Skeletons, clips, poses and animated characters |
 | [Particles](particles.md) | Curves, gradients and particle effects |

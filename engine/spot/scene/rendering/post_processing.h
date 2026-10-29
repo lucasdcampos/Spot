@@ -18,11 +18,16 @@ class Scene;
 class PostProcessing final : public Component {
 public:
     TonemapOperator tonemapper = TonemapSettings{}.op;
+    // Multiplies the light; with autoExposure, on top of the exposure the sky gives, as exposure compensation.
     float exposure = TonemapSettings{}.exposure;
+    // Whether the exposure follows the light of the scenes' Sky (GetSkyExposure()), as a camera's would: about the same
+    // by day, brighter as the sun sets and at night.
+    bool autoExposure = true;
 
     float bloomIntensity = BloomSettings{}.intensity;
     float bloomThreshold = BloomSettings{}.threshold;
     float bloomScatter = BloomSettings{}.scatter;
+    bool bloomConservesEnergy = BloomSettings{}.conserveEnergy;
 
     float contrast = GradingSettings{}.contrast;
     float saturation = GradingSettings{}.saturation;
@@ -35,6 +40,8 @@ public:
     float lutContribution = GradingSettings{}.lutContribution;
 
     TonemapSettings GetTonemapping() const;
+    // With the exposure of the first active Sky among the scenes when autoExposure is on.
+    TonemapSettings GetTonemapping(std::span<Scene* const> scenes) const;
     BloomSettings GetBloom() const;
     // Valid while the component and its LUT are.
     GradingSettings GetGrading() const;

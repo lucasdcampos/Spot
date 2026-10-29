@@ -3178,8 +3178,10 @@ TEST_CASE("Renderer3D draws a blue sky over the ground's color", "[gpu]") {
     const Pixel ground = render.At(16, 29);
     INFO("Sky " << int{sky[0]} << ", " << int{sky[1]} << ", " << int{sky[2]} << "; ground " << int{ground[0]} << ", "
                 << int{ground[1]} << ", " << int{ground[2]});
-    CHECK(sky[2] > sky[0] + 40);
-    CHECK(sky[2] > 80);
+    // The target holds linear light: a clear sky's blue there is about a sixth of what a white surface facing the sun
+    // shows, and several times its red.
+    CHECK(sky[2] > sky[0] * 3);
+    CHECK(sky[2] > 25);
     CHECK(ground[0] > ground[2] + 40);
 }
 
@@ -3421,7 +3423,7 @@ TEST_CASE("Renderer3D draws the sky behind meshes", "[gpu]") {
         });
 
     CHECK(IsNear(render.At(16, 16), {0, 255, 0, 255}));
-    CHECK(render.At(16, 2)[2] > 80);
+    CHECK(render.At(16, 2)[2] > 25);
 }
 
 TEST_CASE("Renderer3D skies redden as the sun nears the horizon and darken without it", "[gpu]") {
@@ -4498,7 +4500,7 @@ TEST_CASE("Renderer3D fogs what is far away in the fog's color, and the sky towa
                     << int{high[0]} << ", " << int{high[1]} << ", " << int{high[2]});
     CHECK(horizon[0] > 200);
     CHECK(horizon[1] < 60);
-    CHECK(high[1] > horizon[1] + 20);
+    CHECK(high[1] > horizon[1] + 5);
     CHECK(high[0] < horizon[0] - 100);
 }
 
@@ -5435,6 +5437,101 @@ TEST_CASE("Clouds are captured in fixed reference views, to compare changes to t
         const auto pixels = device->DownloadTexture(*target);
         REQUIRE(pixels.size() == 960 * 540 * 4);
         CHECK(Spot::Image(960, 540, pixels).SavePng(output / view.name));
+    }
+}
+
+TEST_CASE("The sky is captured in fixed reference views over a day, to compare changes to it against", "[gpu][sky]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({});
+    REQUIRE(device);
+    // A gray floor with white and gray spheres and a tall post, under a sky, fogged by it and exposed for it, as games
+    // set them up, at fixed times of day.
+    Spot::Scene scene;
+    const std::shared_ptr<const Spot::Mesh> floor =
+        Spot::Mesh::Create(*device, Spot::PrimitiveMeshes::CreatePlane(400.0f));
+    const std::shared_ptr<const Spot::Mesh> sphere = Spot::Mesh::Create(*device, Spot::PrimitiveMeshes::CreateSphere());
+    const std::shared_ptr<const Spot::Mesh> cube = Spot::Mesh::Create(*device, Spot::PrimitiveMeshes::CreateCube());
+    REQUIRE((floor && sphere && cube));
+    scene.CreateEntity("Floor").AddComponent<Spot::MeshRenderer>(floor);
+    for (int i = 0; i < 3; ++i) {
+        auto& ball = scene.CreateEntity("Sphere");
+        ball.GetTransform().SetPosition({-3.0f + 3.0f * static_cast<float>(i), 1.0f, 0.0f});
+        ball.GetTransform().SetScale({2.0f, 2.0f, 2.0f});
+        ball.AddComponent<Spot::MeshRenderer>(sphere);
+    }
+    auto& post = scene.CreateEntity("Post");
+    post.GetTransform().SetPosition({0.0f, 4.0f, -4.0f});
+    post.GetTransform().SetScale({0.5f, 8.0f, 0.5f});
+    post.AddComponent<Spot::MeshRenderer>(cube);
+    auto& sun = scene.CreateEntity("Sun");
+    sun.AddComponent<Spot::DirectionalLight>();
+    auto& look = sun.AddComponent<Spot::PostProcessing>();
+    look.bloomConservesEnergy = true;
+    look.bloomIntensity = 0.04f;
+    sun.AddComponent<Spot::Fog>().density = 0.002f;
+    scene.CreateEntity("Sky").AddComponent<Spot::Sky>();
+    auto& camera = scene.CreateEntity("Camera");
+    camera.AddComponent<Spot::Camera>().SetFarPlane(5000.0f);
+    auto target = device->CreateTexture(
+        {.width = 960, .height = 540, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
+    REQUIRE(target);
+    Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb});
+    REQUIRE(renderer.IsValid());
+
+    struct Time {
+        const char* name;
+        // The sun's height in degrees, and where it is around the sky, in degrees from +X toward +Z.
+        float elevation;
+        float azimuth;
+    };
+    const std::array times{Time{"noon", 65.0f, 200.0f},     Time{"afternoon", 30.0f, 240.0f},
+                           Time{"golden", 8.0f, 260.0f},    Time{"sunset", 1.0f, 265.0f},
+                           Time{"twilight", -4.0f, 270.0f}, Time{"night", -35.0f, 280.0f}};
+    const std::filesystem::path output(SPOT_SKY_REFERENCE_DIR);
+    std::filesystem::create_directories(output);
+    for (const Time& time : times) {
+        const float elevation = Spot::ToRadians(time.elevation);
+        const float azimuth = Spot::ToRadians(time.azimuth);
+        const Spot::Vector3 toSun = {std::cos(elevation) * std::cos(azimuth), std::sin(elevation),
+                                     std::cos(elevation) * std::sin(azimuth)};
+        sun.GetTransform().SetRotation(Spot::Quaternion::LookRotation(-toSun));
+        const Spot::Vector3 level = Spot::Normalize(Spot::Vector3{toSun.x, 0.0f, toSun.z});
+        // Toward the sun and away from it, a little above the horizon, from behind the spheres; and, at noon, straight
+        // up and down onto the shadows.
+        struct View {
+            std::string name;
+            Spot::Vector3 position;
+            Spot::Vector3 forward;
+        };
+        std::vector<View> views{
+            View{std::string(time.name) + "_toward_sun.png", Spot::Vector3{0.0f, 1.7f, 0.0f} - level * 9.0f,
+                 Spot::Normalize(level + Spot::Vector3{0.0f, 0.12f, 0.0f})},
+            View{std::string(time.name) + "_away.png", Spot::Vector3{0.0f, 1.7f, 0.0f} + level * 9.0f,
+                 Spot::Normalize(-level + Spot::Vector3{0.0f, 0.12f, 0.0f})},
+        };
+        if (time.elevation > 60.0f) {
+            views.push_back({std::string(time.name) + "_up.png",
+                             {0.0f, 1.7f, 8.0f},
+                             Spot::Normalize(Spot::Vector3{0.1f, 1.0f, 0.0f})});
+            views.push_back({std::string(time.name) + "_shadows.png",
+                             {6.0f, 6.0f, 6.0f},
+                             Spot::Normalize(Spot::Vector3{-0.6f, -0.6f, -0.7f})});
+        }
+        for (const View& view : views) {
+            CAPTURE(view.name);
+            camera.GetTransform().SetPosition(view.position);
+            camera.GetTransform().SetRotation(Spot::Quaternion::LookRotation(view.forward));
+            scene.Update(0.0f);
+            for (int frame = 0; frame < 2; ++frame) {
+                auto* context = device->BeginOffscreenFrame(*target);
+                REQUIRE(context);
+                renderer.Render(*context, scene, target.get());
+                device->EndFrame();
+            }
+            const auto pixels = device->DownloadTexture(*target);
+            REQUIRE(pixels.size() == 960 * 540 * 4);
+            CHECK(Spot::Image(960, 540, pixels).SavePng(output / view.name));
+        }
     }
 }
 
