@@ -516,7 +516,8 @@ std::unique_ptr<Texture> SdlGpuDevice::CreateTexture(const TextureDesc& desc) {
     }
 
     SDL_GPUTextureCreateInfo info{};
-    info.type = cube ? SDL_GPU_TEXTURETYPE_CUBE : SDL_GPU_TEXTURETYPE_2D;
+    const bool volume = desc.type == TextureType::Texture3D;
+    info.type = cube ? SDL_GPU_TEXTURETYPE_CUBE : volume ? SDL_GPU_TEXTURETYPE_3D : SDL_GPU_TEXTURETYPE_2D;
     info.format = ToSdl(desc.format);
     // Multisampled textures are only ever resolved, never sampled.
     info.usage = multisampled ? 0 : SDL_GPU_TEXTUREUSAGE_SAMPLER;
@@ -531,7 +532,7 @@ std::unique_ptr<Texture> SdlGpuDevice::CreateTexture(const TextureDesc& desc) {
     }
     info.width = desc.width;
     info.height = desc.height;
-    info.layer_count_or_depth = cube ? 6 : 1;
+    info.layer_count_or_depth = cube ? 6 : volume ? desc.depth : 1;
     info.num_levels = mipLevels;
     info.sample_count = *sampleCount;
 
@@ -602,13 +603,16 @@ void SdlGpuDevice::UploadToTexture(Texture& texture, std::uint32_t mipLevel, std
     // this writes new memory. Only the first copy may do that, or it would throw away the layers before it, and only
     // a texture that has no other levels to keep or regenerates them all.
     const bool replacesAll = mipLevel == 0 && (texture.GetMipLevelCount() == 1 || generateMipmaps);
+    // The slices of a 3D texture are along its depth rather than its layers.
+    const bool volume = texture.GetType() == TextureType::Texture3D;
     for (std::uint32_t layer = 0; layer < texture.GetLayerCount(); ++layer) {
         SDL_GPUTextureTransferInfo source{};
         source.transfer_buffer = transfer;
         source.offset = layer * GetLayerDataSize(texture, mipLevel);
         source.pixels_per_row = destination.w;
         source.rows_per_layer = destination.h;
-        destination.layer = layer;
+        destination.layer = volume ? 0 : layer;
+        destination.z = volume ? layer : 0;
         SDL_UploadToGPUTexture(copyPass, &source, &destination, replacesAll && layer == 0);
     }
 

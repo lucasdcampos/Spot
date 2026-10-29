@@ -204,14 +204,17 @@ std::unique_ptr<Texture> NvrhiDevice::CreateTexture(const TextureDesc& desc) {
         }
     }
 
+    const bool volume = desc.type == TextureType::Texture3D;
     nvrhi::TextureDesc native;
     native.width = desc.width;
     native.height = desc.height;
+    native.depth = volume ? desc.depth : 1;
     native.arraySize = cube ? 6 : 1;
     native.mipLevels = mipLevels;
     native.sampleCount = desc.sampleCount;
     native.format = ToNvrhi(desc.format);
     native.dimension = cube           ? nvrhi::TextureDimension::TextureCube
+                       : volume       ? nvrhi::TextureDimension::Texture3D
                        : multisampled ? nvrhi::TextureDimension::Texture2DMS
                                       : nvrhi::TextureDimension::Texture2D;
     // Mipmaps are drawn, each level from the one above.
@@ -245,8 +248,13 @@ void NvrhiDevice::UploadToTexture(Texture& texture, std::uint32_t mipLevel, std:
     const std::size_t layerSize = GetTextureDataSize(format, width, height);
     nvrhi::ITexture* native = GetNvrhiTexture(texture);
     RunNow([&](nvrhi::ICommandList& commandList) {
-        for (std::uint32_t layer = 0; layer < texture.GetLayerCount(); ++layer) {
-            commandList.writeTexture(native, layer, mipLevel, pixels.data() + layer * layerSize, rowPitch);
+        // A 3D texture's slices are one subresource, written at once.
+        if (texture.GetType() == TextureType::Texture3D) {
+            commandList.writeTexture(native, 0, mipLevel, pixels.data(), rowPitch, layerSize);
+        } else {
+            for (std::uint32_t layer = 0; layer < texture.GetLayerCount(); ++layer) {
+                commandList.writeTexture(native, layer, mipLevel, pixels.data() + layer * layerSize, rowPitch);
+            }
         }
         if (generateMipmaps) {
             m_context.RecordMipmaps(commandList, texture);

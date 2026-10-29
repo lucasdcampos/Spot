@@ -140,6 +140,17 @@ void GraphicsDevice::UploadToBuffer(Buffer& buffer, std::span<const std::byte> d
 }
 
 std::unique_ptr<Texture> GraphicsDevice::CreateTexture(const TextureDesc& desc) {
+    if (desc.type == TextureType::Texture3D) {
+        if (desc.depth == 0 || desc.renderTarget || desc.mipmaps || desc.storage || desc.sampleCount != 1 ||
+            IsDepthFormat(desc.format) || IsCompressedFormat(desc.format)) {
+            Log::GetEngineLogger().Error("3D textures have slices, and are only sampled: no render targets, mipmaps, "
+                                         "storage, samples, depth or compressed formats");
+            return nullptr;
+        }
+    } else if (desc.depth != 1) {
+        Log::GetEngineLogger().Error("Only 3D textures have a depth");
+        return nullptr;
+    }
     if (desc.storage && (!GetCapabilities().compute || desc.type != TextureType::Texture2D ||
                          IsDepthFormat(desc.format) || IsCompressedFormat(desc.format) || desc.sampleCount != 1)) {
         Log::GetEngineLogger().Error(
@@ -218,6 +229,7 @@ void GraphicsDevice::UploadToTextureLevel(Texture& texture, std::uint32_t mipLev
 std::vector<std::uint8_t> GraphicsDevice::DownloadTexture(const Texture& texture, std::uint32_t mipLevel) {
     SPOT_ASSERT(!IsDepthFormat(texture.GetFormat()), "Depth textures cannot be downloaded");
     SPOT_ASSERT(texture.GetSampleCount() == 1, "Multisampled textures cannot be downloaded; resolve them first");
+    SPOT_ASSERT(texture.GetType() != TextureType::Texture3D, "3D textures cannot be downloaded");
     SPOT_ASSERT(mipLevel < texture.GetMipLevelCount(), "The texture has no mip level {}", mipLevel);
     return m_impl->DownloadTexture(texture, mipLevel);
 }
@@ -613,8 +625,11 @@ TextureFormat Texture::GetFormat() const {
 TextureType Texture::GetType() const {
     return m_impl->desc.type;
 }
+std::uint32_t Texture::GetDepth() const {
+    return m_impl->desc.type == TextureType::Texture3D ? m_impl->desc.depth : 1;
+}
 std::uint32_t Texture::GetLayerCount() const {
-    return m_impl->desc.type == TextureType::Cube ? 6 : 1;
+    return m_impl->desc.type == TextureType::Cube ? 6 : GetDepth();
 }
 bool Texture::IsRenderTarget() const {
     return m_impl->desc.renderTarget;

@@ -12,6 +12,7 @@
 #include "triangle.frag.h"
 #include "triangle.vert.h"
 #include "uv.frag.h"
+#include "volume.frag.h"
 #include <spot/assets/primitive_meshes.h>
 #include <spot/scene/rendering/render_hook_system.h>
 #include <spot/scene/ui/ui_draw_listener.h>
@@ -4113,6 +4114,45 @@ TEST_CASE("Fullscreen passes cover the target, with coordinates from its top-lef
     CHECK(IsNear(at(3, 0), {223, 32, 0, 255}));
     CHECK(IsNear(at(0, 3), {32, 223, 0, 255}));
     CHECK(IsNear(at(3, 3), {223, 223, 0, 255}));
+}
+
+TEST_CASE("3D textures are sampled slice by slice, and only sampled", "[gpu]") {
+    RequireGpu();
+    std::unique_ptr<Spot::Texture> target;
+    std::unique_ptr<Spot::Texture> volume;
+    std::unique_ptr<Spot::Sampler> sampler;
+    std::unique_ptr<Spot::FullscreenPass> slices;
+    bool rejected = false;
+    const auto pixels = RenderAndDownload([&](Spot::GraphicsDevice& device, Spot::RenderContext& context) {
+        target = device.CreateTexture({.width = 4, .height = 4, .renderTarget = true});
+        volume = device.CreateTexture({.width = 1, .height = 1, .type = Spot::TextureType::Texture3D, .depth = 4});
+        sampler = device.CreateSampler();
+        slices = Spot::FullscreenPass::Create(device, Shaders::VolumeFrag);
+        REQUIRE((target && volume && sampler && slices));
+        CHECK(volume->GetDepth() == 4);
+        CHECK(volume->GetLayerCount() == 4);
+        rejected = !device.CreateTexture(
+                       {.width = 1, .height = 1, .type = Spot::TextureType::Texture3D, .depth = 2, .mipmaps = true}) &&
+                   !device.CreateTexture({.width = 1, .height = 1, .depth = 2});
+        // Red, green, blue and white slices, from z = 0.
+        const std::array<std::uint8_t, 16> texels{255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 255, 255};
+        device.UploadToTexture(*volume, texels);
+        auto pass = context.BeginRenderPass({.target = target.get(), .clearColor = Spot::Color::Black});
+        const std::array inputs{Spot::FullscreenInput{volume.get(), sampler.get()}};
+        slices->Draw(pass, inputs);
+        return target.get();
+    });
+
+    CHECK(rejected);
+    REQUIRE(pixels.size() == 4 * 4 * 4);
+    const auto at = [&](int y) {
+        const auto* pixel = &pixels[static_cast<std::size_t>(y * 4 * 4)];
+        return Pixel{pixel[0], pixel[1], pixel[2], pixel[3]};
+    };
+    CHECK(IsNear(at(0), {255, 0, 0, 255}));
+    CHECK(IsNear(at(1), {0, 255, 0, 255}));
+    CHECK(IsNear(at(2), {0, 0, 255, 255}));
+    CHECK(IsNear(at(3), {255, 255, 255, 255}));
 }
 
 TEST_CASE("Multisampled float targets resolve into textures that later passes sample", "[gpu]") {

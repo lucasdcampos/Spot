@@ -248,6 +248,7 @@ spot_add_shaders(spot_gpu_tests
     shaders/textured.frag.hlsl
     shaders/textured_quad.vert.hlsl
     shaders/triangle.frag.hlsl
+    shaders/volume.frag.hlsl
     shaders/triangle.vert.hlsl
     shaders/two_targets.frag.hlsl
     shaders/uv.frag.hlsl

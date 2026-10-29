@@ -50,6 +50,10 @@ Each frame, `BeginFrame()` returns a `RenderContext` (null when nothing can be d
 - **Cube textures** (`TextureType::Cube`) are six square faces that shaders sample by direction (`TextureCube`), laid
   out as Direct3D, Vulkan and Metal agree (see `TextureType`). Uploads and downloads hold their faces one after the
   other, and downloads can read any mip level.
+- **3D textures** (`TextureType::Texture3D`, `TextureDesc::depth` slices) are volumes that shaders sample by three
+  coordinates (`Texture3D`), filtering between slices, as the clouds' noise is. Uploads hold their slices one after the
+  other; they are only sampled, so they have no mipmaps, cannot be drawn into or written by compute, and are not
+  downloaded. SDL_GPU writes each slice as a depth plane, NVRHI the whole volume as one subresource.
 - **Colors** are linear. The window's format is sRGB, so shaders write linear colors and the window encodes them.
 - **Formats**: 8-bit RGBA and BGRA, sRGB or not; `Rgba16Float` and `R11G11B10Float` for HDR render targets, which
   hold values above 1 (`SupportsRenderTarget()` tells whether the GPU draws into the packed one); formats of one, two
@@ -123,9 +127,9 @@ and supported on the machine, each on an offscreen device.
 - **The baseline**, which every device does and code never checks for: shaders and pipelines from `ShaderDesc`,
   vertex, index, uniform and storage buffers, indexed and instanced draws, every blend mode, back-face culling, depth
   targets with every comparison and bias, viewports and scissors, color render targets of every uncompressed format
-  but those `SupportsRenderTarget()` names, 2D and cube textures with their mip levels, generated mipmaps, 4x
-  multisampled RGBA8 targets resolved into textures or the window, uploads at any time and texture readbacks. Its
-  tests are tagged `[baseline]`.
+  but those `SupportsRenderTarget()` names, 2D and cube textures with their mip levels, 3D textures, generated
+  mipmaps, 4x multisampled RGBA8 targets resolved into textures or the window, uploads at any time and texture
+  readbacks. Its tests are tagged `[baseline]`.
 - **The capabilities** (`GraphicsCapabilities`), which a device may lack: compressed textures, compute, indirect
   draws, several color targets, GPU timers and texture tables. A backend reports only what it does, and refuses the
   rest after logging why; each capability's test runs where the device reports it and warns where it does not.
