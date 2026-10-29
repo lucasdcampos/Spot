@@ -45,8 +45,9 @@ struct SceneRendererConfig {
     std::uint32_t localShadowMapSize = 512;
     bool gpuCulling = false;
     bool depthPrepass = true;
-    // See Renderer3DConfig; games draw scenes with both on.
+    // See Renderer3DConfig; games draw scenes with these on.
     AmbientOcclusionSettings ambientOcclusion = {.enabled = true};
+    bool volumetricClouds = true;
     std::uint32_t skyOcclusionSize = 512;
     float skyOcclusionDistance = 64.0f;
 };

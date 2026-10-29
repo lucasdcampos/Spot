@@ -27,6 +27,7 @@
 #include <array>
 #include <cmath>
 #include <filesystem>
+#include <string_view>
 #include <vector>
 
 using Gameplay::DayCycle;
@@ -388,10 +389,13 @@ TEST_CASE("The cooked playground renders its yards by day, at sunset and at nigh
         View{"container_yard.png", {-26, 4, 27}, {-42, 2, 40}, 0.36f},
         View{"pond_sunset.png", {19, 3, 27}, {34, 0, 44}, 0.71f},
         View{"playground_night.png", {0, 9, 34}, {0, 2, -12}, 0.95f},
-        // The sky: clouds by day and at sunset, stars and the moon at night.
+        // The sky: clouds by day and at sunset, stars and the moon at night, and flying through the clouds and over
+        // their tops.
         View{"sky_clouds.png", {0, 3, 30}, {30, 45, -60}, 0.45f},
         View{"sky_sunset.png", {0, 3, 30}, {-80, 20, 0}, 0.735f},
         View{"sky_night.png", {0, 3, 30}, {-40, 35, -30}, 0.02f},
+        View{"sky_in_clouds.png", {0, 1700, 30}, {600, 1750, -600}, 0.4f},
+        View{"sky_above_clouds.png", {0, 2700, 30}, {600, 2400, -600}, 0.4f},
     };
     const std::filesystem::path output(SPOT_SANDBOX_CAPTURE_DIR);
     std::filesystem::create_directories(output);
@@ -403,7 +407,9 @@ TEST_CASE("The cooked playground renders its yards by day, at sunset and at nigh
         // Long enough for the night lights to come on.
         scene->Update(0.0f);
         scene->Update(0.0f);
-        for (int frame = 0; frame < 2; ++frame) {
+        // The volumetric clouds even out their noise over frames, as they do while the game runs.
+        const int frames = std::string_view(view.name).starts_with("sky_") ? 12 : 2;
+        for (int frame = 0; frame < frames; ++frame) {
             auto* context = device->BeginOffscreenFrame(*target);
             REQUIRE(context);
             renderer.Render(*context, *scene, target.get());

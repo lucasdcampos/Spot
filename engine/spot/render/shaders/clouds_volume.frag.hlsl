@@ -1,0 +1,213 @@
+#include "sky.hlsl"
+#include "clouds.hlsl"
+#define CLOUD_FRAME_REGISTER b3
+#include "clouds_volume.hlsl"
+
+// The sky's clouds as a volume, marched at half the view's size: each ray crosses the layer, from its base up to its
+// top, until the scene's surfaces, and adds up the light the clouds along it scatter toward the camera and how much of
+// what is behind them they hide. Where they are, the layer's shapes say how tall they rise, and noise in three
+// dimensions carves them into billows. Each frame starts the rays a little further along, which the frames before
+// even out (clouds_resolve.frag.hlsl).
+
+Texture2D<float> sceneDepth : register(t0, space2);
+SamplerState sceneDepthSampler : register(s0, space2);
+Texture3D<float4> volumeNoise : register(t1, space2);
+SamplerState volumeSampler : register(s1, space2);
+// render/cloud_noise.h tells what each channel of both holds.
+Texture2D<float4> cloudNoise : register(t2, space2);
+SamplerState cloudSampler : register(s2, space2);
+
+struct Input {
+    float4 position : SV_Position;
+    float2 uv : TEXCOORD0;
+};
+
+#define STEPS 56
+#define LIGHT_STEPS 5
+// How far a ray is marched through the clouds at most, and how far away they may start, in meters.
+static const float MaxMarch = 20000.0;
+static const float MaxStart = 90000.0;
+// How much light a meter of cloud at its densest takes, at a density of 1: about what a cumulus does.
+static const float Extinction = 0.06;
+// The scales of the volume noise, in waves across a cloud: its swells, which shape the main volume; its billows, which
+// raise bulges and dig cavities; and its fine billows, which fray the edges. How deep each carves, and how much the
+// billows swirl the fine ones, as turbulence does.
+static const float SwellScale = 0.3;
+static const float BillowScale = 1.1;
+static const float FineScale = 4.3;
+static const float SwellDepth = 0.4;
+static const float FineDepth = 0.4;
+static const float Swirl = 0.35;
+// The share of the layer's height that rays toward the light cross to find what shades a point, and how much more
+// than the view's the light's way through a cloud dims it: the thick middle of a large cloud lies in its own shade.
+static const float LightReach = 0.8;
+static const float LightExtinction = 1.6;
+
+// What is left of a density once noise takes the amount from it, spread back over 0 to 1.
+float Erode(float density, float amount) {
+    return saturate((density - amount) / max(1.0 - amount, 1e-3));
+}
+
+// How dense the cloud is at a point, from 0 to 1, built from coarse to fine so its inside varies as much as its edges.
+// The weather there says how much of the sky clouds cover and how tall they grow, and the layer's shapes, read as large
+// formations and single clouds, where they are: the deeper inside a shape, the higher a cloud rises from its flat base.
+// The volume noise's swells then raise some parts into towers and hollow others out; its billows raise bulges and dig
+// cavities, more toward the top, and thin the inside unevenly; its fine billows, swirled by the others, fray the edges
+// into wisps and pockets. Each scale fades out where a pixel spans more than one of its waves (footprint is the clouds
+// a pixel spans), as the volume noise has no mipmaps to average them; fine billows are left out of what only shades.
+float GetCloudDensity(float2 position, float altitude, float lod, float footprint, bool fine) {
+    const float height = (altitude - layer.y) / (layer.z - layer.y);
+    if (height <= 0.0 || height >= 1.0) {
+        return 0.0;
+    }
+    const float2 uv = position / cloudMotion.z;
+    const float local =
+        GetLocalCoverage(cloudShape.x, cloudNoise.SampleLevel(cloudSampler, ToWeatherUv(uv), 0.0).a);
+    if (local <= 0.0) {
+        return 0.0;
+    }
+    const float shape = CombineShapes(cloudNoise.SampleLevel(cloudSampler, ToFormationUv(uv), lod).r,
+                                      cloudNoise.SampleLevel(cloudSampler, uv, lod).r);
+    const float column = GetInside(shape, GetThreshold(local));
+    if (column <= 0.0) {
+        return 0.0;
+    }
+    const float3 at = float3(position.x, altitude / cloudShape.w, position.y);
+    const float swell = volumeNoise.SampleLevel(volumeSampler, at * SwellScale, 0.0).b;
+    const float top = (0.2 + 0.8 * sqrt(column)) * lerp(0.4, 1.0, GetCloudGrowth(local)) * lerp(0.6, 1.2, swell);
+    float density = column * smoothstep(0.0, 0.015, height) * (1.0 - smoothstep(top * 0.3, top, height));
+    density = Erode(density, (1.0 - swell) * SwellDepth);
+    if (density <= 0.0) {
+        return 0.0;
+    }
+    const float upper = saturate(height / max(top, 1e-3));
+    // The billows are four cells across the noise, and the fine ones eight.
+    const float detail = saturate(1.5 - footprint * BillowScale * 4.0 * 1.5);
+    const float fineDetail = saturate(1.5 - footprint * FineScale * 8.0 * 1.5);
+    const float4 billows = volumeNoise.SampleLevel(volumeSampler, at * BillowScale, 0.0);
+    density = Erode(density, (1.0 - billows.r) * lerp(0.2, 0.7, upper) * detail);
+    density *= lerp(1.0, lerp(0.35, 1.0, billows.r), detail);
+    if (fine && density > 0.0) {
+        const float3 swirled = at * FineScale + (billows.rgb - 0.5) * Swirl;
+        const float fray = volumeNoise.SampleLevel(volumeSampler, swirled, 0.0).g;
+        density = Erode(density, (1.0 - fray) * FineDepth * fineDetail);
+        density *= lerp(1.0, lerp(0.6, 1.0, fray), fineDetail);
+    }
+    return density;
+}
+
+// What a cloud scatters toward the camera, relative to scattering evenly: mostly forward, with a little back. Lower
+// sharpness, for light scattered many times, spreads it more evenly.
+float GetCloudPhase(float cosAngle, float sharpness) {
+    return lerp(GetPhase(cosAngle, 0.6 * sharpness), GetPhase(cosAngle, -0.3 * sharpness), 0.3);
+}
+
+// How high above the ground a point along the ray is, in meters, without the rounding of differences of radii.
+float GetAltitude(float distance, float mu) {
+    const float height = layer.x;
+    const float r = CloudsPlanetRadius + height;
+    const float squared = height * (2.0 * CloudsPlanetRadius + height) + 2.0 * r * mu * distance + distance * distance;
+    return squared / (sqrt(r * r + 2.0 * r * mu * distance + distance * distance) + CloudsPlanetRadius);
+}
+
+float4 main(Input input) : SV_Target0 {
+    const float3 direction = GetRayDirection(input.uv);
+    // How many radians of the view a pixel of this image spans.
+    const float spread = length(ddx(direction)) + length(ddy(direction));
+    const float coverage = cloudShape.x;
+    const int2 pixel = min(int2(input.uv * viewSize.xy), int2(viewSize.xy) - 1);
+    const float sceneDistance = GetSceneDistance(input.uv, sceneDepth.Load(int3(pixel, 0)));
+    float2 segment;
+    if (coverage <= 0.0 || !GetCloudSegment(layer.x, layer.y, layer.z, direction.y, segment) ||
+        segment.x > min(sceneDistance, MaxStart)) {
+        return 0.0;
+    }
+    segment.y = min(min(segment.y, sceneDistance), segment.x + MaxMarch);
+    const float span = segment.y - segment.x;
+    // Inside the layer, what is near fills most of the view, so the steps start short and grow away from the camera.
+    const bool inside = segment.x <= 0.0;
+    const float size = cloudShape.w;
+
+    float3 toLight;
+    const float3 light = GetCloudLight(toLight);
+    const float cosAngle = dot(direction, toLight);
+    // Light scattered several times inside a cloud reaches deeper, and spreads more evenly (Wrenninge 2013).
+    const float3 phases =
+        float3(GetCloudPhase(cosAngle, 1.0), GetCloudPhase(cosAngle, 0.5), GetCloudPhase(cosAngle, 0.25));
+    const float3 ground = groundColor.rgb * groundLight.rgb;
+    // The sky toward the horizon in the ray's direction, which far clouds take on as the air between them and the
+    // camera thickens, losing their contrast before they fade into it.
+    float3 skyTransmittance;
+    const float3 hazeLight =
+        GetSkyLight(normalize(float3(direction.x, max(direction.y, 0.02), direction.z)), sunDirection.xyz,
+                    skyTransmittance);
+    const float reach = (layer.z - layer.y) * LightReach;
+    // Interleaved gradient noise, turned each frame, so the steps the rays skip differ from frame to frame.
+    const float jitter =
+        frac(52.9829189 * frac(dot(input.position.xy, float2(0.06711056, 0.00583715))) + volume.y * 0.618034);
+
+    float transmittance = 1.0;
+    float3 scattered = 0.0;
+    float opacity = 0.0;
+    float weightedDistance = 0.0;
+    float weight = 0.0;
+    for (int i = 0; i < STEPS; ++i) {
+        const float along = (i + jitter) / STEPS;
+        const float distance = segment.x + span * (inside ? along * along : along);
+        const float stepLength = span * (inside ? 2.0 * max(along, 0.5 / STEPS) : 1.0) / STEPS;
+        const float altitude = GetAltitude(distance, direction.y);
+        const float2 position = (view.xz + direction.xz * distance - cloudMotion.xy) / size;
+        // The clouds a pixel spans there, which picks the noise's mip level and fades the billows out.
+        const float footprint = distance * spread / size;
+        const float lod = log2(max(footprint * cloudMotion.w, 1.0));
+        const float density = GetCloudDensity(position, altitude, lod, footprint, true);
+        if (density <= 0.0) {
+            continue;
+        }
+        // How much cloud lies between the point and the light, in steps growing away from it.
+        float lightDepth = 0.0;
+        float previous = 0.0;
+        for (int j = 1; j <= LIGHT_STEPS; ++j) {
+            const float farther = reach * (j * j) / (LIGHT_STEPS * LIGHT_STEPS);
+            const float middle = (previous + farther) * 0.5;
+            lightDepth += GetCloudDensity(position + toLight.xz * middle / size, altitude + toLight.y * middle,
+                                          lod + 1.0, footprint * 2.0, false) *
+                          (farther - previous);
+            previous = farther;
+        }
+        lightDepth *= Extinction * LightExtinction * cloudShape.y;
+        const float3 octaves = exp(-lightDepth * float3(1.0, 0.25, 0.0625)) * float3(1.0, 0.4, 0.15);
+        const float sigma = density * cloudShape.y * Extinction;
+        // Seen away from the light, the sunlit side darkens in its folds, where little cloud has scattered light
+        // toward the camera yet ("powder", Schneider 2015).
+        const float folds = 1.0 - exp(-2.0 * (lightDepth + sigma * 60.0));
+        const float powder = lerp(1.0, folds, 0.6 * saturate(0.5 - 0.5 * cosAngle));
+        const float height = saturate((altitude - layer.y) / (layer.z - layer.y));
+        // The sky lights their tops, and the ground, more faintly, their bases, which the cloud above shades too.
+        // Dense pockets let less of it in than thin ones.
+        const float3 ambient = lerp(ground, skylight.rgb, height) * lerp(0.55, 1.0, height) * lerp(1.0, 0.6, density);
+        const float air = distance * max(settings.y, 0.05) / HazeDistance;
+        const float3 radiance =
+            lerp(cloudColor.rgb * (light * dot(octaves, phases) * powder + ambient), hazeLight, 1.0 - exp(-air * 1.2));
+
+        const float stepTransmittance = exp(-sigma * stepLength);
+        const float share = transmittance * (1.0 - stepTransmittance);
+        // Farther still, they fade into the haze, which the sky behind them shows: slowly at first, so the near ones
+        // keep their shape while taking on its color, and to nothing before the farthest the rays reach.
+        const float haze = exp(-0.6 * air * air) * (1.0 - smoothstep(MaxStart * 0.6, MaxStart, distance));
+        scattered += radiance * share * haze;
+        opacity += share * haze;
+        weightedDistance += distance * share;
+        weight += share;
+        transmittance *= stepTransmittance;
+        if (transmittance < 0.01) {
+            break;
+        }
+    }
+    if (opacity <= 0.0) {
+        return 0.0;
+    }
+    float3 color = Expose(scattered / opacity);
+    color = lerp(color, fogColor.rgb, GetFogAmount(direction * (weightedDistance / weight)));
+    return float4(color * opacity, opacity);
+}

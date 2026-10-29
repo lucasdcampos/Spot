@@ -50,6 +50,7 @@ SceneRenderer::SceneRenderer(GraphicsDevice& device, const SceneRendererConfig& 
                                                               .gpuCulling = config.gpuCulling,
                                                               .depthPrepass = config.depthPrepass,
                                                               .ambientOcclusion = config.ambientOcclusion,
+                                                              .volumetricClouds = config.volumetricClouds,
                                                               .skyOcclusionSize = config.skyOcclusionSize,
                                                               .skyOcclusionDistance = config.skyOcclusionDistance});
     m_sprites =

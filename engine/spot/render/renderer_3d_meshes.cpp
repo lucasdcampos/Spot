@@ -344,9 +344,12 @@ const Pipeline* MeshBatcher::GetPipeline(const DrawCommand& command, bool depthP
                                : m_pipeline.get();
 }
 
-void MeshBatcher::Flush(RenderPass& pass, bool depthPrepassed) {
+void MeshBatcher::Flush(RenderPass& pass, bool depthPrepassed, MeshLayer layer) {
     SPOT_PROFILE_SCOPE("Renderer3D::Flush");
-    if (m_state.commands.empty()) {
+    const auto inLayer = [layer](const DrawCommand& command) {
+        return command.visible && (command.alphaMode == AlphaMode::Transparent) == (layer == MeshLayer::Transparent);
+    };
+    if (std::ranges::none_of(m_state.commands, inLayer)) {
         return;
     }
 
@@ -362,13 +365,13 @@ void MeshBatcher::Flush(RenderPass& pass, bool depthPrepassed) {
     std::optional<MaterialUniforms> boundMaterial;
     for (std::size_t first = 0; first < m_state.commands.size();) {
         const DrawCommand& command = m_state.commands[first];
-        if (!command.visible) {
+        if (!inLayer(command)) {
             ++first;
             continue;
         }
         // Batches are runs of commands that look the same, which sorting gathers, all in view.
         std::size_t end = first + 1;
-        while (end < m_state.commands.size() && m_state.commands[end].visible &&
+        while (end < m_state.commands.size() && inLayer(m_state.commands[end]) &&
                HaveSameLook(command, m_state.commands[end])) {
             ++end;
         }

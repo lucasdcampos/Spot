@@ -1,11 +1,14 @@
 #include <spot/render/atmosphere.h>
+#include <spot/render/cloud_noise.h>
 
 #include <spot.h>
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <array>
 #include <cmath>
+#include <cstdlib>
 
 using Catch::Approx;
 using Spot::Color;
@@ -134,6 +137,58 @@ TEST_CASE("Clouds drift with the wind, and the sky draws them", "[sky]") {
     CHECK(sky.GetSkyData().clouds.size >= 1.0f);
     entity.GetComponent<Spot::Clouds>()->SetEnabled(false);
     CHECK(sky.GetSkyData().clouds.coverage == 0.0f);
+}
+
+TEST_CASE("The clouds' noise tiles, and spreads each channel evenly", "[sky]") {
+    const auto noise = Spot::Detail::GetCloudNoise();
+    constexpr int Size = static_cast<int>(Spot::Detail::CloudNoiseSize);
+    REQUIRE(noise.size() == static_cast<std::size_t>(Size * Size * 4));
+    // It is made once, and kept.
+    CHECK(Spot::Detail::GetCloudNoise().data() == noise.data());
+
+    const auto at = [&](int x, int y, int channel) {
+        return static_cast<int>(noise[static_cast<std::size_t>(((y * Size) + x) * 4 + channel)]);
+    };
+    for (int channel = 0; channel < 4; ++channel) {
+        CAPTURE(channel);
+        // A coverage of c covers about the share c of it.
+        std::array<int, 4> quarters{};
+        for (int y = 0; y < Size; ++y) {
+            for (int x = 0; x < Size; ++x) {
+                ++quarters[static_cast<std::size_t>(at(x, y, channel) / 64)];
+            }
+        }
+        for (const int quarter : quarters) {
+            CHECK(std::abs(quarter - Size * Size / 4) < Size * Size / 50);
+        }
+        // Texels across its edges, which meet when it repeats, are as alike as neighbors inside it.
+        int edges = 0;
+        int inside = 0;
+        for (int i = 0; i < Size; ++i) {
+            edges += std::abs(at(Size - 1, i, channel) - at(0, i, channel)) +
+                     std::abs(at(i, Size - 1, channel) - at(i, 0, channel));
+            inside += std::abs(at(Size / 2 - 1, i, channel) - at(Size / 2, i, channel)) +
+                      std::abs(at(i, Size / 2 - 1, channel) - at(i, Size / 2, channel));
+        }
+        CHECK(edges < inside * 2 + Size);
+    }
+}
+
+TEST_CASE("The clouds' volume noise fills its cube, and spreads its channels evenly", "[sky]") {
+    const auto noise = Spot::Detail::GetCloudVolumeNoise();
+    constexpr auto Size = static_cast<std::size_t>(Spot::Detail::CloudVolumeSize);
+    REQUIRE(noise.size() == Size * Size * Size * 4);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        CAPTURE(channel);
+        std::array<std::size_t, 4> quarters{};
+        for (std::size_t i = 0; i < Size * Size * Size; ++i) {
+            ++quarters[noise[i * 4 + channel] / 64];
+        }
+        for (const std::size_t quarter : quarters) {
+            CHECK(quarter > Size * Size * Size / 5);
+            CHECK(quarter < Size * Size * Size * 3 / 10);
+        }
+    }
 }
 
 TEST_CASE("Stars, the moon and clouds are saved with their scene", "[sky][serialization]") {

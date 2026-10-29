@@ -46,6 +46,8 @@ void RenderingSettings::Serialize(Archive& archive) {
         "ambientOcclusionRadius", ambientOcclusion.radius,
         {.min = 0.01f, .max = 10.0f, .speed = 0.01f, .tooltip = "How far apart surfaces still darken each other"});
     archive.Field("ambientOcclusionIntensity", ambientOcclusion.intensity, {.min = 0.0f, .max = 4.0f, .speed = 0.01f});
+    archive.Field("volumetricClouds", volumetricClouds,
+                  {.tooltip = "Draws clouds as a volume to fly through, rather than as a layer"});
     archive.Field(
         "skyOcclusionSize", skyOcclusionSize,
         {.min = 0.0f,
@@ -72,6 +74,7 @@ void RenderingSettings::Apply(SceneRendererConfig& config) const {
     config.gpuCulling = gpuCulling;
     config.depthPrepass = depthPrepass;
     config.ambientOcclusion = ambientOcclusion;
+    config.volumetricClouds = volumetricClouds;
     config.skyOcclusionSize = skyOcclusionSize;
     config.skyOcclusionDistance = std::max(skyOcclusionDistance, 1.0f);
 }

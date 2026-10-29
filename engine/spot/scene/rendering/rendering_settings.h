@@ -33,6 +33,7 @@ struct RenderingSettings {
     bool depthPrepass = true;
     // See Renderer3DConfig.
     AmbientOcclusionSettings ambientOcclusion = {.enabled = true};
+    bool volumetricClouds = true;
     std::uint32_t skyOcclusionSize = 512;
     float skyOcclusionDistance = 64.0f;
 

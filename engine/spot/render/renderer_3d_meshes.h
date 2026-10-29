@@ -11,6 +11,13 @@
 
 namespace Spot::Detail {
 
+// What of the commands in view MeshBatcher::Flush() draws: opaque and cutout ones, or transparent ones, which blend
+// over what was drawn before them, the sky's clouds included.
+enum class MeshLayer {
+    Opaque,
+    Transparent,
+};
+
 class MeshBatcher {
 public:
     explicit MeshBatcher(Renderer3DState& state);
@@ -28,9 +35,9 @@ public:
     // of the view's pass, so that pass can test for the very same depth. Returns whether it drew, having then cleared
     // the depth as the view's target asks; it does not without Renderer3DConfig::depthPrepass or a depth target.
     bool DrawDepthPrepass(RenderContext& context);
-    // Draws the commands in view into the pass, which has the frame's lighting bound. After DrawDepthPrepass(), opaque
-    // and cutout ones are only tested against its depth, which already holds them.
-    void Flush(RenderPass& pass, bool depthPrepassed);
+    // Draws the commands in view of the layer into the pass, which has the frame's lighting bound. After
+    // DrawDepthPrepass(), opaque and cutout ones are only tested against its depth, which already holds them.
+    void Flush(RenderPass& pass, bool depthPrepassed, MeshLayer layer);
     // Draws what the view's pass drew, but transparent surfaces, into readable single-sample depth. Repeated meshes
     // share instanced draws; GPU worlds reuse their compact visible lists when available.
     const Texture* RenderCameraDepth(RenderContext& context);

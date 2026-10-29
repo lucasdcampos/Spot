@@ -246,7 +246,8 @@ struct Renderer3D::Impl {
     std::vector<ReflectionProbeData> probeData;
     std::optional<SkyData> skyData;
     std::optional<Detail::SkyLighting> skyLighting;
-    // Of the camera's rotation and projection only, which turns clip-space positions into directions.
+    // Of the camera's rotation and projection only, which turns directions into clip-space positions, and back.
+    Matrix4 skyViewProjection;
     Matrix4 inverseSkyViewProjection;
     bool warnedAboutLights = false;
     // Whether End() drew the camera's depth, for ambient occlusion, which RenderCameraDepth() then gives.
@@ -295,7 +296,8 @@ void Renderer3D::Impl::End() {
 void Renderer3D::Impl::SetView(const Camera3D& camera, const RenderPassDesc& target, Vector2 viewSize) {
     state.target = target;
     state.viewProjection = camera.GetViewProjection(viewSize);
-    inverseSkyViewProjection = Inverse(camera.GetProjection(viewSize) * Matrix4::Rotation(Inverse(camera.rotation)));
+    skyViewProjection = camera.GetProjection(viewSize) * Matrix4::Rotation(Inverse(camera.rotation));
+    inverseSkyViewProjection = Inverse(skyViewProjection);
     state.camera = camera;
     state.viewSize = viewSize;
     state.aspectRatio = viewSize.y > 0.0f ? viewSize.x / viewSize.y : 1.0f;
@@ -335,6 +337,20 @@ void Renderer3D::Impl::DrawView(Detail::SelectedLights selected, bool main) {
         depthPrepassed = meshes.DrawDepthPrepass(*state.context);
         state.context->EndGpuTimer();
     }
+    // Clouds are a layer around the planet, which orthographic views do not look through. The main view marches them
+    // as a volume against the camera's depth, when asked to, before its pass opens.
+    const bool clouds = skyData && !state.camera.orthographic && sky.PrepareClouds(*skyData);
+    const Texture* cloudDepth = nullptr;
+    if (clouds && main && sky.IsVolumetric()) {
+        state.context->BeginGpuTimer("Clouds");
+        cloudDepth = cameraDepthDrawn ? meshes.GetCameraDepth() : meshes.RenderCameraDepth(*state.context);
+        cameraDepthDrawn = cameraDepthDrawn || cloudDepth;
+        if (cloudDepth) {
+            sky.RenderVolumetricClouds(*skyData, *skyLighting, *cloudDepth, skyViewProjection,
+                                       inverseSkyViewProjection);
+        }
+        state.context->EndGpuTimer();
+    }
     state.context->BeginGpuTimer("Opaque");
     const std::uint32_t surfaceView =
         state.PrepareSurfaces(*state.context, SurfacePass::Lit, state.viewProjection, false);
@@ -352,7 +368,19 @@ void Renderer3D::Impl::DrawView(Detail::SelectedLights selected, bool main) {
         // of what comes after them; transparent meshes, last, blend over them.
         BindLighting(pass, selected, shadowUniforms, main, occlusion);
         state.DrawSurfaces(pass, SurfacePass::Lit, state.viewProjection, false, surfaceView);
-        meshes.Flush(pass, depthPrepassed);
+        meshes.Flush(pass, depthPrepassed, Detail::MeshLayer::Opaque);
+        // The clouds go over what is opaque, at their depth, and transparent meshes blend over both, so glass in front
+        // of them shows them through it. They push the sky's uniforms and texture over the lighting's, which is bound
+        // again for the meshes after them.
+        if (clouds) {
+            if (cloudDepth) {
+                sky.CompositeClouds(pass, *cloudDepth);
+            } else {
+                sky.DrawClouds(pass, *skyData, *skyLighting, skyViewProjection, inverseSkyViewProjection);
+            }
+            BindLighting(pass, selected, shadowUniforms, main, occlusion);
+        }
+        meshes.Flush(pass, depthPrepassed, Detail::MeshLayer::Transparent);
     }
     if (main) {
         worlds.UpdateOcclusionTiles();

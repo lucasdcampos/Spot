@@ -43,6 +43,7 @@
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -5199,6 +5200,143 @@ TEST_CASE("Renderer3D draws clouds over the day sky, and stars and the moon at n
     const Pixel moonless = render(dark, toMoon).At(128, 128);
     INFO("Moon " << int{moon[0]} << ", " << int{moon[1]} << ", " << int{moon[2]});
     CHECK(moon[1] > moonless[1] + 80);
+}
+
+TEST_CASE("Renderer3D draws clouds where they are in the world, under what is nearer and over what is beyond",
+          "[gpu]") {
+    RequireGpu();
+    constexpr int Size = 64;
+    // A block far wider than the view and ten meters thick, its top at the height.
+    struct Block {
+        float height;
+        Spot::Color color;
+    };
+    const auto render = [](const Spot::SkyData& sky, Spot::Vector3 position, Spot::Vector3 forward,
+                           std::optional<Block> block = std::nullopt, std::uint32_t samples = 1) {
+        Spot::Camera3D camera;
+        camera.position = position;
+        camera.rotation = Spot::Quaternion::LookRotation(Spot::Normalize(forward), {0.0f, 0.0f, -1.0f});
+        camera.farPlane = 10000.0f;
+        return TargetRender(
+            Size, Size,
+            [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+                Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8, .sampleCount = samples});
+                REQUIRE(renderer.IsValid());
+                const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
+                REQUIRE(cube);
+                renderer.Begin(context, target, camera);
+                renderer.DrawSky(sky);
+                if (block) {
+                    renderer.DrawMesh(*cube, {.baseColor = block->color},
+                                      Spot::Matrix4::Translation({0.0f, block->height - 5.0f, 0.0f}) *
+                                          Spot::Matrix4::Scale({20000.0f, 10.0f, 20000.0f}));
+                }
+                renderer.End();
+            },
+            {}, samples);
+    };
+    // How many pixels of the two differ by more than a few steps.
+    const auto differing = [](const TargetRender& a, const TargetRender& b) {
+        int count = 0;
+        for (int y = 0; y < Size; ++y) {
+            for (int x = 0; x < Size; ++x) {
+                count += IsNear(a.At(x, y), b.At(x, y)) ? 0 : 1;
+            }
+        }
+        return count;
+    };
+
+    const Spot::SkyData clear{.sunDirection = {-0.3f, -1.0f, -0.2f}};
+    Spot::SkyData cloudy = clear;
+    // Small enough for several to be in view.
+    cloudy.clouds = {.coverage = 0.5f, .density = 1.0f, .height = 1500.0f, .size = 300.0f};
+    const Spot::Vector3 up{0.1f, 1.0f, 0.05f};
+
+    // They stay where they are as the camera moves under them, and the wind carries them along its direction.
+    const auto here = render(cloudy, {}, up);
+    const auto moved = render(cloudy, {600.0f, 0.0f, 0.0f}, up);
+    Spot::SkyData carried = cloudy;
+    carried.clouds.offset = {600.0f, 0.0f};
+    const auto followed = render(carried, {600.0f, 0.0f, 0.0f}, up);
+    CHECK(differing(here, render(clear, {}, up)) > Size * Size / 4);
+    CHECK(differing(here, moved) > Size * Size / 10);
+    CHECK(differing(here, followed) < Size * Size / 100);
+
+    // A roof between the camera and the clouds hides them.
+    const Block roof{200.0f, Spot::Color::Red};
+    CHECK(differing(render(cloudy, {}, up, roof), render(clear, {}, up, roof)) == 0);
+
+    // Seen from above, they hide the ground under them, multisampled or not.
+    const Spot::Vector3 down{0.1f, -1.0f, 0.05f};
+    const Block ground{0.0f, {0.1f, 0.3f, 0.1f}};
+    for (const std::uint32_t samples : {1u, 4u}) {
+        CAPTURE(samples);
+        const auto over = render(cloudy, {0.0f, 3000.0f, 0.0f}, down, ground, samples);
+        const auto bare = render(clear, {0.0f, 3000.0f, 0.0f}, down, ground, samples);
+        const int covered = differing(over, bare);
+        CHECK(covered > Size * Size / 4);
+        // Lit from above, they are brighter than the ground.
+        int brighter = 0;
+        for (int y = 0; y < Size; ++y) {
+            for (int x = 0; x < Size; ++x) {
+                brighter += over.At(x, y)[1] > bare.At(x, y)[1] + 20 ? 1 : 0;
+            }
+        }
+        CHECK(brighter > Size * Size / 8);
+    }
+}
+
+TEST_CASE("Renderer3D draws clouds as a volume to fly through, hidden by what is in front of them", "[gpu]") {
+    RequireGpu();
+    constexpr int Size = 64;
+    const auto render = [](const Spot::SkyData& sky, Spot::Vector3 position, Spot::Vector3 forward, bool roof = false) {
+        Spot::Camera3D camera;
+        camera.position = position;
+        camera.rotation = Spot::Quaternion::LookRotation(Spot::Normalize(forward), {0.0f, 0.0f, -1.0f});
+        camera.farPlane = 10000.0f;
+        return TargetRender(
+            Size, Size,
+            [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+                Spot::Renderer3D renderer(
+                    device, {.targetFormat = Spot::TextureFormat::Rgba8, .hdr = true, .volumetricClouds = true});
+                REQUIRE(renderer.IsValid());
+                const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
+                REQUIRE(cube);
+                renderer.Begin(context, target, camera);
+                renderer.DrawSky(sky);
+                if (roof) {
+                    renderer.DrawMesh(*cube, {.baseColor = Spot::Color::Red},
+                                      Spot::Matrix4::Translation({0.0f, 195.0f, 0.0f}) *
+                                          Spot::Matrix4::Scale({20000.0f, 10.0f, 20000.0f}));
+                }
+                renderer.End();
+            });
+    };
+    const auto differing = [](const TargetRender& a, const TargetRender& b) {
+        int count = 0;
+        for (int y = 0; y < Size; ++y) {
+            for (int x = 0; x < Size; ++x) {
+                count += IsNear(a.At(x, y), b.At(x, y)) ? 0 : 1;
+            }
+        }
+        return count;
+    };
+
+    const Spot::SkyData clear{.sunDirection = {-0.3f, -1.0f, -0.2f}};
+    Spot::SkyData cloudy = clear;
+    cloudy.clouds = {.coverage = 0.6f, .density = 1.0f, .height = 1500.0f, .size = 400.0f, .thickness = 800.0f};
+    const Spot::Vector3 up{0.1f, 1.0f, 0.05f};
+
+    // From below, they cover much of the sky, unless a roof is in front of them.
+    CHECK(differing(render(cloudy, {}, up), render(clear, {}, up)) > Size * Size / 4);
+    CHECK(differing(render(cloudy, {}, up, true), render(clear, {}, up, true)) == 0);
+
+    // Inside an overcast sky, the camera sees cloud all around.
+    Spot::SkyData overcast = cloudy;
+    overcast.clouds.coverage = 1.0f;
+    const Spot::Vector3 inside{0.0f, 1800.0f, 0.0f};
+    const Spot::Vector3 level{1.0f, 0.02f, 0.3f};
+    CHECK(differing(render(overcast, inside, level), render(clear, inside, level)) > Size * Size * 9 / 10);
 }
 
 TEST_CASE("Every engine renderer is made and draws on a device with only the baseline", "[gpu][baseline]") {

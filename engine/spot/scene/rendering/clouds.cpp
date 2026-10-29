@@ -12,6 +12,7 @@ SkyClouds Clouds::GetSkyClouds() const {
             .density = std::clamp(density, 0.0f, 1.0f),
             .height = std::max(height, 1.0f),
             .size = std::max(size, 1.0f),
+            .thickness = std::max(thickness, 1.0f),
             .softness = std::clamp(softness, 0.0f, 1.0f),
             .offset = m_offset,
             .color = color};
@@ -30,9 +31,12 @@ void Clouds::Serialize(Archive& archive) {
     archive.Field("density", density,
                   {.min = 0.0f, .max = 1.0f, .speed = 0.01f, .tooltip = "How opaque their thick parts are"});
     archive.Field("height", height,
-                  {.min = 1.0f, .max = 20000.0f, .speed = 10.0f, .tooltip = "Meters above the viewer"});
+                  {.min = 1.0f, .max = 20000.0f, .speed = 10.0f, .tooltip = "Meters above the ground (Y 0)"});
     archive.Field("size", size,
                   {.min = 1.0f, .max = 20000.0f, .speed = 5.0f, .tooltip = "About how wide one is, in meters"});
+    archive.Field(
+        "thickness", thickness,
+        {.min = 1.0f, .max = 10000.0f, .speed = 5.0f, .tooltip = "How tall they rise, in meters, as a volume"});
     archive.Field("softness", softness, {.min = 0.0f, .max = 1.0f, .speed = 0.01f, .tooltip = "0 crisp, 1 wispy"});
     archive.Field("windDirection", windDirection, {.speed = 0.01f, .tooltip = "Where the wind blows, on the ground"});
     archive.Field("windSpeed", windSpeed, {.min = 0.0f, .max = 500.0f, .speed = 0.1f, .tooltip = "Meters per second"});

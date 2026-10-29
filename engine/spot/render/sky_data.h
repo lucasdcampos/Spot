@@ -6,17 +6,22 @@
 
 namespace Spot {
 
-// A layer of clouds high above the viewer, which the sky draws over itself, lit as the sky is: white by day, glowing
-// red at sunset, dark gray against the stars at night. Its shapes are noise, so they need no texture, and moving
-// offset makes them drift.
+// A layer of clouds over the land, lit as the sky is: white by day, glowing red at sunset, dark gray against the stars
+// at night. It lies at an altitude above the ground, curving down with the planet toward the horizon, where it fades
+// into the haze, and is drawn from wherever the camera is: under it, hidden by what is nearer, or above it, hiding the
+// ground. Its shapes are noise, so they need no texture, and moving offset makes them drift. With
+// Renderer3DConfig::volumetricClouds, the main view draws them as a volume, thickness tall from their altitude, which
+// a camera can fly through; otherwise, and in reflections, they are a layer at their altitude.
 struct SkyClouds {
     // How much of the sky they cover, from 0, a clear sky, to 1, overcast.
     float coverage = 0.0f;
     // How opaque their thick parts are, from 0 to 1.
     float density = 0.9f;
-    // How high the layer is above the viewer, and about how wide a cloud is, in meters.
+    // How high the layer is above the ground (Y 0), and about how wide a cloud is, in meters.
     float height = 1500.0f;
     float size = 900.0f;
+    // How tall the layer is, from its altitude up, in meters: as a volume, the densest clouds rise this high.
+    float thickness = 1500.0f;
     // How blurred their edges are, from 0, crisp, to 1, wispy.
     float softness = 0.35f;
     // How far the wind has carried them, in meters along X and Z.

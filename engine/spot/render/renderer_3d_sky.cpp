@@ -3,7 +3,13 @@
 #include "spot/core/debug/profiler.h"
 #include "spot/core/math/angles.h"
 #include "spot/render/atmosphere.h"
+#include "spot/render/cloud_noise.h"
 
+#include "clouds.frag.h"
+#include "clouds_composite.frag.h"
+#include "clouds_resolve.frag.h"
+#include "clouds_volume.frag.h"
+#include "fullscreen.vert.h"
 #include "sky.frag.h"
 #include "sky.vert.h"
 #include "sky_irradiance.frag.h"
@@ -32,15 +38,26 @@ struct SkyUniforms {
     Vector4 settings;
     // 1 when capturing the sky's light for lighting, and the scale of that light.
     Vector4 capture;
-    // The clouds' coverage, density, height and size; their offset along X and Z and their softness; their color.
-    Vector4 clouds;
-    Vector4 cloudMotion;
-    Color cloudColor;
     // The stars' brightness, density, rotation and time, the axis they turn around, and the moon's size and
     // brightness.
     Vector4 stars;
     Vector4 starAxis;
     Vector4 moon;
+};
+
+struct CloudUniforms {
+    // Of the camera's rotation and projection only.
+    Matrix4 viewProjection;
+    // The camera's position, and the layer's altitude.
+    Vector4 view;
+    // The clouds' coverage, density, softness and size.
+    Vector4 shape;
+    // Their offset along X and Z, how many clouds wide the noise is, and how many of its texels a cloud spans.
+    Vector4 motion;
+    Color color;
+    Color skylight;
+    // The thickness of their volume, and the frame.
+    Vector4 volume;
 };
 
 struct PrefilterUniforms {
@@ -118,10 +135,6 @@ SkyUniforms GetSkyUniforms(const SkyData& sky, const SkyLighting& lighting, bool
         .settings = {std::max(sky.sunSize, 0.0f), std::max(sky.atmosphereThickness, 0.0f), std::max(sky.exposure, 0.0f),
                      hdr ? 1.0f : 0.0f},
         .capture = {capture ? 1.0f : 0.0f, std::max(sky.ambientIntensity, 0.0f), 0.0f, 0.0f},
-        .clouds = {std::clamp(sky.clouds.coverage, 0.0f, 1.0f), std::clamp(sky.clouds.density, 0.0f, 1.0f),
-                   std::max(sky.clouds.height, 1.0f), std::max(sky.clouds.size, 1.0f)},
-        .cloudMotion = {sky.clouds.offset.x, sky.clouds.offset.y, std::clamp(sky.clouds.softness, 0.0f, 1.0f), 0.0f},
-        .cloudColor = sky.clouds.color,
         .stars = {std::max(sky.night.starBrightness, 0.0f), std::clamp(sky.night.starDensity, 0.0f, 1.0f),
                   sky.night.starRotation, std::fmod(sky.night.time, 3600.0f)},
         .starAxis = ToVector4(LengthSquared(sky.night.starAxis) > 1e-8f ? Normalize(sky.night.starAxis)
@@ -130,11 +143,27 @@ SkyUniforms GetSkyUniforms(const SkyData& sky, const SkyLighting& lighting, bool
     };
 }
 
+CloudUniforms GetCloudUniforms(const SkyData& sky, const SkyLighting& lighting, Vector3 camera,
+                               const Matrix4& viewProjection, std::uint32_t frame) {
+    const SkyClouds& clouds = sky.clouds;
+    return {
+        .viewProjection = viewProjection,
+        .view = ToVector4(camera, std::max(clouds.height, 0.0f)),
+        .shape = {std::clamp(clouds.coverage, 0.0f, 1.0f), std::clamp(clouds.density, 0.0f, 1.0f),
+                  std::clamp(clouds.softness, 0.0f, 1.0f), std::max(clouds.size, 1.0f)},
+        .motion = {clouds.offset.x, clouds.offset.y, static_cast<float>(CloudNoiseTile),
+                   static_cast<float>(CloudNoiseSize / CloudNoiseTile)},
+        .color = clouds.color,
+        .skylight = lighting.skylight,
+        .volume = {std::max(clouds.thickness, 1.0f), static_cast<float>(frame % 1024), 0.0f, 0.0f},
+    };
+}
+
 } // namespace
 
 SkyLighting GetSkyLighting(const SkyData& sky) {
     const Vector3 toSun = -Normalize(sky.sunDirection);
-    SkyLighting lighting{.ambient = sky.nightColor, .ground = sky.nightColor};
+    SkyLighting lighting{.ambient = sky.nightColor, .skylight = sky.nightColor, .ground = sky.nightColor};
     if (sky.hasSun && toSun != Vector3{}) {
         const Atmosphere atmosphere{.thickness = std::max(sky.atmosphereThickness, 0.0f), .skyTint = sky.skyTint};
         const Color sunlight = sky.sunColor * sky.sunIntensity;
@@ -160,6 +189,7 @@ SkyLighting GetSkyLighting(const SkyData& sky) {
         // The sky lights the scene as brightly as it is drawn; the atmosphere's irradiance already holds its pi.
         // Surfaces also face the ground about half as much as the sky, and it reflects the sun.
         const Color groundBounce = sky.groundColor * ground * 0.5f;
+        lighting.skylight = lighting.skylight + skylight * (SkyBrightness / Pi);
         lighting.ambient = lighting.ambient + (skylight * (SkyBrightness / Pi) + groundBounce) * sky.ambientIntensity;
         lighting.ground = ground + lighting.ambient;
     }
@@ -171,7 +201,8 @@ SkyRenderer::SkyRenderer(Renderer3DState& state) : m_state(state) {
     GraphicsDevice& device = *state.device;
     const auto vertexShader = device.CreateShader(Shaders::SkyVert);
     const auto fragmentShader = device.CreateShader(Shaders::SkyFrag);
-    if (vertexShader && fragmentShader) {
+    const auto cloudShader = device.CreateShader(Shaders::CloudsFrag);
+    if (vertexShader && fragmentShader && cloudShader) {
         m_pipeline = device.CreatePipeline({
             .vertexShader = vertexShader.get(),
             .fragmentShader = fragmentShader.get(),
@@ -185,6 +216,37 @@ SkyRenderer::SkyRenderer(Renderer3DState& state) : m_state(state) {
             .fragmentShader = fragmentShader.get(),
             .targetFormat = TextureFormat::Rgba16Float,
         });
+        m_cloudPipeline = device.CreatePipeline({
+            .vertexShader = vertexShader.get(),
+            .fragmentShader = cloudShader.get(),
+            .blendMode = BlendMode::Premultiplied,
+            .targetFormat = state.config.targetFormat,
+            // Tested at the depth the shader gives, where each ray meets them, so what is nearer hides them. They write
+            // none, so transparent surfaces after them still blend over what is behind them.
+            .depth = DepthState{.format = state.config.depthFormat, .write = false, .compare = CompareOp::LessOrEqual},
+            .sampleCount = state.config.sampleCount,
+        });
+    }
+    m_cloudSampler = device.CreateSampler({.addressMode = TextureAddressMode::Repeat, .maxAnisotropy = 16.0f});
+    m_volumetric = state.config.volumetricClouds && state.config.hdr;
+    if (m_volumetric) {
+        m_marchPass =
+            FullscreenPass::Create(device, Shaders::CloudsVolumeFrag, {.targetFormat = TextureFormat::Rgba16Float});
+        m_resolvePass =
+            FullscreenPass::Create(device, Shaders::CloudsResolveFrag, {.targetFormat = TextureFormat::Rgba16Float});
+        const auto fullscreen = device.CreateShader(Shaders::FullscreenVert);
+        const auto composite = device.CreateShader(Shaders::CloudsCompositeFrag);
+        if (fullscreen && composite) {
+            m_compositePipeline = device.CreatePipeline({
+                .vertexShader = fullscreen.get(),
+                .fragmentShader = composite.get(),
+                .blendMode = BlendMode::Premultiplied,
+                .targetFormat = state.config.targetFormat,
+                // The march stopped at the surfaces, so the clouds go over the whole view untested.
+                .depth = DepthState{.format = state.config.depthFormat, .test = false, .write = false},
+                .sampleCount = state.config.sampleCount,
+            });
+        }
     }
     m_prefilter =
         FullscreenPass::Create(device, Shaders::SkyPrefilterFrag, {.targetFormat = TextureFormat::Rgba16Float});
@@ -203,8 +265,9 @@ SkyRenderer::SkyRenderer(Renderer3DState& state) : m_state(state) {
 }
 
 bool SkyRenderer::IsValid() const {
-    return m_pipeline && m_capturePipeline && m_prefilter && m_irradiancePass && m_sampler && m_noReflections &&
-           m_noIrradiance;
+    return m_pipeline && m_capturePipeline && m_cloudPipeline && m_prefilter && m_irradiancePass && m_sampler &&
+           m_cloudSampler && m_noReflections && m_noIrradiance &&
+           (!m_volumetric || (m_marchPass && m_resolvePass && m_compositePipeline));
 }
 
 bool SkyRenderer::Update(const SkyData& seen, const SkyLighting& lighting) {
@@ -284,6 +347,126 @@ void SkyRenderer::Draw(RenderPass& pass, const SkyData& sky, const SkyLighting& 
     pass.PushVertexUniforms(0, inverseViewProjection);
     pass.PushFragmentUniforms(0, GetSkyUniforms(sky, lighting, m_state.config.hdr, false));
     pass.PushFragmentUniforms(1, GetFogUniforms(m_state.fog, m_state.camera.position));
+    pass.Draw(3);
+    ++m_state.stats.drawCalls;
+    ++m_state.stats.triangleCount;
+}
+
+bool SkyRenderer::PrepareClouds(const SkyData& sky) {
+    if (sky.clouds.coverage <= 0.0f || sky.clouds.density <= 0.0f) {
+        return false;
+    }
+    if (!m_cloudNoise) {
+        GraphicsDevice& device = *m_state.device;
+        m_cloudNoise = device.CreateTexture(
+            {.width = CloudNoiseSize, .height = CloudNoiseSize, .format = TextureFormat::Rgba8, .mipmaps = true});
+        if (!m_cloudNoise) {
+            return false;
+        }
+        device.UploadToTexture(*m_cloudNoise, GetCloudNoise());
+    }
+    if (m_volumetric && !m_volumeNoise) {
+        GraphicsDevice& device = *m_state.device;
+        m_volumeNoise = device.CreateTexture({.width = CloudVolumeSize,
+                                              .height = CloudVolumeSize,
+                                              .format = TextureFormat::Rgba8,
+                                              .type = TextureType::Texture3D,
+                                              .depth = CloudVolumeSize});
+        if (!m_volumeNoise) {
+            return false;
+        }
+        device.UploadToTexture(*m_volumeNoise, GetCloudVolumeNoise());
+    }
+    return true;
+}
+
+void SkyRenderer::DrawClouds(RenderPass& pass, const SkyData& sky, const SkyLighting& lighting,
+                             const Matrix4& viewProjection, const Matrix4& inverseViewProjection) {
+    pass.BindPipeline(*m_cloudPipeline);
+    pass.PushVertexUniforms(0, inverseViewProjection);
+    pass.PushFragmentUniforms(0, GetSkyUniforms(sky, lighting, m_state.config.hdr, false));
+    pass.PushFragmentUniforms(1, GetFogUniforms(m_state.fog, m_state.camera.position));
+    pass.PushFragmentUniforms(2, GetCloudUniforms(sky, lighting, m_state.camera.position, viewProjection, 0));
+    pass.BindFragmentTexture(0, *m_cloudNoise, *m_cloudSampler);
+    pass.Draw(3);
+    ++m_state.stats.drawCalls;
+    ++m_state.stats.triangleCount;
+}
+
+void SkyRenderer::RenderVolumetricClouds(const SkyData& sky, const SkyLighting& lighting, const Texture& cameraDepth,
+                                         const Matrix4& viewProjection, const Matrix4& inverseViewProjection) {
+    SPOT_PROFILE_SCOPE("Renderer3D::RenderVolumetricClouds");
+    GraphicsDevice& device = *m_state.device;
+    RenderContext& context = *m_state.context;
+    const std::uint32_t width = std::max((cameraDepth.GetWidth() + 1) / 2, 1u);
+    const std::uint32_t height = std::max((cameraDepth.GetHeight() + 1) / 2, 1u);
+    if (!m_marched || m_marched->GetWidth() != width || m_marched->GetHeight() != height) {
+        const TextureDesc desc{
+            .width = width, .height = height, .format = TextureFormat::Rgba16Float, .renderTarget = true};
+        m_marched = device.CreateTexture(desc);
+        m_resolved = {device.CreateTexture(desc), device.CreateTexture(desc)};
+        m_hasHistory = false;
+    }
+    if (!m_marched || !m_resolved[0] || !m_resolved[1]) {
+        return;
+    }
+
+    const Vector3 camera = m_state.camera.position;
+    const Vector2 offset = sky.clouds.offset;
+    const Vector3 moved = camera - m_previousCamera;
+    // A camera that jumped far, as at a cut, sees other clouds than before.
+    if (Length(moved) > 1000.0f) {
+        m_hasHistory = false;
+    }
+    const Vector2 carried = offset - m_previousOffset;
+    const float bottom = std::max(sky.clouds.height, 0.0f);
+    const auto size = [](std::uint32_t w, std::uint32_t h) {
+        return Vector4{static_cast<float>(w), static_cast<float>(h), 1.0f / static_cast<float>(w),
+                       1.0f / static_cast<float>(h)};
+    };
+    m_frame = {
+        .inverseViewProjection = inverseViewProjection,
+        .previousViewProjection = m_hasHistory ? m_previousViewProjection : viewProjection,
+        .reprojection = {moved.x - carried.x, moved.y, moved.z - carried.y, m_hasHistory ? 1.0f : 0.0f},
+        .layer = {camera.y, bottom, bottom + std::max(sky.clouds.thickness, 1.0f), 0.0f},
+        .cloudSize = size(width, height),
+        .viewSize = size(cameraDepth.GetWidth(), cameraDepth.GetHeight()),
+    };
+    {
+        auto pass = context.BeginRenderPass({.target = m_marched.get()});
+        pass.PushFragmentUniforms(0, GetSkyUniforms(sky, lighting, true, false));
+        pass.PushFragmentUniforms(1, GetFogUniforms(m_state.fog, camera));
+        pass.PushFragmentUniforms(2, GetCloudUniforms(sky, lighting, camera, viewProjection, m_cloudFrame));
+        pass.PushFragmentUniforms(3, m_frame);
+        const std::array inputs{FullscreenInput{&cameraDepth, m_state.nearestSampler.get()},
+                                FullscreenInput{m_volumeNoise.get(), m_cloudSampler.get()},
+                                FullscreenInput{m_cloudNoise.get(), m_cloudSampler.get()}};
+        m_marchPass->Draw(pass, inputs);
+    }
+    const std::uint32_t next = 1 - m_shown;
+    {
+        auto pass = context.BeginRenderPass({.target = m_resolved[next].get()});
+        pass.PushFragmentUniforms(0, m_frame);
+        const std::array inputs{FullscreenInput{m_marched.get(), m_state.clampSampler.get()},
+                                FullscreenInput{m_resolved[m_shown].get(), m_state.clampSampler.get()}};
+        m_resolvePass->Draw(pass, inputs);
+    }
+    m_shown = next;
+    m_hasHistory = true;
+    m_previousViewProjection = viewProjection;
+    m_previousCamera = camera;
+    m_previousOffset = offset;
+    ++m_cloudFrame;
+}
+
+void SkyRenderer::CompositeClouds(RenderPass& pass, const Texture& cameraDepth) {
+    if (!m_resolved[m_shown]) {
+        return;
+    }
+    pass.BindPipeline(*m_compositePipeline);
+    pass.PushFragmentUniforms(0, m_frame);
+    pass.BindFragmentTexture(0, *m_resolved[m_shown], *m_state.clampSampler);
+    pass.BindFragmentTexture(1, cameraDepth, *m_state.nearestSampler);
     pass.Draw(3);
     ++m_state.stats.drawCalls;
     ++m_state.stats.triangleCount;

@@ -142,6 +142,8 @@ add_library(spot_objects OBJECT
     spot/render/bloom.cpp
     spot/render/bloom.h
     spot/render/camera_2d.cpp
+    spot/render/cloud_noise.h
+    spot/render/cloud_noise.cpp
     spot/render/pixel_perfect.cpp
     spot/render/camera_3d.h
     spot/render/camera_3d.cpp
@@ -411,6 +413,10 @@ spot_add_shaders(spot_objects NAMESPACE Spot::Detail::Shaders
     spot/render/shaders/particle.frag.hlsl
     spot/render/shaders/bloom_down.frag.hlsl
     spot/render/shaders/bloom_up.frag.hlsl
+    spot/render/shaders/clouds.frag.hlsl
+    spot/render/shaders/clouds_composite.frag.hlsl
+    spot/render/shaders/clouds_resolve.frag.hlsl
+    spot/render/shaders/clouds_volume.frag.hlsl
     spot/render/shaders/fullscreen.vert.hlsl
     spot/render/shaders/mip_downsample.frag.hlsl
     spot/render/shaders/mip_downsample_layer.frag.hlsl

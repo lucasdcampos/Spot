@@ -9,7 +9,8 @@ namespace Spot {
 
 // A layer of clouds over the scene's Sky, which the wind carries across it. How much of the sky they cover, how high
 // and how large they are, how soft their edges are and how the wind blows are set on the component, in the scene,
-// like any other: a game only adds it beside its sky.
+// like any other: a game only adds it beside its sky. They stay where they are in the world as the camera moves, and
+// can be flown over and, drawn as a volume (Renderer3DConfig::volumetricClouds), through.
 //
 //     auto& sky = scene.CreateEntity("Sky");
 //     sky.AddComponent<Spot::Sky>();
@@ -25,9 +26,11 @@ public:
     float coverage = 0.45f;
     // How opaque their thick parts are, from 0 to 1.
     float density = 0.85f;
-    // In meters: the layer's height above the viewer and about how wide a cloud is.
+    // In meters: the layer's altitude above the ground (Y 0) and about how wide a cloud is.
     float height = 1500.0f;
     float size = 900.0f;
+    // How tall they rise from their altitude, in meters, drawn as a volume.
+    float thickness = 1500.0f;
     // From 0, crisp edges, to 1, wispy.
     float softness = 0.35f;
     // Where the wind blows, on the ground (its Y plays no part), and how fast, in meters per second.

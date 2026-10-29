@@ -129,6 +129,9 @@ struct SkyLighting {
     // The moon's light before the air dims it, which the air scatters into a faint moonlit sky.
     Color moonlight;
     Color ambient;
+    // The light of the sky alone, from above, whatever lights the scene and however strongly: what lights the shaded
+    // sides of what is up in it, such as clouds.
+    Color skylight;
     // What reaches open ground: the sun's and the moon's light, and the sky's.
     Color ground;
     // What lights a point in place of the sky it is covered from: the ground's light, reflected again by the underside

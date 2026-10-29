@@ -228,12 +228,16 @@ uses it. The `Impl` (`renderer_3d.cpp`) selects the frame's lights, uploads them
   looks, uploads their instances and draws them, in the view's pass and into the camera's depth.
 - `ShadowRenderer` (`renderer_3d_shadows.cpp`) draws the directional light's cascades and the tiles of point and spot
   lights, culling the casters of each view.
-- `SkyRenderer` (`renderer_3d_sky.cpp`) draws the sky and captures the light it gives surfaces.
+- `SkyRenderer` (`renderer_3d_sky.cpp`) draws the sky, and its clouds over the opaque surfaces, and captures the
+  light it gives surfaces.
 - `WorldCuller` (`renderer_3d_worlds.cpp`) keeps render worlds on the GPU in batches and, where the device has compute
   and indirect draws, culls their instances there.
 - `ProbeRenderer` (`renderer_3d_probes.cpp`) keeps the reflection probes' captures in an atlas and captures them.
 
-`End()` draws a view through `DrawView()`: shadows, then the depth prepass, then the lit pass. A frame's main view
+`End()` draws a view through `DrawView()`: shadows, then the depth prepass, then the lit pass, which draws the sky,
+the custom surfaces, the opaque and cutout meshes, the sky's clouds at their depth (see [Clouds, stars and the
+moon](sky.md)) and last the transparent meshes, which blend over them. With `Renderer3DConfig::volumetricClouds`, the
+main view marches the clouds as a volume before that pass, against the camera's depth. A frame's main view
 is drawn once; a probe's capture draws six more views first, one per face of a cube around it, with the same meshes,
 surfaces and lights, so everything that draws a view takes the view from the `Renderer3DState` rather than assuming
 the main camera.

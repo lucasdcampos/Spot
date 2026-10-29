@@ -70,6 +70,11 @@ struct Renderer3DConfig {
     // Darkens the light from all around in the creases and corners of what the camera sees, worked out from the
     // camera's depth, which costs a depth pass over the view and a few passes over its pixels (see AmbientOcclusion).
     AmbientOcclusionSettings ambientOcclusion = {};
+    // Draws the sky's clouds in the main view as a volume, thickness tall, which a camera can fly through and which
+    // mountains rise into, rather than as a layer: marched through at half the view's size against the camera's depth,
+    // which costs a depth pass when ambient occlusion did not draw it, and evened out over frames. HDR targets only;
+    // reflections still see the layer.
+    bool volumetricClouds = false;
     // The size in pixels of the sky's occlusion: the depth of the highest surfaces around the camera seen from above,
     // drawn from the shadow casters, which keeps the sky's light from what lies under cover, as rooms, caves and the
     // ground under trees, and costs a pass over the casters around the camera. 0 turns it off, and everything is lit
