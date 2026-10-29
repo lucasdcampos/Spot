@@ -5377,6 +5377,67 @@ TEST_CASE("Renderer3D draws clouds as a volume to fly through, hidden by what is
     CHECK(differing(render(overcast, inside, level), render(clear, inside, level)) > Size * Size * 9 / 10);
 }
 
+TEST_CASE("Clouds are captured in fixed reference views, to compare changes to them against", "[gpu][clouds]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({});
+    REQUIRE(device);
+    // The same sky, weather and clouds every time, still, as the wind does not blow while nothing updates them.
+    Spot::Scene scene;
+    auto& sun = scene.CreateEntity("Sun");
+    sun.AddComponent<Spot::DirectionalLight>();
+    auto& sky = scene.CreateEntity("Sky");
+    sky.AddComponent<Spot::Sky>();
+    auto& clouds = sky.AddComponent<Spot::Clouds>();
+    clouds.coverage = 0.5f;
+    clouds.density = 0.85f;
+    clouds.height = 1500.0f;
+    clouds.size = 1000.0f;
+    clouds.thickness = 1500.0f;
+    clouds.softness = 0.35f;
+    clouds.windSpeed = 0.0f;
+    auto& camera = scene.CreateEntity("Camera");
+    camera.AddComponent<Spot::Camera>().SetFarPlane(20000.0f);
+    auto target = device->CreateTexture(
+        {.width = 960, .height = 540, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
+    REQUIRE(target);
+    Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb});
+    REQUIRE(renderer.IsValid());
+
+    struct View {
+        const char* name;
+        Spot::Vector3 position;
+        Spot::Vector3 target;
+        Spot::Vector3 toSun;
+    };
+    const std::array views{
+        View{"below_noon.png", {0, 2, 0}, {300, 900, -1000}, {0.3f, 0.9f, 0.3f}},
+        View{"below_toward_sun.png", {0, 2, 0}, {-1000, 450, -300}, {-0.9f, 0.35f, -0.2f}},
+        View{"sunset.png", {0, 2, 0}, {-1000, 250, 300}, {-0.95f, 0.06f, 0.25f}},
+        View{"horizon.png", {0, 2, 0}, {1000, 60, -200}, {0.4f, 0.6f, 0.6f}},
+        View{"above.png", {0, 3800, 0}, {1000, 3300, -1000}, {0.3f, 0.8f, 0.4f}},
+        View{"inside.png", {0, 2100, 0}, {1000, 2120, -400}, {0.3f, 0.8f, 0.4f}},
+    };
+    const std::filesystem::path output(SPOT_CLOUD_REFERENCE_DIR);
+    std::filesystem::create_directories(output);
+    for (const View& view : views) {
+        CAPTURE(view.name);
+        sun.GetTransform().SetRotation(Spot::Quaternion::LookRotation(-Spot::Normalize(view.toSun)));
+        camera.GetTransform().SetPosition(view.position);
+        camera.GetTransform().SetRotation(Spot::Quaternion::LookRotation(view.target - view.position));
+        scene.Update(0.0f);
+        // Enough frames for the volume's blend over frames to even out its noise, as it does while a game runs.
+        for (int frame = 0; frame < 12; ++frame) {
+            auto* context = device->BeginOffscreenFrame(*target);
+            REQUIRE(context);
+            renderer.Render(*context, scene, target.get());
+            device->EndFrame();
+        }
+        const auto pixels = device->DownloadTexture(*target);
+        REQUIRE(pixels.size() == 960 * 540 * 4);
+        CHECK(Spot::Image(960, 540, pixels).SavePng(output / view.name));
+    }
+}
+
 TEST_CASE("Every engine renderer is made and draws on a device with only the baseline", "[gpu][baseline]") {
     RequireGpu();
     auto device = Spot::GraphicsDevice::CreateOffscreen({.baselineOnly = true, .debug = false});

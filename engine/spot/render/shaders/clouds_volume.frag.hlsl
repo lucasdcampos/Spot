@@ -29,15 +29,25 @@ static const float MaxMarch = 20000.0;
 static const float MaxStart = 90000.0;
 // How much light a meter of cloud at its densest takes, at a density of 1: about what a cumulus does.
 static const float Extinction = 0.06;
-// The scales of the volume noise, in waves across a cloud: its swells, which shape the main volume; its billows, which
-// raise bulges and dig cavities; and its fine billows, which fray the edges. How deep each carves, and how much the
-// billows swirl the fine ones, as turbulence does.
-static const float SwellScale = 0.3;
-static const float BillowScale = 1.1;
-static const float FineScale = 4.3;
-static const float SwellDepth = 0.4;
-static const float FineDepth = 0.4;
-static const float Swirl = 0.35;
+// The clouds' density is built in three levels, each only within what the one above made:
+//   macrostructure  where clouds are, how large, how tall and how grouped: the weather, the layer's shapes and the
+//                   volume noise's swells, the smooth blue channel, a third of a wave across a cloud
+//   mesostructure   bulges, cavities and uneven density inside the formations: its billows, the red channel
+//   microstructure  erosion, turbulence and fine detail at the edges: its fine billows, the green channel, swirled by
+//                   the billows
+// Each finer level fades out where a pixel spans more than one of its waves, as the volume noise has no mipmaps. It
+// then takes what it would on average, which is known since the noise is equalized, so clouds keep the same mass and
+// silhouette near and far. Scales are in waves across a cloud; depths say how far into a cloud each level carves.
+static const float MacroSwellScale = 0.3;
+static const float MacroSwellDepth = 0.4;
+static const float MesoScale = 1.1;
+static const float MesoBaseDepth = 0.2;
+static const float MesoTopDepth = 0.7;
+static const float MesoThinning = 0.65;
+static const float MicroScale = 4.3;
+static const float MicroDepth = 0.4;
+static const float MicroThinning = 0.4;
+static const float MicroSwirl = 0.35;
 // The share of the layer's height that rays toward the light cross to find what shades a point, and how much more
 // than the view's the light's way through a cloud dims it: the thick middle of a large cloud lies in its own shade.
 static const float LightReach = 0.8;
@@ -53,14 +63,18 @@ float Erode(float density, float amount) {
     return saturate((density - amount) / max(1.0 - amount, 1e-3));
 }
 
-// How dense the cloud is at a point, from 0 to 1, built from coarse to fine so its inside varies as much as its edges.
-// The weather there says how much of the sky clouds cover and how tall they grow, and the layer's shapes, read as large
-// formations and single clouds, where they are: the deeper inside a shape, the higher a cloud rises from its flat base.
-// The volume noise's swells then raise some parts into towers and hollow others out; its billows raise bulges and dig
-// cavities, more toward the top, and thin the inside unevenly; its fine billows, swirled by the others, fray the edges
-// into wisps and pockets. Each scale fades out where a pixel spans more than one of its waves (footprint is the clouds
-// a pixel spans), as the volume noise has no mipmaps to average them; fine billows are left out of what only shades.
-float GetCloudDensity(float2 position, float altitude, float lod, float footprint, bool fine) {
+// How much of a level's effect shows where a pixel spans the clouds of the footprint, for noise of so many waves
+// across a cloud: all of it while a wave spans a few pixels, none once a pixel spans a wave.
+float GetLevelDetail(float footprint, float waves) {
+    return saturate(1.5 - footprint * waves * 1.5);
+}
+
+// The macrostructure: where clouds are, how large and how tall. The weather says how much of the sky clouds cover and
+// how tall they grow; the layer's shapes, read as large formations and single clouds, where they are, and the deeper
+// inside one, the higher a cloud rises from its flat base; the swells raise some parts into towers and hollow others
+// out. Also gives how far up its own height the point is.
+float GetMacroDensity(float2 position, float altitude, float lod, out float upper) {
+    upper = 0.0;
     const float height = (altitude - layer.y) / (layer.z - layer.y);
     if (height <= 0.0 || height >= 1.0) {
         return 0.0;
@@ -78,26 +92,48 @@ float GetCloudDensity(float2 position, float altitude, float lod, float footprin
         return 0.0;
     }
     const float3 at = float3(position.x, altitude / cloudShape.w, position.y);
-    const float swell = volumeNoise.SampleLevel(volumeSampler, at * SwellScale, 0.0).b;
-    // Cumulus rise from their base as towers, dense nearly up to their tops, rather than as low domes.
-    const float top = (0.25 + 0.75 * sqrt(column)) * lerp(0.5, 1.0, GetCloudGrowth(local)) * lerp(0.6, 1.25, swell);
-    float density = column * smoothstep(0.0, 0.015, height) * (1.0 - smoothstep(top * 0.6, top, height));
-    density = Erode(density, (1.0 - swell) * SwellDepth);
+    // The swells are a third of a wave across a cloud, so a pixel never spans one: they are always there.
+    const float swell = volumeNoise.SampleLevel(volumeSampler, at * MacroSwellScale, 0.0).b;
+    const float top = (0.2 + 0.8 * sqrt(column)) * lerp(0.4, 1.0, GetCloudGrowth(local)) * lerp(0.6, 1.2, swell);
+    upper = saturate(height / max(top, 1e-3));
+    const float density = column * smoothstep(0.0, 0.015, height) * (1.0 - smoothstep(top * 0.3, top, height));
+    return Erode(density, (1.0 - swell) * MacroSwellDepth);
+}
+
+// The mesostructure: the billows raise bulges and dig cavities, little at the base and more toward the top, and thin
+// the inside unevenly. Gives the billows read, which swirl the microstructure.
+float ApplyMesostructure(float density, float3 at, float upper, float footprint, out float4 billows) {
+    const float detail = GetLevelDetail(footprint, MesoScale * 4.0);
+    billows = volumeNoise.SampleLevel(volumeSampler, at * MesoScale, 0.0);
+    // Equalized, the billows are a half on average.
+    const float billow = lerp(0.5, billows.r, detail);
+    density = Erode(density, (1.0 - billow) * lerp(MesoBaseDepth, MesoTopDepth, upper));
+    return density * lerp(1.0 - MesoThinning, 1.0, billow);
+}
+
+// The microstructure: fine billows, swirled by the billows as turbulence would, fray the edges into wisps and leave
+// thinner pockets.
+float ApplyMicrostructure(float density, float3 at, float4 billows, float footprint) {
+    const float detail = GetLevelDetail(footprint, MicroScale * 8.0);
+    const float3 swirled = at * MicroScale + (billows.rgb - 0.5) * MicroSwirl;
+    const float fray = lerp(0.5, volumeNoise.SampleLevel(volumeSampler, swirled, 0.0).g, detail);
+    density = Erode(density, (1.0 - fray) * MicroDepth);
+    return density * lerp(1.0 - MicroThinning, 1.0, fray);
+}
+
+// How dense the cloud is at a point, from 0 to 1, from its macrostructure down; footprint is the clouds a pixel spans
+// there. What only shades leaves out the microstructure, which would not change its shade.
+float GetCloudDensity(float2 position, float altitude, float lod, float footprint, bool fine) {
+    float upper;
+    float density = GetMacroDensity(position, altitude, lod, upper);
     if (density <= 0.0) {
         return 0.0;
     }
-    const float upper = saturate(height / max(top, 1e-3));
-    // The billows are four cells across the noise, and the fine ones eight.
-    const float detail = saturate(1.5 - footprint * BillowScale * 4.0 * 1.5);
-    const float fineDetail = saturate(1.5 - footprint * FineScale * 8.0 * 1.5);
-    const float4 billows = volumeNoise.SampleLevel(volumeSampler, at * BillowScale, 0.0);
-    density = Erode(density, (1.0 - billows.r) * lerp(0.2, 0.7, upper) * detail);
-    density *= lerp(1.0, lerp(0.35, 1.0, billows.r), detail);
+    const float3 at = float3(position.x, altitude / cloudShape.w, position.y);
+    float4 billows;
+    density = ApplyMesostructure(density, at, upper, footprint, billows);
     if (fine && density > 0.0) {
-        const float3 swirled = at * FineScale + (billows.rgb - 0.5) * Swirl;
-        const float fray = volumeNoise.SampleLevel(volumeSampler, swirled, 0.0).g;
-        density = Erode(density, (1.0 - fray) * FineDepth * fineDetail);
-        density *= lerp(1.0, lerp(0.6, 1.0, fray), fineDetail);
+        density = ApplyMicrostructure(density, at, billows, footprint);
     }
     return density;
 }

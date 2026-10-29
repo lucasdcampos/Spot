@@ -75,14 +75,20 @@ in three steps:
 
 - **March** (`clouds_volume.frag.hlsl`), at half the view's size: each ray crosses the layer from where it enters it
   to where it leaves it, or to the camera's depth (`RenderCameraDepth()`, which ambient occlusion often drew already),
-  in 56 steps. At each, the density is built from coarse to fine (`GetCloudDensity()`), so the inside of a cloud
-  varies as much as its edges: the weather and the layer's shapes say where clouds are and how tall they rise, the
-  deeper inside a shape and the more the weather gathers them the higher, from a flat base that sets in within a few
-  meters, as towers dense nearly up to their tops. A 32³ tiling volume of noise (`GetCloudVolumeNoise()`, a `TextureType::Texture3D`) read at three scales
-  then works it: its smooth swells raise some parts into towers and hollow others out; its billows raise bulges and
-  dig cavities, little at the base and more toward the irregular tops, and thin the inside unevenly; its fine billows,
-  swirled by the others as turbulence would, fray the edges into wisps and leave thinner pockets. Each scale fades out
-  where a pixel spans more than one of its waves, since the volume has no mipmaps. Each step in a cloud marches five
+  in 56 steps. At each, the density is built in three levels (`GetCloudDensity()`), each working only within what
+  the one above made, so the inside of a cloud varies as much as its edges while details never move the clouds:
+  - the **macrostructure** (`GetMacroDensity()`) places them and sizes them: the weather and the layer's shapes say
+    where clouds are and how tall they rise, the deeper inside a shape and the more the weather gathers them the
+    higher, from a flat base that sets in within a few meters; the smooth swells of a 32³ tiling volume of noise
+    (`GetCloudVolumeNoise()`, a `TextureType::Texture3D`) raise some parts into towers and hollow others out;
+  - the **mesostructure** (`ApplyMesostructure()`): its billows raise bulges and dig cavities, little at the base and
+    more toward the irregular tops, and thin the inside unevenly;
+  - the **microstructure** (`ApplyMicrostructure()`): its fine billows, swirled by the billows as turbulence would,
+    fray the edges into wisps and leave thinner pockets.
+
+  The finer levels fade out where a pixel spans more than one of their waves, since the volume has no mipmaps, and then
+  take what they would on average, known since the noise is equalized, so clouds keep their mass and silhouette near
+  and far. The constants of each level are at the top of the shader, named after it. Each step in a cloud marches five
   steps toward the light to find how much cloud shades it, dimmed more than the view is so the middle of a large
   cloud lies in its own shade, and lights it with three octaves of light scattered ever more times, ever less dimmed
   and ever more evenly (Wrenninge 2013), through a phase that scatters mostly forward, kept broad and below a ceiling
@@ -122,6 +128,14 @@ has set, and the faint blue sky its light scatters, drawn and captured as the su
 
 Clouds, stars and the moon's disc are drawn only: the sky's light that `Renderer3D` captures to light the scene leaves
 them out, so they move every frame without capturing it again.
+
+### Comparing changes
+
+The GPU test `Clouds are captured in fixed reference views` renders the same clouds (coverage 0.5, density 0.85,
+1500 m up, 1000 m wide, 1500 m tall, no wind) from six fixed views into `build/<preset>/tests/cloud_references/`:
+below at noon, below toward a low sun, at sunset, toward the horizon, from above and from inside the layer, each
+after twelve frames, so the blend over frames has evened out the noise. Capturing them before and after a change to
+the clouds shows what it changed, view by view.
 
 ## Where to start
 
