@@ -121,6 +121,9 @@ protected:
                 }
                 m_scriptTimes.push_back(scriptMs);
                 m_droppedSamples += frames.back()->droppedSamples;
+                for (const auto& counter : frames.back()->counters) {
+                    m_counterTotals[counter.name] += counter.value;
+                }
             }
         }
         m_last = now;
@@ -261,6 +264,12 @@ private:
             std::printf("%-40.*s %.3f ms\n", static_cast<int>(name.size()), name.data(),
                         total / static_cast<double>(std::max<std::size_t>(m_times.size(), 1)));
         }
+        // GPU timers trail the frame they measure by a frame or two, which a mean over the capture absorbs.
+        std::printf("Counters (mean per measured frame):\n");
+        for (const auto& [name, total] : m_counterTotals) {
+            std::printf("%-40.*s %.3f\n", static_cast<int>(name.size()), name.data(),
+                        total / static_cast<double>(std::max<std::size_t>(m_times.size(), 1)));
+        }
         m_result = EXIT_SUCCESS;
     }
 
@@ -276,6 +285,7 @@ private:
     std::vector<double> m_spawnTimes;
     std::vector<double> m_scriptTimes;
     std::map<std::string_view, double> m_scopeTotals;
+    std::map<std::string_view, double> m_counterTotals;
     std::size_t m_scriptCalls = 0;
     std::size_t m_droppedSamples = 0;
 };

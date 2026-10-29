@@ -392,7 +392,9 @@ isolated rendering. Run it with `--props 500 --lamps 50 --warmup 240 --frames 12
 Quality is 0/1/2 for Low/Medium/High. A camera orbits the level at 1600x900 with vsync and validation
 off; gameplay, physics, NPCs, particles and the HUD continue. It spawns actual imported crates,
 adds point lamps (every eighth shadowed), excludes loading/warmup, then reports frame mean, median,
-p95, worst, body count, memory and inclusive CPU scopes. Exit status is nonzero if setup fails.
+p95, worst, body count, memory and inclusive CPU scopes, then the mean of each profiler counter per measured
+frame, draw calls and the GPU's timers (`GPU Opaque (ms)` and the like) among them. Exit status is nonzero if setup
+fails.
 The report also records the startup scene's synchronous `InstantiateScene` time (including asset reads,
 decoding and entity/component creation, excluding window/device setup, scene activation and first updates),
 each crate's `PropSpawner::Spawn` time (including its placement raycast, prefab instantiation and undo entry,
