@@ -153,10 +153,21 @@ void UiSystem::DrawUi(Renderer2D& renderer, Vector2 viewSize) {
             component.RunGuarded("OnDrawUi", [&] { listener->OnDrawUi(renderer, viewSize); });
         }
     };
-    scene.ForEachComponent<Component>([&](Component& component) {
-        if (dynamic_cast<UiDrawListener*>(&component) && !component.GetEntity().GetComponentInParent<Canvas>())
-            draw(component);
-    });
+    if (m_listenersVersion != scene.GetStructureVersion()) {
+        m_listeners.clear();
+        scene.ForEachComponent<Component>([&](Component& component) {
+            if (dynamic_cast<UiDrawListener*>(&component) && !component.GetEntity().GetComponentInParent<Canvas>())
+                m_listeners.push_back({component.GetEntity().GetId(), component.GetId()});
+        });
+        m_listenersVersion = scene.GetStructureVersion();
+    }
+    for (const Listener& listener : m_listeners) {
+        if (auto* entity = scene.GetEntity(listener.entity))
+            entity->ForEachComponent<Component>([&](Component& component) {
+                if (component.GetId() == listener.component)
+                    draw(component);
+            });
+    }
     for (const auto& entry : GetEntries()) {
         if (auto* entity = scene.GetEntity(entry.entity))
             entity->ForEachComponent<Component>(draw);

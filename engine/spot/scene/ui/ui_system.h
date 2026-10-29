@@ -5,6 +5,8 @@
 #include "spot/scene/scene_system.h"
 #include "spot/scene/ui/ui_layout.h"
 
+#include <cstdint>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -47,6 +49,14 @@ private:
         std::size_t index;
     };
     std::vector<CanvasEntry> m_canvases;
+    // The draw listeners outside every canvas, in the order the scene gives them. Finding them goes through every
+    // component of the scene, so they are found again only when what it holds changed.
+    struct Listener {
+        EntityId entity;
+        ComponentId component;
+    };
+    std::vector<Listener> m_listeners;
+    std::optional<std::uint64_t> m_listenersVersion;
 };
 
 } // namespace Spot
