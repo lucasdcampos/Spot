@@ -78,16 +78,18 @@ in three steps:
   in 56 steps. At each, the density is built from coarse to fine (`GetCloudDensity()`), so the inside of a cloud
   varies as much as its edges: the weather and the layer's shapes say where clouds are and how tall they rise, the
   deeper inside a shape and the more the weather gathers them the higher, from a flat base that sets in within a few
-  meters. A 32³ tiling volume of noise (`GetCloudVolumeNoise()`, a `TextureType::Texture3D`) read at three scales
+  meters, as towers dense nearly up to their tops. A 32³ tiling volume of noise (`GetCloudVolumeNoise()`, a `TextureType::Texture3D`) read at three scales
   then works it: its smooth swells raise some parts into towers and hollow others out; its billows raise bulges and
   dig cavities, little at the base and more toward the irregular tops, and thin the inside unevenly; its fine billows,
   swirled by the others as turbulence would, fray the edges into wisps and leave thinner pockets. Each scale fades out
   where a pixel spans more than one of its waves, since the volume has no mipmaps. Each step in a cloud marches five
   steps toward the light to find how much cloud shades it, dimmed more than the view is so the middle of a large
   cloud lies in its own shade, and lights it with three octaves of light scattered ever more times, ever less dimmed
-  and ever more evenly (Wrenninge 2013), through a phase that scatters mostly forward; seen away from the light, the
+  and ever more evenly (Wrenninge 2013), through a phase that scatters mostly forward, kept broad and below a ceiling
+  so the edges in front of the sun glow without burning out into white outlines; seen away from the light, the
   folds of the sunlit side darken ("powder", Schneider 2015). The sky's light from above and the ground's from below
-  light it too, fainter toward the base and in dense pockets. Far away, the air between them and the camera gives them the color of the sky toward the
+  light it too, a little fainter toward the base and in dense pockets, with a share of the sunlight the cloud field
+  scatters about, so no side of a cloud is black by day. Far away, the air between them and the camera gives them the color of the sky toward the
   horizon, so they lose their contrast, then fade into it slowly, to nothing before the farthest the rays reach (90
   km); the fog takes them as it does the layer.
 - **Resolve** (`clouds_resolve.frag.hlsl`): each frame starts its rays a different share of a step along (interleaved

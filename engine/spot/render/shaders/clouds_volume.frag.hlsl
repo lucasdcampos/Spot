@@ -42,6 +42,11 @@ static const float Swirl = 0.35;
 // than the view's the light's way through a cloud dims it: the thick middle of a large cloud lies in its own shade.
 static const float LightReach = 0.8;
 static const float LightExtinction = 1.6;
+// The most a cloud scatters toward the camera, relative to scattering evenly.
+static const float MaxPhase = 3.0;
+// The share of the sunlight a cloud field scatters about inside itself and from cloud to cloud, which reaches even
+// the sides and bases the sun does not, as part of the light from all around.
+static const float BouncedSunlight = 0.08;
 
 // What is left of a density once noise takes the amount from it, spread back over 0 to 1.
 float Erode(float density, float amount) {
@@ -74,8 +79,9 @@ float GetCloudDensity(float2 position, float altitude, float lod, float footprin
     }
     const float3 at = float3(position.x, altitude / cloudShape.w, position.y);
     const float swell = volumeNoise.SampleLevel(volumeSampler, at * SwellScale, 0.0).b;
-    const float top = (0.2 + 0.8 * sqrt(column)) * lerp(0.4, 1.0, GetCloudGrowth(local)) * lerp(0.6, 1.2, swell);
-    float density = column * smoothstep(0.0, 0.015, height) * (1.0 - smoothstep(top * 0.3, top, height));
+    // Cumulus rise from their base as towers, dense nearly up to their tops, rather than as low domes.
+    const float top = (0.25 + 0.75 * sqrt(column)) * lerp(0.5, 1.0, GetCloudGrowth(local)) * lerp(0.6, 1.25, swell);
+    float density = column * smoothstep(0.0, 0.015, height) * (1.0 - smoothstep(top * 0.6, top, height));
     density = Erode(density, (1.0 - swell) * SwellDepth);
     if (density <= 0.0) {
         return 0.0;
@@ -97,9 +103,10 @@ float GetCloudDensity(float2 position, float altitude, float lod, float footprin
 }
 
 // What a cloud scatters toward the camera, relative to scattering evenly: mostly forward, with a little back. Lower
-// sharpness, for light scattered many times, spreads it more evenly.
+// sharpness, for light scattered many times, spreads it more evenly. The forward lobe is kept broad and below a
+// ceiling, so the thin edges of clouds in front of the sun glow rather than burn out into white outlines.
 float GetCloudPhase(float cosAngle, float sharpness) {
-    return lerp(GetPhase(cosAngle, 0.6 * sharpness), GetPhase(cosAngle, -0.3 * sharpness), 0.3);
+    return min(lerp(GetPhase(cosAngle, 0.45 * sharpness), GetPhase(cosAngle, -0.3 * sharpness), 0.3), MaxPhase);
 }
 
 // How high above the ground a point along the ray is, in meters, without the rounding of differences of radii.
@@ -176,16 +183,18 @@ float4 main(Input input) : SV_Target0 {
             previous = farther;
         }
         lightDepth *= Extinction * LightExtinction * cloudShape.y;
-        const float3 octaves = exp(-lightDepth * float3(1.0, 0.25, 0.0625)) * float3(1.0, 0.4, 0.15);
+        const float3 octaves = exp(-lightDepth * float3(1.0, 0.25, 0.0625)) * float3(1.0, 0.5, 0.3);
         const float sigma = density * cloudShape.y * Extinction;
         // Seen away from the light, the sunlit side darkens in its folds, where little cloud has scattered light
         // toward the camera yet ("powder", Schneider 2015).
         const float folds = 1.0 - exp(-2.0 * (lightDepth + sigma * 60.0));
         const float powder = lerp(1.0, folds, 0.6 * saturate(0.5 - 0.5 * cosAngle));
         const float height = saturate((altitude - layer.y) / (layer.z - layer.y));
-        // The sky lights their tops, and the ground, more faintly, their bases, which the cloud above shades too.
-        // Dense pockets let less of it in than thin ones.
-        const float3 ambient = lerp(ground, skylight.rgb, height) * lerp(0.55, 1.0, height) * lerp(1.0, 0.6, density);
+        // The sky lights their tops, and the ground, more faintly, their bases, which the cloud above shades a little;
+        // dense pockets let less of it in than thin ones. Sunlight scattered about the clouds adds to it, so no side
+        // of a cloud by day is black.
+        const float3 ambient = (lerp(ground, skylight.rgb, height) * lerp(0.75, 1.0, height) + light * BouncedSunlight) *
+                               lerp(1.0, 0.8, density);
         const float air = distance * max(settings.y, 0.05) / HazeDistance;
         const float3 radiance =
             lerp(cloudColor.rgb * (light * dot(octaves, phases) * powder + ambient), hazeLight, 1.0 - exp(-air * 1.2));

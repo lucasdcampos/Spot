@@ -23,7 +23,7 @@ float GetLocalCoverage(float coverage, float weather) {
 // How tall clouds grow where the weather left this local coverage: small and flat where they are few, towering where
 // they gather.
 float GetCloudGrowth(float local) {
-    return smoothstep(0.2, 0.9, local);
+    return smoothstep(0.1, 0.7, local);
 }
 
 // The shapes' noise above this is cloud. As the noise spreads evenly, that is about the coverage's share of the sky,
@@ -45,13 +45,14 @@ float2 ToWeatherUv(float2 uv) {
 // Where it lies on the noise read a second time for the large formations: coarser, turned, and stretched along one
 // way, so clouds also join into long streets and broad masses rather than all being alike.
 float2 ToFormationUv(float2 uv) {
-    return float2(0.6 * uv.x + 0.8 * uv.y, -0.8 * uv.x + 0.6 * uv.y) * float2(0.29, 0.41);
+    return float2(0.6 * uv.x + 0.8 * uv.y, -0.8 * uv.x + 0.6 * uv.y) * float2(0.33, 0.4);
 }
 
-// The clouds' shape from the noise read at both scales: mostly the formations, broken up by the single clouds. The
-// mix narrows the noise's spread, which the contrast spreads evenly again, so coverage keeps its meaning.
+// The clouds' shape from the noise read at both scales: formations and single clouds alike, so compact clouds stand
+// among the long ones. The mix narrows the noise's spread, which the contrast spreads evenly again, so coverage keeps
+// its meaning.
 float CombineShapes(float formation, float single) {
-    return saturate((0.6 * formation + 0.4 * single - 0.5) * 1.4 + 0.5);
+    return saturate((0.5 * formation + 0.5 * single - 0.5) * 1.45 + 0.5);
 }
 
 #endif
