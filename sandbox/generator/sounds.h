@@ -39,6 +39,8 @@ Samples Engine();
 // Four blades passing 28 times a second at 420 rotor revolutions a minute.
 Samples HelicopterRotor();
 Samples TireSqueal();
+// A car's horn: two tones a major third apart, as most cars sound them, looping while held.
+Samples Horn();
 Samples Wind();
 Samples Music();
 Samples Click();

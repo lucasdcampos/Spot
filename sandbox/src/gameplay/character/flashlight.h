@@ -8,7 +8,8 @@
 
 namespace Gameplay {
 
-// Switches the light its pawn carries, with the action, read through the pawn's controller.
+// Switches the light its pawn carries, with the action, read through the pawn's controller: the Light on the light
+// entity and those below it, as a vehicle's two headlights.
 class Flashlight : public Spot::Component {
 public:
     // The entity of the Light it switches, as one turning with the head.
@@ -24,7 +25,8 @@ protected:
     void Serialize(Spot::Archive& archive) override;
 
 private:
-    Spot::Light* GetLight() const;
+    template <typename F>
+    void ForEachLight(F&& visit) const;
 
     InputContext m_input{{.name = "Flashlight", .actions = {"Flashlight"}}};
 };

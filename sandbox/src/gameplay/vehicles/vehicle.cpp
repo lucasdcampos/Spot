@@ -10,7 +10,7 @@ namespace Gameplay {
 
 std::vector<std::string> VehicleControls::GetActions() const {
     std::vector<std::string> actions;
-    for (const auto* action : {&accelerate, &brake, &steer, &handbrake, &ascend, &descend, &strafe}) {
+    for (const auto* action : {&accelerate, &brake, &steer, &handbrake, &ascend, &descend, &strafe, &horn}) {
         if (!action->empty()) {
             actions.push_back(*action);
         }
@@ -23,7 +23,8 @@ VehicleInput VehicleControls::Read(const InputContext& input) const {
             .steer = input.GetVector2(steer).x,
             .handbrake = input.IsDown(handbrake),
             .lift = input.GetValue(ascend) - input.GetValue(descend),
-            .strafe = input.GetValue(strafe)};
+            .strafe = input.GetValue(strafe),
+            .horn = input.IsDown(horn)};
 }
 
 void VehicleControls::Serialize(Spot::Archive& archive) {
@@ -34,6 +35,7 @@ void VehicleControls::Serialize(Spot::Archive& archive) {
     archive.Field("ascend", ascend);
     archive.Field("descend", descend);
     archive.Field("strafe", strafe);
+    archive.Field("horn", horn);
 }
 
 VehicleSeat* Vehicle::GetSeat() const {

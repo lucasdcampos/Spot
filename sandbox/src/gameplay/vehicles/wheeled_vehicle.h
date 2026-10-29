@@ -45,15 +45,15 @@ public:
     float rollCenterHeight = 0.35f;
 
     // The tires' friction coefficient at their peak, and how much less they grip at twice their resting load.
-    float grip = 1.05f;
-    float loadSensitivity = 0.12f;
+    float grip = 1.3f;
+    float loadSensitivity = 0.06f;
     // How much tires slip at their peak grip: along, as a share of the speed, and across, as an angle.
     float peakSlipRatio = 0.1f;
-    float peakSlipAngle = Spot::ToRadians(8.0f);
+    float peakSlipAngle = Spot::ToRadians(10.0f);
     float rollingResistance = 0.013f;
 
     // Steering lessens at speed, halved at steerFalloffSpeed (meters per second).
-    float steerFalloffSpeed = 22.0f;
+    float steerFalloffSpeed = 16.0f;
     // How fast the wheel turns, full lock per second.
     float steerSpeed = 2.5f;
 

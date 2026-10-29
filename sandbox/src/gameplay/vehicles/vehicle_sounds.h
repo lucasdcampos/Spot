@@ -23,6 +23,13 @@ private:
     float m_volume = 1.0f;
 };
 
+// The AudioSource of its entity sounds while the driver of the Vehicle above it holds the horn.
+class VehicleHornSound : public Spot::Component {
+protected:
+    void OnUpdate(float deltaTime) override;
+    void OnDisable() override;
+};
+
 // The AudioSource of its entity squeals as the tires of the Vehicle above it slide past their peak grip, and not
 // while it barely moves.
 class VehicleTireSound : public Spot::Component {

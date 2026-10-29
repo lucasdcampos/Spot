@@ -24,6 +24,12 @@ constexpr float StateTime = 0.04f;
 } // namespace
 
 Health* HealthElement::GetHealth(const HudContext& context) {
+    // In a vehicle the player's own health shows, not the vehicle's.
+    if (context.occupant) {
+        if (auto* health = context.occupant->GetEntity().GetComponent<Health>()) {
+            return health;
+        }
+    }
     return context.Find<Health>();
 }
 

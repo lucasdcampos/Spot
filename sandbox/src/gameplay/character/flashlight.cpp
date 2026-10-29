@@ -6,20 +6,34 @@ namespace Gameplay {
 
 SPOT_COMPONENT(Flashlight);
 
-Spot::Light* Flashlight::GetLight() const {
-    Spot::Entity* entity = GetScene().GetEntity(light);
-    return entity ? entity->GetComponent<Spot::Light>() : nullptr;
+namespace {
+
+template <typename F>
+void Visit(Spot::Entity& entity, F& visit) {
+    if (auto* found = entity.GetComponent<Spot::Light>()) {
+        visit(*found);
+    }
+    entity.ForEachChild([&](Spot::Entity& child) { Visit(child, visit); });
 }
 
-void Flashlight::Toggle() {
-    if (Spot::Light* found = GetLight()) {
-        found->SetEnabled(!found->IsEnabled());
+} // namespace
+
+template <typename F>
+void Flashlight::ForEachLight(F&& visit) const {
+    if (Spot::Entity* entity = GetScene().GetEntity(light)) {
+        Visit(*entity, visit);
     }
 }
 
+void Flashlight::Toggle() {
+    const bool on = !IsOn();
+    ForEachLight([&](Spot::Light& found) { found.SetEnabled(on); });
+}
+
 bool Flashlight::IsOn() const {
-    const Spot::Light* found = GetLight();
-    return found && found->IsEnabled();
+    bool on = false;
+    ForEachLight([&](const Spot::Light& found) { on = on || found.IsEnabled(); });
+    return on;
 }
 
 void Flashlight::OnUpdate(float /*deltaTime*/) {

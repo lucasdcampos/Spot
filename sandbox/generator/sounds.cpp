@@ -528,6 +528,25 @@ Samples TireSqueal() {
     return Normalize(Loop(std::move(samples), 0.25f), 0.4f);
 }
 
+Samples Horn() {
+    // Whole cycles of both tones in the second it loops over.
+    Samples samples = Make(1.0f, 22050);
+    const auto rate = static_cast<float>(samples.sampleRate);
+    LowPass body(2400.0f, samples.sampleRate);
+    for (std::size_t i = 0; i < samples.data.size(); ++i) {
+        const float t = static_cast<float>(i) / rate;
+        float tone = 0.0f;
+        // The diaphragm buzzes, rich in odd harmonics, which the horn's trumpet softens.
+        for (const float frequency : {420.0f, 525.0f}) {
+            for (int harmonic = 1; harmonic <= 7; harmonic += 2) {
+                tone += Sine(t * frequency * static_cast<float>(harmonic)) / static_cast<float>(harmonic);
+            }
+        }
+        samples.data[i] = body.Process(tone);
+    }
+    return Normalize(std::move(samples), 0.5f);
+}
+
 Samples Wind() {
     Samples samples = Make(6.5f, 22050);
     Noise noise(131);

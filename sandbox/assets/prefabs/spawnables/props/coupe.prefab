@@ -20,8 +20,8 @@
             "viewCamera": 17,
             "antiRoll": 14500.0,
             "rollCenterHeight": 0.3,
-            "grip": 1.12,
-            "steerFalloffSpeed": 24.0,
+            "grip": 1.38,
+            "steerFalloffSpeed": 18.0,
             "brakeTorque": 7500.0,
             "dragCoefficient": 0.36,
             "drivetrain": {
@@ -188,6 +188,15 @@
           "enabled": true,
           "id": "532b9facb6d30d54851a5b3ac6e7d58f",
           "type": "Persistent"
+        },
+        {
+          "data": {
+            "action": "Flashlight",
+            "light": 29
+          },
+          "enabled": true,
+          "id": "11d36c59afc4151c30048ede8fd55fc8",
+          "type": "Flashlight"
         }
       ],
       "id": 1,
@@ -1207,6 +1216,170 @@
         0.0,
         0.2,
         0.0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [],
+      "id": 29,
+      "layer": 0,
+      "name": "Headlight Beams",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": false,
+            "color": [
+              1.0,
+              0.95,
+              0.85,
+              1.0
+            ],
+            "innerConeAngle": 0.3,
+            "intensity": 300.0,
+            "outerConeAngle": 0.55,
+            "range": 45.0
+          },
+          "enabled": false,
+          "id": "967157eb87f634f9d7e8915a48f99637",
+          "type": "SpotLight"
+        }
+      ],
+      "id": 30,
+      "layer": 0,
+      "name": "Beam Left",
+      "position": [
+        -0.62,
+        0.66,
+        -2.25
+      ],
+      "rotation": [
+        -0.0349,
+        0,
+        0,
+        0.99939
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 29
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": false,
+            "color": [
+              1.0,
+              0.95,
+              0.85,
+              1.0
+            ],
+            "innerConeAngle": 0.3,
+            "intensity": 300.0,
+            "outerConeAngle": 0.55,
+            "range": 45.0
+          },
+          "enabled": false,
+          "id": "ac4e3b51597558bffd78d6395c054f6c",
+          "type": "SpotLight"
+        }
+      ],
+      "id": 31,
+      "layer": 0,
+      "name": "Beam Right",
+      "position": [
+        0.62,
+        0.66,
+        -2.25
+      ],
+      "rotation": [
+        -0.0349,
+        0,
+        0,
+        0.99939
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 29
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "bus": "Effects",
+            "loop": true,
+            "pitch": 1.12,
+            "playOnStart": false,
+            "sound": "cbd433eff33c1b8bbd9499ce990c3e37",
+            "spatial": true,
+            "spatialSettings": {
+              "maxDistance": 120.0,
+              "minDistance": 6.0,
+              "rolloff": 0
+            },
+            "volume": 0.7
+          },
+          "enabled": true,
+          "id": "aa7773b002f40b8ddf3eb77dd5206efc",
+          "type": "AudioSource"
+        },
+        {
+          "data": {},
+          "enabled": true,
+          "id": "29e2dbf9eb7306749d1ffacb5608bc6e",
+          "type": "VehicleHornSound"
+        }
+      ],
+      "id": 32,
+      "layer": 0,
+      "name": "Horn Sound",
+      "position": [
+        0.0,
+        0.6,
+        -1.8
       ],
       "rotation": [
         0,

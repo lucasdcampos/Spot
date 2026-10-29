@@ -136,6 +136,7 @@ const std::vector<GeneratedSound>& GetSounds() {
         {"engine", Sounds::Engine},
         {"helicopter_rotor", Sounds::HelicopterRotor},
         {"tire_squeal", Sounds::TireSqueal},
+        {"horn", Sounds::Horn},
         {"wind", Sounds::Wind},
         {"music", Sounds::Music},
         {"click", Sounds::Click},

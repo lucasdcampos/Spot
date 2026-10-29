@@ -18,6 +18,8 @@ public:
     Spot::AssetRef<Spot::Material> burnedMaterial;
     float safeImpactSpeed = 8.0f;
     float damagePerSpeed = 15.0f;
+    // Bodies lighter than this share of the vehicle's mass, and characters, are run over without harm.
+    float harmlessMassShare = 0.2f;
 
     bool IsDestroyed() const { return m_destroyed; }
 
@@ -27,6 +29,7 @@ protected:
     void Serialize(Spot::Archive& archive) override;
 
 private:
+    bool IsHarmless(const Spot::Entity& other) const;
     void Explode(const DamageInfo& damage);
     void ApplyWreck();
 

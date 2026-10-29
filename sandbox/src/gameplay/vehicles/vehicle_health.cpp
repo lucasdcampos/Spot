@@ -13,11 +13,13 @@ SPOT_COMPONENT(VehicleHealth);
 
 namespace {
 
+// Wrecks also go dark: no one can get in to switch their lights back on.
 void Burn(Spot::Entity& entity, const Spot::AssetRef<Spot::Material>& material) {
     entity.ForEachComponent<Spot::MeshRenderer>([&](Spot::MeshRenderer& renderer) {
         renderer.SetMaterial(material);
         renderer.SetTextureSpace(Spot::TextureSpace::Object);
     });
+    entity.ForEachComponent<Spot::Light>([](Spot::Light& light) { light.SetEnabled(false); });
     entity.ForEachChild([&](Spot::Entity& child) { Burn(child, material); });
 }
 
@@ -41,7 +43,7 @@ void VehicleHealth::OnStart() {
 void VehicleHealth::OnCollisionEnter(const Spot::Collision& collision) {
     const float speed = std::max(-Spot::Dot(collision.relativeVelocity, collision.normal), 0.0f);
     const Spot::Entity* other = GetScene().GetEntity(collision.other);
-    if (m_destroyed || !other || other->IsDescendantOf(GetEntity()) || speed <= safeImpactSpeed) {
+    if (m_destroyed || !other || other->IsDescendantOf(GetEntity()) || speed <= safeImpactSpeed || IsHarmless(*other)) {
         return;
     }
     Damage::Apply(GetScene(), GetEntity().GetId(),
@@ -50,6 +52,20 @@ void VehicleHealth::OnCollisionEnter(const Spot::Collision& collision) {
                    .point = collision.pointCount > 0 ? collision.points[0] : GetTransform().GetWorldPosition(),
                    .source = collision.other,
                    .pushesBody = false});
+}
+
+bool VehicleHealth::IsHarmless(const Spot::Entity& other) const {
+    const auto* own = GetEntity().GetComponent<Spot::Rigidbody>();
+    // Ragdoll bones are children of their character, so the whole chain up decides.
+    for (const Spot::Entity* entity = &other; entity; entity = entity->GetParent()) {
+        if (entity->GetComponent<Spot::CharacterController>()) {
+            return true;
+        }
+        if (const auto* body = entity->GetComponent<Spot::Rigidbody>()) {
+            return own && !body->IsKinematic() && body->GetMass() < own->GetMass() * harmlessMassShare;
+        }
+    }
+    return false;
 }
 
 void VehicleHealth::ApplyWreck() {
@@ -98,6 +114,11 @@ void VehicleHealth::Serialize(Spot::Archive& archive) {
     archive.Field("burnedMaterial", burnedMaterial);
     archive.Field("safeImpactSpeed", safeImpactSpeed, {.min = 0.0f, .max = 100.0f, .speed = 0.1f});
     archive.Field("damagePerSpeed", damagePerSpeed, {.min = 0.0f, .max = 1000.0f, .speed = 0.5f});
+    archive.Field("harmlessMassShare", harmlessMassShare,
+                  {.min = 0.0f,
+                   .max = 1.0f,
+                   .speed = 0.01f,
+                   .tooltip = "Lighter bodies than this share of the vehicle's mass do no impact damage"});
     if (archive.IsSaving() && HasStarted()) {
         m_savedHealth = GetHealth();
     }

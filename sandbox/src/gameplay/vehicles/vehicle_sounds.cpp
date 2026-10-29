@@ -9,6 +9,7 @@ namespace Gameplay {
 
 SPOT_COMPONENT(VehicleEngineSound);
 SPOT_COMPONENT(VehicleTireSound);
+SPOT_COMPONENT(VehicleHornSound);
 
 void VehicleEngineSound::OnStart() {
     if (const auto* source = GetEntity().GetComponent<Spot::AudioSource>()) {
@@ -43,6 +44,25 @@ void VehicleEngineSound::Serialize(Spot::Archive& archive) {
     archive.Field(
         "recordedRpm", recordedRpm,
         {.min = 100.0f, .max = 20000.0f, .speed = 10.0f, .tooltip = "The revolutions its sound was recorded at"});
+}
+
+void VehicleHornSound::OnUpdate(float /*deltaTime*/) {
+    auto* source = GetEntity().GetComponent<Spot::AudioSource>();
+    const Vehicle* vehicle = GetEntity().GetComponentInParent<Vehicle>();
+    if (!source) {
+        return;
+    }
+    if (!vehicle || !vehicle->IsOperational() || !vehicle->GetInput().horn) {
+        source->Stop();
+    } else if (!source->IsPlaying()) {
+        source->Play();
+    }
+}
+
+void VehicleHornSound::OnDisable() {
+    if (auto* source = GetEntity().GetComponent<Spot::AudioSource>()) {
+        source->Stop();
+    }
 }
 
 void VehicleTireSound::OnStart() {

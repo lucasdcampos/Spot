@@ -195,7 +195,8 @@ TEST_CASE("Aircraft vertical controls route through the shared vehicle input con
     CHECK(helicopter.GetInput().lift == 0.0f);
 
     const Gameplay::VehicleControls groundControls;
-    CHECK(groundControls.GetActions().size() == 4);
+    // Accelerate, brake, steer, handbrake and horn.
+    CHECK(groundControls.GetActions().size() == 5);
 }
 
 TEST_CASE("Helicopter gamepad axes independently control lift tilt and yaw",

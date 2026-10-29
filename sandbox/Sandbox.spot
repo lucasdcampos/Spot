@@ -775,6 +775,33 @@
           "bindings": [
             {
               "control": {
+                "code": 14,
+                "source": 0
+              },
+              "deadZone": 0.0,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1.0
+            },
+            {
+              "control": {
+                "code": 7,
+                "source": 4
+              },
+              "deadZone": 0.0,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1.0
+            }
+          ],
+          "name": "Horn",
+          "pressPoint": 0.5,
+          "type": 0
+        },
+        {
+          "bindings": [
+            {
+              "control": {
                 "code": 101,
                 "source": 0
               },

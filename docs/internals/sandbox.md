@@ -162,7 +162,8 @@ controls are:
 | Left mouse, right mouse | Fire/use the tool, aim or turn a held prop |
 | R | Reload; cycle the tool gun's mode |
 | E | Carry or drop a nearby light prop; get into the car looked at, or out of it |
-| F | Toggle the flashlight |
+| F | Toggle the flashlight, or a car's headlights while driving |
+| N | Sound a car's horn while driving |
 | F1–F8 | Spawn crate, barrel, explosive barrel, ball, plank, beam, cone or wheel |
 | Q | Open the spawn menu |
 | Z | Undo the last spawn or tool operation |
@@ -174,7 +175,8 @@ controls are:
 The Player entity is the gameplay framework's `Character` (see [the gameplay framework](sandbox_gameplay.md)), possessed by
 the `PlayerController` on the Player Controller entity, through which every part of the player reads its input. Its
 `FirstPersonView.head` reference points to its Head child with the active camera, which is also the pawn's `eye` and
-`viewCamera`; `Flashlight.light` points to the light below that head. Mouse look turns the head, walking uses that view's
+`viewCamera`; `Flashlight.light` points to the light below that head. Cars carry a `Flashlight` too, which switches the two spot lights below their
+`Headlight Beams` entity, since it switches every light below its entity; wrecks turn them off for good. Mouse look turns the head, walking uses that view's
 yaw, and noclip also follows its pitch. Keep these references assigned in the scene so movement, aiming and the
 rendered view agree. Use goes through the pawn's `Interactor`: the car's `VehicleSeat` and light props (`Carrier`)
 are what it can use. `GameMode` owns starting positions and respawn, and `SessionControls` owns cursor capture,
@@ -234,7 +236,9 @@ fast, ignite explosive barrels, knock NPCs into ragdoll with the impact impulse 
 players other than the driver. Walking or sprinting into a parked car does not deal damage.
 
 Both cars and the helicopter have `VehicleHealth`: 300 health, without regeneration. Shots, blasts and
-collisions above 8 m/s accumulate damage. At zero health the vehicle explodes once, damaging and pushing its
+collisions above 8 m/s accumulate damage, except with characters, ragdolls and bodies under a fifth of the
+vehicle's mass, such as cones and props, which are run over without harm. In a seat the HUD's health shows the
+driver's, not the vehicle's. At zero health the vehicle explodes once, damaging and pushing its
 surroundings, ejects its driver and becomes unusable. Its own explosion has a 12-meter radius and deals up to
 600 damage, enough to kill nearby players and the ejected driver. The fireball renders at 2.4 times its base scale.
 An off-center impulse launches and turns the wreck, preserving its existing motion; wrecks release the parking
@@ -254,10 +258,11 @@ stopped car neither jitters nor creeps. An engine with a torque curve and engine
 (`VehicleWheel::driveShare`) through a clutch that slips at launch, an automatic gearbox shifting by revolutions and
 throttle, a final drive and an open differential, its inertia added to theirs. Brakes, biased to the front and with
 anti-lock, and the handbrake on the rear wheels stop them; the air drags as the square of the speed. The front wheels
-steer with Ackermann geometry, less at speed. Parked, its brakes hold it and it sleeps once still. Every value is a
+steer with Ackermann geometry, less at speed. The tires are tuned to hold the road rather than drift: a high peak
+grip, little load sensitivity and a wide peak slip angle keep the rear in line through turns. Parked, its brakes hold it and it sleeps once still. Every value is a
 field of the vehicle, its `Drivetrain` or each `VehicleWheel`, in SI units. `VehicleEngineSound` pitches the engine's
 loop to the revolutions and `VehicleTireSound` makes the tires squeal past their
-peak, both generated (`generator/sounds.cpp`), as is the model (`generator/vehicles.cpp`): an extruded body with
+peak, `VehicleHornSound` sounds the horn while the driver holds `Horn`, both generated (`generator/sounds.cpp`), as is the model (`generator/vehicles.cpp`): an extruded body with
 rounded wheel arches, glass, trim, interior, lights and a wheel that the car's four wheel entities show, steered and
 spun.
 
