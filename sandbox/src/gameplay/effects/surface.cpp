@@ -32,7 +32,18 @@ SurfaceLibrary* SurfaceLibrary::Find(Spot::Scene& scene) {
 
 const SurfaceDefinition* SurfaceLibrary::Of(Spot::Scene& scene, const Spot::Entity* entity) {
     const SurfaceLibrary* library = Find(scene);
-    const Surface* surface = entity ? entity->GetComponent<Surface>() : nullptr;
+    const Surface* surface = nullptr;
+    for (const Spot::Entity* at = entity; at && !surface; at = at->GetParent()) {
+        surface = at->GetComponent<Surface>();
+    }
+    // A ragdoll's bodies are of what they are the bones of, as a dead NPC's are flesh.
+    if (!surface && entity) {
+        scene.ForEachComponent<Spot::Ragdoll>([&](Spot::Ragdoll& ragdoll) {
+            if (!surface && ragdoll.OwnsBody(entity->GetId())) {
+                surface = ragdoll.GetEntity().GetComponent<Surface>();
+            }
+        });
+    }
     return library ? library->Get(static_cast<std::size_t>(std::max(surface ? surface->kind : 0, 0))) : nullptr;
 }
 

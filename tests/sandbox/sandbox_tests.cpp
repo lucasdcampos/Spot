@@ -23,6 +23,7 @@
 #include "gameplay/character/character_visual.h"
 #include "gameplay/character/flashlight.h"
 #include "gameplay/core/interactor.h"
+#include "gameplay/effects/decals.h"
 #include "gameplay/effects/effect_library.h"
 #include "gameplay/effects/flash.h"
 #include "gameplay/effects/surface.h"
@@ -2115,4 +2116,47 @@ TEST_CASE("Prop collisions emit surface particles without an audio device", "[sa
     prop.AddComponent<Gameplay::ImpactParticles>();
     playground.Run(0.85f);
     CHECK(ParticleCount(playground.scene, sparks.settings.startColor) > 0);
+}
+
+TEST_CASE("Shot NPCs bleed onto what is around them, and the blood fades", "[sandbox][npc][particles]") {
+    Playground playground;
+    playground.Run(0.5f);
+    auto& npc = SpawnNpc(playground, "neutral", InFront(playground, 6), {0, 0, 1});
+    playground.Run(0.5f);
+    for (const char* name : {"impact.flesh", "blood.exit"}) {
+        REQUIRE(Gameplay::EffectLibrary::Find(playground.scene, name));
+    }
+    const Spot::Vector3 chest = npc.GetEntity().GetTransform().GetWorldPosition() + Spot::Vector3{0, 1.2f, 0};
+    Gameplay::Damage::Apply(playground.scene, npc.GetEntity().GetId(),
+                            {.amount = 5, .type = "Bullet", .point = chest, .impulse = {0, 0, 10}});
+    auto* decals = playground.scene.GetSystem<Gameplay::Decals>();
+    REQUIRE(decals);
+    REQUIRE(decals->GetCount() > 0);
+    const auto shown = [&] {
+        int count = 0;
+        playground.scene.ForEachComponent<Spot::MeshRenderer>([&](Spot::MeshRenderer& renderer) {
+            const Spot::Entity& entity = renderer.GetEntity();
+            if (entity.GetName() == "Decal") {
+                ++count;
+                // Laid on what is around, not floating in the NPC.
+                const Spot::Vector3 at = entity.GetTransform().GetWorldPosition();
+                const Spot::Vector3 base = npc.GetEntity().GetTransform().GetWorldPosition();
+                const float across = std::hypot(at.x - base.x, at.z - base.z);
+                CHECK((across > 0.35f || at.y < base.y + 0.2f));
+            }
+        });
+        return count;
+    };
+    playground.Run(1.0f);
+    CHECK(shown() > 0);
+    // The dead bleed too.
+    Gameplay::Damage::Apply(playground.scene, npc.GetEntity().GetId(),
+                            {.amount = 1000, .type = "Bullet", .point = chest, .impulse = {0, 0, 10}});
+    REQUIRE(npc.IsDead());
+    const std::size_t before = decals->GetCount();
+    Gameplay::Damage::Apply(playground.scene, npc.GetEntity().GetId(),
+                            {.amount = 5, .type = "Bullet", .point = chest, .impulse = {0, 0, 10}});
+    CHECK(decals->GetCount() > before);
+    playground.Run(50.0f);
+    CHECK(shown() == 0);
 }

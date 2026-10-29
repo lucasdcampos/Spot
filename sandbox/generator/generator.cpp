@@ -96,6 +96,8 @@ const std::vector<Texture>& GetTextures() {
         {"fx_flame", EffectTextures::Flame},
         {"fx_debris", EffectTextures::Debris},
         {"fx_ripple", EffectTextures::Ripple},
+        {"fx_blood", EffectTextures::BloodSplat},
+        {"fx_blood_spatter", EffectTextures::BloodSpatter},
     };
     return textures;
 }

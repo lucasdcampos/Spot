@@ -31,7 +31,8 @@ public:
 
     // The scene's first enabled library; null when it has none.
     static SurfaceLibrary* Find(Spot::Scene& scene);
-    // The surface of the entity, by its Surface or the first; null without a library, or one without that surface.
+    // The surface of the entity, by its Surface, its nearest ancestor's or its ragdoll's, or else the first; null
+    // without a library, or one without that surface.
     static const SurfaceDefinition* Of(Spot::Scene& scene, const Spot::Entity* entity);
 
     const SurfaceDefinition* Get(std::size_t index) const;

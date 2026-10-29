@@ -18,5 +18,9 @@ Spot::Image Flame();
 Spot::Image Debris();
 // Rings of ripples spreading on water, the outermost the strongest, for flat particles.
 Spot::Image Ripple();
+// Blood fallen on a surface: an uneven blot with a crown of streaks and drops around it, for marks laid on surfaces.
+Spot::Image BloodSplat();
+// Blood thrown across a surface down the texture, its +v: a blot, then drops with tails, then a fine mist.
+Spot::Image BloodSpatter();
 
 } // namespace Generator::EffectTextures

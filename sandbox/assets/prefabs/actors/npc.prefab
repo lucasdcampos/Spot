@@ -512,7 +512,48 @@
           "id": "361faa8ad510457bbdcc79d41388fc83",
           "enabled": true,
           "data": {
-            "kind": 0
+            "kind": 3
+          }
+        },
+        {
+          "type": "Bleeding",
+          "id": "1d680ddca5e145978afcd04daaa4d555",
+          "enabled": true,
+          "data": {
+            "spatter": {
+              "texture": "be722a802c8328c4e7cc591019beb068",
+              "color": [
+                0.2,
+                0.008,
+                0.006,
+                1.0
+              ],
+              "roughness": 0.35,
+              "lifetime": 40.0,
+              "fadeTime": 5.0
+            },
+            "drip": {
+              "texture": "748102376547484958d4501910647ae5",
+              "color": [
+                0.2,
+                0.008,
+                0.006,
+                1.0
+              ],
+              "roughness": 0.35,
+              "lifetime": 40.0,
+              "fadeTime": 5.0
+            },
+            "exitEffect": "blood.exit",
+            "damageType": "Bullet",
+            "spatterCount": 6,
+            "spatterCone": 0.6,
+            "spatterReach": 5.0,
+            "dripReach": 3.0,
+            "dripCount": 4,
+            "dripRadius": 0.8,
+            "minSize": 0.2,
+            "maxSize": 0.7
           }
         }
       ]

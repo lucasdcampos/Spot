@@ -180,4 +180,100 @@ Spot::Image Ripple() {
     });
 }
 
+// A drop flung from one point to another: thin at its tail, round at its head.
+struct Drop {
+    float tailX, tailY, headX, headY;
+    float tailRadius, headRadius;
+};
+
+float Cover(const Drop& drop, float x, float y) {
+    const float dx = drop.headX - drop.tailX;
+    const float dy = drop.headY - drop.tailY;
+    const float length = dx * dx + dy * dy;
+    const float t = length > 1e-8f ? std::clamp(((x - drop.tailX) * dx + (y - drop.tailY) * dy) / length, 0.0f, 1.0f)
+                                   : 1.0f;
+    const float ox = x - (drop.tailX + dx * t);
+    const float oy = y - (drop.tailY + dy * t);
+    const float radius = drop.tailRadius + (drop.headRadius - drop.tailRadius) * t * t;
+    return Smooth(radius, radius * 0.55f, std::sqrt(ox * ox + oy * oy));
+}
+
+// Drops thrown from the origin, within the spread of the direction, nearer and bigger first; in texture coordinates.
+std::vector<Drop> Throw(float originX, float originY, float directionX, float directionY, float spread, int count,
+                        float minReach, float maxReach, float size, std::uint32_t seed) {
+    std::vector<Drop> drops;
+    for (int i = 0; i < count; ++i) {
+        const float side = (Textures::Random(i, 0, seed) * 2.0f - 1.0f) * spread;
+        float x = directionX - directionY * side;
+        float y = directionY + directionX * side;
+        const float norm = std::sqrt(x * x + y * y);
+        x /= norm;
+        y /= norm;
+        const float far = Textures::Random(i, 1, seed);
+        const float reach = minReach + (maxReach - minReach) * far;
+        // Farther drops are smaller, and stretched longer by their flight.
+        const float radius = size * (0.35f + 0.65f * Textures::Random(i, 2, seed)) * (1.0f - 0.6f * far);
+        const float tail = reach - radius * (2.0f + 7.0f * far * Textures::Random(i, 3, seed));
+        drops.push_back({originX + x * std::max(tail, 0.0f), originY + y * std::max(tail, 0.0f), originX + x * reach,
+                         originY + y * reach, radius * 0.25f, radius});
+    }
+    return drops;
+}
+
+float CoverAll(const std::vector<Drop>& drops, float x, float y) {
+    float cover = 0.0f;
+    for (const Drop& drop : drops) {
+        cover = std::max(cover, Cover(drop, x, y));
+    }
+    return cover;
+}
+
+// How blood looks where it is thick and where thin: darker and more even where it pooled.
+Texel Blood(float cover, float thickness, float u, float v) {
+    const float shade = 0.55f + 0.45f * (1.0f - thickness) * (0.75f + 0.25f * Fractal(u, v, 10, 10, 3, 9731));
+    return Texel{shade, cover};
+}
+
+Spot::Image BloodSplat() {
+    // A crown of streaks all around, and drops beyond it.
+    static const std::vector<Drop> crown = [] {
+        std::vector<Drop> drops;
+        for (const auto& [x, y] : {std::pair{1.0f, 0.0f}, {0.0f, 1.0f}, {-1.0f, 0.0f}, {0.0f, -1.0f}}) {
+            auto quarter = Throw(0.5f, 0.5f, x, y, 1.0f, 14, 0.2f, 0.47f, 0.03f,
+                                 9741u + static_cast<std::uint32_t>(x * 3.0f + y * 7.0f + 10.0f));
+            drops.insert(drops.end(), quarter.begin(), quarter.end());
+        }
+        return drops;
+    }();
+    return Paint(256, 256, [](float u, float v) {
+        const Polar p = ToPolar(u, v);
+        const float reach = 0.36f + 0.06f * Cos3(p) + 0.05f * Sin2(p) + (Fractal(u, v, 6, 6, 4, 9701) - 0.5f) * 0.28f;
+        const float blot = Smooth(reach, reach - 0.03f, p.radius);
+        const float cover = std::max(blot, CoverAll(crown, u, v));
+        return Blood(cover * EdgeFade(p), Smooth(reach, 0.0f, p.radius), u, v);
+    });
+}
+
+Spot::Image BloodSpatter() {
+    // Thrown down the texture, its +v, from a small blot near its top: big drops close, fine mist far. Measured in
+    // its width, as it is twice as tall.
+    static const std::vector<Drop> drops = [] {
+        auto near = Throw(0.5f, 0.24f, 0.0f, 1.0f, 0.3f, 26, 0.12f, 1.2f, 0.07f, 9751);
+        auto mist = Throw(0.5f, 0.24f, 0.0f, 1.0f, 0.45f, 70, 0.2f, 1.7f, 0.03f, 9761);
+        near.insert(near.end(), mist.begin(), mist.end());
+        return near;
+    }();
+    return Paint(128, 256, [](float u, float v) {
+        const float x = u;
+        const float y = v * 2.0f;
+        const float dx = x - 0.5f;
+        const float dy = y - 0.24f;
+        const float wobble = (Fractal(u, v, 4, 8, 3, 9771) - 0.5f) * 0.06f;
+        const float blot = Smooth(0.12f + wobble, 0.09f + wobble, std::sqrt(dx * dx + dy * dy * 0.6f));
+        const float cover = std::max(blot, CoverAll(drops, x, y));
+        const float edge = Smooth(0.0f, 0.04f, u) * Smooth(1.0f, 0.96f, u) * Smooth(1.0f, 0.97f, v);
+        return Blood(cover * edge, blot, u, v);
+    });
+}
+
 } // namespace Generator::EffectTextures

@@ -1249,6 +1249,628 @@
               {
                 "layers": [
                   {
+                    "count": 30,
+                    "lit": true,
+                    "offset": 0.0,
+                    "scale": 1.0,
+                    "settings": {
+                      "blend": 0,
+                      "boxSize": [
+                        1.0,
+                        1.0,
+                        1.0
+                      ],
+                      "bursts": [],
+                      "colorOverLifetime": {
+                        "keys": [
+                          {
+                            "color": [
+                              1.0,
+                              1.0,
+                              1.0,
+                              1.0
+                            ],
+                            "time": 0.0
+                          },
+                          {
+                            "color": [
+                              1.0,
+                              1.0,
+                              1.0,
+                              1.0
+                            ],
+                            "time": 0.8
+                          },
+                          {
+                            "color": [
+                              1.0,
+                              1.0,
+                              1.0,
+                              0.0
+                            ],
+                            "time": 1.0
+                          }
+                        ]
+                      },
+                      "coneAngle": 0.9,
+                      "duration": 5.0,
+                      "emissionRate": 0.0,
+                      "facing": 1,
+                      "flipbookColumns": 1,
+                      "flipbookCycles": 1.0,
+                      "flipbookRows": 1,
+                      "gravity": [
+                        0.0,
+                        -9.81,
+                        0.0
+                      ],
+                      "lifetime": {
+                        "max": 0.9,
+                        "min": 0.35
+                      },
+                      "loop": false,
+                      "maxParticles": 512,
+                      "playOnStart": false,
+                      "radius": 0.029999999329447746,
+                      "rotation": {
+                        "max": 0.0,
+                        "min": 0.0
+                      },
+                      "rotationOverLifetime": {
+                        "keys": [
+                          {
+                            "inTangent": 0.0,
+                            "outTangent": 0.0,
+                            "time": 0.0,
+                            "value": 0.0
+                          }
+                        ]
+                      },
+                      "seed": 7,
+                      "shape": 2,
+                      "size": {
+                        "max": 0.026,
+                        "min": 0.008
+                      },
+                      "sizeOverLifetime": {
+                        "keys": [
+                          {
+                            "inTangent": 0.0,
+                            "outTangent": 0.0,
+                            "time": 0.0,
+                            "value": 1.0
+                          }
+                        ]
+                      },
+                      "softDistance": 0.0,
+                      "space": 1,
+                      "speed": {
+                        "max": 4.0,
+                        "min": 0.8
+                      },
+                      "speedOverLifetime": {
+                        "keys": [
+                          {
+                            "inTangent": 0.0,
+                            "outTangent": 0.0,
+                            "time": 0.0,
+                            "value": 1.0
+                          }
+                        ]
+                      },
+                      "startColor": [
+                        0.16,
+                        0.004,
+                        0.003,
+                        1.0
+                      ],
+                      "velocityStretch": 0.35
+                    },
+                    "texture": null
+                  },
+                  {
+                    "count": 8,
+                    "lit": true,
+                    "offset": 0.0,
+                    "scale": 1.0,
+                    "settings": {
+                      "blend": 0,
+                      "boxSize": [
+                        1.0,
+                        1.0,
+                        1.0
+                      ],
+                      "bursts": [],
+                      "colorOverLifetime": {
+                        "keys": [
+                          {
+                            "color": [
+                              1.0,
+                              1.0,
+                              1.0,
+                              1.0
+                            ],
+                            "time": 0.0
+                          },
+                          {
+                            "color": [
+                              1.0,
+                              1.0,
+                              1.0,
+                              1.0
+                            ],
+                            "time": 0.20000000298023224
+                          },
+                          {
+                            "color": [
+                              1.0,
+                              1.0,
+                              1.0,
+                              0.0
+                            ],
+                            "time": 1.0
+                          }
+                        ]
+                      },
+                      "coneAngle": 0.800000011920929,
+                      "duration": 5.0,
+                      "emissionRate": 0.0,
+                      "facing": 0,
+                      "flipbookColumns": 1,
+                      "flipbookCycles": 1.0,
+                      "flipbookRows": 1,
+                      "gravity": [
+                        0.0,
+                        -2.0,
+                        0.0
+                      ],
+                      "lifetime": {
+                        "max": 0.6,
+                        "min": 0.25
+                      },
+                      "loop": false,
+                      "maxParticles": 512,
+                      "playOnStart": false,
+                      "radius": 0.029999999329447746,
+                      "rotation": {
+                        "max": 0.0,
+                        "min": 0.0
+                      },
+                      "rotationOverLifetime": {
+                        "keys": [
+                          {
+                            "inTangent": 0.0,
+                            "outTangent": 0.0,
+                            "time": 0.0,
+                            "value": 0.0
+                          }
+                        ]
+                      },
+                      "seed": 8,
+                      "shape": 2,
+                      "size": {
+                        "max": 0.12,
+                        "min": 0.05
+                      },
+                      "sizeOverLifetime": {
+                        "keys": [
+                          {
+                            "inTangent": 2.0,
+                            "outTangent": 2.0,
+                            "time": 0.0,
+                            "value": 1.0
+                          },
+                          {
+                            "inTangent": 2.0,
+                            "outTangent": 2.0,
+                            "time": 1.0,
+                            "value": 3.0
+                          }
+                        ]
+                      },
+                      "softDistance": 0.30000001192092896,
+                      "space": 1,
+                      "speed": {
+                        "max": 1.0,
+                        "min": 0.2
+                      },
+                      "speedOverLifetime": {
+                        "keys": [
+                          {
+                            "inTangent": 0.0,
+                            "outTangent": 0.0,
+                            "time": 0.0,
+                            "value": 1.0
+                          }
+                        ]
+                      },
+                      "startColor": [
+                        0.2,
+                        0.01,
+                        0.008,
+                        0.45
+                      ],
+                      "velocityStretch": 0.10000000149011612
+                    },
+                    "texture": "02fcdc57f020cf8d04173ef11494c733"
+                  }
+                ],
+                "name": "impact.flesh"
+              },
+              {
+                "layers": [
+                  {
+                    "count": 45,
+                    "lit": true,
+                    "offset": 0.0,
+                    "scale": 1.0,
+                    "settings": {
+                      "blend": 0,
+                      "boxSize": [
+                        1.0,
+                        1.0,
+                        1.0
+                      ],
+                      "bursts": [],
+                      "colorOverLifetime": {
+                        "keys": [
+                          {
+                            "color": [
+                              1.0,
+                              1.0,
+                              1.0,
+                              1.0
+                            ],
+                            "time": 0.0
+                          },
+                          {
+                            "color": [
+                              1.0,
+                              1.0,
+                              1.0,
+                              1.0
+                            ],
+                            "time": 0.8
+                          },
+                          {
+                            "color": [
+                              1.0,
+                              1.0,
+                              1.0,
+                              0.0
+                            ],
+                            "time": 1.0
+                          }
+                        ]
+                      },
+                      "coneAngle": 0.35,
+                      "duration": 5.0,
+                      "emissionRate": 0.0,
+                      "facing": 1,
+                      "flipbookColumns": 1,
+                      "flipbookCycles": 1.0,
+                      "flipbookRows": 1,
+                      "gravity": [
+                        0.0,
+                        -9.81,
+                        0.0
+                      ],
+                      "lifetime": {
+                        "max": 1.1,
+                        "min": 0.4
+                      },
+                      "loop": false,
+                      "maxParticles": 512,
+                      "playOnStart": false,
+                      "radius": 0.029999999329447746,
+                      "rotation": {
+                        "max": 0.0,
+                        "min": 0.0
+                      },
+                      "rotationOverLifetime": {
+                        "keys": [
+                          {
+                            "inTangent": 0.0,
+                            "outTangent": 0.0,
+                            "time": 0.0,
+                            "value": 0.0
+                          }
+                        ]
+                      },
+                      "seed": 9,
+                      "shape": 2,
+                      "size": {
+                        "max": 0.03,
+                        "min": 0.006
+                      },
+                      "sizeOverLifetime": {
+                        "keys": [
+                          {
+                            "inTangent": 0.0,
+                            "outTangent": 0.0,
+                            "time": 0.0,
+                            "value": 1.0
+                          }
+                        ]
+                      },
+                      "softDistance": 0.0,
+                      "space": 1,
+                      "speed": {
+                        "max": 9.0,
+                        "min": 3.0
+                      },
+                      "speedOverLifetime": {
+                        "keys": [
+                          {
+                            "inTangent": 0.0,
+                            "outTangent": 0.0,
+                            "time": 0.0,
+                            "value": 1.0
+                          }
+                        ]
+                      },
+                      "startColor": [
+                        0.16,
+                        0.004,
+                        0.003,
+                        1.0
+                      ],
+                      "velocityStretch": 0.5
+                    },
+                    "texture": null
+                  },
+                  {
+                    "count": 14,
+                    "lit": true,
+                    "offset": 0.0,
+                    "scale": 1.0,
+                    "settings": {
+                      "blend": 0,
+                      "boxSize": [
+                        1.0,
+                        1.0,
+                        1.0
+                      ],
+                      "bursts": [],
+                      "colorOverLifetime": {
+                        "keys": [
+                          {
+                            "color": [
+                              1.0,
+                              1.0,
+                              1.0,
+                              1.0
+                            ],
+                            "time": 0.0
+                          },
+                          {
+                            "color": [
+                              1.0,
+                              1.0,
+                              1.0,
+                              1.0
+                            ],
+                            "time": 0.8
+                          },
+                          {
+                            "color": [
+                              1.0,
+                              1.0,
+                              1.0,
+                              0.0
+                            ],
+                            "time": 1.0
+                          }
+                        ]
+                      },
+                      "coneAngle": 0.6,
+                      "duration": 5.0,
+                      "emissionRate": 0.0,
+                      "facing": 1,
+                      "flipbookColumns": 1,
+                      "flipbookCycles": 1.0,
+                      "flipbookRows": 1,
+                      "gravity": [
+                        0.0,
+                        -9.81,
+                        0.0
+                      ],
+                      "lifetime": {
+                        "max": 0.9,
+                        "min": 0.4
+                      },
+                      "loop": false,
+                      "maxParticles": 512,
+                      "playOnStart": false,
+                      "radius": 0.029999999329447746,
+                      "rotation": {
+                        "max": 0.0,
+                        "min": 0.0
+                      },
+                      "rotationOverLifetime": {
+                        "keys": [
+                          {
+                            "inTangent": 0.0,
+                            "outTangent": 0.0,
+                            "time": 0.0,
+                            "value": 0.0
+                          }
+                        ]
+                      },
+                      "seed": 10,
+                      "shape": 2,
+                      "size": {
+                        "max": 0.045,
+                        "min": 0.02
+                      },
+                      "sizeOverLifetime": {
+                        "keys": [
+                          {
+                            "inTangent": 0.0,
+                            "outTangent": 0.0,
+                            "time": 0.0,
+                            "value": 1.0
+                          }
+                        ]
+                      },
+                      "softDistance": 0.0,
+                      "space": 1,
+                      "speed": {
+                        "max": 3.0,
+                        "min": 1.0
+                      },
+                      "speedOverLifetime": {
+                        "keys": [
+                          {
+                            "inTangent": 0.0,
+                            "outTangent": 0.0,
+                            "time": 0.0,
+                            "value": 1.0
+                          }
+                        ]
+                      },
+                      "startColor": [
+                        0.13,
+                        0.003,
+                        0.002,
+                        1.0
+                      ],
+                      "velocityStretch": 0.25
+                    },
+                    "texture": null
+                  },
+                  {
+                    "count": 10,
+                    "lit": true,
+                    "offset": 0.0,
+                    "scale": 1.0,
+                    "settings": {
+                      "blend": 0,
+                      "boxSize": [
+                        1.0,
+                        1.0,
+                        1.0
+                      ],
+                      "bursts": [],
+                      "colorOverLifetime": {
+                        "keys": [
+                          {
+                            "color": [
+                              1.0,
+                              1.0,
+                              1.0,
+                              1.0
+                            ],
+                            "time": 0.0
+                          },
+                          {
+                            "color": [
+                              1.0,
+                              1.0,
+                              1.0,
+                              1.0
+                            ],
+                            "time": 0.20000000298023224
+                          },
+                          {
+                            "color": [
+                              1.0,
+                              1.0,
+                              1.0,
+                              0.0
+                            ],
+                            "time": 1.0
+                          }
+                        ]
+                      },
+                      "coneAngle": 0.800000011920929,
+                      "duration": 5.0,
+                      "emissionRate": 0.0,
+                      "facing": 0,
+                      "flipbookColumns": 1,
+                      "flipbookCycles": 1.0,
+                      "flipbookRows": 1,
+                      "gravity": [
+                        0.0,
+                        -2.0,
+                        0.0
+                      ],
+                      "lifetime": {
+                        "max": 0.8,
+                        "min": 0.3
+                      },
+                      "loop": false,
+                      "maxParticles": 512,
+                      "playOnStart": false,
+                      "radius": 0.029999999329447746,
+                      "rotation": {
+                        "max": 0.0,
+                        "min": 0.0
+                      },
+                      "rotationOverLifetime": {
+                        "keys": [
+                          {
+                            "inTangent": 0.0,
+                            "outTangent": 0.0,
+                            "time": 0.0,
+                            "value": 0.0
+                          }
+                        ]
+                      },
+                      "seed": 11,
+                      "shape": 2,
+                      "size": {
+                        "max": 0.2,
+                        "min": 0.08
+                      },
+                      "sizeOverLifetime": {
+                        "keys": [
+                          {
+                            "inTangent": 3.0,
+                            "outTangent": 3.0,
+                            "time": 0.0,
+                            "value": 1.0
+                          },
+                          {
+                            "inTangent": 3.0,
+                            "outTangent": 3.0,
+                            "time": 1.0,
+                            "value": 4.0
+                          }
+                        ]
+                      },
+                      "softDistance": 0.30000001192092896,
+                      "space": 1,
+                      "speed": {
+                        "max": 3.5,
+                        "min": 1.0
+                      },
+                      "speedOverLifetime": {
+                        "keys": [
+                          {
+                            "inTangent": 0.0,
+                            "outTangent": 0.0,
+                            "time": 0.0,
+                            "value": 1.0
+                          }
+                        ]
+                      },
+                      "startColor": [
+                        0.18,
+                        0.01,
+                        0.008,
+                        0.4
+                      ],
+                      "velocityStretch": 0.10000000149011612
+                    },
+                    "texture": "02fcdc57f020cf8d04173ef11494c733"
+                  }
+                ],
+                "name": "blood.exit"
+              },
+              {
+                "layers": [
+                  {
                     "count": 3,
                     "lit": false,
                     "offset": 0.0,
@@ -4181,6 +4803,12 @@
                 "impact": "bc44ab298718ac512b1e6698d607a249",
                 "impactEffect": "impact.metal",
                 "name": "Metal"
+              },
+              {
+                "footsteps": [],
+                "impact": null,
+                "impactEffect": "impact.flesh",
+                "name": "Flesh"
               }
             ]
           },

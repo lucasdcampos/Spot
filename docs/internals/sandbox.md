@@ -494,6 +494,14 @@ The playground's Game entity owns the `EffectLibrary`, its named effects ("muzzl
 separately from their impact audio. Effects reuse a bounded pool and expire without affecting
 physics, spawning undo or world checkpoints. See [Particles](particles.md).
 
+NPCs are of the "Flesh" surface, whose "impact.flesh" sprays blood back at the shooter; `SurfaceLibrary::Of()` takes
+the surface of an ancestor or of the ragdoll a body belongs to, so dead NPCs bleed too. `Bleeding`
+(`gameplay/character/`) sprays "blood.exit" on along the hit, throws spatter in a cone onto walls and floors behind,
+stretched along its flight (`fx_blood_spatter` runs down its texture), and drips a pool and drops below, through
+`Decals` (`gameplay/effects/`), never on characters or ragdolls. Decals are cut-out planes, since transparent ones
+reflect light over their whole square; a bounded pool reuses the oldest, each follows the entity it is on and goes
+with it, fades by raising its cutoff, and is never saved.
+
 Play-test: fire each weapon at wood, metal, the ground and the pond; detonate a barrel, a rocket on the ground and
 one on the water; throw a crate into the pond; hold, move and release a prop with the physics gun. Check that the
 flash, sparks, dust, fire, smoke, embers, debris and splashes appear and fade, that ripples spread on the water,
