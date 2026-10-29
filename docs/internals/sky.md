@@ -55,6 +55,17 @@ they are white. The sky's light from above (`SkyLighting::skylight`) and the gro
 stand as tall as they are dense, so a low sun shades the sides of each that face away from it, behind those around it.
 At night the moon lights them gray against the dark sky, and they hide the stars.
 
+### Their shadows
+
+Clouds shade what is under them from the sun and the moon. For each directional light, the lit shaders
+(`GetCloudShadow()` in `surface_lighting.hlsl`, which every mesh and custom surface goes through) follow the light's ray
+from the point up to the middle of the layer, look up the same noise, with the same coverage and weather
+(`include/cloud_shapes.hlsl`, shared with both ways of drawing them), and dim the light the deeper inside a cloud's
+shape the ray crosses it; a coarser mip level of the noise softens their edges into a penumbra. They drift with the
+clouds, need no shadow map, and leave the light from all around as it is. What is above the clouds, or lit from
+within a couple of degrees of the horizon, is not shaded. `SkyRenderer::GetCloudShadowUniforms()` and `Bind()` hand
+the lit pass the clouds and their noise (slot 13).
+
 ### As a volume
 
 With `Renderer3DConfig::volumetricClouds` (`volumetricClouds` in the rendering settings, on by default for games),

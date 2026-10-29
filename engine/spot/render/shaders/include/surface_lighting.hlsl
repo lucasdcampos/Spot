@@ -8,6 +8,7 @@
 #ifndef SPOT_SURFACE_LIGHTING_HLSL
 #define SPOT_SURFACE_LIGHTING_HLSL
 
+#include "cloud_shapes.hlsl"
 #include "environment.hlsl"
 
 Texture2D<float4> surfaceTexture0 : register(t0, space2);
@@ -44,6 +45,9 @@ Texture2D<float4> probeReflections : register(t11, space2);
 SamplerState probeReflectionsSampler : register(s11, space2);
 Texture2D<float4> probeIrradiance : register(t12, space2);
 SamplerState probeIrradianceSampler : register(s12, space2);
+// The noise the sky's clouds are shaped from (render/cloud_noise.h), for the shadows they cast.
+Texture2D<float4> cloudNoise : register(t13, space2);
+SamplerState cloudNoiseSampler : register(s13, space2);
 
 // Must match Detail::MaxShadowCascades and Renderer3D::MaxShadowTiles.
 #define MAX_CASCADES 4
@@ -75,10 +79,10 @@ struct Probe {
 // The frame's lights, directional ones first; the view's clusters, each the first of its lights in lightIndices and
 // how many there are; and those lists of lights, by their index in lights. See Detail::BuildLightClusters(). Then the
 // reflection probes, the smallest first, so a probe inside another lights what it holds.
-StructuredBuffer<Light> lights : register(t13, space2);
-StructuredBuffer<uint2> clusters : register(t14, space2);
-StructuredBuffer<uint> lightIndices : register(t15, space2);
-StructuredBuffer<Probe> probes : register(t16, space2);
+StructuredBuffer<Light> lights : register(t14, space2);
+StructuredBuffer<uint2> clusters : register(t15, space2);
+StructuredBuffer<uint> lightIndices : register(t16, space2);
+StructuredBuffer<Probe> probes : register(t17, space2);
 
 cbuffer Lighting : register(b0, space3) {
     float4 ambientColor;
@@ -98,6 +102,11 @@ cbuffer Lighting : register(b0, space3) {
     // What lights a point in place of the sky it is covered from: the ground's light, reflected again by the underside
     // of what covers it.
     float4 skyBounce;
+    // The sky's clouds, which shade what is under them from the sun and the moon: their coverage (0 without clouds),
+    // their density, the altitude of the middle of their layer and about how wide one is; how far the wind has carried
+    // them along X and Z, and how many clouds wide their noise is.
+    float4 cloudShadow;
+    float4 cloudMotion;
 };
 
 // The list of lights that may reach the pixel at the position, at the depth along the camera's forward axis.
@@ -106,6 +115,28 @@ uint2 GetCluster(float2 pixel, float depth) {
     const float slice = depth > clusterDepth.x ? floor(log(depth / clusterDepth.x) * clusterDepth.y) : 0.0;
     const uint z = (uint)clamp(slice, 0.0, float(clusterGrid.z - 1));
     return clusters[(z * clusterGrid.y + tile.y) * clusterGrid.x + tile.x];
+}
+
+// The optical depth of the light's way through a cloud where it is densest, at a density of 1: thick clouds leave
+// little of the sun's direct light, as real ones do.
+static const float CloudShadowDepth = 5.0;
+
+// How much of a directional light the sky's clouds let through to the point: its ray toward the light crosses the
+// middle of their layer, and the deeper inside a cloud's shape it does, the less, softened by a coarser level of their
+// noise into a penumbra. What is above the clouds, or lit from too low, is not shaded.
+float GetCloudShadow(float3 position, float3 toLight) {
+    const float rise = cloudShadow.z - position.y;
+    if (cloudShadow.x <= 0.0 || rise <= 0.0 || toLight.y <= 0.02) {
+        return 1.0;
+    }
+    const float2 crossing = position.xz + toLight.xz / toLight.y * rise;
+    const float2 uv = (crossing - cloudMotion.xy) / cloudShadow.w / cloudMotion.z;
+    const float local =
+        GetLocalCoverage(cloudShadow.x, cloudNoise.SampleLevel(cloudNoiseSampler, ToWeatherUv(uv), 0.0).a);
+    const float shape = CombineShapes(cloudNoise.SampleLevel(cloudNoiseSampler, ToFormationUv(uv), 1.0).r,
+                                      cloudNoise.SampleLevel(cloudNoiseSampler, uv, 2.0).r);
+    const float inside = GetInside(shape, GetThreshold(local));
+    return exp(-inside * cloudShadow.y * CloudShadowDepth);
 }
 
 // Shadow views take world positions to the [0, 1] UVs of their tile, Y down, and to the depth it holds.
@@ -315,6 +346,10 @@ Lit GetLightOfKind(Light light, float3 position, float3 normal, float3 toViewer,
         // Back faces of double-sided surfaces are offset toward the light too.
         const float3 lightSide = facing < 0.0 ? -normal : normal;
         attenuation *= local ? GetLocalShadow(light, position, lightSide) : GetDirectionalShadow(position, lightSide);
+    }
+    // Directional lights, the sun and the moon, shine through the sky's clouds.
+    if (!local) {
+        attenuation *= GetCloudShadow(position, toLight);
     }
     const float3 color = light.color.rgb * attenuation;
     // Back faces of double-sided surfaces have normals pointing away from the viewer, so they are lit as if flipped.

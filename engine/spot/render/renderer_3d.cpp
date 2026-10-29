@@ -146,6 +146,8 @@ struct LightingUniforms {
     Vector4 probeAtlas;
     // What lights a point in place of the sky it is covered from.
     Color skyBounce;
+    // The sky's clouds, which shade surfaces from the sun and the moon.
+    std::array<Vector4, 2> cloudShadow;
 };
 
 // Ambient lights are summed. Past MaxLights, the other lights that matter least to what is near the camera are dropped.
@@ -452,6 +454,7 @@ void Renderer3D::Impl::BindLighting(RenderPass& pass, const Detail::SelectedLigh
         .viewForward = Detail::ToVector4(forward),
         .probeAtlas = probes.GetAtlasUniforms(),
         .skyBounce = sky.IsLit() && skyLighting ? skyLighting->bounce : Color::Black,
+        .cloudShadow = sky.GetCloudShadowUniforms(skyData ? &*skyData : nullptr),
     };
     pass.PushFragmentUniforms(0, lighting);
     if (lightBuffer && clusterBuffer && lightIndexBuffer) {

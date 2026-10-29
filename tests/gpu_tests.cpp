@@ -5275,7 +5275,7 @@ TEST_CASE("Renderer3D draws clouds where they are in the world, under what is ne
         const auto bare = render(clear, {0.0f, 3000.0f, 0.0f}, down, ground, samples);
         const int covered = differing(over, bare);
         CHECK(covered > Size * Size / 4);
-        // Lit from above, they are brighter than the ground.
+        // Lit from above, they are brighter than the ground; between them, it lies in their shadows.
         int brighter = 0;
         for (int y = 0; y < Size; ++y) {
             for (int x = 0; x < Size; ++x) {
@@ -5284,6 +5284,44 @@ TEST_CASE("Renderer3D draws clouds where they are in the world, under what is ne
         }
         CHECK(brighter > Size * Size / 8);
     }
+}
+
+TEST_CASE("Renderer3D shades the ground under clouds from the sun", "[gpu]") {
+    RequireGpu();
+    const auto brightness = [](const Spot::SkyData& sky) {
+        Spot::Camera3D camera;
+        camera.position = {0.0f, 10.0f, 0.0f};
+        camera.rotation = Spot::Quaternion::LookRotation({0.0f, -1.0f, 0.01f}, {0.0f, 0.0f, -1.0f});
+        const TargetRender render(
+            32, 32,
+            [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
+                Spot::Renderer3D renderer(device, {.targetFormat = Spot::TextureFormat::Rgba8});
+                REQUIRE(renderer.IsValid());
+                const auto cube = Spot::Mesh::Create(device, Spot::PrimitiveMeshes::CreateCube());
+                REQUIRE(cube);
+                renderer.Begin(context, target, camera);
+                renderer.DrawSky(sky);
+                renderer.DrawMesh(*cube, {.baseColor = {0.5f, 0.5f, 0.5f}},
+                                  Spot::Matrix4::Translation({0.0f, -5.0f, 0.0f}) *
+                                      Spot::Matrix4::Scale({1000.0f, 10.0f, 1000.0f}));
+                renderer.End();
+            });
+        double total = 0.0;
+        for (int y = 0; y < 32; ++y) {
+            for (int x = 0; x < 32; ++x) {
+                total += render.At(x, y)[1];
+            }
+        }
+        return total / (32.0 * 32.0);
+    };
+    const Spot::SkyData clear{.sunDirection = {-0.3f, -1.0f, -0.2f}};
+    Spot::SkyData overcast = clear;
+    overcast.clouds = {.coverage = 1.0f, .density = 1.0f};
+    const double sunlit = brightness(clear);
+    const double shaded = brightness(overcast);
+    INFO("Sunlit " << sunlit << ", shaded " << shaded);
+    CHECK(shaded < sunlit * 0.7);
+    CHECK(shaded > 5.0);
 }
 
 TEST_CASE("Renderer3D draws clouds as a volume to fly through, hidden by what is in front of them", "[gpu]") {

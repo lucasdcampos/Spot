@@ -352,6 +352,19 @@ void SkyRenderer::Draw(RenderPass& pass, const SkyData& sky, const SkyLighting& 
     ++m_state.stats.triangleCount;
 }
 
+std::array<Vector4, 2> SkyRenderer::GetCloudShadowUniforms(const SkyData* sky) const {
+    if (!sky || !m_cloudNoise || sky->clouds.coverage <= 0.0f || sky->clouds.density <= 0.0f) {
+        return {};
+    }
+    const SkyClouds& clouds = sky->clouds;
+    // As a volume, clouds are densest in the lower part of their layer.
+    const float altitude =
+        std::max(clouds.height, 0.0f) + (m_volumetric ? std::max(clouds.thickness, 1.0f) * 0.35f : 0.0f);
+    return {Vector4{std::clamp(clouds.coverage, 0.0f, 1.0f), std::clamp(clouds.density, 0.0f, 1.0f), altitude,
+                    std::max(clouds.size, 1.0f)},
+            Vector4{clouds.offset.x, clouds.offset.y, static_cast<float>(CloudNoiseTile), 0.0f}};
+}
+
 bool SkyRenderer::PrepareClouds(const SkyData& sky) {
     if (sky.clouds.coverage <= 0.0f || sky.clouds.density <= 0.0f) {
         return false;
@@ -475,6 +488,7 @@ void SkyRenderer::CompositeClouds(RenderPass& pass, const Texture& cameraDepth) 
 void SkyRenderer::Bind(RenderPass& pass) const {
     pass.BindFragmentTexture(7, m_lit ? *m_reflections : *m_noReflections, *m_sampler);
     pass.BindFragmentTexture(8, m_lit ? *m_irradiance : *m_noIrradiance, *m_sampler);
+    pass.BindFragmentTexture(13, m_cloudNoise ? *m_cloudNoise : *m_state.whiteTexture, *m_cloudSampler);
 }
 
 } // namespace Spot::Detail

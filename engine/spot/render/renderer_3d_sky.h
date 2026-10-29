@@ -38,8 +38,12 @@ public:
     void RenderVolumetricClouds(const SkyData& sky, const SkyLighting& lighting, const Texture& cameraDepth,
                                 const Matrix4& viewProjection, const Matrix4& inverseViewProjection);
     void CompositeClouds(RenderPass& pass, const Texture& cameraDepth);
-    // The captured light, or black, where the lit shaders read it.
+    // The captured light, or black, and the clouds' noise, or white, where the lit shaders read them.
     void Bind(RenderPass& pass) const;
+    // The clouds' shadows as the lit shaders read them: their coverage, density, the altitude of the middle of their
+    // layer and their size; and their offset and how many clouds wide their noise is. A coverage of 0, without
+    // clouds, casts none.
+    std::array<Vector4, 2> GetCloudShadowUniforms(const SkyData* sky) const;
 
     // The mip levels of the reflections, from a roughness of 0 to 1.
     static constexpr std::uint32_t ReflectionLevels = 5;
