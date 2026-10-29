@@ -153,10 +153,13 @@ float GetFogAmount(float3 toPoint) {
     const float falloff = fogParams.z;
     float depth = fogParams.x * fogged;
     if (falloff > 1e-5) {
-        const float rise = falloff * direction.y * fogged;
-        // The fog thins along the ray as it climbs; flat rays see it as it is.
-        const float thinning = abs(rise) > 1e-4 ? (1.0 - exp(-rise)) / rise : 1.0;
-        depth *= exp(-falloff * startHeight) * thinning;
+        // The fog thins along the ray as it climbs; flat rays see it as it is. The density at each end is taken on
+        // its own, since a ray going far down from high above the fog would multiply a density that rounds to 0 by a
+        // growth that overflows.
+        const float endHeight = startHeight + direction.y * fogged;
+        const float rise = falloff * (endHeight - startHeight);
+        const float startDensity = exp(-falloff * startHeight);
+        depth *= abs(rise) > 1e-4 ? (startDensity - exp(-falloff * endHeight)) / rise : startDensity;
     }
     return 1.0 - exp(-depth);
 }
