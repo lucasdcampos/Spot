@@ -38,7 +38,7 @@ Cancel. The menu releases the cursor and never pauses simulation time.
 
 Playground remains `assets/scenes/playground.scene`. Empty Map (`assets/scenes/empty.scene`) keeps the same player,
 inventory, tools, effects and HUD, with a single 200 by 200 meter collidable floor, a sky and a directional light.
-Its `materials/debug_grid.material` uses the built-in debug grid at one meter per tile. `GameControls::spawnNpcs`
+Its `materials/debug_grid.material` uses the built-in debug checker texture, repeated every eight meters (one meter per square). `GameControls::spawnNpcs`
 is false there, so the fallback NPC population does not fill the empty map. Its restart scene points to itself
 and its checkpoint is `empty_world.json`, separate from the playground's checkpoint.
 

@@ -5,8 +5,8 @@
     0.8,
     1.0
   ],
-  "baseColorTexture": "00000000000000000000000000000004",
+  "baseColorTexture": "00000000000000000000000000000005",
   "roughness": 0.9,
   "metallic": 0.0,
-  "worldTextureSize": 1.0
+  "worldTextureSize": 8.0
 }
