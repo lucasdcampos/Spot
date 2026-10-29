@@ -116,6 +116,43 @@ TEST_CASE("Sphere casts and overlaps find the bodies a shape meets", "[physics][
                               [&](const Spot::OverlapHit& found) { return found.entity == world.zone.GetId(); }));
 }
 
+TEST_CASE("Overlaps find each collider once, however many of a mesh's triangles they touch", "[physics][queries]") {
+    Scene scene;
+    // A ground of 32 by 32 squares, of which the box below covers every triangle.
+    constexpr int Squares = 32;
+    Spot::MeshData grid;
+    for (int z = 0; z <= Squares; ++z) {
+        for (int x = 0; x <= Squares; ++x) {
+            const auto half = static_cast<float>(Squares) * 0.5f;
+            grid.vertices.push_back({.position = {static_cast<float>(x) - half, 0.0f, static_cast<float>(z) - half},
+                                     .normal = {0.0f, 1.0f, 0.0f}});
+        }
+    }
+    for (std::uint32_t z = 0; z < Squares; ++z) {
+        for (std::uint32_t x = 0; x < Squares; ++x) {
+            const std::uint32_t corner = z * (Squares + 1) + x;
+            grid.indices.insert(grid.indices.end(), {corner, corner + Squares + 1, corner + 1, corner + 1,
+                                                     corner + Squares + 1, corner + Squares + 2});
+        }
+    }
+    auto& mesh = scene.CreateEntity("Ground").AddComponent<Spot::MeshCollider>();
+    mesh.SetMesh(std::make_shared<const Spot::MeshData>(std::move(grid)));
+    // A crate of two colliders, which overlaps tell apart.
+    Entity& crate = CreateBox(scene, "Crate", {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f, 1.0f});
+    auto& top = crate.AddComponent<SphereCollider>();
+    top.SetCenter({0.0f, 1.0f, 0.0f});
+    scene.Update(0.0f);
+
+    const auto hits = scene.GetOrAddSystem<Spot::PhysicsWorld>().OverlapBox({0.0f, 0.5f, 0.0f}, {40.0f, 4.0f, 40.0f});
+    const auto count = [&](const Spot::Collider* collider) {
+        return std::ranges::count_if(hits, [&](const Spot::OverlapHit& hit) { return hit.collider == collider; });
+    };
+    CHECK(hits.size() == 3);
+    CHECK(count(&mesh) == 1);
+    CHECK(count(crate.GetComponent<BoxCollider>()) == 1);
+    CHECK(count(&top) == 1);
+}
+
 TEST_CASE("Queries see colliders changed since the last step", "[physics][queries]") {
     QueryScene world;
     const Vector3 beyond{15.0f, 5.0f, 0.0f};

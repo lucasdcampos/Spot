@@ -31,22 +31,50 @@ QueryHit3D Physics3D::Impl::MakeRayHit(const JPH::RRayCast& ray, const JPH::RayC
     return hit;
 }
 
+namespace {
+
+// Keeps one hit per body and shape. Without contacts to keep, a body of a single shape stops being tested at its first
+// hit: a mesh would otherwise be tested triangle by triangle for hits that are all the same.
+class OverlapCollector final : public JPH::CollideShapeCollector {
+public:
+    explicit OverlapCollector(std::vector<QueryHit3D>& hits) : m_hits(hits) {}
+
+    void OnBody(const JPH::Body& body) override {
+        m_shape = body.GetShape();
+        m_bodyEarlyOut = GetEarlyOutFraction();
+    }
+
+    void AddHit(const JPH::CollideShapeResult& result) override {
+        const QueryHit3D hit{.body = FromJolt(result.mBodyID2), .shape = GetShapeIndex(*m_shape, result.mSubShapeID2)};
+        if (std::ranges::none_of(m_hits, [&hit](const QueryHit3D& other) {
+                return other.body == hit.body && other.shape == hit.shape;
+            })) {
+            m_hits.push_back(hit);
+        }
+        if (m_shape->GetSubType() != JPH::EShapeSubType::StaticCompound) {
+            ForceEarlyOut();
+        }
+    }
+
+    // The next bodies are tested as fully as this one was.
+    void OnBodyEnd() override { ResetEarlyOutFraction(m_bodyEarlyOut); }
+
+private:
+    std::vector<QueryHit3D>& m_hits;
+    const JPH::Shape* m_shape = nullptr;
+    float m_bodyEarlyOut = 0.0f;
+};
+
+} // namespace
+
 void Physics3D::Impl::Overlap(const JPH::Shape& shape, const JPH::RMat44& transform, const QueryFilter3D& filter,
                               std::vector<QueryHit3D>& hits) const {
     hits.clear();
-    JPH::AllHitCollisionCollector<JPH::CollideShapeCollector> collector;
+    OverlapCollector collector(hits);
     const QueryLayerFilter layers(filter.layerMask);
     const QueryBodyFilter bodies(filter);
     system.GetNarrowPhaseQuery().CollideShape(&shape, JPH::Vec3::sOne(), transform, JPH::CollideShapeSettings(),
                                               JPH::RVec3::sZero(), collector, {}, layers, bodies);
-    for (const JPH::CollideShapeResult& result : collector.mHits) {
-        const QueryHit3D hit = MakeHit(result.mBodyID2, result.mSubShapeID2);
-        const bool seen = std::ranges::any_of(
-            hits, [&hit](const QueryHit3D& other) { return other.body == hit.body && other.shape == hit.shape; });
-        if (!seen) {
-            hits.push_back(hit);
-        }
-    }
 }
 
 bool Physics3D::Raycast(Vector3 origin, Vector3 direction, float maxDistance, const QueryFilter3D& filter,
