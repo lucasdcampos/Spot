@@ -172,12 +172,14 @@ controls are:
 | F11 | Show or hide frame statistics |
 | Grave (`) | Open or close the developer console |
 
-The Player entity is the gameplay framework's `Character` (see [the gameplay framework](sandbox_gameplay.md)), possessed by
-the `PlayerController` on the Player Controller entity, through which every part of the player reads its input. Its
+The player is the prefab `prefabs/actors/player.prefab`, the gameplay framework's `Character` (see
+[the gameplay framework](sandbox_gameplay.md)). Neither map places it: the `GameMode` on the Game entity makes it at the
+map's `SpawnPoint` for the `PlayerController` on the Player Controller entity, which possesses it and through which
+every part of the player reads its input. Its
 `FirstPersonView.head` reference points to its Head child with the active camera, which is also the pawn's `eye` and
 `viewCamera`; `Flashlight.light` points to the light below that head. Cars carry a `Flashlight` too, which switches the two spot lights below their
 `Headlight Beams` entity, since it switches every light below its entity; wrecks turn them off for good. Mouse look turns the head, walking uses that view's
-yaw, and noclip also follows its pitch. Keep these references assigned in the scene so movement, aiming and the
+yaw, and noclip also follows its pitch. Keep these references assigned in the prefab so movement, aiming and the
 rendered view agree. Use goes through the pawn's `Interactor`: the car's `VehicleSeat` and light props (`Carrier`)
 are what it can use. `GameMode` owns starting positions and respawn, and `SessionControls` owns cursor capture,
 Pause, Restart and the quick-save shortcuts. `GameControls` keeps the sandbox's console rules, NPC population and

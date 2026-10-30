@@ -7,6 +7,7 @@
 #include "gameplay/game/death_screen_element.h"
 #include "gameplay/game/game_mode.h"
 #include "gameplay/game/session_controls.h"
+#include "gameplay/game/spawn_point.h"
 #include "gameplay/health/health.h"
 #include "gameplay/hud/hud.h"
 #include "gameplay/menus/pause_menu.h"
@@ -200,4 +201,51 @@ TEST_CASE("Disabling game mode cancels respawn and keeps starting positions on r
     world.Run(0.3f);
     CHECK_FALSE(health.IsDead());
     CHECK(pawn->GetEntity().GetTransform().GetWorldPosition() == Spot::Vector3{2.0f, 1.0f, 3.0f});
+}
+
+TEST_CASE("Game mode makes players' pawns at spawn points and respawns them away from others",
+          "[sandbox][gameplay][session]") {
+    SessionWorld world;
+    world.mode.respawnTime = 0.1f;
+    Spot::Scene authoring;
+    Spot::Entity& body = authoring.CreateEntity("Body");
+    body.AddComponent<Gameplay::Pawn>();
+    body.AddComponent<Gameplay::Health>();
+    auto prefab = Spot::Prefab::FromString(body.SaveToString());
+    REQUIRE(prefab);
+    world.mode.playerPrefab =
+        Spot::AssetRef<Spot::Prefab>(Spot::AssetId{7, 7}, std::make_shared<const Spot::Prefab>(std::move(*prefab)));
+
+    const auto addSpawn = [&](Spot::Vector3 position, std::string tag = {}) {
+        auto& entity = world.scene.CreateEntity("Spawn");
+        entity.GetTransform().SetPosition(position);
+        entity.GetTransform().SetRotation(Spot::Quaternion::FromEuler({0.0f, 1.0f, 0.0f}));
+        entity.AddComponent<Gameplay::SpawnPoint>().tag = std::move(tag);
+    };
+    addSpawn({0.0f, 1.0f, 0.0f});
+    addSpawn({30.0f, 1.0f, 0.0f});
+    addSpawn({-30.0f, 1.0f, 0.0f}, "Other mode");
+    world.mode.spawnTag = "Free";
+
+    auto& first = world.scene.CreateEntity("First").AddComponent<Gameplay::PlayerController>();
+    world.Step();
+    REQUIRE(first.GetPawn());
+    Spot::Entity& firstBody = first.GetPawn()->GetEntity();
+    // Alone, the first spawn point, facing as it does.
+    CHECK(firstBody.GetTransform().GetWorldPosition() == Spot::Vector3{0.0f, 1.0f, 0.0f});
+    CHECK(firstBody.GetTransform().GetWorldRotation() == Spot::Quaternion::FromEuler({0.0f, 1.0f, 0.0f}));
+    CHECK(firstBody.GetPrefabAssetId() == Spot::AssetId{7, 7});
+
+    auto& second = world.scene.CreateEntity("Second").AddComponent<Gameplay::PlayerController>();
+    world.Step();
+    REQUIRE(second.GetPawn());
+    // The farthest from the first player, of the mode's spawn points.
+    CHECK(second.GetPawn()->GetEntity().GetTransform().GetWorldPosition() == Spot::Vector3{30.0f, 1.0f, 0.0f});
+
+    // The second player stands on the far spawn point, so the first dies and comes back at the near one.
+    firstBody.GetTransform().SetPosition({25.0f, 1.0f, 0.0f});
+    firstBody.GetComponent<Gameplay::Health>()->TakeDamage({.amount = 1000.0f});
+    world.Run(0.2f);
+    CHECK_FALSE(firstBody.GetComponent<Gameplay::Health>()->IsDead());
+    CHECK(firstBody.GetTransform().GetWorldPosition() == Spot::Vector3{0.0f, 1.0f, 0.0f});
 }

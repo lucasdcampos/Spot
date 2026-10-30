@@ -1,11 +1,14 @@
 #include "gameplay/game/game_mode.h"
 
+#include "gameplay/game/spawn_point.h"
+
 #include "gameplay/core/pawn.h"
 #include "gameplay/core/player_controller.h"
 #include "gameplay/core/players.h"
 #include "gameplay/health/health.h"
 
 #include <algorithm>
+#include <limits>
 
 namespace Gameplay {
 
@@ -40,6 +43,9 @@ void GameMode::TrackPlayers() {
         if (!pawn) {
             const auto* entity = GetScene().GetEntity(controller->pawn);
             pawn = entity ? entity->GetComponent<Pawn>() : nullptr;
+        }
+        if (!pawn) {
+            pawn = SpawnPawn(*controller);
         }
         if (!pawn) {
             continue;
@@ -97,10 +103,12 @@ void GameMode::ReturnPlayer(Spot::EntityId id, bool restoreHealth) {
             player.respawn = Spot::InvokeId::Invalid;
         }
         if (controller && pawn) {
+            const SpawnPoint* spawn = ChooseSpawn(*controller);
+            const Spot::Vector3 start = spawn ? spawn->GetEntity().GetTransform().GetWorldPosition() : player.start;
             if (restoreHealth) {
-                RespawnPlayer(*controller, *pawn, player.start);
+                RespawnPlayer(*controller, *pawn, start);
             } else {
-                pawn->GetEntity().GetTransform().SetWorldPosition(player.start);
+                pawn->GetEntity().GetTransform().SetWorldPosition(start);
                 pawn->ResetMotion();
             }
         }
@@ -115,6 +123,58 @@ void GameMode::RespawnPlayer(PlayerController& player, Pawn& pawn, Spot::Vector3
         health->Restore();
     }
     player.Possess(pawn);
+}
+
+SpawnPoint* GameMode::ChooseSpawn(const PlayerController& player) {
+    // Other players' pawns, to keep away from.
+    std::vector<Spot::Vector3> others;
+    for (const Player& tracked : m_players) {
+        if (tracked.controller == player.GetEntity().GetId()) {
+            continue;
+        }
+        if (const Spot::Entity* pawn = GetScene().GetEntity(tracked.pawn)) {
+            others.push_back(pawn->GetTransform().GetWorldPosition());
+        }
+    }
+    SpawnPoint* best = nullptr;
+    float bestDistance = -1.0f;
+    GetScene().ForEachComponent<SpawnPoint>([&](SpawnPoint& spawn) {
+        if (!spawnTag.empty() && !spawn.tag.empty() && spawn.tag != spawnTag) {
+            return;
+        }
+        const Spot::Vector3 position = spawn.GetEntity().GetTransform().GetWorldPosition();
+        float distance = std::numeric_limits<float>::max();
+        for (const Spot::Vector3& other : others) {
+            distance = std::min(distance, Spot::Distance(position, other));
+        }
+        // The first of equally free ones, so a player alone always starts at the map's first spawn point.
+        if (distance > bestDistance) {
+            best = &spawn;
+            bestDistance = distance;
+        }
+    });
+    return best;
+}
+
+Pawn* GameMode::SpawnPawn(PlayerController& player) {
+    if (!playerPrefab) {
+        return nullptr;
+    }
+    Spot::Entity* root = GetScene().Instantiate(playerPrefab);
+    Pawn* pawn = root ? root->GetComponent<Pawn>() : nullptr;
+    if (!pawn) {
+        if (root) {
+            root->Destroy();
+        }
+        return nullptr;
+    }
+    if (const SpawnPoint* spawn = ChooseSpawn(player)) {
+        const Spot::Transform& place = spawn->GetEntity().GetTransform();
+        root->GetTransform().SetWorldPosition(place.GetWorldPosition());
+        root->GetTransform().SetWorldRotation(place.GetWorldRotation());
+    }
+    player.pawn = root->GetId();
+    return pawn;
 }
 
 void GameMode::Restart() {
@@ -153,6 +213,9 @@ void GameMode::Serialize(Spot::Archive& archive) {
     archive.Field("respawnTime", respawnTime, {.min = 0.0f, .max = 60.0f, .speed = 0.1f});
     archive.Field("fallHeight", fallHeight, {.tooltip = "Below this height, a player's pawn returns to its start"});
     archive.Field("restartScene", restartScene, {.assetType = Spot::AssetType::Scene});
+    archive.Field("playerPrefab", playerPrefab, {.tooltip = "The pawn of a player who has none"});
+    archive.Field("spawnTag", spawnTag,
+                  {.tooltip = "The spawn points it uses, with those without a tag; any when empty"});
 }
 
 } // namespace Gameplay

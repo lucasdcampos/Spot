@@ -124,6 +124,8 @@ struct Playground {
         Spot::Input::SetState(&input);
         Spot::Input::SetActionMap(&actions);
         REQUIRE(scene.LoadFromFile(Assets / "scenes" / "playground.scene", &assets));
+        // The game mode makes the player as the scene starts.
+        scene.Update(Step);
         player = scene.FindEntity("Player");
         REQUIRE(player != nullptr);
     }
@@ -1195,16 +1197,24 @@ TEST_CASE("The playground uses linked spawnable prefabs with its authored overri
     std::size_t linked = 0;
     playground.scene.ForEachComponent<Spawnable>([&](Spawnable& spawnable) {
         Entity& entity = spawnable.GetEntity();
-        CHECK(entity.GetPrefabAssetId().IsValid());
-        CHECK(entity.GetPrefabRootId() == entity.GetId());
+        // What the NPC population makes as it starts, such as an armed NPC's pistol, is not the scene's.
+        if (entity.GetComponentInParent<Npc>()) {
+            return;
+        }
+        INFO(entity.GetName());
         ++linked;
         if (spawnable.category == Spawnable::Category::Weapon) {
+            // The weapons in hand are parts of the player's prefab, made with it.
+            CHECK(entity.GetPrefabRootId() == playground.player->GetId());
             CHECK(entity.GetParent() == playground.player);
             CHECK(entity.HasComponent<Firearm>());
             CHECK_FALSE(entity.HasComponent<Spot::Rigidbody>());
             CHECK_FALSE(entity.HasComponent<Spot::BoxCollider>());
             playground.scene.ForEachComponent<Spot::MeshRenderer>(
                 [&](Spot::MeshRenderer& renderer) { CHECK_FALSE(renderer.GetEntity().IsDescendantOf(entity)); });
+        } else {
+            CHECK(entity.GetPrefabAssetId().IsValid());
+            CHECK(entity.GetPrefabRootId() == entity.GetId());
         }
     });
     CHECK(linked == 73);

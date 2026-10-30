@@ -331,8 +331,12 @@ so initialization and callbacks are registered once.
 ## Session and game rules
 
 `gameplay/game/` needs `core`, `health`, `hud`, `menus` and `persistence`. One `GameMode` in the scene remembers each
-local player's initial pawn and world position, using `Players` and entity ids. It possesses unpossessed starting
-pawns, listens to their `Health::OnDied` and schedules a return after `respawnTime`. The timer belongs to the mode,
+local player's initial pawn and world position, using `Players` and entity ids. A player without a pawn gets one made
+from `playerPrefab` at a `SpawnPoint` (`spawn_point.h`), facing as it does; the mode takes the spawn points of its
+`spawnTag` and those without one, choosing in `ChooseSpawn()` the one farthest from the other players, so a player
+alone starts at the map's first. It possesses unpossessed starting
+pawns, listens to their `Health::OnDied` and schedules a return after `respawnTime`, to a spawn point when the map has
+some, or to where the pawn started. The timer belongs to the mode,
 runs in game time, and is canceled when the mode is disabled or a tracked player disappears. Players joining later
 are tracked on update. A pawn below `fallHeight` returns immediately without healing; seated pawns are excluded.
 Returning changes the world position and calls `Pawn::ResetMotion()`, preserving the player's view direction.
