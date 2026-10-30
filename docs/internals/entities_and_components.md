@@ -21,6 +21,10 @@ after the entity is destroyed: `Scene::GetEntity()` then returns null. Ids are w
 saving and code reloads, so tools and long-lived references use them rather than pointers. Components save
 references to entities as ids too (`Archive::Field()` with an `EntityId`).
 
+Entities loaded with a whole scene's file (`Scene::LoadFromString()`) also keep the id they were saved with
+(`GetSavedId()`), which every machine that loads that file gives them, while their `EntityId`s differ: networking
+matches a scene's objects between machines by it (see [Networking](networking.md)). Entities made otherwise have 0.
+
 ## Components
 
 Components derive from `Component` and override the hooks they need:

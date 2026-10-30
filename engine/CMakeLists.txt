@@ -10,6 +10,7 @@ add_library(spot_objects OBJECT
     spot/render.h
     spot/audio.h
     spot/physics.h
+    spot/net.h
     spot/animation.h
     spot/particles.h
     spot/scene.h
@@ -406,6 +407,38 @@ add_library(spot_objects OBJECT
     spot/platform/shell.cpp
     spot/platform/shell.h
     spot/platform/window.h
+    spot/net/bit_stream.h
+    spot/net/bit_stream.cpp
+    spot/net/loopback_network.h
+    spot/net/loopback_network.cpp
+    spot/net/net_address.h
+    spot/net/net_address.cpp
+    spot/net/net_archive.h
+    spot/net/net_archive.cpp
+    spot/net/net_conditions.h
+    spot/net/net_conditions.cpp
+    spot/net/net_discovery.h
+    spot/net/net_discovery.cpp
+    spot/net/net_host.h
+    spot/net/net_host.cpp
+    spot/net/net_messages.h
+    spot/net/net_messages.cpp
+    spot/net/net_quantize.h
+    spot/net/net_quantize.cpp
+    spot/net/net_transport.h
+    spot/scene/net/network_components.h
+    spot/scene/net/network_components.cpp
+    spot/scene/net/network_module.h
+    spot/scene/net/network_module.cpp
+    spot/scene/net/network_object.h
+    spot/scene/net/network_object.cpp
+    spot/scene/net/network_session.h
+    spot/scene/net/network_session.cpp
+    spot/scene/net/network_system.h
+    spot/scene/net/network_system.cpp
+    spot/scene/net/network_transform.h
+    spot/scene/net/network_transform.cpp
+    spot/scene/net/replicated.h
 )
 
 spot_add_shaders(spot_objects NAMESPACE Spot::Detail::Shaders
@@ -687,6 +720,33 @@ if(SPOT_PHYSICS STREQUAL "JOLT")
     target_link_libraries(spot_objects PRIVATE Jolt)
 else()
     message(FATAL_ERROR "Unknown SPOT_PHYSICS '${SPOT_PHYSICS}'")
+endif()
+
+# The network's transport, which NetTransport hides.
+set(SPOT_NET "ENET" CACHE STRING "Network transport backend")
+set_property(CACHE SPOT_NET PROPERTY STRINGS ENET)
+if(SPOT_NET STREQUAL "ENET")
+    set(ENET_STATIC ON)
+    FetchContent_Declare(enet
+        GIT_REPOSITORY https://github.com/lsalzman/enet.git
+        GIT_TAG v1.3.18
+        GIT_SHALLOW TRUE
+        SYSTEM
+    )
+    FetchContent_MakeAvailable(enet)
+    # Its own warning level, which its project sets for its folder, is replaced rather than added to.
+    set_target_properties(enet PROPERTIES
+        POSITION_INDEPENDENT_CODE ON
+        COMPILE_OPTIONS $<IF:$<C_COMPILER_ID:MSVC>,/W0,-w>
+    )
+    target_include_directories(spot_objects SYSTEM PRIVATE ${enet_SOURCE_DIR}/include)
+    target_sources(spot_objects PRIVATE spot/net/enet/enet_transport.cpp)
+    target_link_libraries(spot_objects PRIVATE enet)
+    if(WIN32)
+        target_link_libraries(spot_objects PUBLIC ws2_32 winmm)
+    endif()
+else()
+    message(FATAL_ERROR "Unknown SPOT_NET '${SPOT_NET}'")
 endif()
 
 set(SPOT_PHYSICS_2D "BOX2D" CACHE STRING "2D physics backend")

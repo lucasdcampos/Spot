@@ -16,6 +16,7 @@ How to make games with Spot. Start with [Getting started](getting_started/instal
 |---|---|
 | [Scripting](guides/scripting.md) | How scripts run: hooks, fields, finding entities, events, coroutines and writing scripts in your own editor |
 | [Characters and animations](guides/characters_and_animations.md) | Importing characters and their animations from FBX or glTF files, such as Mixamo's, with their materials |
+| [Multiplayer](guides/multiplayer.md) | Networked objects, who decides what, messages, hosting and joining, and testing over a bad network |
 
 ## Reference
 

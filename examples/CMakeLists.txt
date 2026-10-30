@@ -1,5 +1,5 @@
 # One example per level of using the engine, built and run by the tests (see docs/internals/architecture.md).
-foreach(example IN ITEMS own_loop application)
+foreach(example IN ITEMS own_loop application networking)
     add_executable(example_${example} ${example}/main.cpp)
     target_link_libraries(example_${example} PRIVATE spot::spot)
     spot_set_compile_options(example_${example})

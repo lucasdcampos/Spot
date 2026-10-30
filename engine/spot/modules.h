@@ -1,7 +1,7 @@
 #pragma once
 
-// Each system's components and Module on scenes (scene/<module>/): rendering, physics, audio, UI, animation
-// and particles (rendering level 3).
+// Each system's components and Module on scenes (scene/<module>/): rendering, physics, audio, UI, animation,
+// particles (rendering level 3) and networking.
 
 #include "spot/scene/animation/animation_components.h"
 #include "spot/scene/animation/animation_event_listener.h"
@@ -14,6 +14,13 @@
 #include "spot/scene/audio/audio_module.h"
 #include "spot/scene/audio/audio_source.h"
 #include "spot/scene/audio/audio_system.h"
+#include "spot/scene/net/network_components.h"
+#include "spot/scene/net/network_module.h"
+#include "spot/scene/net/network_object.h"
+#include "spot/scene/net/network_session.h"
+#include "spot/scene/net/network_system.h"
+#include "spot/scene/net/network_transform.h"
+#include "spot/scene/net/replicated.h"
 #include "spot/scene/particles/particle_system.h"
 #include "spot/scene/particles/particles_components.h"
 #include "spot/scene/particles/particles_module.h"

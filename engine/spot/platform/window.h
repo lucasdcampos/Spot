@@ -17,6 +17,9 @@ struct WindowConfig {
     bool resizable = true;
     // Opens the window maximized; its size is then the one it gets back when restored.
     bool maximized = false;
+    // Needs no display and shows nothing, as for dedicated servers: the window exists for what asks for it, but gets
+    // no input. With graphics disabled (GraphicsConfig::enabled), an application runs on machines without a screen.
+    bool headless = false;
 };
 
 // Shapes of the mouse cursor, as the OS draws them.

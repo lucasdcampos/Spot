@@ -56,6 +56,7 @@ install(DIRECTORY engine/ DESTINATION include COMPONENT spot
     PATTERN "nvrhi" EXCLUDE
     PATTERN "jolt" EXCLUDE
     PATTERN "box2d" EXCLUDE
+    PATTERN "enet" EXCLUDE
 )
 install(DIRECTORY "${SPOT_SHADER_INCLUDE_DIR}/" DESTINATION share/spot/shaders COMPONENT spot)
 install(PROGRAMS $<TARGET_FILE:glslang-standalone> $<TARGET_FILE:spirv-cross> DESTINATION libexec/spot COMPONENT spot)

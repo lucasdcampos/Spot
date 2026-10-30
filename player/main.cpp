@@ -23,6 +23,7 @@ int Run(Spot::ApplicationConfig config) {
     application.AddModule<Spot::Physics2DModule>();
     application.AddModule<Spot::AnimationModule>();
     application.AddModule<Spot::ParticlesModule>();
+    application.AddModule<Spot::NetworkModule>();
     application.AddModule<Spot::ScriptingModule>();
     return application.Run();
 }

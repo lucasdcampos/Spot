@@ -352,17 +352,17 @@ std::optional<json> SceneSerializer::ParseDocument(std::string_view text) {
 }
 
 std::optional<std::vector<Entity*>> SceneSerializer::Load(Scene& scene, std::string_view text,
-                                                          const InstantiateOptions& options) {
+                                                          const InstantiateOptions& options, bool sceneFile) {
     std::optional<json> document = ParseDocument(text);
     if (!document) {
         return std::nullopt;
     }
-    return Load(scene, std::move(*document), options);
+    return Load(scene, std::move(*document), options, nullptr, sceneFile);
 }
 
 std::optional<std::vector<Entity*>> SceneSerializer::Load(Scene& scene, json document,
                                                           const InstantiateOptions& options,
-                                                          const Prefab::NestedPrefabs* prefabs) {
+                                                          const Prefab::NestedPrefabs* prefabs, bool sceneFile) {
     const UnregisteredScope unregistered;
     AssetManager* manager = options.assets ? options.assets : Assets::GetManager();
     const Prefab::NestedPrefabs managed = [manager](AssetId id) {
@@ -407,6 +407,9 @@ std::optional<std::vector<Entity*>> SceneSerializer::Load(Scene& scene, json doc
         created.push_back(&entity);
         if (id != 0) {
             ids.insert_or_assign(id, entity.m_id);
+        }
+        if (sceneFile) {
+            entity.m_savedId = id;
         }
         // No component is attached yet, so the activity can be set without any hook to call.
         archive.Field("active", entity.m_activeSelf);
@@ -672,7 +675,7 @@ bool Scene::LoadFromString(std::string_view text, AssetManager* assets) {
     // finds their assets loaded already.
     AssetManager* manager = assets ? assets : Assets::GetManager();
     const auto preloaded = manager ? manager->PreloadReferencedBy(text) : std::vector<std::shared_ptr<const void>>();
-    return Detail::SceneSerializer::Load(*this, text, {.assets = assets}).has_value();
+    return Detail::SceneSerializer::Load(*this, text, {.assets = assets}, true).has_value();
 }
 
 bool Scene::LoadFromFile(const std::filesystem::path& path, AssetManager* assets) {

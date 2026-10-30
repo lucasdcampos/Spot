@@ -70,11 +70,18 @@ struct Window::Impl {
 };
 
 std::unique_ptr<Window> Window::Create(const WindowConfig& config) {
+    if (config.headless) {
+        // Read only when the platform starts, which the window usually does.
+        SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
+    }
     if (!Platform::Initialize()) {
         return nullptr;
     }
 
     SDL_WindowFlags flags = SDL_WINDOW_HIGH_PIXEL_DENSITY;
+    if (config.headless) {
+        flags |= SDL_WINDOW_HIDDEN;
+    }
     if (config.resizable) {
         flags |= SDL_WINDOW_RESIZABLE;
     }

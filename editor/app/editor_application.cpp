@@ -131,6 +131,7 @@ EditorApplication::EditorApplication(EditorOptions options)
     AddModule<Physics2DModule>();
     AddModule<AnimationModule>();
     AddModule<ParticlesModule>();
+    AddModule<NetworkModule>();
     AddModule<ScriptingModule>();
 }
 

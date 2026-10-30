@@ -64,6 +64,9 @@ public:
     // On the root of a prefab instance, the prefab it was made from; empty elsewhere.
     const AssetRef<Prefab>& GetPrefabAsset() const { return m_prefabAsset; }
     AssetId GetPrefabAssetId() const { return m_prefabAsset.GetId(); }
+    // The id the entity was saved with in the scene file it was loaded from (Scene::LoadFromString()), the same on
+    // every machine that loads that file; 0 for entities made otherwise, by code or from prefabs.
+    std::uint64_t GetSavedId() const { return m_savedId; }
 
     const std::string& GetName() const { return m_name; }
     void SetName(std::string name) { m_name = std::move(name); }
@@ -268,6 +271,7 @@ private:
     EntityId m_id;
     EntityId m_prefabRoot = EntityId::Invalid;
     std::uint64_t m_prefabLocalId = 0;
+    std::uint64_t m_savedId = 0;
     AssetRef<Prefab> m_prefabAsset;
     std::string m_name;
     std::vector<std::string> m_tags;

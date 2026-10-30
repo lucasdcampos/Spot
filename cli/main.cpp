@@ -366,6 +366,7 @@ int Update(const Arguments& arguments) {
 void RegisterComponents() {
     Spot::RegisterAnimationComponents();
     Spot::RegisterAudioComponents();
+    Spot::RegisterNetworkComponents();
     Spot::RegisterParticleComponents();
     Spot::RegisterPhysicsComponents();
     Spot::RegisterPhysics2DComponents();

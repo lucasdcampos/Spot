@@ -8,6 +8,7 @@
 #include "spot/core.h"
 #include "spot/graphics.h"
 #include "spot/modules.h"
+#include "spot/net.h"
 #include "spot/particles.h"
 #include "spot/physics.h"
 #include "spot/platform.h"

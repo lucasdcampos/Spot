@@ -13,6 +13,7 @@ public:
     void testRunStarting(const Catch::TestRunInfo&) override {
         Spot::RegisterAnimationComponents();
         Spot::RegisterAudioComponents();
+        Spot::RegisterNetworkComponents();
         Spot::RegisterParticleComponents();
         Spot::RegisterPhysicsComponents();
         Spot::RegisterPhysics2DComponents();

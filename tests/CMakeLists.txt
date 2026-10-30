@@ -43,6 +43,8 @@ add_executable(spot_tests
     light_tests.cpp
     log_tests.cpp
     math_tests.cpp
+    net_tests.cpp
+    network_tests.cpp
     physics_debug_tests.cpp
     physics_event_tests.cpp
     physics_joint_tests.cpp
@@ -122,7 +124,7 @@ target_precompile_headers(spot_tests REUSE_FROM spot_tests_precompiled_header)
 set_source_files_properties(core_reference_tests.cpp physics_3d_tests.cpp PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
 
 # Each module header compiles on its own, in a file of its own.
-set(SPOT_MODULE_HEADERS core platform assets graphics render audio physics animation particles scene runtime modules)
+set(SPOT_MODULE_HEADERS core platform assets graphics render audio physics net animation particles scene runtime modules)
 if(SPOT_SCRIPTING)
     list(APPEND SPOT_MODULE_HEADERS scripting)
 endif()
@@ -302,6 +304,9 @@ if(SPOT_BUILD_EXAMPLES)
         add_test(NAME "Example ${example} runs" COMMAND example_${example} --frames 30)
         set_tests_properties("Example ${example} runs" PROPERTIES LABELS gpu RUN_SERIAL TRUE TIMEOUT 60)
     endforeach()
+    # Without a window, as servers run.
+    add_test(NAME "Example networking runs" COMMAND example_networking --frames 240)
+    set_tests_properties("Example networking runs" PROPERTIES TIMEOUT 60)
     target_sources(spot_gpu_tests PRIVATE example_tests.cpp)
     target_compile_definitions(spot_gpu_tests PRIVATE
         SPOT_DATA_DRIVEN_EXAMPLE_DIR="${PROJECT_BINARY_DIR}/examples/data_driven")

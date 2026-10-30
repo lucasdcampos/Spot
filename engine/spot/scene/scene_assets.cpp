@@ -112,6 +112,7 @@ std::unique_ptr<Scene> InstantiateScene(AssetManager& assets, AssetId id) {
         Log::GetEngineLogger().Error("Could not instantiate scene {} from '{}'", id.ToString(), assets.GetPath(id));
         return nullptr;
     }
+    scene->SetSourceAsset(id);
     return scene;
 }
 

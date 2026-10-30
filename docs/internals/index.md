@@ -32,6 +32,7 @@ library with a loop of its own ([`own_loop`](../../examples/own_loop/main.cpp)),
 | [Physics](physics.md) | Colliders, rigidbodies, the physics world and its backend |
 | [2D games](2d.md) | 2D physics, sprite atlases, animation, tilemaps and pixel-perfect cameras |
 | [Audio](audio.md) | Sounds, the audio device and the mixer |
+| [Networking](networking.md) | Transports, connections and messages, and keeping a scene in sync between a server and its clients |
 | [Input](input.md) | Events, the input state, keys, the mouse and the cursor lock |
 | [Diagnostics](diagnostics.md) | Logging, crash reports, contained failures, the profiler and debug drawing |
 | [Developer tools](developer_tools.md) | Commands, typed cvars, consoles, statistics, profiler timelines and captures |
@@ -63,14 +64,15 @@ leaves it out. A module header compiles on its own (`tests/module_headers/`).
 | `assets/` | `<spot/assets.h>` | Loading imported assets, the built-in assets and their primitive meshes (`PrimitiveMeshes`) |
 | `graphics/` | `<spot/graphics.h>` | The graphics API and its backends (rendering level 1), and the CPU data it uploads: images and meshes (`MeshData`) |
 | `render/`, `audio/`, `physics/`, `animation/`, `particles/` | `<spot/render.h>`, `<spot/audio.h>`… | The systems' APIs, without scenes: the code-only renderers (rendering level 2), the mixer, the physics simulations, poses and clips, particle simulation |
+| `net/` | `<spot/net.h>` | Connections between machines, their messages and the bits they are written in, finding servers on the local network |
 | `scene/` | `<spot/scene.h>` | Entities, components, scenes, scene systems, prefab instancing, tweens, timers, tasks and signals |
 | `runtime/` | `<spot/runtime.h>` | `Application`, the default game loop with scenes, and what runs a game: settings, the console, save data, profile streaming, game modules |
-| `scene/<module>/`: `scene/rendering/`, `scene/physics/`, `scene/audio/`, `scene/ui/`… | `<spot/modules.h>` | Each system's components and scene systems, built on its public API (rendering level 3): `MeshRenderer`, `Rigidbody`, `PhysicsWorld`, `SceneRenderer`, the entity-based UI |
+| `scene/<module>/`: `scene/rendering/`, `scene/physics/`, `scene/audio/`, `scene/ui/`, `scene/net/`… | `<spot/modules.h>` | Each system's components and scene systems, built on its public API (rendering level 3): `MeshRenderer`, `Rigidbody`, `PhysicsWorld`, `SceneRenderer`, the entity-based UI, `NetworkObject` and `NetworkSystem` |
 | `scene/scripting/` | `<spot/scripting.h>` | Luau scripts and their bindings |
 | `import/`, then `tools/`, `cli/`, `player/` and `editor/` outside the engine | | Importing and making games out of projects, which games never link |
 
 Backends live in their system's folder, behind its contract: Vulkan through NVRHI in `graphics/nvrhi/` and SDL_GPU in `graphics/sdl_gpu/`, SDL3 audio in
-`audio/sdl3/`, Jolt in `physics/jolt/`, Box2D in `physics/box2d/`. Public headers never show backend types.
+`audio/sdl3/`, Jolt in `physics/jolt/`, Box2D in `physics/box2d/`, ENet in `net/enet/`. Public headers never show backend types.
 
 ### Games without scenes
 

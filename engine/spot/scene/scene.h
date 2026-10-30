@@ -168,6 +168,10 @@ public:
     std::vector<Entity*> GetRootEntities() const;
     std::size_t GetEntityCount() const;
     std::uint64_t GetUpdateCount() const { return m_updateCount; }
+    // The scene asset it was made from, as InstantiateScene() sets it, so machines can tell they run the same scene;
+    // null for scenes made otherwise.
+    AssetId GetSourceAsset() const { return m_sourceAsset; }
+    void SetSourceAsset(AssetId id) { m_sourceAsset = id; }
 
     // Saves every entity, with its name, tags, activity, transform, place in the hierarchy and registered
     // components, as JSON.
@@ -481,6 +485,7 @@ private:
     float m_fixedTimeStep = DefaultFixedTimeStep;
     float m_fixedTimeLeft = 0.0f;
     std::uint64_t m_updateCount = 0;
+    AssetId m_sourceAsset;
 };
 
 } // namespace Spot

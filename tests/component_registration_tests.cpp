@@ -9,6 +9,7 @@ TEST_CASE("System components register explicitly without an application", "[scen
 
     Spot::RegisterAnimationComponents();
     Spot::RegisterAudioComponents();
+    Spot::RegisterNetworkComponents();
     Spot::RegisterParticleComponents();
     Spot::RegisterPhysicsComponents();
     Spot::RegisterPhysics2DComponents();
@@ -17,7 +18,7 @@ TEST_CASE("System components register explicitly without an application", "[scen
     Spot::RegisterScriptComponents();
 
     const auto names = Spot::GetComponentTypeNames();
-    REQUIRE(names.size() == 52);
+    REQUIRE(names.size() == 54);
     for (const std::string& name : names) {
         const auto component = Spot::CreateComponent(name);
         REQUIRE(component);

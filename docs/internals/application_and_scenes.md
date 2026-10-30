@@ -110,6 +110,7 @@ starts, so `runtime/` includes no system:
 | `UiModule` | Registers the UI components, routes events to the scene's canvases before the game sees them, and starts text input for focused fields; canvases draw with the scene, inside `SceneRenderer`, so the editor's game view shows them too |
 | `PhysicsModule`, `Physics2DModule` | Register the physics components; 3D adds the `physics.*` console settings and counts bodies |
 | `AnimationModule`, `ParticlesModule`, `ScriptingModule` | Register their components, and animation and script loaders |
+| `NetworkModule` | Hosts or joins a multiplayer session and binds the application's scenes to it, with the `net.*` console settings (see [Networking](networking.md)) |
 | `DevToolsModule` (`runtime/`) | The console and statistics overlays, screenshots, RenderDoc captures and profile streaming; development builds and the editor add it first (see [Developer tools](developer_tools.md)) |
 
 The console settings of a system (`render.enabled`, `audio.volume`, `physics.gravity`…) come with its module, and the
@@ -118,7 +119,9 @@ statistics overlay reads the bodies and voices the modules count for the profile
 ## Scenes
 
 A scene is usually derived per level, and builds its entities in `OnLoad()`; scenes saved by the editor load with
-`Scene::LoadFromFile()` or as assets. `Application::GetScene()` returns the active scene, or null. `LoadScene()`
+`Scene::LoadFromFile()` or as assets. `InstantiateScene()` records the asset a scene was made from
+(`Scene::GetSourceAsset()`), so machines of a session can tell they run the same one.
+`Application::GetScene()` returns the active scene, or null. `LoadScene()`
 queues a replacement; the last request before the next frame wins. Requests from `OnLoad()` or `OnUnload()` wait
 for the following frame. `LoadScene(nullptr)` unloads the scene. Shutdown calls `OnStop()` before unloading it.
 
