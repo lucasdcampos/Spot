@@ -150,7 +150,7 @@ float GetBlendDuration(const BlendTree& tree, std::span<const float> weights) {
 
 void SampleBlendTree(const Skeleton& skeleton, const BlendTree& tree, Vector2 value, float time, bool loop,
                      std::span<TransformComponents> result, std::span<TransformComponents> scratch,
-                     std::span<float> weights) {
+                     std::span<float> weights, std::span<const AnimationClip* const> clips) {
     ComputeBlendWeights(tree, value, weights);
     const float duration = GetBlendDuration(tree, weights);
     const float phase = duration > 0 ? time / duration : 0;
@@ -158,10 +158,11 @@ void SampleBlendTree(const Skeleton& skeleton, const BlendTree& tree, Vector2 va
     float accumulated = 0;
     for (std::size_t i = 0; i < tree.motions.size(); ++i) {
         const auto& motion = tree.motions[i];
-        if (weights[i] <= 0 || !motion.clip) {
+        const AnimationClip* clip = clips.empty() ? motion.clip.Get() : clips[i];
+        if (weights[i] <= 0 || !clip) {
             continue;
         }
-        Pose::Sample(skeleton, *motion.clip, phase * motion.clip->duration, loop, scratch);
+        Pose::Sample(skeleton, *clip, phase * clip->duration, loop, scratch);
         accumulated += weights[i];
         Pose::Blend(result, scratch, weights[i] / accumulated, result);
     }

@@ -459,6 +459,10 @@ void HierarchyPanel::DropAssets(SceneDocument& document, std::span<const AssetId
             if (target) {
                 ApplyMaterial(document, targetId, asset);
             }
+        } else if (info->type == AssetType::AnimationClip) {
+            if (target) {
+                ApplyAnimationClip(document, *project, targetId, asset);
+            }
         } else if (info->type == AssetType::Scene) {
             if (SceneWorkspace* workspace = m_context.GetWorkspace()) {
                 workspace->OpenScene(asset);

@@ -25,7 +25,7 @@ constexpr std::array<std::pair<AssetType, std::string_view>, 13> TypeNames{{
     {AssetType::Script, "Script"},
 }};
 
-constexpr std::array<std::pair<std::string_view, AssetType>, 18> Extensions{{
+constexpr std::array<std::pair<std::string_view, AssetType>, 19> Extensions{{
     {".png", AssetType::Texture},
     {".jpg", AssetType::Texture},
     {".jpeg", AssetType::Texture},
@@ -33,6 +33,8 @@ constexpr std::array<std::pair<std::string_view, AssetType>, 18> Extensions{{
     {".tga", AssetType::Texture},
     {".gltf", AssetType::Model},
     {".glb", AssetType::Model},
+    {".fbx", AssetType::Model},
+    {".obj", AssetType::Model},
     {".material", AssetType::Material},
     {".wav", AssetType::Sound},
     {".ogg", AssetType::Sound},

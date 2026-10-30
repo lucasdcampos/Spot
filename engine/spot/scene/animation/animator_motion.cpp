@@ -34,11 +34,12 @@ TransformComponents Animator::MotionDelta(int stateIndex, const AssetRef<Animati
         return {};
     }
     if (stateIndex < 0 || !m_controller) {
-        return clip ? GetRootMotionDelta(*m_skeleton, *clip, m_rootBoneIndex, from, to, loop) : TransformComponents{};
+        const AnimationClip* bound = Bind(clip);
+        return bound ? GetRootMotionDelta(*m_skeleton, *bound, m_rootBoneIndex, from, to, loop) : TransformComponents{};
     }
     const auto& state = m_controller->states[static_cast<std::size_t>(stateIndex)];
     if (state.blendTree.type == BlendTreeType::None) {
-        return GetRootMotionDelta(*m_skeleton, *state.clip, m_rootBoneIndex, from, to, state.loop);
+        return GetRootMotionDelta(*m_skeleton, *Bind(state.clip), m_rootBoneIndex, from, to, state.loop);
     }
     const auto& tree = state.blendTree;
     const Vector2 value{static_cast<float>(m_controllerRuntime.GetParameter(tree.parameterX).value_or(0)),
@@ -55,7 +56,7 @@ TransformComponents Animator::MotionDelta(int stateIndex, const AssetRef<Animati
         }
         const float scale = duration > 0 ? motion.clip->duration / duration : 0;
         const auto delta =
-            GetRootMotionDelta(*m_skeleton, *motion.clip, m_rootBoneIndex, from * scale, to * scale, state.loop);
+            GetRootMotionDelta(*m_skeleton, *Bind(motion.clip), m_rootBoneIndex, from * scale, to * scale, state.loop);
         sum += weights[i];
         const float weight = weights[i] / sum;
         result.translation = Lerp(result.translation, delta.translation, weight);

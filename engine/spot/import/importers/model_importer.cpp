@@ -1,7 +1,10 @@
 #include "spot/animation/animation_asset_format.h"
+#include "spot/animation/pose.h"
 #include "spot/assets/asset_formats.h"
+#include "spot/core/debug/log.h"
 #include "spot/core/io/paths.h"
 #include "spot/graphics/texture_asset_format.h"
+#include "spot/import/importers/fbx_reader.h"
 #include "spot/import/importers/importer.h"
 #include "spot/import/importers/texture_compression.h"
 #include "spot/render/model_data.h"
@@ -9,7 +12,9 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <charconv>
+#include <cmath>
 #include <format>
 #include <optional>
 #include <string_view>
@@ -65,12 +70,97 @@ void AddGltfDependencies(ImportContext& context) {
     }
 }
 
+bool IsReadByUfbx(const std::filesystem::path& path) {
+    std::string extension = PathToUtf8(path.extension());
+    for (char& c : extension) {
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+    return extension == ".fbx" || extension == ".obj";
+}
+
+// Keeps the part of the clip between the times, from 0. Cubic channels are resampled into linear keys, which
+// cutting them anywhere else than at a key needs.
+void Trim(AnimationClip& clip, float start, float end) {
+    start = std::clamp(start, 0.0f, clip.duration);
+    end = std::clamp(end, start, clip.duration);
+    for (auto& channel : clip.channels) {
+        AnimationChannel part;
+        part.bone = channel.bone;
+        part.path = channel.path;
+        part.interpolation = channel.interpolation == AnimationInterpolation::Step ? AnimationInterpolation::Step
+                                                                                   : AnimationInterpolation::Linear;
+        const auto add = [&](float time) {
+            if (part.times.empty() || time - start > part.times.back()) {
+                part.times.push_back(time - start);
+                part.values.push_back(Pose::SampleChannel(channel, time));
+            }
+        };
+        add(start);
+        if (channel.interpolation == AnimationInterpolation::Cubic) {
+            constexpr float Step = 1.0f / 30.0f;
+            for (float time = start + Step; time < end; time += Step) {
+                add(time);
+            }
+        } else {
+            for (const float time : channel.times) {
+                if (time > start && time < end) {
+                    add(time);
+                }
+            }
+        }
+        add(end);
+        channel = std::move(part);
+    }
+    clip.duration = end - start;
+}
+
+void ApplyClipSettings(AnimationClip& clip, const ClipImportSettings& settings) {
+    if (settings.start > 0.0f || settings.end > 0.0f) {
+        Trim(clip, settings.start, settings.end > 0.0f ? settings.end : clip.duration);
+    }
+    if (!settings.name.empty()) {
+        clip.name = settings.name;
+    }
+    clip.events = settings.events;
+    const auto outside = std::ranges::remove_if(
+        clip.events, [&](const AnimationEvent& event) { return !(event.time >= 0.0f && event.time <= clip.duration); });
+    if (!outside.empty()) {
+        Log::GetEngineLogger().Warning("Dropped {} events of clip '{}' that are past its end", outside.size(),
+                                       clip.name);
+        clip.events.erase(outside.begin(), outside.end());
+    }
+    clip.retargetTranslations = settings.retargetTranslations;
+    clip.rootMotionRotation = settings.rootMotionRotation;
+}
+
 } // namespace
 
 bool ImportModel(ImportContext& context) {
-    AddGltfDependencies(context);
-
-    auto model = ModelData::Load(context.GetSourcePath());
+    std::optional<ModelData> model;
+    // Per image, the file it came from and its name, for FBX and OBJ models, which may use the project's own
+    // textures.
+    std::vector<std::filesystem::path> imageFiles;
+    std::vector<std::string> imageNames;
+    if (IsReadByUfbx(context.GetSourcePath())) {
+        auto read = ReadFbx(context.GetSourcePath(), [&](std::string_view fileName) {
+            return context.FindSourceByName(fileName, AssetType::Texture);
+        });
+        if (!read) {
+            return false;
+        }
+        std::error_code error;
+        for (const auto& dependency : read->dependencies) {
+            if (std::filesystem::exists(dependency, error)) {
+                context.AddDependency(dependency);
+            }
+        }
+        imageFiles = std::move(read->imageFiles);
+        imageNames = std::move(read->imageNames);
+        model = std::move(read->model);
+    } else {
+        AddGltfDependencies(context);
+        model = ModelData::Load(context.GetSourcePath());
+    }
     if (!model) {
         return false;
     }
@@ -119,12 +209,39 @@ bool ImportModel(ImportContext& context) {
             }
         }
     }
-    for (auto& clip : model->animations) {
-        for (const auto& settings : context.GetMeta().model.animations) {
-            if (settings.clip == clip.name) {
-                clip.events = settings.events;
+    // Clips keep the rig they were made for, so they play on other skeletons by bone names.
+    std::vector<SkeletonBone> rig;
+    for (const auto& node : model->nodes) {
+        rig.push_back(
+            {node.name, node.parent ? static_cast<std::int32_t>(*node.parent) : -1, Decompose(node.transform)});
+    }
+    struct ImportedClip {
+        std::string key;
+        AnimationClip clip;
+    };
+    std::vector<ImportedClip> clips;
+    for (std::size_t i = 0; i < model->animations.size(); ++i) {
+        auto& source = model->animations[i];
+        source.rig = rig;
+        std::vector<const ClipImportSettings*> settings;
+        for (const auto& entry : context.GetMeta().model.animations) {
+            if (entry.clip == source.name) {
+                settings.push_back(&entry);
             }
         }
+        if (settings.empty()) {
+            clips.push_back({std::format("animation:{}", i), std::move(source)});
+            continue;
+        }
+        // The first part keeps the clip's key, so its id survives being split.
+        for (std::size_t j = 0; j < settings.size(); ++j) {
+            AnimationClip part = source;
+            ApplyClipSettings(part, *settings[j]);
+            clips.push_back({j == 0 ? std::format("animation:{}", i) : std::format("animation:{}:{}", i, part.name),
+                             std::move(part)});
+        }
+    }
+    for (auto& [key, clip] : clips) {
         std::ranges::stable_sort(clip.events, {}, &AnimationEvent::time);
         if (!clip.IsValid()) {
             return false;
@@ -142,11 +259,10 @@ bool ImportModel(ImportContext& context) {
         skeletons.push_back(id);
     }
     std::vector<AssetId> animations;
-    for (std::size_t i = 0; i < model->animations.size(); ++i) {
+    for (const auto& [key, clip] : clips) {
         BinaryWriter data;
-        Encode(data, model->animations[i]);
-        const auto id = context.WriteSubAsset(std::format("animation:{}", i), AssetType::AnimationClip,
-                                              model->animations[i].name, data);
+        Encode(data, clip);
+        const auto id = context.WriteSubAsset(key, AssetType::AnimationClip, clip.name, data);
         if (!id.IsValid()) {
             return false;
         }
@@ -156,13 +272,26 @@ bool ImportModel(ImportContext& context) {
     for (std::size_t i = 0; i < model->images.size(); ++i) {
         BinaryWriter data;
         const bool color = model->IsColorImage(i);
+        if (i < imageFiles.size() && !imageFiles[i].empty()) {
+            // A color texture of the project is used as it is, so editing it changes the model. Data, such as normal
+            // maps, is copied, as the project's texture may be imported as colors.
+            const AssetId own = context.FindAsset(imageFiles[i]);
+            if (own.IsValid() && color) {
+                textures.push_back(own);
+                continue;
+            }
+            context.AddDependency(imageFiles[i]);
+        }
         if (CanCompressTexture(model->images[i], true)) {
             Encode(data, CompressTexture(model->images[i], color));
         } else {
             Encode(data, TextureFile{std::move(model->images[i]), true, color});
         }
-        textures.push_back(context.WriteSubAsset(std::format("texture:{}", i), AssetType::Texture,
-                                                 std::format("Texture {}", i), data));
+        // Named after their files, so extracting them can tell which file each became.
+        std::string name =
+            i < imageNames.size() && !imageNames[i].empty() ? imageNames[i] : std::format("Texture {}", i);
+        textures.push_back(
+            context.WriteSubAsset(std::format("texture:{}", i), AssetType::Texture, std::move(name), data));
         if (!textures.back().IsValid()) {
             return false;
         }

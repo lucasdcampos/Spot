@@ -31,8 +31,10 @@ struct BlendTree {
 
 void ComputeBlendWeights(const BlendTree& tree, Vector2 value, std::span<float> weights);
 float GetBlendDuration(const BlendTree& tree, std::span<const float> weights);
+// The clips, when given, are what each motion plays, such as its clip retargeted for the skeleton; empty plays the
+// motions' own.
 void SampleBlendTree(const Skeleton& skeleton, const BlendTree& tree, Vector2 value, float time, bool loop,
                      std::span<TransformComponents> result, std::span<TransformComponents> scratch,
-                     std::span<float> weights);
+                     std::span<float> weights, std::span<const AnimationClip* const> clips = {});
 
 } // namespace Spot

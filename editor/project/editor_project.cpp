@@ -94,6 +94,30 @@ bool EditorProject::Reimport(AssetId id) {
     return imported;
 }
 
+std::optional<AssetId> EditorProject::ExtractMaterial(AssetId material, std::string_view path) {
+    auto id = m_database->ExtractMaterial(material, path);
+    AfterImport();
+    return id;
+}
+
+std::vector<AssetId> EditorProject::ExtractMaterials(AssetId model, std::string_view folder) {
+    auto ids = m_database->ExtractMaterials(model, folder);
+    AfterImport();
+    return ids;
+}
+
+std::vector<std::string> EditorProject::ExtractTextures(AssetId model, std::string_view folder) {
+    auto paths = m_database->ExtractTextures(model, folder);
+    AfterImport();
+    return paths;
+}
+
+std::size_t EditorProject::RemapMaterialsByName(AssetId model) {
+    const std::size_t count = m_database->RemapMaterialsByName(model);
+    AfterImport();
+    return count;
+}
+
 void EditorProject::AfterImport() {
     m_assets->RefreshManifest();
     // What changed loads anew from now on; references to the old versions are for their holders to reload.

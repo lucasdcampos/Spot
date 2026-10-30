@@ -14,7 +14,7 @@ std::optional<AssetType> ParseAssetType(std::string_view name);
 
 // The type of asset a source file holds, from its extension, ignoring case:
 //   Texture  .png .jpg .jpeg .bmp .tga        Sound  .wav .ogg
-//   Model    .gltf .glb                       Font   .ttf .otf
+//   Model    .gltf .glb .fbx .obj             Font   .ttf .otf
 //   Material .material                        Scene  .scene
 //   Prefab   .prefab
 //   Script   .luau

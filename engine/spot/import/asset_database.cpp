@@ -3,8 +3,10 @@
 #include "spot/assets/asset_file.h"
 #include "spot/assets/asset_formats.h"
 #include "spot/assets/asset_manifest.h"
+#include "spot/assets/material_source.h"
 #include "spot/core/debug/log.h"
 #include "spot/core/io/paths.h"
+#include "spot/import/importers/fbx_reader.h"
 #include "spot/import/importers/importer.h"
 
 #include <algorithm>
@@ -129,6 +131,14 @@ bool AssetDatabase::Scan() {
 }
 
 std::optional<AssetId> AssetDatabase::ExtractMaterial(AssetId material, std::string_view path) {
+    const auto id = WriteExtractedMaterial(material, path);
+    if (id) {
+        Refresh();
+    }
+    return id;
+}
+
+std::optional<AssetId> AssetDatabase::WriteExtractedMaterial(AssetId material, std::string_view path) {
     const AssetInfo* info = Find(material);
     AssetMeta* model = info ? GetMeta(info->parent) : nullptr;
     const auto key =
@@ -165,9 +175,138 @@ std::optional<AssetId> AssetDatabase::ExtractMaterial(AssetId material, std::str
     std::erase_if(overrides, [&](const MaterialOverride& entry) { return entry.key == keyName; });
     overrides.push_back({keyName, meta.id});
     SaveMeta(info->parent);
-
-    Refresh();
     return meta.id;
+}
+
+std::vector<AssetId> AssetDatabase::ExtractMaterials(AssetId model, std::string_view folder) {
+    std::vector<AssetId> extracted;
+    const AssetMeta* meta = GetMeta(model);
+    if (!meta || meta->type != AssetType::Model) {
+        Log::GetEngineLogger().Error("Only the materials of models can be extracted");
+        return extracted;
+    }
+    std::vector<std::pair<std::string, AssetId>> materials;
+    for (const auto& subAsset : meta->subAssets) {
+        const AssetInfo* info = Find(subAsset.id);
+        const bool replaced = std::ranges::any_of(meta->model.materials, [&](const MaterialOverride& entry) {
+            return entry.key == subAsset.key && entry.material.IsValid();
+        });
+        if (info && info->type == AssetType::Material && !replaced) {
+            materials.emplace_back(info->name, subAsset.id);
+        }
+    }
+    for (const auto& [name, id] : materials) {
+        // File names cannot hold every character material names do.
+        std::string file = name.empty() ? "Material" : name;
+        for (char& c : file) {
+            if (std::string_view("<>:\"/\\|?*").find(c) != std::string_view::npos ||
+                static_cast<unsigned char>(c) < 32) {
+                c = '_';
+            }
+        }
+        std::string path = std::string(folder);
+        if (!path.empty() && path.back() != '/') {
+            path += '/';
+        }
+        if (const auto written = WriteExtractedMaterial(id, GetFreePath(path + file + ".material"))) {
+            extracted.push_back(*written);
+        }
+    }
+    if (!extracted.empty()) {
+        Refresh();
+    }
+    return extracted;
+}
+
+std::size_t AssetDatabase::RemapMaterialsByName(AssetId model) {
+    AssetMeta* meta = GetMeta(model);
+    if (!meta || meta->type != AssetType::Model) {
+        return 0;
+    }
+    std::size_t replaced = 0;
+    for (const auto& subAsset : meta->subAssets) {
+        const AssetInfo* info = Find(subAsset.id);
+        if (!info || info->type != AssetType::Material) {
+            continue;
+        }
+        const auto found = std::ranges::find_if(m_assets, [&](const AssetInfo& candidate) {
+            return candidate.type == AssetType::Material && !candidate.parent.IsValid() &&
+                   PathToUtf8(Utf8ToPath(candidate.path).stem()) == info->name;
+        });
+        if (found == m_assets.end()) {
+            continue;
+        }
+        auto& overrides = meta->model.materials;
+        std::erase_if(overrides, [&](const MaterialOverride& entry) { return entry.key == subAsset.key; });
+        overrides.push_back({subAsset.key, found->id});
+        ++replaced;
+    }
+    if (replaced) {
+        SaveMeta(model);
+        Reimport(model);
+    }
+    return replaced;
+}
+
+std::vector<std::string> AssetDatabase::ExtractTextures(AssetId model, std::string_view folder) {
+    std::vector<std::string> paths;
+    const AssetInfo* info = Find(model);
+    const auto target = Resolve(folder);
+    if (!info || info->type != AssetType::Model || info->parent.IsValid() || !target) {
+        Log::GetEngineLogger().Error("Only the textures of FBX models can be extracted");
+        return paths;
+    }
+    // The model's textures as they are, by name, for the materials extracted from it to find their files after.
+    std::vector<std::pair<AssetId, std::string>> before;
+    for (const auto& asset : m_assets) {
+        if (asset.parent == model && asset.type == AssetType::Texture) {
+            before.emplace_back(asset.id, asset.name);
+        }
+    }
+    for (const auto& file : Detail::ExtractFbxTextures(m_sourceDirectory / Utf8ToPath(info->path), *target)) {
+        paths.push_back(ToRelative(file, m_sourceDirectory));
+    }
+    if (paths.empty()) {
+        return paths;
+    }
+    Refresh();
+
+    std::unordered_map<AssetId, AssetId> moved;
+    for (const auto& [id, name] : before) {
+        for (const auto& path : paths) {
+            if (PathToUtf8(Utf8ToPath(path).filename()) == name) {
+                if (const auto file = FindByPath(path)) {
+                    moved[id] = *file;
+                }
+            }
+        }
+    }
+    const AssetMeta* meta = GetMeta(model);
+    for (const auto& entry : meta ? meta->model.materials : std::vector<MaterialOverride>{}) {
+        const AssetInfo* material = Find(entry.material);
+        if (!material || material->parent.IsValid()) {
+            continue;
+        }
+        const auto file = m_sourceDirectory / Utf8ToPath(material->path);
+        auto source = MaterialSource::LoadFromFile(file);
+        if (!source) {
+            continue;
+        }
+        bool changed = false;
+        for (AssetId* texture : {&source->baseColorTexture, &source->metallicRoughnessTexture, &source->normalTexture,
+                                 &source->occlusionTexture, &source->emissiveTexture}) {
+            if (const auto found = moved.find(*texture); found != moved.end()) {
+                *texture = found->second;
+                changed = true;
+            }
+        }
+        if (changed) {
+            source->SaveToFile(file);
+        }
+    }
+    // The model and the materials changed, imported together, so all of them show as changed.
+    Import(&model);
+    return paths;
 }
 
 std::size_t AssetDatabase::Import(const AssetId* forced, const ImportObserver& observer) {
@@ -251,6 +390,24 @@ std::size_t AssetDatabase::Import(const AssetId* forced, const ImportObserver& o
         context.SetSourceFinder([this](AssetId id) {
             const auto found = m_sourceIndices.find(id);
             return found != m_sourceIndices.end() ? m_sources[found->second].path : std::filesystem::path();
+        });
+        context.SetAssetFinder([this](const std::filesystem::path& path) {
+            const auto normal = path.lexically_normal();
+            for (const auto& other : m_sources) {
+                if (other.path.lexically_normal() == normal) {
+                    return other.meta.id;
+                }
+            }
+            return AssetId();
+        });
+        context.SetNameFinder([this](std::string_view fileName, AssetType type) {
+            const auto name = Utf8ToPath(fileName);
+            for (const auto& other : m_sources) {
+                if (other.meta.type == type && other.path.filename() == name) {
+                    return other.path;
+                }
+            }
+            return std::filesystem::path();
         });
         const bool imported = importer.import(context);
         if (source.meta.subAssets.size() != knownSubAssets) {

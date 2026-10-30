@@ -14,6 +14,7 @@
 #include <imgui_internal.h>
 
 #include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <memory>
 #include <utility>
@@ -60,6 +61,19 @@ private:
 bool HasImportSettings(AssetType type) {
     return type == AssetType::Texture || type == AssetType::Model || type == AssetType::Font ||
            type == AssetType::Sound;
+}
+
+// Where things made from a source file go: a folder beside it, such as "characters/Materials".
+std::string GetSiblingFolder(const AssetInfo& info, std::string_view name) {
+    const std::string parent = PathToUtf8(Utf8ToPath(info.path).parent_path().generic_u8string());
+    return parent.empty() ? std::string(name) : parent + "/" + std::string(name);
+}
+
+bool HoldsTextures(const AssetInfo& info) {
+    std::string extension = PathToUtf8(Utf8ToPath(info.path).extension());
+    std::ranges::transform(extension, extension.begin(),
+                           [](char c) { return static_cast<char>(std::tolower(static_cast<unsigned char>(c))); });
+    return extension == ".fbx";
 }
 
 } // namespace
@@ -232,6 +246,19 @@ void AssetInspector::DrawSubAsset(EditorProject& project, const AssetInfo& info)
                        "Part of '%s', imported from it: change it there, or through its import settings.",
                        file ? file->path.c_str() : "?");
     ImGui::PopTextWrapPos();
+    if (info.type == AssetType::Material && file && file->type == AssetType::Model) {
+        if (ImGui::Button(ICON_FA_FILE_EXPORT " Extract")) {
+            const std::string folder = GetSiblingFolder(*file, "Materials");
+            const std::string path = project.GetAssetDatabase().GetFreePath(
+                folder + "/" + (info.name.empty() ? "Material" : info.name) + ".material");
+            if (const auto extracted = project.ExtractMaterial(info.id, path)) {
+                m_context.InspectAsset(*extracted);
+            }
+        }
+        Record("Extract");
+        ImGui::SetItemTooltip("Writes the material to a .material file, which the model uses from then on, so it can "
+                              "be edited");
+    }
 }
 
 void AssetInspector::DrawMaterial(EditorProject& project, const AssetInfo& info) {
@@ -299,6 +326,12 @@ void AssetInspector::DrawImportSettings(EditorProject& project, const AssetInfo&
 
     // Importing takes a while for large files, so changes wait until they are applied.
     const bool changed = m_settings->GetSettingsString() != meta->GetSettingsString();
+    if (info.type == AssetType::Model) {
+        DrawModelMaterials(project, info, changed);
+        if (!m_settings) {
+            return;
+        }
+    }
     ImGui::Spacing();
     if (changed) {
         ImGui::TextColored(EditorColors::Warning, ICON_FA_CIRCLE_EXCLAMATION "  Not applied yet");
@@ -325,6 +358,98 @@ void AssetInspector::DrawImportSettings(EditorProject& project, const AssetInfo&
     ImGui::PopStyleColor();
     Record("Apply");
     ImGui::EndDisabled();
+}
+
+void AssetInspector::DrawModelMaterials(EditorProject& project, const AssetInfo& info, bool pending) {
+    AssetDatabase& database = project.GetAssetDatabase();
+    const AssetMeta* meta = database.GetMeta(info.id);
+    if (!meta) {
+        return;
+    }
+    std::vector<std::pair<std::string, const AssetInfo*>> materials;
+    for (const SubAssetId& subAsset : meta->subAssets) {
+        const AssetInfo* part = database.Find(subAsset.id);
+        if (part && part->type == AssetType::Material && part->parent == info.id) {
+            materials.emplace_back(subAsset.key, part);
+        }
+    }
+    ImGui::Spacing();
+    Widgets::Heading("Materials");
+    if (materials.empty()) {
+        ImGui::TextDisabled("The model has no materials.");
+        return;
+    }
+    if (Widgets::BeginProperties("##ModelMaterials")) {
+        InspectorBackend backend({.project = &project, .eulers = &m_eulers, .root = "/materials"});
+        Archive archive(backend);
+        auto& overrides = m_settings->model.materials;
+        for (const auto& [key, part] : materials) {
+            const auto found = std::ranges::find(overrides, key, &MaterialOverride::key);
+            AssetId value = found != overrides.end() ? found->material : AssetId();
+            const AssetId before = value;
+            archive.Field(part->name.empty() ? key : part->name, value,
+                          {.tooltip = "A material asset that replaces the model's own; None keeps the model's",
+                           .assetType = AssetType::Material});
+            if (value != before) {
+                std::erase_if(overrides, [&](const MaterialOverride& entry) { return entry.key == key; });
+                if (value.IsValid()) {
+                    overrides.push_back({key, value});
+                }
+            }
+        }
+        Widgets::EndProperties();
+        for (const InspectorBackend::FieldRect& rect : backend.GetFieldRects()) {
+            m_rects[rect.pointer] = {rect.min, rect.max};
+        }
+    }
+
+    // These change the settings themselves, so they wait for settings being changed to be applied or reverted.
+    ImGui::BeginDisabled(pending);
+    const bool extractable = std::ranges::any_of(materials, [&](const auto& entry) {
+        return std::ranges::none_of(meta->model.materials, [&](const MaterialOverride& replaced) {
+            return replaced.key == entry.first && replaced.material.IsValid();
+        });
+    });
+    ImGui::BeginDisabled(!extractable);
+    if (ImGui::Button(ICON_FA_FILE_EXPORT " Extract Materials")) {
+        const std::string folder = GetSiblingFolder(info, "Materials");
+        const auto extracted = project.ExtractMaterials(info.id, folder);
+        GetEditorLogger().Info("Extracted {} materials to '{}'", extracted.size(), folder);
+        m_settings.reset();
+    }
+    Record("Extract Materials");
+    ImGui::SetItemTooltip("Writes the model's materials to .material files in a Materials folder beside it, which the "
+                          "model uses from then on, so they can be edited");
+    ImGui::EndDisabled();
+    if (HoldsTextures(info)) {
+        ImGui::SameLine();
+        if (ImGui::Button(ICON_FA_IMAGE " Extract Textures")) {
+            const std::string folder = GetSiblingFolder(info, "Textures");
+            const auto extracted = project.ExtractTextures(info.id, folder);
+            if (extracted.empty()) {
+                GetEditorLogger().Info("The model holds no textures that are not extracted yet");
+            } else {
+                GetEditorLogger().Info("Extracted {} textures to '{}'", extracted.size(), folder);
+            }
+            m_settings.reset();
+        }
+        Record("Extract Textures");
+        ImGui::SetItemTooltip("Writes the textures the model holds to files in a Textures folder beside it, which the "
+                              "model and its extracted materials use from then on");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button(ICON_FA_LINK " Remap by Name")) {
+        const std::size_t count = project.RemapMaterialsByName(info.id);
+        GetEditorLogger().Info("Replaced {} materials by material assets of the same name", count);
+        m_settings.reset();
+    }
+    Record("Remap by Name");
+    ImGui::SetItemTooltip("Replaces each of the model's materials by the .material file of the same name in the "
+                          "project, where there is one");
+    ImGui::EndDisabled();
+    if (pending) {
+        ImGui::TextDisabled("Apply or revert the changes first.");
+    }
 }
 
 void AssetInspector::DrawPreview(EditorProject& project, const AssetInfo& info) {

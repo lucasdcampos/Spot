@@ -32,7 +32,7 @@ ImporterInfo FindImporter(AssetType type) {
     case AssetType::SpriteAtlas:
         return {&ImportSpriteAtlas, 1};
     case AssetType::Model:
-        return {&ImportModel, 14};
+        return {&ImportModel, 15};
     case AssetType::AnimatorController:
         return {&ImportAnimatorController, 2};
     case AssetType::Material:

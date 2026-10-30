@@ -1,5 +1,7 @@
 #include "spot/scene/animation/animator.h"
 
+#include "spot/animation/animation_binding.h"
+#include "spot/animation/animation_motion.h"
 #include "spot/animation/pose.h"
 #include "spot/assets/asset_archive.h"
 #include "spot/core/debug/log.h"
@@ -33,12 +35,36 @@ void Animator::SetSkeleton(AssetRef<Skeleton> skeleton) {
     Seek(0);
 }
 
+namespace {
+
+// The topmost of the skin's joints, such as the hips, which carries the character's movement; the first bone when
+// there are no joints.
+std::size_t FindRootJoint(const Skeleton& skeleton) {
+    std::vector<bool> joint(skeleton.bones.size(), false);
+    for (const auto index : skeleton.joints) {
+        joint[index] = true;
+    }
+    for (const auto index : skeleton.joints) {
+        bool topmost = true;
+        for (auto parent = skeleton.bones[index].parent; parent >= 0 && topmost;
+             parent = skeleton.bones[static_cast<std::size_t>(parent)].parent) {
+            topmost = !joint[static_cast<std::size_t>(parent)];
+        }
+        if (topmost) {
+            return index;
+        }
+    }
+    return 0;
+}
+
+} // namespace
+
 void Animator::ResizePose() {
     const auto count = m_skeleton ? m_skeleton->bones.size() : 0;
-    m_rootBoneIndex = m_skeleton
-                          ? (m_rootBoneName.empty() ? (m_skeleton->joints.empty() ? 0 : m_skeleton->joints.front())
-                                                    : m_skeleton->FindBone(m_rootBoneName).value_or(count))
-                          : 0;
+    m_boundClips.clear();
+    m_rootBoneIndex = m_skeleton ? (m_rootBoneName.empty() ? FindRootJoint(*m_skeleton)
+                                                           : m_skeleton->FindBone(m_rootBoneName).value_or(count))
+                                 : 0;
     m_local.resize(count);
     m_model.resize(count);
     m_layerPose.resize(count);
@@ -57,14 +83,41 @@ void Animator::ResizePose() {
         }
     }
     m_blendWeights.resize(motions);
+    m_treeClips.resize(motions);
     m_fadeSource.resize(count);
     m_palette.resize(m_skeleton ? m_skeleton->joints.size() : 0);
 }
 
 bool Animator::Accepts(const AssetRef<AnimationClip>& clip) const {
-    return m_skeleton && clip && clip->IsValid() && std::ranges::all_of(clip->channels, [&](const auto& channel) {
-               return channel.bone < m_skeleton->bones.size();
-           });
+    return m_skeleton && clip && clip->IsValid() && Bind(clip);
+}
+
+const AnimationClip* Animator::Bind(const AssetRef<AnimationClip>& clip) const {
+    if (!m_skeleton || !clip) {
+        return nullptr;
+    }
+    if (clip->rig.empty()) {
+        return std::ranges::all_of(clip->channels,
+                                   [&](const auto& channel) { return channel.bone < m_skeleton->bones.size(); })
+                   ? clip.Get()
+                   : nullptr;
+    }
+    for (const auto& [source, bound] : m_boundClips) {
+        if (source == clip.GetShared()) {
+            return bound.get();
+        }
+    }
+    auto bound = BindAnimationClip(clip.GetShared(), m_skeleton.GetShared());
+    if (!bound) {
+        Log::GetEngineLogger().Warning("Animation clip '{}' has no bone of skeleton '{}'", clip->name,
+                                       m_skeleton->name);
+    }
+    m_boundClips.emplace_back(clip.GetShared(), std::move(bound));
+    return m_boundClips.back().second.get();
+}
+
+void Animator::ReleaseUnusedBindings() {
+    std::erase_if(m_boundClips, [](const auto& binding) { return binding.first.use_count() == 1; });
 }
 
 bool Animator::Play(AssetRef<AnimationClip> clip, bool loop) {
@@ -213,6 +266,7 @@ void Animator::FinishSimulate() {
     // The clips are let go here, on the thread that frees assets.
     m_pendingMotion = {};
     m_pendingLayerEvents = {};
+    ReleaseUnusedBindings();
 }
 
 void Animator::Preview(float deltaTime) {
@@ -229,10 +283,10 @@ bool Animator::PreviewClip(AssetRef<AnimationClip> clip, float time) {
         return false;
     }
     m_time = Pose::WrapTime(time, clip->duration, false);
-    Pose::Sample(*m_skeleton, *clip, m_time, false, m_local);
+    const AnimationClip& bound = *Bind(clip);
+    Pose::Sample(*m_skeleton, bound, m_time, false, m_local);
     if (m_rootMotion != RootMotionMode::None && m_rootBoneIndex < m_local.size()) {
-        m_local[m_rootBoneIndex].translation = m_skeleton->bones[m_rootBoneIndex].bindPose.translation;
-        m_local[m_rootBoneIndex].rotation = m_skeleton->bones[m_rootBoneIndex].bindPose.rotation;
+        RemoveRootMotion(*m_skeleton, m_rootBoneIndex, bound.rootMotionRotation, m_local[m_rootBoneIndex]);
     }
     Pose::ToModel(*m_skeleton, m_local, m_model);
     return true;
@@ -249,7 +303,7 @@ void Animator::Evaluate(float deltaTime) {
     if (m_controllerRuntime.GetController()) {
         SampleState(m_controllerRuntime.GetState(), m_time, m_local);
     } else if (m_clip && Accepts(m_clip)) {
-        Pose::Sample(*m_skeleton, *m_clip, m_time, m_loop, m_local);
+        Pose::Sample(*m_skeleton, *Bind(m_clip), m_time, m_loop, m_local);
         m_playbackDuration = m_clip->duration;
     } else {
         Pose::Bind(*m_skeleton, m_local);
@@ -261,9 +315,9 @@ void Animator::Evaluate(float deltaTime) {
             const float incomingDuration = m_playbackDuration;
             SampleState(m_fadeState, m_fadeClipTime, m_fadeSource);
             m_playbackDuration = incomingDuration;
-        } else if (m_fadeClip) {
+        } else if (const AnimationClip* fading = Bind(m_fadeClip)) {
             m_fadeClipTime += deltaTime * m_speed * m_fadeClipSpeed;
-            Pose::Sample(*m_skeleton, *m_fadeClip, m_fadeClipTime, m_fadeLoop, m_fadeSource);
+            Pose::Sample(*m_skeleton, *fading, m_fadeClipTime, m_fadeLoop, m_fadeSource);
         }
         const float weight = std::min(m_fadeTime / m_fadeDuration, 1.0f);
         Pose::Blend(m_fadeSource, m_local, weight, m_local);
@@ -273,8 +327,7 @@ void Animator::Evaluate(float deltaTime) {
     }
     ApplyLayers();
     if (m_rootMotion != RootMotionMode::None && m_rootBoneIndex < m_local.size()) {
-        m_local[m_rootBoneIndex].translation = m_skeleton->bones[m_rootBoneIndex].bindPose.translation;
-        m_local[m_rootBoneIndex].rotation = m_skeleton->bones[m_rootBoneIndex].bindPose.rotation;
+        RemoveRootMotion(*m_skeleton, m_rootBoneIndex, !m_clip || m_clip->rootMotionRotation, m_local[m_rootBoneIndex]);
     }
     Pose::ToModel(*m_skeleton, m_local, m_model);
 }
@@ -282,14 +335,18 @@ void Animator::Evaluate(float deltaTime) {
 void Animator::SampleState(int index, float time, std::span<TransformComponents> pose) {
     const auto& state = m_controller->states[static_cast<std::size_t>(index)];
     if (state.blendTree.type == BlendTreeType::None) {
-        Pose::Sample(*m_skeleton, *state.clip, time, state.loop, pose);
+        Pose::Sample(*m_skeleton, *Bind(state.clip), time, state.loop, pose);
         m_playbackDuration = state.clip->duration;
     } else {
         const auto& tree = state.blendTree;
         const Vector2 value{static_cast<float>(m_controllerRuntime.GetParameter(tree.parameterX).value_or(0)),
                             static_cast<float>(m_controllerRuntime.GetParameter(tree.parameterY).value_or(0))};
         const auto weights = std::span(m_blendWeights).first(tree.motions.size());
-        SampleBlendTree(*m_skeleton, tree, value, time, state.loop, pose, m_treeScratch, weights);
+        const auto clips = std::span(m_treeClips).first(tree.motions.size());
+        for (std::size_t i = 0; i < clips.size(); ++i) {
+            clips[i] = Bind(tree.motions[i].clip);
+        }
+        SampleBlendTree(*m_skeleton, tree, value, time, state.loop, pose, m_treeScratch, weights, clips);
         m_playbackDuration = GetBlendDuration(tree, weights);
     }
 }

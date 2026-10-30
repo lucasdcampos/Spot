@@ -281,6 +281,51 @@ bool ApplyMaterial(SceneDocument& document, EntityId entity, AssetId material) {
     return !group->IsEmpty() && document.Execute(std::move(group));
 }
 
+namespace {
+
+void CollectAnimators(Entity& entity, std::vector<Animator*>& animators) {
+    for (Animator* animator : entity.GetComponents<Animator>()) {
+        animators.push_back(animator);
+    }
+    for (Entity* child : entity.GetChildren()) {
+        CollectAnimators(*child, animators);
+    }
+}
+
+} // namespace
+
+bool ApplyAnimationClip(SceneDocument& document, EditorProject& project, EntityId entity, AssetId clip) {
+    Entity* target = document.GetScene().GetEntity(entity);
+    const AssetRef<AnimationClip> loaded = project.GetAssets().Load<AnimationClip>(clip);
+    if (!target || !loaded) {
+        return false;
+    }
+    std::vector<Animator*> animators;
+    for (Entity* current = target; current && animators.empty(); current = current->GetParent()) {
+        animators = current->GetComponents<Animator>();
+    }
+    if (animators.empty()) {
+        CollectAnimators(*target, animators);
+    }
+    auto group = std::make_unique<SceneCommandGroup>(document, "Play " + loaded->name);
+    for (Animator* animator : animators) {
+        if (animator->GetController()) {
+            continue;
+        }
+        const std::string before = SaveComponentToString(*animator);
+        if (!animator->Play(loaded)) {
+            continue;
+        }
+        std::string after = SaveComponentToString(*animator);
+        // The command makes the change, so it can undo it.
+        LoadComponentFromString(*animator, before, &project.GetAssets());
+        Entity& owner = animator->GetEntity();
+        group->Add(std::make_unique<EditComponentCommand>(document, owner.GetId(), owner.GetComponentIndex(*animator),
+                                                          before, std::move(after)));
+    }
+    return !group->IsEmpty() && document.Execute(std::move(group));
+}
+
 bool CreateEntity(SceneDocument& document, EntityTemplate kind, EntityId parent, Vector3 position) {
     if (IsUiTemplate(kind))
         return CreateUiWidget(document, kind, parent);

@@ -197,6 +197,8 @@ add_library(spot_objects OBJECT
     spot/scene/animation/ragdoll.cpp
     spot/animation/pose.h
     spot/animation/pose.cpp
+    spot/animation/animation_binding.h
+    spot/animation/animation_binding.cpp
     spot/animation/animation_data.h
     spot/animation/animation_data.cpp
     spot/animation/animation_formats.cpp

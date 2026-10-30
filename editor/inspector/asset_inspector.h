@@ -29,8 +29,9 @@ public:
     // The edits of the material shown, for undoing them; null when no material is shown.
     CommandHistory* GetHistory();
 
-    // Where an item was drawn last frame, for tests to point at: "Apply", "Revert", "Extract", and fields of the
-    // material or the import settings by pointer, as "/baseColor" or "/mipmaps".
+    // Where an item was drawn last frame, for tests to point at: "Apply", "Revert", "Extract", "Extract Materials",
+    // "Extract Textures", "Remap by Name", and fields of the material or the import settings by pointer, as
+    // "/baseColor" or "/mipmaps".
     std::optional<std::pair<ImVec2, ImVec2>> GetItemRect(std::string_view item) const;
 
 private:
@@ -49,6 +50,8 @@ private:
     void DrawClip(EditorProject& project, const AssetInfo& info);
     void DrawMaterial(EditorProject& project, const AssetInfo& info);
     void DrawImportSettings(EditorProject& project, const AssetInfo& info);
+    // A model's materials, each with the material asset that replaces it, and the actions that extract them.
+    void DrawModelMaterials(EditorProject& project, const AssetInfo& info, bool pending);
     void DrawSubAsset(EditorProject& project, const AssetInfo& info);
     void Record(const std::string& item);
     // Writes the material's text to its file and imports it, so scenes show it.

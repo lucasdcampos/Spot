@@ -3,6 +3,7 @@
 // Skeletons, clips, poses and animator controllers, without scenes.
 
 #include "spot/animation/animation_assets.h"
+#include "spot/animation/animation_binding.h"
 #include "spot/animation/animation_data.h"
 #include "spot/animation/animation_layer.h"
 #include "spot/animation/animation_motion.h"

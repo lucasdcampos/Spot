@@ -9,7 +9,9 @@
 
 #include <algorithm>
 #include <array>
+#include <memory>
 #include <span>
+#include <utility>
 #include <vector>
 
 namespace Spot {
@@ -80,6 +82,11 @@ private:
     void FinishSimulate();
     void Evaluate(float deltaTime);
     bool Accepts(const AssetRef<AnimationClip>& clip) const;
+    // The clip as it plays on the skeleton: itself, or a copy retargeted from the rig it was made for (see
+    // BindAnimationClip()); null when it cannot play on it.
+    const AnimationClip* Bind(const AssetRef<AnimationClip>& clip) const;
+    // Lets go of the clips bound for clips nothing else refers to any more.
+    void ReleaseUnusedBindings();
     struct MotionStep {
         int state = -1;
         AssetRef<AnimationClip> clip;
@@ -124,6 +131,10 @@ private:
     int m_fadeState = -1;
     float m_playbackDuration = 0;
     std::vector<TransformComponents> m_treeScratch;
+    std::vector<const AnimationClip*> m_treeClips;
+    // Each clip played, with what Bind() made of it; looked through on every evaluation, so a clip is bound once.
+    mutable std::vector<std::pair<std::shared_ptr<const AnimationClip>, std::shared_ptr<const AnimationClip>>>
+        m_boundClips;
     std::vector<float> m_blendWeights;
     AssetRef<Skeleton> m_skeleton;
     AssetRef<AnimationClip> m_clip;

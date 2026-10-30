@@ -60,9 +60,14 @@ bool AnimationClip::IsValid() const {
     if (!std::isfinite(duration) || duration < 0.0f) {
         return false;
     }
+    for (std::size_t i = 0; i < rig.size(); ++i) {
+        if (rig[i].parent < -1 || (rig[i].parent >= 0 && static_cast<std::size_t>(rig[i].parent) >= i)) {
+            return false;
+        }
+    }
     for (const auto& channel : channels) {
         const auto count = channel.times.size();
-        if (count == 0 || channel.path > AnimationPath::Scale ||
+        if (count == 0 || (!rig.empty() && channel.bone >= rig.size()) || channel.path > AnimationPath::Scale ||
             channel.interpolation > AnimationInterpolation::Cubic ||
             channel.values.size() != count * (channel.interpolation == AnimationInterpolation::Cubic ? 3 : 1)) {
             return false;

@@ -16,7 +16,7 @@ Files are recognized by extension (`GetSourceAssetType()` in `engine/spot/assets
 | Type | Extensions |
 |---|---|
 | Texture | `.png` `.jpg` `.jpeg` `.bmp` `.tga` |
-| Model | `.gltf` `.glb` |
+| Model | `.gltf` `.glb` `.fbx` `.obj` |
 | Material | `.material` (JSON) |
 | Sound | `.wav` `.ogg` |
 | Font | `.ttf` `.otf` |
@@ -46,7 +46,10 @@ which get ids of their own under a key that names the part (`models/house.glb#Ro
   `DevToolsModule::ReloadAssetReferences()` points a component at the new versions. Shipped games never reload.
 - `CreateFolder()`, `Move()`, `Delete()`, `Duplicate()` and `CopyIn()` change sources the way tools do, keeping each
   `.meta` file with its source.
-- `ExtractMaterial()` turns a model's material into a `.material` file that can be edited.
+- `ExtractMaterial()` turns a model's material into a `.material` file that can be edited, and `ExtractMaterials()`
+  all of a model's at once, into a folder; `RemapMaterialsByName()` replaces a model's materials by the `.material`
+  files of the same names; `ExtractTextures()` writes the textures an FBX file holds to files of their own, which the
+  model and the materials extracted from it use from then on.
 
 ## Importers
 
@@ -55,8 +58,9 @@ importer has a version; **a change to any imported format bumps its importer's v
 of that type import again. A new source format gets a new importer there.
 
 Import settings live in each `.meta` file, and the editor's inspector edits them: textures choose mipmaps and whether they hold colors (`srgb`, off for data such as LUTs and normal maps), models a
-scale and material overrides, fonts their sizes, and sounds whether they stream (see [Audio](audio.md)); sounds that
-do not stream are stored decoded, as 16-bit samples.
+scale, material overrides and settings for their clips (see [Animation](animation.md#clips-of-other-files)), fonts
+their sizes, and sounds whether they stream (see [Audio](audio.md)); sounds that do not stream are stored decoded, as
+16-bit samples.
 
 Textures with mipmaps whose sides are multiples of 4 are stored block-compressed (`compress`, on by default): BC1,
 or BC3 when any pixel is not opaque, a quarter or an eighth of the memory of their pixels, with every mip level made
@@ -121,11 +125,43 @@ component that executes it; see [scripting](scripting.md).
 creates independent entities and remaps internal entity references. See [Prefabs](prefabs.md) for the source
 format, validation, placement options and asset resolution outside an application.
 
-Models preserve their glTF node hierarchy, including empty nodes and local transforms. Each unique mesh becomes
+Models preserve their node hierarchy, including empty nodes and local transforms. Each unique mesh becomes
 one mesh subasset, whose primitives are submeshes with separate material references. A model's hierarchy and
 references load without a graphics device; mesh references keep their ids for serialization. Import scale applies
-to both vertex positions and node translations, so it scales the whole hierarchy. Model importer version 9 stores
-this layout and reimports older models automatically, preserving subasset ids by their keys.
+to both vertex positions and node translations, so it scales the whole hierarchy. A new model importer version
+reimports older models automatically, preserving subasset ids by their keys; version 15 added FBX, OBJ and the rig
+clips keep.
+
+## FBX and OBJ models
+
+FBX and OBJ files are read by [ufbx](https://github.com/ufbx/ufbx), only in `spot_import`
+(`engine/spot/import/importers/fbx_reader.cpp`): games load imported models, so they never carry the reader, and
+`ModelData::Load()` stays glTF. `ReadFbx()` makes the same `ModelData` the glTF reader does, so everything after
+reading, the import scale, clip settings, material overrides and sub-assets, is shared in `ImportModel()`.
+
+- ufbx converts every file to meters with Y up (`target_unit_meters`, `target_axes`), scaling geometry and node
+  offsets alike rather than giving the top nodes a scale, so a character made in centimeters, as Mixamo's are, comes
+  in at its size with the import scale left at 1, and its animations move bones in meters. FBX's pivots,
+  pre-rotations and geometric transforms are resolved by ufbx into plain node transforms.
+- Faces are triangulated and split into submeshes by material; corners that are alike share a vertex. UVs are
+  flipped to the engine's top-left origin, and tangents are made with MikkTSpace, as for glTF. Skins keep the four
+  largest weights of each vertex, normalized; each skin cluster is a joint, with `geometry_to_bone` as its inverse
+  bind. Blend shapes are skipped with a warning.
+- Each animation stack is baked by ufbx to linear keys from 0; channels that hold a bone's bind pose the whole clip
+  are dropped. A file with a single stack under a name tools give every animation, such as `mixamo.com` or
+  `Take 001`, names its clip after the file, so `Walking.fbx` gives "Walking".
+- Materials come from ufbx's PBR mapping of Phong, Lambert, Stingray, 3ds Max and Arnold materials. Separate
+  roughness, glossiness and metalness textures are packed into one metallic-roughness texture, glossiness inverted.
+  A base color texture replaces the color under it, as in Maya. FBX opacity is unreliable, so a material is
+  transparent only for a clear partial opacity, and cutout when its opacity is the base color's own alpha; separate
+  opacity textures are not supported.
+- Textures are looked for by name beside the model, in `textures/` or `Textures/` beside it, in the `<name>.fbm`
+  folder FBX tools extract to, where the file says, and among the project's textures (`ImportContext::FindAsset()`,
+  `FindSourceByName()`), before the copy the file may hold. A color texture that is one of the project's sources is
+  referred to by its id rather than copied, so editing it changes the model; data textures, such as normal maps, are
+  copied, as the project's file may be imported as colors. Texture sub-assets are named after their files, which
+  is how `ExtractTextures()` points extracted materials at the files it writes. Missing textures are logged.
+- OBJ files read their `.mtl` beside them, which is a dependency of the import.
 
 ## Where imports go
 

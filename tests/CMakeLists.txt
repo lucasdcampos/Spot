@@ -177,7 +177,7 @@ if(SPOT_ENABLE_LUAU)
         PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
 endif()
 
-add_executable(spot_animation_tests animation_import_tests.cpp animation_pose_tests.cpp animation_runtime_tests.cpp animation_controller_tests.cpp animation_blend_tests.cpp animation_motion_tests.cpp animation_layer_tests.cpp bone_attachment_tests.cpp ragdoll_tests.cpp)
+add_executable(spot_animation_tests animation_binding_tests.cpp animation_import_tests.cpp animation_pose_tests.cpp animation_runtime_tests.cpp animation_controller_tests.cpp animation_blend_tests.cpp animation_motion_tests.cpp animation_layer_tests.cpp bone_attachment_tests.cpp ragdoll_tests.cpp)
 target_link_libraries(spot_animation_tests PRIVATE spot::import spot::spot Catch2::Catch2WithMain)
 target_compile_definitions(spot_animation_tests PRIVATE SPOT_TEST_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets")
 spot_set_compile_options(spot_animation_tests)

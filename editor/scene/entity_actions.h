@@ -66,6 +66,10 @@ bool CreateEntityFromAsset(SceneDocument& document, EditorProject& project, Asse
                            EntityId parent = EntityId::Invalid, Vector3 position = {});
 // Gives the material to every mesh the entity draws, as one step. Returns whether it draws any.
 bool ApplyMaterial(SceneDocument& document, EntityId entity, AssetId material);
+// Has the animators of the character the entity is part of play the clip, as one step: those on it or the nearest
+// parent that has some, or else those below it. Animators that a controller drives are left alone. Returns whether
+// any took the clip.
+bool ApplyAnimationClip(SceneDocument& document, EditorProject& project, EntityId entity, AssetId clip);
 
 // The selected entities that exist, leaving out those below other selected ones, in hierarchy order.
 std::vector<Entity*> GetSelectedEntities(SceneDocument& document);

@@ -53,6 +53,18 @@ struct AnimationClip {
     float duration = 0.0f;
     std::vector<AnimationChannel> channels;
     std::vector<AnimationEvent> events = {};
+    // The rig the clip was made for, whose bones channels address: every node of the file it came from, as
+    // Skeleton::bones lists them. Clips play on other skeletons through it, matched by bone names (see
+    // RetargetAnimationClip()); empty when channels address the bones of the skeleton they play on, as in clips made
+    // in code.
+    std::vector<SkeletonBone> rig = {};
+    // On a rig other than its own, every bone but the moving root keeps its own length, and the root's movement is
+    // scaled to the rig's size, so a clip made for one character fits another; off keeps every translation as the
+    // clip has it.
+    bool retargetTranslations = true;
+    // Root motion turns the entity as the root bone turns about the up axis; off leaves the turning in the pose, as
+    // straight walks that sway their hips want.
+    bool rootMotionRotation = true;
 
     bool IsValid() const;
 };

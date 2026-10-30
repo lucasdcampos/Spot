@@ -1,14 +1,15 @@
 # Skeletal animation
 
 Start with `ModelData::Load()` for CPU data, or load imported `Skeleton` and `AnimationClip`
-assets through `AssetManager`. glTF skins become skeleton sub-assets and named animations
-become clip sub-assets, also for animation-only glTF files. The model importer is version 10.
+assets through `AssetManager`. glTF and FBX skins become skeleton sub-assets and named animations
+become clip sub-assets, also for animation-only files (see [FBX and OBJ models](assets_and_importing.md#fbx-and-obj-models)).
 
 Skeleton bones are contiguous, parent before child, and include intermediary nodes needed
 for transforms. The joint array preserves glTF skin order; inverse bind matrices follow it.
 Clips address the same node indices and hold translation, rotation and scale channels with
 step, linear or cubic interpolation. Cubic values retain glTF tangent/value/tangent order.
-Animation-only files must use the same node hierarchy as their destination rig.
+Imported clips also keep the rig they were made for (`AnimationClip::rig`), every node of their file, which lets
+them play on other skeletons (see [Clips of other files](#clips-of-other-files)).
 
 Meshes keep four joint indices and normalized weights in a separate optional stream.
 Tangent generation and submesh assembly preserve that stream, including split vertices.
@@ -67,16 +68,19 @@ version 2 includes the trees and tracks their clip dependencies for reload.
 
 Clips carry sorted named events with string payloads. glTF animation extras may supply
 an `events` array; model import settings can override events by clip name, also in the
-asset inspector. Model importer version 11 includes those settings. Events crossed by
+asset inspector. Events crossed by
 the active clip (the dominant blend motion) reach the animator entity's active components
 through guarded `OnAnimationEvent()`. Forward and reverse crossings include looping
 boundaries; delivery is bounded to 256 events per update. Seeking/preview never dispatch.
 
 Root motion can move the entity transform or its CharacterController, respecting collisions.
-The default root is the first skin joint; choose another by name. Whole cycles accumulate
-translation and turning without backwards jumps. Blend trees and crossfades blend deltas;
-root translation/rotation are removed from the visual pose. Preview evaluates the in-place
-pose without moving the entity. Character root motion changes position through `Move()`;
+The default root is the topmost skin joint, such as the hips; choose another by name. The entity takes what the root
+does along the ground: its translation across the up axis of the root's parent and, unless the clip's
+`rootMotionRotation` is off, its turning about it (`GetRootMotionDelta()`). The rest stays in the visual pose
+(`RemoveRootMotion()`): the hips rise and fall and lean as a character walks, without the entity bobbing or tilting.
+Walks whose hips sway can turn `rootMotionRotation` off so the entity keeps facing ahead. Whole cycles accumulate
+translation and turning without backwards jumps. Blend trees and crossfades blend deltas. Preview evaluates the
+in-place pose without moving the entity. Character root motion changes position through `Move()`;
 missing/disabled character controllers receive no positional motion.
 
 An Animator can apply up to 16 ordered override/additive layers after its base pose.
@@ -121,6 +125,34 @@ updates the contiguous pose before attachments in late update. `AddImpulse()` pu
 nearest body. `SetActive(false, duration)` disables proxies, restores character movement
 and blends from the physical pose back to animation. Saved body ids/mode restore without
 creating duplicates; destroying the component releases its proxies.
+
+## Clips of other files
+
+Characters are often downloaded with their animations apart, a file each, as Mixamo gives them: those files hold the
+skeleton without the mesh or the armature above it, under another namespace (`mixamorig1:Hips` for `mixamorig:Hips`),
+so their node indices differ from the character's. `Animator` binds each clip to its skeleton once, when it is first
+played, through `BindAnimationClip()` (`engine/spot/animation/animation_binding.h`): a clip of the skeleton's own
+file, with the same bones, hierarchy and lengths (`IsClipForSkeleton()`), or one made in code without a rig, plays
+as it is; any other is rewritten by `RetargetAnimationClip()` for that skeleton, and the copy is shared by every
+animator that plays it on the same skeleton. Bones match by name, exactly or by their base names ignoring case
+(`GetBoneBaseName()`), and clips with no bone of the skeleton are rejected with a warning.
+
+Retargeting carries rotations over relative to each rig's bind pose (`key * inverse(sourceBind) * targetBind`), so
+rigs whose rest orientations differ a little still line up. Exporters key the translation of every bone with the
+lengths of the character the clip was made for; with `retargetTranslations`, on by default, only the topmost bones
+whose translation changes, such as the hips, keep it, scaled by the ratio of their bind offsets so strides fit the
+legs, and every other bone keeps the skeleton's length. Rigs that share bone names, as all of Mixamo's characters
+do, share their animations this way; rigs named differently need a humanoid mapping the engine does not have yet.
+
+The binding is per animator (`Animator::Bind()`), looked up by the clip's pointer on each evaluation and released on
+the scene's thread when nothing else refers to the clip (`ReleaseUnusedBindings()`); blend trees take the bound
+clips through `SampleBlendTree()`'s `clips`.
+
+A model's clip settings (`ClipImportSettings` in its `.meta`) find a clip by its name in the file and rename it,
+keep part of it (`start`, `end`, in seconds), set its events, `retargetTranslations` and `rootMotionRotation`.
+Several settings for one clip split it into clips of their own, as a file with all of a character's moves in one take
+needs; the first keeps the clip's key, `animation:N`, and the others are `animation:N:<name>`. Cut cubic channels are
+resampled into linear keys.
 
 ## Update interval
 

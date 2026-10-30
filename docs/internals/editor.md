@@ -71,6 +71,19 @@ drop position places that root, and a hierarchy drop can parent it to another en
 and each mesh node holds a renderer per submesh. The complete tree is one undoable addition; undo and redo preserve
 its entity ids and selection. Picking and selection outlines respect each renderer's submesh range.
 
+Dropping an animation clip on a character, in a scene view or the hierarchy, has its animators play it
+(`ApplyAnimationClip()`), as one undoable edit: those on the entity or its nearest parent with some, or else those
+below it; animators a controller drives are left alone. Clips of other files play through the animators' binding by
+bone names (see [Animation](animation.md#clips-of-other-files)).
+
+A model's import settings show its materials, each with a slot for the material asset that replaces it, applied with
+the other settings. **Extract Materials** writes those not replaced yet to a `Materials` folder beside the model,
+**Extract Textures**, for FBX files, writes the textures they hold to a `Textures` folder, which the model and the
+materials extracted from it use from then on, and **Remap by Name** replaces each material by the project's
+`.material` file of the same name (`EditorProject::ExtractMaterials()`, `ExtractTextures()`,
+`RemapMaterialsByName()`, which let the asset manager reload what they import). They wait while settings are being
+changed. A material sub-asset has an **Extract** button of its own.
+
 | Panel | What it does |
 |---|---|
 | Scene views | Show a document through an editor camera, with the grid, the colliders as physics sees them, the selection's outline, transform gizmos (move, turn, scale), picking by clicking, and the shapes queued with `DebugDraw` |
@@ -165,7 +178,8 @@ Runtime UI has a creation submenu, canvas preview, rectangle handles and anchor 
 
 ## Animation
 
-Import glTF skins/clips, then create an Animator Controller in the asset browser. Its inspector
+Import glTF or FBX skins/clips, then create an Animator Controller in the asset browser: with clips or models
+selected, it gets a state for each of their clips, such as one per downloaded animation file. Its inspector
 contains a draggable graph and transition/parameter editing; Apply and undo update the source
 asset. Clip sub-assets have key/event timelines and can preview on a selected scene rig without
 changing its authored clip. Animator components preview in edit mode and expose live parameters

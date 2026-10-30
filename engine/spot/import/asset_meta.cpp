@@ -56,15 +56,27 @@ void MaterialOverride::Serialize(Archive& archive) {
     archive.Field("material", material, {.assetType = AssetType::Material});
 }
 
-void AnimationEventImportSettings::Serialize(Archive& archive) {
-    archive.Field("clip", clip);
+void ClipImportSettings::Serialize(Archive& archive) {
+    archive.Field("clip", clip, {.tooltip = "The clip's name in the file"});
     archive.Field("events", events);
+    archive.Field("name", name, {.tooltip = "The clip's name once imported; empty keeps the file's"});
+    archive.Field("start", start,
+                  {.min = 0.0f, .max = 3600.0f, .speed = 0.01f, .tooltip = "Seconds cut from its start"});
+    archive.Field("end", end,
+                  {.min = 0.0f, .max = 3600.0f, .speed = 0.01f, .tooltip = "Where it ends, in seconds; 0 for its end"});
+    archive.Field("retargetTranslations", retargetTranslations,
+                  {.tooltip = "On other characters, bones keep their own lengths and the root's movement is scaled "
+                              "to their size"});
+    archive.Field("rootMotionRotation", rootMotionRotation,
+                  {.tooltip = "Root motion turns the entity; off leaves the turning in the pose, as for walks"});
 }
 
 void ModelImportSettings::Serialize(Archive& archive) {
     archive.Field("scale", scale,
                   {.min = 0.0001f, .max = 10000.0f, .speed = 0.001f, .tooltip = "Such as 0.01 for centimeters"});
-    archive.Field("materials", materials, {.tooltip = "Materials of the model replaced by material assets"});
+    // The inspector edits them with the model's materials beside them.
+    archive.Field("materials", materials,
+                  {.tooltip = "Materials of the model replaced by material assets", .hidden = true});
     archive.Field("animations", animations);
 }
 

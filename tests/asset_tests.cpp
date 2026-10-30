@@ -67,6 +67,8 @@ TEST_CASE("Asset ids are random and round-trip through text", "[assets]") {
 TEST_CASE("Asset types come from file extensions", "[assets]") {
     CHECK(Spot::GetSourceAssetType("a/b/Image.PNG") == AssetType::Texture);
     CHECK(Spot::GetSourceAssetType("house.glb") == AssetType::Model);
+    CHECK(Spot::GetSourceAssetType("characters/Walking.FBX") == AssetType::Model);
+    CHECK(Spot::GetSourceAssetType("rock.obj") == AssetType::Model);
     CHECK(Spot::GetSourceAssetType("tone.ogg") == AssetType::Sound);
     CHECK(Spot::GetSourceAssetType("font.ttf") == AssetType::Font);
     CHECK(Spot::GetSourceAssetType("red.material") == AssetType::Material);
@@ -74,6 +76,7 @@ TEST_CASE("Asset types come from file extensions", "[assets]") {
     CHECK(Spot::GetSourceAssetType("props/Crate.PREFAB") == AssetType::Prefab);
     CHECK_FALSE(Spot::GetSourceAssetType("house.glb.meta").has_value());
     CHECK_FALSE(Spot::GetSourceAssetType("buffer.bin").has_value());
+    CHECK_FALSE(Spot::GetSourceAssetType("LICENSE").has_value());
 
     CHECK(Spot::ParseAssetType(Spot::GetAssetTypeName(AssetType::Mesh)) == AssetType::Mesh);
     CHECK(Spot::ParseAssetType(Spot::GetAssetTypeName(AssetType::Prefab)) == AssetType::Prefab);
@@ -749,6 +752,37 @@ TEST_CASE("Materials extracted from a model replace the model's own", "[assets]"
     CHECK_FALSE(database.ExtractMaterial(plainId, "materials/plain.material").has_value());
     CHECK_FALSE(database.ExtractMaterial(cubeId, "materials/cube.material").has_value());
     CHECK_FALSE(database.ExtractMaterial(plainId, "materials/plain.png").has_value());
+}
+
+TEST_CASE("A model's materials extract together, and remap to material files of the same name", "[assets]") {
+    const TempDirectory project;
+    const auto sources = project.GetPath() / "assets";
+    const auto imported = project.GetPath() / "imported";
+    ImportProject(sources, imported);
+    AssetDatabase database(sources, imported);
+    database.Refresh();
+    const AssetId cubeId = *database.FindByPath("models/cube.glb");
+    const auto materials = static_cast<std::size_t>(
+        std::ranges::count_if(GetSubAssets(database, cubeId),
+                              [](const Spot::AssetInfo& asset) { return asset.type == AssetType::Material; }));
+
+    const auto extracted = database.ExtractMaterials(cubeId, "models/Materials");
+    CHECK(extracted.size() == materials);
+    CHECK(database.FindByPath("models/Materials/Plain.material").has_value());
+    CHECK(database.GetMeta(cubeId)->model.materials.size() == materials);
+    // All of them are replaced, so there is nothing more to extract.
+    CHECK(database.ExtractMaterials(cubeId, "models/Materials").empty());
+
+    // Another copy of the model finds the extracted files by the names of its materials.
+    std::filesystem::copy_file(sources / "models" / "cube.glb", sources / "models" / "copy.glb");
+    database.Refresh();
+    const AssetId copyId = *database.FindByPath("models/copy.glb");
+    CHECK(database.RemapMaterialsByName(copyId) == materials);
+    const auto& overrides = database.GetMeta(copyId)->model.materials;
+    const auto plain = std::ranges::find_if(overrides, [&](const Spot::MaterialOverride& entry) {
+        return entry.material == database.FindByPath("models/Materials/Plain.material");
+    });
+    CHECK(plain != overrides.end());
 }
 
 TEST_CASE("Scenes save mesh renderers by asset id and load them back through the asset manager", "[assets]") {

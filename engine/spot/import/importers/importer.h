@@ -47,6 +47,18 @@ public:
         return m_findSource ? m_findSource(id) : std::filesystem::path();
     }
     void SetSourceFinder(std::function<std::filesystem::path(AssetId)> find) { m_findSource = std::move(find); }
+    // The asset of a source file, such as a texture a model refers to, by its absolute path; the null id when the file
+    // is not one of the sources.
+    AssetId FindAsset(const std::filesystem::path& path) const { return m_findAsset ? m_findAsset(path) : AssetId(); }
+    void SetAssetFinder(std::function<AssetId(const std::filesystem::path&)> find) { m_findAsset = std::move(find); }
+    // A source file of the type, by its file name, such as a texture a model names without saying where it is; empty
+    // when there is none.
+    std::filesystem::path FindSourceByName(std::string_view fileName, AssetType type) const {
+        return m_findByName ? m_findByName(fileName, type) : std::filesystem::path();
+    }
+    void SetNameFinder(std::function<std::filesystem::path(std::string_view, AssetType)> find) {
+        m_findByName = std::move(find);
+    }
 
     const std::vector<ImportedAsset>& GetImportedAssets() const { return m_imported; }
     const std::vector<std::filesystem::path>& GetDependencies() const { return m_dependencies; }
@@ -60,6 +72,8 @@ private:
     std::vector<ImportedAsset> m_imported;
     std::vector<std::filesystem::path> m_dependencies;
     std::function<std::filesystem::path(AssetId)> m_findSource;
+    std::function<AssetId(const std::filesystem::path&)> m_findAsset;
+    std::function<std::filesystem::path(std::string_view, AssetType)> m_findByName;
 };
 
 using Importer = bool (*)(ImportContext& context);

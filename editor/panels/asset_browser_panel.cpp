@@ -1204,8 +1204,34 @@ void AssetBrowserPanel::Create(EditorProject& project, NewAsset kind) {
             return;
         }
         path = project.GetAssetDatabase().GetFreePath(JoinPath(m_folder, "New Controller.controller"));
+        // A state for each selected clip, and for the clips of selected models, such as animations downloaded a file
+        // each; the first clip there is otherwise.
+        std::vector<AssetId> chosen;
+        for (const BrowserItem* item : GetSelectedItems()) {
+            if (item->type == AssetType::AnimationClip) {
+                chosen.push_back(item->id);
+            } else if (item->type == AssetType::Model && !item->subAsset) {
+                for (const AssetInfo& asset : project.GetAssetDatabase().GetAssets()) {
+                    if (asset.parent == item->id && asset.type == AssetType::AnimationClip) {
+                        chosen.push_back(asset.id);
+                    }
+                }
+            }
+        }
         AnimatorController controller;
-        controller.states = {{"Idle", project.GetAssets().Load<AnimationClip>(clips.front())}};
+        if (chosen.empty()) {
+            controller.states = {{"Idle", project.GetAssets().Load<AnimationClip>(clips.front())}};
+        }
+        for (std::size_t i = 0; i < chosen.size(); ++i) {
+            const AssetInfo* info = project.GetAssetDatabase().Find(chosen[i]);
+            std::string name = info && !info->name.empty() ? info->name : "State";
+            for (int number = 2;
+                 std::ranges::any_of(controller.states, [&](const auto& state) { return state.name == name; });
+                 ++number) {
+                name = std::format("{} {}", info && !info->name.empty() ? info->name : "State", number);
+            }
+            controller.states.push_back({name, project.GetAssets().Load<AnimationClip>(chosen[i])});
+        }
         std::ofstream file(assets / Utf8ToPath(path), std::ios::binary);
         file << controller.SaveToString();
         created = static_cast<bool>(file);

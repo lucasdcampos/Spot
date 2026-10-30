@@ -83,6 +83,12 @@ public:
     void Refresh();
     // Imports the asset's source again, such as after its import settings changed.
     bool Reimport(AssetId id);
+    // AssetDatabase::ExtractMaterial(), ExtractMaterials(), ExtractTextures() and RemapMaterialsByName(), letting the
+    // asset manager see what they import.
+    std::optional<AssetId> ExtractMaterial(AssetId material, std::string_view path);
+    std::vector<AssetId> ExtractMaterials(AssetId model, std::string_view folder);
+    std::vector<std::string> ExtractTextures(AssetId model, std::string_view folder);
+    std::size_t RemapMaterialsByName(AssetId model);
     // Changes with every refresh, so windows can tell when the assets may have changed.
     std::uint64_t GetVersion() const { return m_version; }
     // The assets whose new versions load since the last call, for open scenes to load their references to them

@@ -99,6 +99,16 @@ public:
     // the model use that file from then on, so the material can be edited. Imports both, and returns the new
     // material's id; nothing, after logging why, when the id is not a model's material or the file exists.
     std::optional<AssetId> ExtractMaterial(AssetId material, std::string_view path);
+    // ExtractMaterial() for each of the model's materials that nothing replaces yet, into the folder, each named after
+    // its material. Returns the new materials' ids.
+    std::vector<AssetId> ExtractMaterials(AssetId model, std::string_view folder);
+    // Replaces each of the model's materials by the .material file of the same name among the sources, where there is
+    // one, and imports the model again. Returns how many were replaced.
+    std::size_t RemapMaterialsByName(AssetId model);
+    // Writes the textures an FBX model holds into the folder as files of their own, which the model, and materials
+    // extracted from it, use from then on, so they can be edited. Imports them, and the model again. Returns their
+    // paths, relative to the source directory.
+    std::vector<std::string> ExtractTextures(AssetId model, std::string_view folder);
 
 private:
     struct Source {
@@ -121,6 +131,8 @@ private:
     };
     Stamp StampSource(const Source& source, const std::vector<std::string>& dependencies,
                       std::uint32_t importerVersion) const;
+    // ExtractMaterial() without importing.
+    std::optional<AssetId> WriteExtractedMaterial(AssetId material, std::string_view path);
     // The absolute path of a path relative to the source directory; nothing, after logging why, when it is empty or
     // outside the source directory.
     std::optional<std::filesystem::path> Resolve(std::string_view path) const;

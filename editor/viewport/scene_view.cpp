@@ -314,6 +314,11 @@ void SceneView::HandleAssetDrop(EditorContext& context, std::span<const AssetId>
             m_pick = PickRequest{.pixel = {(mouse.x - origin.x) * scale.x, (mouse.y - origin.y) * scale.y},
                                  .material = asset};
             return;
+        case AssetType::AnimationClip:
+            m_pick = PickRequest{.pixel = {(mouse.x - origin.x) * scale.x, (mouse.y - origin.y) * scale.y},
+                                 .clip = asset,
+                                 .project = project};
+            return;
         default:
             CreateEntityFromAsset(*m_shown, *project, asset, EntityId::Invalid, GetGroundPoint(origin, size));
             break;
@@ -350,6 +355,13 @@ Vector3 SceneView::GetGroundPoint(const ImVec2& origin, const ImVec2& size) cons
 void SceneView::ApplyPick(const PickRequest& request, EntityId entity) {
     if (request.material.IsValid()) {
         if (entity != EntityId::Invalid && ApplyMaterial(*m_shown, entity, request.material)) {
+            m_shown->GetSelection().Select(entity);
+        }
+        return;
+    }
+    if (request.clip.IsValid()) {
+        if (entity != EntityId::Invalid && request.project &&
+            ApplyAnimationClip(*m_shown, *request.project, entity, request.clip)) {
             m_shown->GetSelection().Select(entity);
         }
         return;

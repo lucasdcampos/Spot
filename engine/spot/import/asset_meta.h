@@ -39,9 +39,21 @@ struct MaterialOverride {
     void Serialize(Archive& archive);
 };
 
-struct AnimationEventImportSettings {
+// How to import one of a model's animation clips, found by its name in the file. Several settings for the same clip
+// split it into clips of their own, each a part of it under its own name, as a file with all of a character's moves
+// in one take needs.
+struct ClipImportSettings {
     std::string clip;
     std::vector<AnimationEvent> events;
+    // The clip's name once imported; empty keeps the file's.
+    std::string name;
+    // The part of the clip to keep, in seconds from its start; an end of 0 keeps the rest of it.
+    float start = 0.0f;
+    float end = 0.0f;
+    // See AnimationClip::retargetTranslations and AnimationClip::rootMotionRotation.
+    bool retargetTranslations = true;
+    bool rootMotionRotation = true;
+
     void Serialize(Archive& archive);
 };
 
@@ -49,7 +61,7 @@ struct ModelImportSettings {
     // Scales the whole model, such as 0.01 for files made in centimeters.
     float scale = 1.0f;
     std::vector<MaterialOverride> materials;
-    std::vector<AnimationEventImportSettings> animations;
+    std::vector<ClipImportSettings> animations;
 
     void Serialize(Archive& archive);
 };

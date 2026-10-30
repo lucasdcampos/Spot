@@ -72,7 +72,7 @@ void Animator::ApplyLayers() {
             continue;
         }
         const auto& runtime = m_layerRuntime[i];
-        Pose::Sample(*m_skeleton, *config.clip, runtime.time, config.loop, m_layerPose);
+        Pose::Sample(*m_skeleton, *Bind(config.clip), runtime.time, config.loop, m_layerPose);
         ApplyAnimationLayer(m_local, m_layerPose, m_layerReference, runtime.mask, config.weight, config.mode, m_local);
     }
 }

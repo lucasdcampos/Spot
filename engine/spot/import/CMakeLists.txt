@@ -9,6 +9,8 @@ add_library(spot_import STATIC
     asset_meta.cpp
     asset_meta.h
     importers/animator_controller_importer.cpp
+    importers/fbx_reader.cpp
+    importers/fbx_reader.h
     importers/font_importer.cpp
     importers/importer.cpp
     importers/importer.h
@@ -31,5 +33,21 @@ target_compile_features(spot_import PUBLIC cxx_std_20)
 target_link_libraries(spot_import PRIVATE nlohmann_json::nlohmann_json)
 # stb_dxt compresses textures into blocks.
 target_include_directories(spot_import SYSTEM PRIVATE ${stb_SOURCE_DIR})
+
+# ufbx reads FBX and OBJ models. Only importing needs it, so games never carry it. Its one source file is built as
+# C++, which it supports, as the project enables no other language.
+FetchContent_Declare(ufbx
+    GIT_REPOSITORY https://github.com/ufbx/ufbx.git
+    GIT_TAG v0.23.1
+    GIT_SHALLOW TRUE
+    SOURCE_SUBDIR no_cmake_project
+    SYSTEM
+)
+FetchContent_MakeAvailable(ufbx)
+add_library(spot_ufbx STATIC ${ufbx_SOURCE_DIR}/ufbx.c)
+set_source_files_properties(${ufbx_SOURCE_DIR}/ufbx.c PROPERTIES LANGUAGE CXX)
+target_include_directories(spot_ufbx SYSTEM PUBLIC ${ufbx_SOURCE_DIR})
+set_target_properties(spot_ufbx PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_link_libraries(spot_import PRIVATE spot_ufbx)
 
 spot_set_compile_options(spot_import)

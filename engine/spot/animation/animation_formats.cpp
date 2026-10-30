@@ -64,6 +64,14 @@ void Encode(BinaryWriter& writer, const AnimationClip& clip) {
         writer.WriteString(event.name);
         writer.WriteString(event.payload);
     }
+    writer.Write(static_cast<std::uint32_t>(clip.rig.size()));
+    for (const auto& bone : clip.rig) {
+        writer.WriteString(bone.name);
+        writer.Write(bone.parent);
+        writer.Write(bone.bindPose);
+    }
+    writer.Write(static_cast<std::uint8_t>(clip.retargetTranslations));
+    writer.Write(static_cast<std::uint8_t>(clip.rootMotionRotation));
 }
 
 std::optional<AnimationClip> DecodeAnimationClip(std::span<const std::byte> data) {
@@ -95,6 +103,16 @@ std::optional<AnimationClip> DecodeAnimationClip(std::span<const std::byte> data
         event.payload = reader.ReadString();
         clip.events.push_back(std::move(event));
     }
+    const auto bones = reader.Read<std::uint32_t>();
+    for (std::uint32_t i = 0; i < bones && reader.IsValid(); ++i) {
+        SkeletonBone bone;
+        bone.name = reader.ReadString();
+        bone.parent = reader.Read<std::int32_t>();
+        bone.bindPose = reader.Read<TransformComponents>();
+        clip.rig.push_back(std::move(bone));
+    }
+    clip.retargetTranslations = reader.Read<std::uint8_t>() != 0;
+    clip.rootMotionRotation = reader.Read<std::uint8_t>() != 0;
     return reader.IsValid() && reader.IsAtEnd() && clip.IsValid() ? std::optional(std::move(clip)) : std::nullopt;
 }
 

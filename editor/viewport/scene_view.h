@@ -18,6 +18,7 @@
 namespace Spot::Editor {
 
 class EditorContext;
+class EditorProject;
 class SceneDocument;
 
 // A window that shows a scene document through the editor camera, which the mouse and keys move around. Clicking
@@ -73,8 +74,12 @@ private:
         bool toggle = false;
         // Shift adds the entity to the selection.
         bool add = false;
-        // A material dropped on the view, which the entity under the mouse gets instead of being selected.
+        // A material dropped on the view, which the entity under the mouse gets instead of being selected, or an
+        // animation clip, which its character plays.
         AssetId material = {};
+        AssetId clip = {};
+        // The project the clip is from.
+        EditorProject* project = nullptr;
     };
 
     struct Icon {
