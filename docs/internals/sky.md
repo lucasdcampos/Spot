@@ -33,6 +33,10 @@ and the constants of `atmosphere.cpp` and `sky.hlsl` must match. The sky is draw
 surfaces are shown in, so its brightness against the sunlit ground is the real one, with nothing scaled to make up
 for light left out.
 
+Outdoor diffuse sky lighting adds up to 30% of the upward irradiance missing from the surface-normal irradiance to approximate
+interreflection and keep faces turned away from the sun readable. Sky visibility and material occlusion still
+limit this fill, which fades out on downward-facing surfaces; direct lighting and reflections retain their directional response.
+
 ## The sun
 
 The sun's disc is `sunSize` in angular radius, a quarter of a degree by default as the real sun's. Its light is the
@@ -106,7 +110,8 @@ Clouds shade what is under them from the sun and the moon. For each directional 
 (`GetCloudShadow()` in `surface_lighting.hlsl`, which every mesh and custom surface goes through) follow the light's ray
 from the point up to the middle of the layer, look up the same noise, with the same coverage and weather
 (`include/cloud_shapes.hlsl`, shared with both ways of drawing them), and dim the light the deeper inside a cloud's
-shape the ray crosses it; a coarser mip level of the noise softens their edges into a penumbra. They drift with the
+shape the ray crosses it. Full-resolution noise and the layer's shared edge erosion keep the shadow inside the
+cloud outline; an optical depth of 1.5 keeps cloud darkening moderate. The final cloud-motion uniform holds softness. They drift with the
 clouds, need no shadow map, and leave the light from all around as it is. What is above the clouds, or lit from
 within a couple of degrees of the horizon, is not shaded. `SkyRenderer::GetCloudShadowUniforms()` and `Bind()` hand
 the lit pass the clouds and their noise (slot 13).
@@ -193,3 +198,11 @@ the clouds shows what it changed, view by view.
 - `clouds_volume.frag.hlsl`, `clouds_resolve.frag.hlsl` and `clouds_composite.frag.hlsl`: the volume, from
   `SkyRenderer::RenderVolumetricClouds()` and `CompositeClouds()`.
 - The sandbox's `DayCycle` turns the stars with its time of day, and its playground has a `Clouds` on the sun.
+
+Sky occlusion expands its sampling footprint with the height of the cover read from the overhead depth map
+(twice the gap, with the existing minimum radius). Narrow elevated canopies therefore leave much of the sky
+visible, while broad roofs still occlude it. The normal offsets this footprint toward the side the surface faces.
+
+Diffuse outdoor sky light has a gain of 2.5 on upward and lateral surfaces, fading to 1 on downward surfaces,
+to approximate the indirect bounces missing from the rasterized scene. Covered surfaces use the ground light
+scaled once by its reflectance, rather than twice. Direct sunlight, sky appearance and reflections keep their intensity.

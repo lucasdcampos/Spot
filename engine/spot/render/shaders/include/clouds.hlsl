@@ -26,14 +26,6 @@ static const float MoonlightOnClouds = 0.6;
 // Clouds fade into the haze over this many meters, for an atmosphere of thickness 1.
 static const float HazeDistance = 40000.0;
 
-// The clouds' density: their shapes, with the thin outer parts carved into rounded lumps by the billows, or frayed
-// into wisps for soft clouds; an overcast sky keeps them whole.
-float GetDensity(float shape, float4 detail, float threshold, float coverage, float softness) {
-    const float carving = lerp(detail.g, detail.b, softness * softness);
-    const float erosion = (1.0 - carving) * ErosionDepth * (1.0 - pow(coverage, 4.0));
-    return saturate((GetInside(shape, threshold) - erosion) / (1.0 - erosion));
-}
-
 // The share of the light falling on a cloud of the optical depth that goes through it, straight or scattered; the rest
 // comes back out the side it fell on (a two-stream approximation, for the forward scattering of water droplets).
 float GetDiffuseTransmittance(float opticalDepth) {

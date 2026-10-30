@@ -237,7 +237,7 @@ SkyLighting GetSkyLighting(const SkyData& sky) {
         lighting.ambient = lighting.ambient + (skylight + groundBounce) * sky.ambientIntensity;
         lighting.ground = ground + lighting.ambient;
     }
-    lighting.bounce = sky.groundColor * sky.groundColor * lighting.ground * std::max(sky.ambientIntensity, 0.0f);
+    lighting.bounce = sky.groundColor * lighting.ground * std::max(sky.ambientIntensity, 0.0f);
     return lighting;
 }
 
@@ -495,7 +495,8 @@ std::array<Vector4, 2> SkyRenderer::GetCloudShadowUniforms(const SkyData* sky) c
         std::max(clouds.height, 0.0f) + (m_volumetric ? std::max(clouds.thickness, 1.0f) * 0.35f : 0.0f);
     return {Vector4{std::clamp(clouds.coverage, 0.0f, 1.0f), std::clamp(clouds.density, 0.0f, 1.0f), altitude,
                     std::max(clouds.size, 1.0f)},
-            Vector4{clouds.offset.x, clouds.offset.y, static_cast<float>(CloudNoiseTile), 0.0f}};
+            Vector4{clouds.offset.x, clouds.offset.y, static_cast<float>(CloudNoiseTile),
+                    std::clamp(clouds.softness, 0.0f, 1.0f)}};
 }
 
 bool SkyRenderer::PrepareClouds(const SkyData& sky) {

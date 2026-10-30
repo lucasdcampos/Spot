@@ -54,4 +54,12 @@ float CombineShapes(float formation, float single) {
     return saturate((0.6 * formation + 0.4 * single - 0.5) * 1.4 + 0.5);
 }
 
+// The clouds' density: their shapes, with the thin outer parts carved into rounded lumps by the billows, or frayed
+// into wisps for soft clouds; an overcast sky keeps them whole.
+float GetDensity(float shape, float4 detail, float threshold, float coverage, float softness) {
+    const float carving = lerp(detail.g, detail.b, softness * softness);
+    const float erosion = (1.0 - carving) * ErosionDepth * (1.0 - pow(coverage, 4.0));
+    return saturate((GetInside(shape, threshold) - erosion) / (1.0 - erosion));
+}
+
 #endif

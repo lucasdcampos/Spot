@@ -45,8 +45,8 @@ public:
     // The captured light, or black, and the clouds' noise, or white, where the lit shaders read them.
     void Bind(RenderPass& pass) const;
     // The clouds' shadows as the lit shaders read them: their coverage, density, the altitude of the middle of their
-    // layer and their size; and their offset and how many clouds wide their noise is. A coverage of 0, without
-    // clouds, casts none.
+    // layer and their size; and their offset, how many clouds wide their noise is, and edge softness. A coverage of 0,
+    // without clouds, casts none.
     std::array<Vector4, 2> GetCloudShadowUniforms(const SkyData* sky) const;
 
     // The mip levels of the reflections, from a roughness of 0 to 1.

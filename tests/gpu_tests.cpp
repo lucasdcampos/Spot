@@ -3223,8 +3223,9 @@ TEST_CASE("Renderer3D lights surfaces with the sky's light from all around", "[g
     const Pixel ceiling = RenderSkyLitWall(below, slab).At(16, 16);
     INFO("Floor " << int{floor[0]} << ", " << int{floor[1]} << ", " << int{floor[2]} << "; ceiling " << int{ceiling[0]}
                   << ", " << int{ceiling[1]} << ", " << int{ceiling[2]});
-    CHECK(std::abs(floor[0] - 51) < 12);
-    CHECK(std::abs(floor[1] - 102) < 12);
+    // Diffuse outdoor fill has a gain of 2.5; the downward ground light and reflections keep their scale.
+    CHECK(std::abs(floor[0] - 128) < 12);
+    CHECK(floor[1] > 235);
     CHECK(floor[2] > 235);
     // The ground is red, lit by the sky: 0.2 of red.
     CHECK(std::abs(ceiling[0] - 51) < 12);
@@ -3270,7 +3271,7 @@ TEST_CASE("Renderer3D keeps the sky's light from what is under cover", "[gpu]") 
     Spot::Camera3D camera;
     camera.position = {0.0f, 2.0f, 0.0f};
     camera.rotation = Spot::Quaternion::LookRotation({0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, -1.0f});
-    const auto renderFloor = [&](bool roof, std::uint32_t skyOcclusionSize) {
+    const auto renderFloor = [&](bool roof, std::uint32_t skyOcclusionSize, float roofSize = 20.0f) {
         return TargetRender(
                    32, 32,
                    [&](Spot::GraphicsDevice& device, Spot::RenderContext& context, const Spot::RenderPassDesc& target) {
@@ -3285,7 +3286,7 @@ TEST_CASE("Renderer3D keeps the sky's light from what is under cover", "[gpu]") 
                        if (roof) {
                            renderer.DrawMesh(*cube, {},
                                              Spot::Matrix4::Translation({0.0f, 4.0f, 0.0f}) *
-                                                 Spot::Matrix4::Scale({20.0f, 1.0f, 20.0f}));
+                                                 Spot::Matrix4::Scale({roofSize, 1.0f, roofSize}));
                        }
                        renderer.End();
                    })
@@ -3298,8 +3299,14 @@ TEST_CASE("Renderer3D keeps the sky's light from what is under cover", "[gpu]") 
     CHECK(open[2] > 235);
     CHECK(covered[2] < open[2] / 4);
     // What covers it is not black: lit by the red ground, the roof sends some of its light back.
-    CHECK(covered[0] > open[0] / 2);
+    CHECK(covered[0] > 25);
+    CHECK(covered[0] > covered[2] * 2);
     CHECK(IsNear(ignored, open));
+    // A narrow canopy leaves the surrounding sky open, even directly below its center.
+    const Pixel canopy = renderFloor(true, 128, 4.0f);
+    INFO("Canopy " << int{canopy[2]});
+    CHECK(canopy[2] > open[2] / 2);
+    CHECK(canopy[2] > covered[2] * 2);
 }
 
 TEST_CASE("Renderer3D darkens creases with ambient occlusion from the camera's depth", "[gpu]") {
@@ -5320,9 +5327,13 @@ TEST_CASE("Renderer3D shades the ground under clouds from the sun", "[gpu]") {
     Spot::SkyData overcast = clear;
     overcast.clouds = {.coverage = 1.0f, .density = 1.0f};
     const double sunlit = brightness(clear);
+    Spot::SkyData transparent = overcast;
+    transparent.clouds.density = 0.0f;
+    CHECK(brightness(transparent) == Catch::Approx(sunlit).margin(1.0));
     const double shaded = brightness(overcast);
     INFO("Sunlit " << sunlit << ", shaded " << shaded);
-    CHECK(shaded < sunlit * 0.7);
+    CHECK(shaded < sunlit * 0.95);
+    CHECK(shaded > sunlit * 0.45);
     CHECK(shaded > 5.0);
 }
 

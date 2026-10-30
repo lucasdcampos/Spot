@@ -366,13 +366,15 @@ direction, the blur picked by the roughness (split-sum image-based lighting):
 - **The sky**, captured as the `Sky` component describes below, as much as the point is in the open: the **sky's
   occlusion** (`Renderer3DConfig::skyOcclusionSize`) is the depth of the highest casters around the camera, seen
   from straight above through `ShadowRenderer` like one more shadow view, which moves in whole texels.
-  `GetSkyVisibility()` counts the share of a disc of a couple of meters around the point where nothing is higher
-  than it: a floor under a roof or in a cave sees none of the sky, the ground under a tree some. The disc moves off
+  `GetSkyVisibility()` counts the share of a disc around the point where nothing is higher
+  than it. Its radius grows to twice the height of the overhead cover, with a minimum of a couple of meters,
+  so narrow elevated canopies leave the surrounding hemisphere open: a floor under a roof or in a cave sees none of the sky, the ground under a tree some. The disc moves off
   the surface the way it faces along the ground, so walls look into the air in front of them, and a sloping surface
   only counts what rises above its own slope, so hillsides do not hide themselves. It reaches
   `skyOcclusionDistance` around the camera, past which everything is in the open. What covers a point is not black:
   in place of the sky it hides, the point gets the sky's **bounce** (`SkyLighting::bounce`, `skyBounce` in the
-  shaders), the light of the ground reflected again by the cover's underside, as dark as the ground's color twice.
+  shaders), the light of the ground reflected again by the cover's underside, scaled by the ground's color. This approximates the unresolved interreflection without applying the ground's
+  absorption twice.
 
 **Ambient occlusion** (`Renderer3DConfig::ambientOcclusion`, `AmbientOcclusion`) darkens all three in creases,
 corners and where things touch, on top of the materials' occlusion maps. Before the lit pass, `End()` draws the

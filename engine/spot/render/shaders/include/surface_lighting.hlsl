@@ -105,7 +105,7 @@ cbuffer Lighting : register(b0, space3) {
     float4 skyBounce;
     // The sky's clouds, which shade what is under them from the sun and the moon: their coverage (0 without clouds),
     // their density, the altitude of the middle of their layer and about how wide one is; how far the wind has carried
-    // them along X and Z, and how many clouds wide their noise is.
+    // them along X and Z, how many clouds wide their noise is, and their edge softness.
     float4 cloudShadow;
     float4 cloudMotion;
 };
@@ -118,13 +118,10 @@ uint2 GetCluster(float2 pixel, float depth) {
     return clusters[(z * clusterGrid.y + tile.y) * clusterGrid.x + tile.x];
 }
 
-// The optical depth of the light's way through a cloud where it is densest, at a density of 1: thick clouds leave
-// little of the sun's direct light, as real ones do.
-static const float CloudShadowDepth = 5.0;
+// A moderate optical depth keeps scattered daylight in cloud shadows.
+static const float CloudShadowDepth = 1.5;
 
-// How much of a directional light the sky's clouds let through to the point: its ray toward the light crosses the
-// middle of their layer, and the deeper inside a cloud's shape it does, the less, softened by a coarser level of their
-// noise into a penumbra. What is above the clouds, or lit from too low, is not shaded.
+// Follow the light to the layer and use its visible, eroded outline instead of the wider uncarved shapes.
 float GetCloudShadow(float3 position, float3 toLight) {
     const float rise = cloudShadow.z - position.y;
     if (cloudShadow.x <= 0.0 || rise <= 0.0 || toLight.y <= 0.02) {
@@ -134,9 +131,13 @@ float GetCloudShadow(float3 position, float3 toLight) {
     const float2 uv = (crossing - cloudMotion.xy) / cloudShadow.w / cloudMotion.z;
     const float local =
         GetLocalCoverage(cloudShadow.x, cloudNoise.SampleLevel(cloudNoiseSampler, ToWeatherUv(uv), 0.0).a);
-    const float shape = CombineShapes(cloudNoise.SampleLevel(cloudNoiseSampler, ToFormationUv(uv), 1.0).r,
-                                      cloudNoise.SampleLevel(cloudNoiseSampler, uv, 2.0).r);
-    const float inside = GetInside(shape, GetThreshold(local));
+    if (local <= 0.0) {
+        return 1.0;
+    }
+    const float shape = CombineShapes(cloudNoise.SampleLevel(cloudNoiseSampler, ToFormationUv(uv), 0.0).r,
+                                      cloudNoise.SampleLevel(cloudNoiseSampler, uv, 0.0).r);
+    const float4 detail = cloudNoise.SampleLevel(cloudNoiseSampler, uv * DetailScale, 0.0);
+    const float inside = GetDensity(shape, detail, GetThreshold(local), local, cloudMotion.w);
     return exp(-inside * cloudShadow.y * CloudShadowDepth);
 }
 
@@ -447,7 +448,17 @@ float GetSkyVisibility(float3 position, float3 normal) {
     if (skyOcclusionParams.x < 0.5) {
         return 1.0;
     }
-    const float radius = skyOcclusionParams.y;
+    // A high canopy hides only part of the hemisphere. A fixed ground footprint would treat it like a low ceiling.
+    const float3 overhead = mul(skyOcclusionView, float4(position, 1.0)).xyz;
+    float height = 0.0;
+    if (all(overhead.xy >= 0.0) && all(overhead.xy <= 1.0)) {
+        uint width, heightPixels;
+        skyOcclusion.GetDimensions(width, heightPixels);
+        const int2 texel = min(int2(overhead.xy * float2(width, heightPixels)), int2(width, heightPixels) - 1);
+        const float coverDepth = skyOcclusion.Load(int3(texel, 0));
+        height = max((overhead.z - coverDepth) / skyOcclusionParams.z, 0.0);
+    }
+    const float radius = max(skyOcclusionParams.y, height * 2.0);
     const float3 center = position + float3(normal.x, 0.0, normal.z) * radius;
     // A couple of texels, so surfaces that are the highest where they are are not hidden by their own depth.
     const float bias = 2.0 * skyOcclusionParams.w + 0.05;
@@ -591,7 +602,13 @@ SurfaceLight LightSurface(SurfacePoint surface) {
         const float visible = GetSkyVisibility(surface.position, seenNormal);
         const float3 covered = skyBounce.rgb * ((1.0 - visible) * remaining);
         const float sky = visible * remaining;
-        light.surroundings += GetSkyIrradiance(seenNormal) * sky + covered;
+        // Approximate diffuse interreflection outdoors with a share of the upward sky irradiance.
+        const float3 directional = GetSkyIrradiance(seenNormal);
+        const float fill = 0.3 * saturate(seenNormal.y + 1.0);
+        const float3 irradiance = lerp(directional, max(directional, GetSkyIrradiance(float3(0.0, 1.0, 0.0))), fill);
+        // Outdoor sky fill compensates for the indirect bounces absent from the rasterized scene.
+        const float diffuseGain = lerp(1.0, 2.5, saturate(seenNormal.y + 1.0));
+        light.surroundings += irradiance * (sky * diffuseGain) + covered;
         light.reflectedSurroundings +=
             skyReflections.SampleLevel(skyReflectionsSampler, mirrored, surface.roughness * skyLighting.y).rgb * sky +
             covered;
