@@ -57,6 +57,18 @@ void CharacterMovement::OnPlayerInput(PlayerController& player) {
     SetIntent(controls.Read(m_input));
 }
 
+void CharacterMovement::SerializeIntent(Spot::Archive& archive) {
+    CharacterIntent intent = m_intent;
+    archive.Field("move", intent.move);
+    archive.Field("jump", intent.jump);
+    archive.Field("crouch", intent.crouch);
+    archive.Field("sprint", intent.sprint);
+    archive.Field("noclip", intent.noclip);
+    if (archive.IsLoading()) {
+        SetIntent(intent);
+    }
+}
+
 void CharacterMovement::OnPlayerUnpossess() {
     SetIntent({});
     m_jump = false;
@@ -153,6 +165,10 @@ void CharacterMovement::UpdateInactive() {
 }
 
 void CharacterMovement::OnFixedUpdate(float fixedDeltaTime) {
+    if (!Spot::Network::HasAuthority(GetEntity())) {
+        m_jump = false;
+        return;
+    }
     if (m_inactive) {
         m_jump = false;
         return;

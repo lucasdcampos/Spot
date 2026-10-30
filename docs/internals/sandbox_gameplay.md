@@ -34,6 +34,7 @@ so those systems also bring `hud` even when a particular game does not author th
 | `environment` | `core`, `effects`, `hud` |
 | `menus` | `core`, `hud` |
 | `game` | `core`, `health`, `hud`, `menus`, `persistence` |
+| `network` | `core` |
 
 ## Core
 
@@ -149,6 +150,14 @@ means one `HeldItem` subclass. `ViewModel` draws the item's model, with its name
 Magazine, Rocket, Prongs), and takes the walk cycle and states from its pawn. The wheel restores the previous time
 scale on closing, unless another system has changed it. Tests: `inventory_tests.cpp`, including a new item subclass
 shown by the existing HUD.
+
+The Sandbox's `ViewModel.armsModel` references the generated `first_person_arms` model, separate from world weapons
+and the third-person body. Its four named parts are the left/right forearm and gripping hand. Each forearm is a
+unit tapered mesh along -Z, stretched from an elbow below the camera to its wrist. Hands follow the item's computed
+pose, so aiming, recoil, switching, sprinting, obstruction and landing keep the grip attached. The support grip
+uses each weapon's authored `LeftHand`/`RightHand` markers, follows the shotgun pump, and releases to fetch and
+insert ammunition during reloads. The generator uses the humanoid's skin color and models curled fingers and thumbs. Arms share the view
+model's visibility states, layer, shadow policy and cleanup; they never appear on world weapon models.
 
 `gameplay/weapons/` needs `core`, `inventory`, `health`, `effects` and `camera`. `Firearm` is a held item: its data
 describes cadence, spread, ammunition, aiming and effects. Without a `projectile` prefab it hits along rays, through
@@ -357,6 +366,31 @@ commands and cheats, fallback NPC population and the developer tools' font remai
 menu uses its `playerIndex` to resolve the player's spawner and undo list through `Players`, while sandbox commands
 and the smoke test use the first local player, following that player's body while driving. Tests:
 `tests/sandbox/gameplay/session_tests.cpp`; the playground tests retain their quick-save and death behavior checks.
+
+## Network
+
+`gameplay/network/` needs `core`. It puts a session's players in its scene, over the engine's networking (see
+[Networking](networking.md)); alone, it does nothing, and every system plays as it does without it. The server
+decides: it runs the game mode and simulates every pawn, and clients show what it decides.
+
+- **Players.** `NetworkPlayers`, on the Game entity of both maps, gives each client running the scene a
+  `RemoteController` on the server. Controllers say whether they are a player's (`Controller::IsPlayer()`), so the
+  `GameMode` gives remote players pawns and respawns them as it does local ones; it runs only where the rules do
+  (`Spot::Network::IsServer()`). The pawn's network object is owned by its player's client, where the local
+  `PlayerController` possesses it. A client leaving takes its controller and pawn with it.
+- **Intents.** A player's machine still reads input through its pawn's `PlayerInputListener`s, which make intents.
+  Each frame, `NetworkPlayers` writes them with `PawnIntents` (each listener's `SerializeIntent()`, in the order of
+  the pawn's parts) and sends them to the server with the last frames before them, unreliably; the
+  `RemoteController` applies each new frame in order before the fixed steps, so a press that lasts one frame counts
+  once. Movement (`CharacterMovement`), the view (`FirstPersonView`, whose look its own client keeps and the others
+  are shown) and vehicles (`Vehicle`) write theirs.
+- **Who moves.** Parts that simulate check `Spot::Network::HasAuthority()`: on clients, `CharacterMovement` leaves
+  the pawn where the server says, and the player sees their own pawn move a round trip late until prediction comes.
+
+The player prefab's root has a `NetworkObject` and a `NetworkTransform`. The sandbox's executable hosts with
+`--host [port]` (27015 by default) and joins with `--join <address[:port]>`. Tests: `network_tests.cpp`, a server
+and a client in one process over the loopback network, with a test-only part showing that any listener's intents
+reach the server.
 
 ## Recipes
 

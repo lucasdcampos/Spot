@@ -4080,6 +4080,14 @@
           "enabled": true,
           "id": "9ad4b197648b24574e05063e6416618e",
           "type": "SessionControls"
+        },
+        {
+          "data": {
+            "repeatedFrames": 3
+          },
+          "enabled": true,
+          "id": "4c6e3fa0efdaa6fb573e449963dfe49a",
+          "type": "NetworkPlayers"
         }
       ],
       "id": 71,

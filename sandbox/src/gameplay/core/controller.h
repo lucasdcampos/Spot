@@ -17,6 +17,8 @@ public:
     void Possess(Pawn& pawn);
     void Unpossess();
     Pawn* GetPawn() const;
+    // Whether it is a player's, local or on another machine, whom game modes give pawns and respawn; an AI's is not.
+    virtual bool IsPlayer() const { return false; }
 
 protected:
     virtual void OnPossess(Pawn& /*pawn*/) {}

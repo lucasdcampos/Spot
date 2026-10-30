@@ -59,6 +59,7 @@ public:
         AddModule<Spot::Physics2DModule>();
         AddModule<Spot::AnimationModule>();
         AddModule<Spot::ParticlesModule>();
+        AddModule<Spot::NetworkModule>();
         AddModule<Spot::ScriptingModule>();
         AddModule(Spot::CreateGameModule());
     }

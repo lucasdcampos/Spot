@@ -24,6 +24,7 @@ public:
     bool IsTakenAbove(const InputContext& context, std::string_view action) const;
     // Whether a context consumed the action's press or release this frame.
     bool IsConsumed(std::string_view action) const;
+    bool IsPlayer() const override { return true; }
 
 protected:
     void OnStart() override;

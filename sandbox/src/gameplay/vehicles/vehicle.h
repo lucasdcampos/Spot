@@ -92,6 +92,7 @@ protected:
     void OnUnpossess() override;
     bool IsInputBeforeFixedSteps() const override { return true; }
     void OnPlayerInput(PlayerController& player) override;
+    void SerializeIntent(Spot::Archive& archive) override;
     void OnDisable() override;
     void Serialize(Spot::Archive& archive) override;
 

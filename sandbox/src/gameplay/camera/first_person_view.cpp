@@ -129,6 +129,28 @@ void FirstPersonView::OnLateUpdate(float /*deltaTime*/) {
     }
 }
 
+void FirstPersonView::SerializeIntent(Spot::Archive& archive) {
+    float yaw = m_yaw;
+    float pitch = m_pitch;
+    archive.Field("yaw", yaw);
+    archive.Field("pitch", pitch);
+    if (archive.IsLoading()) {
+        SetLook(yaw, pitch);
+    }
+}
+
+void FirstPersonView::Replicate(Spot::Archive& archive) {
+    float yaw = m_yaw;
+    float pitch = m_pitch;
+    archive.Field("yaw", yaw);
+    archive.Field("pitch", pitch);
+    // Its own player's machine looks as the player does, not as the server last heard.
+    const Spot::NetworkObject* object = Spot::Network::GetObject(GetEntity());
+    if (archive.IsLoading() && !(object && object->IsOwnedLocally())) {
+        SetLook(yaw, pitch);
+    }
+}
+
 void FirstPersonView::Serialize(Spot::Archive& archive) {
     archive.Field("lookSensitivity", lookSensitivity,
                   {.min = 0.0f, .max = 0.1f, .speed = 0.0001f, .tooltip = "Radians per pixel the mouse moves"});

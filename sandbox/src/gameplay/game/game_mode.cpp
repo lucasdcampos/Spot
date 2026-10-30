@@ -2,9 +2,8 @@
 
 #include "gameplay/game/spawn_point.h"
 
+#include "gameplay/core/controller.h"
 #include "gameplay/core/pawn.h"
-#include "gameplay/core/player_controller.h"
-#include "gameplay/core/players.h"
 #include "gameplay/health/health.h"
 
 #include <algorithm>
@@ -26,7 +25,13 @@ void GameMode::TrackPlayers() {
         }
         return false;
     });
-    for (PlayerController* controller : Players::GetAll(GetScene())) {
+    std::vector<Controller*> controllers;
+    GetScene().ForEachComponent<Controller>([&](Controller& controller) {
+        if (controller.IsPlayer()) {
+            controllers.push_back(&controller);
+        }
+    });
+    for (Controller* controller : controllers) {
         const auto id = controller->GetEntity().GetId();
         if (auto found = std::ranges::find(m_players, id, &Player::controller); found != m_players.end()) {
             const auto* entity = GetScene().GetEntity(found->pawn);
@@ -81,7 +86,7 @@ void GameMode::ScheduleRespawn(Spot::EntityId controller) {
     }
 }
 
-float GameMode::GetRespawnTimeLeft(const PlayerController& controller) const {
+float GameMode::GetRespawnTimeLeft(const Controller& controller) const {
     for (const auto& player : m_players) {
         if (player.controller == controller.GetEntity().GetId()) {
             return GetInvokeTimeLeft(player.respawn);
@@ -97,7 +102,7 @@ void GameMode::ReturnPlayer(Spot::EntityId id, bool restoreHealth) {
         }
         auto* controllerEntity = GetScene().GetEntity(id);
         auto* pawnEntity = GetScene().GetEntity(player.pawn);
-        auto* controller = controllerEntity ? controllerEntity->GetComponent<PlayerController>() : nullptr;
+        auto* controller = controllerEntity ? controllerEntity->GetComponent<Controller>() : nullptr;
         auto* pawn = pawnEntity ? pawnEntity->GetComponent<Pawn>() : nullptr;
         if (restoreHealth) {
             player.respawn = Spot::InvokeId::Invalid;
@@ -116,7 +121,7 @@ void GameMode::ReturnPlayer(Spot::EntityId id, bool restoreHealth) {
     }
 }
 
-void GameMode::RespawnPlayer(PlayerController& player, Pawn& pawn, Spot::Vector3 start) {
+void GameMode::RespawnPlayer(Controller& player, Pawn& pawn, Spot::Vector3 start) {
     pawn.GetEntity().GetTransform().SetWorldPosition(start);
     pawn.ResetMotion();
     if (auto* health = pawn.GetEntity().GetComponent<Health>()) {
@@ -125,7 +130,7 @@ void GameMode::RespawnPlayer(PlayerController& player, Pawn& pawn, Spot::Vector3
     player.Possess(pawn);
 }
 
-SpawnPoint* GameMode::ChooseSpawn(const PlayerController& player) {
+SpawnPoint* GameMode::ChooseSpawn(const Controller& player) {
     // Other players' pawns, to keep away from.
     std::vector<Spot::Vector3> others;
     for (const Player& tracked : m_players) {
@@ -156,7 +161,7 @@ SpawnPoint* GameMode::ChooseSpawn(const PlayerController& player) {
     return best;
 }
 
-Pawn* GameMode::SpawnPawn(PlayerController& player) {
+Pawn* GameMode::SpawnPawn(Controller& player) {
     if (!playerPrefab) {
         return nullptr;
     }
@@ -187,10 +192,15 @@ void GameMode::Restart() {
 }
 
 void GameMode::OnStart() {
-    TrackPlayers();
+    if (Spot::Network::IsServer(GetScene())) {
+        TrackPlayers();
+    }
 }
 
 void GameMode::OnUpdate(float /*deltaTime*/) {
+    if (!Spot::Network::IsServer(GetScene())) {
+        return;
+    }
     TrackPlayers();
     for (const auto& player : m_players) {
         const auto* entity = GetScene().GetEntity(player.pawn);

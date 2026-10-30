@@ -1,5 +1,6 @@
 #include "gameplay/game/death_screen_element.h"
 
+#include "gameplay/core/player_controller.h"
 #include "gameplay/game/game_mode.h"
 
 #include <cmath>

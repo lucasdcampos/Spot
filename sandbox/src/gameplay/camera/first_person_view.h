@@ -1,6 +1,7 @@
 #pragma once
 
 #include "gameplay/core/input_context.h"
+#include "gameplay/core/player_input.h"
 #include "gameplay/core/user_settings.h"
 
 #include <spot.h>
@@ -13,8 +14,12 @@ namespace Gameplay {
 // never turns, only the head does. What the pawn's parts magnify its view by (Pawn::GetZoom()), as a firearm aimed
 // down its sights, narrows the head's camera and slows the look as much, and it widens a little while the pawn is
 // "Sprinting". A CameraShake on the pawn shakes the view, not the aim; Kick() kicks both, as recoil. It takes the look
-// sensitivity and field of view the player sets.
-class FirstPersonView : public Spot::Component, public UserSettingsListener {
+// sensitivity and field of view the player sets. Where the pawn looks is its player's: a server takes it with the
+// player's intent, and shows it to the other machines.
+class FirstPersonView : public Spot::Component,
+                        public UserSettingsListener,
+                        public PlayerInputListener,
+                        public Spot::Replicated {
 public:
     // Radians per pixel the mouse moves.
     float lookSensitivity = 0.0025f;
@@ -43,8 +48,13 @@ public:
     void Kick(float radians, float recoveryTime = 0.2f);
     float GetRecoil() const { return m_recoil; }
 
+    void Replicate(Spot::Archive& archive) override;
+
 protected:
     void ApplySettings(const UserSettings& settings) override;
+    // The look is read as the view updates, so the input itself does nothing.
+    void OnPlayerInput(PlayerController& /*player*/) override {}
+    void SerializeIntent(Spot::Archive& archive) override;
     void ReadSettings(UserSettings& settings) const override;
     void OnStart() override;
     void OnDisable() override;

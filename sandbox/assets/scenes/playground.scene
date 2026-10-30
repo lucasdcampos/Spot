@@ -3842,6 +3842,14 @@
           "enabled": true,
           "id": "9ad4b197648b24574e05063e6416618e",
           "type": "SessionControls"
+        },
+        {
+          "data": {
+            "repeatedFrames": 3
+          },
+          "enabled": true,
+          "id": "cbeaf9d20630eb977fbda8750d1198c6",
+          "type": "NetworkPlayers"
         }
       ],
       "id": 71,

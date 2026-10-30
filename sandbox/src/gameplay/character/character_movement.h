@@ -44,7 +44,8 @@ struct CharacterControls {
 // OnLanded). Damage of the knockback types throws it back (Push()). Noclip switches flying through everything: jump
 // goes up, crouch down and sprint faster. In a state of blockedBy, as dead, it neither moves nor jumps; in one of
 // inactiveWhen, as seated,
-// its body is put aside and it does nothing.
+// its body is put aside and it does nothing. Only where its pawn's state is decided does it move it (see
+// Spot::Network::HasAuthority()); elsewhere the pawn moves as it is told.
 class CharacterMovement : public Spot::Component, public DamageReceiver, public PlayerInputListener {
 public:
     // Meters per second.
@@ -95,6 +96,7 @@ protected:
     bool IsInputBeforeFixedSteps() const override { return true; }
     void OnPlayerInput(PlayerController& player) override;
     void OnPlayerUnpossess() override;
+    void SerializeIntent(Spot::Archive& archive) override;
     void OnDamage(const DamageInfo& damage) override;
     void OnStart() override;
     void OnFixedUpdate(float fixedDeltaTime) override;

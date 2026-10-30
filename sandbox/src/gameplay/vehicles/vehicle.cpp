@@ -65,6 +65,19 @@ void Vehicle::OnUnpossess() {
     SetState("InVehicle", false);
 }
 
+void Vehicle::SerializeIntent(Spot::Archive& archive) {
+    VehicleInput input = m_input;
+    archive.Field("drive", input.drive);
+    archive.Field("steer", input.steer);
+    archive.Field("handbrake", input.handbrake);
+    archive.Field("lift", input.lift);
+    archive.Field("strafe", input.strafe);
+    archive.Field("horn", input.horn);
+    if (archive.IsLoading()) {
+        SetInput(input);
+    }
+}
+
 void Vehicle::OnPlayerInput(PlayerController& player) {
     if (!IsOperational()) {
         m_input = {};

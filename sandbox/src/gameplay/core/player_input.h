@@ -1,5 +1,9 @@
 #pragma once
 
+namespace Spot {
+class Archive;
+} // namespace Spot
+
 namespace Gameplay {
 
 class PlayerController;
@@ -13,6 +17,10 @@ public:
     virtual bool IsInputBeforeFixedSteps() const { return false; }
     virtual void OnPlayerInput(PlayerController& player) = 0;
     virtual void OnPlayerUnpossess() {}
+    // The intent it made of its player's input, for a server to apply to the same part of its copy of the pawn, as
+    // when the player plays on another machine: saving writes the intent, loading applies it as the part's own setter
+    // would. Each call is one frame's intent, so presses that last a frame are not lost.
+    virtual void SerializeIntent(Spot::Archive& /*archive*/) {}
 };
 
 } // namespace Gameplay
