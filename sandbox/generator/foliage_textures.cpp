@@ -45,8 +45,18 @@ public:
         }
         m_strokes[i] = m_stroke;
         m_coverage[i] = coverage;
-        Blend(m_points[i], point(), amount);
+        const SurfacePoint sample = point();
+        if (m_shadow) {
+            if (sample.height > m_points[i].height) {
+                m_points[i].color = m_points[i].color * (1.0f - amount * 0.14f);
+                m_points[i].occlusion *= 1.0f - amount * 0.13f;
+            }
+        } else {
+            Blend(m_points[i], sample, amount);
+        }
     }
+
+    void SetShadow(bool shadow) { m_shadow = shadow; }
 
     SurfaceTextures Encode() const { return EncodeSurface(static_cast<std::uint32_t>(m_size), m_points); }
 
@@ -67,6 +77,7 @@ private:
 
     int m_size;
     bool m_tiles;
+    bool m_shadow = false;
     std::vector<SurfacePoint> m_points;
     // Which stroke last painted each pixel, and how much it covered it.
     std::vector<int> m_strokes;
@@ -175,68 +186,60 @@ SurfaceTextures PaintGrass(std::uint32_t size) {
     const float k = static_cast<float>(size) / 1024.0f;
     const float extent = static_cast<float>(size);
     // How high the tallest blades stand above the soil, in pixels, for the normals.
-    constexpr float Canopy = 7.0f;
+    constexpr float Canopy = 2.8f;
+    // Periodic fields share the same coordinates across every layer, including strokes crossing the tile edge.
+    const auto drynessAt = [extent](Vector2 point) {
+        const float u = point.x / extent;
+        const float v = point.y / extent;
+        const float warpX = (Fractal(u, v, 13, 17, 3, 1130) - 0.5f) * 0.12f;
+        const float warpY = (Fractal(u, v, 17, 11, 3, 1131) - 0.5f) * 0.12f;
+        const float patches = Smooth(0.28f, 0.76f, Fractal(u + warpX, v + warpY, 5, 7, 4, 1044));
+        return patches * 0.65f + Fractal(u, v, 37, 29, 3, 1046) * 0.35f;
+    };
+    const auto densityAt = [extent](Vector2 point) {
+        const float u = point.x / extent;
+        const float v = point.y / extent;
+        const float gaps = Smooth(0.30f, 0.52f, Fractal(u, v, 19, 23, 4, 1091));
+        const float clumps = Fractal(u, v, 23, 19, 3, 1092);
+        return (0.48f + gaps * 0.52f) * (0.7f + clumps * 0.3f);
+    };
     Canvas canvas(size, {}, true);
     for (int y = 0; y < canvas.GetSize(); ++y) {
         for (int x = 0; x < canvas.GetSize(); ++x) {
             const float u = (static_cast<float>(x) + 0.5f) / extent;
             const float v = (static_cast<float>(y) + 0.5f) / extent;
-            // Barely seen through the grass, so a single octave does.
-            const float soil = ValueNoise(u * 24.0f, v * 24.0f, 24, 24, 1001);
+            // Fine grains and larger compacted patches remain visible between the blades.
+            const float soil = Fractal(u, v, 31, 27, 4, 1001);
+            const float grain = Random(x, y, 1002);
             canvas.Set(x, y,
-                       {.color = Mix(Rgb{0.16f, 0.12f, 0.08f}, Rgb{0.27f, 0.21f, 0.14f}, soil),
-                        .height = soil * 0.5f,
-                        .occlusion = 0.3f,
+                       {.color = Mix(Rgb{0.12f, 0.15f, 0.07f}, Rgb{0.27f, 0.25f, 0.13f}, soil * 0.75f + grain * 0.25f),
+                        .height = soil * 0.35f + grain * 0.12f,
+                        .occlusion = 0.53f,
                         .roughness = 0.95f});
         }
     }
 
     // The mat of dead straw, flat on the soil.
-    const int straws = static_cast<int>(9000.0f * k * k);
+    const int straws = 26000;
     for (int i = 0; i < straws; ++i) {
+        const Vector2 root{RandomOf(i, 1011) * extent, RandomOf(i, 1012) * extent};
+        if (RandomOf(i, 1021) > 0.15f + densityAt(root) * 0.6f + drynessAt(root) * 0.25f) {
+            continue;
+        }
         const Rgb straw = Mix(Rgb{0.36f, 0.29f, 0.18f}, Rgb{0.56f, 0.48f, 0.31f}, RandomOf(i, 1017)) *
-                          (0.55f + RandomOf(i, 1018) * 0.3f);
-        const float lift = RandomOf(i, 1019) * 0.8f;
+                          (0.8f + RandomOf(i, 1018) * 0.2f);
+        const float lift = RandomOf(i, 1019) * 0.25f;
         Draw(canvas,
-             {.root = {RandomOf(i, 1011) * extent, RandomOf(i, 1012) * extent},
+             {.root = root,
               .direction = RandomDirection(RandomOf(i, 1013), RandomOf(i, 1014)),
-              .length = (12.0f + RandomOf(i, 1015) * 22.0f) * k,
+              .length = (8.0f + RandomOf(i, 1015) * 28.0f) * k,
               .bend = (RandomOf(i, 1016) - 0.5f) * 0.5f},
-             BladeWidth((1.3f + RandomOf(i, 1020) * 0.9f) * k), [&](float, float across, float) {
+             BladeWidth((0.8f + RandomOf(i, 1020) * 1.6f) * k), [&](float, float across, float) {
                  return SurfacePoint{.color = straw * (0.9f + (1.0f - across * across) * 0.15f),
-                                     .height = 0.6f + lift + (1.0f - across * across) * 0.4f,
-                                     .occlusion = 0.4f + lift * 0.1f,
+                                     .height = 0.35f + lift + (1.0f - across * across) * 0.12f,
+                                     .occlusion = 0.6f + lift * 0.2f,
                                      .roughness = 0.9f};
              });
-    }
-
-    // Broadleaf weeds lying flat among the roots, as plantain and dandelion grow: rosettes of long, glossy leaves
-    // with a pale vein down each.
-    const int rosettes = static_cast<int>(36.0f * k * k);
-    for (int r = 0; r < rosettes; ++r) {
-        const Vector2 center{RandomOf(r, 1071) * extent, RandomOf(r, 1072) * extent};
-        const int leaves = 5 + static_cast<int>(RandomOf(r, 1073) * 4.0f);
-        const Rgb color = Mix(Rgb{0.13f, 0.24f, 0.07f}, Rgb{0.2f, 0.32f, 0.09f}, RandomOf(r, 1074));
-        Vector2 direction = RandomDirection(RandomOf(r, 1075), RandomOf(r, 1076));
-        for (int leaf = 0; leaf < leaves; ++leaf) {
-            const int i = r * 16 + leaf;
-            const float length = (22.0f + RandomOf(i, 1077) * 18.0f) * k;
-            const float width = length * (0.3f + RandomOf(i, 1078) * 0.12f);
-            // Spread evenly around: Turned() takes the tangent of the angle between leaves, a turn over their count.
-            constexpr float Spread[] = {3.0777f, 1.7321f, 1.254f, 1.0f};
-            direction = Turned(direction, Spread[leaves - 5]);
-            Draw(
-                canvas,
-                {.root = center, .direction = direction, .length = length, .bend = (RandomOf(i, 1079) - 0.5f) * 0.3f},
-                [&](float s) { return width * std::sqrt(std::max(s * (1.0f - s) * 4.0f, 0.0f)) * (1.1f - s * 0.4f); },
-                [&](float s, float across, float) {
-                    const float vein = Smooth(0.18f, 0.0f, std::abs(across)) * (1.0f - s);
-                    return SurfacePoint{.color = Mix(color * (0.85f + s * 0.25f), Rgb{0.42f, 0.5f, 0.3f}, vein * 0.5f),
-                                        .height = 1.2f + s * 0.8f + (1.0f - across * across) * 0.5f - vein * 0.3f,
-                                        .occlusion = 0.45f + s * 0.15f,
-                                        .roughness = 0.5f};
-                });
-        }
     }
 
     // The living blades, gathered so the lowest are painted first.
@@ -248,129 +251,107 @@ SurfaceTextures PaintGrass(std::uint32_t size) {
         float tipHeight;
         Rgb color;
         float roughness;
+        int seed;
     };
     std::vector<Blade> blades;
     const auto bladeColor = [](int i, float dryness) {
-        Rgb color = Mix(Rgb{0.15f, 0.26f, 0.06f}, Rgb{0.32f, 0.46f, 0.12f}, RandomOf(i, 1031));
-        color = Mix(color, Rgb{0.4f, 0.43f, 0.13f}, RandomOf(i, 1032) * RandomOf(i, 1032) * 0.45f + dryness * 0.3f);
-        if (RandomOf(i, 1033) < 0.035f + dryness * 0.05f) {
+        Rgb color = Mix(Rgb{0.19f, 0.32f, 0.09f}, Rgb{0.43f, 0.55f, 0.20f}, RandomOf(i, 1031));
+        color = Mix(color, Rgb{0.4f, 0.43f, 0.13f}, RandomOf(i, 1032) * RandomOf(i, 1032) * 0.45f + dryness * 0.65f);
+        if (RandomOf(i, 1033) < 0.06f + dryness * 0.32f) {
             color = Mix(Rgb{0.5f, 0.44f, 0.25f}, Rgb{0.64f, 0.57f, 0.35f}, RandomOf(i, 1034));
         }
         return color;
     };
     // Tufts' blades lean out from their center: those standing up are the tallest, and the shortest seen from above.
-    const int tufts = static_cast<int>(5200.0f * k * k);
+    const int tufts = 10000;
     for (int tuft = 0; tuft < tufts; ++tuft) {
         const Vector2 center{RandomOf(tuft, 1041) * extent, RandomOf(tuft, 1042) * extent};
-        const float stature = 0.55f + RandomOf(tuft, 1043) * 0.45f;
-        // Broad patches of drier grass, faint so their repeats do not show from afar.
-        const float dryness = Smooth(0.5f, 0.8f, Fractal(center.x / extent, center.y / extent, 3, 3, 3, 1044));
-        const int count = 8 + static_cast<int>(RandomOf(tuft, 1045) * 9.0f);
+        if (RandomOf(tuft, 1093) > densityAt(center)) {
+            continue;
+        }
+        const float habitat = Fractal(center.x / extent, center.y / extent, 17, 21, 3, 1120);
+        const float stature = 0.35f + habitat * 0.65f + RandomOf(tuft, 1043) * 0.35f;
+        // Dryness varies independently of coverage, so thin patches need not all be brown.
+        const float dryness = drynessAt(center);
+        const Vector2 tuftDirection = RandomDirection(RandomOf(tuft, 1095), RandomOf(tuft, 1096));
+        const float tuftWidth = 0.8f + RandomOf(tuft, 1097) * 1.1f;
+        const int count = 5 + static_cast<int>((RandomOf(tuft, 1045) + habitat) * 6.0f);
         for (int b = 0; b < count; ++b) {
             const int i = tuft * 32 + b;
-            const Vector2 direction = RandomDirection(RandomOf(i, 1046), RandomOf(i, 1047));
+            const Vector2 scattered = RandomDirection(RandomOf(i, 1046), RandomOf(i, 1047));
+            const Vector2 direction = Normalized(tuftDirection * 0.65f + scattered);
             const float lean = 0.25f + RandomOf(i, 1048) * 0.75f;
-            const float fullLength = (18.0f + RandomOf(i, 1049) * 20.0f) * k * stature;
+            const float fullLength = (24.0f + RandomOf(i, 1049) * RandomOf(i, 1049) * 105.0f) * k * stature;
             blades.push_back({.stroke = {.root = center + direction * (RandomOf(i, 1050) * 3.0f * k),
                                          .direction = direction,
                                          .length = fullLength * lean,
-                                         .bend = (RandomOf(i, 1051) - 0.5f) * 0.6f},
-                              .width = (2.0f + RandomOf(i, 1052) * 1.1f) * k,
-                              .rootHeight = 0.15f + stature * 0.15f,
+                                         .bend = (RandomOf(i, 1051) - 0.5f) * 1.3f},
+                              .width = (0.9f + RandomOf(i, 1052) * RandomOf(i, 1052) * 2.2f) * tuftWidth * k,
+                              .rootHeight = 0.08f + stature * 0.08f,
                               .tipHeight = stature * (1.0f - lean * 0.45f),
                               .color = bladeColor(i, dryness),
-                              .roughness = 0.74f + RandomOf(i, 1053) * 0.14f});
+                              .roughness = 0.70f + RandomOf(i, 1053) * 0.22f,
+                              .seed = i});
         }
     }
-    const int loose = static_cast<int>(20000.0f * k * k);
+    const int loose = 10000;
     for (int b = 0; b < loose; ++b) {
         const int i = (1 << 24) | b;
+        const Vector2 root{RandomOf(i, 1054) * extent, RandomOf(i, 1055) * extent};
+        if (RandomOf(i, 1094) > densityAt(root)) {
+            continue;
+        }
         const float lean = 0.4f + RandomOf(i, 1048) * 0.6f;
-        blades.push_back({.stroke = {.root = {RandomOf(i, 1054) * extent, RandomOf(i, 1055) * extent},
+        blades.push_back({.stroke = {.root = root,
                                      .direction = RandomDirection(RandomOf(i, 1046), RandomOf(i, 1047)),
-                                     .length = (14.0f + RandomOf(i, 1049) * 22.0f) * k * lean,
-                                     .bend = (RandomOf(i, 1051) - 0.5f) * 0.6f},
-                          .width = (1.8f + RandomOf(i, 1052) * 1.0f) * k,
+                                     .length = (24.0f + RandomOf(i, 1049) * 40.0f) * k * lean,
+                                     .bend = (RandomOf(i, 1051) - 0.5f) * 1.3f},
+                          .width = (0.55f + RandomOf(i, 1052) * RandomOf(i, 1052) * 2.1f) * k,
                           .rootHeight = 0.1f,
                           .tipHeight = 0.3f + RandomOf(i, 1056) * 0.6f * (1.0f - lean * 0.4f),
-                          .color = bladeColor(i, 0.0f),
-                          .roughness = 0.74f + RandomOf(i, 1053) * 0.14f});
+                          .color = bladeColor(i, drynessAt(root)),
+                          .roughness = 0.70f + RandomOf(i, 1053) * 0.22f,
+                          .seed = i});
     }
     std::stable_sort(blades.begin(), blades.end(),
                      [](const Blade& a, const Blade& b) { return a.tipHeight < b.tipHeight; });
     for (const Blade& blade : blades) {
-        Draw(canvas, blade.stroke, BladeWidth(blade.width), [&](float s, float across, float) {
+        const float fold = RandomOf(blade.seed, 1100);
+        const auto width = [&](float s) {
+            const float tip = RandomOf(blade.seed, 1121) < 0.18f ? 0.22f : 0.0f;
+            const float taper = std::sqrt(std::max(tip, 1.0f - s));
+            const float crease = RandomOf(blade.seed, 1132) < 0.25f ? 0.65f : 0.3f;
+            const float twist = 1.0f - crease + crease * std::min(1.0f, std::abs(s - fold) * 3.0f);
+            return blade.width * taper * twist * (0.65f + 0.35f * Smooth(0.0f, 0.18f, s));
+        };
+        Stroke shadow = blade.stroke;
+        shadow.root = shadow.root + Vector2{0.65f, 0.85f} * k;
+        canvas.SetShadow(true);
+        Draw(
+            canvas, shadow, [&](float s) { return width(s) + 0.7f * k; },
+            [&](float s, float, float) {
+                return SurfacePoint{.height = (blade.rootHeight + (blade.tipHeight - blade.rootHeight) * s) * Canopy};
+            });
+        canvas.SetShadow(false);
+        Draw(canvas, blade.stroke, width, [&](float s, float across, float) {
             const float height = blade.rootHeight + (blade.tipHeight - blade.rootHeight) * s;
-            // Rounded across and lighter toward the tip, with a paler midrib down it; lower down, in the shade of the
-            // others.
+            // Subtle folds and root shading avoid a raised, outlined leaf appearance.
             const float round = 1.0f - across * across;
             const float midrib = Smooth(0.25f, 0.0f, std::abs(across)) * (1.0f - s * 0.5f);
-            return SurfacePoint{.color = blade.color * ((0.7f + height * 0.5f) * (0.86f + round * 0.14f + s * 0.1f) *
-                                                        (1.0f + midrib * 0.12f)),
-                                .height = height * Canopy + round * 0.6f + midrib * 0.2f,
-                                .occlusion = 0.35f + height * 0.65f,
+            const float fleck =
+                ValueNoise(s * 19.0f, across * 2.0f, 19, 4, 1110u + static_cast<std::uint32_t>(blade.seed));
+            const float bleaching = Smooth(0.55f + fold * 0.3f, 1.0f, s) * RandomOf(blade.seed, 1101) * 0.45f;
+            const Rgb color = Mix(blade.color, Rgb{0.61f, 0.57f, 0.32f}, bleaching);
+            return SurfacePoint{.color =
+                                    color * (0.97f + fleck * 0.06f) *
+                                    ((0.80f + std::min(height, 1.0f) * 0.25f) *
+                                     (0.94f + round * 0.06f + across * 0.025f + s * 0.04f) * (1.0f + midrib * 0.035f)),
+                                .height = height * Canopy + round * 0.12f + midrib * 0.035f,
+                                .occlusion = 0.66f + std::min(height, 1.0f) * 0.34f,
                                 .roughness = blade.roughness};
         });
     }
 
-    // A little clover among the grass: three round leaflets, each with a pale band.
-    const int clovers = static_cast<int>(150.0f * k * k);
-    for (int c = 0; c < clovers; ++c) {
-        const Vector2 center{RandomOf(c, 1061) * extent, RandomOf(c, 1062) * extent};
-        const Vector2 first = RandomDirection(RandomOf(c, 1063), RandomOf(c, 1064));
-        const float height = 0.5f + RandomOf(c, 1065) * 0.5f;
-        const float leaflet = (5.0f + RandomOf(c, 1066) * 3.0f) * k;
-        const Rgb color = Mix(Rgb{0.17f, 0.28f, 0.09f}, Rgb{0.24f, 0.36f, 0.12f}, RandomOf(c, 1067));
-        // A third of a turn apart.
-        constexpr float Sine = 0.8660254f;
-        const Vector2 directions[] = {first,
-                                      {-0.5f * first.x - Sine * first.y, Sine * first.x - 0.5f * first.y},
-                                      {-0.5f * first.x + Sine * first.y, -Sine * first.x - 0.5f * first.y}};
-        for (const Vector2 direction : directions) {
-            Draw(
-                canvas, {.root = center, .direction = direction, .length = leaflet},
-                [&](float s) { return leaflet * 1.7f * std::sqrt(std::max(s * (1.0f - s), 0.0f)); },
-                [&](float s, float across, float) {
-                    const float band = Smooth(0.15f, 0.0f, std::abs(s - 0.45f)) * 0.25f;
-                    return SurfacePoint{.color = Mix(color * (0.7f + height * 0.5f), Rgb{0.5f, 0.6f, 0.4f}, band),
-                                        .height = height * Canopy + (1.0f - across * across) * 0.8f,
-                                        .occlusion = 0.35f + height * 0.65f,
-                                        .roughness = 0.6f};
-                });
-        }
-    }
-    // A few small flowers over the blades: daisies, white around a yellow middle, and yellow buttercups.
-    const int flowers = static_cast<int>(10.0f * k * k);
-    for (int f = 0; f < flowers; ++f) {
-        const Vector2 center{RandomOf(f, 1081) * extent, RandomOf(f, 1082) * extent};
-        const bool daisy = RandomOf(f, 1083) < 0.6f;
-        const Rgb petal = daisy ? Rgb{0.92f, 0.91f, 0.86f} : Rgb{0.95f, 0.78f, 0.12f};
-        const int petals = daisy ? 11 : 5;
-        const float reach = (daisy ? 4.5f : 3.5f) * k;
-        Vector2 direction = RandomDirection(RandomOf(f, 1084), RandomOf(f, 1085));
-        for (int p = 0; p < petals; ++p) {
-            // The tangents of a fifth and of an eleventh of a turn.
-            direction = Turned(direction, daisy ? 0.6427f : 3.0777f);
-            Draw(
-                canvas, {.root = center, .direction = direction, .length = reach},
-                [&](float s) { return (daisy ? 1.6f : 2.6f) * k * std::sqrt(std::max(s * (1.0f - s) * 4.0f, 0.0f)); },
-                [&](float s, float, float) {
-                    return SurfacePoint{.color = petal * (0.85f + s * 0.15f),
-                                        .height = Canopy * 1.05f + s * 0.3f,
-                                        .occlusion = 1.0f,
-                                        .roughness = 0.6f};
-                });
-        }
-        Draw(
-            canvas, {.root = center - Vector2{0.5f, 0.0f} * k, .direction = {1.0f, 0.0f}, .length = 1.0f * k},
-            [&](float) { return (daisy ? 2.2f : 1.6f) * k; },
-            [&](float, float, float) {
-                return SurfacePoint{.color = daisy ? Rgb{0.9f, 0.68f, 0.1f} : Rgb{0.7f, 0.55f, 0.08f},
-                                    .height = Canopy * 1.1f,
-                                    .occlusion = 1.0f,
-                                    .roughness = 0.7f};
-            });
-    }
     return canvas.Encode();
 }
 
@@ -378,95 +359,55 @@ SurfaceTextures PaintLeaves(std::uint32_t size) {
     const float k = static_cast<float>(size) / 512.0f;
     const float extent = static_cast<float>(size);
     Canvas canvas(size, {.color = Rgb{0.2f, 0.3f, 0.08f}, .occlusion = 1.0f, .roughness = 0.6f, .alpha = 0.0f}, false);
-    const auto paintTwig = [](float s, float across, float) {
-        return SurfacePoint{.color = Rgb{0.3f, 0.23f, 0.16f} * (0.75f + (1.0f - across * across) * 0.3f + s * 0.1f),
-                            .height = 1.0f + (1.0f - across * across) * 2.0f,
-                            .occlusion = 0.7f,
-                            .roughness = 0.85f};
-    };
-    const Stroke main{.root = {extent * 0.5f, extent * 0.99f},
-                      .direction = Normalized({0.04f, -1.0f}),
-                      .length = extent * 0.6f,
-                      .bend = 0.08f};
-    const Stroke shoots[] = {{.root = PointAlong(main, 0.32f),
-                              .direction = Turned(DirectionAlong(main, 0.32f), -1.3f),
-                              .length = extent * 0.4f,
-                              .bend = 0.15f},
-                             {.root = PointAlong(main, 0.53f),
-                              .direction = Turned(DirectionAlong(main, 0.53f), 1.2f),
-                              .length = extent * 0.36f,
-                              .bend = -0.15f}};
-    Draw(canvas, main, [k](float s) { return (6.0f - s * 3.5f) * k; }, paintTwig);
-    for (const Stroke& shoot : shoots) {
-        Draw(canvas, shoot, [k](float s) { return (4.0f - s * 2.0f) * k; }, paintTwig);
-    }
-
-    // Leaves grow along each twig from a third of the way to its tip, alternating sides, and one at the tip; the
-    // farther along, the more they point the twig's way.
-    struct Leaf {
-        Stroke stroke;
-        float width;
-    };
-    std::vector<Leaf> leaves;
-    const Stroke* twigs[] = {&shoots[0], &shoots[1], &main};
-    int index = 0;
-    for (const Stroke* twig : twigs) {
-        const int count = twig == &main ? 9 : 6;
-        for (int i = 0; i <= count; ++i, ++index) {
-            const float s = i == count ? 1.0f : 0.3f + 0.7f * static_cast<float>(i) / static_cast<float>(count);
-            const float facing = i == count ? 0.0f : (i % 2 == 0 ? 1.0f : -1.0f) * (1.6f - s * 0.9f);
-            const float length = (112.0f + RandomOf(index, 1902) * 50.0f) * k * (twig == &main ? 1.0f : 0.9f);
-            leaves.push_back({.stroke = {.root = PointAlong(*twig, s),
-                                         .direction = Turned(DirectionAlong(*twig, s),
-                                                             facing + (RandomOf(index, 1903) - 0.5f) * 0.4f),
-                                         .length = length,
-                                         .bend = (RandomOf(index, 1904) - 0.5f) * 0.25f},
-                              .width = length * (0.36f + RandomOf(index, 1905) * 0.1f)});
+    const auto width = [k](float s) {
+        if (s < 0.1f) {
+            return 2.0f * k;
         }
-    }
-    for (std::size_t i = 0; i < leaves.size(); ++i) {
-        const Leaf& leaf = leaves[i];
-        const int n = static_cast<int>(i);
-        // Leaves painted first lie deepest, darker in the others' shade.
-        const float depth = static_cast<float>(i) / static_cast<float>(leaves.size());
-        Rgb color = Mix(Rgb{0.15f, 0.29f, 0.06f}, Rgb{0.29f, 0.44f, 0.1f}, RandomOf(n, 1911));
-        color = Mix(color, Rgb{0.44f, 0.47f, 0.14f}, RandomOf(n, 1912) * RandomOf(n, 1912) * 0.5f);
-        const float lobes = 4.0f + RandomOf(n, 1913) * 1.5f;
-        // A short stalk, then an oak's blade, widest past its middle, with rounded lobes along both edges.
-        const auto width = [&](float s) {
-            if (s < 0.08f) {
-                return 3.0f * k;
+        const float b = (s - 0.1f) / 0.9f;
+        const float outline = std::pow(std::max(std::sin(b * Spot::Pi), 0.0f), 0.65f);
+        const float lobes = 0.77f + 0.23f * std::cos(b * Spot::Pi * 10.0f + 0.4f);
+        return std::max(1.0f * k, 216.0f * k * outline * lobes);
+    };
+    const auto paint = [k](float s, float across, float halfWidth) {
+        if (s < 0.1f) {
+            return SurfacePoint{.color = {0.31f, 0.29f, 0.12f}, .height = k, .roughness = 0.72f};
+        }
+        const float b = (s - 0.1f) / 0.9f;
+        const float midrib = Smooth(2.0f * k, 0.4f * k, std::abs(across) * halfWidth);
+        const float phase = b * 6.0f - std::abs(across) * 0.85f;
+        const float vein = Smooth(0.04f, 0.005f, std::abs(phase - std::floor(phase + 0.5f)));
+        const float finePhase = b * 38.0f + std::abs(across) * 5.0f;
+        const float fineVein = Smooth(0.05f, 0.0f, std::abs(finePhase - std::floor(finePhase + 0.5f)));
+        const float mottling = ValueNoise(b * 24.0f, across * 9.0f + 9.0f, 24, 18, 1921);
+        const float cells = ValueNoise(b * 180.0f, across * 75.0f + 75.0f, 180, 150, 1922);
+        const float edge = Smooth(0.87f, 1.0f, std::abs(across));
+        Rgb color = Mix(Rgb{0.15f, 0.255f, 0.065f}, Rgb{0.29f, 0.38f, 0.12f}, mottling);
+        color = Mix(color, Rgb{0.36f, 0.34f, 0.13f}, edge * 0.22f);
+        color = Mix(color, Rgb{0.41f, 0.46f, 0.22f}, midrib * 0.45f + vein * 0.09f);
+        return SurfacePoint{.color = color * (0.96f + cells * 0.08f),
+                            .height = k * (1.4f * (1.0f - across * across) + midrib * 0.4f + vein * 0.16f +
+                                           fineVein * 0.04f + cells * 0.06f),
+                            .occlusion = 1.0f,
+                            .roughness = 0.48f + edge * 0.14f + mottling * 0.09f + fineVein * 0.025f};
+    }; // Evaluate the broad blade directly: overlapping stroke capsules would leave bands in its veins.
+    for (int y = 0; y < canvas.GetSize(); ++y) {
+        const float v = (static_cast<float>(y) + 0.5f) / extent;
+        const float s = (0.98f - v) / 0.96f;
+        if (s < 0.0f || s > 1.0f) {
+            continue;
+        }
+        const float halfWidth = width(s);
+        const float center = extent * (0.5f + 0.018f * s * s);
+        for (int x = 0; x < canvas.GetSize(); ++x) {
+            const float across = (static_cast<float>(x) + 0.5f - center) / halfWidth;
+            const float coverage =
+                std::clamp(halfWidth + 0.5f - std::abs(static_cast<float>(x) + 0.5f - center), 0.0f, 1.0f);
+            if (coverage > 0.0f) {
+                auto point = paint(s, across, halfWidth);
+                point.alpha = coverage;
+                canvas.Set(x, y, point);
             }
-            const float b = (s - 0.08f) / 0.92f;
-            const float outline = 2.0f * std::sqrt(std::max(b * (1.0f - b), 0.0f)) * (1.1f - b * 0.3f);
-            const float lobe = b > 0.12f ? 0.72f + 0.28f * (Wave(b * lobes + 0.25f) * 0.5f + 0.5f) : 1.0f;
-            return std::max(leaf.width * outline * lobe, 3.0f * k);
-        };
-        Draw(canvas, leaf.stroke, width, [&](float s, float across, float halfWidth) {
-            if (s < 0.08f) {
-                return SurfacePoint{
-                    .color = Rgb{0.3f, 0.3f, 0.12f}, .height = 2.0f, .occlusion = 0.7f, .roughness = 0.7f};
-            }
-            const float b = (s - 0.08f) / 0.92f;
-            const float midrib = Smooth(1.6f * k, 0.4f * k, std::abs(across) * halfWidth);
-            // Veins run from the midrib toward the tip and the edges.
-            const float phase = b * 7.0f - std::abs(across) * 0.9f;
-            const float vein = Smooth(0.07f, 0.0f, std::abs(phase - std::floor(phase + 0.5f))) *
-                               (1.0f - Smooth(0.7f, 0.95f, std::abs(across)));
-            const float round = 1.0f - across * across;
-            const float mottling =
-                ValueNoise(b * 32.0f, across * 8.0f + 8.0f, 32, 16, 1921u + static_cast<std::uint32_t>(n));
-            const float edge = Smooth(0.78f, 1.0f, std::abs(across));
-            Rgb shade = color * ((0.62f + depth * 0.38f) * (0.84f + round * 0.18f));
-            shade = shade * (0.91f + mottling * 0.18f);
-            shade = Mix(shade, Rgb{0.38f, 0.36f, 0.12f}, edge * (0.08f + RandomOf(n, 1922) * 0.16f));
-            shade = Mix(shade, Rgb{0.52f, 0.56f, 0.3f}, midrib * 0.55f + vein * 0.12f);
-            return SurfacePoint{.color = shade,
-                                .height =
-                                    2.0f + depth * 2.0f + round * 2.5f - midrib * 0.8f - vein * 0.3f + mottling * 0.2f,
-                                .occlusion = 0.55f + depth * 0.45f,
-                                .roughness = 0.43f + edge * 0.16f + vein * 0.1f + mottling * 0.06f};
-        });
+        }
     }
     return canvas.Encode();
 }

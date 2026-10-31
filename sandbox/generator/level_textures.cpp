@@ -291,10 +291,10 @@ SurfacePoint BarkPoint(int x, int y, float scale) {
     face = Mix(face, Mix(Rgb{0.21f, 0.15f, 0.1f}, Rgb{0.37f, 0.28f, 0.19f}, scarRings), scar * 0.7f);
     const Rgb furrow = Mix(Rgb{0.14f, 0.105f, 0.08f}, Rgb{0.23f, 0.18f, 0.13f}, weathering);
     return {.color = Mix(furrow, face, Smooth(0.0f, 0.35f, raised)),
-            .height = raised * 9.0f + fibers * 0.65f + flakes * 0.6f + grain * 0.08f - splits * 1.4f - pores * 0.35f +
+            .height = raised * 6.5f + fibers * 0.85f + flakes * 0.45f + grain * 0.08f - splits * 1.4f - pores * 0.35f +
                       scarRings * 0.8f - scar * 0.6f,
             .occlusion = (0.55f + raised * 0.45f) * (1.0f - splits * 0.12f - pores * 0.05f),
-            .roughness = 0.8f + flakes * 0.1f + weathering * 0.06f - scar * 0.08f};
+            .roughness = 0.76f + flakes * 0.12f + weathering * 0.07f + splits * 0.04f - scar * 0.08f};
 }
 
 // Calm water: gentle swells and ripples in its normals, smooth enough to mirror the sky.

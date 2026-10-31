@@ -108,9 +108,13 @@ void AddTube(MeshData& mesh, const Branch& branch, int sides, float flare = 0.0f
             const float angle = 2.0f * Spot::Pi * static_cast<float>(j) / static_cast<float>(sides);
             const Vector3 out = normal * std::cos(angle) + binormal * std::sin(angle);
             const float swell = 1.0f + flare * foot * foot * (0.55f + 0.45f * std::cos(angle * 5.0f));
+            const float fluting = 1.0f + 0.035f * std::sin(angle * 7.0f + distance * 1.2f + offsetU * 6.0f) +
+                                  0.018f * std::sin(angle * 11.0f - distance * 0.7f);
+            const float taper = (knots.front().radius - knots.back().radius) / branch.length;
+            const Vector3 surfaceNormal = Spot::Normalize(out + tangent * taper);
             mesh.vertices.push_back(
-                {knots[i].position + out * (knots[i].radius * swell),
-                 out,
+                {knots[i].position + out * (knots[i].radius * swell * fluting),
+                 surfaceNormal,
                  {static_cast<float>(j) / static_cast<float>(sides) * around + offsetU, distance * 0.5f + offsetV}});
         }
     }
@@ -130,29 +134,64 @@ void AddCard(MeshData& mesh, Vector3 root, Vector3 direction, Vector3 facing, fl
     if (Spot::Length(width) < 1e-4f) {
         width = Perpendicular(direction);
     }
-    width = Spot::Normalize(width) * (size * 0.5f);
+    width = Spot::Normalize(width);
     const Vector3 normal = Spot::Normalize(Spot::Cross(width, direction));
-    const Vector3 middle = root + direction * (size * 0.5f) + normal * (size * 0.12f);
-    const Vector3 tip = root + direction * size - normal * (size * 0.06f);
     const auto first = static_cast<std::uint32_t>(mesh.vertices.size());
-    mesh.vertices.push_back({root - width, normal, {0.0f, 1.0f}});
-    mesh.vertices.push_back({root + width, normal, {1.0f, 1.0f}});
-    mesh.vertices.push_back({middle - width, normal, {0.0f, 0.5f}});
-    mesh.vertices.push_back({middle + width, normal, {1.0f, 0.5f}});
-    mesh.vertices.push_back({tip - width, normal, {0.0f, 0.0f}});
-    mesh.vertices.push_back({tip + width, normal, {1.0f, 0.0f}});
-    mesh.indices.insert(mesh.indices.end(), {first, first + 1, first + 2, first + 1, first + 3, first + 2, first + 2,
-                                             first + 3, first + 4, first + 3, first + 5, first + 4});
+    constexpr int Rows = 5;
+    for (int row = 0; row < Rows; ++row) {
+        const float t = static_cast<float>(row) / (Rows - 1);
+        const float bend = std::sin(t * Spot::Pi) * 0.12f - t * t * 0.06f;
+        for (int column = 0; column < 3; ++column) {
+            const float across = static_cast<float>(column - 1);
+            const Vector3 p = root + direction * (size * t) + width * (across * size * 0.5f) +
+                              normal * (size * (bend - std::abs(across) * 0.09f));
+            mesh.vertices.push_back(
+                {p, Spot::Normalize(normal + width * (across * 0.18f)), {static_cast<float>(column) * 0.5f, 1.0f - t}});
+        }
+    }
+    for (std::uint32_t row = 0; row < Rows - 1; ++row) {
+        for (std::uint32_t column = 0; column < 2; ++column) {
+            const auto a = first + row * 3 + column;
+            mesh.indices.insert(mesh.indices.end(), {a, a + 1, a + 3, a + 1, a + 4, a + 3});
+        }
+    }
+}
+
+// Individual blades fold around the midrib and curl at the tip; their stalk begins at v = 1.
+void AddLeaf(MeshData& mesh, Vector3 root, Vector3 direction, Vector3 facing, float size, float curl) {
+    const Vector3 side = Perpendicular(direction);
+    const Vector3 width = Spot::Normalize(Spot::Cross(direction, facing));
+    const Vector3 normal = Spot::Normalize(Spot::Cross(width, direction));
+    const auto first = static_cast<std::uint32_t>(mesh.vertices.size());
+    constexpr int Rows = 5;
+    for (int row = 0; row < Rows; ++row) {
+        const float t = static_cast<float>(row) / (Rows - 1);
+        for (int column = 0; column < 3; ++column) {
+            const float across = static_cast<float>(column - 1);
+            const float fold = std::abs(across) * 0.08f;
+            const Vector3 position = root + direction * (size * t) + width * (across * size * 0.36f) +
+                                     normal * (size * (curl * t * t - fold)) + side * (size * 0.04f * t * t);
+            const Vector3 bladeNormal =
+                Spot::Normalize(normal - direction * (2.0f * curl * t) + width * (across * 0.22f));
+            mesh.vertices.push_back({position, bladeNormal, {static_cast<float>(column) * 0.5f, 1.0f - t}});
+        }
+    }
+    for (std::uint32_t row = 0; row < Rows - 1; ++row) {
+        for (std::uint32_t column = 0; column < 2; ++column) {
+            const auto a = first + row * 3 + column;
+            mesh.indices.insert(mesh.indices.end(), {a, a + 1, a + 3, a + 1, a + 4, a + 3});
+        }
+    }
 }
 
 // Turns the foliage's normals toward the outward one of each point, which the function gives, keeping a little of
 // the cards' own: lit as a crown, with a little of its leaves' play.
 template <typename Outward>
-void ShadeAsCrown(MeshData& foliage, Outward&& outward) {
+void ShadeAsCrown(MeshData& foliage, Outward&& outward, float crownWeight = 0.75f) {
     for (MeshVertex& vertex : foliage.vertices) {
         const Vector3 out = outward(vertex.position);
         const Vector3 card = Spot::Dot(vertex.normal, out) < 0.0f ? -vertex.normal : vertex.normal;
-        vertex.normal = Spot::Normalize(out * 0.75f + card * 0.25f);
+        vertex.normal = Spot::Normalize(out * crownWeight + card * (1.0f - crownWeight));
     }
 }
 
@@ -161,8 +200,8 @@ public:
     explicit OakGrower(std::uint32_t seed) : m_rng(seed) {}
 
     TreeMeshes Grow() {
-        const Branch trunk = Trees::Grow(m_rng, {0.0f, -0.4f, 0.0f}, Up, 3.3f, 0.32f, 0.2f, 0.05f, 0.0f, 8);
-        AddTube(m_tree.bark, trunk, 14, 0.9f);
+        const Branch trunk = Trees::Grow(m_rng, {0.0f, -0.4f, 0.0f}, Up, 3.3f, 0.32f, 0.2f, 0.025f, 0.0f, 18);
+        AddTube(m_tree.bark, trunk, 32, 0.9f);
         m_tree.skeleton.name = "OakBranches";
         m_tree.skeleton.bones.push_back({"Trunk", -1, {}});
         m_tree.skeleton.joints.push_back(0);
@@ -193,20 +232,23 @@ public:
         }
         const Vector3 center = (low + high) * 0.5f;
         const Vector3 extent = (high - low) * 0.5f;
-        ShadeAsCrown(m_tree.foliage, [&](Vector3 p) {
-            const Vector3 d = p - center;
-            return Spot::Normalize(Vector3{d.x / extent.x, d.y / extent.y + 0.25f, d.z / extent.z});
-        });
+        ShadeAsCrown(
+            m_tree.foliage,
+            [&](Vector3 p) {
+                const Vector3 d = p - center;
+                return Spot::Normalize(Vector3{d.x / extent.x, d.y / extent.y + 0.25f, d.z / extent.z});
+            },
+            0.25f);
         return std::move(m_tree);
     }
 
 private:
     // Limbs (level 1) split into branches (2) and those into twigs (3); branches and twigs bear the leaves.
     void AddBranch(Vector3 start, Vector3 direction, float length, float radius, int level, int parent = 0) {
-        constexpr int Steps[] = {0, 7, 5, 3};
-        constexpr int Sides[] = {0, 9, 6, 4};
-        constexpr float Wobble[] = {0.0f, 0.12f, 0.18f, 0.22f};
-        constexpr float Tropism[] = {0.0f, 0.05f, 0.03f, -0.01f};
+        constexpr int Steps[] = {0, 14, 10, 6};
+        constexpr int Sides[] = {0, 18, 12, 8};
+        constexpr float Wobble[] = {0.0f, 0.06f, 0.09f, 0.11f};
+        constexpr float Tropism[] = {0.0f, 0.025f, 0.015f, -0.005f};
         const Branch branch = Trees::Grow(m_rng, start, direction, length, radius, radius * 0.35f, Wobble[level],
                                           Tropism[level], Steps[level]);
         const auto joint = static_cast<std::uint32_t>(m_tree.skeleton.bones.size());
@@ -236,14 +278,18 @@ private:
             }
         }
         if (level >= 2) {
-            const int cards = level == 3 ? 5 : 3;
-            for (int card = 0; card < cards; ++card) {
-                const float s = level == 3 ? 0.3f + 0.7f * static_cast<float>(card + 1) / cards
-                                           : 0.75f + 0.25f * static_cast<float>(card) / cards;
+            const int leaves = level == 3 ? 26 : 12;
+            float angle = m_rng.Range(0.0f, 2.0f * Spot::Pi);
+            for (int leaf = 0; leaf < leaves; ++leaf) {
+                const float s = 0.18f + 0.82f * (static_cast<float>(leaf) + m_rng.Range(0.1f, 0.9f)) / leaves;
                 const BranchPoint at = Along(branch, s);
-                const Vector3 out = Spot::Normalize(at.direction + m_rng.Jitter() * 0.6f + Up * 0.15f);
-                AddCard(m_tree.foliage, at.position, out, Spot::Normalize(Up + m_rng.Jitter() * 0.8f),
-                        m_rng.Range(0.7f, 0.95f));
+                angle += GoldenAngle + m_rng.Range(-0.35f, 0.35f);
+                const Vector3 side = Perpendicular(at.direction);
+                const Vector3 radial = side * std::cos(angle) + Spot::Cross(at.direction, side) * std::sin(angle);
+                const Vector3 out = Spot::Normalize(at.direction * 0.4f + radial + Up * 0.2f);
+                const Vector3 facing = Spot::Normalize(Up + radial * 0.45f + m_rng.Jitter() * 0.45f);
+                AddLeaf(m_tree.foliage, at.position, out, facing, m_rng.Range(0.24f, 0.40f),
+                        m_rng.Range(-0.18f, 0.22f));
                 m_tree.foliage.skin.resize(m_tree.foliage.vertices.size(), weight);
             }
         }
@@ -265,8 +311,8 @@ TreeMeshes Pine(std::uint32_t seed, bool sparse) {
     TreeMeshes tree;
     constexpr float Height = 9.0f;
     // Keep the lower trunk straight so its narrow capsule follows the wood, even on the largest trees.
-    const Branch trunk = Grow(rng, {0.0f, -0.4f, 0.0f}, Up, Height + 0.4f, 0.24f, 0.025f, 0.0f, 0.0f, 14);
-    AddTube(tree.bark, trunk, sparse ? 8 : 10, 0.45f);
+    const Branch trunk = Grow(rng, {0.0f, -0.4f, 0.0f}, Up, Height + 0.4f, 0.24f, 0.025f, 0.0f, 0.0f, 28);
+    AddTube(tree.bark, trunk, sparse ? 20 : 28, 0.65f);
     tree.skeleton.name = "PineBranches";
     tree.skeleton.bones.push_back({"Trunk", -1, {}});
     tree.skeleton.joints.push_back(0);
@@ -297,9 +343,9 @@ TreeMeshes Pine(std::uint32_t seed, bool sparse) {
             // Branches near the top reach up; lower ones start level and sag.
             const Vector3 direction = Spot::Normalize(out + Up * (0.35f - 0.45f * (1.0f - t)));
             const Branch branch = Grow(rng, at.position, direction, length, 0.018f + 0.028f * (1.0f - t), 0.006f, 0.06f,
-                                       -0.06f * (1.0f - t), 3);
+                                       -0.03f * (1.0f - t), 7);
             const auto weight = jointAt(at.position, 0, {});
-            AddTube(tree.bark, branch, sparse ? 4 : 5);
+            AddTube(tree.bark, branch, sparse ? 8 : 12);
             tree.bark.skin.resize(tree.bark.vertices.size(), weight);
             // Alternating side shoots break up the stacked whorls and give the crown depth between its sprays.
             const int shoots = sparse ? 2 : 4;
@@ -313,7 +359,7 @@ TreeMeshes Pine(std::uint32_t seed, bool sparse) {
                 const Branch twig =
                     Grow(rng, on.position, reach, shootLength, on.radius * 0.45f, 0.003f, 0.08f, -0.025f, 2);
                 const auto twigWeight = jointAt(on.position, static_cast<int>(weight.joints[0]), at.position);
-                AddTube(tree.bark, twig, 4);
+                AddTube(tree.bark, twig, 7);
                 tree.bark.skin.resize(tree.bark.vertices.size(), twigWeight);
                 AddCard(tree.foliage, Along(twig, 0.3f).position, reach, Spot::Normalize(Up + side * (sign * 0.6f)),
                         std::max(0.4f, shootLength * 1.1f));

@@ -1,6 +1,7 @@
 #include "temp_directory.h"
 
 #include <generator.h>
+#include <trees.h>
 
 #include <spot.h>
 
@@ -197,5 +198,39 @@ TEST_CASE("The sandbox's generated sounds load back, loud enough and never clipp
         }
         CHECK(peak > 0.3f);
         CHECK(peak < 0.99f);
+    }
+}
+
+TEST_CASE("Generated trees keep valid skinned surfaces at close range", "[sandbox][generator][trees]") {
+    for (const auto& tree :
+         {Generator::Trees::Oak(7101), Generator::Trees::Pine(7201, false), Generator::Trees::Pine(7301, true)}) {
+        REQUIRE(!tree.skeleton.bones.empty());
+        for (const auto* mesh : {&tree.bark, &tree.foliage}) {
+            REQUIRE(!mesh->vertices.empty());
+            REQUIRE(mesh->skin.size() == mesh->vertices.size());
+            REQUIRE(mesh->indices.size() % 3 == 0);
+            std::size_t invalid = 0;
+            for (std::size_t i = 0; i < mesh->vertices.size(); ++i) {
+                const auto& vertex = mesh->vertices[i];
+                const auto& skin = mesh->skin[i];
+                const float normalLength = Spot::Length(vertex.normal);
+                invalid += !std::isfinite(Spot::Length(vertex.position)) || !std::isfinite(normalLength) ||
+                           std::abs(normalLength - 1.0f) > 0.001f || skin.joints[0] >= tree.skeleton.bones.size();
+            }
+            CHECK(invalid == 0);
+            std::size_t degenerate = 0;
+            for (std::size_t i = 0; i < mesh->indices.size(); i += 3) {
+                const auto a = mesh->indices[i];
+                const auto b = mesh->indices[i + 1];
+                const auto c = mesh->indices[i + 2];
+                REQUIRE(a < mesh->vertices.size());
+                REQUIRE(b < mesh->vertices.size());
+                REQUIRE(c < mesh->vertices.size());
+                const auto face = Spot::Cross(mesh->vertices[b].position - mesh->vertices[a].position,
+                                              mesh->vertices[c].position - mesh->vertices[a].position);
+                degenerate += Spot::Length(face) < 1e-10f;
+            }
+            CHECK(degenerate == 0);
+        }
     }
 }

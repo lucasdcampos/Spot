@@ -12,9 +12,9 @@ namespace Generator::Textures {
 // less lit, and the blades' edges stand out in the normals.
 SurfaceTextures PaintGrass(std::uint32_t size);
 
-// A twig of oak leaves, alternating along it and two side shoots, for the cards a broadleaf tree's canopy is made of.
+// A single lobed oak leaf with its stalk, veins and cutout silhouette, for individually curved leaf meshes.
 // It grows up from the bottom middle; around it the texture is transparent, colored as the leaves so mipmaps do not
-// darken their edges. Leaves painted later lie over the earlier ones, which are shaded by them.
+// darken its edges. Scene lighting supplies the shadows between leaves.
 SurfaceTextures PaintLeaves(std::uint32_t size);
 
 // A flat spray of needles on a twig and its side shoots, as a spruce's, for the cards of conifers' branches: it grows

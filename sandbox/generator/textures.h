@@ -25,7 +25,7 @@ Spot::Image UiScrim();
 Spot::Image ChainLink();
 
 // The surfaces weapons, the level and some props are made of, each a set of tiling PBR textures, but for leaves and
-// needles: a twig of them on its own, cut out by its alpha, for the cards trees' foliage is made of. Polymer, gunmetal
+// needles: an individual leaf or needle spray, cut out by its alpha, for tree foliage. Polymer, gunmetal
 // and walnut are the weapons' own.
 enum class Surface {
     Wood,

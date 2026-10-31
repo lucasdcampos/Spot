@@ -5,10 +5,8 @@
 #include <cstdint>
 
 // Trees grown from code, standing on their origin with Y up, in meters: branches as tapering tubes that split into
-// smaller ones, and foliage as cards cut out of a texture of a twig of leaves or needles (Surface::Leaves and
-// Surface::Needles), each card's bottom middle on a branch. The cards' normals point out of the crown rather than off
-// the cards, so the foliage is shaded as a whole, lit on the side toward the sun, rather than card by card. Sprays
-// fold along their length to keep some volume when viewed edge-on.
+// smaller ones, and foliage as curved individual leaves or folded needle sprays (Surface::Leaves and
+// Surface::Needles). Leaf normals retain their folds; needle normals lean outward to shade the crown as a whole.
 namespace Generator::Trees {
 
 struct TreeMeshes {

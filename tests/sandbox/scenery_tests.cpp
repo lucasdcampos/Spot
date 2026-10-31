@@ -102,6 +102,7 @@ TEST_CASE("The cooked playground renders its grass and trees up close", "[gpu][s
     const std::array views{
         View{"scenery_grass.png", {0, 1.7f, 42}, {-1, 0, 38}},
         View{"scenery_oak.png", {3, 1.7f, 52}, {-6, 3.5f, 44}},
+        View{"scenery_oak_leaves.png", {-2.5f, 5.5f, 46}, {-6, 5.2f, 44}},
         View{"scenery_forest.png", {-52, 6, 52}, {-75, 12, 75}},
         View{"scenery_hills.png", {-40, 4, 30}, {-80, 10, 70}},
     };
