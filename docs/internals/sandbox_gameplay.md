@@ -41,6 +41,10 @@ so those systems also bring `hud` even when a particular game does not author th
 `gameplay/core/` needs only the engine. It has the mechanisms the other systems meet through, so none includes another
 to switch it off or read its internals.
 
+IsValidPlayerName() in player_name.h is the shared nickname policy: 1 to 64 valid UTF-8 bytes without whitespace
+or control characters. Preferences replace invalid saved names with Player; menus and networking validate new
+names with the same function. This policy applies to player nicknames; room names may contain spaces.
+
 - **Possession.** A `Pawn` is anything that can be controlled; a `Controller` controls one at a time, from an entity of
   its own, so it outlives a pawn and stays the same from one to the next. `Controller::pawn` names the pawn it
   possesses as it starts; `Possess()` takes a pawn from any other controller. `PlayerController`, the local player's,
@@ -495,6 +499,16 @@ joined at the answering machine's address), only to queries of the same protocol
 0 keeps a room unlisted, and a port another room on the machine holds is shared. The main menu's join page searches
 when shown and every `lanRefreshInterval` seconds, lists the rooms in rows like the map list's, keeping the rows of
 the same rooms, and joins the one chosen, or asks for its password first.
+
+`Session` keeps why it failed (`GetLastErrorKind()`): what was asked could not be done (`Request`, as an invalid
+address or a room that cannot start), nothing answered (`Unreachable`, the engine's `NetHost::CouldNotConnect` or the
+fifteen seconds of `Session::Timeout` while connecting), the room refused with its reason (`Refused`), its map did not
+load in time (`Loading`), or the session ended after joining (`Disconnected`). It remembers the last join for
+`Retry()`. The connecting page names the room (its listed name, or the address) and ticks off its steps: reaching the
+room and being let in, loading its map, then joining the others, with the seconds spent and when it gives up. A
+failure of what was asked shows beside the form; any other shows the error page, with a title and a hint for its kind,
+the room and the reason, and "Try again" and "Back"; a session that ends in play returns to the menu on that page. The
+network smoke test's guest first tries a wrong password, expects that page, then joins with the right one.
 
 The player prefab's root has a `NetworkObject` and a `NetworkTransform`. The sandbox's executable hosts with
 `--host [port]` (27015 by default) and joins with `--join <address[:port]>`. `--server` runs a dedicated server:

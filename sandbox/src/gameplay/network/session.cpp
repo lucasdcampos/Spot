@@ -105,7 +105,7 @@ std::string Session::GetPlayerName(Spot::NetPeerId peer) const {
         return m_settings.playerName;
     }
     const auto found = m_names.find(peer);
-    return found != m_names.end() ? found->second : "Player " + std::to_string(static_cast<std::uint32_t>(peer));
+    return found != m_names.end() ? found->second : "Player_" + std::to_string(static_cast<std::uint32_t>(peer));
 }
 
 void Session::SetState(SessionState state) {
@@ -121,6 +121,10 @@ void Session::OnStart() {
         m_ended = m_network->OnSessionEnded.Connect([this](std::string_view reason) {
             ClearConnections();
             m_error = std::string(reason);
+            // Before the room accepted the player, it either never answered or said why it would not.
+            m_errorKind = m_state != SessionState::Connecting        ? SessionError::Disconnected
+                          : reason == Spot::NetHost::CouldNotConnect ? SessionError::Unreachable
+                                                                     : SessionError::Refused;
             SetState(SessionState::Failed);
             ReturnToStartup();
         });
@@ -139,12 +143,17 @@ void Session::OnStop() {
     m_ended.Disconnect();
 }
 
-bool Session::Fail(std::string reason, bool returnToStartup) {
+float Session::GetElapsed() const {
+    return std::chrono::duration<float>(std::chrono::steady_clock::now() - m_since).count();
+}
+
+bool Session::Fail(std::string reason, SessionError kind, bool returnToStartup) {
     ClearConnections();
     if (m_network) {
         m_network->Leave();
     }
     m_error = std::move(reason);
+    m_errorKind = kind;
     SetState(SessionState::Failed);
     if (returnToStartup) {
         ReturnToStartup();
@@ -206,6 +215,7 @@ bool Session::Host(SessionSettings settings) {
         return ValidateSessionHello(admission, content, hello);
     };
     m_error.clear();
+    m_errorKind = SessionError::None;
     m_since = std::chrono::steady_clock::now();
     SetState(SessionState::Loading);
     GetApplication().LoadScene(std::move(scene));
@@ -220,6 +230,7 @@ bool Session::Join(std::string_view address, std::string playerName, std::string
     if (!parsed || !IsValidName(playerName) || password.size() > 128) {
         return Fail("Enter a valid server address and player name.");
     }
+    m_lastJoin = {.address = std::string(address), .playerName = playerName, .password = password};
     ClearConnections();
     m_settings = {};
     m_settings.playerName = std::move(playerName);
@@ -234,7 +245,7 @@ bool Session::Join(std::string_view address, std::string playerName, std::string
     Spot::WriteArchived(writer, hello);
     const auto bytes = writer.TakeBytes();
     if (!m_network->Join(*parsed, bytes)) {
-        return Fail("Could not connect to this server address.");
+        return Fail("Could not find this server address.", SessionError::Unreachable);
     }
     Bind(*m_network->GetSession());
     m_error.clear();
@@ -302,12 +313,21 @@ void Session::Listen() {
     m_responder = std::move(responder);
 }
 
+bool Session::Retry() {
+    if (!CanRetry()) {
+        return false;
+    }
+    const JoinRequest request = m_lastJoin;
+    return Join(request.address, request.playerName, request.password);
+}
+
 void Session::Leave() {
     ClearConnections();
     if (m_network) {
         m_network->Leave();
     }
     m_error.clear();
+    m_errorKind = SessionError::None;
     SetState(SessionState::Offline);
     ReturnToStartup();
 }
@@ -329,8 +349,12 @@ void Session::OnUpdate(float /*deltaTime*/) {
         if (scene && system && scene->GetSourceAsset() == m_settings.map &&
             (m_settings.dedicated || Players::GetPawn(*scene)) && (IsHost() || system->IsSynchronized())) {
             SetState(SessionState::Playing);
-        } else if (std::chrono::steady_clock::now() - m_since > std::chrono::seconds(15)) {
-            Fail("The connection timed out. Check the address, port and host's firewall.", true);
+        } else if (GetElapsed() > Timeout) {
+            if (m_state == SessionState::Connecting) {
+                Fail("The room did not answer in time.", SessionError::Unreachable, true);
+            } else {
+                Fail("The room's map did not finish loading in time.", SessionError::Loading, true);
+            }
         }
     }
 }

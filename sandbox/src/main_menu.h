@@ -18,10 +18,12 @@ struct MainMenuMap : Gameplay::MapEntry {
 
 // The startup interface, authored in main_menu.scene: text-only pages over a full-screen view of the selected map,
 // rendered from its scene without starting gameplay. The join page lists the rooms of the local network, asking again
-// every few seconds while it is shown; choosing one joins it, or asks for its password first.
+// every few seconds while it is shown; choosing one joins it, or asks for its password first. While joining or hosting,
+// the connecting page says which room, the steps done and the time left before it gives up; when it fails, or a
+// session ends in play, the error page says what went wrong and what to try, with the room to join again.
 class MainMenu final : public Gameplay::Menu {
 public:
-    enum class Page { Home, Play, Host, Join, Connecting, Settings, Quit };
+    enum class Page { Home, Play, Host, Join, Connecting, Error, Settings, Quit };
 
     Spot::EntityId homePanel = Spot::EntityId::Invalid, playPanel = Spot::EntityId::Invalid,
                    settingsPanel = Spot::EntityId::Invalid, quitPanel = Spot::EntityId::Invalid;
@@ -48,6 +50,10 @@ public:
                    connectingStatus = Spot::EntityId::Invalid, cancelConnection = Spot::EntityId::Invalid;
     Spot::EntityId lanRooms = Spot::EntityId::Invalid, lanStatus = Spot::EntityId::Invalid,
                    lanRefresh = Spot::EntityId::Invalid;
+    Spot::EntityId connectingTitle = Spot::EntityId::Invalid, connectingSteps = Spot::EntityId::Invalid;
+    Spot::EntityId errorPanel = Spot::EntityId::Invalid, errorTitle = Spot::EntityId::Invalid,
+                   errorReason = Spot::EntityId::Invalid, errorHint = Spot::EntityId::Invalid,
+                   errorRetry = Spot::EntityId::Invalid, errorBack = Spot::EntityId::Invalid;
     // Seconds between the local network's queries while the join page is shown.
     float lanRefreshInterval = 3.0f;
 
@@ -76,6 +82,11 @@ private:
     void RefreshRooms();
     // Shows the rooms found, when they changed.
     void ShowRooms();
+    // Says how joining or hosting goes, on the connecting page.
+    void ShowProgress();
+    // What the session's failure was: on the error page, or, for what was asked wrong, beside the form.
+    void ShowFailure();
+    void RetryRoom();
     void SavePlayerName(std::string name);
     void StyleText(Spot::EntityId control, std::optional<bool> selected, float blend);
     void RenderPreview(const Spot::RenderStageContext& stage);
@@ -95,4 +106,6 @@ private:
     std::vector<std::string> m_roomAddresses;
     std::vector<Spot::EntityId> m_roomRows;
     std::vector<Spot::SignalConnection> m_roomClicks;
+    // The listed name of the room being joined, when it was chosen from the list.
+    std::string m_joiningName;
 };

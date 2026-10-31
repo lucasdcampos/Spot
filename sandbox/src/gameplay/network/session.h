@@ -28,6 +28,21 @@ struct SessionSettings {
 
 enum class SessionState { Offline, Connecting, Loading, Playing, Failed };
 
+// Why a session failed, for menus to say what went wrong and what to do; GetLastError() says it in words.
+enum class SessionError {
+    None,
+    // What was asked could not be done here, as an invalid address or name, or a room that could not start.
+    Request,
+    // Nothing answered at the address, or not in time.
+    Unreachable,
+    // The room answered and refused, saying why, as for a wrong password or another version of the game.
+    Refused,
+    // The room accepted, but its map did not finish loading in time.
+    Loading,
+    // The session ended after it was joined: the room closed, removed the player, or the connection was lost.
+    Disconnected,
+};
+
 // The introduction is checked before any scene is sent. A signature covers the imported content, so sessions never
 // silently play with missing or different assets. These messages also work with standalone NetHosts in tests.
 struct SessionHello {
@@ -50,9 +65,18 @@ public:
     static Session* Get();
     bool Host(SessionSettings settings);
     bool Join(std::string_view address, std::string playerName = "Player", std::string password = {});
+    // Joins again the last room Join() was asked for, with the same name and password.
+    bool Retry();
+    bool CanRetry() const { return !m_lastJoin.address.empty(); }
+    // The address of the last room Join() was asked for.
+    const std::string& GetJoinAddress() const { return m_lastJoin.address; }
     void Leave();
     SessionState GetState() const { return m_state; }
     const std::string& GetLastError() const { return m_error; }
+    SessionError GetLastErrorKind() const { return m_errorKind; }
+    // Seconds since it started connecting or hosting, and how long connecting and loading may take before it fails.
+    float GetElapsed() const;
+    static constexpr float Timeout = 15.0f;
     const SessionSettings& GetSettings() const { return m_settings; }
     bool IsHost() const;
     bool IsActive() const;
@@ -69,7 +93,7 @@ private:
     struct Welcome;
     void Bind(Spot::NetworkSession& session);
     void SetState(SessionState state);
-    bool Fail(std::string reason, bool returnToStartup = false);
+    bool Fail(std::string reason, SessionError kind = SessionError::Request, bool returnToStartup = false);
     // Answers those looking for rooms on the local network.
     void Listen();
     void ReturnToStartup();
@@ -80,6 +104,13 @@ private:
     SessionState m_state = SessionState::Offline;
     SessionSettings m_settings;
     std::string m_error;
+    SessionError m_errorKind = SessionError::None;
+    struct JoinRequest {
+        std::string address;
+        std::string playerName;
+        std::string password;
+    };
+    JoinRequest m_lastJoin;
     std::uint64_t m_content = 0;
     std::chrono::steady_clock::time_point m_since;
     std::unordered_map<Spot::NetPeerId, std::string> m_names;

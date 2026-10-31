@@ -97,7 +97,9 @@ protected:
             Fail("Timed out waiting for both room instances to synchronize");
             return;
         }
-        if (room->GetState() == Gameplay::SessionState::Failed) {
+        // The guest's first try, with a wrong password, is meant to fail, until it joins with the right one.
+        const bool refusing = !m_host && m_wrongPassword && !m_refused;
+        if (room->GetState() == Gameplay::SessionState::Failed && !(m_wrongPassword && !m_launched)) {
             Fail(room->GetLastError());
             return;
         }
@@ -134,6 +136,26 @@ protected:
                 field(menu->hostPassword, "smoke");
                 scene->GetEntity(menu->startButton)->GetComponent<Spot::UiButton>()->Click();
             } else {
+                // Refused, the menu says why on its error page, offering to try again.
+                if (refusing) {
+                    if (room->GetState() != Gameplay::SessionState::Failed) {
+                        return;
+                    }
+                    if (room->GetLastErrorKind() != Gameplay::SessionError::Refused) {
+                        Fail("A wrong password was not told as a refusal: " + room->GetLastError());
+                        return;
+                    }
+                    if (menu->GetPage() != MainMenu::Page::Error) {
+                        return;
+                    }
+                    const auto* reason = scene->GetEntity(menu->errorReason)->GetComponent<Spot::UiText>();
+                    const auto* retry = scene->GetEntity(menu->errorRetry);
+                    if (reason->text.find("password") == std::string::npos || !retry->IsActiveSelf()) {
+                        Fail("The error page did not say the password was wrong, or offer to try again");
+                        return;
+                    }
+                    m_refused = true;
+                }
                 // The host's room, as the join page lists it from the local network.
                 if (menu->GetPage() != MainMenu::Page::Join) {
                     menu->ShowPage(MainMenu::Page::Join);
@@ -154,8 +176,12 @@ protected:
                     return;
                 }
                 field(menu->joinPlayerName, "Guest");
-                field(menu->joinPassword, "smoke");
+                field(menu->joinPassword, m_refused ? "smoke" : "wrong");
                 menu->ChooseRoom(*listed);
+                if (!m_refused) {
+                    m_wrongPassword = true;
+                    return;
+                }
             }
             m_launched = true;
             return;
@@ -352,6 +378,8 @@ private:
     bool m_render;
     bool m_passed = false;
     bool m_launched = false;
+    bool m_wrongPassword = false;
+    bool m_refused = false;
     bool m_ready = false;
     bool m_guestReady = false;
     bool m_moving = false;

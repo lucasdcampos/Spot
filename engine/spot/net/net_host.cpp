@@ -137,7 +137,7 @@ void NetHost::Receive(NetTransportEvent& event, std::vector<NetEvent>& events) {
             return;
         }
         if (peer.reason.empty()) {
-            peer.reason = peer.accepted ? "The connection was lost" : "Could not connect to the server";
+            peer.reason = peer.accepted ? ConnectionLost : CouldNotConnect;
         }
         events.push_back({.type = NetEvent::Type::Disconnected, .peer = event.peer, .reason = std::move(peer.reason)});
         return;

@@ -25,6 +25,7 @@ float GetShade(MainMenu::Page page) {
     case MainMenu::Page::Join:
         return 0.66f;
     case MainMenu::Page::Connecting:
+    case MainMenu::Page::Error:
         return 0.9f;
     case MainMenu::Page::Settings:
         return 0.95f;
@@ -99,8 +100,7 @@ void MainMenu::OnStart() {
             session->GetState() == Gameplay::SessionState::Loading) {
             ShowPage(Page::Connecting);
         } else if (session->GetState() == Gameplay::SessionState::Failed) {
-            ShowPage(Page::Join);
-            SetStatus(session->GetLastError());
+            ShowFailure();
         }
     }
 }
@@ -115,6 +115,8 @@ void MainMenu::Initialize() {
     ConnectButton(joinBack, [this] { ShowPage(Page::Home); });
     ConnectButton(joinConfirm, [this] { JoinRoom(); });
     ConnectButton(lanRefresh, [this] { RefreshRooms(); });
+    ConnectButton(errorRetry, [this] { RetryRoom(); });
+    ConnectButton(errorBack, [this] { ShowPage(Page::Join); });
     ConnectButton(cancelConnection, [this] {
         if (Gameplay::Session* session = Gameplay::Session::Get()) {
             session->Leave();
@@ -153,7 +155,7 @@ void MainMenu::ShowPage(Page page) {
          {std::pair{homePanel, page == Page::Home}, std::pair{playPanel, page == Page::Play},
           std::pair{settingsPanel, page == Page::Settings}, std::pair{quitPanel, page == Page::Quit},
           std::pair{hostPanel, page == Page::Host}, std::pair{joinPanel, page == Page::Join},
-          std::pair{connectingPanel, page == Page::Connecting}}) {
+          std::pair{connectingPanel, page == Page::Connecting}, std::pair{errorPanel, page == Page::Error}}) {
         if (auto* entity = GetScene().GetEntity(id)) {
             entity->SetActive(visible);
         }
@@ -179,6 +181,9 @@ void MainMenu::ShowPage(Page page) {
         focus = joinAddress;
     } else if (page == Page::Connecting) {
         focus = cancelConnection;
+    } else if (page == Page::Error) {
+        const Gameplay::Session* session = Gameplay::Session::Get();
+        focus = session && session->CanRetry() ? errorRetry : errorBack;
     } else if (page == Page::Settings) {
         focus = settingsBackButton;
     } else if (page == Page::Quit) {
@@ -275,13 +280,123 @@ void MainMenu::JoinRoom() {
         return field ? field->GetText() : std::string();
     };
     const std::string name = text(joinPlayerName);
-    if (session->Join(text(joinAddress), name, text(joinPassword))) {
+    // A name chosen from the list stays only while it is that room's address.
+    const std::string address = text(joinAddress);
+    const auto& rooms = GetRooms();
+    if (std::ranges::none_of(rooms, [&](const Gameplay::ServerEntry& room) {
+            return room.address == address && room.info.name == m_joiningName;
+        })) {
+        m_joiningName.clear();
+    }
+    if (session->Join(address, name, text(joinPassword))) {
         SavePlayerName(name);
         ShowPage(Page::Connecting);
-        SetStatus("Connecting to the room...");
+        ShowProgress();
     } else {
-        SetStatus(session->GetLastError());
+        ShowFailure();
     }
+}
+
+void MainMenu::RetryRoom() {
+    Gameplay::Session* session = Gameplay::Session::Get();
+    if (session && session->Retry()) {
+        ShowPage(Page::Connecting);
+        ShowProgress();
+    } else {
+        ShowFailure();
+    }
+}
+
+void MainMenu::ShowFailure() {
+    const Gameplay::Session* session = Gameplay::Session::Get();
+    if (!session) {
+        return;
+    }
+    const Gameplay::SessionError kind = session->GetLastErrorKind();
+    // What was asked wrong is fixed in the form it was asked with.
+    if (kind == Gameplay::SessionError::Request || kind == Gameplay::SessionError::None) {
+        ShowPage(m_page == Page::Host ? Page::Host : Page::Join);
+        SetStatus(session->GetLastError());
+        return;
+    }
+    std::string title;
+    std::string hint;
+    switch (kind) {
+    case Gameplay::SessionError::Unreachable:
+        title = "Could not reach the room";
+        hint = "Check the address and port. The host's firewall must let the game through (UDP port 27015 by "
+               "default), and both computers must reach each other, as on the same network.";
+        break;
+    case Gameplay::SessionError::Refused:
+        title = "The room did not let you in";
+        hint = "Check the password, and that you and the host play the same build of the game.";
+        break;
+    case Gameplay::SessionError::Loading:
+        title = "Could not load the room";
+        hint = "The room's map took too long to load. Try again; if it keeps happening, the host may be busy.";
+        break;
+    case Gameplay::SessionError::Disconnected:
+        title = "Disconnected from the room";
+        hint = "The room closed, removed you, or the connection was lost.";
+        break;
+    case Gameplay::SessionError::None:
+    case Gameplay::SessionError::Request:
+        break;
+    }
+    ShowPage(Page::Error);
+    if (auto* label = Get<Spot::UiText>(errorTitle)) {
+        label->text = title;
+    }
+    if (auto* label = Get<Spot::UiText>(errorReason)) {
+        const std::string room = m_joiningName.empty() ? session->GetJoinAddress() : m_joiningName;
+        label->text = room.empty() ? session->GetLastError() : std::format("{}: {}", room, session->GetLastError());
+    }
+    if (auto* label = Get<Spot::UiText>(errorHint)) {
+        label->text = hint;
+    }
+    if (auto* retry = GetScene().GetEntity(errorRetry)) {
+        retry->SetActive(session->CanRetry());
+    }
+}
+
+void MainMenu::ShowProgress() {
+    const Gameplay::Session* session = Gameplay::Session::Get();
+    if (!session) {
+        return;
+    }
+    const bool hosting = session->IsHost();
+    const Gameplay::SessionState state = session->GetState();
+    const std::string room = m_joiningName.empty() ? session->GetJoinAddress() : m_joiningName;
+    if (auto* label = Get<Spot::UiText>(connectingTitle)) {
+        label->text = hosting ? "Starting your room" : room.empty() ? "Joining the room" : "Joining " + room;
+    }
+    // The map, once the room said which.
+    std::string map = "the map";
+    for (const MainMenuMap& entry : maps) {
+        if (entry.scene == session->GetSettings().map) {
+            map = entry.name;
+        }
+    }
+    const int elapsed = static_cast<int>(session->GetElapsed());
+    const int timeout = static_cast<int>(Gameplay::Session::Timeout);
+    const bool reached = hosting || state != Gameplay::SessionState::Connecting;
+    const auto step = [](bool done, bool current, std::string_view text) {
+        return std::format("{} {}\n", done ? "[x]" : current ? "[>]" : "[ ]", text);
+    };
+    std::string steps;
+    if (hosting) {
+        steps += step(true, false, std::format("Open the room on port {}", session->GetSettings().port));
+    } else {
+        steps += step(reached, !reached, "Reach the room and be let in");
+    }
+    steps += step(false, reached, "Load " + map);
+    steps += step(false, false, hosting ? "Start playing" : "Join the other players");
+    if (auto* label = Get<Spot::UiText>(connectingSteps)) {
+        label->text = steps;
+    }
+    SetStatus(hosting   ? std::format("{} s", elapsed)
+              : reached ? std::format("{} s, giving up at {} s", elapsed, timeout)
+                        : std::format("Waiting for an answer: {} s, giving up at {} s", elapsed, timeout));
 }
 
 void MainMenu::RefreshRooms() {
@@ -378,6 +493,7 @@ void MainMenu::ChooseRoom(const Gameplay::ServerEntry& room) {
     if (auto* field = Get<Spot::UiInputField>(joinAddress)) {
         field->SetText(room.address);
     }
+    m_joiningName = room.info.name;
     const auto* password = Get<Spot::UiInputField>(joinPassword);
     if (room.info.password && (!password || password->GetText().empty())) {
         SetStatus(std::format("{} has a password: enter it, then connect.", room.info.name));
@@ -402,11 +518,9 @@ void MainMenu::OnUpdate(float deltaTime) {
     }
     if (Gameplay::Session* session = Gameplay::Session::Get()) {
         if (session->GetState() == Gameplay::SessionState::Failed) {
-            ShowPage(Page::Join);
-            SetStatus(session->GetLastError());
+            ShowFailure();
         } else {
-            SetStatus(session->GetState() == Gameplay::SessionState::Connecting ? "Connecting to the room..."
-                                                                                : "Loading the room...");
+            ShowProgress();
         }
     }
 }
@@ -456,9 +570,9 @@ void MainMenu::OnRawEvent(const Spot::Event& event, bool& consumed) {
 }
 
 void MainMenu::AnimateControls(float blend) {
-    for (const auto id :
-         {playButton, settingsButton, quitButton, startButton, backButton, settingsBackButton, cancelQuitButton,
-          confirmQuitButton, hostButton, joinButton, joinConfirm, joinBack, cancelConnection, lanRefresh}) {
+    for (const auto id : {playButton, settingsButton, quitButton, startButton, backButton, settingsBackButton,
+                          cancelQuitButton, confirmQuitButton, hostButton, joinButton, joinConfirm, joinBack,
+                          cancelConnection, lanRefresh, errorRetry, errorBack}) {
         StyleText(id, std::nullopt, blend);
     }
     for (const Spot::EntityId id : m_roomRows) {
@@ -590,6 +704,14 @@ void MainMenu::Serialize(Spot::Archive& archive) {
     archive.Field("lanRooms", lanRooms);
     archive.Field("lanStatus", lanStatus);
     archive.Field("lanRefresh", lanRefresh);
+    archive.Field("connectingTitle", connectingTitle);
+    archive.Field("connectingSteps", connectingSteps);
+    archive.Field("errorPanel", errorPanel);
+    archive.Field("errorTitle", errorTitle);
+    archive.Field("errorReason", errorReason);
+    archive.Field("errorHint", errorHint);
+    archive.Field("errorRetry", errorRetry);
+    archive.Field("errorBack", errorBack);
     archive.Field("lanRefreshInterval", lanRefreshInterval,
                   {.min = 0.5f, .max = 60.0f, .tooltip = "Seconds between searches of the local network"});
 }

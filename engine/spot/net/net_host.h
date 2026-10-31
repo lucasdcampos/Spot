@@ -39,6 +39,11 @@ struct NetEvent {
 // reason the client is told. Games send their own messages on their own channels.
 class NetHost {
 public:
+    // The reasons a Disconnected event gives when the other end gave none: a client's connection that never got an
+    // answer, as when nothing listens at the address or a firewall drops it, and one that stopped after it was made.
+    static constexpr std::string_view CouldNotConnect = "Could not connect to the server";
+    static constexpr std::string_view ConnectionLost = "The connection was lost";
+
     explicit NetHost(std::unique_ptr<NetTransport> transport, NetHostConfig config = {});
     // Tells every peer the host is going away.
     ~NetHost();
