@@ -41,10 +41,6 @@ so those systems also bring `hud` even when a particular game does not author th
 `gameplay/core/` needs only the engine. It has the mechanisms the other systems meet through, so none includes another
 to switch it off or read its internals.
 
-IsValidPlayerName() in player_name.h is the shared nickname policy: 1 to 64 valid UTF-8 bytes without whitespace
-or control characters. Preferences replace invalid saved names with Player; menus and networking validate new
-names with the same function. This policy applies to player nicknames; room names may contain spaces.
-
 - **Possession.** A `Pawn` is anything that can be controlled; a `Controller` controls one at a time, from an entity of
   its own, so it outlives a pawn and stays the same from one to the next. `Controller::pawn` names the pawn it
   possesses as it starts; `Possess()` takes a pawn from any other controller. `PlayerController`, the local player's,
