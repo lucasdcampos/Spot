@@ -389,6 +389,11 @@ It does not unlock developer mode and resets with a new character. A developer w
 another player's damage shows a purple stretched hexagon reading `Immortal Object` for three seconds;
 further hits refresh that interval. Environmental and self damage do not show it.
 
+`GameControls` draws nearby player nicknames through `UiDrawListener` and `sandbox_hud` using the HUD font.
+Names follow the character's eyes, remain readable in screen pixels, fade from 16 to 20 meters and hide
+behind obstacles, outside the view, for dead characters and for local players. The immortal badge shares
+those visibility rules and appears above the nickname. Both use replicated player and developer state.
+
 
 Open the console with Grave; the sandbox permits cheats while it runs (`GameControls::cheats`), so its commands work
 at once, and `console.cheats false` forbids them again. Registrations belong to
@@ -783,3 +788,8 @@ The `</>` badge next to a sandbox nickname identifies a developer authenticated 
 `imthegamedev` unlocks the easter egg without granting this badge. Authentication is decided by the
 server, replicated separately from the unlock, retained across character replacement and never saved
 as scene data. A player who used the command can still authenticate with a valid key afterward.
+
+Developer nickname labels leave extra clearance above the crown on the developer skin.
+
+The authenticated developer badge is a blue shield with a bright rim, shaded face and geometric code mark.
+It is drawn with public renderer quads and follows nickname visibility and fading.

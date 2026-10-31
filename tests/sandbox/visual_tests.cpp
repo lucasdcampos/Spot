@@ -1,12 +1,17 @@
 #include "../registered_assets.h"
 #include "developer_mode.h"
+#include "game_controls.h"
 #include "gameplay/core/player_controller.h"
 #include "gameplay/core/players.h"
 #include "gameplay/game/game_mode.h"
+#include "gameplay/network/player_info.h"
 #include "main_menu.h"
 #include "npc.h"
 #include "prop_spawner.h"
+#include "sandbox_hud.h"
 #include "spawn_menu.h"
+#include "temp_directory.h"
+#include <fstream>
 
 #include "gameplay/camera/first_person_view.h"
 #include "gameplay/character/character.h"
@@ -1036,4 +1041,99 @@ TEST_CASE("Authored sandbox menus render their labels and controls offscreen", "
         std::filesystem::create_directories(*capture);
         CHECK(Spot::Image(1280, 720, pixels).SavePng(std::filesystem::path(*capture) / "pause_menu.png"));
     }
+}
+
+TEST_CASE("Nearby player names and the immortal hexagon render above the head", "[gpu][sandbox][labels][offscreen]") {
+    if (!Spot::GraphicsDevice::IsSupported()) {
+        SKIP("No usable graphics device");
+    }
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    Spot::Tests::RegisteredAssetManager assets(SANDBOX_IMPORTED_DIR, device.get());
+    struct Restore {
+        Spot::AssetManager* previous = Spot::Assets::GetManager();
+        ~Restore() { Spot::Detail::SetAssetManager(previous); }
+    } restore;
+    Spot::Detail::SetAssetManager(&assets);
+    Spot::Detail::LoadGameCode();
+    Spot::Scene scene;
+    auto& observer = scene.CreateEntity("Observer");
+    auto& viewer = observer.AddComponent<Gameplay::Pawn>();
+    observer.GetTransform().SetPosition({0.15f, 0.3f, -4.6f});
+    observer.GetTransform().SetRotation(
+        Spot::Quaternion::LookRotation(Spot::Vector3{0, 0.2f, 0} - observer.GetTransform().GetPosition()));
+    auto& inspection = observer.AddComponent<Spot::Camera>();
+    inspection.SetFieldOfView(Spot::ToRadians(38.0f));
+    inspection.SetBackground({0.12f, 0.15f, 0.19f, 1});
+    viewer.viewCamera = observer.GetId();
+    scene.CreateEntity("Controller").AddComponent<Gameplay::PlayerController>().pawn = observer.GetId();
+    auto& viewerInfo = scene.CreateEntity("Viewer info").AddComponent<Gameplay::PlayerInfo>();
+    viewerInfo.pawn = observer.GetId();
+    auto* character = scene.Instantiate(assets.Load<Spot::Prefab>("prefabs/actors/player.prefab"));
+    REQUIRE(character);
+    auto& target = *character;
+    target.GetComponent<Gameplay::Inventory>()->SetEnabled(false);
+    auto& health = *target.GetComponent<Gameplay::Health>();
+    auto& mode = *target.GetComponent<DeveloperMode>();
+    auto& keyLight = scene.CreateEntity("Key light");
+    keyLight.GetTransform().SetRotation(Spot::Quaternion::LookRotation({-0.5f, -1, 0.5f}));
+    keyLight.AddComponent<Spot::DirectionalLight>();
+    scene.CreateEntity("Fill light").AddComponent<Spot::AmbientLight>();
+    auto& info = scene.CreateEntity("Developer info").AddComponent<Gameplay::PlayerInfo>();
+    info.name = "lucasof";
+    info.pawn = target.GetId();
+    auto& hud = scene.CreateEntity("Hud").AddComponent<Gameplay::Hud>();
+    hud.font = assets.Load<Spot::Font>("fonts/Inter-Regular.ttf");
+    REQUIRE(hud.font);
+    auto& controls = scene.CreateEntity("Controls").AddComponent<GameControls>();
+    controls.spawnNpcs = false;
+    controls.cheats = false;
+    scene.Update(0);
+    mode.Unlock();
+    CHECK_FALSE(mode.IsAuthenticated());
+    TempDirectory keyDirectory;
+    DeveloperMode::Seed seed{};
+    const auto keyPath = keyDirectory.GetPath() / DeveloperMode::KeyFileName;
+    std::ofstream(keyPath) << std::string(64, '0') << '\n';
+    mode.SetPublicKey(DeveloperMode::DerivePublicKey(seed));
+    mode.SetKeyPath(keyPath);
+    auto* controller = Gameplay::Players::Get(scene);
+    REQUIRE(controller);
+    controller->Possess(*target.GetComponent<Gameplay::Pawn>());
+    scene.Update(0);
+    REQUIRE(mode.IsAuthenticated());
+    controller->Possess(viewer);
+    scene.Update(0);
+    scene.ForEachComponent<Spot::Camera>([&](auto& camera) { camera.SetEnabled(&camera == &inspection); });
+    health.SetGod(true);
+    health.TakeDamage({.amount = 100, .instigator = observer.GetId()});
+    REQUIRE(mode.GetImmortalTime() > 0);
+    REQUIRE(GetPlayerLabels(scene, {1024, 768}).size() == 1);
+    CHECK(GetPlayerLabels(scene, {1024, 768})[0].developerAuthenticated);
+    auto image = device->CreateTexture(
+        {.width = 1024, .height = 768, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
+    REQUIRE(image);
+    Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb, .sampleCount = 1});
+    scene.PrepareToRender();
+    auto* context = device->BeginOffscreenFrame(*image);
+    REQUIRE(context);
+    renderer.Render(*context, scene, image.get());
+    device->EndFrame();
+    const auto pixels = device->DownloadTexture(*image);
+    REQUIRE(pixels.size() == 1024 * 768 * 4);
+    std::size_t purple = 0;
+    std::size_t white = 0;
+    std::size_t blue = 0;
+    for (std::size_t i = 0; i < pixels.size(); i += 4) {
+        purple += pixels[i] > 80 && pixels[i + 2] > pixels[i] + 30 && pixels[i + 1] < 100 ? 1 : 0;
+        blue += pixels[i + 2] > pixels[i] + 60 && pixels[i + 2] > pixels[i + 1] + 20 ? 1 : 0;
+        white += pixels[i] > 180 && pixels[i + 1] > 180 && pixels[i + 2] > 180 ? 1 : 0;
+    }
+    CHECK(purple > 1000);
+    CHECK(white > 100);
+    CHECK(blue > 100);
+    const std::filesystem::path output(SPOT_SANDBOX_CAPTURE_DIR);
+    std::filesystem::create_directories(output);
+    CHECK(Spot::Image(1024, 768, pixels).SavePng(output / "player_immortal_label.png"));
+    CHECK(Spot::Image(1024, 768, pixels).SavePng(output / "lucasof_developer.png"));
 }

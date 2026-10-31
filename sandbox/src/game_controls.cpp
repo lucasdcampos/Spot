@@ -2,6 +2,7 @@
 
 #include "npc_spawner.h"
 #include "sandbox_commands.h"
+#include "sandbox_hud.h"
 
 #include "gameplay/hud/hud.h"
 
@@ -52,4 +53,8 @@ void GameControls::Serialize(Spot::Archive& archive) {
     archive.Field("npcs", npcs, {.tooltip = "The NPC population prefab; the default population is used when empty"});
     archive.Field("cheats", cheats, {.tooltip = "Permits the console's cheat commands while the game runs"});
     archive.Field("spawnNpcs", spawnNpcs, {.tooltip = "Adds the sandbox's default NPC population"});
+}
+
+void GameControls::OnDrawUi(Spot::Renderer2D& renderer, Spot::Vector2 viewSize) {
+    DrawPlayerLabels(renderer, GetScene(), viewSize);
 }

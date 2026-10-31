@@ -155,6 +155,8 @@ In the sandbox, the host can grant operator permissions with `op <nickname>`. Op
 `god` to toggle invulnerability, `god true` to enable it or `god false` to disable it for your character.
 The setting lasts until the character is replaced. Developer mode is separate: a developer with god mode
 shows a purple `Immortal Object` badge for three seconds when another player hits them.
+Nearby players' nicknames appear above their heads within 20 meters, fading near the edge of that range;
+walls hide both names and badges.
 
 The `</>` badge next to a sandbox nickname identifies a developer authenticated with `developer.key`.
 `imthegamedev` unlocks the easter egg without granting this badge. Authentication is decided by the

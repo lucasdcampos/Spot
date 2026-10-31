@@ -10,6 +10,7 @@
 #include "gameplay/health/health.h"
 #include "gameplay/network/player_info.h"
 #include "sandbox_commands.h"
+#include "sandbox_hud.h"
 
 #include <catch2/catch_approx.hpp>
 
@@ -282,4 +283,38 @@ TEST_CASE("God mode requires cheats and blocks damage without granting developer
     REQUIRE(console.Execute("god true"));
     REQUIRE(console.Execute("god"));
     CHECK_FALSE(health->IsGod());
+}
+
+TEST_CASE("Player labels project nearby nicknames and hide distant occluded and dead players", "[sandbox][labels]") {
+    SandboxTests::Playground game;
+    auto* camera = Spot::FindMainCamera(game.scene);
+    REQUIRE(camera);
+    const auto view = camera->GetCamera3D();
+    auto& target = game.scene.CreateEntity("Named player");
+    auto& pawn = target.AddComponent<Gameplay::Pawn>();
+    target.GetTransform().SetWorldPosition(view.position + view.GetForward() * 5.0f);
+    auto& info = game.scene.CreateEntity("Named info").AddComponent<Gameplay::PlayerInfo>();
+    info.name = "Nearby";
+    info.pawn = target.GetId();
+    game.Step();
+    const Spot::Vector2 size{1024, 768};
+    auto labels = GetPlayerLabels(game.scene, size);
+    REQUIRE(labels.size() == 1);
+    CHECK(labels[0].name == "Nearby");
+    CHECK_FALSE(labels[0].developerAuthenticated);
+    CHECK(labels[0].position.x == Catch::Approx(512).margin(2));
+    CHECK(labels[0].position.y > 384);
+    pawn.SetState("Dead", true);
+    CHECK(GetPlayerLabels(game.scene, size).empty());
+    pawn.SetState("Dead", false);
+    target.GetTransform().SetWorldPosition(view.position + view.GetForward() * 25.0f);
+    CHECK(GetPlayerLabels(game.scene, size).empty());
+    target.GetTransform().SetWorldPosition(view.position - view.GetForward() * 5.0f);
+    CHECK(GetPlayerLabels(game.scene, size).empty());
+    target.GetTransform().SetWorldPosition(view.position + view.GetForward() * 5.0f);
+    auto& wall = game.scene.CreateEntity("Occluder");
+    wall.GetTransform().SetWorldPosition(view.position + view.GetForward() * 2.5f);
+    wall.AddComponent<Spot::BoxCollider>(Spot::Vector3{2, 3, 0.3f});
+    game.Run(2);
+    CHECK(GetPlayerLabels(game.scene, size).empty());
 }
