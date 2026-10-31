@@ -402,6 +402,22 @@ TEST_CASE("Servers are found on the local network by their protocol", "[net]") {
     CHECK(discovery.GetAnswers().size() == 2);
 }
 
+TEST_CASE("The platform's discovery finds a server on the local machine", "[net]") {
+    Spot::NetDiscoveryResponder responder(Spot::CreateNetDatagramSocket(), 11);
+    REQUIRE(responder.Listen(27161));
+    responder.answer = [] { return Copy("here"); };
+    Spot::NetDiscovery discovery(Spot::CreateNetDatagramSocket(), 11);
+    REQUIRE(discovery.Query(27161));
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+    while (discovery.GetAnswers().empty() && std::chrono::steady_clock::now() < deadline) {
+        responder.Update();
+        discovery.Update();
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    REQUIRE(discovery.GetAnswers().size() == 1);
+    CHECK(Text(discovery.GetAnswers()[0].data) == "here");
+}
+
 TEST_CASE("The platform transport connects over the local machine", "[net]") {
     Spot::NetHost server(Spot::CreateNetTransport(), {.protocol = 3});
     REQUIRE(server.Listen(0, 2));

@@ -14,6 +14,7 @@
 #include "gameplay/network/pawn_intents.h"
 #include "gameplay/network/player_info.h"
 #include "gameplay/network/remote_controller.h"
+#include "gameplay/network/server_list.h"
 #include "gameplay/network/session.h"
 #include "gameplay/vehicles/vehicle.h"
 #include "gameplay/vehicles/vehicle_seat.h"
@@ -693,4 +694,47 @@ TEST_CASE("Room admission checks names passwords and content before accepting a 
     if (!accepted) {
         CHECK(refused.find(expected) != std::string::npos);
     }
+}
+
+TEST_CASE("Rooms on the local network are found with their address, players and password",
+          "[sandbox][gameplay][network]") {
+    Spot::LoopbackNetwork network;
+    const auto room = [&](Gameplay::ServerInfo info) {
+        auto responder = std::make_unique<Spot::NetDiscoveryResponder>(network.CreateDatagramSocket(), 5);
+        REQUIRE(responder->Listen(Gameplay::LanServers::DefaultPort));
+        responder->answer = [info]() mutable {
+            Spot::BitWriter writer;
+            Spot::WriteArchived(writer, info);
+            return writer.TakeBytes();
+        };
+        return responder;
+    };
+    auto open =
+        room({.name = "Open", .map = "Playground", .mode = "Free", .players = 3, .maxPlayers = 16, .port = 27015});
+    auto locked =
+        room({.name = "Locked", .map = "Empty", .players = 1, .maxPlayers = 4, .password = true, .port = 27100});
+    // Another game's, or another version's, is not listed.
+    Spot::NetDiscoveryResponder other(network.CreateDatagramSocket(), 6);
+    REQUIRE(other.Listen(Gameplay::LanServers::DefaultPort));
+    other.answer = [] { return std::vector<std::byte>(4); };
+
+    Gameplay::LanServers servers(5, Gameplay::LanServers::DefaultPort, network.CreateDatagramSocket());
+    servers.Refresh();
+    REQUIRE(servers.IsAvailable());
+    open->Update();
+    locked->Update();
+    other.Update();
+    servers.Update();
+    const auto& found = servers.GetServers();
+    REQUIRE(found.size() == 2);
+    CHECK(found[0].info.name == "Locked");
+    CHECK(found[0].info.password);
+    CHECK(found[0].address.ends_with(":27100"));
+    CHECK(found[1].info.name == "Open");
+    CHECK(found[1].info.players == 3);
+    CHECK(found[1].info.maxPlayers == 16);
+    CHECK(found[1].info.mode == "Free");
+    CHECK(found[1].address.ends_with(":27015"));
+    // The address joins the room's game port, on the machine that answered.
+    CHECK(Spot::NetAddress::Parse(found[1].address, 0)->port == 27015);
 }

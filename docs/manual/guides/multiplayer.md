@@ -133,7 +133,8 @@ join or was disconnected. `Leave()` ends the session; the scene goes on alone.
 
 ## Testing on one machine
 
-Run two copies of the game, one hosting and one joining `127.0.0.1`. Both draw and share the computer, and the one
+Run two copies of the game, one hosting and one joining `127.0.0.1`; in the sandbox, the join page also lists the
+rooms of your local network, those on this machine included. Both draw and share the computer, and the one
 in the background may be slowed down by the system: as the host is the server, everything then lags for everyone. A
 dedicated server avoids that: in the sandbox, `Sandbox --server` serves the playground without a window, and the
 copies that play join it. To see how the game plays over a bad network,

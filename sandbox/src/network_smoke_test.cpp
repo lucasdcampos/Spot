@@ -13,6 +13,7 @@
 #include <spot.h>
 #include <spot/scene/scripting/scripting_module.h>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cmath>
@@ -133,11 +134,28 @@ protected:
                 field(menu->hostPassword, "smoke");
                 scene->GetEntity(menu->startButton)->GetComponent<Spot::UiButton>()->Click();
             } else {
-                menu->ShowPage(MainMenu::Page::Join);
-                field(menu->joinAddress, "127.0.0.1:" + std::to_string(m_port));
+                // The host's room, as the join page lists it from the local network.
+                if (menu->GetPage() != MainMenu::Page::Join) {
+                    menu->ShowPage(MainMenu::Page::Join);
+                }
+                const std::string port = ":" + std::to_string(m_port);
+                const auto& rooms = menu->GetRooms();
+                const auto listed = std::ranges::find_if(rooms, [&](const Gameplay::ServerEntry& entry) {
+                    return entry.info.name == "Smoke Room" && entry.address.ends_with(port);
+                });
+                if (listed == rooms.end()) {
+                    if (Clock::now() - m_started > std::chrono::seconds(20)) {
+                        Fail("The host's room was not listed on the local network");
+                    }
+                    return;
+                }
+                if (!listed->info.password) {
+                    Fail("The listed room does not say it has a password");
+                    return;
+                }
                 field(menu->joinPlayerName, "Guest");
                 field(menu->joinPassword, "smoke");
-                scene->GetEntity(menu->joinConfirm)->GetComponent<Spot::UiButton>()->Click();
+                menu->ChooseRoom(*listed);
             }
             m_launched = true;
             return;

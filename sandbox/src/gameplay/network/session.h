@@ -4,6 +4,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -13,6 +14,8 @@ namespace Gameplay {
 
 struct SessionSettings {
     std::uint16_t port = 27015;
+    // Where a hosted room answers those looking for rooms on the local network (LanServers); 0 keeps it unlisted.
+    std::uint16_t discoveryPort = 27016;
     int maxPlayers = 16;
     std::string name = "Room";
     std::string password;
@@ -40,7 +43,8 @@ std::string ValidateSessionHello(const SessionSettings& settings, std::uint64_t 
 
 // A game's room, over the application's NetworkModule. It owns the game-level admission policy and status across
 // map changes; the engine still knows only scenes, objects and bytes. Failure and leaving return to the game's
-// startup scene, with the last error retained for its menu.
+// startup scene, with the last error retained for its menu. A hosted room answers LanServers' queries with its name,
+// map, mode, players and whether it has a password.
 class Session final : public Spot::Module {
 public:
     static Session* Get();
@@ -66,6 +70,8 @@ private:
     void Bind(Spot::NetworkSession& session);
     void SetState(SessionState state);
     bool Fail(std::string reason, bool returnToStartup = false);
+    // Answers those looking for rooms on the local network.
+    void Listen();
     void ReturnToStartup();
     void ClearConnections();
 
@@ -77,6 +83,10 @@ private:
     std::uint64_t m_content = 0;
     std::chrono::steady_clock::time_point m_since;
     std::unordered_map<Spot::NetPeerId, std::string> m_names;
+    std::unique_ptr<Spot::NetDiscoveryResponder> m_responder;
+    // What the room is called where it is listed.
+    std::string m_mapName;
+    std::string m_modeName;
     std::vector<Spot::SignalConnection> m_connections;
     Spot::SignalConnection m_ended;
 };

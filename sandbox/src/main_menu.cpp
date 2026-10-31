@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 #include <optional>
 
 SPOT_COMPONENT(MainMenu);
@@ -50,6 +51,7 @@ void MainMenu::DiscoverMaps() {
     Gameplay::MapCatalog catalog;
     catalog.Refresh(*assets, mapDirectory);
     const std::string text = source->SaveToString();
+    m_roomRowTemplate = text;
     source->SetActive(false);
     for (const Gameplay::MapEntry& entry : catalog.GetEntries()) {
         const auto created = GetScene().Instantiate(text, {.parent = parent, .assets = assets});
@@ -112,6 +114,7 @@ void MainMenu::Initialize() {
     ConnectButton(joinButton, [this] { ShowPage(Page::Join); });
     ConnectButton(joinBack, [this] { ShowPage(Page::Home); });
     ConnectButton(joinConfirm, [this] { JoinRoom(); });
+    ConnectButton(lanRefresh, [this] { RefreshRooms(); });
     ConnectButton(cancelConnection, [this] {
         if (Gameplay::Session* session = Gameplay::Session::Get()) {
             session->Leave();
@@ -165,6 +168,9 @@ void MainMenu::ShowPage(Page page) {
         title->text = page == Page::Host ? "Host room" : "Play";
     }
     SetStatus({});
+    if (page == Page::Join && previous != Page::Join) {
+        RefreshRooms();
+    }
     RefreshInput();
     Spot::EntityId focus = playButton;
     if ((page == Page::Play || page == Page::Host) && !maps.empty()) {
@@ -278,8 +284,119 @@ void MainMenu::JoinRoom() {
     }
 }
 
+void MainMenu::RefreshRooms() {
+    if (!m_lan) {
+        auto* network = Spot::Application::Get().GetModule<Spot::NetworkModule>();
+        if (!network) {
+            return;
+        }
+        m_lan = std::make_unique<Gameplay::LanServers>(network->GetConfig().protocol);
+    }
+    m_lan->Refresh();
+    m_lanTimer = 0.0f;
+    if (auto* label = Get<Spot::UiText>(lanStatus)) {
+        label->text = !m_lan->IsAvailable()         ? "The local network cannot be searched."
+                      : m_lan->GetServers().empty() ? "Searching..."
+                                                    : label->text;
+    }
+}
+
+void MainMenu::ShowRooms() {
+    const std::vector<Gameplay::ServerEntry>& rooms = m_lan->GetServers();
+    std::vector<std::string> texts;
+    for (const Gameplay::ServerEntry& room : rooms) {
+        const Gameplay::ServerInfo& info = room.info;
+        texts.push_back(std::format("{}  {}{}  {}/{}  {} ms{}", info.name, info.map,
+                                    info.mode.empty() ? std::string() : ", " + info.mode, info.players, info.maxPlayers,
+                                    static_cast<int>(room.ping * 1000.0f), info.password ? "  password" : ""));
+    }
+    if (auto* label = Get<Spot::UiText>(lanStatus); label && m_lan->IsAvailable()) {
+        label->text = rooms.empty() ? "No rooms found on your network." : "";
+    }
+    std::vector<std::string> addresses;
+    for (const Gameplay::ServerEntry& room : rooms) {
+        addresses.push_back(room.address);
+    }
+    // The same rooms keep their rows, so what has focus keeps it; only what they say changes.
+    if (addresses == m_roomAddresses) {
+        for (std::size_t index = 0; index < m_roomRows.size() && index < texts.size(); ++index) {
+            if (auto* label = GetChild<Spot::UiText>(m_roomRows[index], "Label")) {
+                label->text = texts[index];
+            }
+        }
+        return;
+    }
+    m_roomAddresses = std::move(addresses);
+    m_roomClicks.clear();
+    for (const Spot::EntityId id : m_roomRows) {
+        if (Spot::Entity* row = GetScene().GetEntity(id)) {
+            row->Destroy();
+        }
+    }
+    m_roomRows.clear();
+    Spot::Entity* parent = GetScene().GetEntity(lanRooms);
+    Spot::AssetManager* assets = Spot::Assets::GetManager();
+    if (!parent || m_roomRowTemplate.empty()) {
+        return;
+    }
+    for (std::size_t index = 0; index < rooms.size(); ++index) {
+        const auto created = GetScene().Instantiate(m_roomRowTemplate, {.parent = parent, .assets = assets});
+        if (created.empty()) {
+            continue;
+        }
+        Spot::Entity& row = *created.front();
+        row.SetActive(true);
+        row.SetName(rooms[index].info.name);
+        if (auto* rect = row.GetComponent<Spot::UiRect>()) {
+            rect->layout.anchorMin = rect->layout.anchorMax = {0.0f, 1.0f};
+            rect->layout.offset = {18.0f, -20.0f - 48.0f * static_cast<float>(index)};
+            rect->layout.sizeDelta.x = 540.0f;
+        }
+        if (auto* label = GetChild<Spot::UiText>(row.GetId(), "Label")) {
+            label->text = texts[index];
+        }
+        if (auto* button = row.GetComponent<Spot::UiButton>()) {
+            m_roomClicks.push_back(button->OnClick.Connect([this, index] {
+                if (m_lan && index < m_lan->GetServers().size()) {
+                    ChooseRoom(m_lan->GetServers()[index]);
+                }
+            }));
+        }
+        m_roomRows.push_back(row.GetId());
+    }
+    if (auto* scroll = parent->GetComponent<Spot::UiScrollView>()) {
+        scroll->contentSize.y = std::max(static_cast<float>(rooms.size()) * 48.0f, 240.0f);
+    }
+}
+
+const std::vector<Gameplay::ServerEntry>& MainMenu::GetRooms() const {
+    static const std::vector<Gameplay::ServerEntry> none;
+    return m_lan ? m_lan->GetServers() : none;
+}
+
+void MainMenu::ChooseRoom(const Gameplay::ServerEntry& room) {
+    if (auto* field = Get<Spot::UiInputField>(joinAddress)) {
+        field->SetText(room.address);
+    }
+    const auto* password = Get<Spot::UiInputField>(joinPassword);
+    if (room.info.password && (!password || password->GetText().empty())) {
+        SetStatus(std::format("{} has a password: enter it, then connect.", room.info.name));
+        GetScene().GetOrAddSystem<Spot::UiInputSystem>().Focus(joinPassword);
+        return;
+    }
+    JoinRoom();
+}
+
 void MainMenu::OnUpdate(float deltaTime) {
     Menu::OnUpdate(deltaTime);
+    if (m_page == Page::Join && m_lan) {
+        m_lanTimer += Spot::Time::GetUnscaledDeltaTime() > 0.0f ? Spot::Time::GetUnscaledDeltaTime() : deltaTime;
+        if (m_lanTimer >= lanRefreshInterval) {
+            RefreshRooms();
+        }
+        m_lan->Update();
+        ShowRooms();
+    }
     if (m_page != Page::Connecting) {
         return;
     }
@@ -341,7 +458,10 @@ void MainMenu::OnRawEvent(const Spot::Event& event, bool& consumed) {
 void MainMenu::AnimateControls(float blend) {
     for (const auto id :
          {playButton, settingsButton, quitButton, startButton, backButton, settingsBackButton, cancelQuitButton,
-          confirmQuitButton, hostButton, joinButton, joinConfirm, joinBack, cancelConnection}) {
+          confirmQuitButton, hostButton, joinButton, joinConfirm, joinBack, cancelConnection, lanRefresh}) {
+        StyleText(id, std::nullopt, blend);
+    }
+    for (const Spot::EntityId id : m_roomRows) {
         StyleText(id, std::nullopt, blend);
     }
     for (std::size_t index = 0; index < maps.size(); ++index)
@@ -467,4 +587,9 @@ void MainMenu::Serialize(Spot::Archive& archive) {
     archive.Field("joinStatus", joinStatus);
     archive.Field("connectingStatus", connectingStatus);
     archive.Field("cancelConnection", cancelConnection);
+    archive.Field("lanRooms", lanRooms);
+    archive.Field("lanStatus", lanStatus);
+    archive.Field("lanRefresh", lanRefresh);
+    archive.Field("lanRefreshInterval", lanRefreshInterval,
+                  {.min = 0.5f, .max = 60.0f, .tooltip = "Seconds between searches of the local network"});
 }

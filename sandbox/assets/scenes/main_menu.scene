@@ -80,7 +80,10 @@
             "connectingPanel": 3055,
             "connectingStatus": 3057,
             "cancelConnection": 3058,
-            "playTitle": 310
+            "playTitle": 310,
+            "lanRooms": 3062,
+            "lanStatus": 3063,
+            "lanRefresh": 3064
           }
         },
         {
@@ -9846,6 +9849,522 @@
               "overflow": 0,
               "wrap": true
             }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3061,
+      "name": "LAN Title",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3039,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "a18010cc38a4457d9bb07ef7ef2bf5fc",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              700,
+              142
+            ],
+            "sizeDelta": [
+              560,
+              24
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "3e3efe01bfbe4cab94768fec5f6c7809",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 16,
+            "color": [
+              0.78,
+              0.83,
+              0.9,
+              1
+            ],
+            "text": "Rooms on your network",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3062,
+      "name": "LAN Rooms",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3039,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "15b5db4a931d42708ddea35f61f09b00",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              1
+            ],
+            "offset": [
+              682,
+              120
+            ],
+            "sizeDelta": [
+              580,
+              240
+            ]
+          }
+        },
+        {
+          "type": "UiScrollView",
+          "id": "ffe125f77d0849dda2c654a2f617cb6f",
+          "enabled": true,
+          "data": {
+            "contentSize": [
+              580,
+              240
+            ],
+            "horizontal": false,
+            "vertical": true,
+            "scrollSpeed": 48,
+            "style": {
+              "normal": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "hovered": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "pressed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "focused": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "disabled": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "accent": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "texture": null,
+              "borders": [
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3063,
+      "name": "LAN Status",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3039,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "df84194e3a6a4e4a96752051accf239e",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              700,
+              -140
+            ],
+            "sizeDelta": [
+              560,
+              24
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "f7800e6a3a79441da54a78d859de284c",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 16,
+            "color": [
+              0.78,
+              0.83,
+              0.9,
+              1
+            ],
+            "text": "",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3064,
+      "name": "Refresh",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3039,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "51154885340b49d093d5bec79c2d4b99",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              480,
+              -170
+            ],
+            "sizeDelta": [
+              180,
+              40
+            ]
+          }
+        },
+        {
+          "type": "UiButton",
+          "id": "308b1a59d84b40aa881d285f19698258",
+          "enabled": true,
+          "data": {
+            "interactable": true,
+            "style": {
+              "normal": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "hovered": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "pressed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "focused": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "disabled": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "accent": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "texture": null,
+              "borders": [
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3065,
+      "name": "Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3064,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "7ec263376cf148f4a7a59191b6d372b5",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "442a3a5d93d04279ba3b895e422c68c4",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 22,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "Refresh",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3066,
+      "name": "Marker",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3064,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "a19c9cd09515430fb8ef25070fd86e94",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              -18,
+              0
+            ],
+            "sizeDelta": [
+              3,
+              18
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "c1e5008c7915422c8ecbfaba02538c87",
+          "enabled": true,
+          "data": {
+            "texture": null,
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "tint": [
+              0.807,
+              0.3663,
+              0.0467,
+              0
+            ]
           }
         }
       ]

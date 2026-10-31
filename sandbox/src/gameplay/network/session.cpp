@@ -1,7 +1,9 @@
 #include "gameplay/network/session.h"
 
 #include "gameplay/core/players.h"
+#include "gameplay/game/game_mode.h"
 #include "gameplay/game/map_info.h"
+#include "gameplay/network/server_list.h"
 
 #include <algorithm>
 #include <array>
@@ -126,6 +128,7 @@ void Session::OnStart() {
 }
 
 void Session::ClearConnections() {
+    m_responder.reset();
     m_connections.clear();
     m_names.clear();
     m_bound = nullptr;
@@ -193,6 +196,10 @@ bool Session::Host(SessionSettings settings) {
     }
     Bind(*m_network->GetSession());
     m_settings.port = m_bound->GetHost().GetPort();
+    m_mapName = map->name;
+    const GameMode* mode = GameMode::Get(*scene);
+    m_modeName = mode ? mode->name : std::string();
+    Listen();
     const SessionSettings admission = m_settings;
     const std::uint64_t content = m_content;
     m_bound->GetHost().onConnecting = [admission, content](Spot::NetPeerId, std::span<const std::byte> hello) {
@@ -268,6 +275,33 @@ void Session::Bind(Spot::NetworkSession& session) {
     });
 }
 
+void Session::Listen() {
+    if (m_settings.discoveryPort == 0) {
+        return;
+    }
+    auto responder =
+        std::make_unique<Spot::NetDiscoveryResponder>(Spot::CreateNetDatagramSocket(), m_network->GetConfig().protocol);
+    if (!responder->Listen(m_settings.discoveryPort)) {
+        Spot::Log::Warning("The room cannot be listed on the local network: port {} is taken",
+                           m_settings.discoveryPort);
+        return;
+    }
+    responder->answer = [this] {
+        ServerInfo info{.name = m_settings.name,
+                        .map = m_mapName,
+                        .mode = m_modeName,
+                        .players = static_cast<int>(m_bound ? m_bound->GetHost().GetPeers().size() : 0) +
+                                   (m_settings.dedicated ? 0 : 1),
+                        .maxPlayers = m_settings.maxPlayers,
+                        .password = !m_settings.password.empty(),
+                        .port = m_settings.port};
+        Spot::BitWriter writer;
+        Spot::WriteArchived(writer, info);
+        return writer.TakeBytes();
+    };
+    m_responder = std::move(responder);
+}
+
 void Session::Leave() {
     ClearConnections();
     if (m_network) {
@@ -279,6 +313,9 @@ void Session::Leave() {
 }
 
 void Session::OnUpdate(float /*deltaTime*/) {
+    if (m_responder) {
+        m_responder->Update();
+    }
     if (!IsActive()) {
         if (m_bound) {
             ClearConnections();

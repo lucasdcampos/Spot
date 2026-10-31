@@ -487,6 +487,15 @@ decides: it runs the game mode and simulates every pawn, and clients show what i
   `WorldModel::renderLayer` put the body and the held item on the layer the first-person camera leaves out only then,
   so other players' characters are seen whole.
 
+Rooms are found through a `ServerListSource` (`gameplay/network/server_list.h`), so other sources, as an internet
+master server, can be added beside it. `LanServers` broadcasts the engine's `NetDiscovery` query on
+`LanServers::DefaultPort` (27016); a hosting `Session`, dedicated or not, answers on `SessionSettings::discoveryPort`
+with a `ServerInfo` (room name, map and mode names, players, maximum, whether it has a password, and its game port,
+joined at the answering machine's address), only to queries of the same protocol, so other versions are not listed;
+0 keeps a room unlisted, and a port another room on the machine holds is shared. The main menu's join page searches
+when shown and every `lanRefreshInterval` seconds, lists the rooms in rows like the map list's, keeping the rows of
+the same rooms, and joins the one chosen, or asks for its password first.
+
 The player prefab's root has a `NetworkObject` and a `NetworkTransform`. The sandbox's executable hosts with
 `--host [port]` (27015 by default) and joins with `--join <address[:port]>`. `--server` runs a dedicated server:
 no window, graphics or sound, 60 frames a second, and no player of its own (`SessionSettings::dedicated`, which

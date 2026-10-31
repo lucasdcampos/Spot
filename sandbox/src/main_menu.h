@@ -2,6 +2,7 @@
 
 #include "gameplay/game/game_catalog.h"
 #include "gameplay/menus/menu.h"
+#include "gameplay/network/server_list.h"
 
 #include <spot.h>
 
@@ -16,7 +17,8 @@ struct MainMenuMap : Gameplay::MapEntry {
 };
 
 // The startup interface, authored in main_menu.scene: text-only pages over a full-screen view of the selected map,
-// rendered from its scene without starting gameplay.
+// rendered from its scene without starting gameplay. The join page lists the rooms of the local network, asking again
+// every few seconds while it is shown; choosing one joins it, or asks for its password first.
 class MainMenu final : public Gameplay::Menu {
 public:
     enum class Page { Home, Play, Host, Join, Connecting, Settings, Quit };
@@ -44,11 +46,18 @@ public:
                    joinPassword = Spot::EntityId::Invalid, joinConfirm = Spot::EntityId::Invalid,
                    joinBack = Spot::EntityId::Invalid, joinStatus = Spot::EntityId::Invalid,
                    connectingStatus = Spot::EntityId::Invalid, cancelConnection = Spot::EntityId::Invalid;
+    Spot::EntityId lanRooms = Spot::EntityId::Invalid, lanStatus = Spot::EntityId::Invalid,
+                   lanRefresh = Spot::EntityId::Invalid;
+    // Seconds between the local network's queries while the join page is shown.
+    float lanRefreshInterval = 3.0f;
 
     Page GetPage() const { return m_page; }
     std::size_t GetSelectedMap() const { return m_selected; }
     void ShowPage(Page page);
     void SelectMap(std::size_t index);
+    // The rooms the join page found on the local network, and joining one, as choosing its row does.
+    const std::vector<Gameplay::ServerEntry>& GetRooms() const;
+    void ChooseRoom(const Gameplay::ServerEntry& room);
 
 protected:
     void OnStart() override;
@@ -64,6 +73,9 @@ private:
     void Play();
     void HostRoom();
     void JoinRoom();
+    void RefreshRooms();
+    // Shows the rooms found, when they changed.
+    void ShowRooms();
     void SavePlayerName(std::string name);
     void StyleText(Spot::EntityId control, std::optional<bool> selected, float blend);
     void RenderPreview(const Spot::RenderStageContext& stage);
@@ -76,4 +88,11 @@ private:
     std::unique_ptr<Spot::SceneRenderer> m_previewRenderer;
     Spot::RenderHookId m_previewHook = Spot::RenderHookId::Invalid;
     bool m_loading = false;
+    std::unique_ptr<Gameplay::LanServers> m_lan;
+    float m_lanTimer = 0.0f;
+    std::string m_roomRowTemplate;
+    // The addresses of the rooms shown, with their rows.
+    std::vector<std::string> m_roomAddresses;
+    std::vector<Spot::EntityId> m_roomRows;
+    std::vector<Spot::SignalConnection> m_roomClicks;
 };
