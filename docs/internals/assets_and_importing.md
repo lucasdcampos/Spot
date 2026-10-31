@@ -192,7 +192,8 @@ Scene and asset-loading code attach their asset manager there; the core never de
 An `AssetManager` starts without system loaders. Call `RegisterGraphicsAssets(assets, device)`,
 `RegisterRenderAssets(assets, device)`, `RegisterAudioAssets(assets)`, `RegisterAnimationAssets(assets)`,
 `RegisterScriptAssets(assets)` and `RegisterSceneAssets(assets)` for the systems in use. A graphics device is optional
-for registration; GPU assets fail to load without one. CPU mesh data remains available without rendering.
+for registration; without one, the types made on the GPU are registered as unavailable (`AssetLoader::unavailable`).
+CPU mesh data remains available without rendering.
 `Application` registers scene assets, and each module it runs registers its system's loaders when it starts;
 editor projects register them all. Registrations never affect another manager.
 
@@ -209,8 +210,8 @@ Asset fields load through `archive.GetContext<AssetManager>()` exclusively. With
 and remain unresolved, even while an application has a global asset manager. Pass the manager explicitly when loading
 scenes, animator controllers and sprite atlases outside the application.
 
-Headless render asset loads preserve the asset id and fail with the existing graphics-device diagnostic, but skip
-GPU-mesh decoding and font-atlas rasterization during preparation. Fonts wrap their optional prepared atlas so a
-headless load still reaches the normal publication diagnostic without doing the expensive rasterization. With a
-graphics device, atlas preparation remains on workers. CPU mesh geometry remains available independently through
-`AssetManager::LoadMeshData()` for physics. `tests/asset_loader_tests.cpp` covers the headless boundary.
+Without a graphics device, textures, meshes and fonts are unavailable: loading one keeps its id and gives nothing,
+quietly, without reading its file. A dedicated server loads whole maps this way, and reporting each of their thousands
+of drawn assets would bury what matters in its log. With a graphics device, font atlases are prepared on workers. CPU
+mesh geometry remains available independently through `AssetManager::LoadMeshData()` for physics.
+`tests/asset_loader_tests.cpp` covers the headless boundary.

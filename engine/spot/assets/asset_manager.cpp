@@ -213,6 +213,9 @@ std::shared_ptr<const void> AssetManager::LoadAsset(AssetId id, AssetType type) 
 
 std::shared_ptr<const void> AssetManager::Keep(AssetId id, AssetType type, std::shared_ptr<const void> asset) {
     if (!asset) {
+        if (const auto loader = m_loaders.find(type); loader != m_loaders.end() && loader->second.unavailable) {
+            return nullptr;
+        }
         Log::GetEngineLogger().Error("Could not load {} {} from '{}'", GetAssetTypeName(type), id.ToString(),
                                      GetPath(id));
         return nullptr;
@@ -467,6 +470,9 @@ Detail::PreparedAsset AssetManager::Prepare(AssetId id, AssetType type) const {
     if (const auto loader = m_loaders.find(type); loader != m_loaders.end()) {
         prepared.loader = loader->second;
     }
+    if (prepared.loader.unavailable) {
+        return prepared;
+    }
     prepared.data = IsBuiltIn(id) ? std::optional(std::vector<std::byte>()) : ReadData(id, type);
     if (prepared.data && prepared.loader.prepare) {
         try {
@@ -490,7 +496,10 @@ std::shared_ptr<const void> AssetManager::Finish(Detail::PreparedAsset prepared)
             Log::GetEngineLogger().Error("Asset {} creation failed", prepared.id.ToString());
         }
     }
-    Log::GetEngineLogger().Error("Asset {} could not be decoded or has no registered loader", prepared.id.ToString());
+    if (!prepared.loader.unavailable) {
+        Log::GetEngineLogger().Error("Asset {} could not be decoded or has no registered loader",
+                                     prepared.id.ToString());
+    }
     return nullptr;
 }
 

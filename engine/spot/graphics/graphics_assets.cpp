@@ -1,7 +1,6 @@
 #include "spot/graphics/graphics_assets.h"
 #include "spot/assets/asset_manager.h"
 #include "spot/assets/built_in_assets.h"
-#include "spot/core/debug/log.h"
 #include "spot/graphics/graphics_device.h"
 #include "spot/graphics/texture_asset_format.h"
 
@@ -10,10 +9,15 @@
 
 namespace Spot {
 void RegisterGraphicsAssets(AssetManager& assets, GraphicsDevice* device) {
-    const bool bc1 = device && device->SupportsSampling(TextureFormat::Bc1);
-    const bool bc1Srgb = device && device->SupportsSampling(TextureFormat::Bc1Srgb);
-    const bool bc3 = device && device->SupportsSampling(TextureFormat::Bc3);
-    const bool bc3Srgb = device && device->SupportsSampling(TextureFormat::Bc3Srgb);
+    // Without a device nothing draws, as on a dedicated server: textures are not even read.
+    if (!device) {
+        assets.RegisterLoader(AssetType::Texture, {.unavailable = true});
+        return;
+    }
+    const bool bc1 = device->SupportsSampling(TextureFormat::Bc1);
+    const bool bc1Srgb = device->SupportsSampling(TextureFormat::Bc1Srgb);
+    const bool bc3 = device->SupportsSampling(TextureFormat::Bc3);
+    const bool bc3Srgb = device->SupportsSampling(TextureFormat::Bc3Srgb);
     assets.RegisterLoader(
         AssetType::Texture,
         MakeAssetLoader<Detail::TextureFile>(
@@ -22,10 +26,6 @@ void RegisterGraphicsAssets(AssetManager& assets, GraphicsDevice* device) {
                     return Detail::TextureFile{.image = id == BuiltInAssets::GridTexture ? Image::CreateGrid()
                                                                                          : Image::CreateChecker(),
                                                .srgb = false};
-                }
-                // Without a device the texture is not made, so decoding it, which is most of loading it, is skipped.
-                if (!device) {
-                    return Detail::TextureFile{.image = Image(1, 1, {0, 0, 0, 0})};
                 }
                 auto texture = Detail::DecodeTexture(data);
                 if (texture && texture->compressedFormat) {
@@ -43,10 +43,6 @@ void RegisterGraphicsAssets(AssetManager& assets, GraphicsDevice* device) {
                 return texture;
             },
             [device](AssetManager&, AssetId, Detail::TextureFile& texture) -> std::shared_ptr<const void> {
-                if (!device) {
-                    Log::GetEngineLogger().Error("Texture assets need a graphics device");
-                    return nullptr;
-                }
                 if (texture.compressedFormat) {
                     auto result = device->CreateTexture({.width = texture.width,
                                                          .height = texture.height,

@@ -20,6 +20,9 @@ struct AssetLoader {
     std::function<std::vector<AssetId>(const void*)> dependencies = {};
     std::function<std::vector<AssetId>(const void*)> references = {};
     bool textReferences = false;
+    // Assets of the type are not made here, as what is only drawn where nothing draws: loading them gives nothing,
+    // quietly, without reading their files.
+    bool unavailable = false;
 };
 
 template <typename T, typename Decoder, typename Factory>

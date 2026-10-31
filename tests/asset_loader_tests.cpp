@@ -200,7 +200,8 @@ TEST_CASE("Registered preload references create dependencies first and propagate
     CHECK(parent->value == 42);
 }
 
-TEST_CASE("Headless render asset loads skip GPU preparation and retain CPU mesh access", "[assets]") {
+TEST_CASE("Without a graphics device, drawn assets load as nothing, quietly, and meshes keep their triangles",
+          "[assets]") {
     TempDirectory directory;
     const auto id = Spot::AssetId::Generate();
     Spot::Detail::Manifest manifest;
@@ -217,13 +218,15 @@ TEST_CASE("Headless render asset loads skip GPU preparation and retain CPU mesh 
     const auto font = manager.Load<Spot::Font>(id);
     CHECK_FALSE(font);
     CHECK(font.GetId() == id);
-    CHECK(std::ranges::any_of(sink->GetRecords(), [](const auto& record) {
-        return record.message.find("Font assets need a graphics device") != std::string::npos;
-    }));
     const auto mesh = manager.Load<Spot::Mesh>(Spot::BuiltInAssets::CubeMesh);
     CHECK_FALSE(mesh);
     CHECK(mesh.GetId() == Spot::BuiltInAssets::CubeMesh);
     const auto triangles = manager.LoadMeshData(Spot::BuiltInAssets::CubeMesh);
     REQUIRE(triangles);
     CHECK_FALSE(triangles->vertices.empty());
+    // Nothing is reported: a dedicated server loading a map would otherwise report every texture, mesh and font.
+    for (const auto& record : sink->GetRecords()) {
+        INFO(record.message);
+        CHECK(record.level < Spot::LogLevel::Warning);
+    }
 }
