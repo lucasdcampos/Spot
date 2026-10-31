@@ -89,13 +89,15 @@ struct Machine {
     Spot::Scene scene;
     Spot::NetworkSystem* system = nullptr;
     // Shown at once, unless a test lets snapshots arriving slowly push what is shown back.
+    float interpolationDelay = 0.0f;
     float maxInterpolationDelay = 0.0f;
 
     void Start(std::unique_ptr<Spot::NetHost> host, const Spot::AssetRef<Spot::Prefab>& prefab,
                std::size_t snapshotBudget = 4000) {
         session = std::make_shared<Spot::NetworkSession>(std::move(host));
         BuildLevel(scene);
-        Spot::NetworkSystemConfig config{.interpolationDelay = 0.0f, .maxInterpolationDelay = maxInterpolationDelay};
+        Spot::NetworkSystemConfig config{.interpolationDelay = interpolationDelay,
+                                         .maxInterpolationDelay = maxInterpolationDelay};
         config.snapshotBudget = snapshotBudget;
         config.loadPrefab = [prefab](Spot::AssetId id) {
             return id == CratePrefab ? prefab : Spot::AssetRef<Spot::Prefab>();
@@ -270,6 +272,59 @@ TEST_CASE("Clients show objects farther back while snapshots come less often", "
     CHECK(slow > prompt);
     // At least the time between snapshots, so a state is always ahead of what is shown.
     CHECK(slow >= 0.02);
+}
+
+TEST_CASE("Clients show objects as far back as before a second after a hitch", "[network]") {
+    World world;
+    world.client.maxInterpolationDelay = 0.5f;
+    world.Join(world.client);
+    const auto play = [&](double seconds, bool clientRuns) {
+        const auto end = std::chrono::steady_clock::now() + std::chrono::duration<double>(seconds);
+        while (std::chrono::steady_clock::now() < end) {
+            world.server.scene.Update(1.0f / 60.0f);
+            if (clientRuns) {
+                world.client.scene.Update(1.0f / 60.0f);
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(16));
+        }
+    };
+    play(1.5, true);
+    REQUIRE(world.client.system->IsSynchronized());
+    const double steady = world.client.system->GetShownDelay();
+
+    // Snapshots held up on the way arrive together, late.
+    play(0.25, false);
+    play(0.1, true);
+    CHECK(world.client.system->GetShownDelay() > steady + 0.1);
+
+    play(2.0, true);
+    CHECK(world.client.system->GetShownDelay() < steady + 0.05);
+}
+
+TEST_CASE("A body taken over starts from its newest state, not from where it was shown", "[network]") {
+    World world;
+    Spot::Entity& serverBox = world.Find(world.server, "Box");
+    serverBox.GetComponent<Spot::NetworkObject>()->authority = Spot::NetworkAuthority::Owner;
+    serverBox.GetComponent<Spot::Rigidbody>()->SetKinematic(true);
+    world.client.interpolationDelay = 0.3f;
+    world.client.maxInterpolationDelay = 0.3f;
+    world.Join(world.client);
+    Spot::Entity& clientBox = world.Find(world.client, "Box");
+    clientBox.GetComponent<Spot::NetworkObject>()->authority = Spot::NetworkAuthority::Owner;
+    for (int frame = 0; frame < 40; ++frame) {
+        serverBox.GetTransform().Translate({0.05f, 0.0f, 0.0f});
+        world.Step();
+        std::this_thread::sleep_for(std::chrono::milliseconds(16));
+    }
+    const float shown = clientBox.GetTransform().GetWorldPosition().x;
+    const float newest = serverBox.GetTransform().GetWorldPosition().x;
+    REQUIRE(newest - shown > 0.3f);
+
+    world.server.system->SetOwner(*serverBox.GetComponent<Spot::NetworkObject>(),
+                                  world.server.system->GetReadyPeers().at(0));
+    world.Step(2);
+    REQUIRE(clientBox.GetComponent<Spot::NetworkObject>()->HasAuthority());
+    CHECK(clientBox.GetTransform().GetWorldPosition().x == Catch::Approx(newest).margin(0.2f));
 }
 
 TEST_CASE("Objects a client owns go from the client to the server", "[network]") {

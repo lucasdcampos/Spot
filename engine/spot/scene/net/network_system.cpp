@@ -89,6 +89,80 @@ AssetId ReadAssetId(BitReader& reader) {
     return {high, reader.ReadUInt64()};
 }
 
+// How far in the past to show what another machine decides, from how its states arrive: a state must be ahead of what
+// is shown until the next comes, so the delay is the time between them, the peak of how late they came over the last
+// second, and a little more for the frames that receive them. A hitch raises it at once; a second after, it falls as
+// quickly, with what is shown moving at most half again as fast as time meanwhile.
+class ShownDelay {
+public:
+    // A state made at that time arrived now. States of the same time, as those of several objects, count once for
+    // the time between them, and late ones not at all.
+    void Observe(double stateTime, double now) {
+        if (stateTime > m_lastStateTime) {
+            const double interval = stateTime - m_lastStateTime;
+            if (m_lastStateTime > 0.0 && interval < 1.0) {
+                m_interval += (interval - m_interval) * 0.1;
+            }
+            m_lastStateTime = stateTime;
+        }
+        const double late = std::clamp(now - stateTime, 0.0, 1.0);
+        while (!m_lateness.empty() && m_lateness.front().first < now - 1.0) {
+            m_lateness.pop_front();
+        }
+        // Each entry later than every one after it: the front is the peak.
+        while (!m_lateness.empty() && m_lateness.back().second <= late) {
+            m_lateness.pop_back();
+        }
+        m_lateness.emplace_back(now, late);
+        const double wanted = std::min(m_interval * 1.5 + m_lateness.front().second + 0.01, 1.0);
+        if (m_delay < 0.0 || wanted > m_delay) {
+            m_delay = m_delay < 0.0 ? wanted : m_delay + (wanted - m_delay) * 0.3;
+        } else {
+            const double elapsed = m_lastObserved > 0.0 ? std::max(now - m_lastObserved, 0.0) : 0.0;
+            m_delay -= std::min((m_delay - wanted) * 0.3, elapsed * 0.5);
+        }
+        m_lastObserved = now;
+    }
+
+    // Negative before any state arrived.
+    double Get() const { return m_delay; }
+
+private:
+    double m_lastStateTime = 0.0;
+    double m_interval = 0.0;
+    double m_lastObserved = 0.0;
+    // When states arrived and how late, falling from the front.
+    std::deque<std::pair<double, double>> m_lateness;
+    double m_delay = -1.0;
+};
+
+// What owners stamp their states with, on the server's clock: when the earliest of them arrive, so only the jitter of
+// the way between remains as lateness. It follows earlier arrivals at once and later ones slowly, as the clients'
+// estimate of the server's clock does.
+class OwnerClock {
+public:
+    // States of the same time, as an owner's objects sent together, keep the same time.
+    double ToServerTime(double ownerTime, double arrival) {
+        if (m_known && ownerTime == m_lastOwnerTime) {
+            return ownerTime + m_offset;
+        }
+        m_lastOwnerTime = ownerTime;
+        const double offset = arrival - ownerTime;
+        if (!m_known || std::abs(offset - m_offset) > 1.0) {
+            m_offset = offset;
+            m_known = true;
+        } else {
+            m_offset += (offset - m_offset) * (offset < m_offset ? 0.2 : 0.01);
+        }
+        return ownerTime + m_offset;
+    }
+
+private:
+    double m_offset = 0.0;
+    double m_lastOwnerTime = 0.0;
+    bool m_known = false;
+};
+
 class ResolvingEntityMapper final : public NetEntityMapper {
 public:
     ResolvingEntityMapper(const NetEntityMapper& mapper, std::vector<std::uint64_t>& unresolved)
@@ -130,6 +204,13 @@ struct NetworkSystem::Object {
     // On clients: whether it was put where the server had it, as it must be once even when this machine decides it.
     bool placed = false;
     double stateTime = 0.0;
+    // Its Replicated parts, found again when components were added or removed since.
+    std::vector<Replicated*> parts;
+    std::uint64_t partsGeneration = 0;
+    // On the server, while a client decides it: the transform that client sent last, and when it had it on the
+    // server's clock, sent on to the others as it came rather than as the server shows it.
+    std::vector<std::byte> ownerTransform;
+    double ownerTime = 0.0;
 };
 
 struct NetworkSystem::Peer {
@@ -170,6 +251,9 @@ struct NetworkSystem::Peer {
     std::vector<Despawn> pendingDespawns;
     std::deque<Snapshot> history;
     std::uint32_t nextSequence = 1;
+    // What the client decides, shown on the server.
+    OwnerClock ownerClock;
+    ShownDelay ownerDelay;
 };
 
 struct NetworkSystem::State {
@@ -190,12 +274,14 @@ struct NetworkSystem::State {
     std::uint32_t lastReceived = 0;
     std::uint32_t receivedMask = 0;
     bool ackDue = false;
-    // On clients: the server's time of the last snapshot, the seconds between snapshots and how late they arrive,
-    // both eased, the latter its recent peak, and the delay they make for showing objects.
-    double lastSnapshotTime = 0.0;
-    double snapshotInterval = 0.0;
-    double lateness = 0.0;
-    double shownDelay = -1.0;
+    // On clients: how far back what the server and other clients decide is shown.
+    ShownDelay shownDelay;
+    // The session's time when the frame's fixed steps began, and the time of the last state sent: what the fixed
+    // steps made, as the frame's remainder is simulated by the next.
+    double frameTime = 0.0;
+    double stateTime = 0.0;
+    // Counts additions and removals of components, which may change the parts of objects.
+    std::uint64_t partsGeneration = 1;
 };
 
 NetworkSystem::NetworkSystem(std::shared_ptr<NetworkSession> session, NetworkSystemConfig config)
@@ -260,16 +346,23 @@ void NetworkSystem::SetOwner(NetworkObject& object, NetPeerId owner) {
     if (!IsServer()) {
         return;
     }
-    object.m_owner = owner;
-    ApplyAuthority(object);
+    const auto give = [&](NetworkObject& given) {
+        // What the last owner decided is not the new one's.
+        if (const auto found = m_state->objects.find(given.GetNetworkId());
+            found != m_state->objects.end() && given.m_owner != owner) {
+            found->second.ownerTransform.clear();
+        }
+        given.m_owner = owner;
+        ApplyAuthority(given);
+    };
+    give(object);
     const auto found = m_state->ids.find(&object);
     if (found == m_state->ids.end()) {
         return;
     }
     for (const NetworkId child : m_state->objects[found->second].children) {
         if (NetworkObject* nested = FindObject(child)) {
-            nested->m_owner = owner;
-            ApplyAuthority(*nested);
+            give(*nested);
         }
     }
 }
@@ -298,8 +391,40 @@ double NetworkSystem::GetShownTime() const {
 }
 
 double NetworkSystem::GetShownDelay() const {
+    return ClampShownDelay(m_state->shownDelay.Get());
+}
+
+double NetworkSystem::GetShownDelay(NetPeerId owner) const {
+    const auto found = m_state->peers.find(owner);
+    return ClampShownDelay(found != m_state->peers.end() ? found->second.ownerDelay.Get() : -1.0);
+}
+
+double NetworkSystem::ClampShownDelay(double delay) const {
     const double least = std::max(static_cast<double>(m_config.interpolationDelay), 0.0);
-    return std::max(least, std::min(m_state->shownDelay, static_cast<double>(m_config.maxInterpolationDelay)));
+    return std::max(least, std::min(delay, static_cast<double>(m_config.maxInterpolationDelay)));
+}
+
+double NetworkSystem::GetStateTime() {
+    m_state->stateTime =
+        std::max(m_state->stateTime, m_state->frameTime - static_cast<double>(GetScene().GetFixedTimeLeft()));
+    return m_state->stateTime;
+}
+
+const std::vector<Replicated*>& NetworkSystem::GetParts(NetworkObject& object) {
+    const auto found = m_state->objects.find(object.GetNetworkId());
+    if (found == m_state->objects.end() || found->second.object != &object) {
+        static thread_local std::vector<Replicated*> loose;
+        loose.clear();
+        CollectReplicated(object.GetEntity(), true, loose);
+        return loose;
+    }
+    Object& entry = found->second;
+    if (entry.partsGeneration != m_state->partsGeneration) {
+        entry.parts.clear();
+        CollectReplicated(object.GetEntity(), true, entry.parts);
+        entry.partsGeneration = m_state->partsGeneration;
+    }
+    return entry.parts;
 }
 
 std::uint64_t NetworkSystem::ToWire(EntityId entity) const {
@@ -330,18 +455,21 @@ void NetworkSystem::SendObjectMessage(NetPeerId peer, NetworkObject& object, std
 }
 
 void NetworkSystem::OnComponentAdded(Component& component) {
+    ++m_state->partsGeneration;
     if (m_bound && IsServer() && dynamic_cast<NetworkObject*>(&component)) {
         m_state->added.push_back(component.GetEntity().GetId());
     }
 }
 
 void NetworkSystem::OnComponentRemoved(Component& component) {
+    ++m_state->partsGeneration;
     if (auto* object = dynamic_cast<NetworkObject*>(&component)) {
         Forget(*object);
     }
 }
 
 void NetworkSystem::OnEntityDestroyed(Entity& entity) {
+    ++m_state->partsGeneration;
     for (NetworkObject* object : entity.GetComponents<NetworkObject>()) {
         Forget(*object);
     }
@@ -406,6 +534,7 @@ void NetworkSystem::OnBeforeFixedSteps(float /*deltaTime*/) {
     const std::shared_ptr<NetworkSession> session = m_session;
     session->Update();
     if (m_session) {
+        m_state->frameTime = m_session->GetTime();
         TellScene();
     }
 }
@@ -427,6 +556,7 @@ void NetworkSystem::OnLateUpdate(float deltaTime) {
         ClientSend(deltaTime);
     }
 
+    const double now = m_session->GetTime();
     const double shown = GetShownTime();
     m_statistics.shownObjects = 0;
     m_statistics.lateObjects = 0;
@@ -435,8 +565,10 @@ void NetworkSystem::OnLateUpdate(float deltaTime) {
             // A predicting owner moves its own; the game corrects it.
             if (auto* transform = entry.object->GetEntity().GetComponent<NetworkTransform>();
                 transform && !entry.object->IsPredicted()) {
+                // On the server, what a client decides, as far back as that client's states need.
+                const double at = IsServer() ? now - GetShownDelay(entry.object->GetOwner()) : shown;
                 ++m_statistics.shownObjects;
-                m_statistics.lateObjects += transform->ShowAt(shown) ? 1 : 0;
+                m_statistics.lateObjects += transform->ShowAt(at) ? 1 : 0;
             }
         }
     }
@@ -456,15 +588,23 @@ void NetworkSystem::ApplyAuthority(NetworkObject& object) {
     } else if (authority && made != m_state->kinematic.end()) {
         const bool kinematic = made->second;
         m_state->kinematic.erase(made);
+        // It goes on from where its newest state puts it now, not from where it was shown, in the past, which the
+        // others would see it jump back to; and as it was moving, as a car a driver gets into at speed.
+        auto* transform = object.GetEntity().GetComponent<NetworkTransform>();
+        if (transform && m_session && m_session->HasTime()) {
+            transform->ShowNewest(m_session->GetTime());
+        }
         body->SetKinematic(kinematic);
-        // It goes on as it was shown moving, as a car a driver gets into at speed.
-        if (const auto* transform = object.GetEntity().GetComponent<NetworkTransform>(); transform && !kinematic) {
+        if (transform && !kinematic) {
             body->SetLinearVelocity(transform->GetShownVelocity());
         }
     }
     if (authority) {
         if (auto* transform = object.GetEntity().GetComponent<NetworkTransform>()) {
             transform->m_samples.clear();
+        }
+        if (const auto found = m_state->ids.find(&object); found != m_state->ids.end()) {
+            m_state->objects[found->second].ownerTransform.clear();
         }
     }
 }
@@ -581,19 +721,24 @@ void NetworkSystem::Receive(NetPeerId peer, std::uint8_t channel, std::span<cons
     }
 }
 
-std::vector<std::byte> NetworkSystem::WriteState(NetworkObject& object, bool fromOwner) const {
+std::vector<std::byte> NetworkSystem::WriteState(NetworkObject& object, bool fromOwner) {
     BitWriter writer;
     Entity& entity = object.GetEntity();
+    const auto entry = m_state->objects.find(object.GetNetworkId());
     if (auto* transform = entity.GetComponent<NetworkTransform>()) {
         writer.WriteBool(true);
-        BitWriter blob;
-        transform->Write(blob);
-        WriteBlob(writer, blob);
+        if (!fromOwner && entry != m_state->objects.end() && !entry->second.ownerTransform.empty()) {
+            writer.WriteVarUInt(entry->second.ownerTransform.size());
+            writer.WriteBytes(entry->second.ownerTransform);
+        } else {
+            BitWriter blob;
+            transform->Write(blob);
+            WriteBlob(writer, blob);
+        }
     } else {
         writer.WriteBool(false);
     }
-    std::vector<Replicated*> replicated;
-    CollectReplicated(entity, true, replicated);
+    const std::vector<Replicated*>& replicated = GetParts(object);
     writer.WriteVarUInt(replicated.size());
     for (Replicated* part : replicated) {
         BitWriter blob;
@@ -625,6 +770,10 @@ void NetworkSystem::ReadState(NetworkObject& object, std::span<const std::byte> 
             if (entry != m_state->objects.end() && IsClient()) {
                 entry->second.placed = true;
             }
+            if (fromOwner && entry != m_state->objects.end()) {
+                entry->second.ownerTransform = blob;
+                entry->second.ownerTime = time;
+            }
             BitReader transformReader(blob);
             const bool first = transform->m_samples.empty();
             transform->Read(transformReader, time);
@@ -634,8 +783,8 @@ void NetworkSystem::ReadState(NetworkObject& object, std::span<const std::byte> 
             }
         }
     }
-    std::vector<Replicated*> replicated;
-    CollectReplicated(entity, true, replicated);
+    // A copy, as applying a part may add or remove components.
+    const std::vector<Replicated*> replicated = GetParts(object);
     const std::uint64_t count = reader.ReadVarUInt();
     for (std::uint64_t i = 0; i < count && reader.IsValid(); ++i) {
         const std::vector<std::byte> blob = ReadBlob(reader);
@@ -747,7 +896,7 @@ void NetworkSystem::ServerSend(float deltaTime) {
         }
     }
 
-    const double time = m_session->GetTime();
+    const double time = GetStateTime();
     for (auto& [peerId, peer] : m_state->peers) {
         if (!peer.ready || !m_session->GetHost().IsConnected(peerId)) {
             continue;
@@ -827,6 +976,12 @@ void NetworkSystem::ServerSend(float deltaTime) {
                 }
             }
             entries.WriteBits(owned, 2);
+            // What a client decides goes on with the time it had it, so the others move it as it moved.
+            const bool ownTime = !entry.ownerTransform.empty();
+            entries.WriteBool(ownTime);
+            if (ownTime) {
+                entries.WriteFloat(static_cast<float>(std::clamp(time - entry.ownerTime, 0.0, 1.0)));
+            }
             entries.WriteVarUInt(entry.state.size());
             entries.WriteBytes(entry.state);
             known.sent = true;
@@ -897,11 +1052,18 @@ void NetworkSystem::ServerReceiveAck(NetPeerId peerId, BitReader& reader) {
 
 void NetworkSystem::ServerReceiveOwnerState(NetPeerId peer, BitReader& reader) {
     const auto id = NetworkId{static_cast<std::uint32_t>(reader.ReadVarUInt())};
+    const double ownerTime = reader.ReadDouble();
     const std::vector<std::byte> state = ReadBlob(reader);
     NetworkObject* object = reader.IsValid() ? FindObject(id) : nullptr;
-    if (object && object->authority == NetworkAuthority::Owner && object->GetOwner() == peer) {
-        ReadState(*object, state, m_session->GetTime(), true);
+    const auto found = m_state->peers.find(peer);
+    if (!object || object->authority != NetworkAuthority::Owner || object->GetOwner() != peer ||
+        found == m_state->peers.end()) {
+        return;
     }
+    const double now = m_session->GetTime();
+    const double time = found->second.ownerClock.ToServerTime(ownerTime, now);
+    found->second.ownerDelay.Observe(time, now);
+    ReadState(*object, state, time, true);
 }
 
 void NetworkSystem::ClientReceiveSceneObjects(BitReader& reader) {
@@ -945,23 +1107,8 @@ void NetworkSystem::ClientReceiveSnapshot(BitReader& reader) {
         m_state->receivedMask |= 1u << (behind - 1);
     }
     m_state->ackDue = true;
-    if (m_session->HasTime() && sequence == m_state->lastReceived) {
-        // A state must be ahead of what is shown until the next arrives: the time between them, how late the latest
-        // came, and a little more for the frames that receive them.
-        const double interval = time - m_state->lastSnapshotTime;
-        if (m_state->lastSnapshotTime > 0.0 && interval > 0.0 && interval < 1.0) {
-            m_state->snapshotInterval += (interval - m_state->snapshotInterval) * 0.1;
-        }
-        const double late = std::clamp(m_session->GetTime() - time, 0.0, 1.0);
-        m_state->lateness = std::max(late, m_state->lateness * 0.98);
-        const double wanted = std::min(m_state->snapshotInterval * 1.5 + m_state->lateness + 0.01, 1.0);
-        m_state->shownDelay =
-            m_state->shownDelay < 0.0
-                ? wanted
-                : m_state->shownDelay + (wanted - m_state->shownDelay) * (wanted > m_state->shownDelay ? 0.3 : 0.02);
-    }
-    if (sequence == m_state->lastReceived) {
-        m_state->lastSnapshotTime = time;
+    if (m_session->HasTime()) {
+        m_state->shownDelay.Observe(time, m_session->GetTime());
     }
     m_session->ObserveServerTime(time);
     m_synchronized = true;
@@ -989,8 +1136,10 @@ void NetworkSystem::ClientReceiveSnapshot(BitReader& reader) {
         NetworkId id;
         std::uint8_t owned;
         std::vector<std::byte> state;
+        double time;
     };
     std::vector<Pending> pending;
+    const double now = m_session->GetTime();
     const std::uint64_t count = reader.ReadVarUInt();
     for (std::uint64_t i = 0; i < count && reader.IsValid(); ++i) {
         const auto id = NetworkId{static_cast<std::uint32_t>(reader.ReadVarUInt())};
@@ -1053,9 +1202,14 @@ void NetworkSystem::ClientReceiveSnapshot(BitReader& reader) {
             }
         }
         const auto owned = static_cast<std::uint8_t>(reader.ReadBits(2));
+        const double stateTime = reader.ReadBool() ? time - static_cast<double>(reader.ReadFloat()) : time;
         std::vector<std::byte> state = ReadBlob(reader);
         if (reader.IsValid()) {
-            pending.push_back({id, owned, std::move(state)});
+            // What another client decides comes later than the rest, and must be shown far enough back too.
+            if (stateTime != time && owned != OwnedAndDecided) {
+                m_state->shownDelay.Observe(stateTime, now);
+            }
+            pending.push_back({id, owned, std::move(state), stateTime});
         }
     }
     // Every spawn in this snapshot must be registered before fields that may refer to it are read.
@@ -1075,7 +1229,7 @@ void NetworkSystem::ClientReceiveSnapshot(BitReader& reader) {
             ApplyAuthority(*object);
         }
         // Also what this machine decides of it: the server still decides the rest, as who rides it.
-        ReadState(*object, entry.state, time);
+        ReadState(*object, entry.state, entry.time);
     }
     ClientResolveReferences();
     m_statistics.objects = m_state->objects.size();
@@ -1127,6 +1281,8 @@ void NetworkSystem::ClientSend(float deltaTime) {
         return;
     }
     m_state->sendTimer = std::fmod(m_state->sendTimer, interval);
+    // When it had them, by its estimate of the server's clock, for the server to space them as they were made.
+    const double time = GetStateTime();
     for (auto& [id, entry] : m_state->objects) {
         if (!entry.object || entry.object->authority != NetworkAuthority::Owner || !entry.object->HasAuthority()) {
             continue;
@@ -1134,6 +1290,7 @@ void NetworkSystem::ClientSend(float deltaTime) {
         BitWriter writer;
         writer.WriteBits(static_cast<std::uint32_t>(UnreliableKind::OwnerState), 8);
         writer.WriteVarUInt(static_cast<std::uint32_t>(id));
+        writer.WriteDouble(time);
         // Where it is and what the owner decides: what else it has, as its health or who rides it, stays the
         // server's.
         const std::vector<std::byte> state = WriteState(*entry.object, true);

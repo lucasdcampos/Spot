@@ -21,6 +21,7 @@ namespace Spot {
 
 class Entity;
 class Prefab;
+class Replicated;
 class Scene;
 
 struct NetworkSystemConfig {
@@ -28,10 +29,11 @@ struct NetworkSystemConfig {
     float sendRate = 30.0f;
     // Bytes of object states a snapshot holds at most; the changes that do not fit wait for the next one, by priority.
     std::size_t snapshotBudget = 4000;
-    // Seconds in the past clients show what others decide, at least, so there are states to move between when one is
-    // late. Clients show it farther back while snapshots come less often or arrive less evenly, as when the server's
-    // frames are slow, so what is shown always has a state after it, up to maxInterpolationDelay; with that at or
-    // below interpolationDelay, the delay is fixed.
+    // Seconds in the past what another machine decides is shown, at least, so there are states to move between when
+    // one is late: on clients, what the server and other clients decide; on the server, what each client decides.
+    // It is shown farther back while states come less often or arrive less evenly, as when the sender's frames are
+    // slow, so what is shown always has a state after it, up to maxInterpolationDelay, and comes forward again a
+    // second after; with that at or below interpolationDelay, the delay is fixed.
     float interpolationDelay = 0.1f;
     float maxInterpolationDelay = 0.5f;
     // How clients get the prefabs of what the server spawns; by default, from the running application's assets.
@@ -113,6 +115,8 @@ public:
     double GetShownTime() const;
     // On clients: how far behind the server's time that is now, in seconds.
     double GetShownDelay() const;
+    // On the server: how far in the past what that client decides is shown, in seconds.
+    double GetShownDelay(NetPeerId owner) const;
 
     // Entity references in messages and replicated state: the network ids of replicated entities.
     std::uint64_t ToWire(EntityId entity) const override;
@@ -168,7 +172,11 @@ private:
     void ClientSend(float deltaTime);
 
     // Its transform and its Replicated parts; from its owner, only those the owner decides.
-    std::vector<std::byte> WriteState(NetworkObject& object, bool fromOwner = false) const;
+    std::vector<std::byte> WriteState(NetworkObject& object, bool fromOwner = false);
+    const std::vector<Replicated*>& GetParts(NetworkObject& object);
+    double ClampShownDelay(double delay) const;
+    // The session's time of what the fixed steps made so far, which states are sent with.
+    double GetStateTime();
     void ReadState(NetworkObject& object, std::span<const std::byte> state, double time, bool fromOwner = false);
     void ApplyAuthority(NetworkObject& object);
     void Forget(NetworkObject& object);

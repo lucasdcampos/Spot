@@ -72,6 +72,17 @@ Vector3 NetworkTransform::GetShownVelocity() const {
     return (to.position - from.position) * static_cast<float>(1.0 / span);
 }
 
+void NetworkTransform::ShowNewest(double time) {
+    if (m_samples.empty()) {
+        return;
+    }
+    const Sample& newest = m_samples.back();
+    const double ahead = std::clamp(time - newest.time, 0.0, static_cast<double>(std::max(maxExtrapolation, 0.0f)));
+    Transform& transform = GetEntity().GetTransform();
+    transform.SetWorldPosition(newest.position + GetShownVelocity() * static_cast<float>(ahead));
+    transform.SetWorldRotation(newest.rotation);
+}
+
 bool NetworkTransform::ShowAt(double time) {
     bool late = false;
     if (m_samples.empty()) {

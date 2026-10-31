@@ -10,7 +10,9 @@ client in one process, and `tests/network_tests.cpp`.
 `NetTransport` (`net/net_transport.h`) is the contract of the backends: open a port, connect, send on a channel with
 a `NetDelivery` (`Reliable`, in order; `Unreliable`; `Sequenced`, never older after newer), disconnect, and poll
 events. `CreateNetTransport()` makes the platform's, ENet over UDP, in `net/enet/`; it is the only file that includes
-ENet, and ENet 1.3 speaks IPv4 only. `NetDatagramSocket` sends single packets without connections, for discovery.
+ENet, and ENet 1.3 speaks IPv4 only. ENet's packet throttle is kept open for every peer: it drops unreliable packets
+at the sender whenever round trips rise above their recent low, as they do on Wi-Fi, and replication limits what it
+sends by its own budgets. `NetDatagramSocket` sends single packets without connections, for discovery.
 
 - **Loopback** (`LoopbackNetwork`): transports and sockets of one process that reach one another by port, delivering
   at the receiver's next poll, in order and without loss. The tests run servers and clients through it, with no
@@ -57,7 +59,9 @@ a game alone: the scene is the server's and has authority over everything. Gamep
 
 A `NetworkObject` makes its entity, and what is below it down to the next `NetworkObject`, one replicated object. Its
 state is its `NetworkTransform`, if any, and its `Replicated` components, each written by `Replicate(Archive&)` into a
-blob of its own with its size, so a component that reads differently skips only itself.
+blob of its own with its size, so a component that reads differently skips only itself. Those parts are found once,
+and again only after components were added or removed in the scene, rather than by walking the object's tree for
+every state written or read.
 
 - **Objects of the scene's file** are matched by the id they were saved with (`Entity::GetSavedId()`), which every
   machine that loads that file gives them; `Scene::LoadFromString()` sets it, and nothing else does. When a client is
@@ -73,6 +77,10 @@ The server assigns `NetworkId`s at bind time and when objects are added, registe
 so that their children exist.
 
 ### Snapshots
+
+Snapshots, and the states owners send, carry the time their state was made at: the session's time when the frame's
+fixed steps began, less what they left for the next frame (`Scene::GetFixedTimeLeft()`). Stamped with the clock when
+sent, the fixed-step remainder and frames of two or three steps became jitter in what others showed.
 
 Every `1 / sendRate` seconds the server writes each object's state once, and, for each ready client, sends what
 differs from what that client acknowledged: spawn information until a snapshot holding it is acknowledged, the
@@ -97,28 +105,37 @@ pending state, and despawning removes it; retries preserve the original transfor
 `NetworkTransform` writes the world position (bits from `range` and `precision`) and rotation (15 bits per component).
 Machines without authority keep the states and show the object at `GetShownTime()`, `GetShownDelay()` in the
 past, between the two states around it. That delay is at least `interpolationDelay`, and grows, up to
-`maxInterpolationDelay`, with the time between snapshots and how late the latest arrived (its recent peak), quickly up
-and slowly down: a server whose frames are slow, as one rendering a large map beside a client on the same computer,
-sends snapshots tens of milliseconds apart, and a fixed delay left almost every object past its last state, stopped
-and then jumping; past the last one it carries on for `maxExtrapolation` seconds, and farther
-than `teleportDistance` in one step it jumps. A new object starts at its first state. Bodies of objects this machine
-has no authority over are made kinematic, and restored when it gets authority.
+`maxInterpolationDelay`, with the time between states and the peak of how late they arrived over the last second: a
+server whose frames are slow, as one rendering a large map beside a client on the same computer, sends snapshots tens
+of milliseconds apart, and a fixed delay left almost every object past its last state, stopped and then jumping. It
+rises at once with a late state and falls as quickly a second after the hitch, what is shown then moving at most half
+again as fast as time; it used to fall over seconds, leaving everything shown far back after one hitch. Past the last
+state an object carries on for `maxExtrapolation` seconds, and farther than `teleportDistance` in one step it jumps. A
+new object starts at its first state. Bodies of objects this machine has no authority over are made kinematic, and
+restored when it gets authority.
 
 A `predicted` object is still decided by the server, but the client owning it is not shown it: that client moves the
 entity itself, at once, and the game corrects it from what the server says (`NetworkObject::IsPredicted()`, true
 there and on the server while a client owns it). Its transform's states keep arriving, the last 64 kept. The engine
 does not know how inputs are stepped or replayed; the sandbox's framework does it for its players' characters.
 
-As authority over a body changes hands, the machine taking it gives it the velocity it was last shown moving at
-(`NetworkTransform::GetShownVelocity()`), so a car a player gets out of at speed rolls on.
+As authority over a body changes hands, the machine taking it starts it where its newest state, carried on as it was
+going, puts it now (`NetworkTransform::ShowNewest()`), not where it was shown, in the past, which the others would see
+it jump back to; and with the velocity it was moving at (`GetShownVelocity()`), so a car a player gets out of at speed
+rolls on.
 
 ### Authority and messages
 
 `NetworkAuthority::Server` objects are decided by the server. `Owner` objects are decided by the client that owns
 them (`SetOwner()`), which sends where they are at the send rate, with the `Replicated` parts that say they are decided
 by their owner (`IsDecidedByOwner()`, as a driven car's wheels); the rest of their state stays the server's, which that
-client still reads from snapshots, as who rides them. The server reads the owner's state only from that client, shows
-it interpolated and forwards it in its snapshots. When a client leaves, what it owned goes back to the server.
+client still reads from snapshots, as who rides them. The server reads the owner's state only from that client. The
+owner stamps it with its own estimate of the server's clock; the server moves those times to when the earliest of them
+arrive (following earlier arrivals at once, later ones slowly), so their spacing is the owner's and only the way's
+jitter is lateness, and shows the object as far back as that client's states need (`GetShownDelay(peer)`, adapting as
+clients do). It forwards the owner's transform in its snapshots as it came, with its time, rather than as it showed
+it, so the other clients move the object as the owner did, interpolated once; they show everything far enough back
+for those states too. When a client leaves, what it owned goes back to the server.
 
 The server may change an object's authority while the game runs, setting `authority` before `SetOwner()`, so a client
 decides an object for a while, as a prop its player pushes. Snapshots tell each client, in two bits, whether it owns an
@@ -141,7 +158,8 @@ the other machines and lets the scene play alone. The profiler counts replicated
 With `stats` on, the statistics overlay shows the session, measured over each second: the round trip, jitter, loss
 and ENet's throttle (the share of unreliable packets it lets out; below 100% it drops snapshots itself), worst of the
 clients on a server; snapshots a second and the longest wait between frames that brought (or sent) them, which shows
-a slow or stalled server; bytes each way; objects, how far back clients show them, and the share of moving objects
+a slow or stalled server; bytes each way; objects, how far back clients show them (on a server, what clients decide),
+and the share of moving objects
 shown past their last state, waiting for the next (`NetworkSystem::Statistics::lateObjects`), with the peak of a
 frame.
 

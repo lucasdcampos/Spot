@@ -280,7 +280,12 @@ std::string NetworkModule::DescribeSession() const {
         const NetworkSystem::Statistics& statistics = system->GetStatistics();
         text += std::format("\n{} objects", statistics.objects);
         if (server) {
-            text += std::format(" | last snapshot {} B", statistics.lastSnapshotBytes);
+            double delay = 0.0;
+            for (const NetPeerId peer : system->GetReadyPeers()) {
+                delay = std::max(delay, system->GetShownDelay(peer));
+            }
+            text += std::format(" | last snapshot {} B | clients shown {:.0f} ms back", statistics.lastSnapshotBytes,
+                                delay * 1000.0);
         } else {
             text += std::format(" | shown {:.0f} ms back", system->GetShownDelay() * 1000.0);
         }

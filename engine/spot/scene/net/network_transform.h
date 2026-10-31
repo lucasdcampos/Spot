@@ -45,6 +45,9 @@ private:
     // Moves the entity where it was at that time. True when it was moving and that time is past the last state it has,
     // as when states come late: it carries on as it was going for a while, then stops until the next.
     bool ShowAt(double time);
+    // Moves the entity where its newest state, carried on as it was going, puts it at that time: where a machine
+    // taking it over starts from.
+    void ShowNewest(double time);
     int GetPositionBits() const;
 
     std::deque<Sample> m_samples;

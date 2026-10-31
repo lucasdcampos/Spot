@@ -157,6 +157,9 @@ public:
     static constexpr int MaxFixedStepsPerUpdate = 8;
     float GetFixedTimeStep() const { return m_fixedTimeStep; }
     void SetFixedTimeStep(float seconds);
+    // The seconds of past updates no fixed step simulated yet, less than a step: how far what the fixed steps made
+    // trails the time of the last update.
+    float GetFixedTimeLeft() const { return m_fixedTimeLeft; }
 
     // Null when the entity was destroyed, or never belonged to this scene.
     Entity* GetEntity(EntityId id) const;

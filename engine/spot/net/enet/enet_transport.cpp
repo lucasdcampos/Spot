@@ -138,6 +138,10 @@ public:
         while (enet_host_service(m_host, &event, 0) > 0) {
             switch (event.type) {
             case ENET_EVENT_TYPE_CONNECT: {
+                // ENet drops unreliable packets at the sender when round trips rise above their recent low, as they
+                // do on Wi-Fi; the session's own budgets limit what it sends instead.
+                enet_peer_throttle_configure(event.peer, ENET_PEER_PACKET_THROTTLE_INTERVAL,
+                                             ENET_PEER_PACKET_THROTTLE_SCALE, 0);
                 const NetPeerId id = event.peer->data ? IdOf(event.peer) : Add(event.peer);
                 events.push_back({.type = NetTransportEvent::Type::Connected, .peer = id});
                 break;
