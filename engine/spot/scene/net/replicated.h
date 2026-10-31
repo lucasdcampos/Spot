@@ -23,6 +23,10 @@ public:
     virtual void Replicate(Archive& archive) = 0;
     // After new values were read, on machines without authority.
     virtual void OnReplicated() {}
+    // Whether, while a client owns the object with NetworkAuthority::Owner, that client decides this part too, as how
+    // the wheels of the car it drives turn: it sends the part with where the object is, and is not sent it back. The
+    // other parts stay the server's to decide.
+    virtual bool IsDecidedByOwner() const { return false; }
 };
 
 } // namespace Spot

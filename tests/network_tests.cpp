@@ -3,9 +3,11 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <chrono>
 #include <functional>
 #include <memory>
 #include <string>
+#include <thread>
 
 namespace {
 
@@ -86,11 +88,15 @@ struct Machine {
     std::shared_ptr<Spot::NetworkSession> session;
     Spot::Scene scene;
     Spot::NetworkSystem* system = nullptr;
+    // Shown at once, unless a test lets snapshots arriving slowly push what is shown back.
+    float maxInterpolationDelay = 0.0f;
 
-    void Start(std::unique_ptr<Spot::NetHost> host, const Spot::AssetRef<Spot::Prefab>& prefab) {
+    void Start(std::unique_ptr<Spot::NetHost> host, const Spot::AssetRef<Spot::Prefab>& prefab,
+               std::size_t snapshotBudget = 4000) {
         session = std::make_shared<Spot::NetworkSession>(std::move(host));
         BuildLevel(scene);
-        Spot::NetworkSystemConfig config{.interpolationDelay = 0.0f};
+        Spot::NetworkSystemConfig config{.interpolationDelay = 0.0f, .maxInterpolationDelay = maxInterpolationDelay};
+        config.snapshotBudget = snapshotBudget;
         config.loadPrefab = [prefab](Spot::AssetId id) {
             return id == CratePrefab ? prefab : Spot::AssetRef<Spot::Prefab>();
         };
@@ -103,11 +109,11 @@ struct World {
     Spot::AssetRef<Spot::Prefab> prefab = MakeCratePrefab();
     Machine server, client;
 
-    World() {
+    explicit World(std::size_t snapshotBudget = 4000) {
         auto serverHost = std::make_unique<Spot::NetHost>(
             network.CreateTransport(), Spot::NetHostConfig{.channels = Spot::NetworkSession::ChannelCount});
         REQUIRE(serverHost->Listen(7000, 8));
-        server.Start(std::move(serverHost), prefab);
+        server.Start(std::move(serverHost), prefab, snapshotBudget);
     }
 
     void Join(Machine& machine) {
@@ -242,6 +248,30 @@ TEST_CASE("A client running another scene gets none of the server's objects", "[
     CHECK_FALSE(world.client.system->IsSynchronized());
 }
 
+TEST_CASE("Clients show objects farther back while snapshots come less often", "[network]") {
+    World world;
+    world.client.maxInterpolationDelay = 0.5f;
+    world.Join(world.client);
+    world.Step(12);
+    REQUIRE(world.client.system->IsSynchronized());
+    const double prompt = world.client.system->GetShownDelay();
+
+    // A server whose frames are slow sends a snapshot every few of the client's.
+    Spot::Entity& serverBox = world.Find(world.server, "Box");
+    for (int frame = 0; frame < 60; ++frame) {
+        if (frame % 4 == 0) {
+            serverBox.GetTransform().Translate({0.1f, 0.0f, 0.0f});
+            world.server.scene.Update(4.0f / 60.0f);
+        }
+        world.client.scene.Update(1.0f / 60.0f);
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    const double slow = world.client.system->GetShownDelay();
+    CHECK(slow > prompt);
+    // At least the time between snapshots, so a state is always ahead of what is shown.
+    CHECK(slow >= 0.02);
+}
+
 TEST_CASE("Objects a client owns go from the client to the server", "[network]") {
     World world;
     Spot::Entity& serverBox = world.Find(world.server, "Box");
@@ -269,6 +299,17 @@ TEST_CASE("Objects a client owns go from the client to the server", "[network]")
         world.client.session->GetHost().Disconnect(world.client.session->GetServerPeer());
         world.Step(4);
         CHECK(serverBox.GetComponent<Spot::NetworkObject>()->HasAuthority());
+    }
+
+    SECTION("Given back, it goes on the way it was moving") {
+        for (int i = 0; i < 20; ++i) {
+            clientBox.GetTransform().Translate({0.1f, 0.0f, 0.0f});
+            world.Step();
+        }
+        world.server.system->SetOwner(*serverBox.GetComponent<Spot::NetworkObject>(), Spot::NetPeerId::Invalid);
+        const auto* body = serverBox.GetComponent<Spot::Rigidbody>();
+        CHECK_FALSE(body->IsKinematic());
+        CHECK(body->GetLinearVelocity().x > 0.0f);
     }
 }
 
@@ -345,4 +386,110 @@ TEST_CASE("A scene whose session ended plays alone", "[network]") {
     CHECK(clientBox.GetComponent<Spot::NetworkObject>()->HasAuthority());
     CHECK_FALSE(clientBox.GetComponent<Spot::Rigidbody>()->IsKinematic());
     world.Step(3);
+}
+
+TEST_CASE("References to later spawns resolve even across snapshot budgets", "[network]") {
+    // With one byte as the budget, at most one object's state fits in each snapshot.
+    World world(1);
+    auto* first = world.server.scene.Instantiate(world.prefab);
+    auto* second = world.server.scene.Instantiate(world.prefab);
+    REQUIRE(first);
+    REQUIRE(second);
+    first->GetComponent<Door>()->target = second->GetId();
+    second->GetComponent<Door>()->target = first->GetId();
+    world.Find(world.server, "Door").GetComponent<Door>()->target = first->GetId();
+    world.Step(2);
+    const auto firstId = first->GetComponent<Spot::NetworkObject>()->GetNetworkId();
+    const auto secondId = second->GetComponent<Spot::NetworkObject>()->GetNetworkId();
+    world.Join(world.client);
+    world.Step(80);
+
+    const auto* firstCopy = world.client.system->FindEntity(firstId);
+    const auto* secondCopy = world.client.system->FindEntity(secondId);
+    REQUIRE(firstCopy);
+    REQUIRE(secondCopy);
+    CHECK(world.Find(world.client, "Door").GetComponent<Door>()->target == firstCopy->GetId());
+    CHECK(firstCopy->GetComponent<Door>()->target == secondCopy->GetId());
+    CHECK(secondCopy->GetComponent<Door>()->target == firstCopy->GetId());
+    const int replications = firstCopy->GetComponent<Door>()->replications;
+    world.Step(20);
+    CHECK(firstCopy->GetComponent<Door>()->replications == replications);
+}
+
+TEST_CASE("A return to the acknowledged state is sent despite lost acknowledgements", "[network]") {
+    World world;
+    auto conditioned = std::make_unique<Spot::ConditionedNetTransport>(world.network.CreateTransport());
+    auto& conditions = *conditioned;
+    auto host = std::make_unique<Spot::NetHost>(std::move(conditioned),
+                                                Spot::NetHostConfig{.channels = Spot::NetworkSession::ChannelCount});
+    REQUIRE(host->Connect({"localhost", 7000}) != Spot::NetPeerId::Invalid);
+    world.client.Start(std::move(host), world.prefab);
+    world.Step(16);
+    auto& server = world.Find(world.server, "Door");
+    auto& client = world.Find(world.client, "Door");
+    conditions.SetConditions({.loss = 1.0f});
+    server.GetComponent<Door>()->open = true;
+    world.server.system->SetOwner(*server.GetComponent<Spot::NetworkObject>(),
+                                  world.server.system->GetReadyPeers().at(0));
+    world.Step(12);
+    REQUIRE(client.GetComponent<Door>()->open);
+    REQUIRE(client.GetComponent<Spot::NetworkObject>()->IsOwnedLocally());
+
+    server.GetComponent<Door>()->open = false;
+    world.server.system->SetOwner(*server.GetComponent<Spot::NetworkObject>(), Spot::NetPeerId::Invalid);
+    world.Step(12);
+    CHECK_FALSE(client.GetComponent<Door>()->open);
+    CHECK_FALSE(client.GetComponent<Spot::NetworkObject>()->IsOwnedLocally());
+
+    conditions.SetConditions({});
+    world.Step(16);
+    const int replications = client.GetComponent<Door>()->replications;
+    world.Step(16);
+    CHECK(client.GetComponent<Door>()->replications == replications);
+}
+
+TEST_CASE("A stopped transform ends extrapolation even after its last moving pose was acknowledged", "[network]") {
+    World world;
+    world.Join(world.client);
+    world.Step(12);
+    auto& server = world.Find(world.server, "Box");
+    auto& client = world.Find(world.client, "Box");
+    server.GetComponent<Spot::Rigidbody>()->SetKinematic(true);
+    client.GetComponent<Spot::NetworkTransform>()->maxExtrapolation = 0.25f;
+    for (int i = 1; i <= 8; ++i) {
+        server.GetTransform().SetWorldPosition({static_cast<float>(i) * 0.1f, 0.0f, 0.0f});
+        world.Step(2);
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    world.Step(12);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    world.Step(4);
+    CHECK(client.GetTransform().GetWorldPosition().x == Catch::Approx(0.8f).margin(0.002f));
+    CHECK(client.GetTransform().GetWorldPosition().y == Catch::Approx(0.0f).margin(0.002f));
+}
+
+TEST_CASE("Clients count the moving objects shown past their last state, as when snapshots stop", "[network]") {
+    World world;
+    world.Join(world.client);
+    world.Step(12);
+    auto& server = world.Find(world.server, "Box");
+    server.GetComponent<Spot::Rigidbody>()->SetKinematic(true);
+    for (int i = 1; i <= 8; ++i) {
+        server.GetTransform().SetWorldPosition({static_cast<float>(i) * 0.1f, 0.0f, 0.0f});
+        world.Step(2);
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    const Spot::NetworkSystem::Statistics& statistics = world.client.system->GetStatistics();
+    CHECK(statistics.shownObjects > 0);
+
+    // The server stops sending while the box moves: the client is left past its last state.
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    world.client.scene.Update(1.0f / 60.0f);
+    CHECK(statistics.lateObjects == 1);
+
+    // Stopped, it is at rest at its last state, not late.
+    world.Step(12);
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    world.Step(2);
+    CHECK(statistics.lateObjects == 0);
 }

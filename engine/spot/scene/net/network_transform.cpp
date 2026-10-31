@@ -15,6 +15,7 @@ namespace {
 // Samples older than this before the shown time are no longer needed.
 constexpr double SampleHistory = 1.0;
 constexpr int RotationBits = 15;
+constexpr std::size_t MaxSamples = 64;
 
 } // namespace
 
@@ -52,11 +53,29 @@ void NetworkTransform::Read(BitReader& reader, double time) {
         return;
     }
     m_samples.push_back({time, position, rotation});
+    // Nothing shows a predicted object on its owner, which would drop them as they are passed.
+    while (m_samples.size() > MaxSamples) {
+        m_samples.pop_front();
+    }
 }
 
-void NetworkTransform::ShowAt(double time) {
+Vector3 NetworkTransform::GetShownVelocity() const {
+    if (m_samples.size() < 2) {
+        return {};
+    }
+    const Sample& from = m_samples[m_samples.size() - 2];
+    const Sample& to = m_samples.back();
+    const double span = to.time - from.time;
+    if (span <= 1e-6 || Distance(from.position, to.position) > teleportDistance) {
+        return {};
+    }
+    return (to.position - from.position) * static_cast<float>(1.0 / span);
+}
+
+bool NetworkTransform::ShowAt(double time) {
+    bool late = false;
     if (m_samples.empty()) {
-        return;
+        return late;
     }
     while (m_samples.size() > 2 && m_samples[1].time < time - SampleHistory) {
         m_samples.pop_front();
@@ -73,7 +92,8 @@ void NetworkTransform::ShowAt(double time) {
         const double span = std::max(to.time - from.time, 1e-6);
         const bool teleported = Distance(from.position, to.position) > teleportDistance;
         if (time >= to.time) {
-            // Late: carry on as it was going, for a while.
+            // Late: carry on as it was going, for a while. At rest, its last two states are the same.
+            late = from.position != to.position || from.rotation != to.rotation;
             const double ahead = std::min(time - to.time, static_cast<double>(std::max(maxExtrapolation, 0.0f)));
             const Vector3 velocity =
                 teleported ? Vector3{} : (to.position - from.position) * static_cast<float>(1.0 / span);
@@ -88,6 +108,7 @@ void NetworkTransform::ShowAt(double time) {
     Transform& transform = GetEntity().GetTransform();
     transform.SetWorldPosition(position);
     transform.SetWorldRotation(rotation);
+    return late;
 }
 
 } // namespace Spot

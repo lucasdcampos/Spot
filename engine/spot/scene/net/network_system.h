@@ -28,8 +28,12 @@ struct NetworkSystemConfig {
     float sendRate = 30.0f;
     // Bytes of object states a snapshot holds at most; the changes that do not fit wait for the next one, by priority.
     std::size_t snapshotBudget = 4000;
-    // Seconds in the past clients show what others decide, so there are states to move between when one is late.
+    // Seconds in the past clients show what others decide, at least, so there are states to move between when one is
+    // late. Clients show it farther back while snapshots come less often or arrive less evenly, as when the server's
+    // frames are slow, so what is shown always has a state after it, up to maxInterpolationDelay; with that at or
+    // below interpolationDelay, the delay is fixed.
     float interpolationDelay = 0.1f;
+    float maxInterpolationDelay = 0.5f;
     // How clients get the prefabs of what the server spawns; by default, from the running application's assets.
     std::function<AssetRef<Prefab>(AssetId)> loadPrefab;
 };
@@ -107,6 +111,8 @@ public:
 
     // On clients: the server's time that what others decide is shown at.
     double GetShownTime() const;
+    // On clients: how far behind the server's time that is now, in seconds.
+    double GetShownDelay() const;
 
     // Entity references in messages and replicated state: the network ids of replicated entities.
     std::uint64_t ToWire(EntityId entity) const override;
@@ -117,6 +123,10 @@ public:
         std::size_t snapshotsSent = 0;
         std::size_t snapshotsReceived = 0;
         std::size_t lastSnapshotBytes = 0;
+        // This frame: objects shown from what others decide, and how many of them were moving and are past their
+        // last state, waiting for the next (NetworkTransform::maxExtrapolation).
+        std::size_t shownObjects = 0;
+        std::size_t lateObjects = 0;
     };
     const Statistics& GetStatistics() const { return m_statistics; }
 
@@ -154,10 +164,12 @@ private:
     void ServerReceiveOwnerState(NetPeerId peer, BitReader& reader);
     void ClientReceiveSceneObjects(BitReader& reader);
     void ClientReceiveSnapshot(BitReader& reader);
+    void ClientResolveReferences();
     void ClientSend(float deltaTime);
 
-    std::vector<std::byte> WriteState(NetworkObject& object) const;
-    void ReadState(NetworkObject& object, std::span<const std::byte> state, double time);
+    // Its transform and its Replicated parts; from its owner, only those the owner decides.
+    std::vector<std::byte> WriteState(NetworkObject& object, bool fromOwner = false) const;
+    void ReadState(NetworkObject& object, std::span<const std::byte> state, double time, bool fromOwner = false);
     void ApplyAuthority(NetworkObject& object);
     void Forget(NetworkObject& object);
 

@@ -71,16 +71,16 @@ double NetworkSession::GetTime() const {
 }
 
 void NetworkSession::ObserveServerTime(double serverTime) {
-    // The server sent it half a round trip ago.
-    const double latency = m_server != NetPeerId::Invalid ? m_host->GetStats(m_server).roundTrip * 0.5 : 0.0;
-    const double offset = serverTime + latency - GetLocalTime();
+    // By arrival rather than by the round trip, which transports estimate slowly (ENet starts from half a second): the
+    // clock follows the earliest arrivals, as late packets are only late, and drifts back slowly should the way get
+    // longer. Eased, so the time objects are shown at never jumps with the jitter of one packet.
+    const double offset = serverTime - GetLocalTime();
     if (!m_hasTime || std::abs(offset - m_timeOffset) > 1.0) {
         m_timeOffset = offset;
         m_hasTime = true;
         return;
     }
-    // Eased, so the time objects are shown at never jumps with the jitter of one packet.
-    m_timeOffset += (offset - m_timeOffset) * 0.05;
+    m_timeOffset += (offset - m_timeOffset) * (offset > m_timeOffset ? 0.2 : 0.01);
 }
 
 const NetEntityMapper& NetworkSession::GetEntityMapper() const {

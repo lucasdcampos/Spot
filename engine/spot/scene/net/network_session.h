@@ -77,8 +77,9 @@ public:
     // A peer left, or, on a client, the connection to the server ended, with the reason.
     Signal<NetPeerId, std::string_view> OnPeerDisconnected;
 
-    // Seconds on the server's clock since it started: what clients show replicated objects by. Clients estimate it
-    // from what the server sends; before that, it is 0.
+    // Seconds on the server's clock since it started: what clients show replicated objects by. On clients, the time of
+    // the server's newest snapshots as they arrive, which trails the server by the time they take to arrive: what is
+    // shown a little before it then always has states on both sides. Before the first snapshot, it is 0.
     double GetTime() const;
     // On clients: whether the server's time has been heard yet.
     bool HasTime() const { return IsServer() || m_hasTime; }

@@ -51,13 +51,14 @@ std::vector<std::byte> EncodeNetMessage(T message, const NetEntityMapper* entiti
     return writer.TakeBytes();
 }
 
-// Calls a function for each type of message received, by its id.
+// Calls a function for each type of message received, by its id. A type has one handler: a new one replaces it.
 class NetMessageHandlers {
 public:
     template <NetMessage T>
     void On(std::function<void(NetPeerId, T&)> handler) {
         const NetMessageId id = GetNetMessageId(T::NetName);
-        SPOT_ASSERT(!m_handlers.contains(id), "Two handlers, or two messages of the same name, for one message id");
+        const auto [name, added] = m_names.try_emplace(id, T::NetName);
+        SPOT_ASSERT(added || name->second == T::NetName, "Two messages of different names have the same id");
         m_handlers[id] = [handler = std::move(handler)](NetPeerId peer, BitReader& reader,
                                                         const NetEntityMapper* entities) {
             T message;
@@ -76,6 +77,7 @@ public:
 
 private:
     std::unordered_map<NetMessageId, std::function<bool(NetPeerId, BitReader&, const NetEntityMapper*)>> m_handlers;
+    std::unordered_map<NetMessageId, std::string_view> m_names;
 };
 
 } // namespace Spot

@@ -19,8 +19,17 @@ bool NetworkObject::HasAuthority() const {
     return authority == NetworkAuthority::Owner && m_ownedLocally;
 }
 
+bool NetworkObject::IsPredicted() const {
+    const NetworkSystem* system = Network::Get(GetScene());
+    if (!predicted || !system) {
+        return false;
+    }
+    return system->IsServer() ? m_owner != NetPeerId::Invalid : m_ownedLocally;
+}
+
 void NetworkObject::Serialize(Archive& archive) {
     archive.Field("authority", authority, {.enumNames = AuthorityNames, .tooltip = "Who decides its state"});
+    archive.Field("predicted", predicted, {.tooltip = "Its owner moves it ahead of the server, which corrects it"});
     archive.Field("priority", priority,
                   {.min = 0.0f, .max = 10.0f, .tooltip = "How much its changes matter when they do not all fit"});
     archive.Field("relevanceRadius", relevanceRadius,
