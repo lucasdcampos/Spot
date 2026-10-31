@@ -22,6 +22,7 @@ Samples RifleShot();
 Samples ShotgunShot();
 Samples RocketLaunch();
 Samples Explosion();
+Samples Thunder();
 // Water struck: by a shot or something small, and by something big or a blast, which throws water high to rain back.
 Samples SplashSmall();
 Samples SplashLarge();

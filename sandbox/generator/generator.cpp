@@ -116,6 +116,7 @@ const std::vector<GeneratedSound>& GetSounds() {
         {"shotgun_shot", Sounds::ShotgunShot},
         {"rocket_launch", Sounds::RocketLaunch},
         {"explosion", Sounds::Explosion},
+        {"thunder", Sounds::Thunder},
         {"splash_small", Sounds::SplashSmall},
         {"splash_large", Sounds::SplashLarge},
         {"reload", Sounds::Reload},

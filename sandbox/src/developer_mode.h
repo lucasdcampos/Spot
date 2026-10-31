@@ -24,6 +24,7 @@ public:
 
     Spot::EntityId rayGun = Spot::EntityId::Invalid;
     Spot::AssetRef<Spot::Model> skin;
+    Spot::AssetRef<Spot::Sound> smiteSound;
 
     bool IsUnlocked() const { return m_unlocked; }
     void Unlock();

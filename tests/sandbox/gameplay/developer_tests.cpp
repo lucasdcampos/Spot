@@ -162,7 +162,8 @@ TEST_CASE("Only a matching Ed25519 private key in developer.key automatically un
 
 TEST_CASE("Developer commands smite and yeet require cheats and strike only the named living player",
           "[sandbox][developer][powers]") {
-    SandboxTests::Playground game;
+    SandboxTests::Playground game(true);
+    REQUIRE(game.audio);
     Spot::Console console;
     SandboxCommands commands(console, game.scene);
     auto* target = game.scene.Instantiate(game.assets.Load<Spot::Prefab>("prefabs/actors/player.prefab"));
@@ -179,6 +180,7 @@ TEST_CASE("Developer commands smite and yeet require cheats and strike only the 
     // Even with developer mode unlocked (as from developer.key), smite and yeet require cheats or operator permission.
     auto* mode = Gameplay::Players::FindComponent<DeveloperMode>(game.scene);
     REQUIRE(mode);
+    CHECK(mode->smiteSound.GetId().IsValid());
     mode->Unlock();
     REQUIRE(mode->IsUnlocked());
     CHECK_FALSE(console.Execute("smite Friend"));
@@ -192,17 +194,28 @@ TEST_CASE("Developer commands smite and yeet require cheats and strike only the 
     CHECK_FALSE(console.Execute("smite \"Friend Name\""));
     const auto before = target->GetTransform().GetWorldPosition();
     REQUIRE(console.Execute("yeet Friend"));
-    game.Run(10);
+    game.Run(60);
     const auto after = target->GetTransform().GetWorldPosition();
-    CHECK(after.y > before.y + 2);
-    CHECK(Spot::Length(Spot::Vector3{after.x - before.x, 0, after.z - before.z}) > 4);
+    CHECK(after.y > before.y + 80);
+    CHECK(Spot::Length(Spot::Vector3{after.x - before.x, 0, after.z - before.z}) > 130);
     CHECK_FALSE(health->IsDead());
     auto& duplicate = game.scene.CreateEntity("Duplicate Info").AddComponent<Gameplay::PlayerInfo>();
     duplicate.name = info.name;
     duplicate.pawn = Gameplay::Players::GetBody(game.scene)->GetEntity().GetId();
     CHECK_FALSE(console.Execute("smite Friend"));
     duplicate.name = "Other";
+    target->GetComponent<Gameplay::Pawn>()->Teleport({0, 30, 0}, {}, {});
+    game.Run(2);
+    std::vector<float> mix(48000 / 60 * 2);
+    for (int i = 0; i < 4; ++i) {
+        game.audio->Render(mix);
+    }
     REQUIRE(console.Execute("smite Friend"));
+    game.Step();
+    game.audio->Render(mix);
+    const auto effectsBus = game.audio->FindBus("Effects");
+    REQUIRE(effectsBus);
+    CHECK(game.audio->GetBusPeak(*effectsBus).left > 0.05f);
     CHECK(health->IsDead());
     CHECK_FALSE(Gameplay::Players::FindComponent<Gameplay::Health>(game.scene)->IsDead());
     CHECK(Gameplay::EffectPool::Get(game.scene).GetEmitterCount() >= 9);

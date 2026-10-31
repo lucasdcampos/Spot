@@ -373,6 +373,20 @@ Samples Explosion() {
     return FadeEdges(Normalize(std::move(samples), 0.98f));
 }
 
+Samples Thunder() {
+    Samples samples = Make(4.0f);
+    const auto rate = static_cast<float>(samples.sampleRate);
+    // The sharp overhead lightning crack, followed by booming thunderclaps and a rolling rumble across the sky.
+    AddNoiseBurst(samples, 501, 8000.0f, 0.0004f, 0.035f, 1.1f);
+    AddNoiseBurst(samples, 502, 1600.0f, 0.002f, 0.14f, 0.9f);
+    AddThump(samples, 110.0f, 26.0f, 0.45f, 1.4f);
+    AddNoiseBurst(samples, 503, 320.0f, 0.015f, 0.55f, 1.5f, static_cast<std::size_t>(0.03f * rate));
+    AddNoiseBurst(samples, 504, 220.0f, 0.08f, 0.8f, 1.2f, static_cast<std::size_t>(0.28f * rate));
+    AddNoiseBurst(samples, 505, 140.0f, 0.18f, 1.1f, 0.95f, static_cast<std::size_t>(0.75f * rate));
+    AddNoiseBurst(samples, 506, 90.0f, 0.35f, 1.5f, 0.7f, static_cast<std::size_t>(1.35f * rate));
+    return FadeEdges(Normalize(std::move(samples), 0.98f));
+}
+
 Samples SplashSmall() {
     Samples samples = Make(0.6f);
     const auto rate = static_cast<float>(samples.sampleRate);

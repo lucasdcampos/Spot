@@ -250,8 +250,8 @@ TEST_CASE("Developer smite and yeet reach another client and reject callers with
     REQUIRE(console.Execute("yeet Friend"));
     room.Run(60);
     const auto after = victim->GetEntity().GetTransform().GetWorldPosition();
-    CHECK(after.y > before.y + 5);
-    CHECK(Spot::Length(Spot::Vector3{after.x - before.x, 0, after.z - before.z}) > 20);
+    CHECK(after.y > before.y + 75);
+    CHECK(Spot::Length(Spot::Vector3{after.x - before.x, 0, after.z - before.z}) > 120);
     CHECK(players->GetCorrections() == corrections);
     if (seat) {
         CHECK_FALSE(seat->IsOccupied());

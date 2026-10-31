@@ -124,7 +124,8 @@
           "enabled": true,
           "data": {
             "rayGun": 201115,
-            "skin": "990a4c2d149df31efbebe5f70f7da482"
+            "skin": "990a4c2d149df31efbebe5f70f7da482",
+            "smiteSound": "4481c90637b43af34b66a7881bdc70e7"
           }
         },
         {

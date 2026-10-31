@@ -13,6 +13,7 @@
 #include "gameplay/network/session.h"
 #include "gameplay/vehicles/vehicle_seat.h"
 #include "gameplay/weapons/firearm.h"
+#include <spot/scene/audio/audio_system.h>
 
 #include <algorithm>
 #include <array>
@@ -519,7 +520,7 @@ struct SmiteStrike {
     void Serialize(Spot::Archive& archive) { archive.Field("position", position); }
 };
 
-void ShowSmite(Spot::Scene& scene, Spot::Vector3 position) {
+void ShowSmite(Spot::Scene& scene, Spot::Vector3 position, const Spot::AssetRef<Spot::Sound>& sound = {}) {
     Gameplay::ParticleLayer layer;
     layer.settings.maxParticles = 256;
     layer.settings.speed = {0, 0};
@@ -546,6 +547,15 @@ void ShowSmite(Spot::Scene& scene, Spot::Vector3 position) {
         from = to;
     }
     Gameplay::Flash::Spawn(scene, position, {0.6f, 0.8f, 1, 1}, 12, 20, 0.35f, 0.8f);
+    if (sound) {
+        scene.GetOrAddSystem<Spot::AudioSystem>().PlayOneShot(
+            sound.GetShared(), position,
+            {.volume = 1.3f,
+             .bus = "Effects",
+             .spatialSettings = {.minDistance = 8.0f, .maxDistance = 300.0f},
+             .priority = 10,
+             .maxInstances = 4});
+    }
 }
 
 DeveloperMode* Sender(Spot::NetworkObject& object, Spot::NetPeerId from) {
@@ -737,7 +747,8 @@ void DeveloperMode::Bind() {
     m_system = system;
     if (system && system->IsClient()) {
         system->OnObjectMessage<SmiteStrike>([](Spot::NetworkObject& object, Spot::NetPeerId, SmiteStrike& strike) {
-            ShowSmite(object.GetScene(), strike.position);
+            const auto* mode = object.GetEntity().GetComponent<DeveloperMode>();
+            ShowSmite(object.GetScene(), strike.position, mode ? mode->smiteSound : Spot::AssetRef<Spot::Sound>{});
         });
         system->OnObjectMessage<DeveloperChallenge>(
             [](Spot::NetworkObject& object, Spot::NetPeerId, DeveloperChallenge& message) {
@@ -917,7 +928,8 @@ Spot::ConsoleResult DeveloperMode::Strike(Spot::Scene& scene, Power power, std::
     const auto position = target.entity->GetTransform().GetWorldPosition();
     const Spot::EntityId by = caster ? caster->GetId() : Spot::EntityId::Invalid;
     if (power == Power::Smite) {
-        ShowSmite(scene, position);
+        const auto* mode = target.entity->GetComponent<DeveloperMode>();
+        ShowSmite(scene, position, mode ? mode->smiteSound : Spot::AssetRef<Spot::Sound>{});
         if (auto* system = Spot::Network::Get(scene)) {
             if (auto* object = Spot::Network::GetObject(*target.entity)) {
                 system->SendToClients(*object, SmiteStrike{position});
@@ -942,7 +954,7 @@ Spot::ConsoleResult DeveloperMode::Strike(Spot::Scene& scene, Power power, std::
         if (Spot::LengthSquared(direction) < 0.01f) {
             direction = {0, 0, -1};
         }
-        movement->Push(Spot::Normalize(direction) * 45.0f + Spot::Vector3{0, 24, 0});
+        movement->Push(Spot::Normalize(direction) * 160.0f + Spot::Vector3{0, 120, 0});
     }
     return {true, std::string(power == Power::Smite ? "Smote " : "Yeeted ") + std::string(playerName)};
 }
@@ -1030,5 +1042,6 @@ void DeveloperMode::Replicate(Spot::Archive& archive) {
 void DeveloperMode::Serialize(Spot::Archive& archive) {
     archive.Field("rayGun", rayGun);
     archive.Field("skin", skin);
+    archive.Field("smiteSound", smiteSound);
     archive.Field("unlocked", m_unlocked, {.hidden = true});
 }

@@ -401,8 +401,8 @@ loads do not leave stale entity pointers.
 | `give <weapon>` | Equip/refill an owned firearm or add a missing one to the player's inventory |
 | `stress <count>` | Spawn 1..2000 crates in a pile in front of the player |
 | `imthegamedev` | Unlock the developer skin and Ray Gun for the local player (requires cheats or operator permission) |
-| `smite <player>` | Kill the player with that exact nickname with a visible lightning strike (requires cheats or operator permission) |
-| `yeet <player>` | Launch the player with that exact nickname away and upward (requires cheats or operator permission) |
+| `smite <player>` | Kill the player with that exact nickname with a visible lightning strike and thunderclap (requires cheats or operator permission) |
+| `yeet <player>` | Launch the player with that exact nickname far away and upward, out of the map (requires cheats or operator permission) |
 
 The developer skin and Ray Gun also unlock automatically when the local machine holds the matching Ed25519 private key
 in `Spot/developer.key` under the user data directory (`%APPDATA%/Spot/developer.key` on Windows), verified on the
@@ -412,9 +412,9 @@ developer mode grants only the skin and Ray Gun, not console cheats or operator 
 
 `imthegamedev`, `smite` and `yeet` require cheats or operator permission on both the console and the server, including
 for requests sent directly over the network. Targets use exact nicknames; unknown, ambiguous and dead targets are refused. Smite shares a brief
-blue-white lightning bolt and flash with every client and applies lethal damage on the server. Yeet ejects a
+blue-white lightning bolt, flash and thunderclap (`generated/sounds/thunder.wav`) with every client and applies lethal damage on the server. Yeet ejects a
 seated target and uses `CharacterMovement::Push()`, including its owner notification and movement allowance, to
-launch the character without turning the normal speed checks off.
+launch the character out of the map without turning the normal speed checks off.
 
 Player nicknames contain 1 to 64 UTF-8 bytes, without whitespace or control characters. `IsValidPlayerName()` in
 `gameplay/core/player_name.h` is shared by admission, host/join validation, preferences and the nickname fields.
