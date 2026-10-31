@@ -30,6 +30,9 @@ struct NetPeerStats {
     float jitter = 0.0f;
     // The share of packets lost, from 0 to 1.
     float loss = 0.0f;
+    // The share of unreliable packets the transport lets go out, from 0 to 1: below 1, it drops the others itself, as
+    // ENet does when round trips grow.
+    float throttle = 1.0f;
     std::uint64_t bytesSent = 0;
     std::uint64_t bytesReceived = 0;
 };

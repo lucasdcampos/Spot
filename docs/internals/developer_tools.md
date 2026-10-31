@@ -84,7 +84,9 @@ feed it events before gameplay and deliver unconsumed events to `InputState`. Th
 voices and resident process memory. Frame duration is independent of simulation time scale. Rendering counts
 combine 3D, shadow draw calls and Renderer2D; triangle counts include the main 3D view and 2D quads. Memory is CPU
 resident memory, including assets and backend allocations; it does not measure dedicated GPU memory and is zero
-when the platform cannot query it. The setting persists with the other saved cvars.
+when the platform cannot query it. The setting persists with the other saved cvars. Other systems add lines below
+while they exist with a `StatsSection`, whose text `RuntimeStats::Sample()` asks for each time; `NetworkModule` adds its
+session's, and games may add theirs, as the sandbox does for its prediction's corrections.
 
 `RuntimeStats::Sample()` also works without graphics. When recording is disabled, FPS uses the unscaled frame
 clock and rendering counts are zero instead of showing stale recordings. Applications record bodies, voices and

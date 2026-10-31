@@ -181,6 +181,8 @@ public:
         stats.roundTrip = static_cast<float>(enetPeer.roundTripTime) / 1000.0f;
         stats.jitter = static_cast<float>(enetPeer.roundTripTimeVariance) / 1000.0f;
         stats.loss = static_cast<float>(enetPeer.packetLoss) / static_cast<float>(ENET_PEER_PACKET_LOSS_SCALE);
+        stats.throttle =
+            static_cast<float>(enetPeer.packetThrottle) / static_cast<float>(ENET_PEER_PACKET_THROTTLE_SCALE);
         return stats;
     }
 

@@ -7,9 +7,15 @@
 #include <cmath>
 #include <format>
 #include <limits>
+#include <utility>
 
 namespace Spot {
 namespace {
+std::vector<const StatsSection*>& GetSections() {
+    static std::vector<const StatsSection*> sections;
+    return sections;
+}
+
 std::uint64_t Count(const ProfileFrame& frame, std::string_view name) {
     const double value = Profiler::GetCounter(frame, name);
     // Double cannot represent UINT64_MAX exactly; require a strictly smaller value before conversion.
@@ -43,13 +49,30 @@ RuntimeStats RuntimeStats::Sample() {
         stats.voices = 0;
     }
     stats.memoryBytes = Process::GetResidentMemoryBytes();
+    for (const StatsSection* section : GetSections()) {
+        if (std::string text = section->m_describe(); !text.empty()) {
+            stats.sections.push_back(std::move(text));
+        }
+    }
     return stats;
 }
 
 std::string RuntimeStats::Format() const {
-    return std::format("{:.0f} FPS | {:.2f} ms | {} draws | {} triangles\n{} bodies | {} voices | {:.1f} MiB resident",
-                       fps, frameMilliseconds, drawCalls, triangles, bodies, voices,
-                       static_cast<double>(memoryBytes) / (1024.0 * 1024.0));
+    std::string text = std::format(
+        "{:.0f} FPS | {:.2f} ms | {} draws | {} triangles\n{} bodies | {} voices | {:.1f} MiB resident", fps,
+        frameMilliseconds, drawCalls, triangles, bodies, voices, static_cast<double>(memoryBytes) / (1024.0 * 1024.0));
+    for (const std::string& section : sections) {
+        text += "\n" + section;
+    }
+    return text;
+}
+
+StatsSection::StatsSection(std::function<std::string()> describe) : m_describe(std::move(describe)) {
+    GetSections().push_back(this);
+}
+
+StatsSection::~StatsSection() {
+    std::erase(GetSections(), this);
 }
 
 } // namespace Spot

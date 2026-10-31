@@ -5,6 +5,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <limits>
+#include <string>
 
 TEST_CASE("Runtime statistics combine frame counters and use unscaled measured frame durations", "[stats]") {
     Spot::ProfileFrame frame;
@@ -68,4 +69,19 @@ TEST_CASE("Runtime FPS remains unscaled while simulation is paused and recording
     Spot::Time::SetClock(nullptr);
     Spot::Time::SetTimeScale(scale);
     Spot::Profiler::SetEnabled(enabled);
+}
+
+TEST_CASE("Systems add sections to the statistics overlay while they exist", "[stats]") {
+    std::string said = "Network: client";
+    {
+        const Spot::StatsSection network([&] { return said; });
+        const Spot::StatsSection quiet([] { return std::string(); });
+        const auto stats = Spot::RuntimeStats::Sample();
+        REQUIRE(stats.sections.size() == 1);
+        CHECK(stats.sections[0] == "Network: client");
+        CHECK(stats.Format().ends_with("\nNetwork: client"));
+        said = "Network: server";
+        CHECK(Spot::RuntimeStats::Sample().sections[0] == "Network: server");
+    }
+    CHECK(Spot::RuntimeStats::Sample().sections.empty());
 }
