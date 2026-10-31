@@ -6,6 +6,7 @@
 #include "gameplay/core/players.h"
 #include "gameplay/network/player_info.h"
 #include "gameplay/network/session.h"
+#include "gameplay/network/session_commands.h"
 #include "main_menu.h"
 #include "prop_spawner.h"
 #include "session_config.h"
@@ -83,6 +84,7 @@ public:
         AddModule<Spot::ParticlesModule>();
         AddModule<Spot::NetworkModule>(SandboxNetworkConfig());
         AddModule<Gameplay::Session>();
+        AddModule<Gameplay::SessionCommands>();
         AddModule<Spot::ScriptingModule>();
         AddModule(Spot::CreateGameModule());
     }
@@ -262,6 +264,27 @@ protected:
             m_ready = true;
         }
         if (m_host && !m_moving && m_guestReady) {
+            // The host's console commands the room: who is in it, and its password.
+            auto& console = Spot::Console::Get();
+            const Spot::ConsoleResult status = console.Execute("status");
+            if (!status || status.message.find("Guest") == std::string::npos ||
+                status.message.find("with a password") == std::string::npos) {
+                Fail("The room's status did not list the guest and the password: " + status.message);
+                return;
+            }
+            if (!console.Execute("password") || !room->GetSettings().password.empty() ||
+                console.Execute("kick Nobody")) {
+                Fail("The room's password or kick commands did not do as asked");
+                return;
+            }
+            const auto guest = room->FindPlayers("Guest");
+            if (guest.size() != 1 || !console.Execute("op Guest") || !room->IsOperator(guest.front()) ||
+                !room->MayCheat(guest.front()) ||
+                console.Execute("status").message.find("(operator)") == std::string::npos ||
+                !console.Execute("deop Guest") || room->IsOperator(guest.front())) {
+                Fail("The room's op and deop commands did not do as asked");
+                return;
+            }
             for (const auto* player : players) {
                 const auto* pawn = scene->GetEntity(player->pawn);
                 if (!pawn) {

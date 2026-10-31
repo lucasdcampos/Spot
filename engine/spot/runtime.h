@@ -15,3 +15,4 @@
 #include "spot/runtime/profile_stream.h"
 #include "spot/runtime/runtime_stats.h"
 #include "spot/runtime/save_data.h"
+#include "spot/runtime/terminal_console.h"

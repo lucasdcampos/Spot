@@ -55,7 +55,13 @@ scene layer, which games ship with and never reload.
 Scene bindings resolve the current scene each time, retaining no component pointers across scene changes.
 Gravity and debug settings apply to the current main scene; its authored settings apply again when it is replaced.
 
-## In-game and editor consoles
+## In-game, editor and terminal consoles
+
+`TerminalConsole` (`engine/spot/runtime/terminal_console.h`) is the console of applications without a window, as
+dedicated servers: a module reading lines from the standard input on a thread of its own, which the main thread runs
+each frame (`Poll()`), printing their answers, failures after `Error: `, to the standard output. It registers `quit`.
+A thread waiting for a line when the application stops cannot be woken portably, so it is left to end with the
+process; it holds only what it shares with the module, and ends by itself at the end of input.
 
 The physical Grave key opens the runtime overlay. Enter runs the line, Tab completes the command name, Up/Down
 browse history and Escape closes it. Text comes from UTF-8 text-input events, with code-point-aware Backspace.

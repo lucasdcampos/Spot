@@ -4,7 +4,10 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <chrono>
+#include <sstream>
 #include <stdexcept>
+#include <thread>
 
 TEST_CASE("Console parsing preserves quoted arguments and rejects incomplete input", "[console]") {
     std::vector<std::string> args;
@@ -162,4 +165,36 @@ TEST_CASE("Applications persist saved cvars and remove engine bindings when they
     SettingsApplication second(directory.GetPath(), false);
     REQUIRE(second.Run() == EXIT_SUCCESS);
     CHECK(Spot::Console::Get().Complete("").empty());
+}
+
+TEST_CASE("The terminal console runs the lines typed in it and prints their answers", "[console]") {
+    Spot::Console console;
+    std::vector<std::string> heard;
+    auto echo = console.Register({"echo", "Says it back", Spot::ConsoleFlags::None,
+                                  [&](std::span<const std::string> arguments) -> Spot::ConsoleResult {
+                                      heard.push_back(arguments.empty() ? std::string() : arguments[0]);
+                                      return {true, "echo " + (arguments.empty() ? std::string() : arguments[0])};
+                                  }});
+    std::istringstream input("echo one\r\n\n   \necho two\nnothing\n");
+    std::ostringstream output;
+    Spot::TerminalConsole terminal(&console, &input, &output);
+    Spot::Detail::StartModule(terminal);
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (!terminal.HasInputEnded() && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    REQUIRE(terminal.HasInputEnded());
+    // Nothing runs until the main thread polls, as each frame does.
+    CHECK(heard.empty());
+    terminal.Poll();
+    // Blank lines are skipped, and a line ending of another system does not reach the command.
+    CHECK(heard == std::vector<std::string>{"one", "two"});
+    const std::string printed = output.str();
+    CHECK(printed.find("echo one\n") != std::string::npos);
+    CHECK(printed.find("echo two\n") != std::string::npos);
+    CHECK(printed.find("Error: ") != std::string::npos);
+    // It offers quit while it runs.
+    CHECK(console.Complete("qui") == std::vector<std::string>{"quit"});
+    Spot::Detail::StopModule(terminal);
+    CHECK(console.Complete("qui").empty());
 }

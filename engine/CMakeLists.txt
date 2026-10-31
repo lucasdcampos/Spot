@@ -91,6 +91,8 @@ add_library(spot_objects OBJECT
     spot/runtime/runtime_stats.cpp
     spot/runtime/profile_stream.cpp
     spot/runtime/engine_console.cpp
+    spot/runtime/terminal_console.h
+    spot/runtime/terminal_console.cpp
     spot/runtime/dev_tools_module.h
     spot/runtime/dev_tools_module.cpp
     spot/core/debug/assert.h

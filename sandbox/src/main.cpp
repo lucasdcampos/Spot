@@ -1,5 +1,6 @@
 #include "gameplay/core/user_settings.h"
 #include "gameplay/network/session.h"
+#include "gameplay/network/session_commands.h"
 #include "network_smoke_test.h"
 #include "session_config.h"
 #include "smoke_test.h"
@@ -217,6 +218,11 @@ int main(int argc, char** argv) {
     application.AddModule<Spot::ParticlesModule>();
     application.AddModule<Spot::NetworkModule>(SandboxNetworkConfig());
     application.AddModule<Gameplay::Session>();
+    application.AddModule<Gameplay::SessionCommands>();
+    // A dedicated server is commanded from the terminal it runs in.
+    if (server) {
+        application.AddModule<Spot::TerminalConsole>();
+    }
     application.AddModule<Spot::ScriptingModule>();
     application.AddModule(Spot::CreateGameModule());
     const auto& launched = application.AddModule<LaunchSession>(*launch);

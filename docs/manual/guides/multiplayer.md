@@ -147,3 +147,5 @@ loss, snapshots a second and the longest wait between them, bandwidth, and how m
 A server without a player needs no screen: run it with `ApplicationConfig::window.headless` set, graphics disabled
 (`graphics.enabled = false`) and without the audio module, with a frame rate cap (`maxFrameRate`) so it keeps a
 steady pace. Remove the map's local players before it starts, so its rules give no pawn to anyone on the server.
+Add `Spot::TerminalConsole` to command it from the terminal it runs in: each line typed is a console command, and
+`quit` stops it; register your own commands, as the sandbox's `status`, `kick` and `password`.

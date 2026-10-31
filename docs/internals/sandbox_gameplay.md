@@ -496,6 +496,23 @@ joined at the answering machine's address), only to queries of the same protocol
 when shown and every `lanRefreshInterval` seconds, lists the rooms in rows like the map list's, keeping the rows of
 the same rooms, and joins the one chosen, or asks for its password first.
 
+`SessionCommands` registers the console commands of whoever runs a room: `status` (name, port, players of the
+maximum, password or not, whether cheats are on, and each player's `#number`, name, operator or not, and ping),
+`kick <name or #number> [reason]` (the player is disconnected with that reason, and a name two players share asks
+for the number), `password [new]` (`Session::SetPassword()`; admission reads the settings as they are when each
+player comes), and `op <player>` and `deop <player>`. The sandbox adds it everywhere, so a host types them in its
+console, and a dedicated server adds `Spot::TerminalConsole`, so they are typed in its terminal; the network smoke
+test's host runs them.
+
+Operators (`Session::SetOperator()`, kept by connection, so a player who leaves loses it) run the room as its host
+does: the host's own players and its terminal always may. `Session::MayCheat(peer)` is true for operators, and for
+everyone while the server's console permits cheats (`console.cheats`, on by default where `GameControls` runs); the
+server tells each client (`RoomPermissions`), whose console then permits cheats exactly as far, so its noclip key and
+cheat commands follow, and `NetworkPlayers` puts back a client flying through everything only when it may not cheat.
+On a client, the room's commands, and those a game allows (`SessionCommands::AllowRemote()`), go to the server
+(`RemoteCommand`), which runs them for that player if it is an operator, or, for those allowed as cheats, if it may
+cheat, and sends back the answer, logged there as `Server: ...`.
+
 `Session` keeps why it failed (`GetLastErrorKind()`): what was asked could not be done (`Request`, as an invalid
 address or a room that cannot start), nothing answered (`Unreachable`, the engine's `NetHost::CouldNotConnect` or the
 fifteen seconds of `Session::Timeout` while connecting), the room refused with its reason (`Refused`), its map did not
@@ -785,3 +802,8 @@ FirstPersonView eases a small lateral roll and vertical pitch from character vel
 Airborne characters retain their horizontal takeoff velocity and cannot steer until grounded.
 
 Player bodies use the same weapon mount, aim and two-hand constraints as spawnable NPCs. `CharacterDeath` connects health death and restoration (including replicated health) to the configured ragdoll, disables the living character controller while dead, and forwards corpse hit impulses. `Bleeding` also presents damage reports on clients; damage and flesh surface lookup follow a child ragdoll back to its character.
+
+`ViewModel::renderLayer` selects a separate render layer for both the held model and generated arms; -1 inherits
+the pawn layer. The sandbox player uses layer 29, excluded from the workshop mirror while layer 30 retains its body.
+
+`Firearm::infiniteAmmo` lets authored energy weapons fire without consuming magazine rounds or requiring reloads. Readiness still respects the shot interval; the HUD reports infinite ammunition and never warns about an empty magazine. The developer Ray Gun enables it and automatic fire with a 0.1-second interval.

@@ -176,8 +176,9 @@ void NetworkPlayers::CheckMovement(const std::vector<RemoteController*>& control
         // Falling is free; rising and going across take speed.
         const Spot::Vector3 moved = position - from.position;
         const float distance = Spot::Length(Spot::Vector3{moved.x, std::max(moved.y, 0.0f), moved.z});
-        // A cheat, which is the host's.
-        const bool flying = pawn->HasState("Noclip");
+        // A cheat: only for those who may cheat, as operators (Session::MayCheat()).
+        const Session* session = Session::Get();
+        const bool flying = pawn->HasState("Noclip") && !(session && session->MayCheat(controller->GetPeer()));
         if (distance > allowed || flying) {
             Spot::Log::Warning("{}'s pawn moved {:.1f} m in {:.2f} s{}: put back", pawn->GetEntity().GetName(),
                                distance, m_time - from.time, flying ? " flying through everything" : "");

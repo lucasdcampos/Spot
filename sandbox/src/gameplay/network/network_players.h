@@ -24,9 +24,9 @@ class RemoteController;
 //
 // A pawn its player's machine decides, as the player's character, moves there and is shown elsewhere as that machine
 // says. The server checks it: no faster over a second than the pawn said it could go along the way
-// (Pawn::GetSpeedLimit()), with some slack, and not flying through everything (the pawn state "Noclip"), a cheat, which
-// only the host's own players may use; failing, it is put back where it was a second before (Pawn::Teleport()), which
-// is logged.
+// (Pawn::GetSpeedLimit()), with some slack, and not flying through everything (the pawn state "Noclip"), a cheat,
+// unless the player may cheat (Session::MayCheat()); failing, it is put back where it was a second before
+// (Pawn::Teleport()), which is logged.
 class NetworkPlayers final : public Spot::Component {
 public:
     // Frames of intents each message repeats, so one lost on the way costs nothing.

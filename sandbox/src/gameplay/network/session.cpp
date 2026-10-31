@@ -73,6 +73,13 @@ std::string ValidateSessionHello(const SessionSettings& settings, std::uint64_t 
     return {};
 }
 
+// To a client: whether it may use cheats, as an operator or because the server permits them.
+struct RoomPermissions {
+    static constexpr std::string_view NetName = "Gameplay.RoomPermissions";
+    bool cheats = false;
+    void Serialize(Spot::Archive& archive) { archive.Field("cheats", cheats); }
+};
+
 struct Session::Welcome {
     static constexpr std::string_view NetName = "Gameplay.RoomWelcome";
     std::string name;
@@ -108,6 +115,55 @@ std::string Session::GetPlayerName(Spot::NetPeerId peer) const {
     return found != m_names.end() ? found->second : "Player_" + std::to_string(static_cast<std::uint32_t>(peer));
 }
 
+std::vector<Spot::NetPeerId> Session::FindPlayers(std::string_view name) const {
+    std::vector<Spot::NetPeerId> found;
+    if (!m_bound) {
+        return found;
+    }
+    for (const Spot::NetPeerId peer : m_bound->GetHost().GetPeers()) {
+        if (GetPlayerName(peer) == name) {
+            found.push_back(peer);
+        }
+    }
+    return found;
+}
+
+bool Session::IsOperator(Spot::NetPeerId peer) const {
+    return peer == Spot::NetPeerId::Invalid ? !IsActive() || IsHost() : m_operators.contains(peer);
+}
+
+void Session::SetOperator(Spot::NetPeerId peer, bool op) {
+    if (!IsHost() || peer == Spot::NetPeerId::Invalid) {
+        return;
+    }
+    if (op) {
+        m_operators.insert(peer);
+    } else {
+        m_operators.erase(peer);
+    }
+    SendPermissions();
+}
+
+bool Session::MayCheat(Spot::NetPeerId peer) const {
+    if (IsActive() && !IsHost() && peer == Spot::NetPeerId::Invalid) {
+        return m_mayCheat;
+    }
+    return Spot::Console::Get().AreCheatsEnabled() || IsOperator(peer);
+}
+
+void Session::SendPermissions() {
+    if (!IsHost() || !m_bound) {
+        return;
+    }
+    for (const Spot::NetPeerId peer : m_bound->GetHost().GetPeers()) {
+        const bool cheats = MayCheat(peer);
+        if (const auto told = m_toldCheats.find(peer); told == m_toldCheats.end() || told->second != cheats) {
+            m_toldCheats[peer] = cheats;
+            m_bound->Send(peer, RoomPermissions{cheats});
+        }
+    }
+}
+
 void Session::SetState(SessionState state) {
     if (state != m_state) {
         m_state = state;
@@ -133,6 +189,9 @@ void Session::OnStart() {
 
 void Session::ClearConnections() {
     m_responder.reset();
+    m_operators.clear();
+    m_toldCheats.clear();
+    m_mayCheat = false;
     m_connections.clear();
     m_names.clear();
     m_bound = nullptr;
@@ -209,10 +268,9 @@ bool Session::Host(SessionSettings settings) {
     const GameMode* mode = GameMode::Get(*scene);
     m_modeName = mode ? mode->name : std::string();
     Listen();
-    const SessionSettings admission = m_settings;
-    const std::uint64_t content = m_content;
-    m_bound->GetHost().onConnecting = [admission, content](Spot::NetPeerId, std::span<const std::byte> hello) {
-        return ValidateSessionHello(admission, content, hello);
+    // The settings as they are when each player comes, as the password may change.
+    m_bound->GetHost().onConnecting = [this](Spot::NetPeerId, std::span<const std::byte> hello) {
+        return ValidateSessionHello(m_settings, m_content, hello);
     };
     m_error.clear();
     m_errorKind = SessionError::None;
@@ -275,7 +333,14 @@ void Session::Bind(Spot::NetworkSession& session) {
             Spot::Log::Info("{} left the room: {}", GetPlayerName(peer), reason);
         }
         m_names.erase(peer);
+        m_operators.erase(peer);
+        m_toldCheats.erase(peer);
     }));
+    session.GetMessages().On<RoomPermissions>([this](Spot::NetPeerId, RoomPermissions& permissions) {
+        if (!IsHost()) {
+            m_mayCheat = permissions.cheats;
+        }
+    });
     session.GetMessages().On<Welcome>([this](Spot::NetPeerId, Welcome& welcome) {
         if (!IsHost()) {
             m_settings.name = welcome.name;
@@ -313,6 +378,14 @@ void Session::Listen() {
     m_responder = std::move(responder);
 }
 
+bool Session::SetPassword(std::string password) {
+    if (!IsHost() || password.size() > 128) {
+        return false;
+    }
+    m_settings.password = std::move(password);
+    return true;
+}
+
 bool Session::Retry() {
     if (!CanRetry()) {
         return false;
@@ -335,6 +408,12 @@ void Session::Leave() {
 void Session::OnUpdate(float /*deltaTime*/) {
     if (m_responder) {
         m_responder->Update();
+    }
+    // The server's console decides, and tells its clients; a client's console permits what the server said.
+    if (IsHost()) {
+        SendPermissions();
+    } else if (IsActive()) {
+        Spot::Console::Get().SetCheatsEnabled(m_mayCheat);
     }
     if (!IsActive()) {
         if (m_bound) {
