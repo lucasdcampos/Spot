@@ -76,6 +76,7 @@ const std::vector<Texture>& GetTextures() {
         {"ui_vignette", Icons::Vignette},
         {"icon_physics_gun", Icons::PhysicsGun},
         {"icon_pistol", Icons::Pistol},
+        {"icon_ray_gun", Icons::RayGun},
         {"icon_rifle", Icons::Rifle},
         {"icon_shotgun", Icons::Shotgun},
         {"icon_rocket_launcher", Icons::RocketLauncher},
@@ -110,6 +111,7 @@ struct GeneratedSound {
 const std::vector<GeneratedSound>& GetSounds() {
     static const std::vector<GeneratedSound> sounds = {
         {"pistol_shot", Sounds::PistolShot},
+        {"ray_gun_shot", Sounds::RayGunShot},
         {"rifle_shot", Sounds::RifleShot},
         {"shotgun_shot", Sounds::ShotgunShot},
         {"rocket_launch", Sounds::RocketLaunch},
@@ -251,6 +253,7 @@ OutputCounts GenerateSandboxAssets(const std::filesystem::path& directory, std::
         writeModel(std::string(level.name), level.model);
     }
     writeModel("humanoid", Rigs::Humanoid());
+    writeModel("developer", Rigs::Developer());
     writeModel("first_person_arms", Weapons::MakeFirstPersonArms());
     writeModel("car", Vehicles::Car());
     writeModel("coupe", Vehicles::Coupe());

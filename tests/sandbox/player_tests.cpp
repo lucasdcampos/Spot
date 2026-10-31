@@ -246,10 +246,15 @@ TEST_CASE("First-person hands follow every held item and disappear with the view
         player.holder.Select(slot);
         game.Run(30);
         REQUIRE(player.view.GetArmEntities().size() == 4);
+        for (auto id : player.view.GetPartEntities()) {
+            REQUIRE(game.scene.GetEntity(id));
+            CHECK(game.scene.GetEntity(id)->GetLayer() == 29);
+        }
         for (auto id : player.view.GetArmEntities()) {
             const auto* arm = game.scene.GetEntity(id);
             REQUIRE(arm);
             REQUIRE(arm->GetComponent<Spot::MeshRenderer>());
+            CHECK(arm->GetLayer() == 29);
             const auto position = arm->GetTransform().GetWorldPosition();
             CHECK(Spot::Length(position - player.controller.GetEyePosition()) < 1.5f);
             CHECK_FALSE(arm->GetComponent<Spot::MeshRenderer>()->IsCastingShadows());

@@ -108,4 +108,5 @@ private:
     std::vector<Spot::SignalConnection> m_roomClicks;
     // The listed name of the room being joined, when it was chosen from the list.
     std::string m_joiningName;
+    std::vector<Spot::SignalConnection> m_nameChanges;
 };

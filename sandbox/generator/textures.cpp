@@ -178,11 +178,12 @@ SurfacePoint WalnutPoint(int x, int y, float scale) {
     const WoodFigure figure = WoodGrain(u, v, 40, 1950);
     // Curl across the grain catches the light in bands.
     const float curl = Noise(u, v, 24, 3, 2, 1951);
-    Rgb color = Mix(Rgb{0.5f, 0.3f, 0.17f}, Rgb{0.2f, 0.1f, 0.05f}, figure.tone);
-    color = color * ((0.9f + curl * 0.15f) * (1.0f - figure.pores * 0.3f));
+    const float fibers = Ridges(u, v, 3, 180, 2, 1953);
+    Rgb color = Mix(Rgb{0.46f, 0.29f, 0.17f}, Rgb{0.31f, 0.18f, 0.095f}, figure.tone);
+    color = color * ((0.92f + curl * 0.13f + fibers * 0.035f) * (1.0f - figure.pores * 0.18f));
     return {.color = color,
-            .height = figure.tone * 0.25f - figure.pores * 0.35f + curl * 0.2f,
-            .roughness = 0.32f + figure.pores * 0.25f + Random(x, y, 1952) * 0.04f};
+            .height = figure.tone * 0.12f - figure.pores * 0.18f + fibers * 0.045f,
+            .roughness = 0.28f + figure.pores * 0.18f + curl * 0.08f + Random(x, y, 1952) * 0.025f};
 }
 
 // Paint over steel: the ripples of a sprayed coat, fine scratches, and chips worn through to the bare metal.
@@ -287,13 +288,13 @@ SurfacePoint GlassPoint(int x, int y, float scale) {
 SurfacePoint PolymerPoint(int x, int y, float scale) {
     const float u = Coordinate(x, scale);
     const float v = Coordinate(y, scale);
-    const CellSample stipple = Cells(u * 110.0f, v * 110.0f, 110, 960);
+    const CellSample stipple = Cells(u * 180.0f, v * 180.0f, 180, 960);
     const float bump = Smooth(0.0f, 0.4f, stipple.second - stipple.nearest);
     const float rubbed = Smooth(0.55f, 0.8f, Noise(u, v, 5, 5, 3, 961));
-    return {.color = Rgb{0.11f, 0.11f, 0.115f} * (0.88f + bump * 0.18f + stipple.id * 0.05f),
-            .height = std::sqrt(bump) * 1.4f * (1.0f - rubbed * 0.4f),
-            .occlusion = 0.8f + bump * 0.2f,
-            .roughness = 0.72f - bump * 0.12f - rubbed * 0.12f};
+    return {.color = Rgb{0.16f, 0.165f, 0.17f} * (0.94f + bump * 0.09f + stipple.id * 0.025f),
+            .height = std::sqrt(bump) * 0.42f * (1.0f - rubbed * 0.4f),
+            .occlusion = 0.94f + bump * 0.06f,
+            .roughness = 0.67f - bump * 0.06f - rubbed * 0.09f};
 }
 
 // A gun's metal finish: bead-blasted to a fine even speckle, with faint tool marks along it and polished patches
@@ -305,10 +306,13 @@ SurfacePoint GunmetalPoint(int x, int y, float scale) {
     const float blast = GradientNoise(u * 240.0f, v * 240.0f, 240, 240, 971);
     const float tooling = Ridges(u, v, 2, 90, 2, 972);
     const float polished = Smooth(0.62f, 0.85f, Noise(u, v, 4, 4, 4, 973));
-    return {.color = Rgb{0.56f, 0.56f, 0.57f} * (0.92f + blast * 0.08f + speckle * 0.04f + polished * 0.12f),
-            .height = blast * 0.3f + tooling * 0.12f,
-            .roughness = 0.5f + blast * 0.08f + speckle * 0.05f - polished * 0.2f - tooling * 0.04f,
-            .metallic = 0.85f + polished * 0.15f};
+    const float scratches =
+        Smooth(0.965f, 0.995f, Ridges(u, v, 8, 180, 2, 974)) * Smooth(0.48f, 0.72f, Noise(u, v, 12, 3, 2, 975));
+    return {.color = Rgb{0.62f, 0.64f, 0.67f} *
+                     (0.95f + blast * 0.045f + speckle * 0.018f + polished * 0.08f + scratches * 0.12f),
+            .height = blast * 0.045f + tooling * 0.025f - scratches * 0.08f,
+            .roughness = 0.39f + blast * 0.07f + speckle * 0.025f - polished * 0.12f - scratches * 0.08f,
+            .metallic = 0.94f + polished * 0.06f};
 }
 
 } // namespace
@@ -409,7 +413,7 @@ SurfaceTextures PaintSurface(Surface surface, std::uint32_t size) {
         return PaintSurfaceTexels(size, GlassPoint);
     case Surface::Polymer:
         return PaintSurfaceTexels(size, PolymerPoint,
-                                  {{.radius = 1.5f, .depth = 0.8f, .dirt = 0.25f, .occlusion = 0.3f}});
+                                  {{.radius = 0.75f, .depth = 0.15f, .dirt = 0.06f, .occlusion = 0.08f}});
     case Surface::Gunmetal:
         return PaintSurfaceTexels(size, GunmetalPoint);
     default:

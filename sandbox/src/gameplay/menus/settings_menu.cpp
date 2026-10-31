@@ -1,4 +1,5 @@
 #include "gameplay/menus/settings_menu.h"
+#include "gameplay/core/player_name.h"
 
 #include <array>
 #include <cmath>
@@ -11,6 +12,9 @@ SPOT_COMPONENT(SettingsMenu);
 SPOT_COMPONENT(BindingsMenu);
 
 void SettingsMenu::SetPlayerName(std::string name) {
+    if (!IsValidPlayerName(name)) {
+        return;
+    }
     m_settings.playerName = std::move(name);
     MarkChanged();
     Save();

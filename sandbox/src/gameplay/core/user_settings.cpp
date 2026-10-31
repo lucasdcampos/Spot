@@ -1,4 +1,5 @@
 #include "gameplay/core/user_settings.h"
+#include "gameplay/core/player_name.h"
 
 #include "gameplay/core/player_controller.h"
 #include "gameplay/core/players.h"
@@ -62,8 +63,7 @@ void UserSettings::Serialize(Spot::Archive& archive) {
 }
 
 void UserSettings::Validate() {
-    if (playerName.empty() || playerName.size() > 64 ||
-        std::ranges::any_of(playerName, [](unsigned char c) { return c < 32 || c == 127; })) {
+    if (!IsValidPlayerName(playerName)) {
         playerName = "Player";
     }
     sensitivity = Clamp(sensitivity, 0.0002f, 0.02f, 0.0025f);

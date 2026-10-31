@@ -21,6 +21,13 @@
 #include "spot/scene/rendering/text_renderer.h"
 #include "spot/scene/scene.h"
 
+#include "planar_mirror.frag.h"
+#include "planar_mirror.vert.h"
+#include "spot/graphics/pipeline.h"
+#include "spot/scene/entity.h"
+#include "spot/scene/rendering/planar_mirror.h"
+
+#include <algorithm>
 #include <array>
 
 namespace Spot {
@@ -30,6 +37,19 @@ namespace {
 constexpr TextureFormat HdrFormat = TextureFormat::Rgba16Float;
 
 } // namespace
+
+struct SceneRenderer::Mirrors {
+    std::unique_ptr<Renderer3D> renderer;
+    std::unique_ptr<Pipeline> pipeline;
+    std::unique_ptr<Sampler> sampler;
+    struct View {
+        std::unique_ptr<Texture> color;
+        std::unique_ptr<Texture> depth;
+        Matrix4 world;
+    };
+    std::vector<View> views;
+    std::size_t active = 0;
+};
 
 SceneRenderer::SceneRenderer(GraphicsDevice& device, const SceneRendererConfig& config)
     : m_device(device), m_format(config.targetFormat.value_or(device.GetWindowFormat())), m_sampleCount(1),
@@ -136,6 +156,62 @@ void SceneRenderer::Render(RenderContext& context, Scene& scene, Texture* target
         scene.GetOrAddSystem<Spot::RenderHookSystem>().RunRenderHooks(stage);
     };
 
+    if (m_mirrors) {
+        m_mirrors->active = 0;
+    }
+    scene.ForEachComponent<PlanarMirror>([&](const PlanarMirror& mirror) {
+        if (!mirror.IsVisible(view, size) || !((view.cullingMask >> mirror.GetEntity().GetLayer()) & 1u)) {
+            return;
+        }
+        if (!m_mirrors) {
+            m_mirrors = std::make_unique<Mirrors>();
+            m_mirrors->renderer = std::make_unique<Renderer3D>(
+                m_device,
+                Renderer3DConfig{.targetFormat = HdrFormat, .hdr = true, .shadowMapSize = 0, .localShadowMapSize = 0});
+            const auto vertex = m_device.CreateShader(Detail::Shaders::PlanarMirrorVert);
+            const auto fragment = m_device.CreateShader(Detail::Shaders::PlanarMirrorFrag);
+            if (vertex && fragment) {
+                m_mirrors->pipeline = m_device.CreatePipeline(
+                    {.vertexShader = vertex.get(),
+                     .fragmentShader = fragment.get(),
+                     .targetFormat = HdrFormat,
+                     .depth = DepthState{.test = true, .write = true, .compare = CompareOp::LessOrEqual},
+                     .sampleCount = m_sampleCount});
+            }
+            m_mirrors->sampler = m_device.CreateSampler();
+        }
+        if (!m_mirrors->pipeline || !m_mirrors->sampler || !m_mirrors->renderer->IsValid()) {
+            return;
+        }
+        const auto index = m_mirrors->active;
+        if (index == m_mirrors->views.size()) {
+            m_mirrors->views.emplace_back();
+        }
+        auto& reflected = m_mirrors->views[index];
+        const auto resolution = std::clamp(mirror.resolution, 64u, 2048u);
+        if (!reflected.color || !reflected.depth || reflected.color->GetWidth() != resolution) {
+            reflected.color = m_device.CreateTexture(
+                {.width = resolution, .height = resolution, .format = HdrFormat, .renderTarget = true});
+            reflected.depth = m_device.CreateTexture({.width = resolution,
+                                                      .height = resolution,
+                                                      .format = TextureFormat::Depth32Float,
+                                                      .renderTarget = true});
+        }
+        if (!reflected.color || !reflected.depth) {
+            return;
+        }
+        reflected.world = mirror.GetEntity().GetTransform().GetWorldMatrix();
+        m_mirrors->renderer->Begin(context,
+                                   {.target = reflected.color.get(),
+                                    .clearColor = Color::Black,
+                                    .depthTarget = reflected.depth.get(),
+                                    .clearDepth = 1.0f},
+                                   mirror.GetReflectionCamera(view));
+        DrawScene(*m_mirrors->renderer, scene);
+        m_mirrors->renderer->End();
+        ++m_mirrors->active;
+    });
+
     const RenderGraphTexture output = m_graph.Import("Target", target);
     RenderGraphTexture hdr;
     RenderGraphTexture depth;
@@ -190,6 +266,17 @@ void SceneRenderer::Render(RenderContext& context, Scene& scene, Texture* target
             m_renderer3D->Begin(context, pass, view);
             DrawScene(*m_renderer3D, scene);
             m_renderer3D->End();
+            if (m_mirrors && m_mirrors->active > 0) {
+                auto mirrorPass = context.BeginRenderPass(pass);
+                mirrorPass.BindPipeline(*m_mirrors->pipeline);
+                for (std::size_t i = 0; i < m_mirrors->active; ++i) {
+                    const auto& reflected = m_mirrors->views[i];
+                    const std::array matrices{stage.viewProjection, reflected.world};
+                    mirrorPass.PushVertexUniforms(0, matrices);
+                    mirrorPass.BindFragmentTexture(0, *reflected.color, *m_mirrors->sampler);
+                    mirrorPass.Draw(6);
+                }
+            }
             runStage(RenderStage::AfterOpaque);
         });
 

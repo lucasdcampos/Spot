@@ -1,4 +1,5 @@
 #include "main_menu.h"
+#include "gameplay/core/player_name.h"
 
 #include "gameplay/game/map_info.h"
 #include "gameplay/menus/settings_menu.h"
@@ -90,9 +91,19 @@ void MainMenu::OnStart() {
     ShowPage(Page::Home);
     const auto* settings = GetEntity().GetComponent<Gameplay::SettingsMenu>();
     const std::string name = settings ? settings->GetSettings().playerName : "Player";
+    m_nameChanges.clear();
     for (const auto id : {hostPlayerName, joinPlayerName}) {
         if (auto* field = Get<Spot::UiInputField>(id)) {
+            field->maxLength = 64;
             field->SetText(name);
+            m_nameChanges.push_back(field->OnValueChanged.Connect(
+                [this, id, previous = std::make_shared<std::string>(name)](std::string_view value) {
+                    if (value.empty() || Gameplay::IsValidPlayerName(value)) {
+                        *previous = value;
+                    } else if (auto* changed = Get<Spot::UiInputField>(id)) {
+                        changed->SetText(*previous);
+                    }
+                }));
         }
     }
     if (Gameplay::Session* session = Gameplay::Session::Get()) {

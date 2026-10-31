@@ -720,3 +720,18 @@ Before loading GPU or rendering assets, call `RegisterGraphicsAssets(assets, dev
 meshes, materials, models, fonts and sprite atlases. Register animation separately for animated models. Decoding,
 font rasterization and unsupported texture-block decompression run on workers; GPU creation and reference resolution
 run when the calling thread finishes the load. Loaders are local to the supplied manager.
+
+### Planar mirrors
+
+`PlanarMirror` is a rectangle in its entity's local XY plane, facing +Z, with its size set by the world scale.
+`SceneRenderer` captures it only when the viewing camera is in front, within `maxDistance`, and its rectangle
+intersects the camera frustum. Each visible mirror costs an additional scene view at `resolution` squared
+pixels (512 by default). Captures use a separate renderer without shadow maps, ambient occlusion or volumetric
+clouds. Mirror surfaces are composited with depth testing into the main HDR image before post-processing;
+reflections do not recursively draw other mirrors.
+
+The capture eye is reflected across the mirror plane. An off-axis perspective projection fits the rectangle
+exactly, with the near plane at the surface to clip geometry behind it. `Camera3D::projectionOverride` supplies
+this projection through the public rendering interface. The reflected camera sees `reflectionMask`, independent
+of the main camera, so a player's hidden body can appear. Scene entities remain identified by their components;
+only GPU targets and matrices are retained between frames. Captures refresh each visible frame, including animation.

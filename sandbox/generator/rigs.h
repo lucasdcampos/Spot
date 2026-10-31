@@ -4,4 +4,5 @@
 
 namespace Generator::Rigs {
 GltfModel Humanoid();
+GltfModel Developer();
 } // namespace Generator::Rigs

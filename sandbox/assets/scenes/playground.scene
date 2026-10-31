@@ -67288,6 +67288,342 @@
         1.0
       ],
       "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.6000000238418579,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              0.08
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "659ccf92068c48e09a2dd50d8841bebd",
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "maxDistance": 12.0,
+            "resolution": 512,
+            "reflectionMask": 3758096383
+          },
+          "enabled": true,
+          "id": "52d14f32395a4ea0a968f55c0e704226",
+          "type": "PlanarMirror"
+        }
+      ],
+      "id": 201444,
+      "layer": 0,
+      "name": "Workshop Mirror",
+      "parent": 200128,
+      "position": [
+        13,
+        2.1,
+        -45.64
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        3.4,
+        1.8,
+        1
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "cullScreenSize": 0.0,
+            "inlineMaterial": false,
+            "lods": [],
+            "material": "0bdd2394ebedf97c8bf579c82dd42cc8",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "56f6eae1f04c4782810381474dffdade",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.6000000238418579,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "bdaecf1ad35747e7a39d8bcd3cb81708",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 201445,
+      "layer": 0,
+      "name": "Workshop Mirror Frame Top",
+      "parent": 200128,
+      "position": [
+        13,
+        3.05,
+        -45.68
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        3.6,
+        0.1,
+        0.14
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "cullScreenSize": 0.0,
+            "inlineMaterial": false,
+            "lods": [],
+            "material": "0bdd2394ebedf97c8bf579c82dd42cc8",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "5e48948499ca460581e9aaef8f0fecc1",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.6000000238418579,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "6e8587bdd3244d8bb508102a8a0fd690",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 201446,
+      "layer": 0,
+      "name": "Workshop Mirror Frame Bottom",
+      "parent": 200128,
+      "position": [
+        13,
+        1.15,
+        -45.68
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        3.6,
+        0.1,
+        0.14
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "cullScreenSize": 0.0,
+            "inlineMaterial": false,
+            "lods": [],
+            "material": "0bdd2394ebedf97c8bf579c82dd42cc8",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "d59070250af7402e90b4559f34252979",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.6000000238418579,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "d7ef72f10f754bdc89404bc3aaeedbc7",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 201447,
+      "layer": 0,
+      "name": "Workshop Mirror Frame Left",
+      "parent": 200128,
+      "position": [
+        11.25,
+        2.1,
+        -45.68
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.1,
+        1.8,
+        0.14
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": true,
+            "cullScreenSize": 0.0,
+            "inlineMaterial": false,
+            "lods": [],
+            "material": "0bdd2394ebedf97c8bf579c82dd42cc8",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "c80d3508bf1a48f5b252591a34ee1875",
+          "type": "MeshRenderer"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "friction": 0.6000000238418579,
+            "restitution": 0.0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "72ee006c637240f787410299c9c94804",
+          "type": "BoxCollider"
+        }
+      ],
+      "id": 201448,
+      "layer": 0,
+      "name": "Workshop Mirror Frame Right",
+      "parent": 200128,
+      "position": [
+        14.75,
+        2.1,
+        -45.68
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        0.1,
+        1.8,
+        0.14
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": false,
+            "cullScreenSize": 0.0,
+            "inlineMaterial": false,
+            "lods": [],
+            "material": "1a254d3cca4befebfc27054387a9488d",
+            "mesh": "00000000000000000000000000000001",
+            "submesh": -1
+          },
+          "enabled": true,
+          "id": "96b4f03b41eb4a6c80ca442f9df3e44e",
+          "type": "MeshRenderer"
+        }
+      ],
+      "id": 201449,
+      "layer": 29,
+      "name": "Workshop Mirror Chrome Fallback",
+      "parent": 201444,
+      "position": [
+        0,
+        0,
+        -0.011
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        0.02
+      ],
+      "tags": []
     }
   ],
   "format": "spot-scene",

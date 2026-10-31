@@ -5578,3 +5578,78 @@ TEST_CASE("Every engine renderer is made and draws on a device with only the bas
     REQUIRE(pixels.size() == 4 * 4 * 4);
     CHECK(pixels[1] == 255);
 }
+
+TEST_CASE("Planar mirrors reflect hidden player layers dynamically and clip behind the surface", "[gpu][mirror]") {
+    RequireGpu();
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    Spot::Scene scene;
+    auto& camera = scene.CreateEntity("Camera").AddComponent<Spot::Camera>();
+    camera.SetCullingMask(~(1u << 30));
+    auto& mirror = scene.CreateEntity("Mirror");
+    mirror.GetTransform().SetPosition({0, 0, -3});
+    mirror.GetTransform().SetScale({4, 4, 1});
+    auto& planar = mirror.AddComponent<Spot::PlanarMirror>();
+    planar.resolution = 128;
+    planar.reflectionMask = ~(1u << 29);
+    const std::shared_ptr<const Spot::Mesh> cube = Spot::Mesh::Create(*device, Spot::PrimitiveMeshes::CreateCube());
+    REQUIRE(cube);
+    auto red = std::make_shared<Spot::Material>();
+    red->baseColor = Spot::Color::Black;
+    red->emissive = Spot::Color::Red;
+    auto& player = scene.CreateEntity("Hidden player");
+    player.SetLayer(30);
+    player.GetTransform().SetPosition({0, 0, 2});
+    player.AddComponent<Spot::MeshRenderer>(cube, red);
+    auto green = std::make_shared<Spot::Material>();
+    green->emissive = Spot::Color::Green;
+    auto& behind = scene.CreateEntity("Behind mirror");
+    behind.GetTransform().SetPosition({0, 0, -4});
+    behind.AddComponent<Spot::MeshRenderer>(cube, green);
+    auto& arms = scene.CreateEntity("First-person arms");
+    arms.SetLayer(29);
+    arms.GetTransform().SetPosition({0, 0, 1});
+    arms.AddComponent<Spot::MeshRenderer>(cube, green);
+    auto& fallback = scene.CreateEntity("Chrome fallback");
+    fallback.SetLayer(29);
+    fallback.GetTransform().SetPosition({0, 0, -3.011f});
+    fallback.GetTransform().SetScale({4, 4, 0.02f});
+    auto chrome = std::make_shared<Spot::Material>();
+    chrome->baseColor = Spot::Color::Black;
+    chrome->metallic = 1;
+    chrome->roughness = 0.04f;
+    chrome->emissive = Spot::Color::Green;
+    fallback.AddComponent<Spot::MeshRenderer>(cube, chrome);
+    auto target = device->CreateTexture(
+        {.width = 128, .height = 128, .format = Spot::TextureFormat::Rgba8, .renderTarget = true});
+    REQUIRE(target);
+    Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8,
+                                           .sampleCount = 1,
+                                           .shadowMapSize = 0,
+                                           .localShadowMapSize = 0,
+                                           .ambientOcclusion = {.enabled = false},
+                                           .volumetricClouds = false,
+                                           .skyOcclusionSize = 0});
+    REQUIRE(renderer.IsValid());
+    for (int frame = 0; frame < 3; ++frame) {
+        red->emissive = frame == 0 ? Spot::Color::Red : Spot::Color::Blue;
+        planar.maxDistance = frame == 2 ? 1.0f : 12.0f;
+        scene.Update(0);
+        auto* context = device->BeginOffscreenFrame(*target);
+        REQUIRE(context);
+        renderer.Render(*context, scene, target.get());
+        device->EndFrame();
+        const auto pixels = device->DownloadTexture(*target);
+        REQUIRE(pixels.size() == 128 * 128 * 4);
+        const auto center = (64 * 128 + 64) * 4;
+        if (frame == 2) {
+            CHECK(pixels[center + 1] > 100);
+            CHECK(pixels[center + 1] > 3 * pixels[center]);
+            CHECK(pixels[center + 1] > 3 * pixels[center + 2]);
+            continue;
+        }
+        CHECK(pixels[center + (frame == 0 ? 0 : 2)] > 100);
+        CHECK(pixels[center + 1] < 20);
+        CHECK(pixels[center + (frame == 0 ? 2 : 0)] < 20);
+    }
+}

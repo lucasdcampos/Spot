@@ -386,6 +386,8 @@ add_library(spot_objects OBJECT
     spot/scene/rendering/scene_drawing.cpp
     spot/scene/rendering/scene_renderer.h
     spot/scene/rendering/render_hook_system.cpp
+    spot/scene/rendering/planar_mirror.h
+    spot/scene/rendering/planar_mirror.cpp
     spot/scene/rendering/scene_renderer.cpp
     spot/scene/scene_assets.cpp
     spot/scene/scene_serialization.cpp
@@ -467,6 +469,8 @@ spot_add_shaders(spot_objects NAMESPACE Spot::Detail::Shaders
     spot/render/shaders/hiz_reduce.frag.hlsl
     spot/render/shaders/world_cull.comp.hlsl
     spot/render/shaders/line.frag.hlsl
+    spot/render/shaders/planar_mirror.vert.hlsl
+    spot/render/shaders/planar_mirror.frag.hlsl
     spot/render/shaders/line.vert.hlsl
     spot/render/shaders/mesh.frag.hlsl
     spot/render/shaders/mesh_depth_cutout.frag.hlsl

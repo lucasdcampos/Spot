@@ -102,7 +102,7 @@ void ViewModel::Show(const Spot::AssetRef<Spot::Model>& model) {
     if (armsModel) {
         for (const Spot::ModelPart& part : armsModel->GetParts()) {
             auto& entity = GetScene().CreateEntity(part.name);
-            entity.SetLayer(GetEntity().GetLayer());
+            entity.SetLayer(renderLayer >= 0 ? std::clamp(renderLayer, 0, 31) : GetEntity().GetLayer());
             auto& renderer = entity.AddComponent<Spot::MeshRenderer>(part.mesh, part.material);
             renderer.SetSubmesh(part.submesh);
             renderer.SetCastingShadows(false);
@@ -112,7 +112,7 @@ void ViewModel::Show(const Spot::AssetRef<Spot::Model>& model) {
     }
     for (const Spot::ModelPart& part : model->GetParts()) {
         Spot::Entity& entity = GetScene().CreateEntity("View Model");
-        entity.SetLayer(GetEntity().GetLayer());
+        entity.SetLayer(renderLayer >= 0 ? std::clamp(renderLayer, 0, 31) : GetEntity().GetLayer());
         // So close to the eyes, its shadow would darken the view.
         auto& renderer = entity.AddComponent<Spot::MeshRenderer>(part.mesh, part.material);
         renderer.SetCastingShadows(false);
@@ -475,6 +475,7 @@ void ViewModel::OnDisable() {
 }
 
 void ViewModel::Serialize(Spot::Archive& archive) {
+    archive.Field("renderLayer", renderLayer, {.min = -1.0f, .max = 31.0f});
     archive.Field("armsModel", armsModel);
     archive.Field("swayAmount", swayAmount, {.min = 0, .max = .1f, .speed = .001f});
     archive.Field("maxSway", maxSway, {.min = 0, .max = .1f, .speed = .001f});

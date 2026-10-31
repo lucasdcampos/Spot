@@ -7,6 +7,7 @@
 #include "spot/scene/rendering/fog.h"
 #include "spot/scene/rendering/light.h"
 #include "spot/scene/rendering/mesh_renderer.h"
+#include "spot/scene/rendering/planar_mirror.h"
 #include "spot/scene/rendering/post_processing.h"
 #include "spot/scene/rendering/reflection_probe.h"
 #include "spot/scene/rendering/sky.h"
@@ -34,6 +35,7 @@ void RegisterRenderComponents() {
     RegisterComponent<SpriteRenderer>("SpriteRenderer");
     RegisterComponent<SpriteAnimator>("SpriteAnimator");
     RegisterComponent<Tilemap>("Tilemap");
+    RegisterComponent<PlanarMirror>("PlanarMirror");
     RegisterComponent<Camera>("Camera");
 }
 

@@ -41,6 +41,10 @@ so those systems also bring `hud` even when a particular game does not author th
 `gameplay/core/` needs only the engine. It has the mechanisms the other systems meet through, so none includes another
 to switch it off or read its internals.
 
+IsValidPlayerName() in player_name.h is the shared nickname policy: 1 to 64 valid UTF-8 bytes without whitespace
+or control characters. Preferences replace invalid saved names with Player; menus and networking validate new
+names with the same function. This policy applies to player nicknames; room names may contain spaces.
+
 - **Possession.** A `Pawn` is anything that can be controlled; a `Controller` controls one at a time, from an entity of
   its own, so it outlives a pawn and stays the same from one to the next. `Controller::pawn` names the pawn it
   possesses as it starts; `Possess()` takes a pawn from any other controller. `PlayerController`, the local player's,
@@ -511,7 +515,8 @@ server tells each client (`RoomPermissions`), whose console then permits cheats 
 cheat commands follow, and `NetworkPlayers` puts back a client flying through everything only when it may not cheat.
 On a client, the room's commands, and those a game allows (`SessionCommands::AllowRemote()`), go to the server
 (`RemoteCommand`), which runs them for that player if it is an operator, or, for those allowed as cheats, if it may
-cheat, and sends back the answer, logged there as `Server: ...`.
+cheat, and sends back the answer, logged there as `Server: ...`. The sandbox allows `smite` and `yeet` as cheats: the
+server strikes with `DeveloperMode::Strike()`, whoever asked; a player in developer mode still strikes as before.
 
 `Session` keeps why it failed (`GetLastErrorKind()`): what was asked could not be done (`Request`, as an invalid
 address or a room that cannot start), nothing answered (`Unreachable`, the engine's `NetHost::CouldNotConnect` or the

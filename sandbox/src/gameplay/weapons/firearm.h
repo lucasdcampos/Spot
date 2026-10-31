@@ -39,6 +39,8 @@ public:
     float impulse = 30.0f;
     // What its hits are to what they hit (see DamageInfo).
     std::string damageType = "Bullet";
+    // Fires without consuming rounds or reloading.
+    bool infiniteAmmo = false;
     int magazineSize = 12;
     int reserveAmmo = 60;
     // Seconds.

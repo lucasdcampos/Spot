@@ -67,7 +67,7 @@ Firearm::Firearm() : HeldItem({"Fire", "Aim", "Reload"}) {
 }
 
 bool Firearm::IsReady() const {
-    return m_ammo > 0 && !IsReloading() && !IsInvokePending(m_cooldown);
+    return (infiniteAmmo || m_ammo > 0) && !IsReloading() && !IsInvokePending(m_cooldown);
 }
 
 float Firearm::GetReloadProgress() const {
@@ -81,7 +81,9 @@ bool Firearm::TakeShot() {
     if (!IsReady()) {
         return false;
     }
-    --m_ammo;
+    if (!infiniteAmmo) {
+        --m_ammo;
+    }
     // Its pellets may be reported hitting, for a moment.
     m_hitAllowance = std::min(m_hitAllowance + static_cast<float>(std::max(pellets, 1)),
                               static_cast<float>(std::max(pellets, 1) * 3));
@@ -91,7 +93,7 @@ bool Firearm::TakeShot() {
 }
 
 bool Firearm::StartReload() {
-    if (IsReloading() || m_ammo >= magazineSize || m_reserve <= 0) {
+    if (infiniteAmmo || IsReloading() || m_ammo >= magazineSize || m_reserve <= 0) {
         return false;
     }
     ScheduleReload(reloadTime);
@@ -412,6 +414,12 @@ void Firearm::Replicate(Spot::Archive& archive) {
 
 ItemStatus Firearm::DescribeStatus() const {
     ItemStatus status = HeldItem::DescribeStatus();
+    if (infiniteAmmo) {
+        status.count = "INF";
+        status.summary = "Infinite ammunition";
+        status.hints = {{aimAction, "Aim"}};
+        return status;
+    }
     status.count = std::to_string(m_ammo);
     status.detail = std::format("/ {}", m_reserve);
     status.summary = std::format("{} / {}", m_ammo, m_reserve);
@@ -431,7 +439,7 @@ ItemStatus Firearm::DescribeStatus() const {
 }
 
 ItemPose Firearm::DescribePose() const {
-    return {.reloading = IsReloading(), .reloadProgress = GetReloadProgress(), .empty = m_ammo == 0};
+    return {.reloading = IsReloading(), .reloadProgress = GetReloadProgress(), .empty = !infiniteAmmo && m_ammo == 0};
 }
 
 void Firearm::OnStart() {
@@ -443,7 +451,7 @@ void Firearm::OnStart() {
     if (m_savedCooldown > 0.0f) {
         m_cooldown = Invoke(m_savedCooldown, [] {});
     }
-    if (m_savedReloadPending) {
+    if (m_savedReloadPending && !infiniteAmmo) {
         ScheduleReload(m_savedReload);
     }
 }
@@ -465,6 +473,7 @@ void Firearm::Serialize(Spot::Archive& archive) {
     archive.Field("impulse", impulse,
                   {.min = 0.0f, .max = 10000.0f, .speed = 0.5f, .tooltip = "Per pellet, in newton seconds"});
     archive.Field("damageType", damageType, {.tooltip = "What its hits are to what they hit"});
+    archive.Field("infiniteAmmo", infiniteAmmo);
     archive.Field("magazineSize", magazineSize, {.min = 1.0f, .max = 1000.0f});
     archive.Field("reserveAmmo", reserveAmmo, {.min = 0.0f, .max = 10000.0f});
     archive.Field("reloadTime", reloadTime, {.min = 0.0f, .max = 10.0f, .speed = 0.01f, .tooltip = "Seconds"});

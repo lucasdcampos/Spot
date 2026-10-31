@@ -17,6 +17,7 @@ struct Samples {
 };
 
 Samples PistolShot();
+Samples RayGunShot();
 Samples RifleShot();
 Samples ShotgunShot();
 Samples RocketLaunch();

@@ -22,6 +22,7 @@ void PlayerInfo::Replicate(Spot::Archive& archive) {
     archive.Field("peer", peer);
     archive.Field("ping", ping);
     archive.Field("team", team);
+    archive.Field("developer", developer);
     archive.Field("pawn", pawn);
     archive.Field("scores", scores);
 }
@@ -29,6 +30,7 @@ void PlayerInfo::Replicate(Spot::Archive& archive) {
 void PlayerInfo::Serialize(Spot::Archive& archive) {
     archive.Field("name", name);
     archive.Field("team", team);
+    archive.Field("developer", developer);
     archive.Field("scores", scores);
 }
 

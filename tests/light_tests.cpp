@@ -150,3 +150,33 @@ TEST_CASE("Directional lights cast shadows unless told not to, and other lights 
     ambient.SetCastingShadows(true);
     CHECK_FALSE(ambient.GetLightData().castsShadows);
 }
+
+TEST_CASE("Planar mirrors gate captures and project their surface from a reflected eye", "[mirror]") {
+    Scene scene;
+    auto& entity = scene.CreateEntity("Mirror");
+    entity.GetTransform().SetPosition({0, 0, -3});
+    entity.GetTransform().SetScale({4, 2, 1});
+    auto& mirror = entity.AddComponent<Spot::PlanarMirror>();
+    Spot::Camera3D viewer;
+    CHECK(mirror.IsVisible(viewer, {800, 600}));
+    viewer.position = {0, 0, 10};
+    CHECK_FALSE(mirror.IsVisible(viewer, {800, 600}));
+    viewer.position = {0, 0, -4};
+    CHECK_FALSE(mirror.IsVisible(viewer, {800, 600}));
+    viewer.position = {0, 0, 0};
+    viewer.LookAt({0, 0, 1});
+    CHECK_FALSE(mirror.IsVisible(viewer, {800, 600}));
+    viewer.position = {1, 0.4f, 0};
+    const auto reflected = mirror.GetReflectionCamera(viewer);
+    CHECK(IsNear(reflected.position, {1, 0.4f, -6}));
+    CHECK(reflected.cullingMask == 0xFFFFFFFFu);
+    const auto matrix = reflected.GetViewProjection({512, 512});
+    const auto left = matrix * Spot::Vector4{-2, -1, -3, 1};
+    const auto right = matrix * Spot::Vector4{2, 1, -3, 1};
+    CHECK(left.x / left.w == Approx(1));
+    CHECK(left.y / left.w == Approx(-1));
+    CHECK(right.x / right.w == Approx(-1));
+    CHECK(right.y / right.w == Approx(1));
+    const auto behind = matrix * Spot::Vector4{0, 0, -3.1f, 1};
+    CHECK(behind.z < 0);
+}

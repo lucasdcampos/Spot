@@ -59,7 +59,7 @@ remain outside world checkpoints and cleanup.
   "SPOT ENGINE" sign glows through bloom under a mirror sphere and gold, copper, plastic and glass samples, for PBR
   and reflections. The NPCs patrol here, and a red hatchback is parked by the spawn (see [Driving](#driving)).
 - **Workshop** (north-east): a brick hangar with a ten-meter door, glass windows, four shadowed ceiling lamps, a
-  workbench, shelving, the lamp pad and a neon sign. Steel stairs up the west wall lead onto the parapeted roof.
+  workbench, a steel-framed planar mirror above it (512-pixel captures within 12 meters while in view), shelving, the lamp pad and a neon sign. Steel stairs up the west wall lead onto the parapeted roof.
 - **Proving yard** (west): a quarter pipe, a jump ramp, a platform with steps, a nine-meter drop tower with
   switchback stairs over a bouncy pad, a wrecking ball on a rope beside a wall of crates, a seesaw on a hinge and a
   curve of dominoes.
@@ -350,6 +350,19 @@ by name: a `Slide` cycles as it fires and locks back when empty, a `Pump` is wor
 drops out and is seated again, a `Rocket` disappears when fired and is loaded from the front, and `Prongs` spin,
 faster while the physics gun holds something. Any model following these names gets the same behavior.
 
+`generator/weapons.cpp` builds the weapon meshes with curved bevel strips, rounded blocks and smooth turned barrels.
+The pistol follows modern service-pistol proportions, the rifle uses AR-style furniture and a tubular red-dot sight,
+and the pump shotgun has a rounded walnut stock, grooved forend and ventilated rib. The rifle's aluminium handguard
+has actual openings with inner surfaces; the barrel continues inside it. Small controls, receiver pins and magazine
+ribs stay in the existing material parts so prefab mesh indices and moving-part names remain stable.
+`generator/textures.cpp` supplies their 1024-pixel albedo, normal and packed ORM maps: fine tool marks and sparse
+scratches on gunmetal, molded polymer stipple and oiled walnut grain. Surface relief is subtle enough to preserve
+machined highlights. Grip markers and the separate first-person arms model retain their original placement.
+
+The GPU test `Generated weapons render their material finishes and machined silhouettes up close` captures side and
+three-quarter views of every weapon in `build/<preset>/tests/sandbox_captures/`. The held-item visual test captures
+hip poses, sights, firing and reloading in the real playground, including the arms.
+
 Shots aim from the eyes, where the crosshair is, so aiming is exact. Hitscan pellets draw a tracer, a stretched
 particle flying from the muzzle to the impact; rockets leave the muzzle toward the crosshair's target unless a wall
 is closer than the muzzle.
@@ -387,6 +400,32 @@ loads do not leave stale entity pointers.
 | `spawn <prop>` | Spawn a catalog item where the player aims; no arguments lists names |
 | `give <weapon>` | Equip/refill an owned firearm or add a missing one to the player's inventory |
 | `stress <count>` | Spawn 1..2000 crates in a pile in front of the player |
+| `imthegamedev` | Unlock the developer skin and Ray Gun for the local player, including as a guest; does not require cheats |
+| `smite <player>` | Developer mode: kill the player with that exact nickname with a visible lightning strike |
+| `yeet <player>` | Developer mode: launch the player with that exact nickname away and upward |
+
+The developer easter egg also unlocks automatically for the exact nickname `lucasof`. `DeveloperMode` belongs to
+the player prefab: the server accepts the console request only for the sender's own character, and replicates the
+unlock. `PlayerInfo::developer` retains it for that player across respawns. It intentionally uses no authentication;
+any player can discover the command. It does not enable the console's other cheat commands.
+
+`smite` and `yeet` require the caller's developer unlock on the server, including for requests sent directly over
+the network. Targets use exact nicknames; unknown, ambiguous and dead targets are refused. Smite shares a brief
+blue-white lightning bolt and flash with every client and applies lethal damage on the server. Yeet ejects a
+seated target and uses `CharacterMovement::Push()`, including its owner notification and movement allowance, to
+launch the character without turning the normal speed checks off.
+
+Player nicknames contain 1 to 64 UTF-8 bytes, without whitespace or control characters. `IsValidPlayerName()` in
+`gameplay/core/player_name.h` is shared by admission, host/join validation, preferences and the nickname fields.
+Invalid saved names fall back to `Player`; room names and passwords may still contain spaces.
+
+The skin is `generated/models/developer.gltf`, generated alongside the humanoid with the same skeleton. It replaces
+the shirt with black, adds white DEV lettering, pixel sunglasses and a gold crown, and uses the body's Animator and
+render layer, including in first person, vehicles and ragdolls. The Ray Gun is an inactive held-item child already
+present on every machine, so its replicated component order never changes when unlocked. Inventories omit inactive
+or disabled items. Unlocking activates the seventh weapon-wheel item: an original retro science-fiction model,
+icon, synthesized sound and green muzzle/tracer effects, using the regular Firearm with exactly 1337 damage per hit.
+Repeated activation neither duplicates the item nor refills its ammunition. The server remains responsible for damage.
 
 Item names are case-insensitive; spaces, underscores and hyphens are interchangeable. Multiword names work with
 or without quotes, for example `give "Rocket Launcher"`. Giving a weapon removes its world rendering/colliders
@@ -519,8 +558,7 @@ with it, fades by raising its cutoff, and is never saved.
 Both maps author a restrained blood response: six entry particles and ten exit particles, with millimeter-sized
 drops that slow down and fade within 0.3 seconds, plus a single brief mist puff on each side. Velocity stretch adds
 `speed * velocityStretch` meters to a particle's length, so blood uses values of 0.003 to 0.005 seconds to keep its
-streaks short. Characters leave two small spatter marks at most, a small mark below the wound and one nearby drip;
-their mark sizes range from 4 to 14 centimeters, with spatter limited to 2.2 meters behind the hit.
+streaks short.
 The blood GPU test loads each map's cooked effects into a fixed view, bounds the spray's rendered footprint and
 particle count, checks that it disappears, and captures its early, dispersing and fading stages.
 
@@ -727,3 +765,8 @@ Most living blades are narrow, with a squared random width distribution reservin
 minority. Restrained cross-section shading, relief and contact shadows blend them into a continuous canopy.
 Periodic domain warping breaks up the larger green/dry regions, with finer dryness variation within them;
 creased width profiles give some blades an edge-on fold without adding high-contrast detail.
+
+The workshop mirror excludes layer 29, reserved for the local first-person view and its chrome fallback backing.
+The backing stays behind the reflected surface, so it shows when captures stop beyond 12 meters.
+
+The developer Ray Gun uses clean red enamel, polished brass and a matte grip with no worn surface maps. Its mesh and holding markers are scaled to 75%, with a rear cap, muzzle insert and brass side seams. It fires automatically every 0.1 seconds with `Firearm::infiniteAmmo`: shots retain their cooldown without consuming rounds, reloading or showing low-ammunition warnings.

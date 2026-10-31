@@ -572,14 +572,14 @@
             },
             "exitEffect": "blood.exit",
             "damageType": "Bullet",
-            "spatterCount": 2,
-            "spatterCone": 0.4,
-            "spatterReach": 2.2,
+            "spatterCount": 6,
+            "spatterCone": 0.6,
+            "spatterReach": 5.0,
             "dripReach": 3.0,
-            "dripCount": 1,
-            "dripRadius": 0.18,
-            "minSize": 0.04,
-            "maxSize": 0.14
+            "dripCount": 4,
+            "dripRadius": 0.8,
+            "minSize": 0.2,
+            "maxSize": 0.7
           }
         },
         {

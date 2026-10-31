@@ -283,7 +283,7 @@ void NetworkPlayers::UpdatePlayerInfos(Spot::NetworkSystem& system) {
             if (Session* session = Session::Get()) {
                 info->name = session->GetPlayerName(peer);
             } else {
-                info->name = remote ? "Player " + std::to_string(info->peer) : "Host";
+                info->name = remote ? "Player_" + std::to_string(info->peer) : "Host";
             }
             if (auto* object = info->GetEntity().GetComponent<Spot::NetworkObject>()) {
                 system.SetOwner(*object, peer);

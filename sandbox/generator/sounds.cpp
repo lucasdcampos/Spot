@@ -1,6 +1,7 @@
 #include "sounds.h"
 
 #include <algorithm>
+#include <cmath>
 #include <span>
 #include <string_view>
 
@@ -300,6 +301,19 @@ void AddDroplets(Samples& samples, std::uint32_t seed, int count, float from, fl
 }
 
 } // namespace
+
+Samples RayGunShot() {
+    auto samples = Make(0.4f);
+    float phase = 0;
+    for (std::size_t i = 0; i < samples.data.size(); ++i) {
+        const float time = static_cast<float>(i) / static_cast<float>(samples.sampleRate);
+        const float frequency = 180.0f + 1800.0f * std::exp(-time * 16.0f);
+        phase += frequency / static_cast<float>(samples.sampleRate);
+        samples.data[i] = (Sine(phase) + 0.25f * Sine(phase * 2.03f)) * std::exp(-time * 12.0f) *
+                          std::min(time * 1000.0f, 1.0f) * 0.65f;
+    }
+    return samples;
+}
 
 Samples PistolShot() {
     Samples samples = Make(0.4f);

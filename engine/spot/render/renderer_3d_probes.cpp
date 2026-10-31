@@ -144,6 +144,7 @@ std::optional<ReflectionProbeData> ProbeRenderer::GetPendingCapture() const {
 Camera3D ProbeRenderer::GetFaceCamera(const ReflectionProbeData& probe, std::uint32_t face, const Camera3D& camera) {
     // The main camera's planes and layers, so a capture holds what the view would show.
     Camera3D faceCamera = camera;
+    faceCamera.projectionOverride.reset();
     faceCamera.position = probe.position;
     faceCamera.rotation = Quaternion::LookRotation(CubeFaces[face][0], CubeFaces[face][2]);
     faceCamera.fieldOfView = ToRadians(90.0f);

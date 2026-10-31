@@ -24,6 +24,7 @@ public:
     std::uint32_t peer = 0;
     int ping = 0;
     int team = 0;
+    bool developer = false;
     Spot::EntityId pawn = Spot::EntityId::Invalid;
     std::vector<PlayerScore> scores;
 

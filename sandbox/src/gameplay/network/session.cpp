@@ -1,5 +1,6 @@
 #include "gameplay/network/session.h"
 
+#include "gameplay/core/player_name.h"
 #include "gameplay/core/players.h"
 #include "gameplay/game/game_mode.h"
 #include "gameplay/game/map_info.h"
@@ -61,8 +62,8 @@ std::string ValidateSessionHello(const SessionSettings& settings, std::uint64_t 
     if (!Spot::ReadArchived(reader, hello)) {
         return "Invalid room introduction. Update the game and try again.";
     }
-    if (!IsValidName(hello.playerName)) {
-        return "Choose a player name between 1 and 64 bytes, without control characters.";
+    if (!IsValidPlayerName(hello.playerName)) {
+        return "Choose a player name between 1 and 64 bytes, without spaces or control characters.";
     }
     if (hello.password != settings.password) {
         return "Incorrect room password.";
@@ -233,7 +234,10 @@ bool Session::Host(SessionSettings settings) {
     if (!m_network) {
         return Fail("Networking is unavailable.");
     }
-    if (!IsValidName(settings.playerName) || !IsValidName(settings.name) || settings.password.size() > 128) {
+    if (!IsValidPlayerName(settings.playerName)) {
+        return Fail("Choose a player name between 1 and 64 bytes, without spaces or control characters.");
+    }
+    if (!IsValidName(settings.name) || settings.password.size() > 128) {
         return Fail("Enter a room name and player name; names must have 1 to 64 bytes.");
     }
     auto& assets = GetApplication().GetAssets();
@@ -285,7 +289,10 @@ bool Session::Join(std::string_view address, std::string playerName, std::string
         return Fail("Networking is unavailable.");
     }
     const auto parsed = Spot::NetAddress::Parse(address, 27015);
-    if (!parsed || !IsValidName(playerName) || password.size() > 128) {
+    if (!IsValidPlayerName(playerName)) {
+        return Fail("Choose a player name between 1 and 64 bytes, without spaces or control characters.");
+    }
+    if (!parsed || password.size() > 128) {
         return Fail("Enter a valid server address and player name.");
     }
     m_lastJoin = {.address = std::string(address), .playerName = playerName, .password = password};

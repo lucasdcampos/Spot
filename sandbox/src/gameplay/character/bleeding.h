@@ -24,17 +24,17 @@ public:
     // The type of damage that bleeds (see DamageInfo).
     std::string damageType = "Bullet";
     // Rays of spatter thrown each hit, within the cone of this half angle, in radians, around the hit.
-    int spatterCount = 2;
-    float spatterCone = 0.4f;
+    int spatterCount = 6;
+    float spatterCone = 0.6f;
     // Meters within which blood reaches behind the hit and below it.
-    float spatterReach = 2.2f;
+    float spatterReach = 5.0f;
     float dripReach = 3.0f;
     // Drops fallen around the hit each time, as far as the radius, in meters.
-    int dripCount = 1;
-    float dripRadius = 0.18f;
+    int dripCount = 4;
+    float dripRadius = 0.8f;
     // Meters across of the marks, from the smallest to the largest.
-    float minSize = 0.04f;
-    float maxSize = 0.14f;
+    float minSize = 0.2f;
+    float maxSize = 0.7f;
 
 protected:
     void OnStart() override;

@@ -10,6 +10,7 @@ namespace Generator::Icons {
 
 Spot::Image PhysicsGun();
 Spot::Image Pistol();
+Spot::Image RayGun();
 Spot::Image Rifle();
 Spot::Image Shotgun();
 Spot::Image RocketLauncher();

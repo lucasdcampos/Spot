@@ -87,6 +87,30 @@ struct InterfaceGame {
 };
 } // namespace
 
+TEST_CASE("Nickname fields reject spaces when typing or pasting", "[sandbox][ui][nickname]") {
+    InterfaceGame game("scenes/main_menu.scene");
+    auto* menu = game.scene.FindComponent<MainMenu>();
+    REQUIRE(menu);
+    for (const auto id : {menu->hostPlayerName, menu->joinPlayerName}) {
+        auto* field = game.scene.GetEntity(id)->GetComponent<Spot::UiInputField>();
+        REQUIRE(field);
+        field->SetText("lucasof", true);
+        CHECK(field->GetText() == "lucasof");
+        for (const auto* value : {"lucasof ", "lucas of", "lucas\xc2\xa0of"}) {
+            field->SetText(value, true);
+            CHECK(field->GetText() == "lucasof");
+        }
+        field->SetText("", true);
+        CHECK(field->GetText().empty());
+        field->SetText("Friend", true);
+        CHECK(field->GetText() == "Friend");
+    }
+    auto* room = game.scene.GetEntity(menu->hostName)->GetComponent<Spot::UiInputField>();
+    REQUIRE(room);
+    room->SetText("My Room", true);
+    CHECK(room->GetText() == "My Room");
+}
+
 TEST_CASE("Sandbox main menu selects maps and navigates pages with keyboard mouse and gamepad", "[sandbox][ui][maps]") {
     InterfaceGame game("scenes/main_menu.scene");
     auto* menu = game.scene.FindComponent<MainMenu>();

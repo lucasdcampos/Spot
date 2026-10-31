@@ -1,4 +1,6 @@
 #include "../registered_assets.h"
+#include "developer_mode.h"
+#include "gameplay/core/player_controller.h"
 #include "gameplay/core/players.h"
 #include "gameplay/game/game_mode.h"
 #include "main_menu.h"
@@ -149,6 +151,128 @@ TEST_CASE("The player's inspection body and seated drivers render through the ve
         entity->Destroy();
         scene->Update(0);
     }
+}
+
+TEST_CASE("Developer smite renders a lightning bolt from the sky to its victim",
+          "[gpu][sandbox][developer][powers][offscreen]") {
+    if (!Spot::GraphicsDevice::IsSupported()) {
+        SKIP("No usable graphics device");
+    }
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    Spot::Tests::RegisteredAssetManager assets(SANDBOX_IMPORTED_DIR, device.get());
+    struct Restore {
+        Spot::AssetManager* previous = Spot::Assets::GetManager();
+        ~Restore() { Spot::Detail::SetAssetManager(previous); }
+    } restore;
+    Spot::Detail::SetAssetManager(&assets);
+    Spot::Detail::LoadGameCode();
+    Spot::Scene scene;
+    auto* player = scene.Instantiate(assets.Load<Spot::Prefab>("prefabs/actors/player.prefab"));
+    REQUIRE(player);
+    scene.CreateEntity("Controller").AddComponent<Gameplay::PlayerController>().pawn = player->GetId();
+    scene.Update(0);
+    auto* mode = player->GetComponent<DeveloperMode>();
+    REQUIRE(mode);
+    mode->Unlock();
+    REQUIRE(DeveloperMode::UseLocalPower(scene, DeveloperMode::Power::Smite, "Player"));
+    CHECK(player->GetComponent<Gameplay::Health>()->IsDead());
+    scene.Update(1.0f / 60);
+    scene.ForEachComponent<Spot::Camera>([](auto& camera) { camera.SetEnabled(false); });
+    auto& camera = scene.CreateEntity("Lightning inspection");
+    camera.GetTransform().SetPosition({4, 11, -36});
+    camera.GetTransform().SetRotation(
+        Spot::Quaternion::LookRotation(Spot::Vector3{0, 11, 0} - camera.GetTransform().GetPosition()));
+    auto& view = camera.AddComponent<Spot::Camera>();
+    view.SetFieldOfView(Spot::ToRadians(45.0f));
+    view.SetBackground({0.015f, 0.015f, 0.025f, 1});
+    auto target = device->CreateTexture(
+        {.width = 768, .height = 1024, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
+    REQUIRE(target);
+    Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb, .sampleCount = 1});
+    scene.PrepareToRender();
+    auto* context = device->BeginOffscreenFrame(*target);
+    REQUIRE(context);
+    renderer.Render(*context, scene, target.get());
+    device->EndFrame();
+    const auto pixels = device->DownloadTexture(*target);
+    REQUIRE(pixels.size() == 768 * 1024 * 4);
+    const std::filesystem::path output(SPOT_SANDBOX_CAPTURE_DIR);
+    std::filesystem::create_directories(output);
+    CHECK(Spot::Image(768, 1024, pixels).SavePng(output / "developer_smite.png"));
+    std::size_t blue = 0;
+    for (std::size_t i = 0; i < pixels.size(); i += 4) {
+        blue += pixels[i + 2] > 140 && int(pixels[i + 2]) > int(pixels[i]) + 30 ? 1 : 0;
+    }
+    CHECK(blue > 100);
+}
+
+TEST_CASE("The developer skin renders a black DEV shirt, pixel sunglasses and a gold crown",
+          "[gpu][sandbox][developer][offscreen]") {
+    if (!Spot::GraphicsDevice::IsSupported()) {
+        SKIP("No usable graphics device");
+    }
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    Spot::Tests::RegisteredAssetManager assets(SANDBOX_IMPORTED_DIR, device.get());
+    struct Restore {
+        Spot::AssetManager* previous = Spot::Assets::GetManager();
+        ~Restore() { Spot::Detail::SetAssetManager(previous); }
+    } restore;
+    Spot::Detail::SetAssetManager(&assets);
+    Spot::Detail::LoadGameCode();
+    Spot::Scene scene;
+    auto* player = scene.Instantiate(assets.Load<Spot::Prefab>("prefabs/actors/player.prefab"));
+    REQUIRE(player);
+    scene.ForEachComponent<Spot::Camera>([](auto& camera) { camera.SetEnabled(false); });
+    auto* mode = player->GetComponent<DeveloperMode>();
+    REQUIRE(mode);
+    mode->Unlock();
+    player->GetComponent<Gameplay::Inventory>()->SetEnabled(false);
+    scene.Update(0);
+    auto* visual = player->GetComponent<Gameplay::CharacterVisual>();
+    REQUIRE(visual);
+    auto* body = scene.GetEntity(visual->modelRoot);
+    REQUIRE(body);
+    for (const auto* name : {"DEV Lettering", "Thug Life Glasses", "Developer Crown"}) {
+        CAPTURE(name);
+        auto* child = body->FindChild(name);
+        REQUIRE(child);
+        auto* mesh = child->GetComponent<Spot::SkinnedMeshRenderer>();
+        REQUIRE(mesh);
+        CHECK(mesh->GetMesh());
+        CHECK(mesh->GetAnimator() == body->GetId());
+    }
+    auto& camera = scene.CreateEntity("Developer inspection");
+    camera.GetTransform().SetPosition({0.15f, 0.2f, -3.5f});
+    camera.GetTransform().SetRotation(
+        Spot::Quaternion::LookRotation(Spot::Vector3{0, 0.15f, 0} - camera.GetTransform().GetPosition()));
+    auto& view = camera.AddComponent<Spot::Camera>();
+    view.SetFieldOfView(Spot::ToRadians(38.0f));
+    view.SetBackground({0.12f, 0.15f, 0.19f, 1});
+    auto& light = scene.CreateEntity("Key light");
+    light.GetTransform().SetRotation(Spot::Quaternion::LookRotation({-0.5f, -1, 0.5f}));
+    light.AddComponent<Spot::DirectionalLight>();
+    scene.CreateEntity("Fill light").AddComponent<Spot::AmbientLight>();
+    auto target = device->CreateTexture(
+        {.width = 1024, .height = 1024, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
+    REQUIRE(target);
+    Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb, .sampleCount = 1});
+    scene.PrepareToRender();
+    auto* context = device->BeginOffscreenFrame(*target);
+    REQUIRE(context);
+    renderer.Render(*context, scene, target.get());
+    device->EndFrame();
+    auto pixels = device->DownloadTexture(*target);
+    REQUIRE(pixels.size() == 1024 * 1024 * 4);
+    const std::filesystem::path output(SPOT_SANDBOX_CAPTURE_DIR);
+    std::filesystem::create_directories(output);
+    CHECK(Spot::Image(1024, 1024, pixels).SavePng(output / "developer_skin.png"));
+    std::size_t gold = 0;
+    for (std::size_t i = 0; i < pixels.size(); i += 4) {
+        gold += pixels[i] > 140 && pixels[i + 1] > 70 && pixels[i + 2] < pixels[i + 1] / 2 ? 1 : 0;
+    }
+    CHECK(gold > 100);
 }
 
 TEST_CASE("Armed and unarmed humanoid prefabs render with articulated bodies and a mounted pistol",
@@ -484,6 +608,76 @@ TEST_CASE("The cooked playground renders its yards by day, at sunset and at nigh
     CHECK(glassShows);
 }
 
+TEST_CASE("Generated weapons render their material finishes and machined silhouettes up close",
+          "[gpu][sandbox][weapons][offscreen]") {
+    if (!Spot::GraphicsDevice::IsSupported()) {
+        SKIP("No usable graphics device");
+    }
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    Spot::Tests::RegisteredAssetManager assets(SANDBOX_IMPORTED_DIR, device.get());
+    struct RestoreAssets {
+        Spot::AssetManager* previous = Spot::Assets::GetManager();
+        ~RestoreAssets() { Spot::Detail::SetAssetManager(previous); }
+    } restore;
+    Spot::Detail::SetAssetManager(&assets);
+    auto target = device->CreateTexture(
+        {.width = 1280, .height = 720, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
+    REQUIRE(target);
+    Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb, .sampleCount = 1});
+    REQUIRE(renderer.IsValid());
+    const std::filesystem::path output(SPOT_SANDBOX_CAPTURE_DIR);
+    std::filesystem::create_directories(output);
+    for (const char* name : {"pistol", "rifle", "shotgun", "rocket_launcher", "tool_gun", "physics_gun", "ray_gun"}) {
+        CAPTURE(name);
+        const auto model = assets.Load<Spot::Model>(std::string("generated/models/") + name + ".gltf");
+        REQUIRE(model);
+        Spot::Scene scene;
+        scene.Instantiate(*model, name);
+        auto& camera = scene.CreateEntity("Inspection camera");
+        auto& view = camera.AddComponent<Spot::Camera>();
+        view.SetFieldOfView(Spot::ToRadians(38.0f));
+        view.SetNearPlane(0.01f);
+        view.SetBackground({0.12f, 0.15f, 0.19f, 1});
+        auto& light = scene.CreateEntity("Key light");
+        light.GetTransform().SetRotation(Spot::Quaternion::LookRotation({-0.6f, -1, -0.4f}));
+        light.AddComponent<Spot::DirectionalLight>();
+        scene.CreateEntity("Fill light").AddComponent<Spot::AmbientLight>();
+        auto& rim = scene.CreateEntity("Rim light");
+        rim.GetTransform().SetRotation(Spot::Quaternion::LookRotation({0.8f, -0.3f, 0.5f}));
+        rim.AddComponent<Spot::DirectionalLight>(Spot::Color{0.7f, 0.8f, 1.0f}, 0.7f);
+        const bool compact = std::string_view(name) == "pistol" || std::string_view(name) == "tool_gun" ||
+                             std::string_view(name) == "physics_gun" || std::string_view(name) == "ray_gun";
+        const Spot::Vector3 focus = compact ? Spot::Vector3{0, -0.025f, -0.07f} : Spot::Vector3{0, -0.02f, -0.15f};
+        const float distance = compact ? 0.48f : 1.55f;
+        for (const bool side : {true, false}) {
+            camera.GetTransform().SetPosition(
+                focus + (side ? Spot::Vector3{distance, 0.04f, 0}
+                              : Spot::Vector3{distance * 0.78f, distance * 0.32f, distance * 0.55f}));
+            camera.GetTransform().SetRotation(
+                Spot::Quaternion::LookRotation(focus - camera.GetTransform().GetPosition()));
+            scene.PrepareToRender();
+            auto* context = device->BeginOffscreenFrame(*target);
+            REQUIRE(context);
+            renderer.Render(*context, scene, target.get());
+            device->EndFrame();
+            const auto pixels = device->DownloadTexture(*target);
+            REQUIRE(pixels.size() == 1280 * 720 * 4);
+            CHECK(Spot::Image(1280, 720, pixels)
+                      .SavePng(output / (std::string(name) + (side ? "_detail_side.png" : "_detail_perspective.png"))));
+            std::size_t silhouette = 0;
+            for (std::size_t i = 0; i < pixels.size(); i += 4) {
+                const int difference = std::abs(int(pixels[i]) - int(pixels[0])) +
+                                       std::abs(int(pixels[i + 1]) - int(pixels[1])) +
+                                       std::abs(int(pixels[i + 2]) - int(pixels[2]));
+                silhouette += difference > 20 ? 1 : 0;
+            }
+            CHECK(silhouette > 1000);
+            CHECK(silhouette < 1280 * 720 / 2);
+        }
+    }
+}
+
 TEST_CASE("The cooked sandbox renders held items, recoil, sights and reloads", "[gpu][sandbox][offscreen]") {
     if (!Spot::GraphicsDevice::IsSupported()) {
         SKIP("No usable graphics device");
@@ -545,6 +739,17 @@ TEST_CASE("The cooked sandbox renders held items, recoil, sights and reloads", "
     Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb});
     REQUIRE(renderer.IsValid());
     auto draw = [&](std::string_view name) {
+        const auto& arms = view->GetArmEntities();
+        REQUIRE(arms.size() == 4);
+        for (std::size_t side = 0; side < 2; ++side) {
+            const auto* forearm = scene->GetEntity(arms[side * 2]);
+            const auto* hand = scene->GetEntity(arms[side * 2 + 1]);
+            REQUIRE(forearm);
+            REQUIRE(hand);
+            const auto end = forearm->GetTransform().GetWorldMatrix() * Spot::Vector4{0, 0, -1, 1};
+            CHECK(Spot::Distance(Spot::Vector3{end.x, end.y, end.z}, hand->GetTransform().GetWorldPosition()) <
+                  0.0001f);
+        }
         auto* context = device->BeginOffscreenFrame(*target);
         REQUIRE(context);
         renderer.Render(*context, *scene, target.get());

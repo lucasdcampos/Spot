@@ -148,6 +148,19 @@ Spot::Image Pistol() {
     });
 }
 
+Spot::Image RayGun() {
+    return Paint(ItemWidth, ItemHeight, [](Point p) {
+        float body =
+            Union({Circle(p, {94, 53}, 28), Box(p, {94, 32}, {155, 73}, 12), Box(p, {148, 46}, {224, 59}, 3),
+                   Box(p, {222, 36}, {240, 69}, 4), Polygon(p, {{76, 70}, {106, 73}, {91, 114}, {61, 107}}, 3)});
+        for (int ring = 0; ring < 4; ++ring) {
+            const float x = 158.0f + static_cast<float>(ring) * 17.0f;
+            body = std::min(body, Box(p, {x, 35}, {x + 6, 70}, 1));
+        }
+        return body;
+    });
+}
+
 Spot::Image Rifle() {
     return Paint(ItemWidth, ItemHeight, [](Point p) {
         const float stock = Polygon(p, {{6, 48}, {54, 48}, {60, 56}, {60, 68}, {14, 86}, {6, 86}}, 2.0f);

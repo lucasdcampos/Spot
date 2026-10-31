@@ -119,6 +119,15 @@
           "type": "Carrier"
         },
         {
+          "type": "DeveloperMode",
+          "id": "ce3dbb43872c4d97a20342f5eda35655",
+          "enabled": true,
+          "data": {
+            "rayGun": 201115,
+            "skin": "990a4c2d149df31efbebe5f70f7da482"
+          }
+        },
+        {
           "data": {
             "clickSound": "740b4adc271ec8e9467bedbd8163a294",
             "selected": 0,
@@ -145,6 +154,7 @@
         },
         {
           "data": {
+            "renderLayer": 29,
             "armsModel": "1f7ff6687b8c9da9a2f87197237659d7",
             "bobAmount": 0.00800000037997961,
             "maxSway": 0.029999999329447746,
@@ -274,14 +284,14 @@
             },
             "exitEffect": "blood.exit",
             "damageType": "Bullet",
-            "spatterCount": 2,
-            "spatterCone": 0.4,
-            "spatterReach": 2.2,
+            "spatterCount": 6,
+            "spatterCone": 0.6,
+            "spatterReach": 5.0,
             "dripReach": 3.0,
-            "dripCount": 1,
-            "dripRadius": 0.18,
-            "minSize": 0.04,
-            "maxSize": 0.14
+            "dripCount": 4,
+            "dripRadius": 0.8,
+            "minSize": 0.2,
+            "maxSize": 0.7
           }
         },
         {
@@ -823,6 +833,61 @@
             "orbit": false,
             "speedFieldOfView": 0,
             "shoulderOffset": 0.65
+          }
+        }
+      ]
+    },
+    {
+      "id": 201115,
+      "name": "Ray Gun",
+      "parent": 117,
+      "active": false,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "Firearm",
+          "id": "6a3c6439c3814ce191900a3476f7f149",
+          "enabled": true,
+          "data": {
+            "displayName": "Ray Gun",
+            "damage": 1337.0,
+            "damageType": "Energy",
+            "automatic": true,
+            "fireInterval": 0.1,
+            "infiniteAmmo": true,
+            "magazineSize": 20,
+            "reserveAmmo": 160,
+            "reloadTime": 1.5,
+            "range": 150.0,
+            "spread": 0.0,
+            "impulse": 40.0,
+            "muzzleFlash": 0.8,
+            "muzzleEffect": "ray_gun.muzzle",
+            "tracerEffect": "ray_gun.tracer",
+            "model": "cf23fb0dbe3964d6ee38cb003dc395e1",
+            "icon": "e6d6926eba9a97e1216a5abda280b186",
+            "fireSound": "f316d082893ebd9c3bf88503068540d3",
+            "reloadSound": "0c7379df4ea628e65c4ab48d8973707e",
+            "cameraRecoil": 0.025,
+            "viewRecoil": 0.05,
+            "recoilRecovery": 0.2
           }
         }
       ]

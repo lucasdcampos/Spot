@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <string_view>
 
 namespace Generator::Rigs {
 namespace {
@@ -239,6 +240,67 @@ GltfModel Humanoid() {
         rotate(compact, bone, -1.2f);
     }
     model.animations.push_back(std::move(compact));
+    return model;
+}
+
+GltfModel Developer() {
+    GltfModel model = Humanoid();
+    model.materials[0].baseColor = {0.012f, 0.012f, 0.015f, 1};
+    const auto bind = BindMatrices(model.skeleton);
+    const auto addPart = [&](std::string name, Color color, float metallic, float roughness) -> MeshData& {
+        const auto index = model.materials.size();
+        model.materials.push_back({.name = name, .baseColor = color, .metallic = metallic, .roughness = roughness});
+        model.parts.push_back({std::move(name), {}, index});
+        return model.parts.back().mesh;
+    };
+    auto& lettering = addPart("DEV Lettering", Color::White, 0, 0.9f);
+    constexpr std::array<std::array<std::string_view, 7>, 3> Letters = {{
+        {"11110", "10001", "10001", "10001", "10001", "10001", "11110"},
+        {"11111", "10000", "10000", "11110", "10000", "10000", "11111"},
+        {"10001", "10001", "10001", "10001", "10001", "01010", "00100"},
+    }};
+    constexpr float Pixel = 0.012f;
+    for (std::size_t letter = 0; letter < Letters.size(); ++letter) {
+        for (std::size_t row = 0; row < Letters[letter].size(); ++row) {
+            for (std::size_t column = 0; column < Letters[letter][row].size(); ++column) {
+                if (Letters[letter][row][column] == '1') {
+                    const float x = (8.0f - static_cast<float>(letter * 6 + column)) * Pixel;
+                    const float y = 0.06f + (3.0f - static_cast<float>(row)) * Pixel;
+                    Box(lettering, {Pixel * 0.95f, Pixel * 0.95f, 0.003f}, {x, y, -0.116f}, 2, bind);
+                }
+            }
+        }
+    }
+    auto& glasses = addPart("Thug Life Glasses", {0.004f, 0.004f, 0.006f, 1}, 0, 0.2f);
+    Box(glasses, {0.202f, 0.014f, 0.017f}, {0, 0.153f, -0.108f}, 4, bind);
+    for (const float side : {-1.0f, 1.0f}) {
+        Box(glasses, {0.074f, 0.035f, 0.015f}, {side * 0.051f, 0.134f, -0.112f}, 4, bind);
+        Box(glasses, {0.050f, 0.012f, 0.015f}, {side * 0.051f, 0.112f, -0.112f}, 4, bind);
+        Box(glasses, {0.012f, 0.014f, 0.135f}, {side * 0.099f, 0.15f, -0.045f}, 4, bind);
+    }
+    auto& reflections = addPart("Glasses Highlights", {0.85f, 0.9f, 0.95f, 1}, 0, 0.25f);
+    for (const float side : {-1.0f, 1.0f}) {
+        for (int pixel = 0; pixel < 3; ++pixel) {
+            Box(reflections, {0.009f, 0.008f, 0.002f},
+                {side * 0.051f - 0.017f + static_cast<float>(pixel) * 0.009f,
+                 0.144f - static_cast<float>(pixel) * 0.008f, -0.121f},
+                4, bind);
+        }
+    }
+    auto& crown = addPart("Developer Crown", {1.0f, 0.62f, 0.06f, 1}, 0.8f, 0.25f);
+    for (int segment = 0; segment < 16; ++segment) {
+        const float angle = static_cast<float>(segment) * Pi / 8.0f;
+        const Vector3 position{std::sin(angle) * 0.105f, 0.265f, std::cos(angle) * 0.105f};
+        const auto rotation = Quaternion::FromAxisAngle({0, 1, 0}, angle);
+        Box(crown, {0.045f, 0.032f, 0.018f}, position, 4, bind, rotation);
+        if (segment % 2 == 0) {
+            for (int step = 0; step < 4; ++step) {
+                const float width = 0.035f - static_cast<float>(step) * 0.008f;
+                Box(crown, {width, 0.016f, 0.018f},
+                    position + Vector3{0, 0.023f + static_cast<float>(step) * 0.014f, 0}, 4, bind, rotation);
+            }
+        }
+    }
     return model;
 }
 

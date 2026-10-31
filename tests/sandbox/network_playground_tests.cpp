@@ -1,4 +1,6 @@
+#include "developer_mode.h"
 #include "playground_fixture.h"
+#include "sandbox_commands.h"
 
 #include "gameplay/camera/first_person_view.h"
 #include "gameplay/character/carrier.h"
@@ -9,9 +11,11 @@
 #include "gameplay/core/pawn.h"
 #include "gameplay/core/player_controller.h"
 #include "gameplay/core/players.h"
+#include "gameplay/effects/effect_pool.h"
 #include "gameplay/game/game_mode.h"
 #include "gameplay/health/health.h"
 #include "gameplay/network/network_players.h"
+#include "gameplay/network/player_info.h"
 #include "gameplay/network/remote_controller.h"
 #include "gameplay/vehicles/helicopter.h"
 #include "gameplay/vehicles/vehicle_seat.h"
@@ -30,6 +34,16 @@
 namespace {
 
 const Spot::AssetId PlaygroundId{0x51, 0x52};
+
+struct ForgedPower {
+    static constexpr std::string_view NetName = "Sandbox.DeveloperPowerRequest";
+    DeveloperMode::Power power = DeveloperMode::Power::Smite;
+    std::string playerName = "Friend";
+    void Serialize(Spot::Archive& archive) {
+        archive.Field("power", power);
+        archive.Field("playerName", playerName);
+    }
+};
 
 // One machine of a room: the playground as the game loads it, with its own input, bound to a session.
 struct Machine {
@@ -179,6 +193,156 @@ Spot::Vector3 InFront(Gameplay::Pawn& pawn, float distance) {
 }
 
 } // namespace
+
+TEST_CASE("Developer smite and yeet reach another client and reject callers without developer mode",
+          "[sandbox][network][developer][powers]") {
+    Room room(true);
+    auto* caster = Gameplay::Players::GetBody(room.guest.scene);
+    auto* victim = Gameplay::Players::GetBody(room.other.scene);
+    REQUIRE(caster);
+    REQUIRE(victim);
+    auto* target = room.host.Find(victim->GetEntity());
+    REQUIRE(target);
+    auto* targetPawn = target->GetComponent<Gameplay::Pawn>();
+    REQUIRE(targetPawn);
+    for (auto* info : Gameplay::PlayerInfos::GetAll(room.host.scene)) {
+        if (info->pawn == target->GetId()) {
+            info->name = "Friend";
+        }
+    }
+    room.Run(20);
+    auto* health = target->GetComponent<Gameplay::Health>();
+    REQUIRE(health);
+    Spot::Console console;
+    SandboxCommands commands(console, room.guest.scene);
+    CHECK_FALSE(console.Execute("smite Friend"));
+    // Bypassing the console still requires the sending player's server-side unlock.
+    auto* object = Spot::Network::GetObject(caster->GetEntity());
+    REQUIRE(object);
+    room.guest.system->SendToServer(*object, ForgedPower{});
+    room.Run(10);
+    CHECK_FALSE(health->IsDead());
+    REQUIRE(console.Execute("imthegamedev"));
+    room.Run(20);
+    targetPawn->Teleport({0, 30, 0}, {}, {});
+    room.Run(4);
+    Gameplay::VehicleSeat* seat = nullptr;
+    SECTION("The target is on foot") {
+    }
+    SECTION("The target is ejected before being launched") {
+        auto& car = room.Spawn("prefabs/spawnables/props/car.prefab", {0, 30, 0});
+        seat = car.GetComponent<Gameplay::VehicleSeat>();
+        REQUIRE(seat);
+        room.Run(4);
+        REQUIRE(seat->Enter(*targetPawn));
+        room.Run(4);
+        REQUIRE(targetPawn->HasState("Seated"));
+    }
+    const auto before = victim->GetEntity().GetTransform().GetWorldPosition();
+    const auto* players = room.host.scene.FindComponent<Gameplay::NetworkPlayers>();
+    REQUIRE(players);
+    const auto corrections = players->GetCorrections();
+    REQUIRE(console.Execute("yeet Friend"));
+    room.Run(60);
+    const auto after = victim->GetEntity().GetTransform().GetWorldPosition();
+    CHECK(after.y > before.y + 5);
+    CHECK(Spot::Length(Spot::Vector3{after.x - before.x, 0, after.z - before.z}) > 20);
+    CHECK(players->GetCorrections() == corrections);
+    if (seat) {
+        CHECK_FALSE(seat->IsOccupied());
+        CHECK_FALSE(targetPawn->HasState("Seated"));
+    }
+    CHECK_FALSE(health->IsDead());
+    CHECK_FALSE(caster->GetEntity().GetComponent<Gameplay::Health>()->IsDead());
+    REQUIRE(console.Execute("smite Friend"));
+    room.Run(6);
+    CHECK(health->IsDead());
+    CHECK(victim->GetEntity().GetComponent<Gameplay::Health>()->IsDead());
+    CHECK(Gameplay::EffectPool::Get(room.guest.scene).GetEmitterCount() >= 9);
+    CHECK(Gameplay::EffectPool::Get(room.other.scene).GetEmitterCount() >= 9);
+    CHECK_FALSE(caster->GetEntity().GetComponent<Gameplay::Health>()->IsDead());
+}
+
+TEST_CASE("A developer guest unlocks only its own Ray Gun on the server and both clients",
+          "[sandbox][network][developer]") {
+    Room room(true);
+    auto* guest = Gameplay::Players::FindComponent<DeveloperMode>(room.guest.scene);
+    auto* other = Gameplay::Players::FindComponent<DeveloperMode>(room.other.scene);
+    auto* onHost = room.GetGuestOnHost();
+    REQUIRE(guest);
+    REQUIRE(other);
+    REQUIRE(onHost);
+    CHECK_FALSE(guest->IsUnlocked());
+    SECTION("The command works on a client with cheats disabled") {
+        Spot::Console console;
+        SandboxCommands commands(console, room.guest.scene);
+        REQUIRE_FALSE(console.AreCheatsEnabled());
+        REQUIRE(console.Execute("imthegamedev"));
+    }
+    SECTION("The server recognizes the nickname") {
+        bool found = false;
+        for (auto* info : Gameplay::PlayerInfos::GetAll(room.host.scene)) {
+            if (info->pawn == onHost->GetId()) {
+                info->name = "lucasof";
+                found = true;
+            }
+        }
+        REQUIRE(found);
+    }
+    room.Run(30);
+    REQUIRE(guest->IsUnlocked());
+    REQUIRE(onHost->GetComponent<DeveloperMode>()->IsUnlocked());
+    CHECK_FALSE(other->IsUnlocked());
+    auto* onOther = room.other.Find(*onHost);
+    REQUIRE(onOther);
+    CHECK(onOther->GetComponent<DeveloperMode>()->IsUnlocked());
+    const auto findGun = [](Spot::Entity& entity) -> Gameplay::Firearm* {
+        auto* inventory = entity.GetComponent<Gameplay::Inventory>();
+        for (auto* item : inventory->GetItems()) {
+            if (item->displayName == "Ray Gun") {
+                return dynamic_cast<Gameplay::Firearm*>(item);
+            }
+        }
+        return nullptr;
+    };
+    auto* gun = findGun(guest->GetEntity());
+    REQUIRE(gun);
+    REQUIRE(findGun(*onHost));
+    REQUIRE(findGun(*onOther));
+    CHECK_FALSE(findGun(other->GetEntity()));
+    guest->GetEntity().GetComponent<Gameplay::Inventory>()->Select(*gun);
+    room.Run(20);
+    CHECK(onHost->GetComponent<Gameplay::Inventory>()->GetEquipped()->displayName == "Ray Gun");
+    CHECK(onOther->GetComponent<Gameplay::Inventory>()->GetEquipped()->displayName == "Ray Gun");
+    auto* target = room.host.scene.FindComponent<Npc>();
+    REQUIRE(target);
+    target->patrolDistance = 0;
+    target->GetEntity().GetTransform().SetWorldPosition(InFront(*room.guest.GetPawn(), 5.0f));
+    auto* targetHealth = target->GetEntity().GetComponent<Gameplay::Health>();
+    REQUIRE(targetHealth);
+    targetHealth->maxHealth = 2000;
+    targetHealth->regenerationRate = 0;
+    targetHealth->Restore();
+    room.Run(30);
+    auto* targetOnGuest = room.guest.Find(target->GetEntity());
+    REQUIRE(targetOnGuest);
+    room.LookAt(targetOnGuest->GetTransform().GetWorldPosition() + Spot::Vector3{0, 0.3f, 0});
+    room.Run(4);
+    room.guest.input.OnEvent(Spot::MouseButtonPressedEvent{Spot::MouseButton::Left});
+    room.Run(2);
+    room.guest.input.OnEvent(Spot::MouseButtonReleasedEvent{Spot::MouseButton::Left});
+    room.Run(20);
+    CHECK(targetHealth->GetHealth() == 663.0f);
+    CHECK(gun->infiniteAmmo);
+    CHECK(gun->GetAmmo() == gun->magazineSize);
+    auto* health = onHost->GetComponent<Gameplay::Health>();
+    REQUIRE(health);
+    health->TakeDamage({.amount = 10000});
+    room.Run(300);
+    CHECK_FALSE(health->IsDead());
+    CHECK(guest->IsUnlocked());
+    CHECK(findGun(guest->GetEntity()));
+}
 
 TEST_CASE("A guest in the playground moves, switches, carries, shoots and rides as the host sees it",
           "[sandbox][network][playground]") {

@@ -83,6 +83,8 @@ public:
     void RemoveHook(RenderHookId id);
 
 private:
+    struct Mirrors;
+    std::unique_ptr<Mirrors> m_mirrors;
     GraphicsDevice& m_device;
     TextureFormat m_format;
     std::uint32_t m_sampleCount;

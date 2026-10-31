@@ -5,6 +5,7 @@
 #include "gameplay/core/pawn_request.h"
 #include "gameplay/core/player_controller.h"
 #include "gameplay/core/player_input.h"
+#include "gameplay/core/player_name.h"
 #include "gameplay/core/players.h"
 #include "gameplay/effects/effect_library.h"
 #include "gameplay/effects/flash.h"
@@ -624,6 +625,8 @@ TEST_CASE("The room roster replicates host and guests and removes only the leavi
     REQUIRE(client.size() == 2);
     CHECK(server[0]->name == "Host");
     CHECK(client[0]->name == server[0]->name);
+    CHECK(Gameplay::IsValidPlayerName(server[1]->name));
+    CHECK(client[1]->name == server[1]->name);
     CHECK(server[0]->IsLocal());
     CHECK_FALSE(client[0]->IsLocal());
     CHECK(client[1]->IsLocal());
@@ -673,6 +676,16 @@ TEST_CASE("Room admission checks names passwords and content before accepting a 
         hello.playerName = "Guest\nFake Player";
         accepted = false;
         expected = "player name";
+    }
+    SECTION("Spaces in a nickname are refused") {
+        hello.playerName = "Guest Player";
+        accepted = false;
+        expected = "without spaces";
+    }
+    SECTION("Unicode spaces in a nickname are refused") {
+        hello.playerName = "Guest\xc2\xa0Player";
+        accepted = false;
+        expected = "without spaces";
     }
     Spot::BitWriter writer;
     Spot::WriteArchived(writer, hello);

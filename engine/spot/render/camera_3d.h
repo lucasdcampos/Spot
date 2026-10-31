@@ -7,6 +7,7 @@
 #include "spot/render/pixel_perfect.h"
 
 #include <cstdint>
+#include <optional>
 
 namespace Spot {
 
@@ -28,6 +29,8 @@ struct Camera3D {
     // as first-person games hide the player's own body from its eyes.
     std::uint32_t cullingMask = 0xFFFFFFFFu;
     PixelPerfectSettings pixelPerfect = {};
+    // Off-axis views, such as a mirror whose near plane is its surface.
+    std::optional<Matrix4> projectionOverride;
 
     // Turns the camera toward the target, keeping the up direction as close to up as it allows.
     void LookAt(Vector3 target, Vector3 up = {0.0f, 1.0f, 0.0f});

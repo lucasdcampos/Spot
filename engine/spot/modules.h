@@ -49,6 +49,7 @@
 #include "spot/scene/rendering/fog.h"
 #include "spot/scene/rendering/light.h"
 #include "spot/scene/rendering/mesh_renderer.h"
+#include "spot/scene/rendering/planar_mirror.h"
 #include "spot/scene/rendering/post_processing.h"
 #include "spot/scene/rendering/reflection_probe.h"
 #include "spot/scene/rendering/render_hook_system.h"

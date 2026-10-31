@@ -1,5 +1,7 @@
 #include "sandbox_commands.h"
+#include "developer_mode.h"
 #include "gameplay/core/players.h"
+#include "gameplay/network/session_commands.h"
 #include <spot/scene/physics/physics_world.h>
 
 #include "prop_spawner.h"
@@ -59,6 +61,47 @@ void RemoveSpawnable(Spot::Entity& entity) {
 SandboxCommands::SandboxCommands(Spot::Console& console, Spot::Scene& scene) : m_scene(scene) {
     using Spot::ConsoleFlags;
     using Spot::ConsoleResult;
+    for (const auto power : {DeveloperMode::Power::Smite, DeveloperMode::Power::Yeet}) {
+        const std::string name = power == DeveloperMode::Power::Smite ? "smite" : "yeet";
+        m_registrations.push_back(console.Register(
+            {name,
+             power == DeveloperMode::Power::Smite
+                 ? "Strike a player with lethal lightning (cheats, operators or developer mode)"
+                 : "Launch a player away (cheats, operators or developer mode)",
+             ConsoleFlags::None, [this, power, name](std::span<const std::string> arguments) -> ConsoleResult {
+                 if (arguments.size() != 1) {
+                     return {false, "Usage: " + name + " <player>"};
+                 }
+                 const auto* mode = Gameplay::Players::FindComponent<DeveloperMode>(m_scene);
+                 if (mode && mode->IsUnlocked()) {
+                     return DeveloperMode::UseLocalPower(m_scene, power, arguments[0]);
+                 }
+                 // On a client, the server strikes, if this player may cheat there; here, where the room or the
+                 // game alone is run, whoever types it may.
+                 auto* commands = Gameplay::SessionCommands::Get();
+                 if (commands && commands->IsRemote()) {
+                     return commands->Forward(name + " " + arguments[0])
+                                ? ConsoleResult{true, "Sent to the server"}
+                                : ConsoleResult{false, "Not connected to the room"};
+                 }
+                 const auto* body = Gameplay::Players::GetBody(m_scene);
+                 return DeveloperMode::Strike(m_scene, power, arguments[0], body ? &body->GetEntity() : nullptr);
+             }}));
+        if (auto* commands = Gameplay::SessionCommands::Get()) {
+            commands->AllowRemote(name, Gameplay::SessionCommands::Permission::Cheat);
+        }
+    }
+    m_registrations.push_back(
+        console.Register({"imthegamedev", "Unlock the developer easter egg for your player", ConsoleFlags::None,
+                          [this](std::span<const std::string> arguments) -> ConsoleResult {
+                              if (!arguments.empty()) {
+                                  return {false, "Usage: imthegamedev"};
+                              }
+                              if (!DeveloperMode::ActivateLocal(m_scene)) {
+                                  return {false, "No player character in this scene"};
+                              }
+                              return {true, "Developer mode requested"};
+                          }}));
     m_registrations.push_back(console.Register(
         {"gravity", "Query/set gravity on Y (-1000..1000)", ConsoleFlags::Cheat,
          [this](std::span<const std::string> arguments) -> ConsoleResult {

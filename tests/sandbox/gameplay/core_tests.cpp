@@ -6,6 +6,7 @@
 #include "gameplay/core/pawn.h"
 #include "gameplay/core/player_controller.h"
 #include "gameplay/core/player_input.h"
+#include "gameplay/core/player_name.h"
 #include "gameplay/core/players.h"
 #include "gameplay/core/user_settings.h"
 
@@ -18,6 +19,23 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+TEST_CASE("Player nicknames reject spaces while preserving UTF-8 names", "[sandbox][gameplay][nickname]") {
+    for (const auto* name : {"lucasof", "Player_2", "Player-2", "Jo\xc3\xa3o"}) {
+        CAPTURE(name);
+        CHECK(Gameplay::IsValidPlayerName(name));
+    }
+    for (const auto* name : {"", " ", "First Last", " Player", "Player ", "First\tLast", "First\nLast",
+                             "First\xc2\xa0Last", "First\xe3\x80\x80Last"}) {
+        CAPTURE(name);
+        CHECK_FALSE(Gameplay::IsValidPlayerName(name));
+        Gameplay::UserSettings settings;
+        settings.playerName = name;
+        settings.Validate();
+        CHECK(settings.playerName == "Player");
+    }
+    CHECK_FALSE(Gameplay::IsValidPlayerName(std::string(65, 'a')));
+}
 
 namespace {
 

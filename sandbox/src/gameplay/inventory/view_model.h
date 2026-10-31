@@ -31,6 +31,8 @@ public:
     Spot::Vector3 offset = {0.15f, -0.15f, -0.33f};
     // Optional forearms and hands, posed at the model's RightHand and LeftHand markers.
     Spot::AssetRef<Spot::Model> armsModel;
+    // A separate layer lets reflections exclude the first-person arms and held model. -1 inherits the pawn layer.
+    int renderLayer = -1;
     const std::vector<Spot::EntityId>& GetArmEntities() const { return m_arms; }
 
     float swayAmount = 0.012f;

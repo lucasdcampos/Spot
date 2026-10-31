@@ -25,6 +25,9 @@ Matrix4 Camera3D::GetView() const {
 }
 
 Matrix4 Camera3D::GetProjection(Vector2 viewSize) const {
+    if (projectionOverride) {
+        return *projectionOverride;
+    }
     const float aspectRatio = viewSize.y > 0.0f ? viewSize.x / viewSize.y : 1.0f;
     if (orthographic) {
         if (pixelPerfect.enabled && pixelPerfect.IsValid()) {

@@ -33,7 +33,7 @@ void MakeHeld(Spot::Entity& entity) {
 std::vector<HeldItem*> Inventory::GetItems() const {
     std::vector<HeldItem*> items;
     GetEntity().ForEachChild([&](const Spot::Entity& child) {
-        if (HeldItem* item = child.GetComponent<HeldItem>()) {
+        if (HeldItem* item = child.GetComponent<HeldItem>(); item && item->IsActiveAndEnabled()) {
             items.push_back(item);
         }
     });
