@@ -149,3 +149,9 @@ A server without a player needs no screen: run it with `ApplicationConfig::windo
 steady pace. Remove the map's local players before it starts, so its rules give no pawn to anyone on the server.
 Add `Spot::TerminalConsole` to command it from the terminal it runs in: each line typed is a console command, and
 `quit` stops it; register your own commands, as the sandbox's `status`, `kick` and `password`.
+
+In the sandbox, the host can grant operator permissions with `op <nickname>`. Operators can use
+`god` even when room cheats are disabled; other players need cheats enabled. Open the console and enter
+`god` to toggle invulnerability, `god true` to enable it or `god false` to disable it for your character.
+The setting lasts until the character is replaced. Developer mode is separate: a developer with god mode
+shows a purple `Immortal Object` badge for three seconds when another player hits them.

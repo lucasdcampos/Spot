@@ -20,6 +20,11 @@ public:
     float regenerationRate = 12.0f;
 
     float GetHealth() const { return m_health; }
+    bool IsGod() const { return m_god; }
+    void SetGod(bool enabled) { m_god = enabled; }
+    // Positive damage refused by invulnerability, on the server.
+    Spot::Signal<const DamageInfo&> OnDamageBlocked;
+
     bool IsDead() const { return m_health <= 0.0f; }
     // From 1 as it is hurt, fading to 0 within a second, for the HUD to flash.
     float GetHurt() const { return m_hurt; }
@@ -49,6 +54,7 @@ private:
     void Die(const DamageInfo& damage);
     void SetDead(bool dead);
 
+    bool m_god = false;
     float m_health = 100.0f;
     float m_sinceHurt = 100.0f;
     float m_hurt = 0.0f;

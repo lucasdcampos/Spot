@@ -36,6 +36,16 @@ namespace {
 
 const Spot::AssetId PlaygroundId{0x51, 0x52};
 
+struct ForgedGod {
+    static constexpr std::string_view NetName = "Sandbox.GodRequest";
+    bool toggle = false;
+    bool enabled = true;
+    void Serialize(Spot::Archive& archive) {
+        archive.Field("toggle", toggle);
+        archive.Field("enabled", enabled);
+    }
+};
+
 struct ForgedPower {
     static constexpr std::string_view NetName = "Sandbox.DeveloperPowerRequest";
     DeveloperMode::Power power = DeveloperMode::Power::Smite;
@@ -740,4 +750,52 @@ TEST_CASE("A guest walking into a crate and another player is never moved back, 
     CHECK(room.host.scene.FindComponent<Gameplay::NetworkPlayers>()->GetCorrections() == 0);
     CHECK(Spot::Distance(room.host.Find(first->GetEntity())->GetTransform().GetWorldPosition(),
                          first->GetEntity().GetTransform().GetWorldPosition()) < 0.05f);
+}
+
+TEST_CASE("God requests are validated by the server and immortal state reaches other clients",
+          "[sandbox][network][god]") {
+    Room room(true);
+    auto* onHost = room.GetGuestOnHost();
+    REQUIRE(onHost);
+    auto* health = onHost->GetComponent<Gameplay::Health>();
+    auto* mode = onHost->GetComponent<DeveloperMode>();
+    REQUIRE(health);
+    REQUIRE(mode);
+    Spot::Console console;
+    SandboxCommands commands(console, room.guest.scene);
+    console.SetCheatsEnabled(true);
+    Spot::Console::Get().SetCheatsEnabled(false);
+    REQUIRE(console.Execute("god true"));
+    room.Run(10);
+    CHECK_FALSE(health->IsGod());
+    Spot::Console::Get().SetCheatsEnabled(true);
+    REQUIRE(console.Execute("god true"));
+    room.Run(10);
+    CHECK(health->IsGod());
+    auto* onOther = room.other.Find(*onHost);
+    REQUIRE(onOther);
+    CHECK(onOther->GetComponent<Gameplay::Health>()->IsGod());
+    CHECK(Gameplay::Players::FindComponent<Gameplay::Health>(room.guest.scene)->IsGod());
+    CHECK_FALSE(Gameplay::Players::FindComponent<Gameplay::Health>(room.other.scene)->IsGod());
+    auto* foreign = room.guest.Find(room.other.GetPawn()->GetEntity());
+    REQUIRE(foreign);
+    auto* foreignObject = Spot::Network::GetObject(*foreign);
+    REQUIRE(foreignObject);
+    room.guest.system->SendToServer(*foreignObject, ForgedGod{});
+    room.Run(10);
+    CHECK_FALSE(Gameplay::Players::FindComponent<Gameplay::Health>(room.other.scene)->IsGod());
+    mode->Unlock();
+    auto* attacker = room.host.Find(room.other.GetPawn()->GetEntity());
+    REQUIRE(attacker);
+    health->TakeDamage({.amount = 1000, .instigator = attacker->GetId()});
+    room.Run(10);
+    CHECK_FALSE(health->IsDead());
+    CHECK(onOther->GetComponent<DeveloperMode>()->GetImmortalTime() > 2.0f);
+    CHECK(Gameplay::Players::FindComponent<DeveloperMode>(room.guest.scene)->GetImmortalTime() > 2.0f);
+    room.Run(190);
+    CHECK(onOther->GetComponent<DeveloperMode>()->GetImmortalTime() == 0);
+    REQUIRE(console.Execute("god"));
+    room.Run(10);
+    CHECK_FALSE(health->IsGod());
+    CHECK_FALSE(onOther->GetComponent<Gameplay::Health>()->IsGod());
 }

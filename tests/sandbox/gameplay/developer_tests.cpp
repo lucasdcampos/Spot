@@ -222,3 +222,49 @@ TEST_CASE("Developer commands smite and yeet require cheats and strike only the 
     CHECK_FALSE(console.Execute("smite Friend"));
     CHECK_FALSE(console.Execute("yeet Friend"));
 }
+
+TEST_CASE("God mode requires cheats and blocks damage without granting developer mode", "[sandbox][god]") {
+    SandboxTests::Playground game;
+    Spot::Console console;
+    SandboxCommands commands(console, game.scene);
+    auto* health = Gameplay::Players::FindComponent<Gameplay::Health>(game.scene);
+    auto* mode = Gameplay::Players::FindComponent<DeveloperMode>(game.scene);
+    REQUIRE(health);
+    REQUIRE(mode);
+    CHECK_FALSE(console.Execute("god"));
+    CHECK_FALSE(health->IsGod());
+    console.SetCheatsEnabled(true);
+    CHECK_FALSE(console.Execute("god invalid"));
+    CHECK_FALSE(console.Execute("god true extra"));
+    REQUIRE(console.Execute("god"));
+    CHECK(health->IsGod());
+    const float before = health->GetHealth();
+    CHECK(health->TakeDamage({.amount = 1000, .type = "Fall"}) == 0);
+    CHECK(health->GetHealth() == before);
+    CHECK_FALSE(mode->IsUnlocked());
+    auto& attacker = game.scene.CreateEntity("Attacker");
+    attacker.AddComponent<Gameplay::Pawn>();
+    auto& info = game.scene.CreateEntity("Attacker info").AddComponent<Gameplay::PlayerInfo>();
+    info.pawn = attacker.GetId();
+    health->TakeDamage({.amount = 10, .instigator = attacker.GetId()});
+    CHECK(mode->GetImmortalTime() == 0);
+    mode->Unlock();
+    health->TakeDamage({.amount = 10});
+    CHECK(mode->GetImmortalTime() == 0);
+    health->TakeDamage({.amount = 10, .instigator = health->GetEntity().GetId()});
+    CHECK(mode->GetImmortalTime() == 0);
+    health->TakeDamage({.amount = 10, .instigator = attacker.GetId()});
+    CHECK(mode->GetImmortalTime() == Catch::Approx(3));
+    game.Step(1);
+    CHECK(mode->GetImmortalTime() == Catch::Approx(2));
+    health->TakeDamage({.amount = 10, .instigator = attacker.GetId()});
+    CHECK(mode->GetImmortalTime() == Catch::Approx(3));
+    game.Step(3.1f);
+    CHECK(mode->GetImmortalTime() == 0);
+    REQUIRE(console.Execute("god false"));
+    CHECK_FALSE(health->IsGod());
+    CHECK(health->TakeDamage({.amount = 10}) > 0);
+    REQUIRE(console.Execute("god true"));
+    REQUIRE(console.Execute("god"));
+    CHECK_FALSE(health->IsGod());
+}

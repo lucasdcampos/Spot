@@ -5,6 +5,7 @@
 #include <array>
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <span>
 #include <string_view>
 
@@ -26,6 +27,9 @@ public:
     Spot::AssetRef<Spot::Model> skin;
     Spot::AssetRef<Spot::Sound> smiteSound;
 
+    static Spot::ConsoleResult SetLocalGod(Spot::Scene& scene, std::optional<bool> enabled);
+    float GetImmortalTime() const { return m_immortalTime; }
+
     bool IsUnlocked() const { return m_unlocked; }
     void Unlock();
     void SetKeyPath(std::filesystem::path path);
@@ -44,6 +48,7 @@ public:
                                       const Spot::Entity* caster = nullptr);
 
 protected:
+    void OnStart() override;
     void OnUpdate(float deltaTime) override;
     void Serialize(Spot::Archive& archive) override;
     void Replicate(Spot::Archive& archive) override;
@@ -57,6 +62,8 @@ private:
     void VerifyResponse(const Signature& signature);
     std::filesystem::path ResolveKeyPath() const;
 
+    float m_immortalTime = 0.0f;
+    Spot::SignalConnection m_blocked;
     bool m_unlocked = false;
     bool m_skinApplied = false;
     bool m_keyChecked = false;

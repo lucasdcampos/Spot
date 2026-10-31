@@ -17,6 +17,10 @@ float Health::TakeDamage(const DamageInfo& damage) {
     if (IsDead() || !(amount > 0.0f)) {
         return 0.0f;
     }
+    if (m_god) {
+        OnDamageBlocked.Emit(damage);
+        return 0.0f;
+    }
     const float taken = std::min(amount, m_health);
     m_health -= taken;
     m_sinceHurt = 0.0f;
@@ -65,6 +69,7 @@ void Health::OnUpdate(float deltaTime) {
 }
 
 void Health::Replicate(Spot::Archive& archive) {
+    archive.Field("god", m_god);
     float health = m_health;
     archive.Field("health", health);
     if (!archive.IsLoading() || health == m_health) {

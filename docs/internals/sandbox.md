@@ -383,6 +383,13 @@ ambience at 50% and master at 90%; saved personal volumes remain authoritative.
 
 ## Developer commands
 
+`god [true/false]` toggles the local player's invulnerability, requiring cheats or operator permission.
+Clients send an ownership-checked request; the server changes and replicates `Health::IsGod()`.
+It does not unlock developer mode and resets with a new character. A developer whose god mode blocks
+another player's damage shows a purple stretched hexagon reading `Immortal Object` for three seconds;
+further hits refresh that interval. Environmental and self damage do not show it.
+
+
 Open the console with Grave; the sandbox permits cheats while it runs (`GameControls::cheats`), so its commands work
 at once, and `console.cheats false` forbids them again. Registrations belong to
 the active scene's GameControls and disappear when it is disabled, removed or unloaded. Commands resolve the

@@ -481,6 +481,16 @@ bool MayUseDeveloperCommands(Spot::NetPeerId from) {
     return Spot::Console::Get().AreCheatsEnabled();
 }
 
+struct GodRequest {
+    static constexpr std::string_view NetName = "Sandbox.GodRequest";
+    bool toggle = true;
+    bool enabled = false;
+    void Serialize(Spot::Archive& archive) {
+        archive.Field("toggle", toggle);
+        archive.Field("enabled", enabled);
+    }
+};
+
 struct DeveloperRequest {
     static constexpr std::string_view NetName = "Sandbox.DeveloperRequest";
     void Serialize(Spot::Archive&) {}
@@ -762,6 +772,16 @@ void DeveloperMode::Bind() {
             });
     }
     if (system && system->IsServer()) {
+        system->OnObjectMessage<GodRequest>([](Spot::NetworkObject& object, Spot::NetPeerId from, GodRequest& request) {
+            if (!MayUseDeveloperCommands(from)) {
+                return;
+            }
+            if (auto* mode = Sender(object, from)) {
+                if (auto* health = mode->GetEntity().GetComponent<Gameplay::Health>()) {
+                    health->SetGod(request.toggle ? !health->IsGod() : request.enabled);
+                }
+            }
+        });
         system->OnObjectMessage<DeveloperRequest>(
             [](Spot::NetworkObject& object, Spot::NetPeerId from, DeveloperRequest&) {
                 if (!MayUseDeveloperCommands(from)) {
@@ -861,6 +881,23 @@ void DeveloperMode::VerifyResponse(const Signature& signature) {
     if (Verify(m_publicKey, m_challenge, signature)) {
         Unlock();
     }
+}
+
+Spot::ConsoleResult DeveloperMode::SetLocalGod(Spot::Scene& scene, std::optional<bool> enabled) {
+    auto* health = Gameplay::Players::FindComponent<Gameplay::Health>(scene);
+    if (!health) {
+        return {false, "No player health in this scene"};
+    }
+    if (auto* system = Spot::Network::Get(scene); system && system->IsClient()) {
+        auto* object = Spot::Network::GetObject(health->GetEntity());
+        if (!object) {
+            return {false, "No network player character"};
+        }
+        system->SendToServer(*object, GodRequest{!enabled.has_value(), enabled.value_or(false)});
+        return {true, "God mode requested"};
+    }
+    health->SetGod(enabled.value_or(!health->IsGod()));
+    return {true, health->IsGod() ? "God mode enabled" : "God mode disabled"};
 }
 
 bool DeveloperMode::ActivateLocal(Spot::Scene& scene) {
@@ -1018,7 +1055,26 @@ void DeveloperMode::Apply() {
     m_skinApplied = true;
 }
 
-void DeveloperMode::OnUpdate(float /*deltaTime*/) {
+void DeveloperMode::OnStart() {
+    if (auto* health = GetEntity().GetComponent<Gameplay::Health>()) {
+        m_blocked = health->OnDamageBlocked.Connect([this](const Gameplay::DamageInfo& damage) {
+            if (!m_unlocked || damage.instigator == GetEntity().GetId()) {
+                return;
+            }
+            auto* attacker = GetScene().GetEntity(damage.instigator);
+            auto* pawn = attacker ? Gameplay::Pawn::Of(*attacker) : nullptr;
+            if (pawn && FindInfo(pawn->GetEntity())) {
+                m_immortalTime = 3.0f;
+            }
+        });
+    }
+}
+
+void DeveloperMode::OnUpdate(float deltaTime) {
+    m_immortalTime = std::max(0.0f, m_immortalTime - deltaTime);
+    if (const auto* health = GetEntity().GetComponent<Gameplay::Health>(); !health || !health->IsGod()) {
+        m_immortalTime = 0.0f;
+    }
     Bind();
     AuthenticateLocal();
     if (Spot::Network::IsServer(GetScene())) {
@@ -1034,6 +1090,7 @@ void DeveloperMode::OnUpdate(float /*deltaTime*/) {
 
 void DeveloperMode::Replicate(Spot::Archive& archive) {
     archive.Field("unlocked", m_unlocked);
+    archive.Field("immortalTime", m_immortalTime);
     if (archive.IsLoading()) {
         Apply();
     }

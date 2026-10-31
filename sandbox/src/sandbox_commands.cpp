@@ -61,6 +61,15 @@ void RemoveSpawnable(Spot::Entity& entity) {
 SandboxCommands::SandboxCommands(Spot::Console& console, Spot::Scene& scene) : m_scene(scene) {
     using Spot::ConsoleFlags;
     using Spot::ConsoleResult;
+    m_registrations.push_back(console.Register(
+        {"god", "Toggle invulnerability, or set true/false (cheats or operators)", ConsoleFlags::Cheat,
+         [this](std::span<const std::string> arguments) -> ConsoleResult {
+             bool enabled = false;
+             if (arguments.size() > 1 || (!arguments.empty() && !Spot::ParseConsoleValue(arguments[0], enabled))) {
+                 return {false, "Usage: god [true/false]"};
+             }
+             return DeveloperMode::SetLocalGod(m_scene, arguments.empty() ? std::nullopt : std::optional{enabled});
+         }}));
     for (const auto power : {DeveloperMode::Power::Smite, DeveloperMode::Power::Yeet}) {
         const std::string name = power == DeveloperMode::Power::Smite ? "smite" : "yeet";
         m_registrations.push_back(console.Register(

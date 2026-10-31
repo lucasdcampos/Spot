@@ -812,3 +812,8 @@ Player bodies use the same weapon mount, aim and two-hand constraints as spawnab
 the pawn layer. The sandbox player uses layer 29, excluded from the workshop mirror while layer 30 retains its body.
 
 `Firearm::infiniteAmmo` lets authored energy weapons fire without consuming magazine rounds or requiring reloads. Readiness still respects the shot interval; the HUD reports infinite ammunition and never warns about an empty magazine. The developer Ray Gun enables it and automatic fire with a 0.1-second interval.
+
+`Health::SetGod()` prevents positive adjusted damage from reducing health, emitting `OnDamageBlocked`
+on the server instead of hurt or death signals. God state replicates with health. Sandbox developer
+presentation listens to this signal to refresh its replicated three-second immortal indicator only
+when the instigator is another player; the sandbox owns the command, permissions and drawing.
