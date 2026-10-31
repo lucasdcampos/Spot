@@ -60,6 +60,7 @@ TEST_CASE("The developer console easter egg requires cheats and adds only the de
     REQUIRE(console.Execute("imthegamedev"));
     game.Run(2);
     REQUIRE(mode->IsUnlocked());
+    CHECK_FALSE(mode->IsAuthenticated());
     CHECK(inventory->GetItemCount() == count + 1);
     auto* gun = FindRayGun(*inventory);
     REQUIRE(gun);
@@ -141,6 +142,12 @@ TEST_CASE("Only a matching Ed25519 private key in developer.key automatically un
     mode->SetKeyPath(keyFile);
     game.Step();
     CHECK_FALSE(mode->IsUnlocked());
+    CHECK_FALSE(mode->IsAuthenticated());
+    CHECK_FALSE(info.developerAuthenticated);
+
+    // A prior cheat unlock must not prevent later key authentication.
+    mode->Unlock();
+    CHECK_FALSE(mode->IsAuthenticated());
 
     // Matching private key unlocks the skin and Ray Gun.
     std::ofstream(keyFile, std::ios::trunc) << HexEncode(RfcSeed) << '\n';
@@ -148,7 +155,15 @@ TEST_CASE("Only a matching Ed25519 private key in developer.key automatically un
     game.Step();
     CHECK(mode->IsUnlocked());
     CHECK(info.developer);
+    CHECK(mode->IsAuthenticated());
+    CHECK(info.developerAuthenticated);
     CHECK(FindRayGun(*mode->GetEntity().GetComponent<Gameplay::Inventory>()));
+
+    auto& replacement = game.scene.CreateEntity("Replacement character").AddComponent<DeveloperMode>();
+    info.pawn = replacement.GetEntity().GetId();
+    game.Step();
+    CHECK(replacement.IsAuthenticated());
+    CHECK(replacement.IsUnlocked());
 
     if (const auto realKey = DeveloperMode::GetDefaultKeyPath(); std::filesystem::is_regular_file(realKey)) {
         SandboxTests::Playground localDev;

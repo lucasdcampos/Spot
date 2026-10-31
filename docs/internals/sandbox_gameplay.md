@@ -817,3 +817,8 @@ the pawn layer. The sandbox player uses layer 29, excluded from the workshop mir
 on the server instead of hurt or death signals. God state replicates with health. Sandbox developer
 presentation listens to this signal to refresh its replicated three-second immortal indicator only
 when the instigator is another player; the sandbox owns the command, permissions and drawing.
+
+The `</>` badge next to a sandbox nickname identifies a developer authenticated with `developer.key`.
+`imthegamedev` unlocks the easter egg without granting this badge. Authentication is decided by the
+server, replicated separately from the unlock, retained across character replacement and never saved
+as scene data. A player who used the command can still authenticate with a valid key afterward.

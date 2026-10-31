@@ -25,6 +25,8 @@ public:
     int ping = 0;
     int team = 0;
     bool developer = false;
+    // Runtime proof accepted by the server, preserved across character replacement; never loaded from a scene.
+    bool developerAuthenticated = false;
     Spot::EntityId pawn = Spot::EntityId::Invalid;
     std::vector<PlayerScore> scores;
 

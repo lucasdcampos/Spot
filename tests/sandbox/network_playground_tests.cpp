@@ -288,6 +288,7 @@ TEST_CASE("A developer guest unlocks only its own Ray Gun on the server and both
     REQUIRE(other);
     REQUIRE(onHost);
     CHECK_FALSE(guest->IsUnlocked());
+    bool authenticated = false;
     SECTION("The command requires cheats") {
         Spot::Console console;
         SandboxCommands commands(console, room.guest.scene);
@@ -302,6 +303,12 @@ TEST_CASE("A developer guest unlocks only its own Ray Gun on the server and both
         REQUIRE(console.Execute("imthegamedev"));
     }
     SECTION("The server authenticates the guest's private key by challenge-response") {
+        authenticated = true;
+        Spot::Console::Get().SetCheatsEnabled(true);
+        REQUIRE(DeveloperMode::ActivateLocal(room.guest.scene));
+        room.Run(10);
+        REQUIRE(guest->IsUnlocked());
+        CHECK_FALSE(guest->IsAuthenticated());
         constexpr DeveloperMode::Seed TestSeed = {0x9d, 0x61, 0xb1, 0x9d, 0xef, 0xfd, 0x5a, 0x60, 0xba, 0x84, 0x4a,
                                                   0xf4, 0x92, 0xec, 0x2c, 0xc4, 0x44, 0x49, 0xc5, 0x69, 0x7b, 0x32,
                                                   0x69, 0x19, 0x70, 0x3b, 0xac, 0x03, 0x1c, 0xae, 0x7f, 0x60};
@@ -323,6 +330,9 @@ TEST_CASE("A developer guest unlocks only its own Ray Gun on the server and both
     auto* onOther = room.other.Find(*onHost);
     REQUIRE(onOther);
     CHECK(onOther->GetComponent<DeveloperMode>()->IsUnlocked());
+    CHECK(guest->IsAuthenticated() == authenticated);
+    CHECK(onHost->GetComponent<DeveloperMode>()->IsAuthenticated() == authenticated);
+    CHECK(onOther->GetComponent<DeveloperMode>()->IsAuthenticated() == authenticated);
     const auto findGun = [](Spot::Entity& entity) -> Gameplay::Firearm* {
         auto* inventory = entity.GetComponent<Gameplay::Inventory>();
         for (auto* item : inventory->GetItems()) {
@@ -368,6 +378,7 @@ TEST_CASE("A developer guest unlocks only its own Ray Gun on the server and both
     room.Run(300);
     CHECK_FALSE(health->IsDead());
     CHECK(guest->IsUnlocked());
+    CHECK(guest->IsAuthenticated() == authenticated);
     CHECK(findGun(guest->GetEntity()));
 }
 

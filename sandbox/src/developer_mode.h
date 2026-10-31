@@ -30,6 +30,7 @@ public:
     static Spot::ConsoleResult SetLocalGod(Spot::Scene& scene, std::optional<bool> enabled);
     float GetImmortalTime() const { return m_immortalTime; }
 
+    bool IsAuthenticated() const { return m_authenticated; }
     bool IsUnlocked() const { return m_unlocked; }
     void Unlock();
     void SetKeyPath(std::filesystem::path path);
@@ -54,6 +55,7 @@ protected:
     void Replicate(Spot::Archive& archive) override;
 
 private:
+    void Authenticate();
     void Apply();
     void Bind();
     void AuthenticateLocal();
@@ -64,6 +66,7 @@ private:
 
     float m_immortalTime = 0.0f;
     Spot::SignalConnection m_blocked;
+    bool m_authenticated = false;
     bool m_unlocked = false;
     bool m_skinApplied = false;
     bool m_keyChecked = false;

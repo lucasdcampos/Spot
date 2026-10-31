@@ -23,6 +23,7 @@ void PlayerInfo::Replicate(Spot::Archive& archive) {
     archive.Field("ping", ping);
     archive.Field("team", team);
     archive.Field("developer", developer);
+    archive.Field("developerAuthenticated", developerAuthenticated);
     archive.Field("pawn", pawn);
     archive.Field("scores", scores);
 }

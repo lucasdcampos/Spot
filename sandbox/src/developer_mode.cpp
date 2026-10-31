@@ -826,7 +826,7 @@ void DeveloperMode::Bind() {
 }
 
 void DeveloperMode::AuthenticateLocal() {
-    if (m_unlocked || m_keyChecked || Gameplay::Players::FindComponent<DeveloperMode>(GetScene()) != this) {
+    if (m_authenticated || m_keyChecked || Gameplay::Players::FindComponent<DeveloperMode>(GetScene()) != this) {
         return;
     }
     if (Spot::Network::IsClient(GetScene())) {
@@ -848,12 +848,12 @@ void DeveloperMode::AuthenticateLocal() {
     const Challenge challenge = GenerateChallenge();
     const Signature signature = Sign(*seed, challenge);
     if (Verify(m_publicKey, challenge, signature)) {
-        Unlock();
+        Authenticate();
     }
 }
 
 void DeveloperMode::IssueChallenge(Spot::NetworkObject& object) {
-    if (!m_system || !m_system->IsServer() || m_unlocked) {
+    if (!m_system || !m_system->IsServer() || m_authenticated) {
         return;
     }
     m_challenge = GenerateChallenge();
@@ -879,7 +879,7 @@ void DeveloperMode::VerifyResponse(const Signature& signature) {
     }
     m_hasChallenge = false;
     if (Verify(m_publicKey, m_challenge, signature)) {
-        Unlock();
+        Authenticate();
     }
 }
 
@@ -996,6 +996,14 @@ Spot::ConsoleResult DeveloperMode::Strike(Spot::Scene& scene, Power power, std::
     return {true, std::string(power == Power::Smite ? "Smote " : "Yeeted ") + std::string(playerName)};
 }
 
+void DeveloperMode::Authenticate() {
+    if (!Spot::Network::IsServer(GetScene())) {
+        return;
+    }
+    m_authenticated = true;
+    Unlock();
+}
+
 void DeveloperMode::Unlock() {
     if (!Spot::Network::IsServer(GetScene())) {
         return;
@@ -1003,6 +1011,7 @@ void DeveloperMode::Unlock() {
     m_unlocked = true;
     if (auto* info = FindInfo(GetEntity())) {
         info->developer = true;
+        info->developerAuthenticated = info->developerAuthenticated || m_authenticated;
     }
     Apply();
 }
@@ -1079,7 +1088,9 @@ void DeveloperMode::OnUpdate(float deltaTime) {
     AuthenticateLocal();
     if (Spot::Network::IsServer(GetScene())) {
         if (auto* info = FindInfo(GetEntity())) {
-            if (info->developer || m_unlocked) {
+            m_authenticated = m_authenticated || info->developerAuthenticated;
+            info->developerAuthenticated = m_authenticated;
+            if (info->developer || m_unlocked || m_authenticated) {
                 m_unlocked = true;
                 info->developer = true;
             }
@@ -1091,6 +1102,7 @@ void DeveloperMode::OnUpdate(float deltaTime) {
 void DeveloperMode::Replicate(Spot::Archive& archive) {
     archive.Field("unlocked", m_unlocked);
     archive.Field("immortalTime", m_immortalTime);
+    archive.Field("authenticated", m_authenticated);
     if (archive.IsLoading()) {
         Apply();
     }

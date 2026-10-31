@@ -778,3 +778,8 @@ The workshop mirror excludes layer 29, reserved for the local first-person view 
 The backing stays behind the reflected surface, so it shows when captures stop beyond 12 meters.
 
 The developer Ray Gun uses clean red enamel, polished brass and a matte grip with no worn surface maps. Its mesh and holding markers are scaled to 75%, with a rear cap, muzzle insert and brass side seams. It fires automatically every 0.1 seconds with `Firearm::infiniteAmmo`: shots retain their cooldown without consuming rounds, reloading or showing low-ammunition warnings.
+
+The `</>` badge next to a sandbox nickname identifies a developer authenticated with `developer.key`.
+`imthegamedev` unlocks the easter egg without granting this badge. Authentication is decided by the
+server, replicated separately from the unlock, retained across character replacement and never saved
+as scene data. A player who used the command can still authenticate with a valid key afterward.
