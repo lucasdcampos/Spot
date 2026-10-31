@@ -75,6 +75,10 @@ public:
     void SetOwner(NetworkObject& object, NetPeerId owner);
     // On the server: what a client's player is, whose distance to objects makes them matter more or less to it.
     void SetFocus(NetPeerId peer, EntityId entity);
+    // On the server, for an object a client decides: puts it where it is here on that client too, as when the game
+    // respawns a player's character there. The states that client sent before it hears of it are ignored; what else
+    // the game changes, as the velocity, it tells that client itself, after this.
+    void Place(NetworkObject& object);
 
     NetworkObject* FindObject(NetworkId id) const;
     Entity* FindEntity(NetworkId id) const;
@@ -167,6 +171,7 @@ private:
     void ServerReceiveAck(NetPeerId peer, BitReader& reader);
     void ServerReceiveOwnerState(NetPeerId peer, BitReader& reader);
     void ClientReceiveSceneObjects(BitReader& reader);
+    void ClientReceivePlacement(BitReader& reader);
     void ClientReceiveSnapshot(BitReader& reader);
     void ClientResolveReferences();
     void ClientSend(float deltaTime);

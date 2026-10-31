@@ -28,10 +28,6 @@ enum class NetworkAuthority {
 class NetworkObject final : public Component {
 public:
     NetworkAuthority authority = NetworkAuthority::Server;
-    // Whether the client owning it moves it ahead of the server, as a player's own character, instead of waiting to
-    // be shown what the server decided: there, its NetworkTransform leaves the entity to the game, which corrects
-    // it from what the server says; the server moves it only as the owner's inputs say. The server keeps authority.
-    bool predicted = false;
     // How much it matters to send this object's changes: twice the priority, twice as often when there is not room
     // for every change.
     float priority = 1.0f;
@@ -46,8 +42,9 @@ public:
     bool IsOwnedLocally() const { return m_ownedLocally; }
     // Whether this machine decides its state: with no session, always.
     bool HasAuthority() const;
-    // Whether its owner predicts it now: it is predicted and a client owns it. On clients, only that client's.
-    bool IsPredicted() const;
+    // Whether a client decides it now, owning it with NetworkAuthority::Owner: on the server, any client; on clients,
+    // this one. What such a client does with it, as its player's shots, it shows at once itself.
+    bool IsDecidedByClient() const;
 
     void Serialize(Archive& archive) override;
 

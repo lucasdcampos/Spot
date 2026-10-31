@@ -46,12 +46,12 @@ struct CharacterControls {
 // goes up, crouch down and sprint faster. In a state of blockedBy, as dead, it neither moves nor jumps; in one of
 // inactiveWhen, as seated,
 // its body is put aside and it does nothing. Only where its pawn's state is decided does it move it (see
-// Spot::Network::HasAuthority()); elsewhere the pawn moves as it is told, unless the pawn is predicted
-// (PredictedPart): its player's machine then moves it at once, and the server by that player's steps.
+// Spot::Network::HasAuthority()), as on its player's machine for a player's character; elsewhere the pawn moves as
+// it is told. There, pushes from the server are sent to that machine, which tells the server of its landings: the
+// server takes their speed no faster than it saw the character fall.
 class CharacterMovement : public Spot::Component,
                           public DamageReceiver,
                           public PlayerInputListener,
-                          public PredictedPart,
                           public Spot::Replicated {
 public:
     // Meters per second.
@@ -86,8 +86,11 @@ public:
     void Push(Spot::Vector3 velocity);
     // Replaces its velocity, clearing pending jumps and pushes, as when its pawn is placed elsewhere.
     void SetVelocity(Spot::Vector3 velocity);
+    // Flying, the pawn is "Noclip", which a game mode may forbid.
     bool IsFlying() const { return m_flying; }
     void SetFlying(bool flying);
+    // How fast it may go now, rising or across, with the pushes the server gave it lately (see Pawn::GetSpeedLimit()).
+    float GetSpeedLimit() const;
     float GetCameraBob() const { return m_bob; }
     // Footsteps taken, with the share of the current one: the walk cycle the head and the held item bob with. Each
     // footstep lands as it reaches a whole number.
@@ -98,19 +101,15 @@ public:
     // Each step it takes and each landing, with how loud it is: 1 walking, less crouching and more running.
     Spot::Signal<float> OnFootstep;
 
-    // Whether it crouches, runs and flies, which the server decides, for the other machines to show.
+    // Whether it crouches, runs and flies, for the other machines to show; the machine moving it decides them.
     void Replicate(Spot::Archive& archive) override;
-
-    void Step(float fixedDeltaTime, bool replaying) override;
-    void SerializeStepState(Spot::Archive& archive) override;
-    void OnCorrected(Spot::Vector3 offset) override;
+    bool IsDecidedByOwner() const override { return true; }
 
 protected:
     bool IsInputBeforeFixedSteps() const override { return true; }
     void OnPlayerInput(PlayerController& player) override;
     void OnPlayerUnpossess() override;
     void SerializeIntent(Spot::Archive& archive) override;
-    bool IsIntentPerStep() const override { return true; }
     void OnDamage(const DamageInfo& damage) override;
     void OnStart() override;
     void OnFixedUpdate(float fixedDeltaTime) override;
@@ -119,6 +118,11 @@ protected:
     void Serialize(Spot::Archive& archive) override;
 
 private:
+    friend class CharacterNetwork;
+
+    void Step(float fixedDeltaTime);
+    // On the server, a landing its player's machine told of, no faster than it was seen to fall.
+    void Landed(float speed);
     // Where it goes, in its space as it faces: -Z is forward.
     Spot::Vector3 GetMove() const;
     void Walk(Spot::CharacterController& controller, float deltaTime);
@@ -160,15 +164,15 @@ private:
     // The dip landing gives the head, as a damped spring.
     float m_dip = 0.0f;
     float m_dipVelocity = 0.0f;
-    // Stepping again what the server corrected, which was already shown.
-    bool m_replaying = false;
     // Whether running was blocked, as the intent read for the next step says.
     std::optional<bool> m_sprintBlocked;
-    // How far the last correction moved it, which the head eases back from, so it is not seen jumping.
-    Spot::Vector3 m_correction;
-    // Where it was last shown, and how fast it was seen to move, as another machine moves it.
+    // Where it was last shown, and how fast it was seen to move, as another machine moves it; and the fastest it was
+    // seen falling lately.
     std::optional<Spot::Vector3> m_lastShown;
     Spot::Vector3 m_shownVelocity;
+    float m_shownFall = 0.0f;
+    // On the server, how hard it was pushed lately where another machine moves it.
+    float m_pushed = 0.0f;
     Spot::SignalConnection m_states;
 };
 

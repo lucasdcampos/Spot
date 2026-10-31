@@ -187,11 +187,10 @@ TEST_CASE("A guest in the playground moves, switches, carries, shoots and rides 
     REQUIRE(pawn);
     Spot::Entity* onHost = room.GetGuestOnHost();
     REQUIRE(onHost);
-    const auto* players = room.guest.scene.FindComponent<Gameplay::NetworkPlayers>();
+    const auto* players = room.host.scene.FindComponent<Gameplay::NetworkPlayers>();
     REQUIRE(players);
-    const std::uint32_t corrections = players->GetCorrections();
 
-    // Running, aiming and jumping on the guest's own machine, as the host sees it, without being set right.
+    // Running, aiming and jumping on the guest's own machine, as the host sees it, without being put back.
     room.guest.Press(Spot::Key::W);
     room.guest.Press(Spot::Key::LeftShift);
     room.Run(40);
@@ -207,7 +206,7 @@ TEST_CASE("A guest in the playground moves, switches, carries, shoots and rides 
     room.Run(40);
     CHECK(Spot::Distance(pawn->GetEntity().GetTransform().GetWorldPosition(),
                          onHost->GetTransform().GetWorldPosition()) < 0.05f);
-    CHECK(players->GetCorrections() <= corrections + 1);
+    CHECK(players->GetCorrections() == 0);
 
     // Switching items shows on the other machine.
     auto& guestItems = *pawn->GetEntity().GetComponent<Gameplay::Inventory>();
@@ -473,4 +472,75 @@ TEST_CASE("A dedicated server plays nobody and keeps two guests in the playgroun
     REQUIRE(firstOnHost);
     CHECK(Spot::Distance(firstOnHost->GetTransform().GetWorldPosition(), walked) < 0.05f);
     CHECK(Spot::Distance(firstOnSecond->GetTransform().GetWorldPosition(), walked) < 0.05f);
+}
+
+TEST_CASE("A guest walking into a crate and another player is never moved back, as everyone sees it",
+          "[sandbox][network][playground]") {
+    Room room(true);
+    Gameplay::Pawn* first = room.guest.GetPawn();
+    Gameplay::Pawn* second = room.other.GetPawn();
+    REQUIRE(first);
+    REQUIRE(second);
+    Spot::Entity& crate =
+        room.Spawn("prefabs/spawnables/props/crate.prefab", InFront(*first, 1.6f) + Spot::Vector3{0, 0.6f, 0});
+    room.Run(30);
+    Spot::Entity* firstOnOther = room.other.Find(first->GetEntity());
+    Spot::Entity* crateOnOther = room.other.Find(crate);
+    REQUIRE(firstOnOther);
+    REQUIRE(crateOnOther);
+
+    // How far along the way it walks each is, never less than before, give or take the tolerance: where it is
+    // decided, and where it is shown, which is carried on a little past the newest state here (the old corrections
+    // put it back by decimeters to meters).
+    int backwards = 0;
+    const auto walk = [&](int frames, const std::vector<const Spot::Entity*>& shown, float ownTolerance,
+                          float tolerance) {
+        const Spot::Vector3 start = first->GetEntity().GetTransform().GetWorldPosition();
+        const Spot::Vector3 forward = Spot::Normalize(InFront(*first, 1.0f) - start);
+        const auto along = [&](const Spot::Entity& entity) {
+            return Spot::Dot(entity.GetTransform().GetWorldPosition() - start, forward);
+        };
+        float own = along(first->GetEntity());
+        std::vector<float> farthest;
+        for (const Spot::Entity* entity : shown) {
+            farthest.push_back(along(*entity));
+        }
+        room.guest.Press(Spot::Key::W);
+        for (int i = 0; i < frames; ++i) {
+            room.Run(1);
+            const float now = along(first->GetEntity());
+            backwards += now < own - ownTolerance ? 1 : 0;
+            own = std::max(own, now);
+            for (std::size_t j = 0; j < shown.size(); ++j) {
+                const float there = along(*shown[j]);
+                backwards += there < farthest[j] - tolerance ? 1 : 0;
+                farthest[j] = std::max(farthest[j], there);
+            }
+        }
+        room.guest.Release(Spot::Key::W);
+        room.Run(30);
+        return own;
+    };
+    CHECK(walk(90, {firstOnOther, crateOnOther}, 0.005f, 0.15f) > 2.0f);
+    CHECK(backwards == 0);
+    // The crate went on ahead of the guest.
+    CHECK(Spot::Distance(crateOnOther->GetTransform().GetWorldPosition(), crate.GetTransform().GetWorldPosition()) <
+          0.1f);
+
+    // Turned aside, away from the crate, the other player stands in the way.
+    const Spot::Vector3 eye = first->GetViewPoint().position;
+    const Spot::Vector3 ahead = first->GetViewPoint().direction;
+    room.LookAt(eye + Spot::Vector3{-ahead.z, 0.0f, ahead.x} * 5.0f);
+    room.Run(4);
+    Spot::Entity* secondOnHost = room.host.Find(second->GetEntity());
+    REQUIRE(secondOnHost);
+    secondOnHost->GetComponent<Gameplay::Pawn>()->Teleport(InFront(*first, 1.5f) + Spot::Vector3{0, 0.1f, 0}, {}, {});
+    room.Run(30);
+    // Shown here as soon as its states arrive, carried on past them, the other player moves a little each time it is
+    // shown somewhere new, and a guest against it is put out of it by a few centimeters.
+    walk(60, {firstOnOther}, 0.15f, 0.15f);
+    CHECK(backwards == 0);
+    CHECK(room.host.scene.FindComponent<Gameplay::NetworkPlayers>()->GetCorrections() == 0);
+    CHECK(Spot::Distance(room.host.Find(first->GetEntity())->GetTransform().GetWorldPosition(),
+                         first->GetEntity().GetTransform().GetWorldPosition()) < 0.05f);
 }

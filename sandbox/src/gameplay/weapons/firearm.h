@@ -16,13 +16,13 @@ namespace Gameplay {
 // and pushing what they hit (Damage::Apply()) and playing the effect of its surface; with one, it launches that prefab,
 // as a rocket. While aiming its pawn is "Aiming".
 //
-// On the machine of a player whose pawn is predicted, it aims, kicks, flashes and sounds at once (OnPredictedUse()),
+// On the machine of a player who decides its pawn, it aims, kicks, flashes and sounds at once (OnPredictedUse()),
 // and shows where its pellets go; the server alone damages, pushes and launches, and the rounds are its to count.
 // That machine tells the server which replicated objects its pellets hit, as it saw them, a little in the past: the
 // server damages those, as many as the shots it fired allow and within range, rather than what its own rays hit.
 //
 // A game changes how it shoots by overriding FireShot(), as a weapon that heals what it hits would; it runs on that
-// player's machine too, where it only shows (Spot::Network::HasAuthority() is false there).
+// player's machine too, where it only shows (Spot::Network::IsServer() is false there).
 class Firearm : public HeldItem, public Spot::Replicated {
 public:
     // Fires again while the action is held.

@@ -26,6 +26,7 @@ public:
     PawnMotion GetMotion() const override;
     void Place(Spot::Vector3 position, Spot::Vector3 forward, Spot::Vector3 velocity) override;
     void ResetMotion() override;
+    float GetSpeedLimit() const override;
 
 protected:
     void OnStart() override;

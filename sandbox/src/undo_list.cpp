@@ -72,7 +72,7 @@ void UndoList::OnPlayerInput(Gameplay::PlayerController& /*player*/) {
     if (!Spot::Input::IsActionPressed("Undo")) {
         return;
     }
-    if (Spot::Network::HasAuthority(GetEntity())) {
+    if (Spot::Network::IsServer(GetScene())) {
         Undo();
     } else {
         m_undoRequested = true;

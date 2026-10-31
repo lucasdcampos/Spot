@@ -13,8 +13,7 @@ class BitWriter;
 
 // Sends its entity's position and rotation from the authority to the other machines, which show it a little in the
 // past, between the last states they received, so it moves smoothly whatever the network does. On those machines,
-// its entity's Rigidbody becomes kinematic, as the authority simulates it. The owner of a predicted object
-// (NetworkObject::predicted) is not shown it: it moves the entity itself.
+// its entity's Rigidbody becomes kinematic, as the authority simulates it.
 class NetworkTransform final : public Component {
 public:
     // Positions are sent with this precision, in meters, within this distance of the origin.
@@ -48,6 +47,8 @@ private:
     // Moves the entity where its newest state, carried on as it was going, puts it at that time: where a machine
     // taking it over starts from.
     void ShowNewest(double time);
+    // Moves the entity where a state written by Write() puts it, at once.
+    void Place(BitReader& reader);
     int GetPositionBits() const;
 
     std::deque<Sample> m_samples;

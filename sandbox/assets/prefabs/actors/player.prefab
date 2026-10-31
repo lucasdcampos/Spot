@@ -5,8 +5,7 @@
       "components": [
         {
           "data": {
-            "authority": 0,
-            "predicted": true,
+            "authority": 1,
             "priority": 3.0,
             "relevanceRadius": 0.0
           },

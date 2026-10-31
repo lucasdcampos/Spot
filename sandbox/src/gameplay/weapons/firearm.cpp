@@ -48,7 +48,7 @@ protected:
             [](Spot::NetworkObject& object, Spot::NetPeerId from, ShotHitsMessage& message) {
                 const auto* inventory = object.GetEntity().GetComponent<Inventory>();
                 auto* firearm = inventory ? dynamic_cast<Firearm*>(inventory->GetEquipped()) : nullptr;
-                if (firearm && object.GetOwner() == from && object.IsPredicted()) {
+                if (firearm && object.GetOwner() == from && object.IsDecidedByClient()) {
                     firearm->ApplyReportedHits(std::move(message.hits));
                 }
             });
@@ -145,13 +145,12 @@ void Firearm::PlaySound(const Spot::AssetRef<Spot::Sound>& sound, float volume) 
     }
     const EffectLibrary::Predicted predicted(GetEntity());
     // Close to full volume for whoever holds it, and heard far around.
-    EffectLibrary::PlaySound(
-        GetScene(), sound, pawn->GetViewPoint().position,
-        {.volume = volume,
-         .bus = "Effects",
-         .spatialSettings = {.minDistance = 3.0f, .maxDistance = 100.0f},
-         .priority = 5,
-         .maxInstances = 4});
+    EffectLibrary::PlaySound(GetScene(), sound, pawn->GetViewPoint().position,
+                             {.volume = volume,
+                              .bus = "Effects",
+                              .spatialSettings = {.minDistance = 3.0f, .maxDistance = 100.0f},
+                              .priority = 5,
+                              .maxInstances = 4});
 }
 
 void Firearm::Fire() {
@@ -203,7 +202,7 @@ void Firearm::FireShot(Spot::Vector3 eye, Spot::Vector3 aim, Spot::Vector3 muzzl
 
 void Firearm::Launch(Spot::Vector3 eye, Spot::Vector3 aim, Spot::Vector3 muzzle) {
     // What it launches is the server's, which every machine is then shown.
-    if (!Spot::Network::HasAuthority(GetEntity())) {
+    if (!Spot::Network::IsServer(GetScene())) {
         return;
     }
     const Pawn* pawn = GetPawn();
@@ -227,10 +226,10 @@ void Firearm::FirePellets(Spot::Vector3 eye, Spot::Vector3 aim, Spot::Vector3 mu
     const Pawn* pawn = GetPawn();
     const Spot::EntityId shooter = pawn ? pawn->GetEntity().GetId() : GetEntity().GetId();
     const float cone = m_aiming ? spread * aimSpread : spread;
-    // Where the shooter predicts its pawn, its machine says what replicated objects were hit.
+    // Where the shooter decides its pawn, its machine says what replicated objects were hit.
     Spot::NetworkObject* own = Spot::Network::GetObject(GetEntity());
-    const bool decides = Spot::Network::HasAuthority(GetEntity());
-    const bool reports = own && own->IsPredicted();
+    const bool decides = Spot::Network::IsServer(GetScene());
+    const bool reports = own && own->IsDecidedByClient();
     std::vector<ReportedHit> reported;
     for (int pellet = 0; pellet < pellets; ++pellet) {
         const Spot::Vector3 direction = Scatter(aim, cone);
@@ -331,8 +330,8 @@ void Firearm::ApplyPendingHits() {
             continue;
         }
         const float share = std::clamp(hit.share, 0.0f, 1.0f);
-        const Spot::Vector3 direction =
-            Spot::LengthSquared(hit.direction) > 1e-6f ? Spot::Normalize(hit.direction) : pawn->GetViewPoint().direction;
+        const Spot::Vector3 direction = Spot::LengthSquared(hit.direction) > 1e-6f ? Spot::Normalize(hit.direction)
+                                                                                   : pawn->GetViewPoint().direction;
         Damage::Apply(GetScene(), hit.target,
                       {.amount = damage * share,
                        .type = damageType,
@@ -398,7 +397,7 @@ void Firearm::Replicate(Spot::Archive& archive) {
     m_reserve = reserve;
     // Its player's machine aims and starts reloading at once itself (OnPredictedUse()).
     const Spot::NetworkObject* object = Spot::Network::GetObject(GetEntity());
-    const bool predicted = object && object->IsPredicted();
+    const bool predicted = object && object->IsDecidedByClient();
     if (aiming != m_aiming && !predicted) {
         SetAiming(aiming);
     }

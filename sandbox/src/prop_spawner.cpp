@@ -74,7 +74,7 @@ Spot::Entity* PropSpawner::Spawn(std::size_t index) {
     if (!placement) {
         return nullptr;
     }
-    if (!Spot::Network::HasAuthority(GetEntity())) {
+    if (!Spot::Network::IsServer(GetScene())) {
         m_requests.push_back({static_cast<int>(index), placement->position, placement->facing});
         return nullptr;
     }
@@ -220,7 +220,7 @@ void PropSpawner::SerializeIntent(Spot::Archive& archive) {
 }
 
 void PropSpawner::Cleanup() {
-    if (!Spot::Network::HasAuthority(GetEntity())) {
+    if (!Spot::Network::IsServer(GetScene())) {
         m_cleanupRequested = true;
         return;
     }

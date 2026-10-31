@@ -68,10 +68,19 @@ public:
     virtual PawnMotion GetMotion() const { return {}; }
     // How many times its parts magnify its view now (see ViewZoom).
     float GetZoom() const;
-    // Puts it at the position, facing the direction, moving at the velocity, as on getting out of a vehicle.
+    // Puts it at the position, facing the direction unless it is zero, moving at the velocity, as on getting out of
+    // a vehicle.
     virtual void Place(Spot::Vector3 position, Spot::Vector3 forward, Spot::Vector3 velocity);
     // Clears motion when the game returns it to its start, preserving where it looks.
     virtual void ResetMotion();
+    // Meters per second it may move by itself now, rising or across, falling aside, with what pushed it lately: what
+    // a server checks the machine moving it against. Unlimited by default.
+    virtual float GetSpeedLimit() const;
+    // Its motion reset, then placed: what the game does to put a pawn elsewhere, as on respawning it. On a server,
+    // where a client decides the pawn, as its player's character, that client is told to do the same.
+    void Teleport(Spot::Vector3 position, Spot::Vector3 forward, Spot::Vector3 velocity);
+    // How many times it was teleported, for what follows how it moves to start again.
+    std::uint32_t GetTeleportCount() const { return m_teleports; }
 
     // The pawn riding in it, as a character in a vehicle's seat, for what follows a player whichever pawn they
     // possess, as their health on the HUD; null when there is none.
@@ -102,6 +111,7 @@ protected:
     void Serialize(Spot::Archive& archive) override;
 
 private:
+    std::uint32_t m_teleports = 0;
     friend class Controller;
 
     Spot::EntityId m_controller = Spot::EntityId::Invalid;

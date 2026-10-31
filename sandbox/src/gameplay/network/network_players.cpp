@@ -5,6 +5,7 @@
 #include "gameplay/core/pawn_request.h"
 #include "gameplay/core/player_controller.h"
 #include "gameplay/core/players.h"
+#include "gameplay/game/game_mode.h"
 #include "gameplay/network/pawn_intents.h"
 #include "gameplay/network/player_info.h"
 #include "gameplay/network/player_messages.h"
@@ -25,18 +26,6 @@ SPOT_COMPONENT(NetworkPlayers);
 
 namespace {
 
-// Steps of a predicted pawn kept for correcting it, about two seconds, and sent in one message at most.
-constexpr std::size_t MaxKeptSteps = 120;
-constexpr std::size_t MaxSentSteps = 16;
-
-std::string ToString(const std::vector<std::byte>& bytes) {
-    return {reinterpret_cast<const char*>(bytes.data()), bytes.size()};
-}
-
-Spot::BitReader ReadString(const std::string& data) {
-    return Spot::BitReader(std::as_bytes(std::span(data.data(), data.size())));
-}
-
 RemoteController* FindController(Spot::Scene& scene, Spot::NetPeerId peer) {
     RemoteController* found = nullptr;
     scene.ForEachComponent<RemoteController>([&](RemoteController& controller) {
@@ -49,26 +38,12 @@ RemoteController* FindController(Spot::Scene& scene, Spot::NetPeerId peer) {
 
 } // namespace
 
-// Records and corrects the predicted pawn of the local player around the fixed steps.
-class PredictionSystem final : public Spot::SceneSystem {
-protected:
-    void OnBeforeFixedSteps(float /*deltaTime*/) override {
-        GetScene().ForEachComponent<NetworkPlayers>(
-            [](NetworkPlayers& players) { players.RunGuarded("Correct", [&] { players.Correct(); }); });
-    }
-    void OnFixedUpdate(float /*fixedDeltaTime*/) override {
-        GetScene().ForEachComponent<NetworkPlayers>(
-            [](NetworkPlayers& players) { players.RunGuarded("RecordStep", [&] { players.RecordStep(); }); });
-    }
-};
-
 void NetworkPlayers::OnStart() {
-    GetScene().GetOrAddSystem<PredictionSystem>();
     m_stats = std::make_unique<Spot::StatsSection>([this]() -> std::string {
-        if (!m_system || !m_system->IsClient() || Spot::Network::Get(GetScene()) != m_system) {
+        if (!m_system || !m_system->IsServer() || Spot::Network::Get(GetScene()) != m_system) {
             return {};
         }
-        return std::format("Prediction: {:.1f} corrections/s, largest {:.2f} m", m_correctionRate, m_largestCorrection);
+        return std::format("Players put back: {}", m_corrections);
     });
 }
 
@@ -80,21 +55,15 @@ void NetworkPlayers::Bind(Spot::NetworkSystem& system) {
     m_frame = 0;
     m_sentPawn = Spot::EntityId::Invalid;
     m_sent.clear();
-    m_steps.clear();
-    m_predicted = Spot::EntityId::Invalid;
-    m_step = 0;
-    m_sentStep = 0;
-    m_stepState.reset();
+    m_tracks.clear();
     if (system.IsClient()) {
-        system.OnObjectMessage<StepStateMessage>(
-            [this](Spot::NetworkObject& object, Spot::NetPeerId /*from*/, StepStateMessage& message) {
-                if (!m_stepState || message.step > m_stepState->step) {
-                    m_stepState = StepState{.object = object.GetNetworkId(),
-                                            .step = message.step,
-                                            .position = message.position,
-                                            .state = std::move(message.state)};
-                }
-            });
+        // The server teleported a pawn this machine decides.
+        system.OnObjectMessage<PawnPlaced>([](Spot::NetworkObject& object, Spot::NetPeerId, PawnPlaced& placed) {
+            if (auto* pawn = object.GetEntity().GetComponent<Pawn>(); pawn && object.HasAuthority()) {
+                pawn->ResetMotion();
+                pawn->Place(placed.position, placed.forward, placed.velocity);
+            }
+        });
     }
     if (system.IsServer()) {
         system.OnObjectMessage<PawnRequest>(
@@ -121,33 +90,11 @@ void NetworkPlayers::Bind(Spot::NetworkSystem& system) {
                     controller->Receive(message.frame - (count - 1 - i), std::move(message.frames[i]));
                 }
             });
-        system.OnObjectMessage<StepsMessage>(
-            [](Spot::NetworkObject& object, Spot::NetPeerId from, StepsMessage& message) {
-                RemoteController* controller = FindController(object.GetScene(), from);
-                Pawn* pawn = controller ? controller->GetPawn() : nullptr;
-                if (!pawn || Spot::Network::GetObject(pawn->GetEntity()) != &object || !object.IsPredicted()) {
-                    return;
-                }
-                const auto count = static_cast<std::uint32_t>(message.steps.size());
-                if (count > message.step) {
-                    return;
-                }
-                for (std::uint32_t i = 0; i < count; ++i) {
-                    controller->ReceiveStep(message.step - (count - 1 - i), std::move(message.steps[i]));
-                }
-            });
     }
 }
 
 void NetworkPlayers::OnUpdate(float deltaTime) {
     m_time += deltaTime;
-    if (const double seconds = m_time - m_measureStart; seconds >= 1.0) {
-        m_correctionRate = static_cast<float>((m_corrections - m_measureCorrections) / seconds);
-        m_largestCorrection = m_measureLargest;
-        m_measureStart = m_time;
-        m_measureCorrections = m_corrections;
-        m_measureLargest = 0.0f;
-    }
     Spot::NetworkSystem* system = Spot::Network::Get(GetScene());
     if (!system) {
         m_system = nullptr;
@@ -196,7 +143,46 @@ void NetworkPlayers::UpdateServer(Spot::NetworkSystem& system) {
     std::erase_if(controllers,
                   [](const RemoteController* controller) { return controller->GetEntity().IsDestroyed(); });
     HandOffBodies(controllers);
+    CheckMovement(controllers);
     UpdatePlayerInfos(system);
+}
+
+void NetworkPlayers::CheckMovement(const std::vector<RemoteController*>& controllers) {
+    constexpr double Window = 1.0;
+    const GameMode* mode = GameMode::Get(GetScene());
+    std::unordered_map<Spot::EntityId, Track> tracks;
+    for (RemoteController* controller : controllers) {
+        Pawn* pawn = controller->GetPawn();
+        const Spot::NetworkObject* object = pawn ? Spot::Network::GetObject(pawn->GetEntity()) : nullptr;
+        if (!object || !object->IsDecidedByClient() || object->GetOwner() != controller->GetPeer()) {
+            continue;
+        }
+        const Spot::EntityId id = pawn->GetEntity().GetId();
+        Track track = m_tracks.contains(id) ? std::move(m_tracks[id]) : Track{};
+        if (track.teleports != pawn->GetTeleportCount()) {
+            track = {.teleports = pawn->GetTeleportCount()};
+        }
+        const Spot::Vector3 position = pawn->GetEntity().GetTransform().GetWorldPosition();
+        track.path.emplace_back(m_time, position);
+        while (track.path.size() > 2 && track.path[1].first <= m_time - Window) {
+            track.path.pop_front();
+        }
+        const auto& [since, from] = track.path.front();
+        // Falling is free; rising and going across take speed.
+        const Spot::Vector3 moved = position - from;
+        const float distance = Spot::Length(Spot::Vector3{moved.x, std::max(moved.y, 0.0f), moved.z});
+        const float allowed = pawn->GetSpeedLimit() * static_cast<float>(m_time - since) * 1.25f + movementSlack;
+        const bool flying = mode && !mode->allowsNoclip && pawn->HasState("Noclip");
+        if (distance > allowed || flying) {
+            Spot::Log::Warning("{}'s pawn moved {:.1f} m in {:.2f} s{}: put back", pawn->GetEntity().GetName(),
+                               distance, m_time - since, flying ? " flying, which the mode forbids" : "");
+            ++m_corrections;
+            pawn->Teleport(from, {}, {});
+            track = {.teleports = pawn->GetTeleportCount()};
+        }
+        tracks[id] = std::move(track);
+    }
+    m_tracks = std::move(tracks);
 }
 
 void NetworkPlayers::HandOffBodies(const std::vector<RemoteController*>& controllers) {
@@ -321,81 +307,6 @@ void NetworkPlayers::UpdateClient() {
     }
 }
 
-Pawn* NetworkPlayers::GetPredictedPawn() const {
-    if (!m_system || Spot::Network::Get(GetScene()) != m_system || !m_system->IsClient()) {
-        return nullptr;
-    }
-    Pawn* pawn = Players::GetPawn(GetScene());
-    return pawn && PawnIntents::IsPredicted(*pawn) ? pawn : nullptr;
-}
-
-void NetworkPlayers::RecordStep() {
-    Pawn* pawn = GetPredictedPawn();
-    const Spot::EntityId id = pawn ? pawn->GetEntity().GetId() : Spot::EntityId::Invalid;
-    if (id != m_predicted) {
-        m_predicted = id;
-        m_steps.clear();
-        m_stepState.reset();
-    }
-    if (!pawn) {
-        return;
-    }
-    Spot::BitWriter writer;
-    PawnIntents::Write(*pawn, writer, PawnIntents::Set::PerStep);
-    m_steps.push_back({.number = ++m_step,
-                       .intents = ToString(writer.TakeBytes()),
-                       .position = pawn->GetEntity().GetTransform().GetWorldPosition()});
-    while (m_steps.size() > MaxKeptSteps) {
-        m_steps.pop_front();
-    }
-}
-
-void NetworkPlayers::Correct() {
-    if (!m_stepState) {
-        return;
-    }
-    const StepState said = std::move(*m_stepState);
-    m_stepState.reset();
-    Pawn* pawn = GetPredictedPawn();
-    const Spot::NetworkObject* object = pawn ? Spot::Network::GetObject(pawn->GetEntity()) : nullptr;
-    if (!object || object->GetNetworkId() != said.object || pawn->GetEntity().GetId() != m_predicted) {
-        return;
-    }
-    while (!m_steps.empty() && m_steps.front().number < said.step) {
-        m_steps.pop_front();
-    }
-    if (m_steps.empty() || m_steps.front().number != said.step) {
-        return;
-    }
-    const bool agrees = Spot::Distance(m_steps.front().position, said.position) <= correctionTolerance;
-    m_steps.pop_front();
-    if (agrees) {
-        return;
-    }
-    ++m_corrections;
-    // The intents it has now, which may be newer than its last step's, are put back after stepping again.
-    Spot::BitWriter current;
-    PawnIntents::Write(*pawn, current, PawnIntents::Set::PerStep);
-    const std::vector<std::byte> currentBytes = current.TakeBytes();
-    Spot::Transform& transform = pawn->GetEntity().GetTransform();
-    const Spot::Vector3 before = transform.GetWorldPosition();
-    transform.SetWorldPosition(said.position);
-    Spot::BitReader state = ReadString(said.state);
-    PawnIntents::ReadStepState(*pawn, state);
-    const float step = GetScene().GetFixedTimeStep();
-    for (Step& taken : m_steps) {
-        Spot::BitReader intents = ReadString(taken.intents);
-        PawnIntents::Read(*pawn, intents, PawnIntents::Set::PerStep);
-        PawnIntents::Step(*pawn, step, true);
-        taken.position = transform.GetWorldPosition();
-    }
-    Spot::BitReader reader(currentBytes);
-    PawnIntents::Read(*pawn, reader, PawnIntents::Set::PerStep);
-    const Spot::Vector3 offset = before - transform.GetWorldPosition();
-    m_measureLargest = std::max(m_measureLargest, Spot::Length(offset));
-    PawnIntents::Corrected(*pawn, offset);
-}
-
 void NetworkPlayers::OnLateUpdate(float /*deltaTime*/) {
     if (m_system && Spot::Network::Get(GetScene()) == m_system && m_system->IsClient()) {
         SendIntents(*m_system);
@@ -415,12 +326,8 @@ void NetworkPlayers::SendIntents(Spot::NetworkSystem& system) {
     if (!object || !object->IsOwnedLocally()) {
         return;
     }
-    const bool predicted = object->IsPredicted();
-    if (predicted) {
-        SendSteps(system, *object);
-    }
     Spot::BitWriter writer;
-    PawnIntents::Write(*pawn, writer, predicted ? PawnIntents::Set::PerFrame : PawnIntents::Set::All);
+    PawnIntents::Write(*pawn, writer);
     const std::vector<std::byte> bytes = writer.TakeBytes();
     m_sent.emplace_back(reinterpret_cast<const char*>(bytes.data()), bytes.size());
     while (m_sent.size() > static_cast<std::size_t>(std::max(repeatedFrames, 0)) + 1) {
@@ -430,33 +337,9 @@ void NetworkPlayers::SendIntents(Spot::NetworkSystem& system) {
     system.SendToServer(*object, std::move(message), Spot::NetDelivery::Unreliable);
 }
 
-void NetworkPlayers::SendSteps(Spot::NetworkSystem& system, Spot::NetworkObject& object) {
-    const Spot::Entity* predicted = GetScene().GetEntity(m_predicted);
-    if (m_steps.empty() || m_steps.back().number <= m_sentStep || !predicted ||
-        Spot::Network::GetObject(*predicted) != &object) {
-        return;
-    }
-    // The new steps, and a few sent before in case those were lost.
-    const std::uint32_t newest = m_steps.back().number;
-    const auto repeated = static_cast<std::uint32_t>(std::max(repeatedFrames, 0));
-    const std::uint32_t from = m_sentStep > repeated ? m_sentStep - repeated + 1 : 1;
-    StepsMessage message{.step = newest};
-    for (const Step& taken : m_steps) {
-        if (taken.number >= from) {
-            message.steps.push_back(taken.intents);
-        }
-    }
-    if (message.steps.size() > MaxSentSteps) {
-        message.steps.erase(message.steps.begin(), message.steps.end() - static_cast<std::ptrdiff_t>(MaxSentSteps));
-    }
-    m_sentStep = newest;
-    system.SendToServer(object, std::move(message), Spot::NetDelivery::Unreliable);
-}
-
 void NetworkPlayers::Serialize(Spot::Archive& archive) {
-    archive.Field(
-        "repeatedFrames", repeatedFrames,
-        {.min = 0.0f, .max = 10.0f, .tooltip = "Frames and steps of intents each message repeats, against loss"});
+    archive.Field("repeatedFrames", repeatedFrames,
+                  {.min = 0.0f, .max = 10.0f, .tooltip = "Frames of intents each message repeats, against loss"});
     archive.Field(
         "handOffRadius", handOffRadius,
         {.min = 0.0f, .max = 20.0f, .tooltip = "How close to a player's character a body is given to its machine"});
@@ -465,8 +348,9 @@ void NetworkPlayers::Serialize(Spot::Archive& archive) {
         {.min = 0.0f, .max = 50.0f, .tooltip = "How close to a driven vehicle a body is given to its driver"});
     archive.Field("handBackDelay", handBackDelay,
                   {.min = 0.0f, .max = 30.0f, .tooltip = "Seconds left alone before the server takes a body back"});
-    archive.Field("correctionTolerance", correctionTolerance,
-                  {.min = 0.0f, .max = 1.0f, .tooltip = "Meters a predicted pawn may be off before it is corrected"});
+    archive.Field(
+        "movementSlack", movementSlack,
+        {.min = 0.0f, .max = 20.0f, .tooltip = "Meters a player's pawn may go beyond its speed over a second"});
     archive.Field("playerInfoPrefab", playerInfoPrefab);
 }
 

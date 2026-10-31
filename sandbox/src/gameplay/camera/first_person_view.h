@@ -15,7 +15,7 @@ namespace Gameplay {
 // down its sights, narrows the head's camera and slows the look as much, and it widens a little while the pawn is
 // "Sprinting". A CameraShake on the pawn shakes the view, not the aim; Kick() kicks both, as recoil. It takes the look
 // sensitivity and field of view the player sets. Where the pawn looks is its player's: a server takes it with the
-// player's intent, and shows it to the other machines.
+// player's intent, as items aim where it looks, and its state from the player's machine for the other machines.
 class FirstPersonView : public Spot::Component,
                         public UserSettingsListener,
                         public PlayerInputListener,
@@ -48,15 +48,15 @@ public:
     void Kick(float radians, float recoveryTime = 0.2f);
     float GetRecoil() const { return m_recoil; }
 
+    // Where it looks, which its player's machine decides.
     void Replicate(Spot::Archive& archive) override;
+    bool IsDecidedByOwner() const override { return true; }
 
 protected:
     void ApplySettings(const UserSettings& settings) override;
     // The look is read as the view updates, so the input itself does nothing.
     void OnPlayerInput(PlayerController& /*player*/) override {}
     void SerializeIntent(Spot::Archive& archive) override;
-    // Movement goes where the pawn looks.
-    bool IsIntentPerStep() const override { return true; }
     void ReadSettings(UserSettings& settings) const override;
     void OnStart() override;
     void OnDisable() override;

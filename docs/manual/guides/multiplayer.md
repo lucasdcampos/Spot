@@ -58,11 +58,12 @@ shows it; the rest of its state, as its health, stays the server's. A part whose
 where the object is, as the wheels of a car they drive, says so by returning true from `IsDecidedByOwner()`. When the player leaves, it goes back to the server. `Spot::Network::Get(scene)` is the scene's
 `NetworkSystem`, null when it plays alone.
 
-A player's own character should also respond at once, but the server must still decide where it is, so it cannot
-walk through walls or run faster than allowed. Tick **Predicted** on its NetworkObject: the owning player's machine
-then moves it itself instead of being shown where the server had it, and your game corrects it from what the server
-says. The gameplay framework of the sandbox does this for its players' characters, by sending the server each fixed
-step's inputs and stepping again those the server had not seen when it corrects the player.
+A player's own character should respond at once too: give it **Owner** authority as well, and give it to its player
+when it spawns. The server then checks what that machine says, as how fast it moves, and puts it back where it was
+when it fails; to put it somewhere itself, as when respawning it, the server calls `system->Place(object)`, which moves
+it on the player's machine and ignores that machine's states from before. The gameplay framework of the sandbox does
+this for its players' characters (`Pawn::Teleport()`), with damage, inventories and everything else still decided by
+the server.
 
 ## Messages
 

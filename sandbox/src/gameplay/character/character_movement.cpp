@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace Gameplay {
 
@@ -17,7 +18,57 @@ namespace {
 
 constexpr Spot::Vector3 Up = {0.0f, 1.0f, 0.0f};
 
+// To the machine moving a character: a push the server gave it, as a blast's.
+struct CharacterPushed {
+    static constexpr std::string_view NetName = "Gameplay.CharacterPushed";
+    Spot::Vector3 velocity;
+
+    void Serialize(Spot::Archive& archive) { archive.Field("velocity", velocity); }
+};
+
+// To the server, from the machine moving a character: it landed this fast, for the damage of the fall.
+struct CharacterLanded {
+    static constexpr std::string_view NetName = "Gameplay.CharacterLanded";
+    float speed = 0.0f;
+
+    void Serialize(Spot::Archive& archive) { archive.Field("speed", speed); }
+};
+
 } // namespace
+
+// Hears what the server and the machines moving characters tell each other.
+class CharacterNetwork final : public Spot::SceneSystem {
+protected:
+    void OnUpdate(float /*deltaTime*/) override {
+        Spot::NetworkSystem* system = Spot::Network::Get(GetScene());
+        if (!system || system == m_bound) {
+            return;
+        }
+        m_bound = system;
+        if (system->IsClient()) {
+            system->OnObjectMessage<CharacterPushed>(
+                [](Spot::NetworkObject& object, Spot::NetPeerId, CharacterPushed& pushed) {
+                    auto* movement = object.GetEntity().GetComponent<CharacterMovement>();
+                    if (movement && object.HasAuthority() && std::isfinite(pushed.velocity.x) &&
+                        std::isfinite(pushed.velocity.y) && std::isfinite(pushed.velocity.z)) {
+                        movement->Push(pushed.velocity);
+                    }
+                });
+        } else {
+            system->OnObjectMessage<CharacterLanded>(
+                [](Spot::NetworkObject& object, Spot::NetPeerId from, CharacterLanded& landed) {
+                    auto* movement = object.GetEntity().GetComponent<CharacterMovement>();
+                    if (movement && object.GetOwner() == from && object.IsDecidedByClient() &&
+                        std::isfinite(landed.speed)) {
+                        movement->Landed(landed.speed);
+                    }
+                });
+        }
+    }
+
+private:
+    const Spot::NetworkSystem* m_bound = nullptr;
+};
 
 std::vector<std::string> CharacterControls::GetActions() const {
     return {move, jump, crouch, sprint, noclip};
@@ -59,19 +110,18 @@ void CharacterMovement::OnPlayerInput(PlayerController& player) {
 
 void CharacterMovement::SerializeIntent(Spot::Archive& archive) {
     CharacterIntent intent = m_intent;
-    // Whether it could run, as its player's machine saw it: states such as aiming or busy hands change there a step
-    // apart from where the server hears of them, and running or not would set the two copies apart.
+    // Whether it could run, as its player's machine saw it: states such as aiming or busy hands change there a frame
+    // apart from where the server hears of them.
     bool sprintBlocked = HasState(sprintBlockedBy);
     archive.Field("sprintBlocked", sprintBlocked);
-    if (archive.IsLoading()) {
-        m_sprintBlocked = sprintBlocked;
-    }
     archive.Field("move", intent.move);
     archive.Field("jump", intent.jump);
     archive.Field("crouch", intent.crouch);
     archive.Field("sprint", intent.sprint);
     archive.Field("noclip", intent.noclip);
-    if (archive.IsLoading()) {
+    // Only where it is moved: where its player's machine moves it, that machine acted on them already.
+    if (archive.IsLoading() && Spot::Network::HasAuthority(GetEntity())) {
+        m_sprintBlocked = sprintBlocked;
         SetIntent(intent);
     }
 }
@@ -83,9 +133,7 @@ void CharacterMovement::Replicate(Spot::Archive& archive) {
     archive.Field("crouching", crouching);
     archive.Field("sprinting", sprinting);
     archive.Field("flying", flying);
-    // Its own player's machine predicts them, from the same intents.
-    const Spot::NetworkObject* object = Spot::Network::GetObject(GetEntity());
-    if (!archive.IsLoading() || (object && object->IsPredicted())) {
+    if (!archive.IsLoading()) {
         return;
     }
     m_crouching = crouching;
@@ -94,6 +142,9 @@ void CharacterMovement::Replicate(Spot::Archive& archive) {
     }
     if (flying != m_flying) {
         m_flying = flying;
+        if (auto* pawn = Pawn::Of(GetEntity())) {
+            pawn->SetState("Noclip", flying);
+        }
         UpdateBody();
     }
 }
@@ -111,8 +162,20 @@ Spot::Vector3 CharacterMovement::GetMove() const {
     return length > 1.0f ? Spot::Vector3{move.x, 0.0f, -move.y} / length : Spot::Vector3{move.x, 0.0f, -move.y};
 }
 
+float CharacterMovement::GetSpeedLimit() const {
+    if (m_inactive) {
+        return std::numeric_limits<float>::infinity();
+    }
+    // Running and jumping at once, in the open.
+    const float own = HasState(blockedBy) ? 0.0f : m_flying ? fastFlySpeed : runSpeed + jumpSpeed * 0.5f;
+    return own + m_pushed;
+}
+
 void CharacterMovement::SetFlying(bool flying) {
     m_flying = flying;
+    if (auto* pawn = Pawn::Of(GetEntity())) {
+        pawn->SetState("Noclip", flying);
+    }
     m_airVelocity = {};
     m_verticalSpeed = 0.0f;
     // Flying goes through everything, so the body is put aside meanwhile, and made again where flying ended.
@@ -128,6 +191,13 @@ void CharacterMovement::UpdateBody() {
 }
 
 void CharacterMovement::Push(Spot::Vector3 velocity) {
+    // The machine moving it pushes it.
+    Spot::NetworkObject* object = Spot::Network::GetObject(GetEntity());
+    if (object && object->IsDecidedByClient() && Spot::Network::IsServer(GetScene())) {
+        Spot::Network::Get(GetScene())->SendToOwner(*object, CharacterPushed{velocity});
+        m_pushed += Spot::Length(velocity);
+        return;
+    }
     m_push += Spot::Vector3{velocity.x, 0.0f, velocity.z};
     m_lift = std::max(m_lift, velocity.y);
 }
@@ -165,6 +235,7 @@ void CharacterMovement::OnDamage(const DamageInfo& damage) {
 }
 
 void CharacterMovement::OnStart() {
+    GetScene().GetOrAddSystem<CharacterNetwork>();
     if (const auto* controller = GetEntity().GetComponent<Spot::CharacterController>()) {
         m_standHeight = controller->GetHeight();
     }
@@ -198,69 +269,34 @@ void CharacterMovement::UpdateInactive() {
 }
 
 void CharacterMovement::OnFixedUpdate(float fixedDeltaTime) {
-    // A predicted character moves on its player's machine, and on the server as that machine's steps arrive.
-    const Spot::NetworkObject* object = Spot::Network::GetObject(GetEntity());
-    const bool moved = object && object->IsPredicted() ? Spot::Network::IsClient(GetScene())
-                                                       : Spot::Network::HasAuthority(GetEntity());
-    if (!moved) {
+    if (!Spot::Network::HasAuthority(GetEntity())) {
         m_jump = false;
         return;
     }
-    Step(fixedDeltaTime, false);
+    Step(fixedDeltaTime);
 }
 
-void CharacterMovement::Step(float fixedDeltaTime, bool replaying) {
+void CharacterMovement::Step(float fixedDeltaTime) {
     if (!m_inactive) {
-        m_replaying = replaying;
         if (m_flying) {
             Fly(fixedDeltaTime);
         } else if (auto* controller = GetEntity().GetComponent<Spot::CharacterController>()) {
             Walk(*controller, fixedDeltaTime);
         }
-        m_replaying = false;
     }
     m_jump = false;
     m_sprintBlocked.reset();
 }
 
-void CharacterMovement::OnCorrected(Spot::Vector3 offset) {
-    // Farther, it was put elsewhere, as on respawning: the view goes there at once.
-    m_correction = Spot::Length(m_correction + offset) < 2.0f ? m_correction + offset : Spot::Vector3{};
-}
-
-void CharacterMovement::SerializeStepState(Spot::Archive& archive) {
-    CharacterIntent intent = m_intent;
-    bool crouching = m_crouching;
-    bool flying = m_flying;
-    bool sprinting = m_sprinting;
-    archive.Field("move", intent.move);
-    archive.Field("jump", intent.jump);
-    archive.Field("crouch", intent.crouch);
-    archive.Field("sprint", intent.sprint);
-    archive.Field("noclip", intent.noclip);
-    archive.Field("crouching", crouching);
-    archive.Field("flying", flying);
-    archive.Field("sprinting", sprinting);
-    archive.Field("verticalSpeed", m_verticalSpeed);
-    archive.Field("airVelocity", m_airVelocity);
-    archive.Field("push", m_push);
-    archive.Field("lift", m_lift);
-    archive.Field("wasGrounded", m_wasGrounded);
-    if (!archive.IsLoading()) {
-        return;
+void CharacterMovement::Landed(float speed) {
+    // As fast as it was seen falling, give or take how far in the past it is shown: falling at three times gravity,
+    // it gains about 3 m/s in each tenth of a second.
+    const float landing = std::min(speed, m_shownFall + 5.0f);
+    if (landing > 3.0f) {
+        m_landingSpeed = landing;
     }
-    m_intent = intent;
-    m_jump = false;
-    auto* controller = GetEntity().GetComponent<Spot::CharacterController>();
-    if (controller && crouching != m_crouching) {
-        SetCrouching(*controller, crouching);
-    }
-    if (flying != m_flying) {
-        m_flying = flying;
-        UpdateBody();
-    }
-    if (sprinting != m_sprinting) {
-        SetSprinting(sprinting);
+    if (auto* character = dynamic_cast<Character*>(Pawn::Of(GetEntity()))) {
+        character->OnLanded.Emit(landing);
     }
 }
 
@@ -289,10 +325,8 @@ void CharacterMovement::OnLateUpdate(float deltaTime) {
     }
     // Lowest as each foot lands, highest between steps.
     m_bob = -bobHeight * m_bobWeight * std::cos(2.0f * Spot::Pi * m_stepPhase);
-    m_correction = m_correction * std::exp(-12.0f * deltaTime);
-    // The body's own rotation stays level and still, so the correction is in its space too.
     head->GetTransform().SetPosition(
-        Spot::Vector3{m_headAcross.x, m_headHeight - m_headDrop + m_bob + m_dip, m_headAcross.y} + m_correction);
+        Spot::Vector3{m_headAcross.x, m_headHeight - m_headDrop + m_bob + m_dip, m_headAcross.y});
 }
 
 void CharacterMovement::Walk(Spot::CharacterController& controller, float deltaTime) {
@@ -328,12 +362,17 @@ void CharacterMovement::Walk(Spot::CharacterController& controller, float deltaT
     controller.Move(m_airVelocity + m_push + Spot::Vector3{0.0f, m_verticalSpeed, 0.0f}, deltaTime);
     // A push slides to a stop on the ground, and barely slows in the air.
     m_push = m_push * std::exp(-(controller.IsGrounded() ? 6.0f : 0.3f) * deltaTime);
-    if (controller.IsGrounded() && !m_wasGrounded && !m_replaying) {
+    if (controller.IsGrounded() && !m_wasGrounded) {
         if (falling > 3.0f) {
             m_landingSpeed = falling;
         }
         if (auto* character = dynamic_cast<Character*>(Pawn::Of(GetEntity()))) {
             character->OnLanded.Emit(falling);
+        }
+        // The fall's damage is the server's.
+        if (Spot::NetworkObject* object = Spot::Network::GetObject(GetEntity());
+            object && Spot::Network::IsClient(GetScene())) {
+            Spot::Network::Get(GetScene())->SendToServer(*object, CharacterLanded{falling});
         }
     }
     m_wasGrounded = controller.IsGrounded();
@@ -378,13 +417,15 @@ void CharacterMovement::Stride(float deltaTime) {
     const auto* controller = GetEntity().GetComponent<Spot::CharacterController>();
     // Moved by another machine, it walks as fast as it is seen to move, on the ground unless it rises or falls fast.
     const Spot::Vector3 position = GetEntity().GetTransform().GetWorldPosition();
+    m_shownFall *= std::exp(-2.0f * deltaTime);
+    m_pushed *= std::exp(-0.5f * deltaTime);
     if (m_lastShown && deltaTime > 0.0f) {
-        m_shownVelocity =
-            Spot::Lerp(m_shownVelocity, (position - *m_lastShown) / deltaTime, std::min(deltaTime * 10.0f, 1.0f));
+        const Spot::Vector3 velocity = (position - *m_lastShown) / deltaTime;
+        m_shownVelocity = Spot::Lerp(m_shownVelocity, velocity, std::min(deltaTime * 10.0f, 1.0f));
+        m_shownFall = std::max(m_shownFall, -velocity.y);
     }
     m_lastShown = position;
-    const Spot::NetworkObject* object = Spot::Network::GetObject(GetEntity());
-    const bool shown = !Spot::Network::HasAuthority(GetEntity()) && !(object && object->IsPredicted());
+    const bool shown = !Spot::Network::HasAuthority(GetEntity());
     const bool grounded =
         !m_flying && controller &&
         (shown ? std::abs(m_shownVelocity.y) < 2.0f : controller->IsEnabled() && controller->IsGrounded());

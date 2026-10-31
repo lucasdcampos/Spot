@@ -53,7 +53,6 @@ void NetworkTransform::Read(BitReader& reader, double time) {
         return;
     }
     m_samples.push_back({time, position, rotation});
-    // Nothing shows a predicted object on its owner, which would drop them as they are passed.
     while (m_samples.size() > MaxSamples) {
         m_samples.pop_front();
     }
@@ -70,6 +69,17 @@ Vector3 NetworkTransform::GetShownVelocity() const {
         return {};
     }
     return (to.position - from.position) * static_cast<float>(1.0 / span);
+}
+
+void NetworkTransform::Place(BitReader& reader) {
+    const Vector3 position = NetQuantize::ReadVector3(reader, -range, range, GetPositionBits());
+    const Quaternion rotation = NetQuantize::ReadRotation(reader, RotationBits);
+    if (!reader.IsValid()) {
+        return;
+    }
+    Transform& transform = GetEntity().GetTransform();
+    transform.SetWorldPosition(position);
+    transform.SetWorldRotation(rotation);
 }
 
 void NetworkTransform::ShowNewest(double time) {

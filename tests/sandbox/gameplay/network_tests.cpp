@@ -55,33 +55,10 @@ protected:
     }
 };
 
-// A predicted part that walks where its intent says: on its player's machine at once, and on the server step by step
-// as that machine stepped.
-class Stepper final : public Spot::Component,
-                      public Gameplay::PlayerInputListener,
-                      public Gameplay::PredictedPart {
+// A pawn as fast as a Walker.
+class TestPawn final : public Gameplay::Pawn {
 public:
-    Spot::Vector2 direction;
-    // Grows with each step walking, as a state the server sends back.
-    float stride = 0.0f;
-
-    void OnPlayerInput(Gameplay::PlayerController& /*player*/) override {}
-    void SerializeIntent(Spot::Archive& archive) override { archive.Field("direction", direction); }
-    bool IsIntentPerStep() const override { return true; }
-    void Step(float deltaTime, bool /*replaying*/) override {
-        stride += Spot::Length(direction) * deltaTime;
-        GetEntity().GetTransform().Translate({direction.x * 4.0f * deltaTime, 0.0f, -direction.y * 4.0f * deltaTime});
-    }
-    void SerializeStepState(Spot::Archive& archive) override { archive.Field("stride", stride); }
-
-protected:
-    void OnFixedUpdate(float deltaTime) override {
-        const Spot::NetworkObject* object = Spot::Network::GetObject(GetEntity());
-        if (object && object->IsPredicted() ? Spot::Network::IsClient(GetScene())
-                                            : Spot::Network::HasAuthority(GetEntity())) {
-            Step(deltaTime, false);
-        }
-    }
+    float GetSpeedLimit() const override { return 4.0f; }
 };
 
 const Spot::AssetId PlayerPrefab{11, 22};
@@ -106,19 +83,18 @@ void AddCamera(Gameplay::Pawn& pawn) {
     pawn.viewCamera = camera.GetId();
 }
 
-Spot::AssetRef<Spot::Prefab> MakePlayerPrefab(bool predicted = false) {
+// Its player's machine decides where it is when ownerDecided, as the sandbox's player; else the server does.
+Spot::AssetRef<Spot::Prefab> MakePlayerPrefab(bool ownerDecided = false) {
     // Before any world does, as the prefab saves the game's components.
     Spot::Detail::LoadGameCode();
     Spot::RegisterComponent<Walker>("Tests.Walker");
-    Spot::RegisterComponent<Stepper>("Tests.Stepper");
+    Spot::RegisterComponent<TestPawn>("Tests.NetworkPawn");
     Spot::Scene authoring;
     Spot::Entity& player = authoring.CreateEntity("Player");
-    player.AddComponent<Spot::NetworkObject>().predicted = predicted;
-    if (predicted) {
-        player.AddComponent<Stepper>();
-    }
+    player.AddComponent<Spot::NetworkObject>().authority =
+        ownerDecided ? Spot::NetworkAuthority::Owner : Spot::NetworkAuthority::Server;
     player.AddComponent<Spot::NetworkTransform>().maxExtrapolation = 0.0f;
-    AddCamera(player.AddComponent<Gameplay::Pawn>());
+    AddCamera(player.AddComponent<TestPawn>());
     player.AddComponent<Walker>();
     player.AddComponent<Gameplay::Interactor>();
     auto prefab = Spot::Prefab::FromString(player.SaveToString());
@@ -181,15 +157,15 @@ std::unique_ptr<Spot::NetHost> MakeHost(Spot::LoopbackNetwork& network) {
 }
 
 struct Session {
-    bool predicted = false;
+    bool ownerDecided = false;
     Spot::LoopbackNetwork network;
-    Spot::AssetRef<Spot::Prefab> prefab = MakePlayerPrefab(predicted);
+    Spot::AssetRef<Spot::Prefab> prefab = MakePlayerPrefab(ownerDecided);
     Spot::AssetRef<Spot::Prefab> vehiclePrefab = MakeVehiclePrefab();
     Spot::AssetRef<Spot::Prefab> infoPrefab = MakeInfoPrefab();
     Machine server;
     Machine client;
 
-    explicit Session(bool predictedPlayer = false) : predicted(predictedPlayer) {
+    explicit Session(bool ownerDecidedPlayer = false) : ownerDecided(ownerDecidedPlayer) {
         // A dedicated server: its rules, and spawn points, but no player of its own.
         auto& mode = server.scene.CreateEntity("Rules").AddComponent<Gameplay::GameMode>();
         mode.playerPrefab = prefab;
@@ -283,49 +259,62 @@ TEST_CASE("A client's intents move its pawn on the server, which every machine t
     CHECK(serverBody.GetComponent<Walker>()->jumps == 1);
 }
 
-TEST_CASE("A predicted pawn moves on its player's machine at once and is corrected by the server",
+TEST_CASE("A pawn its player's machine decides moves there at once, and the server shows it",
           "[sandbox][gameplay][network]") {
     Session session(true);
     session.Step(12);
     Gameplay::Pawn* pawn = Gameplay::Players::GetPawn(session.client.scene);
     REQUIRE(pawn);
-    REQUIRE(pawn->GetEntity().GetComponent<Spot::NetworkObject>()->IsPredicted());
+    REQUIRE(pawn->GetEntity().GetComponent<Spot::NetworkObject>()->IsDecidedByClient());
     Spot::Entity& serverBody = FindRemote(session.server.scene)->GetPawn()->GetEntity();
-    REQUIRE(serverBody.GetComponent<Spot::NetworkObject>()->IsPredicted());
+    REQUIRE(serverBody.GetComponent<Spot::NetworkObject>()->IsDecidedByClient());
     Spot::Entity& clientBody = pawn->GetEntity();
     const Spot::Vector3 start = clientBody.GetTransform().GetWorldPosition();
     CHECK(Spot::Distance(start, serverBody.GetTransform().GetWorldPosition()) < 0.01f);
 
     // The player's machine does not wait for the server.
-    auto& stepper = *clientBody.GetComponent<Stepper>();
-    stepper.direction = {1.0f, 0.0f};
+    auto& walker = *clientBody.GetComponent<Walker>();
+    walker.direction = {1.0f, 0.0f};
     session.client.Step();
     CHECK(clientBody.GetTransform().GetWorldPosition().x > start.x + 0.05f);
     CHECK(serverBody.GetTransform().GetWorldPosition().x == Catch::Approx(start.x).margin(0.001f));
 
     session.Step(30);
-    stepper.direction = {};
+    walker.direction = {};
     session.Step(12);
-    // The server took the same steps, and agrees.
-    const Spot::Vector3 moved = serverBody.GetTransform().GetWorldPosition();
+    const Spot::Vector3 moved = clientBody.GetTransform().GetWorldPosition();
     CHECK(moved.x > start.x + 1.5f);
-    CHECK(Spot::Distance(clientBody.GetTransform().GetWorldPosition(), moved) < 0.01f);
-    CHECK(serverBody.GetComponent<Stepper>()->stride == Catch::Approx(stepper.stride).margin(0.001f));
+    CHECK(Spot::Distance(serverBody.GetTransform().GetWorldPosition(), moved) < 0.01f);
+    CHECK(session.server.scene.FindComponent<Gameplay::NetworkPlayers>()->GetCorrections() == 0);
 
-    // What the server does to it, as pushing it aside, reaches the player's machine, which keeps walking from there.
-    serverBody.GetTransform().Translate({0.0f, 0.0f, 3.0f});
-    stepper.direction = {1.0f, 0.0f};
-    session.Step(20);
-    stepper.direction = {};
-    session.Step(12);
-    const Spot::Vector3 pushed = serverBody.GetTransform().GetWorldPosition();
-    CHECK(pushed.z == Catch::Approx(moved.z + 3.0f).margin(0.01f));
-    CHECK(pushed.x > moved.x + 1.0f);
-    CHECK(Spot::Distance(clientBody.GetTransform().GetWorldPosition(), pushed) < 0.01f);
+    SECTION("The server teleporting it puts it there on its player's machine, which walks on from there") {
+        serverBody.GetComponent<Gameplay::Pawn>()->Teleport(moved + Spot::Vector3{0.0f, 0.0f, 6.0f}, {}, {});
+        session.Step(6);
+        CHECK(Spot::Distance(clientBody.GetTransform().GetWorldPosition(), moved + Spot::Vector3{0.0f, 0.0f, 6.0f}) <
+              0.01f);
+        walker.direction = {1.0f, 0.0f};
+        session.Step(20);
+        walker.direction = {};
+        session.Step(12);
+        const Spot::Vector3 walked = clientBody.GetTransform().GetWorldPosition();
+        CHECK(walked.x > moved.x + 1.0f);
+        CHECK(walked.z == Catch::Approx(moved.z + 6.0f).margin(0.01f));
+        CHECK(Spot::Distance(serverBody.GetTransform().GetWorldPosition(), walked) < 0.01f);
+        CHECK(session.server.scene.FindComponent<Gameplay::NetworkPlayers>()->GetCorrections() == 0);
+    }
+
+    SECTION("Moving faster than the pawn may, it is put back") {
+        // Where it was a second before, it stood still.
+        session.Step(60);
+        clientBody.GetTransform().Translate({30.0f, 0.0f, 0.0f});
+        session.Step(12);
+        CHECK(session.server.scene.FindComponent<Gameplay::NetworkPlayers>()->GetCorrections() == 1);
+        CHECK(Spot::Distance(clientBody.GetTransform().GetWorldPosition(), moved) < 0.01f);
+        CHECK(Spot::Distance(serverBody.GetTransform().GetWorldPosition(), moved) < 0.01f);
+    }
 }
 
-TEST_CASE("Effects a predicting player already showed are not sent back to that player",
-          "[sandbox][gameplay][network]") {
+TEST_CASE("Effects a deciding player already showed are not sent back to that player", "[sandbox][gameplay][network]") {
     Session session(true);
     Machine observer;
     const auto addLibrary = [](Machine& machine) {

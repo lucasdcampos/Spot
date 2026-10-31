@@ -268,8 +268,9 @@ void Inventory::SerializeIntent(Spot::Archive& archive) {
 void Inventory::Use(const ItemInput& input) {
     Equip();
     const Spot::NetworkObject* object = Spot::Network::GetObject(GetEntity());
-    const bool predicted = object && object->IsPredicted() && Spot::Network::IsClient(GetScene());
-    if (!predicted && !Spot::Network::HasAuthority(GetEntity())) {
+    // The server uses it; the player's machine shows at once what using it shows.
+    const bool predicted = object && object->IsDecidedByClient() && Spot::Network::IsClient(GetScene());
+    if (!predicted && !Spot::Network::IsServer(GetScene())) {
         return;
     }
     if (HeldItem* item = GetEquipped()) {
@@ -317,8 +318,8 @@ void Inventory::Replicate(Spot::Archive& archive) {
     archive.Field("selected", selected);
     // Its own player's machine chooses as the player does, ahead of the server.
     const Spot::NetworkObject* object = Spot::Network::GetObject(GetEntity());
-    if (archive.IsLoading() && !(object && object->IsOwnedLocally()) && selected != m_selected &&
-        selected >= 0 && selected < GetItemCount()) {
+    if (archive.IsLoading() && !(object && object->IsOwnedLocally()) && selected != m_selected && selected >= 0 &&
+        selected < GetItemCount()) {
         m_selected = selected;
         Equip();
     }

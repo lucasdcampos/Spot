@@ -421,28 +421,32 @@ decides: it runs the game mode and simulates every pawn, and clients show what i
   `Gameplay.Interact` by raycasting from the server's view, checking reach, obstruction, states and target availability;
   `Vehicle` handles `Gameplay.ExitVehicle` through its seat. These actions are kept out of the repeated intent stream.
   Seats enter and exit only on the server, and clients place the replicated occupant at the seat for presentation.
-- **Who moves.** Parts that simulate check `Spot::Network::HasAuthority()`: on clients, they leave the pawn where the
-  server says. A predicted pawn (`NetworkObject::predicted`, the player prefab's) is the exception.
-- **Prediction.** A `PredictedPart`, as `CharacterMovement`, moves a fixed step at a time by its intent. On the owning
-  client it steps at once; after each fixed step `NetworkPlayers` records the intents of the listeners that go with
-  steps (`PlayerInputListener::IsIntentPerStep()`: the movement and `FirstPersonView`, whose look it goes along) and
-  where the pawn ended, and sends the new steps with the last few each frame. Its other listeners' intents still go
-  per frame, the view among them, so items are used where the view looked that frame. On the server, the
-  `RemoteController` applies and steps each received step in order, never faster than time passes there unless more
-  than four wait (a client clock running fast), and dropping beyond thirty; the scene's own fixed steps leave the
-  pawn alone. After each batch it sends the client, unreliably, the last step applied, the position, and the predicted
-  parts' state (`SerializeStepState()`, intent included). Where that position is farther than `correctionTolerance`
-  from what the client recorded after the same step, the client puts the pawn there, in that state, steps again the
-  steps the server had not seen (`replaying`, so landings are not told twice), and puts back the intents it has now.
-  `CharacterMovement` ignores replicated crouching, running and flying on its predicting client, which works them
-  out from the same intents. Its intent carries whether running was blocked on the player's machine, as states such
-  as "Aiming" or "HandsBusy" change there a step apart from the server. After a correction the head eases back from
-  where it was shown (`PredictedPart::OnCorrected()`), so small corrections are not seen as jumps.
-- **Items and effects.** On a predicting client, `Inventory` gives the held item `OnPredictedUse()` instead of
-  `OnUse()`: a `Firearm` aims, kicks, plays its sound and flash and shows tracers and impacts at once, but only the
-  server damages, pushes and launches projectiles (`Spot::Network::HasAuthority()`), and its rounds are the server's.
+- **Who moves.** Owners decide what their player moves; the server decides the rules. The player prefab has
+  `NetworkAuthority::Owner`: its player's machine moves the character (`CharacterMovement`, which steps where
+  `Spot::Network::HasAuthority()` is true) and decides where it looks, and whether it crouches, runs and flies
+  (`IsDecidedByOwner()` on `CharacterMovement` and `FirstPersonView`); the server and other clients show it. Its rules
+  stay the server's: parts of the pawn that act on the world check `Spot::Network::IsServer()` rather than
+  `HasAuthority()`, which is true on that machine too (`Firearm`, `Inventory`, `Carrier`, the physics gun, the prop
+  spawner, the undo list). The server moves the character with `Pawn::Teleport()` (respawning, falling out of the
+  world, leaving a vehicle): the engine's `NetworkSystem::Place()` puts it there on its player's machine, ignoring that
+  machine's states from before, and a `PawnPlaced` message has it reset its motion and place itself there too.
+  Pushes, as a blast's knockback, go to that machine (`CharacterPushed`), which tells the server of its landings
+  (`CharacterLanded`): the server takes their speed no faster than five meters a second beyond the fastest it saw the
+  character fall, as it shows it a little late. Intents still go to the server every frame, which applies movement's
+  only to characters it moves, and the view's for where items aim. `NetworkPlayers` checks, over each second, that a
+  pawn a client decides goes no farther than its speed limit allows (`Pawn::GetSpeedLimit()`: running and half a jump
+  for a character, flying fast while it flies, nothing while dead, and the pushes the server sent it lately), a
+  quarter more and `movementSlack` meters, falling being free; and that it does not fly (the pawn state "Noclip")
+  where `GameMode::allowsNoclip` is false. Failing, it is teleported back to where it was at the start of that second,
+  which is logged and counted (`GetCorrections()`, on the statistics overlay). Before, the character was predicted
+  and corrected: the server stepped it again by the client's steps among bodies the client simulated and it did not,
+  so it corrected the client wherever there was something to touch.
+- **Items and effects.** On the machine deciding the pawn (`NetworkObject::IsDecidedByClient()`), `Inventory` gives
+  the held item `OnPredictedUse()` instead of `OnUse()`: a `Firearm` aims, kicks, plays its sound and flash and shows
+  tracers and impacts at once, but only the server damages, pushes and launches projectiles
+  (`Spot::Network::IsServer()`), and its rounds are the server's.
   On the server, what a firearm plays inside `EffectLibrary::Predicted` goes to every client but its player's.
-  "Aiming" is among `Pawn::localStates`: each machine has it from its own copy of the firearm. The predicting client
+  "Aiming" is among `Pawn::localStates`: each machine has it from its own copy of the firearm. The deciding client
   reports the replicated objects its pellets hit (`Firearm::ApplyReportedHits()`, a reliable message): what it aimed
   at was shown a little in the past, where the server's own rays would miss what moves. The server applies as many
   hits as the shots it fired allow, within range, and damages with its own rays only what is not replicated. Which
@@ -454,8 +458,7 @@ decides: it runs the game mode and simulates every pawn, and clients show what i
   nothing of that player's near; `Carrier` gives what its remote player picks up and takes it back to throw it;
   `Damage::Apply()` and the physics gun take back what they push. Pawns, bodies held by joints and projectiles
   (`BodyAuthority::KeepOnServer()`, also while the physics gun holds a body) are never given. A client tells the server
-  of the impacts of the bodies it simulates, which plays their sounds and particles for the others. The server's copy of the character still meets the given body
-  where its client last said it was, so pushing one costs a few small corrections. `Carrier` reads its controls as
+  of the impacts of the bodies it simulates, which plays their sounds and particles for the others. `Carrier` reads its controls as
   intents, replicates what it carries, and offers to pick up kinematic bodies another machine simulates. Authored
   bodies of the playground (dominoes, gongs, the seesaw, the wrecking ball) have network objects.
 - **Vehicles.** Vehicle prefabs have `NetworkAuthority::Owner`: the `RemoteController` that possesses one makes its
@@ -484,10 +487,10 @@ The player prefab's root has a `NetworkObject` and a `NetworkTransform`. The san
 no window, graphics or sound, 60 frames a second, and no player of its own (`SessionSettings::dedicated`, which
 removes the map's local players with `Players::RemoveAll()` before it starts), with `--port`, `--map` and `--mode`
 (by name or asset path), `--players`, `--name` and `--password`; it logs who joins and leaves, and quits when it
-cannot host. With `stats` on, a client predicting its character also shows its corrections a second and how far
-the largest moved it (`NetworkPlayers`). Tests: `network_tests.cpp`, a server
-and clients in one process over the loopback network, with a test-only part showing that any listener's intents
-reach the server, a predicted test part moving at once and corrected by the server, plus vehicle possession, camera
+cannot host. With `stats` on, a server also shows how many players it put back (`NetworkPlayers`). Tests:
+`network_tests.cpp`, a server and clients in one process over the loopback network, with a test-only part showing
+that any listener's intents reach the server, a pawn its player's machine decides moving there at once, teleported by
+the server and put back when too fast, plus vehicle possession, camera
 changes, driver departure and request validation, including complete loss of unreliable client packets. Driving
 remains server-simulated in this stage.
 
@@ -755,6 +758,6 @@ The old merged forest bark and needles renderers are disabled; the rock renderer
 Character walking applies three times the world gravity with a 9 m/s jump impulse for a higher jump that still falls quickly.
 FirstPersonView eases a small lateral roll and vertical pitch from character velocity into the displayed camera only; aim and replicated look remain independent of this cosmetic motion.
 
-Airborne characters retain their horizontal takeoff velocity and cannot steer until grounded. This velocity is included in prediction snapshots.
+Airborne characters retain their horizontal takeoff velocity and cannot steer until grounded.
 
 Player bodies use the same weapon mount, aim and two-hand constraints as spawnable NPCs. `CharacterDeath` connects health death and restoration (including replicated health) to the configured ragdoll, disables the living character controller while dead, and forwards corpse hit impulses. `Bleeding` also presents damage reports on clients; damage and flesh surface lookup follow a child ragdoll back to its character.

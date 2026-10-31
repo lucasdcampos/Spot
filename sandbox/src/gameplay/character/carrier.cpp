@@ -2,8 +2,8 @@
 
 #include "gameplay/core/body_authority.h"
 #include "gameplay/core/pawn.h"
-#include "gameplay/core/player_controller.h"
 #include "gameplay/core/physics_drive.h"
+#include "gameplay/core/player_controller.h"
 
 #include <algorithm>
 
@@ -85,7 +85,7 @@ void Carrier::OnStart() {
     if (auto* pawn = Pawn::Of(GetEntity())) {
         m_states = pawn->OnStateChanged.Connect([this](std::string_view state, bool on) {
             if (on && std::ranges::find(releaseWhen, state) != releaseWhen.end() &&
-                Spot::Network::HasAuthority(GetEntity())) {
+                Spot::Network::IsServer(GetScene())) {
                 Drop();
             }
         });
@@ -94,7 +94,7 @@ void Carrier::OnStart() {
 
 void Carrier::OnUpdate(float /*deltaTime*/) {
     const Pawn* pawn = Pawn::Of(GetEntity());
-    if (IsHolding() && Spot::Network::HasAuthority(GetEntity()) &&
+    if (IsHolding() && Spot::Network::IsServer(GetScene()) &&
         (!GetHeldBody() || !pawn || pawn->HasAnyState(releaseWhen))) {
         Drop();
     }
@@ -125,7 +125,7 @@ void Carrier::OnPlayerInput(PlayerController& player) {
 }
 
 void Carrier::SetIntent(const CarryIntent& intent) {
-    if (!IsHolding() || !Spot::Network::HasAuthority(GetEntity())) {
+    if (!IsHolding() || !Spot::Network::IsServer(GetScene())) {
         return;
     }
     if (intent.drop) {

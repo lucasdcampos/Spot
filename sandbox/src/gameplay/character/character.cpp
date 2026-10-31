@@ -62,12 +62,18 @@ PawnMotion Character::GetMotion() const {
 void Character::Place(Spot::Vector3 position, Spot::Vector3 forward, Spot::Vector3 velocity) {
     GetEntity().GetTransform().SetWorldPosition(position);
     GetEntity().GetTransform().SetWorldRotation({});
-    if (auto* view = GetEntity().GetComponent<FirstPersonView>()) {
+    auto* view = GetEntity().GetComponent<FirstPersonView>();
+    if (view && Spot::LengthSquared(Spot::Vector3{forward.x, 0.0f, forward.z}) > 1e-6f) {
         view->SetLook(PhysicsDrive::GetYaw(forward), 0.0f);
     }
     if (auto* movement = GetEntity().GetComponent<CharacterMovement>()) {
         movement->Push(velocity);
     }
+}
+
+float Character::GetSpeedLimit() const {
+    const auto* movement = GetEntity().GetComponent<CharacterMovement>();
+    return movement ? movement->GetSpeedLimit() : Pawn::GetSpeedLimit();
 }
 
 void Character::ResetMotion() {

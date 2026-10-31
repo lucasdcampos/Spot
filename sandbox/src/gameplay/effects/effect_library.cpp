@@ -268,7 +268,7 @@ void EffectLibrary::PlaySound(Spot::Scene& scene, const Spot::AssetRef<Spot::Sou
 
 EffectLibrary::Predicted::Predicted(const Spot::Entity& entity) : m_previous(s_predictedBy) {
     const Spot::NetworkObject* object = Spot::Network::GetObject(entity);
-    if (object && object->IsPredicted() && Spot::Network::IsServer(entity.GetScene())) {
+    if (object && object->IsDecidedByClient() && Spot::Network::IsServer(entity.GetScene())) {
         s_predictedBy = object->GetOwner();
     }
 }

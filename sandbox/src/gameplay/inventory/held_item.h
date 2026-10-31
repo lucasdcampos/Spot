@@ -115,9 +115,10 @@ protected:
     virtual void OnUnequip() {}
     // Each frame while it is in hand, with what the player does with it.
     virtual void OnUse(const ItemInput& /*input*/) {}
-    // Instead, on the machine of a player whose pawn is predicted (Spot::NetworkObject::predicted), where the server
-    // decides what using it does: what using it shows at once, as a firearm's aim, recoil, flash and sound, without
-    // changing the world. The server keeps those from that machine (EffectLibrary::Predicted). Nothing by default.
+    // Instead, on the machine of a player who decides its pawn (Spot::NetworkObject::IsDecidedByClient()), where the
+    // server still decides what using it does: what using it shows at once, as a firearm's aim, recoil, flash and
+    // sound, without changing the world. The server keeps those from that machine (EffectLibrary::Predicted). Nothing
+    // by default.
     virtual void OnPredictedUse(const ItemInput& /*input*/) {}
 
     void Serialize(Spot::Archive& archive) override;

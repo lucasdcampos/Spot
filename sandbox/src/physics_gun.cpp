@@ -4,8 +4,8 @@
 
 #include "gameplay/core/body_authority.h"
 #include "gameplay/core/pawn.h"
-#include "gameplay/core/player_controller.h"
 #include "gameplay/core/physics_drive.h"
+#include "gameplay/core/player_controller.h"
 #include "gameplay/effects/effect_library.h"
 #include "gameplay/inventory/view_model.h"
 
@@ -174,7 +174,7 @@ void PhysicsGun::OnPlayerInput(Gameplay::PlayerController& player) {
     } else {
         m_turn.Deactivate();
     }
-    if (Spot::Network::HasAuthority(GetEntity())) {
+    if (Spot::Network::IsServer(GetScene())) {
         Gather(m_frame);
     }
 }

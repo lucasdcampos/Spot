@@ -5,6 +5,7 @@
 #include "gameplay/core/player_input.h"
 
 #include <algorithm>
+#include <limits>
 
 namespace Gameplay {
 
@@ -48,6 +49,22 @@ void Pawn::Place(Spot::Vector3 position, Spot::Vector3 forward, Spot::Vector3 /*
     transform.SetWorldPosition(position);
     if (Spot::LengthSquared(Spot::Vector3{forward.x, 0.0f, forward.z}) > 1e-6f) {
         transform.SetWorldRotation(Spot::Quaternion::LookRotation(Spot::Vector3{forward.x, 0.0f, forward.z}));
+    }
+}
+
+float Pawn::GetSpeedLimit() const {
+    return std::numeric_limits<float>::infinity();
+}
+
+void Pawn::Teleport(Spot::Vector3 position, Spot::Vector3 forward, Spot::Vector3 velocity) {
+    ++m_teleports;
+    ResetMotion();
+    Place(position, forward, velocity);
+    Spot::NetworkSystem* system = Spot::Network::Get(GetScene());
+    Spot::NetworkObject* object = Spot::Network::GetObject(GetEntity());
+    if (system && system->IsServer() && object && object->IsDecidedByClient()) {
+        system->Place(*object);
+        system->SendToOwner(*object, PawnPlaced{.position = position, .forward = forward, .velocity = velocity});
     }
 }
 

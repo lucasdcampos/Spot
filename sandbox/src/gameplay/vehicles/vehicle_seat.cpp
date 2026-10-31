@@ -120,8 +120,9 @@ void VehicleSeat::Exit() {
     if (vehicle) {
         const Spot::Transform& transform = vehicle->GetEntity().GetTransform();
         const auto* body = vehicle->GetEntity().GetComponent<Spot::Rigidbody>();
-        occupant->Place(FindExit(*vehicle, *occupant), transform.GetWorldRotation() * Spot::Vector3{0.0f, 0.0f, -1.0f},
-                        body ? body->GetLinearVelocity() : Spot::Vector3{});
+        occupant->Teleport(FindExit(*vehicle, *occupant),
+                           transform.GetWorldRotation() * Spot::Vector3{0.0f, 0.0f, -1.0f},
+                           body ? body->GetLinearVelocity() : Spot::Vector3{});
     }
     if (controller) {
         controller->Possess(*occupant);

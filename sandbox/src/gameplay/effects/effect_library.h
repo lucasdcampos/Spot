@@ -90,7 +90,7 @@ public:
 
     const EffectDefinition* Get(std::string_view name) const;
 
-    // While one lives on a server, what plays is what the machine of the player whose predicted pawn the entity is
+    // While one lives on a server, what plays is what the machine of the player deciding the object the entity is
     // part of already played itself, as that player's own shots: the server sends it to every other client only.
     class Predicted {
     public:

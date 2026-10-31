@@ -19,7 +19,7 @@ namespace Spot {
 
 namespace {
 
-enum class ReliableKind : std::uint32_t { SceneReady = 1, ObjectMessage = 2, SceneObjects = 3 };
+enum class ReliableKind : std::uint32_t { SceneReady = 1, ObjectMessage = 2, SceneObjects = 3, Placement = 4 };
 enum class UnreliableKind : std::uint32_t { Ack = 1, OwnerState = 2, ObjectMessage = 3 };
 
 // Snapshots a server remembers per client, waiting for their acknowledgement.
@@ -211,6 +211,9 @@ struct NetworkSystem::Object {
     // server's clock, sent on to the others as it came rather than as the server shows it.
     std::vector<std::byte> ownerTransform;
     double ownerTime = 0.0;
+    // While a client decides it: how many times the server put it somewhere, which that client's states carry; the
+    // server ignores those sent before the latest.
+    std::uint32_t placement = 0;
 };
 
 struct NetworkSystem::Peer {
@@ -562,9 +565,7 @@ void NetworkSystem::OnLateUpdate(float deltaTime) {
     m_statistics.lateObjects = 0;
     for (auto& [id, entry] : m_state->objects) {
         if (entry.object && !entry.object->HasAuthority()) {
-            // A predicting owner moves its own; the game corrects it.
-            if (auto* transform = entry.object->GetEntity().GetComponent<NetworkTransform>();
-                transform && !entry.object->IsPredicted()) {
+            if (auto* transform = entry.object->GetEntity().GetComponent<NetworkTransform>()) {
                 // On the server, what a client decides, as far back as that client's states need.
                 const double at = IsServer() ? now - GetShownDelay(entry.object->GetOwner()) : shown;
                 ++m_statistics.shownObjects;
@@ -699,6 +700,12 @@ void NetworkSystem::Receive(NetPeerId peer, std::uint8_t channel, std::span<cons
     if (reliable && kind == static_cast<std::uint32_t>(ReliableKind::SceneObjects)) {
         if (IsClient()) {
             ClientReceiveSceneObjects(reader);
+        }
+        return;
+    }
+    if (reliable && kind == static_cast<std::uint32_t>(ReliableKind::Placement)) {
+        if (IsClient()) {
+            ClientReceivePlacement(reader);
         }
         return;
     }
@@ -1053,17 +1060,59 @@ void NetworkSystem::ServerReceiveAck(NetPeerId peerId, BitReader& reader) {
 void NetworkSystem::ServerReceiveOwnerState(NetPeerId peer, BitReader& reader) {
     const auto id = NetworkId{static_cast<std::uint32_t>(reader.ReadVarUInt())};
     const double ownerTime = reader.ReadDouble();
+    const auto placement = static_cast<std::uint32_t>(reader.ReadVarUInt());
     const std::vector<std::byte> state = ReadBlob(reader);
     NetworkObject* object = reader.IsValid() ? FindObject(id) : nullptr;
     const auto found = m_state->peers.find(peer);
     if (!object || object->authority != NetworkAuthority::Owner || object->GetOwner() != peer ||
-        found == m_state->peers.end()) {
+        found == m_state->peers.end() || m_state->objects[id].placement != placement) {
         return;
     }
     const double now = m_session->GetTime();
     const double time = found->second.ownerClock.ToServerTime(ownerTime, now);
     found->second.ownerDelay.Observe(time, now);
     ReadState(*object, state, time, true);
+}
+
+void NetworkSystem::Place(NetworkObject& object) {
+    const auto found = m_state->objects.find(object.GetNetworkId());
+    if (!IsServer() || !m_session || object.HasAuthority() || found == m_state->objects.end()) {
+        return;
+    }
+    Object& entry = found->second;
+    ++entry.placement;
+    entry.ownerTransform.clear();
+    BitWriter writer;
+    writer.WriteBits(static_cast<std::uint32_t>(ReliableKind::Placement), 8);
+    writer.WriteVarUInt(static_cast<std::uint32_t>(object.GetNetworkId()));
+    writer.WriteVarUInt(entry.placement);
+    if (auto* transform = object.GetEntity().GetComponent<NetworkTransform>()) {
+        // Shown where it was put until the owner's states from there arrive.
+        transform->m_samples.clear();
+        writer.WriteBool(true);
+        transform->Write(writer);
+    } else {
+        writer.WriteBool(false);
+    }
+    m_session->GetHost().Send(object.GetOwner(), NetworkSession::ReplicationChannel, writer.TakeBytes(),
+                              NetDelivery::Reliable);
+}
+
+void NetworkSystem::ClientReceivePlacement(BitReader& reader) {
+    const auto id = NetworkId{static_cast<std::uint32_t>(reader.ReadVarUInt())};
+    const auto placement = static_cast<std::uint32_t>(reader.ReadVarUInt());
+    const bool moved = reader.ReadBool();
+    const auto found = m_state->objects.find(id);
+    if (!reader.IsValid() || found == m_state->objects.end() || !found->second.object) {
+        return;
+    }
+    found->second.placement = placement;
+    auto* transform = found->second.object->GetEntity().GetComponent<NetworkTransform>();
+    if (moved && transform) {
+        // Even before this machine hears it decides the object: the states it has are from before.
+        transform->m_samples.clear();
+        transform->Place(reader);
+    }
 }
 
 void NetworkSystem::ClientReceiveSceneObjects(BitReader& reader) {
@@ -1291,6 +1340,7 @@ void NetworkSystem::ClientSend(float deltaTime) {
         writer.WriteBits(static_cast<std::uint32_t>(UnreliableKind::OwnerState), 8);
         writer.WriteVarUInt(static_cast<std::uint32_t>(id));
         writer.WriteDouble(time);
+        writer.WriteVarUInt(entry.placement);
         // Where it is and what the owner decides: what else it has, as its health or who rides it, stays the
         // server's.
         const std::vector<std::byte> state = WriteState(*entry.object, true);
