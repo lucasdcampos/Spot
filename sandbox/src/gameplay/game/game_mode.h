@@ -23,9 +23,6 @@ public:
     std::string description;
     int order = 0;
     bool allowsTimeScale = true;
-    // Whether players may fly through everything (the pawn state "Noclip"); where a player's machine moves its pawn,
-    // the server puts back those who do.
-    bool allowsNoclip = true;
     float respawnTime = 4.0f;
     float fallHeight = -20.0f;
     // The pawn of a player who has none.

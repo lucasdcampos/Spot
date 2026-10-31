@@ -436,8 +436,10 @@ decides: it runs the game mode and simulates every pawn, and clients show what i
   only to characters it moves, and the view's for where items aim. `NetworkPlayers` checks, over each second, that a
   pawn a client decides goes no farther than its speed limit allows (`Pawn::GetSpeedLimit()`: running and half a jump
   for a character, flying fast while it flies, nothing while dead, and the pushes the server sent it lately), a
-  quarter more and `movementSlack` meters, falling being free; and that it does not fly (the pawn state "Noclip")
-  where `GameMode::allowsNoclip` is false. Failing, it is teleported back to where it was at the start of that second,
+  quarter more and `movementSlack` meters, falling being free, each stretch at the limit it had then (having flown
+  fast, a landing character covered ground walking would not); and that it does not fly (the pawn state "Noclip"), a
+  cheat, which the host's own players alone may use: a player's controls switch flying only where the console permits
+  cheats, as the console's `noclip` does. Failing, it is teleported back to where it was at the start of that second,
   which is logged and counted (`GetCorrections()`, on the statistics overlay). Before, the character was predicted
   and corrected: the server stepped it again by the client's steps among bodies the client simulated and it did not,
   so it corrected the client wherever there was something to touch.

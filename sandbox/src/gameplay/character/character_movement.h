@@ -43,7 +43,8 @@ struct CharacterControls {
 // sprintBlockedBy, as aiming or with its hands busy, and while running the pawn is "Sprinting". It walks a cycle of
 // steps (GetStepPhase()), slower as strides lengthen, telling each footstep (OnFootstep) and landing (the Character's
 // OnLanded). Damage of the knockback types throws it back (Push()). Noclip switches flying through everything: jump
-// goes up, crouch down and sprint faster. In a state of blockedBy, as dead, it neither moves nor jumps; in one of
+// goes up, crouch down and sprint faster; a player's controls switch it only where the console permits cheats, as the
+// console's noclip. In a state of blockedBy, as dead, it neither moves nor jumps; in one of
 // inactiveWhen, as seated,
 // its body is put aside and it does nothing. Only where its pawn's state is decided does it move it (see
 // Spot::Network::HasAuthority()), as on its player's machine for a player's character; elsewhere the pawn moves as

@@ -1022,6 +1022,18 @@ TEST_CASE("Noclip flies the player through everything, and walking lands it agai
     playground.Run(3.0f);
     CHECK(playground.Controller().IsGrounded());
     CHECK(playground.PlayerPosition().y == Approx(ground).margin(0.05f));
+    playground.Release(Key::LeftAlt);
+    playground.Run(0.1f);
+
+    // A cheat, as the console's noclip: not where cheats are not permitted, as on a session's clients.
+    auto& console = Spot::Console::Get();
+    const bool cheats = console.AreCheatsEnabled();
+    console.SetCheatsEnabled(false);
+    playground.Press(Key::LeftAlt);
+    playground.Run(0.1f);
+    playground.Release(Key::LeftAlt);
+    console.SetCheatsEnabled(cheats);
+    CHECK_FALSE(playground.player->GetComponent<Gameplay::CharacterMovement>()->IsFlying());
 }
 
 TEST_CASE("The player climbs the stairs and the ramps of the level's meshes", "[sandbox]") {

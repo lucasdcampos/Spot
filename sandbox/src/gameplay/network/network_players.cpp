@@ -5,7 +5,6 @@
 #include "gameplay/core/pawn_request.h"
 #include "gameplay/core/player_controller.h"
 #include "gameplay/core/players.h"
-#include "gameplay/game/game_mode.h"
 #include "gameplay/network/pawn_intents.h"
 #include "gameplay/network/player_info.h"
 #include "gameplay/network/player_messages.h"
@@ -149,7 +148,6 @@ void NetworkPlayers::UpdateServer(Spot::NetworkSystem& system) {
 
 void NetworkPlayers::CheckMovement(const std::vector<RemoteController*>& controllers) {
     constexpr double Window = 1.0;
-    const GameMode* mode = GameMode::Get(GetScene());
     std::unordered_map<Spot::EntityId, Track> tracks;
     for (RemoteController* controller : controllers) {
         Pawn* pawn = controller->GetPawn();
@@ -163,21 +161,28 @@ void NetworkPlayers::CheckMovement(const std::vector<RemoteController*>& control
             track = {.teleports = pawn->GetTeleportCount()};
         }
         const Spot::Vector3 position = pawn->GetEntity().GetTransform().GetWorldPosition();
-        track.path.emplace_back(m_time, position);
-        while (track.path.size() > 2 && track.path[1].first <= m_time - Window) {
+        track.path.push_back({.time = m_time, .position = position, .limit = pawn->GetSpeedLimit()});
+        while (track.path.size() > 2 && track.path[1].time <= m_time - Window) {
             track.path.pop_front();
         }
-        const auto& [since, from] = track.path.front();
+        // As fast as it could go along the way, each stretch at the faster of its ends: having flown fast a moment
+        // ago, as it lands, it covered ground it may not now.
+        float allowed = movementSlack;
+        for (std::size_t i = 1; i < track.path.size(); ++i) {
+            const float limit = std::max(track.path[i - 1].limit, track.path[i].limit);
+            allowed += limit * static_cast<float>(track.path[i].time - track.path[i - 1].time) * 1.25f;
+        }
+        const Track::Point& from = track.path.front();
         // Falling is free; rising and going across take speed.
-        const Spot::Vector3 moved = position - from;
+        const Spot::Vector3 moved = position - from.position;
         const float distance = Spot::Length(Spot::Vector3{moved.x, std::max(moved.y, 0.0f), moved.z});
-        const float allowed = pawn->GetSpeedLimit() * static_cast<float>(m_time - since) * 1.25f + movementSlack;
-        const bool flying = mode && !mode->allowsNoclip && pawn->HasState("Noclip");
+        // A cheat, which is the host's.
+        const bool flying = pawn->HasState("Noclip");
         if (distance > allowed || flying) {
             Spot::Log::Warning("{}'s pawn moved {:.1f} m in {:.2f} s{}: put back", pawn->GetEntity().GetName(),
-                               distance, m_time - since, flying ? " flying, which the mode forbids" : "");
+                               distance, m_time - from.time, flying ? " flying through everything" : "");
             ++m_corrections;
-            pawn->Teleport(from, {}, {});
+            pawn->Teleport(from.position, {}, {});
             track = {.teleports = pawn->GetTeleportCount()};
         }
         tracks[id] = std::move(track);

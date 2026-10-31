@@ -55,10 +55,11 @@ protected:
     }
 };
 
-// A pawn as fast as a Walker.
+// A pawn as fast as a Walker, unless a test lets it go faster.
 class TestPawn final : public Gameplay::Pawn {
 public:
-    float GetSpeedLimit() const override { return 4.0f; }
+    float limit = 4.0f;
+    float GetSpeedLimit() const override { return limit; }
 };
 
 const Spot::AssetId PlayerPrefab{11, 22};
@@ -301,6 +302,26 @@ TEST_CASE("A pawn its player's machine decides moves there at once, and the serv
         CHECK(walked.z == Catch::Approx(moved.z + 6.0f).margin(0.01f));
         CHECK(Spot::Distance(serverBody.GetTransform().GetWorldPosition(), walked) < 0.01f);
         CHECK(session.server.scene.FindComponent<Gameplay::NetworkPlayers>()->GetCorrections() == 0);
+    }
+
+    SECTION("Going fast while it may, then slowing down, it is not put back") {
+        auto& serverPawn = *serverBody.GetComponent<TestPawn>();
+        serverPawn.limit = 20.0f;
+        for (int i = 0; i < 60; ++i) {
+            clientBody.GetTransform().Translate({0.25f, 0.0f, 0.0f});
+            session.Step();
+        }
+        serverPawn.limit = 4.0f;
+        session.Step(60);
+        CHECK(session.server.scene.FindComponent<Gameplay::NetworkPlayers>()->GetCorrections() == 0);
+        CHECK(clientBody.GetTransform().GetWorldPosition().x > moved.x + 14.0f);
+    }
+
+    SECTION("Flying through everything, a cheat, it is put back") {
+        session.Step(60);
+        serverBody.GetComponent<Gameplay::Pawn>()->SetState("Noclip", true);
+        session.Step(2);
+        CHECK(session.server.scene.FindComponent<Gameplay::NetworkPlayers>()->GetCorrections() >= 1);
     }
 
     SECTION("Moving faster than the pawn may, it is put back") {

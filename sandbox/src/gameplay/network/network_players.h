@@ -23,9 +23,10 @@ class RemoteController;
 // requests are reliable and accepted only from the player currently possessing that pawn. Alone, it does nothing.
 //
 // A pawn its player's machine decides, as the player's character, moves there and is shown elsewhere as that machine
-// says. The server checks it: no faster over a second than the pawn says it may go (Pawn::GetSpeedLimit()), with some
-// slack, and not flying through everything (the pawn state "Noclip") where the game mode forbids it; failing, it is
-// put back where it last was within them (Pawn::Teleport()), which is logged.
+// says. The server checks it: no faster over a second than the pawn said it could go along the way
+// (Pawn::GetSpeedLimit()), with some slack, and not flying through everything (the pawn state "Noclip"), a cheat, which
+// only the host's own players may use; failing, it is put back where it was a second before (Pawn::Teleport()), which
+// is logged.
 class NetworkPlayers final : public Spot::Component {
 public:
     // Frames of intents each message repeats, so one lost on the way costs nothing.
@@ -55,8 +56,14 @@ protected:
 private:
     // Where a pawn a player's machine decides was lately, to check how it moves.
     struct Track {
+        struct Point {
+            double time = 0.0;
+            Spot::Vector3 position;
+            // How fast it could go then (Pawn::GetSpeedLimit()).
+            float limit = 0.0f;
+        };
         std::uint32_t teleports = 0;
-        std::deque<std::pair<double, Spot::Vector3>> path;
+        std::deque<Point> path;
     };
 
     void Bind(Spot::NetworkSystem& system);

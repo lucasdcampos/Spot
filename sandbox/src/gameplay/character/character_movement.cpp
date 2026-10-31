@@ -105,7 +105,11 @@ void CharacterMovement::OnPlayerInput(PlayerController& player) {
         m_input.SetActions(actions);
     }
     m_input.Activate(&player);
-    SetIntent(controls.Read(m_input));
+    CharacterIntent intent = controls.Read(m_input);
+    // Flying through everything is a cheat, as the console's noclip: only where the console permits cheats, as alone
+    // or on the host, never on a session's clients.
+    intent.noclip = intent.noclip && Spot::Console::Get().AreCheatsEnabled();
+    SetIntent(intent);
 }
 
 void CharacterMovement::SerializeIntent(Spot::Archive& archive) {

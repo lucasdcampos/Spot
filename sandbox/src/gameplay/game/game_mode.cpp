@@ -270,7 +270,6 @@ void GameMode::Serialize(Spot::Archive& archive) {
     archive.Field("description", description);
     archive.Field("order", order);
     archive.Field("allowsTimeScale", allowsTimeScale);
-    archive.Field("allowsNoclip", allowsNoclip, {.tooltip = "Whether players may fly through everything"});
     archive.Field("respawnTime", respawnTime, {.min = 0.0f, .max = 60.0f, .speed = 0.1f});
     archive.Field("fallHeight", fallHeight, {.tooltip = "Below this height, a player's pawn returns to its start"});
     archive.Field("playerPrefab", playerPrefab, {.tooltip = "The pawn of a player who has none"});
